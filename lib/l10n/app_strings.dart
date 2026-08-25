@@ -29,6 +29,7 @@ class AppStrings {
   static String get commonLater => '稍后';
   static String get commonUndo => '撤销';
   static String get commonRedo => '重做';
+  static String get commonCollapse => '收起';
   static String get commonNavLearn => '学习';
   static String get commonNavPlay => '练习';
   static String get commonNavProfile => '我的';
@@ -379,7 +380,7 @@ class AppStrings {
   static String settingsTtsPlaying(String userLabel) => '正在播放：$userLabel';
   static String get settingsTextSizeTitle => '文字大小';
   static String get settingsTextSizeSubtitle => '全局放大文字';
-  static String settingsTextSizeValue(int textScale) => '${textScale}%';
+  static String settingsTextSizeValue(int textScale) => '$textScale%';
   static String get settingsReduceMotionTitle => '减弱动态效果';
   static String get settingsReduceMotionSubtitle => '缩短或禁用动画与过渡';
   static String get settingsHighContrastTitle => '高对比度';
@@ -876,7 +877,7 @@ class AppStrings {
       '$correctCount / $totalCount';
   static String get lessonBackToCourses => '返回课程';
   static String get lessonAccuracy => '正确率';
-  static String lessonPercentValue(int percent) => '${percent}%';
+  static String lessonPercentValue(int percent) => '$percent%';
   static String lessonQuestionResult(int index, String prompt) =>
       '$index. $prompt';
   static String lessonQuestionAnswer(String correctAnswer) =>
@@ -886,9 +887,9 @@ class AppStrings {
           int correct, int total, int accuracyPercent) =>
       '你答对 $correct / $total（$accuracyPercent%）。需要 80% 才能通过。再试一次！';
   static String get lessonTryAgain => '再试一次';
-  static String lessonDurationSeconds(int seconds) => '${seconds}秒';
+  static String lessonDurationSeconds(int seconds) => '$seconds秒';
   static String lessonDurationMinutes(int minutes, int seconds) =>
-      '${minutes}分${seconds}秒';
+      '$minutes分$seconds秒';
   static String get lessonAiHelperTooltip => 'AI 课程助手';
   static String get lessonAiHintTooltip => 'AI 提示';
   static String get lessonNoContent => '无内容';
@@ -1220,10 +1221,10 @@ class AppStrings {
   static String get ankiStepImport => '导入中';
   static String get ankiStepDone => '完成';
   static String get ankiParsing => '正在解析 Anki 集合…';
-  static String ankiImportUnavailable([String? reason]) => reason == null ||
-          reason.isEmpty
-      ? '当前平台或构建无法导入 Anki 牌组'
-      : '当前无法导入 Anki 牌组（$reason）';
+  static String ankiImportUnavailable([String? reason]) =>
+      reason == null || reason.isEmpty
+          ? '当前平台或构建无法导入 Anki 牌组'
+          : '当前无法导入 Anki 牌组（$reason）';
 
   static String get ankiCollectionSummary => '集合概要';
   static String get ankiDecksLabel => '牌组';
@@ -1242,10 +1243,26 @@ class AppStrings {
   static String get ankiDeckStructure => '牌组结构';
   static String ankiDeckCardCount(int cardCount) => '$cardCount 张卡片';
   static String get ankiNotetypeMapping => '自动识别结果';
-  static String get ankiMappingOverrideHint => '点按可手动调整识别结果';
+  static String get ankiMappingOverrideHint => '识别有误？点按卡片类型可手动调整';
   static String get ankiMappingAutoChoiceHint =>
       '同一笔记类型中的单选/多选会按每张卡的题面与答案分别判断。';
+  // Plain-language recognition states (no confidence percentages/sources):
+  // green check = auto-recognized, orange warning = worth a manual look.
+  static String get ankiMappingRecognizedAuto => '已自动识别';
+  static String get ankiMappingNeedsCheck => '建议检查';
+  static String get ankiMappingMustFix => '需要调整';
+  static String get ankiMappingViewAll => '查看全部';
+  static String ankiMappingSummaryAll(int typeCount) =>
+      '已识别 $typeCount 类卡片，系统会保留原卡片的正反面和内容。';
+  static String ankiMappingSummaryNeedsCheck(int autoCount, int checkCount) =>
+      '已识别 $autoCount 类卡片，另有 $checkCount 类建议确认。';
+  static String ankiMappingSummaryBlocking(int count) =>
+      '有 $count 类卡片缺少题目或答案，需要先调整。';
+  static String get ankiMappingFixBlocking => '请先调整或跳过标红的卡片类型';
+  static String get ankiAdvancedOptionsTitle => '高级选项';
+  static String get ankiAdvancedOptionsHint => '重复卡片处理、分组方式等，一般无需改动';
   static String get ankiAiIdentify => 'AI 智能识别';
+  static String get ankiAiRetry => '重新识别';
   static String get ankiAiIdentifying => 'AI 识别中…';
   static String get ankiAiNotConfiguredMessage =>
       '未配置 AI，无法智能识别。请先在「设置 > AI 工具」中配置 AI API。';
@@ -1254,24 +1271,27 @@ class AppStrings {
   static String get ankiNotetypeFields => '字段';
   static String get ankiNotetypeSampleFront => '正面';
   static String get ankiNotetypeSampleBack => '背面';
-  static String get ankiMappingTypeAnkiCard => '翻面卡';
-  static String get ankiMappingTypeWordEntry => '词汇（可出单选）';
-  static String get ankiMappingTypeExpression => '表达/句子';
-  static String get ankiMappingTypeCloze => 'Cloze 填空';
+  static String get ankiMappingTypeAnkiCard => '正面与答案';
+  static String get ankiMappingTypeWordEntry => '单词与释义';
+  static String get ankiMappingTypeExpression => '句子与翻译';
+  static String get ankiMappingTypeCloze => '填空卡';
   static String get ankiMappingTypeMultipleChoice => '单选题';
   static String get ankiMappingTypeMultiSelect => '多选题';
-  static String get ankiMappingTypeAutoChoice => '选择题（逐卡自动识别单选/多选）';
-  static String get ankiMappingTypeFillBlank => '填空题';
+  static String get ankiMappingTypeAutoChoice => '选择答案';
+  static String get ankiMappingTypeFillBlank => '输入答案';
   static String get ankiMappingTypeTypeAnswer => '打字题';
-  static String get ankiMappingTypeListenPick => '听力选择';
-  static String get ankiMappingEditTitle => '编辑识别结果';
+  static String get ankiMappingTypeListenPick => '听声音选答案';
+  static String get ankiMappingEditTitle => '确认卡片';
   static String get ankiMappingEditTooltip => '编辑识别结果';
   static String get ankiMappingFieldType => '卡片类型';
-  static String get ankiMappingFieldFront => '正面字段';
-  static String get ankiMappingFieldBack => '背面字段';
+  static String get ankiMappingFieldFront => '题目字段';
+  static String get ankiMappingFieldBack => '答案字段';
   static String get ankiMappingFieldsAutoHint => '该类型字段由系统逐卡自动识别，无需手动选择。';
   static String get ankiMappingResetAuto => '恢复自动识别';
   static String get ankiMappingReason => '识别依据';
+  static String get ankiMappingSwapSides => '交换题目和答案';
+  static String get ankiMappingMoreAdjustments => '更多调整';
+  static String get ankiMappingConfirmCorrect => '确认正确';
   static String get ankiOrganizationTitle => '组织结构';
   static String get ankiDetectedUnits => '识别到的单元';
   static String get ankiDetectedLessons => '识别到的课时';
@@ -1329,7 +1349,8 @@ class AppStrings {
   static String get ankiPreparingImport => '正在准备导入…';
   static String get ankiImportingOfficialFirst => '正在导入到官方 Anki 集合…';
   static String get ankiOfficialPreviewBody => '官方 Anki 集合导入完成，确认映射后生成课程树。';
-  static String get ankiOfficialMappingHint => '点按可调整字段映射；直接开始导入将采用推荐映射。';
+  static String get ankiOfficialMappingHint =>
+      '一般无需调整，直接开始导入即可；想查看或修改字段对应关系可点按。';
   static String get ankiOfficialDedupeHint => '重复导入同一文件会自动跳过（按文件哈希去重）。';
   static String get ankiOfficialNeedsMapping => '有笔记类型尚未确认映射，请先完成映射。';
   static String get ankiOfficialMappingConfirmed => '已确认';
@@ -1382,6 +1403,8 @@ class AppStrings {
   static String get ankiUninstallConfirmTitle => '移除此牌组？';
   static String get ankiUninstallConfirmBody => '将删除该牌组的卡片、复习进度和媒体文件，此操作无法撤销。';
   static String get ankiDeckRemoved => '牌组已移除';
+  static String get ankiDeckRemovalPending => '牌组正在清理，重启应用后会自动重试';
+  static String get ankiDeckRemovalFailed => '牌组移除未完成，请稍后重试';
   static String get ankiShowAnswer => '显示答案';
   static String get ankiShowAnswerFlip => '显示答案 / 翻面';
   static String get ankiBuryCard => '暂缓卡片';
@@ -1400,8 +1423,7 @@ class AppStrings {
   static String get ankiCorruptDeck => '文件已损坏或不是有效的 Anki 牌组';
   static String get anki21bTreeDeferred => '已导入官方牌组；练习课稍后再生成';
   static String get ankiImportFailedHuman => '导入失败，请重试';
-  static String get ankiAdvancedFidelityTitle =>
-      'Anki 保真 / 解密（仅旧版导入源）';
+  static String get ankiAdvancedFidelityTitle => 'Anki 保真 / 解密（仅旧版导入源）';
   static String get ankiAdvancedFidelitySubtitle => '仅旧版导入源生效';
 
   // ── Courses ──
@@ -1520,8 +1542,8 @@ class AppStrings {
   static String get profileXpToday => '今日经验';
   static String get profileStudyTime => '学习时长';
   static String get profileAccuracy => '正确率';
-  static String profileStudyTimeValue(int minutes) => '${minutes}分';
-  static String profileAccuracyValue(int accuracy) => '${accuracy}%';
+  static String profileStudyTimeValue(int minutes) => '$minutes分';
+  static String profileAccuracyValue(int accuracy) => '$accuracy%';
   static String get profileLast7Days => '最近 7 天';
   static String get profileTotalStudyTime => '总学习时长';
   static String get profileOverallAccuracy => '总正确率';
@@ -1596,7 +1618,7 @@ class AppStrings {
 
   static String get profileMemoryCurveTitle => '记忆曲线';
   static String get profileRetention => '保留率';
-  static String profileRetentionValue(int retention) => '${retention}%';
+  static String profileRetentionValue(int retention) => '$retention%';
   static String get profileForecastTitle => '即将复习';
   static String get profileDueToday => '今日到期';
   static String get profileDue7Days => '7 天内';
@@ -1614,11 +1636,11 @@ class AppStrings {
 
   static String profileReviewsCount(int count) => '$count 次复习';
   static String get profileMemoryCurveEmpty => '复习一些卡片即可查看记忆曲线。';
-  static String srsPreviewKnown(int days) => '认识 · 约 ${days}天';
+  static String srsPreviewKnown(int days) => '认识 · 约 $days天';
   static String get srsPreviewUnknown => '不认识 · 10 分钟';
   static String profileTotalStudyTimeValue(int totalMinutes) =>
-      '${totalMinutes}分';
-  static String profileOverallAccuracyValue(int accuracy) => '${accuracy}%';
+      '$totalMinutes分';
+  static String profileOverallAccuracyValue(int accuracy) => '$accuracy%';
   static String get profileStatisticsTitle => '统计';
   static String get profileDayStreak => '连续天数';
   static String get profileTotalXp => '总经验值';

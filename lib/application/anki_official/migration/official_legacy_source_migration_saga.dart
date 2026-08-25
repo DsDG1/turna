@@ -11,6 +11,7 @@ import 'package:turna/application/anki_official/migration/official_anki_dry_run_
 import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_state.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
+import 'package:turna/application/anki/card_introduction_eligibility.dart';
 import 'package:turna/data/anki_owner_authority_dao.dart';
 
 /// Census / reconciler status that may enter the W8 single-source saga.
@@ -19,6 +20,12 @@ const kCleanLegacyCensusStatus = 'cleanLegacy';
 /// Marker written into [LegacyAnkiMigrationRow] error fields when the shadow
 /// Legacy rows are scheduled for post-release cleanup (doc 34 §12.4 last step).
 const kLegacyShadowCleanupAfterRelease = 'cleanup-after-release';
+
+class OfficialAnkiMigrationNeedsUserAction implements Exception {
+  const OfficialAnkiMigrationNeedsUserAction(this.reason);
+
+  final String reason;
+}
 
 /// Next journal action for [OfficialLegacySourceMigrationSaga.resume].
 enum OfficialLegacyMigrationResumeAction {
@@ -434,6 +441,16 @@ class OfficialLegacySourceMigrationSaga {
           next: LegacyAnkiMigrationState.verifying,
           nowMillis: now,
         );
+      } on OfficialAnkiMigrationNeedsUserAction catch (e) {
+        dao.transition(
+          migrationId: migrationId,
+          expected: LegacyAnkiMigrationState.projectingCourse,
+          next: LegacyAnkiMigrationState.needsUserAction,
+          nowMillis: now,
+          errorCode: 'official_anki.mapping_confirmation_required',
+          errorMessage: e.reason,
+        );
+        return false;
       } catch (e) {
         dao.transition(
           migrationId: migrationId,
@@ -611,7 +628,8 @@ class OfficialLegacySourceMigrationSaga {
     }
   }
 
-  String _courseIdFor(String officialSourceId) => 'course-$officialSourceId';
+  String _courseIdFor(String officialSourceId) =>
+      CardIntroductionEligibility.courseIdForOfficialSource(officialSourceId);
 
   /// Step 9 — single commit point: persist Official owner.
   ///
@@ -632,6 +650,7 @@ class OfficialLegacySourceMigrationSaga {
 
     final authority = authorityDao;
     final officialSourceId = row.officialSourceId;
+    OwnerTransitionRow? transition;
     if (authority != null) {
       if (officialSourceId == null || officialSourceId.isEmpty) {
         throw StateError(
@@ -641,26 +660,78 @@ class OfficialLegacySourceMigrationSaga {
       }
       final courseId = _courseIdFor(officialSourceId);
       final transitionId = 'tr-$migrationId';
-      try {
-        await authority.advancePhase(
+      final source = await authority.findByCourseId(courseId);
+      final ownerAlreadyCommitted = source?.isOfficialBackend == true &&
+          source?.writeFence == AnkiWriteFence.officialOnly;
+      if (!ownerAlreadyCommitted) {
+        try {
+          await authority.advancePhase(
+            transitionId: transitionId,
+            from: OwnerTransitionPhase.frozen,
+            to: OwnerTransitionPhase.committing,
+          );
+        } on OwnerAuthorityConflict {
+          // Resumed mid-commit: commitOwnership performs the final CAS.
+        }
+        await authority.commitOwnership(
           transitionId: transitionId,
-          from: OwnerTransitionPhase.frozen,
-          to: OwnerTransitionPhase.committing,
+          courseId: courseId,
+          legacyCourseId: CardIntroductionEligibility.courseIdForLegacyImport(
+            row.legacyImportId,
+          ),
         );
-      } on OwnerAuthorityConflict {
-        // Resumed mid-commit: the CAS in commitOwnership re-verifies.
       }
-      await authority.commitOwnership(
-        transitionId: transitionId,
-        courseId: courseId,
-      );
+      transition = await authority.transitionById(transitionId);
     }
 
+    try {
+      dao.atomicCutoverTransition(
+        migrationId: migrationId,
+        officialMutationCountAtCutover: officialMutationCountAtCutover,
+        nowMillis: now,
+        onTransaction: onCutover,
+      );
+    } catch (_) {
+      if (authority != null &&
+          transition?.phase == OwnerTransitionPhase.observing) {
+        await authority.advancePhase(
+          transitionId: transition!.transitionId,
+          from: OwnerTransitionPhase.observing,
+          to: OwnerTransitionPhase.recoveringForward,
+          errorCode: 'official_anki.catalog_mirror_failed',
+        );
+      }
+      rethrow;
+    }
+  }
+
+  /// Replays only the catalog mirror after CourseDatabase has already
+  /// committed Official ownership. It never re-imports or regresses the
+  /// `officialOnly` write fence.
+  Future<void> recoverForwardMirror({
+    required String migrationId,
+    int? nowMillis,
+  }) async {
+    final authority = authorityDao;
+    if (authority == null) {
+      throw StateError('forward recovery requires owner authority');
+    }
+    final row = _requireRow(migrationId);
+    _requireState(row, {LegacyAnkiMigrationState.failedRecoverable});
+    final sourceId = row.officialSourceId;
+    if (sourceId == null || sourceId.isEmpty) {
+      throw StateError('forward recovery requires an official source id');
+    }
+    final source = await authority.findByCourseId(_courseIdFor(sourceId));
+    if (source?.isOfficialBackend != true ||
+        source?.writeFence != AnkiWriteFence.officialOnly) {
+      throw StateError('forward recovery requires committed Official owner');
+    }
     dao.atomicCutoverTransition(
       migrationId: migrationId,
-      officialMutationCountAtCutover: officialMutationCountAtCutover,
-      nowMillis: now,
-      onTransaction: onCutover,
+      officialMutationCountAtCutover: row.officialMutationCountAtCutover,
+      nowMillis: nowMillis ?? DateTime.now().millisecondsSinceEpoch,
+      expected: LegacyAnkiMigrationState.failedRecoverable,
     );
   }
 
@@ -675,17 +746,47 @@ class OfficialLegacySourceMigrationSaga {
     _requireState(row, {LegacyAnkiMigrationState.cutover});
 
     if (smokeAction != null) {
-      final ok = await smokeAction();
+      var failure = 'Official due/review smoke failed after cutover';
+      var ok = false;
+      try {
+        ok = await smokeAction();
+      } catch (error) {
+        failure = 'Official due/review smoke threw: $error';
+      }
       if (!ok) {
+        final authority = authorityDao;
+        if (authority != null) {
+          final transition = await authority.transitionById('tr-$migrationId');
+          if (transition?.phase == OwnerTransitionPhase.observing) {
+            await authority.advancePhase(
+              transitionId: transition!.transitionId,
+              from: OwnerTransitionPhase.observing,
+              to: OwnerTransitionPhase.recoveringForward,
+              errorCode: 'official_anki.smoke_failed',
+            );
+          }
+        }
         dao.transition(
           migrationId: migrationId,
           expected: LegacyAnkiMigrationState.cutover,
           next: LegacyAnkiMigrationState.failedRecoverable,
           nowMillis: now,
           errorCode: 'official_anki.smoke_failed',
-          errorMessage: 'Official due/review smoke failed after cutover',
+          errorMessage: failure,
         );
         return false;
+      }
+    }
+
+    final authority = authorityDao;
+    if (authority != null) {
+      final transition = await authority.transitionById('tr-$migrationId');
+      if (transition?.phase == OwnerTransitionPhase.recoveringForward) {
+        await authority.advancePhase(
+          transitionId: transition!.transitionId,
+          from: OwnerTransitionPhase.recoveringForward,
+          to: OwnerTransitionPhase.observing,
+        );
       }
     }
 
@@ -699,10 +800,10 @@ class OfficialLegacySourceMigrationSaga {
   }
 
   /// Step 11 — mark Legacy shadow for cleanup-after-release (not physical delete).
-  void markLegacyShadowCleanupAfterRelease({
+  Future<void> markLegacyShadowCleanupAfterRelease({
     required String migrationId,
     int? nowMillis,
-  }) {
+  }) async {
     final now = nowMillis ?? DateTime.now().millisecondsSinceEpoch;
     final row = _requireRow(migrationId);
     _requireState(row, {LegacyAnkiMigrationState.observing});
@@ -716,6 +817,17 @@ class OfficialLegacySourceMigrationSaga {
       errorMessage:
           'Legacy shadow retained until one formal release observation (W9 HOLD)',
     );
+    final authority = authorityDao;
+    if (authority != null) {
+      final transition = await authority.transitionById('tr-$migrationId');
+      if (transition?.phase == OwnerTransitionPhase.observing) {
+        await authority.advancePhase(
+          transitionId: transition!.transitionId,
+          from: OwnerTransitionPhase.observing,
+          to: OwnerTransitionPhase.complete,
+        );
+      }
+    }
   }
 
   /// Journal resume: map persisted state → next §12.4 action.

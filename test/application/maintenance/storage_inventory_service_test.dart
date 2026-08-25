@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
@@ -31,12 +32,11 @@ void main() {
   });
 
   tearDown(() async {
-    final mediaNames =
-        Directory('${Directory.systemTemp.path}/anki_media')
-            .listSync(followLinks: false)
-            .whereType<Directory>()
-            .where((d) => d.path.contains(stamp))
-            .toList();
+    final mediaNames = Directory('${Directory.systemTemp.path}/anki_media')
+        .listSync(followLinks: false)
+        .whereType<Directory>()
+        .where((d) => d.path.contains(stamp))
+        .toList();
     for (final dir in mediaNames) {
       try {
         dir.deleteSync(recursive: true);
@@ -49,10 +49,22 @@ void main() {
   String dirName(String id) => '$stamp-$id';
 
   Future<void> writeMediaFile(String id, String name, int bytes) async {
-    final dir = Directory(
-        '${Directory.systemTemp.path}/anki_media/${dirName(id)}');
+    final dir =
+        Directory('${Directory.systemTemp.path}/anki_media/${dirName(id)}');
     await dir.create(recursive: true);
     await File('${dir.path}/$name').writeAsBytes(List.filled(bytes, 1));
+  }
+
+  /// Seed the course-tree section row that makes a legacy import "visible"
+  /// — ownership now requires both the import row and a live section.
+  Future<void> seedDeckSection(String id) async {
+    await db.into(db.sections).insert(
+          SectionsCompanion(
+            id: Value('anki-${dirName(id)}-s1'),
+            name: Value('Deck $id'),
+            sortOrder: const Value(1),
+          ),
+        );
   }
 
   test('attributes every media dir to its owner and flags orphans', () async {
@@ -63,27 +75,48 @@ void main() {
       sourceHash: 'hash-owned',
       importedAt: 1,
     ));
+    await seedDeckSection('owned');
     await writeMediaFile('owned', 'a.mp3', 100);
     await writeMediaFile('ghost', 'b.mp3', 50);
 
     final report = await const StorageInventoryService().scan();
 
     final mediaDirs = report.mediaDirsByOwner;
-    final owned =
-        mediaDirs.singleWhere((a) => a.ownerId == dirName('owned'));
+    final owned = mediaDirs.singleWhere((a) => a.ownerId == dirName('owned'));
     expect(owned.orphaned, isFalse);
     expect(owned.physicalBytes, 100);
     expect(owned.fileCount, 1);
     expect(owned.cleanupPolicy, StorageCleanupPolicy.deleteSaga,
         reason: 'owned media is user data; only the delete saga removes it');
 
-    final ghost =
-        mediaDirs.singleWhere((a) => a.ownerId == dirName('ghost'));
+    final ghost = mediaDirs.singleWhere((a) => a.ownerId == dirName('ghost'));
     expect(ghost.orphaned, isTrue,
         reason: 'a media dir without an import row is an orphan');
     expect(ghost.physicalBytes, 50);
     expect(ghost.cleanupPolicy, StorageCleanupPolicy.confirmOnly,
         reason: 'orphans need explicit confirmation, never auto-delete');
+  });
+
+  test('a staging import row owns media before course visibility commit',
+      () async {
+    // Commit-last imports intentionally have a durable import row before
+    // their course tree is visible. Inventory must use exact ownership,
+    // otherwise a valid staging directory is offered as an orphan cleanup.
+    final importDao = AnkiImportDao(db);
+    await importDao.upsert(AnkiImportRecord(
+      importId: dirName('stuck'),
+      sourcePath: '/tmp/s.apkg',
+      sourceHash: 'hash-stuck',
+      importedAt: 1,
+    ));
+    await writeMediaFile('stuck', 's.mp3', 20);
+
+    final report = await const StorageInventoryService().scan();
+
+    final stuck = report.mediaDirsByOwner
+        .singleWhere((a) => a.ownerId == dirName('stuck'));
+    expect(stuck.orphaned, isFalse);
+    expect(stuck.cleanupPolicy, StorageCleanupPolicy.deleteSaga);
   });
 
   test('reports database file/wal/freelist and cache categories', () async {
@@ -120,8 +153,8 @@ void main() {
 
     final report = await const StorageInventoryService().scan();
 
-    final official = report.artifacts
-        .singleWhere((a) => a.ownerId == profileId);
+    final official =
+        report.artifacts.singleWhere((a) => a.ownerId == profileId);
     expect(official.category, StorageArtifactCategory.officialAnki);
     expect(official.physicalBytes, 4096);
     expect(official.fileCount, 1);

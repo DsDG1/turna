@@ -110,7 +110,7 @@ void main() {
     // contract instead by registering on a fresh provider set.
     final dao = SrsStateDao(CourseDatabase(NativeDatabase.memory()));
     final srs = SrsProvider(appPrefs, LessonLinkStore(appPrefs), dao);
-    srs.registerItem('w1'); // a new card → actionableTotal > 0
+    srs.registerWord('w1'); // a new card → actionableTotal > 0
     final grammar =
         GrammarReviewProvider(appPrefs, LessonLinkStore(appPrefs), dao);
     final repoWithCards = ReviewDashboardRepository(

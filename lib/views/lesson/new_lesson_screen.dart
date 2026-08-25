@@ -36,7 +36,7 @@ import 'package:turna/views/theme.dart';
 class NewLessonPage extends StatefulWidget {
   final String lessonId;
 
-  const NewLessonPage({Key? key, required this.lessonId}) : super(key: key);
+  const NewLessonPage({super.key, required this.lessonId});
 
   @override
   State<NewLessonPage> createState() => _NewLessonPageState();
@@ -174,7 +174,7 @@ class _NewLessonPageState extends State<NewLessonPage> {
     );
     hintProvider.setLearnerContext(learner.isEmpty ? null : learner);
 
-    if (!mounted) return;
+    if (!context.mounted) return;
     unawaited(hintProvider.explainQuestion(config: config, ctx: ctx));
 
     await showModalBottomSheet<void>(
@@ -207,7 +207,7 @@ class _NewLessonPageState extends State<NewLessonPage> {
     final helperProvider = context.read<AiLessonHelperProvider>();
     helperProvider.setLesson(lesson);
 
-    if (!mounted) return;
+    if (!context.mounted) return;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -398,7 +398,6 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
                 ),
               ),
             ],
-
           ],
         ),
         centerTitle: true,

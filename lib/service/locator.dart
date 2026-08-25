@@ -70,7 +70,7 @@ class AppPrefs {
   final Preference<LocalUser> authUser;
   final Preference<String> currentLanguage;
 
-  /// Active course scope: '' = built-in course, 'anki:<importId>' = one
+  /// Active course scope: '' = built-in course, `anki:<importId>` = one
   /// imported Anki deck. See [CourseProvider.courseScope].
   final Preference<String> courseScope;
 
@@ -132,7 +132,7 @@ class PrefsConstants {
   static const String courseScope = 'courseScope';
 
   /// Persisted course order for the course-management page: a list of course
-  /// scopes ('' = built-in course, 'anki:<importId>' = one deck).
+  /// scopes ('' = built-in course, `anki:<importId>` = one deck).
   static const String courseOrder = 'courseOrder';
 }
 

@@ -162,10 +162,10 @@ class AchievementNearestCard extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Text(
-                '${AppStrings.achievementsTierProgress(
+                AppStrings.achievementsTierProgress(
                   progress.currentProgress,
                   nextTarget,
-                )}',
+                ),
                 style: Theme.of(context).textTheme.labelMedium?.copyWith(
                       color: accent,
                       fontWeight: FontWeight.w700,

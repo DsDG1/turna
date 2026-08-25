@@ -545,6 +545,7 @@ class CourseRepository implements ICourseRepository {
         .replaceOfficialProjection(sourceId: sourceId, plan: plan);
   }
 
+  @override
   Future<void> deleteOfficialProjection(String sourceId) {
     return OfficialAnkiCourseProjectionStore(database)
         .deleteOfficialProjection(sourceId);

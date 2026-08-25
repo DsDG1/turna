@@ -7,7 +7,7 @@ import 'package:turna/views/app_fonts.dart';
 import 'package:turna/views/theme.dart';
 
 class OnboardingScreen extends StatefulWidget {
-  const OnboardingScreen({Key? key}) : super(key: key);
+  const OnboardingScreen({super.key});
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();

@@ -1,5 +1,5 @@
 name: turna
-version: 0.7.1+2
+version: 0.7.2+3
 publish_to: 'none'
 environment:
   sdk: ">=3.2.3 <4.0.0"

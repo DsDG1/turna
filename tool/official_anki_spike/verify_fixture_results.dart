@@ -86,9 +86,9 @@ int _checkAssertions(
           '${c['questionHtml']}\n${c['answerHtml']}\n${c['css']}')
       .join('\n');
   for (final raw in (pkg['assertions'] as List<dynamic>).cast<String>()) {
-    final prefix = 'question-contains:';
-    final answer = 'answer-contains:';
-    final css = 'css-contains:';
+    const prefix = 'question-contains:';
+    const answer = 'answer-contains:';
+    const css = 'css-contains:';
     if (raw.startsWith(prefix) &&
         !cards.any((c) => (c['questionHtml'] as String).contains(raw.substring(prefix.length)))) {
       stderr.writeln('$rel missing $raw');

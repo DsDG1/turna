@@ -90,7 +90,7 @@ void main() {
   });
 
   test('applyPlanToSection returns null for skip', () {
-    final plan = const SectionImportPlan(
+    const plan = SectionImportPlan(
       index: 0,
       sourceId: 'tb-a',
       targetId: 'tb-a',

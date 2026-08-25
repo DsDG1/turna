@@ -56,10 +56,46 @@ class AnkiDeckStatsPage extends StatelessWidget {
                     if (officialSnap.metricsProven) ...[
                       const SizedBox(height: 12),
                       _MetricCard(
-                        title: '今日新卡 / 复习（Official scheduler）',
-                        value:
-                            '${officialSnap.newCount ?? 0} / ${officialSnap.reviewCount ?? 0}',
+                        title: '卡片状态（新卡 / 学习 / 复习）',
+                        value: '${officialSnap.newCount ?? 0} / '
+                            '${officialSnap.learningCount ?? 0} / '
+                            '${officialSnap.reviewCount ?? 0}',
+                        icon: Icons.layers_outlined,
+                      ),
+                      const SizedBox(height: 12),
+                      _MetricCard(
+                        title: '暂停 / 埋藏',
+                        value: '${officialSnap.suspendedCount ?? 0} / '
+                            '${officialSnap.buriedCount ?? 0}',
+                        icon: Icons.pause_circle_outline,
+                      ),
+                      const SizedBox(height: 12),
+                      _MetricCard(
+                        title: '今日作答（学习 / 复习 / 重学）',
+                        value: '${officialSnap.todayAnswerCount ?? 0} 次 · '
+                            '${officialSnap.todayLearnCount ?? 0} / '
+                            '${officialSnap.todayReviewCount ?? 0} / '
+                            '${officialSnap.todayRelearnCount ?? 0}',
                         icon: Icons.today_outlined,
+                      ),
+                      const SizedBox(height: 12),
+                      _ForecastCard(
+                        forecast: Forecast(
+                          dueToday: officialSnap.forecastDueToday ?? 0,
+                          due7Days: officialSnap.forecastDue7Days ?? 0,
+                          due30Days: officialSnap.forecastDue30Days ?? 0,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      _MetricCard(
+                        title: '复习记录 / True retention',
+                        value: officialSnap.retentionSample == 0
+                            ? '${officialSnap.revlogCount ?? 0} 次 · 暂无有效保持率样本'
+                            : '${officialSnap.revlogCount ?? 0} 次 · '
+                                '${((officialSnap.retention ?? 0) * 100).round()}% '
+                                '(${officialSnap.retentionPassed}/'
+                                '${officialSnap.retentionSample})',
+                        icon: Icons.track_changes,
                       ),
                     ],
                     const SizedBox(height: 12),
@@ -70,8 +106,8 @@ class AnkiDeckStatsPage extends StatelessWidget {
                         title: const Text('Official 统计语义'),
                         subtitle: Text(
                           officialSnap.metricsProven
-                              ? '牌组计数来自 Official scheduler；不使用 Turna FSRS 伪装保持率。'
-                              : '本页只展示 catalog 卡片总数。没有 scheduler 计数时不宣称保持率或预报。',
+                              ? '状态、预报和保持率来自 Official collection 的精确 source card 集合。'
+                              : 'Official 指标不可用（${officialSnap.note}）；仅 catalog 卡片总数可信，未把失败显示成 0。',
                           style: TextStyle(
                             color: TurnaTheme.textHintColor(context),
                           ),
@@ -83,57 +119,60 @@ class AnkiDeckStatsPage extends StatelessWidget {
               },
             )
           : FutureBuilder<MemoryCurveSnapshot>(
-        future:
-            context.read<MemoryCurveProvider>().snapshotForImportId(importId),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('统计加载失败：${snapshot.error}'));
-          }
-          final data = snapshot.data;
-          if (data == null || data.totalCards == 0) {
-            return const Center(child: Text('这个牌组还没有可用统计数据'));
-          }
-          return ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              _MetricCard(
-                title: '当前保持率',
-                value: '${(data.currentRetention * 100).round()}%',
-                icon: Icons.track_changes,
-              ),
-              const SizedBox(height: 12),
-              _ForecastCard(forecast: data.forecast),
-              const SizedBox(height: 12),
-              _MetricCard(
-                title: '复习记录',
-                value:
-                    '${data.totalReviews} 次 · ${data.trackedCards}/${data.totalCards} 张已复习',
-                icon: Icons.history,
-              ),
-              if (data.retentionByInterval.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('按间隔保持率',
-                            style: TextStyle(fontWeight: FontWeight.w700)),
-                        const SizedBox(height: 12),
-                        RetentionCurveChart(curve: data.retentionByInterval),
-                      ],
+              future: context
+                  .read<MemoryCurveProvider>()
+                  .snapshotForImportId(importId),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(child: Text('统计加载失败：${snapshot.error}'));
+                }
+                final data = snapshot.data;
+                if (data == null || data.totalCards == 0) {
+                  return const Center(child: Text('这个牌组还没有可用统计数据'));
+                }
+                return ListView(
+                  padding: const EdgeInsets.all(20),
+                  children: [
+                    _MetricCard(
+                      title: '当前保持率',
+                      value: '${(data.currentRetention * 100).round()}%',
+                      icon: Icons.track_changes,
                     ),
-                  ),
-                ),
-              ],
-            ],
-          );
-        },
-      ),
+                    const SizedBox(height: 12),
+                    _ForecastCard(forecast: data.forecast),
+                    const SizedBox(height: 12),
+                    _MetricCard(
+                      title: '复习记录',
+                      value:
+                          '${data.totalReviews} 次 · ${data.trackedCards}/${data.totalCards} 张已复习',
+                      icon: Icons.history,
+                    ),
+                    if (data.retentionByInterval.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('按间隔保持率',
+                                  style:
+                                      TextStyle(fontWeight: FontWeight.w700)),
+                              const SizedBox(height: 12),
+                              RetentionCurveChart(
+                                  curve: data.retentionByInterval),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                );
+              },
+            ),
     );
   }
 }

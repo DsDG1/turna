@@ -23,6 +23,15 @@ abstract class LegacyAnkiIdentifiers {
     return '';
   }
 
+  static String importIdFromWordPrefix(String prefix) {
+    if (!prefix.startsWith(ankiPrefix)) return '';
+    final value = prefix.substring(ankiPrefix.length);
+    if (value.endsWith('-')) {
+      return value.substring(0, value.length - 1);
+    }
+    return importIdFromWordId(prefix);
+  }
+
   static String importIdFromSectionId(String sectionId) {
     if (sectionId.startsWith('official-anki-')) {
       final sIdx = sectionId.lastIndexOf('-s');
@@ -38,4 +47,3 @@ abstract class LegacyAnkiIdentifiers {
     return '';
   }
 }
-

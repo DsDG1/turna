@@ -142,7 +142,8 @@ WHERE source_id = ? AND state = ?
   }) {
     _db.execute('BEGIN');
     try {
-      _db.execute('DELETE FROM anki_source_cards WHERE source_id = ?', [sourceId]);
+      _db.execute(
+          'DELETE FROM anki_source_cards WHERE source_id = ?', [sourceId]);
       final stmt = _db.prepare(
         'INSERT INTO anki_source_cards '
         '(source_id, card_id, note_id, deck_id, note_guid, template_ord) '
@@ -297,6 +298,24 @@ WHERE source_id = ? AND state = ?
           ),
         )
         .toList();
+  }
+
+  /// Card ids associated with [sourceId] that are also associated with a
+  /// sibling source. Source uninstall must retain these collection cards;
+  /// the catalog's `(source_id, card_id)` key deliberately permits sharing.
+  Set<int> sharedCardIds(String sourceId) {
+    return _db
+        .select(
+          'SELECT DISTINCT mine.card_id FROM anki_source_cards mine '
+          'WHERE mine.source_id = ? AND EXISTS ('
+          '  SELECT 1 FROM anki_source_cards sibling '
+          '  WHERE sibling.card_id = mine.card_id '
+          '    AND sibling.source_id <> mine.source_id'
+          ')',
+          [sourceId],
+        )
+        .map((row) => (row['card_id'] as num).toInt())
+        .toSet();
   }
 
   List<OfficialAnkiSourceRow> listSources(String profileId) {

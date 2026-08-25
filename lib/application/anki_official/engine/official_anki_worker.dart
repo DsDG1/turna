@@ -11,7 +11,8 @@ class OfficialAnkiWorker implements OfficialAnkiEngine {
   OfficialAnkiWorker(this._inner);
 
   final OfficialAnkiEngine _inner;
-  final Queue<Future<void> Function()> _queue = Queue<Future<void> Function()>();
+  final Queue<Future<void> Function()> _queue =
+      Queue<Future<void> Function()>();
   bool _draining = false;
   bool _disposed = false;
   String? _openProfileId;
@@ -301,6 +302,21 @@ class OfficialAnkiWorker implements OfficialAnkiEngine {
   @override
   Future<int> deleteNotes(List<int> noteIds) {
     return _enqueue(() => _inner.deleteNotes(noteIds));
+  }
+
+  @override
+  Future<int> deleteCards(List<int> cardIds) {
+    return _enqueue(() => _inner.deleteCards(cardIds));
+  }
+
+  @override
+  Future<OfficialAnkiStatsBatch> statsForCardsBatch(List<int> cardIds) {
+    return _enqueue(() => _inner.statsForCardsBatch(cardIds));
+  }
+
+  @override
+  Future<int> scheduleCardsAsNew(List<int> cardIds) {
+    return _enqueue(() => _inner.scheduleCardsAsNew(cardIds));
   }
 
   @override

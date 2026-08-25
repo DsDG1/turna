@@ -98,7 +98,7 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
           child: ReorderableListView(
             padding: const EdgeInsets.all(20),
             buildDefaultDragHandles: false,
-            onReorder: (oldIndex, newIndex) =>
+            onReorderItem: (oldIndex, newIndex) =>
                 _onReorder(context, entries, oldIndex, newIndex),
             children: [
               for (var i = 0; i < entries.length; i++)
@@ -158,6 +158,14 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
                     subtitle: AppStrings.homeNewCourseComingSoon,
                     onTap: () => _showNewCourseDialog(context),
                   ),
+                  _AddCourseTile(
+                    icon: Icons.sync_alt_rounded,
+                    title: 'Migrate Legacy Anki sources',
+                    subtitle:
+                        'Review differences, scheduling policy, and recovery',
+                    onTap: () => context.router
+                        .push(const OfficialAnkiMigrationCenterRoute()),
+                  ),
                 ],
               ),
             ),
@@ -174,10 +182,8 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
     int newIndex,
   ) async {
     final wires = [for (final e in entries) e.wireKey];
-    var target = newIndex;
-    if (target > oldIndex) target -= 1;
     final wire = wires.removeAt(oldIndex);
-    wires.insert(target, wire);
+    wires.insert(newIndex, wire);
     await context.read<CourseProvider>().persistCourseOrder(wires);
   }
 
@@ -234,14 +240,20 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
 
     // Uninstall with the COMPLETE source identity — never a truncated id.
     final deletionId = entry.officialSourceId ?? entry.legacyImportId!;
-    await getIt<AnkiDeckManager>().uninstall(deletionId);
+    var uninstallCompleted = false;
+    var uninstallFailed = false;
+    try {
+      uninstallCompleted = await getIt<AnkiDeckManager>().uninstall(deletionId);
+    } catch (e) {
+      uninstallFailed = true;
+      debugPrint('[CourseManagement] uninstall failed for $deletionId: $e');
+    }
     if (!context.mounted) return;
     final courseProvider = context.read<CourseProvider>();
     if (courseProvider.scope == entry.scope) {
       // The active scope pointed at the removed course — fall back to the
       // built-in course (setScope reloads the tree itself).
-      await courseProvider
-          .setScope(const BuiltinCourseScope('turkish'));
+      await courseProvider.setScope(const BuiltinCourseScope('turkish'));
     } else {
       await courseProvider.reloadCourse();
     }
@@ -251,7 +263,15 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
     );
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(AppStrings.ankiDeckRemoved)),
+      SnackBar(
+        content: Text(
+          uninstallFailed
+              ? AppStrings.ankiDeckRemovalFailed
+              : uninstallCompleted
+                  ? AppStrings.ankiDeckRemoved
+                  : AppStrings.ankiDeckRemovalPending,
+        ),
+      ),
     );
   }
 

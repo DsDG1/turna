@@ -129,8 +129,7 @@ class _AboutTab extends StatelessWidget {
             // narrow screens the cards flow onto extra lines instead of
             // overflowing (Plan §14.4).
             final screenWidth = MediaQuery.sizeOf(context).width;
-            final largeText =
-                MediaQuery.textScalerOf(context).textScaleFactor > 1.3;
+            final largeText = MediaQuery.textScalerOf(context).scale(1) > 1.3;
             final singleColumn = screenWidth < 560 || largeText;
             final cardWidth =
                 singleColumn ? double.infinity : (screenWidth - 32 - 20) / 3;

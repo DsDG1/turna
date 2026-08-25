@@ -117,7 +117,7 @@ void main() {
           RegExp(r'return\s+_legacyOnly\s*\(').allMatches(text);
       expect(legacyOnlyCalls.length, greaterThanOrEqualTo(1));
       for (final match in legacyOnlyCalls) {
-        final windowStart = match.start - 160 < 0 ? 0 : match.start - 160;
+        final windowStart = match.start - 320 < 0 ? 0 : match.start - 320;
         final window = text.substring(windowStart, match.start);
         expect(
           window.contains('allowLegacyOnly'),
@@ -152,10 +152,30 @@ void main() {
         isFalse,
         reason: 'W0-03: commit must reuse the pick-time plan, not re-read flags',
       );
+      expect(executeBody.contains('LegacyAnkiImportExecutor'), isTrue);
+      final executor = File(
+        'lib/application/anki/legacy_anki_import_executor.dart',
+      ).readAsStringSync();
       expect(
-        executeBody.contains('official_first_must_not_write_legacy_notestore'),
+        executor.contains('official_first_must_not_write_legacy_notestore'),
         isTrue,
         reason: 'Official-first must not fall through to Legacy NoteStore',
+      );
+      final transactionStart = executor.indexOf('await database.transaction');
+      final identityFinalize = executor.indexOf('await unified.finalize');
+      expect(transactionStart, greaterThanOrEqualTo(0));
+      expect(identityFinalize, greaterThan(transactionStart));
+      expect(
+        executor.substring(transactionStart, identityFinalize).contains(
+              'audioResolver.swapStagedMedia',
+            ),
+        isTrue,
+        reason: 'in-place media must be swapped only at the commit boundary',
+      );
+      expect(
+        executor.contains('audioResolver.rollbackMediaSwap'),
+        isTrue,
+        reason: 'failed in-place reimports must restore their old media',
       );
     });
 

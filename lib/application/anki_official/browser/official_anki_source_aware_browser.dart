@@ -23,6 +23,8 @@ class SourceAwareBrowserCard {
     this.suspended = false,
     this.buried = false,
     this.flag = 0,
+    this.marked = false,
+    this.tags = const <String>[],
   });
 
   final String sourceId;
@@ -37,6 +39,44 @@ class SourceAwareBrowserCard {
   final bool suspended;
   final bool buried;
   final int flag;
+  final bool marked;
+  final List<String> tags;
+}
+
+class OfficialBrowserFilter {
+  const OfficialBrowserFilter({
+    this.query = '',
+    this.deckId,
+    this.tag,
+    this.flag,
+    this.marked,
+    this.suspended,
+    this.buried,
+  });
+
+  final String query;
+  final int? deckId;
+  final String? tag;
+  final int? flag;
+  final bool? marked;
+  final bool? suspended;
+  final bool? buried;
+}
+
+enum OfficialBrowserAvailability { available, sourceMissing, engineUnavailable }
+
+class OfficialBrowserSearchResult {
+  const OfficialBrowserSearchResult({
+    required this.rows,
+    required this.availability,
+    this.reason,
+  });
+
+  final List<SourceAwareBrowserCard> rows;
+  final OfficialBrowserAvailability availability;
+  final String? reason;
+
+  bool get available => availability == OfficialBrowserAvailability.available;
 }
 
 /// Doc 34 W7: Official sources read from the Official catalog; Legacy stays
@@ -62,6 +102,11 @@ class OfficialAnkiSourceAwareBrowser {
     required String importOrSourceId,
     String query = '',
     bool? suspended,
+    bool? buried,
+    bool? marked,
+    int? flag,
+    int? deckId,
+    String? tag,
     AnkiEngineKind? ownerHint,
     String profileId = OfficialAnkiProductionRouter.defaultProfileId,
   }) async {
@@ -74,25 +119,74 @@ class OfficialAnkiSourceAwareBrowser {
                 profileId: profileId,
               ));
     if (owner == AnkiEngineKind.official) {
-      return _searchOfficial(
-        importOrSourceId,
-        query: query,
-        suspended: suspended,
-      );
+      return (await searchWithAvailability(
+        importOrSourceId: importOrSourceId,
+        filter: OfficialBrowserFilter(
+          query: query,
+          suspended: suspended,
+          buried: buried,
+          marked: marked,
+          flag: flag,
+          deckId: deckId,
+          tag: tag,
+        ),
+        ownerHint: owner,
+        profileId: profileId,
+      ))
+          .rows;
     }
     return _searchLegacyReadonly(
       importOrSourceId,
       query: query,
       suspended: suspended,
+      marked: marked,
+      flag: flag,
     );
   }
 
-  Future<List<SourceAwareBrowserCard>> _searchOfficial(
-    String sourceId, {
-    required String query,
-    bool? suspended,
+  Future<OfficialBrowserSearchResult> searchWithAvailability({
+    required String importOrSourceId,
+    OfficialBrowserFilter filter = const OfficialBrowserFilter(),
+    AnkiEngineKind? ownerHint,
+    String profileId = OfficialAnkiProductionRouter.defaultProfileId,
   }) async {
-    final resolvedId = sources.findById(sourceId)?.sourceId ?? sourceId;
+    final owner = ownerHint ??
+        (sources.findById(importOrSourceId) != null
+            ? AnkiEngineKind.official
+            : router.engineForImport(
+                importId: importOrSourceId,
+                sources: sources,
+                profileId: profileId,
+              ));
+    if (owner != AnkiEngineKind.official) {
+      final rows = await _searchLegacyReadonly(
+        importOrSourceId,
+        query: filter.query,
+        suspended: filter.suspended,
+        marked: filter.marked,
+        flag: filter.flag,
+      );
+      return OfficialBrowserSearchResult(
+        rows: rows,
+        availability: OfficialBrowserAvailability.available,
+      );
+    }
+    return _searchOfficial(importOrSourceId, filter: filter);
+  }
+
+  Future<OfficialBrowserSearchResult> _searchOfficial(
+    String sourceId, {
+    required OfficialBrowserFilter filter,
+  }) async {
+    final source = sources.findById(sourceId);
+    if (source == null) {
+      return const OfficialBrowserSearchResult(
+        rows: [],
+        availability: OfficialBrowserAvailability.sourceMissing,
+        reason: 'official_source_missing',
+      );
+    }
+    final resolvedId = source.sourceId;
     final catalogCards = sources.listCardsForImport(
       sourceId: resolvedId,
       profileId: OfficialAnkiProductionRouter.defaultProfileId,
@@ -101,33 +195,39 @@ class OfficialAnkiSourceAwareBrowser {
     final byId = {for (final card in catalogCards) card.cardId: card};
     final engine = this.engine;
     if (engine == null) {
-      return _catalogFallback(
-        resolvedId: resolvedId,
-        cards: catalogCards,
-        query: query,
-        suspended: suspended,
+      return const OfficialBrowserSearchResult(
+        rows: [],
+        availability: OfficialBrowserAvailability.engineUnavailable,
+        reason: 'official_engine_unavailable',
       );
     }
 
-    final search = StringBuffer(query.trim());
-    if (suspended == true) {
-      if (search.isNotEmpty) search.write(' ');
-      search.write('is:suspended');
-    } else if (suspended == false) {
-      if (search.isNotEmpty) search.write(' ');
-      search.write('-is:suspended');
+    final search = _officialSearch(filter);
+    final ids = <int>[];
+    String? pageToken;
+    do {
+      final page = await engine.searchCardsPage(
+        search: search,
+        pageSize: 1000,
+        pageToken: pageToken,
+      );
+      ids.addAll(page.cardIds.where(allowed.contains));
+      pageToken = page.nextPageToken;
+    } while (pageToken != null && pageToken.isNotEmpty);
+
+    final liveById = <int, OfficialAnkiCardDescriptor>{};
+    for (var start = 0; start < ids.length; start += 1000) {
+      final end = (start + 1000).clamp(0, ids.length);
+      for (final descriptor
+          in await engine.getCardDescriptorsBatch(ids.sublist(start, end))) {
+        liveById[descriptor.cardId] = descriptor;
+      }
     }
-    final page = await engine.searchCardsPage(
-      search: search.toString(),
-      pageSize: 200,
-    );
-    final ids = [
-      for (final id in page.cardIds)
-        if (allowed.contains(id)) id,
-    ];
     final out = <SourceAwareBrowserCard>[];
     for (final id in ids) {
-      final desc = byId[id];
+      final catalog = byId[id];
+      final live = liveById[id];
+      if (live == null || !_matchesLiveFilter(live, filter)) continue;
       var front = '';
       var back = '';
       try {
@@ -143,61 +243,71 @@ class OfficialAnkiSourceAwareBrowser {
       } catch (_) {
         front = 'card #$id';
       }
-      final isSuspended =
-          OfficialAnkiHomeDue.suspendedCardIdsByImport[resolvedId]
-                  ?.contains(id) ==
-              true;
       out.add(
         SourceAwareBrowserCard(
           sourceId: resolvedId,
           cardId: id,
-          noteId: desc?.noteId ?? 0,
-          deckId: desc?.deckId ?? 0,
+          noteId: catalog?.noteId ?? live.noteId,
+          deckId: catalog?.deckId ?? live.deckId,
           owner: AnkiEngineKind.official,
-          noteGuid: desc?.noteGuid,
-          templateOrd: desc?.templateOrd ?? 0,
+          noteGuid: catalog?.noteGuid ?? live.noteGuid,
+          templateOrd: catalog?.templateOrd ?? live.templateOrd,
           frontPreview: front.isEmpty ? 'card #$id' : front,
           backPreview: back,
-          suspended: isSuspended || suspended == true,
+          suspended: live.suspended,
+          buried: live.buried,
+          flag: live.flag,
+          marked: live.marked,
+          tags: live.tags,
         ),
       );
     }
-    return out;
+    return OfficialBrowserSearchResult(
+      rows: out,
+      availability: OfficialBrowserAvailability.available,
+    );
   }
 
-  List<SourceAwareBrowserCard> _catalogFallback({
-    required String resolvedId,
-    required List<OfficialAnkiCardDescriptor> cards,
-    required String query,
-    bool? suspended,
-  }) {
-    // Catalog has no suspend/bury flags. A suspend filter must not invent
-    // Legacy NoteStore truth — return empty rather than unfiltered rows.
-    if (suspended != null) return const [];
-    final q = query.trim().toLowerCase();
-    final out = <SourceAwareBrowserCard>[];
-    for (final card in cards) {
-      final preview = 'card #${card.cardId} note #${card.noteId}';
-      if (q.isNotEmpty &&
-          !preview.contains(q) &&
-          !(card.noteGuid ?? '').toLowerCase().contains(q) &&
-          !card.cardId.toString().contains(q)) {
-        continue;
-      }
-      out.add(
-        SourceAwareBrowserCard(
-          sourceId: resolvedId,
-          cardId: card.cardId,
-          noteId: card.noteId,
-          deckId: card.deckId,
-          owner: AnkiEngineKind.official,
-          noteGuid: card.noteGuid,
-          templateOrd: card.templateOrd,
-          frontPreview: preview,
-        ),
-      );
+  String _officialSearch(OfficialBrowserFilter filter) {
+    final parts = <String>[];
+    final query = filter.query.trim();
+    if (query.isNotEmpty) parts.add(query);
+    if (filter.tag?.trim().isNotEmpty == true) {
+      parts.add('tag:${_quoted(filter.tag!.trim())}');
     }
-    return out;
+    if (filter.flag != null) parts.add('flag:${filter.flag!.clamp(0, 7)}');
+    void booleanTerm(bool? value, String term) {
+      if (value == null) return;
+      parts.add(value ? term : '-$term');
+    }
+
+    booleanTerm(filter.marked, 'tag:marked');
+    booleanTerm(filter.suspended, 'is:suspended');
+    booleanTerm(filter.buried, 'is:buried');
+    return parts.join(' ');
+  }
+
+  String _quoted(String value) =>
+      '"${value.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"';
+
+  bool _matchesLiveFilter(
+    OfficialAnkiCardDescriptor card,
+    OfficialBrowserFilter filter,
+  ) {
+    if (filter.deckId != null && card.deckId != filter.deckId) return false;
+    if (filter.flag != null && card.flag != filter.flag) return false;
+    if (filter.marked != null && card.marked != filter.marked) return false;
+    if (filter.suspended != null && card.suspended != filter.suspended) {
+      return false;
+    }
+    if (filter.buried != null && card.buried != filter.buried) return false;
+    final tag = filter.tag?.trim().toLowerCase();
+    if (tag != null &&
+        tag.isNotEmpty &&
+        !card.tags.any((candidate) => candidate.toLowerCase() == tag)) {
+      return false;
+    }
+    return true;
   }
 
   /// Writes suspend/restore to the Official engine and the formal-due set.
@@ -232,11 +342,15 @@ class OfficialAnkiSourceAwareBrowser {
     String importId, {
     required String query,
     bool? suspended,
+    bool? marked,
+    int? flag,
   }) async {
     final rows = await legacyNotes.searchNotes(
       importId,
       query,
       suspended: suspended,
+      marked: marked,
+      flag: flag,
     );
     return [
       for (final row in rows)
@@ -251,6 +365,7 @@ class OfficialAnkiSourceAwareBrowser {
               : row.note.fields.join(' / '),
           suspended: row.card.suspended,
           flag: row.card.flag,
+          marked: row.card.marked,
         ),
     ];
   }

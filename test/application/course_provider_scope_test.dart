@@ -21,7 +21,7 @@ import 'package:turna/service/locator.dart';
 import '../helpers/in_memory_course_db.dart';
 
 /// Build a minimal one-unit/one-lesson Anki deck section, mirroring what
-/// AnkiDeckAssembler persists ('anki-<importId>-s<did>' id, level 'Anki').
+/// AnkiDeckAssembler persists (`anki-<importId>-s<did>` id, level 'Anki').
 Section _ankiDeckSection(String importId, String name) {
   return Section(
     id: 'anki-$importId-s10',

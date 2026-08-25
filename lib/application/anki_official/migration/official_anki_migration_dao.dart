@@ -189,8 +189,17 @@ WHERE migration_id = ? AND state = ?
     required String migrationId,
     required int officialMutationCountAtCutover,
     required int nowMillis,
+    LegacyAnkiMigrationState expected = LegacyAnkiMigrationState.cutoverReady,
     void Function()? onTransaction,
   }) {
+    if (expected != LegacyAnkiMigrationState.cutoverReady &&
+        expected != LegacyAnkiMigrationState.failedRecoverable) {
+      throw OfficialAnkiException(
+        code: OfficialAnkiErrorCode.invalidState,
+        messageKey: 'official_anki.illegal_migration_transition',
+        debugDetails: '${expected.name}->cutover',
+      );
+    }
     _db.execute('BEGIN TRANSACTION');
     try {
       _db.execute(
@@ -200,15 +209,20 @@ SET state = 'cutover',
     recorded_kind = 'official',
     official_mutation_count_at_cutover = ?,
     updated_at_millis = ?
-WHERE migration_id = ? AND state = 'cutoverReady'
+WHERE migration_id = ? AND state = ?
 ''',
-        [officialMutationCountAtCutover, nowMillis, migrationId],
+        [
+          officialMutationCountAtCutover,
+          nowMillis,
+          migrationId,
+          expected.name,
+        ],
       );
       if (_db.updatedRows != 1) {
         throw OfficialAnkiException(
           code: OfficialAnkiErrorCode.invalidState,
           messageKey: 'official_anki.migration_cas_failed',
-          debugDetails: '$migrationId expected cutoverReady',
+          debugDetails: '$migrationId expected ${expected.name}',
         );
       }
       if (onTransaction != null) {

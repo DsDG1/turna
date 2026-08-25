@@ -25,7 +25,7 @@ class LanguageProvider extends ChangeNotifier {
     }
   }
 
-  initLanguage() {
+  void initLanguage() {
     selectedLanguage = TargetLanguage.values.firstWhere(
       (element) => element.name == appPrefs.currentLanguage.getValue(),
       orElse: () => TargetLanguage.turkish,

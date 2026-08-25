@@ -90,7 +90,7 @@ void main() {
   test('due/new/overdue classification in one snapshot', () async {
     final now = DateTime.now();
     // A new (never reviewed) course card.
-    srs.registerItem('w-new');
+    srs.registerWord('w-new');
     // An introduced card due now (dueAt in the past, last reviewed 2 days ago).
     _seedDueCard(srs, 'w-due', now);
 
@@ -218,7 +218,7 @@ void main() {
 
 /// Seed an introduced card whose dueAt is already in the past and return it.
 dynamic _seedDueCard(SrsProvider srs, String id, DateTime now) {
-  srs.registerItem(id);
+  srs.registerWord(id);
   final word = srs.state[id]!;
   final due = word.copyWith(
     dueAt: now.subtract(const Duration(hours: 2)),

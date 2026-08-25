@@ -21,7 +21,7 @@ import 'package:turna/views/theme.dart';
 
 @RoutePage()
 class AiDiagnosisPage extends StatefulWidget {
-  const AiDiagnosisPage({Key? key}) : super(key: key);
+  const AiDiagnosisPage({super.key});
 
   @override
   State<AiDiagnosisPage> createState() => _AiDiagnosisPageState();

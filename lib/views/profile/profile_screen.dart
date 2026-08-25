@@ -21,7 +21,7 @@ import 'package:turna/views/theme.dart';
 /// duplicated counters (streak/XP/gems live in the Learn app bar) and the
 /// detailed stats/achievement lists moved to their own pages.
 class ProfilePage extends StatelessWidget {
-  const ProfilePage({Key? key});
+  const ProfilePage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -90,8 +90,7 @@ class _DetailPageEntries extends StatelessWidget {
               iconColor: TurnaTheme.brandTeal,
               title: AppStrings.profileLearningStatsTitle,
               subtitle: AppStrings.profileStatsEntrySubtitle,
-              onTap: () =>
-                  context.router.push(const ReviewProgressRoute()),
+              onTap: () => context.router.push(const ReviewProgressRoute()),
             ),
             Divider(
               height: 1,
@@ -109,8 +108,7 @@ class _DetailPageEntries extends StatelessWidget {
                       '${AppStrings.profileAchievementsNearComplete(nearComplete)}'
                   : AppStrings.profileAchievementsBadgeCount(unlocked, total),
               showUnseenDot: hasUnseen,
-              onTap: () =>
-                  context.router.push(const AchievementsRoute()),
+              onTap: () => context.router.push(const AchievementsRoute()),
             ),
           ],
         ),

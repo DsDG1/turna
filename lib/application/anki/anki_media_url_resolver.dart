@@ -40,7 +40,9 @@ class AnkiMediaUrlResolver {
     final normalized = raw.replaceAll('\\', '/');
     if (normalized.isEmpty ||
         normalized.startsWith('/') ||
-        RegExp(r'^[A-Za-z]:').hasMatch(normalized)) return null;
+        RegExp(r'^[A-Za-z]:').hasMatch(normalized)) {
+      return null;
+    }
     final parts = normalized.split('/');
     if (parts.any((part) => part.isEmpty || part == '..')) return null;
     return parts.join(p.separator);

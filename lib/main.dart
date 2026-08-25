@@ -14,6 +14,7 @@ import 'package:turna/application/anki/anki_deck_manager.dart';
 import 'package:turna/application/anki_official/migration/official_anki_startup_census.dart';
 import 'package:turna/application/anki_official/migration/official_first_reanchor.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
+import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/grammar_review_provider.dart';
@@ -24,6 +25,7 @@ import 'package:turna/courses/languages/vocab.dart';
 import 'package:turna/core/log_capture.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
+import 'package:turna/domain/audio/anki_audio_resolver.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/system_health_monitor.dart';
 import 'package:turna/service/local_reminder_service.dart';
@@ -141,13 +143,32 @@ Future<void> main() async {
     // pending until the engine is available.
     unawaited(() async {
       try {
-        final resumed = await getIt<AnkiDeckManager>()
-            .retryPendingOfficialCleanups();
+        final resumed =
+            await getIt<AnkiDeckManager>().retryPendingOfficialCleanups();
         if (resumed > 0) {
           debugPrint('[OfficialAnki] resumed $resumed pending cleanups');
         }
       } catch (e) {
         debugPrint('[OfficialAnki] pending cleanup retry skipped: $e');
+      }
+    }());
+
+    // Recover an interrupted in-place media swap from its source-hash marker,
+    // then retry deletion of owner-less directories whose uninstall left
+    // locked files behind (audio player / WebView handles).
+    unawaited(() async {
+      try {
+        final importDao = AnkiImportDao(getIt<CourseDatabase>());
+        final swept = await AnkiAudioResolver().sweepOrphanMedia(
+          (importId) async => await importDao.getById(importId) != null,
+          sourceHashForImport: (importId) async =>
+              (await importDao.getById(importId))?.sourceHash,
+        );
+        if (swept > 0) {
+          debugPrint('[AnkiMedia] swept $swept orphan media dir(s)');
+        }
+      } catch (e) {
+        debugPrint('[AnkiMedia] orphan sweep skipped: $e');
       }
     }());
 

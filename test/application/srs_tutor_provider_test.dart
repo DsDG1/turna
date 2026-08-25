@@ -137,10 +137,9 @@ class _FakeSrsStateDao implements SrsStateDao {
 }
 
 class _RecordingAiCourseProvider extends AiCourseProvider {
-  _RecordingAiCourseProvider(this._savedJson, {required AiEngine engine})
+  _RecordingAiCourseProvider({required AiEngine engine})
       : super.withEngine(engine);
 
-  final Map<String, dynamic> _savedJson;
   Map<String, dynamic>? saved;
 
   @override
@@ -152,7 +151,7 @@ class _RecordingAiCourseProvider extends AiCourseProvider {
 }
 
 _RecordingAiCourseProvider _courseProviderWith(AiEngine engine) =>
-    _RecordingAiCourseProvider(_validSection(), engine: engine);
+    _RecordingAiCourseProvider(engine: engine);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -182,7 +181,7 @@ void main() {
     getIt.registerSingleton<ICourseRepository>(CourseRepository(courseDb));
   });
 
-  Future<({SrsTutorProvider provider, AiEngine engine})> _buildProvider({
+  Future<({SrsTutorProvider provider, AiEngine engine})> buildProvider({
     required http.Client client,
   }) async {
     // Seed a couple of mistakes so the user prompt has both buckets.
@@ -247,7 +246,7 @@ void main() {
       capturedBody = req.body;
       return _sectionResponse(_validSection(id: 'tutor-happy'));
     });
-    final built = await _buildProvider(client: client);
+    final built = await buildProvider(client: client);
     final provider = built.provider;
 
     final lessonId = await provider.tutorPlan(
@@ -272,7 +271,7 @@ void main() {
 
   test('engine error transitions to SrsTutorState.error', () async {
     final client = MockClient((req) async => http.Response('boom', 500));
-    final built = await _buildProvider(client: client);
+    final built = await buildProvider(client: client);
     final provider = built.provider;
 
     final lessonId = await provider.tutorPlan(
@@ -288,7 +287,7 @@ void main() {
   test('cancel mid-flight returns to idle and does not save', () async {
     final completer = Completer<http.Response>();
     final client = MockClient((req) async => completer.future);
-    final built = await _buildProvider(client: client);
+    final built = await buildProvider(client: client);
     final provider = built.provider;
 
     final pending = provider.tutorPlan(
@@ -312,7 +311,7 @@ void main() {
       called = true;
       return _sectionResponse(_validSection());
     });
-    final built = await _buildProvider(client: client);
+    final built = await buildProvider(client: client);
     final provider = built.provider;
 
     final lessonId = await provider.tutorPlan(
@@ -332,7 +331,7 @@ void main() {
 
   test('reset clears state and the cached plan', () async {
     final client = MockClient((req) async => _sectionResponse(_validSection()));
-    final built = await _buildProvider(client: client);
+    final built = await buildProvider(client: client);
     final provider = built.provider;
 
     await provider.tutorPlan(config: _engineConfig(), language: 'turkish');
@@ -351,8 +350,7 @@ void main() {
     );
     final provider = SrsTutorProvider(
       engine: engine,
-      courseProvider:
-          _RecordingAiCourseProvider(_validSection(), engine: engine),
+      courseProvider: _RecordingAiCourseProvider(engine: engine),
       mistakeProvider: mistakes,
       srsDao: srsDao,
     );
@@ -368,7 +366,7 @@ void main() {
     final client = MockClient((req) async {
       throw AiCancelled();
     });
-    final built = await _buildProvider(client: client);
+    final built = await buildProvider(client: client);
     final provider = built.provider;
 
     final lessonId = await provider.tutorPlan(

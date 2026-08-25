@@ -18,7 +18,7 @@ import 'package:turna/views/theme.dart';
 final router = getIt<AppRouter>();
 
 class TurnaApp extends StatelessWidget {
-  const TurnaApp({Key? key}) : super(key: key);
+  const TurnaApp({super.key});
 
   @override
   Widget build(BuildContext context) {

@@ -18,7 +18,7 @@ import 'package:turna/views/theme.dart';
 /// Reads the current lesson from [LessonViewModel] and uses
 /// [AiLessonHelperProvider] to transform it.
 class AiLessonHelperSheet extends StatefulWidget {
-  const AiLessonHelperSheet({Key? key}) : super(key: key);
+  const AiLessonHelperSheet({super.key});
 
   @override
   State<AiLessonHelperSheet> createState() => _AiLessonHelperSheetState();

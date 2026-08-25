@@ -6,16 +6,8 @@ import 'package:drift/drift.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'dart:io';
-
 import 'package:turna/application/anki/anki_models.dart';
-import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/official_anki_ids.dart';
-import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
-import 'package:turna/application/anki_official/migration/official_anki_migration_state.dart';
-import 'package:turna/application/anki_official/migration/official_anki_write_owner.dart';
-import 'package:turna/application/anki_official/official_anki_composition.dart';
-import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/data/anki_legacy_write_fence.dart';
 import 'package:turna/data/course_database.dart';
 
@@ -309,7 +301,8 @@ class AnkiNoteDao {
     bool? marked,
     int? flag,
   }) async {
-    _assertLegacyDaoWriteAllowed(importId);
+    LegacyWriteFence.instance
+        .assertAllowed(importId: importId, operation: 'setCardState');
     final updates = <String>[];
     final args = <Object?>[];
     if (suspended != null) {
@@ -339,57 +332,9 @@ class AnkiNoteDao {
     );
   }
 
-  void _assertLegacyDaoWriteAllowed(String importId) {
-    try {
-      final catalog = _resolveOfficialCatalogPath();
-      if (catalog == null) return;
-      final file = File(catalog);
-      if (!file.existsSync()) return;
-      final db = OfficialAnkiDatabase.file(file.path);
-      try {
-        final dao = OfficialAnkiMigrationDao(db);
-        final row = dao.findByLegacyImport(
-          profileId: 'profile-default-01',
-          legacyImportId: importId,
-        );
-        if (row == null) return;
-        const locked = {
-          LegacyAnkiMigrationState.cutoverReady,
-          LegacyAnkiMigrationState.cutover,
-          LegacyAnkiMigrationState.observing,
-          LegacyAnkiMigrationState.completed,
-          LegacyAnkiMigrationState.noLegacyScheduleRollback,
-        };
-        if (!locked.contains(row.state)) return;
-        const AnkiWriteGuard().assertAllowed(
-          sourceEngine: AnkiEngineKind.official,
-          owner: AnkiWriteOwner.legacyAnkiDao,
-          operation: 'setCardState',
-        );
-      } finally {
-        db.close();
-      }
-    } on AnkiWriteDenied {
-      rethrow;
-    } catch (_) {}
-  }
-
-  String? _resolveOfficialCatalogPath() {
-    try {
-      final paths = OfficialAnkiCompositionRoot.locatorPaths;
-      return paths?.catalogFile.path;
-    } catch (_) {
-      return null;
-    }
-  }
-
   /// Clear expired buried cards and leave future buries untouched.
   /// Clear expired buried cards and leave future buries untouched.
   Future<List<AnkiCardMetaRecord>> clearBuriedBefore(int timestamp) async {
-    LegacyWriteFence.instance.assertAllowed(
-      importId: null,
-      operation: 'clearBuriedBefore',
-    );
     final expired = await _db.customSelect(
       'SELECT import_id, card_id, note_id, ord, did, word_id, render_mode, '
       'scheduling_json, suspended, buried_until, marked, flag '
@@ -397,12 +342,26 @@ class AnkiNoteDao {
       'WHERE buried_until IS NOT NULL AND buried_until <= ?',
       variables: [Variable.withInt(timestamp)],
     ).get();
-    await _db.customStatement(
-      'UPDATE anki_cards_meta SET buried_until = NULL '
-      'WHERE buried_until IS NOT NULL AND buried_until <= ?',
-      [timestamp],
-    );
-    return expired.map(_recordFromRaw).toList();
+    final records = expired.map(_recordFromRaw).toList();
+    final allowedImports = records
+        .map((record) => record.importId)
+        .where(LegacyWriteFence.instance.allowsNormalWrite)
+        .toSet();
+    for (final importId in allowedImports) {
+      LegacyWriteFence.instance.assertAllowed(
+        importId: importId,
+        operation: 'clearBuriedBefore',
+      );
+      await _db.customStatement(
+        'UPDATE anki_cards_meta SET buried_until = NULL '
+        'WHERE import_id = ? AND buried_until IS NOT NULL '
+        'AND buried_until <= ?',
+        [importId, timestamp],
+      );
+    }
+    return records
+        .where((record) => allowedImports.contains(record.importId))
+        .toList();
   }
 
   Future<List<AnkiCardMetaRecord>> flaggedCards(String importId,
@@ -811,7 +770,7 @@ class AnkiNoteDao {
   /// Delete cached pre-rendered HTML for an import (deck unload). [prefix] is
   /// the `anki-<importId>-` wordId prefix.
   Future<void> deletePrerenderedByPrefix(String prefix) async {
-    final fenceImportId = LegacyAnkiIdentifiers.importIdFromWordId(prefix);
+    final fenceImportId = LegacyAnkiIdentifiers.importIdFromWordPrefix(prefix);
     if (fenceImportId.isNotEmpty) {
       LegacyWriteFence.instance.assertAllowed(
           importId: fenceImportId, operation: 'deletePrerenderedByPrefix');

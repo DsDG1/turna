@@ -126,6 +126,9 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
         OfficialAnkiOperation.countsForDeckToday,
         OfficialAnkiOperation.congratsInfo,
         OfficialAnkiOperation.deleteNotes,
+        OfficialAnkiOperation.deleteCards,
+        OfficialAnkiOperation.statsForCardsBatch,
+        OfficialAnkiOperation.scheduleCardsAsNew,
       },
     );
   }
@@ -211,17 +214,51 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
     String? pageToken,
   }) async {
     final raw = search.trim().toLowerCase();
-    final wantSuspended = raw.contains('is:suspended');
     final excludeSuspended = raw.contains('-is:suspended');
+    final wantSuspended =
+        !excludeSuspended && raw.contains('is:suspended');
+    final excludeBuried = raw.contains('-is:buried');
+    final wantBuried = !excludeBuried && raw.contains('is:buried');
+    final excludeMarked = raw.contains('-tag:marked');
+    final wantMarked = !excludeMarked && raw.contains('tag:marked');
+    final flagMatch = RegExp(r'(?:^|\s)flag:(\d+)').firstMatch(raw);
+    final tagMatch = RegExp(r'(?:^|\s)tag:"([^"]+)"').firstMatch(raw);
     final needle = raw
         .replaceAll('-is:suspended', '')
         .replaceAll('is:suspended', '')
+        .replaceAll('-is:buried', '')
+        .replaceAll('is:buried', '')
+        .replaceAll('-tag:marked', '')
+        .replaceAll('tag:marked', '')
+        .replaceAll(RegExp(r'(?:^|\s)flag:\d+'), '')
+        .replaceAll(RegExp(r'(?:^|\s)tag:"[^"]+"'), '')
         .trim();
     var ids = cards.keys.toList()..sort();
     if (wantSuspended) {
       ids = ids.where(suspended.contains).toList();
     } else if (excludeSuspended) {
       ids = ids.where((id) => !suspended.contains(id)).toList();
+    }
+    if (wantBuried) {
+      ids = ids.where(buried.contains).toList();
+    } else if (excludeBuried) {
+      ids = ids.where((id) => !buried.contains(id)).toList();
+    }
+    if (wantMarked) {
+      ids = ids.where((id) => cards[id]?.marked == true).toList();
+    } else if (excludeMarked) {
+      ids = ids.where((id) => cards[id]?.marked != true).toList();
+    }
+    if (flagMatch != null) {
+      final flag = int.parse(flagMatch.group(1)!);
+      ids = ids.where((id) => cards[id]?.flag == flag).toList();
+    }
+    if (tagMatch != null) {
+      final tag = tagMatch.group(1)!;
+      ids = ids
+          .where((id) => cards[id]?.tags
+              .any((candidate) => candidate.toLowerCase() == tag) == true)
+          .toList();
     }
     if (needle.isNotEmpty) {
       ids = [
@@ -246,7 +283,8 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
   Future<Map<int, List<int>>> getNoteCardsBatch(List<int> noteIds) async {
     noteBatchCalls++;
     return {
-      for (final id in noteIds) id: List<int>.from(cardsByNote[id] ?? const <int>[]),
+      for (final id in noteIds)
+        id: List<int>.from(cardsByNote[id] ?? const <int>[]),
     };
   }
 
@@ -257,7 +295,20 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
     descriptorBatchCalls++;
     return [
       for (final id in cardIds)
-        if (cards[id] != null) cards[id]!,
+        if (cards[id] case final card?)
+          OfficialAnkiCardDescriptor(
+            cardId: card.cardId,
+            noteId: card.noteId,
+            deckId: card.deckId,
+            templateOrd: card.templateOrd,
+            noteGuid: card.noteGuid,
+            queue: card.queue,
+            suspended: suspended.contains(id) || card.suspended,
+            buried: buried.contains(id) || card.buried,
+            flag: card.flag,
+            marked: card.marked,
+            tags: card.tags,
+          ),
     ];
   }
 
@@ -313,11 +364,11 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
         messageKey: 'official_anki.typed_field_not_found',
       );
     }
-    final expected = renders[cardId]?.typedAnswer?.marker == marker
-        ? provided
-        : provided;
+    final expected =
+        renders[cardId]?.typedAnswer?.marker == marker ? provided : provided;
     return OfficialAnkiTypedComparison(
-      comparisonHtml: '<code id=typeans><span class=typeGood>$expected</span></code>',
+      comparisonHtml:
+          '<code id=typeans><span class=typeGood>$expected</span></code>',
       hasExpected: true,
     );
   }
@@ -493,8 +544,8 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
         .map((entry) => entry.key)
         .toList()
       ..sort();
-    final dayCapped = newPerDayLimit != null &&
-        officialAnswers >= newPerDayLimit!;
+    final dayCapped =
+        newPerDayLimit != null && officialAnswers >= newPerDayLimit!;
     if (ids.isEmpty || dayCapped) {
       throw const OfficialAnkiException(
         code: OfficialAnkiErrorCode.queueEmpty,
@@ -642,7 +693,8 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
     officialUndos += 1;
     OfficialAnkiSchedulerAudit.officialSchedulerUndo += 1;
     _invalidateTokens();
-    return OfficialMutationResult(ok: true, undone: true, queueEpoch: queueEpoch);
+    return OfficialMutationResult(
+        ok: true, undone: true, queueEpoch: queueEpoch);
   }
 
   @override
@@ -656,7 +708,8 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
     officialRedos += 1;
     OfficialAnkiSchedulerAudit.officialSchedulerRedo += 1;
     _invalidateTokens();
-    return OfficialMutationResult(ok: true, redone: true, queueEpoch: queueEpoch);
+    return OfficialMutationResult(
+        ok: true, redone: true, queueEpoch: queueEpoch);
   }
 
   @override
@@ -670,7 +723,8 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
 
   @override
   Future<OfficialCongratsInfo> congratsInfo() async {
-    final remaining = cards.keys.any((id) => !buried.contains(id) && !suspended.contains(id));
+    final remaining =
+        cards.keys.any((id) => !buried.contains(id) && !suspended.contains(id));
     return OfficialCongratsInfo(
       learnRemaining: remaining ? 1 : 0,
       reviewRemaining: remaining,
@@ -730,6 +784,83 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
     projectionToken = null;
     _invalidateTokens();
     return removedCards.length;
+  }
+
+  @override
+  Future<int> deleteCards(List<int> cardIds) async {
+    if (failDeleteNotes) {
+      throw StateError('simulated collection deleteCards failure');
+    }
+    final requested = cardIds.toSet();
+    final removedNoteIds = <int>{};
+    var removed = 0;
+    cards.removeWhere((cardId, card) {
+      if (!requested.contains(cardId)) return false;
+      removedNoteIds.add(card.noteId);
+      removed++;
+      return true;
+    });
+    for (final cardId in requested) {
+      buried.remove(cardId);
+      suspended.remove(cardId);
+      answeredIds.remove(cardId);
+    }
+    for (final noteId in removedNoteIds) {
+      final remaining = cards.values
+          .where((card) => card.noteId == noteId)
+          .map((card) => card.cardId)
+          .toList();
+      if (remaining.isEmpty) {
+        cardsByNote.remove(noteId);
+        deletedNoteIds.add(noteId);
+      } else {
+        cardsByNote[noteId] = remaining;
+      }
+    }
+    collectionGeneration += 1;
+    projectionToken = null;
+    _invalidateTokens();
+    return removed;
+  }
+
+  @override
+  Future<OfficialAnkiStatsBatch> statsForCardsBatch(List<int> cardIds) async {
+    final requested = cardIds.toSet();
+    final found = requested.where(cards.containsKey).toSet();
+    final suspendedCount = found.where(suspended.contains).length;
+    final buriedCount = found.where(buried.contains).length;
+    final active = found.length - suspendedCount - buriedCount;
+    final reviewed = found.where(answeredIds.contains).length;
+    return OfficialAnkiStatsBatch(
+      requestedCardCount: requested.length,
+      foundCardCount: found.length,
+      newCards: active,
+      learningCards: 0,
+      reviewCards: 0,
+      suspendedCards: suspendedCount,
+      buriedCards: buriedCount,
+      todayAnswerCount: reviewed,
+      todayLearnCount: 0,
+      todayReviewCount: reviewed,
+      todayRelearnCount: 0,
+      forecastDueToday: 0,
+      forecastDue7Days: 0,
+      forecastDue30Days: 0,
+      revlogCount: reviewed,
+      retentionPassed: reviewed,
+      retentionFailed: 0,
+    );
+  }
+
+  @override
+  Future<int> scheduleCardsAsNew(List<int> cardIds) async {
+    final found = cardIds.toSet().where(cards.containsKey).toSet();
+    answeredIds.removeAll(found);
+    buried.removeAll(found);
+    collectionGeneration += 1;
+    projectionToken = null;
+    _invalidateTokens();
+    return found.length;
   }
 
   void _invalidateTokens() {

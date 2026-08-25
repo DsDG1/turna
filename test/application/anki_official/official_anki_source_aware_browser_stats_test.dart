@@ -1,6 +1,7 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/anki_official/browser/official_anki_source_aware_browser.dart';
+import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
 import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
@@ -11,7 +12,7 @@ import 'package:turna/data/anki_note_dao.dart';
 import 'package:turna/data/course_database.dart';
 
 void main() {
-  test('pure Official source browser does not need Legacy NoteStore rows',
+  test('pure Official source browser reports engine unavailable explicitly',
       () async {
     final catalog = OfficialAnkiDatabase.memory();
     addTearDown(catalog.close);
@@ -42,20 +43,16 @@ void main() {
       sources: sources,
       legacyNotes: legacy,
     );
-    final rows = await browser.search(
+    final result = await browser.searchWithAvailability(
       importOrSourceId: 'src-official',
       ownerHint: AnkiEngineKind.official,
     );
-    expect(rows, hasLength(2));
-    expect(rows.every((r) => r.owner == AnkiEngineKind.official), isTrue);
-    expect(rows.map((r) => r.cardId).toSet(), {11, 12});
-
-    final filtered = await browser.search(
-      importOrSourceId: 'src-official',
-      query: '11',
-      ownerHint: AnkiEngineKind.official,
+    expect(result.rows, isEmpty);
+    expect(
+      result.availability,
+      OfficialBrowserAvailability.engineUnavailable,
     );
-    expect(filtered.map((r) => r.cardId).toSet(), {11});
+    expect(result.reason, 'official_engine_unavailable');
   });
 
   test('Official Collection search uses render text and suspend writes engine',
@@ -112,6 +109,29 @@ void main() {
       ownerHint: AnkiEngineKind.official,
     );
     expect(suspendedOnly.map((r) => r.cardId).toSet(), {1});
+
+    engine.cards[1] = const OfficialAnkiCardDescriptor(
+      cardId: 1,
+      noteId: 1,
+      deckId: 2,
+      templateOrd: 0,
+      noteGuid: 'guid-a',
+      flag: 3,
+      marked: true,
+      tags: ['priority'],
+    );
+    engine.buried.add(1);
+    final fullyFiltered = await browser.search(
+      importOrSourceId: 'src-official',
+      deckId: 2,
+      tag: 'priority',
+      flag: 3,
+      marked: true,
+      suspended: true,
+      buried: true,
+      ownerHint: AnkiEngineKind.official,
+    );
+    expect(fullyFiltered.map((row) => row.cardId), [1]);
   });
 
   test('Official stats use catalog counts, not Turna FSRS retention', () async {
@@ -140,6 +160,7 @@ void main() {
     expect(snap.totalCards, 2);
     expect(snap.metricsProven, isFalse,
         reason: 'catalog inventory is not Official scheduler proof');
+    expect(snap.availability, OfficialStatsAvailability.engineUnavailable);
     expect(snap.note.contains('FSRS'), isFalse);
     expect(snap.owner, AnkiEngineKind.official);
 

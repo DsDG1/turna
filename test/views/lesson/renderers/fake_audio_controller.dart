@@ -43,6 +43,9 @@ class FakeAudioController implements AudioController {
   Future<void> stopSystemTts() async {}
 
   @override
+  Future<void> stopSpeechPlayer() async {}
+
+  @override
   Future<void> speakFromAsset(String assetPath) async {
     spoken.add(assetPath);
   }

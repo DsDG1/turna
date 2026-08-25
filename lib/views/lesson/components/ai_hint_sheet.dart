@@ -21,7 +21,7 @@ import 'package:turna/views/theme.dart';
 class AiHintSheet extends StatelessWidget {
   final VoidCallback onEnterChat;
 
-  const AiHintSheet({Key? key, required this.onEnterChat}) : super(key: key);
+  const AiHintSheet({super.key, required this.onEnterChat});
 
   @override
   Widget build(BuildContext context) {

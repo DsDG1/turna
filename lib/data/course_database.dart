@@ -329,7 +329,7 @@ class ReviewEvents extends Table {
   ],
 )
 class CourseDatabase extends _$CourseDatabase {
-  CourseDatabase(QueryExecutor e) : super(e);
+  CourseDatabase(super.e);
 
   /// Single source of truth for the drift schema version, so tests and
   /// backup code never hard-code a stale literal.

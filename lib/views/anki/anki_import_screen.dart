@@ -1,6 +1,5 @@
 // Dart imports:
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 // Flutter imports:
@@ -12,12 +11,14 @@ import 'package:provider/provider.dart';
 import 'package:turna/application/settings_provider.dart';
 
 // Project imports:
+import 'package:turna/application/ai/engine/ai_engine.dart';
+import 'package:turna/application/ai/engine/ai_engine_config.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/anki/anki_card_adapter.dart';
 import 'package:turna/application/anki/anki_deck_assembler.dart';
 import 'package:turna/application/anki/anki_deck_manager.dart';
 import 'package:turna/application/anki/anki_importer.dart';
-import 'package:turna/application/anki/anki_import_cleanup_service.dart';
+import 'package:turna/application/anki/legacy_anki_import_executor.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/import/anki_import_execution_plan.dart';
 import 'package:turna/application/anki_official/import/anki_import_facade.dart';
@@ -31,31 +32,25 @@ import 'package:turna/application/anki/anki_models.dart';
 import 'package:turna/application/anki/anki_organization_resolver.dart';
 import 'package:turna/application/anki/card_recognition_pipeline.dart';
 import 'package:turna/application/anki/anki_sample_deck.dart';
-import 'package:turna/application/anki/anki_srs_migrator.dart';
-import 'package:turna/application/anki/unified_anki_import_orchestrator.dart';
+import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/courses/course_loader.dart';
-import 'package:turna/data/anki_import_dao.dart';
-import 'package:turna/data/anki_note_dao.dart';
-import 'package:turna/data/anki_unification_dao.dart';
+import 'package:turna/data/anki_import_dao.dart' show AnkiImportRecord;
 import 'package:turna/data/course_database.dart';
-import 'package:turna/data/course_repository.dart';
 import 'package:turna/data/review_history_dao.dart';
 import 'package:turna/di/injection.dart';
-import 'package:turna/domain/audio/anki_audio_resolver.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/utils/validated_file_picker.dart';
 import 'package:turna/views/theme.dart';
 
-/// Import strategy when collisions are detected.
-enum ImportStrategy { merge, skipExisting, forceReplace, appendAsNew }
-
 /// File extensions accepted by the Anki import wizard.
 /// `.colpkg` is unsupported until an Official backend exists (doc 34 W4-08).
 const _ankiExtensions = ['apkg'];
+
+enum _RecognitionAttention { recognized, advisory, blocking, skipped }
 
 /// Anki import wizard screen. Guides the user through:
 /// 1. File selection
@@ -126,6 +121,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
   // confidence, warnings) so the preview can show where each mapping came
   // from and flag low-confidence rows.
   Map<int, CardRecognitionResult> _recognitionResults = {};
+  bool _showAllRecognition = false;
 
   // Incremental-update detection (computed at parse time)
   String? _sourceHash;
@@ -151,6 +147,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
   Set<int> _officialSkippedNotetypes = {};
   OfficialAnkiCourseProjectionService? _officialService;
   bool _officialNeedsMapping = false;
+  bool _showAllOfficialRecognition = false;
 
   // ─── Perf instrumentation ──────────────────────────────────────────
   //
@@ -162,10 +159,10 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
   /// Compact, parseable log line for a single timed phase. Format is
   /// `[AnkiImport] <label>: <ms>ms (<key>=<value> ...)` so the lines can be
   /// grepped or piped into a quick spreadsheet without parsing JSON.
-  void _logTiming(String label, Stopwatch sw,
-      [Map<String, Object?>? extras]) {
+  void _logTiming(String label, Stopwatch sw, [Map<String, Object?>? extras]) {
     if (!_kEnableTimingLogs) return;
-    final buf = StringBuffer('[AnkiImport] $label: ${sw.elapsedMilliseconds}ms');
+    final buf =
+        StringBuffer('[AnkiImport] $label: ${sw.elapsedMilliseconds}ms');
     if (extras != null && extras.isNotEmpty) {
       buf.write(' (');
       var first = true;
@@ -404,11 +401,24 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
               const SizedBox(height: 12),
               _buildMappingSection(collection),
               const SizedBox(height: 12),
-              _buildStrategySection(),
+              _AdvancedOptionsCard(
+                summary: '重复卡片：${_strategyLabel(context, _strategy)}',
+                children: [
+                  _buildOrganizationBlock(),
+                  const SizedBox(height: 12),
+                  _buildStrategySection(),
+                ],
+              ),
             ],
           ),
         ),
-        _StickyImportBar(onPressed: _executeImport),
+        _StickyImportBar(
+          onPressed:
+              _hasLegacyBlockingRecognition(collection) ? null : _executeImport,
+          disabledHint: _hasLegacyBlockingRecognition(collection)
+              ? AppStrings.ankiMappingFixBlocking
+              : null,
+        ),
       ],
     );
   }
@@ -440,8 +450,6 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
               AppStrings.ankiDeckCardCount(deck.cardCount),
             ),
         ],
-        const SizedBox(height: 12),
-        _buildOrganizationBlock(),
       ],
     );
   }
@@ -462,7 +470,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         const SizedBox(height: 4),
         if (preview != null && preview.hasAny) ...[
           if (_sectionBeta && preview.sectionNames.isNotEmpty) ...[
-            _InfoRow('检测到 Section', '${preview.sectionCountLabel}'),
+            _InfoRow('检测到 Section', preview.sectionCountLabel),
             if (preview.lowConfidenceSectionHint != null)
               Padding(
                 padding: const EdgeInsets.only(top: 2),
@@ -541,62 +549,119 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     );
   }
 
-  /// Section 2: how each card type is identified. The notetype mapping
-  /// override list plus the optional AI re-identification button.
+  _RecognitionAttention _legacyRecognitionAttention(
+    int mid,
+    AnkiNotetype notetype,
+  ) {
+    final mapping = _mappings[mid];
+    final fieldCount = notetype.fieldNames.length;
+    if (mapping == null || fieldCount == 0) {
+      return _RecognitionAttention.blocking;
+    }
+    if (_mappingUsesFrontBackFields(mapping.type)) {
+      final front = mapping.frontFieldIndex;
+      final back = mapping.backFieldIndex;
+      if (front < 0 || back < 0 || front >= fieldCount || back >= fieldCount) {
+        return _RecognitionAttention.blocking;
+      }
+      if (fieldCount > 1 && front == back) {
+        return _RecognitionAttention.blocking;
+      }
+    }
+    return (_recognitionResults[mid]?.needsConfirmation ?? true)
+        ? _RecognitionAttention.advisory
+        : _RecognitionAttention.recognized;
+  }
+
+  bool _hasLegacyBlockingRecognition(AnkiCollection collection) =>
+      collection.notetypes.entries.any(
+        (entry) =>
+            _legacyRecognitionAttention(entry.key, entry.value) ==
+            _RecognitionAttention.blocking,
+      );
+
+  /// Section 2: how each card type is identified. Plain-language by design:
+  /// one row per notetype with a ✓ (auto-recognized) / ⚠ (worth checking)
+  /// state — confidence percentages, sources and evidence stay out of sight.
+  /// The AI re-identification button only appears when something needs a
+  /// manual look.
   Widget _buildMappingSection(AnkiCollection collection) {
+    final entries = collection.notetypes.entries.toList();
+    final attention = {
+      for (final entry in entries)
+        entry.key: _legacyRecognitionAttention(entry.key, entry.value),
+    };
+    final blocking = attention.values
+        .where((value) => value == _RecognitionAttention.blocking)
+        .length;
+    final advisory = attention.values
+        .where((value) => value == _RecognitionAttention.advisory)
+        .length;
+    final issues = entries
+        .where((entry) =>
+            attention[entry.key] == _RecognitionAttention.blocking ||
+            attention[entry.key] == _RecognitionAttention.advisory)
+        .toList();
+    final shownEntries = _showAllRecognition ? entries : issues;
+    final aiReady = context.watch<AiEngineConfigHolder>().config.isComplete;
+    final statusColor = blocking > 0
+        ? TurnaTheme.error
+        : advisory > 0
+            ? TurnaTheme.warning
+            : TurnaTheme.brandTeal;
     return _SectionCard(
       icon: Icons.auto_awesome_outlined,
       title: AppStrings.ankiPreviewSectionMapping,
       hint: AppStrings.ankiPreviewSectionMappingHint,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Text(
-            AppStrings.ankiMappingOverrideHint,
-            style: TextStyle(
-              fontSize: 12,
-              color: TurnaTheme.textHintColor(context),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              blocking > 0
+                  ? Icons.error_outline_rounded
+                  : advisory > 0
+                      ? Icons.help_outline_rounded
+                      : Icons.check_circle_outline_rounded,
+              color: statusColor,
+              size: 20,
             ),
-          ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                blocking > 0
+                    ? AppStrings.ankiMappingSummaryBlocking(blocking)
+                    : advisory > 0
+                        ? AppStrings.ankiMappingSummaryNeedsCheck(
+                            entries.length - advisory, advisory)
+                        : AppStrings.ankiMappingSummaryAll(entries.length),
+                style: TextStyle(
+                  color: statusColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            TextButton(
+              onPressed: () =>
+                  setState(() => _showAllRecognition = !_showAllRecognition),
+              child: Text(
+                _showAllRecognition
+                    ? AppStrings.commonCollapse
+                    : AppStrings.ankiMappingViewAll,
+              ),
+            ),
+          ],
         ),
-        for (final entry in collection.notetypes.entries)
+        if (shownEntries.isNotEmpty) const SizedBox(height: 6),
+        for (final entry in shownEntries)
           _NotetypeMappingRow(
             notetype: entry.value,
             mapping: _mappings[entry.key],
             recognition: _recognitionResults[entry.key],
+            attention: attention[entry.key]!,
             onEdit: () => _editNotetypeMapping(entry.key, entry.value),
           ),
-        if (collection.notetypes.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-            decoration: BoxDecoration(
-              color: TurnaTheme.brandTeal.withValues(alpha: 0.04),
-              borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
-              border: Border.all(
-                color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.lightbulb_outline,
-                  size: 16,
-                  color: TurnaTheme.textSecondaryColor(context),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    AppStrings.ankiMappingAutoChoiceHint,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: TurnaTheme.textSecondaryColor(context),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+        if (advisory > 0 && aiReady) ...[
           const SizedBox(height: 12),
           OutlinedButton.icon(
             onPressed: _isAiIdentifying ? null : _onAiIdentify,
@@ -610,19 +675,11 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
             label: Text(
               _isAiIdentifying
                   ? AppStrings.ankiAiIdentifying
-                  : AppStrings.ankiAiIdentify,
+                  : AppStrings.ankiAiRetry,
             ),
             style: OutlinedButton.styleFrom(
               foregroundColor: TurnaTheme.brandTeal,
               side: const BorderSide(color: TurnaTheme.brandTeal),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            AppStrings.ankiAiIdentifyHint,
-            style: TextStyle(
-              fontSize: 11,
-              color: TurnaTheme.textHintColor(context),
             ),
           ),
         ],
@@ -630,13 +687,15 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     );
   }
 
-  /// Section 3: how collisions and learning progress are handled.
+  /// Advanced: how collisions and learning progress are handled. Rendered
+  /// inside the collapsed advanced-options card, so this returns bare
+  /// children instead of another _SectionCard.
   Widget _buildStrategySection() {
-    return _SectionCard(
-      icon: Icons.tune_rounded,
-      title: AppStrings.ankiPreviewSectionStrategy,
-      hint: AppStrings.ankiPreviewSectionStrategyHint,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const _Subheader(text: '重复卡片怎么处理'),
+        const SizedBox(height: 6),
         // Collision report with a thin progress bar so users can eyeball
         // the new-vs-existing ratio at a glance.
         _CollisionStrip(
@@ -656,18 +715,28 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         // "data consequence" line so users can compare tradeoffs side by
         // side. Force Replace is the only one that destroys existing
         // learning state, so it gets the warning-style hint.
-        for (final s in ImportStrategy.values) ...[
-          _StrategyOption(
-            value: s,
-            groupValue: _strategy,
-            title: _strategyLabel(context, s),
-            description: _strategyDescription(context, s),
-            consequence: _strategyConsequence(s),
-            isWarning: s == ImportStrategy.forceReplace,
-            onChanged: (v) => setState(() => _strategy = v),
+        RadioGroup<ImportStrategy>(
+          groupValue: _strategy,
+          onChanged: (value) {
+            if (value != null) setState(() => _strategy = value);
+          },
+          child: Column(
+            children: [
+              for (final s in ImportStrategy.values) ...[
+                _StrategyOption(
+                  value: s,
+                  groupValue: _strategy,
+                  title: _strategyLabel(context, s),
+                  description: _strategyDescription(context, s),
+                  consequence: _strategyConsequence(s),
+                  isWarning: s == ImportStrategy.forceReplace,
+                  onChanged: (v) => setState(() => _strategy = v),
+                ),
+                const SizedBox(height: 8),
+              ],
+            ],
           ),
-          const SizedBox(height: 8),
-        ],
+        ),
         const SizedBox(height: 4),
         Material(
           color: TurnaTheme.brandTeal.withValues(alpha: 0.04),
@@ -683,7 +752,8 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
               contentPadding: EdgeInsets.zero,
               title: Text(
                 AppStrings.ankiImportLearningProgress,
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                style:
+                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
               ),
               subtitle: Padding(
                 padding: const EdgeInsets.only(top: 2),
@@ -816,8 +886,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                   AppStrings.ankiImportSourceCards(summary.sourceCardCount),
                   AppStrings.ankiImportStructuredCards(
                       summary.structuredCardCount),
-                  AppStrings.ankiImportFidelityCards(
-                      summary.fidelityCardCount),
+                  AppStrings.ankiImportFidelityCards(summary.fidelityCardCount),
                 ],
               ),
               if (summary.wordEntryCount > 0) ...[
@@ -851,8 +920,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                     if (summary.missingMediaCount > 0 ||
                         summary.failedMediaCount > 0)
                       AppStrings.ankiImportMissingMedia(
-                          summary.missingMediaCount +
-                              summary.failedMediaCount),
+                          summary.missingMediaCount + summary.failedMediaCount),
                   ],
                 ),
               ],
@@ -1183,13 +1251,19 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     required String sourcePath,
     required bool isSample,
   }) async {
-    // Infer notetype mappings (canonicalize so UI never stores legacy aliases)
+    // Build a complete local recognition result before showing the preview.
+    // An empty API key deliberately disables the remote AI branch while still
+    // running persisted rules, deterministic rules and the labeled fallback.
     final mappingSw = Stopwatch()..start();
-    final mappings = <int, NotetypeMapping>{};
-    for (final entry in collection.notetypes.entries) {
-      mappings[entry.key] =
-          _canonicalizeMapping(AnkiCardAdapter.inferMapping(entry.value));
-    }
+    final recognitionResults = await CardRecognitionPipeline().recognizeAll(
+      config: const AiEngineConfig(apiKey: ''),
+      notetypes: collection.notetypes,
+      notes: collection.notes,
+    );
+    final mappings = {
+      for (final entry in recognitionResults.entries)
+        entry.key: _canonicalizeMapping(entry.value.mapping),
+    };
     mappingSw.stop();
     _logTiming('preview: mapping inference', mappingSw,
         {'notetypes': collection.notetypes.length});
@@ -1218,12 +1292,13 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     //   (anki-<importId>-c<cardId>, decision 2), so count notes already in
     //   the SRS queue under the previous importId as "existing".
     // - Otherwise everything is new.
-    final dao = AnkiImportDao(getIt<CourseDatabase>());
     final daoSw = Stopwatch()..start();
-    final existingImport = await dao.findByHash(hash);
+    final existingImport = await LegacyAnkiImportInspector(
+      getIt<CourseDatabase>(),
+    ).findExistingByHash(hash);
     daoSw.stop();
-    _logTiming('preview: dao.findByHash', daoSw,
-        {'hit': existingImport != null});
+    _logTiming(
+        'preview: dao.findByHash', daoSw, {'hit': existingImport != null});
     if (!mounted) return;
     var existingCount = 0;
     if (existingImport != null) {
@@ -1251,7 +1326,8 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       _filePath = sourcePath;
       _collection = collection;
       _mappings = mappings;
-      _recognitionResults = {};
+      _recognitionResults = recognitionResults;
+      _showAllRecognition = false;
       _sourceHash = hash;
       _existingImport = existingImport;
       _newCount = collection.notes.length - existingCount;
@@ -1337,7 +1413,9 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     setState(() => _isAiIdentifying = true);
     try {
       final pipelineSw = Stopwatch()..start();
-      final results = await CardRecognitionPipeline().recognizeAll(
+      final results = await CardRecognitionPipeline(
+        engine: getIt<AiEngine>(),
+      ).recognizeAll(
         config: config,
         notetypes: collection.notetypes,
         notes: collection.notes,
@@ -1365,8 +1443,6 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
   }
 
   Future<void> _executeImport() async {
-    // P5F-2: the official-first flow executes via the projection service —
-    // no Dart collection, legacy transaction, or SRS migration involved.
     if (_officialSourceId != null) {
       await _executeOfficialProjectionImport();
       return;
@@ -1374,7 +1450,13 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     final collection = _collection;
     final filePath = _filePath;
     final hash = _sourceHash;
-    if (collection == null || filePath == null || hash == null) return;
+    final plan = _plan;
+    if (collection == null ||
+        filePath == null ||
+        hash == null ||
+        plan == null) {
+      return;
+    }
 
     final totalSw = Stopwatch()..start();
     setState(() {
@@ -1384,429 +1466,96 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       _progressMessage = AppStrings.ankiPreparingImport;
     });
 
-    AnkiImportCleanupService? cleanup;
-    String? activeImportId;
-    var shouldRollbackOnFailure = false;
-    var srsIdsBefore = <String>{};
-    SrsProvider? activeSrsProvider;
-    final dao = AnkiImportDao(getIt<CourseDatabase>());
+    final executor = LegacyAnkiImportExecutor(
+      database: getIt<CourseDatabase>(),
+      srsProvider: context.read<SrsProvider>(),
+      reviewHistoryDao: getIt<ReviewHistoryDao>(),
+      mistakeProvider: getIt<MistakeProvider>(),
+      audioController: getIt<AudioController>(),
+    );
     try {
       final courseProvider = context.read<CourseProvider>();
-      final srsProvider = context.read<SrsProvider>();
-      activeSrsProvider = srsProvider;
-      srsIdsBefore = srsProvider.state.keys.toSet();
-      final liteThreshold = context.read<SettingsProvider>().ankiLiteThreshold;
-      final database = getIt<CourseDatabase>();
-      final repo = CourseRepository(database);
-      final noteDao = AnkiNoteDao(database);
-      cleanup = AnkiImportCleanupService(
-        repository: repo,
-        srsProvider: srsProvider,
-        importDao: dao,
-        noteDao: noteDao,
-        reviewHistoryDao: getIt<ReviewHistoryDao>(),
-        audioResolver: AnkiAudioResolver(),
-        unificationDao: AnkiUnificationDao(database),
-        mistakeProvider: getIt<MistakeProvider>(),
-      );
-
-      // Re-imports of the same file reuse the previous importId so card ids
-      // (`anki-<importId>-c<cardId>`) stay stable and merge/skipExisting can
-      // match; appendAsNew always mints a fresh id (duplicate deck).
-      final previous = _existingImport;
-      var importId = previous?.importId ??
-          DateTime.now().millisecondsSinceEpoch.toRadixString(36);
-      if (_strategy == ImportStrategy.appendAsNew ||
-          (_strategy == ImportStrategy.forceReplace && previous != null)) {
-        importId = DateTime.now().millisecondsSinceEpoch.toRadixString(36);
-      }
-      activeImportId = importId;
-      shouldRollbackOnFailure = previous == null ||
-          _strategy == ImportStrategy.appendAsNew ||
-          _strategy == ImportStrategy.forceReplace;
-
-      // Doc 34 W0: reuse the pick-time plan. Never re-read flags here.
-      final plan = _plan;
-      if (plan == null ||
-          plan.kind == AnkiImportExecutionKind.failClosed ||
-          plan.kind == AnkiImportExecutionKind.unsupported) {
-        throw OfficialAnkiException(
-          code: OfficialAnkiErrorCode.capabilityMissing,
-          messageKey: 'official_anki.flag_fail_closed',
-          debugDetails: plan?.reason ?? 'import_plan_missing',
-        );
-      }
-      if (plan.isOfficialFirst) {
-        // Collection parse + Legacy NoteStore is forbidden on Official-first.
-        // The pick path should have used _executeOfficialProjectionImport.
-        throw const OfficialAnkiException(
-          code: OfficialAnkiErrorCode.invalidState,
-          messageKey: 'official_anki.flag_fail_closed',
-          debugDetails: 'official_first_must_not_write_legacy_notestore',
-        );
-      }
-      if (!plan.isLegacyOnly) {
-        throw OfficialAnkiException(
-          code: OfficialAnkiErrorCode.invalidState,
-          messageKey: 'official_anki.flag_fail_closed',
-          debugDetails: plan.reason,
-        );
-      }
-      final persistedOwnerIsOfficial = plan.persistedOwnerIsOfficial;
-      final unifiedRequest = UnifiedAnkiImportRequest(
-        importId: importId,
-        sourceHash: hash,
-        canonicalCardIds: [
-          for (final card in collection.cards) card.id,
-        ],
-        persistedOwnerIsOfficial: persistedOwnerIsOfficial,
-        reuseExistingIdentity: _strategy != ImportStrategy.appendAsNew &&
-            _strategy != ImportStrategy.forceReplace,
-      );
-      final unifiedBegin =
-          await UnifiedAnkiImportOrchestrator.instance.begin(unifiedRequest);
-      if (unifiedBegin.noOp) {
-        setState(() {
-          _summary = AnkiImportSummary(
-            importId: importId,
-            sectionCount: 0,
-            unitCount: 0,
-            lessonCount: 0,
-            cardCount: unifiedBegin.canonicalCardCount,
-            wordEntryCount: unifiedBegin.canonicalCardCount,
-            sourceCardCount: unifiedBegin.canonicalCardCount,
-          );
-          _step = 4;
-        });
-        return;
-      }
-
-      var effectiveCollection = collection;
-
-      // Existing SRS states are always idempotently preserved by the
-      // migrator. Rebuild navigation and canonical source from the complete
-      // package even for Skip Existing; filtering the collection here used to
-      // create an empty successful import when every card already existed.
-
-      late AnkiImportSummary summary;
-      var mediaReport = const AnkiMediaCopyReport();
-
-      // Copy media files (audio/images) into persistent storage BEFORE opening
-      // the DB transaction so the SQLite write lock isn't held across all file
-      // I/O - a multi-thousand-card deck can copy thousands of files, and
-      // holding the write txn open for that blocks every other DB write in the
-      // app. copyMedia is best-effort (returns a report of missing/failed
-      // files); a catastrophic failure throws here, before the transaction
-      // opens, so nothing is committed - same rollback semantics as before.
-      setState(() => _progressMessage = AppStrings.ankiCopyingMedia);
-      final mediaSw = Stopwatch()..start();
-      mediaReport = await AnkiAudioResolver().copyMedia(
-        sourceDir: collection.mediaDir,
-        importId: importId,
-        mediaMapping: collection.media,
-      );
-      mediaSw.stop();
-      _logTiming('import: copyMedia', mediaSw, {
-        'available': mediaReport.availableCount,
-        'missing': mediaReport.missingCount,
-        'failed': mediaReport.failedCount,
-      });
-
-      final txnSw = Stopwatch()..start();
-      final assembleSw = Stopwatch(); // started inside the txn
-      final migrateSw = Stopwatch();
-      final saveSw = Stopwatch();
-      await database.transaction(() async {
-        // NoteStore rows reference anki_imports(import_id). Create the parent
-        // before the assembler writes notetypes, notes, and card metadata. The
-        // final upsert below refreshes counts and media metadata after the
-        // import completes.
-        await dao.upsert(AnkiImportRecord(
-          importId: importId,
-          sourcePath: filePath,
+      final result = await executor.execute(
+        LegacyAnkiImportRequest(
+          collection: collection,
+          filePath: filePath,
           sourceHash: hash,
-          importedAt: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-          deckCount: collection.decks.length,
-          noteCount: effectiveCollection.notes.length,
-          cardCount: effectiveCollection.cards.length,
-        ));
-
-        if (previous != null && importId == previous.importId) {
-          await _clearDerivedImportData(importId, repo, noteDao);
-        }
-
-        setState(() => _progressMessage = AppStrings.ankiAssemblingCourse);
-
-        // Assemble and write course tree
-        final assembler = AnkiDeckAssembler();
-        assembleSw
-          ..reset()
-          ..start();
-        summary = await assembler.assemble(
-          collection: effectiveCollection,
-          importId: importId,
-          repo: repo,
-          noteDao: noteDao,
-          mappingOverrides: _mappings,
+          plan: plan,
+          strategy: _strategy,
+          mappingOverrides: Map<int, NotetypeMapping>.unmodifiable(_mappings),
           smartGrouping: _smartGrouping,
           sectionBetaGrouping: _sectionBeta,
-          liteThreshold: liteThreshold,
-          onProgress: (p, msg) {
-            if (mounted)
-              setState(() {
-                _progress = p;
-                _progressMessage = msg;
-              });
-          },
+          liteThreshold: context.read<SettingsProvider>().ankiLiteThreshold,
+          importLearningProgress: _importLearningProgress,
+          dailyNewLimit: getIt<AnkiDeckManager>().dailyNewLimit,
+          isSample: _isSample,
+          previous: _existingImport,
           isCancelled: () => _cancelRequested,
-        );
-        assembleSw.stop();
-        _logTiming('import: assemble', assembleSw, {'cards': summary.cardCount});
+          onProgress: (stage, progress, detail) {
+            if (!mounted) return;
+            setState(() {
+              _progress = progress;
+              _progressMessage = detail.isNotEmpty
+                  ? detail
+                  : switch (stage) {
+                      LegacyAnkiImportStage.copyingMedia =>
+                        AppStrings.ankiCopyingMedia,
+                      LegacyAnkiImportStage.assemblingCourse =>
+                        AppStrings.ankiAssemblingCourse,
+                      LegacyAnkiImportStage.migratingSrs =>
+                        AppStrings.ankiMigratingSrs,
+                      LegacyAnkiImportStage.savingMetadata =>
+                        AppStrings.ankiSavingMetadata,
+                    };
+            });
+          },
+        ),
+      );
+      if (!mounted) return;
 
-        if (_cancelRequested) throw const AnkiImportCancelled();
-
-        setState(() => _progressMessage = AppStrings.ankiMigratingSrs);
-
-        // Official-owned imports must not create Turna Anki SRS rows.
-        if (unifiedBegin.wroteTurnaSrs && !unifiedBegin.noOp) {
-          final migrator = AnkiSrsMigrator();
-          final dailyNew = getIt<AnkiDeckManager>().dailyNewLimit;
-          migrateSw
-            ..reset()
-            ..start();
-          await migrator.migrate(
-            cards: effectiveCollection.cards,
-            importId: importId,
-            srsProvider: srsProvider,
-            revlog: effectiveCollection.revlog,
-            reviewHistoryDao: getIt<ReviewHistoryDao>(),
-            newCardsPerDay: dailyNew,
-            collectionCreationTime: effectiveCollection.collectionCreationTime,
-            importScheduling: _importLearningProgress,
-          );
-          migrateSw.stop();
-          _logTiming('import: migrate', migrateSw,
-              {'cards': effectiveCollection.cards.length});
-        }
-
-        setState(() => _progressMessage = AppStrings.ankiSavingMetadata);
-
-        // Save import metadata (media was copied before the transaction opened).
-        saveSw
-          ..reset()
-          ..start();
-        await dao.upsert(AnkiImportRecord(
-          importId: importId,
-          sourcePath: filePath,
-          sourceHash: hash,
-          importedAt: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-          deckCount: collection.decks.length,
-          noteCount: effectiveCollection.notes.length,
-          cardCount: effectiveCollection.cards.length,
-          mediaCount: mediaReport.availableCount,
-          notetypesJson: jsonEncode(
-            _mappings.map((k, v) => MapEntry(k.toString(), v.toJson())),
-          ),
-          sourceCardCount: effectiveCollection.cards.length,
-          storedCardCount: effectiveCollection.cards.length,
-          indexedCardCount: summary.cardCount,
-          importedScheduling: _importLearningProgress,
-        ));
-        await dao.markComplete(
-          importId,
-          sourceCardCount: effectiveCollection.cards.length,
-          indexedCardCount: summary.cardCount,
-          importedScheduling: _importLearningProgress,
-        );
-        saveSw.stop();
-        _logTiming('import: save metadata', saveSw);
-      });
-      txnSw.stop();
-      _logTiming('import: transaction total', txnSw);
-      await UnifiedAnkiImportOrchestrator.instance.finalize(unifiedRequest);
-
-      // Build Force Replace under a fresh id and remove the old copy only
-      // after the replacement has committed successfully.
-      if (_strategy == ImportStrategy.forceReplace && previous != null) {
-        final cleanupSw = Stopwatch()..start();
-        try {
-          await _removeExistingImport(
-            previous.importId,
-            repo,
-            srsProvider,
-            dao,
-          );
-        } catch (_) {
-          // Keeping both complete copies is safer than deleting the new one
-          // after a cleanup-only failure.
-        }
-        cleanupSw.stop();
-        _logTiming('import: forceReplace cleanup', cleanupSw);
-      }
-
-      // Development-only legacy→official background mirror
-      // (`TURNA_OFFICIAL_ANKI_LEGACY_MIRROR`). Production keeps exactly one
-      // owner per import: official-capable builds already ran the official
-      // saga (P5F-1 first or none), and best-effort mirroring after a legacy
-      // commit produced half-states that the delete saga could not resolve.
-      if (plan.isLegacyOnly &&
-          OfficialAnkiFeatureFlags.current.legacyMirror &&
-          !_isSample &&
-          !unifiedBegin.noOp) {
-        try {
-          await _officialFirst.importAndRecord(
-            filePath: filePath,
-            plan: plan,
-            importId: importId,
-            hash: hash,
-            cardCount: summary.cardCount,
-          );
-        } catch (e) {
-          debugPrint(
-            '[AnkiImport] Official import cutover sync failed/deferred: $e',
-          );
+      if (!result.noOp) {
+        CourseLoader.invalidateCaches();
+        await courseProvider.reloadCourse();
+        final newWire = _wireForImportId(result.importId, courseProvider);
+        if (newWire != null) {
+          final wires = [
+            for (final entry in courseProvider.catalogEntries) entry.wireKey,
+          ];
+          if (!wires.contains(newWire)) {
+            wires.add(newWire);
+            await courseProvider.persistCourseOrder(wires);
+          }
         }
       }
-
-      // Promote the import to a first-class course entry WITHOUT stealing
-      // the active course (plan 34 R1-4): drop CourseLoader memo so the new
-      // Anki section(s) appear in [CourseProvider.catalogEntries], refresh
-      // the tree, and keep the user on whatever course they were studying.
-      // Switching happens only via the done-page "start learning" action.
-      final scopeSw = Stopwatch()..start();
-      CourseLoader.invalidateCaches();
-      await courseProvider.reloadCourse();
-      // Ensure the new deck is ordered in the course-management list.
-      final newWire = _wireForImportId(importId, courseProvider);
-      if (newWire != null) {
-        final wires = [
-          for (final e in courseProvider.catalogEntries) e.wireKey,
-        ];
-        if (!wires.contains(newWire)) {
-          wires.add(newWire);
-          await courseProvider.persistCourseOrder(wires);
-        }
-      }
-      scopeSw.stop();
-      _logTiming('import: scope setup', scopeSw);
-
+      if (!mounted) return;
       setState(() {
-        _summary = summary.copyWith(
-          missingMediaCount: mediaReport.missingCount,
-          failedMediaCount: mediaReport.failedCount,
-        );
+        _summary = result.summary;
         _step = 4;
       });
-      // Proceeding with AI-recognized mappings is an implicit confirmation:
-      // persist them as signature rules so the same kind of notetype is
-      // recognized offline on the next import (Plan 1 Phase 4 step 7).
       unawaited(_persistRecognizedRules());
     } on AnkiImportCancelled {
-      if (activeImportId != null) {
-        // Release the orchestrator's in-flight key so a retry of the same
-        // package is accepted (no persisted row was finalized).
-        UnifiedAnkiImportOrchestrator.instance.invalidate(
-          importId: activeImportId,
-          sourceHash: hash,
-        );
-      }
-      if (activeSrsProvider != null && activeImportId != null) {
-        final addedIds = activeSrsProvider.state.keys
-            .where((id) =>
-                id.startsWith('anki-$activeImportId-') &&
-                !srsIdsBefore.contains(id))
-            .toList();
-        await activeSrsProvider.rollbackImportedIds(addedIds);
-      }
-      // Cancellation must not leave a half-written import behind.
-      if (shouldRollbackOnFailure &&
-          cleanup != null &&
-          activeImportId != null) {
-        try {
-          await cleanup.deleteAll(activeImportId);
-        } catch (_) {
-          // Cancellation should still return the wizard to the preview even
-          // if one cleanup backend is temporarily unavailable.
-        }
-      }
-      // Mark the lifecycle row 'failed' so the import manager can surface
-      // partial-import state instead of leaving it stuck in 'pending'.
-      if (activeImportId != null) {
-        try {
-          await dao.markFailed(
-            activeImportId,
-            reason: 'cancelled',
-          );
-        } catch (_) {
-          // Lifecycle write failure is non-fatal; the cleanup above already
-          // removed the user's data.
-        }
-      }
+      if (!mounted) return;
       setState(() {
         _step = 2;
         _progress = 0;
         _progressMessage = '';
       });
-    } on OfficialAnkiException catch (e) {
-      // P5F-1: the official-first saga runs before any Turna-side write, so
-      // there is nothing to roll back — surface the mapped error only.
-      debugPrint(
-        '[AnkiImport] official-first import failed before Turna writes: $e',
-      );
-      if (activeImportId != null) {
-        // The begin() probe already claimed the in-flight key; release it so
-        // the same package can be retried immediately.
-        UnifiedAnkiImportOrchestrator.instance.invalidate(
-          importId: activeImportId,
-          sourceHash: hash,
-        );
-      }
+    } on OfficialAnkiException catch (error) {
+      if (!mounted) return;
       setState(() {
-        _error = _mapOfficialErrorToHuman(e);
+        _error = _mapOfficialErrorToHuman(error);
         _step = 2;
         _progress = 0;
         _progressMessage = '';
       });
-    } catch (e) {
-      debugPrint('[AnkiImport] import failed: $e');
-      if (activeImportId != null) {
-        UnifiedAnkiImportOrchestrator.instance.invalidate(
-          importId: activeImportId,
-          sourceHash: hash,
-        );
-      }
-      if (activeSrsProvider != null && activeImportId != null) {
-        final addedIds = activeSrsProvider.state.keys
-            .where((id) =>
-                id.startsWith('anki-$activeImportId-') &&
-                !srsIdsBefore.contains(id))
-            .toList();
-        await activeSrsProvider.rollbackImportedIds(addedIds);
-      }
-      if (shouldRollbackOnFailure &&
-          cleanup != null &&
-          activeImportId != null) {
-        try {
-          await cleanup.deleteAll(activeImportId);
-        } catch (_) {
-          // Preserve the original import error; diagnostics can report the
-          // cleanup failure on the next import attempt.
-        }
-      }
-      if (activeImportId != null) {
-        try {
-          await dao.markFailed(
-            activeImportId,
-            reason: e.toString(),
-          );
-        } catch (_) {
-          // Lifecycle write failure is non-fatal; the cleanup above already
-          // removed the user's data.
-        }
-      }
+    } catch (error) {
+      debugPrint('[AnkiImport] import failed: $error');
+      if (!mounted) return;
       setState(() {
-        _error = AppStrings.ankiImportFailed(e);
+        _error = AppStrings.ankiImportFailed(error);
         _step = 2;
+        _progress = 0;
+        _progressMessage = '';
       });
     } finally {
       totalSw.stop();
@@ -1814,7 +1563,6 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         'cards': collection.cards.length,
         'strategy': _strategy.name,
       });
-      AnkiImporter.cleanupExtractedDir(collection.mediaDir);
     }
   }
 
@@ -1879,6 +1627,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         _officialSkippedNotetypes = {};
         _officialService = preview.service;
         _officialNeedsMapping = false;
+        _showAllOfficialRecognition = false;
         _step = 2;
         _progress = 0;
         _progressMessage = '';
@@ -1904,8 +1653,66 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
   /// per-notetype mapping confirmation, and the dedupe hint instead of the
   /// four legacy collision strategies (same-hash re-imports no-op in the
   /// saga).
+  _RecognitionAttention _officialRecognitionAttention(
+    OfficialAnkiProjectionSchema schema,
+  ) {
+    final id = schema.notetypeId;
+    if (_officialSkippedNotetypes.contains(id)) {
+      return _RecognitionAttention.skipped;
+    }
+    final suggestion = _officialSuggestions[id];
+    if (suggestion == null) return _RecognitionAttention.blocking;
+    final conflict =
+        OfficialAnkiProjectionMapper().mappingConflict(suggestion) != null;
+    final missingTarget =
+        suggestion.role(OfficialAnkiFieldRole.targetText) == null;
+    final missingAnswer = !suggestion.singleFieldMode &&
+        suggestion.role(OfficialAnkiFieldRole.nativeText) == null;
+    if (conflict ||
+        missingTarget ||
+        missingAnswer ||
+        suggestion.status == OfficialAnkiMappingStatus.needsMapping) {
+      return _RecognitionAttention.blocking;
+    }
+    if (_officialConfirmedNotetypes.contains(id)) {
+      return _RecognitionAttention.recognized;
+    }
+    if (suggestion.status == OfficialAnkiMappingStatus.needsConfirm ||
+        suggestion.status == OfficialAnkiMappingStatus.needsReview) {
+      return _RecognitionAttention.advisory;
+    }
+    return _RecognitionAttention.recognized;
+  }
+
+  bool get _hasOfficialBlockingRecognition => _officialSchemas.any(
+        (schema) =>
+            _officialRecognitionAttention(schema) ==
+            _RecognitionAttention.blocking,
+      );
+
   Widget _buildOfficialPreviewStep() {
     final schemas = _officialSchemas;
+    final attention = {
+      for (final schema in schemas)
+        schema.notetypeId: _officialRecognitionAttention(schema),
+    };
+    final blocking = attention.values
+        .where((value) => value == _RecognitionAttention.blocking)
+        .length;
+    final advisory = attention.values
+        .where((value) => value == _RecognitionAttention.advisory)
+        .length;
+    final issues = schemas
+        .where((schema) =>
+            attention[schema.notetypeId] == _RecognitionAttention.blocking ||
+            attention[schema.notetypeId] == _RecognitionAttention.advisory)
+        .toList();
+    final shownSchemas = _showAllOfficialRecognition ? schemas : issues;
+    final statusColor = blocking > 0
+        ? TurnaTheme.error
+        : advisory > 0
+            ? TurnaTheme.warning
+            : TurnaTheme.brandTeal;
     return Column(
       children: [
         Expanded(
@@ -1968,28 +1775,107 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                 title: AppStrings.ankiPreviewSectionMapping,
                 hint: AppStrings.ankiOfficialMappingHint,
                 children: [
-                  for (final schema in schemas)
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      dense: true,
-                      title: Text(schema.name),
-                      subtitle: Text(
-                        _officialSkippedNotetypes.contains(schema.notetypeId)
-                            ? AppStrings.ankiOfficialMappingSkipped
-                            : _officialConfirmedNotetypes
-                                    .contains(schema.notetypeId)
-                                ? AppStrings.ankiOfficialMappingConfirmed
-                                : AppStrings.ankiOfficialMappingSuggested,
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        blocking > 0
+                            ? Icons.error_outline_rounded
+                            : advisory > 0
+                                ? Icons.help_outline_rounded
+                                : Icons.check_circle_outline_rounded,
+                        size: 20,
+                        color: statusColor,
                       ),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => _openOfficialMapping(schema),
-                    ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          blocking > 0
+                              ? AppStrings.ankiMappingSummaryBlocking(blocking)
+                              : advisory > 0
+                                  ? AppStrings.ankiMappingSummaryNeedsCheck(
+                                      schemas.length - advisory, advisory)
+                                  : AppStrings.ankiMappingSummaryAll(
+                                      schemas.length),
+                          style: TextStyle(
+                            color: statusColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => setState(() =>
+                            _showAllOfficialRecognition =
+                                !_showAllOfficialRecognition),
+                        child: Text(
+                          _showAllOfficialRecognition
+                              ? AppStrings.commonCollapse
+                              : AppStrings.ankiMappingViewAll,
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (shownSchemas.isNotEmpty) const SizedBox(height: 6),
+                  for (final schema in shownSchemas)
+                    Builder(builder: (context) {
+                      final level = attention[schema.notetypeId]!;
+                      final rowColor = switch (level) {
+                        _RecognitionAttention.blocking => TurnaTheme.error,
+                        _RecognitionAttention.advisory => TurnaTheme.warning,
+                        _RecognitionAttention.recognized =>
+                          TurnaTheme.brandTeal,
+                        _RecognitionAttention.skipped =>
+                          TurnaTheme.textHintColor(context),
+                      };
+                      final statusText = switch (level) {
+                        _RecognitionAttention.blocking =>
+                          AppStrings.ankiMappingMustFix,
+                        _RecognitionAttention.advisory =>
+                          AppStrings.ankiMappingNeedsCheck,
+                        _RecognitionAttention.recognized =>
+                          AppStrings.ankiMappingRecognizedAuto,
+                        _RecognitionAttention.skipped =>
+                          AppStrings.ankiOfficialMappingSkipped,
+                      };
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        title: Text(schema.name),
+                        subtitle: Text(
+                          statusText,
+                          style: TextStyle(color: rowColor, fontSize: 12),
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              level == _RecognitionAttention.blocking
+                                  ? Icons.error_outline_rounded
+                                  : level == _RecognitionAttention.advisory
+                                      ? Icons.help_outline_rounded
+                                      : level == _RecognitionAttention.skipped
+                                          ? Icons.skip_next_outlined
+                                          : Icons.check_circle_outline_rounded,
+                              size: 18,
+                              color: rowColor,
+                            ),
+                            const Icon(Icons.chevron_right, size: 18),
+                          ],
+                        ),
+                        onTap: () => _openOfficialMapping(schema),
+                      );
+                    }),
                 ],
               ),
             ],
           ),
         ),
-        _StickyImportBar(onPressed: _executeImport),
+        _StickyImportBar(
+          onPressed: _hasOfficialBlockingRecognition ? null : _executeImport,
+          disabledHint: _hasOfficialBlockingRecognition
+              ? AppStrings.ankiMappingFixBlocking
+              : null,
+        ),
       ],
     );
   }
@@ -2035,6 +1921,10 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     final sourceId = _officialSourceId;
     final sourceHash = _officialSourceHash;
     if (service == null || sourceId == null || sourceHash == null) return;
+    if (_hasOfficialBlockingRecognition) {
+      setState(() => _officialNeedsMapping = true);
+      return;
+    }
 
     setState(() {
       _step = 3;
@@ -2132,45 +2022,6 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     }
   }
 
-  /// Remove every trace of a previous import (forceReplace strategy):
-  /// vocabulary, section tree, SRS states and the import record.
-  Future<void> _removeExistingImport(
-    String importId,
-    CourseRepository repo,
-    SrsProvider srsProvider,
-    AnkiImportDao dao,
-  ) async {
-    await AnkiImportCleanupService(
-      repository: repo,
-      srsProvider: srsProvider,
-      importDao: dao,
-      noteDao: AnkiNoteDao(getIt<CourseDatabase>()),
-      reviewHistoryDao: getIt<ReviewHistoryDao>(),
-      audioResolver: AnkiAudioResolver(),
-      unificationDao: AnkiUnificationDao(getIt<CourseDatabase>()),
-      mistakeProvider: getIt<MistakeProvider>(),
-    ).deleteAll(importId);
-  }
-
-  /// Clear only derived course/canonical rows before an in-place rebuild.
-  /// Called inside the surrounding database transaction, so failure restores
-  /// the previous complete import. User SRS/review history and media remain.
-  Future<void> _clearDerivedImportData(
-    String importId,
-    CourseRepository repo,
-    AnkiNoteDao noteDao,
-  ) async {
-    await repo.deleteByTag('anki:$importId');
-    final sections = await repo.sectionShells();
-    for (final section in sections) {
-      if (section.id.startsWith('anki-$importId-')) {
-        await repo.deleteSection(section.id);
-      }
-    }
-    await noteDao.deleteByImport(importId);
-    await noteDao.deletePrerenderedByPrefix('anki-$importId-');
-  }
-
   // ─── Helpers ────────────────────────────────────────────────────────
 
   String _strategyLabel(BuildContext context, ImportStrategy s) {
@@ -2251,7 +2102,8 @@ class _WizardStepper extends StatelessWidget {
                   margin: const EdgeInsets.symmetric(horizontal: 4),
                   color: i < currentStep
                       ? TurnaTheme.brandTeal.withValues(alpha: 0.5)
-                      : TurnaTheme.textHintColor(context).withValues(alpha: 0.2),
+                      : TurnaTheme.textHintColor(context)
+                          .withValues(alpha: 0.2),
                 ),
               ),
           ],
@@ -2353,8 +2205,7 @@ class _SectionCard extends StatelessWidget {
                   padding: const EdgeInsets.all(7),
                   decoration: BoxDecoration(
                     color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
-                    borderRadius:
-                        BorderRadius.circular(TurnaTheme.radiusSmall),
+                    borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
                   ),
                   child: Icon(icon, color: TurnaTheme.brandTeal, size: 18),
                 ),
@@ -2622,8 +2473,6 @@ class _StrategyOption extends StatelessWidget {
                   height: 20,
                   child: Radio<ImportStrategy>(
                     value: value,
-                    groupValue: groupValue,
-                    onChanged: (v) => onChanged(v!),
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     visualDensity: VisualDensity.compact,
                   ),
@@ -2692,8 +2541,9 @@ class _StrategyOption extends StatelessWidget {
 /// users do not have to scroll back to the bottom of the long preview page
 /// after adjusting strategy / learning-progress settings.
 class _StickyImportBar extends StatelessWidget {
-  final VoidCallback onPressed;
-  const _StickyImportBar({required this.onPressed});
+  final VoidCallback? onPressed;
+  final String? disabledHint;
+  const _StickyImportBar({required this.onPressed, this.disabledHint});
 
   @override
   Widget build(BuildContext context) {
@@ -2710,27 +2560,43 @@ class _StickyImportBar extends StatelessWidget {
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
-          child: SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: onPressed,
-              icon: const Icon(Icons.cloud_download_rounded, size: 20),
-              label: Text(
-                AppStrings.ankiPreviewStartImport,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 16,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (disabledHint != null) ...[
+                Text(
+                  disabledHint!,
+                  style: const TextStyle(
+                    color: TurnaTheme.error,
+                    fontSize: 12,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 6),
+              ],
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: onPressed,
+                  icon: const Icon(Icons.cloud_download_rounded, size: 20),
+                  label: Text(
+                    AppStrings.ankiPreviewStartImport,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: TurnaTheme.brandTeal,
+                    foregroundColor: TurnaTheme.textOnPrimary,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
                 ),
               ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: TurnaTheme.brandTeal,
-                foregroundColor: TurnaTheme.textOnPrimary,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
+            ],
           ),
         ),
       ),
@@ -2944,6 +2810,22 @@ NotetypeMapping _canonicalizeMapping(NotetypeMapping m) {
   return canonical == m.type ? m : m.copyWith(type: canonical);
 }
 
+bool _mappingUsesFrontBackFields(NotetypeMappingType type) {
+  switch (_canonicalizeMappingType(type)) {
+    case NotetypeMappingType.ankiCard:
+    case NotetypeMappingType.wordEntry:
+    case NotetypeMappingType.expression:
+    case NotetypeMappingType.fillBlank:
+    case NotetypeMappingType.typeAnswer:
+    case NotetypeMappingType.listenPick:
+      return true;
+    case NotetypeMappingType.cloze:
+    case NotetypeMappingType.multipleChoice:
+    case NotetypeMappingType.multiSelect:
+      return false;
+  }
+}
+
 /// Human-readable label for the automatic layout classification shown in the
 /// import preview and sample-card dialog.
 String _mappingTypeLabel(NotetypeMappingType type) {
@@ -2974,176 +2856,79 @@ class _NotetypeMappingRow extends StatelessWidget {
   final AnkiNotetype notetype;
   final NotetypeMapping? mapping;
   final CardRecognitionResult? recognition;
+  final _RecognitionAttention attention;
   final VoidCallback onEdit;
 
   const _NotetypeMappingRow({
     required this.notetype,
     required this.mapping,
+    required this.attention,
     required this.onEdit,
     this.recognition,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-        child: InkWell(
-          onTap: onEdit,
-          borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-          child: Semantics(
-            button: true,
-            label: AppStrings.ankiMappingEditTooltip,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          notetype.name,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 8),
-                          decoration: BoxDecoration(
-                            color:
-                                TurnaTheme.brandTeal.withValues(alpha: 0.08),
-                            borderRadius:
-                                BorderRadius.circular(TurnaTheme.radiusSmall),
-                            border: Border.all(
-                              color: TurnaTheme.brandTeal
-                                  .withValues(alpha: 0.18),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.auto_awesome_outlined,
-                                size: 16,
-                                color: TurnaTheme.brandTeal,
-                              ),
-                              const SizedBox(width: 7),
-                              Expanded(
-                                child: Text(
-                                  _mappingTypeLabel(
-                                    mapping?.type ??
-                                        NotetypeMappingType.ankiCard,
-                                  ),
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w600),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (recognition != null) ...[
-                          const SizedBox(height: 4),
-                          _RecognitionBadge(recognition: recognition!),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const Icon(
-                    Icons.edit_outlined,
-                    size: 20,
-                    color: TurnaTheme.brandTeal,
-                  ),
-                ],
+    final color = switch (attention) {
+      _RecognitionAttention.blocking => TurnaTheme.error,
+      _RecognitionAttention.advisory => TurnaTheme.warning,
+      _RecognitionAttention.recognized => TurnaTheme.brandTeal,
+      _RecognitionAttention.skipped => TurnaTheme.textHintColor(context),
+    };
+    final status = switch (attention) {
+      _RecognitionAttention.blocking => AppStrings.ankiMappingMustFix,
+      _RecognitionAttention.advisory => AppStrings.ankiMappingNeedsCheck,
+      _RecognitionAttention.recognized => AppStrings.ankiMappingRecognizedAuto,
+      _RecognitionAttention.skipped => AppStrings.ankiOfficialMappingSkipped,
+    };
+    final warnings = recognition?.warnings ?? const <String>[];
+    final detail = warnings.isEmpty ? null : warnings.first;
+    return Material(
+      color: Colors.transparent,
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        dense: true,
+        onTap: onEdit,
+        title: Text(
+          notetype.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontWeight: FontWeight.w600),
+        ),
+        subtitle: Text(
+          detail != null && attention != _RecognitionAttention.recognized
+              ? '${_mappingTypeLabel(mapping?.type ?? NotetypeMappingType.ankiCard)} · $detail'
+              : _mappingTypeLabel(
+                  mapping?.type ?? NotetypeMappingType.ankiCard,
+                ),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              attention == _RecognitionAttention.blocking
+                  ? Icons.error_outline_rounded
+                  : attention == _RecognitionAttention.advisory
+                      ? Icons.help_outline_rounded
+                      : Icons.check_circle_outline_rounded,
+              color: color,
+              size: 17,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              status,
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
               ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Explainability strip for one recognized mapping (Plan 1 Phase 4 step 8):
-/// where the verdict came from, its confidence, and any warnings. Rows the
-/// pipeline flags as needing confirmation render expanded with the reason.
-class _RecognitionBadge extends StatelessWidget {
-  const _RecognitionBadge({required this.recognition});
-
-  final CardRecognitionResult recognition;
-
-  static const _sourceLabels = {
-    CardRecognitionSource.rule: '规则',
-    CardRecognitionSource.persisted: '已保存规则',
-    CardRecognitionSource.ai: 'AI',
-    CardRecognitionSource.fallback: '回退',
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    final lowConfidence = recognition.needsConfirmation;
-    final color = lowConfidence ? TurnaTheme.warning : TurnaTheme.brandTeal;
-    final confidencePct = (recognition.confidence * 100).round();
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
-        border: Border.all(color: color.withValues(alpha: 0.25)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                lowConfidence
-                    ? Icons.help_outline_rounded
-                    : Icons.verified_outlined,
-                size: 14,
-                color: color,
-              ),
-              const SizedBox(width: 5),
-              Expanded(
-                child: Text(
-                  '${_sourceLabels[recognition.source]} · 置信度 $confidencePct%',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: color,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          if (lowConfidence) ...[
-            if (recognition.evidence.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Text(
-                  recognition.evidence,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: TurnaTheme.textSecondaryColor(context),
-                  ),
-                ),
-              ),
-            for (final warning in recognition.warnings)
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Text(
-                  '⚠ $warning',
-                  style: TextStyle(fontSize: 11, color: color),
-                ),
-              ),
+            const SizedBox(width: 2),
+            const Icon(Icons.chevron_right, size: 18),
           ],
-        ],
+        ),
       ),
     );
   }
@@ -3205,19 +2990,16 @@ class _NotetypeMappingEditorState extends State<_NotetypeMappingEditor> {
   /// Cloze and choice types resolve their fields per-card at adapt time, so
   /// exposing manual field selectors there would be misleading.
   bool _typeUsesFrontBackFields(NotetypeMappingType t) {
-    switch (_canonicalizeMappingType(t)) {
-      case NotetypeMappingType.ankiCard:
-      case NotetypeMappingType.wordEntry:
-      case NotetypeMappingType.expression:
-      case NotetypeMappingType.fillBlank:
-      case NotetypeMappingType.typeAnswer:
-      case NotetypeMappingType.listenPick:
-        return true;
-      case NotetypeMappingType.cloze:
-      case NotetypeMappingType.multipleChoice:
-      case NotetypeMappingType.multiSelect:
-        return false;
-    }
+    return _mappingUsesFrontBackFields(t);
+  }
+
+  void _swapFields() {
+    setState(() {
+      _draft = _draft.copyWith(
+        frontFieldIndex: _draft.backFieldIndex,
+        backFieldIndex: _draft.frontFieldIndex,
+      );
+    });
   }
 
   @override
@@ -3242,48 +3024,6 @@ class _NotetypeMappingEditorState extends State<_NotetypeMappingEditor> {
               style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
             ),
             const SizedBox(height: 12),
-            _fieldLabel(context, AppStrings.ankiMappingFieldType),
-            const SizedBox(height: 6),
-            DropdownButtonFormField<NotetypeMappingType>(
-              initialValue: _canonicalizeMappingType(_draft.type),
-              isExpanded: true,
-              decoration: _dropdownDecoration(context),
-              items: [
-                for (final t in _userSelectableMappingTypes)
-                  DropdownMenuItem(
-                    value: t,
-                    child: Text(_mappingTypeLabel(t)),
-                  ),
-              ],
-              onChanged: (t) {
-                if (t == null) return;
-                final next = _canonicalizeMappingType(t);
-                if (next == _draft.type) return;
-                setState(() => _draft = _draft.copyWith(type: next));
-              },
-            ),
-            const SizedBox(height: 12),
-            if (showFields) ...[
-              _fieldSelector(
-                context,
-                label: AppStrings.ankiMappingFieldFront,
-                value: _draft.frontFieldIndex,
-                fields: fields,
-                onChanged: (i) => setState(
-                    () => _draft = _draft.copyWith(frontFieldIndex: i ?? 0)),
-              ),
-              const SizedBox(height: 10),
-              _fieldSelector(
-                context,
-                label: AppStrings.ankiMappingFieldBack,
-                value: _draft.backFieldIndex,
-                fields: fields,
-                onChanged: (i) => setState(
-                    () => _draft = _draft.copyWith(backFieldIndex: i ?? 0)),
-              ),
-            ] else
-              _autoFieldsHint(context),
-            const SizedBox(height: 14),
             if (widget.note == null)
               Text(
                 '-',
@@ -3300,40 +3040,79 @@ class _NotetypeMappingEditorState extends State<_NotetypeMappingEditor> {
                 value: fieldValue(_draft.backFieldIndex),
               ),
             ],
-            if (_draft.reason.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Icon(
-                    Icons.lightbulb_outline_rounded,
-                    size: 16,
-                    color: TurnaTheme.textSecondaryColor(context),
-                  ),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          AppStrings.ankiMappingReason,
-                          style: TextStyle(
-                            fontWeight: FontWeight.w600,
-                            color: TurnaTheme.textSecondaryColor(context),
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          _draft.reason,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+            if (showFields && fields.length > 1) ...[
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.center,
+                child: OutlinedButton.icon(
+                  key: const Key('legacy-mapping-swap'),
+                  onPressed: _swapFields,
+                  icon: const Icon(Icons.swap_vert_rounded, size: 18),
+                  label: Text(AppStrings.ankiMappingSwapSides),
+                ),
               ),
             ],
+            const SizedBox(height: 8),
+            Theme(
+              data:
+                  Theme.of(context).copyWith(dividerColor: Colors.transparent),
+              child: ExpansionTile(
+                key: const Key('legacy-mapping-more'),
+                tilePadding: EdgeInsets.zero,
+                childrenPadding: EdgeInsets.zero,
+                title: Text(
+                  AppStrings.ankiMappingMoreAdjustments,
+                  style: const TextStyle(fontSize: 14),
+                ),
+                children: [
+                  _fieldLabel(context, AppStrings.ankiMappingFieldType),
+                  const SizedBox(height: 6),
+                  DropdownButtonFormField<NotetypeMappingType>(
+                    initialValue: _canonicalizeMappingType(_draft.type),
+                    isExpanded: true,
+                    decoration: _dropdownDecoration(context),
+                    items: [
+                      for (final t in _userSelectableMappingTypes)
+                        DropdownMenuItem(
+                          value: t,
+                          child: Text(_mappingTypeLabel(t)),
+                        ),
+                    ],
+                    onChanged: (t) {
+                      if (t == null) return;
+                      final next = _canonicalizeMappingType(t);
+                      if (next == _draft.type) return;
+                      setState(() => _draft = _draft.copyWith(type: next));
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  if (showFields) ...[
+                    _fieldSelector(
+                      context,
+                      label: AppStrings.ankiMappingFieldFront,
+                      value: _draft.frontFieldIndex,
+                      fields: fields,
+                      onChanged: (i) => setState(() =>
+                          _draft = _draft.copyWith(frontFieldIndex: i ?? 0)),
+                    ),
+                    const SizedBox(height: 10),
+                    _fieldSelector(
+                      context,
+                      label: AppStrings.ankiMappingFieldBack,
+                      value: _draft.backFieldIndex,
+                      fields: fields,
+                      onChanged: (i) => setState(() =>
+                          _draft = _draft.copyWith(backFieldIndex: i ?? 0)),
+                    ),
+                  ] else
+                    _autoFieldsHint(context),
+                  if (_draft.reason.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    _ReasonDisclosure(reason: _draft.reason),
+                  ],
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -3352,7 +3131,7 @@ class _NotetypeMappingEditorState extends State<_NotetypeMappingEditor> {
         ),
         FilledButton(
           onPressed: () => Navigator.of(context).pop(_draft),
-          child: Text(AppStrings.commonSave),
+          child: Text(AppStrings.ankiMappingConfirmCorrect),
         ),
       ],
     );
@@ -3387,7 +3166,7 @@ class _NotetypeMappingEditorState extends State<_NotetypeMappingEditor> {
           decoration: _dropdownDecoration(context),
           items: [
             for (var i = 0; i < fields.length; i++)
-              DropdownMenuItem(value: i, child: Text('$i. ${fields[i]}')),
+              DropdownMenuItem(value: i, child: Text(fields[i])),
           ],
           onChanged: onChanged,
         ),
@@ -3430,6 +3209,105 @@ class _NotetypeMappingEditorState extends State<_NotetypeMappingEditor> {
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
         borderSide: BorderSide.none,
+      ),
+    );
+  }
+}
+
+/// Collapsible "why was it recognized this way" note inside the mapping
+/// editor — collapsed by default so the dialog stays simple; the reasoning
+/// stays one tap away for users who care.
+class _ReasonDisclosure extends StatefulWidget {
+  const _ReasonDisclosure({required this.reason});
+
+  final String reason;
+
+  @override
+  State<_ReasonDisclosure> createState() => _ReasonDisclosureState();
+}
+
+class _ReasonDisclosureState extends State<_ReasonDisclosure> {
+  var _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
+        onTap: () => setState(() => _expanded = !_expanded),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                _expanded ? Icons.expand_less : Icons.lightbulb_outline_rounded,
+                size: 16,
+                color: TurnaTheme.textSecondaryColor(context),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                '${AppStrings.ankiMappingReason}${_expanded ? '' : ' ▾'}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: TurnaTheme.textSecondaryColor(context),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Collapsed-by-default container for expert knobs (strategy, grouping).
+/// The collapsed header shows the current defaults as a one-line summary so
+/// casual users can just tap "开始导入" without wading through options.
+class _AdvancedOptionsCard extends StatelessWidget {
+  const _AdvancedOptionsCard({
+    required this.summary,
+    required this.children,
+  });
+
+  final String summary;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        border: Border.all(
+          color: TurnaTheme.textHintColor(context).withValues(alpha: 0.2),
+        ),
+      ),
+      child: Theme(
+        // Remove ExpansionTile's default hairlines — the card border is the
+        // only outline.
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          tilePadding: const EdgeInsets.symmetric(horizontal: 12),
+          childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          iconColor: TurnaTheme.brandTeal,
+          title: Text(
+            AppStrings.ankiAdvancedOptionsTitle,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          ),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              summary,
+              style: TextStyle(
+                fontSize: 12,
+                color: TurnaTheme.textHintColor(context),
+              ),
+            ),
+          ),
+          children: children,
+        ),
       ),
     );
   }

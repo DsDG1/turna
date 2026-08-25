@@ -31,7 +31,7 @@ void main() {
         );
 
     // Cap + 5 lessons so LRU must evict.
-    final n = CourseLoader.lessonBodyCacheCap + 5;
+    const n = CourseLoader.lessonBodyCacheCap + 5;
     for (var i = 0; i < n; i++) {
       final id = 'l-$i';
       await database.into(database.lessons).insert(
@@ -60,7 +60,7 @@ void main() {
 
   test('loadLessonById caches and remains correct under LRU pressure',
       () async {
-    final cap = CourseLoader.lessonBodyCacheCap;
+    const cap = CourseLoader.lessonBodyCacheCap;
     // Fill beyond cap.
     for (var i = 0; i < cap + 5; i++) {
       final lesson = await CourseLoader.loadLessonById('l-$i');

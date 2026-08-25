@@ -78,8 +78,7 @@ class AppRouter extends RootStackRouter {
         // links — unless the build opted into diagnostics explicitly.
         AutoRoute(
             page: OfficialAnkiInternalRoute.page, guards: [_diagnosticsGuard]),
-        AutoRoute(
-            page: OfficialAnkiMappingRoute.page, guards: [_diagnosticsGuard]),
+        AutoRoute(page: OfficialAnkiMappingRoute.page),
         AutoRoute(
             page: OfficialAnkiReviewerRoute.page, guards: [_diagnosticsGuard]),
         AutoRoute(
@@ -87,9 +86,11 @@ class AppRouter extends RootStackRouter {
         AutoRoute(
             page: OfficialAnkiMigrationPreviewRoute.page,
             guards: [_diagnosticsGuard]),
+        AutoRoute(page: OfficialAnkiSourceManagementRoute.page),
         AutoRoute(
-            page: OfficialAnkiSourceManagementRoute.page,
-            guards: [_diagnosticsGuard]),
+          page: OfficialAnkiMigrationCenterRoute.page,
+          guards: [_courseReadyGuard],
+        ),
         // Settings family: static content pages, no course guard
         // (mirrors SystemHealthRoute).
         AutoRoute(page: SystemHealthRoute.page),

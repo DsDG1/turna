@@ -178,7 +178,7 @@ void main() {
       final sink = file.openWrite();
       sink.write('[');
       for (var i = 0; i < 33 * 1024; i++) {
-        sink.write('"' + 'x' * 1021 + '",');
+        sink.write('"${'x' * 1021}",');
       }
       sink.write('0]');
       await sink.close();

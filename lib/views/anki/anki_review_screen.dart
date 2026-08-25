@@ -95,13 +95,12 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
         courseProvider.catalogEntries[i].wireKey: i,
     };
     ankiSections.sort(
-      (a, b) => (deckOrder[wireForImportId[AnkiReviewAssembler
-              .importIdFromSectionId(a.id)]] ??
+      (a, b) => (deckOrder[wireForImportId[
+                  AnkiReviewAssembler.importIdFromSectionId(a.id)]] ??
               9999)
-          .compareTo(
-              deckOrder[wireForImportId[AnkiReviewAssembler
-                      .importIdFromSectionId(b.id)]] ??
-                  9999),
+          .compareTo(deckOrder[wireForImportId[
+                  AnkiReviewAssembler.importIdFromSectionId(b.id)]] ??
+              9999),
     );
 
     if (ankiSections.isEmpty) {
@@ -269,14 +268,14 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
                   entry: FormalReviewEntryKind.deckSection,
                 ),
                 onStats: () => context.router.push(AnkiDeckStatsRoute(
-                      importId: importId,
-                      title: section.name,
-                    )),
+                  importId: importId,
+                  title: section.name,
+                )),
                 onBrowse: () => context.router.push(AnkiCardBrowserRoute(
-                      importId: importId,
-                      title: section.name,
-                      sectionId: section.id,
-                    )),
+                  importId: importId,
+                  title: section.name,
+                  sectionId: section.id,
+                )),
                 onPin: () => _pinDeck(context, section.id),
                 onOptions: isOfficial
                     ? null
@@ -308,8 +307,8 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
     reordered.insert(newIndex, item);
     final deckIds = <String>{
       for (final section in reordered)
-        AnkiReviewAssembler.importIdFromSectionId((section as dynamic).id
-            as String),
+        AnkiReviewAssembler.importIdFromSectionId(
+            (section as dynamic).id as String),
     };
     // Wire-key based reorder: keep builtin first, then the decks in the
     // user's drag order, then any non-deck courses untouched.
@@ -461,7 +460,14 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
 
     final importId = AnkiReviewAssembler.importIdFromSectionId(sectionId);
     if (importId.isEmpty) return;
-    await getIt<AnkiDeckManager>().uninstall(importId);
+    var uninstallCompleted = false;
+    var uninstallFailed = false;
+    try {
+      uninstallCompleted = await getIt<AnkiDeckManager>().uninstall(importId);
+    } catch (e) {
+      uninstallFailed = true;
+      debugPrint('[AnkiReview] uninstall failed for $importId: $e');
+    }
     if (!context.mounted) return;
     final courseProvider = context.read<CourseProvider>();
     final removedWasActive = courseProvider.catalogEntries.any((entry) =>
@@ -477,7 +483,15 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
     }
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(AppStrings.ankiDeckRemoved)),
+      SnackBar(
+        content: Text(
+          uninstallFailed
+              ? AppStrings.ankiDeckRemovalFailed
+              : uninstallCompleted
+                  ? AppStrings.ankiDeckRemoved
+                  : AppStrings.ankiDeckRemovalPending,
+        ),
+      ),
     );
   }
 
@@ -572,8 +586,7 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
       entry: entry,
       courseId: importId.isEmpty ? 'anki' : 'anki-$importId',
       sectionId: sectionId,
-      officialOwner:
-          OfficialAnkiHomeDue.officialImportIds.contains(importId),
+      officialOwner: OfficialAnkiHomeDue.officialImportIds.contains(importId),
       schedulerRuntimeAvailable:
           OfficialAnkiFeatureFlags.current.allowsOfficialScheduler,
     );

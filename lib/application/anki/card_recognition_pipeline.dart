@@ -61,9 +61,8 @@ class NotetypeSignature {
                 .join('\u2029')))
             .toString()
             .substring(0, 12);
-    final fields = notetype.fieldNames
-        .map((f) => f.trim().toLowerCase())
-        .join('\u2028');
+    final fields =
+        notetype.fieldNames.map((f) => f.trim().toLowerCase()).join('\u2028');
     return NotetypeSignature._(
       'v$version|cloze=${notetype.isCloze ? 1 : 0}'
       '|f=${notetype.fieldNames.length}:$fields'
@@ -303,7 +302,11 @@ class CardRecognitionPipeline {
         continue;
       }
 
-      final rule = _applyDeterministicRules(entry.value, notes);
+      final rule = _applyDeterministicRules(
+        entry.value,
+        notes,
+        allowFieldNameRule: !config.isComplete || _engine == null,
+      );
       if (rule != null) {
         results[entry.key] = rule;
         continue;
@@ -312,8 +315,8 @@ class CardRecognitionPipeline {
     }
 
     if (pendingAi.isNotEmpty && config.isComplete && _engine != null) {
-      final aiResults =
-          await _recognizeViaAi(config: config, pending: pendingAi, notes: notes);
+      final aiResults = await _recognizeViaAi(
+          config: config, pending: pendingAi, notes: notes);
       results.addAll(aiResults);
     }
 
@@ -340,8 +343,9 @@ class CardRecognitionPipeline {
   /// AI entirely for that notetype (Plan step 3).
   CardRecognitionResult? _applyDeterministicRules(
     AnkiNotetype notetype,
-    List<AnkiNote> notes,
-  ) {
+    List<AnkiNote> notes, {
+    required bool allowFieldNameRule,
+  }) {
     if (notetype.isCloze) {
       return CardRecognitionResult(
         mapping: const NotetypeMapping(
@@ -397,6 +401,20 @@ class CardRecognitionPipeline {
       );
     }
 
+    // The legacy adapter already has stable field-name rules for ordinary
+    // vocabulary, expression and named quiz layouts. Treat those explicit
+    // matches as local recognition successes; only the truly generic
+    // first-field/second-field default remains a low-confidence fallback.
+    final inferred = AnkiCardAdapter.inferMapping(notetype);
+    if (allowFieldNameRule && inferred.reason != 'Default flip card mapping') {
+      return CardRecognitionResult(
+        mapping: inferred,
+        confidence: 0.8,
+        source: CardRecognitionSource.rule,
+        evidence: '根据字段名称自动识别',
+      );
+    }
+
     return null;
   }
 
@@ -424,7 +442,10 @@ class CardRecognitionPipeline {
         config: config,
         messages: [
           {'role': 'system', 'content': _systemPrompt},
-          {'role': 'user', 'content': jsonEncode({'notetypes': payload})},
+          {
+            'role': 'user',
+            'content': jsonEncode({'notetypes': payload})
+          },
         ],
         temperature: 0.2,
         timeout: const Duration(seconds: 45),
@@ -479,8 +500,7 @@ One entry per input notetype. frontField/backField must be exact field names.
           .whereType<Map<String, dynamic>>()
           .toList();
       final byId = {
-        for (final row in rows)
-          (row['id'] as num?)?.toInt() ?? -1: row,
+        for (final row in rows) (row['id'] as num?)?.toInt() ?? -1: row,
       };
       final results = <int, CardRecognitionResult>{};
       for (final entry in pending.entries) {
@@ -577,7 +597,8 @@ One entry per input notetype. frontField/backField must be exact field names.
         mapping.backFieldIndex < 0) {
       warnings.add('字段索引超出范围');
       confidence *= 0.5;
-    } else if (fieldCount > 1 && mapping.frontFieldIndex == mapping.backFieldIndex) {
+    } else if (fieldCount > 1 &&
+        mapping.frontFieldIndex == mapping.backFieldIndex) {
       warnings.add('正面与答案使用了同一个字段');
       confidence *= 0.7;
     }

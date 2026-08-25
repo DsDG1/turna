@@ -188,6 +188,7 @@ const _forward = <LegacyAnkiMigrationState, Set<LegacyAnkiMigrationState>>{
   },
   LegacyAnkiMigrationState.projectingCourse: {
     LegacyAnkiMigrationState.verifying,
+    LegacyAnkiMigrationState.needsUserAction,
     LegacyAnkiMigrationState.failedRecoverable,
     LegacyAnkiMigrationState.rollbackRequired,
     LegacyAnkiMigrationState.rolledBackLegacy,

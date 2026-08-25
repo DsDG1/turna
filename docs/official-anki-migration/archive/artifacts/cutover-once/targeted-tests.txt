@@ -1,20 +1,19 @@
-date: 2026-08-25 (one-shot construction, targeted gates)
-command pattern: flutter test <file> --reporter compact
+date: 2026-08-25T17:04:47+08:00
 
-test/data/schema_migration_test.dart (v20->v21 + fresh v21 + downgrade)   PASS 15
-test/application/anki_official/official_owner_transition_test.dart        PASS 18
-test/application/course_scope_codec_migration_test.dart                   PASS 12
-test/application/course_provider_scope_test.dart                          PASS 10
-test/application/course_provider_official_scope_test.dart                 PASS 8
-test/application/anki/anki_exact_source_uninstall_test.dart               PASS 5
-test/application/anki_official/official_formal_review_fidelity_test.dart  PASS 4
-test/application/anki_official/official_live_formal_review_test.dart      PASS 5
-test/application/anki_official/official_review_all_coordinator_test.dart  PASS 5
-test/application/anki_official/official_formal_due_repository_test.dart   PASS 7
-test/application/anki_official/official_formal_due_eligibility_test.dart  PASS 5
-test/application/anki_official/official_formal_due_card_ids_sync_test.dart PASS 3
-test/application/anki_official/official_legacy_write_fence_matrix_test.dart PASS 7
-test/application/anki_official/official_legacy_source_migration_saga_test.dart PASS 11
-test/application/migration/turna_migration_import_test.dart               PASS 6
-test/routing/official_diagnostics_release_guard_test.dart                 PASS 4
-test/golden/course_tree_golden_test.dart + play_hub_golden_test.dart      PASS 4
+command: flutter test test/application/anki/anki_media_delete_test.dart test/application/anki/anki_unification_architecture_guard_test.dart test/application/anki/unified_anki_import_orchestrator_test.dart --reporter compact
+result: 34 passed / 0 failed
+coverage: media staging swap commit+rollback+process-kill recovery, projection identity replacement with history retention, in-flight concurrency, locked-media cleanup, import identity dedup/invalidate, production architecture fences
+
+W8 targeted groups: owner authority + migration saga + production coordinator
+result: 34 passed / 0 failed
+coverage: CourseDB owner commit/catalog mirror crash gap, post-commit smoke forward recovery, rollback refusal after owner commit
+
+review/browser/stats/uninstall targeted groups
+result: passed; also included in full 1852/0 suite
+coverage: mixed Legacy+Official Review All, exact source card deletion, source-scoped browser filters and exact batch stats
+
+native command: PROTOC=tools/protoc/bin/protoc cargo test --manifest-path native/turna_anki_core/Cargo.toml
+result: 68 passed / 0 failed
+
+golden command: flutter test test/golden/course_tree_golden_test.dart test/golden/play_hub_golden_test.dart --reporter compact
+result: 4 passed / 0 failed

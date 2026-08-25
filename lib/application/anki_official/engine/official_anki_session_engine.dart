@@ -19,7 +19,8 @@ class OfficialAnkiSessionEngine implements OfficialAnkiEngine {
   Future<OfficialAnkiEngineInfo> engineInfo() => session.engineInfo();
 
   @override
-  Future<void> openProfile(OfficialAnkiPaths paths) => session.ensureCollectionOpen();
+  Future<void> openProfile(OfficialAnkiPaths paths) =>
+      session.ensureCollectionOpen();
 
   @override
   Future<void> closeCollection() async {}
@@ -219,6 +220,21 @@ class OfficialAnkiSessionEngine implements OfficialAnkiEngine {
   @override
   Future<int> deleteNotes(List<int> noteIds) {
     return session.deleteNotes(noteIds);
+  }
+
+  @override
+  Future<int> deleteCards(List<int> cardIds) {
+    return session.deleteCards(cardIds);
+  }
+
+  @override
+  Future<OfficialAnkiStatsBatch> statsForCardsBatch(List<int> cardIds) {
+    return session.statsForCardsBatch(cardIds);
+  }
+
+  @override
+  Future<int> scheduleCardsAsNew(List<int> cardIds) {
+    return session.scheduleCardsAsNew(cardIds);
   }
 
   @override

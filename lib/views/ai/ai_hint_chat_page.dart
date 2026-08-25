@@ -27,7 +27,7 @@ class AiHintChatPage extends StatefulWidget {
   /// conversation yet, the page seeds an explanation request on entry.
   final AiQuestionContext? context;
 
-  const AiHintChatPage({Key? key, this.context}) : super(key: key);
+  const AiHintChatPage({super.key, this.context});
 
   @override
   State<AiHintChatPage> createState() => _AiHintChatPageState();

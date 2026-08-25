@@ -60,7 +60,7 @@ class AiGroundedResourceProvider extends ChangeNotifier {
     notifyListeners();
     try {
       if (requestedScope.contains('words')) {
-        final rows = await _repository!.vocabulary();
+        final rows = await _repository.vocabulary();
         _words = [
           for (final w in rows)
             {
@@ -76,7 +76,7 @@ class AiGroundedResourceProvider extends ChangeNotifier {
       }
 
       if (requestedScope.contains('expressions')) {
-        final rows = await _repository!.expressions();
+        final rows = await _repository.expressions();
         _expressions = [
           for (final e in rows)
             {
@@ -92,7 +92,7 @@ class AiGroundedResourceProvider extends ChangeNotifier {
       }
 
       if (requestedScope.contains('grammarPoints')) {
-        final rows = await _repository!.grammarPoints();
+        final rows = await _repository.grammarPoints();
         _grammarPoints = [
           for (final g in rows)
             {

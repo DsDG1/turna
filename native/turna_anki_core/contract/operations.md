@@ -1,4 +1,4 @@
-# Contract v1.4 operations
+# Contract v1.6 operations
 
 Wire format is versioned JSON. `turna_anki_spike.proto` is archived and is not
 the codec.
@@ -36,8 +36,11 @@ the codec.
 | 29 | COUNTS_FOR_DECK_TODAY | yes |
 | 30 | CONGRATS_INFO | yes |
 | 31 | DELETE_NOTES | yes |
+| 32 | DELETE_CARDS | yes |
+| 33 | STATS_FOR_CARDS_BATCH | yes |
+| 34 | SCHEDULE_CARDS_AS_NEW | yes |
 
-Scheduler operations 11–16 and 27–31 are published. Request/response DTO are
+Scheduler operations 11–16 and 27–34 are published. Request/response DTO are
 camelCase. `answerToken` is opaque. `GET_REVIEW_QUEUE` creates a new
 session/queue epoch. Tokens are single-use. Numbers are append-only after this
 document ships.
@@ -47,6 +50,13 @@ batch) and removes those notes and every card that uses them from the
 Collection. It exists for hard source uninstall: note-scoped so decks shared
 with other sources (default deck, same-named merged decks) keep the cards they
 own. The response is `{ ok, removedCards, queueEpoch }`.
+
+`DELETE_CARDS` is the exact-source uninstall primitive. It removes only the
+listed cards and deletes a note only after its final card is gone.
+
+`STATS_FOR_CARDS_BATCH` returns source-scoped scheduler/revlog statistics for
+at most 200 exact card IDs. `SCHEDULE_CARDS_AS_NEW` is the explicit W8 reset
+policy primitive and resets at most 10,000 exact card IDs per call.
 
 `RENDER_CARD` requests are camelCase `{ cardId, browser, includeAvTags }`.
 Production reviewer always sends `browser=false`. Rust forces

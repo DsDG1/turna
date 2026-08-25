@@ -3,7 +3,6 @@
 // truncation), one course entry per source, exact-ownership filtering, and
 // `anki:src` preference repair for single/multi source installs.
 
-import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
@@ -20,7 +19,7 @@ import 'package:turna/service/locator.dart';
 
 import '../helpers/in_memory_course_db.dart';
 
-/// An official projection section shell: 'official-anki-<sourceId>-s<deck>'.
+/// An official projection section shell: `official-anki-<sourceId>-s<deck>`.
 Section _officialSection(String sourceId, String name, {int deck = 10}) {
   return Section(
     id: 'official-anki-$sourceId-s$deck',
@@ -193,6 +192,24 @@ void main() {
 
   group('broken anki:src preference handling (R1-6 provider path)', () {
     test('with exactly one official source, anki:src re-binds to it', () async {
+      // Keep a valid old projection manifest/index for B. Once an authority
+      // row exists, its retired state must win; the pre-v21 manifest fallback
+      // must not resurrect it in course management.
+      await db.customStatement(
+        "INSERT INTO official_anki_projection_manifest (source_id, "
+        "active_generation, source_fingerprint, projection_version, "
+        "section_count, lesson_count, item_count, published_at_millis) "
+        "VALUES (?, 'gen-b', 'fp-b', 1, 1, 1, 1, 1)",
+        [srcB],
+      );
+      await db.customStatement(
+        "INSERT INTO official_anki_projection_index (source_id, card_id, "
+        "word_id, section_id, unit_id, lesson_id, projection_kind, "
+        "source_fingerprint, projection_version) VALUES "
+        "(?, 1, 'word-b', ?, 'official-anki-src-99aa88bb77-u1', "
+        "'official-anki-src-99aa88bb77-l1-p1', 'flip', 'fp-b', 1)",
+        [srcB, 'official-anki-$srcB-s10'],
+      );
       // Retire source B so only A remains visible.
       await dao.commitVisibility(
         courseId: 'course-$srcB',

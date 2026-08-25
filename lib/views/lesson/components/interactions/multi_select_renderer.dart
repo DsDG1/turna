@@ -129,7 +129,6 @@ class _MultiSelectBodyState extends State<_MultiSelectBody> {
     final count = _picked.length;
     final min = widget.minSelections;
     final max = widget.maxSelections;
-    final l10n = AppStrings;
     if (max == 2147483647) {
       return AppStrings.lessonSelectAtLeast(min, count);
     }

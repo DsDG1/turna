@@ -371,7 +371,7 @@ class TurnaMigrationImporter {
 
   Future<int> _freeSpace(Directory dir) async {
     try {
-      final stat = await Process.runSync('stat', [
+      final stat = Process.runSync('stat', [
         '-f',
         '-c',
         '%a %S',

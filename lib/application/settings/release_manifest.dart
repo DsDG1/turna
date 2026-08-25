@@ -5,188 +5,189 @@ import 'package:turna/views/settings/changelog_page.dart'
 /// Single structured source for the app's release history (Plan 2 §4.8/§7.2).
 ///
 /// Two consumers must agree on release ids and ordering:
-///   1. `assets/changelog.md` is the *primary* source the changelog page
-///      renders from;
-///   2. this manifest is the *fallback* when the asset fails to load, and the
-///      reference CI/发布检查 compare against, so the fallback can no longer
-///      silently diverge into a second hand-written version list.
+///   1. `assets/changelog.md` is the primary changelog shown in the app;
+///   2. this manifest is used when the asset cannot be loaded.
 ///
-/// `currentVersion` is deliberately NOT hardcoded here: the installed version
-/// comes exclusively from [AppBuildInfo] (PackageInfo), and the changelog
-/// entry matching it is highlighted at render time.
+/// `currentVersion` is deliberately not hardcoded here. The installed version
+/// comes from [AppBuildInfo] and its matching release is highlighted at runtime.
 class ReleaseManifest {
   const ReleaseManifest._();
 
-  /// 版本历程（原 changelog_page 顶部"更新历程"卡）。
-  ///
-  /// 自 0.7 起统一降级到 0.x 编号：原 1.3.0→0.7、1.2.0→0.6、1.1.0→0.5、
-  /// 1.0.0→0.4、0.4.x→0.3.x、0.4.0→0.3.0。
+  /// 版本历程（更新日志页顶部的历程卡）。
   static const List<JourneyStep> journeySteps = [
     JourneyStep(
       label: '0.x',
       title: '原型与上游',
-      subtitle: '2024 卡纳达 / 西班牙语原型 → 2026-03 fork',
+      subtitle: '从早期多语言词汇原型开始',
     ),
     JourneyStep(
-      label: '0.3.0',
-      title: '离线优先重写',
-      subtitle: 'Firebase 下线,SQLite + SRS + 13 种交互题型',
-    ),
-    JourneyStep(
-      label: '0.3.x',
-      title: 'future4 收尾',
-      subtitle: '整洁架构 + 体验 / 可访问性',
+      label: '0.3',
+      title: '离线学习框架',
+      subtitle: '课程、复习与无障碍体验逐步完善',
     ),
     JourneyStep(
       label: '0.4',
       title: '土耳其语转向',
-      subtitle: '语言由斯瓦希里语改为土耳其语,AI 助手上线',
+      subtitle: '中文界面、土耳其语课程与 AI 助手上线',
     ),
     JourneyStep(
       label: '0.5',
-      title: 'FSRS / AI / Anki',
-      subtitle: '连续记忆模型、AI 引擎重构、Anki 智能化',
+      title: '记忆与 AI 升级',
+      subtitle: '个性化复习、Anki 兼容与 AI 体验提升',
     ),
     JourneyStep(
       label: '0.6',
-      title: 'AI 伴学与内容扩充',
-      subtitle: '自由问答 / 诊断 / 收藏；土耳其语八章真实内容',
+      title: '伴学与内容扩充',
+      subtitle: 'AI 问答、学习诊断与土耳其语八章内容',
     ),
     JourneyStep(
       label: '0.7',
-      title: 'Anki 官方 Core 整合',
-      subtitle: '官方 rslib 整合、课程复习大一统、远程备份',
+      title: 'Anki 与课程整合',
+      subtitle: '导入、课程管理、复习和远程备份统一体验',
+    ),
+    JourneyStep(
+      label: '0.7.2',
+      title: 'Anki 可靠性优化',
+      subtitle: '多牌组复习、浏览统计与迁移恢复更稳定',
     ),
   ];
 
-  /// 硬编码后援：`assets/changelog.md` 加载失败时使用。
+  /// `assets/changelog.md` 加载失败时使用的内置后援。
   static const List<ChangelogRelease> fallbackReleases = [
     ChangelogRelease(
-      version: '0.7.1',
-      title: '数据治理、AI 安全与体验打磨',
+      version: '0.7.2',
+      title: 'Anki 导入与复习体验优化',
       items: [
-        'AI 服务商预设刷新为 DeepSeek / Kimi / Qwen / MiMo，新增深度思考开关（推理字段默认关闭，用户显式开启）',
-        'AI API Key 迁移至平台安全存储（Keychain / Keystore），不再写入明文偏好',
-        'AI 讲解 / 提示 / 陪练收敛到 AiStreamingSessionBase，统一流式取消、代际与增量应用；新增 StreamDeltaCoalescer 合并响应降低 UI 重建',
-        '移除 AI 磁盘缓存镜像（io / web 实现），仅保留内存 LRU',
-        '宝石入账改为幂等账本（earnGems），成就解锁按幂等键入账避免重复发放；成就连续天数改用真实学习 streak',
-        'CardRecognitionPipeline 取代 anki_notetype_ai：签名版本化、去隐私样本特征、持久化规则与 AI 结果形状校验',
-        'StorageInventoryService 只读扫描与存储诊断页，支持分类 / 孤儿检测及可再生缓存清理',
-        '存储诊断页面重构为面向用户的"存储与性能"仪表板（使用率环图 + 分类卡片）',
-        '卸载 / 删除以 legacy_anki_migrations 判定归属，清理失败标记 pending_cleanup 并启动时自动重试',
-        '备份恢复后无需重启：Accessibility / Language / Settings Provider 新增 reload 方法刷新状态',
-        '设置导航引入 SettingsDestination 描述符集中管理页面元数据；SystemHealthMonitor 重构为状态机模型',
-        'CacheDiagnosticsRegistry 支持按所有者隔离执行缓存清理并保留各自结果',
-        '牌组组装新增 section beta 语义分组（默认关闭，仅影响新导入）',
-        '统一版本编号至 0.x 序列，移除 quick_start.md，以 ReleaseManifest 作为版本单一事实来源',
-        '移除无入口的配对游戏、字母描红，以及未使用的旧品牌图（Mala / 卡纳达语 / Duolingo 贴纸）',
+        '每个 Anki 来源现在会作为独立课程显示，多次导入和多牌组管理更清晰',
+        '“复习全部”可连续覆盖多个 Anki 来源，待复习数量、卡片顺序与实际复习保持一致',
+        '课程管理页新增卡片浏览、牌组统计和旧数据迁移入口',
+        '优化卡片样式、图片、音频和复杂内容的显示与播放',
+        '导入、重新导入、删除和迁移支持更稳妥的中断恢复，减少重复或残留数据',
+        '修复课程切换、牌组定位和删除范围不准确的问题',
+        '提升备份恢复、存储清理和整体运行稳定性',
+      ],
+    ),
+    ChangelogRelease(
+      version: '0.7.1',
+      title: '数据安全与体验打磨',
+      items: [
+        '更新常用 AI 服务预设，并加入可选的深度思考模式',
+        'AI 密钥改用系统安全存储，导出数据时不会携带敏感信息',
+        '优化 AI 回复、取消和重试体验，减少长回复时的界面卡顿',
+        '新增“存储与性能”页面，可查看空间占用并清理可再生成的缓存',
+        '修复成就奖励重复发放与连续学习天数统计不准确的问题',
+        '备份恢复后，语言、无障碍和常用设置可以立即生效',
+        '精简不再使用的功能与旧资源，并统一版本展示方式',
       ],
     ),
     ChangelogRelease(
       version: '0.7',
-      title: 'Anki 官方 Core 整合与课程/复习大一统',
+      title: 'Anki、课程与复习整合',
       items: [
-        '官方 Anki rslib 通过 Dart FFI 整合并默认切到官方 Core（ADR 0036/0037 落地）',
-        '课程与复习大一统：统一复习 ledger、卡片引入资格（CardIntroductionStore）与二元 recall flow',
-        '大型牌组导入走 worker isolate + 流式解压 + 500 条批次写入，内存占用不随牌组大小增长',
-        '官方导入事务恢复：dry-run 演练、物理备份、逐源 allowlist 与独立 commit 边界（CI 拦截 BACKEND_COMMIT 漂移）',
-        '新增 deleteNotes 操作硬删除笔记与关联数据',
-        '课程页大改版：课程树扁平化、滚动隐藏栏、状态角标与 section switcher 翻新',
-        '数据导入导出 + WebDAV 远程备份同步（manifest / snapshot / restore / 演练）',
-        '个人页精简：今日概览卡 + 成就 showAll 独立路由 + 学习统计瘦身',
-        '成就系统重构：evaluator / state repository / migration service / 详情 sheet / 徽章卡',
-        '路由统一：RouteType.adaptive + Android 预测性返回 + 全 AutoRoute 推送（移除手写 MaterialPageRoute）',
-        'AI 伴学打磨：移除成熟度象限、interaction renderer 调整、AI 深度导师 / ShowWord 翻面',
-        '系统健康监控中心（SystemHealthMonitor）+ AI 伴侣 stack（profile / retriever / 预算 / 凭据）',
-        '教学 Playground 新增：language_playground_eligibility / 装配器 / 内容源 / 入口页',
-        '少量 bug 修复与 play_hub 黄金图更新',
+        '改进 Anki 牌组导入与复习兼容性，复杂卡片显示更完整',
+        '大型牌组导入更省内存，并可在中断后安全恢复',
+        '课程与复习入口重新整合，牌组状态和课程切换更直观',
+        '支持导入导出及 WebDAV 远程备份',
+        '优化个人页、学习统计与成就展示',
+        'AI 伴学加入更贴合学习进度的提示和讲解',
+        '新增系统状态检查，便于发现存储、数据与兼容性问题',
+        '更新 Turna 吉祥物、主页欢迎和学习场景插画',
       ],
     ),
     ChangelogRelease(
       version: '0.6',
       title: 'AI 伴学与土耳其语内容扩充',
       items: [
-        'AI 伴学全面升级：自由问答、学习诊断、讲解收藏、词典 AI 扩展、Anki 卡片讲解',
-        '课内提示支持流式回复，并注入学习者上下文（水平、错题、讲解偏好）',
-        'AI Hub 重组为伴学优先：自由问答 / 诊断 / 收藏讲解与创作类入口分区更清晰',
-        '统一讲解偏好（回复语言、深度、是否允许给答案）与友好错误提示',
-        '土耳其语内置课程大幅扩充：约 148 词、18 表达、8 语法点、54 课（A1→B2 八章）',
-        '进度导出不再包含 API Key；移除小艺（Xiaoyi）桥接，统一走本地 AI 引擎',
+        'AI 伴学新增自由问答、学习诊断、讲解收藏、词典扩展和 Anki 卡片讲解',
+        '课内提示会结合学习水平、错题和讲解偏好给出回复',
+        'AI 中心重新分区，问答、诊断、收藏和创作入口更清晰',
+        '土耳其语内置课程扩充为 A1 至 B2 八章、约 54 课',
+        '统一讲解偏好和错误提示，并加强导出数据的隐私保护',
       ],
     ),
     ChangelogRelease(
       version: '0.5',
-      title: '间隔重复与 AI 引擎升级',
+      title: '记忆复习与 AI 体验升级',
       items: [
-        'FSRS 连续记忆模型与本地参数优化，复习曲线更贴合个人记忆',
-        'Anki 智能牌组归类与牌型渲染重构，支持复杂 .apkg / .colpkg',
-        'AI 引擎刷新：内存与磁盘缓存、可取消令牌、统一 HTTP 客户端',
-        '课程管理页、AI 中心、应用图标、文案与本地化整体重写',
-        '记忆曲线、复习进度与 SRS 学习导师等新面板',
+        '更新个性化记忆复习方式，让复习安排更贴合学习表现',
+        '改进 Anki 牌组识别和卡片显示，支持更多复杂牌组',
+        'AI 请求支持取消，回复与网络错误处理更稳定',
+        '重做课程管理、AI 中心、应用图标和多处界面文案',
+        '新增记忆曲线、复习进度和学习建议面板',
       ],
     ),
     ChangelogRelease(
       version: '0.4',
       title: '土耳其语转向',
       items: [
-        '界面文案全面中文化，设置与关于页统一体验',
-        'Anki 牌组导入（.apkg / .colpkg）与 Anki 复习入口',
-        '课内 AI 提示助手，支持 DeepSeek 等兼容接口',
-        'AI 课程设计器、教材导入与进度导出/导入',
-        '独立设置页：主题、提醒、音效、无障碍与账户数据',
-        '词典搜索、弱词复习、每日挑战与学习统计仪表盘',
-        '暗色 / 亮色 / 跟随系统主题',
+        '界面文案全面中文化，设置与关于页体验统一',
+        '新增 Anki 牌组导入和复习入口',
+        '新增课内 AI 提示、课程设计和教材导入',
+        '支持学习进度导出与导入',
+        '完善主题、提醒、音效、无障碍和账户数据设置',
+        '新增词典、弱词复习、每日挑战和学习统计',
+        '学习目标语言由斯瓦希里语调整为土耳其语',
       ],
     ),
     ChangelogRelease(
       version: '0.3.x',
       title: '体验与可访问性',
       items: [
-        '无障碍：字号、减弱动效、高对比度、阅读障碍友好字体',
-        '感官减弱与专注模式等神经多样性友好选项',
-        '本地每日学习提醒（无 streak 修复付费逻辑）',
-        '课程树完成 / 薄弱 / 待复习状态角标',
-        '课程内容版本变更提示与进度重置选项',
+        '支持暗色、亮色和跟随系统主题',
+        '新增字号、减弱动效、高对比度和阅读辅助选项',
+        '加入感官减弱、专注模式与本地学习提醒',
+        '课程树会标记已完成、薄弱和待复习内容',
+        '课程内容更新时会提示，并提供进度重置选项',
+        '移除不再使用的社交、付费和部分游戏化功能',
       ],
     ),
     ChangelogRelease(
       version: '0.3.0',
-      title: 'future4 框架',
+      title: '离线学习框架',
       items: [
-        '整洁架构收尾：DI 整合、音频与内容解耦、路由守卫',
-        'SRS 队列基类、GameProvider 拆分与外观模式',
-        '集成测试、Golden 基线与一键发布流水线',
-        '学习统计、词典、弱词与提醒等能力合入主线',
+        '完成离线优先的课程与学习框架',
+        '支持多种课程结构和练习题型',
+        '整合学习统计、词典、弱词复习和提醒',
+        '补充自动化测试和发布检查',
       ],
     ),
     ChangelogRelease(
       version: 'ADR 0020',
       title: '土耳其语转向',
       items: [
-        '目标语言由斯瓦希里语迁移为土耳其语（TTS：tr）',
-        '移除 Piper 离线模型，改用系统 / Google TTS',
-        '第 1 章问候语真实内容（词汇 + 表达），2–8 章占位待填充',
-        '8 个 CEFR 分区（A1→B2）与区间前置依赖',
+        '学习目标语言由斯瓦希里语调整为土耳其语',
+        '语音播放改用系统可用的语音服务',
+        '建立 A1 至 B2 的八个学习分区',
+        '完成第一章问候语内容，其余章节随后逐步补充',
       ],
     ),
     ChangelogRelease(
       version: '核心能力',
-      title: '课程与复习引擎',
+      title: '课程与复习',
       items: [
-        'Section → Unit → Lesson 层级与 13 种交互题型',
-        '6 种课型模板：intro / practice / listening / reading / review / mastery',
-        'SM-2 间隔重复（词汇 + 语法）与错题本 FIFO',
-        'Match Madness 配对小游戏、纯本地 SQLite，无云端账号',
+        '建立章节、单元和课程的学习层级',
+        '支持入门、练习、听力、阅读、复习等多种课型',
+        '加入间隔复习和错题重练',
+        '学习数据保存在本地，无需云端账号',
+      ],
+    ),
+    ChangelogRelease(
+      version: '0.0.1',
+      title: '原型',
+      items: [
+        '完成最初的西班牙语与卡纳达语词汇学习原型',
+        '加入基础练习、动画、语音和配对玩法',
+        '建立课程导航与学习数据保存能力',
       ],
     ),
   ];
 
-  /// First release id in the fallback list — the "latest" the fallback can
-  /// speak about. 发布检查用它与 changelog.md 首项对齐。
+  /// First release id in the fallback list. Release checks compare it with
+  /// the first release in the bundled changelog.
   static String get latestFallbackReleaseId => fallbackReleases.first.version;
 
-  /// Whether a changelog release id matches the installed version's major
-  /// minor prefix (e.g. installed 0.7.0+1 ↔ release id '0.7').
+  /// Whether a release id matches the installed version (including a build
+  /// suffix such as `0.7.2+3`).
   static bool releaseMatchesVersion({
     required String releaseId,
     required String installedVersion,

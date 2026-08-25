@@ -62,6 +62,17 @@ void main() {
 
   test('frozen rejects every ordinary Legacy mutator (the full matrix)',
       () async {
+    await noteDao.upsertCardMeta(const AnkiCardMetaRecord(
+      importId: srcA,
+      cardId: 1,
+      noteId: 1,
+      wordId: 'anki-src-4f8b2c9d1e-c1',
+    ));
+    await noteDao.setCardState(srcA, 1, buriedUntil: 10);
+    await noteDao.upsertPrerenderedFace(
+      'anki-src-4f8b2c9d1e-c1',
+      front: 'front',
+    );
     await freeze();
 
     Future<void> expectDenied(Future<void> Function() op, String name) async {
@@ -113,6 +124,45 @@ void main() {
       ),
       'upsertNoteBatch',
     );
+    await expectDenied(
+      () => noteDao.upsertCardMeta(const AnkiCardMetaRecord(
+        importId: srcA,
+        cardId: 3,
+        noteId: 2,
+        wordId: 'anki-src-4f8b2c9d1e-c3',
+      )),
+      'upsertCardMeta',
+    );
+    await expectDenied(
+      () => noteDao.upsertCardMetaBatch(const [
+        AnkiCardMetaRecord(
+          importId: srcA,
+          cardId: 4,
+          noteId: 2,
+          wordId: 'anki-src-4f8b2c9d1e-c4',
+        ),
+      ]),
+      'upsertCardMetaBatch',
+    );
+    await expectDenied(
+      () => noteDao.setCardState(srcA, 1, suspended: true),
+      'setCardState',
+    );
+    await expectDenied(
+      () => noteDao.upsertPrerenderedFace(
+        'anki-src-4f8b2c9d1e-c1',
+        back: 'back',
+      ),
+      'upsertPrerenderedFace',
+    );
+    await expectDenied(
+      () => noteDao.deletePrerenderedByPrefix('anki-src-4f8b2c9d1e-'),
+      'deletePrerenderedByPrefix',
+    );
+
+    expect(await noteDao.clearBuriedBefore(10), isEmpty);
+    expect((await noteDao.cardMeta(srcA, 1))?.buriedUntil, 10,
+        reason: 'global expiry sweep must skip the frozen source');
   });
 
   test('unfenced sources keep writing while a sibling is frozen', () async {
@@ -232,6 +282,16 @@ void main() {
   test(
       'authority transitions update the registry and fence linked legacy '
       'import ids', () async {
+    await dao.upsertSource(
+      courseId: 'anki-legacy-imp-9',
+      profileId: 'profile-default-01',
+      sourceId: 'legacy-imp-9',
+      backendKind: 'legacyTurna',
+      displayName: 'Legacy deck',
+      sourceHash: 'hash-legacy',
+      sourceFingerprint: 'fp-legacy',
+      state: AnkiSourceVisibility.active,
+    );
     // A transition linking a legacy import id to the official source.
     await dao.beginTransition(
       transitionId: 'tr-1',
@@ -243,9 +303,6 @@ void main() {
       toBackend: 'official',
       policy: 'resetSchedule',
     );
-    LegacyWriteFence.instance.debugReset();
-    await LegacyWriteFence.instance.loadFrom(db);
-
     await freeze();
 
     // The LEGACY id is fenced through its link.
@@ -262,7 +319,11 @@ void main() {
       from: OwnerTransitionPhase.discovered,
       to: OwnerTransitionPhase.committing,
     );
-    await dao.commitOwnership(transitionId: 'tr-1', courseId: courseId);
+    await dao.commitOwnership(
+      transitionId: 'tr-1',
+      courseId: courseId,
+      legacyCourseId: 'anki-legacy-imp-9',
+    );
     expect(
         LegacyWriteFence.instance.fenceFor(srcA), AnkiWriteFence.officialOnly);
     expect(
@@ -271,6 +332,10 @@ void main() {
         operation: 'answer',
       ),
       throwsA(isA<LegacyWriteDenied>()),
+    );
+    expect(
+      (await dao.findByCourseId('anki-legacy-imp-9'))?.state,
+      AnkiSourceVisibility.retired,
     );
   });
 }

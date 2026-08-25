@@ -24,7 +24,7 @@ import 'package:turna/views/widgets/avatar_with_ring.dart';
 class AccountWidget extends StatelessWidget {
   final VoidCallback? onShare;
 
-  const AccountWidget({Key? key, this.onShare}) : super(key: key);
+  const AccountWidget({super.key, this.onShare});
 
   @override
   Widget build(BuildContext context) {

@@ -360,7 +360,9 @@ void main() {
 
     // Projection-based preview, not the legacy collection preview.
     expect(find.text(AppStrings.ankiOfficialPreviewBody), findsOneWidget);
-    expect(find.text(AppStrings.ankiOfficialMappingSuggested), findsWidgets);
+    expect(find.textContaining('已识别'), findsOneWidget);
+    expect(find.text(AppStrings.ankiOfficialMappingSuggested), findsNothing,
+        reason: 'normal mappings stay collapsed behind the summary');
 
     await startImport(tester);
 

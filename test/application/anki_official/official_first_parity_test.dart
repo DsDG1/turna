@@ -46,21 +46,22 @@ void main() {
   ensureSqliteLibForTestHost();
 
   test('parity allowlist is valid json with known entries', () {
-    final allowlist =
-        jsonDecode(File('test/fixtures/anki_official/parity_allowlist.json')
-                .readAsStringSync())
-            as Map<String, dynamic>;
+    final allowlist = jsonDecode(
+        File('test/fixtures/anki_official/parity_allowlist.json')
+            .readAsStringSync()) as Map<String, dynamic>;
     expect(allowlist['schemaVersion'], 1);
     final entries = (allowlist['entries'] as List)
         .map((e) => (e as Map)['id'] as String)
         .toSet();
-    expect(entries, containsAll(<String>[
-      'tree-shape',
-      'one-kind-per-card',
-      'vocabulary-subset',
-      'no-legacy-bookkeeping',
-      'card-id-parity-scope',
-    ]));
+    expect(
+        entries,
+        containsAll(<String>[
+          'tree-shape',
+          'one-kind-per-card',
+          'vocabulary-subset',
+          'no-legacy-bookkeeping',
+          'card-id-parity-scope',
+        ]));
   });
 
   for (final fixture in _fixtures) {
@@ -69,7 +70,7 @@ void main() {
       final legacyDb = CourseDatabase(NativeDatabase.memory());
       addTearDown(legacyDb.close);
       final legacyRepo = CourseRepository(legacyDb);
-      await AnkiNoteDao(legacyDb);
+      AnkiNoteDao(legacyDb);
       final collection = await AnkiImporter().parse(fixture);
       final summary = await AnkiDeckAssembler().assemble(
         collection: collection,
@@ -78,9 +79,8 @@ void main() {
         noteDao: AnkiNoteDao(legacyDb),
         smartGrouping: true,
       );
-      final legacyVocab = await _count(legacyDb, 'SELECT COUNT(*) AS n FROM vocabulary');
-      final legacySections = await _count(
-          legacyDb, "SELECT COUNT(*) AS n FROM sections WHERE id LIKE 'anki-parity-legacy-%'");
+      final legacySections = await _count(legacyDb,
+          "SELECT COUNT(*) AS n FROM sections WHERE id LIKE 'anki-parity-legacy-%'");
 
       // ── official-first pipeline ──────────────────────────────────────
       final officialDb = CourseDatabase(NativeDatabase.memory());
@@ -146,11 +146,12 @@ void main() {
       expect(result.failed, isFalse, reason: result.errorCode ?? '');
       expect(result.needsMapping, isFalse);
 
-      final indexCount = await _count(
-          officialDb, 'SELECT COUNT(*) AS n FROM official_anki_projection_index');
+      final indexCount = await _count(officialDb,
+          'SELECT COUNT(*) AS n FROM official_anki_projection_index');
       final officialSections = await _count(officialDb,
           "SELECT COUNT(*) AS n FROM sections WHERE id LIKE 'official-anki-%'");
-      final officialVocab = await _count(officialDb, 'SELECT COUNT(*) AS n FROM vocabulary');
+      final officialVocab =
+          await _count(officialDb, 'SELECT COUNT(*) AS n FROM vocabulary');
 
       // ── diffs (outside the allowlist must be equal) ─────────────────
       // Card-count parity: every parsed card appears in both pipelines.
@@ -182,11 +183,13 @@ void main() {
       );
 
       // One presentation kind per card (allowlist: one-kind-per-card).
-      final kindsPerCard = await officialDb.customSelect(
-        'SELECT card_id, COUNT(DISTINCT projection_kind) AS k '
-        'FROM official_anki_projection_index GROUP BY card_id '
-        'HAVING k > 1',
-      ).get();
+      final kindsPerCard = await officialDb
+          .customSelect(
+            'SELECT card_id, COUNT(DISTINCT projection_kind) AS k '
+            'FROM official_anki_projection_index GROUP BY card_id '
+            'HAVING k > 1',
+          )
+          .get();
       expect(kindsPerCard, isEmpty);
     }, timeout: const Timeout(Duration(minutes: 2)));
   }

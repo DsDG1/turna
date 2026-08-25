@@ -2,8 +2,7 @@ import 'package:turna/application/anki_official/contract/official_anki_errors.da
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_state.dart';
-import 'package:turna/application/anki_official/official_anki_composition.dart';
-import 'package:turna/application/anki_official/storage/official_anki_database.dart';
+import 'package:turna/data/anki_legacy_write_fence.dart';
 
 enum AnkiWriteOwner {
   officialScheduler,
@@ -81,18 +80,14 @@ void assertLegacySrsAnswerAllowed({
   String profileId = 'profile-default-01',
 }) {
   if (importId == null || importId.isEmpty) return;
+  LegacyWriteFence.instance.assertAllowed(
+    importId: importId,
+    operation: 'legacySrsMutation',
+  );
+  // Supplying the catalog journal is retained only as an isolated-test seam.
+  // Production ownership is enforced by CourseDatabase's loaded fence above.
   if (dao != null) {
     _denyIfOfficialOwned(dao, importId, profileId);
-    return;
-  }
-  final paths = OfficialAnkiCompositionRoot.locatorPaths;
-  final catalog = paths?.catalogFile;
-  if (catalog == null || !catalog.existsSync()) return;
-  final db = OfficialAnkiDatabase.file(catalog.path);
-  try {
-    _denyIfOfficialOwned(OfficialAnkiMigrationDao(db), importId, profileId);
-  } finally {
-    db.close();
   }
 }
 

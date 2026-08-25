@@ -32,16 +32,16 @@ class FsrsOptimizeResult {
 }
 
 /// One review step for training (binary: fail/pass).
-class _TrainReview {
+class FsrsTrainReview {
   final double deltaDays;
   final bool recalled;
-  const _TrainReview({required this.deltaDays, required this.recalled});
+  const FsrsTrainReview({required this.deltaDays, required this.recalled});
 }
 
 /// Per-card chronological review sequence.
-class _TrainCard {
-  final List<_TrainReview> reviews;
-  const _TrainCard(this.reviews);
+class FsrsTrainCard {
+  final List<FsrsTrainReview> reviews;
+  const FsrsTrainCard(this.reviews);
 }
 
 /// Lite local FSRS parameter fitter (pure Dart, no FFI).
@@ -63,16 +63,16 @@ class FsrsLiteOptimizer {
   final double minRelativeImprove;
 
   /// Build train cards from flat review history (oldest-first preferred).
-  static List<_TrainCard> cardsFromEvents(List<ReviewEventRecord> events) {
+  static List<FsrsTrainCard> cardsFromEvents(List<ReviewEventRecord> events) {
     final byCard = <String, List<ReviewEventRecord>>{};
     for (final e in events) {
       byCard.putIfAbsent(e.cardId, () => []).add(e);
     }
-    final cards = <_TrainCard>[];
+    final cards = <FsrsTrainCard>[];
     for (final list in byCard.values) {
       list.sort((a, b) => a.reviewedAt.compareTo(b.reviewedAt));
       if (list.length < 2) continue;
-      final reviews = <_TrainReview>[];
+      final reviews = <FsrsTrainReview>[];
       for (var i = 0; i < list.length; i++) {
         final cur = list[i];
         final delta = i == 0
@@ -82,17 +82,17 @@ class FsrsLiteOptimizer {
                 cur.reviewedAt.difference(list[i - 1].reviewedAt).inMinutes /
                     1440.0,
               );
-        reviews.add(_TrainReview(
+        reviews.add(FsrsTrainReview(
           deltaDays: delta,
           recalled: cur.recalled,
         ));
       }
-      cards.add(_TrainCard(reviews));
+      cards.add(FsrsTrainCard(reviews));
     }
     return cards;
   }
 
-  int countReviews(List<_TrainCard> cards) =>
+  int countReviews(List<FsrsTrainCard> cards) =>
       cards.fold<int>(0, (n, c) => n + c.reviews.length);
 
   /// Fit weights. Returns [FsrsOptimizeResult]; never throws on empty data.
@@ -146,7 +146,7 @@ class FsrsLiteOptimizer {
     );
   }
 
-  double _meanLoss(List<_TrainCard> cards, List<double> w) {
+  double _meanLoss(List<FsrsTrainCard> cards, List<double> w) {
     var loss = 0.0;
     var n = 0;
     for (final card in cards) {
@@ -164,7 +164,7 @@ class FsrsLiteOptimizer {
           n++;
           if (rev.recalled) {
             // Stability increase (simplified FSRS-style).
-            final hardPen = 1.0;
+            const hardPen = 1.0;
             final sInc = exp(w[8]) *
                 pow(11.0 - d, w[9]) *
                 pow(s, -w[10]) *
@@ -188,7 +188,7 @@ class FsrsLiteOptimizer {
   }
 
   int _accumulateGrad(
-    _TrainCard card,
+    FsrsTrainCard card,
     List<double> w,
     List<double> grad,
   ) {
@@ -213,7 +213,7 @@ class FsrsLiteOptimizer {
     return samples > 0 ? 1 : 0;
   }
 
-  double _cardLoss(_TrainCard card, List<double> w) {
+  double _cardLoss(FsrsTrainCard card, List<double> w) {
     var loss = 0.0;
     var n = 0;
     var s = w[0];

@@ -18,8 +18,8 @@ import 'package:turna/views/anki_official/official_anki_review_page.dart';
 import 'official_anki_formal_review_ack_test.dart' show officialFormalReviewPresenter;
 
 void main() {
-  test('contract 1.4 publishes scheduler operations 11-16 and 27-31', () {
-    expect(kOfficialAnkiContractMinor, 4);
+  test('contract 1.6 publishes scheduler operations 11-16 and 27-34', () {
+    expect(kOfficialAnkiContractMinor, 6);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.setCurrentDeck), 11);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.getReviewQueue), 12);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.describeNextStates), 13);
@@ -31,6 +31,15 @@ void main() {
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.countsForDeckToday), 29);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.congratsInfo), 30);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.deleteNotes), 31);
+    expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.deleteCards), 32);
+    expect(
+      OfficialAnkiOperation.idFor(OfficialAnkiOperation.statsForCardsBatch),
+      33,
+    );
+    expect(
+      OfficialAnkiOperation.idFor(OfficialAnkiOperation.scheduleCardsAsNew),
+      34,
+    );
     expect(
       OfficialAnkiOperation.productionNames,
       containsAll([
@@ -43,6 +52,9 @@ void main() {
         'COUNTS_FOR_DECK_TODAY',
         'CONGRATS_INFO',
         'DELETE_NOTES',
+        'DELETE_CARDS',
+        'STATS_FOR_CARDS_BATCH',
+        'SCHEDULE_CARDS_AS_NEW',
       ]),
     );
     final golden = jsonDecode(
@@ -53,7 +65,13 @@ void main() {
     expect(caps, contains('GET_REVIEW_QUEUE'));
     expect(caps, contains('REDO'));
     expect(caps, contains('DELETE_NOTES'));
-    expect(File('native/turna_anki_core/contract/VERSION').readAsStringSync().trim(), '1.4');
+    expect(caps, contains('SCHEDULE_CARDS_AS_NEW'));
+    expect(
+      File('native/turna_anki_core/contract/VERSION')
+          .readAsStringSync()
+          .trim(),
+      '1.6',
+    );
   });
 
   test('fake queue tokens are opaque and single-use', () async {

@@ -141,15 +141,16 @@ Future<ExternalLinkLaunchOutcome> openExternalLink(
     _notify(context, AppStrings.externalLinkInvalidScheme);
     return ExternalLinkLaunchOutcome.invalidScheme;
   }
+  final messenger = ScaffoldMessenger.of(context);
   try {
     final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!ok) {
-      await _notifyWithCopy(context, uri.toString());
+      await _notifyWithCopy(messenger, uri.toString());
       return ExternalLinkLaunchOutcome.failed;
     }
     return ExternalLinkLaunchOutcome.launched;
   } catch (_) {
-    await _notifyWithCopy(context, uri.toString());
+    await _notifyWithCopy(messenger, uri.toString());
     return ExternalLinkLaunchOutcome.failed;
   }
 }
@@ -160,8 +161,10 @@ void _notify(BuildContext context, String message) {
   );
 }
 
-Future<void> _notifyWithCopy(BuildContext context, String url) async {
-  final messenger = ScaffoldMessenger.of(context);
+Future<void> _notifyWithCopy(
+  ScaffoldMessengerState messenger,
+  String url,
+) async {
   messenger.showSnackBar(
     SnackBar(
       content: Text(AppStrings.externalLinkOpenFailed),

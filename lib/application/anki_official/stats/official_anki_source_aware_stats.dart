@@ -2,38 +2,78 @@ import 'package:turna/application/anki_official/engine/official_anki_engine.dart
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 
-/// Proven, source-aware stats for Anki decks (doc 34 W7).
-///
-/// Official sources never invent Turna-FSRS "official retention". Catalog
-/// card counts are inventory only ([metricsProven] false). Scheduler
-/// new/review counts are proven when an [OfficialAnkiEngine] supplies them.
+enum OfficialStatsAvailability {
+  available,
+  sourceMissing,
+  engineUnavailable,
+  staleEvidence,
+}
+
+/// Exact-source stats. Inventory remains useful when scheduler evidence is
+/// unavailable, while every scheduler/revlog field is guarded by
+/// [availability] so an error can never masquerade as a successful zero.
 class OfficialAnkiSourceAwareStatsSnapshot {
   const OfficialAnkiSourceAwareStatsSnapshot({
     required this.sourceId,
     required this.owner,
     required this.totalCards,
-    required this.metricsProven,
+    required this.availability,
     this.newCount,
+    this.learningCount,
     this.reviewCount,
-    this.note = 'catalog_card_count_only',
+    this.suspendedCount,
+    this.buriedCount,
+    this.todayAnswerCount,
+    this.todayLearnCount,
+    this.todayReviewCount,
+    this.todayRelearnCount,
+    this.forecastDueToday,
+    this.forecastDue7Days,
+    this.forecastDue30Days,
+    this.revlogCount,
+    this.retentionPassed,
+    this.retentionFailed,
+    this.note = 'official_stats_available',
   });
 
   final String sourceId;
   final AnkiEngineKind owner;
   final int totalCards;
+  final OfficialStatsAvailability availability;
   final int? newCount;
+  final int? learningCount;
   final int? reviewCount;
-
-  /// True only for Official scheduler counts, never for FSRS retention.
-  final bool metricsProven;
+  final int? suspendedCount;
+  final int? buriedCount;
+  final int? todayAnswerCount;
+  final int? todayLearnCount;
+  final int? todayReviewCount;
+  final int? todayRelearnCount;
+  final int? forecastDueToday;
+  final int? forecastDue7Days;
+  final int? forecastDue30Days;
+  final int? revlogCount;
+  final int? retentionPassed;
+  final int? retentionFailed;
   final String note;
+
+  bool get metricsProven => availability == OfficialStatsAvailability.available;
+
+  int? get retentionSample => retentionPassed == null || retentionFailed == null
+      ? null
+      : retentionPassed! + retentionFailed!;
+
+  double? get retention {
+    final sample = retentionSample;
+    if (sample == null || sample == 0) return null;
+    return retentionPassed! / sample;
+  }
 }
 
 class OfficialAnkiSourceAwareStats {
-  const OfficialAnkiSourceAwareStats({
-    required this.sources,
-    this.engine,
-  });
+  const OfficialAnkiSourceAwareStats({required this.sources, this.engine});
+
+  static const _batchSize = 200;
 
   final OfficialAnkiSourceDao sources;
   final OfficialAnkiEngine? engine;
@@ -43,64 +83,175 @@ class OfficialAnkiSourceAwareStats {
   ) async {
     final src = sources.findById(sourceId);
     if (src == null) {
-      return OfficialAnkiSourceAwareStatsSnapshot(
-        sourceId: sourceId,
-        owner: AnkiEngineKind.official,
-        totalCards: 0,
-        metricsProven: false,
-        note: 'official_source_missing',
-      );
-    }
-    final total = sources.cardCount(sourceId);
-    final engine = this.engine;
-    if (engine == null) {
-      return OfficialAnkiSourceAwareStatsSnapshot(
-        sourceId: sourceId,
-        owner: AnkiEngineKind.official,
-        totalCards: total,
-        metricsProven: false,
-        note: 'official_catalog_counts_only',
+      return _unavailable(
+        sourceId,
+        0,
+        OfficialStatsAvailability.sourceMissing,
+        'official_source_missing',
       );
     }
     final cards = sources.listCardsForImport(
       sourceId: src.sourceId,
       profileId: src.profileId,
     );
-    final deckId = cards.isEmpty ? 0 : cards.first.deckId;
-    if (deckId <= 0) {
-      return OfficialAnkiSourceAwareStatsSnapshot(
-        sourceId: sourceId,
-        owner: AnkiEngineKind.official,
-        totalCards: total,
-        metricsProven: false,
-        note: 'official_catalog_counts_only',
+    final total = cards.length;
+    final engine = this.engine;
+    if (engine == null) {
+      return _unavailable(
+        sourceId,
+        total,
+        OfficialStatsAvailability.engineUnavailable,
+        'official_engine_unavailable',
       );
     }
-    final counts = await engine.countsForDeckToday(deckId);
+    if (cards.isEmpty) {
+      return _fromTotals(sourceId: sourceId, totalCards: 0);
+    }
+
+    var newCards = 0;
+    var learningCards = 0;
+    var reviewCards = 0;
+    var suspendedCards = 0;
+    var buriedCards = 0;
+    var todayAnswers = 0;
+    var todayLearn = 0;
+    var todayReview = 0;
+    var todayRelearn = 0;
+    var dueToday = 0;
+    var due7 = 0;
+    var due30 = 0;
+    var revlogs = 0;
+    var retentionPassed = 0;
+    var retentionFailed = 0;
+    try {
+      final ids = cards.map((card) => card.cardId).toList(growable: false);
+      for (var start = 0; start < ids.length; start += _batchSize) {
+        final end = (start + _batchSize).clamp(0, ids.length);
+        final batch = await engine.statsForCardsBatch(ids.sublist(start, end));
+        if (batch.requestedCardCount != batch.foundCardCount) {
+          return _unavailable(
+            sourceId,
+            total,
+            OfficialStatsAvailability.staleEvidence,
+            'official_catalog_collection_drift',
+          );
+        }
+        newCards += batch.newCards;
+        learningCards += batch.learningCards;
+        reviewCards += batch.reviewCards;
+        suspendedCards += batch.suspendedCards;
+        buriedCards += batch.buriedCards;
+        todayAnswers += batch.todayAnswerCount;
+        todayLearn += batch.todayLearnCount;
+        todayReview += batch.todayReviewCount;
+        todayRelearn += batch.todayRelearnCount;
+        dueToday += batch.forecastDueToday;
+        due7 += batch.forecastDue7Days;
+        due30 += batch.forecastDue30Days;
+        revlogs += batch.revlogCount;
+        retentionPassed += batch.retentionPassed;
+        retentionFailed += batch.retentionFailed;
+      }
+    } catch (_) {
+      return _unavailable(
+        sourceId,
+        total,
+        OfficialStatsAvailability.engineUnavailable,
+        'official_stats_query_failed',
+      );
+    }
+
+    return _fromTotals(
+      sourceId: sourceId,
+      totalCards: total,
+      newCards: newCards,
+      learningCards: learningCards,
+      reviewCards: reviewCards,
+      suspendedCards: suspendedCards,
+      buriedCards: buriedCards,
+      todayAnswers: todayAnswers,
+      todayLearn: todayLearn,
+      todayReview: todayReview,
+      todayRelearn: todayRelearn,
+      dueToday: dueToday,
+      due7: due7,
+      due30: due30,
+      revlogs: revlogs,
+      retentionPassed: retentionPassed,
+      retentionFailed: retentionFailed,
+    );
+  }
+
+  OfficialAnkiSourceAwareStatsSnapshot _fromTotals({
+    required String sourceId,
+    required int totalCards,
+    int newCards = 0,
+    int learningCards = 0,
+    int reviewCards = 0,
+    int suspendedCards = 0,
+    int buriedCards = 0,
+    int todayAnswers = 0,
+    int todayLearn = 0,
+    int todayReview = 0,
+    int todayRelearn = 0,
+    int dueToday = 0,
+    int due7 = 0,
+    int due30 = 0,
+    int revlogs = 0,
+    int retentionPassed = 0,
+    int retentionFailed = 0,
+  }) {
+    return OfficialAnkiSourceAwareStatsSnapshot(
+      sourceId: sourceId,
+      owner: AnkiEngineKind.official,
+      totalCards: totalCards,
+      availability: OfficialStatsAvailability.available,
+      newCount: newCards,
+      learningCount: learningCards,
+      reviewCount: reviewCards,
+      suspendedCount: suspendedCards,
+      buriedCount: buriedCards,
+      todayAnswerCount: todayAnswers,
+      todayLearnCount: todayLearn,
+      todayReviewCount: todayReview,
+      todayRelearnCount: todayRelearn,
+      forecastDueToday: dueToday,
+      forecastDue7Days: due7,
+      forecastDue30Days: due30,
+      revlogCount: revlogs,
+      retentionPassed: retentionPassed,
+      retentionFailed: retentionFailed,
+    );
+  }
+
+  OfficialAnkiSourceAwareStatsSnapshot _unavailable(
+    String sourceId,
+    int total,
+    OfficialStatsAvailability availability,
+    String reason,
+  ) {
     return OfficialAnkiSourceAwareStatsSnapshot(
       sourceId: sourceId,
       owner: AnkiEngineKind.official,
       totalCards: total,
-      newCount: counts.newCount,
-      reviewCount: counts.reviewCount,
-      metricsProven: true,
-      note: 'official_deck_counts',
+      availability: availability,
+      note: reason,
     );
   }
 
-  /// Aggregate across Official sources only — never merges writers.
+  /// Inventory-only aggregate. Scheduler metrics require an async exact-card
+  /// query per source and are intentionally not guessed here.
   OfficialAnkiSourceAwareStatsSnapshot aggregateOfficial(String profileId) {
     var total = 0;
     for (final src in sources.listSources(profileId)) {
       if (src.state != 'active') continue;
       total += sources.cardCount(src.sourceId);
     }
-    return OfficialAnkiSourceAwareStatsSnapshot(
-      sourceId: '*',
-      owner: AnkiEngineKind.official,
-      totalCards: total,
-      metricsProven: false,
-      note: 'official_catalog_aggregate',
+    return _unavailable(
+      '*',
+      total,
+      OfficialStatsAvailability.engineUnavailable,
+      'official_catalog_aggregate',
     );
   }
 }

@@ -178,10 +178,16 @@ class CourseCatalog {
 
       final dao = AnkiOwnerAuthorityDao(db);
       try {
-        for (final row
-            in await dao.listSources(officialProfileId, activeOnly: true)) {
-          if (row.backendKind != 'official') continue;
+        // Read every authority row, not only active ones. A pending/retired
+        // row still owns its source id and must suppress the legacy manifest
+        // fallback below; otherwise an uninstalling or already-uninstalled
+        // source is resurrected as a zero-card course.
+        for (final row in await dao.listSources(officialProfileId)) {
           if (!officialIds.add(row.sourceId)) continue;
+          if (row.backendKind != 'official' ||
+              row.state != AnkiSourceVisibility.active) {
+            continue;
+          }
           entries.add(CourseCatalogEntry(
             scope: OfficialAnkiCourseScope(
               profileId: officialProfileId,

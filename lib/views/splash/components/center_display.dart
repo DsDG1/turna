@@ -10,7 +10,7 @@ import 'package:turna/views/home/turna_welcomes.dart';
 import 'package:turna/views/theme.dart';
 
 class CenterDisplay extends StatefulWidget {
-  const CenterDisplay({Key? key}) : super(key: key);
+  const CenterDisplay({super.key});
 
   @override
   State<CenterDisplay> createState() => _CenterDisplayState();
@@ -38,7 +38,6 @@ class _CenterDisplayState extends State<CenterDisplay>
     super.didChangeDependencies();
     if (_textsInitialized) return;
     _textsInitialized = true;
-    final l10n = AppStrings;
     _texts = [
       _TextItem(
         AppStrings.splashReclaiming,

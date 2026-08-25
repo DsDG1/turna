@@ -6,10 +6,12 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
 // Project imports:
+import 'package:turna/application/anki/anki_deck_manager.dart';
 import 'package:turna/application/diagnostics/cache_diagnostics_registry.dart';
 import 'package:turna/application/diagnostics/runtime_memory_snapshot.dart';
 import 'package:turna/application/maintenance/storage_inventory_service.dart';
 import 'package:turna/application/maintenance/storage_maintenance_service.dart';
+import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/views/theme.dart';
@@ -121,6 +123,53 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
     await _rescan();
   }
 
+  /// Delete leftover media directories through the unified uninstall saga —
+  /// it also drops any orphaned import rows the interrupted uninstall left
+  /// behind. Locked files stay on disk and are retried on the next start.
+  Future<void> _deleteOrphans(
+    List<StorageArtifactReport> orphans,
+    int bytes,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('删除残留文件？'),
+        content: Text(
+          '将删除 ${orphans.length} 个无主残留文件夹（约 ${_formatBytes(bytes)}）。'
+          '它们不属于任何课程，删除不影响现有学习数据。',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(AppStrings.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _loading = true);
+    var cleaned = 0;
+    for (final orphan in orphans) {
+      try {
+        if (await getIt<AnkiDeckManager>().uninstall(orphan.ownerId)) {
+          cleaned++;
+        }
+      } catch (e) {
+        debugPrint('[StorageDiagnostics] orphan delete failed '
+            'for ${orphan.ownerId}: $e');
+      }
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('已清理 $cleaned/${orphans.length} 个残留文件夹')),
+    );
+    await _rescan();
+  }
+
   @override
   Widget build(BuildContext context) {
     return SettingsScaffold(
@@ -162,8 +211,7 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
         SizedBox(
           width: double.infinity,
           child: FilledButton.icon(
-            onPressed:
-                reclaimable > 0 ? () => _clearCaches(reclaimable) : null,
+            onPressed: reclaimable > 0 ? () => _clearCaches(reclaimable) : null,
             icon: Icon(
               reclaimable > 0
                   ? Icons.cleaning_services_outlined
@@ -181,7 +229,13 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
         _CategoryGrid(report: report),
         if (report.orphans.isNotEmpty) ...[
           const SizedBox(height: 16),
-          _OrphanWarningCard(orphans: report.orphans),
+          _OrphanWarningCard(
+            orphans: report.orphans,
+            onDelete: () => _deleteOrphans(
+              report.orphans,
+              report.orphans.fold<int>(0, (sum, a) => sum + a.physicalBytes),
+            ),
+          ),
         ],
         const SizedBox(height: 16),
         _MemoryCard(snapshot: data.memory),
@@ -448,11 +502,13 @@ class _CategoryCard extends StatelessWidget {
 }
 
 /// Leftover ("orphan") media directories, reported in plain language without
-/// file-system paths. Never auto-cleaned; the user is only informed.
+/// file-system paths. Never auto-cleaned; deletion runs through the unified
+/// uninstall saga only after the user confirms.
 class _OrphanWarningCard extends StatelessWidget {
-  const _OrphanWarningCard({required this.orphans});
+  const _OrphanWarningCard({required this.orphans, this.onDelete});
 
   final List<StorageArtifactReport> orphans;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -483,12 +539,30 @@ class _OrphanWarningCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '这些文件找不到归属，不会被一键清理。如确认不再需要，可联系支持协助处理。',
+                  '这些文件已无对应课程，是之前删除牌组时中断留下的。'
+                  '如确认不再需要，可以删除；删除不影响现有课程和学习进度。',
                   style: TextStyle(
                     fontSize: 12,
                     color: TurnaTheme.textSecondaryColor(context),
                   ),
                 ),
+                if (onDelete != null) ...[
+                  const SizedBox(height: 10),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      onPressed: onDelete,
+                      icon: const Icon(Icons.delete_outline, size: 18),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: TurnaTheme.warning,
+                        side: BorderSide(
+                          color: TurnaTheme.warning.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      label: const Text('删除残留文件'),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -632,8 +706,7 @@ class _ErrorCard extends StatelessWidget {
           decoration: BoxDecoration(
             color: TurnaTheme.error.withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-            border:
-                Border.all(color: TurnaTheme.error.withValues(alpha: 0.3)),
+            border: Border.all(color: TurnaTheme.error.withValues(alpha: 0.3)),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,

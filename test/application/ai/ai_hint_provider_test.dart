@@ -141,7 +141,7 @@ void main() {
     final provider = _provider(client);
 
     final a = _ctx();
-    final b = const AiQuestionContext(
+    const b = AiQuestionContext(
       language: 'Turkish',
       typeLabel: 'Fill-in-the-blank',
       promptLabel: 'Another question',

@@ -12,7 +12,7 @@ import 'package:turna/views/theme.dart';
 
 @RoutePage()
 class AiSavedListPage extends StatefulWidget {
-  const AiSavedListPage({Key? key}) : super(key: key);
+  const AiSavedListPage({super.key});
 
   @override
   State<AiSavedListPage> createState() => _AiSavedListPageState();

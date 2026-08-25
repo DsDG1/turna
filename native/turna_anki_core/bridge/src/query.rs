@@ -10,10 +10,11 @@ use sha2::Sha256;
 use anki::notes::NoteId;
 use anki::prelude::*;
 use anki::search::SortMode;
+use anki::services::CardsService;
+use anki::services::NotesService;
 
 use crate::engine::slot;
 use crate::engine::STATUS_BACKEND_PANIC;
-use crate::engine::STATUS_CARD_NOT_FOUND;
 use crate::engine::STATUS_INVALID_ARGUMENT;
 use crate::engine::STATUS_INVALID_STATE;
 use crate::engine::STATUS_PAGE_TOKEN_STALE;
@@ -180,22 +181,24 @@ pub fn get_card_descriptors_batch(handle: u64, request: &[u8]) -> Result<Value, 
     let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
     let mut cards = Vec::new();
     for card_id in parsed.card_ids {
-        let card = col
-            .storage
-            .get_card(CardId(card_id))
-            .map_err(map_anki_error)?
-            .ok_or(STATUS_CARD_NOT_FOUND)?;
-        let note = col
-            .storage
-            .get_note(card.note_id())
-            .map_err(map_anki_error)?
-            .ok_or(STATUS_CARD_NOT_FOUND)?;
+        let card = CardsService::get_card(col, anki_proto::cards::CardId { cid: card_id })
+            .map_err(map_anki_error)?;
+        let note = NotesService::get_note(col, anki_proto::notes::NoteId { nid: card.note_id })
+            .map_err(map_anki_error)?;
+        let queue = card.queue;
+        let tags = note.tags;
         cards.push(json!({
-            "cardId": card.id().0,
-            "noteId": card.note_id().0,
-            "deckId": card.deck_id().0,
+            "cardId": card.id,
+            "noteId": card.note_id,
+            "deckId": card.deck_id,
             "noteGuid": note.guid,
-            "templateOrd": card.template_idx(),
+            "templateOrd": card.template_idx,
+            "queue": queue,
+            "suspended": queue == -1,
+            "buried": queue == -2 || queue == -3,
+            "flag": card.flags & 0b111,
+            "marked": tags.iter().any(|tag| tag.eq_ignore_ascii_case("marked")),
+            "tags": tags,
         }));
     }
     Ok(json!({ "cards": cards }))

@@ -16,7 +16,7 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/service/locator.dart';
 
 class _FakeSecureStore implements ICredentialStore {
-  _FakeSecureStore({this.failWrites = false, this.failReads = false});
+  _FakeSecureStore({this.failWrites = false}) : failReads = false;
 
   final bool failWrites;
   final bool failReads;
@@ -78,7 +78,7 @@ void main() {
 
   test('migrates a legacy plaintext key to the secure store and sanitizes '
       'the prefs blob', () async {
-    final legacy = const AiEngineConfig(
+    const legacy = AiEngineConfig(
       apiKey: 'sk-secret-123456',
       modelChat: 'deepseek-v4-flash',
     );
@@ -109,7 +109,7 @@ void main() {
 
   test('failed secure write keeps the plaintext key and reports failure',
       () async {
-    final legacy = const AiEngineConfig(apiKey: 'sk-keep-me');
+    const legacy = AiEngineConfig(apiKey: 'sk-keep-me');
     await sp.setString(
       LocalStateKeys.aiEngineConfig,
       jsonEncode(legacy.toJson(includeApiKey: true)),
@@ -183,7 +183,7 @@ void main() {
 
   test('session-only fallback store reports non-persistent key storage',
       () async {
-    final legacy = const AiEngineConfig(apiKey: 'sk-session');
+    const legacy = AiEngineConfig(apiKey: 'sk-session');
     await sp.setString(
       LocalStateKeys.aiEngineConfig,
       jsonEncode(legacy.toJson(includeApiKey: true)),

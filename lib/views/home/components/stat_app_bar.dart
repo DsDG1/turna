@@ -15,7 +15,7 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/widgets/loader.dart';
 
 class StatAppBar extends StatelessWidget implements PreferredSizeWidget {
-  const StatAppBar({Key? key}) : super(key: key);
+  const StatAppBar({super.key});
 
   @override
   Size get preferredSize => const Size.fromHeight(60);
@@ -131,7 +131,7 @@ class Streak extends StatelessWidget {
 }
 
 class ScoreCard extends StatelessWidget {
-  const ScoreCard({Key? key}) : super(key: key);
+  const ScoreCard({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -177,10 +177,10 @@ class AnimatedCounter extends StatefulWidget {
   final TextStyle style;
 
   const AnimatedCounter({
-    Key? key,
+    super.key,
     required this.target,
     required this.style,
-  }) : super(key: key);
+  });
 
   @override
   State<AnimatedCounter> createState() => _AnimatedCounterState();

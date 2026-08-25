@@ -42,6 +42,7 @@ class AnkiCardBrowserPage extends StatefulWidget {
 
 class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
   final _searchController = TextEditingController();
+  final _tagController = TextEditingController();
   final _dao = getIt<AnkiNoteDao>();
   Timer? _debounce;
   List<AnkiCardBrowserRecord> _rows = const [];
@@ -51,6 +52,10 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
   int? _flag;
   bool? _marked;
   bool? _suspended;
+  bool? _buried;
+  int? _deckId;
+  Map<int, String> _deckOptions = const {};
+  String? _officialUnavailableReason;
 
   @override
   void initState() {
@@ -62,6 +67,7 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
   void dispose() {
     _debounce?.cancel();
     _searchController.dispose();
+    _tagController.dispose();
     super.dispose();
   }
 
@@ -77,19 +83,38 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
         legacyNotes: _dao,
         engine: OfficialAnkiCompositionRoot.engine,
       );
-      final official = await browser.search(
-        importOrSourceId: widget.importId,
-        query: _searchController.text,
-        suspended: _suspended,
-        ownerHint: sources.findById(widget.importId) != null
-            ? AnkiEngineKind.official
-            : null,
-      );
-      if (official.isNotEmpty || sources.findById(widget.importId) != null) {
+      final source = sources.findById(widget.importId);
+      if (source != null) {
+        final result = await browser.searchWithAvailability(
+          importOrSourceId: widget.importId,
+          filter: OfficialBrowserFilter(
+            query: _searchController.text,
+            tag: _tagController.text,
+            deckId: _deckId,
+            flag: _flag,
+            marked: _marked,
+            suspended: _suspended,
+            buried: _buried,
+          ),
+          ownerHint: AnkiEngineKind.official,
+        );
+        final cards = sources.listCards(widget.importId);
+        final deckIds = cards.map((card) => card.deckId).toSet();
+        final names = <int, String>{for (final id in deckIds) id: '#$id'};
+        final engine = OfficialAnkiCompositionRoot.engine;
+        if (engine != null) {
+          try {
+            for (final deck in await engine.listDeckTree()) {
+              if (deckIds.contains(deck.deckId)) names[deck.deckId] = deck.name;
+            }
+          } catch (_) {}
+        }
         if (!mounted) return;
         setState(() {
           _officialSource = true;
-          _officialRows = official;
+          _officialRows = result.rows;
+          _officialUnavailableReason = result.available ? null : result.reason;
+          _deckOptions = names;
           _rows = const [];
           _loading = false;
         });
@@ -107,6 +132,7 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
     setState(() {
       _officialSource = false;
       _officialRows = const [];
+      _officialUnavailableReason = null;
       _rows = rows;
       _loading = false;
     });
@@ -300,6 +326,15 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
                 ),
                 const SizedBox(width: 8),
                 TurnaFilterChip(
+                  label: '已埋藏',
+                  selected: _buried == true,
+                  onSelected: (value) {
+                    setState(() => _buried = value ? true : null);
+                    _load();
+                  },
+                ),
+                const SizedBox(width: 8),
+                TurnaFilterChip(
                   label: '已暂停',
                   selected: _suspended == true,
                   onSelected: (value) {
@@ -328,107 +363,167 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
               ],
             ),
           ),
+          if (_officialSource)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<int?>(
+                      initialValue: _deckId,
+                      decoration: const InputDecoration(
+                        labelText: '牌组',
+                        isDense: true,
+                      ),
+                      items: [
+                        const DropdownMenuItem<int?>(
+                          value: null,
+                          child: Text('全部牌组'),
+                        ),
+                        for (final entry in _deckOptions.entries)
+                          DropdownMenuItem<int?>(
+                            value: entry.key,
+                            child: Text(entry.value),
+                          ),
+                      ],
+                      onChanged: (value) {
+                        setState(() => _deckId = value);
+                        _load();
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: _tagController,
+                      onChanged: _onSearchChanged,
+                      decoration: const InputDecoration(
+                        labelText: '标签',
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
-                : _officialSource
-                    ? (_officialRows.isEmpty
-                        ? const Center(child: Text('没有匹配的卡片'))
-                        : ListView.builder(
-                            padding: const EdgeInsets.fromLTRB(12, 0, 12, 20),
-                            itemCount: _officialRows.length,
-                            itemBuilder: (context, index) {
-                              final row = _officialRows[index];
-                              return Card(
-                                child: ListTile(
-                                  leading: const Icon(Icons.style_outlined),
-                                  title: Text(
-                                    row.frontPreview,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  subtitle: Text(
-                                    'Official #${row.cardId} · note #${row.noteId}',
-                                    style: TextStyle(
-                                      color: TurnaTheme.textHintColor(context),
-                                    ),
-                                  ),
-                                  trailing: PopupMenuButton<String>(
-                                    onSelected: (value) {
-                                      if (value == 'review') {
-                                        _openFormalReview(context);
-                                      } else if (value == 'suspend') {
-                                        unawaited(_toggleOfficial(row));
-                                      }
-                                    },
-                                    itemBuilder: (context) => [
-                                      const PopupMenuItem(
-                                        value: 'review',
-                                        child: Text('去复习'),
+                : _officialUnavailableReason != null
+                    ? Center(
+                        child: Text(
+                          'Official 卡片浏览暂不可用\n$_officialUnavailableReason',
+                          textAlign: TextAlign.center,
+                        ),
+                      )
+                    : _officialSource
+                        ? (_officialRows.isEmpty
+                            ? const Center(child: Text('没有匹配的卡片'))
+                            : ListView.builder(
+                                padding:
+                                    const EdgeInsets.fromLTRB(12, 0, 12, 20),
+                                itemCount: _officialRows.length,
+                                itemBuilder: (context, index) {
+                                  final row = _officialRows[index];
+                                  return Card(
+                                    child: ListTile(
+                                      leading: _FlagIcon(flag: row.flag),
+                                      title: Text(
+                                        row.frontPreview,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
-                                      PopupMenuItem(
-                                        value: 'suspend',
-                                        child: Text(
-                                          row.suspended ? '取消暂停' : '暂停',
+                                      subtitle: Text(
+                                        'Official #${row.cardId} · note #${row.noteId}'
+                                        '${row.suspended ? ' · 已暂停' : ''}'
+                                        '${row.buried ? ' · 已埋藏' : ''}'
+                                        '${row.marked ? ' · 已标记' : ''}',
+                                        style: TextStyle(
+                                          color:
+                                              TurnaTheme.textHintColor(context),
                                         ),
                                       ),
-                                    ],
-                                  ),
-                                ),
-                              );
-                            },
-                          ))
-                : _rows.isEmpty
-                    ? const Center(child: Text('没有匹配的卡片'))
-                    : ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 20),
-                        itemCount: _rows.length,
-                        itemBuilder: (context, index) {
-                          final row = _rows[index];
-                          return Card(
-                            child: ListTile(
-                              onTap: () => _showDetails(row),
-                              leading: _FlagIcon(flag: row.card.flag),
-                              title: Text(
-                                _preview(row.note.fields),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              subtitle: Text(
-                                '#${row.card.cardId}  ${row.card.suspended ? '已暂停' : ''}${row.card.marked ? ' · 已标记' : ''}',
-                                style: TextStyle(
-                                  color: TurnaTheme.textHintColor(context),
-                                ),
-                              ),
-                              trailing: PopupMenuButton<String>(
-                                onSelected: (value) {
-                                  if (value == 'mark') {
-                                    _toggle(row, marked: !row.card.marked);
-                                  } else if (value == 'suspend') {
-                                    _toggle(row,
-                                        suspended: !row.card.suspended);
-                                  } else if (value == 'review') {
-                                    _openFormalReview(context);
-                                  }
+                                      trailing: PopupMenuButton<String>(
+                                        onSelected: (value) {
+                                          if (value == 'review') {
+                                            _openFormalReview(context);
+                                          } else if (value == 'suspend') {
+                                            unawaited(_toggleOfficial(row));
+                                          }
+                                        },
+                                        itemBuilder: (context) => [
+                                          const PopupMenuItem(
+                                            value: 'review',
+                                            child: Text('去复习'),
+                                          ),
+                                          PopupMenuItem(
+                                            value: 'suspend',
+                                            child: Text(
+                                              row.suspended ? '取消暂停' : '暂停',
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
                                 },
-                                itemBuilder: (context) => [
-                                  PopupMenuItem(
-                                      value: 'review',
-                                      child: const Text('去复习')),
-                                  PopupMenuItem(
-                                      value: 'mark',
-                                      child: Text(
-                                          row.card.marked ? '取消标记' : '标记')),
-                                  PopupMenuItem(
-                                      value: 'suspend',
-                                      child: Text(
-                                          row.card.suspended ? '恢复' : '暂停')),
-                                ],
+                              ))
+                        : _rows.isEmpty
+                            ? const Center(child: Text('没有匹配的卡片'))
+                            : ListView.builder(
+                                padding:
+                                    const EdgeInsets.fromLTRB(12, 0, 12, 20),
+                                itemCount: _rows.length,
+                                itemBuilder: (context, index) {
+                                  final row = _rows[index];
+                                  return Card(
+                                    child: ListTile(
+                                      onTap: () => _showDetails(row),
+                                      leading: _FlagIcon(flag: row.card.flag),
+                                      title: Text(
+                                        _preview(row.note.fields),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      subtitle: Text(
+                                        '#${row.card.cardId}  ${row.card.suspended ? '已暂停' : ''}${row.card.marked ? ' · 已标记' : ''}',
+                                        style: TextStyle(
+                                          color:
+                                              TurnaTheme.textHintColor(context),
+                                        ),
+                                      ),
+                                      trailing: PopupMenuButton<String>(
+                                        onSelected: (value) {
+                                          if (value == 'mark') {
+                                            _toggle(row,
+                                                marked: !row.card.marked);
+                                          } else if (value == 'suspend') {
+                                            _toggle(row,
+                                                suspended: !row.card.suspended);
+                                          } else if (value == 'review') {
+                                            _openFormalReview(context);
+                                          }
+                                        },
+                                        itemBuilder: (context) => [
+                                          PopupMenuItem(
+                                              value: 'review',
+                                              child: const Text('去复习')),
+                                          PopupMenuItem(
+                                              value: 'mark',
+                                              child: Text(row.card.marked
+                                                  ? '取消标记'
+                                                  : '标记')),
+                                          PopupMenuItem(
+                                              value: 'suspend',
+                                              child: Text(row.card.suspended
+                                                  ? '恢复'
+                                                  : '暂停')),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
-                            ),
-                          );
-                        },
-                      ),
           ),
         ],
       ),

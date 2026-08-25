@@ -17,7 +17,7 @@ import 'package:turna/views/theme.dart';
 /// route. No authentication is required.
 class GetStartedButton extends StatelessWidget {
   final BuildContext context;
-  const GetStartedButton(this.context, {Key? key}) : super(key: key);
+  const GetStartedButton(this.context, {super.key});
 
   @override
   Widget build(BuildContext context) {

@@ -58,8 +58,9 @@ class _TutorLaunchSheetState extends State<TutorLaunchSheet> {
     );
 
     if (!mounted) return;
-    if (lessonId == null)
+    if (lessonId == null) {
       return; // error / cancel path is rendered by the body.
+    }
     router.pop(); // close the sheet
     router.push(NewLessonRoute(lessonId: lessonId));
   }

@@ -24,8 +24,10 @@ import 'package:turna/application/anki_official/projection/official_anki_project
 import 'package:turna/application/anki_official/projection/official_anki_projection_store.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
+import 'package:turna/application/course_catalog.dart';
 import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/anki_note_dao.dart';
+import 'package:turna/data/anki_owner_authority_dao.dart';
 import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/data/course_database_seeder.dart';
@@ -51,7 +53,7 @@ OfficialAnkiProjectedItem _item(
   int cardId, {
   OfficialAnkiProjectedVocabulary? vocabulary,
 }) {
-  final suffix = '-s1';
+  const suffix = '-s1';
   return OfficialAnkiProjectedItem(
     kind: OfficialAnkiProjectionKind.showWord,
     cardId: cardId,
@@ -162,7 +164,8 @@ void main() {
         sourceFingerprint: 'fp-r',
       );
       expect(
-        await _count(db, 'SELECT COUNT(*) AS n FROM official_anki_projection_index'),
+        await _count(
+            db, 'SELECT COUNT(*) AS n FROM official_anki_projection_index'),
         2,
       );
       expect(
@@ -243,7 +246,8 @@ void main() {
       expect(row.read<String>('pronunciation'), 'meɾhaba');
       expect(row.read<String>('audio_asset'), 'hello.mp3');
       expect(
-        (jsonDecode(row.read<String>('tags')) as List).contains('official:src-v'),
+        (jsonDecode(row.read<String>('tags')) as List)
+            .contains('official:src-v'),
         isTrue,
       );
 
@@ -265,9 +269,11 @@ void main() {
           issues: const [],
         ),
       );
-      final after = await db.customSelect(
-        'SELECT id FROM vocabulary ORDER BY id',
-      ).get();
+      final after = await db
+          .customSelect(
+            'SELECT id FROM vocabulary ORDER BY id',
+          )
+          .get();
       expect(after.map((r) => r.read<String>('id')), [
         'builtin-1',
         'official-anki-profile-default-01-c13',
@@ -358,7 +364,8 @@ void main() {
           reason: 'uninstalling "user" must not delete "user2"');
     });
 
-    test('official source uninstall cleans tree, unification; keeps legacy '
+    test(
+        'official source uninstall cleans tree, unification; keeps legacy '
         'tables', () async {
       final store = OfficialAnkiCourseProjectionStore(db);
       await store.replaceOfficialProjection(
@@ -417,6 +424,7 @@ void main() {
     late MistakeProvider mistakes;
     late ReviewHistoryDao reviewHistory;
     late AnkiUnificationDao unification;
+    late AnkiOwnerAuthorityDao authority;
     late OfficialAnkiDatabase catalog;
     late FakeOfficialAnkiEngine engine;
 
@@ -430,6 +438,7 @@ void main() {
       mistakes = MistakeProvider(appPrefs);
       reviewHistory = ReviewHistoryDao(db);
       unification = AnkiUnificationDao(db);
+      authority = AnkiOwnerAuthorityDao(db);
       final getIt = GetIt.instance;
       await getIt.reset();
       final repo = CourseRepository(db);
@@ -437,6 +446,7 @@ void main() {
       getIt.registerSingleton<AnkiImportDao>(AnkiImportDao(db));
       getIt.registerSingleton<AnkiNoteDao>(AnkiNoteDao(db));
       getIt.registerSingleton<AnkiUnificationDao>(unification);
+      getIt.registerSingleton<AnkiOwnerAuthorityDao>(authority);
       manager = AnkiDeckManager(
         repo: repo,
         srsProvider: SrsProvider(
@@ -489,8 +499,22 @@ void main() {
           timestamp: DateTime(2026, 8, 1),
         );
 
+    Future<void> seedOfficialAuthority(String sourceId) {
+      return authority.upsertSource(
+        courseId: 'official-anki-$sourceId',
+        profileId: 'profile-default-01',
+        sourceId: sourceId,
+        backendKind: 'official',
+        displayName: 'Deck $sourceId',
+        sourceHash: 'hash-$sourceId',
+        sourceFingerprint: 'fp-$sourceId',
+        state: AnkiSourceVisibility.active,
+      );
+    }
+
     test('official source uninstall deletes collection notes and mistakes',
         () async {
+      await seedOfficialAuthority('src-h');
       final sources = OfficialAnkiSourceDao(catalog);
       sources.upsertSource(
         sourceId: 'src-h',
@@ -519,6 +543,24 @@ void main() {
           ),
         ],
       );
+      engine.cards.addAll({
+        51: const OfficialAnkiCardDescriptor(
+          cardId: 51,
+          noteId: 500,
+          deckId: 1,
+          templateOrd: 0,
+        ),
+        52: const OfficialAnkiCardDescriptor(
+          cardId: 52,
+          noteId: 501,
+          deckId: 1,
+          templateOrd: 0,
+        ),
+      });
+      engine.cardsByNote.addAll({
+        500: [51],
+        501: [52],
+      });
       await OfficialAnkiCourseProjectionStore(db).replaceOfficialProjection(
         sourceId: 'src-h',
         plan: OfficialAnkiProjectionPlan(
@@ -542,7 +584,7 @@ void main() {
         wordId: 'official-anki-review-c77',
       ));
 
-      await manager.uninstall('src-h');
+      expect(await manager.uninstall('src-h'), isTrue);
 
       expect(engine.deletedNoteIds, const {500, 501});
       expect(
@@ -558,6 +600,145 @@ void main() {
         0,
       );
       expect(mistakes.entries.map((e) => e.id), {'m-kept'});
+      expect(
+        (await authority.findBySource(
+          profileId: 'profile-default-01',
+          sourceId: 'src-h',
+        ))
+            ?.state,
+        AnkiSourceVisibility.retired,
+      );
+      final entries = await CourseCatalog.load(
+        shells: await CourseRepository(db).sectionShells(),
+        courseDb: db,
+      );
+      expect(
+        entries.any((entry) => entry.officialSourceId == 'src-h'),
+        isFalse,
+        reason: 'a successful uninstall must not leave a course-management '
+            'authority ghost',
+      );
+
+      // The retained retired authority still routes a repeated cleanup as
+      // Official even though its projection and catalog rows are already gone.
+      expect(await manager.uninstall('src-h'), isTrue);
+    });
+
+    test('official uninstall retains sibling cards and shared notes',
+        () async {
+      await seedOfficialAuthority('src-a');
+      final sources = OfficialAnkiSourceDao(catalog);
+      for (final sourceId in const ['src-a', 'src-b']) {
+        sources.upsertSource(
+          sourceId: sourceId,
+          profileId: 'profile-default-01',
+          sourceHash: 'hash-$sourceId',
+          sourceSize: 10,
+          displayName: sourceId,
+          state: 'active',
+          backendCommit: 'test',
+          nowMillis: 1,
+        );
+      }
+      sources.replaceCards(
+        sourceId: 'src-a',
+        cards: const [
+          OfficialAnkiCardDescriptor(
+            cardId: 51,
+            noteId: 500,
+            deckId: 1,
+            templateOrd: 0,
+          ),
+          OfficialAnkiCardDescriptor(
+            cardId: 52,
+            noteId: 501,
+            deckId: 1,
+            templateOrd: 0,
+          ),
+        ],
+      );
+      sources.replaceCards(
+        sourceId: 'src-b',
+        cards: const [
+          OfficialAnkiCardDescriptor(
+            cardId: 51,
+            noteId: 500,
+            deckId: 1,
+            templateOrd: 0,
+          ),
+          OfficialAnkiCardDescriptor(
+            cardId: 53,
+            noteId: 500,
+            deckId: 1,
+            templateOrd: 1,
+          ),
+        ],
+      );
+      engine.cards.addAll({
+        51: const OfficialAnkiCardDescriptor(
+          cardId: 51,
+          noteId: 500,
+          deckId: 1,
+          templateOrd: 0,
+        ),
+        52: const OfficialAnkiCardDescriptor(
+          cardId: 52,
+          noteId: 501,
+          deckId: 1,
+          templateOrd: 0,
+        ),
+        53: const OfficialAnkiCardDescriptor(
+          cardId: 53,
+          noteId: 500,
+          deckId: 1,
+          templateOrd: 1,
+        ),
+      });
+      engine.cardsByNote.addAll({
+        500: [51, 53],
+        501: [52],
+      });
+
+      expect(await manager.uninstall('src-a'), isTrue);
+
+      expect(engine.cards.keys, {51, 53});
+      expect(engine.deletedNoteIds, {501});
+      expect(sources.findById('src-b'), isNotNull);
+      expect(sources.listCards('src-b').map((card) => card.cardId), {51, 53});
+    });
+
+    test('active authority ghost without projection can still be retired',
+        () async {
+      await seedOfficialAuthority('src-ghost');
+
+      expect(await manager.uninstall('src-ghost'), isTrue);
+      expect(
+        (await authority.findBySource(
+          profileId: 'profile-default-01',
+          sourceId: 'src-ghost',
+        ))
+            ?.state,
+        AnkiSourceVisibility.retired,
+      );
+    });
+
+    test('startup retry also discovers authority-only pending cleanup',
+        () async {
+      await seedOfficialAuthority('src-pending-ghost');
+      await authority.commitVisibility(
+        courseId: 'official-anki-src-pending-ghost',
+        state: AnkiSourceVisibility.pendingCleanup,
+      );
+
+      expect(await manager.retryPendingOfficialCleanups(), 1);
+      expect(
+        (await authority.findBySource(
+          profileId: 'profile-default-01',
+          sourceId: 'src-pending-ghost',
+        ))
+            ?.state,
+        AnkiSourceVisibility.retired,
+      );
     });
 
     test('legacy deck uninstall deletes records, history, and mistakes',
@@ -617,13 +798,13 @@ void main() {
       await manager.uninstallDeck('user');
 
       expect(
-        await _count(
-            db, "SELECT COUNT(*) AS n FROM review_events WHERE card_id = 'anki-user-c5'"),
+        await _count(db,
+            "SELECT COUNT(*) AS n FROM review_events WHERE card_id = 'anki-user-c5'"),
         0,
       );
       expect(
-        await _count(
-            db, "SELECT COUNT(*) AS n FROM review_events WHERE card_id = 'anki-user2-c5'"),
+        await _count(db,
+            "SELECT COUNT(*) AS n FROM review_events WHERE card_id = 'anki-user2-c5'"),
         1,
         reason: 'prefix sibling history must survive',
       );
@@ -637,8 +818,10 @@ void main() {
           reason: 'legacy uninstall never touches the official collection');
     });
 
-    test('mirrored import uninstall resolves via migration link and clears '
+    test(
+        'mirrored import uninstall resolves via migration link and clears '
         'both owners', () async {
+      await seedOfficialAuthority('src-m');
       final sources = OfficialAnkiSourceDao(catalog);
       sources.upsertSource(
         sourceId: 'src-m',
@@ -661,6 +844,13 @@ void main() {
           ),
         ],
       );
+      engine.cards[61] = const OfficialAnkiCardDescriptor(
+        cardId: 61,
+        noteId: 600,
+        deckId: 1,
+        templateOrd: 0,
+      );
+      engine.cardsByNote[600] = [61];
       // The legacy↔official link is the authoritative ownership record.
       catalog.handle.execute(
         "INSERT INTO legacy_anki_migrations (migration_id, profile_id, "
@@ -689,7 +879,7 @@ void main() {
         sourceFingerprint: 'fp-m',
       );
 
-      await manager.uninstall('imp-m');
+      expect(await manager.uninstall('imp-m'), isTrue);
 
       expect(engine.deletedNoteIds, const {600},
           reason: 'the official mirror loses its collection notes');
@@ -711,8 +901,8 @@ void main() {
       expect(sections, isEmpty,
           reason: 'both legacy and official tree sections are removed');
       expect(
-        await _count(
-            db, "SELECT COUNT(*) AS n FROM anki_imports WHERE import_id = 'imp-m'"),
+        await _count(db,
+            "SELECT COUNT(*) AS n FROM anki_imports WHERE import_id = 'imp-m'"),
         0,
         reason: 'the legacy import record is removed',
       );
@@ -723,8 +913,10 @@ void main() {
       );
     });
 
-    test('collection delete failure marks pending_cleanup and keeps owner '
+    test(
+        'collection delete failure marks pending_cleanup and keeps owner '
         'rows; retry completes', () async {
+      await seedOfficialAuthority('src-p');
       final sources = OfficialAnkiSourceDao(catalog);
       sources.upsertSource(
         sourceId: 'src-p',
@@ -747,6 +939,13 @@ void main() {
           ),
         ],
       );
+      engine.cards[71] = const OfficialAnkiCardDescriptor(
+        cardId: 71,
+        noteId: 700,
+        deckId: 1,
+        templateOrd: 0,
+      );
+      engine.cardsByNote[700] = [71];
       await OfficialAnkiCourseProjectionStore(db).replaceOfficialProjection(
         sourceId: 'src-p',
         plan: OfficialAnkiProjectionPlan(
@@ -757,13 +956,32 @@ void main() {
       );
 
       engine.failDeleteNotes = true;
-      await manager.uninstall('src-p');
+      expect(await manager.uninstall('src-p'), isFalse);
 
       final row = catalog.handle
           .select("SELECT state FROM anki_sources WHERE source_id = 'src-p'")
           .first;
       expect(row['state'], 'pending_cleanup',
           reason: 'failed collection delete defers the saga');
+      expect(
+        (await authority.findBySource(
+          profileId: 'profile-default-01',
+          sourceId: 'src-p',
+        ))
+            ?.state,
+        AnkiSourceVisibility.pendingCleanup,
+        reason: 'course authority must hide a deferred uninstall',
+      );
+      final pendingEntries = await CourseCatalog.load(
+        shells: await CourseRepository(db).sectionShells(),
+        courseDb: db,
+      );
+      expect(
+        pendingEntries.any((entry) => entry.officialSourceId == 'src-p'),
+        isFalse,
+        reason: 'a pending source must stay out of course management even '
+            'while its projection manifest remains for retry',
+      );
       expect(
         catalog.handle
             .select('SELECT COUNT(*) AS n FROM anki_source_cards')
@@ -793,6 +1011,14 @@ void main() {
         await _count(
             db, 'SELECT COUNT(*) AS n FROM official_anki_projection_index'),
         0,
+      );
+      expect(
+        (await authority.findBySource(
+          profileId: 'profile-default-01',
+          sourceId: 'src-p',
+        ))
+            ?.state,
+        AnkiSourceVisibility.retired,
       );
     });
   });

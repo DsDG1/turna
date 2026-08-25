@@ -87,10 +87,10 @@ class AnkiImportSummary {
 }
 
 /// Assembles parsed Anki data into Turna's course tree structure
-/// (Section -> Unit -> Lesson -> Stage -> Interaction) and writes to DB.
+/// (`Section -> Unit -> Lesson -> Stage -> Interaction`) and writes to DB.
 ///
 /// Mapping rules:
-/// - Top-level deck -> Section (id = "anki-<importId>-s<did>", level = "Anki")
+/// - Top-level deck -> Section (`id = "anki-<importId>-s<did>"`, level = "Anki")
 /// - Direct sub-deck -> Unit; no sub-decks -> single Unit
 /// - Within a Unit, cards are grouped into Lessons by their carried metadata
 ///   (notetype "unit"/"lesson" fields or `unit::`/`lesson::` tags) when

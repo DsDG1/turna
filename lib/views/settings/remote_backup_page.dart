@@ -1,5 +1,4 @@
 // Flutter imports:
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 // Package imports:
@@ -316,9 +315,11 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
     final service = _service;
     if (service == null || _restoring) return;
     if (!await _isConfigured) {
+      if (!mounted) return;
       _showSnack('请先保存服务器配置与凭据');
       return;
     }
+    if (!mounted) return;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => SettingsConfirmDialog(
@@ -327,7 +328,7 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
         confirmText: AppStrings.remoteBackupRestoreConfirm,
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !context.mounted) return;
 
     setState(() {
       _restoring = true;

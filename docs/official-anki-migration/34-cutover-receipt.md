@@ -1,7 +1,7 @@
 # 34 — Cutover receipt（W8–W10 收口摘要）
 
 > 日期：2026-08-25（一次性施工 host 收口后更新）
-> 状态：**验收 NO-GO；Official Anki 迁移中**（host/自动化门禁全绿、生产候选已形成；真机矩阵与外部事实未验收。不得写「迁移完成」）
+> 状态：**验收 NO-GO；Official Anki 迁移中**（host/自动化门禁全绿、工作树生产候选已形成；真机矩阵与外部事实未验收。不得写「迁移完成」）
 > 计划真源：[`34-official-anki-production-cutover-and-ohos-retirement-plan.md`](./34-official-anki-production-cutover-and-ohos-retirement-plan.md)
 > 剩余波次：[`34-remaining-construction-plan.md`](./34-remaining-construction-plan.md)
 > HOLD：[`34-w9-legacy-deletion-hold.md`](./34-w9-legacy-deletion-hold.md)
@@ -17,13 +17,13 @@
 |---|---|
 | R0 schema 9 回归 + 基线止血 | backup/restore 测试改读 `kSchemaVersion`/`kOfficialAnkiCatalogSchemaVersion`；`git diff --check` 0；native pin 验证 + so 重建（cutover-once/） |
 | R1 CourseScope / 课程目录 / 精确卸载 | `CourseScope` codec v1 + `CourseCatalog`（authority+manifest）+ builtin 双隔离 + `anki:src` 歧义修复 + 顶栏课程名 + 导入三动作分流 + 完整 sourceId 卸载 |
-| R2 保真实时复习 + Review All | fidelity-first 渲染、`OfficialFormalReviewLiveQueue`（Scheduler current 驱动、Again 重插、快照 generation）、Review All 全来源聚合 + 失败上报、Redo/Bury/Suspend |
+| R2 保真实时复习 + Review All | fidelity-first 渲染、`OfficialFormalReviewLiveQueue`（Scheduler current 驱动、Again 重插、快照 generation）、`FormalReviewSourceCoordinator` 顺序消费 Legacy + Official 混合 owner并聚合失败、Redo/Bury/Suspend |
 | R3 六集合 Due repository | `OfficialFormalDueRepository`（known/unknown/unavailable、stale generation、rollback、retired reader）；`OfficialAnkiHomeDue` 薄 facade、officialDue 派生 |
-| R4 write fence + 权威 owner 事务 | `LegacyWriteFence` 全 mutator 围栏（intent/token/rollback phase）；`anki_owner_transitions` + `commitOwnership` 同库原子；saga freeze 真实 CAS、权威先行、driver resume/rollback |
+| R4 write fence + 权威 owner 事务 | `LegacyWriteFence` 全 mutator 围栏（intent/token/rollback phase）；`anki_owner_transitions` + `commitOwnership` 同库原子；生产 migration center/coordinator；commit 后 catalog mirror/smoke 失败只向前恢复，已提交 owner 拒绝 rollback |
 | R5 Browser/Stats 产品入口 | Official 牌组 Browse/Stats 按钮可达，完整 sourceId 路由，无 Legacy 回退 |
-| R6 导入 commit-last | authority staging 起始、`publishFromProjection` 后 visibility active；向导不抢 scope |
+| R6 导入 commit-last | authority staging 起始、`publishFromProjection` 后 visibility active；Legacy UI mutation 抽入 application executor，identity 与 CourseDB 同事务；同 ID 重导媒体 staging/原子换目录，并通过 incoming/committed hash 在启动时恢复强杀窗口；向导不抢 scope |
 | R7 Android turna-migration-v1 导入器 | `TurnaMigrationImporter`（fail-closed 校验/事务/Legacy 行只入 pending）+ 设置页独立入口；export→import 往返测试 |
-| R8 路由守卫 + 门禁 | `DiagnosticsReleaseGuard`（release+深链）；analyze 0 error、全量 1825/0、golden 4/4、arm64 APK 55.8MB（sha256 见 cutover-once/apk-sha256.txt） |
+| R8 路由守卫 + 门禁 | `DiagnosticsReleaseGuard`（release+深链）；analyze 0 issue、全量 1852/0、golden 4/4、native 68/68、arm64 APK 56.1MB；APK 内验证 contract 1.6 新操作（sha256 见 cutover-once/apk-sha256.txt） |
 
 ### 2026-08-24 及更早（原 Done 表）
 |---|---|
@@ -68,4 +68,4 @@ A fat multi-ABI APK without matching `.so` is forbidden (fail-closed, never Lega
 
 ## Accurate status line
 
-> 验收 NO-GO；Official Anki 迁移中：一次性代码收口（R0–R8 host 侧）已完成并全绿（analyze 0 error / 全量 1825:0 / golden 4:4 / arm64 APK 55.8MB / native pin+重建），形成**生产候选**；尚未真机验收（§12 矩阵未跑），外部事实（OHOS sunset/豁免、存量用户处置、Legacy 零新写观察期）未发生，W9 继续 HOLD。不得写「迁移完成」。
+> 验收 NO-GO；Official Anki 迁移中：一次性代码收口（R0–R8 host 侧）已完成并全绿（analyze 0 issue / 全量 1852:0 / golden 4:4 / native 68:0 / arm64 APK 56.1MB，contract 1.6 制品能力已核验），形成**工作树生产候选**；尚未真机验收（§12 矩阵未跑），外部事实（OHOS sunset/豁免、存量用户处置、Legacy 零新写观察期）未发生，W9 继续 HOLD。不得写「迁移完成」。

@@ -228,6 +228,19 @@ class AudioController {
     }
   }
 
+  /// Stop the media speech player and release its file source. The player
+  /// holds open handles to `anki_media` files (`DeviceFileSource`), which
+  /// otherwise keeps a deck's media undeletable on uninstall — call this
+  /// before deleting media files.
+  Future<void> stopSpeechPlayer() async {
+    try {
+      await _speechPlayer.stop();
+      await _speechPlayer.release();
+    } catch (e) {
+      debugPrint('AudioController: stopSpeechPlayer failed: $e');
+    }
+  }
+
   Future<void> _speakWithSystemTts(
     String text,
     double effectiveSpeed, {

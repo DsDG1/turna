@@ -41,7 +41,7 @@ void main() {
     expect(info.has(OfficialAnkiOperation.importPackage), isTrue);
     expect(info.has(OfficialAnkiOperation.renderCard), isTrue);
     expect(info.has(OfficialAnkiOperation.compareTypedAnswer), isTrue);
-    expect(info.contractMinor, anyOf(2, 3, 4));
+    expect(info.contractMinor, anyOf(2, 3, 4, 5, 6));
   });
 
   test('Host FFI openProfile is idempotent when Collection is already open', () async {

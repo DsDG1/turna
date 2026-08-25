@@ -132,8 +132,9 @@ class KnowledgeMastery {
       };
       weightedCorrect += score * weight;
       totalWeight += weight;
-      if (e.questionType?.isNotEmpty ?? false)
+      if (e.questionType?.isNotEmpty ?? false) {
         questionTypes.add(e.questionType!);
+      }
       if (score == 1 &&
           (lastSuccess == null || e.timestamp.isAfter(lastSuccess))) {
         lastSuccess = e.timestamp;

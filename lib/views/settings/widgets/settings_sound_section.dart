@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 
 // Package imports:
-import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/audio_controller.dart';
@@ -10,7 +9,6 @@ import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/service/tts_availability_checker.dart';
-import 'package:turna/views/settings/widgets/controls/settings_controls.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/theme.dart';

@@ -1,6 +1,9 @@
-date: 2026-08-24T19:52:34Z
+date: 2026-08-25T17:04:47+08:00
 command: git diff --check
 exit: 0 (clean)
+command: cargo fmt --manifest-path native/turna_anki_core/Cargo.toml -- --check
+exit: 0
 command: bash native/turna_anki_core/build-android/verify_pin.sh
 pin: ok 967aa0d578fc75181e292e95326f9b58698da25c + 0001/0002/0003 patches
-native build: build-android/build.sh exit 0, verify_symbols pass (rebuilt from pinned commit 2026-08-24)
+native tests: 68 passed / 0 failed
+native build: build-android/build.sh exit 0, verify_symbols pass; APK payload contains contract 1.6 DELETE_CARDS/STATS_FOR_CARDS_BATCH/SCHEDULE_CARDS_AS_NEW

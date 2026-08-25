@@ -3,10 +3,12 @@
 // source with due cards — and reports sources that failed to resolve.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:turna/application/anki/formal_review_source_coordinator.dart';
 import 'package:turna/application/anki/official_formal_review_production_loader.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
+import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/migration/official_anki_production_router.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/review/official_formal_review_coordinator.dart';
@@ -28,6 +30,35 @@ void main() {
   setUp(() {
     engine = FakeOfficialAnkiEngine();
     engine.seedPackage(packagePath: 'x.apkg', notes: 4, cards: 4);
+  });
+
+  test('mixed-owner review all advances sequentially and aggregates results',
+      () {
+    final coordinator = FormalReviewSourceCoordinator(const [
+      FormalReviewSourceTarget(
+        importOrSourceId: 'legacy-a',
+        displayName: 'Legacy A',
+        owner: AnkiEngineKind.legacy,
+      ),
+      FormalReviewSourceTarget(
+        importOrSourceId: 'src-b',
+        displayName: 'Official B',
+        owner: AnkiEngineKind.official,
+      ),
+    ]);
+
+    expect(coordinator.current?.owner, AnkiEngineKind.legacy);
+    coordinator.recordSession(total: 3, remembered: 2, forgotten: 1);
+    coordinator.advance();
+    expect(coordinator.current?.owner, AnkiEngineKind.official);
+    coordinator.recordFailure(StateError('source unavailable'));
+    coordinator.advance();
+
+    expect(coordinator.isComplete, isTrue);
+    expect(coordinator.totalCount, 3);
+    expect(coordinator.rememberedCount, 2);
+    expect(coordinator.forgottenCount, 1);
+    expect(coordinator.failures.single.target.importOrSourceId, 'src-b');
   });
 
   test('review all plans across every source, reporting failures', () {

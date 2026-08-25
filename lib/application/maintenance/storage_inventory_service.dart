@@ -160,6 +160,9 @@ class StorageInventoryService {
     final mediaBase =
         p.join(await AnkiAudioResolver().getMediaBasePath(), 'anki_media');
     final ownedIds = imports.map((i) => i.importId).toSet();
+    // Exact import rows own media even while a course is staging/hidden.
+    // Course visibility is not an ownership fact, and prefix comparisons can
+    // confuse sibling ids such as `abc` and `abc-extra`.
     final mediaDirs = await _listSubdirectories(mediaBase);
     for (final dir in mediaDirs) {
       final size = await platform.directorySizeBytes(dir.path);

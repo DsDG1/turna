@@ -8,7 +8,6 @@ import 'package:provider/provider.dart';
 import 'package:turna/application/fun_lab_snapshot_service.dart';
 import 'package:turna/application/fun_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/settings/widgets/controls/settings_controls.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/views/theme.dart';
 

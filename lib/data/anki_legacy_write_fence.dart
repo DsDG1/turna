@@ -115,6 +115,18 @@ class LegacyWriteFence {
     });
   }
 
+  /// Publishes a newly journaled Legacy→Official identity link immediately;
+  /// callers must not wait for the next startup [loadFrom] before freezing.
+  void linkLegacyImport({
+    required String legacyImportId,
+    required String officialSourceId,
+  }) {
+    if (legacyImportId.isEmpty || officialSourceId.isEmpty) return;
+    _sourceByLegacyImportId[legacyImportId] = officialSourceId;
+    final fence = _fenceByImportId[officialSourceId];
+    if (fence != null) _fenceByImportId[legacyImportId] = fence;
+  }
+
   /// Issues a one-time cleanup token for a frozen source (migration saga).
   LegacyMigrationCleanupToken issueCleanupToken(String courseId) {
     final token = LegacyMigrationCleanupToken(
@@ -136,6 +148,9 @@ class LegacyWriteFence {
 
   AnkiWriteFence fenceFor(String importId) =>
       _fenceByImportId[importId] ?? AnkiWriteFence.open;
+
+  bool allowsNormalWrite(String importId) =>
+      fenceFor(importId) == AnkiWriteFence.open;
 
   /// Sync fence check for Legacy mutators. [importId] is the import or
   /// source id the mutation targets; global mutators pass null and are

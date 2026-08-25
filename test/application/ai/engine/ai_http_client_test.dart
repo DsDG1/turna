@@ -90,7 +90,7 @@ void main() {
       final client =
           AiHttpClient.withClient(_ControllableClient(controller, 200));
 
-      final sse = 'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n'
+      const sse = 'data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n'
           'data: {"choices":[{"delta":{"content":" world"}}]}\n\n'
           'data: [DONE]\n\n';
       // Subscribe first (realistic server-streaming order), then feed bytes.
@@ -266,7 +266,7 @@ void main() {
         }),
       );
       // Custom preset + DeepSeek-like baseUrl + supportsReasoningOverride true.
-      final config = const AiEngineConfig(
+      const config = AiEngineConfig(
         preset: kCustomPreset,
         apiKey: 'key',
         customBaseUrl: 'https://api.deepseek.com',
@@ -296,7 +296,7 @@ void main() {
         }),
       );
       // Custom preset with an explicit reasoning override on a proxy host.
-      final config = const AiEngineConfig(
+      const config = AiEngineConfig(
         preset: kCustomPreset,
         apiKey: 'key',
         customBaseUrl: 'https://my-proxy.example.com/v1',
@@ -326,7 +326,7 @@ void main() {
           return _chatResponse('ok');
         }),
       );
-      final config = const AiEngineConfig(
+      const config = AiEngineConfig(
         preset: kCustomPreset,
         apiKey: 'key',
         customBaseUrl: 'https://api.deepseek.com',

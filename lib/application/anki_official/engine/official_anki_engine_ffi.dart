@@ -132,7 +132,8 @@ class FfiOfficialAnkiEngine implements OfficialAnkiEngine {
 
   @override
   Future<OfficialAnkiProgress> latestProgress() async {
-    final payload = _call(OfficialAnkiOperation.latestProgress).requirePayload();
+    final payload =
+        _call(OfficialAnkiOperation.latestProgress).requirePayload();
     final wantAbort = payload['want_abort'] == true;
     final busy = payload['can_cancel'] == true;
     return OfficialAnkiProgress(
@@ -253,7 +254,8 @@ class FfiOfficialAnkiEngine implements OfficialAnkiEngine {
     return decks
         .whereType<Map>()
         .map(
-          (item) => OfficialAnkiDeckNode.fromJson(Map<String, Object?>.from(item)),
+          (item) =>
+              OfficialAnkiDeckNode.fromJson(Map<String, Object?>.from(item)),
         )
         .toList();
   }
@@ -440,6 +442,34 @@ class FfiOfficialAnkiEngine implements OfficialAnkiEngine {
       'noteIds': noteIds,
     }).requirePayload();
     return (payload['removedCards'] as num?)?.toInt() ?? 0;
+  }
+
+  @override
+  Future<int> deleteCards(List<int> cardIds) async {
+    _requireScheduler(OfficialAnkiOperation.deleteCards);
+    final payload = _call(OfficialAnkiOperation.deleteCards, {
+      'cardIds': cardIds,
+    }).requirePayload();
+    return (payload['removedCards'] as num?)?.toInt() ?? 0;
+  }
+
+  @override
+  Future<OfficialAnkiStatsBatch> statsForCardsBatch(List<int> cardIds) async {
+    _requireScheduler(OfficialAnkiOperation.statsForCardsBatch);
+    return OfficialAnkiStatsBatch.fromJson(
+      _call(OfficialAnkiOperation.statsForCardsBatch, {
+        'cardIds': cardIds,
+      }).requirePayload(),
+    );
+  }
+
+  @override
+  Future<int> scheduleCardsAsNew(List<int> cardIds) async {
+    _requireScheduler(OfficialAnkiOperation.scheduleCardsAsNew);
+    final payload = _call(OfficialAnkiOperation.scheduleCardsAsNew, {
+      'cardIds': cardIds,
+    }).requirePayload();
+    return (payload['scheduledCards'] as num?)?.toInt() ?? 0;
   }
 
   @override

@@ -42,20 +42,20 @@
 
 | 门禁 | 本轮结果 | 状态 |
 |---|---:|---|
-| 定向 Official/OHOS 测试 | 16 个新测试文件 + 既有定向全部通过（见 cutover-once/targeted-tests.txt） | ✅ |
+| 定向 Official/OHOS 测试 | 关键迁移、Review All、媒体事务与架构守卫通过；本轮导入事务组合 34/34（见 cutover-once/targeted-tests.txt） | ✅ |
 | Golden | 4 通过（course_tree + play_hub light/dark） | ✅ |
-| 全量非 Golden | 1825 通过、0 失败（含修复 3 个既有基线失败与 2 处 schema 字面量回归） | ✅ |
+| 全量非 Golden | 1852 通过、0 失败 | ✅ |
 | schema 9 backup/restore 回归 | 已修复（测试改读常量） | ✅ |
-| flutter analyze | 0 error；88 warning/info（原 133） | ✅（error 门禁） |
+| flutter analyze | `No issues found`（全仓） | ✅ |
 | git diff --check | 通过 | ✅ |
-| Android arm64 release | 通过，55.8 MB（`app-arm64-v8a-release.apk`） | ✅ |
-| Native submodule | pin `967aa0d57` + 3 补丁 verify_pin 通过；`build.sh` 从锁定 commit 重建 so（符号校验 pass） | ✅ |
+| Android arm64 release | 通过，56.1 MB（56,120,065 bytes）；APK 内仅 arm64，且含 contract 1.6 三个新增操作 | ✅ |
+| Native submodule | pin `967aa0d57` + 3 补丁 verify_pin 通过；68/68 测试；`build.sh` 重建 so（符号校验 pass） | ✅ |
 | release 真机矩阵 | 未执行（无设备会话） | ❌ 未勾 |
 | OHOS 外部事实（sunset/豁免） | 未发生 | ❌ 未勾（§17.7 HOLD） |
 
 本轮 APK SHA-256（候选快照，非发布收据；真机矩阵未跑）：
 
-    39bd48a9911b0b469a054a1ecdd22aaa4f312eae81e5a30ea5d858d15f849d54
+    ed959ffc631f5ec28a7d83d11302ee619de1c2c91d1c9e79bf1d554fbdc4a27f
 
 证据目录：[archive/artifacts/cutover-once/](./archive/artifacts/cutover-once/)（baseline / toolchain / revisions / analyze / targeted / full / golden / diff-check / native build / apk+so hash）。
 
@@ -1473,30 +1473,30 @@ AnkiImportPage 只保留：
 | ID | 状态 | 证据 |
 |---|---|---|
 | OS-00 | ✅ | cutover-once/baseline.txt + toolchain.txt + revisions |
-| OS-01 | ✅ | 16 个新测试文件（§9.1 清单全量落地或等价扩展），红→绿随实现推进 |
+| OS-01 | ✅ | §9.1 场景由新增与扩展测试覆盖；全量 1852/0，关键定向证据见 cutover-once/targeted-tests.txt |
 | OS-02 | ✅ | v21 DDL（owner 列/transitions/in-flight 索引/repair journal/legacy_pending_migrations）；schema_migration_test v20→v21、fresh、v22 降级 |
 | OS-03 | ✅ | CourseScope codec v1 + 启动幂等偏好修复（locator 顺序：DB open→repair→fence 加载→Provider） |
 | OS-04 | ✅ | CourseCatalog（authority 优先 + manifest 兜底）；builtin 双重排除 Legacy/Official section |
 | OS-05 | ✅ | 课程管理唯一 active + 精确删除对话框（shortId+卡片数）+ highlightWire；顶栏课程名切换器 |
 | OS-06 | ✅ | 卸载传完整 sourceId；`anki_exact_source_uninstall_test`（-s 边界、兄弟隔离） |
-| OS-07 | ✅ | official-first 导入：authority staging 起始、`publishFromProjection` 后 commit-last active（§6.3） |
+| OS-07 | ✅ | official-first：authority staging→projection→commit-last active；Legacy：UI 只提交 immutable request，application executor 把 CourseDB identity 纳入事务；同 ID 重导媒体 staging/原子换目录，并用 incoming hash 与 CourseDB committed hash 完成强杀后的前/后提交恢复（§6.3） |
 | OS-08 | ✅(host) | reimport 走既有 catalog hash 幂等 + authority upsert 稳定 course_id；真机 reimport 矩阵未跑 |
 | OS-09 | ✅(host) | 向导完成页三动作分流（完成保持原课程/立即学习/查看牌组高亮）；导入提交不再抢 scope |
 | OS-10 | ✅ | `FormalReviewCardSnapshot`（generation/inQueue/answerToken）+ live session contract |
 | OS-11 | ✅ | fidelity-first 渲染（markup→Fidelity，纯文本才 Flip）；`official_formal_review_fidelity_test` |
 | OS-12 | ✅ | `OfficialFormalReviewLiveQueue`：answer 后按 Scheduler 实时队列原地重建 items；Again 重插、快照失效测试 |
-| OS-13 | ✅(host) | Review All 聚合全部 Official 来源（并集 allowed + openDueDeck + per-source 失败上报）；真机跨源矩阵未跑 |
+| OS-13 | ✅(host) | `FormalReviewSourceCoordinator` 顺序消费 Legacy + Official 混合 owner，聚合结果并逐来源报告失败；Official 冷启动使用精确 sourceId；真机跨源矩阵未跑 |
 | OS-14 | ✅ | Redo/Bury/Suspend 头部动作接真实 ledger；mutation 后 live 队列刷新；answerAndConfirm 单飞既有 |
 | OS-15 | ✅ | `OfficialFormalDueRepository` 六集合（known/unknown/unavailable、generation、rollback、retired 真实 reader） |
 | OS-16 | ✅ | `OfficialAnkiHomeDue` 降为薄 facade；officialDue 派生不可写；HomeDue 静态 map 删除 |
 | OS-17 | ✅ | `LegacyWriteFence`：AnkiNoteDao 全 14 mutator + ledger undo；cleanup token 一次性、rollback 严格 phase |
 | OS-18 | ✅ | 权威 owner 事务（commitOwnership 同库原子）；catalog 为 journal mirror；无 dual-active 测试 |
-| OS-19 | ✅(host) | saga freeze=真实 fence CAS、权威先行切换；driver resume/rollback 入口；真实用户迁移仍需单独授权 |
+| OS-19 | ✅(host) | 生产 migration center/coordinator 接入备份、导入、projection、映射、计数、freeze、权威切换与 smoke；commit 后仅向前恢复，rollback 会拒绝已提交 owner；真实用户迁移仍需单独授权 |
 | OS-20 | ✅ | Browser/Stats 官方来源按钮可达（完整 sourceId 路由，既有 Official 分支） |
 | OS-21 | ✅(host) | Stats 语义既有（unavailable 与 0 区分）；media 走 Official resolver 既有；真机验证未跑 |
 | OS-22 | ✅ | `TurnaMigrationImporter`（magic/zip-slip/checksum/容量 fail-closed、事务、Legacy 行只入 pending）+ 设置页独立入口 |
 | OS-23 | ✅ | `DiagnosticsReleaseGuard`（6 内部路由 release+深链阻断；diagnostics dart-define opt-in）+ locator 启动顺序 |
-| OS-24 | ✅ | analyze 0 error（88 w/i）；全量 1825/0；golden 4/4；diff-check 0；native 重建+verify；arm64 APK 55.8MB |
+| OS-24 | ✅ | analyze 0 issue；全量 1852/0；golden 4/4；diff-check/cargo fmt 0；native 68/68 + 重建/verify；arm64 APK 56.1MB |
 | OS-25 | ◐ | 证据已归档（cutover-once/）；**真机矩阵未执行**（无设备会话），final-receipt 未生成 |
 
 ### 18.2 与 §17 DoD 的对齐
@@ -1508,8 +1508,8 @@ AnkiImportPage 只保留：
 ### 18.3 诚实边界（本轮明确未做/未验）
 
 1. 真机矩阵（§12 全部场景）与升级安装（§12.2 旧偏好态矩阵）——待设备会话。
-2. 混合 Legacy+Official 的 Review All 聚合仅覆盖 Official 来源并集；Legacy 来源仍按单一牌组入口复习（D5 混合期语义，待 R4 真实迁移收敛后消除）。
+2. 混合 Legacy+Official Review All 已有 host 级顺序协调与账本隔离测试；真实设备上的跨来源交互、强杀和恢复仍归入第 1 项真机矩阵。
 3. W8 真实用户 cutover 未执行（§4.3 外部事实）；census/reconciler 未对真实库跑批。
 4. OHOS sunset / 豁免证据未产生（R7-1 二选一未决）。
 5. final-receipt.md 未生成（真机证据缺失，拒绝拼装半套收据）。
-6. §9.1 建议清单中 `course_management_official_scope_test` / `anki_import_navigation_contract_test` / `official_first_visibility_saga_test` / `official_reimport_contract_test` / `official_browser_stats_product_route_test` 五个建议文件名未独立落地：对应行为分别由 provider/catalog 层测试（course_provider_official_scope、exact_source_uninstall）、既有 saga/orchestrator 测试（official_anki_import_orchestrator、official_legacy_source_migration_saga）与真机矩阵项覆盖其 host 侧；导入完成页三动作与 Browser/Stats 入口的 widget 级断言待真机矩阵补足（§18.3-1 同批）。
+6. §9.1 的部分建议文件名没有一一照搬；对应行为由 provider/catalog、saga/coordinator、媒体事务、架构守卫及 migration center widget 测试覆盖。导入完成页三动作与 Browser/Stats 的真实设备可达性仍随第 1 项矩阵验收。

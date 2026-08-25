@@ -394,7 +394,7 @@ void main() {
           () {
         // Regression for screenshot: stem+options in one block, answer ABCD,
         // must NOT invent deck-distractor choices like unrelated passages.
-        final front = '题目9 多项选择题 导论 把马克思主义基本原理同中国具体实际相结合'
+        const front = '题目9 多项选择题 导论 把马克思主义基本原理同中国具体实际相结合'
             'A. 魂脉和根脉内在贯通、相互成就'
             'B. 用中华文明充实马克思主义的文化生命'
             'C. 用马克思主义进一步激活中华文明的基因'

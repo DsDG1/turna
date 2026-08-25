@@ -38,6 +38,12 @@ class OfficialAnkiCardDescriptor {
     required this.deckId,
     required this.templateOrd,
     this.noteGuid,
+    this.queue = 0,
+    this.suspended = false,
+    this.buried = false,
+    this.flag = 0,
+    this.marked = false,
+    this.tags = const <String>[],
   });
 
   final int cardId;
@@ -45,6 +51,12 @@ class OfficialAnkiCardDescriptor {
   final int deckId;
   final int templateOrd;
   final String? noteGuid;
+  final int queue;
+  final bool suspended;
+  final bool buried;
+  final int flag;
+  final bool marked;
+  final List<String> tags;
 
   factory OfficialAnkiCardDescriptor.fromJson(Map<String, Object?> json) {
     return OfficialAnkiCardDescriptor(
@@ -53,6 +65,15 @@ class OfficialAnkiCardDescriptor {
       deckId: (json['deckId'] as num).toInt(),
       templateOrd: (json['templateOrd'] as num).toInt(),
       noteGuid: json['noteGuid'] as String?,
+      queue: (json['queue'] as num?)?.toInt() ?? 0,
+      suspended: json['suspended'] == true,
+      buried: json['buried'] == true,
+      flag: (json['flag'] as num?)?.toInt() ?? 0,
+      marked: json['marked'] == true,
+      tags: (json['tags'] as List?)
+              ?.map((tag) => tag.toString())
+              .toList(growable: false) ??
+          const <String>[],
     );
   }
 }
@@ -104,8 +125,8 @@ class OfficialAnkiImportLog {
           .toInt(),
       cardCount: (json['card_count'] as num? ?? json['cardCount'] as num? ?? 0)
           .toInt(),
-      operationToken: (json['operationToken'] ?? json['nativeImportToken'])
-          as String?,
+      operationToken:
+          (json['operationToken'] ?? json['nativeImportToken']) as String?,
       elapsedMillis:
           (json['elapsed_millis'] as num? ?? json['elapsedMillis'] as num? ?? 0)
               .toInt(),
@@ -182,11 +203,16 @@ class OfficialAnkiAvTag {
       final voices = json['voices'];
       final args = json['otherArgs'] ?? json['other_args'];
       return OfficialAnkiAvTag.tts(
-        fieldText: json['fieldText'] as String? ?? json['field_text'] as String? ?? '',
+        fieldText:
+            json['fieldText'] as String? ?? json['field_text'] as String? ?? '',
         lang: json['lang'] as String?,
-        voices: voices is List ? voices.map((e) => e.toString()).toList() : const <String>[],
+        voices: voices is List
+            ? voices.map((e) => e.toString()).toList()
+            : const <String>[],
         speed: (json['speed'] as num?)?.toDouble(),
-        otherArgs: args is List ? args.map((e) => e.toString()).toList() : const <String>[],
+        otherArgs: args is List
+            ? args.map((e) => e.toString()).toList()
+            : const <String>[],
       );
     }
     return OfficialAnkiAvTag.sound(
@@ -215,12 +241,16 @@ class OfficialAnkiTypedAnswerHint {
   factory OfficialAnkiTypedAnswerHint.fromJson(Map<String, Object?> json) {
     return OfficialAnkiTypedAnswerHint(
       marker: json['marker'] as String? ?? '',
-      fontFamily: json['fontFamily'] as String? ?? json['font_family'] as String? ?? 'Arial',
+      fontFamily: json['fontFamily'] as String? ??
+          json['font_family'] as String? ??
+          'Arial',
       fontSizePx:
-          (json['fontSizePx'] as num? ?? json['font_size_px'] as num? ?? 20).toInt(),
+          (json['fontSizePx'] as num? ?? json['font_size_px'] as num? ?? 20)
+              .toInt(),
       combining: json['combining'] != false,
-      clozeOrdinal: (json['clozeOrdinal'] as num? ?? json['cloze_ordinal'] as num?)
-          ?.toInt(),
+      clozeOrdinal:
+          (json['clozeOrdinal'] as num? ?? json['cloze_ordinal'] as num?)
+              ?.toInt(),
     );
   }
 }
@@ -281,7 +311,8 @@ class OfficialAnkiRenderedCard {
       if (raw is! List) return const <OfficialAnkiAvTag>[];
       return raw
           .whereType<Map>()
-          .map((item) => OfficialAnkiAvTag.fromJson(Map<String, Object?>.from(item)))
+          .map((item) =>
+              OfficialAnkiAvTag.fromJson(Map<String, Object?>.from(item)))
           .toList();
     }
 
@@ -291,7 +322,8 @@ class OfficialAnkiRenderedCard {
     OfficialAnkiTypedAnswerHint? typed;
     final typedRaw = json['typedAnswer'] ?? json['typed_answer'];
     if (typedRaw is Map) {
-      typed = OfficialAnkiTypedAnswerHint.fromJson(Map<String, Object?>.from(typedRaw));
+      typed = OfficialAnkiTypedAnswerHint.fromJson(
+          Map<String, Object?>.from(typedRaw));
     }
 
     final questionHtml = html('questionHtml', 'question_html');
@@ -300,16 +332,18 @@ class OfficialAnkiRenderedCard {
       cardId: (json['cardId'] as num? ?? json['card_id'] as num? ?? 0).toInt(),
       questionHtml: questionHtml,
       answerHtml: answerHtml,
-      questionDisplayHtml: html('questionDisplayHtml', 'question_display_html').isEmpty
+      questionDisplayHtml: html('questionDisplayHtml', 'question_display_html')
+              .isEmpty
           ? html('question_text_without_av', 'questionTextWithoutAv').isEmpty
               ? questionHtml
               : html('question_text_without_av', 'questionTextWithoutAv')
           : html('questionDisplayHtml', 'question_display_html'),
-      answerDisplayHtml: html('answerDisplayHtml', 'answer_display_html').isEmpty
-          ? html('answer_text_without_av', 'answerTextWithoutAv').isEmpty
-              ? answerHtml
-              : html('answer_text_without_av', 'answerTextWithoutAv')
-          : html('answerDisplayHtml', 'answer_display_html'),
+      answerDisplayHtml:
+          html('answerDisplayHtml', 'answer_display_html').isEmpty
+              ? html('answer_text_without_av', 'answerTextWithoutAv').isEmpty
+                  ? answerHtml
+                  : html('answer_text_without_av', 'answerTextWithoutAv')
+              : html('answerDisplayHtml', 'answer_display_html'),
       css: json['css'] as String? ?? '',
       latexSvg: json['latexSvg'] == true || json['latex_svg'] == true,
       isEmpty: json['isEmpty'] == true || json['is_empty'] == true,
@@ -377,7 +411,9 @@ class OfficialAnkiProjectionSample {
     final raw = json['fields'];
     return OfficialAnkiProjectionSample(
       noteId: (json['noteId'] as num? ?? json['note_id'] as num? ?? 0).toInt(),
-      fields: raw is List ? raw.map((e) => e.toString()).toList() : const <String>[],
+      fields: raw is List
+          ? raw.map((e) => e.toString()).toList()
+          : const <String>[],
       truncated: json['truncated'] == true,
     );
   }
@@ -412,7 +448,8 @@ class OfficialAnkiProjectionSchema {
     final samples = json['samples'];
     return OfficialAnkiProjectionSchema(
       notetypeId:
-          (json['notetypeId'] as num? ?? json['notetype_id'] as num? ?? 0).toInt(),
+          (json['notetypeId'] as num? ?? json['notetype_id'] as num? ?? 0)
+              .toInt(),
       name: json['name'] as String? ?? '',
       kind: json['kind'] as String? ?? 'normal',
       fieldNames: names('fieldNames', 'field_names'),
@@ -498,9 +535,11 @@ class OfficialAnkiProjectionRow {
     return OfficialAnkiProjectionRow(
       cardId: (json['cardId'] as num? ?? json['card_id'] as num? ?? 0).toInt(),
       noteId: (json['noteId'] as num? ?? json['note_id'] as num? ?? 0).toInt(),
-      noteGuid: json['noteGuid'] as String? ?? json['note_guid'] as String? ?? '',
+      noteGuid:
+          json['noteGuid'] as String? ?? json['note_guid'] as String? ?? '',
       notetypeId:
-          (json['notetypeId'] as num? ?? json['notetype_id'] as num? ?? 0).toInt(),
+          (json['notetypeId'] as num? ?? json['notetype_id'] as num? ?? 0)
+              .toInt(),
       deckId: (json['deckId'] as num? ?? json['deck_id'] as num? ?? 0).toInt(),
       deckPath: list('deckPath', 'deck_path'),
       templateOrdinal: (json['templateOrdinal'] as num? ??
@@ -674,7 +713,8 @@ class OfficialAnswerResult {
       cardId: officialRequirePositiveId(json, 'cardId'),
       queue: officialRequireNonEmpty(json, 'queue'),
       revlogCount: officialRequireNonNegativeInt(json, 'revlogCount'),
-      millisecondsTaken: officialRequireNonNegativeInt(json, 'millisecondsTaken'),
+      millisecondsTaken:
+          officialRequireNonNegativeInt(json, 'millisecondsTaken'),
       clientMutationId: json['clientMutationId'] as String?,
       rating: officialRequireNonEmpty(json, 'rating'),
       queueEpoch: officialRequirePositiveId(json, 'queueEpoch'),
@@ -766,6 +806,74 @@ class OfficialDeckCounts {
       deckId: officialRequirePositiveId(json, 'deckId'),
       newCount: newRaw.toInt(),
       reviewCount: reviewRaw.toInt(),
+    );
+  }
+}
+
+/// Additive, exact-card statistics returned by one native batch. Callers may
+/// sum non-overlapping batches; [foundCardCount] must equal
+/// [requestedCardCount] or the catalog/collection evidence is stale.
+class OfficialAnkiStatsBatch {
+  const OfficialAnkiStatsBatch({
+    required this.requestedCardCount,
+    required this.foundCardCount,
+    required this.newCards,
+    required this.learningCards,
+    required this.reviewCards,
+    required this.suspendedCards,
+    required this.buriedCards,
+    required this.todayAnswerCount,
+    required this.todayLearnCount,
+    required this.todayReviewCount,
+    required this.todayRelearnCount,
+    required this.forecastDueToday,
+    required this.forecastDue7Days,
+    required this.forecastDue30Days,
+    required this.revlogCount,
+    required this.retentionPassed,
+    required this.retentionFailed,
+  });
+
+  final int requestedCardCount;
+  final int foundCardCount;
+  final int newCards;
+  final int learningCards;
+  final int reviewCards;
+  final int suspendedCards;
+  final int buriedCards;
+  final int todayAnswerCount;
+  final int todayLearnCount;
+  final int todayReviewCount;
+  final int todayRelearnCount;
+  final int forecastDueToday;
+  final int forecastDue7Days;
+  final int forecastDue30Days;
+  final int revlogCount;
+  final int retentionPassed;
+  final int retentionFailed;
+
+  int get retentionSample => retentionPassed + retentionFailed;
+
+  factory OfficialAnkiStatsBatch.fromJson(Map<String, Object?> json) {
+    int value(String key) => officialRequireNonNegativeInt(json, key);
+    return OfficialAnkiStatsBatch(
+      requestedCardCount: value('requestedCardCount'),
+      foundCardCount: value('foundCardCount'),
+      newCards: value('newCards'),
+      learningCards: value('learningCards'),
+      reviewCards: value('reviewCards'),
+      suspendedCards: value('suspendedCards'),
+      buriedCards: value('buriedCards'),
+      todayAnswerCount: value('todayAnswerCount'),
+      todayLearnCount: value('todayLearnCount'),
+      todayReviewCount: value('todayReviewCount'),
+      todayRelearnCount: value('todayRelearnCount'),
+      forecastDueToday: value('forecastDueToday'),
+      forecastDue7Days: value('forecastDue7Days'),
+      forecastDue30Days: value('forecastDue30Days'),
+      revlogCount: value('revlogCount'),
+      retentionPassed: value('retentionPassed'),
+      retentionFailed: value('retentionFailed'),
     );
   }
 }

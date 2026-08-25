@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'dart:io';
 
+import 'package:drift/drift.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:turna/application/anki/card_introduction_eligibility.dart';
 import 'package:turna/application/anki/unified_anki_import_orchestrator.dart';
 import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/di/injection.dart';
@@ -72,12 +75,77 @@ void main() {
       expect(orchestrator.placementCount('imp-legacy'), 2);
     });
 
+    test('in-place reimport replaces projection identity but keeps history',
+        () async {
+      final db = emptyInMemoryCourseDatabase();
+      addTearDown(db.close);
+      final dao = AnkiUnificationDao(db);
+      final local = UnifiedAnkiImportOrchestrator();
+      const importId = 'imp-replace';
+      final courseId =
+          CardIntroductionEligibility.courseIdForLegacyImport(importId);
+      const first = UnifiedAnkiImportRequest(
+        importId: importId,
+        sourceHash: 'hash-old',
+        canonicalCardIds: [1, 2],
+        persistedOwnerIsOfficial: false,
+        reuseExistingIdentity: false,
+      );
+      await local.begin(first);
+      await local.finalize(first, unificationDao: dao);
+      await db.customStatement(
+        '''
+        INSERT INTO anki_card_introduction_states (
+          course_id, source_id, card_id, status, version
+        ) VALUES (?, ?, ?, 'introduced', 1)
+        ''',
+        [courseId, importId, 1],
+      );
+
+      await db.transaction(() async {
+        await dao.deleteProjectionIdentityByCourseId(courseId);
+        const replacement = UnifiedAnkiImportRequest(
+          importId: importId,
+          sourceHash: 'hash-new',
+          canonicalCardIds: [2, 3],
+          persistedOwnerIsOfficial: false,
+          reuseExistingIdentity: false,
+        );
+        await local.begin(replacement);
+        final written = await local.finalize(
+          replacement,
+          unificationDao: dao,
+        );
+        expect(written.placements, 2);
+        expect(written.presentations, 2);
+      });
+
+      final placements = await db.customSelect(
+        'SELECT card_id, source_fingerprint '
+        'FROM anki_course_card_placements WHERE course_id = ? '
+        'ORDER BY card_id',
+        variables: [Variable.withString(courseId)],
+      ).get();
+      expect(placements.map((row) => row.read<int>('card_id')), [2, 3]);
+      expect(
+        placements.map((row) => row.read<String>('source_fingerprint')),
+        everyElement('hash-new'),
+      );
+      final history = await db.customSelect(
+        'SELECT COUNT(*) AS n FROM anki_card_introduction_states '
+        "WHERE course_id = ? AND status = 'introduced'",
+        variables: [Variable.withString(courseId)],
+      ).getSingle();
+      expect(history.read<int>('n'), 1);
+    });
+
     test('same source hash second import is a no-op (persisted inventory)',
         () async {
       // The dedup authority is the persisted inventory: the seam below
       // simulates rows that survive across imports.
       final persistedHashes = <String>{};
-      orchestrator.lookupByHash = (hash) async => persistedHashes.contains(hash);
+      orchestrator.lookupByHash =
+          (hash) async => persistedHashes.contains(hash);
       orchestrator.persistIdentity = (request) async {
         persistedHashes.add(request.sourceHash);
       };
@@ -114,8 +182,8 @@ void main() {
       // import the identical package again instead of returning a fake
       // "already imported" summary.
       final persistedHashes = <String>{};
-      orchestrator.lookupByHash = (hash) async =>
-          persistedHashes.contains(hash);
+      orchestrator.lookupByHash =
+          (hash) async => persistedHashes.contains(hash);
       final persisted = <UnifiedAnkiImportRequest>[];
       orchestrator.persistIdentity = (request) async {
         persisted.add(request);
@@ -150,8 +218,7 @@ void main() {
       expect(second.wroteTurnaSrs, isTrue,
           reason: 'legacy path re-registers Turna SRS ids');
       expect(persisted, hasLength(1));
-      expect(orchestrator.turnaSrsWordIds,
-          contains('anki-imp-re-c7'));
+      expect(orchestrator.turnaSrsWordIds, contains('anki-imp-re-c7'));
     });
 
     test('a failed import does not block retrying the same hash', () async {
@@ -192,6 +259,31 @@ void main() {
       expect(again.noOp, isFalse);
     });
 
+    test('source key stays reserved until identity persistence finishes',
+        () async {
+      const request = UnifiedAnkiImportRequest(
+        importId: 'imp-finalizing',
+        sourceHash: 'hash-finalizing',
+        canonicalCardIds: [1],
+        persistedOwnerIsOfficial: true,
+      );
+      final persistStarted = Completer<void>();
+      final releasePersist = Completer<void>();
+      orchestrator.persistIdentity = (_) async {
+        persistStarted.complete();
+        await releasePersist.future;
+      };
+      await orchestrator.begin(request);
+      final finalizing = orchestrator.finalize(request);
+      await persistStarted.future;
+
+      await expectLater(orchestrator.begin(request), throwsStateError);
+
+      releasePersist.complete();
+      await finalizing;
+      expect((await orchestrator.begin(request)).noOp, isFalse);
+    });
+
     test('lookupByHash same-hash begin skips persist', () async {
       orchestrator.lookupByHash = (hash) async => hash == 'disk-hash';
       var persisted = 0;
@@ -211,14 +303,20 @@ void main() {
       expect(persisted, 0);
     });
 
-    test('import UI probes identity before assemble', () {
+    test('application executor probes identity before assemble', () {
       final screen =
           File('lib/views/anki/anki_import_screen.dart').readAsStringSync();
-      final beginAt = screen.indexOf('UnifiedAnkiImportOrchestrator.instance.begin');
-      final assembleAt = screen.indexOf('assembler.assemble(');
+      final executor = File(
+        'lib/application/anki/legacy_anki_import_executor.dart',
+      ).readAsStringSync();
+      final beginAt = executor.indexOf('unified.begin(unifiedRequest)');
+      final assembleAt = executor.indexOf('AnkiDeckAssembler().assemble(');
       expect(beginAt, greaterThan(0));
       expect(assembleAt, greaterThan(beginAt));
-      expect(screen.contains('if (unifiedBegin.noOp)'), isTrue);
+      expect(executor.contains('if (begin.noOp)'), isTrue);
+      expect(screen.contains('database.transaction('), isFalse);
+      expect(screen.contains('AnkiImportDao('), isFalse);
+      expect(screen.contains('AnkiNoteDao('), isFalse);
       expect(
         screen.contains('_officialFirst') ||
             screen.contains('OfficialAnkiOfficialFirstService') ||
@@ -226,8 +324,7 @@ void main() {
         isTrue,
       );
       expect(
-        screen.contains('!unifiedBegin.noOp') ||
-            screen.contains('&& !unifiedBegin.noOp'),
+        executor.contains('OfficialAnkiFeatureFlags.current.legacyMirror'),
         isTrue,
       );
     });

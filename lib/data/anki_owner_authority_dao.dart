@@ -379,6 +379,12 @@ class AnkiOwnerAuthorityDao {
     if (row == null) {
       throw StateError('transition $transitionId vanished after insert');
     }
+    if (legacyImportId != null) {
+      LegacyWriteFence.instance.linkLegacyImport(
+        legacyImportId: legacyImportId,
+        officialSourceId: officialSourceId,
+      );
+    }
     return row;
   }
 
@@ -435,6 +441,7 @@ class AnkiOwnerAuthorityDao {
   Future<void> commitOwnership({
     required String transitionId,
     required String courseId,
+    String? legacyCourseId,
   }) async {
     await _db.transaction(() async {
       final rows = await _db.customSelect(
@@ -458,6 +465,19 @@ class AnkiOwnerAuthorityDao {
           courseId,
         ],
       );
+      if (legacyCourseId != null && legacyCourseId != courseId) {
+        await _db.customStatement(
+          "UPDATE anki_course_sources SET state = 'retired', "
+          "write_fence = 'officialOnly', owner_generation = "
+          "owner_generation + 1, last_transition_id = ?, updated_at = ? "
+          "WHERE course_id = ?",
+          [
+            transitionId,
+            DateTime.now().millisecondsSinceEpoch,
+            legacyCourseId,
+          ],
+        );
+      }
       final updated = await _db.customUpdate(
         'UPDATE anki_owner_transitions SET phase = \'observing\', '
         'generation = ?, updated_at = ? '
@@ -475,6 +495,9 @@ class AnkiOwnerAuthorityDao {
         );
       }
       await _publishFence(courseId);
+      if (legacyCourseId != null && legacyCourseId != courseId) {
+        await _publishFence(legacyCourseId);
+      }
     });
   }
 

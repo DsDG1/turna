@@ -34,12 +34,11 @@ class _FakeImporter implements OfficialAnkiImporter {
   _FakeImporter({
     required this.sources,
     this.sourceId = 'src-w8-01',
-    this.profileId = 'profile-w8-test01',
   });
 
   final OfficialAnkiSourceDao sources;
   final String sourceId;
-  final String profileId;
+  static const String profileId = 'profile-w8-test01';
   int calls = 0;
 
   @override
@@ -120,7 +119,8 @@ void main() {
   });
 
   group('scheduling policy UX', () {
-    test('all three policies expose user-visible labels; never silent reset', () {
+    test('all three policies expose user-visible labels; never silent reset',
+        () {
       expect(
         LegacyAnkiSchedulingPolicy.preservePackageScheduling.userVisibleLabel,
         isNotEmpty,
@@ -286,7 +286,7 @@ void main() {
       );
       expect(smoked, isTrue);
 
-      saga.markLegacyShadowCleanupAfterRelease(
+      await saga.markLegacyShadowCleanupAfterRelease(
         migrationId: 'mig-happy',
         nowMillis: 100,
       );
@@ -304,7 +304,8 @@ void main() {
       expect(coordinator.phase, OfficialAnkiOperationPhase.idle);
     });
 
-    test('resume after kill mid-pipeline continues from journal state', () async {
+    test('resume after kill mid-pipeline continues from journal state',
+        () async {
       saga.beginFromCleanLegacyCensus(
         migrationId: 'mig-resume',
         profileId: 'profile-w8-test01',
@@ -419,7 +420,8 @@ void main() {
       expect(row.recordedKind, 'legacy');
     });
 
-    test('post-switch mutation=0 is UI rollback only (no dual-write)', () async {
+    test('post-switch mutation=0 is UI rollback only (no dual-write)',
+        () async {
       saga.beginFromCleanLegacyCensus(
         migrationId: 'mig-rb-post',
         profileId: 'profile-w8-test01',
@@ -615,7 +617,9 @@ void main() {
       }
     }
 
-    test('atomicOwnerSwitch sets state cutover and recordedKind official atomically', () async {
+    test(
+        'atomicOwnerSwitch sets state cutover and recordedKind official atomically',
+        () async {
       advanceToCutoverReady('mig-atomic-1');
 
       var onCutoverCalled = false;
@@ -635,7 +639,9 @@ void main() {
       expect(row.officialMutationCountAtCutover, 5);
     });
 
-    test('atomicOwnerSwitch rolls back completely if onCutover fails (no half-cutover)', () async {
+    test(
+        'atomicOwnerSwitch rolls back completely if onCutover fails (no half-cutover)',
+        () async {
       advanceToCutoverReady('mig-atomic-fail');
 
       expect(

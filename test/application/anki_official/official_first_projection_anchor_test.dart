@@ -15,7 +15,6 @@ import 'package:turna/application/anki_official/projection/official_anki_project
 import 'package:turna/application/anki_official/render/official_anki_media_resolver.dart';
 import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/data/course_database.dart';
-import 'package:turna/domain/anki/canonical_card_key.dart';
 
 import '../../helpers/in_memory_course_db.dart';
 
@@ -124,7 +123,7 @@ void main() {
       File('${media.path}/hello.mp3').writeAsBytesSync([1, 2, 3]);
       paths = OfficialAnkiPaths(
         profileId: 'profile-default-01',
-        profileRoot: Directory('${tmp.path}'),
+        profileRoot: Directory(tmp.path),
       );
     });
 

@@ -17,7 +17,7 @@ import 'components/splash_background_painter.dart';
 
 @RoutePage()
 class SplashPage extends StatefulWidget {
-  const SplashPage({Key? key}) : super(key: key);
+  const SplashPage({super.key});
 
   @override
   State<SplashPage> createState() => _SplashPageState();
@@ -55,7 +55,6 @@ class _SplashPageState extends State<SplashPage> {
 
     final diag = await checker.diagnose(languageCode);
     if (!mounted) return;
-    final l10n = AppStrings;
     final (title, body) = switch (diag.preferredStatus) {
       TtsPreferredStatus.turkishVoiceMissing => (
           AppStrings.splashTurkishVoiceMissingTitle,

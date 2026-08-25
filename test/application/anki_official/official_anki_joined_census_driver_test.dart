@@ -34,7 +34,7 @@ void main() {
     await course.close();
   });
 
-  Future<void> _insertLegacyImport({
+  Future<void> insertLegacyImport({
     required String importId,
     required String hash,
     int notes = 1,
@@ -79,8 +79,8 @@ void main() {
 
   test('joined reader finds Drift-only cleanLegacy by hash, not display name',
       () async {
-    await _insertLegacyImport(importId: 'imp-a', hash: 'hash-a');
-    await _insertLegacyImport(importId: 'imp-b', hash: 'hash-b');
+    await insertLegacyImport(importId: 'imp-a', hash: 'hash-a');
+    await insertLegacyImport(importId: 'imp-b', hash: 'hash-b');
 
     final report = await const OfficialAnkiSourceCensusService().collect(
       reader: JoinedOfficialAnkiSourceEvidenceReader(
@@ -103,7 +103,7 @@ void main() {
   });
 
   test('collect does not mutate Drift inventory or catalog journal', () async {
-    await _insertLegacyImport(importId: 'imp-ro', hash: 'hash-ro');
+    await insertLegacyImport(importId: 'imp-ro', hash: 'hash-ro');
     final beforeImports = await course
         .customSelect('SELECT COUNT(*) AS n FROM anki_imports')
         .getSingle();
@@ -132,7 +132,7 @@ void main() {
   });
 
   test('startup persist journals scanned rows idempotently', () async {
-    await _insertLegacyImport(importId: 'imp-j', hash: 'hash-j');
+    await insertLegacyImport(importId: 'imp-j', hash: 'hash-j');
     const startup = OfficialAnkiStartupCensus();
     final report = await startup.collect(
       course: course,
@@ -164,7 +164,6 @@ void main() {
 
   test('W8 driver begins one cleanLegacy source after user policy confirm',
       () {
-    const census = OfficialAnkiSourceCensusService();
     // Use in-memory evidence via collect isn't needed — build a row.
     const evidence = OfficialAnkiSourceEvidence(
       profileId: _profile,
@@ -209,7 +208,7 @@ void main() {
   });
 
   test('joined merge uses source hash not display name', () async {
-    await _insertLegacyImport(importId: 'imp-same-name-1', hash: 'hash-1');
+    await insertLegacyImport(importId: 'imp-same-name-1', hash: 'hash-1');
     OfficialAnkiSourceDao(catalog).upsertSource(
       sourceId: 'src-other',
       profileId: _profile,

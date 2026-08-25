@@ -17,12 +17,15 @@ import 'package:turna/application/anki_official/migration/official_anki_migratio
 import 'package:turna/application/anki_official/migration/official_anki_write_owner.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
+import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/anki_note_dao.dart';
+import 'package:turna/data/anki_owner_authority_dao.dart';
 import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/data/review_history_dao.dart';
+import 'package:turna/di/injection.dart';
 import 'package:turna/domain/audio/anki_audio_resolver.dart';
 import 'package:turna/domain/repositories/i_course_repository.dart';
 import 'package:turna/service/locator.dart';
@@ -223,6 +226,7 @@ class AnkiDeckManager {
     required bool wasNewCard,
     String? importId,
   }) async {
+    assertLegacySrsAnswerAllowed(importId: importId);
     _resetCountersIfNewDay();
     if (importId != null) {
       final limit = wasNewCard
@@ -246,26 +250,52 @@ class AnkiDeckManager {
 
   // ─── Deck Uninstall ─────────────────────────────────────────────────
 
-  /// Route an uninstall through the resolved owner. The
-  /// `legacy_anki_migrations` link table decides whether the id maps to an
-  /// official source (mirrored and official-first imports); the course-tree
-  /// prefix is only a recovery hint. A mirrored import is cleaned on both
-  /// sides — official collection/catalog first, then the legacy rows.
-  Future<void> uninstall(String importId) async {
+  /// Route an uninstall through the resolved owner. CourseDatabase authority
+  /// identifies Official ids, `legacy_anki_migrations` translates mirrored
+  /// Legacy ids, and the course-tree prefix is only a recovery hint. A
+  /// mirrored import is cleaned on both sides — official collection/catalog
+  /// first, then the legacy rows. Returns false when Official cleanup is
+  /// safely deferred for a later retry.
+  Future<bool> uninstall(String importId) async {
     final owner = await _resolveDeletionOwner(importId);
     final officialSourceId = owner.officialSourceId;
     if (officialSourceId != null) {
-      await uninstallOfficialSource(officialSourceId);
+      final completed = await uninstallOfficialSource(officialSourceId);
+      if (!completed) return false;
     }
     if (officialSourceId == null || await _hasLegacyArtifacts(importId)) {
       await uninstallDeck(importId);
     }
+    return true;
   }
 
-  /// Resolve which persisted owner an uninstall id belongs to. The migration
-  /// link is authoritative; the `official-anki-<id>-…` tree prefix only
-  /// recovers official-first sources whose catalog rows are missing.
+  /// Resolve which persisted owner an uninstall id belongs to. The production
+  /// authority handles official source ids, the migration link translates a
+  /// Legacy id for mirrored imports, and the tree prefix is a pre-authority
+  /// recovery fallback.
   Future<AnkiDeletionOwner> _resolveDeletionOwner(String importId) async {
+    // The CourseDatabase authority survives projection/catalog cleanup and is
+    // therefore the only reliable way to route a retry for a half-finished
+    // (or formerly ghosted) official uninstall.
+    final authority = _locateAuthorityDao();
+    if (authority != null) {
+      try {
+        final row = await authority.findBySource(
+          profileId: CardIntroductionEligibility.defaultProfileId,
+          sourceId: importId,
+        );
+        if (row?.isOfficialBackend == true) {
+          return AnkiDeletionOwner(
+            importId: importId,
+            officialSourceId: importId,
+          );
+        }
+      } catch (e) {
+        debugPrint(
+          '[AnkiDeckManager] owner authority lookup failed for $importId: $e',
+        );
+      }
+    }
     try {
       await OfficialAnkiCompositionRoot.initializeReadOnlyLocator();
       final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
@@ -323,6 +353,15 @@ class AnkiDeckManager {
   /// caller knows the removal is deferred. Retrying [uninstall] — or
   /// [retryPendingOfficialCleanups] on the next start — resumes the saga.
   Future<bool> uninstallOfficialSource(String sourceId) async {
+    // Hide the source from selectable-course surfaces before destructive
+    // work begins. If the engine is temporarily unavailable, both catalogs
+    // retain enough ownership metadata for the startup retry.
+    await _setAuthorityState(
+      sourceId,
+      AnkiSourceVisibility.pendingCleanup,
+    );
+    await _markOfficialSourcePendingCleanup(sourceId);
+
     final _OfficialSourceContentIds contentIds;
     try {
       contentIds = await _officialSourceContentIds(sourceId);
@@ -333,7 +372,7 @@ class AnkiDeckManager {
       return false;
     }
     final collectionDeleted =
-        await _deleteOfficialSourceNotes(contentIds.noteIds);
+        await _deleteOfficialSourceCards(contentIds.exclusiveCardIds);
     if (!collectionDeleted) {
       await _markOfficialSourcePendingCleanup(sourceId);
       return false;
@@ -347,6 +386,11 @@ class AnkiDeckManager {
         CardIntroductionEligibility.courseIdForOfficialSource(sourceId),
       );
     }
+    // Retire the production course authority before deleting the replayable
+    // Official catalog row. This is the state CourseCatalog actually reads;
+    // omitting it leaves a permanent zero-card course after a successful
+    // uninstall.
+    await _setAuthorityState(sourceId, AnkiSourceVisibility.retired);
     final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
     if (catalog != null) {
       OfficialAnkiSourceDao(catalog).deleteSource(
@@ -364,33 +408,63 @@ class AnkiDeckManager {
   }
 
   /// Retry every `pending_cleanup` source whose collection delete failed
-  /// earlier. Intended to run on app start so users do not have to keep
-  /// pressing delete after a transient engine failure.
+  /// earlier. The candidate set is the union of the Official catalog and the
+  /// CourseDatabase authority: either side may be the only surviving journal
+  /// after an interrupted uninstall. Intended to run on app start so users do
+  /// not have to keep pressing delete after a transient engine failure.
   Future<int> retryPendingOfficialCleanups() async {
+    final pendingSourceIds = <String>{};
     try {
       await OfficialAnkiCompositionRoot.initializeReadOnlyLocator();
       final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
-      if (catalog == null) return 0;
-      final pending = OfficialAnkiSourceDao(catalog)
-          .listSources(CardIntroductionEligibility.defaultProfileId)
-          .where((source) => source.state == 'pending_cleanup')
-          .toList();
-      var resumed = 0;
-      for (final source in pending) {
-        if (await uninstallOfficialSource(source.sourceId)) {
+      if (catalog != null) {
+        pendingSourceIds.addAll(
+          OfficialAnkiSourceDao(catalog)
+              .listSources(CardIntroductionEligibility.defaultProfileId)
+              .where((source) => source.state == 'pending_cleanup')
+              .map((source) => source.sourceId),
+        );
+      }
+    } catch (e) {
+      debugPrint('[AnkiDeckManager] pending catalog lookup failed: $e');
+    }
+
+    try {
+      final authority = _locateAuthorityDao();
+      if (authority != null) {
+        pendingSourceIds.addAll(
+          (await authority.listSources(
+            CardIntroductionEligibility.defaultProfileId,
+          ))
+              .where(
+                (source) =>
+                    source.isOfficialBackend &&
+                    source.state == AnkiSourceVisibility.pendingCleanup,
+              )
+              .map((source) => source.sourceId),
+        );
+      }
+    } catch (e) {
+      debugPrint('[AnkiDeckManager] pending authority lookup failed: $e');
+    }
+
+    var resumed = 0;
+    for (final sourceId in pendingSourceIds) {
+      try {
+        if (await uninstallOfficialSource(sourceId)) {
           resumed++;
         }
+      } catch (e) {
+        debugPrint(
+          '[AnkiDeckManager] pending cleanup retry failed for $sourceId: $e',
+        );
       }
-      return resumed;
-    } catch (e) {
-      debugPrint('[AnkiDeckManager] pending cleanup retry failed: $e');
-      return 0;
     }
+    return resumed;
   }
 
-  /// The source's note ids (for collection deletion) and card ids (for
-  /// mistake-log matching — official card word ids do not carry the
-  /// sourceId). Read before the catalog rows are deleted. A read failure
+  /// The source's exact card ids and the subset that no sibling source owns.
+  /// Read before the catalog rows are deleted. A read failure
   /// yields an empty id set and blocks the saga: proceeding would drop the
   /// ownership metadata while leaving the collection notes behind.
   Future<_OfficialSourceContentIds> _officialSourceContentIds(
@@ -402,11 +476,13 @@ class AnkiDeckManager {
       if (catalog == null) {
         throw StateError('official catalog unavailable');
       }
-      final cards = OfficialAnkiSourceDao(catalog).listCards(sourceId);
-      final noteIds = cards.map((card) => card.noteId).toSet().toList()..sort();
+      final dao = OfficialAnkiSourceDao(catalog);
+      final cards = dao.listCards(sourceId);
+      final cardIds = cards.map((card) => card.cardId).toSet();
+      final sharedCardIds = dao.sharedCardIds(sourceId);
       return _OfficialSourceContentIds(
-        noteIds,
-        cards.map((card) => card.cardId).toSet(),
+        cardIds: cardIds,
+        exclusiveCardIds: cardIds.difference(sharedCardIds).toList()..sort(),
       );
     } catch (e) {
       debugPrint(
@@ -417,30 +493,31 @@ class AnkiDeckManager {
     }
   }
 
-  /// Remove the source's notes (and every card that uses them) from the
-  /// official collection. Batched to stay under the DELETE_NOTES id cap.
+  /// Remove only cards owned exclusively by this source. The native engine
+  /// deletes a note only when its final card is removed. Batched to stay
+  /// under the DELETE_CARDS id cap.
   /// Returns false when the collection could not be cleaned — the caller
   /// must then keep the catalog rows and mark the source pending cleanup.
-  Future<bool> _deleteOfficialSourceNotes(List<int> noteIds) async {
-    if (noteIds.isEmpty) return true;
+  Future<bool> _deleteOfficialSourceCards(List<int> cardIds) async {
+    if (cardIds.isEmpty) return true;
     try {
       final engine = await _resolveOfficialEngine();
       if (engine == null) {
         debugPrint(
           '[AnkiDeckManager] official engine unavailable; '
-          '${noteIds.length} collection notes kept',
+          '${cardIds.length} collection cards kept',
         );
         return false;
       }
       const batchLimit = 5000;
-      for (var start = 0; start < noteIds.length; start += batchLimit) {
-        final end = min(start + batchLimit, noteIds.length);
-        await engine.deleteNotes(noteIds.sublist(start, end));
+      for (var start = 0; start < cardIds.length; start += batchLimit) {
+        final end = min(start + batchLimit, cardIds.length);
+        await engine.deleteCards(cardIds.sublist(start, end));
       }
       return true;
     } catch (e) {
       debugPrint(
-        '[AnkiDeckManager] official collection deleteNotes failed: $e',
+        '[AnkiDeckManager] official collection deleteCards failed: $e',
       );
       return false;
     }
@@ -459,6 +536,39 @@ class AnkiDeckManager {
         '[AnkiDeckManager] mark pending_cleanup failed for $sourceId: $e',
       );
     }
+  }
+
+  /// CourseDatabase is the production source authority. It is registered
+  /// manually during startup (after injectable configuration), so resolve it
+  /// lazily instead of adding it to this generated constructor graph.
+  AnkiOwnerAuthorityDao? _locateAuthorityDao() {
+    try {
+      return getIt.isRegistered<AnkiOwnerAuthorityDao>()
+          ? getIt<AnkiOwnerAuthorityDao>()
+          : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Move an existing authority row through the uninstall lifecycle. Older
+  /// pre-authority imports legitimately have no row, in which case the
+  /// Official catalog/projection fallback remains sufficient.
+  Future<void> _setAuthorityState(
+    String sourceId,
+    AnkiSourceVisibility state,
+  ) async {
+    final authority = _locateAuthorityDao();
+    if (authority == null) return;
+    final row = await authority.findBySource(
+      profileId: CardIntroductionEligibility.defaultProfileId,
+      sourceId: sourceId,
+    );
+    if (row == null || row.state == state) return;
+    await authority.commitVisibility(
+      courseId: row.courseId,
+      state: state,
+    );
   }
 
   /// Engine for collection writes: the live session's engine when one is
@@ -489,7 +599,21 @@ class AnkiDeckManager {
       audioResolver: _audioResolver,
       unificationDao: _unificationDao,
       mistakeProvider: _mistakeProvider,
+      audioController: _locateAudioController(),
     ).deleteAll(importId);
+  }
+
+  /// The cleanup service releases the media player's file handles before
+  /// deleting deck media. Resolved lazily so tests that never register an
+  /// [AudioController] can still construct and run this manager.
+  AudioController? _locateAudioController() {
+    try {
+      return getIt.isRegistered<AudioController>()
+          ? getIt<AudioController>()
+          : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   // ─── Incremental Update Detection ──────────────────────────────────
@@ -540,10 +664,13 @@ class AnkiDeckManager {
 /// Note/card ids owned by one official source, read from the catalog right
 /// before the source rows are deleted.
 class _OfficialSourceContentIds {
-  const _OfficialSourceContentIds(this.noteIds, this.cardIds);
+  const _OfficialSourceContentIds({
+    required this.cardIds,
+    required this.exclusiveCardIds,
+  });
 
-  final List<int> noteIds;
   final Set<int> cardIds;
+  final List<int> exclusiveCardIds;
 }
 
 /// The persisted owner(s) an uninstall id resolves to. Mirrored imports

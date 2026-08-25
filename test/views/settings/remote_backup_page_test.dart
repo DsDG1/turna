@@ -155,17 +155,6 @@ void main() {
 
   /// Types the endpoint + password and taps the explicit save-and-test
   /// button. After this the endpoint + credential are PERSISTED.
-  Future<void> typeInto(WidgetTester tester, Finder field, String text) async {
-    // Tap-to-focus first, then enterText: fields inside a scroll view need
-    // the focus hop for the test input connection to attach reliably.
-    await tester.tap(field, warnIfMissed: false);
-    await tester.pump();
-    await tester.enterText(field, text);
-    await tester.pumpAndSettle();
-  }
-
-  /// Types the endpoint + password and taps the explicit save-and-test
-  /// button. After this the endpoint + credential are PERSISTED.
   Future<void> saveConfig(WidgetTester tester) async {
     // Drive the controllers through the widget configs (same instances the
     // page owns): consecutive tester.enterText calls on different fields

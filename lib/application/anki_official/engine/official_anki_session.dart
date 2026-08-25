@@ -39,7 +39,8 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
   final SendPort _commands;
   final OfficialAnkiNativeTransport? _control;
   final OfficialAnkiSessionCleanup _cleanup;
-  final OfficialAnkiCloseOwnership _closeOwnership = OfficialAnkiCloseOwnership();
+  final OfficialAnkiCloseOwnership _closeOwnership =
+      OfficialAnkiCloseOwnership();
   final int handle;
   final String? libraryPath;
   var _serial = 0;
@@ -334,7 +335,8 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
     return items
         .whereType<Map>()
         .map(
-          (item) => OfficialAnkiDeckNode.fromJson(Map<String, Object?>.from(item)),
+          (item) =>
+              OfficialAnkiDeckNode.fromJson(Map<String, Object?>.from(item)),
         )
         .toList();
   }
@@ -549,6 +551,34 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
     });
     final payload = Map<String, Object?>.from(raw['payload'] as Map? ?? raw);
     return (payload['removedCards'] as num?)?.toInt() ?? 0;
+  }
+
+  Future<int> deleteCards(List<int> cardIds) async {
+    final raw = await _rpc('scheduler', {
+      'op': 'deleteCards',
+      'cardIds': cardIds,
+    });
+    final payload = Map<String, Object?>.from(raw['payload'] as Map? ?? raw);
+    return (payload['removedCards'] as num?)?.toInt() ?? 0;
+  }
+
+  Future<OfficialAnkiStatsBatch> statsForCardsBatch(List<int> cardIds) async {
+    final raw = await _rpc('scheduler', {
+      'op': 'statsForCardsBatch',
+      'cardIds': cardIds,
+    });
+    return OfficialAnkiStatsBatch.fromJson(
+      Map<String, Object?>.from(raw['payload'] as Map? ?? raw),
+    );
+  }
+
+  Future<int> scheduleCardsAsNew(List<int> cardIds) async {
+    final raw = await _rpc('scheduler', {
+      'op': 'scheduleCardsAsNew',
+      'cardIds': cardIds,
+    });
+    final payload = Map<String, Object?>.from(raw['payload'] as Map? ?? raw);
+    return (payload['scheduledCards'] as num?)?.toInt() ?? 0;
   }
 
   Future<void> dispose() {
@@ -837,7 +867,8 @@ void officialAnkiWorkerEntrypoint(SendPort ready) {
           });
           return;
         case 'listSources':
-          final sources = OfficialAnkiSourceDao(db!).listSources(paths!.profileId);
+          final sources =
+              OfficialAnkiSourceDao(db!).listSources(paths!.profileId);
           reply.send(<String, Object?>{
             'ok': true,
             'sources': sources
@@ -966,6 +997,9 @@ const _schedulerWriteOps = {
   'redo',
   'buryOrSuspendCards',
   'deleteNotes',
+  'deleteCards',
+  'statsForCardsBatch',
+  'scheduleCardsAsNew',
 };
 
 Future<Map<String, Object?>> dispatchOfficialAnkiScheduler(
@@ -1107,14 +1141,12 @@ Future<Map<String, Object?>> dispatchOfficialAnkiScheduler(
       final action = OfficialBuryOrSuspendAction.parse(
         message['action'] as String?,
       );
-      final cardIds = ((message['cardIds'] as List?) ?? const [])
-          .map((item) {
-            if (item is! num) {
-              officialContractError('cardIds[]', item);
-            }
-            return item.toInt();
-          })
-          .toList();
+      final cardIds = ((message['cardIds'] as List?) ?? const []).map((item) {
+        if (item is! num) {
+          officialContractError('cardIds[]', item);
+        }
+        return item.toInt();
+      }).toList();
       if (cardIds.any((id) => id <= 0)) {
         officialContractError('cardIds', cardIds);
       }
@@ -1128,14 +1160,12 @@ Future<Map<String, Object?>> dispatchOfficialAnkiScheduler(
       );
       return const <String, Object?>{};
     case 'deleteNotes':
-      final noteIds = ((message['noteIds'] as List?) ?? const [])
-          .map((item) {
-            if (item is! num) {
-              officialContractError('noteIds[]', item);
-            }
-            return item.toInt();
-          })
-          .toList();
+      final noteIds = ((message['noteIds'] as List?) ?? const []).map((item) {
+        if (item is! num) {
+          officialContractError('noteIds[]', item);
+        }
+        return item.toInt();
+      }).toList();
       if (noteIds.any((id) => id <= 0)) {
         officialContractError('noteIds', noteIds);
       }
@@ -1144,6 +1174,58 @@ Future<Map<String, Object?>> dispatchOfficialAnkiScheduler(
       }
       final removedCards = await engine.deleteNotes(noteIds);
       return <String, Object?>{'removedCards': removedCards};
+    case 'deleteCards':
+      final cardIds = ((message['cardIds'] as List?) ?? const []).map((item) {
+        if (item is! num) {
+          officialContractError('cardIds[]', item);
+        }
+        return item.toInt();
+      }).toList();
+      if (cardIds.isEmpty || cardIds.any((id) => id <= 0)) {
+        officialContractError('cardIds', cardIds);
+      }
+      final removedCards = await engine.deleteCards(cardIds);
+      return <String, Object?>{'removedCards': removedCards};
+    case 'statsForCardsBatch':
+      final cardIds = ((message['cardIds'] as List?) ?? const []).map((item) {
+        if (item is! num) {
+          officialContractError('cardIds[]', item);
+        }
+        return item.toInt();
+      }).toList();
+      if (cardIds.isEmpty || cardIds.any((id) => id <= 0)) {
+        officialContractError('cardIds', cardIds);
+      }
+      final stats = await engine.statsForCardsBatch(cardIds);
+      return <String, Object?>{
+        'requestedCardCount': stats.requestedCardCount,
+        'foundCardCount': stats.foundCardCount,
+        'newCards': stats.newCards,
+        'learningCards': stats.learningCards,
+        'reviewCards': stats.reviewCards,
+        'suspendedCards': stats.suspendedCards,
+        'buriedCards': stats.buriedCards,
+        'todayAnswerCount': stats.todayAnswerCount,
+        'todayLearnCount': stats.todayLearnCount,
+        'todayReviewCount': stats.todayReviewCount,
+        'todayRelearnCount': stats.todayRelearnCount,
+        'forecastDueToday': stats.forecastDueToday,
+        'forecastDue7Days': stats.forecastDue7Days,
+        'forecastDue30Days': stats.forecastDue30Days,
+        'revlogCount': stats.revlogCount,
+        'retentionPassed': stats.retentionPassed,
+        'retentionFailed': stats.retentionFailed,
+      };
+    case 'scheduleCardsAsNew':
+      final cardIds = ((message['cardIds'] as List?) ?? const []).map((item) {
+        if (item is! num) officialContractError('cardIds[]', item);
+        return item.toInt();
+      }).toList();
+      if (cardIds.isEmpty || cardIds.any((id) => id <= 0)) {
+        officialContractError('cardIds', cardIds);
+      }
+      final scheduledCards = await engine.scheduleCardsAsNew(cardIds);
+      return <String, Object?>{'scheduledCards': scheduledCards};
     default:
       throw OfficialAnkiException(
         code: OfficialAnkiErrorCode.invalidArgument,

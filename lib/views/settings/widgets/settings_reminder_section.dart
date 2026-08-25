@@ -78,6 +78,7 @@ class SettingsDailyReminderTile extends StatelessWidget {
                 initialTime: settings.dailyReminderTime,
               );
               if (picked == null) return;
+              if (!context.mounted) return;
               await _apply(context, enabled: true, time: picked);
             },
           ),

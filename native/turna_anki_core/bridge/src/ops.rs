@@ -12,8 +12,10 @@ use anki::prelude::*;
 use anki::scheduler::answering::CardAnswer;
 use anki::scheduler::answering::Rating;
 use anki::search::SortMode;
+use anki::services::CardsService;
 use anki::services::CollectionService;
 use anki::services::SchedulerService;
+use anki::services::StatsService;
 use anki::timestamp::TimestampMillis;
 use anki_proto::scheduler::bury_or_suspend_cards_request::Mode as BuryOrSuspendMode;
 use anki_proto::scheduler::unbury_deck_request::Mode as UnburyDeckMode;
@@ -37,6 +39,7 @@ use crate::engine::OP_CANCEL_OPERATION;
 use crate::engine::OP_COMPARE_TYPED_ANSWER;
 use crate::engine::OP_CONGRATS_INFO;
 use crate::engine::OP_COUNTS_FOR_DECK_TODAY;
+use crate::engine::OP_DELETE_CARDS;
 use crate::engine::OP_DELETE_NOTES;
 use crate::engine::OP_DESCRIBE_NEXT_STATES;
 use crate::engine::OP_EXTRACT_CLOZE_FOR_TYPING;
@@ -47,8 +50,10 @@ use crate::engine::OP_LATEST_PROGRESS;
 use crate::engine::OP_LIST_DECK_TREE;
 use crate::engine::OP_REDO;
 use crate::engine::OP_RENDER_CARD;
+use crate::engine::OP_SCHEDULE_CARDS_AS_NEW;
 use crate::engine::OP_SEARCH_CARDS;
 use crate::engine::OP_SET_CURRENT_DECK;
+use crate::engine::OP_STATS_FOR_CARDS_BATCH;
 use crate::engine::OP_UNDO;
 use crate::engine::STATUS_ANSWER_COMMIT_UNKNOWN;
 use crate::engine::STATUS_ANSWER_FAILED;
@@ -186,9 +191,33 @@ struct DeleteNotesRequest {
     note_ids: Vec<i64>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DeleteCardsRequest {
+    #[serde(default)]
+    card_ids: Vec<i64>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct StatsForCardsRequest {
+    #[serde(default)]
+    card_ids: Vec<i64>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ScheduleCardsAsNewRequest {
+    #[serde(default)]
+    card_ids: Vec<i64>,
+}
+
 const MAX_ELAPSED_MS: u32 = 24 * 60 * 60 * 1000;
 const MAX_BURY_IDS: usize = 100;
 const MAX_DELETE_NOTE_IDS: usize = 10_000;
+const MAX_DELETE_CARD_IDS: usize = 10_000;
+const MAX_STATS_CARD_IDS: usize = 200;
+const MAX_SCHEDULE_AS_NEW_IDS: usize = 10_000;
 
 pub fn dispatch_op(handle: u64, operation: u32, request: &[u8]) -> Result<Value, i32> {
     match operation {
@@ -211,6 +240,9 @@ pub fn dispatch_op(handle: u64, operation: u32, request: &[u8]) -> Result<Value,
         OP_COUNTS_FOR_DECK_TODAY => counts_for_deck_today(handle, request),
         OP_CONGRATS_INFO => congrats_info(handle),
         OP_DELETE_NOTES => delete_notes(handle, request),
+        OP_DELETE_CARDS => delete_cards(handle, request),
+        OP_STATS_FOR_CARDS_BATCH => stats_for_cards_batch(handle, request),
+        OP_SCHEDULE_CARDS_AS_NEW => schedule_cards_as_new(handle, request),
         _ => {
             let slot = slot(handle)?;
             if slot.busy.load(std::sync::atomic::Ordering::Acquire) {
@@ -971,6 +1003,177 @@ fn delete_notes(handle: u64, request: &[u8]) -> Result<Value, i32> {
     }))
 }
 
+/// Removes only the requested cards. Missing cards are ignored and notes are
+/// removed only after their final card is gone, making retries idempotent and
+/// preserving notes shared by another imported source.
+fn delete_cards(handle: u64, request: &[u8]) -> Result<Value, i32> {
+    let parsed: DeleteCardsRequest =
+        serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?;
+    if parsed.card_ids.is_empty() || parsed.card_ids.len() > MAX_DELETE_CARD_IDS {
+        return Err(STATUS_INVALID_ARGUMENT);
+    }
+    if parsed.card_ids.iter().any(|id| *id <= 0) {
+        return Err(STATUS_INVALID_ARGUMENT);
+    }
+    let slot = slot(handle)?;
+    let mut engine = require_open(&slot)?;
+    let removed = {
+        let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+        CardsService::remove_cards(
+            col,
+            anki_proto::cards::RemoveCardsRequest {
+                card_ids: parsed.card_ids,
+            },
+        )
+        .map_err(map_anki_error)?
+        .count
+    };
+    engine.invalidate_tokens();
+    Ok(json!({
+        "ok": true,
+        "removedCards": removed,
+        "queueEpoch": engine.queue_epoch,
+    }))
+}
+
+fn stats_for_cards_batch(handle: u64, request: &[u8]) -> Result<Value, i32> {
+    let mut parsed: StatsForCardsRequest =
+        serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?;
+    if parsed.card_ids.is_empty() || parsed.card_ids.len() > MAX_STATS_CARD_IDS {
+        return Err(STATUS_INVALID_ARGUMENT);
+    }
+    if parsed.card_ids.iter().any(|id| *id <= 0) {
+        return Err(STATUS_INVALID_ARGUMENT);
+    }
+    parsed.card_ids.sort_unstable();
+    parsed.card_ids.dedup();
+    let requested_card_count = parsed.card_ids.len();
+    let search = format!(
+        "cid:{}",
+        parsed
+            .card_ids
+            .iter()
+            .map(i64::to_string)
+            .collect::<Vec<_>>()
+            .join(",")
+    );
+
+    let slot = slot(handle)?;
+    let mut engine = require_open(&slot)?;
+    let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+    let found_card_count = col
+        .search_cards(search.as_str(), SortMode::NoOrder)
+        .map_err(map_anki_error)?
+        .len();
+    let graphs = StatsService::graphs(col, anki_proto::stats::GraphsRequest { search, days: 0 })
+        .map_err(map_anki_error)?;
+
+    let counts = graphs
+        .card_counts
+        .and_then(|counts| counts.excluding_inactive)
+        .unwrap_or_default();
+    let today = graphs.today.unwrap_or_default();
+    let future = graphs.future_due.unwrap_or_default();
+    let retention = graphs
+        .true_retention
+        .and_then(|stats| stats.all_time)
+        .unwrap_or_default();
+
+    let mut forecast_due_today = 0u32;
+    let mut forecast_due_7_days = 0u32;
+    let mut forecast_due_30_days = 0u32;
+    for (day, count) in future.future_due {
+        if day <= 0 {
+            forecast_due_today = forecast_due_today.saturating_add(count);
+        }
+        if day <= 7 {
+            forecast_due_7_days = forecast_due_7_days.saturating_add(count);
+        }
+        if day <= 30 {
+            forecast_due_30_days = forecast_due_30_days.saturating_add(count);
+        }
+    }
+
+    let revlog_count = graphs
+        .reviews
+        .map(|reviews| {
+            reviews.count.values().fold(0u32, |total, value| {
+                total
+                    .saturating_add(value.learn)
+                    .saturating_add(value.relearn)
+                    .saturating_add(value.young)
+                    .saturating_add(value.mature)
+                    .saturating_add(value.filtered)
+            })
+        })
+        .unwrap_or_default();
+    let retention_passed = retention
+        .young_passed
+        .saturating_add(retention.mature_passed);
+    let retention_failed = retention
+        .young_failed
+        .saturating_add(retention.mature_failed);
+
+    Ok(json!({
+        "requestedCardCount": requested_card_count,
+        "foundCardCount": found_card_count,
+        "newCards": counts.new_cards,
+        "learningCards": counts.learn.saturating_add(counts.relearn),
+        "reviewCards": counts.young.saturating_add(counts.mature),
+        "suspendedCards": counts.suspended,
+        "buriedCards": counts.buried,
+        "todayAnswerCount": today.answer_count,
+        "todayLearnCount": today.learn_count,
+        "todayReviewCount": today.review_count,
+        "todayRelearnCount": today.relearn_count,
+        "forecastDueToday": forecast_due_today,
+        "forecastDue7Days": forecast_due_7_days,
+        "forecastDue30Days": forecast_due_30_days,
+        "revlogCount": revlog_count,
+        "retentionPassed": retention_passed,
+        "retentionFailed": retention_failed,
+    }))
+}
+
+fn schedule_cards_as_new(handle: u64, request: &[u8]) -> Result<Value, i32> {
+    let mut parsed: ScheduleCardsAsNewRequest =
+        serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?;
+    if parsed.card_ids.is_empty() || parsed.card_ids.len() > MAX_SCHEDULE_AS_NEW_IDS {
+        return Err(STATUS_INVALID_ARGUMENT);
+    }
+    if parsed.card_ids.iter().any(|id| *id <= 0) {
+        return Err(STATUS_INVALID_ARGUMENT);
+    }
+    parsed.card_ids.sort_unstable();
+    parsed.card_ids.dedup();
+    let search = format!(
+        "cid:{}",
+        parsed
+            .card_ids
+            .iter()
+            .map(i64::to_string)
+            .collect::<Vec<_>>()
+            .join(",")
+    );
+    let slot = slot(handle)?;
+    let mut engine = require_open(&slot)?;
+    let scheduled = {
+        let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+        let ids = col
+            .search_cards(search.as_str(), SortMode::NoOrder)
+            .map_err(map_anki_error)?;
+        col.reschedule_cards_as_new(&ids, false, true, true, None)
+            .map_err(map_anki_error)?;
+        ids.len()
+    };
+    engine.invalidate_tokens();
+    Ok(json!({
+        "ok": true,
+        "scheduledCards": scheduled,
+        "queueEpoch": engine.queue_epoch,
+    }))
+}
+
 fn counts_for_deck_today(handle: u64, request: &[u8]) -> Result<Value, i32> {
     let parsed: DeckRequest = if request.is_empty() {
         DeckRequest { deck_id: 1 }
@@ -1508,6 +1711,44 @@ mod tests {
         );
         let after = call(handle, OP_SEARCH_CARDS, json!({"search": ""})).unwrap();
         assert!(after["cards"].as_array().unwrap().is_empty());
+        free_engine(handle).unwrap();
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn card_scoped_delete_stats_and_schedule_reset_are_exact() {
+        let (root, handle, _) = temp_open();
+        import(handle, &package_path("04-cloze-multi-ord.apkg"), true).unwrap();
+        let searched = call(handle, OP_SEARCH_CARDS, json!({"search": ""})).unwrap();
+        let card_ids: Vec<i64> = searched["cards"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|card| card["card_id"].as_i64().unwrap())
+            .collect();
+        assert!(card_ids.len() >= 2);
+
+        let stats = call(
+            handle,
+            OP_STATS_FOR_CARDS_BATCH,
+            json!({"cardIds": card_ids}),
+        )
+        .unwrap();
+        assert_eq!(stats["foundCardCount"], card_ids.len());
+
+        let reset = call(
+            handle,
+            OP_SCHEDULE_CARDS_AS_NEW,
+            json!({"cardIds": card_ids}),
+        )
+        .unwrap();
+        assert_eq!(reset["scheduledCards"], card_ids.len());
+
+        let deleted = call(handle, OP_DELETE_CARDS, json!({"cardIds": [card_ids[0]]})).unwrap();
+        assert_eq!(deleted["removedCards"], 1);
+        let after = call(handle, OP_SEARCH_CARDS, json!({"search": ""})).unwrap();
+        assert_eq!(after["cards"].as_array().unwrap().len(), card_ids.len() - 1);
+
         free_engine(handle).unwrap();
         let _ = fs::remove_dir_all(root);
     }
@@ -2358,12 +2599,15 @@ mod tests {
             "COUNTS_FOR_DECK_TODAY",
             "CONGRATS_INFO",
             "DELETE_NOTES",
+            "DELETE_CARDS",
+            "STATS_FOR_CARDS_BATCH",
+            "SCHEDULE_CARDS_AS_NEW",
         ] {
             assert!(
                 caps.iter().any(|c| c.as_str() == Some(name)),
                 "missing {name} in {caps:?}"
             );
         }
-        assert_eq!(info["contractMinor"], 4);
+        assert_eq!(info["contractMinor"], 6);
     }
 }

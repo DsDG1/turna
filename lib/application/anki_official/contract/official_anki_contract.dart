@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 
 const int kOfficialAnkiContractMajor = 1;
-const int kOfficialAnkiContractMinor = 4;
+const int kOfficialAnkiContractMinor = 6;
 
 abstract final class OfficialAnkiOperation {
   static const engineInfo = 'ENGINE_INFO';
@@ -36,6 +36,9 @@ abstract final class OfficialAnkiOperation {
   static const countsForDeckToday = 'COUNTS_FOR_DECK_TODAY';
   static const congratsInfo = 'CONGRATS_INFO';
   static const deleteNotes = 'DELETE_NOTES';
+  static const deleteCards = 'DELETE_CARDS';
+  static const statsForCardsBatch = 'STATS_FOR_CARDS_BATCH';
+  static const scheduleCardsAsNew = 'SCHEDULE_CARDS_AS_NEW';
 
   static const engineInfoId = 1;
   static const openCollectionId = 2;
@@ -67,6 +70,9 @@ abstract final class OfficialAnkiOperation {
   static const countsForDeckTodayId = 29;
   static const congratsInfoId = 30;
   static const deleteNotesId = 31;
+  static const deleteCardsId = 32;
+  static const statsForCardsBatchId = 33;
+  static const scheduleCardsAsNewId = 34;
 
   static const productionNames = <String>{
     engineInfo,
@@ -99,6 +105,9 @@ abstract final class OfficialAnkiOperation {
     countsForDeckToday,
     congratsInfo,
     deleteNotes,
+    deleteCards,
+    statsForCardsBatch,
+    scheduleCardsAsNew,
   };
 
   static int idFor(String name) {
@@ -163,6 +172,12 @@ abstract final class OfficialAnkiOperation {
         return congratsInfoId;
       case deleteNotes:
         return deleteNotesId;
+      case deleteCards:
+        return deleteCardsId;
+      case statsForCardsBatch:
+        return statsForCardsBatchId;
+      case scheduleCardsAsNew:
+        return scheduleCardsAsNewId;
       default:
         throw OfficialAnkiException(
           code: OfficialAnkiErrorCode.invalidArgument,
@@ -280,7 +295,8 @@ class OfficialAnkiEnvelopeResponse {
     OfficialAnkiException? error;
     final errorRaw = json['error'];
     if (errorRaw is Map) {
-      error = OfficialAnkiException.fromJson(Map<String, Object?>.from(errorRaw));
+      error =
+          OfficialAnkiException.fromJson(Map<String, Object?>.from(errorRaw));
     }
     Map<String, Object?>? payload;
     final payloadRaw = json['payload'];

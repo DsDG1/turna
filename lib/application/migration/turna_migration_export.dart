@@ -111,8 +111,8 @@ class TurnaMigrationExporter {
     );
 
     final mediaManifest = <String, dynamic>{};
-    if (_legacyMediaRoot != null && await _legacyMediaRoot!.exists()) {
-      await _copyMediaContentAddressed(_legacyMediaRoot!, mediaDir, mediaManifest);
+    if (_legacyMediaRoot != null && await _legacyMediaRoot.exists()) {
+      await _copyMediaContentAddressed(_legacyMediaRoot, mediaDir, mediaManifest);
     }
 
     final createdAt = DateTime.now().toUtc().toIso8601String();
@@ -208,17 +208,17 @@ class TurnaMigrationExporter {
   Future<Map<String, Object?>> _collectSettings() async {
     final out = <String, Object?>{};
     if (_prefsOverride != null) {
-      for (final key in _prefsOverride!.getKeys()) {
+      for (final key in _prefsOverride.getKeys()) {
         final sanitized = BackupManifestPolicy.sanitizeForSerialization(
           key,
-          _prefsOverride!.get(key),
+          _prefsOverride.get(key),
         );
         if (sanitized != null) out[key] = sanitized;
       }
       return out;
     }
     if (_appPrefs != null) {
-      final prefs = _appPrefs!.preferences;
+      final prefs = _appPrefs.preferences;
       final keys = prefs.getKeys().getValue();
       for (final key in keys) {
         final entry = BackupManifestPolicy.entryFor(key);

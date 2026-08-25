@@ -8,12 +8,14 @@ import 'package:turna/application/anki/anki_review_assembler.dart';
 import 'package:turna/application/anki/anki_review_content.dart';
 import 'package:turna/application/anki/anki_study_session_host.dart';
 import 'package:turna/application/anki/formal_review_launcher.dart';
+import 'package:turna/application/anki/formal_review_source_coordinator.dart';
 import 'package:turna/application/anki/official_formal_review_production_loader.dart';
 import 'package:turna/application/anki/study_ledger_adapters.dart';
 import 'package:turna/application/anki/study_product_analytics.dart';
 import 'package:turna/application/anki/study_session_controller.dart';
 import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
+import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/review/official_formal_review_coordinator.dart';
 import 'package:turna/application/course_provider.dart';
@@ -86,6 +88,10 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
   OfficialReviewSession? _officialSession;
   OfficialFormalReviewLiveQueue? _officialSessionLiveQueue;
   Map<String, AnkiHtmlCard> _fidelityInteractions = const {};
+  FormalReviewSourceCoordinator? _sourceCoordinator;
+  bool _advancingSource = false;
+  bool _advanceScheduled = false;
+  bool _reviewAllComplete = false;
 
   @override
   void initState() {
@@ -104,7 +110,21 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
   }
 
   void _onController() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    final controller = _controller;
+    if (controller?.isComplete == true &&
+        _sourceCoordinator != null &&
+        !_advancingSource &&
+        !_advanceScheduled) {
+      _advanceScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) {
+          _advanceScheduled = false;
+          unawaited(_advanceReviewAll());
+        },
+      );
+    }
+    setState(() {});
   }
 
   Future<void> _start() async {
@@ -123,17 +143,38 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
     });
 
     try {
-      final importId = widget.sectionId == null
-          ? ''
-          : AnkiReviewAssembler.importIdFromSectionId(widget.sectionId!);
-      final officialOwner = widget.officialOwner ??
-          (importId.isEmpty
-              ? OfficialAnkiHomeDue.officialImportIds.isNotEmpty
-              : OfficialAnkiHomeDue.officialImportIds.contains(importId));
+      if (widget.sectionId == null) {
+        final catalogCoordinator = FormalReviewSourceCoordinator.fromCatalog(
+          context.read<CourseProvider>().catalogEntries,
+        );
+        _sourceCoordinator ??= catalogCoordinator.targets.isNotEmpty
+            ? catalogCoordinator
+            : FormalReviewSourceCoordinator.fromOfficialSourceIds(
+                OfficialAnkiHomeDue.officialImportIds,
+              );
+      }
+      final sourceTarget = _sourceCoordinator?.current;
+      if (_sourceCoordinator?.isComplete == true) {
+        if (!mounted) return;
+        setState(() {
+          _reviewAllComplete = true;
+          _loading = false;
+        });
+        return;
+      }
+      final selectedSectionId = sourceTarget == null ? widget.sectionId : null;
+      final importId = sourceTarget?.importOrSourceId ??
+          (selectedSectionId == null
+              ? ''
+              : AnkiReviewAssembler.importIdFromSectionId(selectedSectionId));
+      final officialOwner = sourceTarget != null
+          ? sourceTarget.owner == AnkiEngineKind.official
+          : widget.officialOwner ??
+              OfficialAnkiHomeDue.officialImportIds.contains(importId);
       final launch = const FormalReviewLauncher().resolve(
         entry: FormalReviewEntryKind.ankiHub,
         courseId: importId.isEmpty ? 'anki' : 'anki-$importId',
-        sectionId: widget.sectionId,
+        sectionId: selectedSectionId,
         officialOwner: officialOwner,
         schedulerRuntimeAvailable:
             OfficialAnkiFeatureFlags.current.allowsOfficialScheduler,
@@ -147,10 +188,12 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
         return;
       }
 
-      final blocked = await const AnkiOfficialReviewGate().openInsteadOfLegacy(
-        context,
-        sectionId: widget.sectionId,
-      );
+      final blocked = sourceTarget != null
+          ? false
+          : await const AnkiOfficialReviewGate().openInsteadOfLegacy(
+              context,
+              sectionId: selectedSectionId,
+            );
       if (!mounted) return;
       if (blocked) {
         setState(() {
@@ -160,9 +203,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
         return;
       }
 
-      final selectedImportId = widget.sectionId == null
-          ? ''
-          : AnkiReviewAssembler.importIdFromSectionId(widget.sectionId!);
+      final selectedImportId = importId;
       final courseId =
           selectedImportId.isEmpty ? 'anki' : 'anki-$selectedImportId';
 
@@ -202,7 +243,8 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
         course,
         noteDao: noteDao,
       ).assembleReviewBatchAsync(
-        sectionId: widget.sectionId,
+        sectionId: selectedSectionId,
+        importId: sourceTarget == null ? null : selectedImportId,
         maxNew: maxNew,
         maxReview: maxReview,
       );
@@ -229,6 +271,10 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
       }
 
       if (items.isEmpty) {
+        if (_sourceCoordinator != null) {
+          await _advanceReviewAll(recordSession: false);
+          return;
+        }
         setState(() {
           _loading = false;
         });
@@ -260,12 +306,45 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
         _loading = false;
       });
     } catch (error) {
+      final coordinator = _sourceCoordinator;
+      if (coordinator?.current != null) {
+        coordinator!.recordFailure(error);
+        await _advanceReviewAll(recordSession: false);
+        return;
+      }
       if (!mounted) return;
       setState(() {
         _error = error;
         _loading = false;
       });
     }
+  }
+
+  Future<void> _advanceReviewAll({bool recordSession = true}) async {
+    final coordinator = _sourceCoordinator;
+    if (coordinator == null || _advancingSource) return;
+    _advancingSource = true;
+    final controller = _controller;
+    if (recordSession && controller != null) {
+      coordinator.recordSession(
+        total: controller.totalCount,
+        remembered: controller.rememberedCount,
+        forgotten: controller.forgottenCount,
+      );
+    }
+    coordinator.advance();
+    if (coordinator.isComplete) {
+      if (mounted) {
+        setState(() {
+          _reviewAllComplete = true;
+          _loading = false;
+        });
+      }
+      _advancingSource = false;
+      return;
+    }
+    _advancingSource = false;
+    await _start();
   }
 
   /// Official owners: FormalReviewLauncher + OfficialStudyLedger only.
@@ -286,6 +365,10 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
     if (!mounted) return;
     final batch = officialBatch;
     if (batch == null || batch.items.isEmpty) {
+      if (_sourceCoordinator != null) {
+        await _advanceReviewAll(recordSession: false);
+        return;
+      }
       setState(() {
         _loading = false;
       });
@@ -356,7 +439,8 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
     // false inflated the new-card quota for the rest of the day.
     return _deckManager.recordCardUnreviewed(
       wasNewCard: _newCardKeys.contains(_cardKeyId(receipt.cardKey)),
-      importId: _importIdFromWordId(TurnaStudyLedger.wordIdFor(receipt.cardKey)),
+      importId:
+          _importIdFromWordId(TurnaStudyLedger.wordIdFor(receipt.cardKey)),
     );
   }
 
@@ -369,6 +453,34 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
 
   @override
   Widget build(BuildContext context) {
+    final reviewAll = _sourceCoordinator;
+    if (_reviewAllComplete && reviewAll != null) {
+      return Scaffold(
+        body: SafeArea(
+          child: Column(
+            children: [
+              if (reviewAll.failures.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Text(
+                    '以下来源未能完成：${reviewAll.failures.map((failure) => failure.target.displayName).join('、')}',
+                    style: TextStyle(color: TurnaTheme.error),
+                  ),
+                ),
+              Expanded(
+                child: UnifiedReviewCompletion(
+                  totalCount: reviewAll.totalCount,
+                  rememberedCount: reviewAll.rememberedCount,
+                  forgottenCount: reviewAll.forgottenCount,
+                  elapsed: Duration.zero,
+                  onFinish: () => Navigator.of(context).maybePop(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     final controller = _controller;
     if (!_loading && _error == null && controller != null) {
       return _AnkiStudySessionView(
@@ -376,6 +488,10 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
         fidelityInteractions: _fidelityInteractions,
         officialSession: _officialSession,
         liveQueue: _officialSessionLiveQueue,
+        sourceProgress: reviewAll?.current == null
+            ? null
+            : '${reviewAll!.currentIndex + 1}/${reviewAll.targets.length} · '
+                '${reviewAll.current!.displayName}',
       );
     }
 
@@ -422,6 +538,7 @@ class _AnkiStudySessionView extends StatelessWidget {
     this.fidelityInteractions = const {},
     this.officialSession,
     this.liveQueue,
+    this.sourceProgress,
   });
 
   final StudySessionController controller;
@@ -431,6 +548,7 @@ class _AnkiStudySessionView extends StatelessWidget {
   /// Live queue driver for official owners; mutations (bury/suspend) refresh
   /// the batch through it (plan 34 D4).
   final OfficialFormalReviewLiveQueue? liveQueue;
+  final String? sourceProgress;
 
   @override
   Widget build(BuildContext context) {
@@ -534,6 +652,13 @@ class _AnkiStudySessionView extends StatelessWidget {
               ),
               child: Column(
                 children: [
+                  if (sourceProgress != null) ...[
+                    Text(
+                      sourceProgress!,
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                   Expanded(
                     child: StudyCardSurface(
                       presentation: item.presentation,
@@ -552,7 +677,8 @@ class _AnkiStudySessionView extends StatelessWidget {
                       onObjectiveResult: structured
                           ? (correct) {
                               unawaited(
-                                controller.submitObjectiveAnswer(correct: correct),
+                                controller.submitObjectiveAnswer(
+                                    correct: correct),
                               );
                             }
                           : null,

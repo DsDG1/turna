@@ -51,7 +51,7 @@ void main() {
 
   test('double tap / retry with the same key never double-charges',
       () async {
-    final key = 'purchase-ring_reed-fixed';
+    const key = 'purchase-ring_reed-fixed';
     for (var i = 0; i < 3; i++) {
       await ledger.purchase(
         itemId: 'ring_reed',

@@ -1,7 +1,7 @@
 {
   "contractVersion": {
     "major": 1,
-    "minor": 4
+    "minor": 6
   },
   "requestId": "01JENGINEINFO",
   "ok": true,
@@ -9,7 +9,7 @@
     "abiVersion": 1,
     "backendCommit": "967aa0d578fc75181e292e95326f9b58698da25c",
     "contractMajor": 1,
-    "contractMinor": 4,
+    "contractMinor": 6,
     "capabilities": [
       "ENGINE_INFO",
       "OPEN_COLLECTION",
@@ -39,7 +39,10 @@
       "BURY_OR_SUSPEND_CARDS",
       "COUNTS_FOR_DECK_TODAY",
       "CONGRATS_INFO",
-      "DELETE_NOTES"
+      "DELETE_NOTES",
+      "DELETE_CARDS",
+      "STATS_FOR_CARDS_BATCH",
+      "SCHEDULE_CARDS_AS_NEW"
     ]
   },
   "error": null,
@@ -47,7 +50,7 @@
     "abiVersion": 1,
     "backendCommit": "967aa0d578fc75181e292e95326f9b58698da25c",
     "contractMajor": 1,
-    "contractMinor": 3
+    "contractMinor": 6
   },
   "durationMillis": 0
 }

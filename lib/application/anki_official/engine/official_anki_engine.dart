@@ -115,5 +115,16 @@ abstract class OfficialAnkiEngine {
   /// cards they own.
   Future<int> deleteNotes(List<int> noteIds);
 
+  /// Removes only the listed cards and deletes a note only when the removal
+  /// leaves it orphaned. This is the source-uninstall primitive: imported
+  /// sources may share notes, or even cards, inside one Collection.
+  Future<int> deleteCards(List<int> cardIds);
+
+  Future<OfficialAnkiStatsBatch> statsForCardsBatch(List<int> cardIds);
+
+  /// Explicit W8 scheduling policy primitive. Resets exactly [cardIds] to
+  /// Official Anki's New queue; it is never called without user confirmation.
+  Future<int> scheduleCardsAsNew(List<int> cardIds);
+
   Future<void> dispose();
 }

@@ -175,7 +175,6 @@ class _LessonCompletionSummary extends StatelessWidget {
     bool perfect,
   ) {
     final theme = Theme.of(context);
-    final l10n = AppStrings;
     final title = switch (style.styleIndex) {
       0 => AppStrings.lessonCompleteTitle1,
       1 => AppStrings.lessonCompleteTitle2,
@@ -349,7 +348,6 @@ class _LessonCompletionSummary extends StatelessWidget {
   String _formatDuration(BuildContext context, int seconds) {
     final m = seconds ~/ 60;
     final s = seconds % 60;
-    final l10n = AppStrings;
     if (m == 0) return AppStrings.lessonDurationSeconds(s);
     return AppStrings.lessonDurationMinutes(m, s);
   }

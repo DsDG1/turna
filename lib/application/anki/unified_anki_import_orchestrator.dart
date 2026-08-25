@@ -122,6 +122,7 @@ class UnifiedAnkiImportOrchestrator {
   /// are skipped; everything else rolls the whole batch back).
   Future<({int placements, int presentations})> _persist(
     UnifiedAnkiImportRequest request,
+    AnkiUnificationDao? daoOverride,
   ) async {
     final persist = persistIdentity;
     if (persist != null) {
@@ -131,10 +132,10 @@ class UnifiedAnkiImportOrchestrator {
         presentations: request.canonicalCardIds.length,
       );
     }
-    if (!getIt.isRegistered<AnkiUnificationDao>()) {
+    if (daoOverride == null && !getIt.isRegistered<AnkiUnificationDao>()) {
       return (placements: 0, presentations: 0);
     }
-    final dao = getIt<AnkiUnificationDao>();
+    final dao = daoOverride ?? getIt<AnkiUnificationDao>();
     final backend = request.persistedOwnerIsOfficial
         ? AnkiBackendKind.official
         : AnkiBackendKind.legacyTurna;
@@ -251,19 +252,24 @@ class UnifiedAnkiImportOrchestrator {
 
   /// Persists identity and records what actually landed in the database.
   Future<({int placements, int presentations})> finalize(
-    UnifiedAnkiImportRequest request,
-  ) async {
-    _inFlightKeys.remove(request.sourceHash);
-    _hashByImport[request.importId] = request.sourceHash;
-    final written = await _persist(request);
-    _placementsByImport[request.importId] = written.placements;
-    _presentationsByImport[request.importId] = written.presentations;
-    if (!request.persistedOwnerIsOfficial) {
-      for (final cardId in request.canonicalCardIds) {
-        turnaSrsWordIds.add('anki-${request.importId}-c$cardId');
+      UnifiedAnkiImportRequest request,
+      {AnkiUnificationDao? unificationDao}) async {
+    try {
+      final written = await _persist(request, unificationDao);
+      _hashByImport[request.importId] = request.sourceHash;
+      _placementsByImport[request.importId] = written.placements;
+      _presentationsByImport[request.importId] = written.presentations;
+      if (!request.persistedOwnerIsOfficial) {
+        for (final cardId in request.canonicalCardIds) {
+          turnaSrsWordIds.add('anki-${request.importId}-c$cardId');
+        }
       }
+      return written;
+    } finally {
+      // Keep the key reserved through persistence. Releasing it before the
+      // final write allowed a concurrent begin to enter the same source gap.
+      _inFlightKeys.remove(request.sourceHash);
     }
-    return written;
   }
 
   /// Drop every in-process record of one import after its persisted data was

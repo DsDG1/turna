@@ -1,7 +1,6 @@
 // Unit tests for the streaming pipeline primitives (Plan 3 §21/§26.3):
 // delta coalescing (order/loss/cancel) and the auto-scroll throttle/lock.
 
-import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

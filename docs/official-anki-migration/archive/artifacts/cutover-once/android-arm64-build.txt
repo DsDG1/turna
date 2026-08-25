@@ -1,7 +1,9 @@
-date: 2026-08-24T19:54:06Z
+date: 2026-08-25T17:04:47+08:00
 command: flutter build apk --release --split-per-abi --target-platform android-arm64
 exit: 0
-artifact: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk (55.8 MB)
-sha256: 39bd48a9911b0b469a054a1ecdd22aaa4f312eae81e5a30ea5d858d15f849d54
-native: libturna_anki.so rebuilt from pinned commit 967aa0d578fc75181e292e95326f9b58698da25c via build-android/build.sh (verify_symbols pass)
+artifact: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk (56,120,065 bytes; Flutter reports 56.1 MB)
+sha256: ed959ffc631f5ec28a7d83d11302ee619de1c2c91d1c9e79bf1d554fbdc4a27f
+native: libturna_anki.so rebuilt from current bridge + pinned Anki commit 967aa0d578fc75181e292e95326f9b58698da25c via build-android/build.sh (verify_symbols pass)
 abi: arm64-v8a only (split-per-abi)
+apk native payload: 18,582,184 bytes; sha256 9d20e7712aa04ec4e8dc8ffabf1e152a326d16d8e0c237917faf3d33f5712e61
+contract check: DELETE_CARDS, STATS_FOR_CARDS_BATCH, SCHEDULE_CARDS_AS_NEW present

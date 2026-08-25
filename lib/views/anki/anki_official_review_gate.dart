@@ -78,6 +78,7 @@ class AnkiOfficialReviewGate {
       final dao = OfficialAnkiMigrationDao(catalog);
       final sources = OfficialAnkiSourceDao(catalog);
       final sourceHash = await _sourceHashForImport(importId);
+      if (!context.mounted) return true;
       if (sourceHash != null && sourceHash.isNotEmpty) {
         router.adoptExistingIfCatalogMatches(
           dao: dao,
@@ -127,11 +128,11 @@ class AnkiOfficialReviewGate {
       final opened = ensureCollectionReadyOverride != null
           ? await ensureCollectionReadyOverride!(session)
           : await _ensureCollectionReady(session);
+      if (!context.mounted) return true;
       if (!opened) {
         _snackFailClosed(context);
         return true;
       }
-      if (!context.mounted) return true;
       if (navigatorOverride != null) {
         await navigatorOverride!(
           context,
@@ -197,7 +198,8 @@ class AnkiOfficialReviewGate {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          OfficialAnkiReviewerErrorView.localize('official_anki.review_fail_closed'),
+          OfficialAnkiReviewerErrorView.localize(
+              'official_anki.review_fail_closed'),
         ),
       ),
     );

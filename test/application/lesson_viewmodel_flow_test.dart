@@ -133,11 +133,6 @@ class _FakeStudyStatsProvider extends StudyStatsProvider {
   }
 }
 
-class _FakeAppPrefs implements AppPrefs {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
 class _ViewModelHarness {
   final LessonViewModel vm;
   final GameProvider gameProvider;

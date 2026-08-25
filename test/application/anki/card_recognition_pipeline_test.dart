@@ -60,8 +60,7 @@ AnkiNotetype _notetype(
 }) =>
     AnkiNotetype(id: id, name: name, fieldNames: fields, isCloze: isCloze);
 
-AnkiNote _note(int id, int mid, List<String> fields,
-        {String tags = ''}) =>
+AnkiNote _note(int id, int mid, List<String> fields, {String tags = ''}) =>
     AnkiNote(id: id, mid: mid, fields: fields, tags: tags);
 
 const _config = AiEngineConfig(apiKey: 'test-key');
@@ -105,7 +104,27 @@ void main() {
         reason: 'high-confidence rule hits never call the AI');
   });
 
-  test('undecided notetypes share ONE batched AI request with privacy-safe '
+  test('offline preview accepts explicit Front/Back field-name rules',
+      () async {
+    final engine = _RecordingAiEngine('{}');
+    final pipeline = CardRecognitionPipeline(
+      engine: engine,
+      ruleStore: AnkiNotetypeRuleStore(prefs),
+    );
+    final results = await pipeline.recognizeAll(
+      config: const AiEngineConfig(apiKey: ''),
+      notetypes: {3: _notetype(3, 'Basic', ['Front', 'Back'])},
+      notes: const [],
+    );
+
+    expect(results[3]!.source, CardRecognitionSource.rule);
+    expect(results[3]!.mapping.type, NotetypeMappingType.wordEntry);
+    expect(results[3]!.needsConfirmation, isFalse);
+    expect(engine.chatCalls, 0);
+  });
+
+  test(
+      'undecided notetypes share ONE batched AI request with privacy-safe '
       'features only', () async {
     final engine = _RecordingAiEngine(jsonEncode({
       'results': [
@@ -123,7 +142,9 @@ void main() {
       engine: engine,
       ruleStore: AnkiNotetypeRuleStore(prefs),
     );
-    final notetypes = {7: _notetype(7, 'Vocab', ['Front', 'Back', 'Extra'])};
+    final notetypes = {
+      7: _notetype(7, 'Vocab', ['Front', 'Back', 'Extra'])
+    };
     final notes = [
       _note(1, 7, ['ev', 'house', 'noun']),
       _note(2, 7, ['kitap', 'book', 'noun']),
@@ -145,16 +166,14 @@ void main() {
 
     // Privacy contract: the outbound user message carries shapes, never the
     // note content ("ev"/"house"/"kitap" must not appear anywhere).
-    final userMessage =
-        engine.lastMessages.last['content'].toString();
+    final userMessage = engine.lastMessages.last['content'].toString();
     expect(userMessage, contains('"avgLen"'));
     expect(userMessage, contains('Front'));
     expect(userMessage, isNot(contains('house')));
     expect(userMessage, isNot(contains('kitap')));
   });
 
-  test('shape-inconsistent AI verdicts are downgraded with warnings',
-      () async {
+  test('shape-inconsistent AI verdicts are downgraded with warnings', () async {
     final engine = _RecordingAiEngine(jsonEncode({
       'results': [
         {
@@ -173,8 +192,12 @@ void main() {
     );
     final results = await pipeline.recognizeAll(
       config: _config,
-      notetypes: {9: _notetype(9, 'Plain', ['Front', 'Back'])},
-      notes: [_note(1, 9, ['long sentence front', 'long answer back'])],
+      notetypes: {
+        9: _notetype(9, 'Plain', ['Front', 'Back'])
+      },
+      notes: [
+        _note(1, 9, ['long sentence front', 'long answer back'])
+      ],
     );
 
     final result = results[9]!;
@@ -194,7 +217,9 @@ void main() {
     );
     final results = await pipeline.recognizeAll(
       config: _config,
-      notetypes: {3: _notetype(3, 'Ambiguous', ['Front', 'Back'])},
+      notetypes: {
+        3: _notetype(3, 'Ambiguous', ['Front', 'Back'])
+      },
       notes: const [],
     );
 
@@ -223,7 +248,9 @@ void main() {
     // rule offline.
     final results = await pipeline.recognizeAll(
       config: _config,
-      notetypes: {11: _notetype(11, 'Renamed', ['Front', 'Back'])},
+      notetypes: {
+        11: _notetype(11, 'Renamed', ['Front', 'Back'])
+      },
       notes: const [],
     );
 

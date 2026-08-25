@@ -14,7 +14,7 @@ import 'package:turna/views/theme.dart';
 
 @RoutePage()
 class SectionPickerPage extends StatelessWidget {
-  const SectionPickerPage({Key? key}) : super(key: key);
+  const SectionPickerPage({super.key});
 
   @override
   Widget build(BuildContext context) {

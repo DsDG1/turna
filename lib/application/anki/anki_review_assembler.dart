@@ -149,10 +149,15 @@ class AnkiReviewAssembler {
   /// 5k-card Anki import does not rebuild/sort the mixed language+Anki due
   /// list on every hub tile. Returns cards sorted by due date (most overdue
   /// first); leeches are deprioritized to the end.
-  List<SrsWord> collectDue({String? sectionId, DateTime? now}) {
+  List<SrsWord> collectDue({
+    String? sectionId,
+    String? importId,
+    DateTime? now,
+  }) {
     final cutoff = now ?? DateTime.now();
-    final sectionImportId =
-        sectionId == null ? null : _extractImportIdFromSection(sectionId);
+    assert(sectionId == null || importId == null);
+    final sectionImportId = importId ??
+        (sectionId == null ? null : _extractImportIdFromSection(sectionId));
 
     final ankiDue = <SrsWord>[];
     final intro = CardIntroductionStore.resolve();
@@ -204,12 +209,14 @@ class AnkiReviewAssembler {
   /// Production review batch without the historical synthetic-Lesson layer.
   Future<List<AnkiReviewBatchCard>> assembleReviewBatchAsync({
     String? sectionId,
+    String? importId,
     int offset = 0,
     int? count,
     int? maxNew,
     int? maxReview,
   }) async {
-    var candidates = collectDue(sectionId: sectionId);
+    assert(sectionId == null || importId == null);
+    var candidates = collectDue(sectionId: sectionId, importId: importId);
     if (sectionId != null && _noteDao != null) {
       final importId = importIdFromSectionId(sectionId);
       final rootDid = _deckIdFromSectionId(sectionId);

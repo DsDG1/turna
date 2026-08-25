@@ -28,7 +28,7 @@ enum DepthGenre { grammar, synonyms, decompose, whyWrong }
 /// Reads the current question from [AiHintProvider.context] and the LLM config
 /// from [AiEngineConfigHolder], so it needs no constructor arguments.
 class AiDepthTutorSheet extends StatefulWidget {
-  const AiDepthTutorSheet({Key? key}) : super(key: key);
+  const AiDepthTutorSheet({super.key});
 
   @override
   State<AiDepthTutorSheet> createState() => _AiDepthTutorSheetState();

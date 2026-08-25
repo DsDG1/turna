@@ -88,7 +88,7 @@ void main() {
       repo = MockCourseRepository();
     });
 
-    AnkiCollection _buildTestCollection({int cardCount = 5}) {
+    AnkiCollection buildTestCollection({int cardCount = 5}) {
       final notes = <AnkiNote>[];
       final cards = <AnkiCardData>[];
 
@@ -125,7 +125,7 @@ void main() {
     }
 
     test('creates section with level "Anki"', () async {
-      final collection = _buildTestCollection(cardCount: 3);
+      final collection = buildTestCollection(cardCount: 3);
 
       final summary = await assembler.assemble(
         collection: collection,
@@ -213,7 +213,7 @@ void main() {
     });
 
     test('splits cards into lessons of 20', () async {
-      final collection = _buildTestCollection(cardCount: 45);
+      final collection = buildTestCollection(cardCount: 45);
 
       await assembler.assemble(
         collection: collection,
@@ -231,7 +231,7 @@ void main() {
     });
 
     test('uses LessonTemplate.legacy', () async {
-      final collection = _buildTestCollection(cardCount: 5);
+      final collection = buildTestCollection(cardCount: 5);
 
       await assembler.assemble(
         collection: collection,
@@ -332,7 +332,7 @@ void main() {
       // builds MultipleChoice. A 2-card deck has only 1 distractor and the
       // adapter (correctly) falls back to type-the-answer FillBlank instead of
       // fabricating a fake MCQ (deep-adaptation plan "禁止伪 MCQ" rule).
-      final collection = _buildTestCollection(cardCount: 4);
+      final collection = buildTestCollection(cardCount: 4);
 
       await assembler.assemble(
         collection: collection,
@@ -356,7 +356,7 @@ void main() {
       // Swap the front/back field indices and assert the MultipleChoice
       // prompt follows the override (Front field by default, Back field when
       // swapped). If mappingOverrides were ignored, both prompts would match.
-      final collection = _buildTestCollection(cardCount: 4);
+      final collection = buildTestCollection(cardCount: 4);
 
       // Default inferred mapping (Front=0/Back=1): front is the Front field.
       await AnkiDeckAssembler().assemble(
@@ -388,7 +388,7 @@ void main() {
     });
 
     test('Lite mode keeps every card in navigable lazy lessons', () async {
-      final collection = _buildTestCollection(cardCount: 10);
+      final collection = buildTestCollection(cardCount: 10);
       await assembler.assemble(
         collection: collection,
         importId: 'lite',
@@ -459,7 +459,7 @@ void main() {
 
     test('empty collection fails instead of reporting a blank success',
         () async {
-      final collection = const AnkiCollection(
+      const collection = AnkiCollection(
         notetypes: {},
         decks: {},
         notes: [],
@@ -537,7 +537,7 @@ void main() {
       expect(repo.writtenSections, isEmpty);
     });
 
-    AnkiCollection _buildTaggedCollection(
+    AnkiCollection buildTaggedCollection(
         List<({String tags, int id})> entries) {
       final notes = <AnkiNote>[];
       final cards = <AnkiCardData>[];
@@ -567,7 +567,7 @@ void main() {
     }
 
     test('smart grouping splits lessons by lesson:: tags', () async {
-      final collection = _buildTaggedCollection([
+      final collection = buildTaggedCollection([
         (tags: 'lesson::A', id: 1),
         (tags: 'lesson::A', id: 2),
         (tags: 'lesson::B', id: 3),
@@ -591,7 +591,7 @@ void main() {
     });
 
     test('smart grouping splits units by unit:: tags', () async {
-      final collection = _buildTaggedCollection([
+      final collection = buildTaggedCollection([
         (tags: 'unit::1', id: 1),
         (tags: 'unit::1', id: 2),
         (tags: 'unit::2', id: 3),
@@ -614,7 +614,7 @@ void main() {
     });
 
     test('smartGrouping disabled keeps flat chunking even with tags', () async {
-      final collection = _buildTaggedCollection([
+      final collection = buildTaggedCollection([
         (tags: 'lesson::A', id: 1),
         (tags: 'lesson::B', id: 2),
         (tags: 'lesson::A', id: 3),
@@ -640,7 +640,7 @@ void main() {
       final entries = [
         for (var i = 0; i < 22; i++) (tags: 'lesson::Big', id: i + 1),
       ];
-      final collection = _buildTaggedCollection(entries);
+      final collection = buildTaggedCollection(entries);
 
       await assembler.assemble(
         collection: collection,
@@ -832,7 +832,7 @@ void main() {
           () async {
         // 41 lessons × 20 cards = 820 cards → one logical unit must become
         // two units (40 + 1) so validateSectionTree accepts the tree.
-        final collection = _buildTestCollection(cardCount: 820);
+        final collection = buildTestCollection(cardCount: 820);
 
         final summary = await assembler.assemble(
           collection: collection,

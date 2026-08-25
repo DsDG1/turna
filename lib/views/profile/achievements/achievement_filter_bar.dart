@@ -49,7 +49,7 @@ class AchievementFilterBar extends StatelessWidget {
     int? count,
   ) {
     final isSelected = filter == selected;
-    final accent = TurnaTheme.anatolianClay;
+    const accent = TurnaTheme.anatolianClay;
     final text = count == null ? label : '$label $count';
     return Semantics(
       button: true,

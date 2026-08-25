@@ -12,7 +12,7 @@
 
 | 顺序 | 文档 | 用途 | 当前状态 |
 |---|---|---|---|
-| **34** | [Official 生产收口与 OHOS 退役](./34-official-anki-production-cutover-and-ohos-retirement-plan.md) | **唯一活跃施工入口**：W0–W10 止血、OHOS EOL、owner census、Official import/review、Legacy 迁移与分波删除 | **验收 NO-GO**；2026-08-25 一次性施工完成 R0–R8 host 侧并全绿（analyze 0 error / 全量 1825:0 / golden 4:4 / arm64 APK 55.8MB），形成生产候选；真机矩阵与外部事实未验收，明细见 [34-remaining §18](./34-remaining-construction-plan.md) 与 [收据](./34-cutover-receipt.md)；W9 HOLD |
+| **34** | [Official 生产收口与 OHOS 退役](./34-official-anki-production-cutover-and-ohos-retirement-plan.md) | **唯一活跃施工入口**：W0–W10 止血、OHOS EOL、owner census、Official import/review、Legacy 迁移与分波删除 | **验收 NO-GO**；2026-08-25 一次性施工完成 R0–R8 host 侧并全绿（analyze 0 issue / 全量 1852:0 / golden 4:4 / native 68:0 / arm64 APK 56.1MB），形成工作树生产候选；真机矩阵与外部事实未验收，明细见 [34-remaining §18](./34-remaining-construction-plan.md) 与 [收据](./34-cutover-receipt.md)；W9 HOLD |
 | 28 | [P5-D 后续大施工计划](./28-p5d-remainder-construction-plan.md) | 历史 D2 手册 + 灰度锁 | **由 34 接管**；灰度 cohort /「OHOS 继续 Legacy」作废（ADR 0041） |
 | 30 | [官方 Anki 卡按语言课体验投影与渲染](./30-course-like-card-experience-plan.md) | 在官方核心之上恢复自动题型识别、语言课渲染、翻面/展开动画；评分仍写官方 Scheduler | **已实施（Host / Unit 验证通过）**；生产默认与 chrome 见 **34** |
 | 31 | [Anki 产品体验收口](./31-anki-product-experience-plan.md) | 历史产品体验规格 | **由 34 接管 / superseded**；勿再按本文件单独开施工波次 |

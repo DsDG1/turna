@@ -262,6 +262,22 @@ class AnkiUnificationDao {
     );
   }
 
+  /// Remove only the rebuildable placement/presentation rows for a course.
+  /// Re-import uses this inside its enclosing transaction before inserting
+  /// the new source fingerprint. Introduction state and product events are
+  /// retained so replacing a package never erases learning history.
+  Future<void> deleteProjectionIdentityByCourseId(String courseId) async {
+    for (final table in const [
+      'anki_course_card_placements',
+      'anki_card_presentations',
+    ]) {
+      await _db.customStatement(
+        'DELETE FROM $table WHERE course_id = ?',
+        [courseId],
+      );
+    }
+  }
+
   /// P5F-31: drop every unification row owned by [courseId] (official source
   /// uninstall). These tables have no inbound foreign keys, so plain deletes
   /// in any order are safe inside the caller's flow.

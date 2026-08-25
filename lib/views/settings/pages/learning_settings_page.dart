@@ -45,19 +45,16 @@ class _LearningSettingsPageState extends State<LearningSettingsPage> {
         confirmText: AppStrings.settingsResetLearningDefaultsConfirm,
       ),
     );
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !context.mounted) return;
 
     final result = await getIt<ResetLearningSettingsCommand>().execute();
-    if (!mounted) return;
+    if (!context.mounted) return;
     switch (result) {
       case SettingsOperationSuccess():
         setState(() => _ankiEpoch++);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text(AppStrings.settingsResetLearningDefaultsDone)),
-          );
-        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(AppStrings.settingsResetLearningDefaultsDone)),
+        );
       case SettingsOperationFailure(:final userMessage):
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(userMessage)),

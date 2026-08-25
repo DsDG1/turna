@@ -23,7 +23,7 @@ class AchievementUnlockBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (unlocks.isEmpty) return const SizedBox.shrink();
-    final accent = TurnaTheme.anatolianClay;
+    const accent = TurnaTheme.anatolianClay;
     final first = unlocks.first;
     final firstSeriesTitle = AchievementUiCatalog.titleFor(first.seriesId);
     final cosmetic = AchievementUiCatalog.cosmeticLabel(first.cosmeticRewardId);
@@ -71,7 +71,7 @@ class AchievementUnlockBanner extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   unlocks.length > 1
-                      ? '${firstSeriesTitle}${_moreSuffix(context)}'
+                      ? '$firstSeriesTitle${_moreSuffix(context)}'
                       : '$firstSeriesTitle · ${first.target} · '
                             '+${first.gemReward} ${AppStrings.achievementsGemRewardSuffix}'
                             '${cosmetic != null ? ' · $cosmetic' : ''}',
