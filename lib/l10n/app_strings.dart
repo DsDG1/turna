@@ -1379,6 +1379,8 @@ class AppStrings {
   static String get ankiStrategyWarningBadge => '注意';
   static String get ankiReviewTitle => 'Anki 复习';
   static String get ankiNoCardsDue => '暂无待复习的 Anki 卡片。';
+  static String get ankiFormalReviewEmptyHint =>
+      '新导入或重置进度的卡片需要先在课程里学习，才会进入正式复习。';
   static String get ankiReviewPreparing => '正在准备本批卡片…';
   static String get ankiReviewLoadFailed => '加载复习卡片失败';
   static String ankiReviewLoadFailedDetail(Object error) => '加载失败：$error';

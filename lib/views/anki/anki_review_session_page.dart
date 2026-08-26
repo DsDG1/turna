@@ -534,6 +534,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
   Widget build(BuildContext context) {
     final reviewAll = _sourceCoordinator;
     if (_reviewAllComplete && reviewAll != null) {
+      final empty = reviewAll.totalCount == 0;
       return Scaffold(
         body: SafeArea(
           child: Column(
@@ -560,13 +561,19 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
                   ),
                 ),
               Expanded(
-                child: UnifiedReviewCompletion(
-                  totalCount: reviewAll.totalCount,
-                  rememberedCount: reviewAll.rememberedCount,
-                  forgottenCount: reviewAll.forgottenCount,
-                  elapsed: Duration.zero,
-                  onFinish: () => Navigator.of(context).maybePop(),
-                ),
+                child: empty
+                    ? _AnkiFormalReviewEmptyPanel(
+                        onClose: () => Navigator.of(context).maybePop(),
+                      )
+                    : UnifiedReviewCompletion(
+                        totalCount: reviewAll.totalCount,
+                        rememberedCount: reviewAll.rememberedCount,
+                        forgottenCount: reviewAll.forgottenCount,
+                        elapsed: Duration.zero,
+                        xpEarned: 0,
+                        gemsEarned: 0,
+                        onFinish: () => Navigator.of(context).maybePop(),
+                      ),
               ),
             ],
           ),
@@ -627,7 +634,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
                           ),
                         ],
                       )
-                    : Text(AppStrings.ankiNoCardsDue),
+                    : _AnkiFormalReviewEmptyPanel(),
       ),
     );
   }
@@ -649,6 +656,59 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
       _loading = true;
     });
     await _start();
+  }
+}
+
+/// Empty formal-review set: not a completed session. New/reset cards are
+/// learned in the course tree first.
+class _AnkiFormalReviewEmptyPanel extends StatelessWidget {
+  const _AnkiFormalReviewEmptyPanel({this.onClose});
+
+  final VoidCallback? onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 28),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.style_outlined,
+            size: 48,
+            color: TurnaTheme.textHintColor(context),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            AppStrings.ankiNoCardsDue,
+            key: const Key('anki-formal-review-empty'),
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            AppStrings.ankiFormalReviewEmptyHint,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: TurnaTheme.textSecondaryColor(context),
+                ),
+          ),
+          if (onClose != null) ...[
+            const SizedBox(height: 32),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: OutlinedButton(
+                onPressed: onClose,
+                child: Text(AppStrings.commonDone),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }
 
@@ -753,7 +813,17 @@ class _AnkiStudySessionView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (controller.isComplete || controller.items.isEmpty) {
+    if (controller.items.isEmpty ||
+        (controller.isComplete && controller.totalCount == 0)) {
+      return Scaffold(
+        body: SafeArea(
+          child: _AnkiFormalReviewEmptyPanel(
+            onClose: () => Navigator.of(context).maybePop(),
+          ),
+        ),
+      );
+    }
+    if (controller.isComplete) {
       return Scaffold(
         body: SafeArea(
           child: UnifiedReviewCompletion(
@@ -761,6 +831,8 @@ class _AnkiStudySessionView extends StatelessWidget {
             rememberedCount: controller.rememberedCount,
             forgottenCount: controller.forgottenCount,
             elapsed: DateTime.now().difference(controller.startedAt),
+            xpEarned: 0,
+            gemsEarned: 0,
             onFinish: () => Navigator.of(context).maybePop(),
           ),
         ),

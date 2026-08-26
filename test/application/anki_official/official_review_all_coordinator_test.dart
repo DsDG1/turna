@@ -182,6 +182,36 @@ void main() {
     expect(batch.items.map((i) => i.cardKey.cardId).toSet(), {1, 2});
   });
 
+  test('unintroduced scheduler cards are NoDue, not a ready empty session',
+      () async {
+    final loader = OfficialFormalReviewProductionLoader(
+      flags: _flags,
+      engine: engine,
+      resolveTarget: (importId) async => OfficialAnkiRoutedSource(
+        importId: importId,
+        sourceId: importId,
+        deckId: 1,
+        cardIds: const {1, 2},
+      ),
+      sessionFactory: ({
+        required engine,
+        required allowedCardIds,
+      }) async =>
+          OfficialReviewSession(
+        engine: engine,
+        flags: _flags,
+        allowedCardIds: allowedCardIds,
+        profileId: 'profile-test',
+      ),
+      introducedCardIds: (_) => const {},
+      activePlacementCardIds: (_) => const {1, 2},
+      profileId: 'profile-test',
+    );
+
+    final result = await loader.load(importId: 'src-new', courseId: 'anki-src-new');
+    expect(result, isA<OfficialFormalReviewNoDue>());
+  });
+
   test('fidelity-first presentations reach the batch items', () async {
     engine.renders[1] = OfficialAnkiRenderedCard(
       cardId: 1,

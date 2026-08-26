@@ -29,7 +29,8 @@ class UnifiedReviewCompletion extends StatelessWidget {
   Widget build(BuildContext context) {
     final recallRate = totalCount > 0
         ? ((rememberedCount / totalCount) * 100).round()
-        : 100;
+        : 0;
+    final showRewards = totalCount > 0 && (xpEarned > 0 || gemsEarned > 0);
 
     return Center(
       child: Padding(
@@ -88,23 +89,27 @@ class UnifiedReviewCompletion extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _RewardBadge(
-                  icon: Icons.bolt_rounded,
-                  label: AppStrings.reviewXpEarned(xpEarned),
-                  color: TurnaTheme.warning,
-                ),
-                const SizedBox(width: 12),
-                _RewardBadge(
-                  icon: Icons.diamond_rounded,
-                  label: AppStrings.reviewGemsEarned(gemsEarned),
-                  color: TurnaTheme.brandSky,
-                ),
-              ],
-            ),
+            if (showRewards) ...[
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (xpEarned > 0)
+                    _RewardBadge(
+                      icon: Icons.bolt_rounded,
+                      label: AppStrings.reviewXpEarned(xpEarned),
+                      color: TurnaTheme.warning,
+                    ),
+                  if (xpEarned > 0 && gemsEarned > 0) const SizedBox(width: 12),
+                  if (gemsEarned > 0)
+                    _RewardBadge(
+                      icon: Icons.diamond_rounded,
+                      label: AppStrings.reviewGemsEarned(gemsEarned),
+                      color: TurnaTheme.brandSky,
+                    ),
+                ],
+              ),
+            ],
             // Achievement unlocks from this review session surface here,
             // in the same completion surface as the XP / gem rewards.
             const AchievementFeedbackBanner(),

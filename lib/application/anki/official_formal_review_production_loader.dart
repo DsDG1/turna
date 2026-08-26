@@ -234,6 +234,23 @@ class OfficialFormalReviewProductionLoader {
           item.sessionItemId: byCardId[item.cardKey.cardId]!,
     };
 
+    if (batch.items.isEmpty) {
+      session.dispose();
+      if (failures.isNotEmpty) {
+        // Every card that rendered was filtered by eligibility, but some
+        // renders also failed — the scheduler still owes those. Surface as
+        // Blocked rather than pretending the source is done.
+        return OfficialFormalReviewBlocked(
+          sourceId: sourceId,
+          failures: failures,
+          schedulerCardCount: queue.cards.length,
+        );
+      }
+      // Queue may still hold unintroduced new cards. Formal review is
+      // empty — not a successful zero-card session.
+      return const OfficialFormalReviewNoDue();
+    }
+
     // Live queue driver: the page rebuilds the batch from the scheduler's
     // refreshed queue after every mutation (plan 34 D4). Legacy test
     // overrides without faces run without a live queue.
@@ -255,18 +272,6 @@ class OfficialFormalReviewProductionLoader {
     liveQueue?.fidelityInteractions.addAll(fidelity);
     if (faces.isNotEmpty) {
       liveQueue!.adoptFaces(faces);
-    }
-
-    if (batch.items.isEmpty && failures.isNotEmpty) {
-      // Every card that rendered was filtered by eligibility, but some
-      // renders also failed — the scheduler still owes those. Surface as
-      // Blocked rather than pretending the source is done.
-      session.dispose();
-      return OfficialFormalReviewBlocked(
-        sourceId: sourceId,
-        failures: failures,
-        schedulerCardCount: queue.cards.length,
-      );
     }
 
     return OfficialFormalReviewReady(

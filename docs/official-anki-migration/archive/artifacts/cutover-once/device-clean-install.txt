@@ -1,0 +1,38 @@
+# device-clean-install (partial) — 2026-08-27
+
+status: IN PROGRESS / NOT a §12 pass
+device: Vivo V2502A (PD2502) serial 10AF9U0P9P002DJ abi arm64-v8a Android 16
+apk: build/app/outputs/flutter-apk/app-arm64-v8a-release.apk
+on-device sha256: ed959ffc631f5ec28a7d83d11302ee619de1c2c91d1c9e79bf1d554fbdc4a27f
+matches cutover-once/apk-sha256.txt: YES
+prior install: uninstalled debug 0.7.2 (DEBUGGABLE) then fresh install release 0.7.1 versionCode 2002
+
+## What was executed
+
+1. Cold start → Learn = Turkish / Section 1 / Greetings 0/6. No Anki sections. PASS
+2. Course management: only default Turkish. Official internal import not listed. PASS (internal routes not on this surface)
+3. User picked real package `Download/2026_1000_.apkg` (not p5c classic-basic). Official-first preview: 2 decks, 1247 notes, 1247 cards; notetypes 1000题 / Basic / Basic reversed.
+4. Commit → 导入完成：1247 张卡片、86 节课；结构化卡片 0；HTML 保真卡片 0；词汇条目 1247；学习进度按新卡重置.
+5. 完成 → course management still 当前=Turkish; new catalog row sourceId `src-a9b9e7f278a5494a93a21b17ba0eb50c` (full id, not truncated). PASS stay-on-language-course
+6. Learn tab still Greetings only. PASS
+7. Switch to Anki course → header shows raw sourceId; section「1000 题」with Chinese textbook units; no Greetings mix. PASS isolation
+8. 练习 Anki 复习 badge「—」; opening review → empty session「本轮完成」0/0. FAIL vs §12.1 review/fidelity/Again
+
+## Not executed (need another pass)
+
+- second Cloze source B + 查看牌组 highlight
+- Again/Hard/Good/Easy, Undo/Redo/Bury/Suspend
+- Review All across A/B
+- Browser / Stats / Media
+- reimport / exact uninstall / backup-restore / process-kill recovery
+- upgrade-install matrix / migration zip matrix
+
+## Screenshots
+
+device-clean/01-cold-start.png … 16-settings.png
+
+## Notes
+
+- File picker on this OEM is not reliably automatable; user selected the package.
+- Mapping labels on this APK (保存 / 跳过这类卡片) differ from current tree (确认正确 / 不转换这类卡片).
+- Course switcher title for Official source is the src- id, not deck display name.

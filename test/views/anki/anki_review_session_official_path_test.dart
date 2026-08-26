@@ -410,6 +410,64 @@ void main() {
       expect(find.textContaining('Q1'), findsWidgets);
     },
   );
+
+  testWidgets(
+    'Review All with no introduced cards shows empty state, not fake completion',
+    (tester) async {
+      _registerOfficialImport('src-new-only');
+
+      final engine = FakeOfficialAnkiEngine();
+      engine.seedPackage(packagePath: 'new-only.apkg', notes: 2, cards: 2);
+
+      AnkiReviewSessionPage.productionLoader =
+          OfficialFormalReviewProductionLoader(
+        flags: flags,
+        engine: engine,
+        resolveTarget: (_) async => const OfficialAnkiRoutedSource(
+          importId: 'src-new-only',
+          sourceId: 'src-new-only',
+          deckId: 1,
+          cardIds: {1, 2},
+        ),
+        introducedCardIds: (_) => {},
+        activePlacementCardIds: (_) => {1, 2},
+        sessionFactory: ({
+          required engine,
+          required allowedCardIds,
+        }) async {
+          return OfficialReviewSession(
+            engine: engine,
+            flags: flags,
+            allowedCardIds: allowedCardIds,
+          );
+        },
+      );
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<SrsProvider>.value(value: srs),
+            ChangeNotifierProvider(create: (_) => CourseProvider(appPrefs)),
+          ],
+          child: const MaterialApp(
+            home: AnkiReviewSessionPage(),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 20));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.text(AppStrings.reviewCompletionTitle), findsNothing);
+      expect(find.text(AppStrings.reviewXpEarned(15)), findsNothing);
+      expect(find.text(AppStrings.reviewGemsEarned(5)), findsNothing);
+      expect(find.byKey(const Key('anki-formal-review-empty')), findsOneWidget);
+      expect(find.text(AppStrings.ankiNoCardsDue), findsOneWidget);
+      expect(find.text(AppStrings.ankiFormalReviewEmptyHint), findsOneWidget);
+    },
+  );
 }
 
 
