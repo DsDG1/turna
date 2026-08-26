@@ -1,7 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:turna/application/anki/card_introduction_store.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_eligibility.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_update.dart';
+import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/domain/anki/canonical_card_key.dart';
+import 'package:turna/domain/course/srs_word.dart';
 
 /// How much a due number can be trusted (plan 34 D6 / R3-1).
 enum FormalDueKnowledge {
@@ -20,46 +25,50 @@ enum FormalDueKnowledge {
 /// The six formal-due sets for one Official source (plan 34 §R3):
 /// formalDue = schedulerDue ∩ activePlacement ∩ introduced
 ///             − suspended − buried − retired.
+///
+/// Instances stored inside an [OfficialFormalDueSnapshot] are frozen: every
+/// set is unmodifiable. Mutations go through
+/// [OfficialFormalDueRepository.mutateSource], which still commits a full
+/// snapshot.
 @immutable
 class OfficialFormalDuePerSource {
-  const OfficialFormalDuePerSource({
+  OfficialFormalDuePerSource({
     required this.importId,
     required this.knowledge,
-    this.schedulerDueCardIds = const {},
-    this.activePlacementCardIds = const {},
-    this.introducedCardIds = const {},
-    this.suspendedCardIds = const {},
-    this.buriedCardIds = const {},
-    this.retiredCardIds = const {},
-    this.resolveIntroducedAtReadTime = true,
-  });
+    Set<int> schedulerDueCardIds = const {},
+    Set<int> activePlacementCardIds = const {},
+    Set<int> introducedCardIds = const {},
+    Set<int> suspendedCardIds = const {},
+    Set<int> buriedCardIds = const {},
+    Set<int> retiredCardIds = const {},
+  })  : schedulerDueCardIds = Set.unmodifiable(schedulerDueCardIds),
+        activePlacementCardIds = Set.unmodifiable(activePlacementCardIds),
+        introducedCardIds = Set.unmodifiable(introducedCardIds),
+        suspendedCardIds = Set.unmodifiable(suspendedCardIds),
+        buriedCardIds = Set.unmodifiable(buriedCardIds),
+        retiredCardIds = Set.unmodifiable(retiredCardIds);
 
   final String importId;
   final FormalDueKnowledge knowledge;
   final Set<int> schedulerDueCardIds;
   final Set<int> activePlacementCardIds;
 
-  /// Seeded introduction set. When [resolveIntroducedAtReadTime] is true
-  /// (production default) the introduction store is re-read on every
-  /// [formalDueCardKeys] call, because marks happen at review time and a
-  /// stored snapshot would go stale within the same session.
+  /// Introduction set as of the last snapshot commit. The introduction
+  /// store publishes change events after persisting; the repository folds
+  /// them into new snapshots — there is no getter-time bypass.
   final Set<int> introducedCardIds;
   final Set<int> suspendedCardIds;
   final Set<int> buriedCardIds;
   final Set<int> retiredCardIds;
-  final bool resolveIntroducedAtReadTime;
 
   /// Exact formal-due keys. Empty when [knowledge] is not [known].
   Set<CanonicalCardKey> get formalDueCardKeys {
     if (knowledge != FormalDueKnowledge.known) return const {};
-    final introduced = resolveIntroducedAtReadTime
-        ? CardIntroductionStore.resolve().introducedCardIdsForSource(importId)
-        : introducedCardIds;
     return computeFormalDueCardKeysForSource(
       sourceId: importId,
       officialSchedulerDueCardIds: schedulerDueCardIds,
       activePlacementCardIds: activePlacementCardIds,
-      introducedCardIds: introduced,
+      introducedCardIds: introducedCardIds,
       suspendedCardIds: suspendedCardIds,
       buriedCardIds: buriedCardIds,
       retiredCardIds: retiredCardIds,
@@ -98,6 +107,10 @@ class OfficialFormalDueSnapshot {
   /// for the "new/unintroduced" hint, never for formal due.
   final Map<String, int> rawDueByImport;
   final int unintroducedNew;
+
+  /// Turna-side due total. Production collectors never write it (Play Hub
+  /// computes the aggregate at read time); the field only exists so a
+  /// future SrsProvider-owned refresh can carry it atomically.
   final int turnaDue;
 
   static const OfficialFormalDueSnapshot empty = OfficialFormalDueSnapshot(
@@ -134,96 +147,224 @@ class OfficialFormalDueSnapshot {
   }
 }
 
-/// The single repository for Official formal-due state (plan 34 D6).
+/// Outcome of a [OfficialFormalDueRepository.commit] /
+/// [OfficialFormalDueRepository.mutateSource] attempt.
+enum OfficialFormalDueCommitResult {
+  /// A new complete snapshot landed (generation + 1, one notification).
+  committed,
+
+  /// The expected generation no longer matches — a newer snapshot won and
+  /// this write was dropped instead of overwriting it.
+  stale,
+
+  /// The source is not present in the current snapshot (the mutation had
+  /// nothing to transform).
+  missingSource,
+}
+
+/// The single production writer for Official formal-due state (plan 34 D6,
+/// maintainability plan Wave 1).
 ///
-/// Home, Play Hub, Profile, Review All and Stats read this snapshot; UIs
-/// never decrement counts themselves — mutations call [refreshFromMutation]
-/// or a full sync. [OfficialAnkiHomeDue] is a thin compatibility facade
-/// over this repository.
+/// Home, Play Hub, Profile, Review All and Stats read [snapshot]; the ONLY
+/// way state changes is one atomic [commit] of a complete
+/// [OfficialFormalDueUpdate] or a full-snapshot [mutateSource] — never a
+/// per-field write. Failed refreshes call [markUnavailable] and keep the
+/// last complete snapshot visible.
 class OfficialFormalDueRepository extends ChangeNotifier {
-  OfficialFormalDueRepository._();
+  OfficialFormalDueRepository._() {
+    _introductionSubscription = CardIntroductionStore.changes.listen(
+      _onIntroductionChanged,
+    );
+  }
 
   static final OfficialFormalDueRepository instance =
       OfficialFormalDueRepository._();
 
   OfficialFormalDueSnapshot _snapshot = OfficialFormalDueSnapshot.empty;
-  OfficialFormalDueSnapshot? _rollbackSnapshot;
+
+  // Kept so a future repository teardown can detach from the introduction
+  // store; the singleton lives for the process lifetime (never cancelled).
+  // ignore: unused_field, cancel_subscriptions
+  StreamSubscription<CardIntroductionChanged>? _introductionSubscription;
+
+  /// Sources whose introduction events could not land because the source
+  /// was absent from the snapshot at event time. The next full refresh
+  /// rebuilds them from the introduction store.
+  final Set<String> pendingIntroductionSources = {};
+
+  /// Optional hook fired when an introduction event races a refresh and
+  /// loses; the sync layer may trigger a source-scoped refresh here.
+  void Function(String sourceId)? onSourceRefreshNeeded;
 
   OfficialFormalDueSnapshot get snapshot => _snapshot;
   int get generation => _snapshot.generation;
 
-  /// Whether [apply] with a given generation would be stale.
+  /// Whether [commit] with a given generation would be stale. Production
+  /// refreshes must consult this (or handle a stale [commit] result)
+  /// instead of blind-writing.
   bool isStale(int generation) => generation != _snapshot.generation;
 
-  /// Applies a fresh sync result as the new snapshot. Bumps the
-  /// generation so older in-flight results become detectably stale.
-  void apply({
-    Map<String, OfficialFormalDuePerSource> byImport = const {},
-    Map<String, int> rawDueByImport = const {},
-    int unintroducedNew = 0,
-    int turnaDue = 0,
-    bool unavailable = false,
-    Object? error,
+  /// Applies one complete refresh result as the new snapshot: generation
+  /// +1, exactly one notification. Generation CAS — a refresh whose base
+  /// generation no longer matches returns [OfficialFormalDueCommitResult.stale]
+  /// and changes nothing.
+  OfficialFormalDueCommitResult commit(
+    OfficialFormalDueUpdate update, {
+    required int basedOnGeneration,
   }) {
-    _snapshot = OfficialFormalDueSnapshot(
-      generation: _snapshot.generation + 1,
-      byImport: Map.unmodifiable(byImport),
-      rawDueByImport: Map.unmodifiable(rawDueByImport),
-      unintroducedNew: unintroducedNew,
-      turnaDue: turnaDue,
-      unavailable: unavailable,
-      error: error,
+    if (basedOnGeneration != _snapshot.generation) {
+      return OfficialFormalDueCommitResult.stale;
+    }
+    _installSnapshot(
+      OfficialFormalDueSnapshot(
+        generation: _snapshot.generation + 1,
+        byImport: _freezeBySource(update.bySource),
+        rawDueByImport: Map.unmodifiable(update.rawDueBySource),
+        unintroducedNew: update.unintroducedNew,
+        turnaDue: update.turnaDue,
+        unavailable: update.unavailable,
+        error: update.error,
+      ),
     );
-    notifyListeners();
+    pendingIntroductionSources.clear();
+    return OfficialFormalDueCommitResult.committed;
   }
 
-  /// Saves the current snapshot for a later [rollback].
-  void saveForRollback() {
-    _rollbackSnapshot = _snapshot;
-  }
-
-  /// Restores the saved snapshot as a NEW generation (so listeners and
-  /// stale checks behave normally) — used when a mutation's optimistic
-  /// refresh fails and the six sets must return to their last good state.
-  void rollback() {
-    final saved = _rollbackSnapshot;
-    if (saved == null) return;
-    _snapshot = OfficialFormalDueSnapshot(
-      generation: _snapshot.generation + 1,
-      byImport: saved.byImport,
-      rawDueByImport: saved.rawDueByImport,
-      unintroducedNew: saved.unintroducedNew,
-      turnaDue: saved.turnaDue,
-      unavailable: saved.unavailable,
-      error: saved.error,
+  /// Mutates one source's six sets and commits the result as a full new
+  /// snapshot (still one generation bump, one notification). The transform
+  /// receives the CURRENT frozen per-source state and returns the next
+  /// one; it must not retain references to the input's sets.
+  ///
+  /// Generation CAS protects against clobbering a refresh that landed
+  /// between the caller's read and this mutation.
+  OfficialFormalDueCommitResult mutateSource(
+    String sourceId, {
+    int? expectedGeneration,
+    required OfficialFormalDuePerSource Function(OfficialFormalDuePerSource)
+        transform,
+  }) {
+    if (expectedGeneration != null &&
+        expectedGeneration != _snapshot.generation) {
+      return OfficialFormalDueCommitResult.stale;
+    }
+    final current = _snapshot.byImport[sourceId];
+    if (current == null) return OfficialFormalDueCommitResult.missingSource;
+    final next = transform(current);
+    _installSnapshot(
+      OfficialFormalDueSnapshot(
+        generation: _snapshot.generation + 1,
+        byImport: Map.unmodifiable({
+          ..._snapshot.byImport,
+          sourceId: _freezePerSource(next),
+        }),
+        rawDueByImport: _snapshot.rawDueByImport,
+        unintroducedNew: _snapshot.unintroducedNew,
+        turnaDue: _snapshot.turnaDue,
+        unavailable: false,
+      ),
     );
-    _rollbackSnapshot = null;
-    notifyListeners();
+    return OfficialFormalDueCommitResult.committed;
   }
 
   /// Marks the whole snapshot unavailable after a failed refresh — the
-  /// previous sets stay visible (stale) instead of being zeroed.
+  /// previous complete sets stay visible (stale) instead of being zeroed.
   void markUnavailable(Object error) {
-    _snapshot = OfficialFormalDueSnapshot(
-      generation: _snapshot.generation + 1,
-      byImport: _snapshot.byImport,
-      rawDueByImport: _snapshot.rawDueByImport,
-      unintroducedNew: _snapshot.unintroducedNew,
-      turnaDue: _snapshot.turnaDue,
-      unavailable: true,
-      error: error,
+    _installSnapshot(
+      OfficialFormalDueSnapshot(
+        generation: _snapshot.generation + 1,
+        byImport: _snapshot.byImport,
+        rawDueByImport: _snapshot.rawDueByImport,
+        unintroducedNew: _snapshot.unintroducedNew,
+        turnaDue: _snapshot.turnaDue,
+        unavailable: true,
+        error: error,
+      ),
     );
+  }
+
+  /// Test-only reset. Production state changes exclusively through
+  /// [commit]/[mutateSource]/[markUnavailable].
+  void resetForTest() {
+    _snapshot = OfficialFormalDueSnapshot.empty;
+    pendingIntroductionSources.clear();
     notifyListeners();
   }
 
-  void reset() {
-    _snapshot = OfficialFormalDueSnapshot.empty;
-    _rollbackSnapshot = null;
+  void _installSnapshot(OfficialFormalDueSnapshot next) {
+    _snapshot = next;
     notifyListeners();
+  }
+
+  void _onIntroductionChanged(CardIntroductionChanged event) {
+    final current = _snapshot.byImport[event.sourceId];
+    if (current == null) {
+      pendingIntroductionSources.add(event.sourceId);
+      return;
+    }
+    OfficialFormalDuePerSource next;
+    switch (event.kind) {
+      case CardIntroductionChangeKind.introduced:
+        if (current.introducedCardIds.contains(event.cardId)) return;
+        next = OfficialFormalDuePerSource(
+          importId: current.importId,
+          knowledge: current.knowledge,
+          schedulerDueCardIds: current.schedulerDueCardIds,
+          activePlacementCardIds: current.activePlacementCardIds,
+          introducedCardIds: {...current.introducedCardIds, event.cardId},
+          suspendedCardIds: current.suspendedCardIds,
+          buriedCardIds: current.buriedCardIds,
+          retiredCardIds: current.retiredCardIds,
+        );
+      case CardIntroductionChangeKind.retired:
+        next = OfficialFormalDuePerSource(
+          importId: current.importId,
+          knowledge: current.knowledge,
+          schedulerDueCardIds: current.schedulerDueCardIds,
+          activePlacementCardIds: current.activePlacementCardIds,
+          introducedCardIds:
+              current.introducedCardIds.difference({event.cardId}),
+          suspendedCardIds: current.suspendedCardIds,
+          buriedCardIds: current.buriedCardIds,
+          retiredCardIds: {...current.retiredCardIds, event.cardId},
+        );
+    }
+    final result = mutateSource(
+      event.sourceId,
+      transform: (_) => next,
+    );
+    if (result != OfficialFormalDueCommitResult.committed) {
+      // A refresh won the race; ask the sync layer to re-collect this
+      // source instead of last-write-wins overwriting newer data.
+      pendingIntroductionSources.add(event.sourceId);
+      onSourceRefreshNeeded?.call(event.sourceId);
+    }
+  }
+
+  static Map<String, OfficialFormalDuePerSource> _freezeBySource(
+    Map<String, OfficialFormalDuePerSource> bySource,
+  ) {
+    return Map.unmodifiable({
+      for (final entry in bySource.entries) entry.key: _freezePerSource(entry.value),
+    });
+  }
+
+  static OfficialFormalDuePerSource _freezePerSource(
+    OfficialFormalDuePerSource per,
+  ) {
+    return OfficialFormalDuePerSource(
+      importId: per.importId,
+      knowledge: per.knowledge,
+      schedulerDueCardIds: per.schedulerDueCardIds,
+      activePlacementCardIds: per.activePlacementCardIds,
+      introducedCardIds: per.introducedCardIds,
+      suspendedCardIds: per.suspendedCardIds,
+      buriedCardIds: per.buriedCardIds,
+      retiredCardIds: per.retiredCardIds,
+    );
   }
 
   // -------------------------------------------------------------------
-  // Convenience accessors (facade-compatible views over the snapshot)
+  // Convenience accessors (read-only views over the snapshot)
   // -------------------------------------------------------------------
 
   Set<String> get officialImportIds => _snapshot.byImport.keys.toSet();
@@ -251,30 +392,35 @@ class OfficialFormalDueRepository extends ChangeNotifier {
 
   Set<int> retiredCardIdsFor(String importId) =>
       _snapshot.byImport[importId]?.retiredCardIds ?? const {};
-}
 
-/// Computes the per-source six-set view used by the repository, resolving
-/// the introduced set through the introduction store.
-OfficialFormalDuePerSource buildFormalDuePerSource({
-  required String importId,
-  required Set<int> schedulerDueCardIds,
-  required bool schedulerDueSynced,
-  required Set<int> activePlacementCardIds,
-  required Set<int> suspendedCardIds,
-  required Set<int> buriedCardIds,
-  required Set<int> retiredCardIds,
-}) {
-  return OfficialFormalDuePerSource(
-    importId: importId,
-    knowledge: schedulerDueSynced
-        ? FormalDueKnowledge.known
-        : FormalDueKnowledge.unknown,
-    schedulerDueCardIds: schedulerDueCardIds,
-    activePlacementCardIds: activePlacementCardIds,
-    introducedCardIds:
-        CardIntroductionStore.resolve().introducedCardIdsForSource(importId),
-    suspendedCardIds: suspendedCardIds,
-    buriedCardIds: buriedCardIds,
-    retiredCardIds: retiredCardIds,
-  );
+  // -------------------------------------------------------------------
+  // Aggregation helpers shared by Home / Play Hub / Profile
+  // -------------------------------------------------------------------
+
+  /// Legacy (Turna SRS) due words that are NOT owned by an Official
+  /// source. Never merge Official and Turna stores into one writer.
+  int legacyAnkiDueExcludingOfficial(Iterable<SrsWord> dueWords) {
+    final intro = CardIntroductionStore.resolve();
+    var n = 0;
+    for (final word in dueWords) {
+      if (!word.wordId.startsWith(LegacyAnkiIdentifiers.ankiPrefix)) continue;
+      final importId = LegacyAnkiIdentifiers.importIdFromWordId(word.wordId);
+      if (officialImportIds.contains(importId)) continue;
+      if (!intro.isFormallyEligibleWord(word)) continue;
+      n++;
+    }
+    return n;
+  }
+
+  int aggregatedAnkiDue(Iterable<SrsWord> dueWords) {
+    return legacyAnkiDueExcludingOfficial(dueWords) +
+        _snapshot.introducedOfficialDue;
+  }
+
+  /// Exact formal-due count. Legacy behavior returns 0 for unknown
+  /// imports; prefer [formalDueCountForImport] which reports unknown as
+  /// null instead of guessing zero.
+  int formalOfficialDueForImport(String importId) {
+    return formalDueCountForImport(importId) ?? 0;
+  }
 }

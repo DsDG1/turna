@@ -9,7 +9,10 @@ import 'package:turna/application/anki/anki_review_content.dart';
 import 'package:turna/application/anki/official_formal_review_production_loader.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
-import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
+import 'package:turna/application/anki/formal_review_launcher.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_snapshot_builder.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_update.dart';
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
 import 'package:turna/application/anki_official/migration/official_anki_production_router.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
@@ -60,7 +63,7 @@ void main() {
     final preferences = await StreamingSharedPreferences.instance;
     appPrefs = AppPrefs(preferences);
     await getIt.reset();
-    OfficialAnkiHomeDue.reset();
+    OfficialFormalDueRepository.instance.resetForTest();
     AnkiReviewSessionPage.debugOfficialBatchBuilder = null;
     AnkiReviewSessionPage.productionLoader =
         const OfficialFormalReviewProductionLoader();
@@ -86,7 +89,7 @@ void main() {
     AnkiReviewSessionPage.productionLoader =
         const OfficialFormalReviewProductionLoader();
     OfficialAnkiFeatureFlags.current = savedFlags;
-    OfficialAnkiHomeDue.reset();
+    OfficialFormalDueRepository.instance.resetForTest();
     await getIt.reset();
     await db.close();
   });
@@ -95,7 +98,7 @@ void main() {
     'Official owner page uses productionLoader when debug seam is null',
     (tester) async {
       const importId = 'src-official-page';
-      OfficialAnkiHomeDue.officialImportIds = {importId};
+      _registerOfficialImport(importId);
 
       final engine = FakeOfficialAnkiEngine();
       engine.seedPackage(packagePath: 'page.apkg', notes: 2, cards: 2);
@@ -198,12 +201,13 @@ void main() {
         activePlacementCardIds: (_) => {1, 2},
       );
 
-      final batch = await loader.load(
+      final result = await loader.load(
         importId: 'src-l',
         courseId: 'anki-src-l',
       );
-      expect(batch, isNotNull);
-      expect(batch!.items, isNotEmpty);
+      expect(result, isA<OfficialFormalReviewReady>());
+      final batch = (result as OfficialFormalReviewReady).batch;
+      expect(batch.items, isNotEmpty);
       expect(
         batch.items.every((i) => i.ledgerOwner == StudyLedgerOwner.officialAnki),
         isTrue,
@@ -233,7 +237,7 @@ void main() {
     'Official owner page default loader shows renderCard text (no Flip inject)',
     (tester) async {
       const importId = 'src-default-render';
-      OfficialAnkiHomeDue.officialImportIds = {importId};
+      _registerOfficialImport(importId);
 
       final engine = FakeOfficialAnkiEngine();
       engine.seedPackage(packagePath: 'page2.apkg', notes: 2, cards: 2);
@@ -292,7 +296,7 @@ void main() {
     'Official shared host reveal then Good writes official scheduler',
     (tester) async {
       const importId = 'src-answer';
-      OfficialAnkiHomeDue.officialImportIds = {importId};
+      _registerOfficialImport(importId);
 
       final engine = FakeOfficialAnkiEngine();
       engine.seedPackage(packagePath: 'answer.apkg', notes: 2, cards: 2);
@@ -357,7 +361,7 @@ void main() {
   testWidgets(
     'all-decks entry (no sectionId) uses Official loader when any Official source exists',
     (tester) async {
-      OfficialAnkiHomeDue.officialImportIds = {'src-all'};
+      _registerOfficialImport('src-all');
 
       final engine = FakeOfficialAnkiEngine();
       engine.seedPackage(packagePath: 'all.apkg', notes: 2, cards: 2);
@@ -405,5 +409,28 @@ void main() {
       expect(find.byType(CircularProgressIndicator), findsNothing);
       expect(find.textContaining('Q1'), findsWidgets);
     },
+  );
+}
+
+
+void _registerOfficialImport(String importId) {
+  OfficialFormalDueRepository.instance.commit(
+    OfficialFormalDueUpdate(
+      bySource: {
+        importId: buildFormalDuePerSource(
+          importId: importId,
+          schedulerDueCardIds: const {},
+          schedulerDueSynced: true,
+          activePlacementCardIds: const {},
+          suspendedCardIds: const {},
+          buriedCardIds: const {},
+          retiredCardIds: const {},
+        ),
+      },
+      rawDueBySource: const {},
+      turnaDue: 0,
+      unintroducedNew: 0,
+    ),
+    basedOnGeneration: OfficialFormalDueRepository.instance.generation,
   );
 }

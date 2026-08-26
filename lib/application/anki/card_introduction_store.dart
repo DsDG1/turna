@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:turna/application/anki/anki_models.dart';
 import 'package:turna/application/anki/card_introduction_eligibility.dart';
 import 'package:turna/data/anki_unification_dao.dart';
@@ -5,6 +7,23 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/domain/anki/canonical_card_key.dart';
 import 'package:turna/domain/anki/card_introduction_state.dart';
 import 'package:turna/domain/course/srs_word.dart';
+
+/// What changed in the introduction ledger (maintainability plan §7.4).
+enum CardIntroductionChangeKind { introduced, retired }
+
+/// Published AFTER the ledger write succeeded, so a listener that commits
+/// the change elsewhere never persists a failure as fact.
+class CardIntroductionChanged {
+  const CardIntroductionChanged({
+    required this.sourceId,
+    required this.cardId,
+    required this.kind,
+  });
+
+  final String sourceId;
+  final int cardId;
+  final CardIntroductionChangeKind kind;
+}
 
 /// In-memory + Drift introduction ledger used by course submit and formal
 /// review. Missing rows are unintroduced unless imported history (reps>0)
@@ -21,6 +40,14 @@ class CardIntroductionStore {
   /// Test seam. Production uses GetIt when registered.
   static CardIntroductionStore? debugOverride;
   static final CardIntroductionStore _fallback = CardIntroductionStore();
+
+  static final StreamController<CardIntroductionChanged> _changes =
+      StreamController<CardIntroductionChanged>.broadcast();
+
+  /// Every successful ledger mutation, regardless of which store instance
+  /// wrote it. The formal-due repository listens here to keep its snapshots
+  /// current without getter-time bypasses.
+  static Stream<CardIntroductionChanged> get changes => _changes.stream;
 
   factory CardIntroductionStore.resolve() {
     final override = debugOverride;
@@ -82,17 +109,24 @@ class CardIntroductionStore {
     final courseId = key.backend == AnkiBackendKind.official
         ? CardIntroductionEligibility.courseIdForOfficialSource(key.sourceId)
         : CardIntroductionEligibility.courseIdForLegacyImport(key.sourceId);
-    _rememberIntroduced(wordId: wordId, sourceId: key.sourceId, cardId: key.cardId);
     final dao = _dao;
-    if (dao == null) return;
-    await dao.upsertIntroduction(
-      courseId: courseId,
-      key: key,
-      status: CardIntroductionStatus.introduced,
-      introducedBy: CardIntroducedBy.course,
-      introducedAt: DateTime.now(),
-      firstLessonId: lessonId,
-      lastStudiedAt: DateTime.now(),
+    if (dao != null) {
+      // Persist first: a failed write must not optimistically mark the card
+      // as introduced anywhere (maintainability plan §7.4).
+      await dao.upsertIntroduction(
+        courseId: courseId,
+        key: key,
+        status: CardIntroductionStatus.introduced,
+        introducedBy: CardIntroducedBy.course,
+        introducedAt: DateTime.now(),
+        firstLessonId: lessonId,
+        lastStudiedAt: DateTime.now(),
+      );
+    }
+    _rememberIntroduced(
+      wordId: wordId,
+      sourceId: key.sourceId,
+      cardId: key.cardId,
     );
   }
 
@@ -114,13 +148,6 @@ class CardIntroductionStore {
         reps: card.reps,
         hasRevlog: revlogCardIds.contains(card.id),
       );
-      if (status == CardIntroductionStatus.introduced) {
-        _rememberIntroduced(
-          wordId: 'anki-$importId-c${card.id}',
-          sourceId: importId,
-          cardId: card.id,
-        );
-      }
       await _dao?.ensureInitial(
         courseId: courseId,
         key: key,
@@ -131,6 +158,13 @@ class CardIntroductionStore {
         introducedAt:
             status == CardIntroductionStatus.introduced ? DateTime.now() : null,
       );
+      if (status == CardIntroductionStatus.introduced) {
+        _rememberIntroduced(
+          wordId: 'anki-$importId-c${card.id}',
+          sourceId: importId,
+          cardId: card.id,
+        );
+      }
     }
   }
 
@@ -165,6 +199,13 @@ class CardIntroductionStore {
     if (wasNew) {
       _introducedBySource[sourceId] = (_introducedBySource[sourceId] ?? 0) + 1;
     }
+    _changes.add(
+      CardIntroductionChanged(
+        sourceId: sourceId,
+        cardId: cardId,
+        kind: CardIntroductionChangeKind.introduced,
+      ),
+    );
   }
 
   String _cardToken(String sourceId, int cardId) => 'card:$sourceId:$cardId';

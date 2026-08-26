@@ -2,7 +2,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/anki/card_introduction_store.dart';
 import 'package:turna/application/anki/official_study_batch_assembler.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
-import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_snapshot_builder.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_update.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_eligibility.dart';
 import 'package:turna/domain/anki/canonical_card_key.dart';
 import 'package:turna/domain/anki/card_presentation.dart';
@@ -116,24 +118,35 @@ void main() {
   });
 
   group('OfficialAnkiHomeDue card-id formal due', () {
-    setUp(OfficialAnkiHomeDue.reset);
+    setUp(OfficialFormalDueRepository.instance.resetForTest);
     tearDown(() {
-      OfficialAnkiHomeDue.reset();
+      OfficialFormalDueRepository.instance.resetForTest();
       CardIntroductionStore.debugOverride = null;
     });
 
     test('prefers key intersection when scheduler due ids are known', () async {
       final store = CardIntroductionStore();
       CardIntroductionStore.debugOverride = store;
-      OfficialAnkiHomeDue.officialSchedulerDueCardIdsByImport = {
-        'src-a': {1, 2, 3, 4},
-      };
-      OfficialAnkiHomeDue.activePlacementCardIdsByImport = {
-        'src-a': {1, 2, 3},
-      };
-      OfficialAnkiHomeDue.suspendedCardIdsByImport = {
-        'src-a': {2},
-      };
+      final repo = OfficialFormalDueRepository.instance;
+      repo.commit(
+        OfficialFormalDueUpdate(
+          bySource: {
+            'src-a': buildFormalDuePerSource(
+              importId: 'src-a',
+              schedulerDueCardIds: const {1, 2, 3, 4},
+              schedulerDueSynced: true,
+              activePlacementCardIds: const {1, 2, 3},
+              suspendedCardIds: const {2},
+              buriedCardIds: const {},
+              retiredCardIds: const {},
+            ),
+          },
+          rawDueBySource: const {},
+          turnaDue: 0,
+          unintroducedNew: 0,
+        ),
+        basedOnGeneration: repo.generation,
+      );
       await store.markFromLesson(
         wordId: 'official-anki-src-a-c1',
         lessonId: 'official-anki-src-a-l0123456789ab-p0',
@@ -144,10 +157,10 @@ void main() {
       );
 
       expect(
-        OfficialAnkiHomeDue.formalDueCardKeysForImport('src-a'),
+        repo.formalDueCardKeysForImport('src-a'),
         {_key(1), _key(3)},
       );
-      expect(OfficialAnkiHomeDue.formalOfficialDueForImport('src-a'), 2);
+      expect(repo.formalOfficialDueForImport('src-a'), 2);
     });
   });
 }

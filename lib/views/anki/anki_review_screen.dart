@@ -13,7 +13,7 @@ import 'package:turna/application/anki/anki_deck_manager.dart';
 import 'package:turna/application/anki/anki_review_assembler.dart';
 import 'package:turna/application/anki/formal_review_launcher.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
-import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
 import 'package:turna/application/anki_official/engine/official_anki_home_due_sync.dart';
 import 'package:turna/data/anki_note_dao.dart';
 import 'package:turna/data/anki_import_dao.dart';
@@ -114,10 +114,10 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
     final dueSnap = assembler.dueSnapshot();
     final totalDue = _aggregatedDue(ankiSections, dueSnap.byImportId);
     final unintroducedNew = assembler.unintroducedDueCount() +
-        OfficialAnkiHomeDue.unintroducedOfficialDue;
+        OfficialFormalDueRepository.instance.snapshot.unintroducedOfficialDue;
     final hasLegacySections = ankiSections.any((section) {
       final importId = AnkiReviewAssembler.importIdFromSectionId(section.id);
-      return !OfficialAnkiHomeDue.officialImportIds.contains(importId);
+      return !OfficialFormalDueRepository.instance.officialImportIds.contains(importId);
     });
     final deckManager = getIt<AnkiDeckManager>();
     final newLeft = deckManager.newRemainingToday;
@@ -163,7 +163,7 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
           ),
 
         // Total due summary
-        if (OfficialAnkiHomeDue.officialDueUnavailable)
+        if (OfficialFormalDueRepository.instance.snapshot.unavailable)
           Container(
             key: const Key('anki-due-unavailable'),
             padding: const EdgeInsets.all(16),
@@ -251,7 +251,7 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
               section.id,
             );
             final isOfficial =
-                OfficialAnkiHomeDue.officialImportIds.contains(importId);
+                OfficialFormalDueRepository.instance.officialImportIds.contains(importId);
             return KeyedSubtree(
               key: ValueKey(section.id),
               child: _AnkiSectionCard(
@@ -543,9 +543,9 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
   }
 
   int? _dueForSection(String importId, Map<String, int> byImportId) {
-    if (OfficialAnkiHomeDue.officialImportIds.contains(importId)) {
-      if (OfficialAnkiHomeDue.officialDueUnavailable) return null;
-      return OfficialAnkiHomeDue.formalOfficialDueForImport(importId);
+    if (OfficialFormalDueRepository.instance.officialImportIds.contains(importId)) {
+      if (OfficialFormalDueRepository.instance.snapshot.unavailable) return null;
+      return OfficialFormalDueRepository.instance.formalOfficialDueForImport(importId);
     }
     return byImportId[importId] ?? 0;
   }
@@ -586,7 +586,7 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
       entry: entry,
       courseId: importId.isEmpty ? 'anki' : 'anki-$importId',
       sectionId: sectionId,
-      officialOwner: OfficialAnkiHomeDue.officialImportIds.contains(importId),
+      officialOwner: OfficialFormalDueRepository.instance.officialImportIds.contains(importId),
       schedulerRuntimeAvailable:
           OfficialAnkiFeatureFlags.current.allowsOfficialScheduler,
     );

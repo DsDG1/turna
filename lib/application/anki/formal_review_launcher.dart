@@ -53,7 +53,7 @@ class OfficialFormalReviewBatch {
     required this.session,
     this.fidelityInteractions = const {},
     this.liveQueue,
-    this.reviewAllPlan,
+    this.failures = const [],
   });
 
   final List<StudyItem> items;
@@ -69,9 +69,49 @@ class OfficialFormalReviewBatch {
   /// mutation instead of advancing a fixed item array.
   final OfficialFormalReviewLiveQueue? liveQueue;
 
-  /// Frozen Review All plan (plan 34 D5): participating sources, their
-  /// unioned card set, and sources that failed to resolve.
-  final OfficialReviewAllPlan? reviewAllPlan;
+  /// Non-blocking render failures from the initial pass — surfaced in the
+  /// session summary (maintainability plan §8.2).
+  final List<OfficialCardRenderFailure> failures;
+}
+
+/// Typed load outcome for the shared formal-review host (maintainability
+/// plan §8.2). The scheduler queue being non-empty can never surface as
+/// [OfficialFormalReviewNoDue].
+sealed class OfficialFormalReviewLoadResult {
+  const OfficialFormalReviewLoadResult();
+}
+
+/// At least one card rendered and stayed in the queue; non-blocking render
+/// failures ride along for the session summary.
+final class OfficialFormalReviewReady
+    extends OfficialFormalReviewLoadResult {
+  const OfficialFormalReviewReady(this.batch);
+
+  final OfficialFormalReviewBatch batch;
+
+  /// Non-blocking render failures ride on the batch (§8.2).
+  List<OfficialCardRenderFailure> get failures => batch.failures;
+}
+
+/// The scheduler queue is genuinely empty for this source.
+final class OfficialFormalReviewNoDue extends OfficialFormalReviewLoadResult {
+  const OfficialFormalReviewNoDue();
+}
+
+/// The queue is non-empty but NOTHING could be rendered — a visible,
+/// retryable product error. The session was disposed by the loader; no
+/// answer, bury or suspend was issued (maintainability plan §8.2).
+final class OfficialFormalReviewBlocked
+    extends OfficialFormalReviewLoadResult {
+  const OfficialFormalReviewBlocked({
+    required this.sourceId,
+    required this.failures,
+    required this.schedulerCardCount,
+  });
+
+  final String sourceId;
+  final List<OfficialCardRenderFailure> failures;
+  final int schedulerCardCount;
 }
 
 /// Resolves every formal Anki review entry onto one session host.

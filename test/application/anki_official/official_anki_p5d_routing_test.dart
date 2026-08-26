@@ -4,7 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/anki/anki_review_assembler.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
-import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_snapshot_builder.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_update.dart';
 import 'package:turna/application/anki_official/engine/official_anki_native_availability.dart';
 import 'package:turna/application/anki_official/import/anki_import_facade.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
@@ -190,9 +192,27 @@ void main() {
   });
 
   test('p5d_due_does_not_double_count_official_source', () {
-    OfficialAnkiHomeDue.reset();
-    OfficialAnkiHomeDue.officialImportIds = {'p5c-fixture-device'};
-    OfficialAnkiHomeDue.officialDue = 3;
+    final repo = OfficialFormalDueRepository.instance;
+    repo.resetForTest();
+    repo.commit(
+      OfficialFormalDueUpdate(
+        bySource: {
+          'p5c-fixture-device': buildFormalDuePerSource(
+            importId: 'p5c-fixture-device',
+            schedulerDueCardIds: const {},
+            schedulerDueSynced: true,
+            activePlacementCardIds: const {},
+            suspendedCardIds: const {},
+            buriedCardIds: const {},
+            retiredCardIds: const {},
+          ),
+        },
+        rawDueBySource: const {},
+        turnaDue: 0,
+        unintroducedNew: 0,
+      ),
+      basedOnGeneration: repo.generation,
+    );
     final words = [
       SrsWord(
         wordId: 'anki-p5c-fixture-device-c1375933503610',
@@ -208,8 +228,8 @@ void main() {
         dueAt: DateTime.fromMillisecondsSinceEpoch(0),
       ),
     ];
-    expect(OfficialAnkiHomeDue.legacyAnkiDueExcludingOfficial(words), 1);
-    expect(OfficialAnkiHomeDue.aggregatedAnkiDue(words), 1);
+    expect(repo.legacyAnkiDueExcludingOfficial(words), 1);
+    expect(repo.aggregatedAnkiDue(words), 1);
   });
 
   test('p5d production router lists official import ids only when cutover on',
@@ -278,23 +298,23 @@ void main() {
       recordedKind: 'official',
       nowMillis: 3,
     );
-    OfficialAnkiHomeDue.reset();
-    final total = await const OfficialAnkiProductionRouter().refreshHomeDue(
+    final counts = await const OfficialAnkiProductionRouter()
+        .collectHomeDueFromDeckTree(
       dao: dao,
       sources: OfficialAnkiSourceDao(db),
       cutoverEnabled: true,
-      countsForDeck: (deckId) async => OfficialDeckCounts(
-        deckId: deckId,
-        newCount: 1,
-        reviewCount: 2,
-      ),
+      getDeckTree: () async => const [
+        OfficialAnkiDeckNode(
+          deckId: 1,
+          name: 'p5c-fixture',
+          newCount: 1,
+          reviewCount: 2,
+        ),
+      ],
     );
-    expect(total, 3);
-    // officialDue is derived (introduced-only); raw totals live per-import.
-    expect(
-      OfficialAnkiHomeDue.officialDueByImport['p5c-fixture-device'],
-      3,
-    );
+    expect(counts.total, 3);
+    // Raw coarse totals live per-import; formal due stays derived.
+    expect(counts.dueByImport['p5c-fixture-device'], 3);
   });
 
   test('p5d official review gate fail-closed when target missing', () {
@@ -405,12 +425,13 @@ void main() {
       recordedKind: 'official',
       nowMillis: 3,
     );
-    OfficialAnkiHomeDue.reset();
-    final total = await const OfficialAnkiProductionRouter().refreshHomeDueFromQueue(
+    final collected = await const OfficialAnkiProductionRouter()
+        .collectFormalDueCardIds(
       dao: dao,
       sources: OfficialAnkiSourceDao(db),
       cutoverEnabled: true,
-      getReviewQueue: () async => OfficialReviewQueue(
+      setCurrentDeck: (_) async {},
+      getReviewQueue: ({int fetchLimit = 500}) async => OfficialReviewQueue(
         sessionId: 's1',
         queueEpoch: 1,
         newCount: 1,
@@ -434,16 +455,17 @@ void main() {
         ],
       ),
     );
-    expect(total, 3);
-    // officialDue is derived (introduced-only); the router's per-import raw
-    // counts reflect the due card (queue meta counts new/learning/review
-    // separately from the placed card set).
+    // The queue really owes the placed card: exact card-id due, knowledge
+    // known (formal due itself stays derived — introduced-only).
     expect(
-      OfficialAnkiHomeDue.officialDueByImport.values
-          .fold(0, (a, b) => a + b),
+      collected.rawDueByImport['p5c-fixture-device'],
       greaterThan(0),
     );
-    expect(OfficialAnkiHomeDue.officialDueUnavailable, isFalse);
+    final input =
+        collected.inputs.where((i) => i.importId == 'p5c-fixture-device').single;
+    expect(input.schedulerDueCardIds, {1375933503610});
+    expect(input.schedulerDueSynced, isTrue);
+    expect(input.activePlacementCardIds, {1375933503610});
   });
 
   test('p5d_official_due_zero_when_only_future_review', () async {
@@ -484,12 +506,15 @@ void main() {
       recordedKind: 'official',
       nowMillis: 3,
     );
-    OfficialAnkiHomeDue.reset();
-    final total = await const OfficialAnkiProductionRouter().refreshHomeDueFromQueue(
+    final repo = OfficialFormalDueRepository.instance;
+    repo.resetForTest();
+    final collected = await const OfficialAnkiProductionRouter()
+        .collectFormalDueCardIds(
       dao: dao,
       sources: OfficialAnkiSourceDao(db),
       cutoverEnabled: true,
-      getReviewQueue: () async => OfficialReviewQueue(
+      setCurrentDeck: (_) async {},
+      getReviewQueue: ({int fetchLimit = 500}) async => OfficialReviewQueue(
         sessionId: 's1',
         queueEpoch: 1,
         newCount: 0,
@@ -498,9 +523,33 @@ void main() {
         cards: const [],
       ),
     );
-    expect(total, 0);
-    expect(OfficialAnkiHomeDue.officialDue, 0);
-    expect(OfficialAnkiHomeDue.officialDueUnavailable, isFalse);
+    expect(
+      collected.rawDueByImport.values.fold(0, (a, b) => a + b),
+      0,
+    );
+    // Committing the collected data keeps derived official due at 0.
+    repo.commit(
+      OfficialFormalDueUpdate(
+        bySource: {
+          for (final input in collected.inputs)
+            input.importId: buildFormalDuePerSource(
+              importId: input.importId,
+              schedulerDueCardIds: input.schedulerDueCardIds,
+              schedulerDueSynced: input.schedulerDueSynced,
+              activePlacementCardIds: input.activePlacementCardIds,
+              suspendedCardIds: input.suspendedCardIds,
+              buriedCardIds: input.buriedCardIds,
+              retiredCardIds: input.retiredCardIds,
+            ),
+        },
+        rawDueBySource: collected.rawDueByImport,
+        turnaDue: 0,
+        unintroducedNew: 0,
+      ),
+      basedOnGeneration: repo.generation,
+    );
+    expect(repo.snapshot.introducedOfficialDue, 0);
+    expect(repo.snapshot.unavailable, isFalse);
   });
 
   test('p5d_due_refresh_does_not_treat_lock_as_zero', () async {
@@ -541,16 +590,35 @@ void main() {
       recordedKind: 'official',
       nowMillis: 3,
     );
-    OfficialAnkiHomeDue.reset();
-    OfficialAnkiHomeDue.officialDueByImport = {'p5c-fixture-device': 4};
-    OfficialAnkiHomeDue.officialImportIds = {'p5c-fixture-device'};
-    OfficialAnkiHomeDue.officialDueUnavailable = false;
+    final repo = OfficialFormalDueRepository.instance;
+    repo.resetForTest();
+    repo.commit(
+      OfficialFormalDueUpdate(
+        bySource: {
+          'p5c-fixture-device': buildFormalDuePerSource(
+            importId: 'p5c-fixture-device',
+            schedulerDueCardIds: const {},
+            schedulerDueSynced: true,
+            activePlacementCardIds: const {},
+            suspendedCardIds: const {},
+            buriedCardIds: const {},
+            retiredCardIds: const {},
+          ),
+        },
+        rawDueBySource: const {'p5c-fixture-device': 4},
+        turnaDue: 0,
+        unintroducedNew: 0,
+      ),
+      basedOnGeneration: repo.generation,
+    );
     try {
-      await const OfficialAnkiProductionRouter().refreshHomeDueFromQueue(
+      await const OfficialAnkiProductionRouter().collectFormalDueCardIds(
         dao: dao,
         sources: OfficialAnkiSourceDao(db),
         cutoverEnabled: true,
-        getReviewQueue: () async => throw const OfficialAnkiException(
+        setCurrentDeck: (_) async {},
+        getReviewQueue: ({int fetchLimit = 500}) async =>
+            throw const OfficialAnkiException(
           code: OfficialAnkiErrorCode.collectionLocked,
           messageKey: 'official_anki.collection_locked',
         ),
@@ -559,24 +627,14 @@ void main() {
     } on OfficialAnkiException catch (error) {
       expect(error.code, OfficialAnkiErrorCode.collectionLocked);
     }
-    // The locked refresh must not zero the previous raw totals.
+    // The locked collection pass is pure — it must not touch the previous
+    // snapshot at all (the sync only marks unavailable after a failure,
+    // and here it never got data to commit).
     expect(
-      OfficialAnkiHomeDue.officialDueByImport.values.fold(0, (a, b) => a + b),
+      repo.snapshot.rawDueByImport.values.fold(0, (a, b) => a + b),
       4,
     );
-    expect(OfficialAnkiHomeDue.officialDueUnavailable, isFalse);
-    final total = await const OfficialAnkiProductionRouter().refreshHomeDue(
-      dao: dao,
-      sources: OfficialAnkiSourceDao(db),
-      cutoverEnabled: true,
-      countsForDeck: (deckId) async => OfficialDeckCounts(
-        deckId: deckId,
-        newCount: 0,
-        reviewCount: 0,
-      ),
-    );
-    expect(total, 0);
-    expect(OfficialAnkiHomeDue.officialDueUnavailable, isFalse);
+    expect(repo.snapshot.unavailable, isFalse);
   });
 
   test('p5d_start_review_pushes_official_page_when_cutover_official', () async {

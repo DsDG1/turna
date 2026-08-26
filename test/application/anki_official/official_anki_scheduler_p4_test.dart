@@ -7,7 +7,9 @@ import 'package:turna/application/anki_official/contract/official_anki_contract.
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
-import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_snapshot_builder.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_update.dart';
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
 import 'package:turna/application/anki_official/engine/official_anki_scheduler_audit.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
@@ -172,13 +174,31 @@ void main() {
   });
 
   test('home due stores stay dual-source and scheduler route exists', () {
-    OfficialAnkiHomeDue.reset();
-    OfficialAnkiHomeDue.turnaDue = 4;
-    OfficialAnkiHomeDue.officialDueByImport = {'src-x': 7};
-    expect(OfficialAnkiHomeDue.turnaDue, 4);
+    final repo = OfficialFormalDueRepository.instance;
+    repo.resetForTest();
+    repo.commit(
+      OfficialFormalDueUpdate(
+        bySource: {
+          'src-x': buildFormalDuePerSource(
+            importId: 'src-x',
+            schedulerDueCardIds: const {1, 2, 3, 4, 5, 6, 7},
+            schedulerDueSynced: true,
+            activePlacementCardIds: const {1, 2, 3, 4, 5, 6, 7},
+            suspendedCardIds: const {},
+            buriedCardIds: const {},
+            retiredCardIds: const {},
+          ),
+        },
+        rawDueBySource: const {'src-x': 7},
+        turnaDue: 0,
+        unintroducedNew: 0,
+      ),
+      basedOnGeneration: repo.generation,
+    );
     // Dual-source stores: raw official totals live per-import;
     // officialDue itself is derived (introduced-only).
-    expect(OfficialAnkiHomeDue.officialDueByImport['src-x'], 7);
+    expect(repo.snapshot.rawDueByImport['src-x'], 7);
+    expect(repo.snapshot.introducedOfficialDue, 0);
     expect(OfficialAnkiReviewPage.routeName, '/official-anki/review');
     expect(
       OfficialAnkiFeatureFlags.fromEnvironment().scheduler,

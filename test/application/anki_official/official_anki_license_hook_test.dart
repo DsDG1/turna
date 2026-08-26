@@ -33,12 +33,21 @@ void main() {
     expect(const OfficialAnkiFeatureFlags().renderer, isFalse);
     expect(OfficialAnkiFeatureFlags.current.allowsOfficialImport, isTrue);
     expect(OfficialAnkiFeatureFlags.current.allowsOfficialRenderer, isTrue);
-    final screen = File('lib/views/anki/anki_import_screen.dart').readAsStringSync();
+    final deps = File(
+      'lib/application/anki/import_wizard/anki_import_dependencies.dart',
+    ).readAsStringSync();
+    final officialFlow = File(
+      'lib/application/anki/import_wizard/official_first_anki_import_flow.dart',
+    ).readAsStringSync();
     final service = File(
       'lib/application/anki_official/import/official_anki_official_first_service.dart',
     ).readAsStringSync();
-    expect(screen.contains('AnkiImporter'), isTrue);
-    expect(screen.contains('OfficialAnkiOfficialFirstService'), isTrue);
+    expect(deps.contains('AnkiImporter'), isTrue,
+        reason: 'production deps wire the real importer');
+    expect(deps.contains('OfficialAnkiOfficialFirstService'), isTrue,
+        reason: 'production deps wire the official-first service');
+    expect(officialFlow.contains('importThenPreview'), isTrue,
+        reason: 'the official flow drives the real saga');
     expect(service.contains('AnkiImportFacade.resolve'), isTrue);
   });
 }

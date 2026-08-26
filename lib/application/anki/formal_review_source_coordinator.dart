@@ -20,11 +20,37 @@ class FormalReviewSourceTarget {
       : CardIntroductionEligibility.courseIdForLegacyImport(importOrSourceId);
 }
 
+/// What stopped a source from completing (maintainability plan §9.4).
+enum FormalReviewFailureKind {
+  /// The source's batch could not be loaded (target resolution, engine).
+  load,
+
+  /// Cards failed to render (Blocked result).
+  render,
+
+  /// The session itself threw mid-run.
+  runtime,
+}
+
 class FormalReviewSourceFailure {
-  const FormalReviewSourceFailure({required this.target, required this.error});
+  const FormalReviewSourceFailure({
+    required this.target,
+    required this.error,
+    this.kind = FormalReviewFailureKind.runtime,
+    this.retryable = true,
+    this.code = 'unknown',
+  });
 
   final FormalReviewSourceTarget target;
   final Object error;
+  final FormalReviewFailureKind kind;
+
+  /// Whether the completion page should offer a retry entry.
+  final bool retryable;
+
+  /// Stable machine code (`OfficialAnkiErrorCode.name` or
+  /// `render_internal_error` style).
+  final String code;
 }
 
 /// Review All freezes source identity/order at launch, then opens exactly one
@@ -83,6 +109,14 @@ class FormalReviewSourceCoordinator {
   int get currentIndex => _index;
   bool get isComplete => _index >= targets.length;
 
+  int get completedSourceCount => targets.length - failures.length;
+
+  /// Targets eligible for a retry from the completion page.
+  List<FormalReviewSourceTarget> get failedTargets => [
+        for (final failure in failures)
+          if (failure.retryable) failure.target,
+      ];
+
   void recordSession({
     required int total,
     required int remembered,
@@ -93,10 +127,23 @@ class FormalReviewSourceCoordinator {
     forgottenCount += forgotten;
   }
 
-  void recordFailure(Object error) {
+  void recordFailure(
+    Object error, {
+    FormalReviewFailureKind kind = FormalReviewFailureKind.runtime,
+    bool retryable = true,
+    String code = 'unknown',
+  }) {
     final target = current;
     if (target != null) {
-      failures.add(FormalReviewSourceFailure(target: target, error: error));
+      failures.add(
+        FormalReviewSourceFailure(
+          target: target,
+          error: error,
+          kind: kind,
+          retryable: retryable,
+          code: code,
+        ),
+      );
     }
   }
 

@@ -1,7 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/anki/card_introduction_store.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
-import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_snapshot_builder.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_state.dart';
 import 'package:turna/application/anki_official/migration/official_anki_production_router.dart';
@@ -9,10 +10,12 @@ import 'package:turna/application/anki_official/storage/official_anki_database.d
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 
 void main() {
-  setUp(OfficialAnkiHomeDue.reset);
-  tearDown(OfficialAnkiHomeDue.reset);
+  final repo = OfficialFormalDueRepository.instance;
+  setUp(repo.resetForTest);
+  tearDown(repo.resetForTest);
 
-  test('refreshHomeDueFromQueue writes scheduler due card ids', () async {
+  test('collect + one commit lands scheduler due card ids atomically',
+      () async {
     final db = OfficialAnkiDatabase.memory();
     addTearDown(db.close);
     final sources = OfficialAnkiSourceDao(db);
@@ -49,6 +52,15 @@ void main() {
       nowMillis: 2,
     );
 
+    final intro = CardIntroductionStore();
+    intro.resetForTest();
+    await intro.markFromLesson(
+      wordId: 'official-anki-src-due-c10',
+      lessonId: 'official-anki-src-due-s1',
+    );
+    CardIntroductionStore.debugOverride = intro;
+    addTearDown(() => CardIntroductionStore.debugOverride = null);
+
     final queue = OfficialReviewQueue(
       sessionId: 's-due',
       queueEpoch: 1,
@@ -62,42 +74,43 @@ void main() {
       ],
     );
 
-    await const OfficialAnkiProductionRouter().refreshHomeDueFromQueue(
+    var notifications = 0;
+    void listener() => notifications++;
+    repo.addListener(listener);
+    final generationBefore = repo.generation;
+
+    final collected = await const OfficialAnkiProductionRouter()
+        .collectFormalDueCardIds(
       dao: migrations,
       sources: sources,
-      getReviewQueue: () async => queue,
+      setCurrentDeck: (_) async {},
+      getReviewQueue: ({int fetchLimit = 500}) async => queue,
     );
+    final result = repo.commit(
+      const OfficialFormalDueSnapshotBuilder().build(
+        sources: collected.inputs,
+        rawDueBySource: collected.rawDueByImport,
+      ),
+      basedOnGeneration: generationBefore,
+    );
+    repo.removeListener(listener);
 
-    expect(
-      OfficialAnkiHomeDue.officialSchedulerDueCardIdsByImport['src-due'],
-      {10, 11},
-    );
-    expect(
-      OfficialAnkiHomeDue.activePlacementCardIdsByImport['src-due'],
-      {10, 11, 12},
-    );
+    expect(result, OfficialFormalDueCommitResult.committed);
+    expect(notifications, 1,
+        reason: 'one logical refresh = exactly one notification');
+    expect(repo.generation, generationBefore + 1);
+    expect(repo.schedulerDueCardIdsFor('src-due'), {10, 11});
+    expect(repo.activePlacementCardIdsFor('src-due'), {10, 11, 12});
 
-    // Mark only 10 introduced → formal due must be {10}, not count approx 2.
-    final intro = CardIntroductionStore();
-    intro.resetForTest();
-    // Directly seed introduced tokens via markFromLesson word ids.
-    await intro.markFromLesson(
-      wordId: 'official-anki-src-due-c10',
-      lessonId: 'official-anki-src-due-s1',
-    );
-    CardIntroductionStore.debugOverride = intro;
-    addTearDown(() => CardIntroductionStore.debugOverride = null);
-
-    expect(OfficialAnkiHomeDue.formalOfficialDueForImport('src-due'), 1);
+    // Only 10 introduced → formal due must be {10}, not count approx 2.
+    expect(repo.formalDueCountForImport('src-due'), 1);
     expect(
-      OfficialAnkiHomeDue.formalDueCardKeysForImport('src-due')
-          .map((k) => k.cardId)
-          .toSet(),
+      repo.formalDueCardKeysForImport('src-due').map((k) => k.cardId).toSet(),
       {10},
     );
   });
 
-  test('refreshFormalDueCardIds probes per-deck queues', () async {
+  test('collectFormalDueCardIds probes per-deck queues', () async {
     final db = OfficialAnkiDatabase.memory();
     addTearDown(db.close);
     final sources = OfficialAnkiSourceDao(db);
@@ -132,7 +145,8 @@ void main() {
     );
 
     final setDecks = <int>[];
-    await const OfficialAnkiProductionRouter().refreshFormalDueCardIds(
+    final collected = await const OfficialAnkiProductionRouter()
+        .collectFormalDueCardIds(
       dao: migrations,
       sources: sources,
       setCurrentDeck: (deckId) async => setDecks.add(deckId),
@@ -147,24 +161,13 @@ void main() {
     );
 
     expect(setDecks, [3]);
-    expect(
-      OfficialAnkiHomeDue.officialSchedulerDueCardIdsByImport['src-a'],
-      {2},
-    );
-    expect(OfficialAnkiHomeDue.officialDueByImport['src-a'], 1);
-    // Without stuffing the static map in the unit under test beyond what
-    // refreshFormalDueCardIds wrote, formal due uses intersection.
-    final intro = CardIntroductionStore()..resetForTest();
-    await intro.markFromLesson(
-      wordId: 'official-anki-src-a-c2',
-      lessonId: 'official-anki-src-a-s1',
-    );
-    CardIntroductionStore.debugOverride = intro;
-    addTearDown(() => CardIntroductionStore.debugOverride = null);
-    expect(OfficialAnkiHomeDue.formalOfficialDueForImport('src-a'), 1);
+    final input = collected.inputs.single;
+    expect(input.schedulerDueCardIds, {2});
+    expect(collected.rawDueByImport['src-a'], 1);
   });
 
-  test('refreshFormalDueCardIds populates suspended, buried, retired and subtracts them', () async {
+  test('collect populates suspended, buried, retired and commit subtracts them',
+      () async {
     final db = OfficialAnkiDatabase.memory();
     addTearDown(db.close);
     final sources = OfficialAnkiSourceDao(db);
@@ -201,11 +204,6 @@ void main() {
       nowMillis: 2,
     );
 
-    var notifyCount = 0;
-    OfficialAnkiHomeDue.instance.addListener(() {
-      notifyCount++;
-    });
-
     final intro = CardIntroductionStore()..resetForTest();
     await intro.markFromLesson(
       wordId: 'official-anki-src-sub-c10',
@@ -226,8 +224,8 @@ void main() {
     CardIntroductionStore.debugOverride = intro;
     addTearDown(() => CardIntroductionStore.debugOverride = null);
 
-    // Initial sync without suspensions: all 4 cards in queue.
-    await const OfficialAnkiProductionRouter().refreshFormalDueCardIds(
+    final collected = await const OfficialAnkiProductionRouter()
+        .collectFormalDueCardIds(
       dao: migrations,
       sources: sources,
       setCurrentDeck: (deckId) async {},
@@ -249,17 +247,23 @@ void main() {
       getRetiredCardIds: ({int? deckId}) async => {40},
     );
 
-    expect(OfficialAnkiHomeDue.suspendedCardIdsByImport['src-sub'], {20});
-    expect(OfficialAnkiHomeDue.buriedCardIdsByImport['src-sub'], {30});
-    expect(OfficialAnkiHomeDue.retiredCardIdsByImport['src-sub'], {40});
-    expect(notifyCount, greaterThan(0));
+    final result = repo.commit(
+      const OfficialFormalDueSnapshotBuilder().build(
+        sources: collected.inputs,
+        rawDueBySource: collected.rawDueByImport,
+      ),
+      basedOnGeneration: repo.generation,
+    );
+    expect(result, OfficialFormalDueCommitResult.committed);
+
+    expect(repo.suspendedCardIdsFor('src-sub'), {20});
+    expect(repo.buriedCardIdsFor('src-sub'), {30});
+    expect(repo.retiredCardIdsFor('src-sub'), {40});
 
     // Formal due must only include card 10 (20 suspended, 30 buried, 40 retired).
-    expect(OfficialAnkiHomeDue.formalOfficialDueForImport('src-sub'), 1);
+    expect(repo.formalDueCountForImport('src-sub'), 1);
     expect(
-      OfficialAnkiHomeDue.formalDueCardKeysForImport('src-sub')
-          .map((k) => k.cardId)
-          .toSet(),
+      repo.formalDueCardKeysForImport('src-sub').map((k) => k.cardId).toSet(),
       {10},
     );
   });

@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
-import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_snapshot_builder.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
@@ -188,21 +188,46 @@ class OfficialAnkiProductionRouter {
     return (flags ?? OfficialAnkiFeatureFlags.current).allowsOfficialScheduler;
   }
 
-  Future<int> refreshHomeDue({
+  /// Collects the per-source six formal-due sets (maintainability plan
+  /// §7.3). PURE: returns data — the caller (OfficialAnkiHomeDueSync)
+  /// builds one update and commits one atomic snapshot. Must run after the
+  /// collection is open.
+  Future<OfficialFormalDueCollectionData> collectFormalDueCardIds({
     required OfficialAnkiMigrationDao dao,
     required OfficialAnkiSourceDao sources,
-    required Future<OfficialDeckCounts> Function(int deckId) countsForDeck,
+    required Future<void> Function(int deckId) setCurrentDeck,
+    required Future<OfficialReviewQueue> Function({int fetchLimit})
+        getReviewQueue,
+    Future<Set<int>> Function({int? deckId})? getSuspendedCardIds,
+    Future<Set<int>> Function({int? deckId})? getBuriedCardIds,
+    Future<Set<int>> Function({int? deckId})? getRetiredCardIds,
     String profileId = defaultProfileId,
     bool? cutoverEnabled,
+    int fetchLimit = 500,
   }) async {
     final ids = officialImportIds(
       dao: dao,
       profileId: profileId,
       cutoverEnabled: cutoverEnabled,
     );
-    final dueByImport = <String, int>{};
-    var total = 0;
-    final seenDecks = <int>{};
+    final inputs = <OfficialFormalDueSourceInput>[];
+    final rawDueByImport = <String, int>{};
+    final queueIdsByDeck = <int, Set<int>>{};
+
+    Set<int>? allSuspended;
+    Set<int>? allBuried;
+    Set<int>? allRetired;
+
+    if (getSuspendedCardIds != null) {
+      allSuspended = await getSuspendedCardIds();
+    }
+    if (getBuriedCardIds != null) {
+      allBuried = await getBuriedCardIds();
+    }
+    if (getRetiredCardIds != null) {
+      allRetired = await getRetiredCardIds();
+    }
+
     for (final importId in ids) {
       final target = reviewTargetForImport(
         dao: dao,
@@ -211,97 +236,51 @@ class OfficialAnkiProductionRouter {
         profileId: profileId,
         cutoverEnabled: cutoverEnabled,
       );
-      if (target == null) continue;
-      if (!seenDecks.add(target.deckId)) {
-        dueByImport[importId] = 0;
+      if (target == null) {
+        inputs.add(
+          OfficialFormalDueSourceInput(
+            importId: importId,
+            schedulerDueCardIds: const {},
+            schedulerDueSynced: true,
+          ),
+        );
+        rawDueByImport[importId] = 0;
         continue;
       }
-      final counts = await countsForDeck(target.deckId);
-      final n = counts.newCount + counts.reviewCount;
-      dueByImport[importId] = n;
-      total += n;
-    }
-    OfficialAnkiHomeDue.officialImportIds = ids;
-    OfficialAnkiHomeDue.officialDueByImport = dueByImport;
-    OfficialAnkiHomeDue.officialDueUnavailable = false;
-    return total;
-  }
-
-  Future<int> refreshHomeDueFromQueue({
-    required OfficialAnkiMigrationDao dao,
-    required OfficialAnkiSourceDao sources,
-    required Future<OfficialReviewQueue> Function() getReviewQueue,
-    String profileId = defaultProfileId,
-    bool? cutoverEnabled,
-  }) async {
-    final ids = officialImportIds(
-      dao: dao,
-      profileId: profileId,
-      cutoverEnabled: cutoverEnabled,
-    );
-    final dueByImport = <String, int>{};
-    final schedulerDueByImport = <String, Set<int>>{};
-    final placementsByImport = <String, Set<int>>{};
-    OfficialAnkiHomeDue.officialImportIds = ids;
-    if (ids.isEmpty) {
-      OfficialAnkiHomeDue.officialDueByImport = dueByImport;
-      OfficialAnkiHomeDue.officialSchedulerDueCardIdsByImport =
-          schedulerDueByImport;
-      OfficialAnkiHomeDue.activePlacementCardIdsByImport = placementsByImport;
-      OfficialAnkiHomeDue.officialDueUnavailable = false;
-      return 0;
-    }
-    final targets = <String, OfficialAnkiRoutedSource>{};
-    final seenDecks = <int>{};
-    for (final importId in ids) {
-      final target = reviewTargetForImport(
-        dao: dao,
-        sources: sources,
-        importId: importId,
-        profileId: profileId,
-        cutoverEnabled: cutoverEnabled,
+      var queueIds = queueIdsByDeck[target.deckId];
+      if (queueIds == null) {
+        await setCurrentDeck(target.deckId);
+        final queue = await getReviewQueue(fetchLimit: fetchLimit);
+        queueIds = {for (final card in queue.cards) card.cardId};
+        queueIdsByDeck[target.deckId] = queueIds;
+      }
+      final dueIds = queueIds.intersection(target.cardIds);
+      inputs.add(
+        OfficialFormalDueSourceInput(
+          importId: importId,
+          schedulerDueCardIds: dueIds,
+          schedulerDueSynced: true,
+          activePlacementCardIds: Set<int>.from(target.cardIds),
+          suspendedCardIds: allSuspended?.intersection(target.cardIds) ??
+              const <int>{},
+          buriedCardIds:
+              allBuried?.intersection(target.cardIds) ?? const <int>{},
+          retiredCardIds:
+              allRetired?.intersection(target.cardIds) ?? const <int>{},
+        ),
       );
-      if (target == null) continue;
-      placementsByImport[importId] = Set<int>.from(target.cardIds);
-      if (!seenDecks.add(target.deckId)) {
-        dueByImport[importId] = 0;
-        schedulerDueByImport[importId] = const {};
-        continue;
-      }
-      targets[importId] = target;
+      rawDueByImport[importId] = dueIds.length;
     }
-    if (targets.isEmpty) {
-      OfficialAnkiHomeDue.officialDueByImport = dueByImport;
-      OfficialAnkiHomeDue.officialSchedulerDueCardIdsByImport =
-          schedulerDueByImport;
-      OfficialAnkiHomeDue.activePlacementCardIdsByImport = placementsByImport;
-      OfficialAnkiHomeDue.officialDueUnavailable = false;
-      return 0;
-    }
-    final queue = await getReviewQueue();
-    final queueCardIds = {for (final card in queue.cards) card.cardId};
-    final total = queue.newCount + queue.learningCount + queue.reviewCount;
-    for (final entry in targets.entries) {
-      final dueIds = queueCardIds.intersection(entry.value.cardIds);
-      dueByImport[entry.key] = dueIds.length;
-      schedulerDueByImport[entry.key] = dueIds;
-    }
-    for (final importId in ids) {
-      dueByImport.putIfAbsent(importId, () => 0);
-      schedulerDueByImport.putIfAbsent(importId, () => const {});
-    }
-    OfficialAnkiHomeDue.officialDueByImport = dueByImport;
-    OfficialAnkiHomeDue.officialSchedulerDueCardIdsByImport =
-        schedulerDueByImport;
-    OfficialAnkiHomeDue.activePlacementCardIdsByImport = placementsByImport;
-    OfficialAnkiHomeDue.officialDueUnavailable = false;
-    return total;
+
+    return OfficialFormalDueCollectionData(
+      inputs: inputs,
+      rawDueByImport: rawDueByImport,
+    );
   }
 
-  /// Refresh due counts from one authoritative official deck-tree snapshot.
-  /// Counts are assigned once per effective deck; a selected parent deck owns
-  /// any selected descendants because Anki parent counts already include them.
-  Future<int> refreshHomeDueFromDeckTree({
+  /// Collects coarse deck-tree due counts (pre-eligibility scheduler
+  /// numbers). PURE — returns data, writes nothing.
+  Future<OfficialHomeDueCounts> collectHomeDueFromDeckTree({
     required OfficialAnkiMigrationDao dao,
     required OfficialAnkiSourceDao sources,
     required Future<List<OfficialAnkiDeckNode>> Function() getDeckTree,
@@ -314,11 +293,8 @@ class OfficialAnkiProductionRouter {
       cutoverEnabled: cutoverEnabled,
     );
     final dueByImport = <String, int>{};
-    OfficialAnkiHomeDue.officialImportIds = ids;
     if (ids.isEmpty) {
-      OfficialAnkiHomeDue.officialDueByImport = dueByImport;
-      OfficialAnkiHomeDue.officialDueUnavailable = false;
-      return 0;
+      return OfficialHomeDueCounts(dueByImport: dueByImport, total: 0);
     }
 
     final targets = <String, OfficialAnkiRoutedSource>{};
@@ -383,124 +359,7 @@ class OfficialAnkiProductionRouter {
       total += node.dueCount;
     }
 
-    OfficialAnkiHomeDue.officialDueByImport = dueByImport;
-    OfficialAnkiHomeDue.officialDueUnavailable = false;
-    return total;
-  }
-
-  /// Populate exact scheduler-due card ids for each Official import.
-  ///
-  /// Must run after collection open. Writes
-  /// [OfficialAnkiHomeDue.officialSchedulerDueCardIdsByImport] and
-  /// [OfficialAnkiHomeDue.activePlacementCardIdsByImport] so home/deck due
-  /// uses card-id intersection instead of count approximation.
-  Future<void> refreshFormalDueCardIds({
-    required OfficialAnkiMigrationDao dao,
-    required OfficialAnkiSourceDao sources,
-    required Future<void> Function(int deckId) setCurrentDeck,
-    required Future<OfficialReviewQueue> Function({int fetchLimit})
-        getReviewQueue,
-    Future<Set<int>> Function({int? deckId})? getSuspendedCardIds,
-    Future<Set<int>> Function({int? deckId})? getBuriedCardIds,
-    Future<Set<int>> Function({int? deckId})? getRetiredCardIds,
-    String profileId = defaultProfileId,
-    bool? cutoverEnabled,
-    int fetchLimit = 500,
-  }) async {
-    final ids = officialImportIds(
-      dao: dao,
-      profileId: profileId,
-      cutoverEnabled: cutoverEnabled,
-    );
-    OfficialAnkiHomeDue.officialImportIds = {
-      ...OfficialAnkiHomeDue.officialImportIds,
-      ...ids,
-    };
-    final dueByImport = <String, Set<int>>{};
-    final placementsByImport = <String, Set<int>>{};
-    final countsByImport = <String, int>{};
-    final suspendedByImport = <String, Set<int>>{};
-    final buriedByImport = <String, Set<int>>{};
-    final retiredByImport = <String, Set<int>>{};
-    final queueIdsByDeck = <int, Set<int>>{};
-
-    Set<int>? allSuspended;
-    Set<int>? allBuried;
-    Set<int>? allRetired;
-
-    if (getSuspendedCardIds != null) {
-      allSuspended = await getSuspendedCardIds();
-    }
-    if (getBuriedCardIds != null) {
-      allBuried = await getBuriedCardIds();
-    }
-    if (getRetiredCardIds != null) {
-      allRetired = await getRetiredCardIds();
-    }
-
-    for (final importId in ids) {
-      final target = reviewTargetForImport(
-        dao: dao,
-        sources: sources,
-        importId: importId,
-        profileId: profileId,
-        cutoverEnabled: cutoverEnabled,
-      );
-      if (target == null) {
-        dueByImport[importId] = const {};
-        placementsByImport[importId] = const {};
-        countsByImport[importId] = 0;
-        suspendedByImport[importId] = const {};
-        buriedByImport[importId] = const {};
-        retiredByImport[importId] = const {};
-        continue;
-      }
-      placementsByImport[importId] = Set<int>.from(target.cardIds);
-      if (allSuspended != null) {
-        suspendedByImport[importId] = allSuspended.intersection(target.cardIds);
-      }
-      if (allBuried != null) {
-        buriedByImport[importId] = allBuried.intersection(target.cardIds);
-      }
-      if (allRetired != null) {
-        retiredByImport[importId] = allRetired.intersection(target.cardIds);
-      }
-      var queueIds = queueIdsByDeck[target.deckId];
-      if (queueIds == null) {
-        await setCurrentDeck(target.deckId);
-        final queue = await getReviewQueue(fetchLimit: fetchLimit);
-        queueIds = {for (final card in queue.cards) card.cardId};
-        queueIdsByDeck[target.deckId] = queueIds;
-      }
-      final dueIds = queueIds.intersection(target.cardIds);
-      dueByImport[importId] = dueIds;
-      countsByImport[importId] = dueIds.length;
-    }
-
-    OfficialAnkiHomeDue.officialSchedulerDueCardIdsByImport = dueByImport;
-    OfficialAnkiHomeDue.activePlacementCardIdsByImport = placementsByImport;
-    if (allSuspended != null) {
-      OfficialAnkiHomeDue.suspendedCardIdsByImport = {
-        ...OfficialAnkiHomeDue.suspendedCardIdsByImport,
-        ...suspendedByImport,
-      };
-    }
-    if (allBuried != null) {
-      OfficialAnkiHomeDue.buriedCardIdsByImport = {
-        ...OfficialAnkiHomeDue.buriedCardIdsByImport,
-        ...buriedByImport,
-      };
-    }
-    if (allRetired != null) {
-      OfficialAnkiHomeDue.retiredCardIdsByImport = {
-        ...OfficialAnkiHomeDue.retiredCardIdsByImport,
-        ...retiredByImport,
-      };
-    }
-    OfficialAnkiHomeDue.officialDueByImport = countsByImport;
-    // officialDue is DERIVED (introduced ∩ placement ∩ …); it must never be
-    // set from raw counts (plan 34 D6).
-    OfficialAnkiHomeDue.officialDueUnavailable = false;
+    return OfficialHomeDueCounts(dueByImport: dueByImport, total: total);
   }
 
   OfficialAnkiPaths pathsForDefaultProfile(Directory supportDir) {
@@ -509,6 +368,25 @@ class OfficialAnkiProductionRouter {
       profileRoot: Directory('${supportDir.path}/official_anki/default'),
     );
   }
+}
+
+/// Six-set collection result for every routed import (pure data).
+class OfficialFormalDueCollectionData {
+  const OfficialFormalDueCollectionData({
+    required this.inputs,
+    required this.rawDueByImport,
+  });
+
+  final List<OfficialFormalDueSourceInput> inputs;
+  final Map<String, int> rawDueByImport;
+}
+
+/// Coarse deck-tree due counts (pure data).
+class OfficialHomeDueCounts {
+  const OfficialHomeDueCounts({required this.dueByImport, required this.total});
+
+  final Map<String, int> dueByImport;
+  final int total;
 }
 
 Set<String> officialRoutedImportIdsFromCatalogFile({

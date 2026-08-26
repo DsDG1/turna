@@ -1,4 +1,4 @@
-import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
 import 'package:turna/domain/anki/canonical_card_key.dart';
 import 'package:turna/domain/anki/study_models.dart';
 import 'package:turna/domain/review/official_anki_review_ledger.dart';
@@ -163,33 +163,74 @@ class OfficialStudyLedger implements StudyLedger {
 
   @override
   Future<bool> bury(CanonicalCardKey key) async {
+    final repo = OfficialFormalDueRepository.instance;
+    final expectedGeneration = repo.generation;
     final ok = await _inner.bury(key);
     if (ok) {
-      final current = Set<int>.from(
-        OfficialAnkiHomeDue.buriedCardIdsByImport[key.sourceId] ?? const {},
+      _mutateDueSnapshot(
+        repo,
+        expectedGeneration: expectedGeneration,
+        key: key,
+        addBuried: true,
       );
-      current.add(key.cardId);
-      OfficialAnkiHomeDue.buriedCardIdsByImport = {
-        ...OfficialAnkiHomeDue.buriedCardIdsByImport,
-        key.sourceId: current,
-      };
     }
     return ok;
   }
 
   @override
   Future<bool> suspend(CanonicalCardKey key) async {
+    final repo = OfficialFormalDueRepository.instance;
+    final expectedGeneration = repo.generation;
     final ok = await _inner.suspend(key);
     if (ok) {
-      final current = Set<int>.from(
-        OfficialAnkiHomeDue.suspendedCardIdsByImport[key.sourceId] ?? const {},
+      _mutateDueSnapshot(
+        repo,
+        expectedGeneration: expectedGeneration,
+        key: key,
+        addSuspended: true,
       );
-      current.add(key.cardId);
-      OfficialAnkiHomeDue.suspendedCardIdsByImport = {
-        ...OfficialAnkiHomeDue.suspendedCardIdsByImport,
-        key.sourceId: current,
-      };
     }
     return ok;
   }
+}
+
+/// Folds a successful engine bury/suspend into the due snapshot via a
+/// full-snapshot CAS mutation (maintainability plan §7.4). On a generation
+/// race the transform re-applies against the fresh snapshot once — the
+/// union semantics cannot clobber newer refresh data, and the write is
+/// never silently dropped.
+void _mutateDueSnapshot(
+  OfficialFormalDueRepository repo, {
+  required int expectedGeneration,
+  required CanonicalCardKey key,
+  bool addBuried = false,
+  bool addSuspended = false,
+}) {
+  OfficialFormalDuePerSource transform(OfficialFormalDuePerSource current) {
+    return OfficialFormalDuePerSource(
+      importId: current.importId,
+      knowledge: current.knowledge,
+      schedulerDueCardIds: current.schedulerDueCardIds,
+      activePlacementCardIds: current.activePlacementCardIds,
+      introducedCardIds: current.introducedCardIds,
+      suspendedCardIds: addSuspended
+          ? {...current.suspendedCardIds, key.cardId}
+          : current.suspendedCardIds,
+      buriedCardIds: addBuried
+          ? {...current.buriedCardIds, key.cardId}
+          : current.buriedCardIds,
+      retiredCardIds: current.retiredCardIds,
+    );
+  }
+
+  var result = repo.mutateSource(
+    key.sourceId,
+    expectedGeneration: expectedGeneration,
+    transform: transform,
+  );
+  if (result == OfficialFormalDueCommitResult.stale) {
+    result = repo.mutateSource(key.sourceId, transform: transform);
+  }
+  // missingSource: the sync has not registered this source yet; the next
+  // full refresh collects the engine truth, so the write is not lost.
 }

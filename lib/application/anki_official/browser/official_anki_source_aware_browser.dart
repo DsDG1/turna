@@ -1,6 +1,6 @@
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
-import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/migration/official_anki_production_router.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
@@ -310,7 +310,9 @@ class OfficialAnkiSourceAwareBrowser {
     return true;
   }
 
-  /// Writes suspend/restore to the Official engine and the formal-due set.
+  /// Writes suspend/restore to the Official engine and folds the change
+  /// into the formal-due snapshot via one full-snapshot CAS mutation
+  /// (maintainability plan §7.4 — no manual static-map spreads).
   Future<void> setOfficialSuspended({
     required String sourceId,
     required int cardId,
@@ -324,18 +326,32 @@ class OfficialAnkiSourceAwareBrowser {
           : OfficialBuryOrSuspendAction.restoreCards,
       cardIds: [cardId],
     );
-    final current = {
-      ...?OfficialAnkiHomeDue.suspendedCardIdsByImport[sourceId],
-    };
-    if (suspended) {
-      current.add(cardId);
-    } else {
-      current.remove(cardId);
+    final repo = OfficialFormalDueRepository.instance;
+    final expectedGeneration = repo.generation;
+
+    OfficialFormalDuePerSource transform(OfficialFormalDuePerSource current) {
+      return OfficialFormalDuePerSource(
+        importId: current.importId,
+        knowledge: current.knowledge,
+        schedulerDueCardIds: current.schedulerDueCardIds,
+        activePlacementCardIds: current.activePlacementCardIds,
+        introducedCardIds: current.introducedCardIds,
+        suspendedCardIds: suspended
+            ? {...current.suspendedCardIds, cardId}
+            : current.suspendedCardIds.difference({cardId}),
+        buriedCardIds: current.buriedCardIds,
+        retiredCardIds: current.retiredCardIds,
+      );
     }
-    OfficialAnkiHomeDue.suspendedCardIdsByImport = {
-      ...OfficialAnkiHomeDue.suspendedCardIdsByImport,
-      sourceId: current,
-    };
+
+    var result = repo.mutateSource(
+      sourceId,
+      expectedGeneration: expectedGeneration,
+      transform: transform,
+    );
+    if (result == OfficialFormalDueCommitResult.stale) {
+      repo.mutateSource(sourceId, transform: transform);
+    }
   }
 
   Future<List<SourceAwareBrowserCard>> _searchLegacyReadonly(

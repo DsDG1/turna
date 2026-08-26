@@ -7,7 +7,9 @@ import 'package:turna/application/anki/anki_srs_migrator.dart';
 import 'package:turna/application/anki/card_introduction_eligibility.dart';
 import 'package:turna/application/anki/card_introduction_store.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
-import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_snapshot_builder.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_update.dart';
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/course_provider.dart';
@@ -26,7 +28,7 @@ void main() {
 
   setUp(() {
     CardIntroductionStore.debugOverride = CardIntroductionStore();
-    OfficialAnkiHomeDue.reset();
+    OfficialFormalDueRepository.instance.resetForTest();
   });
 
   tearDown(() {
@@ -213,11 +215,15 @@ void main() {
 
   group('official home due display', () {
     test('scheduler due of 20 with 0 introduced displays 0', () {
-      OfficialAnkiHomeDue.officialImportIds = {'src'};
-      OfficialAnkiHomeDue.officialDueByImport = {'src': 20};
-      expect(OfficialAnkiHomeDue.formalOfficialDueForImport('src'), 0);
-      expect(OfficialAnkiHomeDue.introducedOfficialDue, 0);
-      expect(OfficialAnkiHomeDue.unintroducedOfficialDue, 20);
+      _commitSource(
+        'src',
+        schedulerDue: {for (var i = 1; i <= 20; i++) i},
+        rawDue: 20,
+      );
+      final repo = OfficialFormalDueRepository.instance;
+      expect(repo.formalOfficialDueForImport('src'), 0);
+      expect(repo.snapshot.introducedOfficialDue, 0);
+      expect(repo.snapshot.unintroducedOfficialDue, 20);
     });
 
     test('scheduler due of 20 with 3 introduced displays 3', () async {
@@ -234,16 +240,43 @@ void main() {
         wordId: 'official-anki-src-c3',
         lessonId: 'official-anki-src-l0123456789ab-p1',
       );
-      OfficialAnkiHomeDue.officialImportIds = {'src'};
-      OfficialAnkiHomeDue.officialDueByImport = {'src': 20};
-      OfficialAnkiHomeDue.officialSchedulerDueCardIdsByImport = {
-        'src': {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20},
-      };
-      OfficialAnkiHomeDue.activePlacementCardIdsByImport = {
-        'src': {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20},
-      };
-      expect(OfficialAnkiHomeDue.formalOfficialDueForImport('src'), 3);
-      expect(OfficialAnkiHomeDue.unintroducedOfficialDue, 17);
+      _commitSource(
+        'src',
+        schedulerDue: {for (var i = 1; i <= 20; i++) i},
+        placement: {for (var i = 1; i <= 20; i++) i},
+        rawDue: 20,
+      );
+      final repo = OfficialFormalDueRepository.instance;
+      expect(repo.formalOfficialDueForImport('src'), 3);
+      expect(repo.snapshot.unintroducedOfficialDue, 17);
     });
   });
+}
+
+
+void _commitSource(
+  String importId, {
+  required Set<int> schedulerDue,
+  Set<int> placement = const {},
+  int rawDue = 0,
+}) {
+  OfficialFormalDueRepository.instance.commit(
+    OfficialFormalDueUpdate(
+      bySource: {
+        importId: buildFormalDuePerSource(
+          importId: importId,
+          schedulerDueCardIds: schedulerDue,
+          schedulerDueSynced: true,
+          activePlacementCardIds: placement,
+          suspendedCardIds: const {},
+          buriedCardIds: const {},
+          retiredCardIds: const {},
+        ),
+      },
+      rawDueBySource: {importId: rawDue},
+      turnaDue: 0,
+      unintroducedNew: 0,
+    ),
+    basedOnGeneration: OfficialFormalDueRepository.instance.generation,
+  );
 }

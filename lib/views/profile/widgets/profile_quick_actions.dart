@@ -10,7 +10,7 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/anki/formal_review_launcher.dart';
-import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
 import 'package:turna/application/anki_official/engine/official_anki_home_due_sync.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/mistake_provider.dart';
@@ -45,7 +45,7 @@ class _ProfileQuickActionsState extends State<ProfileQuickActions> {
     final mistakesCount =
         context.select((MistakeProvider p) => p.entries.length);
     final ankiDue = context.select(
-      (SrsProvider p) => OfficialAnkiHomeDue.aggregatedAnkiDue(p.getDueWords()),
+      (SrsProvider p) => OfficialFormalDueRepository.instance.aggregatedAnkiDue(p.getDueWords()),
     );
 
     return Padding(
@@ -102,7 +102,7 @@ class _ProfileQuickActionsState extends State<ProfileQuickActions> {
                         entry: FormalReviewEntryKind.statsContinue,
                         courseId: 'anki',
                         officialOwner:
-                            OfficialAnkiHomeDue.officialImportIds.isNotEmpty,
+                            OfficialFormalDueRepository.instance.officialImportIds.isNotEmpty,
                         schedulerRuntimeAvailable: OfficialAnkiFeatureFlags
                             .current.allowsOfficialScheduler,
                       ),

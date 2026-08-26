@@ -12,7 +12,7 @@ import 'package:provider/provider.dart';
 import 'package:turna/application/anki/anki_review_assembler.dart';
 import 'package:turna/application/anki/formal_review_launcher.dart';
 import 'package:turna/application/anki_official/browser/official_anki_source_aware_browser.dart';
-import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
@@ -254,7 +254,7 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
         entry: FormalReviewEntryKind.deckSection,
         courseId: importId.isEmpty ? 'anki' : 'anki-$importId',
         sectionId: widget.sectionId,
-        officialOwner: OfficialAnkiHomeDue.officialImportIds.contains(importId),
+        officialOwner: OfficialFormalDueRepository.instance.officialImportIds.contains(importId),
         schedulerRuntimeAvailable:
             OfficialAnkiFeatureFlags.current.allowsOfficialScheduler,
       ),

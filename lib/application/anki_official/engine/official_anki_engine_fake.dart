@@ -28,6 +28,10 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
   var compareCount = 0;
   bool failImport = false;
   bool failRender = false;
+
+  /// Per-card render failures for unrenderable-card tests
+  /// (maintainability plan Wave 2).
+  Set<int> failRenderFor = {};
   bool failDeleteNotes = false;
   var collectionGeneration = 1;
   String? projectionToken;
@@ -52,6 +56,8 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
     this.cards.clear();
     answeredIds.clear();
     officialAnswers = 0;
+    failRender = false;
+    failRenderFor.clear();
     buried.clear();
     suspended.clear();
     var cardId = 1;
@@ -318,7 +324,7 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
     bool browser = false,
     bool includeAvTags = true,
   }) async {
-    if (failRender) {
+    if (failRender || failRenderFor.contains(cardId)) {
       throw const OfficialAnkiException(
         code: OfficialAnkiErrorCode.renderFailed,
         messageKey: 'official_anki.render_failed',

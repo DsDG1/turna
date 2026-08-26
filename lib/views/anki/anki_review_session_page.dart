@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:turna/application/anki/anki_deck_manager.dart';
@@ -13,7 +14,7 @@ import 'package:turna/application/anki/official_formal_review_production_loader.
 import 'package:turna/application/anki/study_ledger_adapters.dart';
 import 'package:turna/application/anki/study_product_analytics.dart';
 import 'package:turna/application/anki/study_session_controller.dart';
-import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
@@ -54,13 +55,13 @@ class AnkiReviewSessionPage extends StatefulWidget {
   final String? sectionId;
 
   /// When set by [FormalReviewLauncher], used instead of inferring owner
-  /// from [OfficialAnkiHomeDue.officialImportIds]. `null` falls back to
-  /// the due snapshot: empty section = any Official source, else contains.
+  /// from the due repository. `null` falls back to the due snapshot: empty
+  /// section = any Official source, else contains.
   final bool? officialOwner;
 
   /// Test seam that replaces the production Official batch loader.
   /// Production always uses [OfficialFormalReviewProductionLoader] when null.
-  static Future<OfficialFormalReviewBatch?> Function({
+  static Future<OfficialFormalReviewLoadResult?> Function({
     required String importId,
     required String courseId,
   })? debugOfficialBatchBuilder;
@@ -92,6 +93,11 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
   bool _advancingSource = false;
   bool _advanceScheduled = false;
   bool _reviewAllComplete = false;
+
+  /// Wave 2 (§8.4): a Blocked load — the scheduler owes cards but none
+  /// could be rendered. Surfaced with retry / continue-later; never
+  /// silently ends the source.
+  OfficialFormalReviewBlocked? _blockedLoad;
 
   @override
   void initState() {
@@ -131,6 +137,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
     setState(() {
       _loading = true;
       _error = null;
+      _blockedLoad = null;
       _controller?.removeListener(_onController);
       _controller?.dispose();
       _controller = null;
@@ -150,7 +157,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
         _sourceCoordinator ??= catalogCoordinator.targets.isNotEmpty
             ? catalogCoordinator
             : FormalReviewSourceCoordinator.fromOfficialSourceIds(
-                OfficialAnkiHomeDue.officialImportIds,
+                OfficialFormalDueRepository.instance.officialImportIds,
               );
       }
       final sourceTarget = _sourceCoordinator?.current;
@@ -170,7 +177,8 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
       final officialOwner = sourceTarget != null
           ? sourceTarget.owner == AnkiEngineKind.official
           : widget.officialOwner ??
-              OfficialAnkiHomeDue.officialImportIds.contains(importId);
+              OfficialFormalDueRepository.instance.officialImportIds
+                  .contains(importId);
       final launch = const FormalReviewLauncher().resolve(
         entry: FormalReviewEntryKind.ankiHub,
         courseId: importId.isEmpty ? 'anki' : 'anki-$importId',
@@ -308,7 +316,10 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
     } catch (error) {
       final coordinator = _sourceCoordinator;
       if (coordinator?.current != null) {
-        coordinator!.recordFailure(error);
+        coordinator!.recordFailure(
+          error,
+          kind: FormalReviewFailureKind.runtime,
+        );
         await _advanceReviewAll(recordSession: false);
         return;
       }
@@ -348,22 +359,46 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
   }
 
   /// Official owners: FormalReviewLauncher + OfficialStudyLedger only.
+  /// Typed load results (maintainability plan §8.4): NoDue advances Review
+  /// All, Blocked waits for an explicit user action — never a silent end.
   Future<void> _startOfficialOwned({
     required String importId,
     required String courseId,
   }) async {
     final builder = AnkiReviewSessionPage.debugOfficialBatchBuilder;
-    final OfficialFormalReviewBatch? officialBatch;
+    final OfficialFormalReviewLoadResult? loadResult;
     if (builder != null) {
-      officialBatch = await builder(importId: importId, courseId: courseId);
+      loadResult = await builder(importId: importId, courseId: courseId);
     } else {
-      officialBatch = await AnkiReviewSessionPage.productionLoader.load(
+      loadResult = await AnkiReviewSessionPage.productionLoader.load(
         importId: importId,
         courseId: courseId,
       );
     }
     if (!mounted) return;
-    final batch = officialBatch;
+    final result = loadResult;
+    if (result is OfficialFormalReviewBlocked) {
+      // The scheduler still owes these cards — visible, retryable, and in
+      // Review All recorded as a render failure the user can continue
+      // past explicitly.
+      _sourceCoordinator?.recordFailure(
+        StateError('blocked:${result.sourceId}'),
+        kind: FormalReviewFailureKind.render,
+        retryable: true,
+        code: result.failures.isNotEmpty
+            ? result.failures.first.code
+            : 'unknown',
+      );
+      setState(() {
+        _blockedLoad = result;
+        _loading = false;
+      });
+      return;
+    }
+    OfficialFormalReviewBatch? batch;
+    if (result is OfficialFormalReviewReady) {
+      batch = result.batch;
+    }
     if (batch == null || batch.items.isEmpty) {
       if (_sourceCoordinator != null) {
         await _advanceReviewAll(recordSession: false);
@@ -374,9 +409,10 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
       });
       return;
     }
+    final readyBatch = batch;
 
-    _officialSession = batch.session;
-    final liveQueue = batch.liveQueue;
+    _officialSession = readyBatch.session;
+    final liveQueue = readyBatch.liveQueue;
     _officialSessionLiveQueue = liveQueue;
     if (liveQueue != null) {
       liveQueue.addListener(_onLiveQueueRebuilt);
@@ -385,7 +421,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
     final host = AnkiStudySessionHost.debugOverride ??
         AnkiStudySessionHost.resolveOrNull() ??
         AnkiStudySessionHost(
-          resolver: StudyLedgerResolver(official: batch.ledger),
+          resolver: StudyLedgerResolver(official: readyBatch.ledger),
           onEffects: (item, receipt) async {
             StudyProductAnalytics.instance.record(receipt);
             // Live scheduler contract (plan 34 D4): every committed answer
@@ -399,8 +435,8 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
           },
         );
     final controller = host.openOfficialReview(
-      batch.items,
-      officialLedger: batch.ledger,
+      readyBatch.items,
+      officialLedger: readyBatch.ledger,
     );
     controller.addListener(_onController);
     await controller.start();
@@ -409,9 +445,40 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
       _controller = controller;
       // Fidelity HTML faces from production renderCard (fidelity-first
       // policy; flip faces carry plain text only when the card has none).
-      _fidelityInteractions = batch.fidelityInteractions;
+      _fidelityInteractions = readyBatch.fidelityInteractions;
+      _blockedLoad = null;
       _loading = false;
     });
+  }
+
+  /// Wave 2 §8.4: retry the current source after a Blocked load. The old
+  /// session was already disposed by the loader; this disposes any stale
+  /// page-held session before re-loading, so there is never a second
+  /// concurrent scheduler session and nothing is double-answered.
+  Future<void> _retryBlockedSource() async {
+    final blocked = _blockedLoad;
+    if (blocked == null) return;
+    final coordinator = _sourceCoordinator;
+    if (coordinator != null && coordinator.failures.isNotEmpty) {
+      // Drop the failure we recorded for this attempt; a successful retry
+      // replaces it, an exhausted retry records a fresh one.
+      coordinator.failures.removeLast();
+    }
+    setState(() {
+      _blockedLoad = null;
+      _loading = true;
+    });
+    await _start();
+  }
+
+  /// Wave 2 §8.4 / §9.4: Review All "continue later" — the failed source
+  /// stays recorded and is listed on the completion page.
+  Future<void> _continuePastBlockedSource() async {
+    if (_blockedLoad == null) return;
+    setState(() {
+      _blockedLoad = null;
+    });
+    await _advanceReviewAll(recordSession: false);
   }
 
   /// The live queue mutated the shared items list — refresh the page's
@@ -419,6 +486,18 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
   void _onLiveQueueRebuilt() {
     final liveQueue = _officialSessionLiveQueue;
     if (liveQueue == null || !mounted) return;
+    setState(() {
+      _fidelityInteractions = Map.of(liveQueue.fidelityInteractions);
+    });
+  }
+
+  /// Wave 2 §8.3: retry the blocked current card inside the SAME session —
+  /// no second scheduler session, no re-answer.
+  Future<void> _retryBlockedCurrentCard() async {
+    final liveQueue = _officialSessionLiveQueue;
+    if (liveQueue == null) return;
+    await liveQueue.retryCurrentCard();
+    if (!mounted) return;
     setState(() {
       _fidelityInteractions = Map.of(liveQueue.fidelityInteractions);
     });
@@ -462,9 +541,22 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
               if (reviewAll.failures.isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.all(12),
-                  child: Text(
-                    '以下来源未能完成：${reviewAll.failures.map((failure) => failure.target.displayName).join('、')}',
-                    style: TextStyle(color: TurnaTheme.error),
+                  child: Column(
+                    children: [
+                      Text(
+                        '以下来源未能完成：${reviewAll.failures.map((failure) => failure.target.displayName).join('、')}',
+                        style: TextStyle(color: TurnaTheme.error),
+                      ),
+                      if (reviewAll.failedTargets.isNotEmpty)
+                        TextButton.icon(
+                          key: const Key('anki-review-all-retry-failed'),
+                          onPressed: () => unawaited(
+                            _retryFailedSources(reviewAll),
+                          ),
+                          icon: const Icon(Icons.refresh_rounded, size: 18),
+                          label: const Text('重试失败来源'),
+                        ),
+                    ],
                   ),
                 ),
               Expanded(
@@ -488,6 +580,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
         fidelityInteractions: _fidelityInteractions,
         officialSession: _officialSession,
         liveQueue: _officialSessionLiveQueue,
+        onRetryBlockedCard: _retryBlockedCurrentCard,
         sourceProgress: reviewAll?.current == null
             ? null
             : '${reviewAll!.currentIndex + 1}/${reviewAll.targets.length} · '
@@ -495,6 +588,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
       );
     }
 
+    final blocked = _blockedLoad;
     return Scaffold(
       backgroundColor: TurnaTheme.scaffoldBg(context),
       appBar: AppBar(
@@ -508,25 +602,128 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
       body: Center(
         child: _loading
             ? const CircularProgressIndicator()
-            : _error != null
-                ? Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        _error == FormalReviewLauncher.failClosedMessage
-                            ? AppStrings.officialAnkiError(
-                                FormalReviewLauncher.failClosedMessage,
-                              )
-                            : AppStrings.ankiReviewLoadFailed,
-                      ),
-                      const SizedBox(height: 12),
-                      FilledButton(
-                        onPressed: _start,
-                        child: Text(AppStrings.ankiReviewRetry),
-                      ),
-                    ],
+            : blocked != null
+                ? _BlockedLoadPanel(
+                    blocked: blocked,
+                    inReviewAll: reviewAll != null,
+                    onRetry: _retryBlockedSource,
+                    onContinue: _continuePastBlockedSource,
                   )
-                : Text(AppStrings.ankiNoCardsDue),
+                : _error != null
+                    ? Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _error == FormalReviewLauncher.failClosedMessage
+                                ? AppStrings.officialAnkiError(
+                                    FormalReviewLauncher.failClosedMessage,
+                                  )
+                                : AppStrings.ankiReviewLoadFailed,
+                          ),
+                          const SizedBox(height: 12),
+                          FilledButton(
+                            onPressed: _start,
+                            child: Text(AppStrings.ankiReviewRetry),
+                          ),
+                        ],
+                      )
+                    : Text(AppStrings.ankiNoCardsDue),
+      ),
+    );
+  }
+
+  /// Wave 3 §9.4: retry only the failed sources; counts already recorded
+  /// for successful sources carry over to the new pass.
+  Future<void> _retryFailedSources(
+    FormalReviewSourceCoordinator previous,
+  ) async {
+    final retryTargets = previous.failedTargets;
+    if (retryTargets.isEmpty) return;
+    final next = FormalReviewSourceCoordinator(retryTargets)
+      ..totalCount = previous.totalCount
+      ..rememberedCount = previous.rememberedCount
+      ..forgottenCount = previous.forgottenCount;
+    setState(() {
+      _sourceCoordinator = next;
+      _reviewAllComplete = false;
+      _loading = true;
+    });
+    await _start();
+  }
+}
+
+/// Wave 2 §8.4: unified Blocked surface. Debug builds may show the card /
+/// source / stable code; release shows the safe copy only. No implicit
+/// scheduling happens from here.
+class _BlockedLoadPanel extends StatelessWidget {
+  const _BlockedLoadPanel({
+    required this.blocked,
+    required this.inReviewAll,
+    required this.onRetry,
+    required this.onContinue,
+  });
+
+  final OfficialFormalReviewBlocked blocked;
+  final bool inReviewAll;
+  final Future<void> Function() onRetry;
+  final Future<void> Function() onContinue;
+
+  @override
+  Widget build(BuildContext context) {
+    final debugDetails = kDebugMode
+        ? 'source=${blocked.sourceId} '
+            'code=${blocked.failures.isNotEmpty ? blocked.failures.first.code : 'unknown'} '
+            'cards=${blocked.schedulerCardCount}'
+        : null;
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.visibility_off_rounded, size: 44),
+          const SizedBox(height: 12),
+          Text(
+            '此来源的卡片暂时无法显示',
+            key: const Key('anki-review-blocked'),
+            style: Theme.of(context).textTheme.titleMedium,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '调度器仍欠 ${blocked.schedulerCardCount} 张卡，未做任何评分、搁置或暂停。',
+            style: TextStyle(
+              fontSize: 13,
+              color: TurnaTheme.textSecondaryColor(context),
+            ),
+            textAlign: TextAlign.center,
+          ),
+          if (debugDetails != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              debugDetails,
+              key: const Key('anki-review-blocked-debug'),
+              style: TextStyle(
+                fontSize: 11,
+                color: TurnaTheme.textHintColor(context),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+          const SizedBox(height: 16),
+          FilledButton.icon(
+            onPressed: () => unawaited(onRetry()),
+            icon: const Icon(Icons.refresh_rounded, size: 18),
+            label: Text(AppStrings.ankiReviewRetry),
+          ),
+          if (inReviewAll) ...[
+            const SizedBox(height: 8),
+            TextButton(
+              key: const Key('anki-review-blocked-continue'),
+              onPressed: () => unawaited(onContinue()),
+              child: const Text('稍后处理此来源并继续'),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -538,6 +735,7 @@ class _AnkiStudySessionView extends StatelessWidget {
     this.fidelityInteractions = const {},
     this.officialSession,
     this.liveQueue,
+    this.onRetryBlockedCard,
     this.sourceProgress,
   });
 
@@ -548,6 +746,9 @@ class _AnkiStudySessionView extends StatelessWidget {
   /// Live queue driver for official owners; mutations (bury/suspend) refresh
   /// the batch through it (plan 34 D4).
   final OfficialFormalReviewLiveQueue? liveQueue;
+
+  /// Wave 2 §8.3: retries the blocked current card in the same session.
+  final Future<void> Function()? onRetryBlockedCard;
   final String? sourceProgress;
 
   @override
@@ -575,6 +776,8 @@ class _AnkiStudySessionView extends StatelessWidget {
         controller.phase == StudyCardPhase.showingFeedback ||
         controller.phase == StudyCardPhase.readyForNext;
     final structured = item.presentation is StructuredCardPresentation;
+    // Wave 2 §8.3: a blocked current card locks scoring until retried.
+    final blockedFailure = liveQueue?.currentBlockedFailure;
 
     return Scaffold(
       backgroundColor: TurnaTheme.scaffoldBg(context),
@@ -685,7 +888,33 @@ class _AnkiStudySessionView extends StatelessWidget {
                     ),
                   ),
                   SizedBox(height: sizing.bottomGap),
-                  if (controller.phase == StudyCardPhase.recoverableError) ...[
+                  if (blockedFailure != null) ...[
+                    Text(
+                      '当前卡片暂时无法显示，评分已锁定。',
+                      key: const Key('anki-study-session-render-blocked'),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: TurnaTheme.error),
+                    ),
+                    if (kDebugMode)
+                      Text(
+                        'card=${blockedFailure.cardId} '
+                        'source=${blockedFailure.sourceId} '
+                        'code=${blockedFailure.code}',
+                        key: const Key('anki-study-session-render-debug'),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: TurnaTheme.textHintColor(context),
+                        ),
+                      ),
+                    const SizedBox(height: 12),
+                    FilledButton(
+                      onPressed: onRetryBlockedCard == null
+                          ? null
+                          : () => unawaited(onRetryBlockedCard!()),
+                      child: Text(AppStrings.ankiReviewRetry),
+                    ),
+                  ] else if (controller.phase ==
+                      StudyCardPhase.recoverableError) ...[
                     const Text(
                       '当前卡片无法安全写入，请重试或稍后返回。',
                       key: Key('anki-study-session-error'),

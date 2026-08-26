@@ -2,10 +2,13 @@ import 'package:flutter/foundation.dart';
 import 'package:turna/application/anki/official_study_batch_assembler.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
+import 'package:turna/application/anki_official/review/official_formal_review_results.dart';
 import 'package:turna/domain/anki/canonical_card_key.dart';
 import 'package:turna/domain/anki/card_presentation.dart';
 import 'package:turna/domain/anki/study_models.dart';
 import 'package:turna/domain/course/interaction.dart';
+
+export 'package:turna/application/anki_official/review/official_formal_review_results.dart';
 
 /// One live formal-review card (plan 34 D4 / OS-10).
 ///
@@ -157,6 +160,12 @@ class OfficialFormalReviewRenderer {
 /// `session.current.cardId` — the controller index only positions into the
 /// rebuilt list, and `answerAndConfirm(expectedCardId:)` fails loudly if
 /// they ever disagree.
+///
+/// A card that fails to render during a rebuild is recorded as a
+/// structured [OfficialCardRenderFailure]; when that card is the CURRENT
+/// one the queue reports [OfficialLiveQueueBlockedOnCurrentCard], keeps
+/// the previous items visible and locks scoring — it is never silently
+/// dropped (maintainability plan §8.3).
 class OfficialFormalReviewLiveQueue extends ChangeNotifier {
   OfficialFormalReviewLiveQueue({
     required this.session,
@@ -193,12 +202,21 @@ class OfficialFormalReviewLiveQueue extends ChangeNotifier {
   /// Fidelity HTML faces keyed by sessionItemId for the shared host.
   final Map<String, AnkiHtmlCard> fidelityInteractions = {};
 
+  /// Structured render failures from the last rebuild — displayed in the
+  /// session summary, never containing card content.
+  final List<OfficialCardRenderFailure> renderFailures = [];
+
   int _generation = 0;
   bool rebuilding = false;
   Object? lastRebuildError;
 
+  /// Set while the scheduler's current card cannot be rendered; scoring
+  /// must stay locked until [retryCurrentCard] succeeds.
+  OfficialCardRenderFailure? currentBlockedFailure;
+
   int get renderGeneration => _generation;
   int get liveLength => _items.length;
+  List<StudyItem> get items => _items;
 
   /// Snapshot of the scheduler's current card (D4). `null` when the queue
   /// is empty or the current card has no rendered face yet.
@@ -223,13 +241,14 @@ class OfficialFormalReviewLiveQueue extends ChangeNotifier {
   /// every answer / undo / bury / suspend — the session queue is already
   /// refreshed by then; this maps it back onto shared StudyItems, rendering
   /// previously unseen cards first.
-  Future<void> rebuildFromLiveQueue() async {
-    if (rebuilding) return;
+  Future<OfficialLiveQueueRebuildResult> rebuildFromLiveQueue() async {
+    if (rebuilding) return const OfficialLiveQueueRebuildStale();
     rebuilding = true;
     lastRebuildError = null;
     try {
       final queue = session.queue;
-      if (queue == null) return;
+      if (queue == null) return const OfficialLiveQueueRebuildStale();
+      final failures = <OfficialCardRenderFailure>[];
       for (final card in queue.cards) {
         if (_faces.containsKey(card.cardId)) continue;
         try {
@@ -237,12 +256,45 @@ class OfficialFormalReviewLiveQueue extends ChangeNotifier {
             sourceId: sourceId,
             cardId: card.cardId,
           );
-        } catch (_) {
-          // Leave unrenderable cards out of the batch rather than blocking
-          // the whole session; the scheduler retries them on a fresh load.
-          continue;
+        } catch (error) {
+          final failure = OfficialCardRenderFailure.fromError(
+            error,
+            sourceId: sourceId,
+            cardId: card.cardId,
+            stage: OfficialRenderFailureStage.rebuild,
+            renderGeneration: _generation,
+          );
+          failures.add(failure);
+          OfficialFormalReviewRenderAudit.recordRenderFailure(failure);
         }
       }
+
+      final current = session.current;
+      final currentCardId = current?.cardId;
+      if (currentCardId != null && !_faces.containsKey(currentCardId)) {
+        final failure = failures.firstWhere(
+          (f) => f.cardId == currentCardId,
+          orElse: () => OfficialCardRenderFailure(
+            sourceId: sourceId,
+            cardId: currentCardId,
+            code: 'render_internal_error',
+            stage: OfficialRenderFailureStage.rebuild,
+            recoverable: false,
+            renderGeneration: _generation,
+          ),
+        );
+        currentBlockedFailure = failure;
+        renderFailures
+          ..clear()
+          ..addAll(failures);
+        notifyListeners();
+        return OfficialLiveQueueBlockedOnCurrentCard(failure);
+      }
+      currentBlockedFailure = null;
+      renderFailures
+        ..clear()
+        ..addAll(failures);
+
       final presentations = <CanonicalCardKey, CardPresentation>{
         for (final entry in _faces.values)
           entry.presentation.cardKey: entry.presentation,
@@ -273,11 +325,45 @@ class OfficialFormalReviewLiveQueue extends ChangeNotifier {
               ),
         ]);
       notifyListeners();
+      return const OfficialLiveQueueRebuilt();
     } catch (error) {
       lastRebuildError = error;
+      return OfficialLiveQueueRebuildFailed(error);
     } finally {
       rebuilding = false;
     }
+  }
+
+  /// Retries ONLY the current card's render, then rebuilds against the
+  /// same generation (maintainability plan §8.4). Never creates a second
+  /// scheduler session and never answers/buries/suspends.
+  Future<OfficialLiveQueueRebuildResult> retryCurrentCard() async {
+    final current = session.current;
+    if (current == null) return rebuildFromLiveQueue();
+    final hadFailure = currentBlockedFailure != null;
+    try {
+      _faces[current.cardId] = await renderer.render(
+        sourceId: sourceId,
+        cardId: current.cardId,
+      );
+    } catch (error) {
+      final next = OfficialCardRenderFailure.fromError(
+        error,
+        sourceId: sourceId,
+        cardId: current.cardId,
+        stage: OfficialRenderFailureStage.retry,
+        renderGeneration: _generation,
+      );
+      OfficialFormalReviewRenderAudit.recordRenderFailure(next);
+      currentBlockedFailure = next;
+      notifyListeners();
+      return OfficialLiveQueueBlockedOnCurrentCard(next);
+    }
+    currentBlockedFailure = null;
+    if (hadFailure) {
+      OfficialFormalReviewRenderAudit.recordRenderRecovered();
+    }
+    return rebuildFromLiveQueue();
   }
 
   /// Whether the scheduler still owes cards inside the allowed set.
@@ -290,29 +376,34 @@ class OfficialFormalReviewLiveQueue extends ChangeNotifier {
   }
 }
 
-/// Frozen plan for a Review All session (plan 34 D5 / OS-13).
-///
-/// The participating source list is decided once at start; every listed
-/// source's formal-due cards are consumed through a single scheduler
-/// queue. Sources whose target resolution failed are reported — never
-/// silently dropped.
-@immutable
-class OfficialReviewAllPlan {
-  const OfficialReviewAllPlan({
-    required this.sourceIds,
-    required this.cardIds,
-    required this.failedSourceIds,
-  });
+/// Bounded audit of formal-review render failures (maintainability plan
+/// §8.5). Records identity + stable code + stage only — never card text,
+/// HTML, typed answers or media paths.
+class OfficialFormalReviewRenderAudit {
+  OfficialFormalReviewRenderAudit._();
 
-  final List<String> sourceIds;
+  static const _maxEvents = 200;
+  static final List<OfficialCardRenderFailure> _failures = [];
+  static int _recovered = 0;
 
-  /// Union of every participating source's formal-due card ids.
-  final Set<int> cardIds;
+  static List<OfficialCardRenderFailure> get failures =>
+      List.unmodifiable(_failures);
 
-  /// Sources that could not be resolved at planning time; surfaced in the
-  /// session result so the user knows the review was partial.
-  final List<String> failedSourceIds;
+  static int get recoveredCount => _recovered;
 
-  bool get isPartial => failedSourceIds.isNotEmpty;
-  bool get isEmpty => cardIds.isEmpty;
+  static void recordRenderFailure(OfficialCardRenderFailure failure) {
+    _failures.add(failure);
+    if (_failures.length > _maxEvents) {
+      _failures.removeRange(0, _failures.length - _maxEvents);
+    }
+  }
+
+  static void recordRenderRecovered() {
+    _recovered += 1;
+  }
+
+  static void resetForTest() {
+    _failures.clear();
+    _recovered = 0;
+  }
 }

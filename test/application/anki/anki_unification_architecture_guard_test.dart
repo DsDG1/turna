@@ -126,33 +126,49 @@ void main() {
         );
       }
 
-      // Production import screen must not pass allowLegacyOnly: true.
+      // Controller-era wiring (maintainability plan Wave 4): the page is a
+      // shell; neither the page nor the controller may opt into legacyOnly.
       final importScreen =
           File('lib/views/anki/anki_import_screen.dart').readAsStringSync();
-      expect(
-        importScreen.contains('allowLegacyOnly: true'),
-        isFalse,
-        reason: 'production import screen must not opt into legacyOnly',
-      );
-      expect(
-        importScreen.contains('officialFirstImportEligible'),
-        isFalse,
-        reason: 'production uses AnkiImportExecutionPlan, not the dual policy',
-      );
+      final controller = File(
+        'lib/application/anki/import_wizard/anki_import_controller.dart',
+      ).readAsStringSync();
+      final deps = File(
+        'lib/application/anki/import_wizard/anki_import_dependencies.dart',
+      ).readAsStringSync();
+      for (final text in [importScreen, controller, deps]) {
+        expect(
+          text.contains('allowLegacyOnly: true'),
+          isFalse,
+          reason: 'production import path must not opt into legacyOnly',
+        );
+        expect(
+          text.contains('officialFirstImportEligible'),
+          isFalse,
+          reason: 'production uses AnkiImportExecutionPlan, not the dual policy',
+        );
+      }
 
-      final executeStart = importScreen.indexOf('Future<void> _executeImport');
-      final officialFlowStart =
-          importScreen.indexOf('Future<void> _runOfficialFirstFlow');
-      expect(executeStart, greaterThanOrEqualTo(0));
-      expect(officialFlowStart, greaterThan(executeStart));
-      final executeBody =
-          importScreen.substring(executeStart, officialFlowStart);
+      // W0-03: commit must reuse the pick-time plan, not re-read flags.
+      final commitStart = controller.indexOf('Future<void> commit()');
+      expect(commitStart, greaterThanOrEqualTo(0));
+      final commitEnd = controller.indexOf('void _finishCommit');
+      expect(commitEnd, greaterThan(commitStart));
+      final commitBody = controller.substring(commitStart, commitEnd);
       expect(
-        executeBody.contains('AnkiImportFacade.planFor'),
+        commitBody.contains('planFor'),
         isFalse,
-        reason: 'W0-03: commit must reuse the pick-time plan, not re-read flags',
+        reason: 'W0-03: commit reuses the frozen preview.plan',
       );
-      expect(executeBody.contains('LegacyAnkiImportExecutor'), isTrue);
+      expect(commitBody.contains('preview.plan'), isTrue);
+      final legacyFlow = File(
+        'lib/application/anki/import_wizard/legacy_anki_import_flow.dart',
+      ).readAsStringSync();
+      expect(
+        legacyFlow.contains('legacyExecutorFactory'),
+        isTrue,
+        reason: 'the Legacy flow drives the executor through injected deps',
+      );
       final executor = File(
         'lib/application/anki/legacy_anki_import_executor.dart',
       ).readAsStringSync();
@@ -288,6 +304,113 @@ void main() {
         }
       }
       expect(violations, isEmpty, reason: violations.join('\n'));
+    });
+
+
+    // ── Maintainability plan (Wave 1/3/4) guards ─────────────────────
+    test('formal-due has one writer: no compatibility facade resurrection',
+        () {
+      expect(
+        File(
+          'lib/application/anki_official/engine/official_anki_home_due.dart',
+        ).existsSync(),
+        isFalse,
+        reason: 'the OfficialAnkiHomeDue facade was retired (Wave 1 §7.6)',
+      );
+      final violations = <String>[];
+      for (final entity in Directory('lib').listSync(recursive: true)) {
+        if (entity is! File || !entity.path.endsWith('.dart')) continue;
+        if (RegExp(r'OfficialAnkiHomeDue\b')
+            .hasMatch(entity.readAsStringSync())) {
+          violations.add(entity.path);
+        }
+      }
+      expect(violations, isEmpty, reason: violations.join(', '));
+    });
+
+    test('views never mutate the formal-due repository', () {
+      final violations = <String>[];
+      for (final entity in Directory('lib/views').listSync(recursive: true)) {
+        if (entity is! File || !entity.path.endsWith('.dart')) continue;
+        final text = entity.readAsStringSync();
+        if (text.contains('.mutateSource(') ||
+            text.contains('OfficialFormalDueUpdate(') ||
+            text.contains('.markUnavailable(')) {
+          violations.add(entity.path);
+        }
+      }
+      expect(violations, isEmpty, reason: violations.join(', '));
+    });
+
+    test('lib contains no synthetic official-all source id (Wave 3)', () {
+      final violations = <String>[];
+      for (final entity in Directory('lib').listSync(recursive: true)) {
+        if (entity is! File || !entity.path.endsWith('.dart')) continue;
+        if (entity.readAsStringSync().contains('official-all')) {
+          violations.add(entity.path);
+        }
+      }
+      expect(violations, isEmpty, reason: violations.join(', '));
+      expect(
+        File('lib/application/anki/formal_review_launcher.dart')
+            .readAsStringSync()
+            .contains('OfficialReviewAllPlan'),
+        isFalse,
+        reason: 'OfficialReviewAllPlan was deleted with the aggregate model',
+      );
+    });
+
+    test('production loader rejects empty source ids (Wave 3 §9.2)', () {
+      final loader = File(
+        'lib/application/anki/official_formal_review_production_loader.dart',
+      ).readAsStringSync();
+      expect(loader.contains('importId.isEmpty'), isTrue);
+      expect(
+        loader.substring(loader.indexOf('importId.isEmpty') - 200,
+                loader.indexOf('importId.isEmpty') + 200)
+            .contains('ArgumentError'),
+        isTrue,
+        reason: 'empty sourceId must throw, not fall back to an aggregate',
+      );
+    });
+
+    test('import wizard respects the size and dependency gates (Wave 4 §10.8)',
+        () {
+      int lineCount(String path) =>
+          File(path).readAsStringSync().split('\n').length;
+
+      expect(lineCount('lib/views/anki/anki_import_screen.dart'),
+          lessThanOrEqualTo(700),
+          reason: 'import screen must stay a shell');
+      for (final step in const [
+        'lib/views/anki/import_wizard/legacy_anki_import_preview.dart',
+        'lib/views/anki/import_wizard/official_anki_import_preview.dart',
+        'lib/views/anki/import_wizard/anki_import_done_step.dart',
+      ]) {
+        expect(lineCount(step), lessThanOrEqualTo(500), reason: step);
+      }
+      expect(
+        lineCount('lib/application/anki/import_wizard/anki_import_controller.dart'),
+        lessThanOrEqualTo(600),
+        reason: 'controller must stay lean (helpers live in view_helpers.dart)',
+      );
+      for (final flow in const [
+        'lib/application/anki/import_wizard/legacy_anki_import_flow.dart',
+        'lib/application/anki/import_wizard/official_first_anki_import_flow.dart',
+      ]) {
+        expect(lineCount(flow), lessThanOrEqualTo(500), reason: flow);
+      }
+
+      final screen =
+          File('lib/views/anki/anki_import_screen.dart').readAsStringSync();
+      expect(screen.contains("package:turna/data/"), isFalse,
+          reason: 'the page must not import DAOs');
+      expect(screen.contains('CourseDatabase'), isFalse);
+      expect(screen.contains('getIt<'), isFalse,
+          reason: 'the page must not assemble business dependencies');
+      expect(screen.contains('LegacyAnkiImportExecutor'), isFalse);
+      expect(screen.contains('.importThenPreview('), isFalse);
+      expect(screen.contains('projectAndPublish'), isFalse);
     });
 
     test('unsupported platform never selects Legacy writer (execution plan)', () {

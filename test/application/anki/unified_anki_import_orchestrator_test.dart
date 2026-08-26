@@ -317,12 +317,14 @@ void main() {
       expect(screen.contains('database.transaction('), isFalse);
       expect(screen.contains('AnkiImportDao('), isFalse);
       expect(screen.contains('AnkiNoteDao('), isFalse);
-      expect(
-        screen.contains('_officialFirst') ||
-            screen.contains('OfficialAnkiOfficialFirstService') ||
-            screen.contains('facade.importOfficialOrNull'),
-        isTrue,
-      );
+      // Controller-era wiring: the page hosts the controller; the
+      // official-first saga is invoked by the flow, never the widget.
+      expect(screen.contains('AnkiImportController'), isTrue);
+      expect(screen.contains('OfficialAnkiOfficialFirstService'), isFalse);
+      final officialFlow = File(
+        'lib/application/anki/import_wizard/official_first_anki_import_flow.dart',
+      ).readAsStringSync();
+      expect(officialFlow.contains('importThenPreview'), isTrue);
       expect(
         executor.contains('OfficialAnkiFeatureFlags.current.legacyMirror'),
         isTrue,

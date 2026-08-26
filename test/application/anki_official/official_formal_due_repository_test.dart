@@ -1,9 +1,11 @@
-// OfficialFormalDueRepository tests (plan 34 R3 / OS-15): the six-set
-// formula, fail-closed unknowns (never a guessed zero), generation-based
-// staleness, rollback of the full six sets, and per-source isolation.
+// OfficialFormalDueRepository tests (plan 34 R3 / OS-15 + maintainability
+// plan Wave 1): the six-set formula, fail-closed unknowns (never a guessed
+// zero), generation-based staleness with CAS commits, and per-source
+// isolation.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_update.dart';
 
 OfficialFormalDuePerSource _per(
   String importId, {
@@ -24,7 +26,18 @@ OfficialFormalDuePerSource _per(
     suspendedCardIds: suspended,
     buriedCardIds: buried,
     retiredCardIds: retired,
-    resolveIntroducedAtReadTime: false,
+  );
+}
+
+OfficialFormalDueUpdate _update({
+  Map<String, OfficialFormalDuePerSource> bySource = const {},
+  Map<String, int> rawDueBySource = const {},
+}) {
+  return OfficialFormalDueUpdate(
+    bySource: bySource,
+    rawDueBySource: rawDueBySource,
+    turnaDue: 0,
+    unintroducedNew: 0,
   );
 }
 
@@ -32,11 +45,11 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() {
-    OfficialFormalDueRepository.instance.reset();
+    OfficialFormalDueRepository.instance.resetForTest();
   });
 
   tearDown(() {
-    OfficialFormalDueRepository.instance.reset();
+    OfficialFormalDueRepository.instance.resetForTest();
   });
 
   test(
@@ -70,48 +83,90 @@ void main() {
     expect(per.knowledge, FormalDueKnowledge.unknown);
   });
 
-  test('apply bumps the generation and isStale detects late results', () {
+  test('commit bumps the generation and isStale detects late results', () {
     final repo = OfficialFormalDueRepository.instance;
-    repo.apply(byImport: {'a': _per('a')});
+    repo.commit(
+      _update(bySource: {'a': _per('a')}),
+      basedOnGeneration: repo.generation,
+    );
     final observed = repo.generation;
-    repo.apply(byImport: {'a': _per('a')});
+    repo.commit(
+      _update(bySource: {'a': _per('a')}),
+      basedOnGeneration: repo.generation,
+    );
     expect(repo.isStale(observed), isTrue,
         reason: 'a late async result from the older generation must be '
             'dropped, not overwrite the newer snapshot');
     expect(repo.isStale(repo.generation), isFalse);
   });
 
-  test('rollback restores the complete previous six sets', () {
+  test('a stale commit is rejected and keeps the newer snapshot', () {
     final repo = OfficialFormalDueRepository.instance;
-    repo.apply(byImport: {
-      'a': _per('a', schedulerDue: {1}, placement: {1}, introduced: {1}),
-    });
-    repo.saveForRollback();
-    repo.apply(byImport: {
-      'a': _per('a',
-          schedulerDue: {1, 2},
-          placement: {1, 2},
-          introduced: {1, 2},
-          retired: {2}),
-    });
-    expect(repo.formalDueCardKeysForImport('a').map((k) => k.cardId), {1});
-
-    repo.rollback();
-
-    expect(
-      repo.schedulerDueCardIdsFor('a'),
-      {1},
-      reason: 'the failed refresh must leave the last good six sets intact',
+    repo.commit(
+      _update(bySource: {
+        'a': _per('a', schedulerDue: {1}, placement: {1}, introduced: {1}),
+      }),
+      basedOnGeneration: repo.generation,
     );
-    expect(repo.retiredCardIdsFor('a'), isEmpty);
-    expect(repo.generation, greaterThan(0));
+    final staleBase = repo.generation;
+    repo.commit(
+      _update(bySource: {
+        'a': _per('a', schedulerDue: {9}, placement: {9}, introduced: {9}),
+      }),
+      basedOnGeneration: repo.generation,
+    );
+
+    final result = repo.commit(
+      _update(bySource: {
+        'a': _per('a', schedulerDue: {1, 2}, placement: {1, 2},
+            introduced: {1, 2}),
+      }),
+      basedOnGeneration: staleBase,
+    );
+
+    expect(result, OfficialFormalDueCommitResult.stale);
+    expect(repo.schedulerDueCardIdsFor('a'), {9});
+  });
+
+  test('mutateSource commits a full snapshot for one source', () {
+    final repo = OfficialFormalDueRepository.instance;
+    repo.commit(
+      _update(bySource: {
+        'a': _per('a', schedulerDue: {1}, placement: {1}, introduced: {1}),
+        'b': _per('b', schedulerDue: {5}, placement: {5}, introduced: {5}),
+      }),
+      basedOnGeneration: repo.generation,
+    );
+
+    final result = repo.mutateSource(
+      'a',
+      transform: (current) => OfficialFormalDuePerSource(
+        importId: current.importId,
+        knowledge: current.knowledge,
+        schedulerDueCardIds: current.schedulerDueCardIds,
+        activePlacementCardIds: current.activePlacementCardIds,
+        introducedCardIds: current.introducedCardIds,
+        suspendedCardIds: current.suspendedCardIds,
+        buriedCardIds: {...current.buriedCardIds, 1},
+        retiredCardIds: current.retiredCardIds,
+      ),
+    );
+
+    expect(result, OfficialFormalDueCommitResult.committed);
+    expect(repo.formalDueCountForImport('a'), 0,
+        reason: 'the only due card is now buried');
+    expect(repo.formalDueCountForImport('b'), 1,
+        reason: 'the other source keeps its complete sets');
   });
 
   test('markUnavailable keeps the last good sets visible', () {
     final repo = OfficialFormalDueRepository.instance;
-    repo.apply(byImport: {
-      'a': _per('a', schedulerDue: {1}, placement: {1}, introduced: {1}),
-    });
+    repo.commit(
+      _update(bySource: {
+        'a': _per('a', schedulerDue: {1}, placement: {1}, introduced: {1}),
+      }),
+      basedOnGeneration: repo.generation,
+    );
     repo.markUnavailable(StateError('engine closed'));
 
     expect(repo.snapshot.unavailable, isTrue);
@@ -122,15 +177,18 @@ void main() {
 
   test('per-source isolation: two sources never share sets', () {
     final repo = OfficialFormalDueRepository.instance;
-    repo.apply(byImport: {
-      'src-a': _per('src-a',
-          schedulerDue: {1, 2}, placement: {1, 2}, introduced: {1, 2}),
-      'src-b': _per('src-b',
-          schedulerDue: {1, 2},
-          placement: {1},
-          introduced: {1},
-          suspended: {1}),
-    });
+    repo.commit(
+      _update(bySource: {
+        'src-a': _per('src-a',
+            schedulerDue: {1, 2}, placement: {1, 2}, introduced: {1, 2}),
+        'src-b': _per('src-b',
+            schedulerDue: {1, 2},
+            placement: {1},
+            introduced: {1},
+            suspended: {1}),
+      }),
+      basedOnGeneration: repo.generation,
+    );
     expect(repo.formalDueCountForImport('src-a'), 2);
     expect(repo.formalDueCountForImport('src-b'), 0,
         reason: 'src-b suspended its only introduced card');
@@ -139,13 +197,16 @@ void main() {
 
   test('snapshot totals distinguish unknown sources (isPartial)', () {
     final repo = OfficialFormalDueRepository.instance;
-    repo.apply(
-      byImport: {
-        'src-known': _per('src-known',
-            schedulerDue: {1}, placement: {1}, introduced: {1}),
-        'src-unknown': _per('src-unknown', known: false),
-      },
-      rawDueByImport: {'src-known': 5, 'src-unknown': 7},
+    repo.commit(
+      _update(
+        bySource: {
+          'src-known': _per('src-known',
+              schedulerDue: {1}, placement: {1}, introduced: {1}),
+          'src-unknown': _per('src-unknown', known: false),
+        },
+        rawDueBySource: {'src-known': 5, 'src-unknown': 7},
+      ),
+      basedOnGeneration: repo.generation,
     );
     final snap = repo.snapshot;
     expect(snap.introducedOfficialDue, 1);

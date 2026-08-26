@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:turna/application/anki_official/engine/official_anki_course_grades_bridge.dart';
-import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_state.dart';
@@ -146,13 +146,15 @@ void main() {
         nowMillis: 3,
       );
 
-      OfficialAnkiHomeDue.reset();
+      final repo = OfficialFormalDueRepository.instance;
+      repo.resetForTest();
       const router = OfficialAnkiProductionRouter();
-      final total = await router.refreshHomeDueFromQueue(
+      final collected = await router.collectFormalDueCardIds(
         dao: dao,
         sources: sources,
         cutoverEnabled: true,
-        getReviewQueue: () async => OfficialReviewQueue(
+        setCurrentDeck: (_) async {},
+        getReviewQueue: ({int fetchLimit = 500}) async => OfficialReviewQueue(
           sessionId: 's1',
           queueEpoch: 1,
           newCount: 5,
@@ -162,12 +164,17 @@ void main() {
         ),
       );
 
-      expect(total, 10);
-      // officialDue is derived (introduced-only, plan 34 D6); the queue
-      // meta total stays undivided — with multiple targets, neither import
-      // gets a fake 5.
-      expect(OfficialAnkiHomeDue.officialDueByImport['import-1'], 0);
-      expect(OfficialAnkiHomeDue.officialDueByImport['import-2'], 0);
+      // No queue cards → no per-import scheduler due; formal due is
+      // derived (introduced-only, plan 34 D6) so neither import gets a
+      // fake share of the queue meta total.
+      expect(collected.rawDueByImport['import-1'], 0);
+      expect(collected.rawDueByImport['import-2'], 0);
+      expect(
+        collected.inputs
+            .where((i) => !i.schedulerDueSynced)
+            .isEmpty,
+        isTrue,
+      );
     });
 
     test('deck tree assigns exact per-import counts including learning',
@@ -195,9 +202,8 @@ void main() {
         cardId: 2002,
       );
 
-      OfficialAnkiHomeDue.reset();
-      final total =
-          await const OfficialAnkiProductionRouter().refreshHomeDueFromDeckTree(
+      final counts =
+          await const OfficialAnkiProductionRouter().collectHomeDueFromDeckTree(
         dao: dao,
         sources: sources,
         cutoverEnabled: true,
@@ -219,10 +225,9 @@ void main() {
         ],
       );
 
-      expect(total, 15);
-      expect(OfficialAnkiHomeDue.officialDueByImport['import-a'], 9);
-      expect(OfficialAnkiHomeDue.officialDueByImport['import-b'], 6);
-      expect(OfficialAnkiHomeDue.officialDueUnavailable, isFalse);
+      expect(counts.total, 15);
+      expect(counts.dueByImport['import-a'], 9);
+      expect(counts.dueByImport['import-b'], 6);
     });
 
     test('selected parent owns descendant due count exactly once', () async {
@@ -249,9 +254,8 @@ void main() {
         cardId: 110,
       );
 
-      OfficialAnkiHomeDue.reset();
-      final total =
-          await const OfficialAnkiProductionRouter().refreshHomeDueFromDeckTree(
+      final counts =
+          await const OfficialAnkiProductionRouter().collectHomeDueFromDeckTree(
         dao: dao,
         sources: sources,
         cutoverEnabled: true,
@@ -274,9 +278,9 @@ void main() {
         ],
       );
 
-      expect(total, 5);
-      expect(OfficialAnkiHomeDue.officialDueByImport['parent-import'], 5);
-      expect(OfficialAnkiHomeDue.officialDueByImport['child-import'], 0);
+      expect(counts.total, 5);
+      expect(counts.dueByImport['parent-import'], 5);
+      expect(counts.dueByImport['child-import'], 0);
     });
   });
 

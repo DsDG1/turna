@@ -3,7 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/anki_official/browser/official_anki_source_aware_browser.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
-import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_snapshot_builder.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_update.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/stats/official_anki_source_aware_stats.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
@@ -59,8 +61,31 @@ void main() {
       () async {
     final catalog = OfficialAnkiDatabase.memory();
     addTearDown(catalog.close);
-    OfficialAnkiHomeDue.reset();
-    addTearDown(OfficialAnkiHomeDue.reset);
+    final repo = OfficialFormalDueRepository.instance;
+    repo.resetForTest();
+    addTearDown(repo.resetForTest);
+    // Suspend mutations land as full-snapshot CAS commits — the source
+    // must already be present in the due snapshot (a browser-only session
+    // without a prior sync has nothing to mutate).
+    repo.commit(
+      OfficialFormalDueUpdate(
+        bySource: {
+          'src-official': buildFormalDuePerSource(
+            importId: 'src-official',
+            schedulerDueCardIds: const {1, 2},
+            schedulerDueSynced: true,
+            activePlacementCardIds: const {1, 2},
+            suspendedCardIds: const {},
+            buriedCardIds: const {},
+            retiredCardIds: const {},
+          ),
+        },
+        rawDueBySource: const {},
+        turnaDue: 0,
+        unintroducedNew: 0,
+      ),
+      basedOnGeneration: repo.generation,
+    );
     final sources = OfficialAnkiSourceDao(catalog);
     sources.upsertSource(
       sourceId: 'src-official',
@@ -100,7 +125,7 @@ void main() {
     );
     expect(engine.suspended, contains(1));
     expect(
-      OfficialAnkiHomeDue.suspendedCardIdsByImport['src-official'],
+      repo.suspendedCardIdsFor('src-official'),
       contains(1),
     );
     final suspendedOnly = await browser.search(

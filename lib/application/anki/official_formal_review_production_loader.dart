@@ -5,8 +5,8 @@ import 'package:turna/application/anki/formal_review_launcher.dart';
 import 'package:turna/application/anki/official_study_batch_assembler.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
-import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
 import 'package:turna/application/anki_official/migration/official_anki_production_router.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
@@ -18,23 +18,32 @@ import 'package:turna/domain/anki/canonical_card_key.dart';
 import 'package:turna/domain/anki/card_presentation.dart';
 import 'package:turna/domain/course/interaction.dart';
 
-/// Production loader that builds an Official formal-review batch for the
-/// shared [AnkiReviewSessionPage] host (doc 34 W5, plan 34 R2).
+/// Production loader that builds an Official formal-review batch for ONE
+/// real source for the shared [AnkiReviewSessionPage] host (doc 34 W5,
+/// plan 34 R2, maintainability plan Waves 2–3).
 ///
 /// Presentations come from [OfficialAnkiEngine.renderCard] with a
 /// fidelity-first policy: rich HTML becomes [FidelityCardPresentation]
 /// (rendered by the shared host's WebView); only genuinely plain-text
 /// cards stay flip. The batch carries a live queue driver so the page
 /// follows the scheduler's refreshed queue after every answer instead of a
-/// fixed pre-assembled array. An empty importId plans a Review All across
-/// EVERY official source — never just the first.
+/// fixed pre-assembled array.
+///
+/// Contract (maintainability plan §9.2):
+/// - [importId] MUST be a non-empty real source id — there is no
+///   synthetic aggregate entry point; Review All is driven by
+///   [FormalReviewSourceCoordinator] calling this loader once per source.
+/// - Returns [OfficialFormalReviewReady] / [OfficialFormalReviewNoDue] /
+///   [OfficialFormalReviewBlocked]; a non-empty queue with zero successful
+///   renders is Blocked, never "no due".
+/// - Render failures are structured [OfficialCardRenderFailure]s; the
+///   loader never answers, buries or suspends anything.
 class OfficialFormalReviewProductionLoader {
   const OfficialFormalReviewProductionLoader({
     this.flags,
     this.engine,
     this.sessionFactory,
     this.resolveTarget,
-    this.resolveReviewAllPlan,
     this.presentationsForCards,
     this.introducedCardIds,
     this.activePlacementCardIds,
@@ -50,10 +59,6 @@ class OfficialFormalReviewProductionLoader {
   final Future<OfficialAnkiRoutedSource?> Function(String importId)?
       resolveTarget;
 
-  /// Test seam for the Review All planner. Production unions every
-  /// official source and reports the ones that failed to resolve.
-  final Future<OfficialReviewAllPlan?> Function()? resolveReviewAllPlan;
-
   /// Test-only override. Production leaves this null and renders via the
   /// engine so faces are never blank Fidelity stubs.
   final Future<Map<CanonicalCardKey, CardPresentation>> Function({
@@ -64,47 +69,54 @@ class OfficialFormalReviewProductionLoader {
   final Set<int> Function(String sourceId)? activePlacementCardIds;
   final String profileId;
 
-  Future<OfficialFormalReviewBatch?> load({
+  Future<OfficialFormalReviewLoadResult> load({
     required String importId,
     required String courseId,
   }) async {
+    if (importId.isEmpty) {
+      // Synthetic aggregate sources are forbidden (maintainability plan
+      // §9.1) — Review All goes through the source coordinator.
+      throw ArgumentError.value(
+        importId,
+        'importId',
+        'must be a real non-empty source id',
+      );
+    }
     final resolvedFlags = flags ?? OfficialAnkiFeatureFlags.current;
-    if (!resolvedFlags.allowsOfficialScheduler) return null;
+    if (!resolvedFlags.allowsOfficialScheduler) {
+      return const OfficialFormalReviewNoDue();
+    }
 
-    final reviewAll = importId.isEmpty;
     final target = resolveTarget != null
         ? await resolveTarget!(importId)
-        : (reviewAll
-            ? await _resolveAnyProductionTarget()
-            : await _resolveTargetProduction(importId));
-    if (target == null && importId.isNotEmpty) return null;
+        : await _resolveTargetProduction(importId);
+    if (target == null) return const OfficialFormalReviewNoDue();
 
     final resolvedEngine = engine ?? await _requireEngine();
-    if (resolvedEngine == null) return null;
+    if (resolvedEngine == null) return const OfficialFormalReviewNoDue();
 
-    final allowed = target?.cardIds;
     final session = sessionFactory != null
         ? await sessionFactory!(
             engine: resolvedEngine,
-            allowedCardIds: allowed,
+            allowedCardIds: target.cardIds,
           )
         : OfficialReviewSession(
             engine: resolvedEngine,
             flags: resolvedFlags,
-            allowedCardIds: allowed,
+            allowedCardIds: target.cardIds,
             profileId: profileId,
           );
 
-    if (target != null && target.deckId >= 0) {
+    final sourceId = target.sourceId;
+
+    if (target.deckId >= 0) {
       await session.openDeck(target.deckId);
     } else {
-      // Review All (and router targets without a deck): the whole due
-      // queue inside the allowed set — every participating source.
+      // Router targets without a deck: the whole due queue inside the
+      // allowed set of this one source.
       await session.openDueDeck();
     }
     final queue = session.queue;
-    final sourceId =
-        target?.sourceId ?? (reviewAll ? 'official-all' : importId);
 
     CanonicalCardKey key(int cardId) => CanonicalCardKey(
           backend: AnkiBackendKind.official,
@@ -119,18 +131,12 @@ class OfficialFormalReviewProductionLoader {
     );
 
     if (queue == null || queue.cards.isEmpty) {
-      return const FormalReviewLauncher().assembleOfficialBatch(
-        session: session,
-        sourceId: sourceId,
-        courseId: courseId,
-        queueCards: const [],
-        presentations: const {},
-        activePlacementCardKeys: const {},
-        introducedCardKeys: const {},
-      );
+      session.dispose();
+      return const OfficialFormalReviewNoDue();
     }
 
     final faces = <int, OfficialRenderedFace>{};
+    final failures = <OfficialCardRenderFailure>[];
     Map<CanonicalCardKey, CardPresentation> presentations;
     if (presentationsForCards != null) {
       presentations = await presentationsForCards!(
@@ -144,74 +150,55 @@ class OfficialFormalReviewProductionLoader {
             sourceId: sourceId,
             cardId: card.cardId,
           );
-        } catch (_) {
-          // Unrenderable cards stay out of the batch; the scheduler
-          // re-serves them on a later session.
-          continue;
+        } catch (error) {
+          // Structured, visible, retryable (maintainability plan §8.1):
+          // the card stays owed by the scheduler — never silently
+          // dropped, never implicitly answered/buried/suspended.
+          final failure = OfficialCardRenderFailure.fromError(
+            error,
+            sourceId: sourceId,
+            cardId: card.cardId,
+            stage: OfficialRenderFailureStage.load,
+          );
+          failures.add(failure);
+          OfficialFormalReviewRenderAudit.recordRenderFailure(failure);
         }
       }
       presentations = {
-        for (final face in faces.values)
-          face.presentation.cardKey: face.presentation,
+        for (final face in faces.values) face.presentation.cardKey: face.presentation,
       };
     }
 
+    if (presentations.isEmpty && failures.isNotEmpty) {
+      // Queue non-empty + zero successful renders → Blocked. The page
+      // shows the error and offers retry; nothing is scheduled implicitly.
+      session.dispose();
+      return OfficialFormalReviewBlocked(
+        sourceId: sourceId,
+        failures: failures,
+        schedulerCardCount: queue.cards.length,
+      );
+    }
+
     final introIds = introducedCardIds?.call(sourceId) ??
-        (reviewAll
-            ? {
-                for (final id in OfficialAnkiHomeDue.officialImportIds)
-                  ...CardIntroductionStore.resolve()
-                      .introducedCardIdsForSource(id),
-              }
-            : CardIntroductionStore.resolve()
-                .introducedCardIdsForSource(sourceId));
-    final placementFromHome = reviewAll
-        ? {
-            for (final ids
-                in OfficialAnkiHomeDue.activePlacementCardIdsByImport.values)
-              ...ids,
-          }
-        : OfficialAnkiHomeDue.activePlacementCardIdsByImport[importId];
+        CardIntroductionStore.resolve().introducedCardIdsForSource(sourceId);
+    final dueRepo = OfficialFormalDueRepository.instance;
+    final perSource = dueRepo.snapshot.byImport[importId];
     final placementIds = activePlacementCardIds?.call(sourceId) ??
-        (placementFromHome != null && placementFromHome.isNotEmpty
-            ? placementFromHome
-            : target?.cardIds ?? {for (final card in queue.cards) card.cardId});
+        (perSource != null && perSource.activePlacementCardIds.isNotEmpty
+            ? perSource.activePlacementCardIds
+            : target.cardIds);
 
     final placementKeys = {for (final id in placementIds) key(id)};
     final introducedKeys = {for (final id in introIds) key(id)};
     final suspendedKeys = {
-      for (final id
-          in (OfficialAnkiHomeDue.suspendedCardIdsByImport[importId] ??
-              (reviewAll
-                  ? {
-                      for (final ids in OfficialAnkiHomeDue
-                          .suspendedCardIdsByImport.values)
-                        ...ids,
-                    }
-                  : const <int>{})))
-        key(id),
+      for (final id in (perSource?.suspendedCardIds ?? const <int>{})) key(id),
     };
     final buriedKeys = {
-      for (final id in (OfficialAnkiHomeDue.buriedCardIdsByImport[importId] ??
-          (reviewAll
-              ? {
-                  for (final ids
-                      in OfficialAnkiHomeDue.buriedCardIdsByImport.values)
-                    ...ids,
-                }
-              : const <int>{})))
-        key(id),
+      for (final id in (perSource?.buriedCardIds ?? const <int>{})) key(id),
     };
     final retiredKeys = {
-      for (final id in (OfficialAnkiHomeDue.retiredCardIdsByImport[importId] ??
-          (reviewAll
-              ? {
-                  for (final ids
-                      in OfficialAnkiHomeDue.retiredCardIdsByImport.values)
-                    ...ids,
-                }
-              : const <int>{})))
-        key(id),
+      for (final id in (perSource?.retiredCardIds ?? const <int>{})) key(id),
     };
 
     final batch = const FormalReviewLauncher().assembleOfficialBatch(
@@ -270,19 +257,27 @@ class OfficialFormalReviewProductionLoader {
       liveQueue!.adoptFaces(faces);
     }
 
-    final plan = reviewAll
-        ? (resolveReviewAllPlan != null
-            ? await resolveReviewAllPlan!()
-            : await _planReviewAll(target))
-        : null;
+    if (batch.items.isEmpty && failures.isNotEmpty) {
+      // Every card that rendered was filtered by eligibility, but some
+      // renders also failed — the scheduler still owes those. Surface as
+      // Blocked rather than pretending the source is done.
+      session.dispose();
+      return OfficialFormalReviewBlocked(
+        sourceId: sourceId,
+        failures: failures,
+        schedulerCardCount: queue.cards.length,
+      );
+    }
 
-    return OfficialFormalReviewBatch(
-      items: batch.items,
-      ledger: batch.ledger,
-      session: batch.session,
-      fidelityInteractions: fidelity,
-      liveQueue: liveQueue,
-      reviewAllPlan: plan,
+    return OfficialFormalReviewReady(
+      OfficialFormalReviewBatch(
+        items: batch.items,
+        ledger: batch.ledger,
+        session: batch.session,
+        fidelityInteractions: fidelity,
+        liveQueue: liveQueue,
+        failures: failures,
+      ),
     );
   }
 
@@ -292,79 +287,6 @@ class OfficialFormalReviewProductionLoader {
     final support = await getApplicationSupportDirectory();
     await OfficialAnkiCompositionRoot.requireImporter(supportDir: support);
     return OfficialAnkiCompositionRoot.engine;
-  }
-
-  /// Review All (plan 34 R2-3): aggregate EVERY official source's formal
-  /// due set — sources that fail to resolve are reported, never silently
-  /// dropped, and never answered with "just the first source".
-  Future<OfficialAnkiRoutedSource?> _resolveAnyProductionTarget() async {
-    final support = await getApplicationSupportDirectory();
-    const router = OfficialAnkiProductionRouter();
-    final paths = router.pathsForDefaultProfile(support);
-    if (!paths.catalogFile.existsSync()) return null;
-    final catalog = OfficialAnkiDatabase.file(paths.catalogFile.path);
-    try {
-      final dao = OfficialAnkiMigrationDao(catalog);
-      final sources = OfficialAnkiSourceDao(catalog);
-      final cardIds = <int>{};
-      for (final id in router.officialImportIds(dao: dao)) {
-        final target = router.reviewTargetForImport(
-          dao: dao,
-          sources: sources,
-          importId: id,
-          profileId: profileId,
-        );
-        if (target == null) continue;
-        cardIds.addAll(target.cardIds);
-      }
-      if (cardIds.isEmpty) return null;
-      // deckId -1 → openDueDeck inside the unioned allowed set.
-      return OfficialAnkiRoutedSource(
-        importId: '',
-        sourceId: 'official-all',
-        deckId: -1,
-        cardIds: cardIds,
-      );
-    } finally {
-      catalog.close();
-    }
-  }
-
-  Future<OfficialReviewAllPlan> _planReviewAll(
-    OfficialAnkiRoutedSource? aggregate,
-  ) async {
-    final support = await getApplicationSupportDirectory();
-    const router = OfficialAnkiProductionRouter();
-    final paths = router.pathsForDefaultProfile(support);
-    final sourceIds = <String>[];
-    final failed = <String>[];
-    if (paths.catalogFile.existsSync()) {
-      final catalog = OfficialAnkiDatabase.file(paths.catalogFile.path);
-      try {
-        final dao = OfficialAnkiMigrationDao(catalog);
-        final sources = OfficialAnkiSourceDao(catalog);
-        for (final id in router.officialImportIds(dao: dao)) {
-          final target = router.reviewTargetForImport(
-            dao: dao,
-            sources: sources,
-            importId: id,
-            profileId: profileId,
-          );
-          if (target == null) {
-            failed.add(id);
-          } else {
-            sourceIds.add(target.sourceId);
-          }
-        }
-      } finally {
-        catalog.close();
-      }
-    }
-    return OfficialReviewAllPlan(
-      sourceIds: sourceIds,
-      cardIds: aggregate?.cardIds ?? const <int>{},
-      failedSourceIds: failed,
-    );
   }
 
   Future<OfficialAnkiRoutedSource?> _resolveTargetProduction(

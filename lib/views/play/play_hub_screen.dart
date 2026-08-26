@@ -11,7 +11,7 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/anki/formal_review_launcher.dart';
-import 'package:turna/application/anki_official/engine/official_anki_home_due.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
 import 'package:turna/application/anki_official/engine/official_anki_home_due_sync.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/course_provider.dart';
@@ -56,12 +56,13 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
   }
 
   void _openAnkiReview(BuildContext context) {
+    final repo = OfficialFormalDueRepository.instance;
     unawaited(
       const FormalReviewLauncher().open(
         context,
         entry: FormalReviewEntryKind.playHub,
         courseId: 'anki',
-        officialOwner: OfficialAnkiHomeDue.officialImportIds.isNotEmpty,
+        officialOwner: repo.officialImportIds.isNotEmpty,
         schedulerRuntimeAvailable:
             OfficialAnkiFeatureFlags.current.allowsOfficialScheduler,
       ),
@@ -80,8 +81,12 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
     // 专属间距一起消失（三层隔离的第一层；页面与数据层仍各自防御）。
     final playgroundEligible = context.select((CourseProvider p) =>
         LanguagePlaygroundEligibility.isEligibleScope(p.courseScope));
-    OfficialAnkiHomeDue.turnaDue = srsDue;
-    final ankiDue = OfficialAnkiHomeDue.aggregatedAnkiDue(ankiDueWords);
+    final dueRepo = OfficialFormalDueRepository.instance;
+    final ankiDueUnavailable = dueRepo.snapshot.unavailable;
+    // Read-only aggregation (maintainability plan §7.5): the aggregate is
+    // computed from the repository snapshot + Turna's own due in the
+    // selector — build() never writes due state.
+    final ankiDue = dueRepo.aggregatedAnkiDue(ankiDueWords);
 
     return RepaintBoundary(
       child: CustomScrollView(
@@ -194,7 +199,7 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
                     title: AppStrings.playAnkiReviewTitle,
                     icon: Icons.style_rounded,
                     accentColor: TurnaTheme.brandSky,
-                    badge: OfficialAnkiHomeDue.officialDueUnavailable
+                    badge: ankiDueUnavailable
                         ? '—'
                         : (ankiDue > 0 ? '$ankiDue' : null),
                     onTap: () => _openAnkiReview(context),

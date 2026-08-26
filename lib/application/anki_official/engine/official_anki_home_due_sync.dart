@@ -1,7 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_session.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_snapshot_builder.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_update.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
 import 'package:turna/application/anki_official/migration/official_anki_production_router.dart';
@@ -12,13 +15,15 @@ import 'package:turna/application/anki_official/storage/official_anki_source_dao
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/data/anki_import_dao.dart';
 
-/// Refreshes official-routed import ids (exclusion) and the six formal-due
-/// sets per source. Safe to call from Play Hub, Profile, and the Anki
-/// review hub.
+/// Refreshes official-routed import ids and the six formal-due sets per
+/// source into [OfficialFormalDueRepository] (maintainability plan Wave 1).
 ///
-/// All state lands in [OfficialFormalDueRepository] (plan 34 D6): a failed
-/// refresh marks the snapshot unavailable while the last good six sets
-/// stay visible; a late result can detect staleness by generation.
+/// One refresh = ONE atomic commit: everything is collected first, then a
+/// single [OfficialFormalDueUpdate] lands with one generation bump. A failed
+/// refresh marks the snapshot unavailable while the last good six sets stay
+/// visible; a late result detects staleness by generation and is dropped
+/// instead of overwriting newer data. Safe to call from Play Hub, Profile,
+/// and the Anki review hub.
 class OfficialAnkiHomeDueSync {
   const OfficialAnkiHomeDueSync();
 
@@ -41,11 +46,17 @@ class OfficialAnkiHomeDueSync {
 
   Future<void> _refreshOnce() async {
     final repo = OfficialFormalDueRepository.instance;
-    repo.saveForRollback();
     if (!LegacyAnkiMigrationFlags.cutoverEnabled) {
       // Owner routing still needs recorded Official ids (doc 34 W0-06).
       // Due numbers stay unavailable while cutover is paused.
-      repo.apply(byImport: {}, unavailable: true);
+      _commitOrDrop(
+        repo,
+        const OfficialFormalDueSnapshotBuilder().build(
+          sources: const [],
+          unavailable: true,
+          error: 'cutover_disabled',
+        ),
+      );
       return;
     }
     try {
@@ -53,7 +64,10 @@ class OfficialAnkiHomeDueSync {
       const router = OfficialAnkiProductionRouter();
       final paths = router.pathsForDefaultProfile(support);
       if (!paths.catalogFile.existsSync()) {
-        repo.apply(byImport: {});
+        _commitOrDrop(
+          repo,
+          const OfficialFormalDueSnapshotBuilder().build(sources: const []),
+        );
         return;
       }
       final catalog = OfficialAnkiDatabase.file(paths.catalogFile.path);
@@ -62,19 +76,18 @@ class OfficialAnkiHomeDueSync {
         final sources = OfficialAnkiSourceDao(catalog);
         await _adoptCourseImports(router, dao, sources);
         if (!OfficialAnkiFeatureFlags.current.allowsOfficialScheduler) {
-          repo.apply(
-            byImport: {
-              for (final importId in router.officialImportIds(dao: dao))
-                importId: buildFormalDuePerSource(
-                  importId: importId,
-                  schedulerDueCardIds: const {},
-                  schedulerDueSynced: false,
-                  activePlacementCardIds: const {},
-                  suspendedCardIds: const {},
-                  buriedCardIds: const {},
-                  retiredCardIds: const {},
-                ),
-            },
+          _commitOrDrop(
+            repo,
+            const OfficialFormalDueSnapshotBuilder().build(
+              sources: [
+                for (final importId in router.officialImportIds(dao: dao))
+                  OfficialFormalDueSourceInput(
+                    importId: importId,
+                    schedulerDueCardIds: const {},
+                    schedulerDueSynced: false,
+                  ),
+              ],
+            ),
           );
           return;
         }
@@ -110,11 +123,6 @@ class OfficialAnkiHomeDueSync {
           repo.markUnavailable(StateError('collection open retry exhausted'));
           return;
         }
-        await router.refreshHomeDueFromDeckTree(
-          dao: dao,
-          sources: sources,
-          getDeckTree: session.listDeckTree,
-        );
 
         Future<Set<int>> fetchByQuery(String query) async {
           final ids = <int>{};
@@ -164,8 +172,10 @@ class OfficialAnkiHomeDueSync {
         }
 
         // Exact card-id formal due (doc 34 W5 / plan 34 R3): all six sets
-        // per source, never count approximation.
-        await router.refreshFormalDueCardIds(
+        // per source, never count approximation. The router is pure — it
+        // only collects.
+        final baseGeneration = repo.generation;
+        final collected = await router.collectFormalDueCardIds(
           dao: dao,
           sources: sources,
           setCurrentDeck: session.setCurrentDeck,
@@ -175,14 +185,71 @@ class OfficialAnkiHomeDueSync {
           getBuriedCardIds: fetchBuriedCardIds,
           getRetiredCardIds: fetchRetiredCardIds,
         );
+        if (repo.isStale(baseGeneration)) {
+          // A mutation or concurrent refresh landed while we were
+          // collecting; re-collect once so the newest state is not
+          // clobbered by older data (bounded retry, never an overwrite).
+          debugPrint(
+            '[OfficialAnkiHomeDueSync] generation moved during collect; '
+            'retrying once',
+          );
+          final retryBase = repo.generation;
+          final retried = await router.collectFormalDueCardIds(
+            dao: dao,
+            sources: sources,
+            setCurrentDeck: session.setCurrentDeck,
+            getReviewQueue: ({int fetchLimit = 500}) =>
+                session.getReviewQueue(fetchLimit: fetchLimit),
+            getSuspendedCardIds: fetchSuspendedCardIds,
+            getBuriedCardIds: fetchBuriedCardIds,
+            getRetiredCardIds: fetchRetiredCardIds,
+          );
+          final result = repo.commit(
+            const OfficialFormalDueSnapshotBuilder().build(
+              sources: retried.inputs,
+              rawDueBySource: retried.rawDueByImport,
+            ),
+            basedOnGeneration: retryBase,
+          );
+          if (result != OfficialFormalDueCommitResult.committed) {
+            debugPrint(
+              '[OfficialAnkiHomeDueSync] retry still stale; dropping result',
+            );
+          }
+          return;
+        }
+        _commitOrDrop(
+          repo,
+          const OfficialFormalDueSnapshotBuilder().build(
+            sources: collected.inputs,
+            rawDueBySource: collected.rawDueByImport,
+          ),
+          basedOnGeneration: baseGeneration,
+        );
       } finally {
         catalog.close();
       }
     } catch (error) {
-      // Failed refresh: restore the last good six sets and mark
-      // unavailable — never zero, never a partial guess (plan 34 R3-3).
-      repo.rollback();
+      // Failed refresh: keep the last good six sets and mark unavailable —
+      // never zero, never a partial guess (plan 34 R3-3). The repository
+      // was never touched mid-collect, so there is nothing to roll back.
       repo.markUnavailable(error);
+    }
+  }
+
+  void _commitOrDrop(
+    OfficialFormalDueRepository repo,
+    OfficialFormalDueUpdate update, {
+    int? basedOnGeneration,
+  }) {
+    final result = repo.commit(
+      update,
+      basedOnGeneration: basedOnGeneration ?? repo.generation,
+    );
+    if (result != OfficialFormalDueCommitResult.committed) {
+      debugPrint(
+        '[OfficialAnkiHomeDueSync] stale generation; dropping refresh result',
+      );
     }
   }
 
