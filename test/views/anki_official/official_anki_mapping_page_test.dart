@@ -60,10 +60,10 @@ void main() {
       affectedCardCount: 12,
     )));
 
-    expect(find.text('题目'), findsWidgets);
-    expect(find.text('答案'), findsWidgets);
+    expect(find.text('正面'), findsWidgets);
+    expect(find.text('背面'), findsWidgets);
     expect(find.text('这样显示正确吗？'), findsOneWidget);
-    expect(find.textContaining('已自动匹配'), findsOneWidget);
+    expect(find.textContaining('已按卡片内容匹配'), findsOneWidget);
     expect(find.textContaining('共 12 张'), findsOneWidget);
     expect(find.text('merhaba'), findsOneWidget);
 
@@ -157,7 +157,7 @@ void main() {
       schema: _schema(),
     )));
 
-    expect(find.textContaining('需要先选择正确的题目和答案'), findsOneWidget);
+    expect(find.textContaining('看一下样卡'), findsWidgets);
     final save = tester.widget<FilledButton>(
       find.byKey(const Key('mapping-save')),
     );
@@ -173,7 +173,7 @@ void main() {
       schema: _schema(),
     )));
 
-    expect(find.textContaining('建议花几秒确认一下'), findsOneWidget);
+    expect(find.textContaining('看一下样卡正反面'), findsOneWidget);
     final save = tester.widget<FilledButton>(
       find.byKey(const Key('mapping-save')),
     );
@@ -234,6 +234,6 @@ void main() {
       affectedCardCount: 3,
     )));
 
-    expect(find.textContaining('挖空卡'), findsOneWidget);
+    expect(find.textContaining('挖空'), findsOneWidget);
   });
 }

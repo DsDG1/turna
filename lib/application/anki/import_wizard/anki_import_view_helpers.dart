@@ -1,9 +1,11 @@
 import 'dart:io';
 
+import 'package:turna/application/anki/anki_card_adapter.dart';
 import 'package:turna/application/anki/anki_importer.dart';
 import 'package:turna/application/anki/anki_models.dart';
 import 'package:turna/application/anki/import_wizard/anki_import_wizard_state.dart';
 import 'package:turna/application/anki/import_wizard/notetype_mapping_util.dart';
+import 'package:turna/application/anki/import_wizard/question_type.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_mapper.dart';
@@ -20,7 +22,9 @@ ImportRecognitionAttention legacyRecognitionAttention(
   final mapping = preview.mappings[mid];
   final fieldCount = notetype.fieldNames.length;
   if (mapping == null || fieldCount == 0) {
-    return ImportRecognitionAttention.blocking;
+    return fieldCount == 0
+        ? ImportRecognitionAttention.blocking
+        : ImportRecognitionAttention.advisory;
   }
   if (mappingUsesFrontBackFields(mapping.type)) {
     final front = mapping.frontFieldIndex;
@@ -32,7 +36,7 @@ ImportRecognitionAttention legacyRecognitionAttention(
       return ImportRecognitionAttention.blocking;
     }
   }
-  return (preview.recognitionResults[mid]?.needsConfirmation ?? true)
+  return (preview.recognitionResults[mid]?.needsConfirmation ?? false)
       ? ImportRecognitionAttention.advisory
       : ImportRecognitionAttention.recognized;
 }
@@ -55,10 +59,12 @@ ImportRecognitionAttention officialRecognitionAttention(
       suggestion.role(OfficialAnkiFieldRole.targetText) == null;
   final missingAnswer = !suggestion.singleFieldMode &&
       suggestion.role(OfficialAnkiFieldRole.nativeText) == null;
-  if (conflict ||
-      missingTarget ||
-      missingAnswer ||
-      suggestion.status == OfficialAnkiMappingStatus.needsMapping) {
+  if (conflict) {
+    return ImportRecognitionAttention.blocking;
+  }
+  if (missingTarget &&
+      (missingAnswer ||
+          suggestion.status == OfficialAnkiMappingStatus.needsMapping)) {
     return ImportRecognitionAttention.blocking;
   }
   if (preview.confirmedNotetypes.contains(id)) {
@@ -105,3 +111,91 @@ String mapGeneralErrorToHuman(Object error) {
   }
   return AppStrings.ankiParseFailed(error);
 }
+
+String importAttentionStatusLabel(ImportRecognitionAttention attention) {
+  switch (attention) {
+    case ImportRecognitionAttention.blocking:
+      return AppStrings.ankiMappingStatusBlocking;
+    case ImportRecognitionAttention.advisory:
+      return AppStrings.ankiMappingStatusAdvisory;
+    case ImportRecognitionAttention.recognized:
+      return AppStrings.ankiMappingStatusRecognized;
+    case ImportRecognitionAttention.skipped:
+      return AppStrings.ankiOfficialMappingSkipped;
+  }
+}
+
+/// Short preview of one Anki field for the import list (no HTML, no jargon).
+String importSamplePreview(String raw, {int maxChars = 42}) {
+  final plain = AnkiCardAdapter.stripHtmlPublic(raw)
+      .replaceAll(RegExp(r'\[sound:[^\]]+\]'), '')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+  if (plain.isEmpty) return AppStrings.ankiMappingEmptySample;
+  if (plain.length <= maxChars) return plain;
+  return '${plain.substring(0, maxChars)}…';
+}
+
+String officialGuessedTypeLabel({
+  required OfficialAnkiProjectionSchema schema,
+  OfficialAnkiMappingSuggestion? suggestion,
+}) {
+  if (schema.kind == 'cloze' ||
+      schema.name.toLowerCase().contains('cloze') ||
+      schema.samples.any((s) => s.fields.any((f) => f.contains('{{c')))) {
+    return AppStrings.ankiQuestionTypeFillBlank;
+  }
+  final name = schema.name.toLowerCase();
+  if (name.contains('occlusion') || name.contains('遮图')) {
+    return AppStrings.ankiQuestionTypeFlip;
+  }
+  if (suggestion != null &&
+      suggestion.candidates
+          .any((c) => c.role == OfficialAnkiFieldRole.optionPool)) {
+    return AppStrings.ankiQuestionTypeChoice;
+  }
+  return AppStrings.ankiQuestionTypeFlip;
+}
+
+String userFacingFieldName(String raw) {
+  switch (raw.trim().toLowerCase()) {
+    case 'front':
+    case '正面':
+      return '正面';
+    case 'back':
+    case '反面':
+    case '背面':
+      return '背面';
+    case 'text':
+      return '正文';
+    case 'extra':
+    case 'back extra':
+      return '补充';
+    case 'occlusion':
+      return '遮挡图';
+    case 'image':
+      return '图片';
+    case 'audio':
+      return '音频';
+    default:
+      return raw;
+  }
+}
+
+String userQuestionTypeLabelOf(UserQuestionType type) {
+  switch (type) {
+    case UserQuestionType.choice:
+      return AppStrings.ankiQuestionTypeChoice;
+    case UserQuestionType.fillBlank:
+      return AppStrings.ankiQuestionTypeFillBlank;
+    case UserQuestionType.listen:
+      return AppStrings.ankiQuestionTypeListen;
+    case UserQuestionType.word:
+      return AppStrings.ankiQuestionTypeWord;
+    case UserQuestionType.sentence:
+      return AppStrings.ankiQuestionTypeSentence;
+    case UserQuestionType.flip:
+      return AppStrings.ankiQuestionTypeFlip;
+  }
+}
+

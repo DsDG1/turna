@@ -1,4 +1,5 @@
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
+import 'package:turna/application/anki_practice/embedded_options.dart';
 
 enum OfficialAnkiFieldRole {
   targetText,
@@ -189,13 +190,91 @@ class OfficialAnkiProjectionMapper {
           .toList();
       candidates.addAll(_candidatesFor(name, i, samples, tags, deckPath));
     }
+    return _finalize(schema, candidates);
+  }
+
+  OfficialAnkiMappingSuggestion _finalize(
+    OfficialAnkiProjectionSchema schema,
+    List<OfficialAnkiFieldCandidate> candidates,
+  ) {
+    final singleField = _isSingleFieldCard(schema);
+    final next = [...candidates];
+
+    OfficialAnkiFieldCandidate? best(OfficialAnkiFieldRole role) {
+      final matches = next.where((c) => c.role == role).toList()
+        ..sort((a, b) => b.confidence.compareTo(a.confidence));
+      return matches.isEmpty ? null : matches.first;
+    }
+
+    bool taken(int index) => next.any((c) =>
+        (c.role == OfficialAnkiFieldRole.targetText ||
+            c.role == OfficialAnkiFieldRole.nativeText) &&
+        c.fieldIndex == index);
+
+    bool isMedia(OfficialAnkiFieldCandidate c) =>
+        c.role == OfficialAnkiFieldRole.audio ||
+        c.role == OfficialAnkiFieldRole.image;
+
+    if (best(OfficialAnkiFieldRole.targetText) == null) {
+      for (var i = 0; i < next.length; i++) {
+        final c = next[i];
+        if (isMedia(c) || taken(c.fieldIndex)) continue;
+        next.add(OfficialAnkiFieldCandidate(
+          role: OfficialAnkiFieldRole.targetText,
+          fieldIndex: c.fieldIndex,
+          fieldName: c.fieldName,
+          confidence: 0.86,
+          evidence: const ['positional:front'],
+        ));
+        break;
+      }
+    }
+    if (!singleField && best(OfficialAnkiFieldRole.nativeText) == null) {
+      final target = best(OfficialAnkiFieldRole.targetText);
+      for (final c in List<OfficialAnkiFieldCandidate>.from(next)) {
+        if (isMedia(c) ||
+            taken(c.fieldIndex) ||
+            c.fieldIndex == target?.fieldIndex) {
+          continue;
+        }
+        if (c.role == OfficialAnkiFieldRole.optionPool) continue;
+        next.add(OfficialAnkiFieldCandidate(
+          role: OfficialAnkiFieldRole.nativeText,
+          fieldIndex: c.fieldIndex,
+          fieldName: c.fieldName,
+          confidence: 0.86,
+          evidence: const ['positional:back'],
+        ));
+        break;
+      }
+    }
+
     return OfficialAnkiMappingSuggestion(
-      candidates: candidates,
-      status: _status(candidates),
+      candidates: next,
+      status: _status(next, singleField: singleField),
+      singleFieldMode: singleField,
     );
   }
 
-  OfficialAnkiMappingStatus _status(List<OfficialAnkiFieldCandidate> candidates) {
+  bool _isSingleFieldCard(OfficialAnkiProjectionSchema schema) {
+    final name = schema.name.toLowerCase();
+    if (schema.kind == 'cloze') return true;
+    if (name.contains('cloze') ||
+        name.contains('填空') ||
+        name.contains('挖空') ||
+        name.contains('occlusion') ||
+        name.contains('遮图')) {
+      return true;
+    }
+    return schema.samples.any(
+      (sample) => sample.fields.any((f) => f.contains('{{c')),
+    );
+  }
+
+  OfficialAnkiMappingStatus _status(
+    List<OfficialAnkiFieldCandidate> candidates, {
+    required bool singleField,
+  }) {
     OfficialAnkiFieldCandidate? best(OfficialAnkiFieldRole role) {
       final matches = candidates.where((c) => c.role == role).toList()
         ..sort((a, b) => b.confidence.compareTo(a.confidence));
@@ -204,18 +283,18 @@ class OfficialAnkiProjectionMapper {
 
     final target = best(OfficialAnkiFieldRole.targetText);
     final native = best(OfficialAnkiFieldRole.nativeText);
+    if (singleField && target != null) {
+      return OfficialAnkiMappingStatus.autoCandidate;
+    }
     if (target != null &&
         native != null &&
         target.fieldIndex != native.fieldIndex &&
-        target.confidence >= 0.85 &&
-        native.confidence >= 0.85) {
+        target.confidence >= 0.80 &&
+        native.confidence >= 0.80) {
       return OfficialAnkiMappingStatus.autoCandidate;
     }
-    final strongest = candidates.isEmpty
-        ? 0.0
-        : candidates.map((c) => c.confidence).reduce((a, b) => a > b ? a : b);
-    if (strongest < 0.60) return OfficialAnkiMappingStatus.needsMapping;
-    return OfficialAnkiMappingStatus.needsConfirm;
+    if (target != null) return OfficialAnkiMappingStatus.needsConfirm;
+    return OfficialAnkiMappingStatus.needsMapping;
   }
 
   List<OfficialAnkiFieldCandidate> _candidatesFor(
@@ -232,16 +311,22 @@ class OfficialAnkiProjectionMapper {
     if (lower.contains('front') ||
         lower.contains('target') ||
         lower == 'word' ||
+        lower.contains('vocabkanji') ||
+        (lower.startsWith('vocab') &&
+            !lower.contains('def') &&
+            !lower.contains('audio') &&
+            !lower.contains('sent') &&
+            !lower.contains('pitch')) ||
         lower.contains('expression') ||
         lower == 'q' ||
         lower.contains('question') ||
         lower.contains('正面') ||
         lower.contains('单词') ||
-        lower.contains('词') ||
         lower.contains('问题') ||
         lower.contains('前面') ||
         lower.contains('题目') ||
-        lower.contains('题干')) {
+        lower.contains('题干') ||
+        lower.contains('题面')) {
       role = OfficialAnkiFieldRole.targetText;
       confidence = 0.92;
       evidence.add('name:${lower.contains('front') || lower.contains('正面') ? 'front' : 'target'}');
@@ -249,7 +334,10 @@ class OfficialAnkiProjectionMapper {
         lower.contains('native') ||
         lower.contains('meaning') ||
         lower.contains('translation') ||
-        lower == 'a' ||
+        lower.contains('vocabdef') ||
+        lower.contains('defsc') ||
+        lower.contains('deftc') ||
+        lower.contains('gloss') ||
         lower.contains('answer') ||
         lower.contains('反面') ||
         lower.contains('释义') ||
@@ -267,13 +355,15 @@ class OfficialAnkiProjectionMapper {
       role = OfficialAnkiFieldRole.audio;
       confidence = 0.88;
       evidence.add('name:audio');
-    } else if (lower.contains('image') ||
+    } else if (lower.contains('occlusion') ||
+        lower == 'mask' ||
+        lower.contains('image') ||
         lower.contains('picture') ||
         lower.contains('图片') ||
         lower.contains('插图')) {
       role = OfficialAnkiFieldRole.image;
-      confidence = 0.86;
-      evidence.add('name:image');
+      confidence = lower.contains('occlusion') ? 0.90 : 0.86;
+      evidence.add(lower.contains('occlusion') ? 'name:occlusion' : 'name:image');
     } else if (lower.contains('pronun') ||
         lower.contains('ipa') ||
         lower.contains('音标') ||
@@ -281,6 +371,10 @@ class OfficialAnkiProjectionMapper {
       role = OfficialAnkiFieldRole.pronunciation;
       confidence = 0.84;
       evidence.add('name:pronunciation');
+    } else if (EmbeddedOptionsParser.isOptionFieldName(lower)) {
+      role = OfficialAnkiFieldRole.optionPool;
+      confidence = 0.88;
+      evidence.add('name:optionPool');
     } else if (lower.contains('example') && lower.contains('native')) {
       role = OfficialAnkiFieldRole.exampleNative;
       confidence = 0.80;

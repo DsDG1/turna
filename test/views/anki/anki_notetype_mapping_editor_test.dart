@@ -96,7 +96,8 @@ void main() {
 
     // Selected chip from an automatic verdict carries the 自动 badge.
     expect(find.text('单词卡 · 自动'), findsOneWidget);
-    expect(find.text('12 张'), findsOneWidget);
+    expect(find.text('12 张卡片'), findsOneWidget);
+    expect(find.textContaining('牌组里叫'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('question-type-choice')));
     expect(selected, [UserQuestionType.choice]);

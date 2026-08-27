@@ -10,22 +10,8 @@ import 'package:turna/views/anki/import_wizard/anki_import_wizard_widgets.dart';
 import 'package:turna/views/theme.dart';
 
 /// Plain-language label for a user-facing question-type chip.
-String userQuestionTypeLabel(UserQuestionType type) {
-  switch (type) {
-    case UserQuestionType.choice:
-      return AppStrings.ankiQuestionTypeChoice;
-    case UserQuestionType.fillBlank:
-      return AppStrings.ankiQuestionTypeFillBlank;
-    case UserQuestionType.listen:
-      return AppStrings.ankiQuestionTypeListen;
-    case UserQuestionType.word:
-      return AppStrings.ankiQuestionTypeWord;
-    case UserQuestionType.sentence:
-      return AppStrings.ankiQuestionTypeSentence;
-    case UserQuestionType.flip:
-      return AppStrings.ankiQuestionTypeFlip;
-  }
-}
+String userQuestionTypeLabel(UserQuestionType type) =>
+    userQuestionTypeLabelOf(type);
 
 /// Whether a recognition result represents the user's own pick (written back
 /// by the controller with confidence 1.0) rather than an automatic verdict —
@@ -88,6 +74,8 @@ class NotetypeMappingRow extends StatelessWidget {
   final CardRecognitionResult? recognition;
   final ImportRecognitionAttention attention;
   final int cardCount;
+  final String? sampleFront;
+  final String? sampleBack;
   final ValueChanged<UserQuestionType> onTypeSelected;
   final VoidCallback onEdit;
 
@@ -100,6 +88,8 @@ class NotetypeMappingRow extends StatelessWidget {
     required this.onTypeSelected,
     required this.onEdit,
     this.recognition,
+    this.sampleFront,
+    this.sampleBack,
   });
 
   @override
@@ -110,16 +100,12 @@ class NotetypeMappingRow extends StatelessWidget {
       ImportRecognitionAttention.recognized => TurnaTheme.brandTeal,
       ImportRecognitionAttention.skipped => TurnaTheme.textHintColor(context),
     };
-    final status = switch (attention) {
-      ImportRecognitionAttention.blocking => AppStrings.ankiMappingMustFix,
-      ImportRecognitionAttention.advisory => AppStrings.ankiMappingNeedsCheck,
-      ImportRecognitionAttention.recognized => AppStrings.ankiMappingRecognizedAuto,
-      ImportRecognitionAttention.skipped => AppStrings.ankiOfficialMappingSkipped,
-    };
+    final status = importAttentionStatusLabel(attention);
     final warnings = recognition?.warnings ?? const <String>[];
     final detail = warnings.isEmpty ? null : warnings.first;
     final selected =
         userQuestionTypeOf(mapping?.type ?? NotetypeMappingType.ankiCard);
+    final typeLabel = userQuestionTypeLabel(selected);
     return Container(
       key: Key('mapping-row-${notetype.id}'),
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
@@ -139,7 +125,7 @@ class NotetypeMappingRow extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  notetype.name,
+                  typeLabel,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontWeight: FontWeight.w600),
@@ -153,7 +139,37 @@ class NotetypeMappingRow extends StatelessWidget {
                   color: TurnaTheme.textHintColor(context),
                 ),
               ),
-              const SizedBox(width: 6),
+            ],
+          ),
+          if (sampleFront != null || sampleBack != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              '${sampleFront ?? AppStrings.ankiMappingEmptySample}'
+              '  →  '
+              '${sampleBack ?? AppStrings.ankiMappingEmptySample}',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 13,
+                color: TurnaTheme.textSecondaryColor(context),
+              ),
+            ),
+          ],
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              AppStrings.ankiMappingSourceName(notetype.name),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11,
+                color: TurnaTheme.textHintColor(context),
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
               Icon(
                 attention == ImportRecognitionAttention.blocking
                     ? Icons.error_outline_rounded
@@ -163,13 +179,15 @@ class NotetypeMappingRow extends StatelessWidget {
                 color: color,
                 size: 17,
               ),
-              const SizedBox(width: 3),
-              Text(
-                status,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  status,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -306,10 +324,19 @@ class _NotetypeMappingEditorState extends State<NotetypeMappingEditor> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              widget.notetype.name,
+              AppStrings.ankiMappingEditTitle,
               style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
             ),
-            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.only(top: 4, bottom: 8),
+              child: Text(
+                AppStrings.ankiMappingSourceName(widget.notetype.name),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: TurnaTheme.textHintColor(context),
+                ),
+              ),
+            ),
             Text(
               AppStrings.ankiQuestionTypeSectionTitle,
               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
@@ -443,7 +470,10 @@ class _NotetypeMappingEditorState extends State<NotetypeMappingEditor> {
           decoration: _dropdownDecoration(context),
           items: [
             for (var i = 0; i < fields.length; i++)
-              DropdownMenuItem(value: i, child: Text(fields[i])),
+              DropdownMenuItem(
+              value: i,
+              child: Text(userFacingFieldName(fields[i])),
+            ),
           ],
           onChanged: onChanged,
         ),

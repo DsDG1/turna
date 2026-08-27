@@ -157,6 +157,8 @@ class LegacyAnkiImportPreview extends StatelessWidget {
               recognition: preview.recognitionResults[entry.key],
               attention: attention[entry.key]!,
               cardCount: _cardCount(collection, entry.key),
+              sampleFront: _sampleField(collection, entry.key, true),
+              sampleBack: _sampleField(collection, entry.key, false),
               onTypeSelected: (type) => unawaited(
                 _saveType(collection, entry.key, entry.value, type),
               ),
@@ -205,6 +207,21 @@ class LegacyAnkiImportPreview extends StatelessWidget {
     );
     if (next == existing.type) return;
     await controller.saveLegacyMapping(mid, existing.copyWith(type: next));
+  }
+
+  String? _sampleField(
+    AnkiCollection collection,
+    int mid,
+    bool front,
+  ) {
+    final mapping = preview.mappings[mid];
+    final note = collection.notes.where((n) => n.mid == mid).firstOrNull;
+    if (note == null) return null;
+    final idx = front
+        ? (mapping?.frontFieldIndex ?? 0)
+        : (mapping?.backFieldIndex ?? 1);
+    if (idx < 0 || idx >= note.fields.length) return null;
+    return importSamplePreview(note.fields[idx]);
   }
 
   int _cardCount(AnkiCollection collection, int mid) {

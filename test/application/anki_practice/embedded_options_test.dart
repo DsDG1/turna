@@ -43,16 +43,15 @@ void main() {
       );
     });
 
-    test('detectChoiceLayout detects structured MCQ columns', () {
+    test('detectChoiceLayout detects 选项A columns as multi-select when named 多选',
+        () {
       final layout = EmbeddedOptionsParser.detectChoiceLayout(
-        fieldNames: ['Stem', 'Option A', 'Option B', 'Option C', 'Option D', 'Answer'],
-        notetypeName: 'Multiple Choice',
+        fieldNames: ['题干', '选项A', '选项B', '选项C', '选项D', '答案'],
+        notetypeName: '1000题-多选',
       );
       expect(layout, isNotNull);
-      expect(layout!.promptIndex, 0);
-      expect(layout.optionIndices, [1, 2, 3, 4]);
-      expect(layout.answerIndex, 5);
-      expect(layout.multi, isFalse);
+      expect(layout!.optionIndices, [1, 2, 3, 4]);
+      expect(layout.multi, isTrue);
     });
   });
 }

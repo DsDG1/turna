@@ -9,6 +9,7 @@ import 'package:turna/application/ai/engine/ai_engine.dart';
 import 'package:turna/application/ai/engine/ai_engine_config.dart';
 import 'package:turna/application/anki/anki_card_adapter.dart';
 import 'package:turna/application/anki/anki_models.dart';
+import 'package:turna/application/anki/import_wizard/question_type.dart';
 import 'package:turna/application/anki_practice/embedded_options.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
@@ -269,7 +270,7 @@ class CardRecognitionPipeline {
       : _engine = engine,
         _ruleStore = ruleStore ?? AnkiNotetypeRuleStore();
 
-  static const recognizerVersion = 1;
+  static const recognizerVersion = 2;
   static const lowConfidenceThreshold = 0.6;
 
   final AiEngine? _engine;
@@ -305,7 +306,6 @@ class CardRecognitionPipeline {
       final rule = _applyDeterministicRules(
         entry.value,
         notes,
-        allowFieldNameRule: !config.isComplete || _engine == null,
       );
       if (rule != null) {
         results[entry.key] = rule;
@@ -326,10 +326,9 @@ class CardRecognitionPipeline {
       if (results.containsKey(entry.key)) continue;
       results[entry.key] = CardRecognitionResult(
         mapping: AnkiCardAdapter.inferMapping(entry.value),
-        confidence: 0.4,
+        confidence: 0.72,
         source: CardRecognitionSource.fallback,
-        evidence: '启发式回退（字段名模式）',
-        warnings: const ['未能获得高置信识别结果，建议人工确认'],
+        evidence: '按字段顺序：第一栏为正面，第二栏为背面',
       );
     }
 
@@ -343,9 +342,8 @@ class CardRecognitionPipeline {
   /// AI entirely for that notetype (Plan step 3).
   CardRecognitionResult? _applyDeterministicRules(
     AnkiNotetype notetype,
-    List<AnkiNote> notes, {
-    required bool allowFieldNameRule,
-  }) {
+    List<AnkiNote> notes,
+  ) {
     if (notetype.isCloze) {
       return CardRecognitionResult(
         mapping: const NotetypeMapping(
@@ -354,7 +352,7 @@ class CardRecognitionPipeline {
         ),
         confidence: 0.95,
         source: CardRecognitionSource.rule,
-        evidence: 'notetype 标记为 Cloze',
+        evidence: '这是挖空填空卡',
       );
     }
 
@@ -368,13 +366,20 @@ class CardRecognitionPipeline {
           type: NotetypeMappingType.multipleChoice,
           frontFieldIndex: layout.promptIndex,
           backFieldIndex: layout.answerIndex,
-          reason: 'Choice option fields detected',
+          reason: layout.multi
+              ? 'Choice option fields detected (multi-select; per card)'
+              : 'Choice option fields detected (single/multi resolved per card)',
         ),
         confidence: 0.9,
         source: CardRecognitionSource.rule,
-        evidence: '检测到结构化选项字段（${notetype.fieldNames.join('/')}）',
+        evidence: layout.multi
+            ? '检测到选项栏，将按选择题导入（含多选）'
+            : '检测到选项栏，将按选择题导入',
       );
     }
+
+    final fromSamples = _applySampleRules(notetype, notes);
+    if (fromSamples != null) return fromSamples;
 
     // Sample-driven listening rule: front face is dominated by audio and the
     // answer side is short — the shape of a listen-and-answer deck.
@@ -401,20 +406,64 @@ class CardRecognitionPipeline {
       );
     }
 
-    // The legacy adapter already has stable field-name rules for ordinary
-    // vocabulary, expression and named quiz layouts. Treat those explicit
-    // matches as local recognition successes; only the truly generic
-    // first-field/second-field default remains a low-confidence fallback.
+    // Named / structural matches (vocab fields, occlusion, quiz names).
+    // Generic first-field/second-field defaults stay undecided so AI can
+    // still run when configured.
     final inferred = AnkiCardAdapter.inferMapping(notetype);
-    if (allowFieldNameRule && inferred.reason != 'Default flip card mapping') {
+    if (inferred.reason != 'Default flip card mapping') {
       return CardRecognitionResult(
         mapping: inferred,
-        confidence: 0.8,
+        confidence: 0.85,
         source: CardRecognitionSource.rule,
-        evidence: '根据字段名称自动识别',
+        evidence: '根据卡片结构自动识别',
       );
     }
 
+    return null;
+  }
+
+  CardRecognitionResult? _applySampleRules(
+    AnkiNotetype notetype,
+    List<AnkiNote> notes,
+  ) {
+    if (hasClozeMarkers(notetype, notes)) {
+      return const CardRecognitionResult(
+        mapping: NotetypeMapping(
+          type: NotetypeMappingType.cloze,
+          reason: 'Cloze markers in samples',
+        ),
+        confidence: 0.92,
+        source: CardRecognitionSource.rule,
+        evidence: '正文里有挖空标记，将按填空题导入',
+      );
+    }
+
+    final mine = notes.where((n) => n.mid == notetype.id).take(12);
+    var checked = 0;
+    var choiceHits = 0;
+    for (final note in mine) {
+      if (note.fields.isEmpty) continue;
+      checked++;
+      final front = note.fields.first;
+      if (EmbeddedOptionsParser.extractEmbeddedOptions(front) != null ||
+          EmbeddedOptionsParser.looksLikeEmbeddedOptions(front)) {
+        choiceHits++;
+      }
+    }
+    if (checked >= 2 && choiceHits / checked >= 0.5) {
+      final back = notetype.fieldNames.length > 1 ? 1 : 0;
+      return CardRecognitionResult(
+        mapping: NotetypeMapping(
+          type: NotetypeMappingType.multipleChoice,
+          frontFieldIndex: 0,
+          backFieldIndex: back,
+          reason: 'Embedded A/B/C options in samples',
+        ),
+        confidence: 0.86,
+        source: CardRecognitionSource.rule,
+        evidence: '样卡里有 A/B/C 选项，将按选择题导入',
+      );
+    }
     return null;
   }
 

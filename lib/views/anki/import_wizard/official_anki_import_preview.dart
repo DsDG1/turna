@@ -163,24 +163,42 @@ class OfficialAnkiImportPreview extends StatelessWidget {
                         ImportRecognitionAttention.skipped =>
                           TurnaTheme.textHintColor(context),
                       };
-                      final statusText = switch (level) {
-                        ImportRecognitionAttention.blocking =>
-                          AppStrings.ankiMappingMustFix,
-                        ImportRecognitionAttention.advisory =>
-                          AppStrings.ankiMappingNeedsCheck,
-                        ImportRecognitionAttention.recognized =>
-                          AppStrings.ankiMappingRecognizedAuto,
-                        ImportRecognitionAttention.skipped =>
-                          AppStrings.ankiOfficialMappingSkipped,
-                      };
+                      final typeLabel = officialGuessedTypeLabel(
+                        schema: schema,
+                        suggestion: preview.suggestions[schema.notetypeId],
+                      );
+                      final sample = schema.samples.firstOrNull;
+                      final sampleLine = sample == null
+                          ? null
+                          : '${importSamplePreview(sample.fields.isNotEmpty ? sample.fields.first : '')}'
+                              '  →  '
+                              '${importSamplePreview(sample.fields.length > 1 ? sample.fields[1] : '')}';
                       return ListTile(
                         contentPadding: EdgeInsets.zero,
-                        dense: true,
-                        title: Text(schema.name),
-                        subtitle: Text(
-                          statusText,
-                          style: TextStyle(color: rowColor, fontSize: 12),
+                        title: Text(typeLabel),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (sampleLine != null)
+                              Text(
+                                sampleLine,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            Text(
+                              AppStrings.ankiMappingSourceName(schema.name),
+                              style: TextStyle(
+                                color: TurnaTheme.textHintColor(context),
+                                fontSize: 11,
+                              ),
+                            ),
+                            Text(
+                              importAttentionStatusLabel(level),
+                              style: TextStyle(color: rowColor, fontSize: 12),
+                            ),
+                          ],
                         ),
+                        isThreeLine: true,
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [

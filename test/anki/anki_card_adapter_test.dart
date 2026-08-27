@@ -125,6 +125,29 @@ void main() {
         expect(mapping.type, NotetypeMappingType.multipleChoice);
         expect(mapping.reason, contains('per card'));
       });
+
+      test('maps eggrolls-style vocab fields to wordEntry', () {
+        final notetype = AnkiNotetype(
+          id: 9,
+          name: 'eggrolls-JLPT10k',
+          fieldNames: ['VocabKanji', 'VocabDefSC', 'VocabAudio'],
+        );
+        final mapping = AnkiCardAdapter.inferMapping(notetype);
+        expect(mapping.type, NotetypeMappingType.wordEntry);
+        expect(mapping.frontFieldIndex, 0);
+        expect(mapping.backFieldIndex, 1);
+      });
+
+      test('maps image occlusion to original-card flip', () {
+        final notetype = AnkiNotetype(
+          id: 10,
+          name: 'Image Occlusion',
+          fieldNames: ['Header', 'Image', 'Occlusion', 'Back Extra'],
+        );
+        final mapping = AnkiCardAdapter.inferMapping(notetype);
+        expect(mapping.type, NotetypeMappingType.ankiCard);
+        expect(mapping.reason, contains('occlusion'));
+      });
     });
 
     group('choice helpers', () {

@@ -348,12 +348,22 @@ class AnkiCardAdapter {
     final nameLower = notetype.name.toLowerCase();
 
     // Check for Cloze type first
-    if (notetype.isCloze) {
+    if (notetype.isCloze || _nameLooksLikeCloze(nameLower)) {
       return const NotetypeMapping(
         type: NotetypeMappingType.cloze,
         frontFieldIndex: 0,
         backFieldIndex: 0,
         reason: 'Cloze notetype detected',
+      );
+    }
+
+    if (_nameLooksLikeImageOcclusion(nameLower) ||
+        lowerFields.any(_looksLikeOcclusionField)) {
+      return const NotetypeMapping(
+        type: NotetypeMappingType.ankiCard,
+        frontFieldIndex: 0,
+        backFieldIndex: 0,
+        reason: 'Image occlusion — keep original card',
       );
     }
 
@@ -411,10 +421,11 @@ class AnkiCardAdapter {
     final termIdx = _findFieldIndex(lowerFields, [
       'term',
       'word',
+      'vocabkanji',
+      'vocab',
       'front',
       'question',
       'q',
-      '词',
       '单词',
       '正面',
       '问题',
@@ -422,6 +433,10 @@ class AnkiCardAdapter {
     final transIdx = _findFieldIndex(lowerFields, [
       'translation',
       'meaning',
+      'vocabdef',
+      'defsc',
+      'deftc',
+      'gloss',
       'back',
       'answer',
       'definition',
@@ -1009,6 +1024,23 @@ class AnkiCardAdapter {
 
   static bool _nameLooksLikeMultiSelect(String nameLower) =>
       EmbeddedOptionsParser.nameLooksLikeMultiSelect(nameLower);
+
+  static bool _nameLooksLikeCloze(String nameLower) {
+    return nameLower.contains('cloze') ||
+        nameLower.contains('填空') ||
+        nameLower.contains('挖空');
+  }
+
+  static bool _nameLooksLikeImageOcclusion(String nameLower) {
+    return nameLower.contains('occlusion') ||
+        nameLower.contains('遮图') ||
+        nameLower.contains('图片遮盖') ||
+        nameLower.contains('image cloze');
+  }
+
+  static bool _looksLikeOcclusionField(String lower) {
+    return lower.contains('occlusion') || lower == 'mask';
+  }
 
   static _ChoiceCardinality _choiceCardinality({
     required AnkiNotetype? notetype,

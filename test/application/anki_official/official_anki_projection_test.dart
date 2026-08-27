@@ -45,6 +45,72 @@ void main() {
     );
   });
 
+  test('custom field names still get a front/back mapping', () {
+    const schema = OfficialAnkiProjectionSchema(
+      notetypeId: 3,
+      name: 'eggrolls-JLPT10k',
+      kind: 'normal',
+      fieldNames: ['VocabKanji', 'VocabDefSC', 'VocabAudio'],
+      templateNames: const ['Card 1'],
+      schemaFingerprint: 'egg',
+      samples: [
+        OfficialAnkiProjectionSample(
+          noteId: 1,
+          fields: ['食べる', '吃', '[sound:x.mp3]'],
+        ),
+      ],
+    );
+    final suggestion = OfficialAnkiProjectionMapper().suggest(schema: schema);
+    expect(suggestion.status, OfficialAnkiMappingStatus.autoCandidate);
+    expect(
+      suggestion.role(OfficialAnkiFieldRole.targetText)?.fieldName,
+      'VocabKanji',
+    );
+    expect(
+      suggestion.role(OfficialAnkiFieldRole.nativeText)?.fieldName,
+      'VocabDefSC',
+    );
+  });
+
+  test('cloze Text/Extra does not require a separate answer field', () {
+    const schema = OfficialAnkiProjectionSchema(
+      notetypeId: 4,
+      name: 'Cloze',
+      kind: 'cloze',
+      fieldNames: ['Text', 'Extra'],
+      templateNames: const ['Cloze'],
+      schemaFingerprint: 'cz',
+      samples: [
+        OfficialAnkiProjectionSample(
+          noteId: 1,
+          fields: ['The {{c1::sun}}', ''],
+        ),
+      ],
+    );
+    final suggestion = OfficialAnkiProjectionMapper().suggest(schema: schema);
+    expect(suggestion.singleFieldMode, isTrue);
+    expect(suggestion.status, OfficialAnkiMappingStatus.autoCandidate);
+    expect(
+      suggestion.role(OfficialAnkiFieldRole.targetText),
+      isA<OfficialAnkiFieldCandidate>(),
+    );
+  });
+
+  test('image occlusion is auto-ready as a single-field image card', () {
+    const schema = OfficialAnkiProjectionSchema(
+      notetypeId: 5,
+      name: 'Image Occlusion',
+      kind: 'normal',
+      fieldNames: ['Header', 'Image', 'Occlusion', 'Back Extra'],
+      templateNames: const ['IO'],
+      schemaFingerprint: 'io',
+      samples: const [],
+    );
+    final suggestion = OfficialAnkiProjectionMapper().suggest(schema: schema);
+    expect(suggestion.singleFieldMode, isTrue);
+    expect(suggestion.status, OfficialAnkiMappingStatus.autoCandidate);
+  });
+
   test('20-card lessons and Recovered section', () {
     final rows = [
       for (var i = 1; i <= 21; i++)

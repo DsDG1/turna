@@ -131,8 +131,8 @@ void main() {
         {
           'id': 7,
           'mapping': 'wordEntry',
-          'frontField': 'Front',
-          'backField': 'Back',
+          'frontField': 'Field1',
+          'backField': 'Field2',
           'confidence': 0.9,
           'reason': 'short front term + translation back',
         },
@@ -143,7 +143,7 @@ void main() {
       ruleStore: AnkiNotetypeRuleStore(prefs),
     );
     final notetypes = {
-      7: _notetype(7, 'Vocab', ['Front', 'Back', 'Extra'])
+      7: _notetype(7, 'CustomMix', ['Field1', 'Field2', 'Extra'])
     };
     final notes = [
       _note(1, 7, ['ev', 'house', 'noun']),
@@ -168,7 +168,7 @@ void main() {
     // note content ("ev"/"house"/"kitap" must not appear anywhere).
     final userMessage = engine.lastMessages.last['content'].toString();
     expect(userMessage, contains('"avgLen"'));
-    expect(userMessage, contains('Front'));
+    expect(userMessage, contains('Field1'));
     expect(userMessage, isNot(contains('house')));
     expect(userMessage, isNot(contains('kitap')));
   });
@@ -179,8 +179,8 @@ void main() {
         {
           'id': 9,
           'mapping': 'listenPick',
-          'frontField': 'Front',
-          'backField': 'Back',
+          'frontField': 'Field1',
+          'backField': 'Field2',
           'confidence': 0.95,
           'reason': 'assumed listening',
         },
@@ -193,7 +193,7 @@ void main() {
     final results = await pipeline.recognizeAll(
       config: _config,
       notetypes: {
-        9: _notetype(9, 'Plain', ['Front', 'Back'])
+        9: _notetype(9, 'Plain', ['Field1', 'Field2'])
       },
       notes: [
         _note(1, 9, ['long sentence front', 'long answer back'])
@@ -218,21 +218,22 @@ void main() {
     final results = await pipeline.recognizeAll(
       config: _config,
       notetypes: {
-        3: _notetype(3, 'Ambiguous', ['Front', 'Back'])
+        3: _notetype(3, 'Ambiguous', ['Field1', 'Field2'])
       },
       notes: const [],
     );
 
     final result = results[3]!;
     expect(result.source, CardRecognitionSource.fallback);
-    expect(result.confidence, lessThan(0.5));
-    expect(result.warnings, isNotEmpty);
+    expect(result.confidence, greaterThan(0.6));
+    expect(result.needsConfirmation, isFalse);
   });
 
   test('persisted rules are saved by signature and reused without AI',
       () async {
     final signature = NotetypeSignature.of(
       _notetype(5, 'Vocab2', ['Front', 'Back']),
+      version: CardRecognitionPipeline.recognizerVersion,
     ).value;
     await store.save(
       signature,
@@ -278,5 +279,48 @@ void main() {
       NotetypeSignature.of(_notetype(4, 'Other', ['Front', 'Back'])).value,
       twoField,
     );
+  });
+
+  test('sample A/B/C text is recognized as choice without option fields',
+      () async {
+    final engine = _RecordingAiEngine('{}');
+    final pipeline = CardRecognitionPipeline(
+      engine: engine,
+      ruleStore: AnkiNotetypeRuleStore(prefs),
+    );
+    final results = await pipeline.recognizeAll(
+      config: _config,
+      notetypes: {4: _notetype(4, '1000题', ['Prompt', 'Key'])},
+      notes: [
+        _note(1, 4, [
+          '首都是？\nA. 伦敦\nB. 巴黎\nC. 柏林',
+          'B',
+        ]),
+        _note(2, 4, [
+          '2+2？\nA. 3\nB. 4\nC. 5',
+          'B',
+        ]),
+      ],
+    );
+    expect(results[4]!.mapping.type, NotetypeMappingType.multipleChoice);
+    expect(results[4]!.source, CardRecognitionSource.rule);
+    expect(engine.chatCalls, 0);
+  });
+
+  test('sample cloze markers are recognized without the cloze flag', () async {
+    final engine = _RecordingAiEngine('{}');
+    final pipeline = CardRecognitionPipeline(
+      engine: engine,
+      ruleStore: AnkiNotetypeRuleStore(prefs),
+    );
+    final results = await pipeline.recognizeAll(
+      config: _config,
+      notetypes: {5: _notetype(5, 'Text', ['Text', 'Extra'])},
+      notes: [
+        _note(1, 5, ['The {{c1::sun}} is hot', '']),
+      ],
+    );
+    expect(results[5]!.mapping.type, NotetypeMappingType.cloze);
+    expect(engine.chatCalls, 0);
   });
 }

@@ -4,6 +4,7 @@ import 'package:turna/application/anki_official/contract/official_anki_dto.dart'
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_mapper.dart';
 import 'package:turna/application/anki_official/projection/official_exercise_presets.dart';
+import 'package:turna/application/anki/import_wizard/anki_import_view_helpers.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_error_view.dart';
 import 'package:turna/views/theme.dart';
@@ -44,16 +45,16 @@ class OfficialAnkiMappingPage extends StatefulWidget {
 /// Plain-language labels for the raw enum values. Users never need to see
 /// `targetText`/`autoCandidate`/`confidence=0.95`.
 const Map<OfficialAnkiFieldRole, String> _roleLabels = {
-  OfficialAnkiFieldRole.targetText: '正面内容（单词/句子）',
-  OfficialAnkiFieldRole.nativeText: '释义（中文）',
-  OfficialAnkiFieldRole.pronunciation: '发音',
+  OfficialAnkiFieldRole.targetText: '正面',
+  OfficialAnkiFieldRole.nativeText: '背面',
+  OfficialAnkiFieldRole.pronunciation: '读音',
   OfficialAnkiFieldRole.audio: '音频',
   OfficialAnkiFieldRole.image: '图片',
-  OfficialAnkiFieldRole.exampleTarget: '外语例句',
-  OfficialAnkiFieldRole.exampleNative: '中文例句',
-  OfficialAnkiFieldRole.unitLabel: '单元名称',
-  OfficialAnkiFieldRole.lessonLabel: '课时名称',
-  OfficialAnkiFieldRole.optionPool: '选项内容',
+  OfficialAnkiFieldRole.exampleTarget: '例句',
+  OfficialAnkiFieldRole.exampleNative: '例句翻译',
+  OfficialAnkiFieldRole.unitLabel: '单元',
+  OfficialAnkiFieldRole.lessonLabel: '课时',
+  OfficialAnkiFieldRole.optionPool: '选项',
 };
 
 const Map<OfficialAnkiFieldRole, IconData> _roleIcons = {
@@ -70,10 +71,10 @@ const Map<OfficialAnkiFieldRole, IconData> _roleIcons = {
 };
 
 const Map<OfficialAnkiMappingStatus, String> _statusLabels = {
-  OfficialAnkiMappingStatus.autoCandidate: '已自动匹配，可直接导入',
-  OfficialAnkiMappingStatus.needsConfirm: '建议花几秒确认一下',
-  OfficialAnkiMappingStatus.needsMapping: '需要选择字段',
-  OfficialAnkiMappingStatus.needsReview: '建议检查',
+  OfficialAnkiMappingStatus.autoCandidate: '已按卡片内容匹配，可直接导入',
+  OfficialAnkiMappingStatus.needsConfirm: '看一下样卡正反面是否反了',
+  OfficialAnkiMappingStatus.needsMapping: '还看不清正面和背面，选一下即可',
+  OfficialAnkiMappingStatus.needsReview: '建议看一眼样卡',
   OfficialAnkiMappingStatus.skipped: '已跳过',
 };
 
@@ -206,7 +207,7 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
             ? TurnaTheme.warning
             : TurnaTheme.brandTeal;
     return Scaffold(
-      appBar: AppBar(title: Text('确认卡片 · ${widget.notetypeName}')),
+      appBar: AppBar(title: Text(AppStrings.ankiMappingEditTitle)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -231,7 +232,7 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '${blocking ? '需要先选择正确的题目和答案' : statusLabel}'
+                    '${blocking ? '看一下样卡，选哪边是正面、哪边是背面' : statusLabel}'
                     '${widget.affectedCardCount > 0 ? '（共 ${widget.affectedCardCount} 张）' : ''}',
                     style: TextStyle(
                       fontSize: 13,
@@ -245,6 +246,14 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
           ),
           const SizedBox(height: 16),
           if (samples.isNotEmpty) ...[
+            Text(
+              AppStrings.ankiMappingSourceName(widget.notetypeName),
+              style: TextStyle(
+                fontSize: 12,
+                color: TurnaTheme.textHintColor(context),
+              ),
+            ),
+            const SizedBox(height: 12),
             const Text(
               '这样显示正确吗？',
               style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
@@ -267,7 +276,7 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _MappingPreviewSide(
-                      label: '题目',
+                      label: '正面',
                       value: _sampleValue(
                         sample,
                         OfficialAnkiFieldRole.targetText,
@@ -278,7 +287,7 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
                       child: Center(child: Icon(Icons.arrow_downward_rounded)),
                     ),
                     _MappingPreviewSide(
-                      label: '答案',
+                      label: '背面',
                       value: _sampleValue(
                         sample,
                         OfficialAnkiFieldRole.nativeText,
@@ -296,7 +305,7 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
                     ? _swapPrimaryRoles
                     : null,
                 icon: const Icon(Icons.swap_vert_rounded, size: 18),
-                label: const Text('交换题目和答案'),
+                label: Text(AppStrings.ankiMappingSwapSides),
               ),
             ),
             const SizedBox(height: 12),
@@ -340,12 +349,12 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
             ),
           const SizedBox(height: 16),
           const Text(
-            '题目和答案',
+            '正面和背面',
             style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 4),
           Text(
-            '通常无需调整；不正确时再更换字段。',
+            '通常不用改；样卡反了就换一栏。',
             style: TextStyle(
               fontSize: 12,
               color: TurnaTheme.textSecondaryColor(context),
@@ -355,7 +364,7 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Text(
-                '题目和答案不能使用同一个字段',
+                '正面和背面不能用同一栏',
                 key: const Key('mapping-conflict'),
                 style: const TextStyle(
                   color: TurnaTheme.error,
@@ -365,12 +374,12 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
             ),
           _roleSelector(
             role: OfficialAnkiFieldRole.targetText,
-            label: '题目',
+            label: '正面',
             fieldNames: fieldNames,
           ),
           _roleSelector(
             role: OfficialAnkiFieldRole.nativeText,
-            label: '答案',
+            label: '背面',
             fieldNames: fieldNames,
           ),
           const SizedBox(height: 16),
@@ -422,7 +431,7 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
               TextButton(
                 key: const Key('mapping-skip'),
                 onPressed: widget.onSkip,
-                child: const Text('不转换这类卡片'),
+                child: const Text('跳过这类卡片'),
               ),
               const Spacer(),
               if (widget.onGenerateCourse != null)
@@ -435,7 +444,7 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
                 key: const Key('mapping-save'),
                 onPressed:
                     blocking ? null : () => widget.onConfirm?.call(_current),
-                child: const Text('确认正确'),
+                child: Text(AppStrings.ankiMappingConfirmCorrect),
               ),
             ],
           ),
@@ -469,7 +478,10 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
               hint: const Text('选择字段'),
               items: [
                 for (var i = 0; i < fieldNames.length; i++)
-                  DropdownMenuItem(value: i, child: Text(fieldNames[i])),
+                  DropdownMenuItem(
+                    value: i,
+                    child: Text(userFacingFieldName(fieldNames[i])),
+                  ),
               ],
               onChanged: (index) {
                 if (index != null) assignRole(role, index);

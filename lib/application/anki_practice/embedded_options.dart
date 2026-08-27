@@ -168,14 +168,17 @@ class EmbeddedOptionsParser {
     final s = lower.trim();
     if (s.isEmpty) return false;
     if (isAnswerFieldName(s)) return false;
-    if (RegExp(r'^(option|choice|opt|选项)\s*[_-]?\s*[a-f0-9]?$').hasMatch(s)) {
+    if (RegExp(r'^(option|choice|opt|选项|备选)\s*[_-]?\s*[a-f0-9]?$')
+        .hasMatch(s)) {
       return true;
     }
     if (RegExp(r'^q[_-]?\s*[a-f1-9]$').hasMatch(s)) return true;
     if (RegExp(r'^[a-f]$').hasMatch(s)) return true;
+    if (RegExp(r'^[甲乙丙丁戊己]$').hasMatch(s)) return true;
     if (RegExp(r'^选项\s*[a-f甲乙丙丁1-9]$').hasMatch(s)) return true;
     if (RegExp(r'^选项[一二三四五六]$').hasMatch(s)) return true;
     if (RegExp(r'^(option|choice)\s*[a-f1-9]$').hasMatch(s)) return true;
+    if (RegExp(r'^(option|choice|opt)[_-][a-f1-9]$').hasMatch(s)) return true;
     return false;
   }
 
@@ -190,7 +193,9 @@ class EmbeddedOptionsParser {
         s == '答案' ||
         s == '正确答案' ||
         s == '正确选项' ||
-        s == '正解';
+        s == '正解' ||
+        s == '参考答案' ||
+        s.contains('right answer');
   }
 
   static bool nameLooksLikeMcq(String nameLower) {
@@ -199,6 +204,10 @@ class EmbeddedOptionsParser {
         nameLower.contains('mcq') ||
         nameLower.contains('单选') ||
         nameLower.contains('选择题') ||
+        nameLower.contains('题库') ||
+        nameLower.contains('真题') ||
+        nameLower.contains('试题') ||
+        (nameLower.contains('quiz') && !nameLower.contains('cloze')) ||
         (nameLower.contains('choice') && !nameLower.contains('multi'));
   }
 
@@ -274,6 +283,7 @@ class EmbeddedOptionsParser {
           '问题',
           '题目',
           '题干',
+          '题面',
           'front',
         ]) ??
         (() {
@@ -296,6 +306,7 @@ class EmbeddedOptionsParser {
       '正确答案',
       '正确选项',
       '正解',
+      '参考答案',
     ]);
     if (answerIndex != null && optionSet.contains(answerIndex)) {
       answerIndex = null;
