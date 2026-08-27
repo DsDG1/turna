@@ -1,22 +1,22 @@
 // Dart imports:
 import 'dart:convert';
 
-// Flutter imports:
-import 'package:flutter/foundation.dart';
-
 // Package imports:
 import 'package:drift/drift.dart' show Value;
 import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/application/ai/ai_course_service.dart';
+import 'package:turna/application/ai/ai_course_spec.dart';
+import 'package:turna/application/ai/ai_error_mapper.dart';
+import 'package:turna/application/ai/ai_grounded_resource_provider.dart';
 import 'package:turna/application/ai/ai_prompt_builder.dart';
+import 'package:turna/application/ai/ai_recent_task_log.dart';
+import 'package:turna/application/ai/ai_streaming_session_base.dart';
 import 'package:turna/application/ai/engine/ai_cancel_token.dart';
 import 'package:turna/application/ai/engine/ai_engine.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/ai/engine/ai_recent_tasks_provider.dart';
-import 'package:turna/application/ai/ai_course_spec.dart';
-import 'package:turna/application/ai/ai_grounded_resource_provider.dart';
 import 'package:turna/application/ai/ai_resource_consistency.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/courses/course_loader.dart';
@@ -37,22 +37,21 @@ enum AiCourseState { idle, generating, generated, saving, saved, error }
 /// blobs + top-level resources) into [CourseDatabase], then invalidates
 /// [CourseLoader] caches so the course tree refreshes.
 @lazySingleton
-class AiCourseProvider extends ChangeNotifier {
-  AiCourseProvider({AiEngine? engine, AiGroundedResourceProvider? groundedProvider})
+class AiCourseProvider extends AiRequestSessionBase {
+  AiCourseProvider(
+      {AiEngine? engine, AiGroundedResourceProvider? groundedProvider})
       : _engine = engine ?? getIt<AiEngine>(),
         _service = AiCourseService(),
         _groundedProvider = groundedProvider ?? AiGroundedResourceProvider();
 
-  AiCourseProvider.withEngine(this._engine, {AiGroundedResourceProvider? groundedProvider})
+  AiCourseProvider.withEngine(this._engine,
+      {AiGroundedResourceProvider? groundedProvider})
       : _service = AiCourseService(),
         _groundedProvider = groundedProvider ?? AiGroundedResourceProvider();
 
   final AiEngine _engine;
   final AiCourseService _service;
   final AiGroundedResourceProvider _groundedProvider;
-
-  /// Active cancel token for the in-flight generation, if any.
-  AiCancelToken? _cancelToken;
 
   /// Lazy lookup of the shared config holder (registered in DI and exposed in
   /// `providers.dart` as a `ChangeNotifierProvider`). The holder is the single
@@ -85,15 +84,13 @@ class AiCourseProvider extends ChangeNotifier {
   /// Runs validateSection + resource self-consistency; on errors retries the
   /// AI once (C3 self-heal).
   Future<void> generate(AiCourseSpec spec) async {
-    _cancelToken?.cancel();
-    final token = AiCancelToken();
-    _cancelToken = token;
+    final session = beginStreamingSession();
     _error = null;
     _state = AiCourseState.generating;
     _generatedJson = null;
     _generatedSectionId = null;
     _explanation = null;
-    notifyListeners();
+    notifySessionListeners();
     try {
       final applied = _service.applyGenreToSpec(spec);
       final groundedContext = await _loadGroundedContext(applied);
@@ -114,10 +111,11 @@ class AiCourseProvider extends ChangeNotifier {
           messages: messages,
           temperature: 0.4,
           timeout: const Duration(seconds: 120),
-          cancelToken: token,
+          cancelToken: session.cancelToken,
         ))
             .body,
       );
+      if (!isCurrentSession(session)) return;
       // C3 self-heal: if the validator reports errors, re-prompt once with
       // the errors listed. The retry's prompt differs so it won't hit the
       // cache; the first attempt is cacheable for repeat-clicks.
@@ -125,7 +123,8 @@ class AiCourseProvider extends ChangeNotifier {
       if (errors.isNotEmpty) {
         final correction =
             'The previous version has the following validation errors. Fix them and output only the complete corrected JSON:\n- ${errors.join('\n- ')}';
-        messages.add({'role': 'assistant', 'content': jsonEncode(result.parsed)});
+        messages
+            .add({'role': 'assistant', 'content': jsonEncode(result.parsed)});
         messages.add({'role': 'user', 'content': correction});
         result = _service.parseCompletion(
           (await _engine.requestJson(
@@ -133,25 +132,31 @@ class AiCourseProvider extends ChangeNotifier {
             messages: messages,
             temperature: 0.2,
             timeout: const Duration(seconds: 120),
-            cancelToken: token,
+            cancelToken: session.cancelToken,
           ))
               .body,
         );
+        if (!isCurrentSession(session)) return;
       }
       _generatedJson = result.rawJson;
       _generatedSectionId = result.parsed['id'] as String?;
       _state = AiCourseState.generated;
-      _recordRecent(spec);
+      recordAiRecentTask(
+        kind: AiTaskKind.courseGenerate,
+        summary: '${spec.topic} · ${spec.level}',
+      );
     } on AiCancelled {
+      if (!isCurrentSession(session)) return;
       _state = AiCourseState.idle;
     } catch (e) {
+      if (!isCurrentSession(session)) return;
       logger.w('AiCourseProvider.generate failed: $e');
-      _error = e.toString();
+      _error = AiErrorMapper.map(e).message;
       _state = AiCourseState.error;
     } finally {
-      if (identical(_cancelToken, token)) _cancelToken = null;
+      finishStreamingSession(session);
     }
-    notifyListeners();
+    notifySessionListeners();
   }
 
   /// Loads existing resources when [spec.groundedMode] is enabled.
@@ -159,7 +164,8 @@ class AiCourseProvider extends ChangeNotifier {
     if (!spec.groundedMode) return null;
     await _groundedProvider.load(scope: spec.resourceScope);
     if (_groundedProvider.error != null) {
-      logger.w('AiCourseProvider grounded load failed: ${_groundedProvider.error}');
+      logger.w(
+          'AiCourseProvider grounded load failed: ${_groundedProvider.error}');
       return null;
     }
     return _groundedProvider.formatContext(
@@ -201,13 +207,13 @@ class AiCourseProvider extends ChangeNotifier {
     } catch (_) {
       // Keep raw; validation happens on save.
     }
-    notifyListeners();
+    notifySessionListeners();
   }
 
   /// Set the plain-language explanation (used by wish provider).
   void setExplanation(String? text) {
     _explanation = text;
-    notifyListeners();
+    notifySessionListeners();
   }
 
   /// Persists the current generated JSON as a new section in the course DB,
@@ -220,7 +226,7 @@ class AiCourseProvider extends ChangeNotifier {
     }
     _error = null;
     _state = AiCourseState.saving;
-    notifyListeners();
+    notifySessionListeners();
     try {
       final parsed = jsonDecode(raw) as Map<String, dynamic>;
       normalizeResources(parsed);
@@ -232,12 +238,12 @@ class AiCourseProvider extends ChangeNotifier {
       _state = AiCourseState.saved;
     } catch (e, st) {
       logger.e('AiCourseProvider.save failed', error: e, stackTrace: st);
-      _error = e.toString();
+      _error = AiErrorMapper.map(e).message;
       _state = AiCourseState.error;
-      notifyListeners();
+      notifySessionListeners();
       rethrow;
     }
-    notifyListeners();
+    notifySessionListeners();
   }
 
   /// Persists an arbitrary section JSON (e.g. from textbook import) into the
@@ -291,24 +297,22 @@ class AiCourseProvider extends ChangeNotifier {
 
   /// Reset to idle, dropping any generated/edited JSON.
   void reset() {
-    _cancelToken?.cancel();
-    _cancelToken = null;
+    abandonStreamingSession();
     _state = AiCourseState.idle;
     _error = null;
     _generatedJson = null;
     _generatedSectionId = null;
     _explanation = null;
-    notifyListeners();
+    notifySessionListeners();
   }
 
   /// Cancel the in-flight generation (if any) and return to idle, keeping any
   /// previously generated JSON. A no-op when not generating.
   void cancel() {
     if (_state != AiCourseState.generating) return;
-    _cancelToken?.cancel();
-    _cancelToken = null;
+    cancelStreamingSession();
     _state = AiCourseState.idle;
-    notifyListeners();
+    notifySessionListeners();
   }
 
   // --- DB write ---
@@ -426,9 +430,7 @@ class AiCourseProvider extends ChangeNotifier {
   Future<int> _nextSectionSortOrder(db.CourseDatabase database) async {
     final rows = await database.select(database.sections).get();
     if (rows.isEmpty) return 0;
-    return rows
-            .map((r) => r.sortOrder)
-            .fold<int>(0, (a, b) => a > b ? a : b) +
+    return rows.map((r) => r.sortOrder).fold<int>(0, (a, b) => a > b ? a : b) +
         1;
   }
 
@@ -467,20 +469,5 @@ class AiCourseProvider extends ChangeNotifier {
     ];
     content.remove('questions');
     return lesson;
-  }
-
-  /// Append a one-shot course-generation task to the AI Hub's recent list.
-  void _recordRecent(AiCourseSpec spec) {
-    try {
-      getIt<AiRecentTasksProvider>().record(
-            AiRecentTask(
-              kind: AiTaskKind.courseGenerate,
-              summary: '${spec.topic} · ${spec.level}',
-              timestamp: DateTime.now(),
-            ),
-          );
-    } catch (_) {
-      // Advisory only.
-    }
   }
 }

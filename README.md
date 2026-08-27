@@ -78,13 +78,13 @@ python -m tool.gui.src.main
 | [`CLAUDE.md`](./CLAUDE.md) | AI Agent 路由与 Key Files |
 | [`docs/analysis/project-framework-analysis.md`](./docs/analysis/project-framework-analysis.md) | 产品 / 用户 / 商业化视角 |
 | [`docs/content_inventory_current.md`](./docs/content_inventory_current.md) | Turkish 内容清单 |
-| [`docs/official-anki-migration/31-anki-product-experience-plan.md`](./docs/official-anki-migration/31-anki-product-experience-plan.md) | Anki 产品体验收口：先打通导入，再课化/向导 |
+| [`docs/official-anki-migration/`](./docs/official-anki-migration/README.md) | 官方 Anki Core 迁移索引；活跃施工入口为 doc 34 |
 | [`docs/ai_companion_implementation.md`](./docs/ai_companion_implementation.md) | AI companion 实现边界 |
 | [`docs/advanced-settings-system-health.md`](./docs/advanced-settings-system-health.md) | 高级设置与系统健康 |
 | [`docs/android-build-setup.md`](./docs/android-build-setup.md) | Android / 官方 Flutter 构建配置 |
 | [`docs/authoring/`](./docs/authoring/) | Authoring 契约与教师指南 |
 | [`docs/audio-recording-guidelines.md`](./docs/audio-recording-guidelines.md) | 人工录音提交规范 |
-| [`docs/decisions/`](./docs/decisions/) | 架构决策记录（ADR 0030–0037） |
+| [`docs/decisions/`](./docs/decisions/) | 架构决策记录（ADR 0030–0041） |
 | [`test/BASELINE.md`](./test/BASELINE.md) | 测试基线 |
 
 ---

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:turna/application/ai/ai_course_spec.dart';
 import 'package:turna/application/ai/ai_error_mapper.dart';
 import 'package:turna/application/ai/ai_explain_prefs.dart';
+import 'package:turna/application/ai/ai_recent_task_log.dart';
 import 'package:turna/application/ai/ai_streaming_session_base.dart';
 import 'package:turna/application/ai/hint_genres.dart';
 import 'package:turna/application/ai/engine/ai_cancel_token.dart';
@@ -498,17 +499,10 @@ class AiHintProvider extends AiStreamingSessionBase {
   void _recordRecent(String language) {
     final context = _context;
     if (context == null) return;
-    try {
-      getIt<AiRecentTasksProvider>().record(
-        AiRecentTask(
-          kind: AiTaskKind.hintChat,
-          summary: '${context.typeLabel} · $language',
-          timestamp: DateTime.now(),
-          route: 'AiHintChatRoute',
-        ),
-      );
-    } catch (_) {
-      // Recent tasks are advisory; never let a record failure break the flow.
-    }
+    recordAiRecentTask(
+      kind: AiTaskKind.hintChat,
+      summary: '${context.typeLabel} · $language',
+      route: AiRecentTaskRoute.hintChat,
+    );
   }
 }

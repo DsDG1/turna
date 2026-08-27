@@ -5,7 +5,7 @@
 > 准确口径：**Official Anki 迁移中**（不得写「迁移完成」——Legacy 复刻层代码已按 doc 35 L0–L3 删除（2026-08-27），但 schema drop（W9-E）、NoteStore 读退役与真机验收仍未发生）。
 > 首发目标：Android arm64
 > 总原则：官方 Anki Collection 是唯一 Anki 事实源，Turna 只维护课程投影；非 Android 不得以缺 Official Core 为由打开 Legacy 新写入
-> 目录布局：active 施工文档在根目录，Phase 0–4 收口与 P5A/B/C/D1/E 的计划/报告归档到 [`archive/`](./archive/)，artifacts 一并归档。
+> 目录布局：active 施工文档在根目录，已被 34 接管或收口的历史计划/报告（Phase 0–4、P5A/B/C/D1/E、28/31/32/33）归档到 [`archive/`](./archive/)，artifacts 一并归档。
 > 历史执行记录：[`archive/02-phase-0-result-report.md`](./archive/02-phase-0-result-report.md)
 
 ## Active 文档（当前在跑）
@@ -13,12 +13,8 @@
 | 顺序 | 文档 | 用途 | 当前状态 |
 |---|---|---|---|
 | **34** | [Official 生产收口与 OHOS 退役](./34-official-anki-production-cutover-and-ohos-retirement-plan.md) | **唯一活跃施工入口**：W0–W10 止血、OHOS EOL、owner census、Official import/review、Legacy 迁移与分波删除 | **验收 NO-GO**；2026-08-25 一次性施工完成 R0–R8 host 侧并全绿（analyze 0 issue / 全量 1852:0 / golden 4:4 / native 68:0 / arm64 APK 56.1MB），形成工作树生产候选；真机矩阵与外部事实未验收，明细见 [34-remaining §18](./34-remaining-construction-plan.md) 与 [收据](./34-cutover-receipt.md)；W9 HOLD 已解除（2026-08-27 负责人决策） |
-| 28 | [P5-D 后续大施工计划](./28-p5d-remainder-construction-plan.md) | 历史 D2 手册 + 灰度锁 | **由 34 接管**；灰度 cohort /「OHOS 继续 Legacy」作废（ADR 0041） |
 | **35** | [Legacy 复刻层清理施工计划](./35-duplicate-legacy-layer-cleanup-plan.md) | **W9 重切执行版（L0–L3）**：只删官方已替代的复刻层（parser/legacy writer/assembler/死代码），自研资产（Turna FSRS 引擎、会话基座、向导 UX、统计、备份）全部保留；schema drop（W9-E）不在其内 | **已施工（2026-08-27，L0–L3 四波各自独立 commit）**；L2 门禁按负责人 HOLD 解除决策（legacy 源 fail-closed 只读）满足；验收明细见 doc 35 §9 |
 | 30 | [官方 Anki 卡按语言课体验投影与渲染](./30-course-like-card-experience-plan.md) | 在官方核心之上恢复自动题型识别、语言课渲染、翻面/展开动画；评分仍写官方 Scheduler | **已实施（Host / Unit 验证通过）**；生产默认与 chrome 见 **34** |
-| 31 | [Anki 产品体验收口](./31-anki-product-experience-plan.md) | 历史产品体验规格 | **由 34 接管 / superseded**；勿再按本文件单独开施工波次 |
-| 32 | [官方 Anki 与自研体验对齐](./32-official-anki-experience-parity-plan.md) | 历史 parity 规格 | **由 34 接管 / superseded**；残留 parity 面并入 34 W7 |
-| 33 | [P5-F 官方先行导入施工计划](./33-official-first-import-construction-plan.md) | 历史 official-first 施工 | **由 34 接管 / superseded**；默认策略与 fail-closed 以 34 W0/W4 为准 |
 
 ## Archived 文档（Phase 0–4 + P5A/B/C/D1/E 收口记录，归档保留备查）
 
@@ -54,7 +50,11 @@
 | 25 | [P5-C 收口结果报告（对齐 24 §4）](./archive/25-p5c-closeout-result-report.md) | 24 §4 P5C-14…20 已落地对照，HOST CONDITIONAL GO + DEVICE RE-VERIFIED；继续 P5 USER CUTOVER NO-GO | 已收口（不覆写 23） |
 | 26 | [P5-D Sprint D1 生产路由施工手册](./archive/26-p5d-production-routing-playbook.md) | 方案 B；cutover define 默认 false；Review/Import/due 按 source 分流 | 规格；收口以 27 为准 |
 | 27 | [P5-D Sprint D1 验货](./archive/27-p5d-d1-audit.md) | 对照 24/26、源码、点名测试、Device A 评分；不写 P5-D GO | **D1 HOST+DEVICE CONDITIONAL GO**（仅 fixture）；P5-D GO NO |
+| 28 | [P5-D 后续大施工计划](./archive/28-p5d-remainder-construction-plan.md) | 历史 D2 手册 + 灰度锁 | **由 34 接管**；灰度 cohort /「OHOS 继续 Legacy」作废（ADR 0041） |
 | 29 | [P5-E Wave 1 生产解耦与架构约束报告](./archive/29-p5e-wave1-production-decoupling-report.md) | 断生产引用、提取 LegacyAnkiIdentifiers、建立 Forbidden Import CI 约束测试 | **Wave 1 已收口**；Wave 2–4 HOLD |
+| 31 | [Anki 产品体验收口](./archive/31-anki-product-experience-plan.md) | 历史产品体验规格 | **由 34 接管 / superseded**；勿再按本文件单独开施工波次 |
+| 32 | [官方 Anki 与自研体验对齐](./archive/32-official-anki-experience-parity-plan.md) | 历史 parity 规格 | **由 34 接管 / superseded**；残留 parity 面并入 34 W7 |
+| 33 | [P5-F 官方先行导入施工计划](./archive/33-official-first-import-construction-plan.md) | 历史 official-first 施工 | **由 34 接管 / superseded**；默认策略与 fail-closed 以 34 W0/W4 为准 |
 
 Phase 0–4 与 P5 收口的构建/真机证据（截图、日志、APK 采样）随归档保留在 [`archive/artifacts/`](./archive/artifacts/)，原文相对路径保持不变以方便回查。
 

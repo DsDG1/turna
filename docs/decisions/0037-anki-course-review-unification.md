@@ -2,7 +2,7 @@
 
 - 状态：已接受（施工中）
 - 日期：2026-08-20
-- 取代：[`anki-review-unification-construction-plan.md`](../anki-review-unification-construction-plan.md) 中与本 ADR 冲突的“已完成”表述；官方迁移文档中“一卡多投影 / 未学可复习”相关产品合同
+- 取代：已交付的 anki-review-unification-construction-plan（正文在 Git 历史）中与本 ADR 冲突的“已完成”表述；官方迁移文档中“一卡多投影 / 未学可复习”相关产品合同
 
 ## 决策
 
@@ -29,7 +29,7 @@ authoritative due ∩ active placement ∩ introduced ∩ not suspended/buried/r
 - 普通词汇默认 Flip，不得仅因牌组干扰项生成第二张正式 MCQ。
 - 课程式 practice surface 必须用 renderer-neutral PresentationReceipt，不得依赖未挂载 WebView 的 ACK。
 - 新代码不得用 `id.startsWith('anki-')` / `official-anki-` 推断 backend。
-- 施工主计划见 [`docs/# Anki 课程与复习大一统实施计划.md`](../# Anki 课程与复习大一统实施计划.md)。
+- 施工主计划已压缩为兼容入口：[`docs/anki-course-review-unification-plan.md`](../anki-course-review-unification-plan.md)（原 `# Anki 课程与复习大一统实施计划.md`，正文由 Git 保存）。
 
 ## P5–P10 落地（2026-08-21）
 

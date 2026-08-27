@@ -721,6 +721,11 @@ python -m unittest discover -s tool/gui/tests -p "test_*.py"  # GUI 1276 项（�
   2. **语法渐进**：A1 集中于现在时、格标记（主/宾/与/属/方位/离格）、简单句；A2 引入过去时与将来时；B1 引入关系从句与名物化；B2 涉及语篇衔接与语体变化。
   3. **语用真实性**：表达与对话应反映目标语真实使用场景（如 `Buyurun` 的多重语用功能），避免翻译腔。
 - **Anki 生产收口**：按 [doc 34](./official-anki-migration/34-official-anki-production-cutover-and-ohos-retirement-plan.md) §1.1a。W0–W7 路径已接线；下一刀是向导再瘦、W8 真实用户库 owner 切换、真机观察与 W9 分波物理删除（HOLD 已于 2026-08-27 由负责人决策解除）。不得写「迁移完成」。
+- **已交付计划的遗留尾项**（来源：Plan 1 / Plan 2+3 两轮已压缩为 stub，正文在 Git 历史）：
+  1. 真机性能基线：Android 中低端机型 + profile 构建，采 Plan 2+3 §24 性能预算的 before 数据；
+  2. 宝石 UI 钱包快照（`LocalStateKeys.gems`）到 `GemLedgerDao` 账本投影的完全切换；
+  3. WebView 渲染真机矩阵（6 设备形态 × 11 卡型），随 doc 34 真机会话执行（[34-remaining §18.3 第 7 项](./official-anki-migration/34-remaining-construction-plan.md)）。
+- 活跃施工计划（未交付，勿删）：[Playground P2–P4](./language-playground-implementation-plan.md)、[GUI 与 App Schema 对齐](./tool-gui-app-schema-sync-plan.md)。
 - 持续完善可访问性与统计指标。
 
 ### 致谢

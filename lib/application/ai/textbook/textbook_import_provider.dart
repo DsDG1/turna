@@ -2,16 +2,15 @@
 import 'dart:convert';
 import 'dart:io';
 
-// Flutter imports:
-import 'package:flutter/foundation.dart';
-
 // Project imports:
 import 'package:turna/application/ai/ai_course_provider.dart';
+import 'package:turna/application/ai/ai_error_mapper.dart';
+import 'package:turna/application/ai/ai_recent_task_log.dart';
+import 'package:turna/application/ai/ai_streaming_session_base.dart';
 import 'package:turna/application/ai/engine/ai_cancel_token.dart';
 import 'package:turna/application/ai/engine/ai_engine.dart';
 import 'package:turna/application/ai/engine/ai_engine_config.dart';
 import 'package:turna/application/ai/engine/ai_recent_tasks_provider.dart';
-import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/application/ai/textbook/import_plan.dart';
 import 'package:turna/application/ai/textbook/knowledge_merger.dart';
 import 'package:turna/application/ai/textbook/knowledge_prompt.dart';
@@ -62,18 +61,18 @@ enum TextbookImportStep {
 
 /// Orchestrates the textbook import pipeline. Mirrors
 /// `tool/gui/src/dialogs/textbook_import_controller.py`.
-class TextbookImportProvider extends ChangeNotifier {
+class TextbookImportProvider extends AiRequestSessionBase {
   TextbookImportProvider({
     AiEngine? engine,
     CourseRepository? repository,
   })  : _engine = engine ?? getIt<AiEngine>(),
-        _repository = repository ?? CourseRepository(getIt<db.CourseDatabase>()),
+        _repository =
+            repository ?? CourseRepository(getIt<db.CourseDatabase>()),
         _chopper = const MarkdownChopper(),
         _merger = const KnowledgeMerger(),
         _builder = const TextbookToCourse();
 
   final AiEngine _engine;
-  AiCancelToken? _cancelToken;
   final CourseRepository? _repository;
   final MarkdownChopper _chopper;
   final KnowledgeMerger _merger;
@@ -133,16 +132,16 @@ class TextbookImportProvider extends ChangeNotifier {
     if (level != null) _level = level;
     if (strategy != null) _strategy = strategy;
     if (preset != null) _preset = preset;
-    notifyListeners();
+    notifySessionListeners();
   }
 
   void setReviewQuery(String query) {
     _reviewQuery = query;
-    notifyListeners();
+    notifySessionListeners();
   }
 
   void reset() {
-    _cancelToken?.cancel();
+    abandonStreamingSession();
     _step = TextbookImportStep.pick;
     _filePath = null;
     _fileName = '';
@@ -152,13 +151,13 @@ class TextbookImportProvider extends ChangeNotifier {
     _collisionReport = null;
     _sectionPlans = [];
     _reviewQuery = '';
-    notifyListeners();
+    notifySessionListeners();
   }
 
   /// Cancel any in-flight extraction (cooperative; the next LLM chunk throws
   /// [AiCancelled], which [extractAll] turns into a return to the chapters step).
   void cancel() {
-    _cancelToken?.cancel();
+    cancelStreamingSession();
   }
 
   /// Picks a file and parses it into chapters.
@@ -179,7 +178,7 @@ class TextbookImportProvider extends ChangeNotifier {
 
     if (path == null) {
       _error = 'Could not read file path';
-      notifyListeners();
+      notifySessionListeners();
       return;
     }
 
@@ -187,7 +186,7 @@ class TextbookImportProvider extends ChangeNotifier {
     _fileName = name;
     _step = TextbookImportStep.parse;
     _isBusy = true;
-    notifyListeners();
+    notifySessionListeners();
 
     try {
       final text = await File(path).readAsString();
@@ -197,29 +196,27 @@ class TextbookImportProvider extends ChangeNotifier {
       ];
       _step = TextbookImportStep.chapters;
     } catch (e) {
-      _error = e.toString();
+      _error = AiErrorMapper.map(e).message;
       _step = TextbookImportStep.pick;
     } finally {
       _isBusy = false;
-      notifyListeners();
+      notifySessionListeners();
     }
   }
 
   void setChapterKept(int index, bool kept) {
     if (index < 0 || index >= _results.length) return;
     _results[index].keep = kept;
-    notifyListeners();
+    notifySessionListeners();
   }
 
   /// Extracts knowledge from all kept chapters using the LLM.
   Future<void> extractAll(AiEngineConfig config) async {
-    _cancelToken?.cancel();
-    final token = AiCancelToken();
-    _cancelToken = token;
+    final session = beginStreamingSession();
     _error = null;
     _isBusy = true;
     _step = TextbookImportStep.extract;
-    notifyListeners();
+    notifySessionListeners();
 
     var cancelled = false;
     try {
@@ -227,27 +224,37 @@ class TextbookImportProvider extends ChangeNotifier {
         final result = _results[i];
         if (!result.keep) continue;
         try {
-          final knowledge =
-              await _extractChapter(config, result.chapter, token);
+          final knowledge = await _extractChapter(
+            config,
+            result.chapter,
+            session.cancelToken,
+          );
           result.knowledge = knowledge;
           result.error = null;
         } on AiCancelled {
           cancelled = true;
           break;
         } catch (e) {
-          result.error = e.toString();
+          result.error = AiErrorMapper.map(e).message;
           result.knowledge = null;
         }
-        notifyListeners();
+        notifySessionListeners();
       }
+      if (!isCurrentSession(session)) return;
       _step =
           cancelled ? TextbookImportStep.chapters : TextbookImportStep.review;
     } catch (e) {
-      _error = e.toString();
+      if (!isCurrentSession(session)) return;
+      _error = AiErrorMapper.map(e).message;
     } finally {
-      if (identical(_cancelToken, token)) _cancelToken = null;
-      _isBusy = false;
-      notifyListeners();
+      // Capture currency before finish nulls the token; a superseded run
+      // must not clear the new run's busy flag.
+      final current = isCurrentSession(session);
+      finishStreamingSession(session);
+      if (current) {
+        _isBusy = false;
+        notifySessionListeners();
+      }
     }
   }
 
@@ -378,7 +385,7 @@ class TextbookImportProvider extends ChangeNotifier {
       ResourceKind.expression => k.copyWith(expressions: list),
       ResourceKind.grammar => k.copyWith(grammarPoints: list),
     };
-    notifyListeners();
+    notifySessionListeners();
   }
 
   void removeResource({
@@ -402,7 +409,7 @@ class TextbookImportProvider extends ChangeNotifier {
       ResourceKind.expression => k.copyWith(expressions: list),
       ResourceKind.grammar => k.copyWith(grammarPoints: list),
     };
-    notifyListeners();
+    notifySessionListeners();
   }
 
   // ─── Conflict preview ───────────────────────────────────────────────
@@ -411,7 +418,7 @@ class TextbookImportProvider extends ChangeNotifier {
   Future<void> prepareConflictPreview() async {
     _error = null;
     _isBusy = true;
-    notifyListeners();
+    notifySessionListeners();
 
     try {
       final repo = _repository;
@@ -456,17 +463,17 @@ class TextbookImportProvider extends ChangeNotifier {
       _step = TextbookImportStep.conflict;
     } catch (e, st) {
       logger.e('prepareConflictPreview failed', error: e, stackTrace: st);
-      _error = e.toString();
+      _error = AiErrorMapper.map(e).message;
     } finally {
       _isBusy = false;
-      notifyListeners();
+      notifySessionListeners();
     }
   }
 
   void backToReview() {
     if (_step == TextbookImportStep.conflict) {
       _step = TextbookImportStep.review;
-      notifyListeners();
+      notifySessionListeners();
     }
   }
 
@@ -474,19 +481,18 @@ class TextbookImportProvider extends ChangeNotifier {
   Future<void> importSections(AiCourseProvider courseProvider) async {
     _error = null;
     _isBusy = true;
-    notifyListeners();
+    notifySessionListeners();
 
     final repo = _repository;
     if (repo == null) {
       _error = 'CourseDatabase unavailable on this platform';
       _isBusy = false;
-      notifyListeners();
+      notifySessionListeners();
       return;
     }
 
     try {
-      final existingWords =
-          (await repo.vocabulary()).map((w) => w.id).toSet();
+      final existingWords = (await repo.vocabulary()).map((w) => w.id).toSet();
       final existingExpressions =
           (await repo.expressions()).map((e) => e.id).toSet();
       final existingGrammar =
@@ -542,14 +548,18 @@ class TextbookImportProvider extends ChangeNotifier {
         await courseProvider.saveSectionJson(payload);
       }
       _step = TextbookImportStep.importDone;
-      _recordRecent();
+      recordAiRecentTask(
+        kind: AiTaskKind.textbook,
+        summary: 'textbook',
+        route: AiRecentTaskRoute.textbookImport,
+      );
     } catch (e, st) {
       logger.e('TextbookImportProvider.importSections failed',
           error: e, stackTrace: st);
-      _error = e.toString();
+      _error = AiErrorMapper.map(e).message;
     } finally {
       _isBusy = false;
-      notifyListeners();
+      notifySessionListeners();
     }
   }
 
@@ -563,21 +573,5 @@ class TextbookImportProvider extends ChangeNotifier {
       }
     }
     return s.trim();
-  }
-
-  /// Append a textbook-import task to the AI Hub's recent list.
-  void _recordRecent() {
-    try {
-      getIt<AiRecentTasksProvider>().record(
-            AiRecentTask(
-              kind: AiTaskKind.textbook,
-              summary: 'textbook',
-              timestamp: DateTime.now(),
-              route: TextbookImportRoute.name,
-            ),
-          );
-    } catch (_) {
-      // Advisory only.
-    }
   }
 }

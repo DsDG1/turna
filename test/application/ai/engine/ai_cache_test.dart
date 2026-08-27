@@ -90,6 +90,33 @@ void main() {
     });
   });
 
+  group('AiCache.makeKeyAsync', () {
+    test('matches makeKey for small payloads (inline path)', () async {
+      final messages = [
+        {'role': 'system', 'content': 's'},
+        {'role': 'user', 'content': 'hi'},
+      ];
+      expect(
+        await AiCache.makeKeyAsync('m', messages, {'type': 'json_object'}),
+        AiCache.makeKey('m', messages, {'type': 'json_object'}),
+      );
+    });
+
+    test('matches makeKey for large payloads (isolate path)', () async {
+      // Content beyond the 64 KiB offload threshold forces the background
+      // isolate path on the VM; the digest must stay identical.
+      final big = 'x' * (64 * 1024 + 256);
+      final messages = [
+        {'role': 'system', 'content': big},
+        {'role': 'user', 'content': 'extract'},
+      ];
+      expect(
+        await AiCache.makeKeyAsync('m', messages, null),
+        AiCache.makeKey('m', messages, null),
+      );
+    });
+  });
+
   group('AiCache LRU', () {
     test('hit returns the stored body and bumps hits', () {
       final cache = AiCache.forTest(maxEntries: 4);

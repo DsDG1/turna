@@ -11,6 +11,33 @@ import 'package:injectable/injectable.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/service/locator.dart';
 
+/// Typed destination a recorded AI task can resume to.
+///
+/// The persisted form is the auto_route route *name* (see [routeName]); a
+/// stored name that no longer matches any value decodes to `null`, so a
+/// renamed route degrades the row to informational instead of crashing.
+enum AiRecentTaskRoute {
+  wishChat('AiWishChatRoute'),
+  textbookImport('TextbookImportRoute'),
+  tutorChat('AiTutorChatRoute'),
+  diagnosis('AiDiagnosisRoute'),
+  hintChat('AiHintChatRoute');
+
+  const AiRecentTaskRoute(this.routeName);
+
+  /// The auto_route route name this destination is persisted as.
+  final String routeName;
+
+  /// Parse a persisted route name; unknown names return `null`.
+  static AiRecentTaskRoute? tryParse(String? name) {
+    if (name == null) return null;
+    for (final value in AiRecentTaskRoute.values) {
+      if (value.routeName == name) return value;
+    }
+    return null;
+  }
+}
+
 /// A single completed AI task recorded by the engine's consumers.
 ///
 /// [kind] is a short domain tag — one of the [AiTaskKind] constants or any
@@ -20,9 +47,9 @@ import 'package:turna/service/locator.dart';
 /// [summary] is a one-line human-readable hint, e.g. "By mistakes: 8
 /// questions" or "Course · Turkish A1 → 4 units".
 ///
-/// [route] is an optional `auto_route` route **name** (e.g.
-/// `AiWishChatRoute.name`). When non-null the AI Hub renders the row as a
-/// navigation tile; when null the row is informational only.
+/// [route] is an optional typed resume destination. When non-null the AI Hub
+/// renders the row as a navigation tile; when null the row is informational
+/// only.
 class AiRecentTask {
   const AiRecentTask({
     required this.kind,
@@ -34,13 +61,13 @@ class AiRecentTask {
   final String kind;
   final String summary;
   final DateTime timestamp;
-  final String? route;
+  final AiRecentTaskRoute? route;
 
   Map<String, dynamic> toJson() => {
         'kind': kind,
         'summary': summary,
         'timestamp': timestamp.toIso8601String(),
-        'route': route,
+        'route': route?.routeName,
       };
 
   static AiRecentTask fromJson(Map<String, dynamic> m) => AiRecentTask(
@@ -48,7 +75,7 @@ class AiRecentTask {
         summary: (m['summary'] ?? '').toString(),
         timestamp: DateTime.tryParse((m['timestamp'] ?? '').toString()) ??
             DateTime.fromMillisecondsSinceEpoch(0),
-        route: m['route']?.toString(),
+        route: AiRecentTaskRoute.tryParse(m['route']?.toString()),
       );
 
   @override
@@ -100,14 +127,32 @@ class AiRecentTasksProvider extends ChangeNotifier {
   final List<AiRecentTask> _items = <AiRecentTask>[];
   bool _loaded = false;
 
+  /// Newest-first snapshot of all recorded tasks. Rebuilt only when [_items]
+  /// changes, so its identity (and `==`) is stable across notifications —
+  /// safe to use directly as a `Selector` value (a getter that allocates a
+  /// fresh list there would rebuild on every notify).
+  List<AiRecentTask> _snapshotNewestFirst = const <AiRecentTask>[];
+
+  /// All recorded tasks, newest first. The same list instance is returned
+  /// until the recorded set changes.
+  List<AiRecentTask> get items => _snapshotNewestFirst;
+
+  void _rebuildSnapshot() {
+    _snapshotNewestFirst = _items.isEmpty
+        ? const <AiRecentTask>[]
+        : List<AiRecentTask>.unmodifiable(_items.reversed);
+  }
+
   /// Most recent [limit] tasks (newest first). The returned list is
-  /// unmodifiable; callers must not mutate it.
+  /// unmodifiable; callers must not mutate it. Inside `Selector` values
+  /// prefer [items] (stable identity); use this only outside rebuild-scope
+  /// comparisons.
   List<AiRecentTask> recent({int limit = 3}) {
     if (limit <= 0) return const <AiRecentTask>[];
-    final n = _items.length;
+    final n = _snapshotNewestFirst.length;
     if (n == 0) return const <AiRecentTask>[];
     final take = n < limit ? n : limit;
-    return List<AiRecentTask>.unmodifiable(_items.reversed.take(take));
+    return List<AiRecentTask>.unmodifiable(_snapshotNewestFirst.take(take));
   }
 
   /// Number of recorded tasks. Exposed for the AI Hub header chip.
@@ -141,7 +186,10 @@ class AiRecentTasksProvider extends ChangeNotifier {
       if (_items.length > maxEntries) {
         _items.removeRange(0, _items.length - maxEntries);
       }
-      if (_items.isNotEmpty) notifyListeners();
+      if (_items.isNotEmpty) {
+        _rebuildSnapshot();
+        notifyListeners();
+      }
     } catch (_) {
       // Corrupt — keep empty.
     }
@@ -153,6 +201,7 @@ class AiRecentTasksProvider extends ChangeNotifier {
     if (_items.length > maxEntries) {
       _items.removeAt(0);
     }
+    _rebuildSnapshot();
     _persistCompanion();
     notifyListeners();
   }
@@ -161,6 +210,7 @@ class AiRecentTasksProvider extends ChangeNotifier {
   void clear() {
     if (_items.isEmpty) return;
     _items.clear();
+    _rebuildSnapshot();
     _persistCompanion();
     notifyListeners();
   }

@@ -519,8 +519,8 @@ class AiCompanionRepository
   }) async {
     final rows = await _db.customSelect(
       // Token sums exclude cache hits: a cache-hit metric carries the ORIGINAL
-      // request's tokens (not real spend), so counting them would inflate the
-      // daily budget (AiBudgetManager) and the displayed total. `requests` /
+      // request's tokens (not real spend), so counting them would inflate any
+      // future daily-budget consumer and the displayed total. `requests` /
       // `cache_hits` / `failures` still count every row.
       '''SELECT COUNT(*) AS requests,
          COALESCE(SUM(CASE WHEN cache_hit = 0 THEN input_tokens ELSE 0 END), 0) AS input_tokens,

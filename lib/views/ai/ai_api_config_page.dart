@@ -55,10 +55,12 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
   Timer? _commitDebounce;
   static const _commitDebounceMs = 500;
 
-  bool _probing = false;
-  bool _obscureKey = true;
-  ({bool ok, int latencyMs, String errorCategory})? _probeResult;
   String? _baseUrlError;
+
+  /// Lets the page reset the probe result when the config underneath changes
+  /// (preset switch, clear key, restore defaults).
+  final GlobalKey<_ConnectionTestSectionState> _probeKey =
+      GlobalKey<_ConnectionTestSectionState>();
 
   @override
   void initState() {
@@ -199,9 +201,8 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
     setState(() {
       _draft = _draft.copyWith(
         preset: preset,
-        customBaseUrl: preset.id == AiProvider.custom
-            ? _draft.customBaseUrl
-            : null,
+        customBaseUrl:
+            preset.id == AiProvider.custom ? _draft.customBaseUrl : null,
         // copyWith drops models on a preset change so the new vendor's
         // default model wins; mirror that in the text fields. Reasoning is
         // opt-in and defaults off, so reset the toggle on every switch.
@@ -212,9 +213,9 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
       _baseUrlCtrl.text = preset.baseUrl;
       _modelChatCtrl.text = preset.defaultModel;
       _modelJsonCtrl.text = preset.defaultModel;
-      _probeResult = null;
       _baseUrlError = null;
     });
+    _probeKey.currentState?.clearResult();
     unawaited(getIt<AiEngineConfigHolder>().updateConfig(_draft));
   }
 
@@ -224,69 +225,6 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
     final typed = _apiKeyCtrl.text.trim();
     if (typed.isEmpty) return _draft;
     return _draft.copyWith(apiKey: typed);
-  }
-
-  Future<void> _testConnection() async {
-    final draft = _effectiveDraft;
-    if (!draft.isComplete) return;
-    setState(() => _probing = true);
-    try {
-      final result = await getIt<AiEngine>().probeConnection(draft);
-      if (!mounted) return;
-      setState(() {
-        _probing = false;
-        _probeResult = (
-          ok: result.ok,
-          latencyMs: result.latencyMs,
-          errorCategory: result.ok
-              ? ''
-              : _classifyProbeError(result.error, result.latencyMs),
-        );
-      });
-    } catch (error) {
-      if (!mounted) return;
-      setState(() {
-        _probing = false;
-        _probeResult = (
-          ok: false,
-          latencyMs: 0,
-          errorCategory: _classifyProbeError(error.toString(), 0),
-        );
-      });
-    }
-  }
-
-  String _classifyProbeError(String message, int latencyMs) {
-    final m = message.toLowerCase();
-    if (m.contains('timeout') || m.contains('timed out') ||
-        m.contains('deadline')) {
-      return AppStrings.aiConfigProbeTimeout;
-    }
-    if (m.contains('failed host') || m.contains('dns') ||
-        m.contains('no address') || m.contains('connection refused')) {
-      return AppStrings.aiConfigProbeNetwork;
-    }
-    if (m.contains('handshake') || m.contains('certificate') ||
-        m.contains('tls')) {
-      return AppStrings.aiConfigProbeTls;
-    }
-    if (m.contains('401') || m.contains('403') ||
-        m.contains('unauthorized') || m.contains('invalid api key') ||
-        m.contains('authentication')) {
-      return AppStrings.aiConfigProbeAuth;
-    }
-    if (m.contains('429') || m.contains('rate limit') ||
-        m.contains('quota')) {
-      return AppStrings.aiConfigProbeRateLimit;
-    }
-    if (m.contains('404') || m.contains('model') && m.contains('not')) {
-      return AppStrings.aiConfigProbeModel;
-    }
-    if (m.contains('json') || m.contains('format') ||
-        m.contains('decode')) {
-      return AppStrings.aiConfigProbeFormat;
-    }
-    return AppStrings.aiConfigProbeUnknown;
   }
 
   Future<void> _clearCredentials() async {
@@ -312,8 +250,8 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
     if (mounted) {
       setState(() {
         _draft = getIt<AiEngineConfigHolder>().config;
-        _probeResult = null;
       });
+      _probeKey.currentState?.clearResult();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(AppStrings.aiConfigClearKeyDone)),
       );
@@ -348,33 +286,8 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
         _baseUrlCtrl.text = _draft.baseUrl;
         _modelChatCtrl.text = _draft.modelChat;
         _modelJsonCtrl.text = _draft.modelJson;
-        _probeResult = null;
       });
-    }
-  }
-
-  static String _maskKey(String key) {
-    final trimmed = key.trim();
-    if (trimmed.isEmpty) return '';
-    if (trimmed.length <= 8) return '${trimmed[0]}…(${trimmed.length})';
-    return '${trimmed.substring(0, 3)}…${trimmed.substring(trimmed.length - 4)}';
-  }
-
-  ({IconData icon, Color color}) _providerVisual(AiProvider p) {
-    switch (p) {
-      case AiProvider.deepseek:
-        return (icon: Icons.bolt_rounded, color: TurnaTheme.brandSky);
-      case AiProvider.kimi:
-        return (
-          icon: Icons.nights_stay_rounded,
-          color: TurnaTheme.amethystLeague
-        );
-      case AiProvider.qwen:
-        return (icon: Icons.auto_awesome_rounded, color: TurnaTheme.brandTeal);
-      case AiProvider.mimo:
-        return (icon: Icons.memory_rounded, color: TurnaTheme.anatolianClay);
-      case AiProvider.custom:
-        return (icon: Icons.tune_rounded, color: TurnaTheme.brandReed);
+      _probeKey.currentState?.clearResult();
     }
   }
 
@@ -397,207 +310,213 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
         if (context.mounted) Navigator.of(context).pop();
       },
       child: Scaffold(
-      backgroundColor: TurnaTheme.surfaceColor(context),
-      appBar: AppBar(
-        centerTitle: true,
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.auto_awesome_rounded,
-              color: TurnaTheme.amethystLeague,
-              size: 22,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              AppStrings.settingsAiApiConfigSheetTitle,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-          ],
-        ),
-      ),
-      body: SafeArea(
-        top: false,
-        child: SingleChildScrollView(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 16,
-            bottom: media.viewInsets.bottom + 28,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+        backgroundColor: TurnaTheme.surfaceColor(context),
+        appBar: AppBar(
+          centerTitle: true,
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              _statusHero(context),
-              const SizedBox(height: 12),
-              const _CredentialSafetyNotice(),
-              const SizedBox(height: 16),
-              AiGroupCard(
-                icon: Icons.hub_rounded,
-                title: AppStrings.aiConfigGroupConnection,
-                children: [
-                  _fieldLabel(context, AppStrings.aiConfigProviderSectionHint),
-                  const SizedBox(height: 10),
-                  _providerGrid(context),
-                  const SizedBox(height: 14),
-                  _baseUrlBlock(context),
-                ],
+              const Icon(
+                Icons.auto_awesome_rounded,
+                color: TurnaTheme.amethystLeague,
+                size: 22,
               ),
-              const SizedBox(height: 12),
-              AiGroupCard(
-                icon: Icons.key_rounded,
-                title: AppStrings.aiConfigGroupModels,
-                children: [
-                  _fieldLabel(context, AppStrings.settingsApiKeyLabel),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: _apiKeyCtrl,
-                    obscureText: _obscureKey,
-                    autofillHints: const [AutofillHints.password],
-                    decoration: aiSheetInputDecoration(
-                      context,
-                      hint: _draft.apiKey.isEmpty
-                          ? AppStrings.settingsApiKeyHint
-                          : AppStrings.aiConfigKeyStoredHint(
-                              _maskKey(_draft.apiKey)),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscureKey
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined,
-                          size: 20,
-                          color: TurnaTheme.textHintColor(context),
-                        ),
-                        onPressed: () =>
-                            setState(() => _obscureKey = !_obscureKey),
-                      ),
+              const SizedBox(width: 8),
+              Text(
+                AppStrings.settingsAiApiConfigSheetTitle,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
                     ),
-                    onChanged: (_) => _scheduleCommit(),
-                  ),
-                  const SizedBox(height: 12),
-                  _fieldLabel(context, AppStrings.aiHubFieldModelChat),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: _modelChatCtrl,
-                    decoration: aiSheetInputDecoration(
-                      context,
-                      hint: AppStrings.settingsModelHint,
-                    ),
-                    onChanged: (_) => _scheduleCommit(),
-                  ),
-                  if (_draft.preset.supportedModels.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    _modelQuickPick(context),
-                  ],
-                  const SizedBox(height: 12),
-                  _fieldLabel(context, AppStrings.aiHubFieldModelJson),
-                  const SizedBox(height: 6),
-                  TextField(
-                    controller: _modelJsonCtrl,
-                    decoration: aiSheetInputDecoration(
-                      context,
-                      hint: AppStrings.settingsModelHint,
-                    ),
-                    onChanged: (_) => _scheduleCommit(),
-                  ),
-                  const SizedBox(height: 12),
-                  _reasoningToggle(context),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      style: aiSheetSecondaryButtonStyle(),
-                      onPressed:
-                          _probing || !_effectiveDraft.isComplete
-                              ? null
-                              : _testConnection,
-                      icon: _probing
-                          ? const SizedBox(
-                              width: 14,
-                              height: 14,
-                              child:
-                                  CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.wifi_tethering_rounded, size: 18),
-                      label: Text(AppStrings.aiHubToolsTestConnection),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: _saveNow,
-                      icon: const Icon(Icons.save_outlined, size: 18),
-                      label: Text(AppStrings.aiConfigSave),
-                    ),
-                  ),
-                ],
-              ),
-              if (_probeResult != null) ...[
-                const SizedBox(height: 10),
-                _probeStatusRow(context),
-              ],
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      style: aiSheetSecondaryButtonStyle(),
-                      onPressed: _clearCredentials,
-                      icon: const Icon(Icons.key_off_outlined, size: 18),
-                      label: Text(AppStrings.aiConfigClearKeyButton),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      style: aiSheetSecondaryButtonStyle(),
-                      onPressed: _restoreDefaults,
-                      icon: const Icon(Icons.restore_rounded, size: 18),
-                      label: Text(AppStrings.aiConfigRestoreDefaultsButton),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.lock_outline_rounded,
-                    size: 13,
-                    color: TurnaTheme.textHintColor(context),
-                  ),
-                  const SizedBox(width: 5),
-                  Flexible(
-                    child: Text(
-                      AppStrings.settingsAiApiConfigNotSaved,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: TurnaTheme.textHintColor(context),
-                          ),
-                    ),
-                  ),
-                ],
               ),
             ],
           ),
         ),
-      ),
+        body: SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 16,
+              bottom: media.viewInsets.bottom + 28,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _StatusHero(
+                  isComplete: _effectiveDraft.isComplete,
+                  presetLabel: _draft.preset.label,
+                  modelChatText: _modelChatCtrl.text.trim(),
+                  maskedKey: _maskKey(_draft.apiKey),
+                ),
+                const SizedBox(height: 12),
+                const _CredentialSafetyNotice(),
+                const SizedBox(height: 16),
+                AiGroupCard(
+                  icon: Icons.hub_rounded,
+                  title: AppStrings.aiConfigGroupConnection,
+                  children: [
+                    _fieldLabel(
+                        context, AppStrings.aiConfigProviderSectionHint),
+                    const SizedBox(height: 10),
+                    _ProviderGrid(
+                      selected: _draft.preset.id,
+                      onChanged: _onPresetChanged,
+                    ),
+                    const SizedBox(height: 14),
+                    _BaseUrlBlock(
+                      isCustom: _draft.preset.id == AiProvider.custom,
+                      controller: _baseUrlCtrl,
+                      errorText: _baseUrlError,
+                      presetBaseUrl: _draft.preset.baseUrl,
+                      onChanged: (_) => _scheduleCommit(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                AiGroupCard(
+                  icon: Icons.key_rounded,
+                  title: AppStrings.aiConfigGroupModels,
+                  children: [
+                    _fieldLabel(context, AppStrings.settingsApiKeyLabel),
+                    const SizedBox(height: 6),
+                    _ApiKeyField(
+                      controller: _apiKeyCtrl,
+                      hint: _draft.apiKey.isEmpty
+                          ? AppStrings.settingsApiKeyHint
+                          : AppStrings.aiConfigKeyStoredHint(
+                              _maskKey(_draft.apiKey)),
+                      onChanged: (_) => _scheduleCommit(),
+                    ),
+                    const SizedBox(height: 12),
+                    _fieldLabel(context, AppStrings.aiHubFieldModelChat),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: _modelChatCtrl,
+                      decoration: aiSheetInputDecoration(
+                        context,
+                        hint: AppStrings.settingsModelHint,
+                      ),
+                      onChanged: (_) => _scheduleCommit(),
+                    ),
+                    if (_draft.preset.supportedModels.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      _ModelQuickPick(
+                        models: _draft.preset.supportedModels,
+                        selectedModel: _modelChatCtrl.text.trim(),
+                        onSelected: (model) {
+                          _modelChatCtrl.text = model;
+                          _scheduleCommit();
+                        },
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    _fieldLabel(context, AppStrings.aiHubFieldModelJson),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: _modelJsonCtrl,
+                      decoration: aiSheetInputDecoration(
+                        context,
+                        hint: AppStrings.settingsModelHint,
+                      ),
+                      onChanged: (_) => _scheduleCommit(),
+                    ),
+                    const SizedBox(height: 12),
+                    _ReasoningToggle(
+                      enabled: _draft.reasoningEnabled,
+                      supported: _draft.preset.supportsReasoning,
+                      onChanged: (value) {
+                        setState(() {
+                          _draft =
+                              _draft.copyWith(supportsReasoningOverride: value);
+                        });
+                        _scheduleCommit();
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                _ConnectionTestSection(
+                  key: _probeKey,
+                  configGetter: () => _effectiveDraft,
+                  onSave: _saveNow,
+                ),
+                const SizedBox(height: 10),
+                _DangerRow(
+                  onClear: _clearCredentials,
+                  onRestore: _restoreDefaults,
+                ),
+                const SizedBox(height: 14),
+                const _FooterHint(),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
+}
 
-  // ─── Visual building blocks ────────────────────────────────────────────
+// ─── Shared visual helpers ──────────────────────────────────────────────
 
-  Widget _statusHero(BuildContext context) {
-    final complete = _effectiveDraft.isComplete;
-    final accent = complete ? TurnaTheme.brandTeal : TurnaTheme.warning;
-    final subtitle = complete
-        ? '${_draft.preset.label} · ${_modelChatCtrl.text.trim()}'
+String _maskKey(String key) {
+  final trimmed = key.trim();
+  if (trimmed.isEmpty) return '';
+  if (trimmed.length <= 8) return '${trimmed[0]}…(${trimmed.length})';
+  return '${trimmed.substring(0, 3)}…${trimmed.substring(trimmed.length - 4)}';
+}
+
+({IconData icon, Color color}) _providerVisual(AiProvider p) {
+  switch (p) {
+    case AiProvider.deepseek:
+      return (icon: Icons.bolt_rounded, color: TurnaTheme.brandSky);
+    case AiProvider.kimi:
+      return (
+        icon: Icons.nights_stay_rounded,
+        color: TurnaTheme.amethystLeague
+      );
+    case AiProvider.qwen:
+      return (icon: Icons.auto_awesome_rounded, color: TurnaTheme.brandTeal);
+    case AiProvider.mimo:
+      return (icon: Icons.memory_rounded, color: TurnaTheme.anatolianClay);
+    case AiProvider.custom:
+      return (icon: Icons.tune_rounded, color: TurnaTheme.brandReed);
+  }
+}
+
+Widget _fieldLabel(BuildContext context, String label) {
+  return Text(
+    label,
+    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+          color: TurnaTheme.textSecondaryColor(context),
+          fontWeight: FontWeight.w600,
+        ),
+  );
+}
+
+// ─── Section widgets ────────────────────────────────────────────────────
+
+/// Configured/not-configured summary card at the top of the page.
+class _StatusHero extends StatelessWidget {
+  const _StatusHero({
+    required this.isComplete,
+    required this.presetLabel,
+    required this.modelChatText,
+    required this.maskedKey,
+  });
+
+  final bool isComplete;
+  final String presetLabel;
+  final String modelChatText;
+
+  /// Masked stored key; empty when no key is stored (badge hidden then).
+  final String maskedKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = isComplete ? TurnaTheme.brandTeal : TurnaTheme.warning;
+    final subtitle = isComplete
+        ? '$presetLabel · $modelChatText'
         : AppStrings.aiConfigStatusHintIncomplete;
 
     return Container(
@@ -617,7 +536,7 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
               shape: BoxShape.circle,
             ),
             child: Icon(
-              complete ? Icons.check_rounded : Icons.error_outline_rounded,
+              isComplete ? Icons.check_rounded : Icons.error_outline_rounded,
               color: accent,
               size: 24,
             ),
@@ -629,7 +548,7 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  complete
+                  isComplete
                       ? AppStrings.aiConfigStatusConfigured
                       : AppStrings.aiConfigStatusNotConfigured,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -649,16 +568,15 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
               ],
             ),
           ),
-          if (_draft.apiKey.isNotEmpty)
+          if (maskedKey.isNotEmpty)
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: accent.withValues(alpha: 0.14),
                 borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
               ),
               child: Text(
-                _maskKey(_draft.apiKey),
+                maskedKey,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: accent,
                       fontWeight: FontWeight.w700,
@@ -669,9 +587,17 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
       ),
     );
   }
+}
 
-  Widget _providerGrid(BuildContext context) {
-    final selected = _draft.preset.id;
+/// 2-column grid of provider preset cards.
+class _ProviderGrid extends StatelessWidget {
+  const _ProviderGrid({required this.selected, required this.onChanged});
+
+  final AiProvider selected;
+  final ValueChanged<AiProvider> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
     return GridView.count(
       padding: EdgeInsets.zero,
       crossAxisCount: 2,
@@ -682,16 +608,29 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
       childAspectRatio: 2.7,
       children: [
         for (final p in providerOrder())
-          _providerCard(context, p, p == selected),
+          _ProviderCard(
+            provider: p,
+            selected: p == selected,
+            onChanged: onChanged,
+          ),
       ],
     );
   }
+}
 
-  Widget _providerCard(
-    BuildContext context,
-    AiProvider provider,
-    bool selected,
-  ) {
+class _ProviderCard extends StatelessWidget {
+  const _ProviderCard({
+    required this.provider,
+    required this.selected,
+    required this.onChanged,
+  });
+
+  final AiProvider provider;
+  final bool selected;
+  final ValueChanged<AiProvider> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
     final preset = presetFor(provider);
     final v = _providerVisual(provider);
     final accent = v.color;
@@ -702,7 +641,7 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
           : TurnaTheme.tintLight,
       borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
       child: InkWell(
-        onTap: () => _onPresetChanged(provider),
+        onTap: () => onChanged(provider),
         borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -744,9 +683,26 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
       ),
     );
   }
+}
 
-  Widget _baseUrlBlock(BuildContext context) {
-    final isCustom = _draft.preset.id == AiProvider.custom;
+/// Editable Base URL for the custom preset; read-only chip for presets.
+class _BaseUrlBlock extends StatelessWidget {
+  const _BaseUrlBlock({
+    required this.isCustom,
+    required this.controller,
+    required this.errorText,
+    required this.presetBaseUrl,
+    required this.onChanged,
+  });
+
+  final bool isCustom;
+  final TextEditingController controller;
+  final String? errorText;
+  final String presetBaseUrl;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
     if (isCustom) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -755,17 +711,17 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
           _fieldLabel(context, AppStrings.settingsBaseUrlLabel),
           const SizedBox(height: 6),
           TextField(
-            controller: _baseUrlCtrl,
+            controller: controller,
             decoration: aiSheetInputDecoration(
               context,
               hint: AppStrings.settingsBaseUrlHint,
             ),
-            onChanged: (_) => _scheduleCommit(),
+            onChanged: onChanged,
           ),
-          if (_baseUrlError != null) ...[
+          if (errorText != null) ...[
             const SizedBox(height: 6),
             Text(
-              _baseUrlError!,
+              errorText!,
               style: Theme.of(context)
                   .textTheme
                   .bodySmall
@@ -791,7 +747,7 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              _draft.preset.baseUrl,
+              presetBaseUrl,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -803,30 +759,98 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
       ),
     );
   }
+}
 
-  Widget _modelQuickPick(BuildContext context) {
+/// API key input. Owns the obscure/visible toggle locally so toggling only
+/// rebuilds this field. The hint is computed by the caller — the stored key
+/// is never echoed into the editable content.
+class _ApiKeyField extends StatefulWidget {
+  const _ApiKeyField({
+    required this.controller,
+    required this.hint,
+    required this.onChanged,
+  });
+
+  final TextEditingController controller;
+  final String hint;
+  final ValueChanged<String> onChanged;
+
+  @override
+  State<_ApiKeyField> createState() => _ApiKeyFieldState();
+}
+
+class _ApiKeyFieldState extends State<_ApiKeyField> {
+  bool _obscure = true;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: widget.controller,
+      obscureText: _obscure,
+      autofillHints: const [AutofillHints.password],
+      decoration: aiSheetInputDecoration(
+        context,
+        hint: widget.hint,
+        suffixIcon: IconButton(
+          icon: Icon(
+            _obscure
+                ? Icons.visibility_off_outlined
+                : Icons.visibility_outlined,
+            size: 20,
+            color: TurnaTheme.textHintColor(context),
+          ),
+          onPressed: () => setState(() => _obscure = !_obscure),
+        ),
+      ),
+      onChanged: widget.onChanged,
+    );
+  }
+}
+
+/// Quick-pick chips for the preset's supported chat models.
+class _ModelQuickPick extends StatelessWidget {
+  const _ModelQuickPick({
+    required this.models,
+    required this.selectedModel,
+    required this.onSelected,
+  });
+
+  final List<String> models;
+  final String selectedModel;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
     return Wrap(
       spacing: 6,
       runSpacing: 6,
       children: [
-        for (final model in _draft.preset.supportedModels)
+        for (final model in models)
           TurnaFilterChip(
             label: model,
-            selected: _modelChatCtrl.text.trim() == model,
-            onSelected: (_) {
-              _modelChatCtrl.text = model;
-              _scheduleCommit();
-            },
+            selected: selectedModel == model,
+            onSelected: (_) => onSelected(model),
           ),
       ],
     );
   }
+}
 
-  /// Always-visible reasoning toggle. Defaults to off; the user opts in per
-  /// provider. The preset's `supportsReasoning` only shapes the hint text.
-  Widget _reasoningToggle(BuildContext context) {
-    final enabled = _draft.reasoningEnabled;
-    final supported = _draft.preset.supportsReasoning;
+/// Always-visible reasoning toggle. Defaults to off; the user opts in per
+/// provider. The preset's `supportsReasoning` only shapes the hint text.
+class _ReasoningToggle extends StatelessWidget {
+  const _ReasoningToggle({
+    required this.enabled,
+    required this.supported,
+    required this.onChanged,
+  });
+
+  final bool enabled;
+  final bool supported;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
     final hint = supported
         ? AppStrings.aiConfigReasoningSupportedHint
         : AppStrings.aiConfigReasoningUnsupportedHint;
@@ -870,16 +894,146 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
           ),
           Switch(
             value: enabled,
-            onChanged: (value) {
-              setState(() {
-                _draft =
-                    _draft.copyWith(supportsReasoningOverride: value);
-              });
-              _scheduleCommit();
-            },
+            onChanged: onChanged,
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Test-connection + save action row with the probe status readout. Owns the
+/// probing/result state so the spinner only rebuilds this section.
+class _ConnectionTestSection extends StatefulWidget {
+  const _ConnectionTestSection({
+    super.key,
+    required this.configGetter,
+    required this.onSave,
+  });
+
+  /// Effective draft (typed key overrides stored) — probed, never persisted.
+  final AiEngineConfig Function() configGetter;
+  final VoidCallback onSave;
+
+  @override
+  State<_ConnectionTestSection> createState() => _ConnectionTestSectionState();
+}
+
+class _ConnectionTestSectionState extends State<_ConnectionTestSection> {
+  bool _probing = false;
+  ({bool ok, int latencyMs, String errorCategory})? _probeResult;
+
+  /// Drop the last probe outcome (config underneath changed).
+  void clearResult() {
+    if (mounted) setState(() => _probeResult = null);
+  }
+
+  Future<void> _testConnection() async {
+    final draft = widget.configGetter();
+    if (!draft.isComplete) return;
+    setState(() => _probing = true);
+    try {
+      final result = await getIt<AiEngine>().probeConnection(draft);
+      if (!mounted) return;
+      setState(() {
+        _probing = false;
+        _probeResult = (
+          ok: result.ok,
+          latencyMs: result.latencyMs,
+          errorCategory: result.ok
+              ? ''
+              : _classifyProbeError(result.error, result.latencyMs),
+        );
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _probing = false;
+        _probeResult = (
+          ok: false,
+          latencyMs: 0,
+          errorCategory: _classifyProbeError(error.toString(), 0),
+        );
+      });
+    }
+  }
+
+  String _classifyProbeError(String message, int latencyMs) {
+    final m = message.toLowerCase();
+    if (m.contains('timeout') ||
+        m.contains('timed out') ||
+        m.contains('deadline')) {
+      return AppStrings.aiConfigProbeTimeout;
+    }
+    if (m.contains('failed host') ||
+        m.contains('dns') ||
+        m.contains('no address') ||
+        m.contains('connection refused')) {
+      return AppStrings.aiConfigProbeNetwork;
+    }
+    if (m.contains('handshake') ||
+        m.contains('certificate') ||
+        m.contains('tls')) {
+      return AppStrings.aiConfigProbeTls;
+    }
+    if (m.contains('401') ||
+        m.contains('403') ||
+        m.contains('unauthorized') ||
+        m.contains('invalid api key') ||
+        m.contains('authentication')) {
+      return AppStrings.aiConfigProbeAuth;
+    }
+    if (m.contains('429') || m.contains('rate limit') || m.contains('quota')) {
+      return AppStrings.aiConfigProbeRateLimit;
+    }
+    if (m.contains('404') || m.contains('model') && m.contains('not')) {
+      return AppStrings.aiConfigProbeModel;
+    }
+    if (m.contains('json') || m.contains('format') || m.contains('decode')) {
+      return AppStrings.aiConfigProbeFormat;
+    }
+    return AppStrings.aiConfigProbeUnknown;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                style: aiSheetSecondaryButtonStyle(),
+                onPressed: _probing || !widget.configGetter().isComplete
+                    ? null
+                    : _testConnection,
+                icon: _probing
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.wifi_tethering_rounded, size: 18),
+                label: Text(AppStrings.aiHubToolsTestConnection),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: widget.onSave,
+                icon: const Icon(Icons.save_outlined, size: 18),
+                label: Text(AppStrings.aiConfigSave),
+              ),
+            ),
+          ],
+        ),
+        if (_probeResult != null) ...[
+          const SizedBox(height: 10),
+          _probeStatusRow(context),
+        ],
+      ],
     );
   }
 
@@ -929,7 +1083,7 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
               ),
               onPressed: () {
                 Clipboard.setData(
-                  ClipboardData(text: _effectiveDraft.chatCompletionsUrl),
+                  ClipboardData(text: widget.configGetter().chatCompletionsUrl),
                 );
               },
             ),
@@ -937,14 +1091,65 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
       ),
     );
   }
+}
 
-  Widget _fieldLabel(BuildContext context, String label) {
-    return Text(
-      label,
-      style: Theme.of(context).textTheme.labelMedium?.copyWith(
-            color: TurnaTheme.textSecondaryColor(context),
-            fontWeight: FontWeight.w600,
+/// Destructive actions: clear stored key / restore default config.
+class _DangerRow extends StatelessWidget {
+  const _DangerRow({required this.onClear, required this.onRestore});
+
+  final VoidCallback onClear;
+  final VoidCallback onRestore;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton.icon(
+            style: aiSheetSecondaryButtonStyle(),
+            onPressed: onClear,
+            icon: const Icon(Icons.key_off_outlined, size: 18),
+            label: Text(AppStrings.aiConfigClearKeyButton),
           ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: OutlinedButton.icon(
+            style: aiSheetSecondaryButtonStyle(),
+            onPressed: onRestore,
+            icon: const Icon(Icons.restore_rounded, size: 18),
+            label: Text(AppStrings.aiConfigRestoreDefaultsButton),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Footer note about local-only key storage.
+class _FooterHint extends StatelessWidget {
+  const _FooterHint();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          Icons.lock_outline_rounded,
+          size: 13,
+          color: TurnaTheme.textHintColor(context),
+        ),
+        const SizedBox(width: 5),
+        Flexible(
+          child: Text(
+            AppStrings.settingsAiApiConfigNotSaved,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: TurnaTheme.textHintColor(context),
+                ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -956,9 +1161,9 @@ class _CredentialSafetyNotice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Selector<AiEngineConfigHolder, (AiKeyStorageKind, AiCredentialMigrationStatus)>(
-      selector: (_, holder) =>
-          (holder.keyStorageKind, holder.migrationStatus),
+    return Selector<AiEngineConfigHolder,
+        (AiKeyStorageKind, AiCredentialMigrationStatus)>(
+      selector: (_, holder) => (holder.keyStorageKind, holder.migrationStatus),
       builder: (context, state, _) {
         final (kind, migration) = state;
         if (kind == AiKeyStorageKind.unknown &&

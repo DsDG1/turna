@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:turna/application/ai/ai_course_spec.dart';
 import 'package:turna/application/ai/ai_error_mapper.dart';
 import 'package:turna/application/ai/ai_explain_prefs.dart';
+import 'package:turna/application/ai/ai_recent_task_log.dart';
 import 'package:turna/application/ai/ai_streaming_session_base.dart';
 import 'package:turna/application/ai/engine/ai_cancel_token.dart';
 import 'package:turna/application/ai/engine/ai_engine.dart';
@@ -235,15 +236,10 @@ class AiTutorChatProvider extends AiStreamingSessionBase {
   String buildSystemPromptForTest() => _buildSystemPrompt();
 
   void _recordRecent() {
-    try {
-      getIt<AiRecentTasksProvider>().record(
-        AiRecentTask(
-          kind: AiTaskKind.tutorChat,
-          summary: '自由问答 · $_language',
-          timestamp: DateTime.now(),
-          route: 'AiTutorChatRoute',
-        ),
-      );
-    } catch (_) {}
+    recordAiRecentTask(
+      kind: AiTaskKind.tutorChat,
+      summary: '自由问答 · $_language',
+      route: AiRecentTaskRoute.tutorChat,
+    );
   }
 }

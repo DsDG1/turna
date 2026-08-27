@@ -304,9 +304,14 @@ class _ContinueSection extends StatelessWidget {
         children: [
           SectionTitle(title: AppStrings.aiHubContinue),
           Selector<AiRecentTasksProvider, List<AiRecentTask>>(
-            selector: (_, p) => p.recent(limit: 3),
+            selector: (_, p) => p.items,
             builder: (context, items, _) {
-              if (items.isEmpty) {
+              // Newest-first snapshot; slice here instead of in the selector
+              // so the selected value keeps a stable identity between
+              // mutations (a slicing selector would allocate on every
+              // evaluation and rebuild on every notify).
+              final top = items.take(3).toList(growable: false);
+              if (top.isEmpty) {
                 return SoftCard(
                   accentColor: TurnaTheme.brandTeal,
                   child: Padding(
@@ -322,14 +327,14 @@ class _ContinueSection extends StatelessWidget {
               }
               return Column(
                 children: [
-                  for (final t in items) ...[
+                  for (final t in top) ...[
                     _RecentRow(
                       task: t,
                       onTap: t.route == null
                           ? null
                           : () => _navigateByRoute(context, t.route!),
                     ),
-                    if (t != items.last) const SizedBox(height: 10),
+                    if (t != top.last) const SizedBox(height: 10),
                   ],
                 ],
               );
@@ -574,31 +579,20 @@ void _openConfig(BuildContext context) {
   context.router.push(const AiApiConfigRoute());
 }
 
-/// Resolve a saved AI Hub task route by name. Unknown routes are silently
-/// ignored - the AI Hub must never crash because a renamed route left an
-/// orphan [AiRecentTask] in the in-memory ring.
-void _navigateByRoute(BuildContext context, String name) {
-  switch (name) {
-    case 'AiWishChatRoute':
+/// Open the feature a recorded AI Hub task points to. Exhaustive over
+/// [AiRecentTaskRoute]: adding a destination forces this switch (and its
+/// recorded kind) to be handled at compile time.
+void _navigateByRoute(BuildContext context, AiRecentTaskRoute route) {
+  switch (route) {
+    case AiRecentTaskRoute.wishChat:
       context.router.push(const AiWishChatRoute());
-      break;
-    case 'TextbookImportRoute':
+    case AiRecentTaskRoute.textbookImport:
       context.router.push(const TextbookImportRoute());
-      break;
-    case 'AiTutorChatRoute':
+    case AiRecentTaskRoute.tutorChat:
       context.router.push(AiTutorChatRoute());
-      break;
-    case 'AiDiagnosisRoute':
+    case AiRecentTaskRoute.diagnosis:
       context.router.push(const AiDiagnosisRoute());
-      break;
-    case 'AiSavedListRoute':
-      context.router.push(const AiSavedListRoute());
-      break;
-    case 'AiHintChatRoute':
+    case AiRecentTaskRoute.hintChat:
       context.router.push(AiHintChatRoute());
-      break;
-    default:
-      // Unknown route - ignore. The Continue tile is informational only.
-      break;
   }
 }

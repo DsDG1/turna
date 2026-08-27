@@ -1,14 +1,15 @@
-// Flutter imports:
-import 'package:flutter/foundation.dart';
-
 // Package imports:
 import 'package:injectable/injectable.dart';
 
 // Project imports:
+import 'package:turna/application/ai/ai_course_explainer.dart';
 import 'package:turna/application/ai/ai_course_service.dart';
 import 'package:turna/application/ai/ai_course_spec.dart';
+import 'package:turna/application/ai/ai_error_mapper.dart';
 import 'package:turna/application/ai/ai_grounded_resource_provider.dart';
 import 'package:turna/application/ai/ai_prompt_builder.dart';
+import 'package:turna/application/ai/ai_recent_task_log.dart';
+import 'package:turna/application/ai/ai_streaming_session_base.dart';
 import 'package:turna/application/ai/engine/ai_cancel_token.dart';
 import 'package:turna/application/ai/engine/ai_engine.dart';
 import 'package:turna/application/ai/engine/ai_engine_config.dart';
@@ -28,7 +29,7 @@ enum AiLessonHelperState { idle, loading, ready, error, applying }
 /// ([AiCourseService.parseCompletion]) are reused from a helper
 /// [AiCourseService] instance.
 @lazySingleton
-class AiLessonHelperProvider extends ChangeNotifier {
+class AiLessonHelperProvider extends AiRequestSessionBase {
   AiLessonHelperProvider({
     AiEngine? engine,
     AiGroundedResourceProvider? groundedProvider,
@@ -45,9 +46,6 @@ class AiLessonHelperProvider extends ChangeNotifier {
   final AiEngine _engine;
   final AiCourseService _service;
   final AiGroundedResourceProvider _groundedProvider;
-
-  /// Active cancel token for the in-flight transform, if any.
-  AiCancelToken? _cancelToken;
 
   AiLessonHelperState _state = AiLessonHelperState.idle;
   AiLessonHelperState get state => _state;
@@ -69,24 +67,22 @@ class AiLessonHelperProvider extends ChangeNotifier {
   String? get explanation => _explanation;
 
   void reset() {
-    _cancelToken?.cancel();
-    _cancelToken = null;
+    abandonStreamingSession();
     _state = AiLessonHelperState.idle;
     _error = null;
     _originalLesson = null;
     _resultJson = null;
     _explanation = null;
-    notifyListeners();
+    notifySessionListeners();
   }
 
   /// Cancel the in-flight transform (if any) and return to idle, keeping the
   /// loaded lesson. A no-op when not loading.
   void cancel() {
     if (_state != AiLessonHelperState.loading) return;
-    _cancelToken?.cancel();
-    _cancelToken = null;
+    cancelStreamingSession();
     _state = AiLessonHelperState.idle;
-    notifyListeners();
+    notifySessionListeners();
   }
 
   /// Set the lesson to be transformed without triggering a network call.
@@ -95,7 +91,7 @@ class AiLessonHelperProvider extends ChangeNotifier {
     _resultJson = null;
     _error = null;
     _state = AiLessonHelperState.idle;
-    notifyListeners();
+    notifySessionListeners();
   }
 
   /// Transform the current lesson according to [instruction].
@@ -107,19 +103,17 @@ class AiLessonHelperProvider extends ChangeNotifier {
     if (lesson == null) {
       _error = 'No lesson selected';
       _state = AiLessonHelperState.error;
-      notifyListeners();
+      notifySessionListeners();
       return;
     }
     if (instruction.trim().isEmpty) return;
 
-    _cancelToken?.cancel();
-    final token = AiCancelToken();
-    _cancelToken = token;
+    final session = beginStreamingSession();
     _error = null;
     _state = AiLessonHelperState.loading;
     _resultJson = null;
     _explanation = null;
-    notifyListeners();
+    notifySessionListeners();
 
     try {
       await _groundedProvider.load();
@@ -129,8 +123,7 @@ class AiLessonHelperProvider extends ChangeNotifier {
         messages: <Map<String, dynamic>>[
           {
             'role': 'system',
-            'content':
-                'You are a language-course authoring assistant. You output ONLY valid JSON, no prose, no markdown fences. '
+            'content': 'You are a language-course authoring assistant. You output ONLY valid JSON, no prose, no markdown fences. '
                 'You modify lesson content according to the teacher\'s instruction. '
                 'Preserve all existing IDs. Only create new IDs for genuinely new content.',
           },
@@ -145,14 +138,19 @@ class AiLessonHelperProvider extends ChangeNotifier {
         ],
         temperature: 0.4,
         timeout: const Duration(seconds: 120),
-        cancelToken: token,
+        cancelToken: session.cancelToken,
       );
+      if (!isCurrentSession(session)) return;
       final course = _service.parseCompletion(result.body);
       _resultJson = course.parsed;
       _state = AiLessonHelperState.ready;
-      _recordRecent();
+      recordAiRecentTask(
+        kind: AiTaskKind.lessonHelper,
+        summary: course.parsed['id'] as String? ?? 'lesson',
+      );
       try {
-        _explanation = await _explainCourse(
+        final explanation = await explainGeneratedCourse(
+          engine: _engine,
           config: config,
           spec: const AiCourseSpec(
             language: 'Turkish',
@@ -162,60 +160,25 @@ class AiLessonHelperProvider extends ChangeNotifier {
             lessonsPerUnit: 1,
           ),
           sectionJson: _wrapAsSection(course.parsed),
-          token: token,
+          cancelToken: session.cancelToken,
         );
+        if (isCurrentSession(session)) _explanation = explanation;
       } catch (e) {
         logger.w('AiLessonHelperProvider explain failed: $e');
-        _explanation = null;
+        if (isCurrentSession(session)) _explanation = null;
       }
     } on AiCancelled {
+      if (!isCurrentSession(session)) return;
       _state = AiLessonHelperState.idle;
     } catch (e) {
+      if (!isCurrentSession(session)) return;
       logger.w('AiLessonHelperProvider.transform failed: $e');
-      _error = e.toString();
+      _error = AiErrorMapper.map(e).message;
       _state = AiLessonHelperState.error;
     } finally {
-      if (identical(_cancelToken, token)) _cancelToken = null;
+      finishStreamingSession(session);
     }
-    notifyListeners();
-  }
-
-  /// Plain-language explanation of the transformed lesson (mirrors the former
-  /// `AiCourseService.explainCourse` prompt, now routed through the engine).
-  Future<String> _explainCourse({
-    required AiEngineConfig config,
-    required AiCourseSpec spec,
-    required Map<String, dynamic> sectionJson,
-    required AiCancelToken token,
-  }) async {
-    final prompt =
-        'You just generated the following course for a teacher with no '
-        'technical background. Please explain in plain, easy-to-understand '
-        '${spec.sourceLanguage}: the course\'s learning objectives, how units '
-        'are divided, the key vocabulary / sentence patterns, and why it is '
-        'designed this way. Do not output JSON or code.\n\n'
-        'Course language: ${spec.language}\n'
-        'Prompt language: ${spec.sourceLanguage}\n'
-        'Level: ${spec.level}\n'
-        'Course name: ${sectionJson['name'] ?? ''}\n'
-        'Course description: ${sectionJson['description'] ?? ''}\n';
-    final result = await _engine.chat(
-      config: config,
-      messages: <Map<String, dynamic>>[
-        {
-          'role': 'system',
-          'content':
-              'You are a language-course design assistant who explains course '
-              'content in plain ${spec.sourceLanguage}.',
-        },
-        {'role': 'user', 'content': prompt},
-      ],
-      temperature: 0.6,
-      timeout: const Duration(seconds: 120),
-      cancelToken: token,
-    );
-    final content = result.content;
-    return content.isEmpty ? '(AI returned no explanation)' : content;
+    notifySessionListeners();
   }
 
   /// Wrap a single lesson JSON in a minimal section wrapper so the explain
@@ -233,23 +196,5 @@ class AiLessonHelperProvider extends ChangeNotifier {
         }
       ],
     };
-  }
-
-  /// Append a lesson-helper transformation to the AI Hub's recent list.
-  void _recordRecent() {
-    try {
-      final lessonId = _resultJson is Map<String, dynamic>
-          ? _resultJson!['id'] as String?
-          : null;
-      getIt<AiRecentTasksProvider>().record(
-            AiRecentTask(
-              kind: AiTaskKind.lessonHelper,
-              summary: lessonId ?? 'lesson',
-              timestamp: DateTime.now(),
-            ),
-          );
-    } catch (_) {
-      // Advisory only.
-    }
   }
 }

@@ -1,9 +1,8 @@
-// Flutter imports:
-import 'package:flutter/foundation.dart';
-
 // Project imports:
 import 'package:turna/application/ai/ai_error_mapper.dart';
 import 'package:turna/application/ai/ai_explain_prefs.dart';
+import 'package:turna/application/ai/ai_recent_task_log.dart';
+import 'package:turna/application/ai/ai_streaming_session_base.dart';
 import 'package:turna/application/ai/companion_rate_limiter.dart';
 import 'package:turna/application/ai/engine/ai_cancel_token.dart';
 import 'package:turna/application/ai/engine/ai_engine.dart';
@@ -16,7 +15,7 @@ import 'package:turna/di/injection.dart';
 enum DictionaryAiState { idle, loading, ready, error }
 
 /// Dictionary entry AI enrichment via [AiEngine] (cache-friendly fixed prompts).
-class DictionaryAiProvider extends ChangeNotifier {
+class DictionaryAiProvider extends AiRequestSessionBase {
   DictionaryAiProvider({
     AiEngine? engine,
     AiExplainPrefsStore? prefs,
@@ -44,26 +43,20 @@ class DictionaryAiProvider extends ChangeNotifier {
   String? _lastTerm;
   String? get lastTerm => _lastTerm;
 
-  AiCancelToken? _cancelToken;
-  int _generation = 0;
-
   void clear() {
-    _cancelToken?.cancel();
-    _cancelToken = null;
-    _generation++;
+    abandonStreamingSession();
     _enrichment = null;
     _error = null;
     _lastTerm = null;
     _state = DictionaryAiState.idle;
-    notifyListeners();
+    notifySessionListeners();
   }
 
   void cancel() {
     if (_state != DictionaryAiState.loading) return;
-    _cancelToken?.cancel();
-    _cancelToken = null;
+    cancelStreamingSession();
     _state = DictionaryAiState.idle;
-    notifyListeners();
+    notifySessionListeners();
   }
 
   Future<DictionaryEnrichment?> enrich({
@@ -84,15 +77,11 @@ class DictionaryAiProvider extends ChangeNotifier {
       return null;
     }
 
-    _cancelToken?.cancel();
-    _generation++;
-    final gen = _generation;
-    final token = AiCancelToken();
-    _cancelToken = token;
+    final session = beginStreamingSession();
     _error = null;
     _lastTerm = t;
     _state = DictionaryAiState.loading;
-    notifyListeners();
+    notifySessionListeners();
 
     try {
       // Prefs rules are part of system prompt so cache keys shift with language/depth.
@@ -101,8 +90,7 @@ class DictionaryAiProvider extends ChangeNotifier {
         messages: <Map<String, dynamic>>[
           {
             'role': 'system',
-            'content':
-                'You are a language-learning tutor for $language. '
+            'content': 'You are a language-learning tutor for $language. '
                 '${_prefs.snapshot.toSystemPromptRules()}\n'
                 'Respond with ONLY a JSON object (no markdown fences): '
                 '{"expandedGloss":string,"examples":[string],"pairs":'
@@ -118,42 +106,34 @@ class DictionaryAiProvider extends ChangeNotifier {
                 'Provide enrichment JSON.',
           },
         ],
-        cancelToken: token,
+        cancelToken: session.cancelToken,
       );
-      if (gen != _generation) return null;
-      final enrichment =
-          DictionaryEnrichment.fromJson(decodeJsonObject(result.content), term: t);
+      if (!isCurrentSession(session)) return null;
+      final enrichment = DictionaryEnrichment.fromJson(
+          decodeJsonObject(result.content),
+          term: t);
       _enrichment = enrichment;
       _state = DictionaryAiState.ready;
-      _recordRecent(t);
-      notifyListeners();
+      recordAiRecentTask(
+        kind: AiTaskKind.dictionary,
+        summary: '词典 · $t',
+      );
+      notifySessionListeners();
       return enrichment;
     } on AiCancelled {
-      if (gen != _generation) return null;
+      if (!isCurrentSession(session)) return null;
       _state = DictionaryAiState.idle;
-      notifyListeners();
+      notifySessionListeners();
       return null;
     } catch (e) {
-      if (gen != _generation) return null;
+      if (!isCurrentSession(session)) return null;
       logger.w('DictionaryAiProvider.enrich failed: $e');
       _error = AiErrorMapper.map(e).message;
       _state = DictionaryAiState.error;
-      notifyListeners();
+      notifySessionListeners();
       return null;
     } finally {
-      if (identical(_cancelToken, token)) _cancelToken = null;
+      finishStreamingSession(session);
     }
-  }
-
-  void _recordRecent(String term) {
-    try {
-      getIt<AiRecentTasksProvider>().record(
-        AiRecentTask(
-          kind: AiTaskKind.dictionary,
-          summary: '词典 · $term',
-          timestamp: DateTime.now(),
-        ),
-      );
-    } catch (_) {}
   }
 }

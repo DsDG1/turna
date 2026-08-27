@@ -130,3 +130,15 @@ abstract class AiStreamingSessionBase extends ChangeNotifier {
     super.dispose();
   }
 }
+
+/// Base for providers that issue engine requests without `onChunk`.
+///
+/// They still get the generation gate, cancel token and disposed guard from
+/// [AiStreamingSessionBase]; the delta coalescer simply stays idle because no
+/// fragments are ever streamed, so [AiStreamingSessionBase.applyStreamingBatch]
+/// never fires and can be a no-op.
+abstract class AiRequestSessionBase extends AiStreamingSessionBase {
+  @override
+  @protected
+  void applyStreamingBatch(String batch) {}
+}

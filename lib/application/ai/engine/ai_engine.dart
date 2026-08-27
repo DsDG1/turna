@@ -205,7 +205,9 @@ class AiEngine {
           'AI config incomplete: please fill in Base URL / API Key / Model.');
     }
 
-    final key = AiCache.makeKey(model, messages, responseFormat);
+    // Large payloads canonicalise + hash off the main isolate (small ones
+    // hash inline — see AiCache.makeKeyAsync).
+    final key = await AiCache.makeKeyAsync(model, messages, responseFormat);
 
     // Cache lookup (only when caching is enabled at both the config and cache
     // level). A hit short-circuits the network entirely.

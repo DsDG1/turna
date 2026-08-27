@@ -1515,3 +1515,4 @@ AnkiImportPage 只保留：
 4. OHOS sunset / 豁免证据未产生（R7-1 二选一未决）。
 5. final-receipt.md 未生成（真机证据缺失，拒绝拼装半套收据）。
 6. §9.1 的部分建议文件名没有一一照搬；对应行为由 provider/catalog、saga/coordinator、媒体事务、架构守卫及 migration center widget 测试覆盖。导入完成页三动作与 Browser/Stats 的真实设备可达性仍随第 1 项矩阵验收。
+7. WebView 卡片渲染真机矩阵（原 `docs/webview-rendering-optimization-plan.md` WEBVIEW-UX-2026-08 §10.3：6 设备形态 × 11 卡型，矩阵表保留在该文档 stub 内）已实现代码侧并过 host 测试，随第 1 项真机会话一并验收。

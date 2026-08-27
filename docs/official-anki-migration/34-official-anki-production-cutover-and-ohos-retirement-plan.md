@@ -6,7 +6,7 @@
 >
 > 状态：**验收 NO-GO；Official Anki 迁移中**；OHOS EOL = [ADR 0041](../decisions/0041-ohos-product-eol.md)。Official-first、OHOS 主工程删除和 arm64 构建骨架可保留；course scope、实时保真复习、六集合 due、W8、parity、数据出口与发布证据按 [`34-remaining-construction-plan.md`](./34-remaining-construction-plan.md) R0–R8 返工；W9 物理删除已按 doc 35（L0–L3）于 2026-08-27 施工。**不得写「迁移完成」。**
 >
-> 前置：[`31`](./31-anki-product-experience-plan.md)、[`32`](./32-official-anki-experience-parity-plan.md)、[`33`](./33-official-first-import-construction-plan.md)（均已由本文件接管）、[ADR 0037](../decisions/0037-anki-course-review-unification.md)
+> 前置：[`31`](./archive/31-anki-product-experience-plan.md)、[`32`](./archive/32-official-anki-experience-parity-plan.md)、[`33`](./archive/33-official-first-import-construction-plan.md)（均已由本文件接管）、[ADR 0037](../decisions/0037-anki-course-review-unification.md)
 >
 > 目标：停止产品级 OHOS 支持；Android Anki 全量切换到 Official Collection / Scheduler；清除 Legacy 与 Official 混合 owner；在完成用户数据迁移和一个正式版本观察后退役自研 Anki importer / scheduler。
 

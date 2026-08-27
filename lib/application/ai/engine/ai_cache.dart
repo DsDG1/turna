@@ -1,13 +1,14 @@
 // Dart imports:
 import 'dart:convert';
 import 'dart:collection';
+import 'dart:isolate';
 
 // Package imports:
 import 'package:crypto/crypto.dart';
 import 'package:injectable/injectable.dart';
 
 // Flutter imports:
-import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter/foundation.dart' show kIsWeb, visibleForTesting;
 
 /// Snapshot of cache counters (immutable view for telemetry).
 ///
@@ -79,7 +80,7 @@ class AiCache {
 
   /// Stable SHA-256 key for a `(model, messages, response_format)` triple.
   ///
-  /// Messages are serialised with sorted keys (mirrors Python's
+  /// Messages are serialised with sorted keys (mirroring Python's
   /// `sort_keys=True`) so reordering keys in a message dict does not
   /// invalidate the entry. The API key is intentionally excluded.
   static String makeKey(
@@ -93,6 +94,51 @@ class AiCache {
       'rf': responseFormat,
     });
     return sha256.convert(utf8.encode(payload)).toString();
+  }
+
+  /// Payloads whose message contents total less than this many characters
+  /// hash faster synchronously than an isolate hop would cost, so they stay
+  /// on the calling isolate. Above it the canonicalisation + SHA-256 is
+  /// offloaded (textbook-scale knowledge extractions).
+  static const int _offloadThresholdChars = 64 * 1024;
+
+  /// [makeKey] with large payloads computed off the main isolate.
+  ///
+  /// Produces exactly the same digest as [makeKey] on every path. Small
+  /// payloads hash inline (an isolate hop would cost more than the hash
+  /// itself); large ones run in a background isolate so canonical-JSON
+  /// re-serialisation never janks the UI. Web has no isolates and falls back
+  /// to inline hashing; so does an isolate failure (e.g. an unexpectedly
+  /// non-sendable message value).
+  static Future<String> makeKeyAsync(
+    String model,
+    List<Map<String, dynamic>> messages,
+    Map<String, dynamic>? responseFormat,
+  ) async {
+    if (kIsWeb || !_isLargePayload(messages)) {
+      return makeKey(model, messages, responseFormat);
+    }
+    try {
+      return await Isolate.run(
+        () => makeKey(model, messages, responseFormat),
+      );
+    } catch (_) {
+      // Non-sendable payload or isolate failure — correctness beats latency.
+      return makeKey(model, messages, responseFormat);
+    }
+  }
+
+  /// Cheap upper-bound estimate of the canonicalised payload size: message
+  /// contents dominate; other fields contribute a fixed allowance each.
+  static bool _isLargePayload(List<Map<String, dynamic>> messages) {
+    var chars = 0;
+    for (final m in messages) {
+      final content = m['content'];
+      chars += content is String ? content.length : 64;
+      chars += 16;
+      if (chars >= _offloadThresholdChars) return true;
+    }
+    return false;
   }
 
   int _hits = 0;

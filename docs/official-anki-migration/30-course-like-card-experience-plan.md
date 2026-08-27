@@ -2,7 +2,7 @@
 
 > 文档代号：P-COURSE-LIKE-CARD  
 > 日期：2026-08-20  
-> 状态：**Host / Unit 已通过**；生产默认未翻（课化复习、课程入口、chrome）。产品收口见 [`31`](./31-anki-product-experience-plan.md)。  
+> 状态：**Host / Unit 已通过**；生产默认未翻（课化复习、课程入口、chrome）。产品收口见 [`31`](./archive/31-anki-product-experience-plan.md)。  
 > 前置：ADR [`0036`](../decisions/0036-official-anki-core-migration.md)、[`09`](./archive/09-p2-entry-remediation-and-phase-3-plan.md) P3-051、[`11`](./archive/11-p3-remediation-and-phase-4-scheduler-plan.md)、[`29`](./archive/29-p5e-wave1-production-decoupling-report.md)  
 > 目标：在**不撤回官方 Anki 核心**的前提下，把导入卡重新变成「像语言课一样」的 Flutter 练习：自动识别题型、生词卡/选择/听音/填空、翻面或展开动画，评分仍写官方 Scheduler。
 

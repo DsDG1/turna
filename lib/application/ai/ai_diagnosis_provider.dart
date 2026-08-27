@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 // Project imports:
 import 'package:turna/application/ai/ai_error_mapper.dart';
 import 'package:turna/application/ai/ai_explain_prefs.dart';
+import 'package:turna/application/ai/ai_recent_task_log.dart';
+import 'package:turna/application/ai/ai_streaming_session_base.dart';
 import 'package:turna/application/ai/engine/ai_cancel_token.dart';
 import 'package:turna/application/ai/engine/ai_engine.dart';
 import 'package:turna/application/ai/engine/ai_engine_config.dart';
@@ -16,7 +18,7 @@ import 'package:turna/di/injection.dart';
 enum AiDiagnosisState { idle, loading, ready, error }
 
 /// Text-only learning diagnosis from mistakes/weak words (not a course tree).
-class AiDiagnosisProvider extends ChangeNotifier {
+class AiDiagnosisProvider extends AiRequestSessionBase {
   AiDiagnosisProvider({
     AiEngine? engine,
     AiExplainPrefsStore? prefs,
@@ -43,25 +45,19 @@ class AiDiagnosisProvider extends ChangeNotifier {
   DateTime? _lastGeneratedAt;
   DateTime? get lastGeneratedAt => _lastGeneratedAt;
 
-  AiCancelToken? _cancelToken;
-  int _generation = 0;
-
   void clear() {
-    _cancelToken?.cancel();
-    _cancelToken = null;
-    _generation++;
+    abandonStreamingSession();
     _report = null;
     _error = null;
     _state = AiDiagnosisState.idle;
-    notifyListeners();
+    notifySessionListeners();
   }
 
   void cancel() {
     if (_state != AiDiagnosisState.loading) return;
-    _cancelToken?.cancel();
-    _cancelToken = null;
+    cancelStreamingSession();
     _state = AiDiagnosisState.idle;
-    notifyListeners();
+    notifySessionListeners();
   }
 
   /// Whether [generate] would be rejected by the local rate limit.
@@ -85,14 +81,10 @@ class AiDiagnosisProvider extends ChangeNotifier {
       return false;
     }
 
-    _cancelToken?.cancel();
-    _generation++;
-    final gen = _generation;
-    final token = AiCancelToken();
-    _cancelToken = token;
+    final session = beginStreamingSession();
     _error = null;
     _state = AiDiagnosisState.loading;
-    notifyListeners();
+    notifySessionListeners();
 
     try {
       final result = await _engine.requestJson(
@@ -106,42 +98,45 @@ class AiDiagnosisProvider extends ChangeNotifier {
                     'No course section/unit/lesson schema.',
           },
         ],
-        cancelToken: token,
+        cancelToken: session.cancelToken,
       );
-      if (gen != _generation) return true;
+      if (!isCurrentSession(session)) return true;
       final report = DiagnosisReport.fromJson(decodeJsonObject(result.content));
       _report = report;
       _lastGeneratedAt = DateTime.now();
       _state = AiDiagnosisState.ready;
-      _recordRecent();
+      recordAiRecentTask(
+        kind: AiTaskKind.diagnosis,
+        summary: '学习诊断',
+        route: AiRecentTaskRoute.diagnosis,
+      );
     } on AiCancelled {
-      if (gen != _generation) return true;
+      if (!isCurrentSession(session)) return true;
       _state = AiDiagnosisState.idle;
     } catch (e) {
-      if (gen != _generation) return true;
+      if (!isCurrentSession(session)) return true;
       logger.w('AiDiagnosisProvider.generate failed: $e');
       _error = AiErrorMapper.map(e).message;
       _state = AiDiagnosisState.error;
     } finally {
-      if (identical(_cancelToken, token)) _cancelToken = null;
+      finishStreamingSession(session);
     }
-    if (gen == _generation) notifyListeners();
+    notifySessionListeners();
     return true;
   }
 
   String _systemPrompt(LearnerAiContext ctx) {
     final prefs = _prefs.snapshot;
     final buf = StringBuffer()
-      ..writeln(
-          'You are a language-learning coach for ${ctx.languageName}. '
+      ..writeln('You are a language-learning coach for ${ctx.languageName}. '
           'Produce a TEXT diagnosis of weak areas only. '
           'Never output course section/unit/lesson JSON.')
       ..writeln(prefs.toSystemPromptRules())
-      ..writeln(
-          'Respond with ONLY a JSON object (no markdown fences): '
+      ..writeln('Respond with ONLY a JSON object (no markdown fences): '
           '{"weakAreas":[{"title":string,"severity":"high|medium|low","evidence":[string]}],'
           '"priorityTips":[string],"exampleDrillIdeas":[string]}.')
-      ..writeln('priorityTips: 3-7 items. exampleDrillIdeas: short text ideas, not lessons.');
+      ..writeln(
+          'priorityTips: 3-7 items. exampleDrillIdeas: short text ideas, not lessons.');
     if (!ctx.isEmpty) {
       buf.writeln(ctx.toPromptBlock(maxChars: 1200));
     }
@@ -150,17 +145,4 @@ class AiDiagnosisProvider extends ChangeNotifier {
 
   @visibleForTesting
   String systemPromptForTest(LearnerAiContext ctx) => _systemPrompt(ctx);
-
-  void _recordRecent() {
-    try {
-      getIt<AiRecentTasksProvider>().record(
-        AiRecentTask(
-          kind: AiTaskKind.diagnosis,
-          summary: '学习诊断',
-          timestamp: DateTime.now(),
-          route: 'AiDiagnosisRoute',
-        ),
-      );
-    } catch (_) {}
-  }
 }
