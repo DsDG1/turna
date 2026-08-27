@@ -21,7 +21,7 @@
 - Android 新 apkg 的 Official-first / fail-closed 路径已经建立；
 - OHOS product target、桥接、picker 和补丁目录已经从主分支移除；
 - arm64 release APK 可以完成构建并包含 libturna_anki.so；
-- W9 物理删除 HOLD 文档有效，继续保持；
+- W9 物理删除 HOLD 文档有效留档（2026-08-27 负责人决策解除，见其「G5 GO 解除记录」；主计划 §13.2 波次规则继续有效）；
 - 一组 Official import、due、review path、migration saga 和 OHOS guard 定向测试通过。
 
 不能验收的产品闭环：
@@ -1459,6 +1459,8 @@ AnkiImportPage 只保留：
 
 > Official Anki Android 一次性代码收口已形成生产候选；OHOS product target 已退役；Legacy 保持停止新写和观察期，W9 继续 HOLD。
 
+> 2026-08-27 更新：W9 删除门槛由负责人决策解除（观察期证据按负责人豁免，未实际观察，见 [`34-w9-legacy-deletion-hold.md`](./34-w9-legacy-deletion-hold.md) G5 GO 解除记录）；W9-B..E 可分波开工，主计划 §13.2 规则继续有效。其余外部事实（OHOS 用户处置、存量跑批、真机矩阵）仍未发生。
+
 只有 17.7 也全部通过，才能写“自研 Anki 已完成退役迁移”。
 
 
@@ -1466,7 +1468,7 @@ AnkiImportPage 只保留：
 
 ## 18. 一次性施工状态（2026-08-25，OS-00–OS-24 host 收口）
 
-> 状态：**host/自动化门禁全绿；真机矩阵与外部事实未验收；整体仍为 Official Anki 迁移中 / NO-GO**（§17.6 剩真机证据项，§17.7 全部 HOLD）。允许的表述：一次性代码收口已形成生产候选，尚未真机验收。
+> 状态：**host/自动化门禁全绿；真机矩阵与外部事实未验收；整体仍为 Official Anki 迁移中 / NO-GO**（§17.6 剩真机证据项，§17.7 全部 HOLD）。允许的表述：一次性代码收口已形成生产候选，尚未真机验收。（2026-08-27 更新：W9 删除门槛经负责人决策解除，见 [`34-w9-legacy-deletion-hold.md`](./34-w9-legacy-deletion-hold.md)；§17.7 其余外部事实仍 HOLD。）
 
 ### 18.1 OS 任务账本勾选（host 证据口径）
 

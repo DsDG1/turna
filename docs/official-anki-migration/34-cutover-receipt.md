@@ -4,7 +4,7 @@
 > 状态：**验收 NO-GO；Official Anki 迁移中**（host/自动化门禁全绿、工作树生产候选已形成；真机矩阵与外部事实未验收。不得写「迁移完成」）
 > 计划真源：[`34-official-anki-production-cutover-and-ohos-retirement-plan.md`](./34-official-anki-production-cutover-and-ohos-retirement-plan.md)
 > 剩余波次：[`34-remaining-construction-plan.md`](./34-remaining-construction-plan.md)
-> HOLD：[`34-w9-legacy-deletion-hold.md`](./34-w9-legacy-deletion-hold.md)
+> W9 HOLD 解除记录（2026-08-27 负责人决策）：[`34-w9-legacy-deletion-hold.md`](./34-w9-legacy-deletion-hold.md)
 > OHOS EOL ADR：[ADR 0041](../decisions/0041-ohos-product-eol.md)（草案曾写 0038；0038 已占用）
 
 ---
@@ -50,8 +50,8 @@
 
 | 项 | 原因 |
 |---|---|
-| 一个正式 release 观察（G5） | 日历/发布证据，单会话无法诚实完成 |
-| W9-B..E Legacy 物理删除 / schema drop | 依赖 G5；见 HOLD |
+| 一个正式 release 观察（G5） | 未发生；2026-08-27 负责人决策按豁免处理（非证据齐备，见 HOLD 解除记录） |
+| W9-B..E Legacy 物理删除 / schema drop | 开工门槛已解除（2026-08-27 负责人决策）；删除尚未执行，主计划 §13.2 波次规则继续有效 |
 | §19「Legacy importer/scheduler/schema 按 W9 分波删除」 | 显式未勾选 |
 | 全量设备/release 真机闭环证明 | 本会话未伪造设备证据 |
 | OHOS 用户完成数据出口 | 导出器/导入器均已落地（Android 导入入口可用）；外部事实未发生：无 sunset 真机、无书面豁免（R7-1 二选一未决） |
@@ -68,4 +68,4 @@ A fat multi-ABI APK without matching `.so` is forbidden (fail-closed, never Lega
 
 ## Accurate status line
 
-> 验收 NO-GO；Official Anki 迁移中：一次性代码收口（R0–R8 host 侧）已完成并全绿（analyze 0 issue / 全量 1852:0 / golden 4:4 / native 68:0 / arm64 APK 56.1MB，contract 1.6 制品能力已核验），形成**工作树生产候选**；尚未真机验收（§12 矩阵未跑），外部事实（OHOS sunset/豁免、存量用户处置、Legacy 零新写观察期）未发生，W9 继续 HOLD。不得写「迁移完成」。
+> 验收 NO-GO；Official Anki 迁移中：一次性代码收口（R0–R8 host 侧）已完成并全绿（analyze 0 issue / 全量 1852:0 / golden 4:4 / native 68:0 / arm64 APK 56.1MB，contract 1.6 制品能力已核验），形成**工作树生产候选**；尚未真机验收（§12 矩阵未跑），外部事实（OHOS sunset/豁免、存量用户处置、Legacy 零新写观察期）未发生；W9 HOLD 已于 2026-08-27 由负责人决策解除（观察期证据按负责人豁免，见解除记录），W9-B..E 分波删除可开工。不得写「迁移完成」。

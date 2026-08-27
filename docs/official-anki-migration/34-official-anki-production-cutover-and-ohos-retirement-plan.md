@@ -78,11 +78,11 @@
 | W7 browser/stats | 服务骨架存在；产品入口、migrated sourceId 路由、全部筛选和 forecast/retention 尚未验收 |
 | C4 配置 | 生产 bundle = `OfficialAnkiFeatureFlags.productionAndroid`；不再读 10 个能力 dart-define；gray cohort 已退出 planner；`officialCapable` → `schedulerRuntimeAvailable` |
 | W8 | saga + census driver 可入队 `cleanLegacy`；启动不自动切 owner |
-| W9-A | 生产不再选择 Legacy writer；物理删除 HOLD |
+| W9-A | 生产不再选择 Legacy writer；物理删除门槛已于 2026-08-27 由负责人决策解除（见 [`34-w9-legacy-deletion-hold.md`](./34-w9-legacy-deletion-hold.md) G5 GO 解除记录） |
 
 **生产仍可读的 dart-define（opt-in / 暂停闸）：** `TURNA_OFFICIAL_ANKI_CUTOVER`（默认 true）、`DIAGNOSTICS`、`REVIEWER_DIAGNOSTICS`、`MIGRATION_PILOT`、`COURSE_GRADES_SCHEDULER`、`LEGACY_MIRROR`。
 
-**下一刀：** 按 [`34-remaining-construction-plan.md`](./34-remaining-construction-plan.md) R0→R8 返工；优先关闭 course scope、实时复习、六集合 due 和 W8 owner 阻断。真机 §15.3、正式版观察、W9-B..E 仍 HOLD。
+**下一刀：** R0→R8 返工已由 2026-08-25 一次性施工完成（host 门禁全绿，见 [`34-remaining-construction-plan.md`](./34-remaining-construction-plan.md) §18）；剩余为真机 §15.3 矩阵、W8 真实用户库跑批，以及 W9-B..E 分波物理删除（HOLD 已于 2026-08-27 由负责人决策解除，观察期证据按负责人豁免）。
 
 ### 1.2 开工病理：默认导入会形成混合半状态（已修复，保留作回归说明）
 
@@ -957,8 +957,8 @@ W9 物理删除与「一个正式版本观察」见 [`34-w9-legacy-deletion-hold
 - [ ] browser、stats、media、product effects 对纯 Official 来源可用；（**验收撤销**：Official section 产品按钮仍为 null；migrated importId/sourceId 映射错误；Stats 可能回退 Legacy provider，部分 filter/forecast 未完成）
 - [ ] backup/restore/reimport/uninstall/强杀恢复通过 release 真机验收；(**HOLD** — 本环境无设备，未伪造 §15.3 真机闭环)
 - [ ] 所有历史来源已进入 cleanOfficial、已导出/只读隔离或有明确用户处理状态；（W8 saga + reconciler 已提供路径；**存量用户跑批/确认未在本会话完成** — HOLD）
-- [ ] Legacy 新写入连续一个正式版本为 0；(**HOLD** — 日历观察，见 [`34-w9-legacy-deletion-hold.md`](./34-w9-legacy-deletion-hold.md))
-- [ ] Legacy importer/scheduler/schema 按 W9 分波删除；(**HOLD** — 同上；W9-A 仅停住新写产品选择，未物理删除)
+- [ ] Legacy 新写入连续一个正式版本为 0；（**观察未发生，2026-08-27 负责人决策豁免** — 见 [`34-w9-legacy-deletion-hold.md`](./34-w9-legacy-deletion-hold.md) G5 GO 解除记录；无实际观察数据，保持未勾选）
+- [ ] Legacy importer/scheduler/schema 按 W9 分波删除；（**HOLD 已于 2026-08-27 解除：可开工、尚未执行**；W9-A 仅停住新写产品选择，未物理删除）
 - [x] CI 有 owner、forbidden write、unsupported platform 和 native ABI 门禁；（证据：`anki_unification_architecture_guard_test` + `ohos_eol_architecture_guard_test` 含 arm64 `libturna_anki.so` / release 命令门禁；planner 组合矩阵）
 - [ ] 迁移 README、ADR、构建说明和 release artifact 全部更新；（**验收撤销**：当前工作树/native 子模块不干净，收据与源码曾矛盾；需按 `34-remaining-construction-plan.md` R8 从锁定 commit 重建）
 

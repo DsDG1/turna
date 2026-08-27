@@ -296,7 +296,7 @@ Explain → Practice → Rate 三段流（见 2.4 Skill Acquisition Theory）。
 
 **生产（Android Official-first）**：选 `.apkg` → 一次计算 `AnkiImportExecutionPlan` → `OfficialAnkiOfficialFirstService` 写入 Official Collection → 投影课程树 → 以 `sourceId` 进入课程 scope。不写 Legacy NoteStore / Turna Anki SRS。`.colpkg` 与内存 sample 生产 fail-closed。
 
-**Legacy 解析/装配**（下列条目）仅保留给 W9 HOLD 的存量迁移与测试 haemostasis（`allowLegacyOnly`）。生产 `planFor` 在 `officialAndroid` 下不会选择该 writer：
+**Legacy 解析/装配**（下列条目）仅保留给存量迁移与测试 haemostasis（`allowLegacyOnly`），待 W9-B..E 分波物理删除（W9 HOLD 已于 2026-08-27 由负责人决策解除）。生产 `planFor` 在 `officialAndroid` 下不会选择该 writer：
 
 1. **解析**（`anki_importer.dart`）：从 `.apkg`（zip + SQLite collection）提取 notetypes、notes、cards、revlog，分页、表缺失安全、best-effort。
 2. **NoteStore 持久化**（schema v9 起，三表）：`anki_notetypes`、`anki_notes`、`anki_cards_meta`。
@@ -720,7 +720,7 @@ python -m unittest discover -s tool/gui/tests -p "test_*.py"  # GUI 1276 项（�
   1. **高频词汇优先**：以 Turkish National Corpus 词频数据为指导，优先覆盖前 2000 词族（覆盖日常文本约 85%）。
   2. **语法渐进**：A1 集中于现在时、格标记（主/宾/与/属/方位/离格）、简单句；A2 引入过去时与将来时；B1 引入关系从句与名物化；B2 涉及语篇衔接与语体变化。
   3. **语用真实性**：表达与对话应反映目标语真实使用场景（如 `Buyurun` 的多重语用功能），避免翻译腔。
-- **Anki 生产收口**：按 [doc 34](./official-anki-migration/34-official-anki-production-cutover-and-ohos-retirement-plan.md) §1.1a。W0–W7 路径已接线；下一刀是向导再瘦、W8 真实用户库 owner 切换、真机观察与 W9 HOLD 物理删除。不得写「迁移完成」。
+- **Anki 生产收口**：按 [doc 34](./official-anki-migration/34-official-anki-production-cutover-and-ohos-retirement-plan.md) §1.1a。W0–W7 路径已接线；下一刀是向导再瘦、W8 真实用户库 owner 切换、真机观察与 W9 分波物理删除（HOLD 已于 2026-08-27 由负责人决策解除）。不得写「迁移完成」。
 - 持续完善可访问性与统计指标。
 
 ### 致谢
