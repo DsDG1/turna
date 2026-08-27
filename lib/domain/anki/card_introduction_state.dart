@@ -57,3 +57,22 @@ class CardIntroductionState {
     );
   }
 }
+
+/// Persistence surface for the shared learn/review introduction lifecycle.
+///
+/// Formerly lived in the retired `domain/anki/repositories.dart` aggregate;
+/// kept here because the study-session base still drives introductions.
+abstract interface class CardIntroductionRepository {
+  Future<CardIntroductionState> stateFor(
+    String courseId,
+    CanonicalCardKey key,
+  );
+  Future<Set<CanonicalCardKey>> introducedKeys(String courseId);
+  Future<void> markIntroduced(
+    String courseId,
+    CanonicalCardKey key, {
+    required CardIntroducedBy by,
+    required String lessonId,
+  });
+  Future<void> retire(String courseId, CanonicalCardKey key);
+}

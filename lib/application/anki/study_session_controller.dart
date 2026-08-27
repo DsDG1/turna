@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:turna/domain/anki/card_introduction_state.dart';
 import 'package:turna/domain/anki/objective_outcome.dart';
 import 'package:turna/domain/anki/presentation_receipt.dart';
-import 'package:turna/domain/anki/repositories.dart';
 import 'package:turna/domain/anki/study_models.dart';
 import 'package:turna/domain/review/recall_outcome.dart';
 

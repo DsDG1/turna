@@ -10,17 +10,12 @@ void main() {
           Directory('lib/domain/anki'),
           forbidden: _schedulerDaos,
         ),
-        ..._scan(
-          Directory('lib/application/anki/unification'),
-          forbidden: _schedulerDaos,
-        ),
         ..._scanFiles(
           const [
             'lib/application/anki/study_session_controller.dart',
             'lib/application/anki/anki_study_session_host.dart',
             'lib/application/anki/formal_review_launcher.dart',
             'lib/application/anki/unified_anki_import_orchestrator.dart',
-            'lib/application/anki/anki_unification_migration.dart',
             'lib/application/anki/study_product_analytics.dart',
             'lib/views/review/components/study_card_surface.dart',
             'lib/views/anki_official/official_anki_practice_review_surface.dart',
@@ -249,6 +244,25 @@ void main() {
           'lib/application/anki_official/migration/official_anki_user_migration_saga.dart',
         ).existsSync(),
         isFalse,
+      );
+    });
+
+    // Doc 35 L0 — orphaned unification infrastructure must stay deleted.
+    test('orphaned unification infrastructure stays deleted (doc 35 L0)', () {
+      for (final path in const [
+        'lib/application/anki/unification/in_memory_anki_unification_store.dart',
+        'lib/application/anki/anki_unification_migration.dart',
+        'lib/domain/anki/repositories.dart',
+        'lib/domain/anki/review_queue_snapshot.dart',
+        'lib/domain/anki/course_card_placement.dart',
+        'lib/application/anki/anki_media_url_resolver.dart',
+      ]) {
+        expect(File(path).existsSync(), isFalse, reason: '$path was revived');
+      }
+      expect(
+        Directory('lib/application/anki/unification').existsSync(),
+        isFalse,
+        reason: 'the unification store directory was revived',
       );
     });
 

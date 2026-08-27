@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/anki/anki_study_session_host.dart';
 import 'package:turna/application/anki/card_introduction_store.dart';
-import 'package:turna/application/anki/unification/in_memory_anki_unification_store.dart';
 import 'package:turna/domain/anki/canonical_card_key.dart';
+import 'package:turna/domain/anki/card_introduction_state.dart';
 import 'package:turna/domain/anki/card_presentation.dart';
 import 'package:turna/domain/anki/study_models.dart';
 import 'package:turna/domain/review/recall_outcome.dart';
@@ -44,7 +44,7 @@ void main() {
     test('course practice does not mutate Official scheduler ledger', () async {
       final official = _CountingLedger(owner: StudyLedgerOwner.officialAnki);
       final turna = _CountingLedger(owner: StudyLedgerOwner.turnaFsrs);
-      final intro = InMemoryAnkiUnificationStore();
+      final intro = _InMemoryIntroductionRepository();
       final host = AnkiStudySessionHost(
         resolver: StudyLedgerResolver(official: official, turna: turna),
         introductionRepository: intro,
@@ -74,7 +74,7 @@ void main() {
         CardIntroductionStore.debugOverride = null;
       });
 
-      final intro = InMemoryAnkiUnificationStore();
+      final intro = _InMemoryIntroductionRepository();
       final host = AnkiStudySessionHost(
         resolver: const StudyLedgerResolver(),
         introductionRepository: intro,
@@ -122,6 +122,57 @@ void main() {
       expect(item.capabilities.marksIntroduced, isTrue);
     });
   });
+}
+
+class _InMemoryIntroductionRepository implements CardIntroductionRepository {
+  final Map<String, CardIntroductionState> _states = {};
+
+  String _key(String courseId, CanonicalCardKey key) =>
+      '$courseId:${key.sourceId}:c${key.cardId}:${key.backend.name}';
+
+  @override
+  Future<CardIntroductionState> stateFor(
+    String courseId,
+    CanonicalCardKey key,
+  ) async {
+    return _states[_key(courseId, key)] ??
+        CardIntroductionState(
+          courseId: courseId,
+          cardKey: key,
+          status: CardIntroductionStatus.unintroduced,
+        );
+  }
+
+  @override
+  Future<Set<CanonicalCardKey>> introducedKeys(String courseId) async {
+    return {
+      for (final state in _states.values)
+        if (state.courseId == courseId && state.isIntroduced) state.cardKey,
+    };
+  }
+
+  @override
+  Future<void> markIntroduced(
+    String courseId,
+    CanonicalCardKey key, {
+    required CardIntroducedBy by,
+    required String lessonId,
+  }) async {
+    _states[_key(courseId, key)] = CardIntroductionState(
+      courseId: courseId,
+      cardKey: key,
+      status: CardIntroductionStatus.introduced,
+      introducedBy: by,
+      introducedAt: DateTime.now(),
+      firstLessonId: lessonId,
+    );
+  }
+
+  @override
+  Future<void> retire(String courseId, CanonicalCardKey key) async {
+    _states[_key(courseId, key)] = (await stateFor(courseId, key))
+        .copyWith(status: CardIntroductionStatus.retired);
+  }
 }
 
 class _CountingLedger implements StudyLedger {

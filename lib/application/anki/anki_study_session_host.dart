@@ -1,9 +1,9 @@
 import 'package:turna/application/anki/study_session_controller.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/anki/canonical_card_key.dart';
+import 'package:turna/domain/anki/card_introduction_state.dart';
 import 'package:turna/domain/anki/card_presentation.dart';
 import 'package:turna/domain/anki/presentation_receipt.dart';
-import 'package:turna/domain/anki/repositories.dart';
 import 'package:turna/domain/anki/study_models.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/review/recall_outcome.dart';
