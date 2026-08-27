@@ -264,6 +264,57 @@ void main() {
       );
     });
 
+    // Doc 35 L2 — the review-side replica layer must stay deleted.
+    test('legacy review layer stays deleted (doc 35 L2)', () {
+      for (final path in const [
+        'lib/application/anki/anki_review_assembler.dart',
+        'lib/application/anki/anki_canonical_card_loader.dart',
+        'lib/application/anki/anki_card_html_renderer.dart',
+        'lib/application/anki/anki_template_renderer.dart',
+        'lib/application/anki/anki_type_answer.dart',
+        'lib/application/anki/anki_media_reference_extractor.dart',
+        'lib/application/anki/anki_models.dart',
+        'lib/views/lesson/components/interactions/anki_html_card_renderer.dart',
+      ]) {
+        expect(File(path).existsSync(), isFalse, reason: '$path was revived');
+      }
+      final violations = <String>[];
+      final needles = [
+        RegExp(r'[^a-zA-Z]AnkiReviewAssembler\b'),
+        RegExp(r'[^a-zA-Z]TurnaStudyLedger\b'),
+      ];
+      for (final entity in Directory('lib').listSync(recursive: true)) {
+        if (entity is! File || !entity.path.endsWith('.dart')) continue;
+        final text = entity.readAsStringSync();
+        final withoutComments = text
+            .replaceAll(RegExp(r'//.*'), '')
+            .replaceAll(RegExp(r'/\*.*?\*/', dotAll: true), '');
+        for (final needle in needles) {
+          if (needle.hasMatch(withoutComments)) {
+            violations.add('${entity.path} matches ${needle.pattern}');
+          }
+        }
+        if (RegExp(r'\bensureWord\s*\(').hasMatch(withoutComments)) {
+          violations.add('${entity.path} calls ensureWord');
+        }
+      }
+      expect(violations, isEmpty, reason: violations.join('\n'));
+
+      // The session page must not re-wire the retired Legacy runtime.
+      final sessionPage = File('lib/views/anki/anki_review_session_page.dart')
+          .readAsStringSync();
+      expect(
+        sessionPage.contains('package:turna/application/srs_provider.dart'),
+        isFalse,
+        reason: 'session page must not import SrsProvider',
+      );
+      expect(
+        sessionPage.contains('package:turna/data/anki_note_dao.dart'),
+        isFalse,
+        reason: 'session page must not import AnkiNoteDao',
+      );
+    });
+
     test('anki_official application layer does not import Legacy writers or views',
         () {
       const forbidden = [

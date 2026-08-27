@@ -8,17 +8,16 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/application/anki/anki_import_cleanup_service.dart';
-import 'package:turna/application/anki/anki_review_assembler.dart';
 import 'package:turna/application/anki/card_introduction_eligibility.dart';
 import 'package:turna/application/anki/unified_anki_import_orchestrator.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
-import 'package:turna/application/anki_official/migration/official_anki_write_owner.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/srs_provider.dart';
+import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/anki_note_dao.dart';
 import 'package:turna/data/anki_owner_authority_dao.dart';
@@ -123,128 +122,6 @@ class AnkiDeckManager {
     await setDailyNewLimit(defaultDailyNewLimit);
     await setDailyReviewLimit(defaultDailyReviewLimit);
     await setDailyChallengeIncludesAnki(true);
-  }
-
-  // ─── Daily Counters ─────────────────────────────────────────────────
-
-  static const String _newDoneTodayKey = 'anki.newDoneToday';
-  static const String _reviewDoneTodayKey = 'anki.reviewDoneToday';
-  static const String _limitsDateKey = 'anki.limitsDate';
-
-  static String _deckDoneKey(String importId, {required bool isNew}) =>
-      'anki.deck.$importId.${isNew ? 'new' : 'review'}Done.${_todayStamp()}';
-
-  static String _todayStamp() {
-    final now = DateTime.now();
-    final m = now.month.toString().padLeft(2, '0');
-    final d = now.day.toString().padLeft(2, '0');
-    return '${now.year}-$m-$d';
-  }
-
-  /// Reset the daily counters when the calendar day has rolled over.
-  /// Fire-and-forget writes — reads below always go through this first, so
-  /// the values are consistent within the session even before the writes
-  /// land.
-  void _resetCountersIfNewDay() {
-    final today = _todayStamp();
-    final stored = _appPrefs.preferences
-        .getString(_limitsDateKey, defaultValue: '')
-        .getValue();
-    if (stored == today) return;
-    unawaited(_appPrefs.preferences.setString(_limitsDateKey, today));
-    unawaited(_appPrefs.preferences.setInt(_newDoneTodayKey, 0));
-    unawaited(_appPrefs.preferences.setInt(_reviewDoneTodayKey, 0));
-  }
-
-  /// New cards (reps == 0 at review time) already studied today.
-  int get newDoneToday {
-    _resetCountersIfNewDay();
-    return _appPrefs.preferences
-        .getInt(_newDoneTodayKey, defaultValue: 0)
-        .getValue();
-  }
-
-  /// Review cards already studied today.
-  int get reviewDoneToday {
-    _resetCountersIfNewDay();
-    return _appPrefs.preferences
-        .getInt(_reviewDoneTodayKey, defaultValue: 0)
-        .getValue();
-  }
-
-  /// How many new cards may still be introduced today.
-  int get newRemainingToday => max(0, dailyNewLimit - newDoneToday);
-
-  /// How many review cards may still be studied today.
-  int get reviewRemainingToday => max(0, dailyReviewLimit - reviewDoneToday);
-
-  Future<int?> dailyNewLimitFor(String importId) =>
-      _importDao.dailyNewLimitFor(importId);
-
-  Future<int?> dailyReviewLimitFor(String importId) =>
-      _importDao.dailyReviewLimitFor(importId);
-
-  Future<int> remainingForImport(String importId, {required bool isNew}) async {
-    final limit = isNew
-        ? await dailyNewLimitFor(importId)
-        : await dailyReviewLimitFor(importId);
-    if (limit == null) return isNew ? newRemainingToday : reviewRemainingToday;
-    _resetCountersIfNewDay();
-    final key = _deckDoneKey(importId, isNew: isNew);
-    final done = _appPrefs.preferences.getInt(key, defaultValue: 0).getValue();
-    return max(0, limit - done);
-  }
-
-  /// Record one reviewed card against today's counters. [isNewCard] should
-  /// reflect the card's state *before* the review (reps == 0).
-  Future<void> recordCardReviewed({
-    required bool isNewCard,
-    String? importId,
-  }) async {
-    assertLegacySrsAnswerAllowed(importId: importId);
-    _resetCountersIfNewDay();
-    if (importId != null) {
-      final limit = isNewCard
-          ? await dailyNewLimitFor(importId)
-          : await dailyReviewLimitFor(importId);
-      if (limit != null) {
-        final key = _deckDoneKey(importId, isNew: isNewCard);
-        final current =
-            _appPrefs.preferences.getInt(key, defaultValue: 0).getValue();
-        await _appPrefs.preferences.setInt(key, min(limit, current + 1));
-        return;
-      }
-    }
-    final key = isNewCard ? _newDoneTodayKey : _reviewDoneTodayKey;
-    final current =
-        _appPrefs.preferences.getInt(key, defaultValue: 0).getValue();
-    await _appPrefs.preferences.setInt(key, current + 1);
-  }
-
-  Future<void> recordCardUnreviewed({
-    required bool wasNewCard,
-    String? importId,
-  }) async {
-    assertLegacySrsAnswerAllowed(importId: importId);
-    _resetCountersIfNewDay();
-    if (importId != null) {
-      final limit = wasNewCard
-          ? await dailyNewLimitFor(importId)
-          : await dailyReviewLimitFor(importId);
-      if (limit != null) {
-        await _decrementDone(_deckDoneKey(importId, isNew: wasNewCard));
-        return;
-      }
-    }
-    await _decrementDone(
-      wasNewCard ? _newDoneTodayKey : _reviewDoneTodayKey,
-    );
-  }
-
-  Future<void> _decrementDone(String key) async {
-    final current =
-        _appPrefs.preferences.getInt(key, defaultValue: 0).getValue();
-    await _appPrefs.preferences.setInt(key, max(0, current - 1));
   }
 
   // ─── Deck Uninstall ─────────────────────────────────────────────────
@@ -631,7 +508,7 @@ class AnkiDeckManager {
   /// Count of Anki cards in the SRS queue.
   int get ankiSrsCount {
     return _srsProvider.state.values
-        .where((w) => w.wordId.startsWith(AnkiReviewAssembler.ankiPrefix))
+        .where((w) => w.wordId.startsWith(LegacyAnkiIdentifiers.ankiPrefix))
         .length;
   }
 

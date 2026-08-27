@@ -3,7 +3,7 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/views/lesson/components/interactions/anki_card_renderer.dart';
-import 'package:turna/views/lesson/components/interactions/anki_html_card_renderer.dart';
+import 'package:turna/views/lesson/components/interactions/anki_html_card_retired_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/fill_blank_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/listen_and_pick_renderer.dart';
@@ -50,7 +50,7 @@ abstract class RendererModule {
     ReadingTrueFalseRenderer readingTrueFalse,
     ReadingShortAnswerRenderer readingShortAnswer,
     AnkiCardRenderer ankiCard,
-    AnkiHtmlCardRenderer ankiHtmlCard,
+    AnkiHtmlCardRetiredRenderer ankiHtmlCard,
   ) =>
       {
         showWord,

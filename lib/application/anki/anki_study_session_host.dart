@@ -120,29 +120,22 @@ class AnkiStudySessionHost {
     );
   }
 
-  /// Course-lesson item: Official → practice (no ledger); Legacy → learn.
+  /// Course-lesson item: always practice (no ledger write). Doc 35 L2:
+  /// the Turna-FSRS writer for Anki cards is retired, so legacy imports
+  /// study like official ones — flip through + introduction only.
   static StudyItem itemForCourse({
     required CanonicalCardKey key,
     required CardPresentation presentation,
     required String courseId,
     String placementId = '',
   }) {
-    if (key.backend == AnkiBackendKind.official) {
-      return itemFor(
-        key: key,
-        presentation: presentation,
-        mode: StudyMode.practice,
-        courseId: courseId,
-        placementId: placementId,
-        capabilities: StudyCapabilities.coursePractice(),
-      );
-    }
     return itemFor(
       key: key,
       presentation: presentation,
-      mode: StudyMode.learn,
+      mode: StudyMode.practice,
       courseId: courseId,
       placementId: placementId,
+      capabilities: StudyCapabilities.coursePractice(),
     );
   }
 
@@ -155,7 +148,6 @@ class AnkiStudySessionHost {
       items: items,
       ledgerResolver: StudyLedgerResolver(
         official: officialLedger,
-        turna: resolver.turna,
       ),
       introductionRepository: introductionRepository,
       onEffects: onEffects,

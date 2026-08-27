@@ -1,7 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:turna/application/anki/anki_review_assembler.dart';
 import 'package:turna/application/anki/card_introduction_eligibility.dart';
 import 'package:turna/application/anki/card_introduction_store.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
@@ -10,14 +7,8 @@ import 'package:turna/application/anki_official/engine/official_formal_due_snaps
 import 'package:turna/application/anki_official/engine/official_formal_due_update.dart';
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
-import 'package:turna/application/course_provider.dart';
-import 'package:turna/application/lesson_link_store.dart';
-import 'package:turna/application/srs_provider.dart';
 import 'package:turna/domain/anki/card_introduction_state.dart';
-import 'package:turna/domain/course/srs_word.dart';
-import 'package:turna/service/locator.dart';
 
-import '../../helpers/in_memory_course_db.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -82,75 +73,6 @@ void main() {
         eligibility.formalDueCount(schedulerDue: 2, introducedCount: 8),
         2,
       );
-    });
-  });
-
-  group('legacy review assembler', () {
-    late AppPrefs prefs;
-    late SrsProvider srs;
-    late CourseProvider courseProvider;
-
-    setUp(() async {
-      SharedPreferences.setMockInitialValues({});
-      final sp = await StreamingSharedPreferences.instance;
-      prefs = AppPrefs(sp);
-      await prefs.setString(PrefsConstants.courseScope, '');
-      await prefs.preferences.setString(LocalStateKeys.srsState, '{}');
-      srs = SrsProvider(prefs, LessonLinkStore(prefs), emptySrsStateDao());
-      courseProvider = CourseProvider(prefs);
-    });
-
-    test('20 unlearned due cards produce formal due 0', () {
-      for (var i = 1; i <= 20; i++) {
-        srs.registerWord('anki-pack-c$i');
-      }
-      final assembler = AnkiReviewAssembler(srs, courseProvider);
-      expect(assembler.totalAnkiDueCount, 0);
-      expect(assembler.unintroducedDueCount(), 20);
-      expect(assembler.collectDue(), isEmpty);
-    });
-
-    test('learning 3 cards then exiting exposes at most those 3', () async {
-      for (var i = 1; i <= 20; i++) {
-        srs.registerWord('anki-pack-c$i');
-      }
-      final store = CardIntroductionStore.debugOverride!;
-      await store.markFromLesson(
-        wordId: 'anki-pack-c1',
-        lessonId: 'anki-pack-u-l0',
-      );
-      await store.markFromLesson(
-        wordId: 'anki-pack-c2',
-        lessonId: 'anki-pack-u-l0',
-      );
-      await store.markFromLesson(
-        wordId: 'anki-pack-c3',
-        lessonId: 'anki-pack-u-l0',
-      );
-      final assembler = AnkiReviewAssembler(srs, courseProvider);
-      expect(assembler.totalAnkiDueCount, 3);
-      expect(
-        assembler.collectDue().map((w) => w.wordId).toSet(),
-        {'anki-pack-c1', 'anki-pack-c2', 'anki-pack-c3'},
-      );
-      expect(assembler.unintroducedDueCount(), 17);
-    });
-
-    test('imported history (reps>0) is introduced without a course submit',
-        () async {
-      await srs.bulkImportStates({
-        'anki-hist-c8': SrsWord(
-          wordId: 'anki-hist-c8',
-          dueAt: DateTime.now().subtract(const Duration(minutes: 1)),
-          intervalDays: 1,
-          ease: 2.5,
-          reps: 4,
-          lapses: 0,
-        ),
-      });
-      final assembler = AnkiReviewAssembler(srs, courseProvider);
-      expect(assembler.totalAnkiDueCount, 1);
-      expect(assembler.collectDue().single.wordId, 'anki-hist-c8');
     });
   });
 

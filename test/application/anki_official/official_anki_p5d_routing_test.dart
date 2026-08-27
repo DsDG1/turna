@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:turna/application/anki/anki_review_assembler.dart';
+import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
@@ -380,9 +380,9 @@ void main() {
     );
   });
 
-  test('p5d importIdFromWordId matches assembler prefix', () {
+  test('p5d importIdFromWordId matches the legacy id scheme', () {
     expect(
-      AnkiReviewAssembler.importIdFromWordId('anki-p5c-fixture-device-c1'),
+      LegacyAnkiIdentifiers.importIdFromWordId('anki-p5c-fixture-device-c1'),
       'p5c-fixture-device',
     );
   });

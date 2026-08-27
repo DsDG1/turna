@@ -78,8 +78,8 @@ import '../service/locator.dart' as _i523;
 import '../service/tts_availability_checker.dart' as _i307;
 import '../views/lesson/components/interactions/anki_card_renderer.dart'
     as _i940;
-import '../views/lesson/components/interactions/anki_html_card_renderer.dart'
-    as _i681;
+import '../views/lesson/components/interactions/anki_html_card_retired_renderer.dart'
+    as _i702;
 import '../views/lesson/components/interactions/fill_blank_renderer.dart'
     as _i665;
 import '../views/lesson/components/interactions/interaction_renderer.dart'
@@ -123,7 +123,8 @@ extension GetItInjectableX on _i174.GetIt {
     final audioModule = _$AudioModule();
     final rendererModule = _$RendererModule();
     gh.factory<_i940.AnkiCardRenderer>(() => _i940.AnkiCardRenderer());
-    gh.factory<_i681.AnkiHtmlCardRenderer>(() => _i681.AnkiHtmlCardRenderer());
+    gh.factory<_i702.AnkiHtmlCardRetiredRenderer>(
+        () => _i702.AnkiHtmlCardRetiredRenderer());
     gh.factory<_i665.FillBlankRenderer>(() => _i665.FillBlankRenderer());
     gh.factory<_i657.ListenAndPickRenderer>(
         () => _i657.ListenAndPickRenderer());
@@ -305,6 +306,23 @@ extension GetItInjectableX on _i174.GetIt {
               gh<_i523.AppPrefs>(),
               gh<_i927.StreakProvider>(),
             ));
+    gh.lazySingleton<Set<_i931.InteractionRenderer>>(
+        () => rendererModule.renderers(
+              gh<_i440.ShowWordRenderer>(),
+              gh<_i990.MultipleChoiceRenderer>(),
+              gh<_i147.MultiSelectRenderer>(),
+              gh<_i665.FillBlankRenderer>(),
+              gh<_i767.TranslateSentenceRenderer>(),
+              gh<_i657.ListenAndPickRenderer>(),
+              gh<_i757.TypeTheWordRenderer>(),
+              gh<_i785.ListenOnlyRenderer>(),
+              gh<_i215.ReorderSentenceRenderer>(),
+              gh<_i235.ReadingMcqRenderer>(),
+              gh<_i399.ReadingTrueFalseRenderer>(),
+              gh<_i532.ReadingShortAnswerRenderer>(),
+              gh<_i940.AnkiCardRenderer>(),
+              gh<_i702.AnkiHtmlCardRetiredRenderer>(),
+            ));
     gh.lazySingleton<_i257.MemoryCurveProvider>(() => _i257.MemoryCurveProvider(
           gh<_i68.ReviewHistoryDao>(),
           gh<_i361.SrsProvider>(),
@@ -326,23 +344,6 @@ extension GetItInjectableX on _i174.GetIt {
           gh<_i797.AchievementMigrationService>(),
           gh<_i417.GemsProvider>(),
         ));
-    gh.lazySingleton<Set<_i931.InteractionRenderer>>(
-        () => rendererModule.renderers(
-              gh<_i440.ShowWordRenderer>(),
-              gh<_i990.MultipleChoiceRenderer>(),
-              gh<_i147.MultiSelectRenderer>(),
-              gh<_i665.FillBlankRenderer>(),
-              gh<_i767.TranslateSentenceRenderer>(),
-              gh<_i657.ListenAndPickRenderer>(),
-              gh<_i757.TypeTheWordRenderer>(),
-              gh<_i785.ListenOnlyRenderer>(),
-              gh<_i215.ReorderSentenceRenderer>(),
-              gh<_i235.ReadingMcqRenderer>(),
-              gh<_i399.ReadingTrueFalseRenderer>(),
-              gh<_i532.ReadingShortAnswerRenderer>(),
-              gh<_i940.AnkiCardRenderer>(),
-              gh<_i681.AnkiHtmlCardRenderer>(),
-            ));
     gh.lazySingleton<_i495.LessonCompletionCoordinator>(
         () => _i495.LessonCompletionCoordinator(
               gh<_i565.GameProvider>(),

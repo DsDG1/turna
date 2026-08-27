@@ -63,6 +63,8 @@ class FormalReviewSourceCoordinator {
   factory FormalReviewSourceCoordinator.fromCatalog(
     List<CourseCatalogEntry> entries,
   ) {
+    // Doc 35 L2: Legacy-owned sources have no runtime anymore — Review
+    // All skips them (fail-closed) instead of opening retired semantics.
     return FormalReviewSourceCoordinator([
       for (final entry in entries)
         if (!entry.isBuiltin && entry.officialSourceId != null)
@@ -70,12 +72,6 @@ class FormalReviewSourceCoordinator {
             importOrSourceId: entry.officialSourceId!,
             displayName: entry.displayName,
             owner: AnkiEngineKind.official,
-          )
-        else if (!entry.isBuiltin && entry.legacyImportId != null)
-          FormalReviewSourceTarget(
-            importOrSourceId: entry.legacyImportId!,
-            displayName: entry.displayName,
-            owner: AnkiEngineKind.legacy,
           ),
     ]);
   }

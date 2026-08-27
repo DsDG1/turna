@@ -16,31 +16,6 @@ class TurnaReviewLedger implements ReviewLedger {
 
   TurnaReviewLedger(this._srsProvider);
 
-  /// Registers a Turna-owned Anki word the first time the study session
-  /// commits it. Official-owned cards never reach this ledger.
-  void ensureWord(String rawId, ReviewSource source) {
-    if (source is LegacyAnkiSource) {
-      assertLegacySrsAnswerAllowed(importId: source.importId);
-    }
-    if (!_srsProvider.state.containsKey(rawId)) {
-      switch (source) {
-        case LegacyAnkiSource(:final importId):
-          _srsProvider.registerWord(
-            rawId,
-            sourceKind: SrsSourceKind.ankiLegacy,
-            sourceId: importId,
-          );
-        case OfficialAnkiSource(:final sourceId):
-          _srsProvider.registerWord(
-            rawId,
-            sourceKind: SrsSourceKind.ankiOfficial,
-            sourceId: sourceId,
-          );
-        case TurnaCourseSource():
-          _srsProvider.registerWord(rawId);
-      }
-    }
-  }
 
   @override
   Future<ReviewDueSummary> dueSummary({String? scope}) async {

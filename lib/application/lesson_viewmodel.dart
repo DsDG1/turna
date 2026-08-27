@@ -11,14 +11,12 @@ import 'dart:async';
 import 'package:turna/application/anki/anki_study_session_host.dart';
 import 'package:turna/application/anki/card_introduction_eligibility.dart';
 import 'package:turna/application/anki/card_introduction_store.dart';
-import 'package:turna/application/anki/study_ledger_adapters.dart';
 import 'package:turna/application/anki/study_product_analytics.dart';
 import 'package:turna/application/anki/study_session_controller.dart';
 import 'package:turna/domain/anki/canonical_card_key.dart';
 import 'package:turna/domain/anki/card_presentation.dart';
 import 'package:turna/domain/anki/study_models.dart';
 import 'package:turna/domain/review/recall_outcome.dart';
-import 'package:turna/domain/review/turna_review_ledger.dart';
 import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/grammar_review_provider.dart';
@@ -671,10 +669,10 @@ class LessonViewModel extends ChangeNotifier {
   AnkiStudySessionHost _ankiSessionHost() {
     final override = AnkiStudySessionHost.debugOverride;
     if (override != null) return override;
+    // Doc 35 L2: course-lesson Anki items are practice-only (no ledger
+    // write), so the resolver carries no Turna leg anymore.
     return _ankiHost ??= AnkiStudySessionHost(
-      resolver: StudyLedgerResolver(
-        turna: TurnaStudyLedger(TurnaReviewLedger(_srsProvider)),
-      ),
+      resolver: const StudyLedgerResolver(),
     );
   }
 

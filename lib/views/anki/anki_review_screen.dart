@@ -10,16 +10,14 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/anki/anki_deck_manager.dart';
-import 'package:turna/application/anki/anki_review_assembler.dart';
 import 'package:turna/application/anki/formal_review_launcher.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
+import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/anki_official/engine/official_anki_home_due_sync.dart';
-import 'package:turna/data/anki_note_dao.dart';
 import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/domain/course/course_scope.dart';
-import 'package:turna/application/srs_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
@@ -75,7 +73,6 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
   @override
   Widget build(BuildContext context) {
     final courseProvider = context.watch<CourseProvider>();
-    final srsProvider = context.watch<SrsProvider>();
 
     // Find Anki sections (allSections: the review hub lists decks even when
     // the course scope hides them from the Learn-page tree).
@@ -96,10 +93,10 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
     };
     ankiSections.sort(
       (a, b) => (deckOrder[wireForImportId[
-                  AnkiReviewAssembler.importIdFromSectionId(a.id)]] ??
+                  LegacyAnkiIdentifiers.importIdFromSectionId(a.id)]] ??
               9999)
           .compareTo(deckOrder[wireForImportId[
-                  AnkiReviewAssembler.importIdFromSectionId(b.id)]] ??
+                  LegacyAnkiIdentifiers.importIdFromSectionId(b.id)]] ??
               9999),
     );
 
@@ -107,61 +104,15 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
       return _buildEmptyState(context);
     }
 
-    final assembler = AnkiReviewAssembler(srsProvider, courseProvider,
-        noteDao: getIt<AnkiNoteDao>());
-    // One pass over the SRS map for total + per-import due badges (not one
-    // full collectDue sort per section tile).
-    final dueSnap = assembler.dueSnapshot();
-    final totalDue = _aggregatedDue(ankiSections, dueSnap.byImportId);
-    final unintroducedNew = assembler.unintroducedDueCount() +
+    // Doc 35 L2: the Legacy assembler is gone — due badges aggregate the
+    // official due repository only. Legacy sections read 0 (fail-closed).
+    final totalDue = _aggregatedDue(ankiSections);
+    final unintroducedNew =
         OfficialFormalDueRepository.instance.snapshot.unintroducedOfficialDue;
-    final hasLegacySections = ankiSections.any((section) {
-      final importId = AnkiReviewAssembler.importIdFromSectionId(section.id);
-      return !OfficialFormalDueRepository.instance.officialImportIds.contains(importId);
-    });
-    final deckManager = getIt<AnkiDeckManager>();
-    final newLeft = deckManager.newRemainingToday;
-    final reviewLeft = deckManager.reviewRemainingToday;
 
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        // Daily quota summary
-        if (hasLegacySections)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            margin: const EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(
-              color: TurnaTheme.cardBg(context),
-              borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-              border: Border.all(
-                color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
-              ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.today_rounded,
-                  size: 18,
-                  color: TurnaTheme.textSecondaryColor(context),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    (newLeft == 0 && reviewLeft == 0)
-                        ? AppStrings.ankiQuotaExhausted
-                        : AppStrings.ankiQuotaRemaining(newLeft, reviewLeft),
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: TurnaTheme.textSecondaryColor(context),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
         // Total due summary
         if (OfficialFormalDueRepository.instance.snapshot.unavailable)
           Container(
@@ -247,7 +198,7 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
               _reorderDecks(context, ankiSections, oldIndex, newIndex),
           itemBuilder: (context, index) {
             final section = ankiSections[index];
-            final importId = AnkiReviewAssembler.importIdFromSectionId(
+            final importId = LegacyAnkiIdentifiers.importIdFromSectionId(
               section.id,
             );
             final isOfficial =
@@ -258,10 +209,7 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
                 sectionId: section.id,
                 sectionName: section.name,
                 description: section.description,
-                dueCount: _dueForSection(
-                  importId,
-                  dueSnap.byImportId,
-                ),
+                dueCount: _dueForSection(importId),
                 onTap: () => _startReview(
                   context,
                   section.id,
@@ -307,7 +255,7 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
     reordered.insert(newIndex, item);
     final deckIds = <String>{
       for (final section in reordered)
-        AnkiReviewAssembler.importIdFromSectionId(
+        LegacyAnkiIdentifiers.importIdFromSectionId(
             (section as dynamic).id as String),
     };
     // Wire-key based reorder: keep builtin first, then the decks in the
@@ -344,7 +292,7 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
 
   Future<void> _pinDeck(BuildContext context, String sectionId) async {
     final provider = context.read<CourseProvider>();
-    final importId = AnkiReviewAssembler.importIdFromSectionId(sectionId);
+    final importId = LegacyAnkiIdentifiers.importIdFromSectionId(sectionId);
     final pinnedWire = provider.catalogEntries
         .where((entry) =>
             entry.legacyImportId == importId ||
@@ -367,7 +315,7 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
     required String sectionId,
     required String title,
   }) async {
-    final importId = AnkiReviewAssembler.importIdFromSectionId(sectionId);
+    final importId = LegacyAnkiIdentifiers.importIdFromSectionId(sectionId);
     final dao = getIt<AnkiImportDao>();
     final currentNew = await dao.dailyNewLimitFor(importId);
     final currentReview = await dao.dailyReviewLimitFor(importId);
@@ -458,7 +406,7 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
     );
     if (confirmed != true || !context.mounted) return;
 
-    final importId = AnkiReviewAssembler.importIdFromSectionId(sectionId);
+    final importId = LegacyAnkiIdentifiers.importIdFromSectionId(sectionId);
     if (importId.isEmpty) return;
     var uninstallCompleted = false;
     var uninstallFailed = false;
@@ -542,23 +490,20 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
     );
   }
 
-  int? _dueForSection(String importId, Map<String, int> byImportId) {
+  int? _dueForSection(String importId) {
     if (OfficialFormalDueRepository.instance.officialImportIds.contains(importId)) {
       if (OfficialFormalDueRepository.instance.snapshot.unavailable) return null;
       return OfficialFormalDueRepository.instance.formalOfficialDueForImport(importId);
     }
-    return byImportId[importId] ?? 0;
+    // Legacy-owned section: scheduler retired (doc 35 L2), nothing is due.
+    return 0;
   }
 
-  int _aggregatedDue(
-    List<dynamic> ankiSections,
-    Map<String, int> byImportId,
-  ) {
+  int _aggregatedDue(List<dynamic> ankiSections) {
     var total = 0;
     for (final section in ankiSections) {
       total += _dueForSection(
-            AnkiReviewAssembler.importIdFromSectionId(section.id as String),
-            byImportId,
+            LegacyAnkiIdentifiers.importIdFromSectionId(section.id as String),
           ) ??
           0;
     }
@@ -580,7 +525,7 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
   }) async {
     final importId = sectionId == null
         ? ''
-        : AnkiReviewAssembler.importIdFromSectionId(sectionId);
+        : LegacyAnkiIdentifiers.importIdFromSectionId(sectionId);
     await const FormalReviewLauncher().open(
       context,
       entry: entry,

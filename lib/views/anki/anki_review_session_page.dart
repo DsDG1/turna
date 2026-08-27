@@ -4,8 +4,6 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:turna/application/anki/anki_deck_manager.dart';
-import 'package:turna/application/anki/anki_review_assembler.dart';
 import 'package:turna/application/anki/anki_review_content.dart';
 import 'package:turna/application/anki/anki_study_session_host.dart';
 import 'package:turna/application/anki/formal_review_launcher.dart';
@@ -17,18 +15,14 @@ import 'package:turna/application/anki/study_session_controller.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
+import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/review/official_formal_review_coordinator.dart';
 import 'package:turna/application/course_provider.dart';
-import 'package:turna/application/srs_provider.dart';
-import 'package:turna/data/anki_note_dao.dart';
-import 'package:turna/di/injection.dart';
-import 'package:turna/domain/anki/canonical_card_key.dart';
 import 'package:turna/domain/anki/card_presentation.dart';
 import 'package:turna/domain/anki/study_models.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/review/review_item.dart';
-import 'package:turna/domain/review/turna_review_ledger.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/anki/anki_official_review_gate.dart';
 import 'package:turna/views/anki/anki_webview_sizing.dart';
@@ -38,12 +32,13 @@ import 'package:turna/views/review/components/study_card_surface.dart';
 import 'package:turna/views/review/components/unified_review_completion.dart';
 import 'package:turna/views/theme.dart';
 
-/// Shared formal-review session for Turna-owned and Official-owned Anki cards.
+/// Shared formal-review session for Official-owned Anki cards.
 ///
 /// Every production entry lands here. Official capability failures fail closed
-/// and never open a different-semantics page. Official owners use
-/// [FormalReviewLauncher.assembleOfficialBatch] + [OfficialStudyLedger], not
-/// Legacy [AnkiReviewAssembler] / Turna SRS.
+/// and never open a different-semantics page (doc 35 L2: the Legacy assembler
+/// + Turna SRS runtime branch is deleted; still-Legacy-owned sources fail
+/// closed). Official owners use [FormalReviewLauncher.assembleOfficialBatch] +
+/// [OfficialStudyLedger].
 @RoutePage()
 class AnkiReviewSessionPage extends StatefulWidget {
   const AnkiReviewSessionPage({
@@ -75,14 +70,6 @@ class AnkiReviewSessionPage extends StatefulWidget {
 }
 
 class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
-  late final AnkiDeckManager _deckManager;
-
-  /// New-card identities as `"<sourceId>:<cardId>"`. Keyed by cardKey (not
-  /// interaction id / sessionItemId, which use different string conventions
-  /// and never matched) so both the record and the undo path resolve the
-  /// same card.
-  final Set<String> _newCardKeys = {};
-
   bool _loading = true;
   Object? _error;
   StudySessionController? _controller;
@@ -102,7 +89,6 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
   @override
   void initState() {
     super.initState();
-    _deckManager = getIt<AnkiDeckManager>();
     WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_start()));
   }
 
@@ -146,7 +132,6 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
       _officialSession?.dispose();
       _officialSession = null;
       _fidelityInteractions = const {};
-      _newCardKeys.clear();
     });
 
     try {
@@ -173,7 +158,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
       final importId = sourceTarget?.importOrSourceId ??
           (selectedSectionId == null
               ? ''
-              : AnkiReviewAssembler.importIdFromSectionId(selectedSectionId));
+              : LegacyAnkiIdentifiers.importIdFromSectionId(selectedSectionId));
       final officialOwner = sourceTarget != null
           ? sourceTarget.owner == AnkiEngineKind.official
           : widget.officialOwner ??
@@ -223,96 +208,16 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
         return;
       }
 
-      final course = context.read<CourseProvider>();
-      final srs = context.read<SrsProvider>();
-      final noteDao = getIt<AnkiNoteDao>();
-      final expiredBuried = await noteDao.clearBuriedBefore(
-        DateTime.now().millisecondsSinceEpoch,
-      );
-      for (final card in expiredBuried) {
-        await srs.setWordFlags(card.wordId, buried: false);
-      }
-
-      final maxNew = selectedImportId.isEmpty
-          ? _deckManager.newRemainingToday
-          : await _deckManager.remainingForImport(
-              selectedImportId,
-              isNew: true,
-            );
-      final maxReview = selectedImportId.isEmpty
-          ? _deckManager.reviewRemainingToday
-          : await _deckManager.remainingForImport(
-              selectedImportId,
-              isNew: false,
-            );
-
-      final batch = await AnkiReviewAssembler(
-        srs,
-        course,
-        noteDao: noteDao,
-      ).assembleReviewBatchAsync(
-        sectionId: selectedSectionId,
-        importId: sourceTarget == null ? null : selectedImportId,
-        maxNew: maxNew,
-        maxReview: maxReview,
-      );
-      if (!mounted) return;
-
-      final items = <StudyItem>[];
-      final fidelityInteractions = <String, AnkiHtmlCard>{};
-      for (final card in batch) {
-        final interaction = card.interaction;
-        final wordId = card.scheduled.wordId;
-        final item = AnkiStudySessionHost.itemFromReviewCard(
-          wordId: wordId,
-          interaction: interaction,
-          mode: StudyMode.review,
-          courseId: courseId,
-        );
-        if (card.scheduled.reps == 0) {
-          _newCardKeys.add(_cardKeyId(item.cardKey));
-        }
-        items.add(item);
-        if (interaction is AnkiHtmlCard) {
-          fidelityInteractions[item.sessionItemId] = interaction;
-        }
-      }
-
-      if (items.isEmpty) {
-        if (_sourceCoordinator != null) {
-          await _advanceReviewAll(recordSession: false);
-          return;
-        }
-        setState(() {
-          _loading = false;
-        });
-        return;
-      }
-
-      final host = AnkiStudySessionHost.debugOverride ??
-          AnkiStudySessionHost.resolveOrNull() ??
-          AnkiStudySessionHost(
-            resolver: StudyLedgerResolver(
-              turna: TurnaStudyLedger(TurnaReviewLedger(srs)),
-            ),
-            onEffects: (item, receipt) async {
-              StudyProductAnalytics.instance.record(receipt);
-              await _recordQuota(item);
-            },
-            onEffectsUndone: (receipt) async {
-              StudyProductAnalytics.instance.forget(receipt.eventId);
-              await _undoQuota(receipt);
-            },
-          );
-      final controller = host.open(items);
-      controller.addListener(_onController);
-      await controller.start();
+      // Doc 35 L2: the Legacy assembler + Turna SRS runtime branch is
+      // deleted. A source that is still Legacy-owned (recorded legacy
+      // owner, never migrated) fails closed instead of silently rendering
+      // a different scheduler's semantics.
       if (!mounted) return;
       setState(() {
-        _controller = controller;
-        _fidelityInteractions = fidelityInteractions;
+        _error = FormalReviewLauncher.failClosedMessage;
         _loading = false;
       });
+      return;
     } catch (error) {
       final coordinator = _sourceCoordinator;
       if (coordinator?.current != null) {
@@ -501,33 +406,6 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
     setState(() {
       _fidelityInteractions = Map.of(liveQueue.fidelityInteractions);
     });
-  }
-
-  String _cardKeyId(CanonicalCardKey key) => '${key.sourceId}:${key.cardId}';
-
-  Future<void> _recordQuota(StudyItem item) {
-    return _deckManager.recordCardReviewed(
-      isNewCard: _newCardKeys.contains(_cardKeyId(item.cardKey)),
-      importId: _importIdFromWordId(TurnaStudyLedger.wordIdFor(item.cardKey)),
-    );
-  }
-
-  Future<void> _undoQuota(StudyEventReceipt receipt) {
-    // The receipt's cardKey identifies the same card the quota was recorded
-    // for, so undo decrements the same counter (new vs review) — hardcoding
-    // false inflated the new-card quota for the rest of the day.
-    return _deckManager.recordCardUnreviewed(
-      wasNewCard: _newCardKeys.contains(_cardKeyId(receipt.cardKey)),
-      importId:
-          _importIdFromWordId(TurnaStudyLedger.wordIdFor(receipt.cardKey)),
-    );
-  }
-
-  String? _importIdFromWordId(String wordId) {
-    if (!wordId.startsWith('anki-')) return null;
-    final cardSeparator = wordId.lastIndexOf('-c');
-    if (cardSeparator <= 5) return null;
-    return wordId.substring(5, cardSeparator);
   }
 
   @override

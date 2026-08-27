@@ -9,7 +9,6 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:turna/application/anki/anki_review_assembler.dart';
 import 'package:turna/application/anki/formal_review_launcher.dart';
 import 'package:turna/application/anki_official/browser/official_anki_source_aware_browser.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
@@ -20,6 +19,7 @@ import 'package:turna/application/anki_official/storage/official_anki_source_dao
 import 'package:turna/data/anki_note_dao.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/di/injection.dart';
+import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/views/theme.dart';
 import 'package:turna/views/widgets/turna_select.dart';
 
@@ -247,7 +247,7 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
   void _openFormalReview(BuildContext context) {
     final importId = widget.importId.isNotEmpty
         ? widget.importId
-        : AnkiReviewAssembler.importIdFromSectionId(widget.sectionId ?? '');
+        : LegacyAnkiIdentifiers.importIdFromSectionId(widget.sectionId ?? '');
     unawaited(
       const FormalReviewLauncher().open(
         context,

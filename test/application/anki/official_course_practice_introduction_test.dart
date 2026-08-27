@@ -104,7 +104,8 @@ void main() {
       expect(store.introducedCountForSource(sourceId), 1);
     });
 
-    test('legacy course cards still use learn + Turna ledger owner', () {
+    test('legacy course cards degrade to practice (no Turna ledger write)',
+        () {
       final legacy = CanonicalCardKey(
         backend: AnkiBackendKind.legacyTurna,
         profileId: profile,
@@ -116,9 +117,12 @@ void main() {
         presentation: flip(legacy),
         courseId: 'anki-legacy-pack',
       );
-      expect(item.mode, StudyMode.learn);
-      expect(item.ledgerOwner, StudyLedgerOwner.turnaFsrs);
-      expect(item.capabilities.writesLedger, isTrue);
+      // Doc 35 L2: the Turna-FSRS writer for Anki cards is retired —
+      // legacy imports study like official ones (practice, flip-through,
+      // introduction only).
+      expect(item.mode, StudyMode.practice);
+      expect(item.ledgerOwner, StudyLedgerOwner.none);
+      expect(item.capabilities.writesLedger, isFalse);
       expect(item.capabilities.marksIntroduced, isTrue);
     });
   });
