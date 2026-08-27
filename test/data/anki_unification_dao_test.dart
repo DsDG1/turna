@@ -101,4 +101,42 @@ void main() {
       ],
     );
   });
+
+  test('allIntroductionRefs returns every row with its status', () async {
+    final db = emptyInMemoryCourseDatabase();
+    addTearDown(db.close);
+    final dao = AnkiUnificationDao(db);
+
+    CanonicalCardKey key(int cardId) => CanonicalCardKey(
+          backend: AnkiBackendKind.official,
+          profileId: 'profile-default-01',
+          sourceId: 'src',
+          cardId: cardId,
+        );
+
+    await dao.upsertIntroduction(
+      courseId: 'c1',
+      key: key(1),
+      status: CardIntroductionStatus.introduced,
+      introducedBy: CardIntroducedBy.course,
+    );
+    await dao.upsertIntroduction(
+      courseId: 'c1',
+      key: key(2),
+      status: CardIntroductionStatus.unintroduced,
+    );
+    await dao.upsertIntroduction(
+      courseId: 'c2',
+      key: key(3),
+      status: CardIntroductionStatus.retired,
+    );
+
+    final refs = await dao.allIntroductionRefs();
+    expect(refs, hasLength(3));
+    final byCard = {for (final ref in refs) ref.cardId: ref};
+    expect(byCard[1]!.status, CardIntroductionStatus.introduced);
+    expect(byCard[1]!.sourceId, 'src');
+    expect(byCard[2]!.status, CardIntroductionStatus.unintroduced);
+    expect(byCard[3]!.status, CardIntroductionStatus.retired);
+  });
 }

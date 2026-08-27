@@ -78,7 +78,7 @@ bury、suspend 和 restore 在 Official engine 写成功后，使用 `mutateSour
 
 `CardIntroductionStore` 仍拥有 introduction ledger 的持久化。DAO 写成功后才发布带真实 sourceId/cardId 的 `CardIntroductionChanged`；repository 将事件折叠进一个新 snapshot。失败写入不允许乐观标记为 introduced/retired。
 
-冷启动继续由完整 due sync 从 ledger 重建 introduced 状态。getter 不再动态读取 `CardIntroductionStore`，避免消费者在同一 snapshot 上得到不同结果。
+冷启动由 `CardIntroductionStore.hydrateFromLedger()` 从 ledger 重建 introduced 状态：store 本体保持 write-through（写库后进内存，自身从不再读），`setupLocator` 注册后立即回灌一次，`OfficialAnkiHomeDueSync` 与 `OfficialFormalReviewProductionLoader` 在各自入口幂等重入同一合并式回灌（并发去重、失败吞掉待下次重试、不发 `CardIntroductionChanged`）。回灌修复了重启后内存 introduced 集合为空导致正式复习全被过滤的问题。getter 不再动态读取 `CardIntroductionStore`，避免消费者在同一 snapshot 上得到不同结果。
 
 ## 已实现内容
 

@@ -87,6 +87,13 @@ class OfficialFormalReviewProductionLoader {
       return const OfficialFormalReviewNoDue();
     }
 
+    // Self-healing cold-start hydration: a fresh process has an empty
+    // in-memory introduced set; without re-reading the ledger every due
+    // card would be filtered out below and the session would end as NoDue
+    // (the "暂无待复习" bug). Idempotent merge, no-op when already hydrated
+    // in this pass.
+    await CardIntroductionStore.resolve().hydrateFromLedger();
+
     final target = resolveTarget != null
         ? await resolveTarget!(importId)
         : await _resolveTargetProduction(importId);

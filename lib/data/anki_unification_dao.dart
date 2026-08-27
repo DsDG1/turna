@@ -132,6 +132,30 @@ class AnkiUnificationDao {
     };
   }
 
+  /// Every introduction row as a flat (source, card, status) ref.
+  ///
+  /// The cold-start read for [CardIntroductionStore.hydrateFromLedger]:
+  /// status is returned raw so the caller decides which states it folds
+  /// into memory.
+  Future<List<({String sourceId, int cardId, CardIntroductionStatus status})>>
+      allIntroductionRefs() async {
+    final rows = await _db.customSelect(
+      '''
+      SELECT source_id, card_id, status
+      FROM anki_card_introduction_states
+      ''',
+    ).get();
+    return [
+      for (final row in rows)
+        (
+          sourceId: row.read<String>('source_id'),
+          cardId: row.read<int>('card_id'),
+          status: CardIntroductionStatus.values
+              .byName(row.read<String>('status')),
+        ),
+    ];
+  }
+
   Future<int> countByStatus({
     required String courseId,
     required CardIntroductionStatus status,

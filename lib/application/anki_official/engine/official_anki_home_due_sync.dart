@@ -5,6 +5,7 @@ import 'package:turna/application/anki_official/engine/official_anki_session.dar
 import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_snapshot_builder.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_update.dart';
+import 'package:turna/application/anki_official/introduction/card_introduction_store.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
 import 'package:turna/application/anki_official/migration/official_anki_production_router.dart';
@@ -46,6 +47,10 @@ class OfficialAnkiHomeDueSync {
 
   Future<void> _refreshOnce() async {
     final repo = OfficialFormalDueRepository.instance;
+    // Cold-start hydration: rebuild the in-memory introduced set from the
+    // ledger before the builder reads it, so due badges are correct after
+    // a restart (01-due-state.md). Idempotent; swallows its own errors.
+    await CardIntroductionStore.resolve().hydrateFromLedger();
     if (!LegacyAnkiMigrationFlags.cutoverEnabled) {
       // Owner routing still needs recorded Official ids (doc 34 W0-06).
       // Due numbers stay unavailable while cutover is paused.

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:turna/application/anki_official/introduction/card_introduction_eligibility.dart';
 import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/di/injection.dart';
@@ -60,11 +61,13 @@ class CardIntroductionStore {
   final Set<String> _introduced = {};
   final Set<String> _retired = {};
   final Map<String, int> _introducedBySource = {};
+  Future<void>? _hydrationInFlight;
 
   void resetForTest() {
     _introduced.clear();
     _retired.clear();
     _introducedBySource.clear();
+    _hydrationInFlight = null;
   }
 
   bool isFormallyEligibleWord(SrsWord word) {
@@ -94,6 +97,58 @@ class CardIntroductionStore {
       if (id != null) ids.add(id);
     }
     return ids;
+  }
+
+  /// Rebuilds the in-memory introduced set from the persisted ledger.
+  ///
+  /// The store is write-through only: nothing else ever reads the
+  /// introduction table back, so a fresh process would answer every
+  /// `introducedCardIdsForSource` query with an empty set and the formal-due
+  /// intersection (due ∩ introduced) would filter out every due card. This
+  /// merge is idempotent — present tokens stay, and `_introducedBySource`
+  /// is recomputed from the card tokens afterwards. Failures are swallowed
+  /// (callers re-invoke on their next pass); no [changes] event is
+  /// published because this fills a cache, it never mutates the ledger.
+  Future<void> hydrateFromLedger() {
+    // No DAO (test fallback instances): a synchronous no-op — never park
+    // _hydrationInFlight on a future whose completion microtask belongs to
+    // a caller's fake-async zone.
+    if (_dao == null) return Future.value();
+    final existing = _hydrationInFlight;
+    if (existing != null) return existing;
+    final run = _hydrateFromLedger();
+    _hydrationInFlight = run;
+    return run;
+  }
+
+  Future<void> _hydrateFromLedger() async {
+    final dao = _dao;
+    try {
+      final refs = await dao!.allIntroductionRefs();
+      for (final ref in refs) {
+        if (ref.status != CardIntroductionStatus.introduced) continue;
+        _introduced.add(_cardToken(ref.sourceId, ref.cardId));
+      }
+      _recountIntroducedBySource();
+    } catch (error) {
+      debugPrint('CardIntroductionStore: ledger hydration failed: $error');
+    } finally {
+      _hydrationInFlight = null;
+    }
+  }
+
+  void _recountIntroducedBySource() {
+    _introducedBySource.clear();
+    for (final token in _introduced) {
+      if (!token.startsWith(_cardTokenPrefix)) continue;
+      final rest = token.substring(_cardTokenPrefix.length);
+      final separator = rest.lastIndexOf(':');
+      if (separator < 0) continue;
+      if (int.tryParse(rest.substring(separator + 1)) == null) continue;
+      final sourceId = rest.substring(0, separator);
+      _introducedBySource[sourceId] =
+          (_introducedBySource[sourceId] ?? 0) + 1;
+    }
   }
 
   Future<void> markFromLesson({
@@ -156,8 +211,10 @@ class CardIntroductionStore {
     required String sourceId,
     required int cardId,
   }) {
-    final wasNew = _introduced.add(wordId);
-    _introduced.add(_cardToken(sourceId, cardId));
+    // Count once per distinct CARD, not per word-id alias — hydration
+    // merges card tokens too, so the count must be card-token based.
+    final wasNew = _introduced.add(_cardToken(sourceId, cardId));
+    _introduced.add(wordId);
     if (wasNew) {
       _introducedBySource[sourceId] = (_introducedBySource[sourceId] ?? 0) + 1;
     }
@@ -171,4 +228,6 @@ class CardIntroductionStore {
   }
 
   String _cardToken(String sourceId, int cardId) => 'card:$sourceId:$cardId';
+
+  static const _cardTokenPrefix = 'card:';
 }
