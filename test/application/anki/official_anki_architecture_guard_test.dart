@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  group('Anki unification architecture guards', () {
+  group('Official Anki architecture guards', () {
     test('new unification surfaces do not import scheduler DAOs', () {
       final violations = [
         ..._scan(
@@ -12,11 +12,11 @@ void main() {
         ),
         ..._scanFiles(
           const [
-            'lib/application/anki/study_session_controller.dart',
-            'lib/application/anki/anki_study_session_host.dart',
-            'lib/application/anki/formal_review_launcher.dart',
-            'lib/application/anki/unified_anki_import_orchestrator.dart',
-            'lib/application/anki/study_product_analytics.dart',
+            'lib/application/study_session/study_session_controller.dart',
+            'lib/application/study_session/anki_study_session_host.dart',
+            'lib/application/anki_official/review/formal_review_launcher.dart',
+            'lib/application/anki_official/import/unified_anki_import_orchestrator.dart',
+            'lib/application/study_session/study_product_analytics.dart',
             'lib/views/review/components/study_card_surface.dart',
             'lib/views/anki_official/official_anki_practice_review_surface.dart',
           ],
@@ -54,7 +54,7 @@ void main() {
 
     test('StudySessionController does not infer source from id prefixes', () {
       final text =
-          File('lib/application/anki/study_session_controller.dart')
+          File('lib/application/study_session/study_session_controller.dart')
               .readAsStringSync();
       expect(text.contains("startsWith('anki-')"), isFalse);
       expect(text.contains("startsWith('official-anki-')"), isFalse);
@@ -76,8 +76,8 @@ void main() {
         'lib/views/anki/anki_review_session_page.dart',
         'lib/views/anki/anki_official_review_gate.dart',
         'lib/views/review/unified_review_page.dart',
-        'lib/application/anki/anki_study_session_host.dart',
-        'lib/application/anki/formal_review_launcher.dart',
+        'lib/application/study_session/anki_study_session_host.dart',
+        'lib/application/anki_official/review/formal_review_launcher.dart',
       ];
       for (final path in paths) {
         final text = File(path).readAsStringSync();
@@ -114,10 +114,10 @@ void main() {
       final importScreen =
           File('lib/views/anki/anki_import_screen.dart').readAsStringSync();
       final controller = File(
-        'lib/application/anki/import_wizard/anki_import_controller.dart',
+        'lib/application/anki_import/anki_import_controller.dart',
       ).readAsStringSync();
       final deps = File(
-        'lib/application/anki/import_wizard/anki_import_dependencies.dart',
+        'lib/application/anki_import/anki_import_dependencies.dart',
       ).readAsStringSync();
       for (final text in [importScreen, controller, deps]) {
         expect(
@@ -219,12 +219,12 @@ void main() {
         isFalse,
       );
       final launcher = File(
-        'lib/application/anki/formal_review_launcher.dart',
+        'lib/application/anki_official/review/formal_review_launcher.dart',
       ).readAsStringSync();
       expect(launcher.contains('officialCapable'), isFalse);
       expect(launcher.contains('schedulerRuntimeAvailable'), isTrue);
       final orch = File(
-        'lib/application/anki/unified_anki_import_orchestrator.dart',
+        'lib/application/anki_official/import/unified_anki_import_orchestrator.dart',
       ).readAsStringSync();
       expect(orch.contains('officialCapable'), isFalse);
       expect(orch.contains('persistedOwnerIsOfficial'), isTrue);
@@ -261,6 +261,14 @@ void main() {
         Directory('lib/application/anki/unification').existsSync(),
         isFalse,
         reason: 'the unification store directory was revived',
+      );
+      // Doc 35 L3 boundary inversion: the retired mixed directory is gone;
+      // its survivors live in application/study_session, application/
+      // anki_import and application/anki_official.
+      expect(
+        Directory('lib/application/anki').existsSync(),
+        isFalse,
+        reason: 'lib/application/anki must stay empty after doc 35 L3',
       );
     });
 
@@ -410,7 +418,7 @@ void main() {
       }
       expect(violations, isEmpty, reason: violations.join(', '));
       expect(
-        File('lib/application/anki/formal_review_launcher.dart')
+        File('lib/application/anki_official/review/formal_review_launcher.dart')
             .readAsStringSync()
             .contains('OfficialReviewAllPlan'),
         isFalse,
@@ -420,7 +428,7 @@ void main() {
 
     test('production loader rejects empty source ids (Wave 3 §9.2)', () {
       final loader = File(
-        'lib/application/anki/official_formal_review_production_loader.dart',
+        'lib/application/anki_official/review/official_formal_review_production_loader.dart',
       ).readAsStringSync();
       expect(loader.contains('importId.isEmpty'), isTrue);
       expect(
@@ -447,12 +455,12 @@ void main() {
         expect(lineCount(step), lessThanOrEqualTo(500), reason: step);
       }
       expect(
-        lineCount('lib/application/anki/import_wizard/anki_import_controller.dart'),
+        lineCount('lib/application/anki_import/anki_import_controller.dart'),
         lessThanOrEqualTo(600),
         reason: 'controller must stay lean (helpers live in view_helpers.dart)',
       );
       for (final flow in const [
-        'lib/application/anki/import_wizard/official_first_anki_import_flow.dart',
+        'lib/application/anki_import/official_first_anki_import_flow.dart',
       ]) {
         expect(lineCount(flow), lessThanOrEqualTo(500), reason: flow);
       }

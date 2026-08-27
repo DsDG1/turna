@@ -7,7 +7,7 @@ import 'package:turna/application/gems_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/review/review_session_controller.dart';
 import 'package:turna/application/ai/ai_card_context_resolver.dart';
-import 'package:turna/application/anki/study_product_analytics.dart';
+import 'package:turna/application/study_session/study_product_analytics.dart';
 import 'package:turna/application/study_stats_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';

@@ -1,8 +1,8 @@
 import 'dart:io';
 
 import 'package:drift/drift.dart';
-import 'package:turna/application/anki/card_introduction_eligibility.dart';
-import 'package:turna/application/anki/unified_anki_import_orchestrator.dart';
+import 'package:turna/application/anki_official/introduction/card_introduction_eligibility.dart';
+import 'package:turna/application/anki_official/import/unified_anki_import_orchestrator.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/engine/official_anki_operation_coordinator.dart';

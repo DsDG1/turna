@@ -6,7 +6,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:turna/application/anki/anki_deck_manager.dart';
+import 'package:turna/application/anki_official/anki_deck_manager.dart';
 import 'package:turna/application/diagnostics/cache_diagnostics_registry.dart';
 import 'package:turna/application/diagnostics/runtime_memory_snapshot.dart';
 import 'package:turna/application/maintenance/storage_inventory_service.dart';

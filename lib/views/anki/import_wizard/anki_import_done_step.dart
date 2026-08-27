@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:turna/application/anki/import_wizard/anki_import_wizard_state.dart';
+import 'package:turna/application/anki_import/anki_import_wizard_state.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/anki/import_wizard/anki_import_wizard_widgets.dart';
 import 'package:turna/views/theme.dart';

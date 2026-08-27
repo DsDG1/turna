@@ -9,7 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:turna/application/anki/anki_deck_manager.dart';
+import 'package:turna/application/anki_official/anki_deck_manager.dart';
 import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/settings/commands/apply_fsrs_parameters_command.dart';

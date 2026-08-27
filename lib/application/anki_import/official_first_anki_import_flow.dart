@@ -1,5 +1,5 @@
-import 'package:turna/application/anki/import_wizard/anki_import_wizard_state.dart';
-import 'package:turna/application/anki/import_wizard/anki_import_dependencies.dart';
+import 'package:turna/application/anki_import/anki_import_wizard_state.dart';
+import 'package:turna/application/anki_import/anki_import_dependencies.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/import/anki_import_execution_plan.dart';
 

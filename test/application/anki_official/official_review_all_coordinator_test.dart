@@ -6,9 +6,9 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:turna/application/anki/formal_review_launcher.dart';
-import 'package:turna/application/anki/formal_review_source_coordinator.dart';
-import 'package:turna/application/anki/official_formal_review_production_loader.dart';
+import 'package:turna/application/anki_official/review/formal_review_launcher.dart';
+import 'package:turna/application/anki_official/review/formal_review_source_coordinator.dart';
+import 'package:turna/application/anki_official/review/official_formal_review_production_loader.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';

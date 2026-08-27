@@ -4,7 +4,7 @@ import 'package:turna/application/anki_official/contract/official_anki_dto.dart'
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_mapper.dart';
 import 'package:turna/application/anki_official/projection/official_exercise_presets.dart';
-import 'package:turna/application/anki/import_wizard/anki_import_view_helpers.dart';
+import 'package:turna/application/anki_import/anki_import_view_helpers.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_error_view.dart';
 import 'package:turna/views/theme.dart';

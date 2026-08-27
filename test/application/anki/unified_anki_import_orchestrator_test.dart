@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:drift/drift.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:turna/application/anki/card_introduction_eligibility.dart';
-import 'package:turna/application/anki/unified_anki_import_orchestrator.dart';
+import 'package:turna/application/anki_official/introduction/card_introduction_eligibility.dart';
+import 'package:turna/application/anki_official/import/unified_anki_import_orchestrator.dart';
 import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/di/injection.dart';
 

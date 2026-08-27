@@ -1,4 +1,4 @@
-import 'package:turna/application/anki/card_introduction_eligibility.dart';
+import 'package:turna/application/anki_official/introduction/card_introduction_eligibility.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_store.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';

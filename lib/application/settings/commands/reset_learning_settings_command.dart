@@ -1,5 +1,5 @@
 // Project imports:
-import 'package:turna/application/anki/anki_deck_manager.dart';
+import 'package:turna/application/anki_official/anki_deck_manager.dart';
 import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/settings/settings_operation_result.dart';
 import 'package:turna/application/settings_provider.dart';

@@ -1,8 +1,8 @@
 import 'package:path_provider/path_provider.dart';
-import 'package:turna/application/anki/card_introduction_eligibility.dart';
-import 'package:turna/application/anki/card_introduction_store.dart';
-import 'package:turna/application/anki/formal_review_launcher.dart';
-import 'package:turna/application/anki/official_study_batch_assembler.dart';
+import 'package:turna/application/anki_official/introduction/card_introduction_eligibility.dart';
+import 'package:turna/application/anki_official/introduction/card_introduction_store.dart';
+import 'package:turna/application/anki_official/review/formal_review_launcher.dart';
+import 'package:turna/application/anki_official/review/official_study_batch_assembler.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';

@@ -1,5 +1,5 @@
 import 'package:drift/drift.dart' show Variable;
-import 'package:turna/application/anki/unified_anki_import_orchestrator.dart';
+import 'package:turna/application/anki_official/import/unified_anki_import_orchestrator.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/data/course_database.dart';

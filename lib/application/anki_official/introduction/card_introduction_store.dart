@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:turna/application/anki/card_introduction_eligibility.dart';
+import 'package:turna/application/anki_official/introduction/card_introduction_eligibility.dart';
 import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/anki/canonical_card_key.dart';

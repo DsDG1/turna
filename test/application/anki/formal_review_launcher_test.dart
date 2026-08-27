@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:turna/application/anki/formal_review_launcher.dart';
+import 'package:turna/application/anki_official/review/formal_review_launcher.dart';
 import 'package:turna/l10n/app_strings.dart';
 
 void main() {

@@ -1,4 +1,4 @@
-import 'package:turna/application/anki/study_session_controller.dart';
+import 'package:turna/application/study_session/study_session_controller.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/anki/canonical_card_key.dart';
 import 'package:turna/domain/anki/card_introduction_state.dart';

@@ -25,7 +25,7 @@ import 'package:turna/application/restore_normalization_service.dart';
 import 'package:turna/application/system_health_monitor.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/core/verbose.dart';
-import 'package:turna/application/anki/card_introduction_store.dart';
+import 'package:turna/application/anki_official/introduction/card_introduction_store.dart';
 import 'package:turna/application/course_scope_migration.dart';
 import 'package:turna/data/anki_legacy_write_fence.dart';
 import 'package:turna/data/anki_owner_authority_dao.dart';

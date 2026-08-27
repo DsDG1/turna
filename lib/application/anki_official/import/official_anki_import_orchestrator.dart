@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:turna/application/anki/card_introduction_eligibility.dart';
+import 'package:turna/application/anki_official/introduction/card_introduction_eligibility.dart';
 import 'package:turna/data/anki_owner_authority_dao.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/di/injection.dart';

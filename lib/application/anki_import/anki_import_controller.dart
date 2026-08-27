@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
-import 'package:turna/application/anki/import_wizard/anki_import_view_helpers.dart';
-import 'package:turna/application/anki/import_wizard/anki_import_completion_coordinator.dart';
-import 'package:turna/application/anki/import_wizard/anki_import_dependencies.dart';
-import 'package:turna/application/anki/import_wizard/anki_import_wizard_state.dart';
-import 'package:turna/application/anki/import_wizard/official_first_anki_import_flow.dart';
+import 'package:turna/application/anki_import/anki_import_view_helpers.dart';
+import 'package:turna/application/anki_import/anki_import_completion_coordinator.dart';
+import 'package:turna/application/anki_import/anki_import_dependencies.dart';
+import 'package:turna/application/anki_import/anki_import_wizard_state.dart';
+import 'package:turna/application/anki_import/official_first_anki_import_flow.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/import/anki_import_execution_plan.dart';

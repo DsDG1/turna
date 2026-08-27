@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:turna/application/anki/official_study_batch_assembler.dart';
+import 'package:turna/application/anki_official/review/official_study_batch_assembler.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
 import 'package:turna/application/anki_official/review/official_formal_review_results.dart';

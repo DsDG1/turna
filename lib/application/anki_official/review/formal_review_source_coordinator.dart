@@ -1,5 +1,5 @@
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
-import 'package:turna/application/anki/card_introduction_eligibility.dart';
+import 'package:turna/application/anki_official/introduction/card_introduction_eligibility.dart';
 import 'package:turna/application/course_catalog.dart';
 
 class FormalReviewSourceTarget {

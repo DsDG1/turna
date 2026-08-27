@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:turna/application/anki/anki_study_session_host.dart';
-import 'package:turna/application/anki/card_introduction_store.dart';
+import 'package:turna/application/study_session/anki_study_session_host.dart';
+import 'package:turna/application/anki_official/introduction/card_introduction_store.dart';
 import 'package:turna/domain/anki/canonical_card_key.dart';
 import 'package:turna/domain/anki/card_introduction_state.dart';
 import 'package:turna/domain/anki/card_presentation.dart';

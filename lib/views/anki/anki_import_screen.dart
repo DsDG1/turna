@@ -9,9 +9,9 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:turna/application/anki/import_wizard/anki_import_controller.dart';
-import 'package:turna/application/anki/import_wizard/anki_import_dependencies.dart';
-import 'package:turna/application/anki/import_wizard/anki_import_wizard_state.dart';
+import 'package:turna/application/anki_import/anki_import_controller.dart';
+import 'package:turna/application/anki_import/anki_import_dependencies.dart';
+import 'package:turna/application/anki_import/anki_import_wizard_state.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/settings_provider.dart';

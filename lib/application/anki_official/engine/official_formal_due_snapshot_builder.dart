@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:turna/application/anki/card_introduction_store.dart';
+import 'package:turna/application/anki_official/introduction/card_introduction_store.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_update.dart';
 

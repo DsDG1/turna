@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:turna/application/anki/card_introduction_store.dart';
-import 'package:turna/application/anki/official_study_batch_assembler.dart';
+import 'package:turna/application/anki_official/introduction/card_introduction_store.dart';
+import 'package:turna/application/anki_official/review/official_study_batch_assembler.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_snapshot_builder.dart';

@@ -1,5 +1,5 @@
 import 'package:drift/drift.dart';
-import 'package:turna/application/anki/card_introduction_store.dart';
+import 'package:turna/application/anki_official/introduction/card_introduction_store.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_canonical.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_ids.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_projector.dart';

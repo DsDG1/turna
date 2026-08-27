@@ -34,10 +34,10 @@ void main() {
     expect(OfficialAnkiFeatureFlags.current.allowsOfficialImport, isTrue);
     expect(OfficialAnkiFeatureFlags.current.allowsOfficialRenderer, isTrue);
     final deps = File(
-      'lib/application/anki/import_wizard/anki_import_dependencies.dart',
+      'lib/application/anki_import/anki_import_dependencies.dart',
     ).readAsStringSync();
     final officialFlow = File(
-      'lib/application/anki/import_wizard/official_first_anki_import_flow.dart',
+      'lib/application/anki_import/official_first_anki_import_flow.dart',
     ).readAsStringSync();
     final service = File(
       'lib/application/anki_official/import/official_anki_official_first_service.dart',

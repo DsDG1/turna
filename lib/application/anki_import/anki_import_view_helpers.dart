@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:turna/application/anki/import_wizard/anki_import_wizard_state.dart';
+import 'package:turna/application/anki_import/anki_import_wizard_state.dart';
 import 'package:turna/application/anki_practice/card_text.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';

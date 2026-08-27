@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:turna/application/anki/anki_review_content.dart';
-import 'package:turna/application/anki/anki_study_session_host.dart';
+import 'package:turna/application/study_session/anki_review_content.dart';
+import 'package:turna/application/study_session/anki_study_session_host.dart';
 import 'package:turna/domain/anki/study_models.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/review/review_item.dart';

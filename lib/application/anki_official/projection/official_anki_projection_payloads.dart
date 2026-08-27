@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:turna/application/anki/card_presentation_policy.dart';
+import 'package:turna/application/anki_official/projection/card_presentation_policy.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_canonical.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_ids.dart';

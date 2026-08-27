@@ -9,8 +9,8 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:turna/application/anki/anki_deck_manager.dart';
-import 'package:turna/application/anki/formal_review_launcher.dart';
+import 'package:turna/application/anki_official/anki_deck_manager.dart';
+import 'package:turna/application/anki_official/review/formal_review_launcher.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
 import 'package:turna/application/anki_official/official_anki_ids.dart';

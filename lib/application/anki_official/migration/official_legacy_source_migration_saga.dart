@@ -11,7 +11,7 @@ import 'package:turna/application/anki_official/migration/official_anki_dry_run_
 import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_state.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
-import 'package:turna/application/anki/card_introduction_eligibility.dart';
+import 'package:turna/application/anki_official/introduction/card_introduction_eligibility.dart';
 import 'package:turna/data/anki_owner_authority_dao.dart';
 
 /// Census / reconciler status that may enter the W8 single-source saga.

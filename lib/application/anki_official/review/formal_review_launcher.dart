@@ -1,7 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
-import 'package:turna/application/anki/official_study_batch_assembler.dart';
-import 'package:turna/application/anki/study_ledger_adapters.dart';
+import 'package:turna/application/anki_official/review/official_study_batch_assembler.dart';
+import 'package:turna/application/study_session/study_ledger_adapters.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
 import 'package:turna/application/anki_official/review/official_formal_review_coordinator.dart';

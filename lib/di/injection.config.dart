@@ -29,7 +29,7 @@ import '../application/ai/engine/ai_engine.dart' as _i717;
 import '../application/ai/engine/ai_engine_config_holder.dart' as _i691;
 import '../application/ai/engine/ai_http_client.dart' as _i518;
 import '../application/ai/engine/ai_recent_tasks_provider.dart' as _i687;
-import '../application/anki/anki_deck_manager.dart' as _i1045;
+import '../application/anki_official/anki_deck_manager.dart' as _i917;
 import '../application/audio_controller.dart' as _i106;
 import '../application/cosmetic_provider.dart' as _i42;
 import '../application/course_provider.dart' as _i1051;
@@ -263,7 +263,7 @@ extension GetItInjectableX on _i174.GetIt {
             ));
     gh.lazySingleton<_i579.CourseReadyGuard>(
         () => _i579.CourseReadyGuard(gh<_i1051.CourseProvider>()));
-    gh.lazySingleton<_i1045.AnkiDeckManager>(() => _i1045.AnkiDeckManager(
+    gh.lazySingleton<_i917.AnkiDeckManager>(() => _i917.AnkiDeckManager(
           repo: gh<_i876.ICourseRepository>(),
           srsProvider: gh<_i361.SrsProvider>(),
           importDao: gh<_i151.AnkiImportDao>(),

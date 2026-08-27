@@ -8,11 +8,11 @@ import 'package:injectable/injectable.dart';
 import 'dart:async';
 
 // Project imports:
-import 'package:turna/application/anki/anki_study_session_host.dart';
-import 'package:turna/application/anki/card_introduction_eligibility.dart';
-import 'package:turna/application/anki/card_introduction_store.dart';
-import 'package:turna/application/anki/study_product_analytics.dart';
-import 'package:turna/application/anki/study_session_controller.dart';
+import 'package:turna/application/study_session/anki_study_session_host.dart';
+import 'package:turna/application/anki_official/introduction/card_introduction_eligibility.dart';
+import 'package:turna/application/anki_official/introduction/card_introduction_store.dart';
+import 'package:turna/application/study_session/study_product_analytics.dart';
+import 'package:turna/application/study_session/study_session_controller.dart';
 import 'package:turna/domain/anki/canonical_card_key.dart';
 import 'package:turna/domain/anki/card_presentation.dart';
 import 'package:turna/domain/anki/study_models.dart';

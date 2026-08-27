@@ -2,8 +2,8 @@
 import 'package:flutter/foundation.dart';
 
 // Project imports:
-import 'package:turna/application/anki/card_introduction_eligibility.dart';
-import 'package:turna/application/anki/unified_anki_import_orchestrator.dart';
+import 'package:turna/application/anki_official/introduction/card_introduction_eligibility.dart';
+import 'package:turna/application/anki_official/import/unified_anki_import_orchestrator.dart';
 import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/mistake_provider.dart';
