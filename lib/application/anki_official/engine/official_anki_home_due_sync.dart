@@ -6,6 +6,7 @@ import 'package:turna/application/anki_official/engine/official_formal_due_repos
 import 'package:turna/application/anki_official/engine/official_formal_due_snapshot_builder.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_update.dart';
 import 'package:turna/application/anki_official/introduction/card_introduction_store.dart';
+import 'package:turna/application/anki_official/introduction/imported_history_introducer.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
 import 'package:turna/application/anki_official/migration/official_anki_production_router.dart';
@@ -128,6 +129,14 @@ class OfficialAnkiHomeDueSync {
           repo.markUnavailable(StateError('collection open retry exhausted'));
           return;
         }
+
+        // Imported-history adopt (01-due-state.md): upgrade ledger rows that
+        // were seeded `unintroduced` although the collection proves the card
+        // was already studied (reps>=1). Runs BEFORE the collect so the
+        // committed snapshot already sees the adopted ids; the repository's
+        // generation guard absorbs the racing change events. Failures never
+        // fail the refresh — the next pass retries.
+        await _adoptImportedHistory(session);
 
         Future<Set<int>> fetchByQuery(String query) async {
           final ids = <int>{};
@@ -254,6 +263,31 @@ class OfficialAnkiHomeDueSync {
     if (result != OfficialFormalDueCommitResult.committed) {
       debugPrint(
         '[OfficialAnkiHomeDueSync] stale generation; dropping refresh result',
+      );
+    }
+  }
+
+  Future<void> _adoptImportedHistory(OfficialAnkiSession session) async {
+    try {
+      final course = CourseLoader.databaseOrNull();
+      if (course == null) return;
+      final rows = await course.customSelect(
+        'SELECT DISTINCT source_id, card_id FROM official_anki_projection_index',
+      ).get();
+      if (rows.isEmpty) return;
+      final cardIdsBySource = <String, Set<int>>{};
+      for (final row in rows) {
+        cardIdsBySource
+            .putIfAbsent(row.read<String>('source_id'), () => <int>{})
+            .add(row.read<int>('card_id'));
+      }
+      await const ImportedHistoryIntroducer().adopt(
+        searchPage: session.searchCardsPage,
+        cardIdsBySource: cardIdsBySource,
+      );
+    } catch (error) {
+      debugPrint(
+        '[OfficialAnkiHomeDueSync] imported-history adopt failed: $error',
       );
     }
   }

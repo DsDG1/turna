@@ -8,6 +8,7 @@ import 'package:turna/application/anki_official/contract/official_anki_contract.
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
+import 'package:turna/application/anki_official/introduction/imported_history_introducer.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_canonical.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_fingerprint.dart';
@@ -541,6 +542,9 @@ class OfficialAnkiCourseProjectionService {
           plan: plan,
           sourceFingerprint: fingerprint,
           publishedAtMillis: DateTime.now().millisecondsSinceEpoch,
+          studiedCardIds: await _fetchStudiedCardIds(
+            planCardIds: {for (final item in plan.items) item.cardId},
+          ),
         );
       } catch (error) {
         jobs.markFailed(
@@ -668,6 +672,27 @@ class OfficialAnkiCourseProjectionService {
       cardSetFingerprint: sha256.convert(utf8.encode(idsForHash.toString())).toString(),
       total: total,
     );
+  }
+
+  /// Cards of this projection whose imported history (reps>=1) proves they
+  /// were already studied. Best-effort: on search failure the projection
+  /// still publishes and the home due sync's adopt pass repairs the ledger
+  /// on its next refresh.
+  Future<Set<int>> _fetchStudiedCardIds({
+    required Set<int> planCardIds,
+  }) async {
+    try {
+      final studied = await const ImportedHistoryIntroducer().fetchStudiedCardIds(
+        searchPage: engine.searchCardsPage,
+      );
+      return studied.intersection(planCardIds);
+    } catch (error) {
+      debugPrint(
+        'OfficialAnkiCourseProjectionService: studied-card search failed: '
+        '$error',
+      );
+      return const <int>{};
+    }
   }
 
   Future<

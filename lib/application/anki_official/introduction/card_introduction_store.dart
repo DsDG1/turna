@@ -185,12 +185,22 @@ class CardIntroductionStore {
   }
 
 
+  /// Seeds the introduction ledger for a freshly published projection.
+  ///
+  /// Cards whose imported history proves they were already studied
+  /// ([studiedCardIds], collected via the `prop:reps>=1` collection search)
+  /// seed as introduced — `initialStatus` is the single rule. Seeded rows
+  /// fold into memory silently (no [changes] event): at publish time the
+  /// due repository does not track the source yet, and every consumer
+  /// re-hydrates at entry.
   Future<void> seedOfficialProjection({
     required String sourceId,
     required Iterable<int> cardIds,
+    Set<int> studiedCardIds = const {},
   }) async {
     final courseId =
         CardIntroductionEligibility.courseIdForOfficialSource(sourceId);
+    var memoryAdded = false;
     for (final cardId in cardIds) {
       final key = CanonicalCardKey(
         backend: AnkiBackendKind.official,
@@ -198,11 +208,50 @@ class CardIntroductionStore {
         sourceId: sourceId,
         cardId: cardId,
       );
+      final studied = studiedCardIds.contains(cardId);
       await _dao?.ensureInitial(
         courseId: courseId,
         key: key,
-        status: CardIntroductionStatus.unintroduced,
+        status: eligibility.initialStatus(reps: studied ? 1 : 0),
+        introducedBy:
+            studied ? CardIntroducedBy.importedHistory : null,
+        introducedAt: studied ? DateTime.now() : null,
       );
+      if (studied && _introduced.add(_cardToken(sourceId, cardId))) {
+        memoryAdded = true;
+      }
+    }
+    if (memoryAdded) _recountIntroducedBySource();
+  }
+
+  /// Self-healing backfill (01-due-state.md): imported history proves these
+  /// cards were already studied, so ledger rows seeded `unintroduced` are
+  /// upgraded to introduced. Already-introduced and retired rows are left
+  /// untouched. Persist first; only rows that actually changed are folded
+  /// into memory and announced via [changes] so the due repository can
+  /// refresh its snapshot.
+  Future<void> adoptImportedHistory({
+    required String sourceId,
+    required Iterable<int> cardIds,
+  }) async {
+    final courseId =
+        CardIntroductionEligibility.courseIdForOfficialSource(sourceId);
+    final dao = _dao;
+    for (final cardId in cardIds) {
+      final key = CanonicalCardKey(
+        backend: AnkiBackendKind.official,
+        profileId: CardIntroductionEligibility.defaultProfileId,
+        sourceId: sourceId,
+        cardId: cardId,
+      );
+      final changed = dao == null ||
+          await dao.adoptImportedHistory(
+            courseId: courseId,
+            key: key,
+            adoptedAt: DateTime.now(),
+          );
+      if (!changed) continue;
+      _rememberIntroducedCard(sourceId: sourceId, cardId: cardId);
     }
   }
 
@@ -211,10 +260,17 @@ class CardIntroductionStore {
     required String sourceId,
     required int cardId,
   }) {
+    _introduced.add(wordId);
+    _rememberIntroducedCard(sourceId: sourceId, cardId: cardId);
+  }
+
+  void _rememberIntroducedCard({
+    required String sourceId,
+    required int cardId,
+  }) {
     // Count once per distinct CARD, not per word-id alias — hydration
     // merges card tokens too, so the count must be card-token based.
     final wasNew = _introduced.add(_cardToken(sourceId, cardId));
-    _introduced.add(wordId);
     if (wasNew) {
       _introducedBySource[sourceId] = (_introducedBySource[sourceId] ?? 0) + 1;
     }

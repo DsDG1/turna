@@ -223,6 +223,43 @@ class AnkiUnificationDao {
     );
   }
 
+  /// Upgrades one card's introduction row to introduced because imported
+  /// history (reps>=1) proves it was already studied. Returns whether the
+  /// row was inserted or upgraded; rows already introduced or retired are
+  /// left untouched — a backfill must never rewrite the course-taught or
+  /// retired lifecycle.
+  Future<bool> adoptImportedHistory({
+    required String courseId,
+    required CanonicalCardKey key,
+    required DateTime adoptedAt,
+  }) async {
+    final affected = await _db.customUpdate(
+      '''
+      INSERT INTO anki_card_introduction_states (
+        course_id, source_id, card_id, status, introduced_by,
+        introduced_at, first_lesson_id, last_studied_at, version
+      ) VALUES (?, ?, ?, 'introduced', 'importedHistory', ?, NULL, ?, 1)
+      ON CONFLICT(course_id, source_id, card_id) DO UPDATE SET
+        status = 'introduced',
+        introduced_by = COALESCE(
+          anki_card_introduction_states.introduced_by, 'importedHistory'),
+        introduced_at = COALESCE(
+          anki_card_introduction_states.introduced_at, excluded.introduced_at),
+        last_studied_at = excluded.last_studied_at,
+        version = anki_card_introduction_states.version + 1
+      WHERE anki_card_introduction_states.status = 'unintroduced'
+      ''',
+      variables: [
+        Variable.withString(courseId),
+        Variable.withString(key.sourceId),
+        Variable.withInt(key.cardId),
+        Variable.withInt(adoptedAt.millisecondsSinceEpoch),
+        Variable.withInt(adoptedAt.millisecondsSinceEpoch),
+      ],
+    );
+    return affected > 0;
+  }
+
   Future<void> insertActivePlacement({
     required String placementId,
     required String courseId,

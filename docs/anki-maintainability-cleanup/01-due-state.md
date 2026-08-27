@@ -80,6 +80,13 @@ bury、suspend 和 restore 在 Official engine 写成功后，使用 `mutateSour
 
 冷启动由 `CardIntroductionStore.hydrateFromLedger()` 从 ledger 重建 introduced 状态：store 本体保持 write-through（写库后进内存，自身从不再读），`setupLocator` 注册后立即回灌一次，`OfficialAnkiHomeDueSync` 与 `OfficialFormalReviewProductionLoader` 在各自入口幂等重入同一合并式回灌（并发去重、失败吞掉待下次重试、不发 `CardIntroductionChanged`）。回灌修复了重启后内存 introduced 集合为空导致正式复习全被过滤的问题。getter 不再动态读取 `CardIntroductionStore`，避免消费者在同一 snapshot 上得到不同结果。
 
+### 导入历史计为 introduced
+
+导入时自带复习历史（collection 中 `cards.reps >= 1`）的卡视同已学：`initialStatus` 是唯一状态规则，`introducedBy = importedHistory`。此前 `seedOfficialProjection` 对所有卡硬编码 unintroduced，这类卡在六集合交集下永远无法进入正式复习。两条写入路径：
+
+- 发布种子：投影发布前经 `ImportedHistoryIntroducer.fetchStudiedCardIds` 用 `prop:reps>=1` 集合搜索（原生 Anki 搜索语法，走既有 `searchCardsPage` 通道，无 ABI 变更）取有历史的卡集，与 plan 卡集相交后随 `replaceOfficialProjection` 传入 seed。搜索失败时降级为空集照常发布，由下一条路径自愈。种子写入内存但不发 `CardIntroductionChanged`（发布时 repository 尚未跟踪该来源，入口回灌会补齐）。
+- 自愈采纳：`OfficialAnkiHomeDueSync` 在 collection 打开之后、六集合收集之前，按 `official_anki_projection_index` 分源交集并调用 `adoptImportedHistory`。DAO 用条件 upsert（`ON CONFLICT DO UPDATE ... WHERE status='unintroduced'`）只升级 unintroduced 或缺失的行——course-introduced 与 retired 的生命周期永不被回填改写；仅对实际变更的卡折入内存并发事件，与刷新竞争交给既有 generation CAS。采纳失败不拖垮刷新，下一轮自然重试，无需 prefs 标记。
+
 ## 已实现内容
 
 - 新增完整写模型和 snapshot builder；
@@ -88,6 +95,7 @@ bury、suspend 和 restore 在 Official engine 写成功后，使用 `mutateSour
 - Router 改成 `collectFormalDueCardIds` / `collectHomeDueFromDeckTree` 等纯数据收集接口；
 - Ledger 与 source-aware Browser 改为 CAS mutation；
 - introduction/retire 在持久化后通过 source-scoped 事件进入 snapshot；
+- 导入历史（reps>=1）在发布种子与 home sync 自愈采纳两条路径计为 introduced（importedHistory），存量 unintroduced 行由条件 upsert 升级、不改写 course/retired 生命周期；
 - 删除 getter 的 introduction 动态旁路；
 - 删除 `official_anki_home_due.dart` 静态 facade；
 - Play Hub 只在 selector/view model 中计算聚合 due，不在 `build()` 写 repository；

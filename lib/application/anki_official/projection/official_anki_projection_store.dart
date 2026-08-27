@@ -80,6 +80,7 @@ class OfficialAnkiCourseProjectionStore {
     String sourceFingerprint = '',
     int projectionVersion = 1,
     int publishedAtMillis = 0,
+    Set<int> studiedCardIds = const {},
   }) async {
     await course.transaction(() async {
       // P5F-33: drop the previous projection's vocabulary rows before the
@@ -238,6 +239,7 @@ class OfficialAnkiCourseProjectionStore {
     await CardIntroductionStore.resolve().seedOfficialProjection(
       sourceId: sourceId,
       cardIds: {for (final item in plan.items) item.cardId},
+      studiedCardIds: studiedCardIds,
     );
   }
 

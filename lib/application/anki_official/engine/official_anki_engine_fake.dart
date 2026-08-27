@@ -227,6 +227,8 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
     final wantBuried = !excludeBuried && raw.contains('is:buried');
     final excludeMarked = raw.contains('-tag:marked');
     final wantMarked = !excludeMarked && raw.contains('tag:marked');
+    final wantStudied = raw.contains('prop:reps>=1') ||
+        raw.contains('prop:reps>0');
     final flagMatch = RegExp(r'(?:^|\s)flag:(\d+)').firstMatch(raw);
     final tagMatch = RegExp(r'(?:^|\s)tag:"([^"]+)"').firstMatch(raw);
     final needle = raw
@@ -236,6 +238,8 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
         .replaceAll('is:buried', '')
         .replaceAll('-tag:marked', '')
         .replaceAll('tag:marked', '')
+        .replaceAll('prop:reps>=1', '')
+        .replaceAll('prop:reps>0', '')
         .replaceAll(RegExp(r'(?:^|\s)flag:\d+'), '')
         .replaceAll(RegExp(r'(?:^|\s)tag:"[^"]+"'), '')
         .trim();
@@ -254,6 +258,9 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
       ids = ids.where((id) => cards[id]?.marked == true).toList();
     } else if (excludeMarked) {
       ids = ids.where((id) => cards[id]?.marked != true).toList();
+    }
+    if (wantStudied) {
+      ids = ids.where(studiedCardIds.contains).toList();
     }
     if (flagMatch != null) {
       final flag = int.parse(flagMatch.group(1)!);
@@ -521,6 +528,9 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
   var currentDeckId = 1;
   final buried = <int>{};
   final suspended = <int>{};
+  /// Cards with imported history (cards.reps >= 1) — matched by the
+  /// `prop:reps>=1` search term (imported-history introduction seeding).
+  final studiedCardIds = <int>{};
   final answeredIds = <int>{};
   int? newPerDayLimit;
 
