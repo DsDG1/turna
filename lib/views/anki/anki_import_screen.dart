@@ -9,15 +9,9 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
-import 'package:turna/application/anki/anki_card_adapter.dart';
-import 'package:turna/application/anki/anki_importer.dart';
-import 'package:turna/application/anki/anki_models.dart';
-import 'package:turna/application/srs_provider.dart';
 import 'package:turna/application/anki/import_wizard/anki_import_controller.dart';
 import 'package:turna/application/anki/import_wizard/anki_import_dependencies.dart';
 import 'package:turna/application/anki/import_wizard/anki_import_wizard_state.dart';
-import 'package:turna/application/anki/import_wizard/question_type.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/settings_provider.dart';
@@ -25,36 +19,19 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/anki/import_wizard/anki_import_done_step.dart';
 import 'package:turna/views/anki/import_wizard/anki_import_wizard_widgets.dart';
-import 'package:turna/views/anki/import_wizard/anki_notetype_mapping_editor.dart';
-import 'package:turna/views/anki/import_wizard/legacy_anki_import_preview.dart';
 import 'package:turna/views/anki/import_wizard/official_anki_import_preview.dart';
 import 'package:turna/views/theme.dart';
 
 /// Anki import wizard shell (maintainability plan §10). The page only
 /// renders controller state, hosts dialogs/routes and performs the
 /// done-step navigation intents — the flow state machine lives in
-/// [AnkiImportController], business work in the two flows.
+/// [AnkiImportController], business work in the official-first flow.
 ///
 /// Steps: 1. file selection 2. parsing 3. preview (deck structure,
-/// notetype mapping, collision report) 4. import execution 5. done.
-///
-/// When [startWithSample] is true, the wizard loads the built-in sample
-/// deck immediately (skipping the file picker).
+/// notetype mapping) 4. import execution 5. done.
 @RoutePage()
 class AnkiImportPage extends StatefulWidget {
-  final bool startWithSample;
-
-  /// Test seam: inject a parser so widget tests can drive the whole wizard
-  /// without the parse worker isolate — fake-async cannot receive isolate
-  /// port messages. Production always leaves this null.
-  @visibleForTesting
-  final AnkiImporter? importerForTest;
-
-  const AnkiImportPage({
-    super.key,
-    this.startWithSample = false,
-    this.importerForTest,
-  });
+  const AnkiImportPage({super.key});
 
   @override
   State<AnkiImportPage> createState() => _AnkiImportPageState();
@@ -62,18 +39,6 @@ class AnkiImportPage extends StatefulWidget {
 
 class _AnkiImportPageState extends State<AnkiImportPage> {
   AnkiImportController? _controller;
-
-  AnkiImportController get _requireController => _controller!;
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.startWithSample) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) unawaited(_requireController.loadSample());
-      });
-    }
-  }
 
   @override
   void dispose() {
@@ -84,11 +49,8 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
   AnkiImportController _buildController() {
     return AnkiImportController(
       deps: AnkiImportDependencies.production(
-        importerForTest: widget.importerForTest,
         courseProvider: context.read<CourseProvider>(),
-        srsProvider: context.read<SrsProvider>(),
         settings: context.read<SettingsProvider>(),
-        aiConfigHolder: context.read<AiEngineConfigHolder>(),
       ),
     );
   }
@@ -101,12 +63,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          _isSample
-              ? '${AppStrings.ankiImportTitle} · ${AppStrings.ankiSampleBadge}'
-              : AppStrings.ankiImportTitle,
-          // Long sample-mode title (导入 Anki 牌组 · 示例) overflows the
-          // AppBar on narrow phones; constrain it so the trailing back
-          // button stays reachable.
+          AppStrings.ankiImportTitle,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -128,20 +85,6 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       ),
     );
   }
-
-  bool get _isSample => switch (_controller?.state) {
-        AnkiImportPreviewing(:final preview) =>
-          preview is LegacyAnkiImportPreviewModel && preview.isSample,
-        AnkiImportParsing(:final isSample) => isSample,
-        AnkiImportFailed(:final returnState) => switch (returnState) {
-            AnkiImportPreviewing(:final preview) =>
-              preview is LegacyAnkiImportPreviewModel && preview.isSample,
-            AnkiImportParsing(:final isSample) => isSample,
-            _ => false,
-          },
-        null => false,
-        _ => false,
-      };
 
   Widget _buildBody(BuildContext context, AnkiImportController controller) {
     final state = controller.state;
@@ -356,19 +299,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     AnkiImportPreviewing previewing,
     String? failureMessage,
   ) {
-    final preview = previewing.preview;
-    if (preview is LegacyAnkiImportPreviewModel) {
-      final aiReady = context.watch<AiEngineConfigHolder>().config.isComplete;
-      return LegacyAnkiImportPreview(
-        preview: preview,
-        controller: controller,
-        aiReady: aiReady,
-        onEditMapping: (mid, notetype) =>
-            unawaited(_editNotetypeMapping(controller, mid, notetype)),
-        onIdentifyWithAi: () => unawaited(_onAiIdentify(controller)),
-      );
-    }
-    final official = preview as OfficialAnkiImportPreviewModel;
+    final official = previewing.preview as OfficialAnkiImportPreviewModel;
     return OfficialAnkiImportPreview(
       preview: official,
       controller: controller,
@@ -378,62 +309,6 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         schema,
       )),
     );
-  }
-
-  /// Legacy mapping editor dialog. On save the mapping flows into the
-  /// import assemblers via the controller and is persisted as a rule
-  /// keyed by the notetype signature.
-  Future<void> _editNotetypeMapping(
-    AnkiImportController controller,
-    int mid,
-    AnkiNotetype notetype,
-  ) async {
-    AnkiNote? note;
-    final legacy = _legacyPreviewOf(controller);
-    final notes = legacy?.collection.notes ?? const <AnkiNote>[];
-    for (final n in notes) {
-      if (n.mid == mid) {
-        note = n;
-        break;
-      }
-    }
-    if (!mounted) return;
-    final result = await showDialog<NotetypeMapping>(
-      context: context,
-      builder: (ctx) => NotetypeMappingEditor(
-        notetype: notetype,
-        note: note,
-        initialMapping: legacy?.mappings[mid],
-        hasClozeMarkers:
-            legacy == null ? false : hasClozeMarkers(notetype, legacy.collection.notes),
-      ),
-    );
-    if (result == null) return;
-    await controller.saveLegacyMapping(mid, result);
-  }
-
-  /// AI identification: when the engine is not configured, explain what
-  /// is missing instead of silently doing nothing.
-  Future<void> _onAiIdentify(AnkiImportController controller) async {
-    final config = context.read<AiEngineConfigHolder>().config;
-    if (!config.isComplete) {
-      if (!mounted) return;
-      await showDialog<void>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(AppStrings.aiNotConfiguredTitle),
-          content: Text(AppStrings.ankiAiNotConfiguredMessage),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: Text(AppStrings.commonOk),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
-    await controller.identifyWithAi();
   }
 
   Future<void> _openOfficialMapping(
@@ -459,19 +334,6 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     );
   }
 
-  LegacyAnkiImportPreviewModel? _legacyPreviewOf(
-    AnkiImportController controller,
-  ) {
-    final state = controller.state;
-    final effective =
-        state is AnkiImportFailed ? state.returnState : state;
-    if (effective is AnkiImportPreviewing &&
-        effective.preview is LegacyAnkiImportPreviewModel) {
-      return effective.preview as LegacyAnkiImportPreviewModel;
-    }
-    return null;
-  }
-
   OfficialAnkiImportPreviewModel? _officialPreviewOf(
     AnkiImportController controller,
   ) {
@@ -491,10 +353,9 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     AnkiImportController controller,
     AnkiImportCompleted completed,
   ) {
-    final kept = _legacyPreviewOf(controller)?.importLearningProgress ?? false;
     return AnkiImportDoneStep(
       summary: completed.summary,
-      keptLearningProgress: kept,
+      keptLearningProgress: false,
       onStartLearningNow: () => unawaited(_startLearningNow(controller)),
       onViewDecks: () => unawaited(_viewDecks(controller)),
       onDone: () => context.router.maybePop(),

@@ -13,7 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sqlite3/sqlite3.dart' as sql;
 
 // Project imports:
-import 'package:turna/application/anki/anki_import_platform_io.dart';
+import 'package:turna/service/remote_backup/archive_io.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_sqlite.dart';
 import 'package:turna/application/backup/backup_manifest_policy.dart';
@@ -193,7 +193,7 @@ class BackupSnapshotService {
     return BackupSnapshot(
       backupId: backupId,
       coreZip: coreZip,
-      coreZipSha256: ankiHashFileSha256(coreZip.path),
+      coreZipSha256: archiveFileSha256(coreZip.path),
       meta: meta,
       mediaManifest: mediaManifest,
       mediaObjects: mediaObjects,
@@ -281,7 +281,7 @@ class BackupSnapshotService {
     for (final file in files) {
       final relative =
           p.relative(file.path, from: root.path).replaceAll('\\', '/');
-      final sha = ankiHashFileSha256(file.path);
+      final sha = archiveFileSha256(file.path);
       manifest['$logicalPrefix$relative'] =
           MediaManifestEntry(sha256: sha, bytes: file.lengthSync());
       objects.putIfAbsent(sha, () => file.path);
@@ -298,7 +298,7 @@ class BackupSnapshotService {
   Future<void> _writeSha256Sums(Directory dir, List<String> names) async {
     final lines = <String>[];
     for (final name in names) {
-      final digest = ankiHashFileSha256(p.join(dir.path, name));
+      final digest = archiveFileSha256(p.join(dir.path, name));
       lines.add('$digest  $name');
     }
     await File(p.join(dir.path, 'SHA256SUMS'))

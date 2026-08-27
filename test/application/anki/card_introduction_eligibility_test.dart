@@ -1,9 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:turna/application/anki/anki_models.dart';
 import 'package:turna/application/anki/anki_review_assembler.dart';
-import 'package:turna/application/anki/anki_srs_migrator.dart';
 import 'package:turna/application/anki/card_introduction_eligibility.dart';
 import 'package:turna/application/anki/card_introduction_store.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
@@ -153,37 +151,6 @@ void main() {
       final assembler = AnkiReviewAssembler(srs, courseProvider);
       expect(assembler.totalAnkiDueCount, 1);
       expect(assembler.collectDue().single.wordId, 'anki-hist-c8');
-    });
-  });
-
-  group('legacy import seed', () {
-    test('migrator marks reps>0 introduced and new cards unintroduced',
-        () async {
-      SharedPreferences.setMockInitialValues({});
-      final sp = await StreamingSharedPreferences.instance;
-      final prefs = AppPrefs(sp);
-      await prefs.preferences.setString(LocalStateKeys.srsState, '{}');
-      final srs = SrsProvider(prefs, LessonLinkStore(prefs), emptySrsStateDao());
-      await AnkiSrsMigrator().migrate(
-        cards: const [
-          AnkiCardData(id: 1, nid: 1, did: 1, queue: 0, reps: 0),
-          AnkiCardData(id: 2, nid: 2, did: 1, queue: 2, reps: 6, ivl: 3),
-        ],
-        importId: 'imp',
-        srsProvider: srs,
-        importScheduling: true,
-      );
-      final store = CardIntroductionStore.debugOverride!;
-      expect(store.isIntroducedCard(sourceId: 'imp', cardId: 1), isFalse);
-      expect(store.isIntroducedCard(sourceId: 'imp', cardId: 2), isTrue);
-      expect(
-        store.isFormallyEligibleWord(srs.state['anki-imp-c1']!),
-        isFalse,
-      );
-      expect(
-        store.isFormallyEligibleWord(srs.state['anki-imp-c2']!),
-        isTrue,
-      );
     });
   });
 

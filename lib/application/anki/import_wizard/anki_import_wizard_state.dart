@@ -1,14 +1,73 @@
-import 'package:turna/application/anki/anki_card_adapter.dart';
-import 'package:turna/application/anki/anki_deck_assembler.dart';
-import 'package:turna/application/anki/anki_models.dart';
-import 'package:turna/application/anki/legacy_anki_import_executor.dart';
-import 'package:turna/application/anki/anki_organization_resolver.dart';
-import 'package:turna/application/anki/card_recognition_pipeline.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/import/anki_import_execution_plan.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_mapper.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_service.dart';
-import 'package:turna/data/anki_import_dao.dart' show AnkiImportRecord;
+
+/// Summary of a completed Anki import (legacy parser-era shape retained:
+/// the official flow fills the same fields for the done step).
+class AnkiImportSummary {
+  final String importId;
+  final int sectionCount;
+  final int unitCount;
+  final int lessonCount;
+  final int cardCount;
+  final int wordEntryCount;
+  final int sourceCardCount;
+  final int structuredCardCount;
+  final int fidelityCardCount;
+  final int unknownTemplateCount;
+  final int suspendedCardCount;
+  final int buriedCardCount;
+  final bool hasScheduling;
+  final bool hasReviewHistory;
+  final int missingMediaCount;
+  final int failedMediaCount;
+  final List<String> platformDowngrades;
+
+  const AnkiImportSummary({
+    required this.importId,
+    required this.sectionCount,
+    required this.unitCount,
+    required this.lessonCount,
+    required this.cardCount,
+    required this.wordEntryCount,
+    this.sourceCardCount = 0,
+    this.structuredCardCount = 0,
+    this.fidelityCardCount = 0,
+    this.unknownTemplateCount = 0,
+    this.suspendedCardCount = 0,
+    this.buriedCardCount = 0,
+    this.hasScheduling = false,
+    this.hasReviewHistory = false,
+    this.missingMediaCount = 0,
+    this.failedMediaCount = 0,
+    this.platformDowngrades = const [],
+  });
+
+  AnkiImportSummary copyWith({
+    int? missingMediaCount,
+    int? failedMediaCount,
+  }) =>
+      AnkiImportSummary(
+        importId: importId,
+        sectionCount: sectionCount,
+        unitCount: unitCount,
+        lessonCount: lessonCount,
+        cardCount: cardCount,
+        wordEntryCount: wordEntryCount,
+        sourceCardCount: sourceCardCount,
+        structuredCardCount: structuredCardCount,
+        fidelityCardCount: fidelityCardCount,
+        unknownTemplateCount: unknownTemplateCount,
+        suspendedCardCount: suspendedCardCount,
+        buriedCardCount: buriedCardCount,
+        hasScheduling: hasScheduling,
+        hasReviewHistory: hasReviewHistory,
+        missingMediaCount: missingMediaCount ?? this.missingMediaCount,
+        failedMediaCount: failedMediaCount ?? this.failedMediaCount,
+        platformDowngrades: platformDowngrades,
+      );
+}
 
 /// Sealed wizard state (maintainability plan §10.3). Every step is a
 /// distinct type — invalid field combinations cannot be constructed, and
@@ -30,17 +89,15 @@ final class AnkiImportSelecting extends AnkiImportWizardState {
   int get step => 0;
 }
 
-/// Parsing (Legacy) or running the official-first saga. Exactly one long
-/// operation may be active; a cancel request is visible to the executor
-/// through the controller.
+/// Running the official-first saga. Exactly one long operation may be
+/// active; a cancel request is visible to the flow through the
+/// controller.
 final class AnkiImportParsing extends AnkiImportWizardState {
   const AnkiImportParsing({
-    required this.isSample,
     this.progress = 0,
     this.message = '',
   });
 
-  final bool isSample;
   final double progress;
   final String message;
 
@@ -49,14 +106,13 @@ final class AnkiImportParsing extends AnkiImportWizardState {
 
   AnkiImportParsing copyWith({double? progress, String? message}) =>
       AnkiImportParsing(
-        isSample: isSample,
         progress: progress ?? this.progress,
         message: message ?? this.message,
       );
 }
 
-/// Committing either flow. Constructing this twice from the same preview
-/// is impossible at the API level (commit is single-flight).
+/// Committing the official flow. Constructing this twice from the same
+/// preview is impossible at the API level (commit is single-flight).
 final class AnkiImportCommitting extends AnkiImportWizardState {
   const AnkiImportCommitting({
     this.progress = 0,
@@ -108,7 +164,8 @@ final class AnkiImportFailed extends AnkiImportWizardState {
   int get step => returnState.step;
 }
 
-/// Preview payload — exactly one variant is ever active (§10.3).
+/// Preview payload (doc 35 L1: the Legacy parser variant is deleted; the
+/// official-first saga is the only flow).
 sealed class AnkiImportPreviewModel {
   const AnkiImportPreviewModel();
 
@@ -116,84 +173,6 @@ sealed class AnkiImportPreviewModel {
   /// (doc 34 W0-03): later stages never re-read flags.
   AnkiImportExecutionPlan get plan;
   String get filePath;
-}
-
-final class LegacyAnkiImportPreviewModel extends AnkiImportPreviewModel {
-  LegacyAnkiImportPreviewModel({
-    required this.plan,
-    required this.filePath,
-    required this.collection,
-    required this.sourceHash,
-    required this.isSample,
-    required this.mappings,
-    required this.recognitionResults,
-    required this.organizationPreview,
-    required this.newCount,
-    required this.existingCount,
-    required this.existingImport,
-    this.strategy = ImportStrategy.merge,
-    this.smartGrouping = true,
-    this.sectionBeta = false,
-    this.importLearningProgress = false,
-    this.showAllRecognition = false,
-    this.isAiIdentifying = false,
-  });
-
-  @override
-  final AnkiImportExecutionPlan plan;
-  @override
-  final String filePath;
-  final AnkiCollection collection;
-  final String sourceHash;
-  final bool isSample;
-  Map<int, NotetypeMapping> mappings;
-  Map<int, CardRecognitionResult> recognitionResults;
-  AnkiOrganizationPreview? organizationPreview;
-  final int newCount;
-  final int existingCount;
-  final AnkiImportRecord? existingImport;
-
-  // Draft options — mutated through controller intents only.
-  ImportStrategy strategy;
-  bool smartGrouping;
-  bool sectionBeta;
-  bool importLearningProgress;
-  bool showAllRecognition;
-  bool isAiIdentifying;
-
-  LegacyAnkiImportPreviewModel copyWith({
-    Map<int, NotetypeMapping>? mappings,
-    Map<int, CardRecognitionResult>? recognitionResults,
-    AnkiOrganizationPreview? organizationPreview,
-    ImportStrategy? strategy,
-    bool? smartGrouping,
-    bool? sectionBeta,
-    bool? importLearningProgress,
-    bool? showAllRecognition,
-    bool? isAiIdentifying,
-  }) {
-    final next = LegacyAnkiImportPreviewModel(
-      plan: plan,
-      filePath: filePath,
-      collection: collection,
-      sourceHash: sourceHash,
-      isSample: isSample,
-      mappings: mappings ?? this.mappings,
-      recognitionResults: recognitionResults ?? this.recognitionResults,
-      organizationPreview: organizationPreview ?? this.organizationPreview,
-      newCount: newCount,
-      existingCount: existingCount,
-      existingImport: existingImport,
-      strategy: strategy ?? this.strategy,
-      smartGrouping: smartGrouping ?? this.smartGrouping,
-      sectionBeta: sectionBeta ?? this.sectionBeta,
-      importLearningProgress:
-          importLearningProgress ?? this.importLearningProgress,
-      showAllRecognition: showAllRecognition ?? this.showAllRecognition,
-      isAiIdentifying: isAiIdentifying ?? this.isAiIdentifying,
-    );
-    return next;
-  }
 }
 
 final class OfficialAnkiImportPreviewModel extends AnkiImportPreviewModel {

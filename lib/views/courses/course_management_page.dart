@@ -150,7 +150,7 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
                     title: AppStrings.homeFromAnki,
                     subtitle: AppStrings.homeFromAnkiSubtitle,
                     onTap: () => context.router
-                        .push(AnkiImportRoute(startWithSample: false)),
+                        .push(const AnkiImportRoute()),
                   ),
                   _AddCourseTile(
                     icon: Icons.add_circle_outline_rounded,

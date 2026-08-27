@@ -7,7 +7,6 @@ import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:turna/application/anki/anki_models.dart';
 import 'package:turna/application/anki/anki_import_cleanup_service.dart';
 import 'package:turna/application/anki/anki_review_assembler.dart';
 import 'package:turna/application/anki/card_introduction_eligibility.dart';
@@ -622,26 +621,6 @@ class AnkiDeckManager {
   /// Returns the existing import record if found.
   Future<AnkiImportRecord?> checkExistingImport(String sourceHash) async {
     return _importDao.findByHash(sourceHash);
-  }
-
-  /// Note ids from [newCollection] that are not yet imported (i.e. absent
-  /// from the SRS queue under [importId]). Used by the import wizard's
-  /// skip-existing strategy and collision preview.
-  List<int> detectNewNotes({
-    required AnkiCollection newCollection,
-    required String importId,
-  }) {
-    final srsIds = _srsProvider.state.keys;
-    // Card-level wordIds (decision 2): a note counts as already imported if
-    // any of its cards is in the SRS queue.
-    final existingNids = <int>{
-      for (final card in newCollection.cards)
-        if (srsIds.contains('anki-$importId-c${card.id}')) card.nid,
-    };
-    return [
-      for (final note in newCollection.notes)
-        if (!existingNids.contains(note.id)) note.id,
-    ];
   }
 
   // ─── SRS Partitioning (Phase 3.5) ──────────────────────────────────

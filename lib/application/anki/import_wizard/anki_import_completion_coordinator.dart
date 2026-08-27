@@ -1,4 +1,4 @@
-import 'package:turna/application/anki/anki_deck_assembler.dart';
+import 'package:turna/application/anki/import_wizard/anki_import_wizard_state.dart';
 import 'package:turna/application/anki/import_wizard/anki_import_dependencies.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/courses/course_loader.dart';

@@ -94,35 +94,23 @@ void main() {
       }
     });
 
-    // Doc 34 W9 §13.3 — forbidden-write / unsupported-platform guards.
-    test('AnkiImportExecutionPlanner never returns legacyOnly without allowLegacyOnly',
-        () {
-      // Structural: production resolve() body only reaches _legacyOnly when
-      // allowLegacyOnly is true. Behavioral matrix lives in
-      // test/application/anki_official/anki_import_execution_plan_test.dart
-      // (unsupported platform + officialFirst-off fail-closed).
+    // Doc 34 W9 §13.3 / doc 35 L1 — parser-layer deletion guards.
+    test('execution planner is strictly three-valued (no legacyOnly)', () {
       final text = File(
         'lib/application/anki_official/import/anki_import_execution_plan.dart',
       ).readAsStringSync();
-      expect(text.contains('allowLegacyOnly'), isTrue);
-      expect(text.contains('AnkiImportExecutionKind.legacyOnly'), isTrue);
-      // Every return _legacyOnly(...) call site is gated on allowLegacyOnly
-      // (skip the static method definition itself).
-      final legacyOnlyCalls =
-          RegExp(r'return\s+_legacyOnly\s*\(').allMatches(text);
-      expect(legacyOnlyCalls.length, greaterThanOrEqualTo(1));
-      for (final match in legacyOnlyCalls) {
-        final windowStart = match.start - 320 < 0 ? 0 : match.start - 320;
-        final window = text.substring(windowStart, match.start);
-        expect(
-          window.contains('allowLegacyOnly'),
-          isTrue,
-          reason: 'return _legacyOnly must sit inside an allowLegacyOnly branch',
-        );
-      }
+      expect(text.contains('legacyOnly'), isFalse);
+      expect(text.contains('allowLegacyOnly'), isFalse);
 
-      // Controller-era wiring (maintainability plan Wave 4): the page is a
-      // shell; neither the page nor the controller may opt into legacyOnly.
+      // Behavioral matrix lives in
+      // test/application/anki_official/anki_import_execution_plan_test.dart
+      // (officialFirst / failClosed / unsupported).
+      final planTest = File(
+        'test/application/anki_official/anki_import_execution_plan_test.dart',
+      ).readAsStringSync();
+      expect(planTest.contains('legacyOnly'), isFalse);
+
+      // The page is a shell; the wizard never opts into a Legacy writer.
       final importScreen =
           File('lib/views/anki/anki_import_screen.dart').readAsStringSync();
       final controller = File(
@@ -136,11 +124,6 @@ void main() {
           text.contains('allowLegacyOnly: true'),
           isFalse,
           reason: 'production import path must not opt into legacyOnly',
-        );
-        expect(
-          text.contains('officialFirstImportEligible'),
-          isFalse,
-          reason: 'production uses AnkiImportExecutionPlan, not the dual policy',
         );
       }
 
@@ -156,38 +139,53 @@ void main() {
         reason: 'W0-03: commit reuses the frozen preview.plan',
       );
       expect(commitBody.contains('preview.plan'), isTrue);
-      final legacyFlow = File(
-        'lib/application/anki/import_wizard/legacy_anki_import_flow.dart',
-      ).readAsStringSync();
-      expect(
-        legacyFlow.contains('legacyExecutorFactory'),
-        isTrue,
-        reason: 'the Legacy flow drives the executor through injected deps',
-      );
-      final executor = File(
+    });
+
+    // Doc 35 L1 — the Dart .apkg parser layer must stay deleted.
+    test('legacy parser layer stays deleted (doc 35 L1)', () {
+      for (final path in const [
+        'lib/application/anki/anki_importer.dart',
+        'lib/application/anki/anki_deck_assembler.dart',
+        'lib/application/anki/anki_card_adapter.dart',
+        'lib/application/anki/anki_organization_resolver.dart',
+        'lib/application/anki/anki_render_policy.dart',
+        'lib/application/anki/anki_sample_deck.dart',
+        'lib/application/anki/anki_srs_migrator.dart',
+        'lib/application/anki/card_recognition_pipeline.dart',
         'lib/application/anki/legacy_anki_import_executor.dart',
-      ).readAsStringSync();
-      expect(
-        executor.contains('official_first_must_not_write_legacy_notestore'),
-        isTrue,
-        reason: 'Official-first must not fall through to Legacy NoteStore',
-      );
-      final transactionStart = executor.indexOf('await database.transaction');
-      final identityFinalize = executor.indexOf('await unified.finalize');
-      expect(transactionStart, greaterThanOrEqualTo(0));
-      expect(identityFinalize, greaterThan(transactionStart));
-      expect(
-        executor.substring(transactionStart, identityFinalize).contains(
-              'audioResolver.swapStagedMedia',
-            ),
-        isTrue,
-        reason: 'in-place media must be swapped only at the commit boundary',
-      );
-      expect(
-        executor.contains('audioResolver.rollbackMediaSwap'),
-        isTrue,
-        reason: 'failed in-place reimports must restore their old media',
-      );
+        'lib/application/anki/anki_import_platform_io.dart',
+        'lib/application/anki/anki_import_platform_stub.dart',
+        'lib/application/anki/import_wizard/legacy_anki_import_flow.dart',
+        'lib/application/anki/import_wizard/question_type.dart',
+        'lib/application/anki/import_wizard/notetype_mapping_util.dart',
+        'lib/views/anki/import_wizard/legacy_anki_import_preview.dart',
+        'lib/views/anki/import_wizard/anki_notetype_mapping_editor.dart',
+      ]) {
+        expect(File(path).existsSync(), isFalse, reason: '$path was revived');
+      }
+      // No resurrection through imports anywhere in lib/.
+      final violations = <String>[];
+      final needles = [
+        RegExp(r'[^a-zA-Z]AnkiImporter\b'),
+        RegExp(r'[^a-zA-Z]AnkiDeckAssembler\b'),
+        RegExp(r'[^a-zA-Z]LegacyAnkiImportExecutor\b'),
+        RegExp(r'[^a-zA-Z]AnkiCardAdapter\b'),
+        RegExp(r'[^a-zA-Z]LegacyAnkiImportFlow\b'),
+      ];
+      for (final entity in Directory('lib').listSync(recursive: true)) {
+        if (entity is! File || !entity.path.endsWith('.dart')) continue;
+        final text = entity.readAsStringSync();
+        // Allow doc comments mentioning the retired classes.
+        final withoutComments = text
+            .replaceAll(RegExp(r'//.*'), '')
+            .replaceAll(RegExp(r'/\*.*?\*/', dotAll: true), '');
+        for (final needle in needles) {
+          if (needle.hasMatch(withoutComments)) {
+            violations.add('${entity.path} matches ${needle.pattern}');
+          }
+        }
+      }
+      expect(violations, isEmpty, reason: violations.join('\n'));
     });
 
     test('C4 collapsed per-capability dart-defines and gray cohort', () {
@@ -273,17 +271,12 @@ void main() {
         "package:turna/application/anki/anki_deck_assembler.dart",
         "package:turna/views/anki/",
       ];
-      const allow = {
-        // Diagnostics / ACK fixture lab until that page is gated.
-        'lib/application/anki_official/official_anki_internal_page.dart',
-      };
       final violations = <String>[];
       final dir = Directory('lib/application/anki_official');
       expect(dir.existsSync(), isTrue);
       for (final entity in dir.listSync(recursive: true)) {
         if (entity is! File || !entity.path.endsWith('.dart')) continue;
         final path = entity.path.replaceAll('\\', '/');
-        if (allow.contains(path)) continue;
         final text = entity.readAsStringSync();
         for (final needle in forbidden) {
           if (text.contains(needle)) {
@@ -397,7 +390,6 @@ void main() {
           lessThanOrEqualTo(700),
           reason: 'import screen must stay a shell');
       for (final step in const [
-        'lib/views/anki/import_wizard/legacy_anki_import_preview.dart',
         'lib/views/anki/import_wizard/official_anki_import_preview.dart',
         'lib/views/anki/import_wizard/anki_import_done_step.dart',
       ]) {
@@ -409,7 +401,6 @@ void main() {
         reason: 'controller must stay lean (helpers live in view_helpers.dart)',
       );
       for (final flow in const [
-        'lib/application/anki/import_wizard/legacy_anki_import_flow.dart',
         'lib/application/anki/import_wizard/official_first_anki_import_flow.dart',
       ]) {
         expect(lineCount(flow), lessThanOrEqualTo(500), reason: flow);

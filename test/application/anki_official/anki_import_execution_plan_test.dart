@@ -105,22 +105,6 @@ void main() {
       expect(plan.reason, contains('official_first_required'));
     });
 
-    test('explicit legacyOnly is coherent when allowLegacyOnly is set', () {
-      final plan = planner.resolve(
-        flags: _fullOfficial(officialFirst: false),
-        platform: 'android',
-        cutoverEnabled: true,
-        libraryAvailable: true,
-        allowLegacyOnly: true,
-        filePath: '/tmp/deck.apkg',
-      );
-      expect(plan.kind, AnkiImportExecutionKind.legacyOnly);
-      expect(plan.owner, AnkiImportOwner.legacy);
-      expect(plan.writesLegacyNoteStore, isTrue);
-      expect(plan.writesTurnaAnkiSrs, isTrue);
-      expect(plan.writesOfficialCollection, isFalse);
-      expect(plan.persistedOwnerIsOfficial, isFalse);
-    });
   });
 
   group('pre-fix mixed half-state cannot recur', () {
@@ -228,18 +212,13 @@ void main() {
                 filePath: '/data/deck.apkg',
               );
               if (plan.createsSource) {
-                if (plan.owner == AnkiImportOwner.official) {
-                  expect(plan.writesOfficialCollection, isTrue);
-                  expect(plan.writesLegacyNoteStore, isFalse);
-                  expect(plan.writesTurnaAnkiSrs, isFalse);
-                  expect(plan.facadeDecision, AnkiImportDecision.official);
-                } else {
-                  expect(plan.owner, AnkiImportOwner.legacy);
-                  expect(plan.writesLegacyNoteStore, isTrue);
-                  expect(plan.writesTurnaAnkiSrs, isTrue);
-                  expect(plan.writesOfficialCollection, isFalse);
-                  expect(plan.facadeDecision, AnkiImportDecision.legacy);
-                }
+                // Doc 35 L1: the Legacy-only kind died with the parser — every
+                // source-creating plan is Official-owned.
+                expect(plan.owner, AnkiImportOwner.official);
+                expect(plan.writesOfficialCollection, isTrue);
+                expect(plan.writesLegacyNoteStore, isFalse);
+                expect(plan.writesTurnaAnkiSrs, isFalse);
+                expect(plan.facadeDecision, AnkiImportDecision.official);
               } else {
                 expect(plan.writesLegacyNoteStore, isFalse);
                 expect(plan.writesTurnaAnkiSrs, isFalse);

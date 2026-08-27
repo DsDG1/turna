@@ -2,7 +2,7 @@
 import 'package:turna/application/anki/anki_card_html_renderer.dart';
 import 'package:turna/application/anki/anki_media_reference_extractor.dart';
 import 'package:turna/application/anki/anki_models.dart';
-import 'package:turna/data/anki_note_dao.dart';
+import 'package:turna/data/anki_note_dao.dart' show AnkiNoteDao;
 import 'package:turna/domain/audio/anki_audio_resolver.dart';
 import 'package:turna/domain/course/interaction.dart';
 
@@ -44,7 +44,12 @@ class AnkiCanonicalCardLoader {
       name: ntRec.name,
       isCloze: ntRec.isCloze,
       fieldNames: ntRec.fieldNames,
-      templates: ntRec.templates,
+      templates: [
+        // The DAO row type and the renderer's model type split when the
+        // parser-era anki_models shrank to the fidelity renderer's needs.
+        for (final t in ntRec.templates)
+          AnkiTemplate(name: t.name, qfmt: t.qfmt, afmt: t.afmt),
+      ],
       css: ntRec.css,
     );
     final card = AnkiCardData(

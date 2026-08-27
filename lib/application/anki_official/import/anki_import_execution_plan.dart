@@ -20,6 +20,9 @@ enum AnkiProductMode {
 /// One atomic import execution outcome. Computed once per pick/commit and
 /// threaded through parse/preview/saga/projection/SRS/identity/summary so
 /// those stages cannot each re-read flags and disagree.
+///
+/// Doc 35 L1: the Legacy-only kind was deleted with the Dart `.apkg`
+/// planner is now strictly three-valued.
 enum AnkiImportExecutionKind {
   /// Official Collection is the only writer; zero Legacy NoteStore / Turna
   /// Anki SRS rows.
@@ -31,17 +34,12 @@ enum AnkiImportExecutionKind {
   /// Official was required but native/runtime/capability is missing. No new
   /// source may be created; never degrade to Legacy.
   failClosed,
-
-  /// Explicit Legacy-only path for tests / short-term haemostasis builds.
-  /// Production routers must not select this unless [allowLegacyOnly] is set.
-  legacyOnly,
 }
 
 /// Persisted owner that the execution plan will record for a successful
 /// import. `null` means no source is created (unsupported / fail-closed).
 enum AnkiImportOwner {
   official,
-  legacy,
 }
 
 class AnkiImportExecutionPlan {
@@ -77,15 +75,11 @@ class AnkiImportExecutionPlan {
 
   bool get isUnsupported => kind == AnkiImportExecutionKind.unsupported;
 
-  bool get isLegacyOnly => kind == AnkiImportExecutionKind.legacyOnly;
-
   /// Maps onto the older facade enum for call sites that have not migrated.
   AnkiImportDecision get facadeDecision {
     switch (kind) {
       case AnkiImportExecutionKind.officialFirst:
         return AnkiImportDecision.official;
-      case AnkiImportExecutionKind.legacyOnly:
-        return AnkiImportDecision.legacy;
       case AnkiImportExecutionKind.unsupported:
       case AnkiImportExecutionKind.failClosed:
         return AnkiImportDecision.failClosed;
@@ -118,17 +112,12 @@ class AnkiImportExecutionPlanner {
   }
 
   /// Resolve the atomic plan for one import attempt.
-  ///
-  /// [allowLegacyOnly] is a test / explicit haemostasis escape hatch. It is
-  /// never implied by production defaults.
   AnkiImportExecutionPlan resolve({
     required OfficialAnkiFeatureFlags flags,
     String? platform,
     bool? cutoverEnabled,
     bool? libraryAvailable,
-    bool isSample = false,
     String filePath = '',
-    bool allowLegacyOnly = false,
     String? extensionOverride,
   }) {
     final plat =
@@ -142,14 +131,6 @@ class AnkiImportExecutionPlanner {
     final ext = (extensionOverride ?? _extensionOf(filePath)).toLowerCase();
 
     if (mode == AnkiProductMode.ankiUnavailable) {
-      if (allowLegacyOnly && plat != 'android') {
-        // Explicit test haemostasis only — still never the production default.
-        return _legacyOnly(
-          mode: mode,
-          platform: plat,
-          reason: 'explicit_legacy_only_haemostasis',
-        );
-      }
       return AnkiImportExecutionPlan(
         productMode: mode,
         kind: AnkiImportExecutionKind.unsupported,
@@ -166,13 +147,6 @@ class AnkiImportExecutionPlanner {
 
     // mode == officialAndroid
     if (!flags.allowsOfficialImport) {
-      if (allowLegacyOnly) {
-        return _legacyOnly(
-          mode: mode,
-          platform: plat,
-          reason: 'explicit_legacy_only_flags_off',
-        );
-      }
       return AnkiImportExecutionPlan(
         productMode: mode,
         kind: AnkiImportExecutionKind.failClosed,
@@ -195,28 +169,6 @@ class AnkiImportExecutionPlanner {
         writesTurnaAnkiSrs: false,
         writesOfficialCollection: false,
         reason: 'native_library_missing_or_abi_mismatch',
-      );
-    }
-
-    if (isSample) {
-      // In-memory sample is not an Official package; production must not
-      // pretend it is Official-owned. Tests may opt into legacyOnly.
-      if (allowLegacyOnly) {
-        return _legacyOnly(
-          mode: mode,
-          platform: plat,
-          reason: 'sample_deck_legacy_only',
-        );
-      }
-      return AnkiImportExecutionPlan(
-        productMode: mode,
-        kind: AnkiImportExecutionKind.failClosed,
-        owner: null,
-        platform: plat,
-        writesLegacyNoteStore: false,
-        writesTurnaAnkiSrs: false,
-        writesOfficialCollection: false,
-        reason: 'sample_deck_not_official_package',
       );
     }
 
@@ -246,15 +198,6 @@ class AnkiImportExecutionPlanner {
       );
     }
 
-    // Official-first is the only production writer on Android.
-    if (!flags.allowsOfficialFirstImport && allowLegacyOnly) {
-      return _legacyOnly(
-        mode: mode,
-        platform: plat,
-        reason: 'explicit_legacy_only_official_first_flag_off',
-      );
-    }
-
     if (!flags.allowsOfficialFirstImport) {
       // Production must not fall into the old mixed half-state (Legacy
       // NoteStore + Official identity / no Collection). Fail closed instead.
@@ -279,23 +222,6 @@ class AnkiImportExecutionPlanner {
       writesTurnaAnkiSrs: false,
       writesOfficialCollection: true,
       reason: 'android_official_first',
-    );
-  }
-
-  static AnkiImportExecutionPlan _legacyOnly({
-    required AnkiProductMode mode,
-    required String platform,
-    required String reason,
-  }) {
-    return AnkiImportExecutionPlan(
-      productMode: mode,
-      kind: AnkiImportExecutionKind.legacyOnly,
-      owner: AnkiImportOwner.legacy,
-      platform: platform,
-      writesLegacyNoteStore: true,
-      writesTurnaAnkiSrs: true,
-      writesOfficialCollection: false,
-      reason: reason,
     );
   }
 

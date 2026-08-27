@@ -6,7 +6,6 @@ import 'package:drift/drift.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:turna/application/anki/anki_models.dart';
 import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/data/anki_legacy_write_fence.dart';
 import 'package:turna/data/course_database.dart';
@@ -21,8 +20,7 @@ import 'package:turna/data/course_database.dart';
 /// card-level `wordId` (`anki-<importId>-c<cardId>`, decision 2).
 ///
 /// Row types are the `*Row` classes (renamed via `@DataClassName` on each
-/// table) to avoid colliding with the in-memory [AnkiNotetype] / [AnkiNote]
-/// models in `anki_models.dart`.
+/// table) to avoid colliding with the retired parser-era in-memory models.
 @lazySingleton
 class AnkiNoteDao {
   final CourseDatabase _db;
@@ -965,6 +963,35 @@ class AnkiPracticeProjectionRecord {
     this.sourceFingerprint = '',
     this.updatedAt = 0,
   });
+}
+
+/// A single card template of an Anki notetype (one entry of the persisted
+/// `tmpls` JSON array). Survives here from the retired parser-era
+/// `anki_models.dart` because the NoteStore schema keeps notetype
+/// templates for the fidelity track (doc 35 L1).
+class AnkiTemplate {
+  const AnkiTemplate({
+    required this.name,
+    this.qfmt = '',
+    this.afmt = '',
+  });
+
+  /// Template display name (e.g. "Card 1").
+  final String name;
+
+  /// Question-side HTML template (`qfmt`) with `{{Field}}` placeholders.
+  final String qfmt;
+
+  /// Answer-side HTML template (`afmt`).
+  final String afmt;
+
+  factory AnkiTemplate.fromJson(Map<String, dynamic> json) => AnkiTemplate(
+        name: json['name'] as String? ?? '',
+        qfmt: json['qfmt'] as String? ?? '',
+        afmt: json['afmt'] as String? ?? '',
+      );
+
+  Map<String, dynamic> toJson() => {'name': name, 'qfmt': qfmt, 'afmt': afmt};
 }
 
 /// Plain data class for an Anki notetype row (decoupled from the Drift row).

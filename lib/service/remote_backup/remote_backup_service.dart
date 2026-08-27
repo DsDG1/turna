@@ -6,7 +6,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 // Project imports:
-import 'package:turna/application/anki/anki_import_platform_io.dart';
+import 'package:turna/service/remote_backup/archive_io.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/service/remote_backup/backup_manifest.dart';
 import 'package:turna/service/remote_backup/backup_snapshot_service.dart';
@@ -262,12 +262,12 @@ class RemoteBackupService {
 
     final coreZip = File(p.join(staging.path, 'core.zip'));
     await store.downloadCoreZip(manifest, coreZip);
-    final coreSha = ankiHashFileSha256(coreZip.path);
+    final coreSha = archiveFileSha256(coreZip.path);
     if (coreSha != manifest.coreZipSha256) {
       throw WebDavException('核心包校验失败（下载数据损坏）');
     }
 
-    await ankiExtractArchiveToDisk(
+    await extractArchiveToDisk(
       coreZip.path,
       staging.path,
       resolveEntryPath: _safeEntryPath,
@@ -287,10 +287,10 @@ class RemoteBackupService {
     for (final sha in objects) {
       final dest = File(p.join(mediaDir.path, sha));
       final alreadyStaged =
-          await dest.exists() && ankiHashFileSha256(dest.path) == sha;
+          await dest.exists() && archiveFileSha256(dest.path) == sha;
       if (!alreadyStaged) {
         await store.downloadMediaObject(sha, dest);
-        if (ankiHashFileSha256(dest.path) != sha) {
+        if (archiveFileSha256(dest.path) != sha) {
           throw WebDavException('媒体对象校验失败: ${sha.substring(0, 8)}…');
         }
       }
@@ -332,7 +332,7 @@ class RemoteBackupService {
       if (match == null) {
         throw FormatException('SHA256SUMS 行格式错误: $line');
       }
-      final digest = ankiHashFileSha256(p.join(staging.path, match.group(2)!));
+      final digest = archiveFileSha256(p.join(staging.path, match.group(2)!));
       if (digest != match.group(1)!) {
         throw FormatException('备份包文件校验失败: ${match.group(2)}');
       }

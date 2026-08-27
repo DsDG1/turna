@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:turna/application/anki/anki_models.dart';
 import 'package:turna/application/anki/card_introduction_eligibility.dart';
 import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/di/injection.dart';
@@ -130,43 +129,6 @@ class CardIntroductionStore {
     );
   }
 
-  Future<void> seedLegacyImport({
-    required String importId,
-    required List<AnkiCardData> cards,
-    Set<int> revlogCardIds = const {},
-  }) async {
-    final courseId =
-        CardIntroductionEligibility.courseIdForLegacyImport(importId);
-    for (final card in cards) {
-      final key = CanonicalCardKey(
-        backend: AnkiBackendKind.legacyTurna,
-        profileId: CardIntroductionEligibility.defaultProfileId,
-        sourceId: importId,
-        cardId: card.id,
-      );
-      final status = eligibility.initialStatus(
-        reps: card.reps,
-        hasRevlog: revlogCardIds.contains(card.id),
-      );
-      await _dao?.ensureInitial(
-        courseId: courseId,
-        key: key,
-        status: status,
-        introducedBy: status == CardIntroductionStatus.introduced
-            ? CardIntroducedBy.importedHistory
-            : null,
-        introducedAt:
-            status == CardIntroductionStatus.introduced ? DateTime.now() : null,
-      );
-      if (status == CardIntroductionStatus.introduced) {
-        _rememberIntroduced(
-          wordId: 'anki-$importId-c${card.id}',
-          sourceId: importId,
-          cardId: card.id,
-        );
-      }
-    }
-  }
 
   Future<void> seedOfficialProjection({
     required String sourceId,

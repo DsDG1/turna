@@ -42,8 +42,8 @@ void main() {
     final service = File(
       'lib/application/anki_official/import/official_anki_official_first_service.dart',
     ).readAsStringSync();
-    expect(deps.contains('AnkiImporter'), isTrue,
-        reason: 'production deps wire the real importer');
+    expect(deps.contains('AnkiImporter'), isFalse,
+        reason: 'doc 35 L1: the legacy Dart parser is not wired anywhere');
     expect(deps.contains('OfficialAnkiOfficialFirstService'), isTrue,
         reason: 'production deps wire the official-first service');
     expect(officialFlow.contains('importThenPreview'), isTrue,

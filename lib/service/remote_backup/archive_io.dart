@@ -6,52 +6,17 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
-import 'package:sqlite3/sqlite3.dart' as sql;
 
-abstract class AnkiSqlDatabase {
-  List<Map<String, Object?>> select(String sql);
-
-  void dispose();
-}
-
-class _AnkiSqlDatabase implements AnkiSqlDatabase {
-  final sql.Database _database;
-
-  _AnkiSqlDatabase(this._database);
-
-  @override
-  List<Map<String, Object?>> select(String statement) => [
-        for (final row in _database.select(statement))
-          <String, Object?>{
-            for (final column in row.keys) column: row[column],
-          },
-      ];
-
-  @override
-  void dispose() => _database.dispose();
-}
-
-String get ankiSystemTempPath => Directory.systemTemp.path;
-
-bool ankiFileExists(String path) => File(path).existsSync();
-
-bool ankiDirectoryExists(String path) => Directory(path).existsSync();
-
-int ankiFileLength(String path) => File(path).lengthSync();
-
-String ankiReadString(String path) => File(path).readAsStringSync();
-
-void ankiCreateDirectory(String path) {
-  if (path.isEmpty) return;
-  Directory(path).createSync(recursive: true);
-}
-
-void ankiDeleteDirectory(String path) =>
-    Directory(path).deleteSync(recursive: true);
+/// Archive / hashing IO helpers shared by the remote backup pipeline.
+///
+/// Doc 35 L1: moved from the retired `application/anki/anki_import_platform_io.dart`
+/// (Dart `.apkg` parser support) — these two primitives have no parser
+/// dependency and stay the backbone of snapshot hashing and restore
+/// extraction.
 
 /// Computes the SHA-256 of [path] in fixed-size chunks so hashing a large
-/// `.apkg` never holds the whole archive in memory.
-String ankiHashFileSha256(String path) {
+/// archive never holds the whole file in memory.
+String archiveFileSha256(String path) {
   const chunkSize = 1024 * 1024;
   final digestSink = _DigestSink();
   final sink = sha256.startChunkedConversion(digestSink);
@@ -73,14 +38,14 @@ String ankiHashFileSha256(String path) {
 /// Extracts a ZIP archive into [destDir] by streaming each entry straight to
 /// disk, the same pattern `package:archive`'s own `extractFileToDisk` uses.
 /// Neither the archive bytes nor any entry's content is fully held in memory,
-/// so multi-hundred-megabyte decks extract with flat memory use.
+/// so multi-hundred-megabyte snapshots restore with flat memory use.
 ///
 /// [resolveEntryPath] maps an archive entry name to a path relative to
 /// [destDir]; it may throw to abort extraction (unsafe-name rejection).
 /// [onEntry] runs just before an entry is written, receiving the entry's
 /// declared uncompressed size, so callers can enforce size caps before any
 /// data is written to disk.
-Future<void> ankiExtractArchiveToDisk(
+Future<void> extractArchiveToDisk(
   String archivePath,
   String destDir, {
   required String Function(String entryName) resolveEntryPath,
@@ -93,7 +58,7 @@ Future<void> ankiExtractArchiveToDisk(
       if (!entry.isFile) continue;
       onEntry(entry.name, entry.size);
       final outputPath = p.join(destDir, resolveEntryPath(entry.name));
-      ankiCreateDirectory(p.dirname(outputPath));
+      Directory(p.dirname(outputPath)).createSync(recursive: true);
       final output = OutputFileStream(outputPath);
       try {
         entry.writeContent(output);
@@ -105,9 +70,6 @@ Future<void> ankiExtractArchiveToDisk(
     await input.close();
   }
 }
-
-AnkiSqlDatabase openAnkiDatabase(String path) =>
-    _AnkiSqlDatabase(sql.sqlite3.open(path, mode: sql.OpenMode.readOnly));
 
 /// Collects the single digest emitted by [Hash.startChunkedConversion].
 class _DigestSink implements Sink<Digest> {

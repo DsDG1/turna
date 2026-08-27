@@ -6,7 +6,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
-import 'package:turna/application/anki/anki_models.dart';
 import 'package:turna/application/anki/anki_review_assembler.dart';
 import 'package:turna/application/anki/card_introduction_store.dart';
 import 'package:turna/application/course_provider.dart';

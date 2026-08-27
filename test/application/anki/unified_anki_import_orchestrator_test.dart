@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -303,32 +302,5 @@ void main() {
       expect(persisted, 0);
     });
 
-    test('application executor probes identity before assemble', () {
-      final screen =
-          File('lib/views/anki/anki_import_screen.dart').readAsStringSync();
-      final executor = File(
-        'lib/application/anki/legacy_anki_import_executor.dart',
-      ).readAsStringSync();
-      final beginAt = executor.indexOf('unified.begin(unifiedRequest)');
-      final assembleAt = executor.indexOf('AnkiDeckAssembler().assemble(');
-      expect(beginAt, greaterThan(0));
-      expect(assembleAt, greaterThan(beginAt));
-      expect(executor.contains('if (begin.noOp)'), isTrue);
-      expect(screen.contains('database.transaction('), isFalse);
-      expect(screen.contains('AnkiImportDao('), isFalse);
-      expect(screen.contains('AnkiNoteDao('), isFalse);
-      // Controller-era wiring: the page hosts the controller; the
-      // official-first saga is invoked by the flow, never the widget.
-      expect(screen.contains('AnkiImportController'), isTrue);
-      expect(screen.contains('OfficialAnkiOfficialFirstService'), isFalse);
-      final officialFlow = File(
-        'lib/application/anki/import_wizard/official_first_anki_import_flow.dart',
-      ).readAsStringSync();
-      expect(officialFlow.contains('importThenPreview'), isTrue);
-      expect(
-        executor.contains('OfficialAnkiFeatureFlags.current.legacyMirror'),
-        isTrue,
-      );
-    });
   });
 }

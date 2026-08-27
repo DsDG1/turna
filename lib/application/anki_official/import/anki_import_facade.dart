@@ -3,7 +3,9 @@ import 'package:turna/application/anki_official/import/anki_import_execution_pla
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 
-enum AnkiImportDecision { official, legacy, failClosed }
+/// Doc 35 L1: the `legacy` decision died with the Dart `.apkg` parser — a
+/// resolved facade is either the Official importer or throws fail-closed.
+enum AnkiImportDecision { official, failClosed }
 
 abstract class AnkiImportFacade {
   bool get isOfficial;
@@ -20,8 +22,6 @@ abstract class AnkiImportFacade {
     bool? cutoverEnabled,
     String? platform,
     bool? libraryAvailable,
-    bool allowLegacyOnly = false,
-    bool isSample = false,
     String filePath = '',
   }) {
     return planFor(
@@ -29,8 +29,6 @@ abstract class AnkiImportFacade {
       cutoverEnabled: cutoverEnabled,
       platform: platform,
       libraryAvailable: libraryAvailable,
-      allowLegacyOnly: allowLegacyOnly,
-      isSample: isSample,
       filePath: filePath,
     ).facadeDecision;
   }
@@ -41,8 +39,6 @@ abstract class AnkiImportFacade {
     bool? cutoverEnabled,
     String? platform,
     bool? libraryAvailable,
-    bool allowLegacyOnly = false,
-    bool isSample = false,
     String filePath = '',
     String? extensionOverride,
   }) {
@@ -51,8 +47,6 @@ abstract class AnkiImportFacade {
       cutoverEnabled: cutoverEnabled,
       platform: platform,
       libraryAvailable: libraryAvailable,
-      allowLegacyOnly: allowLegacyOnly,
-      isSample: isSample,
       filePath: filePath,
       extensionOverride: extensionOverride,
     );
@@ -65,7 +59,6 @@ abstract class AnkiImportFacade {
     bool? cutoverEnabled,
     String? platform,
     bool? libraryAvailable,
-    bool allowLegacyOnly = false,
     AnkiImportExecutionPlan? plan,
   }) {
     final resolved = flags ?? OfficialAnkiFeatureFlags.current;
@@ -75,7 +68,6 @@ abstract class AnkiImportFacade {
           cutoverEnabled: cutoverEnabled,
           platform: platform,
           libraryAvailable: libraryAvailable,
-          allowLegacyOnly: allowLegacyOnly,
         );
     final decision = resolvedPlan.facadeDecision;
     if (decision == AnkiImportDecision.failClosed) {
@@ -85,19 +77,16 @@ abstract class AnkiImportFacade {
         debugDetails: resolvedPlan.reason,
       );
     }
-    if (decision == AnkiImportDecision.official) {
-      final importer = officialImporter ?? official;
-      if (importer == null) {
-        throw const OfficialAnkiException(
-          code: OfficialAnkiErrorCode.invalidState,
-          messageKey: 'official_anki.importer_not_ready',
-          debugDetails:
-              'OfficialAnkiImporter must be initialized before resolving facade',
-        );
-      }
-      return OfficialAnkiImportFacade(importer);
+    final importer = officialImporter ?? official;
+    if (importer == null) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.invalidState,
+        messageKey: 'official_anki.importer_not_ready',
+        debugDetails:
+            'OfficialAnkiImporter must be initialized before resolving facade',
+      );
     }
-    return const LegacyAnkiImportFacade();
+    return OfficialAnkiImportFacade(importer);
   }
 }
 
@@ -118,20 +107,5 @@ class OfficialAnkiImportFacade implements AnkiImportFacade {
       packagePath: packagePath,
       displayName: displayName,
     );
-  }
-}
-
-class LegacyAnkiImportFacade implements AnkiImportFacade {
-  const LegacyAnkiImportFacade();
-
-  @override
-  bool get isOfficial => false;
-
-  @override
-  Future<OfficialAnkiImportResult?> importOfficialOrNull({
-    required String packagePath,
-    required String displayName,
-  }) async {
-    return null;
   }
 }

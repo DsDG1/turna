@@ -2,9 +2,9 @@
 // (failure → zero Turna rows). Flag-off / legacyMirror must fail-closed
 // rather than reopen a Legacy writer (doc 34 W0).
 //
-// The wizard is driven through the real file-pick flow with an injected
-// parser ([AnkiImportPage.importerForTest]) so everything stays synchronous —
-// fake-async cannot receive worker-isolate port messages.
+// The wizard is driven through the real file-pick flow with a faked
+// platform picker; the official saga runs in-process against a fake
+// OfficialAnkiImporter session.
 
 // Dart imports:
 import 'dart:io';
@@ -20,9 +20,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/anki/anki_deck_manager.dart';
-import 'package:turna/application/anki/anki_importer.dart';
-import 'package:turna/application/anki/anki_models.dart';
-import 'package:turna/application/anki/anki_sample_deck.dart';
 import 'package:turna/application/anki/unified_anki_import_orchestrator.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
@@ -55,21 +52,6 @@ import 'package:turna/views/anki/anki_import_screen.dart';
 import 'package:path/path.dart' as p;
 
 import '../../helpers/in_memory_course_db.dart';
-
-/// Returns the built-in sample collection synchronously so the whole wizard
-/// (preview + import) runs inside fake-async.
-class _ImmediateImporter extends AnkiImporter {
-  @override
-  Future<AnkiCollection> parse(
-    String apkgPath, {
-    String? tempDir,
-    void Function(double progress, String message)? onProgress,
-    bool Function()? isCancelled,
-  }) async {
-    onProgress?.call(1, 'done');
-    return AnkiSampleDeck.build();
-  }
-}
 
 class _FakePicker extends FilePicker {
   _FakePicker(this.path);
@@ -263,7 +245,7 @@ void main() {
           ),
         ],
         child: MaterialApp(
-          home: AnkiImportPage(importerForTest: _ImmediateImporter()),
+          home: const AnkiImportPage(),
         ),
       ),
     );

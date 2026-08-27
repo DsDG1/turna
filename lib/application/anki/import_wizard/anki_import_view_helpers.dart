@@ -1,45 +1,14 @@
 import 'dart:io';
 
-import 'package:turna/application/anki/anki_card_adapter.dart';
-import 'package:turna/application/anki/anki_importer.dart';
-import 'package:turna/application/anki/anki_models.dart';
 import 'package:turna/application/anki/import_wizard/anki_import_wizard_state.dart';
-import 'package:turna/application/anki/import_wizard/notetype_mapping_util.dart';
-import 'package:turna/application/anki/import_wizard/question_type.dart';
+import 'package:turna/application/anki_practice/card_text.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_mapper.dart';
 import 'package:turna/l10n/app_strings.dart';
 
-/// Shared attention levels for recognition rows (legacy + official).
+/// Shared attention levels for recognition rows (official flow).
 enum ImportRecognitionAttention { recognized, advisory, blocking, skipped }
-
-ImportRecognitionAttention legacyRecognitionAttention(
-  LegacyAnkiImportPreviewModel preview,
-  int mid,
-  AnkiNotetype notetype,
-) {
-  final mapping = preview.mappings[mid];
-  final fieldCount = notetype.fieldNames.length;
-  if (mapping == null || fieldCount == 0) {
-    return fieldCount == 0
-        ? ImportRecognitionAttention.blocking
-        : ImportRecognitionAttention.advisory;
-  }
-  if (mappingUsesFrontBackFields(mapping.type)) {
-    final front = mapping.frontFieldIndex;
-    final back = mapping.backFieldIndex;
-    if (front < 0 || back < 0 || front >= fieldCount || back >= fieldCount) {
-      return ImportRecognitionAttention.blocking;
-    }
-    if (fieldCount > 1 && front == back) {
-      return ImportRecognitionAttention.blocking;
-    }
-  }
-  return (preview.recognitionResults[mid]?.needsConfirmation ?? false)
-      ? ImportRecognitionAttention.advisory
-      : ImportRecognitionAttention.recognized;
-}
 
 ImportRecognitionAttention officialRecognitionAttention(
   OfficialAnkiImportPreviewModel preview,
@@ -96,9 +65,6 @@ String mapOfficialErrorToHuman(OfficialAnkiException e) {
 }
 
 String mapGeneralErrorToHuman(Object error) {
-  if (error is AnkiImportException) {
-    return error.message;
-  }
   if (error is FileSystemException || error is IOException) {
     return AppStrings.ankiFileReadFailed;
   }
@@ -127,7 +93,7 @@ String importAttentionStatusLabel(ImportRecognitionAttention attention) {
 
 /// Short preview of one Anki field for the import list (no HTML, no jargon).
 String importSamplePreview(String raw, {int maxChars = 42}) {
-  final plain = AnkiCardAdapter.stripHtmlPublic(raw)
+  final plain = CardText.stripHtml(raw)
       .replaceAll(RegExp(r'\[sound:[^\]]+\]'), '')
       .replaceAll(RegExp(r'\s+'), ' ')
       .trim();
@@ -181,21 +147,3 @@ String userFacingFieldName(String raw) {
       return raw;
   }
 }
-
-String userQuestionTypeLabelOf(UserQuestionType type) {
-  switch (type) {
-    case UserQuestionType.choice:
-      return AppStrings.ankiQuestionTypeChoice;
-    case UserQuestionType.fillBlank:
-      return AppStrings.ankiQuestionTypeFillBlank;
-    case UserQuestionType.listen:
-      return AppStrings.ankiQuestionTypeListen;
-    case UserQuestionType.word:
-      return AppStrings.ankiQuestionTypeWord;
-    case UserQuestionType.sentence:
-      return AppStrings.ankiQuestionTypeSentence;
-    case UserQuestionType.flip:
-      return AppStrings.ankiQuestionTypeFlip;
-  }
-}
-

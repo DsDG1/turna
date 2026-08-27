@@ -7,7 +7,6 @@
 // Project imports:
 import 'package:drift/drift.dart' show Variable;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:turna/application/anki/anki_models.dart';
 import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/anki_note_dao.dart';
 import 'package:turna/data/course_database.dart';

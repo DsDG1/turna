@@ -7,7 +7,7 @@ import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart' as sql;
 
 // Project imports:
-import 'package:turna/application/anki/anki_import_platform_io.dart';
+import 'package:turna/service/remote_backup/archive_io.dart';
 import 'package:turna/application/anki_official/storage/official_anki_sqlite.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/service/remote_backup/backup_manifest.dart';
@@ -133,7 +133,7 @@ class RestoreApplier {
       if (line.trim().isEmpty) continue;
       final match = RegExp(r'^([0-9a-f]{64})  (.+)$').firstMatch(line.trim());
       if (match == null) throw 'SHA256SUMS 行格式错误';
-      final digest = ankiHashFileSha256(_stagedFile(match.group(2)!).path);
+      final digest = archiveFileSha256(_stagedFile(match.group(2)!).path);
       if (digest != match.group(1)!) throw '文件校验失败: ${match.group(2)}';
     }
   }

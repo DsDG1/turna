@@ -17,7 +17,6 @@ void main() {
 
   AnkiImportExecutionPlan plan({
     OfficialAnkiFeatureFlags flags = capableFlags,
-    bool isSample = false,
     String filePath = '/tmp/deck.apkg',
     bool libraryAvailable = true,
   }) {
@@ -25,7 +24,6 @@ void main() {
       flags: flags,
       platform: 'android',
       libraryAvailable: libraryAvailable,
-      isSample: isSample,
       filePath: filePath,
     );
   }
@@ -35,8 +33,7 @@ void main() {
     expect(plan(filePath: '/tmp/DECK.APKG').isOfficialFirst, isTrue);
   });
 
-  test('sample / colpkg / flag-off never choose Official-first', () {
-    expect(plan(isSample: true).isOfficialFirst, isFalse);
+  test('colpkg / flag-off never choose Official-first', () {
     expect(plan(filePath: '/tmp/deck.colpkg').isOfficialFirst, isFalse);
     expect(
       plan(flags: capableFlags.copyWith(officialFirstImport: false))
