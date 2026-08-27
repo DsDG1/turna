@@ -229,7 +229,7 @@ class CourseRepository implements ICourseRepository {
   /// Full lesson bodies whose content JSON contains any of [needles].
   ///
   /// Used by Anki review to resolve <=20 due word ids without loading every
-  /// lesson in a 5k-card deck (see AnkiReviewAssembler.assembleBatchAsync).
+  /// lesson in a 5k-card deck (retired Legacy assembler-era concern).
   ///
   /// [needles] are Anki word ids (`anki-<importId>-c<cardId>`, card-level per
   /// decision 2). Each needle is anchored with the interaction-id ord

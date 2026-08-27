@@ -5,7 +5,7 @@
 > 状态：**一次性交付施工规格；最终总验收前始终 NO-GO**
 > 父计划：[34 Official 生产收口与 OHOS 退役](./34-official-anki-production-cutover-and-ohos-retirement-plan.md)
 > 验收回执：[34-cutover-receipt.md](./34-cutover-receipt.md)
-> W9 HOLD：[34-w9-legacy-deletion-hold.md](./34-w9-legacy-deletion-hold.md)
+> W9 HOLD：已于 2026-08-27 由负责人决策解除（原文件随解除删除）；删除执行见 [doc 35](./35-duplicate-legacy-layer-cleanup-plan.md)
 > OHOS 决策：[ADR 0041](../decisions/0041-ohos-product-eol.md)
 >
 > 本文件是 34 的唯一活跃返工入口，替代此前的“34 剩余施工计划”口径。目标不是逐波交付，而是用**一次连续施工活动**完成 R0–R8 的全部可编码工作，形成一个干净、可复现、可真机验收的 Android arm64 release candidate。R0–R8 只是工作包，不是允许中途宣告完成的阶段。在本文最终门禁全部通过以前，准确状态始终是 **Official Anki 迁移中 / NO-GO**，不得写“迁移完成”“正式切流完成”或“OHOS 用户数据出口完成”。
@@ -1459,7 +1459,7 @@ AnkiImportPage 只保留：
 
 > Official Anki Android 一次性代码收口已形成生产候选；OHOS product target 已退役；Legacy 保持停止新写和观察期，W9 继续 HOLD。
 
-> 2026-08-27 更新：W9 删除门槛由负责人决策解除（观察期证据按负责人豁免，未实际观察，见 [`34-w9-legacy-deletion-hold.md`](./34-w9-legacy-deletion-hold.md) G5 GO 解除记录）；W9-B..E 可分波开工，主计划 §13.2 规则继续有效。其余外部事实（OHOS 用户处置、存量跑批、真机矩阵）仍未发生。
+> 2026-08-27 更新：W9 删除门槛由负责人决策解除（观察期证据按负责人豁免，未实际观察）；W9-B..D 已按 doc 35 于 2026-08-27 施工完毕，主计划 §13.2 规则继续有效。其余外部事实（OHOS 用户处置、存量跑批、真机矩阵）仍未发生。
 
 只有 17.7 也全部通过，才能写“自研 Anki 已完成退役迁移”。
 
@@ -1468,7 +1468,7 @@ AnkiImportPage 只保留：
 
 ## 18. 一次性施工状态（2026-08-25，OS-00–OS-24 host 收口）
 
-> 状态：**host/自动化门禁全绿；真机矩阵与外部事实未验收；整体仍为 Official Anki 迁移中 / NO-GO**（§17.6 剩真机证据项，§17.7 全部 HOLD）。允许的表述：一次性代码收口已形成生产候选，尚未真机验收。（2026-08-27 更新：W9 删除门槛经负责人决策解除，见 [`34-w9-legacy-deletion-hold.md`](./34-w9-legacy-deletion-hold.md)；§17.7 其余外部事实仍 HOLD。）
+> 状态：**host/自动化门禁全绿；真机矩阵与外部事实未验收；整体仍为 Official Anki 迁移中 / NO-GO**（§17.6 剩真机证据项，§17.7 全部 HOLD）。允许的表述：一次性代码收口已形成生产候选，尚未真机验收。（2026-08-27 更新：W9 删除门槛经负责人决策解除，W9-B..D 已按 doc 35 施工；§17.7 其余外部事实仍 HOLD。）
 
 ### 18.1 OS 任务账本勾选（host 证据口径）
 

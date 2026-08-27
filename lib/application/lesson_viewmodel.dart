@@ -37,7 +37,7 @@ import 'package:turna/views/lesson/components/interactions/interaction_renderer.
 
 /// Derive the SRS wordId from an Anki card interaction id.
 ///
-/// Id conventions (see AnkiCardAdapter / AnkiReviewAssembler):
+/// Id conventions (retired Legacy assembler-era scheme, kept stable):
 /// - Course lessons: `<wordId>-c<ord>` where wordId is
 ///   `anki-<importId>-c<cardId>`
 /// - Review sessions: `anki-review-<wordId>`

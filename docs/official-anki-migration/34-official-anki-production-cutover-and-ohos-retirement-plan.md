@@ -4,7 +4,7 @@
 >
 > 日期：2026-08-24
 >
-> 状态：**验收 NO-GO；Official Anki 迁移中**；OHOS EOL = [ADR 0041](../decisions/0041-ohos-product-eol.md)。Official-first、OHOS 主工程删除和 arm64 构建骨架可保留；course scope、实时保真复习、六集合 due、W8、parity、数据出口与发布证据按 [`34-remaining-construction-plan.md`](./34-remaining-construction-plan.md) R0–R8 返工；W9 物理删除继续 [HOLD](./34-w9-legacy-deletion-hold.md)。**不得写「迁移完成」。**
+> 状态：**验收 NO-GO；Official Anki 迁移中**；OHOS EOL = [ADR 0041](../decisions/0041-ohos-product-eol.md)。Official-first、OHOS 主工程删除和 arm64 构建骨架可保留；course scope、实时保真复习、六集合 due、W8、parity、数据出口与发布证据按 [`34-remaining-construction-plan.md`](./34-remaining-construction-plan.md) R0–R8 返工；W9 物理删除已按 doc 35（L0–L3）于 2026-08-27 施工。**不得写「迁移完成」。**
 >
 > 前置：[`31`](./31-anki-product-experience-plan.md)、[`32`](./32-official-anki-experience-parity-plan.md)、[`33`](./33-official-first-import-construction-plan.md)（均已由本文件接管）、[ADR 0037](../decisions/0037-anki-course-review-unification.md)
 >
@@ -78,7 +78,7 @@
 | W7 browser/stats | 服务骨架存在；产品入口、migrated sourceId 路由、全部筛选和 forecast/retention 尚未验收 |
 | C4 配置 | 生产 bundle = `OfficialAnkiFeatureFlags.productionAndroid`；不再读 10 个能力 dart-define；gray cohort 已退出 planner；`officialCapable` → `schedulerRuntimeAvailable` |
 | W8 | saga + census driver 可入队 `cleanLegacy`；启动不自动切 owner |
-| W9-A | 生产不再选择 Legacy writer；物理删除门槛已于 2026-08-27 由负责人决策解除（见 [`34-w9-legacy-deletion-hold.md`](./34-w9-legacy-deletion-hold.md) G5 GO 解除记录） |
+| W9-A | 生产不再选择 Legacy writer；物理删除门槛已于 2026-08-27 由负责人决策解除（2026-08-27 负责人决策豁免；原 HOLD 文件已随解除删除，记录见收据） |
 
 **生产仍可读的 dart-define（opt-in / 暂停闸）：** `TURNA_OFFICIAL_ANKI_CUTOVER`（默认 true）、`DIAGNOSTICS`、`REVIEWER_DIAGNOSTICS`、`MIGRATION_PILOT`、`COURSE_GRADES_SCHEDULER`、`LEGACY_MIRROR`。
 
@@ -138,7 +138,7 @@ Canonical owner                                official
 
 ### 1.7 文档入口
 
-活跃施工只认本文件 + [`34-remaining-construction-plan.md`](./34-remaining-construction-plan.md) + [`34-cutover-receipt.md`](./34-cutover-receipt.md) + [`34-w9-legacy-deletion-hold.md`](./34-w9-legacy-deletion-hold.md)。`28/31/32/33` 已标历史规格，勿按它们开波次。不得以 Phase / P5F / 灰度 G4 名称判断是否可发布。
+活跃施工只认本文件 + [`34-remaining-construction-plan.md`](./34-remaining-construction-plan.md) + [`34-cutover-receipt.md`](./34-cutover-receipt.md) + [`35-duplicate-legacy-layer-cleanup-plan.md`](./35-duplicate-legacy-layer-cleanup-plan.md)。`28/31/32/33` 已标历史规格，勿按它们开波次。不得以 Phase / P5F / 灰度 G4 名称判断是否可发布。
 
 ---
 
@@ -943,7 +943,7 @@ W1/W2 可与 W3–W5 并行，但 W9 必须同时等 W2 和 W8 完成。
 
 只有以下全部成立，才能宣称“自研 Anki 已切到 Official，OHOS 已退役”。
 勾选必须以仓库/发布证据为准；本会话未伪造设备证明。未满足项保持未勾选。
-W9 物理删除与「一个正式版本观察」见 [`34-w9-legacy-deletion-hold.md`](./34-w9-legacy-deletion-hold.md)；摘要见 [`34-cutover-receipt.md`](./34-cutover-receipt.md)。
+W9 物理删除执行版见 [`35-duplicate-legacy-layer-cleanup-plan.md`](./35-duplicate-legacy-layer-cleanup-plan.md)（2026-08-27 已施工）；「一个正式版本观察」被 2026-08-27 负责人决策豁免；摘要见 [`34-cutover-receipt.md`](./34-cutover-receipt.md)。
 
 - [x] 仓库不再包含 OHOS product target、fork 依赖或构建补丁；（证据：`ohos/`、`tool/apply_patches.sh`、`tool/patches/` 已不存在；活跃构建说明改官方 Flutter）
 - [x] 活跃文档不再宣称支持 OHOS；（证据：本 README、`docs/android-build-setup.md`、`docs/project-guide.md`、`CLAUDE.md` → ADR 0041 / EOL）
@@ -957,7 +957,7 @@ W9 物理删除与「一个正式版本观察」见 [`34-w9-legacy-deletion-hold
 - [ ] browser、stats、media、product effects 对纯 Official 来源可用；（**验收撤销**：Official section 产品按钮仍为 null；migrated importId/sourceId 映射错误；Stats 可能回退 Legacy provider，部分 filter/forecast 未完成）
 - [ ] backup/restore/reimport/uninstall/强杀恢复通过 release 真机验收；(**HOLD** — 本环境无设备，未伪造 §15.3 真机闭环)
 - [ ] 所有历史来源已进入 cleanOfficial、已导出/只读隔离或有明确用户处理状态；（W8 saga + reconciler 已提供路径；**存量用户跑批/确认未在本会话完成** — HOLD）
-- [ ] Legacy 新写入连续一个正式版本为 0；（**观察未发生，2026-08-27 负责人决策豁免** — 见 [`34-w9-legacy-deletion-hold.md`](./34-w9-legacy-deletion-hold.md) G5 GO 解除记录；无实际观察数据，保持未勾选）
+- [ ] Legacy 新写入连续一个正式版本为 0；（**观察未发生，2026-08-27 负责人决策豁免** — 2026-08-27 负责人决策豁免，原 HOLD 文件已随解除删除；无实际观察数据，保持未勾选）
 - [ ] Legacy importer/scheduler/schema 按 W9 分波删除；（**HOLD 已于 2026-08-27 解除：可开工、尚未执行**；W9-A 仅停住新写产品选择，未物理删除）
 - [x] CI 有 owner、forbidden write、unsupported platform 和 native ABI 门禁；（证据：`anki_unification_architecture_guard_test` + `ohos_eol_architecture_guard_test` 含 arm64 `libturna_anki.so` / release 命令门禁；planner 组合矩阵）
 - [ ] 迁移 README、ADR、构建说明和 release artifact 全部更新；（**验收撤销**：当前工作树/native 子模块不干净，收据与源码曾矛盾；需按 `34-remaining-construction-plan.md` R8 从锁定 commit 重建）

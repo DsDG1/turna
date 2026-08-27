@@ -4,7 +4,7 @@
 > 状态：**验收 NO-GO；Official Anki 迁移中**（host/自动化门禁全绿、工作树生产候选已形成；真机矩阵与外部事实未验收。不得写「迁移完成」）
 > 计划真源：[`34-official-anki-production-cutover-and-ohos-retirement-plan.md`](./34-official-anki-production-cutover-and-ohos-retirement-plan.md)
 > 剩余波次：[`34-remaining-construction-plan.md`](./34-remaining-construction-plan.md)
-> W9 HOLD 解除记录（2026-08-27 负责人决策）：[`34-w9-legacy-deletion-hold.md`](./34-w9-legacy-deletion-hold.md)
+> W9 HOLD 解除记录（2026-08-27 负责人决策；原 HOLD 文件已随解除删除，豁免与解除语句并入本收据「Held」表与准确口径）
 > OHOS EOL ADR：[ADR 0041](../decisions/0041-ohos-product-eol.md)（草案曾写 0038；0038 已占用）
 
 ---
@@ -35,8 +35,8 @@
 | W8 调度策略用户可见三选一（禁止静默 reset） | `LegacyAnkiSchedulingPolicy` + `userVisibleLabel/Description`；无 lossless map 时要求 `policyConfirmedByUser` |
 | W8 journal resume / rollback 单测 | `test/application/anki_official/official_legacy_source_migration_saga_test.dart`；输出 `/tmp/grok-goal-69bb594208d5/implementer/migration-legacy-retirement.txt` |
 | W9-A（停住 Legacy 新写产品选择） | W0 fail-closed + architecture guards；见 HOLD 文档 |
-| W9 §13.3 CI 门禁补强 | `anki_unification_architecture_guard_test.dart`：planner/`legacyOnly`、Official 禁 `ensureWord/updateReview`、unsupported platform 指针 |
-| W9 物理删除 HOLD 书面落盘 | `34-w9-legacy-deletion-hold.md`（2026-08-24） |
+| W9 §13.3 CI 门禁补强 | `anki_unification_architecture_guard_test.dart`（doc 35 L3 后更名 `official_anki_architecture_guard_test.dart`）：planner/`legacyOnly`、Official 禁 `ensureWord/updateReview`、unsupported platform 指针；doc 35 施工后追加 L0–L2 反复活断言 |
+| W9 物理删除 HOLD 书面落盘 | `34-w9-legacy-deletion-hold.md`（2026-08-24 落盘，2026-08-27 随解除删除） |
 | W10 文档入口收口 | 本目录 `README.md` 以 doc 34 为唯一活跃施工入口；31/32/33 标注由 34 接管 |
 | W3 census / reconciler + journal | 分类器 + `JoinedOfficialAnkiSourceEvidenceReader`（Drift ∪ catalog，按 hash/id）；`OfficialAnkiStartupCensus` 启动只读 collect + journal `scanned`（幂等）。**不**自动改 owner |
 | W5 基础骨架（非产品验收） | 共享 host 已能调用 `showAnswer` 并提交 Official scheduler；但 formal review 仍有 HTML 降级、固定队列 stale、Review All 单来源和六集合 due 缺口，返工见 remaining R2/R3 |

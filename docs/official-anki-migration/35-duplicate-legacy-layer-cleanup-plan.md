@@ -1,8 +1,8 @@
 # 35 — Legacy 复刻层清理施工计划（L0–L3，只删官方已替代的重复实现）
 
 > 日期：2026-08-27
-> 关联：[`34-official-anki-production-cutover-and-ohos-retirement-plan.md`](./34-official-anki-production-cutover-and-ohos-retirement-plan.md) §13 / §19（W9）；[`34-w9-legacy-deletion-hold.md`](./34-w9-legacy-deletion-hold.md)（HOLD 已解除，2026-08-27）
-> 状态：**计划（待施工）**。本文档是 doc 34 W9 的重切执行版：**只删"复刻层"，不动自研资产**。
+> 关联：[`34-official-anki-production-cutover-and-ohos-retirement-plan.md`](./34-official-anki-production-cutover-and-ohos-retirement-plan.md) §13 / §19（W9）；W9 HOLD 已于 2026-08-27 由负责人决策解除（原 HOLD 文件随解除删除，豁免决策记录见 [`34-cutover-receipt.md`](./34-cutover-receipt.md)「Held」表）
+> 状态：**已施工（2026-08-27，L0–L3 四波各自独立 commit，见 §9 验收表）**。本文档是 doc 34 W9 的重切执行版：**只删"复刻层"，不动自研资产**。
 > 总原则：判据只有一条——**这个文件是否在手写复刻 Anki 的语义**（解析 anki2 sqlite、模板/cloze 渲染、media IRI、type-answer、对 Anki 卡的调度写入）。是 → 官方 core 已替代 → 删；否 → 自研资产 → 保留（最多搬家）。
 
 ---
@@ -116,6 +116,8 @@ L0 死代码 ──► L1 解析侧删除 ──► L2 复习侧删除（W8 门�
 2. rollback / restore / uninstall drill 收据（沿用 doc 34 §13 口径）；
 3. L1 已合入。
 
+> **施工时门禁记录（2026-08-27）**：第 1 条按"负责人书面决策"分支满足——2026-08-27 负责人决策解除 W9 HOLD 并豁免观察期证据（决策记录见 doc 34 收据），其语义即本计划 §5.2 的"legacy 源改 fail-closed 只读"；第 2 条 rollback/restore/uninstall drill 收据见 doc 34 收据 R0/R4/R6（backup/restore 测试、write fence、commit-last 恢复）；第 3 条 L1 已先行合入（commit `9cd7954c`）。
+
 ### 5.2 删除清单（生产 ≈2,500 行）
 
 | 任务 | 内容 |
@@ -177,11 +179,52 @@ L0–L2 之后，`lib/application/anki/` 剩余文件 = 纯自研资产。整波
 
 基线（2026-08-25 收据）：`flutter analyze` 0 issue · 全量 1852:0 · golden 4:4 · native 68:0 · arm64 APK 56.1MB。
 
+> **2026-08-27 施工环境说明**：本机（Windows host）复测基线为 analyze 4 个预存 info（`test/application/anki_official/official_anki_projection_test.dart` 的 unnecessary_const，非本次施工引入）与全量 31 个**环境性失败**（golden 字体渲染、Windows 文件名禁用 `?` 的 media 测试、本地日窗口查询等；基线文档的 1852:0 系原 macOS/Linux 施工 host 数字）。因此本次验收口径为：**失败集合与施工前基线逐项一致（零新增），analyze 不新增 issue**。
+
 | 波次 | commit | analyze | 全量测试（前→后） | golden | APK | 反复活断言 | 备注 |
 |---|---|---|---|---|---|---|---|
-| L0 | — 待填 | | | | | | |
-| L1 | — 待填 | | | | | | |
-| L2 | — 待填 | | | | | | 门禁收据链接 |
-| L3 | — 待填 | | | | | | rename stat 摘要 |
+| L0 | `44c3797b` | 持平基线（4 预存 info） | 失败集不变（31 环境性）；受影响测试全绿 | 环境性不变 | — | ✅ 6 文件 + unification 目录不得存在 | 净删生产 759 行 / 测试 869 行 |
+| L1 | `9cd7954c` | 持平基线 | 失败集与基线逐项一致（零新增） | 环境性不变 | — | ✅ 16 文件不得存在 + 5 类名全树禁用（去注释扫描） | 净删生产 8,055 行 / 测试 4,588 行；6 个渲染链文件按 §4.1 例外推迟到 L2 |
+| L2 | `43bbf497` | 持平基线 | 失败集与基线逐项一致（零新增） | 环境性不变 | — | ✅ 8 文件不得存在 + AnkiReviewAssembler/TurnaStudyLedger 全树禁 + ensureWord 全 lib 禁 + session page 禁 SrsProvider/AnkiNoteDao | 净删生产 5,877 行（含 L1 推迟的 anki_models 生成件）/ 测试 1,088 行；门禁记录见 §5.1 |
+| L3 | `d43d0314` | 持平基线 | 失败集与基线逐项一致（零新增） | 环境性不变 | 尺寸不变（纯移动，见 L2 后整包对比） | ✅ `lib/application/anki` 目录不得存在；guard 更名 official_anki_architecture_guard_test | 净变化 +8 行（纯 import 重写）；rename 占 diff 主体 |
+| 终验 | L3 后 | 持平基线 | 失败集与基线逐项一致（31 环境性，零新增） | 环境性不变 | **arm64 release 53.0MB（基线 56.1MB，−3.1MB）** | ✅ 全部断言进 guard test 随全量执行 | 构建成功 `flutter build apk --release --split-per-abi --target-platform android-arm64` |
 
 > 规则：已执行任务必须填写实际 commit、命令与指标，不得只勾选（README 维护规则）。
+
+---
+
+## 10. 施工实录：与计划的差异（2026-08-27）
+
+计划是按当时代码写的；施工时逐项核对了真实依赖面，以下偏差全部有代码证据支撑：
+
+### L0
+
+- **`domain/anki/repositories.dart` 非纯孤儿**：`CardIntroductionRepository` 被会话基座（`study_session_controller` / `anki_study_session_host`）在用。处置：该接口**迁入 `card_introduction_state.dart`**（同域自然归宿），其余 4 个死接口（CanonicalAnkiRepository / CourseCardRepository / CardPresentationRepository / ReviewQueueRepository）随文件消亡。guard 反复活断言不变（`repositories.dart` 仍不得存在）。
+- SQL 表 `anki_course_card_placements` 有生产读者（`official_anki_home_due_sync`）——本就只删 Dart 层，表不动，符合"零数据迁移"原则。
+
+### L1
+
+- **`question_type.dart` / `notetype_mapping_util.dart` 删除**（计划列为保留）：二者只服务于 legacy 预览/映射编辑对话框与识别管线；官方映射页（`official_anki_mapping_page`）用自有 `OfficialAnkiMappingSuggestion` 体系，不依赖 `NotetypeMapping`。legacy 面删除后二者成死代码，按"孤儿即删"处理。
+- **`AnkiImportSummary` 迁入 `anki_import_wizard_state.dart`**（原定义在 `anki_deck_assembler.dart`）：官方流、完成协调器与 done 步共用。
+- **`AnkiTemplate` 内联进 `anki_note_dao.dart`**：NoteStore 模板持久化（`AnkiNotetypeRecord.templates` 的 JSON 往返）仍需该形状；手写 const 构造 + fromJson/toJson 保持 JSON 兼容。
+- **`anki_import_platform_io.dart` → `service/remote_backup/archive_io.dart`**：`ankiHashFileSha256`/`ankiExtractArchiveToDisk` 更名 `archiveFileSha256`/`extractArchiveToDisk` 迁至中立位置；sqlite 读取面随 parser 消亡；stub 文件一并删除。
+- **internal page 保留**（非"只剩 legacy drill"）：剥离 `_seedP5cFixtureLegacy`、`_seedD4Legacy`、`_runD4FirstSource`、`_runD4MutationGt0Rollback` 及 4 按钮 + 死常量；官方诊断段（导入/预览/正式复习/迁移预览/Fixture 回滚演练）全部保留。副作用：P5C fixture pilot 演练不再有内置种子按钮，只能对真机上的真实 legacy 数据运行（dev-only 降级，可接受）。guard allowlist 相应收紧（internal page 不再豁免）。
+- **执行计划三态化**：`legacyOnly`/`allowLegacyOnly`/`isSample`/`AnkiImportOwner.legacy`/`AnkiImportDecision.legacy`/`LegacyAnkiImportFacade` 全删；矩阵测试重写为 officialFirst/failClosed/unsupported。
+- **连带死代码**：`anki_deck_manager.detectNewNotes`、`card_introduction_store.seedLegacyImport` 删除。
+
+### L2
+
+- **lesson learn 路径语义**（§5.2 L2-03 的隐藏依赖）：`itemForCourse` 原将 legacy 课程卡映射为 learn + turnaFsrs（由 `TurnaStudyLedger` 落笔）。writer 删除后改为**与官方一致的 practice/none**（翻卡 + introduction，不写 FSRS）——即门禁语义"legacy 源 fail-closed 只读"在课程学习面的体现；`lesson_viewmodel` 的 host 不再装配 turna 腿。
+- **持久化 `AnkiHtmlCard` 兜底**（计划未列、防崩溃必需）：旧导入的 lesson 体与错题快照仍在 DB 里携带该类型，`lookupRenderer` 对未注册类型抛 StateError。新增 `anki_html_card_retired_renderer`（确认即过的占位卡，指向旧版兼容设置），避免存量数据闪退。类型本体保留——官方保真复习（`official_formal_review_coordinator` → `anki_review_content`）仍在用。
+- **Review All 收敛**：`formal_review_source_coordinator.fromCatalog` 直接跳过 legacy-only 源（原第二分支发 legacy target，落进已删分支）。
+- **session page fail-closed**：recorded-legacy 源 tap 进入页面后显示 fail-closed 错误面（`FormalReviewLauncher.failClosedMessage`），不再静默换语义。
+- **deck_manager 死 quota 面删除**：`recordCardReviewed`/`recordCardUnreviewed`/`remainingForImport`/`newRemainingToday`/`reviewRemainingToday` 及日计数器在 session 分支删除后零消费者（全局限额 get/set 与 per-import 限额 DAO 面保留，设置页与牌组设置对话框仍在用）。
+- **静态调用迁移**：`importIdFromSectionId`/`ankiPrefix`/`importIdFromWordId` 全部改指 `LegacyAnkiIdentifiers`（`official_anki_ids.dart`，官方前缀感知），比计划设想的"迁到 formal_review_launcher"更少改动。
+- **保留 `itemFromReviewCard`**：纯映射（wordId→StudyItem），官方复习内容测试在用；其 learn/review 模式对 legacy id 产出 turnaFsrs owner，但已无生产路径 commit 之。
+
+### L3
+
+- **`anki_import_cleanup_service` 一并迁至 `anki_official/`**（§6 表未列，但终态断言要求 `lib/application/anki` 清空；该文件是 deck_manager 卸载路径的活依赖）。
+- **`import_wizard/` 整目录迁至 `anki_import/`**，含 `anki_import_completion_coordinator` 与 `official_first_anki_import_flow`（表只列 7 件，实际全部迁出）。
+- **guard 更名** `official_anki_architecture_guard_test.dart`，并新增 `Directory('lib/application/anki')` 不得存在的终态断言。
+- 瘦身（deck_manager/cleanup_service 拆分）仍按 §1.3 属 NoteStore 退役计划，未做。

@@ -154,7 +154,7 @@ class FormalReviewLauncher {
   /// Assemble Official queue ∩ formal-due into StudyItems + OfficialStudyLedger.
   ///
   /// Shared session hosts must use this path for Official owners instead of
-  /// Legacy [AnkiReviewAssembler] + Turna SRS.
+  /// (retired Legacy assembler + Turna SRS, doc 35 L2).
   OfficialFormalReviewBatch assembleOfficialBatch({
     required OfficialReviewSession session,
     required String sourceId,
