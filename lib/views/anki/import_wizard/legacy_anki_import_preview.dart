@@ -1,9 +1,16 @@
+// Dart imports:
+import 'dart:async';
+
+// Flutter imports:
 import 'package:flutter/material.dart';
+
+// Project imports:
+import 'package:turna/application/anki/anki_card_adapter.dart';
 import 'package:turna/application/anki/anki_models.dart';
 import 'package:turna/application/anki/import_wizard/anki_import_controller.dart';
 import 'package:turna/application/anki/import_wizard/anki_import_view_helpers.dart';
 import 'package:turna/application/anki/import_wizard/anki_import_wizard_state.dart';
-import 'package:turna/application/anki/legacy_anki_import_executor.dart';
+import 'package:turna/application/anki/import_wizard/question_type.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/anki/import_wizard/anki_import_wizard_widgets.dart';
 import 'package:turna/views/anki/import_wizard/anki_notetype_mapping_editor.dart';
@@ -11,7 +18,9 @@ import 'package:turna/views/theme.dart';
 
 /// Legacy preview step (maintainability plan §10.5): renders the sealed
 /// [LegacyAnkiImportPreviewModel]. Pure view — every mutation goes through
-/// controller intents.
+/// controller intents. The question-type chips are the primary interaction;
+/// collision strategy and grouping toggles are fixed to their defaults
+/// (merge + smart grouping) and only summarized in the advanced card.
 class LegacyAnkiImportPreview extends StatelessWidget {
   const LegacyAnkiImportPreview({
     super.key,
@@ -37,16 +46,15 @@ class LegacyAnkiImportPreview extends StatelessWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
             children: [
-              _buildContentSection(context, collection),
-              const SizedBox(height: 12),
               _buildMappingSection(context, collection),
               const SizedBox(height: 12),
+              _buildContentSection(context, collection),
+              const SizedBox(height: 12),
               AdvancedOptionsCard(
-                summary: '重复卡片：${strategyLabel(context, preview.strategy)}',
+                summary: AppStrings.ankiAdvancedOptionsSummary,
                 children: [
-                  _buildOrganizationBlock(context),
-                  const SizedBox(height: 12),
-                  _buildStrategySection(context),
+                  _buildOrganizationSummary(context),
+                  _buildLearningProgressSwitch(context),
                 ],
               ),
             ],
@@ -69,115 +77,8 @@ class LegacyAnkiImportPreview extends StatelessWidget {
             ImportRecognitionAttention.blocking,
       );
 
-  Widget _buildContentSection(
-    BuildContext context,
-    AnkiCollection collection,
-  ) {
-    return SectionCard(
-      icon: Icons.layers_rounded,
-      title: AppStrings.ankiPreviewSectionContent,
-      hint: AppStrings.ankiPreviewSectionContentHint,
-      children: [
-        StatStrip(
-          items: [
-            (AppStrings.ankiDecksLabel, collection.decks.length),
-            (AppStrings.ankiNotesLabel, collection.notes.length),
-            (AppStrings.ankiCardsLabel, collection.cards.length),
-            (AppStrings.ankiMediaFilesLabel, collection.media.length),
-          ],
-        ),
-        if (collection.decks.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          const Subheader(text: '牌组结构'),
-          const SizedBox(height: 4),
-          for (final deck in collection.decks.values)
-            InfoRow(
-              deck.name,
-              AppStrings.ankiDeckCardCount(deck.cardCount),
-            ),
-        ],
-      ],
-    );
-  }
-
-  /// Preview of the unit/lesson organization detected from Anki tags and
-  /// notetype fields, plus the smart-grouping toggle. Reads the cached
-  /// organization preview recomputed by the controller on section toggle.
-  Widget _buildOrganizationBlock(BuildContext context) {
-    final org = preview.organizationPreview;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Subheader(text: '组织结构'),
-        const SizedBox(height: 4),
-        if (org != null && org.hasAny) ...[
-          if (preview.sectionBeta && org.sectionNames.isNotEmpty) ...[
-            InfoRow('检测到 Section', org.sectionCountLabel),
-            if (org.lowConfidenceSectionHint != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Text(
-                  org.lowConfidenceSectionHint!,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: TurnaTheme.textHintColor(context),
-                  ),
-                ),
-              ),
-          ],
-          InfoRow(AppStrings.ankiDetectedUnits, '${org.unitCount}'),
-          InfoRow(AppStrings.ankiDetectedLessons, '${org.lessonCount}'),
-          InfoRow(
-              AppStrings.ankiResolvedCards, '${org.resolvedCardCount}'),
-        ] else
-          InfoRow(AppStrings.ankiOrganizationNone,
-              AppStrings.ankiOrganizationNoneDesc),
-        const SizedBox(height: 4),
-        Material(
-          type: MaterialType.transparency,
-          child: SwitchListTile(
-            value: preview.smartGrouping,
-            onChanged: controller.setSmartGrouping,
-            title: Text(
-              AppStrings.ankiSmartGrouping,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            ),
-            subtitle: Text(
-              AppStrings.ankiSmartGroupingDesc,
-              style: const TextStyle(fontSize: 12),
-            ),
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-          ),
-        ),
-        // Plan 1 Phase 5 Beta: semantic Section grouping. Only affects this
-        // new import; off by default.
-        Material(
-          type: MaterialType.transparency,
-          child: SwitchListTile(
-            value: preview.sectionBeta,
-            onChanged: preview.smartGrouping
-                ? controller.setSectionBeta
-                : null,
-            title: const Text(
-              '自动分 Section（Beta）',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-            ),
-            subtitle: const Text(
-              '按 Chapter/章 字段或 Unit 前缀把多个 Unit 归入 Section',
-              style: TextStyle(fontSize: 12),
-            ),
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Section 2: how each card type is identified — one row per notetype
-  /// with a ✓/⚠ state. The AI re-identification button only appears when
-  /// something needs a manual look.
+  /// Section 1: what each card type is — one row per notetype with a
+  /// question-type chip selector as the primary control.
   Widget _buildMappingSection(
     BuildContext context,
     AnkiCollection collection,
@@ -207,7 +108,7 @@ class LegacyAnkiImportPreview extends StatelessWidget {
     return SectionCard(
       icon: Icons.auto_awesome_outlined,
       title: AppStrings.ankiPreviewSectionMapping,
-      hint: AppStrings.ankiPreviewSectionMappingHint,
+      hint: AppStrings.ankiQuestionTypeSectionHint,
       children: [
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -248,15 +149,22 @@ class LegacyAnkiImportPreview extends StatelessWidget {
         ),
         if (shownEntries.isNotEmpty) const SizedBox(height: 6),
         for (final entry in shownEntries)
-          NotetypeMappingRow(
-            notetype: entry.value,
-            mapping: preview.mappings[entry.key],
-            recognition: preview.recognitionResults[entry.key],
-            attention: attention[entry.key]!,
-            onEdit: () => onEditMapping(entry.key, entry.value),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: NotetypeMappingRow(
+              notetype: entry.value,
+              mapping: preview.mappings[entry.key],
+              recognition: preview.recognitionResults[entry.key],
+              attention: attention[entry.key]!,
+              cardCount: _cardCount(collection, entry.key),
+              onTypeSelected: (type) => unawaited(
+                _saveType(collection, entry.key, entry.value, type),
+              ),
+              onEdit: () => onEditMapping(entry.key, entry.value),
+            ),
           ),
         if (advisory > 0 && aiReady) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: 4),
           OutlinedButton.icon(
             onPressed: preview.isAiIdentifying ? null : onIdentifyWithAi,
             icon: preview.isAiIdentifying
@@ -281,81 +189,133 @@ class LegacyAnkiImportPreview extends StatelessWidget {
     );
   }
 
-  /// Advanced: how collisions and learning progress are handled.
-  Widget _buildStrategySection(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  /// Chip tap → override the auto-detected type, keeping field indexes.
+  /// Persisted as a reusable rule by the controller.
+  Future<void> _saveType(
+    AnkiCollection collection,
+    int mid,
+    AnkiNotetype notetype,
+    UserQuestionType type,
+  ) async {
+    final existing =
+        preview.mappings[mid] ?? AnkiCardAdapter.inferMapping(notetype);
+    final next = resolveMappingType(
+      type,
+      hasClozeMarkers: hasClozeMarkers(notetype, collection.notes),
+    );
+    if (next == existing.type) return;
+    await controller.saveLegacyMapping(mid, existing.copyWith(type: next));
+  }
+
+  int _cardCount(AnkiCollection collection, int mid) {
+    final noteIds = {
+      for (final note in collection.notes)
+        if (note.mid == mid) note.id,
+    };
+    if (noteIds.isEmpty) return 0;
+    return collection.cards
+        .where((card) => noteIds.contains(card.nid))
+        .length;
+  }
+
+  Widget _buildContentSection(
+    BuildContext context,
+    AnkiCollection collection,
+  ) {
+    return SectionCard(
+      icon: Icons.layers_rounded,
+      title: AppStrings.ankiPreviewSectionContent,
+      hint: AppStrings.ankiPreviewSectionContentHint,
       children: [
-        const Subheader(text: '重复卡片怎么处理'),
-        const SizedBox(height: 6),
-        CollisionStrip(
-          newCount: preview.newCount,
-          existingCount: preview.existingCount,
+        StatStrip(
+          items: [
+            (AppStrings.ankiDecksLabel, collection.decks.length),
+            (AppStrings.ankiNotesLabel, collection.notes.length),
+            (AppStrings.ankiCardsLabel, collection.cards.length),
+            (AppStrings.ankiMediaFilesLabel, collection.media.length),
+          ],
         ),
-        const SizedBox(height: 6),
-        Text(
-          AppStrings.ankiPreviewCollisionVisualHint,
-          style: TextStyle(
-            fontSize: 11,
-            color: TurnaTheme.textHintColor(context),
-          ),
-        ),
-        const SizedBox(height: 12),
-        RadioGroup<ImportStrategy>(
-          groupValue: preview.strategy,
-          onChanged: (value) {
-            if (value != null) controller.setStrategy(value);
-          },
-          child: Column(
-            children: [
-              for (final s in ImportStrategy.values) ...[
-                StrategyOption(
-                  value: s,
-                  groupValue: preview.strategy,
-                  title: strategyLabel(context, s),
-                  description: strategyDescription(context, s),
-                  consequence: strategyConsequence(s),
-                  isWarning: s == ImportStrategy.forceReplace,
-                  onChanged: controller.setStrategy,
-                ),
-                const SizedBox(height: 8),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(height: 4),
-        Material(
-          color: TurnaTheme.brandTeal.withValues(alpha: 0.04),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
-            side: BorderSide(
-              color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
+        if (collection.decks.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          const Subheader(text: '牌组结构'),
+          const SizedBox(height: 4),
+          for (final deck in collection.decks.values)
+            InfoRow(
+              deck.name,
+              AppStrings.ankiDeckCardCount(deck.cardCount),
             ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-            child: SwitchListTile.adaptive(
-              contentPadding: EdgeInsets.zero,
-              title: Text(
-                AppStrings.ankiImportLearningProgress,
-                style:
-                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-              ),
-              subtitle: Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Text(
-                  preview.importLearningProgress
-                      ? AppStrings.ankiImportLearningProgressOnDesc
-                      : AppStrings.ankiImportLearningProgressOffDesc,
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ),
-              value: preview.importLearningProgress,
-              onChanged: controller.setImportLearningProgress,
-            ),
-          ),
-        ),
+        ],
       ],
+    );
+  }
+
+  /// One-line summary of the detected unit/lesson grouping. Grouping
+  /// behavior is fixed to smart-grouping-on; only low-confidence hints are
+  /// worth surfacing.
+  Widget _buildOrganizationSummary(BuildContext context) {
+    final org = preview.organizationPreview;
+    if (org != null && org.hasAny) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InfoRow(
+            AppStrings.ankiSmartGrouping,
+            '${org.unitCount} 个单元 · ${org.lessonCount} 个课时',
+          ),
+          if (org.lowConfidenceSectionHint != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                org.lowConfidenceSectionHint!,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: TurnaTheme.textHintColor(context),
+                ),
+              ),
+            ),
+        ],
+      );
+    }
+    return InfoRow(
+      AppStrings.ankiOrganizationNone,
+      AppStrings.ankiOrganizationNoneDesc,
+    );
+  }
+
+  Widget _buildLearningProgressSwitch(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Material(
+        color: TurnaTheme.brandTeal.withValues(alpha: 0.04),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
+          side: BorderSide(
+            color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+          child: SwitchListTile.adaptive(
+            contentPadding: EdgeInsets.zero,
+            title: Text(
+              AppStrings.ankiImportLearningProgress,
+              style:
+                  const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+            subtitle: Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                preview.importLearningProgress
+                    ? AppStrings.ankiImportLearningProgressOnDesc
+                    : AppStrings.ankiImportLearningProgressOffDesc,
+                style: const TextStyle(fontSize: 12),
+              ),
+            ),
+            value: preview.importLearningProgress,
+            onChanged: controller.setImportLearningProgress,
+          ),
+        ),
+      ),
     );
   }
 }

@@ -1242,10 +1242,6 @@ class AppStrings {
   static String get ankiImportHistoryMigrated => '已包含复习历史';
   static String get ankiDeckStructure => '牌组结构';
   static String ankiDeckCardCount(int cardCount) => '$cardCount 张卡片';
-  static String get ankiNotetypeMapping => '自动识别结果';
-  static String get ankiMappingOverrideHint => '识别有误？点按卡片类型可手动调整';
-  static String get ankiMappingAutoChoiceHint =>
-      '同一笔记类型中的单选/多选会按每张卡的题面与答案分别判断。';
   // Plain-language recognition states (no confidence percentages/sources):
   // green check = auto-recognized, orange warning = worth a manual look.
   static String get ankiMappingRecognizedAuto => '已自动识别';
@@ -1260,30 +1256,17 @@ class AppStrings {
       '有 $count 类卡片缺少题目或答案，需要先调整。';
   static String get ankiMappingFixBlocking => '请先调整或跳过标红的卡片类型';
   static String get ankiAdvancedOptionsTitle => '高级选项';
-  static String get ankiAdvancedOptionsHint => '重复卡片处理、分组方式等，一般无需改动';
+  static String get ankiAdvancedOptionsSummary =>
+      '重复的卡自动合并 · 自动按单元分组';
   static String get ankiAiIdentify => 'AI 智能识别';
   static String get ankiAiRetry => '重新识别';
   static String get ankiAiIdentifying => 'AI 识别中…';
   static String get ankiAiNotConfiguredMessage =>
       '未配置 AI，无法智能识别。请先在「设置 > AI 工具」中配置 AI API。';
   static String get ankiAiIdentifyHint => '如未配置 AI，请先在「设置 > AI 工具」配置';
-  static String get ankiNotetypePreview => '样例卡预览';
-  static String get ankiNotetypeFields => '字段';
   static String get ankiNotetypeSampleFront => '正面';
   static String get ankiNotetypeSampleBack => '背面';
-  static String get ankiMappingTypeAnkiCard => '正面与答案';
-  static String get ankiMappingTypeWordEntry => '单词与释义';
-  static String get ankiMappingTypeExpression => '句子与翻译';
-  static String get ankiMappingTypeCloze => '填空卡';
-  static String get ankiMappingTypeMultipleChoice => '单选题';
-  static String get ankiMappingTypeMultiSelect => '多选题';
-  static String get ankiMappingTypeAutoChoice => '选择答案';
-  static String get ankiMappingTypeFillBlank => '输入答案';
-  static String get ankiMappingTypeTypeAnswer => '打字题';
-  static String get ankiMappingTypeListenPick => '听声音选答案';
   static String get ankiMappingEditTitle => '确认卡片';
-  static String get ankiMappingEditTooltip => '编辑识别结果';
-  static String get ankiMappingFieldType => '卡片类型';
   static String get ankiMappingFieldFront => '题目字段';
   static String get ankiMappingFieldBack => '答案字段';
   static String get ankiMappingFieldsAutoHint => '该类型字段由系统逐卡自动识别，无需手动选择。';
@@ -1292,26 +1275,29 @@ class AppStrings {
   static String get ankiMappingSwapSides => '交换题目和答案';
   static String get ankiMappingMoreAdjustments => '更多调整';
   static String get ankiMappingConfirmCorrect => '确认正确';
+  // User-facing question-type chips (import mapping): one plain label per
+  // UserQuestionType — the primary interaction, replacing the internal
+  // notetype mapping-type dropdown.
+  static String get ankiQuestionTypeChoice => '选择题';
+  static String get ankiQuestionTypeFillBlank => '填空题';
+  static String get ankiQuestionTypeListen => '听力题';
+  static String get ankiQuestionTypeWord => '单词卡';
+  static String get ankiQuestionTypeSentence => '句子卡';
+  static String get ankiQuestionTypeFlip => '翻卡片';
+  static String get ankiQuestionTypeAutoSuffix => '自动';
+  static String get ankiQuestionTypeSectionTitle => '这批卡片是什么题型？';
+  static String get ankiQuestionTypeSectionHint => '已自动识别，点一下即可更改';
+  static String get ankiMappingAdjustFields => '调整字段';
+  static String ankiMappingCards(int count) => '$count 张';
   static String get ankiOrganizationTitle => '组织结构';
-  static String get ankiDetectedUnits => '识别到的单元';
-  static String get ankiDetectedLessons => '识别到的课时';
-  static String get ankiResolvedCards => '含单元/课时标签的卡片';
   static String get ankiOrganizationNone => '未发现单元/课时标签';
   static String get ankiOrganizationNoneDesc => '卡片将按每课 20 张分组。';
   static String get ankiSmartGrouping => '智能分组';
-  static String get ankiSmartGroupingDesc => '将标签和字段映射为命名的单元与课时';
-  static String get ankiCollisionReport => '冲突报告';
-  static String get ankiNewCards => '新卡片';
-  static String get ankiExistingCards => '已存在';
-  static String get ankiImportStrategy => '导入策略';
   // Section headers for the redesigned preview screen (3 grouped cards).
   static String get ankiPreviewSectionContent => '牌组内容';
   static String get ankiPreviewSectionContentHint => '你将导入什么';
   static String get ankiPreviewSectionMapping => '卡片识别';
   static String get ankiPreviewSectionMappingHint => '系统如何识别每张卡的题型';
-  static String get ankiPreviewSectionStrategy => '导入方式';
-  static String get ankiPreviewSectionStrategyHint => '如何处理已存在的卡片和学习进度';
-  static String get ankiPreviewCollisionVisualHint => '已存在卡片会按下方策略处理';
   static String get ankiPreviewStartImport => '开始导入';
   static String get ankiPreviewCancel => '取消';
   static String get ankiImportLearningProgress => '导入 Anki 学习进度';
@@ -1356,27 +1342,21 @@ class AppStrings {
   static String get ankiOfficialMappingConfirmed => '已确认';
   static String get ankiOfficialMappingSkipped => '已跳过';
   static String get ankiOfficialMappingSuggested => '推荐映射';
+  // Exercise-kind presets on the official mapping page: which practice to
+  // generate from this notetype (writes suggestion.enabledKinds).
+  static String get ankiOfficialExerciseTitle => '生成什么练习？';
+  static String get ankiOfficialExerciseHint => '默认按卡片内容混排，也可以指定一种';
+  static String get ankiOfficialExerciseAuto => '自动';
+  static String get ankiOfficialExerciseChoice => '选择题';
+  static String get ankiOfficialExerciseFillBlank => '填空题';
+  static String get ankiOfficialExerciseListen => '听力题';
+  static String get ankiOfficialExerciseFlip => '翻卡片';
+  static String get ankiOfficialExerciseClozeNote => '这是挖空卡（Cloze），会生成填空题';
   static String get ankiAssemblingCourse => '正在构建课程树…';
   static String get ankiMigratingSrs => '正在迁移 SRS 状态…';
   static String get ankiCopyingMedia => '正在复制媒体文件…';
   static String get ankiSavingMetadata => '正在保存导入元数据…';
   static String ankiImportFailed(Object error) => '导入失败：$error';
-  static String get ankiStrategyMerge => '合并';
-  static String get ankiStrategySkipExisting => '跳过已存在';
-  static String get ankiStrategyForceReplace => '强制替换';
-  static String get ankiStrategyAppendAsNew => '追加为新';
-  static String get ankiStrategyMergeDesc => '更新已存在卡片，添加新卡片';
-  static String get ankiStrategySkipExistingDesc => '仅导入不存在的卡片';
-  static String get ankiStrategyForceReplaceDesc => '替换所有已存在数据';
-  static String get ankiStrategyAppendAsNewDesc => '全部作为新卡片添加（加后缀）';
-  // Data consequences shown under each strategy as a small hint line. Keeping
-  // these explicit (not on a tooltip) so users can compare tradeoffs at a
-  // glance instead of tapping each option to learn the cost.
-  static String get ankiStrategyMergeConsequence => 'SRS 与复习历史保留';
-  static String get ankiStrategySkipExistingConsequence => 'SRS 与复习历史保留';
-  static String get ankiStrategyForceReplaceConsequence => 'SRS 状态与复习历史会丢失';
-  static String get ankiStrategyAppendAsNewConsequence => '两份数据共存';
-  static String get ankiStrategyWarningBadge => '注意';
   static String get ankiReviewTitle => 'Anki 复习';
   static String get ankiNoCardsDue => '暂无待复习的 Anki 卡片。';
   static String get ankiFormalReviewEmptyHint =>

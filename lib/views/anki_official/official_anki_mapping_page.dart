@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_mapper.dart';
+import 'package:turna/application/anki_official/projection/official_exercise_presets.dart';
+import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_error_view.dart';
 import 'package:turna/views/theme.dart';
 
@@ -75,6 +77,21 @@ const Map<OfficialAnkiMappingStatus, String> _statusLabels = {
   OfficialAnkiMappingStatus.skipped: '已跳过',
 };
 
+String _presetLabel(OfficialExercisePreset preset) {
+  switch (preset) {
+    case OfficialExercisePreset.auto:
+      return AppStrings.ankiOfficialExerciseAuto;
+    case OfficialExercisePreset.choice:
+      return AppStrings.ankiOfficialExerciseChoice;
+    case OfficialExercisePreset.fillBlank:
+      return AppStrings.ankiOfficialExerciseFillBlank;
+    case OfficialExercisePreset.listen:
+      return AppStrings.ankiOfficialExerciseListen;
+    case OfficialExercisePreset.flip:
+      return AppStrings.ankiOfficialExerciseFlip;
+  }
+}
+
 class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
   late OfficialAnkiMappingSuggestion _current;
   late OfficialAnkiMappingSuggestion _suggestion;
@@ -141,6 +158,13 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
       ),
     ];
     setState(() => _current = _current.copyWith(candidates: next));
+    widget.onChanged?.call(_current);
+  }
+
+  void _selectExercisePreset(OfficialExercisePreset preset) {
+    setState(() {
+      _current = withPreset(_current, preset);
+    });
     widget.onChanged?.call(_current);
   }
 
@@ -277,6 +301,44 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
             ),
             const SizedBox(height: 12),
           ],
+          Text(
+            AppStrings.ankiOfficialExerciseTitle,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            AppStrings.ankiOfficialExerciseHint,
+            style: TextStyle(
+              fontSize: 12,
+              color: TurnaTheme.textSecondaryColor(context),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final preset in OfficialExercisePreset.values)
+                ChoiceChip(
+                  key: Key('exercise-preset-${preset.name}'),
+                  label: Text(_presetLabel(preset)),
+                  selected: presetOf(_current.enabledKinds) == preset,
+                  onSelected: (_) => _selectExercisePreset(preset),
+                ),
+            ],
+          ),
+          if (widget.schema?.kind == 'cloze')
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                AppStrings.ankiOfficialExerciseClozeNote,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: TurnaTheme.textSecondaryColor(context),
+                ),
+              ),
+            ),
+          const SizedBox(height: 16),
           const Text(
             '题目和答案',
             style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),

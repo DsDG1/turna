@@ -17,6 +17,7 @@ import 'package:turna/application/srs_provider.dart';
 import 'package:turna/application/anki/import_wizard/anki_import_controller.dart';
 import 'package:turna/application/anki/import_wizard/anki_import_dependencies.dart';
 import 'package:turna/application/anki/import_wizard/anki_import_wizard_state.dart';
+import 'package:turna/application/anki/import_wizard/question_type.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/settings_provider.dart';
@@ -403,6 +404,8 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         notetype: notetype,
         note: note,
         initialMapping: legacy?.mappings[mid],
+        hasClozeMarkers:
+            legacy == null ? false : hasClozeMarkers(notetype, legacy.collection.notes),
       ),
     );
     if (result == null) return;

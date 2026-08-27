@@ -4,31 +4,91 @@ import 'package:turna/application/anki/anki_models.dart';
 import 'package:turna/application/anki/card_recognition_pipeline.dart';
 import 'package:turna/application/anki/import_wizard/anki_import_view_helpers.dart';
 import 'package:turna/application/anki/import_wizard/notetype_mapping_util.dart';
+import 'package:turna/application/anki/import_wizard/question_type.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/anki/import_wizard/anki_import_wizard_widgets.dart';
 import 'package:turna/views/theme.dart';
 
-/// Canonical types shown in the import mapping editor. Legacy aliases
-/// ([NotetypeMappingType.multiSelect], [NotetypeMappingType.typeAnswer]) are
-/// omitted so the dropdown never lists two identical labels.
-const List<NotetypeMappingType> kUserSelectableMappingTypes = [
-  NotetypeMappingType.ankiCard,
-  NotetypeMappingType.wordEntry,
-  NotetypeMappingType.expression,
-  NotetypeMappingType.cloze,
-  NotetypeMappingType.multipleChoice,
-  NotetypeMappingType.fillBlank,
-  NotetypeMappingType.listenPick,
-];
+/// Plain-language label for a user-facing question-type chip.
+String userQuestionTypeLabel(UserQuestionType type) {
+  switch (type) {
+    case UserQuestionType.choice:
+      return AppStrings.ankiQuestionTypeChoice;
+    case UserQuestionType.fillBlank:
+      return AppStrings.ankiQuestionTypeFillBlank;
+    case UserQuestionType.listen:
+      return AppStrings.ankiQuestionTypeListen;
+    case UserQuestionType.word:
+      return AppStrings.ankiQuestionTypeWord;
+    case UserQuestionType.sentence:
+      return AppStrings.ankiQuestionTypeSentence;
+    case UserQuestionType.flip:
+      return AppStrings.ankiQuestionTypeFlip;
+  }
+}
 
-/// One automatic notetype-mapping row. Tapping the row (or its trailing
-/// edit icon) opens [NotetypeMappingEditor] so the user can override the
-/// auto-detected type and front/back fields.
+/// Whether a recognition result represents the user's own pick (written back
+/// by the controller with confidence 1.0) rather than an automatic verdict —
+/// automatic ones carry the "自动" badge on the selected chip.
+bool _isUserChoice(CardRecognitionResult? recognition) =>
+    recognition?.source == CardRecognitionSource.persisted &&
+    recognition!.confidence >= 1.0;
+
+/// The one-row-per-chip question-type selector shared by the recognition
+/// row and the mapping editor dialog. Tapping a chip immediately changes
+/// the type; field indexes are kept as-is.
+class QuestionTypeChips extends StatelessWidget {
+  const QuestionTypeChips({
+    super.key,
+    required this.selected,
+    required this.onSelected,
+    this.autoBadge = false,
+    this.dense = false,
+  });
+
+  final UserQuestionType selected;
+  final ValueChanged<UserQuestionType> onSelected;
+
+  /// Show the "自动" suffix on the selected chip (auto recognition, not yet
+  /// user-touched).
+  final bool autoBadge;
+
+  /// Slightly tighter chips for use inside the editor dialog.
+  final bool dense;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: dense ? 6 : 8,
+      runSpacing: dense ? 6 : 8,
+      children: [
+        for (final type in UserQuestionType.values)
+          ChoiceChip(
+            key: Key('question-type-${type.name}'),
+            label: Text(
+              type == selected && autoBadge
+                  ? '${userQuestionTypeLabel(type)} · ${AppStrings.ankiQuestionTypeAutoSuffix}'
+                  : userQuestionTypeLabel(type),
+            ),
+            visualDensity: dense ? VisualDensity.compact : null,
+            selected: type == selected,
+            onSelected: (_) => onSelected(type),
+          ),
+      ],
+    );
+  }
+}
+
+/// One automatic notetype-mapping row. The notetype name is context; the
+/// primary interaction is the question-type chip row. "调整字段" opens
+/// [NotetypeMappingEditor] for front/back field overrides.
 class NotetypeMappingRow extends StatelessWidget {
   final AnkiNotetype notetype;
   final NotetypeMapping? mapping;
   final CardRecognitionResult? recognition;
   final ImportRecognitionAttention attention;
+  final int cardCount;
+  final ValueChanged<UserQuestionType> onTypeSelected;
   final VoidCallback onEdit;
 
   const NotetypeMappingRow({
@@ -36,6 +96,8 @@ class NotetypeMappingRow extends StatelessWidget {
     required this.notetype,
     required this.mapping,
     required this.attention,
+    required this.cardCount,
+    required this.onTypeSelected,
     required this.onEdit,
     this.recognition,
   });
@@ -56,72 +118,120 @@ class NotetypeMappingRow extends StatelessWidget {
     };
     final warnings = recognition?.warnings ?? const <String>[];
     final detail = warnings.isEmpty ? null : warnings.first;
-    return Material(
-      color: Colors.transparent,
-      child: ListTile(
-        contentPadding: EdgeInsets.zero,
-        dense: true,
-        onTap: onEdit,
-        title: Text(
-          notetype.name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontWeight: FontWeight.w600),
+    final selected =
+        userQuestionTypeOf(mapping?.type ?? NotetypeMappingType.ankiCard);
+    return Container(
+      key: Key('mapping-row-${notetype.id}'),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        border: Border.all(
+          color: attention == ImportRecognitionAttention.blocking
+              ? TurnaTheme.error.withValues(alpha: 0.4)
+              : TurnaTheme.textHintColor(context).withValues(alpha: 0.2),
         ),
-        subtitle: Text(
-          detail != null && attention != ImportRecognitionAttention.recognized
-              ? '${mappingTypeLabel(mapping?.type ?? NotetypeMappingType.ankiCard)} · $detail'
-              : mappingTypeLabel(
-                  mapping?.type ?? NotetypeMappingType.ankiCard,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  notetype.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              attention == ImportRecognitionAttention.blocking
-                  ? Icons.error_outline_rounded
-                  : attention == ImportRecognitionAttention.advisory
-                      ? Icons.help_outline_rounded
-                      : Icons.check_circle_outline_rounded,
-              color: color,
-              size: 17,
-            ),
-            const SizedBox(width: 4),
-            Text(
-              status,
-              style: TextStyle(
+              ),
+              const SizedBox(width: 8),
+              Text(
+                AppStrings.ankiMappingCards(cardCount),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: TurnaTheme.textHintColor(context),
+                ),
+              ),
+              const SizedBox(width: 6),
+              Icon(
+                attention == ImportRecognitionAttention.blocking
+                    ? Icons.error_outline_rounded
+                    : attention == ImportRecognitionAttention.advisory
+                        ? Icons.help_outline_rounded
+                        : Icons.check_circle_outline_rounded,
                 color: color,
+                size: 17,
+              ),
+              const SizedBox(width: 3),
+              Text(
+                status,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          QuestionTypeChips(
+            selected: selected,
+            onSelected: onTypeSelected,
+            autoBadge: !_isUserChoice(recognition),
+          ),
+          if (detail != null &&
+              attention != ImportRecognitionAttention.recognized) ...[
+            const SizedBox(height: 6),
+            Text(
+              detail,
+              style: TextStyle(
                 fontSize: 12,
-                fontWeight: FontWeight.w600,
+                color: TurnaTheme.textSecondaryColor(context),
               ),
             ),
-            const SizedBox(width: 2),
-            const Icon(Icons.chevron_right, size: 18),
           ],
-        ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              key: Key('mapping-row-edit-${notetype.id}'),
+              onPressed: onEdit,
+              icon: const Icon(Icons.tune_rounded, size: 15),
+              label: Text(AppStrings.ankiMappingAdjustFields),
+              style: TextButton.styleFrom(
+                visualDensity: VisualDensity.compact,
+                foregroundColor: TurnaTheme.textSecondaryColor(context),
+                textStyle: const TextStyle(fontSize: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-/// Editable notetype-mapping dialog for one notetype. Lets the user override
-/// the auto-detected card type and the front/back field indices, with a live
-/// sample preview (first note of that mid). Returns the edited
-/// [NotetypeMapping] via [Navigator.pop] when saved, or `null` when cancelled
-/// / dismissed - the caller decides whether to apply the change.
+/// Editable notetype-mapping dialog for one notetype. Question-type chips at
+/// the top are the primary control; front/back field selectors and the
+/// recognition reason live under "更多调整". Returns the edited
+/// [NotetypeMapping] via [Navigator.pop] when saved, or `null` when
+/// cancelled / dismissed - the caller decides whether to apply the change.
 class NotetypeMappingEditor extends StatefulWidget {
   final AnkiNotetype notetype;
   final AnkiNote? note;
   final NotetypeMapping? initialMapping;
+
+  /// Whether this notetype's notes carry cloze markers — decides whether a
+  /// 填空题 chip tap maps to the cloze or the type-the-answer interaction.
+  final bool hasClozeMarkers;
 
   const NotetypeMappingEditor({
     super.key,
     required this.notetype,
     required this.note,
     required this.initialMapping,
+    this.hasClozeMarkers = false,
   });
 
   @override
@@ -139,8 +249,8 @@ class _NotetypeMappingEditorState extends State<NotetypeMappingEditor> {
     );
   }
 
-  /// Clamp field indices and collapse legacy type aliases so the dropdown
-  /// value is always one of [kUserSelectableMappingTypes].
+  /// Clamp field indices and collapse legacy type aliases so the chip state
+  /// always reflects a canonical type.
   NotetypeMapping _normalizeMapping(NotetypeMapping m) {
     final canonical = canonicalizeMappingType(m.type);
     final next = canonical == m.type ? m : m.copyWith(type: canonical);
@@ -158,6 +268,15 @@ class _NotetypeMappingEditorState extends State<NotetypeMappingEditor> {
     final back = m.backFieldIndex.clamp(0, maxIdx);
     if (front == m.frontFieldIndex && back == m.backFieldIndex) return m;
     return m.copyWith(frontFieldIndex: front, backFieldIndex: back);
+  }
+
+  void _selectType(UserQuestionType type) {
+    final next = resolveMappingType(
+      type,
+      hasClozeMarkers: widget.hasClozeMarkers,
+    );
+    if (next == _draft.type) return;
+    setState(() => _draft = _normalizeMapping(_draft.copyWith(type: next)));
   }
 
   void _swapFields() {
@@ -191,6 +310,17 @@ class _NotetypeMappingEditorState extends State<NotetypeMappingEditor> {
               style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
             ),
             const SizedBox(height: 12),
+            Text(
+              AppStrings.ankiQuestionTypeSectionTitle,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            QuestionTypeChips(
+              selected: userQuestionTypeOf(_draft.type),
+              onSelected: _selectType,
+              dense: true,
+            ),
+            const SizedBox(height: 14),
             if (widget.note == null)
               Text(
                 '-',
@@ -232,27 +362,6 @@ class _NotetypeMappingEditorState extends State<NotetypeMappingEditor> {
                   style: const TextStyle(fontSize: 14),
                 ),
                 children: [
-                  _fieldLabel(context, AppStrings.ankiMappingFieldType),
-                  const SizedBox(height: 6),
-                  DropdownButtonFormField<NotetypeMappingType>(
-                    initialValue: canonicalizeMappingType(_draft.type),
-                    isExpanded: true,
-                    decoration: _dropdownDecoration(context),
-                    items: [
-                      for (final t in kUserSelectableMappingTypes)
-                        DropdownMenuItem(
-                          value: t,
-                          child: Text(mappingTypeLabel(t)),
-                        ),
-                    ],
-                    onChanged: (t) {
-                      if (t == null) return;
-                      final next = canonicalizeMappingType(t);
-                      if (next == _draft.type) return;
-                      setState(() => _draft = _draft.copyWith(type: next));
-                    },
-                  ),
-                  const SizedBox(height: 12),
                   if (showFields) ...[
                     _fieldSelector(
                       context,
@@ -297,6 +406,7 @@ class _NotetypeMappingEditorState extends State<NotetypeMappingEditor> {
           child: Text(AppStrings.commonCancel),
         ),
         FilledButton(
+          key: const Key('mapping-edit-confirm'),
           onPressed: () => Navigator.of(context).pop(_draft),
           child: Text(AppStrings.ankiMappingConfirmCorrect),
         ),

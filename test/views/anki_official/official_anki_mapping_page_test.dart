@@ -179,4 +179,61 @@ void main() {
     );
     expect(save.onPressed, isNotNull);
   });
+
+  testWidgets('exercise presets default to auto and select through chips',
+      (tester) async {
+    OfficialAnkiMappingSuggestion? confirmed;
+    await tester.pumpWidget(_host(OfficialAnkiMappingPage(
+      notetypeName: 'Basic',
+      suggestion: _suggestion(),
+      schema: _schema(),
+      onConfirm: (next) => confirmed = next,
+    )));
+
+    // The default suggestion kind list reads as the 自动 preset.
+    final auto =
+        tester.widget<ChoiceChip>(find.byKey(const Key('exercise-preset-auto')));
+    expect(auto.selected, isTrue);
+
+    final choiceChip = find.byKey(const Key('exercise-preset-choice'));
+    await tester.scrollUntilVisible(choiceChip, 200);
+    await tester.tap(choiceChip);
+    await tester.pump();
+
+    final save = find.byKey(const Key('mapping-save'));
+    await tester.scrollUntilVisible(save, 200);
+    await tester.tap(save);
+    await tester.pump();
+
+    expect(confirmed, isNotNull);
+    expect(confirmed!.enabledKinds, contains('multipleChoice'));
+    expect(confirmed!.enabledKinds, isNot(contains('listenPick')));
+    // Field roles are untouched by the exercise choice.
+    expect(
+        confirmed!.role(OfficialAnkiFieldRole.targetText)?.fieldName, 'Front');
+  });
+
+  testWidgets('cloze schema surfaces the fill-blank note', (tester) async {
+    await tester.pumpWidget(_host(OfficialAnkiMappingPage(
+      notetypeName: 'Cloze',
+      suggestion: _suggestion(),
+      schema: OfficialAnkiProjectionSchema(
+        notetypeId: 8,
+        name: 'Cloze',
+        kind: 'cloze',
+        fieldNames: const ['Text', 'Extra'],
+        templateNames: const ['Cloze'],
+        schemaFingerprint: 'fp2',
+        samples: const [
+          OfficialAnkiProjectionSample(
+            noteId: 43,
+            fields: ['{{c1::merhaba}} means hello', ''],
+          ),
+        ],
+      ),
+      affectedCardCount: 3,
+    )));
+
+    expect(find.textContaining('挖空卡'), findsOneWidget);
+  });
 }
