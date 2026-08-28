@@ -108,8 +108,12 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
     );
     if (next == _draft) return;
     // Fire-and-forget: the holder persists through its credential store;
-    // nothing here may touch this State again.
-    unawaited(holder.updateConfig(next));
+    // nothing here may touch this State again. Deferred by one microtask:
+    // dispose runs inside finalizeTree's state lock, so a synchronous
+    // updateConfig → notifyListeners would try to mark provider dependents
+    // while the tree is locked ("widget tree was locked" assert). The
+    // microtask runs after the frame, with the lock released.
+    unawaited(Future.microtask(() => holder.updateConfig(next)));
   }
 
   // ─── Draft commit (debounced + explicit) ─────────────────────────────

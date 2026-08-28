@@ -473,6 +473,28 @@ class FfiOfficialAnkiEngine implements OfficialAnkiEngine {
   }
 
   @override
+  Future<int> answerAheadCards(List<OfficialAheadAnswer> answers) async {
+    _requireScheduler(OfficialAnkiOperation.answerAheadCards);
+    final payload = _call(OfficialAnkiOperation.answerAheadCards, {
+      'answers': [for (final answer in answers) answer.toJson()],
+    }).requirePayload();
+    return (payload['answeredCards'] as num?)?.toInt() ?? 0;
+  }
+
+  @override
+  Future<int> ensureTodayNewQuota({
+    required int deckId,
+    required int neededNew,
+  }) async {
+    _requireScheduler(OfficialAnkiOperation.ensureTodayNewQuota);
+    final payload = _call(OfficialAnkiOperation.ensureTodayNewQuota, {
+      'deckId': deckId,
+      'neededNew': neededNew,
+    }).requirePayload();
+    return (payload['extendedBy'] as num?)?.toInt() ?? 0;
+  }
+
+  @override
   Future<void> dispose() async {
     if (_closed) return;
     _closed = true;

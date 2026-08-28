@@ -153,12 +153,6 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
                         .push(const AnkiImportRoute()),
                   ),
                   _AddCourseTile(
-                    icon: Icons.add_circle_outline_rounded,
-                    title: AppStrings.homeNewCourse,
-                    subtitle: AppStrings.homeNewCourseComingSoon,
-                    onTap: () => _showNewCourseDialog(context),
-                  ),
-                  _AddCourseTile(
                     icon: Icons.sync_alt_rounded,
                     title: 'Migrate Legacy Anki sources',
                     subtitle:
@@ -271,35 +265,6 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
                   ? AppStrings.ankiDeckRemoved
                   : AppStrings.ankiDeckRemovalPending,
         ),
-      ),
-    );
-  }
-
-  void _showNewCourseDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(AppStrings.homeNewCourse),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(AppStrings.homeNewCourseComingSoon),
-            const SizedBox(height: 12),
-            // 内容创作已迁移到 GUI 平台（Plan 3 §19.4）：这里不再提供移动端
-            // AI 设计入口，指引参见 关于 → 配套工具。
-            Text(
-              AppStrings.homeNewCourseUseAi,
-              style: const TextStyle(fontStyle: FontStyle.italic),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text(AppStrings.dialogClose),
-          ),
-        ],
       ),
     );
   }

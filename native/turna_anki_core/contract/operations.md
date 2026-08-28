@@ -1,4 +1,4 @@
-# Contract v1.6 operations
+# Contract v1.8 operations
 
 Wire format is versioned JSON. `turna_anki_spike.proto` is archived and is not
 the codec.
@@ -39,8 +39,10 @@ the codec.
 | 32 | DELETE_CARDS | yes |
 | 33 | STATS_FOR_CARDS_BATCH | yes |
 | 34 | SCHEDULE_CARDS_AS_NEW | yes |
+| 35 | ANSWER_AHEAD_CARDS | yes |
+| 36 | ENSURE_TODAY_NEW_QUOTA | yes |
 
-Scheduler operations 11–16 and 27–34 are published. Request/response DTO are
+Scheduler operations 11–16 and 27–36 are published. Request/response DTO are
 camelCase. `answerToken` is opaque. `GET_REVIEW_QUEUE` creates a new
 session/queue epoch. Tokens are single-use. Numbers are append-only after this
 document ships.
@@ -57,6 +59,20 @@ listed cards and deletes a note only after its final card is gone.
 `STATS_FOR_CARDS_BATCH` returns source-scoped scheduler/revlog statistics for
 at most 200 exact card IDs. `SCHEDULE_CARDS_AS_NEW` is the explicit W8 reset
 policy primitive and resets at most 10,000 exact card IDs per call.
+
+`ANSWER_AHEAD_CARDS` rates cards that may not be in today's due queue
+(lesson redo / 提前复习). Request `{ answers: [{ cardId, rating, millisecondsTaken }] }`
+(1..100). The engine builds a temporary Official filtered deck, answers
+through the scheduler, then empties and removes the deck. Response
+`{ answeredCards }`. Missing capability is fail-closed.
+
+`ENSURE_TODAY_NEW_QUOTA` raises today's remaining new-card quota for one
+deck so remaining ≥ `neededNew`. Request `{ deckId, neededNew }`
+(`neededNew` 0..9999). Native reads today's studied new count, the preset
+`new_per_day`, and current `extend_new`; if remaining is already enough it
+is a no-op. Otherwise it applies Official Custom Study `NewLimitDelta`
+(sets `extend_new`, does not permanently change `new_per_day`). Response
+`{ extendedBy }`. Missing capability is fail-closed.
 
 `RENDER_CARD` requests are camelCase `{ cardId, browser, includeAvTags }`.
 Production reviewer always sends `browser=false`. Rust forces

@@ -288,6 +288,17 @@ Explain → Practice → Rate 三段流（见 2.4 Skill Acquisition Theory）。
 
 `undoReview` 与在途 `reviewItem` 通过 `_gradesInFlight` 集合防竞态：评分写入期间拒绝撤销，完成后重试。
 
+### 5.11 练习页（Play Hub，2026-08 焕新）
+
+`lib/views/play/play_hub_screen.dart`——复习流的总入口，信息架构自上而下：
+
+- **Playground Hero**（仅语言课程，Anki scope 下整体消失）。
+- **队列按 `CourseScope` 切开**（[ADR 0037](./decisions/0037-anki-course-review-unification.md)）：语言课只显示错题 / 单词 / 语法；导入 Anki 只显示 Anki 复习（并隐藏薄弱单词）。「开始今日复习」与个人页快捷入口同一套隔离。
+- **AI 助手行**：单行卡 + 引擎就绪/未配置状态 chip → AI Hub。
+- **练习工具**：语言课为薄弱单词 / 词典 / 复习进度；Anki 课为词典 / 复习进度。
+
+**长按浮窗交互契约**（`info_popup.dart` + `play_info_panels.dart`）：短按一律直接进入页面；长按在**有数据可看**的入口上生效（主卡、四个队列、薄弱单词、复习进度、AI 助手；词典与 Playground 不参与）。浮窗挂根 Overlay、锚定在被按卡片旁（下方空间不足自动翻到上方），打开 = 自锚点方向缩放 + 逐行 stagger 滑入（`easeOutBack`），关闭反向；`reducedMotion`/系统禁用动画退化为纯淡入淡出；打开触发 medium 触感（`sensoryReduce` 跳过）；卡片带 `Semantics(onLongPress)` 长按语义。**注意**：浮窗内容位于页面 Provider 树之上，面板组件一律通过构造注入数据（`PlayQueueSnapshot` / `AiEngineConfig` / `StudyStatsProvider` 实例），不得在面板 build 内做 inherited provider 查找。
+
 ---
 
 ## 6. Anki 深度集成
@@ -344,7 +355,7 @@ Explain → Practice → Rate 三段流（见 2.4 Skill Acquisition Theory）。
 
 ### 6.5 复习入口与浏览
 
-- **复习**：`FormalReviewLauncher` → 共享 `AnkiReviewSessionRoute`。Official owner 走 `OfficialFormalReviewProductionLoader` + live `OfficialReviewSession`；`schedulerRuntimeAvailable` 为假且 owner 为 Official 时 fail-closed，不降级 Turna SRS。**无 Official 源时不再有 Legacy assembler 兜底**：`formal_review_source_coordinator.fromCatalog` 直接跳过 legacy-only 源，recorded-legacy 源进入页面后显示 `FormalReviewLauncher.failClosedMessage` 错误面，不静默换语义。
+- **复习**：`FormalReviewLauncher` → 共享 `AnkiReviewSessionRoute`。正式资格 = 官方到期搜索（`did:<deck> (is:due OR is:learn OR is:new)`，分页，不受复习队列 100 张上限约束）∩ placement ∩ **已解锁** ∩ 未暂停/搁置/退役。已解锁 = **该投影 Lesson 已完成**，或导入历史 `reps ≥ 1`。第一遍课内只解锁、不写官方 scheduler、不记错题本；新卡第一次 Again/Good 发生在 Anki 复习。第一遍下课对该课所在牌组抬高**当天**新卡名额（`ENSURE_TODAY_NEW_QUOTA` / `extend_new`），使剩余 ≥ 本课张数，不改牌组 `new_per_day` 预设。**重做已完成课**在下课 flush 官方 Again/Good（`ANSWER_AHEAD_CARDS` 临时 filtered deck）；今日已 `rated:1` 的卡跳过；flush 失败在完成摘要中可见。Official 不可用 fail-closed，不降级 Turna SRS。**无 Official 源时不再有 Legacy assembler 兜底**：`formal_review_source_coordinator.fromCatalog` 直接跳过 legacy-only 源，recorded-legacy 源进入页面后显示 `FormalReviewLauncher.failClosedMessage` 错误面，不静默换语义。
 - **卡片浏览器 / 牌组统计**：Official 源有 engine 时读 Collection / scheduler；无 engine 时 catalog 回退，stats 不得把 catalog 总数标成已证明。
 - **示例牌组**：内存 sample 生产 fail-closed；入口已从导入页与课程管理隐藏。`startWithSample` 仅测试 haemostasis。
 

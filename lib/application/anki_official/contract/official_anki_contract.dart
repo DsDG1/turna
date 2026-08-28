@@ -3,9 +3,23 @@ import 'dart:convert';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 
 const int kOfficialAnkiContractMajor = 1;
-const int kOfficialAnkiContractMinor = 6;
+const int kOfficialAnkiContractMinor = 8;
 
 abstract final class OfficialAnkiOperation {
+  /// Native `GET_REVIEW_QUEUE` accepts `1..=100` (bridge `ops.rs`).
+  static const minReviewQueueFetchLimit = 1;
+  static const maxReviewQueueFetchLimit = 100;
+
+  static int clampReviewQueueFetchLimit(int fetchLimit) {
+    if (fetchLimit < minReviewQueueFetchLimit) {
+      return minReviewQueueFetchLimit;
+    }
+    if (fetchLimit > maxReviewQueueFetchLimit) {
+      return maxReviewQueueFetchLimit;
+    }
+    return fetchLimit;
+  }
+
   static const engineInfo = 'ENGINE_INFO';
   static const openCollection = 'OPEN_COLLECTION';
   static const closeCollection = 'CLOSE_COLLECTION';
@@ -39,6 +53,8 @@ abstract final class OfficialAnkiOperation {
   static const deleteCards = 'DELETE_CARDS';
   static const statsForCardsBatch = 'STATS_FOR_CARDS_BATCH';
   static const scheduleCardsAsNew = 'SCHEDULE_CARDS_AS_NEW';
+  static const answerAheadCards = 'ANSWER_AHEAD_CARDS';
+  static const ensureTodayNewQuota = 'ENSURE_TODAY_NEW_QUOTA';
 
   static const engineInfoId = 1;
   static const openCollectionId = 2;
@@ -73,6 +89,8 @@ abstract final class OfficialAnkiOperation {
   static const deleteCardsId = 32;
   static const statsForCardsBatchId = 33;
   static const scheduleCardsAsNewId = 34;
+  static const answerAheadCardsId = 35;
+  static const ensureTodayNewQuotaId = 36;
 
   static const productionNames = <String>{
     engineInfo,
@@ -108,6 +126,8 @@ abstract final class OfficialAnkiOperation {
     deleteCards,
     statsForCardsBatch,
     scheduleCardsAsNew,
+    answerAheadCards,
+    ensureTodayNewQuota,
   };
 
   static int idFor(String name) {
@@ -178,6 +198,10 @@ abstract final class OfficialAnkiOperation {
         return statsForCardsBatchId;
       case scheduleCardsAsNew:
         return scheduleCardsAsNewId;
+      case answerAheadCards:
+        return answerAheadCardsId;
+      case ensureTodayNewQuota:
+        return ensureTodayNewQuotaId;
       default:
         throw OfficialAnkiException(
           code: OfficialAnkiErrorCode.invalidArgument,

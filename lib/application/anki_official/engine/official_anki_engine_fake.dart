@@ -55,6 +55,7 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
     cardsByNote.clear();
     this.cards.clear();
     answeredIds.clear();
+    ratedTodayIds.clear();
     officialAnswers = 0;
     failRender = false;
     failRenderFor.clear();
@@ -135,6 +136,8 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
         OfficialAnkiOperation.deleteCards,
         OfficialAnkiOperation.statsForCardsBatch,
         OfficialAnkiOperation.scheduleCardsAsNew,
+        OfficialAnkiOperation.answerAheadCards,
+        OfficialAnkiOperation.ensureTodayNewQuota,
       },
     );
   }
@@ -229,6 +232,7 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
     final wantMarked = !excludeMarked && raw.contains('tag:marked');
     final wantStudied = raw.contains('prop:reps>=1') ||
         raw.contains('prop:reps>0');
+    final wantRatedToday = raw.contains('rated:1');
     final flagMatch = RegExp(r'(?:^|\s)flag:(\d+)').firstMatch(raw);
     final tagMatch = RegExp(r'(?:^|\s)tag:"([^"]+)"').firstMatch(raw);
     final needle = raw
@@ -240,6 +244,7 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
         .replaceAll('tag:marked', '')
         .replaceAll('prop:reps>=1', '')
         .replaceAll('prop:reps>0', '')
+        .replaceAll('rated:1', '')
         .replaceAll(RegExp(r'(?:^|\s)flag:\d+'), '')
         .replaceAll(RegExp(r'(?:^|\s)tag:"[^"]+"'), '')
         .trim();
@@ -261,6 +266,9 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
     }
     if (wantStudied) {
       ids = ids.where(studiedCardIds.contains).toList();
+    }
+    if (wantRatedToday) {
+      ids = ids.where(ratedTodayIds.contains).toList();
     }
     if (flagMatch != null) {
       final flag = int.parse(flagMatch.group(1)!);
@@ -532,6 +540,8 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
   /// `prop:reps>=1` search term (imported-history introduction seeding).
   final studiedCardIds = <int>{};
   final answeredIds = <int>{};
+  /// Cards Official-rated on the fake "today" — `rated:1` search.
+  final ratedTodayIds = <int>{};
   int? newPerDayLimit;
 
   @override
@@ -674,6 +684,7 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
     consumedTokens.add(answerToken);
     officialAnswers += 1;
     answeredIds.add(cardId);
+    ratedTodayIds.add(cardId);
     lastMillisecondsTaken = millisecondsTaken;
     lastClientMutationId = clientMutationId;
     OfficialAnkiSchedulerAudit.officialSchedulerAnswers += 1;
@@ -877,6 +888,41 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
     projectionToken = null;
     _invalidateTokens();
     return found.length;
+  }
+
+  final List<OfficialAheadAnswer> aheadAnswers = [];
+
+  @override
+  Future<int> answerAheadCards(List<OfficialAheadAnswer> answers) async {
+    var n = 0;
+    for (final answer in answers) {
+      if (answer.cardId <= 0) continue;
+      if (cards.isNotEmpty && !cards.containsKey(answer.cardId)) continue;
+      aheadAnswers.add(answer);
+      answeredIds.add(answer.cardId);
+      ratedTodayIds.add(answer.cardId);
+      officialAnswers += 1;
+      OfficialAnkiSchedulerAudit.officialSchedulerAnswers += 1;
+      n++;
+    }
+    _invalidateTokens();
+    return n;
+  }
+
+  @override
+  Future<int> ensureTodayNewQuota({
+    required int deckId,
+    required int neededNew,
+  }) async {
+    if (neededNew <= 0) return 0;
+    if (deckId <= 0) return 0;
+    final currentLimit = newPerDayLimit;
+    if (currentLimit == null) return 0;
+    final remaining = (currentLimit - officialAnswers).clamp(0, currentLimit);
+    if (remaining >= neededNew) return 0;
+    final extra = neededNew - remaining;
+    newPerDayLimit = currentLimit + extra;
+    return extra;
   }
 
   void _invalidateTokens() {

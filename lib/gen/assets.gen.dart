@@ -213,8 +213,7 @@ class $AssetsImagesTurnaGen {
       const AssetGenImage('assets/images/turna/turna_waving.png');
 
   /// List of all assets
-  List<AssetGenImage> get values =>
-      [turnaCelebrate, turnaReading, turnaWaving];
+  List<AssetGenImage> get values => [turnaCelebrate, turnaReading, turnaWaving];
 }
 
 class $AssetsCoursesTurkishSectionsGen {

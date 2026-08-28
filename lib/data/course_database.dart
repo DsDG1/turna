@@ -223,23 +223,6 @@ class AnkiCardsMeta extends Table {
   Set<Column> get primaryKey => {importId, cardId};
 }
 
-/// `anki_prerendered_html` - lazily-cached decrypted HTML for JS-fidelity
-/// cards ("智能去解密"). On first review the WebView runs the notetype's
-/// decryption JS, the rendered DOM is captured (`document.body.innerHTML`)
-/// and stored here; subsequent reviews load the cached plain HTML with JS
-/// disabled - no decryption, no network, no sandbox. Keyed by `wordId`;
-/// cleared on deck unload by prefix.
-@DataClassName('AnkiPrerenderedHtmlRow')
-class AnkiPrerenderedHtml extends Table {
-  TextColumn get wordId => text()();
-  TextColumn get frontHtml => text().nullable()();
-  TextColumn get backHtml => text().nullable()();
-  IntColumn get capturedAt => integer().withDefault(const Constant(0))();
-
-  @override
-  Set<Column> get primaryKey => {wordId};
-}
-
 /// `srs_states` - one row per tracked SRS item ([SrsWord]), keyed by `wordId`.
 /// The durable store for SRS scheduling state (migrated from the old
 /// `StreamingSharedPreferences` JSON blob in v7). `queue` discriminates the
@@ -323,7 +306,6 @@ class ReviewEvents extends Table {
     AnkiNotetypes,
     AnkiNotes,
     AnkiCardsMeta,
-    AnkiPrerenderedHtml,
     SrsStates,
     ReviewEvents,
   ],
@@ -333,7 +315,7 @@ class CourseDatabase extends _$CourseDatabase {
 
   /// Single source of truth for the drift schema version, so tests and
   /// backup code never hard-code a stale literal.
-  static const int kSchemaVersion = 21;
+  static const int kSchemaVersion = 22;
 
   @override
   int get schemaVersion => kSchemaVersion;
@@ -377,7 +359,6 @@ class CourseDatabase extends _$CourseDatabase {
               'anki_notetypes',
               'anki_notes',
               'anki_cards_meta',
-              'anki_prerendered_html',
               'anki_practice_projections',
               'anki_import_issues',
               'anki_decks',
@@ -474,13 +455,6 @@ class CourseDatabase extends _$CourseDatabase {
             await m.createTable(ankiNotes);
             await m.createTable(ankiCardsMeta);
           }
-          if (from < 10) {
-            // v10: pre-rendered HTML cache for JS-fidelity cards ("智能去解密").
-            // The WebView runs the notetype's decryption JS on first review,
-            // captures the decrypted DOM, and stores it here so later reviews
-            // need no JS/network (deep-adaptation plan §6).
-            await m.createTable(ankiPrerenderedHtml);
-          }
           if (from < 11) {
             // v11: preserve Anki note identity/scheduling provenance and keep
             // imported suspended/buried state out of the normal due queue.
@@ -557,6 +531,15 @@ class CourseDatabase extends _$CourseDatabase {
             // since v18 but had no writers, so the new columns start at their
             // safe defaults without any backfill.
             await _ensureOwnerAuthorityTables(m.database);
+          }
+          if (from < 22) {
+            // v22: drop the anki_prerendered_html cache ("智能去解密"). Its
+            // only writer (upsertPrerenderedFace) lost its last production
+            // caller when the legacy Anki layer was removed (doc 35), so the
+            // table has been guaranteed empty since. IF EXISTS also covers
+            // fresh installs and pre-v10 upgrades, which never created it.
+            await m.database.customStatement(
+                'DROP TABLE IF EXISTS anki_prerendered_html');
           }
         },
       );

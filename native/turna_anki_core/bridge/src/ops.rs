@@ -51,6 +51,8 @@ use crate::engine::OP_LIST_DECK_TREE;
 use crate::engine::OP_REDO;
 use crate::engine::OP_RENDER_CARD;
 use crate::engine::OP_SCHEDULE_CARDS_AS_NEW;
+use crate::engine::OP_ANSWER_AHEAD_CARDS;
+use crate::engine::OP_ENSURE_TODAY_NEW_QUOTA;
 use crate::engine::OP_SEARCH_CARDS;
 use crate::engine::OP_SET_CURRENT_DECK;
 use crate::engine::OP_STATS_FOR_CARDS_BATCH;
@@ -243,6 +245,8 @@ pub fn dispatch_op(handle: u64, operation: u32, request: &[u8]) -> Result<Value,
         OP_DELETE_CARDS => delete_cards(handle, request),
         OP_STATS_FOR_CARDS_BATCH => stats_for_cards_batch(handle, request),
         OP_SCHEDULE_CARDS_AS_NEW => schedule_cards_as_new(handle, request),
+        OP_ANSWER_AHEAD_CARDS => answer_ahead_cards(handle, request),
+        OP_ENSURE_TODAY_NEW_QUOTA => ensure_today_new_quota(handle, request),
         _ => {
             let slot = slot(handle)?;
             if slot.busy.load(std::sync::atomic::Ordering::Acquire) {
@@ -1172,6 +1176,178 @@ fn schedule_cards_as_new(handle: u64, request: &[u8]) -> Result<Value, i32> {
         "scheduledCards": scheduled,
         "queueEpoch": engine.queue_epoch,
     }))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AheadAnswerItem {
+    card_id: i64,
+    rating: String,
+    #[serde(default)]
+    milliseconds_taken: i64,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AheadRequest {
+    answers: Vec<AheadAnswerItem>,
+}
+
+fn answer_ahead_cards(handle: u64, request: &[u8]) -> Result<Value, i32> {
+    let parsed: AheadRequest =
+        serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?;
+    if parsed.answers.is_empty() || parsed.answers.len() > 100 {
+        return Err(STATUS_INVALID_ARGUMENT);
+    }
+    for item in &parsed.answers {
+        if item.card_id <= 0 {
+            return Err(STATUS_INVALID_ARGUMENT);
+        }
+        parse_rating(&item.rating)?;
+        if item.milliseconds_taken < 0 || item.milliseconds_taken > i64::from(MAX_ELAPSED_MS) {
+            return Err(STATUS_INVALID_ARGUMENT);
+        }
+    }
+
+    let slot = slot(handle)?;
+    let mut engine = require_open(&slot)?;
+    let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+    let previous_deck = col.get_current_deck().map_err(map_anki_error)?.id;
+
+    let search = parsed
+        .answers
+        .iter()
+        .map(|item| format!("cid:{}", item.card_id))
+        .collect::<Vec<_>>()
+        .join(" OR ");
+
+    let mut update = col
+        .get_or_create_filtered_deck(anki::decks::DeckId(0))
+        .map_err(map_anki_error)?;
+    update.human_name = "Turna redo".to_string();
+    update.allow_empty = true;
+    update.config.reschedule = true;
+    update.config.search_terms.clear();
+    update.config.search_terms.push(anki::decks::FilteredSearchTerm {
+        search,
+        limit: parsed.answers.len() as i32,
+        order: anki::decks::FilteredSearchOrder::Added as i32,
+    });
+    let filtered_id = col
+        .add_or_update_filtered_deck(update)
+        .map_err(map_anki_error)?
+        .output;
+
+    let mut remaining: std::collections::HashMap<i64, (Rating, u32)> = parsed
+        .answers
+        .iter()
+        .filter_map(|item| {
+            parse_rating(&item.rating)
+                .ok()
+                .map(|rating| (item.card_id, (rating, item.milliseconds_taken.max(0) as u32)))
+        })
+        .collect();
+
+    let mut answered = 0usize;
+    let queued = col
+        .get_queued_cards(parsed.answers.len().max(1), false)
+        .map_err(map_anki_error)?;
+    for queued_card in queued.cards {
+        let card_id = queued_card.card.id().0;
+        let Some((rating, milliseconds_taken)) = remaining.remove(&card_id) else {
+            continue;
+        };
+        let new_state = match rating {
+            Rating::Again => queued_card.states.again,
+            Rating::Hard => queued_card.states.hard,
+            Rating::Good => queued_card.states.good,
+            Rating::Easy => queued_card.states.easy,
+        };
+        let mut answer = CardAnswer {
+            card_id: queued_card.card.id(),
+            current_state: queued_card.states.current,
+            new_state,
+            rating,
+            answered_at: TimestampMillis::now(),
+            milliseconds_taken,
+            custom_data: None,
+            from_queue: true,
+        };
+        match col.answer_card(&mut answer) {
+            Ok(_) => answered += 1,
+            Err(_) => {
+                answer.from_queue = false;
+                col.answer_card(&mut answer).map_err(map_anki_error)?;
+                col.clear_study_queues();
+                answered += 1;
+            }
+        }
+    }
+
+    let _ = col.empty_filtered_deck(filtered_id);
+    let _ = col.remove_decks_and_child_decks(&[filtered_id]);
+    let _ = col.set_current_deck(previous_deck);
+    engine.invalidate_tokens();
+    Ok(json!({ "answeredCards": answered }))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct EnsureNewQuotaRequest {
+    deck_id: i64,
+    needed_new: i64,
+}
+
+fn ensure_today_new_quota(handle: u64, request: &[u8]) -> Result<Value, i32> {
+    let parsed: EnsureNewQuotaRequest =
+        serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?;
+    if parsed.deck_id <= 0 || parsed.needed_new < 0 || parsed.needed_new > 9999 {
+        return Err(STATUS_INVALID_ARGUMENT);
+    }
+    if parsed.needed_new == 0 {
+        return Ok(json!({ "extendedBy": 0 }));
+    }
+    let slot = slot(handle)?;
+    let mut engine = require_open(&slot)?;
+    let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+    let studied = SchedulerService::counts_for_deck_today(
+        col,
+        anki_proto::decks::DeckId {
+            did: parsed.deck_id,
+        },
+    )
+    .map_err(|_| STATUS_DECK_NOT_FOUND)?
+    .new as i64;
+    let deck = col
+        .get_deck(DeckId(parsed.deck_id))
+        .map_err(map_anki_error)?
+        .ok_or(STATUS_DECK_NOT_FOUND)?;
+    let extend = deck
+        .normal()
+        .map(|normal| normal.extend_new as i64)
+        .unwrap_or(0);
+    let per_day = deck
+        .config_id()
+        .and_then(|id| col.get_deck_config(id).ok().flatten())
+        .map(|conf| conf.inner.new_per_day as i64)
+        .unwrap_or(20);
+    let remaining = (per_day + extend - studied).max(0);
+    if remaining >= parsed.needed_new {
+        return Ok(json!({ "extendedBy": 0 }));
+    }
+    let remaining_without_extend = per_day - studied;
+    let new_extend = (parsed.needed_new - remaining_without_extend).clamp(1, 9999);
+    col.custom_study(anki_proto::scheduler::CustomStudyRequest {
+        deck_id: parsed.deck_id,
+        value: Some(
+            anki_proto::scheduler::custom_study_request::Value::NewLimitDelta(
+                new_extend as i32,
+            ),
+        ),
+    })
+    .map_err(map_anki_error)?;
+    engine.invalidate_tokens();
+    Ok(json!({ "extendedBy": new_extend }))
 }
 
 fn counts_for_deck_today(handle: u64, request: &[u8]) -> Result<Value, i32> {
@@ -2602,12 +2778,14 @@ mod tests {
             "DELETE_CARDS",
             "STATS_FOR_CARDS_BATCH",
             "SCHEDULE_CARDS_AS_NEW",
+            "ANSWER_AHEAD_CARDS",
+            "ENSURE_TODAY_NEW_QUOTA",
         ] {
             assert!(
                 caps.iter().any(|c| c.as_str() == Some(name)),
                 "missing {name} in {caps:?}"
             );
         }
-        assert_eq!(info["contractMinor"], 6);
+        assert_eq!(info["contractMinor"], 8);
     }
 }

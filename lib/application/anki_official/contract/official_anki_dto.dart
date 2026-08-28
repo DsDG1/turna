@@ -723,6 +723,27 @@ class OfficialAnswerResult {
   }
 }
 
+/// One Official rating issued outside the live review session (lesson redo).
+class OfficialAheadAnswer {
+  const OfficialAheadAnswer({
+    required this.cardId,
+    required this.rating,
+    this.millisecondsTaken = 0,
+  });
+
+  final int cardId;
+
+  /// `again` / `hard` / `good` / `easy`.
+  final String rating;
+  final int millisecondsTaken;
+
+  Map<String, Object?> toJson() => {
+        'cardId': cardId,
+        'rating': rating,
+        'millisecondsTaken': millisecondsTaken,
+      };
+}
+
 class OfficialUndoStatus {
   const OfficialUndoStatus({
     required this.canUndo,

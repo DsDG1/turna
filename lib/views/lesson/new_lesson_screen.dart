@@ -288,6 +288,9 @@ class _NewLessonPageState extends State<NewLessonPage> {
       wasPerfect: wasPerfect,
       questionResults: _vm.questionResults,
       random: _random,
+      footnote: _vm.officialRedoFlushFailed
+          ? AppStrings.lessonAnkiRedoFlushFailed
+          : null,
     );
     _dialogShown = false;
   }

@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/anki_official/introduction/card_introduction_store.dart';
+import 'package:turna/application/anki_official/contract/official_anki_contract.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
+import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_snapshot_builder.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
@@ -266,6 +268,118 @@ void main() {
       repo.formalDueCardKeysForImport('src-sub').map((k) => k.cardId).toSet(),
       {10},
     );
+  });
+
+  test('collectFormalDueCardIds treats QUEUE_EMPTY as an empty due set',
+      () async {
+    final db = OfficialAnkiDatabase.memory();
+    addTearDown(db.close);
+    final sources = OfficialAnkiSourceDao(db);
+    final migrations = OfficialAnkiMigrationDao(db);
+    sources.upsertSource(
+      sourceId: 'src-empty',
+      profileId: 'profile-default-01',
+      sourceHash: 'h1',
+      sourceSize: 1,
+      displayName: 'empty',
+      state: 'active',
+      backendCommit: 'x',
+      nowMillis: 1,
+    );
+    db.handle.execute(
+      'INSERT INTO anki_source_cards '
+      '(source_id, card_id, note_id, deck_id, note_guid, template_ord) '
+      "VALUES ('src-empty', 10, 1, 7, 'g', 0)",
+    );
+    migrations.insertDetected(
+      migrationId: 'mig-empty',
+      profileId: 'profile-default-01',
+      legacyImportId: 'src-empty',
+      policy: LegacyAnkiSchedulingPolicy.preservePackageScheduling,
+      nowMillis: 1,
+    );
+    migrations.setOfficialSourceAndRecordedKind(
+      migrationId: 'mig-empty',
+      officialSourceId: 'src-empty',
+      recordedKind: 'official',
+      nowMillis: 2,
+    );
+
+    var seenLimit = 0;
+    final collected = await const OfficialAnkiProductionRouter()
+        .collectFormalDueCardIds(
+      dao: migrations,
+      sources: sources,
+      setCurrentDeck: (_) async {},
+      getReviewQueue: ({int fetchLimit = 500}) async {
+        seenLimit = fetchLimit;
+        throw const OfficialAnkiException(
+          code: OfficialAnkiErrorCode.queueEmpty,
+          messageKey: 'official_anki.queue_empty',
+        );
+      },
+    );
+
+    expect(seenLimit, OfficialAnkiOperation.maxReviewQueueFetchLimit);
+    expect(collected.rawDueByImport['src-empty'], 0);
+    expect(collected.inputs.single.schedulerDueCardIds, isEmpty);
+  });
+
+  test('searchSchedulerDueCardIds is not capped at the review queue fetch limit',
+      () async {
+    final db = OfficialAnkiDatabase.memory();
+    addTearDown(db.close);
+    final sources = OfficialAnkiSourceDao(db);
+    final migrations = OfficialAnkiMigrationDao(db);
+    sources.upsertSource(
+      sourceId: 'src-many',
+      profileId: 'profile-default-01',
+      sourceHash: 'h1',
+      sourceSize: 1,
+      displayName: 'many',
+      state: 'active',
+      backendCommit: 'x',
+      nowMillis: 1,
+    );
+    final values = [
+      for (var i = 1; i <= 150; i++) "('src-many', $i, $i, 7, 'g$i', 0)",
+    ].join(', ');
+    db.handle.execute(
+      'INSERT INTO anki_source_cards '
+      '(source_id, card_id, note_id, deck_id, note_guid, template_ord) '
+      'VALUES $values',
+    );
+    migrations.insertDetected(
+      migrationId: 'mig-many',
+      profileId: 'profile-default-01',
+      legacyImportId: 'src-many',
+      policy: LegacyAnkiSchedulingPolicy.preservePackageScheduling,
+      nowMillis: 1,
+    );
+    migrations.setOfficialSourceAndRecordedKind(
+      migrationId: 'mig-many',
+      officialSourceId: 'src-many',
+      recordedKind: 'official',
+      nowMillis: 2,
+    );
+
+    final collected = await const OfficialAnkiProductionRouter()
+        .collectFormalDueCardIds(
+      dao: migrations,
+      sources: sources,
+      setCurrentDeck: (_) async {},
+      searchSchedulerDueCardIds: ({required int deckId}) async =>
+          {for (var i = 1; i <= 150; i++) i},
+    );
+
+    expect(collected.inputs.single.schedulerDueCardIds, hasLength(150));
+    expect(collected.rawDueByImport['src-many'], 150);
+  });
+
+  test('clampReviewQueueFetchLimit stays inside the native 1..=100 window', () {
+    expect(OfficialAnkiOperation.clampReviewQueueFetchLimit(0), 1);
+    expect(OfficialAnkiOperation.clampReviewQueueFetchLimit(500), 100);
+    expect(OfficialAnkiOperation.clampReviewQueueFetchLimit(40), 40);
   });
 }
 

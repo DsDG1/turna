@@ -1,7 +1,7 @@
 {
   "contractVersion": {
     "major": 1,
-    "minor": 6
+    "minor": 8
   },
   "requestId": "01JENGINEINFO",
   "ok": true,
@@ -9,7 +9,7 @@
     "abiVersion": 1,
     "backendCommit": "967aa0d578fc75181e292e95326f9b58698da25c",
     "contractMajor": 1,
-    "contractMinor": 6,
+    "contractMinor": 8,
     "capabilities": [
       "ENGINE_INFO",
       "OPEN_COLLECTION",
@@ -42,7 +42,9 @@
       "DELETE_NOTES",
       "DELETE_CARDS",
       "STATS_FOR_CARDS_BATCH",
-      "SCHEDULE_CARDS_AS_NEW"
+      "SCHEDULE_CARDS_AS_NEW",
+      "ANSWER_AHEAD_CARDS",
+      "ENSURE_TODAY_NEW_QUOTA"
     ]
   },
   "error": null,
@@ -50,7 +52,7 @@
     "abiVersion": 1,
     "backendCommit": "967aa0d578fc75181e292e95326f9b58698da25c",
     "contractMajor": 1,
-    "contractMinor": 6
+    "contractMinor": 8
   },
   "durationMillis": 0
 }

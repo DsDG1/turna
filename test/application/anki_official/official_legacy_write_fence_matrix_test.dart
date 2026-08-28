@@ -69,10 +69,6 @@ void main() {
       wordId: 'anki-src-4f8b2c9d1e-c1',
     ));
     await noteDao.setCardState(srcA, 1, buriedUntil: 10);
-    await noteDao.upsertPrerenderedFace(
-      'anki-src-4f8b2c9d1e-c1',
-      front: 'front',
-    );
     await freeze();
 
     Future<void> expectDenied(Future<void> Function() op, String name) async {
@@ -147,17 +143,6 @@ void main() {
     await expectDenied(
       () => noteDao.setCardState(srcA, 1, suspended: true),
       'setCardState',
-    );
-    await expectDenied(
-      () => noteDao.upsertPrerenderedFace(
-        'anki-src-4f8b2c9d1e-c1',
-        back: 'back',
-      ),
-      'upsertPrerenderedFace',
-    );
-    await expectDenied(
-      () => noteDao.deletePrerenderedByPrefix('anki-src-4f8b2c9d1e-'),
-      'deletePrerenderedByPrefix',
     );
 
     expect(await noteDao.clearBuriedBefore(10), isEmpty);

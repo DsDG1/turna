@@ -9,8 +9,13 @@ import 'dart:async';
 
 // Project imports:
 import 'package:turna/application/study_session/anki_study_session_host.dart';
+import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
+import 'package:turna/application/anki_official/engine/official_anki_lesson_redo_flush.dart';
+import 'package:turna/application/anki_official/engine/official_anki_lesson_unlock_quota.dart';
 import 'package:turna/application/anki_official/introduction/card_introduction_eligibility.dart';
 import 'package:turna/application/anki_official/introduction/card_introduction_store.dart';
+import 'package:turna/application/game_provider.dart';
+import 'package:turna/di/injection.dart';
 import 'package:turna/application/study_session/study_product_analytics.dart';
 import 'package:turna/application/study_session/study_session_controller.dart';
 import 'package:turna/domain/anki/canonical_card_key.dart';
@@ -205,6 +210,12 @@ class LessonViewModel extends ChangeNotifier {
   Lesson? get lesson => _lesson;
   LessonType get lessonType => _lesson?.type ?? LessonType.normal;
   bool get isComplete => _isComplete;
+
+  /// Set after a redo flush that did not write every not-yet-rated card.
+  /// The completion dialog shows [AppStrings.lessonAnkiRedoFlushFailed].
+  bool get officialRedoFlushFailed => _officialRedoFlushFailed;
+  bool _officialRedoFlushFailed = false;
+
   bool get isMastery => _lesson?.isMastery ?? false;
   bool get masteryPassed => _masteryPassed;
   int get masteryAttempts => _masteryAttempts;
@@ -395,6 +406,7 @@ class LessonViewModel extends ChangeNotifier {
     _totalMistakes = 0;
     _isComplete = false;
     _completionStarted = false;
+    _officialRedoFlushFailed = false;
     _lessonStartTime = DateTime.now();
     _correctAnswers = 0;
     _incorrectAnswers = 0;
@@ -511,7 +523,6 @@ class LessonViewModel extends ChangeNotifier {
         wordId: mistakeWordId,
         interaction: interaction,
       );
-      _markAnkiIntroduced(interaction, mistakeWordId);
       _submittedInteractions.add(_SubmittedInteraction(
         stageIndex: _currentStageIndex,
         interactionIndex: _currentInteractionIndex,
@@ -738,9 +749,7 @@ class LessonViewModel extends ChangeNotifier {
       _totalMistakes++;
       _incorrectAnswers++;
       _audioController.playRandomErrorSound();
-      if (recordMistake ?? _recordsMistakes) {
-        _recordMistake(userAnswerText, wordId: mistakeWordId);
-      }
+      // ADR 0037: imported Anki cards never write the language mistake book.
     } else {
       _correctAnswers++;
       _audioController.playRandomLevelUpSound();
@@ -761,7 +770,6 @@ class LessonViewModel extends ChangeNotifier {
           correctAnswer: interactionCorrectAnswerLabel(interaction),
         ),
       );
-      _markAnkiIntroduced(interaction, mistakeWordId);
       _submittedInteractions.add(_SubmittedInteraction(
         stageIndex: _currentStageIndex,
         interactionIndex: _currentInteractionIndex,
@@ -802,33 +810,72 @@ class LessonViewModel extends ChangeNotifier {
     }
   }
 
-  /// Course submit is the introduction writer. Mid-lesson exit keeps already
-  /// submitted cards; unsubmitted items stay unintroduced.
-  void _markAnkiIntroduced(Interaction interaction, String? mistakeWordId) {
-    final lessonId = _lesson?.id ?? '';
-    if (lessonId.isEmpty) return;
-    final candidates = <String>[
-      if (mistakeWordId != null && mistakeWordId.isNotEmpty) mistakeWordId,
-      if (interaction is ShowWord && interaction.wordId.isNotEmpty)
-        interaction.wordId,
-      ankiWordIdFromInteractionId(interaction.id),
-      interaction.id,
-    ];
-    for (final candidate in candidates) {
-      if (CardIntroductionEligibility.keyFromLessonAndWordId(
-            lessonId: lessonId,
-            wordId: candidate,
-          ) ==
-          null) {
+  bool _isAnkiLessonRedo(String lessonId) {
+    if (!getIt.isRegistered<GameProvider>()) return false;
+    return getIt<GameProvider>().isLessonCompleted(lessonId);
+  }
+
+  List<OfficialAheadAnswer> _officialRatingsForCompletedPass() {
+    final lesson = _lesson;
+    if (lesson == null) return const [];
+    final anyWrong = <int, bool>{};
+    for (final submitted in _submittedInteractions) {
+      if (submitted.stageIndex < 0 ||
+          submitted.stageIndex >= _stages.length) {
         continue;
       }
-      unawaited(
-        CardIntroductionStore.resolve().markFromLesson(
-          wordId: candidate,
-          lessonId: lessonId,
-        ),
+      final items = _stages[submitted.stageIndex].items;
+      if (submitted.interactionIndex < 0 ||
+          submitted.interactionIndex >= items.length) {
+        continue;
+      }
+      final key = _canonicalKeyForAnkiInteraction(
+        items[submitted.interactionIndex],
       );
+      if (key == null) continue;
+      anyWrong[key.cardId] =
+          (anyWrong[key.cardId] ?? false) || !submitted.correct;
+    }
+    return [
+      for (final entry in anyWrong.entries)
+        OfficialAheadAnswer(
+          cardId: entry.key,
+          rating: entry.value ? 'again' : 'good',
+        ),
+    ];
+  }
+
+  /// ADR 0037: unlock every Official card in this Lesson after the lesson
+  /// completes. Mid-lesson exit leaves cards unintroduced.
+  Future<void> _unlockAnkiCardsOnComplete() async {
+    final lesson = _lesson;
+    if (lesson == null) return;
+    if (lesson.id == MistakeReviewAssembler.lessonId ||
+        lesson.id == WeakWordQuizAssembler.lessonId) {
       return;
+    }
+    final store = CardIntroductionStore.resolve();
+    final unlocked = <int>{};
+    for (final stage in _stages) {
+      for (final item in stage.items) {
+        final candidates = <String>[
+          if (item is ShowWord && item.wordId.isNotEmpty) item.wordId,
+          ankiWordIdFromInteractionId(item.id),
+          item.id,
+        ];
+        for (final candidate in candidates) {
+          final key = CardIntroductionEligibility.keyFromLessonAndWordId(
+            lessonId: lesson.id,
+            wordId: candidate,
+          );
+          if (key == null || !unlocked.add(key.cardId)) continue;
+          await store.markFromLesson(
+            wordId: candidate,
+            lessonId: lesson.id,
+          );
+          break;
+        }
+      }
     }
   }
 
@@ -858,19 +905,16 @@ class LessonViewModel extends ChangeNotifier {
               _totalItemCount == 0 ? 0.0 : _correctAnswers / _totalItemCount;
           if (accuracy >= 0.8) {
             _masteryPassed = true;
-            _isComplete = true;
-            _onLessonCompleted();
+            unawaited(_onLessonCompleted());
           } else {
             _masteryPassed = false;
             // Don't mark complete; UI will show "Try Again" dialog
+            notifyListeners();
           }
-          notifyListeners();
           return;
         }
 
-        _isComplete = true;
-        _onLessonCompleted();
-        notifyListeners();
+        unawaited(_onLessonCompleted());
         return;
       }
     }
@@ -903,6 +947,7 @@ class LessonViewModel extends ChangeNotifier {
     if (_questionResults.isNotEmpty) _questionResults.removeLast();
     _isComplete = false;
     _completionStarted = false;
+    _officialRedoFlushFailed = false;
     notifyListeners();
 
     // Walk the SRS undo stack: drain every entry added by the interaction
@@ -941,6 +986,7 @@ class LessonViewModel extends ChangeNotifier {
     _totalMistakes = 0;
     _isComplete = false;
     _completionStarted = false;
+    _officialRedoFlushFailed = false;
     _masteryPassed = false;
     _lessonStartTime = DateTime.now();
     _correctAnswers = 0;
@@ -959,6 +1005,7 @@ class LessonViewModel extends ChangeNotifier {
     _totalMistakes = 0;
     _isComplete = false;
     _completionStarted = false;
+    _officialRedoFlushFailed = false;
     _lessonStartTime = DateTime.now();
     _correctAnswers = 0;
     _incorrectAnswers = 0;
@@ -1133,6 +1180,22 @@ class LessonViewModel extends ChangeNotifier {
     final lesson = _lesson;
     if (lesson == null) return;
     try {
+      final isRedo = _isAnkiLessonRedo(lesson.id);
+      await _unlockAnkiCardsOnComplete();
+      if (isRedo) {
+        final result = await OfficialAnkiLessonRedoFlush.resolve()
+            .flush(_officialRatingsForCompletedPass());
+        _officialRedoFlushFailed = result.userShouldBeNotified;
+      } else {
+        await OfficialAnkiLessonUnlockQuota.resolve()
+            .ensureForCardIds(_ankiCardIdsInLesson());
+      }
+    } catch (e, st) {
+      debugPrint('Official Anki lesson complete side-effect failed: $e\n$st');
+    }
+    _isComplete = true;
+    notifyListeners();
+    try {
       await _completionCoordinator.complete(
         lessonId: lesson.id,
         wasPerfect: _totalMistakes == 0,
@@ -1148,6 +1211,15 @@ class LessonViewModel extends ChangeNotifier {
       // side effects in [LessonCompletionCoordinator] are already
       // individually guarded, this is the outer backstop.
       debugPrint('LessonCompletionCoordinator failed: $e\n$st');
+    }
+  }
+
+  Iterable<int> _ankiCardIdsInLesson() sync* {
+    for (final stage in _stages) {
+      for (final item in stage.items) {
+        final key = _canonicalKeyForAnkiInteraction(item);
+        if (key != null) yield key.cardId;
+      }
     }
   }
 }

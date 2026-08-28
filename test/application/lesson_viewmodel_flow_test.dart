@@ -9,6 +9,9 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:turna/application/study_session/anki_study_session_host.dart';
+import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
+import 'package:turna/application/anki_official/engine/official_anki_lesson_redo_flush.dart';
+import 'package:turna/application/anki_official/engine/official_anki_lesson_unlock_quota.dart';
 import 'package:turna/application/anki_official/introduction/card_introduction_store.dart';
 import 'package:turna/domain/anki/canonical_card_key.dart';
 import 'package:turna/domain/anki/study_models.dart';
@@ -248,6 +251,40 @@ _ViewModelHarness _buildHarness({
     mistakeProvider: mistakeProvider,
     srsProvider: srsProvider,
   );
+}
+
+class _RecordingRedoFlush extends OfficialAnkiLessonRedoFlush {
+  final List<OfficialAheadAnswer> answers = [];
+  var fail = false;
+
+  @override
+  Future<OfficialAnkiLessonRedoFlushResult> flush(
+    List<OfficialAheadAnswer> next,
+  ) async {
+    answers
+      ..clear()
+      ..addAll(next);
+    if (fail) {
+      return OfficialAnkiLessonRedoFlushResult(
+        requested: next.length,
+        failed: true,
+      );
+    }
+    return OfficialAnkiLessonRedoFlushResult(
+      requested: next.length,
+      answered: next.length,
+    );
+  }
+}
+
+class _RecordingUnlockQuota extends OfficialAnkiLessonUnlockQuota {
+  final List<List<int>> calls = [];
+
+  @override
+  Future<int> ensureForCardIds(Iterable<int> next) async {
+    calls.add(next.toList());
+    return next.length;
+  }
 }
 
 void _installAnkiStudyHost() {
@@ -647,8 +684,7 @@ void main() {
       );
     });
 
-    test('anki course submit marks introduction and mid-exit keeps only submitted',
-        () async {
+    test('anki course unlocks only after the lesson completes', () async {
       _installAnkiStudyHost();
       CardIntroductionStore.debugOverride = CardIntroductionStore();
       addTearDown(() => CardIntroductionStore.debugOverride = null);
@@ -683,8 +719,194 @@ void main() {
       await pumpEventQueue();
       harness.vm.advance();
       final store = CardIntroductionStore.debugOverride!;
-      expect(store.isIntroducedCard(sourceId: 'src1', cardId: 11), isTrue);
+      expect(store.isIntroducedCard(sourceId: 'src1', cardId: 11), isFalse);
       expect(store.isIntroducedCard(sourceId: 'src1', cardId: 12), isFalse);
+
+      final mistakesBeforeWrong = harness.mistakeProvider.count;
+      harness.vm.submitInteraction(false);
+      await pumpEventQueue();
+      expect(harness.mistakeProvider.count, mistakesBeforeWrong,
+          reason: 'Anki course cards must not write the language mistake book');
+      harness.vm.advance();
+      await pumpEventQueue();
+      expect(harness.vm.isComplete, isTrue);
+      expect(store.isIntroducedCard(sourceId: 'src1', cardId: 11), isTrue);
+      expect(store.isIntroducedCard(sourceId: 'src1', cardId: 12), isTrue);
+    });
+
+    test('anki first pass ensures today new quota and does not flush Official',
+        () async {
+      _installAnkiStudyHost();
+      CardIntroductionStore.debugOverride = CardIntroductionStore();
+      addTearDown(() => CardIntroductionStore.debugOverride = null);
+      final quota = _RecordingUnlockQuota();
+      OfficialAnkiLessonUnlockQuota.debugOverride = quota;
+      addTearDown(() => OfficialAnkiLessonUnlockQuota.debugOverride = null);
+      final flush = _RecordingRedoFlush();
+      OfficialAnkiLessonRedoFlush.debugOverride = flush;
+      addTearDown(() => OfficialAnkiLessonRedoFlush.debugOverride = null);
+
+      final lesson = Lesson(
+        id: 'official-anki-src1-l0123456789ab-p3',
+        name: 'Official lesson first pass quota',
+        template: LessonTemplate.legacy,
+        content: LessonContent(
+          stages: [
+            Stage(
+              id: 'stage-1',
+              name: 'Stage 1',
+              items: const [
+                Interaction.ankiCard(
+                  id: 'official-anki-src1-c31-pflip-0',
+                  front: 'one',
+                  back: '1',
+                ),
+                Interaction.ankiCard(
+                  id: 'official-anki-src1-c32-pflip-0',
+                  front: 'two',
+                  back: '2',
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+      final harness = _buildHarness(lesson: lesson, appPrefs: appPrefs);
+      await harness.vm.loadLesson(lesson.id);
+      harness.vm.submitInteraction(true);
+      await pumpEventQueue();
+      harness.vm.advance();
+      harness.vm.submitInteraction(true);
+      await pumpEventQueue();
+      harness.vm.advance();
+      await pumpEventQueue();
+
+      expect(harness.vm.isComplete, isTrue);
+      expect(flush.answers, isEmpty);
+      expect(quota.calls, hasLength(1));
+      expect(quota.calls.single.toSet(), {31, 32});
+      expect(harness.vm.officialRedoFlushFailed, isFalse);
+    });
+
+    test('anki lesson redo flushes official again/good and skips first pass',
+        () async {
+      _installAnkiStudyHost();
+      CardIntroductionStore.debugOverride = CardIntroductionStore();
+      addTearDown(() => CardIntroductionStore.debugOverride = null);
+      final quota = _RecordingUnlockQuota();
+      OfficialAnkiLessonUnlockQuota.debugOverride = quota;
+      addTearDown(() => OfficialAnkiLessonUnlockQuota.debugOverride = null);
+      final flush = _RecordingRedoFlush();
+      OfficialAnkiLessonRedoFlush.debugOverride = flush;
+      addTearDown(() => OfficialAnkiLessonRedoFlush.debugOverride = null);
+
+      final lesson = Lesson(
+        id: 'official-anki-src1-l0123456789ab-p2',
+        name: 'Official lesson redo',
+        template: LessonTemplate.legacy,
+        content: LessonContent(
+          stages: [
+            Stage(
+              id: 'stage-1',
+              name: 'Stage 1',
+              items: const [
+                Interaction.ankiCard(
+                  id: 'official-anki-src1-c21-pflip-0',
+                  front: 'one',
+                  back: '1',
+                ),
+                Interaction.ankiCard(
+                  id: 'official-anki-src1-c22-pflip-0',
+                  front: 'two',
+                  back: '2',
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+      final harness = _buildHarness(lesson: lesson, appPrefs: appPrefs);
+      getIt.registerSingleton<GameProvider>(harness.gameProvider);
+
+      await harness.vm.loadLesson(lesson.id);
+      harness.vm.submitInteraction(true);
+      await pumpEventQueue();
+      harness.vm.advance();
+      harness.vm.submitInteraction(false);
+      await pumpEventQueue();
+      harness.vm.advance();
+      await pumpEventQueue();
+      expect(harness.vm.isComplete, isTrue);
+      expect(flush.answers, isEmpty, reason: 'first pass must not write Official');
+      await pumpEventQueue();
+
+      harness.vm.reset();
+      await harness.vm.loadLesson(lesson.id);
+      harness.vm.submitInteraction(true);
+      await pumpEventQueue();
+      harness.vm.advance();
+      harness.vm.submitInteraction(false);
+      await pumpEventQueue();
+      harness.vm.advance();
+      await pumpEventQueue();
+
+      expect(flush.answers, hasLength(2));
+      final byId = {for (final a in flush.answers) a.cardId: a.rating};
+      expect(byId[21], 'good');
+      expect(byId[22], 'again');
+      expect(quota.calls, hasLength(1),
+          reason: 'redo must not stack new-card quota');
+      expect(harness.vm.officialRedoFlushFailed, isFalse);
+    });
+
+    test('anki lesson redo flush failure is visible on the view model',
+        () async {
+      _installAnkiStudyHost();
+      CardIntroductionStore.debugOverride = CardIntroductionStore();
+      addTearDown(() => CardIntroductionStore.debugOverride = null);
+      final flush = _RecordingRedoFlush()..fail = true;
+      OfficialAnkiLessonRedoFlush.debugOverride = flush;
+      addTearDown(() => OfficialAnkiLessonRedoFlush.debugOverride = null);
+
+      final lesson = Lesson(
+        id: 'official-anki-src1-l0123456789ab-p4',
+        name: 'Official lesson redo fail',
+        template: LessonTemplate.legacy,
+        content: LessonContent(
+          stages: [
+            Stage(
+              id: 'stage-1',
+              name: 'Stage 1',
+              items: const [
+                Interaction.ankiCard(
+                  id: 'official-anki-src1-c41-pflip-0',
+                  front: 'one',
+                  back: '1',
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+      final harness = _buildHarness(lesson: lesson, appPrefs: appPrefs);
+      getIt.registerSingleton<GameProvider>(harness.gameProvider);
+
+      await harness.vm.loadLesson(lesson.id);
+      harness.vm.submitInteraction(true);
+      await pumpEventQueue();
+      harness.vm.advance();
+      await pumpEventQueue();
+      expect(harness.vm.isComplete, isTrue);
+      expect(harness.vm.officialRedoFlushFailed, isFalse);
+
+      harness.vm.reset();
+      await harness.vm.loadLesson(lesson.id);
+      harness.vm.submitInteraction(true);
+      await pumpEventQueue();
+      harness.vm.advance();
+      await pumpEventQueue();
+      expect(harness.vm.isComplete, isTrue);
+      expect(harness.vm.officialRedoFlushFailed, isTrue);
     });
 
     test('official anki card submit does NOT register or grade Turna SRS (P0)',

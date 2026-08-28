@@ -158,11 +158,11 @@ class _CourseDatabaseV6 extends db.CourseDatabase {
 /// A hypothetical newer schema used to verify downgrade behavior: opening
 /// a future DB with the current code must not crash - it wipes + recreates the
 /// schema (the course DB is a reseedable derived cache).
-class _CourseDatabaseV22 extends db.CourseDatabase {
-  _CourseDatabaseV22(super.e);
+class _CourseDatabaseV23 extends db.CourseDatabase {
+  _CourseDatabaseV23(super.e);
 
   @override
-  int get schemaVersion => 22;
+  int get schemaVersion => 23;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -458,7 +458,8 @@ void main() {
       await File(path).parent.delete(recursive: true);
     });
 
-    test('v9 -> v10 adds the anki_prerendered_html cache table', () async {
+    test('v6 -> current drops the v10 anki_prerendered_html cache (v22)',
+        () async {
       final path = await _tempDbPath();
       final oldDb = _CourseDatabaseV6(NativeDatabase(File(path)));
       await _forceOpen(oldDb);
@@ -468,9 +469,16 @@ void main() {
       final migrated = db.CourseDatabase(NativeDatabase(File(path)));
       await _forceOpen(migrated);
 
-      // v10 adds the pre-rendered HTML cache table (empty on creation).
-      expect(
-          await migrated.select(migrated.ankiPrerenderedHtml).get(), isEmpty);
+      // v10 created the pre-rendered HTML cache; v22 drops it — its only
+      // writer lost its last production caller when the legacy Anki layer
+      // was removed, so the table was guaranteed empty.
+      final tables = await migrated
+          .customSelect(
+            "SELECT name FROM sqlite_master WHERE type = 'table' "
+            "AND name = 'anki_prerendered_html'",
+          )
+          .get();
+      expect(tables, isEmpty);
 
       await migrated.close();
       await File(path).parent.delete(recursive: true);
@@ -562,10 +570,10 @@ void main() {
       await File(path).parent.delete(recursive: true);
     });
 
-    test('v22 -> v21 downgrade wipes and recreates instead of crashing',
+    test('v23 -> v22 downgrade wipes and recreates instead of crashing',
         () async {
       final path = await _tempDbPath();
-      final newer = _CourseDatabaseV22(NativeDatabase(File(path)));
+      final newer = _CourseDatabaseV23(NativeDatabase(File(path)));
       await _forceOpen(newer);
       await newer.into(newer.sections).insert(
             const db.SectionsCompanion(
@@ -625,7 +633,7 @@ void main() {
 
       final migrated = db.CourseDatabase(NativeDatabase(File(path)));
       await _forceOpen(migrated);
-      expect(migrated.schemaVersion, 21);
+      expect(migrated.schemaVersion, 22);
 
       final rows = await migrated
           .customSelect(
@@ -671,7 +679,7 @@ void main() {
     test('fresh create at v21 contains owner authority schema', () async {
       final database = db.CourseDatabase(NativeDatabase.memory());
       await _forceOpen(database);
-      expect(database.schemaVersion, 21);
+      expect(database.schemaVersion, 22);
       final columns = await database
           .customSelect('PRAGMA table_info(anki_course_sources)')
           .get();

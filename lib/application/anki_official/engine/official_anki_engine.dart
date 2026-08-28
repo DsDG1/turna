@@ -126,5 +126,18 @@ abstract class OfficialAnkiEngine {
   /// Official Anki's New queue; it is never called without user confirmation.
   Future<int> scheduleCardsAsNew(List<int> cardIds);
 
+  /// Rate cards that may not be in today's due queue (lesson redo / 提前复习).
+  /// Uses an Official filtered deck internally. Returns how many cards were
+  /// actually answered. Fail-closed: missing capability throws.
+  Future<int> answerAheadCards(List<OfficialAheadAnswer> answers);
+
+  /// Raise today's remaining new-card quota to at least [neededNew]
+  /// (`extend_new`), without changing the deck preset `new_per_day`.
+  /// Returns the extra quota applied (0 if already enough).
+  Future<int> ensureTodayNewQuota({
+    required int deckId,
+    required int neededNew,
+  });
+
   Future<void> dispose();
 }

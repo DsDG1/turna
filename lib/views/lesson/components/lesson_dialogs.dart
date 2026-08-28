@@ -59,6 +59,7 @@ Future<void> showLessonCompletionDialog({
   required bool wasPerfect,
   required List<QuestionResult> questionResults,
   required Random random,
+  String? footnote,
 }) async {
   if (!isMounted()) return;
 
@@ -81,6 +82,7 @@ Future<void> showLessonCompletionDialog({
       wasPerfect: wasPerfect,
       questionResults: questionResults,
       random: random,
+      footnote: footnote,
     ),
   );
 
@@ -99,6 +101,7 @@ class _LessonCompletionSummary extends StatelessWidget {
   final bool wasPerfect;
   final List<QuestionResult> questionResults;
   final Random random;
+  final String? footnote;
 
   const _LessonCompletionSummary({
     required this.correctCount,
@@ -110,6 +113,7 @@ class _LessonCompletionSummary extends StatelessWidget {
     required this.wasPerfect,
     required this.questionResults,
     required this.random,
+    this.footnote,
   });
 
   @override
@@ -150,6 +154,14 @@ class _LessonCompletionSummary extends StatelessWidget {
                       // as part of the summary — no follow-up modal spam
                       // after the dialog closes (plan §7.5).
                       const AchievementFeedbackBanner(),
+                      if (footnote != null && footnote!.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          footnote!,
+                          style: Theme.of(context).textTheme.bodySmall,
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                       if (questionResults.isNotEmpty) ...[
                         const SizedBox(height: 16),
                         _buildResultsHeader(context),

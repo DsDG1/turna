@@ -13,7 +13,7 @@ use crate::engine;
 use crate::errors;
 
 pub const CONTRACT_MAJOR: u32 = 1;
-pub const CONTRACT_MINOR: u32 = 6;
+pub const CONTRACT_MINOR: u32 = 8;
 pub const OP_ENGINE_INFO: u32 = 1;
 const MAX_REQUEST_ID_BYTES: usize = 128;
 const MAX_ENVELOPE_PAYLOAD_BYTES: usize = 1_048_576;
@@ -141,7 +141,9 @@ pub fn engine_info_payload() -> Value {
             "DELETE_NOTES",
             "DELETE_CARDS",
             "STATS_FOR_CARDS_BATCH",
-            "SCHEDULE_CARDS_AS_NEW"
+            "SCHEDULE_CARDS_AS_NEW",
+            "ANSWER_AHEAD_CARDS",
+            "ENSURE_TODAY_NEW_QUOTA"
         ],
     })
 }
@@ -214,6 +216,8 @@ fn operation_name_to_id(name: &str) -> Option<u32> {
         "DELETE_CARDS" => Some(engine::OP_DELETE_CARDS),
         "STATS_FOR_CARDS_BATCH" => Some(engine::OP_STATS_FOR_CARDS_BATCH),
         "SCHEDULE_CARDS_AS_NEW" => Some(engine::OP_SCHEDULE_CARDS_AS_NEW),
+        "ANSWER_AHEAD_CARDS" => Some(engine::OP_ANSWER_AHEAD_CARDS),
+        "ENSURE_TODAY_NEW_QUOTA" => Some(engine::OP_ENSURE_TODAY_NEW_QUOTA),
         _ => None,
     }
 }

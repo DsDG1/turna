@@ -1,7 +1,5 @@
 // Project imports:
 import 'package:turna/application/diagnostics/cache_diagnostics_registry.dart';
-import 'package:turna/di/injection.dart';
-import 'package:turna/application/maintenance/storage_maintenance_service.dart';
 
 /// Outcome of one owner's cache clear (e.g. `ai.responseCache`).
 class CacheClearOutcome {
@@ -36,12 +34,11 @@ class ClearCachesResult {
 }
 
 /// Single coordinator for clearing every regenerable cache. Before this
-/// existed the diagnostics page called the Anki prerender clear and the
-/// registry clear separately, dropped the registry's per-owner results, and
-/// an exception in any adapter aborted the remaining ones while the UI just
-/// showed a generic success. This command runs each owner isolated, keeps
-/// every result, prevents concurrent sweeps, and reports a structured
-/// summary.
+/// existed the diagnostics page called each cache clear separately, dropped
+/// the registry's per-owner results, and an exception in any adapter aborted
+/// the remaining ones while the UI just showed a generic success. This
+/// command runs each owner isolated, keeps every result, prevents concurrent
+/// sweeps, and reports a structured summary.
 class ClearRegenerableCachesCommand {
   ClearRegenerableCachesCommand();
 
@@ -63,23 +60,8 @@ class ClearRegenerableCachesCommand {
     try {
       final outcomes = <CacheClearOutcome>[];
 
-      // Owner 1: Anki prerender cache (StorageMaintenanceService).
-      try {
-        await getIt<StorageMaintenanceService>().clearRegenerableCaches();
-        outcomes.add(const CacheClearOutcome(
-          owner: 'anki.prerenderCache',
-          success: true,
-        ));
-      } on Object catch (error) {
-        outcomes.add(CacheClearOutcome(
-          owner: 'anki.prerenderCache',
-          success: false,
-          error: error,
-        ));
-      }
-
-      // Owners 2..n: registry adapters (AI cache, playground index,
-      // dashboard cache, Flutter image cache) — each isolated.
+      // Owners: registry adapters (AI cache, playground index, dashboard
+      // cache, Flutter image cache) — each isolated.
       final registry = CacheDiagnosticsRegistry.production();
       for (final adapter in registry.adapters) {
         try {

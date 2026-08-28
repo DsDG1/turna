@@ -238,5 +238,18 @@ class OfficialAnkiSessionEngine implements OfficialAnkiEngine {
   }
 
   @override
+  Future<int> answerAheadCards(List<OfficialAheadAnswer> answers) {
+    return session.answerAheadCards(answers);
+  }
+
+  @override
+  Future<int> ensureTodayNewQuota({
+    required int deckId,
+    required int neededNew,
+  }) {
+    return session.ensureTodayNewQuota(deckId: deckId, neededNew: neededNew);
+  }
+
+  @override
   Future<void> dispose() => session.dispose();
 }

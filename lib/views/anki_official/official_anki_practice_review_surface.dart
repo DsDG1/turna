@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:turna/application/accessibility_capabilities.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_practice/card_classifier_models.dart';
 import 'package:turna/application/audio_controller.dart';
-import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';
-import 'package:turna/domain/course/mistake_entry.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/anki_media_strip.dart';
 import 'package:turna/views/lesson/components/interactions/anki_card_renderer.dart';
@@ -266,26 +263,7 @@ class _OfficialAnkiPracticeReviewSurfaceState
       widget.onShowAnswer();
     }
 
-    // Record mistake if wrong (MCQ, fill-blank, listen, etc.)
-    final isSelfGraded = interaction is AnkiCard || interaction is AnkiHtmlCard;
-    if (!correct && !isSelfGraded) {
-      try {
-        final mp = context.read<MistakeProvider?>();
-        mp?.record(
-          MistakeEntry(
-            id: 'official-review-${widget.card.cardId}-${DateTime.now().millisecondsSinceEpoch}',
-            lessonId: 'official-review',
-            stageId: 'stage-review',
-            interactionId: interaction.id,
-            wordId: 'official-anki-review-c${widget.card.cardId}',
-            interactionSnapshot: interaction,
-            userAnswer: userAnswerText ?? '',
-            correctAnswer: interactionCorrectAnswerLabel(interaction) ?? '',
-            timestamp: DateTime.now(),
-          ),
-        );
-      } catch (_) {}
-    }
+    // ADR 0037: official Anki ratings never write the language mistake book.
   }
 
   @override

@@ -140,4 +140,40 @@ void main() {
     expect(holder.config.modelChat, 'last-second-edit',
         reason: 'leaving the page must not silently lose the draft');
   });
+
+  // Regression: a provider dependent watching the holder turns the
+  // dispose-time flush into a "setState/markNeedsBuild called when widget
+  // tree was locked" exception (notifyListeners during finalizeTree). The
+  // flush must defer its notification until the frame's lock is released.
+  testWidgets('dispose flush notifies after the tree unlocks, not during',
+      (tester) async {
+    await pumpPage(tester);
+    await tester.enterText(modelChatField(), 'deferred-edit');
+
+    // Replace the tree with one that still watches the holder — like the
+    // real app (Play Hub AI row / AI Hub hero depend on it).
+    Widget watchingTree() =>
+        ChangeNotifierProvider<AiEngineConfigHolder>.value(
+          value: holder,
+          child: Builder(
+            builder: (context) => MaterialApp(
+              home: Scaffold(
+                body: Text(context
+                    .watch<AiEngineConfigHolder>()
+                    .config
+                    .modelChat),
+              ),
+            ),
+          ),
+        );
+
+    await tester.pumpWidget(watchingTree());
+    await tester.pump();
+    await tester.pump();
+
+    expect(tester.takeException(), isNull,
+        reason: 'notifyListeners must not fire while the tree is locked');
+    expect(holder.config.modelChat, 'deferred-edit');
+    expect(find.text('deferred-edit'), findsOneWidget);
+  });
 }

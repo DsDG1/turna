@@ -1,3 +1,4 @@
+import 'package:turna/application/anki_official/contract/official_anki_contract.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_audit_log.dart';
@@ -479,12 +480,10 @@ class OfficialReviewSession {
 
   int get _queueFetchLimit {
     final allowed = allowedCardIds;
-    if (allowed == null) return 1;
-    if (allowed.isEmpty) return 1;
-    final wanted = allowed.length;
-    if (wanted < 20) return 20;
-    if (wanted > 200) return 200;
-    return wanted;
+    if (allowed == null) return OfficialAnkiOperation.minReviewQueueFetchLimit;
+    if (allowed.isEmpty) return OfficialAnkiOperation.minReviewQueueFetchLimit;
+    final wanted = allowed.length < 20 ? 20 : allowed.length;
+    return OfficialAnkiOperation.clampReviewQueueFetchLimit(wanted);
   }
 
   OfficialReviewQueueCard? _selectCurrent(OfficialReviewQueue queued) {

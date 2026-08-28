@@ -28,7 +28,7 @@ void main() {
       );
 
   group('Official course practice + introduction', () {
-    test('itemForCourse uses practice / none ledger / marksIntroduced', () {
+    test('itemForCourse uses practice / none ledger / no per-card unlock', () {
       final item = AnkiStudySessionHost.itemForCourse(
         key: officialKey(7),
         presentation: flip(officialKey(7)),
@@ -38,7 +38,7 @@ void main() {
       expect(item.mode, StudyMode.practice);
       expect(item.ledgerOwner, StudyLedgerOwner.none);
       expect(item.capabilities.writesLedger, isFalse);
-      expect(item.capabilities.marksIntroduced, isTrue);
+      expect(item.capabilities.marksIntroduced, isFalse);
     });
 
     test('course practice does not mutate Official scheduler ledger', () async {
@@ -64,7 +64,7 @@ void main() {
       expect(turna.commits, 0);
       expect(controller.lastReceipt?.ledgerOwner, StudyLedgerOwner.none);
       expect(controller.phase, StudyCardPhase.readyForNext);
-      expect((await intro.stateFor(courseId, key)).isIntroduced, isTrue);
+      expect((await intro.stateFor(courseId, key)).isIntroduced, isFalse);
     });
 
     test('introduction is exactly-once across repeat course submits', () async {
@@ -88,12 +88,12 @@ void main() {
       );
 
       await host.driveFlip(item: item, outcome: RecallOutcome.forgotten);
+      expect((await intro.stateFor(courseId, key)).isIntroduced, isFalse);
       await store.markFromLesson(
         wordId: 'official-anki-$sourceId-c5',
         lessonId: lessonId,
       );
       expect(store.introducedCountForSource(sourceId), 1);
-      expect((await intro.stateFor(courseId, key)).isIntroduced, isTrue);
 
       // Second successful course pass must not inflate introduced count.
       await host.driveFlip(item: item, outcome: RecallOutcome.remembered);
@@ -123,7 +123,7 @@ void main() {
       expect(item.mode, StudyMode.practice);
       expect(item.ledgerOwner, StudyLedgerOwner.none);
       expect(item.capabilities.writesLedger, isFalse);
-      expect(item.capabilities.marksIntroduced, isTrue);
+      expect(item.capabilities.marksIntroduced, isFalse);
     });
   });
 }

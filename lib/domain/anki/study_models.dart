@@ -62,12 +62,13 @@ class StudyCapabilities {
     };
   }
 
-  /// Course practice for Official cards: no scheduler write, mark introduced.
+  /// Course first-learn (ADR 0037): no scheduler write. Unlock happens
+  /// when the Lesson completes, not per card submit.
   factory StudyCapabilities.coursePractice() {
     return const StudyCapabilities(
       writesLedger: false,
       canUndo: false,
-      marksIntroduced: true,
+      marksIntroduced: false,
     );
   }
 

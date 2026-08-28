@@ -6,7 +6,6 @@ import 'package:drift/drift.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/data/anki_legacy_write_fence.dart';
 import 'package:turna/data/course_database.dart';
 
@@ -716,78 +715,6 @@ class AnkiNoteDao {
     });
   }
 
-  // --------------------- prerendered cache ----------------------------
-  // "智能去解密": JS-fidelity cards are decrypted once in the WebView on first
-  // review; the captured plain HTML is cached here so later reviews need no
-  // JS / network / sandbox (deep-adaptation plan §6).
-
-  /// Cache the decrypted HTML for one face of a JS-fidelity card. Either
-  /// [front] or [back] is set per capture; the row is upserted so the two
-  /// faces accumulate across the front-then-back review flow.
-  Future<void> upsertPrerenderedFace(
-    String wordId, {
-    String? front,
-    String? back,
-  }) async {
-    final fenceImportId = LegacyAnkiIdentifiers.importIdFromWordId(wordId);
-    if (fenceImportId.isNotEmpty) {
-      LegacyWriteFence.instance.assertAllowed(
-          importId: fenceImportId, operation: 'upsertPrerenderedFace');
-    }
-    // Atomic upsert: only the captured face is written (Value.absent for the
-    // other), so concurrent front/back captures can't clobber each other via a
-    // stale read-then-write. On conflict the uncaptured column is left as-is.
-    await _db.into(_db.ankiPrerenderedHtml).insertOnConflictUpdate(
-          AnkiPrerenderedHtmlCompanion.insert(
-            wordId: wordId,
-            frontHtml: front == null
-                ? const Value<String?>.absent()
-                : Value<String?>(front),
-            backHtml: back == null
-                ? const Value<String?>.absent()
-                : Value<String?>(back),
-            capturedAt: Value(DateTime.now().millisecondsSinceEpoch),
-          ),
-        );
-  }
-
-  /// Read the cached decrypted HTML for a card (null if not yet captured).
-  Future<AnkiPrerenderedHtmlRecord?> prerendered(String wordId) async {
-    final row = await (_db.select(_db.ankiPrerenderedHtml)
-          ..where((t) => t.wordId.equals(wordId)))
-        .getSingleOrNull();
-    return row == null
-        ? null
-        : AnkiPrerenderedHtmlRecord(
-            wordId: row.wordId,
-            frontHtml: row.frontHtml,
-            backHtml: row.backHtml,
-          );
-  }
-
-  /// Delete cached pre-rendered HTML for an import (deck unload). [prefix] is
-  /// the `anki-<importId>-` wordId prefix.
-  Future<void> deletePrerenderedByPrefix(String prefix) async {
-    final fenceImportId = LegacyAnkiIdentifiers.importIdFromWordPrefix(prefix);
-    if (fenceImportId.isNotEmpty) {
-      LegacyWriteFence.instance.assertAllowed(
-          importId: fenceImportId, operation: 'deletePrerenderedByPrefix');
-    }
-    await (_db.delete(_db.ankiPrerenderedHtml)
-          ..where((t) => t.wordId.like('$prefix%')))
-        .go();
-  }
-
-  /// Get stats of pre-rendered cache for storage maintenance.
-  Future<AnkiPrerenderCacheStats> prerenderCacheStats() async {
-    final rows = await _db.select(_db.ankiPrerenderedHtml).get();
-    var bytes = 0;
-    for (final r in rows) {
-      bytes += (r.frontHtml?.length ?? 0) + (r.backHtml?.length ?? 0);
-    }
-    return AnkiPrerenderCacheStats(byteCount: bytes, count: rows.length);
-  }
-
   // --------------------------- row -> record ---------------------------
 
   AnkiNotetypeRecord _toNotetypeRecord(AnkiNotetypeRow row) {
@@ -1098,32 +1025,4 @@ class AnkiCardBrowserRecord {
   final AnkiCardMetaRecord card;
 
   const AnkiCardBrowserRecord({required this.note, required this.card});
-}
-
-/// Plain data class for a cached pre-rendered (decrypted) HTML row.
-class AnkiPrerenderedHtmlRecord {
-  final String wordId;
-  final String? frontHtml;
-  final String? backHtml;
-
-  const AnkiPrerenderedHtmlRecord({
-    required this.wordId,
-    this.frontHtml,
-    this.backHtml,
-  });
-
-  /// True once both faces have been captured (front on first view, back on
-  /// reveal) - the card can then be reviewed with JS disabled.
-  bool get isComplete =>
-      (frontHtml?.isNotEmpty ?? false) && (backHtml?.isNotEmpty ?? false);
-}
-
-class AnkiPrerenderCacheStats {
-  final int byteCount;
-  final int count;
-
-  const AnkiPrerenderCacheStats({
-    required this.byteCount,
-    required this.count,
-  });
 }

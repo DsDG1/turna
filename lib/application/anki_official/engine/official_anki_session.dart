@@ -581,6 +581,28 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
     return (payload['scheduledCards'] as num?)?.toInt() ?? 0;
   }
 
+  Future<int> answerAheadCards(List<OfficialAheadAnswer> answers) async {
+    final raw = await _rpc('scheduler', {
+      'op': 'answerAheadCards',
+      'answers': [for (final answer in answers) answer.toJson()],
+    });
+    final payload = Map<String, Object?>.from(raw['payload'] as Map? ?? raw);
+    return (payload['answeredCards'] as num?)?.toInt() ?? 0;
+  }
+
+  Future<int> ensureTodayNewQuota({
+    required int deckId,
+    required int neededNew,
+  }) async {
+    final raw = await _rpc('scheduler', {
+      'op': 'ensureTodayNewQuota',
+      'deckId': deckId,
+      'neededNew': neededNew,
+    });
+    final payload = Map<String, Object?>.from(raw['payload'] as Map? ?? raw);
+    return (payload['extendedBy'] as num?)?.toInt() ?? 0;
+  }
+
   Future<void> dispose() {
     return _disposeFuture ??= _disposeOnce();
   }
@@ -1000,6 +1022,8 @@ const _schedulerWriteOps = {
   'deleteCards',
   'statsForCardsBatch',
   'scheduleCardsAsNew',
+  'answerAheadCards',
+  'ensureTodayNewQuota',
 };
 
 Future<Map<String, Object?>> dispatchOfficialAnkiScheduler(
@@ -1226,6 +1250,40 @@ Future<Map<String, Object?>> dispatchOfficialAnkiScheduler(
       }
       final scheduledCards = await engine.scheduleCardsAsNew(cardIds);
       return <String, Object?>{'scheduledCards': scheduledCards};
+    case 'answerAheadCards':
+      final rawAnswers = (message['answers'] as List?) ?? const [];
+      final answers = <OfficialAheadAnswer>[];
+      for (final item in rawAnswers) {
+        if (item is! Map) officialContractError('answers[]', item);
+        final map = Map<String, Object?>.from(item);
+        final cardId = (map['cardId'] as num?)?.toInt() ?? 0;
+        final rating = map['rating'] as String? ?? '';
+        if (cardId <= 0 || rating.isEmpty) {
+          officialContractError('answers[]', item);
+        }
+        answers.add(
+          OfficialAheadAnswer(
+            cardId: cardId,
+            rating: rating,
+            millisecondsTaken:
+                (map['millisecondsTaken'] as num?)?.toInt() ?? 0,
+          ),
+        );
+      }
+      if (answers.isEmpty) officialContractError('answers', rawAnswers);
+      final answeredCards = await engine.answerAheadCards(answers);
+      return <String, Object?>{'answeredCards': answeredCards};
+    case 'ensureTodayNewQuota':
+      final deckId = (message['deckId'] as num?)?.toInt() ?? 0;
+      final neededNew = (message['neededNew'] as num?)?.toInt() ?? 0;
+      if (deckId <= 0 || neededNew < 0) {
+        officialContractError('ensureTodayNewQuota', message);
+      }
+      final extendedBy = await engine.ensureTodayNewQuota(
+        deckId: deckId,
+        neededNew: neededNew,
+      );
+      return <String, Object?>{'extendedBy': extendedBy};
     default:
       throw OfficialAnkiException(
         code: OfficialAnkiErrorCode.invalidArgument,

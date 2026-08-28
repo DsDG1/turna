@@ -9,7 +9,6 @@ import 'package:turna/application/anki_official/storage/official_anki_source_dao
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/core/log_capture.dart';
 import 'package:turna/data/anki_import_dao.dart';
-import 'package:turna/data/anki_note_dao.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/audio/anki_audio_resolver.dart';
@@ -183,17 +182,6 @@ class StorageInventoryService {
 
     // ── Official Anki: collection, catalog, media, backups ─────────────
     artifacts.addAll(await _scanOfficialDirectories());
-
-    // ── Regenerable caches ──────────────────────────────────────────────
-    final decrypt = await getIt<AnkiNoteDao>().prerenderCacheStats();
-    artifacts.add(StorageArtifactReport(
-      category: StorageArtifactCategory.regenerableCache,
-      ownerId: '',
-      label: 'anki prerender cache',
-      physicalBytes: decrypt.byteCount,
-      fileCount: decrypt.count,
-      cleanupPolicy: StorageCleanupPolicy.safeClear,
-    ));
 
     // ── Logs ────────────────────────────────────────────────────────────
     final logPath = LogCapture.instance.fileForDisplay?.path;

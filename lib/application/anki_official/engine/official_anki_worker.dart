@@ -320,6 +320,21 @@ class OfficialAnkiWorker implements OfficialAnkiEngine {
   }
 
   @override
+  Future<int> answerAheadCards(List<OfficialAheadAnswer> answers) {
+    return _enqueue(() => _inner.answerAheadCards(answers));
+  }
+
+  @override
+  Future<int> ensureTodayNewQuota({
+    required int deckId,
+    required int neededNew,
+  }) {
+    return _enqueue(
+      () => _inner.ensureTodayNewQuota(deckId: deckId, neededNew: neededNew),
+    );
+  }
+
+  @override
   Future<void> dispose() {
     return _enqueue(() async {
       await _inner.dispose();

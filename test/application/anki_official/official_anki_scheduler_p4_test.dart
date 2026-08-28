@@ -20,8 +20,8 @@ import 'package:turna/views/anki_official/official_anki_review_page.dart';
 import 'official_anki_formal_review_ack_test.dart' show officialFormalReviewPresenter;
 
 void main() {
-  test('contract 1.6 publishes scheduler operations 11-16 and 27-34', () {
-    expect(kOfficialAnkiContractMinor, 6);
+  test('contract 1.8 publishes scheduler operations 11-16, 27-36', () {
+    expect(kOfficialAnkiContractMinor, 8);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.setCurrentDeck), 11);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.getReviewQueue), 12);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.describeNextStates), 13);
@@ -43,6 +43,14 @@ void main() {
       34,
     );
     expect(
+      OfficialAnkiOperation.idFor(OfficialAnkiOperation.answerAheadCards),
+      35,
+    );
+    expect(
+      OfficialAnkiOperation.idFor(OfficialAnkiOperation.ensureTodayNewQuota),
+      36,
+    );
+    expect(
       OfficialAnkiOperation.productionNames,
       containsAll([
         'SET_CURRENT_DECK',
@@ -57,6 +65,8 @@ void main() {
         'DELETE_CARDS',
         'STATS_FOR_CARDS_BATCH',
         'SCHEDULE_CARDS_AS_NEW',
+        'ANSWER_AHEAD_CARDS',
+        'ENSURE_TODAY_NEW_QUOTA',
       ]),
     );
     final golden = jsonDecode(
@@ -68,11 +78,13 @@ void main() {
     expect(caps, contains('REDO'));
     expect(caps, contains('DELETE_NOTES'));
     expect(caps, contains('SCHEDULE_CARDS_AS_NEW'));
+    expect(caps, contains('ANSWER_AHEAD_CARDS'));
+    expect(caps, contains('ENSURE_TODAY_NEW_QUOTA'));
     expect(
       File('native/turna_anki_core/contract/VERSION')
           .readAsStringSync()
           .trim(),
-      '1.6',
+      '1.8',
     );
   });
 

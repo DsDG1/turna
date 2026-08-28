@@ -13,7 +13,10 @@ import 'package:turna/application/anki_official/review/formal_review_launcher.da
 import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
 import 'package:turna/application/anki_official/engine/official_anki_home_due_sync.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
+import 'package:turna/application/course_provider.dart';
+import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/application/play/play_review_eligibility.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
@@ -41,11 +44,17 @@ class _ProfileQuickActionsState extends State<ProfileQuickActions> {
 
   @override
   Widget build(BuildContext context) {
+    final ankiCourse = PlayReviewEligibility.isAnkiScope(
+      context.select((CourseProvider p) => p.courseScope),
+    );
     final srsDue = context.select((SrsProvider p) => p.dueCount);
     final mistakesCount =
         context.select((MistakeProvider p) => p.entries.length);
+    final grammarDue =
+        context.select((GrammarReviewProvider p) => p.dueCount);
     final ankiDue = context.select(
-      (SrsProvider p) => OfficialFormalDueRepository.instance.aggregatedAnkiDue(p.getDueWords()),
+      (SrsProvider p) => OfficialFormalDueRepository.instance
+          .aggregatedAnkiDue(p.getDueAnkiWords()),
     );
 
     return Padding(
@@ -69,47 +78,61 @@ class _ProfileQuickActionsState extends State<ProfileQuickActions> {
           const SizedBox(height: 10),
           Row(
             children: [
-              Expanded(
-                child: _QuickChip(
-                  icon: Icons.repeat_rounded,
-                  label: AppStrings.profileQuickSrs,
-                  count: srsDue,
-                  accent: TurnaTheme.successDark,
-                  onTap: () => context.router.push(const SrsReviewRoute()),
+              if (!ankiCourse) ...[
+                Expanded(
+                  child: _QuickChip(
+                    icon: Icons.error_outline_rounded,
+                    label: AppStrings.profileQuickMistakes,
+                    count: mistakesCount,
+                    accent: TurnaTheme.error,
+                    onTap: () =>
+                        context.router.push(const MistakeReviewRoute()),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _QuickChip(
-                  icon: Icons.error_outline_rounded,
-                  label: AppStrings.profileQuickMistakes,
-                  count: mistakesCount,
-                  accent: TurnaTheme.error,
-                  onTap: () => context.router.push(const MistakeReviewRoute()),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _QuickChip(
+                    icon: Icons.repeat_rounded,
+                    label: AppStrings.profileQuickSrs,
+                    count: srsDue,
+                    accent: TurnaTheme.successDark,
+                    onTap: () => context.router.push(const SrsReviewRoute()),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _QuickChip(
-                  icon: Icons.layers_rounded,
-                  label: AppStrings.profileQuickAnki,
-                  count: ankiDue,
-                  accent: TurnaTheme.leagueAmethyst,
-                  onTap: () {
-                    unawaited(
-                      const FormalReviewLauncher().open(
-                        context,
-                        entry: FormalReviewEntryKind.statsContinue,
-                        courseId: 'anki',
-                        officialOwner:
-                            OfficialFormalDueRepository.instance.officialImportIds.isNotEmpty,
-                        schedulerRuntimeAvailable: OfficialAnkiFeatureFlags
-                            .current.allowsOfficialScheduler,
-                      ),
-                    );
-                  },
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _QuickChip(
+                    icon: Icons.menu_book_rounded,
+                    label: AppStrings.playGrammarReviewTitle,
+                    count: grammarDue,
+                    accent: TurnaTheme.brandTeal,
+                    onTap: () =>
+                        context.router.push(const GrammarReviewRoute()),
+                  ),
                 ),
-              ),
+              ] else
+                Expanded(
+                  child: _QuickChip(
+                    icon: Icons.layers_rounded,
+                    label: AppStrings.profileQuickAnki,
+                    count: ankiDue,
+                    accent: TurnaTheme.leagueAmethyst,
+                    onTap: () {
+                      unawaited(
+                        const FormalReviewLauncher().open(
+                          context,
+                          entry: FormalReviewEntryKind.statsContinue,
+                          courseId: 'anki',
+                          officialOwner: OfficialFormalDueRepository
+                              .instance.officialImportIds.isNotEmpty,
+                          schedulerRuntimeAvailable:
+                              OfficialAnkiFeatureFlags
+                                  .current.allowsOfficialScheduler,
+                        ),
+                      );
+                    },
+                  ),
+                ),
             ],
           ),
         ],

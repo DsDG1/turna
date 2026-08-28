@@ -193,8 +193,9 @@ class OfficialAnkiHomeDueSync {
           dao: dao,
           sources: sources,
           setCurrentDeck: session.setCurrentDeck,
-          getReviewQueue: ({int fetchLimit = 500}) =>
-              session.getReviewQueue(fetchLimit: fetchLimit),
+          searchSchedulerDueCardIds: ({required int deckId}) => fetchByQuery(
+            'did:$deckId (is:due OR is:learn OR is:new)',
+          ),
           getSuspendedCardIds: fetchSuspendedCardIds,
           getBuriedCardIds: fetchBuriedCardIds,
           getRetiredCardIds: fetchRetiredCardIds,
@@ -212,8 +213,9 @@ class OfficialAnkiHomeDueSync {
             dao: dao,
             sources: sources,
             setCurrentDeck: session.setCurrentDeck,
-            getReviewQueue: ({int fetchLimit = 500}) =>
-                session.getReviewQueue(fetchLimit: fetchLimit),
+            searchSchedulerDueCardIds: ({required int deckId}) => fetchByQuery(
+              'did:$deckId (is:due OR is:learn OR is:new)',
+            ),
             getSuspendedCardIds: fetchSuspendedCardIds,
             getBuriedCardIds: fetchBuriedCardIds,
             getRetiredCardIds: fetchRetiredCardIds,

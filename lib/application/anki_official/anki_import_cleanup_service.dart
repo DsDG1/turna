@@ -63,7 +63,6 @@ class AnkiImportCleanupService {
       CardIntroductionEligibility.courseIdForLegacyImport(importId),
     );
     await noteDao.deleteByImport(importId);
-    await noteDao.deletePrerenderedByPrefix(prefix);
     await _deleteMediaBestEffort(importId);
     await importDao.delete(importId);
     await mistakeProvider?.removeForAnkiDeletion(idPrefixes: [prefix]);

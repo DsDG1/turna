@@ -129,10 +129,8 @@ void main() {
     // In-memory connection: no file bytes, but page stats still answer.
     expect(report.freelistBytes, greaterThanOrEqualTo(0));
 
-    final cache = report.artifact(StorageArtifactCategory.regenerableCache);
-    expect(cache!.cleanupPolicy, StorageCleanupPolicy.safeClear);
-    expect(report.safelyReclaimableBytes, cache.physicalBytes,
-        reason: 'only regenerable caches count as one-tap reclaimable');
+    // The anki prerender cache artifact was removed with its table (schema
+    // v22); logs remain the only safeClear artifact in this environment.
 
     final legacy = report.artifact(StorageArtifactCategory.legacyAnki);
     expect(legacy!.cleanupPolicy, StorageCleanupPolicy.deleteSaga);

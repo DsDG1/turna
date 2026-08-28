@@ -604,7 +604,6 @@ class AppStrings {
 
   // ── Home ──
   static String get homeAiCourseDesigner => 'AI 课程设计器';
-  static String get homeNewCourse => '新建课程';
   static String get homeNewCourseSheetTitle => '新建课程';
   static String get homeDesignWithAi => '用 AI 设计';
   static String get homeDesignWithAiSubtitle => '描述一门课程，让 AI 构建';
@@ -614,9 +613,6 @@ class AppStrings {
   static String get homeFromAnkiSubtitle => '导入 .apkg 牌组作为课程';
   static String get homeStreakBrokenTitle => '连续学习中断了';
   static String get homeStreakBroken => '你的连续天数已归零。今天学一点，重新开始吧。';
-
-  static String get homeNewCourseComingSoon => '多语言课程功能即将推出。目前仅支持土耳其语课程。';
-  static String get homeNewCourseUseAi => '你也可以使用 AI 课程设计器来创建自定义课程。';
   static String get dialogClose => '关闭';
 
   // ── Course management ──
@@ -705,20 +701,9 @@ class AppStrings {
   static String get playAnkiReviewSubtitle => '复习导入的 Anki 牌组';
   static String get playDictionaryTitle => '词典';
   static String get playDictionarySubtitle => '搜索单词、短语和语法';
-  static String get playTodayFocusTitle => '今日重点';
-  static String get playReviewCenterTitle => '复习中心';
-  static String get playToolsTitle => '工具';
-  static String get playStartAction => '开始';
   static String get playAiAssistantTitle => 'AI 助手';
   static String get playAiEngineReady => '引擎就绪';
   static String get playAiEngineNotConfigured => '未配置';
-  static String get playAiViewAll => '全部 AI 功能';
-  static String playMistakeFocusCount(int mistakesCount) =>
-      '$mistakesCount 个错题';
-  static String get playMistakeFocusEmpty => '暂无错题';
-  static String playReviewFocusCount(int srsDue) => '$srsDue 个待复习';
-  static String get playReviewFocusEmpty => '暂无待复习';
-  static String get playDailyChallengeFocusCount => '随机 15 题';
   static String get playTitle => '练习';
   static String get playDailyClose => '关闭';
   static String get playDailyTitle => '每日挑战';
@@ -732,6 +717,69 @@ class AppStrings {
   static String get playWeakWordsEmptyHint =>
       '过去 30 天内错过两次的单词会出现在这里。';
   static String get playWeakWordsTitleAppBar => '薄弱单词';
+
+  // ── Play Hub 重构（今日复习 Hero + 复习队列 + 长按浮窗） ──
+  static String get playTodayHeroTitle => '开始今日复习';
+  static String get playTodayHeroAllClear => '今日队列已清空，随便练练吧';
+  static String playTodayHeroNext(String label) => '接下来：$label';
+  static String get playTodayHeroTotalLabel => '项待复习';
+  static String get playQueueSectionTitle => '复习队列';
+  static String get playPracticeToolsTitle => '练习工具';
+  static String get playLongPressHint => '长按查看数据详情';
+  static String get playQueueChipMistake => '错题';
+  static String get playQueueChipWords => '单词';
+  static String get playQueueChipGrammar => '语法';
+  static String get playQueueChipAnki => 'Anki';
+
+  // 浮窗通用
+  static String get playPopupEnter => '进入';
+  static String get playPopupToday => '今天';
+  static String get playPopupYesterday => '昨天';
+  static String playPopupDaysAgo(int days) => '$days 天前';
+
+  // 今日队列浮窗
+  static String get playPopupNextQueueLabel => '下一个';
+
+  // 错题浮窗
+  static String get playPopupMistakePending => '待复习错题';
+  static String get playPopupMistakeGrammar => '语法类错题';
+  static String get playPopupMistakeRewrite => '待重写';
+  static String get playPopupRecentMistakes => '最近错题';
+
+  // 单词复习浮窗
+  static String get playPopupSrsWords => '待复习单词';
+  static String get playPopupSrsExpressions => '待复习表达';
+  static String get playPopupSrsSeen => '已进入复习';
+  static String get playPopupSrsRegistered => '已登记';
+  static String get playPopupSrsLapse => '高频遗忘';
+
+  // 语法浮窗
+  static String get playPopupGrammarDue => '待复习语法';
+  static String get playPopupGrammarSeen => '已进入复习';
+  static String get playPopupGrammarRegistered => '已登记';
+
+  // Anki 浮窗
+  static String get playPopupAnkiTotal => '合计待复习';
+  static String get playPopupAnkiLegacy => '导入牌组';
+  static String get playPopupAnkiOfficial => 'Official 牌组';
+  static String get playPopupAnkiUnavailable => '同步不可用，计数可能过期';
+
+  // 薄弱单词浮窗
+  static String get playPopupWeakSourceHint => '近 30 天错题聚合 · 错过两次起计';
+  static String playPopupWeakTimes(int count) => '错 $count 次';
+
+  // 复习进度浮窗
+  static String get playPopupRecent7Days => '近 7 天复习';
+  static String get playPopupTotalReviews => '累计复习';
+  static String get playPopupStudyMinutes => '累计学习';
+  static String playPopupMinutesValue(int minutes) => '$minutes 分钟';
+  static String get playPopupNoStatsYet => '暂无统计数据';
+
+  // AI 浮窗
+  static String get playPopupAiEngine => 'AI 引擎';
+  static String get playPopupAiProvider => '服务商';
+  static String get playPopupAiModel => '模型';
+  static String get playPopupAiNotReadyHint => '配置 API Key 后可使用讲解与诊断';
 
   // ── Review ──
   static String get reviewContinueUpper => '继续';
@@ -872,6 +920,8 @@ class AppStrings {
   static String get lessonCompleteTitle3 => '出色！';
   static String get lessonCompleteSubtitle3 => '每节课都让你更接近精通。';
   static String get lessonPerfectLesson => '完美！全部答对。';
+  static String get lessonAnkiRedoFlushFailed =>
+      '提前复习未能全部写入 Anki。请到 Anki 复习里再过一遍这些卡片。';
   static String get lessonCorrect => '正确';
   static String get lessonWrong => '错误';
   static String get lessonTime => '用时';
@@ -1369,7 +1419,7 @@ class AppStrings {
   static String get ankiReviewTitle => 'Anki 复习';
   static String get ankiNoCardsDue => '暂无待复习的 Anki 卡片。';
   static String get ankiFormalReviewEmptyHint =>
-      '新导入或重置进度的卡片需要先在课程里学习，才会进入正式复习。';
+      '先完成课程里的一课，该课的卡片才会进入 Anki 复习。有导入历史的卡片可直接复习。';
   static String get ankiReviewPreparing => '正在准备本批卡片…';
   static String get ankiReviewLoadFailed => '加载复习卡片失败';
   static String ankiReviewLoadFailedDetail(Object error) => '加载失败：$error';

@@ -1,6 +1,8 @@
 import 'dart:io';
 
+import 'package:turna/application/anki_official/contract/official_anki_contract.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
+import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_snapshot_builder.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
@@ -196,15 +198,19 @@ class OfficialAnkiProductionRouter {
     required OfficialAnkiMigrationDao dao,
     required OfficialAnkiSourceDao sources,
     required Future<void> Function(int deckId) setCurrentDeck,
-    required Future<OfficialReviewQueue> Function({int fetchLimit})
-        getReviewQueue,
+    Future<OfficialReviewQueue> Function({int fetchLimit})? getReviewQueue,
+    Future<Set<int>> Function({required int deckId})? searchSchedulerDueCardIds,
     Future<Set<int>> Function({int? deckId})? getSuspendedCardIds,
     Future<Set<int>> Function({int? deckId})? getBuriedCardIds,
     Future<Set<int>> Function({int? deckId})? getRetiredCardIds,
     String profileId = defaultProfileId,
     bool? cutoverEnabled,
-    int fetchLimit = 500,
+    int fetchLimit = OfficialAnkiOperation.maxReviewQueueFetchLimit,
   }) async {
+    assert(
+      searchSchedulerDueCardIds != null || getReviewQueue != null,
+      'collectFormalDueCardIds needs searchSchedulerDueCardIds or getReviewQueue',
+    );
     final ids = officialImportIds(
       dao: dao,
       profileId: profileId,
@@ -249,9 +255,16 @@ class OfficialAnkiProductionRouter {
       }
       var queueIds = queueIdsByDeck[target.deckId];
       if (queueIds == null) {
-        await setCurrentDeck(target.deckId);
-        final queue = await getReviewQueue(fetchLimit: fetchLimit);
-        queueIds = {for (final card in queue.cards) card.cardId};
+        if (searchSchedulerDueCardIds != null) {
+          queueIds = await searchSchedulerDueCardIds(deckId: target.deckId);
+        } else {
+          await setCurrentDeck(target.deckId);
+          final queue = await _queueOrEmpty(
+            getReviewQueue!,
+            fetchLimit: fetchLimit,
+          );
+          queueIds = {for (final card in queue.cards) card.cardId};
+        }
         queueIdsByDeck[target.deckId] = queueIds;
       }
       final dueIds = queueIds.intersection(target.cardIds);
@@ -276,6 +289,29 @@ class OfficialAnkiProductionRouter {
       inputs: inputs,
       rawDueByImport: rawDueByImport,
     );
+  }
+
+  static Future<OfficialReviewQueue> _queueOrEmpty(
+    Future<OfficialReviewQueue> Function({int fetchLimit}) getReviewQueue, {
+    required int fetchLimit,
+  }) async {
+    try {
+      return await getReviewQueue(
+        fetchLimit: OfficialAnkiOperation.clampReviewQueueFetchLimit(fetchLimit),
+      );
+    } on OfficialAnkiException catch (error) {
+      if (error.code == OfficialAnkiErrorCode.queueEmpty) {
+        return const OfficialReviewQueue(
+          sessionId: 'empty',
+          queueEpoch: 1,
+          newCount: 0,
+          learningCount: 0,
+          reviewCount: 0,
+          cards: [],
+        );
+      }
+      rethrow;
+    }
   }
 
   /// Collects coarse deck-tree due counts (pre-eligibility scheduler

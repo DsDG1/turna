@@ -10,7 +10,6 @@ import 'package:turna/application/anki_official/anki_deck_manager.dart';
 import 'package:turna/application/diagnostics/cache_diagnostics_registry.dart';
 import 'package:turna/application/diagnostics/runtime_memory_snapshot.dart';
 import 'package:turna/application/maintenance/storage_inventory_service.dart';
-import 'package:turna/application/maintenance/storage_maintenance_service.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
@@ -118,7 +117,6 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
       ),
     );
     if (confirmed != true || !mounted) return;
-    await StorageMaintenanceService().clearRegenerableCaches();
     await _cacheRegistry.clearRegenerable();
     await _rescan();
   }
