@@ -34,6 +34,12 @@ class AnkiHtmlCardView extends StatefulWidget {
   final String allowedMediaBasePath;
   final bool hideEmbeddedAudioControls;
 
+  /// Opt-in card text zoom in percent (100 = leave author CSS untouched,
+  /// 150 = inject `html{zoom:1.5}`). Wired from the accessibility
+  /// `cardTextScale` setting; 100% injects nothing so the default keeps the
+  /// WEBVIEW-UX-2026-08 §5.3 fidelity guarantee.
+  final int textZoom;
+
   /// True when [html] is the answer face - passed back in [onCaptured] so the
   /// caller caches front vs back correctly.
   final bool isBack;
@@ -71,6 +77,7 @@ class AnkiHtmlCardView extends StatefulWidget {
     this.dark = false,
     this.allowedMediaBasePath = '',
     this.hideEmbeddedAudioControls = false,
+    this.textZoom = 100,
     this.isBack = false,
     this.typeAnswerEnabled = false,
     this.onTypeAnswerChanged,
@@ -278,7 +285,9 @@ class AnkiHtmlCardViewState extends State<AnkiHtmlCardView> {
   /// Viewport-protection CSS appended after the notetype styles. It only
   /// constrains overflow (media, tables, long words, form controls) and never
   /// touches author-defined font, size, alignment or colors, so fidelity is
-  /// preserved (WEBVIEW-UX-2026-08 §5.3).
+  /// preserved (WEBVIEW-UX-2026-08 §5.3). The one sanctioned exception is the
+  /// opt-in card zoom layer in [_themedHtml]: when the user's cardTextScale
+  /// exceeds 100% an `html{zoom:…}` rule is injected on top of this base.
   static const String _baseViewportCss =
       '*,*::before,*::after{box-sizing:border-box;}'
       'img,video,svg,canvas,audio{max-width:100%;}'
@@ -293,6 +302,12 @@ class AnkiHtmlCardViewState extends State<AnkiHtmlCardView> {
   /// app theme (deep-adaptation plan §6).
   String _themedHtml() {
     final css = StringBuffer(_baseViewportCss);
+    if (widget.textZoom != 100) {
+      // Opt-in magnification for card content. `zoom` (not font-size) so
+      // rem/px/em and inline styles all scale; the ResizeObserver height
+      // reports follow the zoomed layout automatically.
+      css.write('html{zoom:${widget.textZoom / 100};}');
+    }
     css.write(
         widget.dark ? ':root{color-scheme:dark;}' : ':root{color-scheme:light;}');
     if (widget.dark) {
@@ -328,7 +343,8 @@ class AnkiHtmlCardViewState extends State<AnkiHtmlCardView> {
         oldWidget.hideEmbeddedAudioControls !=
             widget.hideEmbeddedAudioControls ||
         oldWidget.allowedMediaBasePath != widget.allowedMediaBasePath ||
-        oldWidget.isBack != widget.isBack) {
+        oldWidget.isBack != widget.isBack ||
+        oldWidget.textZoom != widget.textZoom) {
       if (_supported && _controller != null) {
         _stopCapturePoll();
         _controller!.setJavaScriptMode(

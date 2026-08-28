@@ -202,6 +202,147 @@ class ToolbarMenuTest(unittest.TestCase):
         self.assertEqual(win.settings_action.text(), "设置")
 
 
+class TreeRefreshFlushTest(unittest.TestCase):
+    """The debounced flush must not repeat rebuilds the tree did itself."""
+
+    def setUp(self) -> None:
+        _TestApp.get()
+
+    def _count_tree_rebuilds(self, win: MainWindow) -> list:
+        calls: list[int] = []
+        orig = win.tree.refresh_incremental
+
+        def _counting() -> None:
+            calls.append(1)
+            orig()
+
+        win.tree.refresh_incremental = _counting
+        return calls
+
+    def test_detail_edit_marks_stale_and_flush_rebuilds_once(self) -> None:
+        win = _build_main_window()
+        calls = self._count_tree_rebuilds(win)
+        win.detail.tree_changed.emit()
+        win._flush_tree_refresh()
+        self.assertEqual(len(calls), 1)
+        win._tree_refresh_timer.stop()
+
+    def test_command_path_flush_skips_second_rebuild(self) -> None:
+        win = _build_main_window()
+        calls = self._count_tree_rebuilds(win)
+        win.tree._on_command_changed()  # rebuild + tree_changed emit
+        self.assertEqual(len(calls), 1)
+        win._flush_tree_refresh()
+        self.assertEqual(len(calls), 1)  # no redundant second rebuild
+        win._tree_refresh_timer.stop()
+
+
+class AsyncSaveTest(unittest.TestCase):
+    """Interactive save runs adapter.save() on a background worker."""
+
+    def setUp(self) -> None:
+        _TestApp.get()
+
+    @staticmethod
+    def _wait_save_finished(win: MainWindow, timeout: float = 5.0) -> None:
+        import time
+
+        from tests._qtapp import qt_app
+
+        app = qt_app()
+        t0 = time.perf_counter()
+        # Loop on the ref, NOT isRunning(): a fast worker can finish before
+        # the first check, and only processEvents() delivers the queued
+        # result that clears the ref.
+        while win._save_worker is not None:
+            app.processEvents()
+            if time.perf_counter() - t0 > timeout:
+                raise AssertionError("save worker did not finish in time")
+
+    def _make_win_with_save_result(self, result) -> tuple[MainWindow, MagicMock]:
+        win = _build_main_window()
+        adapter = MagicMock()
+        adapter.save.return_value = result
+        win.adapter = adapter
+        win.course_dir = Path("/tmp/fake-course")
+        return win, adapter
+
+    @staticmethod
+    def _capture_status_messages(win: MainWindow) -> list:
+        messages: list[str] = []
+        bar = win.statusBar()
+        orig = bar.showMessage
+
+        def _capture(msg: str, timeout_ms: int = 0) -> None:
+            messages.append(str(msg))
+            orig(msg, timeout_ms)
+
+        bar.showMessage = _capture  # type: ignore[method-assign]
+        return messages
+
+    def test_async_save_success_refreshes_and_unfreezes(self) -> None:
+        win, adapter = self._make_win_with_save_result(
+            SaveResult(ok=True, message="保存成功", errors=[])
+        )
+        messages = self._capture_status_messages(win)
+        win._on_save()
+        self.assertIsNotNone(win._save_worker)
+        self.assertFalse(win.save_action.isEnabled())
+        self._wait_save_finished(win)
+        self.assertIsNone(win._save_worker)
+        self.assertTrue(win.save_action.isEnabled())
+        self.assertTrue(win.centralWidget().isEnabled())
+        # Exactly one save ran (the worker may inject cancel/stream kwargs).
+        self.assertEqual(adapter.save.call_count, 1)
+        self.assertTrue(any("保存成功" in m for m in messages))
+
+    def test_async_save_failure_surfaces_message(self) -> None:
+        win, adapter = self._make_win_with_save_result(
+            SaveResult(
+                ok=False,
+                message="校验失败（已回滚）",
+                errors=[{"level": "error", "message": "bad"}],
+            )
+        )
+        messages = self._capture_status_messages(win)
+        win._on_save()
+        self._wait_save_finished(win)
+        self.assertTrue(win.save_action.isEnabled())
+        self.assertTrue(any("校验失败" in m for m in messages))
+
+    def test_second_save_while_busy_is_rejected(self) -> None:
+        import time
+
+        import threading
+
+        from tests._qtapp import qt_app
+
+        release = threading.Event()
+        entered = []
+
+        def _slow_save(**_kwargs):
+            entered.append(1)  # recorded at entry: mock call_count lags
+            release.wait(timeout=5)
+            return SaveResult(ok=True, message="ok", errors=[])
+
+        win, adapter = self._make_win_with_save_result(None)
+        adapter.save.side_effect = _slow_save
+        messages = self._capture_status_messages(win)
+        win._on_save()
+        # Wait until the worker actually entered the target (thread startup
+        # is asynchronous; isRunning() alone doesn't prove the call began).
+        t0 = time.perf_counter()
+        while not entered and time.perf_counter() - t0 < 2.0:
+            qt_app().processEvents()
+        self.assertTrue(entered, "save worker never entered the target")
+        win._on_save()  # busy: must not start a second worker
+        self.assertTrue(any("正在保存" in m for m in messages))
+        self.assertEqual(len(entered), 1)
+        release.set()
+        self._wait_save_finished(win)
+        self.assertTrue(win.save_action.isEnabled())
+
+
 class AutoSaveOnCloseTest(unittest.TestCase):
     def setUp(self) -> None:
         _TestApp.get()

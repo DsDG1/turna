@@ -381,6 +381,8 @@ class AppStrings {
   static String get settingsTextSizeTitle => '文字大小';
   static String get settingsTextSizeSubtitle => '全局放大文字';
   static String settingsTextSizeValue(int textScale) => '$textScale%';
+  static String get settingsCardTextSizeTitle => '卡面文字大小';
+  static String get settingsCardTextSizeSubtitle => '放大复习卡片内的文字';
   static String get settingsReduceMotionTitle => '减弱动态效果';
   static String get settingsReduceMotionSubtitle => '缩短或禁用动画与过渡';
   static String get settingsHighContrastTitle => '高对比度';
@@ -727,8 +729,8 @@ class AppStrings {
   static String get playDailyGotIt => '知道了';
   static String get playDailyNoQuestions => '暂无挑战题目';
   static String get playDailyCompleteFewLessons => '先完成几节课以充实题库。';
-  static String get playWeakWordsEmpty =>
-      '继续练习——暂无薄弱单词。\n过去 30 天内错过两次的单词会出现在这里。';
+  static String get playWeakWordsEmptyHint =>
+      '过去 30 天内错过两次的单词会出现在这里。';
   static String get playWeakWordsTitleAppBar => '薄弱单词';
 
   // ── Review ──
@@ -775,7 +777,9 @@ class AppStrings {
       '/$pronunciation/';
   static String get reviewMistakeReviewTitle => '错题复习';
   static String get reviewViewMistakeList => '查看错题列表';
-  static String get reviewNoMistakes => '暂无错题可复习。\n错题会自动记录在此处；每次最多练习 10 个。';
+  static String get reviewMistakeEmptyTitle => '暂无错题可复习';
+  static String get reviewMistakeEmptyHint =>
+      '错题会自动记录在此处；每次最多练习 10 个。';
   static String get reviewMyMistakesTitle => '我的错题';
   static String get reviewNoMistakesRecorded => '暂无错题记录';
   static String get reviewKeepItUp => '继续保持！';

@@ -118,5 +118,109 @@ class TextbookLibraryDialogTest(unittest.TestCase):
         self.assertEqual(self.dlg._table.item(0, 1).text(), "—（纯 AI 项目）")
 
 
+class GitAsyncTest(unittest.TestCase):
+    """Git import/publish must run on a worker (no main-thread network)."""
+
+    def setUp(self) -> None:
+        _TestApp.get()
+        self.tmp = tempfile.TemporaryDirectory()
+        self.store = TextbookProjectStore(base_dir=Path(self.tmp.name))
+        self.dlg = TextbookLibraryDialog(store=self.store)
+
+    def tearDown(self) -> None:
+        self.tmp.cleanup()
+
+    @staticmethod
+    def _wait_git_finished(dlg, timeout: float = 5.0) -> None:
+        import time
+
+        from tests._qtapp import qt_app
+
+        app = qt_app()
+        t0 = time.perf_counter()
+        while dlg._git_worker is not None:
+            app.processEvents()
+            if time.perf_counter() - t0 > timeout:
+                raise AssertionError("git worker did not finish in time")
+
+    def test_run_git_async_success_and_busy_state(self) -> None:
+        seen: list[str] = []
+
+        def _fake_clone(url, local_dir):
+            seen.append(url)
+            return "ok"
+
+        self.dlg._run_git_async(
+            "正在克隆…", _fake_clone, "https://example.com/r.git", Path("/tmp/clone"),
+            on_ok=lambda result: seen.append(str(result)),
+        )
+        self.assertFalse(self.dlg._from_git_btn.isEnabled())
+        # The dialog itself is never shown() in tests, so query the explicit
+        # hide flag rather than isVisible().
+        self.assertFalse(self.dlg._git_busy_label.isHidden())
+        self._wait_git_finished(self.dlg)
+        self.assertEqual(seen, ["https://example.com/r.git", "ok"])
+        self.assertTrue(self.dlg._from_git_btn.isEnabled())
+        self.assertTrue(self.dlg._git_busy_label.isHidden())
+
+    def test_run_git_async_error_shows_critical(self) -> None:
+        def _boom():
+            raise RuntimeError("network down")
+
+        with unittest.mock.patch.object(
+            QMessageBox, "critical", return_value=None
+        ) as critic:
+            self.dlg._run_git_async("正在克隆…", _boom)
+            self._wait_git_finished(self.dlg)
+            critic.assert_called_once()
+            self.assertIn("network down", critic.call_args[0][2])
+        self.assertTrue(self.dlg._from_git_btn.isEnabled())
+
+    def test_publish_chain_runs_in_worker(self) -> None:
+        """The publish chain is the worker target: pure backend, no Qt calls."""
+        summary = self.store.create_project(name="P", source_path=None)
+        project = self.store.load_project(summary.project_id)
+        project.design["draft_sections"] = [
+            {"id": "s1", "name": "Section 1", "units": []},
+            {"id": "s2", "name": "Section 2", "units": []},
+        ]
+        self.store.save_project(project)
+
+        pushed: list[str] = []
+        fake_git = unittest.mock.MagicMock()
+        fake_git.commit_and_push.side_effect = (
+            lambda local_dir, msg: pushed.append(msg)
+        )
+        with tempfile.TemporaryDirectory() as clone_dir:
+            remote = unittest.mock.MagicMock()
+            remote.name = "r1"
+            remote.url = "https://example.com/r.git"
+            remote.local_dir = str(clone_dir)
+            with unittest.mock.patch(
+                "src.backend.git_remote_catalog.load_remotes",
+                return_value=[remote],
+            ), unittest.mock.patch(
+                "src.backend.git_remote_catalog.mark_synced",
+            ), unittest.mock.patch(
+                "src.backend.git_library.GitLibrary", return_value=fake_git
+            ), unittest.mock.patch(
+                "PySide6.QtWidgets.QInputDialog.getItem",
+                return_value=("r1 — https://example.com/r.git", True),
+            ), unittest.mock.patch(
+                "PySide6.QtWidgets.QMessageBox.information", return_value=None
+            ) as info:
+                self.dlg._refresh_list()
+                self.dlg._table.selectRow(0)
+                self.dlg._on_publish_to_git()
+                self.assertFalse(self.dlg._publish_git_btn.isEnabled())
+                self._wait_git_finished(self.dlg)
+                info.assert_called_once()
+                self.assertTrue(
+                    (Path(clone_dir) / "sections" / "s1.json").exists()
+                )
+        self.assertEqual(len(pushed), 1)
+        self.assertIn("2 sections", pushed[0])
+
+
 if __name__ == "__main__":
     unittest.main()

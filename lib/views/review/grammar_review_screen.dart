@@ -22,6 +22,7 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/review/components/review_components.dart';
 import 'package:turna/views/theme.dart';
+import 'package:turna/views/widgets/practice_empty_state.dart';
 
 enum _GrammarCardPhase { explain, practice, rate }
 
@@ -211,12 +212,17 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
     final dueCount = context.select((GrammarReviewProvider p) => p.dueCount);
 
     if (_queue.isEmpty) {
-      return ReviewEmptyState(
-        onRefresh: _loadQueue,
-        dueCount: dueCount,
-        title: AppStrings.reviewGrammarReviewTitle,
-        emptyMessage: AppStrings.reviewGrammarEmptyMessage,
-        dueMessage: AppStrings.reviewGrammarDueMessage,
+      return Scaffold(
+        appBar: AppBar(title: Text(AppStrings.reviewGrammarReviewTitle)),
+        body: PracticeEmptyState(
+          title: AppStrings.reviewNoItemsDue,
+          message: dueCount > 0
+              ? AppStrings.reviewDueCountMessage(
+                  dueCount, AppStrings.reviewGrammarDueMessage)
+              : AppStrings.reviewGrammarEmptyMessage,
+          actionLabel: AppStrings.commonRefresh,
+          onAction: _loadQueue,
+        ),
       );
     }
 

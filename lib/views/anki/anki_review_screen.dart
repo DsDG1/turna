@@ -22,6 +22,7 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/theme.dart';
+import 'package:turna/views/widgets/practice_empty_state.dart';
 
 /// Anki review hub — lists imported Anki sections with due counts,
 /// allows starting a review session for a selected section.
@@ -444,49 +445,13 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
   }
 
   Widget _buildEmptyState(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.layers_outlined,
-              size: 80,
-              color: TurnaTheme.brandTeal.withValues(alpha: 0.4),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              AppStrings.ankiNoDecksTitle,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              AppStrings.ankiNoDecksSubtitle,
-              style: TextStyle(
-                color: TurnaTheme.textSecondaryColor(context),
-              ),
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton.icon(
-              onPressed: () => context.router.push(AnkiImportRoute()),
-              icon: const Icon(Icons.add),
-              label: Text(AppStrings.ankiImportDeck),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: TurnaTheme.brandTeal,
-                foregroundColor: TurnaTheme.textOnPrimary,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+    return PracticeEmptyState(
+      icon: Icons.layers_outlined,
+      accentColor: TurnaTheme.brandTeal,
+      title: AppStrings.ankiNoDecksTitle,
+      message: AppStrings.ankiNoDecksSubtitle,
+      actionLabel: AppStrings.ankiImportDeck,
+      onAction: () => context.router.push(AnkiImportRoute()),
     );
   }
 

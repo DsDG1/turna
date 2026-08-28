@@ -112,6 +112,12 @@ class AiGeneratorDialog(QDialog):
     ready to be appended to ``adapter.sections`` and registered in the index.
     """
 
+    # Live stream preview cap (chars): beyond this, throttled flushes only
+    # update a counter instead of re-laying-out the whole editor/label.
+    # Mirrors design_panel._STREAM_JSON_LIVE_LIMIT. The final flush renders
+    # the complete text regardless.
+    _STREAM_TEXT_LIVE_LIMIT = 8192
+
     def __init__(
         self,
         adapter,
@@ -1251,14 +1257,27 @@ class AiGeneratorDialog(QDialog):
         self._stream_dirty = True
         self._stream_flush_timer.start()
 
-    def _flush_stream_view(self) -> None:
-        """Render the accumulated stream buffer once per throttle interval."""
+    def _flush_stream_view(self, final: bool = False) -> None:
+        """Render the accumulated stream buffer once per throttle interval.
+
+        Live flushes (``final=False``) cap the rendered text at
+        ``_STREAM_TEXT_LIVE_LIMIT`` characters: re-laying-out a huge document
+        every 120 ms dominates the UI thread during long generations, so past
+        the limit we only refresh a character counter. The final flush
+        (``final=True`` from ``_finish_stream``) always renders the complete
+        text — it is the only place the full explain/JSON preview lands.
+        """
         if not self._stream_dirty:
             return
         self._stream_dirty = False
+        text = self._stream_buffer
+        n = len(text)
         if self._mode == "wish":
             if self._stream_target == "explain":
-                self.explain_label.setHtml(_escape_html(self._stream_buffer))
+                if not final and n > self._STREAM_TEXT_LIVE_LIMIT:
+                    self.explain_label.setPlainText(f"解释生成中… 已接收约 {n} 字符")
+                else:
+                    self.explain_label.setHtml(_escape_html(text))
                 self.explain_group.setProperty("_has_text", True)
                 self.explain_group.setVisible(self._result_toggle.isChecked())
             elif self._stream_target == "alignment":
@@ -1266,7 +1285,11 @@ class AiGeneratorDialog(QDialog):
         else:
             # Normal-mode JSON generation: running preview in the JSON editor
             # so the teacher can watch the model write.
-            self.json_edit.setPlainText(self._stream_buffer)
+            if not final and n > self._STREAM_TEXT_LIVE_LIMIT:
+                self.stage_label.setText(f"生成中… 已接收约 {n} 字符")
+                self.stage_label.setVisible(True)
+            else:
+                self.json_edit.setPlainText(text)
 
     def _render_streaming_chat(self, partial_text: str) -> None:
         """Re-render the chat with the in-flight assistant turn appended."""
@@ -1317,10 +1340,11 @@ class AiGeneratorDialog(QDialog):
 
     def _finish_stream(self) -> None:
         """Clear the streaming scratch state (call after result/error)."""
-        # Flush whatever accumulated but was not rendered yet, so the view
-        # ends up showing the complete streamed text before we reset.
+        # Flush whatever accumulated but was not rendered yet with final=True
+        # so the view ends up showing the complete streamed text (bypassing
+        # the live-size guard) before we reset.
         if self._stream_dirty:
-            self._flush_stream_view()
+            self._flush_stream_view(final=True)
         self._stream_flush_timer.stop()
         self._stream_buffer = ""
         self._stream_target = None

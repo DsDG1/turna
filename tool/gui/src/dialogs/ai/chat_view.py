@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from PySide6.QtGui import QTextCursor
 from PySide6.QtWidgets import QTextBrowser
 
 from src.theme_tokens import BRAND_REED, BRAND_TEAL, BRAND_TEAL_DARK
@@ -156,14 +157,25 @@ class ChatView(QTextBrowser):
     The view does NOT own the messages list; the dialog holds ``_messages`` and
     calls ``render``/``render_streaming`` whenever it changes. This keeps a
     single source of truth and lets an expand sub-window share the same list.
+
+    Streaming uses an append-only fast path: history is laid out once per
+    message-count change and each throttled flush rewrites only the in-flight
+    assistant bubble (select anchor→end, remove, insertHtml). A full-document
+    setHtml per flush would re-parse the whole conversation every 120 ms (O(n²)
+    over the stream length).
     """
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.setOpenExternalLinks(True)
+        # Streaming fast-path state; invalidated by render().
+        self._stream_msg_count: int | None = None
+        self._stream_anchor: int | None = None
 
     def render(self, messages, palette: dict[str, str] | None = None) -> None:
         pal = palette or DEFAULT_PALETTE
+        self._stream_msg_count = None
+        self._stream_anchor = None
         self.setHtml(render_chat_html(messages, pal))
         self._scroll_to_bottom()
 
@@ -171,7 +183,27 @@ class ChatView(QTextBrowser):
         self, messages, partial_text: str, palette: dict[str, str] | None = None
     ) -> None:
         pal = palette or DEFAULT_PALETTE
-        self.setHtml(render_streaming_html(messages, partial_text, pal))
+        count = len(messages)
+        if self._stream_msg_count != count or self._stream_anchor is None:
+            # History changed (first flush of a new turn): one full layout,
+            # then record where the in-flight bubble starts.
+            self.setHtml(render_chat_html(messages, pal))
+            cursor = self.textCursor()
+            cursor.movePosition(QTextCursor.MoveOperation.End)
+            anchor = cursor.position()
+            cursor.insertHtml(ai_bubble_html(partial_text, "", pal))
+            self._stream_msg_count = count
+            self._stream_anchor = anchor
+        else:
+            # Fast path: replace only the in-flight bubble. Everything before
+            # the anchor is untouched, so positions before it stay valid.
+            cursor = self.textCursor()
+            cursor.setPosition(self._stream_anchor)
+            cursor.movePosition(
+                QTextCursor.MoveOperation.End, QTextCursor.MoveMode.KeepAnchor
+            )
+            cursor.removeSelectedText()
+            cursor.insertHtml(ai_bubble_html(partial_text, "", pal))
         self._scroll_to_bottom()
 
     def restyle(self, palette: dict[str, str]) -> None:

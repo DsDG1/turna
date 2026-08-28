@@ -21,6 +21,7 @@ import 'package:turna/views/lesson/components/interactions/interaction_renderer.
 import 'package:turna/views/lesson/components/lesson_dialogs.dart';
 import 'package:turna/views/lesson/components/lesson_stage_widgets.dart';
 import 'package:turna/views/theme.dart';
+import 'package:turna/views/widgets/practice_empty_state.dart';
 
 /// The number of random questions a daily challenge serves.
 const int kDailyChallengeCount = 15;
@@ -210,39 +211,13 @@ class _DailyChallengePageState extends State<DailyChallengePage> {
   }
 
   Widget _buildEmptyDeck() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.quiz_rounded,
-              size: 48,
-              color: TurnaTheme.textHint.withValues(alpha: 0.4),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              AppStrings.playDailyNoQuestions,
-              style: Theme.of(context).textTheme.titleMedium,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              AppStrings.playDailyCompleteFewLessons,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: TurnaTheme.textSecondaryColor(context),
-                  ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            TextButton(
-              onPressed: () => Navigator.of(context).maybePop(),
-              child: Text(AppStrings.commonBack),
-            ),
-          ],
-        ),
-      ),
+    return PracticeEmptyState(
+      icon: Icons.quiz_rounded,
+      accentColor: TurnaTheme.textHint,
+      title: AppStrings.playDailyNoQuestions,
+      message: AppStrings.playDailyCompleteFewLessons,
+      actionLabel: AppStrings.commonBack,
+      onAction: () => Navigator.of(context).maybePop(),
     );
   }
 

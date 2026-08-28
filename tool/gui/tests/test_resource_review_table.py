@@ -68,6 +68,47 @@ class ResourceReviewTableTest(unittest.TestCase):
             self.table._visible_rows()[0].display_term(), "aile"
         )
 
+    def test_search_hides_rows_without_rebuild(self) -> None:
+        # Filter-only changes must reuse the existing items (hide/show rows),
+        # never clear + repopulate the table.
+        term_items = [self.table._table.item(i, 3) for i in range(3)]
+        self.table._on_search_changed("fam")
+        self.assertEqual(self.table.row_count(), 1)
+        for i in range(3):
+            self.assertIs(self.table._table.item(i, 3), term_items[i])
+        self.assertTrue(self.table._table.isRowHidden(0))  # merhaba
+        self.assertFalse(self.table._table.isRowHidden(1))  # aile (family)
+        self.assertTrue(self.table._table.isRowHidden(2))  # Selam!
+
+    def test_tag_filter_hides_rows_without_rebuild(self) -> None:
+        term_items = [self.table._table.item(i, 3) for i in range(3)]
+        self.table._on_tag_changed("greeting")
+        self.assertEqual(self.table.row_count(), 2)
+        for i in range(3):
+            self.assertIs(self.table._table.item(i, 3), term_items[i])
+        self.assertFalse(self.table._table.isRowHidden(0))  # merhaba
+        self.assertTrue(self.table._table.isRowHidden(1))  # aile (noun)
+        self.assertFalse(self.table._table.isRowHidden(2))  # Selam!
+
+    def test_chapter_filter_hides_rows_without_rebuild(self) -> None:
+        term_items = [self.table._table.item(i, 3) for i in range(3)]
+        self.table.set_chapter_filter(0)
+        self.assertEqual(self.table.row_count(), 2)
+        for i in range(3):
+            self.assertIs(self.table._table.item(i, 3), term_items[i])
+        self.assertFalse(self.table._table.isRowHidden(0))
+        self.assertFalse(self.table._table.isRowHidden(1))
+        self.assertTrue(self.table._table.isRowHidden(2))  # chapter 1
+
+    def test_clearing_search_restores_all_rows(self) -> None:
+        self.table._on_search_changed("fam")
+        self.assertEqual(self.table.row_count(), 1)
+        self.table._on_search_changed("")
+        self.assertEqual(self.table.row_count(), 3)
+        self.assertFalse(any(
+            self.table._table.isRowHidden(i) for i in range(3)
+        ))
+
     def test_batch_delete(self) -> None:
         self.table.set_checked_by_term("merhaba", True)
         self.table.set_checked_by_term("aile", False)
@@ -139,8 +180,9 @@ class ReviewTablePerfTest(unittest.TestCase):
         self.assertLess(elapsed, 1.5)
 
     def test_search_refresh_is_fast(self) -> None:
-        self.table._search_text = "w0_"
-        elapsed = self._timed(self.table._refresh_table)
+        # The typed search path must stay filter-only (row hide/show), not a
+        # full item rebuild.
+        elapsed = self._timed(lambda: self.table._on_search_changed("w0_"))
         self.assertLess(elapsed, 0.5)
         # "w0_" matches w0_0..w0_9 and w10_0.. etc. — just assert it filters.
         self.assertLess(self.table.row_count(), 2500)

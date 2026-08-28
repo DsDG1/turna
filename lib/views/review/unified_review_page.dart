@@ -27,6 +27,7 @@ import 'package:turna/views/review/components/review_progress_header.dart';
 import 'package:turna/views/review/components/unified_review_completion.dart';
 import 'package:auto_route/auto_route.dart';
 import 'package:turna/views/theme.dart';
+import 'package:turna/views/widgets/practice_empty_state.dart';
 
 /// Unified review page providing a single, consistent review experience for all card sources.
 @RoutePage()
@@ -217,14 +218,9 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
         appBar: AppBar(
           title: Text(widget.title ?? AppStrings.reviewReviewAppBarTitle),
         ),
-        body: Center(
-          child: Text(
-            AppStrings.reviewEmptyMessage,
-            style: TextStyle(
-              fontSize: 16,
-              color: TurnaTheme.textSecondaryColor(context),
-            ),
-          ),
+        body: PracticeEmptyState(
+          title: AppStrings.reviewNoItemsDue,
+          message: AppStrings.reviewEmptyMessage,
         ),
       );
     }

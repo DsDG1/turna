@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:turna/application/accessibility_capabilities.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
@@ -87,6 +88,7 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
     final flags = OfficialAnkiFeatureFlags.current;
     final controller = _controller;
     final card = controller.card;
+    final cardTextScale = cardTextScaleOf(context);
     // The replay button replays the card author's own AV tags; hide it on
     // cards without media instead of offering a no-op "system read aloud".
     final hasReplayableAv = card != null &&
@@ -109,7 +111,7 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
-        Expanded(child: _buildSurface(controller, card)),
+        Expanded(child: _buildSurface(controller, card, cardTextScale)),
         if (controller.avHint != null && !controller.ui.isError)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -131,17 +133,24 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
         if (card?.typedAnswer != null && !controller.showingAnswer)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: TextField(
-              enabled: !controller.typed.frozen,
-              decoration: InputDecoration(
-                labelText: '输入答案',
-                hintText: card!.typedAnswer!.marker,
+            // fontSizePx is the notetype's own field size: scale it by the
+            // card zoom only (the WebView comparison HTML scales the same
+            // way via textZoom) and freeze the root textScaler so it is not
+            // multiplied on top.
+            child: MediaQuery.withNoTextScaling(
+              child: TextField(
+                enabled: !controller.typed.frozen,
+                decoration: InputDecoration(
+                  labelText: '输入答案',
+                  hintText: card!.typedAnswer!.marker,
+                ),
+                style: TextStyle(
+                  fontFamily: card.typedAnswer!.fontFamily,
+                  fontSize:
+                      card.typedAnswer!.fontSizePx * cardTextScale / 100.0,
+                ),
+                onChanged: controller.typed.updateProvided,
               ),
-              style: TextStyle(
-                fontFamily: card.typedAnswer!.fontFamily,
-                fontSize: card.typedAnswer!.fontSizePx.toDouble(),
-              ),
-              onChanged: controller.typed.updateProvided,
             ),
           ),
         if (widget.showPreviewControls)
@@ -180,6 +189,7 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
   Widget _buildSurface(
     OfficialAnkiReviewerController controller,
     OfficialAnkiRenderedCard? card,
+    int cardTextScale,
   ) {
     if (card != null) {
       _heldCard = card;
@@ -203,6 +213,7 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
           showingAnswer: controller.showingAnswer,
           comparisonHtml: controller.typed.comparison?.comparisonHtml,
           dark: Theme.of(context).brightness == Brightness.dark,
+          textZoom: cardTextScale,
           presentGeneration: controller.presentGeneration,
           presentEpoch: controller.presentEpoch,
           onRenderComplete: (result) {

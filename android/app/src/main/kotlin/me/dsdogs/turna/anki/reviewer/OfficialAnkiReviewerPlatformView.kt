@@ -39,6 +39,7 @@ class OfficialAnkiReviewerPlatformView(
     private var disposed = false
     private val diagnostics = creationParams?.get("diagnostics") == true
     private val mediaRoot = File(creationParams?.get("mediaRoot") as? String ?: "")
+    private val initialTextZoom = (creationParams?.get("textZoom") as? Int) ?: 100
     private var pendingPayload: JSONObject? = null
     private var pendingSide: String = "question"
     private var applyAttempts = 0
@@ -59,7 +60,7 @@ class OfficialAnkiReviewerPlatformView(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT,
         )
-        OfficialAnkiWebPolicy.apply(webView, diagnostics)
+        OfficialAnkiWebPolicy.apply(webView, diagnostics, initialTextZoom)
         val handler = OfficialAnkiMediaHandler(mediaRoot, assetLoader)
         webView.webViewClient = OfficialAnkiReviewerClient(
             handler,
@@ -187,6 +188,13 @@ class OfficialAnkiReviewerPlatformView(
             "setTheme" -> {
                 val theme = call.argument<String>("theme") ?: "day"
                 eval("window.OfficialReviewer && OfficialReviewer.setTheme(${JSONObject.quote(theme)})")
+                result.success(null)
+            }
+            "setTextZoom" -> {
+                // WebSettings-level text scaling: effective immediately for the
+                // shell and card iframe, no re-present required.
+                val zoom = (call.arguments as? Int) ?: 100
+                webView.settings.textZoom = zoom.coerceIn(100, 200)
                 result.success(null)
             }
             "clearCard" -> {

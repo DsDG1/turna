@@ -4,6 +4,11 @@ Replaces the ad-hoc ``QTableWidget`` used in the textbook import dialog with a
  dedicated ``QTableWidget`` subclass wired for batch operations, search/filter,
  and AI-fix requests. The underlying data is kept in a plain-Python
  ``ResourceTableModel`` so tests can inspect it without a QApplication.
+
+Performance contract: the table always holds one row per model entry, and
+filter-only changes (search / tag / chapter) just hide rows via
+``setRowHidden`` instead of rebuilding items. Structural changes (set_rows,
+check toggles, deletes) are the only full rebuilds.
 """
 from __future__ import annotations
 
@@ -136,9 +141,11 @@ class DraggableTableWidget(QTableWidget):
         if row < 0:
             return
 
-        visible_rows = self.review_table._visible_rows()
-        if 0 <= row < len(visible_rows):
-            row_obj = visible_rows[row]
+        # Table rows map 1:1 onto model rows; filtered-out rows are hidden,
+        # not removed, so index the full model directly.
+        rows = self.review_table._model.rows
+        if 0 <= row < len(rows):
+            row_obj = rows[row]
             payload = {
                 "entry": row_obj.entry,
                 "resource_type": row_obj.resource_type,
@@ -236,15 +243,11 @@ class ResourceReviewTable(QWidget):
         self._table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self._table.itemChanged.connect(self._on_item_changed)
         layout.addWidget(self._table, 1)
-        # Tracks whether the row set has changed since the last full rebuild,
-        # so filter-only changes can hide/show rows instead of rebuilding.
-        self._rows_signature: tuple = ()
 
     # ------------------------------------------------------------------ public
 
     def set_rows(self, rows: list[ResourceRow]) -> None:
         self._model.set_rows(rows)
-        self._rows_signature = ()
         self._refresh_tag_combo()
         self._refresh_table()
         # Column sizing is O(cols x rows); do it once on a structural change,
@@ -265,16 +268,16 @@ class ResourceReviewTable(QWidget):
 
     def set_chapter_filter(self, chapter_index: int | None) -> None:
         self._chapter_filter = chapter_index
-        self._refresh_table()
+        self._apply_row_visibility()
 
     def selected_rows(self) -> list[ResourceRow]:
         """Return the underlying ResourceRow objects for selected rows."""
-        visible = self._visible_rows()
+        rows = self._model.rows
         selected: list[ResourceRow] = []
         for idx in self._table.selectionModel().selectedRows():
             source_row = idx.row()
-            if 0 <= source_row < len(visible):
-                selected.append(visible[source_row])
+            if 0 <= source_row < len(rows):
+                selected.append(rows[source_row])
         return selected
 
     def set_checked(self, visible_row: int, checked: bool) -> None:
@@ -303,11 +306,11 @@ class ResourceReviewTable(QWidget):
 
     def _on_search_changed(self, text: str) -> None:
         self._search_text = text.strip().lower()
-        self._refresh_table()
+        self._apply_row_visibility()
 
     def _on_tag_changed(self, text: str) -> None:
         self._tag_filter = "" if text in ("", "全部 tags") else text
-        self._refresh_table()
+        self._apply_row_visibility()
 
     def _select_all(self) -> None:
         # Model updates only; _refresh_table blocks itemChanged so one emit.
@@ -323,8 +326,11 @@ class ResourceReviewTable(QWidget):
         self.rows_changed.emit()
 
     def _delete_selected(self) -> None:
-        visible = self._visible_rows()
-        to_remove = {self._model.rows.index(r) for r in visible if r.checked}
+        # ResourceRow is a dataclass with dict fields, so list.index() would
+        # deep-compare entries per lookup (O(n^2) on large tables); key by
+        # identity instead.
+        index_by_id = {id(r): i for i, r in enumerate(self._model.rows)}
+        to_remove = {index_by_id[id(r)] for r in self._visible_rows() if r.checked}
         if not to_remove:
             return
         self._model.remove_rows(to_remove)
@@ -361,25 +367,43 @@ class ResourceReviewTable(QWidget):
 
     # ------------------------------------------------------------------ refresh
 
-    def _visible_rows(self) -> list[ResourceRow]:
-        rows = self._model.rows
+    def _row_matches(self, row: ResourceRow) -> bool:
+        """Whether a row passes the chapter/tag/search filters."""
         if self._chapter_filter is not None:
-            rows = [r for r in rows if r.chapter_index == self._chapter_filter]
+            if row.chapter_index != self._chapter_filter:
+                return False
         if self._tag_filter:
-            rows = [
-                r
-                for r in rows
-                if self._tag_filter in (r.entry.get("tags") or [])
-            ]
+            if self._tag_filter not in (row.entry.get("tags") or []):
+                return False
         if self._search_text:
-            rows = [
-                r
-                for r in rows
-                if self._search_text in r.display_term().lower()
-                or self._search_text in r.display_translation().lower()
-                or self._search_text in r.display_tags().lower()
-            ]
-        return rows
+            if not (
+                self._search_text in row.display_term().lower()
+                or self._search_text in row.display_translation().lower()
+                or self._search_text in row.display_tags().lower()
+            ):
+                return False
+        return True
+
+    def _visible_rows(self) -> list[ResourceRow]:
+        return [r for r in self._model.rows if self._row_matches(r)]
+
+    def _apply_row_visibility(self) -> None:
+        """Filter-only refresh: hide/show rows, keep all items alive.
+
+        Used by search/tag/chapter changes so typing in the search box never
+        rebuilds QTableWidgetItems (O(rows) hide toggles instead of a full
+        clear + repopulate).
+        """
+        if self._table.rowCount() != len(self._model.rows):
+            # Table out of sync (should not happen; structural ops rebuild).
+            self._refresh_table()
+            return
+        self._table.setUpdatesEnabled(False)
+        try:
+            for row_idx, row in enumerate(self._model.rows):
+                self._table.setRowHidden(row_idx, not self._row_matches(row))
+        finally:
+            self._table.setUpdatesEnabled(True)
 
     def _refresh_tag_combo(self) -> None:
         current = self._tag_combo.currentText()
@@ -396,15 +420,17 @@ class ResourceReviewTable(QWidget):
         self._tag_combo.blockSignals(False)
 
     def _refresh_table(self) -> None:
-        """Rebuild the QTableWidget from the filtered model rows."""
+        """Rebuild the QTableWidget with one row per model entry.
+
+        Filter state is applied afterwards as row visibility; hidden rows keep
+        their items so filter changes never rebuild the table.
+        """
         self._table.blockSignals(True)
-        visible = self._visible_rows()
-        self._table.clear()
-        self._table.setRowCount(len(visible))
+        self._table.setRowCount(len(self._model.rows))
         self._table.setColumnCount(len(ResourceTableModel.COLUMNS))
         self._table.setHorizontalHeaderLabels(list(ResourceTableModel.COLUMNS))
 
-        for row_idx, row in enumerate(visible):
+        for row_idx, row in enumerate(self._model.rows):
             # Keep column
             item_keep = QTableWidgetItem("✓" if row.checked else "")
             item_keep.setFlags(
@@ -476,11 +502,11 @@ class ResourceReviewTable(QWidget):
         # structural changes; we deliberately do NOT resize on every
         # filter/search refresh (bookplan2 Phase 6 perf item).
         self._table.blockSignals(False)
+        self._apply_row_visibility()
 
     def _apply_edits_from_table(self) -> None:
         """Read back any inline edits made to visible cells."""
-        visible = self._visible_rows()
-        for row_idx, row in enumerate(visible):
+        for row_idx, row in enumerate(self._model.rows):
             term_item = self._table.item(row_idx, 3)
             if term_item is not None:
                 row.set_display_term(term_item.text())

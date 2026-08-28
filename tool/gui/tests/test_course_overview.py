@@ -99,18 +99,23 @@ class CourseOverviewTest(unittest.TestCase):
         first_text = all_chips[0].text().split("·")[0].strip()
         needle = first_text[:3]  # substring of the name
         self.win._search.setText(needle)
+        # Typing is debounced in the UI; render explicitly like a user pausing.
+        self.win._filter_timer.stop()
+        self.win._render()
         # At least the first chip should still be visible.
         visible = [c for c in self.win.findChildren(_LessonChip) if c.isVisibleTo(self.win)]
         # Note: chips inside a hidden section card may still report visible;
         # the authoritative check is that the match count is <= all_chips.
         self.assertLessEqual(len(visible), len(all_chips))
 
-    def test_search_no_match_shows_empty_message(self) -> None:
+    def test_search_is_debounced_not_immediate(self) -> None:
+        before = len(self.win.findChildren(_LessonChip))
         self.win._search.setText("__zzz_no_such_lesson_zzz__")
-        # Trigger render explicitly (textChanged should already do this).
+        # The rebuild must be pending (timer active), not yet applied.
+        self.assertTrue(self.win._filter_timer.isActive())
+        self.assertEqual(len(self.win.findChildren(_LessonChip)), before)
+        self.win._filter_timer.stop()
         self.win._render()
-        labels = self.win.findChildren(type(self.win._stats_label))
-        # The empty message lives in a QLabel inside the host.
         host_labels = [
             w for w in self.win._host.findChildren(type(self.win._stats_label))
             if "无匹配" in w.text()

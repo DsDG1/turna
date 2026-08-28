@@ -121,6 +121,71 @@ class TextbookLibraryDialog(QDialog):
 
         self._table.itemSelectionChanged.connect(self._update_button_state)
 
+        # --- async git worker plumbing (see _run_git_async) ---------------
+        self._git_worker = None
+        self._git_busy_label = QLabel("")
+        self._git_busy_label.setVisible(False)
+        layout.addWidget(self._git_busy_label)
+
+    def _set_git_busy(self, busy: bool, label: str = "") -> None:
+        """Toggle the async-git busy state (disable git buttons + hint)."""
+        self._from_git_btn.setEnabled(not busy)
+        self._publish_git_btn.setEnabled(not busy)
+        self._git_busy_label.setText(label)
+        self._git_busy_label.setVisible(busy)
+
+    def _run_git_async(
+        self,
+        label: str,
+        fn,
+        *args,
+        on_ok=None,
+        error_title: str = "操作失败",
+    ) -> None:
+        """Run a git/backend call in a background worker (main thread stays
+        responsive during network clone/push).
+
+        Mirrors GitLibraryDialog._run_git_async: cancels/disconnects any
+        still-running previous worker, shows a busy hint, and delivers the
+        result (or error message) back on the UI thread.
+        """
+        from src.dialogs.ai.worker import AiRequestWorker
+
+        prev = getattr(self, "_git_worker", None)
+        if prev is not None:
+            try:
+                if prev.isRunning():
+                    prev.cancel()
+                for sig_name in ("result_ready", "error_occurred", "completed", "finished"):
+                    try:
+                        getattr(prev, sig_name).disconnect()
+                    except (TypeError, RuntimeError, AttributeError):
+                        pass
+            except Exception:  # noqa: BLE001 — defensive; never block new op
+                pass
+        self._set_git_busy(True, label)
+        worker = AiRequestWorker(fn, *args)
+
+        def _on_result(result) -> None:
+            if worker is not self._git_worker:
+                return
+            self._git_worker = None
+            self._set_git_busy(False)
+            if on_ok is not None:
+                on_ok(result)
+
+        def _on_error(message: str) -> None:
+            if worker is not self._git_worker:
+                return
+            self._git_worker = None
+            self._set_git_busy(False)
+            QMessageBox.critical(self, error_title, message)
+
+        worker.result_ready.connect(_on_result)
+        worker.error_occurred.connect(_on_error)
+        self._git_worker = worker
+        worker.start()
+
     def _refresh_list(self) -> None:
         self._summaries = self._store.list_project_summaries()
         self._table.setRowCount(len(self._summaries))
@@ -335,37 +400,44 @@ class TextbookLibraryDialog(QDialog):
             return
         idx = items.index(choice)
         remote = remotes[idx]
-        # Clone/pull.
+        # Clone/pull runs in a background worker — a cold clone of a large
+        # repo took 10s+ of frozen UI on the main thread before.
         git = GitLibrary()
         local_dir = Path(remote.local_dir) if remote.local_dir else course_clones_dir() / remote.name
-        try:
-            git.clone(remote.url, local_dir)
-        except RuntimeError as exc:
-            QMessageBox.critical(self, "克隆失败", str(exc))
-            return
-        # Browse for a textbook file.
-        path, _ = QFileDialog.getOpenFileName(
-            self, "选择教材（从克隆的仓库中）", str(local_dir),
-            "教材 (*.md *.txt *.pdf);;所有文件 (*)",
+
+        def _after_clone(_result) -> None:
+            # Back on the UI thread: continue with the modal pickers.
+            git_remote_catalog.mark_synced(remote.name)
+            path, _filter = QFileDialog.getOpenFileName(
+                self, "选择教材（从克隆的仓库中）", str(local_dir),
+                "教材 (*.md *.txt *.pdf);;所有文件 (*)",
+            )
+            if not path:
+                return
+            languages = self._pick_languages()
+            if languages is None:
+                return
+            source = Path(path)
+            name = source.stem
+            project = self._store.create_project(
+                name=name,
+                source_path=source,
+                language=languages[0],
+                source_language=languages[1],
+            )
+            self.selected_project = project
+            self.project_selected.emit(project)
+            if not self._embedded:
+                self.accept()
+
+        self._run_git_async(
+            f"正在从 {remote.name} 克隆…",
+            git.clone,
+            remote.url,
+            local_dir,
+            on_ok=_after_clone,
+            error_title="克隆失败",
         )
-        if not path:
-            return
-        languages = self._pick_languages()
-        if languages is None:
-            return
-        source = Path(path)
-        name = source.stem
-        project = self._store.create_project(
-            name=name,
-            source_path=source,
-            language=languages[0],
-            source_language=languages[1],
-        )
-        git_remote_catalog.mark_synced(remote.name)
-        self.selected_project = project
-        self.project_selected.emit(project)
-        if not self._embedded:
-            self.accept()
 
     def _on_publish_to_git(self) -> None:
         """Export the selected project's section JSON to a git remote and push."""
@@ -392,41 +464,72 @@ class TextbookLibraryDialog(QDialog):
             return
         idx = items.index(choice)
         remote = remotes[idx]
-        # Load the project.
-        project = self._store.load_project(summary.project_id)
-        if project is None:
-            QMessageBox.critical(self, "加载失败", "无法加载所选项目。")
-            return
-        # Clone/pull the remote.
-        git = GitLibrary()
-        local_dir = Path(remote.local_dir) if remote.local_dir else course_clones_dir() / remote.name
-        try:
-            git.clone(remote.url, local_dir)
-        except RuntimeError as exc:
-            QMessageBox.critical(self, "克隆失败", str(exc))
-            return
-        # Export section JSON files into the clone.
-        import json
-        sections_dir = local_dir / "sections"
-        sections_dir.mkdir(parents=True, exist_ok=True)
-        exported = 0
-        for section in project.sections or []:
-            sid = section.get("id", f"section{exported + 1}")
-            (sections_dir / f"{sid}.json").write_text(
-                json.dumps(section, ensure_ascii=False, indent=2), encoding="utf-8"
+
+        def _publish_chain() -> int:
+            """Backend-only publish chain, runs on the worker thread."""
+            import json
+
+            project = self._store.load_project(summary.project_id)
+            if project is None:
+                raise RuntimeError("无法加载所选项目。")
+            # Publishable sections are the workshop design draft (the same
+            # payload「导入到课程」emits). ``project.sections`` never existed —
+            # this path used to AttributeError before the async rework.
+            sections = list(
+                (getattr(project, "design", None) or {}).get("draft_sections")
+                or []
             )
-            exported += 1
-        # Update index.json.
-        index_path = local_dir / "index.json"
-        index_data = {"version": 5, "language": project.language, "sections": project.sections or []}
-        index_path.write_text(json.dumps(index_data, ensure_ascii=False, indent=2), encoding="utf-8")
-        # Commit and push.
-        try:
-            git.commit_and_push(local_dir, f"发布教材项目: {summary.name} ({exported} sections)")
+            if not sections:
+                raise RuntimeError("项目还没有可发布的草稿 sections（请先在工坊生成设计）。")
+            git = GitLibrary()
+            local_dir = (
+                Path(remote.local_dir) if remote.local_dir
+                else course_clones_dir() / remote.name
+            )
+            try:
+                git.clone(remote.url, local_dir)
+            except RuntimeError as exc:
+                raise RuntimeError(f"克隆失败：{exc}") from exc
+            sections_dir = local_dir / "sections"
+            sections_dir.mkdir(parents=True, exist_ok=True)
+            exported = 0
+            for section in sections:
+                sid = section.get("id", f"section{exported + 1}")
+                (sections_dir / f"{sid}.json").write_text(
+                    json.dumps(section, ensure_ascii=False, indent=2),
+                    encoding="utf-8",
+                )
+                exported += 1
+            index_path = local_dir / "index.json"
+            index_data = {
+                "version": 5,
+                "language": project.language,
+                "sections": sections,
+            }
+            index_path.write_text(
+                json.dumps(index_data, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+            try:
+                git.commit_and_push(
+                    local_dir,
+                    f"发布教材项目: {summary.name} ({exported} sections)",
+                )
+            except RuntimeError as exc:
+                raise RuntimeError(f"推送失败：{exc}") from exc
+            return exported
+
+        def _after_publish(exported: int) -> None:
             git_remote_catalog.mark_synced(remote.name)
             QMessageBox.information(
                 self, "发布成功",
-                f"已将 {exported} 个 section 发布到 {remote.name}。\n仓库：{local_dir}",
+                f"已将 {exported} 个 section 发布到 {remote.name}。\n"
+                f"仓库：{Path(remote.local_dir) if remote.local_dir else course_clones_dir() / remote.name}",
             )
-        except RuntimeError as exc:
-            QMessageBox.critical(self, "推送失败", str(exc))
+
+        self._run_git_async(
+            f"正在发布到 {remote.name}（克隆 + 推送）…",
+            _publish_chain,
+            on_ok=_after_publish,
+            error_title="发布失败",
+        )

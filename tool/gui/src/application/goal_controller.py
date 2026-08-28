@@ -638,20 +638,37 @@ def apply_merge_plan_on_host(host: Any, merge_plan: Any) -> int:
     return n
 
 
-def experience_goal_plan(host: Any, scope: Mapping[str, Any] | None = None) -> None:
-    """goal.plan entry: build + show plan (no sandbox write)."""
-    ok, reason = is_goal_allowed(host)
-    if not ok:
-        _status(host, reason)
-        _info(host, "Goal 不可用", reason)
-        return
-    goal_text = ""
-    expand = False
-    if scope:
-        goal_text = str(scope.get("goal_text") or scope.get("text") or "")
-        expand = bool(scope.get("expand"))
-    plan = build_plan_for_host(host, goal_text, expand=expand)
-    host._goal_last_plan = plan  # type: ignore[attr-defined]
+def _plan_goal_async(host: Any, goal_text: str, on_plan: Any) -> bool:
+    """K-09: run the LLM expand path on a background worker.
+
+    Returns True when the request was dispatched (``on_plan`` will fire on the
+    UI thread with the built plan); False when the caller should fall back to
+    the synchronous local/未启用 path. Headless (no Qt UI) always falls back
+    so pure tests and CLI keep synchronous semantics.
+    """
+    try:
+        from src.backend.experience.goal_llm import is_goal_llm_enabled
+
+        if not is_goal_llm_enabled(getattr(host, "_settings_obj", None)):
+            return False
+        if _is_headless_ui():
+            return False
+        from src.dialogs.ai.worker import AiRequestWorker
+
+        _status(host, "Goal 规划中（AI 扩展）…")
+        worker = AiRequestWorker(build_plan_for_host, host, goal_text, expand=True)
+        worker.result_ready.connect(lambda plan: on_plan(plan))
+        worker.error_occurred.connect(
+            lambda msg: _status(host, f"Goal 规划失败：{msg}")
+        )
+        worker.start()
+        return True
+    except Exception:
+        return False
+
+
+def _record_plan_built(host: Any, plan: Any) -> None:
+    """Telemetry/metrics for a freshly built plan (never raises)."""
     try:
         record = getattr(host, "_record_experience_event", None)
         if callable(record):
@@ -666,8 +683,32 @@ def experience_goal_plan(host: Any, scope: Mapping[str, Any] | None = None) -> N
             metrics.inc_suggestion("goal.plan", "applied")
     except Exception:
         pass
-    show_plan_dialog(host, plan)
-    _status(host, f"Goal 规划完成 · {len(plan)} 步")
+
+
+def experience_goal_plan(host: Any, scope: Mapping[str, Any] | None = None) -> None:
+    """goal.plan entry: build + show plan (no sandbox write)."""
+    ok, reason = is_goal_allowed(host)
+    if not ok:
+        _status(host, reason)
+        _info(host, "Goal 不可用", reason)
+        return
+    goal_text = ""
+    expand = False
+    if scope:
+        goal_text = str(scope.get("goal_text") or scope.get("text") or "")
+        expand = bool(scope.get("expand"))
+
+    def _done(plan: Any) -> None:
+        host._goal_last_plan = plan  # type: ignore[attr-defined]
+        _record_plan_built(host, plan)
+        show_plan_dialog(host, plan)
+        _status(host, f"Goal 规划完成 · {len(plan)} 步")
+
+    # LLM expand can block for the full HTTP timeout — run it on a worker.
+    if expand and _plan_goal_async(host, goal_text, _done):
+        return
+    plan = build_plan_for_host(host, goal_text, expand=expand)
+    _done(plan)
 
 
 def experience_goal_expand(host: Any, scope: Mapping[str, Any] | None = None) -> None:
@@ -771,9 +812,9 @@ def experience_goal_run(host: Any, scope: Mapping[str, Any] | None = None) -> No
         goal_text = str(scope.get("goal_text") or scope.get("text") or "")
         expand = bool(scope.get("expand"))
     plan = getattr(host, "_goal_last_plan", None)
-    if plan is None or (goal_text and getattr(plan, "goal_text", "") != goal_text):
-        plan = build_plan_for_host(host, goal_text, expand=expand or True)
-    host._goal_last_plan = plan  # type: ignore[attr-defined]
+    need_build = plan is None or (
+        goal_text and getattr(plan, "goal_text", "") != goal_text
+    )
 
     def _after_sandbox(box: Any, mp: Any) -> None:
         if mp is None:
@@ -836,20 +877,36 @@ def experience_goal_run(host: Any, scope: Mapping[str, Any] | None = None) -> No
         except Exception:
             pass
 
-    try:
-        box, mp, err = run_sandbox_real_fill_for_host(
-            host, plan, on_complete=_after_sandbox
-        )
-    except Exception as exc:
-        _status(host, f"沙箱失败：{exc}")
-        return
-    if err:
-        _status(host, f"沙箱失败：{err}")
-        _info(host, "Goal 沙箱", err or "无法生成合并草案")
-        return
-    # For the async real-fill path mp is None and _after_sandbox is called via
-    # the worker callback. For the stub fallback _after_sandbox was already
-    # invoked synchronously by run_sandbox_real_fill_for_host's on_complete.
+    def _start_sandbox() -> None:
+        try:
+            box, mp, err = run_sandbox_real_fill_for_host(
+                host, plan, on_complete=_after_sandbox
+            )
+        except Exception as exc:
+            _status(host, f"沙箱失败：{exc}")
+            return
+        if err:
+            _status(host, f"沙箱失败：{err}")
+            _info(host, "Goal 沙箱", err or "无法生成合并草案")
+            return
+        # For the async real-fill path mp is None and _after_sandbox is called via
+        # the worker callback. For the stub fallback _after_sandbox was already
+        # invoked synchronously by run_sandbox_real_fill_for_host's on_complete.
+
+    if need_build:
+        def _plan_ready(built: Any) -> None:
+            nonlocal plan
+            plan = built
+            host._goal_last_plan = built  # type: ignore[attr-defined]
+            _start_sandbox()
+
+        # The (re)build forces the expand path (expand or True), which may hit
+        # the LLM — run it on a worker instead of freezing the UI thread.
+        if _plan_goal_async(host, goal_text, _plan_ready):
+            return
+        plan = build_plan_for_host(host, goal_text, expand=expand or True)
+        host._goal_last_plan = plan  # type: ignore[attr-defined]
+    _start_sandbox()
 
 
 def clear_goal_state(host: Any) -> None:

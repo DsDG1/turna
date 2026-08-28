@@ -18,6 +18,7 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
 import 'package:turna/views/theme.dart';
+import 'package:turna/views/widgets/practice_empty_state.dart';
 
 @RoutePage()
 class MistakeListPage extends StatelessWidget {
@@ -30,7 +31,10 @@ class MistakeListPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(AppStrings.reviewMyMistakesTitle)),
       body: mistakes.isEmpty
-          ? const _EmptyState()
+          ? PracticeEmptyState(
+              title: AppStrings.reviewNoMistakesRecorded,
+              message: AppStrings.reviewKeepItUp,
+            )
           : CustomScrollView(
               slivers: [
                 SliverToBoxAdapter(
@@ -51,40 +55,6 @@ class MistakeListPage extends StatelessWidget {
                 ),
               ],
             ),
-    );
-  }
-}
-
-class _EmptyState extends StatelessWidget {
-  const _EmptyState();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(
-            Icons.check_circle_rounded,
-            size: 72,
-            color: TurnaTheme.success,
-          ),
-          const SizedBox(height: 20),
-          Text(
-            AppStrings.reviewNoMistakesRecorded,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            AppStrings.reviewKeepItUp,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: TurnaTheme.textSecondary,
-                ),
-          ),
-        ],
-      ),
     );
   }
 }

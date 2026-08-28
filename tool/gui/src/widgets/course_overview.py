@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from PySide6.QtCore import Qt, QSettings, Signal
+from PySide6.QtCore import Qt, QSettings, QTimer, Signal
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (
     QFrame,
@@ -43,12 +43,13 @@ from src.backend.overview_stats import (
     format_stats_line,
     lesson_is_empty,
 )
-from src.theme import current_palette
+from src.theme import current_palette, current_theme
 
-#: Cache of chip stylesheets keyed by template + empty flag. Rebuilt lazily
-#: on first use, then reused across every refresh (palette switches trigger
-#: a full window rebuild via refresh()).
+#: Cache of chip stylesheets keyed by template + empty flag. Reused across
+#: refreshes; invalidated automatically when the active theme changes (the
+#: sentinel below records the theme the cached styles were built for).
 _CHIP_STYLE_CACHE: dict[tuple[str, bool], str] = {}
+_CHIP_STYLE_THEME_KEY: str | None = None
 
 
 def _pal(key: str) -> str:
@@ -57,6 +58,11 @@ def _pal(key: str) -> str:
 
 def _chip_style(template: str, empty: bool) -> str:
     """Return a cached stylesheet for a lesson chip of ``template``."""
+    global _CHIP_STYLE_THEME_KEY
+    theme_key = current_theme()
+    if _CHIP_STYLE_THEME_KEY != theme_key:
+        _CHIP_STYLE_CACHE.clear()
+        _CHIP_STYLE_THEME_KEY = theme_key
     key = (template, empty)
     cached = _CHIP_STYLE_CACHE.get(key)
     if cached is not None:
@@ -150,6 +156,11 @@ class CourseOverviewWindow(QWidget):
         self._search.setPlaceholderText("按名称 / ID 过滤课时…")
         self._search.setClearButtonEnabled(True)
         self._search.textChanged.connect(self._on_filter_changed)
+        # Debounced search rebuild (see _on_filter_changed).
+        self._filter_timer = QTimer(self)
+        self._filter_timer.setSingleShot(True)
+        self._filter_timer.setInterval(250)
+        self._filter_timer.timeout.connect(self._render)
         action_row.addWidget(self._search, 1)
         self._export_btn = QPushButton("导出 Markdown")
         self._export_btn.setToolTip("把当前可见结构导出为 Markdown（复制到剪贴板）")
@@ -219,8 +230,6 @@ class CourseOverviewWindow(QWidget):
         if self._stats is None:
             self._stats = compute_overview_stats(self.adapter, include_validation=False)
 
-        _clear_chip_style_cache()
-
         layout = self._host_layout
         while layout.count():
             child = layout.takeAt(0)
@@ -239,11 +248,14 @@ class CourseOverviewWindow(QWidget):
         visible: set[tuple[str, str]] = {
             (str(s.get("id", "")), str(l.get("id", ""))) for s, _u, l in matches
         }
+        # Sections that have at least one matching lesson (precomputed from
+        # the single filter pass above — re-running filter_lessons per section
+        # here would be a redundant O(sections x lessons) pass).
+        visible_sids = {sid for sid, _lid in visible}
 
         for section in self.adapter.sections:
             sid = str(section.get("id", ""))
-            if not any((sid, str(l.get("id", ""))) in visible for _s, _u, l in
-                       filter_lessons([section], text=needle, template=self._template_filter)):
+            if sid not in visible_sids:
                 continue
             section_card = self._render_section(section, visible, sid)
             layout.addWidget(section_card)
@@ -402,7 +414,10 @@ class CourseOverviewWindow(QWidget):
     # --- filter / search -----------------------------------------------
 
     def _on_filter_changed(self, _text: str) -> None:
-        self._render()
+        # Debounce keystroke bursts: rebuilding all section cards per key is
+        # O(course); coalesce to one rebuild per quiet window (250 ms, same
+        # convention as MainWindow's tree refresh debounce).
+        self._filter_timer.start()
 
     def _on_template_toggle(self, tmpl: str) -> None:
         # Exclusive toggle: clicking the active filter clears it.
@@ -420,6 +435,9 @@ class CourseOverviewWindow(QWidget):
 
     def _on_clear_filter(self) -> None:
         self._search.clear()
+        # clear() fired textChanged → debounce timer; the immediate render
+        # below already reflects the empty search, so drop the pending one.
+        self._filter_timer.stop()
         if self._template_filter is not None:
             btn = self._template_buttons.get(self._template_filter)
             if btn is not None:

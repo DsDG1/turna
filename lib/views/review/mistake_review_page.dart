@@ -21,6 +21,7 @@ import 'package:turna/views/lesson/components/interactions/interaction_renderer.
 import 'package:turna/views/lesson/components/lesson_dialogs.dart';
 import 'package:turna/views/lesson/components/lesson_stage_widgets.dart';
 import 'package:turna/views/theme.dart';
+import 'package:turna/views/widgets/practice_empty_state.dart';
 
 @RoutePage()
 class MistakeReviewPage extends StatefulWidget {
@@ -284,27 +285,11 @@ class _MistakeReviewPageState extends State<MistakeReviewPage> {
   }
 
   Widget _buildEmpty() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              AppStrings.reviewNoMistakes,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: TurnaTheme.textSecondaryColor(context),
-                  ),
-            ),
-            const SizedBox(height: 16),
-            TextButton(
-              onPressed: () => Navigator.of(context).maybePop(),
-              child: Text(AppStrings.commonBack),
-            ),
-          ],
-        ),
-      ),
+    return PracticeEmptyState(
+      title: AppStrings.reviewMistakeEmptyTitle,
+      message: AppStrings.reviewMistakeEmptyHint,
+      actionLabel: AppStrings.commonBack,
+      onAction: () => Navigator.of(context).maybePop(),
     );
   }
 }

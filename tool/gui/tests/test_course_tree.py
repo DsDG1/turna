@@ -194,6 +194,47 @@ class CourseTreeIncrementalTest(unittest.TestCase):
         self.assertEqual(tree.topLevelItemCount(), 0)
 
 
+class CourseTreeStaleFlagTest(unittest.TestCase):
+    """refresh_if_stale must skip rebuilds the tree already performed itself."""
+
+    def setUp(self) -> None:
+        _App.get()
+        self.tree = CourseTreeWidget()
+        self.tree.display(_adapter_with_data())
+        self._calls = 0
+        self._orig_refresh = self.tree.refresh_incremental
+
+        def _counting_refresh() -> None:
+            self._calls += 1
+            self._orig_refresh()
+
+        self.tree.refresh_incremental = _counting_refresh
+
+    def test_refresh_if_stale_skips_when_fresh(self) -> None:
+        # After display()/command rebuilds the tree is in sync: flush is a no-op.
+        self.assertFalse(self.tree._stale)
+        self.tree.refresh_if_stale()
+        self.assertEqual(self._calls, 0)
+
+    def test_refresh_if_stale_rebuilds_once_after_mark_stale(self) -> None:
+        self.tree.mark_stale()
+        self.tree.refresh_if_stale()
+        self.assertEqual(self._calls, 1)
+        self.assertFalse(self.tree._stale)
+        self.tree.refresh_if_stale()
+        self.assertEqual(self._calls, 1)
+
+    def test_command_path_rebuild_clears_stale(self) -> None:
+        # Detail edit marks stale, then a structural command rebuilds the
+        # tree itself: the debounced flush must not rebuild a second time.
+        self.tree.mark_stale()
+        self.tree._on_command_changed()  # rebuild + tree_changed emit
+        self.assertEqual(self._calls, 1)
+        self.assertFalse(self.tree._stale)
+        self.tree.refresh_if_stale()
+        self.assertEqual(self._calls, 1)
+
+
 class CourseTreeMoveTest(unittest.TestCase):
     def setUp(self) -> None:
         _App.get()

@@ -215,10 +215,32 @@ class SavePipelineHostIntegrationTest(unittest.TestCase):
         self.assertEqual(saved["n"], 1)
         self.assertEqual(self.win.adapter.vocab[0]["term"], "merhaba")
 
-    def test_on_save_returns_bool(self) -> None:
-        self.win.adapter.save = lambda: _FakeSaveResult(ok=True, message="ok")  # type: ignore
+    def test_on_save_dispatches_async_worker(self) -> None:
+        """Menu save runs adapter.save on a worker; completion is signalled.
+
+        (Was ``test_on_save_returns_bool`` when the save was synchronous and
+        returned its outcome directly.)
+        """
+        import time
+
+        saved = {"n": 0}
+
+        def fake_save(**_kwargs):
+            saved["n"] += 1
+            return _FakeSaveResult(ok=True, message="ok")
+
+        self.win.adapter.save = fake_save  # type: ignore[method-assign]
         self.win._settings_obj.experience_soft_autopilot = False
-        self.assertTrue(self.win._on_save(reason="menu"))
+        self.win._on_save(reason="menu")
+        self.assertIsNotNone(self.win._save_worker)
+        from tests._qtapp import qt_app
+
+        t0 = time.perf_counter()
+        while self.win._save_worker is not None:
+            qt_app().processEvents()
+            if time.perf_counter() - t0 > 5.0:
+                self.fail("save worker did not finish")
+        self.assertEqual(saved["n"], 1)
 
 
 if __name__ == "__main__":

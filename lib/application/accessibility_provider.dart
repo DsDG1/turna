@@ -13,6 +13,8 @@ import 'package:turna/service/locator.dart';
 /// Surfaces a small set of toggles tuned for neurodivergent learners
 /// (ADHD, dyslexia, sensory sensitivity, autism spectrum):
 ///  * [textScale]         — magnify text 100%–200%.
+///  * [cardTextScale]     — magnify card content 100%–200% (WebView cards
+///                          included, opt-in: 100% leaves cards untouched).
 ///  * [reducedMotion]     — shorten/disable animations.
 ///  * [highContrast]      — switch to a high-contrast theme variant.
 ///  * [dyslexiaFont]      — swap the text theme for a dyslexia-friendly font.
@@ -26,6 +28,7 @@ class AccessibilityProvider extends ChangeNotifier {
   final AppPrefs _appPrefs;
 
   int _textScale = 100;
+  int _cardTextScale = 100;
   bool _reducedMotion = false;
   bool _highContrast = false;
   bool _dyslexiaFont = false;
@@ -37,6 +40,7 @@ class AccessibilityProvider extends ChangeNotifier {
   }
 
   int get textScale => _textScale;
+  int get cardTextScale => _cardTextScale;
   bool get reducedMotion => _reducedMotion;
   bool get highContrast => _highContrast;
   bool get dyslexiaFont => _dyslexiaFont;
@@ -54,6 +58,9 @@ class AccessibilityProvider extends ChangeNotifier {
   void _load() {
     _textScale = _appPrefs.preferences
         .getInt(LocalStateKeys.textScale, defaultValue: 100)
+        .getValue();
+    _cardTextScale = _appPrefs.preferences
+        .getInt(LocalStateKeys.cardTextScale, defaultValue: 100)
         .getValue();
     _reducedMotion = _appPrefs.preferences
         .getBool(LocalStateKeys.reducedMotion, defaultValue: false)
@@ -84,6 +91,31 @@ class AccessibilityProvider extends ChangeNotifier {
     final clamped = value.clamp(100, 200);
     _textScale = clamped;
     await _appPrefs.setInt(LocalStateKeys.textScale, clamped);
+    notifyListeners();
+  }
+
+  Future<void> setCardTextScale(int value) async {
+    final clamped = value.clamp(100, 200);
+    _cardTextScale = clamped;
+    await _appPrefs.setInt(LocalStateKeys.cardTextScale, clamped);
+    notifyListeners();
+  }
+
+  /// Live-preview variants used while a settings slider is being dragged:
+  /// update the in-memory value and notify so the app reacts immediately, but
+  /// leave persistence to the drag-end setter. Slider divisions throttle the
+  /// calls to one per snapped step, so this never writes prefs per frame.
+  void previewTextScale(int value) {
+    final clamped = value.clamp(100, 200);
+    if (_textScale == clamped) return;
+    _textScale = clamped;
+    notifyListeners();
+  }
+
+  void previewCardTextScale(int value) {
+    final clamped = value.clamp(100, 200);
+    if (_cardTextScale == clamped) return;
+    _cardTextScale = clamped;
     notifyListeners();
   }
 

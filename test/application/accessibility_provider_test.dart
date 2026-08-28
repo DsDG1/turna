@@ -20,6 +20,7 @@ void main() {
 
   test('defaults are off, textScale 100%', () {
     expect(acc.textScale, 100);
+    expect(acc.cardTextScale, 100);
     expect(acc.reducedMotion, isFalse);
     expect(acc.highContrast, isFalse);
     expect(acc.dyslexiaFont, isFalse);
@@ -38,6 +39,58 @@ void main() {
     expect(acc.textScale, 100);
     await acc.setTextScale(300);
     expect(acc.textScale, 200);
+  });
+
+  test('setCardTextScale clamps to 100..200', () async {
+    await acc.setCardTextScale(50);
+    expect(acc.cardTextScale, 100);
+    await acc.setCardTextScale(300);
+    expect(acc.cardTextScale, 200);
+  });
+
+  test('cardTextScale persists and reloads', () async {
+    await acc.setCardTextScale(160);
+    final reloaded = AccessibilityProvider(prefs);
+    expect(reloaded.cardTextScale, 160);
+  });
+
+  test('preview setters update memory without persisting', () async {
+    // Normalize the shared mock store (StreamingSharedPreferences caches its
+    // instance across tests in this file, earlier tests may have written).
+    await acc.setTextScale(100);
+    await acc.setCardTextScale(100);
+
+    acc.previewTextScale(170);
+    acc.previewCardTextScale(180);
+    expect(acc.textScale, 170);
+    expect(acc.cardTextScale, 180);
+
+    // The store still holds the committed values; only memory moved.
+    expect(
+      prefs.preferences
+          .getInt(LocalStateKeys.textScale, defaultValue: -1)
+          .getValue(),
+      100,
+    );
+    expect(
+      prefs.preferences
+          .getInt(LocalStateKeys.cardTextScale, defaultValue: -1)
+          .getValue(),
+      100,
+    );
+  });
+
+  test('preview setters notify only on value change', () {
+    int notifications = 0;
+    acc.addListener(() => notifications++);
+
+    acc.previewTextScale(120);
+    acc.previewCardTextScale(130);
+    expect(notifications, 2);
+
+    // A preview that lands on the current value must not notify.
+    acc.previewTextScale(120);
+    expect(notifications, 2);
   });
 
   test('flags persist and reload', () async {

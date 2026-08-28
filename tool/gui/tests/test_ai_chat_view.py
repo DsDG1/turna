@@ -102,5 +102,69 @@ class TestRenderStreamingHtml(unittest.TestCase):
         self.assertLess(html.index("q"), html.index("partial answer"))
 
 
+class ChatViewStreamingFastPathTest(unittest.TestCase):
+    """Widget-level: throttled flushes must not re-parse the whole history."""
+
+    def setUp(self) -> None:
+        from tests._qtapp import _App
+
+        _App.get()
+        from src.dialogs.ai.chat_view import ChatView
+
+        self.view = ChatView()
+
+    def _count_sethtml(self) -> tuple[list, object]:
+        calls: list[str] = []
+        orig = self.view.setHtml
+
+        def _counting(html: str) -> None:
+            calls.append(html)
+            orig(html)
+
+        self.view.setHtml = _counting
+        return calls, orig
+
+    def test_repeated_flushes_render_history_once(self) -> None:
+        msgs = [_Msg("user", "q1"), _Msg("assistant", "a1")]
+        self.view.render(msgs)
+        calls, _orig = self._count_sethtml()
+        self.view.render_streaming(msgs, "partial 1")
+        self.view.render_streaming(msgs, "partial 2 longer")
+        self.view.render_streaming(msgs, "partial 3 even longer")
+        # Only the first flush lays out the document; later ones rewrite the
+        # in-flight bubble via cursor selection instead of setHtml.
+        self.assertEqual(len(calls), 1)
+        text = self.view.toPlainText()
+        self.assertIn("a1", text)
+        self.assertIn("partial 3 even longer", text)
+
+    def test_history_change_triggers_full_relayout(self) -> None:
+        msgs = [_Msg("user", "q1")]
+        self.view.render(msgs)
+        self.view.render_streaming(msgs, "p1")
+        msgs2 = [
+            _Msg("user", "q1"),
+            _Msg("assistant", "a1"),
+            _Msg("user", "q2"),
+        ]
+        calls, _orig = self._count_sethtml()
+        self.view.render_streaming(msgs2, "p3")
+        self.assertEqual(len(calls), 1)
+        text = self.view.toPlainText()
+        for expected in ("a1", "q2", "p3"):
+            self.assertIn(expected, text)
+        self.assertNotIn("p1", text)
+
+    def test_render_clears_stream_state(self) -> None:
+        msgs = [_Msg("user", "q1")]
+        self.view.render(msgs)
+        self.view.render_streaming(msgs, "p1")
+        self.view.render(msgs)
+        self.assertNotIn("p1", self.view.toPlainText())
+        # A new streaming turn after a full render still works.
+        self.view.render_streaming(msgs, "p2")
+        self.assertIn("p2", self.view.toPlainText())
+
+
 if __name__ == "__main__":
     unittest.main()

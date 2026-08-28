@@ -41,24 +41,73 @@ class AccessibilityToggleTile extends StatelessWidget {
   }
 }
 
-/// Slider tile (100%–200%, 5 steps) controlling [AccessibilityProvider.textScale].
-///
-/// Local drag state avoids writing prefs and rebuilding [MaterialApp] on every
-/// frame (root shell watches [AccessibilityProvider.textScaler]).
-class SettingsTextScaleTile extends StatefulWidget {
+/// Slider tile (100%–200%, 10 steps) controlling
+/// [AccessibilityProvider.textScale] (global UI text).
+class SettingsTextScaleTile extends StatelessWidget {
   const SettingsTextScaleTile({super.key});
 
   @override
-  State<SettingsTextScaleTile> createState() => _SettingsTextScaleTileState();
+  Widget build(BuildContext context) => _AccessibilityScaleTile(
+        icon: Icons.format_size_rounded,
+        title: AppStrings.settingsTextSizeTitle,
+        subtitle: AppStrings.settingsTextSizeSubtitle,
+        valueSelector: (p) => p.textScale,
+        onPreview: (p, v) => p.previewTextScale(v),
+        onCommit: (p, v) => p.setTextScale(v),
+      );
 }
 
-class _SettingsTextScaleTileState extends State<SettingsTextScaleTile> {
+/// Slider tile (100%–200%, 10 steps) controlling
+/// [AccessibilityProvider.cardTextScale] (card content only; 100% leaves
+/// card rendering untouched).
+class SettingsCardTextScaleTile extends StatelessWidget {
+  const SettingsCardTextScaleTile({super.key});
+
+  @override
+  Widget build(BuildContext context) => _AccessibilityScaleTile(
+        icon: Icons.aspect_ratio_rounded,
+        title: AppStrings.settingsCardTextSizeTitle,
+        subtitle: AppStrings.settingsCardTextSizeSubtitle,
+        valueSelector: (p) => p.cardTextScale,
+        onPreview: (p, v) => p.previewCardTextScale(v),
+        onCommit: (p, v) => p.setCardTextScale(v),
+      );
+}
+
+/// Shared slider implementation for percentage-based text-scale settings.
+///
+/// During a drag, [onPreview] mirrors each snapped step into the provider's
+/// in-memory value so the whole app reacts live (the provider notifies
+/// without touching prefs); [onCommit] persists once the drag ends. Local
+/// drag state keeps the knob and label tracking the gesture between snaps.
+class _AccessibilityScaleTile extends StatefulWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final int Function(AccessibilityProvider) valueSelector;
+  final void Function(AccessibilityProvider, int) onPreview;
+  final Future<void> Function(AccessibilityProvider, int) onCommit;
+
+  const _AccessibilityScaleTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.valueSelector,
+    required this.onPreview,
+    required this.onCommit,
+  });
+
+  @override
+  State<_AccessibilityScaleTile> createState() => _AccessibilityScaleTileState();
+}
+
+class _AccessibilityScaleTileState extends State<_AccessibilityScaleTile> {
   int? _dragValue;
 
   @override
   Widget build(BuildContext context) {
-    final persisted =
-        context.select<AccessibilityProvider, int>((p) => p.textScale);
+    final persisted = context
+        .select<AccessibilityProvider, int>(widget.valueSelector);
     final value = _dragValue ?? persisted;
 
     return Padding(
@@ -75,8 +124,8 @@ class _SettingsTextScaleTileState extends State<SettingsTextScaleTile> {
                   color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 ),
-                child: const Icon(
-                  Icons.format_size_rounded,
+                child: Icon(
+                  widget.icon,
                   color: TurnaTheme.brandTeal,
                   size: 20,
                 ),
@@ -87,13 +136,13 @@ class _SettingsTextScaleTileState extends State<SettingsTextScaleTile> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      AppStrings.settingsTextSizeTitle,
+                      widget.title,
                       style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
                     ),
                     Text(
-                      AppStrings.settingsTextSizeSubtitle,
+                      widget.subtitle,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: TurnaTheme.textHintColor(context),
                           ),
@@ -117,14 +166,16 @@ class _SettingsTextScaleTileState extends State<SettingsTextScaleTile> {
               value: value.toDouble(),
               min: 100,
               max: 200,
-              divisions: 5,
+              divisions: 10,
               activeColor: TurnaTheme.brandTeal,
               inactiveColor: TurnaTheme.dividerBg(context),
-              onChanged: (v) => setState(() => _dragValue = v.round()),
+              onChanged: (v) {
+                setState(() => _dragValue = v.round());
+                widget.onPreview(context.read<AccessibilityProvider>(), v.round());
+              },
               onChangeEnd: (v) async {
-                await context
-                    .read<AccessibilityProvider>()
-                    .setTextScale(v.round());
+                await widget.onCommit(
+                    context.read<AccessibilityProvider>(), v.round());
                 if (mounted) setState(() => _dragValue = null);
               },
             ),

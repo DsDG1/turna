@@ -113,67 +113,6 @@ class _RateButton extends StatelessWidget {
   }
 }
 
-class ReviewEmptyState extends StatelessWidget {
-  final VoidCallback onRefresh;
-  final int dueCount;
-  final String title;
-  final String emptyMessage;
-  final String dueMessage;
-
-  ReviewEmptyState({
-    super.key,
-    required this.onRefresh,
-    required this.dueCount,
-    String? title,
-    String? emptyMessage,
-    String? dueMessage,
-  })  : title = title ?? AppStrings.reviewEmptyTitle,
-        emptyMessage = emptyMessage ?? AppStrings.reviewEmptyMessage,
-        dueMessage = dueMessage ?? AppStrings.reviewDueMessage;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(
-              Icons.check_circle_rounded,
-              size: 64,
-              color: TurnaTheme.success,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              AppStrings.reviewEmptyTitle,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              dueCount > 0
-                  ? AppStrings.reviewDueCountMessage(dueCount, dueMessage)
-                  : emptyMessage,
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: TurnaTheme.textSecondaryColor(context),
-                  ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: onRefresh,
-              icon: const Icon(Icons.refresh_rounded),
-              label: Text(AppStrings.commonRefresh),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class ReviewCompletionState extends StatelessWidget {
   final int reviewedCount;
   final int dueCount;

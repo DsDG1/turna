@@ -138,6 +138,7 @@ abstract final class BackupManifestPolicy {
     BackupPrefEntry(LocalStateKeys.autoRotate, BackupPrefType.bool_),
     BackupPrefEntry(LocalStateKeys.uiLocale, BackupPrefType.string),
     BackupPrefEntry(LocalStateKeys.textScale, BackupPrefType.int_),
+    BackupPrefEntry(LocalStateKeys.cardTextScale, BackupPrefType.int_),
     BackupPrefEntry(LocalStateKeys.reducedMotion, BackupPrefType.bool_),
     BackupPrefEntry(LocalStateKeys.highContrast, BackupPrefType.bool_),
     BackupPrefEntry(LocalStateKeys.dyslexiaFont, BackupPrefType.bool_),

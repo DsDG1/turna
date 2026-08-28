@@ -20,6 +20,7 @@ class OfficialAnkiReviewerView extends StatefulWidget {
     required this.showingAnswer,
     this.comparisonHtml,
     this.dark = false,
+    this.textZoom = 100,
     this.presentGeneration,
     this.presentEpoch = 0,
     this.onReady,
@@ -34,6 +35,11 @@ class OfficialAnkiReviewerView extends StatefulWidget {
   final bool showingAnswer;
   final String? comparisonHtml;
   final bool dark;
+
+  /// Card text zoom in percent (100 = author CSS as-is). Applied via
+  /// `WebSettings.textZoom` — text-only scaling, effective immediately for
+  /// the shell and the card iframe alike, no re-present needed.
+  final int textZoom;
   final int? presentGeneration;
   final int presentEpoch;
   final VoidCallback? onReady;
@@ -82,6 +88,12 @@ class OfficialAnkiReviewerViewState extends State<OfficialAnkiReviewerView> {
   void didUpdateWidget(covariant OfficialAnkiReviewerView oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (_channel == null) return;
+    if (oldWidget.textZoom != widget.textZoom) {
+      // Zoom is a WebSettings-level knob: apply directly instead of routing
+      // through _present(), which is deduped/gated per card and would force a
+      // needless re-render of the current card.
+      _channel!.invokeMethod<void>('setTextZoom', widget.textZoom);
+    }
     if (oldWidget.card.cardId != widget.card.cardId ||
         oldWidget.card.questionDisplayHtml != widget.card.questionDisplayHtml ||
         oldWidget.card.answerDisplayHtml != widget.card.answerDisplayHtml ||
@@ -197,6 +209,7 @@ class OfficialAnkiReviewerViewState extends State<OfficialAnkiReviewerView> {
     final params = <String, Object?>{
       'mediaRoot': widget.mediaRoot,
       'theme': widget.dark ? 'night' : 'day',
+      'textZoom': widget.textZoom,
       'diagnostics': kDebugMode &&
           OfficialAnkiFeatureFlags.current.reviewerDiagnostics,
     };

@@ -34,6 +34,8 @@ class AccessibilitySettingsPage extends StatelessWidget {
               children: [
                 const SettingsTextScaleTile(),
                 settingsTileDivider(context),
+                const SettingsCardTextScaleTile(),
+                settingsTileDivider(context),
                 const SettingsReducedMotionTile(),
                 settingsTileDivider(context),
                 const SettingsHighContrastTile(),

@@ -272,8 +272,10 @@ class LocalStateKeys {
   static const String systemHealthEvent = 'system.healthEvent';
 
   // Accessibility / neurodiversity settings — see AccessibilityProvider.
-  // textScale is an int percent (100 = 1.0, 200 = 2.0); the rest are bool flags.
+  // textScale and cardTextScale are int percents (100 = 1.0, 200 = 2.0);
+  // the rest are bool flags.
   static const String textScale = 'settings.textScale';
+  static const String cardTextScale = 'settings.cardTextScale';
   static const String reducedMotion = 'settings.reducedMotion';
   static const String highContrast = 'settings.highContrast';
   static const String dyslexiaFont = 'settings.dyslexiaFont';

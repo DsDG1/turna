@@ -42,6 +42,10 @@ class CourseTreeWidget(QTreeWidget):
     """Left-pane tree showing Section / Unit / Lesson hierarchy."""
 
     node_selected = Signal(tuple)  # (kind, id)
+    # Contract: tree_changed is emitted only AFTER the tree widget has already
+    # rebuilt itself (command paths call refresh_incremental() first), so
+    # listeners may skip their own tree refresh. Data changes that do NOT go
+    # through a tree rebuild should be declared via mark_stale() instead.
     tree_changed = Signal()
     ai_edit_requested = Signal(str, str)  # (kind, id)
     ai_fix_requested = Signal(str, str)  # (kind, id)
@@ -58,6 +62,11 @@ class CourseTreeWidget(QTreeWidget):
         self.adapter: CourseAdapter | None = None
         self.undo_stack: QUndoStack | None = None
         self._teacher_mode: bool = False
+        # True when course data changed without a tree rebuild (e.g. form
+        # edits signalled via MainWindow._on_detail_tree_changed). Cleared by
+        # every rebuild; lets the debounced app-level flush skip a redundant
+        # full rebuild after the tree already refreshed itself.
+        self._stale = False
         # id -> QTreeWidgetItem index, rebuilt on every _populate so select_*
         # is O(1) instead of an O(section*unit*lesson) tree walk.
         self._id_index: dict[str, QTreeWidgetItem] = {}
@@ -80,6 +89,7 @@ class CourseTreeWidget(QTreeWidget):
         self.clear()
         self._populate(adapter)
         self.expandToDepth(1)
+        self._stale = False
 
     def set_teacher_mode(self, enabled: bool) -> None:
         """Switch the type column between raw labels (expert) and friendly
@@ -281,6 +291,24 @@ class CourseTreeWidget(QTreeWidget):
             self._restore_state(state)
         finally:
             self.setUpdatesEnabled(True)
+        self._stale = False
+
+    def mark_stale(self) -> None:
+        """Declare that course data changed without a tree rebuild.
+
+        The next refresh_if_stale() will rebuild; a plain refresh() ignores
+        this flag (callers that force refresh still get one).
+        """
+        self._stale = True
+
+    def refresh_if_stale(self) -> None:
+        """Rebuild only when data changed outside the tree's own commands.
+
+        Command paths already rebuild in _on_command_changed(); this lets the
+        debounced MainWindow flush skip the second, redundant full rebuild.
+        """
+        if self._stale:
+            self.refresh_incremental()
 
     def refresh(self) -> None:
         """Incremental refresh by default; full display() is reserved for

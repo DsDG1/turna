@@ -229,6 +229,8 @@ abstract final class BackupValidator {
         return value is num ? value.toInt().clamp(0, 59) : value;
       case LocalStateKeys.textScale:
         return value is num ? value.toInt().clamp(100, 200) : value;
+      case LocalStateKeys.cardTextScale:
+        return value is num ? value.toInt().clamp(100, 200) : value;
       case LocalStateKeys.srsDesiredRetention:
         return value is num ? value.toDouble().clamp(0.8, 0.95) : value;
       case LocalStateKeys.ankiCaptureDelaySec:

@@ -74,6 +74,18 @@ AccessibilityCapabilities accessibilityOf(BuildContext context) {
   }
 }
 
+/// Card text scale in percent (100–200), resolved reactively for card
+/// renderers (WebView tracks, practice fallback): production selects the
+/// scoped [AccessibilityProvider] so zoom changes rebuild the card; contexts
+/// without the provider (tests, previews) stay at the neutral 100%.
+int cardTextScaleOf(BuildContext context) {
+  try {
+    return context.select<AccessibilityProvider, int>((p) => p.cardTextScale);
+  } catch (_) {
+    return 100;
+  }
+}
+
 class _DefaultAccessibilityCapabilities implements AccessibilityCapabilities {
   const _DefaultAccessibilityCapabilities();
 

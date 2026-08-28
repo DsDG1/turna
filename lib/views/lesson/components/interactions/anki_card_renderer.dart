@@ -435,28 +435,28 @@ class _GradeButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 48,
-      child: ElevatedButton(
-        onPressed: onPressed,
-        // styleFrom treats elevation as a base level (pressed: +6); pin all states flat.
-        style: ElevatedButton.styleFrom(
-          backgroundColor: color.withValues(alpha: 0.12),
-          foregroundColor: color,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          minimumSize: Size.zero,
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: BorderSide(color: color.withValues(alpha: 0.4)),
-          ),
-        ).copyWith(elevation: const WidgetStatePropertyAll<double>(0)),
-        child: Text(
-          label,
-          style: const TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: 13,
-          ),
+    return ElevatedButton(
+      onPressed: onPressed,
+      // styleFrom treats elevation as a base level (pressed: +6); pin all states flat.
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color.withValues(alpha: 0.12),
+        foregroundColor: color,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        // Height floor instead of a fixed SizedBox height: labels wrap to two
+        // lines under large text scaling and must grow the button instead of
+        // overflowing it.
+        minimumSize: const Size(0, 48),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(color: color.withValues(alpha: 0.4)),
+        ),
+      ).copyWith(elevation: const WidgetStatePropertyAll<double>(0)),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontWeight: FontWeight.w700,
+          fontSize: 13,
         ),
       ),
     );

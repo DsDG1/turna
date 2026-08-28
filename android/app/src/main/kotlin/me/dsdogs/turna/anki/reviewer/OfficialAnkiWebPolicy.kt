@@ -11,9 +11,14 @@ object OfficialAnkiWebPolicy {
     const val CSP = OfficialAnkiCsp.VALUE
 
     @SuppressLint("SetJavaScriptEnabled")
-    fun apply(webView: WebView, diagnostics: Boolean) {
+    fun apply(webView: WebView, diagnostics: Boolean, textZoom: Int = 100) {
         val settings = webView.settings
         settings.javaScriptEnabled = true
+        // Text-only zoom for the card content (100 = author CSS as-is).
+        // Setting it explicitly also replaces the system font-scale the
+        // WebView would otherwise inherit, mirroring how the Flutter root
+        // overrides MediaQuery.textScaler with the in-app setting.
+        settings.textZoom = textZoom.coerceIn(100, 200)
         settings.allowFileAccess = false
         settings.allowContentAccess = false
         settings.allowFileAccessFromFileURLs = false

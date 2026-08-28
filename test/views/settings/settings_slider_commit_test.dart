@@ -1,5 +1,6 @@
-// Widget tests: TTS / text-scale sliders only persist on change-end, not while
-// dragging (avoids prefs write + broad notify on every pointer move).
+// Widget tests: TTS / text-scale sliders persist on change-end only. While
+// dragging, text-scale mirrors each snapped step into the provider in memory
+// (live preview) but never writes prefs.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -48,20 +49,34 @@ void main() {
     final slider = find.byType(Slider);
     expect(slider, findsOneWidget);
 
-    // Start a drag but do not end it — provider should stay at default.
+    // Start a drag but do not end it.
     final center = tester.getCenter(slider);
     final gesture = await tester.startGesture(center);
     await gesture.moveBy(const Offset(80, 0));
     await tester.pump();
 
-    // Local UI may show a higher %; persisted provider value stays until end.
-    // (If onChanged wrote through, textScale would already be > 100.)
+    // Live preview: the in-memory value follows the gesture immediately…
+    expect(accessibility.textScale, greaterThan(100));
+    // …but prefs are only written when the drag ends, never mid-gesture.
+    expect(
+      prefs.preferences
+          .getInt(LocalStateKeys.textScale, defaultValue: 100)
+          .getValue(),
+      100,
+    );
+
     // Completing the gesture commits.
     await gesture.up();
     await tester.pumpAndSettle();
 
     expect(accessibility.textScale, greaterThanOrEqualTo(100));
     expect(accessibility.textScale, lessThanOrEqualTo(200));
+    expect(
+      prefs.preferences
+          .getInt(LocalStateKeys.textScale, defaultValue: 100)
+          .getValue(),
+      accessibility.textScale,
+    );
   });
 
   testWidgets('TTS speed tile rebuilds label from SettingsProvider',

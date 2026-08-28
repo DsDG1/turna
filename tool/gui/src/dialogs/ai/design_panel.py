@@ -111,6 +111,9 @@ class DesignPanel(QWidget):
         self._stream_flush_timer.timeout.connect(self._flush_stream_views)
         # P2: skip full JSON setPlainText while generating large drafts.
         self._STREAM_JSON_LIVE_LIMIT = 8_192
+        # Same guard for the plain-text explanation stream (setHtml of a huge
+        # escaped document every flush re-lays-out the whole QTextBrowser).
+        self._STREAM_EXPLAIN_LIVE_LIMIT = 8_192
         self._generating = False
         # P2: throttle disk autosave (especially around design_changed bursts).
         self._autosave_timer = QTimer(self)
@@ -521,7 +524,14 @@ class DesignPanel(QWidget):
                 if self._generating:
                     self._validate_label.setText(f"生成中… 已接收约 {n} 字符")
         if "explain" in dirty and self._explain_stream_buffer:
-            self._render_explanation(self._explain_stream_buffer)
+            n_explain = len(self._explain_stream_buffer)
+            if n_explain > self._STREAM_EXPLAIN_LIVE_LIMIT:
+                # Final full text lands via _on_explanation (separate entry).
+                self._render_explanation(
+                    f"（解释生成中… 已接收约 {n_explain} 字符）"
+                )
+            else:
+                self._render_explanation(self._explain_stream_buffer)
 
     def _on_draft_ready(self, section: dict) -> None:
         self._cancel_stream_flush()

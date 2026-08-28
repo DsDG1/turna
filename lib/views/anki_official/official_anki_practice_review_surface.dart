@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:turna/application/accessibility_capabilities.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
@@ -293,10 +294,12 @@ class _OfficialAnkiPracticeReviewSurfaceState
     final interaction = _toInteraction(classification);
     final isAnswerPhase = widget.isAnswerVisible ||
         widget.phase == OfficialReviewPhase.showingAnswer;
+    final cardTextScale = cardTextScaleOf(context);
 
     Widget content;
     if (interaction is AnkiCard) {
-      content = _buildAnkiCardContent(interaction, classification, isAnswerPhase);
+      content =
+          _buildAnkiCardContent(interaction, classification, isAnswerPhase, cardTextScale);
     } else {
       final renderers = _getRenderers();
       final renderer = lookupRenderer(renderers, interaction);
@@ -321,11 +324,17 @@ class _OfficialAnkiPracticeReviewSurfaceState
       );
     }
 
+    // Widen the card lane as text grows so large scales get more horizontal
+    // room instead of wrapping into slivers.
+    var effectiveScale = MediaQuery.textScalerOf(context).scale(1);
+    final cardScale = cardTextScale / 100.0;
+    if (cardScale > effectiveScale) effectiveScale = cardScale;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 600),
+          constraints: BoxConstraints(maxWidth: 600 * effectiveScale),
           child: content,
         ),
       ),
@@ -336,8 +345,14 @@ class _OfficialAnkiPracticeReviewSurfaceState
     AnkiCard interaction,
     AnkiPracticeClassification classification,
     bool isAnswerPhase,
+    int cardTextScale,
   ) {
-    return GestureDetector(
+    // The card body follows the card text scale (matching the WebView review
+    // tracks), replacing the global UI scaler for this subtree only.
+    return MediaQuery(
+      data: MediaQuery.of(context)
+          .copyWith(textScaler: TextScaler.linear(cardTextScale / 100.0)),
+      child: GestureDetector(
       onTap: isAnswerPhase ? null : widget.onShowAnswer,
       child: LessonPracticeCard(
         variant: isAnswerPhase
@@ -425,6 +440,7 @@ class _OfficialAnkiPracticeReviewSurfaceState
             ],
           ],
         ),
+      ),
       ),
     );
   }

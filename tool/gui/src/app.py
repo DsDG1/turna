@@ -138,6 +138,9 @@ class MainWindow(QMainWindow):
         self._tree_refresh_timer.setInterval(250)
         self._tree_refresh_timer.timeout.connect(self._flush_tree_refresh)
 
+        # Background interactive-save worker (see _save_course_async).
+        self._save_worker = None
+
         self._build_toolbar()
         self._build_central()
         self._build_status_bar()
@@ -307,7 +310,9 @@ class MainWindow(QMainWindow):
         self.detail = DetailPanel()
         self.detail.undo_stack = self.undo_stack
         self.detail.ai_config = self._ai_config
-        self.detail.tree_changed.connect(self._on_tree_changed)
+        # Detail edits change node labels without rebuilding the tree, so they
+        # mark it stale; the tree's own tree_changed already rebuilt itself.
+        self.detail.tree_changed.connect(self._on_detail_tree_changed)
         splitter.addWidget(self.detail)
 
         splitter.setStretchFactor(0, 2)
@@ -1209,8 +1214,17 @@ class MainWindow(QMainWindow):
         # O(tree) widget churn on every character.
         self._tree_refresh_timer.start()
 
+    def _on_detail_tree_changed(self) -> None:
+        # Form edits mutate node data (names shown in the tree) without a
+        # tree rebuild, so the widget is stale until the debounced flush.
+        self.tree.mark_stale()
+        self._tree_refresh_timer.start()
+
     def _flush_tree_refresh(self) -> None:
-        self.tree.refresh()
+        # Command paths already rebuilt the tree in
+        # CourseTreeWidget._on_command_changed(); refresh only when detail-side
+        # edits marked it stale, instead of always paying a second full rebuild.
+        self.tree.refresh_if_stale()
         # Keep the overview window in sync if it is visible.
         if self._overview_window is not None and self._overview_window.isVisible():
             self._overview_window.refresh()
@@ -1389,17 +1403,60 @@ class MainWindow(QMainWindow):
         self._generate_worker = worker  # keep strong ref until finished
         worker.start()
 
-    def _on_save(self) -> None:
-        telemetry.record_event("repo.save.triggered")
-        result = self.adapter.save()
-        self.tree.refresh()
-        if result.ok:
-            self.undo_stack.setClean()
-            self.statusBar().showMessage(result.message or "保存成功", 5000)
-        else:
-            self.statusBar().showMessage(result.message or "保存失败（已回滚）", 8000)
-            if result.errors:
-                self._show_validation_report(result.errors, title="校验失败（已回滚）")
+    def _on_save(self, *, reason: str = "menu") -> None:
+        telemetry.record_event("repo.save.triggered", payload={"reason": reason})
+        self._save_course_async()
+
+    def _save_course_async(self) -> None:
+        """Run adapter.save() on a background worker (interactive saves).
+
+        The full save chain (temp-dir write + validate + backup + file replace
+        + snapshot + lint) used to run on the UI thread, freezing the window
+        for hundreds of ms on large courses. It now runs on an
+        AiRequestWorker. Structural edits are frozen for the duration: the
+        save thread iterates the in-memory model, and blocking input keeps the
+        same data-safety guarantee the old synchronous freeze provided, while
+        the UI thread stays responsive (status bar, window dragging).
+        """
+        from src.dialogs.ai.worker import AiRequestWorker
+
+        prev = getattr(self, "_save_worker", None)
+        if prev is not None and prev.isRunning():
+            self.statusBar().showMessage("正在保存…", 2000)
+            return
+        if self.adapter is None:
+            return
+
+        self.save_action.setEnabled(False)
+        self.centralWidget().setEnabled(False)
+        self.statusBar().showMessage("保存中…")
+
+        worker = AiRequestWorker(self.adapter.save)
+
+        def _unfreeze() -> None:
+            self.save_action.setEnabled(True)
+            self.centralWidget().setEnabled(True)
+            self._save_worker = None
+
+        def _on_result(result) -> None:
+            _unfreeze()
+            self.tree.refresh()
+            if result.ok:
+                self.undo_stack.setClean()
+                self.statusBar().showMessage(result.message or "保存成功", 5000)
+            else:
+                self.statusBar().showMessage(result.message or "保存失败（已回滚）", 8000)
+                if result.errors:
+                    self._show_validation_report(result.errors, title="校验失败（已回滚）")
+
+        def _on_error(message: str) -> None:
+            _unfreeze()
+            self.statusBar().showMessage(f"保存失败：{message}", 8000)
+
+        worker.result_ready.connect(_on_result)
+        worker.error_occurred.connect(_on_error)
+        self._save_worker = worker
+        worker.start()
 
     def _show_validation_report(
         self, problems: list[dict], title: str = "校验结果"
@@ -1614,6 +1671,11 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event) -> None:  # noqa: N802
         telemetry.record_event("app.close_requested")
+        # Wait out an in-flight background save so the save thread never
+        # races shutdown (equivalent to the old synchronous save on close).
+        save_worker = getattr(self, "_save_worker", None)
+        if save_worker is not None and save_worker.isRunning():
+            save_worker.wait()
         if self.course_dir and self.adapter and any(self.adapter.detect_changes().values()):
             if self._settings_obj.auto_save_on_close:
                 result = self.adapter.save()

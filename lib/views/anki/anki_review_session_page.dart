@@ -31,6 +31,7 @@ import 'package:turna/views/review/components/review_progress_header.dart';
 import 'package:turna/views/review/components/study_card_surface.dart';
 import 'package:turna/views/review/components/unified_review_completion.dart';
 import 'package:turna/views/theme.dart';
+import 'package:turna/views/widgets/practice_empty_state.dart';
 
 /// Shared formal-review session for Official-owned Anki cards.
 ///
@@ -546,46 +547,14 @@ class _AnkiFormalReviewEmptyPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 28),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.style_outlined,
-            size: 48,
-            color: TurnaTheme.textHintColor(context),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            AppStrings.ankiNoCardsDue,
-            key: const Key('anki-formal-review-empty'),
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            AppStrings.ankiFormalReviewEmptyHint,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: TurnaTheme.textSecondaryColor(context),
-                ),
-          ),
-          if (onClose != null) ...[
-            const SizedBox(height: 32),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: OutlinedButton(
-                onPressed: onClose,
-                child: Text(AppStrings.commonDone),
-              ),
-            ),
-          ],
-        ],
-      ),
+    return PracticeEmptyState(
+      key: const Key('anki-formal-review-empty'),
+      icon: Icons.style_outlined,
+      accentColor: TurnaTheme.textHintColor(context),
+      title: AppStrings.ankiNoCardsDue,
+      message: AppStrings.ankiFormalReviewEmptyHint,
+      actionLabel: onClose != null ? AppStrings.commonDone : null,
+      onAction: onClose,
     );
   }
 }
