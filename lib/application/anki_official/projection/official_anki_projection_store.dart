@@ -3,6 +3,8 @@ import 'package:turna/application/anki_official/introduction/card_introduction_s
 import 'package:turna/application/anki_official/projection/official_anki_projection_canonical.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_ids.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_projector.dart';
+import 'package:turna/courses/course_validator.dart'
+    show kMaxLessonsPerUnit, kMaxUnitsPerSection;
 import 'package:turna/data/course_database.dart'
     hide Section, Unit, Lesson, LessonContent;
 
@@ -83,6 +85,11 @@ class OfficialAnkiCourseProjectionStore {
     Set<int> studiedCardIds = const {},
   }) async {
     await course.transaction(() async {
+      _assertPlanWithinLimits(plan.items);
+      // P0: re-publish keeps this source's tree position; a first publish
+      // appends after every existing section. The compaction at the end of
+      // the transaction turns the baseline into a collision-free dense order.
+      final sectionBaseline = await _nextSectionSortOrderBaseline(sourceId);
       // P5F-33: drop the previous projection's vocabulary rows before the
       // index goes away (word ids are profile-scoped, so this index-driven
       // delete is the only precise way to clean this source's rows).
@@ -119,7 +126,7 @@ class OfficialAnkiCourseProjectionStore {
             .putIfAbsent(item.lessonId, () => <OfficialAnkiProjectedItem>[])
             .add(item);
       }
-      var sectionOrder = 0;
+      var sectionOrder = sectionBaseline;
       for (final section in sections.values) {
         await course.into(course.sections).insert(
               SectionsCompanion.insert(
@@ -132,8 +139,13 @@ class OfficialAnkiCourseProjectionStore {
         statements++;
         tick();
       }
+      var lastSectionId = '';
       var unitOrder = 0;
       for (final unit in units.values) {
+        if (unit.sectionId != lastSectionId) {
+          lastSectionId = unit.sectionId;
+          unitOrder = 0;
+        }
         await course.into(course.units).insert(
               UnitsCompanion.insert(
                 id: unit.unitId,
@@ -145,9 +157,14 @@ class OfficialAnkiCourseProjectionStore {
         statements++;
         tick();
       }
+      var lastUnitId = '';
       var lessonOrder = 0;
       for (final entry in lessons.entries) {
         final first = entry.value.first;
+        if (first.unitId != lastUnitId) {
+          lastUnitId = first.unitId;
+          lessonOrder = 0;
+        }
         await course.into(course.lessons).insert(
               LessonsCompanion.insert(
                 id: entry.key,
@@ -235,12 +252,85 @@ class OfficialAnkiCourseProjectionStore {
           publishedAtMillis,
         ],
       );
+      await _compactSectionSortOrders();
     });
     await CardIntroductionStore.resolve().seedOfficialProjection(
       sourceId: sourceId,
       cardIds: {for (final item in plan.items) item.cardId},
       studiedCardIds: studiedCardIds,
     );
+  }
+
+  /// Re-publish keeps the source's tree position (its previous sections'
+  /// minimum sort order); a first publish appends after every existing
+  /// section. Both read before any delete so the old rows still exist.
+  Future<int> _nextSectionSortOrderBaseline(String sourceId) async {
+    final owned = await course.customSelect(
+      'SELECT MIN(s.sort_order) AS m FROM sections s WHERE s.id IN '
+      '(SELECT DISTINCT section_id FROM official_anki_projection_index '
+      ' WHERE source_id = ?)',
+      variables: [Variable(sourceId)],
+    ).get();
+    final existing = owned.single.readNullable<int>('m');
+    if (existing != null) return existing;
+    final tail = await course.customSelect(
+      'SELECT COALESCE(MAX(sort_order), -1) + 1 AS next FROM sections',
+    ).get();
+    return tail.single.read<int>('next');
+  }
+
+  /// Rewrites every section's sort order to a dense 0..n-1 sequence ordered
+  /// by (sort_order, id). Heals collisions — publishes before the baseline
+  /// fix started each source at 0 — and keeps read-side ordering stable even
+  /// if another writer reintroduces ties.
+  Future<void> _compactSectionSortOrders() async {
+    final rows = await course.customSelect(
+      'SELECT id, sort_order FROM sections ORDER BY sort_order, id',
+    ).get();
+    var order = 0;
+    for (final row in rows) {
+      final current = row.read<int>('sort_order');
+      if (current == order) {
+        order++;
+        continue;
+      }
+      await course.customUpdate(
+        'UPDATE sections SET sort_order = ? WHERE id = ?',
+        variables: [Variable(order++), Variable(row.read<String>('id'))],
+      );
+    }
+  }
+
+  /// The projector packs oversized groups, so a violation here means a
+  /// caller bypassed the packing — fail the publish instead of shipping a
+  /// tree the runtime L1 validator would reject when the section opens.
+  void _assertPlanWithinLimits(List<OfficialAnkiProjectedItem> items) {
+    final unitsPerSection = <String, Set<String>>{};
+    final lessonsPerUnit = <String, Set<String>>{};
+    for (final item in items) {
+      unitsPerSection
+          .putIfAbsent(item.sectionId, () => <String>{})
+          .add(item.unitId);
+      lessonsPerUnit
+          .putIfAbsent(item.unitId, () => <String>{})
+          .add(item.lessonId);
+    }
+    for (final entry in unitsPerSection.entries) {
+      if (entry.value.length > kMaxUnitsPerSection) {
+        throw StateError(
+          'section ${entry.key} would hold ${entry.value.length} units '
+          '(max $kMaxUnitsPerSection)',
+        );
+      }
+    }
+    for (final entry in lessonsPerUnit.entries) {
+      if (entry.value.length > kMaxLessonsPerUnit) {
+        throw StateError(
+          'unit ${entry.key} would hold ${entry.value.length} lessons '
+          '(max $kMaxLessonsPerUnit)',
+        );
+      }
+    }
   }
 
   Future<void> deleteOfficialProjection(String sourceId) async {

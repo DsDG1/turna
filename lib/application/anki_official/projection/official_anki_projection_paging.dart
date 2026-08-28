@@ -1,6 +1,10 @@
 const officialAnkiProjectionPageDefault = 200;
 const officialAnkiProjectionPageMax = 500;
-const officialAnkiProjectionAlgorithmVersion = 2;
+/// v3: semantic (natural-name) tree ordering, 60/40 packing, and the
+/// sort-order baseline. Bumping makes every existing source's stored
+/// fingerprint stale so its next projectSource republishes once with the
+/// corrected tree; the constant never feeds tree ids, so nothing remaps.
+const officialAnkiProjectionAlgorithmVersion = 3;
 const officialAnkiProjectionItemJsonMaxBytes = 32 * 1024;
 const officialAnkiProjectionLessonJsonMaxBytes = 512 * 1024;
 const officialAnkiProjectionStaleHeartbeatMillis = 30 * 1000;

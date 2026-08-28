@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:crypto/crypto.dart';
+import 'package:drift/drift.dart' show Variable;
 import 'package:flutter/foundation.dart';
 import 'package:sqlite3/sqlite3.dart';
 import 'package:turna/application/anki_official/contract/official_anki_contract.dart';
@@ -474,7 +475,7 @@ class OfficialAnkiCourseProjectionService {
         schemas: schemas,
         mappings: mappings,
       );
-      final previous = _activeFingerprint();
+      final previous = await _activeFingerprint();
       if (previous == fingerprint) {
         jobs.markActive(
           jobId: job.jobId,
@@ -491,9 +492,13 @@ class OfficialAnkiCourseProjectionService {
         );
       }
       final decks = await engine.listDeckTree();
+      // The engine's flattened DFS list emits the synthetic root (deckId 0,
+      // level 0) first and real top-level decks at level 1 — but some
+      // engines tag top decks level 0. Accept both, never the root.
       final topDeckIds = <String, int>{
         for (final deck in decks)
-          if (deck.level == 0) deck.name: deck.deckId,
+          if (deck.deckId != 0 && deck.name.isNotEmpty && deck.level <= 1)
+            deck.name: deck.deckId,
       };
       final overrides = _loadOverrides();
       final locked = overrides.entries
@@ -1044,13 +1049,25 @@ class OfficialAnkiCourseProjectionService {
     return out;
   }
 
-  String? _activeFingerprint() {
+  /// The catalog fingerprint alone cannot prove a tree exists: the seeder
+  /// (and any course-DB wipe) drops the projection tables without touching
+  /// the catalog, which would otherwise no-op the next publish forever.
+  /// Treat the state as absent unless the course manifest row is still there.
+  Future<String?> _activeFingerprint() async {
     final rows = catalog.handle.select(
       'SELECT source_fingerprint FROM anki_source_projection_state WHERE source_id = ?',
       [sourceId],
     );
     if (rows.isEmpty) return null;
-    return rows.first['source_fingerprint'] as String?;
+    final fingerprint = rows.first['source_fingerprint'] as String?;
+    if (fingerprint == null || fingerprint.isEmpty) return null;
+    final manifest = await course.customSelect(
+      'SELECT 1 FROM official_anki_projection_manifest '
+      'WHERE source_id = ? LIMIT 1',
+      variables: [Variable<String>(sourceId)],
+    ).get();
+    if (manifest.isEmpty) return null;
+    return fingerprint;
   }
 
   void _setSourceState(

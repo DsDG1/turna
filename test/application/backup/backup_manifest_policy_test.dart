@@ -48,8 +48,6 @@ void main() {
       'anki.dailyNewLimit',
       'anki.dailyReviewLimit',
       'anki.dailyChallengeIncludesAnki',
-      LocalStateKeys.ankiPreRenderEnabled,
-      LocalStateKeys.ankiCaptureDelaySec,
       LocalStateKeys.ankiLiteThreshold,
       LocalStateKeys.ankiForceDisableJs,
       PrefsConstants.courseScope,

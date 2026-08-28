@@ -27,7 +27,7 @@ Clean Architecture + Provider + ChangeNotifier + GetIt/Injectable + Auto Route�
 ```
 lib/
 ├── application/   # Providers + 应用服务
-│   ├── ai/         # AI 能力（engine/ 统一引擎层 + hint/wish/course/tutor）
+│   ├── ai/         # AI 能力（engine/ 统一引擎层 + companion/ + textbook/）
 │   ├── anki_import/    # Anki 导入向导 controller / flow / 完成协调（doc 35 后无 anki/ 目录）
 │   ├── anki_practice/  # 课程式 Anki 练习组装
 │   ├── anki_official/ # 官方 Anki Core（rslib FFI）引擎 / 导入 / 渲染 / 投影 / 迁移（ADR 0036）
@@ -40,7 +40,7 @@ lib/
 │   ├── audio_controller.dart      # TTS / 音效统一接管
 │   ├── smart_speech.dart          # 智能朗读（语言检测 + 自动朗读）
 │   ├── accessibility_provider.dart # 6 项可访问性偏好
-│   └── game_provider.dart         # 薄 facade -> score/streak/progress/milestone
+│   └── game_provider.dart         # 薄 facade -> score/streak/progress/gems
 ├── core/          # fsrs_engine / sm2 / language_detector / html_stripper / streak / logger
 ├── courses/       # 字母 + 语种 loader/validator（目标 Turkish）
 ├── data/          # drift CourseDatabase（schemaVersion 21）+ Seeder + DAO + Repository
@@ -52,7 +52,7 @@ lib/
                    # ai / anki / anki_official / settings / theme.dart
 ```
 
-完整分层、关键模式、领域模型、13 种 Interaction、6 种 Lesson Template 见 project-guide §3-§4。
+完整分层、关键模式、领域模型、14 种 Interaction、6 种 Lesson Template 见 project-guide §3-§4。
 
 ---
 
@@ -77,7 +77,8 @@ lib/
 | `lib/core/fsrs_engine.dart` | FSRS 调度器 |
 | `lib/core/language_detector.dart` | 智能朗读语言检测 |
 | `lib/domain/course/lesson.dart` | Lesson 模型 + LessonTemplate |
-| `lib/domain/course/interaction.dart` | Interaction 模型（13 种，runtimeType 区分） |
+| `lib/domain/course/interaction.dart` | Interaction 模型（14 种 freezed sealed union） |
+| `lib/di/renderer_module.dart` | 14 个 InteractionRenderer 的 GetIt 多绑定集合；分发见 `interaction_renderer.dart` 的 `lookupRenderer()` |
 | `lib/domain/audio/vocab_audio_resolver.dart` | 音频 / 内容解耦接口 |
 | `lib/data/course_repository.dart` | 课程仓库实现 |
 | `lib/views/theme.dart` | TurnaTheme（亮/暗/高对比 + 语义颜色 helper） |

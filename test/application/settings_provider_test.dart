@@ -127,20 +127,14 @@ void main() {
   });
 
   group('Anki engine settings', () {
-    test('defaults and setters persist for prerender, capture delay, lite threshold, and JS', () async {
-      expect(settings.ankiPreRenderEnabled, isTrue);
-      expect(settings.ankiCaptureDelaySec, 2);
+    test('defaults and setters persist for lite threshold and JS', () async {
       expect(settings.ankiLiteThreshold, 2000);
       expect(settings.ankiForceDisableJs, isFalse);
 
-      await settings.setAnkiPreRenderEnabled(false);
-      await settings.setAnkiCaptureDelaySec(8);
       await settings.setAnkiLiteThreshold(5000);
       await settings.setAnkiForceDisableJs(true);
 
       final reloaded = SettingsProvider(prefs);
-      expect(reloaded.ankiPreRenderEnabled, isFalse);
-      expect(reloaded.ankiCaptureDelaySec, 8);
       expect(reloaded.ankiLiteThreshold, 5000);
       expect(reloaded.ankiForceDisableJs, isTrue);
     });

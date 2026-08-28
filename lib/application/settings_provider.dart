@@ -30,8 +30,6 @@ class SettingsProvider extends ChangeNotifier {
   bool _hasCustomFsrsWeights = false;
   String _fsrsOptimizedAt = '';
   int _fsrsOptimizedReviews = 0;
-  bool _ankiPreRenderEnabled = true;
-  int _ankiCaptureDelaySec = 2;
   int _ankiLiteThreshold = 2000;
   bool _ankiForceDisableJs = false;
 
@@ -55,12 +53,9 @@ class SettingsProvider extends ChangeNotifier {
   String get fsrsOptimizedAt => _fsrsOptimizedAt;
   int get fsrsOptimizedReviews => _fsrsOptimizedReviews;
 
-  /// Anki advanced settings (deep-adaptation plan). Pre-render caches decrypted
-  /// HTML on first review; captureDelaySec is the wait for JS; liteThreshold
-  /// switches large decks to shell-only sections; forceDisableJs never runs
-  /// template JS (encrypted decks then show ciphertext).
-  bool get ankiPreRenderEnabled => _ankiPreRenderEnabled;
-  int get ankiCaptureDelaySec => _ankiCaptureDelaySec;
+  /// Anki advanced settings (deep-adaptation plan). liteThreshold switches
+  /// large decks to shell-only sections; forceDisableJs never runs template
+  /// JS (encrypted decks then show ciphertext).
   int get ankiLiteThreshold => _ankiLiteThreshold;
   bool get ankiForceDisableJs => _ankiForceDisableJs;
 
@@ -103,13 +98,6 @@ class SettingsProvider extends ChangeNotifier {
     _fsrsOptimizedReviews = _appPrefs.preferences
         .getInt(LocalStateKeys.srsFsrsOptimizedReviews, defaultValue: 0)
         .getValue();
-    _ankiPreRenderEnabled = _appPrefs.preferences
-        .getBool(LocalStateKeys.ankiPreRenderEnabled, defaultValue: true)
-        .getValue();
-    _ankiCaptureDelaySec = _appPrefs.preferences
-        .getInt(LocalStateKeys.ankiCaptureDelaySec, defaultValue: 2)
-        .getValue()
-        .clamp(1, 10);
     _ankiLiteThreshold = _appPrefs.preferences
         .getInt(LocalStateKeys.ankiLiteThreshold, defaultValue: 2000)
         .getValue()
@@ -197,19 +185,6 @@ class SettingsProvider extends ChangeNotifier {
 
   Future<void> setNativeLanguageCodeFor(String scope, String value) async {
     await _appPrefs.setString(LocalStateKeys.nativeLanguageKey(scope), value);
-    notifyListeners();
-  }
-
-  Future<void> setAnkiPreRenderEnabled(bool value) async {
-    _ankiPreRenderEnabled = value;
-    await _appPrefs.setBool(LocalStateKeys.ankiPreRenderEnabled, value: value);
-    notifyListeners();
-  }
-
-  Future<void> setAnkiCaptureDelaySec(int value) async {
-    final clamped = value.clamp(1, 10);
-    _ankiCaptureDelaySec = clamped;
-    await _appPrefs.setInt(LocalStateKeys.ankiCaptureDelaySec, clamped);
     notifyListeners();
   }
 
@@ -313,15 +288,11 @@ class SettingsProvider extends ChangeNotifier {
   }
 
   /// Restore legacy-compatibility (旧版与兼容性) prefs to their factory
-  /// defaults. Never deletes user data — only the four display/rendering
+  /// defaults. Never deletes user data — only the two display/rendering
   /// tunables owned by the compatibility page.
   Future<void> resetLegacyCompatibilityDefaults() async {
-    _ankiPreRenderEnabled = true;
-    _ankiCaptureDelaySec = 2;
     _ankiLiteThreshold = 2000;
     _ankiForceDisableJs = false;
-    await _appPrefs.setBool(LocalStateKeys.ankiPreRenderEnabled, value: true);
-    await _appPrefs.setInt(LocalStateKeys.ankiCaptureDelaySec, 2);
     await _appPrefs.setInt(LocalStateKeys.ankiLiteThreshold, 2000);
     await _appPrefs.setBool(LocalStateKeys.ankiForceDisableJs, value: false);
     notifyListeners();

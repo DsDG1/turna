@@ -215,9 +215,6 @@ void main() {
     await tester.ensureVisible(legacy);
     await tester.tap(legacy);
     await tester.pumpAndSettle();
-    expect(find.text(AppStrings.settingsLegacyDecryptTitle), findsOneWidget);
-    expect(
-        find.text(AppStrings.settingsLegacyCaptureDelayTitle), findsOneWidget);
     expect(find.text(AppStrings.settingsLegacyForceDisableJsTitle),
         findsOneWidget);
     expect(

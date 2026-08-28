@@ -40,29 +40,14 @@ class AnkiHtmlCardView extends StatefulWidget {
   /// WEBVIEW-UX-2026-08 §5.3 fidelity guarantee.
   final int textZoom;
 
-  /// True when [html] is the answer face - passed back in [onCaptured] so the
-  /// caller caches front vs back correctly.
+  /// True when [html] is the answer face. Gates the typing bridge: once the
+  /// answer is revealed the face must stop accepting typed input.
   final bool isBack;
 
   /// True for a `{{type:Field}}` question face. The bridge sends input text
   /// to Flutter before the face is revealed so grading never trusts page JS.
   final bool typeAnswerEnabled;
   final ValueChanged<String>? onTypeAnswerChanged;
-
-  /// Called with the decrypted DOM HTML after the JS runs (allowJs only), for
-  /// the "智能去解密" cache (deep-adaptation plan §6). Null on non-JS cards.
-  final void Function(String html, bool isBack)? onCaptured;
-
-  /// Minimum wait after the page finishes before the decrypted DOM may be
-  /// captured. Capture additionally requires the DOM to have stopped changing
-  /// (see [_scheduleCapture]) — a fixed wait alone cached half-decrypted
-  /// pages forever on slow devices.
-  final Duration captureDelay;
-
-  /// Hard ceiling for the stability poll; past it the capture is abandoned
-  /// (never cached) so the next review retries with live JS instead of
-  /// poisoning the cache.
-  final Duration captureDeadline;
 
   /// Reports the WebView's real content height in CSS pixels, then again
   /// whenever images/fonts/MathJax resize the page. Only wired when the page
@@ -81,9 +66,6 @@ class AnkiHtmlCardView extends StatefulWidget {
     this.isBack = false,
     this.typeAnswerEnabled = false,
     this.onTypeAnswerChanged,
-    this.onCaptured,
-    this.captureDelay = const Duration(seconds: 2),
-    this.captureDeadline = const Duration(seconds: 15),
     this.onContentHeightChanged,
   });
 
@@ -94,11 +76,9 @@ class AnkiHtmlCardView extends StatefulWidget {
 class AnkiHtmlCardViewState extends State<AnkiHtmlCardView> {
   WebViewController? _controller;
   bool _loadedIsBack = false;
-  bool _pageFinished = false;
   bool _pageLoading = true;
   bool _heightChannelInstalled = false;
   double? _lastReportedContentHeight;
-  Timer? _captureTimer;
 
   /// Hard cap for heights accepted from the page: large enough for any real
   /// card, small enough that a broken template cannot push nonsense into
@@ -130,24 +110,20 @@ class AnkiHtmlCardViewState extends State<AnkiHtmlCardView> {
           : JavaScriptMode.disabled);
     _controller = c;
     _loadedIsBack = widget.isBack;
-    _pageFinished = false;
     // Sync the native surface with the themed body background so face swaps
     // and dark mode never flash white.
     c.setBackgroundColor(
         widget.dark ? const Color(0xFF1E1E1E) : const Color(0xFFFFFFFF));
     // Container isolation: allow only local/file/data/about navigations;
-    // block everything else so template JS cannot phone home. The page-finish
-    // callback is also the readiness boundary for the optional DOM capture.
+    // block everything else so template JS cannot phone home.
     c.setNavigationDelegate(NavigationDelegate(
       onPageFinished: (_) {
         if (!mounted) return;
         setState(() {
-          _pageFinished = true;
           _pageLoading = false;
         });
         _installTypeAnswerBridge();
         _installHeightObserver();
-        _scheduleCapture();
       },
       onNavigationRequest: (req) {
         final u = req.url;
@@ -346,12 +322,10 @@ class AnkiHtmlCardViewState extends State<AnkiHtmlCardView> {
         oldWidget.isBack != widget.isBack ||
         oldWidget.textZoom != widget.textZoom) {
       if (_supported && _controller != null) {
-        _stopCapturePoll();
         _controller!.setJavaScriptMode(
             widget.allowJs || widget.typeAnswerEnabled
                 ? JavaScriptMode.unrestricted
                 : JavaScriptMode.disabled);
-        _pageFinished = false;
         // Face swap: the new page reports its own height even when it equals
         // the previous one, so clear the dedupe state before reloading.
         _lastReportedContentHeight = null;
@@ -361,142 +335,6 @@ class AnkiHtmlCardViewState extends State<AnkiHtmlCardView> {
         _loadedIsBack = widget.isBack;
       }
     }
-  }
-
-  /// Poll the decrypted DOM until it stops changing, then capture once.
-  ///
-  /// The deck's decrypt JS (jQuery + MathJax + decrypt) is async and its
-  /// duration varies by device; the old fixed [widget.captureDelay] timer
-  /// cached whatever was on screen — on a slow device that was still the
-  /// *encrypted* DOM, and the cache has no invalidation path, so the card
-  /// was permanently wrong. Now capture requires the body length to be
-  /// identical across consecutive polls after the minimum delay, gives up at
-  /// [widget.captureDeadline] without caching, and validates the result has
-  /// visible content (text or media) before handing it to [widget.onCaptured].
-  void _scheduleCapture() {
-    _captureTimer?.cancel();
-    if (!widget.allowJs ||
-        widget.onCaptured == null ||
-        _controller == null ||
-        !_pageFinished) {
-      return;
-    }
-    _captureStartedAt = DateTime.now();
-    _stablePolls = 0;
-    _lastBodyLength = null;
-    _capturePollInFlight = false;
-    _captureTimer = Timer.periodic(_capturePollInterval, (_) => _pollCapture());
-  }
-
-  static const _capturePollInterval = Duration(milliseconds: 300);
-  static const _requiredStablePolls = 3;
-
-  DateTime? _captureStartedAt;
-  int _stablePolls = 0;
-  int? _lastBodyLength;
-  bool _capturePollInFlight = false;
-
-  Future<void> _pollCapture() async {
-    if (_capturePollInFlight) return;
-    final c = _controller;
-    if (c == null || widget.onCaptured == null) {
-      _stopCapturePoll();
-      return;
-    }
-    final elapsed = DateTime.now().difference(_captureStartedAt!);
-    if (elapsed >= widget.captureDeadline) {
-      _stopCapturePoll();
-      debugPrint(
-        '[AnkiHtmlCard] decrypt capture gave up after ${elapsed.inSeconds}s '
-        '(DOM never stabilized); not caching',
-      );
-      return;
-    }
-    _capturePollInFlight = true;
-    int length;
-    try {
-      final result = await c.runJavaScriptReturningResult(
-        'document.body ? document.body.innerHTML.length : -1',
-      );
-      length = int.tryParse('$result') ?? -1;
-    } on Exception catch (error) {
-      // JS context torn down (face swap / dispose) — stop polling quietly.
-      debugPrint('[AnkiHtmlCard] decrypt capture poll failed: $error');
-      _stopCapturePoll();
-      return;
-    } finally {
-      _capturePollInFlight = false;
-    }
-    if (length < 0) {
-      _stopCapturePoll();
-      return;
-    }
-    if (_lastBodyLength == length) {
-      _stablePolls++;
-    } else {
-      _stablePolls = 0;
-      _lastBodyLength = length;
-    }
-    final minWaitElapsed = elapsed >= widget.captureDelay;
-    if (minWaitElapsed && _stablePolls >= _requiredStablePolls) {
-      _stopCapturePoll();
-      await _capture();
-    }
-  }
-
-  void _stopCapturePoll() {
-    _captureTimer?.cancel();
-    _captureTimer = null;
-  }
-
-  Future<void> _capture() async {
-    final c = _controller;
-    if (c == null || widget.onCaptured == null) return;
-    try {
-      final result =
-          await c.runJavaScriptReturningResult('document.body.innerHTML');
-      final raw = result is String ? result : result.toString();
-      final clean = _stripScripts(raw);
-      if (clean.isEmpty || !_hasRenderedContent(clean)) {
-        // Empty/media-less capture means the decrypt JS most likely has not
-        // produced anything visible yet — caching it would freeze the card
-        // in this state forever (the cache is replayed with JS disabled).
-        debugPrint(
-          '[AnkiHtmlCard] decrypt capture rejected: no visible content '
-          '(${clean.length} chars); not caching',
-        );
-        return;
-      }
-      widget.onCaptured!(clean, _loadedIsBack);
-    } on Exception catch (error) {
-      debugPrint('[AnkiHtmlCard] decrypt capture failed: $error');
-    }
-  }
-
-  /// A capture is cacheable when it carries visible text or embedded media.
-  /// Audio-only fronts legitimately have no text, so media elements count.
-  static bool _hasRenderedContent(String html) {
-    final text = html
-        .replaceAll(RegExp(r'<script[^>]*>.*?</script>', dotAll: true), '')
-        .replaceAll(RegExp(r'<style[^>]*>.*?</style>', dotAll: true), '')
-        .replaceAll(RegExp(r'<[^>]+>'), ' ')
-        .replaceAll(RegExp(r'&(amp|lt|gt|nbsp|quot);'), ' ')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-    if (text.length >= 4) return true;
-    return RegExp(r'<(audio|img|video|svg)\b', caseSensitive: false)
-        .hasMatch(html);
-  }
-
-  static final _scriptRegex =
-      RegExp(r'<script[^>]*>.*?</script>', dotAll: true, caseSensitive: false);
-
-  static String _stripScripts(String html) => html.replaceAll(_scriptRegex, '');
-
-  @override
-  void dispose() {
-    _stopCapturePoll();
-    super.dispose();
   }
 
   @override

@@ -167,7 +167,6 @@ void main() {
       expect(BackupValidator.clampValue('settings.dailyReminderHour', 25), 23);
       expect(BackupValidator.clampValue('settings.dailyReminderMinute', -1), 0);
       expect(BackupValidator.clampValue('srs.desiredRetention', 0.99), 0.95);
-      expect(BackupValidator.clampValue('anki.captureDelaySec', 99), 10);
       expect(BackupValidator.clampValue('anki.liteThreshold', -5), 0);
       expect(BackupValidator.clampValue('anki.dailyNewLimit', 5000), 999);
     });

@@ -37,11 +37,15 @@ class CourseRepository implements ICourseRepository {
   CourseRepository(this.database);
 
   /// Lightweight section shells (id/name/description/prerequisiteSectionIds,
-  /// `units` empty) in on-disk order.
+  /// `units` empty) in on-disk order. The id tiebreak keeps the order
+  /// deterministic when sort orders collide across writers.
   @override
   Future<List<Section>> sectionShells() async {
     final rows = await (database.select(database.sections)
-          ..orderBy([(t) => OrderingTerm(expression: t.sortOrder)]))
+          ..orderBy([
+            (t) => OrderingTerm(expression: t.sortOrder),
+            (t) => OrderingTerm(expression: t.id),
+          ]))
         .get();
     return [
       for (final r in rows)
@@ -161,7 +165,10 @@ class CourseRepository implements ICourseRepository {
 
     final unitRows = await (database.select(database.units)
           ..where((t) => t.sectionId.equals(id))
-          ..orderBy([(t) => OrderingTerm(expression: t.sortOrder)]))
+          ..orderBy([
+            (t) => OrderingTerm(expression: t.sortOrder),
+            (t) => OrderingTerm(expression: t.id),
+          ]))
         .get();
 
     final lessonsByUnit = <String, List<Lesson>>{};
@@ -176,7 +183,9 @@ class CourseRepository implements ICourseRepository {
         ..where(database.units.sectionId.equals(id))
         ..orderBy([
           OrderingTerm(expression: database.units.sortOrder),
+          OrderingTerm(expression: database.units.id),
           OrderingTerm(expression: database.lessons.sortOrder),
+          OrderingTerm(expression: database.lessons.id),
         ]);
 
       final joined = await lessonQuery.get();

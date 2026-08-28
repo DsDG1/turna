@@ -1,0 +1,9 @@
+Flutter assets will be downloaded from https://storage.flutter-io.cn. Make sure you trust this source!
+Analyzing Varnamalaplus...                                      
+
+   info - Unnecessary 'const' keyword. Try removing the keyword - test\application\anki_official\official_anki_projection_test.dart:54:22 - unnecessary_const
+   info - Unnecessary 'const' keyword. Try removing the keyword - test\application\anki_official\official_anki_projection_test.dart:81:22 - unnecessary_const
+   info - Unnecessary 'const' keyword. Try removing the keyword - test\application\anki_official\official_anki_projection_test.dart:105:22 - unnecessary_const
+   info - Unnecessary 'const' keyword. Try removing the keyword - test\application\anki_official\official_anki_projection_test.dart:107:16 - unnecessary_const
+
+4 issues found. (ran in 239.9s)

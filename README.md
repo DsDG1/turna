@@ -13,7 +13,7 @@
 
 基于上游 [Turna](https://github.com/rshrc/Varnamala) 的 Section/Unit/Lesson/SRS/错题本骨架，聚焦 **Turkish**，持续深化：FSRS 复习引擎、Anki 牌组导入与原卡复习（默认 Flutter HTML）、统一 AI 引擎层。
 
-- **纯本地**：SQLite（drift，schemaVersion 18），无云后端 / 推送 / 登录。
+- **纯本地**：SQLite（drift，schemaVersion 21），无云后端 / 推送 / 登录。
 - **单人离线**：无好友、排行榜、联赛、心数、宝石购买。
 - **主打 Android**：以 **Android** 为核心主力平台，兼顾 iOS 与 Web（有限支持）。OHOS 产品支持已退役（ADR 0041）。
 - **教学法驱动**：功能取舍以二语习得研究为依据（见 project-guide §2 / §15）。

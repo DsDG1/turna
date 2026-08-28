@@ -1,8 +1,12 @@
+import 'dart:math' as math;
+
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_canonical.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_ids.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_mapper.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_payloads.dart';
+import 'package:turna/core/natural_compare.dart';
+import 'package:turna/courses/course_validator.dart' show kMaxLessonsPerUnit, kMaxUnitsPerSection;
 
 enum OfficialAnkiProjectionKind {
   showWord,
@@ -105,10 +109,18 @@ class OfficialAnkiProjectionProjector {
   OfficialAnkiProjectionProjector({
     this.lessonSize = 20,
     this.validatorCap = 200,
+    this.maxUnitsPerSection = kMaxUnitsPerSection,
+    this.maxLessonsPerUnit = kMaxLessonsPerUnit,
   });
 
   final int lessonSize;
   final int validatorCap;
+
+  /// Design-contract tree ceilings from [validateSectionTree]. Oversized
+  /// groups are split into `Part n` children at the end of [project] so the
+  /// runtime L1 validator can never see a published section that fails.
+  final int maxUnitsPerSection;
+  final int maxLessonsPerUnit;
   final _mapper = OfficialAnkiProjectionMapper();
   final _payloads = OfficialAnkiProjectionPayloads();
 
@@ -139,13 +151,25 @@ class OfficialAnkiProjectionProjector {
         ),
       );
     }
+    // Human-ordered tree: sections/units/lessons sort by display name
+    // (numeric-aware, case-insensitive), ids only break ties. Sorting by id
+    // hashes here would scramble the deck order the user sees in Anki.
     assigned.sort((a, b) {
-      final section = a.sectionId.compareTo(b.sectionId);
+      final section = naturalCompare(a.sectionName, b.sectionName);
       if (section != 0) return section;
-      final unit = a.unitId.compareTo(b.unitId);
+      final bySectionId = a.sectionId.compareTo(b.sectionId);
+      if (bySectionId != 0) return bySectionId;
+      final unit = naturalCompare(a.unitName, b.unitName);
       if (unit != 0) return unit;
-      final lesson = a.lessonGroup.compareTo(b.lessonGroup);
+      final byUnitId = a.unitId.compareTo(b.unitId);
+      if (byUnitId != 0) return byUnitId;
+      final lesson = naturalCompare(
+        a.lessonName ?? a.lessonGroup,
+        b.lessonName ?? b.lessonGroup,
+      );
       if (lesson != 0) return lesson;
+      final group = a.lessonGroup.compareTo(b.lessonGroup);
+      if (group != 0) return group;
       return a.row.cardId.compareTo(b.row.cardId);
     });
     final buckets = <String, List<_AssignedRow>>{};
@@ -309,9 +333,127 @@ class OfficialAnkiProjectionProjector {
         }
       }
     }
+    // Split by JSON size first (it can add lessons), then enforce the
+    // units-per-section / lessons-per-unit ceilings on the final lesson set.
+    final sized = officialAnkiSplitLessons(sourceId: sourceId, items: items);
     return OfficialAnkiProjectionPlan(
-      items: officialAnkiSplitLessons(sourceId: sourceId, items: items),
+      items: _packTreeLimits(sized),
       issues: issues,
+    );
+  }
+
+  /// Splits oversized units and sections so the published tree always
+  /// satisfies the validator's hard ceilings. Unit splitting runs first
+  /// because it can raise a section's unit count; the section pass then
+  /// chunks the final unit set. Groups within the limits keep their ids
+  /// byte-for-byte, so placement overrides stay valid.
+  List<OfficialAnkiProjectedItem> _packTreeLimits(
+    List<OfficialAnkiProjectedItem> items,
+  ) {
+    if (maxLessonsPerUnit > 0) {
+      items = _splitOversizedGroups(
+        items,
+        limit: maxLessonsPerUnit,
+        groupIdOf: (item) => item.unitId,
+        groupNameOf: (item) => item.unitName,
+        entryIdOf: (item) => item.lessonId,
+        rebuild: (item, unitId, unitName) =>
+            _copyItem(item, unitId: unitId, unitName: unitName),
+      );
+    }
+    if (maxUnitsPerSection > 0) {
+      items = _splitOversizedGroups(
+        items,
+        limit: maxUnitsPerSection,
+        groupIdOf: (item) => item.sectionId,
+        groupNameOf: (item) => item.sectionName,
+        entryIdOf: (item) => item.unitId,
+        rebuild: (item, sectionId, sectionName) =>
+            _copyItem(item, sectionId: sectionId, sectionName: sectionName),
+      );
+    }
+    return items;
+  }
+
+  /// Chunks a group's entries into `limit`-sized parts; part 1 keeps the
+  /// original id/name, later parts get an `-xN` id suffix and a
+  /// ` (Part N)` name suffix. `[rebuild]` rewrites the affected field pair.
+  List<OfficialAnkiProjectedItem> _splitOversizedGroups(
+    List<OfficialAnkiProjectedItem> items, {
+    required int limit,
+    required String Function(OfficialAnkiProjectedItem) groupIdOf,
+    required String Function(OfficialAnkiProjectedItem) groupNameOf,
+    required String Function(OfficialAnkiProjectedItem) entryIdOf,
+    required OfficialAnkiProjectedItem Function(
+      OfficialAnkiProjectedItem item,
+      String groupId,
+      String groupName,
+    ) rebuild,
+  }) {
+    final entriesPerGroup = <String, List<String>>{};
+    final groupNames = <String, String>{};
+    final seenEntries = <String>{};
+    for (final item in items) {
+      final groupId = groupIdOf(item);
+      final entryId = entryIdOf(item);
+      groupNames.putIfAbsent(groupId, () => groupNameOf(item));
+      // Items are sorted, so an entry's items are contiguous; the Set guard
+      // makes the distinct-in-order list robust even if they are not.
+      if (seenEntries.add(entryId)) {
+        entriesPerGroup.putIfAbsent(groupId, () => <String>[]).add(entryId);
+      }
+    }
+    final entryRemap = <String, (String, String)>{};
+    for (final group in entriesPerGroup.entries) {
+      final groupEntries = group.value;
+      if (groupEntries.length <= limit) continue;
+      final groupId = group.key;
+      final groupName = groupNames[groupId] ?? groupId;
+      final chunkCount = (groupEntries.length / limit).ceil();
+      for (var c = 0; c < chunkCount; c++) {
+        final newGroupId = c == 0 ? groupId : '$groupId-x${c + 1}';
+        final newGroupName =
+            c == 0 ? groupName : '$groupName (Part ${c + 1})';
+        final start = c * limit;
+        final end = math.min(start + limit, groupEntries.length);
+        for (var i = start; i < end; i++) {
+          entryRemap[groupEntries[i]] = (newGroupId, newGroupName);
+        }
+      }
+    }
+    if (entryRemap.isEmpty) return items;
+    return [
+      for (final item in items)
+        entryRemap.containsKey(entryIdOf(item))
+            ? rebuild(
+                item,
+                entryRemap[entryIdOf(item)]!.$1,
+                entryRemap[entryIdOf(item)]!.$2,
+              )
+            : item,
+    ];
+  }
+
+  OfficialAnkiProjectedItem _copyItem(
+    OfficialAnkiProjectedItem item, {
+    String? sectionId,
+    String? sectionName,
+    String? unitId,
+    String? unitName,
+  }) {
+    return OfficialAnkiProjectedItem(
+      kind: item.kind,
+      cardId: item.cardId,
+      wordId: item.wordId,
+      sectionId: sectionId ?? item.sectionId,
+      unitId: unitId ?? item.unitId,
+      lessonId: item.lessonId,
+      sectionName: sectionName ?? item.sectionName,
+      unitName: unitName ?? item.unitName,
+      lessonName: item.lessonName,
+      payload: item.payload,
+      sourceFingerprint: item.sourceFingerprint,
+      vocabulary: item.vocabulary,
     );
   }
 

@@ -294,7 +294,6 @@ class SystemHealthPage extends StatelessWidget {
       '已解决：${monitor.resolved}',
       '安全模式：${event.safeMode}',
       '数据完整性风险：${monitor.hasDataIntegrityBlock ? '是（${monitor.dataIntegrityReason}）' : '否'}',
-      '预渲染缓存：${settings.ankiPreRenderEnabled}',
       '强制禁用 JS：${settings.ankiForceDisableJs}',
       'Lite 阈值：${settings.ankiLiteThreshold}',
       '',

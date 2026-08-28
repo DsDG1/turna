@@ -132,7 +132,7 @@ python -m tool.gui.src.main
 1. **元数据区域**：编辑 Lesson 的名称、描述以及同层前置依赖 (`prerequisiteLessonIds`)。
 2. **模板类型切换**：可在 `intro` / `practice` / `listening` / `reading` / `review` / `mastery` 之间切换，系统将自动纠正数据规范。
 3. **可视化蓝图 (Blueprint Editor)**：针对 `listening`、`reading` 及 `mastery` 等复杂功能课时，界面提供直观的流程蓝图，可拖拽或点击调整听力阶段 (`ListeningPhase`) 或阅读文章 (`ReadingPassage`) 的段落顺序。
-4. **12 种互动题型列表与表单**：
+4. **14 种互动题型列表与表单**（清单真源 `backend/lesson_content.py` 的 `INTERACTION_TYPES`）：
    - 动态增删题型卡片，支持拖拽调整顺序。
    - 每种题型根据 Schema 展现专用输入框：词汇下拉关联选择、多选选项定义、填空文本匹配、音频路径挂载等。
 

@@ -2,7 +2,9 @@
 
 > 本文是 README 的深度补充。README 给出概览与快速上手，本文给出每个子系统的设计、实现要点与决策依据。阅读顺序建议：先读 README，再按需查阅本文相应章节。
 >
-> 所有信息以代码现状为准（schemaVersion 18、课程内容版本 12、`flutter test --exclude-tags golden` 1299 passed / 0 failed，截至 2026-08-22）。
+> 所有信息以代码现状为准（schemaVersion 21、课程内容版本 12、`flutter test --exclude-tags golden` 1852 passed / 0 failed，另 golden 4/4、native 68/68，截至 2026-08-28；完整基线见 `test/BASELINE.md`）。
+>
+> **近期重要变更**：Legacy Anki 复刻层已于 2026-08-27 由 [doc 35](./official-anki-migration/35-duplicate-legacy-layer-cleanup-plan.md) L0–L3 物理删除（`lib/application/anki/` 目录清空）。原 §6 中描述 legacy 解析/装配/映射/Full-Lite 的段落已改为删除说明，勿再按旧描述实现。
 
 ---
 
@@ -82,7 +84,7 @@ Hermann Ebbinghaus（1885）描述了**遗忘曲线**：新记忆形成后迅速
 
 ### 2.7 多技能整合
 
-应用语言学将语言能力分解为**接受性技能**（听、读）与**产出性技能**（说、写），以及词汇、语法、语音等**语言知识**维度。本项目的 6 种 Lesson Template（intro / practice / listening / reading / review / mastery）与 13 种 Interaction 题型覆盖了从词汇呈现到听读输入再到可控产出的完整闭环，避免孤立训练单一技能。
+应用语言学将语言能力分解为**接受性技能**（听、读）与**产出性技能**（说、写），以及词汇、语法、语音等**语言知识**维度。本项目的 6 种 Lesson Template（intro / practice / listening / reading / review / mastery）与 14 种 Interaction 题型覆盖了从词汇呈现到听读输入再到可控产出的完整闭环，避免孤立训练单一技能。
 
 ### 2.8 关于土耳其语
 
@@ -104,10 +106,11 @@ Clean Architecture + Provider + ChangeNotifier + GetIt/Injectable + Auto Route�
 ```
 lib/
 ├── application/        # Providers（状态管理）+ 应用服务
-│   ├── ai/             # AI 能力：engine/ + hint/wish/course/lesson-helper/tutor
+│   ├── ai/             # AI 能力：engine/ + companion/ + textbook/
 │   │   └── engine/     # 统一 AI 引擎层（单一 LLM 流量出入口）
-│   ├── anki/           # Anki 导入/装配/渲染/复习/SRS 迁移
-│   ├── anki_official/  # 官方 Anki Core（rslib FFI）引擎/导入/渲染/投影/迁移（ADR 0036）
+│   ├── anki_import/    # Anki 导入向导 controller / flow / 完成协调
+│   ├── anki_practice/  # 课程式 Anki 练习组装（纯函数：卡片分类 / 选项解析 / 文本处理）
+├── anki_official/  # 官方 Anki Core（rslib FFI）引擎/导入/渲染/投影/迁移（ADR 0036）
 │   ├── srs_provider.dart          # 单词 SRS 队列（SrsQueueProvider 子类）
 │   ├── grammar_review_provider.dart  # 语法 SRS 队列
 │   ├── srs_queue_provider.dart    # SRS 队列共享基类（FSRS 调度）
@@ -119,7 +122,7 @@ lib/
 │   ├── score_provider.dart        # XP / 分数
 │   ├── streak_provider.dart       # 连续学习天数
 │   ├── lesson_progress_provider.dart
-│   ├── game_milestone_provider.dart
+│   ├── gems_provider.dart         # 宝石账本
 │   ├── game_provider.dart         # 薄 facade，转发到上述各 provider
 │   ├── weak_word_quiz_assembler.dart
 │   ├── audio_controller.dart      # TTS / 音效统一接管
@@ -138,7 +141,7 @@ lib/
 │   └── streak_resolver.dart       # 纯 streak 解析
 ├── courses/            # 字母 + 语种 loader/validator（目标 Turkish）
 ├── data/               # drift CourseDatabase + Seeder + Repository 实现
-│   ├── course_database.dart       # schemaVersion 18
+│   ├── course_database.dart       # schemaVersion 21（15 张 drift Table 类 + 约 17 张原生 SQL 管理表）
 │   ├── anki_note_dao.dart         # Anki NoteStore 数据访问
 │   ├── srs_state_dao.dart         # SRS 状态持久化
 │   ├── review_history_dao.dart    # 复习历史事件
@@ -163,7 +166,7 @@ lib/
 - **路由（导航合同，详见 `docs/platform-adaptive-page-transition-unification-plan.md`）**：Auto Route + 代码生成（`.gr.dart`）+ `CourseReadyGuard`（DB seed 完成前重定向到 splash）。全屏页面一律走 AutoRoute，全局 `AppRouter.defaultRouteType = RouteType.adaptive(enablePredictiveBackGesture: true)`——Android 用 Material 路由（含预测返回，manifest 已加 `enableOnBackInvokedCallback`），iOS/macOS 用真实 Cupertino 路由（边缘返回），Web 无转场。禁止：全局强制单一平台路由、`PageRouteBuilder`/`transitionsBuilder` 自定义转场、调用点直接构造 `MaterialPageRoute`/`CupertinoPageRoute`、覆盖 `ThemeData.pageTransitionsTheme`。唯一例外：`lib/routing/platform_page_route.dart` 的官方路由类选择器，仅供运行时组装、无稳定页面身份的内部页使用。底部主 Tab 是 `IndexedStack` 即时切换（非 push/pop）；Dialog/BottomSheet 保持弹层语义。以上契约由 `test/routing/routing_policy_contract_test.dart` 与 `test/routing/adaptive_route_semantics_test.dart` 在 CI 强制。
 - **模型**：Freezed 不可变 + `@JsonSerializable`；Interaction 变体由 `runtimeType` 区分。
 - **Repository**：接口（`domain/repositories/`）+ 实现（`data/`）；DB 作为派生缓存，JSON 为真理源。
-- **渲染器插件化**：13 种 Interaction 各为 `@injectable` 类，注册到 GetIt，按 `runtimeType` 查找——新增题型无需改动分发逻辑。
+- **渲染器插件化**：14 种 Interaction 各有 `@injectable` 渲染器，由 `di/renderer_module.dart` 收集成 `Set<InteractionRenderer>` 注册到 GetIt。分发走 `lookupRenderer()`，它先用 `_handlesTypeFor()` 把实例映射到 **freezed 公开接口类型**再匹配——**不能直接用 `runtimeType`**，因为 freezed 生成的是私有的 `_$FooImpl`，永远不等于渲染器声明的 `handlesType`。新增题型：写渲染器 → 在 module 登记 → 重跑 `build_runner`，无需改动任何分发逻辑。
 
 ---
 
@@ -177,7 +180,7 @@ Section -> Unit -> Lesson -> SubLesson / ListeningPhase / ReadingPassage -> Stag
 
 全部为 Freezed 不可变类 + JSON 序列化。`Lesson.flattenedStages` 将嵌套内容展平为渲染器可遍历的 `List<Stage>`。
 
-### 4.2 Interaction 题型（13 种）
+### 4.2 Interaction 题型（14 种）
 
 按语言技能维度分类，均 `@injectable` 注册到 GetIt：
 
@@ -195,7 +198,8 @@ Section -> Unit -> Lesson -> SubLesson / ListeningPhase / ReadingPassage -> Stag
 | 阅读 | `readingMcq` | 篇章选择 |
 | 阅读 | `readingTrueFalse` | 篇章判断 |
 | 阅读 | `readingShortAnswer` | 篇章简答 |
-| Anki 保真 | `ankiHtmlCard` | WebView 渲染原 Anki 卡片 HTML（见第 6 节） |
+| Anki 官方 | `ankiCard` | Flutter 渲染的官方 Anki 卡片（`allowJs=false` 的卡默认走此轨，见第 6 节） |
+| Anki 保真 | `ankiHtmlCard` | 仅 Official 复习路径经 WebView 渲染原 notetype HTML；lesson 体/错题重放中的存量卡降级为占位卡（`AnkiHtmlCardRetiredRenderer`，见第 6 节） |
 
 ### 4.3 Lesson Template（6 + 1）
 
@@ -211,7 +215,7 @@ Section -> Unit -> Lesson -> SubLesson / ListeningPhase / ReadingPassage -> Stag
 
 ### 4.4 按需加载与缓存
 
-- `index.json` + per-section JSON + drift SQLite 缓存（**schemaVersion 18**）。
+- `index.json` + per-section JSON + drift SQLite 缓存（**schemaVersion 21**）。
 - 按内容版本号（`index.json` 的 `version`，当前 12）自动 reseed；bump version 或清空 app data 可强制 reseed。
 - `expressions` 表支持表达级 SRS。
 
@@ -296,58 +300,57 @@ Explain → Practice → Rate 三段流（见 2.4 Skill Acquisition Theory）。
 
 **生产（Android Official-first）**：选 `.apkg` → 一次计算 `AnkiImportExecutionPlan` → `OfficialAnkiOfficialFirstService` 写入 Official Collection → 投影课程树 → 以 `sourceId` 进入课程 scope。不写 Legacy NoteStore / Turna Anki SRS。`.colpkg` 与内存 sample 生产 fail-closed。
 
-**Legacy 解析/装配**（下列条目）仅保留给存量迁移与测试 haemostasis（`allowLegacyOnly`），待 W9-B..E 分波物理删除（W9 HOLD 已于 2026-08-27 由负责人决策解除）。生产 `planFor` 在 `officialAndroid` 下不会选择该 writer：
+**执行计划三态**：`AnkiImportExecutionPlan.planFor` 只产出 `officialFirst` / `failClosed` / `unsupported`——`legacyOnly`、`allowLegacyOnly`、`AnkiImportOwner.legacy`、`AnkiImportDecision.legacy`、`LegacyAnkiImportFacade` 均已删除。
 
-1. **解析**（`anki_importer.dart`）：从 `.apkg`（zip + SQLite collection）提取 notetypes、notes、cards、revlog，分页、表缺失安全、best-effort。
-2. **NoteStore 持久化**（schema v9 起，三表）：`anki_notetypes`、`anki_notes`、`anki_cards_meta`。
-3. **装配**（`anki_deck_assembler.dart`）：按 deck 树构建 Section→Unit→Lesson，card 级 wordId 形如 `anki-<importId>-c<cardId>`。
-4. **媒体拷贝**（`AnkiAudioResolver.copyMedia`）：在导入事务之外执行（best-effort）。
-5. **SRS 迁移**（`anki_srs_migrator.dart`）：将 Anki revlog 迁为 `ReviewEventRecord`，导入卡走 Turna FSRS。Official 卡不走这条。
+> **Legacy 解析/装配管线已物理删除（2026-08-27，doc 35 L0–L3 施工完毕）**
+>
+> 原先的 5 步 legacy 管线（`.apkg` 解析 → NoteStore 三表持久化 → deck 装配 → 媒体拷贝 → revlog→FSRS 迁移）连同 `anki_importer.dart`、`anki_deck_assembler.dart`、`anki_srs_migrator.dart` 已全部删除，`lib/application/anki/` 目录清空（guard test 有终态断言）。连带删除：智能组织、Notetype 映射编辑器、Full/Lite 装配、`{{type:}}` 输入桥。迁移细节与差异实录见 [`official-anki-migration/35-duplicate-legacy-layer-cleanup-plan.md`](./official-anki-migration/35-duplicate-legacy-layer-cleanup-plan.md) §10。
+>
+> **存量数据（仍需注意）**：DB 里旧导入的 lesson 体与错题快照仍携带已删类型。`AnkiHtmlCard` 因此保留类型本体，在 lesson body / 错题重放中由 `anki_html_card_retired_renderer` 降级为「确认即过」占位卡（指向「设置 → 旧版与兼容性」），避免 `lookupRenderer` 对未注册类型抛 `StateError`。注意它**不是**保真渲染——官方保真复习仍活跃，见 §6.3。
 
-### 6.2 智能组织（Smart Organization）
+### 6.2 智能组织 / Notetype 映射 / Full-Lite 模式（均已随 legacy 层删除）
 
-`AnkiOrganizationResolver` 从 notetype 字段名抽取 unit/lesson 键（unit/chapter/section/单元/章；lesson/topic/subunit/课/节）与标签（`unit::` / `chapter:` / `单元::` 等），字段优先，HTML 去标签。`assemble(smartGrouping:)` 据此把卡分入 Units→Lessons（deck 名兜底）；多块（>20）的 lesson 命名 `"$lessonKey #N"`。零元数据路径与旧分块逻辑字节一致。导入预览页显示组织预览 + 智能分组开关。
+以下三项均为 legacy 装配管线的配套能力，**已随 doc 35 L1 一并删除**，此处仅作历史记录，勿再按此实现：
 
-### 6.3 Notetype 映射（可编辑 + AI 识别）
+- **智能组织**：`AnkiOrganizationResolver` 从 notetype 字段名/标签抽取 unit/lesson 键，配合 `assemble(smartGrouping:)` 分卡。类已 0 引用。
+- **Notetype 映射编辑器**：把 note 映射为 9 种结构化类型（含 `_NotetypeMappingEditor` 与 `AnkiNotetypeAI.identifyAll`）。**替代实现**：官方映射页 `views/anki_official/official_anki_mapping_page.dart`，用自有 `OfficialAnkiMappingSuggestion` 体系，不依赖旧 `NotetypeMapping`。
+- **Full / Lite 模式**：按牌组规模（`liteThreshold` 默认 2000）选择完整课程树或 shell Section。装配器已删，仅 `anki.liteThreshold` 设置键残留于 `service/locator.dart`。
 
-每张 note 按 notetype 映射为 9 种结构化类型之一（ankiCard / wordEntry / expression / fillBlank / typeAnswer / listenPick / cloze / multipleChoice / multiSelect）。导入预览的映射行可点按编辑（`_NotetypeMappingEditor`）：
+### 6.3 保真渲染（Fidelity HTML）
 
-- 类型下拉覆盖；翻面类题型可选 front/back 字段索引，cloze/MCQ/multiSelect 自动检测。
-- 实时样例卡预览（首张 note 的 front/back，`AnkiCardAdapter.stripHtmlPublic` 去标签）。
-- 「AI 智能识别」按钮调 `AnkiNotetypeAI.identifyAll`（需配置 AI），返回映射 + 推断理由。
-- override 经 `mappingOverrides` 端到端流入 assembler。
+复杂 notetype（含自定义 HTML/CSS/JS）无法干净映射为结构化题型时走保真路径，以 `AnkiHtmlCard` Interaction 承载原 notetype HTML。
 
-### 6.4 Full / Lite 模式
+> **现状澄清（doc 35 L2 后）**：`AnkiRenderPolicy` 与 NoteStore 侧的逐卡 `render_mode` 判定已随 legacy 层删除。保真渲染**仅服务于 Official 复习路径**，调用链为：
+> `official_formal_review_coordinator` → `application/study_session/anki_review_content.dart`（`fidelityInteractions: Map<String, AnkiHtmlCard>`）→ `views/review/components/official_template_webview_body.dart` → `AnkiHtmlCardView`。
+> 与之区分：lesson body / 错题重放中的 `AnkiHtmlCard` 走 §6.1 所述的 retired 降级卡，**不**渲染 HTML。
 
-按牌组规模自动选择（`assemble(liteThreshold: 2000)`）：
-
-- **Full**（<2k 卡）：完整 Section→Unit→Lesson 树，卡进入 lesson 互动。
-- **Lite**（≥2k 卡）：仅 shell Section（无 lesson），复习走 fidelity 路径，避免巨型牌组撑爆课程树。
-
-### 6.5 保真渲染（Fidelity HTML）
-
-复杂 notetype（含自定义 HTML/CSS/JS）无法干净映射为结构化题型时，由 `AnkiRenderPolicy` 逐卡判定 fidelity vs structured，结果持久化到 `anki_cards_meta.render_mode`。fidelity 卡以 `ankiHtmlCard` Interaction 渲染：
-
-- `AnkiHtmlCardView`（`webview_flutter`）渲染原 notetype HTML + CSS，模板 `{{field}}` 替换、cloze 挖空。
+- `AnkiHtmlCardView`（`webview_flutter`，唯一 WebView 使用点）渲染原 notetype HTML + CSS，模板 `{{field}}` 替换、cloze 挖空。
 - **平台门控**：仅 Android/iOS 有 WebView 实现；桌面/Web 降级为文本兜底（决策 4），不实例化 `WebViewController`。
 - **暗色 CSS**：app 暗色主题时注入暗色 CSS（阶段 6）。
 - **JS 与网络隔离**：notetype `allowJs` 默认关；联网默认完全离线。离线/询问策略通过 CSP 实际阻断 `fetch`、XHR、WebSocket 和外部资源，不只拦页面跳转。
 
-### 6.6 智能去解密（Pre-render Cache）
+### 6.4 智能去解密（Pre-render Cache）—— 当前失活
 
-部分牌组（如加密考研牌组）在 notetype CSS 中含混淆的解密 JS。首次复习时 `AnkiHtmlCardView` 在 WebView 中跑一次 JS，延迟捕获 `document.body.innerHTML`，去 `<script>`，缓存到 `anki_prerendered_html`（schema v10）。后续复习直接服缓存纯 HTML（`allowJs=false`，无 JS/无网络/无沙箱）。`allowJs` notetype 自动触发；卸载牌组按前缀清缓存。
+部分牌组（如加密考研牌组）在 notetype CSS 中含混淆的解密 JS。原设计：首次复习时 `AnkiHtmlCardView` 在 WebView 中跑一次 JS，延迟捕获 `document.body.innerHTML`，去 `<script>`，缓存到 `anki_prerendered_html`（schema v10）；后续复习直接服缓存纯 HTML（`allowJs=false`，无 JS/无网络/无沙箱）。
+
+> ⚠️ **该链路当前不通，勿按此描述预期行为**（2026-08-28 核对）：
+> - 捕获实现仍在 `anki_html_card_view.dart`（`_scheduleCapture` → `onCaptured` 回调），但 **`onCaptured` 在全 `lib/` 内零传入方**，因此 `_scheduleCapture` 首行 `widget.onCaptured == null` 恒真、直接 return——缓存永不写入。
+> - DAO 侧 `AnkiNoteDao.prerendered()` 同样零调用点，缓存永不命中。
+> - 残留物：`anki_prerendered_html` 表（含存量数据）、`prerenderCacheStats()`（仅供存储清单/维护页统计与清理）、`anki.liteThreshold` 等相关设置键。
+>
+> 即：机制代码完整保留但无消费者。若要恢复，需让官方保真复习路径（§6.3 的 `official_template_webview_body`）传入 `onCaptured` 并在命中时改走 `prerendered()`；若要放弃，则应删除表与 DAO 面并清理存量数据。二者未决，暂维持现状。
 
 高级页提供渲染/网络与单牌组覆盖、失败降级、媒体与导入性能、三种排程继承、同胞卡与难卡规则、FSRS 实验室、存储维护、脱敏报告和实验功能中心。系统健康监控在启动时直接监听 `LogCapture`，用指纹、60 秒去重和分数阈值生成本机告警；详见 [`advanced-settings-system-health.md`](advanced-settings-system-health.md)。
 
-### 6.7 复习入口与浏览
+### 6.5 复习入口与浏览
 
-- **复习**：`FormalReviewLauncher` → 共享 `AnkiReviewSessionRoute`。Official owner 走 `OfficialFormalReviewProductionLoader` + live `OfficialReviewSession`；无 Official 源才走 Legacy assembler。`schedulerRuntimeAvailable` 为假且 owner 为 Official 时 fail-closed，不降级 Turna SRS。
+- **复习**：`FormalReviewLauncher` → 共享 `AnkiReviewSessionRoute`。Official owner 走 `OfficialFormalReviewProductionLoader` + live `OfficialReviewSession`；`schedulerRuntimeAvailable` 为假且 owner 为 Official 时 fail-closed，不降级 Turna SRS。**无 Official 源时不再有 Legacy assembler 兜底**：`formal_review_source_coordinator.fromCatalog` 直接跳过 legacy-only 源，recorded-legacy 源进入页面后显示 `FormalReviewLauncher.failClosedMessage` 错误面，不静默换语义。
 - **卡片浏览器 / 牌组统计**：Official 源有 engine 时读 Collection / scheduler；无 engine 时 catalog 回退，stats 不得把 catalog 总数标成已证明。
 - **示例牌组**：内存 sample 生产 fail-closed；入口已从导入页与课程管理隐藏。`startWithSample` 仅测试 haemostasis。
 
-### 6.8 已延期（二期/远期）
+### 6.6 已延期（二期/远期）
 
-错题快照瘦身（存 noteId 引用而非全 HTML）、WebView 池化。（`{{type:}}` 输入桥已交付：`anki_type_answer.dart`；官方 FFI 后端已由 ADR 0036 落地，见第 6 节开头。OHOS 产品支持已退役，不再评估 OHOS WebView。）
+错题快照瘦身（存 noteId 引用而非全 HTML）、WebView 池化。（官方 FFI 后端已由 ADR 0036 落地，见第 6 节开头。OHOS 产品支持已退役，不再评估 OHOS WebView。）`{{type:}}` 输入桥（`anki_type_answer.dart`）已随 doc 35 L1 删除，不再作为已交付项列出。
 
 ---
 
@@ -668,7 +671,7 @@ JSON 位于 `assets/courses/turkish/`，由 `CourseLoader` 加载、`DatabaseSee
 ## 14. 测试与质量基线
 
 ```bash
-flutter test --exclude-tags golden           # 1299 passed / 0 failed（最新数字见 test/BASELINE.md）
+flutter test --exclude-tags golden           # 1852 passed / 0 failed（最新数字见 test/BASELINE.md）
 python -m unittest discover -s test -p "*_test.py"            # Python 工具测试
 python -m unittest discover -s tool/gui/tests -p "test_*.py"  # GUI 1276 项（上次记录）
 ```

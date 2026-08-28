@@ -265,8 +265,6 @@ class LocalStateKeys {
   static String nativeLanguageKey(String scope) =>
       'settings.nativeLang.${scope.isEmpty ? 'builtin' : scope}';
 
-  static const String ankiPreRenderEnabled = 'anki.preRenderEnabled';
-  static const String ankiCaptureDelaySec = 'anki.captureDelaySec';
   static const String ankiLiteThreshold = 'anki.liteThreshold';
   static const String ankiForceDisableJs = 'anki.forceDisableJs';
   static const String systemHealthEvent = 'system.healthEvent';

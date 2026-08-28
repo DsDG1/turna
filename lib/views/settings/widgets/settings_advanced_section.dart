@@ -122,16 +122,6 @@ class _LegacyCompatibilityBody extends StatelessWidget {
         SettingsCard(
           children: [
             SettingsToggleTile(
-              icon: Icons.flash_on_rounded,
-              title: AppStrings.settingsLegacyDecryptTitle,
-              subtitle: AppStrings.settingsLegacyDecryptSubtitle,
-              valueSelector: (p) => p.ankiPreRenderEnabled,
-              onChanged: (p, v) => p.setAnkiPreRenderEnabled(v),
-            ),
-            settingsTileDivider(context),
-            const _CaptureDelayTile(),
-            settingsTileDivider(context),
-            SettingsToggleTile(
               icon: Icons.lock_rounded,
               title: AppStrings.settingsLegacyForceDisableJsTitle,
               subtitle: AppStrings.settingsLegacyForceDisableJsSubtitle,
@@ -243,88 +233,6 @@ class _AiEngineTunablesCardState extends State<_AiEngineTunablesCard> {
           ],
         );
       },
-    );
-  }
-}
-
-/// 抓取延时滑块(1-10 秒)。拖动时用本地状态,松手才写 prefs。
-class _CaptureDelayTile extends StatefulWidget {
-  const _CaptureDelayTile();
-
-  @override
-  State<_CaptureDelayTile> createState() => _CaptureDelayTileState();
-}
-
-class _CaptureDelayTileState extends State<_CaptureDelayTile> {
-  double? _drag;
-
-  @override
-  Widget build(BuildContext context) {
-    final persisted =
-        context.select<SettingsProvider, int>((p) => p.ankiCaptureDelaySec);
-    final value = _drag ?? persisted.toDouble();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-                ),
-                child: const Icon(Icons.timer_outlined,
-                    color: TurnaTheme.brandTeal, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      AppStrings.settingsLegacyCaptureDelayTitle,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w600, fontSize: 15),
-                    ),
-                    Text(
-                      '${value.round()} 秒',
-                      style: const TextStyle(
-                          fontSize: 12, color: TurnaTheme.textHint),
-                    ),
-                  ],
-                ),
-              ),
-              Text('${value.round()}s',
-                  style: const TextStyle(
-                      color: TurnaTheme.brandTeal,
-                      fontWeight: FontWeight.w700)),
-            ],
-          ),
-          Slider(
-            value: value,
-            min: 1,
-            max: 10,
-            divisions: 9,
-            activeColor: TurnaTheme.brandTeal,
-            label: '${value.round()}s',
-            onChanged: (v) => setState(() => _drag = v),
-            onChangeEnd: (v) {
-              _drag = null;
-              context
-                  .read<SettingsProvider>()
-                  .setAnkiCaptureDelaySec(v.round());
-            },
-          ),
-          Text(
-            AppStrings.settingsLegacyCaptureDelaySubtitle,
-            style: const TextStyle(fontSize: 11, color: TurnaTheme.textHint),
-          ),
-        ],
-      ),
     );
   }
 }
