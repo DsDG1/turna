@@ -9,7 +9,6 @@ dependencies:
   audioplayers: ^6.0.0
   auto_route: ^11.1.0
   crypto: ^3.0.7
-  cupertino_icons: ^1.0.2
   drift: ^2.22.1
   file_picker: ^8.1.4
   ffi: ^2.2.0
