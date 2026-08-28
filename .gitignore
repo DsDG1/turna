@@ -79,10 +79,15 @@ android/replay_pid*.log
 .tmp/
 .tmp_appdata/
 .tmp_localappdata/
-.dart-appdata/
+**/.dart-appdata/
 .commandcode/
 readmetest.md
 pubspec_overrides.yaml.disabled
+
+# AI-assistant / IDE session state (plans, memory dumps, tool caches)
+**/.zcode/plans/
+**/.deveco/
+**/.workbuddy/*.txt
 
 # Teacher-tool local textbook workspaces
 tool/var/
@@ -112,8 +117,9 @@ test/fixtures/anki_official/generated/
 
 # Temporarily vendored external reference repo (not part of this project)
 anki-decryptBack/
-.mimosa/hook-state/
-.mimosa/hook-status/
-.mimosa/reports/
-.mimosa/finding-ledger/
-.mimosa/security-scans/
+# Mimosa security-scanner session state. Leading "**/" so nested copies
+# (tool/gui/.mimosa, native/turna_anki_core/.mimosa) are also matched —
+# plain ".mimosa/x/" patterns are anchored to the repo root and miss them.
+# The root security-policy.json is project config and stays tracked.
+**/.mimosa/**
+!**/.mimosa/security-policy.json
