@@ -267,9 +267,12 @@ DTO `fromJson` 手写样板 codegen 化（~700 行）、Rust 操作表四处事�
 ### 12.2 验收实测（本机 Windows，flutter 侧）
 
 - `flutter analyze`：**0 issues**。
-- `flutter test`：全量绿，**除两组施工前即存在的 Windows 环境失败**（基线 74ae31c5 复现，与 doc 38 无关）：
-  - `official_anki_media_resolver_test.dart`（5 例）：fixture 向量含 `question?.png`/`hash#tag.bin` 文件名，Windows 下 `?`/`#` 非法（errno 123）；
-  - `official_anki_composition_test.dart` single-flight（1 例）：fake worker 的 catalog 连接不随测试 dispose，目录删除 errno 32。
+- `flutter test`：**施工前后逐例对照均为 29 例失败 → 施工后 28 例**，且 28 例与基线 74ae31c5 的失败集合**完全一致**（在基线提交点重跑全量套件比对确认）——全部为本机 Windows 环境预存失败，与 doc 38 无关：
+  - `official_anki_media_resolver_test.dart`（9 例）：fixture 向量含 `question?.png`/`hash#tag.bin` 文件名，Windows 下 `?`/`#` 非法（errno 123）；
+  - golden/无障碍快照（11 例：course_tree/dictionary/settings_reminder/srs_review/round2_accessibility）：Windows 字体渲染与基线快照差异；
+  - `official_anki_composition_test.dart` single-flight（1 例）：fake worker 的 catalog 连接不随测试 dispose，目录删除 errno 32；
+  - `anki_import_official_first_test`/`lesson_flow`/`backup_snapshot`/`reviewer_behavior`/`reviewer_ui_av`/`review_dashboard`/`review_progress_provider`/`review_history_dao`（8 例）：基线同样失败的集成/时序/大量数据用例。
+  - 施工引入且**已修复**的两例：diagnostics guard 测试对已删路由的 containsAll 断言（e9e3710f）；基线失败的 `official_anki_import_orchestrator` future-schema 文件锁反被 P4-C 的 dispose-on-failed-migration 修复（基线 29→施工后 28 的净来源）。
 - P4-A 指标（fake 引擎计量）：进入浏览页 renderCard FFI **1000→0**；每未缓存可见卡恰 **1** 次；缓存命中 **0** 次。
 - P5 指标（fake 引擎计量）：未变化源重复 `projectSource` 行读取批次 **N→0**（短路命中，`projectionBatchCalls` 不增）；行内容变更（override+generation bump）正确破短路全量重建。
 - P3 指标：SQL 条数为结构性收敛（描述符 1000 卡 2000 查询→**2** 条 JOIN；import 计数 2 次全表扫→**2** 条 `count()`）——本机无 cargo，运行时数字待工具链主机复验。
