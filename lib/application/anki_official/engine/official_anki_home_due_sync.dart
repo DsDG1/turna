@@ -12,7 +12,6 @@ import 'package:turna/application/anki_official/migration/official_anki_migratio
 import 'package:turna/application/anki_official/migration/official_anki_production_router.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
-import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/data/anki_import_dao.dart';
@@ -86,7 +85,13 @@ class OfficialAnkiHomeDueSync {
         );
         return;
       }
-      final catalog = OfficialAnkiDatabase.file(paths.catalogFile.path);
+      // Doc 38 P4-C: reuse the shared main-isolate locator handle instead
+      // of open/close per refresh; WAL + busy_timeout (database open)
+      // covers concurrent worker-isolate access.
+      await OfficialAnkiCompositionRoot.initializeReadOnlyLocator(
+        supportDir: support,
+      );
+      final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog!;
       try {
         final dao = OfficialAnkiMigrationDao(catalog);
         final sources = OfficialAnkiSourceDao(catalog);
@@ -271,7 +276,7 @@ class OfficialAnkiHomeDueSync {
           basedOnGeneration: baseGeneration,
         );
       } finally {
-        catalog.close();
+        // Shared locator handle: intentionally not closed here.
       }
     } on OfficialAnkiException catch (error) {
       if (error.code == OfficialAnkiErrorCode.pageTokenStale) rethrow;

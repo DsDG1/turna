@@ -9,21 +9,44 @@ const int kOfficialAnkiCatalogSchemaVersion = 9;
 /// Independent catalog. Must not live in CourseDatabase (downgrade wipes it).
 class OfficialAnkiDatabase {
   OfficialAnkiDatabase.memory() : _db = _openMemory() {
-    _migrate();
+    try {
+      _migrate();
+    } catch (_) {
+      // A failed migration (e.g. future schema version) must not leak the
+      // open handle — on Windows that keeps the file locked for the caller.
+      _db.dispose();
+      rethrow;
+    }
   }
 
   OfficialAnkiDatabase.file(String path) : _db = _openFile(path) {
-    _migrate();
+    try {
+      _migrate();
+    } catch (_) {
+      _db.dispose();
+      rethrow;
+    }
   }
 
   static Database _openMemory() {
     ensureOfficialAnkiSqlite();
-    return sqlite3.openInMemory();
+    return _configure(sqlite3.openInMemory());
   }
 
   static Database _openFile(String path) {
     ensureOfficialAnkiSqlite();
-    return sqlite3.open(path);
+    return _configure(sqlite3.open(path));
+  }
+
+  /// Doc 38 P4-C: the catalog is a multi-connection database (main isolate
+  /// locator + worker isolate + transient readers). Rollback journal with
+  /// no busy timeout risks SQLITE_BUSY on concurrent access; WAL plus a
+  /// 5s wait makes the cross-isolate readers safe. In-memory databases
+  /// ignore journal_mode=WAL, so the pragma is harmless there.
+  static Database _configure(Database db) {
+    db.execute('PRAGMA journal_mode = WAL');
+    db.execute('PRAGMA busy_timeout = 5000');
+    return db;
   }
 
   final Database _db;

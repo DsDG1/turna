@@ -181,9 +181,10 @@ class OfficialAnkiCompositionRoot {
       profileRoot: root,
     );
     await paths.ensureLayout();
-    OfficialAnkiCourseEntry.catalogOf = () {
-      return OfficialAnkiDatabase.file(paths.catalogFile.path);
-    };
+    // Doc 38 P4-C: the entry-page catalog hook must return the shared
+    // read locator handle. A per-call factory leaked one open connection
+    // per `resolveActiveSectionIds()` call.
+    OfficialAnkiCourseEntry.catalogOf = () => _ensureSharedCatalog(paths);
     final resolved = libraryPath ??
         resolveOfficialAnkiLibraryPath() ??
         (Platform.isAndroid ? 'libturna_anki.so' : null);
@@ -235,9 +236,26 @@ class OfficialAnkiCompositionRoot {
       profileRoot: Directory('${support.path}/official_anki/default'),
     );
     await paths.ensureLayout();
-    readOnlyCatalog = OfficialAnkiDatabase.file(paths.catalogFile.path);
+    _ensureSharedCatalog(paths);
+  }
+
+  static String? _sharedCatalogPath;
+
+  /// Opens (once per catalog file) and returns the main-isolate shared
+  /// catalog handle. Both the cold-start locator and the importer path land
+  /// here so exactly one main-isolate connection exists per file; the
+  /// worker isolate keeps its own. A different path (profile switch, tests)
+  /// swaps the handle and disposes the previous one.
+  static OfficialAnkiDatabase _ensureSharedCatalog(OfficialAnkiPaths paths) {
+    final wanted = paths.catalogFile.path;
+    final existing = readOnlyCatalog;
+    if (existing != null && _sharedCatalogPath == wanted) return existing;
+    final opened = OfficialAnkiDatabase.file(wanted);
+    existing?.close();
+    readOnlyCatalog = opened;
+    _sharedCatalogPath = wanted;
     locatorPaths = paths;
-    OfficialAnkiCourseEntry.catalogOf = () => readOnlyCatalog!;
+    return opened;
   }
 
   static OfficialAnkiCourseProjectionService createProjectionService({
