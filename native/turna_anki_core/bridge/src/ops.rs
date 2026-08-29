@@ -333,7 +333,7 @@ fn import_package(handle: u64, request: &[u8]) -> Result<Value, i32> {
                         .map_err(map_anki_error)?,
                 )
             };
-            crate::engine::bump_page_generation(&mut engine);
+            crate::engine::bump_content_generation(&mut engine);
             Ok(json!({
                 "new_note_ids": log_ids(&log.new),
                 "updated_note_ids": log_ids(&log.updated),
@@ -500,6 +500,7 @@ fn set_current_deck(handle: u64, request: &[u8]) -> Result<Value, i32> {
             .map_err(map_anki_error)?;
     }
     engine.invalidate_tokens();
+    crate::engine::bump_page_generation(&mut engine);
     Ok(json!({
         "deckId": parsed.deck_id,
         "queueEpoch": engine.queue_epoch,
@@ -749,6 +750,7 @@ fn answer_card(handle: u64, request: &[u8]) -> Result<Value, i32> {
                 }
             }
             engine.invalidate_tokens();
+            crate::engine::bump_page_generation(&mut engine);
             Ok(json!({
                 "clientMutationId": parsed.client_mutation_id,
                 "cardId": parsed.card_id,
@@ -809,6 +811,7 @@ fn undo(handle: u64) -> Result<Value, i32> {
     };
     result?;
     engine.invalidate_tokens();
+    crate::engine::bump_content_generation(&mut engine);
     Ok(json!({
         "ok": true,
         "undone": true,
@@ -829,6 +832,7 @@ fn redo(handle: u64) -> Result<Value, i32> {
     };
     result?;
     engine.invalidate_tokens();
+    crate::engine::bump_content_generation(&mut engine);
     Ok(json!({
         "ok": true,
         "redone": true,
@@ -908,6 +912,7 @@ fn bury_or_suspend(handle: u64, request: &[u8]) -> Result<Value, i32> {
         _ => return Err(STATUS_INVALID_ARGUMENT),
     }
     engine.invalidate_tokens();
+    crate::engine::bump_page_generation(&mut engine);
     Ok(json!({
         "mode": mode,
         "cardIds": ids,
@@ -937,6 +942,7 @@ fn delete_notes(handle: u64, request: &[u8]) -> Result<Value, i32> {
         col.remove_notes(&nids).map_err(map_anki_error)?.output
     };
     engine.invalidate_tokens();
+    crate::engine::bump_content_generation(&mut engine);
     Ok(json!({
         "ok": true,
         "removedCards": removed_cards,
@@ -970,6 +976,7 @@ fn delete_cards(handle: u64, request: &[u8]) -> Result<Value, i32> {
         .count
     };
     engine.invalidate_tokens();
+    crate::engine::bump_content_generation(&mut engine);
     Ok(json!({
         "ok": true,
         "removedCards": removed,
@@ -1108,6 +1115,7 @@ fn schedule_cards_as_new(handle: u64, request: &[u8]) -> Result<Value, i32> {
         ids.len()
     };
     engine.invalidate_tokens();
+    crate::engine::bump_page_generation(&mut engine);
     Ok(json!({
         "ok": true,
         "scheduledCards": scheduled,
@@ -1238,6 +1246,7 @@ fn answer_ahead_cards(handle: u64, request: &[u8]) -> Result<Value, i32> {
     let _ = col.remove_decks_and_child_decks(&[filtered_id]);
     let _ = col.set_current_deck(previous_deck);
     engine.invalidate_tokens();
+    crate::engine::bump_page_generation(&mut engine);
     Ok(json!({
         "answeredCards": answered,
         "skippedRatedToday": skipped_rated_today,
@@ -1300,6 +1309,7 @@ fn ensure_today_new_quota(handle: u64, request: &[u8]) -> Result<Value, i32> {
     })
     .map_err(map_anki_error)?;
     engine.invalidate_tokens();
+    crate::engine::bump_page_generation(&mut engine);
     Ok(json!({ "extendedBy": new_extend }))
 }
 

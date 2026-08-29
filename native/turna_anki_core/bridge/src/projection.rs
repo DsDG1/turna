@@ -362,7 +362,7 @@ pub fn begin_projection_read(handle: u64, request: &[u8]) -> Result<Value, i32> 
     if engine.state != crate::engine::EngineState::Open {
         return Err(STATUS_INVALID_STATE);
     }
-    let generation = engine.page_generation;
+    let generation = engine.content_generation;
     let token = token_for(
         generation,
         &parsed.card_set_fingerprint,
@@ -386,7 +386,7 @@ fn require_snapshot<'a>(engine: &'a Engine, token: &str) -> Result<&'a Projectio
         .as_ref()
         .ok_or(STATUS_PROJECTION_SNAPSHOT_STALE)?;
     if snap.token != token
-        || snap.collection_generation != engine.page_generation
+        || snap.collection_generation != engine.content_generation
         || snap.card_set_fingerprint.is_empty()
     {
         return Err(STATUS_PROJECTION_SNAPSHOT_STALE);
@@ -680,6 +680,87 @@ mod tests {
         let _ = fs::remove_dir_all(root);
     }
 
+    /// Doc 38 P2: answering only bumps `page_generation`; the content
+    /// generation (and therefore this snapshot) survives. Deleting the note
+    /// bumps the content generation and must stale the snapshot.
+    #[test]
+    fn answer_keeps_projection_snapshot_but_delete_invalidates() {
+        let pkg = package_path("08-scheduling.apkg");
+        if !pkg.exists() {
+            return;
+        }
+        let (root, handle) = temp_open();
+        call(
+            handle,
+            OP_IMPORT_PACKAGE,
+            json!({
+                "package_path": pkg.to_string_lossy(),
+                "with_scheduling": true,
+                "with_deck_configs": true,
+            }),
+        )
+        .unwrap();
+        let begin = call(
+            handle,
+            OP_BEGIN_PROJECTION_READ,
+            json!({ "cardSetFingerprint": "abc", "mappingVersion": 1 }),
+        )
+        .unwrap();
+        let token = begin["snapshotToken"].as_str().unwrap().to_string();
+
+        call(handle, crate::engine::OP_SET_CURRENT_DECK, json!({"deckId": 1})).unwrap();
+        let queue = call(
+            handle,
+            crate::engine::OP_GET_REVIEW_QUEUE,
+            json!({"fetchLimit": 1}),
+        )
+        .unwrap();
+        let card_id = queue["cards"][0]["cardId"].as_i64().unwrap();
+        let answer_token = queue["cards"][0]["answerToken"].as_str().unwrap();
+        call(
+            handle,
+            crate::engine::OP_ANSWER_CARD,
+            json!({
+                "cardId": card_id,
+                "rating": "good",
+                "answerToken": answer_token,
+                "millisecondsTaken": 1000
+            }),
+        )
+        .unwrap();
+
+        let rows = call(
+            handle,
+            OP_GET_PROJECTION_ROWS_BATCH,
+            json!({ "cardIds": [card_id], "snapshotToken": token }),
+        )
+        .unwrap();
+        assert_eq!(rows["rows"].as_array().unwrap().len(), 1);
+
+        let descriptors = call(
+            handle,
+            crate::engine::OP_GET_CARD_DESCRIPTORS_BATCH,
+            json!({ "card_ids": [card_id] }),
+        )
+        .unwrap();
+        let note_id = descriptors["cards"][0]["noteId"].as_i64().unwrap();
+        call(
+            handle,
+            crate::engine::OP_DELETE_NOTES,
+            json!({ "noteIds": [note_id] }),
+        )
+        .unwrap();
+        let err = call(
+            handle,
+            OP_GET_PROJECTION_ROWS_BATCH,
+            json!({ "cardIds": [card_id], "snapshotToken": token }),
+        )
+        .unwrap_err();
+        assert_eq!(err, STATUS_PROJECTION_SNAPSHOT_STALE);
+        free_engine(handle).unwrap();
+        let _ = fs::remove_dir_all(root);
+    }
+
     #[test]
     fn stale_snapshot_after_reimport() {
         let pkg = package_path("01-basic-unicode.apkg");
@@ -704,7 +785,9 @@ mod tests {
         )
         .unwrap();
         let token = begin["snapshotToken"].as_str().unwrap().to_string();
-        crate::engine::bump_page_generation(&mut slot(handle).unwrap().engine.lock().unwrap());
+        crate::engine::bump_content_generation(
+            &mut slot(handle).unwrap().engine.lock().unwrap(),
+        );
         let err = call(
             handle,
             OP_GET_PROJECTION_ROWS_BATCH,

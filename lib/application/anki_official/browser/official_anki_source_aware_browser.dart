@@ -1,4 +1,5 @@
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
+import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
@@ -203,17 +204,11 @@ class OfficialAnkiSourceAwareBrowser {
     }
 
     final search = _officialSearch(filter);
-    final ids = <int>[];
-    String? pageToken;
-    do {
-      final page = await engine.searchCardsPage(
-        search: search,
-        pageSize: 1000,
-        pageToken: pageToken,
-      );
-      ids.addAll(page.cardIds.where(allowed.contains));
-      pageToken = page.nextPageToken;
-    } while (pageToken != null && pageToken.isNotEmpty);
+    final ids = await _collectCardIds(
+      engine,
+      search: search,
+      allowed: allowed,
+    );
 
     final liveById = <int, OfficialAnkiCardDescriptor>{};
     for (var start = 0; start < ids.length; start += 1000) {
@@ -266,6 +261,38 @@ class OfficialAnkiSourceAwareBrowser {
       rows: out,
       availability: OfficialBrowserAvailability.available,
     );
+  }
+
+  /// Doc 38 P2: a mutating op during pagination (background answer, deck
+  /// switch) bumps the engine's page generation and stale our token with
+  /// PAGE_TOKEN_STALE. The whole paged sweep restarts once with a fresh
+  /// token; a second stale propagates to the caller.
+  Future<List<int>> _collectCardIds(
+    OfficialAnkiEngine engine, {
+    required String search,
+    required Set<int> allowed,
+  }) async {
+    for (var attempt = 0; ; attempt++) {
+      try {
+        final ids = <int>[];
+        String? pageToken;
+        do {
+          final page = await engine.searchCardsPage(
+            search: search,
+            pageSize: 1000,
+            pageToken: pageToken,
+          );
+          ids.addAll(page.cardIds.where(allowed.contains));
+          pageToken = page.nextPageToken;
+        } while (pageToken != null && pageToken.isNotEmpty);
+        return ids;
+      } on OfficialAnkiException catch (error) {
+        if (attempt >= 1 ||
+            error.code != OfficialAnkiErrorCode.pageTokenStale) {
+          rethrow;
+        }
+      }
+    }
   }
 
   String _officialSearch(OfficialBrowserFilter filter) {

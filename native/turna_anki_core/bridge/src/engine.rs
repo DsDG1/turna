@@ -152,6 +152,7 @@ pub struct Engine {
     pub debug_fail_after_commit: bool,
     pub allow_injected_answered_at: bool,
     pub page_generation: u64,
+    pub content_generation: u64,
     pub page_snapshot: Option<PageSnapshot>,
     pub projection_snapshot: Option<crate::projection::ProjectionSnapshot>,
     pub allowed_root: Option<PathBuf>,
@@ -175,6 +176,7 @@ impl Engine {
             debug_fail_after_commit: false,
             allow_injected_answered_at: false,
             page_generation: 1,
+            content_generation: 1,
             page_snapshot: None,
             projection_snapshot: None,
             allowed_root: None,
@@ -317,9 +319,7 @@ pub fn open_collection(handle: u64, request: &[u8]) -> Result<LifecycleResponse,
     engine.media_db = Some(paths.media_db);
     engine.allowed_root = paths.allowed_root;
     engine.state = EngineState::Open;
-    engine.page_generation = engine.page_generation.wrapping_add(1).max(1);
-    engine.page_snapshot = None;
-    engine.projection_snapshot = None;
+    bump_content_generation(&mut engine);
     engine.committed_mutations.clear();
     engine.invalidate_tokens();
     Ok(LifecycleResponse {
@@ -358,10 +358,23 @@ pub fn check_collection(handle: u64) -> Result<LifecycleResponse, i32> {
     }
 }
 
+/// Advances the paging generation only. Gates `SEARCH_CARDS_PAGE` tokens
+/// and the cached page snapshot. Scheduling-only mutations (answer, bury,
+/// deck switch) call this: they change search results but not note/card
+/// content, so projection snapshots must survive them (doc 38 P2).
 pub fn bump_page_generation(engine: &mut Engine) {
     engine.page_generation = engine.page_generation.wrapping_add(1).max(1);
     engine.page_snapshot = None;
+}
+
+/// Advances the content generation (and paging: content changes also alter
+/// search results). Gates `BEGIN_PROJECTION_READ.collectionGeneration` and
+/// the projection snapshot. Called by content-changing ops: import, delete,
+/// undo/redo, restore, reopen.
+pub fn bump_content_generation(engine: &mut Engine) {
+    engine.content_generation = engine.content_generation.wrapping_add(1).max(1);
     engine.projection_snapshot = None;
+    bump_page_generation(engine);
 }
 
 pub fn reopen_open_collection(engine: &mut Engine, slot: &EngineSlot) -> Result<(), i32> {
@@ -379,9 +392,9 @@ pub fn reopen_open_collection(engine: &mut Engine, slot: &EngineSlot) -> Result<
         .map_err(|_| STATUS_COLLECTION_OPEN_FAILED)?;
     engine.collection = Some(built);
     engine.state = EngineState::Open;
-    engine.page_generation = engine.page_generation.wrapping_add(1).max(1);
-    engine.page_snapshot = None;
-    engine.projection_snapshot = None;
+    // Conservative: a reopen cannot prove the on-disk collection is
+    // unchanged (restore_backup swaps the file), so treat it as content.
+    bump_content_generation(&mut engine);
     engine.invalidate_tokens();
     Ok(())
 }

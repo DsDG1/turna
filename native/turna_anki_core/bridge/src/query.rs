@@ -261,6 +261,87 @@ mod tests {
         (root, handle)
     }
 
+    /// Doc 38 P2: mutating ops bump `page_generation`, so an old page token
+    /// must fail with PAGE_TOKEN_STALE and the next cold search must see the
+    /// post-mutation world instead of the cached snapshot.
+    #[test]
+    fn delete_notes_rebuilds_page_snapshot_and_stales_old_token() {
+        let (root, handle) = open_imported();
+        let first = dispatch(
+            handle,
+            OP_SEARCH_CARDS_PAGE,
+            &serde_json::to_vec(&json!({"search": "", "page_size": 1})).unwrap(),
+        )
+        .unwrap();
+        let token = first["nextPageToken"].as_str().unwrap().to_string();
+        let total_before = first["totalHint"].as_u64().unwrap();
+
+        let card_id = first["cardIds"][0].as_i64().unwrap();
+        let descriptors = dispatch(
+            handle,
+            crate::engine::OP_GET_CARD_DESCRIPTORS_BATCH,
+            &serde_json::to_vec(&json!({"card_ids": [card_id]})).unwrap(),
+        )
+        .unwrap();
+        let note_id = descriptors["cards"][0]["noteId"].as_i64().unwrap();
+        dispatch(
+            handle,
+            crate::engine::OP_DELETE_NOTES,
+            &serde_json::to_vec(&json!({"noteIds": [note_id]})).unwrap(),
+        )
+        .unwrap();
+
+        let stale = dispatch(
+            handle,
+            OP_SEARCH_CARDS_PAGE,
+            &serde_json::to_vec(&json!({"search": "", "page_size": 1, "page_token": token}))
+                .unwrap(),
+        )
+        .unwrap_err();
+        assert_eq!(stale, STATUS_PAGE_TOKEN_STALE);
+        let after = dispatch(
+            handle,
+            OP_SEARCH_CARDS_PAGE,
+            &serde_json::to_vec(&json!({"search": "", "page_size": 1000})).unwrap(),
+        )
+        .unwrap();
+        // The deleted note may own more than one card (reversed templates),
+        // so assert the count dropped rather than an exact delta.
+        assert!(after["totalHint"].as_u64().unwrap() < total_before);
+        free_engine(handle).unwrap();
+        let _ = std::fs::remove_dir_all(root);
+    }
+
+    /// Doc 38 P2 (V1): `get_review_queue` goes through
+    /// `begin_queue_epoch -> invalidate_tokens` only. It must NOT touch the
+    /// page snapshot, or browsing cache would die on every queue fetch.
+    #[test]
+    fn get_review_queue_keeps_page_snapshot_cached() {
+        let (root, handle) = open_imported();
+        dispatch(
+            handle,
+            OP_SEARCH_CARDS_PAGE,
+            &serde_json::to_vec(&json!({"search": "", "page_size": 1})).unwrap(),
+        )
+        .unwrap();
+        for _ in 0..2 {
+            let _ = dispatch(
+                handle,
+                crate::engine::OP_GET_REVIEW_QUEUE,
+                &serde_json::to_vec(&json!({"fetchLimit": 1})).unwrap(),
+            );
+        }
+        let slot_arc = slot(handle).unwrap();
+        let engine = slot_arc.engine.lock().unwrap();
+        assert!(
+            engine.page_snapshot.is_some(),
+            "queue fetches must not clear the page snapshot"
+        );
+        drop(engine);
+        free_engine(handle).unwrap();
+        let _ = std::fs::remove_dir_all(root);
+    }
+
     #[test]
     fn paged_search_has_no_note_fields_and_stale_token_fails() {
         let (root, handle) = open_imported();

@@ -46,7 +46,21 @@ class OfficialAnkiHomeDueSync {
     }
   }
 
+  /// Doc 38 P2: mutating scheduler ops bump the engine's page generation,
+  /// so a background answer during pagination can stale our page token
+  /// (PAGE_TOKEN_STALE, recoverable). One bounded restart with a fresh
+  /// token; a second stale within the same refresh falls through to
+  /// markUnavailable like any other failure.
   Future<void> _refreshOnce() async {
+    try {
+      await _collectAndCommit();
+    } on OfficialAnkiException catch (error) {
+      if (error.code != OfficialAnkiErrorCode.pageTokenStale) rethrow;
+      await _collectAndCommit();
+    }
+  }
+
+  Future<void> _collectAndCommit() async {
     final repo = OfficialFormalDueRepository.instance;
     if (!LegacyAnkiMigrationFlags.cutoverEnabled) {
       // Owner routing still needs recorded Official ids (doc 34 W0-06).
@@ -259,10 +273,13 @@ class OfficialAnkiHomeDueSync {
       } finally {
         catalog.close();
       }
-    } catch (error) {
+    } on OfficialAnkiException catch (error) {
+      if (error.code == OfficialAnkiErrorCode.pageTokenStale) rethrow;
       // Failed refresh: keep the last good six sets and mark unavailable —
       // never zero, never a partial guess (plan 34 R3-3). The repository
       // was never touched mid-collect, so there is nothing to roll back.
+      repo.markUnavailable(error);
+    } catch (error) {
       repo.markUnavailable(error);
     }
   }
