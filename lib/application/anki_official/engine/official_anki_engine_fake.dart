@@ -1,4 +1,5 @@
 import 'package:turna/application/anki_official/contract/official_anki_contract.dart';
+import 'dart:collection';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
@@ -36,7 +37,7 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
   var collectionGeneration = 1;
   String? projectionToken;
   String? projectionFingerprint;
-  final projectionRowOverrides = <int, OfficialAnkiProjectionRow>{};
+  late final projectionRowOverrides = _RowOverrideMap(this);
   final projectionBatchSizes = <int>[];
   var projectionBatchCalls = 0;
   final missingOnRead = <int>{};
@@ -948,5 +949,45 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
   Future<void> dispose() async {
     disposed = true;
     openProfileId = null;
+  }
+}
+
+/// Test-side row-content overrides must still honor the engine contract
+/// (doc 38 P2/P5): any content change advances the content generation, or
+/// the scan-fingerprint short-circuit would misjudge an overridden source
+/// as unchanged.
+class _RowOverrideMap extends MapBase<int, OfficialAnkiProjectionRow> {
+  _RowOverrideMap(this._fake);
+
+  final FakeOfficialAnkiEngine _fake;
+  final _map = <int, OfficialAnkiProjectionRow>{};
+
+  void _bump() {
+    _fake.collectionGeneration += 1;
+  }
+
+  @override
+  OfficialAnkiProjectionRow? operator [](Object? key) => _map[key];
+
+  @override
+  void operator []=(int key, OfficialAnkiProjectionRow value) {
+    _map[key] = value;
+    _bump();
+  }
+
+  @override
+  void clear() {
+    _map.clear();
+    _bump();
+  }
+
+  @override
+  Iterable<int> get keys => _map.keys;
+
+  @override
+  OfficialAnkiProjectionRow? remove(Object? key) {
+    final removed = _map.remove(key);
+    if (removed != null) _bump();
+    return removed;
   }
 }

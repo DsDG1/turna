@@ -386,6 +386,14 @@ class OfficialAnkiCourseProjectionService {
         cardSetFingerprint: scan.cardSetFingerprint,
         totalCards: scan.total,
       );
+      // Doc 38 P5: both inputs of the scan fingerprint are available before
+      // any row is read — engine identity (backendCommit) and the content
+      // generation (a light BEGIN_PROJECTION_READ; no row traffic).
+      final info = await engine.engineInfo();
+      final earlySnapshot = await engine.beginProjectionRead(
+        cardSetFingerprint: scan.cardSetFingerprint,
+        mappingVersion: mappingVersion,
+      );
       final schemas = await engine.getProjectionSchemas(
         includeSamples: true,
         sampleLimit: 30,
@@ -422,6 +430,38 @@ class OfficialAnkiCourseProjectionService {
         schemaFingerprint: officialAnkiSchemaSetFingerprint(schemas),
         mappingFingerprint: officialAnkiConfirmedMappingHash(mappings),
       );
+      // Doc 38 P5 scan short-circuit: when every non-row factor matches the
+      // last successful publish AND the manifest row still exists, the row
+      // payloads cannot have changed (see doc 38 §7.1 soundness argument) —
+      // skip the full row read and re-hash entirely.
+      final scanFingerprint = officialAnkiProjectionScanFingerprint(
+        contractMajor: kOfficialAnkiContractMajor,
+        contractMinor: kOfficialAnkiContractMinor,
+        backendCommit: info.backendCommit,
+        profileId: profileId,
+        sourceId: sourceId,
+        orderedCardSetFingerprint: scan.cardSetFingerprint,
+        collectionGeneration: earlySnapshot.collectionGeneration,
+        schemasFingerprint: officialAnkiSchemaSetFingerprint(schemas),
+        mappingVersion: mappingVersion,
+        confirmedMappingHash: officialAnkiConfirmedMappingHash(mappings),
+      );
+      final active = await _activeFingerprints();
+      if (active.scan == scanFingerprint && active.full != null) {
+        jobs.markActive(
+          jobId: job.jobId,
+          ownerToken: ownerToken,
+          nowMillis: DateTime.now().millisecondsSinceEpoch,
+          sourceFingerprint: active.full!,
+        );
+        return OfficialAnkiProjectionPublishResult(
+          noop: true,
+          itemCount: scan.total,
+          fingerprint: active.full!,
+          rowCount: scan.total,
+          jobId: job.jobId,
+        );
+      }
       final rowsResult = await _readRows(
         jobId: job.jobId,
         cardSetFingerprint: scan.cardSetFingerprint,
@@ -431,7 +471,6 @@ class OfficialAnkiCourseProjectionService {
       if (rowsResult.cancelled) return rowsResult.result;
       if (rowsResult.failed) return rowsResult.result;
       final rows = rowsResult.rows;
-      final info = await engine.engineInfo();
       final fingerprint = fingerprintFor(
         cardSetFingerprint: scan.cardSetFingerprint,
         rows: rows,
@@ -537,6 +576,7 @@ class OfficialAnkiCourseProjectionService {
       _setSourceState(
         'active',
         fingerprint: fingerprint,
+        scanFingerprint: scanFingerprint,
         count: plan.items.length,
         jobId: job.jobId,
       );
@@ -979,26 +1019,34 @@ class OfficialAnkiCourseProjectionService {
   /// (and any course-DB wipe) drops the projection tables without touching
   /// the catalog, which would otherwise no-op the next publish forever.
   /// Treat the state as absent unless the course manifest row is still there.
-  Future<String?> _activeFingerprint() async {
+  Future<String?> _activeFingerprint() async =>
+      (await _activeFingerprints()).full;
+
+  /// Full + scan fingerprints of the last successful publish, nulled unless
+  /// the course manifest row still exists (same fail-safe as above).
+  Future<({String? full, String? scan})> _activeFingerprints() async {
     final rows = catalog.handle.select(
-      'SELECT source_fingerprint FROM anki_source_projection_state WHERE source_id = ?',
+      'SELECT source_fingerprint, scan_fingerprint '
+      'FROM anki_source_projection_state WHERE source_id = ?',
       [sourceId],
     );
-    if (rows.isEmpty) return null;
-    final fingerprint = rows.first['source_fingerprint'] as String?;
-    if (fingerprint == null || fingerprint.isEmpty) return null;
+    if (rows.isEmpty) return (full: null, scan: null);
+    final full = rows.first['source_fingerprint'] as String?;
+    final scan = rows.first['scan_fingerprint'] as String?;
+    if (full == null || full.isEmpty) return (full: null, scan: null);
     final manifest = await course.customSelect(
       'SELECT 1 FROM official_anki_projection_manifest '
       'WHERE source_id = ? LIMIT 1',
       variables: [Variable<String>(sourceId)],
     ).get();
-    if (manifest.isEmpty) return null;
-    return fingerprint;
+    if (manifest.isEmpty) return (full: null, scan: null);
+    return (full: full, scan: scan);
   }
 
   void _setSourceState(
     String state, {
     String? fingerprint,
+    String? scanFingerprint,
     int count = 0,
     String? jobId,
   }) {
@@ -1006,9 +1054,17 @@ class OfficialAnkiCourseProjectionService {
     catalog.handle.execute(
       'INSERT OR REPLACE INTO anki_source_projection_state '
       '(source_id, state, active_projection_version, source_fingerprint, '
-      'projected_card_count, last_projected_at_millis, active_job_id) '
-      'VALUES (?, ?, 1, ?, ?, ?, ?)',
-      [sourceId, state, fingerprint, count, now, jobId ?? _currentJobId],
+      'projected_card_count, last_projected_at_millis, active_job_id, '
+      'scan_fingerprint) VALUES (?, ?, 1, ?, ?, ?, ?, ?)',
+      [
+        sourceId,
+        state,
+        fingerprint,
+        count,
+        now,
+        jobId ?? _currentJobId,
+        scanFingerprint,
+      ],
     );
   }
 }

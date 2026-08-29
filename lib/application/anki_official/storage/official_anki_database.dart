@@ -4,7 +4,7 @@ import 'package:sqlite3/sqlite3.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/storage/official_anki_sqlite.dart';
 
-const int kOfficialAnkiCatalogSchemaVersion = 9;
+const int kOfficialAnkiCatalogSchemaVersion = 10;
 
 /// Independent catalog. Must not live in CourseDatabase (downgrade wipes it).
 class OfficialAnkiDatabase {
@@ -94,6 +94,9 @@ class OfficialAnkiDatabase {
       }
       if (version <= 8) {
         _upgradeToV9();
+      }
+      if (version <= 9) {
+        _upgradeToV10();
       }
       _db.execute('PRAGMA user_version = $kOfficialAnkiCatalogSchemaVersion');
       _db.execute('COMMIT');
@@ -412,6 +415,22 @@ CREATE TABLE IF NOT EXISTS anki_source_reconciliation_journal (
       'CREATE INDEX IF NOT EXISTS anki_source_reconciliation_journal_profile_idx '
       'ON anki_source_reconciliation_journal(profile_id, updated_at_millis)',
     );
+  }
+
+  /// Doc 38 P5: scan fingerprint of the last successful publish — the
+  /// no-op short-circuit input. NULL = unknown → one full projection pass.
+  void _upgradeToV10() {
+    final hasColumn = _db
+        .select(
+          "SELECT name FROM pragma_table_info('anki_source_projection_state') "
+          "WHERE name='scan_fingerprint'",
+        )
+        .isNotEmpty;
+    if (!hasColumn) {
+      _db.execute(
+        'ALTER TABLE anki_source_projection_state ADD COLUMN scan_fingerprint TEXT',
+      );
+    }
   }
 
   void close() => _db.dispose();

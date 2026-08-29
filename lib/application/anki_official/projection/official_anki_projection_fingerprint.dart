@@ -33,6 +33,44 @@ String officialAnkiSchemaSetFingerprint(
   return sha256.convert(utf8.encode(rows.join('|'))).toString();
 }
 
+/// Doc 38 P5: every factor of [officialAnkiProjectionFingerprint] except
+/// the row payloads. Comparing it against the persisted `scan_fingerprint`
+/// proves the source is unchanged WITHOUT reading every projection row —
+/// the cheap gate in front of the (authoritative) full comparison.
+String officialAnkiProjectionScanFingerprint({
+  required int contractMajor,
+  required int contractMinor,
+  required String backendCommit,
+  required String profileId,
+  required String sourceId,
+  required String orderedCardSetFingerprint,
+  required int collectionGeneration,
+  required String schemasFingerprint,
+  required int mappingVersion,
+  required String confirmedMappingHash,
+  int algorithmVersion = officialAnkiProjectionAlgorithmVersion,
+}) {
+  return sha256
+      .convert(
+        utf8.encode(
+          [
+            contractMajor,
+            contractMinor,
+            backendCommit,
+            profileId,
+            sourceId,
+            orderedCardSetFingerprint,
+            collectionGeneration,
+            schemasFingerprint,
+            mappingVersion,
+            confirmedMappingHash,
+            algorithmVersion,
+          ].join('|'),
+        ),
+      )
+      .toString();
+}
+
 String officialAnkiProjectionFingerprint({
   required int contractMajor,
   required int contractMinor,

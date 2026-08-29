@@ -188,47 +188,70 @@ class OfficialAnkiCourseProjectionStore {
         statements++;
         tick();
       }
-      for (final item in plan.items) {
+      // Doc 38 P5: multi-row inserts in ≤200-row blocks instead of 1–2
+      // awaited statements per card (O(cards) was the dominant publish cost;
+      // 200×9 columns stays far under SQLite's 32766-variable ceiling).
+      const insertChunk = 200;
+      String indexFingerprintFor(String itemFingerprint) =>
+          sourceFingerprint.isEmpty ? itemFingerprint : sourceFingerprint;
+      for (var start = 0; start < plan.items.length; start += insertChunk) {
+        final chunk = plan.items.skip(start).take(insertChunk).toList();
+        final values = List.filled(
+          chunk.length,
+          '(?, ?, ?, ?, ?, ?, ?, ?, 1)',
+        ).join(',');
         await course.customStatement(
           'INSERT INTO official_anki_projection_index '
           '(source_id, card_id, word_id, section_id, unit_id, lesson_id, '
           'projection_kind, source_fingerprint, projection_version) '
-          'VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)',
+          'VALUES $values',
           [
-            sourceId,
-            item.cardId,
-            item.wordId,
-            item.sectionId,
-            item.unitId,
-            item.lessonId,
-            item.kind.name,
-            sourceFingerprint.isEmpty
-                ? item.sourceFingerprint
-                : sourceFingerprint,
+            for (final item in chunk)
+              ...[
+                sourceId,
+                item.cardId,
+                item.wordId,
+                item.sectionId,
+                item.unitId,
+                item.lessonId,
+                item.kind.name,
+                indexFingerprintFor(item.sourceFingerprint),
+              ],
           ],
         );
         statements++;
         tick();
-        final vocab = item.vocabulary;
-        if (vocab != null) {
-          // P5F-33 controlled vocabulary channel: one row per card, tagged
-          // `official:<sourceId>`; built-in and legacy rows are never touched
-          // because ids are the official word ids and deletes are index-driven.
-          await course.customStatement(
-            'INSERT OR REPLACE INTO vocabulary '
-            '(id, term, translation, pronunciation, audio_asset, tags) '
-            "VALUES (?, ?, ?, ?, ?, '[\"official:$sourceId\"]')",
-            [
-              item.wordId,
-              vocab.term,
-              vocab.translation,
-              vocab.pronunciation,
-              vocab.audioAsset,
-            ],
-          );
-          statements++;
-          tick();
-        }
+      }
+      // P5F-33 controlled vocabulary channel: one row per card, tagged
+      // `official:<sourceId>`; built-in and legacy rows are never touched
+      // because ids are the official word ids and deletes are index-driven.
+      final vocabItems = [
+        for (final item in plan.items)
+          if (item.vocabulary != null) item,
+      ];
+      for (var start = 0; start < vocabItems.length; start += insertChunk) {
+        final chunk = vocabItems.skip(start).take(insertChunk).toList();
+        final values = List.filled(
+          chunk.length,
+          "(?, ?, ?, ?, ?, '[\"official:$sourceId\"]')",
+        ).join(',');
+        await course.customStatement(
+          'INSERT OR REPLACE INTO vocabulary '
+          '(id, term, translation, pronunciation, audio_asset, tags) '
+          'VALUES $values',
+          [
+            for (final item in chunk)
+              ...[
+                item.wordId,
+                item.vocabulary!.term,
+                item.vocabulary!.translation,
+                item.vocabulary!.pronunciation,
+                item.vocabulary!.audioAsset,
+              ],
+          ],
+        );
+        statements++;
+        tick();
       }
       await course.customStatement(
         'DELETE FROM official_anki_projection_manifest WHERE source_id = ?',
@@ -436,20 +459,29 @@ class OfficialAnkiCourseProjectionStore {
         ))
           row.read<String>('lesson_id'),
     };
-    for (final lessonId in lessonIds) {
+    // Doc 38 P5: one chunked DELETE ... IN per table instead of one awaited
+    // statement per lesson/unit/section.
+    await _deleteIdsChunked('lesson_contents', 'lesson_id', lessonIds);
+    await _deleteIdsChunked('lessons', 'id', lessonIds);
+    await _deleteIdsChunked('units', 'id', unitIds);
+    await _deleteIdsChunked('sections', 'id', sectionIds);
+  }
+
+  /// [table]/[column] are hardcoded literals from [_deleteOwnedTree]; ids
+  /// are bound parameters in ≤200-element IN lists.
+  Future<void> _deleteIdsChunked(
+    String table,
+    String column,
+    Set<String> ids,
+  ) async {
+    const chunkSize = 200;
+    final ordered = ids.toList()..sort();
+    for (var start = 0; start < ordered.length; start += chunkSize) {
+      final chunk = ordered.skip(start).take(chunkSize).toList();
+      final placeholders = List.filled(chunk.length, '?').join(',');
       await course.customStatement(
-        'DELETE FROM lesson_contents WHERE lesson_id = ?',
-        [lessonId],
-      );
-      await course.customStatement('DELETE FROM lessons WHERE id = ?', [lessonId]);
-    }
-    for (final unitId in unitIds) {
-      await course.customStatement('DELETE FROM units WHERE id = ?', [unitId]);
-    }
-    for (final sectionId in sectionIds) {
-      await course.customStatement(
-        'DELETE FROM sections WHERE id = ?',
-        [sectionId],
+        'DELETE FROM $table WHERE $column IN ($placeholders)',
+        chunk,
       );
     }
   }

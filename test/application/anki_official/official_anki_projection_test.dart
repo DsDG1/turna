@@ -601,6 +601,38 @@ void main() {
     expect(contents.first.contentJson.contains('afmt'), isFalse);
   });
 
+  test('unchanged source re-publish short-circuits without row reads', () async {
+    final env = _serviceEnv(cards: 5);
+    addTearDown(env.dispose);
+    final first = await env.service.projectSource();
+    expect(first.noop, isFalse);
+    final batchCallsAfterPublish = env.fake.projectionBatchCalls;
+    expect(batchCallsAfterPublish, greaterThan(0));
+    // Doc 38 P5: the second publish of an unchanged source must hit the
+    // persisted scan_fingerprint short-circuit — zero projection row reads.
+    final second = await env.service.projectSource();
+    expect(second.noop, isTrue);
+    expect(env.fake.projectionBatchCalls, batchCallsAfterPublish,
+        reason: 'scan short-circuit must not read projection rows');
+    // A content change (row override bumps the fake's generation) must
+    // break the short-circuit and rebuild.
+    env.fake.projectionRowOverrides[4] = OfficialAnkiProjectionRow(
+      cardId: 4,
+      noteId: 4,
+      noteGuid: 'guid-4',
+      notetypeId: 1,
+      deckId: 99,
+      deckPath: const ['Other', 'Moved'],
+      templateOrdinal: 0,
+      tags: const <String>[],
+      fields: const ['moved', '已迁移'],
+      sourceFingerprint: 'moved-4',
+    );
+    final rebuilt = await env.service.projectSource();
+    expect(rebuilt.noop, isFalse);
+    expect(env.fake.projectionBatchCalls, greaterThan(batchCallsAfterPublish));
+  });
+
   test('locked placement overrides survive a rebuild', () async {
     final env = _serviceEnv();
     addTearDown(env.dispose);
