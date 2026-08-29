@@ -16,7 +16,6 @@ class DiagnosticsReleaseGuard extends AutoRouteGuard {
   const DiagnosticsReleaseGuard();
 
   static const Set<String> guardedRouteNames = {
-    'OfficialAnkiInternalRoute',
     'OfficialAnkiMappingRoute',
     'OfficialAnkiReviewerRoute',
     'OfficialAnkiReviewRoute',

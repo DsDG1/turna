@@ -120,6 +120,29 @@ void main() {
       }
     });
 
+    // Doc 38 P1-A — fixture pilot scaffold stays deleted.
+    test('fixture pilot cluster stays deleted (doc 38)', () {
+      const deleted = [
+        'lib/application/anki_official/migration/official_anki_fixture_pilot_saga.dart',
+        'lib/application/anki_official/migration/official_anki_fixture_rollback_drill.dart',
+        'lib/application/anki_official/migration/official_anki_user_allowlist.dart',
+        'lib/application/anki_official/official_anki_internal_page.dart',
+      ];
+      for (final path in deleted) {
+        expect(File(path).existsSync(), isFalse,
+            reason: '$path was resurrected');
+      }
+      final libDir = Directory('lib');
+      for (final file in libDir.listSync(recursive: true)) {
+        if (file is! File || !file.path.endsWith('.dart')) continue;
+        final text = file.readAsStringSync();
+        expect(text.contains('isFixturePilotSource'), isFalse,
+            reason: '${file.path} references the deleted fixture pilot gate');
+        expect(text.contains('p5c-fixture-'), isFalse,
+            reason: '${file.path} references the deleted fixture namespace');
+      }
+    });
+
     test('execution planner is strictly three-valued (no legacyOnly)', () {
       final text = File(
         'lib/application/anki_official/import/anki_import_execution_plan.dart',
@@ -217,7 +240,7 @@ void main() {
       final flags = File(
         'lib/application/anki_official/official_anki_feature_flags.dart',
       ).readAsStringSync();
-      expect(RegExp(r'bool\.fromEnvironment\(').allMatches(flags).length, 5);
+      expect(RegExp(r'bool\.fromEnvironment\(').allMatches(flags).length, 4);
       for (final dead in const [
         'TURNA_OFFICIAL_ANKI_ENGINE',
         'TURNA_OFFICIAL_ANKI_IMPORT',
@@ -230,6 +253,7 @@ void main() {
         'TURNA_OFFICIAL_ANKI_SCHEDULER',
         'TURNA_OFFICIAL_ANKI_OFFICIAL_FIRST_IMPORT',
         'TURNA_OFFICIAL_ANKI_GRAY_COHORT',
+        'TURNA_OFFICIAL_ANKI_MIGRATION_PILOT',
       ]) {
         expect(
           flags.contains("'$dead'"),

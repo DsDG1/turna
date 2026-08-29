@@ -10,7 +10,6 @@ import 'package:turna/application/anki_official/engine/official_formal_due_updat
 import 'package:turna/application/anki_official/engine/official_anki_native_availability.dart';
 import 'package:turna/application/anki_official/import/anki_import_facade.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
-import 'package:turna/application/anki_official/migration/official_anki_user_allowlist.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_state.dart';
 import 'package:turna/application/anki_official/migration/official_anki_production_router.dart';
@@ -800,42 +799,11 @@ void main() {
       'lib/views/anki_official/official_anki_migration_preview_page.dart',
     ).readAsStringSync();
     expect(preview.toLowerCase().contains('ankiweb'), isFalse);
-    expect(
-      File(
-        'lib/application/anki_official/migration/official_anki_user_allowlist.dart',
-      ).readAsStringSync().toLowerCase().contains('ankiweb'),
-      isFalse,
-    );
-  });
-
-  test('p5d_user_allowlist_is_per_source_hash_and_rejects_bulk', () {
-    expect(isUserAllowlistedSource(importId: 'p5c-fixture-device'), isTrue);
-    expect(isUserAllowlistedSource(sourceHash: '28d89bb7bf41df25513e148e96acbdac93bcc71fadcee8e552b57d4413394d02'), isTrue);
-    expect(
-      isUserAllowlistedSource(
-        importId: 'd4srcd7cdafb7',
-        sourceHash:
-            'd7cdafb74537722ea9ba07762c5b56c4845c2b687142f3ac52102497ae15ca07',
-      ),
-      isTrue,
-    );
-    expect(isUserAllowlistedSource(importId: 'user-deck', sourceHash: 'deadbeef'), isFalse);
-    expect(isUserAllowlistedSource(importId: 'user-deck'), isFalse);
-    expect(isUserAllowlistedSource(importId: 'mszs6hml'), isFalse);
-  });
-
-  test('p5d_user_allowlist_does_not_import_coursedatabase', () {
-    final allowSrc = File(
-      'lib/application/anki_official/migration/official_anki_user_allowlist.dart',
-    ).readAsStringSync();
-    expect(allowSrc.toLowerCase().contains('coursedatabase'), isFalse);
   });
 
   test('p5d_new_official_import_writes_recorded_kind', () {
     const hash =
         'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789';
-    expect(isFixturePilotSource(importId: 'g1abcdef0123'), isFalse);
-    expect(isUserAllowlistedSource(importId: 'g1abcdef0123', sourceHash: hash), isFalse);
 
     final db = OfficialAnkiDatabase.memory();
     addTearDown(db.close);

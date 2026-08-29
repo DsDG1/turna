@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:turna/application/anki_official/engine/official_anki_operation_coordinator.dart';
 import 'package:turna/application/anki_official/migration/official_anki_census.dart';
 import 'package:turna/application/anki_official/migration/official_anki_dry_run_matcher.dart';
-import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_state.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 
@@ -20,7 +19,6 @@ class OfficialAnkiMigrationPreviewPage extends StatefulWidget {
     this.sourceHash,
     this.flags = const OfficialAnkiFeatureFlags(),
     this.coordinator,
-    this.onFixturePilot,
   });
 
   final LegacyAnkiCensusReport census;
@@ -31,7 +29,6 @@ class OfficialAnkiMigrationPreviewPage extends StatefulWidget {
   final String? sourceHash;
   final OfficialAnkiFeatureFlags flags;
   final OfficialAnkiOperationCoordinator? coordinator;
-  final VoidCallback? onFixturePilot;
 
   @override
   State<OfficialAnkiMigrationPreviewPage> createState() =>
@@ -47,14 +44,6 @@ class _OfficialAnkiMigrationPreviewPageState
     final unmatched = widget.dryRun.rows
         .where((row) => row.matchState != LegacyAnkiMatchState.matched)
         .toList();
-    final allowPilot = widget.flags.migrationPilot &&
-        isFixturePilotSource(
-          importId: widget.importId,
-          sourceHash: widget.sourceHash,
-        ) &&
-        (widget.coordinator == null ||
-            widget.coordinator!.phase == OfficialAnkiOperationPhase.idle);
-
     return Scaffold(
       appBar: AppBar(title: const Text('Legacy migration preview')),
       body: ListView(
@@ -90,14 +79,6 @@ class _OfficialAnkiMigrationPreviewPageState
           ),
           for (final row in unmatched.take(20))
             Text('#${row.legacyCardId} ${row.matchState.name}'),
-          if (allowPilot) ...[
-            const SizedBox(height: 8),
-            FilledButton(
-              key: const Key('official-migration-fixture-pilot'),
-              onPressed: widget.onFixturePilot,
-              child: const Text('Fixture pilot'),
-            ),
-          ],
           const SizedBox(height: 8),
           const Text(
             'Cutover runs through the W8 census driver after a scheduling '

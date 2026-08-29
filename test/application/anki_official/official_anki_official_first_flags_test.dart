@@ -11,7 +11,6 @@ void main() {
     expect(env.diagnostics, isFalse);
     expect(env.legacyMirror, isFalse);
     expect(env.courseGradesScheduler, isFalse);
-    expect(env.migrationPilot, isFalse);
     // Zero-arg constructor stays all-false for focused unit tests.
     expect(const OfficialAnkiFeatureFlags().officialFirstImport, isFalse);
     expect(const OfficialAnkiFeatureFlags().allowsOfficialImport, isFalse);

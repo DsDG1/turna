@@ -106,32 +106,6 @@ INSERT INTO legacy_anki_migrations (
         .toList();
   }
 
-  List<LegacyAnkiMigrationRow> listFixtureMigrations({
-    required String profileId,
-  }) {
-    return _db
-        .select(
-          "SELECT * FROM legacy_anki_migrations "
-          "WHERE profile_id = ? AND legacy_import_id LIKE 'p5c-fixture-%' "
-          'ORDER BY updated_at_millis DESC',
-          [profileId],
-        )
-        .map(_row)
-        .toList();
-  }
-
-  LegacyAnkiMigrationRow? findObservingFixture({required String profileId}) {
-    final rows = _db.select(
-      "SELECT * FROM legacy_anki_migrations "
-      "WHERE profile_id = ? AND state = 'observing' "
-      "AND legacy_import_id LIKE 'p5c-fixture-%' "
-      'ORDER BY updated_at_millis DESC LIMIT 1',
-      [profileId],
-    );
-    if (rows.isEmpty) return null;
-    return _row(rows.first);
-  }
-
   void transition({
     required String migrationId,
     required LegacyAnkiMigrationState expected,

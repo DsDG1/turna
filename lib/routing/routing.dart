@@ -76,8 +76,6 @@ class AppRouter extends RootStackRouter {
         // Official-Anki surfaces: flag-gated diagnostics. In release
         // builds the DiagnosticsReleaseGuard blocks them — including deep
         // links — unless the build opted into diagnostics explicitly.
-        AutoRoute(
-            page: OfficialAnkiInternalRoute.page, guards: [_diagnosticsGuard]),
         AutoRoute(page: OfficialAnkiMappingRoute.page),
         AutoRoute(
             page: OfficialAnkiReviewerRoute.page, guards: [_diagnosticsGuard]),

@@ -29,7 +29,6 @@ class OfficialAnkiFeatureFlags {
     this.projection = false,
     this.courseEntry = false,
     this.scheduler = false,
-    this.migrationPilot = false,
     this.courseGradesScheduler = false,
     this.officialFirstImport = false,
     this.legacyMirror = false,
@@ -54,8 +53,6 @@ class OfficialAnkiFeatureFlags {
     const diagnostics = bool.fromEnvironment('TURNA_OFFICIAL_ANKI_DIAGNOSTICS');
     const reviewerDiagnostics =
         bool.fromEnvironment('TURNA_OFFICIAL_ANKI_REVIEWER_DIAGNOSTICS');
-    const migrationPilot =
-        bool.fromEnvironment('TURNA_OFFICIAL_ANKI_MIGRATION_PILOT');
     const courseGradesScheduler =
         bool.fromEnvironment('TURNA_OFFICIAL_ANKI_COURSE_GRADES_SCHEDULER');
     const legacyMirror =
@@ -63,7 +60,6 @@ class OfficialAnkiFeatureFlags {
     return productionAndroid.copyWith(
       diagnostics: diagnostics,
       reviewerDiagnostics: reviewerDiagnostics,
-      migrationPilot: migrationPilot,
       courseGradesScheduler: courseGradesScheduler,
       legacyMirror: legacyMirror,
     );
@@ -80,7 +76,6 @@ class OfficialAnkiFeatureFlags {
   final bool projection;
   final bool courseEntry;
   final bool scheduler;
-  final bool migrationPilot;
   final bool courseGradesScheduler;
   final bool officialFirstImport;
 
@@ -136,7 +131,6 @@ class OfficialAnkiFeatureFlags {
     bool? projection,
     bool? courseEntry,
     bool? scheduler,
-    bool? migrationPilot,
     bool? courseGradesScheduler,
     bool? officialFirstImport,
     bool? legacyMirror,
@@ -153,7 +147,6 @@ class OfficialAnkiFeatureFlags {
       projection: projection ?? this.projection,
       courseEntry: courseEntry ?? this.courseEntry,
       scheduler: scheduler ?? this.scheduler,
-      migrationPilot: migrationPilot ?? this.migrationPilot,
       courseGradesScheduler:
           courseGradesScheduler ?? this.courseGradesScheduler,
       officialFirstImport: officialFirstImport ?? this.officialFirstImport,
