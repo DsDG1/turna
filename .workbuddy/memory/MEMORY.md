@@ -59,3 +59,19 @@
 - 分层架构有 15 处依赖倒置破口（views→data 10 处、domain→application 3 处、core 被污染 2 处），
   最严重的是 `domain/repositories/i_course_repository.dart` 引了 `data/course_database.dart`。
   改动涉及分层时留意，但项目无 CI 强制检查，属"演进式"Clean Architecture。
+
+## boxShadow 铁律（2026-08-29 实机 bug 后固化）
+
+- **所有卡片 boxShadow 层一律 `offset.y > 0` + `spreadRadius: 0`**。
+- 非零 `spreadRadius`（正或负）会改变阴影形状的圆角半径（= 卡片圆角 ± spread），
+  与卡片自身的圆角错位后，收缩/外扩的轮廓会从卡片**圆角外侧露出尖角状痕迹**——
+  实机表现就是用户报的"圆角矩形外有一圈尖"。负 spread 更隐蔽（向内收缩），
+  容易被误判为"色彩方向感强"而保留。
+- 旧 `featheredButtonGlow`（`theme.dart:394-420`）的深色分支"负 spread + 大模糊"
+  是这个坑的同名记录（注释里已点名），但浅色分支的正 offset + blur 仍会形成
+  贴边亮环。彻底规避：所有层都不动 spread。
+- 暖色 accent（warmSand / success）**不染阴影**：卡面与阴影同色会糊成一片。
+  色彩只由 `softTint`（底色）与 `accentOnCard`（文字/图标）承载。
+- "实体投影 + 中性色"标准配方（`practiceTileShadow`，theme.dart:501-531）：
+  - 浅色：`brandNavy@0.07 / blur 22 / (0, 8)` + `brandNavy@0.05 / blur 4 / (0, 1)`
+  - 深色：上面 + `Colors.white@0.06 / blur 14 / (0, -3)` 顶光（明确方向，避免均匀环）

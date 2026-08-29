@@ -283,6 +283,36 @@ class StudySessionController extends ChangeNotifier {
     _beginCurrent();
   }
 
+  /// Advance to the item identified by [sessionItemId], completing the
+  /// session when null.
+  ///
+  /// For live-queue hosts whose items list is rebuilt in place after every
+  /// commit: the next card is the scheduler's current (resolved by the host
+  /// AFTER the rebuild), never index+1 over a list that just shrank or
+  /// reordered.
+  Future<void> advanceTo(String? sessionItemId) async {
+    if (phase != StudyCardPhase.readyForNext || _locked) return;
+    if (sessionItemId == null) {
+      phase = StudyCardPhase.completed;
+      questionReceipt = null;
+      answerReceipt = null;
+      notifyListeners();
+      return;
+    }
+    final target =
+        items.indexWhere((item) => item.sessionItemId == sessionItemId);
+    if (target < 0) {
+      // Unreachable while the scheduler's current is always inside the
+      // assembled batch — fail loudly instead of silently desyncing.
+      lastError = StateError('advance target missing: $sessionItemId');
+      phase = StudyCardPhase.recoverableError;
+      notifyListeners();
+      return;
+    }
+    _index = target;
+    _beginCurrent();
+  }
+
   Future<bool> undoLast() async {
     final receipt = lastReceipt;
     if (receipt == null || _locked) return false;
@@ -356,7 +386,15 @@ class StudySessionController extends ChangeNotifier {
     }
   }
 
-  Future<bool> buryCurrent() async {
+  /// Buries the current card.
+  ///
+  /// With [onMutated], live-queue hosts rebuild the shared items list inside
+  /// the lock (the scheduler's current is already refreshed by the ledger
+  /// call); the controller then stays on [StudyCardPhase.readyForNext] and
+  /// the host advances via [advanceTo] — index arithmetic over a rebuilt
+  /// list would skip the queue head. Without it, static-list callers keep
+  /// the index+1 skip.
+  Future<bool> buryCurrent({Future<void> Function()? onMutated}) async {
     final item = currentItem;
     if (item == null || _locked) return false;
     _locked = true;
@@ -366,6 +404,11 @@ class StudySessionController extends ChangeNotifier {
         final ledger = ledgerResolver.resolve(item.ledgerOwner);
         final ok = await ledger.bury(item.cardKey);
         if (!ok) return false;
+      }
+      if (onMutated != null) {
+        await onMutated();
+        phase = StudyCardPhase.readyForNext;
+        return true;
       }
       _index += 1;
       if (_index >= items.length) {
@@ -386,7 +429,9 @@ class StudySessionController extends ChangeNotifier {
     }
   }
 
-  Future<bool> suspendCurrent() async {
+  /// Suspends the current card. See [buryCurrent] for the [onMutated]
+  /// live-queue contract.
+  Future<bool> suspendCurrent({Future<void> Function()? onMutated}) async {
     final item = currentItem;
     if (item == null || _locked) return false;
     _locked = true;
@@ -396,6 +441,11 @@ class StudySessionController extends ChangeNotifier {
         final ledger = ledgerResolver.resolve(item.ledgerOwner);
         final ok = await ledger.suspend(item.cardKey);
         if (!ok) return false;
+      }
+      if (onMutated != null) {
+        await onMutated();
+        phase = StudyCardPhase.readyForNext;
+        return true;
       }
       _index += 1;
       if (_index >= items.length) {

@@ -359,6 +359,90 @@ void main() {
   );
 
   testWidgets(
+    'second card still commits after the first leaves the live queue '
+    '(regression: 当前卡片无法安全写入)',
+    (tester) async {
+      const importId = 'src-answer-2';
+      _registerOfficialImport(importId);
+
+      final engine = FakeOfficialAnkiEngine();
+      engine.seedPackage(packagePath: 'answer2.apkg', notes: 3, cards: 3);
+
+      AnkiReviewSessionPage.productionLoader =
+          OfficialFormalReviewProductionLoader(
+        flags: flags,
+        engine: engine,
+        resolveTarget: (_) async => const OfficialAnkiRoutedSource(
+          importId: importId,
+          sourceId: importId,
+          deckId: 1,
+          cardIds: {1, 2, 3},
+        ),
+        introducedCardIds: (_) => {1, 2, 3},
+        activePlacementCardIds: (_) => {1, 2, 3},
+        sessionFactory: ({
+          required engine,
+          required allowedCardIds,
+        }) async {
+          return OfficialReviewSession(
+            engine: engine,
+            flags: flags,
+            allowedCardIds: allowedCardIds,
+          );
+        },
+      );
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<SrsProvider>.value(value: srs),
+            ChangeNotifierProvider(create: (_) => CourseProvider(appPrefs)),
+          ],
+          child: const MaterialApp(
+            home: AnkiReviewSessionPage(
+              sectionId: 'anki-src-answer-2-s1',
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 20));
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // First card: reveal + 记住 (good) — the card leaves the queue and
+      // the live queue rebuilds the batch in place.
+      expect(find.text(AppStrings.lessonShowAnswer), findsOneWidget);
+      await tester.tap(find.text(AppStrings.lessonShowAnswer));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      await tester.tap(find.text(AppStrings.reviewBinaryRemembered));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(engine.officialAnswers, 1);
+
+      // Second card: must advance onto the scheduler's refreshed current
+      // and commit without schedulingContextStale.
+      expect(find.text(AppStrings.lessonShowAnswer), findsOneWidget);
+      await tester.tap(find.text(AppStrings.lessonShowAnswer));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.text(AppStrings.reviewBinaryRemembered), findsOneWidget);
+      await tester.tap(find.text(AppStrings.reviewBinaryRemembered));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(engine.officialAnswers, 2);
+      expect(engine.answeredIds, containsAll([1, 2]));
+      expect(
+        find.byKey(const Key('anki-study-session-error')),
+        findsNothing,
+        reason: 'the second commit must not enter recoverableError',
+      );
+    },
+  );
+
+  testWidgets(
     'all-decks entry (no sectionId) uses Official loader when any Official source exists',
     (tester) async {
       _registerOfficialImport('src-all');

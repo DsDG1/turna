@@ -8,8 +8,8 @@ import 'package:turna/views/theme.dart';
 // ────────────────────────────────────────────────────────────────────
 // Soft-tinted card surfaces — shared building blocks
 // ────────────────────────────────────────────────────────────────────
-// 设计目标：轻盈 pastel 着色卡，accent @ 0.10 底色 + 白色高光描边 +
-// 白色晕染发光 + 内侧顶部霜面高光 + 圆角 20。Hero 例外用 accent 渐变 + 白字。
+// 设计目标（2026-08 重画后）：着色实体卡，accent @ 0.10 底色 + 中性细描边 +
+// 中性双层投影 + 圆角 24。Hero 例外用 accent 渐变 + 白字。
 // 暗色模式由 [TurnaTheme.softTint] 改为不透明罩染，accent 文字经
 // [TurnaTheme.accentOnCard] 提亮，避免发灰发浑。
 //
@@ -18,6 +18,12 @@ import 'package:turna/views/theme.dart';
 // 2026-08 重构（Play Hub 焕新）：新增 TodayHeroCard / AiAssistantTile /
 // CompactToolTile；SoftCard 及各 tile 支持 onLongPress（长按浮窗交互，
 // 见 info_popup.dart），FocusTile 退役。
+// 2026-08 重画（去玻璃化）：SoftCard 从「着色玻璃」改为「着色实体面」——
+// 去掉白色羽化光晕（featheredButtonGlow）与内侧顶部霜面高光
+// （softCardSheen + ClipRRect/DecoratedBox），描边从 glassBorder 的白色高光
+// 边改为 practiceTileBorder 中性细边，阴影从 accent 单色弱阴影改为
+// practiceTileShadow 中性双层投影。投影不染 accent，避免 warmSand /
+// success 这类暖色卡与阴影同色化。
 
 /// 顶部渐变 Hero 卡：teal->cyan 渐变 + 白字。Playground（语言课程入口）使用；
 /// 保持通用签名（标题/副标题/图标）。支持长按浮窗。
@@ -74,10 +80,10 @@ class PlaygroundHero extends StatelessWidget {
                   width: 56,
                   height: 56,
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.22),
+                    color: Colors.white.withValues(alpha: 0.16),
                     borderRadius: BorderRadius.circular(18),
                     border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.35),
+                      color: Colors.white.withValues(alpha: 0.24),
                       width: 1,
                     ),
                   ),
@@ -188,10 +194,10 @@ class TodayHeroCard extends StatelessWidget {
                         width: 48,
                         height: 48,
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.22),
+                          color: Colors.white.withValues(alpha: 0.16),
                           borderRadius: BorderRadius.circular(15),
                           border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.35),
+                            color: Colors.white.withValues(alpha: 0.24),
                             width: 1,
                           ),
                         ),
@@ -307,10 +313,10 @@ class _QueueChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: dimmed ? 0.10 : 0.18),
+        color: Colors.white.withValues(alpha: dimmed ? 0.08 : 0.14),
         borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
         border: Border.all(
-          color: Colors.white.withValues(alpha: dimmed ? 0.18 : 0.35),
+          color: Colors.white.withValues(alpha: dimmed ? 0.14 : 0.26),
           width: 0.8,
         ),
       ),
@@ -499,8 +505,14 @@ class ToolsTile extends StatelessWidget {
 // Building blocks
 // ────────────────────────────────────────────────────────────────────
 
-/// 软着色卡底座：accent 着色底 + 白色高光描边（无彩色线条）+ 圆角 20 +
-/// accent 轻阴影 + 白色晕染发光 + 内侧顶部霜面高光。
+/// 着色实体卡底座（2026-08 重画）：accent 着色底 + 中性细描边 + 圆角 24 +
+/// 中性双层投影（远悬浮 + 近贴合）。
+///
+/// 与旧版「着色玻璃」的区别：去掉白色羽化光晕与内侧顶部霜面高光，描边从
+/// 白色高光改为中性细边，投影从 accent 单色弱阴影改为中性双层。
+///
+/// 投影层一律「纯垂直 offset + spreadRadius 0」：非零 spread 会改变阴影的
+/// 圆角半径，与卡片圆角错位后会在圆角外侧露出一圈尖角状痕迹。
 /// 暗色模式由 [TurnaTheme.softTint] 自动转为不透明罩染。
 /// `onLongPress` 非空时附加长按语义（无障碍「长按查看数据详情」）。
 class SoftCard extends StatelessWidget {
@@ -535,23 +547,12 @@ class SoftCard extends StatelessWidget {
             color: TurnaTheme.softTint(context, accentColor, alpha: tintAlpha),
             borderRadius: radius,
             border: Border.all(
-              color: TurnaTheme.glassBorder(context),
+              color: TurnaTheme.practiceTileBorder(context),
               width: 1,
             ),
-            boxShadow: [
-              ...TurnaTheme.softCardShadow(context, accentColor),
-              ...TurnaTheme.featheredButtonGlow(context),
-            ],
+            boxShadow: TurnaTheme.practiceTileShadow(context),
           ),
-          child: ClipRRect(
-            borderRadius: radius,
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: TurnaTheme.softCardSheen(context),
-              ),
-              child: child,
-            ),
-          ),
+          child: child,
         ),
       ),
     );
@@ -714,9 +715,9 @@ class CompactToolTile extends StatelessWidget {
   }
 }
 
-/// accent icon chip：accent @ 0.22 底 + accent 图标，浅色下加 1px 白色描边
-/// 提亮。`size` / `padding` / `radius` 可调，复用于 FocusTile / ReviewTile /
-/// ToolsTile。
+/// accent icon chip：accent @ 0.22 底 + accent 图标，无描边；深色下走
+/// [TurnaTheme.practiceTileEdge] 补一层极淡白边维持边缘可辨。
+/// `size` / `padding` / `radius` 可调，复用于 ReviewTile / ToolsTile。
 class AccentIconChip extends StatelessWidget {
   final IconData icon;
   final Color color;
@@ -741,7 +742,7 @@ class AccentIconChip extends StatelessWidget {
         color: color.withValues(alpha: 0.22),
         borderRadius: BorderRadius.circular(radius),
         border: Border.all(
-          color: Colors.white.withValues(alpha: 0.4),
+          color: TurnaTheme.practiceTileEdge(context),
           width: 0.5,
         ),
       ),
@@ -750,7 +751,7 @@ class AccentIconChip extends StatelessWidget {
   }
 }
 
-/// 小号玻璃 chip：accent 实色 + 白边高光 + 轻阴影。
+/// 小号实心 chip：accent 实色 + 轻阴影，无白色高光边。
 /// 默认 pill 形态；[circular] 时切换为小圆角（用于复习宫格小格子）。
 class CountBadge extends StatelessWidget {
   final String label;
@@ -775,10 +776,10 @@ class CountBadge extends StatelessWidget {
           ? const EdgeInsets.symmetric(horizontal: 8, vertical: 2)
           : const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: TurnaTheme.glassBadgeFill(color),
+        color: color,
         borderRadius: radius,
         border: Border.all(
-          color: TurnaTheme.glassHighlight(context),
+          color: TurnaTheme.practiceTileEdge(context),
           width: 0.5,
         ),
         boxShadow: [

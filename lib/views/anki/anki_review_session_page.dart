@@ -658,6 +658,32 @@ class _AnkiStudySessionView extends StatelessWidget {
   final Future<void> Function()? onRetryBlockedCard;
   final String? sourceProgress;
 
+  /// Live scheduler contract (plan 34 D4): after every committed mutation
+  /// the next card is the scheduler's refreshed [OfficialReviewSession.current]
+  /// — never index+1 over a batch list that just shrank or reordered.
+  Future<void> _advanceFromScheduler() async {
+    final session = officialSession;
+    if (session == null) {
+      await controller.continueNext();
+      return;
+    }
+    final currentCardId = session.current?.cardId;
+    if (currentCardId == null) {
+      await controller.advanceTo(null);
+      return;
+    }
+    for (final item in controller.items) {
+      if (item.cardKey.cardId == currentCardId) {
+        await controller.advanceTo(item.sessionItemId);
+        return;
+      }
+    }
+    // Unreachable while the scheduler's current always sits inside the
+    // assembled batch; advanceTo fails loudly on the unmatched id instead
+    // of silently completing a session the scheduler still owes.
+    await controller.advanceTo('missing-c$currentCardId');
+  }
+
   @override
   Widget build(BuildContext context) {
     if (controller.items.isEmpty ||
@@ -725,7 +751,15 @@ class _AnkiStudySessionView extends StatelessWidget {
           IconButton(
             tooltip: '重做',
             icon: const Icon(Icons.redo_rounded, size: 20),
-            onPressed: controller.canRedo ? () => controller.redoLast() : null,
+            onPressed: controller.canRedo
+                ? () async {
+                    final ok = await controller.redoLast();
+                    if (ok) {
+                      await liveQueue?.rebuildFromLiveQueue();
+                      await _advanceFromScheduler();
+                    }
+                  }
+                : null,
           ),
           IconButton(
             tooltip: '搁置',
@@ -733,9 +767,13 @@ class _AnkiStudySessionView extends StatelessWidget {
             onPressed: controller.isLocked || controller.isComplete
                 ? null
                 : () async {
-                    final ok = await controller.buryCurrent();
+                    final ok = await controller.buryCurrent(
+                      onMutated: liveQueue == null
+                          ? null
+                          : () => liveQueue!.rebuildFromLiveQueue(),
+                    );
                     if (ok) {
-                      await liveQueue?.rebuildFromLiveQueue();
+                      await _advanceFromScheduler();
                     }
                   },
           ),
@@ -745,9 +783,13 @@ class _AnkiStudySessionView extends StatelessWidget {
             onPressed: controller.isLocked || controller.isComplete
                 ? null
                 : () async {
-                    final ok = await controller.suspendCurrent();
+                    final ok = await controller.suspendCurrent(
+                      onMutated: liveQueue == null
+                          ? null
+                          : () => liveQueue!.rebuildFromLiveQueue(),
+                    );
                     if (ok) {
-                      await liveQueue?.rebuildFromLiveQueue();
+                      await _advanceFromScheduler();
                     }
                   },
           ),
@@ -868,7 +910,7 @@ class _AnkiStudySessionView extends StatelessWidget {
                       onOutcome: (outcome) async {
                         await controller.submitRecall(outcome);
                         if (controller.phase == StudyCardPhase.readyForNext) {
-                          await controller.continueNext();
+                          await _advanceFromScheduler();
                         }
                       },
                       enabled: controller.canSubmitRecall,

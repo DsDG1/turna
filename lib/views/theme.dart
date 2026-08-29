@@ -467,6 +467,8 @@ class TurnaTheme {
 
   /// tinted 卡片柔和阴影：浅色 accent @ 0.10 向下投影；深色负 spread +
   /// 大模糊弥散，避免贴边亮环在圆角处堆出亮角。
+  ///
+  /// 已由 [practiceTileShadow] 取代于练习板块方块；保留供其他调用方使用。
   static List<BoxShadow> softCardShadow(BuildContext context, Color accent) => [
         BoxShadow(
           color: accent.withValues(alpha: _isDark(context) ? 0.12 : 0.10),
@@ -475,6 +477,69 @@ class TurnaTheme {
           offset: _isDark(context) ? Offset.zero : const Offset(0, 4),
         ),
       ];
+
+  // PRACTICE TILE TOKENS (2026-08 重画)
+  // 练习板块方块从「着色玻璃」改为「着色实体面」：去掉白色羽化光晕与顶部
+  // 霜面高光，投影改用中性色双层（远悬浮 + 近贴合）。
+  // softTint 着色底不变——色彩由底色与 icon chip 承载，不由阴影承载。
+  //
+  // 铁律：所有层一律「纯垂直 offset + spreadRadius 0」。
+  // 任何非零 spread 都会改变阴影的圆角半径（= 卡片圆角 ± spread），
+  // 与卡片自身的圆角错位后，收缩/外扩的轮廓会从圆角外侧露出一圈尖角状
+  // 痕迹。旧版 featheredButtonGlow 的「负 spread + 大模糊」正是这个坑，
+  // 这里不再重蹈覆辙。
+
+  /// 方块投影：中性双层（远悬浮 + 近贴合）。
+  ///
+  /// 中性色不染 accent：[warmSand] / [success] 这类暖色 accent 若用来染阴
+  /// 影，会与同色系卡面糊成一片（「沙黄卡面 + 沙黄阴影」）。色彩只由
+  /// [softTint] 与 [accentOnCard] 承载。
+  ///
+  /// 深色分支另加一层顶部微亮：纯黑阴影叠在 [darkScaffold] 上等于隐身，
+  /// 卡片会「浮在虚空里」。用一层明确向上的白色微光模拟顶光打亮卡沿，
+  /// 黑色两层仍保留，负责压住卡片下缘的贴合感。
+  static List<BoxShadow> practiceTileShadow(BuildContext context) =>
+      _isDark(context)
+          ? [
+              BoxShadow(
+                color: Colors.white.withValues(alpha: 0.06),
+                blurRadius: 14,
+                offset: const Offset(0, -3),
+              ),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.32),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.20),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
+              ),
+            ]
+          : [
+              BoxShadow(
+                color: brandNavy.withValues(alpha: 0.07),
+                blurRadius: 22,
+                offset: const Offset(0, 8),
+              ),
+              BoxShadow(
+                color: brandNavy.withValues(alpha: 0.05),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
+              ),
+            ];
+
+  /// 方块描边：替代 [glassBorder] 的白色高光边，改中性细边，只留切割感。
+  static Color practiceTileBorder(BuildContext context) => _isDark(context)
+      ? Colors.white.withValues(alpha: 0.08)
+      : brandNavy.withValues(alpha: 0.08);
+
+  /// 方块内部 chip / badge 的描边色。浅色下卡面本就接近底色，不需要描边
+  /// （返回透明）；深色下给一层极淡白边维持边缘可辨。
+  static Color practiceTileEdge(BuildContext context) => _isDark(context)
+      ? Colors.white.withValues(alpha: 0.10)
+      : Colors.transparent;
 
   // THEME-AWARE COLOR HELPERS
   // Use these instead of hard-coded Colors.white / Color(0xFF...) so widgets
