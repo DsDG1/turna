@@ -355,10 +355,6 @@ class OfficialAnkiCourseProjectionStore {
     });
   }
 
-  static String lessonContentJson(List<OfficialAnkiProjectedItem> items) {
-    return officialAnkiLessonJson(items);
-  }
-
   /// P5F-22: the projection's own card list with real tree ids and the
   /// projected presentation kind, in stable card-id order.
   Future<List<OfficialAnkiProjectionIndexRow>> listIndexRows(

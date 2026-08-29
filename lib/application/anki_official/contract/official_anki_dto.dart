@@ -949,12 +949,6 @@ class OfficialDeckCounts {
   final int newCount;
   final int reviewCount;
 
-  @Deprecated('Use newCount')
-  int get newStudied => newCount;
-
-  @Deprecated('Use reviewCount')
-  int get reviewStudied => reviewCount;
-
   factory OfficialDeckCounts.fromJson(Map<String, Object?> json) {
     final newRaw = json['new'] ?? json['newStudied'];
     final reviewRaw = json['review'] ?? json['reviewStudied'];

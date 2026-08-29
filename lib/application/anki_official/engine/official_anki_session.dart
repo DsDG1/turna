@@ -5,14 +5,12 @@ import 'dart:isolate';
 import 'package:turna/application/anki_official/contract/official_anki_contract.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
-import 'package:turna/application/anki_official/engine/official_anki_audit_log.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_ffi.dart';
 import 'package:turna/application/anki_official/engine/official_anki_native_transport.dart';
 import 'package:turna/application/anki_official/engine/official_anki_operation_coordinator.dart';
 import 'package:turna/application/anki_official/engine/official_anki_session_cleanup.dart';
-import 'package:turna/application/anki_official/migration/official_anki_write_owner.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_orchestrator.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
 import 'package:turna/application/anki_official/import/official_anki_recovery_service.dart';
@@ -657,7 +655,6 @@ void officialAnkiWorkerEntrypoint(SendPort ready) {
   OfficialAnkiRecoveryService? recovery;
   OfficialAnkiPaths? paths;
   final ops = OfficialAnkiOperationCoordinator();
-  final audit = OfficialAnkiAuditLog();
 
   Future<void> handle(Map<String, Object?> message) async {
     final reply = message['reply'] as SendPort;
@@ -944,12 +941,10 @@ void officialAnkiWorkerEntrypoint(SendPort ready) {
             engine!,
             message,
             coordinator: ops,
-            audit: audit,
           );
           reply.send(<String, Object?>{
             'ok': true,
             'payload': payload,
-            'audit': audit.aggregate(),
           });
           return;
         case 'dispose':
@@ -1032,7 +1027,6 @@ Future<Map<String, Object?>> dispatchOfficialAnkiScheduler(
   OfficialAnkiEngine engine,
   Map<String, Object?> message, {
   OfficialAnkiOperationCoordinator? coordinator,
-  OfficialAnkiAuditLog? audit,
 }) async {
   final op = message['op'] as String? ?? '';
   if (_schedulerWriteOps.contains(op)) {
@@ -1094,12 +1088,6 @@ Future<Map<String, Object?>> dispatchOfficialAnkiScheduler(
         answeredAtMillis: (message['answeredAtMillis'] as num?)?.toInt(),
         clientMutationId: message['clientMutationId'] as String?,
       );
-      audit?.record(
-        owner: AnkiWriteOwner.officialScheduler,
-        operation: 'answer',
-        requestId: message['clientMutationId'] as String? ?? 'answer',
-        cardId: answered.cardId,
-      );
       return <String, Object?>{
         'cardId': answered.cardId,
         'queue': answered.queue,
@@ -1120,11 +1108,6 @@ Future<Map<String, Object?>> dispatchOfficialAnkiScheduler(
       };
     case 'undo':
       final undone = await engine.undo();
-      audit?.record(
-        owner: AnkiWriteOwner.officialScheduler,
-        operation: 'undo',
-        requestId: 'undo',
-      );
       return <String, Object?>{
         'ok': undone.ok,
         'undone': undone.undone,
@@ -1132,11 +1115,6 @@ Future<Map<String, Object?>> dispatchOfficialAnkiScheduler(
       };
     case 'redo':
       final redone = await engine.redo();
-      audit?.record(
-        owner: AnkiWriteOwner.officialScheduler,
-        operation: 'redo',
-        requestId: 'redo',
-      );
       return <String, Object?>{
         'ok': redone.ok,
         'redone': redone.redone,

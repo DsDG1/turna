@@ -401,8 +401,6 @@ void main() {
     final first = await service.projectSource();
     expect(first.noop, isFalse);
     expect(first.itemCount, greaterThan(0));
-    expect(counters.officialSchedulerWrites, 0);
-    expect(counters.legacyCalls, 0);
     final second = await service.projectSource();
     expect(second.noop, isTrue);
     final failed = await service.projectSource(

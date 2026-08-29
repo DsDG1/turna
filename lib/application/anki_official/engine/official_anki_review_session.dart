@@ -1,11 +1,9 @@
 import 'package:turna/application/anki_official/contract/official_anki_contract.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
-import 'package:turna/application/anki_official/engine/official_anki_audit_log.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/engine/official_anki_mutation_receipt.dart';
 import 'package:turna/application/anki_official/engine/official_anki_operation_coordinator.dart';
-import 'package:turna/application/anki_official/migration/official_anki_write_owner.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 
 enum OfficialReviewPhase {
@@ -30,7 +28,6 @@ class OfficialReviewSession {
     OfficialAnkiFeatureFlags? flags,
     this.receipts,
     this.coordinator,
-    this.audit,
     this.profileId = 'profile-default-01',
     this.allowedCardIds,
   }) : flags = flags ?? OfficialAnkiFeatureFlags.current;
@@ -39,7 +36,6 @@ class OfficialReviewSession {
   final OfficialAnkiFeatureFlags flags;
   final OfficialAnkiMutationReceiptStore? receipts;
   final OfficialAnkiOperationCoordinator? coordinator;
-  final OfficialAnkiAuditLog? audit;
   final String profileId;
   /// When set, only these card IDs may be shown or answered.
   Set<int>? allowedCardIds;
@@ -347,7 +343,6 @@ class OfficialReviewSession {
         );
       }
       receipts?.markCommitted(lastClientMutationId!, now);
-      _audit('answer', card.cardId);
       phase = OfficialReviewPhase.refreshingQueue;
       await refreshQueue();
       await _refreshStatus();
@@ -378,7 +373,6 @@ class OfficialReviewSession {
     inFlight = true;
     try {
       await engine.undo();
-      _audit('undo', current?.cardId);
       await refreshQueue();
       await _refreshStatus();
     } catch (error) {
@@ -394,7 +388,6 @@ class OfficialReviewSession {
     inFlight = true;
     try {
       await engine.redo();
-      _audit('redo', current?.cardId);
       await refreshQueue();
       await _refreshStatus();
     } catch (error) {
@@ -422,7 +415,6 @@ class OfficialReviewSession {
         action: action,
         cardIds: [current!.cardId],
       );
-      _audit(action.wireName, current?.cardId);
       await refreshQueue();
       await _refreshStatus();
     } catch (error) {
@@ -438,15 +430,6 @@ class OfficialReviewSession {
       congrats = await engine.congratsInfo();
       isFilteredDeck = congrats?.isFilteredDeck ?? false;
     } catch (_) {}
-  }
-
-  void _audit(String operation, int? cardId) {
-    audit?.record(
-      owner: AnkiWriteOwner.officialScheduler,
-      operation: operation,
-      requestId: lastClientMutationId ?? operation,
-      cardId: cardId,
-    );
   }
 
   void applyFailure(Object error) {

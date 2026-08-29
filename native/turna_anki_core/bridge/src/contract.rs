@@ -57,8 +57,6 @@ pub struct EnvelopeError {
     pub message_key: String,
     pub recoverable: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub retry_after_millis: Option<u64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub debug_details: Option<String>,
 }
 
@@ -171,7 +169,6 @@ pub fn encode_err(request_id: &str, status: i32, started: Instant) -> Value {
             code: errors::code_for_status(status).to_string(),
             message_key: errors::message_key_for_status(status).to_string(),
             recoverable: errors::recoverable(status),
-            retry_after_millis: None,
             debug_details: None,
         }),
         engine: engine_meta(),

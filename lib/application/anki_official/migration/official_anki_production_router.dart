@@ -7,9 +7,7 @@ import 'package:turna/application/anki_official/engine/official_formal_due_snaps
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
-import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
-import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 
 class OfficialAnkiRoutedSource {
@@ -443,24 +441,3 @@ class OfficialHomeDueCounts {
   final int total;
 }
 
-Set<String> officialRoutedImportIdsFromCatalogFile({
-  required File catalogFile,
-  String profileId = OfficialAnkiProductionRouter.defaultProfileId,
-  bool? cutoverEnabled,
-}) {
-  if (!catalogFile.existsSync()) return const {};
-  final db = OfficialAnkiDatabase.file(catalogFile.path);
-  try {
-    return const OfficialAnkiProductionRouter().officialImportIds(
-      dao: OfficialAnkiMigrationDao(db),
-      profileId: profileId,
-      cutoverEnabled: cutoverEnabled,
-    );
-  } finally {
-    db.close();
-  }
-}
-
-String ankiImportIdFromWordId(String wordId) {
-  return LegacyAnkiIdentifiers.importIdFromWordId(wordId);
-}

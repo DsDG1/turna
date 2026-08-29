@@ -143,12 +143,6 @@ fn default_fetch() -> usize {
 struct TokenRequest {
     #[serde(alias = "answer_token")]
     answer_token: String,
-    #[serde(default)]
-    #[allow(dead_code)]
-    session_id: Option<String>,
-    #[serde(default)]
-    #[allow(dead_code)]
-    queue_epoch: Option<u64>,
 }
 
 #[derive(Debug, Deserialize)]

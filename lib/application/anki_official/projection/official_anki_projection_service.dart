@@ -28,8 +28,6 @@ const officialAnkiProjectionBatchDefault = officialAnkiProjectionPageDefault;
 const officialAnkiProjectionBatchMax = officialAnkiProjectionPageMax;
 
 class OfficialAnkiProjectionCounters {
-  var officialSchedulerWrites = 0;
-  var legacyCalls = 0;
   var peakIdBuffer = 0;
 }
 

@@ -29,7 +29,6 @@ use crate::ops::map_anki_error;
 
 const DEFAULT_SAMPLE_LIMIT: usize = 3;
 const MAX_SAMPLE_LIMIT: usize = 30;
-const DEFAULT_BATCH: usize = 200;
 const MAX_BATCH: usize = 500;
 const MAX_FIELD_BYTES: usize = 8 * 1024;
 
@@ -38,7 +37,6 @@ pub struct ProjectionSnapshot {
     pub token: String,
     pub collection_generation: u64,
     pub card_set_fingerprint: String,
-    pub mapping_version: i64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -374,7 +372,6 @@ pub fn begin_projection_read(handle: u64, request: &[u8]) -> Result<Value, i32> 
         token: token.clone(),
         collection_generation: generation,
         card_set_fingerprint: parsed.card_set_fingerprint,
-        mapping_version: parsed.mapping_version,
     });
     Ok(json!({
         "snapshotToken": token,
@@ -394,7 +391,6 @@ fn require_snapshot<'a>(engine: &'a Engine, token: &str) -> Result<&'a Projectio
     {
         return Err(STATUS_PROJECTION_SNAPSHOT_STALE);
     }
-    let _ = snap.mapping_version;
     Ok(snap)
 }
 
@@ -404,14 +400,7 @@ pub fn get_projection_rows_batch(handle: u64, request: &[u8]) -> Result<Value, i
     if parsed.card_ids.len() > MAX_BATCH {
         return Err(STATUS_INVALID_ARGUMENT);
     }
-    let card_ids = if parsed.card_ids.is_empty() {
-        Vec::new()
-    } else {
-        parsed.card_ids.clone()
-    };
-    if card_ids.len() > MAX_BATCH {
-        return Err(STATUS_INVALID_ARGUMENT);
-    }
+    let card_ids = parsed.card_ids;
     let slot = slot(handle)?;
     let mut engine = slot.engine.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
     if engine.state != crate::engine::EngineState::Open {
@@ -421,8 +410,7 @@ pub fn get_projection_rows_batch(handle: u64, request: &[u8]) -> Result<Value, i
     let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
     let mut rows = Vec::new();
     let mut missing = Vec::new();
-    let take = card_ids.into_iter().take(MAX_BATCH.max(DEFAULT_BATCH));
-    for card_id in take {
+    for card_id in card_ids {
         let Some(card) = col
             .storage
             .get_card(CardId(card_id))

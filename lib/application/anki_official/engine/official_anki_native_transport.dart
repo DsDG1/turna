@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
 import 'dart:typed_data';
@@ -406,6 +405,3 @@ OfficialAnkiErrorCode officialAnkiErrorCodeFromStatus(int status) {
       return OfficialAnkiErrorCode.unknown;
   }
 }
-
-// Keep convert available for debug dumps.
-String officialAnkiJsonPreview(Object? value) => jsonEncode(value);

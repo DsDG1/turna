@@ -251,11 +251,6 @@ pub fn free_engine(handle: u64) -> Result<(), i32> {
     Ok(())
 }
 
-#[allow(dead_code)]
-pub fn live_handle_count() -> Result<usize, i32> {
-    with_registry(|map| map.len())
-}
-
 pub struct BusyGuard<'a> {
     flag: &'a AtomicBool,
 }

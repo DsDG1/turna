@@ -1,4 +1,3 @@
-import 'dart:convert';
 
 import 'package:turna/application/anki_official/contract/official_anki_contract.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
@@ -509,9 +508,4 @@ class FfiOfficialAnkiEngine implements OfficialAnkiEngine {
     }
     transport?.engineClose(handle);
   }
-}
-
-/// Decode helper used by tests that feed golden JSON bytes.
-OfficialAnkiEnvelopeResponse decodeOfficialEnvelope(String jsonText) {
-  return OfficialAnkiEnvelopeResponse.decode(utf8.encode(jsonText));
 }

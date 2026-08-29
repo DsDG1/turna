@@ -176,9 +176,6 @@ void main() {
     expect(OfficialAnkiSchedulerAudit.officialSchedulerRedo, 1);
     await session.openDeck(1);
     await session.buryOrSuspend(OfficialBuryOrSuspendAction.suspend);
-    expect(OfficialAnkiSchedulerAudit.turnaSrsWritesFromOfficialPath, 0);
-    expect(OfficialAnkiSchedulerAudit.legacyCallsFromOfficialPath, 0);
-    expect(OfficialAnkiSchedulerAudit.courseProjectionWritesDuringReview, 0);
     final counts = await fake.countsForDeckToday(1);
     expect(counts.deckId, 1);
     final congrats = await fake.congratsInfo();
@@ -222,11 +219,6 @@ void main() {
   test('preview path does not increment official scheduler answers', () {
     OfficialAnkiSchedulerAudit.reset();
     expect(OfficialAnkiSchedulerAudit.officialSchedulerAnswers, 0);
-    expect(OfficialAnkiSchedulerAudit.officialSchedulerWritesFromPreview, 0);
-    expect(
-      OfficialAnkiSchedulerAudit.officialSchedulerWritesFromDerivedExercise,
-      0,
-    );
     // The Phase-0 spike was removed from the production tree (duplicate FFI
     // bindings had drifted from the transport); keep it out.
     expect(

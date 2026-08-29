@@ -8,22 +8,12 @@ class OfficialAnkiSchedulerAudit {
   static var officialSchedulerUndo = 0;
   static var officialSchedulerRedo = 0;
   static var officialSchedulerBurySuspend = 0;
-  static var turnaSrsWritesFromOfficialPath = 0;
-  static var legacyCallsFromOfficialPath = 0;
-  static var courseProjectionWritesDuringReview = 0;
-  static var officialSchedulerWritesFromPreview = 0;
-  static var officialSchedulerWritesFromDerivedExercise = 0;
 
   static void reset() {
     officialSchedulerAnswers = 0;
     officialSchedulerUndo = 0;
     officialSchedulerRedo = 0;
     officialSchedulerBurySuspend = 0;
-    turnaSrsWritesFromOfficialPath = 0;
-    legacyCallsFromOfficialPath = 0;
-    courseProjectionWritesDuringReview = 0;
-    officialSchedulerWritesFromPreview = 0;
-    officialSchedulerWritesFromDerivedExercise = 0;
   }
 
   static Map<String, int> snapshot() => <String, int>{
@@ -31,13 +21,5 @@ class OfficialAnkiSchedulerAudit {
         'officialSchedulerUndo': officialSchedulerUndo,
         'officialSchedulerRedo': officialSchedulerRedo,
         'officialSchedulerBurySuspend': officialSchedulerBurySuspend,
-        'turnaSrsWritesFromOfficialPath': turnaSrsWritesFromOfficialPath,
-        'legacyCallsFromOfficialPath': legacyCallsFromOfficialPath,
-        'courseProjectionWritesDuringReview':
-            courseProjectionWritesDuringReview,
-        'officialSchedulerWritesFromPreview':
-            officialSchedulerWritesFromPreview,
-        'officialSchedulerWritesFromDerivedExercise':
-            officialSchedulerWritesFromDerivedExercise,
       };
 }
