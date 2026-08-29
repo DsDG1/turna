@@ -1,0 +1,74 @@
+{
+  "id": "09",
+  "description": "正面音频 + 短答案（A7）",
+  "schema": {
+    "notetypeId": 9,
+    "name": "Listening",
+    "kind": "normal",
+    "fieldNames": [
+      "Audio",
+      "Word"
+    ],
+    "templateNames": [
+      "Card 1"
+    ],
+    "schemaFingerprint": "fp",
+    "samples": [
+      {
+        "noteId": 1,
+        "fields": [
+          "[sound:cat.mp3]",
+          "cat"
+        ],
+        "truncated": false
+      },
+      {
+        "noteId": 2,
+        "fields": [
+          "[sound:dog.mp3]",
+          "dog"
+        ],
+        "truncated": false
+      }
+    ],
+    "templateFacts": {
+      "hash": "h9",
+      "templates": [
+        {
+          "ord": 0,
+          "name": "Card 1",
+          "frontFields": [
+            0
+          ],
+          "backFields": [
+            1
+          ],
+          "filters": {
+            "typeIn": false,
+            "tts": [],
+            "hint": [],
+            "script": false,
+            "complexHtml": false
+          }
+        }
+      ],
+      "reqs": [
+        {
+          "cardOrd": 0,
+          "kind": "ANY",
+          "fieldOrds": [
+            0
+          ]
+        }
+      ]
+    }
+  },
+  "expected": {
+    "archetype": "audioFirst",
+    "band": "auto",
+    "roles": {
+      "Audio": "audio",
+      "Word": "response"
+    }
+  }
+}

@@ -82,6 +82,9 @@ fn run(out: &Path, large: Option<u32>) -> Result<()> {
         build_typed(&packages_dir, &expected_dir)?,
         build_scheduling(&packages_dir, &expected_dir)?,
         build_legacy(&packages_dir, &expected_dir)?,
+        build_recognition_typein(&packages_dir, &expected_dir)?,
+        build_recognition_optionpool(&packages_dir, &expected_dir)?,
+        build_recognition_zh_composite(&packages_dir, &expected_dir)?,
     ];
 
     let git_describe = Command::new("git")
@@ -494,6 +497,137 @@ fn build_legacy(packages: &Path, expected: &Path) -> Result<serde_json::Value> {
         false,
         |col| {
             col.add_basic("Basic", "turnafix000010", &["legacy-front", "legacy-back"])?;
+            Ok(())
+        },
+    )
+}
+
+/// Add a custom notetype with the given fields and (name, qfmt, afmt)
+/// templates. Used by the doc 37 recognition fixtures so template-derived
+/// facts ({{type:}} filters, per-face field references) exercise the
+/// recognizer against real collection data.
+fn add_custom_notetype(
+    col: &mut Col,
+    name: &str,
+    fields: &[&str],
+    templates: &[(&str, &str, &str)],
+) -> Result<()> {
+    let mut nt = anki::notetype::Notetype::default();
+    nt.name = name.to_string();
+    for (idx, field) in fields.iter().enumerate() {
+        nt.fields.push(anki::notetype::NoteField {
+            ord: Some(idx as u32),
+            name: field.to_string(),
+            config: anki::notetype::NoteFieldConfig::default(),
+        });
+    }
+    for (idx, (template_name, qfmt, afmt)) in templates.iter().enumerate() {
+        nt.templates.push(anki::notetype::CardTemplate {
+            ord: Some(idx as u32),
+            mtime_secs: TimestampSecs::default(),
+            usn: Usn::default(),
+            name: template_name.to_string(),
+            config: anki::notetype::CardTemplateConfig {
+                q_format: qfmt.to_string(),
+                a_format: afmt.to_string(),
+                ..Default::default()
+            },
+        });
+    }
+    col.col.add_notetype(&mut nt, false)?;
+    Ok(())
+}
+
+fn build_recognition_typein(packages: &Path, expected: &Path) -> Result<serde_json::Value> {
+    write_package(
+        packages,
+        expected,
+        "11-recognition-typein.apkg",
+        2,
+        2,
+        vec![
+            "question-contains:听写",
+            "answer-contains:spell-probe",
+            "templatefacts-typein:true",
+        ],
+        false,
+        false,
+        false,
+        |col| {
+            add_custom_notetype(
+                col,
+                "听写卡",
+                &["提示", "拼写答案"],
+                &[("Card 1", "{{提示}}", "{{FrontSide}}<hr>{{拼写答案}}{{type:拼写答案}}")],
+            )?;
+            col.add_basic("听写卡", "turnafix000011", &["听写：spell-probe", "答案甲"])?;
+            col.add_basic("听写卡", "turnafix000012", &["听写：second-probe", "答案乙"])?;
+            Ok(())
+        },
+    )
+}
+
+fn build_recognition_optionpool(packages: &Path, expected: &Path) -> Result<serde_json::Value> {
+    write_package(
+        packages,
+        expected,
+        "12-recognition-optionpool.apkg",
+        2,
+        2,
+        vec![
+            "question-contains:首都",
+            "answer-contains:巴黎",
+            "recognizer:choice",
+        ],
+        false,
+        false,
+        false,
+        |col| {
+            add_custom_notetype(
+                col,
+                "题库单选",
+                &["题干", "选项", "答案"],
+                &[("Card 1", "{{题干}}", "{{题干}}<hr>{{答案}}")],
+            )?;
+            col.add_basic(
+                "题库单选",
+                "turnafix000013",
+                &["法国的首都是哪里？", "巴黎|伦敦|柏林|马德里", "巴黎"],
+            )?;
+            col.add_basic(
+                "题库单选",
+                "turnafix000014",
+                &["土耳其的首都是哪里？", "安卡拉|伊斯坦布尔|伊兹密尔|科尼亚", "安卡拉"],
+            )?;
+            Ok(())
+        },
+    )
+}
+
+fn build_recognition_zh_composite(packages: &Path, expected: &Path) -> Result<serde_json::Value> {
+    write_package(
+        packages,
+        expected,
+        "13-recognition-zh-composite.apkg",
+        2,
+        2,
+        vec![
+            "question-contains:复合",
+            "answer-contains:composite",
+            "recognizer:basicPair",
+        ],
+        false,
+        false,
+        false,
+        |col| {
+            add_custom_notetype(
+                col,
+                "复合字段卡",
+                &["词汇表汉字", "词汇表释义", "读音标注"],
+                &[("Card 1", "{{词汇表汉字}}", "{{FrontSide}}<hr>{{词汇表释义}}{{读音标注}}")],
+            )?;
+            col.add_basic("复合字段卡", "turnafix000015", &["复合", "composite", "fùhé"])?;
+            col.add_basic("复合字段卡", "turnafix000016", &["结构", "structure", "jiégòu"])?;
             Ok(())
         },
     )

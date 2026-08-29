@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_ids.dart';
-import 'package:turna/application/anki_official/projection/official_anki_projection_mapper.dart';
+import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_paging.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_projector.dart';
 import 'package:turna/domain/course/interaction.dart';

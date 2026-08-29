@@ -1,0 +1,47 @@
+{
+  "id": "06",
+  "description": "选项池字段 A|B|C|D + 答案字段（A4）",
+  "schema": {
+    "notetypeId": 6,
+    "name": "题库单选",
+    "kind": "normal",
+    "fieldNames": [
+      "题干",
+      "选项",
+      "答案"
+    ],
+    "templateNames": [
+      "Card 1"
+    ],
+    "schemaFingerprint": "fp",
+    "samples": [
+      {
+        "noteId": 1,
+        "fields": [
+          "法国的首都？",
+          "巴黎|伦敦|柏林|马德里",
+          "巴黎"
+        ],
+        "truncated": false
+      },
+      {
+        "noteId": 2,
+        "fields": [
+          "土耳其的首都？",
+          "安卡拉|伊斯坦布尔|伊兹密尔",
+          "安卡拉"
+        ],
+        "truncated": false
+      }
+    ]
+  },
+  "expected": {
+    "archetype": "choice",
+    "band": "auto",
+    "roles": {
+      "题干": "prompt",
+      "选项": "options",
+      "答案": "response"
+    }
+  }
+}

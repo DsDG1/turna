@@ -8,7 +8,7 @@ import 'package:turna/application/anki_official/contract/official_anki_dto.dart'
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/import/anki_import_execution_plan.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
-import 'package:turna/application/anki_official/projection/official_anki_projection_mapper.dart';
+import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/utils/validated_file_picker.dart';
 
@@ -264,13 +264,11 @@ class AnkiImportController extends ChangeNotifier {
     dispose();
   }
 
-  // ─── Recognition attention (shared with the preview widgets) ────────
+  // ─── Recognition triage (shared with the preview widgets) ───────────
 
   bool _hasOfficialBlockingRecognition(OfficialAnkiImportPreviewModel preview) {
     return preview.schemas.any(
-      (schema) =>
-          officialRecognitionAttention(preview, schema) ==
-          ImportRecognitionAttention.blocking,
+      (schema) => officialRecognitionTriage(preview, schema).blocking,
     );
   }
 

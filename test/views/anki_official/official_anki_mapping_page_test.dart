@@ -1,30 +1,33 @@
 // Plain-language mapping page tests: the wizard must surface Chinese role
-// and status labels instead of raw enum names (`targetText`,
-// `autoCandidate`, `confidence=0.95`), keep its action keys, and still
-// deliver the edited suggestion through onConfirm.
+// and status labels instead of raw enum names (`prompt`, `auto`,
+// `confidence=0.95`), keep its action keys, and still deliver the edited
+// suggestion through onConfirm.
 
 // Flutter imports:
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // Project imports:
+import 'package:turna/application/anki_import/recognition/lexicon/field_roles.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
-import 'package:turna/application/anki_official/projection/official_anki_projection_mapper.dart';
+import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
 import 'package:turna/views/anki_official/official_anki_mapping_page.dart';
 
 OfficialAnkiMappingSuggestion _suggestion() =>
     const OfficialAnkiMappingSuggestion(
-      status: OfficialAnkiMappingStatus.autoCandidate,
+      status: OfficialAnkiMappingStatus.auto,
+      archetype: 'basicPair',
+      recognitionConfidence: 0.9,
       candidates: [
         OfficialAnkiFieldCandidate(
-          role: OfficialAnkiFieldRole.targetText,
+          role: FieldRole.prompt,
           fieldIndex: 0,
           fieldName: 'Front',
           confidence: 0.95,
           evidence: ['rule', 'fieldShape'],
         ),
         OfficialAnkiFieldCandidate(
-          role: OfficialAnkiFieldRole.nativeText,
+          role: FieldRole.response,
           fieldIndex: 1,
           fieldName: 'Back',
           confidence: 0.9,
@@ -63,12 +66,13 @@ void main() {
     expect(find.text('正面'), findsWidgets);
     expect(find.text('背面'), findsWidgets);
     expect(find.text('这样显示正确吗？'), findsOneWidget);
-    expect(find.textContaining('已按卡片内容匹配'), findsOneWidget);
+    expect(find.textContaining('已按卡片结构识别'), findsOneWidget);
     expect(find.textContaining('共 12 张'), findsOneWidget);
     expect(find.text('merhaba'), findsOneWidget);
 
     // Raw technical vocabulary must not leak into the simplified page.
     expect(find.textContaining('targetText'), findsNothing);
+    expect(find.textContaining('basicPair'), findsNothing);
     expect(find.textContaining('autoCandidate'), findsNothing);
     expect(find.textContaining('confidence'), findsNothing);
     expect(find.textContaining('0.95'), findsNothing);
@@ -92,7 +96,7 @@ void main() {
 
     expect(confirmed, isNotNull);
     expect(
-        confirmed!.role(OfficialAnkiFieldRole.targetText)?.fieldName, 'Front');
+        confirmed!.role(FieldRole.prompt)?.fieldName, 'Front');
   });
 
   testWidgets('reassigning a role through the dropdown notifies onChanged',
@@ -117,7 +121,7 @@ void main() {
 
     expect(changed, isNotNull);
     expect(
-      changed!.role(OfficialAnkiFieldRole.pronunciation)?.fieldIndex,
+      changed!.role(FieldRole.pronunciation)?.fieldIndex,
       2,
     );
   });
@@ -137,11 +141,11 @@ void main() {
 
     expect(changed, isNotNull);
     expect(
-      changed!.role(OfficialAnkiFieldRole.targetText)?.fieldName,
+      changed!.role(FieldRole.prompt)?.fieldName,
       'Back',
     );
     expect(
-      changed!.role(OfficialAnkiFieldRole.nativeText)?.fieldName,
+      changed!.role(FieldRole.response)?.fieldName,
       'Front',
     );
   });
@@ -151,7 +155,7 @@ void main() {
     await tester.pumpWidget(_host(OfficialAnkiMappingPage(
       notetypeName: 'Unknown',
       suggestion: const OfficialAnkiMappingSuggestion(
-        status: OfficialAnkiMappingStatus.needsMapping,
+        status: OfficialAnkiMappingStatus.review,
         candidates: [],
       ),
       schema: _schema(),
@@ -168,12 +172,12 @@ void main() {
     await tester.pumpWidget(_host(OfficialAnkiMappingPage(
       notetypeName: 'Basic',
       suggestion: _suggestion().copyWith(
-        status: OfficialAnkiMappingStatus.needsConfirm,
+        status: OfficialAnkiMappingStatus.review,
       ),
       schema: _schema(),
     )));
 
-    expect(find.textContaining('看一下样卡正反面'), findsOneWidget);
+    expect(find.textContaining('建议看一眼样卡'), findsOneWidget);
     final save = tester.widget<FilledButton>(
       find.byKey(const Key('mapping-save')),
     );
@@ -210,7 +214,7 @@ void main() {
     expect(confirmed!.enabledKinds, isNot(contains('listenPick')));
     // Field roles are untouched by the exercise choice.
     expect(
-        confirmed!.role(OfficialAnkiFieldRole.targetText)?.fieldName, 'Front');
+        confirmed!.role(FieldRole.prompt)?.fieldName, 'Front');
   });
 
   testWidgets('cloze schema surfaces the fill-blank note', (tester) async {

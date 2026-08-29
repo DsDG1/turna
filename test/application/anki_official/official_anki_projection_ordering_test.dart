@@ -8,7 +8,8 @@ import 'package:turna/application/anki_official/contract/official_anki_dto.dart'
 import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_ids.dart';
-import 'package:turna/application/anki_official/projection/official_anki_projection_mapper.dart';
+import 'package:turna/application/anki_import/recognition/recognize/recognizer.dart';
+import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_projector.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_service.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_store.dart';
@@ -54,7 +55,7 @@ OfficialAnkiProjectionPlan _project(
     sourceId: 'src1',
     profileId: 'profile-a',
     rows: rows,
-    mappings: {1: OfficialAnkiProjectionMapper().suggest(schema: schema)},
+    mappings: {1: officialAnkiSuggestMapping(schema, const CardRecognizer())},
   );
 }
 
@@ -445,7 +446,7 @@ void main() {
       );
       service.confirmMapping(
         schema: schema,
-        suggestion: OfficialAnkiProjectionMapper().suggest(schema: schema),
+        suggestion: officialAnkiSuggestMapping(schema, const CardRecognizer()),
       );
 
       final first = await service.projectSource();

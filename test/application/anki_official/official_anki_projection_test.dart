@@ -1,11 +1,14 @@
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide isNotNull;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:turna/application/anki_import/recognition/lexicon/field_roles.dart';
+import 'package:turna/application/anki_import/recognition/recognize/recognizer.dart';
+import 'package:turna/application/anki_import/recognition/recognize/result.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
+import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_ids.dart';
-import 'package:turna/application/anki_official/projection/official_anki_projection_mapper.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_payloads.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_projector.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_service.dart';
@@ -13,8 +16,12 @@ import 'package:turna/application/anki_official/storage/official_anki_database.d
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/data/course_database.dart';
 
+OfficialAnkiMappingSuggestion _suggest(OfficialAnkiProjectionSchema schema) {
+  return officialAnkiSuggestMapping(schema, const CardRecognizer());
+}
+
 void main() {
-  test('mapping goldens use names and samples only', () {
+  test('structure + lexicon binds Front/Back/Audio with auto band', () {
     const schema = OfficialAnkiProjectionSchema(
       notetypeId: 1,
       name: 'Basic',
@@ -27,49 +34,99 @@ void main() {
           noteId: 1,
           fields: ['hello', '你好', '[sound:a.mp3]'],
         ),
+        OfficialAnkiProjectionSample(
+          noteId: 2,
+          fields: ['world', '世界', '[sound:b.mp3]'],
+        ),
       ],
     );
-    final suggestion = OfficialAnkiProjectionMapper().suggest(schema: schema);
-    expect(suggestion.status, OfficialAnkiMappingStatus.autoCandidate);
-    final target = suggestion.candidates
-        .firstWhere((c) => c.role == OfficialAnkiFieldRole.targetText);
-    expect(target.confidence, greaterThanOrEqualTo(0.90));
-    expect(target.evidence, contains('name:front'));
-    expect(target.evidence, contains('sample:plain_text'));
+    final suggestion = _suggest(schema);
+    expect(suggestion.status, OfficialAnkiMappingStatus.auto);
+    expect(suggestion.archetype, 'basicPair');
+    final prompt = suggestion.candidates
+        .firstWhere((c) => c.role == FieldRole.prompt);
+    expect(prompt.fieldName, 'Front');
+    expect(prompt.confidence, greaterThanOrEqualTo(0.85));
+    expect(prompt.evidence, contains('lexicon:exact (Front)'));
+    expect(prompt.evidence, contains('sample:plain_text'));
     final audio = suggestion.candidates
-        .firstWhere((c) => c.role == OfficialAnkiFieldRole.audio);
-    expect(audio.evidence, contains('sample:official_av'));
-    expect(
-      OfficialAnkiProjectionMapper().shortText('<b>Hi</b> [sound:a.mp3]'),
-      'Hi',
-    );
+        .firstWhere((c) => c.role == FieldRole.audio);
+    expect(audio.evidence, contains('sample:sound_ref'));
   });
 
-  test('custom field names still get a front/back mapping', () {
+  test('custom vocab names bind through position and land in review', () {
+    // Doc 37 R1: when the lexicon does not know the names, structure and
+    // position still produce a usable binding — the band honestly says
+    // "review" instead of faking confidence.
     const schema = OfficialAnkiProjectionSchema(
       notetypeId: 3,
       name: 'eggrolls-JLPT10k',
       kind: 'normal',
       fieldNames: ['VocabKanji', 'VocabDefSC', 'VocabAudio'],
-      templateNames: const ['Card 1'],
+      templateNames: ['Card 1'],
       schemaFingerprint: 'egg',
       samples: [
         OfficialAnkiProjectionSample(
           noteId: 1,
           fields: ['食べる', '吃', '[sound:x.mp3]'],
         ),
+        OfficialAnkiProjectionSample(
+          noteId: 2,
+          fields: ['飲む', '喝', '[sound:y.mp3]'],
+        ),
       ],
     );
-    final suggestion = OfficialAnkiProjectionMapper().suggest(schema: schema);
-    expect(suggestion.status, OfficialAnkiMappingStatus.autoCandidate);
-    expect(
-      suggestion.role(OfficialAnkiFieldRole.targetText)?.fieldName,
-      'VocabKanji',
+    final suggestion = _suggest(schema);
+    expect(suggestion.status, OfficialAnkiMappingStatus.review);
+    expect(suggestion.archetype, 'basicPair');
+    expect(suggestion.role(FieldRole.prompt)?.fieldName, 'VocabKanji');
+    expect(suggestion.role(FieldRole.response)?.fieldName, 'VocabDefSC');
+    expect(suggestion.role(FieldRole.audio)?.fieldName, 'VocabAudio');
+  });
+
+  test('templateFacts strengthen the pair to auto for unknown names', () {
+    // Same unknown names, but the engine now tells us which fields each
+    // template face references: the structural signal closes the gap the
+    // lexicon left (contract 1.9 payoff).
+    const schema = OfficialAnkiProjectionSchema(
+      notetypeId: 3,
+      name: 'eggrolls-JLPT10k',
+      kind: 'normal',
+      fieldNames: ['VocabKanji', 'VocabDefSC', 'VocabAudio'],
+      templateNames: ['Card 1'],
+      schemaFingerprint: 'egg',
+      samples: [
+        OfficialAnkiProjectionSample(
+          noteId: 1,
+          fields: ['食べる', '吃', '[sound:x.mp3]'],
+        ),
+        OfficialAnkiProjectionSample(
+          noteId: 2,
+          fields: ['飲む', '喝', '[sound:y.mp3]'],
+        ),
+      ],
+      templateFacts: OfficialAnkiTemplateFacts(
+        hash: 'facts-1',
+        templates: [
+          OfficialAnkiTemplateFact(
+            ord: 0,
+            name: 'Card 1',
+            frontFields: [0],
+            backFields: [0, 1, 2],
+          ),
+        ],
+        reqs: [
+          OfficialAnkiCardRequirement(cardOrd: 0, kind: 'ANY', fieldOrds: [0]),
+        ],
+      ),
     );
-    expect(
-      suggestion.role(OfficialAnkiFieldRole.nativeText)?.fieldName,
-      'VocabDefSC',
-    );
+    final suggestion = _suggest(schema);
+    expect(suggestion.status, OfficialAnkiMappingStatus.auto);
+    expect(suggestion.role(FieldRole.prompt)?.fieldName, 'VocabKanji');
+    expect(suggestion.role(FieldRole.response)?.fieldName, 'VocabDefSC');
+    expect(suggestion.templateFactsHash, 'facts-1');
+    expect(suggestion.recognizerVersion, 1);
+    expect(suggestion.lexiconVersion, 1);
   });
 
   test('cloze Text/Extra does not require a separate answer field', () {
@@ -78,7 +135,7 @@ void main() {
       name: 'Cloze',
       kind: 'cloze',
       fieldNames: ['Text', 'Extra'],
-      templateNames: const ['Cloze'],
+      templateNames: ['Cloze'],
       schemaFingerprint: 'cz',
       samples: [
         OfficialAnkiProjectionSample(
@@ -87,28 +144,30 @@ void main() {
         ),
       ],
     );
-    final suggestion = OfficialAnkiProjectionMapper().suggest(schema: schema);
+    final suggestion = _suggest(schema);
     expect(suggestion.singleFieldMode, isTrue);
-    expect(suggestion.status, OfficialAnkiMappingStatus.autoCandidate);
-    expect(
-      suggestion.role(OfficialAnkiFieldRole.targetText),
-      isA<OfficialAnkiFieldCandidate>(),
-    );
+    expect(suggestion.status, OfficialAnkiMappingStatus.auto);
+    expect(suggestion.archetype, 'cloze');
+    expect(suggestion.role(FieldRole.prompt)?.fieldName, 'Text');
   });
 
-  test('image occlusion is auto-ready as a single-field image card', () {
+  test('image occlusion binds the image fields without samples', () {
     const schema = OfficialAnkiProjectionSchema(
       notetypeId: 5,
       name: 'Image Occlusion',
       kind: 'normal',
       fieldNames: ['Header', 'Image', 'Occlusion', 'Back Extra'],
-      templateNames: const ['IO'],
+      templateNames: ['IO'],
       schemaFingerprint: 'io',
-      samples: const [],
+      samples: [],
     );
-    final suggestion = OfficialAnkiProjectionMapper().suggest(schema: schema);
-    expect(suggestion.singleFieldMode, isTrue);
-    expect(suggestion.status, OfficialAnkiMappingStatus.autoCandidate);
+    final suggestion = _suggest(schema);
+    // No samples: the default pair rule wins with a review band; the
+    // occlusion/image fields bind through the lexicon.
+    expect(suggestion.archetype, 'basicPair');
+    expect(suggestion.status, OfficialAnkiMappingStatus.review);
+    expect(suggestion.role(FieldRole.image), isNotNull);
+    expect(suggestion.role(FieldRole.prompt)?.fieldName, 'Header');
   });
 
   test('20-card lessons and Recovered section', () {
@@ -151,19 +210,7 @@ void main() {
         sourceFingerprint: 'f100',
       ),
     ];
-    final mapping = OfficialAnkiProjectionMapper().suggest(
-      schema: const OfficialAnkiProjectionSchema(
-        notetypeId: 1,
-        name: 'Basic',
-        kind: 'normal',
-        fieldNames: ['Front', 'Back'],
-        templateNames: ['Card 1'],
-        schemaFingerprint: 'fp',
-        samples: [
-          OfficialAnkiProjectionSample(noteId: 1, fields: ['t', 'n']),
-        ],
-      ),
-    );
+    final mapping = _basicMapping();
     final plan = OfficialAnkiProjectionProjector().project(
       sourceId: 'src1',
       profileId: 'profile-a',
@@ -260,28 +307,30 @@ void main() {
 
   test('confirmed lessonLabel field groups cards into one lesson', () {
     final mapping = OfficialAnkiMappingSuggestion(
-      status: OfficialAnkiMappingStatus.autoCandidate,
+      status: OfficialAnkiMappingStatus.manual,
+      archetype: 'basicPair',
+      recognitionConfidence: 1,
       candidates: const [
         OfficialAnkiFieldCandidate(
-          role: OfficialAnkiFieldRole.targetText,
+          role: FieldRole.prompt,
           fieldIndex: 0,
           fieldName: 'Front',
           confidence: 0.95,
-          evidence: ['name:front'],
+          evidence: ['lexicon:exact'],
         ),
         OfficialAnkiFieldCandidate(
-          role: OfficialAnkiFieldRole.nativeText,
+          role: FieldRole.response,
           fieldIndex: 1,
           fieldName: 'Back',
           confidence: 0.94,
-          evidence: ['name:back'],
+          evidence: ['lexicon:exact'],
         ),
         OfficialAnkiFieldCandidate(
-          role: OfficialAnkiFieldRole.lessonLabel,
+          role: FieldRole.lessonLabel,
           fieldIndex: 2,
           fieldName: 'Lesson',
           confidence: 0.9,
-          evidence: ['name:lesson'],
+          evidence: ['lexicon:exact'],
         ),
       ],
     );
@@ -469,17 +518,17 @@ void main() {
       schemaFingerprint: 'fake-basic',
     );
     const confirmed = OfficialAnkiMappingSuggestion(
-      status: OfficialAnkiMappingStatus.needsConfirm,
+      status: OfficialAnkiMappingStatus.review,
       candidates: [
         OfficialAnkiFieldCandidate(
-          role: OfficialAnkiFieldRole.targetText,
+          role: FieldRole.prompt,
           fieldIndex: 1,
           fieldName: 'Back',
           confidence: 0.99,
           evidence: ['user'],
         ),
         OfficialAnkiFieldCandidate(
-          role: OfficialAnkiFieldRole.nativeText,
+          role: FieldRole.response,
           fieldIndex: 0,
           fieldName: 'Front',
           confidence: 0.99,
@@ -491,14 +540,44 @@ void main() {
     await env.service.projectSource();
     await env.service.projectSource();
     final stored = env.catalog.handle.select(
-      'SELECT mapping_json, user_confirmed, schema_fingerprint '
+      'SELECT mapping_json, user_confirmed, schema_fingerprint, status '
       'FROM anki_projection_mappings WHERE profile_id = ? AND notetype_id = 1',
       ['profile-a'],
     ).first;
     expect(stored['user_confirmed'], 1);
     expect(stored['schema_fingerprint'], 'fake-basic');
+    expect(stored['status'], 'manual');
     expect(stored['mapping_json'] as String, contains('"evidence":["user"]'));
     expect(stored['mapping_json'] as String, contains('"fieldIndex":1'));
+  });
+
+  test('legacy mapping JSON parses through the role/status rename', () {
+    final parsed = OfficialAnkiMappingSuggestion.fromJson(const {
+      'status': 'needsConfirm',
+      'direction': 'targetToNative',
+      'candidates': [
+        {
+          'role': 'targetText',
+          'fieldIndex': 0,
+          'fieldName': 'Front',
+          'confidence': 0.92,
+          'evidence': ['name:front'],
+        },
+        {
+          'role': 'optionPool',
+          'fieldIndex': 2,
+          'fieldName': 'Choices',
+          'confidence': 0.88,
+          'evidence': [],
+        },
+      ],
+    });
+    expect(parsed.status, OfficialAnkiMappingStatus.review);
+    expect(parsed.direction, 'promptToResponse');
+    expect(parsed.role(FieldRole.prompt)?.fieldName, 'Front');
+    expect(parsed.role(FieldRole.options)?.fieldName, 'Choices');
+    expect(parsed.recognizerVersion, 0);
+    expect(parsed.cardArchetype, CardArchetype.basicPair);
   });
 
   test('projectSource pages the full allowlist and publishes the union', () async {
@@ -568,7 +647,7 @@ void main() {
     expect(tree.data['n'], 1);
   });
 
-  test('mapping goldens detect Chinese fields 正面 and 反面', () {
+  test('Chinese fields 正面 and 反面 bind through the zh lexicon', () {
     const schema = OfficialAnkiProjectionSchema(
       notetypeId: 2,
       name: '中文基础',
@@ -581,14 +660,29 @@ void main() {
           noteId: 1,
           fields: ['apple', '苹果', 'píngguǒ', 'This is an apple.'],
         ),
+        OfficialAnkiProjectionSample(
+          noteId: 2,
+          fields: ['pear', '梨', 'lí', 'This is a pear.'],
+        ),
       ],
     );
-    final suggestion = OfficialAnkiProjectionMapper().suggest(schema: schema);
-    expect(suggestion.status, OfficialAnkiMappingStatus.autoCandidate);
-    final target = suggestion.candidates.firstWhere((c) => c.role == OfficialAnkiFieldRole.targetText);
-    expect(target.confidence, greaterThanOrEqualTo(0.90));
-    final native = suggestion.candidates.firstWhere((c) => c.role == OfficialAnkiFieldRole.nativeText);
-    expect(native.confidence, greaterThanOrEqualTo(0.90));
+    final suggestion = _suggest(schema);
+    expect(suggestion.status, OfficialAnkiMappingStatus.auto);
+    expect(suggestion.archetype, 'basicPair');
+    expect(
+      suggestion.candidates
+          .firstWhere((c) => c.role == FieldRole.prompt)
+          .confidence,
+      greaterThanOrEqualTo(0.85),
+    );
+    expect(
+      suggestion.candidates
+          .firstWhere((c) => c.role == FieldRole.response)
+          .confidence,
+      greaterThanOrEqualTo(0.85),
+    );
+    expect(suggestion.role(FieldRole.audio)?.fieldName, '发音');
+    expect(suggestion.role(FieldRole.example)?.fieldName, '例句');
   });
 
   test('Basic 20 cards project to flip cards and 0 canonicalLinks', () {
@@ -619,7 +713,7 @@ void main() {
     expect(plan.items.any((item) => item.kind == OfficialAnkiProjectionKind.canonicalLink), isFalse);
   });
 
-  test('needsMapping with high-confidence classifier does not block to canonicalLink', () {
+  test('untrusted mapping with low recognition confidence falls to canonicalLink', () {
     const row = OfficialAnkiProjectionRow(
       cardId: 1,
       noteId: 1,
@@ -634,7 +728,49 @@ void main() {
     );
     final mapping = OfficialAnkiMappingSuggestion(
       candidates: const [],
-      status: OfficialAnkiMappingStatus.needsMapping,
+      status: OfficialAnkiMappingStatus.review,
+      archetype: 'basicPair',
+      recognitionConfidence: 0.5,
+    );
+    final payloads = OfficialAnkiProjectionPayloads();
+    final values = payloads.values(row, mapping);
+    final kinds = payloads.kindsFor(values: values, mapping: mapping, typeAnswerEnabled: false);
+    expect(kinds, [OfficialAnkiProjectionKind.canonicalLink]);
+  });
+
+  test('confirmed mapping keeps projecting flip without recognition fields', () {
+    const row = OfficialAnkiProjectionRow(
+      cardId: 1,
+      noteId: 1,
+      noteGuid: 'g1',
+      notetypeId: 1,
+      deckId: 1,
+      deckPath: ['Default'],
+      templateOrdinal: 0,
+      tags: <String>[],
+      fields: ['cat', '猫'],
+      sourceFingerprint: 'fp1',
+    );
+    // A legacy user-confirmed row: no archetype, no confidence, but the
+    // manual status means the user owns it.
+    final mapping = OfficialAnkiMappingSuggestion(
+      status: OfficialAnkiMappingStatus.manual,
+      candidates: const [
+        OfficialAnkiFieldCandidate(
+          role: FieldRole.prompt,
+          fieldIndex: 0,
+          fieldName: 'Front',
+          confidence: 1,
+          evidence: ['user'],
+        ),
+        OfficialAnkiFieldCandidate(
+          role: FieldRole.response,
+          fieldIndex: 1,
+          fieldName: 'Back',
+          confidence: 1,
+          evidence: ['user'],
+        ),
+      ],
     );
     final payloads = OfficialAnkiProjectionPayloads();
     final values = payloads.values(row, mapping);
@@ -663,11 +799,63 @@ void main() {
     expect(kinds, [OfficialAnkiProjectionKind.canonicalLink]);
     expect(kinds, isNot(contains(OfficialAnkiProjectionKind.multipleChoice)));
   });
+
+  test('option-pool notetype projects a real MCQ with aligned answer', () {
+    const schema = OfficialAnkiProjectionSchema(
+      notetypeId: 7,
+      name: '题库单选',
+      kind: 'normal',
+      fieldNames: ['题干', '选项', '答案'],
+      templateNames: ['Card 1'],
+      schemaFingerprint: 'mcq',
+      samples: [
+        OfficialAnkiProjectionSample(
+          noteId: 1,
+          fields: ['法国的首都？', '巴黎|伦敦|柏林|马德里', '巴黎'],
+        ),
+        OfficialAnkiProjectionSample(
+          noteId: 2,
+          fields: ['土耳其的首都？', '安卡拉|伊斯坦布尔|伊兹密尔', '安卡拉'],
+        ),
+      ],
+    );
+    final suggestion = _suggest(schema);
+    expect(suggestion.archetype, 'choice');
+    expect(suggestion.status, OfficialAnkiMappingStatus.auto);
+    expect(suggestion.role(FieldRole.prompt)?.fieldName, '题干');
+    expect(suggestion.role(FieldRole.options)?.fieldName, '选项');
+    expect(suggestion.role(FieldRole.response)?.fieldName, '答案');
+  });
+
+  test('cloze markers inside a basicPair card upgrade that card to fillBlank',
+      () {
+    final mapping = _basicMapping();
+    const row = OfficialAnkiProjectionRow(
+      cardId: 1,
+      noteId: 1,
+      noteGuid: 'g1',
+      notetypeId: 1,
+      deckId: 1,
+      deckPath: ['Default'],
+      templateOrdinal: 1,
+      tags: <String>[],
+      fields: ['The capital is {{c1::Paris}} and the river is {{c2::Seine}}.', ''],
+      sourceFingerprint: 'fp1',
+    );
+    final payloads = OfficialAnkiProjectionPayloads();
+    final values = payloads.values(row, mapping);
+    expect(values.archetype, CardArchetype.cloze);
+    // Ordinal 1 selects the c2 deletion, not the first marker.
+    expect(values.clozeAnswer, 'Seine');
+    expect(values.clozeSentence, contains('_____'));
+    final kinds = payloads.kindsFor(values: values, mapping: mapping, typeAnswerEnabled: false);
+    expect(kinds, [OfficialAnkiProjectionKind.fillBlank]);
+  });
 }
 
 OfficialAnkiMappingSuggestion _basicMapping() {
-  return OfficialAnkiProjectionMapper().suggest(
-    schema: const OfficialAnkiProjectionSchema(
+  return _suggest(
+    const OfficialAnkiProjectionSchema(
       notetypeId: 1,
       name: 'Basic',
       kind: 'normal',
@@ -739,7 +927,7 @@ void _confirmFakeBasic(OfficialAnkiCourseProjectionService service) {
   );
   service.confirmMapping(
     schema: schema,
-    suggestion: OfficialAnkiProjectionMapper().suggest(schema: schema),
+    suggestion: _suggest(schema),
   );
 }
 
@@ -758,4 +946,3 @@ void _seedCards(OfficialAnkiDatabase catalog, String sourceId, int cards) {
     ],
   );
 }
-

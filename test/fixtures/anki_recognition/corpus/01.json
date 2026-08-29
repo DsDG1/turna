@@ -1,0 +1,75 @@
+{
+  "id": "01",
+  "description": "Front/Back 基础（词典+位置）",
+  "schema": {
+    "notetypeId": 1,
+    "name": "Basic",
+    "kind": "normal",
+    "fieldNames": [
+      "Front",
+      "Back"
+    ],
+    "templateNames": [
+      "Card 1"
+    ],
+    "schemaFingerprint": "fp",
+    "samples": [
+      {
+        "noteId": 1,
+        "fields": [
+          "hello",
+          "你好"
+        ],
+        "truncated": false
+      },
+      {
+        "noteId": 2,
+        "fields": [
+          "dog",
+          "狗"
+        ],
+        "truncated": false
+      }
+    ],
+    "templateFacts": {
+      "hash": "h1",
+      "templates": [
+        {
+          "ord": 0,
+          "name": "Card 1",
+          "frontFields": [
+            0
+          ],
+          "backFields": [
+            0,
+            1
+          ],
+          "filters": {
+            "typeIn": false,
+            "tts": [],
+            "hint": [],
+            "script": false,
+            "complexHtml": false
+          }
+        }
+      ],
+      "reqs": [
+        {
+          "cardOrd": 0,
+          "kind": "ANY",
+          "fieldOrds": [
+            0
+          ]
+        }
+      ]
+    }
+  },
+  "expected": {
+    "archetype": "basicPair",
+    "band": "auto",
+    "roles": {
+      "Front": "prompt",
+      "Back": "response"
+    }
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "id": "08",
+  "description": "内嵌选项但答案对不上（铁律降级）",
+  "schema": {
+    "notetypeId": 8,
+    "name": "Quiz",
+    "kind": "normal",
+    "fieldNames": [
+      "Front",
+      "Back"
+    ],
+    "templateNames": [
+      "Card 1"
+    ],
+    "schemaFingerprint": "fp",
+    "samples": [
+      {
+        "noteId": 1,
+        "fields": [
+          "Which one?\nA. Cat\nB. Dog",
+          "完全无关的答案"
+        ],
+        "truncated": false
+      },
+      {
+        "noteId": 2,
+        "fields": [
+          "Pick.\nA. Apple\nB. Pear",
+          "看不懂的回复"
+        ],
+        "truncated": false
+      }
+    ]
+  },
+  "expected": {
+    "archetype": "richHtml",
+    "band": "auto",
+    "roles": {
+      "Front": "prompt",
+      "Back": "response"
+    }
+  }
+}

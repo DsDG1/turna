@@ -1,0 +1,43 @@
+{
+  "id": "02",
+  "description": "正面/背面 中文词典",
+  "schema": {
+    "notetypeId": 2,
+    "name": "中文基础",
+    "kind": "normal",
+    "fieldNames": [
+      "正面",
+      "背面"
+    ],
+    "templateNames": [
+      "卡片 1"
+    ],
+    "schemaFingerprint": "fp",
+    "samples": [
+      {
+        "noteId": 1,
+        "fields": [
+          "apple",
+          "苹果"
+        ],
+        "truncated": false
+      },
+      {
+        "noteId": 2,
+        "fields": [
+          "pear",
+          "梨"
+        ],
+        "truncated": false
+      }
+    ]
+  },
+  "expected": {
+    "archetype": "basicPair",
+    "band": "auto",
+    "roles": {
+      "正面": "prompt",
+      "背面": "response"
+    }
+  }
+}

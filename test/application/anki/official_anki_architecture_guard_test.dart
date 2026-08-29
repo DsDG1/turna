@@ -65,7 +65,7 @@ void main() {
         'lib/application/anki_official/projection/official_anki_projection_payloads.dart',
       ).readAsStringSync();
       expect(text.contains('list.add(OfficialAnkiProjectionKind.multipleChoice)'), isFalse);
-      expect(text.contains('CardPresentationPolicy'), isTrue);
+      expect(text.contains('OfficialAnkiPresentationPolicy'), isTrue);
     });
 
     test('formal review path does not re-run practice classifier or four-rating',
@@ -95,6 +95,31 @@ void main() {
     });
 
     // Doc 34 W9 §13.3 / doc 35 L1 — parser-layer deletion guards.
+    // Doc 37 P5 — old recognizer deletion guards.
+    test('legacy recognizer modules stay deleted (doc 37)', () {
+      const deleted = [
+        'lib/application/anki_official/projection/official_anki_projection_mapper.dart',
+        'lib/application/anki_official/projection/card_presentation_policy.dart',
+        'lib/application/anki_practice/card_classifier.dart',
+        'lib/application/anki_practice/card_classifier_models.dart',
+        'lib/application/anki_practice/embedded_options.dart',
+        'lib/application/anki_practice/card_text.dart',
+      ];
+      for (final path in deleted) {
+        expect(File(path).existsSync(), isFalse,
+            reason: '$path was resurrected');
+      }
+      final libDir = Directory('lib');
+      for (final file in libDir.listSync(recursive: true)) {
+        if (file is! File || !file.path.endsWith('.dart')) continue;
+        final text = file.readAsStringSync();
+        expect(text.contains('AnkiPracticeShape'), isFalse,
+            reason: '${file.path} references the deleted shape enum');
+        expect(text.contains('OfficialAnkiFieldRole'), isFalse,
+            reason: '${file.path} references the deleted role enum');
+      }
+    });
+
     test('execution planner is strictly three-valued (no legacyOnly)', () {
       final text = File(
         'lib/application/anki_official/import/anki_import_execution_plan.dart',

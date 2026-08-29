@@ -1,11 +1,11 @@
 // Project imports:
-import 'package:turna/application/anki_official/projection/official_anki_projection_mapper.dart';
+import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
 
 /// User-facing exercise presets for the official mapping page. Each preset
-/// writes a concrete `enabledKinds` list onto the suggestion;
-/// [CardPresentationPolicy] still combines it with the per-card classifier
-/// shape, so a preset never forces an unsupported kind onto a card — it
-/// constrains what may be picked, with flip/canonicalLink as fallbacks.
+/// writes a concrete `enabledKinds` list onto the suggestion; the
+/// presentation policy combines it with the recognized archetype, so a
+/// preset never forces an unsupported kind onto a card — it constrains
+/// what may be picked, with flip/canonicalLink as fallbacks.
 enum OfficialExercisePreset { auto, choice, fillBlank, listen, flip }
 
 /// The kind whitelist a preset maps to. Order matches the policy's fallback

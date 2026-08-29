@@ -1,0 +1,67 @@
+{
+  "id": "11",
+  "description": "模板含 script/table（A2）",
+  "schema": {
+    "notetypeId": 11,
+    "name": "Fancy",
+    "kind": "normal",
+    "fieldNames": [
+      "Front",
+      "Back"
+    ],
+    "templateNames": [
+      "Card 1"
+    ],
+    "schemaFingerprint": "fp",
+    "samples": [
+      {
+        "noteId": 1,
+        "fields": [
+          "a",
+          "b"
+        ],
+        "truncated": false
+      }
+    ],
+    "templateFacts": {
+      "hash": "h11",
+      "templates": [
+        {
+          "ord": 0,
+          "name": "Card 1",
+          "frontFields": [
+            0
+          ],
+          "backFields": [
+            0,
+            1
+          ],
+          "filters": {
+            "typeIn": false,
+            "tts": [],
+            "hint": [],
+            "script": false,
+            "complexHtml": true
+          }
+        }
+      ],
+      "reqs": [
+        {
+          "cardOrd": 0,
+          "kind": "ANY",
+          "fieldOrds": [
+            0
+          ]
+        }
+      ]
+    }
+  },
+  "expected": {
+    "archetype": "richHtml",
+    "band": "auto",
+    "roles": {
+      "Front": "prompt",
+      "Back": "response"
+    }
+  }
+}

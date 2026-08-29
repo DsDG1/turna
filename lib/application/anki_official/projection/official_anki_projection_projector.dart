@@ -1,9 +1,11 @@
 import 'dart:math' as math;
 
+import 'package:turna/application/anki_import/recognition/facts/text_metrics.dart';
+import 'package:turna/application/anki_import/recognition/lexicon/field_roles.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
+import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_canonical.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_ids.dart';
-import 'package:turna/application/anki_official/projection/official_anki_projection_mapper.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_payloads.dart';
 import 'package:turna/core/natural_compare.dart';
 import 'package:turna/courses/course_validator.dart' show kMaxLessonsPerUnit, kMaxUnitsPerSection;
@@ -121,7 +123,6 @@ class OfficialAnkiProjectionProjector {
   /// runtime L1 validator can never see a published section that fails.
   final int maxUnitsPerSection;
   final int maxLessonsPerUnit;
-  final _mapper = OfficialAnkiProjectionMapper();
   final _payloads = OfficialAnkiProjectionPayloads();
 
   OfficialAnkiProjectionPlan project({
@@ -181,19 +182,19 @@ class OfficialAnkiProjectionProjector {
       final seenSiblings = <String>{};
       for (final row in bucket) {
         final m = mappings[row.row.notetypeId];
-        final nativeCand = m?.role(OfficialAnkiFieldRole.nativeText);
-        final targetCand = m?.role(OfficialAnkiFieldRole.targetText);
+        final responseCand = m?.role(FieldRole.response);
+        final promptCand = m?.role(FieldRole.prompt);
         String s = '';
-        if (nativeCand != null &&
-            nativeCand.fieldIndex >= 0 &&
-            nativeCand.fieldIndex < row.row.fields.length) {
-          s = _mapper.shortText(row.row.fields[nativeCand.fieldIndex]);
-        } else if (targetCand != null &&
-            targetCand.fieldIndex >= 0 &&
-            targetCand.fieldIndex < row.row.fields.length) {
-          s = _mapper.shortText(row.row.fields[targetCand.fieldIndex]);
+        if (responseCand != null &&
+            responseCand.fieldIndex >= 0 &&
+            responseCand.fieldIndex < row.row.fields.length) {
+          s = CardText.shortText(row.row.fields[responseCand.fieldIndex]);
+        } else if (promptCand != null &&
+            promptCand.fieldIndex >= 0 &&
+            promptCand.fieldIndex < row.row.fields.length) {
+          s = CardText.shortText(row.row.fields[promptCand.fieldIndex]);
         } else if (row.row.fields.isNotEmpty) {
-          s = _mapper.shortText(row.row.fields[0]);
+          s = CardText.shortText(row.row.fields[0]);
         }
         if (s.trim().isNotEmpty && s.length <= 80 && seenSiblings.add(s.toLowerCase())) {
           siblingPool.add(s.trim());
@@ -534,9 +535,8 @@ class OfficialAnkiProjectionProjector {
       topDeckName: topName,
       topDeckIds: topDeckIds,
     );
-    final unitLabel = _fieldValue(row, mapping, OfficialAnkiFieldRole.unitLabel);
-    final lessonLabel =
-        _fieldValue(row, mapping, OfficialAnkiFieldRole.lessonLabel);
+    final unitLabel = _fieldValue(row, mapping, FieldRole.unitLabel);
+    final lessonLabel = _fieldValue(row, mapping, FieldRole.lessonLabel);
     final unitTag = _tagValue(row.tags, const [
       'unit::',
       'unit:',
@@ -594,26 +594,26 @@ class OfficialAnkiProjectionProjector {
   String? _fieldValue(
     OfficialAnkiProjectionRow row,
     OfficialAnkiMappingSuggestion? mapping,
-    OfficialAnkiFieldRole role,
+    FieldRole role,
   ) {
     final match = mapping?.candidates.where((c) => c.role == role);
     if (match != null && match.isNotEmpty) {
       final index = match.first.fieldIndex;
       if (index >= 0 && index < row.fields.length) {
-        final text = _mapper.shortText(row.fields[index]);
+        final text = CardText.shortText(row.fields[index]);
         if (text.isNotEmpty) return text;
       }
     }
     // Heuristic lookup if not mapped explicitly:
     if (mapping != null) {
-      final patterns = role == OfficialAnkiFieldRole.unitLabel
+      final patterns = role == FieldRole.unitLabel
           ? const ['unit', 'chapter', 'section', '单元', '章']
           : const ['lesson', 'topic', 'subunit', '课', '节'];
       for (final cand in mapping.candidates) {
         final lower = cand.fieldName.toLowerCase();
         if (patterns.any(lower.contains)) {
           if (cand.fieldIndex >= 0 && cand.fieldIndex < row.fields.length) {
-            final text = _mapper.shortText(row.fields[cand.fieldIndex]);
+            final text = CardText.shortText(row.fields[cand.fieldIndex]);
             if (text.isNotEmpty) return text;
           }
         }

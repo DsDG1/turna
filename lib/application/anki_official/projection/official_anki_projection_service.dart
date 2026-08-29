@@ -5,17 +5,18 @@ import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart' show Variable;
 import 'package:flutter/foundation.dart';
 import 'package:sqlite3/sqlite3.dart';
+import 'package:turna/application/anki_import/recognition/recognize/recognizer.dart';
 import 'package:turna/application/anki_official/contract/official_anki_contract.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/introduction/imported_history_introducer.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
+import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_canonical.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_fingerprint.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_ids.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_jobs.dart';
-import 'package:turna/application/anki_official/projection/official_anki_projection_mapper.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_paging.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_projector.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_store.dart';
@@ -69,7 +70,7 @@ class OfficialAnkiCourseProjectionService {
     required this.sourceId,
     required this.profileId,
     OfficialAnkiFeatureFlags? flags,
-    OfficialAnkiProjectionMapper? mapper,
+    CardRecognizer? recognizer,
     OfficialAnkiProjectionProjector? projector,
     OfficialAnkiProjectionCounters? counters,
     OfficialAnkiCourseProjectionStore? store,
@@ -77,7 +78,7 @@ class OfficialAnkiCourseProjectionService {
     int batchSize = officialAnkiProjectionBatchDefault,
     String? ownerToken,
   })  : flags = flags ?? const OfficialAnkiFeatureFlags(),
-        mapper = mapper ?? OfficialAnkiProjectionMapper(),
+        recognizer = recognizer ?? const CardRecognizer(),
         projector = projector ?? OfficialAnkiProjectionProjector(),
         counters = counters ?? OfficialAnkiProjectionCounters(),
         store = store ?? OfficialAnkiCourseProjectionStore(course),
@@ -93,7 +94,7 @@ class OfficialAnkiCourseProjectionService {
   final String sourceId;
   final String profileId;
   final OfficialAnkiFeatureFlags flags;
-  final OfficialAnkiProjectionMapper mapper;
+  final CardRecognizer recognizer;
   final OfficialAnkiProjectionProjector projector;
   final OfficialAnkiProjectionCounters counters;
   final OfficialAnkiCourseProjectionStore store;
@@ -149,10 +150,7 @@ class OfficialAnkiCourseProjectionService {
   }
 
   OfficialAnkiMappingSuggestion suggestFor(OfficialAnkiProjectionSchema schema) {
-    return mapper.suggest(schema: schema).copyWith(
-          notetypeId: schema.notetypeId,
-          schemaFingerprint: schema.schemaFingerprint,
-        );
+    return officialAnkiSuggestMapping(schema, recognizer);
   }
 
   void confirmMapping({
@@ -167,7 +165,8 @@ class OfficialAnkiCourseProjectionService {
       schemaFingerprint: schema.schemaFingerprint,
       userConfirmed: true,
       updatedAtMillis: now,
-      status: OfficialAnkiMappingStatus.autoCandidate,
+      status: OfficialAnkiMappingStatus.manual,
+      recognitionConfidence: 1,
     );
     final nextVersion = existing == null
         ? mappingVersion
@@ -212,7 +211,7 @@ class OfficialAnkiCourseProjectionService {
       userConfirmed: true,
       updatedAtMillis: now,
       mappingVersion: existing?.mappingVersion ?? 1,
-      direction: existing?.direction ?? 'targetToNative',
+      direction: existing?.direction ?? 'promptToResponse',
       enabledKinds: existing?.enabledKinds ?? const <String>[],
     );
     final nextVersion = existing == null
@@ -408,7 +407,7 @@ class OfficialAnkiCourseProjectionService {
       );
       var schemas = await engine.getProjectionSchemas(
         includeSamples: true,
-        sampleLimit: 3,
+        sampleLimit: 30,
       );
       if (restrictSchemasToSource) {
         final notetypeIds = await _notetypeIdsForSource();
@@ -420,11 +419,7 @@ class OfficialAnkiCourseProjectionService {
         }
       }
       final mappings = <int, OfficialAnkiMappingSuggestion>{
-        for (final schema in schemas)
-          schema.notetypeId: mapper.suggest(schema: schema).copyWith(
-                notetypeId: schema.notetypeId,
-                schemaFingerprint: schema.schemaFingerprint,
-              ),
+        for (final schema in schemas) schema.notetypeId: suggestFor(schema),
       };
       final mappingOutcome = _mergeAndPersistMappings(
         schemas,
@@ -961,7 +956,7 @@ class OfficialAnkiCourseProjectionService {
                   schema.schemaFingerprint;
           if (!sameFingerprint) {
             final reviewed = stored.copyWith(
-              status: OfficialAnkiMappingStatus.needsReview,
+              status: OfficialAnkiMappingStatus.review,
               schemaFingerprint: schema.schemaFingerprint,
               mappingVersion: stored.mappingVersion + 1,
               updatedAtMillis: now,
@@ -981,8 +976,8 @@ class OfficialAnkiCourseProjectionService {
           continue;
         }
         final suggestion = mappings[schema.notetypeId]!;
-        final confirm = autoConfirmAutoCandidates &&
-            suggestion.status == OfficialAnkiMappingStatus.autoCandidate;
+        final confirm =
+            autoConfirmAutoCandidates && suggestion.status == OfficialAnkiMappingStatus.auto;
         final stored = confirm
             ? suggestion.copyWith(userConfirmed: true, updatedAtMillis: now)
             : suggestion;

@@ -1,0 +1,67 @@
+{
+  "id": "05",
+  "description": "模板含 {{type:}}（A3）",
+  "schema": {
+    "notetypeId": 5,
+    "name": "Basic (type in the answer)",
+    "kind": "normal",
+    "fieldNames": [
+      "Front",
+      "Back"
+    ],
+    "templateNames": [
+      "Card 1"
+    ],
+    "schemaFingerprint": "fp",
+    "samples": [
+      {
+        "noteId": 1,
+        "fields": [
+          "typed-front",
+          "typed-back"
+        ],
+        "truncated": false
+      }
+    ],
+    "templateFacts": {
+      "hash": "h5",
+      "templates": [
+        {
+          "ord": 0,
+          "name": "Card 1",
+          "frontFields": [
+            0
+          ],
+          "backFields": [
+            0,
+            1
+          ],
+          "filters": {
+            "typeIn": true,
+            "tts": [],
+            "hint": [],
+            "script": false,
+            "complexHtml": false
+          }
+        }
+      ],
+      "reqs": [
+        {
+          "cardOrd": 0,
+          "kind": "ANY",
+          "fieldOrds": [
+            0
+          ]
+        }
+      ]
+    }
+  },
+  "expected": {
+    "archetype": "typeIn",
+    "band": "auto",
+    "roles": {
+      "Front": "prompt",
+      "Back": "response"
+    }
+  }
+}

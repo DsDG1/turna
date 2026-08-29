@@ -1,0 +1,83 @@
+{
+  "id": "10",
+  "description": "Expression/Reading/Meaning/Audio 复合绑定",
+  "schema": {
+    "notetypeId": 10,
+    "name": "Japanese Vocab",
+    "kind": "normal",
+    "fieldNames": [
+      "Expression",
+      "Reading",
+      "Meaning",
+      "Audio"
+    ],
+    "templateNames": [
+      "Card 1"
+    ],
+    "schemaFingerprint": "fp",
+    "samples": [
+      {
+        "noteId": 1,
+        "fields": [
+          "食べる",
+          "たべる",
+          "to eat",
+          "[sound:taberu.mp3]"
+        ],
+        "truncated": false
+      },
+      {
+        "noteId": 2,
+        "fields": [
+          "飲む",
+          "のむ",
+          "to drink",
+          "[sound:nomu.mp3]"
+        ],
+        "truncated": false
+      }
+    ],
+    "templateFacts": {
+      "hash": "h10",
+      "templates": [
+        {
+          "ord": 0,
+          "name": "Card 1",
+          "frontFields": [
+            0
+          ],
+          "backFields": [
+            0,
+            2
+          ],
+          "filters": {
+            "typeIn": false,
+            "tts": [],
+            "hint": [],
+            "script": false,
+            "complexHtml": false
+          }
+        }
+      ],
+      "reqs": [
+        {
+          "cardOrd": 0,
+          "kind": "ANY",
+          "fieldOrds": [
+            0
+          ]
+        }
+      ]
+    }
+  },
+  "expected": {
+    "archetype": "basicPair",
+    "band": "auto",
+    "roles": {
+      "Expression": "prompt",
+      "Reading": "pronunciation",
+      "Meaning": "response",
+      "Audio": "audio"
+    }
+  }
+}

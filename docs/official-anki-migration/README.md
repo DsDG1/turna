@@ -15,7 +15,7 @@
 | **34** | [Official 生产收口与 OHOS 退役](./34-official-anki-production-cutover-and-ohos-retirement-plan.md) | **唯一活跃施工入口**：W0–W10 止血、OHOS EOL、owner census、Official import/review、Legacy 迁移与分波删除 | **验收 NO-GO**；2026-08-25 一次性施工完成 R0–R8 host 侧并全绿（analyze 0 issue / 全量 1852:0 / golden 4:4 / native 68:0 / arm64 APK 56.1MB），形成工作树生产候选；真机矩阵与外部事实未验收，明细见 [34-remaining §18](./34-remaining-construction-plan.md) 与 [收据](./34-cutover-receipt.md)；W9 HOLD 已解除（2026-08-27 负责人决策） |
 | **35** | [Legacy 复刻层清理施工计划](./35-duplicate-legacy-layer-cleanup-plan.md) | **W9 重切执行版（L0–L3）**：只删官方已替代的复刻层（parser/legacy writer/assembler/死代码），自研资产（Turna FSRS 引擎、会话基座、向导 UX、统计、备份）全部保留；schema drop（W9-E）不在其内 | **已施工（2026-08-27，L0–L3 四波各自独立 commit）**；L2 门禁按负责人 HOLD 解除决策（legacy 源 fail-closed 只读）满足；验收明细见 doc 35 §9 |
 | **36** | [投影课程树顺序与限额修复](./36-projection-tree-ordering-and-limits.md) | 修投影树写入三类缺陷：sortOrder 撞号随机交错、哈希字典序乱序、超 60/40 限额写入即坏；含幽灵消失修复与 algorithmVersion 3 一次性重投影 | **已施工（2026-08-28，Host 单测全绿）** |
-| **37** | [通用卡片识别器重设计](./37-generic-card-recognizer-plan.md) | 导入识别推倒重来：契约 +templateFacts/reqs、词典化角色绑定、notetype 级原型判定、类型体系收敛、预览四件套；取代 doc 30 的「自动题型识别」部分 | **提案（待批准施工）**；P1–P3 零行为变化可先行，P3 diff 门禁后才切 policy |
+| **37** | [通用卡片识别器重设计](./37-generic-card-recognizer-plan.md) | 导入识别推倒重来：契约 1.9 +templateFacts/reqs、词典化角色绑定、notetype 级原型判定、类型体系收敛、预览四件套；取代 doc 30 的「自动题型识别」部分 | **已施工（2026-08-29，P1–P5 一次性完成）**；diff 门禁 16/16 一致或改进、零新劣化；Rust 契约与 fixture regen 待 cargo 主机复验（本机无工具链），明细见 doc 37 §10 |
 | 30 | [官方 Anki 卡按语言课体验投影与渲染](./30-course-like-card-experience-plan.md) | 在官方核心之上恢复自动题型识别、语言课渲染、翻面/展开动画；评分仍写官方 Scheduler | **已实施（Host / Unit 验证通过）**；生产默认与 chrome 见 **34**；题型识别部分将由 **37** 取代 |
 
 ## Archived 文档（Phase 0–4 + P5A/B/C/D1/E 收口记录，归档保留备查）

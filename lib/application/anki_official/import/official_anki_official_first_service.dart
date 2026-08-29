@@ -13,7 +13,7 @@ import 'package:turna/application/anki_official/official_anki_feature_flags.dart
 import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
-import 'package:turna/application/anki_official/projection/official_anki_projection_mapper.dart';
+import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_service.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
@@ -220,7 +220,10 @@ class OfficialAnkiOfficialFirstService {
           'profile-default-01',
       flags: flags ?? OfficialAnkiFeatureFlags.current,
     );
-    final schemas = await engine.getProjectionSchemas(includeSamples: true);
+    final schemas = await engine.getProjectionSchemas(
+      includeSamples: true,
+      sampleLimit: 30,
+    );
     final decks = await engine.listDeckTree();
     return OfficialAnkiOfficialFirstPreview(
       sourceId: official.sourceId,

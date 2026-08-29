@@ -109,7 +109,7 @@ lib/
 │   ├── ai/             # AI 能力：engine/ + companion/ + textbook/
 │   │   └── engine/     # 统一 AI 引擎层（单一 LLM 流量出入口）
 │   ├── anki_import/    # Anki 导入向导 controller / flow / 完成协调
-│   ├── anki_practice/  # 课程式 Anki 练习组装（纯函数：卡片分类 / 选项解析 / 文本处理）
+│   ├── anki_import/recognition/  # 证据驱动识别器（doc 37：词典绑定 / 原型规则 / 薄 policy，纯函数）
 ├── anki_official/  # 官方 Anki Core（rslib FFI）引擎/导入/渲染/投影/迁移（ADR 0036）
 │   ├── srs_provider.dart          # 单词 SRS 队列（SrsQueueProvider 子类）
 │   ├── grammar_review_provider.dart  # 语法 SRS 队列

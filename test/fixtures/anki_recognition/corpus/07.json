@@ -1,0 +1,43 @@
+{
+  "id": "07",
+  "description": "正面内嵌 A. B. C. 选项（A6）",
+  "schema": {
+    "notetypeId": 7,
+    "name": "Quiz",
+    "kind": "normal",
+    "fieldNames": [
+      "Front",
+      "Back"
+    ],
+    "templateNames": [
+      "Card 1"
+    ],
+    "schemaFingerprint": "fp",
+    "samples": [
+      {
+        "noteId": 1,
+        "fields": [
+          "Which one?\nA. Cat\nB. Dog\nC. Bird",
+          "A"
+        ],
+        "truncated": false
+      },
+      {
+        "noteId": 2,
+        "fields": [
+          "Pick a fruit.\nA. Apple\nB. Pear",
+          "B"
+        ],
+        "truncated": false
+      }
+    ]
+  },
+  "expected": {
+    "archetype": "choice",
+    "band": "auto",
+    "roles": {
+      "Front": "prompt",
+      "Back": "response"
+    }
+  }
+}

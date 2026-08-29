@@ -1,0 +1,43 @@
+{
+  "id": "04",
+  "description": "standard 型样本含 cloze 标记（A5 反例）",
+  "schema": {
+    "notetypeId": 4,
+    "name": "Basic",
+    "kind": "normal",
+    "fieldNames": [
+      "Front",
+      "Back"
+    ],
+    "templateNames": [
+      "Card 1"
+    ],
+    "schemaFingerprint": "fp",
+    "samples": [
+      {
+        "noteId": 1,
+        "fields": [
+          "The {{c1::sun}} rises",
+          ""
+        ],
+        "truncated": false
+      },
+      {
+        "noteId": 2,
+        "fields": [
+          "A {{c1::dog}} barks",
+          ""
+        ],
+        "truncated": false
+      }
+    ]
+  },
+  "expected": {
+    "archetype": "cloze",
+    "band": "review",
+    "roles": {
+      "Front": "prompt",
+      "Back": "response"
+    }
+  }
+}

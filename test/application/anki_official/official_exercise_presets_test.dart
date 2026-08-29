@@ -7,13 +7,14 @@
 import 'package:flutter_test/flutter_test.dart';
 
 // Project imports:
-import 'package:turna/application/anki_official/projection/official_anki_projection_mapper.dart';
+import 'package:turna/application/anki_import/recognition/lexicon/field_roles.dart';
+import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
 import 'package:turna/application/anki_official/projection/official_exercise_presets.dart';
 
 void main() {
   test('default suggestion kinds read as the auto preset', () {
     const suggestion = OfficialAnkiMappingSuggestion(
-      status: OfficialAnkiMappingStatus.autoCandidate,
+      status: OfficialAnkiMappingStatus.auto,
       candidates: [],
     );
     expect(presetOf(suggestion.enabledKinds), OfficialExercisePreset.auto);
@@ -41,10 +42,10 @@ void main() {
 
   test('withPreset rewrites kinds and keeps roles', () {
     const suggestion = OfficialAnkiMappingSuggestion(
-      status: OfficialAnkiMappingStatus.autoCandidate,
+      status: OfficialAnkiMappingStatus.auto,
       candidates: [
         OfficialAnkiFieldCandidate(
-          role: OfficialAnkiFieldRole.targetText,
+          role: FieldRole.prompt,
           fieldIndex: 0,
           fieldName: 'Front',
           confidence: 0.95,
@@ -55,7 +56,7 @@ void main() {
     final next = withPreset(suggestion, OfficialExercisePreset.listen);
     expect(next.enabledKinds, presetKinds(OfficialExercisePreset.listen));
     expect(
-      next.role(OfficialAnkiFieldRole.targetText)?.fieldName,
+      next.role(FieldRole.prompt)?.fieldName,
       'Front',
       reason: 'exercise choice must not touch field roles',
     );

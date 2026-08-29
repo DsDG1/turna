@@ -419,6 +419,125 @@ class OfficialAnkiProjectionSample {
   }
 }
 
+/// Derived per-template structural facts (contract 1.9). Field references
+/// are ordinals into the notetype's field list; `filters` carry the
+/// template-level facts the recognizer treats as structure. Absent (empty
+/// hash) when talking to a pre-1.9 engine — callers must degrade to
+/// lexicon + positional signals only.
+class OfficialAnkiTemplateFact {
+  const OfficialAnkiTemplateFact({
+    required this.ord,
+    required this.name,
+    this.frontFields = const <int>[],
+    this.backFields = const <int>[],
+    this.typeIn = false,
+    this.tts = const <String>[],
+    this.hint = const <String>[],
+    this.script = false,
+    this.complexHtml = false,
+  });
+
+  final int ord;
+  final String name;
+  final List<int> frontFields;
+  final List<int> backFields;
+  final bool typeIn;
+  final List<String> tts;
+  final List<String> hint;
+  final bool script;
+  final bool complexHtml;
+
+  factory OfficialAnkiTemplateFact.fromJson(Map<String, Object?> json) {
+    List<int> ords(String key) {
+      final raw = json[key];
+      if (raw is! List) return const <int>[];
+      return raw.map((e) => (e as num?)?.toInt() ?? 0).toList();
+    }
+
+    List<String> names(String key) {
+      final raw = json[key];
+      if (raw is! List) return const <String>[];
+      return raw.map((e) => e.toString()).toList();
+    }
+
+    final filters = json['filters'];
+    final filterMap =
+        filters is Map ? Map<String, Object?>.from(filters) : const <String, Object?>{};
+    return OfficialAnkiTemplateFact(
+      ord: (json['ord'] as num? ?? 0).toInt(),
+      name: json['name'] as String? ?? '',
+      frontFields: ords('frontFields'),
+      backFields: ords('backFields'),
+      typeIn: filterMap['typeIn'] == true,
+      tts: names('tts'),
+      hint: names('hint'),
+      script: filterMap['script'] == true,
+      complexHtml: filterMap['complexHtml'] == true,
+    );
+  }
+}
+
+/// One entry of the notetype's precomputed `config.reqs`: which fields a
+/// card of `cardOrd` depends on (ANY = at least one, ALL = all).
+class OfficialAnkiCardRequirement {
+  const OfficialAnkiCardRequirement({
+    required this.cardOrd,
+    required this.kind,
+    this.fieldOrds = const <int>[],
+  });
+
+  final int cardOrd;
+  final String kind;
+  final List<int> fieldOrds;
+
+  factory OfficialAnkiCardRequirement.fromJson(Map<String, Object?> json) {
+    final raw = json['fieldOrds'];
+    return OfficialAnkiCardRequirement(
+      cardOrd: (json['cardOrd'] as num? ?? 0).toInt(),
+      kind: json['kind'] as String? ?? 'NONE',
+      fieldOrds: raw is List
+          ? raw.map((e) => (e as num?)?.toInt() ?? 0).toList()
+          : const <int>[],
+    );
+  }
+}
+
+class OfficialAnkiTemplateFacts {
+  const OfficialAnkiTemplateFacts({
+    this.hash = '',
+    this.templates = const <OfficialAnkiTemplateFact>[],
+    this.reqs = const <OfficialAnkiCardRequirement>[],
+  });
+
+  final String hash;
+  final List<OfficialAnkiTemplateFact> templates;
+  final List<OfficialAnkiCardRequirement> reqs;
+
+  bool get isAvailable => hash.isNotEmpty;
+
+  factory OfficialAnkiTemplateFacts.fromJson(Map<String, Object?> json) {
+    final templates = json['templates'];
+    final reqs = json['reqs'];
+    return OfficialAnkiTemplateFacts(
+      hash: json['hash'] as String? ?? '',
+      templates: templates is List
+          ? templates
+              .whereType<Map>()
+              .map((item) =>
+                  OfficialAnkiTemplateFact.fromJson(Map<String, Object?>.from(item)))
+              .toList()
+          : const <OfficialAnkiTemplateFact>[],
+      reqs: reqs is List
+          ? reqs
+              .whereType<Map>()
+              .map((item) =>
+                  OfficialAnkiCardRequirement.fromJson(Map<String, Object?>.from(item)))
+              .toList()
+          : const <OfficialAnkiCardRequirement>[],
+    );
+  }
+}
+
 class OfficialAnkiProjectionSchema {
   const OfficialAnkiProjectionSchema({
     required this.notetypeId,
@@ -428,6 +547,7 @@ class OfficialAnkiProjectionSchema {
     required this.templateNames,
     required this.schemaFingerprint,
     this.samples = const <OfficialAnkiProjectionSample>[],
+    this.templateFacts,
   });
 
   final int notetypeId;
@@ -437,6 +557,7 @@ class OfficialAnkiProjectionSchema {
   final List<String> templateNames;
   final String schemaFingerprint;
   final List<OfficialAnkiProjectionSample> samples;
+  final OfficialAnkiTemplateFacts? templateFacts;
 
   factory OfficialAnkiProjectionSchema.fromJson(Map<String, Object?> json) {
     List<String> names(String camel, String snake) {
@@ -446,6 +567,7 @@ class OfficialAnkiProjectionSchema {
     }
 
     final samples = json['samples'];
+    final templateFacts = json['templateFacts'];
     return OfficialAnkiProjectionSchema(
       notetypeId:
           (json['notetypeId'] as num? ?? json['notetype_id'] as num? ?? 0)
@@ -467,6 +589,10 @@ class OfficialAnkiProjectionSchema {
               )
               .toList()
           : const <OfficialAnkiProjectionSample>[],
+      templateFacts: templateFacts is Map
+          ? OfficialAnkiTemplateFacts.fromJson(
+              Map<String, Object?>.from(templateFacts))
+          : null,
     );
   }
 }

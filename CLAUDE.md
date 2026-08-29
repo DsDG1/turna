@@ -28,8 +28,7 @@ Clean Architecture + Provider + ChangeNotifier + GetIt/Injectable + Auto Route�
 lib/
 ├── application/   # Providers + 应用服务
 │   ├── ai/         # AI 能力（engine/ 统一引擎层 + companion/ + textbook/）
-│   ├── anki_import/    # Anki 导入向导 controller / flow / 完成协调（doc 35 后无 anki/ 目录）
-│   ├── anki_practice/  # 课程式 Anki 练习组装
+│   ├── anki_import/    # Anki 导入向导 controller / flow / 完成协调 + recognition/ 证据驱动识别器（doc 37，notetype 级判定）
 │   ├── anki_official/ # 官方 Anki Core（rslib FFI）引擎 / 导入 / 渲染 / 投影 / 迁移（ADR 0036）
 │   ├── srs_provider.dart          # 单词 SRS 队列（FSRS，SrsQueueProvider 子类）
 │   ├── grammar_review_provider.dart  # 语法 SRS 队列

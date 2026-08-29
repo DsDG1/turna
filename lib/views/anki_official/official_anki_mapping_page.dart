@@ -1,8 +1,9 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:turna/application/anki_import/recognition/lexicon/field_roles.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
-import 'package:turna/application/anki_official/projection/official_anki_projection_mapper.dart';
+import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
 import 'package:turna/application/anki_official/projection/official_exercise_presets.dart';
 import 'package:turna/application/anki_import/anki_import_view_helpers.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -43,38 +44,39 @@ class OfficialAnkiMappingPage extends StatefulWidget {
 }
 
 /// Plain-language labels for the raw enum values. Users never need to see
-/// `targetText`/`autoCandidate`/`confidence=0.95`.
-const Map<OfficialAnkiFieldRole, String> _roleLabels = {
-  OfficialAnkiFieldRole.targetText: '正面',
-  OfficialAnkiFieldRole.nativeText: '背面',
-  OfficialAnkiFieldRole.pronunciation: '读音',
-  OfficialAnkiFieldRole.audio: '音频',
-  OfficialAnkiFieldRole.image: '图片',
-  OfficialAnkiFieldRole.exampleTarget: '例句',
-  OfficialAnkiFieldRole.exampleNative: '例句翻译',
-  OfficialAnkiFieldRole.unitLabel: '单元',
-  OfficialAnkiFieldRole.lessonLabel: '课时',
-  OfficialAnkiFieldRole.optionPool: '选项',
+/// `prompt`/`auto`/`confidence=0.95`.
+const Map<FieldRole, String> _roleLabels = {
+  FieldRole.prompt: '正面',
+  FieldRole.response: '背面',
+  FieldRole.pronunciation: '读音',
+  FieldRole.audio: '音频',
+  FieldRole.image: '图片',
+  FieldRole.example: '例句',
+  FieldRole.hint: '提示',
+  FieldRole.extra: '补充',
+  FieldRole.unitLabel: '单元',
+  FieldRole.lessonLabel: '课时',
+  FieldRole.options: '选项',
 };
 
-const Map<OfficialAnkiFieldRole, IconData> _roleIcons = {
-  OfficialAnkiFieldRole.targetText: Icons.text_fields_outlined,
-  OfficialAnkiFieldRole.nativeText: Icons.translate_outlined,
-  OfficialAnkiFieldRole.pronunciation: Icons.record_voice_over_outlined,
-  OfficialAnkiFieldRole.audio: Icons.volume_up_outlined,
-  OfficialAnkiFieldRole.image: Icons.image_outlined,
-  OfficialAnkiFieldRole.exampleTarget: Icons.format_quote_outlined,
-  OfficialAnkiFieldRole.exampleNative: Icons.format_quote,
-  OfficialAnkiFieldRole.unitLabel: Icons.folder_outlined,
-  OfficialAnkiFieldRole.lessonLabel: Icons.list_alt_outlined,
-  OfficialAnkiFieldRole.optionPool: Icons.checklist_outlined,
+const Map<FieldRole, IconData> _roleIcons = {
+  FieldRole.prompt: Icons.text_fields_outlined,
+  FieldRole.response: Icons.translate_outlined,
+  FieldRole.pronunciation: Icons.record_voice_over_outlined,
+  FieldRole.audio: Icons.volume_up_outlined,
+  FieldRole.image: Icons.image_outlined,
+  FieldRole.example: Icons.format_quote_outlined,
+  FieldRole.hint: Icons.lightbulb_outlined,
+  FieldRole.extra: Icons.notes_outlined,
+  FieldRole.unitLabel: Icons.folder_outlined,
+  FieldRole.lessonLabel: Icons.list_alt_outlined,
+  FieldRole.options: Icons.checklist_outlined,
 };
 
 const Map<OfficialAnkiMappingStatus, String> _statusLabels = {
-  OfficialAnkiMappingStatus.autoCandidate: '已按卡片内容匹配，可直接导入',
-  OfficialAnkiMappingStatus.needsConfirm: '看一下样卡正反面是否反了',
-  OfficialAnkiMappingStatus.needsMapping: '还看不清正面和背面，选一下即可',
-  OfficialAnkiMappingStatus.needsReview: '建议看一眼样卡',
+  OfficialAnkiMappingStatus.auto: '已按卡片结构识别，可直接导入',
+  OfficialAnkiMappingStatus.review: '建议看一眼样卡再确认',
+  OfficialAnkiMappingStatus.manual: '已按你的选择生效',
   OfficialAnkiMappingStatus.skipped: '已跳过',
 };
 
@@ -112,7 +114,7 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
     widget.onChanged?.call(_current);
   }
 
-  void assignRole(OfficialAnkiFieldRole role, int fieldIndex) {
+  void assignRole(FieldRole role, int fieldIndex) {
     final name = widget.schema?.fieldNames ??
         [for (final c in _current.candidates) c.fieldName];
     final fieldName =
@@ -135,23 +137,23 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
   }
 
   void _swapPrimaryRoles() {
-    final target = _current.role(OfficialAnkiFieldRole.targetText);
-    final answer = _current.role(OfficialAnkiFieldRole.nativeText);
+    final target = _current.role(FieldRole.prompt);
+    final answer = _current.role(FieldRole.response);
     if (target == null || answer == null) return;
     final next = [
       for (final candidate in _current.candidates)
-        if (candidate.role != OfficialAnkiFieldRole.targetText &&
-            candidate.role != OfficialAnkiFieldRole.nativeText)
+        if (candidate.role != FieldRole.prompt &&
+            candidate.role != FieldRole.response)
           candidate,
       OfficialAnkiFieldCandidate(
-        role: OfficialAnkiFieldRole.targetText,
+        role: FieldRole.prompt,
         fieldIndex: answer.fieldIndex,
         fieldName: answer.fieldName,
         confidence: 1,
         evidence: const ['user:swap'],
       ),
       OfficialAnkiFieldCandidate(
-        role: OfficialAnkiFieldRole.nativeText,
+        role: FieldRole.response,
         fieldIndex: target.fieldIndex,
         fieldName: target.fieldName,
         confidence: 1,
@@ -171,7 +173,7 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
 
   String _sampleValue(
     OfficialAnkiProjectionSample sample,
-    OfficialAnkiFieldRole role,
+    FieldRole role,
   ) {
     final candidate = _current.role(role);
     if (candidate == null ||
@@ -188,18 +190,18 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
   @override
   Widget build(BuildContext context) {
     final flags = OfficialAnkiFeatureFlags.current;
-    final conflict = OfficialAnkiProjectionMapper().mappingConflict(_current);
+    final conflict = officialAnkiMappingConflict(_current);
     final samples = widget.schema?.samples.take(1).toList() ?? const [];
     final fieldNames = widget.schema?.fieldNames ??
         [for (final c in _current.candidates) c.fieldName];
     final statusLabel = _statusLabels[_current.status] ?? _current.status.name;
-    final missingTarget =
-        _current.role(OfficialAnkiFieldRole.targetText) == null;
+    final missingTarget = _current.role(FieldRole.prompt) == null;
     final missingAnswer = !_current.singleFieldMode &&
-        _current.role(OfficialAnkiFieldRole.nativeText) == null;
+        _current.role(FieldRole.response) == null;
     final blocking = conflict != null || missingTarget || missingAnswer;
     final needsAttention = blocking ||
-        (_current.status != OfficialAnkiMappingStatus.autoCandidate &&
+        (_current.status != OfficialAnkiMappingStatus.auto &&
+            _current.status != OfficialAnkiMappingStatus.manual &&
             _current.status != OfficialAnkiMappingStatus.skipped);
     final statusColor = blocking
         ? TurnaTheme.error
@@ -241,6 +243,14 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
                     ),
                   ),
                 ),
+                Text(
+                  officialRecognitionChipLabel(_current),
+                  key: const Key('mapping-archetype-chip'),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: TurnaTheme.textSecondaryColor(context),
+                  ),
+                ),
               ],
             ),
           ),
@@ -279,7 +289,7 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
                       label: '正面',
                       value: _sampleValue(
                         sample,
-                        OfficialAnkiFieldRole.targetText,
+                        FieldRole.prompt,
                       ),
                     ),
                     const Padding(
@@ -290,7 +300,7 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
                       label: '背面',
                       value: _sampleValue(
                         sample,
-                        OfficialAnkiFieldRole.nativeText,
+                        FieldRole.response,
                       ),
                     ),
                   ],
@@ -299,9 +309,8 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
             Center(
               child: OutlinedButton.icon(
                 key: const Key('mapping-swap'),
-                onPressed: _current.role(OfficialAnkiFieldRole.targetText) !=
-                            null &&
-                        _current.role(OfficialAnkiFieldRole.nativeText) != null
+                onPressed: _current.role(FieldRole.prompt) != null &&
+                        _current.role(FieldRole.response) != null
                     ? _swapPrimaryRoles
                     : null,
                 icon: const Icon(Icons.swap_vert_rounded, size: 18),
@@ -373,12 +382,12 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
               ),
             ),
           _roleSelector(
-            role: OfficialAnkiFieldRole.targetText,
+            role: FieldRole.prompt,
             label: '正面',
             fieldNames: fieldNames,
           ),
           _roleSelector(
-            role: OfficialAnkiFieldRole.nativeText,
+            role: FieldRole.response,
             label: '背面',
             fieldNames: fieldNames,
           ),
@@ -395,10 +404,10 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
               ),
               subtitle: const Text('音频、图片、例句、分组等'),
               children: [
-                for (final role in OfficialAnkiFieldRole.values)
-                  if (role != OfficialAnkiFieldRole.ignored &&
-                      role != OfficialAnkiFieldRole.targetText &&
-                      role != OfficialAnkiFieldRole.nativeText)
+                for (final role in FieldRole.values)
+                  if (role != FieldRole.ignored &&
+                      role != FieldRole.prompt &&
+                      role != FieldRole.response)
                     _roleSelector(
                       role: role,
                       label: _roleLabels[role] ?? role.name,
@@ -454,7 +463,7 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
   }
 
   Widget _roleSelector({
-    required OfficialAnkiFieldRole role,
+    required FieldRole role,
     required String label,
     required List<String> fieldNames,
   }) {

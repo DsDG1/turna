@@ -3,20 +3,10 @@ import 'package:turna/application/accessibility_capabilities.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
-import 'package:turna/application/anki_practice/card_classifier_models.dart';
-import 'package:turna/application/audio_controller.dart';
-import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/anki_media_strip.dart';
-import 'package:turna/views/lesson/components/interactions/anki_card_renderer.dart';
-import 'package:turna/views/lesson/components/interactions/fill_blank_renderer.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:turna/views/lesson/components/interactions/listen_and_pick_renderer.dart';
-import 'package:turna/views/lesson/components/interactions/multi_select_renderer.dart';
-import 'package:turna/views/lesson/components/interactions/multiple_choice_renderer.dart';
-import 'package:turna/views/lesson/components/interactions/show_word_renderer.dart';
-import 'package:turna/views/lesson/components/interactions/type_the_word_renderer.dart';
 import 'package:turna/views/lesson/components/lesson_practice_card.dart';
 import 'package:turna/views/theme.dart';
 
@@ -59,7 +49,6 @@ class OfficialAnkiPracticeReviewSurface extends StatefulWidget {
 
 class _OfficialAnkiPracticeReviewSurfaceState
     extends State<OfficialAnkiPracticeReviewSurface> {
-  InteractionState _interactionState = InteractionState.idle;
   String? _ackedSide;
   int _ackedGeneration = 0;
   int _ackedCardId = 0;
@@ -74,7 +63,6 @@ class _OfficialAnkiPracticeReviewSurfaceState
   void didUpdateWidget(covariant OfficialAnkiPracticeReviewSurface oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.card.cardId != widget.card.cardId) {
-      _interactionState = InteractionState.idle;
       _ackedSide = null;
       _ackedGeneration = 0;
       _ackedCardId = 0;
@@ -106,201 +94,35 @@ class _OfficialAnkiPracticeReviewSurfaceState
     });
   }
 
-  AnkiPracticeClassification _classify() {
-    final rawQ = widget.rawQuestionHtml.isNotEmpty
-        ? widget.rawQuestionHtml
-        : 'Card ${widget.card.cardId}';
-    return AnkiPracticeClassification(
-      shape: AnkiPracticeShape.flip,
-      confidence: 1,
-      term: rawQ,
-      meaning: widget.rawAnswerHtml,
-    );
-  }
-
-  Interaction _toInteraction(AnkiPracticeClassification c) {
+  /// The practice review surface renders official cards as plain flip
+  /// cards (doc 37 R2: reading the projection index on the review side is
+  /// a separate project; the old per-card classifier never ran here
+  /// anyway — the shape was hard-coded flip).
+  Interaction _cardInteraction() {
     final cardId = widget.card.cardId;
-    final id = 'official-review-card-$cardId';
     final rawQ = widget.rawQuestionHtml.isNotEmpty
         ? widget.rawQuestionHtml
         : 'Card $cardId';
-    final rawA = widget.rawAnswerHtml;
-    final term = c.term.isNotEmpty ? c.term : rawQ;
-    final meaning = c.meaning.isNotEmpty ? c.meaning : rawA;
-
-    final audioAssets = c.audioFilename != null && c.audioFilename!.isNotEmpty
-        ? [c.audioFilename!]
-        : const <String>[];
-    final imageAssets = c.imageFilename != null && c.imageFilename!.isNotEmpty
-        ? [c.imageFilename!]
-        : const <String>[];
-
-    switch (c.shape) {
-      case AnkiPracticeShape.quiz:
-        if (c.correctIndices != null && c.correctIndices!.length >= 2) {
-          return Interaction.multiSelect(
-            id: id,
-            prompt: term,
-            options: c.options,
-            correctIndices: c.correctIndices!,
-            imageAsset: c.imageFilename,
-          );
-        }
-        return Interaction.multipleChoice(
-          id: id,
-          prompt: term,
-          options: c.options,
-          correctIndex: c.correctIndex ?? 0,
-          imageAsset: c.imageFilename,
-          audioAssets: audioAssets,
-        );
-      case AnkiPracticeShape.cloze:
-        return Interaction.fillBlank(
-          id: id,
-          sentence:
-              c.clozeSentence?.isNotEmpty == true ? c.clozeSentence! : term,
-          answer: c.clozeAnswer?.isNotEmpty == true ? c.clozeAnswer! : meaning,
-          hint: c.pronunciation,
-          audioAssets: audioAssets,
-          imageAssets: imageAssets,
-        );
-      case AnkiPracticeShape.listen:
-        if (audioAssets.isNotEmpty) {
-          final options = c.options.isNotEmpty
-              ? c.options
-              : [meaning, 'Option B', 'Option C'];
-          return Interaction.listenAndPick(
-            id: id,
-            audioAsset: audioAssets.first,
-            prompt: meaning.isEmpty ? 'Listen and pick' : meaning,
-            options: options,
-            correctIndex: c.correctIndex ?? 0,
-          );
-        }
-        return Interaction.ankiCard(
-          id: id,
-          front: term,
-          back: meaning,
-          hint: c.pronunciation,
-          audioAssets: audioAssets,
-          imageAssets: imageAssets,
-          sourceNoteId: 'official:review:$cardId',
-        );
-      case AnkiPracticeShape.typeAnswer:
-        return Interaction.typeTheWord(
-          id: id,
-          audioAsset: audioAssets.isNotEmpty ? audioAssets.first : '',
-          prompt: term.isNotEmpty ? term : 'Type the word',
-          expected: meaning,
-        );
-      case AnkiPracticeShape.expression:
-      case AnkiPracticeShape.vocab:
-      case AnkiPracticeShape.flip:
-      case AnkiPracticeShape.fidelity:
-        return Interaction.ankiCard(
-          id: id,
-          front: term,
-          back: meaning,
-          hint: c.pronunciation,
-          audioAssets: audioAssets,
-          imageAssets: imageAssets,
-          sourceNoteId: 'official:review:$cardId',
-        );
-    }
-  }
-
-  Set<InteractionRenderer> _getRenderers() {
-    if (widget.renderers != null && widget.renderers!.isNotEmpty) {
-      return widget.renderers!;
-    }
-    if (getIt.isRegistered<Set<InteractionRenderer>>()) {
-      return getIt<Set<InteractionRenderer>>();
-    }
-    return {
-      AnkiCardRenderer(),
-      MultipleChoiceRenderer(),
-      MultiSelectRenderer(),
-      FillBlankRenderer(),
-      ListenAndPickRenderer(),
-      TypeTheWordRenderer(),
-      if (getIt.isRegistered<AudioController>())
-        ShowWordRenderer(getIt<AudioController>()),
-    };
-  }
-
-  void _onSubmit(
-    bool correct, {
-    String? userAnswerText,
-    int? reviewQuality,
-  }) {
-    final interaction = _toInteraction(_classify());
-    if (interaction is AnkiCard) {
-      String rating;
-      if (userAnswerText == AppStrings.reviewBinaryForgotten ||
-          userAnswerText == AppStrings.reviewAgain ||
-          reviewQuality == 1 ||
-          !correct) {
-        rating = 'again';
-      } else {
-        rating = 'good';
-      }
-      if (widget.phase == OfficialReviewPhase.showingQuestion) {
-        widget.onShowAnswer();
-      }
-      widget.onRate(rating);
-      return;
-    }
-
-    // Objective interactions:
-    setState(() {
-      _interactionState = InteractionState(
-        submitted: true,
-        correct: correct,
-        userAnswerText: userAnswerText,
-      );
-    });
-    if (widget.phase == OfficialReviewPhase.showingQuestion) {
-      widget.onShowAnswer();
-    }
-
-    // ADR 0037: official Anki ratings never write the language mistake book.
+    return Interaction.ankiCard(
+      id: 'official-review-card-$cardId',
+      front: rawQ,
+      back: widget.rawAnswerHtml,
+      sourceNoteId: 'official:review:$cardId',
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final classification = _classify();
-    final interaction = _toInteraction(classification);
     final isAnswerPhase = widget.isAnswerVisible ||
         widget.phase == OfficialReviewPhase.showingAnswer;
     final cardTextScale = cardTextScaleOf(context);
 
-    Widget content;
-    if (interaction is AnkiCard) {
-      content =
-          _buildAnkiCardContent(interaction, classification, isAnswerPhase, cardTextScale);
-    } else {
-      final renderers = _getRenderers();
-      final renderer = lookupRenderer(renderers, interaction);
-      content = Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          renderer.build(interaction, _interactionState, _onSubmit),
-          if (_interactionState.submitted) ...[
-            const SizedBox(height: 16),
-            LessonCheckButton(
-              label: AppStrings.lessonContinueUpper,
-              enabled: true,
-              onPressed: () {
-                final rating =
-                    _interactionState.correct == true ? 'good' : 'again';
-                widget.onRate(rating);
-              },
-            ),
-          ],
-        ],
-      );
-    }
+    final ankiCard = _cardInteraction() as AnkiCard;
+    final content = _buildAnkiCardContent(
+      ankiCard,
+      isAnswerPhase,
+      cardTextScale,
+    );
 
     // Widen the card lane as text grows so large scales get more horizontal
     // room instead of wrapping into slivers.
@@ -321,7 +143,6 @@ class _OfficialAnkiPracticeReviewSurfaceState
 
   Widget _buildAnkiCardContent(
     AnkiCard interaction,
-    AnkiPracticeClassification classification,
     bool isAnswerPhase,
     int cardTextScale,
   ) {
@@ -383,29 +204,6 @@ class _OfficialAnkiPracticeReviewSurfaceState
                 ),
                 textAlign: TextAlign.center,
               ),
-              if (classification.example != null &&
-                  classification.example!.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .surfaceContainerHighest
-                        .withValues(alpha: 0.5),
-                    borderRadius:
-                        BorderRadius.circular(TurnaTheme.radiusMedium),
-                  ),
-                  child: Text(
-                    classification.example!,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontStyle: FontStyle.italic,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ],
             ] else ...[
               const SizedBox(height: 16),
               Text(

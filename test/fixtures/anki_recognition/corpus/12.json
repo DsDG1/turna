@@ -1,0 +1,32 @@
+{
+  "id": "12",
+  "description": "单字段 notetype（兜底）",
+  "schema": {
+    "notetypeId": 12,
+    "name": "Minimal",
+    "kind": "normal",
+    "fieldNames": [
+      "Content"
+    ],
+    "templateNames": [
+      "Card 1"
+    ],
+    "schemaFingerprint": "fp",
+    "samples": [
+      {
+        "noteId": 1,
+        "fields": [
+          "just one field of text"
+        ],
+        "truncated": false
+      }
+    ]
+  },
+  "expected": {
+    "archetype": "basicPair",
+    "band": "review",
+    "roles": {
+      "Content": "prompt"
+    }
+  }
+}

@@ -15,7 +15,7 @@ void main() {
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.renderCard), 10);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.compareTypedAnswer), 22);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.extractClozeForTyping), 23);
-    expect(kOfficialAnkiContractMinor, 8);
+    expect(kOfficialAnkiContractMinor, 9);
     for (final name in OfficialAnkiOperation.productionNames) {
       expect(doc.contains('| ${OfficialAnkiOperation.idFor(name)} | $name |'), isTrue);
     }

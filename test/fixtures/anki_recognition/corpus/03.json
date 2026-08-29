@@ -1,0 +1,34 @@
+{
+  "id": "03",
+  "description": "kind=cloze 声明（A1）",
+  "schema": {
+    "notetypeId": 3,
+    "name": "Cloze",
+    "kind": "cloze",
+    "fieldNames": [
+      "Text",
+      "Extra"
+    ],
+    "templateNames": [
+      "Cloze"
+    ],
+    "schemaFingerprint": "fp",
+    "samples": [
+      {
+        "noteId": 1,
+        "fields": [
+          "The {{c1::sun}} rises",
+          ""
+        ],
+        "truncated": false
+      }
+    ]
+  },
+  "expected": {
+    "archetype": "cloze",
+    "band": "auto",
+    "roles": {
+      "Text": "prompt"
+    }
+  }
+}

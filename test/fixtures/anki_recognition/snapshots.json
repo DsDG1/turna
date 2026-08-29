@@ -1,0 +1,308 @@
+{
+  "01": {
+    "archetype": "basicPair",
+    "confidence": "0.900",
+    "band": "auto",
+    "roles": {
+      "prompt": {
+        "field": "Front",
+        "confidence": "1.000"
+      },
+      "response": {
+        "field": "Back",
+        "confidence": "1.000"
+      }
+    },
+    "evidence": [
+      "A8:short_pair w=0.75"
+    ]
+  },
+  "02": {
+    "archetype": "basicPair",
+    "confidence": "0.900",
+    "band": "auto",
+    "roles": {
+      "prompt": {
+        "field": "正面",
+        "confidence": "1.000"
+      },
+      "response": {
+        "field": "背面",
+        "confidence": "1.000"
+      }
+    },
+    "evidence": [
+      "A8:short_pair w=0.75"
+    ]
+  },
+  "03": {
+    "archetype": "cloze",
+    "confidence": "1.000",
+    "band": "auto",
+    "roles": {
+      "extra": {
+        "field": "Extra",
+        "confidence": "0.900"
+      },
+      "prompt": {
+        "field": "Text",
+        "confidence": "0.350"
+      }
+    },
+    "evidence": [
+      "A1:kind=cloze w=1.00"
+    ]
+  },
+  "04": {
+    "archetype": "cloze",
+    "confidence": "0.800",
+    "band": "review",
+    "roles": {
+      "prompt": {
+        "field": "Front",
+        "confidence": "1.000"
+      },
+      "response": {
+        "field": "Back",
+        "confidence": "1.000"
+      }
+    },
+    "evidence": [
+      "A5:cloze_markers=100% w=0.80"
+    ]
+  },
+  "05": {
+    "archetype": "typeIn",
+    "confidence": "0.950",
+    "band": "auto",
+    "roles": {
+      "prompt": {
+        "field": "Front",
+        "confidence": "1.000"
+      },
+      "response": {
+        "field": "Back",
+        "confidence": "1.000"
+      }
+    },
+    "evidence": [
+      "A3:template:{{type:}} w=0.95",
+      "A8:short_pair w=0.75"
+    ]
+  },
+  "06": {
+    "archetype": "choice",
+    "confidence": "0.900",
+    "band": "auto",
+    "roles": {
+      "prompt": {
+        "field": "题干",
+        "confidence": "1.000"
+      },
+      "response": {
+        "field": "答案",
+        "confidence": "1.000"
+      },
+      "options": {
+        "field": "选项",
+        "confidence": "0.900"
+      }
+    },
+    "evidence": [
+      "A4:pool=4, answer=巴黎 w=0.90"
+    ]
+  },
+  "07": {
+    "archetype": "choice",
+    "confidence": "0.880",
+    "band": "auto",
+    "roles": {
+      "prompt": {
+        "field": "Front",
+        "confidence": "1.000"
+      },
+      "response": {
+        "field": "Back",
+        "confidence": "1.000"
+      }
+    },
+    "evidence": [
+      "A6:3 options w=0.80"
+    ]
+  },
+  "08": {
+    "archetype": "richHtml",
+    "confidence": "0.900",
+    "band": "auto",
+    "roles": {
+      "prompt": {
+        "field": "Front",
+        "confidence": "1.000"
+      },
+      "response": {
+        "field": "Back",
+        "confidence": "1.000"
+      }
+    },
+    "evidence": [
+      "A6-unparsed:answer_not_aligned w=0.90"
+    ]
+  },
+  "09": {
+    "archetype": "audioFirst",
+    "confidence": "0.880",
+    "band": "auto",
+    "roles": {
+      "audio": {
+        "field": "Audio",
+        "confidence": "1.000"
+      },
+      "response": {
+        "field": "Word",
+        "confidence": "0.650"
+      }
+    },
+    "evidence": [
+      "A7:front_audio+short_answer=100% w=0.80"
+    ]
+  },
+  "10": {
+    "archetype": "basicPair",
+    "confidence": "0.900",
+    "band": "auto",
+    "roles": {
+      "prompt": {
+        "field": "Expression",
+        "confidence": "1.000"
+      },
+      "response": {
+        "field": "Meaning",
+        "confidence": "1.000"
+      },
+      "audio": {
+        "field": "Audio",
+        "confidence": "1.000"
+      },
+      "pronunciation": {
+        "field": "Reading",
+        "confidence": "0.550"
+      }
+    },
+    "evidence": [
+      "A8:short_pair w=0.75"
+    ]
+  },
+  "11": {
+    "archetype": "richHtml",
+    "confidence": "1.000",
+    "band": "auto",
+    "roles": {
+      "prompt": {
+        "field": "Front",
+        "confidence": "1.000"
+      },
+      "response": {
+        "field": "Back",
+        "confidence": "1.000"
+      }
+    },
+    "evidence": [
+      "A2:template:complex_html w=1.00",
+      "A8:short_pair w=0.75"
+    ]
+  },
+  "12": {
+    "archetype": "basicPair",
+    "confidence": "0.600",
+    "band": "review",
+    "roles": {
+      "prompt": {
+        "field": "Content",
+        "confidence": "0.350"
+      }
+    },
+    "evidence": [
+      "A9:default w=0.60"
+    ]
+  },
+  "13": {
+    "archetype": "basicPair",
+    "confidence": "0.900",
+    "band": "auto",
+    "roles": {
+      "audio": {
+        "field": "VocabAudio",
+        "confidence": "0.850"
+      },
+      "prompt": {
+        "field": "VocabKanji",
+        "confidence": "0.650"
+      },
+      "response": {
+        "field": "VocabDefSC",
+        "confidence": "0.650"
+      }
+    },
+    "evidence": [
+      "A8:short_pair w=0.75"
+    ]
+  },
+  "14": {
+    "archetype": "basicPair",
+    "confidence": "0.750",
+    "band": "review",
+    "roles": {
+      "image": {
+        "field": "Image",
+        "confidence": "1.000"
+      },
+      "response": {
+        "field": "Back Extra",
+        "confidence": "0.450"
+      },
+      "prompt": {
+        "field": "Header",
+        "confidence": "0.350"
+      }
+    },
+    "evidence": [
+      "A8:short_pair w=0.75"
+    ]
+  },
+  "15": {
+    "archetype": "basicPair",
+    "confidence": "0.600",
+    "band": "review",
+    "roles": {
+      "prompt": {
+        "field": "Front",
+        "confidence": "1.000"
+      },
+      "response": {
+        "field": "Back",
+        "confidence": "1.000"
+      }
+    },
+    "evidence": [
+      "A9:default w=0.60"
+    ]
+  },
+  "16": {
+    "archetype": "basicPair",
+    "confidence": "0.900",
+    "band": "auto",
+    "roles": {
+      "prompt": {
+        "field": "Front",
+        "confidence": "1.000"
+      },
+      "response": {
+        "field": "Back",
+        "confidence": "1.000"
+      }
+    },
+    "evidence": [
+      "A8:short_pair w=0.75"
+    ]
+  }
+}

@@ -1,20 +1,27 @@
 import 'dart:convert';
 
-import 'package:turna/application/anki_official/projection/card_presentation_policy.dart';
+import 'package:turna/application/anki_import/recognition/facts/options_structure.dart';
+import 'package:turna/application/anki_import/recognition/facts/text_metrics.dart';
+import 'package:turna/application/anki_import/recognition/lexicon/field_roles.dart';
+import 'package:turna/application/anki_import/recognition/policy/presentation_policy.dart';
+import 'package:turna/application/anki_import/recognition/recognize/result.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
+import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_canonical.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_ids.dart';
-import 'package:turna/application/anki_official/projection/official_anki_projection_mapper.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_paging.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_projector.dart';
-import 'package:turna/application/anki_practice/card_classifier.dart';
-import 'package:turna/application/anki_practice/card_classifier_models.dart';
 import 'package:turna/domain/course/interaction.dart';
 
 class OfficialAnkiPayloadOverflow implements Exception {
   const OfficialAnkiPayloadOverflow();
 }
 
+/// Per-card extracted values under the notetype's recognition plan:
+/// the archetype decided once per notetype, bindings deciding where each
+/// value comes from, and this card's conformance to the archetype
+/// (doc 37 §3.7 — cards only get validated and extracted, never
+/// re-classified).
 class OfficialAnkiRoleValues {
   const OfficialAnkiRoleValues({
     required this.target,
@@ -25,8 +32,16 @@ class OfficialAnkiRoleValues {
     required this.image,
     required this.options,
     required this.truncatedRequired,
-    this.classification,
-    this.hasExplicitOptions = false,
+    required this.archetype,
+    required this.archetypeConfidence,
+    required this.archetypeViolated,
+    required this.hasExplicitOptions,
+    this.mcqPrompt = '',
+    this.correctIndex,
+    this.correctIndices,
+    this.clozeSentence,
+    this.clozeAnswer,
+    this.siblingDistractors = const <String>[],
   });
 
   final String target;
@@ -37,97 +52,198 @@ class OfficialAnkiRoleValues {
   final String? image;
   final List<String> options;
   final bool truncatedRequired;
-  final AnkiPracticeClassification? classification;
+  final CardArchetype archetype;
+  final double archetypeConfidence;
+
+  /// This card violated the notetype archetype (missing cloze markers,
+  /// unalignable options, or script/complex content the samples missed)
+  /// and must fall back to the fidelity rendering.
+  final bool archetypeViolated;
+
+  /// An option pool or embedded options actually resolved for this card.
   final bool hasExplicitOptions;
+
+  /// Question text for choice cards with an embedded-option prompt.
+  final String mcqPrompt;
+  final int? correctIndex;
+  final List<int>? correctIndices;
+  final String? clozeSentence;
+  final String? clozeAnswer;
+
+  /// Same-bucket answers used only to pad listenPick distractors — never
+  /// enough to mint a formal MCQ (that requires an explicit option pool).
+  final List<String> siblingDistractors;
 }
 
 class OfficialAnkiProjectionPayloads {
-  OfficialAnkiProjectionPayloads({OfficialAnkiProjectionMapper? mapper})
-      : mapper = mapper ?? OfficialAnkiProjectionMapper();
-
-  final OfficialAnkiProjectionMapper mapper;
+  static final RegExp _clozeMarkerRegex = RegExp(
+    r'\{\{c(\d+)::(.*?)(?:::([^}]*))?\}\}',
+    dotAll: true,
+  );
 
   OfficialAnkiRoleValues values(
     OfficialAnkiProjectionRow row,
     OfficialAnkiMappingSuggestion? mapping, {
     List<String> siblingAnswers = const <String>[],
   }) {
-    String text(OfficialAnkiFieldRole role) {
+    String raw(FieldRole role) {
       final candidate = mapping?.role(role);
       if (candidate == null) return '';
-      if (candidate.fieldIndex < 0 || candidate.fieldIndex >= row.fields.length) {
-        return '';
-      }
-      return mapper.shortText(row.fields[candidate.fieldIndex]);
-    }
-
-    String raw(OfficialAnkiFieldRole role) {
-      final candidate = mapping?.role(role);
-      if (candidate == null) return '';
-      if (candidate.fieldIndex < 0 || candidate.fieldIndex >= row.fields.length) {
+      if (candidate.fieldIndex < 0 ||
+          candidate.fieldIndex >= row.fields.length) {
         return '';
       }
       return row.fields[candidate.fieldIndex];
     }
 
-    final audio = mapper.extractMediaFilename(raw(OfficialAnkiFieldRole.audio));
-    final image = mapper.extractMediaFilename(raw(OfficialAnkiFieldRole.image));
-    final mappedOptions =
-        mapper.parseOptionPool(raw(OfficialAnkiFieldRole.optionPool));
-    final requiredTruncated = row.truncated &&
-        (mapping?.role(OfficialAnkiFieldRole.targetText) != null ||
-            mapping?.role(OfficialAnkiFieldRole.nativeText) != null ||
-            mapping?.role(OfficialAnkiFieldRole.audio) != null);
+    String text(FieldRole role) => CardText.shortText(raw(role));
 
-    final targetText = text(OfficialAnkiFieldRole.targetText);
-    final nativeText = text(OfficialAnkiFieldRole.nativeText);
+    final archetype = mapping?.cardArchetype ?? CardArchetype.basicPair;
+    final archetypeConfidence = mapping?.recognitionConfidence ?? 0;
 
-    final input = AnkiPracticeCardInput(
-      cardId: row.cardId,
-      notetypeId: row.notetypeId,
-      fields: row.fields,
-      fieldNames: mapping?.candidates.map((c) => c.fieldName).toList() ?? const <String>[],
-      questionText: targetText,
-      answerText: nativeText,
-      rawQuestionHtml: raw(OfficialAnkiFieldRole.targetText),
-      rawAnswerHtml: raw(OfficialAnkiFieldRole.nativeText),
-      tags: row.tags,
-      deckPath: row.deckPath,
-      siblingAnswers: siblingAnswers,
+    final audio = CardText.extractAudioFilename(
+      '${raw(FieldRole.audio)} ${raw(FieldRole.prompt)} '
+      '${raw(FieldRole.response)}',
     );
-    final classification = AnkiPracticeCardClassifier.classify(input);
+    final image = CardText.extractImageFilename(raw(FieldRole.image));
+    final requiredTruncated = row.truncated &&
+        (mapping?.role(FieldRole.prompt) != null ||
+            mapping?.role(FieldRole.response) != null ||
+            mapping?.role(FieldRole.audio) != null);
+
+    final targetText = text(FieldRole.prompt);
+    final nativeText = text(FieldRole.response);
+
+    // ── L3: card-level validation & extraction (§3.7) ─────────────────
+    var archetypeViolated = false;
+    String? clozeSentence;
+    String? clozeAnswer;
+    var options = const <String>[];
+    int? correctIndex;
+    List<int>? correctIndices;
+    var mcqPrompt = '';
+    var effectiveArchetype = archetype;
+
+    if (_cardCarriesScriptOrComplexHtml(row.fields)) {
+      archetypeViolated = true;
+    }
+
+    switch (archetype) {
+      case CardArchetype.cloze:
+        final cloze = _extractCloze(
+          raw(FieldRole.prompt).isNotEmpty
+              ? raw(FieldRole.prompt)
+              : nativeText,
+          row.templateOrdinal,
+        );
+        if (cloze == null) {
+          archetypeViolated = true;
+        } else {
+          clozeSentence = cloze.$1;
+          clozeAnswer = cloze.$2;
+        }
+      case CardArchetype.choice:
+        final extracted = _resolveChoice(
+          raw(FieldRole.options),
+          raw(FieldRole.prompt),
+          nativeText,
+        );
+        if (extracted == null) {
+          archetypeViolated = true;
+        } else {
+          options = extracted.options;
+          correctIndices = extracted.correctIndices;
+          correctIndex = extracted.correctIndices.length == 1
+              ? extracted.correctIndices.first
+              : null;
+          mcqPrompt = extracted.prompt;
+        }
+      case CardArchetype.audioFirst:
+        // The presentation policy downgrades to flip when this card has
+        // no playable audio; that is a preference fallback, not an
+        // archetype violation.
+        break;
+      case CardArchetype.richHtml:
+      case CardArchetype.typeIn:
+        break;
+      case CardArchetype.basicPair:
+        // Card-level upgrades inside the universal fallback (old rules
+        // 3/4 parity): a minority cloze or options card inside a basic
+        // notetype still gets the right exercise — or the iron-law
+        // fidelity downgrade when the options never align.
+        final promptRawValue = raw(FieldRole.prompt);
+        if (_clozeMarkerRegex.hasMatch(CardText.stripHtml(promptRawValue))) {
+          final cloze = _extractCloze(promptRawValue, row.templateOrdinal);
+          if (cloze != null) {
+            effectiveArchetype = CardArchetype.cloze;
+            clozeSentence = cloze.$1;
+            clozeAnswer = cloze.$2;
+          } else {
+            // Markers exist but no deletion parses (old cloze_unparsed):
+            // keep fidelity rather than flip raw {{cN::}} text.
+            archetypeViolated = true;
+          }
+        } else if (EmbeddedOptionsParser.looksLikeEmbeddedOptions(
+          CardText.stripHtml(promptRawValue),
+        )) {
+          final extracted = _resolveChoice('', promptRawValue, nativeText);
+          if (extracted == null) {
+            archetypeViolated = true;
+          } else {
+            effectiveArchetype = CardArchetype.choice;
+            options = extracted.options;
+            correctIndices = extracted.correctIndices;
+            correctIndex = extracted.correctIndices.length == 1
+                ? extracted.correctIndices.first
+                : null;
+            mcqPrompt = extracted.prompt;
+          }
+        } else if (CardText.extractAudioFilename(promptRawValue) != null &&
+            CardText.isShortAnswer(nativeText)) {
+          // Old rule 5 parity: a sound marker on the prompt side with a
+          // short answer side is a listening card even in a basic deck.
+          effectiveArchetype = CardArchetype.audioFirst;
+        }
+    }
 
     return OfficialAnkiRoleValues(
-      target: targetText.isNotEmpty ? targetText : classification.term,
-      native: nativeText.isNotEmpty ? nativeText : classification.meaning,
-      pronunciation: text(OfficialAnkiFieldRole.pronunciation).isNotEmpty
-          ? text(OfficialAnkiFieldRole.pronunciation)
-          : (classification.pronunciation ?? ''),
-      example: text(OfficialAnkiFieldRole.exampleTarget).isNotEmpty
-          ? text(OfficialAnkiFieldRole.exampleTarget)
-          : (classification.example ?? ''),
-      audio: audio ?? classification.audioFilename,
-      image: image ?? classification.imageFilename,
-      options: mappedOptions.isNotEmpty
-          ? mappedOptions
-          : (classification.options.isNotEmpty
-              ? classification.options
-              : siblingAnswers),
+      target: targetText,
+      native: nativeText,
+      pronunciation: text(FieldRole.pronunciation),
+      example: text(FieldRole.example),
+      audio: audio,
+      image: image,
+      options: options,
       truncatedRequired: requiredTruncated,
-      classification: classification,
-      hasExplicitOptions: mappedOptions.isNotEmpty ||
-          classification.options.isNotEmpty,
+      archetype: effectiveArchetype,
+      archetypeConfidence: archetypeConfidence,
+      archetypeViolated: archetypeViolated,
+      hasExplicitOptions: options.isNotEmpty,
+      mcqPrompt: mcqPrompt,
+      correctIndex: correctIndex,
+      correctIndices: correctIndices,
+      clozeSentence: clozeSentence,
+      clozeAnswer: clozeAnswer,
+      siblingDistractors: siblingAnswers
+          .where(
+            (answer) =>
+                answer.trim().isNotEmpty &&
+                answer.toLowerCase() != nativeText.toLowerCase() &&
+                answer.toLowerCase() != targetText.toLowerCase(),
+          )
+          .toList(),
     );
   }
 
-  /// Exactly one active kind per card. Extra drills are not formal placements.
+  /// Exactly one active kind per card. Extra drills are not formal
+  /// placements.
   List<OfficialAnkiProjectionKind> kindsFor({
     required OfficialAnkiRoleValues values,
     required OfficialAnkiMappingSuggestion? mapping,
     required bool typeAnswerEnabled,
   }) {
     return [
-      const CardPresentationPolicy().selectOfficialKind(
+      const OfficialAnkiPresentationPolicy().selectOfficialKind(
         values: values,
         mapping: mapping,
         typeAnswerEnabled: typeAnswerEnabled,
@@ -146,91 +262,64 @@ class OfficialAnkiProjectionPayloads {
       projectionKind: kind.name,
       ordinal: 0,
     );
-    final shuffled = _shuffledOptions(
-      answer: values.target,
-      pool: values.options,
-      sourceFingerprint: item.sourceFingerprint,
-      cardId: item.cardId,
-      kind: kind.name,
-    );
     final interaction = switch (kind) {
       OfficialAnkiProjectionKind.showWord => Interaction.showWord(
           id: id,
           wordId: item.wordId,
-          term: values.target.isNotEmpty
-              ? values.target
-              : (values.classification?.term ?? ''),
-          translation: values.native.isNotEmpty
-              ? values.native
-              : (values.classification?.meaning ?? ''),
+          term: values.target,
+          translation: values.native,
           pronunciation: values.pronunciation.isNotEmpty
               ? values.pronunciation
-              : values.classification?.pronunciation,
-          audioAsset: values.audio ?? values.classification?.audioFilename,
-          imageAsset: values.image ?? values.classification?.imageFilename,
-          example: values.example.isNotEmpty
-              ? values.example
-              : values.classification?.example,
+              : null,
+          audioAsset: values.audio,
+          imageAsset: values.image,
+          example: values.example.isNotEmpty ? values.example : null,
         ),
       OfficialAnkiProjectionKind.flip => Interaction.ankiCard(
           id: id,
           front: values.target,
           back: values.native,
-          audioAssets: values.audio == null ? const <String>[] : [values.audio!],
-          imageAssets: values.image == null ? const <String>[] : [values.image!],
+          audioAssets:
+              values.audio == null ? const <String>[] : [values.audio!],
+          imageAssets:
+              values.image == null ? const <String>[] : [values.image!],
           hint: values.pronunciation.isEmpty ? null : values.pronunciation,
           sourceNoteId: 'official:$sourceId:${item.cardId}',
         ),
-      OfficialAnkiProjectionKind.multipleChoice => Interaction.multipleChoice(
+      OfficialAnkiProjectionKind.multipleChoice => _multipleChoice(
           id: id,
-          prompt: values.classification?.options.isNotEmpty == true &&
-                  values.classification!.term.isNotEmpty
-              ? values.classification!.term
-              : (values.native.isEmpty ? 'Choose the target' : values.native),
-          options: values.classification?.options.isNotEmpty == true
-              ? values.classification!.options
-              : shuffled.options,
-          correctIndex: values.classification?.correctIndex ?? shuffled.correctIndex,
-          imageAsset: values.image,
-          audioAssets: values.audio == null ? const <String>[] : [values.audio!],
+          item: item,
+          values: values,
         ),
-      OfficialAnkiProjectionKind.multiSelect => Interaction.multiSelect(
+      OfficialAnkiProjectionKind.multiSelect => _multiSelect(
           id: id,
-          prompt: values.classification?.term.isNotEmpty == true
-              ? values.classification!.term
-              : values.native,
-          options: values.classification?.options.isNotEmpty == true
-              ? values.classification!.options
-              : shuffled.options,
-          correctIndices: values.classification?.correctIndices ?? const [0],
-          minSelections: values.classification?.correctIndices?.length ?? 1,
-          maxSelections: values.classification?.correctIndices?.length ?? 1,
-          imageAsset: values.image,
+          item: item,
+          values: values,
         ),
       OfficialAnkiProjectionKind.fillBlank => Interaction.fillBlank(
           id: id,
-          sentence: values.classification?.clozeSentence?.isNotEmpty == true
-              ? values.classification!.clozeSentence!
+          sentence: values.clozeSentence?.isNotEmpty == true
+              ? values.clozeSentence!
               : values.target,
-          answer: values.classification?.clozeAnswer?.isNotEmpty == true
-              ? values.classification!.clozeAnswer!
+          answer: values.clozeAnswer?.isNotEmpty == true
+              ? values.clozeAnswer!
               : values.native,
           hint: values.pronunciation.isNotEmpty
               ? values.pronunciation
-              : values.classification?.pronunciation,
-          audioAssets: values.audio == null ? const <String>[] : [values.audio!],
-          imageAssets: values.image == null ? const <String>[] : [values.image!],
+              : null,
+          audioAssets:
+              values.audio == null ? const <String>[] : [values.audio!],
+          imageAssets:
+              values.image == null ? const <String>[] : [values.image!],
         ),
-      OfficialAnkiProjectionKind.listenPick => Interaction.listenAndPick(
+      OfficialAnkiProjectionKind.listenPick => _listenPick(
           id: id,
-          audioAsset: values.audio ?? values.classification?.audioFilename ?? '',
-          prompt: values.native.isEmpty ? 'Listen and pick' : values.native,
-          options: shuffled.options,
-          correctIndex: shuffled.correctIndex,
+          item: item,
+          values: values,
         ),
       OfficialAnkiProjectionKind.typeAnswer => Interaction.typeTheWord(
           id: id,
-          audioAsset: values.audio ?? values.classification?.audioFilename ?? '',
+          audioAsset: values.audio ?? '',
           prompt: values.target.isEmpty ? 'Type the answer' : values.target,
           expected: values.native,
         ),
@@ -254,6 +343,184 @@ class OfficialAnkiProjectionPayloads {
       throw const OfficialAnkiPayloadOverflow();
     }
     return json;
+  }
+
+  Interaction _multipleChoice({
+    required String id,
+    required OfficialAnkiProjectedItem item,
+    required OfficialAnkiRoleValues values,
+  }) {
+    final correct = values.correctIndex ?? 0;
+    final shuffled = _shuffledOptions(
+      answer: values.options[correct],
+      pool: values.options,
+      sourceFingerprint: item.sourceFingerprint,
+      cardId: item.cardId,
+      kind: OfficialAnkiProjectionKind.multipleChoice.name,
+    );
+    final prompt = values.mcqPrompt.isNotEmpty
+        ? values.mcqPrompt
+        : (values.target.isNotEmpty
+            ? values.target
+            : (values.native.isEmpty ? 'Choose the target' : values.native));
+    return Interaction.multipleChoice(
+      id: id,
+      prompt: prompt,
+      options: shuffled.options,
+      correctIndex: shuffled.correctIndex,
+      imageAsset: values.image,
+      audioAssets: values.audio == null ? const <String>[] : [values.audio!],
+    );
+  }
+
+  Interaction _multiSelect({
+    required String id,
+    required OfficialAnkiProjectedItem item,
+    required OfficialAnkiRoleValues values,
+  }) {
+    final correct = (values.correctIndices ?? const [0]).toSet();
+    final answers = [
+      for (var i = 0; i < values.options.length; i++)
+        if (correct.contains(i)) values.options[i],
+    ];
+    final shuffled = officialAnkiDeterministicShuffle(
+      values.options,
+      officialAnkiShuffleSeed(
+        sourceFingerprint: item.sourceFingerprint,
+        cardId: item.cardId,
+        kind: OfficialAnkiProjectionKind.multiSelect.name,
+      ),
+    );
+    final remap = <String, int>{};
+    for (var i = 0; i < shuffled.length; i++) {
+      remap[shuffled[i]] = i;
+    }
+    final correctAfterShuffle = answers
+        .map((answer) => remap[answer] ?? shuffled.indexOf(answer))
+        .toList()
+      ..sort();
+    final prompt = values.mcqPrompt.isNotEmpty
+        ? values.mcqPrompt
+        : (values.target.isNotEmpty
+            ? values.target
+            : (values.native.isEmpty ? 'Choose the target' : values.native));
+    return Interaction.multiSelect(
+      id: id,
+      prompt: prompt,
+      options: shuffled,
+      correctIndices: correctAfterShuffle,
+      minSelections: correctAfterShuffle.length,
+      maxSelections: correctAfterShuffle.length,
+      imageAsset: values.image,
+    );
+  }
+
+  Interaction _listenPick({
+    required String id,
+    required OfficialAnkiProjectedItem item,
+    required OfficialAnkiRoleValues values,
+  }) {
+    // Audio drives the front; the answer to pick is the response text,
+    // the options pool and same-bucket siblings pad the distractors. The
+    // prompt must not leak the answer, so it only shows auxiliary front
+    // text when present.
+    final answer = values.native.isNotEmpty ? values.native : values.target;
+    final pool = <String>[
+      ...values.options.where((o) => o.isNotEmpty),
+      ...values.siblingDistractors,
+    ];
+    final shuffled = _shuffledOptions(
+      answer: answer,
+      pool: pool,
+      sourceFingerprint: item.sourceFingerprint,
+      cardId: item.cardId,
+      kind: OfficialAnkiProjectionKind.listenPick.name,
+    );
+    return Interaction.listenAndPick(
+      id: id,
+      audioAsset: values.audio ?? '',
+      prompt: values.target.isEmpty ? 'Listen and pick' : values.target,
+      options: shuffled.options,
+      correctIndex: shuffled.correctIndex,
+    );
+  }
+
+  /// Resolve a choice card from either an option-pool field or embedded
+  /// front options. Null when nothing aligns (the caller marks the card
+  /// violated — the iron law).
+  ({List<String> options, List<int> correctIndices, String prompt})?
+      _resolveChoice(
+    String optionsRaw,
+    String promptRaw,
+    String answerText,
+  ) {
+    final pool = EmbeddedOptionsParser.parseOptionPool(optionsRaw);
+    if (pool.length >= 2) {
+      final correct = EmbeddedOptionsParser.parseCorrectIndices(
+        answerText,
+        pool,
+      );
+      if (correct.isNotEmpty) {
+        return (
+          options: pool,
+          correctIndices: correct,
+          prompt: CardText.shortText(promptRaw),
+        );
+      }
+      return null;
+    }
+    final embedded = EmbeddedOptionsParser.extractEmbeddedOptions(promptRaw);
+    if (embedded == null) return null;
+    final correct = EmbeddedOptionsParser.parseCorrectIndices(
+      answerText,
+      embedded.options,
+    );
+    if (correct.isEmpty) return null;
+    return (
+      options: embedded.options,
+      correctIndices: correct,
+      prompt: embedded.prompt,
+    );
+  }
+
+  /// Extract the cloze deletion for this card's ordinal (marker number =
+  /// template ordinal + 1), falling back to the first marker.
+  (String, String)? _extractCloze(String rawPrompt, int templateOrdinal) {
+    final plain = CardText.stripHtml(rawPrompt);
+    final markers = _clozeMarkerRegex.allMatches(plain).toList();
+    if (markers.isEmpty) return null;
+    RegExpMatch? preferred;
+    for (final marker in markers) {
+      final number = int.tryParse(marker.group(1) ?? '');
+      if (number == templateOrdinal + 1) {
+        preferred = marker;
+        break;
+      }
+    }
+    preferred ??= markers.first;
+    final answer = (preferred.group(2) ?? '').trim();
+    if (answer.isEmpty) return null;
+    final sentence = plain.replaceAll(_clozeMarkerRegex, '_____');
+    return (CardText.shortText(sentence), CardText.shortText(answer));
+  }
+
+  bool _cardCarriesScriptOrComplexHtml(List<String> fields) {
+    for (final field in fields) {
+      final lower = field.toLowerCase();
+      if (lower.contains('<script') || lower.contains('javascript:')) {
+        return true;
+      }
+      if (RegExp(r'on[a-z]+\s*=', caseSensitive: false).hasMatch(field)) {
+        return true;
+      }
+      if (RegExp(
+        r'<(table|svg|video|iframe|canvas|object|embed|form|input|button)\b',
+        caseSensitive: false,
+      ).hasMatch(field)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   ({List<String> options, int correctIndex}) _shuffledOptions({

@@ -1,4 +1,4 @@
-# Contract v1.8 operations
+# Contract v1.9 operations
 
 Wire format is versioned JSON. `turna_anki_spike.proto` is archived and is not
 the codec.
@@ -90,3 +90,15 @@ and `bodyClass` (for example `card card1`). Native does not emit Desktop
 `COMPARE_TYPED_ANSWER` accepts `{ cardId, marker, provided }` and returns
 `{ comparisonHtml, hasExpected }`. Expected text is resolved from the open
 Collection; Dart must not parse `{{cN::...}}`.
+
+## v1.9 additions (additive)
+
+`GET_PROJECTION_SCHEMAS` responses now carry a derived `templateFacts` object
+per notetype: `{ hash, templates: [{ ord, name, frontFields, backFields,
+filters: { typeIn, tts, hint, script, complexHtml } }], reqs: [{ cardOrd,
+kind: NONE|ANY|ALL, fieldOrds }] }`. `frontFields`/`backFields` are field
+ordinals computed with rslib `ParsedTemplate::requirements` (identical logic
+to the stored `config.reqs`, applied per face). `filters` are derived
+booleans/field-name lists; no raw template text (`qfmt`/`afmt`/CSS) ever
+leaves the engine. The `sampleLimit` clamp rose from 10 to 30 (default stays
+3). Old Dart minors ignore the new keys; old engines simply omit them.

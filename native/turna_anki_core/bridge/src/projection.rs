@@ -1,14 +1,22 @@
-//! Contract 1.2 read-only projection queries. Never returns qfmt/afmt/CSS,
-//! revlog, or scheduling.
+//! Contract 1.2+ read-only projection queries. Never returns qfmt/afmt/CSS
+//! text, revlog, or scheduling. Contract 1.9 adds derived `templateFacts`
+//! (field ords + filter booleans per template face); raw template text
+//! stays inside the engine and only structural facts leave it.
 
+use std::collections::HashMap;
+
+use regex::Regex;
 use serde::Deserialize;
 use serde_json::json;
 use serde_json::Value;
 use sha2::Digest;
 use sha2::Sha256;
 
+use anki::notetype::CardRequirementKind;
 use anki::prelude::*;
 use anki::search::SortMode;
+use anki::template::FieldRequirements;
+use anki::template::ParsedTemplate;
 
 use crate::engine::slot;
 use crate::engine::Engine;
@@ -20,7 +28,7 @@ use crate::engine::STATUS_PROJECTION_SNAPSHOT_STALE;
 use crate::ops::map_anki_error;
 
 const DEFAULT_SAMPLE_LIMIT: usize = 3;
-const MAX_SAMPLE_LIMIT: usize = 10;
+const MAX_SAMPLE_LIMIT: usize = 30;
 const DEFAULT_BATCH: usize = 200;
 const MAX_BATCH: usize = 500;
 const MAX_FIELD_BYTES: usize = 8 * 1024;
@@ -83,6 +91,134 @@ fn schema_fingerprint(name: &str, field_names: &[String], template_names: &[Stri
         hasher.update([0]);
     }
     hex::encode(hasher.finalize())
+}
+
+/// Field ords whose non-emptiness the template face depends on, computed
+/// exactly like rslib's `Notetype::updated_requirements` (question side) so
+/// the derived facts can never disagree with the stored `config.reqs`.
+fn template_field_ords(text: &str, field_map: &HashMap<&str, u16>) -> Vec<u16> {
+    let Ok(parsed) = ParsedTemplate::from_text(text) else {
+        return Vec::new();
+    };
+    let mut ords = match parsed.requirements(field_map) {
+        FieldRequirements::Any(set) | FieldRequirements::All(set) => {
+            set.into_iter().collect::<Vec<u16>>()
+        }
+        FieldRequirements::None => Vec::new(),
+    };
+    ords.sort_unstable();
+    ords
+}
+
+/// Field names referenced through `{{<filter>:…}}` on a template face.
+fn filter_field_targets(text: &str, filter: &str) -> Vec<String> {
+    let marker = format!("{{{{{filter}:");
+    let mut out = Vec::new();
+    let mut rest = text;
+    while let Some(pos) = rest.find(&marker) {
+        let after = &rest[pos + marker.len()..];
+        let Some(end) = after.find("}}") else {
+            break;
+        };
+        // Filters chain left-to-right (`{{tts:en_US:Field}}`); the field is
+        // always the last `:`-separated segment.
+        if let Some(field) = after[..end].rsplit(':').next() {
+            let field = field.trim();
+            if !field.is_empty() && !out.iter().any(|f: &String| f == field) {
+                out.push(field.to_string());
+            }
+        }
+        rest = &after[end + 2..];
+    }
+    out
+}
+
+fn template_has_script(text: &str) -> bool {
+    text.contains("<script")
+        || text.contains("javascript:")
+        || {
+            static RE: std::sync::LazyLock<Regex> =
+                std::sync::LazyLock::new(|| Regex::new(r"(?i)on[a-z]+\s*=").unwrap());
+            RE.is_match(text)
+        }
+}
+
+fn template_has_complex_html(text: &str) -> bool {
+    static RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r"(?i)<(table|svg|audio|video|iframe|canvas|object|embed|form|input|button)\b")
+            .unwrap()
+    });
+    RE.is_match(text)
+}
+
+/// Derived per-notetype structural facts for recognition (contract 1.9).
+/// Key names deliberately avoid the `forbidden_keys` vocabulary; nothing
+/// here can reconstruct the template text.
+fn template_facts(nt: &anki::notetype::Notetype) -> Value {
+    let field_map: HashMap<&str, u16> = nt
+        .fields
+        .iter()
+        .enumerate()
+        .map(|(idx, field)| (field.name.as_str(), idx as u16))
+        .collect();
+    let mut hasher = Sha256::new();
+    let mut templates = Vec::new();
+    for (ord, template) in nt.templates.iter().enumerate() {
+        let q = &template.config.q_format;
+        let a = &template.config.a_format;
+        hasher.update(template.name.as_bytes());
+        hasher.update([0]);
+        hasher.update(q.as_bytes());
+        hasher.update([0]);
+        hasher.update(a.as_bytes());
+        hasher.update([0]);
+        let mut tts = filter_field_targets(q, "tts");
+        tts.extend(filter_field_targets(a, "tts"));
+        let mut hint = filter_field_targets(q, "hint");
+        hint.extend(filter_field_targets(a, "hint"));
+        let script = template_has_script(q) || template_has_script(a);
+        let complex = template_has_complex_html(q) || template_has_complex_html(a);
+        hasher.update([u8::from(script), u8::from(complex)]);
+        templates.push(json!({
+            "ord": ord as u32,
+            "name": template.name,
+            "frontFields": template_field_ords(q, &field_map),
+            "backFields": template_field_ords(a, &field_map),
+            "filters": {
+                "typeIn": q.contains("{{type:") || a.contains("{{type:"),
+                "tts": tts,
+                "hint": hint,
+                "script": script,
+                "complexHtml": complex,
+            },
+        }));
+    }
+    let mut reqs = Vec::new();
+    for req in &nt.config.reqs {
+        hasher.update(req.card_ord.to_le_bytes());
+        hasher.update([req.kind as u8]);
+        for ord in &req.field_ords {
+            hasher.update(ord.to_le_bytes());
+        }
+        hasher.update([0]);
+        let kind = match CardRequirementKind::try_from(req.kind) {
+            Ok(CardRequirementKind::All) => "ALL",
+            Ok(CardRequirementKind::Any) => "ANY",
+            _ => "NONE",
+        };
+        let mut field_ords = req.field_ords.clone();
+        field_ords.sort_unstable();
+        reqs.push(json!({
+            "cardOrd": req.card_ord,
+            "kind": kind,
+            "fieldOrds": field_ords,
+        }));
+    }
+    json!({
+        "hash": hex::encode(hasher.finalize()),
+        "templates": templates,
+        "reqs": reqs,
+    })
 }
 
 fn source_fingerprint(note: &Note, deck_path: &[String], ordinal: u16) -> String {
@@ -180,8 +316,9 @@ pub fn get_projection_schemas(handle: u64, request: &[u8]) -> Result<Value, i32>
             "kind": kind,
             "fieldNames": field_names,
             "templateNames": template_names,
-            "schemaFingerprint": fingerprint,
-        });
+        "schemaFingerprint": fingerprint,
+        "templateFacts": template_facts(&nt),
+    });
         if parsed.include_samples {
             let search = format!("mid:{}", ntid.0);
             let note_ids = col
@@ -462,6 +599,95 @@ mod tests {
         .unwrap();
         assert!(!forbidden_keys(&rows));
         assert!(rows["missingCardIds"].as_array().is_some());
+        free_engine(handle).unwrap();
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn template_facts_derive_structure_without_raw_templates() {
+        let pkg = package_path("01-basic-unicode.apkg");
+        if !pkg.exists() {
+            return;
+        }
+        let (root, handle) = temp_open();
+        call(
+            handle,
+            OP_IMPORT_PACKAGE,
+            json!({
+                "package_path": pkg.to_string_lossy(),
+                "with_scheduling": false,
+                "with_deck_configs": true,
+            }),
+        )
+        .unwrap();
+        let schemas = call(handle, OP_GET_PROJECTION_SCHEMAS, json!({})).unwrap();
+        let first = &schemas["schemas"][0];
+        let facts = &first["templateFacts"];
+        assert!(facts["hash"].as_str().unwrap().len() == 64);
+        // Basic front template renders with Front only; the answer side
+        // references Front (via FrontSide is special, not a field) and Back.
+        let template = &facts["templates"][0];
+        assert_eq!(template["frontFields"], json!([0]));
+        assert_eq!(template["backFields"], json!([0, 1]));
+        assert_eq!(template["filters"]["typeIn"], json!(false));
+        assert_eq!(facts["reqs"][0]["kind"], json!("ANY"));
+        assert_eq!(facts["reqs"][0]["fieldOrds"], json!([0]));
+        // The derived object must never leak raw template text keys.
+        assert!(!forbidden_keys(&json!({ "templateFacts": facts })));
+        free_engine(handle).unwrap();
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn template_facts_flag_typein_filter() {
+        let pkg = package_path("07-typed-answer.apkg");
+        if !pkg.exists() {
+            return;
+        }
+        let (root, handle) = temp_open();
+        call(
+            handle,
+            OP_IMPORT_PACKAGE,
+            json!({
+                "package_path": pkg.to_string_lossy(),
+                "with_scheduling": false,
+                "with_deck_configs": true,
+            }),
+        )
+        .unwrap();
+        let schemas = call(handle, OP_GET_PROJECTION_SCHEMAS, json!({})).unwrap();
+        let first = &schemas["schemas"][0];
+        let facts = &first["templateFacts"];
+        assert_eq!(facts["templates"][0]["filters"]["typeIn"], json!(true));
+        free_engine(handle).unwrap();
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn sample_limit_clamps_to_30() {
+        let pkg = package_path("01-basic-unicode.apkg");
+        if !pkg.exists() {
+            return;
+        }
+        let (root, handle) = temp_open();
+        call(
+            handle,
+            OP_IMPORT_PACKAGE,
+            json!({
+                "package_path": pkg.to_string_lossy(),
+                "with_scheduling": false,
+                "with_deck_configs": true,
+            }),
+        )
+        .unwrap();
+        let schemas = call(
+            handle,
+            OP_GET_PROJECTION_SCHEMAS,
+            json!({ "includeSamples": true, "sampleLimit": 100 }),
+        )
+        .unwrap();
+        let first = &schemas["schemas"][0];
+        assert!(first["samples"].as_array().unwrap().len() <= MAX_SAMPLE_LIMIT);
         free_engine(handle).unwrap();
         let _ = fs::remove_dir_all(root);
     }

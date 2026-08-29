@@ -13,7 +13,7 @@ use crate::engine;
 use crate::errors;
 
 pub const CONTRACT_MAJOR: u32 = 1;
-pub const CONTRACT_MINOR: u32 = 8;
+pub const CONTRACT_MINOR: u32 = 9;
 pub const OP_ENGINE_INFO: u32 = 1;
 const MAX_REQUEST_ID_BYTES: usize = 128;
 const MAX_ENVELOPE_PAYLOAD_BYTES: usize = 1_048_576;

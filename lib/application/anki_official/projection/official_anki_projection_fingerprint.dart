@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
-import 'package:turna/application/anki_official/projection/official_anki_projection_mapper.dart';
+import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_paging.dart';
 
 String officialAnkiOrderedCardSetFingerprint(Iterable<int> cardIdsAscending) {

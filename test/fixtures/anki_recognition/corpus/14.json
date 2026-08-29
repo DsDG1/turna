@@ -1,0 +1,40 @@
+{
+  "id": "14",
+  "description": "mask/occlusion 图片字段（值形状）",
+  "schema": {
+    "notetypeId": 14,
+    "name": "Image Occlusion Enhanced",
+    "kind": "normal",
+    "fieldNames": [
+      "Header",
+      "Image",
+      "Occlusion",
+      "Back Extra"
+    ],
+    "templateNames": [
+      "IO"
+    ],
+    "schemaFingerprint": "fp",
+    "samples": [
+      {
+        "noteId": 1,
+        "fields": [
+          "capitals",
+          "<img src=\"map.png\">",
+          "<img src=\"mask1.png>",
+          "the city"
+        ],
+        "truncated": false
+      }
+    ]
+  },
+  "expected": {
+    "archetype": "basicPair",
+    "band": "review",
+    "roles": {
+      "Header": "prompt",
+      "Image": "image",
+      "Back Extra": "response"
+    }
+  }
+}

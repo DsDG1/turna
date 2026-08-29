@@ -35,7 +35,7 @@ import 'package:turna/application/anki_official/official_anki_internal_page.dart
     as _i37;
 import 'package:turna/application/anki_official/official_anki_paths.dart'
     as _i71;
-import 'package:turna/application/anki_official/projection/official_anki_projection_mapper.dart'
+import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart'
     as _i65;
 import 'package:turna/application/anki_official/projection/official_anki_projection_service.dart'
     as _i80;
