@@ -23,14 +23,19 @@ use crate::engine::Engine;
 use crate::engine::MAX_RESPONSE_BYTES;
 use crate::engine::STATUS_BACKEND_PANIC;
 use crate::engine::STATUS_INVALID_ARGUMENT;
+use crate::engine::STATUS_INTERNAL_ERROR;
 use crate::engine::STATUS_INVALID_STATE;
 use crate::engine::STATUS_PROJECTION_SNAPSHOT_STALE;
 use crate::ops::map_anki_error;
+use crate::ops::require_open;
+use crate::query::split_note_tags;
 
 const DEFAULT_SAMPLE_LIMIT: usize = 3;
 const MAX_SAMPLE_LIMIT: usize = 30;
 const MAX_BATCH: usize = 500;
 const MAX_FIELD_BYTES: usize = 8 * 1024;
+/// See `query::SQL_CHUNK`: inlined id lists chunked under the variable cap.
+const SQL_CHUNK: usize = 500;
 
 #[derive(Debug, Clone)]
 pub struct ProjectionSnapshot {
@@ -219,9 +224,26 @@ fn template_facts(nt: &anki::notetype::Notetype) -> Value {
     })
 }
 
+#[cfg(test)]
 fn source_fingerprint(note: &Note, deck_path: &[String], ordinal: u16) -> String {
+    source_fingerprint_parts(
+        &note.guid,
+        &note.fields(),
+        &note.tags,
+        deck_path,
+        ordinal,
+    )
+}
+
+fn source_fingerprint_parts(
+    guid: &str,
+    fields: &[String],
+    tags: &[String],
+    deck_path: &[String],
+    ordinal: u16,
+) -> String {
     let mut hasher = Sha256::new();
-    hasher.update(note.guid.as_bytes());
+    hasher.update(guid.as_bytes());
     hasher.update([0]);
     hasher.update(ordinal.to_le_bytes());
     hasher.update([0]);
@@ -229,11 +251,11 @@ fn source_fingerprint(note: &Note, deck_path: &[String], ordinal: u16) -> String
         hasher.update(part.as_bytes());
         hasher.update([0]);
     }
-    for field in note.fields() {
+    for field in fields {
         hasher.update(field.as_bytes());
         hasher.update([0]);
     }
-    for tag in &note.tags {
+    for tag in tags {
         hasher.update(tag.as_bytes());
         hasher.update([1]);
     }
@@ -276,10 +298,7 @@ pub fn get_projection_schemas(handle: u64, request: &[u8]) -> Result<Value, i32>
         .unwrap_or(DEFAULT_SAMPLE_LIMIT)
         .clamp(1, MAX_SAMPLE_LIMIT);
     let slot = slot(handle)?;
-    let mut engine = slot.engine.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
-    if engine.state != crate::engine::EngineState::Open {
-        return Err(STATUS_INVALID_STATE);
-    }
+    let mut engine = require_open(&slot)?;
     let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
     let wanted = if parsed.notetype_ids.is_empty() {
         col.storage
@@ -358,10 +377,7 @@ pub fn begin_projection_read(handle: u64, request: &[u8]) -> Result<Value, i32> 
         return Err(STATUS_INVALID_ARGUMENT);
     }
     let slot = slot(handle)?;
-    let mut engine = slot.engine.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
-    if engine.state != crate::engine::EngineState::Open {
-        return Err(STATUS_INVALID_STATE);
-    }
+    let mut engine = require_open(&slot)?;
     let generation = engine.content_generation;
     let token = token_for(
         generation,
@@ -378,6 +394,90 @@ pub fn begin_projection_read(handle: u64, request: &[u8]) -> Result<Value, i32> 
         "collectionGeneration": generation,
         "backendCommit": crate::contract::backend_commit(),
     }))
+}
+
+pub(crate) struct ProjectionCardSql {
+    pub note_id: i64,
+    pub deck_id: i64,
+    pub template_ord: i64,
+}
+
+pub(crate) struct ProjectionNoteSql {
+    pub guid: String,
+    pub notetype_id: i64,
+    pub tags: String,
+    /// `notes.flds` split on `\x1f` — Anki's stable field separator.
+    pub fields: Vec<String>,
+}
+
+/// Cards for the batch in one chunked `IN (...)` sweep (doc 38 P3-3).
+pub(crate) fn projection_card_rows(
+    col: &Collection,
+    card_ids: &[i64],
+) -> Result<HashMap<i64, ProjectionCardSql>, i32> {
+    let mut rows: HashMap<i64, ProjectionCardSql> = HashMap::new();
+    let db = col.storage.db();
+    for chunk in card_ids.chunks(SQL_CHUNK) {
+        let placeholders = vec!["?"; chunk.len()].join(",");
+        let sql =
+            format!("SELECT id, nid, did, ord FROM cards WHERE id IN ({placeholders})");
+        let mut stmt = db.prepare(&sql).map_err(|_| STATUS_INTERNAL_ERROR)?;
+        let found = stmt
+            .query_map(rusqlite::params_from_iter(chunk.iter()), |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    ProjectionCardSql {
+                        note_id: row.get(1)?,
+                        deck_id: row.get(2)?,
+                        template_ord: row.get(3)?,
+                    },
+                ))
+            })
+            .map_err(|_| STATUS_INTERNAL_ERROR)?;
+        for row in found {
+            let (card_id, card) = row.map_err(|_| STATUS_INTERNAL_ERROR)?;
+            rows.insert(card_id, card);
+        }
+    }
+    Ok(rows)
+}
+
+/// Notes for the batch in one chunked `IN (...)` sweep (doc 38 P3-3).
+pub(crate) fn projection_note_rows(
+    col: &Collection,
+    note_ids: &[i64],
+) -> Result<HashMap<i64, ProjectionNoteSql>, i32> {
+    let mut rows: HashMap<i64, ProjectionNoteSql> = HashMap::new();
+    let db = col.storage.db();
+    for chunk in note_ids.chunks(SQL_CHUNK) {
+        let placeholders = vec!["?"; chunk.len()].join(",");
+        let sql = format!(
+            "SELECT id, guid, mid, tags, flds FROM notes WHERE id IN ({placeholders})"
+        );
+        let mut stmt = db.prepare(&sql).map_err(|_| STATUS_INTERNAL_ERROR)?;
+        let found = stmt
+            .query_map(rusqlite::params_from_iter(chunk.iter()), |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    ProjectionNoteSql {
+                        guid: row.get(1)?,
+                        notetype_id: row.get(2)?,
+                        tags: row.get(3)?,
+                        fields: row
+                            .get::<_, String>(4)?
+                            .split('\x1f')
+                            .map(str::to_string)
+                            .collect(),
+                    },
+                ))
+            })
+            .map_err(|_| STATUS_INTERNAL_ERROR)?;
+        for row in found {
+            let (note_id, note) = row.map_err(|_| STATUS_INTERNAL_ERROR)?;
+            rows.insert(note_id, note);
+        }
+    }
+    Ok(rows)
 }
 
 fn require_snapshot<'a>(engine: &'a Engine, token: &str) -> Result<&'a ProjectionSnapshot, i32> {
@@ -402,21 +502,102 @@ pub fn get_projection_rows_batch(handle: u64, request: &[u8]) -> Result<Value, i
     }
     let card_ids = parsed.card_ids;
     let slot = slot(handle)?;
-    let mut engine = slot.engine.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
-    if engine.state != crate::engine::EngineState::Open {
-        return Err(STATUS_INVALID_STATE);
-    }
+    let mut engine = require_open(&slot)?;
     let _ = require_snapshot(&engine, &parsed.snapshot_token)?;
     let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+    let card_rows = projection_card_rows(col, &card_ids)?;
+    let mut note_ids: Vec<i64> = card_rows.values().map(|row| row.note_id).collect();
+    note_ids.sort_unstable();
+    note_ids.dedup();
+    let note_rows = projection_note_rows(col, &note_ids)?;
+    let mut deck_paths: HashMap<i64, Vec<String>> = HashMap::new();
+    let mut rows = Vec::new();
+    let mut missing = Vec::new();
+    for card_id in card_ids {
+        let Some(card) = card_rows.get(&card_id) else {
+            missing.push(card_id);
+            continue;
+        };
+        let Some(note) = note_rows.get(&card.note_id) else {
+            missing.push(card_id);
+            continue;
+        };
+        let deck_path = match deck_paths.entry(card.deck_id) {
+            std::collections::hash_map::Entry::Vacant(entry) => {
+                let path = match col.get_deck(DeckId(card.deck_id)).map_err(map_anki_error)? {
+                    Some(deck) => deck
+                        .name
+                        .human_name()
+                        .split("::")
+                        .map(|s| s.to_string())
+                        .collect::<Vec<_>>(),
+                    None => vec!["Recovered".to_string()],
+                };
+                entry.insert(path)
+            }
+            std::collections::hash_map::Entry::Occupied(entry) => entry.into_mut(),
+        };
+        // The fingerprint hashes the raw (untruncated) fields — the truncated
+        // copies below are display-only, and the reference implementation
+        // hashes `Note::fields()` directly.
+        let ordinal: u16 = card.template_ord.clamp(0, u16::MAX as i64) as u16;
+        let tags = split_note_tags(&note.tags);
+        let fingerprint = source_fingerprint_parts(
+            &note.guid,
+            &note.fields,
+            &tags,
+            deck_path,
+            ordinal,
+        );
+        let mut fields = Vec::new();
+        let mut truncated = false;
+        for field in &note.fields {
+            let (value, cut) = truncate_field(field);
+            truncated |= cut;
+            fields.push(value);
+        }
+        rows.push(json!({
+            "cardId": card_id,
+            "noteId": card.note_id,
+            "noteGuid": note.guid,
+            "notetypeId": note.notetype_id,
+            "deckId": card.deck_id,
+            "deckPath": deck_path,
+            "templateOrdinal": ordinal,
+            "tags": tags,
+            "fields": fields,
+            "truncated": truncated,
+            "sourceFingerprint": fingerprint,
+        }));
+    }
+    let payload = json!({
+        "rows": rows,
+        "missingCardIds": missing,
+    });
+    if forbidden_keys(&payload) {
+        return Err(STATUS_INVALID_ARGUMENT);
+    }
+    let encoded = serde_json::to_vec(&payload).map_err(|_| STATUS_BACKEND_PANIC)?;
+    if encoded.len() > MAX_RESPONSE_BYTES {
+        return Err(STATUS_INVALID_ARGUMENT);
+    }
+    Ok(payload)
+}
+
+/// Doc 38 P3 parity oracle: the pre-batching per-row implementation, kept
+/// verbatim. Delete at the next rslib pin refresh once the parity test has
+/// passed on the toolchain host.
+#[cfg(test)]
+fn reference_rows(col: &mut Collection, card_ids: &[i64]) -> Result<Value, i32> {
     let mut rows = Vec::new();
     let mut missing = Vec::new();
     for card_id in card_ids {
         let Some(card) = col
             .storage
-            .get_card(CardId(card_id))
+            .get_card(CardId(*card_id))
             .map_err(map_anki_error)?
         else {
-            missing.push(card_id);
+            missing.push(*card_id);
             continue;
         };
         let Some(note) = col
@@ -424,7 +605,7 @@ pub fn get_projection_rows_batch(handle: u64, request: &[u8]) -> Result<Value, i
             .get_note(card.note_id())
             .map_err(map_anki_error)?
         else {
-            missing.push(card_id);
+            missing.push(*card_id);
             continue;
         };
         let deck_path = match col.get_deck(card.deck_id()).map_err(map_anki_error)? {
@@ -459,18 +640,10 @@ pub fn get_projection_rows_batch(handle: u64, request: &[u8]) -> Result<Value, i
             "sourceFingerprint": fingerprint,
         }));
     }
-    let payload = json!({
+    Ok(json!({
         "rows": rows,
         "missingCardIds": missing,
-    });
-    if forbidden_keys(&payload) {
-        return Err(STATUS_INVALID_ARGUMENT);
-    }
-    let encoded = serde_json::to_vec(&payload).map_err(|_| STATUS_BACKEND_PANIC)?;
-    if encoded.len() > MAX_RESPONSE_BYTES {
-        return Err(STATUS_INVALID_ARGUMENT);
-    }
-    Ok(payload)
+    }))
 }
 
 #[cfg(test)]
@@ -797,6 +970,89 @@ mod tests {
         assert_eq!(err, STATUS_PROJECTION_SNAPSHOT_STALE);
         free_engine(handle).unwrap();
         let _ = fs::remove_dir_all(root);
+    }
+
+    /// Doc 38 P3 parity: SQL row batching must equal the per-row reference
+    /// (fields/deckPath/tags/fingerprints) on fixture packages, including
+    /// missing-card reporting.
+    #[test]
+    fn projection_rows_batch_matches_reference() {
+        for pkg in [
+            "01-basic-unicode.apkg",
+            "02-basic-reversed.apkg",
+            "04-cloze-multi-ord.apkg",
+            "07-typed-answer.apkg",
+        ] {
+            let file = package_path(pkg);
+            if !file.exists() {
+                continue;
+            }
+            let (root, handle) = temp_open();
+            call(
+                handle,
+                OP_IMPORT_PACKAGE,
+                json!({
+                    "package_path": file.to_string_lossy(),
+                    "with_scheduling": false,
+                    "with_deck_configs": true,
+                }),
+            )
+            .unwrap();
+            let begin = call(
+                handle,
+                OP_BEGIN_PROJECTION_READ,
+                json!({ "cardSetFingerprint": "abc", "mappingVersion": 1 }),
+            )
+            .unwrap();
+            let token = begin["snapshotToken"].as_str().unwrap();
+
+            let mut card_ids = Vec::new();
+            let mut page_token: Option<String> = None;
+            loop {
+                let mut body = json!({"search": "", "page_size": 1000});
+                if let Some(t) = page_token.as_deref() {
+                    body["page_token"] = json!(t);
+                }
+                let page = call(
+                    handle,
+                    crate::engine::OP_SEARCH_CARDS_PAGE,
+                    body,
+                )
+                .unwrap();
+                card_ids.extend(
+                    page["cardIds"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .map(|v| v.as_i64().unwrap()),
+                );
+                page_token = page["nextPageToken"].as_str().map(|s| s.to_string());
+                if page_token.is_none() {
+                    break;
+                }
+            }
+            assert!(!card_ids.is_empty(), "{pkg}");
+            // One deliberately missing id exercises missingCardIds parity.
+            let ghost = card_ids[0].max(900_000_000_000);
+            let request_ids = [card_ids.clone(), vec![ghost]].concat();
+
+            let got = call(
+                handle,
+                OP_GET_PROJECTION_ROWS_BATCH,
+                json!({ "cardIds": request_ids, "snapshotToken": token }),
+            )
+            .unwrap();
+            let want = {
+                let slot_arc = slot(handle).unwrap();
+                let mut engine = slot_arc.engine.lock().unwrap();
+                let col = engine.collection.as_mut().unwrap();
+                reference_rows(col, &request_ids).unwrap()
+            };
+            assert_eq!(got, want, "{pkg} rows");
+
+            free_engine(handle).unwrap();
+            let _ = fs::remove_dir_all(root);
+        }
     }
 
     #[test]

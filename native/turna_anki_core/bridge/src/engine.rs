@@ -330,6 +330,11 @@ pub fn open_collection(handle: u64, request: &[u8]) -> Result<LifecycleResponse,
 
 pub fn close_collection(handle: u64) -> Result<LifecycleResponse, i32> {
     let slot = engine_arc(handle)?;
+    // Doc 38 P3-5: never close under a running import/backup — the in-flight
+    // op would surface INVALID_STATE mid-transaction (V2 hazard).
+    if slot.busy.load(Ordering::Acquire) {
+        return Err(STATUS_INVALID_STATE);
+    }
     let mut engine = slot.engine.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
     if engine.state != EngineState::Open {
         return Err(STATUS_INVALID_STATE);

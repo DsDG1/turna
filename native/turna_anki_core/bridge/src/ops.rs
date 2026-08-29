@@ -324,14 +324,18 @@ fn import_package(handle: u64, request: &[u8]) -> Result<Value, i32> {
     match imported {
         Ok(output) => {
             let log = output.output;
-            let (note_ids, card_ids) = {
+            // Doc 38 P3-2: two O(1) count() probes instead of two
+            // full-table searches whose only consumer was .len().
+            let (note_count, card_count): (i64, i64) = {
                 let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
-                (
-                    col.search_notes("", SortMode::NoOrder)
-                        .map_err(map_anki_error)?,
-                    col.search_cards("", SortMode::NoOrder)
-                        .map_err(map_anki_error)?,
-                )
+                let db = col.storage.db();
+                let note_count = db
+                    .query_row("select count(*) from notes", [], |row| row.get(0))
+                    .map_err(|_| STATUS_INTERNAL_ERROR)?;
+                let card_count = db
+                    .query_row("select count(*) from cards", [], |row| row.get(0))
+                    .map_err(|_| STATUS_INTERNAL_ERROR)?;
+                (note_count, card_count)
             };
             crate::engine::bump_content_generation(&mut engine);
             Ok(json!({
@@ -342,8 +346,8 @@ fn import_package(handle: u64, request: &[u8]) -> Result<Value, i32> {
                 "missing_notetype_note_ids": log_ids(&log.missing_notetype),
                 "elapsed_millis": elapsed,
                 "warnings": Vec::<String>::new(),
-                "note_count": note_ids.len(),
-                "card_count": card_ids.len(),
+                "note_count": note_count,
+                "card_count": card_count,
                 "found_notes": log.found_notes,
                 "operationToken": format!("op-{handle}-{elapsed}"),
             }))
