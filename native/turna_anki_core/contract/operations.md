@@ -62,9 +62,11 @@ policy primitive and resets at most 10,000 exact card IDs per call.
 
 `ANSWER_AHEAD_CARDS` rates cards that may not be in today's due queue
 (lesson redo / 提前复习). Request `{ answers: [{ cardId, rating, millisecondsTaken }] }`
-(1..100). The engine builds a temporary Official filtered deck, answers
-through the scheduler, then empties and removes the deck. Response
-`{ answeredCards }`. Missing capability is fail-closed.
+(1..100). Cards already rated today are skipped inside the op (host-side
+idempotency scans are obsolete). The engine builds a temporary Official
+filtered deck over `(<cid terms>) -rated:1`, answers through the scheduler,
+then empties and removes the deck. Response
+`{ answeredCards, skippedRatedToday }`. Missing capability is fail-closed.
 
 `ENSURE_TODAY_NEW_QUOTA` raises today's remaining new-card quota for one
 deck so remaining ≥ `neededNew`. Request `{ deckId, neededNew }`

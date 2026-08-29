@@ -344,6 +344,9 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
       readyBatch.items,
       officialLedger: readyBatch.ledger,
     );
+    // P3: the queue pushes rebuilt batches by replacement (it never
+    // mutates a shared list).
+    liveQueue?.itemsSink = controller.replaceItems;
     controller.addListener(_onController);
     await controller.start();
     if (!mounted) return;
@@ -679,9 +682,9 @@ class _AnkiStudySessionView extends StatelessWidget {
       }
     }
     // Unreachable while the scheduler's current always sits inside the
-    // assembled batch; advanceTo fails loudly on the unmatched id instead
-    // of silently completing a session the scheduler still owes.
-    await controller.advanceTo('missing-c$currentCardId');
+    // assembled batch; surface a structured desync (retryable) instead of
+    // silently completing a session the scheduler still owes.
+    controller.reportSchedulerDesync(currentCardId);
   }
 
   @override

@@ -53,8 +53,8 @@ void main() {
   });
 
   test(
-      'P1 formula: schedulerDue ∩ placement − retired; the scheduler '
-      'already excludes locked/suspended/buried', () {
+      'formula: schedulerDue ∩ placement − suspended − buried − retired '
+      '(the search-collected schedulerDue carries suspended cards)', () {
     final per = _per(
       'src-a',
       schedulerDue: {1, 2, 3, 4, 5, 6},
@@ -64,10 +64,12 @@ void main() {
       buried: {3},
       retired: {4},
     );
-    // A real collect never returns suspended/buried cards inside
-    // schedulerDue — those sets are informational diagnostics now.
-    expect(per.formalDueCardKeys.map((k) => k.cardId).toSet(), {1, 2, 3, 5});
-    expect(per.formalDueCount, 4);
+    // `is:new`/`is:learn` match on card type, so a search-collected
+    // schedulerDue contains the suspended (2) and buried (3) cards — the
+    // subtraction terms remove them; retired (4) drops as ever. 6 falls to
+    // the placement scope.
+    expect(per.formalDueCardKeys.map((k) => k.cardId).toSet(), {1, 5});
+    expect(per.formalDueCount, 2);
   });
 
   test(

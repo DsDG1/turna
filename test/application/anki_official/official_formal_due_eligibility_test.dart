@@ -44,9 +44,12 @@ OfficialReviewQueueCard _queueCard(int cardId) {
 
 void main() {
   group('computeFormalDueCardKeys', () {
-    // P1: the scheduler is the gate — locked (unintroduced), suspended and
-    // buried cards never reach schedulerDue in the first place, so the
-    // Dart formula only scopes placement and drops uninstall remnants.
+    // P1: the scheduler is the gate — the queue a session serves never
+    // contains locked (unintroduced), suspended or buried cards. The
+    // search-collected schedulerDue, however, DOES carry them (`is:new` /
+    // `is:learn` match on card type), so the formula must subtract the
+    // suspended/buried sets to keep the due badge off the suspended
+    // backlog.
     test('exact intersection of scheduler due and placement minus retired',
         () {
       final due = computeFormalDueCardKeys(
@@ -57,14 +60,28 @@ void main() {
       expect(due, {_key(1), _key(2), _key(3)});
     });
 
+    test('subtracts suspended and buried from a search-collected schedulerDue',
+        () {
+      // Production shape: card 2 is a suspended (unintroduced) new card
+      // that still answers `is:new`, card 3 a buried one.
+      final due = computeFormalDueCardKeys(
+        officialSchedulerDueCardKeys: {_key(1), _key(2), _key(3), _key(4)},
+        activePlacementCardKeys: {_key(1), _key(2), _key(3), _key(4)},
+        suspendedCardKeys: {_key(2)},
+        buriedCardKeys: {_key(3)},
+      );
+      expect(due, {_key(1), _key(4)});
+    });
+
     test('per-source helper builds the same membership', () {
       final due = computeFormalDueCardKeysForSource(
         sourceId: 'src-a',
         officialSchedulerDueCardIds: {10, 11, 12, 13, 14},
         activePlacementCardIds: {10, 11, 12},
-        retiredCardIds: {11},
+        suspendedCardIds: {11},
+        retiredCardIds: {12},
       );
-      expect(due.map((k) => k.cardId).toSet(), {10, 12});
+      expect(due.map((k) => k.cardId).toSet(), {10});
     });
 
     test('scheduler due alone with no placement is empty', () {
@@ -144,14 +161,14 @@ void main() {
         basedOnGeneration: repo.generation,
       );
 
-      // P1: a post-lock schedulerDue never contains suspended cards, so the
-      // suspended set here is informational and the formula no longer
-      // subtracts it — placement still scopes, though.
+      // A search-collected schedulerDue carries the suspended card (type-
+      // based `is:new`), so the suspended set must subtract: only the
+      // unsuspended 1 and 3 remain owed.
       expect(
         repo.formalDueCardKeysForImport('src-a'),
-        {_key(1), _key(2), _key(3)},
+        {_key(1), _key(3)},
       );
-      expect(repo.formalOfficialDueForImport('src-a'), 3);
+      expect(repo.formalOfficialDueForImport('src-a'), 2);
     });
   });
 }

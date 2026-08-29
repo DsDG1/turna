@@ -231,9 +231,9 @@ void main() {
       dao: migrations,
       sources: sources,
       setCurrentDeck: (deckId) async {},
-      // P1: the suspended (20) and buried (30) cards never appear in the
-      // scheduler output; the searches still report them as informational
-      // sets. 40 is retired evidence and subtracts.
+      // The queue is suspension-free, so the suspended (20) and buried
+      // (30) cards only surface through the evidence sets — which the
+      // formula subtracts. 40 is retired evidence and subtracts too.
       getReviewQueue: ({int fetchLimit = 500}) async => OfficialReviewQueue(
         sessionId: 's-sub',
         queueEpoch: 1,
@@ -263,8 +263,8 @@ void main() {
     expect(repo.buriedCardIdsFor('src-sub'), {30});
     expect(repo.retiredCardIdsFor('src-sub'), {40});
 
-    // Formal due is schedulerDue ∩ placement − retired: card 40 drops,
-    // 20/30 were never owed in the first place.
+    // Formal due is schedulerDue ∩ placement − suspended − buried −
+    // retired: card 40 retires, 20/30 subtract via the evidence sets.
     expect(repo.formalDueCountForImport('src-sub'), 1);
     expect(
       repo.formalDueCardKeysForImport('src-sub').map((k) => k.cardId).toSet(),
@@ -376,6 +376,60 @@ void main() {
 
     expect(collected.inputs.single.schedulerDueCardIds, hasLength(150));
     expect(collected.rawDueByImport['src-many'], 150);
+  });
+
+  test('raw counts use the unfiltered search while the due set stays filtered',
+      () async {
+    final db = OfficialAnkiDatabase.memory();
+    addTearDown(db.close);
+    final sources = OfficialAnkiSourceDao(db);
+    final migrations = OfficialAnkiMigrationDao(db);
+    sources.upsertSource(
+      sourceId: 'src-raw',
+      profileId: 'profile-default-01',
+      sourceHash: 'h1',
+      sourceSize: 1,
+      displayName: 'raw',
+      state: 'active',
+      backendCommit: 'x',
+      nowMillis: 1,
+    );
+    db.handle.execute(
+      'INSERT INTO anki_source_cards '
+      '(source_id, card_id, note_id, deck_id, note_guid, template_ord) '
+      "VALUES ('src-raw', 10, 1, 7, 'g', 0), "
+      "('src-raw', 11, 1, 7, 'g2', 0), "
+      "('src-raw', 12, 1, 7, 'g3', 0)",
+    );
+    migrations.insertDetected(
+      migrationId: 'mig-raw',
+      profileId: 'profile-default-01',
+      legacyImportId: 'src-raw',
+      policy: LegacyAnkiSchedulingPolicy.preservePackageScheduling,
+      nowMillis: 1,
+    );
+    migrations.setOfficialSourceAndRecordedKind(
+      migrationId: 'mig-raw',
+      officialSourceId: 'src-raw',
+      recordedKind: 'official',
+      nowMillis: 2,
+    );
+
+    final collected = await const OfficialAnkiProductionRouter()
+        .collectFormalDueCardIds(
+      dao: migrations,
+      sources: sources,
+      setCurrentDeck: (_) async {},
+      // Production shape: the un-negated search still sees the suspended
+      // (11) and buried (12) cards because `is:new`/`is:learn` match on
+      // card type; the negated search excludes them.
+      searchSchedulerDueCardIds: ({required int deckId}) async => {10},
+      searchUnfilteredDueCardIds: ({required int deckId}) async =>
+          {10, 11, 12},
+    );
+
+    expect(collected.inputs.single.schedulerDueCardIds, {10});
+    expect(collected.rawDueByImport['src-raw'], 3);
   });
 
   test('clampReviewQueueFetchLimit stays inside the native 1..=100 window', () {

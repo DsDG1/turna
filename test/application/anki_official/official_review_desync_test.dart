@@ -1,9 +1,10 @@
 // Regression tests for the second-card "当前卡片无法安全写入" desync:
-// the live queue rebuilds the shared items list in place after every
-// commit, so advancing by index+1 skipped the scheduler's refreshed
-// current and the next answer hit schedulingContextStale. Advancement
-// must follow OfficialReviewSession.current — these tests drive the full
-// controller + ledger + live-queue pipeline the page wires in production.
+// the live queue REPLACES the session's items list after every commit (P3:
+// never mutates a shared list in place), so advancing by index+1 would
+// skip the scheduler's refreshed current and the next answer would hit
+// schedulingContextStale. Advancement must follow
+// OfficialReviewSession.current — these tests drive the full controller +
+// ledger + live-queue pipeline the page wires in production.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/anki_official/review/official_study_batch_assembler.dart';
@@ -87,7 +88,12 @@ class _Harness {
 
   Future<void> start() async {
     await session.openDeck(1);
-    final items = <StudyItem>[];
+    final officialLedger = OfficialStudyLedger(
+      OfficialAnkiReviewLedger(session),
+    );
+    // The loader's shape: the queue owns the initial batch (its own copy,
+    // populated by a first rebuild), the controller snapshots it, and only
+    // then does the page bind the replacement sink.
     queue = OfficialFormalReviewLiveQueue(
       session: session,
       sourceId: 'src-a',
@@ -97,22 +103,22 @@ class _Harness {
         profileId: 'profile-test',
       ),
       assembler: const OfficialStudyBatchAssembler(profileId: 'profile-test'),
-      items: items,
+      items: const [],
       activePlacementCardKeys: {for (final id in [1, 2, 3]) _key(id)},
     );
     await queue.rebuildFromLiveQueue();
-    final officialLedger = OfficialStudyLedger(
-      OfficialAnkiReviewLedger(session),
-    );
     final host = AnkiStudySessionHost(
       resolver: StudyLedgerResolver(official: officialLedger),
       onEffects: (item, receipt) => queue.rebuildFromLiveQueue(),
       onEffectsUndone: (receipt) => queue.rebuildFromLiveQueue(),
     );
     controller = host.openOfficialReview(
-      items,
+      queue.items,
       officialLedger: officialLedger,
     );
+    // Mirrors AnkiReviewSessionPage: the queue pushes rebuilt batches into
+    // the controller by replacement.
+    queue.itemsSink = controller.replaceItems;
     await controller.start();
   }
 
@@ -127,19 +133,21 @@ class _Harness {
   }
 
   /// Mirrors AnkiReviewSessionPage._advanceFromScheduler: the next card is
-  /// the scheduler's current after the rebuild, never index+1.
+  /// the scheduler's current after the rebuild, never index+1; a miss is a
+  /// structured desync.
   Future<void> advanceFromScheduler() async {
     final currentCardId = session.current?.cardId;
-    String? nextItemId;
-    if (currentCardId != null) {
-      for (final item in controller.items) {
-        if (item.cardKey.cardId == currentCardId) {
-          nextItemId = item.sessionItemId;
-          break;
-        }
+    if (currentCardId == null) {
+      await controller.advanceTo(null);
+      return;
+    }
+    for (final item in controller.items) {
+      if (item.cardKey.cardId == currentCardId) {
+        await controller.advanceTo(item.sessionItemId);
+        return;
       }
     }
-    await controller.advanceTo(nextItemId);
+    controller.reportSchedulerDesync(currentCardId);
   }
 
   void expectSyncedWithScheduler() {
@@ -237,5 +245,64 @@ void main() {
     expect(h.session.current, isNull);
     await h.advanceFromScheduler();
     expect(h.controller.isComplete, isTrue);
+  });
+
+  test('P3: rebuilds replace the controller items instead of mutating them',
+      () async {
+    final h = _Harness(FakeOfficialAnkiEngine());
+    h.engine.seedPackage(packagePath: 'x.apkg', notes: 3, cards: 3);
+    await h.start();
+    final initialItems = h.controller.items;
+    final initialIds = initialItems.map((i) => i.cardKey.cardId).toList();
+
+    await h.rateCurrent(RecallOutcome.remembered);
+    await pumpEventQueue();
+
+    expect(identical(h.controller.items, initialItems), isFalse,
+        reason: 'the rebuild hands the controller a NEW list — the shared-'
+            'mutation contract is retired');
+    expect(initialItems.map((i) => i.cardKey.cardId), initialIds,
+        reason: 'the list the page originally held is untouched — nothing '
+            'mutates a list it does not own');
+    expect(h.controller.items.map((i) => i.cardKey.cardId), [2, 3]);
+    expect(h.queue.items.map((i) => i.cardKey.cardId), [2, 3]);
+  });
+
+  test('P3: controller items are unmodifiable', () async {
+    final h = _Harness(FakeOfficialAnkiEngine());
+    h.engine.seedPackage(packagePath: 'x.apkg', notes: 3, cards: 3);
+    await h.start();
+
+    expect(
+      () => h.controller.items.add(h.controller.items.first),
+      throwsUnsupportedError,
+      reason: 'in-place mutation was the retired desync vector',
+    );
+  });
+
+  test('P3: reportSchedulerDesync surfaces a retryable desync state',
+      () async {
+    final h = _Harness(FakeOfficialAnkiEngine());
+    h.engine.seedPackage(packagePath: 'x.apkg', notes: 3, cards: 3);
+    await h.start();
+    AnkiStudySessionHost.presentBothSides(h.controller);
+    await AnkiStudySessionHost.revealAndPresentAnswer(
+      h.controller,
+      onOfficialShowAnswer: h.session.showAnswer,
+    );
+    await h.controller.submitRecall(RecallOutcome.remembered);
+    expect(h.controller.phase, StudyCardPhase.readyForNext);
+
+    // The scheduler owes a card the assembled batch does not hold.
+    h.controller.reportSchedulerDesync(999);
+
+    expect(h.controller.phase, StudyCardPhase.recoverableError);
+    expect(h.controller.lastError, isA<StateError>());
+    expect(
+      (h.controller.lastError as StateError).message,
+      contains('999'),
+      reason: 'the fake missing-card-id sentinel is retired; the desync is '
+          'reported through an explicit API',
+    );
   });
 }

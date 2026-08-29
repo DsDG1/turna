@@ -11,7 +11,6 @@ import 'package:turna/application/anki_official/engine/official_anki_review_sess
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/review/official_formal_review_coordinator.dart';
 import 'package:turna/domain/anki/canonical_card_key.dart';
-import 'package:turna/domain/anki/study_models.dart';
 
 const _flags = OfficialAnkiFeatureFlags(
   engine: true,
@@ -79,7 +78,7 @@ void main() {
     await session.openDeck(1);
   });
 
-  OfficialFormalReviewLiveQueue buildQueue(List<StudyItem> items) {
+  OfficialFormalReviewLiveQueue buildQueue() {
     return OfficialFormalReviewLiveQueue(
       session: session,
       sourceId: 'src-a',
@@ -89,33 +88,32 @@ void main() {
         profileId: 'profile-test',
       ),
       assembler: const OfficialStudyBatchAssembler(profileId: 'profile-test'),
-      items: items,
+      items: const [],
       activePlacementCardKeys: {
         for (final id in [1, 2, 3]) _key(id)
       },
     );
   }
 
-  test('rebuild maps the refreshed queue onto the shared items list', () async {
-    final items = <StudyItem>[];
-    final queue = buildQueue(items);
+  test('rebuild maps the refreshed queue onto the queue-owned items list',
+      () async {
+    final queue = buildQueue();
     await queue.rebuildFromLiveQueue();
 
-    expect(items, isNotEmpty);
+    expect(queue.items, isNotEmpty);
     // Every live item is a card the scheduler currently owes, in queue
     // order — not a frozen pre-assembled array.
     final liveIds = session.queue!.cards.map((c) => c.cardId).toList();
     expect(
-      items.map((i) => i.cardKey.cardId).toList(),
+      queue.items.map((i) => i.cardKey.cardId).toList(),
       liveIds,
     );
   });
 
   test('answering removes the card and rebuild shrinks the batch', () async {
-    final items = <StudyItem>[];
-    final queue = buildQueue(items);
+    final queue = buildQueue();
     await queue.rebuildFromLiveQueue();
-    final before = items.length;
+    final before = queue.items.length;
     expect(before, greaterThan(0));
 
     final current = session.current!;
@@ -126,7 +124,7 @@ void main() {
     );
     await queue.rebuildFromLiveQueue();
 
-    expect(items.length, before - 1,
+    expect(queue.items.length, before - 1,
         reason: 'the answered card left the queue and the batch must '
             'shrink with it');
   });
@@ -142,10 +140,9 @@ void main() {
       profileId: 'profile-test',
     );
     await session.openDeck(1);
-    final items = <StudyItem>[];
-    final queue = buildQueue(items);
+    final queue = buildQueue();
     await queue.rebuildFromLiveQueue();
-    final before = items.length;
+    final before = queue.items.length;
 
     final current = session.current!;
     session.showAnswer();
@@ -161,16 +158,15 @@ void main() {
         session.queue!.cards.any((c) => c.cardId == current.cardId);
     expect(stillOwed, isTrue,
         reason: 'fake engine models learning reinsertion for again');
-    final ids = items.map((i) => i.cardKey.cardId).toSet();
+    final ids = queue.items.map((i) => i.cardKey.cardId).toSet();
     expect(ids.contains(current.cardId), isTrue,
         reason: 'reinserted card must stay in the rebuilt batch');
-    expect(items.length, before,
+    expect(queue.items.length, before,
         reason: 'one card answered, the same card reinserted');
   });
 
   test('currentSnapshot invalidates after a queue mutation', () async {
-    final items = <StudyItem>[];
-    final queue = buildQueue(items);
+    final queue = buildQueue();
     await queue.rebuildFromLiveQueue();
 
     final snapshot = queue.currentSnapshot();
@@ -198,15 +194,14 @@ void main() {
   });
 
   test('bury removes the card from the live batch', () async {
-    final items = <StudyItem>[];
-    final queue = buildQueue(items);
+    final queue = buildQueue();
     await queue.rebuildFromLiveQueue();
 
     final current = session.current!;
     await session.buryOrSuspend(OfficialBuryOrSuspendAction.burySched);
     await queue.rebuildFromLiveQueue();
 
-    final ids = items.map((i) => i.cardKey.cardId).toSet();
+    final ids = queue.items.map((i) => i.cardKey.cardId).toSet();
     expect(ids.contains(current.cardId), isFalse);
   });
 }

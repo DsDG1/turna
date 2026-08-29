@@ -47,11 +47,50 @@ void main() {
     ]);
 
     expect(result.requested, 2);
-    expect(result.skippedRatedToday, 1);
+    expect(result.skippedRatedToday, 1,
+        reason: 'P2: the engine absorbs the idempotency and reports the '
+            'skip — the flush no longer pre-scans rated:1');
     expect(result.answered, 1);
     expect(result.failed, isFalse);
     expect(result.userShouldBeNotified, isFalse);
     expect(fake.aheadAnswers.single.cardId, 2);
+  });
+
+  test('a pure redo of already-rated cards is a successful no-op', () async {
+    final fake = FakeOfficialAnkiEngine();
+    fake.seedPackage(packagePath: 'x.apkg', notes: 2, cards: 2);
+    fake.ratedTodayIds.addAll(const [1, 2]);
+
+    final result = await OfficialAnkiLessonRedoFlush(engine: fake).flush([
+      const OfficialAheadAnswer(cardId: 1, rating: 'good'),
+      const OfficialAheadAnswer(cardId: 2, rating: 'again'),
+    ]);
+
+    expect(result.requested, 2);
+    expect(result.answered, 0);
+    expect(result.skippedRatedToday, 2);
+    expect(result.failed, isFalse);
+    expect(result.userShouldBeNotified, isFalse);
+    expect(fake.aheadAnswers, isEmpty);
+    expect(fake.aheadCalls, 1, reason: 'one op call — no host-side pre-scan');
+  });
+
+  test('a partially answered flush without skips is a visible failure',
+      () async {
+    final fake = FakeOfficialAnkiEngine();
+    fake.seedPackage(packagePath: 'x.apkg', notes: 3, cards: 3);
+    fake.cards.remove(3);
+
+    final result = await OfficialAnkiLessonRedoFlush(engine: fake).flush([
+      const OfficialAheadAnswer(cardId: 1, rating: 'good'),
+      const OfficialAheadAnswer(cardId: 3, rating: 'good'),
+    ]);
+
+    expect(result.requested, 2);
+    expect(result.answered, 1);
+    expect(result.skippedRatedToday, 0);
+    expect(result.failed, isTrue);
+    expect(result.userShouldBeNotified, isTrue);
   });
 
   test('redo flush failure is visible when the engine is missing', () async {

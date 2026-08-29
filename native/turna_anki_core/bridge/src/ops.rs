@@ -1214,12 +1214,23 @@ fn answer_ahead_cards(handle: u64, request: &[u8]) -> Result<Value, i32> {
     let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
     let previous_deck = col.get_current_deck().map_err(map_anki_error)?.id;
 
-    let search = parsed
+    // Idempotency is absorbed here (P2): cards already rated today are
+    // skipped and reported, so the host never needs a whole-collection
+    // `rated:1` scan before calling this op.
+    let id_terms = parsed
         .answers
         .iter()
         .map(|item| format!("cid:{}", item.card_id))
         .collect::<Vec<_>>()
         .join(" OR ");
+    let rated_today: std::collections::HashSet<i64> = col
+        .search_cards(format!("rated:1 ({id_terms})").as_str(), SortMode::NoOrder)
+        .map_err(map_anki_error)?
+        .into_iter()
+        .map(|id| id.0)
+        .collect();
+
+    let search = format!("({id_terms}) -rated:1");
 
     let mut update = col
         .get_or_create_filtered_deck(anki::decks::DeckId(0))
@@ -1241,12 +1252,14 @@ fn answer_ahead_cards(handle: u64, request: &[u8]) -> Result<Value, i32> {
     let mut remaining: std::collections::HashMap<i64, (Rating, u32)> = parsed
         .answers
         .iter()
+        .filter(|item| !rated_today.contains(&item.card_id))
         .filter_map(|item| {
             parse_rating(&item.rating)
                 .ok()
                 .map(|rating| (item.card_id, (rating, item.milliseconds_taken.max(0) as u32)))
         })
         .collect();
+    let skipped_rated_today = parsed.answers.len() - remaining.len();
 
     let mut answered = 0usize;
     let queued = col
@@ -1288,7 +1301,10 @@ fn answer_ahead_cards(handle: u64, request: &[u8]) -> Result<Value, i32> {
     let _ = col.remove_decks_and_child_decks(&[filtered_id]);
     let _ = col.set_current_deck(previous_deck);
     engine.invalidate_tokens();
-    Ok(json!({ "answeredCards": answered }))
+    Ok(json!({
+        "answeredCards": answered,
+        "skippedRatedToday": skipped_rated_today,
+    }))
 }
 
 #[derive(Debug, Deserialize)]
@@ -2786,6 +2802,49 @@ mod tests {
                 "missing {name} in {caps:?}"
             );
         }
-        assert_eq!(info["contractMinor"], 8);
+        assert_eq!(info["contractMinor"], 9);
+    }
+
+    #[test]
+    fn answer_ahead_skips_cards_already_rated_today() {
+        let (root, handle, _) = temp_open();
+        import(handle, &package_path("08-scheduling.apkg"), true).unwrap();
+        call(handle, OP_SET_CURRENT_DECK, json!({"deck_id": 1})).unwrap();
+        let queue = call(handle, OP_GET_REVIEW_QUEUE, json!({"fetchLimit": 10})).unwrap();
+        let cards = queue["cards"].as_array().unwrap();
+        assert!(cards.len() >= 2, "fixture must provide two queueable cards");
+        let ids: Vec<i64> = cards
+            .iter()
+            .take(2)
+            .map(|card| card["cardId"].as_i64().unwrap())
+            .collect();
+
+        let ahead = |ids: &[i64]| {
+            call(
+                handle,
+                OP_ANSWER_AHEAD_CARDS,
+                json!({
+                    "answers": ids
+                        .iter()
+                        .map(|id| json!({
+                            "cardId": id,
+                            "rating": "good",
+                            "millisecondsTaken": 100
+                        }))
+                        .collect::<Vec<_>>()
+                }),
+            )
+            .unwrap()
+        };
+
+        let first = ahead(&ids);
+        assert_eq!(first["answeredCards"], 2);
+        assert_eq!(first["skippedRatedToday"], 0);
+
+        let redo = ahead(&ids);
+        assert_eq!(redo["answeredCards"], 0);
+        assert_eq!(redo["skippedRatedToday"], 2);
+        free_engine(handle).unwrap();
+        let _ = fs::remove_dir_all(root);
     }
 }

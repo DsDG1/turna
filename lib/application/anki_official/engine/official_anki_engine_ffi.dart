@@ -473,12 +473,14 @@ class FfiOfficialAnkiEngine implements OfficialAnkiEngine {
   }
 
   @override
-  Future<int> answerAheadCards(List<OfficialAheadAnswer> answers) async {
+  Future<OfficialAheadAnswerOutcome> answerAheadCards(
+    List<OfficialAheadAnswer> answers,
+  ) async {
     _requireScheduler(OfficialAnkiOperation.answerAheadCards);
     final payload = _call(OfficialAnkiOperation.answerAheadCards, {
       'answers': [for (final answer in answers) answer.toJson()],
     }).requirePayload();
-    return (payload['answeredCards'] as num?)?.toInt() ?? 0;
+    return OfficialAheadAnswerOutcome.fromJson(payload);
   }
 
   @override

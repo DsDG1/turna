@@ -22,11 +22,13 @@ enum FormalDueKnowledge {
   unavailable,
 }
 
-/// The six formal-due sets for one Official source (plan 34 §R3), kept as
-/// collected diagnostics. P1 collapsed the membership formula to
-/// `schedulerDue ∩ activePlacement − retired`: the scheduler itself already
-/// excludes locked (unintroduced), suspended, and buried cards, so those
-/// sets are informational, not gating.
+/// The six formal-due sets for one Official source (plan 34 §R3).
+///
+/// The membership formula is `schedulerDue ∩ activePlacement − suspended
+/// − buried − retired`. The subtraction terms are load-bearing: Anki's
+/// `is:new`/`is:learn` searches match on card TYPE, so the search-collected
+/// schedulerDue carries the suspended (unintroduced) backlog. See
+/// [computeFormalDueCardKeys].
 ///
 /// Instances stored inside an [OfficialFormalDueSnapshot] are frozen: every
 /// set is unmodifiable. Mutations go through
@@ -70,6 +72,8 @@ class OfficialFormalDuePerSource {
       sourceId: importId,
       officialSchedulerDueCardIds: schedulerDueCardIds,
       activePlacementCardIds: activePlacementCardIds,
+      suspendedCardIds: suspendedCardIds,
+      buriedCardIds: buriedCardIds,
       retiredCardIds: retiredCardIds,
     );
   }

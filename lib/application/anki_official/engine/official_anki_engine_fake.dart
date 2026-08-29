@@ -891,22 +891,34 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
   }
 
   final List<OfficialAheadAnswer> aheadAnswers = [];
+  int aheadCalls = 0;
 
   @override
-  Future<int> answerAheadCards(List<OfficialAheadAnswer> answers) async {
-    var n = 0;
+  Future<OfficialAheadAnswerOutcome> answerAheadCards(
+    List<OfficialAheadAnswer> answers,
+  ) async {
+    aheadCalls += 1;
+    var answered = 0;
+    var skipped = 0;
     for (final answer in answers) {
       if (answer.cardId <= 0) continue;
       if (cards.isNotEmpty && !cards.containsKey(answer.cardId)) continue;
+      if (ratedTodayIds.contains(answer.cardId)) {
+        skipped += 1;
+        continue;
+      }
       aheadAnswers.add(answer);
       answeredIds.add(answer.cardId);
       ratedTodayIds.add(answer.cardId);
       officialAnswers += 1;
       OfficialAnkiSchedulerAudit.officialSchedulerAnswers += 1;
-      n++;
+      answered++;
     }
     _invalidateTokens();
-    return n;
+    return OfficialAheadAnswerOutcome(
+      answered: answered,
+      skippedRatedToday: skipped,
+    );
   }
 
   @override

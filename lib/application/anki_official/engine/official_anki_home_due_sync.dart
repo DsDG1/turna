@@ -190,15 +190,27 @@ class OfficialAnkiHomeDueSync {
 
         // Exact card-id formal due (doc 34 W5 / plan 34 R3): all six sets
         // per source, never count approximation. The router is pure — it
-        // only collects.
+        // only collects. `is:new`/`is:learn` match on card type, so the
+        // due search must negate suspended/buried explicitly (the formula
+        // subtracts the same sets as defense in depth); the un-negated
+        // search keeps the raw counts that feed the "unintroduced new"
+        // hint.
+        Future<Set<int>> searchSchedulerDue({required int deckId}) =>
+            fetchByQuery(
+              'did:$deckId (is:due OR is:learn OR is:new) '
+              '-is:suspended -is:buried',
+            );
+        Future<Set<int>> searchUnfilteredDue({required int deckId}) =>
+            fetchByQuery(
+              'did:$deckId (is:due OR is:learn OR is:new)',
+            );
         final baseGeneration = repo.generation;
         final collected = await router.collectFormalDueCardIds(
           dao: dao,
           sources: sources,
           setCurrentDeck: session.setCurrentDeck,
-          searchSchedulerDueCardIds: ({required int deckId}) => fetchByQuery(
-            'did:$deckId (is:due OR is:learn OR is:new)',
-          ),
+          searchSchedulerDueCardIds: searchSchedulerDue,
+          searchUnfilteredDueCardIds: searchUnfilteredDue,
           getSuspendedCardIds: fetchSuspendedCardIds,
           getBuriedCardIds: fetchBuriedCardIds,
           getRetiredCardIds: fetchRetiredCardIds,
@@ -216,9 +228,8 @@ class OfficialAnkiHomeDueSync {
             dao: dao,
             sources: sources,
             setCurrentDeck: session.setCurrentDeck,
-            searchSchedulerDueCardIds: ({required int deckId}) => fetchByQuery(
-              'did:$deckId (is:due OR is:learn OR is:new)',
-            ),
+            searchSchedulerDueCardIds: searchSchedulerDue,
+            searchUnfilteredDueCardIds: searchUnfilteredDue,
             getSuspendedCardIds: fetchSuspendedCardIds,
             getBuriedCardIds: fetchBuriedCardIds,
             getRetiredCardIds: fetchRetiredCardIds,

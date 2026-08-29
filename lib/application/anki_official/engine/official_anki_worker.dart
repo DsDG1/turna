@@ -320,7 +320,9 @@ class OfficialAnkiWorker implements OfficialAnkiEngine {
   }
 
   @override
-  Future<int> answerAheadCards(List<OfficialAheadAnswer> answers) {
+  Future<OfficialAheadAnswerOutcome> answerAheadCards(
+    List<OfficialAheadAnswer> answers,
+  ) {
     return _enqueue(() => _inner.answerAheadCards(answers));
   }
 

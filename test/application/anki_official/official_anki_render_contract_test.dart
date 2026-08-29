@@ -144,7 +144,7 @@ void main() {
     expect(caps, contains('RENDER_CARD'));
     expect(caps, contains('COMPARE_TYPED_ANSWER'));
     expect(caps, contains('EXTRACT_CLOZE_FOR_TYPING'));
-    expect((decoded['payload'] as Map)['contractMinor'], 8);
+    expect((decoded['payload'] as Map)['contractMinor'], 9);
     expect(caps, contains('GET_PROJECTION_SCHEMAS'));
   });
 }

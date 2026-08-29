@@ -238,7 +238,9 @@ class OfficialAnkiSessionEngine implements OfficialAnkiEngine {
   }
 
   @override
-  Future<int> answerAheadCards(List<OfficialAheadAnswer> answers) {
+  Future<OfficialAheadAnswerOutcome> answerAheadCards(
+    List<OfficialAheadAnswer> answers,
+  ) {
     return session.answerAheadCards(answers);
   }
 

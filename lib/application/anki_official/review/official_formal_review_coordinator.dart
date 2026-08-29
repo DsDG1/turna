@@ -176,8 +176,8 @@ class OfficialFormalReviewLiveQueue extends ChangeNotifier {
     required List<StudyItem> items,
     required this.activePlacementCardKeys,
     this.retiredCardKeys = const {},
-  })  : _items = items,
-        _faces = <int, OfficialRenderedFace>{};
+  }) : _items = List.of(items),
+       _faces = <int, OfficialRenderedFace>{};
 
   final OfficialReviewSession session;
   final String sourceId;
@@ -185,10 +185,17 @@ class OfficialFormalReviewLiveQueue extends ChangeNotifier {
   final OfficialFormalReviewRenderer renderer;
   final OfficialStudyBatchAssembler assembler;
 
-  /// The SAME list instance the StudySessionController holds — mutated in
-  /// place on rebuild so the controller follows the live queue.
-  final List<StudyItem> _items;
+  /// The queue's own items copy. P3: rebuilds REPLACE the list — the queue
+  /// never mutates a list it does not own, and the live session controller
+  /// receives the replacement through [itemsSink].
+  List<StudyItem> _items;
   final Map<int, OfficialRenderedFace> _faces;
+
+  /// Late-bound by the page once the [StudySessionController] exists (the
+  /// queue is constructed inside the loader, before any controller).
+  /// Receives every rebuilt batch; null (legacy/test paths) means the
+  /// queue only updates its own copy.
+  void Function(List<StudyItem> items)? itemsSink;
 
   final Set<CanonicalCardKey> activePlacementCardKeys;
   final Set<CanonicalCardKey> retiredCardKeys;
@@ -302,9 +309,7 @@ class OfficialFormalReviewLiveQueue extends ChangeNotifier {
         retiredCardKeys: retiredCardKeys,
       );
       _generation += 1;
-      _items
-        ..clear()
-        ..addAll(rebuilt);
+      _items = List.of(rebuilt);
       fidelityInteractions
         ..clear()
         ..addEntries([
@@ -315,6 +320,9 @@ class OfficialFormalReviewLiveQueue extends ChangeNotifier {
                 _faces[item.cardKey.cardId]!.htmlCard,
               ),
         ]);
+      // P3: the controller follows by REPLACEMENT, never by in-place
+      // mutation of a shared list.
+      itemsSink?.call(_items);
       notifyListeners();
       return const OfficialLiveQueueRebuilt();
     } catch (error) {

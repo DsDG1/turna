@@ -870,6 +870,27 @@ class OfficialAheadAnswer {
       };
 }
 
+/// Outcome of the `answerAheadCards` op (contract op 35). The engine
+/// absorbs the idempotency: cards already rated today are skipped inside
+/// the op and reported here, replacing the host-side whole-collection
+/// `rated:1` scan.
+class OfficialAheadAnswerOutcome {
+  const OfficialAheadAnswerOutcome({
+    required this.answered,
+    required this.skippedRatedToday,
+  });
+
+  factory OfficialAheadAnswerOutcome.fromJson(Map<String, Object?> json) {
+    return OfficialAheadAnswerOutcome(
+      answered: (json['answeredCards'] as num?)?.toInt() ?? 0,
+      skippedRatedToday: (json['skippedRatedToday'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  final int answered;
+  final int skippedRatedToday;
+}
+
 class OfficialUndoStatus {
   const OfficialUndoStatus({
     required this.canUndo,

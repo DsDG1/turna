@@ -9,7 +9,7 @@
     "abiVersion": 1,
     "backendCommit": "967aa0d578fc75181e292e95326f9b58698da25c",
     "contractMajor": 1,
-    "contractMinor": 8,
+    "contractMinor": 9,
     "capabilities": [
       "ENGINE_INFO",
       "OPEN_COLLECTION",
@@ -52,7 +52,7 @@
     "abiVersion": 1,
     "backendCommit": "967aa0d578fc75181e292e95326f9b58698da25c",
     "contractMajor": 1,
-    "contractMinor": 8
+    "contractMinor": 9
   },
   "durationMillis": 0
 }

@@ -581,13 +581,15 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
     return (payload['scheduledCards'] as num?)?.toInt() ?? 0;
   }
 
-  Future<int> answerAheadCards(List<OfficialAheadAnswer> answers) async {
+  Future<OfficialAheadAnswerOutcome> answerAheadCards(
+    List<OfficialAheadAnswer> answers,
+  ) async {
     final raw = await _rpc('scheduler', {
       'op': 'answerAheadCards',
       'answers': [for (final answer in answers) answer.toJson()],
     });
     final payload = Map<String, Object?>.from(raw['payload'] as Map? ?? raw);
-    return (payload['answeredCards'] as num?)?.toInt() ?? 0;
+    return OfficialAheadAnswerOutcome.fromJson(payload);
   }
 
   Future<int> ensureTodayNewQuota({
@@ -1271,8 +1273,11 @@ Future<Map<String, Object?>> dispatchOfficialAnkiScheduler(
         );
       }
       if (answers.isEmpty) officialContractError('answers', rawAnswers);
-      final answeredCards = await engine.answerAheadCards(answers);
-      return <String, Object?>{'answeredCards': answeredCards};
+      final outcome = await engine.answerAheadCards(answers);
+      return <String, Object?>{
+        'answeredCards': outcome.answered,
+        'skippedRatedToday': outcome.skippedRatedToday,
+      };
     case 'ensureTodayNewQuota':
       final deckId = (message['deckId'] as num?)?.toInt() ?? 0;
       final neededNew = (message['neededNew'] as num?)?.toInt() ?? 0;

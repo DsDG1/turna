@@ -200,6 +200,14 @@ class OfficialAnkiProductionRouter {
     required Future<void> Function(int deckId) setCurrentDeck,
     Future<OfficialReviewQueue> Function({int fetchLimit})? getReviewQueue,
     Future<Set<int>> Function({required int deckId})? searchSchedulerDueCardIds,
+
+    /// Pre-eligibility scheduler numbers for [rawDueByImport]: the same
+    /// due/learn/new search WITHOUT the suspended/buried negations, so the
+    /// "unintroduced new" hint keeps counting the suspended backlog that
+    /// [searchSchedulerDueCardIds] must exclude. Queue-derived collection
+    /// (no search callbacks) ignores this — the queue is already
+    /// suspension-free.
+    Future<Set<int>> Function({required int deckId})? searchUnfilteredDueCardIds,
     Future<Set<int>> Function({int? deckId})? getSuspendedCardIds,
     Future<Set<int>> Function({int? deckId})? getBuriedCardIds,
     Future<Set<int>> Function({int? deckId})? getRetiredCardIds,
@@ -219,6 +227,7 @@ class OfficialAnkiProductionRouter {
     final inputs = <OfficialFormalDueSourceInput>[];
     final rawDueByImport = <String, int>{};
     final queueIdsByDeck = <int, Set<int>>{};
+    final unfilteredIdsByDeck = <int, Set<int>>{};
 
     Set<int>? allSuspended;
     Set<int>? allBuried;
@@ -268,6 +277,15 @@ class OfficialAnkiProductionRouter {
         queueIdsByDeck[target.deckId] = queueIds;
       }
       final dueIds = queueIds.intersection(target.cardIds);
+      var rawIds = dueIds;
+      if (searchUnfilteredDueCardIds != null) {
+        var unfiltered = unfilteredIdsByDeck[target.deckId];
+        if (unfiltered == null) {
+          unfiltered = await searchUnfilteredDueCardIds(deckId: target.deckId);
+          unfilteredIdsByDeck[target.deckId] = unfiltered;
+        }
+        rawIds = unfiltered.intersection(target.cardIds);
+      }
       inputs.add(
         OfficialFormalDueSourceInput(
           importId: importId,
@@ -282,7 +300,7 @@ class OfficialAnkiProductionRouter {
               allRetired?.intersection(target.cardIds) ?? const <int>{},
         ),
       );
-      rawDueByImport[importId] = dueIds.length;
+      rawDueByImport[importId] = rawIds.length;
     }
 
     return OfficialFormalDueCollectionData(

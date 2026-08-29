@@ -10,14 +10,19 @@ import 'package:turna/domain/review/recall_outcome.dart';
 /// Renderer, navigation, and DAO access stay outside this controller.
 class StudySessionController extends ChangeNotifier {
   StudySessionController({
-    required this.items,
+    required List<StudyItem> items,
     required this.ledgerResolver,
     this.introductionRepository,
     this.onEffects,
     this.onEffectsUndone,
-  });
+  }) : _items = List.unmodifiable(items);
 
-  final List<StudyItem> items;
+  /// The session's items. P3: replaced wholesale by live-queue hosts via
+  /// [replaceItems] — never mutated in place by anyone else, and the list
+  /// handed to the constructor is copied so callers cannot mutate the
+  /// session behind it.
+  List<StudyItem> get items => _items;
+  List<StudyItem> _items;
   final StudyLedgerResolver ledgerResolver;
   final CardIntroductionRepository? introductionRepository;
   final Future<void> Function(StudyItem item, StudyEventReceipt receipt)?
@@ -286,10 +291,9 @@ class StudySessionController extends ChangeNotifier {
   /// Advance to the item identified by [sessionItemId], completing the
   /// session when null.
   ///
-  /// For live-queue hosts whose items list is rebuilt in place after every
-  /// commit: the next card is the scheduler's current (resolved by the host
-  /// AFTER the rebuild), never index+1 over a list that just shrank or
-  /// reordered.
+  /// For live-queue hosts whose items list is REPLACED after every commit:
+  /// the next card is the scheduler's current (resolved by the host AFTER
+  /// the rebuild), never index+1 over a list that just shrank or reordered.
   Future<void> advanceTo(String? sessionItemId) async {
     if (phase != StudyCardPhase.readyForNext || _locked) return;
     if (sessionItemId == null) {
@@ -300,10 +304,11 @@ class StudySessionController extends ChangeNotifier {
       return;
     }
     final target =
-        items.indexWhere((item) => item.sessionItemId == sessionItemId);
+        _items.indexWhere((item) => item.sessionItemId == sessionItemId);
     if (target < 0) {
-      // Unreachable while the scheduler's current is always inside the
-      // assembled batch — fail loudly instead of silently desyncing.
+      // Unreachable while the host resolves the id from [items]; a miss is
+      // a precondition violation, so fail loudly instead of silently
+      // desyncing.
       lastError = StateError('advance target missing: $sessionItemId');
       phase = StudyCardPhase.recoverableError;
       notifyListeners();
@@ -311,6 +316,31 @@ class StudySessionController extends ChangeNotifier {
     }
     _index = target;
     _beginCurrent();
+  }
+
+  /// Reports a scheduler/controller desync: the scheduler owes a current
+  /// card that is NOT among the assembled items. P3 replacement for the
+  /// fake `missing-c$id` sessionItemId the host used to mint to force
+  /// [advanceTo] to fail loudly. Recoverable — the surface shows
+  /// [lastError] and offers retry; the session is never silently completed
+  /// while the scheduler still owes cards.
+  void reportSchedulerDesync(int schedulerCardId) {
+    lastError = StateError(
+      'scheduler current card $schedulerCardId is not in the assembled batch',
+    );
+    phase = StudyCardPhase.recoverableError;
+    notifyListeners();
+  }
+
+  /// P3: swaps the session's items for a freshly rebuilt batch. Live-queue
+  /// hosts call this after every scheduler refresh (through the live
+  /// queue's [OfficialFormalReviewLiveQueue.itemsSink]); the visible
+  /// position is deliberately NOT rescheduled here — the host advances by
+  /// the scheduler's current through [advanceTo] or completes via
+  /// `advanceTo(null)`.
+  void replaceItems(List<StudyItem> next) {
+    _items = List.unmodifiable(next);
+    notifyListeners();
   }
 
   Future<bool> undoLast() async {
@@ -388,10 +418,10 @@ class StudySessionController extends ChangeNotifier {
 
   /// Buries the current card.
   ///
-  /// With [onMutated], live-queue hosts rebuild the shared items list inside
-  /// the lock (the scheduler's current is already refreshed by the ledger
+  /// With [onMutated], live-queue hosts REPLACE the items list inside the
+  /// lock (the scheduler's current is already refreshed by the ledger
   /// call); the controller then stays on [StudyCardPhase.readyForNext] and
-  /// the host advances via [advanceTo] — index arithmetic over a rebuilt
+  /// the host advances via [advanceTo] — index arithmetic over a replaced
   /// list would skip the queue head. Without it, static-list callers keep
   /// the index+1 skip.
   Future<bool> buryCurrent({Future<void> Function()? onMutated}) async {
