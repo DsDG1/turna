@@ -1,5 +1,6 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
@@ -49,6 +50,7 @@ void main() {
   tearDown(() async {
     CardIntroductionStore.debugOverride = null;
     OfficialFormalDueRepository.instance.resetForTest();
+    await GetIt.instance.reset();
     await db.close();
   });
 
@@ -62,6 +64,18 @@ void main() {
       studiedCardIds: const {1},
     );
     CardIntroductionStore.debugOverride = store;
+
+    // The projection index a real publish writes; the loader's lock
+    // reconciler reads it to suspend card 2 (no imported history, no course
+    // submit) before the queue is fetched.
+    await db.customStatement(
+      "INSERT INTO official_anki_projection_index "
+      "(source_id, card_id, word_id, section_id, unit_id, lesson_id, "
+      " projection_kind, source_fingerprint, projection_version) VALUES "
+      "('$importId', 1, 'w1', 's', 'u', 'l', 'flip', 'fp', 1),"
+      "('$importId', 2, 'w2', 's', 'u', 'l', 'flip', 'fp', 1)",
+    );
+    GetIt.instance.registerSingleton<CourseDatabase>(db);
 
     final engine = FakeOfficialAnkiEngine();
     engine.seedPackage(packagePath: 'imported-history.apkg', notes: 2, cards: 2);
@@ -121,8 +135,10 @@ void main() {
     expect(
       ready.batch.items.map((item) => item.cardKey.cardId),
       [1],
-      reason: 'card 1 carries imported history (reps>=1) and is therefore '
-          'introduced; card 2 is a genuinely fresh card and stays filtered',
+      reason: 'card 1 carries imported history (reps>=1), so the reconciler '
+          'leaves it unlocked; card 2 is a genuinely fresh card and stays '
+          'scheduler-suspended',
     );
+    expect(engine.suspended, {2});
   });
 }

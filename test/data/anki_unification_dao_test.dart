@@ -102,7 +102,8 @@ void main() {
     );
   });
 
-  test('allIntroductionRefs returns every row with its status', () async {
+  test('introducedCardIdsForSource returns only introduced ids of the source',
+      () async {
     final db = emptyInMemoryCourseDatabase();
     addTearDown(db.close);
     final dao = AnkiUnificationDao(db);
@@ -131,12 +132,8 @@ void main() {
       status: CardIntroductionStatus.retired,
     );
 
-    final refs = await dao.allIntroductionRefs();
-    expect(refs, hasLength(3));
-    final byCard = {for (final ref in refs) ref.cardId: ref};
-    expect(byCard[1]!.status, CardIntroductionStatus.introduced);
-    expect(byCard[1]!.sourceId, 'src');
-    expect(byCard[2]!.status, CardIntroductionStatus.unintroduced);
-    expect(byCard[3]!.status, CardIntroductionStatus.retired);
+    // The lock reconciler and completion unlocking read this directly —
+    // it is the scheduler-lock exemption list, not a UI cache.
+    expect(await dao.introducedCardIdsForSource(sourceId: 'src'), {1});
   });
 }

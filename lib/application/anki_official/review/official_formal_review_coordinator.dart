@@ -175,9 +175,6 @@ class OfficialFormalReviewLiveQueue extends ChangeNotifier {
     required this.assembler,
     required List<StudyItem> items,
     required this.activePlacementCardKeys,
-    required this.introducedCardKeys,
-    this.suspendedCardKeys = const {},
-    this.buriedCardKeys = const {},
     this.retiredCardKeys = const {},
   })  : _items = items,
         _faces = <int, OfficialRenderedFace>{};
@@ -194,9 +191,6 @@ class OfficialFormalReviewLiveQueue extends ChangeNotifier {
   final Map<int, OfficialRenderedFace> _faces;
 
   final Set<CanonicalCardKey> activePlacementCardKeys;
-  final Set<CanonicalCardKey> introducedCardKeys;
-  final Set<CanonicalCardKey> suspendedCardKeys;
-  final Set<CanonicalCardKey> buriedCardKeys;
   final Set<CanonicalCardKey> retiredCardKeys;
 
   /// Fidelity HTML faces keyed by sessionItemId for the shared host.
@@ -305,9 +299,6 @@ class OfficialFormalReviewLiveQueue extends ChangeNotifier {
         queueCards: queue.cards,
         presentations: presentations,
         activePlacementCardKeys: activePlacementCardKeys,
-        introducedCardKeys: introducedCardKeys,
-        suspendedCardKeys: suspendedCardKeys,
-        buriedCardKeys: buriedCardKeys,
         retiredCardKeys: retiredCardKeys,
       );
       _generation += 1;

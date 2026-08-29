@@ -1,10 +1,10 @@
 import 'package:path_provider/path_provider.dart';
 import 'package:turna/application/anki_official/introduction/card_introduction_eligibility.dart';
-import 'package:turna/application/anki_official/introduction/card_introduction_store.dart';
 import 'package:turna/application/anki_official/review/formal_review_launcher.dart';
 import 'package:turna/application/anki_official/review/official_study_batch_assembler.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
+import 'package:turna/application/anki_official/engine/official_anki_lock_reconciler.dart';
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
@@ -45,7 +45,6 @@ class OfficialFormalReviewProductionLoader {
     this.sessionFactory,
     this.resolveTarget,
     this.presentationsForCards,
-    this.introducedCardIds,
     this.activePlacementCardIds,
     this.profileId = CardIntroductionEligibility.defaultProfileId,
   });
@@ -65,7 +64,6 @@ class OfficialFormalReviewProductionLoader {
     required String sourceId,
     required Iterable<OfficialReviewQueueCard> cards,
   })? presentationsForCards;
-  final Set<int> Function(String sourceId)? introducedCardIds;
   final Set<int> Function(String sourceId)? activePlacementCardIds;
   final String profileId;
 
@@ -87,13 +85,6 @@ class OfficialFormalReviewProductionLoader {
       return const OfficialFormalReviewNoDue();
     }
 
-    // Self-healing cold-start hydration: a fresh process has an empty
-    // in-memory introduced set; without re-reading the ledger every due
-    // card would be filtered out below and the session would end as NoDue
-    // (the "暂无待复习" bug). Idempotent merge, no-op when already hydrated
-    // in this pass.
-    await CardIntroductionStore.resolve().hydrateFromLedger();
-
     final target = resolveTarget != null
         ? await resolveTarget!(importId)
         : await _resolveTargetProduction(importId);
@@ -101,6 +92,12 @@ class OfficialFormalReviewProductionLoader {
 
     final resolvedEngine = engine ?? await _requireEngine();
     if (resolvedEngine == null) return const OfficialFormalReviewNoDue();
+
+    // P1: enforce the scheduler lock before the queue is fetched. Idempotent
+    // and fail-closed — it also covers installs whose first post-P1 refresh
+    // has not reconciled yet, so the queue below never holds locked cards.
+    await OfficialAnkiLockReconciler(engine: resolvedEngine)
+        .reconcileSource(sourceId: target.sourceId);
 
     final session = sessionFactory != null
         ? await sessionFactory!(
@@ -187,8 +184,6 @@ class OfficialFormalReviewProductionLoader {
       );
     }
 
-    final introIds = introducedCardIds?.call(sourceId) ??
-        CardIntroductionStore.resolve().introducedCardIdsForSource(sourceId);
     final dueRepo = OfficialFormalDueRepository.instance;
     final perSource = dueRepo.snapshot.byImport[importId];
     final placementIds = activePlacementCardIds?.call(sourceId) ??
@@ -197,13 +192,6 @@ class OfficialFormalReviewProductionLoader {
             : target.cardIds);
 
     final placementKeys = {for (final id in placementIds) key(id)};
-    final introducedKeys = {for (final id in introIds) key(id)};
-    final suspendedKeys = {
-      for (final id in (perSource?.suspendedCardIds ?? const <int>{})) key(id),
-    };
-    final buriedKeys = {
-      for (final id in (perSource?.buriedCardIds ?? const <int>{})) key(id),
-    };
     final retiredKeys = {
       for (final id in (perSource?.retiredCardIds ?? const <int>{})) key(id),
     };
@@ -215,9 +203,6 @@ class OfficialFormalReviewProductionLoader {
       queueCards: queue.cards,
       presentations: presentations,
       activePlacementCardKeys: placementKeys,
-      introducedCardKeys: introducedKeys,
-      suspendedCardKeys: suspendedKeys,
-      buriedCardKeys: buriedKeys,
       retiredCardKeys: retiredKeys,
       // The assembler must key eligibility with the SAME profile the
       // loader builds card keys with, or every eligibility set misses.
@@ -271,9 +256,6 @@ class OfficialFormalReviewProductionLoader {
             assembler: OfficialStudyBatchAssembler(profileId: profileId),
             items: batch.items,
             activePlacementCardKeys: placementKeys,
-            introducedCardKeys: introducedKeys,
-            suspendedCardKeys: suspendedKeys,
-            buriedCardKeys: buriedKeys,
             retiredCardKeys: retiredKeys,
           );
     liveQueue?.fidelityInteractions.addAll(fidelity);

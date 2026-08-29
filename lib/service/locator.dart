@@ -419,10 +419,6 @@ Future<void> setupLocator() async {
   getIt.registerSingleton(AnkiOwnerAuthorityDao(db));
   getIt.registerSingleton(
       CardIntroductionStore(dao: getIt<AnkiUnificationDao>()));
-  // Cold-start hydration (01-due-state.md): the store is write-through
-  // only, so without this pass every formal-due query after a restart sees
-  // an empty introduced set and filters out every due card.
-  await getIt<CardIntroductionStore>().hydrateFromLedger();
 
   // Course-scope preference repair (plan 34 §6.4): must run after the DB and
   // source catalog are open and BEFORE CourseProvider reads the preference.

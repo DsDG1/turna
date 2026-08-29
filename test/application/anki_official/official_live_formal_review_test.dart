@@ -93,9 +93,6 @@ void main() {
       activePlacementCardKeys: {
         for (final id in [1, 2, 3]) _key(id)
       },
-      introducedCardKeys: {
-        for (final id in [1, 2, 3]) _key(id)
-      },
     );
   }
 

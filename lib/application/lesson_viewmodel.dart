@@ -14,6 +14,8 @@ import 'package:turna/application/anki_official/engine/official_anki_lesson_redo
 import 'package:turna/application/anki_official/engine/official_anki_lesson_unlock_quota.dart';
 import 'package:turna/application/anki_official/introduction/card_introduction_eligibility.dart';
 import 'package:turna/application/anki_official/introduction/card_introduction_store.dart';
+import 'package:turna/application/anki_official/engine/official_anki_lock_reconciler.dart';
+import 'package:turna/application/anki_official/projection/official_anki_lesson_card_index.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/application/study_session/study_product_analytics.dart';
@@ -364,6 +366,7 @@ class LessonViewModel extends ChangeNotifier {
     final fresh = lesson;
     _lesson = fresh;
     _recordsMistakes = true; // real lessons always record wrong answers
+    await _ensureOfficialCardIndex(fresh.id);
     _resetToLesson(fresh);
 
     notifyListeners();
@@ -392,6 +395,10 @@ class LessonViewModel extends ChangeNotifier {
   void loadLessonInstance(Lesson lesson, {bool recordMistakes = true}) {
     _lesson = lesson;
     _recordsMistakes = recordMistakes;
+    // Synthetic lessons never hold Official projection rows; the resolve is
+    // a cheap indexed lookup that keeps the cache correct for the rare
+    // case where the instance actually is a projected lesson.
+    unawaited(_ensureOfficialCardIndex(lesson.id));
     _resetToLesson(lesson);
     notifyListeners();
   }
@@ -614,20 +621,40 @@ class LessonViewModel extends ChangeNotifier {
   }
 
   CanonicalCardKey? _canonicalKeyForAnkiInteraction(Interaction interaction) {
+    // Official projection lesson: wordId→cardId is a structured projection
+    // index row, never a guess out of the id string (P0). Unresolved means
+    // not anki-owned — fail closed rather than fall through to guessing.
+    final index = _officialCardIndex;
+    if (index != null) {
+      final cardId = index.cardIdForInteraction(interaction);
+      if (cardId == null) return null;
+      return CanonicalCardKey(
+        backend: AnkiBackendKind.official,
+        profileId: 'profile-default-01',
+        sourceId: index.sourceId,
+        cardId: cardId,
+      );
+    }
+    // Official tree lessons must resolve through the index; without it they
+    // fail closed instead of mis-attributing the source from the loose id
+    // conventions below (which legacy imported courses still rely on).
+    if (CardIntroductionEligibility.officialSourceIdFromTreeId(
+          _lesson?.id ?? '',
+        ) !=
+        null) {
+      return null;
+    }
+    // Legacy imported courses keep the stored-wordId convention the retired
+    // Legacy assembler minted (`anki-{importId}-c{cardId}`).
     const profileId = 'profile-default-01';
     final rawId = ankiWordIdFromInteractionId(interaction.id);
-    final lessonId = _lesson?.id ?? '';
     return CanonicalCardKeyAdapter.tryParseStoredWordId(
           profileId: profileId,
           rawId: rawId,
         ) ??
-        CardIntroductionEligibility.keyFromLessonAndWordId(
-          lessonId: lessonId,
-          wordId: rawId,
-        ) ??
-        CardIntroductionEligibility.keyFromLessonAndWordId(
-          lessonId: lessonId,
-          wordId: interaction.id,
+        CanonicalCardKeyAdapter.tryParseStoredWordId(
+          profileId: profileId,
+          rawId: interaction.id,
         ) ??
         _keyFromLooseAnkiId(rawId) ??
         _keyFromLooseAnkiId(interaction.id);
@@ -676,6 +703,26 @@ class LessonViewModel extends ChangeNotifier {
   }
 
   AnkiStudySessionHost? _ankiHost;
+
+  /// P0 single source for the Official cards of the current lesson, loaded
+  /// from the projection index. Null for lessons this database never
+  /// projected (legacy imports, synthetic lessons).
+  OfficialAnkiLessonCardIndex? _officialCardIndex;
+
+  /// Loads (or returns the cached) projection-index card map for [lessonId].
+  /// Null means "not an Official projection lesson" — Official card
+  /// resolution then fails closed instead of guessing from id strings.
+  Future<OfficialAnkiLessonCardIndex?> _ensureOfficialCardIndex(
+    String lessonId,
+  ) async {
+    final cached = _officialCardIndex;
+    if (cached != null && cached.lessonId == lessonId) return cached;
+    final resolved = await OfficialAnkiLessonCardIndex.resolveForLesson(
+      lessonId,
+    );
+    _officialCardIndex = resolved;
+    return resolved;
+  }
 
   AnkiStudySessionHost _ankiSessionHost() {
     final override = AnkiStudySessionHost.debugOverride;
@@ -818,6 +865,11 @@ class LessonViewModel extends ChangeNotifier {
   List<OfficialAheadAnswer> _officialRatingsForCompletedPass() {
     final lesson = _lesson;
     if (lesson == null) return const [];
+    // The redo flush answers on the Official engine, so it is an
+    // Official-projection-lesson feature: without an index there is nothing
+    // to rate, and legacy card ids must never reach `answerAheadCards`.
+    final index = _officialCardIndex;
+    if (index == null) return const [];
     final anyWrong = <int, bool>{};
     for (final submitted in _submittedInteractions) {
       if (submitted.stageIndex < 0 ||
@@ -829,12 +881,12 @@ class LessonViewModel extends ChangeNotifier {
           submitted.interactionIndex >= items.length) {
         continue;
       }
-      final key = _canonicalKeyForAnkiInteraction(
+      final cardId = index.cardIdForInteraction(
         items[submitted.interactionIndex],
       );
-      if (key == null) continue;
-      anyWrong[key.cardId] =
-          (anyWrong[key.cardId] ?? false) || !submitted.correct;
+      if (cardId == null) continue;
+      anyWrong[cardId] =
+          (anyWrong[cardId] ?? false) || !submitted.correct;
     }
     return [
       for (final entry in anyWrong.entries)
@@ -855,6 +907,49 @@ class LessonViewModel extends ChangeNotifier {
       return;
     }
     final store = CardIntroductionStore.resolve();
+    final index = _officialCardIndex;
+    if (index != null) {
+      // Official projection lesson: the index is the single source of the
+      // lesson's cards — mark each one by its structured identity.
+      // Ledger-direct: a cold process must still see which cards an
+      // earlier session already taught, or a redo would lift the lock off
+      // cards the user suspended afterwards.
+      final alreadyIntroduced =
+          await store.introducedCardIdsFromLedger(index.sourceId);
+      final newlyIntroduced = [
+        for (final cardId in index.cardIds)
+          if (!alreadyIntroduced.contains(cardId)) cardId,
+      ];
+      if (newlyIntroduced.isNotEmpty) {
+        // P1: the completion gate is a scheduler suspension, so lift it
+        // BEFORE the ledger records the cards as introduced. A failure or
+        // crash mid-way leaves every card unintroduced-and-suspended (the
+        // reconciler keeps that state consistent) instead of introduced
+        // but invisible; only never-introduced cards are restored, so a
+        // user suspension of an already-taught card survives a redo.
+        try {
+          await OfficialAnkiLockReconciler.resolve().unlockCards(
+                sourceId: index.sourceId,
+                cardIds: newlyIntroduced,
+              );
+        } catch (error) {
+          debugPrint(
+            'Official unlock failed; keeping cards unintroduced: $error',
+          );
+          return;
+        }
+      }
+      for (final entry in index.entries) {
+        await store.markIntroducedCard(
+          sourceId: index.sourceId,
+          cardId: entry.cardId,
+          wordId: entry.wordId,
+          lessonId: lesson.id,
+        );
+      }
+      return;
+    }
+    // Legacy imported courses: unlock through the stored-wordId convention.
     final unlocked = <int>{};
     for (final stage in _stages) {
       for (final item in stage.items) {
@@ -864,9 +959,9 @@ class LessonViewModel extends ChangeNotifier {
           item.id,
         ];
         for (final candidate in candidates) {
-          final key = CardIntroductionEligibility.keyFromLessonAndWordId(
-            lessonId: lesson.id,
-            wordId: candidate,
+          final key = CanonicalCardKeyAdapter.tryParseStoredWordId(
+            profileId: 'profile-default-01',
+            rawId: candidate,
           );
           if (key == null || !unlocked.add(key.cardId)) continue;
           await store.markFromLesson(
@@ -1180,6 +1275,7 @@ class LessonViewModel extends ChangeNotifier {
     final lesson = _lesson;
     if (lesson == null) return;
     try {
+      await _ensureOfficialCardIndex(lesson.id);
       final isRedo = _isAnkiLessonRedo(lesson.id);
       await _unlockAnkiCardsOnComplete();
       if (isRedo) {
@@ -1215,6 +1311,11 @@ class LessonViewModel extends ChangeNotifier {
   }
 
   Iterable<int> _ankiCardIdsInLesson() sync* {
+    final index = _officialCardIndex;
+    if (index != null) {
+      yield* index.cardIds;
+      return;
+    }
     for (final stage in _stages) {
       for (final item in stage.items) {
         final key = _canonicalKeyForAnkiInteraction(item);

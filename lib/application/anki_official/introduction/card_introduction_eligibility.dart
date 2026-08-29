@@ -1,6 +1,5 @@
 import 'package:turna/domain/anki/canonical_card_key.dart';
 import 'package:turna/domain/anki/card_introduction_state.dart';
-import 'package:turna/domain/course/srs_word.dart';
 
 /// Pure eligibility rules for formal Anki review.
 ///
@@ -76,22 +75,6 @@ class CardIntroductionEligibility {
     if (stored == CardIntroductionStatus.introduced) return true;
     if (reps > 0 || hasRevlog) return true;
     return false;
-  }
-
-  bool isFormallyEligibleWord(SrsWord word, {CardIntroductionStatus? stored}) {
-    if (word.isSuspended || word.isBuried) return false;
-    return isFormallyEligible(stored: stored, reps: word.reps);
-  }
-
-  /// Displayed formal due never exceeds how many cards are already introduced.
-  /// Zero introduced ⇒ formal due is 0 even if the scheduler lists New cards.
-  int formalDueCount({
-    required int schedulerDue,
-    required int introducedCount,
-  }) {
-    if (schedulerDue < 0) return 0;
-    if (introducedCount <= 0) return 0;
-    return schedulerDue < introducedCount ? schedulerDue : introducedCount;
   }
 
   CardIntroductionStatus initialStatus({

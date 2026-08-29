@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:turna/application/anki_official/introduction/card_introduction_eligibility.dart';
 import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/di/injection.dart';
@@ -28,6 +27,12 @@ class CardIntroductionChanged {
 /// In-memory + Drift introduction ledger used by course submit and formal
 /// review. Missing rows are unintroduced unless imported history (reps>0)
 /// proves the card was already studied in Anki.
+///
+/// P1: due visibility no longer reads the in-memory set at all — the
+/// scheduler itself locks unintroduced cards (see the lock reconciler), so
+/// the memory set is only a same-session cache. Anything that must not
+/// depend on process lifetime (completion unlocking, lock reconciliation)
+/// reads the ledger through [introducedCardIdsFromLedger] instead.
 class CardIntroductionStore {
   CardIntroductionStore({
     AnkiUnificationDao? dao,
@@ -61,13 +66,21 @@ class CardIntroductionStore {
   final Set<String> _introduced = {};
   final Set<String> _retired = {};
   final Map<String, int> _introducedBySource = {};
-  Future<void>? _hydrationInFlight;
+
+  /// Introduced card ids of [sourceId] from the durable ledger — the
+  /// process-lifetime-safe read for completion unlocking and lock
+  /// reconciliation. Test instances without a DAO fall back to the
+  /// in-memory set.
+  Future<Set<int>> introducedCardIdsFromLedger(String sourceId) async {
+    final dao = _dao;
+    if (dao == null) return introducedCardIdsForSource(sourceId);
+    return dao.introducedCardIdsForSource(sourceId: sourceId);
+  }
 
   void resetForTest() {
     _introduced.clear();
     _retired.clear();
     _introducedBySource.clear();
-    _hydrationInFlight = null;
   }
 
   bool isFormallyEligibleWord(SrsWord word) {
@@ -97,44 +110,6 @@ class CardIntroductionStore {
       if (id != null) ids.add(id);
     }
     return ids;
-  }
-
-  /// Rebuilds the in-memory introduced set from the persisted ledger.
-  ///
-  /// The store is write-through only: nothing else ever reads the
-  /// introduction table back, so a fresh process would answer every
-  /// `introducedCardIdsForSource` query with an empty set and the formal-due
-  /// intersection (due ∩ introduced) would filter out every due card. This
-  /// merge is idempotent — present tokens stay, and `_introducedBySource`
-  /// is recomputed from the card tokens afterwards. Failures are swallowed
-  /// (callers re-invoke on their next pass); no [changes] event is
-  /// published because this fills a cache, it never mutates the ledger.
-  Future<void> hydrateFromLedger() {
-    // No DAO (test fallback instances): a synchronous no-op — never park
-    // _hydrationInFlight on a future whose completion microtask belongs to
-    // a caller's fake-async zone.
-    if (_dao == null) return Future.value();
-    final existing = _hydrationInFlight;
-    if (existing != null) return existing;
-    final run = _hydrateFromLedger();
-    _hydrationInFlight = run;
-    return run;
-  }
-
-  Future<void> _hydrateFromLedger() async {
-    final dao = _dao;
-    try {
-      final refs = await dao!.allIntroductionRefs();
-      for (final ref in refs) {
-        if (ref.status != CardIntroductionStatus.introduced) continue;
-        _introduced.add(_cardToken(ref.sourceId, ref.cardId));
-      }
-      _recountIntroducedBySource();
-    } catch (error) {
-      debugPrint('CardIntroductionStore: ledger hydration failed: $error');
-    } finally {
-      _hydrationInFlight = null;
-    }
   }
 
   void _recountIntroducedBySource() {
@@ -181,6 +156,45 @@ class CardIntroductionStore {
       wordId: wordId,
       sourceId: key.sourceId,
       cardId: key.cardId,
+    );
+  }
+
+  /// Introduces one Official card by its structured projection identity
+  /// (P0). Unlike [markFromLesson] this never parses an id out of a string:
+  /// the caller holds the projection-index row (source, card, wordId) it
+  /// wants introduced.
+  Future<void> markIntroducedCard({
+    required String sourceId,
+    required int cardId,
+    required String wordId,
+    required String lessonId,
+  }) async {
+    final key = CanonicalCardKey(
+      backend: AnkiBackendKind.official,
+      profileId: CardIntroductionEligibility.defaultProfileId,
+      sourceId: sourceId,
+      cardId: cardId,
+    );
+    final courseId =
+        CardIntroductionEligibility.courseIdForOfficialSource(sourceId);
+    final dao = _dao;
+    if (dao != null) {
+      // Persist first: a failed write must not optimistically mark the card
+      // as introduced anywhere (maintainability plan §7.4).
+      await dao.upsertIntroduction(
+        courseId: courseId,
+        key: key,
+        status: CardIntroductionStatus.introduced,
+        introducedBy: CardIntroducedBy.course,
+        introducedAt: DateTime.now(),
+        firstLessonId: lessonId,
+        lastStudiedAt: DateTime.now(),
+      );
+    }
+    _rememberIntroduced(
+      wordId: wordId,
+      sourceId: sourceId,
+      cardId: cardId,
     );
   }
 

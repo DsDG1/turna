@@ -92,7 +92,6 @@ void main() {
           allowedCardIds: allowedCardIds,
           profileId: 'profile-test',
         ),
-        introducedCardIds: (sourceId) => const {1, 2},
         activePlacementCardIds: (sourceId) => const {1, 2},
         profileId: 'profile-test',
       ).load(importId: sourceId, courseId: 'anki-$sourceId');
@@ -170,7 +169,6 @@ void main() {
         allowedCardIds: allowedCardIds,
         profileId: 'profile-test',
       ),
-      introducedCardIds: (sourceId) => const {1, 2},
       activePlacementCardIds: (sourceId) => const {1, 2},
       profileId: 'profile-test',
     );
@@ -182,8 +180,16 @@ void main() {
     expect(batch.items.map((i) => i.cardKey.cardId).toSet(), {1, 2});
   });
 
-  test('unintroduced scheduler cards are NoDue, not a ready empty session',
+  test('locked scheduler cards are NoDue, not a ready empty session',
       () async {
+    // P1: "course not completed yet" is a scheduler suspension, so the
+    // queue itself is empty — that is what makes the session NoDue. The
+    // Dart-side introduced filter that used to produce this empty state no
+    // longer exists.
+    await engine.buryOrSuspendCards(
+      action: OfficialBuryOrSuspendAction.suspend,
+      cardIds: const [1, 2],
+    );
     final loader = OfficialFormalReviewProductionLoader(
       flags: _flags,
       engine: engine,
@@ -203,7 +209,6 @@ void main() {
         allowedCardIds: allowedCardIds,
         profileId: 'profile-test',
       ),
-      introducedCardIds: (_) => const {},
       activePlacementCardIds: (_) => const {1, 2},
       profileId: 'profile-test',
     );
@@ -242,7 +247,6 @@ void main() {
         allowedCardIds: allowedCardIds,
         profileId: 'profile-test',
       ),
-      introducedCardIds: (sourceId) => const {1},
       activePlacementCardIds: (sourceId) => const {1},
       profileId: 'profile-test',
     );

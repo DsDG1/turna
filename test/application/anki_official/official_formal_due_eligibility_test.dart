@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:turna/application/anki_official/introduction/card_introduction_store.dart';
 import 'package:turna/application/anki_official/review/official_study_batch_assembler.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
@@ -45,53 +44,53 @@ OfficialReviewQueueCard _queueCard(int cardId) {
 
 void main() {
   group('computeFormalDueCardKeys', () {
-    test('exact intersection minus suspended/buried/retired', () {
+    // P1: the scheduler is the gate — locked (unintroduced), suspended and
+    // buried cards never reach schedulerDue in the first place, so the
+    // Dart formula only scopes placement and drops uninstall remnants.
+    test('exact intersection of scheduler due and placement minus retired',
+        () {
       final due = computeFormalDueCardKeys(
         officialSchedulerDueCardKeys: {_key(1), _key(2), _key(3), _key(4)},
         activePlacementCardKeys: {_key(1), _key(2), _key(3)},
-        introducedCardKeys: {_key(1), _key(2), _key(4)},
-        suspendedCardKeys: {_key(2)},
-        buriedCardKeys: const {},
         retiredCardKeys: {_key(4)},
       );
-      expect(due, {_key(1)});
+      expect(due, {_key(1), _key(2), _key(3)});
     });
 
-    test('does not use count approximation', () {
+    test('per-source helper builds the same membership', () {
       final due = computeFormalDueCardKeysForSource(
         sourceId: 'src-a',
         officialSchedulerDueCardIds: {10, 11, 12, 13, 14},
-        activePlacementCardIds: {10, 11, 12, 13, 14},
-        introducedCardIds: {11, 99},
+        activePlacementCardIds: {10, 11, 12},
+        retiredCardIds: {11},
       );
-      expect(due.map((k) => k.cardId).toSet(), {11});
-      expect(due.length, 1);
+      expect(due.map((k) => k.cardId).toSet(), {10, 12});
     });
 
-    test('unintroduced new cards stay out of formal queue', () {
+    test('scheduler due alone with no placement is empty', () {
       final due = computeFormalDueCardKeys(
         officialSchedulerDueCardKeys: {_key(1), _key(2)},
-        activePlacementCardKeys: {_key(1), _key(2)},
-        introducedCardKeys: {_key(1)},
+        activePlacementCardKeys: const {},
       );
-      expect(due, {_key(1)});
+      expect(due, isEmpty);
     });
   });
 
   group('OfficialStudyBatchAssembler', () {
-    test('assembles only formal-due cards with presentations', () {
+    test('assembles only scheduler-due ∩ placement cards with presentations',
+        () {
       final presentations = <CanonicalCardKey, CardPresentation>{
         _key(1): _flip(_key(1), 'a', 'b'),
         _key(2): _flip(_key(2), 'c', 'd'),
       };
-      final items = const OfficialStudyBatchAssembler().assembleFromEligibility(
+      final items =
+          const OfficialStudyBatchAssembler().assembleFromEligibility(
         sourceId: 'src-a',
         courseId: 'course-src-a',
         queueCards: [_queueCard(1), _queueCard(2), _queueCard(3)],
         presentations: presentations,
         activePlacementCardKeys: {_key(1), _key(2), _key(3)},
-        introducedCardKeys: {_key(1), _key(2)},
-        buriedCardKeys: {_key(2)},
+        retiredCardKeys: {_key(2)},
       );
       expect(items, hasLength(1));
       expect(items.single.cardKey, _key(1));
@@ -121,12 +120,9 @@ void main() {
     setUp(OfficialFormalDueRepository.instance.resetForTest);
     tearDown(() {
       OfficialFormalDueRepository.instance.resetForTest();
-      CardIntroductionStore.debugOverride = null;
     });
 
-    test('prefers key intersection when scheduler due ids are known', () async {
-      final store = CardIntroductionStore();
-      CardIntroductionStore.debugOverride = store;
+    test('prefers key intersection when scheduler due ids are known', () {
       final repo = OfficialFormalDueRepository.instance;
       repo.commit(
         OfficialFormalDueUpdate(
@@ -147,20 +143,15 @@ void main() {
         ),
         basedOnGeneration: repo.generation,
       );
-      await store.markFromLesson(
-        wordId: 'official-anki-src-a-c1',
-        lessonId: 'official-anki-src-a-l0123456789ab-p0',
-      );
-      await store.markFromLesson(
-        wordId: 'official-anki-src-a-c3',
-        lessonId: 'official-anki-src-a-l0123456789ab-p0',
-      );
 
+      // P1: a post-lock schedulerDue never contains suspended cards, so the
+      // suspended set here is informational and the formula no longer
+      // subtracts it — placement still scopes, though.
       expect(
         repo.formalDueCardKeysForImport('src-a'),
-        {_key(1), _key(3)},
+        {_key(1), _key(2), _key(3)},
       );
-      expect(repo.formalOfficialDueForImport('src-a'), 2);
+      expect(repo.formalOfficialDueForImport('src-a'), 3);
     });
   });
 }

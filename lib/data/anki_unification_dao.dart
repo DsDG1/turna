@@ -132,28 +132,22 @@ class AnkiUnificationDao {
     };
   }
 
-  /// Every introduction row as a flat (source, card, status) ref.
-  ///
-  /// The cold-start read for [CardIntroductionStore.hydrateFromLedger]:
-  /// status is returned raw so the caller decides which states it folds
-  /// into memory.
-  Future<List<({String sourceId, int cardId, CardIntroductionStatus status})>>
-      allIntroductionRefs() async {
+  /// Introduced card ids of one source, straight from the ledger. P1: this
+  /// is the authoritative read for the scheduler lock (what may never be
+  /// suspended) and for completion unlocking — neither depends on any
+  /// in-memory mirror.
+  Future<Set<int>> introducedCardIdsForSource({
+    required String sourceId,
+  }) async {
     final rows = await _db.customSelect(
       '''
-      SELECT source_id, card_id, status
+      SELECT card_id
       FROM anki_card_introduction_states
+      WHERE source_id = ? AND status = 'introduced'
       ''',
+      variables: [Variable.withString(sourceId)],
     ).get();
-    return [
-      for (final row in rows)
-        (
-          sourceId: row.read<String>('source_id'),
-          cardId: row.read<int>('card_id'),
-          status: CardIntroductionStatus.values
-              .byName(row.read<String>('status')),
-        ),
-    ];
+    return {for (final row in rows) row.read<int>('card_id')};
   }
 
   Future<int> countByStatus({

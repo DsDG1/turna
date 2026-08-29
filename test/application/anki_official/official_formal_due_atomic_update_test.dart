@@ -129,10 +129,12 @@ void main() {
   });
 
   test('mutation during a refresh window never loses suspended/buried', () {
+    // P1 contract: card 2 is suspended, so the collected schedulerDue never
+    // contained it in the first place.
     repo.commit(
       _update(bySource: {
         'a': _per('a',
-            schedulerDue: {1, 2},
+            schedulerDue: {1},
             placement: {1, 2},
             introduced: {1, 2},
             suspended: {2}),
@@ -140,15 +142,15 @@ void main() {
       basedOnGeneration: repo.generation,
     );
 
-    // A late refresh collected BEFORE the suspend but committing AFTER the
-    // mutation must not resurrect the suspended card.
+    // A late refresh collected BEFORE the bury but committing AFTER the
+    // mutation must not resurrect the buried card.
     final staleBase = repo.generation;
     final mutationResult = repo.mutateSource(
       'a',
       transform: (current) => OfficialFormalDuePerSource(
         importId: current.importId,
         knowledge: current.knowledge,
-        schedulerDueCardIds: current.schedulerDueCardIds,
+        schedulerDueCardIds: current.schedulerDueCardIds.difference(const {1}),
         activePlacementCardIds: current.activePlacementCardIds,
         introducedCardIds: current.introducedCardIds,
         suspendedCardIds: current.suspendedCardIds,
@@ -160,7 +162,7 @@ void main() {
 
     final lateResult = repo.commit(
       _update(bySource: {
-        'a': _per('a', schedulerDue: {1, 2}, placement: {1, 2},
+        'a': _per('a', schedulerDue: {1}, placement: {1, 2},
             introduced: {1, 2}, suspended: {2}),
       }),
       basedOnGeneration: staleBase,
@@ -171,18 +173,23 @@ void main() {
     expect(per.suspendedCardIds, {2});
     expect(per.buriedCardIds, {1},
         reason: 'the mutation survived the racing refresh');
-    expect(repo.formalDueCountForImport('a'), 0);
+    expect(repo.formalDueCountForImport('a'), 0,
+        reason: 'the bury fold mirrors the scheduler: card 1 stopped being '
+            'owed');
   });
 
   test('introduction mutation publishes a fresh complete snapshot', () async {
+    // P1: locked cards are scheduler-suspended, so nothing is owed yet —
+    // due is empty because schedulerDue is empty, not because of a Dart
+    // introduced subtraction.
     repo.commit(
       _update(bySource: {
-        'a': _per('a', schedulerDue: {1, 2}, placement: {1, 2}),
+        'a': _per('a', schedulerDue: {1}, placement: {1, 2}),
       }),
       basedOnGeneration: repo.generation,
     );
-    expect(repo.formalDueCountForImport('a'), 0,
-        reason: 'nothing introduced yet — due must be empty, not guessed');
+    expect(repo.formalDueCountForImport('a'), 1,
+        reason: 'the scheduler owes card 1 (already unlocked)');
 
     await intro.markFromLesson(
       wordId: 'anki-a-c1',
@@ -190,8 +197,8 @@ void main() {
     );
 
     expect(repo.formalDueCountForImport('a'), 1,
-        reason: 'the introduction event must land in the committed snapshot '
-            'immediately (no getter-time bypass)');
+        reason: 'the count is unchanged by the introduction fold — P1 '
+            'counts follow the scheduler, and the fold is informational');
     expect(
       repo.snapshot.byImport['a']!.introducedCardIds,
       {1},

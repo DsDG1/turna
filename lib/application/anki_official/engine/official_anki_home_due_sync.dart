@@ -1,11 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
+import 'package:turna/application/anki_official/engine/official_anki_lock_reconciler.dart';
 import 'package:turna/application/anki_official/engine/official_anki_session.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_snapshot_builder.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_update.dart';
-import 'package:turna/application/anki_official/introduction/card_introduction_store.dart';
 import 'package:turna/application/anki_official/introduction/imported_history_introducer.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
@@ -48,10 +48,6 @@ class OfficialAnkiHomeDueSync {
 
   Future<void> _refreshOnce() async {
     final repo = OfficialFormalDueRepository.instance;
-    // Cold-start hydration: rebuild the in-memory introduced set from the
-    // ledger before the builder reads it, so due badges are correct after
-    // a restart (01-due-state.md). Idempotent; swallows its own errors.
-    await CardIntroductionStore.resolve().hydrateFromLedger();
     if (!LegacyAnkiMigrationFlags.cutoverEnabled) {
       // Owner routing still needs recorded Official ids (doc 34 W0-06).
       // Due numbers stay unavailable while cutover is paused.
@@ -137,6 +133,13 @@ class OfficialAnkiHomeDueSync {
         // generation guard absorbs the racing change events. Failures never
         // fail the refresh — the next pass retries.
         await _adoptImportedHistory(session);
+
+        // P1 lock reconcile: unintroduced cards of every projected source
+        // stay suspended in the scheduler, so the due/learn/new searches
+        // below already exclude them. Also self-heals anything that slipped
+        // past the publish hook (imports pre-dating P1, a failed unlock).
+        // Failures never fail the refresh — the next pass retries.
+        await _reconcileLocks();
 
         Future<Set<int>> fetchByQuery(String query) async {
           final ids = <int>{};
@@ -266,6 +269,25 @@ class OfficialAnkiHomeDueSync {
       debugPrint(
         '[OfficialAnkiHomeDueSync] stale generation; dropping refresh result',
       );
+    }
+  }
+
+  Future<void> _reconcileLocks() async {
+    try {
+      final course = CourseLoader.databaseOrNull();
+      if (course == null) return;
+      final rows = await course.customSelect(
+        'SELECT DISTINCT source_id FROM official_anki_projection_index',
+      ).get();
+      if (rows.isEmpty) return;
+      final reconciler = OfficialAnkiLockReconciler.resolve();
+      for (final row in rows) {
+        await reconciler.reconcileSource(
+          sourceId: row.read<String>('source_id'),
+        );
+      }
+    } catch (error) {
+      debugPrint('[OfficialAnkiHomeDueSync] lock reconcile failed: $error');
     }
   }
 

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:path_provider/path_provider.dart';
+import 'package:turna/application/anki_official/engine/official_anki_lock_reconciler.dart';
 import 'package:turna/application/anki_official/import/unified_anki_import_orchestrator.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
@@ -253,6 +254,13 @@ class OfficialAnkiOfficialFirstService {
       sourceId: sourceId,
       sourceHash: sourceHash,
     );
+    // P1: seed the scheduler lock right after publish — every card the
+    // ledger did not introduce (fresh imports minus imported history)
+    // stays suspended until its lesson completes. Fail-closed: the home
+    // due sync re-runs the reconcile idempotently if this pass fails.
+    await OfficialAnkiLockReconciler.resolve().reconcileSource(
+          sourceId: sourceId,
+        );
     return result;
   }
 }

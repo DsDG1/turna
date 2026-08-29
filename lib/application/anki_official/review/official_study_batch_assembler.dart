@@ -59,9 +59,6 @@ class OfficialStudyBatchAssembler {
     required Iterable<OfficialReviewQueueCard> queueCards,
     required Map<CanonicalCardKey, CardPresentation> presentations,
     required Set<CanonicalCardKey> activePlacementCardKeys,
-    required Set<CanonicalCardKey> introducedCardKeys,
-    Set<CanonicalCardKey> suspendedCardKeys = const {},
-    Set<CanonicalCardKey> buriedCardKeys = const {},
     Set<CanonicalCardKey> retiredCardKeys = const {},
     int? limit,
   }) {
@@ -77,9 +74,6 @@ class OfficialStudyBatchAssembler {
     final formalDue = computeFormalDueCardKeys(
       officialSchedulerDueCardKeys: schedulerDue,
       activePlacementCardKeys: activePlacementCardKeys,
-      introducedCardKeys: introducedCardKeys,
-      suspendedCardKeys: suspendedCardKeys,
-      buriedCardKeys: buriedCardKeys,
       retiredCardKeys: retiredCardKeys,
     );
     return assemble(

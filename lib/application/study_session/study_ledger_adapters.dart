@@ -127,10 +127,15 @@ void _mutateDueSnapshot(
   bool addSuspended = false,
 }) {
   OfficialFormalDuePerSource transform(OfficialFormalDuePerSource current) {
+    final removeDue = addBuried || addSuspended;
     return OfficialFormalDuePerSource(
       importId: current.importId,
       knowledge: current.knowledge,
-      schedulerDueCardIds: current.schedulerDueCardIds,
+      // P1: the formula no longer subtracts suspended/buried sets, so the
+      // fold mirrors what the scheduler did — the card stops being owed.
+      schedulerDueCardIds: removeDue
+          ? current.schedulerDueCardIds.difference({key.cardId})
+          : current.schedulerDueCardIds,
       activePlacementCardIds: current.activePlacementCardIds,
       introducedCardIds: current.introducedCardIds,
       suspendedCardIds: addSuspended

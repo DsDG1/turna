@@ -27,6 +27,7 @@ class OfficialAnkiProjectionIndexRow {
   const OfficialAnkiProjectionIndexRow({
     required this.cardId,
     required this.wordId,
+    required this.sourceId,
     required this.sectionId,
     required this.unitId,
     required this.lessonId,
@@ -35,6 +36,7 @@ class OfficialAnkiProjectionIndexRow {
 
   final int cardId;
   final String wordId;
+  final String sourceId;
   final String sectionId;
   final String unitId;
   final String lessonId;
@@ -373,6 +375,33 @@ class OfficialAnkiCourseProjectionStore {
         OfficialAnkiProjectionIndexRow(
           cardId: row.read<int>('card_id'),
           wordId: row.read<String>('word_id'),
+          sourceId: sourceId,
+          sectionId: row.read<String>('section_id'),
+          unitId: row.read<String>('unit_id'),
+          lessonId: row.read<String>('lesson_id'),
+          kind: row.read<String>('projection_kind'),
+        ),
+    ];
+  }
+
+  /// P0 lesson→cards read: the projection index rows of one lesson, in
+  /// stable card-id order. Empty for lessons this database never projected
+  /// (legacy imports, synthetic lessons) — never a substitute for those.
+  Future<List<OfficialAnkiProjectionIndexRow>> indexRowsForLesson(
+    String lessonId,
+  ) async {
+    final rows = await course.customSelect(
+      'SELECT source_id, card_id, word_id, section_id, unit_id, lesson_id, '
+      'projection_kind FROM official_anki_projection_index '
+      'WHERE lesson_id = ? ORDER BY card_id',
+      variables: [Variable(lessonId)],
+    ).get();
+    return [
+      for (final row in rows)
+        OfficialAnkiProjectionIndexRow(
+          cardId: row.read<int>('card_id'),
+          wordId: row.read<String>('word_id'),
+          sourceId: row.read<String>('source_id'),
           sectionId: row.read<String>('section_id'),
           unitId: row.read<String>('unit_id'),
           lessonId: row.read<String>('lesson_id'),

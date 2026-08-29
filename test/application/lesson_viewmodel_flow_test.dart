@@ -13,6 +13,8 @@ import 'package:turna/application/anki_official/contract/official_anki_dto.dart'
 import 'package:turna/application/anki_official/engine/official_anki_lesson_redo_flush.dart';
 import 'package:turna/application/anki_official/engine/official_anki_lesson_unlock_quota.dart';
 import 'package:turna/application/anki_official/introduction/card_introduction_store.dart';
+import 'package:turna/application/anki_official/engine/official_anki_lock_reconciler.dart';
+import 'package:turna/application/anki_official/projection/official_anki_lesson_card_index.dart';
 import 'package:turna/domain/anki/canonical_card_key.dart';
 import 'package:turna/domain/anki/study_models.dart';
 import 'package:turna/domain/review/recall_outcome.dart';
@@ -295,6 +297,49 @@ void _installAnkiStudyHost() {
     ),
   );
   addTearDown(() => AnkiStudySessionHost.debugOverride = null);
+}
+
+/// Stands in for the `official_anki_projection_index` rows a real publish
+/// writes: wordIds here match the interaction ids the lessons below use
+/// (`official-anki-src1-c{cardId}-p{kind}-{ordinal}`).
+void _installOfficialCardIndex(Map<String, List<int>> cardsByLesson) {
+  OfficialAnkiLessonCardIndex.debugResolver = (lessonId) async {
+    final cardIds = cardsByLesson[lessonId];
+    if (cardIds == null) return null;
+    return OfficialAnkiLessonCardIndex(
+      lessonId: lessonId,
+      sourceId: 'src1',
+      entries: [
+        for (final cardId in cardIds)
+          OfficialAnkiLessonCardEntry(
+            wordId: 'official-anki-src1-c$cardId',
+            cardId: cardId,
+          ),
+      ],
+    );
+  };
+  addTearDown(() => OfficialAnkiLessonCardIndex.debugResolver = null);
+}
+
+/// Records the completion unlocks; a redo must never unlock again (a user
+/// suspension of an already-taught card must survive the redo).
+class _RecordingLockReconciler extends OfficialAnkiLockReconciler {
+  final List<({String sourceId, List<int> cardIds})> unlocks = [];
+
+  @override
+  Future<void> unlockCards({
+    required String sourceId,
+    required List<int> cardIds,
+  }) async {
+    unlocks.add((sourceId: sourceId, cardIds: List.of(cardIds)));
+  }
+}
+
+_RecordingLockReconciler _installLockReconciler() {
+  final reconciler = _RecordingLockReconciler();
+  OfficialAnkiLockReconciler.debugOverride = reconciler;
+  addTearDown(() => OfficialAnkiLockReconciler.debugOverride = null);
+  return reconciler;
 }
 
 class _RecordingStudyLedger implements StudyLedger {
@@ -686,6 +731,10 @@ void main() {
 
     test('anki course unlocks only after the lesson completes', () async {
       _installAnkiStudyHost();
+      _installOfficialCardIndex({
+        'official-anki-src1-l0123456789ab-p1': [11, 12],
+      });
+      _installLockReconciler();
       CardIntroductionStore.debugOverride = CardIntroductionStore();
       addTearDown(() => CardIntroductionStore.debugOverride = null);
       final lesson = Lesson(
@@ -737,6 +786,10 @@ void main() {
     test('anki first pass ensures today new quota and does not flush Official',
         () async {
       _installAnkiStudyHost();
+      _installOfficialCardIndex({
+        'official-anki-src1-l0123456789ab-p3': [31, 32],
+      });
+      _installLockReconciler();
       CardIntroductionStore.debugOverride = CardIntroductionStore();
       addTearDown(() => CardIntroductionStore.debugOverride = null);
       final quota = _RecordingUnlockQuota();
@@ -791,6 +844,10 @@ void main() {
     test('anki lesson redo flushes official again/good and skips first pass',
         () async {
       _installAnkiStudyHost();
+      _installOfficialCardIndex({
+        'official-anki-src1-l0123456789ab-p2': [21, 22],
+      });
+      final lock = _installLockReconciler();
       CardIntroductionStore.debugOverride = CardIntroductionStore();
       addTearDown(() => CardIntroductionStore.debugOverride = null);
       final quota = _RecordingUnlockQuota();
@@ -838,6 +895,10 @@ void main() {
       await pumpEventQueue();
       expect(harness.vm.isComplete, isTrue);
       expect(flush.answers, isEmpty, reason: 'first pass must not write Official');
+      expect(lock.unlocks, hasLength(1));
+      expect(lock.unlocks.single.cardIds.toSet(), {21, 22},
+          reason: 'first completion lifts the scheduler lock on every '
+              'newly-taught card');
       await pumpEventQueue();
 
       harness.vm.reset();
@@ -854,6 +915,9 @@ void main() {
       final byId = {for (final a in flush.answers) a.cardId: a.rating};
       expect(byId[21], 'good');
       expect(byId[22], 'again');
+      expect(lock.unlocks, hasLength(1),
+          reason: 'a redo must not lift the lock again — a user suspension '
+              'of an already-taught card survives the redo');
       expect(quota.calls, hasLength(1),
           reason: 'redo must not stack new-card quota');
       expect(harness.vm.officialRedoFlushFailed, isFalse);
@@ -862,6 +926,10 @@ void main() {
     test('anki lesson redo flush failure is visible on the view model',
         () async {
       _installAnkiStudyHost();
+      _installOfficialCardIndex({
+        'official-anki-src1-l0123456789ab-p4': [41],
+      });
+      _installLockReconciler();
       CardIntroductionStore.debugOverride = CardIntroductionStore();
       addTearDown(() => CardIntroductionStore.debugOverride = null);
       final flush = _RecordingRedoFlush()..fail = true;

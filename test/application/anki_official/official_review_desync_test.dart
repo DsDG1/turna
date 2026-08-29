@@ -99,7 +99,6 @@ class _Harness {
       assembler: const OfficialStudyBatchAssembler(profileId: 'profile-test'),
       items: items,
       activePlacementCardKeys: {for (final id in [1, 2, 3]) _key(id)},
-      introducedCardKeys: {for (final id in [1, 2, 3]) _key(id)},
     );
     await queue.rebuildFromLiveQueue();
     final officialLedger = OfficialStudyLedger(

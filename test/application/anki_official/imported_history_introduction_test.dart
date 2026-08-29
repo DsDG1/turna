@@ -143,9 +143,10 @@ void main() {
     );
     expect(store.introducedCardIdsForSource('src-hist'), {1, 4},
         reason: 'adopt only folds rows it changed; card 2 was written '
-            'behind the store and reaches memory via hydration');
-    await store.hydrateFromLedger();
-    expect(store.introducedCardIdsForSource('src-hist'), {1, 2, 4});
+            'behind the store and only lives in the ledger');
+    // P1: the ledger is the durable truth — a direct read sees every
+    // introduced row regardless of what the in-memory cache holds.
+    expect(await store.introducedCardIdsFromLedger('src-hist'), {1, 2, 4});
   });
 
   test('introducer pages the prop:reps>=1 search and adopts per source',

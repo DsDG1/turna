@@ -49,7 +49,6 @@ OfficialFormalReviewProductionLoader _loader(
       allowedCardIds: allowedCardIds,
       profileId: 'profile-test',
     ),
-    introducedCardIds: (sourceId) => cards,
     activePlacementCardIds: (sourceId) => cards,
     profileId: 'profile-test',
   );
@@ -153,7 +152,6 @@ void main() {
       assembler: const OfficialStudyBatchAssembler(profileId: 'profile-test'),
       items: [],
       activePlacementCardKeys: {for (final id in const [1, 2, 3]) key(id)},
-      introducedCardKeys: {for (final id in const [1, 2, 3]) key(id)},
     );
 
     // Card 2 cannot render. The first rebuild collects the failure while

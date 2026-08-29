@@ -63,6 +63,8 @@ void main() {
     CardIntroductionStore.debugOverride = intro;
     addTearDown(() => CardIntroductionStore.debugOverride = null);
 
+    // P1: card 11 is not introduced, so the scheduler lock keeps it out
+    // of the queue entirely — the queue is the gate.
     final queue = OfficialReviewQueue(
       sessionId: 's-due',
       queueEpoch: 1,
@@ -71,7 +73,6 @@ void main() {
       reviewCount: 1,
       cards: [
         _card(10, deckId: 7),
-        _card(11, deckId: 7),
         _card(99, deckId: 7), // not in this source
       ],
     );
@@ -101,10 +102,9 @@ void main() {
     expect(notifications, 1,
         reason: 'one logical refresh = exactly one notification');
     expect(repo.generation, generationBefore + 1);
-    expect(repo.schedulerDueCardIdsFor('src-due'), {10, 11});
+    expect(repo.schedulerDueCardIdsFor('src-due'), {10});
     expect(repo.activePlacementCardIdsFor('src-due'), {10, 11, 12});
 
-    // Only 10 introduced → formal due must be {10}, not count approx 2.
     expect(repo.formalDueCountForImport('src-due'), 1);
     expect(
       repo.formalDueCardKeysForImport('src-due').map((k) => k.cardId).toSet(),
@@ -231,16 +231,17 @@ void main() {
       dao: migrations,
       sources: sources,
       setCurrentDeck: (deckId) async {},
+      // P1: the suspended (20) and buried (30) cards never appear in the
+      // scheduler output; the searches still report them as informational
+      // sets. 40 is retired evidence and subtracts.
       getReviewQueue: ({int fetchLimit = 500}) async => OfficialReviewQueue(
         sessionId: 's-sub',
         queueEpoch: 1,
         learningCount: 0,
         newCount: 0,
-        reviewCount: 4,
+        reviewCount: 2,
         cards: [
           _card(10, deckId: 5),
-          _card(20, deckId: 5),
-          _card(30, deckId: 5),
           _card(40, deckId: 5),
         ],
       ),
@@ -262,7 +263,8 @@ void main() {
     expect(repo.buriedCardIdsFor('src-sub'), {30});
     expect(repo.retiredCardIdsFor('src-sub'), {40});
 
-    // Formal due must only include card 10 (20 suspended, 30 buried, 40 retired).
+    // Formal due is schedulerDue ∩ placement − retired: card 40 drops,
+    // 20/30 were never owed in the first place.
     expect(repo.formalDueCountForImport('src-sub'), 1);
     expect(
       repo.formalDueCardKeysForImport('src-sub').map((k) => k.cardId).toSet(),

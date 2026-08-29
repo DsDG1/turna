@@ -207,10 +207,11 @@ void main() {
       ),
       basedOnGeneration: repo.generation,
     );
-    // Dual-source stores: raw official totals live per-import;
-    // officialDue itself is derived (introduced-only).
+    // Dual-source stores: raw official totals live per-import; officialDue
+    // is derived from the scheduler's own visibility (P1: every collected
+    // due card is unlocked by construction — raw and formal agree).
     expect(repo.snapshot.rawDueByImport['src-x'], 7);
-    expect(repo.snapshot.introducedOfficialDue, 0);
+    expect(repo.snapshot.introducedOfficialDue, 7);
     expect(OfficialAnkiReviewPage.routeName, '/official-anki/review');
     expect(
       OfficialAnkiFeatureFlags.fromEnvironment().scheduler,

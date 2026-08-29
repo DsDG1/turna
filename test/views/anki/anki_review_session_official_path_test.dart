@@ -113,7 +113,6 @@ void main() {
           deckId: 1,
           cardIds: {1, 2},
         ),
-        introducedCardIds: (_) => {1, 2},
         activePlacementCardIds: (_) => {1, 2},
         presentationsForCards: ({
           required String sourceId,
@@ -197,7 +196,6 @@ void main() {
           deckId: 1,
           cardIds: {1, 2},
         ),
-        introducedCardIds: (_) => {1, 2},
         activePlacementCardIds: (_) => {1, 2},
       );
 
@@ -252,7 +250,6 @@ void main() {
           deckId: 1,
           cardIds: {1, 2},
         ),
-        introducedCardIds: (_) => {1, 2},
         activePlacementCardIds: (_) => {1, 2},
         // presentationsForCards intentionally omitted.
         sessionFactory: ({
@@ -311,7 +308,6 @@ void main() {
           deckId: 1,
           cardIds: {1, 2},
         ),
-        introducedCardIds: (_) => {1, 2},
         activePlacementCardIds: (_) => {1, 2},
         sessionFactory: ({
           required engine,
@@ -378,7 +374,6 @@ void main() {
           deckId: 1,
           cardIds: {1, 2, 3},
         ),
-        introducedCardIds: (_) => {1, 2, 3},
         activePlacementCardIds: (_) => {1, 2, 3},
         sessionFactory: ({
           required engine,
@@ -460,7 +455,6 @@ void main() {
           deckId: 1,
           cardIds: {1, 2},
         ),
-        introducedCardIds: (_) => {1, 2},
         activePlacementCardIds: (_) => {1, 2},
         sessionFactory: ({
           required engine,
@@ -502,6 +496,12 @@ void main() {
 
       final engine = FakeOfficialAnkiEngine();
       engine.seedPackage(packagePath: 'new-only.apkg', notes: 2, cards: 2);
+      // P1: "not introduced yet" is a scheduler suspension — the queue is
+      // empty and that is what the empty state reflects.
+      await engine.buryOrSuspendCards(
+        action: OfficialBuryOrSuspendAction.suspend,
+        cardIds: const [1, 2],
+      );
 
       AnkiReviewSessionPage.productionLoader =
           OfficialFormalReviewProductionLoader(
@@ -513,7 +513,6 @@ void main() {
           deckId: 1,
           cardIds: {1, 2},
         ),
-        introducedCardIds: (_) => {},
         activePlacementCardIds: (_) => {1, 2},
         sessionFactory: ({
           required engine,

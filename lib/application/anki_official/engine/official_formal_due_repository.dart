@@ -22,9 +22,11 @@ enum FormalDueKnowledge {
   unavailable,
 }
 
-/// The six formal-due sets for one Official source (plan 34 §R3):
-/// formalDue = schedulerDue ∩ activePlacement ∩ introduced
-///             − suspended − buried − retired.
+/// The six formal-due sets for one Official source (plan 34 §R3), kept as
+/// collected diagnostics. P1 collapsed the membership formula to
+/// `schedulerDue ∩ activePlacement − retired`: the scheduler itself already
+/// excludes locked (unintroduced), suspended, and buried cards, so those
+/// sets are informational, not gating.
 ///
 /// Instances stored inside an [OfficialFormalDueSnapshot] are frozen: every
 /// set is unmodifiable. Mutations go through
@@ -68,9 +70,6 @@ class OfficialFormalDuePerSource {
       sourceId: importId,
       officialSchedulerDueCardIds: schedulerDueCardIds,
       activePlacementCardIds: activePlacementCardIds,
-      introducedCardIds: introducedCardIds,
-      suspendedCardIds: suspendedCardIds,
-      buriedCardIds: buriedCardIds,
       retiredCardIds: retiredCardIds,
     );
   }

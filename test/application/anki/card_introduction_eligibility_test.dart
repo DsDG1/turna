@@ -59,21 +59,6 @@ void main() {
         isFalse,
       );
     });
-
-    test('formal due is 0 when nothing is introduced', () {
-      expect(
-        eligibility.formalDueCount(schedulerDue: 20, introducedCount: 0),
-        0,
-      );
-      expect(
-        eligibility.formalDueCount(schedulerDue: 20, introducedCount: 3),
-        3,
-      );
-      expect(
-        eligibility.formalDueCount(schedulerDue: 2, introducedCount: 8),
-        2,
-      );
-    });
   });
 
   group('official session filter', () {
@@ -103,7 +88,10 @@ void main() {
   });
 
   group('official home due display', () {
-    test('scheduler due of 20 with 0 introduced displays 0', () {
+    test('scheduler due outside every placement is not formal due', () {
+      // Transitional collect: the scheduler still reports cards that no
+      // active placement owns (e.g. pre-reconcile) — placement scopes them
+      // out of formal due while rawDue keeps the hint.
       _commitSource(
         'src',
         schedulerDue: {for (var i = 1; i <= 20; i++) i},
@@ -115,29 +103,36 @@ void main() {
       expect(repo.snapshot.unintroducedOfficialDue, 20);
     });
 
-    test('scheduler due of 20 with 3 introduced displays 3', () async {
-      final store = CardIntroductionStore.debugOverride!;
-      await store.markFromLesson(
-        wordId: 'official-anki-src-c1',
-        lessonId: 'official-anki-src-l0123456789ab-p1',
-      );
-      await store.markFromLesson(
-        wordId: 'official-anki-src-c2',
-        lessonId: 'official-anki-src-l0123456789ab-p1',
-      );
-      await store.markFromLesson(
-        wordId: 'official-anki-src-c3',
-        lessonId: 'official-anki-src-l0123456789ab-p1',
-      );
+    test('a locked source reports no scheduler due at all', () {
+      // P1: unintroduced cards are scheduler-suspended, so the collected
+      // schedulerDue set is empty — that is why the badge reads 0, not a
+      // Dart-side introduced subtraction. rawDue would equally be 0; the
+      // value here models a not-yet-reconciled transitional collect.
       _commitSource(
         'src',
-        schedulerDue: {for (var i = 1; i <= 20; i++) i},
+        schedulerDue: const {},
         placement: {for (var i = 1; i <= 20; i++) i},
-        rawDue: 20,
+        rawDue: 0,
+      );
+      final repo = OfficialFormalDueRepository.instance;
+      expect(repo.formalOfficialDueForImport('src'), 0);
+      expect(repo.snapshot.introducedOfficialDue, 0);
+      expect(repo.snapshot.unintroducedOfficialDue, 0);
+    });
+
+    test('post-lock scheduler due displays verbatim', () {
+      // Three cards unlocked by lesson completion: the scheduler reports
+      // exactly those as due, and the snapshot shows them without any
+      // introduced-set arithmetic.
+      _commitSource(
+        'src',
+        schedulerDue: const {1, 2, 3},
+        placement: {for (var i = 1; i <= 20; i++) i},
+        rawDue: 3,
       );
       final repo = OfficialFormalDueRepository.instance;
       expect(repo.formalOfficialDueForImport('src'), 3);
-      expect(repo.snapshot.unintroducedOfficialDue, 17);
+      expect(repo.snapshot.unintroducedOfficialDue, 0);
     });
   });
 }

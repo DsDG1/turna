@@ -56,7 +56,8 @@ void main() {
       );
 
   group('OfficialStudyBatchAssembler', () {
-    test('assembles only formal-due ∩ presentation cards', () {
+    test('assembles only scheduler-due ∩ placement ∩ presentation cards',
+        () {
       const assembler = OfficialStudyBatchAssembler();
       final items = assembler.assembleFromEligibility(
         sourceId: sourceId,
@@ -68,14 +69,16 @@ void main() {
           key(4): flip(4),
         },
         activePlacementCardKeys: {key(1), key(2), key(3), key(4)},
-        introducedCardKeys: {key(1), key(3), key(4)},
-        buriedCardKeys: {key(4)},
+        retiredCardKeys: {key(4)},
       );
 
-      expect(items.map((i) => i.cardKey.cardId), [1]);
-      expect(items.single.mode, StudyMode.review);
-      expect(items.single.ledgerOwner, StudyLedgerOwner.officialAnki);
-      expect(items.single.capabilities.writesLedger, isTrue);
+      expect(items.map((i) => i.cardKey.cardId), [1, 2],
+          reason: 'P1: the scheduler already excludes locked, suspended and '
+              'buried cards, so the queue itself is the gate — placement '
+              'scopes the source and retired drops uninstall remnants');
+      expect(items.first.mode, StudyMode.review);
+      expect(items.first.ledgerOwner, StudyLedgerOwner.officialAnki);
+      expect(items.first.capabilities.writesLedger, isTrue);
     });
 
     test('FormalReviewLauncher builds Official batch for shared host', () async {
@@ -99,7 +102,6 @@ void main() {
           key(2): flip(2),
         },
         activePlacementCardKeys: {key(1), key(2)},
-        introducedCardKeys: {key(1), key(2)},
       );
 
       expect(batch.items, isNotEmpty);
@@ -134,7 +136,6 @@ void main() {
           key(2): flip(2),
         },
         activePlacementCardKeys: {key(1), key(2)},
-        introducedCardKeys: {key(1), key(2)},
       );
       expect(batch.items.length, 2);
 

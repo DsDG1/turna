@@ -53,8 +53,8 @@ void main() {
   });
 
   test(
-      'six-set formula: due ∩ placement ∩ introduced − suspended − buried '
-      '− retired', () {
+      'P1 formula: schedulerDue ∩ placement − retired; the scheduler '
+      'already excludes locked/suspended/buried', () {
     final per = _per(
       'src-a',
       schedulerDue: {1, 2, 3, 4, 5, 6},
@@ -64,8 +64,10 @@ void main() {
       buried: {3},
       retired: {4},
     );
-    expect(per.formalDueCardKeys.map((k) => k.cardId).toSet(), {1});
-    expect(per.formalDueCount, 1);
+    // A real collect never returns suspended/buried cards inside
+    // schedulerDue — those sets are informational diagnostics now.
+    expect(per.formalDueCardKeys.map((k) => k.cardId).toSet(), {1, 2, 3, 5});
+    expect(per.formalDueCount, 4);
   });
 
   test(
@@ -138,12 +140,14 @@ void main() {
       basedOnGeneration: repo.generation,
     );
 
+    // The production bury fold mirrors the scheduler: the card leaves
+    // schedulerDue and lands in the informational buried set.
     final result = repo.mutateSource(
       'a',
       transform: (current) => OfficialFormalDuePerSource(
         importId: current.importId,
         knowledge: current.knowledge,
-        schedulerDueCardIds: current.schedulerDueCardIds,
+        schedulerDueCardIds: current.schedulerDueCardIds.difference(const {1}),
         activePlacementCardIds: current.activePlacementCardIds,
         introducedCardIds: current.introducedCardIds,
         suspendedCardIds: current.suspendedCardIds,
@@ -182,7 +186,7 @@ void main() {
         'src-a': _per('src-a',
             schedulerDue: {1, 2}, placement: {1, 2}, introduced: {1, 2}),
         'src-b': _per('src-b',
-            schedulerDue: {1, 2},
+            schedulerDue: const {},
             placement: {1},
             introduced: {1},
             suspended: {1}),
@@ -191,7 +195,8 @@ void main() {
     );
     expect(repo.formalDueCountForImport('src-a'), 2);
     expect(repo.formalDueCountForImport('src-b'), 0,
-        reason: 'src-b suspended its only introduced card');
+        reason: 'the scheduler no longer owes the suspended card, so its '
+            'collected schedulerDue is empty');
     expect(repo.officialImportIds, {'src-a', 'src-b'});
   });
 
