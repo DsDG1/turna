@@ -56,6 +56,9 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
   int? _deckId;
   Map<int, String> _deckOptions = const {};
   String? _officialUnavailableReason;
+  String? _loadError;
+  final OfficialAnkiPreviewCache _previewCache = OfficialAnkiPreviewCache();
+  OfficialAnkiSourceAwareBrowser? _browser;
 
   @override
   void initState() {
@@ -71,17 +74,45 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
     super.dispose();
   }
 
+  /// Doc 38 P4-A: filter chips / deck dropdown / tag field share the search
+  /// box's 250ms debounce so a quick sequence of taps does not fire one full
+  /// search per tap.
+  void _scheduleLoad() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 250), _load);
+  }
+
   Future<void> _load() async {
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _loadError = null;
+    });
+    try {
+      await _loadInner();
+    } catch (error) {
+      // A thrown search used to leave `_loading` true forever (spinner
+      // stuck, no retry). Surface the failure and keep the last rows.
+      if (!mounted) return;
+      setState(() {
+        _loadError = error.toString();
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _loadInner() async {
     // Doc 34 W7: Official-first sources are browsed from the Official catalog
     // and must not depend on Legacy NoteStore rows.
     final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
     if (catalog != null) {
       final sources = OfficialAnkiSourceDao(catalog);
-      final browser = OfficialAnkiSourceAwareBrowser(
+      // Doc 38 P4-A: one long-lived browser (and preview LRU) for the page
+      // so re-searches and row rebuilds hit the cache instead of the FFI.
+      final browser = _browser ??= OfficialAnkiSourceAwareBrowser(
         sources: sources,
         legacyNotes: _dao,
         engine: OfficialAnkiCompositionRoot.engine,
+        previewCache: _previewCache,
       );
       final source = sources.findById(widget.importId);
       if (source != null) {
@@ -144,14 +175,8 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
   }
 
   Future<void> _toggleOfficial(SourceAwareBrowserCard row) async {
-    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
-    final engine = OfficialAnkiCompositionRoot.engine;
-    if (catalog == null || engine == null) return;
-    final browser = OfficialAnkiSourceAwareBrowser(
-      sources: OfficialAnkiSourceDao(catalog),
-      legacyNotes: _dao,
-      engine: engine,
-    );
+    final browser = _browser;
+    if (browser == null) return;
     await browser.setOfficialSuspended(
       sourceId: row.sourceId,
       cardId: row.cardId,
@@ -321,7 +346,7 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
                   selected: _marked == true,
                   onSelected: (value) {
                     setState(() => _marked = value ? true : null);
-                    _load();
+                    _scheduleLoad();
                   },
                 ),
                 const SizedBox(width: 8),
@@ -330,7 +355,7 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
                   selected: _buried == true,
                   onSelected: (value) {
                     setState(() => _buried = value ? true : null);
-                    _load();
+                    _scheduleLoad();
                   },
                 ),
                 const SizedBox(width: 8),
@@ -339,7 +364,7 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
                   selected: _suspended == true,
                   onSelected: (value) {
                     setState(() => _suspended = value ? true : null);
-                    _load();
+                    _scheduleLoad();
                   },
                 ),
                 const SizedBox(width: 8),
@@ -355,7 +380,7 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
                     selected: _flag == entry.$1,
                     onSelected: (value) {
                       setState(() => _flag = value ? entry.$1 : null);
-                      _load();
+                      _scheduleLoad();
                     },
                   ),
                   const SizedBox(width: 8),
@@ -388,7 +413,7 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
                       ],
                       onChanged: (value) {
                         setState(() => _deckId = value);
-                        _load();
+                        _scheduleLoad();
                       },
                     ),
                   ),
@@ -409,7 +434,22 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
-                : _officialUnavailableReason != null
+                : _loadError != null
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text('卡片浏览加载失败\n$_loadError',
+                                textAlign: TextAlign.center),
+                            const SizedBox(height: 12),
+                            FilledButton(
+                              onPressed: _load,
+                              child: const Text('重试'),
+                            ),
+                          ],
+                        ),
+                      )
+                    : _officialUnavailableReason != null
                     ? Center(
                         child: Text(
                           'Official 卡片浏览暂不可用\n$_officialUnavailableReason',
@@ -428,10 +468,9 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
                                   return Card(
                                     child: ListTile(
                                       leading: _FlagIcon(flag: row.flag),
-                                      title: Text(
-                                        row.frontPreview,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
+                                      title: _OfficialPreviewText(
+                                        browser: _browser,
+                                        row: row,
                                       ),
                                       subtitle: Text(
                                         'Official #${row.cardId} · note #${row.noteId}'
@@ -565,6 +604,60 @@ class _DiagnosticRow extends StatelessWidget {
           Expanded(child: SelectableText(value)),
         ],
       ),
+    );
+  }
+}
+
+/// Doc 38 P4-A: the list row renders lazily — an empty preview triggers one
+/// `previewFor` load (single renderCard FFI per card, LRU-cached); cached
+/// rows paint with zero FFI. Detail/flip views keep full renderCard.
+class _OfficialPreviewText extends StatefulWidget {
+  const _OfficialPreviewText({required this.browser, required this.row});
+
+  final OfficialAnkiSourceAwareBrowser? browser;
+  final SourceAwareBrowserCard row;
+
+  @override
+  State<_OfficialPreviewText> createState() => _OfficialPreviewTextState();
+}
+
+class _OfficialPreviewTextState extends State<_OfficialPreviewText> {
+  String _front = '';
+  String _back = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _front = widget.row.frontPreview;
+    _back = widget.row.backPreview;
+    if (_front.isEmpty) {
+      _load();
+    }
+  }
+
+  Future<void> _load() async {
+    final browser = widget.browser;
+    if (browser == null) return;
+    final preview = await browser.previewFor(widget.row.cardId);
+    if (!mounted) return;
+    if (preview.front == _front && preview.back == _back) return;
+    setState(() {
+      _front = preview.front;
+      _back = preview.back;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_front.isEmpty) {
+      return Text('card #${widget.row.cardId}',
+          maxLines: 2, overflow: TextOverflow.ellipsis);
+    }
+    final back = _back.isEmpty ? '' : '  ·  $_back';
+    return Text(
+      '$_front$back',
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
     );
   }
 }

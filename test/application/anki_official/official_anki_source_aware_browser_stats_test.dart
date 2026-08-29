@@ -116,7 +116,15 @@ void main() {
       importOrSourceId: 'src-official',
       ownerHint: AnkiEngineKind.official,
     );
-    expect(rows.map((r) => r.frontPreview).toSet(), {'Q1', 'Q2'});
+    // Doc 38 P4-A: search no longer pre-renders — entering a 1000-card
+    // browse costs zero renderCard FFI; previews load per visible row.
+    expect(engine.renderCount, 0);
+    expect(rows.map((r) => r.frontPreview).toSet(), {''});
+    expect((await browser.previewFor(1)).front, 'Q1');
+    expect((await browser.previewFor(2)).front, 'Q2');
+    expect(engine.renderCount, 2, reason: 'one FFI per uncached card');
+    expect((await browser.previewFor(1)).front, 'Q1');
+    expect(engine.renderCount, 2, reason: 'cache hit costs zero FFI');
 
     await browser.setOfficialSuspended(
       sourceId: 'src-official',

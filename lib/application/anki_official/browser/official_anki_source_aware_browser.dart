@@ -44,6 +44,33 @@ class SourceAwareBrowserCard {
   final List<String> tags;
 }
 
+/// LRU cache of stripped render previews (doc 38 P4-A). A visible-row
+/// miss costs one renderCard FFI round-trip; re-visiting a cached row costs
+/// zero. Capacity 200 bounds memory while covering a generous viewport plus
+/// scroll-back.
+class OfficialAnkiPreviewCache {
+  OfficialAnkiPreviewCache({this.capacity = 200});
+
+  final int capacity;
+  final _entries = <int, ({String front, String back})>{};
+
+  ({String front, String back})? get(int cardId) {
+    final hit = _entries.remove(cardId);
+    if (hit == null) return null;
+    _entries[cardId] = hit;
+    return hit;
+  }
+
+  void put(int cardId, ({String front, String back}) value) {
+    _entries
+      ..remove(cardId)
+      ..[cardId] = value;
+    while (_entries.length > capacity) {
+      _entries.remove(_entries.keys.first);
+    }
+  }
+}
+
 class OfficialBrowserFilter {
   const OfficialBrowserFilter({
     this.query = '',
@@ -84,12 +111,13 @@ class OfficialBrowserSearchResult {
 /// read-only via [AnkiNoteDao]. Pure Official-first sources never require
 /// NoteStore rows.
 class OfficialAnkiSourceAwareBrowser {
-  const OfficialAnkiSourceAwareBrowser({
+  OfficialAnkiSourceAwareBrowser({
     required this.sources,
     required this.legacyNotes,
     this.router = const OfficialAnkiProductionRouter(),
     this.engine,
-  });
+    OfficialAnkiPreviewCache? previewCache,
+  }) : previewCache = previewCache ?? OfficialAnkiPreviewCache();
 
   final OfficialAnkiSourceDao sources;
   final AnkiNoteDao legacyNotes;
@@ -98,6 +126,10 @@ class OfficialAnkiSourceAwareBrowser {
   /// When set, Official search/suspend go through the Collection. Catalog
   /// rows still bound the source; they are not a substitute for search.
   final OfficialAnkiEngine? engine;
+
+  /// Lazy render previews (doc 38 P4-A): search no longer pre-renders every
+  /// row; the UI asks per visible card and this LRU absorbs re-rows.
+  final OfficialAnkiPreviewCache previewCache;
 
   Future<List<SourceAwareBrowserCard>> search({
     required String importOrSourceId,
@@ -223,21 +255,7 @@ class OfficialAnkiSourceAwareBrowser {
       final catalog = byId[id];
       final live = liveById[id];
       if (live == null || !_matchesLiveFilter(live, filter)) continue;
-      var front = '';
-      var back = '';
-      try {
-        final rendered = await engine.renderCard(cardId: id, browser: true);
-        front = stripHtml(rendered.questionDisplayHtml).trim();
-        if (front.isEmpty) {
-          front = stripHtml(rendered.questionHtml).trim();
-        }
-        back = stripHtml(rendered.answerDisplayHtml).trim();
-        if (back.isEmpty) {
-          back = stripHtml(rendered.answerHtml).trim();
-        }
-      } catch (_) {
-        front = 'card #$id';
-      }
+      final cached = previewCache.get(id);
       out.add(
         SourceAwareBrowserCard(
           sourceId: resolvedId,
@@ -247,8 +265,8 @@ class OfficialAnkiSourceAwareBrowser {
           owner: AnkiEngineKind.official,
           noteGuid: catalog?.noteGuid ?? live.noteGuid,
           templateOrd: catalog?.templateOrd ?? live.templateOrd,
-          frontPreview: front.isEmpty ? 'card #$id' : front,
-          backPreview: back,
+          frontPreview: cached?.front ?? '',
+          backPreview: cached?.back ?? '',
           suspended: live.suspended,
           buried: live.buried,
           flag: live.flag,
@@ -261,6 +279,35 @@ class OfficialAnkiSourceAwareBrowser {
       rows: out,
       availability: OfficialBrowserAvailability.available,
     );
+  }
+
+  /// Stripped front/back preview for one card (doc 38 P4-A). Rendered on
+  /// demand for visible rows only; the LRU cache absorbs repeat builds.
+  /// Full-fidelity rendering (flip/detail views) still goes through
+  /// `renderCard` directly and is unaffected.
+  Future<({String front, String back})> previewFor(int cardId) async {
+    final cached = previewCache.get(cardId);
+    if (cached != null) return cached;
+    final engine = this.engine;
+    if (engine == null) {
+      return (front: 'card #$cardId', back: '');
+    }
+    try {
+      final rendered = await engine.renderCard(cardId: cardId, browser: true);
+      var front = stripHtml(rendered.questionDisplayHtml).trim();
+      if (front.isEmpty) {
+        front = stripHtml(rendered.questionHtml).trim();
+      }
+      var back = stripHtml(rendered.answerDisplayHtml).trim();
+      if (back.isEmpty) {
+        back = stripHtml(rendered.answerHtml).trim();
+      }
+      final value = (front: front.isEmpty ? 'card #$cardId' : front, back: back);
+      previewCache.put(cardId, value);
+      return value;
+    } catch (_) {
+      return (front: 'card #$cardId', back: '');
+    }
   }
 
   /// Doc 38 P2: a mutating op during pagination (background answer, deck
