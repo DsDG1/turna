@@ -53,7 +53,6 @@ use crate::engine::OP_RENDER_CARD;
 use crate::engine::OP_SCHEDULE_CARDS_AS_NEW;
 use crate::engine::OP_ANSWER_AHEAD_CARDS;
 use crate::engine::OP_ENSURE_TODAY_NEW_QUOTA;
-use crate::engine::OP_SEARCH_CARDS;
 use crate::engine::OP_SET_CURRENT_DECK;
 use crate::engine::OP_STATS_FOR_CARDS_BATCH;
 use crate::engine::OP_UNDO;
@@ -106,12 +105,6 @@ struct RenderRequest {
     browser: bool,
     #[serde(default = "default_true", alias = "include_av_tags")]
     include_av_tags: bool,
-}
-
-#[derive(Debug, Deserialize)]
-struct SearchRequest {
-    #[serde(default)]
-    search: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -221,7 +214,6 @@ pub fn dispatch_op(handle: u64, operation: u32, request: &[u8]) -> Result<Value,
         OP_LATEST_PROGRESS => latest_progress(handle),
         OP_CANCEL_OPERATION => request_cancel(handle),
         OP_LIST_DECK_TREE => list_deck_tree(handle),
-        OP_SEARCH_CARDS => search_cards(handle, request),
         OP_RENDER_CARD => render_card(handle, request),
         OP_COMPARE_TYPED_ANSWER => crate::typed::compare_typed_answer(handle, request),
         OP_EXTRACT_CLOZE_FOR_TYPING => crate::typed::extract_cloze_op(handle, request),
@@ -390,55 +382,6 @@ fn log_ids(notes: &[anki::import_export::LogNote]) -> Vec<i64> {
         .iter()
         .filter_map(|note| note.id.as_ref().map(|id| id.nid))
         .collect()
-}
-
-fn search_cards(handle: u64, request: &[u8]) -> Result<Value, i32> {
-    let parsed: SearchRequest = if request.is_empty() {
-        SearchRequest {
-            search: String::new(),
-        }
-    } else {
-        serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?
-    };
-    let slot = slot(handle)?;
-    let mut engine = require_open(&slot)?;
-    let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
-    let ids = col
-        .search_cards(parsed.search.as_str(), SortMode::NoOrder)
-        .map_err(map_anki_error)?;
-    let note_ids = col
-        .search_notes("", SortMode::NoOrder)
-        .map_err(map_anki_error)?;
-
-    let mut cards = Vec::with_capacity(ids.len());
-    for id in ids {
-        let card = col
-            .storage
-            .get_card(id)
-            .map_err(map_anki_error)?
-            .ok_or(STATUS_CARD_NOT_FOUND)?;
-        cards.push(json!({
-            "card_id": card.id().0,
-            "note_id": card.note_id().0,
-            "deck_id": card.deck_id().0,
-            "template_ordinal": card.template_idx(),
-            "queue": queue_name(card.queue_number()),
-        }));
-    }
-
-    let mut notes = Vec::with_capacity(note_ids.len());
-    for nid in note_ids {
-        let note = col
-            .storage
-            .get_note(nid)
-            .map_err(map_anki_error)?
-            .ok_or(STATUS_CARD_NOT_FOUND)?;
-        notes.push(json!({
-            "note_id": nid.0,
-            "fields": note.fields(),
-        }));
-    }
-    Ok(json!({ "cards": cards, "notes": notes }))
 }
 
 fn render_card(handle: u64, request: &[u8]) -> Result<Value, i32> {
@@ -1527,6 +1470,42 @@ mod tests {
         dispatch(handle, op, &serde_json::to_vec(&body).unwrap())
     }
 
+    /// SEARCH_CARDS (op 9) is retired (doc 38 P1-E); tests page through
+    /// SEARCH_CARDS_PAGE instead.
+    fn all_card_ids(handle: u64) -> Vec<i64> {
+        let mut ids = Vec::new();
+        let mut token: Option<String> = None;
+        loop {
+            let mut body = json!({"search": "", "page_size": 1000});
+            if let Some(t) = token.as_deref() {
+                body["page_token"] = json!(t);
+            }
+            let page = call(handle, crate::engine::OP_SEARCH_CARDS_PAGE, body).unwrap();
+            ids.extend(
+                page["cardIds"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|v| v.as_i64().unwrap()),
+            );
+            token = page["nextPageToken"].as_str().map(|s| s.to_string());
+            if token.is_none() {
+                break;
+            }
+        }
+        ids
+    }
+
+    fn card_queue_raw(handle: u64, card_id: i64) -> i64 {
+        let descriptors = call(
+            handle,
+            crate::engine::OP_GET_CARD_DESCRIPTORS_BATCH,
+            json!({"card_ids": [card_id]}),
+        )
+        .unwrap();
+        descriptors["cards"][0]["queue"].as_i64().unwrap()
+    }
+
     fn import(handle: u64, file: &Path, with_scheduling: bool) -> Result<Value, i32> {
         call(
             handle,
@@ -1565,9 +1544,16 @@ mod tests {
             );
             assert!(!imported["new_note_ids"].as_array().unwrap().is_empty());
 
-            let searched = call(handle, OP_SEARCH_CARDS, json!({"search": ""})).unwrap();
             if file.file_name().unwrap() == "01-basic-unicode.apkg" {
-                let fields = searched["notes"][0]["fields"].as_array().unwrap();
+                let schemas = call(
+                    handle,
+                    crate::engine::OP_GET_PROJECTION_SCHEMAS,
+                    json!({"includeSamples": true, "sampleLimit": 3}),
+                )
+                .unwrap();
+                let fields = schemas["schemas"][0]["samples"][0]["fields"]
+                    .as_array()
+                    .unwrap();
                 let joined = fields
                     .iter()
                     .map(|f| f.as_str().unwrap())
@@ -1624,10 +1610,8 @@ mod tests {
         for (pkg, expected_name) in cases {
             let (root, handle, _) = temp_open();
             import(handle, &package_path(pkg), false).unwrap();
-            let searched = call(handle, OP_SEARCH_CARDS, json!({"search": ""})).unwrap();
             let mut rendered = Vec::new();
-            for card in searched["cards"].as_array().unwrap() {
-                let card_id = card["card_id"].as_i64().unwrap();
+            for card_id in all_card_ids(handle) {
                 let one = call(
                     handle,
                     OP_RENDER_CARD,
@@ -1720,14 +1704,7 @@ mod tests {
         assert!(!labels["good"].as_str().unwrap().is_empty());
         assert!(!labels["easy"].as_str().unwrap().is_empty());
 
-        let before = call(handle, OP_SEARCH_CARDS, json!({"search": ""})).unwrap();
-        let before_card = before["cards"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .find(|c| c["card_id"] == card_id)
-            .unwrap()
-            .clone();
+        let before_queue = card_queue_raw(handle, card_id);
         let answered = call(
             handle,
             OP_ANSWER_CARD,
@@ -1741,7 +1718,7 @@ mod tests {
             }),
         )
         .unwrap();
-        assert_ne!(answered["queue"], before_card["queue"]);
+        assert_ne!(card_queue_raw(handle, card_id), before_queue);
         assert!(answered["revlogCount"].as_u64().unwrap() >= 1);
         assert_eq!(answered["millisecondsTaken"], 8421);
 
@@ -1759,15 +1736,7 @@ mod tests {
         );
 
         call(handle, OP_UNDO, json!({})).unwrap();
-        let after_undo = call(handle, OP_SEARCH_CARDS, json!({"search": ""})).unwrap();
-        let undone = after_undo["cards"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .find(|c| c["card_id"] == card_id)
-            .unwrap();
-        assert_eq!(undone["queue"], before_card["queue"]);
-        assert_eq!(undone["due"], before_card["due"]);
+        assert_eq!(card_queue_raw(handle, card_id), before_queue);
 
         let queue2 = call(handle, OP_GET_REVIEW_QUEUE, json!({"fetchLimit": 10})).unwrap();
         let token2 = queue2["cards"][0]["answerToken"].as_str().unwrap();
@@ -1783,25 +1752,11 @@ mod tests {
             }),
         )
         .unwrap();
-        let persisted_queue = call(handle, OP_SEARCH_CARDS, json!({"search": ""})).unwrap();
-        let persisted = persisted_queue["cards"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .find(|c| c["card_id"] == card2)
-            .unwrap()
-            .clone();
+        let persisted_queue = card_queue_raw(handle, card2);
 
         close_collection(handle).unwrap();
         open_collection(handle, &open_body).unwrap();
-        let reopened = call(handle, OP_SEARCH_CARDS, json!({"search": ""})).unwrap();
-        let again = reopened["cards"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .find(|c| c["card_id"] == card2)
-            .unwrap();
-        assert_eq!(again["queue"], persisted["queue"]);
+        assert_eq!(card_queue_raw(handle, card2), persisted_queue);
 
         assert_eq!(
             call(
@@ -1877,8 +1832,7 @@ mod tests {
             .map(|v| v.as_i64().unwrap())
             .collect();
         assert!(!note_ids.is_empty());
-        let before = call(handle, OP_SEARCH_CARDS, json!({"search": ""})).unwrap();
-        let before_count = before["cards"].as_array().unwrap().len();
+        let before_count = all_card_ids(handle).len();
         assert!(before_count > 0);
 
         assert_eq!(
@@ -1895,8 +1849,7 @@ mod tests {
             deleted["removedCards"].as_u64().unwrap(),
             before_count as u64
         );
-        let after = call(handle, OP_SEARCH_CARDS, json!({"search": ""})).unwrap();
-        assert!(after["cards"].as_array().unwrap().is_empty());
+        assert!(all_card_ids(handle).is_empty());
         free_engine(handle).unwrap();
         let _ = fs::remove_dir_all(root);
     }
@@ -1905,13 +1858,7 @@ mod tests {
     fn card_scoped_delete_stats_and_schedule_reset_are_exact() {
         let (root, handle, _) = temp_open();
         import(handle, &package_path("04-cloze-multi-ord.apkg"), true).unwrap();
-        let searched = call(handle, OP_SEARCH_CARDS, json!({"search": ""})).unwrap();
-        let card_ids: Vec<i64> = searched["cards"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|card| card["card_id"].as_i64().unwrap())
-            .collect();
+        let card_ids = all_card_ids(handle);
         assert!(card_ids.len() >= 2);
 
         let stats = call(
@@ -1932,8 +1879,7 @@ mod tests {
 
         let deleted = call(handle, OP_DELETE_CARDS, json!({"cardIds": [card_ids[0]]})).unwrap();
         assert_eq!(deleted["removedCards"], 1);
-        let after = call(handle, OP_SEARCH_CARDS, json!({"search": ""})).unwrap();
-        assert_eq!(after["cards"].as_array().unwrap().len(), card_ids.len() - 1);
+        assert_eq!(all_card_ids(handle).len(), card_ids.len() - 1);
 
         free_engine(handle).unwrap();
         let _ = fs::remove_dir_all(root);
@@ -2502,7 +2448,12 @@ mod tests {
             STATUS_CARD_NOT_FOUND
         );
         assert_eq!(
-            dispatch(9_999_999, OP_SEARCH_CARDS, b"{}").unwrap_err(),
+            dispatch(
+                9_999_999,
+                crate::engine::OP_SEARCH_CARDS_PAGE,
+                b"{}"
+            )
+            .unwrap_err(),
             STATUS_INVALID_HANDLE
         );
         free_engine(handle).unwrap();
@@ -2521,8 +2472,7 @@ mod tests {
         let t0 = Instant::now();
         let imported = import(handle, &pkg, false).unwrap();
         let import_ms = t0.elapsed().as_millis();
-        let searched = call(handle, OP_SEARCH_CARDS, json!({"search": ""})).unwrap();
-        let card_id = searched["cards"][0]["card_id"].as_i64().unwrap();
+        let card_id = all_card_ids(handle)[0];
         let first = Instant::now();
         call(handle, OP_RENDER_CARD, json!({"card_id": card_id})).unwrap();
         let first_render_ms = first.elapsed().as_micros();
@@ -2669,8 +2619,7 @@ mod tests {
     fn typed_answer_uses_official_compare_and_cloze_extract() {
         let (root, handle, _) = temp_open();
         import(handle, &package_path("07-typed-answer.apkg"), false).unwrap();
-        let searched = call(handle, OP_SEARCH_CARDS, json!({"search": ""})).unwrap();
-        let card_id = searched["cards"][0]["card_id"].as_i64().unwrap();
+        let card_id = all_card_ids(handle)[0];
         let rendered = call(handle, OP_RENDER_CARD, json!({"cardId": card_id})).unwrap();
         assert_eq!(rendered["typedAnswer"]["marker"], "[[type:Back]]");
         let compared = call(
@@ -2796,7 +2745,7 @@ mod tests {
                 "missing {name} in {caps:?}"
             );
         }
-        assert_eq!(info["contractMinor"], 9);
+        assert_eq!(info["contractMinor"], 10);
     }
 
     #[test]

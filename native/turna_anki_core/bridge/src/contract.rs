@@ -13,7 +13,7 @@ use crate::engine;
 use crate::errors;
 
 pub const CONTRACT_MAJOR: u32 = 1;
-pub const CONTRACT_MINOR: u32 = 9;
+pub const CONTRACT_MINOR: u32 = 10;
 pub const OP_ENGINE_INFO: u32 = 1;
 const MAX_REQUEST_ID_BYTES: usize = 128;
 const MAX_ENVELOPE_PAYLOAD_BYTES: usize = 1_048_576;
@@ -188,7 +188,6 @@ fn operation_name_to_id(name: &str) -> Option<u32> {
         "LATEST_PROGRESS" => Some(engine::OP_LATEST_PROGRESS),
         "CANCEL_OPERATION" => Some(engine::OP_CANCEL_OPERATION),
         "LIST_DECK_TREE" => Some(engine::OP_LIST_DECK_TREE),
-        "SEARCH_CARDS" => Some(engine::OP_SEARCH_CARDS),
         "SEARCH_CARDS_PAGE" => Some(engine::OP_SEARCH_CARDS_PAGE),
         "GET_NOTE_CARDS_BATCH" => Some(engine::OP_GET_NOTE_CARDS_BATCH),
         "GET_CARD_DESCRIPTORS_BATCH" => Some(engine::OP_GET_CARD_DESCRIPTORS_BATCH),

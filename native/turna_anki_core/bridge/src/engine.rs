@@ -51,7 +51,6 @@ pub const OP_IMPORT_PACKAGE: u32 = 5;
 pub const OP_LATEST_PROGRESS: u32 = 6;
 pub const OP_CANCEL_OPERATION: u32 = 7;
 pub const OP_LIST_DECK_TREE: u32 = 8;
-pub const OP_SEARCH_CARDS: u32 = 9;
 pub const OP_RENDER_CARD: u32 = 10;
 pub const OP_SET_CURRENT_DECK: u32 = 11;
 pub const OP_GET_REVIEW_QUEUE: u32 = 12;

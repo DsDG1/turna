@@ -1,4 +1,4 @@
-# Contract v1.9 operations
+# Contract v1.10 operations
 
 Wire format is versioned JSON. `turna_anki_spike.proto` is archived and is not
 the codec.
@@ -13,7 +13,7 @@ the codec.
 | 6 | LATEST_PROGRESS | no |
 | 7 | CANCEL_OPERATION | no |
 | 8 | LIST_DECK_TREE | yes |
-| 9 | SEARCH_CARDS | yes (host/spike only; not production) |
+| 9 | ~~SEARCH_CARDS~~ | **retired in v1.10** (doc 38 P1-E; unbounded full-collection dump. The number is never reused.) |
 | 10 | RENDER_CARD | yes |
 | 11 | SET_CURRENT_DECK | yes |
 | 12 | GET_REVIEW_QUEUE | yes |
@@ -104,3 +104,19 @@ to the stored `config.reqs`, applied per face). `filters` are derived
 booleans/field-name lists; no raw template text (`qfmt`/`afmt`/CSS) ever
 leaves the engine. The `sampleLimit` clamp rose from 10 to 30 (default stays
 3). Old Dart minors ignore the new keys; old engines simply omit them.
+
+## v1.10 changes
+
+- **Retired op 9 `SEARCH_CARDS`.** It never appeared in `capabilities` and
+  no production Dart path called it; its handler dumped every note of the
+  whole collection per call. The dispatch arm, handler and name→id mapping
+  are removed; the number 9 is permanently retired and never reused.
+  Bridge tests now page through `SEARCH_CARDS_PAGE` (18).
+- **`BEGIN_PROJECTION_READ.collectionGeneration` is now the content
+  generation** (doc 38 P2): it advances only on content-changing
+  operations (`IMPORT_PACKAGE`, `DELETE_NOTES`, `DELETE_CARDS`, `UNDO`,
+  `REDO`, `RESTORE_BACKUP`, collection reopen) and survives
+  scheduling-only mutations such as `ANSWER_CARD` or
+  `BURY_OR_SUSPEND_CARDS`. A projection snapshot therefore stays usable
+  across answers; paging tokens keep their own `page_generation` counter
+  that advances on every mutating op.

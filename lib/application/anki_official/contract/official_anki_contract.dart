@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 
 const int kOfficialAnkiContractMajor = 1;
-const int kOfficialAnkiContractMinor = 9;
+const int kOfficialAnkiContractMinor = 10;
 
 abstract final class OfficialAnkiOperation {
   /// Native `GET_REVIEW_QUEUE` accepts `1..=100` (bridge `ops.rs`).

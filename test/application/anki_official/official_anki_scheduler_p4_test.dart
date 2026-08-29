@@ -20,8 +20,8 @@ import 'package:turna/views/anki_official/official_anki_review_page.dart';
 import 'official_anki_formal_review_ack_test.dart' show officialFormalReviewPresenter;
 
 void main() {
-  test('contract 1.9 publishes scheduler operations 11-16, 27-36', () {
-    expect(kOfficialAnkiContractMinor, 9);
+  test('contract 1.10 publishes scheduler operations 11-16, 27-36', () {
+    expect(kOfficialAnkiContractMinor, 10);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.setCurrentDeck), 11);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.getReviewQueue), 12);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.describeNextStates), 13);
@@ -84,7 +84,7 @@ void main() {
       File('native/turna_anki_core/contract/VERSION')
           .readAsStringSync()
           .trim(),
-      '1.9',
+      '1.10',
     );
   });
 
