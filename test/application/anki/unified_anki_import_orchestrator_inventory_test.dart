@@ -13,6 +13,7 @@ import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/data/course_database.dart';
 
+import '../../helpers/anki_import_seed.dart';
 import '../../helpers/in_memory_course_db.dart';
 
 void main() {
@@ -52,16 +53,17 @@ void main() {
       sourceHash: hash,
       importedAt: 1,
     );
-    await importDao.upsert(record);
+    await seedAnkiImportRow(db, record);
     if (status == 'complete') {
-      await importDao.markComplete(
+      await seedAnkiImportComplete(
+        db,
         importId,
         sourceCardCount: 0,
         indexedCardCount: 0,
         importedScheduling: false,
       );
     } else if (status != null) {
-      await importDao.markFailed(importId, reason: 'test');
+      await seedAnkiImportFailed(db, importId, reason: 'test');
     }
     return record;
   }

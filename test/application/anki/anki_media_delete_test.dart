@@ -33,6 +33,7 @@ import 'package:turna/domain/repositories/i_course_repository.dart';
 import 'package:turna/service/locator.dart';
 
 import '../../helpers/in_memory_course_db.dart';
+import '../../helpers/anki_import_seed.dart';
 
 /// Resolver stand-in for the "one file stayed locked" case: the directory
 /// survives the delete pass and the saga must carry on regardless.
@@ -350,12 +351,15 @@ void main() {
 
     test('a locked media file no longer aborts the saga', () async {
       final dao = AnkiImportDao(database);
-      await dao.upsert(AnkiImportRecord(
-        importId: 'imp-stuck',
-        sourcePath: '/tmp/x.apkg',
-        sourceHash: 'hash-stuck',
-        importedAt: 1700000000,
-      ));
+      await seedAnkiImportRow(
+        database,
+        AnkiImportRecord(
+          importId: 'imp-stuck',
+          sourcePath: '/tmp/x.apkg',
+          sourceHash: 'hash-stuck',
+          importedAt: 1700000000,
+        ),
+      );
 
       final resolver = _StuckMediaResolver();
       final service = AnkiImportCleanupService(
@@ -382,12 +386,15 @@ void main() {
       File('${importDir.path}/a.mp3').writeAsStringSync('a');
 
       final dao = AnkiImportDao(database);
-      await dao.upsert(AnkiImportRecord(
-        importId: 'imp-happy',
-        sourcePath: '/tmp/y.apkg',
-        sourceHash: 'hash-happy',
-        importedAt: 1700000000,
-      ));
+      await seedAnkiImportRow(
+        database,
+        AnkiImportRecord(
+          importId: 'imp-happy',
+          sourcePath: '/tmp/y.apkg',
+          sourceHash: 'hash-happy',
+          importedAt: 1700000000,
+        ),
+      );
 
       final service = AnkiImportCleanupService(
         repository: _CleanupRepo(['anki-imp-happy-s1']),

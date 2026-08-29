@@ -13,88 +13,6 @@ class AnkiImportDao {
 
   AnkiImportDao(this._db);
 
-  /// Insert or update an import record.
-  Future<void> upsert(AnkiImportRecord record) async {
-    await _db.into(_db.ankiImports).insertOnConflictUpdate(
-          AnkiImportsCompanion.insert(
-            importId: record.importId,
-            sourcePath: record.sourcePath,
-            sourceHash: record.sourceHash,
-            importedAt: record.importedAt,
-            deckCount: Value(record.deckCount),
-            noteCount: Value(record.noteCount),
-            cardCount: Value(record.cardCount),
-            mediaCount: Value(record.mediaCount),
-            notetypesJson: Value(record.notetypesJson),
-            aiEnhanced: Value(record.aiEnhanced),
-            version: Value(record.version),
-          ),
-        );
-    await _db.customStatement('''
-      UPDATE anki_imports
-      SET status = ?, source_card_count = ?, stored_card_count = ?,
-          indexed_card_count = ?, imported_scheduling = ?, last_error = ?
-      WHERE import_id = ?
-    ''', [
-      record.status,
-      record.sourceCardCount,
-      record.storedCardCount,
-      record.indexedCardCount,
-      record.importedScheduling ? 1 : 0,
-      record.lastError,
-      record.importId,
-    ]);
-  }
-
-  /// Persist the final reconciliation only after every canonical Card has a
-  /// NoteStore row and a navigable lesson reference.
-  Future<void> markComplete(
-    String importId, {
-    required int sourceCardCount,
-    required int indexedCardCount,
-    required bool importedScheduling,
-  }) async {
-    final storedRows = await _db.customSelect(
-      'SELECT COUNT(*) AS c FROM anki_cards_meta WHERE import_id = ?',
-      variables: [Variable.withString(importId)],
-    ).get();
-    final storedCardCount = storedRows.first.read<int>('c');
-    if (sourceCardCount != storedCardCount ||
-        sourceCardCount != indexedCardCount) {
-      throw StateError(
-        'Anki reconciliation failed: source=$sourceCardCount, '
-        'stored=$storedCardCount, indexed=$indexedCardCount',
-      );
-    }
-    await _db.customStatement('''
-      UPDATE anki_imports
-      SET status = 'complete', source_card_count = ?,
-          stored_card_count = ?, indexed_card_count = ?,
-          imported_scheduling = ?, last_error = NULL
-      WHERE import_id = ?
-    ''', [
-      sourceCardCount,
-      storedCardCount,
-      indexedCardCount,
-      importedScheduling ? 1 : 0,
-      importId,
-    ]);
-  }
-
-  /// Record a terminated import (cancelled or fatal error) so the lifecycle
-  /// UI can surface partial-import state instead of leaving the row in
-  /// 'pending' forever. The importer's `try/finally` already calls this on
-  /// any path that exits before [markComplete] runs.
-  ///
-  /// Idempotent: re-marking an already-terminal row keeps the latest reason.
-  Future<void> markFailed(String importId, {String? reason}) async {
-    await _db.customStatement('''
-      UPDATE anki_imports
-      SET status = 'failed', last_error = ?
-      WHERE import_id = ?
-    ''', [reason, importId]);
-  }
-
   /// Get all import records, ordered by import time (newest first).
   Future<List<AnkiImportRecord>> getAll() async {
     final rows = await (_db.select(_db.ankiImports)
@@ -146,13 +64,6 @@ class AnkiImportDao {
     await (_db.delete(_db.ankiImports)
           ..where((t) => t.importId.equals(importId)))
         .go();
-  }
-
-  /// Mark an import as AI-enhanced.
-  Future<void> markAiEnhanced(String importId) async {
-    await (_db.update(_db.ankiImports)
-          ..where((t) => t.importId.equals(importId)))
-        .write(const AnkiImportsCompanion(aiEnhanced: Value(true)));
   }
 
   Future<void> setDailyLimits(

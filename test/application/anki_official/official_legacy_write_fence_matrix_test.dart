@@ -54,20 +54,24 @@ void main() {
     );
   }
 
+  // Doc 38 P1-B: the writer matrix shrank to the surviving mutators
+  // (setCardState / deleteByImport); rows are seeded with raw SQL.
+  Future<void> seedCard(String importId, int cardId) =>
+      db.customStatement(
+        'INSERT INTO anki_cards_meta (import_id, card_id, note_id, word_id) '
+        "VALUES (?, ?, 1, 'anki-$importId-c$cardId')",
+        [importId, cardId],
+      );
+
   test('open fence allows every ordinary mutator', () async {
-    await noteDao.replaceImportIssues(srcA, const []);
-    await noteDao.replaceDeckIndex(srcA, const []);
-    await noteDao.replacePracticeProjections(srcA, const []);
+    await seedCard(srcA, 1);
+    await noteDao.setCardState(srcA, 1, suspended: true);
+    await noteDao.deleteByImport(srcA);
   });
 
   test('frozen rejects every ordinary Legacy mutator (the full matrix)',
       () async {
-    await noteDao.upsertCardMeta(const AnkiCardMetaRecord(
-      importId: srcA,
-      cardId: 1,
-      noteId: 1,
-      wordId: 'anki-src-4f8b2c9d1e-c1',
-    ));
+    await seedCard(srcA, 1);
     await noteDao.setCardState(srcA, 1, buriedUntil: 10);
     await freeze();
 
@@ -81,73 +85,13 @@ void main() {
     }
 
     await expectDenied(
-      () => noteDao.replaceDeckIndex(srcA, const []),
-      'replaceDeckIndex',
-    );
-    await expectDenied(
-      () => noteDao.replaceImportIssues(srcA, const []),
-      'replaceImportIssues',
-    );
-    await expectDenied(
-      () => noteDao.replacePracticeProjections(srcA, const []),
-      'replacePracticeProjections',
-    );
-    await expectDenied(
-      () => noteDao.upsertNotetype(
-        AnkiNotetypeRecord(importId: srcA, mid: 1),
-      ),
-      'upsertNotetype',
-    );
-    await expectDenied(
-      () => noteDao.upsertNote(
-        AnkiNoteRecord(importId: srcA, noteId: 1, mid: 1, fields: const []),
-      ),
-      'upsertNote',
+      () => noteDao.setCardState(srcA, 1, suspended: true),
+      'setCardState',
     );
     await expectDenied(
       () => noteDao.deleteByImport(srcA),
       'deleteByImport',
     );
-    await expectDenied(
-      () => noteDao.upsertNotetypeBatch(
-        [AnkiNotetypeRecord(importId: srcA, mid: 2)],
-      ),
-      'upsertNotetypeBatch',
-    );
-    await expectDenied(
-      () => noteDao.upsertNoteBatch(
-        [AnkiNoteRecord(importId: srcA, noteId: 2, mid: 1, fields: const [])],
-      ),
-      'upsertNoteBatch',
-    );
-    await expectDenied(
-      () => noteDao.upsertCardMeta(const AnkiCardMetaRecord(
-        importId: srcA,
-        cardId: 3,
-        noteId: 2,
-        wordId: 'anki-src-4f8b2c9d1e-c3',
-      )),
-      'upsertCardMeta',
-    );
-    await expectDenied(
-      () => noteDao.upsertCardMetaBatch(const [
-        AnkiCardMetaRecord(
-          importId: srcA,
-          cardId: 4,
-          noteId: 2,
-          wordId: 'anki-src-4f8b2c9d1e-c4',
-        ),
-      ]),
-      'upsertCardMetaBatch',
-    );
-    await expectDenied(
-      () => noteDao.setCardState(srcA, 1, suspended: true),
-      'setCardState',
-    );
-
-    expect(await noteDao.clearBuriedBefore(10), isEmpty);
-    expect((await noteDao.cardMeta(srcA, 1))?.buriedUntil, 10,
-        reason: 'global expiry sweep must skip the frozen source');
   });
 
   test('unfenced sources keep writing while a sibling is frozen', () async {
@@ -164,7 +108,15 @@ void main() {
     await freeze();
 
     // Source B is untouched by A's freeze.
-    await noteDao.replaceImportIssues('src-b', const []);
+    await db.customStatement(
+      "INSERT INTO anki_imports (import_id, source_path, source_hash, "
+      "imported_at) VALUES ('src-b', '/tmp/b.apkg', 'hash-b2', 1700000000)",
+    );
+    await db.customStatement(
+      'INSERT INTO anki_cards_meta (import_id, card_id, note_id, word_id) '
+      "VALUES ('src-b', 1, 1, 'anki-src-b-c1')",
+    );
+    await noteDao.setCardState('src-b', 1, suspended: true);
   });
 
   test('migration cleanup requires a live, matching, unconsumed token',

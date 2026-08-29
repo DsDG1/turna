@@ -143,6 +143,39 @@ void main() {
       }
     });
 
+    // Doc 38 P1-B/C — the NoteStore/imports write side stays deleted.
+    test('anki dao write side stays deleted (doc 38)', () {
+      final dao = File('lib/data/anki_note_dao.dart').readAsStringSync();
+      for (final member in [
+        'replaceDeckIndex',
+        'replaceImportIssues',
+        'replacePracticeProjections',
+        'deckIdsIncludingDescendants',
+        'upsertNotetype',
+        'upsertNote',
+        'upsertCardMeta',
+        'cardMetaByWordId',
+        'wordIdsForDecks',
+        'clearBuriedBefore',
+        'flaggedCards',
+        'AnkiNotetypeRecord',
+        'AnkiTemplate',
+      ]) {
+        expect(dao.contains(member), isFalse,
+            reason: 'anki_note_dao.dart resurrected writer $member');
+      }
+      final imports = File('lib/data/anki_import_dao.dart').readAsStringSync();
+      for (final member in [
+        'Future<void> upsert(',
+        'markComplete',
+        'markFailed',
+        'markAiEnhanced',
+      ]) {
+        expect(imports.contains(member), isFalse,
+            reason: 'anki_import_dao.dart resurrected writer $member');
+      }
+    });
+
     test('execution planner is strictly three-valued (no legacyOnly)', () {
       final text = File(
         'lib/application/anki_official/import/anki_import_execution_plan.dart',

@@ -14,6 +14,7 @@ import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/course_database.dart';
 
 import '../../helpers/in_memory_course_db.dart';
+import '../../helpers/anki_import_seed.dart';
 
 const _profile = 'profile-default-01';
 
@@ -41,7 +42,8 @@ void main() {
     int cards = 1,
     bool withSrs = true,
   }) async {
-    await AnkiImportDao(course).upsert(
+    await seedAnkiImportRow(
+      course,
       AnkiImportRecord(
         importId: importId,
         sourcePath: '/tmp/$importId.apkg',

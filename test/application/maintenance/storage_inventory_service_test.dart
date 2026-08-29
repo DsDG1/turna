@@ -10,6 +10,7 @@ import 'package:turna/data/anki_note_dao.dart';
 import 'package:turna/data/course_database.dart';
 
 import '../../helpers/in_memory_course_db.dart';
+import '../../helpers/anki_import_seed.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -68,13 +69,15 @@ void main() {
   }
 
   test('attributes every media dir to its owner and flags orphans', () async {
-    final importDao = AnkiImportDao(db);
-    await importDao.upsert(AnkiImportRecord(
-      importId: dirName('owned'),
-      sourcePath: '/tmp/a.apkg',
-      sourceHash: 'hash-owned',
-      importedAt: 1,
-    ));
+    await seedAnkiImportRow(
+      db,
+      AnkiImportRecord(
+        importId: dirName('owned'),
+        sourcePath: '/tmp/a.apkg',
+        sourceHash: 'hash-owned',
+        importedAt: 1,
+      ),
+    );
     await seedDeckSection('owned');
     await writeMediaFile('owned', 'a.mp3', 100);
     await writeMediaFile('ghost', 'b.mp3', 50);
@@ -102,13 +105,15 @@ void main() {
     // Commit-last imports intentionally have a durable import row before
     // their course tree is visible. Inventory must use exact ownership,
     // otherwise a valid staging directory is offered as an orphan cleanup.
-    final importDao = AnkiImportDao(db);
-    await importDao.upsert(AnkiImportRecord(
-      importId: dirName('stuck'),
-      sourcePath: '/tmp/s.apkg',
-      sourceHash: 'hash-stuck',
-      importedAt: 1,
-    ));
+    await seedAnkiImportRow(
+      db,
+      AnkiImportRecord(
+        importId: dirName('stuck'),
+        sourcePath: '/tmp/s.apkg',
+        sourceHash: 'hash-stuck',
+        importedAt: 1,
+      ),
+    );
     await writeMediaFile('stuck', 's.mp3', 20);
 
     final report = await const StorageInventoryService().scan();
