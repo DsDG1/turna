@@ -12,7 +12,8 @@ void main() {
     expect(
       DiagnosticsReleaseGuard.guardedRouteNames,
       containsAll([
-        'OfficialAnkiInternalRoute',
+        // OfficialAnkiInternalRoute was deleted with the fixture pilot
+        // scaffold (doc 38 P1-A); its route and guard entry are gone.
         'OfficialAnkiMappingRoute',
         'OfficialAnkiReviewerRoute',
         'OfficialAnkiReviewRoute',

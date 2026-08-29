@@ -1,6 +1,6 @@
 # 38 — Anki 集成减负与性能批次一（删码 / 快照失效 / N+1 / 浏览器渲染 / 投影短路）
 
-> 状态：**提案（待施工）**。2026-08-30 全量可行性复核完成，全部证据已按 file:line 双轮核实（代码静态分析 + 落点核验）。
+> 状态：**已施工（2026-08-30，P1–P5 一批完成，P4-B 按计划条件推迟）**。施工明细与偏差见 §12 施工记录；Rust 侧（P1-D/E、P2、P3）本机无 cargo/protoc 静态编写，**待工具链主机 `cargo test -p turna_anki_bridge` + `gen_fixtures` 复验后方可发布**。
 > 范围：五个独立施工包 P1–P5：①删除已验证零生产引用的死代码（约 4,000 行）；②修复搜索/投影快照失效缺口（正确性）；③Rust 桥接 N+1 批量化与 import 计数改 SQL；④浏览器逐卡渲染治理与 catalog 连接治理；⑤投影 noop 短路与发布事务批量化。**不改变**渲染保真、调度语义、备份流程、collection 数据所有权。
 > 前置阅读：[34](./34-official-anki-production-cutover-and-ohos-retirement-plan.md)（契约与发布口径）、[35](./35-duplicate-legacy-layer-cleanup-plan.md)（L0–L3 已删范围，本计划 P1 是其顺延）、[36](./36-projection-tree-ordering-and-limits.md)（投影写入语义与 60/40 限额）、[37](./37-generic-card-recognizer-plan.md)（契约 1.9 现状）。
 > 铁律：**每个施工包独立 commit、独立可回滚**；Rust 契约 minor 逐次递增、号码永不复用（operations.md append-only 政策）；**本机（Windows 开发机）无 cargo/protoc（已核实，同 doc 37 §10 受限），Rust 改动必须在具备 Rust 1.97.1 + protoc 31.1 的主机通过 `cargo test -p turna_anki_bridge` 后方可合入**——这是硬门禁，不是建议。
@@ -246,3 +246,51 @@ cargo run --bin turna_anki_gen_fixtures   # 契约变更包（P1 簇E/P4B）后 
 ## 11. 明确不做（留批次二及以后）
 
 DTO `fromJson` 手写样板 codegen 化（~700 行）、Rust 操作表四处事实源合一、Dart engine adapter 四层折叠（session_engine/worker 纯转发 ~600 行）、错误模型三套并存统一（`debug_details` 启用、`DECK_NOT_FOUND` 误映射、`catch(_){}` 八处）、`answer_card` 三重 `revlog_count` 与 `render_card` 三重加载、复习每卡 3+1 RPC 精简、registry 句柄回收与 buffer ABI 加固、`mem::take` 无锁 import、envelope 三重解析/序列化削减。这些与 P1–P5 无文件级冲突，但单独成批可避免本批 PR 膨胀。
+
+## 12. 施工记录（2026-08-30）
+
+### 12.1 提交清单（独立 commit，按依赖序）
+
+| 施工包 | commit | 摘要 |
+|---|---|---|
+| 登记 | dd3c2740 | doc 38 + README 登记 |
+| P1-A | c949b46d | fixture pilot 脚手架簇删除（4 文件 + 路由/守卫/泄漏分支 + migrationPilot 旗标） |
+| P1-B/C | 74f2ad8c | AnkiNoteDao 1028→444 行、AnkiImportDao 写侧删除 + 测试处置 |
+| P1-D | f0a81b19 | Dart/Rust 零引用符号与 audit 链删除 |
+| P1-E | 96a1c2c6 | SEARCH_CARDS(op9) 退役，契约 1.9→1.10 |
+| P2 | d365810f | 双计数器 + 十个落点 + Dart 兜底 + 5 个 Rust 新测试 |
+| P3 | 86ce71ec | 三处 N+1 SQL 化 + import 计数 + 不变量 + 对拍测试 |
+| P4-A | e7836d67 | 浏览器懒渲染 LRU + 错误兜底 + 防抖 |
+| P4-C | 9c3985ae | catalog 共享句柄 + WAL/busy_timeout（+ a1bf7dec 金子 minor 补遗） |
+| P5 | 721da80f | scan 指纹短路（schema v10）+ 发布批量化 |
+
+### 12.2 验收实测（本机 Windows，flutter 侧）
+
+- `flutter analyze`：**0 issues**。
+- `flutter test`：全量绿，**除两组施工前即存在的 Windows 环境失败**（基线 74ae31c5 复现，与 doc 38 无关）：
+  - `official_anki_media_resolver_test.dart`（5 例）：fixture 向量含 `question?.png`/`hash#tag.bin` 文件名，Windows 下 `?`/`#` 非法（errno 123）；
+  - `official_anki_composition_test.dart` single-flight（1 例）：fake worker 的 catalog 连接不随测试 dispose，目录删除 errno 32。
+- P4-A 指标（fake 引擎计量）：进入浏览页 renderCard FFI **1000→0**；每未缓存可见卡恰 **1** 次；缓存命中 **0** 次。
+- P5 指标（fake 引擎计量）：未变化源重复 `projectSource` 行读取批次 **N→0**（短路命中，`projectionBatchCalls` 不增）；行内容变更（override+generation bump）正确破短路全量重建。
+- P3 指标：SQL 条数为结构性收敛（描述符 1000 卡 2000 查询→**2** 条 JOIN；import 计数 2 次全表扫→**2** 条 `count()`）——本机无 cargo，运行时数字待工具链主机复验。
+- 被删用例清单（P1 删除死码测试后数量下降，逐条）：`anki_import_dao_test.dart` 整文件（4 例 markFailed）；`anki_note_dao_test.dart` 删 7 例（notetype/note/cardMeta round-trip×2、deck 诊断、计数对账、practice projection 原 seed 用例改直插、wordIdsForDecks）；p5d 路由测试删 allowlist 2 例 + 2 断言；write-fence 矩阵缩至存留 mutator；新增对拍 2 例、P2 3 例、P5 1 例、架构守卫 2 规则、P4-A 懒渲染断言。
+
+### 12.3 偏差与增补（对照本计划正文）
+
+1. **簇 A 范围比 §3.1 大**：复核发现文档未列的三处泄漏——`engine_kind.dart` 的 `isFixturePilotSource`/`_p5cFixtureHashes`、`migration_preview_page.dart` 的 `onFixturePilot` 参数与按钮、`migrationPilot` 旗标（env `TURNA_OFFICIAL_ANKI_MIGRATION_PILOT`）及其 flags 测试断言——一并删除，否则删 allowlist/saga 后悬空引用。
+2. **簇 B/C 测试处置**：文档预想的「drift 直插」落为共享助手 `test/helpers/anki_import_seed.dart`（复刻 upsert/markComplete/markFailed 的 SQL，仅测试可用）；`anki_import_dao_test.dart` 整文件删除（全部用例都是被删的 markFailed）。
+3. **簇 D**：`OfficialAnkiSchedulerAudit` 从未递增计数器实为 **5** 个（文档写四个）：另含 `courseProjectionWritesDuringReview`；audit 链的删除面比 §3.1 大——`official_anki_review_session.dart` 的 `audit` 字段/`_audit()` 四处调用一并删除（构造方从未传非空）。
+4. **簇 E 测试迁移**：queue 断言从名称字符串（`new/review`）改为原始 queue 值（描述符 batch 的整数）；原 `due` 断言经核实是比较 `Null==Null`（旧 handler 从不输出 due），删除；unicode 字段断言改走 `GET_PROJECTION_SCHEMAS` samples。
+5. **P2**：契约 minor 与 P1-E **共用 1.9→1.10 一次 bump**（§8 明示允许）；`open_collection`/`reopen_open_collection` 统一按内容变更处理（restore 无法自证文件未变，保守失效；代价是 `create_backup` 后首个投影发布多付一次全量，备份为低频操作可接受）；**import.rs 两处不统一为 `require_open`**——`BusyGuard` 持有期间 busy 位为真，`require_open` 会自锁误判，维持显式状态检查。
+6. **P3**：对拍参照实现保留为 `#[cfg(test)]`（query.rs `mod reference` / projection.rs `reference_rows`），四个 fixture 包全量 JSON 对拍；发现并修复一处对拍级缺陷——新实现初版把**截断后** fields 喂给指纹，而参照用未截断 `Note::fields()`，已改为指纹用原始 fields、截断副本仅展示。
+7. **P4-B（RENDER_PREVIEWS_BATCH）未实施**：按 §6.2 前提「Phase A 后如仍有滚动白屏感再上」，Phase A 已把进入成本压到 0 FFI、每可见卡 1 FFI；新 op 落点清单（§6.2）保留备用，待真机滚动体验反馈后再决策。
+8. **P4-C 增补**：共享句柄实现为**按路径单例**（路径变化换柄并释放旧柄，兼顾 profile 切换与测试隔离）；`OfficialAnkiDatabase` 构造器在 migrate 失败（如未来版本）时 dispose 连接再抛——修复未来版本探测测试在 Windows 下的文件锁泄漏（errno 32，P4-C 引入后即时发现即时修复）。
+9. **P5**：fake 引擎的 `projectionRowOverrides` 改为写入即 bump `collectionGeneration`（MapBase 包装）——测试侧行内容变更必须遵守引擎契约「内容变更⇒内容代递增」，否则短路误判；`locked placement` 等既有测试借此继续走全量路径验证重建。**重启行为（如实记录）**：`content_generation` 是内存计数器，随引擎重建归 1，scan 指纹含该因子 ⇒ 每次应用重启后的首个发布必走一次全量（与改造前一致），短路收益集中在同会话内的重复发布——与全指纹 noop 的既有行为对齐，无回归。
+10. **金子文件**：`request_engine_info.json`/`response_engine_info.json` 手改 minor=10；工具链主机需重跑 `cargo run --bin turna_anki_gen_fixtures` 校验（diff 应为空或仅次序）。
+
+### 12.4 待办门禁（合入发布前）
+
+1. **工具链主机**：`cargo test -p turna_anki_bridge` 全绿（含新增：对拍 2、P2 3、既有全部）；`cargo run --bin turna_anki_gen_fixtures` regen + diff review。
+2. **Android 真机矩阵**（涉及 .so 的包 P1-E/P2/P3）：`./build-android/build.sh` smoke。
+3. 真机滚动体验反馈 → P4-B 决策。
+4. pin 刷新时删除 P3 对拍参照实现（`reference`/`reference_rows`）。
