@@ -79,9 +79,9 @@ class AnkiImportDoneStep extends StatelessWidget {
               title: AppStrings.ankiDoneGroupSource,
               rows: [
                 AppStrings.ankiImportSourceCards(summary.sourceCardCount),
-                AppStrings.ankiImportStructuredCards(
-                    summary.structuredCardCount),
-                AppStrings.ankiImportFidelityCards(summary.fidelityCardCount),
+                // Doc 39 F2: the "0 structured / 0 fidelity" rows were
+                // removed — official-first never filled those Legacy
+                // parser counters, so users always saw two zero rows.
               ],
             ),
             if (summary.wordEntryCount > 0) ...[
