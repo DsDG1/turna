@@ -30,11 +30,9 @@ void main() {
       await GetIt.instance.reset();
       GetIt.instance.registerSingleton<CourseDatabase>(db);
       GetIt.instance.registerSingleton<AnkiUnificationDao>(AnkiUnificationDao(db));
-      UnifiedAnkiImportOrchestrator.instance.reset();
     });
 
     tearDown(() async {
-      UnifiedAnkiImportOrchestrator.instance.reset();
       await GetIt.instance.reset();
       await db.close();
     });

@@ -20,7 +20,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/anki_official/anki_deck_manager.dart';
-import 'package:turna/application/anki_official/import/unified_anki_import_orchestrator.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
@@ -201,10 +200,8 @@ void main() {
     savedSession = OfficialAnkiCompositionRoot.session;
     savedCatalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
     FilePicker.platform = _FakePicker(p.join(tmpDir.path, 'p5f.apkg'));
-    // The unified orchestrator is a process singleton; without this its
-    // in-memory hash set leaks across tests and short-circuits the next
-    // import as a no-op.
-    UnifiedAnkiImportOrchestrator.instance.reset();
+    // The unified orchestrator's legacy in-memory dedup state was deleted
+    // with the begin/finalize path (doc 39 P1-C); no reset needed anymore.
     // Host tests run on linux; production official routing is android-only.
     OfficialAnkiCapabilityMatrix.overrideHostPlatformForTests = 'android';
     // And the routing additionally requires the native library probe to pass

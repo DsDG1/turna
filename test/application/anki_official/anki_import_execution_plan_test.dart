@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:turna/application/anki_official/import/unified_anki_import_orchestrator.dart';
 import 'package:turna/application/anki_official/import/anki_import_execution_plan.dart';
 import 'package:turna/application/anki_official/import/anki_import_facade.dart';
 import 'package:turna/application/anki_official/import/official_anki_official_first_service.dart';
@@ -132,7 +131,7 @@ void main() {
       expect(plan.persistedOwnerIsOfficial, isFalse);
     });
 
-    test('unified request owner matches plan writers for officialFirst',
+    test('unified publish path keeps plan writers official-only',
         () async {
       final plan = AnkiImportFacade.planFor(
         _fullOfficial(),
@@ -142,19 +141,10 @@ void main() {
       );
       expect(plan.isOfficialFirst, isTrue);
 
-      final orch = UnifiedAnkiImportOrchestrator(
-        lookupByHash: (_) async => false,
-        persistIdentity: (_) async {},
-      );
-      final result = await orch.importPackage(
-        UnifiedAnkiImportRequest(
-          importId: 'src-official',
-          sourceHash: 'hash-official',
-          canonicalCardIds: const [1, 2],
-          persistedOwnerIsOfficial: plan.persistedOwnerIsOfficial,
-        ),
-      );
-      expect(result.wroteTurnaSrs, isFalse);
+      // The legacy UnifiedAnkiImportRequest/importPackage path (which could
+      // flip persistedOwnerIsOfficial false) was deleted in doc 39 P1-C;
+      // identity publishing now only goes through publishFromProjection,
+      // which never writes Turna SRS.
       expect(plan.writesTurnaAnkiSrs, isFalse);
       expect(plan.writesLegacyNoteStore, isFalse);
       expect(plan.owner, AnkiImportOwner.official);
