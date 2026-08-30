@@ -52,6 +52,29 @@ class OfficialAnkiProductionRouter {
       profileId: profileId,
       legacyImportId: importId,
     );
+    return _engineForRow(
+      importId: importId,
+      row: row,
+      sources: sources,
+      profileId: profileId,
+      sourceHash: sourceHash,
+      cutover: cutover,
+      platform: platform,
+    );
+  }
+
+  /// Route resolution for an already-looked-up migration row. Callers that
+  /// need both the engine verdict and the row (reviewTargetForImport) fetch
+  /// the row once and pass it here instead of re-querying per step.
+  AnkiEngineKind _engineForRow({
+    required String importId,
+    required LegacyAnkiMigrationRow? row,
+    required OfficialAnkiSourceDao? sources,
+    required String profileId,
+    required String? sourceHash,
+    required bool cutover,
+    required String? platform,
+  }) {
     final hash = (sourceHash ?? row?.sourceHash)?.trim();
     final byHash = hash == null || hash.isEmpty || sources == null
         ? null
@@ -79,22 +102,23 @@ class OfficialAnkiProductionRouter {
     required String importId,
     String? platform,
   }) {
-    if (engineForImport(
+    if (importId.isEmpty) return null;
+    final row = dao.findByLegacyImport(
+      profileId: profileId,
+      legacyImportId: importId,
+    );
+    if (_engineForRow(
           importId: importId,
-          dao: dao,
+          row: row,
           sources: sources,
           profileId: profileId,
-          cutoverEnabled: cutoverEnabled,
           sourceHash: sourceHash,
+          cutover: cutoverEnabled ?? LegacyAnkiMigrationFlags.cutoverEnabled,
           platform: platform,
         ) !=
         AnkiEngineKind.official) {
       return null;
     }
-    final row = dao.findByLegacyImport(
-      profileId: profileId,
-      legacyImportId: importId,
-    );
     var sourceId = row?.officialSourceId;
     if (sourceId == null || sourceId.isEmpty) {
       if (sources.findById(importId) != null) {
