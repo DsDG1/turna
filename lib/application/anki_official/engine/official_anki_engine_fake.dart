@@ -110,35 +110,9 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
       backendCommit: backendCommit,
       contractMajor: kOfficialAnkiContractMajor,
       contractMinor: kOfficialAnkiContractMinor,
-      capabilities: {
-        OfficialAnkiOperation.engineInfo,
-        OfficialAnkiOperation.importPackage,
-        OfficialAnkiOperation.searchCardsPage,
-        OfficialAnkiOperation.getNoteCardsBatch,
-        OfficialAnkiOperation.getCardDescriptorsBatch,
-        OfficialAnkiOperation.renderCard,
-        OfficialAnkiOperation.compareTypedAnswer,
-        OfficialAnkiOperation.extractClozeForTyping,
-        OfficialAnkiOperation.listDeckTree,
-        OfficialAnkiOperation.getProjectionSchemas,
-        OfficialAnkiOperation.beginProjectionRead,
-        OfficialAnkiOperation.getProjectionRowsBatch,
-        OfficialAnkiOperation.setCurrentDeck,
-        OfficialAnkiOperation.getReviewQueue,
-        OfficialAnkiOperation.answerCard,
-        OfficialAnkiOperation.getUndoStatus,
-        OfficialAnkiOperation.undo,
-        OfficialAnkiOperation.redo,
-        OfficialAnkiOperation.buryOrSuspendCards,
-        OfficialAnkiOperation.countsForDeckToday,
-        OfficialAnkiOperation.congratsInfo,
-        OfficialAnkiOperation.deleteNotes,
-        OfficialAnkiOperation.deleteCards,
-        OfficialAnkiOperation.statsForCardsBatch,
-        OfficialAnkiOperation.scheduleCardsAsNew,
-        OfficialAnkiOperation.answerAheadCards,
-        OfficialAnkiOperation.ensureTodayNewQuota,
-      },
+      // Derived from the single contract table (doc 39 P2) so the fake
+      // cannot drift from the production name list again.
+      capabilities: OfficialAnkiOperation.productionNames.toSet(),
     );
   }
 

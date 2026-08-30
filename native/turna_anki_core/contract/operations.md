@@ -43,7 +43,10 @@ the codec.
 | 36 | ENSURE_TODAY_NEW_QUOTA | yes |
 
 Scheduler operations 11–16 and 27–36 are published. Request/response DTO are
-camelCase. `answerToken` is opaque. `GET_REVIEW_QUEUE` creates a new
+camelCase, with four load-bearing snake-case compat keys kept on the wire:
+import log (`new_note_ids` & co), deck tree (`deck_id`/`new_count`/
+`learn_count`/`review_count`), undo status (`can_undo`/`can_redo`) and
+LATEST_PROGRESS (`operation_kind`/`can_cancel`/`want_abort`). `answerToken` is opaque. `GET_REVIEW_QUEUE` creates a new
 session/queue epoch. Tokens are single-use. Numbers are append-only after this
 document ships.
 

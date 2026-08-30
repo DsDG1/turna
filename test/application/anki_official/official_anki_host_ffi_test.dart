@@ -19,16 +19,26 @@ import 'package:turna/application/anki_official/import/official_anki_import_stat
 bool get _requireNative =>
     Platform.environment['TURNA_ANKI_REQUIRE_NATIVE'] == '1';
 
+/// Doc 39 P2: the six hand-rolled skip guards were collapsed into this
+/// helper. Skips silently on hosts without the .so; a toolchain host can
+/// demand the library via TURNA_ANKI_REQUIRE_NATIVE=1.
+final String? _libraryPath = resolveOfficialAnkiLibraryPath();
+
+bool _guardNative() {
+  if (_libraryPath == null) {
+    if (_requireNative) {
+      fail('libturna_anki.so missing; TURNA_ANKI_REQUIRE_NATIVE=1');
+    }
+    return true;
+  }
+  return false;
+}
+
 void main() {
-  final libraryPath = resolveOfficialAnkiLibraryPath();
+  final libraryPath = _libraryPath;
 
   test('production transport loads Host .so and reports runtime metadata', () async {
-    if (libraryPath == null) {
-      if (_requireNative) {
-        fail('libturna_anki.so missing; TURNA_ANKI_REQUIRE_NATIVE=1');
-      }
-      return;
-    }
+    if (_guardNative()) return;
     final transport = OfficialAnkiNativeTransport.open(libraryPath: libraryPath);
     expect(transport.abiVersion(), 1);
     final engine = FfiOfficialAnkiEngine.connect(transport);
@@ -41,16 +51,13 @@ void main() {
     expect(info.has(OfficialAnkiOperation.importPackage), isTrue);
     expect(info.has(OfficialAnkiOperation.renderCard), isTrue);
     expect(info.has(OfficialAnkiOperation.compareTypedAnswer), isTrue);
-    expect(info.contractMinor, anyOf(2, 3, 4, 5, 6));
+    // Doc 39 P2: was anyOf(2..6), rotted since contract 1.7 —
+    // now pinned to the Dart constant so the next bump updates it here.
+    expect(info.contractMinor, kOfficialAnkiContractMinor);
   });
 
   test('Host FFI openProfile is idempotent when Collection is already open', () async {
-    if (libraryPath == null) {
-      if (_requireNative) {
-        fail('libturna_anki.so missing; TURNA_ANKI_REQUIRE_NATIVE=1');
-      }
-      return;
-    }
+    if (_guardNative()) return;
     final root = Directory.systemTemp.createTempSync('turna-reopen-');
     addTearDown(() => root.deleteSync(recursive: true));
     final paths = OfficialAnkiPaths(
@@ -66,12 +73,7 @@ void main() {
   });
 
   test('second engine reclaims an idle collection holder', () async {
-    if (libraryPath == null) {
-      if (_requireNative) {
-        fail('libturna_anki.so missing; TURNA_ANKI_REQUIRE_NATIVE=1');
-      }
-      return;
-    }
+    if (_guardNative()) return;
     final root = Directory.systemTemp.createTempSync('turna-reclaim-');
     addTearDown(() => root.deleteSync(recursive: true));
     final paths = OfficialAnkiPaths(
@@ -99,12 +101,7 @@ void main() {
   });
 
   test('Dart allocator → C ABI → rslib → catalog for unicode fixture', () async {
-    if (libraryPath == null) {
-      if (_requireNative) {
-        fail('libturna_anki.so missing; TURNA_ANKI_REQUIRE_NATIVE=1');
-      }
-      return;
-    }
+    if (_guardNative()) return;
     final root = Directory.systemTemp.createTempSync('turna-host-ffi-');
     addTearDown(() => root.deleteSync(recursive: true));
     final paths = OfficialAnkiPaths(
@@ -164,12 +161,7 @@ void main() {
   });
 
   test('Host FFI renders nine official fixtures and compares typed answer', () async {
-    if (libraryPath == null) {
-      if (_requireNative) {
-        fail('libturna_anki.so missing; TURNA_ANKI_REQUIRE_NATIVE=1');
-      }
-      return;
-    }
+    if (_guardNative()) return;
     final expectedDir = Directory('test/fixtures/anki_official/expected');
     final packages = [
       '01-basic-unicode',
@@ -255,12 +247,7 @@ void main() {
   });
 
   test('Host FFI set-deck queue answer good then stale token', () async {
-    if (libraryPath == null) {
-      if (_requireNative) {
-        fail('libturna_anki.so missing; TURNA_ANKI_REQUIRE_NATIVE=1');
-      }
-      return;
-    }
+    if (_guardNative()) return;
     final root = Directory.systemTemp.createTempSync('turna-host-sched-');
     addTearDown(() => root.deleteSync(recursive: true));
     final paths = OfficialAnkiPaths(

@@ -82,7 +82,10 @@ void main() {
   test('FFI engine uses the envelope payload for ENGINE_INFO', () async {
     final engine = FfiOfficialAnkiEngine(
       nativeCall: ({required operationId, required request}) {
-        expect(operationId, OfficialAnkiOperation.engineInfoId);
+        expect(
+          operationId,
+          OfficialAnkiOperation.idFor(OfficialAnkiOperation.engineInfo),
+        );
         expect(request.operation, OfficialAnkiOperation.engineInfo);
         return OfficialAnkiEnvelopeResponse.fromJson({
           'contractVersion': {'major': 1, 'minor': 0},
@@ -133,7 +136,7 @@ void main() {
     );
     expect(
       OfficialAnkiOperation.idFor(OfficialAnkiOperation.getProjectionSchemas),
-      OfficialAnkiOperation.getProjectionSchemasId,
+      24,
     );
   });
 

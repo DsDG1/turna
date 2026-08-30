@@ -1,6 +1,3 @@
-import 'dart:convert';
-import 'dart:io';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/anki_official/contract/official_anki_contract.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
@@ -10,18 +7,10 @@ import 'package:turna/application/anki_official/engine/official_anki_engine_fake
 import 'package:turna/application/anki_official/render/official_anki_render_facade.dart';
 
 void main() {
-  test('operation name and id stay aligned with operations.md', () {
-    final doc = File('native/turna_anki_core/contract/operations.md').readAsStringSync();
-    expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.renderCard), 10);
-    expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.compareTypedAnswer), 22);
-    expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.extractClozeForTyping), 23);
-    expect(kOfficialAnkiContractMinor, 10);
-    for (final name in OfficialAnkiOperation.productionNames) {
-      expect(doc.contains('| ${OfficialAnkiOperation.idFor(name)} | $name |'), isTrue);
-    }
-  });
+  // The operations.md alignment and ENGINE_INFO golden assertions moved to
+  // official_anki_contract_integrity_test.dart (doc 39 P2).
 
-  test('rendered card DTO ignores unknown fields and reads both names', () {
+  test('rendered card DTO ignores unknown fields (camelCase only)', () {
     final card = OfficialAnkiRenderedCard.fromJson({
       'cardId': 9,
       'questionHtml': '[sound:a.mp3]Q',
@@ -65,16 +54,17 @@ void main() {
     expect(withClass.bodyClass, 'card card2');
     expect(withClass.bodyClass.contains('isWin'), isFalse);
 
+    // Doc 39 P2: the dead snake aliases were deleted — a snake-only payload
+    // now decodes to empty strings and id 0 rather than being honored.
     final snake = OfficialAnkiRenderedCard.fromJson({
       'card_id': 3,
       'question_html': 'raw',
       'answer_html': 'rawA',
-      'question_text_without_av': 'disp',
-      'answer_text_without_av': 'dispA',
       'css': '',
     });
-    expect(snake.cardId, 3);
-    expect(snake.questionDisplayHtml, 'disp');
+    expect(snake.cardId, 0);
+    expect(snake.questionHtml, '');
+    expect(snake.questionDisplayHtml, '');
   });
 
   test('facade fail-closes when capability is missing', () async {
@@ -113,38 +103,20 @@ void main() {
     expect(fake.renderCount, 1);
   });
 
-  test('capability helper rejects old contract major', () {
+  test('capability helper no longer re-checks major (decode gates it)', () {
+    // Doc 39 P2: the major check in OfficialAnkiCapabilities.require and
+    // FfiOfficialAnkiEngine._call was deleted — responses with a wrong
+    // envelope major already fail closed at OfficialAnkiEnvelopeResponse
+    // .fromJson. require() is purely a capability gate now.
     const caps = OfficialAnkiCapabilities(
       OfficialAnkiEngineInfo(
         abiVersion: 1,
         backendCommit: 'x',
-        contractMajor: 2,
+        contractMajor: 1,
         contractMinor: 0,
         capabilities: {'RENDER_CARD'},
       ),
     );
-    expect(
-      () => caps.require(OfficialAnkiOperation.renderCard),
-      throwsA(
-        isA<OfficialAnkiException>().having(
-          (e) => e.code,
-          'code',
-          OfficialAnkiErrorCode.contractVersionMismatch,
-        ),
-      ),
-    );
-  });
-
-  test('ENGINE_INFO golden lists render capabilities', () {
-    final jsonText = File(
-      'native/turna_anki_core/contract/fixtures/response_engine_info.json',
-    ).readAsStringSync();
-    final decoded = jsonDecode(jsonText) as Map<String, dynamic>;
-    final caps = (decoded['payload'] as Map)['capabilities'] as List;
-    expect(caps, contains('RENDER_CARD'));
-    expect(caps, contains('COMPARE_TYPED_ANSWER'));
-    expect(caps, contains('EXTRACT_CLOZE_FOR_TYPING'));
-    expect((decoded['payload'] as Map)['contractMinor'], 10);
-    expect(caps, contains('GET_PROJECTION_SCHEMAS'));
+    caps.require(OfficialAnkiOperation.renderCard);
   });
 }

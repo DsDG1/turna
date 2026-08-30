@@ -234,23 +234,17 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
     if (control != null && handle != 0) {
       final request = OfficialAnkiEnvelopeRequest(
         requestId: 'progress-${DateTime.now().microsecondsSinceEpoch}',
-        operation: 'LATEST_PROGRESS',
+        operation: OfficialAnkiOperation.latestProgress,
       );
-      final response = control.call(handle, 6, request);
-      final payload = response.requirePayload();
-      final wantAbort = payload['want_abort'] == true;
-      return OfficialAnkiProgress(
-        stage: wantAbort
-            ? 'cancelling'
-            : (payload['operation_kind'] as String? ?? 'idle'),
-        canCancel: payload['can_cancel'] == true,
+      final response = control.call(
+        handle,
+        OfficialAnkiOperation.idFor(OfficialAnkiOperation.latestProgress),
+        request,
       );
+      return OfficialAnkiProgress.fromJson(response.requirePayload());
     }
     final raw = await _rpc('progress');
-    return OfficialAnkiProgress(
-      stage: raw['stage'] as String? ?? 'idle',
-      canCancel: raw['canCancel'] == true,
-    );
+    return OfficialAnkiProgress.fromJson(raw);
   }
 
   Future<void> cancel() async {

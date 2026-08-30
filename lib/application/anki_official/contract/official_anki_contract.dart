@@ -58,40 +58,45 @@ abstract final class OfficialAnkiOperation {
   static const answerAheadCards = 'ANSWER_AHEAD_CARDS';
   static const ensureTodayNewQuota = 'ENSURE_TODAY_NEW_QUOTA';
 
-  static const engineInfoId = 1;
-  static const openCollectionId = 2;
-  static const closeCollectionId = 3;
-  static const checkCollectionId = 4;
-  static const importPackageId = 5;
-  static const latestProgressId = 6;
-  static const cancelOperationId = 7;
-  static const listDeckTreeId = 8;
-  static const createBackupId = 17;
-  static const searchCardsPageId = 18;
-  static const getNoteCardsBatchId = 19;
-  static const getCardDescriptorsBatchId = 20;
-  static const restoreBackupId = 21;
-  static const renderCardId = 10;
-  static const compareTypedAnswerId = 22;
-  static const extractClozeForTypingId = 23;
-  static const getProjectionSchemasId = 24;
-  static const beginProjectionReadId = 25;
-  static const getProjectionRowsBatchId = 26;
-  static const setCurrentDeckId = 11;
-  static const getReviewQueueId = 12;
-  static const answerCardId = 14;
-  static const getUndoStatusId = 15;
-  static const undoId = 16;
-  static const redoId = 27;
-  static const buryOrSuspendCardsId = 28;
-  static const countsForDeckTodayId = 29;
-  static const congratsInfoId = 30;
-  static const deleteNotesId = 31;
-  static const deleteCardsId = 32;
-  static const statsForCardsBatchId = 33;
-  static const scheduleCardsAsNewId = 34;
-  static const answerAheadCardsId = 35;
-  static const ensureTodayNewQuotaId = 36;
+  /// Single source of truth for the wire contract (doc 39 P2): every live
+  /// operation name → its stable id, exactly as `contract/operations.md`
+  /// defines them. Append-only — ids are never reused or renumbered.
+  static const Map<String, int> ids = {
+    engineInfo: 1,
+    openCollection: 2,
+    closeCollection: 3,
+    checkCollection: 4,
+    importPackage: 5,
+    latestProgress: 6,
+    cancelOperation: 7,
+    listDeckTree: 8,
+    renderCard: 10,
+    setCurrentDeck: 11,
+    getReviewQueue: 12,
+    answerCard: 14,
+    getUndoStatus: 15,
+    undo: 16,
+    createBackup: 17,
+    searchCardsPage: 18,
+    getNoteCardsBatch: 19,
+    getCardDescriptorsBatch: 20,
+    restoreBackup: 21,
+    compareTypedAnswer: 22,
+    extractClozeForTyping: 23,
+    getProjectionSchemas: 24,
+    beginProjectionRead: 25,
+    getProjectionRowsBatch: 26,
+    redo: 27,
+    buryOrSuspendCards: 28,
+    countsForDeckToday: 29,
+    congratsInfo: 30,
+    deleteNotes: 31,
+    deleteCards: 32,
+    statsForCardsBatch: 33,
+    scheduleCardsAsNew: 34,
+    answerAheadCards: 35,
+    ensureTodayNewQuota: 36,
+  };
 
   static const productionNames = <String>{
     engineInfo,
@@ -131,82 +136,16 @@ abstract final class OfficialAnkiOperation {
   };
 
   static int idFor(String name) {
-    switch (name) {
-      case engineInfo:
-        return engineInfoId;
-      case openCollection:
-        return openCollectionId;
-      case closeCollection:
-        return closeCollectionId;
-      case checkCollection:
-        return checkCollectionId;
-      case importPackage:
-        return importPackageId;
-      case latestProgress:
-        return latestProgressId;
-      case cancelOperation:
-        return cancelOperationId;
-      case listDeckTree:
-        return listDeckTreeId;
-      case createBackup:
-        return createBackupId;
-      case restoreBackup:
-        return restoreBackupId;
-      case searchCardsPage:
-        return searchCardsPageId;
-      case getNoteCardsBatch:
-        return getNoteCardsBatchId;
-      case getCardDescriptorsBatch:
-        return getCardDescriptorsBatchId;
-      case renderCard:
-        return renderCardId;
-      case compareTypedAnswer:
-        return compareTypedAnswerId;
-      case extractClozeForTyping:
-        return extractClozeForTypingId;
-      case getProjectionSchemas:
-        return getProjectionSchemasId;
-      case beginProjectionRead:
-        return beginProjectionReadId;
-      case getProjectionRowsBatch:
-        return getProjectionRowsBatchId;
-      case setCurrentDeck:
-        return setCurrentDeckId;
-      case getReviewQueue:
-        return getReviewQueueId;
-      case answerCard:
-        return answerCardId;
-      case getUndoStatus:
-        return getUndoStatusId;
-      case undo:
-        return undoId;
-      case redo:
-        return redoId;
-      case buryOrSuspendCards:
-        return buryOrSuspendCardsId;
-      case countsForDeckToday:
-        return countsForDeckTodayId;
-      case congratsInfo:
-        return congratsInfoId;
-      case deleteNotes:
-        return deleteNotesId;
-      case deleteCards:
-        return deleteCardsId;
-      case statsForCardsBatch:
-        return statsForCardsBatchId;
-      case scheduleCardsAsNew:
-        return scheduleCardsAsNewId;
-      case answerAheadCards:
-        return answerAheadCardsId;
-      case ensureTodayNewQuota:
-        return ensureTodayNewQuotaId;
-      default:
-        throw OfficialAnkiException(
-          code: OfficialAnkiErrorCode.invalidArgument,
-          messageKey: 'official_anki.unknown_operation',
-        );
+    final id = ids[name];
+    if (id == null) {
+      throw OfficialAnkiException(
+        code: OfficialAnkiErrorCode.invalidArgument,
+        messageKey: 'official_anki.unknown_operation',
+      );
     }
+    return id;
   }
+
 }
 
 class OfficialAnkiEnvelopeRequest {

@@ -54,12 +54,8 @@ class FfiOfficialAnkiEngine implements OfficialAnkiEngine {
         request: request,
       );
     }
-    if (response.engine.contractMajor != kOfficialAnkiContractMajor) {
-      throw const OfficialAnkiException(
-        code: OfficialAnkiErrorCode.contractVersionMismatch,
-        messageKey: 'official_anki.contract_version_mismatch',
-      );
-    }
+    // Major mismatch already fails closed at envelope decode
+    // (OfficialAnkiEnvelopeResponse.fromJson, doc 39 P2 single gate).
     return response;
   }
 
@@ -133,14 +129,7 @@ class FfiOfficialAnkiEngine implements OfficialAnkiEngine {
   Future<OfficialAnkiProgress> latestProgress() async {
     final payload =
         _call(OfficialAnkiOperation.latestProgress).requirePayload();
-    final wantAbort = payload['want_abort'] == true;
-    final busy = payload['can_cancel'] == true;
-    return OfficialAnkiProgress(
-      stage: wantAbort
-          ? 'cancelling'
-          : (payload['operation_kind'] as String? ?? 'idle'),
-      canCancel: busy,
-    );
+    return OfficialAnkiProgress.fromJson(payload);
   }
 
   @override

@@ -90,7 +90,7 @@ class OfficialAnkiCompositionRoot {
       try {
         final info = transport.call(
           handle,
-          OfficialAnkiOperation.engineInfoId,
+          OfficialAnkiOperation.idFor(OfficialAnkiOperation.engineInfo),
           const OfficialAnkiEnvelopeRequest(
             requestId: 'probe-engine-info',
             operation: OfficialAnkiOperation.engineInfo,

@@ -1,9 +1,7 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:turna/application/anki_official/contract/official_anki_contract.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
@@ -20,78 +18,8 @@ import '../../support/official_anki_review_fixture.dart';
 import 'official_anki_formal_review_ack_test.dart' show officialFormalReviewPresenter;
 
 void main() {
-  test('contract 1.10 publishes scheduler operations 11-16, 27-36', () {
-    expect(kOfficialAnkiContractMinor, 10);
-    expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.setCurrentDeck), 11);
-    expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.getReviewQueue), 12);
-    // DESCRIBE_NEXT_STATES (op 13) stays in the Rust contract (append-only)
-    // but was retired from the Dart call face (doc 39 P1-E).
-    expect(
-      OfficialAnkiOperation.productionNames.contains('DESCRIBE_NEXT_STATES'),
-      isFalse,
-    );
-    expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.answerCard), 14);
-    expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.getUndoStatus), 15);
-    expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.undo), 16);
-    expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.redo), 27);
-    expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.buryOrSuspendCards), 28);
-    expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.countsForDeckToday), 29);
-    expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.congratsInfo), 30);
-    expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.deleteNotes), 31);
-    expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.deleteCards), 32);
-    expect(
-      OfficialAnkiOperation.idFor(OfficialAnkiOperation.statsForCardsBatch),
-      33,
-    );
-    expect(
-      OfficialAnkiOperation.idFor(OfficialAnkiOperation.scheduleCardsAsNew),
-      34,
-    );
-    expect(
-      OfficialAnkiOperation.idFor(OfficialAnkiOperation.answerAheadCards),
-      35,
-    );
-    expect(
-      OfficialAnkiOperation.idFor(OfficialAnkiOperation.ensureTodayNewQuota),
-      36,
-    );
-    expect(
-      OfficialAnkiOperation.productionNames,
-      containsAll([
-        'SET_CURRENT_DECK',
-        'GET_REVIEW_QUEUE',
-        'ANSWER_CARD',
-        'UNDO',
-        'REDO',
-        'BURY_OR_SUSPEND_CARDS',
-        'COUNTS_FOR_DECK_TODAY',
-        'CONGRATS_INFO',
-        'DELETE_NOTES',
-        'DELETE_CARDS',
-        'STATS_FOR_CARDS_BATCH',
-        'SCHEDULE_CARDS_AS_NEW',
-        'ANSWER_AHEAD_CARDS',
-        'ENSURE_TODAY_NEW_QUOTA',
-      ]),
-    );
-    final golden = jsonDecode(
-      File('native/turna_anki_core/contract/fixtures/response_engine_info.json')
-          .readAsStringSync(),
-    ) as Map;
-    final caps = (golden['payload'] as Map)['capabilities'] as List;
-    expect(caps, contains('GET_REVIEW_QUEUE'));
-    expect(caps, contains('REDO'));
-    expect(caps, contains('DELETE_NOTES'));
-    expect(caps, contains('SCHEDULE_CARDS_AS_NEW'));
-    expect(caps, contains('ANSWER_AHEAD_CARDS'));
-    expect(caps, contains('ENSURE_TODAY_NEW_QUOTA'));
-    expect(
-      File('native/turna_anki_core/contract/VERSION')
-          .readAsStringSync()
-          .trim(),
-      '1.10',
-    );
-  });
+  // The contract-id/golden/VERSION assertions moved to
+  // official_anki_contract_integrity_test.dart (doc 39 P2).
 
   test('fake queue tokens are opaque and single-use', () async {
     OfficialAnkiSchedulerAudit.reset();

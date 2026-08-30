@@ -1,3 +1,12 @@
+// Snake-case alias policy (doc 39 P2): the Rust bridge emits camelCase for
+// every op except four handlers whose snake keys are load-bearing and are
+// kept as dual reads below — import log (new_note_ids & co), deck tree
+// (deck_id/new_count/learn_count/review_count), undo status (can_undo/
+// can_redo) and LATEST_PROGRESS (operation_kind/can_cancel/want_abort).
+// All other snake aliases were dead (the emitter never sends them) and were
+// deleted.
+
+import 'package:turna/application/anki_official/contract/official_anki_contract.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 
 class OfficialAnkiEngineInfo {
@@ -16,12 +25,15 @@ class OfficialAnkiEngineInfo {
   final Set<String> capabilities;
 
   factory OfficialAnkiEngineInfo.fromJson(Map<String, Object?> json) {
+    // The four identity fields parse once in EngineMeta (doc 39 P2); the
+    // engine-info payload is a meta plus the capabilities list.
+    final meta = OfficialAnkiEngineMeta.fromJson(json);
     final raw = json['capabilities'];
     return OfficialAnkiEngineInfo(
-      abiVersion: (json['abiVersion'] as num?)?.toInt() ?? 0,
-      backendCommit: json['backendCommit'] as String? ?? '',
-      contractMajor: (json['contractMajor'] as num?)?.toInt() ?? 0,
-      contractMinor: (json['contractMinor'] as num?)?.toInt() ?? 0,
+      abiVersion: meta.abiVersion,
+      backendCommit: meta.backendCommit,
+      contractMajor: meta.contractMajor,
+      contractMinor: meta.contractMinor,
       capabilities: raw is List
           ? raw.map((item) => item.toString()).toSet()
           : const <String>{},
@@ -31,6 +43,11 @@ class OfficialAnkiEngineInfo {
   bool has(String operation) => capabilities.contains(operation);
 }
 
+/// Doc 39 P2 deviation: the plan listed `queue/suspended/buried/flag/
+/// marked/tags` as write-only, but the source-aware browser reads all six
+/// for its live filter model and row display, and the fake engine models
+/// card state through them. They stay. (Rust still emits them; nothing to
+/// register for a future minor bump.)
 class OfficialAnkiCardDescriptor {
   const OfficialAnkiCardDescriptor({
     required this.cardId,
@@ -77,7 +94,6 @@ class OfficialAnkiCardDescriptor {
     );
   }
 }
-
 class OfficialAnkiImportLog {
   const OfficialAnkiImportLog({
     required this.newNoteIds,
@@ -160,15 +176,29 @@ class OfficialAnkiCardPage {
 class OfficialAnkiProgress {
   const OfficialAnkiProgress({
     required this.stage,
-    this.current = 0,
-    this.total = 0,
     this.canCancel = false,
   });
 
   final String stage;
-  final int current;
-  final int total;
   final bool canCancel;
+
+  /// Accepts both wire shapes: the native LATEST_PROGRESS payload
+  /// (`operation_kind`/`can_cancel`/`want_abort`, one of the few handlers
+  /// whose snake keys are load-bearing) and the worker re-emission
+  /// (`stage`/`canCancel`). The dead `current`/`total` fields were deleted
+  /// (doc 39 P2); no caller ever read them.
+  factory OfficialAnkiProgress.fromJson(Map<String, Object?> json) {
+    final wantAbort = json['want_abort'] == true;
+    final stage =
+        json['stage'] as String? ??
+            (wantAbort
+                ? 'cancelling'
+                : (json['operation_kind'] as String? ?? 'idle'));
+    return OfficialAnkiProgress(
+      stage: stage,
+      canCancel: json['canCancel'] == true || json['can_cancel'] == true,
+    );
+  }
 }
 
 class OfficialAnkiAvTag {
@@ -201,10 +231,9 @@ class OfficialAnkiAvTag {
     final kind = json['kind'] as String? ?? '';
     if (kind == 'tts') {
       final voices = json['voices'];
-      final args = json['otherArgs'] ?? json['other_args'];
+      final args = json['otherArgs'];
       return OfficialAnkiAvTag.tts(
-        fieldText:
-            json['fieldText'] as String? ?? json['field_text'] as String? ?? '',
+        fieldText: json['fieldText'] as String? ?? '',
         lang: json['lang'] as String?,
         voices: voices is List
             ? voices.map((e) => e.toString()).toList()
@@ -241,16 +270,10 @@ class OfficialAnkiTypedAnswerHint {
   factory OfficialAnkiTypedAnswerHint.fromJson(Map<String, Object?> json) {
     return OfficialAnkiTypedAnswerHint(
       marker: json['marker'] as String? ?? '',
-      fontFamily: json['fontFamily'] as String? ??
-          json['font_family'] as String? ??
-          'Arial',
-      fontSizePx:
-          (json['fontSizePx'] as num? ?? json['font_size_px'] as num? ?? 20)
-              .toInt(),
+      fontFamily: json['fontFamily'] as String? ?? 'Arial',
+      fontSizePx: (json['fontSizePx'] as num? ?? 20).toInt(),
       combining: json['combining'] != false,
-      clozeOrdinal:
-          (json['clozeOrdinal'] as num? ?? json['cloze_ordinal'] as num?)
-              ?.toInt(),
+      clozeOrdinal: (json['clozeOrdinal'] as num?)?.toInt(),
     );
   }
 }
@@ -266,10 +289,8 @@ class OfficialAnkiTypedComparison {
 
   factory OfficialAnkiTypedComparison.fromJson(Map<String, Object?> json) {
     return OfficialAnkiTypedComparison(
-      comparisonHtml: json['comparisonHtml'] as String? ??
-          json['comparison_html'] as String? ??
-          '',
-      hasExpected: json['hasExpected'] == true || json['has_expected'] == true,
+      comparisonHtml: json['comparisonHtml'] as String? ?? '',
+      hasExpected: json['hasExpected'] == true,
     );
   }
 }
@@ -305,9 +326,12 @@ class OfficialAnkiRenderedCard {
   final int templateOrdinal;
   final String bodyClass;
 
+  /// Doc 39 P2: the snake-case aliases (and the `question_text_without_av`
+  /// fallback keys, which the Rust side never emits) were deleted — the
+  /// RENDER_CARD handler emits camelCase only.
   factory OfficialAnkiRenderedCard.fromJson(Map<String, Object?> json) {
-    List<OfficialAnkiAvTag> tags(String camel, String snake) {
-      final raw = json[camel] ?? json[snake];
+    List<OfficialAnkiAvTag> tags(String key) {
+      final raw = json[key];
       if (raw is! List) return const <OfficialAnkiAvTag>[];
       return raw
           .whereType<Map>()
@@ -316,47 +340,32 @@ class OfficialAnkiRenderedCard {
           .toList();
     }
 
-    String html(String camel, String snake) =>
-        json[camel] as String? ?? json[snake] as String? ?? '';
-
     OfficialAnkiTypedAnswerHint? typed;
-    final typedRaw = json['typedAnswer'] ?? json['typed_answer'];
+    final typedRaw = json['typedAnswer'];
     if (typedRaw is Map) {
       typed = OfficialAnkiTypedAnswerHint.fromJson(
           Map<String, Object?>.from(typedRaw));
     }
 
-    final questionHtml = html('questionHtml', 'question_html');
-    final answerHtml = html('answerHtml', 'answer_html');
+    final questionHtml = json['questionHtml'] as String? ?? '';
+    final answerHtml = json['answerHtml'] as String? ?? '';
+    final questionDisplay = json['questionDisplayHtml'] as String? ?? '';
+    final answerDisplay = json['answerDisplayHtml'] as String? ?? '';
     return OfficialAnkiRenderedCard(
-      cardId: (json['cardId'] as num? ?? json['card_id'] as num? ?? 0).toInt(),
+      cardId: (json['cardId'] as num? ?? 0).toInt(),
       questionHtml: questionHtml,
       answerHtml: answerHtml,
-      questionDisplayHtml: html('questionDisplayHtml', 'question_display_html')
-              .isEmpty
-          ? html('question_text_without_av', 'questionTextWithoutAv').isEmpty
-              ? questionHtml
-              : html('question_text_without_av', 'questionTextWithoutAv')
-          : html('questionDisplayHtml', 'question_display_html'),
-      answerDisplayHtml:
-          html('answerDisplayHtml', 'answer_display_html').isEmpty
-              ? html('answer_text_without_av', 'answerTextWithoutAv').isEmpty
-                  ? answerHtml
-                  : html('answer_text_without_av', 'answerTextWithoutAv')
-              : html('answerDisplayHtml', 'answer_display_html'),
+      questionDisplayHtml:
+          questionDisplay.isEmpty ? questionHtml : questionDisplay,
+      answerDisplayHtml: answerDisplay.isEmpty ? answerHtml : answerDisplay,
       css: json['css'] as String? ?? '',
-      latexSvg: json['latexSvg'] == true || json['latex_svg'] == true,
-      isEmpty: json['isEmpty'] == true || json['is_empty'] == true,
-      questionAvTags: tags('questionAvTags', 'question_av_tags'),
-      answerAvTags: tags('answerAvTags', 'answer_av_tags'),
+      latexSvg: json['latexSvg'] == true,
+      isEmpty: json['isEmpty'] == true,
+      questionAvTags: tags('questionAvTags'),
+      answerAvTags: tags('answerAvTags'),
       typedAnswer: typed,
-      templateOrdinal: (json['templateOrdinal'] as num? ??
-              json['template_ordinal'] as num? ??
-              0)
-          .toInt(),
-      bodyClass: json['bodyClass'] as String? ??
-          json['body_class'] as String? ??
-          'card card1',
+      templateOrdinal: (json['templateOrdinal'] as num? ?? 0).toInt(),
+      bodyClass: json['bodyClass'] as String? ?? 'card card1',
     );
   }
 }
@@ -410,7 +419,7 @@ class OfficialAnkiProjectionSample {
   factory OfficialAnkiProjectionSample.fromJson(Map<String, Object?> json) {
     final raw = json['fields'];
     return OfficialAnkiProjectionSample(
-      noteId: (json['noteId'] as num? ?? json['note_id'] as num? ?? 0).toInt(),
+      noteId: (json['noteId'] as num? ?? 0).toInt(),
       fields: raw is List
           ? raw.map((e) => e.toString()).toList()
           : const <String>[],
@@ -560,8 +569,8 @@ class OfficialAnkiProjectionSchema {
   final OfficialAnkiTemplateFacts? templateFacts;
 
   factory OfficialAnkiProjectionSchema.fromJson(Map<String, Object?> json) {
-    List<String> names(String camel, String snake) {
-      final raw = json[camel] ?? json[snake];
+    List<String> names(String key) {
+      final raw = json[key];
       if (raw is! List) return const <String>[];
       return raw.map((e) => e.toString()).toList();
     }
@@ -569,16 +578,12 @@ class OfficialAnkiProjectionSchema {
     final samples = json['samples'];
     final templateFacts = json['templateFacts'];
     return OfficialAnkiProjectionSchema(
-      notetypeId:
-          (json['notetypeId'] as num? ?? json['notetype_id'] as num? ?? 0)
-              .toInt(),
+      notetypeId: (json['notetypeId'] as num? ?? 0).toInt(),
       name: json['name'] as String? ?? '',
       kind: json['kind'] as String? ?? 'normal',
-      fieldNames: names('fieldNames', 'field_names'),
-      templateNames: names('templateNames', 'template_names'),
-      schemaFingerprint: json['schemaFingerprint'] as String? ??
-          json['schema_fingerprint'] as String? ??
-          '',
+      fieldNames: names('fieldNames'),
+      templateNames: names('templateNames'),
+      schemaFingerprint: json['schemaFingerprint'] as String? ?? '',
       samples: samples is List
           ? samples
               .whereType<Map>()
@@ -610,16 +615,10 @@ class OfficialAnkiProjectionSnapshot {
 
   factory OfficialAnkiProjectionSnapshot.fromJson(Map<String, Object?> json) {
     return OfficialAnkiProjectionSnapshot(
-      snapshotToken: json['snapshotToken'] as String? ??
-          json['snapshot_token'] as String? ??
-          '',
-      collectionGeneration: (json['collectionGeneration'] as num? ??
-              json['collection_generation'] as num? ??
-              0)
-          .toInt(),
-      backendCommit: json['backendCommit'] as String? ??
-          json['backend_commit'] as String? ??
-          '',
+      snapshotToken: json['snapshotToken'] as String? ?? '',
+      collectionGeneration:
+          (json['collectionGeneration'] as num? ?? 0).toInt(),
+      backendCommit: json['backendCommit'] as String? ?? '',
     );
   }
 }
@@ -652,31 +651,23 @@ class OfficialAnkiProjectionRow {
   final bool truncated;
 
   factory OfficialAnkiProjectionRow.fromJson(Map<String, Object?> json) {
-    List<String> list(String camel, String snake) {
-      final raw = json[camel] ?? json[snake];
+    List<String> list(String key) {
+      final raw = json[key];
       if (raw is! List) return const <String>[];
       return raw.map((e) => e.toString()).toList();
     }
 
     return OfficialAnkiProjectionRow(
-      cardId: (json['cardId'] as num? ?? json['card_id'] as num? ?? 0).toInt(),
-      noteId: (json['noteId'] as num? ?? json['note_id'] as num? ?? 0).toInt(),
-      noteGuid:
-          json['noteGuid'] as String? ?? json['note_guid'] as String? ?? '',
-      notetypeId:
-          (json['notetypeId'] as num? ?? json['notetype_id'] as num? ?? 0)
-              .toInt(),
-      deckId: (json['deckId'] as num? ?? json['deck_id'] as num? ?? 0).toInt(),
-      deckPath: list('deckPath', 'deck_path'),
-      templateOrdinal: (json['templateOrdinal'] as num? ??
-              json['template_ordinal'] as num? ??
-              0)
-          .toInt(),
-      tags: list('tags', 'tags'),
-      fields: list('fields', 'fields'),
-      sourceFingerprint: json['sourceFingerprint'] as String? ??
-          json['source_fingerprint'] as String? ??
-          '',
+      cardId: (json['cardId'] as num? ?? 0).toInt(),
+      noteId: (json['noteId'] as num? ?? 0).toInt(),
+      noteGuid: json['noteGuid'] as String? ?? '',
+      notetypeId: (json['notetypeId'] as num? ?? 0).toInt(),
+      deckId: (json['deckId'] as num? ?? 0).toInt(),
+      deckPath: list('deckPath'),
+      templateOrdinal: (json['templateOrdinal'] as num? ?? 0).toInt(),
+      tags: list('tags'),
+      fields: list('fields'),
+      sourceFingerprint: json['sourceFingerprint'] as String? ?? '',
       truncated: json['truncated'] == true,
     );
   }
@@ -693,7 +684,7 @@ class OfficialAnkiProjectionPage {
 
   factory OfficialAnkiProjectionPage.fromJson(Map<String, Object?> json) {
     final rows = json['rows'];
-    final missing = json['missingCardIds'] ?? json['missing_card_ids'];
+    final missing = json['missingCardIds'];
     return OfficialAnkiProjectionPage(
       rows: rows is List
           ? rows
