@@ -11,11 +11,11 @@ prior install: uninstalled debug 0.7.2 (DEBUGGABLE) then fresh install release 0
 
 1. Cold start → Learn = Turkish / Section 1 / Greetings 0/6. No Anki sections. PASS
 2. Course management: only default Turkish. Official internal import not listed. PASS (internal routes not on this surface)
-3. User picked real package `Download/2026_1000_.apkg` (not p5c classic-basic). Official-first preview: 2 decks, 1247 notes, 1247 cards; notetypes 1000题 / Basic / Basic reversed.
+3. User picked real package `Download/user-source-a.apkg` (not p5c classic-basic). Official-first preview: 2 decks, 1247 notes, 1247 cards; notetypes Custom / Basic / Basic reversed.
 4. Commit → 导入完成：1247 张卡片、86 节课；结构化卡片 0；HTML 保真卡片 0；词汇条目 1247；学习进度按新卡重置.
 5. 完成 → course management still 当前=Turkish; new catalog row sourceId `src-a9b9e7f278a5494a93a21b17ba0eb50c` (full id, not truncated). PASS stay-on-language-course
 6. Learn tab still Greetings only. PASS
-7. Switch to Anki course → header shows raw sourceId; section「1000 题」with Chinese textbook units; no Greetings mix. PASS isolation
+7. Switch to Anki course → header shows raw sourceId; section「Deck A」with Chinese textbook units; no Greetings mix. PASS isolation
 8. 练习 Anki 复习 badge「—」; opening review → empty session「本轮完成」0/0. FAIL vs §12.1 review/fidelity/Again
 
 ## Not executed (need another pass)

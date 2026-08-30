@@ -4,6 +4,7 @@ import 'dart:collection';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
+import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 
 /// Serializes all engine calls on one owner. Tests inject a fake inner engine.
@@ -319,6 +320,34 @@ class OfficialAnkiWorker implements OfficialAnkiEngine {
     return _enqueue(
       () => _inner.ensureTodayNewQuota(deckId: deckId, neededNew: neededNew),
     );
+  }
+
+  @override
+  Future<OfficialAnkiGcMediaResult> gcUnusedMedia({bool dryRun = true}) {
+    return _enqueue(() => _inner.gcUnusedMedia(dryRun: dryRun));
+  }
+
+  @override
+  Future<OfficialAnkiPruneMetadataResult> pruneEmptyMetadata({
+    List<int> notetypeIds = const <int>[],
+    List<int> deckIds = const <int>[],
+  }) {
+    return _enqueue(
+      () => _inner.pruneEmptyMetadata(
+        notetypeIds: notetypeIds,
+        deckIds: deckIds,
+      ),
+    );
+  }
+
+  @override
+  Future<OfficialAnkiCompactResult> compactCollection() {
+    return _enqueue(_inner.compactCollection);
+  }
+
+  @override
+  Future<List<int>> diffCollectionCheckpoint(String checkpointId) {
+    return _enqueue(() => _inner.diffCollectionCheckpoint(checkpointId));
   }
 
   @override

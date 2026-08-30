@@ -1,27 +1,21 @@
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
-import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/engine/official_anki_session.dart';
+import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 
 /// Worker-session adapter so production source management can project.
 ///
 /// Positioning (doc 39 P4): this class stays as the deliberate capability
-/// façade over the worker session — the five `throw _missing` members and
-/// the two no-ops are the intentional degradation surface (create/restore
-/// backup and direct import are worker-orchestrator-only). Everything else
-/// is a one-line forward into [OfficialAnkiSession]'s typed RPCs; adding a
-/// new engine op costs one line here plus one line in the worker handler
-/// table (`_workerHandlers` in official_anki_session.dart).
+/// façade over the worker session. Backup create/restore stay no-ops here
+/// (worker-orchestrator-only). Everything else is a one-line forward into
+/// [OfficialAnkiSession]'s typed RPCs; adding a new engine op costs one
+/// line here plus one line in the worker handler table
+/// (`_workerHandlers` in official_anki_session.dart).
 class OfficialAnkiSessionEngine implements OfficialAnkiEngine {
   OfficialAnkiSessionEngine(this.session);
 
   final OfficialAnkiSession session;
-
-  OfficialAnkiException get _missing => const OfficialAnkiException(
-        code: OfficialAnkiErrorCode.capabilityMissing,
-        messageKey: 'official_anki.session_engine_unimplemented',
-      );
 
   @override
   Future<OfficialAnkiEngineInfo> engineInfo() => session.engineInfo();
@@ -37,18 +31,24 @@ class OfficialAnkiSessionEngine implements OfficialAnkiEngine {
   Future<void> checkCollection() async {}
 
   @override
-  Future<String> createBackup() => throw _missing;
+  Future<String> createBackup() => session.createBackup();
 
   @override
-  Future<void> restoreBackup(String backupId) => throw _missing;
+  Future<void> restoreBackup(String backupId) =>
+      session.restoreBackup(backupId);
 
   @override
   Future<OfficialAnkiImportLog> importPackage({
     required String packagePath,
     bool withScheduling = true,
     bool withDeckConfigs = true,
-  }) =>
-      throw _missing;
+  }) {
+    return session.importPackage(
+      packagePath: packagePath,
+      withScheduling: withScheduling,
+      withDeckConfigs: withDeckConfigs,
+    );
+  }
 
   @override
   Future<OfficialAnkiProgress> latestProgress() => session.latestProgress();
@@ -71,13 +71,13 @@ class OfficialAnkiSessionEngine implements OfficialAnkiEngine {
 
   @override
   Future<Map<int, List<int>>> getNoteCardsBatch(List<int> noteIds) =>
-      throw _missing;
+      session.getNoteCardsBatch(noteIds);
 
   @override
   Future<List<OfficialAnkiCardDescriptor>> getCardDescriptorsBatch(
     List<int> cardIds,
   ) =>
-      throw _missing;
+      session.getCardDescriptorsBatch(cardIds);
 
   @override
   Future<OfficialAnkiRenderedCard> renderCard({
@@ -245,6 +245,32 @@ class OfficialAnkiSessionEngine implements OfficialAnkiEngine {
     required int neededNew,
   }) {
     return session.ensureTodayNewQuota(deckId: deckId, neededNew: neededNew);
+  }
+
+  @override
+  Future<OfficialAnkiGcMediaResult> gcUnusedMedia({bool dryRun = true}) {
+    return session.gcUnusedMedia(dryRun: dryRun);
+  }
+
+  @override
+  Future<OfficialAnkiPruneMetadataResult> pruneEmptyMetadata({
+    List<int> notetypeIds = const <int>[],
+    List<int> deckIds = const <int>[],
+  }) {
+    return session.pruneEmptyMetadata(
+      notetypeIds: notetypeIds,
+      deckIds: deckIds,
+    );
+  }
+
+  @override
+  Future<OfficialAnkiCompactResult> compactCollection() {
+    return session.compactCollection();
+  }
+
+  @override
+  Future<List<int>> diffCollectionCheckpoint(String checkpointId) {
+    return session.diffCollectionCheckpoint(checkpointId);
   }
 
   @override

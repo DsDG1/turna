@@ -44,11 +44,14 @@ class OfficialAnkiCompositionRoot {
   OfficialAnkiCompositionRoot._();
 
   static OfficialAnkiImporter? session;
+  static OfficialAnkiSession? stagingSession;
+  static OfficialAnkiEngine? stagingEngine;
   static OfficialAnkiEngine? get engine => projectionEngineFromSession();
   static OfficialAnkiExecutionMode executionMode = OfficialAnkiExecutionMode.none;
   static OfficialAnkiDatabase? readOnlyCatalog;
   static OfficialAnkiPaths? locatorPaths;
   static Future<OfficialAnkiImporter>? _opening;
+  static bool stagingDiscardRequested = false;
 
   static OfficialAnkiRuntimeProbe probe({String? libraryPath}) {
     final flags = OfficialAnkiFeatureFlags.current;
@@ -214,7 +217,7 @@ class OfficialAnkiCompositionRoot {
       }
       debugPrint(
         '[OfficialAnki] worker isolate failed ($error); '
-        'diagnostics in-process host enabled',
+        'in-process fallback enabled',
       );
       session = OfficialAnkiInProcessHost.open(
         paths: paths,
@@ -281,6 +284,9 @@ class OfficialAnkiCompositionRoot {
   /// session state. Production never sets this.
   static OfficialAnkiEngine? debugEngineOverride;
 
+  /// Test seam: staging-collection engine (must not be the live override).
+  static OfficialAnkiEngine? debugStagingEngineOverride;
+
   static OfficialAnkiEngine? projectionEngineFromSession() {
     final overridden = debugEngineOverride;
     if (overridden != null) return overridden;
@@ -289,6 +295,15 @@ class OfficialAnkiCompositionRoot {
     if (current is OfficialAnkiSession) {
       return OfficialAnkiSessionEngine(current);
     }
+    return null;
+  }
+
+  static OfficialAnkiEngine? stagingEngineFromSession() {
+    final overridden = debugStagingEngineOverride;
+    if (overridden != null) return overridden;
+    if (stagingEngine != null) return stagingEngine;
+    final current = stagingSession;
+    if (current != null) return OfficialAnkiSessionEngine(current);
     return null;
   }
 

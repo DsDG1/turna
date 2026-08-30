@@ -1254,6 +1254,16 @@ class AppStrings {
 
   // ── Anki ──
   static String get ankiImportTitle => '导入 Anki 牌组';
+  static String get ankiPendingImportsTitle => '待完成导入';
+  static String get ankiImportLeaveTitle => '离开导入？';
+  static String get ankiImportLeaveWait => '继续等待';
+  static String get ankiImportLeaveDiscard => '放弃并清理';
+  static String get ankiImportLeaveContinueLater => '稍后继续';
+  static String get ankiImportLeaveBusyMessage =>
+      '导入仍在进行。离开前请选择继续等待，或放弃并清理已写入的数据。';
+  static String get ankiImportLeavePreviewMessage =>
+      '预览尚未确认。稍后继续会保留待完成导入；放弃将回滚本次导入。';
+  static String ankiPendingImportPhase(String phase) => '阶段：$phase';
   static String get ankiImportDialogTitle => '导入 Anki 牌组';
   static String get ankiImportSelectTitle => '导入 Anki 牌组';
   static String get ankiImportSelectSubtitle =>
@@ -1386,7 +1396,7 @@ class AppStrings {
   static String get ankiImportingOfficialFirst => '正在导入到官方 Anki 集合…';
   static String get ankiOfficialPreviewBody => '牌组已读入。下面是按内容识别出的练习方式，一般可以直接导入。';
   static String get ankiOfficialMappingHint =>
-      '点开可看一张样卡；叫 Basic、eggrolls 的是牌组内部名称，可以忽略。';
+      '点开可看一张样卡；叫 Basic、Vocabulary 的是牌组内部名称，可以忽略。';
   static String get ankiOfficialDedupeHint => '重复导入同一文件会自动跳过。';
   static String get ankiOfficialNeedsMapping => '还有一类卡片需要看一眼样卡，点那一行即可。';
   static String get ankiOfficialMappingConfirmed => '已确认';

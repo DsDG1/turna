@@ -8,8 +8,6 @@ void main() {
         reason: 'doc 34: Official-first is the Android production default');
     expect(env.allowsOfficialFirstImport, isTrue);
     expect(env.allowsOfficialScheduler, isTrue);
-    expect(env.diagnostics, isFalse);
-    expect(env.legacyMirror, isFalse);
     expect(env.courseGradesScheduler, isFalse);
     // Zero-arg constructor stays all-false for focused unit tests.
     expect(const OfficialAnkiFeatureFlags().officialFirstImport, isFalse);

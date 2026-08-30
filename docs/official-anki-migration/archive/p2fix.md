@@ -568,7 +568,7 @@ Kotlin `evaluateJavascript` 必须等待 JS Promise 完成。可由 JS 将 compl
 
 设备测试：
 
-- 中文/日语/希伯来语/组合字符。
+- 中文/希伯来语/组合字符。
 - 软键盘 show/hide。
 - 横竖屏。
 - 长卡滚动。

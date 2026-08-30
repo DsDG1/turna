@@ -28,6 +28,7 @@ class OfficialAnkiSourceDao {
   OfficialAnkiSourceDao(this._database);
 
   final OfficialAnkiDatabase _database;
+  OfficialAnkiDatabase get database => _database;
   Database get _db => _database.handle;
 
   OfficialAnkiSourceRow? findByHash(String profileId, String hash) {
@@ -147,8 +148,8 @@ WHERE source_id = ? AND state = ?
           'DELETE FROM anki_source_cards WHERE source_id = ?', [sourceId]);
       final stmt = _db.prepare(
         'INSERT INTO anki_source_cards '
-        '(source_id, card_id, note_id, deck_id, note_guid, template_ord) '
-        'VALUES (?, ?, ?, ?, ?, ?)',
+        '(source_id, card_id, note_id, deck_id, note_guid, template_ord, notetype_id) '
+        'VALUES (?, ?, ?, ?, ?, ?, ?)',
       );
       for (final card in cards) {
         stmt.execute([
@@ -158,6 +159,7 @@ WHERE source_id = ? AND state = ?
           card.deckId,
           card.noteGuid,
           card.templateOrd,
+          card.notetypeId,
         ]);
       }
       stmt.dispose();
@@ -177,8 +179,8 @@ WHERE source_id = ? AND state = ?
     try {
       final stmt = _db.prepare(
         'INSERT OR REPLACE INTO anki_source_cards '
-        '(source_id, card_id, note_id, deck_id, note_guid, template_ord) '
-        'VALUES (?, ?, ?, ?, ?, ?)',
+        '(source_id, card_id, note_id, deck_id, note_guid, template_ord, notetype_id) '
+        'VALUES (?, ?, ?, ?, ?, ?, ?)',
       );
       for (final card in cards) {
         stmt.execute([
@@ -188,6 +190,7 @@ WHERE source_id = ? AND state = ?
           card.deckId,
           card.noteGuid,
           card.templateOrd,
+          card.notetypeId,
         ]);
       }
       stmt.dispose();
@@ -287,7 +290,7 @@ WHERE source_id = ? AND state = ?
   List<OfficialAnkiCardDescriptor> listCards(String sourceId) {
     return _db
         .select(
-          'SELECT card_id, note_id, deck_id, note_guid, template_ord '
+          'SELECT card_id, note_id, deck_id, note_guid, template_ord, notetype_id '
           'FROM anki_source_cards WHERE source_id = ? ORDER BY card_id',
           [sourceId],
         )
@@ -298,6 +301,7 @@ WHERE source_id = ? AND state = ?
             deckId: (row['deck_id'] as num).toInt(),
             templateOrd: (row['template_ord'] as num).toInt(),
             noteGuid: row['note_guid'] as String?,
+            notetypeId: (row['notetype_id'] as num?)?.toInt(),
           ),
         )
         .toList();
@@ -307,14 +311,34 @@ WHERE source_id = ? AND state = ?
   /// sibling source. Source uninstall must retain these collection cards;
   /// the catalog's `(source_id, card_id)` key deliberately permits sharing.
   Set<int> sharedCardIds(String sourceId) {
+    return retainingSharedCardIds(sourceId);
+  }
+
+  /// Sibling owners that still intend to keep the card. Retired / cancelled /
+  /// pending_cleanup / rollback_pending sources do not protect it.
+  Set<int> retainingSharedCardIds(String sourceId) {
     return _db
         .select(
-          'SELECT DISTINCT mine.card_id FROM anki_source_cards mine '
-          'WHERE mine.source_id = ? AND EXISTS ('
-          '  SELECT 1 FROM anki_source_cards sibling '
-          '  WHERE sibling.card_id = mine.card_id '
-          '    AND sibling.source_id <> mine.source_id'
-          ')',
+          '''
+SELECT DISTINCT mine.card_id FROM anki_source_cards mine
+WHERE mine.source_id = ? AND EXISTS (
+  SELECT 1 FROM anki_source_cards sibling
+  JOIN anki_sources s ON s.source_id = sibling.source_id
+  LEFT JOIN anki_import_attempts a ON a.attempt_id = s.active_attempt_id
+  WHERE sibling.card_id = mine.card_id
+    AND sibling.source_id <> mine.source_id
+    AND (
+      s.state IN ('active', 'repairing', 'selected', 'preview_ready',
+                  'indexing_cards', 'indexing_notes', 'importing_official',
+                  'preparing', 'backing_up')
+      OR (s.state = 'staging' AND IFNULL(a.user_intent, 'undecided') <> 'discard')
+    )
+    AND s.state NOT IN (
+      'retired', 'cancelled', 'failed_before_import', 'failed_after_import',
+      'rollback_pending', 'pending_cleanup', 'quarantined', 'rolled_back'
+    )
+)
+''',
           [sourceId],
         )
         .map((row) => (row['card_id'] as num).toInt())
@@ -390,6 +414,18 @@ WHERE source_id = ? AND state = ?
       );
       _db.execute(
         'DELETE FROM anki_source_cards WHERE source_id = ?',
+        [sourceId],
+      );
+      _db.execute(
+        'DELETE FROM anki_source_notetypes WHERE source_id = ?',
+        [sourceId],
+      );
+      _db.execute(
+        'DELETE FROM anki_source_decks WHERE source_id = ?',
+        [sourceId],
+      );
+      _db.execute(
+        'DELETE FROM anki_cleanup_receipts WHERE source_id = ?',
         [sourceId],
       );
       _db.execute(

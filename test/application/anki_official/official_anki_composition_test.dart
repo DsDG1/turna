@@ -36,11 +36,10 @@ void main() {
     );
   });
 
-  test('explicit diagnostics option can still open in-process host', () async {
-    OfficialAnkiFeatureFlags.current = const OfficialAnkiFeatureFlags(
-      diagnostics: true,
-    );
-    final root = Directory.systemTemp.createTempSync('turna-comp-diag-');
+  test('allowInProcessFallback can attempt in-process host when import/renderer are off',
+      () async {
+    OfficialAnkiFeatureFlags.current = const OfficialAnkiFeatureFlags();
+    final root = Directory.systemTemp.createTempSync('turna-comp-fallback-');
     addTearDown(() => root.deleteSync(recursive: true));
     try {
       await OfficialAnkiCompositionRoot.requireImporter(

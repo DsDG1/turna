@@ -4,6 +4,7 @@ import 'package:turna/application/anki_official/contract/official_anki_dto.dart'
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/engine/official_anki_scheduler_audit.dart';
+import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 
 /// In-process engine for tests. Does not reimplement the import saga.
@@ -45,6 +46,15 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
   var invalidateSnapshotOnRead = false;
   final projectionSchemaFingerprint = 'fake-basic';
   final deletedNoteIds = <int>{};
+  final Map<String, int> mediaFiles = {};
+  final Set<String> referencedMedia = {};
+  var compactCalls = 0;
+  var gcCalls = 0;
+  var restoreCalls = 0;
+  var cancelCalls = 0;
+  int collectionFileBytes = 0;
+  bool failCompact = false;
+  String? lastRestoredBackupId;
 
   void seedPackage({
     required String packagePath,
@@ -74,6 +84,7 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
           deckId: 1,
           templateOrd: ord,
           noteGuid: 'guid-$noteId',
+          notetypeId: 1,
         );
         cardId++;
       }
@@ -89,6 +100,7 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
         deckId: 1,
         templateOrd: 0,
         noteGuid: 'guid-$noteId',
+        notetypeId: 1,
       );
       cardsByNote.putIfAbsent(noteId, () => <int>[]).add(id);
     }
@@ -140,7 +152,10 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
   Future<String> createBackup() async => 'bk-fake';
 
   @override
-  Future<void> restoreBackup(String backupId) async {}
+  Future<void> restoreBackup(String backupId) async {
+    restoreCalls++;
+    lastRestoredBackupId = backupId;
+  }
 
   @override
   Future<OfficialAnkiImportLog> importPackage({
@@ -187,6 +202,7 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
 
   @override
   Future<void> cancel() async {
+    cancelCalls++;
     cancelRequested = true;
   }
 
@@ -207,6 +223,10 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
     final wantStudied = raw.contains('prop:reps>=1') ||
         raw.contains('prop:reps>0');
     final wantRatedToday = raw.contains('rated:1');
+    final cidIds = RegExp(r'cid:(\d+)')
+        .allMatches(raw)
+        .map((match) => int.parse(match.group(1)!))
+        .toSet();
     final flagMatch = RegExp(r'(?:^|\s)flag:(\d+)').firstMatch(raw);
     final tagMatch = RegExp(r'(?:^|\s)tag:"([^"]+)"').firstMatch(raw);
     final needle = raw
@@ -221,8 +241,15 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
         .replaceAll('rated:1', '')
         .replaceAll(RegExp(r'(?:^|\s)flag:\d+'), '')
         .replaceAll(RegExp(r'(?:^|\s)tag:"[^"]+"'), '')
+        .replaceAll(RegExp(r'cid:\d+'), '')
+        .replaceAll(RegExp(r'\b(or|and)\b'), '')
+        .replaceAll('(', '')
+        .replaceAll(')', '')
         .trim();
     var ids = cards.keys.toList()..sort();
+    if (cidIds.isNotEmpty) {
+      ids = ids.where(cidIds.contains).toList();
+    }
     if (wantSuspended) {
       ids = ids.where(suspended.contains).toList();
     } else if (excludeSuspended) {
@@ -303,6 +330,7 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
             flag: card.flag,
             marked: card.marked,
             tags: card.tags,
+            notetypeId: card.notetypeId,
           ),
     ];
   }
@@ -399,24 +427,26 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
     bool includeSamples = false,
     int sampleLimit = 3,
   }) async {
-    return [
-      OfficialAnkiProjectionSchema(
-        notetypeId: 1,
-        name: 'Basic',
-        kind: 'normal',
-        fieldNames: const ['Front', 'Back'],
-        templateNames: const ['Card 1'],
-        schemaFingerprint: projectionSchemaFingerprint,
-        samples: includeSamples
-            ? const [
-                OfficialAnkiProjectionSample(
-                  noteId: 1,
-                  fields: ['hello', '你好'],
-                ),
-              ]
-            : const <OfficialAnkiProjectionSample>[],
-      ),
-    ];
+    final schema = OfficialAnkiProjectionSchema(
+      notetypeId: 1,
+      name: 'Basic',
+      kind: 'normal',
+      fieldNames: const ['Front', 'Back'],
+      templateNames: const ['Card 1'],
+      schemaFingerprint: projectionSchemaFingerprint,
+      samples: includeSamples
+          ? const [
+              OfficialAnkiProjectionSample(
+                noteId: 1,
+                fields: ['hello', '你好'],
+              ),
+            ]
+          : const <OfficialAnkiProjectionSample>[],
+    );
+    if (notetypeIds.isNotEmpty && !notetypeIds.contains(schema.notetypeId)) {
+      return const <OfficialAnkiProjectionSchema>[];
+    }
+    return [schema];
   }
 
   @override
@@ -886,6 +916,91 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
     final extra = neededNew - remaining;
     newPerDayLimit = currentLimit + extra;
     return extra;
+  }
+
+  @override
+  Future<OfficialAnkiGcMediaResult> gcUnusedMedia({bool dryRun = true}) async {
+    gcCalls++;
+    final unused = mediaFiles.keys
+        .where((name) => !referencedMedia.contains(name))
+        .toList();
+    var reclaimed = 0;
+    if (!dryRun) {
+      for (final name in unused) {
+        reclaimed += mediaFiles.remove(name) ?? 0;
+      }
+    } else {
+      for (final name in unused) {
+        reclaimed += mediaFiles[name] ?? 0;
+      }
+    }
+    return OfficialAnkiGcMediaResult(
+      scannedFiles: mediaFiles.length + (dryRun ? 0 : unused.length),
+      unusedFiles: unused.length,
+      removedFiles: dryRun ? 0 : unused.length,
+      remainingFiles: mediaFiles.length,
+      reclaimedBytes: dryRun ? 0 : reclaimed,
+      collectionGeneration: collectionGeneration,
+      dryRun: dryRun,
+    );
+  }
+
+  @override
+  Future<OfficialAnkiPruneMetadataResult> pruneEmptyMetadata({
+    List<int> notetypeIds = const <int>[],
+    List<int> deckIds = const <int>[],
+  }) async {
+    final usedNotetypes = {
+      for (final card in cards.values)
+        if (card.notetypeId != null) card.notetypeId!,
+    };
+    final usedDecks = {for (final card in cards.values) card.deckId};
+    var prunedNt = 0;
+    var prunedDecks = 0;
+    var skipped = 0;
+    for (final id in notetypeIds) {
+      if (id <= 1 || usedNotetypes.contains(id)) {
+        skipped++;
+      } else {
+        prunedNt++;
+      }
+    }
+    for (final id in deckIds) {
+      if (id <= 1 || usedDecks.contains(id)) {
+        skipped++;
+      } else {
+        prunedDecks++;
+      }
+    }
+    return OfficialAnkiPruneMetadataResult(
+      prunedNotetypes: prunedNt,
+      prunedDecks: prunedDecks,
+      skipped: skipped,
+    );
+  }
+
+  @override
+  Future<OfficialAnkiCompactResult> compactCollection() async {
+    compactCalls++;
+    if (failCompact) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.schedulerBusy,
+        messageKey: 'official_anki.compact_failed',
+      );
+    }
+    final before = collectionFileBytes;
+    collectionFileBytes = (collectionFileBytes * 0.6).round();
+    return OfficialAnkiCompactResult(
+      beforeBytes: before,
+      afterBytes: collectionFileBytes,
+      freelistBytesBefore: before,
+      freelistBytesAfter: 0,
+    );
+  }
+
+  @override
+  Future<List<int>> diffCollectionCheckpoint(String checkpointId) async {
+    return cards.keys.toList()..sort();
   }
 
   void _invalidateTokens() {

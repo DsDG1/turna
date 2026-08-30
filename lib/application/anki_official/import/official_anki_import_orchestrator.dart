@@ -12,6 +12,9 @@ import 'package:turna/application/anki_official/import/official_anki_import_stat
 import 'package:turna/application/anki_official/import/official_anki_source_hasher.dart';
 import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
+import 'package:turna/application/anki_official/lifecycle/official_anki_checkpoint_dao.dart';
+import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
+import 'package:turna/application/anki_official/lifecycle/official_anki_source_metadata_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
@@ -149,7 +152,7 @@ class OfficialAnkiImportOrchestrator implements OfficialAnkiImporter {
       sourceHash: digest.sha256,
       sourceSize: digest.bytes,
       displayName: displayName,
-      state: OfficialAnkiSourceState.selected.wire,
+      state: OfficialAnkiSourceState.staging.wire,
       backendCommit: 'pending',
       nowMillis: _now,
       activeAttemptId: attemptId,
@@ -182,6 +185,11 @@ class OfficialAnkiImportOrchestrator implements OfficialAnkiImporter {
       state: OfficialAnkiSourceState.preparing.wire,
       nowMillis: _now,
     );
+    attempts.setNativeCommitState(
+      attemptId: attemptId,
+      state: OfficialAnkiNativeCommitState.notStarted,
+      nowMillis: _now,
+    );
     _trip(OfficialAnkiFaultPoint.afterSourceBeforeCheckpoint);
 
     await engine.openProfile(paths);
@@ -192,7 +200,19 @@ class OfficialAnkiImportOrchestrator implements OfficialAnkiImporter {
       nextState: OfficialAnkiSourceState.backingUp.wire,
       nowMillis: _now,
     );
-    final checkpoint = await engine.createBackup();
+    String checkpoint;
+    try {
+      checkpoint = await OfficialAnkiCheckpointDao(sources.database)
+          .materializeFromCollection(
+        paths: paths,
+        attemptId: attemptId,
+        sourceId: sourceId,
+        nowMillis: _now,
+      );
+    } catch (suppressed) {
+      debugPrint('[OfficialAnkiImportOrchestrator] checkpoint copy: $suppressed');
+      checkpoint = await engine.createBackup();
+    }
     attempts.transition(
       attemptId: attemptId,
       expectedState: OfficialAnkiSourceState.backingUp.wire,
@@ -218,7 +238,7 @@ class OfficialAnkiImportOrchestrator implements OfficialAnkiImporter {
       );
       sources.transitionSource(
         sourceId: sourceId,
-        expectedState: OfficialAnkiSourceState.selected.wire,
+        expectedState: OfficialAnkiSourceState.staging.wire,
         nextState: OfficialAnkiSourceState.cancelled.wire,
         nowMillis: _now,
       );
@@ -231,8 +251,14 @@ class OfficialAnkiImportOrchestrator implements OfficialAnkiImporter {
       );
     }
 
+    attempts.setNativeCommitState(
+      attemptId: attemptId,
+      state: OfficialAnkiNativeCommitState.unknown,
+      nowMillis: _now,
+    );
     final imported = await engine.importPackage(packagePath: packagePath);
     _trip(OfficialAnkiFaultPoint.afterImportBeforeNoteIds);
+    _trip(OfficialAnkiFaultPoint.afterNativeImportBeforeReceiptCommit);
     attempts.transition(
       attemptId: attemptId,
       expectedState: OfficialAnkiSourceState.importingOfficial.wire,
@@ -240,8 +266,10 @@ class OfficialAnkiImportOrchestrator implements OfficialAnkiImporter {
       nowMillis: _now,
       operationToken: imported.operationToken,
       importedNoteIds: imported.associatedNoteIds,
+      nativeCommitState: OfficialAnkiNativeCommitState.committed.wire,
     );
     _trip(OfficialAnkiFaultPoint.afterNoteIdsBeforeCards);
+    _trip(OfficialAnkiFaultPoint.afterReceiptBeforeCardIndexComplete);
     return _indexCards(
       sourceId: sourceId,
       attemptId: attemptId,
@@ -263,6 +291,10 @@ class OfficialAnkiImportOrchestrator implements OfficialAnkiImporter {
         return markFailedBeforeImport(attempt);
       case OfficialAnkiRecoveryAction.reconcile:
         return markNeedsReconciliation(attempt);
+      case OfficialAnkiRecoveryAction.rollback:
+        return rollbackAttempt(attempt);
+      case OfficialAnkiRecoveryAction.quarantine:
+        return _markTerminal(attempt, OfficialAnkiSourceState.quarantined);
       case OfficialAnkiRecoveryAction.leave:
         return Future.value(
           OfficialAnkiImportResult(
@@ -274,6 +306,38 @@ class OfficialAnkiImportOrchestrator implements OfficialAnkiImporter {
           ),
         );
     }
+  }
+
+  Future<OfficialAnkiImportResult> rollbackAttempt(
+    OfficialAnkiAttemptRow attempt,
+  ) async {
+    final checkpointId = attempt.checkpointId;
+    if (checkpointId != null && checkpointId.isNotEmpty) {
+      try {
+        await engine.restoreBackup(checkpointId);
+      } catch (suppressed) {
+        debugPrint('[OfficialAnkiImportOrchestrator] restore: $suppressed');
+        return _markTerminal(attempt, OfficialAnkiSourceState.quarantined);
+      }
+    } else if (attempt.hasImportedNotes) {
+      final cardIds = sources.listCards(attempt.sourceId).map((c) => c.cardId).toList();
+      if (cardIds.isNotEmpty) {
+        await engine.deleteCards(cardIds);
+      }
+    }
+    try {
+      final ckpt = OfficialAnkiCheckpointDao(sources.database);
+      if (checkpointId != null) {
+        await ckpt.releaseFile(
+          paths: paths,
+          checkpointId: checkpointId,
+          nowMillis: _now,
+        );
+      }
+    } catch (suppressed) {
+      debugPrint('[OfficialAnkiImportOrchestrator] ckpt release: $suppressed');
+    }
+    return _markTerminal(attempt, OfficialAnkiSourceState.rolledBack);
   }
 
   Future<OfficialAnkiImportResult> resumeIndexing(
@@ -389,29 +453,51 @@ class OfficialAnkiImportOrchestrator implements OfficialAnkiImporter {
     }
     _trip(OfficialAnkiFaultPoint.afterCardsBeforeActive);
     await engine.checkCollection();
+    final cards = sources.listCards(sourceId);
+    OfficialAnkiSourceMetadataDao(sources.database).replaceAssociations(
+      sourceId: sourceId,
+      cards: cards,
+    );
     attempts.transition(
       attemptId: attemptId,
       expectedState: OfficialAnkiSourceState.indexingCards.wire,
-      nextState: OfficialAnkiSourceState.active.wire,
+      nextState: OfficialAnkiSourceState.previewReady.wire,
       nowMillis: _now,
     );
     final source = sources.findById(sourceId);
-    sources.transitionSource(
-      sourceId: sourceId,
-      expectedState: source?.state ?? OfficialAnkiSourceState.selected.wire,
-      nextState: OfficialAnkiSourceState.active.wire,
-      nowMillis: _now,
-      importedAtMillis: _now,
-    );
+    if (source != null &&
+        source.state != OfficialAnkiSourceState.staging.wire &&
+        source.state != OfficialAnkiSourceState.active.wire) {
+      sources.transitionSource(
+        sourceId: sourceId,
+        expectedState: source.state,
+        nextState: OfficialAnkiSourceState.staging.wire,
+        nowMillis: _now,
+      );
+    }
+    _trip(OfficialAnkiFaultPoint.afterPreviewReady);
     _trip(OfficialAnkiFaultPoint.afterActiveRestart);
     return OfficialAnkiImportResult(
       sourceId: sourceId,
       attemptId: attemptId,
-      state: OfficialAnkiSourceState.active,
+      state: OfficialAnkiSourceState.previewReady,
       cardCount: sources.cardCount(sourceId),
       noteCount: attempts.noteIdCount(attemptId),
       collectionNoteCount: collectionNoteCount,
       collectionCardCount: collectionCardCount,
+    );
+  }
+
+  Future<void> markSourceActive(String sourceId) async {
+    final source = sources.findById(sourceId);
+    if (source == null) return;
+    if (source.state == OfficialAnkiSourceState.active.wire) return;
+    sources.transitionSource(
+      sourceId: sourceId,
+      expectedState: source.state,
+      nextState: OfficialAnkiSourceState.active.wire,
+      nowMillis: _now,
+      importedAtMillis: _now,
     );
   }
 }

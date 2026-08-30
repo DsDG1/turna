@@ -321,7 +321,7 @@ void main() {
       final flags = File(
         'lib/application/anki_official/official_anki_feature_flags.dart',
       ).readAsStringSync();
-      expect(RegExp(r'bool\.fromEnvironment\(').allMatches(flags).length, 4);
+      expect(RegExp(r'bool\.fromEnvironment\(').allMatches(flags).length, 2);
       for (final dead in const [
         'TURNA_OFFICIAL_ANKI_ENGINE',
         'TURNA_OFFICIAL_ANKI_IMPORT',
@@ -335,6 +335,8 @@ void main() {
         'TURNA_OFFICIAL_ANKI_OFFICIAL_FIRST_IMPORT',
         'TURNA_OFFICIAL_ANKI_GRAY_COHORT',
         'TURNA_OFFICIAL_ANKI_MIGRATION_PILOT',
+        'TURNA_OFFICIAL_ANKI_DIAGNOSTICS',
+        'TURNA_OFFICIAL_ANKI_LEGACY_MIRROR',
       ]) {
         expect(
           flags.contains("'$dead'"),
@@ -606,6 +608,31 @@ void main() {
       expect(screen.contains('LegacyAnkiImportExecutor'), isFalse);
       expect(screen.contains('.importThenPreview('), isFalse);
       expect(screen.contains('projectAndPublish'), isFalse);
+    });
+
+    test('dead feature-flag fields and empty orchestrator hook stay deleted', () {
+      final flags = File(
+        'lib/application/anki_official/official_anki_feature_flags.dart',
+      ).readAsStringSync();
+      expect(flags.contains('legacyMirror'), isFalse);
+      expect(
+        RegExp(r'\bthis\.diagnostics\b').hasMatch(flags),
+        isFalse,
+        reason: 'OfficialAnkiFeatureFlags.diagnostics was unused',
+      );
+      final orch = File(
+        'lib/application/anki_official/import/unified_anki_import_orchestrator.dart',
+      ).readAsStringSync();
+      expect(orch.contains('void invalidate('), isFalse);
+      expect(orch.contains('wroteTurnaSrs'), isFalse);
+      expect(orch.contains('turnaSrsWordIds'), isFalse);
+      for (final entity in Directory('lib').listSync(recursive: true)) {
+        if (entity is! File || !entity.path.endsWith('.dart')) continue;
+        final text = entity.readAsStringSync();
+        if (text.contains('TURNA_OFFICIAL_ANKI_LEGACY_MIRROR')) {
+          fail('${entity.path} revived TURNA_OFFICIAL_ANKI_LEGACY_MIRROR');
+        }
+      }
     });
 
     test('unsupported platform never selects Legacy writer (execution plan)', () {

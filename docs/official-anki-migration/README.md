@@ -1,8 +1,8 @@
 # 官方 Anki Core 迁移文档索引
 
-> 状态：**唯一活跃施工入口 = [34](./34-official-anki-production-cutover-and-ohos-retirement-plan.md)**（Official 生产收口 + OHOS 产品 EOL）。
-> 收口收据：[`34-cutover-receipt.md`](./34-cutover-receipt.md) · **验收返工计划**：[`34-remaining-construction-plan.md`](./34-remaining-construction-plan.md) · W9 HOLD 已于 2026-08-27 由负责人决策解除（原 HOLD 文件随解除删除，豁免决策记录见收据「Held」表） · OHOS ADR：[0041](../decisions/0041-ohos-product-eol.md)
-> 准确口径：**Official Anki 迁移中**（不得写「迁移完成」——Legacy 复刻层代码已按 doc 35 L0–L3 删除（2026-08-27），但 schema drop（W9-E）、NoteStore 读退役与真机验收仍未发生）。
+> 状态：**上位唯一活跃总入口 = [34](./34-official-anki-production-cutover-and-ohos-retirement-plan.md)**（Official 生产收口 + OHOS 产品 EOL）；**导入生命周期新设计轴 = [42](./42-staging-first-official-import-lifecycle-plan.md)**（staging-first，ADR 0042，取代 41 的导入链路部分）；**删除与物理回收专项施工入口 = [41](./41-official-anki-lifecycle-and-storage-remediation-plan.md)**（保留 S3/S4/S5/S7/S8 与存量善后）。
+> 收口收据：[`34-cutover-receipt.md`](./34-cutover-receipt.md) · **验收返工计划**：[`34-remaining-construction-plan.md`](./34-remaining-construction-plan.md) · **生命周期/存储修复**：[`41`](./41-official-anki-lifecycle-and-storage-remediation-plan.md) · **staging-first 重设计**：[`42`](./42-staging-first-official-import-lifecycle-plan.md) · W9 HOLD 已于 2026-08-27 由负责人决策解除（原 HOLD 文件随解除删除，豁免决策记录见收据「Held」表） · OHOS ADR：[0041](../decisions/0041-ohos-product-eol.md)
+> 准确口径：**Official Anki 迁移中，生产验收 NO-GO**（不得写「迁移完成」或「删除已彻底释放空间」——Legacy 复刻层代码已按 doc 35 L0–L3 删除（2026-08-27）；doc 41 Dart host 行为已施工（catalog v11 / contract 1.11）；Android arm64 `.so` 已按 1.11 重建（2026-08-31，`verify_symbols.sh` pass），Android release 强杀矩阵未跑；schema drop（W9-E）、NoteStore 读退役与真机验收亦未发生）。
 > 首发目标：Android arm64
 > 总原则：官方 Anki Collection 是唯一 Anki 事实源，Turna 只维护课程投影；非 Android 不得以缺 Official Core 为由打开 Legacy 新写入
 > 目录布局：active 施工文档在根目录，已被 34 接管或收口的历史计划/报告（Phase 0–4、P5A/B/C/D1/E、28/31/32/33）归档到 [`archive/`](./archive/)，artifacts 一并归档。
@@ -20,6 +20,8 @@
 | **38** | [集成减负与性能批次一](./38-debt-and-perf-batch-1-plan.md) | 屎山清理 P1–P5：删零引用死代码（~4k 行）、双计数器修快照失效、桥接 N+1 批量化与 import 计数、浏览器懒渲染与 catalog 连接治理、投影 noop 短路与发布批量化；含对三项原建议的可行性否决记录 | **已施工并验货（2026-08-30）**：flutter analyze 0 issues、全量 +1738/-28（28 例失败经基线 worktree 复算全部为施工前既存、零回归）、P4-C 实修超声明 1 例；Rust 侧静态验讫，`cargo test`+fixture regen 待工具链主机（此前发布 NO-GO），验货明细见 doc 38 §13；P4-B 按计划条件推迟 |
 | **39** | [集成减负与性能批次二](./39-debt-and-perf-batch-2-plan.md) | doc 38 §11 落地+扩入新发现：Dart 死码二批（孤儿复习页 835 行、unified legacy 死路径等 ~2,000 行）、契约四表合一与 capabilities/VERSION 对拍闭环（fixture 已漂移缺 RESTORE_BACKUP）、DTO codegen 三类分治、worker 统一消息协议与传输层折叠、import 域状态机减负、Rust 单表化四波；行为修复（转义 bug、错误码修正）与决策项（journal 只写不消费）单列 | **部分施工（2026-08-30）：P1 全簇/P2/P3/P4/F2/F3/P5 前半已施工（12 个独立 commit，analyze 0、点名门禁全绿、无新增失败），施工记录见 doc 39 §15；余项（P5 后半/F1/P6 Rust 四波）移交 doc 40** |
 | **40** | [doc 39 收尾施工计划](./40-doc39-remainder-completion-plan.md) | doc 39 余项整理：P5 后半（mark\* 合一、router N+1、run() 拆分、view_helpers 归位）、F1 转义事故 bugfix、P6 Rust 收敛四波（实测锚点刷新 as_mut 22 处/from_slice 17 处）与工具链主机统一验（三批同闸） | **已登记待施工（2026-08-30）**；铁律继承 doc 39 |
+| **41** | [Official Anki 导入生命周期与存储回收修复](./41-official-anki-lifecycle-and-storage-remediation-plan.md) | **P0 专项**：修复导入后退出/强杀形成隐藏 source、cancel 无补偿、startup recovery 未接线、删除后全局 deck/notetype/mapping 污染、Official 媒体与 rollback checkpoint 无界保留、SQLite 逻辑删除不回收物理字节；含 verified uninstall、media GC、bounded checkpoint、compact、存量 census/repair center 与真机强杀矩阵 | **施工中（2026-08-31）**：Dart catalog v11 / contract 1.11 host 行为已落地；Android arm64 `.so` 已按 1.11 重建（`verify_symbols.sh` pass）；Android 强杀矩阵未跑；生产验收 NO-GO。**导入链路部分（S1/S2 导入分支/S6）由 42 取代**（ADR 0042）；本文件保留范围为删除与物理回收（S3/S4/S5/S7）+ 存量善后（S8/§7.4/§11.4） |
+| **42** | [Staging-first Official 导入生命周期重设计](./42-staging-first-official-import-lifecycle-plan.md) | **导入设计轴反转**：导入先落一次性 staging collection（独立 isolate），预览/映射在 staging 上做，用户确认后才对 live Collection 执行唯一一次 import；取消 = 删 staging 目录。修复四症状（取消落盘/清理卡死/needsMapping 死循环/映射确认不可用）的结构性根因；含 P0 失败测试门禁、强杀矩阵、doc 41 范围交接表 | **P1 已施工（2026-08-31）**：catalog v12、staging isolate 槽位、Saga.start/cancel；P0 S-a/S-b 绿，S-c/S-d 仍红。下一步 P2 映射交互。ADR 0042 已接受 |
 
 ## Archived 文档（Phase 0–4 + P5A/B/C/D1/E 收口记录，归档保留备查）
 
@@ -92,7 +94,7 @@ Phase 0–4 与 P5 收口的构建/真机证据（截图、日志、APK 采样�
 ## 文档维护规则
 
 - 总体架构变化先修改 `00-overall-migration-plan.md`（已归档；现行架构以 34 与 ADR 0036/0037/0041 为准）。
-- 当前施工变化修改 [34](./34-official-anki-production-cutover-and-ohos-retirement-plan.md) 与 [`34-cutover-receipt.md`](./34-cutover-receipt.md)，不要改 archive 里的历史报告。
+- 当前总收口变化修改 [34](./34-official-anki-production-cutover-and-ohos-retirement-plan.md) 与 [`34-cutover-receipt.md`](./34-cutover-receipt.md)；导入生命周期施工先更新 [42](./42-staging-first-official-import-lifecycle-plan.md) 的施工收据（§12），删除/物理回收与存量善后先更新 [41](./41-official-anki-lifecycle-and-storage-remediation-plan.md) 的施工收据，过各自门禁后再同步 34 准确口径。不要改 archive 里的历史报告。
 - 已执行任务必须填写实际 commit、命令、指标和证据，不能只勾选复选框。
 - 未验证的构建命令必须标注“候选”或“待验证”。
 - 任何上游 Anki commit 变化都要重新运行 contract、fixture 和性能门禁。

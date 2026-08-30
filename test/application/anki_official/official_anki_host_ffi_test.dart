@@ -122,7 +122,7 @@ void main() {
       attempts: OfficialAnkiImportAttemptDao(db),
       paths: paths,
     ).importFile(packagePath: pkg.path, displayName: 'unicode');
-    expect(imported.state, OfficialAnkiSourceState.active);
+    expect(imported.state, OfficialAnkiSourceState.previewReady);
     expect(imported.cardCount, greaterThan(0));
     expect(imported.noteCount, greaterThan(0));
     await engine.closeCollection();
@@ -156,7 +156,7 @@ void main() {
       packagePath: pkg.path,
       displayName: 'isolate-unicode',
     );
-    expect(imported.state, OfficialAnkiSourceState.active);
+    expect(imported.state, OfficialAnkiSourceState.previewReady);
     expect(ticks, greaterThan(0));
   });
 
@@ -193,7 +193,7 @@ void main() {
         attempts: OfficialAnkiImportAttemptDao(db),
         paths: paths,
       ).importFile(packagePath: pkg.absolute.path, displayName: name);
-      expect(imported.state, OfficialAnkiSourceState.active);
+      expect(imported.state, OfficialAnkiSourceState.previewReady);
       final page = await engine.searchCardsPage();
       expect(page.cardIds, isNotEmpty);
       final expected = jsonDecode(
@@ -268,7 +268,7 @@ void main() {
       attempts: OfficialAnkiImportAttemptDao(db),
       paths: paths,
     ).importFile(packagePath: pkg.path, displayName: 'scheduling');
-    expect(imported.state, OfficialAnkiSourceState.active);
+    expect(imported.state, OfficialAnkiSourceState.previewReady);
     await engine.setCurrentDeck(1);
     final queue = await engine.getReviewQueue(fetchLimit: 1);
     expect(queue.cards, isNotEmpty);

@@ -17,7 +17,7 @@ const int recognizerVersion = 1;
 /// Field name normalizes to an exact lexicon hit.
 const double lexiconExactWeight = 0.55;
 
-/// Field name contains a lexicon term (composite names like `VocabKanji`).
+/// Field name contains a lexicon term (composite names like `VocabFront`).
 const double lexiconContainsWeight = 0.35;
 
 /// Field appears on the front template of some card (templateFacts/reqs).

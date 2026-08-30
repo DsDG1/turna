@@ -102,10 +102,8 @@ Production Official capabilities are **not** toggled per-feature. `OfficialAnkiF
 | Define | Default | Meaning |
 |---|---|---|
 | `TURNA_OFFICIAL_ANKI_CUTOVER` | `true` | Pause new Official import/review (`false` → Anki unavailable, not Legacy) |
-| `TURNA_OFFICIAL_ANKI_DIAGNOSTICS` | `false` | Internal lab / diagnostics |
+| `TURNA_OFFICIAL_ANKI_DIAGNOSTICS` | `false` | Release diagnostics route guard |
 | `TURNA_OFFICIAL_ANKI_REVIEWER_DIAGNOSTICS` | `false` | Reviewer diagnostics |
-| `TURNA_OFFICIAL_ANKI_MIGRATION_PILOT` | `false` | Fixture-pilot allowlist |
 | `TURNA_OFFICIAL_ANKI_COURSE_GRADES_SCHEDULER` | `false` | Course answers write Official scheduler |
-| `TURNA_OFFICIAL_ANKI_LEGACY_MIRROR` | `false` | Dev-only Legacy→Official mirror |
 
 Do not pass `TURNA_OFFICIAL_ANKI_ENGINE` / `IMPORT` / `GRAY_COHORT` / `OFFICIAL_FIRST_IMPORT` — those dart-defines were collapsed (doc 34 C4).

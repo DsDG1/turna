@@ -213,6 +213,7 @@ pub(crate) struct CardDescriptorRow {
     pub flags: i64,
     pub note_guid: String,
     pub note_tags: String,
+    pub notetype_id: i64,
 }
 
 pub fn get_card_descriptors_batch(handle: u64, request: &[u8]) -> Result<Value, i32> {
@@ -251,6 +252,7 @@ pub fn get_card_descriptors_batch(handle: u64, request: &[u8]) -> Result<Value, 
                 "flag": row.flags & 0b111,
                 "marked": tags.iter().any(|tag| tag.eq_ignore_ascii_case("marked")),
                 "tags": tags,
+                "notetypeId": row.notetype_id,
             })
         })
         .collect::<Vec<_>>();
@@ -269,8 +271,8 @@ pub(crate) fn card_descriptor_rows(
     for chunk in card_ids.chunks(SQL_CHUNK) {
         let placeholders = vec!["?"; chunk.len()].join(",");
         let sql = format!(
-            "SELECT c.id, c.nid, c.did, c.ord, c.queue, c.flags, n.guid, n.tags "
-                + "FROM cards c JOIN notes n ON n.id = c.nid WHERE c.id IN ({placeholders})"
+            "SELECT c.id, c.nid, c.did, c.ord, c.queue, c.flags, n.guid, n.tags, n.mid \
+             FROM cards c JOIN notes n ON n.id = c.nid WHERE c.id IN ({placeholders})"
         );
         let mut stmt = db.prepare(&sql).map_err(|_| STATUS_INTERNAL_ERROR)?;
         let found = stmt
@@ -285,6 +287,7 @@ pub(crate) fn card_descriptor_rows(
                         flags: row.get(5)?,
                         note_guid: row.get(6)?,
                         note_tags: row.get(7)?,
+                        notetype_id: row.get(8)?,
                     },
                 ))
             })

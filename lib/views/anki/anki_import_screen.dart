@@ -61,7 +61,15 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     // The controller is created on first build (not initState) so provider
     // lookups happen inside a valid provider scope.
     final controller = _controller ??= _buildController();
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        if (!mounted) return;
+        final leave = await _confirmLeave(context, controller);
+        if (leave && context.mounted) context.router.maybePop();
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: Text(
           AppStrings.ankiImportTitle,
@@ -70,7 +78,10 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.router.maybePop(),
+          onPressed: () async {
+            final leave = await _confirmLeave(context, controller);
+            if (leave && context.mounted) context.router.maybePop();
+          },
         ),
       ),
       body: Column(
@@ -84,7 +95,64 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
           ),
         ],
       ),
+    ),
     );
+  }
+
+  Future<bool> _confirmLeave(
+    BuildContext context,
+    AnkiImportController controller,
+  ) async {
+    final state = controller.state;
+    if (state is AnkiImportSelecting || state is AnkiImportCompleted) {
+      return true;
+    }
+    if (state is AnkiImportPreviewing) {
+      final choice = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text(AppStrings.ankiImportLeaveTitle),
+          content: Text(AppStrings.ankiImportLeavePreviewMessage),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, 'later'),
+              child: Text(AppStrings.ankiImportLeaveContinueLater),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, 'discard'),
+              child: Text(AppStrings.ankiImportLeaveDiscard),
+            ),
+          ],
+        ),
+      );
+      if (choice == 'discard') {
+        await controller.reset();
+        return true;
+      }
+      return choice == 'later';
+    }
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(AppStrings.ankiImportLeaveTitle),
+        content: Text(AppStrings.ankiImportLeaveBusyMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'wait'),
+            child: Text(AppStrings.ankiImportLeaveWait),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, 'discard'),
+            child: Text(AppStrings.ankiImportLeaveDiscard),
+          ),
+        ],
+      ),
+    );
+    if (choice == 'discard') {
+      controller.cancel();
+      return true;
+    }
+    return false;
   }
 
   Widget _buildBody(BuildContext context, AnkiImportController controller) {

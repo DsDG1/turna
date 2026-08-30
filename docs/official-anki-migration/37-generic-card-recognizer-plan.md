@@ -174,7 +174,7 @@ templateFacts: {
 | 信号 | 层 | 指向角色 | 权重 |
 |---|---|---|---|
 | 字段名规范化后精确命中词典 | 词典 | 对应角色 | 0.55 |
-| 字段名包含命中（复合名如 `VocabKanji`） | 词典 | 对应角色 | 0.35 |
+| 字段名包含命中（复合名如 `VocabFront`） | 词典 | 对应角色 | 0.35 |
 | reqs：字段出现于正面模板 | 结构 | prompt | 0.30 |
 | reqs：字段仅出现于背面模板 | 结构 | response | 0.30 |
 | 位置先验 field[0] / field[1] | 结构 | prompt / response | 0.25 / 0.25 |
@@ -372,7 +372,7 @@ templateFacts: {
 | D1 | Rust 侧未编译验证、fixture 未 regen | 本机无 cargo（历史 Android 交叉产物在，工具链已不在）。旧 so（1.8）对 minor=19 请求天然兼容（只查 major），Dart 忽略未知字段向后兼容；**合并前须在 cargo 主机跑 `host-test.sh` 与 `turna_anki_gen_fixtures`（regen 换 card id，须更新 manifest）并重建 arm64 so** |
 | D2 | 未引入 `TURNA_RECOGNIZER_V2` flag | P1–P5 单会话连续施工，无跨发布灰度窗口；diff harness 直接双跑新旧代码即 P3 门禁。flag 的价值在生产分版本灰度，本次不存在该窗口（计划 P5 本就要删 flag） |
 | D3 | A5 权重 0.85→0.80 | 计划规则表 A5=0.85 与语料案例 4「cloze/review」期望矛盾（0.85 恰在 auto 阈值）。取 0.80：内容层 cloze 证据（声明为 standard 但样本有标记）进 review 带，保守正确 |
-| D4 | 词典剔除 word/单词/term/词条（方向歧义词） | 听音牌组的 Word 字段是背面；这类词交给结构（模板面引用）+位置先验裁决更诚实。副作用：VocabKanji 式命名无 templateFacts 时从 auto 降为 review（一次确认点击）；有 templateFacts 时经「结构背书佐证」回到 auto（+0.15→0.90，语料 13 验证） |
+| D4 | 词典剔除 word/单词/term/词条（方向歧义词） | 听音牌组的 Word 字段是背面；这类词交给结构（模板面引用）+位置先验裁决更诚实。副作用：VocabHead 式命名无 templateFacts 时从 auto 降为 review（一次确认点击）；有 templateFacts 时经「结构背书佐证」回到 auto（+0.15→0.90，语料 13 验证） |
 | D5 | `FieldRole` 保留 `unitLabel/lessonLabel` | 计划草案枚举未含，但 projector 的分组放置消费它们；`hint/extra` 按草案收录。`exampleTarget/exampleNative` 合并为单 `example` |
 | D6 | 状态收敛为 **auto/review/manual/skipped** 四态 | 计划写三态，但 skipped 承载「跳过这类卡片」的既有用户决策（skipNotetype 落库 user_confirmed=1），不可并入前三者 |
 | D7 | 佐证机制（corroboration） | 计划未细化：A6/A7 命中自带绑定一致性内检 +0.08→0.88 auto（语料 7/9 期望 auto）；basicPair 强配对（绑定双方 ≥0.85，或 templateFacts 背书双面）+0.15→0.90 auto（语料 1/2/10/13） |

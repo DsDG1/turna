@@ -16,7 +16,10 @@ import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
 import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_service.dart';
+import 'package:turna/application/anki_official/lifecycle/official_anki_source_metadata_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
+import 'package:turna/application/anki_official/import/official_anki_import_saga.dart';
+import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/data/course_database.dart';
 
@@ -86,18 +89,60 @@ class OfficialAnkiOfficialFirstService {
     required CourseDatabase course,
     OfficialAnkiFeatureFlags? flags,
   }) async {
-    final official = await importPackage(
-      filePath: filePath,
-      plan: plan,
-      flags: flags,
+    if (!plan.isOfficialFirst) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.invalidState,
+        messageKey: 'official_anki.flag_fail_closed',
+        debugDetails: 'import_plan_missing',
+      );
+    }
+    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+    final livePaths = OfficialAnkiCompositionRoot.locatorPaths;
+    if (catalog == null || livePaths == null) {
+      final official = await importPackage(
+        filePath: filePath,
+        plan: plan,
+        flags: flags,
+      );
+      final state = official?.state;
+      if (official == null || !(state?.allowsPreview ?? false)) {
+        throw OfficialAnkiException(
+          code: OfficialAnkiErrorCode.invalidState,
+          messageKey: 'official_anki.import_not_active',
+          debugDetails:
+              'official-first import ended in state ${state?.name ?? 'none'}',
+        );
+      }
+      final sourceHash =
+          readSourceHash(official.sourceId) ?? 'official-unknown';
+      await recordMigration(
+        importId: official.sourceId,
+        official: official,
+        hash: sourceHash,
+        cardCount: official.cardCount,
+      );
+      return preparePreview(
+        official: official,
+        sourceHash: sourceHash,
+        course: course,
+        flags: flags,
+      );
+    }
+    OfficialAnkiCompositionRoot.stagingDiscardRequested = false;
+    final official = await OfficialAnkiImportSaga(
+      sources: OfficialAnkiSourceDao(catalog),
+      attempts: OfficialAnkiImportAttemptDao(catalog),
+      paths: livePaths,
+    ).startStaging(
+      packagePath: filePath,
+      displayName: filePath.split(RegExp(r'[/\\]')).last,
     );
-    final state = official?.state;
-    if (official == null || state != OfficialAnkiSourceState.active) {
+    final state = official.state;
+    if (!state.allowsPreview) {
       throw OfficialAnkiException(
         code: OfficialAnkiErrorCode.invalidState,
         messageKey: 'official_anki.import_not_active',
-        debugDetails:
-            'official-first import ended in state ${state?.name ?? 'none'}',
+        debugDetails: 'official-first import ended in state ${state.name}',
       );
     }
     final sourceHash = readSourceHash(official.sourceId) ?? 'official-unknown';
@@ -174,7 +219,8 @@ class OfficialAnkiOfficialFirstService {
     required CourseDatabase course,
     OfficialAnkiFeatureFlags? flags,
   }) async {
-    final engine = OfficialAnkiCompositionRoot.projectionEngineFromSession();
+    final engine = OfficialAnkiCompositionRoot.stagingEngineFromSession() ??
+        OfficialAnkiCompositionRoot.projectionEngineFromSession();
     if (engine == null) {
       throw const OfficialAnkiException(
         code: OfficialAnkiErrorCode.capabilityMissing,
@@ -198,11 +244,31 @@ class OfficialAnkiOfficialFirstService {
           'profile-default-01',
       flags: flags ?? OfficialAnkiFeatureFlags.current,
     );
+    final metadata = OfficialAnkiSourceMetadataDao(catalog);
+    var notetypeIds = metadata.notetypeIds(official.sourceId);
+    var sourceDeckIds = metadata.deckIds(official.sourceId).toSet();
+    if (notetypeIds.isEmpty || sourceDeckIds.isEmpty) {
+      final cards = OfficialAnkiSourceDao(catalog).listCards(official.sourceId);
+      if (notetypeIds.isEmpty) {
+        final ids = <int>{};
+        for (final card in cards) {
+          final id = card.notetypeId;
+          if (id != null) ids.add(id);
+        }
+        notetypeIds = ids.toList();
+      }
+      if (sourceDeckIds.isEmpty) {
+        sourceDeckIds = {for (final card in cards) card.deckId};
+      }
+      metadata.replaceAssociations(sourceId: official.sourceId, cards: cards);
+    }
     final schemas = await engine.getProjectionSchemas(
+      notetypeIds: notetypeIds,
       includeSamples: true,
       sampleLimit: 30,
     );
-    final decks = await engine.listDeckTree();
+    final allDecks = await engine.listDeckTree();
+    final decks = _scopeDecks(allDecks, sourceDeckIds);
     return OfficialAnkiOfficialFirstPreview(
       sourceId: official.sourceId,
       sourceHash: sourceHash,
@@ -231,6 +297,20 @@ class OfficialAnkiOfficialFirstService {
       sourceId: sourceId,
       sourceHash: sourceHash,
     );
+    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+    if (catalog != null) {
+      final dao = OfficialAnkiSourceDao(catalog);
+      final source = dao.findById(sourceId);
+      if (source != null && source.state != OfficialAnkiSourceState.active.wire) {
+        dao.transitionSource(
+          sourceId: sourceId,
+          expectedState: source.state,
+          nextState: OfficialAnkiSourceState.active.wire,
+          nowMillis: DateTime.now().millisecondsSinceEpoch,
+          importedAtMillis: DateTime.now().millisecondsSinceEpoch,
+        );
+      }
+    }
     // P1: seed the scheduler lock right after publish — every card the
     // ledger did not introduce (fresh imports minus imported history)
     // stays suspended until its lesson completes. Fail-closed: the home
@@ -240,4 +320,25 @@ class OfficialAnkiOfficialFirstService {
         );
     return result;
   }
+}
+
+List<OfficialAnkiDeckNode> _scopeDecks(
+  List<OfficialAnkiDeckNode> all,
+  Set<int> sourceDeckIds,
+) {
+  if (sourceDeckIds.isEmpty) return all;
+  final names = {
+    for (final deck in all)
+      if (sourceDeckIds.contains(deck.deckId)) deck.name,
+  };
+  return [
+    for (final deck in all)
+      if (sourceDeckIds.contains(deck.deckId) ||
+          names.any(
+            (name) =>
+                name == deck.name ||
+                name.startsWith('${deck.name}::'),
+          ))
+        deck,
+  ];
 }

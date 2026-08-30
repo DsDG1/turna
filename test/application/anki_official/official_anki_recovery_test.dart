@@ -82,7 +82,11 @@ void main() {
       expect(error.messageKey, 'official_anki.fault_injected');
     }
     final recovered = await h.recovery(h.orch(null)).recoverUnfinished();
-    if (expected == OfficialAnkiSourceState.active) {
+    if (expected == OfficialAnkiSourceState.previewReady) {
+      expect(recovered, isNotEmpty);
+      expect(recovered.single.state, OfficialAnkiSourceState.previewReady);
+      expect(h.sources.findById(recovered.single.sourceId)?.state, 'staging');
+    } else if (expected == OfficialAnkiSourceState.active) {
       expect(recovered, isNotEmpty);
       expect(recovered.single.state.isActive, isTrue);
       expect(h.sources.findById(recovered.single.sourceId)?.state, 'active');
@@ -136,7 +140,7 @@ void main() {
           displayName: 'checkpoint-then-retry',
         );
     expect(retried.state.isActive, isFalse);
-    expect(retried.state, OfficialAnkiSourceState.needsReconciliation);
+    expect(retried.state, OfficialAnkiSourceState.rolledBack);
     expect(h.sources.findById(retried.sourceId)?.state, isNot('active'));
     expect(h.sources.cardCount(retried.sourceId), 0);
   });
@@ -159,14 +163,14 @@ void main() {
           displayName: 'import-then-retry',
         );
     expect(retried.state.isActive, isFalse);
-    expect(retried.state, OfficialAnkiSourceState.needsReconciliation);
+    expect(retried.state, OfficialAnkiSourceState.rolledBack);
     expect(h.sources.findById(retried.sourceId)?.state, isNot('active'));
   });
 
-  test('fault afterCheckpointBeforeImport needs reconciliation', () async {
+  test('fault afterCheckpointBeforeImport rolls back via checkpoint', () async {
     await expectRecovered(
       point: OfficialAnkiFaultPoint.afterCheckpointBeforeImport,
-      expected: OfficialAnkiSourceState.needsReconciliation,
+      expected: OfficialAnkiSourceState.rolledBack,
     );
   });
 
@@ -183,35 +187,35 @@ void main() {
     await h.engine.checkCollection();
   });
 
-  test('fault afterImportBeforeNoteIds needs reconciliation', () async {
+  test('fault afterImportBeforeNoteIds rolls back via checkpoint', () async {
     await expectRecovered(
       point: OfficialAnkiFaultPoint.afterImportBeforeNoteIds,
-      expected: OfficialAnkiSourceState.needsReconciliation,
+      expected: OfficialAnkiSourceState.rolledBack,
     );
   });
 
   test('fault afterNoteIdsBeforeCards resumes indexing', () async {
     await expectRecovered(
       point: OfficialAnkiFaultPoint.afterNoteIdsBeforeCards,
-      expected: OfficialAnkiSourceState.active,
+      expected: OfficialAnkiSourceState.previewReady,
     );
   });
 
   test('fault afterMidBatchCursor resumes indexing', () async {
     await expectRecovered(
       point: OfficialAnkiFaultPoint.afterMidBatchCursor,
-      expected: OfficialAnkiSourceState.active,
+      expected: OfficialAnkiSourceState.previewReady,
     );
   });
 
-  test('fault afterCardsBeforeActive resumes to active', () async {
+  test('fault afterCardsBeforeActive resumes to preview_ready', () async {
     await expectRecovered(
       point: OfficialAnkiFaultPoint.afterCardsBeforeActive,
-      expected: OfficialAnkiSourceState.active,
+      expected: OfficialAnkiSourceState.previewReady,
     );
   });
 
-  test('fault afterActiveRestart stays active and is idempotent', () async {
+  test('fault afterActiveRestart stays preview_ready and is idempotent', () async {
     final h = harness();
     addTearDown(h.dispose);
     try {
@@ -223,14 +227,15 @@ void main() {
     } on OfficialAnkiException {
       // expected
     }
-    expect(h.sources.listSources(h.paths.profileId).single.state, 'active');
+    expect(h.sources.listSources(h.paths.profileId).single.state, 'staging');
     final again = await h.recovery(h.orch(null)).recoverUnfinished();
-    expect(again, isEmpty);
+    expect(again.single.state, OfficialAnkiSourceState.previewReady);
     final second = await h.orch(null).importFile(
           packagePath: pkg.path,
           displayName: 'active-restart',
         );
-    expect(second.alreadyImported, isTrue);
+    expect(second.sourceId, again.single.sourceId);
+    expect(second.state, OfficialAnkiSourceState.previewReady);
   });
 
   test('unknown attempt state is never promoted to active', () {

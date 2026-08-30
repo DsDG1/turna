@@ -10,14 +10,13 @@ import 'package:turna/data/anki_legacy_write_fence.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 
-/// Data access object for the Anki NoteStore tables (`anki_notetypes`,
-/// `anki_notes`, `anki_cards_meta`) added in schema v9.
+/// Data access object for leftover Legacy NoteStore tables
+/// (`anki_notetypes`, `anki_notes`, `anki_cards_meta`, schema v9).
 ///
-/// Stores the source-of-truth notetype templates + css + raw note fields so
-/// the fidelity track can re-render cards from the original Anki templates
-/// without re-parsing the .apkg (deep-adaptation plan §3.2.1 / §5.1).
-/// Scheduling state is NOT stored here - it lives in `srs_states` keyed by the
-/// card-level `wordId` (`anki-<importId>-c<cardId>`, decision 2).
+/// Official fidelity renders from the Official Collection. These tables are
+/// a read-only compatibility surface for still-Legacy-owned sources
+/// (browser search, uninstall). New Official-first imports do not write them.
+/// Scheduling is not stored here.
 ///
 /// Row types are the `*Row` classes (renamed via `@DataClassName` on each
 /// table) to avoid colliding with the retired parser-era in-memory models.

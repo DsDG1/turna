@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:sqlite3/sqlite3.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
+import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 
@@ -17,6 +18,10 @@ class OfficialAnkiAttemptRow {
     this.nextOffset = 0,
     this.cursorJson,
     this.recoveryCount = 0,
+    this.userIntent = 'undecided',
+    this.nativeCommitState = 'unknown',
+    this.phase = '',
+    this.stagingPath,
   });
 
   final String attemptId;
@@ -29,6 +34,10 @@ class OfficialAnkiAttemptRow {
   final int nextOffset;
   final String? cursorJson;
   final int recoveryCount;
+  final String userIntent;
+  final String nativeCommitState;
+  final String phase;
+  final String? stagingPath;
 
   bool get hasImportedNotes => importedNoteCount > 0;
 
@@ -50,14 +59,26 @@ class OfficialAnkiImportAttemptDao {
     required String requestId,
     required String state,
     required int nowMillis,
+    String phase = '',
+    String? stagingPath,
   }) {
     _db.execute(
       '''
 INSERT INTO anki_import_attempts (
-  attempt_id, source_id, request_id, state, started_at_millis, heartbeat_at_millis
-) VALUES (?, ?, ?, ?, ?, ?)
+  attempt_id, source_id, request_id, state, started_at_millis,
+  heartbeat_at_millis, phase, staging_path
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 ''',
-      [attemptId, sourceId, requestId, state, nowMillis, nowMillis],
+      [
+        attemptId,
+        sourceId,
+        requestId,
+        state,
+        nowMillis,
+        nowMillis,
+        phase,
+        stagingPath,
+      ],
     );
   }
 
@@ -75,10 +96,27 @@ INSERT INTO anki_import_attempts (
         .select(
           "SELECT * FROM anki_import_attempts WHERE state NOT IN "
           "('active', 'completed', 'cancelled', 'failed_before_import', "
-          "'failed_after_import', 'rolled_back', 'needs_reconciliation')",
+          "'failed_after_import', 'rolled_back', 'needs_reconciliation', "
+          "'retired', 'quarantined') "
+          "AND IFNULL(phase, '') NOT IN "
+          "('cancelled', 'completed', 'quarantined')",
         )
         .map(_fromRow)
         .toList();
+  }
+
+  void setPhase({
+    required String attemptId,
+    required String phase,
+    required int nowMillis,
+    String? stagingPath,
+  }) {
+    _db.execute(
+      'UPDATE anki_import_attempts SET phase = ?, '
+      'staging_path = COALESCE(?, staging_path), '
+      'heartbeat_at_millis = ? WHERE attempt_id = ?',
+      [phase, stagingPath, nowMillis, attemptId],
+    );
   }
 
   void replaceNoteIds({
@@ -140,8 +178,8 @@ INSERT INTO anki_import_attempts (
     try {
       final stmt = _db.prepare(
         'INSERT OR REPLACE INTO anki_source_cards '
-        '(source_id, card_id, note_id, deck_id, note_guid, template_ord) '
-        'VALUES (?, ?, ?, ?, ?, ?)',
+        '(source_id, card_id, note_id, deck_id, note_guid, template_ord, notetype_id) '
+        'VALUES (?, ?, ?, ?, ?, ?, ?)',
       );
       try {
         for (final card in cards) {
@@ -152,6 +190,7 @@ INSERT INTO anki_import_attempts (
             card.deckId,
             card.noteGuid,
             card.templateOrd,
+            card.notetypeId,
           ]);
         }
       } finally {
@@ -186,6 +225,8 @@ WHERE attempt_id = ? AND state = 'indexing_cards'
     String? cursorJson,
     String? errorCode,
     bool incrementRecovery = false,
+    String? userIntent,
+    String? nativeCommitState,
   }) {
     final token = operationToken ?? nativeImportToken;
     if (importedNoteIds != null) {
@@ -200,9 +241,12 @@ UPDATE anki_import_attempts SET
   native_import_token = COALESCE(?, native_import_token),
   cursor_json = COALESCE(?, cursor_json),
   last_error_code = ?,
+  user_intent = COALESCE(?, user_intent),
+  native_commit_state = COALESCE(?, native_commit_state),
   completed_at_millis = CASE WHEN ? IN (
     'completed', 'cancelled', 'failed_before_import',
-    'failed_after_import', 'rolled_back', 'needs_reconciliation'
+    'failed_after_import', 'rolled_back', 'needs_reconciliation',
+    'preview_ready', 'retired', 'quarantined'
   ) THEN ? ELSE completed_at_millis END,
   recovery_count = recovery_count + ?
 WHERE attempt_id = ? AND state = ?
@@ -214,6 +258,8 @@ WHERE attempt_id = ? AND state = ?
         token,
         cursorJson,
         errorCode,
+        userIntent,
+        nativeCommitState,
         nextState,
         nowMillis,
         incrementRecovery ? 1 : 0,
@@ -249,6 +295,34 @@ WHERE attempt_id = ? AND state = ?
       nextOffset: nextOffset,
       cursorJson: cursorRaw,
       recoveryCount: row['recovery_count'] as int? ?? 0,
+      userIntent: row['user_intent'] as String? ?? 'undecided',
+      nativeCommitState: row['native_commit_state'] as String? ?? 'unknown',
+      phase: row['phase'] as String? ?? '',
+      stagingPath: row['staging_path'] as String?,
+    );
+  }
+
+  void setUserIntent({
+    required String attemptId,
+    required OfficialAnkiUserIntent intent,
+    required int nowMillis,
+  }) {
+    _db.execute(
+      'UPDATE anki_import_attempts SET user_intent = ?, '
+      'heartbeat_at_millis = ? WHERE attempt_id = ?',
+      [intent.wire, nowMillis, attemptId],
+    );
+  }
+
+  void setNativeCommitState({
+    required String attemptId,
+    required OfficialAnkiNativeCommitState state,
+    required int nowMillis,
+  }) {
+    _db.execute(
+      'UPDATE anki_import_attempts SET native_commit_state = ?, '
+      'heartbeat_at_millis = ? WHERE attempt_id = ?',
+      [state.wire, nowMillis, attemptId],
     );
   }
 }

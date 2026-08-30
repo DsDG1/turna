@@ -13,6 +13,7 @@ import 'package:turna/application/anki_official/projection/official_anki_project
 import 'package:turna/application/anki_official/projection/official_anki_projection_store.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
+import 'package:turna/data/anki_owner_authority_dao.dart';
 import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/service/locator.dart';
@@ -51,6 +52,9 @@ void main() {
     await GetIt.instance.reset();
     GetIt.instance.registerSingleton<CourseDatabase>(db);
     GetIt.instance.registerSingleton<AnkiUnificationDao>(AnkiUnificationDao(db));
+    GetIt.instance.registerSingleton<AnkiOwnerAuthorityDao>(
+      AnkiOwnerAuthorityDao(db),
+    );
     OfficialAnkiCompositionRoot.readOnlyCatalog = catalog;
     OfficialAnkiCompositionRoot.locatorPaths = null;
     OfficialFirstReanchor.debugForceRun = true;

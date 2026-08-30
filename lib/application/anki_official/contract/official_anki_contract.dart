@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 
 const int kOfficialAnkiContractMajor = 1;
-const int kOfficialAnkiContractMinor = 10;
+const int kOfficialAnkiContractMinor = 11;
 
 abstract final class OfficialAnkiOperation {
   /// Native `GET_REVIEW_QUEUE` accepts `1..=100` (bridge `ops.rs`).
@@ -57,6 +57,10 @@ abstract final class OfficialAnkiOperation {
   static const scheduleCardsAsNew = 'SCHEDULE_CARDS_AS_NEW';
   static const answerAheadCards = 'ANSWER_AHEAD_CARDS';
   static const ensureTodayNewQuota = 'ENSURE_TODAY_NEW_QUOTA';
+  static const gcUnusedMedia = 'GC_UNUSED_MEDIA';
+  static const pruneEmptyMetadata = 'PRUNE_EMPTY_METADATA';
+  static const compactCollection = 'COMPACT_COLLECTION';
+  static const diffCollectionCheckpoint = 'DIFF_COLLECTION_CHECKPOINT';
 
   /// Single source of truth for the wire contract (doc 39 P2): every live
   /// operation name → its stable id, exactly as `contract/operations.md`
@@ -96,6 +100,10 @@ abstract final class OfficialAnkiOperation {
     scheduleCardsAsNew: 34,
     answerAheadCards: 35,
     ensureTodayNewQuota: 36,
+    gcUnusedMedia: 37,
+    pruneEmptyMetadata: 38,
+    compactCollection: 39,
+    diffCollectionCheckpoint: 40,
   };
 
   static const productionNames = <String>{
@@ -133,6 +141,10 @@ abstract final class OfficialAnkiOperation {
     scheduleCardsAsNew,
     answerAheadCards,
     ensureTodayNewQuota,
+    gcUnusedMedia,
+    pruneEmptyMetadata,
+    compactCollection,
+    diffCollectionCheckpoint,
   };
 
   static int idFor(String name) {

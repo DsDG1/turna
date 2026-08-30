@@ -14,7 +14,6 @@ use crate::engine::MAX_REQUEST_BYTES;
 use crate::engine::parse_req;
 use crate::engine::STATUS_CARD_NOT_FOUND;
 use crate::engine::STATUS_INVALID_ARGUMENT;
-use crate::engine::STATUS_INVALID_STATE;
 use crate::engine::STATUS_RENDER_FAILED;
 use crate::engine::STATUS_TYPED_CLOZE_EMPTY;
 use crate::engine::STATUS_TYPED_FIELD_NOT_FOUND;

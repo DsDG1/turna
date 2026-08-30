@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 
 // Project imports:
 import 'package:turna/application/anki_official/introduction/card_introduction_eligibility.dart';
-import 'package:turna/application/anki_official/import/unified_anki_import_orchestrator.dart';
 import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/mistake_provider.dart';
@@ -66,11 +65,6 @@ class AnkiImportCleanupService {
     await _deleteMediaBestEffort(importId);
     await importDao.delete(importId);
     await mistakeProvider?.removeForAnkiDeletion(idPrefixes: [prefix]);
-    // Defense in depth: the dedup authority is the persisted inventory, but
-    // the orchestrator's in-process caches (placements, presentations, SRS
-    // ids, in-flight keys) must also be retired so a same-process re-import
-    // of this package is never mistaken for "already imported".
-    UnifiedAnkiImportOrchestrator.instance.invalidate(importId: importId);
   }
 
   /// Media deletion is best-effort and must never abort the saga: a file

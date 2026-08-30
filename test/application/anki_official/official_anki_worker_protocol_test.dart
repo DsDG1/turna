@@ -37,7 +37,7 @@ void main() {
       displayName: 'proto-unicode',
     );
     expect(imported, isA<OfficialAnkiImportResult>());
-    expect(imported.state, OfficialAnkiSourceState.active);
+    expect(imported.state, OfficialAnkiSourceState.previewReady);
 
     final info = await session.engineInfo();
     expect(info, isA<OfficialAnkiEngineInfo>());

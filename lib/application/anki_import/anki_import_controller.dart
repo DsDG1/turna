@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:turna/application/anki_import/official_import_error_messages.dart';
 import 'package:turna/application/anki_import/anki_import_completion_coordinator.dart';
@@ -7,7 +9,13 @@ import 'package:turna/application/anki_import/recognition/official_recognition_t
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/import/anki_import_execution_plan.dart';
+import 'package:turna/application/anki_official/lifecycle/official_anki_repair_executor.dart';
+import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
+import 'package:turna/application/anki_official/import/official_anki_import_saga.dart';
+import 'package:turna/application/anki_official/import/official_anki_import_orchestrator.dart';
+import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
+import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/utils/validated_file_picker.dart';
@@ -98,6 +106,7 @@ class AnkiImportController extends ChangeNotifier {
   Future<void> proceedWithPath(String path) async {
     final op = ++_operation;
     _cancelRequested = false;
+    OfficialAnkiCompositionRoot.stagingDiscardRequested = false;
     final plan = _deps.planFor(
       flags: OfficialAnkiFeatureFlags.current,
       filePath: path,
@@ -241,10 +250,13 @@ class AnkiImportController extends ChangeNotifier {
     _emit(AnkiImportCompleted(summary: summary));
   }
 
-  /// Cancel the active long operation. The flow observes
-  /// [isCancelRequested]; parse cancel returns to Selecting.
+  /// Cancel the active long operation. Persist discard intent and ask the
+  /// staging saga to abort; the live Collection is not touched in P1.
   void cancel() {
     _cancelRequested = true;
+    OfficialAnkiCompositionRoot.stagingDiscardRequested = true;
+    unawaited(OfficialAnkiCompositionRoot.stagingEngineFromSession()?.cancel());
+    unawaited(_cancelStagingSaga());
     final current = _state;
     if (current is AnkiImportParsing) {
       _parsingPlan = null;
@@ -257,18 +269,60 @@ class AnkiImportController extends ChangeNotifier {
   Future<void> reset() async {
     _operation++;
     _cancelRequested = true;
+    OfficialAnkiCompositionRoot.stagingDiscardRequested = true;
+    unawaited(OfficialAnkiCompositionRoot.stagingEngineFromSession()?.cancel());
+    await _cancelStagingSaga();
     _parsingPlan = null;
     _committingPlan = null;
     _emit(const AnkiImportSelecting());
   }
 
-  /// Disposes heavy objects owned by the CURRENT operation only. Called
-  /// from the page's dispose.
+  /// Unsubscribes the page. Does not discard an in-flight saga.
   Future<void> disposeAsync() async {
     _operation++;
-    _cancelRequested = true;
     _disposed = true;
     dispose();
+  }
+
+  Future<void> _cancelStagingSaga() async {
+    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+    final paths = OfficialAnkiCompositionRoot.locatorPaths;
+    if (catalog == null || paths == null) {
+      try {
+        await OfficialAnkiCompositionRoot.stagingEngineFromSession()?.cancel();
+      } catch (suppressed) {
+        debugPrint('[AnkiImport] staging cancel: $suppressed');
+      }
+      return;
+    }
+    await OfficialAnkiImportSaga(
+      sources: OfficialAnkiSourceDao(catalog),
+      attempts: OfficialAnkiImportAttemptDao(catalog),
+      paths: paths,
+    ).cancelActive();
+  }
+
+  // Kept for pre-P1 unfinished live imports; staging cancel uses
+  // OfficialAnkiImportSaga.cancelActive instead.
+  // ignore: unused_element
+  Future<void> _discardDurable(String sourceId) async {
+    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+    final engine = OfficialAnkiCompositionRoot.engine;
+    final paths = OfficialAnkiCompositionRoot.locatorPaths;
+    if (catalog == null || engine == null || paths == null) return;
+    final attempts = OfficialAnkiImportAttemptDao(catalog);
+    final unfinished = attempts
+        .unfinished()
+        .where((row) => row.sourceId == sourceId);
+    if (unfinished.isEmpty) return;
+    final orch = OfficialAnkiImportOrchestrator(
+      engine: engine,
+      sources: OfficialAnkiSourceDao(catalog),
+      attempts: attempts,
+      paths: paths,
+    );
+    await OfficialAnkiImportSagaCoordinator(orch)
+        .requestDiscard(unfinished.first.attemptId);
   }
 
   // ─── Recognition triage (shared with the preview widgets) ───────────

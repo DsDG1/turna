@@ -153,13 +153,12 @@ class AnkiImports extends Table {
   Set<Column> get primaryKey => {importId};
 }
 
-/// `anki_notetypes` - per-import snapshot of each Anki notetype (model):
-/// field names + full card templates (`qfmt`/`afmt`) + `css` + `allowJs`.
-/// The fidelity track re-renders cards from these source templates without
-/// re-parsing the .apkg (deep-adaptation plan §3.2.1 / §5.1). One row per
-/// (import, mid). `templatesJson` is `[{name,qfmt,afmt}]`; `fieldNamesJson`
-/// is `["Front","Back"]`. Row class is renamed via [DataClassName] to avoid
-/// colliding with the in-memory [AnkiNotetype] model.
+/// `anki_notetypes` — leftover Legacy NoteStore snapshot of each notetype
+/// (field names, `qfmt`/`afmt`, `css`, `allowJs`). Official fidelity does
+/// not read this table. One row per (import, mid). `templatesJson` is
+/// `[{name,qfmt,afmt}]`; `fieldNamesJson` is `["Front","Back"]`. Row class
+/// is renamed via [DataClassName] to avoid colliding with retired parser
+/// models.
 @DataClassName('AnkiNotetypeRow')
 class AnkiNotetypes extends Table {
   TextColumn get importId => text().customConstraint(
@@ -181,10 +180,10 @@ class AnkiNotetypes extends Table {
   Set<Column> get primaryKey => {importId, mid};
 }
 
-/// `anki_notes` - raw Anki notes with field HTML preserved (not stripped), so
-/// fidelity rendering reproduces the original card faces. `fieldsJson` is the
-/// ordered field values aligned with the notetype's `fieldNamesJson`. Row
-/// class renamed to avoid colliding with the in-memory [AnkiNote] model.
+/// `anki_notes` — leftover Legacy NoteStore raw notes (`fieldsJson` aligned
+/// with the notetype's `fieldNamesJson`). Kept for Legacy-owned browser
+/// search until W9-E schema drop. Row class renamed to avoid colliding
+/// with retired parser models.
 @DataClassName('AnkiNoteRow')
 class AnkiNotes extends Table {
   TextColumn get importId => text().customConstraint(
@@ -202,10 +201,9 @@ class AnkiNotes extends Table {
   Set<Column> get primaryKey => {importId, noteId};
 }
 
-/// `anki_cards_meta` - per-card display metadata (scheduling lives in
-/// `srs_states` keyed by [wordId]). `wordId` is `anki-<importId>-c<cardId>`
-/// (card-level, decision 2); `renderMode` is the `AnkiRenderPolicy` decision
-/// (`fidelity` / `structured` / `hybrid`).
+/// `anki_cards_meta` — leftover Legacy per-card display metadata
+/// (`suspended` / flag / marked). Official scheduling lives in the
+/// Collection; `wordId` is `anki-<importId>-c<cardId>`.
 @DataClassName('AnkiCardMetaRow')
 class AnkiCardsMeta extends Table {
   TextColumn get importId => text().customConstraint(

@@ -3,10 +3,10 @@
   "description": "三字段全陌生命名 + 模板结构背书",
   "schema": {
     "notetypeId": 13,
-    "name": "eggrolls-JLPT10k",
+    "name": "custom-vocab-3field",
     "kind": "normal",
     "fieldNames": [
-      "VocabKanji",
+      "VocabHead",
       "VocabDefSC",
       "VocabAudio"
     ],
@@ -18,8 +18,8 @@
       {
         "noteId": 1,
         "fields": [
-          "食べる",
-          "吃",
+          "merhaba",
+          "你好",
           "[sound:x.mp3]"
         ],
         "truncated": false
@@ -27,8 +27,8 @@
       {
         "noteId": 2,
         "fields": [
-          "飲む",
-          "喝",
+          "teşekkürler",
+          "谢谢",
           "[sound:y.mp3]"
         ],
         "truncated": false
@@ -72,7 +72,7 @@
     "archetype": "basicPair",
     "band": "auto",
     "roles": {
-      "VocabKanji": "prompt",
+      "VocabHead": "prompt",
       "VocabDefSC": "response",
       "VocabAudio": "audio"
     }

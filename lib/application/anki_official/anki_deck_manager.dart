@@ -9,9 +9,10 @@ import 'package:injectable/injectable.dart';
 // Project imports:
 import 'package:turna/application/anki_official/anki_import_cleanup_service.dart';
 import 'package:turna/application/anki_official/introduction/card_introduction_eligibility.dart';
-import 'package:turna/application/anki_official/import/unified_anki_import_orchestrator.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
+import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
+import 'package:turna/application/anki_official/lifecycle/official_anki_uninstall_saga.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/audio_controller.dart';
@@ -248,6 +249,54 @@ class AnkiDeckManager {
       await _markOfficialSourcePendingCleanup(sourceId);
       return false;
     }
+    OfficialAnkiEngine? engine = OfficialAnkiCompositionRoot.engine;
+    if (engine == null) {
+      try {
+        engine = await _resolveOfficialEngine();
+      } catch (e) {
+        debugPrint('[AnkiDeckManager] official engine resolve failed: $e');
+      }
+    }
+    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+    if (engine != null && catalog != null) {
+      final saga = OfficialAnkiUninstallSaga(
+        catalog: catalog,
+        engine: engine,
+        paths: OfficialAnkiCompositionRoot.locatorPaths,
+        deleteProjection: (id) async {
+          await _repo.deleteOfficialProjection(id);
+          await _repo.deleteByTag('official:$id');
+        },
+        deleteAppRows: (id, cardIds) async {
+          final unification = _unificationDao;
+          if (unification != null) {
+            await unification.deleteByCourseId(
+              CardIntroductionEligibility.courseIdForOfficialSource(id),
+            );
+          }
+          await _reviewHistoryDao?.deleteByCardPrefix('official-anki-$id-');
+          await _mistakeProvider?.removeForAnkiDeletion(
+            idPrefixes: ['official-anki-$id-'],
+            cardIds: cardIds,
+          );
+        },
+      );
+      OfficialAnkiUninstallResult result;
+      try {
+        result = await saga.run(sourceId);
+      } catch (e) {
+        debugPrint('[AnkiDeckManager] uninstall saga failed for $sourceId: $e');
+        await _markOfficialSourcePendingCleanup(sourceId);
+        return false;
+      }
+      if (!result.logicalDeleteComplete) {
+        await _markOfficialSourcePendingCleanup(sourceId);
+        return false;
+      }
+      await _setAuthorityState(sourceId, AnkiSourceVisibility.retired);
+      return true;
+    }
+
     final collectionDeleted =
         await _deleteOfficialSourceCards(contentIds.exclusiveCardIds);
     if (!collectionDeleted) {
@@ -263,12 +312,7 @@ class AnkiDeckManager {
         CardIntroductionEligibility.courseIdForOfficialSource(sourceId),
       );
     }
-    // Retire the production course authority before deleting the replayable
-    // Official catalog row. This is the state CourseCatalog actually reads;
-    // omitting it leaves a permanent zero-card course after a successful
-    // uninstall.
     await _setAuthorityState(sourceId, AnkiSourceVisibility.retired);
-    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
     if (catalog != null) {
       OfficialAnkiSourceDao(catalog).deleteSource(
         profileId: CardIntroductionEligibility.defaultProfileId,
@@ -280,7 +324,6 @@ class AnkiDeckManager {
       idPrefixes: ['official-anki-$sourceId-'],
       cardIds: contentIds.cardIds,
     );
-    UnifiedAnkiImportOrchestrator.instance.invalidate(importId: sourceId);
     return true;
   }
 

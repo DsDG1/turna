@@ -11,4 +11,6 @@
     <color name="turna_appbar_dark">#182832</color>
     <!-- Brand teal (primary); not used for status bar fills. -->
     <color name="turna_brand_teal">#1F727E</color>
+    <!-- Adaptive launcher background; keep in sync with brandTeal. -->
+    <color name="ic_launcher_background">#1F727E</color>
 </resources>

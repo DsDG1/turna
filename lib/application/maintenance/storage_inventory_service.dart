@@ -5,6 +5,8 @@ import 'package:path_provider/path_provider.dart';
 
 import 'package:turna/application/ai/engine/ai_engine.dart';
 import 'package:turna/application/diagnostics/performance_trace.dart';
+import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
+import 'package:turna/application/anki_official/lifecycle/official_anki_pending_imports.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/core/log_capture.dart';
@@ -285,6 +287,28 @@ class StorageInventoryService {
         fileCount: files,
         cleanupPolicy: StorageCleanupPolicy.deleteSaga,
       ));
+      final checkpointSize = await platform
+          .directorySizeBytes(p.join(profileDir.path, 'checkpoints'));
+      if (checkpointSize > 0) {
+        reports.add(StorageArtifactReport(
+          category: StorageArtifactCategory.officialAnki,
+          ownerId: profileId,
+          label: 'official_anki/$profileId/checkpoints',
+          physicalBytes: checkpointSize,
+          fileCount: await _countFiles(p.join(profileDir.path, 'checkpoints')),
+          cleanupPolicy: StorageCleanupPolicy.optimize,
+        ));
+      }
+      for (final pending in _officialPendingSources()) {
+        reports.add(StorageArtifactReport(
+          category: StorageArtifactCategory.officialAnki,
+          ownerId: pending.sourceId,
+          label: 'pending ${pending.displayName} (${pending.phase})',
+          physicalBytes: 0,
+          fileCount: pending.cardCount,
+          cleanupPolicy: StorageCleanupPolicy.deleteSaga,
+        ));
+      }
     }
     return reports;
   }
@@ -292,6 +316,19 @@ class StorageInventoryService {
   /// Source count from the already-initialized read-only catalog, when one
   /// is open. This is a best-effort label; the scan must not initialize
   /// engines or open databases just to describe disk usage.
+  List<OfficialAnkiPendingImport> _officialPendingSources() {
+    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+    if (catalog == null) return const [];
+    try {
+      return const OfficialAnkiPendingImportStore().listForProfile(
+        catalog: catalog,
+        profileId: 'profile-default-01',
+      );
+    } catch (_) {
+      return const [];
+    }
+  }
+
   int? _officialSourceCount() {
     final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
     if (catalog == null) return null;

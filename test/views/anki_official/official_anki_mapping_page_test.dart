@@ -217,6 +217,73 @@ void main() {
         confirmed!.role(FieldRole.prompt)?.fieldName, 'Front');
   });
 
+  testWidgets(
+    'P0 S-d: save is tappable before picking front, then pops confirmed',
+    (tester) async {
+      OfficialAnkiMappingSuggestion? confirmed;
+      var mappingPopped = false;
+      await tester.pumpWidget(MaterialApp(
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () async {
+              await Navigator.of(context).push<void>(
+                MaterialPageRoute<void>(
+                  builder: (_) => OfficialAnkiMappingPage(
+                    notetypeName: 'Unknown',
+                    suggestion: const OfficialAnkiMappingSuggestion(
+                      status: OfficialAnkiMappingStatus.review,
+                      candidates: [],
+                    ),
+                    schema: _schema(),
+                    onConfirm: (next) => confirmed = next,
+                  ),
+                ),
+              );
+              mappingPopped = true;
+            },
+            child: const Text('open-mapping'),
+          ),
+        ),
+      ));
+      await tester.tap(find.text('open-mapping'));
+      await tester.pumpAndSettle();
+
+      final save = tester.widget<FilledButton>(
+        find.byKey(const Key('mapping-save')),
+      );
+      expect(
+        save.onPressed,
+        isNotNull,
+        reason: 'blocking mapping must still let the user tap save (enters pick-front)',
+      );
+
+      await tester.tap(find.byKey(const Key('mapping-save')));
+      await tester.pump();
+      expect(find.byKey(const Key('mapping-front-choice-0')), findsOneWidget);
+      expect(find.byKey(const Key('mapping-front-choice-1')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('mapping-front-choice-0')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('mapping-save')));
+      await tester.pumpAndSettle();
+
+      expect(mappingPopped, isTrue);
+      expect(find.byType(OfficialAnkiMappingPage), findsNothing);
+      expect(confirmed, isNotNull);
+      expect(confirmed!.role(FieldRole.prompt), isNotNull);
+
+      await tester.pumpWidget(MaterialApp(
+        home: Scaffold(
+          body: Text(
+            confirmed != null ? '已确认' : '未确认',
+            key: const Key('preview-notetype-status'),
+          ),
+        ),
+      ));
+      expect(find.text('已确认'), findsOneWidget);
+    },
+  );
+
   testWidgets('cloze schema surfaces the fill-blank note', (tester) async {
     await tester.pumpWidget(_host(OfficialAnkiMappingPage(
       notetypeName: 'Cloze',

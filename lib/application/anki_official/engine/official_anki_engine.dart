@@ -1,4 +1,5 @@
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
+import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 
 /// One profile, one Collection owner. Implementations must serialize writes.
@@ -134,6 +135,21 @@ abstract class OfficialAnkiEngine {
     required int deckId,
     required int neededNew,
   });
+
+  /// Whole-Collection unused-media GC (doc 41 S5). Never guesses ownership
+  /// by filename prefix.
+  Future<OfficialAnkiGcMediaResult> gcUnusedMedia({bool dryRun = true});
+
+  Future<OfficialAnkiPruneMetadataResult> pruneEmptyMetadata({
+    List<int> notetypeIds = const <int>[],
+    List<int> deckIds = const <int>[],
+  });
+
+  Future<OfficialAnkiCompactResult> compactCollection();
+
+  /// Card ids present in the Collection after [checkpointId] that are not in
+  /// the checkpoint. Empty when the engine cannot prove a diff.
+  Future<List<int>> diffCollectionCheckpoint(String checkpointId);
 
   Future<void> dispose();
 }

@@ -235,7 +235,7 @@
         "confidence": "0.850"
       },
       "prompt": {
-        "field": "VocabKanji",
+        "field": "VocabHead",
         "confidence": "0.650"
       },
       "response": {

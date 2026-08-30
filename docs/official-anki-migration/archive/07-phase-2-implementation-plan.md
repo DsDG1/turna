@@ -591,7 +591,7 @@ shell 将 typed marker 替换为受控 placeholder；Flutter 根据 placeholder 
 - `{{type:cloze:Field}}` 和多 Cloze ordinal。
 - `{{type:nc:Field}}` combining=false。
 - 空字段、未知字段、空 Cloze。
-- Unicode combining marks、日语、希伯来语。
+- Unicode combining marks、中文、希伯来语。
 - HTML expected、换行、`<br>` 和实体。
 - 问题/答案模板中 marker 出现位置不同。
 

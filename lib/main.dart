@@ -11,9 +11,14 @@ import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/engine/ai_engine.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/anki_official/anki_deck_manager.dart';
+import 'package:turna/application/anki_official/engine/official_anki_session.dart';
+import 'package:turna/application/anki_official/import/official_anki_import_orchestrator.dart';
+import 'package:turna/application/anki_official/import/official_anki_recovery_service.dart';
 import 'package:turna/application/anki_official/migration/official_anki_startup_census.dart';
 import 'package:turna/application/anki_official/migration/official_first_reanchor.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
+import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
+import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/application/course_provider.dart';
@@ -182,6 +187,32 @@ Future<void> main() async {
         );
       } catch (e) {
         debugPrint('[OfficialAnki] startup census skipped: $e');
+      }
+      try {
+        final session = OfficialAnkiCompositionRoot.session;
+        if (session is OfficialAnkiSession) {
+          await session.recoverUnfinished();
+        } else {
+          final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+          final engine = OfficialAnkiCompositionRoot.engine;
+          final paths = OfficialAnkiCompositionRoot.locatorPaths;
+          if (catalog != null && engine != null && paths != null) {
+            final orch = OfficialAnkiImportOrchestrator(
+              engine: engine,
+              sources: OfficialAnkiSourceDao(catalog),
+              attempts: OfficialAnkiImportAttemptDao(catalog),
+              paths: paths,
+            );
+            await OfficialAnkiRecoveryService(
+              sources: orch.sources,
+              attempts: orch.attempts,
+              engine: engine,
+              orchestrator: orch,
+            ).recoverUnfinished();
+          }
+        }
+      } catch (e) {
+        debugPrint('[OfficialAnki] unfinished import recovery skipped: $e');
       }
     }());
 

@@ -9,7 +9,7 @@ abstract class OfficialAnkiImporter {
   });
 }
 
-enum OfficialAnkiRecoveryAction { resume, retry, reconcile, leave }
+enum OfficialAnkiRecoveryAction { resume, retry, reconcile, leave, rollback, quarantine }
 
 class OfficialAnkiRecoveryDecision {
   const OfficialAnkiRecoveryDecision({
@@ -32,10 +32,19 @@ enum OfficialAnkiSourceState {
   importingOfficial,
   indexingNotes,
   indexingCards,
+  previewReady,
+  staging,
   active,
   cancelled,
   failedBeforeImport,
   needsReconciliation,
+  cancelRequested,
+  rollbackPending,
+  rolledBack,
+  pendingCleanup,
+  retired,
+  quarantined,
+  completed,
 }
 
 extension OfficialAnkiSourceStateWire on OfficialAnkiSourceState {
@@ -53,6 +62,10 @@ extension OfficialAnkiSourceStateWire on OfficialAnkiSourceState {
         return 'indexing_notes';
       case OfficialAnkiSourceState.indexingCards:
         return 'indexing_cards';
+      case OfficialAnkiSourceState.previewReady:
+        return 'preview_ready';
+      case OfficialAnkiSourceState.staging:
+        return 'staging';
       case OfficialAnkiSourceState.active:
         return 'active';
       case OfficialAnkiSourceState.cancelled:
@@ -61,6 +74,20 @@ extension OfficialAnkiSourceStateWire on OfficialAnkiSourceState {
         return 'failed_before_import';
       case OfficialAnkiSourceState.needsReconciliation:
         return 'needs_reconciliation';
+      case OfficialAnkiSourceState.cancelRequested:
+        return 'cancel_requested';
+      case OfficialAnkiSourceState.rollbackPending:
+        return 'rollback_pending';
+      case OfficialAnkiSourceState.rolledBack:
+        return 'rolled_back';
+      case OfficialAnkiSourceState.pendingCleanup:
+        return 'pending_cleanup';
+      case OfficialAnkiSourceState.retired:
+        return 'retired';
+      case OfficialAnkiSourceState.quarantined:
+        return 'quarantined';
+      case OfficialAnkiSourceState.completed:
+        return 'completed';
     }
   }
 
@@ -75,24 +102,69 @@ extension OfficialAnkiSourceStateWire on OfficialAnkiSourceState {
       this == OfficialAnkiSourceState.active ||
       this == OfficialAnkiSourceState.cancelled ||
       this == OfficialAnkiSourceState.failedBeforeImport ||
-      this == OfficialAnkiSourceState.needsReconciliation;
+      this == OfficialAnkiSourceState.needsReconciliation ||
+      this == OfficialAnkiSourceState.rolledBack ||
+      this == OfficialAnkiSourceState.retired ||
+      this == OfficialAnkiSourceState.quarantined ||
+      this == OfficialAnkiSourceState.completed;
 
   bool get isActive => this == OfficialAnkiSourceState.active;
+
+  bool get isPreviewReady => this == OfficialAnkiSourceState.previewReady;
+
+  bool get allowsPreview =>
+      this == OfficialAnkiSourceState.previewReady ||
+      this == OfficialAnkiSourceState.active;
 }
 
 OfficialAnkiRecoveryDecision decideOfficialAnkiRecovery(
   OfficialAnkiAttemptRow attempt,
 ) {
   final state = OfficialAnkiSourceStateWire.parse(attempt.state);
-  if (state == OfficialAnkiSourceState.active) {
+  if (state == OfficialAnkiSourceState.quarantined ||
+      state == OfficialAnkiSourceState.retired ||
+      state == OfficialAnkiSourceState.rolledBack) {
+    return OfficialAnkiRecoveryDecision(
+      action: OfficialAnkiRecoveryAction.leave,
+      state: state,
+    );
+  }
+  if (state == OfficialAnkiSourceState.active ||
+      state == OfficialAnkiSourceState.completed) {
     return const OfficialAnkiRecoveryDecision(
       action: OfficialAnkiRecoveryAction.leave,
       state: OfficialAnkiSourceState.active,
     );
   }
+  if (state == OfficialAnkiSourceState.previewReady) {
+    if (attempt.userIntent == 'discard') {
+      return const OfficialAnkiRecoveryDecision(
+        action: OfficialAnkiRecoveryAction.rollback,
+        state: OfficialAnkiSourceState.rollbackPending,
+      );
+    }
+    return const OfficialAnkiRecoveryDecision(
+      action: OfficialAnkiRecoveryAction.leave,
+      state: OfficialAnkiSourceState.previewReady,
+    );
+  }
+  if (state == OfficialAnkiSourceState.cancelRequested ||
+      state == OfficialAnkiSourceState.rollbackPending) {
+    return const OfficialAnkiRecoveryDecision(
+      action: OfficialAnkiRecoveryAction.rollback,
+      state: OfficialAnkiSourceState.rollbackPending,
+    );
+  }
   if (state == OfficialAnkiSourceState.selected ||
       state == OfficialAnkiSourceState.preparing ||
-      state == OfficialAnkiSourceState.backingUp) {
+      state == OfficialAnkiSourceState.backingUp ||
+      state == OfficialAnkiSourceState.staging) {
+    if (attempt.hasImportedNotes) {
+      return const OfficialAnkiRecoveryDecision(
+        action: OfficialAnkiRecoveryAction.resume,
+        state: OfficialAnkiSourceState.indexingCards,
+      );
+    }
     return const OfficialAnkiRecoveryDecision(
       action: OfficialAnkiRecoveryAction.retry,
       state: OfficialAnkiSourceState.failedBeforeImport,
@@ -100,18 +172,23 @@ OfficialAnkiRecoveryDecision decideOfficialAnkiRecovery(
   }
   if (state == OfficialAnkiSourceState.importingOfficial &&
       !attempt.hasImportedNotes) {
+    if (attempt.checkpointId != null &&
+        attempt.checkpointId!.isNotEmpty &&
+        attempt.nativeCommitState != 'committed') {
+      return const OfficialAnkiRecoveryDecision(
+        action: OfficialAnkiRecoveryAction.rollback,
+        state: OfficialAnkiSourceState.rollbackPending,
+      );
+    }
     return const OfficialAnkiRecoveryDecision(
-      action: OfficialAnkiRecoveryAction.reconcile,
-      state: OfficialAnkiSourceState.needsReconciliation,
+      action: OfficialAnkiRecoveryAction.quarantine,
+      state: OfficialAnkiSourceState.quarantined,
     );
   }
   if (state == OfficialAnkiSourceState.indexingNotes ||
       state == OfficialAnkiSourceState.indexingCards ||
       (state == OfficialAnkiSourceState.importingOfficial &&
           attempt.hasImportedNotes)) {
-    // The decision `state` is only read on the leave path; resume reports
-    // whatever resumeIndexing lands on (the `recovering` value it used to
-    // carry was write-only and was deleted with the other dead states).
     return const OfficialAnkiRecoveryDecision(
       action: OfficialAnkiRecoveryAction.resume,
       state: OfficialAnkiSourceState.indexingCards,
@@ -129,10 +206,14 @@ enum OfficialAnkiFaultPoint {
   afterCheckpointBeforeImport,
   duringImportCancel,
   afterImportBeforeNoteIds,
+  afterNativeImportBeforeReceiptCommit,
   afterNoteIdsBeforeCards,
+  afterReceiptBeforeCardIndexComplete,
   afterMidBatchCursor,
   afterCardsBeforeActive,
+  afterPreviewReady,
   afterActiveRestart,
+  afterActiveBeforeCheckpointRelease,
 }
 
 class OfficialAnkiImportResult {

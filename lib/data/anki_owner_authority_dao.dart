@@ -32,7 +32,8 @@ enum AnkiSourceVisibility {
   active,
   repairing,
   pendingCleanup,
-  retired;
+  retired,
+  quarantined;
 
   String get wireName => name;
 

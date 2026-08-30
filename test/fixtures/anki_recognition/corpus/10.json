@@ -3,7 +3,7 @@
   "description": "Expression/Reading/Meaning/Audio 复合绑定",
   "schema": {
     "notetypeId": 10,
-    "name": "Japanese Vocab",
+    "name": "Expression Vocab",
     "kind": "normal",
     "fieldNames": [
       "Expression",
@@ -19,20 +19,20 @@
       {
         "noteId": 1,
         "fields": [
-          "食べる",
-          "たべる",
-          "to eat",
-          "[sound:taberu.mp3]"
+          "merhaba",
+          "mer-ha-ba",
+          "hello",
+          "[sound:merhaba.mp3]"
         ],
         "truncated": false
       },
       {
         "noteId": 2,
         "fields": [
-          "飲む",
-          "のむ",
-          "to drink",
-          "[sound:nomu.mp3]"
+          "teşekkürler",
+          "te-shek-kur-ler",
+          "thank you",
+          "[sound:tesekkurler.mp3]"
         ],
         "truncated": false
       }

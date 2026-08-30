@@ -1,4 +1,4 @@
-# Contract v1.10 operations
+# Contract v1.11 operations
 
 Wire format is versioned JSON. `turna_anki_spike.proto` is archived and is not
 the codec.
@@ -41,6 +41,10 @@ the codec.
 | 34 | SCHEDULE_CARDS_AS_NEW | yes |
 | 35 | ANSWER_AHEAD_CARDS | yes |
 | 36 | ENSURE_TODAY_NEW_QUOTA | yes |
+| 37 | GC_UNUSED_MEDIA | yes |
+| 38 | PRUNE_EMPTY_METADATA | yes |
+| 39 | COMPACT_COLLECTION | yes |
+| 40 | DIFF_COLLECTION_CHECKPOINT | yes |
 
 Scheduler operations 11–16 and 27–36 are published. Request/response DTO are
 camelCase, with four load-bearing snake-case compat keys kept on the wire:
@@ -107,6 +111,24 @@ to the stored `config.reqs`, applied per face). `filters` are derived
 booleans/field-name lists; no raw template text (`qfmt`/`afmt`/CSS) ever
 leaves the engine. The `sampleLimit` clamp rose from 10 to 30 (default stays
 3). Old Dart minors ignore the new keys; old engines simply omit them.
+
+## v1.11 additions (additive)
+
+`GC_UNUSED_MEDIA` runs rslib `check_media` then optionally `trash_media_files`
++ `empty_trash`. Request `{ mode: "dryRun"|"trashAndDelete" }`. Response
+counts/bytes only — no filename lists on the production envelope.
+
+`PRUNE_EMPTY_METADATA` deletes candidate notetype/deck IDs after re-checking
+use counts. Stock notetype id 1 and Default deck id 1 are never removed.
+
+`COMPACT_COLLECTION` vacuums the Collection file after a space/lock check and
+returns before/after bytes plus a skip reason.
+
+`DIFF_COLLECTION_CHECKPOINT` is best-effort: when a restorable checkpoint
+file is available it returns `{ cardIds }` added since that snapshot; otherwise
+an empty list.
+
+`GET_CARD_DESCRIPTORS_BATCH` now includes optional `notetypeId` (notes.mid).
 
 ## v1.10 changes
 

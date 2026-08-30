@@ -5,6 +5,7 @@ import 'package:turna/application/anki_official/contract/official_anki_errors.da
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/engine/official_anki_scheduler_audit.dart';
 import 'package:turna/application/anki_official/engine/official_anki_native_transport.dart';
+import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 
@@ -463,6 +464,51 @@ class FfiOfficialAnkiEngine implements OfficialAnkiEngine {
       'neededNew': neededNew,
     }).requirePayload();
     return (payload['extendedBy'] as num?)?.toInt() ?? 0;
+  }
+
+  @override
+  Future<OfficialAnkiGcMediaResult> gcUnusedMedia({bool dryRun = true}) async {
+    _requireScheduler(OfficialAnkiOperation.gcUnusedMedia);
+    return OfficialAnkiGcMediaResult.fromJson(
+      _call(OfficialAnkiOperation.gcUnusedMedia, {
+        'mode': dryRun ? 'dryRun' : 'trashAndDelete',
+      }).requirePayload(),
+    );
+  }
+
+  @override
+  Future<OfficialAnkiPruneMetadataResult> pruneEmptyMetadata({
+    List<int> notetypeIds = const <int>[],
+    List<int> deckIds = const <int>[],
+  }) async {
+    _requireScheduler(OfficialAnkiOperation.pruneEmptyMetadata);
+    return OfficialAnkiPruneMetadataResult.fromJson(
+      _call(OfficialAnkiOperation.pruneEmptyMetadata, {
+        'notetypeIds': notetypeIds,
+        'deckIds': deckIds,
+      }).requirePayload(),
+    );
+  }
+
+  @override
+  Future<OfficialAnkiCompactResult> compactCollection() async {
+    _requireScheduler(OfficialAnkiOperation.compactCollection);
+    return OfficialAnkiCompactResult.fromJson(
+      _call(OfficialAnkiOperation.compactCollection, const <String, Object?>{})
+          .requirePayload(),
+    );
+  }
+
+  @override
+  Future<List<int>> diffCollectionCheckpoint(String checkpointId) async {
+    _requireScheduler(OfficialAnkiOperation.diffCollectionCheckpoint);
+    final payload = _call(OfficialAnkiOperation.diffCollectionCheckpoint, {
+      'checkpointId': checkpointId,
+    }).requirePayload();
+    return ((payload['cardIds'] as List?) ?? const [])
+        .whereType<num>()
+        .map((n) => n.toInt())
+        .toList();
   }
 
   @override

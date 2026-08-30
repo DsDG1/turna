@@ -60,26 +60,26 @@ void main() {
     // "review" instead of faking confidence.
     const schema = OfficialAnkiProjectionSchema(
       notetypeId: 3,
-      name: 'eggrolls-JLPT10k',
+      name: 'custom-vocab-3field',
       kind: 'normal',
-      fieldNames: ['VocabKanji', 'VocabDefSC', 'VocabAudio'],
+      fieldNames: ['VocabHead', 'VocabDefSC', 'VocabAudio'],
       templateNames: ['Card 1'],
-      schemaFingerprint: 'egg',
+      schemaFingerprint: 'fp-custom',
       samples: [
         OfficialAnkiProjectionSample(
           noteId: 1,
-          fields: ['食べる', '吃', '[sound:x.mp3]'],
+          fields: ['merhaba', '你好', '[sound:x.mp3]'],
         ),
         OfficialAnkiProjectionSample(
           noteId: 2,
-          fields: ['飲む', '喝', '[sound:y.mp3]'],
+          fields: ['teşekkürler', '谢谢', '[sound:y.mp3]'],
         ),
       ],
     );
     final suggestion = _suggest(schema);
     expect(suggestion.status, OfficialAnkiMappingStatus.review);
     expect(suggestion.archetype, 'basicPair');
-    expect(suggestion.role(FieldRole.prompt)?.fieldName, 'VocabKanji');
+    expect(suggestion.role(FieldRole.prompt)?.fieldName, 'VocabHead');
     expect(suggestion.role(FieldRole.response)?.fieldName, 'VocabDefSC');
     expect(suggestion.role(FieldRole.audio)?.fieldName, 'VocabAudio');
   });
@@ -90,19 +90,19 @@ void main() {
     // lexicon left (contract 1.9 payoff).
     const schema = OfficialAnkiProjectionSchema(
       notetypeId: 3,
-      name: 'eggrolls-JLPT10k',
+      name: 'custom-vocab-3field',
       kind: 'normal',
-      fieldNames: ['VocabKanji', 'VocabDefSC', 'VocabAudio'],
+      fieldNames: ['VocabHead', 'VocabDefSC', 'VocabAudio'],
       templateNames: ['Card 1'],
-      schemaFingerprint: 'egg',
+      schemaFingerprint: 'fp-custom',
       samples: [
         OfficialAnkiProjectionSample(
           noteId: 1,
-          fields: ['食べる', '吃', '[sound:x.mp3]'],
+          fields: ['merhaba', '你好', '[sound:x.mp3]'],
         ),
         OfficialAnkiProjectionSample(
           noteId: 2,
-          fields: ['飲む', '喝', '[sound:y.mp3]'],
+          fields: ['teşekkürler', '谢谢', '[sound:y.mp3]'],
         ),
       ],
       templateFacts: OfficialAnkiTemplateFacts(
@@ -122,7 +122,7 @@ void main() {
     );
     final suggestion = _suggest(schema);
     expect(suggestion.status, OfficialAnkiMappingStatus.auto);
-    expect(suggestion.role(FieldRole.prompt)?.fieldName, 'VocabKanji');
+    expect(suggestion.role(FieldRole.prompt)?.fieldName, 'VocabHead');
     expect(suggestion.role(FieldRole.response)?.fieldName, 'VocabDefSC');
     expect(suggestion.templateFactsHash, 'facts-1');
     expect(suggestion.recognizerVersion, 1);

@@ -1,6 +1,6 @@
 // Official-first production import: saga before any Turna-side write
-// (failure → zero Turna rows). Flag-off / legacyMirror must fail-closed
-// rather than reopen a Legacy writer (doc 34 W0).
+// (failure → zero Turna rows). Flag-off must fail-closed rather than
+// reopen a Legacy writer (doc 34 W0).
 //
 // The wizard is driven through the real file-pick flow with a faked
 // platform picker; the official saga runs in-process against a fake
@@ -38,6 +38,7 @@ import 'package:turna/application/srs_provider.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/anki_note_dao.dart';
+import 'package:turna/data/anki_owner_authority_dao.dart';
 import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/data/course_repository.dart';
@@ -178,6 +179,9 @@ void main() {
     final importDao = AnkiImportDao(db);
     getIt.registerSingleton<AnkiImportDao>(importDao);
     getIt.registerSingleton<AnkiUnificationDao>(AnkiUnificationDao(db));
+    getIt.registerSingleton<AnkiOwnerAuthorityDao>(
+      AnkiOwnerAuthorityDao(db),
+    );
 
     courseProvider = CourseProvider(appPrefs);
     final linkStore = LessonLinkStore(appPrefs);
@@ -339,7 +343,18 @@ void main() {
 
     // Projection-based preview, not the legacy collection preview.
     expect(find.text(AppStrings.ankiOfficialPreviewBody), findsOneWidget);
-    expect(find.textContaining('已识别'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate((widget) {
+        if (widget is! Text) return false;
+        final data = widget.data;
+        if (data == null) return false;
+        return data == AppStrings.ankiMappingSummaryAll(1) ||
+            data.contains('已识别') ||
+            data.contains('还分不清');
+      }),
+      findsOneWidget,
+      reason: 'mapping summary is one of the three recognition states',
+    );
     expect(find.text(AppStrings.ankiOfficialMappingSuggested), findsNothing,
         reason: 'normal mappings stay collapsed behind the summary');
 
@@ -400,7 +415,7 @@ void main() {
     );
   });
 
-  testWidgets('legacyMirror_cannot_reopen_legacy_writer_when_official_first_off',
+  testWidgets('official_first_off_never_reopens_legacy_writer',
       (tester) async {
     tester.view.physicalSize = const Size(1080, 1920);
     tester.view.devicePixelRatio = 1.0;
@@ -408,7 +423,6 @@ void main() {
 
     OfficialAnkiFeatureFlags.current = _capableFlags.copyWith(
       officialFirstImport: false,
-      legacyMirror: true,
     );
     final failing = _FailingOfficialImporter();
     OfficialAnkiCompositionRoot.session = failing;
@@ -421,6 +435,6 @@ void main() {
     expect(failing.calls, 0);
     final records = await getIt<AnkiImportDao>().getAll();
     expect(records, isEmpty,
-        reason: 'legacyMirror must not resurrect mixed-owner writes');
+        reason: 'flag-off must not resurrect a Legacy writer');
   });
 }

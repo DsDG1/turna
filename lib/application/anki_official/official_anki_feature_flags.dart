@@ -3,24 +3,19 @@
 /// [copyWith] to opt capabilities on. Per-capability dart-defines were
 /// collapsed (doc 34 C4).
 ///
-/// Remaining dart-defines are **opt-in only**:
-/// - `TURNA_OFFICIAL_ANKI_DIAGNOSTICS`
+/// Remaining dart-defines on this class are **opt-in only**:
 /// - `TURNA_OFFICIAL_ANKI_REVIEWER_DIAGNOSTICS`
-/// - `TURNA_OFFICIAL_ANKI_MIGRATION_PILOT`
 /// - `TURNA_OFFICIAL_ANKI_COURSE_GRADES_SCHEDULER`
-/// - `TURNA_OFFICIAL_ANKI_LEGACY_MIRROR`
+///
+/// `TURNA_OFFICIAL_ANKI_DIAGNOSTICS` is the release diagnostics route
+/// guard, not a field here.
 ///
 /// Product pause is [LegacyAnkiMigrationFlags.cutoverEnabled]
 /// (`TURNA_OFFICIAL_ANKI_CUTOVER`, default true) — not a second flag matrix.
-///
-/// The legacy→official background mirror remains a development-only escape
-/// hatch via `TURNA_OFFICIAL_ANKI_LEGACY_MIRROR` and must not be combined
-/// with Official-first production traffic.
 class OfficialAnkiFeatureFlags {
   const OfficialAnkiFeatureFlags({
     this.engine = false,
     this.import = false,
-    this.diagnostics = false,
     this.catalogReady = false,
     this.runtimeCapable = false,
     this.platformReady = false,
@@ -31,11 +26,10 @@ class OfficialAnkiFeatureFlags {
     this.scheduler = false,
     this.courseGradesScheduler = false,
     this.officialFirstImport = false,
-    this.legacyMirror = false,
   });
 
-  /// Android production product flags. Opt-in diagnostics / pilot / grades /
-  /// mirror stay off.
+  /// Android production product flags. Opt-in reviewer diagnostics / grades
+  /// stay off.
   static const productionAndroid = OfficialAnkiFeatureFlags(
     engine: true,
     import: true,
@@ -50,24 +44,18 @@ class OfficialAnkiFeatureFlags {
   );
 
   factory OfficialAnkiFeatureFlags.fromEnvironment() {
-    const diagnostics = bool.fromEnvironment('TURNA_OFFICIAL_ANKI_DIAGNOSTICS');
     const reviewerDiagnostics =
         bool.fromEnvironment('TURNA_OFFICIAL_ANKI_REVIEWER_DIAGNOSTICS');
     const courseGradesScheduler =
         bool.fromEnvironment('TURNA_OFFICIAL_ANKI_COURSE_GRADES_SCHEDULER');
-    const legacyMirror =
-        bool.fromEnvironment('TURNA_OFFICIAL_ANKI_LEGACY_MIRROR');
     return productionAndroid.copyWith(
-      diagnostics: diagnostics,
       reviewerDiagnostics: reviewerDiagnostics,
       courseGradesScheduler: courseGradesScheduler,
-      legacyMirror: legacyMirror,
     );
   }
 
   final bool engine;
   final bool import;
-  final bool diagnostics;
   final bool catalogReady;
   final bool runtimeCapable;
   final bool platformReady;
@@ -78,13 +66,6 @@ class OfficialAnkiFeatureFlags {
   final bool scheduler;
   final bool courseGradesScheduler;
   final bool officialFirstImport;
-
-  /// Development-only: after a successful legacy commit, mirror the same
-  /// package into the official collection in the background. Production
-  /// keeps exactly one owner per import, so this stays opt-in
-  /// (`TURNA_OFFICIAL_ANKI_LEGACY_MIRROR`); mirrored imports are still
-  /// deletable through the unified uninstall saga.
-  final bool legacyMirror;
 
   static OfficialAnkiFeatureFlags current =
       OfficialAnkiFeatureFlags.fromEnvironment();
@@ -122,7 +103,6 @@ class OfficialAnkiFeatureFlags {
   OfficialAnkiFeatureFlags copyWith({
     bool? engine,
     bool? import,
-    bool? diagnostics,
     bool? catalogReady,
     bool? runtimeCapable,
     bool? platformReady,
@@ -133,12 +113,10 @@ class OfficialAnkiFeatureFlags {
     bool? scheduler,
     bool? courseGradesScheduler,
     bool? officialFirstImport,
-    bool? legacyMirror,
   }) {
     return OfficialAnkiFeatureFlags(
       engine: engine ?? this.engine,
       import: import ?? this.import,
-      diagnostics: diagnostics ?? this.diagnostics,
       catalogReady: catalogReady ?? this.catalogReady,
       runtimeCapable: runtimeCapable ?? this.runtimeCapable,
       platformReady: platformReady ?? this.platformReady,
@@ -150,7 +128,6 @@ class OfficialAnkiFeatureFlags {
       courseGradesScheduler:
           courseGradesScheduler ?? this.courseGradesScheduler,
       officialFirstImport: officialFirstImport ?? this.officialFirstImport,
-      legacyMirror: legacyMirror ?? this.legacyMirror,
     );
   }
 }

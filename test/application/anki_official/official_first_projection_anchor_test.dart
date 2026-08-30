@@ -13,6 +13,7 @@ import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_projector.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_store.dart';
 import 'package:turna/application/anki_official/render/official_anki_media_resolver.dart';
+import 'package:turna/data/anki_owner_authority_dao.dart';
 import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/data/course_database.dart';
 
@@ -30,6 +31,9 @@ void main() {
       await GetIt.instance.reset();
       GetIt.instance.registerSingleton<CourseDatabase>(db);
       GetIt.instance.registerSingleton<AnkiUnificationDao>(AnkiUnificationDao(db));
+      GetIt.instance.registerSingleton<AnkiOwnerAuthorityDao>(
+        AnkiOwnerAuthorityDao(db),
+      );
     });
 
     tearDown(() async {
@@ -80,7 +84,6 @@ void main() {
 
       expect(result.cardinalityOk, isTrue);
       expect(result.canonicalCardCount, 2);
-      expect(result.wroteTurnaSrs, isFalse);
       final placements = await db.customSelect(
         'SELECT placement_id, section_id, unit_id, lesson_id, display_order '
         'FROM anki_course_card_placements ORDER BY card_id',

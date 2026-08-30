@@ -13,6 +13,8 @@ import 'package:turna/application/anki_official/engine/official_anki_operation_c
 import 'package:turna/application/anki_official/engine/official_anki_session_cleanup.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_orchestrator.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
+import 'package:turna/application/anki_official/import/official_anki_recovery_service.dart';
+import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
@@ -232,8 +234,44 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
     );
   }
 
+  Future<OfficialAnkiImportLog> importPackage({
+    required String packagePath,
+    bool withScheduling = true,
+    bool withDeckConfigs = true,
+  }) {
+    return _call<OfficialAnkiImportLog>(
+      'importPackage',
+      {
+        'packagePath': packagePath,
+        'withScheduling': withScheduling,
+        'withDeckConfigs': withDeckConfigs,
+      },
+      const Duration(minutes: 30),
+    );
+  }
+
   Future<OfficialAnkiEngineInfo> engineInfo() =>
       _call<OfficialAnkiEngineInfo>('engineInfo');
+
+  Future<String> createBackup() => _call<String>('createBackup');
+
+  Future<void> restoreBackup(String backupId) =>
+      _rpc('restoreBackup', {'backupId': backupId});
+
+  Future<Map<int, List<int>>> getNoteCardsBatch(List<int> noteIds) =>
+      _call<Map<int, List<int>>>('getNoteCardsBatch', {
+        'noteIds': noteIds,
+      });
+
+  Future<List<OfficialAnkiCardDescriptor>> getCardDescriptorsBatch(
+    List<int> cardIds,
+  ) =>
+      _call<List<OfficialAnkiCardDescriptor>>('getCardDescriptorsBatch', {
+        'cardIds': cardIds,
+      });
+
+  Future<List<OfficialAnkiImportResult>> recoverUnfinished() =>
+      _call<List<OfficialAnkiImportResult>>('recoverUnfinished');
 
   /// Latest import progress. The control transport (main-isolate FFI) is
   /// preferred so this stays reachable while the worker is busy inside a
@@ -447,6 +485,33 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
         'neededNew': neededNew,
       });
 
+  Future<OfficialAnkiGcMediaResult> gcUnusedMedia({bool dryRun = true}) =>
+      _call<OfficialAnkiGcMediaResult>('scheduler', {
+        'op': 'gcUnusedMedia',
+        'dryRun': dryRun,
+      });
+
+  Future<OfficialAnkiPruneMetadataResult> pruneEmptyMetadata({
+    List<int> notetypeIds = const <int>[],
+    List<int> deckIds = const <int>[],
+  }) =>
+      _call<OfficialAnkiPruneMetadataResult>('scheduler', {
+        'op': 'pruneEmptyMetadata',
+        'notetypeIds': notetypeIds,
+        'deckIds': deckIds,
+      });
+
+  Future<OfficialAnkiCompactResult> compactCollection() =>
+      _call<OfficialAnkiCompactResult>('scheduler', {
+        'op': 'compactCollection',
+      });
+
+  Future<List<int>> diffCollectionCheckpoint(String checkpointId) =>
+      _call<List<int>>('scheduler', {
+        'op': 'diffCollectionCheckpoint',
+        'checkpointId': checkpointId,
+      });
+
   Future<void> dispose() {
     return _disposeFuture ??= _disposeOnce();
   }
@@ -515,6 +580,28 @@ void officialAnkiWorkerEntrypoint(SendPort ready) {
 final Map<String, Future<Object?> Function(_WorkerState, Map<String, Object?>)>
     _workerHandlers = {
   'engineInfo': (s, m) => s.engine!.engineInfo(),
+  'createBackup': (s, m) => s.engine!.createBackup(),
+  'restoreBackup': (s, m) => s.engine!.restoreBackup(m['backupId'] as String),
+  'getNoteCardsBatch': (s, m) => s.engine!.getNoteCardsBatch(
+        ((m['noteIds'] as List?) ?? const [])
+            .whereType<num>()
+            .map((n) => n.toInt())
+            .toList(),
+      ),
+  'getCardDescriptorsBatch': (s, m) => s.engine!.getCardDescriptorsBatch(
+        ((m['cardIds'] as List?) ?? const [])
+            .whereType<num>()
+            .map((n) => n.toInt())
+            .toList(),
+      ),
+  'recoverUnfinished': (s, m) async {
+    return OfficialAnkiRecoveryService(
+      sources: OfficialAnkiSourceDao(s.db!),
+      attempts: OfficialAnkiImportAttemptDao(s.db!),
+      engine: s.engine!,
+      orchestrator: s.orchestrator!,
+    ).recoverUnfinished();
+  },
   'importFile': (s, m) async {
     s.ops.guardCollectionMutation();
     s.ops.acquire(OfficialAnkiOperationPhase.importing);
@@ -528,6 +615,14 @@ final Map<String, Future<Object?> Function(_WorkerState, Map<String, Object?>)>
     } finally {
       s.ops.release(OfficialAnkiOperationPhase.importing);
     }
+  },
+  'importPackage': (s, m) async {
+    s.ops.guardCollectionMutation();
+    return s.engine!.importPackage(
+      packagePath: m['packagePath'] as String,
+      withScheduling: m['withScheduling'] == true,
+      withDeckConfigs: m['withDeckConfigs'] != false,
+    );
   },
   'progress': (s, m) => s.engine!.latestProgress(),
   'cancel': (s, m) => s.engine!.cancel(),
@@ -705,6 +800,9 @@ const _schedulerWriteOps = {
   'scheduleCardsAsNew',
   'answerAheadCards',
   'ensureTodayNewQuota',
+  'gcUnusedMedia',
+  'pruneEmptyMetadata',
+  'compactCollection',
 };
 
 /// Dispatches one scheduler op and returns its typed DTO (or an int for
@@ -846,6 +944,25 @@ Future<Object?> dispatchOfficialAnkiScheduler(
         officialContractError('ensureTodayNewQuota', message);
       }
       return engine.ensureTodayNewQuota(deckId: deckId, neededNew: neededNew);
+    case 'gcUnusedMedia':
+      return engine.gcUnusedMedia(dryRun: message['dryRun'] == true);
+    case 'pruneEmptyMetadata':
+      return engine.pruneEmptyMetadata(
+        notetypeIds: ((message['notetypeIds'] as List?) ?? const [])
+            .whereType<num>()
+            .map((n) => n.toInt())
+            .toList(),
+        deckIds: ((message['deckIds'] as List?) ?? const [])
+            .whereType<num>()
+            .map((n) => n.toInt())
+            .toList(),
+      );
+    case 'compactCollection':
+      return engine.compactCollection();
+    case 'diffCollectionCheckpoint':
+      return engine.diffCollectionCheckpoint(
+        message['checkpointId'] as String? ?? '',
+      );
     default:
       throw OfficialAnkiException(
         code: OfficialAnkiErrorCode.invalidArgument,

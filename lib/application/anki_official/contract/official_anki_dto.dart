@@ -72,6 +72,7 @@ class OfficialAnkiCardDescriptor {
     this.flag = 0,
     this.marked = false,
     this.tags = const <String>[],
+    this.notetypeId,
   });
 
   final int cardId;
@@ -85,6 +86,7 @@ class OfficialAnkiCardDescriptor {
   final int flag;
   final bool marked;
   final List<String> tags;
+  final int? notetypeId;
 
   factory OfficialAnkiCardDescriptor.fromJson(Map<String, Object?> json) {
     return OfficialAnkiCardDescriptor(
@@ -102,6 +104,7 @@ class OfficialAnkiCardDescriptor {
               ?.map((tag) => tag.toString())
               .toList(growable: false) ??
           const <String>[],
+      notetypeId: (json['notetypeId'] as num?)?.toInt(),
     );
   }
 }

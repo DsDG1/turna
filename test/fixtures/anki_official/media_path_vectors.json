@@ -26,7 +26,7 @@
     {"id": "tilde", "encodedName": "backup~.png", "expectedName": "backup~.png", "allowed": true, "createFile": true},
     {"id": "dotfile", "encodedName": ".hidden.png", "expectedName": ".hidden.png", "allowed": true, "createFile": true},
     {"id": "multi_dot", "encodedName": "archive.tar.bz2", "expectedName": "archive.tar.bz2", "allowed": true, "createFile": true},
-    {"id": "cjk_space", "encodedName": "%E6%97%A5%E6%9C%AC%E8%AA%9E%20file.jpg", "expectedName": "日本語 file.jpg", "allowed": true, "createFile": true},
+    {"id": "cjk_space", "encodedName": "%E8%AF%BE%E7%A8%8B%20file.jpg", "expectedName": "课程 file.jpg", "allowed": true, "createFile": true},
     {"id": "hebrew", "encodedName": "%D7%A9%D7%9C%D7%95%D7%9D.png", "expectedName": "שלום.png", "allowed": true, "createFile": true},
     {"id": "traversal_dotdot", "encodedName": "..%2Fsecret", "expectedName": "../secret", "allowed": false},
     {"id": "traversal_plain", "encodedName": "%2e%2e%2fsecret", "expectedName": "../secret", "allowed": false},

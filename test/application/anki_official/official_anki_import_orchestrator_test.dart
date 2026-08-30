@@ -67,7 +67,7 @@ void main() {
         displayName: pkg['file'] as String,
         requestId: 'req-${pkg['file']}',
       );
-      expect(imported.state, OfficialAnkiSourceState.active);
+      expect(imported.state, OfficialAnkiSourceState.previewReady);
       expect(imported.cardCount, pkg['expectedCards']);
       expect(imported.noteCount, pkg['expectedNotes']);
       final row = harness.sources.findByHash(
@@ -76,7 +76,7 @@ void main() {
             ? harness.sources.findById(imported.sourceId)!.sourceHash
             : harness.sources.findById(imported.sourceId)!.sourceHash,
       );
-      expect(row!.state, 'active');
+      expect(row!.state, 'staging');
       expect(
         File(p.join(fixtureRoot.path, 'packages', pkg['file'] as String))
             .readAsBytesSync()
@@ -107,12 +107,12 @@ void main() {
       attempts: OfficialAnkiImportAttemptDao(firstDb),
       paths: paths,
     ).importFile(packagePath: file.path, displayName: 'unicode');
-    expect(first.state, OfficialAnkiSourceState.active);
+    expect(first.state, OfficialAnkiSourceState.previewReady);
     firstDb.close();
     final again = OfficialAnkiDatabase.file(catalogPath);
     addTearDown(again.close);
     final listed = OfficialAnkiSourceDao(again).findById(first.sourceId);
-    expect(listed?.state, 'active');
+    expect(listed?.state, 'staging');
     expect(OfficialAnkiSourceDao(again).cardCount(first.sourceId), 1);
   });
 
@@ -131,7 +131,8 @@ void main() {
       packagePath: file.path,
       displayName: 'reversed-again',
     );
-    expect(second.alreadyImported, isTrue);
+    expect(second.alreadyImported, isFalse);
+    expect(second.state, OfficialAnkiSourceState.previewReady);
     expect(second.sourceId, first.sourceId);
     expect(harness.sources.listSources(harness.paths.profileId), hasLength(1));
     expect(harness.engine.importCount, 1);
@@ -173,7 +174,7 @@ void main() {
       packagePath: large.path,
       displayName: '5k',
     );
-    expect(result.state, OfficialAnkiSourceState.active);
+    expect(result.state, OfficialAnkiSourceState.previewReady);
     expect(result.cardCount, 5000);
     expect(result.noteCount, 5000);
   });
@@ -258,7 +259,7 @@ void main() {
       paths: harness.paths,
       batchSize: 1,
     ).resumeIndexing(attempt);
-    expect(recovered.state, OfficialAnkiSourceState.active);
+    expect(recovered.state, OfficialAnkiSourceState.previewReady);
     expect(harness.engine.noteBatchCalls, 3);
     expect(harness.sources.cardCount(recovered.sourceId), 3);
   });

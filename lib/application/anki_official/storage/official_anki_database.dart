@@ -5,7 +5,7 @@ import 'package:turna/application/anki_official/contract/official_anki_errors.da
 import 'package:turna/application/anki_official/storage/official_anki_sqlite.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 
-const int kOfficialAnkiCatalogSchemaVersion = 10;
+const int kOfficialAnkiCatalogSchemaVersion = 12;
 
 /// Independent catalog. Must not live in CourseDatabase (downgrade wipes it).
 class OfficialAnkiDatabase {
@@ -100,6 +100,12 @@ class OfficialAnkiDatabase {
       }
       if (version <= 9) {
         _upgradeToV10();
+      }
+      if (version <= 10) {
+        _upgradeToV11();
+      }
+      if (version <= 11) {
+        _upgradeToV12();
       }
       _db.execute('PRAGMA user_version = $kOfficialAnkiCatalogSchemaVersion');
       _db.execute('COMMIT');
@@ -435,6 +441,173 @@ CREATE TABLE IF NOT EXISTS anki_source_reconciliation_journal (
         'ALTER TABLE anki_source_projection_state ADD COLUMN scan_fingerprint TEXT',
       );
     }
+  }
+
+  /// Doc 41: import saga journal, source metadata, checkpoints, maintenance.
+  void _upgradeToV11() {
+    void addColumn(String table, String column, String decl) {
+      final hasColumn = _db
+          .select(
+            "SELECT name FROM pragma_table_info('$table') WHERE name='$column'",
+          )
+          .isNotEmpty;
+      if (!hasColumn) {
+        _db.execute('ALTER TABLE $table ADD COLUMN $decl');
+      }
+    }
+
+    addColumn(
+      'anki_import_attempts',
+      'user_intent',
+      "user_intent TEXT NOT NULL DEFAULT 'undecided'",
+    );
+    addColumn(
+      'anki_import_attempts',
+      'native_commit_state',
+      "native_commit_state TEXT NOT NULL DEFAULT 'unknown'",
+    );
+    addColumn(
+      'anki_import_attempts',
+      'pre_import_generation',
+      'pre_import_generation INTEGER',
+    );
+    addColumn(
+      'anki_import_attempts',
+      'committed_generation',
+      'committed_generation INTEGER',
+    );
+    addColumn(
+      'anki_import_attempts',
+      'projection_generation',
+      'projection_generation TEXT',
+    );
+    addColumn(
+      'anki_import_attempts',
+      'cleanup_phase',
+      'cleanup_phase TEXT',
+    );
+    addColumn(
+      'anki_source_cards',
+      'notetype_id',
+      'notetype_id INTEGER',
+    );
+
+    _db.execute('''
+CREATE TABLE IF NOT EXISTS anki_source_notetypes (
+  source_id TEXT NOT NULL REFERENCES anki_sources(source_id) ON DELETE CASCADE,
+  notetype_id INTEGER NOT NULL,
+  schema_fingerprint TEXT NOT NULL,
+  PRIMARY KEY (source_id, notetype_id)
+);
+''');
+    _db.execute('''
+CREATE TABLE IF NOT EXISTS anki_source_decks (
+  source_id TEXT NOT NULL REFERENCES anki_sources(source_id) ON DELETE CASCADE,
+  deck_id INTEGER NOT NULL,
+  PRIMARY KEY (source_id, deck_id)
+);
+''');
+    _db.execute('''
+CREATE TABLE IF NOT EXISTS anki_checkpoint_files (
+  checkpoint_id TEXT PRIMARY KEY,
+  attempt_id TEXT NOT NULL UNIQUE,
+  source_id TEXT NOT NULL,
+  relative_path TEXT NOT NULL,
+  state TEXT NOT NULL,
+  bytes INTEGER NOT NULL DEFAULT 0,
+  pre_import_generation INTEGER,
+  sha256 TEXT,
+  created_at_millis INTEGER NOT NULL,
+  updated_at_millis INTEGER NOT NULL,
+  released_at_millis INTEGER,
+  last_error_code TEXT
+);
+''');
+    _db.execute('''
+CREATE TABLE IF NOT EXISTS anki_maintenance_jobs (
+  job_id TEXT PRIMARY KEY,
+  profile_id TEXT NOT NULL,
+  source_id TEXT,
+  kind TEXT NOT NULL,
+  state TEXT NOT NULL,
+  input_generation INTEGER,
+  attempt_count INTEGER NOT NULL DEFAULT 0,
+  before_bytes INTEGER,
+  after_bytes INTEGER,
+  reclaimed_bytes INTEGER,
+  created_at_millis INTEGER NOT NULL,
+  heartbeat_at_millis INTEGER NOT NULL,
+  completed_at_millis INTEGER,
+  last_error_code TEXT
+);
+''');
+    _db.execute('''
+CREATE TABLE IF NOT EXISTS anki_maintenance_leases (
+  profile_id TEXT PRIMARY KEY,
+  owner_token TEXT NOT NULL,
+  operation_kind TEXT NOT NULL,
+  acquired_at_millis INTEGER NOT NULL,
+  heartbeat_at_millis INTEGER NOT NULL,
+  expires_at_millis INTEGER NOT NULL,
+  process_id TEXT
+);
+''');
+    _db.execute('''
+CREATE TABLE IF NOT EXISTS anki_cleanup_receipts (
+  receipt_id TEXT PRIMARY KEY,
+  source_id TEXT NOT NULL,
+  phase TEXT NOT NULL,
+  ownership_json TEXT NOT NULL,
+  collection_cards_requested INTEGER NOT NULL DEFAULT 0,
+  collection_cards_removed INTEGER NOT NULL DEFAULT 0,
+  collection_cards_remaining INTEGER,
+  logical_complete INTEGER NOT NULL DEFAULT 0,
+  physical_complete INTEGER NOT NULL DEFAULT 0,
+  created_at_millis INTEGER NOT NULL,
+  updated_at_millis INTEGER NOT NULL
+);
+''');
+    _db.execute(
+      'CREATE INDEX IF NOT EXISTS anki_import_attempts_state_intent_idx '
+      'ON anki_import_attempts(state, user_intent)',
+    );
+    _db.execute(
+      'CREATE INDEX IF NOT EXISTS anki_maintenance_jobs_profile_state_idx '
+      'ON anki_maintenance_jobs(profile_id, state, kind)',
+    );
+    _db.execute(
+      'CREATE INDEX IF NOT EXISTS anki_source_notetypes_notetype_idx '
+      'ON anki_source_notetypes(notetype_id)',
+    );
+    _db.execute(
+      'CREATE INDEX IF NOT EXISTS anki_source_decks_deck_idx '
+      'ON anki_source_decks(deck_id)',
+    );
+  }
+
+  /// Doc 42 P1: staging-first attempt ledger (phase + staging directory).
+  void _upgradeToV12() {
+    void addColumn(String table, String column, String decl) {
+      final hasColumn = _db
+          .select(
+            "SELECT name FROM pragma_table_info('$table') WHERE name='$column'",
+          )
+          .isNotEmpty;
+      if (!hasColumn) {
+        _db.execute('ALTER TABLE $table ADD COLUMN $decl');
+      }
+    }
+
+    addColumn(
+      'anki_import_attempts',
+      'phase',
+      "phase TEXT NOT NULL DEFAULT ''",
+    );
+    addColumn(
+      'anki_import_attempts',
+      'staging_path',
+      'staging_path TEXT',
+    );
   }
 
   void close() => _db.dispose();

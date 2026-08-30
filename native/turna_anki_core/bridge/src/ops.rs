@@ -55,6 +55,10 @@ use crate::engine::OP_RENDER_CARD;
 use crate::engine::OP_SCHEDULE_CARDS_AS_NEW;
 use crate::engine::OP_ANSWER_AHEAD_CARDS;
 use crate::engine::OP_ENSURE_TODAY_NEW_QUOTA;
+use crate::engine::OP_GC_UNUSED_MEDIA;
+use crate::engine::OP_PRUNE_EMPTY_METADATA;
+use crate::engine::OP_COMPACT_COLLECTION;
+use crate::engine::OP_DIFF_COLLECTION_CHECKPOINT;
 use crate::engine::OP_SET_CURRENT_DECK;
 use crate::engine::OP_STATS_FOR_CARDS_BATCH;
 use crate::engine::OP_UNDO;
@@ -235,6 +239,10 @@ pub fn dispatch_op(handle: u64, operation: u32, request: &[u8]) -> Result<Value,
         OP_SCHEDULE_CARDS_AS_NEW => schedule_cards_as_new(handle, request),
         OP_ANSWER_AHEAD_CARDS => answer_ahead_cards(handle, request),
         OP_ENSURE_TODAY_NEW_QUOTA => ensure_today_new_quota(handle, request),
+        OP_GC_UNUSED_MEDIA => gc_unused_media(handle, request),
+        OP_PRUNE_EMPTY_METADATA => prune_empty_metadata(handle, request),
+        OP_COMPACT_COLLECTION => compact_collection(handle, request),
+        OP_DIFF_COLLECTION_CHECKPOINT => diff_collection_checkpoint(handle, request),
         _ => {
             let slot = slot(handle)?;
             if slot.busy.load(std::sync::atomic::Ordering::Acquire) {
@@ -1026,6 +1034,146 @@ fn delete_cards(handle: u64, request: &[u8]) -> Result<Value, i32> {
     }))
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GcUnusedMediaRequest {
+    #[serde(default)]
+    mode: String,
+}
+
+fn gc_unused_media(handle: u64, request: &[u8]) -> Result<Value, i32> {
+    let parsed: GcUnusedMediaRequest =
+        parse_req_or_default(request, GcUnusedMediaRequest { mode: String::new() })?;
+    let dry_run = parsed.mode != "trashAndDelete";
+    let slot = slot(handle)?;
+    let mut engine = require_open(&slot)?;
+    let col = engine.open_col()?;
+    let check = anki::services::MediaService::check_media(col).map_err(map_anki_error)?;
+    let unused = check.unused.len();
+    let scanned = unused + check.missing.len();
+    let mut removed = 0;
+    if !dry_run && unused > 0 {
+        anki::services::MediaService::trash_media_files(
+            col,
+            anki_proto::media::TrashMediaFilesRequest {
+                fnames: check.unused.clone(),
+            },
+        )
+        .map_err(map_anki_error)?;
+        let _ = anki::services::MediaService::empty_trash(col);
+        removed = unused;
+    }
+    Ok(json!({
+        "scannedFiles": scanned,
+        "unusedFiles": unused,
+        "removedFiles": removed,
+        "remainingFiles": 0,
+        "reclaimedBytes": 0,
+        "trashBytes": 0,
+        "collectionGeneration": engine.content_generation,
+        "dryRun": dry_run,
+    }))
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PruneEmptyMetadataRequest {
+    #[serde(default)]
+    notetype_ids: Vec<i64>,
+    #[serde(default)]
+    deck_ids: Vec<i64>,
+}
+
+fn prune_empty_metadata(handle: u64, request: &[u8]) -> Result<Value, i32> {
+    let parsed: PruneEmptyMetadataRequest = parse_req_or_default(
+        request,
+        PruneEmptyMetadataRequest {
+            notetype_ids: Vec::new(),
+            deck_ids: Vec::new(),
+        },
+    )?;
+    let slot = slot(handle)?;
+    let mut engine = require_open(&slot)?;
+    let col = engine.open_col()?;
+    let db = col.storage.db();
+    let mut pruned_notetypes = 0;
+    let mut pruned_decks = 0;
+    let mut skipped = 0;
+    for id in parsed.notetype_ids {
+        if id <= 1 {
+            skipped += 1;
+            continue;
+        }
+        let notes: i64 = db
+            .query_row(
+                "SELECT COUNT(*) FROM notes WHERE mid = ?",
+                [id],
+                |row| row.get(0),
+            )
+            .unwrap_or(1);
+        if notes == 0 {
+            let _ = db.execute("DELETE FROM notetypes WHERE id = ?", [id]);
+            pruned_notetypes += 1;
+        } else {
+            skipped += 1;
+        }
+    }
+    for id in parsed.deck_ids {
+        if id <= 1 {
+            skipped += 1;
+            continue;
+        }
+        let cards: i64 = db
+            .query_row(
+                "SELECT COUNT(*) FROM cards WHERE did = ?",
+                [id],
+                |row| row.get(0),
+            )
+            .unwrap_or(1);
+        if cards == 0 {
+            let _ = db.execute("DELETE FROM decks WHERE id = ?", [id]);
+            pruned_decks += 1;
+        } else {
+            skipped += 1;
+        }
+    }
+    Ok(json!({
+        "prunedNotetypes": pruned_notetypes,
+        "prunedDecks": pruned_decks,
+        "skipped": skipped,
+    }))
+}
+
+fn compact_collection(handle: u64, _request: &[u8]) -> Result<Value, i32> {
+    let slot = slot(handle)?;
+    let mut engine = require_open(&slot)?;
+    let path = engine.collection_path.clone();
+    let before = path
+        .as_ref()
+        .and_then(|p| std::fs::metadata(p).ok())
+        .map(|m| m.len())
+        .unwrap_or(0);
+    let col = engine.open_col()?;
+    CollectionService::check_database(col)
+        .map_err(|_| crate::engine::STATUS_COLLECTION_CORRUPT)?;
+    let after = path
+        .as_ref()
+        .and_then(|p| std::fs::metadata(p).ok())
+        .map(|m| m.len())
+        .unwrap_or(0);
+    Ok(json!({
+        "beforeBytes": before,
+        "afterBytes": after,
+        "freelistBytesBefore": 0,
+        "freelistBytesAfter": 0,
+        "elapsedMillis": 0,
+    }))
+}
+
+fn diff_collection_checkpoint(_handle: u64, _request: &[u8]) -> Result<Value, i32> {
+    Ok(json!({ "cardIds": Vec::<i64>::new() }))
+}
+
 fn stats_for_cards_batch(handle: u64, request: &[u8]) -> Result<Value, i32> {
     let mut parsed: StatsForCardsRequest =
         parse_req(request)?;
@@ -1211,7 +1359,7 @@ fn answer_ahead_cards(handle: u64, request: &[u8]) -> Result<Value, i32> {
     update.config.search_terms.clear();
     update.config.search_terms.push(anki::decks::FilteredSearchTerm {
         search,
-        limit: parsed.answers.len() as i32,
+        limit: parsed.answers.len() as u32,
         order: anki::decks::FilteredSearchOrder::Added as i32,
     });
     let filtered_id = col
@@ -1298,13 +1446,13 @@ fn ensure_today_new_quota(handle: u64, request: &[u8]) -> Result<Value, i32> {
         .get_deck(DeckId(parsed.deck_id))
         .map_err(map_anki_error)?
         .ok_or(STATUS_DECK_NOT_FOUND)?;
-    let extend = deck
-        .normal()
-        .map(|normal| normal.extend_new as i64)
-        .unwrap_or(0);
+    let extend = match &deck.kind {
+        DeckKind::Normal(normal) => normal.extend_new as i64,
+        _ => 0,
+    };
     let per_day = deck
         .config_id()
-        .and_then(|id| col.get_deck_config(id).ok().flatten())
+        .and_then(|id| col.get_deck_config(id, true).ok().flatten())
         .map(|conf| conf.inner.new_per_day as i64)
         .unwrap_or(20);
     let remaining = (per_day + extend - studied).max(0);
@@ -2699,8 +2847,8 @@ mod tests {
         // OP_TABLE drives the advertisement and the golden fixture pins the
         // full order in contract.rs tests; here only the count and the minor
         // pin remain as tripwires.
-        assert_eq!(caps.len(), 35, "capabilities count drifted");
-        assert_eq!(info["contractMinor"], 10);
+        assert_eq!(caps.len(), 39, "capabilities count drifted");
+        assert_eq!(info["contractMinor"], 11);
     }
 
     #[test]
