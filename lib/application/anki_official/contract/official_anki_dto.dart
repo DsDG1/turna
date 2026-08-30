@@ -1,3 +1,11 @@
+// Codegen policy (doc 39 P3): lenient single-shape classes use
+// @JsonSerializable (fromJson only — this file never writes wire JSON);
+// classes with load-bearing aliases (import log / deck tree / undo /
+// progress), fail-closed officialRequire* validation, or decode logic
+// (rendered card, AV tags, template facts, descriptors) stay hand-written.
+// The @JsonKey.alias pilot failed: json_annotation 4.9.0 has no alias
+// parameter, so dual-key readers cannot migrate (doc 39 §5.1 escape hatch).
+
 // Snake-case alias policy (doc 39 P2): the Rust bridge emits camelCase for
 // every op except four handlers whose snake keys are load-bearing and are
 // kept as dual reads below — import log (new_note_ids & co), deck tree
@@ -6,8 +14,11 @@
 // All other snake aliases were dead (the emitter never sends them) and were
 // deleted.
 
+import 'package:json_annotation/json_annotation.dart';
 import 'package:turna/application/anki_official/contract/official_anki_contract.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
+
+part 'official_anki_dto.g.dart';
 
 class OfficialAnkiEngineInfo {
   const OfficialAnkiEngineInfo({
@@ -150,6 +161,7 @@ class OfficialAnkiImportLog {
   }
 }
 
+@JsonSerializable(createToJson: false)
 class OfficialAnkiCardPage {
   const OfficialAnkiCardPage({
     required this.cardIds,
@@ -157,20 +169,13 @@ class OfficialAnkiCardPage {
     this.totalHint,
   });
 
+  @JsonKey(defaultValue: <int>[])
   final List<int> cardIds;
   final String? nextPageToken;
   final int? totalHint;
 
-  factory OfficialAnkiCardPage.fromJson(Map<String, Object?> json) {
-    final raw = json['cardIds'];
-    return OfficialAnkiCardPage(
-      cardIds: raw is List
-          ? raw.whereType<num>().map((n) => n.toInt()).toList()
-          : const <int>[],
-      nextPageToken: json['nextPageToken'] as String?,
-      totalHint: (json['totalHint'] as num?)?.toInt(),
-    );
-  }
+  factory OfficialAnkiCardPage.fromJson(Map<String, Object?> json) =>
+      _$OfficialAnkiCardPageFromJson(json);
 }
 
 class OfficialAnkiProgress {
@@ -252,6 +257,7 @@ class OfficialAnkiAvTag {
 
 enum OfficialAnkiAvKind { soundOrVideo, tts }
 
+@JsonSerializable(createToJson: false)
 class OfficialAnkiTypedAnswerHint {
   const OfficialAnkiTypedAnswerHint({
     required this.marker,
@@ -261,38 +267,34 @@ class OfficialAnkiTypedAnswerHint {
     this.clozeOrdinal,
   });
 
+  @JsonKey(defaultValue: '')
   final String marker;
+  @JsonKey(defaultValue: 'Arial')
   final String fontFamily;
+  @JsonKey(defaultValue: 20)
   final int fontSizePx;
+  @JsonKey(defaultValue: true)
   final bool combining;
   final int? clozeOrdinal;
 
-  factory OfficialAnkiTypedAnswerHint.fromJson(Map<String, Object?> json) {
-    return OfficialAnkiTypedAnswerHint(
-      marker: json['marker'] as String? ?? '',
-      fontFamily: json['fontFamily'] as String? ?? 'Arial',
-      fontSizePx: (json['fontSizePx'] as num? ?? 20).toInt(),
-      combining: json['combining'] != false,
-      clozeOrdinal: (json['clozeOrdinal'] as num?)?.toInt(),
-    );
-  }
+  factory OfficialAnkiTypedAnswerHint.fromJson(Map<String, Object?> json) =>
+      _$OfficialAnkiTypedAnswerHintFromJson(json);
 }
 
+@JsonSerializable(createToJson: false)
 class OfficialAnkiTypedComparison {
   const OfficialAnkiTypedComparison({
     required this.comparisonHtml,
     required this.hasExpected,
   });
 
+  @JsonKey(defaultValue: '')
   final String comparisonHtml;
+  @JsonKey(defaultValue: false)
   final bool hasExpected;
 
-  factory OfficialAnkiTypedComparison.fromJson(Map<String, Object?> json) {
-    return OfficialAnkiTypedComparison(
-      comparisonHtml: json['comparisonHtml'] as String? ?? '',
-      hasExpected: json['hasExpected'] == true,
-    );
-  }
+  factory OfficialAnkiTypedComparison.fromJson(Map<String, Object?> json) =>
+      _$OfficialAnkiTypedComparisonFromJson(json);
 }
 
 class OfficialAnkiRenderedCard {
@@ -405,6 +407,7 @@ class OfficialAnkiDeckNode {
   }
 }
 
+@JsonSerializable(createToJson: false)
 class OfficialAnkiProjectionSample {
   const OfficialAnkiProjectionSample({
     required this.noteId,
@@ -412,20 +415,15 @@ class OfficialAnkiProjectionSample {
     this.truncated = false,
   });
 
+  @JsonKey(defaultValue: 0)
   final int noteId;
+  @JsonKey(defaultValue: <String>[])
   final List<String> fields;
+  @JsonKey(defaultValue: false)
   final bool truncated;
 
-  factory OfficialAnkiProjectionSample.fromJson(Map<String, Object?> json) {
-    final raw = json['fields'];
-    return OfficialAnkiProjectionSample(
-      noteId: (json['noteId'] as num? ?? 0).toInt(),
-      fields: raw is List
-          ? raw.map((e) => e.toString()).toList()
-          : const <String>[],
-      truncated: json['truncated'] == true,
-    );
-  }
+  factory OfficialAnkiProjectionSample.fromJson(Map<String, Object?> json) =>
+      _$OfficialAnkiProjectionSampleFromJson(json);
 }
 
 /// Derived per-template structural facts (contract 1.9). Field references
@@ -488,6 +486,7 @@ class OfficialAnkiTemplateFact {
 
 /// One entry of the notetype's precomputed `config.reqs`: which fields a
 /// card of `cardOrd` depends on (ANY = at least one, ALL = all).
+@JsonSerializable(createToJson: false)
 class OfficialAnkiCardRequirement {
   const OfficialAnkiCardRequirement({
     required this.cardOrd,
@@ -495,22 +494,18 @@ class OfficialAnkiCardRequirement {
     this.fieldOrds = const <int>[],
   });
 
+  @JsonKey(defaultValue: 0)
   final int cardOrd;
+  @JsonKey(defaultValue: 'NONE')
   final String kind;
+  @JsonKey(defaultValue: <int>[])
   final List<int> fieldOrds;
 
-  factory OfficialAnkiCardRequirement.fromJson(Map<String, Object?> json) {
-    final raw = json['fieldOrds'];
-    return OfficialAnkiCardRequirement(
-      cardOrd: (json['cardOrd'] as num? ?? 0).toInt(),
-      kind: json['kind'] as String? ?? 'NONE',
-      fieldOrds: raw is List
-          ? raw.map((e) => (e as num?)?.toInt() ?? 0).toList()
-          : const <int>[],
-    );
-  }
+  factory OfficialAnkiCardRequirement.fromJson(Map<String, Object?> json) =>
+      _$OfficialAnkiCardRequirementFromJson(json);
 }
 
+@JsonSerializable(createToJson: false)
 class OfficialAnkiTemplateFacts {
   const OfficialAnkiTemplateFacts({
     this.hash = '',
@@ -518,35 +513,20 @@ class OfficialAnkiTemplateFacts {
     this.reqs = const <OfficialAnkiCardRequirement>[],
   });
 
+  @JsonKey(defaultValue: '')
   final String hash;
+  @JsonKey(defaultValue: <OfficialAnkiTemplateFact>[])
   final List<OfficialAnkiTemplateFact> templates;
+  @JsonKey(defaultValue: <OfficialAnkiCardRequirement>[])
   final List<OfficialAnkiCardRequirement> reqs;
 
   bool get isAvailable => hash.isNotEmpty;
 
-  factory OfficialAnkiTemplateFacts.fromJson(Map<String, Object?> json) {
-    final templates = json['templates'];
-    final reqs = json['reqs'];
-    return OfficialAnkiTemplateFacts(
-      hash: json['hash'] as String? ?? '',
-      templates: templates is List
-          ? templates
-              .whereType<Map>()
-              .map((item) =>
-                  OfficialAnkiTemplateFact.fromJson(Map<String, Object?>.from(item)))
-              .toList()
-          : const <OfficialAnkiTemplateFact>[],
-      reqs: reqs is List
-          ? reqs
-              .whereType<Map>()
-              .map((item) =>
-                  OfficialAnkiCardRequirement.fromJson(Map<String, Object?>.from(item)))
-              .toList()
-          : const <OfficialAnkiCardRequirement>[],
-    );
-  }
+  factory OfficialAnkiTemplateFacts.fromJson(Map<String, Object?> json) =>
+      _$OfficialAnkiTemplateFactsFromJson(json);
 }
 
+@JsonSerializable(createToJson: false)
 class OfficialAnkiProjectionSchema {
   const OfficialAnkiProjectionSchema({
     required this.notetypeId,
@@ -559,49 +539,27 @@ class OfficialAnkiProjectionSchema {
     this.templateFacts,
   });
 
+  @JsonKey(defaultValue: 0)
   final int notetypeId;
+  @JsonKey(defaultValue: '')
   final String name;
+  @JsonKey(defaultValue: 'normal')
   final String kind;
+  @JsonKey(defaultValue: <String>[])
   final List<String> fieldNames;
+  @JsonKey(defaultValue: <String>[])
   final List<String> templateNames;
+  @JsonKey(defaultValue: '')
   final String schemaFingerprint;
+  @JsonKey(defaultValue: <OfficialAnkiProjectionSample>[])
   final List<OfficialAnkiProjectionSample> samples;
   final OfficialAnkiTemplateFacts? templateFacts;
 
-  factory OfficialAnkiProjectionSchema.fromJson(Map<String, Object?> json) {
-    List<String> names(String key) {
-      final raw = json[key];
-      if (raw is! List) return const <String>[];
-      return raw.map((e) => e.toString()).toList();
-    }
-
-    final samples = json['samples'];
-    final templateFacts = json['templateFacts'];
-    return OfficialAnkiProjectionSchema(
-      notetypeId: (json['notetypeId'] as num? ?? 0).toInt(),
-      name: json['name'] as String? ?? '',
-      kind: json['kind'] as String? ?? 'normal',
-      fieldNames: names('fieldNames'),
-      templateNames: names('templateNames'),
-      schemaFingerprint: json['schemaFingerprint'] as String? ?? '',
-      samples: samples is List
-          ? samples
-              .whereType<Map>()
-              .map(
-                (item) => OfficialAnkiProjectionSample.fromJson(
-                  Map<String, Object?>.from(item),
-                ),
-              )
-              .toList()
-          : const <OfficialAnkiProjectionSample>[],
-      templateFacts: templateFacts is Map
-          ? OfficialAnkiTemplateFacts.fromJson(
-              Map<String, Object?>.from(templateFacts))
-          : null,
-    );
-  }
+  factory OfficialAnkiProjectionSchema.fromJson(Map<String, Object?> json) =>
+      _$OfficialAnkiProjectionSchemaFromJson(json);
 }
 
+@JsonSerializable(createToJson: false)
 class OfficialAnkiProjectionSnapshot {
   const OfficialAnkiProjectionSnapshot({
     required this.snapshotToken,
@@ -609,20 +567,18 @@ class OfficialAnkiProjectionSnapshot {
     required this.backendCommit,
   });
 
+  @JsonKey(defaultValue: '')
   final String snapshotToken;
+  @JsonKey(defaultValue: 0)
   final int collectionGeneration;
+  @JsonKey(defaultValue: '')
   final String backendCommit;
 
-  factory OfficialAnkiProjectionSnapshot.fromJson(Map<String, Object?> json) {
-    return OfficialAnkiProjectionSnapshot(
-      snapshotToken: json['snapshotToken'] as String? ?? '',
-      collectionGeneration:
-          (json['collectionGeneration'] as num? ?? 0).toInt(),
-      backendCommit: json['backendCommit'] as String? ?? '',
-    );
-  }
+  factory OfficialAnkiProjectionSnapshot.fromJson(Map<String, Object?> json) =>
+      _$OfficialAnkiProjectionSnapshotFromJson(json);
 }
 
+@JsonSerializable(createToJson: false)
 class OfficialAnkiProjectionRow {
   const OfficialAnkiProjectionRow({
     required this.cardId,
@@ -638,69 +594,47 @@ class OfficialAnkiProjectionRow {
     this.truncated = false,
   });
 
+  @JsonKey(defaultValue: 0)
   final int cardId;
+  @JsonKey(defaultValue: 0)
   final int noteId;
+  @JsonKey(defaultValue: '')
   final String noteGuid;
+  @JsonKey(defaultValue: 0)
   final int notetypeId;
+  @JsonKey(defaultValue: 0)
   final int deckId;
+  @JsonKey(defaultValue: <String>[])
   final List<String> deckPath;
+  @JsonKey(defaultValue: 0)
   final int templateOrdinal;
+  @JsonKey(defaultValue: <String>[])
   final List<String> tags;
+  @JsonKey(defaultValue: <String>[])
   final List<String> fields;
+  @JsonKey(defaultValue: '')
   final String sourceFingerprint;
+  @JsonKey(defaultValue: false)
   final bool truncated;
 
-  factory OfficialAnkiProjectionRow.fromJson(Map<String, Object?> json) {
-    List<String> list(String key) {
-      final raw = json[key];
-      if (raw is! List) return const <String>[];
-      return raw.map((e) => e.toString()).toList();
-    }
-
-    return OfficialAnkiProjectionRow(
-      cardId: (json['cardId'] as num? ?? 0).toInt(),
-      noteId: (json['noteId'] as num? ?? 0).toInt(),
-      noteGuid: json['noteGuid'] as String? ?? '',
-      notetypeId: (json['notetypeId'] as num? ?? 0).toInt(),
-      deckId: (json['deckId'] as num? ?? 0).toInt(),
-      deckPath: list('deckPath'),
-      templateOrdinal: (json['templateOrdinal'] as num? ?? 0).toInt(),
-      tags: list('tags'),
-      fields: list('fields'),
-      sourceFingerprint: json['sourceFingerprint'] as String? ?? '',
-      truncated: json['truncated'] == true,
-    );
-  }
+  factory OfficialAnkiProjectionRow.fromJson(Map<String, Object?> json) =>
+      _$OfficialAnkiProjectionRowFromJson(json);
 }
 
+@JsonSerializable(createToJson: false)
 class OfficialAnkiProjectionPage {
   const OfficialAnkiProjectionPage({
     required this.rows,
     this.missingCardIds = const <int>[],
   });
 
+  @JsonKey(defaultValue: <OfficialAnkiProjectionRow>[])
   final List<OfficialAnkiProjectionRow> rows;
+  @JsonKey(defaultValue: <int>[])
   final List<int> missingCardIds;
 
-  factory OfficialAnkiProjectionPage.fromJson(Map<String, Object?> json) {
-    final rows = json['rows'];
-    final missing = json['missingCardIds'];
-    return OfficialAnkiProjectionPage(
-      rows: rows is List
-          ? rows
-              .whereType<Map>()
-              .map(
-                (item) => OfficialAnkiProjectionRow.fromJson(
-                  Map<String, Object?>.from(item),
-                ),
-              )
-              .toList()
-          : const <OfficialAnkiProjectionRow>[],
-      missingCardIds: missing is List
-          ? missing.whereType<num>().map((n) => n.toInt()).toList()
-          : const <int>[],
-    );
-  }
+  factory OfficialAnkiProjectionPage.fromJson(Map<String, Object?> json) =>
+      _$OfficialAnkiProjectionPageFromJson(json);
 }
 
 class OfficialReviewIntervalLabels {
@@ -865,20 +799,19 @@ class OfficialAheadAnswer {
 /// absorbs the idempotency: cards already rated today are skipped inside
 /// the op and reported here, replacing the host-side whole-collection
 /// `rated:1` scan.
+@JsonSerializable(createToJson: false, fieldRename: FieldRename.none)
 class OfficialAheadAnswerOutcome {
   const OfficialAheadAnswerOutcome({
     required this.answered,
     required this.skippedRatedToday,
   });
 
-  factory OfficialAheadAnswerOutcome.fromJson(Map<String, Object?> json) {
-    return OfficialAheadAnswerOutcome(
-      answered: (json['answeredCards'] as num?)?.toInt() ?? 0,
-      skippedRatedToday: (json['skippedRatedToday'] as num?)?.toInt() ?? 0,
-    );
-  }
+  factory OfficialAheadAnswerOutcome.fromJson(Map<String, Object?> json) =>
+      _$OfficialAheadAnswerOutcomeFromJson(json);
 
+  @JsonKey(name: 'answeredCards', defaultValue: 0)
   final int answered;
+  @JsonKey(defaultValue: 0)
   final int skippedRatedToday;
 }
 
@@ -1031,6 +964,7 @@ class OfficialAnkiStatsBatch {
   }
 }
 
+@JsonSerializable(createToJson: false)
 class OfficialCongratsInfo {
   const OfficialCongratsInfo({
     required this.learnRemaining,
@@ -1043,27 +977,25 @@ class OfficialCongratsInfo {
     this.deckDescription = '',
   });
 
+  @JsonKey(defaultValue: 0)
   final int learnRemaining;
+  @JsonKey(defaultValue: false)
   final bool reviewRemaining;
+  @JsonKey(defaultValue: false)
   final bool newRemaining;
+  @JsonKey(defaultValue: false)
   final bool haveSchedBuried;
+  @JsonKey(defaultValue: false)
   final bool haveUserBuried;
+  @JsonKey(defaultValue: false)
   final bool isFilteredDeck;
+  @JsonKey(defaultValue: 0)
   final int secsUntilNextLearn;
+  @JsonKey(defaultValue: '')
   final String deckDescription;
 
-  factory OfficialCongratsInfo.fromJson(Map<String, Object?> json) {
-    return OfficialCongratsInfo(
-      learnRemaining: (json['learnRemaining'] as num? ?? 0).toInt(),
-      reviewRemaining: json['reviewRemaining'] == true,
-      newRemaining: json['newRemaining'] == true,
-      haveSchedBuried: json['haveSchedBuried'] == true,
-      haveUserBuried: json['haveUserBuried'] == true,
-      isFilteredDeck: json['isFilteredDeck'] == true,
-      secsUntilNextLearn: (json['secsUntilNextLearn'] as num? ?? 0).toInt(),
-      deckDescription: json['deckDescription'] as String? ?? '',
-    );
-  }
+  factory OfficialCongratsInfo.fromJson(Map<String, Object?> json) =>
+      _$OfficialCongratsInfoFromJson(json);
 }
 
 enum OfficialBuryOrSuspendAction {
