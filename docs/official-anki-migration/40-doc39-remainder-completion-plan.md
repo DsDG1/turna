@@ -1,6 +1,6 @@
 # 40 — doc 39 收尾施工计划（P5 余量 / F1 转义 bug / Rust 收敛四波）
 
-> 状态：**部分收口（2026-08-30）：R1 / R2 / F1（R3）已施工并验收（记录见 §11）；P6（R4）Rust 四波 + 测试治理余留，静态编写待做、工具链主机验后合入**。doc 39 的 P1 全簇、P2、P3、P4、F2、F3 及 P5 前半已施工并独立 commit（清单见 §1）；本计划把剩余未完成项整理为 R1–R4 + P6 五个独立施工包，口径与 doc 39 一致：**不改功能效果**的清理照旧，F1 是用户可见 bugfix 单列。
+> 状态：**部分收口（2026-08-30）：R1 / R2 / F1（R3）+ R4 波 1–3 + 测试治理已施工并记录（§11/§11.5）；R4 波 4 + perf-spike `#[ignore]` + debug_details 填充移交工具链主机会话（§11.5 执行清单）**。doc 39 的 P1 全簇、P2、P3、P4、F2、F3 及 P5 前半已施工并独立 commit（清单见 §1）；本计划把剩余未完成项整理为 R1–R4 + P6 五个独立施工包，口径与 doc 39 一致：**不改功能效果**的清理照旧，F1 是用户可见 bugfix 单列。
 > 前置阅读：[39](./39-debt-and-perf-batch-2-plan.md)（原计划全文，本文只承接其未完成部分并携带施工偏差）、[38](./38-debt-and-perf-batch-1-plan.md) §12.4（工具链主机门禁）、[35](./35-duplicate-legacy-layer-cleanup-plan.md)。
 > 铁律（继承 doc 39，不变）：**每个施工包独立 commit、独立可回滚**；**本机（Windows 开发机）无 cargo/protoc，P6 全部 Rust 改动必须在具备 Rust 1.97.1 + protoc 31.1 的主机通过 `cargo test -p turna_anki_bridge` + `gen_fixtures` regen 后方可合入**；契约号码 append-only；本机 Dart 包（R1–R4、F1）不受阻。
 > 证据口径：本文 file:line 于 2026-08-30 对照 doc 39 施工后的工作树实测（P1–P4 改动已使部分行号较 doc 39 漂移，均以本文为准）。
@@ -154,3 +154,25 @@ P6 波1→波2→波3→波4→测试治理（静态编写即可开始，与 R1/
 - **P6/R4（§5）未施工**：Rust 四波 + 测试治理仍按 §5 表原样执行（实测锚点 as_mut 22→0、from_slice 17→~1 以施工时为准）；可与本机 Dart 包无冲突并行静态编写。
 - 待办门禁（工具链主机，不变）：`cd native/turna_anki_core && PROTOC=… cargo test -p turna_anki_bridge` 全绿 + `cargo run --bin turna_anki_gen_fixtures` regen diff review（同时覆盖 doc 37/38/39/40 四批 Rust 触及面；P2 手修的 fixture RESTORE_BACKUP 应 diff 干净或仅次序）；涉 .so 波次后 `./build-android/build.sh` smoke。发布口径维持 doc 34/38 的 NO-GO 至门禁解除。
 - 决策项 D1（journal 只写不消费）/ D3（每卡 5 RPC 按需化，批次三）维持 doc 39 §10 原判。
+
+### 11.5 R4/P6 施工记录（2026-08-30，本机静态编写——波 1–3 + 测试治理落地，波 4 移交主机）
+
+Rust 侧按铁律本机静态编写（无 cargo，全程以 vendored rslib 源码核对类型 + 括号配平 + 与金样程序化对拍兜底），独立 commit：
+
+| 包 | commit | 摘要 |
+|---|---|---|
+| 波 1 | 9f58d672 | projection 死语句（连 OpenRequest import）/ STATUS_SCHEDULER_CAPABILITY_MISSING 全删；gen_fixtures BACKEND_COMMIT 改 env 注入；engine.rs STATUS/OP 常量分组升序（纯移动值不变）；projection json! 缩进订正。**engine_arc 别名统一 slot 经核实已达成（三处均 slot），无需改动** |
+| 波 2 | 1bc9b727 | `parse_req`/`parse_req_or_default` 收敛 25 处 from_slice + 6 处空请求默认值；`Engine::open_col()` 收敛 31 处 `as_mut().ok_or`（ops 22/query 3/typed 2/projection 2/import 3，含 import.rs 两处全限定形态）；复制簇提取 `cid_search`/`labels_json`/`pick_state`/`answer_with_queue_fallback`/`after_mutation`（10 对 invalidate+bump 尾巴；answer_card 的 revlog 门卫块不动，属波 4） |
+| 波 3 | 4f343c64 | contract.rs `OP_TABLE` 单表（35 行，严格按金样序声明，**与 response_engine_info.json 程序化比对全序一致**）驱动 name→id 与 capabilities 生成 + `capabilities_match_golden_fixture_exactly` 全集断言；errors.rs `ERROR_TABLE` 单表 (status, code, Option<message_key>) 派生双函数（29 状态/19 key 逐项等价）；**F4**：两处 `map_err(\|_\| STATUS_DECK_NOT_FOUND)` 改 `map_deck_counts_error`（rslib NotFound 仍→DECK_NOT_FOUND，其余走 map_anki_error 精确码）；ops.rs 手挑 19 能力名单测试消解为全集计数断言 |
+| 测试治理 | 937a581f | 新增 `bridge/src/test_support.rs`（temp_open 带 tag+thread id / temp_open_imported / package_path 三件套 / page_all_card_ids 单一实现），ops/projection/query/import 四个测试模块改一行委托（调用点签名不变，逐名核对后增删 import）；import.rs include_str! 源码文本断言改行为断言 `create_backup_leaves_a_consistent_copy`（备份文件独立句柄 open+check_collection 全量完整性校验 + 原句柄 close/reopen 后仍 open） |
+
+**R4 波 4 整体移交工具链主机会话**（RawValue envelope / render_card 第三次 get_card 合并 / revlog_count 单点化 / answer 域抽 ops/answer.rs）：doc 39 §8 明确 revlog_count 属热路径且「施工前先跑 host_metrics 留基线」，基线在本机（无 cargo）无法满足，故四项均按纪律顺延；`debug_details` 填充同为 wire 新增字段，随主机 minor bump 评注。perf-spike 标 `#[ignore]`（ops.rs `host_metrics_record_import_render_queue` / `import_100k_or_record_nogo` / abi `one_hundred_thousand_alloc_free_cycles`）同样必须在基线留存之后执行。
+
+**工具链主机会话执行清单**（一次过闸覆盖 doc 37/38/39/40 四批）：
+
+1. 基线先行：跑 `host_metrics_record_import_render_queue` 等三件 perf-spike 留基线数字，再做 perf-spike `#[ignore]` 标注与文档化显式跑法。
+2. 波 4 静态稿施工（revlog_count 4→2、render_card 三读合一、envelope RawValue、ops/answer.rs 抽取），逐项对照既有测试；host_metrics 不劣化为门禁。
+3. `cargo test -p turna_anki_bridge` 全绿（含本批新增 `capabilities_match_golden_fixture_exactly`、`create_backup_leaves_a_consistent_copy`）；`gen_fixtures` regen diff review 应干净或仅次序（OP_TABLE 与金样已程序化全序对拍）。
+4. 涉 .so 的波次 `./build-android/build.sh` smoke → 解除 doc 34/38 的 NO-GO。
+
+**R4 偏差注记**：①doc 39/40 曾记录「第三处 DECK_NOT_FOUND map_err 施工时确认」——实测全仓恰为 2 处（ops.rs counts_for_deck_today / ensure_today_new_quota），第三处为 `.ok_or(STATUS_DECK_NOT_FOUND)` 显式缺失判定，语义正确不动；②map_deck_counts_error 若直接改 map_anki_error 会把缺失 deck 误标 CARD_NOT_FOUND（rslib `or_not_found` 产生通用 NotFound，map_anki_error 将其映射 CARD_NOT_FOUND），故保留 NotFound→DECK_NOT_FOUND 的分流；③projection.rs fixture_root 的 canonicalize 分支实测指向不存在路径（CARGO_MANIFEST_DIR/../contract），属惰性代码，收敛时删除且行为不变。
