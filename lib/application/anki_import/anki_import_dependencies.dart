@@ -1,4 +1,3 @@
-import 'package:turna/application/anki_official/anki_deck_manager.dart';
 import 'package:turna/application/anki_official/import/anki_import_execution_plan.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/import/anki_import_facade.dart';
@@ -21,8 +20,6 @@ class AnkiImportDependencies {
     required this.courseDatabase,
     required this.readOfficialProjectionSummary,
     required this.courseProvider,
-    required this.ankiLiteThreshold,
-    required this.dailyNewLimit,
   });
 
   /// Pick-time plan resolver (doc 34 W0-03). Production maps straight to
@@ -47,8 +44,6 @@ class AnkiImportDependencies {
       readOfficialProjectionSummary;
 
   final CourseProvider courseProvider;
-  final int ankiLiteThreshold;
-  final int dailyNewLimit;
 
   /// Production wiring resolved once at page init. Provider-backed values
   /// (settings thresholds) are captured here as a snapshot — the wizard is
@@ -79,8 +74,6 @@ class AnkiImportDependencies {
       readOfficialProjectionSummary: (sourceId) =>
           OfficialProjectionSummaryReader.read(sourceId),
       courseProvider: courseProvider,
-      ankiLiteThreshold: settings.ankiLiteThreshold,
-      dailyNewLimit: getIt<AnkiDeckManager>().dailyNewLimit,
     );
   }
 }

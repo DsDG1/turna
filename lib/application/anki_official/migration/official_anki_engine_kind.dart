@@ -25,17 +25,6 @@ AnkiEngineKind? parseRecordedKind(String? raw) {
   return null;
 }
 
-
-class AnkiSourceRoute {
-  const AnkiSourceRoute({
-    required this.sourceKey,
-    required this.engine,
-  });
-
-  final String sourceKey;
-  final AnkiEngineKind engine;
-}
-
 /// Resolves review/import ownership. Does not write.
 /// Official only when cutover is on and the source is official-owned.
 ///
@@ -86,26 +75,6 @@ class AnkiSourceRouteResolver {
         : AnkiEngineKind.legacy;
   }
 
-  AnkiSourceRoute routeFor({
-    required String sourceKey,
-    AnkiEngineKind? recordedKind,
-    bool officialCatalogHasSource = false,
-    bool? cutoverEnabled,
-    String? platform,
-    bool? libraryAvailable,
-  }) {
-    return AnkiSourceRoute(
-      sourceKey: sourceKey,
-      engine: resolve(
-        sourceKey: sourceKey,
-        recordedKind: recordedKind,
-        officialCatalogHasSource: officialCatalogHasSource,
-        cutoverEnabled: cutoverEnabled,
-        platform: platform,
-        libraryAvailable: libraryAvailable,
-      ),
-    );
-  }
 }
 
 class OfficialAnkiPlatformCapability {

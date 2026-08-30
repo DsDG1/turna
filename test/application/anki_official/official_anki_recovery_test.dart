@@ -253,7 +253,8 @@ void main() {
       state: 'weird',
       nowMillis: 1,
     );
-    final decision = h.recovery(h.orch(null)).decide(h.attempts.find('att-unknown')!);
+    final decision =
+        decideOfficialAnkiRecovery(h.attempts.find('att-unknown')!);
     expect(decision.state.isActive, isFalse);
     expect(decision.state, OfficialAnkiSourceState.needsReconciliation);
   });

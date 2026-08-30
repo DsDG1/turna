@@ -146,6 +146,51 @@ void main() {
       }
     });
 
+    // Doc 39 P1 — dead-surface deletion guards (batch 2).
+    test('doc 39 batch-2 dead surfaces stay deleted', () {
+      for (final path in const [
+        // P1-A: orphan review page (lives on as test/support fixture only).
+        'lib/views/anki_official/official_anki_review_page.dart',
+        'lib/views/anki_official/official_anki_practice_review_surface.dart',
+        // P1-B: migration preview cluster.
+        'lib/application/anki_official/migration/official_anki_preview_loader.dart',
+        'lib/views/anki_official/official_anki_migration_preview_page.dart',
+      ]) {
+        expect(File(path).existsSync(), isFalse,
+            reason: '$path was resurrected');
+      }
+      final libDir = Directory('lib');
+      const needles = [
+        // P1-C: unified orchestrator legacy path.
+        'UnifiedAnkiImportRequest',
+        'persistIdentity',
+        // P1-F: audio staging/swap family.
+        'swapStagedMedia',
+        'stagingImportId',
+        'rollbackMediaSwap',
+        'finalizeMediaSwap',
+        // P1-E: describeNextStates Dart call face.
+        'describeNextStates',
+        // P1-F: retired introduction repository.
+        'CardIntroductionRepository',
+      ];
+      for (final file in libDir.listSync(recursive: true)) {
+        if (file is! File || !file.path.endsWith('.dart')) continue;
+        final text = file.readAsStringSync();
+        // Allow doc comments that document the deletion itself.
+        final withoutComments = text
+            .replaceAll(RegExp(r'//.*'), '')
+            .replaceAll(RegExp(r'/\*.*?\*/', dotAll: true), '');
+        for (final needle in needles) {
+          expect(
+            withoutComments.contains(needle),
+            isFalse,
+            reason: '${file.path} resurrected $needle',
+          );
+        }
+      }
+    });
+
     // Doc 38 P1-B/C — the NoteStore/imports write side stays deleted.
     test('anki dao write side stays deleted (doc 38)', () {
       final dao = File('lib/data/anki_note_dao.dart').readAsStringSync();

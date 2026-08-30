@@ -159,13 +159,6 @@ void main() {
         throwsA(isA<OwnerAuthorityConflict>()),
       );
     });
-
-    test('unknown source reads as open fence', () async {
-      expect(
-        await dao.writeFence(profileId: 'default', sourceId: 'src-none'),
-        AnkiWriteFence.open,
-      );
-    });
   });
 
   group('owner transitions', () {

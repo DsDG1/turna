@@ -26,7 +26,9 @@ class OfficialAnkiOperationCoordinator {
       return;
     }
     if (phase == next) return;
-    if (phase != OfficialAnkiOperationPhase.idle && !_compatible(phase, next)) {
+    if (phase != OfficialAnkiOperationPhase.idle) {
+      // Cross-phase transitions never compose. Doc 39 P1-G: the former
+      // _compatible predicate was constant-false; the throw is unconditional.
       throw conflict;
     }
     phase = next;
@@ -57,14 +59,4 @@ class OfficialAnkiOperationCoordinator {
 
   bool get isReviewing => phase == OfficialAnkiOperationPhase.reviewing;
 
-  bool _compatible(
-    OfficialAnkiOperationPhase current,
-    OfficialAnkiOperationPhase next,
-  ) {
-    if (current == OfficialAnkiOperationPhase.reviewing &&
-        next == OfficialAnkiOperationPhase.projecting) {
-      return false;
-    }
-    return false;
-  }
 }

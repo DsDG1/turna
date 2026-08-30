@@ -23,8 +23,9 @@ import 'package:path/path.dart' as p;
 ///   view (decision 4). A `WebViewController` is never constructed there, so
 ///   the missing platform implementation never throws.
 ///
-/// Media: the HTML carries a `<base href="file:///…/">` (set by
-/// `AnkiCardHtmlRenderer`) so relative `<img>` / `<audio>` resolve. Full
+/// Media: the HTML carries a `<base href="file:///…/">` (set by the
+/// official engine's rendered-card payload) so relative `<img>` / `<audio>`
+/// resolve. Full
 /// file-access wiring per platform is a follow-up; the rendered text/HTML
 /// content - the core fidelity goal - works via `loadHtmlString`.
 class AnkiHtmlCardView extends StatefulWidget {
@@ -386,7 +387,8 @@ class _HtmlTextFallback extends StatelessWidget {
 
   String get _text {
     // Drop script/style/head blocks first - their text content is not visible
-    // card text (notably the injected <style> css from AnkiCardHtmlRenderer).
+    // card text (notably the notetype's <style> css from the official
+    // engine's rendered-card payload).
     var t = html
         .replaceAll(RegExp(r'<script[^>]*>.*?</script>', dotAll: true), '')
         .replaceAll(RegExp(r'<style[^>]*>.*?</style>', dotAll: true), '')

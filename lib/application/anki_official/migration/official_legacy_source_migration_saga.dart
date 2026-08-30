@@ -944,9 +944,6 @@ class OfficialLegacySourceMigrationSaga {
     coordinator.release(OfficialAnkiOperationPhase.migrating);
   }
 
-  static bool isCleanupAfterReleaseMarked(LegacyAnkiMigrationRow row) {
-    return row.state == LegacyAnkiMigrationState.completed;
-  }
 
   void _requireExplicitPolicyWhenNeeded({
     required LegacyAnkiSchedulingPolicy policy,

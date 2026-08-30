@@ -78,29 +78,6 @@ class OfficialAnkiOfficialFirstService {
     );
   }
 
-  Future<OfficialAnkiImportResult?> importAndRecord({
-    required String filePath,
-    required AnkiImportExecutionPlan plan,
-    required String importId,
-    required String hash,
-    required int cardCount,
-    OfficialAnkiFeatureFlags? flags,
-  }) async {
-    final official = await importPackage(
-      filePath: filePath,
-      plan: plan,
-      flags: flags,
-    );
-    if (official == null) return null;
-    if (official.state != OfficialAnkiSourceState.active) return official;
-    await recordMigration(
-      importId: importId,
-      official: official,
-      hash: hash,
-      cardCount: cardCount,
-    );
-    return official;
-  }
 
   /// Official-first pick path: saga → migration link → projection preview.
   Future<OfficialAnkiOfficialFirstPreview> importThenPreview({

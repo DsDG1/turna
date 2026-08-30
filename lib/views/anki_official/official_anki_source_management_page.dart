@@ -180,9 +180,11 @@ typedef OfficialAnkiSourceManagementDeps = ({
   CourseProvider? courseProvider,
 });
 
-/// Production dependency resolver used by OfficialAnkiInternalPage before it
-/// pushes `OfficialAnkiSourceManagementRoute`. Flag-off or missing
+/// Production dependency resolver for surfaces that push
+/// `OfficialAnkiSourceManagementRoute`. Flag-off or missing
 /// catalog/course/engine returns null (fail closed, no Legacy fallback).
+/// (The original pusher, OfficialAnkiInternalPage, was deleted with the
+/// fixture pilot scaffold in doc 38 P1-A.)
 Future<OfficialAnkiSourceManagementDeps?> officialAnkiResolveSourceManagementDeps({
   OfficialAnkiEngine? engine,
   OfficialAnkiDatabase? catalog,

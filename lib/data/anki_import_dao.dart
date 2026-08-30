@@ -130,8 +130,6 @@ class AnkiImportDao {
       dailyReviewLimit: lifecycle?.read<int?>('daily_review_limit'),
       status: lifecycle?.read<String?>('status') ?? 'complete',
       sourceCardCount: lifecycle?.read<int?>('source_card_count') ?? 0,
-      storedCardCount: lifecycle?.read<int?>('stored_card_count') ?? 0,
-      indexedCardCount: lifecycle?.read<int?>('indexed_card_count') ?? 0,
       importedScheduling:
           (lifecycle?.read<int?>('imported_scheduling') ?? 0) != 0,
       lastError: lifecycle?.read<String?>('last_error'),
@@ -156,8 +154,6 @@ class AnkiImportRecord {
   final int? dailyReviewLimit;
   final String status;
   final int sourceCardCount;
-  final int storedCardCount;
-  final int indexedCardCount;
   final bool importedScheduling;
   final String? lastError;
 
@@ -177,8 +173,6 @@ class AnkiImportRecord {
     this.dailyReviewLimit,
     this.status = 'pending',
     this.sourceCardCount = 0,
-    this.storedCardCount = 0,
-    this.indexedCardCount = 0,
     this.importedScheduling = false,
     this.lastError,
   });

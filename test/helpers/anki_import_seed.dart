@@ -30,13 +30,10 @@ Future<void> seedAnkiImportRow(CourseDatabase db, AnkiImportRecord r) async {
   );
   await db.customStatement(
     'UPDATE anki_imports SET status = ?, source_card_count = ?, '
-    'stored_card_count = ?, indexed_card_count = ?, imported_scheduling = ?, '
-    'last_error = ? WHERE import_id = ?',
+    'imported_scheduling = ?, last_error = ? WHERE import_id = ?',
     [
       r.status,
       r.sourceCardCount,
-      r.storedCardCount,
-      r.indexedCardCount,
       r.importedScheduling ? 1 : 0,
       r.lastError,
       r.importId,

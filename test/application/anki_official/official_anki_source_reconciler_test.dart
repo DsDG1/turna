@@ -505,7 +505,7 @@ void main() {
   });
 
   group('reconciliation journal', () {
-    test('records §7.3 fields and resumes after mid-step kill', () {
+    test('records §7.3 fields and advances through the mutate step', () {
       final db = OfficialAnkiDatabase.memory();
       addTearDown(db.close);
       final journal = OfficialAnkiReconciliationJournalDao(db);
@@ -537,10 +537,6 @@ void main() {
       expect(entry.intendedOwner, OfficialAnkiPersistedOwner.official);
       expect(entry.currentStep, OfficialAnkiReconcileJournalStep.scanned);
       expect(entry.retryPolicy, OfficialAnkiReconcileRetryPolicy.resumeFromStep);
-      expect(
-        entry.rollbackPolicy,
-        OfficialAnkiReconcileRollbackPolicy.restoreBackup,
-      );
 
       journal.advance(
         operationId: 'op-1',
@@ -562,42 +558,18 @@ void main() {
         nowMillis: 13,
         mutation: 'projection_rebuild_start',
       );
+      final mutating = journal.findById('op-1')!;
+      expect(mutating.backupId, 'bak-1');
+      expect(mutating.completedMutations, ['projection_rebuild_start']);
+      expect(mutating.isTerminal, isFalse);
 
-      journal.quarantineOpenOperation(
-        operationId: 'op-1',
-        nowMillis: 14,
-        lastError: 'kill_mid_step',
-      );
-
-      final afterKill = journal.findById('op-1')!;
+      // quarantineOpenOperation was deleted with its dead production path
+      // (doc 39 P1-G; the journal write-vs-consume boundary is decision
+      // item doc 39 §10 D1, not to be settled here).
       expect(
-        afterKill.currentStep,
-        OfficialAnkiReconcileJournalStep.quarantined,
+        journal.listOpen(profileId: _profile).map((e) => e.operationId),
+        ['op-1'],
       );
-      expect(afterKill.lastError, 'kill_mid_step');
-      expect(afterKill.backupId, 'bak-1');
-      expect(afterKill.completedMutations, ['projection_rebuild_start']);
-      expect(
-        afterKill.retryPolicy,
-        OfficialAnkiReconcileRetryPolicy.resumeFromStep,
-      );
-      expect(afterKill.isTerminal, isTrue);
-
-      expect(journal.listOpen(profileId: _profile), isEmpty);
-
-      beginReconciliationJournal(
-        dao: journal,
-        evidence: evidence,
-        decision: decision,
-        operationId: 'op-1-resume',
-        nowMillis: 20,
-      );
-      final resumed = journal.findById('op-1-resume')!;
-      expect(resumed.evidenceHash, afterKill.evidenceHash);
-      expect(resumed.isResumable, isTrue);
-      expect(journal.listOpen(profileId: _profile).map((e) => e.operationId), [
-        'op-1-resume',
-      ]);
     });
 
     test('schema v9 creates journal table', () {
@@ -677,4 +649,23 @@ void main() {
       expect(sources.cardCount('src-large'), greaterThan(1));
     });
   });
+}
+
+/// In-memory evidence reader fixture. Doc 39 P1-G: moved here from the
+/// production reconciler file, where it was test-only surface.
+class ListOfficialAnkiSourceEvidenceReader
+    implements OfficialAnkiSourceEvidenceReader {
+  ListOfficialAnkiSourceEvidenceReader(this._rows);
+
+  final List<OfficialAnkiSourceEvidence> _rows;
+
+  @override
+  Future<List<OfficialAnkiSourceEvidence>> loadEvidence({
+    required String profileId,
+  }) async {
+    return [
+      for (final row in _rows)
+        if (row.profileId == profileId) row,
+    ];
+  }
 }

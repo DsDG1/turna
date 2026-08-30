@@ -124,8 +124,6 @@ void main() {
           itemCount: 0,
         ),
         courseProvider: courseProvider,
-        ankiLiteThreshold: 200,
-        dailyNewLimit: 20,
       ),
     );
   }

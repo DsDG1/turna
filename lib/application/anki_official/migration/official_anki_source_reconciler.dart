@@ -408,17 +408,24 @@ class OfficialAnkiSourceReconciler {
     );
   }
 
+  /// Maps a recorded migration kind wire string onto the persisted-owner
+  /// enum. Single source for both owner resolution and mismatch detection
+  /// (doc 39 P1-G: the two hand-rolled copies were merged).
+  static OfficialAnkiPersistedOwner? _ownerFromRecordedKind(String? raw) {
+    return switch (parseRecordedKind(raw)) {
+      AnkiEngineKind.official => OfficialAnkiPersistedOwner.official,
+      AnkiEngineKind.legacy => OfficialAnkiPersistedOwner.legacy,
+      null => null,
+    };
+  }
+
   OfficialAnkiPersistedOwner? _resolvedPersistedOwner(
     OfficialAnkiSourceEvidence evidence,
   ) {
     if (evidence.recordedOwner != null) return evidence.recordedOwner;
-    final fromMigration = parseRecordedKind(evidence.migrationRecordedKind);
-    if (fromMigration == AnkiEngineKind.official) {
-      return OfficialAnkiPersistedOwner.official;
-    }
-    if (fromMigration == AnkiEngineKind.legacy) {
-      return OfficialAnkiPersistedOwner.legacy;
-    }
+    final fromMigration =
+        _ownerFromRecordedKind(evidence.migrationRecordedKind);
+    if (fromMigration != null) return fromMigration;
     final backend = evidence.unificationBackend;
     if (backend == 'official') return OfficialAnkiPersistedOwner.official;
     if (backend == 'legacyTurna' || backend == 'legacy') {
@@ -433,11 +440,9 @@ class OfficialAnkiSourceReconciler {
     if (evidence.recordedOwner != null) {
       claims.add(evidence.recordedOwner!);
     }
-    final mig = parseRecordedKind(evidence.migrationRecordedKind);
-    if (mig == AnkiEngineKind.official) {
-      claims.add(OfficialAnkiPersistedOwner.official);
-    } else if (mig == AnkiEngineKind.legacy) {
-      claims.add(OfficialAnkiPersistedOwner.legacy);
+    final mig = _ownerFromRecordedKind(evidence.migrationRecordedKind);
+    if (mig != null) {
+      claims.add(mig);
     }
     final backend = evidence.unificationBackend;
     if (backend == 'official') {
@@ -720,32 +725,6 @@ WHERE operation_id = ? AND current_step = ?
     }
   }
 
-  /// Kill mid-step recovery: open journals become quarantined + resumable
-  /// via retry policy.
-  void quarantineOpenOperation({
-    required String operationId,
-    required int nowMillis,
-    String lastError = 'interrupted_mid_step',
-  }) {
-    final current = findById(operationId);
-    if (current == null || current.isTerminal) return;
-    _db.execute(
-      '''
-UPDATE anki_source_reconciliation_journal
-SET current_step = ?, last_error = ?, updated_at_millis = ?,
-    retry_policy = ?
-WHERE operation_id = ?
-''',
-      [
-        OfficialAnkiReconcileJournalStep.quarantined.name,
-        lastError,
-        nowMillis,
-        OfficialAnkiReconcileRetryPolicy.resumeFromStep.name,
-        operationId,
-      ],
-    );
-  }
-
   OfficialAnkiReconciliationJournalEntry _row(Row row) {
     final rawMutations = row['completed_mutations_json'] as String? ?? '[]';
     final decoded = jsonDecode(rawMutations);
@@ -849,24 +828,6 @@ abstract class OfficialAnkiSourceEvidenceReader {
   Future<List<OfficialAnkiSourceEvidence>> loadEvidence({
     required String profileId,
   });
-}
-
-/// Fixture / in-memory reader for unit tests.
-class ListOfficialAnkiSourceEvidenceReader
-    implements OfficialAnkiSourceEvidenceReader {
-  ListOfficialAnkiSourceEvidenceReader(this._rows);
-
-  final List<OfficialAnkiSourceEvidence> _rows;
-
-  @override
-  Future<List<OfficialAnkiSourceEvidence>> loadEvidence({
-    required String profileId,
-  }) async {
-    return [
-      for (final row in _rows)
-        if (row.profileId == profileId) row,
-    ];
-  }
 }
 
 /// Catalog-backed reader: official sources + migration links only.

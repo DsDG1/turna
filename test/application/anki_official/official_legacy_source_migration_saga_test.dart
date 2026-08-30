@@ -292,10 +292,7 @@ void main() {
       );
       final done = dao.findById('mig-happy')!;
       expect(done.state, LegacyAnkiMigrationState.completed);
-      expect(
-        OfficialLegacySourceMigrationSaga.isCleanupAfterReleaseMarked(done),
-        isTrue,
-      );
+      expect(done.state == LegacyAnkiMigrationState.completed, isTrue);
       expect(
         saga.resume(migrationId: 'mig-happy'),
         OfficialLegacyMigrationResumeAction.done,

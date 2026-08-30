@@ -293,14 +293,6 @@ class AnkiOwnerAuthorityDao {
   // Write fence
   // ---------------------------------------------------------------------
 
-  Future<AnkiWriteFence> writeFence({
-    required String profileId,
-    required String sourceId,
-  }) async {
-    final row = await findBySource(profileId: profileId, sourceId: sourceId);
-    if (row == null) return AnkiWriteFence.open;
-    return row.writeFence;
-  }
 
   /// Fence transition with compare-and-swap semantics. Legal moves:
   /// open→frozen (migration freeze), frozen→officialOnly (owner commit),

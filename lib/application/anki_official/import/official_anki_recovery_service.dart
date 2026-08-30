@@ -17,10 +17,6 @@ class OfficialAnkiRecoveryService {
   final OfficialAnkiEngine engine;
   final OfficialAnkiImportOrchestrator orchestrator;
 
-  OfficialAnkiRecoveryDecision decide(OfficialAnkiAttemptRow attempt) {
-    return decideOfficialAnkiRecovery(attempt);
-  }
-
   Future<OfficialAnkiImportResult> recover(OfficialAnkiAttemptRow attempt) {
     return orchestrator.recoverAttempt(attempt);
   }

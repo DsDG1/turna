@@ -16,9 +16,6 @@ class OfficialAnkiStartupCensus {
 
   final OfficialAnkiSourceCensusService census;
 
-  /// Last report from [run] in this process. Tests may read it; production
-  /// treats it as a diagnostic snapshot (no card text).
-  static OfficialAnkiSourceCensusReport? lastReport;
 
   Future<OfficialAnkiSourceCensusReport> collect({
     required CourseDatabase course,
@@ -76,7 +73,6 @@ class OfficialAnkiStartupCensus {
       profileId: profileId,
       nowMillis: nowMillis,
     );
-    lastReport = report;
     if (catalog != null) {
       persistScannedJournals(
         catalog: catalog,

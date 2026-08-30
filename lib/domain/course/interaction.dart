@@ -179,8 +179,8 @@ sealed class Interaction with _$Interaction {
   /// Fidelity-track flip card: show [frontHtml], user reveals [backHtml],
   /// then grades via the app's SRS buttons (no in-page JS grading). The HTML
   /// is the rendered Anki template output (qfmt/afmt with fields substituted)
-  /// and [css] is the notetype's stylesheet - both produced by
-  /// `AnkiCardHtmlRenderer` from the NoteStore (deep-adaptation plan §5).
+  /// and [css] is the notetype's stylesheet - both produced by the
+  /// official engine's RENDER_CARD operation (rslib).
   /// [allowJs] gates the WebView's javascriptMode (decision 3: default off +
   /// container isolation when the notetype's templates contain `<script>`).
   /// [mediaBasePath] is the import's extracted media dir, used to resolve

@@ -44,8 +44,6 @@ class AnkiImportCompletionCoordinator {
   }
 }
 
-/// Exposed for the done step's navigation intents ("立即学习"/"查看牌组").
-typedef AnkiImportCompletion = ({String importId, String? wireKey});
 
 extension AnkiImportCompletionWire on AnkiImportDependencies {
   String? wireKeyForImportId(String id) =>

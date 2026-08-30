@@ -237,15 +237,8 @@ void main() {
       ),
       isNull,
     );
-    expect(
-      await const OfficialAnkiOfficialFirstService().importAndRecord(
-        filePath: '/tmp/deck.apkg',
-        plan: plan,
-        importId: 'imp-1',
-        hash: 'abc',
-        cardCount: 0,
-      ),
-      isNull,
-    );
+    // importAndRecord was deleted (doc 39 P1-G); the fail-closed
+    // behavior is already pinned by the importPackage null above.
+
   });
 }
