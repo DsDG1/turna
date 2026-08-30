@@ -16,7 +16,9 @@ use serde_json::json;
 use sha2::Digest;
 use sha2::Sha256;
 
-const BACKEND_COMMIT: &str = "967aa0d578fc75181e292e95326f9b58698da25c";
+// Single source: the workspace build.rs reads `contract/BACKEND_COMMIT` and
+// injects it — this bin must never carry its own pinned commit again.
+const BACKEND_COMMIT: &str = env!("TURNA_ANKI_BACKEND_COMMIT");
 const FIXTURE_VERSION: u32 = 1;
 
 fn main() {

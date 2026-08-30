@@ -17,6 +17,7 @@ use anki::ProgressState;
 use serde::Deserialize;
 use serde::Serialize;
 
+// Wire-stable status codes (append-only; numbers are never reused).
 pub const STATUS_OK: i32 = 0;
 pub const STATUS_UNIMPLEMENTED: i32 = 10;
 pub const STATUS_INVALID_HANDLE: i32 = 11;
@@ -43,7 +44,12 @@ pub const STATUS_PAGE_TOKEN_STALE: i32 = 33;
 pub const STATUS_TYPED_FIELD_NOT_FOUND: i32 = 34;
 pub const STATUS_TYPED_CLOZE_EMPTY: i32 = 35;
 pub const STATUS_PROJECTION_SNAPSHOT_STALE: i32 = 36;
+pub const STATUS_REDO_UNAVAILABLE: i32 = 37;
+pub const STATUS_DECK_NOT_FOUND: i32 = 38;
+pub const STATUS_SCHEDULER_BUSY: i32 = 39;
+pub const STATUS_ANSWER_COMMIT_UNKNOWN: i32 = 41;
 
+// Wire-stable operation ids (append-only; numbers are never reused).
 pub const OP_OPEN_COLLECTION: u32 = 2;
 pub const OP_CLOSE_COLLECTION: u32 = 3;
 pub const OP_CHECK_COLLECTION: u32 = 4;
@@ -78,11 +84,6 @@ pub const OP_STATS_FOR_CARDS_BATCH: u32 = 33;
 pub const OP_SCHEDULE_CARDS_AS_NEW: u32 = 34;
 pub const OP_ANSWER_AHEAD_CARDS: u32 = 35;
 pub const OP_ENSURE_TODAY_NEW_QUOTA: u32 = 36;
-pub const STATUS_REDO_UNAVAILABLE: i32 = 37;
-pub const STATUS_DECK_NOT_FOUND: i32 = 38;
-pub const STATUS_SCHEDULER_BUSY: i32 = 39;
-pub const STATUS_SCHEDULER_CAPABILITY_MISSING: i32 = 40;
-pub const STATUS_ANSWER_COMMIT_UNKNOWN: i32 = 41;
 
 pub const MAX_REQUEST_BYTES: usize = 1_048_576;
 pub const MAX_RESPONSE_BYTES: usize = 8_388_608;

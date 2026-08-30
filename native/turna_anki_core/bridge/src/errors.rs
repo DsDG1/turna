@@ -24,7 +24,6 @@ use crate::engine::STATUS_QUEUE_EMPTY;
 use crate::engine::STATUS_REDO_UNAVAILABLE;
 use crate::engine::STATUS_RENDER_FAILED;
 use crate::engine::STATUS_SCHEDULER_BUSY;
-use crate::engine::STATUS_SCHEDULER_CAPABILITY_MISSING;
 use crate::engine::STATUS_SCHEDULING_CONTEXT_STALE;
 use crate::engine::STATUS_TYPED_CLOZE_EMPTY;
 use crate::engine::STATUS_TYPED_FIELD_NOT_FOUND;
@@ -61,7 +60,6 @@ pub fn code_for_status(status: i32) -> &'static str {
         STATUS_REDO_UNAVAILABLE => "REDO_UNAVAILABLE",
         STATUS_DECK_NOT_FOUND => "DECK_NOT_FOUND",
         STATUS_SCHEDULER_BUSY => "SCHEDULER_BUSY",
-        STATUS_SCHEDULER_CAPABILITY_MISSING => "SCHEDULER_CAPABILITY_MISSING",
         STATUS_INTERNAL_ERROR => "INTERNAL_ERROR",
         _ => "INTERNAL_ERROR",
     }
@@ -88,7 +86,6 @@ pub fn message_key_for_status(status: i32) -> &'static str {
         STATUS_REDO_UNAVAILABLE => "official_anki.redo_unavailable",
         STATUS_DECK_NOT_FOUND => "official_anki.deck_not_found",
         STATUS_SCHEDULER_BUSY => "official_anki.scheduler_busy",
-        STATUS_SCHEDULER_CAPABILITY_MISSING => "official_anki.scheduler_capability_missing",
         _ => "official_anki.backend_error",
     }
 }

@@ -333,9 +333,9 @@ pub fn get_projection_schemas(handle: u64, request: &[u8]) -> Result<Value, i32>
             "kind": kind,
             "fieldNames": field_names,
             "templateNames": template_names,
-        "schemaFingerprint": fingerprint,
-        "templateFacts": template_facts(&nt),
-    });
+            "schemaFingerprint": fingerprint,
+            "templateFacts": template_facts(&nt),
+        });
         if parsed.include_samples {
             let search = format!("mid:{}", ntid.0);
             let note_ids = col
@@ -653,7 +653,6 @@ mod tests {
     use crate::engine::dispatch;
     use crate::engine::free_engine;
     use crate::engine::open_collection;
-    use crate::engine::OpenRequest;
     use crate::engine::OP_BEGIN_PROJECTION_READ;
     use crate::engine::OP_GET_PROJECTION_ROWS_BATCH;
     use crate::engine::OP_GET_PROJECTION_SCHEMAS;
@@ -699,13 +698,6 @@ mod tests {
             "check_integrity": false,
         }))
         .unwrap();
-        let _ = OpenRequest {
-            collection_path: String::new(),
-            media_folder: String::new(),
-            media_db: String::new(),
-            check_integrity: false,
-            allowed_root: None,
-        };
         let handle = alloc_engine().unwrap();
         open_collection(handle, &body).unwrap();
         (root, handle)
