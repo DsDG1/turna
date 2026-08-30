@@ -292,39 +292,29 @@ class OfficialAnkiImportOrchestrator implements OfficialAnkiImporter {
 
   Future<OfficialAnkiImportResult> markFailedBeforeImport(
     OfficialAnkiAttemptRow attempt,
-  ) async {
-    attempts.transition(
-      attemptId: attempt.attemptId,
-      expectedState: attempt.state,
-      nextState: OfficialAnkiSourceState.failedBeforeImport.wire,
-      nowMillis: _now,
-      incrementRecovery: true,
-    );
-    final source = sources.findById(attempt.sourceId);
-    if (source != null && source.state != OfficialAnkiSourceState.active.wire) {
-      sources.transitionSource(
-        sourceId: attempt.sourceId,
-        expectedState: source.state,
-        nextState: OfficialAnkiSourceState.failedBeforeImport.wire,
-        nowMillis: _now,
-      );
-    }
-    return OfficialAnkiImportResult(
-      sourceId: attempt.sourceId,
-      attemptId: attempt.attemptId,
-      state: OfficialAnkiSourceState.failedBeforeImport,
-      cardCount: 0,
-      noteCount: 0,
-    );
+  ) {
+    return _markTerminal(attempt, OfficialAnkiSourceState.failedBeforeImport);
   }
 
   Future<OfficialAnkiImportResult> markNeedsReconciliation(
     OfficialAnkiAttemptRow attempt,
+  ) {
+    return _markTerminal(attempt, OfficialAnkiSourceState.needsReconciliation);
+  }
+
+  /// Shared tail of the two terminal mark paths: attempt transition with
+  /// recovery increment, best-effort source transition (skipped while the
+  /// source is active — that race belongs to the coordinator), then result.
+  /// Before import nothing was written, so counts are zeroed; reconciliation
+  /// reports what survived.
+  Future<OfficialAnkiImportResult> _markTerminal(
+    OfficialAnkiAttemptRow attempt,
+    OfficialAnkiSourceState terminal,
   ) async {
     attempts.transition(
       attemptId: attempt.attemptId,
       expectedState: attempt.state,
-      nextState: OfficialAnkiSourceState.needsReconciliation.wire,
+      nextState: terminal.wire,
       nowMillis: _now,
       incrementRecovery: true,
     );
@@ -333,16 +323,17 @@ class OfficialAnkiImportOrchestrator implements OfficialAnkiImporter {
       sources.transitionSource(
         sourceId: attempt.sourceId,
         expectedState: source.state,
-        nextState: OfficialAnkiSourceState.needsReconciliation.wire,
+        nextState: terminal.wire,
         nowMillis: _now,
       );
     }
+    final beforeImport = terminal == OfficialAnkiSourceState.failedBeforeImport;
     return OfficialAnkiImportResult(
       sourceId: attempt.sourceId,
       attemptId: attempt.attemptId,
-      state: OfficialAnkiSourceState.needsReconciliation,
-      cardCount: sources.cardCount(attempt.sourceId),
-      noteCount: attempt.importedNoteCount,
+      state: terminal,
+      cardCount: beforeImport ? 0 : sources.cardCount(attempt.sourceId),
+      noteCount: beforeImport ? 0 : attempt.importedNoteCount,
     );
   }
 

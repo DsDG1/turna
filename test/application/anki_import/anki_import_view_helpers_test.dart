@@ -17,7 +17,7 @@ void main() {
     });
 
     test('no literal \$ or interpolation placeholder leaks to users', () {
-      final codes = OfficialAnkiErrorCode.values;
+      const codes = OfficialAnkiErrorCode.values;
       for (final code in codes) {
         final message = mapOfficialErrorToHuman(
           OfficialAnkiException(code: code, messageKey: 'k'),
