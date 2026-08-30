@@ -120,6 +120,15 @@ class OfficialLegacyMigrationCoordinator {
     );
   }
 
+  /// Re-read the migration row we already hold. run() re-reads after every
+  /// saga step because the saga and driver transition the journal without
+  /// handing the new row back; this keeps that explicit and single-sourced.
+  LegacyAnkiMigrationRow _reload(
+    OfficialAnkiMigrationDao dao,
+    LegacyAnkiMigrationRow row,
+  ) =>
+      dao.findById(row.migrationId)!;
+
   Future<OfficialLegacyMigrationResult> run({
     required OfficialAnkiSourceCensusRow censusRow,
     required File package,
@@ -232,7 +241,7 @@ class OfficialLegacyMigrationCoordinator {
             nowMillis: DateTime.now().millisecondsSinceEpoch,
           );
         }
-        row = dao.findById(row.migrationId)!;
+        row = _reload(dao, row);
       }
 
       if (policy.abandonsOfficialCutover) {
@@ -242,7 +251,7 @@ class OfficialLegacyMigrationCoordinator {
           policyConfirmedByUser: policyConfirmedByUser,
           losslessScheduleMapAvailable: false,
         );
-        final terminal = dao.findById(row.migrationId)!;
+        final terminal = _reload(dao, row);
         return OfficialLegacyMigrationResult(
           outcome: OfficialLegacyMigrationOutcome.keptLegacyReadOnly,
           migrationId: terminal.migrationId,
@@ -252,7 +261,7 @@ class OfficialLegacyMigrationCoordinator {
 
       final legacyCards = await DatabaseLegacyAnkiCensusReader(course)
           .loadCardIdentities(importId);
-      row = dao.findById(row.migrationId)!;
+      row = _reload(dao, row);
       if (row.state == LegacyAnkiMigrationState.awaitingPackage ||
           row.state == LegacyAnkiMigrationState.validatingSource) {
         final backedUp = await saga.snapshotAndBackup(
@@ -270,7 +279,7 @@ class OfficialLegacyMigrationCoordinator {
         }
       }
 
-      row = dao.findById(row.migrationId)!;
+      row = _reload(dao, row);
       if (row.state == LegacyAnkiMigrationState.backingUp) {
         await saga.importOrReconstruct(
           migrationId: row.migrationId,
@@ -294,7 +303,7 @@ class OfficialLegacyMigrationCoordinator {
         );
       }
 
-      row = dao.findById(row.migrationId)!;
+      row = _reload(dao, row);
       await saga.chooseSchedulingPolicy(
         migrationId: row.migrationId,
         policy: policy,
@@ -303,7 +312,7 @@ class OfficialLegacyMigrationCoordinator {
       );
 
       final sourceId = row.officialSourceId ??
-          dao.findById(row.migrationId)!.officialSourceId;
+          _reload(dao, row).officialSourceId;
       if (sourceId == null || sourceId.isEmpty) {
         throw const OfficialAnkiException(
           code: OfficialAnkiErrorCode.invalidState,
@@ -321,7 +330,7 @@ class OfficialLegacyMigrationCoordinator {
           messageKey: 'official_anki.source_cards_missing',
         );
       }
-      row = dao.findById(row.migrationId)!;
+      row = _reload(dao, row);
       if (policy == LegacyAnkiSchedulingPolicy.resetAsNew &&
           row.state == LegacyAnkiMigrationState.indexingOfficial) {
         for (var offset = 0; offset < sourceCards.length; offset += 10000) {
@@ -352,7 +361,7 @@ class OfficialLegacyMigrationCoordinator {
           ),
       ];
       var projectionItemCount = 0;
-      row = dao.findById(row.migrationId)!;
+      row = _reload(dao, row);
       if (row.state == LegacyAnkiMigrationState.indexingOfficial ||
           row.state == LegacyAnkiMigrationState.mappingCards ||
           row.state == LegacyAnkiMigrationState.projectingCourse) {
@@ -387,7 +396,7 @@ class OfficialLegacyMigrationCoordinator {
           },
         );
         if (!mapped) {
-          final paused = dao.findById(row.migrationId)!;
+          final paused = _reload(dao, row);
           if (paused.state != LegacyAnkiMigrationState.needsUserAction) {
             throw OfficialAnkiException(
               code: OfficialAnkiErrorCode.invalidState,
@@ -406,7 +415,7 @@ class OfficialLegacyMigrationCoordinator {
         }
       }
 
-      row = dao.findById(row.migrationId)!;
+      row = _reload(dao, row);
       if (row.state == LegacyAnkiMigrationState.verifying) {
         if (projectionItemCount == 0) {
           projectionItemCount = (await course.customSelect(
@@ -446,12 +455,12 @@ class OfficialLegacyMigrationCoordinator {
         }
       }
 
-      row = dao.findById(row.migrationId)!;
+      row = _reload(dao, row);
       if (row.state == LegacyAnkiMigrationState.cutoverReady) {
         await saga.freezeLegacyWriter(migrationId: row.migrationId);
         await saga.atomicOwnerSwitch(migrationId: row.migrationId);
       }
-      row = dao.findById(row.migrationId)!;
+      row = _reload(dao, row);
       if (row.state == LegacyAnkiMigrationState.cutover) {
         await UnifiedAnkiImportOrchestrator.instance.publishFromProjection(
           sourceId: sourceId,
@@ -477,13 +486,13 @@ class OfficialLegacyMigrationCoordinator {
           );
         }
       }
-      row = dao.findById(row.migrationId)!;
+      row = _reload(dao, row);
       if (row.state == LegacyAnkiMigrationState.observing) {
         await saga.markLegacyShadowCleanupAfterRelease(
           migrationId: row.migrationId,
         );
       }
-      final completed = dao.findById(row.migrationId)!;
+      final completed = _reload(dao, row);
       return OfficialLegacyMigrationResult(
         outcome: OfficialLegacyMigrationOutcome.completed,
         migrationId: completed.migrationId,
