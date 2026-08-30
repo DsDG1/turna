@@ -13,7 +13,6 @@ use crate::engine::OP_IMPORT_PACKAGE;
 use crate::engine::OP_SEARCH_CARDS_PAGE;
 use crate::engine::OpenRequest;
 use serde_json::json;
-use serde_json::Value;
 
 /// Open a fresh engine on a throwaway collection. `tag` keeps the temp
 /// dirs disjoint between test modules (and the thread id keeps them
