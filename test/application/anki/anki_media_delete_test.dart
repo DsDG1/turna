@@ -203,72 +203,36 @@ void main() {
       expect(liveDir.existsSync(), isTrue);
     });
 
-    test('staged replacement can roll back to the exact old directory',
-        () async {
-      const importId = 'imp-swap-rollback';
-      final target = Directory(await resolver.getImportMediaPath(importId))
-        ..createSync(recursive: true);
-      File('${target.path}/old.mp3').writeAsStringSync('old');
-      final stagingId = AnkiAudioResolver.stagingImportId(importId);
-      final staging = Directory(
-        await resolver.getImportMediaPath(stagingId),
+    // The Legacy in-place re-import staging/swap API was deleted (doc 39
+    // P1-F); the sweep tests below reconstruct the on-disk `.__rollback__`
+    // crash state directly, the way an interrupted legacy swap would have
+    // left it, because sweepOrphanMedia still repairs those directories.
+    Directory makeRollbackDir(
+      String importId,
+      String incomingHash, {
+      bool withOldMedia = true,
+    }) {
+      final rollback = Directory(
+        '${Directory.systemTemp.path}/anki_media/$importId.__rollback__'
+        '${Uri.encodeComponent(incomingHash)}'
+        '.__generation__${DateTime.now().microsecondsSinceEpoch}',
       )..createSync(recursive: true);
-      File('${staging.path}/new.mp3').writeAsStringSync('new');
-
-      final receipt = await resolver.swapStagedMedia(
-        stagingImportId: stagingId,
-        targetImportId: importId,
-        sourceHash: 'hash-new',
-      );
-      expect(File('${target.path}/new.mp3').readAsStringSync(), 'new');
-      expect(File('${receipt.backupPath}/old.mp3').existsSync(), isTrue);
-
-      await resolver.rollbackMediaSwap(receipt);
-
-      expect(File('${target.path}/old.mp3').readAsStringSync(), 'old');
-      expect(File('${target.path}/new.mp3').existsSync(), isFalse);
-      expect(Directory(receipt.backupPath).existsSync(), isFalse);
-    });
-
-    test('staged replacement drops rollback copy only after commit', () async {
-      const importId = 'imp-swap-commit';
-      final target = Directory(await resolver.getImportMediaPath(importId))
-        ..createSync(recursive: true);
-      File('${target.path}/old.mp3').writeAsStringSync('old');
-      final stagingId = AnkiAudioResolver.stagingImportId(importId);
-      final staging = Directory(
-        await resolver.getImportMediaPath(stagingId),
-      )..createSync(recursive: true);
-      File('${staging.path}/new.mp3').writeAsStringSync('new');
-
-      final receipt = await resolver.swapStagedMedia(
-        stagingImportId: stagingId,
-        targetImportId: importId,
-        sourceHash: 'hash-new',
-      );
-      await resolver.finalizeMediaSwap(receipt);
-
-      expect(File('${target.path}/new.mp3').readAsStringSync(), 'new');
-      expect(File('${target.path}/old.mp3').existsSync(), isFalse);
-      expect(Directory(receipt.backupPath).existsSync(), isFalse);
-    });
+      if (withOldMedia) {
+        File('${rollback.path}/old.mp3').writeAsStringSync('old');
+      }
+      return rollback;
+    }
 
     test('startup sweep restores old media after a pre-commit process kill',
         () async {
       const importId = 'imp-swap-crash-rollback';
       final target = Directory(await resolver.getImportMediaPath(importId))
         ..createSync(recursive: true);
-      File('${target.path}/old.mp3').writeAsStringSync('old');
-      final stagingId = AnkiAudioResolver.stagingImportId(importId);
-      final staging = Directory(
-        await resolver.getImportMediaPath(stagingId),
-      )..createSync(recursive: true);
-      File('${staging.path}/new.mp3').writeAsStringSync('new');
-      await resolver.swapStagedMedia(
-        stagingImportId: stagingId,
-        targetImportId: importId,
-        sourceHash: 'hash-new',
-      );
+      // Post-kill on-disk state: the staged (new) media had already been
+      // swapped into the canonical directory, the old media sits in the
+      // rollback copy, and the DB commit never happened.
+      File('${target.path}/new.mp3').writeAsStringSync('new');
+      makeRollbackDir(importId, 'hash-new');
 
       await resolver.sweepOrphanMedia(
         (candidate) async => candidate == importId,
@@ -284,17 +248,8 @@ void main() {
       const importId = 'imp-swap-crash-commit';
       final target = Directory(await resolver.getImportMediaPath(importId))
         ..createSync(recursive: true);
-      File('${target.path}/old.mp3').writeAsStringSync('old');
-      final stagingId = AnkiAudioResolver.stagingImportId(importId);
-      final staging = Directory(
-        await resolver.getImportMediaPath(stagingId),
-      )..createSync(recursive: true);
-      File('${staging.path}/new.mp3').writeAsStringSync('new');
-      final receipt = await resolver.swapStagedMedia(
-        stagingImportId: stagingId,
-        targetImportId: importId,
-        sourceHash: 'hash-new',
-      );
+      File('${target.path}/new.mp3').writeAsStringSync('new');
+      final rollback = makeRollbackDir(importId, 'hash-new');
 
       await resolver.sweepOrphanMedia(
         (candidate) async => candidate == importId,
@@ -303,23 +258,17 @@ void main() {
 
       expect(File('${target.path}/new.mp3').readAsStringSync(), 'new');
       expect(File('${target.path}/old.mp3').existsSync(), isFalse);
-      expect(Directory(receipt.backupPath).existsSync(), isFalse);
+      expect(rollback.existsSync(), isFalse);
     });
 
     test('crash recovery handles an old import with no media directory',
         () async {
       const importId = 'imp-swap-crash-empty-old';
       final targetPath = await resolver.getImportMediaPath(importId);
-      final stagingId = AnkiAudioResolver.stagingImportId(importId);
-      final staging = Directory(
-        await resolver.getImportMediaPath(stagingId),
-      )..createSync(recursive: true);
-      File('${staging.path}/new.mp3').writeAsStringSync('new');
-      await resolver.swapStagedMedia(
-        stagingImportId: stagingId,
-        targetImportId: importId,
-        sourceHash: 'hash-new',
-      );
+      // No previous media: the legacy swap left an empty rollback directory
+      // as the durable crash marker.
+      final rollback = makeRollbackDir(importId, 'hash-new', withOldMedia: false);
+      expect(rollback.listSync(), isEmpty);
 
       await resolver.sweepOrphanMedia(
         (candidate) async => candidate == importId,

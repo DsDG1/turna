@@ -1,6 +1,4 @@
 // Package imports:
-import 'dart:isolate';
-
 import 'package:injectable/injectable.dart';
 import 'package:path/path.dart' as p;
 
@@ -29,29 +27,12 @@ class AnkiAudioResolver implements VocabAudioResolver {
 
   String? _cachedDocsDir;
 
-  /// Result of copying one import's media. `availableCount` includes files
-  /// that were already present, which keeps re-import diagnostics truthful.
-  Future<AnkiMediaCopyReport> copyMedia({
-    required String sourceDir,
-    required String importId,
-    required Map<String, String> mediaMapping,
-  }) async {
-    // Resolve the target directory here: getAnkiDocumentsPath goes through
-    // path_provider, which is only usable on the platform (main) isolate.
-    final targetDir = await getImportMediaPath(importId);
-    if (mediaMapping.isEmpty) {
-      platform.ankiCreateDirectory(targetDir);
-      return const AnkiMediaCopyReport();
-    }
-
-    // The copy loop is thousands of synchronous file I/O calls — running it
-    // on the main isolate froze the import screen's progress animation.
-    return Isolate.run(() => _copyMediaEntries(
-          sourceDir: sourceDir,
-          targetDir: targetDir,
-          mediaMapping: mediaMapping,
-        ));
-  }
+  // Doc 39 P1-F: the Legacy in-place re-import staging/swap family
+  // (copyMedia / stagingImportId / swapStagedMedia / rollbackMediaSwap /
+  // finalizeMediaSwap / copyMediaFiles / buildAssetPath) was deleted — its
+  // only caller was the Legacy re-import flow retired in doc 35 L1.
+  // [sweepOrphanMedia] still understands the on-disk `.__rollback__`
+  // directories that flow could leave behind after a process kill.
 
   /// Get the base media directory path.
   Future<String> getMediaBasePath() async {
@@ -64,96 +45,6 @@ class AnkiAudioResolver implements VocabAudioResolver {
   Future<String> getImportMediaPath(String importId) async {
     final base = await getMediaBasePath();
     return p.join(base, _mediaBaseDir, importId);
-  }
-
-  /// Allocate a private sibling directory for an in-place re-import.
-  ///
-  /// Cards continue to reference [importId]; only the copy target uses this
-  /// staging id until the database transaction is ready to commit.
-  static String stagingImportId(String importId) =>
-      '$importId.__staging__${DateTime.now().microsecondsSinceEpoch}';
-
-  /// Atomically replace [targetImportId]'s media directory with a completely
-  /// copied [stagingImportId] directory. The old directory remains available
-  /// through the returned receipt until the surrounding database transaction
-  /// commits, so a failure can restore it without mixing old and new files.
-  Future<AnkiMediaSwapReceipt> swapStagedMedia({
-    required String stagingImportId,
-    required String targetImportId,
-    required String sourceHash,
-  }) async {
-    final stagingPath = await getImportMediaPath(stagingImportId);
-    final targetPath = await getImportMediaPath(targetImportId);
-    final backupPath = '$targetPath$_rollbackSeparator'
-        '${Uri.encodeComponent(sourceHash)}$_rollbackGenerationSeparator'
-        '${DateTime.now().microsecondsSinceEpoch}';
-    if (!platform.ankiDirectoryExists(stagingPath)) {
-      throw StateError('staged Anki media directory is missing');
-    }
-
-    final hadPrevious = platform.ankiDirectoryExists(targetPath);
-    var previousMoved = false;
-    try {
-      if (hadPrevious) {
-        platform.ankiRenameDirectory(targetPath, backupPath);
-        previousMoved = true;
-      } else {
-        // An empty rollback directory is still a durable crash marker. It
-        // distinguishes "old import had no media" from "swap was committed".
-        platform.ankiCreateDirectory(backupPath);
-      }
-      platform.ankiRenameDirectory(stagingPath, targetPath);
-      return AnkiMediaSwapReceipt(
-        targetPath: targetPath,
-        backupPath: backupPath,
-        hadPrevious: hadPrevious,
-      );
-    } catch (_) {
-      if (previousMoved &&
-          !platform.ankiDirectoryExists(targetPath) &&
-          platform.ankiDirectoryExists(backupPath)) {
-        platform.ankiRenameDirectory(backupPath, targetPath);
-      } else if (!hadPrevious && platform.ankiDirectoryExists(backupPath)) {
-        platform.ankiDeleteDirectoryBestEffort(backupPath);
-      }
-      rethrow;
-    }
-  }
-
-  /// Restore the old directory after the enclosing database transaction
-  /// fails. The staged/new directory was never product-visible at this point.
-  Future<void> rollbackMediaSwap(AnkiMediaSwapReceipt receipt) async {
-    final failedPath =
-        '${receipt.targetPath}.__failed__${DateTime.now().microsecondsSinceEpoch}';
-    if (platform.ankiDirectoryExists(receipt.targetPath)) {
-      // Rename first so the canonical target name becomes available even if
-      // best-effort deletion later encounters a locked file.
-      platform.ankiRenameDirectory(receipt.targetPath, failedPath);
-    }
-    if (receipt.hadPrevious &&
-        platform.ankiDirectoryExists(receipt.backupPath) &&
-        !platform.ankiDirectoryExists(receipt.targetPath)) {
-      platform.ankiRenameDirectory(receipt.backupPath, receipt.targetPath);
-    } else if (!receipt.hadPrevious &&
-        platform.ankiDirectoryExists(receipt.backupPath)) {
-      platform.ankiDeleteDirectoryBestEffort(receipt.backupPath);
-    }
-    if (platform.ankiDirectoryExists(failedPath)) {
-      platform.ankiDeleteDirectoryBestEffort(failedPath);
-    }
-  }
-
-  /// Release the rollback copy after the database commit. Deletion is
-  /// best-effort: a locked old file is left for the normal orphan sweep.
-  Future<void> finalizeMediaSwap(AnkiMediaSwapReceipt receipt) async {
-    try {
-      if (platform.ankiDirectoryExists(receipt.backupPath)) {
-        platform.ankiDeleteDirectoryBestEffort(receipt.backupPath);
-      }
-    } catch (_) {
-      // The database and new canonical media are already committed. A locked
-      // rollback copy is owner-less and the normal orphan sweep will retry.
-    }
   }
 
   /// Resolve an Anki media reference to a local file path.
@@ -171,25 +62,6 @@ class AnkiAudioResolver implements VocabAudioResolver {
 
     if (platform.ankiFileExists(fullPath)) return fullPath;
     return null;
-  }
-
-  /// Copy media files from the extracted archive to the persistent directory.
-  ///
-  /// [sourceDir] is the temporary extraction directory.
-  /// [importId] is the import UUID.
-  /// [mediaMapping] maps numeric filenames to original names.
-  /// Returns the number of files copied.
-  Future<int> copyMediaFiles({
-    required String sourceDir,
-    required String importId,
-    required Map<String, String> mediaMapping,
-  }) async {
-    final report = await copyMedia(
-      sourceDir: sourceDir,
-      importId: importId,
-      mediaMapping: mediaMapping,
-    );
-    return report.availableCount;
   }
 
   /// Delete all media files for an import (used during deck uninstall).
@@ -287,26 +159,9 @@ class AnkiAudioResolver implements VocabAudioResolver {
     return swept;
   }
 
-  /// Build an `anki://` asset path for a media file.
-  static String buildAssetPath(String importId, String filename) {
-    return '$ankiScheme$importId/$filename';
-  }
-
   /// Check if an asset path is an Anki media reference.
   static bool isAnkiAsset(String? path) {
     return path != null && path.startsWith(ankiScheme);
-  }
-
-  static String? _safeRelativePath(String raw) {
-    final normalized = raw.replaceAll('\\', '/');
-    if (normalized.isEmpty ||
-        normalized.startsWith('/') ||
-        RegExp(r'^[A-Za-z]:').hasMatch(normalized)) {
-      return null;
-    }
-    final parts = normalized.split('/');
-    if (parts.any((part) => part.isEmpty || part == '..')) return null;
-    return parts.join(p.separator);
   }
 
   static bool _isWithin(String root, String candidate) {
@@ -327,79 +182,4 @@ class AnkiAudioResolver implements VocabAudioResolver {
     // handles it via resolveMediaPath() directly.
     return ResolvedVocabAudio(speakText: wordId);
   }
-}
-
-class AnkiMediaCopyReport {
-  final int availableCount;
-  final int missingCount;
-  final int failedCount;
-
-  const AnkiMediaCopyReport({
-    this.availableCount = 0,
-    this.missingCount = 0,
-    this.failedCount = 0,
-  });
-}
-
-class AnkiMediaSwapReceipt {
-  const AnkiMediaSwapReceipt({
-    required this.targetPath,
-    required this.backupPath,
-    required this.hadPrevious,
-  });
-
-  final String targetPath;
-  final String backupPath;
-  final bool hadPrevious;
-}
-
-/// Runs inside the [Isolate.run] spawned by [AnkiAudioResolver.copyMedia].
-/// Only receives and returns plain data, and touches pure `dart:io` platform
-/// helpers — no plugins, so it is isolate-safe.
-AnkiMediaCopyReport _copyMediaEntries({
-  required String sourceDir,
-  required String targetDir,
-  required Map<String, String> mediaMapping,
-}) {
-  platform.ankiCreateDirectory(targetDir);
-
-  var available = 0;
-  var missing = 0;
-  var failed = 0;
-  for (final entry in mediaMapping.entries) {
-    final numericName = AnkiAudioResolver._safeRelativePath(entry.key);
-    final originalName = AnkiAudioResolver._safeRelativePath(entry.value);
-    if (numericName == null || originalName == null) {
-      failed++;
-      continue;
-    }
-    final sourcePath = p.join(sourceDir, numericName);
-    if (!platform.ankiFileExists(sourcePath)) {
-      missing++;
-      continue;
-    }
-
-    final targetPath = p.join(targetDir, originalName);
-    if (!AnkiAudioResolver._isWithin(targetDir, targetPath)) {
-      failed++;
-      continue;
-    }
-    if (platform.ankiFileExists(targetPath)) {
-      available++;
-      continue;
-    }
-    try {
-      platform.ankiCreateDirectory(p.dirname(targetPath));
-      platform.ankiCopyFile(sourcePath, targetPath);
-      available++;
-    } catch (_) {
-      failed++;
-    }
-  }
-
-  return AnkiMediaCopyReport(
-    availableCount: available,
-    missingCount: missing,
-    failedCount: failed,
-  );
 }

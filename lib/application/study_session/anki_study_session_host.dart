@@ -1,7 +1,6 @@
 import 'package:turna/application/study_session/study_session_controller.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/anki/canonical_card_key.dart';
-import 'package:turna/domain/anki/card_introduction_state.dart';
 import 'package:turna/domain/anki/card_presentation.dart';
 import 'package:turna/domain/anki/presentation_receipt.dart';
 import 'package:turna/domain/anki/study_models.dart';
@@ -15,13 +14,11 @@ import 'package:turna/domain/review/recall_outcome.dart';
 class AnkiStudySessionHost {
   AnkiStudySessionHost({
     required this.resolver,
-    this.introductionRepository,
     this.onEffects,
     this.onEffectsUndone,
   });
 
   final StudyLedgerResolver resolver;
-  final CardIntroductionRepository? introductionRepository;
   final Future<void> Function(StudyItem item, StudyEventReceipt receipt)?
       onEffects;
   final Future<void> Function(StudyEventReceipt receipt)? onEffectsUndone;
@@ -149,7 +146,6 @@ class AnkiStudySessionHost {
       ledgerResolver: StudyLedgerResolver(
         official: officialLedger,
       ),
-      introductionRepository: introductionRepository,
       onEffects: onEffects,
       onEffectsUndone: onEffectsUndone,
     );
@@ -159,7 +155,6 @@ class AnkiStudySessionHost {
     return StudySessionController(
       items: items,
       ledgerResolver: resolver,
-      introductionRepository: introductionRepository,
       onEffects: onEffects,
       onEffectsUndone: onEffectsUndone,
     );

@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:turna/domain/anki/card_introduction_state.dart';
 import 'package:turna/domain/anki/objective_outcome.dart';
 import 'package:turna/domain/anki/presentation_receipt.dart';
 import 'package:turna/domain/anki/study_models.dart';
@@ -12,7 +11,6 @@ class StudySessionController extends ChangeNotifier {
   StudySessionController({
     required List<StudyItem> items,
     required this.ledgerResolver,
-    this.introductionRepository,
     this.onEffects,
     this.onEffectsUndone,
   }) : _items = List.unmodifiable(items);
@@ -24,7 +22,6 @@ class StudySessionController extends ChangeNotifier {
   List<StudyItem> get items => _items;
   List<StudyItem> _items;
   final StudyLedgerResolver ledgerResolver;
-  final CardIntroductionRepository? introductionRepository;
   final Future<void> Function(StudyItem item, StudyEventReceipt receipt)?
       onEffects;
   final Future<void> Function(StudyEventReceipt receipt)? onEffectsUndone;
@@ -200,19 +197,6 @@ class StudySessionController extends ChangeNotifier {
           reviewedAt: DateTime.now(),
         );
         _recordCounts(outcome);
-        if (item.capabilities.marksIntroduced &&
-            introductionRepository != null) {
-          try {
-            await introductionRepository!.markIntroduced(
-              item.courseId,
-              item.cardKey,
-              by: CardIntroducedBy.course,
-              lessonId: item.placementId,
-            );
-          } catch (error) {
-            pendingEffectError = error;
-          }
-        }
         if (onEffects != null) {
           try {
             await onEffects!(item, lastReceipt!);
@@ -242,20 +226,6 @@ class StudySessionController extends ChangeNotifier {
       lastReceipt = receipt;
       _undoneReceipt = null;
       _recordCounts(outcome);
-
-      if (item.capabilities.marksIntroduced &&
-          introductionRepository != null) {
-        try {
-          await introductionRepository!.markIntroduced(
-            item.courseId,
-            item.cardKey,
-            by: CardIntroducedBy.course,
-            lessonId: item.placementId,
-          );
-        } catch (error) {
-          pendingEffectError = error;
-        }
-      }
 
       if (onEffects != null) {
         try {

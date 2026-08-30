@@ -108,30 +108,6 @@ class AnkiUnificationDao {
     );
   }
 
-  Future<Set<CanonicalCardKey>> introducedKeys({
-    required String courseId,
-    required AnkiBackendKind backend,
-    required String profileId,
-  }) async {
-    final rows = await _db.customSelect(
-      '''
-      SELECT source_id, card_id
-      FROM anki_card_introduction_states
-      WHERE course_id = ? AND status = 'introduced'
-      ''',
-      variables: [Variable.withString(courseId)],
-    ).get();
-    return {
-      for (final row in rows)
-        CanonicalCardKey(
-          backend: backend,
-          profileId: profileId,
-          sourceId: row.read<String>('source_id'),
-          cardId: row.read<int>('card_id'),
-        ),
-    };
-  }
-
   /// Introduced card ids of one source, straight from the ledger. P1: this
   /// is the authoritative read for the scheduler lock (what may never be
   /// suspended) and for completion unlocking — neither depends on any
@@ -148,44 +124,6 @@ class AnkiUnificationDao {
       variables: [Variable.withString(sourceId)],
     ).get();
     return {for (final row in rows) row.read<int>('card_id')};
-  }
-
-  Future<int> countByStatus({
-    required String courseId,
-    required CardIntroductionStatus status,
-  }) async {
-    final rows = await _db.customSelect(
-      '''
-      SELECT COUNT(*) AS n
-      FROM anki_card_introduction_states
-      WHERE course_id = ? AND status = ?
-      ''',
-      variables: [
-        Variable.withString(courseId),
-        Variable.withString(status.name),
-      ],
-    ).get();
-    if (rows.isEmpty) return 0;
-    return rows.single.read<int>('n');
-  }
-
-  Future<int> countIntroducedForSource({
-    required String courseId,
-    required String sourceId,
-  }) async {
-    final rows = await _db.customSelect(
-      '''
-      SELECT COUNT(*) AS n
-      FROM anki_card_introduction_states
-      WHERE course_id = ? AND source_id = ? AND status = 'introduced'
-      ''',
-      variables: [
-        Variable.withString(courseId),
-        Variable.withString(sourceId),
-      ],
-    ).get();
-    if (rows.isEmpty) return 0;
-    return rows.single.read<int>('n');
   }
 
   /// Insert an initial row without clobbering a later introduced/retired state.
@@ -315,22 +253,6 @@ class AnkiUnificationDao {
         DateTime.now().millisecondsSinceEpoch,
       ],
     );
-  }
-
-  /// Remove only the rebuildable placement/presentation rows for a course.
-  /// Re-import uses this inside its enclosing transaction before inserting
-  /// the new source fingerprint. Introduction state and product events are
-  /// retained so replacing a package never erases learning history.
-  Future<void> deleteProjectionIdentityByCourseId(String courseId) async {
-    for (final table in const [
-      'anki_course_card_placements',
-      'anki_card_presentations',
-    ]) {
-      await _db.customStatement(
-        'DELETE FROM $table WHERE course_id = ?',
-        [courseId],
-      );
-    }
   }
 
   /// P5F-31: drop every unification row owned by [courseId] (official source
