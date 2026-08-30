@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:turna/application/anki_import/anki_import_view_helpers.dart';
+import 'package:turna/application/anki_import/official_import_error_messages.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/l10n/app_strings.dart';
 

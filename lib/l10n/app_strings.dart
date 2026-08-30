@@ -1464,6 +1464,27 @@ class AppStrings {
   static String get ankiCorruptDeck => '文件已损坏或不是有效的 Anki 牌组';
   static String get anki21bTreeDeferred => '已导入官方牌组；练习课稍后再生成';
   static String get ankiImportFailedHuman => '导入失败，请重试';
+  static String get ankiRecognitionBandReview => '建议确认';
+  static String get ankiRecognitionBandFallback => '需确认';
+  static String get ankiFieldRolePrompt => '正面';
+  static String get ankiFieldRoleResponse => '背面';
+  static String get ankiFieldRoleOptions => '选项';
+  static String get ankiFieldRoleAudio => '音频';
+  static String get ankiFieldRoleImage => '图片';
+  static String get ankiFieldRolePronunciation => '读音';
+  static String get ankiFieldRoleExample => '例句';
+  static String get ankiFieldRoleHint => '提示';
+  static String get ankiFieldRoleExtra => '补充';
+  static String get ankiFieldRoleUnit => '单元';
+  static String get ankiFieldRoleLesson => '课时';
+  static String get ankiFieldRoleIgnored => '未用';
+  static String get ankiFieldNameFront => '正面';
+  static String get ankiFieldNameBack => '背面';
+  static String get ankiFieldNameText => '正文';
+  static String get ankiFieldNameExtra => '补充';
+  static String get ankiFieldNameOcclusion => '遮挡图';
+  static String get ankiFieldNameImage => '图片';
+  static String get ankiFieldNameAudio => '音频';
   static String get ankiAdvancedFidelityTitle => 'Anki 保真 / 解密（仅旧版导入源）';
   static String get ankiAdvancedFidelitySubtitle => '仅旧版导入源生效';
 
