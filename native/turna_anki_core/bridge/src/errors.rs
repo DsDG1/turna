@@ -30,64 +30,55 @@ use crate::engine::STATUS_TYPED_FIELD_NOT_FOUND;
 use crate::engine::STATUS_UNDO_UNAVAILABLE;
 use crate::engine::STATUS_UNIMPLEMENTED;
 
+/// The single status surface: (wire status, stable code, human message
+/// key). `code_for_status` / `message_key_for_status` derive from this — a
+/// status without a message key falls back to `official_anki.backend_error`.
+const ERROR_TABLE: &[(i32, &str, Option<&str>)] = &[
+    (STATUS_UNIMPLEMENTED, "UNIMPLEMENTED", None),
+    (STATUS_INVALID_HANDLE, "INVALID_HANDLE", None),
+    (STATUS_INVALID_ARGUMENT, "INVALID_ARGUMENT", None),
+    (STATUS_BACKEND_PANIC, "BACKEND_PANIC", None),
+    (STATUS_INVALID_STATE, "INVALID_STATE", Some("official_anki.invalid_state")),
+    (STATUS_COLLECTION_ALREADY_OPEN, "COLLECTION_ALREADY_OPEN", None),
+    (STATUS_COLLECTION_LOCKED, "COLLECTION_LOCKED", None),
+    (STATUS_COLLECTION_OPEN_FAILED, "COLLECTION_OPEN_FAILED", None),
+    (STATUS_PACKAGE_NOT_FOUND, "PACKAGE_NOT_FOUND", Some("official_anki.package_not_found")),
+    (STATUS_PACKAGE_INVALID, "PACKAGE_INVALID", Some("official_anki.package_invalid")),
+    (STATUS_IMPORT_CANCELLED, "IMPORT_CANCELLED", Some("official_anki.import_cancelled")),
+    (STATUS_CARD_NOT_FOUND, "CARD_NOT_FOUND", Some("official_anki.card_not_found")),
+    (STATUS_RENDER_FAILED, "RENDER_FAILED", Some("official_anki.render_failed")),
+    (STATUS_QUEUE_EMPTY, "QUEUE_EMPTY", Some("official_anki.queue_empty")),
+    (STATUS_SCHEDULING_CONTEXT_STALE, "SCHEDULING_CONTEXT_STALE", Some("official_anki.scheduling_context_stale")),
+    (STATUS_ANSWER_FAILED, "ANSWER_FAILED", Some("official_anki.answer_failed")),
+    (STATUS_ANSWER_COMMIT_UNKNOWN, "ANSWER_COMMIT_UNKNOWN", Some("official_anki.answer_commit_unknown")),
+    (STATUS_UNDO_UNAVAILABLE, "UNDO_UNAVAILABLE", Some("official_anki.undo_unavailable")),
+    (STATUS_IO_ERROR, "IO_ERROR", None),
+    (STATUS_COLLECTION_CORRUPT, "COLLECTION_CORRUPT", None),
+    (STATUS_CONTRACT_VERSION_MISMATCH, "CONTRACT_VERSION_MISMATCH", Some("official_anki.contract_version_mismatch")),
+    (STATUS_PAGE_TOKEN_STALE, "PAGE_TOKEN_STALE", Some("official_anki.page_token_stale")),
+    (STATUS_TYPED_FIELD_NOT_FOUND, "TYPED_FIELD_NOT_FOUND", Some("official_anki.typed_field_not_found")),
+    (STATUS_TYPED_CLOZE_EMPTY, "TYPED_CLOZE_EMPTY", Some("official_anki.typed_cloze_empty")),
+    (STATUS_PROJECTION_SNAPSHOT_STALE, "PROJECTION_SNAPSHOT_STALE", Some("official_anki.projection_snapshot_stale")),
+    (STATUS_REDO_UNAVAILABLE, "REDO_UNAVAILABLE", Some("official_anki.redo_unavailable")),
+    (STATUS_DECK_NOT_FOUND, "DECK_NOT_FOUND", Some("official_anki.deck_not_found")),
+    (STATUS_SCHEDULER_BUSY, "SCHEDULER_BUSY", Some("official_anki.scheduler_busy")),
+    (STATUS_INTERNAL_ERROR, "INTERNAL_ERROR", None),
+];
+
 pub fn code_for_status(status: i32) -> &'static str {
-    match status {
-        STATUS_UNIMPLEMENTED => "UNIMPLEMENTED",
-        STATUS_INVALID_HANDLE => "INVALID_HANDLE",
-        STATUS_INVALID_ARGUMENT => "INVALID_ARGUMENT",
-        STATUS_BACKEND_PANIC => "BACKEND_PANIC",
-        STATUS_INVALID_STATE => "INVALID_STATE",
-        STATUS_COLLECTION_ALREADY_OPEN => "COLLECTION_ALREADY_OPEN",
-        STATUS_COLLECTION_LOCKED => "COLLECTION_LOCKED",
-        STATUS_COLLECTION_OPEN_FAILED => "COLLECTION_OPEN_FAILED",
-        STATUS_PACKAGE_NOT_FOUND => "PACKAGE_NOT_FOUND",
-        STATUS_PACKAGE_INVALID => "PACKAGE_INVALID",
-        STATUS_IMPORT_CANCELLED => "IMPORT_CANCELLED",
-        STATUS_CARD_NOT_FOUND => "CARD_NOT_FOUND",
-        STATUS_RENDER_FAILED => "RENDER_FAILED",
-        STATUS_QUEUE_EMPTY => "QUEUE_EMPTY",
-        STATUS_SCHEDULING_CONTEXT_STALE => "SCHEDULING_CONTEXT_STALE",
-        STATUS_ANSWER_FAILED => "ANSWER_FAILED",
-        STATUS_ANSWER_COMMIT_UNKNOWN => "ANSWER_COMMIT_UNKNOWN",
-        STATUS_UNDO_UNAVAILABLE => "UNDO_UNAVAILABLE",
-        STATUS_IO_ERROR => "IO_ERROR",
-        STATUS_COLLECTION_CORRUPT => "COLLECTION_CORRUPT",
-        STATUS_CONTRACT_VERSION_MISMATCH => "CONTRACT_VERSION_MISMATCH",
-        STATUS_PAGE_TOKEN_STALE => "PAGE_TOKEN_STALE",
-        STATUS_TYPED_FIELD_NOT_FOUND => "TYPED_FIELD_NOT_FOUND",
-        STATUS_TYPED_CLOZE_EMPTY => "TYPED_CLOZE_EMPTY",
-        STATUS_PROJECTION_SNAPSHOT_STALE => "PROJECTION_SNAPSHOT_STALE",
-        STATUS_REDO_UNAVAILABLE => "REDO_UNAVAILABLE",
-        STATUS_DECK_NOT_FOUND => "DECK_NOT_FOUND",
-        STATUS_SCHEDULER_BUSY => "SCHEDULER_BUSY",
-        STATUS_INTERNAL_ERROR => "INTERNAL_ERROR",
-        _ => "INTERNAL_ERROR",
-    }
+    ERROR_TABLE
+        .iter()
+        .find(|(s, _, _)| *s == status)
+        .map(|(_, code, _)| *code)
+        .unwrap_or("INTERNAL_ERROR")
 }
 
 pub fn message_key_for_status(status: i32) -> &'static str {
-    match status {
-        STATUS_PACKAGE_INVALID => "official_anki.package_invalid",
-        STATUS_PACKAGE_NOT_FOUND => "official_anki.package_not_found",
-        STATUS_IMPORT_CANCELLED => "official_anki.import_cancelled",
-        STATUS_CONTRACT_VERSION_MISMATCH => "official_anki.contract_version_mismatch",
-        STATUS_PAGE_TOKEN_STALE => "official_anki.page_token_stale",
-        STATUS_CARD_NOT_FOUND => "official_anki.card_not_found",
-        STATUS_RENDER_FAILED => "official_anki.render_failed",
-        STATUS_TYPED_FIELD_NOT_FOUND => "official_anki.typed_field_not_found",
-        STATUS_TYPED_CLOZE_EMPTY => "official_anki.typed_cloze_empty",
-        STATUS_PROJECTION_SNAPSHOT_STALE => "official_anki.projection_snapshot_stale",
-        STATUS_INVALID_STATE => "official_anki.invalid_state",
-        STATUS_QUEUE_EMPTY => "official_anki.queue_empty",
-        STATUS_SCHEDULING_CONTEXT_STALE => "official_anki.scheduling_context_stale",
-        STATUS_ANSWER_FAILED => "official_anki.answer_failed",
-        STATUS_ANSWER_COMMIT_UNKNOWN => "official_anki.answer_commit_unknown",
-        STATUS_UNDO_UNAVAILABLE => "official_anki.undo_unavailable",
-        STATUS_REDO_UNAVAILABLE => "official_anki.redo_unavailable",
-        STATUS_DECK_NOT_FOUND => "official_anki.deck_not_found",
-        STATUS_SCHEDULER_BUSY => "official_anki.scheduler_busy",
-        _ => "official_anki.backend_error",
-    }
+    ERROR_TABLE
+        .iter()
+        .find(|(s, _, _)| *s == status)
+        .and_then(|(_, _, key)| *key)
+        .unwrap_or("official_anki.backend_error")
 }
 
 pub fn recoverable(status: i32) -> bool {

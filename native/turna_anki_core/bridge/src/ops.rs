@@ -1292,7 +1292,7 @@ fn ensure_today_new_quota(handle: u64, request: &[u8]) -> Result<Value, i32> {
             did: parsed.deck_id,
         },
     )
-    .map_err(|_| STATUS_DECK_NOT_FOUND)?
+    .map_err(map_deck_counts_error)?
     .new as i64;
     let deck = col
         .get_deck(DeckId(parsed.deck_id))
@@ -1337,7 +1337,7 @@ fn counts_for_deck_today(handle: u64, request: &[u8]) -> Result<Value, i32> {
             did: parsed.deck_id,
         },
     )
-    .map_err(|_| STATUS_DECK_NOT_FOUND)?;
+    .map_err(map_deck_counts_error)?;
     Ok(json!({
         "deckId": parsed.deck_id,
         "new": counts.new,
@@ -1412,6 +1412,17 @@ pub(crate) fn map_anki_error(err: AnkiError) -> i32 {
         AnkiError::DbError { .. } => STATUS_COLLECTION_CORRUPT,
         AnkiError::CollectionNotOpen => STATUS_INVALID_STATE,
         _ => STATUS_INTERNAL_ERROR,
+    }
+}
+
+/// `counts_for_deck_today` reports a missing deck as rslib's NotFound;
+/// route that to DECK_NOT_FOUND and everything else through map_anki_error.
+/// The previous blanket `|_| STATUS_DECK_NOT_FOUND` mislabeled DB failures
+/// as "deck not found" (doc 39 F4).
+fn map_deck_counts_error(err: AnkiError) -> i32 {
+    match err {
+        AnkiError::NotFound { .. } => STATUS_DECK_NOT_FOUND,
+        err => map_anki_error(err),
     }
 }
 
@@ -2733,32 +2744,10 @@ mod tests {
     fn engine_info_capabilities_include_render_ops() {
         let info = crate::contract::engine_info_payload();
         let caps = info["capabilities"].as_array().unwrap();
-        for name in [
-            "RENDER_CARD",
-            "COMPARE_TYPED_ANSWER",
-            "EXTRACT_CLOZE_FOR_TYPING",
-            "GET_PROJECTION_SCHEMAS",
-            "BEGIN_PROJECTION_READ",
-            "GET_PROJECTION_ROWS_BATCH",
-            "LIST_DECK_TREE",
-            "GET_REVIEW_QUEUE",
-            "ANSWER_CARD",
-            "REDO",
-            "BURY_OR_SUSPEND_CARDS",
-            "COUNTS_FOR_DECK_TODAY",
-            "CONGRATS_INFO",
-            "DELETE_NOTES",
-            "DELETE_CARDS",
-            "STATS_FOR_CARDS_BATCH",
-            "SCHEDULE_CARDS_AS_NEW",
-            "ANSWER_AHEAD_CARDS",
-            "ENSURE_TODAY_NEW_QUOTA",
-        ] {
-            assert!(
-                caps.iter().any(|c| c.as_str() == Some(name)),
-                "missing {name} in {caps:?}"
-            );
-        }
+        // OP_TABLE drives the advertisement and the golden fixture pins the
+        // full order in contract.rs tests; here only the count and the minor
+        // pin remain as tripwires.
+        assert_eq!(caps.len(), 35, "capabilities count drifted");
         assert_eq!(info["contractMinor"], 10);
     }
 

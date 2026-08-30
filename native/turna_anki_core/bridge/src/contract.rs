@@ -101,48 +101,13 @@ pub fn engine_meta() -> EngineMeta {
 }
 
 pub fn engine_info_payload() -> Value {
+    let capabilities: Vec<&str> = OP_TABLE.iter().map(|(name, _)| *name).collect();
     json!({
         "abiVersion": crate::TURNA_ANKI_ABI_VERSION,
         "backendCommit": backend_commit(),
         "contractMajor": CONTRACT_MAJOR,
         "contractMinor": CONTRACT_MINOR,
-        "capabilities": [
-            "ENGINE_INFO",
-            "OPEN_COLLECTION",
-            "CLOSE_COLLECTION",
-            "CHECK_COLLECTION",
-            "CREATE_BACKUP",
-            "RESTORE_BACKUP",
-            "IMPORT_PACKAGE",
-            "LATEST_PROGRESS",
-            "CANCEL_OPERATION",
-            "LIST_DECK_TREE",
-            "SEARCH_CARDS_PAGE",
-            "GET_NOTE_CARDS_BATCH",
-            "GET_CARD_DESCRIPTORS_BATCH",
-            "RENDER_CARD",
-            "COMPARE_TYPED_ANSWER",
-            "EXTRACT_CLOZE_FOR_TYPING",
-            "GET_PROJECTION_SCHEMAS",
-            "BEGIN_PROJECTION_READ",
-            "GET_PROJECTION_ROWS_BATCH",
-            "SET_CURRENT_DECK",
-            "GET_REVIEW_QUEUE",
-            "DESCRIBE_NEXT_STATES",
-            "ANSWER_CARD",
-            "GET_UNDO_STATUS",
-            "UNDO",
-            "REDO",
-            "BURY_OR_SUSPEND_CARDS",
-            "COUNTS_FOR_DECK_TODAY",
-            "CONGRATS_INFO",
-            "DELETE_NOTES",
-            "DELETE_CARDS",
-            "STATS_FOR_CARDS_BATCH",
-            "SCHEDULE_CARDS_AS_NEW",
-            "ANSWER_AHEAD_CARDS",
-            "ENSURE_TODAY_NEW_QUOTA"
-        ],
+        "capabilities": capabilities,
     })
 }
 
@@ -177,45 +142,53 @@ pub fn encode_err(request_id: &str, status: i32, started: Instant) -> Value {
     .expect("envelope is serializable")
 }
 
+/// The single operation surface: (name, numeric id) in the exact order the
+/// capabilities list is advertised. The golden fixture is order-sensitive,
+/// so keep every addition appended here — `operation_name_to_id` and
+/// `engine_info_payload` both derive from this table.
+const OP_TABLE: &[(&str, u32)] = &[
+    ("ENGINE_INFO", OP_ENGINE_INFO),
+    ("OPEN_COLLECTION", engine::OP_OPEN_COLLECTION),
+    ("CLOSE_COLLECTION", engine::OP_CLOSE_COLLECTION),
+    ("CHECK_COLLECTION", engine::OP_CHECK_COLLECTION),
+    ("CREATE_BACKUP", engine::OP_CREATE_BACKUP),
+    ("RESTORE_BACKUP", engine::OP_RESTORE_BACKUP),
+    ("IMPORT_PACKAGE", engine::OP_IMPORT_PACKAGE),
+    ("LATEST_PROGRESS", engine::OP_LATEST_PROGRESS),
+    ("CANCEL_OPERATION", engine::OP_CANCEL_OPERATION),
+    ("LIST_DECK_TREE", engine::OP_LIST_DECK_TREE),
+    ("SEARCH_CARDS_PAGE", engine::OP_SEARCH_CARDS_PAGE),
+    ("GET_NOTE_CARDS_BATCH", engine::OP_GET_NOTE_CARDS_BATCH),
+    ("GET_CARD_DESCRIPTORS_BATCH", engine::OP_GET_CARD_DESCRIPTORS_BATCH),
+    ("RENDER_CARD", engine::OP_RENDER_CARD),
+    ("COMPARE_TYPED_ANSWER", engine::OP_COMPARE_TYPED_ANSWER),
+    ("EXTRACT_CLOZE_FOR_TYPING", engine::OP_EXTRACT_CLOZE_FOR_TYPING),
+    ("GET_PROJECTION_SCHEMAS", engine::OP_GET_PROJECTION_SCHEMAS),
+    ("BEGIN_PROJECTION_READ", engine::OP_BEGIN_PROJECTION_READ),
+    ("GET_PROJECTION_ROWS_BATCH", engine::OP_GET_PROJECTION_ROWS_BATCH),
+    ("SET_CURRENT_DECK", engine::OP_SET_CURRENT_DECK),
+    ("GET_REVIEW_QUEUE", engine::OP_GET_REVIEW_QUEUE),
+    ("DESCRIBE_NEXT_STATES", engine::OP_DESCRIBE_NEXT_STATES),
+    ("ANSWER_CARD", engine::OP_ANSWER_CARD),
+    ("GET_UNDO_STATUS", engine::OP_GET_UNDO_STATUS),
+    ("UNDO", engine::OP_UNDO),
+    ("REDO", engine::OP_REDO),
+    ("BURY_OR_SUSPEND_CARDS", engine::OP_BURY_OR_SUSPEND_CARDS),
+    ("COUNTS_FOR_DECK_TODAY", engine::OP_COUNTS_FOR_DECK_TODAY),
+    ("CONGRATS_INFO", engine::OP_CONGRATS_INFO),
+    ("DELETE_NOTES", engine::OP_DELETE_NOTES),
+    ("DELETE_CARDS", engine::OP_DELETE_CARDS),
+    ("STATS_FOR_CARDS_BATCH", engine::OP_STATS_FOR_CARDS_BATCH),
+    ("SCHEDULE_CARDS_AS_NEW", engine::OP_SCHEDULE_CARDS_AS_NEW),
+    ("ANSWER_AHEAD_CARDS", engine::OP_ANSWER_AHEAD_CARDS),
+    ("ENSURE_TODAY_NEW_QUOTA", engine::OP_ENSURE_TODAY_NEW_QUOTA),
+];
+
 fn operation_name_to_id(name: &str) -> Option<u32> {
-    match name {
-        "ENGINE_INFO" => Some(OP_ENGINE_INFO),
-        "OPEN_COLLECTION" => Some(engine::OP_OPEN_COLLECTION),
-        "CLOSE_COLLECTION" => Some(engine::OP_CLOSE_COLLECTION),
-        "CHECK_COLLECTION" => Some(engine::OP_CHECK_COLLECTION),
-        "CREATE_BACKUP" => Some(engine::OP_CREATE_BACKUP),
-        "IMPORT_PACKAGE" => Some(engine::OP_IMPORT_PACKAGE),
-        "LATEST_PROGRESS" => Some(engine::OP_LATEST_PROGRESS),
-        "CANCEL_OPERATION" => Some(engine::OP_CANCEL_OPERATION),
-        "LIST_DECK_TREE" => Some(engine::OP_LIST_DECK_TREE),
-        "SEARCH_CARDS_PAGE" => Some(engine::OP_SEARCH_CARDS_PAGE),
-        "GET_NOTE_CARDS_BATCH" => Some(engine::OP_GET_NOTE_CARDS_BATCH),
-        "GET_CARD_DESCRIPTORS_BATCH" => Some(engine::OP_GET_CARD_DESCRIPTORS_BATCH),
-        "RESTORE_BACKUP" => Some(engine::OP_RESTORE_BACKUP),
-        "RENDER_CARD" => Some(engine::OP_RENDER_CARD),
-        "COMPARE_TYPED_ANSWER" => Some(engine::OP_COMPARE_TYPED_ANSWER),
-        "EXTRACT_CLOZE_FOR_TYPING" => Some(engine::OP_EXTRACT_CLOZE_FOR_TYPING),
-        "GET_PROJECTION_SCHEMAS" => Some(engine::OP_GET_PROJECTION_SCHEMAS),
-        "BEGIN_PROJECTION_READ" => Some(engine::OP_BEGIN_PROJECTION_READ),
-        "GET_PROJECTION_ROWS_BATCH" => Some(engine::OP_GET_PROJECTION_ROWS_BATCH),
-        "SET_CURRENT_DECK" => Some(engine::OP_SET_CURRENT_DECK),
-        "GET_REVIEW_QUEUE" => Some(engine::OP_GET_REVIEW_QUEUE),
-        "DESCRIBE_NEXT_STATES" => Some(engine::OP_DESCRIBE_NEXT_STATES),
-        "ANSWER_CARD" => Some(engine::OP_ANSWER_CARD),
-        "GET_UNDO_STATUS" => Some(engine::OP_GET_UNDO_STATUS),
-        "UNDO" => Some(engine::OP_UNDO),
-        "REDO" => Some(engine::OP_REDO),
-        "BURY_OR_SUSPEND_CARDS" => Some(engine::OP_BURY_OR_SUSPEND_CARDS),
-        "COUNTS_FOR_DECK_TODAY" => Some(engine::OP_COUNTS_FOR_DECK_TODAY),
-        "CONGRATS_INFO" => Some(engine::OP_CONGRATS_INFO),
-        "DELETE_NOTES" => Some(engine::OP_DELETE_NOTES),
-        "DELETE_CARDS" => Some(engine::OP_DELETE_CARDS),
-        "STATS_FOR_CARDS_BATCH" => Some(engine::OP_STATS_FOR_CARDS_BATCH),
-        "SCHEDULE_CARDS_AS_NEW" => Some(engine::OP_SCHEDULE_CARDS_AS_NEW),
-        "ANSWER_AHEAD_CARDS" => Some(engine::OP_ANSWER_AHEAD_CARDS),
-        "ENSURE_TODAY_NEW_QUOTA" => Some(engine::OP_ENSURE_TODAY_NEW_QUOTA),
-        _ => None,
-    }
+    OP_TABLE
+        .iter()
+        .find(|(op_name, _)| *op_name == name)
+        .map(|(_, id)| *id)
 }
 
 fn payload_bytes(payload: &Value) -> Result<Vec<u8>, i32> {
@@ -419,6 +392,26 @@ mod tests {
         assert_eq!(response["ok"], false);
         assert_eq!(response["error"]["code"], "CONTRACT_VERSION_MISMATCH");
         assert_eq!(response["requestId"], "req-major");
+    }
+
+    /// Full-set closure: the advertised capabilities are generated from
+    /// OP_TABLE, so this pins the golden fixture to the same order — a
+    /// capabilities/fixture drift now fails here instead of at the host.
+    #[test]
+    fn capabilities_match_golden_fixture_exactly() {
+        let golden = load_json("response_engine_info.json");
+        let golden_caps = golden["payload"]["capabilities"]
+            .as_array()
+            .expect("golden capabilities array");
+        let golden_names: Vec<&str> = golden_caps
+            .iter()
+            .map(|v| v.as_str().expect("capability is a string"))
+            .collect();
+        let table_names: Vec<&str> = OP_TABLE.iter().map(|(name, _)| *name).collect();
+        assert_eq!(golden_names, table_names);
+        for (name, id) in OP_TABLE {
+            assert_eq!(operation_name_to_id(name), Some(*id), "{name}");
+        }
     }
 
     #[test]
