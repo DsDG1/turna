@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/anki_import/anki_import_controller.dart';
+import 'package:turna/application/anki_import/anki_import_completion_coordinator.dart';
 import 'package:turna/application/anki_import/anki_import_dependencies.dart';
 import 'package:turna/application/anki_import/anki_import_wizard_state.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
@@ -197,18 +198,8 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          if (parsing.progress > 0)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 60),
-              child: LinearProgressIndicator(
-                value: parsing.progress,
-                backgroundColor: TurnaTheme.brandTeal.withValues(alpha: 0.1),
-                valueColor:
-                    const AlwaysStoppedAnimation<Color>(TurnaTheme.brandTeal),
-              ),
-            )
-          else
-            const CircularProgressIndicator(),
+          // Doc 39 P5: the never-non-zero progress bar died with the field.
+          const CircularProgressIndicator(),
           const SizedBox(height: 24),
           Text(
             AppStrings.ankiParsing,
@@ -252,18 +243,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          if (committing.progress > 0)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 60),
-              child: LinearProgressIndicator(
-                value: committing.progress,
-                backgroundColor: TurnaTheme.brandTeal.withValues(alpha: 0.1),
-                valueColor:
-                    const AlwaysStoppedAnimation<Color>(TurnaTheme.brandTeal),
-              ),
-            )
-          else
-            const CircularProgressIndicator(),
+          const CircularProgressIndicator(),
           const SizedBox(height: 24),
           Text(
             committing.message.isEmpty
@@ -369,7 +349,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     final importId = controllerCompletedImportId(controller);
     if (importId != null) {
       final courseProvider = context.read<CourseProvider>();
-      final wire = wireKeyForImportId(controller, importId, courseProvider);
+      final wire = ankiImportWireKeyFor(courseProvider, importId);
       if (wire != null) {
         await courseProvider.setCourseScope(wire);
       }
@@ -383,10 +363,9 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     final importId = controllerCompletedImportId(controller);
     String? highlight;
     if (importId != null) {
-      highlight = wireKeyForImportId(
-        controller,
-        importId,
+      highlight = ankiImportWireKeyFor(
         context.read<CourseProvider>(),
+        importId,
       );
     }
     await context.router.push(CourseManagementRoute(highlightWire: highlight));
@@ -402,16 +381,4 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     return null;
   }
 
-  String? wireKeyForImportId(
-    AnkiImportController controller,
-    String id,
-    CourseProvider courseProvider,
-  ) {
-    for (final entry in courseProvider.catalogEntries) {
-      if (entry.legacyImportId == id || entry.officialSourceId == id) {
-        return entry.wireKey;
-      }
-    }
-    return null;
-  }
 }

@@ -21,22 +21,21 @@ class OfficialAnkiRecoveryDecision {
   final OfficialAnkiSourceState state;
 }
 
+/// Doc 39 P5: the five never-produced values (`hashing`, `cancelRequested`,
+/// `failedAfterImport`, `recovering`, `rolledBack`) were deleted. Old rows
+/// on disk carrying those strings parse through the `orElse` fallback to
+/// `needsReconciliation`; the attempt-table CHECK constraint is untouched.
 enum OfficialAnkiSourceState {
   selected,
-  hashing,
   preparing,
   backingUp,
   importingOfficial,
   indexingNotes,
   indexingCards,
   active,
-  cancelRequested,
   cancelled,
   failedBeforeImport,
-  failedAfterImport,
   needsReconciliation,
-  recovering,
-  rolledBack,
 }
 
 extension OfficialAnkiSourceStateWire on OfficialAnkiSourceState {
@@ -44,8 +43,6 @@ extension OfficialAnkiSourceStateWire on OfficialAnkiSourceState {
     switch (this) {
       case OfficialAnkiSourceState.selected:
         return 'selected';
-      case OfficialAnkiSourceState.hashing:
-        return 'hashing';
       case OfficialAnkiSourceState.preparing:
         return 'preparing';
       case OfficialAnkiSourceState.backingUp:
@@ -58,20 +55,12 @@ extension OfficialAnkiSourceStateWire on OfficialAnkiSourceState {
         return 'indexing_cards';
       case OfficialAnkiSourceState.active:
         return 'active';
-      case OfficialAnkiSourceState.cancelRequested:
-        return 'cancel_requested';
       case OfficialAnkiSourceState.cancelled:
         return 'cancelled';
       case OfficialAnkiSourceState.failedBeforeImport:
         return 'failed_before_import';
-      case OfficialAnkiSourceState.failedAfterImport:
-        return 'failed_after_import';
       case OfficialAnkiSourceState.needsReconciliation:
         return 'needs_reconciliation';
-      case OfficialAnkiSourceState.recovering:
-        return 'recovering';
-      case OfficialAnkiSourceState.rolledBack:
-        return 'rolled_back';
     }
   }
 
@@ -86,8 +75,6 @@ extension OfficialAnkiSourceStateWire on OfficialAnkiSourceState {
       this == OfficialAnkiSourceState.active ||
       this == OfficialAnkiSourceState.cancelled ||
       this == OfficialAnkiSourceState.failedBeforeImport ||
-      this == OfficialAnkiSourceState.failedAfterImport ||
-      this == OfficialAnkiSourceState.rolledBack ||
       this == OfficialAnkiSourceState.needsReconciliation;
 
   bool get isActive => this == OfficialAnkiSourceState.active;
@@ -103,8 +90,7 @@ OfficialAnkiRecoveryDecision decideOfficialAnkiRecovery(
       state: OfficialAnkiSourceState.active,
     );
   }
-  if (state == OfficialAnkiSourceState.hashing ||
-      state == OfficialAnkiSourceState.selected ||
+  if (state == OfficialAnkiSourceState.selected ||
       state == OfficialAnkiSourceState.preparing ||
       state == OfficialAnkiSourceState.backingUp) {
     return const OfficialAnkiRecoveryDecision(
@@ -123,15 +109,12 @@ OfficialAnkiRecoveryDecision decideOfficialAnkiRecovery(
       state == OfficialAnkiSourceState.indexingCards ||
       (state == OfficialAnkiSourceState.importingOfficial &&
           attempt.hasImportedNotes)) {
+    // The decision `state` is only read on the leave path; resume reports
+    // whatever resumeIndexing lands on (the `recovering` value it used to
+    // carry was write-only and was deleted with the other dead states).
     return const OfficialAnkiRecoveryDecision(
       action: OfficialAnkiRecoveryAction.resume,
-      state: OfficialAnkiSourceState.recovering,
-    );
-  }
-  if (state == OfficialAnkiSourceState.cancelRequested) {
-    return const OfficialAnkiRecoveryDecision(
-      action: OfficialAnkiRecoveryAction.leave,
-      state: OfficialAnkiSourceState.cancelled,
+      state: OfficialAnkiSourceState.indexingCards,
     );
   }
   return const OfficialAnkiRecoveryDecision(

@@ -398,13 +398,9 @@ class DoneGroup extends StatelessWidget {
 /// Single-line learning-progress summary on the done step.
 class LearningProgressBadge extends StatelessWidget {
   final bool kept;
-  final bool hasScheduling;
-  final bool hasReviewHistory;
   const LearningProgressBadge({
     super.key,
     required this.kept,
-    required this.hasScheduling,
-    required this.hasReviewHistory,
   });
 
   @override
@@ -416,23 +412,12 @@ class LearningProgressBadge extends StatelessWidget {
         text: AppStrings.ankiDoneProgressReset,
       );
     }
-    if (!hasScheduling && !hasReviewHistory) {
-      return Badge(
-        icon: Icons.check_circle_outline,
-        color: TurnaTheme.textHintColor(context),
-        text: '已导入',
-      );
-    }
-    return Row(
-      children: [
-        Expanded(
-          child: Badge(
-            icon: Icons.check_circle_outline,
-            color: TurnaTheme.brandTeal,
-            text: AppStrings.ankiDoneProgressKept,
-          ),
-        ),
-      ],
+    // Doc 39 P5: official-first has no carried-over scheduling/history, so
+    // the reset/imported pair is the whole badge now.
+    return Badge(
+      icon: Icons.check_circle_outline,
+      color: TurnaTheme.textHintColor(context),
+      text: '已导入',
     );
   }
 }

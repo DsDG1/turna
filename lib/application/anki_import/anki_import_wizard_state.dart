@@ -5,6 +5,12 @@ import 'package:turna/application/anki_official/projection/official_anki_project
 
 /// Summary of a completed Anki import (legacy parser-era shape retained:
 /// the official flow fills the same fields for the done step).
+/// Doc 39 P5: the ten Legacy-parser-era fields (structuredCardCount,
+/// fidelityCardCount, unknownTemplateCount, suspendedCardCount,
+/// buriedCardCount, hasScheduling, hasReviewHistory, missingMediaCount,
+/// failedMediaCount, platformDowngrades) were deleted — the official-first
+/// flow never filled them, so every read was a constant default. The
+/// zero-caller copyWith went with them.
 class AnkiImportSummary {
   final String importId;
   final int sectionCount;
@@ -13,16 +19,6 @@ class AnkiImportSummary {
   final int cardCount;
   final int wordEntryCount;
   final int sourceCardCount;
-  final int structuredCardCount;
-  final int fidelityCardCount;
-  final int unknownTemplateCount;
-  final int suspendedCardCount;
-  final int buriedCardCount;
-  final bool hasScheduling;
-  final bool hasReviewHistory;
-  final int missingMediaCount;
-  final int failedMediaCount;
-  final List<String> platformDowngrades;
 
   const AnkiImportSummary({
     required this.importId,
@@ -32,41 +28,7 @@ class AnkiImportSummary {
     required this.cardCount,
     required this.wordEntryCount,
     this.sourceCardCount = 0,
-    this.structuredCardCount = 0,
-    this.fidelityCardCount = 0,
-    this.unknownTemplateCount = 0,
-    this.suspendedCardCount = 0,
-    this.buriedCardCount = 0,
-    this.hasScheduling = false,
-    this.hasReviewHistory = false,
-    this.missingMediaCount = 0,
-    this.failedMediaCount = 0,
-    this.platformDowngrades = const [],
   });
-
-  AnkiImportSummary copyWith({
-    int? missingMediaCount,
-    int? failedMediaCount,
-  }) =>
-      AnkiImportSummary(
-        importId: importId,
-        sectionCount: sectionCount,
-        unitCount: unitCount,
-        lessonCount: lessonCount,
-        cardCount: cardCount,
-        wordEntryCount: wordEntryCount,
-        sourceCardCount: sourceCardCount,
-        structuredCardCount: structuredCardCount,
-        fidelityCardCount: fidelityCardCount,
-        unknownTemplateCount: unknownTemplateCount,
-        suspendedCardCount: suspendedCardCount,
-        buriedCardCount: buriedCardCount,
-        hasScheduling: hasScheduling,
-        hasReviewHistory: hasReviewHistory,
-        missingMediaCount: missingMediaCount ?? this.missingMediaCount,
-        failedMediaCount: failedMediaCount ?? this.failedMediaCount,
-        platformDowngrades: platformDowngrades,
-      );
 }
 
 /// Sealed wizard state (maintainability plan §10.3). Every step is a
@@ -93,20 +55,17 @@ final class AnkiImportSelecting extends AnkiImportWizardState {
 /// active; a cancel request is visible to the flow through the
 /// controller.
 final class AnkiImportParsing extends AnkiImportWizardState {
-  const AnkiImportParsing({
-    this.progress = 0,
-    this.message = '',
-  });
+  const AnkiImportParsing({this.message = ''});
 
-  final double progress;
   final String message;
 
   @override
   int get step => 1;
 
-  AnkiImportParsing copyWith({double? progress, String? message}) =>
-      AnkiImportParsing(
-        progress: progress ?? this.progress,
+  // Doc 39 P5: the never-non-zero `progress` field went away — the
+  // official flow never reports fractional progress.
+
+  AnkiImportParsing copyWith({String? message}) => AnkiImportParsing(
         message: message ?? this.message,
       );
 }
@@ -114,20 +73,14 @@ final class AnkiImportParsing extends AnkiImportWizardState {
 /// Committing the official flow. Constructing this twice from the same
 /// preview is impossible at the API level (commit is single-flight).
 final class AnkiImportCommitting extends AnkiImportWizardState {
-  const AnkiImportCommitting({
-    this.progress = 0,
-    this.message = '',
-  });
+  const AnkiImportCommitting({this.message = ''});
 
-  final double progress;
   final String message;
 
   @override
   int get step => 3;
 
-  AnkiImportCommitting copyWith({double? progress, String? message}) =>
-      AnkiImportCommitting(
-        progress: progress ?? this.progress,
+  AnkiImportCommitting copyWith({String? message}) => AnkiImportCommitting(
         message: message ?? this.message,
       );
 }

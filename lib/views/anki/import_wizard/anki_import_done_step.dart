@@ -93,38 +93,11 @@ class AnkiImportDoneStep extends StatelessWidget {
                 ],
               ),
             ],
-            // Status notes: only show non-zero warnings so a clean import
-            // does not list "0 missing media" / "0 buried" etc.
-            if (summary.unknownTemplateCount > 0 ||
-                summary.suspendedCardCount > 0 ||
-                summary.buriedCardCount > 0 ||
-                summary.missingMediaCount > 0 ||
-                summary.failedMediaCount > 0) ...[
-              const SizedBox(height: 12),
-              DoneGroup(
-                title: AppStrings.ankiDoneGroupStatus,
-                rows: [
-                  if (summary.unknownTemplateCount > 0)
-                    AppStrings.ankiImportUnknownTemplates(
-                        summary.unknownTemplateCount),
-                  if (summary.suspendedCardCount > 0)
-                    AppStrings.ankiImportSuspended(
-                        summary.suspendedCardCount),
-                  if (summary.buriedCardCount > 0)
-                    AppStrings.ankiImportBuried(summary.buriedCardCount),
-                  if (summary.missingMediaCount > 0 ||
-                      summary.failedMediaCount > 0)
-                    AppStrings.ankiImportMissingMedia(
-                        summary.missingMediaCount + summary.failedMediaCount),
-                ],
-              ),
-            ],
+            // Doc 39 P5: the status-notes block only rendered for the
+            // Legacy-parser counters, which official-first never filled —
+            // every condition was constant-false and went with the fields.
             const SizedBox(height: 12),
-            LearningProgressBadge(
-              kept: keptLearningProgress,
-              hasScheduling: summary.hasScheduling,
-              hasReviewHistory: summary.hasReviewHistory,
-            ),
+            LearningProgressBadge(kept: keptLearningProgress),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: onStartLearningNow,
