@@ -3,7 +3,6 @@ import 'package:turna/application/anki_import/official_import_error_messages.dar
 import 'package:turna/application/anki_import/anki_import_completion_coordinator.dart';
 import 'package:turna/application/anki_import/anki_import_dependencies.dart';
 import 'package:turna/application/anki_import/anki_import_wizard_state.dart';
-import 'package:turna/application/anki_import/official_first_anki_import_flow.dart';
 import 'package:turna/application/anki_import/recognition/official_recognition_triage.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
@@ -17,6 +16,16 @@ import 'package:turna/utils/validated_file_picker.dart';
 /// `.colpkg` is unsupported until an Official backend exists (doc 34 W4-08).
 const List<String> kAnkiImportExtensions = ['apkg'];
 
+class _OfficialFirstCommitResult {
+  const _OfficialFirstCommitResult({
+    required this.summary,
+    required this.needsMapping,
+  });
+
+  final AnkiImportSummary summary;
+  final bool needsMapping;
+}
+
 /// Wizard state-machine owner (maintainability plan §10.1/§10.2).
 ///
 /// The page renders [state] and forwards user intents here; every long
@@ -24,12 +33,9 @@ const List<String> kAnkiImportExtensions = ['apkg'];
 /// a stale async result from an abandoned pick can never overwrite the
 /// user's next selection.
 class AnkiImportController extends ChangeNotifier {
-  AnkiImportController({required AnkiImportDependencies deps})
-      : _deps = deps,
-        officialFlow = OfficialFirstAnkiImportFlow(deps);
+  AnkiImportController({required AnkiImportDependencies deps}) : _deps = deps;
 
   final AnkiImportDependencies _deps;
-  final OfficialFirstAnkiImportFlow officialFlow;
   final completion = const AnkiImportCompletionCoordinator();
 
   AnkiImportWizardState _state = const AnkiImportSelecting();
@@ -120,7 +126,7 @@ class AnkiImportController extends ChangeNotifier {
     int op,
   ) async {
     try {
-      final preview = await officialFlow.importThenPreview(path, plan: plan);
+      final preview = await _importThenPreview(path, plan: plan);
       if (_stale(op)) return;
       _emit(AnkiImportPreviewing(preview: preview));
     } on OfficialAnkiException catch (error) {
@@ -195,7 +201,7 @@ class AnkiImportController extends ChangeNotifier {
     try {
       switch (preview) {
         case OfficialAnkiImportPreviewModel():
-          final result = await officialFlow.commit(preview);
+          final result = await _commitOfficial(preview);
           if (_stale(op)) return;
           if (result.needsMapping) {
             _committingPlan = null;
@@ -305,4 +311,92 @@ class AnkiImportController extends ChangeNotifier {
       plan.reason == 'colpkg_not_supported_until_official_backend'
           ? AppStrings.ankiColpkgUnsupported
           : AppStrings.ankiImportUnavailable(plan.reason);
+
+  /// Official-first saga → schema preview. No Dart apkg parse.
+  Future<OfficialAnkiImportPreviewModel> _importThenPreview(
+    String path, {
+    required AnkiImportExecutionPlan plan,
+  }) async {
+    if (!plan.isOfficialFirst) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.invalidState,
+        messageKey: 'official_anki.flag_fail_closed',
+        debugDetails: 'import_plan_missing',
+      );
+    }
+    final preview = await _deps.officialFirst.importThenPreview(
+      filePath: path,
+      plan: plan,
+      course: _deps.courseDatabase,
+    );
+    return OfficialAnkiImportPreviewModel(
+      plan: plan,
+      filePath: path,
+      sourceId: preview.sourceId,
+      sourceHash: preview.sourceHash,
+      cardCount: preview.cardCount,
+      noteCount: preview.noteCount,
+      decks: preview.decks,
+      schemas: preview.schemas,
+      suggestions: preview.suggestions,
+      service: preview.service,
+    );
+  }
+
+  /// Confirms remaining suggested mappings, then projects and publishes.
+  Future<_OfficialFirstCommitResult> _commitOfficial(
+    OfficialAnkiImportPreviewModel preview,
+  ) async {
+    final service = preview.service;
+    for (final schema in preview.schemas) {
+      if (preview.skippedNotetypes.contains(schema.notetypeId)) continue;
+      if (preview.confirmedNotetypes.contains(schema.notetypeId)) continue;
+      final suggestion =
+          preview.suggestions[schema.notetypeId] ?? service.suggestFor(schema);
+      service.confirmMapping(schema: schema, suggestion: suggestion);
+      preview.confirmedNotetypes.add(schema.notetypeId);
+    }
+
+    final result = await _deps.officialFirst.projectAndPublish(
+      service: service,
+      sourceId: preview.sourceId,
+      sourceHash: preview.sourceHash,
+    );
+    if (result.needsMapping) {
+      preview.needsMapping = true;
+      return _OfficialFirstCommitResult(
+        summary: AnkiImportSummary(
+          importId: preview.sourceId,
+          sectionCount: 0,
+          unitCount: 0,
+          lessonCount: 0,
+          cardCount: 0,
+          wordEntryCount: 0,
+        ),
+        needsMapping: true,
+      );
+    }
+    if (result.failed) {
+      throw OfficialAnkiException(
+        code: OfficialAnkiErrorCode.invalidState,
+        messageKey: 'official_anki.projection_failed',
+        debugDetails: result.errorCode ?? 'unknown',
+      );
+    }
+
+    final projection =
+        await _deps.readOfficialProjectionSummary(preview.sourceId);
+    return _OfficialFirstCommitResult(
+      summary: AnkiImportSummary(
+        importId: preview.sourceId,
+        sectionCount: projection.sectionIds.length,
+        unitCount: 0,
+        lessonCount: projection.lessonCount,
+        cardCount: result.itemCount,
+        wordEntryCount: result.itemCount,
+        sourceCardCount: preview.cardCount,
+      ),
+      needsMapping: false,
+    );
+  }
 }

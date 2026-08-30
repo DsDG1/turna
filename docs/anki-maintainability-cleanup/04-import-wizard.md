@@ -1,6 +1,6 @@
 # 导入向导 Controller 化
 
-> 状态：已完成（2026-08-25）
+> 状态：已完成（2026-08-25）。2026-08-30：`OfficialFirstAnkiImportFlow` 已按 doc 40 P5.6 内联进 `AnkiImportController`，本文件结构图保留当时记录。
 > 历史阶段：原 Wave 4
 > 相关文档：[总入口](README.md) · [验收凭据](05-verification-receipt.md)
 

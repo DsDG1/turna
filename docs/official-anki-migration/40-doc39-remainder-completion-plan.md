@@ -1,6 +1,6 @@
 # 40 — doc 39 收尾施工计划（P5 余量 / F1 转义 bug / Rust 收敛四波）
 
-> 状态：**部分收口（2026-08-30）：R1 / R2 / F1（R3）+ R4 波 1–3 + 测试治理已施工并记录（§11/§11.5）；R4 波 4 + perf-spike `#[ignore]` + debug_details 填充移交工具链主机会话（§11.5 执行清单）**。doc 39 的 P1 全簇、P2、P3、P4、F2、F3 及 P5 前半已施工并独立 commit（清单见 §1）；本计划把剩余未完成项整理为 R1–R4 + P6 五个独立施工包，口径与 doc 39 一致：**不改功能效果**的清理照旧，F1 是用户可见 bugfix 单列。
+> 状态：**部分收口（2026-08-30）：R1 / R2 / F1（R3）+ R4 波 1–3 + 测试治理已施工并记录（§11/§11.5）；P5.6（OfficialFirstAnkiImportFlow 内联）已施工（§11.6）；R4 波 4 + perf-spike `#[ignore]` + debug_details 填充移交工具链主机会话（§11.5 执行清单）**。doc 39 的 P1 全簇、P2、P3、P4、F2、F3 及 P5 前半已施工并独立 commit（清单见 §1）；本计划把剩余未完成项整理为 R1–R4 + P6 五个独立施工包，口径与 doc 39 一致：**不改功能效果**的清理照旧，F1 是用户可见 bugfix 单列。
 > 前置阅读：[39](./39-debt-and-perf-batch-2-plan.md)（原计划全文，本文只承接其未完成部分并携带施工偏差）、[38](./38-debt-and-perf-batch-1-plan.md) §12.4（工具链主机门禁）、[35](./35-duplicate-legacy-layer-cleanup-plan.md)。
 > 铁律（继承 doc 39，不变）：**每个施工包独立 commit、独立可回滚**；**本机（Windows 开发机）无 cargo/protoc，P6 全部 Rust 改动必须在具备 Rust 1.97.1 + protoc 31.1 的主机通过 `cargo test -p turna_anki_bridge` + `gen_fixtures` regen 后方可合入**；契约号码 append-only；本机 Dart 包（R1–R4、F1）不受阻。
 > 证据口径：本文 file:line 于 2026-08-30 对照 doc 39 施工后的工作树实测（P1–P4 改动已使部分行号较 doc 39 漂移，均以本文为准）。
@@ -176,3 +176,7 @@ Rust 侧按铁律本机静态编写（无 cargo，全程以 vendored rslib 源�
 4. 涉 .so 的波次 `./build-android/build.sh` smoke → 解除 doc 34/38 的 NO-GO。
 
 **R4 偏差注记**：①doc 39/40 曾记录「第三处 DECK_NOT_FOUND map_err 施工时确认」——实测全仓恰为 2 处（ops.rs counts_for_deck_today / ensure_today_new_quota），第三处为 `.ok_or(STATUS_DECK_NOT_FOUND)` 显式缺失判定，语义正确不动；②map_deck_counts_error 若直接改 map_anki_error 会把缺失 deck 误标 CARD_NOT_FOUND（rslib `or_not_found` 产生通用 NotFound，map_anki_error 将其映射 CARD_NOT_FOUND），故保留 NotFound→DECK_NOT_FOUND 的分流；③projection.rs fixture_root 的 canonicalize 分支实测指向不存在路径（CARGO_MANIFEST_DIR/../contract），属惰性代码，收敛时删除且行为不变。
+
+### 11.6 P5.6 施工记录（2026-08-30）
+
+`OfficialFirstAnkiImportFlow`（115 行纯转发）内联进 `AnkiImportController`：`_importThenPreview` / `_commitOfficial` + 私有 `_OfficialFirstCommitResult`；原文件删除，architecture guard 反复活。行为不变（controller 公开 API 与 official-first 测试不动）。

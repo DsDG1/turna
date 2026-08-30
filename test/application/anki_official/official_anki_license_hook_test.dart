@@ -36,8 +36,8 @@ void main() {
     final deps = File(
       'lib/application/anki_import/anki_import_dependencies.dart',
     ).readAsStringSync();
-    final officialFlow = File(
-      'lib/application/anki_import/official_first_anki_import_flow.dart',
+    final controller = File(
+      'lib/application/anki_import/anki_import_controller.dart',
     ).readAsStringSync();
     final service = File(
       'lib/application/anki_official/import/official_anki_official_first_service.dart',
@@ -46,8 +46,8 @@ void main() {
         reason: 'doc 35 L1: the legacy Dart parser is not wired anywhere');
     expect(deps.contains('OfficialAnkiOfficialFirstService'), isTrue,
         reason: 'production deps wire the official-first service');
-    expect(officialFlow.contains('importThenPreview'), isTrue,
-        reason: 'the official flow drives the real saga');
+    expect(controller.contains('importThenPreview'), isTrue,
+        reason: 'doc 40 P5.6: controller drives the official-first saga');
     expect(service.contains('AnkiImportFacade.resolve'), isTrue);
   });
 }

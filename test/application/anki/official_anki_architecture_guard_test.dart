@@ -589,11 +589,12 @@ void main() {
         lessThanOrEqualTo(600),
         reason: 'controller must stay lean (helpers live in view_helpers.dart)',
       );
-      for (final flow in const [
-        'lib/application/anki_import/official_first_anki_import_flow.dart',
-      ]) {
-        expect(lineCount(flow), lessThanOrEqualTo(500), reason: flow);
-      }
+      expect(
+        File('lib/application/anki_import/official_first_anki_import_flow.dart')
+            .existsSync(),
+        isFalse,
+        reason: 'doc 40 P5.6 inlined OfficialFirstAnkiImportFlow into the controller',
+      );
 
       final screen =
           File('lib/views/anki/anki_import_screen.dart').readAsStringSync();
