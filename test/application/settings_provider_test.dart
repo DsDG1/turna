@@ -127,15 +127,12 @@ void main() {
   });
 
   group('Anki engine settings', () {
-    test('defaults and setters persist for lite threshold and JS', () async {
-      expect(settings.ankiLiteThreshold, 2000);
+    test('defaults and setters persist for force-disable JS', () async {
       expect(settings.ankiForceDisableJs, isFalse);
 
-      await settings.setAnkiLiteThreshold(5000);
       await settings.setAnkiForceDisableJs(true);
 
       final reloaded = SettingsProvider(prefs);
-      expect(reloaded.ankiLiteThreshold, 5000);
       expect(reloaded.ankiForceDisableJs, isTrue);
     });
   });

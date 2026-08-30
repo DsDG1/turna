@@ -218,8 +218,6 @@ void main() {
     expect(find.text(AppStrings.settingsLegacyForceDisableJsTitle),
         findsOneWidget);
     expect(
-        find.text(AppStrings.settingsLegacyLiteThresholdTitle), findsOneWidget);
-    expect(
         find.text(AppStrings.settingsLegacyResetDefaultsTitle), findsWidgets);
 
     // Back returns to the advanced hub, not the landing list.

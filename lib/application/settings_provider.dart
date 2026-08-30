@@ -30,7 +30,6 @@ class SettingsProvider extends ChangeNotifier {
   bool _hasCustomFsrsWeights = false;
   String _fsrsOptimizedAt = '';
   int _fsrsOptimizedReviews = 0;
-  int _ankiLiteThreshold = 2000;
   bool _ankiForceDisableJs = false;
 
   SettingsProvider(this._appPrefs) {
@@ -53,10 +52,9 @@ class SettingsProvider extends ChangeNotifier {
   String get fsrsOptimizedAt => _fsrsOptimizedAt;
   int get fsrsOptimizedReviews => _fsrsOptimizedReviews;
 
-  /// Anki advanced settings (deep-adaptation plan). liteThreshold switches
-  /// large decks to shell-only sections; forceDisableJs never runs template
-  /// JS (encrypted decks then show ciphertext).
-  int get ankiLiteThreshold => _ankiLiteThreshold;
+  /// Force-disable template JS in the Official Anki WebView. Encrypted
+  /// decks then show ciphertext. Lite-threshold (shell-only large decks)
+  /// died with the Legacy assembler.
   bool get ankiForceDisableJs => _ankiForceDisableJs;
 
   TimeOfDay get dailyReminderTime =>
@@ -98,10 +96,6 @@ class SettingsProvider extends ChangeNotifier {
     _fsrsOptimizedReviews = _appPrefs.preferences
         .getInt(LocalStateKeys.srsFsrsOptimizedReviews, defaultValue: 0)
         .getValue();
-    _ankiLiteThreshold = _appPrefs.preferences
-        .getInt(LocalStateKeys.ankiLiteThreshold, defaultValue: 2000)
-        .getValue()
-        .clamp(0, 10000);
     _ankiForceDisableJs = _appPrefs.preferences
         .getBool(LocalStateKeys.ankiForceDisableJs, defaultValue: false)
         .getValue();
@@ -185,13 +179,6 @@ class SettingsProvider extends ChangeNotifier {
 
   Future<void> setNativeLanguageCodeFor(String scope, String value) async {
     await _appPrefs.setString(LocalStateKeys.nativeLanguageKey(scope), value);
-    notifyListeners();
-  }
-
-  Future<void> setAnkiLiteThreshold(int value) async {
-    final clamped = value.clamp(0, 10000);
-    _ankiLiteThreshold = clamped;
-    await _appPrefs.setInt(LocalStateKeys.ankiLiteThreshold, clamped);
     notifyListeners();
   }
 
@@ -288,12 +275,10 @@ class SettingsProvider extends ChangeNotifier {
   }
 
   /// Restore legacy-compatibility (旧版与兼容性) prefs to their factory
-  /// defaults. Never deletes user data — only the two display/rendering
-  /// tunables owned by the compatibility page.
+  /// defaults. Never deletes user data — only the WebView JS tunable
+  /// owned by the compatibility page.
   Future<void> resetLegacyCompatibilityDefaults() async {
-    _ankiLiteThreshold = 2000;
     _ankiForceDisableJs = false;
-    await _appPrefs.setInt(LocalStateKeys.ankiLiteThreshold, 2000);
     await _appPrefs.setBool(LocalStateKeys.ankiForceDisableJs, value: false);
     notifyListeners();
   }

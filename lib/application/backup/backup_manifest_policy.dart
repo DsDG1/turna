@@ -145,7 +145,6 @@ abstract final class BackupManifestPolicy {
     BackupPrefEntry(LocalStateKeys.sensoryReduce, BackupPrefType.bool_),
     BackupPrefEntry(LocalStateKeys.focusMode, BackupPrefType.bool_),
     // ── Anki settings ──
-    BackupPrefEntry(LocalStateKeys.ankiLiteThreshold, BackupPrefType.int_),
     BackupPrefEntry(LocalStateKeys.ankiForceDisableJs, BackupPrefType.bool_),
     BackupPrefEntry('anki.dailyNewLimit', BackupPrefType.int_),
     BackupPrefEntry('anki.dailyReviewLimit', BackupPrefType.int_),

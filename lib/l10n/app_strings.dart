@@ -117,7 +117,7 @@ class AppStrings {
   static String get settingsAdvancedSystemHealthSubtitle => '数据库状态、功能状态与脱敏诊断摘要';
   static String get settingsAdvancedLegacyTitle => '旧版与兼容性';
   static String get settingsAdvancedLegacySubtitle =>
-      'Anki 渲染、解密、JS 与 Lite 阈值（可能影响内容显示）';
+      'Anki 渲染与 WebView JavaScript（可能影响内容显示）';
   static String get settingsLegacySectionDisplayTitle => 'Anki 显示兼容';
   static String get settingsLegacySectionRecoveryTitle => '内容恢复';
   static String get settingsLegacyDecryptTitle => '智能去解密';
@@ -130,9 +130,6 @@ class AppStrings {
       '强制禁用 WebView JavaScript';
   static String get settingsLegacyForceDisableJsSubtitle =>
       '适用：不信任任何卡片脚本。副作用：加密牌组显示密文。默认：关闭。修改后需重新打开卡片。';
-  static String get settingsLegacyLiteThresholdTitle => 'Lite 渲染阈值';
-  static String get settingsLegacyLiteThresholdSubtitle =>
-      '适用：低端设备导入大牌组卡顿。副作用：超过阈值的牌组只建壳节点。默认：2000（0=始终完整课程树）。需重新进入课程树。';
   static String get settingsLegacyResetDefaultsTitle => '恢复兼容性默认值';
   static String get settingsLegacyResetDefaultsSubtitle =>
       '将以上开关恢复为默认值，不删除任何用户数据';

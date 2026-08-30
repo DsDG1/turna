@@ -128,8 +128,6 @@ class _LegacyCompatibilityBody extends StatelessWidget {
               valueSelector: (p) => p.ankiForceDisableJs,
               onChanged: (p, v) => p.setAnkiForceDisableJs(v),
             ),
-            settingsTileDivider(context),
-            const _LiteThresholdTile(),
           ],
         ),
         const SizedBox(height: 20),
@@ -233,88 +231,6 @@ class _AiEngineTunablesCardState extends State<_AiEngineTunablesCard> {
           ],
         );
       },
-    );
-  }
-}
-
-/// Lite 阈值滑块(0-10000 张)。0 = 始终完整课程树。
-class _LiteThresholdTile extends StatefulWidget {
-  const _LiteThresholdTile();
-
-  @override
-  State<_LiteThresholdTile> createState() => _LiteThresholdTileState();
-}
-
-class _LiteThresholdTileState extends State<_LiteThresholdTile> {
-  double? _drag;
-
-  @override
-  Widget build(BuildContext context) {
-    final persisted =
-        context.select<SettingsProvider, int>((p) => p.ankiLiteThreshold);
-    final value = _drag ?? persisted.toDouble();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: TurnaTheme.brandTeal.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-                ),
-                child: const Icon(Icons.layers_rounded,
-                    color: TurnaTheme.brandTeal, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      AppStrings.settingsLegacyLiteThresholdTitle,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.w600, fontSize: 15),
-                    ),
-                    Text(
-                      value.round() == 0
-                          ? '始终完整课程树'
-                          : '超过 ${value.round()} 张只建壳',
-                      style: const TextStyle(
-                          fontSize: 12, color: TurnaTheme.textHint),
-                    ),
-                  ],
-                ),
-              ),
-              Text(
-                value.round() == 0 ? '关' : '${value.round()}',
-                style: const TextStyle(
-                    color: TurnaTheme.brandTeal, fontWeight: FontWeight.w700),
-              ),
-            ],
-          ),
-          Slider(
-            value: value,
-            min: 0,
-            max: 10000,
-            divisions: 100,
-            activeColor: TurnaTheme.brandTeal,
-            onChanged: (v) => setState(() => _drag = v),
-            onChangeEnd: (v) {
-              _drag = null;
-              context.read<SettingsProvider>().setAnkiLiteThreshold(v.round());
-            },
-          ),
-          Text(
-            AppStrings.settingsLegacyLiteThresholdSubtitle,
-            style: const TextStyle(fontSize: 11, color: TurnaTheme.textHint),
-          ),
-        ],
-      ),
     );
   }
 }

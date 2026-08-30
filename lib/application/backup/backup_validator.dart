@@ -233,8 +233,6 @@ abstract final class BackupValidator {
         return value is num ? value.toInt().clamp(100, 200) : value;
       case LocalStateKeys.srsDesiredRetention:
         return value is num ? value.toDouble().clamp(0.8, 0.95) : value;
-      case LocalStateKeys.ankiLiteThreshold:
-        return value is num ? value.toInt().clamp(0, 10000) : value;
       case 'anki.dailyNewLimit':
         return value is num ? value.toInt().clamp(0, 999) : value;
       case 'anki.dailyReviewLimit':
