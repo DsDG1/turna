@@ -1435,31 +1435,28 @@ pub fn integrity_ok(col: &mut Collection) -> Result<bool, i32> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::engine::alloc_engine;
     use crate::engine::check_collection;
     use crate::engine::close_collection;
     use crate::engine::dispatch;
     use crate::engine::free_engine;
+    use crate::engine::alloc_engine;
     use crate::engine::open_collection;
-    use crate::engine::OpenRequest;
     use crate::engine::STATUS_INVALID_HANDLE;
     use serde_json::Value;
     use std::fs;
     use std::path::Path;
     use std::time::Instant;
-    use std::time::SystemTime;
-    use std::time::UNIX_EPOCH;
 
     fn fixture_root() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../test/fixtures/anki_official")
+        crate::test_support::packages_root()
     }
 
     fn package_path(name: &str) -> PathBuf {
-        fixture_root().join("packages").join(name)
+        crate::test_support::package_path(name)
     }
 
     fn expected_path(name: &str) -> PathBuf {
-        fixture_root().join("expected").join(name)
+        crate::test_support::expected_path(name)
     }
 
     fn manifest() -> Value {
@@ -1468,32 +1465,7 @@ mod tests {
     }
 
     fn temp_open() -> (PathBuf, u64, Vec<u8>) {
-        let root = std::env::temp_dir().join(format!(
-            "turna-ops-{}-{:?}-{}",
-            std::process::id(),
-            std::thread::current().id(),
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        let request = OpenRequest {
-            collection_path: root.join("collection.anki2").to_string_lossy().into(),
-            media_folder: root.join("collection.media").to_string_lossy().into(),
-            media_db: root.join("collection.media.db2").to_string_lossy().into(),
-            check_integrity: false,
-            allowed_root: None,
-        };
-        let body = serde_json::to_vec(&serde_json::json!({
-            "collection_path": request.collection_path,
-            "media_folder": request.media_folder,
-            "media_db": request.media_db,
-            "check_integrity": request.check_integrity,
-        }))
-        .unwrap();
-        let handle = alloc_engine().unwrap();
-        open_collection(handle, &body).unwrap();
-        (root, handle, body)
+        crate::test_support::temp_open("ops")
     }
 
     fn call(handle: u64, op: u32, body: Value) -> Result<Value, i32> {
@@ -1503,27 +1475,7 @@ mod tests {
     /// SEARCH_CARDS (op 9) is retired (doc 38 P1-E); tests page through
     /// SEARCH_CARDS_PAGE instead.
     fn all_card_ids(handle: u64) -> Vec<i64> {
-        let mut ids = Vec::new();
-        let mut token: Option<String> = None;
-        loop {
-            let mut body = json!({"search": "", "page_size": 1000});
-            if let Some(t) = token.as_deref() {
-                body["page_token"] = json!(t);
-            }
-            let page = call(handle, crate::engine::OP_SEARCH_CARDS_PAGE, body).unwrap();
-            ids.extend(
-                page["cardIds"]
-                    .as_array()
-                    .unwrap()
-                    .iter()
-                    .map(|v| v.as_i64().unwrap()),
-            );
-            token = page["nextPageToken"].as_str().map(|s| s.to_string());
-            if token.is_none() {
-                break;
-            }
-        }
-        ids
+        crate::test_support::page_all_card_ids(handle)
     }
 
     fn card_queue_raw(handle: u64, card_id: i64) -> i64 {

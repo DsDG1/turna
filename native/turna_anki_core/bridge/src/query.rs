@@ -18,7 +18,6 @@ use crate::engine::slot;
 use crate::engine::STATUS_BACKEND_PANIC;
 use crate::engine::STATUS_CARD_NOT_FOUND;
 use crate::engine::STATUS_INVALID_ARGUMENT;
-use crate::engine::STATUS_INVALID_STATE;
 use crate::engine::STATUS_INTERNAL_ERROR;
 use crate::engine::STATUS_PAGE_TOKEN_STALE;
 use crate::ops::map_anki_error;
@@ -358,58 +357,20 @@ mod reference {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::engine::alloc_engine;
     use crate::engine::dispatch;
     use crate::engine::free_engine;
-    use crate::engine::open_collection;
-    use crate::engine::OpenRequest;
     use crate::engine::OP_GET_CARD_DESCRIPTORS_BATCH;
     use crate::engine::OP_IMPORT_PACKAGE;
     use crate::engine::OP_SEARCH_CARDS_PAGE;
     use crate::engine::STATUS_PAGE_TOKEN_STALE;
     use std::path::PathBuf;
-    use std::time::SystemTime;
-    use std::time::UNIX_EPOCH;
 
     fn fixture_pkg() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../test/fixtures/anki_official/packages/02-basic-reversed.apkg")
+        crate::test_support::package_path("02-basic-reversed.apkg")
     }
 
     fn open_imported() -> (PathBuf, u64) {
-        let root = std::env::temp_dir().join(format!(
-            "turna-query-{}-{}",
-            std::process::id(),
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        let request = OpenRequest {
-            collection_path: root.join("collection.anki2").to_string_lossy().into(),
-            media_folder: root.join("collection.media").to_string_lossy().into(),
-            media_db: root.join("collection.media.db2").to_string_lossy().into(),
-            check_integrity: false,
-            allowed_root: None,
-        };
-        let body = serde_json::to_vec(&serde_json::json!({
-            "collection_path": request.collection_path,
-            "media_folder": request.media_folder,
-            "media_db": request.media_db,
-        }))
-        .unwrap();
-        let handle = alloc_engine().unwrap();
-        open_collection(handle, &body).unwrap();
-        dispatch(
-            handle,
-            OP_IMPORT_PACKAGE,
-            &serde_json::to_vec(&json!({
-                "package_path": fixture_pkg().to_string_lossy(),
-            }))
-            .unwrap(),
-        )
-        .unwrap();
-        (root, handle)
+        crate::test_support::temp_open_imported("query", "02-basic-reversed.apkg")
     }
 
     /// Doc 38 P2: mutating ops bump `page_generation`, so an old page token
@@ -494,67 +455,11 @@ mod tests {
     }
 
     fn open_imported_pkg(name: &str) -> (PathBuf, u64) {
-        let root = std::env::temp_dir().join(format!(
-            "turna-query-{}-{}",
-            std::process::id(),
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        let request = OpenRequest {
-            collection_path: root.join("collection.anki2").to_string_lossy().into(),
-            media_folder: root.join("collection.media").to_string_lossy().into(),
-            media_db: root.join("collection.media.db2").to_string_lossy().into(),
-            check_integrity: false,
-            allowed_root: None,
-        };
-        let body = serde_json::to_vec(&serde_json::json!({
-            "collection_path": request.collection_path,
-            "media_folder": request.media_folder,
-            "media_db": request.media_db,
-        }))
-        .unwrap();
-        let handle = alloc_engine().unwrap();
-        open_collection(handle, &body).unwrap();
-        let pkg = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../test/fixtures/anki_official/packages")
-            .join(name);
-        dispatch(
-            handle,
-            OP_IMPORT_PACKAGE,
-            &serde_json::to_vec(&json!({
-                "package_path": pkg.to_string_lossy(),
-            }))
-            .unwrap(),
-        )
-        .unwrap();
-        (root, handle)
+        crate::test_support::temp_open_imported("query", name)
     }
 
     fn page_all_card_ids(handle: u64) -> Vec<i64> {
-        let mut ids = Vec::new();
-        let mut token: Option<String> = None;
-        loop {
-            let mut body = json!({"search": "", "page_size": 1000});
-            if let Some(t) = token.as_deref() {
-                body["page_token"] = json!(t);
-            }
-            let page = dispatch(handle, OP_SEARCH_CARDS_PAGE, &serde_json::to_vec(&body).unwrap())
-                .unwrap();
-            ids.extend(
-                page["cardIds"]
-                    .as_array()
-                    .unwrap()
-                    .iter()
-                    .map(|v| v.as_i64().unwrap()),
-            );
-            token = page["nextPageToken"].as_str().map(|s| s.to_string());
-            if token.is_none() {
-                break;
-            }
-        }
-        ids
+        crate::test_support::page_all_card_ids(handle)
     }
 
     /// Doc 38 P3 parity: the SQL batch implementations must be byte-equal

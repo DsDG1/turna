@@ -26,7 +26,6 @@ use crate::engine::MAX_RESPONSE_BYTES;
 use crate::engine::STATUS_BACKEND_PANIC;
 use crate::engine::STATUS_INVALID_ARGUMENT;
 use crate::engine::STATUS_INTERNAL_ERROR;
-use crate::engine::STATUS_INVALID_STATE;
 use crate::engine::STATUS_PROJECTION_SNAPSHOT_STALE;
 use crate::ops::map_anki_error;
 use crate::ops::require_open;
@@ -650,57 +649,21 @@ fn reference_rows(col: &mut Collection, card_ids: &[i64]) -> Result<Value, i32> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::engine::alloc_engine;
     use crate::engine::dispatch;
     use crate::engine::free_engine;
-    use crate::engine::open_collection;
     use crate::engine::OP_BEGIN_PROJECTION_READ;
     use crate::engine::OP_GET_PROJECTION_ROWS_BATCH;
     use crate::engine::OP_GET_PROJECTION_SCHEMAS;
     use crate::engine::OP_IMPORT_PACKAGE;
     use std::fs;
     use std::path::PathBuf;
-    use std::time::SystemTime;
-    use std::time::UNIX_EPOCH;
-
-    fn fixture_root() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../contract/fixtures")
-            .canonicalize()
-            .unwrap_or_else(|_| {
-                PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                    .join("../../test/fixtures/anki_official/packages")
-            })
-    }
 
     fn package_path(name: &str) -> PathBuf {
-        let contract = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../test/fixtures/anki_official/packages")
-            .join(name);
-        if contract.exists() {
-            return contract;
-        }
-        fixture_root().join(name)
+        crate::test_support::package_path(name)
     }
 
     fn temp_open() -> (PathBuf, u64) {
-        let root = std::env::temp_dir().join(format!(
-            "turna-proj-{}-{}",
-            std::process::id(),
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        let body = serde_json::to_vec(&serde_json::json!({
-            "collection_path": root.join("collection.anki2").to_string_lossy(),
-            "media_folder": root.join("collection.media").to_string_lossy(),
-            "media_db": root.join("collection.media.db2").to_string_lossy(),
-            "check_integrity": false,
-        }))
-        .unwrap();
-        let handle = alloc_engine().unwrap();
-        open_collection(handle, &body).unwrap();
+        let (root, handle, _) = crate::test_support::temp_open("proj");
         (root, handle)
     }
 

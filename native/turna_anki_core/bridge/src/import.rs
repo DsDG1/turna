@@ -215,10 +215,10 @@ pub fn restore_backup(handle: u64, request: &[u8]) -> Result<Value, i32> {
 mod tests {
     use super::*;
     use crate::engine::alloc_engine;
+    use crate::engine::check_collection;
     use crate::engine::dispatch;
     use crate::engine::free_engine;
     use crate::engine::open_collection;
-    use crate::engine::OpenRequest;
     use crate::engine::OP_CREATE_BACKUP;
     use crate::engine::OP_IMPORT_PACKAGE;
     use crate::engine::OP_RESTORE_BACKUP;
@@ -226,35 +226,11 @@ mod tests {
     use std::path::PathBuf;
 
     fn fixture_pkg() -> PathBuf {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("../../test/fixtures/anki_official/packages/02-basic-reversed.apkg")
+        crate::test_support::package_path("02-basic-reversed.apkg")
     }
 
     fn open_temp() -> (PathBuf, u64, Vec<u8>) {
-        let root = std::env::temp_dir().join(format!(
-            "turna-backup-{}-{}",
-            std::process::id(),
-            SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        let request = OpenRequest {
-            collection_path: root.join("collection.anki2").to_string_lossy().into(),
-            media_folder: root.join("collection.media").to_string_lossy().into(),
-            media_db: root.join("collection.media.db2").to_string_lossy().into(),
-            check_integrity: false,
-            allowed_root: None,
-        };
-        let body = serde_json::to_vec(&serde_json::json!({
-            "collection_path": request.collection_path,
-            "media_folder": request.media_folder,
-            "media_db": request.media_db,
-        }))
-        .unwrap();
-        let handle = alloc_engine().unwrap();
-        open_collection(handle, &body).unwrap();
-        (root, handle, body)
+        crate::test_support::temp_open("backup")
     }
 
     #[test]
@@ -315,11 +291,48 @@ mod tests {
     }
 
     #[test]
-    fn create_backup_closes_before_copying_anki2() {
-        let src = include_str!("import.rs");
-        let create = src.split("pub fn restore_backup").next().unwrap();
-        assert!(create.contains("close_collection_inner"));
-        assert!(create.contains("atomic_copy_sqlite"));
-        assert!(create.contains("maybe_backup"));
+    fn create_backup_leaves_a_consistent_copy() {
+        // Behavioral replacement for the old source-text scan: closing the
+        // collection before the copy is what makes the backup a consistent
+        // collection file, and create_backup must leave the original
+        // session open and usable (close/reopen path).
+        let (root, handle, _open) = open_temp();
+        dispatch(
+            handle,
+            OP_IMPORT_PACKAGE,
+            &serde_json::to_vec(&json!({
+                "package_path": fixture_pkg().to_string_lossy(),
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        let backup = dispatch(
+            handle,
+            OP_CREATE_BACKUP,
+            &serde_json::to_vec(&json!({"backup_id": "bk-consistent"})).unwrap(),
+        )
+        .unwrap();
+        let dest = PathBuf::from(backup["path"].as_str().unwrap());
+        assert!(dest.is_file(), "backup file at {:?}", dest);
+
+        // The copied anki2 opens as a live collection and passes a full
+        // integrity check — a torn copy (file taken while open) would not.
+        let check_handle = alloc_engine().unwrap();
+        let check_body = serde_json::to_vec(&json!({
+            "collection_path": dest.to_string_lossy(),
+            "media_folder": root.join("check.media").to_string_lossy(),
+            "media_db": root.join("check.media.db2").to_string_lossy(),
+            "check_integrity": true,
+        }))
+        .unwrap();
+        open_collection(check_handle, &check_body).unwrap();
+        let check = check_collection(check_handle).unwrap();
+        assert_eq!(check.state, "open");
+        free_engine(check_handle).unwrap();
+
+        let original = check_collection(handle).unwrap();
+        assert_eq!(original.state, "open");
+        free_engine(handle).unwrap();
+        let _ = std::fs::remove_dir_all(root);
     }
 }

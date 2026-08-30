@@ -11,6 +11,9 @@ mod projection;
 mod query;
 mod typed;
 
+#[cfg(test)]
+mod test_support;
+
 pub use abi::turna_anki_buffer_free;
 pub use abi::turna_anki_call;
 pub use abi::turna_anki_cancel;
