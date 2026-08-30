@@ -18,6 +18,7 @@
 | **37** | [通用卡片识别器重设计](./37-generic-card-recognizer-plan.md) | 导入识别推倒重来：契约 1.9 +templateFacts/reqs、词典化角色绑定、notetype 级原型判定、类型体系收敛、预览四件套；取代 doc 30 的「自动题型识别」部分 | **已施工（2026-08-29，P1–P5 一次性完成）**；diff 门禁 16/16 一致或改进、零新劣化；Rust 契约与 fixture regen 待 cargo 主机复验（本机无工具链），明细见 doc 37 §10 |
 | 30 | [官方 Anki 卡按语言课体验投影与渲染](./30-course-like-card-experience-plan.md) | 在官方核心之上恢复自动题型识别、语言课渲染、翻面/展开动画；评分仍写官方 Scheduler | **已实施（Host / Unit 验证通过）**；生产默认与 chrome 见 **34**；题型识别部分将由 **37** 取代 |
 | **38** | [集成减负与性能批次一](./38-debt-and-perf-batch-1-plan.md) | 屎山清理 P1–P5：删零引用死代码（~4k 行）、双计数器修快照失效、桥接 N+1 批量化与 import 计数、浏览器懒渲染与 catalog 连接治理、投影 noop 短路与发布批量化；含对三项原建议的可行性否决记录 | **已施工并验货（2026-08-30）**：flutter analyze 0 issues、全量 +1738/-28（28 例失败经基线 worktree 复算全部为施工前既存、零回归）、P4-C 实修超声明 1 例；Rust 侧静态验讫，`cargo test`+fixture regen 待工具链主机（此前发布 NO-GO），验货明细见 doc 38 §13；P4-B 按计划条件推迟 |
+| **39** | [集成减负与性能批次二](./39-debt-and-perf-batch-2-plan.md) | doc 38 §11 落地+扩入新发现：Dart 死码二批（孤儿复习页 835 行、unified legacy 死路径等 ~2,000 行）、契约四表合一与 capabilities/VERSION 对拍闭环（fixture 已漂移缺 RESTORE_BACKUP）、DTO codegen 三类分治、worker 统一消息协议与传输层折叠、import 域状态机减负、Rust 单表化四波；行为修复（转义 bug、错误码修正）与决策项（journal 只写不消费）单列 | **已登记待施工（2026-08-30 两轮全量复核成稿，P1–P6 未开工）**；全部 file:line 经第二轮独立 grep 复核，含 4 处对首轮分析的数字修正（doc 39 §1 修正记录） |
 
 ## Archived 文档（Phase 0–4 + P5A/B/C/D1/E 收口记录，归档保留备查）
 

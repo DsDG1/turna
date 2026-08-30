@@ -80,8 +80,6 @@ class AppRouter extends RootStackRouter {
         AutoRoute(
             page: OfficialAnkiReviewerRoute.page, guards: [_diagnosticsGuard]),
         AutoRoute(
-            page: OfficialAnkiReviewRoute.page, guards: [_diagnosticsGuard]),
-        AutoRoute(
             page: OfficialAnkiMigrationPreviewRoute.page,
             guards: [_diagnosticsGuard]),
         AutoRoute(page: OfficialAnkiSourceManagementRoute.page),

@@ -189,15 +189,16 @@ void main() {
         'lib/views/anki/anki_review_screen.dart',
         'lib/views/anki/anki_review_session_page.dart',
         'lib/views/anki/anki_card_browser_page.dart',
-        'lib/views/anki_official/official_anki_review_page.dart',
-        'lib/views/anki_official/official_anki_practice_review_surface.dart',
+        // Doc 39 P1-A: the orphan page/surface live on only as fixtures.
+        'test/support/official_anki_review_fixture.dart',
+        'test/support/official_anki_practice_review_surface_fixture.dart',
       ];
       for (final path in paths) {
         final text = File(path).readAsStringSync();
         expect(
           text.contains('FormalReviewLauncher') ||
-              path.contains('official_anki_review_page') ||
-              path.contains('practice_review_surface'),
+              path.contains('official_anki_review_fixture') ||
+              path.contains('practice_review_surface_fixture'),
           isTrue,
           reason: '$path should go through FormalReviewLauncher or be the host surface',
         );

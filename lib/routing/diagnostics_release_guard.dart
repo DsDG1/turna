@@ -18,7 +18,8 @@ class DiagnosticsReleaseGuard extends AutoRouteGuard {
   static const Set<String> guardedRouteNames = {
     'OfficialAnkiMappingRoute',
     'OfficialAnkiReviewerRoute',
-    'OfficialAnkiReviewRoute',
+    // OfficialAnkiReviewRoute was deleted with the orphan review page
+    // (doc 39 P1-A); the page lives on only as a test/support fixture.
     'OfficialAnkiMigrationPreviewRoute',
     'OfficialAnkiSourceManagementRoute',
   };

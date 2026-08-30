@@ -15,7 +15,7 @@ import 'package:turna/application/anki_official/engine/official_anki_scheduler_a
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/render/official_anki_present_ack.dart';
-import 'package:turna/views/anki_official/official_anki_review_page.dart';
+import '../../support/official_anki_review_fixture.dart';
 
 import 'official_anki_formal_review_ack_test.dart' show officialFormalReviewPresenter;
 

@@ -15,7 +15,7 @@ import 'package:turna/application/anki_official/render/official_anki_present_ack
 import 'package:turna/application/anki_official/render/official_anki_render_facade.dart';
 import 'package:turna/application/anki_official/render/official_anki_render_state.dart';
 import 'package:turna/application/anki_official/render/official_anki_typed_answer_controller.dart';
-import 'package:turna/views/anki_official/official_anki_review_page.dart';
+import '../../support/official_anki_review_fixture.dart';
 
 import 'official_anki_reviewer_behavior_test.dart';
 

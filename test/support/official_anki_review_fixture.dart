@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
@@ -12,7 +11,6 @@ import 'package:turna/application/anki_official/render/official_anki_answer_pres
 import 'package:turna/application/anki_official/render/official_anki_present_ack.dart';
 import 'package:turna/application/anki_official/render/official_anki_render_state.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/anki_official/official_anki_practice_review_surface.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_error_view.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_page.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_stage.dart';
@@ -20,8 +18,13 @@ import 'package:turna/views/lesson/components/ai_depth_tutor_sheet.dart';
 import 'package:turna/views/review/components/review_progress_header.dart';
 import 'package:turna/views/review/components/unified_review_completion.dart';
 
+import 'official_anki_practice_review_surface_fixture.dart';
+
 /// Formal Official Review. Separate from preview/`canonicalLink`.
-@RoutePage()
+///
+/// Test-only fixture (doc 39 P1-A): the production page and its route were
+/// deleted; this copy exists so ack/interaction tests can still pump the
+/// exact widget tree without resurrecting a routed surface.
 class OfficialAnkiReviewPage extends StatefulWidget {
   const OfficialAnkiReviewPage({
     super.key,

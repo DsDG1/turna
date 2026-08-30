@@ -18,7 +18,9 @@ void main() {
             'lib/application/anki_official/import/unified_anki_import_orchestrator.dart',
             'lib/application/study_session/study_product_analytics.dart',
             'lib/views/review/components/study_card_surface.dart',
-            'lib/views/anki_official/official_anki_practice_review_surface.dart',
+            // Doc 39 P1-A: the orphan review page/practice surface live on
+            // only as test/support fixtures; keep scanning them there.
+            'test/support/official_anki_practice_review_surface_fixture.dart',
           ],
           forbidden: _schedulerDaos,
         ),
@@ -71,8 +73,9 @@ void main() {
     test('formal review path does not re-run practice classifier or four-rating',
         () {
       const paths = [
-        'lib/views/anki_official/official_anki_review_page.dart',
-        'lib/views/anki_official/official_anki_practice_review_surface.dart',
+        // Doc 39 P1-A: orphan review page/surface moved to test/support.
+        'test/support/official_anki_review_fixture.dart',
+        'test/support/official_anki_practice_review_surface_fixture.dart',
         'lib/views/anki/anki_review_session_page.dart',
         'lib/views/anki/anki_official_review_gate.dart',
         'lib/views/review/unified_review_page.dart',
