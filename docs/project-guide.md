@@ -325,7 +325,7 @@ Explain → Practice → Rate 三段流（见 2.4 Skill Acquisition Theory）。
 
 - **智能组织**：`AnkiOrganizationResolver` 从 notetype 字段名/标签抽取 unit/lesson 键，配合 `assemble(smartGrouping:)` 分卡。类已 0 引用。
 - **Notetype 映射编辑器**：把 note 映射为 9 种结构化类型（含 `_NotetypeMappingEditor` 与 `AnkiNotetypeAI.identifyAll`）。**替代实现**：官方映射页 `views/anki_official/official_anki_mapping_page.dart`，用自有 `OfficialAnkiMappingSuggestion` 体系，不依赖旧 `NotetypeMapping`。
-- **Full / Lite 模式**：按牌组规模（`liteThreshold` 默认 2000）选择完整课程树或 shell Section。装配器已删，仅 `anki.liteThreshold` 设置键残留于 `service/locator.dart`。
+- **Full / Lite 模式**：按牌组规模（`liteThreshold` 默认 2000）选择完整课程树或 shell Section。装配器已删；`anki.liteThreshold` 设置键、旧版页滑块与备份清单条目亦已删除（旧备份中该键按 unknownKey 跳过）。
 
 ### 6.3 保真渲染（Fidelity HTML）
 
@@ -340,16 +340,11 @@ Explain → Practice → Rate 三段流（见 2.4 Skill Acquisition Theory）。
 - **暗色 CSS**：app 暗色主题时注入暗色 CSS（阶段 6）。
 - **JS 与网络隔离**：notetype `allowJs` 默认关；联网默认完全离线。离线/询问策略通过 CSP 实际阻断 `fetch`、XHR、WebSocket 和外部资源，不只拦页面跳转。
 
-### 6.4 智能去解密（Pre-render Cache）—— 当前失活
+### 6.4 智能去解密（Pre-render Cache）—— 已放弃
 
-部分牌组（如加密考研牌组）在 notetype CSS 中含混淆的解密 JS。原设计：首次复习时 `AnkiHtmlCardView` 在 WebView 中跑一次 JS，延迟捕获 `document.body.innerHTML`，去 `<script>`，缓存到 `anki_prerendered_html`（schema v10）；后续复习直接服缓存纯 HTML（`allowJs=false`，无 JS/无网络/无沙箱）。
+部分牌组（如加密考研牌组）曾在 notetype CSS 中含混淆的解密 JS。原设计：首次复习时 `AnkiHtmlCardView` 在 WebView 中跑一次 JS，延迟捕获 `document.body.innerHTML`，去 `<script>`，缓存到 `anki_prerendered_html`（schema v10）；后续复习直接服缓存纯 HTML。
 
-> ⚠️ **该链路当前不通，勿按此描述预期行为**（2026-08-28 核对）：
-> - 捕获实现仍在 `anki_html_card_view.dart`（`_scheduleCapture` → `onCaptured` 回调），但 **`onCaptured` 在全 `lib/` 内零传入方**，因此 `_scheduleCapture` 首行 `widget.onCaptured == null` 恒真、直接 return——缓存永不写入。
-> - DAO 侧 `AnkiNoteDao.prerendered()` 同样零调用点，缓存永不命中。
-> - 残留物：`anki_prerendered_html` 表（含存量数据）、`prerenderCacheStats()`（仅供存储清单/维护页统计与清理）、`anki.liteThreshold` 等相关设置键。
->
-> 即：机制代码完整保留但无消费者。若要恢复，需让官方保真复习路径（§6.3 的 `official_template_webview_body`）传入 `onCaptured` 并在命中时改走 `prerendered()`；若要放弃，则应删除表与 DAO 面并清理存量数据。二者未决，暂维持现状。
+> 该路径已于 schema v22 `DROP TABLE IF EXISTS anki_prerendered_html` 收口（writer 随 doc 35 Legacy 层删除后表保证为空）。DAO `prerendered()` / `upsertPrerenderedFace`、存储清单统计、旧版页「智能去解密 / 抓取延时」文案均已删除。不接回 `onCaptured`。加密牌组若需脚本，走官方保真 WebView + `ankiForceDisableJs`。
 
 高级页提供渲染/网络与单牌组覆盖、失败降级、媒体与导入性能、三种排程继承、同胞卡与难卡规则、FSRS 实验室、存储维护、脱敏报告和实验功能中心。系统健康监控在启动时直接监听 `LogCapture`，用指纹、60 秒去重和分数阈值生成本机告警；详见 [`advanced-settings-system-health.md`](advanced-settings-system-health.md)。
 

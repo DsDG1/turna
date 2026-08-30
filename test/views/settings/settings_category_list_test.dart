@@ -208,8 +208,9 @@ void main() {
         findsOneWidget);
     expect(find.text(AppStrings.settingsAdvancedLegacyTitle), findsOneWidget);
 
-    // The legacy tunables live on the second-level page, not the hub.
-    expect(find.text(AppStrings.settingsLegacyDecryptTitle), findsNothing);
+    // The remaining WebView JS tunable lives on the second-level page.
+    expect(find.text(AppStrings.settingsLegacyForceDisableJsTitle),
+        findsNothing);
 
     final legacy = find.text(AppStrings.settingsAdvancedLegacyTitle);
     await tester.ensureVisible(legacy);

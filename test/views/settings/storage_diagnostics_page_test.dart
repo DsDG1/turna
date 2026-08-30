@@ -71,7 +71,7 @@ final _cannedReport = StorageInventoryReport(
     StorageArtifactReport(
       category: StorageArtifactCategory.regenerableCache,
       ownerId: '',
-      label: 'anki prerender cache',
+      label: 'AI response cache',
       physicalBytes: 512,
       fileCount: 9,
       cleanupPolicy: StorageCleanupPolicy.safeClear,

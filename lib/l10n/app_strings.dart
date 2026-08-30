@@ -120,12 +120,6 @@ class AppStrings {
       'Anki 渲染与 WebView JavaScript（可能影响内容显示）';
   static String get settingsLegacySectionDisplayTitle => 'Anki 显示兼容';
   static String get settingsLegacySectionRecoveryTitle => '内容恢复';
-  static String get settingsLegacyDecryptTitle => '智能去解密';
-  static String get settingsLegacyDecryptSubtitle =>
-      '适用：加密牌组显示密文。副作用：首次复习用 WebView 跑模板 JS 解密并缓存明文。默认：开启。修改后需重新打开卡片。';
-  static String get settingsLegacyCaptureDelayTitle => '抓取/渲染延时';
-  static String get settingsLegacyCaptureDelaySubtitle =>
-      '适用：解密结果不完整。副作用：首次解密变慢。默认：2 秒。修改后需重新打开卡片。';
   static String get settingsLegacyForceDisableJsTitle =>
       '强制禁用 WebView JavaScript';
   static String get settingsLegacyForceDisableJsSubtitle =>
