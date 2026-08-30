@@ -1,6 +1,6 @@
 # 40 — doc 39 收尾施工计划（P5 余量 / F1 转义 bug / Rust 收敛四波）
 
-> 状态：**已登记待施工（2026-08-30）**。doc 39 的 P1 全簇、P2、P3、P4、F2、F3 及 P5 前半已施工并独立 commit（清单见 §1）；本计划把剩余未完成项整理为 R1–R4 + P6 五个独立施工包，口径与 doc 39 一致：**不改功能效果**的清理照旧，F1 是用户可见 bugfix 单列。
+> 状态：**部分收口（2026-08-30）：R1 / R2 / F1（R3）已施工并验收（记录见 §11）；P6（R4）Rust 四波 + 测试治理余留，静态编写待做、工具链主机验后合入**。doc 39 的 P1 全簇、P2、P3、P4、F2、F3 及 P5 前半已施工并独立 commit（清单见 §1）；本计划把剩余未完成项整理为 R1–R4 + P6 五个独立施工包，口径与 doc 39 一致：**不改功能效果**的清理照旧，F1 是用户可见 bugfix 单列。
 > 前置阅读：[39](./39-debt-and-perf-batch-2-plan.md)（原计划全文，本文只承接其未完成部分并携带施工偏差）、[38](./38-debt-and-perf-batch-1-plan.md) §12.4（工具链主机门禁）、[35](./35-duplicate-legacy-layer-cleanup-plan.md)。
 > 铁律（继承 doc 39，不变）：**每个施工包独立 commit、独立可回滚**；**本机（Windows 开发机）无 cargo/protoc，P6 全部 Rust 改动必须在具备 Rust 1.97.1 + protoc 31.1 的主机通过 `cargo test -p turna_anki_bridge` + `gen_fixtures` regen 后方可合入**；契约号码 append-only；本机 Dart 包（R1–R4、F1）不受阻。
 > 证据口径：本文 file:line 于 2026-08-30 对照 doc 39 施工后的工作树实测（P1–P4 改动已使部分行号较 doc 39 漂移，均以本文为准）。
@@ -119,6 +119,38 @@ P6 波1→波2→波3→波4→测试治理（静态编写即可开始，与 R1/
 
 复习每卡 5 RPC 精简（批次三）、mem::take 无锁 import、camel/snake 双键输出、两套 HTML 渲染栈合并评估、迁移域 ~3,100 行整体删除、浏览器/统计 legacy 读分支、P3 对拍参照实现删除（pin 刷新时点）。
 
-## 11. 施工记录（待填）
+## 11. 施工记录（2026-08-30，R1–R3 已施工——P6/R4 余留）
 
-> 每包施工后按 doc 38 §12 格式补：commit 清单、验收实测（含基线对照）、偏差与增补、待办门禁。
+### 11.1 提交清单（独立 commit，按施工序）
+
+| 包 | commit | 摘要 |
+|---|---|---|
+| F1（§4/R3） | 4d4e1f99 | 转义事故修复：`mapOfficialErrorToHuman` fallback 改正常插值；新增 `anki_import_view_helpers_test.dart`（fallback 语义 1 例 + 全 38 个 `OfficialAnkiErrorCode` 无 `${`/`\$` 残留断言 1 例） |
+| R1-a（§2.1） | 65602e72 | `markFailedBeforeImport`/`markNeedsReconciliation` 提取 `_markTerminal(attempt, terminal)`，两公开方法一行委托；计数差异（beforeImport 归零 vs 存量上报）在 helper 内以 terminal 派生 |
+| R1-b（§2.2） | 269821ae | 提取 `_engineForRow(row)` 共享路由核心；`reviewTargetForImport` 单次 `findByLegacyImport` 后传 row 复用，流程内 2→1；空 importId 提前返回保持原语义 |
+| R2-a1（§3.1） | 0dfc1db5 | `run()` 14 处 `dao.findById(row.migrationId)!` 收敛为 `_reload(dao, row)`（单一来源化，`rollbackBeforeOwnerCommit` 独立查询不动） |
+| R2-a2（§3.1） | d86dfbcc | `run()` 拆十段私有函数：`_preflight`/`_beginOrResumeRow`/`_keptLegacyReadOnly`/`_backupIfNeeded`/`_importOrReconstruct`/`_resolveOfficialSource`/`_resetAsNewIfNeeded`/`_projectIfNeeded`/`_verifyCardinalityIfNeeded`/`_publishAndSmoke` |
+| R2-b（§3.2） | 821d21f1 | triage 移 `recognition/official_recognition_triage.dart`；错误映射移 `official_import_error_messages.dart`；view_helpers 只留纯格式化；`_roleLabel` 12 项 / `userFacingFieldName` 7 项展示值 / chip band 2 项迁 `AppStrings` |
+
+### 11.2 验收实测（本机 Windows）
+
+- `flutter analyze`：**0 issues**。
+- 点名门禁（doc 39 §13 七项）：architecture guard / formal_review_launcher / projection / browser stats / scheduler_p4 / contract / diagnostics guard **全绿**（82 例）。
+- 包级安全网：saga（11）+ coordinator（5）/ import_orchestrator + recovery + view_helpers（24）/ p5d routing + formal due sync + review_unification（34）全绿。
+- **全量 flutter test（2,757 例）**：**1728 通过 / 29 失败**。较基线（doc 39 §15.2：2755 例 1726/29）总数 +2、通过 +2（即本批新增的 2 个 fallback 测试），失败数 29 持平；29 例逐条对照基线族零新增：media resolver 8 / golden+无障碍 10（course_tree/dictionary/round2/settings_reminder/srs 各 2）/ composition single-flight 1 / 官方导入 1 + lesson_flow 1 + backup 1 + reviewer 行为 1 + reviewer UI AV 1 + progress provider 1 + history dao 2 + review_dashboard 2（doc 39 已记录的时间窗 flaky 族）。
+- 量化口径（§9）：mark* 实现 2→1（委托不计）；`reviewTargetForImport` 流程内 `findByLegacyImport` 2→1；`run()` 374 行单体→149 行扁平编排 + 10 个分段函数（单段最大 76 行，≤80 达标）；失败文案无 `${` 字面量。
+
+### 11.3 偏差与增补（对计划正文）
+
+1. **§3.2 错误映射未入 `recognition/`**：改置 `lib/application/anki_import/official_import_error_messages.dart`（controller 同层）——错误映射与「识别」无语义关系，塞入 recognition/ 反而误导；「view_helpers 只留纯格式化」的目的不变。
+2. **§2.2 语境核实**：`findByLegacyImport` 文件内实测 3 处调用点，第三处属 `adoptExistingIfCatalogMatches`（独立方法，非 N+1 面）；本批修复面为 `reviewTargetForImport` 流程内 2→1，`engineForImport` 作为独立入口保留自身一次查询。
+3. **R2-a2 行为关键注记**：`listCardsForImport` 与 resetAsNew 检查之间的 journal 重读被保留——它读取的是 `chooseSchedulingPolicy` **之后**的行状态，直接决定 resetAsNew 分支判定；拆分时一度遗漏，复核原代码时序后补回。
+4. **userFacingFieldName 的 case 匹配别名**（'正面'/'背面'/'反面'）保留字面量：属输入匹配词汇（Anki 原生字段名/中文别名），非展示文案；展示返回值全部走 `AppStrings`。同值既有 getter（`ankiNotetypeSampleFront` 等）属其他语义域，不跨用，新增 `ankiFieldRole*`/`ankiFieldName*`/`ankiRecognitionBand*` 21 个。
+5. **coordinator 文件 497→697 行（+200）**：分段函数签名、doc 注释与显式参数展开的固有开销；`run()` 374 行单体已消除，可读性目标达成，行数不作为本项验收指标。
+6. **F1 测试加厚**：除 fallback 语义外，对全 38 个错误码枚举做无残留字面量断言，防回归面覆盖所有分支组合。
+
+### 11.4 余项与待办门禁
+
+- **P6/R4（§5）未施工**：Rust 四波 + 测试治理仍按 §5 表原样执行（实测锚点 as_mut 22→0、from_slice 17→~1 以施工时为准）；可与本机 Dart 包无冲突并行静态编写。
+- 待办门禁（工具链主机，不变）：`cd native/turna_anki_core && PROTOC=… cargo test -p turna_anki_bridge` 全绿 + `cargo run --bin turna_anki_gen_fixtures` regen diff review（同时覆盖 doc 37/38/39/40 四批 Rust 触及面；P2 手修的 fixture RESTORE_BACKUP 应 diff 干净或仅次序）；涉 .so 波次后 `./build-android/build.sh` smoke。发布口径维持 doc 34/38 的 NO-GO 至门禁解除。
+- 决策项 D1（journal 只写不消费）/ D3（每卡 5 RPC 按需化，批次三）维持 doc 39 §10 原判。
