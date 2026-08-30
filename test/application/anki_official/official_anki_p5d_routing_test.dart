@@ -752,15 +752,9 @@ void main() {
     );
   });
 
-  test('preview_does_not_offer_a_stub_cutover_button', () {
-    final source = File(
-      'lib/views/anki_official/official_anki_migration_preview_page.dart',
-    ).readAsStringSync();
-    expect(source.contains('official-migration-cutover-disabled'), isTrue);
-    expect(source.contains('Cutover (disabled)'), isFalse);
-    expect(source.contains('onPressed: null'), isFalse);
-    expect(source.contains('this preview cannot switch owner'), isTrue);
-  });
+  // preview_does_not_offer_a_stub_cutover_button was deleted together with
+  // the migration preview page (doc 39 P1-B): the page has no production
+  // push points, so its source-level assertions went with it.
 
   test('p5d_production_import_requires_cutover_and_android', () {
     expect(
@@ -795,10 +789,8 @@ void main() {
     final review = File('lib/views/anki/anki_review_screen.dart').readAsStringSync();
     expect(routing.toLowerCase().contains('ankiweb'), isFalse);
     expect(review.toLowerCase().contains('ankiweb'), isFalse);
-    final preview = File(
-      'lib/views/anki_official/official_anki_migration_preview_page.dart',
-    ).readAsStringSync();
-    expect(preview.toLowerCase().contains('ankiweb'), isFalse);
+    // The migration preview page assertion was deleted with the page
+    // (doc 39 P1-B).
   });
 
   test('p5d_new_official_import_writes_recorded_kind', () {

@@ -122,54 +122,6 @@ abstract class LegacyAnkiCensusReader {
   Future<List<LegacyAnkiImportCensusSeed>> loadSeeds();
 }
 
-class LegacyAnkiCensusService {
-  const LegacyAnkiCensusService(this._reader);
-
-  final LegacyAnkiCensusReader _reader;
-
-  Future<LegacyAnkiCensusReport> collect({
-    required String platform,
-    int? nowMillis,
-  }) async {
-    final seeds = await _reader.loadSeeds();
-    return LegacyAnkiCensusReport(
-      generatedAtMillis: nowMillis ?? DateTime.now().millisecondsSinceEpoch,
-      platform: platform,
-      imports: [for (final seed in seeds) _summarize(seed)],
-    );
-  }
-
-  LegacyAnkiImportCensus _summarize(LegacyAnkiImportCensusSeed seed) {
-    var missingGuid = 0;
-    final seen = <String, int>{};
-    for (final guid in seed.noteGuids) {
-      if (guid.isEmpty) {
-        missingGuid += 1;
-        continue;
-      }
-      seen[guid] = (seen[guid] ?? 0) + 1;
-    }
-    final duplicateGuidCount = seen.values
-        .where((count) => count > 1)
-        .fold<int>(0, (sum, n) => sum + (n - 1));
-    return LegacyAnkiImportCensus(
-      importId: seed.importId,
-      sourceHash: seed.sourceHash,
-      noteCount: seed.noteCount,
-      cardCount: seed.cardCount,
-      mediaCount: seed.mediaCount,
-      deckCount: seed.deckCount,
-      importedScheduling: seed.importedScheduling,
-      status: seed.status,
-      sourceFilePresent: seed.sourceFilePresent,
-      srsRowCount: seed.srsRowCount,
-      reviewEventCount: seed.reviewEventCount,
-      duplicateGuidCount: duplicateGuidCount,
-      missingGuidCount: missingGuid,
-    );
-  }
-}
-
 class DatabaseLegacyAnkiCensusReader implements LegacyAnkiCensusReader {
   const DatabaseLegacyAnkiCensusReader(this._db);
 

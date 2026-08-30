@@ -20,7 +20,8 @@ class DiagnosticsReleaseGuard extends AutoRouteGuard {
     'OfficialAnkiReviewerRoute',
     // OfficialAnkiReviewRoute was deleted with the orphan review page
     // (doc 39 P1-A); the page lives on only as a test/support fixture.
-    'OfficialAnkiMigrationPreviewRoute',
+    // OfficialAnkiMigrationPreviewRoute was deleted with the preview
+    // cluster (doc 39 P1-B).
     'OfficialAnkiSourceManagementRoute',
   };
 
