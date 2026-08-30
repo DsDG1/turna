@@ -75,7 +75,7 @@ String mapOfficialErrorToHuman(OfficialAnkiException e) {
       e.code == OfficialAnkiErrorCode.contractVersionMismatch) {
     return AppStrings.ankiPickFileError;
   }
-  return '\${AppStrings.ankiImportFailedHuman} (\${e.code.name})';
+  return '${AppStrings.ankiImportFailedHuman} (${e.code.name})';
 }
 
 String mapGeneralErrorToHuman(Object error) {
