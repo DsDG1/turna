@@ -1,6 +1,6 @@
 # 39 — Anki 集成减负与性能批次二（死码二批 / 契约单表化 / DTO codegen / 传输层折叠 / Rust 收敛）
 
-> 状态：**已登记待施工（2026-08-30 两轮全量复核后成稿；P1–P6 未开工）**。
+> 状态：**已施工（2026-08-30）：P1 全簇 / P2 / P3 / P4 / F2 / F3 / P5 前半完成（§15.1），余项（P5 后半、F1、P6 Rust 四波）移交 [40](./40-doc39-remainder-completion-plan.md)**。
 > 范围：六个独立施工包 P1–P6：①Dart 死码删除二批（~2,000 行：孤儿 UI、死编排路径、零引用方法）；②契约表面单表化与 capabilities/VERSION 对拍闭环；③DTO codegen 迁移（宽松类先行）；④engine 传输层折叠与 worker 统一消息协议；⑤import/migration 域状态机与重复减负；⑥Rust 桥接单表化、样板收敛与测试治理。**不改变**渲染保真、调度语义、备份流程、collection 数据所有权、camel/snake 双键兼容输出。
 > 前置阅读：[38](./38-debt-and-perf-batch-1-plan.md)（批次一已施工范围与 §11 批次二候选清单——本计划即其落地版并扩入新发现）、[35](./35-duplicate-legacy-layer-cleanup-plan.md)（迁移域删除时点）、[34](./34-official-anki-production-cutover-and-ohos-retirement-plan.md)（契约与发布口径）。
 > 铁律：**每个施工包独立 commit、独立可回滚**；**本机（Windows 开发机）无 cargo/protoc（doc 37 §10 / doc 38 铁律同记），P6 全部 Rust 改动必须在具备 Rust 1.97.1 + protoc 31.1 的主机通过 `cargo test -p turna_anki_bridge` + `gen_fixtures` regen 后方可合入**；契约 minor 逐次递增、号码永不复用（operations.md append-only 政策）；doc 38 §12.4 的工具链主机门禁未解除前，发布口径维持 NO-GO，本批 Rust 包与其同批过闸。
@@ -247,6 +247,45 @@ cargo run --bin turna_anki_gen_fixtures   # regen + diff review（fixture 修 RE
 - **浏览器/统计 legacy 读分支 + `AnkiNoteDao` 剩余读侧**：doc 35 §1.3 登记的推迟项，时点不变。
 - **P3 对拍参照实现删除**（`query.rs mod reference`/`projection.rs reference_rows`，~165 行）：doc 38 §12.4-4 已登记 pin 刷新时删，不重复立项。
 
-## 15. 施工记录（待填）
+## 15. 施工记录（2026-08-30，部分收口——余项移交 doc 40）
 
-> 每包施工后按 doc 38 §12 格式补：commit 清单、验收实测（含基线对照）、偏差与增补、待办门禁。验货记录（§16）由独立审计按 doc 38 §13 口径执行。
+### 15.1 提交清单（独立 commit，按依赖序）
+
+| 施工包 | commit | 摘要 |
+|---|---|---|
+| P1-A | fa800c5a | 孤儿复习页生产面删除（逃生门②：835 行移 test/support 夹具；路由+守卫名单+pump 点+双测试名单同步） |
+| P1-B | 366a37a4 | 迁移预览簇删除（preview_loader 127 / preview page 92 / CensusService 46；保留 Report/Reader） |
+| P1-C | ecb62ac4 | unified 编排器 legacy 死路径删除（448→165 行；两个死路径测试文件整删） |
+| P1-D | 7b08fedb | engine 零引用方法删除（listSources/listCards/recoverUnfinished+worker 分支/openCollection+_engineOpen） |
+| P1-E | 98a7eba9 | describeNextStates Dart 面全链删除（engine/两转发/session+dispatch/ffi/fake+能力/契约表；Rust op 13 不动） |
+| P1-F | 337fc626 | unification DAO 4 死成员 / audio staging-swap 家族（sweep 崩溃恢复测试改手工构造回滚目录）/ CardIntroductionRepository+死分支 / 向导死部件 |
+| P1-G | ab7e8d5f | 零散死符号（AnkiSourceRoute/typedef/importAndRecord/decide/isCleanup/lastReport/deps 两字段/quarantineOpenOperation/import record 两字段/writeFence 读访问器/_compatible 内联）+ reader 夹具移测试 + kind 映射合一 + 注释订正 4 处 + 反复活守卫 |
+| P2 | e3615951 | 契约单表化（名表+34 Id 常量+idFor switch→单 Map）+ session 魔法数改查表 + fake 派生 + fixture 补 RESTORE_BACKUP(35) + integrity 合并测试 + 死 snake 别名删除 + Progress.fromJson 合一 + major 校验单闸 + 死 fixture 删 2 + host_ffi 断言修复+守卫 helper |
+| P3 | 30eaee7c | DTO codegen 三类分治：12 宽松类迁 @JsonSerializable（逐字段 defaultValue）+ parity 对拍测试；(b)(c) 类保留手写 |
+| P4 | 65d03d5b | worker 统一消息协议（回执直传 DTO，session 1198→855）+ dispatch 改返 DTO + 单表 handlers + 47 处吞异常加 debugPrint + F3 错误解码补 5 case + 协议 round-trip 测试 |
+| F2 | 3a67faac | done 页「0 结构化/0 保真」两行删除（D2 授权随施工指令赋予） |
+| P5 前半 | 2ef7081d | 状态机 5 死态+decide 死分支/摘要 10 死字段+copyWith/进度条死 UI/wireKey 三份合一 |
+
+### 15.2 验收实测（本机 Windows）
+
+- `flutter analyze`：**0 issues**。
+- 点名门禁全绿：architecture guard（含新增 doc 39 反复活规则）/ formal_review_launcher / diagnostics guard / projection / browser stats / scheduler_p4 / scheduler_contract / contract integrity（新）/ contract / render contract / worker protocol（新）/ codegen parity（新）/ composition / host_ffi / session_lifecycle / formal_review_ack / practice_ack / recovery / import_orchestrator / p5d routing / recovery / execution plan / media delete / unification dao / study host / course practice intro / census driver / controller / done-step 系列。
+- 全量 flutter test：与基线对照无新增失败（既存 28 例 Windows 环境失败见 doc 38 §12.2）。
+- 量化：session.dart 1338→855（协议直传 DTO 后）；unified orchestrator 448→165；contract.dart 352→~250；dto.dart 手写解码面 -~200 行 + .g.dart 新增；lib/ 净删约 2,400 行（含移 test/support 的 835）。
+
+### 15.3 偏差与增补（对计划正文）
+
+1. **§2 V3 撤销**：CardDescriptor 6 字段（queue/suspended/buried/flag/marked/tags）非 write-only——browser 筛选模型 `official_anki_source_aware_browser.dart:270-274,372-381` 与 fake 引擎在读。字段保留，无 wire 变更需登记。
+2. **§2 V2/(b) 逃生门触发**：json_annotation 4.9.0 无 `@JsonKey.alias` 参数，ImportLog/DeckNode/UndoStatus 双键读取类按预案保留手写；(a) 类实际迁移 12 个。
+3. **§3.6 证据修正**：`introductionState` 被 4 个测试文件用作读回验证（非「仅一个文件」），保留；`deleteProjectionIdentityByCourseId` 经核实无调用，删。
+4. **§4.4 吞异常面实测 47 处**（计划点名的 engine 域 9 处全部处理，其余为 anki_official/views/data 广口径）；`catch (_)` 在 Dart 3.7+ 不可引用 `$_`，统一改 `catch (suppressed)` 绑定。
+5. **§3.3**：瘦身后的 orchestrator 里 5 个 in-process 字段全部 write-only，一并删除；`invalidate` 保留为删除路径钩子（空实现+注释）。
+6. **§3.4**：worker 内 recovery 服务装配一并删除（会话 RPC 面无消费者；服务层方法与 recovery_test 直接构造保留）。
+7. **§3.1 簇 A 逃生门②**落地：两页面类名/成员在夹具中原样保留，仅脱 @RoutePage 注解与 lib import；scheduler_p4 断言改「productionNames 不含 DESCRIBE_NEXT_STATES」退役检查。
+8. **journal kill 测试**：quarantineOpenOperation 删除后，`records §7.3 fields…` 用例改写为 begin+advance+open-journal 语义（§10 D1 边界不动写入侧）。
+9. **P5 前半**顺带核实：`unitCount: 0` 无展示位（§7.2 核对项关闭）；decide 的 resume 态原 `recovering` 值 write-only，改 `indexingCards`。
+
+### 15.4 余项与门禁
+
+- 余项（P5 后半 mark\* 合一与 router N+1 / run() 拆分 / view_helpers 归位 / F1 / P6 Rust 四波）已整理至 **[40](./40-doc39-remainder-completion-plan.md)**，铁律与验收口径承接不变。
+- 待办门禁（工具链主机）：`cargo test -p turna_anki_bridge` + `gen_fixtures` regen 同时覆盖 doc 37/38/39/40 四批 Rust 触及面（本机手修的 fixture RESTORE_BACKUP 应 diff 干净或仅次序）；Android smoke `./build-android/build.sh`。发布口径维持 doc 34/38 的 NO-GO 至门禁解除。
