@@ -1,3 +1,5 @@
+Generated: 2026-08-31 (doc 42 P2 映射交互)：`OfficialAnkiMappingPage` 保存恒可点、二选一正面、确认/跳过 pop；preview 行「已确认」；`skipOfficialNotetype` 清 `needsMapping`；wizard 确认不写全局 mapping 表。P0 S-d **passed**；S-c 仍红。`OfficialAnkiMappingRoute` 移出 diagnostics guard。定向：mapping_page、preview 已确认、skip/needsMapping、S-a/S-b、S-c 仍失败。
+
 Generated: 2026-08-31 (doc 42 P1 staging 基座)：catalog 11→12（`phase`/`staging_path`）；`OfficialAnkiStagingManager` + 第二 isolate 槽位 + `OfficialAnkiImportSaga.startStaging/cancelActive`；wizard parse/cancel 不写 live Collection。P0 S-a/S-b **passed**；S-c/S-d 仍红（P2/P3）。新增 `official_anki_staging_manager_test` 3。`importFile` 旧路径保留。wizard commit 未改（P3）。定向：staging_first_p0 S-a/S-b、staging_manager、lifecycle schema v12、controller。composition single-flights errno 32 为 Windows 预存。
 
 Generated: 2026-08-31 (doc 42 P0 staging-first 失败门禁)：S-a/S-b `anki_import_staging_first_p0_test`；S-c `official_anki_projection_scope_p0_test`；S-d mapping 页。生产代码未改。P1 后 S-a/S-b 改绿。

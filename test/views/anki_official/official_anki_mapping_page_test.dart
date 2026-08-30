@@ -150,7 +150,8 @@ void main() {
     );
   });
 
-  testWidgets('missing question and answer disables confirmation',
+  testWidgets(
+      'missing question and answer still lets save enter pick-front',
       (tester) async {
     await tester.pumpWidget(_host(OfficialAnkiMappingPage(
       notetypeName: 'Unknown',
@@ -165,7 +166,12 @@ void main() {
     final save = tester.widget<FilledButton>(
       find.byKey(const Key('mapping-save')),
     );
-    expect(save.onPressed, isNull);
+    expect(save.onPressed, isNotNull);
+
+    await tester.tap(find.byKey(const Key('mapping-save')));
+    await tester.pump();
+    expect(find.byKey(const Key('mapping-front-choice-0')), findsOneWidget);
+    expect(find.byKey(const Key('mapping-front-choice-1')), findsOneWidget);
   });
 
   testWidgets('advisory status keeps confirmation available', (tester) async {

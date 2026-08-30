@@ -232,13 +232,15 @@ class _RecognitionCard extends StatelessWidget {
             : triage.skipped
                 ? TurnaTheme.textHintColor(context)
                 : TurnaTheme.brandTeal;
-    final statusText = triage.blocking
-        ? AppStrings.ankiMappingStatusBlocking
-        : triage.advisory
-            ? AppStrings.ankiMappingStatusAdvisory
-            : triage.skipped
-                ? AppStrings.ankiOfficialMappingSkipped
-                : AppStrings.ankiMappingStatusRecognized;
+    final statusText = confirmed
+        ? AppStrings.ankiOfficialMappingConfirmed
+        : triage.blocking
+            ? AppStrings.ankiMappingStatusBlocking
+            : triage.advisory
+                ? AppStrings.ankiMappingStatusAdvisory
+                : triage.skipped
+                    ? AppStrings.ankiOfficialMappingSkipped
+                    : AppStrings.ankiMappingStatusRecognized;
     return Padding(
       padding: const EdgeInsets.only(top: 8),
       child: Column(

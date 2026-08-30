@@ -16,10 +16,13 @@ void main() {
         // scaffold (doc 38 P1-A); its route and guard entry are gone.
         // OfficialAnkiReviewRoute (doc 39 P1-A) and
         // OfficialAnkiMigrationPreviewRoute (doc 39 P1-B) likewise.
-        'OfficialAnkiMappingRoute',
         'OfficialAnkiReviewerRoute',
         'OfficialAnkiSourceManagementRoute',
       ]),
+    );
+    expect(
+      DiagnosticsReleaseGuard.guardedRouteNames,
+      isNot(contains('OfficialAnkiMappingRoute')),
     );
   });
 

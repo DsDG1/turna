@@ -95,6 +95,72 @@ void main() {
     await tester.pump();
     expect(openedNotetypeId, 1);
   });
+
+  testWidgets('confirmed notetype row shows 已确认', (tester) async {
+    final preview = OfficialAnkiImportPreviewModel(
+      plan: _plan(),
+      filePath: 'x.apkg',
+      sourceId: 'src-1',
+      sourceHash: 'h',
+      cardCount: 2,
+      noteCount: 2,
+      decks: const [
+        OfficialAnkiDeckNode(deckId: 1, name: 'Default', level: 1),
+      ],
+      schemas: [
+        OfficialAnkiProjectionSchema(
+          notetypeId: 1,
+          name: 'Basic',
+          kind: 'normal',
+          fieldNames: const ['Front', 'Back'],
+          templateNames: const ['Card 1'],
+          schemaFingerprint: 'fp',
+          samples: const [
+            OfficialAnkiProjectionSample(
+              noteId: 1,
+              fields: ['merhaba', '你好'],
+            ),
+          ],
+        ),
+      ],
+      suggestions: const {
+        1: OfficialAnkiMappingSuggestion(
+          status: OfficialAnkiMappingStatus.manual,
+          archetype: 'basicPair',
+          candidates: [
+            OfficialAnkiFieldCandidate(
+              role: FieldRole.prompt,
+              fieldIndex: 0,
+              fieldName: 'Front',
+              confidence: 1,
+              evidence: ['user'],
+            ),
+            OfficialAnkiFieldCandidate(
+              role: FieldRole.response,
+              fieldIndex: 1,
+              fieldName: 'Back',
+              confidence: 1,
+              evidence: ['user'],
+            ),
+          ],
+        ),
+      },
+      service: _StubService(),
+      confirmedNotetypes: {1},
+      showAllRecognition: true,
+    );
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: OfficialAnkiImportPreview(
+          preview: preview,
+          controller: _StubController(),
+          error: null,
+          onOpenMapping: (_) {},
+        ),
+      ),
+    ));
+    expect(find.text('已确认'), findsWidgets);
+  });
 }
 
 AnkiImportExecutionPlan _plan() => const AnkiImportExecutionPlan(

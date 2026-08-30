@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:turna/application/anki_import/official_import_error_messages.dart';
@@ -165,20 +167,21 @@ class AnkiImportController extends ChangeNotifier {
   ) {
     final preview = _officialPreview;
     if (preview == null) return;
-    preview.service.confirmMapping(schema: schema, suggestion: suggestion);
     preview.suggestions[schema.notetypeId] = suggestion;
     preview.confirmedNotetypes.add(schema.notetypeId);
     preview.skippedNotetypes.remove(schema.notetypeId);
-    preview.needsMapping = false;
+    refreshOfficialPreviewNeedsMapping(preview);
+    _persistStagingMappings(preview);
     notifyListeners();
   }
 
   void skipOfficialNotetype(OfficialAnkiProjectionSchema schema) {
     final preview = _officialPreview;
     if (preview == null) return;
-    preview.service.skipNotetype(schema: schema);
     preview.skippedNotetypes.add(schema.notetypeId);
     preview.confirmedNotetypes.remove(schema.notetypeId);
+    refreshOfficialPreviewNeedsMapping(preview);
+    _persistStagingMappings(preview);
     notifyListeners();
   }
 
@@ -353,6 +356,33 @@ class AnkiImportController extends ChangeNotifier {
 
   OfficialAnkiImportPreviewModel? get _officialPreview =>
       _previewOf<OfficialAnkiImportPreviewModel>();
+
+  void _persistStagingMappings(OfficialAnkiImportPreviewModel preview) {
+    try {
+      final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+      if (catalog == null) return;
+      final unfinished = OfficialAnkiImportAttemptDao(catalog)
+          .unfinished()
+          .where((row) => row.sourceId == preview.sourceId);
+      if (unfinished.isEmpty) return;
+      final stagingPath = unfinished.first.stagingPath;
+      if (stagingPath == null || stagingPath.isEmpty) return;
+      final dir = Directory(stagingPath);
+      if (!dir.existsSync()) return;
+      File('${dir.path}/mapping.json').writeAsStringSync(
+        jsonEncode({
+          'confirmed': preview.confirmedNotetypes.toList(),
+          'skipped': preview.skippedNotetypes.toList(),
+          'suggestions': {
+            for (final entry in preview.suggestions.entries)
+              '${entry.key}': entry.value.toJson(),
+          },
+        }),
+      );
+    } catch (suppressed) {
+      debugPrint('[AnkiImport] staging mapping.json: $suppressed');
+    }
+  }
 
   bool _stale(int op) => _disposed || op != _operation;
 

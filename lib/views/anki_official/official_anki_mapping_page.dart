@@ -98,6 +98,7 @@ String _presetLabel(OfficialExercisePreset preset) {
 class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
   late OfficialAnkiMappingSuggestion _current;
   late OfficialAnkiMappingSuggestion _suggestion;
+  var _pickingFront = false;
 
   @override
   void initState() {
@@ -169,6 +170,78 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
       _current = withPreset(_current, preset);
     });
     widget.onChanged?.call(_current);
+  }
+
+  void _assignPromptAndResponse(int promptIndex, int responseIndex) {
+    final names = widget.schema?.fieldNames ??
+        [for (final c in _current.candidates) c.fieldName];
+    String nameAt(int index) =>
+        index >= 0 && index < names.length ? names[index] : '';
+    final kept = [
+      for (final candidate in _current.candidates)
+        if (candidate.role != FieldRole.prompt &&
+            candidate.role != FieldRole.response)
+          candidate,
+    ];
+    setState(() {
+      _pickingFront = false;
+      _current = _current.copyWith(
+        status: OfficialAnkiMappingStatus.manual,
+        candidates: [
+          ...kept,
+          OfficialAnkiFieldCandidate(
+            role: FieldRole.prompt,
+            fieldIndex: promptIndex,
+            fieldName: nameAt(promptIndex),
+            confidence: 1,
+            evidence: const ['user:front-choice'],
+          ),
+          if (promptIndex != responseIndex)
+            OfficialAnkiFieldCandidate(
+              role: FieldRole.response,
+              fieldIndex: responseIndex,
+              fieldName: nameAt(responseIndex),
+              confidence: 1,
+              evidence: const ['user:front-choice'],
+            ),
+        ],
+      );
+    });
+    widget.onChanged?.call(_current);
+  }
+
+  String _frontChoicePreview(int index) {
+    final names = widget.schema?.fieldNames ?? const <String>[];
+    if (index < 0 || index >= names.length) return '';
+    final samples = widget.schema?.samples ?? const [];
+    if (samples.isEmpty || index >= samples.first.fields.length) {
+      return names[index];
+    }
+    return _plainField(samples.first.fields[index]);
+  }
+
+  String _plainField(String raw) {
+    final plain = raw.replaceAll(RegExp(r'<[^>]*>'), '').trim();
+    return plain.isEmpty ? '（空白）' : plain;
+  }
+
+  void _onSavePressed() {
+    final conflict = officialAnkiMappingConflict(_current);
+    final missingTarget = _current.role(FieldRole.prompt) == null;
+    final missingAnswer = !_current.singleFieldMode &&
+        _current.role(FieldRole.response) == null;
+    final blocking = conflict != null || missingTarget || missingAnswer;
+    if (blocking) {
+      setState(() => _pickingFront = true);
+      return;
+    }
+    widget.onConfirm?.call(_current);
+    if (mounted) Navigator.of(context).maybePop();
+  }
+
+  void _onSkipPressed() {
+    widget.onSkip?.call();
+    if (mounted) Navigator.of(context).maybePop();
   }
 
   String _sampleValue(
@@ -255,6 +328,57 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
             ),
           ),
           const SizedBox(height: 16),
+          if (_pickingFront) ...[
+            const Text(
+              '哪边是正面？',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
+            for (var i = 0; i < 2; i++)
+              if ((widget.schema?.fieldNames.length ?? 0) > i)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Material(
+                    color: Theme.of(context).cardColor,
+                    borderRadius:
+                        BorderRadius.circular(TurnaTheme.radiusMedium),
+                    child: InkWell(
+                      key: Key('mapping-front-choice-$i'),
+                      onTap: () {
+                        final other = i == 0 ? 1 : 0;
+                        _assignPromptAndResponse(i, other);
+                      },
+                      borderRadius:
+                          BorderRadius.circular(TurnaTheme.radiusMedium),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.schema!.fieldNames[i],
+                              style: TextStyle(
+                                fontSize: 12,
+                                color:
+                                    TurnaTheme.textSecondaryColor(context),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _frontChoicePreview(i),
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            const SizedBox(height: 8),
+          ],
           if (samples.isNotEmpty) ...[
             Text(
               AppStrings.ankiMappingSourceName(widget.notetypeName),
@@ -439,7 +563,7 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
             children: [
               TextButton(
                 key: const Key('mapping-skip'),
-                onPressed: widget.onSkip,
+                onPressed: _onSkipPressed,
                 child: const Text('跳过这类卡片'),
               ),
               const Spacer(),
@@ -451,8 +575,7 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
                 ),
               FilledButton(
                 key: const Key('mapping-save'),
-                onPressed:
-                    blocking ? null : () => widget.onConfirm?.call(_current),
+                onPressed: _onSavePressed,
                 child: Text(AppStrings.ankiMappingConfirmCorrect),
               ),
             ],

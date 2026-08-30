@@ -33,6 +33,13 @@ OfficialRecognitionTriage officialRecognitionTriage(
       skipped: true,
     );
   }
+  if (preview.confirmedNotetypes.contains(id)) {
+    return const OfficialRecognitionTriage(
+      blocking: false,
+      advisory: false,
+      skipped: false,
+    );
+  }
   final suggestion = preview.suggestions[id];
   if (suggestion == null) {
     return const OfficialRecognitionTriage(
@@ -51,5 +58,15 @@ OfficialRecognitionTriage officialRecognitionTriage(
     blocking: blocking,
     advisory: advisory,
     skipped: false,
+  );
+}
+
+/// Recalculates the preview banner: any remaining blocking (unconfirmed,
+/// unskipped) notetype keeps [OfficialAnkiImportPreviewModel.needsMapping].
+void refreshOfficialPreviewNeedsMapping(
+  OfficialAnkiImportPreviewModel preview,
+) {
+  preview.needsMapping = preview.schemas.any(
+    (schema) => officialRecognitionTriage(preview, schema).blocking,
   );
 }

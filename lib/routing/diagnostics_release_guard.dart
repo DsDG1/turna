@@ -4,11 +4,9 @@ import 'package:turna/routing/routing.gr.dart';
 
 /// Release gate for internal / diagnostics routes (plan 34 R8-1).
 ///
-/// The Official-Anki internal, mapping, reviewer, review, migration-preview
-/// and source-management pages are flag-gated diagnostics surfaces: they
-/// must not be reachable in release builds — including via deep links,
-/// which bypass in-page flag checks. The guard redirects such navigations
-/// to the home page instead.
+/// Official-Anki reviewer and source-management pages stay flag-gated
+/// diagnostics surfaces. The mapping page is a product import step
+/// (doc 42 P2) and is not in [guardedRouteNames].
 ///
 /// Diagnostics builds opt in explicitly via the
 /// `TURNA_OFFICIAL_ANKI_DIAGNOSTICS` dart-define.
@@ -16,8 +14,9 @@ class DiagnosticsReleaseGuard extends AutoRouteGuard {
   const DiagnosticsReleaseGuard();
 
   static const Set<String> guardedRouteNames = {
-    'OfficialAnkiMappingRoute',
     'OfficialAnkiReviewerRoute',
+    // OfficialAnkiMappingRoute is the import-wizard mapping page (doc 42 P2),
+    // not a diagnostics surface.
     // OfficialAnkiReviewRoute was deleted with the orphan review page
     // (doc 39 P1-A); the page lives on only as a test/support fixture.
     // OfficialAnkiMigrationPreviewRoute was deleted with the preview
