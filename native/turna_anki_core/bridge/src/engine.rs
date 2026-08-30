@@ -200,6 +200,31 @@ impl Engine {
     pub fn begin_queue_epoch(&mut self) {
         self.invalidate_tokens();
     }
+
+    /// The open collection. `require_open` guarantees presence before ops
+    /// run; the mapping keeps the STATUS_INVALID_STATE fallback for callers
+    /// holding the guard directly.
+    pub(crate) fn open_col(&mut self) -> Result<&mut Collection, i32> {
+        self.collection.as_mut().ok_or(STATUS_INVALID_STATE)
+    }
+}
+
+/// Decode an op request body; any decode failure is STATUS_INVALID_ARGUMENT.
+pub(crate) fn parse_req<T: serde::de::DeserializeOwned>(request: &[u8]) -> Result<T, i32> {
+    serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)
+}
+
+/// Decode an op request body, falling back to a caller-supplied default
+/// when the body is empty (ops whose request is optional).
+pub(crate) fn parse_req_or_default<T: serde::de::DeserializeOwned>(
+    request: &[u8],
+    default: T,
+) -> Result<T, i32> {
+    if request.is_empty() {
+        Ok(default)
+    } else {
+        parse_req(request)
+    }
 }
 
 pub struct EngineSlot {
@@ -278,7 +303,7 @@ impl Drop for BusyGuard<'_> {
 
 pub fn open_collection(handle: u64, request: &[u8]) -> Result<LifecycleResponse, i32> {
     let parsed: OpenRequest =
-        serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?;
+        parse_req(request)?;
     let paths = validate_paths(&parsed)?;
 
     let _gate = OPEN_GATE.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
@@ -353,7 +378,7 @@ pub fn check_collection(handle: u64) -> Result<LifecycleResponse, i32> {
     let mut engine = slot.engine.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
     match engine.state {
         EngineState::Open => {
-            let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+            let col = engine.open_col()?;
             crate::ops::integrity_ok(col)?;
             Ok(LifecycleResponse {
                 state: "open",

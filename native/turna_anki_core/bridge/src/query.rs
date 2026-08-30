@@ -12,6 +12,8 @@ use sha2::Sha256;
 use anki::prelude::*;
 use anki::search::SortMode;
 
+use crate::engine::parse_req;
+use crate::engine::parse_req_or_default;
 use crate::engine::slot;
 use crate::engine::STATUS_BACKEND_PANIC;
 use crate::engine::STATUS_CARD_NOT_FOUND;
@@ -83,15 +85,14 @@ fn encode_token(token: &PageToken) -> Result<String, i32> {
 }
 
 pub fn search_cards_page(handle: u64, request: &[u8]) -> Result<Value, i32> {
-    let parsed: PageRequest = if request.is_empty() {
+    let parsed: PageRequest = parse_req_or_default(
+        request,
         PageRequest {
             search: String::new(),
             page_size: None,
             page_token: None,
-        }
-    } else {
-        serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?
-    };
+        },
+    )?;
     let page_size = parsed.page_size.unwrap_or(DEFAULT_PAGE).clamp(1, MAX_PAGE);
     let slot = slot(handle)?;
     let mut engine = require_open(&slot)?;
@@ -118,7 +119,7 @@ pub fn search_cards_page(handle: u64, request: &[u8]) -> Result<Value, i32> {
     let ids = if let Some(ids) = ids {
         ids
     } else {
-        let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+        let col = engine.open_col()?;
         let mut found = col
             .search_cards(parsed.search.as_str(), SortMode::NoOrder)
             .map_err(map_anki_error)?;
@@ -155,13 +156,13 @@ pub fn search_cards_page(handle: u64, request: &[u8]) -> Result<Value, i32> {
 
 pub fn get_note_cards_batch(handle: u64, request: &[u8]) -> Result<Value, i32> {
     let parsed: NoteBatchRequest =
-        serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?;
+        parse_req(request)?;
     if parsed.note_ids.len() > MAX_BATCH {
         return Err(STATUS_INVALID_ARGUMENT);
     }
     let slot = slot(handle)?;
     let mut engine = require_open(&slot)?;
-    let col = engine.collection.as_mut().ok_or(crate::engine::STATUS_INVALID_STATE)?;
+    let col = engine.open_col()?;
     let by_note = note_cards_by_note(col, &parsed.note_ids)?;
     let notes = parsed
         .note_ids
@@ -217,13 +218,13 @@ pub(crate) struct CardDescriptorRow {
 
 pub fn get_card_descriptors_batch(handle: u64, request: &[u8]) -> Result<Value, i32> {
     let parsed: CardBatchRequest =
-        serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?;
+        parse_req(request)?;
     if parsed.card_ids.len() > MAX_BATCH {
         return Err(STATUS_INVALID_ARGUMENT);
     }
     let slot = slot(handle)?;
     let mut engine = require_open(&slot)?;
-    let col = engine.collection.as_mut().ok_or(crate::engine::STATUS_INVALID_STATE)?;
+    let col = engine.open_col()?;
     let rows = card_descriptor_rows(col, &parsed.card_ids)?;
     // The per-card getter errored on any missing card/note; keep that
     // fail-fast instead of silently shrinking the batch.

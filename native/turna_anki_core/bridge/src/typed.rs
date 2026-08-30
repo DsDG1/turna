@@ -11,6 +11,7 @@ use serde_json::json;
 use serde_json::Value;
 
 use crate::engine::MAX_REQUEST_BYTES;
+use crate::engine::parse_req;
 use crate::engine::STATUS_CARD_NOT_FOUND;
 use crate::engine::STATUS_INVALID_ARGUMENT;
 use crate::engine::STATUS_INVALID_STATE;
@@ -186,14 +187,14 @@ pub fn compare_typed_answer(handle: u64, request: &[u8]) -> Result<Value, i32> {
         return Err(STATUS_INVALID_ARGUMENT);
     }
     let parsed: CompareRequest =
-        serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?;
+        parse_req(request)?;
     if parsed.provided.len() > 16_384 {
         return Err(STATUS_INVALID_ARGUMENT);
     }
     let spec = parse_type_marker(&parsed.marker)?;
     let slot = crate::engine::slot(handle)?;
     let mut engine = require_open(&slot)?;
-    let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+    let col = engine.open_col()?;
     let (expected, combining) = expected_for_spec(col, parsed.card_id, &spec)?;
     let html = col
         .compare_answer(CompareAnswerRequest {
@@ -213,7 +214,7 @@ pub fn extract_cloze_op(handle: u64, request: &[u8]) -> Result<Value, i32> {
         return Err(STATUS_INVALID_ARGUMENT);
     }
     let parsed: ExtractRequest =
-        serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?;
+        parse_req(request)?;
     if let (Some(text), Some(ordinal)) = (parsed.text.as_ref(), parsed.ordinal) {
         if text.len() > 1_048_576 || ordinal == 0 {
             return Err(STATUS_INVALID_ARGUMENT);
@@ -232,7 +233,7 @@ pub fn extract_cloze_op(handle: u64, request: &[u8]) -> Result<Value, i32> {
     }
     let slot = crate::engine::slot(handle)?;
     let mut engine = require_open(&slot)?;
-    let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+    let col = engine.open_col()?;
     let (expected, _) = expected_for_spec(col, card_id, &spec)?;
     Ok(json!({ "text": expected }))
 }

@@ -23,6 +23,8 @@ use serde::Deserialize;
 use serde_json::json;
 use serde_json::Value;
 
+use crate::engine::parse_req;
+use crate::engine::parse_req_or_default;
 use crate::engine::slot;
 use crate::engine::AnswerToken;
 use crate::engine::BusyGuard;
@@ -289,12 +291,75 @@ pub(crate) fn require_open<'a>(
     Ok(engine)
 }
 
+/// Tail every mutating op shares: drop queued-answer tokens invalidated by
+/// the write, then bump the generation the write affected (content = card
+/// bodies and projection surfaces; page = list / queue surfaces).
+fn after_mutation(engine: &mut Engine, content: bool) {
+    engine.invalidate_tokens();
+    if content {
+        crate::engine::bump_content_generation(engine);
+    } else {
+        crate::engine::bump_page_generation(engine);
+    }
+}
+
+/// `cid:id1,id2,...` search term shared by the card-batch ops.
+fn cid_search(card_ids: &[i64], separator: &str) -> String {
+    format!(
+        "cid:{}",
+        card_ids
+            .iter()
+            .map(i64::to_string)
+            .collect::<Vec<_>>()
+            .join(separator)
+    )
+}
+
+/// Per-button label block of the queue endpoints (both callers feed
+/// `describe_next_states` output).
+fn labels_json(labels: &[String]) -> serde_json::Value {
+    json!({
+        "again": labels.first().cloned().unwrap_or_default(),
+        "hard": labels.get(1).cloned().unwrap_or_default(),
+        "good": labels.get(2).cloned().unwrap_or_default(),
+        "easy": labels.get(3).cloned().unwrap_or_default(),
+    })
+}
+
+/// The state a rating moves to, from the four preview states.
+fn pick_state(states: &anki::scheduler::states::SchedulingStates, rating: Rating) -> anki::scheduler::states::CardState {
+    match rating {
+        Rating::Again => states.again,
+        Rating::Hard => states.hard,
+        Rating::Good => states.good,
+        Rating::Easy => states.easy,
+    }
+}
+
+/// Answer through the queue, falling back to an isolated review when the
+/// queue head rejects `from_queue`. The retry error wins over the original;
+/// success clears study queues so the retried card leaves the queue.
+fn answer_with_queue_fallback(
+    col: &mut anki::collection::Collection,
+    answer: &mut CardAnswer,
+) -> std::result::Result<anki::ops::OpOutput<()>, anki::error::AnkiError> {
+    match col.answer_card(answer) {
+        Ok(output) => Ok(output),
+        Err(_) => {
+            answer.from_queue = false;
+            let output = col.answer_card(answer)?;
+            col.clear_study_queues();
+            Ok(output)
+        }
+    }
+}
+
 fn import_package(handle: u64, request: &[u8]) -> Result<Value, i32> {
     if request.len() > MAX_REQUEST_BYTES {
         return Err(STATUS_INVALID_ARGUMENT);
     }
     let parsed: ImportRequest =
-        serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?;
+        parse_req(request)?;
     let path = PathBuf::from(&parsed.package_path);
     if !path.is_absolute() {
         return Err(STATUS_INVALID_ARGUMENT);
@@ -317,7 +382,7 @@ fn import_package(handle: u64, request: &[u8]) -> Result<Value, i32> {
     };
     let started = Instant::now();
     let imported = {
-        let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+        let col = engine.open_col()?;
         col.import_apkg(&path, options)
     };
     let elapsed = started.elapsed().as_millis() as u64;
@@ -327,7 +392,7 @@ fn import_package(handle: u64, request: &[u8]) -> Result<Value, i32> {
             // Doc 38 P3-2: two O(1) count() probes instead of two
             // full-table searches whose only consumer was .len().
             let (note_count, card_count): (i64, i64) = {
-                let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+                let col = engine.open_col()?;
                 let db = col.storage.db();
                 let note_count = db
                     .query_row("select count(*) from notes", [], |row| row.get(0))
@@ -360,7 +425,7 @@ fn import_package(handle: u64, request: &[u8]) -> Result<Value, i32> {
 fn list_deck_tree(handle: u64) -> Result<Value, i32> {
     let slot = slot(handle)?;
     let mut engine = require_open(&slot)?;
-    let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+    let col = engine.open_col()?;
     let tree = col.deck_tree(None).map_err(map_anki_error)?;
     let mut decks = Vec::new();
     let mut stack = vec![tree];
@@ -393,13 +458,13 @@ fn render_card(handle: u64, request: &[u8]) -> Result<Value, i32> {
         return Err(STATUS_INVALID_ARGUMENT);
     }
     let parsed: RenderRequest =
-        serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?;
+        parse_req(request)?;
     if parsed.card_id <= 0 {
         return Err(STATUS_INVALID_ARGUMENT);
     }
     let slot = slot(handle)?;
     let mut engine = require_open(&slot)?;
-    let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+    let col = engine.open_col()?;
     let rendered = col
         .render_existing_card(CardId(parsed.card_id), parsed.browser, false)
         .map_err(|err| {
@@ -481,18 +546,14 @@ fn proto_av_tag_json(tag: &anki_proto::card_rendering::AvTag) -> Value {
 }
 
 fn set_current_deck(handle: u64, request: &[u8]) -> Result<Value, i32> {
-    let parsed: DeckRequest = if request.is_empty() {
-        DeckRequest { deck_id: 1 }
-    } else {
-        serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?
-    };
+    let parsed: DeckRequest = parse_req_or_default(request, DeckRequest { deck_id: 1 })?;
     if parsed.deck_id <= 0 {
         return Err(STATUS_INVALID_ARGUMENT);
     }
     let slot = slot(handle)?;
     let mut engine = require_open(&slot)?;
     {
-        let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+        let col = engine.open_col()?;
         if col
             .get_deck(DeckId(parsed.deck_id))
             .map_err(map_anki_error)?
@@ -503,8 +564,7 @@ fn set_current_deck(handle: u64, request: &[u8]) -> Result<Value, i32> {
         col.set_current_deck(DeckId(parsed.deck_id))
             .map_err(map_anki_error)?;
     }
-    engine.invalidate_tokens();
-    crate::engine::bump_page_generation(&mut engine);
+    after_mutation(&mut engine, false);
     Ok(json!({
         "deckId": parsed.deck_id,
         "queueEpoch": engine.queue_epoch,
@@ -512,14 +572,13 @@ fn set_current_deck(handle: u64, request: &[u8]) -> Result<Value, i32> {
 }
 
 fn get_review_queue(handle: u64, request: &[u8]) -> Result<Value, i32> {
-    let parsed: QueueRequest = if request.is_empty() {
+    let parsed: QueueRequest = parse_req_or_default(
+        request,
         QueueRequest {
             fetch_limit: 1,
             intraday_learning_only: false,
-        }
-    } else {
-        serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?
-    };
+        },
+    )?;
     if parsed.fetch_limit < 1 || parsed.fetch_limit > 100 {
         return Err(STATUS_INVALID_ARGUMENT);
     }
@@ -528,7 +587,7 @@ fn get_review_queue(handle: u64, request: &[u8]) -> Result<Value, i32> {
     engine.begin_queue_epoch();
     let session_id = engine.session_id.clone();
     let queue_epoch = engine.queue_epoch;
-    let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+    let col = engine.open_col()?;
     let queued = col
         .get_queued_cards(parsed.fetch_limit, parsed.intraday_learning_only)
         .map_err(map_anki_error)?;
@@ -571,12 +630,7 @@ fn get_review_queue(handle: u64, request: &[u8]) -> Result<Value, i32> {
             "templateOrdinal": ord,
             "queueKind": kind,
             "answerToken": token,
-            "labels": {
-                "again": labels.first().cloned().unwrap_or_default(),
-                "hard": labels.get(1).cloned().unwrap_or_default(),
-                "good": labels.get(2).cloned().unwrap_or_default(),
-                "easy": labels.get(3).cloned().unwrap_or_default(),
-            },
+            "labels": labels_json(&labels),
         }));
     }
     if cards.is_empty() {
@@ -594,7 +648,7 @@ fn get_review_queue(handle: u64, request: &[u8]) -> Result<Value, i32> {
 
 fn describe_next_states(handle: u64, request: &[u8]) -> Result<Value, i32> {
     let parsed: TokenRequest =
-        serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?;
+        parse_req(request)?;
     let slot = slot(handle)?;
     let mut engine = require_open(&slot)?;
     let token = engine
@@ -605,22 +659,17 @@ fn describe_next_states(handle: u64, request: &[u8]) -> Result<Value, i32> {
         return Err(STATUS_SCHEDULING_CONTEXT_STALE);
     }
     let states = token.states.clone();
-    let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+    let col = engine.open_col()?;
     let labels = col.describe_next_states(&states).map_err(map_anki_error)?;
     Ok(json!({
         "answerToken": parsed.answer_token,
-        "labels": {
-            "again": labels.first().cloned().unwrap_or_default(),
-            "hard": labels.get(1).cloned().unwrap_or_default(),
-            "good": labels.get(2).cloned().unwrap_or_default(),
-            "easy": labels.get(3).cloned().unwrap_or_default(),
-        },
+        "labels": labels_json(&labels),
     }))
 }
 
 fn answer_card(handle: u64, request: &[u8]) -> Result<Value, i32> {
     let parsed: AnswerRequest =
-        serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?;
+        parse_req(request)?;
     if parsed.milliseconds_taken < 0 || parsed.milliseconds_taken > i64::from(MAX_ELAPSED_MS) {
         return Err(STATUS_INVALID_ARGUMENT);
     }
@@ -677,7 +726,7 @@ fn answer_card(handle: u64, request: &[u8]) -> Result<Value, i32> {
         return Err(STATUS_ANSWER_FAILED);
     }
     let pre_revlog = {
-        let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+        let col = engine.open_col()?;
         revlog_count(col, parsed.card_id)?
     };
     let answered_at = if engine.allow_injected_answered_at {
@@ -688,14 +737,9 @@ fn answer_card(handle: u64, request: &[u8]) -> Result<Value, i32> {
     } else {
         TimestampMillis::now()
     };
-    let new_state = match rating {
-        Rating::Again => states.again,
-        Rating::Hard => states.hard,
-        Rating::Good => states.good,
-        Rating::Easy => states.easy,
-    };
+    let new_state = pick_state(&states, rating);
     let answer_result = {
-        let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+        let col = engine.open_col()?;
         let mut answer = CardAnswer {
             card_id: CardId(parsed.card_id),
             current_state: states.current,
@@ -736,7 +780,7 @@ fn answer_card(handle: u64, request: &[u8]) -> Result<Value, i32> {
                 return Err(STATUS_ANSWER_COMMIT_UNKNOWN);
             }
             let (queue, revlog) = {
-                let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+                let col = engine.open_col()?;
                 let card = col
                     .storage
                     .get_card(CardId(parsed.card_id))
@@ -753,8 +797,7 @@ fn answer_card(handle: u64, request: &[u8]) -> Result<Value, i32> {
                     engine.committed_mutations.insert(mutation_id.to_string());
                 }
             }
-            engine.invalidate_tokens();
-            crate::engine::bump_page_generation(&mut engine);
+            after_mutation(&mut engine, false);
             Ok(json!({
                 "clientMutationId": parsed.client_mutation_id,
                 "cardId": parsed.card_id,
@@ -806,7 +849,7 @@ fn undo(handle: u64) -> Result<Value, i32> {
     let slot = slot(handle)?;
     let mut engine = require_open(&slot)?;
     let result = {
-        let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+        let col = engine.open_col()?;
         match col.undo() {
             Ok(_) => Ok(()),
             Err(AnkiError::UndoEmpty) => Err(STATUS_UNDO_UNAVAILABLE),
@@ -814,8 +857,7 @@ fn undo(handle: u64) -> Result<Value, i32> {
         }
     };
     result?;
-    engine.invalidate_tokens();
-    crate::engine::bump_content_generation(&mut engine);
+    after_mutation(&mut engine, true);
     Ok(json!({
         "ok": true,
         "undone": true,
@@ -827,7 +869,7 @@ fn redo(handle: u64) -> Result<Value, i32> {
     let slot = slot(handle)?;
     let mut engine = require_open(&slot)?;
     let result = {
-        let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+        let col = engine.open_col()?;
         match col.redo() {
             Ok(_) => Ok(()),
             Err(AnkiError::UndoEmpty) => Err(STATUS_REDO_UNAVAILABLE),
@@ -835,8 +877,7 @@ fn redo(handle: u64) -> Result<Value, i32> {
         }
     };
     result?;
-    engine.invalidate_tokens();
-    crate::engine::bump_content_generation(&mut engine);
+    after_mutation(&mut engine, true);
     Ok(json!({
         "ok": true,
         "redone": true,
@@ -846,7 +887,7 @@ fn redo(handle: u64) -> Result<Value, i32> {
 
 fn bury_or_suspend(handle: u64, request: &[u8]) -> Result<Value, i32> {
     let parsed: BuryOrSuspendRequest =
-        serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?;
+        parse_req(request)?;
     if parsed.card_ids.len() + parsed.note_ids.len() > MAX_BURY_IDS {
         return Err(STATUS_INVALID_ARGUMENT);
     }
@@ -862,7 +903,7 @@ fn bury_or_suspend(handle: u64, request: &[u8]) -> Result<Value, i32> {
         return Err(STATUS_INVALID_ARGUMENT);
     }
     {
-        let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+        let col = engine.open_col()?;
         for note_id in &parsed.note_ids {
             let found = col
                 .search_cards(format!("nid:{note_id}").as_str(), SortMode::NoOrder)
@@ -875,7 +916,7 @@ fn bury_or_suspend(handle: u64, request: &[u8]) -> Result<Value, i32> {
     if ids.len() > MAX_BURY_IDS {
         return Err(STATUS_INVALID_ARGUMENT);
     }
-    let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+    let col = engine.open_col()?;
     let deck = col.get_current_deck().map_err(map_anki_error)?;
     if matches!(deck.kind, DeckKind::Filtered(_)) {
         return Err(STATUS_INVALID_STATE);
@@ -915,8 +956,7 @@ fn bury_or_suspend(handle: u64, request: &[u8]) -> Result<Value, i32> {
         }
         _ => return Err(STATUS_INVALID_ARGUMENT),
     }
-    engine.invalidate_tokens();
-    crate::engine::bump_page_generation(&mut engine);
+    after_mutation(&mut engine, false);
     Ok(json!({
         "mode": mode,
         "cardIds": ids,
@@ -931,7 +971,7 @@ fn bury_or_suspend(handle: u64, request: &[u8]) -> Result<Value, i32> {
 /// [MAX_DELETE_NOTE_IDS] and the envelope payload cap.
 fn delete_notes(handle: u64, request: &[u8]) -> Result<Value, i32> {
     let parsed: DeleteNotesRequest =
-        serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?;
+        parse_req(request)?;
     if parsed.note_ids.is_empty() || parsed.note_ids.len() > MAX_DELETE_NOTE_IDS {
         return Err(STATUS_INVALID_ARGUMENT);
     }
@@ -942,11 +982,10 @@ fn delete_notes(handle: u64, request: &[u8]) -> Result<Value, i32> {
     let mut engine = require_open(&slot)?;
     let nids: Vec<NoteId> = parsed.note_ids.iter().copied().map(NoteId).collect();
     let removed_cards = {
-        let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+        let col = engine.open_col()?;
         col.remove_notes(&nids).map_err(map_anki_error)?.output
     };
-    engine.invalidate_tokens();
-    crate::engine::bump_content_generation(&mut engine);
+    after_mutation(&mut engine, true);
     Ok(json!({
         "ok": true,
         "removedCards": removed_cards,
@@ -959,7 +998,7 @@ fn delete_notes(handle: u64, request: &[u8]) -> Result<Value, i32> {
 /// preserving notes shared by another imported source.
 fn delete_cards(handle: u64, request: &[u8]) -> Result<Value, i32> {
     let parsed: DeleteCardsRequest =
-        serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?;
+        parse_req(request)?;
     if parsed.card_ids.is_empty() || parsed.card_ids.len() > MAX_DELETE_CARD_IDS {
         return Err(STATUS_INVALID_ARGUMENT);
     }
@@ -969,7 +1008,7 @@ fn delete_cards(handle: u64, request: &[u8]) -> Result<Value, i32> {
     let slot = slot(handle)?;
     let mut engine = require_open(&slot)?;
     let removed = {
-        let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+        let col = engine.open_col()?;
         CardsService::remove_cards(
             col,
             anki_proto::cards::RemoveCardsRequest {
@@ -979,8 +1018,7 @@ fn delete_cards(handle: u64, request: &[u8]) -> Result<Value, i32> {
         .map_err(map_anki_error)?
         .count
     };
-    engine.invalidate_tokens();
-    crate::engine::bump_content_generation(&mut engine);
+    after_mutation(&mut engine, true);
     Ok(json!({
         "ok": true,
         "removedCards": removed,
@@ -990,7 +1028,7 @@ fn delete_cards(handle: u64, request: &[u8]) -> Result<Value, i32> {
 
 fn stats_for_cards_batch(handle: u64, request: &[u8]) -> Result<Value, i32> {
     let mut parsed: StatsForCardsRequest =
-        serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?;
+        parse_req(request)?;
     if parsed.card_ids.is_empty() || parsed.card_ids.len() > MAX_STATS_CARD_IDS {
         return Err(STATUS_INVALID_ARGUMENT);
     }
@@ -1000,19 +1038,11 @@ fn stats_for_cards_batch(handle: u64, request: &[u8]) -> Result<Value, i32> {
     parsed.card_ids.sort_unstable();
     parsed.card_ids.dedup();
     let requested_card_count = parsed.card_ids.len();
-    let search = format!(
-        "cid:{}",
-        parsed
-            .card_ids
-            .iter()
-            .map(i64::to_string)
-            .collect::<Vec<_>>()
-            .join(",")
-    );
+    let search = cid_search(&parsed.card_ids, ",");
 
     let slot = slot(handle)?;
     let mut engine = require_open(&slot)?;
-    let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+    let col = engine.open_col()?;
     let found_card_count = col
         .search_cards(search.as_str(), SortMode::NoOrder)
         .map_err(map_anki_error)?
@@ -1089,7 +1119,7 @@ fn stats_for_cards_batch(handle: u64, request: &[u8]) -> Result<Value, i32> {
 
 fn schedule_cards_as_new(handle: u64, request: &[u8]) -> Result<Value, i32> {
     let mut parsed: ScheduleCardsAsNewRequest =
-        serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?;
+        parse_req(request)?;
     if parsed.card_ids.is_empty() || parsed.card_ids.len() > MAX_SCHEDULE_AS_NEW_IDS {
         return Err(STATUS_INVALID_ARGUMENT);
     }
@@ -1098,19 +1128,11 @@ fn schedule_cards_as_new(handle: u64, request: &[u8]) -> Result<Value, i32> {
     }
     parsed.card_ids.sort_unstable();
     parsed.card_ids.dedup();
-    let search = format!(
-        "cid:{}",
-        parsed
-            .card_ids
-            .iter()
-            .map(i64::to_string)
-            .collect::<Vec<_>>()
-            .join(",")
-    );
+    let search = cid_search(&parsed.card_ids, ",");
     let slot = slot(handle)?;
     let mut engine = require_open(&slot)?;
     let scheduled = {
-        let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+        let col = engine.open_col()?;
         let ids = col
             .search_cards(search.as_str(), SortMode::NoOrder)
             .map_err(map_anki_error)?;
@@ -1118,8 +1140,7 @@ fn schedule_cards_as_new(handle: u64, request: &[u8]) -> Result<Value, i32> {
             .map_err(map_anki_error)?;
         ids.len()
     };
-    engine.invalidate_tokens();
-    crate::engine::bump_page_generation(&mut engine);
+    after_mutation(&mut engine, false);
     Ok(json!({
         "ok": true,
         "scheduledCards": scheduled,
@@ -1144,7 +1165,7 @@ struct AheadRequest {
 
 fn answer_ahead_cards(handle: u64, request: &[u8]) -> Result<Value, i32> {
     let parsed: AheadRequest =
-        serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?;
+        parse_req(request)?;
     if parsed.answers.is_empty() || parsed.answers.len() > 100 {
         return Err(STATUS_INVALID_ARGUMENT);
     }
@@ -1160,7 +1181,7 @@ fn answer_ahead_cards(handle: u64, request: &[u8]) -> Result<Value, i32> {
 
     let slot = slot(handle)?;
     let mut engine = require_open(&slot)?;
-    let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+    let col = engine.open_col()?;
     let previous_deck = col.get_current_deck().map_err(map_anki_error)?.id;
 
     // Idempotency is absorbed here (P2): cards already rated today are
@@ -1219,12 +1240,7 @@ fn answer_ahead_cards(handle: u64, request: &[u8]) -> Result<Value, i32> {
         let Some((rating, milliseconds_taken)) = remaining.remove(&card_id) else {
             continue;
         };
-        let new_state = match rating {
-            Rating::Again => queued_card.states.again,
-            Rating::Hard => queued_card.states.hard,
-            Rating::Good => queued_card.states.good,
-            Rating::Easy => queued_card.states.easy,
-        };
+        let new_state = pick_state(&queued_card.states, rating);
         let mut answer = CardAnswer {
             card_id: queued_card.card.id(),
             current_state: queued_card.states.current,
@@ -1235,22 +1251,16 @@ fn answer_ahead_cards(handle: u64, request: &[u8]) -> Result<Value, i32> {
             custom_data: None,
             from_queue: true,
         };
-        match col.answer_card(&mut answer) {
+        match answer_with_queue_fallback(col, &mut answer) {
             Ok(_) => answered += 1,
-            Err(_) => {
-                answer.from_queue = false;
-                col.answer_card(&mut answer).map_err(map_anki_error)?;
-                col.clear_study_queues();
-                answered += 1;
-            }
+            Err(err) => return Err(map_anki_error(err)),
         }
     }
 
     let _ = col.empty_filtered_deck(filtered_id);
     let _ = col.remove_decks_and_child_decks(&[filtered_id]);
     let _ = col.set_current_deck(previous_deck);
-    engine.invalidate_tokens();
-    crate::engine::bump_page_generation(&mut engine);
+    after_mutation(&mut engine, false);
     Ok(json!({
         "answeredCards": answered,
         "skippedRatedToday": skipped_rated_today,
@@ -1266,7 +1276,7 @@ struct EnsureNewQuotaRequest {
 
 fn ensure_today_new_quota(handle: u64, request: &[u8]) -> Result<Value, i32> {
     let parsed: EnsureNewQuotaRequest =
-        serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?;
+        parse_req(request)?;
     if parsed.deck_id <= 0 || parsed.needed_new < 0 || parsed.needed_new > 9999 {
         return Err(STATUS_INVALID_ARGUMENT);
     }
@@ -1275,7 +1285,7 @@ fn ensure_today_new_quota(handle: u64, request: &[u8]) -> Result<Value, i32> {
     }
     let slot = slot(handle)?;
     let mut engine = require_open(&slot)?;
-    let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+    let col = engine.open_col()?;
     let studied = SchedulerService::counts_for_deck_today(
         col,
         anki_proto::decks::DeckId {
@@ -1312,20 +1322,15 @@ fn ensure_today_new_quota(handle: u64, request: &[u8]) -> Result<Value, i32> {
         ),
     })
     .map_err(map_anki_error)?;
-    engine.invalidate_tokens();
-    crate::engine::bump_page_generation(&mut engine);
+    after_mutation(&mut engine, false);
     Ok(json!({ "extendedBy": new_extend }))
 }
 
 fn counts_for_deck_today(handle: u64, request: &[u8]) -> Result<Value, i32> {
-    let parsed: DeckRequest = if request.is_empty() {
-        DeckRequest { deck_id: 1 }
-    } else {
-        serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?
-    };
+    let parsed: DeckRequest = parse_req_or_default(request, DeckRequest { deck_id: 1 })?;
     let slot = slot(handle)?;
     let mut engine = require_open(&slot)?;
-    let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+    let col = engine.open_col()?;
     let counts = SchedulerService::counts_for_deck_today(
         col,
         anki_proto::decks::DeckId {
@@ -1345,7 +1350,7 @@ fn counts_for_deck_today(handle: u64, request: &[u8]) -> Result<Value, i32> {
 fn congrats_info(handle: u64) -> Result<Value, i32> {
     let slot = slot(handle)?;
     let mut engine = require_open(&slot)?;
-    let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+    let col = engine.open_col()?;
     let info = col.congrats_info().map_err(map_anki_error)?;
     Ok(json!({
         "learnRemaining": info.learn_remaining,
@@ -2302,12 +2307,7 @@ mod tests {
             assert_eq!(queued_card.card.id().0, card_id);
             let states = queued_card.states;
             let rating = parse_rating(rating_name).unwrap();
-            let new_state = match rating {
-                Rating::Again => states.again,
-                Rating::Hard => states.hard,
-                Rating::Good => states.good,
-                Rating::Easy => states.easy,
-            };
+            let new_state = pick_state(&states, rating);
             direct
                 .answer_card(&mut CardAnswer {
                     card_id: CardId(card_id),

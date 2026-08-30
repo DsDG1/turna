@@ -20,6 +20,8 @@ use anki::template::ParsedTemplate;
 
 use crate::engine::slot;
 use crate::engine::Engine;
+use crate::engine::parse_req;
+use crate::engine::parse_req_or_default;
 use crate::engine::MAX_RESPONSE_BYTES;
 use crate::engine::STATUS_BACKEND_PANIC;
 use crate::engine::STATUS_INVALID_ARGUMENT;
@@ -284,22 +286,21 @@ fn forbidden_keys(value: &Value) -> bool {
 }
 
 pub fn get_projection_schemas(handle: u64, request: &[u8]) -> Result<Value, i32> {
-    let parsed: SchemaRequest = if request.is_empty() {
+    let parsed: SchemaRequest = parse_req_or_default(
+        request,
         SchemaRequest {
             notetype_ids: Vec::new(),
             include_samples: false,
             sample_limit: None,
-        }
-    } else {
-        serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?
-    };
+        },
+    )?;
     let sample_limit = parsed
         .sample_limit
         .unwrap_or(DEFAULT_SAMPLE_LIMIT)
         .clamp(1, MAX_SAMPLE_LIMIT);
     let slot = slot(handle)?;
     let mut engine = require_open(&slot)?;
-    let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+    let col = engine.open_col()?;
     let wanted = if parsed.notetype_ids.is_empty() {
         col.storage
             .get_notetype_use_counts()
@@ -372,7 +373,7 @@ pub fn get_projection_schemas(handle: u64, request: &[u8]) -> Result<Value, i32>
 
 pub fn begin_projection_read(handle: u64, request: &[u8]) -> Result<Value, i32> {
     let parsed: BeginReadRequest =
-        serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?;
+        parse_req(request)?;
     if parsed.card_set_fingerprint.is_empty() {
         return Err(STATUS_INVALID_ARGUMENT);
     }
@@ -496,7 +497,7 @@ fn require_snapshot<'a>(engine: &'a Engine, token: &str) -> Result<&'a Projectio
 
 pub fn get_projection_rows_batch(handle: u64, request: &[u8]) -> Result<Value, i32> {
     let parsed: RowsRequest =
-        serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?;
+        parse_req(request)?;
     if parsed.card_ids.len() > MAX_BATCH {
         return Err(STATUS_INVALID_ARGUMENT);
     }
@@ -504,7 +505,7 @@ pub fn get_projection_rows_batch(handle: u64, request: &[u8]) -> Result<Value, i
     let slot = slot(handle)?;
     let mut engine = require_open(&slot)?;
     let _ = require_snapshot(&engine, &parsed.snapshot_token)?;
-    let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+    let col = engine.open_col()?;
     let card_rows = projection_card_rows(col, &card_ids)?;
     let mut note_ids: Vec<i64> = card_rows.values().map(|row| row.note_id).collect();
     note_ids.sort_unstable();

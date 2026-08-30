@@ -18,6 +18,8 @@ use anki::collection::CollectionBuilder;
 
 use crate::engine::close_collection_inner;
 use crate::engine::reopen_open_collection;
+use crate::engine::parse_req;
+use crate::engine::parse_req_or_default;
 use crate::engine::slot;
 use crate::engine::BusyGuard;
 use crate::engine::EngineState;
@@ -113,11 +115,7 @@ fn newest_colpkg(dir: &Path) -> Option<String> {
 }
 
 pub fn create_backup(handle: u64, request: &[u8]) -> Result<Value, i32> {
-    let parsed: BackupRequest = if request.is_empty() {
-        BackupRequest { backup_id: None }
-    } else {
-        serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?
-    };
+    let parsed: BackupRequest = parse_req_or_default(request, BackupRequest { backup_id: None })?;
     let backup_id = parsed.backup_id.unwrap_or_else(mint_backup_id);
     sanitize_backup_id(&backup_id)?;
 
@@ -142,7 +140,7 @@ pub fn create_backup(handle: u64, request: &[u8]) -> Result<Value, i32> {
     }
 
     let official_colpkg = {
-        let col = engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?;
+        let col = engine.open_col()?;
         match col.maybe_backup(backup_dir.clone(), true) {
             Ok(Some(task)) => match task.join() {
                 Ok(Ok(())) => newest_colpkg(&backup_dir),
@@ -166,7 +164,7 @@ pub fn create_backup(handle: u64, request: &[u8]) -> Result<Value, i32> {
         return Err(status);
     }
     reopen_open_collection(&mut engine, &slot)?;
-    crate::ops::integrity_ok(engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?)?;
+    crate::ops::integrity_ok(engine.open_col()?)?;
 
     Ok(json!({
         "backupId": backup_id,
@@ -178,7 +176,7 @@ pub fn create_backup(handle: u64, request: &[u8]) -> Result<Value, i32> {
 
 pub fn restore_backup(handle: u64, request: &[u8]) -> Result<Value, i32> {
     let parsed: RestoreRequest =
-        serde_json::from_slice(request).map_err(|_| STATUS_INVALID_ARGUMENT)?;
+        parse_req(request)?;
     sanitize_backup_id(&parsed.backup_id)?;
 
     let slot = slot(handle)?;
@@ -206,7 +204,7 @@ pub fn restore_backup(handle: u64, request: &[u8]) -> Result<Value, i32> {
         }
     }
     reopen_open_collection(&mut engine, &slot)?;
-    crate::ops::integrity_ok(engine.collection.as_mut().ok_or(STATUS_INVALID_STATE)?)?;
+    crate::ops::integrity_ok(engine.open_col()?)?;
     Ok(json!({
         "state": "open",
         "backupId": parsed.backup_id,
