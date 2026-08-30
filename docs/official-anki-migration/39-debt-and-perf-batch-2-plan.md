@@ -270,7 +270,7 @@ cargo run --bin turna_anki_gen_fixtures   # regen + diff review（fixture 修 RE
 
 - `flutter analyze`：**0 issues**。
 - 点名门禁全绿：architecture guard（含新增 doc 39 反复活规则）/ formal_review_launcher / diagnostics guard / projection / browser stats / scheduler_p4 / scheduler_contract / contract integrity（新）/ contract / render contract / worker protocol（新）/ codegen parity（新）/ composition / host_ffi / session_lifecycle / formal_review_ack / practice_ack / recovery / import_orchestrator / p5d routing / recovery / execution plan / media delete / unification dao / study host / course practice intro / census driver / controller / done-step 系列。
-- 全量 flutter test：与基线对照无新增失败（既存 28 例 Windows 环境失败见 doc 38 §12.2）。
+- **flutter test 全量（2026-08-30 收尾跑，2,755 例）**：1726 通过 / **29 失败**。29 例全部落在 doc 38 §12.2/§13.3 记录的既存失败族（media 8、golden/无障碍 10、composition single-flight 1、官方导入/lesson_flow/backup/reviewer 行为与 UI AV/progress provider/history dao 等 10），本批新建测试（worker protocol / codegen parity / contract integrity）与其余点名门禁零失败。较基线 28 多出的 1 例为 review_dashboard 双 case（today events + daily activity）同族齐失败——该族在 doc 38 §13.3 已记录为时间窗相关 flaky（两树皆偶发）；daily activity 的实际报错点在 `review_history_dao.dart:146`（`dailyActivityBetween` 的 Null→String 行读取，drift/SQLite 运行时行为），该 DAO、dashboard 库与测试自基线 `6f52c48a` 起 git log 零改动，与批次二的触碰面（anki_official/anki_import/views 的 anki 族/data 的 anki dao 写侧字段）无交集，判定为既存偶发而非本批回归。
 - 量化：session.dart 1338→855（协议直传 DTO 后）；unified orchestrator 448→165；contract.dart 352→~250；dto.dart 手写解码面 -~200 行 + .g.dart 新增；lib/ 净删约 2,400 行（含移 test/support 的 835）。
 
 ### 15.3 偏差与增补（对计划正文）
