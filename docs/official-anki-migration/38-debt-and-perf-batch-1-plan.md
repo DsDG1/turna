@@ -258,7 +258,7 @@ DTO `fromJson` 手写样板 codegen 化（~700 行）、Rust 操作表四处事�
 | P1-B/C | 74f2ad8c | AnkiNoteDao 1028→444 行、AnkiImportDao 写侧删除 + 测试处置 |
 | P1-D | f0a81b19 | Dart/Rust 零引用符号与 audit 链删除 |
 | P1-E | 96a1c2c6 | SEARCH_CARDS(op9) 退役，契约 1.9→1.10 |
-| P2 | d365810f | 双计数器 + 十个落点 + Dart 兜底 + 5 个 Rust 新测试 |
+| P2 | d365810f | 双计数器 + 十个落点 + Dart 兜底 + 3 个 Rust 新测试 |
 | P3 | 86ce71ec | 三处 N+1 SQL 化 + import 计数 + 不变量 + 对拍测试 |
 | P4-A | e7836d67 | 浏览器懒渲染 LRU + 错误兜底 + 防抖 |
 | P4-C | 9c3985ae | catalog 共享句柄 + WAL/busy_timeout（+ a1bf7dec 金子 minor 补遗） |
@@ -297,3 +297,34 @@ DTO `fromJson` 手写样板 codegen 化（~700 行）、Rust 操作表四处事�
 2. **Android 真机矩阵**（涉及 .so 的包 P1-E/P2/P3）：`./build-android/build.sh` smoke。
 3. 真机滚动体验反馈 → P4-B 决策。
 4. pin 刷新时删除 P3 对拍参照实现（`reference`/`reference_rows`）。
+
+## 13. 验货记录（2026-08-30，独立审计）
+
+方法：三个静态审计代理分域复核 §1–§7 全部事实性声明（P1 死码引用 / P2·P3 Rust / P4·P5 Dart），审计基线取 `dd3c2740^`（=施工基线 `74ae31c5`）；本机实测复算 §12.2 全部验收声明（flutter analyze / flutter test 全量两轮 / doc 38 触及文件点名 / 基线 worktree 对照）。
+
+### 13.1 实测复算结果
+
+| 声明（§12.2） | 复算 | 结论 |
+|---|---|---|
+| flutter analyze 0 issues | 本机复跑：**No issues found**（42.9s） | ✅ |
+| flutter test 全量 28 例失败且与基线一致 | 两轮全量均 **+1738 / -28**，28 例全部点名枚举；基线 `74ae31c5` worktree（`--no-pub`）逐文件复跑：**28/28 在基线全部复现** | ✅ **施工零回归实证** |
+| doc 38 触及文件全绿 | browser/projection/ordering/architecture guard/note_dao/write-fence 六文件点名：**75/75** | ✅ |
+| P4-C 修复 official_anki_import_orchestrator 文件锁 | 基线败 2 例（`future schema version fails closed` **及** `5k generated package indexes`）→ 当前树全过：比 §12.2 记录多修 1 例 | ✅（超出声明） |
+| P4-A 指标（1000→0 FFI、每未缓存卡 1 次、命中 0 次） | 断言实存于 browser 测试（renderCount 0/2/2） | ✅ |
+| P5 指标（重复发布 0 行读取、变更破短路） | 断言实存于 projection 测试（noop isTrue / projectionBatchCalls 不增 / override+generation bump 重建） | ✅ |
+| Rust 侧静态 | 双计数器 10 落点完备（6 处仅 bump page + 5 处经 `bump_content_generation` 连带，`get_review_queue` 不触碰）；对拍参照实现与 `batch_reads_match_reference_implementations` 实存；`close_collection` 忙位检查、`require_open` 统一、import 计数 O(1) 均已落；契约 VERSION=1.10、operations.md v1.10 记录 op 9 退役 + collectionGeneration 语义变更 | ✅ 静态验讫 |
+
+### 13.2 验货发现与处置
+
+1. **[已由验货修复]** `response_engine_info.json` 两处 `minor: 9` 残留（`contractVersion` 与 `engine` 块；§12.3-10 声称两份金子均已手改 10，补遗提交 a1bf7dec 实只修了 request 侧）——已补齐为 10；工具链主机 `gen_fixtures` regen diff 应为干净。
+2. **[已由验货修复]** §12.1「5 个 Rust 新测试」计数错误：P2 提交实测新增 3 个测试函数（§12.2 原文的「P2 3 例」才是对的），已订正。
+3. **[记录，不改]** §12.2 分组计数与复算有小出入：实测 media 8 例（记录 9）、golden/无障碍 10 例（记录 11）、集成 9 例（记录 8）；净修复实为 2–3 例而非 1 例。原因是两个 flaky 用例：`review_dashboard: today events`（两树皆偶发，与时间窗相关）、orchestrator `5k batches`（基线满载时败）。「零回归」结论不受影响（以 28/28 基线复现为准）。
+4. **[记录，留待后续]** P2 的 Dart 兜底零测试覆盖：`pageTokenStale` 在 `test/` 无任何引用——浏览器 `_collectCardIds` 单次重启与 HomeDueSync `_refreshOnce` 单次重启两条路径目前仅靠代码审读保障。
+5. **[记录，无害]** `official_anki_source_management_page.dart:183` 注释仍提及已删除的 `OfficialAnkiInternalPage`（历史性注释，保留）。
+6. **[记录，不改]** §1 证据表与 §3–§7 的 file:line 为施工前基线快照（个别行号经复核有 ±1~10 漂移，如 SEARCH_CARDS 的 dispatch 臂实在 ops.rs 而非 engine.rs），按仓库「计划文档描述施工前状态」的惯例保留，不回写。
+
+### 13.3 验货结论
+
+- **Host/Dart 侧（P1–P5 除 P4-B）：验货通过。** 零回归实证（28/28 基线复现）、声明指标复算成立、删除面无悬空引用（残留命中均为守卫断言/测试数据/历史注释）。
+- **Rust 侧（P1-D/E、P2、P3）：静态验讫，运行时门禁未解除。** 本机无 cargo/protoc（铁律），`cargo test -p turna_anki_bridge` + `gen_fixtures` regen diff 仍按 §12.4-1/2 待工具链主机执行；在此之前**发布口径维持 NO-GO**（与 doc 34 真机矩阵口径一致）。
+- P4-B（RENDER_PREVIEWS_BATCH）维持按计划条件推迟，§6.2 落点清单经验货仍有效（下一可用 op id=37 经复核成立，9 永久退役）。

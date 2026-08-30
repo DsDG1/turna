@@ -1,7 +1,7 @@
 {
   "contractVersion": {
     "major": 1,
-    "minor": 9
+    "minor": 10
   },
   "requestId": "01JENGINEINFO",
   "ok": true,
@@ -52,7 +52,7 @@
     "abiVersion": 1,
     "backendCommit": "967aa0d578fc75181e292e95326f9b58698da25c",
     "contractMajor": 1,
-    "contractMinor": 9
+    "contractMinor": 10
   },
   "durationMillis": 0
 }
