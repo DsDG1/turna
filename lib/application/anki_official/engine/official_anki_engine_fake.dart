@@ -125,7 +125,6 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
         OfficialAnkiOperation.getProjectionRowsBatch,
         OfficialAnkiOperation.setCurrentDeck,
         OfficialAnkiOperation.getReviewQueue,
-        OfficialAnkiOperation.describeNextStates,
         OfficialAnkiOperation.answerCard,
         OfficialAnkiOperation.getUndoStatus,
         OfficialAnkiOperation.undo,
@@ -608,29 +607,6 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
       learningCount: 0,
       reviewCount: 0,
       cards: queued,
-    );
-  }
-
-  @override
-  Future<OfficialReviewIntervalLabels> describeNextStates({
-    required String sessionId,
-    required int queueEpoch,
-    required String answerToken,
-  }) async {
-    if (sessionId != activeSessionId ||
-        queueEpoch != this.queueEpoch ||
-        !issuedTokens.containsKey(answerToken) ||
-        consumedTokens.contains(answerToken)) {
-      throw const OfficialAnkiException(
-        code: OfficialAnkiErrorCode.schedulingContextStale,
-        messageKey: 'official_anki.scheduling_context_stale',
-      );
-    }
-    return const OfficialReviewIntervalLabels(
-      again: '1m',
-      hard: '6d',
-      good: '15d',
-      easy: '1mo',
     );
   }
 

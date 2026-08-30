@@ -332,27 +332,6 @@ class FfiOfficialAnkiEngine implements OfficialAnkiEngine {
   }
 
   @override
-  Future<OfficialReviewIntervalLabels> describeNextStates({
-    required String sessionId,
-    required int queueEpoch,
-    required String answerToken,
-  }) async {
-    _requireScheduler(OfficialAnkiOperation.describeNextStates);
-    final payload = _call(OfficialAnkiOperation.describeNextStates, {
-      'sessionId': sessionId,
-      'queueEpoch': queueEpoch,
-      'answerToken': answerToken,
-    }).requirePayload();
-    final labels = payload['labels'];
-    if (labels is! Map) {
-      officialContractError('labels', labels);
-    }
-    return OfficialReviewIntervalLabels.fromJson(
-      Map<String, Object?>.from(labels),
-    );
-  }
-
-  @override
   Future<OfficialAnswerResult> answerCard({
     required String sessionId,
     required int queueEpoch,

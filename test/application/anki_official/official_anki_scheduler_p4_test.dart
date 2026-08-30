@@ -24,7 +24,12 @@ void main() {
     expect(kOfficialAnkiContractMinor, 10);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.setCurrentDeck), 11);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.getReviewQueue), 12);
-    expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.describeNextStates), 13);
+    // DESCRIBE_NEXT_STATES (op 13) stays in the Rust contract (append-only)
+    // but was retired from the Dart call face (doc 39 P1-E).
+    expect(
+      OfficialAnkiOperation.productionNames.contains('DESCRIBE_NEXT_STATES'),
+      isFalse,
+    );
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.answerCard), 14);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.getUndoStatus), 15);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.undo), 16);

@@ -226,21 +226,6 @@ class OfficialAnkiWorker implements OfficialAnkiEngine {
   }
 
   @override
-  Future<OfficialReviewIntervalLabels> describeNextStates({
-    required String sessionId,
-    required int queueEpoch,
-    required String answerToken,
-  }) {
-    return _enqueue(
-      () => _inner.describeNextStates(
-        sessionId: sessionId,
-        queueEpoch: queueEpoch,
-        answerToken: answerToken,
-      ),
-    );
-  }
-
-  @override
   Future<OfficialAnswerResult> answerCard({
     required String sessionId,
     required int queueEpoch,

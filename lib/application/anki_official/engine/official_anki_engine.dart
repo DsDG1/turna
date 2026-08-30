@@ -76,12 +76,6 @@ abstract class OfficialAnkiEngine {
 
   Future<OfficialReviewQueue> getReviewQueue({int fetchLimit = 1});
 
-  Future<OfficialReviewIntervalLabels> describeNextStates({
-    required String sessionId,
-    required int queueEpoch,
-    required String answerToken,
-  });
-
   Future<OfficialAnswerResult> answerCard({
     required String sessionId,
     required int queueEpoch,

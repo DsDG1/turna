@@ -41,7 +41,9 @@ abstract final class OfficialAnkiOperation {
   static const getProjectionRowsBatch = 'GET_PROJECTION_ROWS_BATCH';
   static const setCurrentDeck = 'SET_CURRENT_DECK';
   static const getReviewQueue = 'GET_REVIEW_QUEUE';
-  static const describeNextStates = 'DESCRIBE_NEXT_STATES';
+  // DESCRIBE_NEXT_STATES (op 13) stays on the Rust side (append-only
+  // policy) but its Dart call face was deleted in doc 39 P1-E: no business
+  // caller ever used it — interval labels come from the queue cards.
   static const answerCard = 'ANSWER_CARD';
   static const getUndoStatus = 'GET_UNDO_STATUS';
   static const undo = 'UNDO';
@@ -77,7 +79,6 @@ abstract final class OfficialAnkiOperation {
   static const getProjectionRowsBatchId = 26;
   static const setCurrentDeckId = 11;
   static const getReviewQueueId = 12;
-  static const describeNextStatesId = 13;
   static const answerCardId = 14;
   static const getUndoStatusId = 15;
   static const undoId = 16;
@@ -114,7 +115,6 @@ abstract final class OfficialAnkiOperation {
     getProjectionRowsBatch,
     setCurrentDeck,
     getReviewQueue,
-    describeNextStates,
     answerCard,
     getUndoStatus,
     undo,
@@ -174,8 +174,6 @@ abstract final class OfficialAnkiOperation {
         return setCurrentDeckId;
       case getReviewQueue:
         return getReviewQueueId;
-      case describeNextStates:
-        return describeNextStatesId;
       case answerCard:
         return answerCardId;
       case getUndoStatus:

@@ -395,22 +395,6 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
     );
   }
 
-  Future<OfficialReviewIntervalLabels> describeNextStates({
-    required String sessionId,
-    required int queueEpoch,
-    required String answerToken,
-  }) async {
-    final raw = await _rpc('scheduler', {
-      'op': 'describeNextStates',
-      'sessionId': sessionId,
-      'queueEpoch': queueEpoch,
-      'answerToken': answerToken,
-    });
-    return OfficialReviewIntervalLabels.fromJson(
-      Map<String, Object?>.from(raw['payload'] as Map? ?? raw),
-    );
-  }
-
   Future<OfficialAnswerResult> answerCard({
     required String sessionId,
     required int queueEpoch,
@@ -958,18 +942,6 @@ Future<Map<String, Object?>> dispatchOfficialAnkiScheduler(
               },
             )
             .toList(),
-      };
-    case 'describeNextStates':
-      final labels = await engine.describeNextStates(
-        sessionId: message['sessionId'] as String,
-        queueEpoch: (message['queueEpoch'] as num).toInt(),
-        answerToken: message['answerToken'] as String,
-      );
-      return <String, Object?>{
-        'again': labels.again,
-        'hard': labels.hard,
-        'good': labels.good,
-        'easy': labels.easy,
       };
     case 'answerCard':
       final answered = await engine.answerCard(
