@@ -1425,6 +1425,17 @@ class AppStrings {
       '已学待复习 $introducedDue 张 · 未学新卡 $unintroducedNew 张';
   static String get ankiDueUnavailable => '到期数量暂不可用，请稍后刷新';
   static String get ankiReviewAll => '开始复习';
+  static String get ankiHubDecksTitle => '牌组';
+  static String get ankiHubCaughtUpTitle => '今日已清完';
+  static String get ankiHubCaughtUpMessage => '没有到期卡片。先完成课程里的一课，或浏览已导入的牌组。';
+  static String get ankiHubDueCountLabel => '待复习';
+  static String get ankiBrowseCards => '浏览卡片';
+  static String get ankiDeckStats => '统计';
+  static String get ankiPinDeck => '置顶';
+  static String get ankiDeckOptions => '牌组设置';
+  static String get ankiCardRedo => '重做';
+  static String get ankiCardBury => '搁置';
+  static String get ankiCardSuspend => '暂停';
   static String get ankiNoDecksTitle => '未导入 Anki 牌组';
   static String get ankiNoDecksSubtitle => '导入 .apkg 文件以开始复习';
   static String get ankiImportDeck => '导入牌组';

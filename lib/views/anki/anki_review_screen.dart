@@ -21,6 +21,7 @@ import 'package:turna/domain/course/course_scope.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/views/play/components/play_tiles.dart';
 import 'package:turna/views/theme.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
 
@@ -33,17 +34,22 @@ class AnkiReviewPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: TurnaTheme.scaffoldBg(context),
       appBar: AppBar(
         title: Text(AppStrings.ankiReviewScreenTitle),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          tooltip: AppStrings.commonBack,
+          icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () => context.router.maybePop(),
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.file_upload_outlined),
-            tooltip: AppStrings.ankiImportNewDeck,
-            onPressed: () => context.router.push(AnkiImportRoute()),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: IconButton.filledTonal(
+              icon: const Icon(Icons.file_upload_outlined),
+              tooltip: AppStrings.ankiImportNewDeck,
+              onPressed: () => context.router.push(AnkiImportRoute()),
+            ),
           ),
         ],
       ),
@@ -111,138 +117,95 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
     final unintroducedNew =
         OfficialFormalDueRepository.instance.snapshot.unintroducedOfficialDue;
 
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        // Total due summary
-        if (OfficialFormalDueRepository.instance.snapshot.unavailable)
-          Container(
-            key: const Key('anki-due-unavailable'),
-            padding: const EdgeInsets.all(16),
-            margin: const EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(
-              color: TurnaTheme.warning.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.sync_problem_rounded,
-                    color: TurnaTheme.warning),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    AppStrings.ankiDueUnavailable,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+          sliver: SliverToBoxAdapter(
+            child: OfficialFormalDueRepository.instance.snapshot.unavailable
+                ? _AnkiDueUnavailableBanner(onRetry: _refreshOfficialDue)
+                : _AnkiDueHero(
+                    introducedDue: totalDue,
+                    unintroducedNew: unintroducedNew,
+                    onReviewAll: totalDue > 0
+                        ? () => _startReview(
+                              context,
+                              null,
+                              entry: FormalReviewEntryKind.courseReview,
+                            )
+                        : null,
                   ),
-                ),
-                IconButton(
-                  tooltip: AppStrings.ankiReviewRetry,
-                  onPressed: _refreshOfficialDue,
-                  icon: const Icon(Icons.refresh_rounded),
-                ),
-              ],
-            ),
-          )
-        else if (totalDue > 0 || unintroducedNew > 0)
-          Container(
-            padding: const EdgeInsets.all(16),
-            margin: const EdgeInsets.only(bottom: 16),
-            decoration: BoxDecoration(
-              color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.notifications_active,
-                    color: TurnaTheme.brandTeal),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    AppStrings.ankiFormalDueBreakdown(
-                      introducedDue: totalDue,
-                      unintroducedNew: unintroducedNew,
-                    ),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: TurnaTheme.brandTeal,
-                    ),
-                  ),
-                ),
-                if (totalDue > 0)
-                  ElevatedButton(
-                    // Review All (plan 34 R2-3): a null section id plans a
-                    // session across EVERY official source's formal due
-                    // set — never just the first source with due cards.
-                    onPressed: () => _startReview(
-                      context,
-                      null,
-                      entry: FormalReviewEntryKind.courseReview,
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: TurnaTheme.brandTeal,
-                      foregroundColor: TurnaTheme.textOnPrimary,
-                    ),
-                    child: Text(AppStrings.ankiReviewAll),
-                  ),
-              ],
-            ),
           ),
-
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+          sliver: SliverToBoxAdapter(
+            child: SectionTitle(title: AppStrings.ankiHubDecksTitle),
+          ),
+        ),
         // Section list. The order is persisted in the same course-order
         // preference used by the course-management screen.
-        ReorderableListView.builder(
-          padding: EdgeInsets.zero,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: ankiSections.length,
-          onReorderItem: (oldIndex, newIndex) =>
-              _reorderDecks(context, ankiSections, oldIndex, newIndex),
-          itemBuilder: (context, index) {
-            final section = ankiSections[index];
-            final importId = LegacyAnkiIdentifiers.importIdFromSectionId(
-              section.id,
-            );
-            final isOfficial =
-                OfficialFormalDueRepository.instance.officialImportIds.contains(importId);
-            return KeyedSubtree(
-              key: ValueKey(section.id),
-              child: _AnkiSectionCard(
-                sectionId: section.id,
-                sectionName: section.name,
-                description: section.description,
-                dueCount: _dueForSection(importId),
-                onTap: () => _startReview(
-                  context,
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+          sliver: SliverToBoxAdapter(
+            child: ReorderableListView.builder(
+              padding: EdgeInsets.zero,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              buildDefaultDragHandles: false,
+              itemCount: ankiSections.length,
+              onReorderItem: (oldIndex, newIndex) =>
+                  _reorderDecks(context, ankiSections, oldIndex, newIndex),
+              itemBuilder: (context, index) {
+                final section = ankiSections[index];
+                final importId = LegacyAnkiIdentifiers.importIdFromSectionId(
                   section.id,
-                  entry: FormalReviewEntryKind.deckSection,
-                ),
-                onStats: () => context.router.push(AnkiDeckStatsRoute(
-                  importId: importId,
-                  title: section.name,
-                )),
-                onBrowse: () => context.router.push(AnkiCardBrowserRoute(
-                  importId: importId,
-                  title: section.name,
-                  sectionId: section.id,
-                )),
-                onPin: () => _pinDeck(context, section.id),
-                onOptions: isOfficial
-                    ? null
-                    : () => _editDeckOptions(
-                          context,
-                          sectionId: section.id,
-                          title: section.name,
-                        ),
-                onUninstall: isOfficial
-                    ? null
-                    : () => _confirmUninstall(
-                          context,
-                          sectionId: section.id,
-                          sectionName: section.name,
-                        ),
-              ),
-            );
-          },
+                );
+                final isOfficial = OfficialFormalDueRepository
+                    .instance.officialImportIds
+                    .contains(importId);
+                return KeyedSubtree(
+                  key: ValueKey(section.id),
+                  child: _AnkiSectionCard(
+                    index: index,
+                    sectionId: section.id,
+                    sectionName: section.name,
+                    description: section.description,
+                    dueCount: _dueForSection(importId),
+                    onTap: () => _startReview(
+                      context,
+                      section.id,
+                      entry: FormalReviewEntryKind.deckSection,
+                    ),
+                    onStats: () => context.router.push(AnkiDeckStatsRoute(
+                      importId: importId,
+                      title: section.name,
+                    )),
+                    onBrowse: () => context.router.push(AnkiCardBrowserRoute(
+                      importId: importId,
+                      title: section.name,
+                      sectionId: section.id,
+                    )),
+                    onPin: () => _pinDeck(context, section.id),
+                    onOptions: isOfficial
+                        ? null
+                        : () => _editDeckOptions(
+                              context,
+                              sectionId: section.id,
+                              title: section.name,
+                            ),
+                    onUninstall: isOfficial
+                        ? null
+                        : () => _confirmUninstall(
+                              context,
+                              sectionId: section.id,
+                              sectionName: section.name,
+                            ),
+                  ),
+                );
+              },
+            ),
+          ),
         ),
       ],
     );
@@ -503,7 +466,245 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
   }
 }
 
+class _AnkiDueUnavailableBanner extends StatelessWidget {
+  const _AnkiDueUnavailableBanner({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return SoftCard(
+      key: const Key('anki-due-unavailable'),
+      accentColor: TurnaTheme.warning,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 8, 14),
+        child: Row(
+          children: [
+            AccentIconChip(
+              icon: Icons.sync_problem_rounded,
+              color: TurnaTheme.warning,
+              size: 22,
+              padding: 8,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                AppStrings.ankiDueUnavailable,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ),
+            IconButton(
+              tooltip: AppStrings.ankiReviewRetry,
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Hub hero: due CTA when anything is owed, otherwise a calm caught-up card.
+class _AnkiDueHero extends StatelessWidget {
+  const _AnkiDueHero({
+    required this.introducedDue,
+    required this.unintroducedNew,
+    this.onReviewAll,
+  });
+
+  final int introducedDue;
+  final int unintroducedNew;
+  final VoidCallback? onReviewAll;
+
+  @override
+  Widget build(BuildContext context) {
+    if (introducedDue <= 0 && unintroducedNew <= 0) {
+      return SoftCard(
+        key: const Key('anki-review-hub-caught-up'),
+        accentColor: TurnaTheme.brandTeal,
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Row(
+            children: [
+              AccentIconChip(
+                icon: Icons.check_circle_rounded,
+                color: TurnaTheme.accentOnCard(context, TurnaTheme.brandTeal),
+                size: 24,
+                padding: 10,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      AppStrings.ankiHubCaughtUpTitle,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      AppStrings.ankiHubCaughtUpMessage,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: TurnaTheme.textSecondaryColor(context),
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    const radius = BorderRadius.all(Radius.circular(TurnaTheme.radiusXLarge));
+    return Semantics(
+      button: onReviewAll != null,
+      label: AppStrings.ankiReviewAll,
+      child: Material(
+        key: const Key('anki-review-hub-hero'),
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onReviewAll,
+          borderRadius: radius,
+          child: Ink(
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [TurnaTheme.brandTeal, TurnaTheme.brandSky],
+              ),
+              borderRadius: radius,
+              boxShadow: [
+                BoxShadow(
+                  color: TurnaTheme.brandTeal.withValues(alpha: 0.25),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(15),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.24),
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.style_rounded,
+                          color: Colors.white,
+                          size: 28,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              AppStrings.ankiReviewScreenTitle,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                    letterSpacing: -0.3,
+                                  ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              AppStrings.ankiFormalDueBreakdown(
+                                introducedDue: introducedDue,
+                                unintroducedNew: unintroducedNew,
+                              ),
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: Colors.white.withValues(alpha: 0.85),
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            '$introducedDue',
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineMedium
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                  height: 1.1,
+                                ),
+                          ),
+                          Text(
+                            AppStrings.ankiHubDueCountLabel,
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelSmall
+                                ?.copyWith(
+                                  color: Colors.white.withValues(alpha: 0.75),
+                                ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  if (onReviewAll != null) ...[
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 44,
+                      child: FilledButton.icon(
+                        onPressed: onReviewAll,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: TurnaTheme.brandTeal,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                        icon: const Icon(Icons.play_arrow_rounded),
+                        label: Text(
+                          AppStrings.ankiReviewAll,
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _AnkiSectionCard extends StatelessWidget {
+  final int index;
   final String sectionId;
   final String sectionName;
   final String description;
@@ -516,6 +717,7 @@ class _AnkiSectionCard extends StatelessWidget {
   final VoidCallback? onUninstall;
 
   const _AnkiSectionCard({
+    required this.index,
     required this.sectionId,
     required this.sectionName,
     required this.description,
@@ -530,94 +732,116 @@ class _AnkiSectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final accent = TurnaTheme.accentOnCard(context, TurnaTheme.brandSky);
+    final hasDue = dueCount == null || dueCount! > 0;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Material(
-        color: TurnaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-              border: Border.all(
-                color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.layers_rounded,
-                    color: TurnaTheme.brandTeal,
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        sectionName,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w700),
+      child: SoftCard(
+        accentColor: TurnaTheme.brandSky,
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(8, 14, 4, 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  ReorderableDragStartListener(
+                    index: index,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Icon(
+                        Icons.drag_indicator_rounded,
+                        color: TurnaTheme.textHintColor(context),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        description,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: TurnaTheme.textSecondaryColor(context),
+                    ),
+                  ),
+                  AccentIconChip(
+                    icon: Icons.style_rounded,
+                    color: accent,
+                    size: 22,
+                    padding: 8,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          sectionName,
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w800),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
+                        if (description.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            description,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: TurnaTheme.textSecondaryColor(context),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
-                ),
-                if (dueCount == null || dueCount! > 0)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
+                  if (hasDue) ...[
+                    CountBadge(
+                      label: dueCount?.toString() ?? '—',
                       color: TurnaTheme.brandTeal,
-                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(
-                      dueCount?.toString() ?? '—',
-                      style: const TextStyle(
-                        color: TurnaTheme.textOnPrimary,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 12,
-                      ),
-                    ),
+                    const SizedBox(width: 4),
+                  ],
+                  Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 14,
+                    color: accent.withValues(alpha: 0.7),
                   ),
-                const SizedBox(width: 8),
-                Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  size: 16,
-                  color: TurnaTheme.brandTeal.withValues(alpha: 0.5),
+                  _UninstallMenuButton(
+                    onStats: onStats,
+                    onBrowse: onBrowse,
+                    onPin: onPin,
+                    onOptions: onOptions,
+                    onUninstall: onUninstall,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Row(
+                  children: [
+                    if (onBrowse != null)
+                      TextButton.icon(
+                        onPressed: onBrowse,
+                        icon: const Icon(Icons.view_list_outlined, size: 16),
+                        label: Text(AppStrings.ankiBrowseCards),
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          foregroundColor:
+                              TurnaTheme.textSecondaryColor(context),
+                        ),
+                      ),
+                    if (onStats != null)
+                      TextButton.icon(
+                        onPressed: onStats,
+                        icon: const Icon(Icons.insights_outlined, size: 16),
+                        label: Text(AppStrings.ankiDeckStats),
+                        style: TextButton.styleFrom(
+                          visualDensity: VisualDensity.compact,
+                          foregroundColor:
+                              TurnaTheme.textSecondaryColor(context),
+                        ),
+                      ),
+                  ],
                 ),
-                const SizedBox(width: 4),
-                _UninstallMenuButton(
-                  onStats: onStats,
-                  onBrowse: onBrowse,
-                  onPin: onPin,
-                  onOptions: onOptions,
-                  onUninstall: onUninstall,
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -652,45 +876,45 @@ class _UninstallMenuButton extends StatelessWidget {
       tooltip: '',
       itemBuilder: (context) => [
         if (onStats != null)
-          const PopupMenuItem<String>(
+          PopupMenuItem<String>(
             value: 'stats',
             child: Row(
               children: [
-                Icon(Icons.insights_outlined, size: 20),
-                SizedBox(width: 12),
-                Text('统计'),
+                const Icon(Icons.insights_outlined, size: 20),
+                const SizedBox(width: 12),
+                Text(AppStrings.ankiDeckStats),
               ],
             ),
           ),
         if (onBrowse != null)
-          const PopupMenuItem<String>(
+          PopupMenuItem<String>(
             value: 'browse',
             child: Row(
               children: [
-                Icon(Icons.view_list_outlined, size: 20),
-                SizedBox(width: 12),
-                Text('浏览卡片'),
+                const Icon(Icons.view_list_outlined, size: 20),
+                const SizedBox(width: 12),
+                Text(AppStrings.ankiBrowseCards),
               ],
             ),
           ),
-        const PopupMenuItem<String>(
+        PopupMenuItem<String>(
           value: 'pin',
           child: Row(
             children: [
-              Icon(Icons.push_pin_outlined, size: 20),
-              SizedBox(width: 12),
-              Text('置顶'),
+              const Icon(Icons.push_pin_outlined, size: 20),
+              const SizedBox(width: 12),
+              Text(AppStrings.ankiPinDeck),
             ],
           ),
         ),
         if (onOptions != null)
-          const PopupMenuItem<String>(
+          PopupMenuItem<String>(
             value: 'options',
             child: Row(
               children: [
-                Icon(Icons.tune_outlined, size: 20),
-                SizedBox(width: 12),
-                Text('牌组设置'),
+                const Icon(Icons.tune_outlined, size: 20),
+                const SizedBox(width: 12),
+                Text(AppStrings.ankiDeckOptions),
               ],
             ),
           ),

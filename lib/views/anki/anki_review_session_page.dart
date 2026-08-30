@@ -418,28 +418,55 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
     if (_reviewAllComplete && reviewAll != null) {
       final empty = reviewAll.totalCount == 0;
       return Scaffold(
+        backgroundColor: TurnaTheme.scaffoldBg(context),
         body: SafeArea(
           child: Column(
             children: [
               if (reviewAll.failures.isNotEmpty)
                 Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    children: [
-                      Text(
-                        '以下来源未能完成：${reviewAll.failures.map((failure) => failure.target.displayName).join('、')}',
-                        style: TextStyle(color: TurnaTheme.error),
-                      ),
-                      if (reviewAll.failedTargets.isNotEmpty)
-                        TextButton.icon(
-                          key: const Key('anki-review-all-retry-failed'),
-                          onPressed: () => unawaited(
-                            _retryFailedSources(reviewAll),
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  child: Material(
+                    color: TurnaTheme.error.withValues(alpha: 0.10),
+                    borderRadius:
+                        BorderRadius.circular(TurnaTheme.radiusLarge),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 12, 8, 8),
+                      child: Column(
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.error_outline_rounded,
+                                color: TurnaTheme.error,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  '以下来源未能完成：${reviewAll.failures.map((failure) => failure.target.displayName).join('、')}',
+                                  style: const TextStyle(
+                                    color: TurnaTheme.error,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                          icon: const Icon(Icons.refresh_rounded, size: 18),
-                          label: const Text('重试失败来源'),
-                        ),
-                    ],
+                          if (reviewAll.failedTargets.isNotEmpty)
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton.icon(
+                                key: const Key('anki-review-all-retry-failed'),
+                                onPressed: () => unawaited(
+                                  _retryFailedSources(reviewAll),
+                                ),
+                                icon:
+                                    const Icon(Icons.refresh_rounded, size: 18),
+                                label: const Text('重试失败来源'),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               Expanded(
@@ -490,7 +517,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
       ),
       body: Center(
         child: _loading
-            ? const CircularProgressIndicator()
+            ? const _PreparingPanel()
             : blocked != null
                 ? _BlockedLoadPanel(
                     blocked: blocked,
@@ -499,24 +526,18 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
                     onContinue: _continuePastBlockedSource,
                   )
                 : _error != null
-                    ? Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _error == FormalReviewLauncher.failClosedMessage
-                                ? AppStrings.officialAnkiError(
-                                    FormalReviewLauncher.failClosedMessage,
-                                  )
-                                : AppStrings.ankiReviewLoadFailed,
-                          ),
-                          const SizedBox(height: 12),
-                          FilledButton(
-                            onPressed: _start,
-                            child: Text(AppStrings.ankiReviewRetry),
-                          ),
-                        ],
+                    ? PracticeEmptyState(
+                        icon: Icons.error_outline_rounded,
+                        accentColor: TurnaTheme.error,
+                        title: _error == FormalReviewLauncher.failClosedMessage
+                            ? AppStrings.officialAnkiError(
+                                FormalReviewLauncher.failClosedMessage,
+                              )
+                            : AppStrings.ankiReviewLoadFailed,
+                        actionLabel: AppStrings.ankiReviewRetry,
+                        onAction: () => unawaited(_start()),
                       )
-                    : _AnkiFormalReviewEmptyPanel(),
+                    : const _AnkiFormalReviewEmptyPanel(),
       ),
     );
   }
@@ -587,54 +608,92 @@ class _BlockedLoadPanel extends StatelessWidget {
         : null;
     return Padding(
       padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.visibility_off_rounded, size: 44),
-          const SizedBox(height: 12),
-          Text(
-            '此来源的卡片暂时无法显示',
-            key: const Key('anki-review-blocked'),
-            style: Theme.of(context).textTheme.titleMedium,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '调度器仍欠 ${blocked.schedulerCardCount} 张卡，未做任何评分、搁置或暂停。',
-            style: TextStyle(
-              fontSize: 13,
-              color: TurnaTheme.textSecondaryColor(context),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.visibility_off_rounded,
+              size: 56,
+              color: TurnaTheme.textHintColor(context),
             ),
-            textAlign: TextAlign.center,
-          ),
-          if (debugDetails != null) ...[
+            const SizedBox(height: 16),
+            Text(
+              '此来源的卡片暂时无法显示',
+              key: const Key('anki-review-blocked'),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 8),
             Text(
-              debugDetails,
-              key: const Key('anki-review-blocked-debug'),
+              '调度器仍欠 ${blocked.schedulerCardCount} 张卡，未做任何评分、搁置或暂停。',
               style: TextStyle(
-                fontSize: 11,
-                color: TurnaTheme.textHintColor(context),
+                fontSize: 14,
+                color: TurnaTheme.textSecondaryColor(context),
               ),
               textAlign: TextAlign.center,
             ),
-          ],
-          const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: () => unawaited(onRetry()),
-            icon: const Icon(Icons.refresh_rounded, size: 18),
-            label: Text(AppStrings.ankiReviewRetry),
-          ),
-          if (inReviewAll) ...[
-            const SizedBox(height: 8),
-            TextButton(
-              key: const Key('anki-review-blocked-continue'),
-              onPressed: () => unawaited(onContinue()),
-              child: const Text('稍后处理此来源并继续'),
+            if (debugDetails != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                debugDetails,
+                key: const Key('anki-review-blocked-debug'),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: TurnaTheme.textHintColor(context),
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+            const SizedBox(height: 20),
+            FilledButton.icon(
+              onPressed: () => unawaited(onRetry()),
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: Text(AppStrings.ankiReviewRetry),
             ),
+            if (inReviewAll) ...[
+              const SizedBox(height: 8),
+              TextButton(
+                key: const Key('anki-review-blocked-continue'),
+                onPressed: () => unawaited(onContinue()),
+                child: const Text('稍后处理此来源并继续'),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
+    );
+  }
+}
+
+class _PreparingPanel extends StatelessWidget {
+  const _PreparingPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(
+          width: 36,
+          height: 36,
+          child: CircularProgressIndicator(
+            strokeWidth: 3,
+            color: TurnaTheme.brandTeal,
+          ),
+        ),
+        const SizedBox(height: 16),
+        Text(
+          AppStrings.ankiReviewPreparing,
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                color: TurnaTheme.textSecondaryColor(context),
+                fontWeight: FontWeight.w600,
+              ),
+        ),
+      ],
     );
   }
 }
@@ -701,6 +760,7 @@ class _AnkiStudySessionView extends StatelessWidget {
     }
     if (controller.isComplete) {
       return Scaffold(
+        backgroundColor: TurnaTheme.scaffoldBg(context),
         body: SafeArea(
           child: UnifiedReviewCompletion(
             totalCount: controller.totalCount,
@@ -747,56 +807,6 @@ class _AnkiStudySessionView extends StatelessWidget {
           );
         },
         canUndo: controller.lastReceipt != null && !controller.isLocked,
-        // Review actions (plan 34 R2-4): redo / bury / suspend reach the
-        // real ledger (Official engine for official owners) and refresh the
-        // live queue afterwards.
-        actions: [
-          IconButton(
-            tooltip: '重做',
-            icon: const Icon(Icons.redo_rounded, size: 20),
-            onPressed: controller.canRedo
-                ? () async {
-                    final ok = await controller.redoLast();
-                    if (ok) {
-                      await liveQueue?.rebuildFromLiveQueue();
-                      await _advanceFromScheduler();
-                    }
-                  }
-                : null,
-          ),
-          IconButton(
-            tooltip: '搁置',
-            icon: const Icon(Icons.bedtime_outlined, size: 20),
-            onPressed: controller.isLocked || controller.isComplete
-                ? null
-                : () async {
-                    final ok = await controller.buryCurrent(
-                      onMutated: liveQueue == null
-                          ? null
-                          : () => liveQueue!.rebuildFromLiveQueue(),
-                    );
-                    if (ok) {
-                      await _advanceFromScheduler();
-                    }
-                  },
-          ),
-          IconButton(
-            tooltip: '暂停',
-            icon: const Icon(Icons.pause_circle_outline_rounded, size: 20),
-            onPressed: controller.isLocked || controller.isComplete
-                ? null
-                : () async {
-                    final ok = await controller.suspendCurrent(
-                      onMutated: liveQueue == null
-                          ? null
-                          : () => liveQueue!.rebuildFromLiveQueue(),
-                    );
-                    if (ok) {
-                      await _advanceFromScheduler();
-                    }
-                  },
-          ),
-        ],
       ),
       body: SafeArea(
         child: LayoutBuilder(
@@ -819,13 +829,39 @@ class _AnkiStudySessionView extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  if (sourceProgress != null) ...[
-                    Text(
-                      sourceProgress!,
-                      style: Theme.of(context).textTheme.labelLarge,
-                    ),
-                    const SizedBox(height: 8),
-                  ],
+                  _AnkiSessionToolbar(
+                    sourceProgress: sourceProgress,
+                    canRedo: controller.canRedo,
+                    canMutate: !controller.isLocked && !controller.isComplete,
+                    onRedo: () async {
+                      final ok = await controller.redoLast();
+                      if (ok) {
+                        await liveQueue?.rebuildFromLiveQueue();
+                        await _advanceFromScheduler();
+                      }
+                    },
+                    onBury: () async {
+                      final ok = await controller.buryCurrent(
+                        onMutated: liveQueue == null
+                            ? null
+                            : () => liveQueue!.rebuildFromLiveQueue(),
+                      );
+                      if (ok) {
+                        await _advanceFromScheduler();
+                      }
+                    },
+                    onSuspend: () async {
+                      final ok = await controller.suspendCurrent(
+                        onMutated: liveQueue == null
+                            ? null
+                            : () => liveQueue!.rebuildFromLiveQueue(),
+                      );
+                      if (ok) {
+                        await _advanceFromScheduler();
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 10),
                   Expanded(
                     child: StudyCardSurface(
                       presentation: item.presentation,
@@ -857,7 +893,10 @@ class _AnkiStudySessionView extends StatelessWidget {
                       '当前卡片暂时无法显示，评分已锁定。',
                       key: const Key('anki-study-session-render-blocked'),
                       textAlign: TextAlign.center,
-                      style: TextStyle(color: TurnaTheme.error),
+                      style: const TextStyle(
+                        color: TurnaTheme.error,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     if (kDebugMode)
                       Text(
@@ -871,11 +910,12 @@ class _AnkiStudySessionView extends StatelessWidget {
                         ),
                       ),
                     const SizedBox(height: 12),
-                    FilledButton(
+                    FilledButton.icon(
                       onPressed: onRetryBlockedCard == null
                           ? null
                           : () => unawaited(onRetryBlockedCard!()),
-                      child: Text(AppStrings.ankiReviewRetry),
+                      icon: const Icon(Icons.refresh_rounded, size: 18),
+                      label: Text(AppStrings.ankiReviewRetry),
                     ),
                   ] else if (controller.phase ==
                       StudyCardPhase.recoverableError) ...[
@@ -883,30 +923,30 @@ class _AnkiStudySessionView extends StatelessWidget {
                       '当前卡片无法安全写入，请重试或稍后返回。',
                       key: Key('anki-study-session-error'),
                       textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: TurnaTheme.error,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                     const SizedBox(height: 12),
-                    FilledButton(
+                    FilledButton.icon(
                       onPressed: controller.retryCurrent,
-                      child: Text(AppStrings.ankiReviewRetry),
+                      icon: const Icon(Icons.refresh_rounded, size: 18),
+                      label: Text(AppStrings.ankiReviewRetry),
                     ),
                   ] else if (structured)
                     const SizedBox.shrink()
                   else if (!revealed)
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: controller.canReveal
-                            ? () => unawaited(
-                                  AnkiStudySessionHost.revealAndPresentAnswer(
-                                    controller,
-                                    onOfficialShowAnswer:
-                                        officialSession?.showAnswer,
-                                  ),
-                                )
-                            : null,
-                        child: Text(AppStrings.lessonShowAnswer),
-                      ),
+                    _ShowAnswerButton(
+                      onPressed: controller.canReveal
+                          ? () => unawaited(
+                                AnkiStudySessionHost.revealAndPresentAnswer(
+                                  controller,
+                                  onOfficialShowAnswer:
+                                      officialSession?.showAnswer,
+                                ),
+                              )
+                          : null,
                     )
                   else
                     BinaryRecallBar(
@@ -929,5 +969,123 @@ class _AnkiStudySessionView extends StatelessWidget {
 
   ReviewContentBodyData _contentFor(StudyItem item) {
     return reviewContentFor(item, fidelityInteractions: fidelityInteractions);
+  }
+}
+
+/// Source chip + redo/bury/suspend. Kept out of the progress header so the
+/// count and undo stay readable on a narrow phone.
+class _AnkiSessionToolbar extends StatelessWidget {
+  const _AnkiSessionToolbar({
+    required this.sourceProgress,
+    required this.canRedo,
+    required this.canMutate,
+    required this.onRedo,
+    required this.onBury,
+    required this.onSuspend,
+  });
+
+  final String? sourceProgress;
+  final bool canRedo;
+  final bool canMutate;
+  final Future<void> Function() onRedo;
+  final Future<void> Function() onBury;
+  final Future<void> Function() onSuspend;
+
+  @override
+  Widget build(BuildContext context) {
+    final secondary = TurnaTheme.textSecondaryColor(context);
+    return Row(
+      children: [
+        if (sourceProgress != null)
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: TurnaTheme.softTint(
+                  context,
+                  TurnaTheme.brandSky,
+                  alpha: 0.12,
+                ),
+                borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+                border: Border.all(
+                  color: TurnaTheme.practiceTileBorder(context),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.style_rounded,
+                    size: 16,
+                    color: TurnaTheme.accentOnCard(context, TurnaTheme.brandSky),
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      sourceProgress!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          const Spacer(),
+        IconButton(
+          tooltip: AppStrings.ankiCardRedo,
+          icon: const Icon(Icons.redo_rounded, size: 20),
+          onPressed: canRedo ? () => unawaited(onRedo()) : null,
+        ),
+        IconButton(
+          tooltip: AppStrings.ankiCardBury,
+          icon: Icon(Icons.bedtime_outlined, size: 20, color: secondary),
+          onPressed: canMutate ? () => unawaited(onBury()) : null,
+        ),
+        IconButton(
+          tooltip: AppStrings.ankiCardSuspend,
+          icon: Icon(
+            Icons.pause_circle_outline_rounded,
+            size: 20,
+            color: secondary,
+          ),
+          onPressed: canMutate ? () => unawaited(onSuspend()) : null,
+        ),
+      ],
+    );
+  }
+}
+
+class _ShowAnswerButton extends StatelessWidget {
+  const _ShowAnswerButton({required this.onPressed});
+
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: TurnaTheme.brandTeal,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ).copyWith(elevation: const WidgetStatePropertyAll<double>(0)),
+        child: Text(
+          AppStrings.lessonShowAnswer,
+          style: const TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 16,
+          ),
+        ),
+      ),
+    );
   }
 }
