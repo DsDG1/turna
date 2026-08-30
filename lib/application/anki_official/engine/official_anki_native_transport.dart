@@ -33,16 +33,6 @@ typedef _EngineCloseNative = TurnaAnkiResult Function(Uint64 handle);
 typedef _EngineCloseDart = TurnaAnkiResult Function(int handle);
 typedef _BufferFreeNative = Void Function(Pointer<Uint8> ptr, Size len);
 typedef _BufferFreeDart = void Function(Pointer<Uint8> ptr, int len);
-typedef _EngineOpenNative = TurnaAnkiResult Function(
-  Uint64 handle,
-  Pointer<Uint8> request,
-  Size requestLen,
-);
-typedef _EngineOpenDart = TurnaAnkiResult Function(
-  int handle,
-  Pointer<Uint8> request,
-  int requestLen,
-);
 typedef _CallNative = TurnaAnkiResult Function(
   Uint64 handle,
   Uint32 operation,
@@ -73,9 +63,6 @@ class OfficialAnkiNativeTransport {
         _bufferFree = _lib.lookupFunction<_BufferFreeNative, _BufferFreeDart>(
           'turna_anki_buffer_free',
         ),
-        _engineOpen = _lib.lookupFunction<_EngineOpenNative, _EngineOpenDart>(
-          'turna_anki_engine_open',
-        ),
         _call = _lib.lookupFunction<_CallNative, _CallDart>('turna_anki_call'),
         _cancel = _lib.lookupFunction<_CancelNative, _CancelDart>(
           'turna_anki_cancel',
@@ -89,9 +76,6 @@ class OfficialAnkiNativeTransport {
   final _EngineNewDart _engineNew;
   final _EngineCloseDart _engineClose;
   final _BufferFreeDart _bufferFree;
-  // Looked up so a missing symbol fails at transport open, not later.
-  // ignore: unused_field
-  final _EngineOpenDart _engineOpen;
   final _CallDart _call;
   final _CancelDart _cancel;
 
@@ -152,18 +136,6 @@ class OfficialAnkiNativeTransport {
       );
     }
     return ByteData.sublistView(bytes).getUint64(0, Endian.little);
-  }
-
-  OfficialAnkiEnvelopeResponse openCollection(
-    int handle,
-    Map<String, Object?> payload,
-  ) {
-    final request = OfficialAnkiEnvelopeRequest(
-      requestId: 'open-$handle',
-      operation: OfficialAnkiOperation.openCollection,
-      payload: payload,
-    );
-    return call(handle, OfficialAnkiOperation.openCollectionId, request);
   }
 
   OfficialAnkiEnvelopeResponse call(

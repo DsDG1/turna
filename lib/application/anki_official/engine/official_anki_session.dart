@@ -13,7 +13,6 @@ import 'package:turna/application/anki_official/engine/official_anki_operation_c
 import 'package:turna/application/anki_official/engine/official_anki_session_cleanup.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_orchestrator.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
-import 'package:turna/application/anki_official/import/official_anki_recovery_service.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
@@ -230,29 +229,6 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
     );
   }
 
-  Future<List<OfficialAnkiImportResult>> recoverUnfinished() async {
-    // Recovery may re-run a partial import; give it the same ceiling as
-    // importFile rather than the 120s default.
-    final raw = await _rpc(
-      'recoverUnfinished',
-      const <String, Object?>{},
-      const Duration(minutes: 30),
-    );
-    final items = raw['results'] as List? ?? const [];
-    return items
-        .whereType<Map>()
-        .map(
-          (item) => OfficialAnkiImportResult(
-            sourceId: item['sourceId'] as String,
-            attemptId: item['attemptId'] as String,
-            state: OfficialAnkiSourceStateWire.parse(item['state'] as String),
-            cardCount: (item['cardCount'] as num?)?.toInt() ?? 0,
-            noteCount: (item['noteCount'] as num?)?.toInt() ?? 0,
-          ),
-        )
-        .toList();
-  }
-
   Future<OfficialAnkiProgress> latestProgress() async {
     final control = _control;
     if (control != null && handle != 0) {
@@ -399,36 +375,6 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
     return OfficialAnkiCardPage.fromJson(
       Map<String, Object?>.from(raw['page'] as Map? ?? raw),
     );
-  }
-
-  Future<List<OfficialAnkiSourceRow>> listSources() async {
-    final raw = await _rpc('listSources');
-    final items = raw['sources'] as List? ?? const [];
-    return items
-        .whereType<Map>()
-        .map(
-          (item) => OfficialAnkiSourceRow(
-            sourceId: item['sourceId'] as String,
-            profileId: item['profileId'] as String? ?? '',
-            sourceHash: item['sourceHash'] as String? ?? '',
-            state: item['state'] as String? ?? '',
-            displayName: item['displayName'] as String? ?? '',
-          ),
-        )
-        .toList();
-  }
-
-  Future<List<OfficialAnkiCardDescriptor>> listCards(String sourceId) async {
-    final raw = await _rpc('listCards', {'sourceId': sourceId});
-    final items = raw['cards'] as List? ?? const [];
-    return items
-        .whereType<Map>()
-        .map(
-          (item) => OfficialAnkiCardDescriptor.fromJson(
-            Map<String, Object?>.from(item),
-          ),
-        )
-        .toList();
   }
 
   Future<void> ensureCollectionOpen() async {
@@ -652,7 +598,6 @@ void officialAnkiWorkerEntrypoint(SendPort ready) {
   OfficialAnkiEngine? engine;
   OfficialAnkiDatabase? db;
   OfficialAnkiImportOrchestrator? orchestrator;
-  OfficialAnkiRecoveryService? recovery;
   OfficialAnkiPaths? paths;
   final ops = OfficialAnkiOperationCoordinator();
 
@@ -687,12 +632,6 @@ void officialAnkiWorkerEntrypoint(SendPort ready) {
             sources: sources,
             attempts: attempts,
             paths: paths!,
-          );
-          recovery = OfficialAnkiRecoveryService(
-            sources: sources,
-            attempts: attempts,
-            engine: engine!,
-            orchestrator: orchestrator!,
           );
           reply.send(<String, Object?>{
             'ok': true,
@@ -729,13 +668,6 @@ void officialAnkiWorkerEntrypoint(SendPort ready) {
           } finally {
             ops.release(OfficialAnkiOperationPhase.importing);
           }
-          return;
-        case 'recoverUnfinished':
-          final results = await recovery!.recoverUnfinished();
-          reply.send(<String, Object?>{
-            'ok': true,
-            'results': results.map(_resultPayload).toList(),
-          });
           return;
         case 'progress':
           final progress = await engine!.latestProgress();
@@ -887,43 +819,6 @@ void officialAnkiWorkerEntrypoint(SendPort ready) {
             },
           });
           return;
-        case 'listSources':
-          final sources =
-              OfficialAnkiSourceDao(db!).listSources(paths!.profileId);
-          reply.send(<String, Object?>{
-            'ok': true,
-            'sources': sources
-                .map(
-                  (row) => <String, Object?>{
-                    'sourceId': row.sourceId,
-                    'profileId': row.profileId,
-                    'sourceHash': row.sourceHash,
-                    'state': row.state,
-                    'displayName': row.displayName,
-                  },
-                )
-                .toList(),
-          });
-          return;
-        case 'listCards':
-          final cards = OfficialAnkiSourceDao(db!).listCards(
-            message['sourceId'] as String,
-          );
-          reply.send(<String, Object?>{
-            'ok': true,
-            'cards': cards
-                .map(
-                  (card) => <String, Object?>{
-                    'cardId': card.cardId,
-                    'noteId': card.noteId,
-                    'deckId': card.deckId,
-                    'templateOrd': card.templateOrd,
-                    'noteGuid': card.noteGuid,
-                  },
-                )
-                .toList(),
-          });
-          return;
         case 'ensureOpen':
           ops.guardCollectionMutation();
           try {
@@ -955,7 +850,6 @@ void officialAnkiWorkerEntrypoint(SendPort ready) {
             db = null;
             engine = null;
             orchestrator = null;
-            recovery = null;
           }
           reply.send(const <String, Object?>{'ok': true});
           commands.close();
