@@ -3,6 +3,7 @@ import 'package:turna/application/anki_official/contract/official_anki_dto.dart'
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_paging.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 export 'package:turna/application/anki_official/projection/official_anki_projection_paging.dart'
     show OfficialAnkiSourceCardPage;
@@ -161,7 +162,8 @@ WHERE source_id = ? AND state = ?
       }
       stmt.dispose();
       _db.execute('COMMIT');
-    } catch (_) {
+    } catch (suppressed) {
+      debugPrint('[OfficialAnkiSourceDao] suppressed error: $suppressed');
       _db.execute('ROLLBACK');
       rethrow;
     }
@@ -190,7 +192,8 @@ WHERE source_id = ? AND state = ?
       }
       stmt.dispose();
       _db.execute('COMMIT');
-    } catch (_) {
+    } catch (suppressed) {
+      debugPrint('[OfficialAnkiSourceDao] suppressed error: $suppressed');
       _db.execute('ROLLBACK');
       rethrow;
     }
@@ -394,7 +397,8 @@ WHERE source_id = ? AND state = ?
         [sourceId, profileId],
       );
       _db.execute('COMMIT');
-    } catch (_) {
+    } catch (suppressed) {
+      debugPrint('[OfficialAnkiSourceDao] suppressed error: $suppressed');
       _db.execute('ROLLBACK');
       rethrow;
     }

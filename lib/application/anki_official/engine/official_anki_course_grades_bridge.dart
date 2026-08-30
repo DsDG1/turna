@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 abstract class OfficialAnkiCourseGradesBridge {
   Future<bool> answerOfficialCard({
@@ -45,7 +46,8 @@ class OfficialAnkiCourseGradesBridgeImpl
         return await onAnswer!(cardId, rating, millisecondsTaken);
       }
       return false;
-    } catch (_) {
+    } catch (suppressed) {
+      debugPrint('[OfficialAnkiCourseGradesBridge] [OfficialAnkiCourseGradesBridge] course-grades bridge suppressed: $suppressed');
       return false;
     }
   }

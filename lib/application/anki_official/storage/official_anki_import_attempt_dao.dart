@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:sqlite3/sqlite3.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 class OfficialAnkiAttemptRow {
   const OfficialAnkiAttemptRow({
@@ -102,7 +103,8 @@ INSERT INTO anki_import_attempts (
         stmt.dispose();
       }
       _db.execute('COMMIT');
-    } catch (_) {
+    } catch (suppressed) {
+      debugPrint('[OfficialAnkiImportAttemptDao] suppressed error: $suppressed');
       _db.execute('ROLLBACK');
       rethrow;
     }
@@ -165,7 +167,8 @@ WHERE attempt_id = ? AND state = 'indexing_cards'
         [nowMillis, jsonEncode({'nextOffset': nextOffset}), attemptId],
       );
       _db.execute('COMMIT');
-    } catch (_) {
+    } catch (suppressed) {
+      debugPrint('[OfficialAnkiImportAttemptDao] suppressed error: $suppressed');
       _db.execute('ROLLBACK');
       rethrow;
     }

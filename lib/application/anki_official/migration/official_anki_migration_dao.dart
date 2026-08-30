@@ -3,6 +3,7 @@ import 'package:turna/application/anki_official/contract/official_anki_errors.da
 import 'package:turna/application/anki_official/migration/official_anki_dry_run_matcher.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_state.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 class LegacyAnkiMigrationRow {
   const LegacyAnkiMigrationRow({
@@ -203,10 +204,11 @@ WHERE migration_id = ? AND state = ?
         onTransaction();
       }
       _db.execute('COMMIT');
-    } catch (_) {
+    } catch (suppressed) {
+      debugPrint('[OfficialAnkiMigrationDao] suppressed error: $suppressed');
       try {
         _db.execute('ROLLBACK');
-      } catch (_) {}
+      } catch (suppressed) { debugPrint('[OfficialAnkiMigrationDao] suppressed error: $suppressed'); }
       rethrow;
     }
   }
@@ -302,7 +304,8 @@ INSERT INTO legacy_anki_card_map (
       }
       stmt.dispose();
       _db.execute('COMMIT');
-    } catch (_) {
+    } catch (suppressed) {
+      debugPrint('[OfficialAnkiMigrationDao] suppressed error: $suppressed');
       _db.execute('ROLLBACK');
       rethrow;
     }
@@ -460,7 +463,8 @@ WHERE migration_id = ?
     String? recordedKind;
     try {
       recordedKind = row['recorded_kind'] as String?;
-    } catch (_) {
+    } catch (suppressed) {
+      debugPrint('[OfficialAnkiMigrationDao] suppressed error: $suppressed');
       recordedKind = null;
     }
     return LegacyAnkiMigrationRow(

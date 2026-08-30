@@ -138,7 +138,7 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
             for (final deck in await engine.listDeckTree()) {
               if (deckIds.contains(deck.deckId)) names[deck.deckId] = deck.name;
             }
-          } catch (_) {}
+          } catch (suppressed) { debugPrint('[AnkiCardBrowserPage] suppressed error: $suppressed'); }
         }
         if (!mounted) return;
         setState(() {

@@ -5,6 +5,14 @@ import 'package:turna/application/anki_official/engine/official_anki_session.dar
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 
 /// Worker-session adapter so production source management can project.
+///
+/// Positioning (doc 39 P4): this class stays as the deliberate capability
+/// façade over the worker session — the five `throw _missing` members and
+/// the two no-ops are the intentional degradation surface (create/restore
+/// backup and direct import are worker-orchestrator-only). Everything else
+/// is a one-line forward into [OfficialAnkiSession]'s typed RPCs; adding a
+/// new engine op costs one line here plus one line in the worker handler
+/// table (`_workerHandlers` in official_anki_session.dart).
 class OfficialAnkiSessionEngine implements OfficialAnkiEngine {
   OfficialAnkiSessionEngine(this.session);
 

@@ -43,7 +43,8 @@ class OfficialAnkiCanonicalLinkView extends StatefulWidget {
     OfficialAnkiPaths resolved;
     try {
       resolved = paths ?? await OfficialAnkiCourseEntry.resolveDefaultPaths();
-    } catch (_) {
+    } catch (suppressed) {
+      debugPrint('[OfficialAnkiCanonicalLinkView] suppressed error: $suppressed');
       if (!context.mounted) return;
       // Runtime-assembled inline error page: goes through the central
       // platform route selector (plan D5), not a hand-written route.

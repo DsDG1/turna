@@ -131,6 +131,19 @@ OfficialAnkiErrorCode officialAnkiErrorCodeFromName(String? name) {
       return OfficialAnkiErrorCode.collectionCorrupt;
     case 'INTERNAL_ERROR':
       return OfficialAnkiErrorCode.internalError;
+    // Doc 39 F3: the five codes the worker's _wireErrorCode can emit that
+    // were previously missing here — without them cross-RPC errors silently
+    // degraded to `unknown`.
+    case 'CAPABILITY_MISSING':
+      return OfficialAnkiErrorCode.capabilityMissing;
+    case 'NEEDS_RECONCILIATION':
+      return OfficialAnkiErrorCode.needsReconciliation;
+    case 'UNSUPPORTED_PLATFORM':
+      return OfficialAnkiErrorCode.unsupportedPlatform;
+    case 'LIBRARY_MISSING':
+      return OfficialAnkiErrorCode.libraryMissing;
+    case 'SYMBOL_MISSING':
+      return OfficialAnkiErrorCode.symbolMissing;
     default:
       return OfficialAnkiErrorCode.unknown;
   }

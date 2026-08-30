@@ -8,6 +8,7 @@ import 'package:injectable/injectable.dart';
 // Project imports:
 import 'package:turna/data/anki_legacy_write_fence.dart';
 import 'package:turna/data/course_database.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 /// Data access object for the Anki NoteStore tables (`anki_notetypes`,
 /// `anki_notes`, `anki_cards_meta`) added in schema v9.
@@ -220,7 +221,8 @@ class AnkiNoteDao {
         return value is Map
             ? Map<String, Object?>.from(value)
             : const <String, Object?>{};
-      } catch (_) {
+      } catch (suppressed) {
+        debugPrint('[AnkiNoteDao] suppressed error: $suppressed');
         return const <String, Object?>{};
       }
     }

@@ -13,6 +13,7 @@ import 'package:turna/application/anki_official/migration/official_anki_migratio
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/introduction/card_introduction_eligibility.dart';
 import 'package:turna/data/anki_owner_authority_dao.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 /// Census / reconciler status that may enter the W8 single-source saga.
 const kCleanLegacyCensusStatus = 'cleanLegacy';
@@ -154,7 +155,8 @@ class OfficialLegacySourceMigrationSaga {
           nowMillis: now,
         );
       }
-    } catch (_) {
+    } catch (suppressed) {
+      debugPrint('[OfficialLegacySourceMigrationSaga] suppressed error: $suppressed');
       coordinator.release(OfficialAnkiOperationPhase.migrating);
       rethrow;
     }
@@ -691,7 +693,8 @@ class OfficialLegacySourceMigrationSaga {
         nowMillis: now,
         onTransaction: onCutover,
       );
-    } catch (_) {
+    } catch (suppressed) {
+      debugPrint('[OfficialLegacySourceMigrationSaga] suppressed error: $suppressed');
       if (authority != null &&
           transition?.phase == OwnerTransitionPhase.observing) {
         await authority.advancePhase(

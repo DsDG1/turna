@@ -14,6 +14,7 @@ import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 typedef OfficialAnkiClock = int Function();
 
@@ -85,7 +86,7 @@ class OfficialAnkiImportOrchestrator implements OfficialAnkiImporter {
         nowMillis: _now,
         errorCode: error.code.name,
       );
-    } catch (_) {}
+    } catch (suppressed) { debugPrint('[OfficialAnkiImportOrchestrator] suppressed error: $suppressed'); }
   }
 
   Future<OfficialAnkiImportResult> _importFile({
@@ -169,7 +170,8 @@ class OfficialAnkiImportOrchestrator implements OfficialAnkiImporter {
           state: AnkiSourceVisibility.staging,
         );
       }
-    } catch (_) {
+    } catch (suppressed) {
+      debugPrint('[OfficialAnkiImportOrchestrator] suppressed error: $suppressed');
       // The catalog remains the import journal; authority staging is
       // re-written at publish time.
     }

@@ -17,8 +17,16 @@ import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 /// Persistent worker isolate that owns FFI, hashing, and the catalog.
+///
+/// Wire protocol (doc 39 P4): every command is `{type, id, reply, …args}`
+/// and every reply is `{ok: true, result}` or `{ok: false, code, messageKey,
+/// debug}`. The `result` slot carries the typed DTO object itself — isolate
+/// ports copy plain object graphs, so neither side re-serializes DTOs
+/// (before P4 the worker flattened every DTO to a map and the main isolate
+/// parsed it back, constructing each DTO twice per call).
 class OfficialAnkiSession implements OfficialAnkiImporter {
   OfficialAnkiSession._({
     required Isolate isolate,
@@ -193,14 +201,26 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
     }
   }
 
+  /// Typed RPC: the worker's reply carries the DTO object graph directly.
+  Future<T> _call<T>(
+    String type, [
+    Map<String, Object?> payload = const <String, Object?>{},
+    Duration timeout = const Duration(seconds: 120),
+  ]) async {
+    final raw = await _rpc(type, payload, timeout);
+    return raw['result'] as T;
+  }
+
   @override
   Future<OfficialAnkiImportResult> importFile({
     required String packagePath,
     required String displayName,
     String? requestId,
     bool cancel = false,
-  }) async {
-    final raw = await _rpc(
+  }) {
+    // Imports legitimately run for minutes on large decks (media copy +
+    // rslib import); the timeout only guards a dead worker.
+    return _call<OfficialAnkiImportResult>(
       'importFile',
       {
         'packagePath': packagePath,
@@ -208,27 +228,17 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
         'requestId': requestId,
         'cancel': cancel,
       },
-      // Imports legitimately run for minutes on large decks (media copy +
-      // rslib import); the timeout only guards a dead worker.
       const Duration(minutes: 30),
     );
-    return OfficialAnkiImportResult(
-      sourceId: raw['sourceId'] as String,
-      attemptId: raw['attemptId'] as String,
-      state: OfficialAnkiSourceStateWire.parse(raw['state'] as String),
-      cardCount: (raw['cardCount'] as num?)?.toInt() ?? 0,
-      noteCount: (raw['noteCount'] as num?)?.toInt() ?? 0,
-      alreadyImported: raw['alreadyImported'] == true,
-    );
   }
 
-  Future<OfficialAnkiEngineInfo> engineInfo() async {
-    final raw = await _rpc('engineInfo');
-    return OfficialAnkiEngineInfo.fromJson(
-      Map<String, Object?>.from(raw['info'] as Map),
-    );
-  }
+  Future<OfficialAnkiEngineInfo> engineInfo() =>
+      _call<OfficialAnkiEngineInfo>('engineInfo');
 
+  /// Latest import progress. The control transport (main-isolate FFI) is
+  /// preferred so this stays reachable while the worker is busy inside a
+  /// long import; the worker path serves fake engines without a control
+  /// transport. Both shapes are parsed by [OfficialAnkiProgress.fromJson].
   Future<OfficialAnkiProgress> latestProgress() async {
     final control = _control;
     if (control != null && handle != 0) {
@@ -243,10 +253,11 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
       );
       return OfficialAnkiProgress.fromJson(response.requirePayload());
     }
-    final raw = await _rpc('progress');
-    return OfficialAnkiProgress.fromJson(raw);
+    return _call<OfficialAnkiProgress>('progress');
   }
 
+  /// Cancel the running native op. Same dual-path rationale as
+  /// [latestProgress]: the control transport works while the worker is busy.
   Future<void> cancel() async {
     final control = _control;
     if (control != null && handle != 0) {
@@ -260,116 +271,75 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
     required int cardId,
     bool browser = false,
     bool includeAvTags = true,
-  }) async {
-    final raw = await _rpc('renderCard', {
-      'cardId': cardId,
-      'browser': browser,
-      'includeAvTags': includeAvTags,
-    });
-    return OfficialAnkiRenderedCard.fromJson(
-      Map<String, Object?>.from(raw['card'] as Map),
-    );
-  }
+  }) =>
+      _call<OfficialAnkiRenderedCard>('renderCard', {
+        'cardId': cardId,
+        'browser': browser,
+        'includeAvTags': includeAvTags,
+      });
 
   Future<OfficialAnkiTypedComparison> compareTypedAnswer({
     required int cardId,
     required String marker,
     required String provided,
-  }) async {
-    final raw = await _rpc('compareTypedAnswer', {
-      'cardId': cardId,
-      'marker': marker,
-      'provided': provided,
-    });
-    return OfficialAnkiTypedComparison.fromJson(
-      Map<String, Object?>.from(raw['comparison'] as Map),
-    );
-  }
+  }) =>
+      _call<OfficialAnkiTypedComparison>('compareTypedAnswer', {
+        'cardId': cardId,
+        'marker': marker,
+        'provided': provided,
+      });
 
   Future<String> extractClozeForTyping({
     required String text,
     required int ordinal,
-  }) async {
-    final raw = await _rpc('extractClozeForTyping', {
-      'text': text,
-      'ordinal': ordinal,
-    });
-    return raw['text'] as String? ?? '';
-  }
+  }) =>
+      _call<String>('extractClozeForTyping', {
+        'text': text,
+        'ordinal': ordinal,
+      });
 
-  Future<List<OfficialAnkiDeckNode>> listDeckTree() async {
-    final raw = await _rpc('listDeckTree');
-    final items = raw['decks'] as List? ?? const [];
-    return items
-        .whereType<Map>()
-        .map(
-          (item) =>
-              OfficialAnkiDeckNode.fromJson(Map<String, Object?>.from(item)),
-        )
-        .toList();
-  }
+  Future<List<OfficialAnkiDeckNode>> listDeckTree() =>
+      _call<List<OfficialAnkiDeckNode>>('listDeckTree');
 
   Future<List<OfficialAnkiProjectionSchema>> getProjectionSchemas({
     List<int> notetypeIds = const <int>[],
     bool includeSamples = false,
     int sampleLimit = 3,
-  }) async {
-    final raw = await _rpc('getProjectionSchemas', {
-      'notetypeIds': notetypeIds,
-      'includeSamples': includeSamples,
-      'sampleLimit': sampleLimit,
-    });
-    final items = raw['schemas'] as List? ?? const [];
-    return items
-        .whereType<Map>()
-        .map(
-          (item) => OfficialAnkiProjectionSchema.fromJson(
-            Map<String, Object?>.from(item),
-          ),
-        )
-        .toList();
-  }
+  }) =>
+      _call<List<OfficialAnkiProjectionSchema>>('getProjectionSchemas', {
+        'notetypeIds': notetypeIds,
+        'includeSamples': includeSamples,
+        'sampleLimit': sampleLimit,
+      });
 
   Future<OfficialAnkiProjectionSnapshot> beginProjectionRead({
     required String cardSetFingerprint,
     int mappingVersion = 1,
-  }) async {
-    final raw = await _rpc('beginProjectionRead', {
-      'cardSetFingerprint': cardSetFingerprint,
-      'mappingVersion': mappingVersion,
-    });
-    return OfficialAnkiProjectionSnapshot.fromJson(
-      Map<String, Object?>.from(raw['snapshot'] as Map? ?? raw),
-    );
-  }
+  }) =>
+      _call<OfficialAnkiProjectionSnapshot>('beginProjectionRead', {
+        'cardSetFingerprint': cardSetFingerprint,
+        'mappingVersion': mappingVersion,
+      });
 
   Future<OfficialAnkiProjectionPage> getProjectionRowsBatch({
     required List<int> cardIds,
     required String snapshotToken,
-  }) async {
-    final raw = await _rpc('getProjectionRowsBatch', {
-      'cardIds': cardIds,
-      'snapshotToken': snapshotToken,
-    });
-    return OfficialAnkiProjectionPage.fromJson(
-      Map<String, Object?>.from(raw['page'] as Map? ?? raw),
-    );
-  }
+  }) =>
+      _call<OfficialAnkiProjectionPage>('getProjectionRowsBatch', {
+        'cardIds': cardIds,
+        'snapshotToken': snapshotToken,
+      });
 
   Future<OfficialAnkiCardPage> searchCardsPage({
     String search = '',
     int pageSize = 200,
     String? pageToken,
-  }) async {
-    final raw = await _rpc('searchCardsPage', {
-      'search': search,
-      'pageSize': pageSize,
-      if (pageToken != null) 'pageToken': pageToken,
-    });
-    return OfficialAnkiCardPage.fromJson(
-      Map<String, Object?>.from(raw['page'] as Map? ?? raw),
-    );
-  }
+  }) =>
+      _call<OfficialAnkiCardPage>('searchCardsPage', {
+        'search': search,
+        'pageSize': pageSize,
+        if (pageToken != null) 'pageToken': pageToken,
+      });
 
   Future<void> ensureCollectionOpen() async {
     await _rpc('ensureOpen');
@@ -379,15 +349,11 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
     await _rpc('scheduler', {'op': 'setCurrentDeck', 'deckId': deckId});
   }
 
-  Future<OfficialReviewQueue> getReviewQueue({int fetchLimit = 1}) async {
-    final raw = await _rpc('scheduler', {
-      'op': 'getReviewQueue',
-      'fetchLimit': fetchLimit,
-    });
-    return OfficialReviewQueue.fromJson(
-      Map<String, Object?>.from(raw['payload'] as Map? ?? raw),
-    );
-  }
+  Future<OfficialReviewQueue> getReviewQueue({int fetchLimit = 1}) =>
+      _call<OfficialReviewQueue>('scheduler', {
+        'op': 'getReviewQueue',
+        'fetchLimit': fetchLimit,
+      });
 
   Future<OfficialAnswerResult> answerCard({
     required String sessionId,
@@ -398,60 +364,36 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
     required int millisecondsTaken,
     int? answeredAtMillis,
     String? clientMutationId,
-  }) async {
-    final raw = await _rpc('scheduler', {
-      'op': 'answerCard',
-      'sessionId': sessionId,
-      'queueEpoch': queueEpoch,
-      'answerToken': answerToken,
-      'cardId': cardId,
-      'rating': rating,
-      'millisecondsTaken': millisecondsTaken,
-      if (answeredAtMillis != null) 'answeredAtMillis': answeredAtMillis,
-      if (clientMutationId != null) 'clientMutationId': clientMutationId,
-    });
-    return OfficialAnswerResult.fromJson(
-      Map<String, Object?>.from(raw['payload'] as Map? ?? raw),
-    );
-  }
+  }) =>
+      _call<OfficialAnswerResult>('scheduler', {
+        'op': 'answerCard',
+        'sessionId': sessionId,
+        'queueEpoch': queueEpoch,
+        'answerToken': answerToken,
+        'cardId': cardId,
+        'rating': rating,
+        'millisecondsTaken': millisecondsTaken,
+        if (answeredAtMillis != null) 'answeredAtMillis': answeredAtMillis,
+        if (clientMutationId != null) 'clientMutationId': clientMutationId,
+      });
 
-  Future<OfficialUndoStatus> getUndoStatus() async {
-    final raw = await _rpc('scheduler', {'op': 'getUndoStatus'});
-    return OfficialUndoStatus.fromJson(
-      Map<String, Object?>.from(raw['payload'] as Map? ?? raw),
-    );
-  }
+  Future<OfficialUndoStatus> getUndoStatus() =>
+      _call<OfficialUndoStatus>('scheduler', {'op': 'getUndoStatus'});
 
-  Future<OfficialMutationResult> undo() async {
-    final raw = await _rpc('scheduler', {'op': 'undo'});
-    return OfficialMutationResult.fromJson(
-      Map<String, Object?>.from(raw['payload'] as Map? ?? raw),
-    );
-  }
+  Future<OfficialMutationResult> undo() =>
+      _call<OfficialMutationResult>('scheduler', {'op': 'undo'});
 
-  Future<OfficialMutationResult> redo() async {
-    final raw = await _rpc('scheduler', {'op': 'redo'});
-    return OfficialMutationResult.fromJson(
-      Map<String, Object?>.from(raw['payload'] as Map? ?? raw),
-    );
-  }
+  Future<OfficialMutationResult> redo() =>
+      _call<OfficialMutationResult>('scheduler', {'op': 'redo'});
 
-  Future<OfficialDeckCounts> countsForDeckToday(int deckId) async {
-    final raw = await _rpc('scheduler', {
-      'op': 'countsForDeckToday',
-      'deckId': deckId,
-    });
-    return OfficialDeckCounts.fromJson(
-      Map<String, Object?>.from(raw['payload'] as Map? ?? raw),
-    );
-  }
+  Future<OfficialDeckCounts> countsForDeckToday(int deckId) =>
+      _call<OfficialDeckCounts>('scheduler', {
+        'op': 'countsForDeckToday',
+        'deckId': deckId,
+      });
 
-  Future<OfficialCongratsInfo> congratsInfo() async {
-    final raw = await _rpc('scheduler', {'op': 'congratsInfo'});
-    return OfficialCongratsInfo.fromJson(
-      Map<String, Object?>.from(raw['payload'] as Map? ?? raw),
-    );
-  }
+  Future<OfficialCongratsInfo> congratsInfo() =>
+      _call<OfficialCongratsInfo>('scheduler', {'op': 'congratsInfo'});
 
   Future<void> buryOrSuspendCards({
     required OfficialBuryOrSuspendAction action,
@@ -466,66 +408,44 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
     });
   }
 
-  Future<int> deleteNotes(List<int> noteIds) async {
-    final raw = await _rpc('scheduler', {
-      'op': 'deleteNotes',
-      'noteIds': noteIds,
-    });
-    final payload = Map<String, Object?>.from(raw['payload'] as Map? ?? raw);
-    return (payload['removedCards'] as num?)?.toInt() ?? 0;
-  }
+  Future<int> deleteNotes(List<int> noteIds) => _call<int>('scheduler', {
+        'op': 'deleteNotes',
+        'noteIds': noteIds,
+      });
 
-  Future<int> deleteCards(List<int> cardIds) async {
-    final raw = await _rpc('scheduler', {
-      'op': 'deleteCards',
-      'cardIds': cardIds,
-    });
-    final payload = Map<String, Object?>.from(raw['payload'] as Map? ?? raw);
-    return (payload['removedCards'] as num?)?.toInt() ?? 0;
-  }
+  Future<int> deleteCards(List<int> cardIds) => _call<int>('scheduler', {
+        'op': 'deleteCards',
+        'cardIds': cardIds,
+      });
 
-  Future<OfficialAnkiStatsBatch> statsForCardsBatch(List<int> cardIds) async {
-    final raw = await _rpc('scheduler', {
-      'op': 'statsForCardsBatch',
-      'cardIds': cardIds,
-    });
-    return OfficialAnkiStatsBatch.fromJson(
-      Map<String, Object?>.from(raw['payload'] as Map? ?? raw),
-    );
-  }
+  Future<OfficialAnkiStatsBatch> statsForCardsBatch(List<int> cardIds) =>
+      _call<OfficialAnkiStatsBatch>('scheduler', {
+        'op': 'statsForCardsBatch',
+        'cardIds': cardIds,
+      });
 
-  Future<int> scheduleCardsAsNew(List<int> cardIds) async {
-    final raw = await _rpc('scheduler', {
-      'op': 'scheduleCardsAsNew',
-      'cardIds': cardIds,
-    });
-    final payload = Map<String, Object?>.from(raw['payload'] as Map? ?? raw);
-    return (payload['scheduledCards'] as num?)?.toInt() ?? 0;
-  }
+  Future<int> scheduleCardsAsNew(List<int> cardIds) => _call<int>('scheduler', {
+        'op': 'scheduleCardsAsNew',
+        'cardIds': cardIds,
+      });
 
   Future<OfficialAheadAnswerOutcome> answerAheadCards(
     List<OfficialAheadAnswer> answers,
-  ) async {
-    final raw = await _rpc('scheduler', {
-      'op': 'answerAheadCards',
-      'answers': [for (final answer in answers) answer.toJson()],
-    });
-    final payload = Map<String, Object?>.from(raw['payload'] as Map? ?? raw);
-    return OfficialAheadAnswerOutcome.fromJson(payload);
-  }
+  ) =>
+      _call<OfficialAheadAnswerOutcome>('scheduler', {
+        'op': 'answerAheadCards',
+        'answers': [for (final answer in answers) answer.toJson()],
+      });
 
   Future<int> ensureTodayNewQuota({
     required int deckId,
     required int neededNew,
-  }) async {
-    final raw = await _rpc('scheduler', {
-      'op': 'ensureTodayNewQuota',
-      'deckId': deckId,
-      'neededNew': neededNew,
-    });
-    final payload = Map<String, Object?>.from(raw['payload'] as Map? ?? raw);
-    return (payload['extendedBy'] as num?)?.toInt() ?? 0;
-  }
+  }) =>
+      _call<int>('scheduler', {
+        'op': 'ensureTodayNewQuota',
+        'deckId': deckId,
+        'neededNew': neededNew,
+      });
 
   Future<void> dispose() {
     return _disposeFuture ??= _disposeOnce();
@@ -539,7 +459,7 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
         graceful: () async {
           try {
             _control?.cancel(handle);
-          } catch (_) {}
+          } catch (suppressed) { debugPrint('[OfficialAnkiSession] suppressed error: $suppressed'); }
           await _rpcDispose();
         },
         handle: handle,
@@ -570,309 +490,201 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
   }
 }
 
-void officialAnkiWorkerEntrypoint(SendPort ready) {
-  final commands = ReceivePort();
-  ready.send(commands.sendPort);
+/// Mutable worker-side singletons, set by `init` and cleared by `dispose`.
+class _WorkerState {
   OfficialAnkiEngine? engine;
   OfficialAnkiDatabase? db;
   OfficialAnkiImportOrchestrator? orchestrator;
   OfficialAnkiPaths? paths;
   final ops = OfficialAnkiOperationCoordinator();
+}
 
-  Future<void> handle(Map<String, Object?> message) async {
-    final reply = message['reply'] as SendPort;
-    final type = message['type'] as String? ?? '';
+void officialAnkiWorkerEntrypoint(SendPort ready) {
+  final commands = ReceivePort();
+  ready.send(commands.sendPort);
+  final state = _WorkerState();
+  commands.listen((raw) {
+    if (raw is Map) {
+      _handleWorkerCommand(state, Map<String, Object?>.from(raw));
+    }
+  });
+}
+
+/// One line per worker command: the single dispatch surface (doc 39 P4).
+/// Handlers return the typed DTO; the reply envelope wraps it verbatim.
+final Map<String, Future<Object?> Function(_WorkerState, Map<String, Object?>)>
+    _workerHandlers = {
+  'engineInfo': (s, m) => s.engine!.engineInfo(),
+  'importFile': (s, m) async {
+    s.ops.guardCollectionMutation();
+    s.ops.acquire(OfficialAnkiOperationPhase.importing);
     try {
-      switch (type) {
-        case 'init':
-          paths = OfficialAnkiPaths(
-            profileId: message['profileId'] as String,
-            profileRoot: Directory(message['profileRoot'] as String),
+      return s.orchestrator!.importFile(
+        packagePath: m['packagePath'] as String,
+        displayName: m['displayName'] as String,
+        requestId: m['requestId'] as String?,
+        cancel: m['cancel'] == true,
+      );
+    } finally {
+      s.ops.release(OfficialAnkiOperationPhase.importing);
+    }
+  },
+  'progress': (s, m) => s.engine!.latestProgress(),
+  'cancel': (s, m) => s.engine!.cancel(),
+  'renderCard': (s, m) => s.engine!.renderCard(
+        cardId: (m['cardId'] as num).toInt(),
+        browser: m['browser'] == true,
+        includeAvTags: m['includeAvTags'] != false,
+      ),
+  'compareTypedAnswer': (s, m) => s.engine!.compareTypedAnswer(
+        cardId: (m['cardId'] as num).toInt(),
+        marker: m['marker'] as String,
+        provided: m['provided'] as String,
+      ),
+  'listDeckTree': (s, m) => s.engine!.listDeckTree(),
+  'getProjectionSchemas': (s, m) => s.engine!.getProjectionSchemas(
+        notetypeIds: ((m['notetypeIds'] as List?) ?? const [])
+            .whereType<num>()
+            .map((n) => n.toInt())
+            .toList(),
+        includeSamples: m['includeSamples'] == true,
+        sampleLimit: (m['sampleLimit'] as num?)?.toInt() ?? 3,
+      ),
+  'beginProjectionRead': (s, m) => s.engine!.beginProjectionRead(
+        cardSetFingerprint: m['cardSetFingerprint'] as String,
+        mappingVersion: (m['mappingVersion'] as num?)?.toInt() ?? 1,
+      ),
+  'getProjectionRowsBatch': (s, m) => s.engine!.getProjectionRowsBatch(
+        cardIds: ((m['cardIds'] as List?) ?? const [])
+            .whereType<num>()
+            .map((n) => n.toInt())
+            .toList(),
+        snapshotToken: m['snapshotToken'] as String,
+      ),
+  'extractClozeForTyping': (s, m) => s.engine!.extractClozeForTyping(
+        text: m['text'] as String,
+        ordinal: (m['ordinal'] as num).toInt(),
+      ),
+  'searchCardsPage': (s, m) => s.engine!.searchCardsPage(
+        search: m['search'] as String? ?? '',
+        pageSize: (m['pageSize'] as num?)?.toInt() ?? 200,
+        pageToken: m['pageToken'] as String?,
+      ),
+  'ensureOpen': (s, m) async {
+    s.ops.guardCollectionMutation();
+    try {
+      await s.engine!.openProfile(s.paths!);
+    } on OfficialAnkiException catch (error) {
+      if (error.code != OfficialAnkiErrorCode.collectionAlreadyOpen) {
+        rethrow;
+      }
+    }
+    await s.engine!.checkCollection();
+    return null;
+  },
+  'scheduler': (s, m) =>
+      dispatchOfficialAnkiScheduler(s.engine!, m, coordinator: s.ops),
+};
+
+Future<void> _handleWorkerCommand(
+  _WorkerState state,
+  Map<String, Object?> message,
+) async {
+  final reply = message['reply'] as SendPort;
+  final type = message['type'] as String? ?? '';
+  try {
+    switch (type) {
+      case 'init':
+        final paths = OfficialAnkiPaths(
+          profileId: message['profileId'] as String,
+          profileRoot: Directory(message['profileRoot'] as String),
+        );
+        await paths.ensureLayout();
+        state.paths = paths;
+        state.db = OfficialAnkiDatabase.file(message['catalogPath'] as String);
+        final useFake = message['useFake'] == true;
+        String? resolvedLibrary;
+        if (useFake) {
+          state.engine = FakeOfficialAnkiEngine();
+        } else {
+          final requested = message['libraryPath'] as String?;
+          final transport = OfficialAnkiNativeTransport.open(
+            libraryPath: requested,
           );
-          await paths!.ensureLayout();
-          db = OfficialAnkiDatabase.file(message['catalogPath'] as String);
-          final useFake = message['useFake'] == true;
-          String? resolvedLibrary;
-          if (useFake) {
-            engine = FakeOfficialAnkiEngine();
-          } else {
-            final requested = message['libraryPath'] as String?;
-            final transport = OfficialAnkiNativeTransport.open(
-              libraryPath: requested,
-            );
-            resolvedLibrary = transport.libraryPath;
-            engine = FfiOfficialAnkiEngine.connect(transport);
-          }
-          final sources = OfficialAnkiSourceDao(db!);
-          final attempts = OfficialAnkiImportAttemptDao(db!);
-          orchestrator = OfficialAnkiImportOrchestrator(
-            engine: engine!,
-            sources: sources,
-            attempts: attempts,
-            paths: paths!,
-          );
-          reply.send(<String, Object?>{
-            'ok': true,
-            'handle': engine is FfiOfficialAnkiEngine
-                ? (engine! as FfiOfficialAnkiEngine).handle
-                : 0,
-            'libraryPath': resolvedLibrary,
-          });
-          return;
-        case 'engineInfo':
-          final info = await engine!.engineInfo();
-          reply.send(<String, Object?>{
-            'ok': true,
-            'info': <String, Object?>{
-              'abiVersion': info.abiVersion,
-              'backendCommit': info.backendCommit,
-              'contractMajor': info.contractMajor,
-              'contractMinor': info.contractMinor,
-              'capabilities': info.capabilities.toList(),
-            },
-          });
-          return;
-        case 'importFile':
-          ops.guardCollectionMutation();
-          ops.acquire(OfficialAnkiOperationPhase.importing);
-          try {
-            final result = await orchestrator!.importFile(
-              packagePath: message['packagePath'] as String,
-              displayName: message['displayName'] as String,
-              requestId: message['requestId'] as String?,
-              cancel: message['cancel'] == true,
-            );
-            reply.send(_resultMap(result));
-          } finally {
-            ops.release(OfficialAnkiOperationPhase.importing);
-          }
-          return;
-        case 'progress':
-          final progress = await engine!.latestProgress();
-          reply.send(<String, Object?>{
-            'ok': true,
-            'stage': progress.stage,
-            'canCancel': progress.canCancel,
-          });
-          return;
-        case 'cancel':
-          await engine!.cancel();
-          reply.send(const <String, Object?>{'ok': true});
-          return;
-        case 'renderCard':
-          final card = await engine!.renderCard(
-            cardId: (message['cardId'] as num).toInt(),
-            browser: message['browser'] == true,
-            includeAvTags: message['includeAvTags'] != false,
-          );
-          reply.send(<String, Object?>{
-            'ok': true,
-            'card': _renderedCardMap(card),
-          });
-          return;
-        case 'compareTypedAnswer':
-          final comparison = await engine!.compareTypedAnswer(
-            cardId: (message['cardId'] as num).toInt(),
-            marker: message['marker'] as String,
-            provided: message['provided'] as String,
-          );
-          reply.send(<String, Object?>{
-            'ok': true,
-            'comparison': <String, Object?>{
-              'comparisonHtml': comparison.comparisonHtml,
-              'hasExpected': comparison.hasExpected,
-            },
-          });
-          return;
-        case 'listDeckTree':
-          final decks = await engine!.listDeckTree();
-          reply.send(<String, Object?>{
-            'ok': true,
-            'decks': decks
-                .map(
-                  (deck) => <String, Object?>{
-                    'deckId': deck.deckId,
-                    'name': deck.name,
-                    'level': deck.level,
-                  },
-                )
-                .toList(),
-          });
-          return;
-        case 'getProjectionSchemas':
-          final schemas = await engine!.getProjectionSchemas(
-            notetypeIds: ((message['notetypeIds'] as List?) ?? const [])
-                .whereType<num>()
-                .map((n) => n.toInt())
-                .toList(),
-            includeSamples: message['includeSamples'] == true,
-            sampleLimit: (message['sampleLimit'] as num?)?.toInt() ?? 3,
-          );
-          reply.send(<String, Object?>{
-            'ok': true,
-            'schemas': schemas
-                .map(
-                  (schema) => <String, Object?>{
-                    'notetypeId': schema.notetypeId,
-                    'name': schema.name,
-                    'kind': schema.kind,
-                    'fieldNames': schema.fieldNames,
-                    'templateNames': schema.templateNames,
-                    'schemaFingerprint': schema.schemaFingerprint,
-                    'samples': schema.samples
-                        .map(
-                          (sample) => <String, Object?>{
-                            'noteId': sample.noteId,
-                            'fields': sample.fields,
-                            'truncated': sample.truncated,
-                          },
-                        )
-                        .toList(),
-                  },
-                )
-                .toList(),
-          });
-          return;
-        case 'beginProjectionRead':
-          final snapshot = await engine!.beginProjectionRead(
-            cardSetFingerprint: message['cardSetFingerprint'] as String,
-            mappingVersion: (message['mappingVersion'] as num?)?.toInt() ?? 1,
-          );
-          reply.send(<String, Object?>{
-            'ok': true,
-            'snapshotToken': snapshot.snapshotToken,
-            'collectionGeneration': snapshot.collectionGeneration,
-            'backendCommit': snapshot.backendCommit,
-          });
-          return;
-        case 'getProjectionRowsBatch':
-          final page = await engine!.getProjectionRowsBatch(
-            cardIds: ((message['cardIds'] as List?) ?? const [])
-                .whereType<num>()
-                .map((n) => n.toInt())
-                .toList(),
-            snapshotToken: message['snapshotToken'] as String,
-          );
-          reply.send(<String, Object?>{
-            'ok': true,
-            'rows': page.rows
-                .map(
-                  (row) => <String, Object?>{
-                    'cardId': row.cardId,
-                    'noteId': row.noteId,
-                    'noteGuid': row.noteGuid,
-                    'notetypeId': row.notetypeId,
-                    'deckId': row.deckId,
-                    'deckPath': row.deckPath,
-                    'templateOrdinal': row.templateOrdinal,
-                    'tags': row.tags,
-                    'fields': row.fields,
-                    'sourceFingerprint': row.sourceFingerprint,
-                    'truncated': row.truncated,
-                  },
-                )
-                .toList(),
-            'missingCardIds': page.missingCardIds,
-          });
-          return;
-        case 'extractClozeForTyping':
-          final text = await engine!.extractClozeForTyping(
-            text: message['text'] as String,
-            ordinal: (message['ordinal'] as num).toInt(),
-          );
-          reply.send(<String, Object?>{'ok': true, 'text': text});
-          return;
-        case 'searchCardsPage':
-          final page = await engine!.searchCardsPage(
-            search: message['search'] as String? ?? '',
-            pageSize: (message['pageSize'] as num?)?.toInt() ?? 200,
-            pageToken: message['pageToken'] as String?,
-          );
-          reply.send(<String, Object?>{
-            'ok': true,
-            'page': <String, Object?>{
-              'cardIds': page.cardIds,
-              'nextPageToken': page.nextPageToken,
-              'totalHint': page.totalHint,
-            },
-          });
-          return;
-        case 'ensureOpen':
-          ops.guardCollectionMutation();
-          try {
-            await engine!.openProfile(paths!);
-          } on OfficialAnkiException catch (error) {
-            if (error.code != OfficialAnkiErrorCode.collectionAlreadyOpen) {
-              rethrow;
-            }
-          }
-          await engine!.checkCollection();
-          reply.send(const <String, Object?>{'ok': true});
-          return;
-        case 'scheduler':
-          final payload = await dispatchOfficialAnkiScheduler(
-            engine!,
-            message,
-            coordinator: ops,
-          );
-          reply.send(<String, Object?>{
-            'ok': true,
-            'payload': payload,
-          });
-          return;
-        case 'dispose':
-          try {
-            await engine?.dispose();
-          } finally {
-            db?.close();
-            db = null;
-            engine = null;
-            orchestrator = null;
-          }
-          reply.send(const <String, Object?>{'ok': true});
-          commands.close();
-          return;
-        default:
+          resolvedLibrary = transport.libraryPath;
+          state.engine = FfiOfficialAnkiEngine.connect(transport);
+        }
+        final sources = OfficialAnkiSourceDao(state.db!);
+        final attempts = OfficialAnkiImportAttemptDao(state.db!);
+        state.orchestrator = OfficialAnkiImportOrchestrator(
+          engine: state.engine!,
+          sources: sources,
+          attempts: attempts,
+          paths: paths,
+        );
+        reply.send(<String, Object?>{
+          'ok': true,
+          'handle': state.engine is FfiOfficialAnkiEngine
+              ? (state.engine! as FfiOfficialAnkiEngine).handle
+              : 0,
+          'libraryPath': resolvedLibrary,
+        });
+        return;
+      case 'dispose':
+        try {
+          await state.engine?.dispose();
+        } finally {
+          state.db?.close();
+          state.db = null;
+          state.engine = null;
+          state.orchestrator = null;
+          state.paths = null;
+        }
+        reply.send(const <String, Object?>{'ok': true});
+        return;
+      default:
+        final handler = _workerHandlers[type];
+        if (handler == null) {
           throw OfficialAnkiException(
             code: OfficialAnkiErrorCode.invalidArgument,
             messageKey: 'official_anki.unknown_worker_command',
             debugDetails: type,
           );
-      }
-    } on OfficialAnkiException catch (error) {
-      if (type == 'init') {
-        await engine?.dispose();
-        db?.close();
-        engine = null;
-        db = null;
-      }
-      reply.send(<String, Object?>{
-        'ok': false,
-        'code': _wireErrorCode(error.code),
-        'messageKey': error.messageKey,
-        'debug': error.debugDetails ?? error.toString(),
-      });
-    } catch (error, stack) {
-      if (type == 'init') {
-        await engine?.dispose();
-        db?.close();
-        engine = null;
-        db = null;
-      }
-      reply.send(<String, Object?>{
-        'ok': false,
-        'code': 'INTERNAL_ERROR',
-        'messageKey': 'official_anki.worker_error',
-        'debug': '$error\n$stack',
-      });
+        }
+        final result = await handler(state, message);
+        reply.send(<String, Object?>{
+          'ok': true,
+          if (result != null) 'result': result,
+        });
+        return;
     }
+  } on OfficialAnkiException catch (error) {
+    if (type == 'init') {
+      await state.engine?.dispose();
+      state.db?.close();
+      state.engine = null;
+      state.db = null;
+    }
+    reply.send(<String, Object?>{
+      'ok': false,
+      'code': _wireErrorCode(error.code),
+      'messageKey': error.messageKey,
+      'debug': error.debugDetails ?? error.toString(),
+    });
+  } catch (error, stack) {
+    if (type == 'init') {
+      await state.engine?.dispose();
+      state.db?.close();
+      state.engine = null;
+      state.db = null;
+    }
+    reply.send(<String, Object?>{
+      'ok': false,
+      'code': 'INTERNAL_ERROR',
+      'messageKey': 'official_anki.worker_error',
+      'debug': '$error\n$stack',
+    });
   }
-
-  commands.listen((raw) {
-    if (raw is Map) {
-      handle(Map<String, Object?>.from(raw));
-    }
-  });
 }
 
 String _wireErrorCode(OfficialAnkiErrorCode code) {
@@ -895,7 +707,12 @@ const _schedulerWriteOps = {
   'ensureTodayNewQuota',
 };
 
-Future<Map<String, Object?>> dispatchOfficialAnkiScheduler(
+/// Dispatches one scheduler op and returns its typed DTO (or an int for
+/// primitive results, null for void ops) — the worker reply envelope
+/// transfers the object as-is (doc 39 P4). Input validation (id lists,
+/// actions, quota bounds) stays fail-closed here so both the worker and
+/// direct callers share it.
+Future<Object?> dispatchOfficialAnkiScheduler(
   OfficialAnkiEngine engine,
   Map<String, Object?> message, {
   OfficialAnkiOperationCoordinator? coordinator,
@@ -907,38 +724,13 @@ Future<Map<String, Object?>> dispatchOfficialAnkiScheduler(
   switch (op) {
     case 'setCurrentDeck':
       await engine.setCurrentDeck((message['deckId'] as num).toInt());
-      return const <String, Object?>{};
+      return null;
     case 'getReviewQueue':
-      final queue = await engine.getReviewQueue(
+      return engine.getReviewQueue(
         fetchLimit: (message['fetchLimit'] as num?)?.toInt() ?? 1,
       );
-      return <String, Object?>{
-        'sessionId': queue.sessionId,
-        'queueEpoch': queue.queueEpoch,
-        'newCount': queue.newCount,
-        'learningCount': queue.learningCount,
-        'reviewCount': queue.reviewCount,
-        'cards': queue.cards
-            .map(
-              (card) => <String, Object?>{
-                'cardId': card.cardId,
-                'noteId': card.noteId,
-                'deckId': card.deckId,
-                'templateOrdinal': card.templateOrdinal,
-                'queueKind': card.queueKind,
-                'answerToken': card.answerToken,
-                'labels': <String, Object?>{
-                  'again': card.labels.again,
-                  'hard': card.labels.hard,
-                  'good': card.labels.good,
-                  'easy': card.labels.easy,
-                },
-              },
-            )
-            .toList(),
-      };
     case 'answerCard':
-      final answered = await engine.answerCard(
+      return engine.answerCard(
         sessionId: message['sessionId'] as String,
         queueEpoch: (message['queueEpoch'] as num).toInt(),
         answerToken: message['answerToken'] as String,
@@ -948,59 +740,16 @@ Future<Map<String, Object?>> dispatchOfficialAnkiScheduler(
         answeredAtMillis: (message['answeredAtMillis'] as num?)?.toInt(),
         clientMutationId: message['clientMutationId'] as String?,
       );
-      return <String, Object?>{
-        'cardId': answered.cardId,
-        'queue': answered.queue,
-        'revlogCount': answered.revlogCount,
-        'millisecondsTaken': answered.millisecondsTaken,
-        'clientMutationId': answered.clientMutationId,
-        'rating': answered.rating,
-        'queueEpoch': answered.queueEpoch,
-        'committed': answered.committed,
-      };
     case 'getUndoStatus':
-      final status = await engine.getUndoStatus();
-      return <String, Object?>{
-        'canUndo': status.canUndo,
-        'canRedo': status.canRedo,
-        'undoLabel': status.undoLabel,
-        'redoLabel': status.redoLabel,
-      };
+      return engine.getUndoStatus();
     case 'undo':
-      final undone = await engine.undo();
-      return <String, Object?>{
-        'ok': undone.ok,
-        'undone': undone.undone,
-        'queueEpoch': undone.queueEpoch,
-      };
+      return engine.undo();
     case 'redo':
-      final redone = await engine.redo();
-      return <String, Object?>{
-        'ok': redone.ok,
-        'redone': redone.redone,
-        'queueEpoch': redone.queueEpoch,
-      };
+      return engine.redo();
     case 'countsForDeckToday':
-      final counts = await engine.countsForDeckToday(
-        (message['deckId'] as num).toInt(),
-      );
-      return <String, Object?>{
-        'deckId': counts.deckId,
-        'new': counts.newCount,
-        'review': counts.reviewCount,
-      };
+      return engine.countsForDeckToday((message['deckId'] as num).toInt());
     case 'congratsInfo':
-      final info = await engine.congratsInfo();
-      return <String, Object?>{
-        'learnRemaining': info.learnRemaining,
-        'reviewRemaining': info.reviewRemaining,
-        'newRemaining': info.newRemaining,
-        'haveSchedBuried': info.haveSchedBuried,
-        'haveUserBuried': info.haveUserBuried,
-        'isFilteredDeck': info.isFilteredDeck,
-        'secsUntilNextLearn': info.secsUntilNextLearn,
-        'deckDescription': info.deckDescription,
-      };
+      return engine.congratsInfo();
     case 'buryOrSuspendCards':
       final action = OfficialBuryOrSuspendAction.parse(
         message['action'] as String?,
@@ -1022,7 +771,7 @@ Future<Map<String, Object?>> dispatchOfficialAnkiScheduler(
         cardIds: cardIds,
         deckId: (message['deckId'] as num?)?.toInt(),
       );
-      return const <String, Object?>{};
+      return null;
     case 'deleteNotes':
       final noteIds = ((message['noteIds'] as List?) ?? const []).map((item) {
         if (item is! num) {
@@ -1036,8 +785,7 @@ Future<Map<String, Object?>> dispatchOfficialAnkiScheduler(
       if (noteIds.isEmpty) {
         officialContractError('noteIds', noteIds);
       }
-      final removedCards = await engine.deleteNotes(noteIds);
-      return <String, Object?>{'removedCards': removedCards};
+      return engine.deleteNotes(noteIds);
     case 'deleteCards':
       final cardIds = ((message['cardIds'] as List?) ?? const []).map((item) {
         if (item is! num) {
@@ -1048,8 +796,7 @@ Future<Map<String, Object?>> dispatchOfficialAnkiScheduler(
       if (cardIds.isEmpty || cardIds.any((id) => id <= 0)) {
         officialContractError('cardIds', cardIds);
       }
-      final removedCards = await engine.deleteCards(cardIds);
-      return <String, Object?>{'removedCards': removedCards};
+      return engine.deleteCards(cardIds);
     case 'statsForCardsBatch':
       final cardIds = ((message['cardIds'] as List?) ?? const []).map((item) {
         if (item is! num) {
@@ -1060,26 +807,7 @@ Future<Map<String, Object?>> dispatchOfficialAnkiScheduler(
       if (cardIds.isEmpty || cardIds.any((id) => id <= 0)) {
         officialContractError('cardIds', cardIds);
       }
-      final stats = await engine.statsForCardsBatch(cardIds);
-      return <String, Object?>{
-        'requestedCardCount': stats.requestedCardCount,
-        'foundCardCount': stats.foundCardCount,
-        'newCards': stats.newCards,
-        'learningCards': stats.learningCards,
-        'reviewCards': stats.reviewCards,
-        'suspendedCards': stats.suspendedCards,
-        'buriedCards': stats.buriedCards,
-        'todayAnswerCount': stats.todayAnswerCount,
-        'todayLearnCount': stats.todayLearnCount,
-        'todayReviewCount': stats.todayReviewCount,
-        'todayRelearnCount': stats.todayRelearnCount,
-        'forecastDueToday': stats.forecastDueToday,
-        'forecastDue7Days': stats.forecastDue7Days,
-        'forecastDue30Days': stats.forecastDue30Days,
-        'revlogCount': stats.revlogCount,
-        'retentionPassed': stats.retentionPassed,
-        'retentionFailed': stats.retentionFailed,
-      };
+      return engine.statsForCardsBatch(cardIds);
     case 'scheduleCardsAsNew':
       final cardIds = ((message['cardIds'] as List?) ?? const []).map((item) {
         if (item is! num) officialContractError('cardIds[]', item);
@@ -1088,8 +816,7 @@ Future<Map<String, Object?>> dispatchOfficialAnkiScheduler(
       if (cardIds.isEmpty || cardIds.any((id) => id <= 0)) {
         officialContractError('cardIds', cardIds);
       }
-      final scheduledCards = await engine.scheduleCardsAsNew(cardIds);
-      return <String, Object?>{'scheduledCards': scheduledCards};
+      return engine.scheduleCardsAsNew(cardIds);
     case 'answerAheadCards':
       final rawAnswers = (message['answers'] as List?) ?? const [];
       final answers = <OfficialAheadAnswer>[];
@@ -1111,22 +838,14 @@ Future<Map<String, Object?>> dispatchOfficialAnkiScheduler(
         );
       }
       if (answers.isEmpty) officialContractError('answers', rawAnswers);
-      final outcome = await engine.answerAheadCards(answers);
-      return <String, Object?>{
-        'answeredCards': outcome.answered,
-        'skippedRatedToday': outcome.skippedRatedToday,
-      };
+      return engine.answerAheadCards(answers);
     case 'ensureTodayNewQuota':
       final deckId = (message['deckId'] as num?)?.toInt() ?? 0;
       final neededNew = (message['neededNew'] as num?)?.toInt() ?? 0;
       if (deckId <= 0 || neededNew < 0) {
         officialContractError('ensureTodayNewQuota', message);
       }
-      final extendedBy = await engine.ensureTodayNewQuota(
-        deckId: deckId,
-        neededNew: neededNew,
-      );
-      return <String, Object?>{'extendedBy': extendedBy};
+      return engine.ensureTodayNewQuota(deckId: deckId, neededNew: neededNew);
     default:
       throw OfficialAnkiException(
         code: OfficialAnkiErrorCode.invalidArgument,
@@ -1134,65 +853,4 @@ Future<Map<String, Object?>> dispatchOfficialAnkiScheduler(
         debugDetails: message['op']?.toString(),
       );
   }
-}
-
-Map<String, Object?> _resultPayload(OfficialAnkiImportResult result) {
-  return <String, Object?>{
-    'sourceId': result.sourceId,
-    'attemptId': result.attemptId,
-    'state': result.state.wire,
-    'cardCount': result.cardCount,
-    'noteCount': result.noteCount,
-    'alreadyImported': result.alreadyImported,
-  };
-}
-
-Map<String, Object?> _resultMap(OfficialAnkiImportResult result) {
-  return <String, Object?>{
-    'ok': true,
-    ..._resultPayload(result),
-  };
-}
-
-Map<String, Object?> _renderedCardMap(OfficialAnkiRenderedCard card) {
-  return <String, Object?>{
-    'cardId': card.cardId,
-    'questionHtml': card.questionHtml,
-    'answerHtml': card.answerHtml,
-    'questionDisplayHtml': card.questionDisplayHtml,
-    'answerDisplayHtml': card.answerDisplayHtml,
-    'css': card.css,
-    'latexSvg': card.latexSvg,
-    'isEmpty': card.isEmpty,
-    'questionAvTags': card.questionAvTags.map(_avTagMap).toList(),
-    'answerAvTags': card.answerAvTags.map(_avTagMap).toList(),
-    'typedAnswer': card.typedAnswer == null
-        ? null
-        : <String, Object?>{
-            'marker': card.typedAnswer!.marker,
-            'fontFamily': card.typedAnswer!.fontFamily,
-            'fontSizePx': card.typedAnswer!.fontSizePx,
-            'combining': card.typedAnswer!.combining,
-            'clozeOrdinal': card.typedAnswer!.clozeOrdinal,
-          },
-    'templateOrdinal': card.templateOrdinal,
-    'bodyClass': card.bodyClass,
-  };
-}
-
-Map<String, Object?> _avTagMap(OfficialAnkiAvTag tag) {
-  if (tag.kind == OfficialAnkiAvKind.tts) {
-    return <String, Object?>{
-      'kind': 'tts',
-      'fieldText': tag.fieldText,
-      'lang': tag.lang,
-      'voices': tag.voices,
-      'speed': tag.speed,
-      'otherArgs': tag.otherArgs,
-    };
-  }
-  return <String, Object?>{
-    'kind': 'sound_or_video',
-    'filename': tag.filename,
-  };
 }

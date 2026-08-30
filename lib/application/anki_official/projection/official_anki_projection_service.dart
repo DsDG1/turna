@@ -190,7 +190,8 @@ class OfficialAnkiCourseProjectionService {
         ],
       );
       catalog.handle.execute('COMMIT');
-    } catch (_) {
+    } catch (suppressed) {
+      debugPrint('[OfficialAnkiProjectionService] suppressed error: $suppressed');
       catalog.handle.execute('ROLLBACK');
       rethrow;
     }
@@ -236,7 +237,8 @@ class OfficialAnkiCourseProjectionService {
         ],
       );
       catalog.handle.execute('COMMIT');
-    } catch (_) {
+    } catch (suppressed) {
+      debugPrint('[OfficialAnkiProjectionService] suppressed error: $suppressed');
       catalog.handle.execute('ROLLBACK');
       rethrow;
     }
@@ -610,7 +612,8 @@ class OfficialAnkiCourseProjectionService {
         errorCode: error.code.name,
         jobId: job.jobId,
       );
-    } catch (_) {
+    } catch (suppressed) {
+      debugPrint('[OfficialAnkiProjectionService] suppressed error: $suppressed');
       jobs.markFailed(
         jobId: job.jobId,
         ownerToken: ownerToken,

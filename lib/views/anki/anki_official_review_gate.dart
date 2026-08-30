@@ -170,7 +170,8 @@ class AnkiOfficialReviewGate {
       final course = CourseLoader.databaseOrNull();
       if (course == null) return null;
       return (await AnkiImportDao(course).getById(importId))?.sourceHash;
-    } catch (_) {
+    } catch (suppressed) {
+      debugPrint('[AnkiOfficialReviewGate] suppressed error: $suppressed');
       return null;
     }
   }

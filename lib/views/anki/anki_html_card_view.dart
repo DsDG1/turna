@@ -231,7 +231,8 @@ class AnkiHtmlCardViewState extends State<AnkiHtmlCardView> {
       final requested = p.normalize(Uri.parse(rawUrl).toFilePath());
       final root = p.normalize(widget.allowedMediaBasePath);
       return p.equals(requested, root) || p.isWithin(root, requested);
-    } catch (_) {
+    } catch (suppressed) {
+      debugPrint('[AnkiHtmlCardView] suppressed error: $suppressed');
       return false;
     }
   }

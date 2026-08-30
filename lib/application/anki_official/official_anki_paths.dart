@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 class OfficialAnkiPaths {
   OfficialAnkiPaths({
@@ -38,7 +39,8 @@ class OfficialAnkiPaths {
       final cols = lines.last.trim().split(RegExp(r'\s+'));
       if (cols.length < 4) return 0;
       return (int.tryParse(cols[3]) ?? 0) * 1024;
-    } catch (_) {
+    } catch (suppressed) {
+      debugPrint('[OfficialAnkiPaths] suppressed error: $suppressed');
       return 0;
     }
   }
@@ -49,18 +51,18 @@ class OfficialAnkiPaths {
       if (tempFolder.existsSync()) {
         await tempFolder.delete(recursive: true);
       }
-    } catch (_) {}
+    } catch (suppressed) { debugPrint('[OfficialAnkiPaths] suppressed error: $suppressed'); }
     try {
       if (profileRoot.existsSync()) {
         for (final entity in profileRoot.listSync(followLinks: false)) {
           if (entity is File && entity.path.endsWith('.tmp')) {
             try {
               entity.deleteSync();
-            } catch (_) {}
+            } catch (suppressed) { debugPrint('[OfficialAnkiPaths] suppressed error: $suppressed'); }
           }
         }
       }
-    } catch (_) {}
+    } catch (suppressed) { debugPrint('[OfficialAnkiPaths] suppressed error: $suppressed'); }
   }
 
   Map<String, String> openPayload({required String backendCommit}) {

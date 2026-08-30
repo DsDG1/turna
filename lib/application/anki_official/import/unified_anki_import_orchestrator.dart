@@ -5,6 +5,7 @@ import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/anki/canonical_card_key.dart';
 import 'package:turna/data/course_database.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 class UnifiedAnkiImportResult {
   const UnifiedAnkiImportResult({
@@ -149,7 +150,8 @@ class UnifiedAnkiImportOrchestrator {
           activeProjectionGeneration: sourceHash,
         );
       }
-    } catch (_) {
+    } catch (suppressed) {
+      debugPrint('[UnifiedAnkiImportOrchestrator] suppressed error: $suppressed');
       // Import stays complete (catalog + projection are the source of
       // truth for the data); the reconciler repairs the authority row.
     }

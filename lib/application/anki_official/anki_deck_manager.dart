@@ -241,7 +241,8 @@ class AnkiDeckManager {
     final _OfficialSourceContentIds contentIds;
     try {
       contentIds = await _officialSourceContentIds(sourceId);
-    } catch (_) {
+    } catch (suppressed) {
+      debugPrint('[AnkiDeckManager] suppressed error: $suppressed');
       // Without the ownership metadata the saga must stop: deleting the
       // projection/catalog first would orphan the collection notes.
       await _markOfficialSourcePendingCleanup(sourceId);
@@ -422,7 +423,8 @@ class AnkiDeckManager {
       return getIt.isRegistered<AnkiOwnerAuthorityDao>()
           ? getIt<AnkiOwnerAuthorityDao>()
           : null;
-    } catch (_) {
+    } catch (suppressed) {
+      debugPrint('[AnkiDeckManager] suppressed error: $suppressed');
       return null;
     }
   }
@@ -487,7 +489,8 @@ class AnkiDeckManager {
       return getIt.isRegistered<AudioController>()
           ? getIt<AudioController>()
           : null;
-    } catch (_) {
+    } catch (suppressed) {
+      debugPrint('[AnkiDeckManager] suppressed error: $suppressed');
       return null;
     }
   }

@@ -202,7 +202,8 @@ class OfficialAnkiHomeDueSync {
                 )
                 .get();
             return {for (final row in rows) row.read<int>('card_id')};
-          } catch (_) {
+          } catch (suppressed) {
+            debugPrint('[OfficialAnkiHomeDueSync] [OfficialAnkiHomeDueSync] home-due sync step suppressed: $suppressed');
             return const <int>{};
           }
         }
@@ -365,6 +366,6 @@ class OfficialAnkiHomeDueSync {
           sourceHash: row.sourceHash,
         );
       }
-    } catch (_) {}
+    } catch (suppressed) { debugPrint('[OfficialAnkiHomeDueSync] suppressed error: $suppressed'); }
   }
 }

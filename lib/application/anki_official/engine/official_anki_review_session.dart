@@ -5,6 +5,7 @@ import 'package:turna/application/anki_official/engine/official_anki_engine.dart
 import 'package:turna/application/anki_official/engine/official_anki_mutation_receipt.dart';
 import 'package:turna/application/anki_official/engine/official_anki_operation_coordinator.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 enum OfficialReviewPhase {
   idle,
@@ -429,7 +430,7 @@ class OfficialReviewSession {
       undoStatus = await engine.getUndoStatus();
       congrats = await engine.congratsInfo();
       isFilteredDeck = congrats?.isFilteredDeck ?? false;
-    } catch (_) {}
+    } catch (suppressed) { debugPrint('[OfficialAnkiReviewSession] suppressed error: $suppressed'); }
   }
 
   void applyFailure(Object error) {
