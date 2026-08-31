@@ -24,6 +24,10 @@ void main() {
       DiagnosticsReleaseGuard.guardedRouteNames,
       isNot(contains('OfficialAnkiMappingRoute')),
     );
+    expect(
+      DiagnosticsReleaseGuard.guardedRouteNames,
+      isNot(contains('OfficialAnkiRepairCenterRoute')),
+    );
   });
 
   test('product routes are never guarded', () {

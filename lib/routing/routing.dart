@@ -75,6 +75,7 @@ class AppRouter extends RootStackRouter {
             page: CourseManagementRoute.page, guards: [_courseReadyGuard]),
         // Official mapping is a product import page (doc 42 P2), not diagnostics.
         AutoRoute(page: OfficialAnkiMappingRoute.page),
+        AutoRoute(page: OfficialAnkiRepairCenterRoute.page),
         AutoRoute(
             page: OfficialAnkiReviewerRoute.page, guards: [_diagnosticsGuard]),
         AutoRoute(page: OfficialAnkiSourceManagementRoute.page),

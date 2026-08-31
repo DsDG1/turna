@@ -10,7 +10,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/diagnostics/cache_diagnostics_registry.dart';
 import 'package:turna/application/diagnostics/runtime_memory_snapshot.dart';
+import 'package:turna/application/maintenance/official_storage_optimize_service.dart';
 import 'package:turna/application/maintenance/storage_inventory_service.dart';
+import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/settings/storage_diagnostics_page.dart';
 
 class _FakeScanner implements StorageInventoryService {
@@ -97,10 +99,17 @@ void main() {
 
   Future<void> pumpPage(
     WidgetTester tester,
-    StorageInventoryService scanner,
-  ) async {
+    StorageInventoryService scanner, {
+    Future<OfficialStorageOptimizeResult> Function({required bool force})?
+        optimize,
+  }) async {
     await tester.pumpWidget(
-      MaterialApp(home: StorageDiagnosticsPage(scanner: scanner)),
+      MaterialApp(
+        home: StorageDiagnosticsPage(
+          scanner: scanner,
+          optimizeDatabases: optimize,
+        ),
+      ),
     );
     await tester.pumpAndSettle();
   }
@@ -148,6 +157,8 @@ void main() {
 
   testWidgets('runtime memory uses plain wording, separate from disk usage',
       (tester) async {
+    await tester.binding.setSurfaceSize(const Size(400, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(MaterialApp(
       home: StorageDiagnosticsPage(
         scanner: _FakeScanner(_cannedReport),
@@ -165,5 +176,52 @@ void main() {
     expect(find.textContaining('8.0 MB'), findsOneWidget);
     expect(find.textContaining('采样于 12:00'), findsOneWidget);
     expect(find.textContaining('和磁盘上的文件大小是两回事'), findsOneWidget);
+  });
+
+  testWidgets('optimize button confirms then calls force compact',
+      (tester) async {
+    var calls = 0;
+    var lastForce = false;
+    await pumpPage(
+      tester,
+      _FakeScanner(_cannedReport),
+      optimize: ({required bool force}) async {
+        calls++;
+        lastForce = force;
+        return const OfficialStorageOptimizeResult(ok: true, completedJobs: 3);
+      },
+    );
+
+    expect(find.text(AppStrings.storageOptimizeDatabase), findsOneWidget);
+    await tester.tap(find.byKey(const Key('storage-optimize-db')));
+    await tester.pumpAndSettle();
+    expect(find.text(AppStrings.storageOptimizeConfirmTitle), findsOneWidget);
+    await tester.tap(find.widgetWithText(
+      FilledButton,
+      AppStrings.storageOptimizeDatabase,
+    ));
+    await tester.pumpAndSettle();
+
+    expect(calls, 1);
+    expect(lastForce, isTrue);
+    expect(find.text(AppStrings.storageOptimizeDone(3)), findsOneWidget);
+  });
+
+  testWidgets('optimize cancel does not call compact', (tester) async {
+    var calls = 0;
+    await pumpPage(
+      tester,
+      _FakeScanner(_cannedReport),
+      optimize: ({required bool force}) async {
+        calls++;
+        return const OfficialStorageOptimizeResult(ok: true);
+      },
+    );
+
+    await tester.tap(find.byKey(const Key('storage-optimize-db')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(AppStrings.commonCancel));
+    await tester.pumpAndSettle();
+    expect(calls, 0);
   });
 }

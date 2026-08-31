@@ -9,16 +9,18 @@ import 'package:flutter/material.dart';
 import 'package:turna/application/anki_official/anki_deck_manager.dart';
 import 'package:turna/application/diagnostics/cache_diagnostics_registry.dart';
 import 'package:turna/application/diagnostics/runtime_memory_snapshot.dart';
+import 'package:turna/application/maintenance/official_storage_optimize_service.dart';
 import 'package:turna/application/maintenance/storage_inventory_service.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/views/theme.dart';
 
 /// User-facing storage overview ("存储与性能"): a dashboard over
 /// [StorageInventoryService] that shows total usage with a share ring, four
 /// plain-language category cards, leftover-file warnings, and the one safe
-/// action — clearing regenerable caches.
+/// action — clearing regenerable caches — plus one-tap database optimize.
 ///
 /// Low-level diagnostics (write telemetry, cache entry counts, WAL/SHM/free
 /// pages) are intentionally NOT shown here; the underlying services still
@@ -30,6 +32,7 @@ class StorageDiagnosticsPage extends StatefulWidget {
     this.scanner,
     this.cacheRegistry,
     this.memorySampler,
+    this.optimizeDatabases,
   });
 
   /// Test seam: widget tests run under fake-async, where the service's real
@@ -38,6 +41,10 @@ class StorageDiagnosticsPage extends StatefulWidget {
   final StorageInventoryService? scanner;
   final CacheDiagnosticsRegistry? cacheRegistry;
   final Future<RuntimeMemorySnapshot> Function()? memorySampler;
+
+  /// Test seam: inject instead of [OfficialStorageOptimizeService.runForceCompact].
+  final Future<OfficialStorageOptimizeResult> Function({required bool force})?
+      optimizeDatabases;
 
   @override
   State<StorageDiagnosticsPage> createState() => _StorageDiagnosticsPageState();
@@ -59,6 +66,7 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
   _PageData? _data;
   Object? _error;
   bool _loading = false;
+  bool _optimizing = false;
 
   @override
   void initState() {
@@ -118,6 +126,52 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
     );
     if (confirmed != true || !mounted) return;
     await _cacheRegistry.clearRegenerable();
+    await _rescan();
+  }
+
+  Future<void> _optimizeDatabases() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(AppStrings.storageOptimizeConfirmTitle),
+        content: Text(AppStrings.storageOptimizeConfirmBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text(AppStrings.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text(AppStrings.storageOptimizeDatabase),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() => _optimizing = true);
+    OfficialStorageOptimizeResult result;
+    try {
+      final injected = widget.optimizeDatabases;
+      result = injected != null
+          ? await injected(force: true)
+          : await const OfficialStorageOptimizeService().runForceCompact();
+    } catch (e) {
+      debugPrint('[StorageDiagnostics] optimize failed: $e');
+      result = const OfficialStorageOptimizeResult(
+        ok: false,
+        errorCode: 'optimize_failed',
+      );
+    }
+    if (!mounted) return;
+    setState(() => _optimizing = false);
+    final message = !result.ok
+        ? (result.errorCode == 'capability_missing'
+            ? AppStrings.storageOptimizeUnavailable
+            : AppStrings.storageOptimizeFailed)
+        : AppStrings.storageOptimizeDone(result.completedJobs);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
     await _rescan();
   }
 
@@ -221,6 +275,36 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
                   ? '清理缓存，可释放 ${_formatBytes(reclaimable)}'
                   : '缓存很干净，无需清理',
             ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            key: const Key('storage-optimize-db'),
+            onPressed: (_loading || _optimizing) ? null : _optimizeDatabases,
+            icon: _optimizing
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.compress_outlined, size: 18),
+            label: Text(
+              _optimizing
+                  ? AppStrings.storageOptimizeBusy
+                  : AppStrings.storageOptimizeDatabase,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton(
+            key: const Key('storage-open-repair-center'),
+            onPressed: () =>
+                context.router.push(OfficialAnkiRepairCenterRoute()),
+            child: Text(AppStrings.storageRepairCenterLink),
           ),
         ),
         const SizedBox(height: 16),

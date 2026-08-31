@@ -57,6 +57,15 @@ class CourseManagementPage extends StatelessWidget {
           ),
         ),
         centerTitle: true,
+        actions: [
+          IconButton(
+            key: const Key('course-open-repair-center'),
+            tooltip: AppStrings.ankiRepairCenterTitle,
+            icon: const Icon(Icons.healing_outlined),
+            onPressed: () =>
+                context.router.push(OfficialAnkiRepairCenterRoute()),
+          ),
+        ],
       ),
       body: _CourseManagementBody(highlightWire: highlightWire),
     );
@@ -148,6 +157,12 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
                     const SizedBox(height: 8),
                     OfficialPendingImportBanner(
                       onChanged: () => setState(() {}),
+                    ),
+                    TextButton(
+                      key: const Key('course-open-repair-center-footer'),
+                      onPressed: () => context.router
+                          .push(OfficialAnkiRepairCenterRoute()),
+                      child: Text(AppStrings.storageRepairCenterLink),
                     ),
                     _AddCourseTile(
                     icon: Icons.upload_file_rounded,

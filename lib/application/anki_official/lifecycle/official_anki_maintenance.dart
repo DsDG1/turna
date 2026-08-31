@@ -135,6 +135,24 @@ INSERT INTO anki_maintenance_jobs (
         .toList();
   }
 
+  List<Map<String, Object?>> recentFailed({
+    required String profileId,
+    int limit = 20,
+  }) {
+    return _db
+        .select(
+          'SELECT * FROM anki_maintenance_jobs WHERE profile_id = ? '
+          'AND state = ? ORDER BY heartbeat_at_millis DESC LIMIT ?',
+          [
+            profileId,
+            OfficialAnkiMaintenanceJobState.failed.wire,
+            limit,
+          ],
+        )
+        .map((row) => Map<String, Object?>.from(row))
+        .toList();
+  }
+
   void markCompleted({
     required String jobId,
     required int nowMillis,

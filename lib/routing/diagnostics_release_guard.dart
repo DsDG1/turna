@@ -6,7 +6,8 @@ import 'package:turna/routing/routing.gr.dart';
 ///
 /// Official-Anki reviewer and source-management pages stay flag-gated
 /// diagnostics surfaces. The mapping page is a product import step
-/// (doc 42 P2) and is not in [guardedRouteNames].
+/// (doc 42 P2) and the repair center is a product storage surface
+/// (doc 41 S8); neither is in [guardedRouteNames].
 ///
 /// Diagnostics builds opt in explicitly via the
 /// `TURNA_OFFICIAL_ANKI_DIAGNOSTICS` dart-define.
@@ -15,8 +16,8 @@ class DiagnosticsReleaseGuard extends AutoRouteGuard {
 
   static const Set<String> guardedRouteNames = {
     'OfficialAnkiReviewerRoute',
-    // OfficialAnkiMappingRoute is the import-wizard mapping page (doc 42 P2),
-    // not a diagnostics surface.
+    // OfficialAnkiRepairCenterRoute is a product storage/repair page
+    // (doc 41 S8), not a diagnostics surface.
     // OfficialAnkiReviewRoute was deleted with the orphan review page
     // (doc 39 P1-A); the page lives on only as a test/support fixture.
     // OfficialAnkiMigrationPreviewRoute was deleted with the preview

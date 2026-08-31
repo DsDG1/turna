@@ -1405,6 +1405,36 @@ class AppStrings {
   static String ankiPendingImportBody(String name) => '「$name」还没导完，可继续或放弃清理。';
   static String get ankiPendingContinue => '继续';
   static String get ankiPendingDiscard => '放弃并清理';
+  static String get storageOptimizeDatabase => '优化数据库';
+  static String get storageOptimizeConfirmTitle => '优化数据库？';
+  static String get storageOptimizeConfirmBody =>
+      '会短暂占用一些磁盘空间，不会删除课程或卡片。过程中请勿强关应用。';
+  static String get storageOptimizeBusy => '正在优化数据库…';
+  static String storageOptimizeDone(int completed) =>
+      completed <= 0 ? '优化已完成' : '优化已完成（$completed 项任务）';
+  static String get storageOptimizeUnavailable =>
+      '当前无法优化数据库（收藏库尚未就绪）';
+  static String get storageOptimizeFailed => '优化失败，未宣称释放空间';
+  static String get storageRepairCenterLink => '打开修复中心';
+  static String get ankiRepairCenterTitle => 'Anki 修复中心';
+  static String get ankiRepairCenterEmptyCatalog =>
+      '官方收藏库尚未就绪。导入过 Anki 牌组后可在此查看待完成导入、待清理和隔离项。';
+  static String get ankiRepairCenterEmpty => '没有需要处理的项目';
+  static String get ankiRepairPendingCleanup => '待清理';
+  static String get ankiRepairQuarantined => '已隔离';
+  static String get ankiRepairMaintenanceJobs => '维护任务';
+  static String get ankiRepairFailedJobs => '最近失败的维护';
+  static String get ankiRepairOrphans => '无登记残留';
+  static String get ankiRepairRetryCleanup => '重试清理';
+  static String get ankiRepairExportDiagnostics => '导出诊断';
+  static String get ankiRepairExportCopied => '已复制诊断摘要（不含密钥）';
+  static String get ankiRepairDiscardConfirmTitle => '放弃并清理？';
+  static String get ankiRepairDiscardConfirmBody =>
+      '将取消这次未完成的导入并清理临时文件，不会删除已确认的课程。';
+  static String get ankiRepairRetryCleanupConfirmTitle => '重试清理？';
+  static String get ankiRepairRetryCleanupConfirmBody =>
+      '将再次尝试删除该来源在集合中的卡片与登记。已确认的其他课程不受影响。';
+  static String get ankiRepairActionUnavailable => '当前无法执行该操作';
   static String get ankiOfficialMappingSuggested => '推荐';
   // Exercise-kind presets on the official mapping page: which practice to
   // generate from this notetype (writes suggestion.enabledKinds).
