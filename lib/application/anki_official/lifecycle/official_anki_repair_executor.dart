@@ -67,6 +67,7 @@ class OfficialAnkiRepairExecutor {
         catalog: catalog,
         paths: paths,
         engine: orchestrator.engine,
+        course: course,
       ).runPending(profileId: profileId);
     }
     return OfficialAnkiRepairReport(

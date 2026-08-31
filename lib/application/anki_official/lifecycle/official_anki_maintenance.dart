@@ -7,6 +7,7 @@ import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_sqlite.dart';
+import 'package:turna/data/course_database.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 
 class OfficialAnkiMaintenanceLease {
@@ -192,11 +193,18 @@ class OfficialAnkiMaintenanceRunner {
     required this.catalog,
     required this.paths,
     this.engine,
+    this.course,
+    this.forceCompact = false,
   });
 
   final OfficialAnkiDatabase catalog;
   final OfficialAnkiPaths paths;
   final OfficialAnkiEngine? engine;
+  final CourseDatabase? course;
+
+  /// User-initiated optimize ignores the freelist ratio/byte thresholds
+  /// (doc 41 §12.4). Automatic jobs still apply them.
+  final bool forceCompact;
 
   static const freelistBytesThreshold = 16 * 1024 * 1024;
   static const freelistRatioThreshold = 0.20;
@@ -282,15 +290,83 @@ class OfficialAnkiMaintenanceRunner {
         }
         return engine.compactCollection();
       case OfficialAnkiMaintenanceKind.compactCatalog:
-        return compactSqliteFile(paths.catalogFile);
+        return compactSqliteFile(paths.catalogFile, force: forceCompact);
       case OfficialAnkiMaintenanceKind.compactCourse:
-        return const OfficialAnkiCompactResult(
-          skippedReason: 'course_db_compact_via_drift',
-        );
+        return compactCourseDatabase(course, force: forceCompact);
     }
   }
 
-  static OfficialAnkiCompactResult compactSqliteFile(File file) {
+  /// VACUUM [CourseDatabase] on the live Drift connection (doc 41 §12.3):
+  /// not nested in a transaction, then verify schema version still matches.
+  static Future<OfficialAnkiCompactResult> compactCourseDatabase(
+    CourseDatabase? db, {
+    bool force = false,
+  }) async {
+    if (db == null) {
+      return const OfficialAnkiCompactResult(
+        skippedReason: 'course_db_unavailable',
+      );
+    }
+    final page = await _pragmaInt(db, 'PRAGMA page_size');
+    final free = await _pragmaInt(db, 'PRAGMA freelist_count');
+    final pages = await _pragmaInt(db, 'PRAGMA page_count');
+    final freelistBytes = free * page;
+    final ratio = pages == 0 ? 0.0 : free / pages;
+    final path = await _mainFilePath(db);
+    final before = path != null && File(path).existsSync()
+        ? File(path).lengthSync()
+        : page * pages;
+    if (!force &&
+        freelistBytes < freelistBytesThreshold &&
+        ratio < freelistRatioThreshold) {
+      return OfficialAnkiCompactResult(
+        beforeBytes: before,
+        afterBytes: before,
+        freelistBytesBefore: freelistBytes,
+        skippedReason: 'below_threshold',
+      );
+    }
+    await db.customStatement('PRAGMA wal_checkpoint(TRUNCATE)');
+    await db.customStatement('VACUUM');
+    final version = await _pragmaInt(db, 'PRAGMA user_version');
+    if (version != CourseDatabase.kSchemaVersion) {
+      throw StateError(
+        'course.db user_version $version after VACUUM, '
+        'expected ${CourseDatabase.kSchemaVersion}',
+      );
+    }
+    final after = path != null && File(path).existsSync()
+        ? File(path).lengthSync()
+        : page * await _pragmaInt(db, 'PRAGMA page_count');
+    final freeAfter = await _pragmaInt(db, 'PRAGMA freelist_count');
+    return OfficialAnkiCompactResult(
+      beforeBytes: before,
+      afterBytes: after,
+      freelistBytesBefore: freelistBytes,
+      freelistBytesAfter: freeAfter * page,
+    );
+  }
+
+  static Future<int> _pragmaInt(CourseDatabase db, String sql) async {
+    final row = await db.customSelect(sql).getSingle();
+    return row.data.values.first as int;
+  }
+
+  static Future<String?> _mainFilePath(CourseDatabase db) async {
+    final rows = await db.customSelect('PRAGMA database_list').get();
+    for (final row in rows) {
+      if ((row.data['name'] as String?) == 'main') {
+        final file = row.data['file'] as String?;
+        if (file != null && file.isNotEmpty) return file;
+      }
+    }
+    return null;
+  }
+
+  static OfficialAnkiCompactResult compactSqliteFile(
+    File file, {
+    bool force = false,
+  }) {
     if (!file.existsSync()) {
       return const OfficialAnkiCompactResult(skippedReason: 'missing');
     }
@@ -303,7 +379,8 @@ class OfficialAnkiMaintenanceRunner {
       final pages = db.select('PRAGMA page_count').first.values.first as int;
       final freelistBytes = free * page;
       final ratio = pages == 0 ? 0.0 : free / pages;
-      if (freelistBytes < freelistBytesThreshold &&
+      if (!force &&
+          freelistBytes < freelistBytesThreshold &&
           ratio < freelistRatioThreshold) {
         return OfficialAnkiCompactResult(
           beforeBytes: before,

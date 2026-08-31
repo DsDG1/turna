@@ -138,6 +138,11 @@ INSERT OR REPLACE INTO anki_cleanup_receipts (
       kind: OfficialAnkiMaintenanceKind.compactCatalog,
       nowMillis: jobNow,
     );
+    jobs.enqueue(
+      profileId: profileId,
+      kind: OfficialAnkiMaintenanceKind.compactCourse,
+      nowMillis: jobNow,
+    );
 
     final ckpt = OfficialAnkiCheckpointDao(catalog);
     final paths = this.paths;

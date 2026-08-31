@@ -1,3 +1,5 @@
+Generated: 2026-08-31 (doc 41 S7 CourseDB VACUUM)：`OfficialAnkiMaintenanceRunner.compactCourseDatabase` 在 Drift 连接上 `wal_checkpoint`+`VACUUM`（阈值或 `forceCompact`）；卸载排队 `compact_course`；repair executor 传入 `CourseDatabase`。定向 `official_anki_course_compact_test`。Android 强杀矩阵仍未跑。
+
 Generated: 2026-08-31 (doc 42 P4 旧路径删除)：生产导入只走 `startStaging` → `commitLive`。删 orchestrator live-first `importFile`/`createBackup`；缺 catalog 不再 facade 直连 live；`restoreBackup` 仅存量 checkpoint；无 checkpoint 未完成导入 quarantine。worker `importFile` 薄转 `importPackage`。inventory `official_anki/staging/`。P0 S-a/S-b/S-c/S-d 须保持绿。
 
 Generated: 2026-08-31 (doc 42 P3 commit + scoped publish)：`projectSource(notetypeIds:)` 修 S-c；`OfficialAnkiImportSaga.commitLive` 确认后写 live Collection 并晋升 mapping；`OfficialAnkiStartupRecovery` 单入口 lease/repair；待完成导入条。P0 S-a/S-b/S-c/S-d **passed**。新增 `official_anki_commit_live_test`。`importFile` 仍保留（P4）。
