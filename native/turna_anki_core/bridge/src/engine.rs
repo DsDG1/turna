@@ -88,6 +88,8 @@ pub const OP_GC_UNUSED_MEDIA: u32 = 37;
 pub const OP_PRUNE_EMPTY_METADATA: u32 = 38;
 pub const OP_COMPACT_COLLECTION: u32 = 39;
 pub const OP_DIFF_COLLECTION_CHECKPOINT: u32 = 40;
+pub const OP_GET_CONFIG: u32 = 41;
+pub const OP_SET_CONFIG: u32 = 42;
 
 pub const MAX_REQUEST_BYTES: usize = 1_048_576;
 pub const MAX_RESPONSE_BYTES: usize = 8_388_608;

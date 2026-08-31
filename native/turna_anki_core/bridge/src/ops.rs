@@ -59,6 +59,8 @@ use crate::engine::OP_GC_UNUSED_MEDIA;
 use crate::engine::OP_PRUNE_EMPTY_METADATA;
 use crate::engine::OP_COMPACT_COLLECTION;
 use crate::engine::OP_DIFF_COLLECTION_CHECKPOINT;
+use crate::engine::OP_GET_CONFIG;
+use crate::engine::OP_SET_CONFIG;
 use crate::engine::OP_SET_CURRENT_DECK;
 use crate::engine::OP_STATS_FOR_CARDS_BATCH;
 use crate::engine::OP_UNDO;
@@ -243,6 +245,8 @@ pub fn dispatch_op(handle: u64, operation: u32, request: &[u8]) -> Result<Value,
         OP_PRUNE_EMPTY_METADATA => prune_empty_metadata(handle, request),
         OP_COMPACT_COLLECTION => compact_collection(handle, request),
         OP_DIFF_COLLECTION_CHECKPOINT => diff_collection_checkpoint(handle, request),
+        OP_GET_CONFIG => get_config(handle, request),
+        OP_SET_CONFIG => set_config(handle, request),
         _ => {
             let slot = slot(handle)?;
             if slot.busy.load(std::sync::atomic::Ordering::Acquire) {
@@ -1172,6 +1176,100 @@ fn compact_collection(handle: u64, _request: &[u8]) -> Result<Value, i32> {
 
 fn diff_collection_checkpoint(_handle: u64, _request: &[u8]) -> Result<Value, i32> {
     Ok(json!({ "cardIds": Vec::<i64>::new() }))
+}
+
+/// Config keys Turna owns. Writes are gated on this prefix so the bridge can
+/// never clobber Anki's own config entries (`schedVer`, `curDeck` & co);
+/// reads stay unrestricted for diagnostics. (ADR 0043 D2, contract 1.12.)
+const TURNA_CONFIG_PREFIX: &str = "turna.";
+const MAX_CONFIG_KEY_BYTES: usize = 128;
+const MAX_CONFIG_VALUE_BYTES: usize = 256 * 1024;
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GetConfigRequest {
+    key: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SetConfigRequest {
+    key: String,
+    /// Missing or explicit null deletes the key (idempotent remove).
+    #[serde(default)]
+    value: Option<Value>,
+}
+
+fn validate_config_key(key: &str) -> Result<(), i32> {
+    if key.is_empty() || key.len() > MAX_CONFIG_KEY_BYTES {
+        Err(STATUS_INVALID_ARGUMENT)
+    } else {
+        Ok(())
+    }
+}
+
+/// Reads one Collection config entry. Unparseable blobs report as missing,
+/// matching rslib `get_config_optional` semantics — recovery never guesses.
+fn get_config(handle: u64, request: &[u8]) -> Result<Value, i32> {
+    let parsed: GetConfigRequest = parse_req(request)?;
+    validate_config_key(&parsed.key)?;
+    let slot = slot(handle)?;
+    let mut engine = require_open(&slot)?;
+    let col = engine.open_col()?;
+    let raw: Option<Vec<u8>> = col
+        .storage
+        .db()
+        .query_row("SELECT val FROM config WHERE key = ?1", [&parsed.key], |row| {
+            row.get(0)
+        })
+        .ok();
+    match raw.and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok()) {
+        Some(value) => Ok(json!({ "found": true, "value": value })),
+        None => Ok(json!({ "found": false })),
+    }
+}
+
+/// Writes (or, with a null value, deletes) one `turna.`-prefixed config
+/// entry. Writes run inside rslib `set_config_json` — one transaction, so a
+/// mid-op kill leaves no half-written key (ADR 0043 K10) — and stay out of
+/// the user undo stack. Deletes use the same single-statement atomic SQL
+/// path `prune_empty_metadata` uses, because the public `remove_config`
+/// hardcodes an undoable op.
+fn set_config(handle: u64, request: &[u8]) -> Result<Value, i32> {
+    let parsed: SetConfigRequest = parse_req(request)?;
+    validate_config_key(&parsed.key)?;
+    if !parsed.key.starts_with(TURNA_CONFIG_PREFIX) {
+        return Err(STATUS_INVALID_ARGUMENT);
+    }
+    let remove = parsed.value.is_none();
+    if let Some(value) = &parsed.value {
+        if !value.is_object() {
+            return Err(STATUS_INVALID_ARGUMENT);
+        }
+        let bytes = serde_json::to_vec(value).map_err(|_| STATUS_INVALID_ARGUMENT)?;
+        if bytes.len() > MAX_CONFIG_VALUE_BYTES {
+            return Err(STATUS_INVALID_ARGUMENT);
+        }
+    }
+    let slot = slot(handle)?;
+    let mut engine = require_open(&slot)?;
+    {
+        let col = engine.open_col()?;
+        match parsed.value.as_ref() {
+            None => {
+                col.storage
+                    .db()
+                    .execute("DELETE FROM config WHERE key = ?1", [&parsed.key])
+                    .map_err(|_| STATUS_INTERNAL_ERROR)?;
+            }
+            Some(value) => {
+                col.set_config_json(&parsed.key, value, false)
+                    .map_err(map_anki_error)?;
+            }
+        }
+    }
+    after_mutation(&mut engine, true);
+    Ok(json!({ "ok": true, "removed": remove }))
 }
 
 fn stats_for_cards_batch(handle: u64, request: &[u8]) -> Result<Value, i32> {
@@ -2882,8 +2980,8 @@ mod tests {
         // OP_TABLE drives the advertisement and the golden fixture pins the
         // full order in contract.rs tests; here only the count and the minor
         // pin remain as tripwires.
-        assert_eq!(caps.len(), 39, "capabilities count drifted");
-        assert_eq!(info["contractMinor"], 11);
+        assert_eq!(caps.len(), 41, "capabilities count drifted");
+        assert_eq!(info["contractMinor"], 12);
     }
 
     #[test]
@@ -2925,6 +3023,151 @@ mod tests {
         let redo = ahead(&ids);
         assert_eq!(redo["answeredCards"], 0);
         assert_eq!(redo["skippedRatedToday"], 2);
+        free_engine(handle).unwrap();
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn get_config_missing_key_reports_not_found() {
+        let (root, handle, _) = temp_open();
+        let missing = call(handle, OP_GET_CONFIG, json!({"key": "turna.absent"})).unwrap();
+        assert_eq!(missing["found"], false);
+        assert!(missing.get("value").is_none());
+        // Reading an Anki-native key is allowed (diagnostics): a fresh
+        // Collection materializes `schedVer` as a real config row.
+        let native = call(handle, OP_GET_CONFIG, json!({"key": "schedVer"})).unwrap();
+        assert_eq!(native["found"], true);
+        assert!(native["value"].is_number());
+        // Empty and oversized keys are invalid on both ops.
+        assert_eq!(
+            call(handle, OP_GET_CONFIG, json!({"key": ""})).unwrap_err(),
+            STATUS_INVALID_ARGUMENT
+        );
+        let long_key = "k".repeat(129);
+        assert_eq!(
+            call(handle, OP_GET_CONFIG, json!({ "key": long_key })).unwrap_err(),
+            STATUS_INVALID_ARGUMENT
+        );
+        assert_eq!(
+            call(handle, OP_SET_CONFIG, json!({"key": "", "value": {}})).unwrap_err(),
+            STATUS_INVALID_ARGUMENT
+        );
+        free_engine(handle).unwrap();
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn set_config_roundtrip_gates_and_delete() {
+        let (root, handle, _) = temp_open();
+        // Write protection: only turna.* keys may be written.
+        assert_eq!(
+            call(
+                handle,
+                OP_SET_CONFIG,
+                json!({"key": "schedVer", "value": {"x": 1}})
+            )
+            .unwrap_err(),
+            STATUS_INVALID_ARGUMENT
+        );
+        // Values must be JSON objects — decisions are structured.
+        assert_eq!(
+            call(handle, OP_SET_CONFIG, json!({"key": "turna.k", "value": [1, 2]}))
+                .unwrap_err(),
+            STATUS_INVALID_ARGUMENT
+        );
+        // Round-trip an object value.
+        let value = json!({"mapping": {"front": "Field1"}, "version": 1});
+        let written = call(
+            handle,
+            OP_SET_CONFIG,
+            json!({"key": "turna.import.mapping.src1", "value": value}),
+        )
+        .unwrap();
+        assert_eq!(written["ok"], true);
+        assert_eq!(written["removed"], false);
+        let read = call(
+            handle,
+            OP_GET_CONFIG,
+            json!({"key": "turna.import.mapping.src1"}),
+        )
+        .unwrap();
+        assert_eq!(read["found"], true);
+        assert_eq!(read["value"], value);
+        // null deletes; deleting a missing key stays a success (idempotent).
+        let deleted = call(
+            handle,
+            OP_SET_CONFIG,
+            json!({"key": "turna.import.mapping.src1", "value": null}),
+        )
+        .unwrap();
+        assert_eq!(deleted["removed"], true);
+        let gone =
+            call(handle, OP_GET_CONFIG, json!({"key": "turna.import.mapping.src1"})).unwrap();
+        assert_eq!(gone["found"], false);
+        let again = call(
+            handle,
+            OP_SET_CONFIG,
+            json!({"key": "turna.import.mapping.src1", "value": null}),
+        )
+        .unwrap();
+        assert_eq!(again["removed"], true);
+        free_engine(handle).unwrap();
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn set_config_requires_open_engine_and_survives_reopen() {
+        // A Created-state engine must fail closed (Step 1 state-machine gate).
+        let bare = alloc_engine().unwrap();
+        assert_eq!(
+            dispatch(
+                bare,
+                OP_SET_CONFIG,
+                &serde_json::to_vec(&json!({"key": "turna.k", "value": {}})).unwrap()
+            )
+            .unwrap_err(),
+            STATUS_INVALID_STATE
+        );
+        free_engine(bare).unwrap();
+
+        // The write lands in the Collection file: close → open → still there
+        // (K10: the entry is only visible once the transaction committed).
+        let (root, handle, open_body) = temp_open();
+        call(
+            handle,
+            OP_SET_CONFIG,
+            json!({"key": "turna.persist", "value": {"n": 7}}),
+        )
+        .unwrap();
+        close_collection(handle).unwrap();
+        open_collection(handle, &open_body).unwrap();
+        let read = call(handle, OP_GET_CONFIG, json!({"key": "turna.persist"})).unwrap();
+        assert_eq!(read["found"], true);
+        assert_eq!(read["value"]["n"], 7);
+        free_engine(handle).unwrap();
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn set_config_advances_content_generation() {
+        // Config decisions are projection input (ADR 0043 D3): every write
+        // must advance the content generation so stale projection snapshots
+        // are not considered fresh. GC dry-run echoes the generation without
+        // mutating anything.
+        let (root, handle, _) = temp_open();
+        let before = call(handle, OP_GC_UNUSED_MEDIA, json!({"mode": "dryRun"})).unwrap();
+        call(
+            handle,
+            OP_SET_CONFIG,
+            json!({"key": "turna.generation", "value": {"bump": 1}}),
+        )
+        .unwrap();
+        let after = call(handle, OP_GC_UNUSED_MEDIA, json!({"mode": "dryRun"})).unwrap();
+        assert!(
+            after["collectionGeneration"].as_u64().unwrap()
+                > before["collectionGeneration"].as_u64().unwrap(),
+            "content generation must advance across a config write"
+        );
         free_engine(handle).unwrap();
         let _ = fs::remove_dir_all(root);
     }

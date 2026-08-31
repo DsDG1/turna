@@ -1,7 +1,7 @@
 {
   "contractVersion": {
     "major": 1,
-    "minor": 11
+    "minor": 12
   },
   "requestId": "01JENGINEINFO",
   "ok": true,
@@ -9,7 +9,7 @@
     "abiVersion": 1,
     "backendCommit": "967aa0d578fc75181e292e95326f9b58698da25c",
     "contractMajor": 1,
-    "contractMinor": 11,
+    "contractMinor": 12,
     "capabilities": [
       "ENGINE_INFO",
       "OPEN_COLLECTION",
@@ -49,7 +49,9 @@
       "GC_UNUSED_MEDIA",
       "PRUNE_EMPTY_METADATA",
       "COMPACT_COLLECTION",
-      "DIFF_COLLECTION_CHECKPOINT"
+      "DIFF_COLLECTION_CHECKPOINT",
+      "GET_CONFIG",
+      "SET_CONFIG"
     ]
   },
   "error": null,
@@ -57,7 +59,7 @@
     "abiVersion": 1,
     "backendCommit": "967aa0d578fc75181e292e95326f9b58698da25c",
     "contractMajor": 1,
-    "contractMinor": 11
+    "contractMinor": 12
   },
   "durationMillis": 0
 }

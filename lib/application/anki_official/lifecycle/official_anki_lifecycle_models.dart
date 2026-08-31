@@ -219,6 +219,38 @@ class OfficialAnkiCompactResult {
   }
 }
 
+/// GET_CONFIG (op 41) response. `found` is false for missing keys and —
+/// matching rslib read semantics — for blobs that no longer parse as JSON.
+class OfficialAnkiConfigValue {
+  const OfficialAnkiConfigValue({required this.found, this.value});
+
+  final bool found;
+  final Object? value;
+
+  factory OfficialAnkiConfigValue.fromJson(Map<String, Object?> json) {
+    return OfficialAnkiConfigValue(
+      found: json['found'] == true,
+      value: json['value'],
+    );
+  }
+}
+
+/// SET_CONFIG (op 42) response. `removed` is true when the call deleted the
+/// key (a null value); deleting a missing key succeeds (idempotent).
+class OfficialAnkiConfigWriteResult {
+  const OfficialAnkiConfigWriteResult({this.ok = false, this.removed = false});
+
+  final bool ok;
+  final bool removed;
+
+  factory OfficialAnkiConfigWriteResult.fromJson(Map<String, Object?> json) {
+    return OfficialAnkiConfigWriteResult(
+      ok: json['ok'] == true,
+      removed: json['removed'] == true,
+    );
+  }
+}
+
 class OfficialAnkiPendingImport {
   const OfficialAnkiPendingImport({
     required this.sourceId,

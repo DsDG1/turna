@@ -351,6 +351,16 @@ class OfficialAnkiWorker implements OfficialAnkiEngine {
   }
 
   @override
+  Future<OfficialAnkiConfigValue> getConfig(String key) {
+    return _enqueue(() => _inner.getConfig(key));
+  }
+
+  @override
+  Future<OfficialAnkiConfigWriteResult> setConfig(String key, Object? value) {
+    return _enqueue(() => _inner.setConfig(key, value));
+  }
+
+  @override
   Future<void> dispose() {
     return _enqueue(() async {
       await _inner.dispose();

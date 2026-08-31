@@ -1,6 +1,6 @@
 # ADR 0043 — Anki 底座 v2：单一事实源与可重建派生层
 
-- 状态：**草案（评审中）**——Step 2 的完成标志是评审通过；通过后改「已接受」，未通过的议题回 [step2.md](../ankiUpdate/step2.md) 迭代，不得带开放问题进 Step 3。
+- 状态：**已接受**（2026-08-31 评审通过，检查表十项全 ☑，评审记录见 [step2.md](../ankiUpdate/step2.md) 收据；Q1–Q6 全部关闭，其中 Q3/Q4/Q5 转为 Step 4 施工前置项）。
 - 日期：2026-08-31
 - 关联：[重建计划 README](../ankiUpdate/README.md)（总目标与六步）；[step1.md](../ankiUpdate/step1.md)（真机实测收据与教训，已完成）；[doc 41](../official-anki-migration/41-official-anki-lifecycle-and-storage-remediation-plan.md)（中断场景与不变量来源）；[doc 42](../official-anki-migration/42-staging-first-official-import-lifecycle-plan.md)（staging-first，v2 继承）；[ADR 0036](./0036-official-anki-core-migration.md)、[ADR 0037](./0037-anki-course-review-unification.md)、[ADR 0042](./0042-staging-first-official-import.md)
 - 当前源码基线：Official catalog schema 12、`CourseDatabase.kSchemaVersion = 22`、contract 1.11（ops 1–40，38 个在用）；四个 SQLite 存储 = `collection.anki2` + `collection.media.db2` + `official_catalog.sqlite`（18 张表）+ `course.db`（约 20 张 anki 表）
@@ -18,9 +18,9 @@
 - **D1 唯一事实源。** `collection.anki2` + `collection.media` 是卡片、笔记、模板、牌组结构、调度、revlog 的唯一事实源（继承 ADR 0036）。任何其他存储不得持有这些事实的长期副本。
 - **D2 决策进配置区。** 字段映射、牌组→课程的呈现与放置决策，写入 Anki Collection 自带的配置区（Turna 命名空间），随 Anki 原生备份/导出走。需要桥新增读写 op（编号 41 起，Step 3 施工；schema 细节以 rslib config API spike 为准）。Step 3 候选 op 清单：`GET_CONFIG` / `SET_CONFIG`（**必须**，K10 的单事务语义由 op 内部保证）；只读 usn-diff 扩展（**可选**，仅当 op 40 `DIFF_COLLECTION_CHECKPOINT` 表达力不足 K2 的 receipt 重建时）。
 - **D3 派生层可重建。** 课程树是一份**物化视图**：输入 = Collection + 配置区决策 + 目录账本，输出 = 视图存储（course.db 侧两张表合并为一张）。视图无独立状态，可随时 DROP+REBUILD，重建幂等、在后台 isolate 执行。
-- **D4 目录账本 18→4。** catalog 只保留 `anki_sources`、`anki_import_attempts`（吸收 receipt：pre-import usn、scope、note ids）、`anki_maintenance_jobs`、`anki_maintenance_leases`。其余 14 张的去处见附录 A。**例外**：`anki_source_cards`（source→卡所有权索引）是否可由 Collection 派生（deck 归属 / 标签 / 配置区映射）是 Q6——若不可，则保留为第 5 张（README 的「约 4 张」已含此弹性）。
+- **D4 目录账本 18→5。** catalog 保留 `anki_sources`、`anki_import_attempts`（吸收 receipt：pre-import usn、scope、note ids）、`anki_maintenance_jobs`、`anki_maintenance_leases`，以及 Q6 定案保留的 `anki_source_cards`（source→卡所有权索引，D6 删除原语的输入；deck 派生若在 Step 4 spike 证明可靠可随 Step 6 退役）。其余的去处见附录 A。
 - **D5 course.db anki 表 20→约 5。** 保留：视图存储（1 张）、产品侧非 anki 事实（课程引入状态、复习统计挂钩、错题本关联）；卡片内容/索引副本（`anki_notes`/`anki_cards_meta`/`anki_notetypes` 等 Legacy 内容表）随 Step 6 退役。
-- **D6 删除 = retiring 序列 + 引擎幂等删除 + 字节回收分层。** 卸载 source：①账本单事务把 source 标 `retiring`（用户视角即刻「已移除」，课程树/复习立即不可见）并入队删除 job；②worker 幂等执行引擎删除（`DELETE` 系 op 对缺卡幂等，rslib 语义已具备；所有权来源随 Q6）；③完成后账本行终删 + 视图重建（D3）；④媒体 GC / prune / VACUUM 走 maintenance job（沿用 doc 41 S5/S7，幂等可重试）。doc 41 S3 的「verify 先于 owner 终删」不变量保留——只是从「11 表级联 + 双登记同步写」变成「job 驱动的单线序列」；job 未跑完则 source 停在 `retiring` 并在修复中心可见，不产生无主且不可见的卡。
+- **D6 删除 = retiring 序列 + 引擎幂等删除 + 字节回收分层。** 卸载 source：①账本单事务把 source 标 `retiring`（用户视角即刻「已移除」，课程树/复习立即不可见）并入队删除 job；②worker 幂等执行引擎删除（`DELETE` 系 op 对缺卡幂等，rslib 语义已具备；目标卡清单来自 `anki_source_cards` 所有权索引，Q6 已定案保留）；③完成后账本行终删 + 视图重建（D3）；④媒体 GC / prune / VACUUM 走 maintenance job（沿用 doc 41 S5/S7，幂等可重试）。doc 41 S3 的「verify 先于 owner 终删」不变量保留——只是从「11 表级联 + 双登记同步写」变成「job 驱动的单线序列」；job 未跑完则 source 停在 `retiring` 并在修复中心可见，不产生无主且不可见的卡。
 - **D7 长操作全部后台化 + 可取消。** 投影重建、媒体 GC、VACUUM、存量迁移一律 worker isolate，主线程只发 intent、收通知；取消通道复用现有 worker cancel。这是 Step 1 新发现 #1（提交后 ANR）的结构性答复。
 - **D8 可观测不依赖厂商 logcat。** 关键路径（启动恢复、commit 窗口、维护任务、视图重建）写滚动文件日志，修复中心「导出诊断」可带出（Step 1 新发现 #4 的答复）；storage audit 快照保留。
 - **D9 测试贴真实挂载点。** 入口测试以生产真实触发点为准（due sync 在复习页/练习中心/资料页，不在首页）；严格假引擎（顺序断言、状态机模拟）常驻测试基建；真机强杀矩阵是 Step 4 的发布门禁，fake/widget 测试不得替代（继承 doc 41 §16.7）。
@@ -68,16 +68,16 @@
 3. **读时实时构建课程树**（无物化）——首页/课程树性能不可控，低端机风险。
 4. **另起 profile 重建**——违背「存量用户 Anki 库原样保留」（Step 5 前提）。
 
-## 开放问题（评审必须关闭）
+## 开放问题（已全部关闭，2026-08-31 评审）
 
-- Q1：配置区 namespace 与 schema 细节（Step 3 前置 spike，产出进 Step 3 施工文档）。
-- Q2：`anki_scheduler_mutations` 表去留（audit 用途可否由文件日志替代）——附录 A 两个「评审定」格子之一，另一个是 Q6。
-- Q3：视图重建的量化门禁（建议：10 万卡库冷重建 P95 上限，数值 Step 4 定标）。
-- Q4：Step 4 并存 flag 的命名与灰度边界（默认值、回退条件）。
-- Q5：K14 的偏好清单边界（哪些必须写穿，哪些可容忍丢失）。
-- Q6：**source→卡所有权的存放**——Collection 内派生（deck 归属 / note 标签 / 配置区映射，零额外表但需 rslib 能力核验）vs 账本侧保留 `anki_source_cards`（第 5 张表，派生零风险）。决定 D4 是 4 张还是 5 张，也决定 D6 引擎删除按什么找到目标卡；receipt note-ids 在投影完成后是否还需持久（即所有权）一并在此定。
+- Q1：配置区 namespace 与 schema 细节——**已关闭**。spike 结论（详见 [step3.md](../ankiUpdate/step3.md) §任务 A）：rslib config 表存任意字符串 key + JSON BLOB；写走公开的 `Collection::set_config_json`（事务性，K10 语义由它成立）、删走 `remove_config`；读因 `get_config_optional` 为 `pub(crate)`，桥内以既有 `col.storage.db()` 只读 SQL 先例直读 config 表；SET 强制 `turna.` 前缀（写保护 Anki 自身配置），读不限。
+- Q2：`anki_scheduler_mutations` 表去留——**已定案：删**。调度事实的唯一记录是 Collection 的 revlog/ops（D1）；audit 职责由 D8 文件日志承担，账本里留调度审计表正是 v2 要消灭的副本。删表发生在 Step 5/6 账本收敛，Step 3/4 不受影响。
+- Q3：视图重建的量化门禁——**转 Step 4 前置项**（10 万卡库冷重建 P95 上限，数值 Step 4 定标，进 Step 4 施工文档）。
+- Q4：Step 4 并存 flag 的命名与灰度边界——**转 Step 4 前置项**（默认值、回退条件，进 Step 4 施工文档）。
+- Q5：K14 的偏好清单边界——**转 Step 4 前置项**（哪些必须写穿、哪些可容忍丢失，进 Step 4 施工文档）。
+- Q6：source→卡所有权的存放——**已定案：账本保留 `anki_source_cards` 为第 5 张表**。理由：①现有删除原语（op 31 `DELETE_NOTES` / op 32 `DELETE_CARDS`）是 id 清单制，所有权索引正是其输入，deck 派生需 rslib 能力核验而 spike 未做，把它压在删除主路径上违背 K6「不依赖猜测」的门槛；②`source→卡所有权` 是 Turna 的导入事实（哪个包带进哪些卡），不是 D1 禁止的卡片/笔记/调度事实副本，属账本本职（`anki_sources` 从表）；③README「约 4 张」已含第 5 张弹性。若 Step 4 spike 证明 deck 派生可靠，可在 Step 6 把它随 Legacy 一起退役（索引可重建，语义与视图一致）。
 
-## 附录 A：表收敛清单（catalog 18→4）
+## 附录 A：表收敛清单（catalog 18→5）
 
 | 表 | 去处 |
 |---|---|
@@ -86,9 +86,9 @@
 | `anki_projection_mappings`、`anki_course_placement_overrides` | → 配置区（D2） |
 | `anki_projection_jobs`、`anki_source_projection_state`、`anki_source_reconciliation_journal` | 删（视图重建取代；对账退役） |
 | `anki_source_notetypes`、`anki_source_decks` | 删（Collection 派生，视图时算） |
-| `anki_source_cards` | **随 Q6**（Collection 内派生 vs 保留为第 5 张账本表——D6 删除语义依赖此项） |
+| `anki_source_cards` | **保留为第 5 张**（Q6 已定案：删除原语 id 清单制的输入；deck 派生证明可靠后可随 Step 6 退役） |
 | `anki_checkpoint_files`、`anki_cleanup_receipts` | 删（checkpoint 已废；cleanup receipt 并进 maintenance jobs） |
 | `legacy_anki_migrations`、`legacy_anki_card_map` | Step 6 删（Legacy 已退役） |
-| `anki_scheduler_mutations` | **评审定**（Q2） |
+| `anki_scheduler_mutations` | 删（Q2 已定案：调度事实唯一记录在 Collection revlog，audit 由 D8 文件日志承担） |
 
 course.db 侧 20→约 5 的明细随 Step 4 施工文档落表（原则见 D5；Legacy 内容表归 Step 6）。

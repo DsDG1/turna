@@ -56,6 +56,14 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
   bool failCompact = false;
   String? lastRestoredBackupId;
 
+  /// Backing store for GET_CONFIG/SET_CONFIG (ops 41/42). Mirrors the Rust
+  /// gates so strict tests exercise real semantics: writes only under the
+  /// `turna.` prefix, object values only, null deletes idempotently, and a
+  /// write bumps the content generation.
+  final Map<String, Object?> configStore = {};
+  var getConfigCalls = 0;
+  var setConfigCalls = 0;
+
   void seedPackage({
     required String packagePath,
     required int notes,
@@ -1001,6 +1009,52 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
   @override
   Future<List<int>> diffCollectionCheckpoint(String checkpointId) async {
     return cards.keys.toList()..sort();
+  }
+
+  static const _turnaConfigPrefix = 'turna.';
+
+  @override
+  Future<OfficialAnkiConfigValue> getConfig(String key) async {
+    getConfigCalls++;
+    _validateConfigKey(key);
+    if (!configStore.containsKey(key)) {
+      return const OfficialAnkiConfigValue(found: false);
+    }
+    return OfficialAnkiConfigValue(found: true, value: configStore[key]);
+  }
+
+  @override
+  Future<OfficialAnkiConfigWriteResult> setConfig(String key, Object? value) async {
+    setConfigCalls++;
+    _validateConfigKey(key);
+    if (!key.startsWith(_turnaConfigPrefix)) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.invalidArgument,
+        messageKey: 'official_anki.invalid_argument',
+      );
+    }
+    final removed = value == null;
+    if (value != null && value is! Map<String, Object?>) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.invalidArgument,
+        messageKey: 'official_anki.invalid_argument',
+      );
+    }
+    configStore.remove(key);
+    if (!removed) {
+      configStore[key] = value;
+    }
+    collectionGeneration += 1;
+    return OfficialAnkiConfigWriteResult(ok: true, removed: removed);
+  }
+
+  void _validateConfigKey(String key) {
+    if (key.isEmpty || key.length > 128) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.invalidArgument,
+        messageKey: 'official_anki.invalid_argument',
+      );
+    }
   }
 
   void _invalidateTokens() {

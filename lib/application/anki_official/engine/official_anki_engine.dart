@@ -151,5 +151,16 @@ abstract class OfficialAnkiEngine {
   /// the checkpoint. Empty when the engine cannot prove a diff.
   Future<List<int>> diffCollectionCheckpoint(String checkpointId);
 
+  /// Read one Collection config entry (op 41, contract 1.12). `found` is
+  /// false for missing keys — and, matching rslib read semantics, for blobs
+  /// that no longer parse. Reads any key (diagnostics included).
+  Future<OfficialAnkiConfigValue> getConfig(String key);
+
+  /// Write one `turna.`-prefixed config entry (op 42, contract 1.12) in a
+  /// single Collection transaction (ADR 0043 D2/K10). A null [value]
+  /// deletes the key (idempotent). Non-`turna.` keys are rejected by the
+  /// engine; values must be JSON objects.
+  Future<OfficialAnkiConfigWriteResult> setConfig(String key, Object? value);
+
   Future<void> dispose();
 }

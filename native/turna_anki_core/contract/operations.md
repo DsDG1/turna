@@ -1,4 +1,4 @@
-# Contract v1.11 operations
+# Contract v1.12 operations
 
 Wire format is versioned JSON. `turna_anki_spike.proto` is archived and is not
 the codec.
@@ -45,6 +45,8 @@ the codec.
 | 38 | PRUNE_EMPTY_METADATA | yes |
 | 39 | COMPACT_COLLECTION | yes |
 | 40 | DIFF_COLLECTION_CHECKPOINT | yes |
+| 41 | GET_CONFIG | yes |
+| 42 | SET_CONFIG | yes |
 
 Scheduler operations 11–16 and 27–36 are published. Request/response DTO are
 camelCase, with four load-bearing snake-case compat keys kept on the wire:
@@ -129,6 +131,31 @@ file is available it returns `{ cardIds }` added since that snapshot; otherwise
 an empty list.
 
 `GET_CARD_DESCRIPTORS_BATCH` now includes optional `notetypeId` (notes.mid).
+
+## v1.12 additions (additive, ADR 0043 D2)
+
+`GET_CONFIG` (41) reads one Collection config entry. Request `{ key }`
+(non-empty, ≤128 bytes, any key — Anki-native keys included, for
+diagnostics). Response `{ found, value? }`. A missing key — or a blob that
+no longer parses as JSON, matching rslib `get_config_optional` semantics —
+reports `found: false` with no `value` field.
+
+`SET_CONFIG` (42) writes one config entry inside a single Collection
+transaction (rslib `set_config_json`, not undoable), so a mid-op kill
+leaves no half-written key (ADR 0043 K10). Request `{ key, value }`;
+response `{ ok, removed }`. Gates:
+
+- `key` must start with `turna.` — the bridge can never clobber Anki's own
+  config entries (`schedVer`, `curDeck` & co). Violations are
+  `INVALID_ARGUMENT`.
+- `value` must be a JSON object (decisions are structured), ≤256 KiB
+  serialized.
+- A missing or explicit `null` value **deletes** the key (single-statement
+  atomic SQL; deleting a missing key succeeds — idempotent), and the
+  response reports `removed: true`.
+- Every write/delete advances the content generation: config decisions are
+  projection input (ADR 0043 D3), so stale projection snapshots must not
+  be considered fresh.
 
 ## v1.10 changes
 

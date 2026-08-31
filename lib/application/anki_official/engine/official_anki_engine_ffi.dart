@@ -512,6 +512,25 @@ class FfiOfficialAnkiEngine implements OfficialAnkiEngine {
   }
 
   @override
+  Future<OfficialAnkiConfigValue> getConfig(String key) async {
+    _requireScheduler(OfficialAnkiOperation.getConfig);
+    return OfficialAnkiConfigValue.fromJson(
+      _call(OfficialAnkiOperation.getConfig, {'key': key}).requirePayload(),
+    );
+  }
+
+  @override
+  Future<OfficialAnkiConfigWriteResult> setConfig(String key, Object? value) async {
+    _requireScheduler(OfficialAnkiOperation.setConfig);
+    return OfficialAnkiConfigWriteResult.fromJson(
+      _call(OfficialAnkiOperation.setConfig, {
+        'key': key,
+        'value': value,
+      }).requirePayload(),
+    );
+  }
+
+  @override
   Future<void> dispose() async {
     if (_closed) return;
     _closed = true;

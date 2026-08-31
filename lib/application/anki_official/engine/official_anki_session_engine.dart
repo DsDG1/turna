@@ -274,5 +274,15 @@ class OfficialAnkiSessionEngine implements OfficialAnkiEngine {
   }
 
   @override
+  Future<OfficialAnkiConfigValue> getConfig(String key) {
+    return session.getConfig(key);
+  }
+
+  @override
+  Future<OfficialAnkiConfigWriteResult> setConfig(String key, Object? value) {
+    return session.setConfig(key, value);
+  }
+
+  @override
   Future<void> dispose() => session.dispose();
 }

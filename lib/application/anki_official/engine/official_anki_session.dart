@@ -512,6 +512,19 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
         'checkpointId': checkpointId,
       });
 
+  Future<OfficialAnkiConfigValue> getConfig(String key) =>
+      _call<OfficialAnkiConfigValue>('scheduler', {
+        'op': 'getConfig',
+        'key': key,
+      });
+
+  Future<OfficialAnkiConfigWriteResult> setConfig(String key, Object? value) =>
+      _call<OfficialAnkiConfigWriteResult>('scheduler', {
+        'op': 'setConfig',
+        'key': key,
+        'value': value,
+      });
+
   Future<void> dispose() {
     return _disposeFuture ??= _disposeOnce();
   }
@@ -818,6 +831,7 @@ const _schedulerWriteOps = {
   'gcUnusedMedia',
   'pruneEmptyMetadata',
   'compactCollection',
+  'setConfig',
 };
 
 /// Dispatches one scheduler op and returns its typed DTO (or an int for
@@ -977,6 +991,13 @@ Future<Object?> dispatchOfficialAnkiScheduler(
     case 'diffCollectionCheckpoint':
       return engine.diffCollectionCheckpoint(
         message['checkpointId'] as String? ?? '',
+      );
+    case 'getConfig':
+      return engine.getConfig(message['key'] as String? ?? '');
+    case 'setConfig':
+      return engine.setConfig(
+        message['key'] as String? ?? '',
+        message['value'],
       );
     default:
       throw OfficialAnkiException(
