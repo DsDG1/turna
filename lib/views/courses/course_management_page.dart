@@ -19,6 +19,7 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/course_scope.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/views/anki/import_wizard/official_pending_import_banner.dart';
 import 'package:turna/views/theme.dart';
 
 /// Course management page — opened from the course switcher in the Learn
@@ -144,8 +145,11 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
                       color: TurnaTheme.textSecondaryColor(context),
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  _AddCourseTile(
+                    const SizedBox(height: 8),
+                    OfficialPendingImportBanner(
+                      onChanged: () => setState(() {}),
+                    ),
+                    _AddCourseTile(
                     icon: Icons.upload_file_rounded,
                     title: AppStrings.homeFromAnki,
                     subtitle: AppStrings.homeFromAnkiSubtitle,

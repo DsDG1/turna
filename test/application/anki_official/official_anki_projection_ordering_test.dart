@@ -449,7 +449,7 @@ void main() {
         suggestion: officialAnkiSuggestMapping(schema, const CardRecognizer()),
       );
 
-      final first = await service.projectSource();
+      final first = await service.projectSource(notetypeIds: const [1]);
       expect(first.noop, isFalse);
       expect(first.itemCount, greaterThan(0));
       // The section id uses the deck-tree deckId, not the hash fallback.
@@ -458,7 +458,7 @@ void main() {
       ).get();
       expect(sectionIds.single.read<String>('section_id'), 'official-anki-src1-s1');
 
-      final second = await service.projectSource();
+      final second = await service.projectSource(notetypeIds: const [1]);
       expect(second.noop, isTrue, reason: 'unchanged source stays a no-op');
 
       // Simulate the seeder wipe: course tables die, catalog state survives.
@@ -472,7 +472,7 @@ void main() {
       await course.customStatement(
         'DELETE FROM official_anki_projection_index',
       );
-      final ghost = await service.projectSource();
+      final ghost = await service.projectSource(notetypeIds: const [1]);
       expect(ghost.noop, isFalse, reason: 'missing manifest must rebuild');
       expect(ghost.itemCount, first.itemCount);
       final rebuilt = await course.customSelect(

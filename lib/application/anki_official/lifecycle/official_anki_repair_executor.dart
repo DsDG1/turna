@@ -17,11 +17,14 @@ class OfficialAnkiRepairExecutor {
     'resumeImport',
     'resumeProjection',
     'commitAuthority',
-    'restoreCheckpoint',
     'retryCleanup',
     'enqueueMaintenance',
     'quarantine',
   };
+
+  /// Doc 42 P3: census `restoreCheckpoint` is not executable; quarantine.
+  static String effectiveAction(String action) =>
+      action == 'restoreCheckpoint' ? 'quarantine' : action;
 
   Future<OfficialAnkiRepairReport> run({
     required CourseDatabase course,

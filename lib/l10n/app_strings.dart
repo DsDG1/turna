@@ -1401,6 +1401,10 @@ class AppStrings {
   static String get ankiOfficialNeedsMapping => '还有一类卡片需要看一眼样卡，点那一行即可。';
   static String get ankiOfficialMappingConfirmed => '已确认';
   static String get ankiOfficialMappingSkipped => '已跳过';
+  static String get ankiPendingImportTitle => '待完成导入';
+  static String ankiPendingImportBody(String name) => '「$name」还没导完，可继续或放弃清理。';
+  static String get ankiPendingContinue => '继续';
+  static String get ankiPendingDiscard => '放弃并清理';
   static String get ankiOfficialMappingSuggested => '推荐';
   // Exercise-kind presets on the official mapping page: which practice to
   // generate from this notetype (writes suggestion.enabledKinds).

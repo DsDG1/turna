@@ -21,6 +21,7 @@ import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/anki/import_wizard/anki_import_done_step.dart';
 import 'package:turna/views/anki/import_wizard/anki_import_wizard_widgets.dart';
 import 'package:turna/views/anki/import_wizard/official_anki_import_preview.dart';
+import 'package:turna/views/anki/import_wizard/official_pending_import_banner.dart';
 import 'package:turna/views/theme.dart';
 
 /// Anki import wizard shell (maintainability plan §10). The page only
@@ -199,8 +200,8 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
               minHeight: constraints.maxHeight,
               minWidth: constraints.maxWidth,
             ),
-            child: Center(
-              child: Padding(
+            child: StatefulBuilder(
+              builder: (context, setLocal) => Padding(
                 padding: const EdgeInsets.all(32),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -212,6 +213,8 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                       color: TurnaTheme.brandTeal.withValues(alpha: 0.6),
                     ),
                     const SizedBox(height: 24),
+                    OfficialPendingImportBanner(onChanged: () => setLocal(() {})),
+                    const SizedBox(height: 8),
                     // No duplicate title here; the AppBar already shows it.
                     Text(
                       AppStrings.ankiImportSelectSubtitle,

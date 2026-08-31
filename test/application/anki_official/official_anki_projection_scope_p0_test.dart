@@ -124,7 +124,7 @@ void main() {
 
       // Doc 42 invariant 5: production must pass the source notetype scope.
       // Until projectSource grows that argument, this is the live entry.
-      final result = await service.projectSource();
+      final result = await service.projectSource(notetypeIds: const [1]);
 
       expect(result.needsMapping, isFalse);
       expect(result.failed, isFalse);

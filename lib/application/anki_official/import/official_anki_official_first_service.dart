@@ -288,8 +288,9 @@ class OfficialAnkiOfficialFirstService {
     required OfficialAnkiCourseProjectionService service,
     required String sourceId,
     required String sourceHash,
+    required List<int> notetypeIds,
   }) async {
-    final result = await service.projectSource();
+    final result = await service.projectSource(notetypeIds: notetypeIds);
     if (result.needsMapping || result.failed || result.cancelled) {
       return result;
     }

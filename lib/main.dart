@@ -10,15 +10,8 @@ import 'package:turna/application/achievements/achievement_service.dart';
 import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/engine/ai_engine.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
-import 'package:turna/application/anki_official/anki_deck_manager.dart';
-import 'package:turna/application/anki_official/engine/official_anki_session.dart';
-import 'package:turna/application/anki_official/import/official_anki_import_orchestrator.dart';
-import 'package:turna/application/anki_official/import/official_anki_recovery_service.dart';
-import 'package:turna/application/anki_official/migration/official_anki_startup_census.dart';
-import 'package:turna/application/anki_official/migration/official_first_reanchor.dart';
+import 'package:turna/application/anki_official/lifecycle/official_anki_startup_recovery.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
-import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
-import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/application/course_provider.dart';
@@ -133,28 +126,11 @@ Future<void> main() async {
       }
     }());
 
-    // P5F-41: one-shot re-anchor of official placements onto the projection
-    // index. Best-effort; failures never block startup.
     unawaited(() async {
       try {
-        await OfficialFirstReanchor().runIfNeeded(getIt<AppPrefs>());
+        await const OfficialAnkiStartupRecovery().run();
       } catch (e) {
-        debugPrint('[OfficialAnki] P5F re-anchor skipped: $e');
-      }
-    }());
-
-    // Resume official-source deletions whose collection cleanup failed on an
-    // earlier run (state `pending_cleanup`). Best-effort; sources stay
-    // pending until the engine is available.
-    unawaited(() async {
-      try {
-        final resumed =
-            await getIt<AnkiDeckManager>().retryPendingOfficialCleanups();
-        if (resumed > 0) {
-          debugPrint('[OfficialAnki] resumed $resumed pending cleanups');
-        }
-      } catch (e) {
-        debugPrint('[OfficialAnki] pending cleanup retry skipped: $e');
+        debugPrint('[OfficialAnki] startup recovery skipped: $e');
       }
     }());
 
@@ -174,45 +150,6 @@ Future<void> main() async {
         }
       } catch (e) {
         debugPrint('[AnkiMedia] orphan sweep skipped: $e');
-      }
-    }());
-
-    // Doc 34 W3: read-only joined census + scanned journal. Never switches
-    // owner and never opens the Collection for mutation.
-    unawaited(() async {
-      try {
-        await const OfficialAnkiStartupCensus().run(
-          course: getIt<CourseDatabase>(),
-          catalog: OfficialAnkiCompositionRoot.readOnlyCatalog,
-        );
-      } catch (e) {
-        debugPrint('[OfficialAnki] startup census skipped: $e');
-      }
-      try {
-        final session = OfficialAnkiCompositionRoot.session;
-        if (session is OfficialAnkiSession) {
-          await session.recoverUnfinished();
-        } else {
-          final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
-          final engine = OfficialAnkiCompositionRoot.engine;
-          final paths = OfficialAnkiCompositionRoot.locatorPaths;
-          if (catalog != null && engine != null && paths != null) {
-            final orch = OfficialAnkiImportOrchestrator(
-              engine: engine,
-              sources: OfficialAnkiSourceDao(catalog),
-              attempts: OfficialAnkiImportAttemptDao(catalog),
-              paths: paths,
-            );
-            await OfficialAnkiRecoveryService(
-              sources: orch.sources,
-              attempts: orch.attempts,
-              engine: engine,
-              orchestrator: orch,
-            ).recoverUnfinished();
-          }
-        }
-      } catch (e) {
-        debugPrint('[OfficialAnki] unfinished import recovery skipped: $e');
       }
     }());
 

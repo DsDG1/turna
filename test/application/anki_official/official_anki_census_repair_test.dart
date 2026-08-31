@@ -37,5 +37,13 @@ void main() {
       ]),
     );
     expect(OfficialAnkiRepairExecutor.whitelist.contains('dropCollection'), isFalse);
+    expect(
+      OfficialAnkiRepairExecutor.whitelist.contains('restoreCheckpoint'),
+      isFalse,
+    );
+    expect(
+      OfficialAnkiRepairExecutor.effectiveAction('restoreCheckpoint'),
+      'quarantine',
+    );
   });
 }

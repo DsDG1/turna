@@ -267,15 +267,17 @@ class OfficialAnkiCourseProjectionService {
     );
   }
 
-  /// Production entry: page catalog cards for [sourceId]. Does not accept a
-  /// caller-built Card ID list.
+  /// Production entry: page catalog cards for [sourceId]. [notetypeIds] is
+  /// the frozen source scope (doc 42); an empty list evaluates no schemas.
   Future<OfficialAnkiProjectionPublishResult> projectSource({
+    required List<int> notetypeIds,
     int mappingVersion = 1,
     bool typeAnswerEnabled = false,
     bool failPublish = false,
     String? resumeJobId,
   }) {
     return _project(
+      notetypeIds: notetypeIds,
       mappingVersion: mappingVersion,
       typeAnswerEnabled: typeAnswerEnabled,
       failPublish: failPublish,
@@ -285,17 +287,28 @@ class OfficialAnkiCourseProjectionService {
 
   /// Production Generate: resume the existing `needs_mapping` job.
   Future<OfficialAnkiProjectionPublishResult> generateCourse({
+    required List<int> notetypeIds,
     String? jobId,
     int mappingVersion = 1,
     bool typeAnswerEnabled = false,
   }) {
     final resume = jobId ?? jobs.activeWriter(sourceId)?.jobId;
     return _project(
+      notetypeIds: notetypeIds,
       mappingVersion: mappingVersion,
       typeAnswerEnabled: typeAnswerEnabled,
       failPublish: false,
       resumeJobId: resume,
     );
+  }
+
+  List<int> catalogNotetypeIds() {
+    final ids = <int>{};
+    for (final card in sources.listCards(sourceId)) {
+      final id = card.notetypeId;
+      if (id != null) ids.add(id);
+    }
+    return ids.toList();
   }
 
   /// Diagnostic/test helper. Not used by the composition root.
@@ -316,10 +329,15 @@ class OfficialAnkiCourseProjectionService {
             deckId: 1,
             templateOrd: 0,
             noteGuid: 'test-$id',
+            notetypeId: 1,
           ),
       ],
     );
     return _project(
+      notetypeIds: [
+        for (final card in sources.listCards(sourceId))
+          if (card.notetypeId != null) card.notetypeId!,
+      ],
       mappingVersion: mappingVersion,
       typeAnswerEnabled: typeAnswerEnabled,
       failPublish: failPublish,
@@ -327,6 +345,7 @@ class OfficialAnkiCourseProjectionService {
   }
 
   Future<OfficialAnkiProjectionPublishResult> _project({
+    required List<int> notetypeIds,
     required int mappingVersion,
     required bool typeAnswerEnabled,
     required bool failPublish,
@@ -396,10 +415,13 @@ class OfficialAnkiCourseProjectionService {
         cardSetFingerprint: scan.cardSetFingerprint,
         mappingVersion: mappingVersion,
       );
-      final schemas = await engine.getProjectionSchemas(
-        includeSamples: true,
-        sampleLimit: 30,
-      );
+      final schemas = notetypeIds.isEmpty
+          ? const <OfficialAnkiProjectionSchema>[]
+          : await engine.getProjectionSchemas(
+              notetypeIds: notetypeIds,
+              includeSamples: true,
+              sampleLimit: 30,
+            );
       final mappings = <int, OfficialAnkiMappingSuggestion>{
         for (final schema in schemas) schema.notetypeId: suggestFor(schema),
       };

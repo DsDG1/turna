@@ -1,3 +1,5 @@
+Generated: 2026-08-31 (doc 42 P3 commit + scoped publish)：`projectSource(notetypeIds:)` 修 S-c；`OfficialAnkiImportSaga.commitLive` 确认后写 live Collection 并晋升 mapping；`OfficialAnkiStartupRecovery` 单入口 lease/repair；待完成导入条。P0 S-a/S-b/S-c/S-d **passed**。新增 `official_anki_commit_live_test`。`importFile` 仍保留（P4）。
+
 Generated: 2026-08-31 (doc 42 P2 映射交互)：`OfficialAnkiMappingPage` 保存恒可点、二选一正面、确认/跳过 pop；preview 行「已确认」；`skipOfficialNotetype` 清 `needsMapping`；wizard 确认不写全局 mapping 表。P0 S-d **passed**；S-c 仍红。`OfficialAnkiMappingRoute` 移出 diagnostics guard。定向：mapping_page、preview 已确认、skip/needsMapping、S-a/S-b、S-c 仍失败。
 
 Generated: 2026-08-31 (doc 42 P1 staging 基座)：catalog 11→12（`phase`/`staging_path`）；`OfficialAnkiStagingManager` + 第二 isolate 槽位 + `OfficialAnkiImportSaga.startStaging/cancelActive`；wizard parse/cancel 不写 live Collection。P0 S-a/S-b **passed**；S-c/S-d 仍红（P2/P3）。新增 `official_anki_staging_manager_test` 3。`importFile` 旧路径保留。wizard commit 未改（P3）。定向：staging_first_p0 S-a/S-b、staging_manager、lifecycle schema v12、controller。composition single-flights errno 32 为 Windows 预存。

@@ -569,7 +569,9 @@ class OfficialLegacyMigrationCoordinator {
           profileId: paths.profileId,
           flags: flags,
         );
-        final published = await projection.projectSource();
+        final published = await projection.projectSource(
+          notetypeIds: projection.catalogNotetypeIds(),
+        );
         if (published.needsMapping) {
           throw const OfficialAnkiMigrationNeedsUserAction(
             'Confirm the source field mapping, then resume migration.',

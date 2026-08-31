@@ -12,9 +12,11 @@ import 'package:turna/application/anki_official/contract/official_anki_dto.dart'
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/import/anki_import_execution_plan.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_repair_executor.dart';
+import 'package:turna/application/anki_official/lifecycle/official_anki_source_metadata_dao.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_saga.dart';
+import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_orchestrator.dart';
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
@@ -427,7 +429,7 @@ class AnkiImportController extends ChangeNotifier {
     );
   }
 
-  /// Confirms remaining suggested mappings, then projects and publishes.
+  /// Writes live Collection, promotes staging mappings, then projects.
   Future<_OfficialFirstCommitResult> _commitOfficial(
     OfficialAnkiImportPreviewModel preview,
   ) async {
@@ -435,19 +437,69 @@ class AnkiImportController extends ChangeNotifier {
     for (final schema in preview.schemas) {
       if (preview.skippedNotetypes.contains(schema.notetypeId)) continue;
       if (preview.confirmedNotetypes.contains(schema.notetypeId)) continue;
-      final suggestion =
+      preview.suggestions[schema.notetypeId] =
           preview.suggestions[schema.notetypeId] ?? service.suggestFor(schema);
-      service.confirmMapping(schema: schema, suggestion: suggestion);
       preview.confirmedNotetypes.add(schema.notetypeId);
     }
 
+    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+    final paths = OfficialAnkiCompositionRoot.locatorPaths;
+    OfficialAnkiImportSaga? saga;
+    OfficialAnkiImportResult? imported;
+    if (catalog != null && paths != null) {
+      saga = OfficialAnkiImportSaga(
+        sources: OfficialAnkiSourceDao(catalog),
+        attempts: OfficialAnkiImportAttemptDao(catalog),
+        paths: paths,
+      );
+      imported = await saga.commitLive(
+        sourceId: preview.sourceId,
+        packagePath: preview.filePath,
+        projection: service,
+        suggestions: preview.suggestions,
+        confirmedNotetypes: preview.confirmedNotetypes,
+        skippedNotetypes: preview.skippedNotetypes,
+      );
+      if (imported.alreadyImported) {
+        await saga.finishCommit(
+          sourceId: imported.sourceId,
+          attemptId: imported.attemptId,
+          published: true,
+        );
+        return _OfficialFirstCommitResult(
+          summary: AnkiImportSummary(
+            importId: imported.sourceId,
+            sectionCount: 0,
+            unitCount: 0,
+            lessonCount: 0,
+            cardCount: imported.cardCount,
+            wordEntryCount: imported.cardCount,
+            sourceCardCount: imported.cardCount,
+          ),
+          needsMapping: false,
+        );
+      }
+    }
+
+    var notetypeIds = preview.schemas.map((s) => s.notetypeId).toList();
+    if (catalog != null) {
+      final fromReceipt =
+          OfficialAnkiSourceMetadataDao(catalog).notetypeIds(preview.sourceId);
+      if (fromReceipt.isNotEmpty) notetypeIds = fromReceipt;
+    }
     final result = await _deps.officialFirst.projectAndPublish(
       service: service,
       sourceId: preview.sourceId,
       sourceHash: preview.sourceHash,
+      notetypeIds: notetypeIds,
     );
     if (result.needsMapping) {
       preview.needsMapping = true;
+      await saga?.finishCommit(
+        sourceId: preview.sourceId,
+        attemptId: imported?.attemptId ?? preview.sourceId,
+        published: false,
+      );
       return _OfficialFirstCommitResult(
         summary: AnkiImportSummary(
           importId: preview.sourceId,
@@ -461,6 +513,11 @@ class AnkiImportController extends ChangeNotifier {
       );
     }
     if (result.failed) {
+      await saga?.finishCommit(
+        sourceId: preview.sourceId,
+        attemptId: imported?.attemptId ?? preview.sourceId,
+        published: false,
+      );
       throw OfficialAnkiException(
         code: OfficialAnkiErrorCode.invalidState,
         messageKey: 'official_anki.projection_failed',
@@ -468,6 +525,11 @@ class AnkiImportController extends ChangeNotifier {
       );
     }
 
+    await saga?.finishCommit(
+      sourceId: preview.sourceId,
+      attemptId: imported?.attemptId ?? preview.sourceId,
+      published: true,
+    );
     final projection =
         await _deps.readOfficialProjectionSummary(preview.sourceId);
     return _OfficialFirstCommitResult(

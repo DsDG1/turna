@@ -398,12 +398,13 @@ void main() {
     );
     _seedCards(catalog, 'src1', 2);
     _confirmFakeBasic(service);
-    final first = await service.projectSource();
+    final first = await service.projectSource(notetypeIds: const [1]);
     expect(first.noop, isFalse);
     expect(first.itemCount, greaterThan(0));
-    final second = await service.projectSource();
+    final second = await service.projectSource(notetypeIds: const [1]);
     expect(second.noop, isTrue);
     final failed = await service.projectSource(
+      notetypeIds: const [1],
       mappingVersion: 2,
       failPublish: true,
     );
@@ -419,7 +420,10 @@ void main() {
       variables: [Variable('src1')],
     ).getSingle();
     expect(empty.data['n'], 0);
-    final rebuilt = await service.projectSource(mappingVersion: 2);
+    final rebuilt = await service.projectSource(
+      notetypeIds: const [1],
+      mappingVersion: 2,
+    );
     expect(rebuilt.itemCount, first.itemCount);
     expect(
       officialAnkiCatalogMappingCount(catalog.handle, 'profile-a'),
@@ -496,7 +500,7 @@ void main() {
       ],
     );
     service.debugCancelImmediately = true;
-    final result = await service.projectSource();
+    final result = await service.projectSource(notetypeIds: const [1]);
     expect(result.cancelled, isTrue);
     final count = await course.customSelect(
       'SELECT COUNT(*) AS n FROM official_anki_projection_index',
@@ -535,8 +539,8 @@ void main() {
       ],
     );
     env.service.confirmMapping(schema: schema, suggestion: confirmed);
-    await env.service.projectSource();
-    await env.service.projectSource();
+    await env.service.projectSource(notetypeIds: const [1]);
+    await env.service.projectSource(notetypeIds: const [1]);
     final stored = env.catalog.handle.select(
       'SELECT mapping_json, user_confirmed, schema_fingerprint, status '
       'FROM anki_projection_mappings WHERE profile_id = ? AND notetype_id = 1',
@@ -581,7 +585,7 @@ void main() {
   test('projectSource pages the full allowlist and publishes the union', () async {
     final env = _serviceEnv(cards: 501);
     addTearDown(env.dispose);
-    final result = await env.service.projectSource();
+    final result = await env.service.projectSource(notetypeIds: const [1]);
     expect(result.failed, isFalse);
     expect(env.fake.projectionBatchCalls, 3);
     expect(env.fake.projectionBatchSizes, [200, 200, 101]);
@@ -604,13 +608,13 @@ void main() {
   test('unchanged source re-publish short-circuits without row reads', () async {
     final env = _serviceEnv(cards: 5);
     addTearDown(env.dispose);
-    final first = await env.service.projectSource();
+    final first = await env.service.projectSource(notetypeIds: const [1]);
     expect(first.noop, isFalse);
     final batchCallsAfterPublish = env.fake.projectionBatchCalls;
     expect(batchCallsAfterPublish, greaterThan(0));
     // Doc 38 P5: the second publish of an unchanged source must hit the
     // persisted scan_fingerprint short-circuit — zero projection row reads.
-    final second = await env.service.projectSource();
+    final second = await env.service.projectSource(notetypeIds: const [1]);
     expect(second.noop, isTrue);
     expect(env.fake.projectionBatchCalls, batchCallsAfterPublish,
         reason: 'scan short-circuit must not read projection rows');
@@ -628,7 +632,7 @@ void main() {
       fields: const ['moved', '已迁移'],
       sourceFingerprint: 'moved-4',
     );
-    final rebuilt = await env.service.projectSource();
+    final rebuilt = await env.service.projectSource(notetypeIds: const [1]);
     expect(rebuilt.noop, isFalse);
     expect(env.fake.projectionBatchCalls, greaterThan(batchCallsAfterPublish));
   });
@@ -636,7 +640,7 @@ void main() {
   test('locked placement overrides survive a rebuild', () async {
     final env = _serviceEnv();
     addTearDown(env.dispose);
-    await env.service.projectSource();
+    await env.service.projectSource(notetypeIds: const [1]);
     final first = await env.course.customSelect(
       'SELECT section_id, unit_id, lesson_id FROM official_anki_projection_index '
       'WHERE source_id = ? AND card_id = 1',
@@ -660,7 +664,7 @@ void main() {
       fields: const ['hello', '你好'],
       sourceFingerprint: 'moved-1',
     );
-    final rebuilt = await env.service.projectSource();
+    final rebuilt = await env.service.projectSource(notetypeIds: const [1]);
     expect(rebuilt.noop, isFalse);
     final again = await env.course.customSelect(
       'SELECT section_id, unit_id, lesson_id FROM official_anki_projection_index '

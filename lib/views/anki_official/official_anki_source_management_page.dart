@@ -87,7 +87,10 @@ class OfficialAnkiSourceManagementPageState
   Future<void> generate(String sourceId) async {
     final service = serviceFor(sourceId);
     final existing = service.jobs.activeWriter(sourceId);
-    lastResult = await service.generateCourse(jobId: existing?.jobId);
+    lastResult = await service.generateCourse(
+      notetypeIds: service.catalogNotetypeIds(),
+      jobId: existing?.jobId,
+    );
     if (lastResult?.failed != true && lastResult?.needsMapping != true) {
       await widget.courseProvider?.reloadCourse();
     }

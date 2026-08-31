@@ -19,7 +19,7 @@ class OfficialAnkiPendingImportStore {
           sourceId: source.sourceId,
           attemptId: attempt.attemptId,
           displayName: source.displayName,
-          phase: attempt.state,
+          phase: attempt.phase.isNotEmpty ? attempt.phase : attempt.state,
           cardCount: sources.cardCount(source.sourceId),
         ),
       );
@@ -49,7 +49,9 @@ class OfficialAnkiPendingImportStore {
           sourceId: source.sourceId,
           attemptId: attempt?.attemptId ?? source.sourceId,
           displayName: source.displayName,
-          phase: attempt?.state ?? source.state,
+          phase: attempt?.phase.isNotEmpty == true
+              ? attempt!.phase
+              : (attempt?.state ?? source.state),
           cardCount: sources.cardCount(source.sourceId),
         ),
       );
