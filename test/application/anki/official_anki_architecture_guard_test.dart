@@ -635,6 +635,23 @@ void main() {
       }
     });
 
+    test('doc 42 P4 live-first import is retired', () {
+      final first = File(
+        'lib/application/anki_official/import/official_anki_official_first_service.dart',
+      ).readAsStringSync();
+      expect(first.contains('importOfficialOrNull'), isFalse);
+      expect(first.contains('facade.importFile'), isFalse);
+      final orch = File(
+        'lib/application/anki_official/import/official_anki_import_orchestrator.dart',
+      ).readAsStringSync();
+      expect(
+        RegExp(r'\b(importFile|_importFile)\s*\(').hasMatch(orch),
+        isFalse,
+        reason: 'orchestrator must not keep live-first importFile',
+      );
+      expect(orch.contains('createBackup'), isFalse);
+    });
+
     test('unsupported platform never selects Legacy writer (execution plan)', () {
       // Behavior is asserted in anki_import_execution_plan_test.dart
       // ("non-android is unsupported" / platform matrix). Keep a pointer so

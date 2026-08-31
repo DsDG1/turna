@@ -6,7 +6,6 @@ import 'package:turna/application/anki_official/import/unified_anki_import_orche
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/import/anki_import_execution_plan.dart';
-import 'package:turna/application/anki_official/import/anki_import_facade.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
 import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
@@ -54,34 +53,6 @@ class OfficialAnkiOfficialFirstPreview {
 class OfficialAnkiOfficialFirstService {
   const OfficialAnkiOfficialFirstService();
 
-  Future<OfficialAnkiImportResult?> importPackage({
-    required String filePath,
-    required AnkiImportExecutionPlan plan,
-    OfficialAnkiFeatureFlags? flags,
-  }) async {
-    if (!plan.isOfficialFirst) return null;
-    final resolvedFlags = flags ?? OfficialAnkiFeatureFlags.current;
-    OfficialAnkiImporter? officialImporter =
-        OfficialAnkiCompositionRoot.session;
-    if (officialImporter == null) {
-      final support = await getApplicationSupportDirectory();
-      officialImporter = await OfficialAnkiCompositionRoot.requireImporter(
-        supportDir: support,
-      );
-    }
-    final facade = AnkiImportFacade.resolve(
-      flags: resolvedFlags,
-      officialImporter: officialImporter,
-      plan: plan,
-    );
-    if (!facade.isOfficial) return null;
-    return facade.importOfficialOrNull(
-      packagePath: filePath,
-      displayName: filePath.split(RegExp(r'[/\\]')).last,
-    );
-  }
-
-
   /// Official-first pick path: saga → migration link → projection preview.
   Future<OfficialAnkiOfficialFirstPreview> importThenPreview({
     required String filePath,
@@ -99,33 +70,10 @@ class OfficialAnkiOfficialFirstService {
     final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
     final livePaths = OfficialAnkiCompositionRoot.locatorPaths;
     if (catalog == null || livePaths == null) {
-      final official = await importPackage(
-        filePath: filePath,
-        plan: plan,
-        flags: flags,
-      );
-      final state = official?.state;
-      if (official == null || !(state?.allowsPreview ?? false)) {
-        throw OfficialAnkiException(
-          code: OfficialAnkiErrorCode.invalidState,
-          messageKey: 'official_anki.import_not_active',
-          debugDetails:
-              'official-first import ended in state ${state?.name ?? 'none'}',
-        );
-      }
-      final sourceHash =
-          readSourceHash(official.sourceId) ?? 'official-unknown';
-      await recordMigration(
-        importId: official.sourceId,
-        official: official,
-        hash: sourceHash,
-        cardCount: official.cardCount,
-      );
-      return preparePreview(
-        official: official,
-        sourceHash: sourceHash,
-        course: course,
-        flags: flags,
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.capabilityMissing,
+        messageKey: 'official_anki.catalog_missing',
+        debugDetails: 'staging_import_requires_catalog',
       );
     }
     OfficialAnkiCompositionRoot.stagingDiscardRequested = false;

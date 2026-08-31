@@ -603,14 +603,29 @@ final Map<String, Future<Object?> Function(_WorkerState, Map<String, Object?>)>
     ).recoverUnfinished();
   },
   'importFile': (s, m) async {
+    // Doc 42 P4: no catalog saga / backup. Product wizard uses startStaging.
     s.ops.guardCollectionMutation();
     s.ops.acquire(OfficialAnkiOperationPhase.importing);
     try {
-      return s.orchestrator!.importFile(
+      if (m['cancel'] == true) {
+        await s.engine!.cancel();
+        return OfficialAnkiImportResult(
+          sourceId: '',
+          attemptId: m['requestId'] as String? ?? '',
+          state: OfficialAnkiSourceState.cancelled,
+          cardCount: 0,
+          noteCount: 0,
+        );
+      }
+      final log = await s.engine!.importPackage(
         packagePath: m['packagePath'] as String,
-        displayName: m['displayName'] as String,
-        requestId: m['requestId'] as String?,
-        cancel: m['cancel'] == true,
+      );
+      return OfficialAnkiImportResult(
+        sourceId: '',
+        attemptId: m['requestId'] as String? ?? '',
+        state: OfficialAnkiSourceState.previewReady,
+        cardCount: log.cardCount,
+        noteCount: log.noteCount,
       );
     } finally {
       s.ops.release(OfficialAnkiOperationPhase.importing);

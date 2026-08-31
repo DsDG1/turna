@@ -2,11 +2,13 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
-import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_orchestrator.dart';
+import 'package:turna/application/anki_official/import/official_anki_import_saga.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
 import 'package:turna/application/anki_official/import/official_anki_recovery_service.dart';
+import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
+import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
@@ -23,9 +25,8 @@ void main() {
     OfficialAnkiImportAttemptDao attempts,
     FakeOfficialAnkiEngine engine,
     OfficialAnkiPaths paths,
-    OfficialAnkiImportOrchestrator Function(OfficialAnkiFaultPoint? fault) orch,
-    OfficialAnkiRecoveryService Function(OfficialAnkiImportOrchestrator o)
-        recovery,
+    OfficialAnkiImportOrchestrator orch,
+    OfficialAnkiRecoveryService recovery,
     void Function() dispose,
   }) harness() {
     final db = OfficialAnkiDatabase.memory();
@@ -35,207 +36,138 @@ void main() {
     engine.seedPackage(packagePath: pkg.path, notes: 1, cards: 1);
     final root = Directory.systemTemp.createTempSync('turna-rec-');
     final paths = OfficialAnkiPaths(profileId: 'profile-recov-01', profileRoot: root);
-    OfficialAnkiImportOrchestrator make(OfficialAnkiFaultPoint? fault) {
-      return OfficialAnkiImportOrchestrator(
-        engine: engine,
-        sources: sources,
-        attempts: attempts,
-        paths: paths,
-        fault: fault,
-        batchSize: 1,
-      );
-    }
-
+    OfficialAnkiCompositionRoot.debugStagingEngineOverride = engine;
+    OfficialAnkiCompositionRoot.stagingDiscardRequested = false;
+    final orch = OfficialAnkiImportOrchestrator(
+      engine: engine,
+      sources: sources,
+      attempts: attempts,
+      paths: paths,
+    );
     return (
       db: db,
       sources: sources,
       attempts: attempts,
       engine: engine,
       paths: paths,
-      orch: make,
-      recovery: (o) => OfficialAnkiRecoveryService(
-            sources: sources,
-            attempts: attempts,
-            engine: engine,
-            orchestrator: o,
-          ),
+      orch: orch,
+      recovery: OfficialAnkiRecoveryService(
+        sources: sources,
+        attempts: attempts,
+        engine: engine,
+        orchestrator: orch,
+      ),
       dispose: () {
+        OfficialAnkiCompositionRoot.debugStagingEngineOverride = null;
+        OfficialAnkiCompositionRoot.stagingEngine = null;
+        OfficialAnkiCompositionRoot.stagingDiscardRequested = false;
         db.close();
         root.deleteSync(recursive: true);
       },
     );
   }
 
-  Future<void> expectRecovered({
-    required OfficialAnkiFaultPoint point,
-    required OfficialAnkiSourceState expected,
-  }) async {
+  test('incomplete staging recover does not write live Collection', () async {
     final h = harness();
     addTearDown(h.dispose);
-    try {
-      await h.orch(point).importFile(
-            packagePath: pkg.path,
-            displayName: point.name,
-          );
-      fail('fault $point should throw');
-    } on OfficialAnkiException catch (error) {
-      expect(error.messageKey, 'official_anki.fault_injected');
-    }
-    final recovered = await h.recovery(h.orch(null)).recoverUnfinished();
-    if (expected == OfficialAnkiSourceState.previewReady) {
-      expect(recovered, isNotEmpty);
-      expect(recovered.single.state, OfficialAnkiSourceState.previewReady);
-      expect(h.sources.findById(recovered.single.sourceId)?.state, 'staging');
-    } else if (expected == OfficialAnkiSourceState.active) {
-      expect(recovered, isNotEmpty);
-      expect(recovered.single.state.isActive, isTrue);
-      expect(h.sources.findById(recovered.single.sourceId)?.state, 'active');
-    } else {
-      if (recovered.isEmpty) {
-        expect(expected, isNot(OfficialAnkiSourceState.active));
-      } else {
-        expect(recovered.single.state, expected);
-        expect(recovered.single.state.isActive, isFalse);
-      }
-    }
-    expect(
-      h.sources.listSources(h.paths.profileId).where((row) => row.state == 'active'),
-      expected == OfficialAnkiSourceState.active ? isNotEmpty : isEmpty,
+    h.sources.upsertSource(
+      sourceId: 'src-stage',
+      profileId: h.paths.profileId,
+      sourceHash: 'h',
+      sourceSize: 1,
+      displayName: 's',
+      state: OfficialAnkiSourceState.staging.wire,
+      backendCommit: 'c',
+      nowMillis: 1,
     );
-  }
-
-  test('fault beforeHash leaves no active source', () async {
-    await expectRecovered(
-      point: OfficialAnkiFaultPoint.beforeHash,
-      expected: OfficialAnkiSourceState.failedBeforeImport,
+    h.attempts.insert(
+      attemptId: 'att-stage',
+      sourceId: 'src-stage',
+      requestId: 'req',
+      state: OfficialAnkiSourceState.staging.wire,
+      nowMillis: 1,
+      phase: OfficialAnkiAttemptPhase.stagingImporting,
+      stagingPath: Directory('${h.paths.profileRoot.path}-stg').path,
     );
+    final liveBefore = h.engine.importCount;
+    final recovered = await h.recovery.recoverUnfinished();
+    expect(recovered.single.state, OfficialAnkiSourceState.cancelled);
+    expect(h.engine.importCount, liveBefore);
   });
 
-  test('fault afterSourceBeforeCheckpoint is failed_before_import', () async {
-    await expectRecovered(
-      point: OfficialAnkiFaultPoint.afterSourceBeforeCheckpoint,
-      expected: OfficialAnkiSourceState.failedBeforeImport,
-    );
+  test('preview_ready staging recover leaves pending import', () async {
+    final h = harness();
+    addTearDown(h.dispose);
+    h.engine.seedPackage(packagePath: pkg.path, notes: 1, cards: 1);
+    final staged = await OfficialAnkiImportSaga(
+      sources: h.sources,
+      attempts: h.attempts,
+      paths: h.paths,
+    ).startStaging(packagePath: pkg.path, displayName: 'ready');
+    expect(staged.state, OfficialAnkiSourceState.previewReady);
+    final liveBefore = h.engine.importCount;
+    final recovered = await h.recovery.recoverUnfinished();
+    expect(recovered.single.state, OfficialAnkiSourceState.previewReady);
+    expect(h.engine.importCount, liveBefore);
+    expect(h.sources.findById(staged.sourceId)?.state, isNot('active'));
   });
 
-  test('importFile after afterCheckpointBeforeImport does not mark active',
+  test('leftover importing_official without checkpoint is quarantined',
       () async {
     final h = harness();
     addTearDown(h.dispose);
-    try {
-      await h.orch(OfficialAnkiFaultPoint.afterCheckpointBeforeImport).importFile(
-            packagePath: pkg.path,
-            displayName: 'checkpoint-then-retry',
-          );
-      fail('fault should throw');
-    } on OfficialAnkiException catch (error) {
-      expect(error.messageKey, 'official_anki.fault_injected');
-    }
-    expect(
-      h.sources.listSources(h.paths.profileId).map((row) => row.state),
-      isNot(contains('active')),
+    h.sources.upsertSource(
+      sourceId: 'src-old',
+      profileId: h.paths.profileId,
+      sourceHash: 'old',
+      sourceSize: 1,
+      displayName: 'old',
+      state: OfficialAnkiSourceState.importingOfficial.wire,
+      backendCommit: 'c',
+      nowMillis: 1,
     );
-    final retried = await h.orch(null).importFile(
-          packagePath: pkg.path,
-          displayName: 'checkpoint-then-retry',
-        );
-    expect(retried.state.isActive, isFalse);
-    expect(retried.state, OfficialAnkiSourceState.rolledBack);
-    expect(h.sources.findById(retried.sourceId)?.state, isNot('active'));
-    expect(h.sources.cardCount(retried.sourceId), 0);
+    h.attempts.insert(
+      attemptId: 'att-old',
+      sourceId: 'src-old',
+      requestId: 'req',
+      state: OfficialAnkiSourceState.importingOfficial.wire,
+      nowMillis: 1,
+    );
+    final recovered = await h.recovery.recoverUnfinished();
+    expect(recovered.single.state, OfficialAnkiSourceState.quarantined);
+    expect(h.engine.restoreCalls, 0);
   });
 
-  test('importFile after afterImportBeforeNoteIds does not mark active',
-      () async {
+  test('leftover importing_official with checkpoint restores once', () async {
     final h = harness();
     addTearDown(h.dispose);
-    try {
-      await h.orch(OfficialAnkiFaultPoint.afterImportBeforeNoteIds).importFile(
-            packagePath: pkg.path,
-            displayName: 'import-then-retry',
-          );
-      fail('fault should throw');
-    } on OfficialAnkiException catch (error) {
-      expect(error.messageKey, 'official_anki.fault_injected');
-    }
-    final retried = await h.orch(null).importFile(
-          packagePath: pkg.path,
-          displayName: 'import-then-retry',
-        );
-    expect(retried.state.isActive, isFalse);
-    expect(retried.state, OfficialAnkiSourceState.rolledBack);
-    expect(h.sources.findById(retried.sourceId)?.state, isNot('active'));
-  });
-
-  test('fault afterCheckpointBeforeImport rolls back via checkpoint', () async {
-    await expectRecovered(
-      point: OfficialAnkiFaultPoint.afterCheckpointBeforeImport,
-      expected: OfficialAnkiSourceState.rolledBack,
+    h.sources.upsertSource(
+      sourceId: 'src-ck',
+      profileId: h.paths.profileId,
+      sourceHash: 'ck',
+      sourceSize: 1,
+      displayName: 'ck',
+      state: OfficialAnkiSourceState.importingOfficial.wire,
+      backendCommit: 'c',
+      nowMillis: 1,
     );
-  });
-
-  test('fault duringImportCancel marks cancelled', () async {
-    final h = harness();
-    addTearDown(h.dispose);
-    final result = await h.orch(OfficialAnkiFaultPoint.duringImportCancel).importFile(
-          packagePath: pkg.path,
-          displayName: 'cancel',
-          cancel: true,
-        );
-    expect(result.state, OfficialAnkiSourceState.cancelled);
-    expect(result.state.isActive, isFalse);
-    await h.engine.checkCollection();
-  });
-
-  test('fault afterImportBeforeNoteIds rolls back via checkpoint', () async {
-    await expectRecovered(
-      point: OfficialAnkiFaultPoint.afterImportBeforeNoteIds,
-      expected: OfficialAnkiSourceState.rolledBack,
+    h.attempts.insert(
+      attemptId: 'att-ck',
+      sourceId: 'src-ck',
+      requestId: 'req',
+      state: OfficialAnkiSourceState.importingOfficial.wire,
+      nowMillis: 1,
     );
-  });
-
-  test('fault afterNoteIdsBeforeCards resumes indexing', () async {
-    await expectRecovered(
-      point: OfficialAnkiFaultPoint.afterNoteIdsBeforeCards,
-      expected: OfficialAnkiSourceState.previewReady,
+    h.attempts.transition(
+      attemptId: 'att-ck',
+      expectedState: OfficialAnkiSourceState.importingOfficial.wire,
+      nextState: OfficialAnkiSourceState.importingOfficial.wire,
+      nowMillis: 2,
+      checkpointId: 'bk-fake',
     );
-  });
-
-  test('fault afterMidBatchCursor resumes indexing', () async {
-    await expectRecovered(
-      point: OfficialAnkiFaultPoint.afterMidBatchCursor,
-      expected: OfficialAnkiSourceState.previewReady,
-    );
-  });
-
-  test('fault afterCardsBeforeActive resumes to preview_ready', () async {
-    await expectRecovered(
-      point: OfficialAnkiFaultPoint.afterCardsBeforeActive,
-      expected: OfficialAnkiSourceState.previewReady,
-    );
-  });
-
-  test('fault afterActiveRestart stays preview_ready and is idempotent', () async {
-    final h = harness();
-    addTearDown(h.dispose);
-    try {
-      await h.orch(OfficialAnkiFaultPoint.afterActiveRestart).importFile(
-            packagePath: pkg.path,
-            displayName: 'active-restart',
-          );
-      fail('should throw');
-    } on OfficialAnkiException {
-      // expected
-    }
-    expect(h.sources.listSources(h.paths.profileId).single.state, 'staging');
-    final again = await h.recovery(h.orch(null)).recoverUnfinished();
-    expect(again.single.state, OfficialAnkiSourceState.previewReady);
-    final second = await h.orch(null).importFile(
-          packagePath: pkg.path,
-          displayName: 'active-restart',
-        );
-    expect(second.sourceId, again.single.sourceId);
-    expect(second.state, OfficialAnkiSourceState.previewReady);
+    final recovered = await h.recovery.recoverUnfinished();
+    expect(recovered.single.state, OfficialAnkiSourceState.rolledBack);
+    expect(h.engine.restoreCalls, 1);
   });
 
   test('unknown attempt state is never promoted to active', () {

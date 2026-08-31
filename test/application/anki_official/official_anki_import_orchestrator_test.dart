@@ -8,7 +8,9 @@ import 'package:turna/application/anki_official/engine/official_anki_engine_fake
 import 'package:turna/application/anki_official/engine/official_anki_worker.dart';
 import 'package:turna/application/anki_official/import/anki_import_facade.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_orchestrator.dart';
+import 'package:turna/application/anki_official/import/official_anki_import_saga.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
+import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
@@ -29,6 +31,8 @@ class _Harness {
       attempts: attempts,
       paths: paths,
     );
+    OfficialAnkiCompositionRoot.debugStagingEngineOverride = engine;
+    OfficialAnkiCompositionRoot.stagingDiscardRequested = false;
   }
 
   late final OfficialAnkiDatabase db;
@@ -38,7 +42,17 @@ class _Harness {
   late final OfficialAnkiPaths paths;
   late final OfficialAnkiImportOrchestrator orchestrator;
 
+  OfficialAnkiImportSaga saga() => OfficialAnkiImportSaga(
+        sources: sources,
+        attempts: attempts,
+        paths: paths,
+      );
+
   void dispose() {
+    OfficialAnkiCompositionRoot.debugStagingEngineOverride = null;
+    OfficialAnkiCompositionRoot.stagingEngine = null;
+    OfficialAnkiCompositionRoot.stagingSession = null;
+    OfficialAnkiCompositionRoot.stagingDiscardRequested = false;
     db.close();
     paths.profileRoot.deleteSync(recursive: true);
   }
@@ -52,7 +66,7 @@ void main() {
   final packages =
       (manifest['packages'] as List).cast<Map<String, dynamic>>();
 
-  test('imports the nine frozen fixtures into association-only catalog', () async {
+  test('startStaging indexes the nine frozen fixtures', () async {
     final harness = _Harness();
     addTearDown(harness.dispose);
     for (final pkg in packages) {
@@ -62,32 +76,19 @@ void main() {
         notes: pkg['expectedNotes'] as int,
         cards: pkg['expectedCards'] as int,
       );
-      final imported = await harness.orchestrator.importFile(
+      final imported = await harness.saga().startStaging(
         packagePath: file.path,
         displayName: pkg['file'] as String,
-        requestId: 'req-${pkg['file']}',
       );
       expect(imported.state, OfficialAnkiSourceState.previewReady);
       expect(imported.cardCount, pkg['expectedCards']);
       expect(imported.noteCount, pkg['expectedNotes']);
-      final row = harness.sources.findByHash(
-        harness.paths.profileId,
-        imported.sourceId.startsWith('src-')
-            ? harness.sources.findById(imported.sourceId)!.sourceHash
-            : harness.sources.findById(imported.sourceId)!.sourceHash,
-      );
-      expect(row!.state, 'staging');
-      expect(
-        File(p.join(fixtureRoot.path, 'packages', pkg['file'] as String))
-            .readAsBytesSync()
-            .length,
-        greaterThan(0),
-      );
+      expect(harness.sources.findById(imported.sourceId)!.state, 'staging');
     }
     expect(harness.sources.listSources(harness.paths.profileId), hasLength(9));
   });
 
-  test('close/reopen catalog still lists the source', () async {
+  test('close/reopen catalog still lists the staged source', () async {
     final root = Directory.systemTemp.createTempSync('turna-catalog-reopen-');
     addTearDown(() => root.deleteSync(recursive: true));
     final catalogPath = '${root.path}/catalog.sqlite';
@@ -96,66 +97,65 @@ void main() {
     );
     final engine = FakeOfficialAnkiEngine();
     engine.seedPackage(packagePath: file.path, notes: 1, cards: 1);
+    OfficialAnkiCompositionRoot.debugStagingEngineOverride = engine;
+    OfficialAnkiCompositionRoot.stagingDiscardRequested = false;
+    addTearDown(() {
+      OfficialAnkiCompositionRoot.debugStagingEngineOverride = null;
+      OfficialAnkiCompositionRoot.stagingEngine = null;
+      OfficialAnkiCompositionRoot.stagingDiscardRequested = false;
+    });
     final paths = OfficialAnkiPaths(
       profileId: 'profile-reopen-01',
       profileRoot: Directory('${root.path}/profile'),
     );
     final firstDb = OfficialAnkiDatabase.file(catalogPath);
-    final first = await OfficialAnkiImportOrchestrator(
-      engine: engine,
+    final first = await OfficialAnkiImportSaga(
       sources: OfficialAnkiSourceDao(firstDb),
       attempts: OfficialAnkiImportAttemptDao(firstDb),
       paths: paths,
-    ).importFile(packagePath: file.path, displayName: 'unicode');
+    ).startStaging(packagePath: file.path, displayName: 'unicode');
     expect(first.state, OfficialAnkiSourceState.previewReady);
     firstDb.close();
     final again = OfficialAnkiDatabase.file(catalogPath);
     addTearDown(again.close);
     final listed = OfficialAnkiSourceDao(again).findById(first.sourceId);
     expect(listed?.state, 'staging');
-    expect(OfficialAnkiSourceDao(again).cardCount(first.sourceId), 1);
   });
 
-  test('same hash does not create a second active source', () async {
+  test('startStaging does not write live Collection', () async {
     final harness = _Harness();
     addTearDown(harness.dispose);
     final file = File(
       p.join(fixtureRoot.path, 'packages', '02-basic-reversed.apkg'),
     );
     harness.engine.seedPackage(packagePath: file.path, notes: 1, cards: 2);
-    final first = await harness.orchestrator.importFile(
+    final live = FakeOfficialAnkiEngine();
+    OfficialAnkiCompositionRoot.debugEngineOverride = live;
+    addTearDown(() => OfficialAnkiCompositionRoot.debugEngineOverride = null);
+    await harness.saga().startStaging(
       packagePath: file.path,
       displayName: 'reversed',
     );
-    final second = await harness.orchestrator.importFile(
-      packagePath: file.path,
-      displayName: 'reversed-again',
-    );
-    expect(second.alreadyImported, isFalse);
-    expect(second.state, OfficialAnkiSourceState.previewReady);
-    expect(second.sourceId, first.sourceId);
     expect(harness.sources.listSources(harness.paths.profileId), hasLength(1));
-    expect(harness.engine.importCount, 1);
+    expect(live.importCount, 0);
   });
 
-  test('cancel leaves source not active and check still runs', () async {
+  test('cancelActive leaves source not active', () async {
     final harness = _Harness();
     addTearDown(harness.dispose);
     final file = File(
       p.join(fixtureRoot.path, 'packages', '01-basic-unicode.apkg'),
     );
     harness.engine.seedPackage(packagePath: file.path, notes: 1, cards: 1);
-    final result = await harness.orchestrator.importFile(
+    final result = await harness.saga().startStaging(
       packagePath: file.path,
       displayName: 'cancel-me',
-      cancel: true,
     );
-    expect(result.state, OfficialAnkiSourceState.cancelled);
-    expect(result.state.isActive, isFalse);
-    expect(harness.sources.findById(result.sourceId)!.state, isNot('active'));
+    await harness.saga().cancelActive();
+    expect(harness.sources.findById(result.sourceId), isNull);
   });
 
-  test('5k generated package indexes through paging-sized batches', () async {
+  test('5k generated package stages with expected counts', () async {
     final harness = _Harness();
     addTearDown(harness.dispose);
     final large = File(
@@ -163,14 +163,7 @@ void main() {
     );
     expect(large.existsSync(), isTrue);
     harness.engine.seedPackage(packagePath: large.path, notes: 5000, cards: 5000);
-    final orch = OfficialAnkiImportOrchestrator(
-      engine: OfficialAnkiWorker(harness.engine),
-      sources: harness.sources,
-      attempts: harness.attempts,
-      paths: harness.paths,
-      batchSize: 200,
-    );
-    final result = await orch.importFile(
+    final result = await harness.saga().startStaging(
       packagePath: large.path,
       displayName: '5k',
     );
@@ -226,42 +219,6 @@ void main() {
       ),
       throwsA(isA<OfficialAnkiException>()),
     );
-  });
-
-  test('recovery cursor resumes from nextOffset not zero', () async {
-    final harness = _Harness();
-    addTearDown(harness.dispose);
-    final file = File(
-      p.join(fixtureRoot.path, 'packages', '01-basic-unicode.apkg'),
-    );
-    harness.engine.seedPackage(packagePath: file.path, notes: 3, cards: 3);
-    final first = OfficialAnkiImportOrchestrator(
-      engine: harness.engine,
-      sources: harness.sources,
-      attempts: harness.attempts,
-      paths: harness.paths,
-      fault: OfficialAnkiFaultPoint.afterMidBatchCursor,
-      batchSize: 1,
-    );
-    try {
-      await first.importFile(packagePath: file.path, displayName: 'cursor');
-      fail('expected mid-batch fault');
-    } on Object {
-      // expected
-    }
-    expect(harness.engine.noteBatchCalls, 1);
-    final attempt = harness.attempts.unfinished().single;
-    expect(attempt.nextOffset, 1);
-    final recovered = await OfficialAnkiImportOrchestrator(
-      engine: harness.engine,
-      sources: harness.sources,
-      attempts: harness.attempts,
-      paths: harness.paths,
-      batchSize: 1,
-    ).resumeIndexing(attempt);
-    expect(recovered.state, OfficialAnkiSourceState.previewReady);
-    expect(harness.engine.noteBatchCalls, 3);
-    expect(harness.sources.cardCount(recovered.sourceId), 3);
   });
 
   test('worker serializes overlapping open/import/close', () async {

@@ -5,15 +5,16 @@ import 'package:path/path.dart' as p;
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_orchestrator.dart';
+import 'package:turna/application/anki_official/import/official_anki_import_saga.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
 import 'package:turna/application/anki_official/import/official_anki_recovery_service.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_maintenance.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_pending_imports.dart';
-import 'package:turna/application/anki_official/lifecycle/official_anki_repair_executor.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_source_metadata_dao.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_storage_audit.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_uninstall_saga.dart';
+import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
@@ -55,6 +56,8 @@ void main() {
       profileId: 'profile-life-01',
       profileRoot: root,
     );
+    OfficialAnkiCompositionRoot.debugStagingEngineOverride = engine;
+    OfficialAnkiCompositionRoot.stagingDiscardRequested = false;
     final orch = OfficialAnkiImportOrchestrator(
       engine: engine,
       sources: sources,
@@ -69,10 +72,41 @@ void main() {
       paths: paths,
       orch: orch,
       dispose: () {
+        OfficialAnkiCompositionRoot.debugStagingEngineOverride = null;
+        OfficialAnkiCompositionRoot.stagingEngine = null;
+        OfficialAnkiCompositionRoot.stagingDiscardRequested = false;
         db.close();
         root.deleteSync(recursive: true);
       },
     );
+  }
+
+  Future<OfficialAnkiImportResult> stage(
+    ({
+      OfficialAnkiDatabase db,
+      OfficialAnkiSourceDao sources,
+      OfficialAnkiImportAttemptDao attempts,
+      FakeOfficialAnkiEngine engine,
+      OfficialAnkiPaths paths,
+      OfficialAnkiImportOrchestrator orch,
+      void Function() dispose,
+    }) h, {
+    String displayName = 'life',
+  }) async {
+    final imported = await OfficialAnkiImportSaga(
+      sources: h.sources,
+      attempts: h.attempts,
+      paths: h.paths,
+    ).startStaging(packagePath: pkg.path, displayName: displayName);
+    final cards = h.engine.cards.values.toList();
+    if (cards.isNotEmpty) {
+      h.sources.upsertCardBatch(sourceId: imported.sourceId, cards: cards);
+      OfficialAnkiSourceMetadataDao(h.db).replaceAssociations(
+        sourceId: imported.sourceId,
+        cards: cards,
+      );
+    }
+    return imported;
   }
 
   test('S0 audit snapshot records counts and bytes', () {
@@ -91,10 +125,7 @@ void main() {
   test('import stays staging/preview_ready until product publish', () async {
     final h = harness();
     addTearDown(h.dispose);
-    final imported = await h.orch.importFile(
-      packagePath: pkg.path,
-      displayName: 'life',
-    );
+    final imported = await stage(h);
     expect(imported.state, OfficialAnkiSourceState.previewReady);
     expect(h.sources.findById(imported.sourceId)!.state, 'staging');
     final pending = const OfficialAnkiPendingImportStore().listForProfile(
@@ -105,53 +136,55 @@ void main() {
     expect(pending.single.phase, 'preview_ready');
   });
 
-  test('native cancel is invoked from discard coordinator', () async {
+  test('cancelActive removes staging without restoreBackup', () async {
     final h = harness();
     addTearDown(h.dispose);
-    final imported = await h.orch.importFile(
-      packagePath: pkg.path,
-      displayName: 'life',
-    );
-    await OfficialAnkiImportSagaCoordinator(h.orch)
-        .requestDiscard(imported.attemptId);
-    expect(h.engine.cancelCalls, greaterThan(0));
-    expect(h.engine.restoreCalls, greaterThan(0));
-    expect(
-      h.attempts.find(imported.attemptId)!.state,
-      OfficialAnkiSourceState.rolledBack.wire,
-    );
+    final imported = await stage(h);
+    await OfficialAnkiImportSaga(
+      sources: h.sources,
+      attempts: h.attempts,
+      paths: h.paths,
+    ).cancelActive();
+    expect(h.engine.restoreCalls, 0);
+    expect(h.sources.findById(imported.sourceId), isNull);
   });
 
-  test('afterNativeImportBeforeReceiptCommit restarts into rollback', () async {
+  test('unfinished live-first leftover without staging is quarantined',
+      () async {
     final h = harness();
     addTearDown(h.dispose);
-    try {
-      await OfficialAnkiImportOrchestrator(
-        engine: h.engine,
-        sources: h.sources,
-        attempts: h.attempts,
-        paths: h.paths,
-        fault: OfficialAnkiFaultPoint.afterNativeImportBeforeReceiptCommit,
-      ).importFile(packagePath: pkg.path, displayName: 'fault');
-      fail('expected fault');
-    } on Object {
-      // expected
-    }
+    h.sources.upsertSource(
+      sourceId: 'src-fault',
+      profileId: h.paths.profileId,
+      sourceHash: 'f',
+      sourceSize: 1,
+      displayName: 'fault',
+      state: OfficialAnkiSourceState.importingOfficial.wire,
+      backendCommit: 'c',
+      nowMillis: 1,
+    );
+    h.attempts.insert(
+      attemptId: 'att-fault',
+      sourceId: 'src-fault',
+      requestId: 'req',
+      state: OfficialAnkiSourceState.importingOfficial.wire,
+      nowMillis: 1,
+    );
     final recovered = await OfficialAnkiRecoveryService(
       sources: h.sources,
       attempts: h.attempts,
       engine: h.engine,
       orchestrator: h.orch,
     ).recoverUnfinished();
-    expect(recovered.single.state, OfficialAnkiSourceState.rolledBack);
-    expect(h.engine.restoreCalls, greaterThan(0));
+    expect(recovered.single.state, OfficialAnkiSourceState.quarantined);
+    expect(h.engine.restoreCalls, 0);
   });
 
   test('A/B shared cards survive deleting A; exclusive cards are verified gone',
       () async {
     final h = harness();
     addTearDown(h.dispose);
-    await h.orch.importFile(packagePath: pkg.path, displayName: 'A');
+    await stage(h, displayName: 'A');
     final sourceA = h.sources.listSources(h.paths.profileId).single.sourceId;
     h.sources.upsertSource(
       sourceId: 'src-b',
@@ -199,10 +232,7 @@ void main() {
       () async {
     final h = harness();
     addTearDown(h.dispose);
-    final imported = await h.orch.importFile(
-      packagePath: pkg.path,
-      displayName: 'A',
-    );
+    final imported = await stage(h, displayName: 'A');
     final metadata = OfficialAnkiSourceMetadataDao(h.db);
     expect(metadata.notetypeIds(imported.sourceId), isNotEmpty);
     await OfficialAnkiUninstallSaga(
@@ -235,10 +265,7 @@ void main() {
     addTearDown(h.dispose);
     for (var i = 0; i < 5; i++) {
       h.engine.seedPackage(packagePath: pkg.path, notes: 1, cards: 1);
-      final imported = await h.orch.importFile(
-        packagePath: pkg.path,
-        displayName: 'cycle-$i',
-      );
+      final imported = await stage(h, displayName: 'cycle-$i');
       await OfficialAnkiUninstallSaga(
         catalog: h.db,
         engine: h.engine,
@@ -254,10 +281,7 @@ void main() {
   test('compact skip on failure leaves logical delete intact', () async {
     final h = harness();
     addTearDown(h.dispose);
-    final imported = await h.orch.importFile(
-      packagePath: pkg.path,
-      displayName: 'compact',
-    );
+    final imported = await stage(h, displayName: 'compact');
     h.engine.failCompact = true;
     final result = await OfficialAnkiUninstallSaga(
       catalog: h.db,

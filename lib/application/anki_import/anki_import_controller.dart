@@ -11,13 +11,11 @@ import 'package:turna/application/anki_import/recognition/official_recognition_t
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/import/anki_import_execution_plan.dart';
-import 'package:turna/application/anki_official/lifecycle/official_anki_repair_executor.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_source_metadata_dao.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_saga.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
-import 'package:turna/application/anki_official/import/official_anki_import_orchestrator.dart';
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
@@ -305,29 +303,6 @@ class AnkiImportController extends ChangeNotifier {
       attempts: OfficialAnkiImportAttemptDao(catalog),
       paths: paths,
     ).cancelActive();
-  }
-
-  // Kept for pre-P1 unfinished live imports; staging cancel uses
-  // OfficialAnkiImportSaga.cancelActive instead.
-  // ignore: unused_element
-  Future<void> _discardDurable(String sourceId) async {
-    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
-    final engine = OfficialAnkiCompositionRoot.engine;
-    final paths = OfficialAnkiCompositionRoot.locatorPaths;
-    if (catalog == null || engine == null || paths == null) return;
-    final attempts = OfficialAnkiImportAttemptDao(catalog);
-    final unfinished = attempts
-        .unfinished()
-        .where((row) => row.sourceId == sourceId);
-    if (unfinished.isEmpty) return;
-    final orch = OfficialAnkiImportOrchestrator(
-      engine: engine,
-      sources: OfficialAnkiSourceDao(catalog),
-      attempts: attempts,
-      paths: paths,
-    );
-    await OfficialAnkiImportSagaCoordinator(orch)
-        .requestDiscard(unfinished.first.attemptId);
   }
 
   // ─── Recognition triage (shared with the preview widgets) ───────────

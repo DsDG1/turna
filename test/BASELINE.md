@@ -1,3 +1,5 @@
+Generated: 2026-08-31 (doc 42 P4 旧路径删除)：生产导入只走 `startStaging` → `commitLive`。删 orchestrator live-first `importFile`/`createBackup`；缺 catalog 不再 facade 直连 live；`restoreBackup` 仅存量 checkpoint；无 checkpoint 未完成导入 quarantine。worker `importFile` 薄转 `importPackage`。inventory `official_anki/staging/`。P0 S-a/S-b/S-c/S-d 须保持绿。
+
 Generated: 2026-08-31 (doc 42 P3 commit + scoped publish)：`projectSource(notetypeIds:)` 修 S-c；`OfficialAnkiImportSaga.commitLive` 确认后写 live Collection 并晋升 mapping；`OfficialAnkiStartupRecovery` 单入口 lease/repair；待完成导入条。P0 S-a/S-b/S-c/S-d **passed**。新增 `official_anki_commit_live_test`。`importFile` 仍保留（P4）。
 
 Generated: 2026-08-31 (doc 42 P2 映射交互)：`OfficialAnkiMappingPage` 保存恒可点、二选一正面、确认/跳过 pop；preview 行「已确认」；`skipOfficialNotetype` 清 `needsMapping`；wizard 确认不写全局 mapping 表。P0 S-d **passed**；S-c 仍红。`OfficialAnkiMappingRoute` 移出 diagnostics guard。定向：mapping_page、preview 已确认、skip/needsMapping、S-a/S-b、S-c 仍失败。

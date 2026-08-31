@@ -1,16 +1,8 @@
-import 'dart:io';
-
-import 'package:turna/application/anki_official/introduction/card_introduction_eligibility.dart';
-import 'package:turna/data/anki_owner_authority_dao.dart';
-import 'package:turna/data/course_database.dart';
-import 'package:turna/di/injection.dart';
-
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
+import 'package:turna/application/anki_official/import/official_anki_import_saga.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
-import 'package:turna/application/anki_official/import/official_anki_source_hasher.dart';
-import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_checkpoint_dao.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
@@ -21,14 +13,15 @@ import 'package:flutter/foundation.dart' show debugPrint;
 
 typedef OfficialAnkiClock = int Function();
 
-/// Official import saga. Never calls [AnkiImporter] or [AnkiImportService].
-class OfficialAnkiImportOrchestrator implements OfficialAnkiImporter {
+/// Catalog recovery / indexing for leftover attempts. New imports use
+/// [OfficialAnkiImportSaga]; this type no longer writes live Collection
+/// during preview (doc 42 P4).
+class OfficialAnkiImportOrchestrator {
   OfficialAnkiImportOrchestrator({
     required this.engine,
     required this.sources,
     required this.attempts,
     required this.paths,
-    this.hasher = const OfficialAnkiSourceHasher(),
     this.nowMillis,
     this.fault,
     this.batchSize = 200,
@@ -38,7 +31,6 @@ class OfficialAnkiImportOrchestrator implements OfficialAnkiImporter {
   final OfficialAnkiSourceDao sources;
   final OfficialAnkiImportAttemptDao attempts;
   final OfficialAnkiPaths paths;
-  final OfficialAnkiSourceHasher hasher;
   final OfficialAnkiClock? nowMillis;
   final OfficialAnkiFaultPoint? fault;
   final int batchSize;
@@ -55,234 +47,34 @@ class OfficialAnkiImportOrchestrator implements OfficialAnkiImporter {
     }
   }
 
-  @override
-  Future<OfficialAnkiImportResult> importFile({
-    required String packagePath,
-    required String displayName,
-    String? requestId,
-    bool cancel = false,
-  }) async {
-    try {
-      return await _importFile(
-        packagePath: packagePath,
-        displayName: displayName,
-        requestId: requestId,
-        cancel: cancel,
-      );
-    } on OfficialAnkiException catch (error) {
-      if (error.messageKey != 'official_anki.fault_injected') {
-        _persistClassifiedFailure(error);
-      }
-      rethrow;
-    }
-  }
-
-  void _persistClassifiedFailure(OfficialAnkiException error) {
-    final unfinished = attempts.unfinished();
-    if (unfinished.isEmpty) return;
-    final attempt = unfinished.last;
-    try {
-      attempts.transition(
+  Future<OfficialAnkiImportResult> recoverAttempt(
+    OfficialAnkiAttemptRow attempt,
+  ) async {
+    final phase = attempt.phase;
+    if (phase == OfficialAnkiAttemptPhase.previewReady) {
+      return OfficialAnkiImportResult(
+        sourceId: attempt.sourceId,
         attemptId: attempt.attemptId,
-        expectedState: attempt.state,
-        nextState: OfficialAnkiSourceState.needsReconciliation.wire,
-        nowMillis: _now,
-        errorCode: error.code.name,
-      );
-    } catch (suppressed) { debugPrint('[OfficialAnkiImportOrchestrator] suppressed error: $suppressed'); }
-  }
-
-  Future<OfficialAnkiImportResult> _importFile({
-    required String packagePath,
-    required String displayName,
-    String? requestId,
-    bool cancel = false,
-  }) async {
-    final package = File(packagePath);
-    if (!package.existsSync() || !packagePath.toLowerCase().endsWith('.apkg')) {
-      throw const OfficialAnkiException(
-        code: OfficialAnkiErrorCode.packageInvalid,
-        messageKey: 'official_anki.package_invalid',
+        state: OfficialAnkiSourceState.previewReady,
+        cardCount: sources.cardCount(attempt.sourceId),
+        noteCount: attempt.importedNoteCount,
       );
     }
-
-    _trip(OfficialAnkiFaultPoint.beforeHash);
-    final digest = await hasher.hashFile(packagePath);
-    final existing = sources.findByHash(paths.profileId, digest.sha256);
-    if (existing != null &&
-        existing.state == OfficialAnkiSourceState.active.wire) {
-      return OfficialAnkiImportResult(
-        sourceId: existing.sourceId,
-        attemptId: existing.sourceId,
-        state: OfficialAnkiSourceState.active,
-        cardCount: sources.cardCount(existing.sourceId),
-        noteCount: 0,
-        alreadyImported: true,
-      );
-    }
-    if (existing != null &&
-        existing.state != OfficialAnkiSourceState.active.wire &&
-        existing.state != OfficialAnkiSourceState.cancelled.wire &&
-        existing.state != OfficialAnkiSourceState.failedBeforeImport.wire) {
-      final unfinished = attempts
-          .unfinished()
-          .where((row) => row.sourceId == existing.sourceId);
-      if (unfinished.isNotEmpty) {
-        return recoverAttempt(unfinished.first);
-      }
-      if (existing.state == OfficialAnkiSourceState.needsReconciliation.wire) {
-        final leftover = attempts.find(existing.sourceId);
-        return OfficialAnkiImportResult(
-          sourceId: existing.sourceId,
-          attemptId: leftover?.attemptId ?? existing.sourceId,
-          state: OfficialAnkiSourceState.needsReconciliation,
-          cardCount: sources.cardCount(existing.sourceId),
-          noteCount: leftover?.importedNoteCount ?? 0,
-        );
-      }
-    }
-
-    final sourceId = existing?.sourceId ?? newOfficialAnkiId('src');
-    final attemptId = newOfficialAnkiId('att');
-    final rid = requestId ?? 'req-$attemptId';
-
-    sources.upsertSource(
-      sourceId: sourceId,
-      profileId: paths.profileId,
-      sourceHash: digest.sha256,
-      sourceSize: digest.bytes,
-      displayName: displayName,
-      state: OfficialAnkiSourceState.staging.wire,
-      backendCommit: 'pending',
-      nowMillis: _now,
-      activeAttemptId: attemptId,
-    );
-    // CourseDatabase authority (plan 34 D7): the source enters as staging —
-    // it only becomes active after a verified projection publishes.
-    try {
-      if (getIt.isRegistered<CourseDatabase>()) {
-        await AnkiOwnerAuthorityDao(getIt<CourseDatabase>()).upsertSource(
-          courseId:
-              CardIntroductionEligibility.courseIdForOfficialSource(sourceId),
-          profileId: 'profile-default-01',
-          sourceId: sourceId,
-          backendKind: 'official',
-          displayName: displayName,
-          sourceHash: digest.sha256,
-          sourceFingerprint: digest.sha256,
-          state: AnkiSourceVisibility.staging,
-        );
-      }
-    } catch (suppressed) {
-      debugPrint('[OfficialAnkiImportOrchestrator] suppressed error: $suppressed');
-      // The catalog remains the import journal; authority staging is
-      // re-written at publish time.
-    }
-    attempts.insert(
-      attemptId: attemptId,
-      sourceId: sourceId,
-      requestId: rid,
-      state: OfficialAnkiSourceState.preparing.wire,
-      nowMillis: _now,
-    );
-    attempts.setNativeCommitState(
-      attemptId: attemptId,
-      state: OfficialAnkiNativeCommitState.notStarted,
-      nowMillis: _now,
-    );
-    _trip(OfficialAnkiFaultPoint.afterSourceBeforeCheckpoint);
-
-    await engine.openProfile(paths);
-    await engine.checkCollection();
-    attempts.transition(
-      attemptId: attemptId,
-      expectedState: OfficialAnkiSourceState.preparing.wire,
-      nextState: OfficialAnkiSourceState.backingUp.wire,
-      nowMillis: _now,
-    );
-    String checkpoint;
-    try {
-      checkpoint = await OfficialAnkiCheckpointDao(sources.database)
-          .materializeFromCollection(
+    if (OfficialAnkiAttemptPhase.stagingCancellable.contains(phase)) {
+      await OfficialAnkiImportSaga(
+        sources: sources,
+        attempts: attempts,
         paths: paths,
-        attemptId: attemptId,
-        sourceId: sourceId,
-        nowMillis: _now,
-      );
-    } catch (suppressed) {
-      debugPrint('[OfficialAnkiImportOrchestrator] checkpoint copy: $suppressed');
-      checkpoint = await engine.createBackup();
-    }
-    attempts.transition(
-      attemptId: attemptId,
-      expectedState: OfficialAnkiSourceState.backingUp.wire,
-      nextState: OfficialAnkiSourceState.importingOfficial.wire,
-      nowMillis: _now,
-      checkpointId: checkpoint,
-    );
-    _trip(OfficialAnkiFaultPoint.afterCheckpointBeforeImport);
-
-    if (cancel || fault == OfficialAnkiFaultPoint.duringImportCancel) {
-      await engine.cancel();
-      try {
-        await engine.importPackage(packagePath: packagePath);
-      } on OfficialAnkiException catch (error) {
-        if (error.code != OfficialAnkiErrorCode.importCancelled) rethrow;
-      }
-      await engine.checkCollection();
-      attempts.transition(
-        attemptId: attemptId,
-        expectedState: OfficialAnkiSourceState.importingOfficial.wire,
-        nextState: OfficialAnkiSourceState.cancelled.wire,
-        nowMillis: _now,
-      );
-      sources.transitionSource(
-        sourceId: sourceId,
-        expectedState: OfficialAnkiSourceState.staging.wire,
-        nextState: OfficialAnkiSourceState.cancelled.wire,
-        nowMillis: _now,
-      );
+      ).cancelSource(attempt.sourceId);
       return OfficialAnkiImportResult(
-        sourceId: sourceId,
-        attemptId: attemptId,
+        sourceId: attempt.sourceId,
+        attemptId: attempt.attemptId,
         state: OfficialAnkiSourceState.cancelled,
         cardCount: 0,
         noteCount: 0,
       );
     }
 
-    attempts.setNativeCommitState(
-      attemptId: attemptId,
-      state: OfficialAnkiNativeCommitState.unknown,
-      nowMillis: _now,
-    );
-    final imported = await engine.importPackage(packagePath: packagePath);
-    _trip(OfficialAnkiFaultPoint.afterImportBeforeNoteIds);
-    _trip(OfficialAnkiFaultPoint.afterNativeImportBeforeReceiptCommit);
-    attempts.transition(
-      attemptId: attemptId,
-      expectedState: OfficialAnkiSourceState.importingOfficial.wire,
-      nextState: OfficialAnkiSourceState.indexingNotes.wire,
-      nowMillis: _now,
-      operationToken: imported.operationToken,
-      importedNoteIds: imported.associatedNoteIds,
-      nativeCommitState: OfficialAnkiNativeCommitState.committed.wire,
-    );
-    _trip(OfficialAnkiFaultPoint.afterNoteIdsBeforeCards);
-    _trip(OfficialAnkiFaultPoint.afterReceiptBeforeCardIndexComplete);
-    return _indexCards(
-      sourceId: sourceId,
-      attemptId: attemptId,
-      expectedState: OfficialAnkiSourceState.indexingNotes.wire,
-      startOffset: 0,
-      collectionNoteCount: imported.noteCount,
-      collectionCardCount: imported.cardCount,
-    );
-  }
-
-  Future<OfficialAnkiImportResult> recoverAttempt(
-    OfficialAnkiAttemptRow attempt,
-  ) {
     final decision = decideOfficialAnkiRecovery(attempt);
     switch (decision.action) {
       case OfficialAnkiRecoveryAction.resume:
@@ -296,14 +88,12 @@ class OfficialAnkiImportOrchestrator implements OfficialAnkiImporter {
       case OfficialAnkiRecoveryAction.quarantine:
         return _markTerminal(attempt, OfficialAnkiSourceState.quarantined);
       case OfficialAnkiRecoveryAction.leave:
-        return Future.value(
-          OfficialAnkiImportResult(
-            sourceId: attempt.sourceId,
-            attemptId: attempt.attemptId,
-            state: decision.state,
-            cardCount: sources.cardCount(attempt.sourceId),
-            noteCount: attempt.importedNoteCount,
-          ),
+        return OfficialAnkiImportResult(
+          sourceId: attempt.sourceId,
+          attemptId: attempt.attemptId,
+          state: decision.state,
+          cardCount: sources.cardCount(attempt.sourceId),
+          noteCount: attempt.importedNoteCount,
         );
     }
   }
@@ -312,28 +102,21 @@ class OfficialAnkiImportOrchestrator implements OfficialAnkiImporter {
     OfficialAnkiAttemptRow attempt,
   ) async {
     final checkpointId = attempt.checkpointId;
-    if (checkpointId != null && checkpointId.isNotEmpty) {
-      try {
-        await engine.restoreBackup(checkpointId);
-      } catch (suppressed) {
-        debugPrint('[OfficialAnkiImportOrchestrator] restore: $suppressed');
-        return _markTerminal(attempt, OfficialAnkiSourceState.quarantined);
-      }
-    } else if (attempt.hasImportedNotes) {
-      final cardIds = sources.listCards(attempt.sourceId).map((c) => c.cardId).toList();
-      if (cardIds.isNotEmpty) {
-        await engine.deleteCards(cardIds);
-      }
+    if (checkpointId == null || checkpointId.isEmpty) {
+      return _markTerminal(attempt, OfficialAnkiSourceState.quarantined);
     }
     try {
-      final ckpt = OfficialAnkiCheckpointDao(sources.database);
-      if (checkpointId != null) {
-        await ckpt.releaseFile(
-          paths: paths,
-          checkpointId: checkpointId,
-          nowMillis: _now,
-        );
-      }
+      await engine.restoreBackup(checkpointId);
+    } catch (suppressed) {
+      debugPrint('[OfficialAnkiImportOrchestrator] restore: $suppressed');
+      return _markTerminal(attempt, OfficialAnkiSourceState.quarantined);
+    }
+    try {
+      await OfficialAnkiCheckpointDao(sources.database).releaseFile(
+        paths: paths,
+        checkpointId: checkpointId,
+        nowMillis: _now,
+      );
     } catch (suppressed) {
       debugPrint('[OfficialAnkiImportOrchestrator] ckpt release: $suppressed');
     }

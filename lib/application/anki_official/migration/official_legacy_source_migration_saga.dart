@@ -283,6 +283,8 @@ class OfficialLegacySourceMigrationSaga {
       nowMillis: now,
     );
 
+    // Doc 42 P4: live ingest without backup/preview. Catalog rows are
+    // recorded by the migration dao from [OfficialAnkiImportResult].
     final result = await importer.importFile(
       packagePath: packagePath,
       displayName: displayName ?? 'legacy-source-migration',

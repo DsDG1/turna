@@ -10,11 +10,6 @@ import 'package:turna/application/anki_official/engine/official_anki_engine_ffi.
 import 'package:turna/application/anki_official/engine/official_anki_native_transport.dart';
 import 'package:turna/application/anki_official/engine/official_anki_session.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
-import 'package:turna/application/anki_official/storage/official_anki_database.dart';
-import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
-import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
-import 'package:turna/application/anki_official/import/official_anki_import_orchestrator.dart';
-import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
 
 bool get _requireNative =>
     Platform.environment['TURNA_ANKI_REQUIRE_NATIVE'] == '1';
@@ -111,25 +106,16 @@ void main() {
     final transport = OfficialAnkiNativeTransport.open(libraryPath: libraryPath);
     final engine = FfiOfficialAnkiEngine.connect(transport);
     addTearDown(engine.dispose);
-    final db = OfficialAnkiDatabase.file('${root.path}/catalog.sqlite');
-    addTearDown(db.close);
+    await engine.openProfile(paths);
     final pkg = File(
       p.absolute('test/fixtures/anki_official/packages/01-basic-unicode.apkg'),
     );
-    final imported = await OfficialAnkiImportOrchestrator(
-      engine: engine,
-      sources: OfficialAnkiSourceDao(db),
-      attempts: OfficialAnkiImportAttemptDao(db),
-      paths: paths,
-    ).importFile(packagePath: pkg.path, displayName: 'unicode');
-    expect(imported.state, OfficialAnkiSourceState.previewReady);
+    final imported = await engine.importPackage(packagePath: pkg.path);
     expect(imported.cardCount, greaterThan(0));
     expect(imported.noteCount, greaterThan(0));
     await engine.closeCollection();
     await engine.openProfile(paths);
     await engine.checkCollection();
-    final listed = OfficialAnkiSourceDao(db).findById(imported.sourceId);
-    expect(listed?.state, 'active');
   });
 
   test('worker isolate heartbeat continues during fake import', () async {
@@ -184,16 +170,12 @@ void main() {
       final transport = OfficialAnkiNativeTransport.open(libraryPath: libraryPath);
       final engine = FfiOfficialAnkiEngine.connect(transport);
       addTearDown(engine.dispose);
-      final db = OfficialAnkiDatabase.file('${root.path}/catalog.sqlite');
-      addTearDown(db.close);
+      await engine.openProfile(paths);
       final pkg = File('test/fixtures/anki_official/packages/$name.apkg');
-      final imported = await OfficialAnkiImportOrchestrator(
-        engine: engine,
-        sources: OfficialAnkiSourceDao(db),
-        attempts: OfficialAnkiImportAttemptDao(db),
-        paths: paths,
-      ).importFile(packagePath: pkg.absolute.path, displayName: name);
-      expect(imported.state, OfficialAnkiSourceState.previewReady);
+      final imported = await engine.importPackage(
+        packagePath: pkg.absolute.path,
+      );
+      expect(imported.cardCount, greaterThan(0));
       final page = await engine.searchCardsPage();
       expect(page.cardIds, isNotEmpty);
       final expected = jsonDecode(
@@ -257,18 +239,12 @@ void main() {
     final transport = OfficialAnkiNativeTransport.open(libraryPath: libraryPath);
     final engine = FfiOfficialAnkiEngine.connect(transport);
     addTearDown(engine.dispose);
-    final db = OfficialAnkiDatabase.file('${root.path}/catalog.sqlite');
-    addTearDown(db.close);
+    await engine.openProfile(paths);
     final pkg = File(
       p.absolute('test/fixtures/anki_official/packages/08-scheduling.apkg'),
     );
-    final imported = await OfficialAnkiImportOrchestrator(
-      engine: engine,
-      sources: OfficialAnkiSourceDao(db),
-      attempts: OfficialAnkiImportAttemptDao(db),
-      paths: paths,
-    ).importFile(packagePath: pkg.path, displayName: 'scheduling');
-    expect(imported.state, OfficialAnkiSourceState.previewReady);
+    final imported = await engine.importPackage(packagePath: pkg.path);
+    expect(imported.cardCount, greaterThan(0));
     await engine.setCurrentDeck(1);
     final queue = await engine.getReviewQueue(fetchLimit: 1);
     expect(queue.cards, isNotEmpty);

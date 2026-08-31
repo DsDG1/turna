@@ -7,6 +7,7 @@ import 'package:turna/application/ai/engine/ai_engine.dart';
 import 'package:turna/application/diagnostics/performance_trace.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_pending_imports.dart';
+import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/core/log_capture.dart';
@@ -249,6 +250,7 @@ class StorageInventoryService {
     final reports = <StorageArtifactReport>[];
     for (final profileDir in await _listSubdirectories(root.path)) {
       final profileId = p.basename(profileDir.path);
+      if (profileId == 'staging') continue;
       var bytes = 0;
       var files = 0;
       const members = [
@@ -309,6 +311,49 @@ class StorageInventoryService {
           cleanupPolicy: StorageCleanupPolicy.deleteSaga,
         ));
       }
+    }
+    reports.addAll(await _scanOfficialStaging(root));
+    return reports;
+  }
+
+  /// Staging collections live at `official_anki/staging/<attemptId>/`.
+  /// Directories with no catalog attempt are listed as diagnostics only.
+  Future<List<StorageArtifactReport>> _scanOfficialStaging(
+    Directory root,
+  ) async {
+    final stagingRoot = Directory(p.join(root.path, 'staging'));
+    if (!await stagingRoot.exists()) return const [];
+    final ledgerPaths = <String>{};
+    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+    if (catalog != null) {
+      try {
+        for (final row in OfficialAnkiImportAttemptDao(catalog).unfinished()) {
+          final path = row.stagingPath;
+          if (path != null && path.isNotEmpty) {
+            ledgerPaths.add(p.normalize(path));
+          }
+        }
+      } catch (_) {}
+    }
+    final reports = <StorageArtifactReport>[];
+    for (final dir in await _listSubdirectories(stagingRoot.path)) {
+      final bytes = await platform.directorySizeBytes(dir.path);
+      final files = await _countFiles(dir.path);
+      if (bytes <= 0 && files == 0) continue;
+      final onLedger = ledgerPaths.contains(p.normalize(dir.path));
+      reports.add(StorageArtifactReport(
+        category: StorageArtifactCategory.officialAnki,
+        ownerId: p.basename(dir.path),
+        label: onLedger
+            ? 'official_anki/staging/${p.basename(dir.path)}'
+            : 'official_anki/staging/${p.basename(dir.path)} (no ledger)',
+        physicalBytes: bytes,
+        fileCount: files,
+        cleanupPolicy: onLedger
+            ? StorageCleanupPolicy.deleteSaga
+            : StorageCleanupPolicy.confirmOnly,
+        orphaned: !onLedger,
+      ));
     }
     return reports;
   }

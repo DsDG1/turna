@@ -164,4 +164,24 @@ void main() {
     expect(official.cleanupPolicy, StorageCleanupPolicy.deleteSaga,
         reason: 'collection/catalog files are reclaimed via the owner saga');
   });
+
+  test('lists leftover official_anki/staging dirs as diagnostics', () async {
+    final leftover = Directory(
+      '${Directory.systemTemp.path}/official_anki/staging/$stamp-orphan',
+    );
+    await leftover.create(recursive: true);
+    await File('${leftover.path}/collection.anki2')
+        .writeAsBytes(List.filled(2048, 0));
+    addTearDown(() => leftover.delete(recursive: true));
+
+    final report = await const StorageInventoryService().scan();
+    final staging = report.artifacts.singleWhere(
+      (a) => a.ownerId == '$stamp-orphan',
+    );
+    expect(staging.category, StorageArtifactCategory.officialAnki);
+    expect(staging.label, contains('no ledger'));
+    expect(staging.orphaned, isTrue);
+    expect(staging.cleanupPolicy, StorageCleanupPolicy.confirmOnly);
+    expect(staging.physicalBytes, 2048);
+  });
 }

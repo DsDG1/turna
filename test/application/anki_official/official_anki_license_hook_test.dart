@@ -48,6 +48,6 @@ void main() {
         reason: 'production deps wire the official-first service');
     expect(controller.contains('importThenPreview'), isTrue,
         reason: 'doc 40 P5.6: controller drives the official-first saga');
-    expect(service.contains('AnkiImportFacade.resolve'), isTrue);
+    expect(service.contains('startStaging'), isTrue);
   });
 }
