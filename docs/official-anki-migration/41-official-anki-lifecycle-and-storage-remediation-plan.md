@@ -1378,7 +1378,7 @@ test/application/maintenance/storage_inventory_service_test.dart
 | S5 | working tree | fake+engine `gcUnusedMedia`；native op 37 | lifecycle media GC | 同上全量 | native GC 已编入 1.11 `.so`；真机 GC 未跑 |
 | native `.so` | working tree | `cargo ndk -t arm64-v8a --platform 24` → `jniLibs/arm64-v8a/libturna_anki.so` | `verify_symbols.sh` pass | 未跑 `host-test.sh` / 真机矩阵 | rustc 1.97.1、cargo-ndk 4.1.2、NDK 28.2.13676358、protoc 31.1；SHA-256 `C2808E58…D55530` |
 | S6 | working tree | `checkpoints/<attempt>.anki2` + metadata；成功删除后 release | lifecycle checkpoint bound | 同上全量 | 存量 `backups/bk-*` 仅 inventory |
-| S7 | （本波） | maintenance jobs + compact/VACUUM 阈值；`compact_course` 经 Drift `VACUUM`（非 skip） | lifecycle maintenance + `official_anki_course_compact_test` | host | 真机 collection 文件字节仍 unverifiable；存储页「优化」尚未忽略阈值触发 |
+| S7 | `e410a57f` | maintenance jobs + compact/VACUUM 阈值；`compact_course` 经 Drift `VACUUM`（非 skip） | lifecycle maintenance + `official_anki_course_compact_test` | host | 真机 collection 文件字节仍 unverifiable；存储页「优化」尚未忽略阈值触发 |
 | S8 | working tree | catalog v11；repair executor whitelist；census 仍分类 | census_repair | 同上全量 | 修复中心 UI 未独立成页 |
 
 全量 21 失败（本次 log 实摘，非「上次减一」）：
