@@ -227,10 +227,17 @@ class OfficialAnkiMaintenanceRunner {
   static const freelistBytesThreshold = 16 * 1024 * 1024;
   static const freelistRatioThreshold = 0.20;
 
-  Future<int> runPending({required String profileId}) async {
+  /// [leaseOwnerToken] lets a caller that already holds the maintenance
+  /// lease (startup recovery) reuse it instead of being rejected by its
+  /// own lease. Standalone callers keep the default random token and the
+  /// mutual exclusion against concurrent optimize runs is unchanged.
+  Future<int> runPending({
+    required String profileId,
+    String? leaseOwnerToken,
+  }) async {
     final jobs = OfficialAnkiMaintenanceJobDao(catalog);
     final lease = OfficialAnkiMaintenanceLease(catalog);
-    final token = newOfficialAnkiId('lease');
+    final token = leaseOwnerToken ?? newOfficialAnkiId('lease');
     final now = DateTime.now().millisecondsSinceEpoch;
     if (!lease.tryAcquire(
       profileId: profileId,

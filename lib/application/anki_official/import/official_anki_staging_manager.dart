@@ -33,18 +33,24 @@ class OfficialAnkiStagingManager {
   Future<OfficialAnkiEngine> acquire(OfficialAnkiPaths stagingPaths) async {
     await stagingPaths.ensureLayout();
     final override = OfficialAnkiCompositionRoot.debugStagingEngineOverride;
+    final OfficialAnkiEngine engine;
     if (override != null) {
-      await override.openProfile(stagingPaths);
+      engine = override;
       OfficialAnkiCompositionRoot.stagingEngine = override;
-      return override;
+    } else {
+      final session = await OfficialAnkiSession.spawn(
+        paths: stagingPaths,
+        libraryPath: resolveOfficialAnkiLibraryPath(),
+      );
+      OfficialAnkiCompositionRoot.stagingSession = session;
+      engine = OfficialAnkiSessionEngine(session);
+      OfficialAnkiCompositionRoot.stagingEngine = engine;
     }
-    final session = await OfficialAnkiSession.spawn(
-      paths: stagingPaths,
-      libraryPath: resolveOfficialAnkiLibraryPath(),
-    );
-    OfficialAnkiCompositionRoot.stagingSession = session;
-    final engine = OfficialAnkiSessionEngine(session);
-    OfficialAnkiCompositionRoot.stagingEngine = engine;
+    // Step1 task B: both branches must open before import — spawn() only
+    // engineNew()s, so the production branch used to hand back a Created
+    // engine and import_package failed with INVALID_STATE. ensureOpen is
+    // idempotent (already-open swallowed, integrity check re-run).
+    await engine.openProfile(stagingPaths);
     return engine;
   }
 

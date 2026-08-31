@@ -15,9 +15,14 @@ import 'package:turna/service/locator.dart';
 /// Single Official startup entry (doc 42 P3): lease → repair/census →
 /// re-anchor → pending cleanup. Achievements and orphan media stay separate.
 class OfficialAnkiStartupRecovery {
-  const OfficialAnkiStartupRecovery();
+  const OfficialAnkiStartupRecovery({this.ensureEngine});
 
   static const ownerToken = 'startup-recovery';
+
+  /// Opens the engine session when startup work exists. Production default
+  /// is [OfficialAnkiCompositionRoot.requireImporter] — the same road the
+  /// home due sync takes. Injectable for tests.
+  final Future<void> Function()? ensureEngine;
 
   Future<void> run() async {
     final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
@@ -35,7 +40,30 @@ class OfficialAnkiStartupRecovery {
       return;
     }
     try {
-      final engine = OfficialAnkiCompositionRoot.engine;
+      var engine = OfficialAnkiCompositionRoot.engine;
+      // Step1 task C: cold start only opened the read-only catalog, so the
+      // engine is null here and the repair executor below (census, import
+      // recovery, pending cleanup, maintenance runPending) used to be
+      // skipped entirely. Open the engine only when the catalog says there
+      // is work — users without anki pay nothing at startup.
+      if (engine == null && paths != null) {
+        final hasMaintenanceWork =
+            OfficialAnkiMaintenanceJobDao(catalog).pending(profileId: profileId)
+                .isNotEmpty ||
+            OfficialAnkiSourceDao(catalog)
+                .listSources(profileId)
+                .any((row) => row.state == 'pending_cleanup') ||
+            OfficialAnkiImportAttemptDao(catalog).unfinished().isNotEmpty;
+        if (hasMaintenanceWork) {
+          try {
+            await (ensureEngine ??
+                OfficialAnkiCompositionRoot.requireImporter)();
+            engine = OfficialAnkiCompositionRoot.engine;
+          } catch (error) {
+            debugPrint('[OfficialAnki] startup engine open failed: $error');
+          }
+        }
+      }
       if (engine != null && paths != null) {
         final orch = OfficialAnkiImportOrchestrator(
           engine: engine,
@@ -48,11 +76,13 @@ class OfficialAnkiStartupRecovery {
           catalog: catalog,
           orchestrator: orch,
           paths: paths,
+          profileId: profileId,
           uninstall: OfficialAnkiUninstallSaga(
             catalog: catalog,
             engine: engine,
             paths: paths,
           ),
+          maintenanceLeaseOwnerToken: ownerToken,
         );
       }
       try {

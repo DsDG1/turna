@@ -1725,6 +1725,41 @@ mod tests {
     }
 
     #[test]
+    fn import_on_created_engine_is_invalid_state() {
+        // Step1 task B contract: IMPORT_PACKAGE requires EngineState::Open.
+        // A freshly spawned worker (engineNew only, never opened) is
+        // Created and must fail closed before touching the package —
+        // the Dart staging/commit paths rely on this ordering.
+        let root = std::env::temp_dir().join(format!(
+            "turna-bridge-created-import-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&root).unwrap();
+        let junk = root.join("not-a-zip.apkg");
+        fs::write(&junk, b"not a zip").unwrap();
+        let handle = alloc_engine().unwrap();
+        assert_eq!(
+            import(handle, &junk, false).unwrap_err(),
+            STATUS_INVALID_STATE
+        );
+        // After a real open the same handle surfaces the package error
+        // instead — proving the gate above was the state machine, not
+        // the file content.
+        let (opened_root, _, open_body) = crate::test_support::temp_open("created-import");
+        open_collection(handle, &open_body).unwrap();
+        assert_eq!(
+            import(handle, &junk, false).unwrap_err(),
+            STATUS_PACKAGE_INVALID
+        );
+        free_engine(handle).unwrap();
+        let _ = fs::remove_dir_all(root);
+        let _ = fs::remove_dir_all(opened_root);
+    }
+
+    #[test]
     fn render_goldens_match_official_html() {
         let cases = [
             ("01-basic-unicode.apkg", "01-basic-unicode.json"),

@@ -200,7 +200,16 @@ class OfficialAnkiImportSaga {
         debugDetails: 'commit_without_preview',
       );
     }
-    final engine = liveEngine ?? OfficialAnkiCompositionRoot.engine;
+    var engine = liveEngine ?? OfficialAnkiCompositionRoot.engine;
+    if (engine == null) {
+      // Step1 task B (device follow-up): the live session only exists after
+      // home due sync or the review gate opened it; going straight from a
+      // fresh install to the wizard leaves it null and commit failed with
+      // capabilityMissing on-device. Bootstrap it here via the same road
+      // the due sync takes (requireImporter single-flights).
+      await OfficialAnkiCompositionRoot.requireImporter();
+      engine = OfficialAnkiCompositionRoot.engine;
+    }
     if (engine == null) {
       throw const OfficialAnkiException(
         code: OfficialAnkiErrorCode.capabilityMissing,
@@ -224,6 +233,11 @@ class OfficialAnkiImportSaga {
 
     OfficialAnkiImportLog imported;
     try {
+      // Step1 task B: if the user goes straight to the wizard after cold
+      // start, nothing has opened the live engine yet (home due sync and
+      // the review gate are the only openers) — import would fail with
+      // INVALID_STATE. Idempotent open, no-op when already open.
+      await engine.openProfile(paths);
       imported = await engine.importPackage(
         packagePath: packagePath,
         withScheduling: true,

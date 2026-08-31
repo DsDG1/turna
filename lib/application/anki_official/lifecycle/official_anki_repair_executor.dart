@@ -33,6 +33,7 @@ class OfficialAnkiRepairExecutor {
     OfficialAnkiPaths? paths,
     OfficialAnkiUninstallSaga? uninstall,
     String profileId = 'profile-default-01',
+    String? maintenanceLeaseOwnerToken,
   }) async {
     const census = OfficialAnkiStartupCensus();
     final report = await census.run(
@@ -68,7 +69,10 @@ class OfficialAnkiRepairExecutor {
         paths: paths,
         engine: orchestrator.engine,
         course: course,
-      ).runPending(profileId: profileId);
+      ).runPending(
+        profileId: profileId,
+        leaseOwnerToken: maintenanceLeaseOwnerToken,
+      );
     }
     return OfficialAnkiRepairReport(
       censusRows: report.rows.length,
