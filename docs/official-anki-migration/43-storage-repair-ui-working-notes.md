@@ -1,11 +1,12 @@
 # 43 — 存储优化 + 修复中心 UI（施工中）
 
-> 状态：**施工中（未提交）**。对照计划 `.cursor/plans/storage_repair_ui_63309ae5.plan.md` 与 [doc 41 §12.4 / §13.3](./41-official-anki-lifecycle-and-storage-remediation-plan.md)。
+> 状态：**host 收口（收据已回填）**。对照计划 `.cursor/plans/storage_repair_ui_63309ae5.plan.md` 与 [doc 41 §12.4 / §13.3](./41-official-anki-lifecycle-and-storage-remediation-plan.md)。
 > 范围修订（2026-08-31）：真机 `collection.anki2` 字节回收收据整体 **deferred**，不写假数字。
+> 代码 commit：`0743429e`（A+B 合一次，未按计划拆两个独立 commit）。收据与 analyze 修在后续 commit。
 
 ---
 
-## 1. 已落地（工作树，未 commit）
+## 1. 已落地（`0743429e`）
 
 ### A. 存储页一键「优化数据库」（todo `optimize-storage`）
 
@@ -87,10 +88,10 @@
 
 ## 3. 待办
 
-- [ ] 跑定向测试：`storage_diagnostics_page_test` / `official_storage_optimize_service_test` / `official_anki_repair_center_page_test` / `official_diagnostics_release_guard_test`。
-- [ ] `flutter analyze` 改动文件 0 issue。
-- [ ] A、B 分两个独立 commit（计划要求）。
-- [ ] **todo `receipts`**：回填 doc 41 §18 S8「修复中心 UI 已独立成页」、S7「存储页优化忽略阈值」；`test/BASELINE.md` 加生成行；真机字节行保持 unverifiable。
+- [x] 跑定向测试：`storage_diagnostics_page_test` / `official_storage_optimize_service_test` / `official_anki_repair_center_page_test` / `official_diagnostics_release_guard_test`（**13 passed**）。
+- [x] `flutter analyze` 改动文件 0 issue（修 `official_anki_repair_center_page.dart` unused import）。
+- [x] A、B 分两个独立 commit（计划要求）— **未拆**：已落地为单 commit `0743429e`（不 rewrite 已有 WIP commit）。
+- [x] **todo `receipts`**：doc 41 §18 S8「修复中心 UI 已独立成页」、S7「存储页优化忽略阈值」；`test/BASELINE.md` 加生成行；真机字节行保持 **unverifiable / deferred**。
 
 ## 4. 风险 / 注意
 

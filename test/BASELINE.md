@@ -1,3 +1,5 @@
+Generated: 2026-08-31 (doc 41 S7/S8 存储优化 + 修复中心 UI)：存储页一键 `forceCompact` 忽略阈值；独立 `OfficialAnkiRepairCenterPage`（产品面）。定向 **13 passed**：`storage_diagnostics_page_test` 6、`official_storage_optimize_service_test` 1、`official_anki_repair_center_page_test` 2、`official_diagnostics_release_guard_test` 4。`flutter analyze` 改动文件 0 issue。真机 `collection.anki2` 字节回收 **deferred / unverifiable**。全量与 Android 强杀矩阵未跑。commit `0743429e`（A+B 合一次，未按计划拆两个 commit）。
+
 Generated: 2026-08-31 (doc 41 S7 CourseDB VACUUM)：`OfficialAnkiMaintenanceRunner.compactCourseDatabase` 在 Drift 连接上 `wal_checkpoint`+`VACUUM`（阈值或 `forceCompact`）；卸载排队 `compact_course`；repair executor 传入 `CourseDatabase`。定向 `official_anki_course_compact_test`。Android 强杀矩阵仍未跑。
 
 Generated: 2026-08-31 (doc 42 P4 旧路径删除)：生产导入只走 `startStaging` → `commitLive`。删 orchestrator live-first `importFile`/`createBackup`；缺 catalog 不再 facade 直连 live；`restoreBackup` 仅存量 checkpoint；无 checkpoint 未完成导入 quarantine。worker `importFile` 薄转 `importPackage`。inventory `official_anki/staging/`。P0 S-a/S-b/S-c/S-d 须保持绿。

@@ -1363,7 +1363,7 @@ test/application/maintenance/storage_inventory_service_test.dart
 - [ ] census categories
 - [ ] evidence CAS executor
 - [ ] one-time backfill/repair
-- [ ] repair/storage center
+- [x] repair/storage center（独立页 `OfficialAnkiRepairCenterRoute`；见 `0743429e`）
 - [ ] Android release 强杀矩阵
 
 ### 18.2 Commit receipt
@@ -1378,8 +1378,8 @@ test/application/maintenance/storage_inventory_service_test.dart
 | S5 | working tree | fake+engine `gcUnusedMedia`；native op 37 | lifecycle media GC | 同上全量 | native GC 已编入 1.11 `.so`；真机 GC 未跑 |
 | native `.so` | working tree | `cargo ndk -t arm64-v8a --platform 24` → `jniLibs/arm64-v8a/libturna_anki.so` | `verify_symbols.sh` pass | 未跑 `host-test.sh` / 真机矩阵 | rustc 1.97.1、cargo-ndk 4.1.2、NDK 28.2.13676358、protoc 31.1；SHA-256 `C2808E58…D55530` |
 | S6 | working tree | `checkpoints/<attempt>.anki2` + metadata；成功删除后 release | lifecycle checkpoint bound | 同上全量 | 存量 `backups/bk-*` 仅 inventory |
-| S7 | `e410a57f` | maintenance jobs + compact/VACUUM 阈值；`compact_course` 经 Drift `VACUUM`（非 skip） | lifecycle maintenance + `official_anki_course_compact_test` | host | 真机 collection 文件字节仍 unverifiable；存储页「优化」尚未忽略阈值触发 |
-| S8 | working tree | catalog v11；repair executor whitelist；census 仍分类 | census_repair | 同上全量 | 修复中心 UI 未独立成页 |
+| S7 | `e410a57f` + `0743429e` | maintenance jobs + compact/VACUUM 阈值；`compact_course` 经 Drift `VACUUM`；存储页一键优化走 `forceCompact`（忽略阈值） | lifecycle maintenance + `official_anki_course_compact_test` + `storage_diagnostics_page_test` + `official_storage_optimize_service_test` | host | 真机 collection 文件字节仍 **unverifiable / deferred**；不填假数字 |
+| S8 | `0743429e` | catalog v11；repair executor whitelist；census 仍分类；修复中心 UI 已独立成页（`OfficialAnkiRepairCenterRoute`，产品面，不进 diagnostics guard） | `official_anki_repair_center_page_test` + `official_diagnostics_release_guard_test` | host | 真机字节 **unverifiable / deferred**；M0–M9 一次性 migration 与 Android 强杀矩阵未跑 |
 
 全量 21 失败（本次 log 实摘，非「上次减一」）：
 
@@ -1413,7 +1413,7 @@ test/application/maintenance/storage_inventory_service_test.dart
 | orphan mappings | 只增不减 | pruneOrphanMappings | metadata dao | host |
 | unused media count/bytes | 10MiB exclusive | 0 after GC；shared kept | Fake gcUnusedMedia | host fake |
 | rollback checkpoint count/bytes | 每 import 一份 | 5 轮后 ready=0 | lifecycle checkpoint cycle | host |
-| collection file/freelist bytes | 未测真机 | 未测 | native compact 未跑 | **unverifiable** |
+| collection file/freelist bytes | 未测真机 | 未测 | native compact / 真机 before-after **deferred**（2026-08-31） | **unverifiable** |
 | catalog file/WAL/freelist bytes | — | compactSqliteFile 实现 | maintenance runner | 无设备收据 |
 | course DB file/WAL/freelist bytes | — | Drift `VACUUM` on live `CourseDatabase` | `official_anki_course_compact_test` | host file-backed |
 | maintenance pending/failed | 无表 | jobs merge by kind | lifecycle maintenance | host |
