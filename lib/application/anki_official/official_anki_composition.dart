@@ -232,7 +232,10 @@ class OfficialAnkiCompositionRoot {
   static Future<void> initializeReadOnlyLocator({
     Directory? supportDir,
   }) async {
-    if (readOnlyCatalog != null) return;
+    if (readOnlyCatalog != null && locatorPaths != null && supportDir == null) {
+      _bindCourseEntryCatalog(locatorPaths!);
+      return;
+    }
     final support = supportDir ?? await getApplicationSupportDirectory();
     final paths = OfficialAnkiPaths(
       profileId: 'profile-default-01',
@@ -249,16 +252,30 @@ class OfficialAnkiCompositionRoot {
   /// here so exactly one main-isolate connection exists per file; the
   /// worker isolate keeps its own. A different path (profile switch, tests)
   /// swaps the handle and disposes the previous one.
+  /// Course-tree visibility reads [OfficialAnkiCourseEntry.catalogOf]. Cold
+  /// start used to open [readOnlyCatalog] without this hook, so
+  /// [OfficialAnkiCourseEntry.resolveActiveSectionIds] returned empty and
+  /// imported Official sections were filtered out of the Learn tree.
+  static void _bindCourseEntryCatalog(OfficialAnkiPaths paths) {
+    OfficialAnkiCourseEntry.catalogOf = () => _ensureSharedCatalog(paths);
+  }
+
   static OfficialAnkiDatabase _ensureSharedCatalog(OfficialAnkiPaths paths) {
     final wanted = paths.catalogFile.path;
     final existing = readOnlyCatalog;
-    if (existing != null && _sharedCatalogPath == wanted) return existing;
-    final opened = OfficialAnkiDatabase.file(wanted);
-    existing?.close();
-    readOnlyCatalog = opened;
-    _sharedCatalogPath = wanted;
-    locatorPaths = paths;
-    return opened;
+    final OfficialAnkiDatabase catalog;
+    if (existing != null && _sharedCatalogPath == wanted) {
+      catalog = existing;
+    } else {
+      final opened = OfficialAnkiDatabase.file(wanted);
+      existing?.close();
+      readOnlyCatalog = opened;
+      _sharedCatalogPath = wanted;
+      locatorPaths = paths;
+      catalog = opened;
+    }
+    _bindCourseEntryCatalog(paths);
+    return catalog;
   }
 
   static OfficialAnkiCourseProjectionService createProjectionService({

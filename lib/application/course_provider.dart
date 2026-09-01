@@ -248,8 +248,9 @@ class CourseProvider extends ChangeNotifier {
     if (OfficialAnkiCourseEntry.flagsOf().allowsCourseEntry) {
       officialActive = await OfficialAnkiCourseEntry.resolveActiveSectionIds();
     }
+    final rawShells = await loadSectionShells();
     _allSections = OfficialAnkiCourseEntry.filterShells(
-      await loadSectionShells(),
+      rawShells,
       activeIds: officialActive,
     );
     await _reloadCatalog(shells: _allSections);
@@ -257,6 +258,24 @@ class CourseProvider extends ChangeNotifier {
     if (_scope case BuiltinCourseScope() when _sections.isEmpty) {
       // No builtin content (data wipe): keep the builtin scope with an
       // empty tree rather than thrashing the preference.
+    } else if (_sections.isEmpty && _catalogStillHasScope(_scope)) {
+      // Visibility (manifest fingerprint / catalogOf) missed an installed
+      // source. Do not treat that as uninstall — bounce-to-builtin is what
+      // made "开始学习" look stuck on the built-in tree.
+      logger.w(
+        'CourseProvider.load: scope "$_scope" visibility missed sections; '
+        'keeping installed source',
+      );
+      final ownedIds = {
+        for (final section in rawShells)
+          if (_sectionInScope(section)) section.id,
+      };
+      _allSections = OfficialAnkiCourseEntry.filterShells(
+        rawShells,
+        activeIds: ownedIds,
+      );
+      await _reloadCatalog(shells: _allSections);
+      _sections = _applyScopeFilter(_allSections);
     } else if (_sections.isEmpty) {
       // The scoped source was uninstalled — fall back to the built-in
       // course rather than showing an empty tree.
@@ -479,6 +498,16 @@ class CourseProvider extends ChangeNotifier {
       for (final s in shells)
         if (_sectionInScope(s)) s
     ];
+  }
+
+  bool _catalogStillHasScope(CourseScope scope) {
+    return switch (scope) {
+      BuiltinCourseScope() => true,
+      LegacyAnkiCourseScope(importId: final id) =>
+        _catalogEntries.any((e) => e.legacyImportId == id),
+      OfficialAnkiCourseScope(sourceId: final id) =>
+        _catalogEntries.any((e) => e.officialSourceId == id),
+    };
   }
 
   bool _sectionInScope(Section s) {

@@ -58,11 +58,14 @@ class OfficialAnkiCourseEntry {
   }
 
   static Future<Set<String>> lookupActiveSectionIdsAsync({
-    required OfficialAnkiDatabase catalog,
+    OfficialAnkiDatabase? catalog,
     required CourseDatabase course,
   }) async {
-    // Catalog is the job/recovery mirror only; Course manifest is visibility.
-    catalog.handle.userVersion;
+    // Catalog is optional: v1 visibility is the Course manifest/index.
+    // Missing catalogOf used to return {} and hide a fully projected tree.
+    if (catalog != null) {
+      catalog.handle.userVersion;
+    }
     final manifests = await course.customSelect(
       'SELECT source_id, source_fingerprint FROM official_anki_projection_manifest',
     ).get();
@@ -90,19 +93,23 @@ class OfficialAnkiCourseEntry {
     return ids;
   }
 
-  /// Catalog + CourseDatabase index. Never reads projection staging.
+  /// CourseDatabase index (v1 manifest). Never reads projection staging.
+  /// Catalog may be absent on cold start before the importer opens — v1
+  /// projected sections must still resolve.
   static Future<Set<String>> resolveActiveSectionIds() async {
     final hook = activeSectionIds;
     if (hook != null) return Set<String>.from(hook());
-    final catalog = catalogOf?.call();
     CourseDatabase? course;
     try {
       course = courseOf?.call() ?? CourseLoader.databaseOrNull();
     } catch (_) {
       course = null;
     }
-    if (catalog == null || course == null) return <String>{};
-    return lookupActiveSectionIdsAsync(catalog: catalog, course: course);
+    if (course == null) return <String>{};
+    return lookupActiveSectionIdsAsync(
+      catalog: catalogOf?.call(),
+      course: course,
+    );
   }
 
   static List<Section> filterShells(

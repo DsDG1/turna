@@ -173,6 +173,66 @@ void main() {
   });
 
   test(
+      'empty visibility set does not bounce an installed official source '
+      'back to the built-in course', () async {
+    OfficialAnkiCourseEntry.activeSectionIds = () => {};
+    await appPrefs.setString(
+      PrefsConstants.courseScope,
+      OfficialAnkiCourseScope(
+        profileId: 'profile-default-01',
+        sourceId: srcA,
+      ).wireKey,
+    );
+
+    final provider = CourseProvider(appPrefs);
+    await provider.load();
+
+    expect(
+      provider.scope,
+      OfficialAnkiCourseScope(
+        profileId: 'profile-default-01',
+        sourceId: srcA,
+      ),
+    );
+    expect(provider.sections.map((s) => s.id).toSet(), {
+      'official-anki-$srcA-s10',
+      'official-anki-$srcA-s11',
+    });
+  });
+
+  test(
+      'official scope with no catalog entry still falls back to builtin',
+      () async {
+    OfficialAnkiCourseEntry.activeSectionIds = () => {};
+    await dao.commitVisibility(
+      courseId: 'course-$srcA',
+      state: AnkiSourceVisibility.retired,
+    );
+    await dao.commitVisibility(
+      courseId: 'course-$srcB',
+      state: AnkiSourceVisibility.retired,
+    );
+    await appPrefs.setString(
+      PrefsConstants.courseScope,
+      OfficialAnkiCourseScope(
+        profileId: 'profile-default-01',
+        sourceId: srcA,
+      ).wireKey,
+    );
+
+    final provider = CourseProvider(appPrefs);
+    await provider.load();
+
+    expect(provider.scope, const BuiltinCourseScope('turkish'));
+    expect(
+      provider.sections.any(
+        (s) => OfficialAnkiCourseEntry.isOfficialSectionId(s.id),
+      ),
+      isFalse,
+    );
+  });
+
+  test(
       'legacy anki:<fullSourceId> scope value resolves to the official '
       'source (upgrade path)', () async {
     await appPrefs.setString(PrefsConstants.courseScope, 'anki:$srcB');
