@@ -501,9 +501,10 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
         'deckIds': deckIds,
       });
 
-  Future<OfficialAnkiCompactResult> compactCollection() =>
+  Future<OfficialAnkiCompactResult> compactCollection({bool force = false}) =>
       _call<OfficialAnkiCompactResult>('scheduler', {
         'op': 'compactCollection',
+        'force': force,
       });
 
   Future<List<int>> diffCollectionCheckpoint(String checkpointId) =>
@@ -987,7 +988,7 @@ Future<Object?> dispatchOfficialAnkiScheduler(
             .toList(),
       );
     case 'compactCollection':
-      return engine.compactCollection();
+      return engine.compactCollection(force: message['force'] == true);
     case 'diffCollectionCheckpoint':
       return engine.diffCollectionCheckpoint(
         message['checkpointId'] as String? ?? '',

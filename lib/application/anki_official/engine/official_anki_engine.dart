@@ -145,7 +145,7 @@ abstract class OfficialAnkiEngine {
     List<int> deckIds = const <int>[],
   });
 
-  Future<OfficialAnkiCompactResult> compactCollection();
+  Future<OfficialAnkiCompactResult> compactCollection({bool force = false});
 
   /// Card ids present in the Collection after [checkpointId] that are not in
   /// the checkpoint. Empty when the engine cannot prove a diff.

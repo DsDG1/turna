@@ -264,8 +264,8 @@ class OfficialAnkiSessionEngine implements OfficialAnkiEngine {
   }
 
   @override
-  Future<OfficialAnkiCompactResult> compactCollection() {
-    return session.compactCollection();
+  Future<OfficialAnkiCompactResult> compactCollection({bool force = false}) {
+    return session.compactCollection(force: force);
   }
 
   @override

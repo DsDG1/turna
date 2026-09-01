@@ -8,11 +8,15 @@ import 'package:flutter/cupertino.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
+import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
+import 'package:turna/application/anki_official/v2/official_anki_v2_course_read.dart';
+import 'package:turna/application/anki_official/v2/official_anki_v2_decision_store.dart';
 import 'package:turna/application/course_catalog.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/courses/languages/course_lookup.dart';
+import 'package:turna/data/course_database.dart' show CourseDatabase;
 import 'package:turna/domain/course/course_scope.dart';
 import 'package:turna/domain/course/section.dart';
 import 'package:turna/domain/course/unit.dart';
@@ -233,6 +237,48 @@ class CourseProvider extends ChangeNotifier {
   /// section's body so the course tree has something to show immediately.
   ///
   /// Idempotent: a second invocation while [_isLoaded] is already true is a
+  /// v2 视图 section id 集（flag 关时空）：这些 section 的壳自带完整
+  /// units/lessons，[ensureSectionLoaded] 无需再走 drift 装载。
+  Set<String> _v2SectionIds = <String>{};
+
+  /// v1 壳 + v2 视图壳（B6 读面分叉；flag 关时 v2 侧为空）。
+  Future<List<Section>> _shellsWithV2() async {
+    final shells = await loadSectionShells();
+    final read = _v2Read();
+    if (read == null) return shells;
+    try {
+      final v2Shells = await read.sectionShells();
+      if (v2Shells.isEmpty) return shells;
+      return [...shells, ...v2Shells];
+    } catch (error) {
+      logger.w('CourseProvider: v2 section shells unavailable: $error');
+      return shells;
+    }
+  }
+
+  Future<Set<String>> _loadV2SectionIds() async {
+    final read = _v2Read();
+    if (read == null) return const {};
+    try {
+      return await read.activeSectionIds();
+    } catch (_) {
+      return const {};
+    }
+  }
+
+  OfficialAnkiV2CourseRead? _v2Read() {
+    if (!OfficialAnkiCourseEntry.flagsOf().allowsV2ImportChain) return null;
+    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+    CourseDatabase? course;
+    try {
+      course = CourseLoader.databaseOrNull();
+    } catch (_) {
+      course = null;
+    }
+    if (catalog == null || course == null) return null;
+    return OfficialAnkiV2CourseRead(catalog: catalog, course: course);
+  }
+
   /// no-op. This was previously unconditional, which let widget rebuilds
   /// (e.g. switching away from the Learn tab and back via [AnimatedSwitcher])
   /// reset [_sections] back to shells while [_loadedSectionIds] still
@@ -244,11 +290,12 @@ class CourseProvider extends ChangeNotifier {
     }
     logger.w('CourseProvider.load: first load, fetching from DB');
     await _restoreScopeFromPrefs();
+    _v2SectionIds = await _loadV2SectionIds();
     Set<String>? officialActive;
     if (OfficialAnkiCourseEntry.flagsOf().allowsCourseEntry) {
       officialActive = await OfficialAnkiCourseEntry.resolveActiveSectionIds();
     }
-    final rawShells = await loadSectionShells();
+    final rawShells = await _shellsWithV2();
     _allSections = OfficialAnkiCourseEntry.filterShells(
       rawShells,
       activeIds: officialActive,
@@ -340,6 +387,15 @@ class CourseProvider extends ChangeNotifier {
     _sectionLoadStates[id] = SectionLoadState.loading;
     _sectionLoadErrors.remove(id);
     notifyListeners();
+    // v2 视图 section：壳即正文（units/lessons 已在壳里），无需 drift
+    // 装载——直接置 loaded，课时卡映射由 lesson card index 的 v2 分支供。
+    if (_v2SectionIds.contains(id)) {
+      _loadedSectionIds.add(id);
+      _sectionLoadStates[id] = SectionLoadState.loaded;
+      notifyListeners();
+      completer.complete();
+      return completer.future;
+    }
     logger.i('CourseProvider.ensureSectionLoaded($id): starting fetch');
     () async {
       try {
@@ -440,12 +496,29 @@ class CourseProvider extends ChangeNotifier {
   /// Switch the course scope (typed) and reload the tree. Persists the
   /// choice so it survives restarts; [load] falls back to the builtin
   /// course when the scoped source no longer exists.
+  ///
+  /// v2（B6/K14）：提交即持久化两层——prefs（兼容 v1 读面）+ 配置区决策
+  /// 键 `turna.course.scope`（随 collection.anki2 备份走）；不等进程正常
+  /// 退出。配置区写经引擎，best-effort 不阻塞切换。
   Future<void> setScope(CourseScope next) async {
     if (next == _scope && _isLoaded) return;
     _scope = next;
     await _persistScope();
+    await _persistScopeDecisionToConfig(next);
     CourseLoader.invalidateCaches();
     await reloadCourse();
+  }
+
+  Future<void> _persistScopeDecisionToConfig(CourseScope next) async {
+    try {
+      final engine = OfficialAnkiCompositionRoot.engine;
+      if (engine == null) return;
+      await OfficialAnkiV2DecisionStore(engine).writeCourseScope(
+        next.wireKey,
+      );
+    } catch (error) {
+      logger.w('CourseProvider: scope decision write failed: $error');
+    }
   }
 
   /// Compatibility entry point: accepts a v1 codec wire key or a legacy

@@ -54,8 +54,34 @@ class OfficialAnkiHomeDueSync {
     try {
       await _collectAndCommit();
     } on OfficialAnkiException catch (error) {
+      if (marksUnavailableWithoutRethrow(error)) {
+        OfficialFormalDueRepository.instance.markUnavailable(error);
+        return;
+      }
       if (error.code != OfficialAnkiErrorCode.pageTokenStale) rethrow;
-      await _collectAndCommit();
+      try {
+        await _collectAndCommit();
+      } on OfficialAnkiException catch (retryError) {
+        if (marksUnavailableWithoutRethrow(retryError) ||
+            retryError.code == OfficialAnkiErrorCode.pageTokenStale) {
+          OfficialFormalDueRepository.instance.markUnavailable(retryError);
+          return;
+        }
+        rethrow;
+      }
+    }
+  }
+
+  /// Maintenance/engine-state failures must not escape as uncaught platform
+  /// errors (step1 pending_cleanup / compact invalid_state).
+  static bool marksUnavailableWithoutRethrow(OfficialAnkiException error) {
+    switch (error.code) {
+      case OfficialAnkiErrorCode.invalidState:
+      case OfficialAnkiErrorCode.schedulerBusy:
+      case OfficialAnkiErrorCode.collectionLocked:
+        return true;
+      default:
+        return false;
     }
   }
 
@@ -131,7 +157,9 @@ class OfficialAnkiHomeDueSync {
               opened = true;
               break;
             }
-            if (error.code != OfficialAnkiErrorCode.collectionLocked) {
+            if (error.code != OfficialAnkiErrorCode.collectionLocked &&
+                error.code != OfficialAnkiErrorCode.invalidState &&
+                error.code != OfficialAnkiErrorCode.schedulerBusy) {
               rethrow;
             }
             await Future<void>.delayed(

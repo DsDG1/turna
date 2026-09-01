@@ -1,6 +1,7 @@
-import 'package:flutter/foundation.dart';
 import 'package:turna/application/anki_official/anki_deck_manager.dart';
+import 'package:turna/application/anki_official/lifecycle/official_anki_file_log.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_orchestrator.dart';
+import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_maintenance.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_repair_executor.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_uninstall_saga.dart';
@@ -53,6 +54,9 @@ class OfficialAnkiStartupRecovery {
             OfficialAnkiSourceDao(catalog)
                 .listSources(profileId)
                 .any((row) => row.state == 'pending_cleanup') ||
+            OfficialAnkiSourceDao(catalog)
+                .listV2Sources(profileId)
+                .isNotEmpty ||
             OfficialAnkiImportAttemptDao(catalog).unfinished().isNotEmpty;
         if (hasMaintenanceWork) {
           try {
@@ -60,8 +64,25 @@ class OfficialAnkiStartupRecovery {
                 OfficialAnkiCompositionRoot.requireImporter)();
             engine = OfficialAnkiCompositionRoot.engine;
           } catch (error) {
-            debugPrint('[OfficialAnki] startup engine open failed: $error');
+            officialAnkiStartupLog('startup engine open failed: $error', warning: true);
           }
+        }
+      }
+      // K3（step4.md B3）：v2 有活跃 source → 入队整视图重建（无状态、
+      // 幂等）。engine null（无 v2 数据）时自然跳过。
+      if (engine != null && paths != null) {
+        try {
+          final v2Sources = OfficialAnkiSourceDao(catalog)
+              .listV2Sources(profileId, states: {'active'});
+          if (v2Sources.isNotEmpty) {
+            OfficialAnkiMaintenanceJobDao(catalog).enqueue(
+              profileId: profileId,
+              kind: OfficialAnkiMaintenanceKind.v2ViewRebuild,
+              nowMillis: DateTime.now().millisecondsSinceEpoch,
+            );
+          }
+        } catch (error) {
+          officialAnkiStartupLog('v2 view rebuild enqueue: $error', warning: true);
         }
       }
       if (engine != null && paths != null) {
@@ -88,16 +109,16 @@ class OfficialAnkiStartupRecovery {
       try {
         await OfficialFirstReanchor().runIfNeeded(getIt<AppPrefs>());
       } catch (e) {
-        debugPrint('[OfficialAnki] P5F re-anchor skipped: $e');
+        officialAnkiStartupLog('P5F re-anchor skipped: $e', warning: true);
       }
       try {
         final resumed =
             await getIt<AnkiDeckManager>().retryPendingOfficialCleanups();
         if (resumed > 0) {
-          debugPrint('[OfficialAnki] resumed $resumed pending cleanups');
+          officialAnkiStartupLog('resumed $resumed pending cleanups');
         }
       } catch (e) {
-        debugPrint('[OfficialAnki] pending cleanup retry skipped: $e');
+        officialAnkiStartupLog('pending cleanup retry skipped: $e', warning: true);
       }
     } finally {
       lease.release(profileId: profileId, ownerToken: ownerToken);

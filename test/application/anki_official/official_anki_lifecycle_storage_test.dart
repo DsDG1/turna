@@ -323,13 +323,50 @@ void main() {
     expect(ran, greaterThan(0));
   });
 
-  test('catalog schema is v12', () {
+  test('uninstall opens a closed collection before deleting cards', () async {
+    final h = harness();
+    addTearDown(h.dispose);
+    final imported = await stage(h, displayName: 'need-open');
+    await h.engine.closeCollection();
+    h.engine.requireCollectionOpen = true;
+    expect(h.engine.openProfileId, isNull);
+    final result = await OfficialAnkiUninstallSaga(
+      catalog: h.db,
+      engine: h.engine,
+      paths: h.paths,
+    ).run(imported.sourceId);
+    expect(result.logicalDeleteComplete, isTrue);
+    expect(h.engine.openProfileId, h.paths.profileId);
+    expect(h.sources.findById(imported.sourceId), isNull);
+  });
+
+  test('compactCollection invalid_state completes the job instead of retrying',
+      () async {
+    final h = harness();
+    addTearDown(h.dispose);
+    h.engine.failCompactInvalidState = true;
+    final jobs = OfficialAnkiMaintenanceJobDao(h.db);
+    jobs.enqueue(
+      profileId: h.paths.profileId,
+      kind: OfficialAnkiMaintenanceKind.compactCollection,
+      nowMillis: DateTime.now().millisecondsSinceEpoch,
+    );
+    final ran = await OfficialAnkiMaintenanceRunner(
+      catalog: h.db,
+      paths: h.paths,
+      engine: h.engine,
+    ).runPending(profileId: h.paths.profileId);
+    expect(ran, 1);
+    expect(jobs.pending(profileId: h.paths.profileId), isEmpty);
+  });
+
+  test('catalog schema is v13', () {
     final db = OfficialAnkiDatabase.memory();
     addTearDown(db.close);
     final version =
         db.handle.select('PRAGMA user_version').first['user_version'] as int;
     expect(version, kOfficialAnkiCatalogSchemaVersion);
-    expect(version, 12);
+    expect(version, 13);
     final tables = db.handle
         .select("SELECT name FROM sqlite_master WHERE type='table'")
         .map((row) => row['name'] as String)

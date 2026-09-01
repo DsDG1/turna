@@ -15,6 +15,7 @@ class OfficialAnkiSourceRow {
     required this.sourceHash,
     required this.state,
     required this.displayName,
+    this.chain = 'v1',
   });
 
   final String sourceId;
@@ -22,6 +23,12 @@ class OfficialAnkiSourceRow {
   final String sourceHash;
   final String state;
   final String displayName;
+
+  /// 'v1' | 'v2' (catalog v13): which import chain wrote this source. The
+  /// read path serves both generations; the flag only routes new imports.
+  final String chain;
+
+  bool get isV2 => chain == 'v2';
 }
 
 class OfficialAnkiSourceDao {
@@ -33,7 +40,7 @@ class OfficialAnkiSourceDao {
 
   OfficialAnkiSourceRow? findByHash(String profileId, String hash) {
     final rows = _db.select(
-      'SELECT source_id, profile_id, source_hash, state, display_name '
+      'SELECT source_id, profile_id, source_hash, state, display_name, chain '
       'FROM anki_sources WHERE profile_id = ? AND source_hash = ?',
       [profileId, hash],
     );
@@ -45,12 +52,13 @@ class OfficialAnkiSourceDao {
       sourceHash: row['source_hash'] as String,
       state: row['state'] as String,
       displayName: row['display_name'] as String,
+      chain: (row['chain'] as String?) ?? 'v1',
     );
   }
 
   OfficialAnkiSourceRow? findById(String sourceId) {
     final rows = _db.select(
-      'SELECT source_id, profile_id, source_hash, state, display_name '
+      'SELECT source_id, profile_id, source_hash, state, display_name, chain '
       'FROM anki_sources WHERE source_id = ?',
       [sourceId],
     );
@@ -62,6 +70,7 @@ class OfficialAnkiSourceDao {
       sourceHash: row['source_hash'] as String,
       state: row['state'] as String,
       displayName: row['display_name'] as String,
+      chain: (row['chain'] as String?) ?? 'v1',
     );
   }
 
@@ -348,7 +357,7 @@ WHERE mine.source_id = ? AND EXISTS (
   List<OfficialAnkiSourceRow> listSources(String profileId) {
     return _db
         .select(
-          'SELECT source_id, profile_id, source_hash, state, display_name '
+          'SELECT source_id, profile_id, source_hash, state, display_name, chain '
           'FROM anki_sources WHERE profile_id = ?',
           [profileId],
         )
@@ -359,9 +368,100 @@ WHERE mine.source_id = ? AND EXISTS (
             sourceHash: row['source_hash'] as String,
             state: row['state'] as String,
             displayName: row['display_name'] as String,
+            chain: (row['chain'] as String?) ?? 'v1',
           ),
         )
         .toList();
+  }
+
+  // ------------------------------------------------------------------
+  // v2 chain (ADR 0043 D4/D6, step4.md B2/B5). The v2 path writes ONLY the
+  // five ledger tables — these helpers never touch the other 13.
+  // ------------------------------------------------------------------
+
+  /// Marks a source as imported by the v2 chain. Idempotent.
+  void markChainV2({required String sourceId, required int nowMillis}) {
+    _db.execute(
+      "UPDATE anki_sources SET chain = 'v2', updated_at_millis = ? "
+      'WHERE source_id = ?',
+      [nowMillis, sourceId],
+    );
+  }
+
+  /// Sources on the v2 chain filtered by [states] (empty = all states).
+  List<OfficialAnkiSourceRow> listV2Sources(
+    String profileId, {
+    Set<String> states = const {},
+  }) {
+    final rows = states.isEmpty
+        ? _db.select(
+            'SELECT source_id, profile_id, source_hash, state, display_name, chain '
+            "FROM anki_sources WHERE profile_id = ? AND chain = 'v2' "
+            'ORDER BY created_at_millis',
+            [profileId],
+          )
+        : _db.select(
+            'SELECT source_id, profile_id, source_hash, state, display_name, chain '
+            "FROM anki_sources WHERE profile_id = ? AND chain = 'v2' "
+            'AND state IN (${List.filled(states.length, '?').join(', ')}) '
+            'ORDER BY created_at_millis',
+            [profileId, ...states],
+          );
+    return rows
+        .map(
+          (row) => OfficialAnkiSourceRow(
+            sourceId: row['source_id'] as String,
+            profileId: row['profile_id'] as String,
+            sourceHash: row['source_hash'] as String,
+            state: row['state'] as String,
+            displayName: row['display_name'] as String,
+            chain: (row['chain'] as String?) ?? 'v1',
+          ),
+        )
+        .toList();
+  }
+
+  /// Retiring entry point (D6 step ①): CAS active → retiring. The caller
+  /// wraps this plus the delete-job enqueue in ONE catalog transaction so a
+  /// kill between them is impossible.
+  void markRetiring({required String sourceId, required int nowMillis}) {
+    _db.execute(
+      "UPDATE anki_sources SET state = 'retiring', updated_at_millis = ? "
+      "WHERE source_id = ? AND state = 'active'",
+      [nowMillis, sourceId],
+    );
+    if (_db.updatedRows != 1) {
+      throw StateError('source $sourceId was not active');
+    }
+  }
+
+  /// v2 final ledger delete (D6 step ③): touches only the three populated
+  /// ledger tables of the five-table v2 set (jobs/leases are profile-wide).
+  /// Idempotent: returns false when the source row is already gone.
+  bool deleteSourceV2({required String sourceId}) {
+    final existing = _db.select(
+      'SELECT 1 FROM anki_sources WHERE source_id = ?',
+      [sourceId],
+    );
+    if (existing.isEmpty) return false;
+    _db.execute('BEGIN');
+    try {
+      _db.execute(
+        'DELETE FROM anki_import_attempts WHERE source_id = ?',
+        [sourceId],
+      );
+      _db.execute(
+        'DELETE FROM anki_source_cards WHERE source_id = ?',
+        [sourceId],
+      );
+      _db.execute('DELETE FROM anki_sources WHERE source_id = ?', [sourceId]);
+      _db.execute('COMMIT');
+    } catch (suppressed) {
+      debugPrint('[OfficialAnkiSourceDao] suppressed error: $suppressed');
+      _db.execute('ROLLBACK');
+      rethrow;
+    }
+    return true;
   }
 
   /// P5F-31: catalog bookkeeping for one source. Deletes every catalog row

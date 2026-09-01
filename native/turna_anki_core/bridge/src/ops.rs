@@ -84,6 +84,7 @@ use crate::engine::STATUS_SCHEDULER_BUSY;
 use crate::engine::STATUS_SCHEDULING_CONTEXT_STALE;
 use crate::engine::STATUS_UNDO_UNAVAILABLE;
 use crate::engine::STATUS_UNIMPLEMENTED;
+use rusqlite::Connection;
 
 #[derive(Debug, Deserialize)]
 struct ImportRequest {
@@ -1148,29 +1149,79 @@ fn prune_empty_metadata(handle: u64, request: &[u8]) -> Result<Value, i32> {
     }))
 }
 
-fn compact_collection(handle: u64, _request: &[u8]) -> Result<Value, i32> {
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CompactCollectionRequest {
+    #[serde(default)]
+    force: bool,
+}
+
+const FREELIST_BYTES_THRESHOLD: u64 = 16 * 1024 * 1024;
+const FREELIST_RATIO_THRESHOLD: f64 = 0.20;
+
+fn compact_collection(handle: u64, request: &[u8]) -> Result<Value, i32> {
+    let parsed: CompactCollectionRequest =
+        parse_req_or_default(request, CompactCollectionRequest { force: false })?;
+    let started = Instant::now();
     let slot = slot(handle)?;
     let mut engine = require_open(&slot)?;
-    let path = engine.collection_path.clone();
-    let before = path
-        .as_ref()
-        .and_then(|p| std::fs::metadata(p).ok())
+    let path = engine.collection_path.clone().ok_or(STATUS_INVALID_STATE)?;
+    let before = std::fs::metadata(&path)
         .map(|m| m.len())
         .unwrap_or(0);
-    let col = engine.open_col()?;
-    CollectionService::check_database(col)
-        .map_err(|_| crate::engine::STATUS_COLLECTION_CORRUPT)?;
-    let after = path
-        .as_ref()
-        .and_then(|p| std::fs::metadata(p).ok())
+
+    let (page_size, freelist_count, page_count) = {
+        let col = engine.open_col()?;
+        let db = col.storage.db();
+        let page_size: i64 = db
+            .query_row("PRAGMA page_size", [], |row| row.get(0))
+            .map_err(|_| STATUS_INTERNAL_ERROR)?;
+        let freelist: i64 = db
+            .query_row("PRAGMA freelist_count", [], |row| row.get(0))
+            .map_err(|_| STATUS_INTERNAL_ERROR)?;
+        let pages: i64 = db
+            .query_row("PRAGMA page_count", [], |row| row.get(0))
+            .map_err(|_| STATUS_INTERNAL_ERROR)?;
+        (page_size.max(0) as u64, freelist.max(0) as u64, pages.max(0) as u64)
+    };
+    let freelist_bytes = freelist_count.saturating_mul(page_size);
+    let ratio = if page_count == 0 {
+        0.0
+    } else {
+        freelist_count as f64 / page_count as f64
+    };
+    if !parsed.force
+        && freelist_bytes < FREELIST_BYTES_THRESHOLD
+        && ratio < FREELIST_RATIO_THRESHOLD
+    {
+        return Ok(json!({
+            "beforeBytes": before,
+            "afterBytes": before,
+            "freelistBytesBefore": freelist_bytes,
+            "freelistBytesAfter": freelist_bytes,
+            "elapsedMillis": started.elapsed().as_millis() as u64,
+            "skippedReason": "below_threshold",
+        }));
+    }
+
+    crate::engine::close_collection_inner(&mut engine)?;
+    let vacuum = Connection::open(&path)
+        .map_err(|_| STATUS_IO_ERROR)
+        .and_then(|conn| {
+            conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE); VACUUM;")
+                .map_err(|_| STATUS_INTERNAL_ERROR)
+        });
+    crate::engine::reopen_open_collection(&mut engine, &slot)?;
+    vacuum?;
+    let after = std::fs::metadata(&path)
         .map(|m| m.len())
         .unwrap_or(0);
     Ok(json!({
         "beforeBytes": before,
         "afterBytes": after,
-        "freelistBytesBefore": 0,
+        "freelistBytesBefore": freelist_bytes,
         "freelistBytesAfter": 0,
-        "elapsedMillis": 0,
+        "elapsedMillis": started.elapsed().as_millis() as u64,
     }))
 }
 
@@ -3170,5 +3221,38 @@ mod tests {
         );
         free_engine(handle).unwrap();
         let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn compact_collection_skips_below_threshold() {
+        let (root, handle, _) = temp_open();
+        let out = call(handle, OP_COMPACT_COLLECTION, json!({})).unwrap();
+        assert_eq!(out["skippedReason"], "below_threshold");
+        let native = call(handle, OP_GET_CONFIG, json!({"key": "schedVer"})).unwrap();
+        assert_eq!(native["found"], true, "collection stays open after skip");
+        free_engine(handle).unwrap();
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn compact_collection_force_vacuums_and_leaves_open() {
+        let (root, handle, _) = temp_open();
+        let out = call(handle, OP_COMPACT_COLLECTION, json!({"force": true})).unwrap();
+        assert!(out.get("skippedReason").is_none());
+        assert!(out["beforeBytes"].as_u64().unwrap() > 0);
+        let native = call(handle, OP_GET_CONFIG, json!({"key": "schedVer"})).unwrap();
+        assert_eq!(native["found"], true, "collection reopens after VACUUM");
+        free_engine(handle).unwrap();
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn compact_collection_requires_open() {
+        let handle = alloc_engine().unwrap();
+        assert_eq!(
+            call(handle, OP_COMPACT_COLLECTION, json!({"force": true})).unwrap_err(),
+            STATUS_INVALID_STATE
+        );
+        free_engine(handle).unwrap();
     }
 }

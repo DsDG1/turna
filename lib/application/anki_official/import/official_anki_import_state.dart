@@ -42,6 +42,7 @@ enum OfficialAnkiSourceState {
   rollbackPending,
   rolledBack,
   pendingCleanup,
+  retiring,
   retired,
   quarantined,
   completed,
@@ -82,6 +83,10 @@ extension OfficialAnkiSourceStateWire on OfficialAnkiSourceState {
         return 'rolled_back';
       case OfficialAnkiSourceState.pendingCleanup:
         return 'pending_cleanup';
+      case OfficialAnkiSourceState.retiring:
+        // ADR 0043 D6: single-ledger transaction state — the user already
+        // saw removal; a job drives the engine delete to completion.
+        return 'retiring';
       case OfficialAnkiSourceState.retired:
         return 'retired';
       case OfficialAnkiSourceState.quarantined:

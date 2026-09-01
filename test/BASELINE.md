@@ -1,5 +1,7 @@
 Generated: 2026-09-01 (Official 开始学习空树 fallback)：冷启动 `catalogOf` 接到 readOnlyCatalog；v1 visibility 不再要求 catalog；已安装 source 空树不弹回内置课。定向 **10 passed**：`course_provider_official_scope_test` 8→10、`official_anki_course_entry_test` 1。
 
+Generated: 2026-09-01 (v1 pending_cleanup / compact invalid_state)：卸载 saga `openProfile` + `cid:1,2,3` 校验、invalid_state 重试；op 39 关库 VACUUM 重开 + 阈值 skip；maintenance 对 invalid_state 标 completed skip；due sync 不 rethrow。定向 **19 passed**：lifecycle_storage（原 13 + uninstall-open + compact-skip 2）+ due_sync_unavailable 2 + course_compact 4。`cargo test compact_collection` 本机缺 `protoc`（`tools/protoc` 未检出）未跑。真机须重建 `libturna_anki.so`。
+
 Generated: 2026-08-31 (doc 41 S7/S8 存储优化 + 修复中心 UI)：存储页一键 `forceCompact` 忽略阈值；独立 `OfficialAnkiRepairCenterPage`（产品面）。定向 **13 passed**：`storage_diagnostics_page_test` 6、`official_storage_optimize_service_test` 1、`official_anki_repair_center_page_test` 2、`official_diagnostics_release_guard_test` 4。`flutter analyze` 改动文件 0 issue。真机 `collection.anki2` 字节回收 **deferred / unverifiable**。全量与 Android 强杀矩阵未跑。commit `0743429e`（A+B 合一次，未按计划拆两个 commit）。
 
 Generated: 2026-08-31 (doc 41 S7 CourseDB VACUUM)：`OfficialAnkiMaintenanceRunner.compactCourseDatabase` 在 Drift 连接上 `wal_checkpoint`+`VACUUM`（阈值或 `forceCompact`）；卸载排队 `compact_course`；repair executor 传入 `CourseDatabase`。定向 `official_anki_course_compact_test`。Android 强杀矩阵仍未跑。

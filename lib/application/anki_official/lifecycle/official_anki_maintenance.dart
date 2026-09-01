@@ -1,14 +1,17 @@
 import 'dart:io';
 
 import 'package:sqlite3/sqlite3.dart';
+import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
+import 'package:turna/application/anki_official/lifecycle/official_anki_file_log.dart';
 import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_sqlite.dart';
+import 'package:turna/application/anki_official/v2/official_anki_v2_retire_service.dart';
+import 'package:turna/application/anki_official/v2/official_anki_v2_view_rebuilder.dart';
 import 'package:turna/data/course_database.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 
 class OfficialAnkiMaintenanceLease {
   OfficialAnkiMaintenanceLease(this._database);
@@ -256,7 +259,7 @@ class OfficialAnkiMaintenanceRunner {
         );
         if (kind == null) continue;
         try {
-          final result = await _runKind(kind);
+          final result = await _runKind(kind, row);
           jobs.markCompleted(
             jobId: jobId,
             nowMillis: DateTime.now().millisecondsSinceEpoch,
@@ -266,7 +269,7 @@ class OfficialAnkiMaintenanceRunner {
           );
           completed++;
         } catch (error) {
-          debugPrint('[OfficialAnkiMaintenance] $kind failed: $error');
+          officialAnkiMaintenanceLog('$kind failed: $error', warning: true);
           jobs.markFailed(
             jobId: jobId,
             nowMillis: DateTime.now().millisecondsSinceEpoch,
@@ -282,6 +285,7 @@ class OfficialAnkiMaintenanceRunner {
 
   Future<OfficialAnkiCompactResult> _runKind(
     OfficialAnkiMaintenanceKind kind,
+    Map<String, Object?> row,
   ) async {
     switch (kind) {
       case OfficialAnkiMaintenanceKind.mediaGc:
@@ -311,13 +315,81 @@ class OfficialAnkiMaintenanceRunner {
       case OfficialAnkiMaintenanceKind.compactCollection:
         final engine = this.engine;
         if (engine == null) {
-          return compactSqliteFile(paths.collectionFile);
+          return compactSqliteFile(
+            paths.collectionFile,
+            force: forceCompact,
+          );
         }
-        return engine.compactCollection();
+        try {
+          await engine.openProfile(paths);
+        } on OfficialAnkiException catch (error) {
+          if (error.code != OfficialAnkiErrorCode.collectionAlreadyOpen) {
+            if (_skippableEngineState(error)) {
+              officialAnkiMaintenanceLog(
+                'compactCollection skipped open: $error',
+                warning: true,
+              );
+              return OfficialAnkiCompactResult(
+                skippedReason: error.code.name,
+              );
+            }
+            rethrow;
+          }
+        }
+        try {
+          return await engine.compactCollection(force: forceCompact);
+        } on OfficialAnkiException catch (error) {
+          if (_skippableEngineState(error)) {
+            officialAnkiMaintenanceLog(
+              'compactCollection skipped: $error',
+              warning: true,
+            );
+            return OfficialAnkiCompactResult(
+              skippedReason: error.code.name,
+            );
+          }
+          rethrow;
+        }
       case OfficialAnkiMaintenanceKind.compactCatalog:
         return compactSqliteFile(paths.catalogFile, force: forceCompact);
       case OfficialAnkiMaintenanceKind.compactCourse:
         return compactCourseDatabase(course, force: forceCompact);
+      case OfficialAnkiMaintenanceKind.v2SourceDelete:
+        // step4.md B5：retiring 序列的 job 体。引擎缺席时抛错 →
+        // markFailed(retry_wait) 保活 job（K6：绝不把未删引擎的 source
+        // 标完成）；source 缺席 = 已终删（幂等重放）。
+        final engine = this.engine;
+        if (engine == null) {
+          throw StateError('v2_source_delete requires engine');
+        }
+        final sourceId = row['source_id'] as String?;
+        if (sourceId == null || sourceId.isEmpty) {
+          throw StateError('v2_source_delete without source_id');
+        }
+        await OfficialAnkiV2RetireService(
+          catalog: catalog,
+          paths: paths,
+          course: course,
+          engine: engine,
+        ).runRetireJob(sourceId: sourceId);
+        return const OfficialAnkiCompactResult();
+      case OfficialAnkiMaintenanceKind.v2ViewRebuild:
+        // step4.md B3/K3：无状态视图整建，重启即重跑（幂等）。
+        final engine = this.engine;
+        if (engine == null) {
+          throw StateError('v2_view_rebuild requires engine');
+        }
+        final result = await OfficialAnkiV2ViewRebuilder(
+          engine: engine,
+          catalog: catalog,
+          course: course ?? (throw StateError('v2_view_rebuild requires course')),
+          profileId: paths.profileId,
+        ).rebuild();
+        return OfficialAnkiCompactResult(
+          elapsedMillis: result.elapsedMillis,
+          beforeBytes: result.rowCount,
+          afterBytes: result.rowCount,
+        );
     }
   }
 
@@ -425,5 +497,16 @@ class OfficialAnkiMaintenanceRunner {
       afterBytes: after,
       freelistBytesAfter: 0,
     );
+  }
+}
+
+bool _skippableEngineState(OfficialAnkiException error) {
+  switch (error.code) {
+    case OfficialAnkiErrorCode.invalidState:
+    case OfficialAnkiErrorCode.schedulerBusy:
+    case OfficialAnkiErrorCode.collectionLocked:
+      return true;
+    default:
+      return false;
   }
 }

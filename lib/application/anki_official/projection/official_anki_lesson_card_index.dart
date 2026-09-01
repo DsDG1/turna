@@ -1,8 +1,23 @@
 import 'package:flutter/foundation.dart';
+import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_store.dart';
+import 'package:turna/application/anki_official/v2/official_anki_v2_course_read.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';
+
+/// v2 视图解析的中间载体（word/card/source 三元组）。
+class _V2CardEntry {
+  const _V2CardEntry({
+    required this.wordId,
+    required this.cardId,
+    required this.sourceId,
+  });
+
+  final String wordId;
+  final int cardId;
+  final String sourceId;
+}
 
 /// One word of one Official card as the projection index recorded it.
 class OfficialAnkiLessonCardEntry {
@@ -61,6 +76,10 @@ class OfficialAnkiLessonCardIndex {
   /// projected that lesson. Fail-closed: an unreadable index must not
   /// degrade into id-string guessing — the lesson's Official cards simply
   /// stay unresolved.
+  ///
+  /// v2 分叉（B6）：v2 视图供该课时 → 从 `anki_course_tree_view` 解析
+  /// （wordId/cardId 都是视图结构列）；否则回落 v1 投影 index——两代
+  /// 数据并存，读路径兼容（回退语义：v2 已导入的来源继续可学）。
   static Future<OfficialAnkiLessonCardIndex?> resolveForLesson(
     String lessonId,
   ) async {
@@ -68,8 +87,24 @@ class OfficialAnkiLessonCardIndex {
     if (resolver != null) return resolver(lessonId);
     if (!getIt.isRegistered<CourseDatabase>()) return null;
     try {
+      final course = getIt<CourseDatabase>();
+      final v2Entries = await _resolveV2Entries(course, lessonId);
+      if (v2Entries != null) {
+        if (v2Entries.isEmpty) return null;
+        return OfficialAnkiLessonCardIndex(
+          lessonId: lessonId,
+          sourceId: v2Entries.first.sourceId,
+          entries: [
+            for (final entry in v2Entries)
+              OfficialAnkiLessonCardEntry(
+                wordId: entry.wordId,
+                cardId: entry.cardId,
+              ),
+          ],
+        );
+      }
       final rows = await OfficialAnkiCourseProjectionStore(
-        getIt<CourseDatabase>(),
+        course,
       ).indexRowsForLesson(lessonId);
       if (rows.isEmpty) return null;
       return OfficialAnkiLessonCardIndex(
@@ -85,6 +120,31 @@ class OfficialAnkiLessonCardIndex {
       );
     } catch (error) {
       debugPrint('OfficialAnkiLessonCardIndex resolve failed: $error');
+      return null;
+    }
+  }
+
+  /// v2 视图命中时返回课时条目；视图无此课时（v1 数据或 flag 关）返回
+  /// null 走 v1 面。fail-closed：视图读失败按「非 v2 课时」处理。
+  static Future<List<_V2CardEntry>?> _resolveV2Entries(
+    CourseDatabase course,
+    String lessonId,
+  ) async {
+    try {
+      final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+      if (catalog == null) return null;
+      final read = OfficialAnkiV2CourseRead(catalog: catalog, course: course);
+      if (!await read.isV2Lesson(lessonId)) return null;
+      final entries = await read.lessonCardEntriesForLesson(lessonId);
+      return [
+        for (final entry in entries)
+          _V2CardEntry(
+            wordId: entry.wordId,
+            cardId: entry.cardId,
+            sourceId: entry.sourceId,
+          ),
+      ];
+    } catch (_) {
       return null;
     }
   }

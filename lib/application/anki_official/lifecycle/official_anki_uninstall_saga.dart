@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/introduction/card_introduction_eligibility.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_checkpoint_dao.dart';
+import 'package:turna/application/anki_official/lifecycle/official_anki_file_log.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_maintenance.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_source_metadata_dao.dart';
@@ -71,13 +73,35 @@ INSERT OR REPLACE INTO anki_cleanup_receipts (
     );
 
     var removed = 0;
-    const batchLimit = 5000;
-    for (var start = 0; start < exclusive.length; start += batchLimit) {
-      final end = min(start + batchLimit, exclusive.length);
-      removed += await engine.deleteCards(exclusive.sublist(start, end));
+    Set<int> remaining;
+    try {
+      removed = await _deleteExclusiveWithRetry(exclusive);
+      remaining = await _existingCardIdsWithRetry(exclusive);
+    } on OfficialAnkiException catch (error) {
+      officialAnkiFileLog(
+        'OfficialAnkiUninstall',
+        'cleanup $sourceId stopped: ${error.code.name} ${error.messageKey}',
+        warning: true,
+        error: error,
+      );
+      dao.markPendingCleanup(
+        sourceId: sourceId,
+        nowMillis: DateTime.now().millisecondsSinceEpoch,
+        errorCode: error.code.name,
+      );
+      return OfficialAnkiUninstallResult(
+        sourceId: sourceId,
+        phase: 'd5_verify',
+        logicalDeleteComplete: false,
+        collectionCardsRequested: exclusive.length,
+        collectionCardsRemoved: removed,
+        collectionCardsRemaining: exclusive.length,
+        retryable: true,
+        errorCode: error.code.name,
+        mediaGcPending: true,
+        compactPending: true,
+      );
     }
-
-    final remaining = await _existingCardIds(exclusive);
     if (remaining.isNotEmpty) {
       dao.markPendingCleanup(
         sourceId: sourceId,
@@ -198,13 +222,59 @@ INSERT OR REPLACE INTO anki_cleanup_receipts (
     );
   }
 
+  Future<int> _deleteExclusiveWithRetry(List<int> exclusive) async {
+    return _withOpenRetry(() async {
+      var removed = 0;
+      const batchLimit = 5000;
+      for (var start = 0; start < exclusive.length; start += batchLimit) {
+        final end = min(start + batchLimit, exclusive.length);
+        removed += await engine.deleteCards(exclusive.sublist(start, end));
+      }
+      return removed;
+    });
+  }
+
+  Future<Set<int>> _existingCardIdsWithRetry(List<int> cardIds) {
+    return _withOpenRetry(() => _existingCardIds(cardIds));
+  }
+
+  Future<T> _withOpenRetry<T>(Future<T> Function() work) async {
+    await _ensureCollectionOpen();
+    try {
+      return await work();
+    } on OfficialAnkiException catch (error) {
+      if (error.code != OfficialAnkiErrorCode.invalidState) rethrow;
+      officialAnkiFileLog(
+        'OfficialAnkiUninstall',
+        'invalid_state, retrying after openProfile: $error',
+        warning: true,
+        error: error,
+      );
+      await _ensureCollectionOpen();
+      return await work();
+    }
+  }
+
+  Future<void> _ensureCollectionOpen() async {
+    final paths = this.paths;
+    if (paths == null) return;
+    try {
+      await engine.openProfile(paths);
+    } on OfficialAnkiException catch (error) {
+      if (error.code == OfficialAnkiErrorCode.collectionAlreadyOpen) {
+        return;
+      }
+      rethrow;
+    }
+  }
+
   Future<Set<int>> _existingCardIds(List<int> cardIds) async {
     if (cardIds.isEmpty) return const <int>{};
     final found = <int>{};
     const chunk = 50;
     for (var i = 0; i < cardIds.length; i += chunk) {
       final slice = cardIds.sublist(i, min(i + chunk, cardIds.length));
-      final query = slice.map((id) => 'cid:$id').join(' OR ');
+      final query = 'cid:${slice.join(',')}';
       final page = await engine.searchCardsPage(
         search: query,
         pageSize: slice.length,

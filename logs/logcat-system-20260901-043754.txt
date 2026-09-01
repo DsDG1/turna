@@ -1,0 +1,414 @@
+--------- beginning of system
+09-01 00:52:44.564 31469 31469 I View    : startDragAndDrop overrideInvScale=1.0 flags=259 lastTouchPoint=Point(773, 1506) shadowSize=Point(1503, 900) shadowTouchPoint=Point(751, 450) view:com.bilibili.app.comment3.ui.nextwidget.NextExperiment3ExpandableTextView{17512fc VFED..CL. ........ 0,0-876,388 #7f0937c7 app:id/primary_message}
+09-01 00:52:44.594 31469 31469 I VRI[UnitedBizDetailsActivity,type=1]: handleDragEvent  result=true what=1 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{670caeb V.ED..... R......D 0,0-1080,2400 aid=81}[UnitedBizDetailsActivity]
+09-01 00:52:44.594 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=1 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:44.750 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:44.757 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:44.765 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:44.773 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:44.781 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:44.788 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:44.796 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:44.803 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:44.811 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:44.819 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:44.827 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:44.835 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:44.842 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:44.850 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:44.858 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:44.866 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:44.874 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:44.881 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:44.889 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:44.897 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:44.905 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:44.913 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:44.920 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:44.928 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:44.936 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:44.944 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:44.952 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:44.959 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:44.967 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:44.975 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:44.983 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:44.991 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:44.998 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.006 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.014 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.022 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.030 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.037 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.045 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.053 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.061 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.068 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.076 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.084 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.091 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.100 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.107 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.115 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.123 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.130 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.138 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.146 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.154 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.162 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.169 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.177 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.185 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.193 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.201 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.208 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.216 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.224 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.231 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.239 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.247 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.255 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.263 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.270 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.278 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.286 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.294 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.302 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.309 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.317 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.325 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.333 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.340 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.348 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.356 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.364 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.372 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.379 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.387 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.395 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.403 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.410 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.418 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.426 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.434 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.442 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.449 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.457 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.465 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.473 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.481 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.488 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.496 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.503 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.511 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.520 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.527 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.535 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.542 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.550 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.558 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.566 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.574 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.581 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.589 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.597 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.612 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.620 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.628 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.636 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.644 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.651 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.659 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.666 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.675 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.683 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.691 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.698 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.706 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.715 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.721 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.729 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.737 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.746 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.752 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.760 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.768 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.776 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.783 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.791 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.799 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.807 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.815 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.823 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.830 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.838 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.846 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.854 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.861 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.869 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=2 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.896 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent  result=false what=3 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{41551ef V.E...... R....... 0,0-1080,2400 aid=1073741831}[UnitedBizDetailsActivity]
+09-01 00:52:45.896 31469 31469 I VRI[UnitedBizDetailsActivity,type=2]: handleDragEvent before trigShareOrShopIfNeed
+09-01 00:52:46.220 31469 31469 I VRI[UnitedBizDetailsActivity,type=1]: handleDragEvent  result=true what=4 prevDragView=null mCurrentDragView=null mView=com.android.internal.policy.DecorView{670caeb V.ED..... R....... 0,0-1080,2400 aid=81}[UnitedBizDetailsActivity]
+09-01 01:03:31.859 24310 24310 I DisplayManager: Implicitly registering for refresh rate
+09-01 01:20:43.867  8426  8494 W ContextImpl: Calling a method in the system process without a qualified user: android.app.ContextImpl.bindService:2143 android.content.ContextWrapper.bindService:891 com.vivo.connect.sdk.e.c.a:9 com.vivo.connect.sdk.e.c.i:65 com.vivo.connect.sdk.e.c.f:3 
+09-01 01:20:43.872  8426  8426 W ContextImpl: Calling a method in the system process without a qualified user: android.app.ContextImpl.startService:2031 android.content.ContextWrapper.startService:855 com.vivo.vdfs.VdfsApplication.startVdfsCacheService:19 com.vivo.vdfs.VdfsApplication.onCreate:58 android.app.Instrumentation.callApplicationOnCreate:1395 
+09-01 01:20:43.878  8426  8650 W ContextImpl: Calling a method in the system process without a qualified user: android.app.ContextImpl.bindService:2143 android.content.ContextWrapper.bindService:891 com.vivo.connbase.connectcenter.ConnectCenterConnection.bind:120 com.vivo.connbase.connectcenter.ConnectCenterTask.run:17 java.util.concurrent.Executors$RunnableAdapter.call:524 
+09-01 01:20:44.950 10326  8775 I DisplayManager: Choreographer implicitly registered for the refresh rate.
+09-01 01:20:48.619  8914  9012 I DisplayManager: Choreographer implicitly registered for the refresh rate.
+09-01 01:20:50.728  8914  9234 W ResourcesManager: Found a null ResourcesImpl, skipped.
+09-01 01:20:56.304  9504  9683 I DisplayManager: Choreographer implicitly registered for the refresh rate.
+09-01 01:22:30.958 12353 12501 I DisplayManager: Choreographer implicitly registered for the refresh rate.
+09-01 01:24:15.143 16166 16166 I VirtualizationService: virtualizationservice: Registered Binder service android.system.virtualizationservice.
+09-01 01:24:15.144 16166 16166 I VirtualizationService: virtualizationservice: Registered Binder service android.hardware.security.keymint.IRemotelyProvisionedComponent/avf.
+09-01 01:24:15.144 16166 16166 I VirtualizationService: virtualizationservice: Registered Binder service android.system.virtualizationmaintenance.
+09-01 01:24:15.145 16166 16206 I VirtualizationService: virtualizationservice::aidl: packageRemoved(user_id=0, app_id=10343)
+09-01 01:24:15.145 16166 16206 I VirtualizationService: virtualizationservice::maintenance: Connecting to android.hardware.security.secretkeeper.ISecretkeeper/default
+09-01 01:24:15.146 16166 16206 I VirtualizationService: virtualizationservice::maintenance::vmdb: creating fresh database "/data/misc/apexdata/com.android.virt/vmdb/vmids.sqlite"
+09-01 01:24:15.146 16166 16206 I VirtualizationService: virtualizationservice::maintenance::vmdb: creating v1 database schema
+09-01 01:24:15.149 16166 16206 W VirtualizationService: virtualizationservice::maintenance: no existing VM ID DB; clearing any previous secrets to match fresh DB
+09-01 01:24:15.152 16166 16206 E VirtualizationService: virtualizationservice::maintenance: failed to delete previous secrets, dropping database: Status(-8, EX_SERVICE_SPECIFIC): '2: system/secretkeeper/core/src/ta.rs:247: failed to delete all: UnexpectedServerError'
+09-01 01:24:15.152 16166 16206 W VirtualizationService: virtualizationservice::maintenance::vmdb: removing database file "/data/misc/apexdata/com.android.virt/vmdb/vmids.sqlite"
+09-01 01:24:40.302 17448 17620 I DisplayManager: Choreographer implicitly registered for the refresh rate.
+09-01 01:26:04.816 21207 21207 W Looper  : Loop again would have the queued messages be executed before this one completed.
+09-01 01:26:33.779 22386 22469 I DisplayManager: Choreographer implicitly registered for the refresh rate.
+09-01 01:26:33.947  2108  2108 I DevicePolicyManager: Finished calculating hasIncompatibleAccountsTask
+09-01 01:30:10.109 26647 26803 I DisplayManager: Choreographer implicitly registered for the refresh rate.
+09-01 01:30:54.755 22664 22664 I DisplayManager: Implicitly registering for refresh rate
+09-01 01:55:39.191 22055 22055 I DisplayManager: Implicitly registering for refresh rate
+09-01 01:55:39.278 22055 22428 E ActivityThread: Failed to find provider info for com.alipay.setting
+09-01 01:55:40.202 22559 22559 I DisplayManager: Implicitly registering for refresh rate
+09-01 01:55:43.160 22055 22373 E ActivityThread: Failed to find provider info for com.vivo.iot.service
+09-01 01:55:43.160 22055 22373 E ActivityThread: Failed to find provider info for com.vivo.iot.service
+09-01 01:55:43.259 22055 22373 E ActivityThread: Failed to find provider info for com.vivo.iot.service
+09-01 01:55:43.260 22055 22373 E ActivityThread: Failed to find provider info for com.vivo.iot.service
+09-01 01:55:43.263 22055 22373 E ActivityThread: Failed to find provider info for com.miui.analytics.OneTrackProvider
+09-01 01:55:43.362 22055 22373 E ActivityThread: Failed to find provider info for com.meizu.flyme.openidsdk
+09-01 01:55:43.363 22055 22373 E ActivityThread: Failed to find provider info for com.meizu.flyme.openidsdk
+09-01 01:56:15.110 22055 22373 E ActivityThread: Failed to find provider info for com.meizu.flyme.openidsdk
+09-01 01:56:15.110 22055 22373 E ActivityThread: Failed to find provider info for com.meizu.flyme.openidsdk
+09-01 01:56:15.129 22055 22373 E ActivityThread: Failed to find provider info for com.huawei.wallet.thirdprovider
+09-01 01:56:15.131 22055 22373 E ActivityThread: Failed to find provider info for com.miui.analytics.OneTrackProvider
+09-01 01:56:15.347 22055 22373 W PowerProfile: screen.on is deprecated! Use screen.on.display0 instead.
+09-01 01:56:15.347 22055 22373 W PowerProfile: screen.full is deprecated! Use screen.full.display0 instead.
+09-01 01:56:15.347 22055 22373 W ModemPowerProfile: getAverageBatteryDrainMaH called with unexpected key: 0x0, drain:SLEEP,RAT:DEFAULT
+09-01 01:56:15.347 22055 22373 W ModemPowerProfile: getAverageBatteryDrainMaH called with unexpected key: 0x10000000, drain:IDLE,RAT:DEFAULT
+09-01 01:56:15.347 22055 22373 W ModemPowerProfile: getAverageBatteryDrainMaH called with unexpected key: 0x20000000, drain:RX,RAT:DEFAULT
+09-01 01:56:15.347 22055 22373 W ModemPowerProfile: getAverageBatteryDrainMaH called with unexpected key: 0x30000000, drain:TX,level:0,RAT:DEFAULT
+09-01 01:56:15.347 22055 22373 W ModemPowerProfile: getAverageBatteryDrainMaH called with unexpected key: 0x31000000, drain:TX,level:1,RAT:DEFAULT
+09-01 01:56:15.347 22055 22373 W ModemPowerProfile: getAverageBatteryDrainMaH called with unexpected key: 0x32000000, drain:TX,level:2,RAT:DEFAULT
+09-01 01:56:15.347 22055 22373 W ModemPowerProfile: getAverageBatteryDrainMaH called with unexpected key: 0x33000000, drain:TX,level:3,RAT:DEFAULT
+09-01 01:56:15.347 22055 22373 W ModemPowerProfile: getAverageBatteryDrainMaH called with unexpected key: 0x34000000, drain:TX,level:4,RAT:DEFAULT
+09-01 01:56:17.412 22055 22373 E ActivityThread: Failed to find provider info for com.vivo.iot.service
+09-01 01:56:17.412 22055 22373 E ActivityThread: Failed to find provider info for com.vivo.iot.service
+09-01 01:56:17.443 22055 22373 E ActivityThread: Failed to find provider info for com.vivo.iot.service
+09-01 01:56:17.443 22055 22373 E ActivityThread: Failed to find provider info for com.vivo.iot.service
+09-01 02:03:47.592   557   608 W ContextImpl: Calling a method in the system process without a qualified user: android.app.ContextImpl.startService:2031 android.content.ContextWrapper.startService:855 com.vivo.ai.gptagent.h.invokeSuspend:32 kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith:11 kotlinx.coroutines.b1.run:130 
+09-01 02:03:47.596   557   620 W ContextImpl: Calling a method in the system process without a qualified user: android.app.ContextImpl.bindService:2143 android.content.ContextWrapper.bindService:891 com.vivo.aisdk.mlupdate.local.internal.MLUpdateConn.bindService:31 com.vivo.aisdk.mlupdate.local.internal.InnerMLUpdateClient.d:2 com.vivo.aisdk.mlupdate.local.internal.InnerMLUpdateClient.handleMessage:103 
+09-01 02:03:53.403   999  1261 W ActivityThread: ClassLoader.getResourceAsStream: The class loader returned by Thread.getContextClassLoader() may fail for processes that host multiple applications. You should explicitly specify a context class loader. For example: Thread.setContextClassLoader(getClass().getClassLoader());
+09-01 02:03:55.824   557   620 W ContextImpl: Calling a method in the system process without a qualified user: android.app.ContextImpl.bindService:2143 android.content.ContextWrapper.bindService:891 com.vivo.aisdk.mlupdate.local.internal.MLUpdateConn.bindService:31 com.vivo.aisdk.mlupdate.local.internal.InnerMLUpdateClient.d:2 com.vivo.aisdk.mlupdate.local.internal.InnerMLUpdateClient.handleMessage:103 
+09-01 02:07:15.667   557   620 W ContextImpl: Calling a method in the system process without a qualified user: android.app.ContextImpl.bindService:2143 android.content.ContextWrapper.bindService:891 com.vivo.aisdk.mlupdate.local.internal.MLUpdateConn.bindService:31 com.vivo.aisdk.mlupdate.local.internal.InnerMLUpdateClient.d:2 com.vivo.aisdk.mlupdate.local.internal.InnerMLUpdateClient.handleMessage:103 
+09-01 02:07:31.009   557   620 W ContextImpl: Calling a method in the system process without a qualified user: android.app.ContextImpl.bindService:2143 android.content.ContextWrapper.bindService:891 com.vivo.aisdk.mlupdate.local.internal.MLUpdateConn.bindService:31 com.vivo.aisdk.mlupdate.local.internal.InnerMLUpdateClient.d:2 com.vivo.aisdk.mlupdate.local.internal.InnerMLUpdateClient.handleMessage:103 
+09-01 02:08:09.573   557   620 W ContextImpl: Calling a method in the system process without a qualified user: android.app.ContextImpl.bindService:2143 android.content.ContextWrapper.bindService:891 com.vivo.aisdk.mlupdate.local.internal.MLUpdateConn.bindService:31 com.vivo.aisdk.mlupdate.local.internal.InnerMLUpdateClient.d:2 com.vivo.aisdk.mlupdate.local.internal.InnerMLUpdateClient.handleMessage:103 
+09-01 02:22:16.581  2108  2206 I BatteryStatsImpl: Resetting battery stats: level=100 status=3 dischargeLevel=80 lowAmount=19 highAmount=20
+09-01 02:29:33.395 23396 23471 W ContextImpl: Calling a method in the system process without a qualified user: android.app.ContextImpl.bindService:2143 android.content.ContextWrapper.bindService:891 com.vivo.connect.sdk.e.c.a:9 com.vivo.connect.sdk.e.c.i:65 com.vivo.connect.sdk.e.c.f:3 
+09-01 02:29:33.397 23396 23396 W ContextImpl: Calling a method in the system process without a qualified user: android.app.ContextImpl.startService:2031 android.content.ContextWrapper.startService:855 com.vivo.vdfs.VdfsApplication.startVdfsCacheService:19 com.vivo.vdfs.VdfsApplication.onCreate:58 android.app.Instrumentation.callApplicationOnCreate:1395 
+09-01 02:29:33.405 23396 23532 W ContextImpl: Calling a method in the system process without a qualified user: android.app.ContextImpl.bindService:2143 android.content.ContextWrapper.bindService:891 com.vivo.connbase.connectcenter.ConnectCenterConnection.bind:120 com.vivo.connbase.connectcenter.ConnectCenterTask.run:17 java.util.concurrent.Executors$RunnableAdapter.call:524 
+09-01 02:29:36.551 23901 23955 I DisplayManager: Choreographer implicitly registered for the refresh rate.
+09-01 02:29:37.159 23901 24189 E ActivityThread: Failed to find provider info for com.meizu.flyme.openidsdk
+09-01 02:29:37.159 23901 24189 E ActivityThread: Failed to find provider info for cn.nubia.identity
+09-01 02:31:52.960 26123 26207 I DisplayManager: Choreographer implicitly registered for the refresh rate.
+09-01 02:31:56.711 26393 26393 I DisplayManager: Implicitly registering for refresh rate
+09-01 02:33:47.826 28266 28304 I DisplayManager: Choreographer implicitly registered for the refresh rate.
+09-01 02:33:48.481 28266 28266 W ActivityThread: ClassLoader.loadClass: The class loader returned by Thread.getContextClassLoader() may fail for processes that host multiple applications. You should explicitly specify a context class loader. For example: Thread.setContextClassLoader(getClass().getClassLoader());
+09-01 02:37:44.022  2108  3665 V AutofillSession: Primary service component name: ComponentInfo{com.vivo.cipherchain/com.vivo.cipherchain.service.CipChainService}, secondary service component name: ComponentInfo{com.android.credentialmanager/com.android.credentialmanager.autofill.CredentialAutofillService}
+09-01 02:37:44.028 26123 26123 D InsetsController: Setting requestedVisibleTypes to -5121 (was -5129)
+09-01 02:37:44.034  2108  3677 D AutofillSession: createPendingIntent for request 7580
+09-01 02:37:44.048  2108  2108 D AutofillSession: clearPendingIntentLocked
+09-01 02:37:49.442 26123 29563 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=197376
+09-01 02:37:49.460 26123 26123 D InsetsController: Setting requestedVisibleTypes to -5129 (was -5121)
+09-01 02:37:49.470 26123 26134 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 02:38:00.896 26123 26135 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=197376
+09-01 02:38:01.809 26123 26135 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 02:38:01.939 26123 26135 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=197376
+09-01 02:38:02.324 26123 26135 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 02:38:02.928 26123 26135 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=197376
+09-01 02:38:03.183 26123 29563 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 02:38:05.325 26123 26135 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=197376
+09-01 02:38:05.746 26123 26135 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 02:38:06.487 26123 28623 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=197376
+09-01 02:38:07.311 26123 26135 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 02:38:07.761 26123 26135 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=197376
+09-01 02:38:08.177 26123 26135 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 02:38:10.623 26123 26135 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=197376
+09-01 02:38:11.273 26123 26135 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 02:38:11.698 26123 26135 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=197376
+09-01 02:38:12.248 26123 26135 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 02:38:12.945 26123 26135 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=197376
+09-01 02:38:13.749 26123 28623 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 02:38:13.816 26123 28623 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=197376
+09-01 02:38:14.038 26123 28623 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 02:38:14.109 26123 28623 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=197376
+09-01 02:38:14.232 26123 28623 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 02:38:17.895 26123 26135 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=197376
+09-01 02:38:18.070 26123 26135 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 02:38:18.162 26123 26135 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=197376
+09-01 02:38:18.771 26123 26135 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 02:38:20.414 26123 28626 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=197376
+09-01 02:38:20.841 26123 28626 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 02:38:22.637 26123 26123 D InsetsController: Setting requestedVisibleTypes to -5121 (was -5129)
+09-01 02:38:23.454 26123 28626 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=197376
+09-01 02:38:23.585 26123 26123 D InsetsController: Setting requestedVisibleTypes to -5129 (was -5121)
+09-01 02:38:24.093 26123 26135 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 02:38:27.860  2108  2516 V AutofillSession: Primary service component name: ComponentInfo{com.vivo.cipherchain/com.vivo.cipherchain.service.CipChainService}, secondary service component name: ComponentInfo{com.android.credentialmanager/com.android.credentialmanager.autofill.CredentialAutofillService}
+09-01 02:38:27.867 26123 26123 D InsetsController: Setting requestedVisibleTypes to -5121 (was -5129)
+09-01 02:38:27.872  2108  2516 D AutofillSession: createPendingIntent for request 7582
+09-01 02:38:27.892  2108  2108 D AutofillSession: clearPendingIntentLocked
+09-01 02:38:29.676  6295  6348 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=197376
+09-01 02:38:31.799  6295  6348 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 02:38:32.386 26123 26123 D InsetsController: Setting requestedVisibleTypes to -5129 (was -5121)
+09-01 02:38:43.406 26123 28626 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=197376
+09-01 02:38:44.497 26123 26135 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 02:38:50.389 26123 26135 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=197376
+09-01 02:38:51.190 26123 28626 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 02:38:52.031 26123 26135 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=197376
+09-01 02:38:52.911 26123 26135 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 02:38:54.307 26123 28626 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=197376
+09-01 02:38:55.541 26123 26135 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 02:38:56.315 26123 26135 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=197376
+09-01 02:38:57.057 26123 26134 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 02:38:57.710 26123 26134 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=197376
+09-01 02:38:58.649 26123 26134 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 02:38:59.132 26123 26123 D InsetsController: Setting requestedVisibleTypes to -5121 (was -5129)
+09-01 02:38:59.708 26123 26123 D InsetsController: Setting requestedVisibleTypes to -5129 (was -5121)
+09-01 02:38:59.953 26123 26134 V ActivityThread: updateVmProcessStateForGc sceneId =1001 state=-2080374784
+09-01 02:39:09.605 26123 32147 V ActivityThread: updateVmProcessStateForGc sceneId =1000 state=-2038431744
+09-01 02:39:09.748 26123 26123 D InsetsController: Setting requestedVisibleTypes to -5121 (was -5129)
+09-01 02:39:10.978   515   515 I VirtualizationService: virtualizationservice: Registered Binder service android.system.virtualizationservice.
+09-01 02:39:10.979   515   515 I VirtualizationService: virtualizationservice: Registered Binder service android.hardware.security.keymint.IRemotelyProvisionedComponent/avf.
+09-01 02:39:10.979   515   515 I VirtualizationService: virtualizationservice: Registered Binder service android.system.virtualizationmaintenance.
+09-01 02:39:10.980   515   537 I VirtualizationService: virtualizationservice::aidl: packageRemoved(user_id=0, app_id=10452)
+09-01 02:39:10.980   515   537 I VirtualizationService: virtualizationservice::maintenance: Connecting to android.hardware.security.secretkeeper.ISecretkeeper/default
+09-01 02:39:10.981   515   537 I VirtualizationService: virtualizationservice::maintenance::vmdb: creating fresh database "/data/misc/apexdata/com.android.virt/vmdb/vmids.sqlite"
+09-01 02:39:10.982   515   537 I VirtualizationService: virtualizationservice::maintenance::vmdb: creating v1 database schema
+09-01 02:39:10.989   515   537 W VirtualizationService: virtualizationservice::maintenance: no existing VM ID DB; clearing any previous secrets to match fresh DB
+09-01 02:39:10.992   515   537 E VirtualizationService: virtualizationservice::maintenance: failed to delete previous secrets, dropping database: Status(-8, EX_SERVICE_SPECIFIC): '2: system/secretkeeper/core/src/ta.rs:247: failed to delete all: UnexpectedServerError'
+09-01 02:39:10.992   515   537 W VirtualizationService: virtualizationservice::maintenance::vmdb: removing database file "/data/misc/apexdata/com.android.virt/vmdb/vmids.sqlite"
+09-01 02:39:15.831 26123 26123 D InsetsController: Setting requestedVisibleTypes to -5129 (was -5121)
+09-01 02:39:16.104 26123 29563 V ActivityThread: updateVmProcessStateForGc sceneId =1001 state=-2080374784
+09-01 02:39:25.446  2108  2239 D BackupManagerService: [UserID:0] restoreAtInstall pkg=me.dsdogs.turna token=ae restoreSet=0
+09-01 02:39:27.789  2108  3667 D BatteryStatsService: noteVideoSurfaceChanged  noteWhich: 49,arg1: 1260, arg2: 2800, arg3: 2839, arg4: 72069787450081281, name: me.dsdogs.turna
+09-01 02:39:28.839  2108  4042 D BatteryStatsService: noteVideoSurfaceChanged  noteWhich: 49,arg1: 1260, arg2: 2800, arg3: 2839, arg4: 72069787450081281, name: me.dsdogs.turna
+09-01 02:39:42.182  2108  3665 D BatteryStatsService: noteVideoSurfaceChanged  noteWhich: 49,arg1: 1260, arg2: 2800, arg3: 4841, arg4: 72078385974607873, name: me.dsdogs.turna
+09-01 02:39:42.884  2108  2516 D BatteryStatsService: noteVideoSurfaceChanged  noteWhich: 49,arg1: 1260, arg2: 2800, arg3: 4841, arg4: 72078385974607873, name: me.dsdogs.turna
+09-01 02:39:47.241  2108  2516 D BatteryStatsService: noteVideoSurfaceChanged  noteWhich: 49,arg1: -1, arg2: -1, arg3: 4841, arg4: 72078385974607873, name: me.dsdogs.turna
+09-01 02:39:53.364  2108  3655 D BatteryStatsService: noteVideoSurfaceChanged  noteWhich: 49,arg1: 1260, arg2: 2800, arg3: 4841, arg4: 72078385974607873, name: me.dsdogs.turna
+09-01 02:39:53.366  2108  4085 D BatteryStatsService: noteVideoSurfaceChanged  noteWhich: 49,arg1: 1260, arg2: 2800, arg3: 4841, arg4: 72078385974607873, name: me.dsdogs.turna
+09-01 02:40:08.274  2108  4032 D BatteryStatsService: noteVideoSurfaceChanged  noteWhich: 49,arg1: 1260, arg2: 2800, arg3: 6164, arg4: 72084068216340481, name: me.dsdogs.turna
+09-01 02:40:09.101  2108  2514 D BatteryStatsService: noteVideoSurfaceChanged  noteWhich: 49,arg1: 1260, arg2: 2800, arg3: 6164, arg4: 72084068216340481, name: me.dsdogs.turna
+09-01 02:40:16.115  2108  2516 D BatteryStatsService: noteVideoSurfaceChanged  noteWhich: 49,arg1: -1, arg2: -1, arg3: 6164, arg4: 72084068216340481, name: me.dsdogs.turna
+09-01 02:40:25.808  6734  6770 V ActivityThread: updateVmProcessStateForGc sceneId =1 state=197376
+09-01 02:40:25.828  6734  6770 V ActivityThread: updateVmProcessStateForGc sceneId =1000 state=-2038431744
+09-01 02:40:25.830  6734  6812 I DisplayManager: Choreographer implicitly registered for the refresh rate.
+09-01 02:40:26.244  2108  2514 D BatteryStatsService: noteVideoSurfaceChanged  noteWhich: 49,arg1: 1260, arg2: 2800, arg3: 6734, arg4: 72086516347699201, name: me.dsdogs.turna
+09-01 02:40:26.913  2108  3664 D BatteryStatsService: noteVideoSurfaceChanged  noteWhich: 49,arg1: 1260, arg2: 2800, arg3: 6734, arg4: 72086516347699201, name: me.dsdogs.turna
+09-01 02:40:27.800  6734  6769 V ActivityThread: updateVmProcessStateForGc sceneId =1 state=196608
+09-01 02:40:34.619  2108  2514 D BatteryStatsService: noteVideoSurfaceChanged  noteWhich: 49,arg1: -1, arg2: -1, arg3: 6734, arg4: 72086516347699201, name: me.dsdogs.turna
+09-01 02:40:34.711  6734  6769 V ActivityThread: updateVmProcessStateForGc sceneId =1001 state=-2080374784
+09-01 02:40:43.708  6734  6769 V ActivityThread: updateVmProcessStateForGc sceneId =1000 state=-2038431744
+09-01 02:40:43.714  2108  4040 D BatteryStatsService: noteVideoSurfaceChanged  noteWhich: 49,arg1: 1260, arg2: 2800, arg3: 6734, arg4: 72086516347699201, name: me.dsdogs.turna
+09-01 02:40:43.715  2108  4040 D BatteryStatsService: noteVideoSurfaceChanged  noteWhich: 49,arg1: 1260, arg2: 2800, arg3: 6734, arg4: 72086516347699201, name: me.dsdogs.turna
+09-01 02:40:45.078  6734  6785 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=197376
+09-01 02:40:46.247  6734  6785 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 03:05:34.276  6295 13920 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=197376
+09-01 03:05:49.265  6295 13112 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 03:05:51.414  6295 13112 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=197376
+09-01 03:06:03.447  6295 13112 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 03:06:04.755  6295 12972 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=197376
+09-01 03:06:11.814  6295 12972 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 03:06:26.403 24505 24531 V ActivityThread: updateVmProcessStateForGc sceneId =1000 state=-2038431744
+09-01 03:06:26.452 24505 24544 I DisplayManager: Choreographer implicitly registered for the refresh rate.
+09-01 03:06:26.911  2108  3665 D BatteryStatsService: noteVideoSurfaceChanged  noteWhich: 49,arg1: 1260, arg2: 2800, arg3: 24505, arg4: 72162842211516417, name: me.dsdogs.turna
+09-01 03:06:27.592  2108  3444 D BatteryStatsService: noteVideoSurfaceChanged  noteWhich: 49,arg1: 1260, arg2: 2800, arg3: 24505, arg4: 72162842211516417, name: me.dsdogs.turna
+09-01 03:06:28.846 24987 24987 I VirtualizationService: virtualizationservice: Registered Binder service android.system.virtualizationservice.
+09-01 03:06:28.847 24987 24987 I VirtualizationService: virtualizationservice: Registered Binder service android.hardware.security.keymint.IRemotelyProvisionedComponent/avf.
+09-01 03:06:28.847 24987 24987 I VirtualizationService: virtualizationservice: Registered Binder service android.system.virtualizationmaintenance.
+09-01 03:06:28.848 24987 24990 I VirtualizationService: virtualizationservice::aidl: packageRemoved(user_id=0, app_id=10455)
+09-01 03:06:28.848 24987 24990 I VirtualizationService: virtualizationservice::maintenance: Connecting to android.hardware.security.secretkeeper.ISecretkeeper/default
+09-01 03:06:28.851 24987 24990 I VirtualizationService: virtualizationservice::maintenance::vmdb: creating fresh database "/data/misc/apexdata/com.android.virt/vmdb/vmids.sqlite"
+09-01 03:06:28.851 24987 24990 I VirtualizationService: virtualizationservice::maintenance::vmdb: creating v1 database schema
+09-01 03:06:28.854 24987 24990 W VirtualizationService: virtualizationservice::maintenance: no existing VM ID DB; clearing any previous secrets to match fresh DB
+09-01 03:06:28.857 24987 24990 E VirtualizationService: virtualizationservice::maintenance: failed to delete previous secrets, dropping database: Status(-8, EX_SERVICE_SPECIFIC): '2: system/secretkeeper/core/src/ta.rs:247: failed to delete all: UnexpectedServerError'
+09-01 03:06:28.857 24987 24990 W VirtualizationService: virtualizationservice::maintenance::vmdb: removing database file "/data/misc/apexdata/com.android.virt/vmdb/vmids.sqlite"
+09-01 03:06:42.673  2108  2239 D BackupManagerService: [UserID:0] restoreAtInstall pkg=me.dsdogs.turna token=af restoreSet=0
+09-01 03:06:44.671  2108  2514 D BatteryStatsService: noteVideoSurfaceChanged  noteWhich: 49,arg1: 1260, arg2: 2800, arg3: 25692, arg4: 72167940337696769, name: me.dsdogs.turna
+09-01 03:06:45.747  2108  3655 D BatteryStatsService: noteVideoSurfaceChanged  noteWhich: 49,arg1: 1260, arg2: 2800, arg3: 25692, arg4: 72167940337696769, name: me.dsdogs.turna
+09-01 03:06:46.382  2108  3664 D BatteryStatsService: noteVideoSurfaceChanged  noteWhich: 49,arg1: -1, arg2: -1, arg3: 25692, arg4: 72167940337696769, name: me.dsdogs.turna
+09-01 03:06:48.391  2108  4010 D BatteryStatsService: noteVideoSurfaceChanged  noteWhich: 49,arg1: 1260, arg2: 2800, arg3: 26049, arg4: 72169473641021441, name: me.dsdogs.turna
+09-01 03:06:49.155  2108  3444 D BatteryStatsService: noteVideoSurfaceChanged  noteWhich: 49,arg1: 1260, arg2: 2800, arg3: 26049, arg4: 72169473641021441, name: me.dsdogs.turna
+09-01 03:06:58.772  2108  3162 D BatteryStatsService: noteVideoSurfaceChanged  noteWhich: 49,arg1: -1, arg2: -1, arg3: 26049, arg4: 72169473641021441, name: me.dsdogs.turna
+09-01 03:07:01.553  2108  4053 D BatteryStatsService: noteVideoSurfaceChanged  noteWhich: 49,arg1: 1260, arg2: 2800, arg3: 26983, arg4: 72173485140475905, name: me.dsdogs.turna
+09-01 03:07:02.130  2108  4053 D BatteryStatsService: noteVideoSurfaceChanged  noteWhich: 49,arg1: 1260, arg2: 2800, arg3: 26983, arg4: 72173485140475905, name: me.dsdogs.turna
+09-01 03:07:08.023  2108  3442 D BatteryStatsService: noteVideoSurfaceChanged  noteWhich: 49,arg1: -1, arg2: -1, arg3: 26983, arg4: 72173485140475905, name: me.dsdogs.turna
+09-01 03:07:14.059  2108  3666 D BatteryStatsService: noteVideoSurfaceChanged  noteWhich: 49,arg1: 1260, arg2: 2800, arg3: 26983, arg4: 72173485140475905, name: me.dsdogs.turna
+09-01 03:07:14.060  2108  4032 D BatteryStatsService: noteVideoSurfaceChanged  noteWhich: 49,arg1: 1260, arg2: 2800, arg3: 26983, arg4: 72173485140475905, name: me.dsdogs.turna
+09-01 03:07:20.021 27515 27545 V ActivityThread: updateVmProcessStateForGc sceneId =1000 state=-2038431744
+09-01 03:07:20.036 27515 27561 I DisplayManager: Choreographer implicitly registered for the refresh rate.
+09-01 03:07:20.409  2108  3655 D BatteryStatsService: noteVideoSurfaceChanged  noteWhich: 49,arg1: 1260, arg2: 2800, arg3: 27515, arg4: 72175770063077377, name: me.dsdogs.turna
+09-01 03:07:21.077  2108  3520 D BatteryStatsService: noteVideoSurfaceChanged  noteWhich: 49,arg1: 1260, arg2: 2800, arg3: 27515, arg4: 72175770063077377, name: me.dsdogs.turna
+09-01 03:08:17.719 27515 27543 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 03:11:14.380 27515 27542 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=197376
+09-01 03:11:14.386 27515 27542 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 03:11:23.600 27515 27515 D InsetsController: Setting requestedVisibleTypes to -5121 (was -5129)
+09-01 03:11:23.604  2108  3444 V AutofillSession: Primary service component name: ComponentInfo{com.vivo.cipherchain/com.vivo.cipherchain.service.CipChainService}, secondary service component name: ComponentInfo{com.android.credentialmanager/com.android.credentialmanager.autofill.CredentialAutofillService}
+09-01 03:11:23.627  2108  4053 D AutofillSession: createPendingIntent for request 7596
+09-01 03:11:23.681  2108  2108 D AutofillSession: clearPendingIntentLocked
+09-01 03:11:25.493 27515 27542 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=197376
+09-01 03:11:25.589 27515 27515 D InsetsController: Setting requestedVisibleTypes to -5129 (was -5121)
+09-01 03:11:26.068 27515 27542 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 03:11:30.901 27515 27542 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=197376
+09-01 03:11:30.942 27515 27542 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 03:11:36.820 27515 28408 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=197376
+09-01 03:11:36.833 27515 28408 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 03:11:36.847 27515 27515 D InsetsController: Setting requestedVisibleTypes to -5121 (was -5129)
+09-01 03:11:36.851  2108  3446 V AutofillSession: Primary service component name: ComponentInfo{com.vivo.cipherchain/com.vivo.cipherchain.service.CipChainService}, secondary service component name: ComponentInfo{com.android.credentialmanager/com.android.credentialmanager.autofill.CredentialAutofillService}
+09-01 03:11:36.862  2108  3677 D AutofillSession: createPendingIntent for request 7598
+09-01 03:11:36.881  2108  2108 D AutofillSession: clearPendingIntentLocked
+09-01 03:11:38.126 27515 27515 D InsetsController: Setting requestedVisibleTypes to -5129 (was -5121)
+09-01 03:12:54.102 27515 28408 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=197376
+09-01 03:12:54.118 27515 28408 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 03:17:49.180 27515 28407 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=197376
+09-01 03:17:50.926 27515 28407 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 03:24:19.789 27515 28408 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=197376
+09-01 03:24:21.631 27515 28407 V ActivityThread: updateVmProcessStateForGc sceneId =2 state=196608
+09-01 03:28:20.019  2108  3520 D BatteryStatsService: noteVideoSurfaceChanged  noteWhich: 49,arg1: -1, arg2: -1, arg3: 27515, arg4: 72175770063077377, name: me.dsdogs.turna
+09-01 03:28:20.089 27515 28408 V ActivityThread: updateVmProcessStateForGc sceneId =1001 state=-2080374784
+09-01 03:31:56.229 27515 28501 V ActivityThread: updateVmProcessStateForGc sceneId =1000 state=-2038431744
+09-01 03:41:27.080 13337 13337 I DisplayManager: Implicitly registering for refresh rate
+09-01 03:58:40.569 22556 22630 W ContextImpl: Calling a method in the system process without a qualified user: android.app.ContextImpl.bindService:2143 android.content.ContextWrapper.bindService:891 com.vivo.connect.sdk.e.c.a:9 com.vivo.connect.sdk.e.c.i:65 com.vivo.connect.sdk.e.c.f:3 
+09-01 03:58:40.572 22556 22556 W ContextImpl: Calling a method in the system process without a qualified user: android.app.ContextImpl.startService:2031 android.content.ContextWrapper.startService:855 com.vivo.vdfs.VdfsApplication.startVdfsCacheService:19 com.vivo.vdfs.VdfsApplication.onCreate:58 android.app.Instrumentation.callApplicationOnCreate:1395 
+09-01 03:58:40.584 22556 22713 W ContextImpl: Calling a method in the system process without a qualified user: android.app.ContextImpl.bindService:2143 android.content.ContextWrapper.bindService:891 com.vivo.connbase.connectcenter.ConnectCenterConnection.bind:120 com.vivo.connbase.connectcenter.ConnectCenterTask.run:17 java.util.concurrent.Executors$RunnableAdapter.call:524 
+09-01 03:58:41.480 22803 22803 I DisplayManager: Implicitly registering for refresh rate
+09-01 04:06:11.808 25527 25550 W ContextImpl: Calling a method in the system process without a qualified user: android.app.ContextImpl.bindService:2143 android.content.ContextWrapper.bindService:891 com.vivo.connect.sdk.e.c.a:9 com.vivo.connect.sdk.e.c.i:65 com.vivo.connect.sdk.e.c.f:3 
+09-01 04:06:11.814 25527 25527 W ContextImpl: Calling a method in the system process without a qualified user: android.app.ContextImpl.startService:2031 android.content.ContextWrapper.startService:855 com.vivo.vdfs.VdfsApplication.startVdfsCacheService:19 com.vivo.vdfs.VdfsApplication.onCreate:58 android.app.Instrumentation.callApplicationOnCreate:1395 
+09-01 04:06:11.824 25527 25594 W ContextImpl: Calling a method in the system process without a qualified user: android.app.ContextImpl.bindService:2143 android.content.ContextWrapper.bindService:891 com.vivo.connbase.connectcenter.ConnectCenterConnection.bind:120 com.vivo.connbase.connectcenter.ConnectCenterTask.run:17 java.util.concurrent.Executors$RunnableAdapter.call:524 
+09-01 04:11:18.228 27253 27253 I AconfigFlags: Using new flag storage
+09-01 04:11:18.272 27253 27768 I DisplayManager: Choreographer implicitly registered for the refresh rate.
+09-01 04:11:18.375 27253 27736 E ActivityThread: Failed to find provider info for com.ss.android.lark.SafeModeContentProvider
+09-01 04:11:20.740 27253 27454 W PowerProfile: screen.on is deprecated! Use screen.on.display0 instead.
+09-01 04:11:20.740 27253 27454 W PowerProfile: screen.full is deprecated! Use screen.full.display0 instead.
+09-01 04:11:20.740 27253 27454 W ModemPowerProfile: getAverageBatteryDrainMaH called with unexpected key: 0x0, drain:SLEEP,RAT:DEFAULT
+09-01 04:11:20.740 27253 27454 W ModemPowerProfile: getAverageBatteryDrainMaH called with unexpected key: 0x10000000, drain:IDLE,RAT:DEFAULT
+09-01 04:11:20.740 27253 27454 W ModemPowerProfile: getAverageBatteryDrainMaH called with unexpected key: 0x20000000, drain:RX,RAT:DEFAULT
+09-01 04:11:20.740 27253 27454 W ModemPowerProfile: getAverageBatteryDrainMaH called with unexpected key: 0x30000000, drain:TX,level:0,RAT:DEFAULT
+09-01 04:11:20.740 27253 27454 W ModemPowerProfile: getAverageBatteryDrainMaH called with unexpected key: 0x31000000, drain:TX,level:1,RAT:DEFAULT
+09-01 04:11:20.740 27253 27454 W ModemPowerProfile: getAverageBatteryDrainMaH called with unexpected key: 0x32000000, drain:TX,level:2,RAT:DEFAULT
+09-01 04:11:20.740 27253 27454 W ModemPowerProfile: getAverageBatteryDrainMaH called with unexpected key: 0x33000000, drain:TX,level:3,RAT:DEFAULT
+09-01 04:11:20.740 27253 27454 W ModemPowerProfile: getAverageBatteryDrainMaH called with unexpected key: 0x34000000, drain:TX,level:4,RAT:DEFAULT
+09-01 04:20:10.583   557   620 W ContextImpl: Calling a method in the system process without a qualified user: android.app.ContextImpl.bindService:2143 android.content.ContextWrapper.bindService:891 com.vivo.aisdk.mlupdate.local.internal.MLUpdateConn.bindService:31 com.vivo.aisdk.mlupdate.local.internal.InnerMLUpdateClient.d:2 com.vivo.aisdk.mlupdate.local.internal.InnerMLUpdateClient.handleMessage:103 
+09-01 04:34:47.079 14135 14231 I DisplayManager: Choreographer implicitly registered for the refresh rate.
+09-01 04:36:02.405 16208 16208 I VirtualizationService: virtualizationservice: Registered Binder service android.system.virtualizationservice.
+09-01 04:36:02.407 16208 16208 I VirtualizationService: virtualizationservice: Registered Binder service android.hardware.security.keymint.IRemotelyProvisionedComponent/avf.
+09-01 04:36:02.407 16208 16208 I VirtualizationService: virtualizationservice: Registered Binder service android.system.virtualizationmaintenance.
+09-01 04:37:54.951 11810 11826 V ActivityThread: updateVmProcessStateForGc sceneId =1 state=197376
+09-01 04:37:54.957 11810 19790 I DisplayManager: Choreographer implicitly registered for the refresh rate.
+09-01 04:37:54.977 11810 11821 V ActivityThread: updateVmProcessStateForGc sceneId =1000 state=-2038431744

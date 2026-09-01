@@ -94,17 +94,23 @@ class OfficialAnkiOfficialFirstService {
       );
     }
     final sourceHash = readSourceHash(official.sourceId) ?? 'official-unknown';
-    await recordMigration(
-      importId: official.sourceId,
-      official: official,
-      hash: sourceHash,
-      cardCount: official.cardCount,
-    );
+    final effectiveFlags =
+        flags ?? OfficialAnkiFeatureFlags.current;
+    // v2 链（step4.md B2）：migration link 是 v1 Legacy↔Official 关切，
+    // v2 零写入 `legacy_anki_migrations`（守卫测试锁死）。
+    if (!effectiveFlags.allowsV2ImportChain) {
+      await recordMigration(
+        importId: official.sourceId,
+        official: official,
+        hash: sourceHash,
+        cardCount: official.cardCount,
+      );
+    }
     return preparePreview(
       official: official,
       sourceHash: sourceHash,
       course: course,
-      flags: flags,
+      flags: effectiveFlags,
     );
   }
 
@@ -208,7 +214,11 @@ class OfficialAnkiOfficialFirstService {
       if (sourceDeckIds.isEmpty) {
         sourceDeckIds = {for (final card in cards) card.deckId};
       }
-      metadata.replaceAssociations(sourceId: official.sourceId, cards: cards);
+      // v2：`anki_source_notetypes`/`anki_source_decks` 属零写入的 13 张
+      // 表——notetype/deck id 直接由卡描述子派生，不落关联行。
+      if (!(flags ?? OfficialAnkiFeatureFlags.current).allowsV2ImportChain) {
+        metadata.replaceAssociations(sourceId: official.sourceId, cards: cards);
+      }
     }
     final schemas = await engine.getProjectionSchemas(
       notetypeIds: notetypeIds,

@@ -54,6 +54,8 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
   var cancelCalls = 0;
   int collectionFileBytes = 0;
   bool failCompact = false;
+  bool failCompactInvalidState = false;
+  bool requireCollectionOpen = false;
   String? lastRestoredBackupId;
 
   /// Backing store for GET_CONFIG/SET_CONFIG (ops 41/42). Mirrors the Rust
@@ -220,6 +222,7 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
     int pageSize = 200,
     String? pageToken,
   }) async {
+    _requireCollectionOpen();
     final raw = search.trim().toLowerCase();
     final excludeSuspended = raw.contains('-is:suspended');
     final wantSuspended =
@@ -231,9 +234,11 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
     final wantStudied = raw.contains('prop:reps>=1') ||
         raw.contains('prop:reps>0');
     final wantRatedToday = raw.contains('rated:1');
-    final cidIds = RegExp(r'cid:(\d+)')
+    final cidIds = RegExp(r'cid:([\d,]+)')
         .allMatches(raw)
-        .map((match) => int.parse(match.group(1)!))
+        .expand((match) => (match.group(1) ?? '').split(','))
+        .where((part) => part.isNotEmpty)
+        .map(int.parse)
         .toSet();
     final flagMatch = RegExp(r'(?:^|\s)flag:(\d+)').firstMatch(raw);
     final tagMatch = RegExp(r'(?:^|\s)tag:"([^"]+)"').firstMatch(raw);
@@ -249,7 +254,7 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
         .replaceAll('rated:1', '')
         .replaceAll(RegExp(r'(?:^|\s)flag:\d+'), '')
         .replaceAll(RegExp(r'(?:^|\s)tag:"[^"]+"'), '')
-        .replaceAll(RegExp(r'cid:\d+'), '')
+        .replaceAll(RegExp(r'cid:[\d,]+'), '')
         .replaceAll(RegExp(r'\b(or|and)\b'), '')
         .replaceAll('(', '')
         .replaceAll(')', '')
@@ -802,8 +807,12 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
     return removedCards.length;
   }
 
+  var deleteCardsCallCount = 0;
+
   @override
   Future<int> deleteCards(List<int> cardIds) async {
+    deleteCardsCallCount++;
+    _requireCollectionOpen();
     if (failDeleteNotes) {
       throw StateError('simulated collection deleteCards failure');
     }
@@ -988,8 +997,15 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
   }
 
   @override
-  Future<OfficialAnkiCompactResult> compactCollection() async {
+  Future<OfficialAnkiCompactResult> compactCollection({bool force = false}) async {
     compactCalls++;
+    _requireCollectionOpen();
+    if (failCompactInvalidState) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.invalidState,
+        messageKey: 'official_anki.invalid_state',
+      );
+    }
     if (failCompact) {
       throw const OfficialAnkiException(
         code: OfficialAnkiErrorCode.schedulerBusy,
@@ -1046,6 +1062,15 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
     }
     collectionGeneration += 1;
     return OfficialAnkiConfigWriteResult(ok: true, removed: removed);
+  }
+
+  void _requireCollectionOpen() {
+    if (requireCollectionOpen && openProfileId == null) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.invalidState,
+        messageKey: 'official_anki.invalid_state',
+      );
+    }
   }
 
   void _validateConfigKey(String key) {

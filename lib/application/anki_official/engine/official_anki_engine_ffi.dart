@@ -491,11 +491,12 @@ class FfiOfficialAnkiEngine implements OfficialAnkiEngine {
   }
 
   @override
-  Future<OfficialAnkiCompactResult> compactCollection() async {
+  Future<OfficialAnkiCompactResult> compactCollection({bool force = false}) async {
     _requireScheduler(OfficialAnkiOperation.compactCollection);
     return OfficialAnkiCompactResult.fromJson(
-      _call(OfficialAnkiOperation.compactCollection, const <String, Object?>{})
-          .requirePayload(),
+      _call(OfficialAnkiOperation.compactCollection, {
+        'force': force,
+      }).requirePayload(),
     );
   }
 

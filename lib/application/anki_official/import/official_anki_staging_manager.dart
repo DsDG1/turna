@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
+import 'package:turna/application/anki_official/lifecycle/official_anki_file_log.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/engine/official_anki_native_transport.dart';
@@ -61,25 +61,25 @@ class OfficialAnkiStagingManager {
     try {
       await engine?.cancel();
     } catch (suppressed) {
-      debugPrint('[OfficialAnkiStagingManager] cancel: $suppressed');
+      officialAnkiFileLog('OfficialAnkiStagingManager', 'cancel: $suppressed');
     }
     if (session != null) {
       try {
         await session.dispose();
       } catch (suppressed) {
-        debugPrint('[OfficialAnkiStagingManager] dispose session: $suppressed');
+        officialAnkiFileLog('OfficialAnkiStagingManager', 'dispose session: $suppressed');
       }
     } else if (override == null) {
       try {
         await engine?.dispose();
       } catch (suppressed) {
-        debugPrint('[OfficialAnkiStagingManager] dispose engine: $suppressed');
+        officialAnkiFileLog('OfficialAnkiStagingManager', 'dispose engine: $suppressed');
       }
     } else {
       try {
         await override.closeCollection();
       } catch (suppressed) {
-        debugPrint('[OfficialAnkiStagingManager] close override: $suppressed');
+        officialAnkiFileLog('OfficialAnkiStagingManager', 'close override: $suppressed');
       }
     }
     OfficialAnkiCompositionRoot.stagingSession = null;
@@ -98,7 +98,7 @@ class OfficialAnkiStagingManager {
         }
         return;
       } catch (suppressed) {
-        debugPrint('[OfficialAnkiStagingManager] delete try $i: $suppressed');
+        officialAnkiFileLog('OfficialAnkiStagingManager', 'delete try $i: $suppressed');
         await Future<void>.delayed(Duration(milliseconds: 50 * (i + 1)));
       }
     }

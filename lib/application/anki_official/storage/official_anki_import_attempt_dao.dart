@@ -325,4 +325,43 @@ WHERE attempt_id = ? AND state = ?
       [state.wire, nowMillis, attemptId],
     );
   }
+
+  /// v2 receipt absorb（ADR 0043 D4 / step4.md B2，catalog v13）：note
+  /// ids 直接进 attempt 行——不再写 `anki_import_attempt_notes` 侧表。
+  /// importPackage 返回后立刻调用，单条 UPDATE 即落账，把 K2 的「无
+  /// receipt 窗口」压到最小；重放同值幂等。
+  void absorbReceipt({
+    required String attemptId,
+    required List<int> noteIds,
+    required int nowMillis,
+    String? scopeJson,
+    int? preImportUsn,
+  }) {
+    _db.execute(
+      'UPDATE anki_import_attempts SET receipt_note_ids_json = ?, '
+      'receipt_scope_json = COALESCE(?, receipt_scope_json), '
+      'pre_import_usn = COALESCE(?, pre_import_usn), '
+      'heartbeat_at_millis = ? WHERE attempt_id = ?',
+      [jsonEncode(noteIds), scopeJson, preImportUsn, nowMillis, attemptId],
+    );
+  }
+
+  /// 吸收进 attempt 行的 receipt note ids（K2 重启重建的输入）。
+  List<int> receiptNoteIds(String attemptId) {
+    final rows = _db.select(
+      'SELECT receipt_note_ids_json FROM anki_import_attempts '
+      'WHERE attempt_id = ?',
+      [attemptId],
+    );
+    if (rows.isEmpty) return const [];
+    final raw = rows.first['receipt_note_ids_json'] as String?;
+    if (raw == null || raw.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return const [];
+      return decoded.whereType<num>().map((n) => n.toInt()).toList();
+    } catch (_) {
+      return const [];
+    }
+  }
 }

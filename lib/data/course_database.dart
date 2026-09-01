@@ -313,7 +313,7 @@ class CourseDatabase extends _$CourseDatabase {
 
   /// Single source of truth for the drift schema version, so tests and
   /// backup code never hard-code a stale literal.
-  static const int kSchemaVersion = 22;
+  static const int kSchemaVersion = 23;
 
   @override
   int get schemaVersion => kSchemaVersion;
@@ -331,6 +331,7 @@ class CourseDatabase extends _$CourseDatabase {
           await _ensureAiCompanionTables(m.database);
           await _ensureGemEconomyTables(m.database);
           await _ensureOwnerAuthorityTables(m.database);
+          await _ensureV2CourseTreeView(m.database);
           await _backfillReviewSourceIdentity(m.database);
         },
         onUpgrade: (m, from, to) async {
@@ -378,6 +379,7 @@ class CourseDatabase extends _$CourseDatabase {
               'anki_card_introduction_states',
               'study_product_events',
               'anki_import_jobs',
+              'anki_course_tree_view',
             ]) {
               await m.deleteTable(tableName);
             }
@@ -390,6 +392,7 @@ class CourseDatabase extends _$CourseDatabase {
             await _ensureAnkiUnificationTables(m.database);
             await _ensureAiCompanionTables(m.database);
             await _ensureOwnerAuthorityTables(m.database);
+            await _ensureV2CourseTreeView(m.database);
             return;
           }
           if (from < 2) {
@@ -538,6 +541,14 @@ class CourseDatabase extends _$CourseDatabase {
             // fresh installs and pre-v10 upgrades, which never created it.
             await m.database.customStatement(
                 'DROP TABLE IF EXISTS anki_prerendered_html');
+          }
+          if (from < 23) {
+            // v23 (ADR 0043 D3 / step4.md B3): the v2 course-tree view —
+            // the ONLY course-tree storage for v2-chain sources. A
+            // stateless materialized view: one row per card, DROP+REBUILD
+            // at any time from Collection + config decisions + ledger. The
+            // v1 projection tables stay untouched (flag-off = v1 exactly).
+            await _ensureV2CourseTreeView(m.database);
           }
         },
       );
@@ -815,6 +826,44 @@ class CourseDatabase extends _$CourseDatabase {
         item_count INTEGER NOT NULL,
         published_at_millis INTEGER NOT NULL
       )
+    ''');
+  }
+
+  /// Schema v23: v2 chain materialized course-tree view (ADR 0043 D3 — the
+  /// two v1 projection tables collapse into this one). No independent
+  /// state: rebuilds are DELETE+INSERT inside a single transaction, so a
+  /// kill mid-rebuild leaves the previous view fully intact (K11). Kept in
+  /// course.db (not the catalog) because it is course-tree-shaped derived
+  /// data, wipe-safe on downgrade like every other row here.
+  static Future<void> _ensureV2CourseTreeView(
+    GeneratedDatabase database,
+  ) async {
+    await database.customStatement('''
+      CREATE TABLE IF NOT EXISTS anki_course_tree_view (
+        source_id TEXT NOT NULL,
+        card_id INTEGER NOT NULL,
+        note_id INTEGER NOT NULL,
+        deck_id INTEGER NOT NULL,
+        word_id TEXT NOT NULL,
+        section_key TEXT NOT NULL,
+        section_id TEXT NOT NULL,
+        unit_id TEXT NOT NULL,
+        lesson_id TEXT NOT NULL,
+        lesson_key TEXT NOT NULL,
+        presentation_kind TEXT NOT NULL,
+        source_hash TEXT NOT NULL,
+        mapping_version INTEGER NOT NULL,
+        rebuilt_at_millis INTEGER NOT NULL,
+        PRIMARY KEY(source_id, card_id)
+      )
+    ''');
+    await database.customStatement('''
+      CREATE INDEX IF NOT EXISTS anki_course_tree_view_lesson_idx
+      ON anki_course_tree_view(lesson_id, card_id)
+    ''');
+    await database.customStatement('''
+      CREATE INDEX IF NOT EXISTS anki_course_tree_view_section_idx
+      ON anki_course_tree_view(section_id)
     ''');
   }
 

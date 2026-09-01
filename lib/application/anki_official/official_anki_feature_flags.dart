@@ -12,6 +12,13 @@
 ///
 /// Product pause is [LegacyAnkiMigrationFlags.cutoverEnabled]
 /// (`TURNA_OFFICIAL_ANKI_CUTOVER`, default true) — not a second flag matrix.
+///
+/// v2 import chain (ADR 0043 / step4.md A1): exactly one boolean routes new
+/// imports and the course-tree read path. Default false; productionAndroid
+/// stays false until the K1–K14 on-device matrix is green plus one internal
+/// release observation window. Rolling back only re-routes NEW imports —
+/// already-imported v2 sources stay learnable (ledger rows, config decisions
+/// and the view table all remain; the read path serves both generations).
 class OfficialAnkiFeatureFlags {
   const OfficialAnkiFeatureFlags({
     this.engine = false,
@@ -26,6 +33,7 @@ class OfficialAnkiFeatureFlags {
     this.scheduler = false,
     this.courseGradesScheduler = false,
     this.officialFirstImport = false,
+    this.v2ImportChain = false,
   });
 
   /// Android production product flags. Opt-in reviewer diagnostics / grades
@@ -67,6 +75,11 @@ class OfficialAnkiFeatureFlags {
   final bool courseGradesScheduler;
   final bool officialFirstImport;
 
+  /// v2 single-source chain (step4.md A1). Off here means constructor
+  /// default; [productionAndroid] keeps it off until the kill matrix is
+  /// green. Dev/QA builds opt in via [copyWith].
+  final bool v2ImportChain;
+
   static OfficialAnkiFeatureFlags current =
       OfficialAnkiFeatureFlags.fromEnvironment();
 
@@ -100,6 +113,11 @@ class OfficialAnkiFeatureFlags {
   bool get allowsOfficialFirstImport =>
       officialFirstImport && allowsOfficialImport && allowsCourseEntry;
 
+  /// v2 chain gate (step4.md A1): rides on the v1 capability floor — v2 is
+  /// a routing change of the publish/read stages, not a new engine surface.
+  bool get allowsV2ImportChain =>
+      v2ImportChain && allowsOfficialFirstImport;
+
   OfficialAnkiFeatureFlags copyWith({
     bool? engine,
     bool? import,
@@ -113,6 +131,7 @@ class OfficialAnkiFeatureFlags {
     bool? scheduler,
     bool? courseGradesScheduler,
     bool? officialFirstImport,
+    bool? v2ImportChain,
   }) {
     return OfficialAnkiFeatureFlags(
       engine: engine ?? this.engine,
@@ -128,6 +147,7 @@ class OfficialAnkiFeatureFlags {
       courseGradesScheduler:
           courseGradesScheduler ?? this.courseGradesScheduler,
       officialFirstImport: officialFirstImport ?? this.officialFirstImport,
+      v2ImportChain: v2ImportChain ?? this.v2ImportChain,
     );
   }
 }

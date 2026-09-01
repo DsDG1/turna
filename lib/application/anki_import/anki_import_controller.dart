@@ -14,11 +14,14 @@ import 'package:turna/application/anki_official/import/anki_import_execution_pla
 import 'package:turna/application/anki_official/lifecycle/official_anki_source_metadata_dao.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
+import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_saga.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
+import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
+import 'package:turna/application/anki_official/v2/official_anki_v2_import_service.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/utils/validated_file_picker.dart';
 
@@ -419,6 +422,14 @@ class AnkiImportController extends ChangeNotifier {
 
     final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
     final paths = OfficialAnkiCompositionRoot.locatorPaths;
+    // v2 分叉（step4.md B1/B2）：flag 开 → 发布段整体走 v2 链（配置区
+    // 决策 + 账本五表 + 视图重建），不进 v1 投影/发布。flag 关（默认）
+    // = v1 原样，零回归。
+    if (OfficialAnkiFeatureFlags.current.allowsV2ImportChain &&
+        catalog != null &&
+        paths != null) {
+      return _commitOfficialV2(preview, catalog, paths);
+    }
     OfficialAnkiImportSaga? saga;
     OfficialAnkiImportResult? imported;
     if (catalog != null && paths != null) {
@@ -515,6 +526,40 @@ class AnkiImportController extends ChangeNotifier {
         lessonCount: projection.lessonCount,
         cardCount: result.itemCount,
         wordEntryCount: result.itemCount,
+        sourceCardCount: preview.cardCount,
+      ),
+      needsMapping: false,
+    );
+  }
+
+  /// v2 发布链（step4.md）：live import → receipt 吸收 → 卡索引（账本五表
+  /// 之一）→ 映射晋升进配置区（K10 两步幂等）→ attempt/source 收敛 →
+  /// 视图重建。staging 目录由 v2 服务自身的 finishCommit 回收。
+  Future<_OfficialFirstCommitResult> _commitOfficialV2(
+    OfficialAnkiImportPreviewModel preview,
+    OfficialAnkiDatabase catalog,
+    OfficialAnkiPaths paths,
+  ) async {
+    final result = await OfficialAnkiV2ImportService(
+      catalog: catalog,
+      paths: paths,
+      course: _deps.courseDatabase,
+    ).commit(
+      sourceId: preview.sourceId,
+      packagePath: preview.filePath,
+      displayName: preview.filePath.split(RegExp(r'[/\\]')).last,
+      suggestions: preview.suggestions,
+      confirmedNotetypes: preview.confirmedNotetypes,
+      skippedNotetypes: preview.skippedNotetypes,
+    );
+    return _OfficialFirstCommitResult(
+      summary: AnkiImportSummary(
+        importId: preview.sourceId,
+        sectionCount: result.sectionCount,
+        unitCount: 0,
+        lessonCount: result.lessonCount,
+        cardCount: result.cardCount,
+        wordEntryCount: result.cardCount,
         sourceCardCount: preview.cardCount,
       ),
       needsMapping: false,

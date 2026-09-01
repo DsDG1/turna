@@ -5,7 +5,7 @@ import 'package:turna/application/anki_official/contract/official_anki_errors.da
 import 'package:turna/application/anki_official/storage/official_anki_sqlite.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 
-const int kOfficialAnkiCatalogSchemaVersion = 12;
+const int kOfficialAnkiCatalogSchemaVersion = 13;
 
 /// Independent catalog. Must not live in CourseDatabase (downgrade wipes it).
 class OfficialAnkiDatabase {
@@ -106,6 +106,9 @@ class OfficialAnkiDatabase {
       }
       if (version <= 11) {
         _upgradeToV12();
+      }
+      if (version <= 12) {
+        _upgradeToV13();
       }
       _db.execute('PRAGMA user_version = $kOfficialAnkiCatalogSchemaVersion');
       _db.execute('COMMIT');
@@ -607,6 +610,49 @@ CREATE TABLE IF NOT EXISTS anki_cleanup_receipts (
       'anki_import_attempts',
       'staging_path',
       'staging_path TEXT',
+    );
+  }
+
+  /// ADR 0043 D4 / step4.md B2: the v2 ledger. Sources record which chain
+  /// imported them ('v1' | 'v2') so the read path can serve both
+  /// generations, and attempts absorb the receipt that v1 kept in the
+  /// `anki_import_attempt_notes` side table (note ids + scope + pre-import
+  /// usn) — the v2 path writes none of the other 13 catalog tables.
+  void _upgradeToV13() {
+    void addColumn(String table, String column, String decl) {
+      final hasColumn = _db
+          .select(
+            "SELECT name FROM pragma_table_info('$table') WHERE name='$column'",
+          )
+          .isNotEmpty;
+      if (!hasColumn) {
+        _db.execute('ALTER TABLE $table ADD COLUMN $decl');
+      }
+    }
+
+    addColumn(
+      'anki_sources',
+      'chain',
+      "chain TEXT NOT NULL DEFAULT 'v1'",
+    );
+    addColumn(
+      'anki_import_attempts',
+      'receipt_note_ids_json',
+      'receipt_note_ids_json TEXT',
+    );
+    addColumn(
+      'anki_import_attempts',
+      'receipt_scope_json',
+      'receipt_scope_json TEXT',
+    );
+    addColumn(
+      'anki_import_attempts',
+      'pre_import_usn',
+      'pre_import_usn INTEGER',
+    );
+    _db.execute(
+      'CREATE INDEX IF NOT EXISTS anki_sources_chain_idx '
+      'ON anki_sources(profile_id, chain, state)',
     );
   }
 

@@ -341,8 +341,8 @@ class OfficialAnkiWorker implements OfficialAnkiEngine {
   }
 
   @override
-  Future<OfficialAnkiCompactResult> compactCollection() {
-    return _enqueue(_inner.compactCollection);
+  Future<OfficialAnkiCompactResult> compactCollection({bool force = false}) {
+    return _enqueue(() => _inner.compactCollection(force: force));
   }
 
   @override

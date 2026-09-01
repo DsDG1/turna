@@ -15,6 +15,7 @@ import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycl
 import 'package:turna/application/anki_official/lifecycle/official_anki_uninstall_saga.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
+import 'package:turna/application/anki_official/v2/official_anki_v2_retire_service.dart';
 import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/srs_provider.dart';
@@ -23,6 +24,7 @@ import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/anki_note_dao.dart';
 import 'package:turna/data/anki_owner_authority_dao.dart';
 import 'package:turna/data/anki_unification_dao.dart';
+import 'package:turna/data/course_database.dart';
 import 'package:turna/data/review_history_dao.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/audio/anki_audio_resolver.dart';
@@ -137,11 +139,65 @@ class AnkiDeckManager {
     final owner = await _resolveDeletionOwner(importId);
     final officialSourceId = owner.officialSourceId;
     if (officialSourceId != null) {
+      // v2 分叉（step4.md B5/D6）：chain='v2' 的 source 走 retiring 序列
+      // （账本单事务即刻移除 + job 驱动引擎删除/终删/视图重建/GC），
+      // 不进 v1 的跨库 uninstall saga。任一段强杀由 job 表续跑收敛。
+      if (await _isV2Source(officialSourceId)) {
+        return _uninstallV2Source(officialSourceId);
+      }
       final completed = await uninstallOfficialSource(officialSourceId);
       if (!completed) return false;
     }
     if (officialSourceId == null || await _hasLegacyArtifacts(importId)) {
       await uninstallDeck(importId);
+    }
+    return true;
+  }
+
+  Future<bool> _isV2Source(String sourceId) async {
+    try {
+      await OfficialAnkiCompositionRoot.initializeReadOnlyLocator();
+      final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+      if (catalog == null) return false;
+      return OfficialAnkiSourceDao(catalog).findById(sourceId)?.isV2 ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  CourseDatabase? _courseDatabase() {
+    try {
+      return getIt.isRegistered<CourseDatabase>()
+          ? getIt<CourseDatabase>()
+          : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// v2 retiring 序列入口（B5）：①账本单事务即刻移除（含视图定向删行）
+  /// → ②③④同步推进一遍（引擎在场时一次走完）；引擎缺席时 job 留队，
+  /// 下次启动 `runPending` 续跑——两种情况都返回 true（用户视角已移除，
+  /// 与 v1「deferred 返回 false」的差别在于 v2 的收敛由 job 表保证）。
+  Future<bool> _uninstallV2Source(String sourceId) async {
+    await OfficialAnkiCompositionRoot.initializeReadOnlyLocator();
+    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+    final paths = OfficialAnkiCompositionRoot.locatorPaths;
+    if (catalog == null || paths == null) {
+      return false;
+    }
+    final engine = await _resolveOfficialEngine();
+    final service = OfficialAnkiV2RetireService(
+      catalog: catalog,
+      paths: paths,
+      course: _courseDatabase(),
+      engine: engine,
+    );
+    await service.beginRetire(sourceId: sourceId);
+    try {
+      await service.runRetireJob(sourceId: sourceId);
+    } catch (error) {
+      debugPrint('[AnkiDeckManager] v2 retire deferred: $error');
     }
     return true;
   }

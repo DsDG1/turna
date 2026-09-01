@@ -1,6 +1,9 @@
 import 'package:drift/drift.dart' show Variable;
+import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_ids.dart';
+import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
+import 'package:turna/application/anki_official/v2/official_anki_v2_view_store.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/courses/languages/course_lookup.dart';
@@ -255,6 +258,48 @@ class CourseCatalog {
       } catch (e) {
         logger.w('CourseCatalog: manifest fallback failed: $e');
       }
+    }
+
+    // v2 视图条目（B6 读面）：视图 + 账本 chain='v2' active 合成；
+    // flag 关时为空（回退后 v2 旧来源条目不可见，但账本/配置区/视图
+    // 数据都在——翻回 flag 即恢复，回退语义的对称面）。
+    try {
+      final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+      if (catalog != null && db != null) {
+        final activeSources = {
+          for (final source in OfficialAnkiSourceDao(catalog).listV2Sources(
+            officialProfileId,
+            states: {'active'},
+          ))
+            source.sourceId: source,
+        };
+        final summaries = await OfficialAnkiV2ViewStore(db).sectionSummaries();
+        final sectionCounts = <String, int>{};
+        final cardCounts = <String, int>{};
+        for (final summary in summaries) {
+          if (!activeSources.containsKey(summary.sourceId)) continue;
+          sectionCounts[summary.sourceId] =
+              (sectionCounts[summary.sourceId] ?? 0) + 1;
+          cardCounts[summary.sourceId] =
+              (cardCounts[summary.sourceId] ?? 0) + summary.cardCount;
+        }
+        for (final sourceId in sectionCounts.keys) {
+          if (officialIds.contains(sourceId)) continue;
+          entries.add(CourseCatalogEntry(
+            scope: OfficialAnkiCourseScope(
+              profileId: officialProfileId,
+              sourceId: sourceId,
+            ),
+            displayName: activeSources[sourceId]?.displayName ?? sourceId,
+            isBuiltin: false,
+            officialSourceId: sourceId,
+            sectionCount: sectionCounts[sourceId] ?? 0,
+            cardCount: cardCounts[sourceId] ?? 0,
+          ));
+        }
+      }
+    } catch (e) {
+      logger.w('CourseCatalog: v2 view entries failed: $e');
     }
 
     return entries;

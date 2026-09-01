@@ -14,6 +14,7 @@ import 'package:turna/application/anki_official/storage/official_anki_import_att
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/maintenance/official_storage_optimize_service.dart';
 import 'package:turna/application/maintenance/storage_inventory_service.dart';
+import 'package:turna/core/log_capture.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
@@ -376,16 +377,43 @@ class _OfficialAnkiRepairCenterPageState
         profileId: _paths?.profileId,
       ),
     );
+    // D8（step4.md C1）：诊断导出附带最近文件日志（启动恢复/commit 窗口
+    // /维护任务/视图重建/retiring 序列），不依赖厂商 logcat（Step 1
+    // 发现 #4 的答复）。storage audit 快照保留在前。
+    final withLogs = _appendRecentLogs(payload);
     final injected = widget.onExportDiagnostics;
     if (injected != null) {
-      await injected(payload);
+      await injected(withLogs);
       return;
     }
-    await Clipboard.setData(ClipboardData(text: payload));
+    await Clipboard.setData(ClipboardData(text: withLogs));
     try {
-      await Share.share(payload, subject: AppStrings.ankiRepairCenterTitle);
+      await Share.share(withLogs, subject: AppStrings.ankiRepairCenterTitle);
     } catch (_) {}
     if (mounted) _snack(AppStrings.ankiRepairExportCopied);
+  }
+
+  /// LogCapture 的内存 ring（最新在前）截取最近 [limit] 条拼进导出。
+  String _appendRecentLogs(String payload, {int limit = 120}) {
+    try {
+      final entries = LogCapture.instance.entries.value;
+      if (entries.isEmpty) return payload;
+      final buffer = StringBuffer(payload)
+        ..write('\n--- recent file log (${entries.length} kept, '
+            'showing up to $limit, newest first) ---\n');
+      var shown = 0;
+      for (final entry in entries) {
+        if (shown >= limit) break;
+        buffer.writeln(
+          '${entry.timestamp.toIso8601String()} '
+          '[${entry.level.name}] ${entry.displayMessage}',
+        );
+        shown++;
+      }
+      return buffer.toString();
+    } catch (_) {
+      return payload;
+    }
   }
 
   Future<bool?> _confirm({required String title, required String body}) {
