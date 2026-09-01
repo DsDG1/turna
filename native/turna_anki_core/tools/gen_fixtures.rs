@@ -635,19 +635,45 @@ fn build_recognition_zh_composite(packages: &Path, expected: &Path) -> Result<se
     )
 }
 
+/// Large fixture: notes spread across a three-level `S{i}::U{j}::L{k}` deck
+/// tree. Real decks are trees — the first on-device night showed a flat
+/// 100k single deck is a UI-overload artifact, not a realistic shape
+/// (docs/ankiUpdate/v2-first-device-findings.md F3). Shape: ~100 cards per
+/// leaf; leaves = clamp(ceil(count/100), 1, 1000) laid out row-major over a
+/// 10×10 section×unit grid (1000 leaves = S0..S9 × U0..U9 × L0..L9), the
+/// remainder goes to the last leaf. Three `::` segments hit the v2 view
+/// rebuilder's path derivation (section=first, unit=second, lesson=last)
+/// and — being a multi-level tree — the import writes no derived placement
+/// override key, exercising the pure path-derivation branch.
 fn build_large(generated: &Path, count: u32) -> Result<serde_json::Value> {
     let file = format!("10-large-generated-{count}.apkg");
     let mut col = Col::open()?;
     let nt = col.notetype("Basic")?;
+    let leaves = count.div_ceil(100).clamp(1, 1000);
+    let cards_per_leaf = count.div_ceil(leaves);
+    let mut leaf_ids = Vec::with_capacity(leaves as usize);
+    for leaf in 0..leaves {
+        let section = leaf / 100;
+        let unit = (leaf / 10) % 10;
+        let lesson = leaf % 10;
+        let name = format!("S{section}::U{unit}::L{lesson}");
+        leaf_ids.push(col.col.get_or_create_normal_deck(&name)?.id);
+    }
+    let last_leaf = leaf_ids.last().copied().unwrap_or(DeckId(1));
     let mut requests = Vec::with_capacity(count as usize);
     for index in 0..count {
         let mut note = nt.new_note();
         note.guid = format!("turnalrg{index:010}");
         note.set_field(0, format!("Q{index}"))?;
         note.set_field(1, format!("A{index}"))?;
+        let leaf = (index / cards_per_leaf) as usize;
         requests.push(anki::notes::AddNoteRequest {
             note,
-            deck_id: DeckId(1),
+            deck_id: if leaf < leaf_ids.len() {
+                leaf_ids[leaf]
+            } else {
+                last_leaf
+            },
         });
     }
     col.col.add_notes(&mut requests)?;
@@ -665,6 +691,11 @@ fn build_large(generated: &Path, count: u32) -> Result<serde_json::Value> {
         "expectedCards": count,
         "legacy": false,
         "generated": true,
+        "deckTree": {
+            "shape": "S{s}::U{u}::L{l}",
+            "leaves": leaves,
+            "cardsPerLeaf": cards_per_leaf,
+        },
         "assertions": ["question-contains:Q0"],
     }))
 }

@@ -14,8 +14,8 @@
 |---|---|---|---|
 | P1 | arm64 `.so` 含 op 41/42(契约 1.12) | ✅ 已落 jniLibs(R1 收据) | `verify_symbols.sh` pass;SHA `90f2a1f5…54472e` |
 | P2 | v2 flag 投喂面 | ✅ `--dart-define=TURNA_OFFICIAL_ANKI_V2_IMPORT_CHAIN=true` | 无 define 构建恒 false(生产安全);双态测试绿 |
-| P3 | debug + release 双 APK(带 P1/P2) | ✅ `build/app/outputs/flutter-apk/app-{debug,release}.apk`(v2 define 已开;release 99.6MB) | APK 内 .so 剥离后 SHA `7ec00e26…0ba7cc`(两包一致),op 41/42 SQL 字面量命中 = 新桥已打包 |
-| P4 | 小夹具(常规包)+ 大夹具(10 万卡级) | ✅ 大件 `test/fixtures/anki_official_c3/generated/10-large-generated-100000.apkg`(notes=100000,SHA `74ecc3ab…d807aa`,可由 gen_fixtures 命令再生);小件 = 仓库契约夹具 `test/fixtures/anki_official/packages/` | 推 `/sdcard/Download/`;向导可选中 |
+| P3 | debug + release 双 APK(带 P1/P2) | ⚠️ 8-31 双 APK 已过时——F4/F6/F3 修复落码后需重建(命令不变,`--dart-define=TURNA_OFFICIAL_ANKI_V2_IMPORT_CHAIN=true`) | 重建后 APK 内 .so 剥离 SHA 应仍为 `7ec00e26…0ba7cc`(桥未动);Dart 面以新构建为准 |
+| P4 | 小夹具(常规包)+ 大夹具(10 万卡级) | ✅ 大件 `test/fixtures/anki_official_c3/generated/10-large-generated-100000.apkg`(notes=100000,SHA `f7c01ed5…e0579`,**三级牌组树 S::U::L = 10 section × 10 unit × 10 课时 × 100 卡**,真机 F3 修复后再生,消灭单课时 10 万卡的 UI 过载假象;可由 gen_fixtures 命令再生——每次再生官方导出分配新 card id,SHA 随之变);小件 = 仓库契约夹具 `test/fixtures/anki_official/packages/` | 推 `/sdcard/Download/`;向导可选中;期望课程树 = 10 section/每 section 10 unit/每 unit 10 课时 |
 | P5 | 真机 + USB 调试授权 | ⏳ 用户侧 | `adb devices` 见 serial(不限 vivo,以实际 serial 记录) |
 | P6 | 取证工具 | ✅ `logs/crash-hunt/`(monitor.js / stackloop.js / prepare-timeline.js / dump-now.js) | K13 专项用;需 debug/profile 构建 + VM 服务 |
 
