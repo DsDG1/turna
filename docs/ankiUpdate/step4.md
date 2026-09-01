@@ -1,5 +1,7 @@
 # Step 4 详细说明：v2 导入→课程树链落码（与 v1 并存）
 
+> **2026-09-02 复活：执行线重开，见 [ADR 0044](../decisions/0044-anki-v2-revival.md)。** 当年 C3 不可跑的元凶（导入完成页 pop 死循环真机卡死）已于 2026-09-02 根因修复。剩余执行线：R1 重建 arm64 .so（op41/42）→ R1.5 v2 链 `upsertCardBatch` 主 isolate 写下沉 → C3 矩阵 → C4 定标 → 观察期翻 flag。下文失败结论保留为历史记录。完整叙事见 [复活记](./v2-revival-story.md)。
+
 > **本步未关闭。整个 v2 已失败（2026-09-01），不要续做 C3/C4、不要翻生产 flag、不要进 Step 5。** 总结论：[README.md](./README.md)。
 >
 > 上游文档：[README.md](./README.md)（总目标与六步计划，已作废）；前置：[step3.md](./step3.md)（op 41/42、契约 1.12）。

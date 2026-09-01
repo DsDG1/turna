@@ -11,6 +11,7 @@ import 'package:turna/application/anki_official/engine/official_anki_engine_ffi.
 import 'package:turna/application/anki_official/engine/official_anki_native_transport.dart';
 import 'package:turna/application/anki_official/engine/official_anki_operation_coordinator.dart';
 import 'package:turna/application/anki_official/engine/official_anki_session_cleanup.dart';
+import 'package:turna/application/anki_official/import/official_anki_commit_receipt.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_orchestrator.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
 import 'package:turna/application/anki_official/import/official_anki_recovery_service.dart';
@@ -272,6 +273,28 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
 
   Future<List<OfficialAnkiImportResult>> recoverUnfinished() =>
       _call<List<OfficialAnkiImportResult>>('recoverUnfinished');
+
+  /// crash-hunt PR1: run the import receipt segment (per-card catalog
+  /// writes + paged engine reads) inside the worker so none of it touches
+  /// the UI isolate. Same generous timeout as imports — large decks do
+  /// minutes of per-page work here.
+  Future<int> commitReceipt({
+    required String attemptId,
+    required String sourceId,
+    required List<int> noteIds,
+    required int nowMillis,
+  }) {
+    return _call<int>(
+      'commitReceipt',
+      {
+        'attemptId': attemptId,
+        'sourceId': sourceId,
+        'noteIds': noteIds,
+        'nowMillis': nowMillis,
+      },
+      const Duration(minutes: 30),
+    );
+  }
 
   /// Latest import progress. The control transport (main-isolate FFI) is
   /// preferred so this stays reachable while the worker is busy inside a
@@ -615,6 +638,24 @@ final Map<String, Future<Object?> Function(_WorkerState, Map<String, Object?>)>
       engine: s.engine!,
       orchestrator: s.orchestrator!,
     ).recoverUnfinished();
+  },
+  'commitReceipt': (s, m) async {
+    // crash-hunt PR1: the receipt is the heaviest catalog segment of the
+    // import chain (one row per card). This worker already owns the engine
+    // handle and a catalog connection — running it here keeps the whole
+    // segment (and its per-page engine calls) off the UI isolate.
+    return officialAnkiRunCommitReceipt(
+      attempts: OfficialAnkiImportAttemptDao(s.db!),
+      catalog: s.db!,
+      engine: s.engine!,
+      attemptId: m['attemptId'] as String,
+      sourceId: m['sourceId'] as String,
+      noteIds: ((m['noteIds'] as List?) ?? const [])
+          .whereType<num>()
+          .map((n) => n.toInt())
+          .toList(),
+      nowMillis: (m['nowMillis'] as num).toInt(),
+    );
   },
   'importFile': (s, m) async {
     // Doc 42 P4: no catalog saga / backup. Product wizard uses startStaging.

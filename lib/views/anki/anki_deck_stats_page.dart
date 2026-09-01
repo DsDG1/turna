@@ -8,13 +8,14 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/stats/official_anki_source_aware_stats.dart';
+import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/memory_curve_provider.dart';
 import 'package:turna/views/review/components/retention_curve_chart.dart';
 import 'package:turna/views/theme.dart';
 
 @RoutePage()
-class AnkiDeckStatsPage extends StatelessWidget {
+class AnkiDeckStatsPage extends StatefulWidget {
   final String importId;
   final String title;
 
@@ -25,21 +26,38 @@ class AnkiDeckStatsPage extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  State<AnkiDeckStatsPage> createState() => _AnkiDeckStatsPageState();
+}
+
+class _AnkiDeckStatsPageState extends State<AnkiDeckStatsPage> {
+  // crash-hunt PR1: the source lookup is a sync sqlite read and used to run
+  // inside build(); the stats future was also re-created per rebuild. Both
+  // are resolved once per page lifetime now (PR2 makes the catalog async).
+  late final OfficialAnkiDatabase? _officialCatalog = _resolveCatalog();
+  late final Future<OfficialAnkiSourceAwareStatsSnapshot>? _officialStats =
+      _officialCatalog == null
+          ? null
+          : OfficialAnkiSourceAwareStats(
+              sources: OfficialAnkiSourceDao(_officialCatalog),
+              engine: OfficialAnkiCompositionRoot.engine,
+            ).forOfficialSource(widget.importId);
+  Future<MemoryCurveSnapshot>? _legacyStats;
+
+  OfficialAnkiDatabase? _resolveCatalog() {
     final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
-    final officialCatalog = catalog != null &&
-            OfficialAnkiSourceDao(catalog).findById(importId) != null
+    if (catalog == null) return null;
+    return OfficialAnkiSourceDao(catalog).findById(widget.importId) != null
         ? catalog
         : null;
+  }
 
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('$title · 统计')),
-      body: officialCatalog != null
+      appBar: AppBar(title: Text('${widget.title} · 统计')),
+      body: _officialCatalog != null
           ? FutureBuilder(
-              future: OfficialAnkiSourceAwareStats(
-                sources: OfficialAnkiSourceDao(officialCatalog),
-                engine: OfficialAnkiCompositionRoot.engine,
-              ).forOfficialSource(importId),
+              future: _officialStats,
               builder: (context, snapshot) {
                 if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
@@ -119,9 +137,9 @@ class AnkiDeckStatsPage extends StatelessWidget {
               },
             )
           : FutureBuilder<MemoryCurveSnapshot>(
-              future: context
+              future: _legacyStats ??= context
                   .read<MemoryCurveProvider>()
-                  .snapshotForImportId(importId),
+                  .snapshotForImportId(widget.importId),
               builder: (context, snapshot) {
                 if (snapshot.connectionState != ConnectionState.done) {
                   return const Center(child: CircularProgressIndicator());

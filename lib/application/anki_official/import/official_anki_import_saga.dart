@@ -5,12 +5,14 @@ import 'package:flutter/foundation.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
+import 'package:turna/application/anki_official/engine/official_anki_session.dart';
+import 'package:turna/application/anki_official/import/official_anki_commit_receipt.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
 import 'package:turna/application/anki_official/import/official_anki_source_hasher.dart';
 import 'package:turna/application/anki_official/import/official_anki_staging_manager.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
-import 'package:turna/application/anki_official/lifecycle/official_anki_source_metadata_dao.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
+import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
@@ -251,39 +253,36 @@ class OfficialAnkiImportSaga {
       rethrow;
     }
 
-    attempts.replaceNoteIds(
-      attemptId: attempt.attemptId,
-      noteIds: imported.associatedNoteIds,
-    );
-    final descriptors = <OfficialAnkiCardDescriptor>[];
-    var offset = 0;
-    const batchSize = 200;
-    while (true) {
-      final batch = attempts.noteIdPage(attempt.attemptId, offset, batchSize);
-      if (batch.isEmpty) break;
-      final noteCards = await engine.getNoteCardsBatch(batch);
-      final cardIds = noteCards.values.expand((ids) => ids).toList();
-      if (cardIds.isNotEmpty) {
-        descriptors.addAll(await engine.getCardDescriptorsBatch(cardIds));
-      }
-      offset += batch.length;
+    final session = OfficialAnkiCompositionRoot.session;
+    if (liveEngine == null &&
+        OfficialAnkiCompositionRoot.debugEngineOverride == null &&
+        session is OfficialAnkiSession &&
+        OfficialAnkiCompositionRoot.executionMode ==
+            OfficialAnkiExecutionMode.worker) {
+      // crash-hunt PR1: the receipt is the heaviest catalog segment of the
+      // chain (one anki_source_cards row per card, sync sqlite) plus one
+      // engine RPC round-trip per 200 cards — it froze the UI isolate on
+      // large decks until Android killed the process (ANR). The worker owns
+      // both the engine handle and a catalog connection, so the whole
+      // segment runs there. Test-injected engines / fake sessions take the
+      // inline fallback below, same sequence.
+      await session.commitReceipt(
+        attemptId: attempt.attemptId,
+        sourceId: sourceId,
+        noteIds: imported.associatedNoteIds,
+        nowMillis: _now,
+      );
+    } else {
+      await officialAnkiRunCommitReceipt(
+        attempts: attempts,
+        catalog: sources.database,
+        engine: engine,
+        attemptId: attempt.attemptId,
+        sourceId: sourceId,
+        noteIds: imported.associatedNoteIds,
+        nowMillis: _now,
+      );
     }
-    attempts.commitIndexBatch(
-      attemptId: attempt.attemptId,
-      sourceId: sourceId,
-      cards: descriptors,
-      nextOffset: offset,
-      nowMillis: _now,
-    );
-    OfficialAnkiSourceMetadataDao(sources.database).replaceAssociations(
-      sourceId: sourceId,
-      cards: descriptors,
-    );
-    attempts.setPhase(
-      attemptId: attempt.attemptId,
-      phase: OfficialAnkiAttemptPhase.receiptCommitted,
-      nowMillis: _now,
-    );
 
     _promoteMappings(
       projection: projection,

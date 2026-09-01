@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_saga.dart';
+import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_maintenance.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_pending_imports.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_storage_audit.dart';
@@ -57,11 +58,39 @@ class _OfficialAnkiRepairCenterPageState
   bool _busy = false;
   late final Future<StorageInventoryReport?> _orphanScan;
 
+  // crash-hunt PR1: these five catalog reads are synchronous sqlite and used
+  // to run inside build() on every rebuild. Cached in state and reloaded
+  // after this page's actions; PR2 makes the catalog async.
+  List<OfficialAnkiPendingImport> _pending = const [];
+  List<OfficialAnkiSourceRow> _sources = const [];
+  List<Map<String, Object?>> _jobs = const [];
+  List<Map<String, Object?>> _failedJobs = const [];
+
   @override
   void initState() {
     super.initState();
     _orphanScan = _loadOrphans();
+    _reloadCatalogSnapshot();
   }
+
+  void _reloadCatalogSnapshot() {
+    final catalog = _catalog;
+    if (catalog == null) return;
+    final profileId = _paths?.profileId;
+    _pending = const OfficialAnkiPendingImportStore().list(catalog);
+    _sources = profileId == null
+        ? const <OfficialAnkiSourceRow>[]
+        : OfficialAnkiSourceDao(catalog).listSources(profileId);
+    _jobs = profileId == null
+        ? const <Map<String, Object?>>[]
+        : OfficialAnkiMaintenanceJobDao(catalog).pending(profileId: profileId);
+    _failedJobs = profileId == null
+        ? const <Map<String, Object?>>[]
+        : OfficialAnkiMaintenanceJobDao(catalog)
+            .recentFailed(profileId: profileId);
+  }
+
+  void _reloadAndSetState() => setState(_reloadCatalogSnapshot);
 
   OfficialAnkiDatabase? get _catalog =>
       widget.catalog ?? OfficialAnkiCompositionRoot.readOnlyCatalog;
@@ -88,23 +117,14 @@ class _OfficialAnkiRepairCenterPageState
         ),
       );
     }
-    final profileId = _paths?.profileId;
-    final pending = const OfficialAnkiPendingImportStore().list(catalog);
-    final sources = profileId == null
-        ? const <OfficialAnkiSourceRow>[]
-        : OfficialAnkiSourceDao(catalog).listSources(profileId);
-    final pendingCleanup = sources
+    final pending = _pending;
+    final pendingCleanup = _sources
         .where((s) => s.state == 'pending_cleanup')
         .toList();
     final quarantined =
-        sources.where((s) => s.state == 'quarantined').toList();
-    final jobs = profileId == null
-        ? const <Map<String, Object?>>[]
-        : OfficialAnkiMaintenanceJobDao(catalog).pending(profileId: profileId);
-    final failed = profileId == null
-        ? const <Map<String, Object?>>[]
-        : OfficialAnkiMaintenanceJobDao(catalog)
-            .recentFailed(profileId: profileId);
+        _sources.where((s) => s.state == 'quarantined').toList();
+    final jobs = _jobs;
+    final failed = _failedJobs;
     return FutureBuilder<StorageInventoryReport?>(
       future: _orphanScan,
       builder: (context, snap) {
@@ -265,10 +285,12 @@ class _OfficialAnkiRepairCenterPageState
     final injected = widget.onContinueImport;
     if (injected != null) {
       await injected(sourceId);
+      if (mounted) _reloadAndSetState();
       return;
     }
     if (!mounted) return;
     await context.router.push(const AnkiImportRoute());
+    if (mounted) _reloadAndSetState();
   }
 
   Future<void> _discardImport(String sourceId) async {
@@ -280,7 +302,7 @@ class _OfficialAnkiRepairCenterPageState
     final injected = widget.onDiscardImport;
     if (injected != null) {
       await injected(sourceId);
-      setState(() {});
+      if (mounted) _reloadAndSetState();
       return;
     }
     final catalog = _catalog;
@@ -297,7 +319,10 @@ class _OfficialAnkiRepairCenterPageState
         paths: paths,
       ).cancelSource(sourceId);
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) {
+        setState(() => _busy = false);
+        _reloadAndSetState();
+      }
     }
   }
 
@@ -310,7 +335,7 @@ class _OfficialAnkiRepairCenterPageState
     final injected = widget.onRetryCleanup;
     if (injected != null) {
       await injected(sourceId);
-      setState(() {});
+      if (mounted) _reloadAndSetState();
       return;
     }
     final catalog = _catalog;
@@ -327,7 +352,10 @@ class _OfficialAnkiRepairCenterPageState
         paths: _paths,
       ).run(sourceId);
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) {
+        setState(() => _busy = false);
+        _reloadAndSetState();
+      }
     }
   }
 

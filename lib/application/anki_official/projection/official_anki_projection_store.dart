@@ -85,6 +85,7 @@ class OfficialAnkiCourseProjectionStore {
     int projectionVersion = 1,
     int publishedAtMillis = 0,
     Set<int> studiedCardIds = const {},
+    Map<String, String>? lessonContentJson,
   }) async {
     await course.transaction(() async {
       _assertPlanWithinLimits(plan.items);
@@ -117,16 +118,13 @@ class OfficialAnkiCourseProjectionStore {
       tick();
       final sections = <String, OfficialAnkiProjectedItem>{};
       final units = <String, OfficialAnkiProjectedItem>{};
-      final lessons = <String, List<OfficialAnkiProjectedItem>>{};
+      final lessons = officialAnkiLessonGroups(plan.items);
       for (final item in plan.items) {
         _assertOwned(sourceId, item.sectionId);
         _assertOwned(sourceId, item.unitId);
         _assertOwned(sourceId, item.lessonId);
         sections.putIfAbsent(item.sectionId, () => item);
         units.putIfAbsent(item.unitId, () => item);
-        lessons
-            .putIfAbsent(item.lessonId, () => <OfficialAnkiProjectedItem>[])
-            .add(item);
       }
       var sectionOrder = sectionBaseline;
       for (final section in sections.values) {
@@ -182,7 +180,11 @@ class OfficialAnkiCourseProjectionStore {
         await course.into(course.lessonContents).insert(
               LessonContentsCompanion.insert(
                 lessonId: entry.key,
-                contentJson: officialAnkiLessonJson(entry.value),
+                // Pre-encoded off-isolate by the projection service when it
+                // built the plan; encoding here is the fallback for direct
+                // callers (tests, migration republish).
+                contentJson: lessonContentJson?[entry.key] ??
+                    officialAnkiLessonJson(entry.value),
               ),
             );
         statements++;

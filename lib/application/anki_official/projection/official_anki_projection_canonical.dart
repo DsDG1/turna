@@ -76,6 +76,21 @@ List<T> officialAnkiDeterministicShuffle<T>(List<T> items, String seed) {
   return out;
 }
 
+/// Lesson-id grouping shared by the publisher store and the off-isolate
+/// plan builder so both produce identical per-lesson item order (the JSON
+/// below embeds that order, so divergence would silently change content).
+Map<String, List<OfficialAnkiProjectedItem>> officialAnkiLessonGroups(
+  List<OfficialAnkiProjectedItem> items,
+) {
+  final groups = <String, List<OfficialAnkiProjectedItem>>{};
+  for (final item in items) {
+    groups.putIfAbsent(item.lessonId, () => <OfficialAnkiProjectedItem>[]).add(
+          item,
+        );
+  }
+  return groups;
+}
+
 String officialAnkiLessonJson(List<OfficialAnkiProjectedItem> items) {
   final content = LessonContent(
     stages: [

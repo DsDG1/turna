@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:isolate';
 import 'dart:math' as math;
 
 import 'package:crypto/crypto.dart';
@@ -26,6 +27,14 @@ import 'package:turna/data/course_database.dart';
 
 const officialAnkiProjectionBatchDefault = officialAnkiProjectionPageDefault;
 const officialAnkiProjectionBatchMax = officialAnkiProjectionPageMax;
+
+/// Plan build output: the projected tree plus (off-isolate path only) every
+/// lesson's contentJson pre-encoded in the same background pass.
+typedef OfficialAnkiProjectionBuild =
+    ({
+      OfficialAnkiProjectionPlan plan,
+      Map<String, String>? lessonContentJson,
+    });
 
 class OfficialAnkiProjectionCounters {
   var peakIdBuffer = 0;
@@ -78,6 +87,7 @@ class OfficialAnkiCourseProjectionService {
   })  : flags = flags ?? const OfficialAnkiFeatureFlags(),
         recognizer = recognizer ?? const CardRecognizer(),
         projector = projector ?? OfficialAnkiProjectionProjector(),
+        injectedProjector = projector != null,
         counters = counters ?? OfficialAnkiProjectionCounters(),
         store = store ?? OfficialAnkiCourseProjectionStore(course),
         jobs = jobs ?? OfficialAnkiProjectionJobRepository(catalog),
@@ -94,6 +104,7 @@ class OfficialAnkiCourseProjectionService {
   final OfficialAnkiFeatureFlags flags;
   final CardRecognizer recognizer;
   final OfficialAnkiProjectionProjector projector;
+  final bool injectedProjector;
   final OfficialAnkiProjectionCounters counters;
   final OfficialAnkiCourseProjectionStore store;
   final OfficialAnkiProjectionJobRepository jobs;
@@ -120,6 +131,64 @@ class OfficialAnkiCourseProjectionService {
       ownerToken: ownerToken,
       nowMillis: DateTime.now().millisecondsSinceEpoch,
     );
+  }
+
+  /// Builds the projection plan and, on the default projector, pre-encodes
+  /// every lesson's contentJson in the same background pass.
+  ///
+  /// crash-hunt PR1: payload building plus the binary 512KB lesson splitter
+  /// (repeated jsonEncode per chunk) is pure CPU over every card and froze
+  /// the UI isolate for seconds on large decks — the on-device ANR kill.
+  /// Everything crossing the port is plain data. Test-injected projectors
+  /// stay inline: custom instances may capture closures and are not
+  /// guaranteed sendable.
+  Future<OfficialAnkiProjectionBuild> _buildPlan({
+    required List<OfficialAnkiProjectionRow> rows,
+    required Map<int, OfficialAnkiMappingSuggestion> mappings,
+    required bool typeAnswerEnabled,
+    required Set<int> lockedCardIds,
+    required Map<int, OfficialAnkiPlacementOverride> placementOverrides,
+    required Map<String, int> topDeckIds,
+  }) async {
+    if (injectedProjector) {
+      return (
+        plan: projector.project(
+          sourceId: sourceId,
+          profileId: profileId,
+          rows: rows,
+          mappings: mappings,
+          typeAnswerEnabled: typeAnswerEnabled,
+          lockedCardIds: lockedCardIds,
+          placementOverrides: placementOverrides,
+          topDeckIds: topDeckIds,
+        ),
+        lessonContentJson: null,
+      );
+    }
+    // Capture only sendable locals: the closure below must not touch `this`
+    // (the service holds the engine/catalog handles, which cannot cross).
+    final proj = projector;
+    final source = sourceId;
+    final profile = profileId;
+    return Isolate.run(() {
+      final plan = proj.project(
+        sourceId: source,
+        profileId: profile,
+        rows: rows,
+        mappings: mappings,
+        typeAnswerEnabled: typeAnswerEnabled,
+        lockedCardIds: lockedCardIds,
+        placementOverrides: placementOverrides,
+        topDeckIds: topDeckIds,
+      );
+      return (
+        plan: plan,
+        lessonContentJson: {
+          for (final entry in officialAnkiLessonGroups(plan.items).entries)
+            entry.key: officialAnkiLessonJson(entry.value),
+        },
+      );
+    });
   }
 
   String fingerprintFor({
@@ -534,9 +603,7 @@ class OfficialAnkiCourseProjectionService {
           .where((entry) => entry.value.locked)
           .map((entry) => entry.key)
           .toSet();
-      final plan = projector.project(
-        sourceId: sourceId,
-        profileId: profileId,
+      final build = await _buildPlan(
         rows: rows,
         mappings: mappings,
         typeAnswerEnabled: typeAnswerEnabled,
@@ -544,6 +611,7 @@ class OfficialAnkiCourseProjectionService {
         placementOverrides: overrides,
         topDeckIds: topDeckIds,
       );
+      final plan = build.plan;
       if (failPublish) {
         jobs.markFailed(
           jobId: job.jobId,
@@ -576,6 +644,7 @@ class OfficialAnkiCourseProjectionService {
           plan: plan,
           sourceFingerprint: fingerprint,
           publishedAtMillis: DateTime.now().millisecondsSinceEpoch,
+          lessonContentJson: build.lessonContentJson,
           studiedCardIds: await _fetchStudiedCardIds(
             planCardIds: {for (final item in plan.items) item.cardId},
           ),

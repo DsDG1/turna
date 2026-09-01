@@ -68,7 +68,9 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         if (didPop) return;
         if (!mounted) return;
         final leave = await _confirmLeave(context, controller);
-        if (leave && context.mounted) context.router.maybePop();
+        // Unconditional pop bypasses canPop so this callback doesn't
+        // re-enter (the ai_api_config_page pop-loop fix, same landmine).
+        if (leave && context.mounted) context.router.pop();
       },
       child: Scaffold(
       appBar: AppBar(
@@ -77,13 +79,15 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () async {
-            final leave = await _confirmLeave(context, controller);
-            if (leave && context.mounted) context.router.maybePop();
-          },
-        ),
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back),
+        onPressed: () async {
+          final leave = await _confirmLeave(context, controller);
+          // Same as the PopScope handler: pop unconditionally after the
+          // confirm — maybePop re-enters the canPop gate forever.
+          if (leave && context.mounted) context.router.pop();
+        },
+      ),
       ),
       body: Column(
         children: [
@@ -409,7 +413,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       keptLearningProgress: false,
       onStartLearningNow: () => unawaited(_startLearningNow(controller)),
       onViewDecks: () => unawaited(_viewDecks(controller)),
-      onDone: () => context.router.maybePop(),
+      onDone: () => context.router.pop(),
     );
   }
 
@@ -425,7 +429,10 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         await courseProvider.setCourseScope(wire);
       }
     }
-    if (mounted) context.router.maybePop();
+    // In Completed state _confirmLeave is an instant `true`, so a maybePop
+    // here would bounce off the canPop gate and re-enter the pop handler
+    // forever (the on-device freeze). Leave unconditionally.
+    if (mounted) context.router.pop();
   }
 
   /// "View decks": open course management with the new course highlighted.

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:crypto/crypto.dart';
 
@@ -12,20 +13,25 @@ class OfficialAnkiSourceDigest {
 class OfficialAnkiSourceHasher {
   const OfficialAnkiSourceHasher();
 
-  Future<OfficialAnkiSourceDigest> hashFile(String path) async {
-    final file = File(path);
-    final sink = _DigestSink();
-    final input = sha256.startChunkedConversion(sink);
-    var bytes = 0;
-    await for (final chunk in file.openRead()) {
-      bytes += chunk.length;
-      input.add(chunk);
-    }
-    input.close();
-    return OfficialAnkiSourceDigest(
-      sha256: sink.events.single.toString(),
-      bytes: bytes,
-    );
+  /// crash-hunt PR1: hashing a large .apkg burned noticeable UI-isolate CPU
+  /// even chunked (SHA-256 of a 100MB package ≈ hundreds of ms). The digest
+  /// is pure file + CPU work, so it runs entirely off-isolate.
+  Future<OfficialAnkiSourceDigest> hashFile(String path) {
+    return Isolate.run(() async {
+      final file = File(path);
+      final sink = _DigestSink();
+      final input = sha256.startChunkedConversion(sink);
+      var bytes = 0;
+      await for (final chunk in file.openRead()) {
+        bytes += chunk.length;
+        input.add(chunk);
+      }
+      input.close();
+      return OfficialAnkiSourceDigest(
+        sha256: sink.events.single.toString(),
+        bytes: bytes,
+      );
+    });
   }
 }
 

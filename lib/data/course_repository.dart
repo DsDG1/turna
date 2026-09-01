@@ -1,5 +1,6 @@
 // Flutter imports:
 import 'dart:convert';
+import 'dart:isolate';
 
 // Package imports:
 import 'package:drift/drift.dart' hide Expression;
@@ -65,17 +66,14 @@ class CourseRepository implements ICourseRepository {
   @override
   Future<List<WordEntry>> vocabulary() async {
     final rows = await database.select(database.vocabulary).get();
-    return [
-      for (final r in rows)
-        WordEntry(
-          id: r.id,
-          term: r.term,
-          translation: r.translation,
-          pronunciation: r.pronunciation,
-          audioAsset: r.audioAsset,
-          tags: _decodeStringList(r.tags),
-        ),
-    ];
+    // crash-hunt PR1: after an official import this table holds one row per
+    // card (tens of thousands on big decks) and the per-row tags jsonDecode
+    // froze course reload on the UI isolate. Drift rows are plain data —
+    // decode off-isolate once the list is big enough to matter.
+    if (rows.length < 64) {
+      return [for (final r in rows) _wordEntry(r)];
+    }
+    return Isolate.run(() => [for (final r in rows) _wordEntry(r)]);
   }
 
   /// All grammar points.
@@ -232,7 +230,14 @@ class CourseRepository implements ICourseRepository {
     final contentRow = await (database.select(database.lessonContents)
           ..where((t) => t.lessonId.equals(id)))
         .getSingleOrNull();
-    return _toLesson(row, contentRow?.contentJson);
+    final contentJson = contentRow?.contentJson;
+    // crash-hunt PR1: official projection lessons cap at 512KB of JSON —
+    // decoding that on the UI isolate is a visible freeze on open. Small
+    // bodies stay inline (isolate spawn costs more than the decode).
+    if (contentJson == null || contentJson.length < 16 * 1024) {
+      return _toLesson(row, contentJson);
+    }
+    return Isolate.run(() => _toLesson(row, contentJson));
   }
 
   /// Full lesson bodies whose content JSON contains any of [needles].
@@ -279,10 +284,15 @@ class CourseRepository implements ICourseRepository {
           ..where((t) => t.id.isIn(lessonIds)))
         .get();
 
-    return [
-      for (final lr in lessonRows)
-        _toLesson(lr, contentByLessonId[lr.id]),
-    ];
+    // crash-hunt PR1: review due-resolution decodes every matching lesson
+    // body (≤512KB each) — on big decks that was seconds of UI-isolate JSON
+    // decode. Rows and bodies are plain data; decode them off-isolate.
+    return Isolate.run(() {
+      return [
+        for (final lr in lessonRows)
+          _toLesson(lr, contentByLessonId[lr.id]),
+      ];
+    });
   }
 
   @override
@@ -493,7 +503,23 @@ class CourseRepository implements ICourseRepository {
     return row?.value;
   }
 
-  Lesson _toLesson(db.Lesson row, String? contentJson) {
+  /// Static + pure so Isolate.run closures can call it without capturing
+  /// `this` (the repository holds the drift database handle). The app
+  /// logger is console-only and safe to use from any isolate.
+  static WordEntry _wordEntry(db.VocabularyData row) {
+    return WordEntry(
+      id: row.id,
+      term: row.term,
+      translation: row.translation,
+      pronunciation: row.pronunciation,
+      audioAsset: row.audioAsset,
+      tags: _decodeStringList(row.tags),
+    );
+  }
+
+  /// Static for the same off-isolate reason as [_wordEntry]; see
+  /// [lessonById] / [lessonsContainingAny].
+  static Lesson _toLesson(db.Lesson row, String? contentJson) {
     LessonContent content;
     if (contentJson == null) {
       content = const LessonContent();
@@ -525,7 +551,7 @@ class CourseRepository implements ICourseRepository {
   /// value (forward-incompatible content version, manual DB edit) degrades to
   /// [LessonType.normal], mirroring the `@Default(LessonType.normal)` fallback
   /// in `Lesson.fromJson` so the read path never crashes section()/lessonById().
-  LessonType _lessonTypeByName(String name) {
+  static LessonType _lessonTypeByName(String name) {
     final resolved = enumByName(LessonType.values, name,
         fallback: LessonType.normal);
     if (resolved == LessonType.normal && name != LessonType.normal.name) {
@@ -536,7 +562,7 @@ class CourseRepository implements ICourseRepository {
 
   /// Resolve [LessonTemplate] from a stored string without throwing. See
   /// [_lessonTypeByName]; falls back to [LessonTemplate.legacy].
-  LessonTemplate _lessonTemplateByName(String name) {
+  static LessonTemplate _lessonTemplateByName(String name) {
     final resolved = enumByName(LessonTemplate.values, name,
         fallback: LessonTemplate.legacy);
     if (resolved == LessonTemplate.legacy && name != LessonTemplate.legacy.name) {
@@ -567,7 +593,7 @@ class CourseRepository implements ICourseRepository {
         .readOfficialProjectionSummary(sourceId);
   }
 
-  List<String> _decodeStringList(String encoded) {
+  static List<String> _decodeStringList(String encoded) {
     try {
       final list = jsonDecode(encoded);
       return (list as List).map((e) => e as String).toList(growable: false);

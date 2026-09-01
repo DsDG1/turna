@@ -51,6 +51,32 @@ class OfficialAnkiSourceManagementPageState
   OfficialAnkiProjectionPublishResult? lastResult;
   OfficialAnkiCourseProjectionService? _service;
 
+  // crash-hunt PR1: listSources plus a per-source activeWriter lookup are
+  // synchronous sqlite reads that ran inside build() on every rebuild.
+  // Cached in state and refreshed after this page's actions; PR2 makes the
+  // catalog async.
+  List<OfficialAnkiSourceRow> _sources = const [];
+  Map<String, String> _stateLabels = const {};
+
+  @override
+  void initState() {
+    super.initState();
+    _reloadSources();
+  }
+
+  void _reloadSources() {
+    final dao = OfficialAnkiSourceDao(widget.catalog);
+    final jobs = OfficialAnkiProjectionJobRepository(widget.catalog);
+    _sources = dao.listSources(widget.profileId);
+    _stateLabels = {
+      for (final source in _sources)
+        source.sourceId: _jobLabel(jobs.activeWriter(source.sourceId)),
+    };
+  }
+
+  static String _jobLabel(dynamic job) =>
+      job == null ? 'not_projected' : job.state.name;
+
   OfficialAnkiFeatureFlags get _flags =>
       widget.flags ?? OfficialAnkiFeatureFlags.current;
 
@@ -73,7 +99,7 @@ class OfficialAnkiSourceManagementPageState
     required OfficialAnkiMappingSuggestion suggestion,
   }) async {
     serviceFor(sourceId).confirmMapping(schema: schema, suggestion: suggestion);
-    setState(() {});
+    setState(_reloadSources);
   }
 
   Future<void> skipMapping({
@@ -81,7 +107,7 @@ class OfficialAnkiSourceManagementPageState
     required OfficialAnkiProjectionSchema schema,
   }) async {
     serviceFor(sourceId).skipNotetype(schema: schema);
-    setState(() {});
+    setState(_reloadSources);
   }
 
   Future<void> generate(String sourceId) async {
@@ -94,7 +120,7 @@ class OfficialAnkiSourceManagementPageState
     if (lastResult?.failed != true && lastResult?.needsMapping != true) {
       await widget.courseProvider?.reloadCourse();
     }
-    if (mounted) setState(() {});
+    if (mounted) setState(_reloadSources);
   }
 
   @override
@@ -107,9 +133,7 @@ class OfficialAnkiSourceManagementPageState
         ),
       );
     }
-    final sources = OfficialAnkiSourceDao(widget.catalog).listSources(
-      widget.profileId,
-    );
+    final sources = _sources;
     return Scaffold(
       appBar: AppBar(title: const Text('官方 Anki 课程')),
       body: ListView(
@@ -119,7 +143,9 @@ class OfficialAnkiSourceManagementPageState
             ListTile(
               key: Key('official-source-${source.sourceId}'),
               title: Text(source.displayName),
-              subtitle: Text(_stateLabel(source.sourceId)),
+              subtitle: Text(
+                _stateLabels[source.sourceId] ?? 'not_projected',
+              ),
               onTap: () => setState(() => selectedSourceId = source.sourceId),
               trailing: Wrap(
                 spacing: 8,
@@ -140,13 +166,6 @@ class OfficialAnkiSourceManagementPageState
         ],
       ),
     );
-  }
-
-  String _stateLabel(String sourceId) {
-    final job = OfficialAnkiProjectionJobRepository(widget.catalog)
-        .activeWriter(sourceId);
-    if (job == null) return 'not_projected';
-    return job.state.name;
   }
 
   Future<void> _openMapping(String sourceId) async {
