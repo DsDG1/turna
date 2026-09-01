@@ -74,6 +74,56 @@ void main() {
     expect(stillOpen.data.values.first, 1);
   });
 
+  test('compactCollection without engine keeps the job alive (retry_wait)',
+      () async {
+    // Regression (field report 2026-09-01): the runner used to fall back
+    // to compactSqliteFile on collection.anki2, whose rslib schema carries
+    // `COLLATE unicase` b-trees — that raw VACUUM fails with "no such
+    // collation sequence" on any real collection. Engine-absent must fail
+    // into retry_wait and stay pending for a later engine-backed run
+    // (same keep-alive contract as v2_source_delete). The retired path
+    // would have marked this job completed (skip 'missing' on the absent
+    // file), which is exactly the degradation this test pins down.
+    final catalog = OfficialAnkiDatabase.memory();
+    addTearDown(catalog.close);
+    final root = Directory.systemTemp.createTempSync('turna-compact-keep-');
+    addTearDown(() {
+      try {
+        root.deleteSync(recursive: true);
+      } catch (_) {}
+    });
+    const profileId = 'p-keep-01';
+    final paths = OfficialAnkiPaths(profileId: profileId, profileRoot: root);
+
+    OfficialAnkiMaintenanceJobDao(catalog).enqueue(
+      profileId: profileId,
+      kind: OfficialAnkiMaintenanceKind.compactCollection,
+      nowMillis: 1,
+    );
+
+    final completed = await OfficialAnkiMaintenanceRunner(
+      catalog: catalog,
+      paths: paths,
+      forceCompact: true,
+    ).runPending(profileId: profileId);
+
+    expect(completed, 0, reason: 'engine-absent job must not complete');
+    final rows = catalog.handle.select(
+      'SELECT state FROM anki_maintenance_jobs WHERE profile_id = ?',
+      [profileId],
+    );
+    expect(rows, hasLength(1));
+    expect(
+      rows.first['state'],
+      OfficialAnkiMaintenanceJobState.retryWait.wire,
+    );
+    expect(
+      OfficialAnkiMaintenanceJobDao(catalog).pending(profileId: profileId),
+      hasLength(1),
+      reason: 'retry_wait stays discoverable for the next engine-backed run',
+    );
+  });
+
   test('uninstall enqueues compact_course with other maintenance kinds',
       () async {
     final catalog = OfficialAnkiDatabase.memory();

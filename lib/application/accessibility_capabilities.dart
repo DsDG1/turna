@@ -24,9 +24,6 @@ abstract interface class AccessibilityCapabilities {
   /// High contrast: reinforced boundaries, never color-only signals.
   bool get highContrast;
 
-  /// Dyslexia-friendly typography.
-  bool get dyslexiaFriendlyTypography;
-
   /// Quiet feedback: suppress sound effects and haptics.
   bool get quietFeedback;
 
@@ -52,9 +49,6 @@ class AccessibilityCapabilitiesImpl implements AccessibilityCapabilities {
 
   @override
   bool get highContrast => _provider.highContrast;
-
-  @override
-  bool get dyslexiaFriendlyTypography => _provider.dyslexiaFont;
 
   @override
   bool get quietFeedback => _provider.sensoryReduce;
@@ -95,8 +89,6 @@ class _DefaultAccessibilityCapabilities implements AccessibilityCapabilities {
   bool get reduceMotion => false;
   @override
   bool get highContrast => false;
-  @override
-  bool get dyslexiaFriendlyTypography => false;
   @override
   bool get quietFeedback => false;
   @override

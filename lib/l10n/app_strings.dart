@@ -378,8 +378,6 @@ class AppStrings {
   static String get settingsReduceMotionSubtitle => '缩短或禁用动画与过渡';
   static String get settingsHighContrastTitle => '高对比度';
   static String get settingsHighContrastSubtitle => '使用高对比度主题';
-  static String get settingsDyslexiaFontTitle => '阅读障碍友好字体';
-  static String get settingsDyslexiaFontSubtitle => '切换到 Lexend 字体以便于阅读';
   static String get settingsSensoryReduceTitle => '减少感官刺激';
   static String get settingsSensoryReduceSubtitle => '静音非必要声音和触感';
   static String get settingsFocusModeTitle => '专注模式';

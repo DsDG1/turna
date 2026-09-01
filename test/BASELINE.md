@@ -1,4 +1,6 @@
-Generated: 2026-09-01 (Official 开始学习空树 fallback)：冷启动 `catalogOf` 接到 readOnlyCatalog；v1 visibility 不再要求 catalog；已安装 source 空树不弹回内置课。定向 **10 passed**：`course_provider_official_scope_test` 8→10、`official_anki_course_entry_test` 1。
+Generated: 2026-09-01 (系统字体切换 host 施工:google_fonts 移除 + 阅读障碍字体下线,docs/system-font-cutover-plan.md):删 `pubspec.yaml` google_fonts 依赖(lock 同步瘦身,`pub get --offline`);整删 `lib/views/app_fonts.dart`(全工程唯一 google_fonts import 面);欢迎页 `center_display.dart` 3 处 `AppFonts.nunito` 内联 `TextStyle`(拉丁字形 Nunito→系统字体,中文/其余界面零变化);`app.dart` 删 Lexend 主题分叉与 `_AccSnapshot.dyslexiaFont`;`AccessibilityProvider`/`AccessibilityCapabilities` 删 dyslexiaFont 字段与 dyslexiaFriendlyTypography(接口/生产/桩三处);删 `SettingsDyslexiaFontTile` 及页面挂载、`LocalStateKeys.dyslexiaFont`、备份清单条目、2 个 l10n 键;存量设备 `settings.dyslexiaFont` pref 成死键不迁移。`rg -i "dyslex|AppFonts|google_fonts" lib test pubspec.yaml pubspec.lock` **归零**。`flutter analyze` 改动文件 0 issue(报告 6 issue 全为预存在,位于未触碰的 anki/schema 测试文件)。定向 **87 passed**:accessibility provider/capabilities、backup_manifest_policy、`test/views/settings/` 全目录、course_ready_guard、wetland_palette_contract。真机 PLG110 发布门禁(欢迎页 CPU ≤5%、ANR 零增长、apkg 导入路径)**未跑**。
+
+Generated: 2026-09-01 (Official 开始学习空树 fallback):冷启动 `catalogOf` 接到 readOnlyCatalog；v1 visibility 不再要求 catalog；已安装 source 空树不弹回内置课。定向 **10 passed**：`course_provider_official_scope_test` 8→10、`official_anki_course_entry_test` 1。
 
 Generated: 2026-09-01 (v1 pending_cleanup / compact invalid_state)：卸载 saga `openProfile` + `cid:1,2,3` 校验、invalid_state 重试；op 39 关库 VACUUM 重开 + 阈值 skip；maintenance 对 invalid_state 标 completed skip；due sync 不 rethrow。定向 **19 passed**：lifecycle_storage（原 13 + uninstall-open + compact-skip 2）+ due_sync_unavailable 2 + course_compact 4。`cargo test compact_collection` 本机缺 `protoc`（`tools/protoc` 未检出）未跑。真机须重建 `libturna_anki.so`。
 
@@ -299,13 +301,13 @@ generated code touched this round (no `@freezed`/`@JsonSerializable` changes).
   baselines on the OHos Flutter 3.35 fork. Suite went 418 pass / 63 fail ->
   484 all pass.
 - 2026-07-20 Settings refactor — neurodiversity accessibility + hierarchy + About:
-  - New `AccessibilityProvider` (`lib/application/accessibility_provider.dart`) with 6
-    persisted flags: textScale (100–200%), reducedMotion, highContrast, dyslexiaFont,
+  - New `AccessibilityProvider` (`lib/application/accessibility_provider.dart`) with 5
+    persisted flags: textScale (100–200%), reducedMotion, highContrast,
     sensoryReduce, focusMode. Keys added to `LocalStateKeys`.
   - `lib/views/app.dart` rewired: single `_AppShell` watches ThemeProvider +
-    AccessibilityProvider, picks light/dark/high-contrast theme variants, swaps
-    text theme to Lexend when dyslexiaFont on, and injects a root `MediaQuery`
-    override (textScaler + disableAnimations/accessibleNavigation when reducedMotion).
+    AccessibilityProvider, picks light/dark/high-contrast theme variants, and
+    injects a root `MediaQuery` override (textScaler + disableAnimations/
+    accessibleNavigation when reducedMotion).
   - `lib/views/theme.dart` added `highContrastLightTheme` / `highContrastDarkTheme`
     getters (copyWith of the base themes: pure black/white surfaces, stronger borders,
     max-contrast text).

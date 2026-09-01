@@ -315,10 +315,14 @@ class OfficialAnkiMaintenanceRunner {
       case OfficialAnkiMaintenanceKind.compactCollection:
         final engine = this.engine;
         if (engine == null) {
-          return compactSqliteFile(
-            paths.collectionFile,
-            force: forceCompact,
-          );
+          // collection.anki2 carries rslib's `COLLATE unicase` b-trees
+          // (schema 14/15/17); a raw sqlite3 connection cannot rebuild
+          // them — VACUUM fails with "no such collation sequence: unicase"
+          // on any collection that has tag/deck/notetype rows. Only the
+          // engine can compact it, so fail the job into retry_wait and let
+          // a later run with the engine open complete it (same keep-alive
+          // contract as v2_source_delete, step4.md B5/K6).
+          throw StateError('compact_collection requires engine');
         }
         try {
           await engine.openProfile(paths);
@@ -460,6 +464,11 @@ class OfficialAnkiMaintenanceRunner {
     return null;
   }
 
+  /// VACUUM a file this app owns the schema of (official_catalog.sqlite).
+  /// Must NOT be pointed at rslib-owned databases like collection.anki2:
+  /// its `COLLATE unicase` indexes cannot be rebuilt without registering
+  /// the exact collation rslib uses — route those through the engine
+  /// instead (compactCollection).
   static OfficialAnkiCompactResult compactSqliteFile(
     File file, {
     bool force = false,

@@ -23,7 +23,6 @@ void main() {
     expect(acc.cardTextScale, 100);
     expect(acc.reducedMotion, isFalse);
     expect(acc.highContrast, isFalse);
-    expect(acc.dyslexiaFont, isFalse);
     expect(acc.sensoryReduce, isFalse);
     expect(acc.focusMode, isFalse);
   });
@@ -96,7 +95,6 @@ void main() {
   test('flags persist and reload', () async {
     await acc.setReducedMotion(true);
     await acc.setHighContrast(true);
-    await acc.setDyslexiaFont(true);
     await acc.setSensoryReduce(true);
     await acc.setFocusMode(true);
     await acc.setTextScale(200);
@@ -104,7 +102,6 @@ void main() {
     final reloaded = AccessibilityProvider(prefs);
     expect(reloaded.reducedMotion, isTrue);
     expect(reloaded.highContrast, isTrue);
-    expect(reloaded.dyslexiaFont, isTrue);
     expect(reloaded.sensoryReduce, isTrue);
     expect(reloaded.focusMode, isTrue);
     expect(reloaded.textScale, 200);

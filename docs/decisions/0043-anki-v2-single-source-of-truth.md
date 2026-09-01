@@ -1,6 +1,6 @@
 # ADR 0043 — Anki 底座 v2：单一事实源与可重建派生层
 
-- 状态：**已接受**（2026-08-31 评审通过，检查表十项全 ☑，评审记录见 [step2.md](../ankiUpdate/step2.md) 收据；Q1–Q6 全部关闭，其中 Q3/Q4/Q5 转为 Step 4 施工前置项）。
+- 状态：**失败 / 未交付**（2026-09-01）。2026-08-31 评审曾标「已接受」，但六步计划未完成切生产：Step 4 真机门禁未过、`v2ImportChain` 生产仍为 false、Step 5/6 取消。结论与档案见 [ankiUpdate README](../ankiUpdate/README.md)。下文是失败当时的设计原文，不是现行架构。
 - 日期：2026-08-31
 - 关联：[重建计划 README](../ankiUpdate/README.md)（总目标与六步）；[step1.md](../ankiUpdate/step1.md)（真机实测收据与教训，已完成）；[doc 41](../official-anki-migration/41-official-anki-lifecycle-and-storage-remediation-plan.md)（中断场景与不变量来源）；[doc 42](../official-anki-migration/42-staging-first-official-import-lifecycle-plan.md)（staging-first，v2 继承）；[ADR 0036](./0036-official-anki-core-migration.md)、[ADR 0037](./0037-anki-course-review-unification.md)、[ADR 0042](./0042-staging-first-official-import.md)
 - 当前源码基线：Official catalog schema 12、`CourseDatabase.kSchemaVersion = 22`、contract 1.11（ops 1–40，38 个在用）；四个 SQLite 存储 = `collection.anki2` + `collection.media.db2` + `official_catalog.sqlite`（18 张表）+ `course.db`（约 20 张 anki 表）
@@ -56,7 +56,9 @@
 
 ## 后果
 
-- **正**：跨库对账代码（reconciliation journal、census 执行器、修复中心大部分、写栅栏）随副本一起退役，代码量 33k→约 15k 的主要来源；删除真回收（K6）；决策随 Anki 备份走（D2）；「删了还在」「越删越大」类问题的结构来源被移除。
+**交付结果（2026-09-01）：未发生。** 下列「正 / 成本 / 风险」是 2026-08-31 评审时的预期，不是已落地的生产后果。v2 未切生产；正项（副本退役、代码量下降、删除真回收）均未兑现。
+
+- **正（未兑现）**：跨库对账代码（reconciliation journal、census 执行器、修复中心大部分、写栅栏）随副本一起退役，代码量 33k→约 15k 的主要来源；删除真回收（K6）；决策随 Anki 备份走（D2）；「删了还在」「越删越大」类问题的结构来源被移除。
 - **成本**：依赖 Step 3 桥能力（配置区读写 op 41+、可能的一个只读 diff op）；配置区需要 Turna 命名空间纪律与版本字段；Step 4 期间 v1/v2 并存（flag 开关）的双版维护；视图重建性能需大库实测门禁。
 - **风险与缓解**：rslib config API 无 semver（钉 commit + 独立 PR 升级，继承 ADR 0036 纪律）；视图重建慢 → 重建增量门禁 + 后台不阻塞（D7）；配置区损坏 → 决策可从最后一次投影反推重建（决策丢失 ≠ 数据丢失，映射可用识别器重建议）。
 - **明确不做**：Turna 产品数据（成就、统计、错题）不进配置区；不重建 profile；不引入读时实时构建课程树（性能不可控）。

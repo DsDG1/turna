@@ -141,7 +141,6 @@ abstract final class BackupManifestPolicy {
     BackupPrefEntry(LocalStateKeys.cardTextScale, BackupPrefType.int_),
     BackupPrefEntry(LocalStateKeys.reducedMotion, BackupPrefType.bool_),
     BackupPrefEntry(LocalStateKeys.highContrast, BackupPrefType.bool_),
-    BackupPrefEntry(LocalStateKeys.dyslexiaFont, BackupPrefType.bool_),
     BackupPrefEntry(LocalStateKeys.sensoryReduce, BackupPrefType.bool_),
     BackupPrefEntry(LocalStateKeys.focusMode, BackupPrefType.bool_),
     // ── Anki settings ──

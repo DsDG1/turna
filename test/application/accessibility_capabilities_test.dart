@@ -26,7 +26,6 @@ void main() {
     await provider.setTextScale(150);
     await provider.setReducedMotion(true);
     await provider.setHighContrast(true);
-    await provider.setDyslexiaFont(true);
     await provider.setSensoryReduce(true);
     await provider.setFocusMode(true);
 
@@ -46,7 +45,6 @@ void main() {
     expect(caps.textScalePercent, 150);
     expect(caps.reduceMotion, isTrue);
     expect(caps.highContrast, isTrue);
-    expect(caps.dyslexiaFriendlyTypography, isTrue);
     expect(caps.quietFeedback, isTrue);
     expect(caps.focusMode, isTrue);
   });

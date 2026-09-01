@@ -40,8 +40,6 @@ class AccessibilitySettingsPage extends StatelessWidget {
                 settingsTileDivider(context),
                 const SettingsHighContrastTile(),
                 settingsTileDivider(context),
-                const SettingsDyslexiaFontTile(),
-                settingsTileDivider(context),
                 const SettingsSensoryReduceTile(),
                 settingsTileDivider(context),
                 const SettingsFocusModeTile(),

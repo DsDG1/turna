@@ -123,3 +123,13 @@ anki-decryptBack/
 # The root security-policy.json is project config and stays tracked.
 **/.mimosa/**
 !**/.mimosa/security-policy.json
+
+# Device forensics captures (logcat / bugreport / ANR traces / screenshots /
+# widget-tree dumps) — large machine-local evidence from the 2026-09-01 ANR
+# investigation; the distilled facts live in docs/system-font-cutover-plan.md.
+# The VM-service probe scripts stay tracked: the device verification gate in
+# that plan reuses them, and they must survive a fresh clone.
+logs/*
+!logs/crash-hunt/
+logs/crash-hunt/*
+!logs/crash-hunt/*.js

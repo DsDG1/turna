@@ -1208,6 +1208,15 @@ fn compact_collection(handle: u64, request: &[u8]) -> Result<Value, i32> {
     let vacuum = Connection::open(&path)
         .map_err(|_| STATUS_IO_ERROR)
         .and_then(|conn| {
+            // rslib's schema has `COLLATE unicase` b-trees (tags PK,
+            // schema 14/15/17): VACUUM rebuilds them and compares keys
+            // through the collation, so this raw connection must offer the
+            // same comparison rslib registers (Storage::open), pinned to
+            // the identical unicase version or index order could drift.
+            conn.create_collation("unicase", |left, right| {
+                unicase::UniCase::new(left).cmp(&unicase::UniCase::new(right))
+            })
+            .map_err(|_| STATUS_INTERNAL_ERROR)?;
             conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE); VACUUM;")
                 .map_err(|_| STATUS_INTERNAL_ERROR)
         });
@@ -3254,5 +3263,41 @@ mod tests {
             STATUS_INVALID_STATE
         );
         free_engine(handle).unwrap();
+    }
+
+    #[test]
+    fn compact_collection_force_vacuums_unicase_tables() {
+        // tags is `tag PRIMARY KEY COLLATE unicase ... WITHOUT ROWID`
+        // (rslib schema 17): VACUUM rebuilds that b-tree and must compare
+        // keys through the collation. A raw vacuum connection without the
+        // registration fails with "no such collation sequence: unicase" on
+        // any collection with tag rows (field report 2026-09-01: force
+        // compact on an imported deck). The empty-collection test above
+        // cannot catch this — zero rows means zero comparisons.
+        let (root, handle, _) = temp_open();
+        {
+            let slot = crate::engine::slot(handle).unwrap();
+            let mut engine = slot.engine.lock().unwrap();
+            let col = engine.open_col().unwrap();
+            col.storage
+                .db()
+                .execute(
+                    "INSERT INTO tags (tag, usn, collapsed, config) VALUES \
+                     ('Kitap', 0, 0, NULL), ('kalem', 0, 1, NULL), \
+                     ('Türkçe Alıştırma', 0, 0, NULL)",
+                    [],
+                )
+                .map_err(|_| STATUS_INTERNAL_ERROR)
+                .unwrap();
+        }
+        let out = call(handle, OP_COMPACT_COLLECTION, json!({"force": true})).unwrap();
+        assert!(
+            out.get("skippedReason").is_none(),
+            "forced compact must not skip: {out}"
+        );
+        let native = call(handle, OP_GET_CONFIG, json!({"key": "schedVer"})).unwrap();
+        assert_eq!(native["found"], true, "collection reopens after VACUUM");
+        free_engine(handle).unwrap();
+        let _ = fs::remove_dir_all(root);
     }
 }

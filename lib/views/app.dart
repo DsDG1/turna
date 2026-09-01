@@ -12,7 +12,6 @@ import 'package:turna/application/providers.dart';
 import 'package:turna/application/theme_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/routing/routing.dart';
-import 'package:turna/views/app_fonts.dart';
 import 'package:turna/views/theme.dart';
 
 final router = getIt<AppRouter>();
@@ -51,7 +50,6 @@ class _AppShellState extends State<_AppShell> {
         textScaler: p.textScaler,
         reducedMotion: p.reducedMotion,
         highContrast: p.highContrast,
-        dyslexiaFont: p.dyslexiaFont,
       ),
     );
 
@@ -64,19 +62,13 @@ class _AppShellState extends State<_AppShell> {
       light = TurnaTheme.lightTheme;
       dark = TurnaTheme.darkTheme;
     }
-    final theme = acc.dyslexiaFont
-        ? light.copyWith(textTheme: AppFonts.lexendTextTheme(light.textTheme))
-        : light;
-    final darkTheme = acc.dyslexiaFont
-        ? dark.copyWith(textTheme: AppFonts.lexendTextTheme(dark.textTheme))
-        : dark;
 
     return _OrientationController(
       child: MaterialApp.router(
         debugShowCheckedModeBanner: false,
         title: 'Turna',
-        theme: theme,
-        darkTheme: darkTheme,
+        theme: light,
+        darkTheme: dark,
         themeMode: themeMode,
         routerConfig: _routeConfig,
         builder: (context, child) {
@@ -166,23 +158,19 @@ class _AccSnapshot {
     required this.textScaler,
     required this.reducedMotion,
     required this.highContrast,
-    required this.dyslexiaFont,
   });
 
   final TextScaler textScaler;
   final bool reducedMotion;
   final bool highContrast;
-  final bool dyslexiaFont;
 
   @override
   bool operator ==(Object other) =>
       other is _AccSnapshot &&
       other.textScaler == textScaler &&
       other.reducedMotion == reducedMotion &&
-      other.highContrast == highContrast &&
-      other.dyslexiaFont == dyslexiaFont;
+      other.highContrast == highContrast;
 
   @override
-  int get hashCode =>
-      Object.hash(textScaler, reducedMotion, highContrast, dyslexiaFont);
+  int get hashCode => Object.hash(textScaler, reducedMotion, highContrast);
 }

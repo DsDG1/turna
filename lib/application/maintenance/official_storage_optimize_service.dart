@@ -23,7 +23,19 @@ class OfficialStorageOptimizeResult {
 /// Enqueues compact jobs and runs them with [forceCompact] so storage-page
 /// "optimize" ignores freelist thresholds.
 class OfficialStorageOptimizeService {
-  const OfficialStorageOptimizeService();
+  const OfficialStorageOptimizeService({this.ensureEngine});
+
+  /// Opens the live engine session when none exists yet. Compact of
+  /// collection.anki2 must go through the engine (rslib's `COLLATE
+  /// unicase` indexes), so a user-initiated optimize bootstraps the same
+  /// session the home due sync opens instead of degrading to a raw-file
+  /// VACUUM that cannot rebuild those indexes. Injectable for tests.
+  final Future<OfficialAnkiEngine?> Function()? ensureEngine;
+
+  Future<OfficialAnkiEngine?> _ensureEngine() async {
+    await OfficialAnkiCompositionRoot.requireImporter();
+    return OfficialAnkiCompositionRoot.engine;
+  }
 
   Future<OfficialStorageOptimizeResult> runForceCompact({
     OfficialAnkiDatabase? catalog,
@@ -41,7 +53,22 @@ class OfficialStorageOptimizeService {
       );
     }
     final resolvedCourse = course ?? _registeredCourse();
-    final resolvedEngine = engine ?? OfficialAnkiCompositionRoot.engine;
+    var resolvedEngine = engine ?? OfficialAnkiCompositionRoot.engine;
+    if (resolvedEngine == null) {
+      try {
+        resolvedEngine = await (ensureEngine ?? _ensureEngine)();
+      } catch (_) {
+        resolvedEngine = null;
+      }
+      if (resolvedEngine == null) {
+        // Fail closed BEFORE enqueuing: compactCollection without an
+        // engine would only land in retry_wait and linger as a zombie job.
+        return const OfficialStorageOptimizeResult(
+          ok: false,
+          errorCode: 'importer_not_ready',
+        );
+      }
+    }
     final now = DateTime.now().millisecondsSinceEpoch;
     final jobs = OfficialAnkiMaintenanceJobDao(resolvedCatalog);
     final profileId = resolvedPaths.profileId;

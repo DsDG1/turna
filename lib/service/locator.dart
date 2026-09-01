@@ -275,7 +275,6 @@ class LocalStateKeys {
   static const String cardTextScale = 'settings.cardTextScale';
   static const String reducedMotion = 'settings.reducedMotion';
   static const String highContrast = 'settings.highContrast';
-  static const String dyslexiaFont = 'settings.dyslexiaFont';
   static const String sensoryReduce = 'settings.sensoryReduce';
   static const String focusMode = 'settings.focusMode';
 

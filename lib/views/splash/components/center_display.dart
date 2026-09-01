@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 
 // Project imports:
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/app_fonts.dart';
 import 'package:turna/views/home/turna_welcomes.dart';
 import 'package:turna/views/theme.dart';
 
@@ -103,7 +102,7 @@ class _CenterDisplayState extends State<CenterDisplay>
           const SizedBox(height: 24),
           Text(
             AppStrings.splashAppName,
-            style: AppFonts.nunito(
+            style: TextStyle(
               fontSize: 36,
               fontWeight: FontWeight.w800,
               color: TurnaTheme.brandTeal,
@@ -118,7 +117,7 @@ class _CenterDisplayState extends State<CenterDisplay>
                 opacity: _controller,
                 child: Text(
                   item.text,
-                  style: AppFonts.nunito(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: item.weight,
                     color: item.color(context),
@@ -133,7 +132,7 @@ class _CenterDisplayState extends State<CenterDisplay>
             child: Text(
               AppStrings.splashSubtitle,
               textAlign: TextAlign.center,
-              style: AppFonts.nunito(
+              style: TextStyle(
                 fontSize: 16,
                 color: TurnaTheme.textHintColor(context),
                 height: 1.5,

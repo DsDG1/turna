@@ -29,6 +29,11 @@ serde_json = "1"
 sha2 = "0.10"
 rusqlite = "0.36"
 regex = "1"
+# Pinned to the exact version anki/rslib uses — its comment warns "any
+# changes could invalidate sqlite indexes". The bridge registers this
+# collation on raw connections that must rebuild rslib's `COLLATE
+# unicase` b-trees (VACUUM in compact_collection).
+unicase = "=2.6.0"
 
 [[bin]]
 name = "turna_anki_gen_fixtures"

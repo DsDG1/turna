@@ -212,19 +212,6 @@ class SettingsHighContrastTile extends StatelessWidget {
       );
 }
 
-class SettingsDyslexiaFontTile extends StatelessWidget {
-  const SettingsDyslexiaFontTile({super.key});
-
-  @override
-  Widget build(BuildContext context) => AccessibilityToggleTile(
-        icon: Icons.text_fields_rounded,
-        title: AppStrings.settingsDyslexiaFontTitle,
-        subtitle: AppStrings.settingsDyslexiaFontSubtitle,
-        valueSelector: (p) => p.dyslexiaFont,
-        onChanged: (p, v) => p.setDyslexiaFont(v),
-      );
-}
-
 class SettingsSensoryReduceTile extends StatelessWidget {
   const SettingsSensoryReduceTile({super.key});
 

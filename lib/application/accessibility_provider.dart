@@ -11,13 +11,12 @@ import 'package:turna/service/locator.dart';
 /// launches and are consumed app-wide via [ChangeNotifier].
 ///
 /// Surfaces a small set of toggles tuned for neurodivergent learners
-/// (ADHD, dyslexia, sensory sensitivity, autism spectrum):
+/// (ADHD, sensory sensitivity, autism spectrum):
 ///  * [textScale]         — magnify text 100%–200%.
 ///  * [cardTextScale]     — magnify card content 100%–200% (WebView cards
 ///                          included, opt-in: 100% leaves cards untouched).
 ///  * [reducedMotion]     — shorten/disable animations.
 ///  * [highContrast]      — switch to a high-contrast theme variant.
-///  * [dyslexiaFont]      — swap the text theme for a dyslexia-friendly font.
 ///  * [sensoryReduce]     — mute non-essential sounds and haptics.
 ///  * [focusMode]         — hide decorative animations / visual noise.
 ///
@@ -31,7 +30,6 @@ class AccessibilityProvider extends ChangeNotifier {
   int _cardTextScale = 100;
   bool _reducedMotion = false;
   bool _highContrast = false;
-  bool _dyslexiaFont = false;
   bool _sensoryReduce = false;
   bool _focusMode = false;
 
@@ -43,7 +41,6 @@ class AccessibilityProvider extends ChangeNotifier {
   int get cardTextScale => _cardTextScale;
   bool get reducedMotion => _reducedMotion;
   bool get highContrast => _highContrast;
-  bool get dyslexiaFont => _dyslexiaFont;
   bool get sensoryReduce => _sensoryReduce;
   bool get focusMode => _focusMode;
 
@@ -67,9 +64,6 @@ class AccessibilityProvider extends ChangeNotifier {
         .getValue();
     _highContrast = _appPrefs.preferences
         .getBool(LocalStateKeys.highContrast, defaultValue: false)
-        .getValue();
-    _dyslexiaFont = _appPrefs.preferences
-        .getBool(LocalStateKeys.dyslexiaFont, defaultValue: false)
         .getValue();
     _sensoryReduce = _appPrefs.preferences
         .getBool(LocalStateKeys.sensoryReduce, defaultValue: false)
@@ -128,12 +122,6 @@ class AccessibilityProvider extends ChangeNotifier {
   Future<void> setHighContrast(bool value) async {
     _highContrast = value;
     await _appPrefs.setBool(LocalStateKeys.highContrast, value: value);
-    notifyListeners();
-  }
-
-  Future<void> setDyslexiaFont(bool value) async {
-    _dyslexiaFont = value;
-    await _appPrefs.setBool(LocalStateKeys.dyslexiaFont, value: value);
     notifyListeners();
   }
 

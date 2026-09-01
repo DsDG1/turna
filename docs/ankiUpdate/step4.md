@@ -1,10 +1,11 @@
 # Step 4 详细说明：v2 导入→课程树链落码（与 v1 并存）
 
-> 上游文档：[README.md](./README.md)（总目标与六步计划）；前置：[step3.md](./step3.md)（已完成：op 41/42 落码、契约 1.12、全链路调用面与假引擎 `configStore` 就绪）。
-> Step 4 只做一件事：**把 ADR 0043 的 v2 全生命周期链（导入→决策→视图→复习挂载→删除）在 flag 后落码，真机强杀矩阵全绿**。v1 一行不改、一路不删；flag 决定新导入走哪条链。
-> 原则：v2 路径对旧表**零写入**（守卫测试锁死）；每一段幂等（K 矩阵的答案必须是代码，不是文档）；测试贴真实挂载点（D9）。
+> **本步未关闭。整个 v2 已失败（2026-09-01），不要续做 C3/C4、不要翻生产 flag、不要进 Step 5。** 总结论：[README.md](./README.md)。
 >
-> **施工状态（2026-09-01）**：任务 A/B/C 的 host 侧（代码 + 严格假引擎测试 + 零写入守卫）已全部落码并绿；**C3 真机强杀矩阵与 C4 大库定标未跑**（需 vivo 真机 + 大夹具，本机不可达），验收清单如实标注。详见文末收据与「K1–K14 真机矩阵映射表」。
+> 上游文档：[README.md](./README.md)（总目标与六步计划，已作废）；前置：[step3.md](./step3.md)（op 41/42、契约 1.12）。
+> 原范围：把 ADR 0043 的 v2 全生命周期链在 flag 后落码，真机强杀矩阵全绿。v1 一行不改；flag 决定新导入走哪条链。
+>
+> **施工状态（2026-09-01）**：host 侧（代码 + 假引擎测试 + 零写入守卫）曾落码；**C3 真机强杀矩阵与 C4 大库定标未跑**。未过发布门禁 = 本步失败，并构成整条 v2 失败的一部分。下文是当时的施工说明与收据，不是完工证明。
 
 ---
 
@@ -162,4 +163,5 @@ A 定案（flag/偏好清单/表去向）——0.5~1 天 ✅
 | 2026-09-01 | 施工中修掉的缺陷 | 2 处 | ① 派生放置决策会覆盖多级牌组的路径派生（顶层键把两个课时压成一个）——改为只为「无子牌组的平牌组」落派生键，多级树走路径派生（决策只存会改变派生结果的用户覆盖，D2 语义纠偏）；② retire 服务 course 可空化（维护 runner 侧本就传可空，缺席时「即刻不可见」退化为账本 state 过滤） |
 | 2026-09-01 | C2 + 零写入守卫 | 31/31 绿 | `test/application/anki_official/v2/` 六文件：flag 5、import_chain 5（含 catalog 五表守卫 + course.db 仅视图守卫 + 重入幂等）、view_rebuild 6、retire 6、pending_imports 4、read_path 5。守卫 = sqlite3 `updatesSync` statement 级钩子（catalog：五表集合外零命中；course.db：仅 `anki_course_tree_view`）+ 六张旧表净状态为空断言 |
 | 2026-09-01 | 回归核验（防卡死分区跑） | 零新增失败 | 受影响面定向复跑：anki_official 全目录（395+ 过，失败 4 项全部干净树复现：execution_plan/host_ffi 两损坏文件（Step 1 存量）+ composition errno 32（Windows 预存，BASELINE.md 有档）+ media_resolver（干净树同败））；test/data + test/courses（仅 review_history ×2 干净树同败）；test/application/anki + projection + lesson_flow 102 全绿；anki_import + maintenance + 修复中心/存储页 58 全绿；test/views/anki（3 失败干净树同败：p5f flow ×2 + controller zero-writes，BASELINE.md 有档）；course_provider 四文件全绿。`flutter analyze`：lib/ 零 issue，仅剩 2 个存量损坏测试文件的 error（Step 1 收据同款）。干净树对照方法 = `git stash` 复跑（Step 3 同款），每处失败均验 |
-| 2026-09-01 | C3/C4 | 未跑（如实） | 真机（vivo V2502A）与 10 万卡大夹具在本机不可达；K 矩阵映射表、K2 书面结论（op 40 恒空 stub + checkpoint 范式不匹配，op 43 暂不占号）、Q3 测量面（elapsedMillis + 日志）均已就绪，构成 C3/C4 的执行清单。**flag 翻 true 的前置（矩阵绿 + 定标）未满足，productionAndroid 保持 false** |
+| 2026-09-01 | **整个 v2 失败** | 计划停止 | 生产 `v2ImportChain` 仍 false；C3/C4 未跑；Step 5 取消（不考虑老用户）；Step 6 不开工。见 [README 失败结论](./README.md) |
+| 2026-09-01 | 现场修复：compact 的 unicase 双缺陷 | 落码 + 测试绿 | 现场：导入后维护日志 `compactCollection failed: no such collation sequence: unicase`（VACUUM）。根因：collection.anki2 的 rslib schema（14/15/17）带 `COLLATE unicase` b-tree（tags PK 等），VACUUM 重建必须用 rslib 同款比较（空库零比较故旧测试漏检）。修两处：① Rust `compact_collection` 裸连接注册 `unicase`（`bridge/src/ops.rs`，Cargo.toml 锁 `=2.6.0` 与 rslib 同版），新增回归 `compact_collection_force_vacuums_unicase_tables`（修复前复现 STATUS_INTERNAL_ERROR=32，修复后绿；本机基线里既有 force 用例本就败，stash 对照确认）；② Dart 维护 runner 引擎缺席不再降级 `compactSqliteFile` 裸连 VACUUM collection.anki2（Dart 无法安全复刻 unicase 语义，会污染索引序），改为抛错保活 job（retry_wait，同 v2_source_delete 契约）；`OfficialStorageOptimizeService` 先经 `requireImporter` bootstrap（可注入 `ensureEngine`），失败 fail-closed `importer_not_ready` 且不入队。验证：cargo test 77 过 10 败 vs 干净树基线 75 过 11 败（同集存量环境失败，compact 一项转绿）；clippy `-D warnings` 过、改动 hunk rustfmt 干净（全树 fmt 漂移为本机工具链版本差异，存量）；flutter 新增 3 例（runner 保活 / bootstrap 走引擎 3 job / fail-closed 零入队），受影响面复跑 maintenance + 修复中心 + 存储页 + course_compact + lifecycle_storage + v2_retire 全绿，analyze 4 文件零 issue |
