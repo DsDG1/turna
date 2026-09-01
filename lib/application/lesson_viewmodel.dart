@@ -16,6 +16,7 @@ import 'package:turna/application/anki_official/introduction/card_introduction_e
 import 'package:turna/application/anki_official/introduction/card_introduction_store.dart';
 import 'package:turna/application/anki_official/engine/official_anki_lock_reconciler.dart';
 import 'package:turna/application/anki_official/projection/official_anki_lesson_card_index.dart';
+import 'package:turna/application/anki_official/v2/official_anki_v2_lesson_content.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/application/study_session/study_product_analytics.dart';
@@ -337,8 +338,9 @@ class LessonViewModel extends ChangeNotifier {
   ///
   /// Uses [CourseProvider] only when the cached [Lesson] already has body
   /// content (tests / preloaded full lessons). The course tree holds L1
-  /// metadata with empty [Lesson.content], so those fall through to
-  /// [CourseLoader.loadLessonById] (L2).
+  /// metadata with empty [Lesson.content], so those fall through to the
+  /// v2 supply (Official Anki v2 lessons derive content from cards) and
+  /// then to [CourseLoader.loadLessonById] (L2).
   ///
   /// Returns `true` if the lesson was found and loaded.
   Future<bool> loadLesson(String lessonId) async {
@@ -346,6 +348,9 @@ class LessonViewModel extends ChangeNotifier {
     if (lesson != null && !_lessonHasBody(lesson)) {
       lesson = null;
     }
+    // B6 第 5 读挂点（真机 F6）：v2 课时正文派生自卡。miss（非 v2
+    // 课时 / flag 关 / 派生不可用）返回 null 落回下面的 v1 管线。
+    lesson ??= await OfficialAnkiV2LessonContent.lessonFor(lessonId);
     if (lesson == null) {
       try {
         lesson = await CourseLoader.loadLessonById(lessonId);
