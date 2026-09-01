@@ -4,17 +4,20 @@ import 'dart:io';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
+import 'package:turna/application/anki_official/engine/official_anki_session.dart';
 import 'package:turna/application/anki_official/import/official_anki_staging_manager.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_file_log.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart'
     show OfficialAnkiAttemptPhase;
 import 'package:turna/application/anki_official/official_anki_composition.dart';
+import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
+import 'package:turna/application/anki_official/v2/official_anki_v2_card_index.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_config_keys.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_decision_store.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_view_store.dart';
@@ -218,18 +221,30 @@ class OfficialAnkiV2ImportService {
       rethrow;
     }
 
-    // 卡索引：只写 anki_source_cards（B2 五表之一）。
-    final noteIds = attempts.receiptNoteIds(attempt.attemptId);
-    final descriptors = <OfficialAnkiCardDescriptor>[];
-    for (var offset = 0; offset < noteIds.length; offset += 200) {
-      final batch = noteIds.skip(offset).take(200).toList();
-      final noteCards = await resolved.getNoteCardsBatch(batch);
-      final cardIds = noteCards.values.expand((ids) => ids).toList();
-      if (cardIds.isNotEmpty) {
-        descriptors.addAll(await resolved.getCardDescriptorsBatch(cardIds));
-      }
+    // 卡索引：只写 anki_source_cards（B2 五表之一）。ADR 0044 R1.5：整段
+    // （receipt 读取 + 每 200 卡一页的引擎读 + 每卡一行同步 sqlite 写）
+    // 下沉 worker isolate，与 v1 commitReceipt 同款；测试注入引擎 / 假
+    // session 走 inline 同序列（强杀恢复阶段两路完全一致）。
+    final session = OfficialAnkiCompositionRoot.session;
+    int indexedCards;
+    if (engine == null &&
+        OfficialAnkiCompositionRoot.debugEngineOverride == null &&
+        session is OfficialAnkiSession &&
+        OfficialAnkiCompositionRoot.executionMode ==
+            OfficialAnkiExecutionMode.worker) {
+      indexedCards = await session.v2CardIndex(
+        attemptId: attempt.attemptId,
+        sourceId: sourceId,
+      );
+    } else {
+      indexedCards = await officialAnkiV2RunCardIndex(
+        sources: sources,
+        attempts: attempts,
+        engine: resolved,
+        attemptId: attempt.attemptId,
+        sourceId: sourceId,
+      );
     }
-    sources.upsertCardBatch(sourceId: sourceId, cards: descriptors);
 
     // 晋升第一步：映射决策进配置区（op 42 单事务，K10）。
     final decisions = OfficialAnkiV2DecisionStore(resolved);
@@ -260,7 +275,7 @@ class OfficialAnkiV2ImportService {
     );
     officialAnkiV2Log(
       'commit window closed: $sourceId '
-      '(${imported.cardCount} cards, ${descriptors.length} indexed)',
+      '(${imported.cardCount} cards, $indexedCards indexed)',
     );
 
     await _rebuild();
@@ -272,7 +287,7 @@ class OfficialAnkiV2ImportService {
     return OfficialAnkiV2CommitResult(
       sourceId: sourceId,
       attemptId: attempt.attemptId,
-      cardCount: descriptors.length,
+      cardCount: indexedCards,
       sectionCount: await _distinctSections(),
       lessonCount: await _distinctLessons(),
     );

@@ -6,6 +6,8 @@
 /// Remaining dart-defines on this class are **opt-in only**:
 /// - `TURNA_OFFICIAL_ANKI_REVIEWER_DIAGNOSTICS`
 /// - `TURNA_OFFICIAL_ANKI_COURSE_GRADES_SCHEDULER`
+/// - `TURNA_OFFICIAL_ANKI_V2_IMPORT_CHAIN` (C3 matrix / internal builds only;
+///   absent define = false, so production bundles keep the v2 chain off)
 ///
 /// `TURNA_OFFICIAL_ANKI_DIAGNOSTICS` is the release diagnostics route
 /// guard, not a field here.
@@ -56,9 +58,12 @@ class OfficialAnkiFeatureFlags {
         bool.fromEnvironment('TURNA_OFFICIAL_ANKI_REVIEWER_DIAGNOSTICS');
     const courseGradesScheduler =
         bool.fromEnvironment('TURNA_OFFICIAL_ANKI_COURSE_GRADES_SCHEDULER');
+    const v2ImportChain =
+        bool.fromEnvironment('TURNA_OFFICIAL_ANKI_V2_IMPORT_CHAIN');
     return productionAndroid.copyWith(
       reviewerDiagnostics: reviewerDiagnostics,
       courseGradesScheduler: courseGradesScheduler,
+      v2ImportChain: v2ImportChain,
     );
   }
 

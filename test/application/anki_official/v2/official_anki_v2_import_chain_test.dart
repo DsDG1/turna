@@ -9,6 +9,7 @@ import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
+import 'package:turna/application/anki_official/v2/official_anki_v2_card_index.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_decision_store.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_import_service.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_view_store.dart';
@@ -278,6 +279,34 @@ void main() {
     );
     // 配置区可能被重写同值（no-op 语义），但绝不能少。
     expect(engine.setConfigCalls, greaterThanOrEqualTo(configWritesAfterFirst));
+  });
+
+  test('card-index segment replays idempotently (ADR 0044 R1.5)', () async {
+    final (sourceId, attemptId) = seedStagedSource();
+    await OfficialAnkiV2ImportService(
+      catalog: catalog,
+      paths: paths,
+      course: course,
+      engine: engine,
+    ).commit(
+      sourceId: sourceId,
+      packagePath: 'pkg.apkg',
+      displayName: 'Basics',
+    );
+    final sources = OfficialAnkiSourceDao(catalog);
+    expect(sources.cardCount(sourceId), 4);
+
+    // 强杀重放语义：段中途被杀后按意图重跑同一段（worker 与 inline 共享
+    // officialAnkiV2RunCardIndex），upsert 不得产生重复行。
+    final replayed = await officialAnkiV2RunCardIndex(
+      sources: sources,
+      attempts: OfficialAnkiImportAttemptDao(catalog),
+      engine: engine,
+      attemptId: attemptId,
+      sourceId: sourceId,
+    );
+    expect(replayed, 4);
+    expect(sources.cardCount(sourceId), 4, reason: '重放不得产生重复所有权行');
   });
 
   test('mapping decision survives a corrupted config read (K10 resilience)',

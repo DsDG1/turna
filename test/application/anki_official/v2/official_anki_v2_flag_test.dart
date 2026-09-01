@@ -35,4 +35,14 @@ void main() {
   test('fromEnvironment keeps production default off', () {
     expect(OfficialAnkiFeatureFlags.fromEnvironment().v2ImportChain, isFalse);
   });
+
+  test('v2 define wiring matches the dart-define in both compile states', () {
+    // 无 define（CI/生产）：false==false；--dart-define 投喂（C3 矩阵/内测
+    // 构建）：true==true。仅在 fromEnvironment 漏接 v2 位或 define 名写错
+    // 时失败。
+    expect(
+      OfficialAnkiFeatureFlags.fromEnvironment().v2ImportChain,
+      const bool.fromEnvironment('TURNA_OFFICIAL_ANKI_V2_IMPORT_CHAIN'),
+    );
+  });
 }

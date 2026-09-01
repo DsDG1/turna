@@ -1,0 +1,17 @@
+{
+  "fixtureVersion": 1,
+  "generatedWithAnkiCommit": "967aa0d578fc75181e292e95326f9b58698da25c",
+  "packages": [
+    {
+      "assertions": [
+        "question-contains:Q0"
+      ],
+      "expectedCards": 100000,
+      "expectedNotes": 100000,
+      "file": "generated/10-large-generated-100000.apkg",
+      "generated": true,
+      "legacy": false,
+      "sha256": "74ecc3ab304e869564d1e22673dddc4d1d52fb241ebc9e2e70c18884a7d807aa"
+    }
+  ]
+}

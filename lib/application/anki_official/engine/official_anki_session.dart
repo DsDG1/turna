@@ -20,6 +20,7 @@ import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
+import 'package:turna/application/anki_official/v2/official_anki_v2_card_index.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 
 /// Persistent worker isolate that owns FFI, hashing, and the catalog.
@@ -292,6 +293,21 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
         'noteIds': noteIds,
         'nowMillis': nowMillis,
       },
+      const Duration(minutes: 30),
+    );
+  }
+
+  /// ADR 0044 R1.5: run the v2 card-index segment (one `anki_source_cards`
+  /// row per card + paged engine reads) inside the worker so none of it
+  /// touches the UI isolate. Same generous timeout as imports — large decks
+  /// do minutes of per-page work here.
+  Future<int> v2CardIndex({
+    required String attemptId,
+    required String sourceId,
+  }) {
+    return _call<int>(
+      'v2CardIndex',
+      {'attemptId': attemptId, 'sourceId': sourceId},
       const Duration(minutes: 30),
     );
   }
@@ -655,6 +671,19 @@ final Map<String, Future<Object?> Function(_WorkerState, Map<String, Object?>)>
           .map((n) => n.toInt())
           .toList(),
       nowMillis: (m['nowMillis'] as num).toInt(),
+    );
+  },
+  'v2CardIndex': (s, m) async {
+    // ADR 0044 R1.5: the v2 ownership list is one anki_source_cards row
+    // per card (sync sqlite). This worker already owns the engine handle
+    // and a catalog connection — running the segment here keeps the whole
+    // thing (and its per-page engine calls) off the UI isolate.
+    return officialAnkiV2RunCardIndex(
+      sources: OfficialAnkiSourceDao(s.db!),
+      attempts: OfficialAnkiImportAttemptDao(s.db!),
+      engine: s.engine!,
+      attemptId: m['attemptId'] as String,
+      sourceId: m['sourceId'] as String,
     );
   },
   'importFile': (s, m) async {
