@@ -7,7 +7,7 @@
 
 ## 背景
 
-1. **同一事实存了 2~4 份。** 课程树三份（catalog 投影状态 / course.db 投影索引 / Collection 本体）、字段映射与呈现决策两份、来源登记两份、卡片内容三份。为防止副本打架，系统长出整套「免疫系统」——对账 journal、启动普查 census、修复中心、写栅栏——占 anki 代码量大半，也是怪 bug 的温床（README §二的诊断）。
+1. **同一事实存了 2~4 份。** 课程树三份（catalog 投影状态 / course.db 投影索引 / Collection 本体）、字段映射与呈现决策两份、来源登记两份、卡片内容三份。为保持这些副本一致，系统发展出整套一致性维护机制——对账 journal、启动普查 census、修复中心、写栅栏——占 anki 代码量大半，也是多数怪 bug 的来源（README §二的诊断）。
 2. **补丁路线已被证伪。** doc 41 的 checkpoint restore + ambiguous commit 三态方案，其核心操作（独占 lease 下整文件替换 collection.anki2）与 UI 线程模型冲突，被 doc 42 的 staging-first 取代；doc 42 修好了导入轴，但删除/回收/对账轴的复杂度没有降——因为副本还在。
 3. **Step 1（2026-08-31 真机）给的设计教训。** 生产导入链曾整体跑不通（staging 引擎未打开）、启动维护被整体跳过（engine-null 短路）——两处都是「接线缺陷 + 测试缝隙说谎」；同场暴露六项新发现（提交后 ANR、课程切换不生效、pending_cleanup 永不完成、厂商 logcat 静默、强杀后 prefs 丢失、due sync 挂载点与假设不符）。教训：**跨库一致性靠「证明」维持不住，要靠「不重复」消掉**；测试必须贴真实挂载点。
 

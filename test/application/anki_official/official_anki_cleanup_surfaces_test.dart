@@ -5,6 +5,7 @@
 
 // Dart imports:
 import 'dart:convert';
+import 'dart:io';
 
 // Package imports:
 import 'package:drift/drift.dart' show Variable;
@@ -17,6 +18,7 @@ import 'package:turna/application/anki_official/anki_deck_manager.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
+import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/lesson_link_store.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/srs_provider.dart';
@@ -414,6 +416,69 @@ void main() {
         await _count(
             db, 'SELECT COUNT(*) AS n FROM official_anki_projection_index'),
         0,
+      );
+    });
+
+    test(
+        'v2 source uninstall routes to the retiring sequence (on-device F4)',
+        () async {
+      // 真机 F4 复现形状：v2 源只存在于账本（零写入纪律——无 authority
+      // 行、无迁移链、无 course.db sections）。修复前 uninstall 在此形状
+      // 下空转返回 true（「已移除」假阳性，source 原封不动）。
+      final tempRoot = Directory.systemTemp.createTempSync('turna-f4-');
+      addTearDown(() {
+        try {
+          tempRoot.deleteSync(recursive: true);
+        } catch (_) {}
+      });
+      OfficialAnkiCompositionRoot.locatorPaths = OfficialAnkiPaths(
+        profileId: 'profile-default-01',
+        profileRoot: Directory('${tempRoot.path}/live')
+          ..createSync(recursive: true),
+      );
+      final engine = FakeOfficialAnkiEngine();
+      OfficialAnkiCompositionRoot.debugEngineOverride = engine;
+      addTearDown(() {
+        OfficialAnkiCompositionRoot.debugEngineOverride = null;
+      });
+
+      final sources = OfficialAnkiSourceDao(catalog);
+      sources.upsertSource(
+        sourceId: 'src-v2',
+        profileId: 'profile-default-01',
+        sourceHash: 'hash-v2',
+        sourceSize: 1,
+        displayName: 'V2 Deck',
+        state: 'active',
+        backendCommit: 'pending',
+        nowMillis: 1,
+      );
+      sources.markChainV2(sourceId: 'src-v2', nowMillis: 1);
+      sources.upsertCardBatch(
+        sourceId: 'src-v2',
+        cards: const [
+          OfficialAnkiCardDescriptor(
+              cardId: 1, noteId: 1, deckId: 10, templateOrd: 0, notetypeId: 1),
+          OfficialAnkiCardDescriptor(
+              cardId: 2, noteId: 2, deckId: 10, templateOrd: 0, notetypeId: 1),
+        ],
+      );
+
+      final removed = await manager.uninstall('src-v2');
+
+      expect(removed, isTrue);
+      // 修复前：source 停留 active（空转假阳性）；修复后：进入 retiring，
+      // fake 引擎在场时序列同步走完则整行终删。
+      final after = sources.findById('src-v2');
+      expect(
+        after == null || after.state == 'retiring',
+        isTrue,
+        reason: 'v2 源必须离开 active（进入 retiring 序列）',
+      );
+      expect(
+        engine.deleteCardsCallCount,
+        greaterThan(0),
+        reason: '引擎删除段必须真的执行过',
       );
     });
   });

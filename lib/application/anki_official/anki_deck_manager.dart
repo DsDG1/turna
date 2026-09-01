@@ -186,7 +186,15 @@ class AnkiDeckManager {
     if (catalog == null || paths == null) {
       return false;
     }
-    final engine = await _resolveOfficialEngine();
+    // B5 契约：引擎缺席（含解析抛错）不得阻塞 ①账本单事务（job 留队
+    // 续跑）。用户可见的「移除失败」只剩两处来源：locator 未就绪的
+    // 早退 return false，或 beginRetire 自身抛错（unknown source / DB）。
+    OfficialAnkiEngine? engine;
+    try {
+      engine = await _resolveOfficialEngine();
+    } catch (error) {
+      debugPrint('[AnkiDeckManager] v2 retire engine absent: $error');
+    }
     final service = OfficialAnkiV2RetireService(
       catalog: catalog,
       paths: paths,
@@ -248,6 +256,25 @@ class AnkiDeckManager {
     } catch (e) {
       debugPrint(
         '[AnkiDeckManager] migration link lookup failed for $importId: $e',
+      );
+    }
+    // v2 chain（step4.md B5，真机 F4）：原生 v2 源按零写入纪律不落 v1
+    // authority 表、不落 course.db sections——账本是两代共享的唯一事实源。
+    // 没有这条直查，v2 分叉永远不可达，uninstall 空转返回 true（「已移除」
+    // 假阳性，source 原封不动）。authority/迁移链仍在前，v1 路由不变。
+    try {
+      await OfficialAnkiCompositionRoot.initializeReadOnlyLocator();
+      final ledgerCatalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+      if (ledgerCatalog != null &&
+          OfficialAnkiSourceDao(ledgerCatalog).findById(importId) != null) {
+        return AnkiDeletionOwner(
+          importId: importId,
+          officialSourceId: importId,
+        );
+      }
+    } catch (e) {
+      debugPrint(
+        '[AnkiDeckManager] ledger owner lookup failed for $importId: $e',
       );
     }
     if (await _isOfficialSource(importId)) {
