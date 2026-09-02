@@ -28,6 +28,7 @@ class OfficialAnkiV2RetireService {
     required this.course,
     this.engine,
     this.nowMillis,
+    this.deleteChunk = defaultDeleteChunk,
   });
 
   final OfficialAnkiDatabase catalog;
@@ -40,7 +41,12 @@ class OfficialAnkiV2RetireService {
   final OfficialAnkiEngine? engine;
   final int Function()? nowMillis;
 
-  static const _deleteChunk = 5000;
+  /// Engine delete batch size (op 32). UI uninstall awaits the engine pass
+  /// only when the source fits in one chunk; larger sources detach so the
+  /// course tree can disappear without blocking on a 100k-card delete.
+  static const int defaultDeleteChunk = 5000;
+
+  final int deleteChunk;
 
   int get _now =>
       nowMillis?.call() ?? DateTime.now().millisecondsSinceEpoch;
@@ -95,7 +101,8 @@ class OfficialAnkiV2RetireService {
       // ③ 已完成（重放）：收敛到视图重建即可。
       await _makeSourceInvisible(sourceId);
       return true;
-    }    if (source.state == OfficialAnkiSourceState.active.wire) {
+    }
+    if (source.state == OfficialAnkiSourceState.active.wire) {
       // job 先行、CAS 未落（异常时序）：按序列语义补标。
       await beginRetire(sourceId: sourceId);
     }
@@ -103,19 +110,24 @@ class OfficialAnkiV2RetireService {
     // ② 引擎删除：按所有权清单分批；缺卡无害（removeCards 计数语义）。
     final resolved = engine;
     if (resolved != null) {
-      final cards = sources.listCards(sourceId);
       var removed = 0;
-      for (var start = 0; start < cards.length; start += _deleteChunk) {
-        final chunk = cards
-            .skip(start)
-            .take(_deleteChunk)
-            .map((card) => card.cardId)
-            .toList();
+      var owned = 0;
+      var offset = 0;
+      while (true) {
+        final chunk = sources.listCardIdsPage(
+          sourceId,
+          offset: offset,
+          limit: deleteChunk,
+        );
+        if (chunk.isEmpty) break;
+        owned += chunk.length;
         removed += await resolved.deleteCards(chunk);
+        offset += chunk.length;
+        await Future<void>.delayed(Duration.zero);
       }
       officialAnkiV2Log(
         'retire engine delete: $sourceId '
-        '(${cards.length} owned, $removed removed)',
+        '($owned owned, $removed removed)',
       );
     } else {
       // 引擎不可达：job 留在表里等下次心跳重跑；source 停 retiring、

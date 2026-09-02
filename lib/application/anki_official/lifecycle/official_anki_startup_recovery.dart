@@ -9,6 +9,7 @@ import 'package:turna/application/anki_official/migration/official_first_reancho
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
+import 'package:turna/application/anki_official/v2/official_anki_v2_unowned_card_reclaimer.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/service/locator.dart';
@@ -105,6 +106,20 @@ class OfficialAnkiStartupRecovery {
           ),
           maintenanceLeaseOwnerToken: ownerToken,
         );
+        // Ledger 已空、但 collection 里仍有无主卡（用户放弃过中断导入，
+        // 或旧包只删了账本）：差集回收。有未完成 attempt 时不跑，以免
+        // 吃掉 receipt_committed 尚未写完的所有权行。
+        if (OfficialAnkiImportAttemptDao(catalog).unfinished().isEmpty) {
+          try {
+            await OfficialAnkiV2UnownedCardReclaimer(
+              catalog: catalog,
+              paths: paths,
+              engine: engine,
+            ).purge();
+          } catch (error) {
+            officialAnkiStartupLog('unowned purge: $error', warning: true);
+          }
+        }
       }
       try {
         await OfficialFirstReanchor().runIfNeeded(getIt<AppPrefs>());

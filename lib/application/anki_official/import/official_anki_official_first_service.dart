@@ -76,6 +76,13 @@ class OfficialAnkiOfficialFirstService {
         debugDetails: 'staging_import_requires_catalog',
       );
     }
+    if (OfficialAnkiImportAttemptDao(catalog).unfinished().isNotEmpty) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.invalidState,
+        messageKey: 'official_anki.unfinished_blocks_new',
+        debugDetails: 'unfinished_import_blocks_new',
+      );
+    }
     OfficialAnkiCompositionRoot.stagingDiscardRequested = false;
     final official = await OfficialAnkiImportSaga(
       sources: OfficialAnkiSourceDao(catalog),

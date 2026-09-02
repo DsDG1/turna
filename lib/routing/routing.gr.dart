@@ -1216,12 +1216,10 @@ class OfficialAnkiRepairCenterRoute
     _i64.OfficialAnkiDatabase? catalog,
     _i65.OfficialAnkiPaths? paths,
     _i66.StorageInventoryService? scanner,
-    _i67.Future<_i68.OfficialStorageOptimizeResult> Function({
-      required bool force,
-    })? optimizeDatabases,
     _i67.Future<void> Function(String)? onContinueImport,
     _i67.Future<void> Function(String)? onDiscardImport,
     _i67.Future<void> Function(String)? onRetryCleanup,
+    _i67.Future<void> Function(String)? onDeleteQuarantine,
     _i67.Future<void> Function(String)? onExportDiagnostics,
     List<_i55.PageRouteInfo>? children,
   }) : super(
@@ -1231,10 +1229,10 @@ class OfficialAnkiRepairCenterRoute
             catalog: catalog,
             paths: paths,
             scanner: scanner,
-            optimizeDatabases: optimizeDatabases,
             onContinueImport: onContinueImport,
             onDiscardImport: onDiscardImport,
             onRetryCleanup: onRetryCleanup,
+            onDeleteQuarantine: onDeleteQuarantine,
             onExportDiagnostics: onExportDiagnostics,
           ),
           initialChildren: children,
@@ -1253,10 +1251,10 @@ class OfficialAnkiRepairCenterRoute
         catalog: args.catalog,
         paths: args.paths,
         scanner: args.scanner,
-        optimizeDatabases: args.optimizeDatabases,
         onContinueImport: args.onContinueImport,
         onDiscardImport: args.onDiscardImport,
         onRetryCleanup: args.onRetryCleanup,
+        onDeleteQuarantine: args.onDeleteQuarantine,
         onExportDiagnostics: args.onExportDiagnostics,
       );
     },
@@ -1269,10 +1267,10 @@ class OfficialAnkiRepairCenterRouteArgs {
     this.catalog,
     this.paths,
     this.scanner,
-    this.optimizeDatabases,
     this.onContinueImport,
     this.onDiscardImport,
     this.onRetryCleanup,
+    this.onDeleteQuarantine,
     this.onExportDiagnostics,
   });
 
@@ -1284,21 +1282,19 @@ class OfficialAnkiRepairCenterRouteArgs {
 
   final _i66.StorageInventoryService? scanner;
 
-  final _i67.Future<_i68.OfficialStorageOptimizeResult> Function({
-    required bool force,
-  })? optimizeDatabases;
-
   final _i67.Future<void> Function(String)? onContinueImport;
 
   final _i67.Future<void> Function(String)? onDiscardImport;
 
   final _i67.Future<void> Function(String)? onRetryCleanup;
 
+  final _i67.Future<void> Function(String)? onDeleteQuarantine;
+
   final _i67.Future<void> Function(String)? onExportDiagnostics;
 
   @override
   String toString() {
-    return 'OfficialAnkiRepairCenterRouteArgs{key: $key, catalog: $catalog, paths: $paths, scanner: $scanner, optimizeDatabases: $optimizeDatabases, onContinueImport: $onContinueImport, onDiscardImport: $onDiscardImport, onRetryCleanup: $onRetryCleanup, onExportDiagnostics: $onExportDiagnostics}';
+    return 'OfficialAnkiRepairCenterRouteArgs{key: $key, catalog: $catalog, paths: $paths, scanner: $scanner, onContinueImport: $onContinueImport, onDiscardImport: $onDiscardImport, onRetryCleanup: $onRetryCleanup, onDeleteQuarantine: $onDeleteQuarantine, onExportDiagnostics: $onExportDiagnostics}';
   }
 
   @override

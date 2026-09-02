@@ -19,6 +19,7 @@ import 'package:turna/application/anki_official/projection/official_anki_mapping
 import 'package:turna/application/anki_official/projection/official_anki_projection_service.dart';
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
+import 'package:turna/application/anki_official/v2/official_anki_v2_unowned_card_reclaimer.dart';
 
 /// Staging-first import control plane (doc 42 P1): start + cancel only.
 class OfficialAnkiImportSaga {
@@ -450,11 +451,19 @@ class OfficialAnkiImportSaga {
       }
     }
     if (row == null) return;
+    final wasV2 = sources.findById(sourceId)?.isV2 ?? false;
     await _abandon(
       sourceId: row.sourceId,
       attemptId: row.attemptId,
       stagingRoot: row.stagingPath == null ? null : Directory(row.stagingPath!),
     );
+    if (wasV2) {
+      await OfficialAnkiV2UnownedCardReclaimer(
+        catalog: sources.database,
+        paths: paths,
+        engine: liveEngine ?? OfficialAnkiCompositionRoot.engine,
+      ).purge();
+    }
   }
 
   bool get _discarded =>

@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/anki_import/anki_import_controller.dart';
+import 'package:turna/application/anki_import/official_import_error_messages.dart';
 import 'package:turna/application/anki_import/anki_import_completion_coordinator.dart';
 import 'package:turna/application/anki_import/anki_import_dependencies.dart';
 import 'package:turna/application/anki_import/anki_import_wizard_state.dart';
@@ -217,7 +218,12 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                       color: TurnaTheme.brandTeal.withValues(alpha: 0.6),
                     ),
                     const SizedBox(height: 24),
-                    OfficialPendingImportBanner(onChanged: () => setLocal(() {})),
+                    OfficialPendingImportBanner(
+                      onChanged: () {
+                        controller.clearSelectFailure();
+                        setLocal(() {});
+                      },
+                    ),
                     const SizedBox(height: 8),
                     // No duplicate title here; the AppBar already shows it.
                     Text(
@@ -230,17 +236,20 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 32),
-                    if (error != null)
+                    if (error != null ||
+                        catalogHasUnfinishedOfficialImport())
                       Padding(
                         padding: const EdgeInsets.only(bottom: 16),
                         child: Text(
-                          error,
+                          error ?? unfinishedImportBlocksNewMessage(),
                           style: const TextStyle(color: TurnaTheme.error),
                           textAlign: TextAlign.center,
                         ),
                       ),
                     ElevatedButton.icon(
-                      onPressed: controller.pickFile,
+                      onPressed: catalogHasUnfinishedOfficialImport()
+                          ? null
+                          : controller.pickFile,
                       icon: const Icon(Icons.folder_open),
                       label: Text(AppStrings.ankiChooseFile),
                       style: ElevatedButton.styleFrom(

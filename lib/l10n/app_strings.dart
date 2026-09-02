@@ -1252,7 +1252,7 @@ class AppStrings {
 
   // ── Anki ──
   static String get ankiImportTitle => '导入 Anki 牌组';
-  static String get ankiPendingImportsTitle => '待完成导入';
+  static String get ankiPendingImportsTitle => '未完成的导入';
   static String get ankiImportLeaveTitle => '离开导入？';
   static String get ankiImportLeaveWait => '继续等待';
   static String get ankiImportLeaveDiscard => '放弃并清理';
@@ -1399,8 +1399,12 @@ class AppStrings {
   static String get ankiOfficialNeedsMapping => '还有一类卡片需要看一眼样卡，点那一行即可。';
   static String get ankiOfficialMappingConfirmed => '已确认';
   static String get ankiOfficialMappingSkipped => '已跳过';
-  static String get ankiPendingImportTitle => '待完成导入';
-  static String ankiPendingImportBody(String name) => '「$name」还没导完，可继续或放弃清理。';
+  static String get ankiPendingImportTitle => '未完成的导入';
+  static String ankiPendingImportBody(String name) =>
+      '导入确认前被中断了。不能从这里接着导，放弃清理后可以重新选包。';
+  static String get ankiImportSystemError => '系统错误';
+  static String get ankiPendingMustDiscardBeforeNew =>
+      '现在无法导入新卡片。必须先放弃这次未完成的导入。';
   static String get ankiPendingContinue => '继续';
   static String get ankiPendingDiscard => '放弃并清理';
   static String get storageOptimizeDatabase => '优化数据库';
@@ -1414,12 +1418,38 @@ class AppStrings {
       '当前无法优化数据库（收藏库尚未就绪）';
   static String get storageOptimizeFailed => '优化失败，未宣称释放空间';
   static String get storageRepairCenterLink => '打开修复中心';
+  static String get storageOfficialCollectionTitle => 'Anki 收藏';
+  static String get storageMediaFilesTitle => '媒体文件';
+  static String get storageDeleteSelected => '删除所选';
+  static String get storageOfficialCollectionEmpty =>
+      '还没有已导入的官方牌组。导入 .apkg 后会出现在这里。';
+  static String get storageMediaFilesEmpty => '没有可管理的媒体文件夹。';
+  static String get storageMediaDeleteHint =>
+      '删除有对应课程的媒体时，会同时移除该牌组的卡片和学习进度，无法撤销。';
+  static String get storageOwnedMediaSubtitle => '属于已导入牌组';
+  static String get storageOrphanMediaSubtitle => '无对应课程的残留';
+  static String get storageDeleteNothingSelected => '请先勾选要删除的项目';
+  static String get storageRetiringSkipHint => '正在移除的项目已跳过';
+  static String get storageForcePurgeOfficial => '强制清空残留';
+  static String get storageForcePurgeOfficialHint =>
+      '没有可删除的牌组，但收藏库仍占用空间。多半是卸牌组后留下的空库、检查点或临时目录。';
+  static String get storageForcePurgeOfficialConfirmTitle => '强制清空 Anki 残留？';
+  static String get storageForcePurgeOfficialConfirmBody =>
+      '将删除无对应牌组的收藏库文件、媒体缓存、检查点和临时导入目录。已导入的牌组必须先从列表删除。此操作无法撤销。';
+  static String get storageForcePurgeOfficialDone => '残留文件已清空';
+  static String get storageForcePurgeOfficialBlocked =>
+      '仍有已导入牌组或未完成的导入，无法强制清空';
+  static String get storageForcePurgeOfficialFailed => '强制清空失败';
   static String get ankiRepairCenterTitle => 'Anki 修复中心';
   static String get ankiRepairCenterEmptyCatalog =>
       '官方收藏库尚未就绪。导入过 Anki 牌组后可在此查看待完成导入、待清理和隔离项。';
   static String get ankiRepairCenterEmpty => '没有需要处理的项目';
   static String get ankiRepairPendingCleanup => '待清理';
   static String get ankiRepairQuarantined => '已隔离';
+  static String get ankiRepairDeleteQuarantine => '删除';
+  static String get ankiRepairDeleteQuarantineConfirmTitle => '删除隔离数据？';
+  static String get ankiRepairDeleteQuarantineConfirmBody =>
+      '将删除该来源的卡片、复习进度和媒体。此操作无法撤销。';
   static String get ankiRepairMaintenanceJobs => '维护任务';
   static String get ankiRepairFailedJobs => '最近失败的维护';
   static String get ankiRepairOrphans => '无登记残留';
@@ -1433,6 +1463,60 @@ class AppStrings {
   static String get ankiRepairRetryCleanupConfirmBody =>
       '将再次尝试删除该来源在集合中的卡片与登记。已确认的其他课程不受影响。';
   static String get ankiRepairActionUnavailable => '当前无法执行该操作';
+  static String ankiRepairSourceState(String state) {
+    switch (state) {
+      case 'pending_cleanup':
+        return '等待清理';
+      case 'retiring':
+        return '正在从收藏中移除';
+      case 'quarantined':
+        return '已隔离，需要处理';
+      case 'active':
+        return '使用中';
+      default:
+        return state;
+    }
+  }
+
+  static String ankiRepairJobKind(String kind) {
+    switch (kind) {
+      case 'media_gc':
+        return '清理无用媒体';
+      case 'metadata_prune':
+        return '清理过期元数据';
+      case 'checkpoint_release':
+        return '释放检查点';
+      case 'compact_collection':
+        return '压缩收藏库';
+      case 'compact_catalog':
+        return '压缩目录库';
+      case 'compact_course':
+        return '压缩课程库';
+      case 'v2_source_delete':
+        return '移除牌组';
+      case 'v2_view_rebuild':
+        return '重建课程视图';
+      default:
+        return kind;
+    }
+  }
+
+  static String ankiRepairJobState(String state) {
+    switch (state) {
+      case 'pending':
+        return '排队中';
+      case 'running':
+        return '进行中';
+      case 'retry_wait':
+        return '等待重试';
+      case 'failed':
+        return '失败';
+      case 'completed':
+        return '已完成';
+      default:
+        return state;
+    }
+  }
   static String get ankiOfficialMappingSuggested => '推荐';
   // Exercise-kind presets on the official mapping page: which practice to
   // generate from this notetype (writes suggestion.enabledKinds).

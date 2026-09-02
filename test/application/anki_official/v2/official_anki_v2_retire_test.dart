@@ -82,11 +82,13 @@ void main() {
     return sourceId;
   }
 
-  OfficialAnkiV2RetireService service() => OfficialAnkiV2RetireService(
+  OfficialAnkiV2RetireService service({int deleteChunk = 5000}) =>
+      OfficialAnkiV2RetireService(
         catalog: catalog,
         paths: paths,
         course: course,
         engine: engine,
+        deleteChunk: deleteChunk,
       );
 
   test('① beginRetire: single ledger transaction + immediate invisibility',
@@ -224,5 +226,42 @@ void main() {
     expect(pending, isNotEmpty,
         reason: '引擎缺席 → job 进 retry_wait 保活（K6 收敛由重跑保证）');
     expect(pending.first['attempt_count'], greaterThan(0));
+  });
+
+  test('engine delete pages ownership ids without loading the full list',
+      () async {
+    final sourceId = 'src-paged';
+    final sources = OfficialAnkiSourceDao(catalog);
+    sources.upsertSource(
+      sourceId: sourceId,
+      profileId: paths.profileId,
+      sourceHash: 'hash-$sourceId',
+      sourceSize: 10,
+      displayName: 'R',
+      state: 'active',
+      backendCommit: 'pending',
+      nowMillis: 1,
+    );
+    sources.markChainV2(sourceId: sourceId, nowMillis: 1);
+    sources.upsertCardBatch(
+      sourceId: sourceId,
+      cards: [
+        for (var i = 1; i <= 5; i++)
+          OfficialAnkiCardDescriptor(
+            cardId: i,
+            noteId: i,
+            deckId: 10,
+            templateOrd: 0,
+            notetypeId: 1,
+          ),
+      ],
+    );
+    engine.seedPackage(packagePath: 'pkg.apkg', notes: 5, cards: 5);
+
+    await service(deleteChunk: 2).beginRetire(sourceId: sourceId);
+    expect(await service(deleteChunk: 2).runRetireJob(sourceId: sourceId), isTrue);
+    expect(engine.cards, isEmpty);
+    expect(engine.deleteCardsCallCount, 3, reason: '5 ids / chunk 2 = 3 batches');
+    expect(OfficialAnkiSourceDao(catalog).findById(sourceId), isNull);
   });
 }

@@ -39,5 +39,5 @@ PopScope(canPop: false) 写死不放行
 
 ## 风险与纪律
 
-- 2026-09-01 失败结论中「门禁不满足就不翻 flag」的纪律**原样继承**：R2/R3/R4 的收据写回 step4.md，缺证据不得推进。
-- crash-hunt 工具链（`monitor.js`/`stackloop.js`/timeline dump）转为 C3/C4 常设取证设施，ANR-free 证据（bugreport 零 `ApplicationExitInfo(ANR)` + timeline 主 isolate 切片）作为 K13 通过标准。
+- 翻生产 `v2ImportChain` 仍要 R2/R3/R4 **实机过了**（2026-09-02 修订：host 测试、logcat、诊断导出、bugreport **不构成完成，也不再作为推进条件**）。一行过不过只看操作者在真机上的确认。
+- 2026-09-01「门禁不满足就不翻 flag」仍有效，门禁内容改为实机，不再是取证包。

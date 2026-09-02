@@ -87,6 +87,10 @@ class AnkiImportController extends ChangeNotifier {
   /// Opens the file picker; on a picked path continues with
   /// [proceedWithPath]. Picker failures surface on the select step.
   Future<void> pickFile() async {
+    if (catalogHasUnfinishedOfficialImport()) {
+      _failToSelect(unfinishedImportBlocksNewMessage());
+      return;
+    }
     final String? path;
     try {
       path = await _deps.pickFilePath(
@@ -109,6 +113,10 @@ class AnkiImportController extends ChangeNotifier {
   /// official-first saga. Unsupported / fail-closed plans produce zero
   /// sources and return to Selecting with the mapped error.
   Future<void> proceedWithPath(String path) async {
+    if (catalogHasUnfinishedOfficialImport()) {
+      _failToSelect(unfinishedImportBlocksNewMessage());
+      return;
+    }
     final op = ++_operation;
     _cancelRequested = false;
     OfficialAnkiCompositionRoot.stagingDiscardRequested = false;
@@ -150,7 +158,11 @@ class AnkiImportController extends ChangeNotifier {
     } catch (error) {
       if (_stale(op)) return;
       _parsingPlan = null;
-      _failToSelect(mapGeneralErrorToHuman(error));
+      _failToSelect(
+        catalogHasUnfinishedOfficialImport()
+            ? unfinishedImportBlocksNewMessage()
+            : mapGeneralErrorToHuman(error),
+      );
     }
   }
 
@@ -370,6 +382,15 @@ class AnkiImportController extends ChangeNotifier {
         message: message,
         returnState: const AnkiImportSelecting(),
       ));
+
+  /// After discarding an interrupted import, drop the select-step failure.
+  void clearSelectFailure() {
+    final current = _state;
+    if (current is AnkiImportFailed &&
+        current.returnState is AnkiImportSelecting) {
+      _emit(const AnkiImportSelecting());
+    }
+  }
 
   String _humanizePlanFailure(AnkiImportExecutionPlan plan) =>
       plan.reason == 'colpkg_not_supported_until_official_backend'

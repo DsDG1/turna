@@ -60,6 +60,26 @@ class OfficialAnkiImportOrchestrator {
         noteCount: attempt.importedNoteCount,
       );
     }
+    // K2：v2 live import 中途强杀停在 committing。checkpoint 已废，
+    // 续跑会叠幽灵卡；放弃账本 + 回收 collection 里无主卡。
+    if (phase == OfficialAnkiAttemptPhase.committing) {
+      final source = sources.findById(attempt.sourceId);
+      if (source != null && source.isV2) {
+        await OfficialAnkiImportSaga(
+          sources: sources,
+          attempts: attempts,
+          paths: paths,
+          liveEngine: engine,
+        ).cancelSource(attempt.sourceId);
+        return OfficialAnkiImportResult(
+          sourceId: attempt.sourceId,
+          attemptId: attempt.attemptId,
+          state: OfficialAnkiSourceState.cancelled,
+          cardCount: 0,
+          noteCount: 0,
+        );
+      }
+    }
     if (OfficialAnkiAttemptPhase.stagingCancellable.contains(phase)) {
       await OfficialAnkiImportSaga(
         sources: sources,

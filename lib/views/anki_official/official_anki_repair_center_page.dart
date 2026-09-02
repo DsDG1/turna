@@ -2,7 +2,9 @@ import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:turna/application/anki_official/anki_deck_manager.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_saga.dart';
+import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_maintenance.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_pending_imports.dart';
@@ -13,11 +15,13 @@ import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
-import 'package:turna/application/maintenance/official_storage_optimize_service.dart';
+import 'package:turna/application/anki_official/v2/official_anki_v2_retire_service.dart';
 import 'package:turna/application/maintenance/storage_inventory_service.dart';
 import 'package:turna/core/log_capture.dart';
+import 'package:turna/data/course_database.dart';
+import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/views/anki/import_wizard/official_pending_import_banner.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/views/theme.dart';
 
@@ -31,21 +35,20 @@ class OfficialAnkiRepairCenterPage extends StatefulWidget {
     this.catalog,
     this.paths,
     this.scanner,
-    this.optimizeDatabases,
     this.onContinueImport,
     this.onDiscardImport,
     this.onRetryCleanup,
+    this.onDeleteQuarantine,
     this.onExportDiagnostics,
   });
 
   final OfficialAnkiDatabase? catalog;
   final OfficialAnkiPaths? paths;
   final StorageInventoryService? scanner;
-  final Future<OfficialStorageOptimizeResult> Function({required bool force})?
-      optimizeDatabases;
   final Future<void> Function(String sourceId)? onContinueImport;
   final Future<void> Function(String sourceId)? onDiscardImport;
   final Future<void> Function(String sourceId)? onRetryCleanup;
+  final Future<void> Function(String sourceId)? onDeleteQuarantine;
   final Future<void> Function(String payload)? onExportDiagnostics;
 
   @override
@@ -119,7 +122,9 @@ class _OfficialAnkiRepairCenterPageState
     }
     final pending = _pending;
     final pendingCleanup = _sources
-        .where((s) => s.state == 'pending_cleanup')
+        .where((s) =>
+            s.state == OfficialAnkiSourceState.pendingCleanup.wire ||
+            s.state == OfficialAnkiSourceState.retiring.wire)
         .toList();
     final quarantined =
         _sources.where((s) => s.state == 'quarantined').toList();
@@ -152,26 +157,15 @@ class _OfficialAnkiRepairCenterPageState
               ),
             if (pending.isNotEmpty) ...[
               _section(AppStrings.ankiPendingImportsTitle),
-              for (final item in pending)
-                _tile(
+              for (final item in pending) ...[
+                OfficialInterruptedImportCard(
                   key: Key('repair-pending-${item.sourceId}'),
-                  title: item.displayName,
-                  subtitle: AppStrings.ankiPendingImportPhase(item.phase),
-                  actions: [
-                    TextButton(
-                      onPressed: _busy
-                          ? null
-                          : () => _continueImport(item.sourceId),
-                      child: Text(AppStrings.ankiPendingContinue),
-                    ),
-                    TextButton(
-                      onPressed: _busy
-                          ? null
-                          : () => _discardImport(item.sourceId),
-                      child: Text(AppStrings.ankiPendingDiscard),
-                    ),
-                  ],
+                  displayName: item.displayName,
+                  onDiscard:
+                      _busy ? null : () => _discardImport(item.sourceId),
                 ),
+                const SizedBox(height: 12),
+              ],
             ],
             if (pendingCleanup.isNotEmpty) ...[
               _section(AppStrings.ankiRepairPendingCleanup),
@@ -179,7 +173,7 @@ class _OfficialAnkiRepairCenterPageState
                 _tile(
                   key: Key('repair-cleanup-${source.sourceId}'),
                   title: source.displayName,
-                  subtitle: source.state,
+                  subtitle: AppStrings.ankiRepairSourceState(source.state),
                   actions: [
                     TextButton(
                       onPressed: _busy
@@ -196,7 +190,15 @@ class _OfficialAnkiRepairCenterPageState
                 _tile(
                   key: Key('repair-quarantine-${source.sourceId}'),
                   title: source.displayName,
-                  subtitle: source.state,
+                  subtitle: AppStrings.ankiRepairSourceState(source.state),
+                  actions: [
+                    TextButton(
+                      onPressed: _busy
+                          ? null
+                          : () => _deleteQuarantine(source.sourceId),
+                      child: Text(AppStrings.ankiRepairDeleteQuarantine),
+                    ),
+                  ],
                 ),
             ],
             if (jobs.isNotEmpty) ...[
@@ -204,8 +206,8 @@ class _OfficialAnkiRepairCenterPageState
               for (final job in jobs)
                 _tile(
                   key: Key('repair-job-${job['job_id']}'),
-                  title: '${job['kind']}',
-                  subtitle: '${job['state']}',
+                  title: AppStrings.ankiRepairJobKind('${job['kind']}'),
+                  subtitle: AppStrings.ankiRepairJobState('${job['state']}'),
                 ),
             ],
             if (failed.isNotEmpty) ...[
@@ -213,8 +215,8 @@ class _OfficialAnkiRepairCenterPageState
               for (final job in failed)
                 _tile(
                   key: Key('repair-failed-${job['job_id']}'),
-                  title: '${job['kind']}',
-                  subtitle: '${job['last_error_code'] ?? job['state']}',
+                  title: AppStrings.ankiRepairJobKind('${job['kind']}'),
+                  subtitle: '${job['last_error_code'] ?? AppStrings.ankiRepairJobState('${job['state']}')}',
                 ),
             ],
             if (orphans.isNotEmpty) ...[
@@ -227,13 +229,6 @@ class _OfficialAnkiRepairCenterPageState
                 ),
             ],
             const SizedBox(height: 16),
-            OutlinedButton.icon(
-              key: const Key('repair-optimize'),
-              onPressed: _busy ? null : _optimize,
-              icon: const Icon(Icons.compress_outlined, size: 18),
-              label: Text(AppStrings.storageOptimizeDatabase),
-            ),
-            const SizedBox(height: 8),
             OutlinedButton.icon(
               key: const Key('repair-export'),
               onPressed: _busy ? null : _export,
@@ -279,18 +274,6 @@ class _OfficialAnkiRepairCenterPageState
           ? null
           : Row(mainAxisSize: MainAxisSize.min, children: actions),
     );
-  }
-
-  Future<void> _continueImport(String sourceId) async {
-    final injected = widget.onContinueImport;
-    if (injected != null) {
-      await injected(sourceId);
-      if (mounted) _reloadAndSetState();
-      return;
-    }
-    if (!mounted) return;
-    await context.router.push(const AnkiImportRoute());
-    if (mounted) _reloadAndSetState();
   }
 
   Future<void> _discardImport(String sourceId) async {
@@ -339,18 +322,41 @@ class _OfficialAnkiRepairCenterPageState
       return;
     }
     final catalog = _catalog;
-    final engine = OfficialAnkiCompositionRoot.engine;
-    if (catalog == null || engine == null) {
+    final paths = _paths;
+    if (catalog == null || paths == null) {
       _snack(AppStrings.ankiRepairActionUnavailable);
       return;
     }
+    final source = OfficialAnkiSourceDao(catalog).findById(sourceId);
     setState(() => _busy = true);
     try {
-      await OfficialAnkiUninstallSaga(
-        catalog: catalog,
-        engine: engine,
-        paths: _paths,
-      ).run(sourceId);
+      if (source != null &&
+          (source.isV2 ||
+              source.state == OfficialAnkiSourceState.retiring.wire)) {
+        CourseDatabase? course;
+        try {
+          if (getIt.isRegistered<CourseDatabase>()) {
+            course = getIt<CourseDatabase>();
+          }
+        } catch (_) {}
+        await OfficialAnkiV2RetireService(
+          catalog: catalog,
+          paths: paths,
+          course: course,
+          engine: OfficialAnkiCompositionRoot.engine,
+        ).runRetireJob(sourceId: sourceId);
+      } else {
+        final engine = OfficialAnkiCompositionRoot.engine;
+        if (engine == null) {
+          _snack(AppStrings.ankiRepairActionUnavailable);
+          return;
+        }
+        await OfficialAnkiUninstallSaga(
+          catalog: catalog,
+          engine: engine,
+          paths: paths,
+        ).run(sourceId);
+      }
     } finally {
       if (mounted) {
         setState(() => _busy = false);
@@ -359,37 +365,29 @@ class _OfficialAnkiRepairCenterPageState
     }
   }
 
-  Future<void> _optimize() async {
+  Future<void> _deleteQuarantine(String sourceId) async {
     final confirmed = await _confirm(
-      title: AppStrings.storageOptimizeConfirmTitle,
-      body: AppStrings.storageOptimizeConfirmBody,
+      title: AppStrings.ankiRepairDeleteQuarantineConfirmTitle,
+      body: AppStrings.ankiRepairDeleteQuarantineConfirmBody,
     );
     if (confirmed != true) return;
-    setState(() => _busy = true);
-    OfficialStorageOptimizeResult result;
-    try {
-      final injected = widget.optimizeDatabases;
-      result = injected != null
-          ? await injected(force: true)
-          : await const OfficialStorageOptimizeService().runForceCompact(
-              catalog: _catalog,
-              paths: _paths,
-            );
-    } catch (_) {
-      result = const OfficialStorageOptimizeResult(
-        ok: false,
-        errorCode: 'optimize_failed',
-      );
+    final injected = widget.onDeleteQuarantine;
+    if (injected != null) {
+      await injected(sourceId);
+      if (mounted) _reloadAndSetState();
+      return;
     }
-    if (!mounted) return;
-    setState(() => _busy = false);
-    _snack(
-      !result.ok
-          ? (result.errorCode == 'capability_missing'
-              ? AppStrings.storageOptimizeUnavailable
-              : AppStrings.storageOptimizeFailed)
-          : AppStrings.storageOptimizeDone(result.completedJobs),
-    );
+    setState(() => _busy = true);
+    try {
+      await getIt<AnkiDeckManager>().uninstall(sourceId);
+    } catch (_) {
+      _snack(AppStrings.ankiRepairActionUnavailable);
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+        _reloadAndSetState();
+      }
+    }
   }
 
   Future<void> _export() async {

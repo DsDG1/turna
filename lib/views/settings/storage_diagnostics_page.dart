@@ -4,16 +4,23 @@ import 'dart:math' as math;
 // Flutter imports:
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/anki_official/anki_deck_manager.dart';
+import 'package:turna/application/anki_official/official_anki_composition.dart';
+import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
+import 'package:turna/application/course_catalog.dart';
+import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/diagnostics/cache_diagnostics_registry.dart';
 import 'package:turna/application/diagnostics/runtime_memory_snapshot.dart';
+import 'package:turna/application/maintenance/official_anki_ghost_purge_service.dart';
 import 'package:turna/application/maintenance/official_storage_optimize_service.dart';
 import 'package:turna/application/maintenance/storage_inventory_service.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/views/settings/storage_category_items_page.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/views/theme.dart';
 
@@ -33,6 +40,9 @@ class StorageDiagnosticsPage extends StatefulWidget {
     this.cacheRegistry,
     this.memorySampler,
     this.optimizeDatabases,
+    this.listOfficialSources,
+    this.uninstall,
+    this.forcePurgeOfficial,
   });
 
   /// Test seam: widget tests run under fake-async, where the service's real
@@ -45,6 +55,15 @@ class StorageDiagnosticsPage extends StatefulWidget {
   /// Test seam: inject instead of [OfficialStorageOptimizeService.runForceCompact].
   final Future<OfficialStorageOptimizeResult> Function({required bool force})?
       optimizeDatabases;
+
+  /// Test seam: official source rows for the Anki-collection drill-down.
+  final Future<List<StorageDeletableItem>> Function()? listOfficialSources;
+
+  /// Test seam: delete identity (official sourceId or legacy importId).
+  final Future<bool> Function(String id)? uninstall;
+
+  /// Test seam: ghost purge of leftover Official files (no catalog sources).
+  final Future<OfficialAnkiGhostPurgeResult> Function()? forcePurgeOfficial;
 
   @override
   State<StorageDiagnosticsPage> createState() => _StorageDiagnosticsPageState();
@@ -222,6 +241,132 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
     await _rescan();
   }
 
+  static const _importInProgressStates = {
+    'staging',
+    'selected',
+    'preparing',
+    'backing_up',
+    'importing_official',
+    'indexing_notes',
+    'indexing_cards',
+    'preview_ready',
+    'cancelled',
+    'failed_before_import',
+    'cancel_requested',
+    'rollback_pending',
+    'rolled_back',
+  };
+
+  Future<bool> _uninstall(String id) async {
+    final injected = widget.uninstall;
+    if (injected != null) return injected(id);
+    return getIt<AnkiDeckManager>().uninstall(id);
+  }
+
+  Future<List<StorageDeletableItem>> _loadOfficialSources() async {
+    final injected = widget.listOfficialSources;
+    if (injected != null) return injected();
+    try {
+      await OfficialAnkiCompositionRoot.initializeReadOnlyLocator();
+    } catch (_) {}
+    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+    if (catalog == null) return const [];
+    return [
+      for (final source in OfficialAnkiSourceDao(catalog)
+          .listSources(CourseCatalog.officialProfileId))
+        if (!_importInProgressStates.contains(source.state))
+          StorageDeletableItem(
+            id: source.sourceId,
+            displayName: source.displayName,
+            subtitle: AppStrings.ankiRepairSourceState(source.state),
+            alreadyRetiring: source.state == 'retiring',
+          ),
+    ];
+  }
+
+  List<StorageDeletableItem> _mediaItems(StorageInventoryReport report) {
+    return [
+      for (final artifact in report.mediaDirsByOwner)
+        StorageDeletableItem(
+          id: artifact.ownerId,
+          displayName: artifact.orphaned
+              ? AppStrings.storageOrphanMediaSubtitle
+              : artifact.ownerId,
+          subtitle: artifact.orphaned
+              ? AppStrings.storageOrphanMediaSubtitle
+              : AppStrings.storageOwnedMediaSubtitle,
+          physicalBytes: artifact.physicalBytes,
+          orphaned: artifact.orphaned,
+        ),
+    ];
+  }
+
+  Future<OfficialAnkiGhostPurgeResult> _forcePurgeOfficial() async {
+    final injected = widget.forcePurgeOfficial;
+    if (injected != null) return injected();
+    return const OfficialAnkiGhostPurgeService().run();
+  }
+
+  Future<void> _openOfficialCollection(StorageInventoryReport report) async {
+    final bytes = _bytesOf(report, const {StorageArtifactCategory.officialAnki});
+    await _pushCategoryItems(
+      title: AppStrings.storageOfficialCollectionTitle,
+      totalBytesLabel: _formatBytes(bytes),
+      emptyMessage: AppStrings.storageOfficialCollectionEmpty,
+      loadItems: _loadOfficialSources,
+      allowForcePurge: bytes > 0,
+      onForcePurge: _forcePurgeOfficial,
+    );
+  }
+
+  Future<void> _openMediaFiles(StorageInventoryReport report) async {
+    final items = _mediaItems(report);
+    final bytes = _bytesOf(report, const {
+      StorageArtifactCategory.legacyAnkiMedia,
+    });
+    await _pushCategoryItems(
+      title: AppStrings.storageMediaFilesTitle,
+      totalBytesLabel: _formatBytes(bytes),
+      emptyMessage: AppStrings.storageMediaFilesEmpty,
+      selectionWarning: AppStrings.storageMediaDeleteHint,
+      loadItems: () async => items,
+    );
+  }
+
+  Future<void> _pushCategoryItems({
+    required String title,
+    required String totalBytesLabel,
+    required String emptyMessage,
+    required Future<List<StorageDeletableItem>> Function() loadItems,
+    String? selectionWarning,
+    bool allowForcePurge = false,
+    Future<OfficialAnkiGhostPurgeResult> Function()? onForcePurge,
+  }) async {
+    final changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => StorageCategoryItemsPage(
+          title: title,
+          totalBytesLabel: totalBytesLabel,
+          emptyMessage: emptyMessage,
+          selectionWarning: selectionWarning,
+          loadItems: loadItems,
+          uninstall: _uninstall,
+          allowForcePurge: allowForcePurge,
+          onForcePurge: onForcePurge,
+        ),
+      ),
+    );
+    if (!mounted || changed != true) return;
+    CourseProvider? course;
+    try {
+      course = Provider.of<CourseProvider>(context, listen: false);
+    } catch (_) {}
+    if (course != null) {
+      await course.reloadCourse();
+    }
+    await _rescan();
+  }
+
   @override
   Widget build(BuildContext context) {
     return SettingsScaffold(
@@ -308,7 +453,11 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
           ),
         ),
         const SizedBox(height: 16),
-        _CategoryGrid(report: report),
+        _CategoryGrid(
+          report: report,
+          onOpenOfficial: () => _openOfficialCollection(report),
+          onOpenMedia: () => _openMediaFiles(report),
+        ),
         if (report.orphans.isNotEmpty) ...[
           const SizedBox(height: 16),
           _OrphanWarningCard(
@@ -410,8 +559,11 @@ class _TotalCard extends StatelessWidget {
   }
 }
 
+enum _UserBucket { study, media, official, cache }
+
 class _CategorySpec {
   const _CategorySpec({
+    required this.bucket,
     required this.title,
     required this.subtitle,
     required this.icon,
@@ -419,6 +571,7 @@ class _CategorySpec {
     required this.bytes,
   });
 
+  final _UserBucket bucket;
   final String title;
   final String subtitle;
   final IconData icon;
@@ -442,6 +595,7 @@ List<_CategorySpec> _categorySpecs(
 ) {
   return [
     _CategorySpec(
+      bucket: _UserBucket.study,
       title: '学习数据',
       subtitle: '课程与复习进度',
       icon: Icons.school_outlined,
@@ -452,7 +606,8 @@ List<_CategorySpec> _categorySpecs(
       }),
     ),
     _CategorySpec(
-      title: '媒体文件',
+      bucket: _UserBucket.media,
+      title: AppStrings.storageMediaFilesTitle,
       subtitle: '导入的图片与音频',
       icon: Icons.perm_media_outlined,
       color: TurnaTheme.brandSky,
@@ -461,7 +616,8 @@ List<_CategorySpec> _categorySpecs(
       }),
     ),
     _CategorySpec(
-      title: 'Anki 收藏',
+      bucket: _UserBucket.official,
+      title: AppStrings.storageOfficialCollectionTitle,
       subtitle: '官方牌组内容',
       icon: Icons.style_outlined,
       color: TurnaTheme.anatolianClay,
@@ -470,6 +626,7 @@ List<_CategorySpec> _categorySpecs(
       }),
     ),
     _CategorySpec(
+      bucket: _UserBucket.cache,
       title: '缓存与日志',
       subtitle: '可随时清理，不影响学习数据',
       icon: Icons.cleaning_services_outlined,
@@ -496,9 +653,15 @@ List<({double value, Color color})> _categorySegments(
 /// with Wrap instead of a nested GridView so 200% text scale can grow the
 /// cards vertically instead of overflowing a fixed aspect ratio.
 class _CategoryGrid extends StatelessWidget {
-  const _CategoryGrid({required this.report});
+  const _CategoryGrid({
+    required this.report,
+    required this.onOpenOfficial,
+    required this.onOpenMedia,
+  });
 
   final StorageInventoryReport report;
+  final VoidCallback onOpenOfficial;
+  final VoidCallback onOpenMedia;
 
   static const double _spacing = 12;
 
@@ -515,7 +678,17 @@ class _CategoryGrid extends StatelessWidget {
           runSpacing: _spacing,
           children: [
             for (final spec in specs)
-              SizedBox(width: width, child: _CategoryCard(spec: spec)),
+              SizedBox(
+                width: width,
+                child: _CategoryCard(
+                  spec: spec,
+                  onTap: spec.bucket == _UserBucket.official
+                      ? onOpenOfficial
+                      : spec.bucket == _UserBucket.media
+                          ? onOpenMedia
+                          : null,
+                ),
+              ),
           ],
         );
       },
@@ -524,14 +697,15 @@ class _CategoryGrid extends StatelessWidget {
 }
 
 class _CategoryCard extends StatelessWidget {
-  const _CategoryCard({required this.spec});
+  const _CategoryCard({required this.spec, this.onTap});
 
   final _CategorySpec spec;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final empty = spec.bytes <= 0;
-    return Container(
+    final card = Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
@@ -578,6 +752,21 @@ class _CategoryCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+    if (onTap == null) return card;
+    final keyName = spec.bucket == _UserBucket.official
+        ? 'storage-category-official'
+        : spec.bucket == _UserBucket.media
+            ? 'storage-category-media'
+            : null;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        key: keyName == null ? null : Key(keyName),
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
+        child: card,
       ),
     );
   }

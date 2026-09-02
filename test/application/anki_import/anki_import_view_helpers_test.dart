@@ -5,6 +5,18 @@ import 'package:turna/l10n/app_strings.dart';
 
 void main() {
   group('mapOfficialErrorToHuman fallback branch (doc 40 R3/F1)', () {
+    test('unfinished leftover maps to system error plus must-discard', () {
+      final message = mapOfficialErrorToHuman(
+        const OfficialAnkiException(
+          code: OfficialAnkiErrorCode.invalidState,
+          messageKey: 'official_anki.unfinished_blocks_new',
+          debugDetails: unfinishedImportBlocksNewDetails,
+        ),
+      );
+      expect(message, contains(AppStrings.ankiImportSystemError));
+      expect(message, contains(AppStrings.ankiPendingMustDiscardBeforeNew));
+    });
+
     test('falls back to human failure text plus error code name', () {
       final message = mapOfficialErrorToHuman(
         const OfficialAnkiException(

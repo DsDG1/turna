@@ -19,6 +19,10 @@ import 'package:turna/application/anki_official/import/official_anki_official_fi
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
+import 'package:turna/application/anki_official/storage/official_anki_database.dart';
+import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
+import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
+import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_store.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/lesson_link_store.dart';
@@ -185,5 +189,47 @@ void main() {
       isEmpty,
       reason: 'no course-tree sections',
     );
+  });
+
+  test('unfinished import blocks a new pick with system error', () async {
+    final catalog = OfficialAnkiDatabase.memory();
+    addTearDown(catalog.close);
+    OfficialAnkiSourceDao(catalog).upsertSource(
+      sourceId: 'src-pending',
+      profileId: 'profile-default-01',
+      sourceHash: 'hash-pending',
+      sourceSize: 1,
+      displayName: 'Pending',
+      state: 'preview_ready',
+      backendCommit: 'pending',
+      nowMillis: 1,
+      activeAttemptId: 'att-pending',
+    );
+    OfficialAnkiImportAttemptDao(catalog).insert(
+      attemptId: 'att-pending',
+      sourceId: 'src-pending',
+      requestId: 'req',
+      state: 'preview_ready',
+      nowMillis: 1,
+      phase: 'preview_ready',
+    );
+    final savedCatalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+    OfficialAnkiCompositionRoot.readOnlyCatalog = catalog;
+    addTearDown(() {
+      OfficialAnkiCompositionRoot.readOnlyCatalog = savedCatalog;
+    });
+
+    final controller = controllerWith();
+    addTearDown(controller.dispose);
+    await controller.proceedWithPath('/tmp/new.apkg');
+
+    expect(controller.state, isA<AnkiImportFailed>());
+    final failed = controller.state as AnkiImportFailed;
+    expect(failed.message, contains(AppStrings.ankiImportSystemError));
+    expect(
+      failed.message,
+      contains(AppStrings.ankiPendingMustDiscardBeforeNew),
+    );
+    expect(failed.returnState, isA<AnkiImportSelecting>());
   });
 }

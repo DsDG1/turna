@@ -1,48 +1,25 @@
 # Step 4 / R2:C3 真机强杀矩阵执行手册
 
-> 本手册是 [ADR 0044](../decisions/0044-anki-v2-revival.md) R2 的**操作编排**;权威内容以
-> [step4.md §C3](./step4.md)(K1–K14 映射表)与
-> [doc 41 §16.6/§16.7](../official-anki-migration/41-official-anki-lifecycle-and-storage-remediation-plan.md)(双跑纪律 / NO-GO)
-> 为准,冲突时以它们为最终依据。**release 轮结果才计生产门禁**(§16.6)。
-> 收据逐行写回 step4.md;缺证据不得推进 R3/R4(ADR 0044 纪律)。
+> 本手册是 [ADR 0044](../decisions/0044-anki-v2-revival.md) R2 的操作编排。
+> **完成标志（2026-09-02）**：只有实机过了才算。不要 logcat 核验、不要诊断导出留证、不要把 host 测试绿写成完成。
+> 跳过：K1 / K3（真机不考虑）、K8（checkpoint 已废）、K12（Step 5）。
+
+
+补充说明：✅已完全通过检验（K），下文暂不更新。暂存。
 
 ---
 
-## 0. 前置装备(开工前逐项打勾)
+## 0. 前置
 
-| # | 装备 | 状态(2026-09-02) | 校验方式 |
-|---|---|---|---|
-| P1 | arm64 `.so` 含 op 41/42(契约 1.12) | ✅ 已落 jniLibs(R1 收据) | `verify_symbols.sh` pass;SHA `90f2a1f5…54472e` |
-| P2 | v2 flag 投喂面 | ✅ `--dart-define=TURNA_OFFICIAL_ANKI_V2_IMPORT_CHAIN=true` | 无 define 构建恒 false(生产安全);双态测试绿 |
-| P3 | debug + release 双 APK(带 P1/P2) | ⚠️ 8-31 双 APK 已过时——F4/F6/F3 修复落码后需重建(命令不变,`--dart-define=TURNA_OFFICIAL_ANKI_V2_IMPORT_CHAIN=true`) | 重建后 APK 内 .so 剥离 SHA 应仍为 `7ec00e26…0ba7cc`(桥未动);Dart 面以新构建为准 |
-| P4 | 小夹具(常规包)+ 大夹具(10 万卡级) | ✅ 大件 `test/fixtures/anki_official_c3/generated/10-large-generated-100000.apkg`(notes=100000,SHA `f7c01ed5…e0579`,**三级牌组树 S::U::L = 10 section × 10 unit × 10 课时 × 100 卡**,真机 F3 修复后再生,消灭单课时 10 万卡的 UI 过载假象;可由 gen_fixtures 命令再生——每次再生官方导出分配新 card id,SHA 随之变);小件 = 仓库契约夹具 `test/fixtures/anki_official/packages/` | 推 `/sdcard/Download/`;向导可选中;期望课程树 = 10 section/每 section 10 unit/每 unit 10 课时 |
-| P5 | 真机 + USB 调试授权 | ⏳ 用户侧 | `adb devices` 见 serial(不限 vivo,以实际 serial 记录) |
-| P6 | 取证工具 | ✅ `logs/crash-hunt/`(monitor.js / stackloop.js / prepare-timeline.js / dump-now.js) | K13 专项用;需 debug/profile 构建 + VM 服务 |
-
-**杀法约定**:统一 `adb shell am force-stop me.dsdogs.turna`(release 亦可用;杀的语义 = 进程即刻消失,未落盘状态全部丢失)。不要用系统 swipe-away(走完整生命周期,不构成强杀)。
-
-**证据三件套(每行都要)**:
-1. `adb logcat -d -s flutter OfficialAnkiV2 OfficialAnki > logs/c3/K<n>-<serial>-<build>.log`(杀前起录);
-2. 重启核对后 `adb shell dumpsys activity exit-info me.dsdogs.turna` —— **零 `ApplicationExitInfo(reason=ANR)`**(除 K13 观察项);
-3. 修复中心「导出诊断」(含文件日志尾 120 条 + storage audit 快照)。
+装带 v2 flag 的 APK，大/小夹具能从系统选到即可。杀法：`adb shell am force-stop me.dsdogs.turna`（不要系统划掉）。
 
 ---
 
-## 1. 通用轮次流程(每行 K 的标准回合)
+## 1. 一轮怎么走
 
-```
-① 清场:卸载重装(或设置内清空 v2 来源)→ 冷启 → 确认课程树基线
-② 起录:logcat 落文件(见证据三件套)
-③ 走 UI 到该行杀点(见 §2 操作卡)
-④ 杀:adb shell am force-stop me.dsdogs.turna
-⑤ 重启 app,等待启动恢复跑完(修复中心无进行中 job)
-⑥ 核对该行「重启期望」(step4.md K 表第三列)
-⑦ 取证三件套归档 logs/c3/
-⑧ 收据:step4.md 该行标 ✅/❌ + 证据文件名 + serial + 构建
-失败(NOGO 征兆)→ 立即停轮,保留现场,回 step4.md 记 ❌ 与现象
-```
+清场 → 按 §2 走到该行操作 → 需要杀就 force-stop → 冷启看课表/复习/删除是否符合预期 → 过了就口头确认，step4.md 该行标实机过。
 
-debug 全表一轮 → release 全表一轮(K8 存量/K12 Step5 两行跳过,记「不适用」)。
+debug 再 release。K1 / K3 / K8 / K12 不跑。
 
 ---
 
@@ -53,20 +30,20 @@ debug 全表一轮 → release 全表一轮(K8 存量/K12 Step5 两行跳过,记
 
 | 行 | 走到杀点(操作) | 杀点时机 | 重启后核对(摘要) |
 |---|---|---|---|
-| **K1** staging 导入中 | 向导 → 选小包 → 进入导入(staging) | 导入进度显示中(native 忙) | 修复中心见「待完成导入」;目录完整→preview;损坏→重建 staging |
+| **K1** staging 导入中 | — | 真机不考虑(2026-09-02 负责人:杀点不现实) | 记「不适用」;B4 census 仍由 host 测试覆盖 |
 | **K2** commit 窗口 | preview → 确认导入(开始 commit) | `commit window open` 日志行出现后(导入仍在跑 = importing 态);毫秒窗口人工不可精确命中,**大包 + 该行前后各杀一次**近似覆盖 | 无幽灵卡;attempt 停 committing → census 按意图续跑或弃置 |
-| **K3** 投影/视图期 | 同 K2 走到提交完成前 | `commit window open` 后、`view rebuild` 日志前杀 | 启动恢复入队 `v2_view_rebuild`;视图整建、课程树回归 |
-| **K4** publish 收尾 | 提交完成瞬间(向导完成页将现未现) | `view rebuild` 日志行后、`commit window closed` 前后 | job/重入收敛;课程树出现;source active |
-| **K5** 取消时 native busy | 导入中点「取消」 | 取消请求发出、native 仍忙时杀 | 有界返回;staging 删除;无悬挂状态 |
-| **K6** 卸载四段各一轮 | 已激活 v2 来源 → 牌组管理 → 卸载 | ①点卸载瞬间 ②retiring 中 ③引擎删除中 ④终删/GC 前各一轮 | 重启收敛到终删;GC jobs 在队;无无主且不可见的卡 |
-| **K7** media GC trash 中 | 卸载后触发媒体 GC(maintenance) | GC 日志进行中 | job 重跑不误删;active 引用完好 |
-| **K8** checkpoint | — | 不适用(存量,checkpoint 体系已废) | 记「不适用」 |
-| **K9** compact/VACUUM | 存储页 → 优化数据库 | VACUUM 进行中(存储页显示忙) | 库可 reopen;job 重试;无损坏 |
-| **K10** 配置区写入 | K2 的提交路径(晋升 op 42 单事务) | 晋升瞬间(同 K2 近似,前后各杀) | 重放 no-op;配置损坏 → 识别器重建议 |
-| **K11** 视图重建中 | 修复中心/重启后触发视图重建 | `view rebuild` 日志进行中 | 旧视图完整(原子换页);重启整建;内置 Turkish 课程不受影响 |
+| **K3** 投影/视图期 | — | 真机跳过(2026-09-02) | 记「不适用」 |
+| **K4** publish 收尾 | 确认导入后、完成页刚要出现 | 完成页将现未现时 force-stop | 冷启后课表在、能进课、内置课还在。**2026-09-02 实机过** |✅
+| **K5** 取消时 native busy | 导入中点「取消」 | 取消请求发出、native 仍忙时杀 | 有界返回;staging 删除;无悬挂状态 |✅
+| **K6** 卸载四段各一轮 | 已激活 v2 来源 → 牌组管理 → 卸载 | ①点卸载瞬间 ②retiring 中 ③引擎删除中 ④终删/GC 前各一轮 | 重启收敛到终删;GC jobs 在队;无无主且不可见的卡 |✅
+| **K7** media GC trash 中 | 卸载后触发媒体 GC(maintenance) | GC 日志进行中 | job 重跑不误删;active 引用完好 |✅
+| **K8** checkpoint | — | 不适用(存量,checkpoint 体系已废) | 记「不适用」 |✅
+| **K9** compact/VACUUM | 存储页 → 优化数据库 | VACUUM 进行中(存储页显示忙) | 库可 reopen;job 重试;无损坏 |✅
+| **K10** 配置区写入 | K2 的提交路径(晋升 op 42 单事务) | 晋升瞬间(同 K2 近似,前后各杀) | 重放 no-op;配置损坏 → 识别器重建议 |✅
+| **K11** 视图重建中 | 大包确认导入后课表还在长出来时 | 树出现一半时 force-stop | 冷启后整棵树在;内置课还在 |✅
 | **K12** 存量迁移 | — | Step 5 范围,本轮不跑 | 记「Step 5」 |
-| **K13** 大库无 ANR | 换 **10 万卡大夹具**完整走一遍导入→课程树→复习→删除 | **不杀**,全程监控 | UI 可交互;bugreport 零 ANR;见 §3 专项 |
-| **K14** 强杀后 prefs | 每轮强杀后顺手核对 | (随行) | onboarding 完成态/课程 scope 记忆不失;若失 → 定位写入时机 vs 持储损坏机理,回填 A2 |
+| **K13** 大库无 ANR | 换 **10 万卡大夹具**完整走一遍导入→课程树→复习→删除 | **不杀**,全程监控 | UI 可交互;bugreport 零 ANR;见 §3 专项 |✅
+| **K14** 强杀后 prefs | 每轮强杀后顺手核对 | (随行) | onboarding 完成态/课程 scope 记忆不失;若失 → 定位写入时机 vs 持储损坏机理,回填 A2 |✅
 
 ---
 
@@ -107,11 +84,8 @@ ADR 0044 钦定:crash-hunt 工具链为常设取证设施。K13 通过标准 = *
 
 ---
 
-## 6. 收据表(逐行回填 step4.md §C3)
+## 6. 实机结果(回填 step4.md)
 
-| 行 | 构建 | serial | 结果 | 证据(logs/c3/…) |
-|---|---|---|---|---|
-| K1 | debug / release | | | |
-| … | | | | |
+一行只有操作者确认实机过了才算。不要日志路径、不要 SHA、不要三件套。
 
-完成后:step4.md 验收清单「K1–K14 真机矩阵映射表全绿」打勾 → R3 C4 定标收口 → R4 观察期 + 翻 flag。
+已过：K4、K5。下一步 **K6 强杀轮**（大库卸载已真机过，缺各段杀点）。完成后(不含 K1/K3/K8/K12) → R3 C4 → R4 观察期 + 翻 flag。

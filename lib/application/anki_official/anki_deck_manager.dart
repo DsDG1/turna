@@ -202,10 +202,26 @@ class AnkiDeckManager {
       engine: engine,
     );
     await service.beginRetire(sourceId: sourceId);
-    try {
-      await service.runRetireJob(sourceId: sourceId);
-    } catch (error) {
-      debugPrint('[AnkiDeckManager] v2 retire deferred: $error');
+    Future<void> enginePass() async {
+      try {
+        await service.runRetireJob(sourceId: sourceId);
+      } catch (error) {
+        debugPrint('[AnkiDeckManager] v2 retire deferred: $error');
+      }
+    }
+
+    // 小源：同步走完引擎删除（F4 测试与日常小包）。大源（含 10 万卡
+    // 夹具）：beginRetire 已让课程树即刻不可见，引擎分批删卡不挡 UI，
+    // 否则确认删除会卡死，表现就是「删不掉」。
+    final owned = OfficialAnkiSourceDao(catalog).cardCount(sourceId);
+    if (owned <= OfficialAnkiV2RetireService.defaultDeleteChunk) {
+      await enginePass();
+    } else {
+      debugPrint(
+        '[AnkiDeckManager] v2 retire engine pass detached: '
+        '$sourceId ($owned cards)',
+      );
+      unawaited(enginePass());
     }
     return true;
   }

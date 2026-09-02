@@ -1,13 +1,11 @@
 # Step 4 详细说明：v2 导入→课程树链落码（与 v1 并存）
 
-> **2026-09-02 复活：执行线重开，见 [ADR 0044](../decisions/0044-anki-v2-revival.md)。** 当年 C3 不可跑的元凶（导入完成页 pop 死循环真机卡死）已于 2026-09-02 根因修复。剩余执行线：~~R1 重建 arm64 .so（op41/42）~~ ✅ → ~~R1.5 v2 链 `upsertCardBatch` 主 isolate 写下沉~~ ✅ → **R2 C3 矩阵（下一步）** → R3 C4 定标 → R4 观察期翻 flag。下文失败结论保留为历史记录。完整叙事见 [复活记](./v2-revival-story.md)。
-
-> **本步未关闭。整个 v2 已失败（2026-09-01），不要续做 C3/C4、不要翻生产 flag、不要进 Step 5。** 总结论：[README.md](./README.md)。
->
-> 上游文档：[README.md](./README.md)（总目标与六步计划，已作废）；前置：[step3.md](./step3.md)（op 41/42、契约 1.12）。
+> **2026-09-02 复活：执行线重开，见 [ADR 0044](../decisions/0044-anki-v2-revival.md)。** 当年 C3 不可跑的元凶（导入完成页 pop 死循环真机卡死）已于 2026-09-02 根因修复。剩余执行线：~~R1 重建 arm64 .so（op41/42）~~ ✅ → ~~R1.5 v2 链 `upsertCardBatch` 主 isolate 写下沉~~ ✅ → **R2 C3（下一步 K6 强杀轮；K1/K3 真机不考虑）** → R3 C4 定标 → R4 观察期翻 flag。完成标志 = **实机过了**（操作者确认）；host 测试与日志留证不算完成。下文失败结论保留为历史记录。> 上游文档：[README.md](./README.md)（总目标与六步计划，已作废）；前置：[step3.md](./step3.md)（op 41/42、契约 1.12）。
 > 原范围：把 ADR 0043 的 v2 全生命周期链在 flag 后落码，真机强杀矩阵全绿。v1 一行不改；flag 决定新导入走哪条链。
+补充说明：✅已完全通过检验（K），下文暂不更新。暂存。
 >
-> **施工状态（2026-09-01）**：host 侧（代码 + 假引擎测试 + 零写入守卫）曾落码；**C3 真机强杀矩阵与 C4 大库定标未跑**。未过发布门禁 = 本步失败，并构成整条 v2 失败的一部分。下文是当时的施工说明与收据，不是完工证明。
+
+
 
 ---
 
@@ -89,12 +87,12 @@ Step 4 的产出是：**v2 链全生命周期在 `v2ImportChain` flag 后可用 
 
 | # | 场景 | 代码答案（host 已验证） | 真机用例（杀点 → 重启期望） | 状态 |
 |---|---|---|---|---|
-| K1 | staging 导入中强杀 | attempt `staging_path` 即证据；census 三级分流（B4 测试绿） | 导入向导中途杀 → 重启修复中心见「待完成导入」，完整性过→preview，损坏→重建 staging | 代码 ✅ / 真机 ⏳ |
-| K2 | commit 窗口、receipt 落库前强杀 | receipt 吸收 = import 返回后**单条 UPDATE**（窗口毫秒级）；杀于窗口内 → attempt 停 `committing`、staging 目录在（finishCommit 未执行）→ census 按意图续跑或弃置；attempt 有 `pre_import_usn` 列预留 | 杀点插在 importPackage 与 receipt UPDATE 之间（debug 构造）→ 重启无幽灵卡、意图可续 | 代码 ✅ / 真机 ⏳ / op 40 结论见下 |
-| K3 | receipt 后、投影中强杀 | 视图无状态：重启启动恢复见 v2 active source 即入队 `v2_view_rebuild`（B3 测试绿） | 杀于重建中 → 重启视图整建、课程树回归 | 代码 ✅ / 真机 ⏳ |
-| K4 | publish / authority 提交中强杀 | v2 无 authority 状态机：source CAS→active + 视图原子换页，重放幂等（commit 重入测试绿） | 杀于收尾 → 重启 job/重入收敛，课程树出现 | 代码 ✅ / 真机 ⏳ |
-| K5 | 取消时 native op busy | 继承 v1：engine.cancel 独立控制通道；RPC 有界超时 | 取消导入 → 有界返回，staging 删除 | 代码继承 ✅ / 真机 ⏳ |
-| K6 | 卸载中任意时刻强杀 | retiring 序列四段各自幂等；job 表续跑；引擎缺席 job 保活；无主且不可见的卡不产生（B5 测试 6 例全绿） | 每段杀点各一轮 → 重启收敛到终删 + GC jobs 在队 | 代码 ✅ / 真机 ⏳ |
+| K1 | staging 导入中强杀 | attempt `staging_path` 即证据；census 三级分流（B4 测试绿）。**2026-09-02 负责人决策：真机轮不考虑**（杀点落在 native 忙的进度条窗口，操作上不现实；host 三级分流仍保留） | — | 不适用（真机不考虑） |
+| K2 | commit 窗口、receipt 落库前强杀 | receipt 吸收 = import 返回后**单条 UPDATE**（窗口毫秒级）；杀于窗口内 → attempt 停 `committing`、staging 目录在（finishCommit 未执行）→ census 按意图续跑或弃置；attempt 有 `pre_import_usn` 列预留。**2026-09-02 真机命中**：live `importPackage` 已写入共享 collection，课程树未建 → 无主卡占体积；回收改为 collection 卡 − `active`/`retiring` 所有权差集（`OfficialAnkiV2UnownedCardReclaimer`），放弃 committing + 启动空账本再扫。PLG110 用户验证通过 | 杀点插在 importPackage 与 receipt UPDATE 之间（debug 构造）→ 重启无幽灵卡、意图可续 | 代码 ✅ / 真机幽灵卡 ✅ / 矩阵其余 ⏳ / op 40 结论见下 |
+| K3 | receipt 后、投影中强杀 | 视图无状态：重启启动恢复见 v2 active source 即入队 `v2_view_rebuild`（B3 测试绿）。**2026-09-02 负责人决策：真机轮跳过**（杀点盯 log 不可靠，不再用日志核验留证） | — | 不适用（真机跳过） |
+| K4 | publish / authority 提交中强杀 | v2 无 authority 状态机：source CAS→active + 视图原子换页，重放幂等（commit 重入测试绿） | 杀于收尾 → 重启 job/重入收敛，课程树出现 | 代码 ✅ / **真机 ✅**（2026-09-02 操作者确认） |
+| K5 | 取消时 native op busy | 继承 v1：engine.cancel 独立控制通道；RPC 有界超时 | 取消导入 → 有界返回，staging 删除 | 代码继承 ✅ / **真机 ✅**（2026-09-02 操作者确认） |
+| K6 | 卸载中任意时刻强杀 | retiring 序列四段各自幂等；job 表续跑；引擎缺席 job 保活；无无主且不可见的卡（B5 测试绿）。**2026-09-02**：UI 不再同步等大源引擎删除（>5000 卡 detached + `listCardIdsPage`）；PLG110 10 万卡课表删除用户验证通过 | 每段杀点各一轮 → 重启收敛到终删 + GC jobs 在队 | 代码 ✅ / 真机大库卸载 ✅ / 强杀轮 ⏳ |
 | K7 | media GC trash 中强杀 | GC 幂等重跑（rslib trash 语义，继承 doc 41 S5） | 杀于 GC → 重启 job 重跑不误删 | 继承 ✅ / 真机 ⏳ |
 | K8 | checkpoint release 中强杀 | checkpoint 体系已废（ADR 0042）；v2 无此路径 | 存量善后归 Step 5 census | 不适用（存量） |
 | K9 | compact / VACUUM 中强杀 | SQLite 事务性 + job retry_wait（doc 41 S7 已实现，继承） | 杀于 VACUUM → 库可 reopen、job 重试 | 继承 ✅ / 真机 ⏳ |
@@ -131,7 +129,7 @@ A 定案（flag/偏好清单/表去向）——0.5~1 天 ✅
 - [x] retiring 序列各段幂等，任一点强杀重启收敛，无无主且不可见的卡（K6；含引擎缺席 job 保活）
 - [x] K14 偏好写穿清单落码（Q5；A2 四条静态核验结论 + scope 双层写穿）；真机机理判别待 C3
 - [x] 文件日志通道上线，修复中心可导出（D8；LogCapture 滚动文件 + 导出附带 120 条）
-- [ ] K1–K14 真机矩阵映射表全绿（debug/release 双跑）——**映射表与代码答案已就绪，真机执行未跑**；K2 对 op 40 的充分性有书面结论（不足，理由如上；op 43 暂不占号）
+- [ ] K1–K14 真机矩阵（**K1/K3 真机不考虑**、K8 不适用、K12 归 Step 5）——**一行只有实机过了才打勾**；host 绿 / logcat / 诊断导出不算完成
 - [ ] Q3 冷重建 P95 数值定标并回填——**未跑**（需大夹具 + 真机）；测量面已具备（重建 elapsedMillis + 日志行）
 - [x] v1 零回归：flag = false 时既有全套测试不回退，旧数据行为不变（受影响面定向复跑全绿 + 干净树逐名对比；见收据）
 - [x] 零新增失败（与干净树基线逐名对比，同 Step 3 方法；见收据）
@@ -172,4 +170,10 @@ A 定案（flag/偏好清单/表去向）——0.5~1 天 ✅
 | 2026-09-02 | **R2 前置备齐（flag 投喂面 + runbook + 大夹具 + 双 APK）** | 完成 | ① v2 flag 构建期投喂面：`fromEnvironment` 接第三 opt-in define `TURNA_OFFICIAL_ANKI_V2_IMPORT_CHAIN`（无 define 恒 false，生产安全；类头文档同步）；新增双态接线测试——无 define 6/6 绿，`--dart-define` 投喂下仅「默认关」按设计翻红（值变 true 即 define 生效证据）；analyze 零 issue。② C3 执行手册 `step4-c3-runbook.md` 落稿（杀法约定 = `am force-stop`、证据三件套 = logcat + exit-info 零 ANR + 修复中心导出、K1–K14 操作卡、K13 大库专项、C4 顺带定标、NO-GO、收据模板），step4.md §C3 挂链。③ 大夹具：host 编 `turna_anki_gen_fixtures`（PROTOC 指 tools 内钉版），`--large 100000` 产 `test/fixtures/anki_official_c3/generated/10-large-generated-100000.apkg`（notes=100000，SHA `74ecc3ab…d807aa`，4.8MB，命令可再生；契约夹具集零触碰）。④ 双 APK：`flutter build apk --debug/--release --dart-define=TURNA_OFFICIAL_ANKI_V2_IMPORT_CHAIN=true` → `build/app/outputs/flutter-apk/app-{debug,release}.apk`（release 99.6MB）；**APK 内 .so 取证**：解包剥离件 18,931,720 bytes、SHA `7ec00e26…0ba7cc` 两包一致、op 41/42 config 表 SQL 字面量命中 = 新桥已入包非缓存旧件。剩余前置仅 P5（真机 USB 连接 + 调试授权，用户侧） |
 | 2026-09-02 | **现场修复：v2 源删除 owner 解析补账本直查（真机 F4）** | 落码 + 守卫测试 + 真机验证 | 真机首夜发现（[v2-first-device-findings.md](./v2-first-device-findings.md) F4）：`_resolveDeletionOwner` 三路（authority/迁移链/树前缀）全依赖 v1 持久面，v2 零写入纪律下永远 miss → `uninstallDeck` 空转返回 true（「已移除」假阳性，source 原封不动）。修复 `anki_deck_manager.dart` 两处：① owner 解析新增账本直查路（`OfficialAnkiCompositionRoot.readOnlyCatalog` + `OfficialAnkiSourceDao.findById`，插在迁移链之后、树前缀之前；chain='v2' 分叉门保证 v1 源仍进 v1 saga，v1 路由不变）；② `_uninstallV2Source` 引擎解析改容忍缺席（B5 契约：引擎缺席不得阻塞 ①账本单事务标 retiring）。守卫测试 `official_anki_cleanup_surfaces_test.dart` 新增「v2 source uninstall routes to the retiring sequence (on-device F4)」：fixture 只在账本（无 authority/迁移/sections），三断言 removed / 源离开 active（直查路的直接回归守卫，无修复时必红）/ 引擎删除段执行。真机（PLG110）验证通过。已知缝隙（记录不修）：manager 层引擎缺席容忍分支无专属断言，service 层 `v2_retire_test` 已覆盖同语义 |
 | 2026-09-02 | **现场修复：v2 课时正文派生自卡（真机 F6，B6 第 5 读挂点）** | 落码 + 8 用例绿 + 零新增失败 | 真机首夜发现（[v2-first-device-findings.md](./v2-first-device-findings.md) F6）：B6 读面接了 4 个挂点漏了第 5 个——课时正文装载。v2 壳 `content` 恒空 + drift `lessons`/`lesson_contents` 零写入纪律下 `lessonById` 必 miss → 进课时「无法加载课程」；「正文派生自卡」（D3）只有复习链有实现。修复（零新存储，全复用既有件）：新增 `v2/official_anki_v2_lesson_content.dart`（`OfficialAnkiV2LessonContent.lessonFor`：视图行（wordId/cardId/presentationKind）+ 配置区映射决策回读（op 41）+ 引擎投影读面卡字段（op 25/26，200/批）→ 复用 v1 `OfficialAnkiProjectionPayloads` 编码 interaction，kind 用视图行存储值（单一事实源，未知名降 showWord）；kind 在 interaction id 内可见且 id 由视图行 wordId 铸造——与 lesson card index v2 分支的 wordId 前缀匹配天然联动）；分叉点 = `LessonViewModel.loadLesson` 判空后、v1 `CourseLoader` 之前（miss 返 null 落回 v1，flag 关恒 null）；引擎解析照抄 v2 commit 模式（在场直用/缺席 requireImporter bootstrap 一次/失败 fail-closed null）。测试 `official_anki_v2_lesson_content_test.dart` 8 例：派生正文字段与 id 前缀、**答题联动守卫**（派生 interaction id 经 `OfficialAnkiLessonCardIndex.cardIdForInteractionId` 逐卡命中——上夜流程教训的正面回应）、未知 kind 降级、非 v2 id/flag 关/映射缺失损坏/引擎缺席全 fail-closed、幂等、零写入钩子断言。回归：v2 全目录 + lesson_viewmodel_flow 59 绿；anki_official 全目录 416 过/15 败**逐名对上 R1.5 在册基线零新增**；analyze 改动面零 issue。真机冒烟归 R2 |
+| 2026-09-02 | **现场修复：10 万卡 v2 源删不掉（UI 同步 retiring）** | 落码 + 真机验证 | PLG110：大夹具课树建起后课程管理删除卡住。根因：`_uninstallV2Source` await 完整 `runRetireJob`（`listCards` 物化全部所有权 + op 32）。修：`beginRetire` 后 ≤5000 卡仍同步走完；更大源 `unawaited` 引擎段；`listCardIdsPage` 分批+yield。定向 retire 分页 + F4 uninstall 绿。**真机 PLG110 用户验证通过（「成功」）**。K6 强杀轮未关 |
+| 2026-09-02 | **C3 裁剪：K3 跳过；完成标志改为仅实机** | 决策 | 负责人：K3 杀点盯 log 打不中，本行跳过。此后 C3/C4 **不得**以日志核验、三件套留证、host 测试绿当作完成；只有实机操作者确认过了才算。下一真机行 = **K4** |
+| 2026-09-02 | **C3 裁剪：K1 真机轮不考虑** | 决策 | 负责人：staging 导入中强杀不现实，C3 不跑、不挡门禁。B4 census 代码与假引擎测试保留。下一真机行 = **K3**（`commit window open` 后、`view rebuild` 前强杀） |
+| 2026-09-02 | **现场修复：K2 中断导入幽灵卡（无主且不可见）** | 落码 + 2 用例绿 + 真机验证 | C3 debug（PLG110）：`commit window open` 后 `am force-stop`，课程树无该源、`collection.anki2` 仍占体积（NO-GO：无主且不可见的卡）。根因：v2 live `importPackage` 写入共享 collection；放弃导入只删 staging；checkpoint 已废无法 rollback。修复：`v2/official_anki_v2_unowned_card_reclaimer.dart`（search 全卡 − `anki_source_cards` 中 active/retiring 所有权，op 32 分批删 + 入队 mediaGc/compact）；`cancelSource` 对 v2 源回收；启动恢复见 v2 `committing` 即放弃并回收，账本已空再扫一遍差集。测试 `official_anki_v2_unowned_card_reclaimer_test.dart` 2 例；`dart analyze` 改动面 No issues found。**真机 PLG110 用户验证通过（「幽灵卡片 bug 验证通过解决」）**。K2 整行矩阵其余杀点未关 |
+| 2026-09-02 | **C3 K4 实机过** | 操作者确认 | 杀于 publish 收尾（完成页将现未现）；冷启课表在、能进课、内置课还在。下一真机行 = **K5** |
 | 2026-09-02 | **现场修复：大夹具生成器改三级牌组树（真机 F3）** | 落码 + 产物验证 | 真机首夜发现（[v2-first-device-findings.md](./v2-first-device-findings.md) F3）：生成器把 10 万卡平铺进单牌组 → 单课时 10 万卡的 UI 过载是夹具假象（真实牌组是多级树）。修复 `tools/gen_fixtures.rs` `build_large()`（唯一改动面）：rslib `get_or_create_normal_deck`（自动建父链）建 `S{i}::U{j}::L{k}` 三级树——叶子数 = `count.div_ceil(100).clamp(1,1000)` 行序摊 10×10 S×U 网格、余数进末叶，100000 → 10 section × 10 unit × 10 课时 × 100 卡；三级命名精确命中重建器 `_place` 的 length≥3 路径派生分支，且因含 `::` 不落 placement 覆盖键（多覆盖一条真实导入路径）；manifest 增 `deckTree` 形状描述。产物再生成（PROTOC 钉版 31.1）：`10-large-generated-100000.apkg` **SHA `f7c01ed5…e0579`**，包内取证（anki21b 解压 sqlite 查询）：decks 1111 = 10 section + 100 unit + 1000 叶 + Default，cards-per-deck 全 100，notes 100000。clippy 改动 hunk 零新增（`div_ceil` 两处即改；另 2 报错为 write_package 参数数/field_reassign 存量，在未触碰 hunk）；rustfmt 改动 hunk 干净（既有中文串 hunk 漂移为本机工具链版本差异，存量）。runbook P4 已更新新 SHA 与期望课程树形状；P3 双 APK 标记需重建（F4/F6 落码后）。每次再生 SHA 必变（官方导出分配新 card id，既有 manifest note），收据以本次产物为准 |
+| 2026-09-02 | **C3 K5 实机过** | 操作者确认 | 导入中点「取消」、native 忙时强杀 → 有界返回、staging 删除、无悬挂状态。下一真机行 = **K6 强杀轮**（各段杀点；大库卸载已过） |

@@ -8,7 +8,6 @@ import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
-import 'package:turna/application/maintenance/official_storage_optimize_service.dart';
 import 'package:turna/application/maintenance/storage_inventory_service.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/anki_official/official_anki_repair_center_page.dart';
@@ -40,6 +39,8 @@ void main() {
   });
 
   testWidgets('whitelist actions fire after confirm', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(400, 1800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     final db = OfficialAnkiDatabase.memory();
     addTearDown(db.close);
     final root = Directory.systemTemp.createTempSync('turna-repair-ui-');
@@ -76,17 +77,36 @@ void main() {
       backendCommit: 'test',
       nowMillis: 1,
     );
+    OfficialAnkiSourceDao(db).upsertSource(
+      sourceId: 'src-retiring',
+      profileId: paths.profileId,
+      sourceHash: 'hash-retiring',
+      sourceSize: 1,
+      displayName: 'Retiring Deck',
+      state: 'retiring',
+      backendCommit: 'test',
+      nowMillis: 1,
+    );
+    OfficialAnkiSourceDao(db).upsertSource(
+      sourceId: 'src-quarantine',
+      profileId: paths.profileId,
+      sourceHash: 'hash-quarantine',
+      sourceSize: 1,
+      displayName: 'Quarantine Deck',
+      state: 'quarantined',
+      backendCommit: 'test',
+      nowMillis: 1,
+    );
     OfficialAnkiMaintenanceJobDao(db).enqueue(
       profileId: paths.profileId,
       kind: OfficialAnkiMaintenanceKind.compactCatalog,
       nowMillis: 1,
     );
 
-    final continued = <String>[];
     final discarded = <String>[];
     final retried = <String>[];
+    final quarantined = <String>[];
     final exported = <String>[];
-    var optimizeForce = false;
 
     await tester.pumpWidget(
       MaterialApp(
@@ -94,17 +114,10 @@ void main() {
           catalog: db,
           paths: paths,
           scanner: _EmptyScanner(),
-          onContinueImport: (id) async => continued.add(id),
           onDiscardImport: (id) async => discarded.add(id),
           onRetryCleanup: (id) async => retried.add(id),
+          onDeleteQuarantine: (id) async => quarantined.add(id),
           onExportDiagnostics: (payload) async => exported.add(payload),
-          optimizeDatabases: ({required bool force}) async {
-            optimizeForce = force;
-            return const OfficialStorageOptimizeResult(
-              ok: true,
-              completedJobs: 1,
-            );
-          },
         ),
       ),
     );
@@ -112,11 +125,21 @@ void main() {
 
     expect(find.text('Pending Deck'), findsOneWidget);
     expect(find.text('Cleanup Deck'), findsOneWidget);
+    expect(find.text('Retiring Deck'), findsOneWidget);
+    expect(find.text('Quarantine Deck'), findsOneWidget);
+    expect(find.text(AppStrings.ankiRepairSourceState('pending_cleanup')),
+        findsOneWidget);
+    expect(find.text(AppStrings.ankiRepairSourceState('retiring')),
+        findsOneWidget);
+    expect(find.text(AppStrings.ankiRepairJobKind('compact_catalog')),
+        findsOneWidget);
+    expect(find.text('pending_cleanup'), findsNothing);
+    expect(find.text('compact_catalog'), findsNothing);
+    expect(find.byKey(const Key('repair-optimize')), findsNothing);
     expect(find.text(AppStrings.ankiRepairMaintenanceJobs), findsOneWidget);
 
-    await tester.tap(find.text(AppStrings.ankiPendingContinue));
-    await tester.pumpAndSettle();
-    expect(continued, ['src-pending']);
+    expect(find.text(AppStrings.ankiPendingContinue), findsNothing);
+    expect(find.text(AppStrings.ankiPendingImportTitle), findsWidgets);
 
     await tester.tap(find.text(AppStrings.ankiPendingDiscard));
     await tester.pumpAndSettle();
@@ -124,17 +147,22 @@ void main() {
     await tester.pumpAndSettle();
     expect(discarded, ['src-pending']);
 
-    await tester.tap(find.text(AppStrings.ankiRepairRetryCleanup));
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const Key('repair-cleanup-src-cleanup')),
+        matching: find.text(AppStrings.ankiRepairRetryCleanup),
+      ),
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.text(AppStrings.commonOk));
     await tester.pumpAndSettle();
     expect(retried, ['src-cleanup']);
 
-    await tester.tap(find.byKey(const Key('repair-optimize')));
+    await tester.tap(find.text(AppStrings.ankiRepairDeleteQuarantine));
     await tester.pumpAndSettle();
     await tester.tap(find.text(AppStrings.commonOk));
     await tester.pumpAndSettle();
-    expect(optimizeForce, isTrue);
+    expect(quarantined, ['src-quarantine']);
 
     await tester.tap(find.byKey(const Key('repair-export')));
     await tester.pumpAndSettle();

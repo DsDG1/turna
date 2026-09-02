@@ -10,9 +10,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/diagnostics/cache_diagnostics_registry.dart';
 import 'package:turna/application/diagnostics/runtime_memory_snapshot.dart';
+import 'package:turna/application/maintenance/official_anki_ghost_purge_service.dart';
 import 'package:turna/application/maintenance/official_storage_optimize_service.dart';
 import 'package:turna/application/maintenance/storage_inventory_service.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/settings/storage_category_items_page.dart';
 import 'package:turna/views/settings/storage_diagnostics_page.dart';
 
 class _FakeScanner implements StorageInventoryService {
@@ -102,12 +104,18 @@ void main() {
     StorageInventoryService scanner, {
     Future<OfficialStorageOptimizeResult> Function({required bool force})?
         optimize,
+    Future<List<StorageDeletableItem>> Function()? listOfficialSources,
+    Future<bool> Function(String id)? uninstall,
+    Future<OfficialAnkiGhostPurgeResult> Function()? forcePurgeOfficial,
   }) async {
     await tester.pumpWidget(
       MaterialApp(
         home: StorageDiagnosticsPage(
           scanner: scanner,
           optimizeDatabases: optimize,
+          listOfficialSources: listOfficialSources,
+          uninstall: uninstall,
+          forcePurgeOfficial: forcePurgeOfficial,
         ),
       ),
     );
@@ -223,5 +231,235 @@ void main() {
     await tester.tap(find.text(AppStrings.commonCancel));
     await tester.pumpAndSettle();
     expect(calls, 0);
+  });
+
+  testWidgets('official collection drill-down deletes selected sources',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(400, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final uninstalled = <String>[];
+    await pumpPage(
+      tester,
+      _FakeScanner(_cannedReport),
+      listOfficialSources: () async => const [
+        StorageDeletableItem(
+          id: 'src-alpha-full-id',
+          displayName: 'Alpha Deck',
+          subtitle: '使用中',
+        ),
+        StorageDeletableItem(
+          id: 'src-beta-full-id',
+          displayName: 'Beta Deck',
+          subtitle: '使用中',
+        ),
+      ],
+      uninstall: (id) async {
+        uninstalled.add(id);
+        return true;
+      },
+    );
+
+    await tester.tap(find.byKey(const Key('storage-category-official')));
+    await tester.pumpAndSettle();
+    expect(find.text('Alpha Deck'), findsOneWidget);
+    expect(find.text('Beta Deck'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('storage-item-src-alpha-full-id')));
+    await tester.tap(find.byKey(const Key('storage-item-src-beta-full-id')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('storage-delete-selected')));
+    await tester.pumpAndSettle();
+    expect(find.text(AppStrings.ankiUninstallConfirmTitle), findsOneWidget);
+    await tester.tap(find.text(AppStrings.ankiUninstallDeck));
+    await tester.pumpAndSettle();
+    expect(uninstalled, ['src-alpha-full-id', 'src-beta-full-id']);
+    expect(find.text(AppStrings.ankiDeckRemoved), findsOneWidget);
+  });
+
+  testWidgets('official collection cancel does not uninstall', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(400, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    var calls = 0;
+    await pumpPage(
+      tester,
+      _FakeScanner(_cannedReport),
+      listOfficialSources: () async => const [
+        StorageDeletableItem(
+          id: 'src-only',
+          displayName: 'Only Deck',
+          subtitle: '使用中',
+        ),
+      ],
+      uninstall: (id) async {
+        calls++;
+        return true;
+      },
+    );
+    await tester.tap(find.byKey(const Key('storage-category-official')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('storage-item-src-only')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('storage-delete-selected')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(AppStrings.commonCancel));
+    await tester.pumpAndSettle();
+    expect(calls, 0);
+  });
+
+  testWidgets('media drill-down uninstalls owned folders', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(400, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final report = StorageInventoryReport(
+      artifacts: [
+        ..._cannedReport.artifacts,
+        StorageArtifactReport(
+          category: StorageArtifactCategory.legacyAnkiMedia,
+          ownerId: 'import-owned-1',
+          label: 'owned-media',
+          physicalBytes: 1024,
+          fileCount: 2,
+          cleanupPolicy: StorageCleanupPolicy.deleteSaga,
+        ),
+      ],
+      databaseWalBytes: _cannedReport.databaseWalBytes,
+      databaseShmBytes: _cannedReport.databaseShmBytes,
+      freelistBytes: _cannedReport.freelistBytes,
+      aiCacheEntries: _cannedReport.aiCacheEntries,
+      scannedAt: _cannedReport.scannedAt,
+    );
+    final uninstalled = <String>[];
+    await pumpPage(
+      tester,
+      _FakeScanner(report),
+      uninstall: (id) async {
+        uninstalled.add(id);
+        return true;
+      },
+    );
+    await tester.tap(find.byKey(const Key('storage-category-media')));
+    await tester.pumpAndSettle();
+    expect(find.text('import-owned-1'), findsOneWidget);
+    expect(find.textContaining('media/'), findsNothing);
+    await tester.tap(find.byKey(const Key('storage-item-import-owned-1')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('storage-delete-selected')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(AppStrings.ankiUninstallDeck));
+    await tester.pumpAndSettle();
+    expect(uninstalled, ['import-owned-1']);
+  });
+
+  testWidgets('empty official collection disables delete', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(400, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await pumpPage(
+      tester,
+      _FakeScanner(_cannedReport),
+      listOfficialSources: () async => const [],
+    );
+    await tester.tap(find.byKey(const Key('storage-category-official')));
+    await tester.pumpAndSettle();
+    expect(find.text(AppStrings.storageOfficialCollectionEmpty), findsOneWidget);
+    final button = tester.widget<FilledButton>(
+      find.byKey(const Key('storage-delete-selected')),
+    );
+    expect(button.onPressed, isNull);
+    expect(find.byKey(const Key('storage-force-purge')), findsNothing);
+  });
+
+  testWidgets('ghost official leftover offers force purge', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(400, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final report = StorageInventoryReport(
+      artifacts: [
+        ..._cannedReport.artifacts,
+        StorageArtifactReport(
+          category: StorageArtifactCategory.officialAnki,
+          ownerId: 'profile-default-01',
+          label: 'leftover-collection',
+          physicalBytes: 8192,
+          fileCount: 3,
+          cleanupPolicy: StorageCleanupPolicy.deleteSaga,
+        ),
+      ],
+      databaseWalBytes: _cannedReport.databaseWalBytes,
+      databaseShmBytes: _cannedReport.databaseShmBytes,
+      freelistBytes: _cannedReport.freelistBytes,
+      aiCacheEntries: _cannedReport.aiCacheEntries,
+      scannedAt: _cannedReport.scannedAt,
+    );
+    var purges = 0;
+    await pumpPage(
+      tester,
+      _FakeScanner(report),
+      listOfficialSources: () async => const [],
+      forcePurgeOfficial: () async {
+        purges++;
+        return const OfficialAnkiGhostPurgeResult(ok: true, deletedEntries: 3);
+      },
+    );
+    await tester.tap(find.byKey(const Key('storage-category-official')));
+    await tester.pumpAndSettle();
+    expect(find.text(AppStrings.storageForcePurgeOfficialHint), findsOneWidget);
+    expect(find.byKey(const Key('storage-force-purge')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('storage-force-purge')));
+    await tester.pumpAndSettle();
+    expect(
+      find.text(AppStrings.storageForcePurgeOfficialConfirmTitle),
+      findsOneWidget,
+    );
+    await tester.tap(find.text(AppStrings.commonCancel));
+    await tester.pumpAndSettle();
+    expect(purges, 0);
+
+    await tester.tap(find.byKey(const Key('storage-force-purge')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(
+      FilledButton,
+      AppStrings.storageForcePurgeOfficial,
+    ));
+    await tester.pumpAndSettle();
+    expect(purges, 1);
+    expect(find.text(AppStrings.storageForcePurgeOfficialDone), findsOneWidget);
+  });
+
+  testWidgets('force purge hidden when official sources exist', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(400, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final report = StorageInventoryReport(
+      artifacts: [
+        StorageArtifactReport(
+          category: StorageArtifactCategory.officialAnki,
+          ownerId: 'profile-default-01',
+          label: 'collection',
+          physicalBytes: 8192,
+          fileCount: 1,
+          cleanupPolicy: StorageCleanupPolicy.deleteSaga,
+        ),
+      ],
+      databaseWalBytes: 0,
+      databaseShmBytes: 0,
+      freelistBytes: 0,
+      aiCacheEntries: 0,
+      scannedAt: DateTime(2026, 8, 23, 12, 0),
+    );
+    await pumpPage(
+      tester,
+      _FakeScanner(report),
+      listOfficialSources: () async => const [
+        StorageDeletableItem(
+          id: 'src-live',
+          displayName: 'Live Deck',
+          subtitle: '使用中',
+        ),
+      ],
+      forcePurgeOfficial: () async =>
+          const OfficialAnkiGhostPurgeResult(ok: true),
+    );
+    await tester.tap(find.byKey(const Key('storage-category-official')));
+    await tester.pumpAndSettle();
+    expect(find.text('Live Deck'), findsOneWidget);
+    expect(find.byKey(const Key('storage-force-purge')), findsNothing);
   });
 }

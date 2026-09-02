@@ -316,6 +316,23 @@ WHERE source_id = ? AND state = ?
         .toList();
   }
 
+  /// Ownership ids only (no descriptors). Used by v2 retire so a 100k
+  /// source is not fully materialized before the first engine delete.
+  List<int> listCardIdsPage(
+    String sourceId, {
+    required int offset,
+    required int limit,
+  }) {
+    return [
+      for (final row in _db.select(
+        'SELECT card_id FROM anki_source_cards WHERE source_id = ? '
+        'ORDER BY card_id LIMIT ? OFFSET ?',
+        [sourceId, limit, offset],
+      ))
+        (row['card_id'] as num).toInt(),
+    ];
+  }
+
   /// Card ids associated with [sourceId] that are also associated with a
   /// sibling source. Source uninstall must retain these collection cards;
   /// the catalog's `(source_id, card_id)` key deliberately permits sharing.
