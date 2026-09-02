@@ -1,8 +1,8 @@
 # Step 4 详细说明：v2 导入→课程树链落码（与 v1 并存）
 
-> **2026-09-02 复活：执行线重开，见 [ADR 0044](../decisions/0044-anki-v2-revival.md)。** 当年 C3 不可跑的元凶（导入完成页 pop 死循环真机卡死）已于 2026-09-02 根因修复。剩余执行线：~~R1 重建 arm64 .so（op41/42）~~ ✅ → ~~R1.5 v2 链 `upsertCardBatch` 主 isolate 写下沉~~ ✅ → **R2 C3（下一步 K6 强杀轮；K1/K3 真机不考虑）** → R3 C4 定标 → R4 观察期翻 flag。完成标志 = **实机过了**（操作者确认）；host 测试与日志留证不算完成。下文失败结论保留为历史记录。> 上游文档：[README.md](./README.md)（总目标与六步计划，已作废）；前置：[step3.md](./step3.md)（op 41/42、契约 1.12）。
+> **2026-09-02 复活：执行线重开，见 [ADR 0044](../decisions/0044-anki-v2-revival.md)。** 当年 C3 不可跑的元凶（导入完成页 pop 死循环真机卡死）已于 2026-09-02 根因修复。剩余执行线：~~R1 重建 arm64 .so（op41/42）~~ ✅ → ~~R1.5 v2 链 `upsertCardBatch` 主 isolate 写下沉~~ ✅ → ~~R2 C3 真机强杀矩阵（K4–K14 实机过；K1/K3 不考虑、K8 不适用、K12 归 Step 5）~~ ✅ → ~~R3 C4 定标~~ ✅（2026-09-02 操作者确认「通过」）→ ~~R4 观察期翻 flag~~ ✅（2026-09-02 操作者「通过」，`productionAndroid` 翻 true，见 [step4-r4-runbook.md](./step4-r4-runbook.md)）→ **Step 4 关闭（2026-09-02）**。完成标志 = **实机过了**（操作者确认）；host 测试与日志留证不算完成。下文失败结论保留为历史记录。> 上游文档：[README.md](./README.md)（总目标与六步计划，已作废）；前置：[step3.md](./step3.md)（op 41/42、契约 1.12）。
 > 原范围：把 ADR 0043 的 v2 全生命周期链在 flag 后落码，真机强杀矩阵全绿。v1 一行不改；flag 决定新导入走哪条链。
-补充说明：✅已完全通过检验（K），下文暂不更新。暂存。
+补充说明：✅ 已完全通过检验（K 矩阵 + C4 定标 + R4 翻 flag，2026-09-02 操作者确认），下文 K 表与 C4 行已同步收口。**Step 4 已于 2026-09-02 关闭**（R4 见 [step4-r4-runbook.md](./step4-r4-runbook.md)）；后续走向：Step 5（存量迁移）重新决策（ADR 0044 条 5，见 [step5.md](./step5.md)）、Step 6（删 v1 面）开工条件满足。
 >
 
 
@@ -32,7 +32,7 @@ Step 4 的产出是：**v2 链全生命周期在 `v2ImportChain` flag 后可用 
   - **写侧**：commitLive 之后的「投影发布」段。v1 现状 = 投影器写 `official_anki_projection_index`/`manifest` → `UnifiedAnkiImportOrchestrator.publishFromProjection` 写 placements/presentations；v2 = 配置区写（op 42）+ 账本 5 表 + 视图重建。分叉落码在 `anki_import_controller.dart` 的 `_commitOfficial`（v1 流程的编排点，saga.commitLive 之前整体切走）与 `official_first_service.dart`（v2 跳过 `recordMigration` 与 metadata 关联行），**不在** `migration/official_anki_production_router.dart`——那是 Legacy↔Official 的存量路由，只读、与 v1/v2 无关。
   - **读侧**：课程树读面 = `CourseProvider` + `projection/official_anki_lesson_card_index.dart`（复习链的课时→卡映射，读的就是投影 index）+ 练习投影读者。v2 里这个读面整体切到视图表。
   - 复习队列、答题、渲染、引擎会话链两代**共用**（README「不动」清单资产）；它们对投影表的间接依赖（lesson index）已划入读侧分叉面。
-- **默认值**：构造器默认 `false`；dev/QA 构建经 `copyWith` 打开；`productionAndroid` 常量保持 `false`，直到 C3 真机矩阵全绿 + 一个内部 release 观察期后再翻 `true`（翻的动作 = 改常量 + 本文件收据记录日期与证据）。
+- **默认值**：构造器默认 `false`；dev/QA 构建经 `copyWith` 打开；`productionAndroid` 常量保持 `false`，直到 C3 真机矩阵全绿 + 一个内部 release 观察期后再翻 `true`（翻的动作 = 改常量 + 本文件收据记录日期与证据）。**已于 2026-09-02 R4 执行**（含 v2 define 退役，见 [step4-r4-runbook.md](./step4-r4-runbook.md)）。
 - **回退条件**（任一触发即翻回 `false`）：v2 链在真机复现任一 K 场景不可自愈（视图无法重建 / 配置区决策损坏且识别器重建议失败 / 出现无主且不可见的卡）；修复中心出现 v2 来源的 quarantine 记录且无法自动收敛。
 - **回退语义**：v2 已导入的来源**继续可学**——账本行（`chain='v2'` 标记，catalog v13）、配置区决策、视图表都留着，读路径兼容两代数据（flag 关时读面回落 v1，v2 视图行不可见但数据无损）；仅新导入回 v1。这是「旧数据不受影响」的对称面：flag 只路由新写入，不销毁任何已有事实。
 
@@ -80,27 +80,27 @@ Step 4 的产出是：**v2 链全生命周期在 `v2ImportChain` flag 后可用 
 
 - **C1 文件日志（D8，发现 #4 的答复）✅ host 侧**：现有 `LogCapture`（`transparency_log.jsonl` 滚动落盘，1MB×3 轮转）此前收不到 Anki 路径——全部走 `debugPrint` 绕过了它。新增 `lifecycle/official_anki_file_log.dart`（`officialAnkiFileLog` 系列助手：控制台 + 文件双写，只增不减）并接入：启动恢复（`official_anki_startup_recovery.dart` 全部关键行）、staging 管理（`official_anki_staging_manager.dart`）、维护任务（`official_anki_maintenance.dart`）、v2 全链（commit 窗口开/关、视图重建、retiring 各段）。修复中心「导出诊断」在 storage audit 快照后追加最近 120 条文件日志（`official_anki_repair_center_page.dart`）。**不依赖厂商 logcat**；storage audit 快照保留。
 - **C2 贴真实挂载点的测试（D9）✅ 31 用例全绿**：`test/application/anki_official/v2/` 六个文件——严格假引擎（`configStore`/`deckTree`/`suspended`/`deleteCardsCallCount` 全就绪）常驻用例：晋升幂等与配置区损坏韧性、**K10 单事务**（同值重放零副作用）、视图重建幂等/原子换页/取消/占位/retiring 排除、retiring 各段幂等与引擎缺席保活、census 三级分流、读面 flag 开关分叉（挂载点 = `OfficialAnkiLessonCardIndex`，复习页/练习中心/资料页三入口共用的 P0 解析面）、**零写入守卫**（catalog statement 级 update 钩子断言只命中五表；course.db 同钩子断言只命中视图表 + 旧表净状态为空）。
-- **C3 真机强杀矩阵（发布门禁）⏳ 未跑**：K1–K14 映射表已落（见下节），**执行手册见 [step4-c3-runbook.md](./step4-c3-runbook.md)**（操作编排：杀法约定、证据三件套、K13 大库专项、收据模板）；设备以实际 serial 记录（不限 vivo），debug/release 双跑纪律（doc 41 §16.6）。v2 flag 构建期投喂面已备：`--dart-define=TURNA_OFFICIAL_ANKI_V2_IMPORT_CHAIN=true`（无 define 恒 false，生产安全）。
-- **C4 Q3 定标 ⏳ 未跑**：大库（10 万卡级，`gen_fixtures --large` 产包或多包叠加）冷重建 P95 实测待真机/大夹具环境；host 侧已具备测量面（重建器返回 `elapsedMillis`，修复中心导出含重建耗时行）。它是 Step 5/6 的性能门禁基线——**未定标前 flag 不得翻 true**。
+- **C3 真机强杀矩阵（发布门禁）✅ 实机过（2026-09-02，K4–K14；K1/K3 不考虑、K8 不适用、K12 归 Step 5）**：K1–K14 映射表见下节，**执行手册见 [step4-c3-runbook.md](./step4-c3-runbook.md)**（操作编排：杀法约定、证据三件套、K13 大库专项、收据模板）；设备以实际 serial 记录（不限 vivo），debug/release 双跑纪律（doc 41 §16.6）。v2 flag 构建期投喂面已备：`--dart-define=TURNA_OFFICIAL_ANKI_V2_IMPORT_CHAIN=true`（无 define 恒 false，生产安全）。
+- **C4 Q3 定标 ✅ 实机通过（2026-09-02 操作者确认「通过」）**：大库（10 万卡夹具）冷重建实机跑过。host 侧测量面（重建器返回 `elapsedMillis`，修复中心导出含重建耗时行）保留——按 2026-09-02 完成纪律修订不索取取证包，Step 5/6 需要具体 P95 数值基线时从日志行/导出补取。它是 Step 5/6 的性能门禁基线——**定标已过，翻 flag 的性能前置解除，仅剩 R4 观察期**。
 
 ### K1–K14 真机矩阵映射表（C3 执行清单；状态 = host 代码面 / 真机待验）
 
 | # | 场景 | 代码答案（host 已验证） | 真机用例（杀点 → 重启期望） | 状态 |
 |---|---|---|---|---|
 | K1 | staging 导入中强杀 | attempt `staging_path` 即证据；census 三级分流（B4 测试绿）。**2026-09-02 负责人决策：真机轮不考虑**（杀点落在 native 忙的进度条窗口，操作上不现实；host 三级分流仍保留） | — | 不适用（真机不考虑） |
-| K2 | commit 窗口、receipt 落库前强杀 | receipt 吸收 = import 返回后**单条 UPDATE**（窗口毫秒级）；杀于窗口内 → attempt 停 `committing`、staging 目录在（finishCommit 未执行）→ census 按意图续跑或弃置；attempt 有 `pre_import_usn` 列预留。**2026-09-02 真机命中**：live `importPackage` 已写入共享 collection，课程树未建 → 无主卡占体积；回收改为 collection 卡 − `active`/`retiring` 所有权差集（`OfficialAnkiV2UnownedCardReclaimer`），放弃 committing + 启动空账本再扫。PLG110 用户验证通过 | 杀点插在 importPackage 与 receipt UPDATE 之间（debug 构造）→ 重启无幽灵卡、意图可续 | 代码 ✅ / 真机幽灵卡 ✅ / 矩阵其余 ⏳ / op 40 结论见下 |
+| K2 | commit 窗口、receipt 落库前强杀 | receipt 吸收 = import 返回后**单条 UPDATE**（窗口毫秒级）；杀于窗口内 → attempt 停 `committing`、staging 目录在（finishCommit 未执行）→ census 按意图续跑或弃置；attempt 有 `pre_import_usn` 列预留。**2026-09-02 真机命中**：live `importPackage` 已写入共享 collection，课程树未建 → 无主卡占体积；回收改为 collection 卡 − `active`/`retiring` 所有权差集（`OfficialAnkiV2UnownedCardReclaimer`），放弃 committing + 启动空账本再扫。PLG110 用户验证通过 | 杀点插在 importPackage 与 receipt UPDATE 之间（debug 构造）→ 重启无幽灵卡、意图可续 | 代码 ✅ / **真机 ✅**（幽灵卡回收 2026-09-02 用户验证过；commit 窗口杀点由 K10 同路径前后各杀覆盖）/ op 40 结论见下 |
 | K3 | receipt 后、投影中强杀 | 视图无状态：重启启动恢复见 v2 active source 即入队 `v2_view_rebuild`（B3 测试绿）。**2026-09-02 负责人决策：真机轮跳过**（杀点盯 log 不可靠，不再用日志核验留证） | — | 不适用（真机跳过） |
 | K4 | publish / authority 提交中强杀 | v2 无 authority 状态机：source CAS→active + 视图原子换页，重放幂等（commit 重入测试绿） | 杀于收尾 → 重启 job/重入收敛，课程树出现 | 代码 ✅ / **真机 ✅**（2026-09-02 操作者确认） |
 | K5 | 取消时 native op busy | 继承 v1：engine.cancel 独立控制通道；RPC 有界超时 | 取消导入 → 有界返回，staging 删除 | 代码继承 ✅ / **真机 ✅**（2026-09-02 操作者确认） |
-| K6 | 卸载中任意时刻强杀 | retiring 序列四段各自幂等；job 表续跑；引擎缺席 job 保活；无无主且不可见的卡（B5 测试绿）。**2026-09-02**：UI 不再同步等大源引擎删除（>5000 卡 detached + `listCardIdsPage`）；PLG110 10 万卡课表删除用户验证通过 | 每段杀点各一轮 → 重启收敛到终删 + GC jobs 在队 | 代码 ✅ / 真机大库卸载 ✅ / 强杀轮 ⏳ |
-| K7 | media GC trash 中强杀 | GC 幂等重跑（rslib trash 语义，继承 doc 41 S5） | 杀于 GC → 重启 job 重跑不误删 | 继承 ✅ / 真机 ⏳ |
+| K6 | 卸载中任意时刻强杀 | retiring 序列四段各自幂等；job 表续跑；引擎缺席 job 保活；无无主且不可见的卡（B5 测试绿）。**2026-09-02**：UI 不再同步等大源引擎删除（>5000 卡 detached + `listCardIdsPage`）；PLG110 10 万卡课表删除用户验证通过 | 每段杀点各一轮 → 重启收敛到终删 + GC jobs 在队 | 代码 ✅ / **真机 ✅**（大库卸载 + 四段强杀轮，2026-09-02） |
+| K7 | media GC trash 中强杀 | GC 幂等重跑（rslib trash 语义，继承 doc 41 S5） | 杀于 GC → 重启 job 重跑不误删 | 继承 ✅ / **真机 ✅**（2026-09-02） |
 | K8 | checkpoint release 中强杀 | checkpoint 体系已废（ADR 0042）；v2 无此路径 | 存量善后归 Step 5 census | 不适用（存量） |
-| K9 | compact / VACUUM 中强杀 | SQLite 事务性 + job retry_wait（doc 41 S7 已实现，继承） | 杀于 VACUUM → 库可 reopen、job 重试 | 继承 ✅ / 真机 ⏳ |
-| K10 | 配置区写入中强杀 | op 42 单事务（Step 3 Rust 测试绿）+ 晋升两步幂等 + 损坏读按 missing（B1 韧性测试绿） | 杀于晋升 → 重放 no-op；决策损坏 → 识别器重建议 | 代码 ✅ / 真机 ⏳ |
-| K11 | 视图重建中强杀 | 单事务原子换页 + 进程内占位 + 重启整建（B3 测试绿）；内置课程不经视图表 | 杀于重建 → 旧视图完整、重启整建、Turkish 不受影响 | 代码 ✅ / 真机 ⏳ |
+| K9 | compact / VACUUM 中强杀 | SQLite 事务性 + job retry_wait（doc 41 S7 已实现，继承） | 杀于 VACUUM → 库可 reopen、job 重试 | 继承 ✅ / **真机 ✅**（2026-09-02） |
+| K10 | 配置区写入中强杀 | op 42 单事务（Step 3 Rust 测试绿）+ 晋升两步幂等 + 损坏读按 missing（B1 韧性测试绿） | 杀于晋升 → 重放 no-op；决策损坏 → 识别器重建议 | 代码 ✅ / **真机 ✅**（2026-09-02） |
+| K11 | 视图重建中强杀 | 单事务原子换页 + 进程内占位 + 重启整建（B3 测试绿）；内置课程不经视图表 | 杀于重建 → 旧视图完整、重启整建、Turkish 不受影响 | 代码 ✅ / **真机 ✅**（2026-09-02） |
 | K12 | 存量迁移事务中强杀 | Step 5 预告，本步不涉及 | — | Step 5 |
-| K13 | 主线程长任务 ANR | 重建的 native 调用全经会话引擎（worker isolate RPC）；course.db 写经 drift 后台连接；批间可取消（B3 结构 + 测试） | 大库重建期间 UI 可交互、无 ANR dump | 结构 ✅ / 真机（大库）⏳ |
-| K14 | 强杀后 prefs 丢失 | 静态核验：写穿清单各项已提交即持久（A2 四条结论）；真机机理判别待跑 | 每轮强杀后 onboarding/scope 记忆 | 代码 ✅ / 真机 ⏳ |
+| K13 | 主线程长任务 ANR | 重建的 native 调用全经会话引擎（worker isolate RPC）；course.db 写经 drift 后台连接；批间可取消（B3 结构 + 测试） | 大库重建期间 UI 可交互、无 ANR dump | 结构 ✅ / **真机 ✅**（大库，2026-09-02） |
+| K14 | 强杀后 prefs 丢失 | 静态核验：写穿清单各项已提交即持久（A2 四条结论）；真机机理判别待跑 | 每轮强杀后 onboarding/scope 记忆 | 代码 ✅ / **真机 ✅**（随行核对，2026-09-02） |
 
 ### K2 专项书面结论（op 40 的充分性）
 
@@ -117,7 +117,7 @@ A 定案（flag/偏好清单/表去向）——0.5~1 天 ✅
       └→ B3+B6 视图与读路径（课程树由视图生成）✅
            └→ B4 staging census → B5 retiring 删除轴 ✅
                 └→ C1 文件日志 + C2 挂载点测试（随每段并行写）✅
-                     └→ C3 真机强杀矩阵 + C4 定标 ⏳ 未跑 → 全绿 → flag 翻 true 决策 → Step 4 关闭，进 Step 5
+                     └→ C3 真机强杀矩阵 + C4 定标 ✅（2026-09-02 实机过）→ R4 观察期 + flag 翻 true ✅（2026-09-02，[runbook](./step4-r4-runbook.md)）→ Step 4 关闭，进 Step 5（重新决策）/ Step 6
 ```
 
 ## 验收清单
@@ -129,8 +129,9 @@ A 定案（flag/偏好清单/表去向）——0.5~1 天 ✅
 - [x] retiring 序列各段幂等，任一点强杀重启收敛，无无主且不可见的卡（K6；含引擎缺席 job 保活）
 - [x] K14 偏好写穿清单落码（Q5；A2 四条静态核验结论 + scope 双层写穿）；真机机理判别待 C3
 - [x] 文件日志通道上线，修复中心可导出（D8；LogCapture 滚动文件 + 导出附带 120 条）
-- [ ] K1–K14 真机矩阵（**K1/K3 真机不考虑**、K8 不适用、K12 归 Step 5）——**一行只有实机过了才打勾**；host 绿 / logcat / 诊断导出不算完成
-- [ ] Q3 冷重建 P95 数值定标并回填——**未跑**（需大夹具 + 真机）；测量面已具备（重建 elapsedMillis + 日志行）
+- [x] K1–K14 真机矩阵（**K1/K3 真机不考虑**、K8 不适用、K12 归 Step 5）——其余各行实机过（K4–K14，2026-09-02 操作者逐行/汇总确认；见 [runbook §2](./step4-c3-runbook.md) 与收据）
+- [x] Q3 冷重建定标——实机通过（2026-09-02 操作者确认「通过」）；测量面保留（重建 elapsedMillis + 日志行），需要 P95 数值基线时补取
+- [x] R4：`productionAndroid` 翻 `v2ImportChain=true`（2026-09-02，操作者「通过」）；`fromEnvironment` 退役 v2 define（盖写陷阱见 runbook §1）；接线测试翻转 + 回退态基线修正；收据见 [step4-r4-runbook.md](./step4-r4-runbook.md)
 - [x] v1 零回归：flag = false 时既有全套测试不回退，旧数据行为不变（受影响面定向复跑全绿 + 干净树逐名对比；见收据）
 - [x] 零新增失败（与干净树基线逐名对比，同 Step 3 方法；见收据）
 
@@ -145,9 +146,9 @@ A 定案（flag/偏好清单/表去向）——0.5~1 天 ✅
 | B5 retiring 删除轴 | 4~6 天 | 1 天 |
 | C1 文件日志 | 2~3 天 | 0.5 天（复用 LogCapture） |
 | C2 挂载点测试 | 3~5 天 | 1 天（31 用例） |
-| C3 真机强杀矩阵（含多轮迭代） | 5~8 天 | **未开始** |
-| C4 定标 | 1~2 天 | **未开始** |
-| **合计** | **25~38 个工作日**（README 档「月」；真机矩阵轮次是最大变量） | host 侧 ~6 天；真机两项待跑 |
+| C3 真机强杀矩阵（含多轮迭代） | 5~8 天 | 2026-09-02 实机过（K4–K14） |
+| C4 定标 | 1~2 天 | 2026-09-02 实机过 |
+| **合计** | **25~38 个工作日**（README 档「月」；真机矩阵轮次是最大变量） | host 侧 ~6 天；真机两项 2026-09-02 过；剩 R4 观察期 |
 
 ---
 
@@ -177,3 +178,6 @@ A 定案（flag/偏好清单/表去向）——0.5~1 天 ✅
 | 2026-09-02 | **C3 K4 实机过** | 操作者确认 | 杀于 publish 收尾（完成页将现未现）；冷启课表在、能进课、内置课还在。下一真机行 = **K5** |
 | 2026-09-02 | **现场修复：大夹具生成器改三级牌组树（真机 F3）** | 落码 + 产物验证 | 真机首夜发现（[v2-first-device-findings.md](./v2-first-device-findings.md) F3）：生成器把 10 万卡平铺进单牌组 → 单课时 10 万卡的 UI 过载是夹具假象（真实牌组是多级树）。修复 `tools/gen_fixtures.rs` `build_large()`（唯一改动面）：rslib `get_or_create_normal_deck`（自动建父链）建 `S{i}::U{j}::L{k}` 三级树——叶子数 = `count.div_ceil(100).clamp(1,1000)` 行序摊 10×10 S×U 网格、余数进末叶，100000 → 10 section × 10 unit × 10 课时 × 100 卡；三级命名精确命中重建器 `_place` 的 length≥3 路径派生分支，且因含 `::` 不落 placement 覆盖键（多覆盖一条真实导入路径）；manifest 增 `deckTree` 形状描述。产物再生成（PROTOC 钉版 31.1）：`10-large-generated-100000.apkg` **SHA `f7c01ed5…e0579`**，包内取证（anki21b 解压 sqlite 查询）：decks 1111 = 10 section + 100 unit + 1000 叶 + Default，cards-per-deck 全 100，notes 100000。clippy 改动 hunk 零新增（`div_ceil` 两处即改；另 2 报错为 write_package 参数数/field_reassign 存量，在未触碰 hunk）；rustfmt 改动 hunk 干净（既有中文串 hunk 漂移为本机工具链版本差异，存量）。runbook P4 已更新新 SHA 与期望课程树形状；P3 双 APK 标记需重建（F4/F6 落码后）。每次再生 SHA 必变（官方导出分配新 card id，既有 manifest note），收据以本次产物为准 |
 | 2026-09-02 | **C3 K5 实机过** | 操作者确认 | 导入中点「取消」、native 忙时强杀 → 有界返回、staging 删除、无悬挂状态。下一真机行 = **K6 强杀轮**（各段杀点；大库卸载已过） |
+| 2026-09-02 | **C3 收口：K6–K14 实机过（R2 关闭）** | 操作者确认 | K6 四段杀点、K7 GC、K9 VACUUM、K10 配置区晋升（含 K2 同路径前后各杀）、K11 视图重建、K13 大库、K14 prefs 随行——逐行 ✅ 见 [runbook §2](./step4-c3-runbook.md)。K1/K3 真机不考虑、K8 不适用、K12 归 Step 5。K 表各行状态已同步收口 |
+| 2026-09-02 | **C4 Q3 定标实机通过（R3 关闭）** | 操作者确认「通过」 | 大库冷重建定标实机过；P95 具体数值按 2026-09-02 完成纪律未索取，Step 5/6 需数值基线时从 `view rebuild` 日志行/修复中心导出补取。**下一步 = R4**：内部观察期 → `productionAndroid` 翻 `v2ImportChain=true`（改常量 + 本文件收据记录日期）→ Step 4 关闭 → Step 5 重新决策 |
+| 2026-09-02 | **R4：productionAndroid 翻 v2ImportChain=true（Step 4 关闭）** | 操作者「通过」 | ① `official_anki_feature_flags.dart`：常量加 `v2ImportChain: true`；`fromEnvironment` **退役** `TURNA_OFFICIAL_ANKI_V2_IMPORT_CHAIN`——陷阱：原先 `copyWith(v2ImportChain: define)` 在无 define 构建读到 false，会把常量刚翻的 true 盖回 false（只改常量等于白翻）；define 的 C3 投喂使命完成即退役，头注释同步。② `official_anki_v2_flag_test.dart` 翻转：生产位 true、回退态 `copyWith(false)` 不放行、v1 地基缺一 fail-closed、fromEnvironment 继承生产位（防盖写复发守卫）。③ read_path / lesson_content 两个 flag-off 用例基线改回退态 `copyWith(v2ImportChain: false)`。定向 v2 全目录 + 读挂载点 + official_first flags **56 全绿**；其余 4 败逐名对上 BASELINE 在册 Windows 预存（composition errno32 / p5f ×2 / controller zero-writes）**零新增**；analyze 改动 4 文件 No issues。动作清单 + 回退操作卡 + 翻后观察清单见 [step4-r4-runbook.md](./step4-r4-runbook.md)。**后续：Step 5 重新决策（ADR 0044 条 5）、Step 6 开工条件满足** |

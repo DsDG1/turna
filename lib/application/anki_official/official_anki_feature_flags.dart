@@ -6,8 +6,11 @@
 /// Remaining dart-defines on this class are **opt-in only**:
 /// - `TURNA_OFFICIAL_ANKI_REVIEWER_DIAGNOSTICS`
 /// - `TURNA_OFFICIAL_ANKI_COURSE_GRADES_SCHEDULER`
-/// - `TURNA_OFFICIAL_ANKI_V2_IMPORT_CHAIN` (C3 matrix / internal builds only;
-///   absent define = false, so production bundles keep the v2 chain off)
+///
+/// `TURNA_OFFICIAL_ANKI_V2_IMPORT_CHAIN` was retired at R4 (2026-09-02):
+/// productionAndroid ships `v2ImportChain: true`, and feeding the define
+/// through [copyWith] would overwrite that constant with the absent-define
+/// `false` — its C3 feeding mission is complete, so it is no longer read.
 ///
 /// `TURNA_OFFICIAL_ANKI_DIAGNOSTICS` is the release diagnostics route
 /// guard, not a field here.
@@ -39,7 +42,8 @@ class OfficialAnkiFeatureFlags {
   });
 
   /// Android production product flags. Opt-in reviewer diagnostics / grades
-  /// stay off.
+  /// stay off. v2ImportChain flipped at R4 (2026-09-02; step4.md receipts) —
+  /// rollback = flip it back to false (re-routes NEW imports only).
   static const productionAndroid = OfficialAnkiFeatureFlags(
     engine: true,
     import: true,
@@ -51,6 +55,7 @@ class OfficialAnkiFeatureFlags {
     courseEntry: true,
     scheduler: true,
     officialFirstImport: true,
+    v2ImportChain: true,
   );
 
   factory OfficialAnkiFeatureFlags.fromEnvironment() {
@@ -58,12 +63,11 @@ class OfficialAnkiFeatureFlags {
         bool.fromEnvironment('TURNA_OFFICIAL_ANKI_REVIEWER_DIAGNOSTICS');
     const courseGradesScheduler =
         bool.fromEnvironment('TURNA_OFFICIAL_ANKI_COURSE_GRADES_SCHEDULER');
-    const v2ImportChain =
-        bool.fromEnvironment('TURNA_OFFICIAL_ANKI_V2_IMPORT_CHAIN');
+    // v2ImportChain deliberately NOT copied here: an absent define reads
+    // false and would clobber the productionAndroid constant (R4 trap).
     return productionAndroid.copyWith(
       reviewerDiagnostics: reviewerDiagnostics,
       courseGradesScheduler: courseGradesScheduler,
-      v2ImportChain: v2ImportChain,
     );
   }
 
@@ -80,9 +84,11 @@ class OfficialAnkiFeatureFlags {
   final bool courseGradesScheduler;
   final bool officialFirstImport;
 
-  /// v2 single-source chain (step4.md A1). Off here means constructor
-  /// default; [productionAndroid] keeps it off until the kill matrix is
-  /// green. Dev/QA builds opt in via [copyWith].
+  /// v2 single-source chain (step4.md A1). [productionAndroid] ships it on
+  /// since R4 (2026-09-02); rollback = flip the constant back to false.
+  /// Rolling back only re-routes NEW imports — already-imported v2 sources
+  /// stay learnable (ledger rows, config decisions and the view table all
+  /// remain; the read path serves both generations).
   final bool v2ImportChain;
 
   static OfficialAnkiFeatureFlags current =

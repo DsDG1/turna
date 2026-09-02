@@ -28,12 +28,12 @@ PopScope(canPop: false) 写死不放行
 
 | 步 | 内容 | 备注 |
 |---|---|---|
-| R1 | 重建 arm64 `libturna_anki.so`（含 op 41/42，契约 1.12；`verify_symbols.sh` + SHA 收据） | 现网设备 .so 旧于 op 41/42（`[OfficialAnkiV2] unimplemented` 日志为证），C3 硬前置 |
-| R2 | C3 真机强杀矩阵 K1–K14 | 设备以实际 serial 记录取证（不限于原计划 vivo 机）；debug/release 双跑纪律不变 |
-| R3 | C4 大库 P95 冷重建定标 | 测量面已在（重建器 `elapsedMillis`） |
-| R4 | 内部观察期 → `productionAndroid` 翻 `v2ImportChain=true` → Step 4 关闭 | dev/QA 构建即刻 `copyWith` 开 flag 投喂 |
+| R1 | 重建 arm64 `libturna_anki.so`（含 op 41/42，契约 1.12；`verify_symbols.sh` + SHA 收据） | 现网设备 .so 旧于 op 41/42（`[OfficialAnkiV2] unimplemented` 日志为证），C3 硬前置。**✅ 2026-09-02（SHA 收据见 step4.md）** |
+| R2 | C3 真机强杀矩阵 K1–K14 | 设备以实际 serial 记录取证（不限于原计划 vivo 机）；debug/release 双跑纪律不变。**✅ 2026-09-02（K4–K14 实机过；K1/K3 不考虑、K8 不适用、K12 归 Step 5）** |
+| R3 | C4 大库 P95 冷重建定标 | 测量面已在（重建器 `elapsedMillis`）。**✅ 2026-09-02（操作者确认「通过」；P95 数值需要时补取）** |
+| R4 | 内部观察期 → `productionAndroid` 翻 `v2ImportChain=true` → Step 4 关闭 | dev/QA 构建即刻 `copyWith` 开 flag 投喂。**✅ 2026-09-02（操作者「通过」；常量翻 true + v2 define 退役 + 测试翻转，动作与回退卡见 [step4-r4-runbook.md](../ankiUpdate/step4-r4-runbook.md)）。Step 4 关闭；Step 5 重新决策（条 5）、Step 6 开工条件满足** |
 
-3. **新增前置（R1.5，本轮抓捕带出）**：v2 链 `OfficialAnkiV2ImportService.commit` 的 `upsertCardBatch` 是每卡一行同步 sqlite 写在主 isolate（与 v1 已修复的同款问题），须先照抄 v1 `commitReceipt` 的 worker 下沉模式，否则 K13 大库行必挂。
+3. **新增前置（R1.5，本轮抓捕带出）**：v2 链 `OfficialAnkiV2ImportService.commit` 的 `upsertCardBatch` 是每卡一行同步 sqlite 写在主 isolate（与 v1 已修复的同款问题），须先照抄 v1 `commitReceipt` 的 worker 下沉模式，否则 K13 大库行必挂。**✅ 2026-09-02 落码（commit `cb6945c8`），K13 大库真机通过。**
 4. **原「PR2 catalog 迁 drift」计划作废**：v2 的 D4（catalog 18→5 表）在 Step 6 直接删除多余副本，先迁 drift 再删等于做两遍。v1 侧已落地的 PR1 主线程止血（投影/词表/回执后台化）保持有效，与 v2 正交。
 5. Step 5（存量迁移）随复活重新决策；Step 6（删 v1 面）吸收原 PR2 目标。
 

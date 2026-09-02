@@ -121,10 +121,13 @@ void main() {
     expect(index, isNull);
   });
 
-  test('flag off (default): view rows are invisible, v1 semantics intact',
+  test('flag off (rollback): view rows are invisible, v1 semantics intact',
       () async {
+    // R4 翻开后生产位恒 true；v1 零回归基线 = 回退态
+    // copyWith(v2ImportChain: false)（回退只路由新导入，不销毁数据）。
     OfficialAnkiV2CourseRead.flagsOf =
-        () => OfficialAnkiFeatureFlags.productionAndroid;
+        () => OfficialAnkiFeatureFlags.productionAndroid
+            .copyWith(v2ImportChain: false);
     final index = await OfficialAnkiLessonCardIndex.resolveForLesson(lessonId);
     expect(index, isNull,
         reason: 'flag 关时 v1 投影 index 是唯一读面（零回归的结构保证）');

@@ -114,6 +114,9 @@ android/app/src/main/jniLibs/**/libturna_anki.so
 
 # Official Anki spike large packages are generated on demand.
 test/fixtures/anki_official/generated/
+# C3 kill-matrix large fixture (100k cards) — regenerable via
+# tools/gen_fixtures.rs --large; receipt records the SHA per generation.
+test/fixtures/anki_official_c3/generated/
 
 # Temporarily vendored external reference repo (not part of this project)
 anki-decryptBack/

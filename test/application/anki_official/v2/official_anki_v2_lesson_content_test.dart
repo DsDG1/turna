@@ -270,6 +270,11 @@ void main() {
   });
 
   test('flag off: supply is inert (v1 zero-regression)', () async {
+    // R4 翻开后 current 生产位带 v2=true；本用例锁的是回退态
+    // （copyWith(v2ImportChain: false)）下正文供给完全不触碰引擎读面。
+    OfficialAnkiV2LessonContent.flagsOf =
+        () => OfficialAnkiFeatureFlags.productionAndroid
+            .copyWith(v2ImportChain: false);
     final lesson = await OfficialAnkiV2LessonContent.lessonFor(lessonId);
     expect(lesson, isNull);
     expect(engine.projectionBatchCalls, 0,
