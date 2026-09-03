@@ -759,7 +759,15 @@ void main() {
       provider.showSection(s2);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
-      expect(find.byType(AnimatedSwitcher), findsOneWidget);
+      // 过渡期间新旧两个视口共存，都被同一个视口 AnimatedSwitcher 包裹，
+      // 断言「至少一个」。
+      expect(
+        find.ancestor(
+          of: find.byType(CustomScrollView),
+          matching: find.byType(AnimatedSwitcher),
+        ),
+        findsAtLeastNWidgets(1),
+      );
 
       await tester.pumpAndSettle();
       expect(

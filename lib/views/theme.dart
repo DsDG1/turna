@@ -541,6 +541,47 @@ class TurnaTheme {
       ? Colors.white.withValues(alpha: 0.10)
       : Colors.transparent;
 
+  // HOME DEPTH TOKENS（主页「湿地晨光」三层深度舞台）
+  // L0 环境层（AmbientBackdrop）无投影；L1 内容卡用 [homeCardShadow]；
+  // L2 悬浮面（吸顶变形头收缩态）用 [pinnedHeaderShadow]，与胶囊导航
+  // [floatingBarShadow] 同层级。铁律沿用 practiceTileShadow：纯垂直
+  // offset + spreadRadius 0。
+
+  /// L1：学习页内容卡（英雄头卡 / 单元卡）的静置投影，中性双层。
+  static List<BoxShadow> homeCardShadow(BuildContext context) =>
+      _isDark(context)
+          ? [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.26),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ]
+          : [
+              BoxShadow(
+                color: brandNavy.withValues(alpha: 0.06),
+                blurRadius: 14,
+                offset: const Offset(0, 5),
+              ),
+              BoxShadow(
+                color: brandNavy.withValues(alpha: 0.04),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
+              ),
+            ];
+
+  /// L2：吸顶变形头完全收缩后的悬浮投影——深度上与底部胶囊导航平齐，
+  /// 标记「这是浮在内容之上的一层」。
+  static List<BoxShadow> pinnedHeaderShadow(BuildContext context) => [
+        BoxShadow(
+          color: _isDark(context)
+              ? Colors.black.withValues(alpha: 0.30)
+              : brandNavy.withValues(alpha: 0.10),
+          blurRadius: 10,
+          offset: const Offset(0, 3),
+        ),
+      ];
+
   // THEME-AWARE COLOR HELPERS
   // Use these instead of hard-coded Colors.white / Color(0xFF...) so widgets
   // automatically adapt when the app switches between light and dark mode.

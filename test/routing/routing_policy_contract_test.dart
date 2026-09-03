@@ -7,7 +7,8 @@
 //   3. No custom page transitions exist anywhere in production code.
 //   4. Official route classes are only constructed in the single allowed
 //      platform route selector.
-//   5. Bottom tabs stay an IndexedStack instant switch, not page routes.
+//   5. Bottom tabs stay a mounted state-preserving switcher
+//      (TabStack, native-default instant switching), not page routes.
 //   6. Android predictive-back manifest opt-in is present.
 
 // Dart imports:
@@ -123,10 +124,13 @@ void main() {
   });
 
   group('navigation semantics stay layered', () {
-    test('bottom tabs remain an IndexedStack instant switch', () {
+    test('bottom tabs stay a mounted state-preserving switcher', () {
       final source = _read(File('$_libRoot/views/home/home_page.dart'));
-      expect(source, contains('IndexedStack'),
-          reason: 'Bottom tabs must not become pushed page routes');
+      expect(source, contains('TabStack'),
+          reason: 'Bottom tabs must not become pushed page routes; the '
+              'stack keeps all tab subtrees mounted (state preserved)');
+      expect(source, isNot(contains('router.push')),
+          reason: 'Tab switching must stay on TabRouter, never route pushes');
     });
 
     test('theme does not override pageTransitionsTheme', () {

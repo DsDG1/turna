@@ -6,7 +6,6 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/theme.dart';
@@ -24,11 +23,7 @@ class StatAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     return AppBar(
       toolbarHeight: 60,
-      leading: const Padding(
-        padding: EdgeInsets.only(left: 8),
-        child: CourseSwitchButton(),
-      ),
-      leadingWidth: 150,
+      leading: const CourseSwitchButton(),
       title: const SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
@@ -47,47 +42,22 @@ class StatAppBar extends StatelessWidget implements PreferredSizeWidget {
   }
 }
 
-/// Course switcher in the Learn-tab app bar: shows the ACTIVE COURSE NAME
-/// (plan 34 R1-5 — a labelless globe icon is not a discoverable switcher)
-/// and opens the course-management page, where switch / reorder / add /
-/// delete live.
+/// Course switcher entry in the Learn-tab app bar: a bare globe icon that
+/// opens the course-management page, where switch / reorder / add / delete
+/// live. Icon-only by design (change 2); the tooltip keeps it labeled for
+/// screen readers.
 class CourseSwitchButton extends StatelessWidget {
   const CourseSwitchButton({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<CourseProvider>();
-    final activeEntry = provider.catalogEntries
-        .where((entry) => entry.wireKey == provider.courseScope)
-        .firstOrNull;
-    final activeName = activeEntry?.displayName ?? AppStrings.courseManagementTitle;
-    return TextButton.icon(
+    return IconButton(
+      tooltip: AppStrings.courseManagementTitle,
       onPressed: () => context.router.push(CourseManagementRoute()),
       icon: const Icon(
         Icons.language_rounded,
-        size: 20,
+        size: 22,
         color: TurnaTheme.brandTeal,
-      ),
-      label: Text(
-        activeName,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: TurnaTheme.brandTeal,
-        ),
-      ),
-      style: TextButton.styleFrom(
-        backgroundColor: TurnaTheme.brandTeal.withValues(alpha: 0.08),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
-          side: BorderSide(
-            color: TurnaTheme.brandTeal.withValues(alpha: 0.20),
-            width: 1,
-          ),
-        ),
       ),
     );
   }

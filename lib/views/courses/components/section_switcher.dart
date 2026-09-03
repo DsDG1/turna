@@ -107,10 +107,19 @@ class _SectionHeaderCard extends StatelessWidget {
     final iconExtent = _lerp(48, 34);
     final iconSize = _lerp(24, 20);
     final gap = _lerp(14, 10);
-    final radius = _lerp(TurnaTheme.radiusLarge, TurnaTheme.radiusMedium);
+    final radius = _lerp(TurnaTheme.radiusLarge, 18);
     final fontSize = _lerp(18, 15.5);
-    final shadowAlpha = 1 - collapseProgress;
     final borderRadius = BorderRadius.circular(radius);
+    // 深度随收缩推进：L1 内容卡静置投影 → L2 悬浮条投影（与胶囊导航
+    // 平齐的层级），让「卡片变成悬浮条」的形变同时携带层级语义。
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final shadow = BoxShadow(
+      color: isDark
+          ? Colors.black.withValues(alpha: _lerp(0.22, 0.30))
+          : TurnaTheme.brandNavy.withValues(alpha: _lerp(0.06, 0.10)),
+      blurRadius: _lerp(14, 10),
+      offset: Offset(0, _lerp(5, 3)),
+    );
 
     final progress = context.select<ProgressProvider?, double>((p) {
       if (p == null || section.units.isEmpty) return 0.0;
@@ -135,19 +144,11 @@ class _SectionHeaderCard extends StatelessWidget {
           borderRadius: borderRadius,
           border: Border.all(
             color: TurnaTheme.dividerBg(context).withValues(
-              alpha: 0.6 + 0.4 * shadowAlpha,
+              alpha: _lerp(0.6, 1.0),
             ),
             width: 1.0,
           ),
-          boxShadow: [
-            BoxShadow(
-              color: TurnaTheme.brandNavy.withValues(
-                alpha: 0.07 * shadowAlpha,
-              ),
-              blurRadius: 10 * shadowAlpha,
-              offset: Offset(0, 4 * shadowAlpha),
-            ),
-          ],
+          boxShadow: [shadow],
         ),
         child: Material(
           color: TurnaTheme.cardBg(context),
@@ -155,10 +156,13 @@ class _SectionHeaderCard extends StatelessWidget {
           child: InkWell(
             onTap: onTap,
             borderRadius: borderRadius,
-            child: ClipRRect(
-              borderRadius: borderRadius,
-              child: Stack(
-                children: [
+          child: ClipRRect(
+            borderRadius: borderRadius,
+            child: Stack(
+              // 展开态与收缩态的卡片高度都大于内容行：垂直居中，避免
+              // 图标方块顶在上沿「上飘」。底部进度条是 Positioned，不受影响。
+              alignment: AlignmentDirectional.centerStart,
+              children: [
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: _lerp(16, 12)),
                     child: Row(

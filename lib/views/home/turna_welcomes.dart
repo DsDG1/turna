@@ -13,7 +13,12 @@ import 'package:turna/gen/assets.gen.dart';
 
 /// Rotating Turna mascot display on splash and home views.
 class TurnaWelcomes extends StatefulWidget {
-  const TurnaWelcomes({super.key});
+  const TurnaWelcomes({this.height = 250, super.key});
+
+  /// Rendered height in logical pixels. The asset is rasterized at
+  /// device-pixel resolution for this height, so smaller hero usages stay
+  /// crisp without oversampling the 250px splash size.
+  final double height;
 
   @override
   State<TurnaWelcomes> createState() => _TurnaWelcomesState();
@@ -40,7 +45,8 @@ class _TurnaWelcomesState extends State<TurnaWelcomes> {
     // Focus mode disables rotating animation for sensory-quiet preference.
     _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
       if (!mounted) return;
-      if (context.read<AccessibilityProvider>().focusMode) return;
+      final a11y = context.read<AccessibilityProvider>();
+      if (a11y.focusMode || a11y.reducedMotion) return;
       setState(() {
         _currentIndex = (_currentIndex + 1) % images.length;
       });
@@ -56,16 +62,17 @@ class _TurnaWelcomesState extends State<TurnaWelcomes> {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 250,
+      height: widget.height,
       child: RepaintBoundary(
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 500),
           child: Image.asset(
             images[_currentIndex],
             key: ValueKey<String>(images[_currentIndex]),
-            height: 250,
+            height: widget.height,
             fit: BoxFit.contain,
-            cacheHeight: (250 * MediaQuery.devicePixelRatioOf(context)).round(),
+            cacheHeight:
+                (widget.height * MediaQuery.devicePixelRatioOf(context)).round(),
           ),
         ),
       ),

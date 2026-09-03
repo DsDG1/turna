@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:turna/application/accessibility_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/home/motion/turna_motion.dart';
 import 'package:turna/views/theme.dart';
 
 /// Floating rounded frosted-glass tab bar.
@@ -59,10 +60,8 @@ class BottomNavigator extends StatelessWidget {
         return Stack(
           children: [
             AnimatedPositioned(
-              duration: reduceMotion
-                  ? Duration.zero
-                  : const Duration(milliseconds: 240),
-              curve: Curves.easeOutCubic,
+              duration: TurnaMotion.scaled(TurnaMotion.smooth, reduceMotion),
+              curve: TurnaMotion.easeOut,
               left: currentIndex * itemWidth + lensInset,
               top: 6,
               bottom: 6,
@@ -239,8 +238,7 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final duration =
-        reduceMotion ? Duration.zero : const Duration(milliseconds: 180);
+    final duration = TurnaMotion.scaled(TurnaMotion.fast, reduceMotion);
     const selectedColor = TurnaTheme.brandTeal;
     final idleColor = TurnaTheme.textHintColor(context);
 

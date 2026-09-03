@@ -25,6 +25,7 @@ import 'package:turna/views/content_update/content_update_dialog.dart';
 import 'package:turna/views/courses/course_tree.dart';
 import 'package:turna/views/home/components/components.dart';
 import 'package:turna/views/home/components/scroll_hide_bar.dart';
+import 'package:turna/views/home/components/tab_stack.dart';
 import 'package:turna/views/home/scroll_hide_policy.dart';
 import 'package:turna/views/home/streak_broken_dialog.dart';
 import 'package:turna/views/play/play_app_bar.dart';
@@ -202,19 +203,13 @@ class _HomePageState extends State<HomePage> {
         ),
         child: NotificationListener<UserScrollNotification>(
           onNotification: _onUserScroll,
-          child: IndexedStack(
+          // 原生默认瞬时切换：懒挂载 / Offstage / TickerMode / 语义隔离
+          // 都由承载层承担。
+          child: TabStack(
             index: currentIndex,
             children: [
               for (var i = 0; i < _screens.length; i++)
-                Offstage(
-                  offstage: currentIndex != i,
-                  child: TickerMode(
-                    enabled: currentIndex == i,
-                    child: _visited[i]
-                        ? _screens[i]
-                        : const SizedBox.shrink(),
-                  ),
-                ),
+                _visited[i] ? _screens[i] : const SizedBox.shrink(),
             ],
           ),
         ),

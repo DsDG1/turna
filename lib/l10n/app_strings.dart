@@ -1630,6 +1630,7 @@ class AppStrings {
       '$completedCount/$lessonsCount';
   static String coursesDueLessons(int count) => '$count 项待复习';
   static String coursesWeakLessons(int count) => '$count 项需加强';
+  static String get coursesNextLesson => '下一课';
   static String get coursesChooseSection => '选择章节';
 
   // ── Dictionary ──

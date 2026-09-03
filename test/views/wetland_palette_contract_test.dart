@@ -252,16 +252,21 @@ void main() {
 
   group('Clay productization call sites (structural)', () {
     test('course tree complete/perfect uses anatolianClay', () {
-      final src = File('lib/views/courses/course_tree.dart').readAsStringSync();
-      expect(src.contains('TurnaTheme.anatolianClay'), isTrue);
-      // Fully-complete unit progress and the perfect-pill border both
-      // reference clay (the perfect pill lives in _LessonTypeIcon).
+      // 「湿地晨光」重构后课程树拆为组件：单元进度在 unit_card.dart，
+      // 完美角标（原 _LessonTypeIcon）在 lesson_tile.dart。
+      final unitSrc =
+          File('lib/views/courses/components/unit_card.dart').readAsStringSync();
+      expect(unitSrc.contains('TurnaTheme.anatolianClay'), isTrue);
       expect(
-        RegExp(r'isFullyComplete[\s\S]{0,200}anatolianClay').hasMatch(src),
+        RegExp(r'isFullyComplete[\s\S]{0,200}anatolianClay').hasMatch(unitSrc),
         isTrue,
       );
+
+      final lessonSrc = File(
+        'lib/views/courses/components/lesson_tile.dart',
+      ).readAsStringSync();
       expect(
-        RegExp(r'perfect[\s\S]{0,300}anatolianClay').hasMatch(src),
+        RegExp(r'perfect[\s\S]{0,300}anatolianClay').hasMatch(lessonSrc),
         isTrue,
         reason: 'the perfect-pill border must stay clay',
       );
