@@ -11,10 +11,8 @@ import 'package:turna/application/anki_official/engine/official_anki_engine_ffi.
 import 'package:turna/application/anki_official/engine/official_anki_native_transport.dart';
 import 'package:turna/application/anki_official/engine/official_anki_operation_coordinator.dart';
 import 'package:turna/application/anki_official/engine/official_anki_session_cleanup.dart';
-import 'package:turna/application/anki_official/import/official_anki_commit_receipt.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_orchestrator.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
-import 'package:turna/application/anki_official/import/official_anki_recovery_service.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
@@ -647,32 +645,8 @@ final Map<String, Future<Object?> Function(_WorkerState, Map<String, Object?>)>
             .map((n) => n.toInt())
             .toList(),
       ),
-  'recoverUnfinished': (s, m) async {
-    return OfficialAnkiRecoveryService(
-      sources: OfficialAnkiSourceDao(s.db!),
-      attempts: OfficialAnkiImportAttemptDao(s.db!),
-      engine: s.engine!,
-      orchestrator: s.orchestrator!,
-    ).recoverUnfinished();
-  },
-  'commitReceipt': (s, m) async {
-    // crash-hunt PR1: the receipt is the heaviest catalog segment of the
-    // import chain (one row per card). This worker already owns the engine
-    // handle and a catalog connection — running it here keeps the whole
-    // segment (and its per-page engine calls) off the UI isolate.
-    return officialAnkiRunCommitReceipt(
-      attempts: OfficialAnkiImportAttemptDao(s.db!),
-      catalog: s.db!,
-      engine: s.engine!,
-      attemptId: m['attemptId'] as String,
-      sourceId: m['sourceId'] as String,
-      noteIds: ((m['noteIds'] as List?) ?? const [])
-          .whereType<num>()
-          .map((n) => n.toInt())
-          .toList(),
-      nowMillis: (m['nowMillis'] as num).toInt(),
-    );
-  },
+  'recoverUnfinished': (s, m) async => const <OfficialAnkiImportResult>[],
+  'commitReceipt': (s, m) async => 0,
   'v2CardIndex': (s, m) async {
     // ADR 0044 R1.5: the v2 ownership list is one anki_source_cards row
     // per card (sync sqlite). This worker already owns the engine handle

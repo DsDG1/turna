@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:turna/application/anki_official/anki_deck_manager.dart';
 import 'package:turna/application/study_session/anki_review_content.dart';
+import 'package:turna/application/anki_official/review/official_anki_routed_source.dart';
 import 'package:turna/application/anki_official/review/official_formal_review_production_loader.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
@@ -14,7 +15,6 @@ import 'package:turna/application/anki_official/engine/official_formal_due_repos
 import 'package:turna/application/anki_official/engine/official_formal_due_snapshot_builder.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_update.dart';
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
-import 'package:turna/application/anki_official/migration/official_anki_production_router.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/lesson_link_store.dart';
@@ -434,6 +434,80 @@ void main() {
         findsNothing,
         reason: 'the second commit must not enter recoverableError',
       );
+    },
+  );
+
+  testWidgets(
+    'completion summary counts answered cards, not the residual live queue '
+    '(regression: 记忆率 4000%)',
+    (tester) async {
+      const importId = 'src-summary';
+      _registerOfficialImport(importId);
+
+      final engine = FakeOfficialAnkiEngine();
+      engine.seedPackage(packagePath: 'summary.apkg', notes: 3, cards: 3);
+
+      AnkiReviewSessionPage.productionLoader =
+          OfficialFormalReviewProductionLoader(
+        flags: flags,
+        engine: engine,
+        resolveTarget: (_) async => const OfficialAnkiRoutedSource(
+          importId: importId,
+          sourceId: importId,
+          deckId: 1,
+          cardIds: {1, 2, 3},
+        ),
+        activePlacementCardIds: (_) => {1, 2, 3},
+        sessionFactory: ({
+          required engine,
+          required allowedCardIds,
+        }) async {
+          return OfficialReviewSession(
+            engine: engine,
+            flags: flags,
+            allowedCardIds: allowedCardIds,
+          );
+        },
+      );
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<SrsProvider>.value(value: srs),
+            ChangeNotifierProvider(create: (_) => CourseProvider(appPrefs)),
+          ],
+          child: const MaterialApp(
+            home: AnkiReviewSessionPage(
+              sectionId: 'anki-src-summary-s1',
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 20));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // 三张卡全部「记住」；评分条自动推进调度器 current，最后一张答完
+      // 直接进入完成页。
+      for (var i = 0; i < 3; i++) {
+        await tester.tap(find.text(AppStrings.lessonShowAnswer));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+        await tester.tap(find.text(AppStrings.reviewBinaryRemembered));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(engine.officialAnswers, 3);
+      expect(find.text(AppStrings.reviewCompletionTitle), findsOneWidget,
+          reason: 'a completed session with answered cards must show the '
+              'summary, even when the live queue drained to empty');
+      expect(find.text('3'), findsOneWidget,
+          reason: '复习总数 must be the 3 answered cards');
+      expect(find.text('100%'), findsOneWidget,
+          reason: '3/3 remembered must render 100%, never 4000%');
+      expect(find.text('3 / 0'), findsOneWidget);
     },
   );
 

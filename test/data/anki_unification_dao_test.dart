@@ -9,7 +9,7 @@ import '../helpers/in_memory_course_db.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('schema v18 introduction persist and unique active presentation',
+  test('introduction persists and retired unification tables stay deleted',
       () async {
     final db = emptyInMemoryCourseDatabase();
     addTearDown(db.close);
@@ -36,51 +36,8 @@ void main() {
     expect(state.introducedBy, CardIntroducedBy.course);
     expect(state.firstLessonId, 'l1');
 
-    await dao.insertActivePlacement(
-      placementId: 'pl-9',
-      courseId: 'c1',
-      profileId: 'p',
-      key: key,
-      sectionId: 's',
-      unitId: 'u',
-      lessonId: 'l1',
-      order: 0,
-      sourceFingerprint: 'fp',
-    );
-    await dao.insertActivePresentation(
-      courseId: 'c1',
-      key: key,
-      kind: 'flip',
-      payloadJson: '{"front":"a","back":"b"}',
-      sourceFingerprint: 'fp',
-    );
-
-    await expectLater(
-      dao.insertActivePresentation(
-        courseId: 'c1',
-        key: key,
-        kind: 'multipleChoice',
-        payloadJson: '{}',
-        sourceFingerprint: 'fp',
-      ),
-      throwsA(isA<Object>()),
-    );
-
-    await expectLater(
-      dao.insertActivePlacement(
-        placementId: 'pl-9-dup',
-        courseId: 'c1',
-        profileId: 'p',
-        key: key,
-        sectionId: 's',
-        unitId: 'u',
-        lessonId: 'l2',
-        order: 1,
-        sourceFingerprint: 'fp',
-      ),
-      throwsA(isA<Object>()),
-    );
-
+    // Step 6: the placement/presentation/source-authority tables are gone;
+    // only the introduction states and product events remain.
     final tables = await db
         .customSelect(
           "SELECT name FROM sqlite_master WHERE type = 'table' "
@@ -91,14 +48,7 @@ void main() {
         .get();
     expect(
       tables.map((row) => row.read<String>('name')),
-      [
-        'anki_card_introduction_states',
-        'anki_card_presentations',
-        'anki_course_card_placements',
-        'anki_course_sources',
-        'anki_import_jobs',
-        'study_product_events',
-      ],
+      ['anki_card_introduction_states', 'study_product_events'],
     );
   });
 

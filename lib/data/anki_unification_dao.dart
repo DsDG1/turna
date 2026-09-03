@@ -192,76 +192,11 @@ class AnkiUnificationDao {
     return affected > 0;
   }
 
-  Future<void> insertActivePlacement({
-    required String placementId,
-    required String courseId,
-    required String profileId,
-    required CanonicalCardKey key,
-    required String sectionId,
-    required String unitId,
-    required String lessonId,
-    required int order,
-    required String sourceFingerprint,
-  }) async {
-    await _db.customStatement(
-      '''
-      INSERT INTO anki_course_card_placements (
-        placement_id, course_id, profile_id, source_id, card_id,
-        section_id, unit_id, lesson_id, display_order, active,
-        projection_version, source_fingerprint, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?, ?)
-      ''',
-      [
-        placementId,
-        courseId,
-        profileId,
-        key.sourceId,
-        key.cardId,
-        sectionId,
-        unitId,
-        lessonId,
-        order,
-        sourceFingerprint,
-        DateTime.now().millisecondsSinceEpoch,
-        DateTime.now().millisecondsSinceEpoch,
-      ],
-    );
-  }
-
-  Future<void> insertActivePresentation({
-    required String courseId,
-    required CanonicalCardKey key,
-    required String kind,
-    required String payloadJson,
-    required String sourceFingerprint,
-  }) async {
-    await _db.customStatement(
-      '''
-      INSERT INTO anki_card_presentations (
-        course_id, source_id, card_id, presentation_kind, payload_json,
-        status, mapping_version, classifier_version, source_fingerprint,
-        user_confirmed, updated_at
-      ) VALUES (?, ?, ?, ?, ?, 'active', 1, 1, ?, 0, ?)
-      ''',
-      [
-        courseId,
-        key.sourceId,
-        key.cardId,
-        kind,
-        payloadJson,
-        sourceFingerprint,
-        DateTime.now().millisecondsSinceEpoch,
-      ],
-    );
-  }
-
   /// P5F-31: drop every unification row owned by [courseId] (official source
   /// uninstall). These tables have no inbound foreign keys, so plain deletes
   /// in any order are safe inside the caller's flow.
   Future<void> deleteByCourseId(String courseId) async {
     for (final table in const [
-      'anki_course_card_placements',
-      'anki_card_presentations',
       'anki_card_introduction_states',
       'study_product_events',
     ]) {

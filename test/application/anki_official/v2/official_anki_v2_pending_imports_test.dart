@@ -117,6 +117,7 @@ void main() {
       backendCommit: 'pending',
       nowMillis: 1,
     );
+    catalog.handle.execute("UPDATE anki_sources SET chain = 'v1' WHERE source_id = 'src-v1'");
     OfficialAnkiImportAttemptDao(catalog).insert(
       attemptId: 'att-v1',
       sourceId: 'src-v1',

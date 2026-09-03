@@ -123,48 +123,22 @@ INSERT INTO anki_import_attempts (
     required String attemptId,
     required List<int> noteIds,
   }) {
-    _db.execute('BEGIN');
-    try {
-      _db.execute(
-        'DELETE FROM anki_import_attempt_notes WHERE attempt_id = ?',
-        [attemptId],
-      );
-      final stmt = _db.prepare(
-        'INSERT INTO anki_import_attempt_notes '
-        '(attempt_id, ordinal, note_id) VALUES (?, ?, ?)',
-      );
-      try {
-        for (var i = 0; i < noteIds.length; i++) {
-          stmt.execute([attemptId, i, noteIds[i]]);
-        }
-      } finally {
-        stmt.dispose();
-      }
-      _db.execute('COMMIT');
-    } catch (suppressed) {
-      debugPrint('[OfficialAnkiImportAttemptDao] suppressed error: $suppressed');
-      _db.execute('ROLLBACK');
-      rethrow;
-    }
+    _db.execute(
+      'UPDATE anki_import_attempts SET receipt_note_ids_json = ? '
+      'WHERE attempt_id = ?',
+      [jsonEncode(noteIds), attemptId],
+    );
   }
 
   List<int> noteIdPage(String attemptId, int offset, int limit) {
-    return _db
-        .select(
-          'SELECT note_id FROM anki_import_attempt_notes '
-          'WHERE attempt_id = ? ORDER BY ordinal LIMIT ? OFFSET ?',
-          [attemptId, limit, offset],
-        )
-        .map((row) => row['note_id'] as int)
-        .toList();
+    final all = receiptNoteIds(attemptId);
+    if (offset >= all.length) return const [];
+    final end = (offset + limit < all.length) ? offset + limit : all.length;
+    return all.sublist(offset, end);
   }
 
   int noteIdCount(String attemptId) {
-    final row = _db.select(
-      'SELECT COUNT(*) AS n FROM anki_import_attempt_notes WHERE attempt_id = ?',
-      [attemptId],
-    ).first;
-    return row['n'] as int;
+    return receiptNoteIds(attemptId).length;
   }
 
   void commitIndexBatch({

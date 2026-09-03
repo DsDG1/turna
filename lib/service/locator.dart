@@ -27,8 +27,6 @@ import 'package:turna/core/logger.dart';
 import 'package:turna/core/verbose.dart';
 import 'package:turna/application/anki_official/introduction/card_introduction_store.dart';
 import 'package:turna/application/course_scope_migration.dart';
-import 'package:turna/data/anki_legacy_write_fence.dart';
-import 'package:turna/data/anki_owner_authority_dao.dart';
 import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/data/course_database_seeder.dart';
@@ -414,7 +412,6 @@ Future<void> setupLocator() async {
   final db = await _openAndSeedCourseDatabase();
   getIt.registerSingleton<CourseDatabase>(db);
   getIt.registerSingleton(AnkiUnificationDao(db));
-  getIt.registerSingleton(AnkiOwnerAuthorityDao(db));
   getIt.registerSingleton(
       CardIntroductionStore(dao: getIt<AnkiUnificationDao>()));
 
@@ -425,14 +422,6 @@ Future<void> setupLocator() async {
     await CourseScopePreferenceMigrator.repair(courseDb: db);
   } catch (e) {
     logger.w('course scope preference repair skipped: $e');
-  }
-
-  // Load the Legacy write fences (plan 34 §R4-1) before any Legacy writer
-  // can run.
-  try {
-    await LegacyWriteFence.instance.loadFrom(db);
-  } catch (e) {
-    logger.w('legacy write fence load skipped: $e');
   }
 
   if (!getIt.isRegistered<RestoreNormalizationService>()) {

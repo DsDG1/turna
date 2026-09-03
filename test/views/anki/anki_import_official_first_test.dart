@@ -23,13 +23,10 @@ import 'package:turna/application/anki_official/anki_deck_manager.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
-import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
-import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
 import 'package:turna/application/anki_official/engine/official_anki_native_availability.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
-import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/lesson_link_store.dart';
 import 'package:turna/application/mistake_provider.dart';
@@ -38,7 +35,6 @@ import 'package:turna/application/srs_provider.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/anki_note_dao.dart';
-import 'package:turna/data/anki_owner_authority_dao.dart';
 import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/data/course_repository.dart';
@@ -97,40 +93,6 @@ class _FailingOfficialImporter implements OfficialAnkiImporter {
   }
 }
 
-class _ActiveOfficialImporter implements OfficialAnkiImporter {
-  _ActiveOfficialImporter(
-    this.dao, {
-    this.sourceId = 'src-p5f-test',
-  });
-
-  final AnkiImportDao dao;
-  final String sourceId;
-  int calls = 0;
-
-  /// Import rows present at the moment the official saga ran — proves the
-  /// saga ran BEFORE the Turna transaction.
-  List<String> importIdsAtOfficialRun = const [];
-
-  @override
-  Future<OfficialAnkiImportResult> importFile({
-    required String packagePath,
-    required String displayName,
-    String? requestId,
-    bool cancel = false,
-  }) async {
-    calls++;
-    importIdsAtOfficialRun =
-        (await dao.getAll()).map((r) => r.importId).toList();
-    return OfficialAnkiImportResult(
-      sourceId: sourceId,
-      attemptId: 'att-$sourceId',
-      state: OfficialAnkiSourceState.active,
-      cardCount: 2,
-      noteCount: 2,
-    );
-  }
-}
-
 const _capableFlags = OfficialAnkiFeatureFlags(
   engine: true,
   import: true,
@@ -179,9 +141,6 @@ void main() {
     final importDao = AnkiImportDao(db);
     getIt.registerSingleton<AnkiImportDao>(importDao);
     getIt.registerSingleton<AnkiUnificationDao>(AnkiUnificationDao(db));
-    getIt.registerSingleton<AnkiOwnerAuthorityDao>(
-      AnkiOwnerAuthorityDao(db),
-    );
 
     courseProvider = CourseProvider(appPrefs);
     final linkStore = LessonLinkStore(appPrefs);
@@ -253,35 +212,18 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  Future<void> pickAndWaitForPreview(WidgetTester tester) async {
-    await tester.tap(
-      find.widgetWithText(ElevatedButton, AppStrings.ankiChooseFile),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text(AppStrings.ankiPreviewStartImport), findsOneWidget,
-        reason: 'preview step reached');
-  }
-
-  Future<void> startImport(WidgetTester tester) async {
-    await tester.tap(find.text(AppStrings.ankiPreviewStartImport));
-    await tester.pumpAndSettle();
-  }
-
   testWidgets(
       'p5f_official_first_failure_leaves_zero_turna_writes', (tester) async {
     tester.view.physicalSize = const Size(1080, 1920);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
 
-    final failing = _FailingOfficialImporter();
-    OfficialAnkiCompositionRoot.session = failing;
     await pumpWizard(tester);
     await tester.tap(
       find.widgetWithText(ElevatedButton, AppStrings.ankiChooseFile),
     );
     await tester.pumpAndSettle();
 
-    expect(failing.calls, 1, reason: 'official saga ran');
     expect(
       find.widgetWithText(ElevatedButton, AppStrings.ankiChooseFile),
       findsOneWidget,
@@ -303,86 +245,12 @@ void main() {
     );
   });
 
-  testWidgets('p5f_official_first_flow_projects_course_and_publishes',
-      (tester) async {
-    tester.view.physicalSize = const Size(1080, 1920);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
-
-    final catalog = OfficialAnkiDatabase.memory();
-    OfficialAnkiCompositionRoot.readOnlyCatalog = catalog;
-    OfficialAnkiSourceDao(catalog).upsertSource(
-      sourceId: 'src-p5f2',
-      profileId: 'profile-default-01',
-      sourceHash: 'hash-p5f2',
-      sourceSize: 1,
-      displayName: 'p5f.apkg',
-      state: 'active',
-      backendCommit: 'test',
-      nowMillis: 1,
-    );
-    OfficialAnkiSourceDao(catalog).replaceCards(
-      sourceId: 'src-p5f2',
-      cards: const [
-        OfficialAnkiCardDescriptor(
-            cardId: 1, noteId: 1, deckId: 1, templateOrd: 0, noteGuid: 'g1'),
-        OfficialAnkiCardDescriptor(
-            cardId: 2, noteId: 2, deckId: 1, templateOrd: 0, noteGuid: 'g2'),
-      ],
-    );
-    final engine = FakeOfficialAnkiEngine();
-    engine.seedPackage(packagePath: 'x.apkg', notes: 2, cards: 2);
-    OfficialAnkiCompositionRoot.debugEngineOverride = engine;
-    OfficialAnkiCompositionRoot.session = _ActiveOfficialImporter(
-      getIt<AnkiImportDao>(),
-      sourceId: 'src-p5f2',
-    );
-
-    await pumpWizard(tester);
-    await pickAndWaitForPreview(tester);
-
-    // Projection-based preview, not the legacy collection preview.
-    expect(find.text(AppStrings.ankiOfficialPreviewBody), findsOneWidget);
-    expect(
-      find.byWidgetPredicate((widget) {
-        if (widget is! Text) return false;
-        final data = widget.data;
-        if (data == null) return false;
-        return data == AppStrings.ankiMappingSummaryAll(1) ||
-            data.contains('已识别') ||
-            data.contains('还分不清');
-      }),
-      findsOneWidget,
-      reason: 'mapping summary is one of the three recognition states',
-    );
-    expect(find.text(AppStrings.ankiOfficialMappingSuggested), findsNothing,
-        reason: 'normal mappings stay collapsed behind the summary');
-
-    await startImport(tester);
-
-    expect(find.text(AppStrings.ankiImportComplete), findsOneWidget);
-    final sections = await getIt<ICourseRepository>().sectionShells();
-    expect(
-      sections.where((s) => s.id.startsWith('official-anki-src-p5f2-')),
-      isNotEmpty,
-      reason: 'course tree projected from the official collection',
-    );
-    final placements = getIt<CourseDatabase>();
-    final count = await placements.customSelect(
-      'SELECT COUNT(*) AS n FROM anki_course_card_placements '
-      "WHERE source_id = 'src-p5f2'",
-    ).getSingle();
-    expect(count.read<int>('n'), 2,
-        reason: 'placements published from the projection index');
-    final imports = await getIt<AnkiImportDao>().getAll();
-    expect(imports, isEmpty,
-        reason: 'official-first flow writes no legacy anki_imports rows');
-    expect(
-      srsProvider.state.keys.where((id) => id.startsWith('anki-')),
-      isEmpty,
-      reason: 'no Turna SRS rows',
-    );
-  });
+  // NOTE (Step 6): the doc 39 P5-F UI happy path was retired with the v1
+  // session-importer flow — `OfficialAnkiCompositionRoot.session.importFile`
+  // is unreachable in the staging-first architecture and the test asserted
+  // the dropped `anki_course_card_placements` table. Staging import →
+  // preview → discard is covered by anki_import_staging_first_p0_test.dart
+  // (P0 S-a / S-b) and commit → course tree by the v2 import chain tests.
 
   testWidgets('official_first_flag_off_fail_closes_with_zero_writes',
       (tester) async {

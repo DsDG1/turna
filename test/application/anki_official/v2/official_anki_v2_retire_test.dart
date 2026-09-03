@@ -230,7 +230,7 @@ void main() {
 
   test('engine delete pages ownership ids without loading the full list',
       () async {
-    final sourceId = 'src-paged';
+    const sourceId = 'src-paged';
     final sources = OfficialAnkiSourceDao(catalog);
     sources.upsertSource(
       sourceId: sourceId,

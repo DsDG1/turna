@@ -27,10 +27,11 @@ void main() {
 
   const sourceId = 'src-v2-read';
   const lessonId = 'official-anki-src-v2-read-l-abc-p1';
+  const part2Id = 'official-anki-src-v2-read-l-abc-p2';
+  const part3Id = 'official-anki-src-v2-read-l-abc-p3';
   const otherLessonId = 'official-anki-legacy-l-xyz-p1';
 
-  final v2On = OfficialAnkiFeatureFlags.productionAndroid
-      .copyWith(v2ImportChain: true);
+  const v2On = OfficialAnkiFeatureFlags.productionAndroid;
 
   setUp(() async {
     catalog = OfficialAnkiDatabase.memory();
@@ -121,19 +122,6 @@ void main() {
     expect(index, isNull);
   });
 
-  test('flag off (rollback): view rows are invisible, v1 semantics intact',
-      () async {
-    // R4 翻开后生产位恒 true；v1 零回归基线 = 回退态
-    // copyWith(v2ImportChain: false)（回退只路由新导入，不销毁数据）。
-    OfficialAnkiV2CourseRead.flagsOf =
-        () => OfficialAnkiFeatureFlags.productionAndroid
-            .copyWith(v2ImportChain: false);
-    final index = await OfficialAnkiLessonCardIndex.resolveForLesson(lessonId);
-    expect(index, isNull,
-        reason: 'flag 关时 v1 投影 index 是唯一读面（零回归的结构保证）');
-    expect(await OfficialAnkiV2CourseRead.enabled, isFalse);
-  });
-
   test('flag on: section shells synthesize from the view', () async {
     OfficialAnkiV2CourseRead.flagsOf = () => v2On;
     final read = OfficialAnkiV2CourseRead(catalog: catalog, course: course);
@@ -161,5 +149,99 @@ void main() {
     // 视图行还在（等 job 重建清理），但卡映射读面按账本过滤。
     // lessonCardEntriesForLesson 过滤后为空 → index 为 null。
     expect(index, isNull);
+  });
+
+  test('flag on: same-key lesson parts list in card order with (n) suffix',
+      () async {
+    OfficialAnkiV2CourseRead.flagsOf = () => v2On;
+    // 同一 unit、同一 lessonKey 的三个 part 片；cardId 序 ≠ lesson_id
+    // hash 序（p1 < p3 < p2 按首卡），树壳必须按首卡排序并加 (n) 后缀。
+    OfficialAnkiV2ViewRow partRow(String id, int cardId, int noteId) =>
+        OfficialAnkiV2ViewRow(
+          sourceId: sourceId,
+          cardId: cardId,
+          noteId: noteId,
+          deckId: 10,
+          wordId: 'w-$cardId',
+          sectionKey: 'Deck A',
+          sectionId: 'official-anki-src-v2-read-s-111',
+          unitId: 'official-anki-src-v2-read-u-222',
+          lessonId: id,
+          lessonKey: 'Deck A',
+          presentationKind: 'showWord',
+          sourceHash: 'hash-read',
+        );
+
+    await OfficialAnkiV2ViewStore(course).replaceAll(
+      rows: [
+        const OfficialAnkiV2ViewRow(
+          sourceId: sourceId,
+          cardId: 7,
+          noteId: 70,
+          deckId: 10,
+          wordId: 'w-7',
+          sectionKey: 'Deck A',
+          sectionId: 'official-anki-src-v2-read-s-111',
+          unitId: 'official-anki-src-v2-read-u-222',
+          lessonId: lessonId,
+          lessonKey: 'Deck A',
+          presentationKind: 'showWord',
+          sourceHash: 'hash-read',
+        ),
+        partRow(part3Id, 11, 110),
+        partRow(part2Id, 12, 120),
+      ],
+      rebuiltAtMillis: 2,
+    );
+
+    final shells = await OfficialAnkiV2CourseRead(
+      catalog: catalog,
+      course: course,
+    ).sectionShells();
+    final lessons = shells.single.units.single.lessons;
+    expect(lessons.map((l) => l.id).toList(), [
+      lessonId, // 首卡 7
+      part3Id, // 首卡 11
+      part2Id, // 首卡 12
+    ], reason: 'hash lesson_id 序 ≠ 卡序，按组内首卡排序');
+    expect(lessons.map((l) => l.name).toList(), [
+      'Deck A (1)',
+      'Deck A (2)',
+      'Deck A (3)',
+    ]);
+  });
+
+  test('flag on: units list in first-card order within a section', () async {
+    OfficialAnkiV2CourseRead.flagsOf = () => v2On;
+    const unitLate = 'official-anki-src-v2-read-u-late';
+    await OfficialAnkiV2ViewStore(course).replaceAll(
+      rows: [
+        ...await OfficialAnkiV2ViewStore(course).rowsForLesson(lessonId),
+        const OfficialAnkiV2ViewRow(
+          sourceId: sourceId,
+          cardId: 30,
+          noteId: 300,
+          deckId: 12,
+          wordId: 'w-30',
+          sectionKey: 'Deck A',
+          sectionId: 'official-anki-src-v2-read-s-111',
+          unitId: unitLate,
+          lessonId: 'official-anki-src-v2-read-l-late-p1',
+          lessonKey: 'Deck A::Sub',
+          presentationKind: 'showWord',
+          sourceHash: 'hash-read',
+        ),
+      ],
+      rebuiltAtMillis: 2,
+    );
+
+    final shells = await OfficialAnkiV2CourseRead(
+      catalog: catalog,
+      course: course,
+    ).sectionShells();
+    expect(shells.single.units.map((u) => u.id).toList(), [
+      'official-anki-src-v2-read-u-222', // 首卡 7
+      unitLate, // 首卡 30
+    ]);
   });
 }

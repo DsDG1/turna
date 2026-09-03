@@ -2,7 +2,6 @@ import 'package:turna/application/anki_official/import/anki_import_execution_pla
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/import/anki_import_facade.dart';
 import 'package:turna/application/anki_official/import/official_anki_official_first_service.dart';
-import 'package:turna/application/anki_official/projection/official_anki_projection_store.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/data/course_database.dart';
@@ -18,7 +17,6 @@ class AnkiImportDependencies {
     required this.pickFilePath,
     required this.officialFirst,
     required this.courseDatabase,
-    required this.readOfficialProjectionSummary,
     required this.courseProvider,
   });
 
@@ -38,10 +36,6 @@ class AnkiImportDependencies {
   final OfficialAnkiOfficialFirstService officialFirst;
 
   final CourseDatabase courseDatabase;
-
-  /// Reads the projection summary for the official done page.
-  final Future<OfficialProjectionSummarySnapshot> Function(String sourceId)
-      readOfficialProjectionSummary;
 
   final CourseProvider courseProvider;
 
@@ -71,23 +65,7 @@ class AnkiImportDependencies {
       }),
       officialFirst: const OfficialAnkiOfficialFirstService(),
       courseDatabase: getIt<CourseDatabase>(),
-      readOfficialProjectionSummary: (sourceId) =>
-          OfficialProjectionSummaryReader.read(sourceId),
       courseProvider: courseProvider,
     );
-  }
-}
-
-/// Summary shape for the official done page.
-typedef OfficialProjectionSummarySnapshot = OfficialProjectionSummary;
-
-/// Indirection over the projection store so tests don't need the real DB.
-class OfficialProjectionSummaryReader {
-  OfficialProjectionSummaryReader._();
-
-  static Future<OfficialProjectionSummarySnapshot> read(String sourceId) {
-    return OfficialAnkiCourseProjectionStore(
-      getIt<CourseDatabase>(),
-    ).readOfficialProjectionSummary(sourceId);
   }
 }

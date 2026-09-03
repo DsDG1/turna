@@ -118,14 +118,6 @@ class DatabaseSeeder {
       await db.delete(db.vocabulary).go();
       await db.delete(db.grammarPoints).go();
       await db.delete(db.expressions).go();
-      // P5F-32: the reseed wipes sections/units/lessons, so a surviving
-      // projection index/manifest would keep pointing at deleted trees and
-      // the projection fingerprint no-op would never rebuild them. Dropping
-      // both forces the next projectSource to republish.
-      await db
-          .customStatement('DELETE FROM official_anki_projection_index');
-      await db
-          .customStatement('DELETE FROM official_anki_projection_manifest');
       // Keep courseMeta until we rewrite version after seed.
     });
   }

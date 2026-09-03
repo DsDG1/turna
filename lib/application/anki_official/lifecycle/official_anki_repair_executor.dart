@@ -1,62 +1,42 @@
 import 'package:turna/application/anki_official/import/official_anki_import_orchestrator.dart';
-import 'package:turna/application/anki_official/import/official_anki_recovery_service.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_maintenance.dart';
-import 'package:turna/application/anki_official/lifecycle/official_anki_uninstall_saga.dart';
-import 'package:turna/application/anki_official/migration/official_anki_startup_census.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
+import 'package:turna/application/anki_official/v2/official_anki_v2_retire_service.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 
-/// Production executor for census whitelist actions (doc 41 S8).
+/// Production executor for the startup repair pass: drives pending v2
+/// retire sequences to completion and drains pending maintenance jobs.
 class OfficialAnkiRepairExecutor {
   const OfficialAnkiRepairExecutor();
-
-  static const whitelist = <String>{
-    'resumeImport',
-    'resumeProjection',
-    'commitAuthority',
-    'retryCleanup',
-    'enqueueMaintenance',
-    'quarantine',
-  };
-
-  /// Doc 42 P3: census `restoreCheckpoint` is not executable; quarantine.
-  static String effectiveAction(String action) =>
-      action == 'restoreCheckpoint' ? 'quarantine' : action;
 
   Future<OfficialAnkiRepairReport> run({
     required CourseDatabase course,
     required OfficialAnkiDatabase catalog,
     required OfficialAnkiImportOrchestrator orchestrator,
     OfficialAnkiPaths? paths,
-    OfficialAnkiUninstallSaga? uninstall,
+    dynamic uninstall,
     String profileId = 'profile-default-01',
     String? maintenanceLeaseOwnerToken,
   }) async {
-    const census = OfficialAnkiStartupCensus();
-    final report = await census.run(
-      course: course,
-      catalog: catalog,
-      profileId: profileId,
-    );
-    final recovery = OfficialAnkiRecoveryService(
-      sources: orchestrator.sources,
-      attempts: orchestrator.attempts,
-      engine: orchestrator.engine,
-      orchestrator: orchestrator,
-    );
-    final recovered = await recovery.recoverUnfinished();
     var cleanups = 0;
-    if (uninstall != null) {
+    if (paths != null) {
+      final retireService = OfficialAnkiV2RetireService(
+        catalog: catalog,
+        paths: paths,
+        course: course,
+        engine: orchestrator.engine,
+      );
       final pending = orchestrator.sources
           .listSources(profileId)
-          .where((row) => row.state == 'pending_cleanup');
+          .where((row) =>
+              row.state == 'pending_cleanup' || row.state == 'retiring');
       for (final source in pending) {
         try {
-          final result = await uninstall.run(source.sourceId);
-          if (result.logicalDeleteComplete) cleanups++;
+          await retireService.runRetireJob(sourceId: source.sourceId);
+          cleanups++;
         } catch (error) {
           debugPrint('[OfficialAnkiRepair] cleanup ${source.sourceId}: $error');
         }
@@ -75,8 +55,8 @@ class OfficialAnkiRepairExecutor {
       );
     }
     return OfficialAnkiRepairReport(
-      censusRows: report.rows.length,
-      recoveredAttempts: recovered.length,
+      censusRows: 0,
+      recoveredAttempts: 0,
       resumedCleanups: cleanups,
       maintenanceJobs: maintenance,
     );

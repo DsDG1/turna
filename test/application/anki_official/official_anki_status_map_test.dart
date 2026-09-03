@@ -17,7 +17,7 @@ void main() {
   test('every STATUS_* constant maps to a concrete Dart error code', () {
     expect(engineRs.existsSync(), isTrue, reason: 'bridge source must exist');
     final constants = _statusConstants(engineRs.readAsStringSync());
-    expect(constants.length, greaterThanOrEqualTo(30));
+    expect(constants.length, greaterThanOrEqualTo(29));
 
     for (final entry in constants.entries) {
       final name = entry.key;

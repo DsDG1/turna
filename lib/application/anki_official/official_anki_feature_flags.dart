@@ -7,23 +7,11 @@
 /// - `TURNA_OFFICIAL_ANKI_REVIEWER_DIAGNOSTICS`
 /// - `TURNA_OFFICIAL_ANKI_COURSE_GRADES_SCHEDULER`
 ///
-/// `TURNA_OFFICIAL_ANKI_V2_IMPORT_CHAIN` was retired at R4 (2026-09-02):
-/// productionAndroid ships `v2ImportChain: true`, and feeding the define
-/// through [copyWith] would overwrite that constant with the absent-define
-/// `false` — its C3 feeding mission is complete, so it is no longer read.
-///
 /// `TURNA_OFFICIAL_ANKI_DIAGNOSTICS` is the release diagnostics route
 /// guard, not a field here.
 ///
 /// Product pause is [LegacyAnkiMigrationFlags.cutoverEnabled]
 /// (`TURNA_OFFICIAL_ANKI_CUTOVER`, default true) — not a second flag matrix.
-///
-/// v2 import chain (ADR 0043 / step4.md A1): exactly one boolean routes new
-/// imports and the course-tree read path. Default false; productionAndroid
-/// stays false until the K1–K14 on-device matrix is green plus one internal
-/// release observation window. Rolling back only re-routes NEW imports —
-/// already-imported v2 sources stay learnable (ledger rows, config decisions
-/// and the view table all remain; the read path serves both generations).
 class OfficialAnkiFeatureFlags {
   const OfficialAnkiFeatureFlags({
     this.engine = false,
@@ -38,12 +26,10 @@ class OfficialAnkiFeatureFlags {
     this.scheduler = false,
     this.courseGradesScheduler = false,
     this.officialFirstImport = false,
-    this.v2ImportChain = false,
   });
 
   /// Android production product flags. Opt-in reviewer diagnostics / grades
-  /// stay off. v2ImportChain flipped at R4 (2026-09-02; step4.md receipts) —
-  /// rollback = flip it back to false (re-routes NEW imports only).
+  /// stay off.
   static const productionAndroid = OfficialAnkiFeatureFlags(
     engine: true,
     import: true,
@@ -55,7 +41,6 @@ class OfficialAnkiFeatureFlags {
     courseEntry: true,
     scheduler: true,
     officialFirstImport: true,
-    v2ImportChain: true,
   );
 
   factory OfficialAnkiFeatureFlags.fromEnvironment() {
@@ -63,8 +48,6 @@ class OfficialAnkiFeatureFlags {
         bool.fromEnvironment('TURNA_OFFICIAL_ANKI_REVIEWER_DIAGNOSTICS');
     const courseGradesScheduler =
         bool.fromEnvironment('TURNA_OFFICIAL_ANKI_COURSE_GRADES_SCHEDULER');
-    // v2ImportChain deliberately NOT copied here: an absent define reads
-    // false and would clobber the productionAndroid constant (R4 trap).
     return productionAndroid.copyWith(
       reviewerDiagnostics: reviewerDiagnostics,
       courseGradesScheduler: courseGradesScheduler,
@@ -83,13 +66,6 @@ class OfficialAnkiFeatureFlags {
   final bool scheduler;
   final bool courseGradesScheduler;
   final bool officialFirstImport;
-
-  /// v2 single-source chain (step4.md A1). [productionAndroid] ships it on
-  /// since R4 (2026-09-02); rollback = flip the constant back to false.
-  /// Rolling back only re-routes NEW imports — already-imported v2 sources
-  /// stay learnable (ledger rows, config decisions and the view table all
-  /// remain; the read path serves both generations).
-  final bool v2ImportChain;
 
   static OfficialAnkiFeatureFlags current =
       OfficialAnkiFeatureFlags.fromEnvironment();
@@ -124,10 +100,8 @@ class OfficialAnkiFeatureFlags {
   bool get allowsOfficialFirstImport =>
       officialFirstImport && allowsOfficialImport && allowsCourseEntry;
 
-  /// v2 chain gate (step4.md A1): rides on the v1 capability floor — v2 is
-  /// a routing change of the publish/read stages, not a new engine surface.
-  bool get allowsV2ImportChain =>
-      v2ImportChain && allowsOfficialFirstImport;
+  /// v2 chain gate (step4.md A1, retired at step6.md): always true.
+  bool get allowsV2ImportChain => true;
 
   OfficialAnkiFeatureFlags copyWith({
     bool? engine,
@@ -142,7 +116,6 @@ class OfficialAnkiFeatureFlags {
     bool? scheduler,
     bool? courseGradesScheduler,
     bool? officialFirstImport,
-    bool? v2ImportChain,
   }) {
     return OfficialAnkiFeatureFlags(
       engine: engine ?? this.engine,
@@ -158,7 +131,6 @@ class OfficialAnkiFeatureFlags {
       courseGradesScheduler:
           courseGradesScheduler ?? this.courseGradesScheduler,
       officialFirstImport: officialFirstImport ?? this.officialFirstImport,
-      v2ImportChain: v2ImportChain ?? this.v2ImportChain,
     );
   }
 }

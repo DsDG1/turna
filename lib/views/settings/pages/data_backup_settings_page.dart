@@ -227,7 +227,7 @@ class DataBackupSettingsPage extends StatelessWidget {
   }
 
   /// turna-migration-v1 import (plan 34 §R7-3). Validation is fail-closed;
-  /// the dialog reports exact outcomes, including pending legacy imports.
+  /// the dialog reports exact outcomes, including ignored legacy imports.
   Future<void> _importMigrationPackage(BuildContext context) async {
     String? pickedPath;
     try {
@@ -249,8 +249,8 @@ class DataBackupSettingsPage extends StatelessWidget {
       context: context,
       builder: (_) => SettingsConfirmDialog(
         title: '导入 Turna 迁移包',
-        message: '将迁移包中的学习进度恢复到本机。Anki 牌组数据会进入'
-            '「待迁移」状态，需要你确认后才会迁移，不会直接启用旧调度器。',
+        message: '将迁移包中的学习进度恢复到本机。旧版 Anki 牌组数据'
+            '不再迁移（v1 链路已退役），学习记录与复习历史会照常恢复。',
         confirmText: '开始导入',
       ),
     );
@@ -261,13 +261,14 @@ class DataBackupSettingsPage extends StatelessWidget {
       final result = await importer.importFrom(File(pickedPath));
       if (!context.mounted) return;
       if (result.applied) {
-        final pending = result.legacyPendingImports.isEmpty
+        final ignored = result.legacyIgnoredImports.isEmpty
             ? ''
-            : '\n待迁移 Anki 牌组：${result.legacyPendingImports.length} 个';
+            : '\n已忽略旧版 Anki 牌组：${result.legacyIgnoredImports.length} 个'
+                '（不再迁移）';
         _showSnack(
           context,
           '迁移完成：学习记录 ${result.restoredSrsStates} 条、复习历史 '
-          '${result.restoredReviewEvents} 条$pending',
+          '${result.restoredReviewEvents} 条$ignored',
         );
       } else {
         _showSnack(context, '迁移包被拒绝：${_rejectionText(result.rejection)}');

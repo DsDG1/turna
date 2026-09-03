@@ -13,10 +13,7 @@ import 'package:turna/application/anki_official/import/official_anki_import_stat
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
-import 'package:turna/application/anki_official/projection/official_anki_projection_paging.dart';
-import 'package:turna/application/anki_official/projection/official_anki_projection_service.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
-import 'package:turna/data/course_database.dart';
 
 class OfficialAnkiRuntimeProbe {
   const OfficialAnkiRuntimeProbe({
@@ -278,24 +275,6 @@ class OfficialAnkiCompositionRoot {
     return catalog;
   }
 
-  static OfficialAnkiCourseProjectionService createProjectionService({
-    required OfficialAnkiEngine engine,
-    required OfficialAnkiDatabase catalog,
-    required CourseDatabase course,
-    required String sourceId,
-    required String profileId,
-    OfficialAnkiFeatureFlags? flags,
-  }) {
-    return OfficialAnkiCourseProjectionService(
-      engine: engine,
-      catalog: catalog,
-      course: course,
-      sourceId: sourceId,
-      profileId: profileId,
-      flags: flags ?? OfficialAnkiFeatureFlags.current,
-      ownerToken: officialAnkiProjectionOwnerToken(profileId),
-    );
-  }
 
   /// Test seam: engine used by [projectionEngineFromSession] regardless of
   /// session state. Production never sets this.

@@ -11,12 +11,10 @@ import 'package:turna/application/anki_import/recognition/official_recognition_t
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/import/anki_import_execution_plan.dart';
-import 'package:turna/application/anki_official/lifecycle/official_anki_source_metadata_dao.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_saga.dart';
-import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
@@ -422,134 +420,32 @@ class AnkiImportController extends ChangeNotifier {
       cardCount: preview.cardCount,
       noteCount: preview.noteCount,
       decks: preview.decks,
+      cardCountByDeck: preview.cardCountByDeck,
       schemas: preview.schemas,
       suggestions: preview.suggestions,
-      service: preview.service,
     );
   }
 
-  /// Writes live Collection, promotes staging mappings, then projects.
+  /// Writes live Collection, promotes staging mappings, then projects via v2.
   Future<_OfficialFirstCommitResult> _commitOfficial(
     OfficialAnkiImportPreviewModel preview,
   ) async {
-    final service = preview.service;
     for (final schema in preview.schemas) {
       if (preview.skippedNotetypes.contains(schema.notetypeId)) continue;
       if (preview.confirmedNotetypes.contains(schema.notetypeId)) continue;
       preview.suggestions[schema.notetypeId] =
-          preview.suggestions[schema.notetypeId] ?? service.suggestFor(schema);
+          preview.suggestions[schema.notetypeId] ?? officialAnkiSuggestMapping(schema);
       preview.confirmedNotetypes.add(schema.notetypeId);
     }
 
     final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
     final paths = OfficialAnkiCompositionRoot.locatorPaths;
-    // v2 分叉（step4.md B1/B2）：flag 开 → 发布段整体走 v2 链（配置区
-    // 决策 + 账本五表 + 视图重建），不进 v1 投影/发布。flag 关（默认）
-    // = v1 原样，零回归。
-    if (OfficialAnkiFeatureFlags.current.allowsV2ImportChain &&
-        catalog != null &&
-        paths != null) {
+    if (catalog != null && paths != null) {
       return _commitOfficialV2(preview, catalog, paths);
     }
-    OfficialAnkiImportSaga? saga;
-    OfficialAnkiImportResult? imported;
-    if (catalog != null && paths != null) {
-      saga = OfficialAnkiImportSaga(
-        sources: OfficialAnkiSourceDao(catalog),
-        attempts: OfficialAnkiImportAttemptDao(catalog),
-        paths: paths,
-      );
-      imported = await saga.commitLive(
-        sourceId: preview.sourceId,
-        packagePath: preview.filePath,
-        projection: service,
-        suggestions: preview.suggestions,
-        confirmedNotetypes: preview.confirmedNotetypes,
-        skippedNotetypes: preview.skippedNotetypes,
-      );
-      if (imported.alreadyImported) {
-        await saga.finishCommit(
-          sourceId: imported.sourceId,
-          attemptId: imported.attemptId,
-          published: true,
-        );
-        return _OfficialFirstCommitResult(
-          summary: AnkiImportSummary(
-            importId: imported.sourceId,
-            sectionCount: 0,
-            unitCount: 0,
-            lessonCount: 0,
-            cardCount: imported.cardCount,
-            wordEntryCount: imported.cardCount,
-            sourceCardCount: imported.cardCount,
-          ),
-          needsMapping: false,
-        );
-      }
-    }
-
-    var notetypeIds = preview.schemas.map((s) => s.notetypeId).toList();
-    if (catalog != null) {
-      final fromReceipt =
-          OfficialAnkiSourceMetadataDao(catalog).notetypeIds(preview.sourceId);
-      if (fromReceipt.isNotEmpty) notetypeIds = fromReceipt;
-    }
-    final result = await _deps.officialFirst.projectAndPublish(
-      service: service,
-      sourceId: preview.sourceId,
-      sourceHash: preview.sourceHash,
-      notetypeIds: notetypeIds,
-    );
-    if (result.needsMapping) {
-      preview.needsMapping = true;
-      await saga?.finishCommit(
-        sourceId: preview.sourceId,
-        attemptId: imported?.attemptId ?? preview.sourceId,
-        published: false,
-      );
-      return _OfficialFirstCommitResult(
-        summary: AnkiImportSummary(
-          importId: preview.sourceId,
-          sectionCount: 0,
-          unitCount: 0,
-          lessonCount: 0,
-          cardCount: 0,
-          wordEntryCount: 0,
-        ),
-        needsMapping: true,
-      );
-    }
-    if (result.failed) {
-      await saga?.finishCommit(
-        sourceId: preview.sourceId,
-        attemptId: imported?.attemptId ?? preview.sourceId,
-        published: false,
-      );
-      throw OfficialAnkiException(
-        code: OfficialAnkiErrorCode.invalidState,
-        messageKey: 'official_anki.projection_failed',
-        debugDetails: result.errorCode ?? 'unknown',
-      );
-    }
-
-    await saga?.finishCommit(
-      sourceId: preview.sourceId,
-      attemptId: imported?.attemptId ?? preview.sourceId,
-      published: true,
-    );
-    final projection =
-        await _deps.readOfficialProjectionSummary(preview.sourceId);
-    return _OfficialFirstCommitResult(
-      summary: AnkiImportSummary(
-        importId: preview.sourceId,
-        sectionCount: projection.sectionIds.length,
-        unitCount: 0,
-        lessonCount: projection.lessonCount,
-        cardCount: result.itemCount,
-        wordEntryCount: result.itemCount,
-        sourceCardCount: preview.cardCount,
-      ),
-      needsMapping: false,
+    throw const OfficialAnkiException(
+      code: OfficialAnkiErrorCode.capabilityMissing,
+      messageKey: 'official_anki.catalog_missing',
     );
   }
 

@@ -39,26 +39,9 @@ enum OfficialAnkiNativeCommitState {
       };
 }
 
-enum OfficialAnkiCheckpointFileState {
-  creating,
-  ready,
-  restoring,
-  released,
-  quarantined;
-
-  String get wire => name;
-
-  static OfficialAnkiCheckpointFileState parse(String raw) =>
-      OfficialAnkiCheckpointFileState.values.firstWhere(
-        (value) => value.wire == raw,
-        orElse: () => OfficialAnkiCheckpointFileState.quarantined,
-      );
-}
-
 enum OfficialAnkiMaintenanceKind {
   mediaGc,
   metadataPrune,
-  checkpointRelease,
   compactCollection,
   compactCatalog,
   compactCourse,
@@ -75,7 +58,6 @@ enum OfficialAnkiMaintenanceKind {
   String get wire => switch (this) {
         OfficialAnkiMaintenanceKind.mediaGc => 'media_gc',
         OfficialAnkiMaintenanceKind.metadataPrune => 'metadata_prune',
-        OfficialAnkiMaintenanceKind.checkpointRelease => 'checkpoint_release',
         OfficialAnkiMaintenanceKind.compactCollection => 'compact_collection',
         OfficialAnkiMaintenanceKind.compactCatalog => 'compact_catalog',
         OfficialAnkiMaintenanceKind.compactCourse => 'compact_course',

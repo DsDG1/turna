@@ -244,7 +244,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
     final controller = _controller;
     if (recordSession && controller != null) {
       coordinator.recordSession(
-        total: controller.totalCount,
+        total: controller.answeredCount,
         remembered: controller.rememberedCount,
         forgotten: controller.forgottenCount,
       );
@@ -748,28 +748,33 @@ class _AnkiStudySessionView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (controller.items.isEmpty ||
-        (controller.isComplete && controller.totalCount == 0)) {
-      return Scaffold(
-        body: SafeArea(
-          child: _AnkiFormalReviewEmptyPanel(
-            onClose: () => Navigator.of(context).maybePop(),
-          ),
-        ),
-      );
-    }
-    if (controller.isComplete) {
+    // Live-queue hosts replace items after every answer, so totalCount is
+    // the residual scheduler queue at completion, never the session size —
+    // the summary must count answered cards (40 answered against a residual
+    // 1-card batch rendered 4000%).
+    final answeredCount = controller.answeredCount;
+    if (controller.isComplete && answeredCount > 0) {
       return Scaffold(
         backgroundColor: TurnaTheme.scaffoldBg(context),
         body: SafeArea(
           child: UnifiedReviewCompletion(
-            totalCount: controller.totalCount,
+            totalCount: answeredCount,
             rememberedCount: controller.rememberedCount,
             forgottenCount: controller.forgottenCount,
             elapsed: DateTime.now().difference(controller.startedAt),
             xpEarned: 0,
             gemsEarned: 0,
             onFinish: () => Navigator.of(context).maybePop(),
+          ),
+        ),
+      );
+    }
+    if (controller.items.isEmpty ||
+        (controller.isComplete && answeredCount == 0)) {
+      return Scaffold(
+        body: SafeArea(
+          child: _AnkiFormalReviewEmptyPanel(
+            onClose: () => Navigator.of(context).maybePop(),
           ),
         ),
       );

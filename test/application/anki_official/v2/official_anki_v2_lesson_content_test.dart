@@ -41,8 +41,7 @@ void main() {
   const sourceId = 'src-v2-content';
   const lessonId = 'official-anki-src-v2-content-l-abc-p1';
 
-  final v2On = OfficialAnkiFeatureFlags.productionAndroid
-      .copyWith(v2ImportChain: true);
+  const v2On = OfficialAnkiFeatureFlags.productionAndroid;
 
   OfficialAnkiMappingSuggestion suggestion() => OfficialAnkiMappingSuggestion(
         candidates: const [
@@ -267,18 +266,6 @@ void main() {
       'some-v1-or-unknown-lesson',
     );
     expect(lesson, isNull);
-  });
-
-  test('flag off: supply is inert (v1 zero-regression)', () async {
-    // R4 翻开后 current 生产位带 v2=true；本用例锁的是回退态
-    // （copyWith(v2ImportChain: false)）下正文供给完全不触碰引擎读面。
-    OfficialAnkiV2LessonContent.flagsOf =
-        () => OfficialAnkiFeatureFlags.productionAndroid
-            .copyWith(v2ImportChain: false);
-    final lesson = await OfficialAnkiV2LessonContent.lessonFor(lessonId);
-    expect(lesson, isNull);
-    expect(engine.projectionBatchCalls, 0,
-        reason: 'flag 关时不得触碰引擎读面');
   });
 
   test('missing or corrupt mapping decision is fail-closed', () async {

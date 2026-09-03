@@ -1,6 +1,5 @@
 import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_payloads.dart';
-import 'package:turna/application/anki_official/projection/official_anki_projection_projector.dart';
 import 'package:turna/domain/anki/card_presentation.dart';
 
 import '../recognize/result.dart';

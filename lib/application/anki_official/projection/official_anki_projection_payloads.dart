@@ -1,5 +1,7 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart';
 import 'package:turna/application/anki_import/recognition/facts/options_structure.dart';
 import 'package:turna/application/anki_import/recognition/facts/text_metrics.dart';
 import 'package:turna/application/anki_import/recognition/lexicon/field_roles.dart';
@@ -7,11 +9,93 @@ import 'package:turna/application/anki_import/recognition/policy/presentation_po
 import 'package:turna/application/anki_import/recognition/recognize/result.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
-import 'package:turna/application/anki_official/projection/official_anki_projection_canonical.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_ids.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_paging.dart';
-import 'package:turna/application/anki_official/projection/official_anki_projection_projector.dart';
 import 'package:turna/domain/course/interaction.dart';
+
+enum OfficialAnkiProjectionKind {
+  showWord,
+  flip,
+  multipleChoice,
+  multiSelect,
+  listenPick,
+  typeAnswer,
+  fillBlank,
+  translate,
+  canonicalLink,
+}
+
+class OfficialAnkiProjectedVocabulary {
+  const OfficialAnkiProjectedVocabulary({
+    required this.term,
+    required this.translation,
+    this.pronunciation,
+    this.audioAsset,
+  });
+
+  final String term;
+  final String translation;
+  final String? pronunciation;
+  final String? audioAsset;
+}
+
+class OfficialAnkiProjectedItem {
+  const OfficialAnkiProjectedItem({
+    required this.kind,
+    required this.cardId,
+    required this.wordId,
+    required this.sectionId,
+    required this.unitId,
+    required this.lessonId,
+    required this.sectionName,
+    required this.unitName,
+    required this.lessonName,
+    required this.payload,
+    required this.sourceFingerprint,
+    this.vocabulary,
+  });
+
+  final OfficialAnkiProjectionKind kind;
+  final int cardId;
+  final String wordId;
+  final String sectionId;
+  final String unitId;
+  final String lessonId;
+  final String sectionName;
+  final String unitName;
+  final String lessonName;
+  final Map<String, Object?> payload;
+  final String sourceFingerprint;
+  final OfficialAnkiProjectedVocabulary? vocabulary;
+}
+
+String officialAnkiShuffleSeed({
+  required String sourceFingerprint,
+  required int cardId,
+  required String kind,
+  int algorithmVersion = officialAnkiProjectionAlgorithmVersion,
+}) {
+  return '$sourceFingerprint|$cardId|$kind|$algorithmVersion';
+}
+
+List<T> officialAnkiDeterministicShuffle<T>(List<T> items, String seed) {
+  final out = List<T>.from(items);
+  if (out.length < 2) return out;
+  final digest = sha256.convert(utf8.encode(seed)).bytes;
+  var state = ByteData.sublistView(Uint8List.fromList(digest)).getUint32(0);
+  int next() {
+    state = (1664525 * state + 1013904223) & 0xffffffff;
+    return state;
+  }
+
+  for (var i = out.length - 1; i > 0; i--) {
+    final j = next() % (i + 1);
+    final tmp = out[i];
+    out[i] = out[j];
+    out[j] = tmp;
+  }
+  return out;
+}
 
 class OfficialAnkiPayloadOverflow implements Exception {
   const OfficialAnkiPayloadOverflow();

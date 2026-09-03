@@ -6,13 +6,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:turna/application/accessibility_provider.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
+import 'package:turna/application/anki_official/engine/official_anki_home_due_sync.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_snapshot_builder.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_update.dart';
+import 'package:turna/application/anki_official/review/formal_review_launcher.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/lesson_link_store.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/settings_provider.dart';
-import 'package:turna/application/anki_official/review/formal_review_launcher.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
@@ -251,6 +255,127 @@ void main() {
     await tester.tap(find.text('Anki 复习'));
     await tester.pump();
     expect(opened, FormalReviewLauncher.sessionRouteName);
+  });
+
+  group('today hero due number (OfficialFormalDueRepository reactivity)', () {
+    // Hero 大数字读的是 due 仓库单例；测试里用 debug seam 顶掉真实同步，
+    // 并用 resetForTest 隔离进程级快照。
+    setUp(() {
+      OfficialFormalDueRepository.instance.resetForTest();
+      OfficialAnkiHomeDueSync.debugRefreshOverride = () async {};
+      // TTL 是进程级静态：同 isolate 里更早的测试可能已置位，不清掉的话
+      // initState 刷新会被跳过（这正是生产端「5 分钟内重进不刷新」的行为）。
+      PlayHubScreen.resetDueRefreshTtlForTest();
+    });
+
+    tearDown(() {
+      OfficialAnkiHomeDueSync.debugRefreshOverride = null;
+      OfficialFormalDueRepository.instance.resetForTest();
+    });
+
+    /// Hero 右侧大数字（digit-only Text，队列 chip 是「Anki N」不会误配）。
+    String heroNumber(WidgetTester tester) {
+      final digitOnly = RegExp(r'^\d+$');
+      final texts = tester.widgetList<Text>(
+        find.descendant(
+          of: find.byType(TodayHeroCard),
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is Text &&
+                widget.data != null &&
+                digitOnly.hasMatch(widget.data!),
+          ),
+        ),
+      ).toList();
+      return texts.isEmpty ? '<missing>' : texts.first.data!;
+    }
+
+    void commitDueSnapshot(String importId, Set<int> schedulerDue) {
+      OfficialFormalDueRepository.instance.commit(
+        OfficialFormalDueUpdate(
+          bySource: {
+            importId: buildFormalDuePerSource(
+              importId: importId,
+              schedulerDueCardIds: schedulerDue,
+              schedulerDueSynced: true,
+              activePlacementCardIds: schedulerDue,
+              suspendedCardIds: const {},
+              buriedCardIds: const {},
+              retiredCardIds: const {},
+            ),
+          },
+          rawDueBySource: const {},
+          turnaDue: 0,
+          unintroducedNew: 0,
+        ),
+        basedOnGeneration: OfficialFormalDueRepository.instance.generation,
+      );
+    }
+
+    testWidgets('follows repository commits without any setState',
+        (tester) async {
+      await tester.binding.setSurfaceSize(const Size(400, 1600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: hubTree(
+            courseProvider: _ScopeStubCourseProvider('anki:deck1'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 空快照：大数字 0。
+      expect(heroNumber(tester), '0');
+
+      // 仓库 commit（无 setState、无 provider 变化）→ Hero 必须重建。
+      commitDueSnapshot('src-a', {11, 22});
+      await tester.pumpAndSettle();
+
+      expect(heroNumber(tester), '2',
+          reason: 'due 仓库是 ChangeNotifier，Play Hub 必须订阅它的通知，'
+              '否则数字冻结在 mount 时的值（一直 0 的根因）');
+    });
+
+    testWidgets('returning from the anki session re-syncs the due snapshot',
+        (tester) async {
+      await tester.binding.setSurfaceSize(const Size(400, 1600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      var dueAfterSync = const <int>{};
+      var refreshRuns = 0;
+      OfficialAnkiHomeDueSync.debugRefreshOverride = () async {
+        refreshRuns++;
+        commitDueSnapshot('src-b', dueAfterSync);
+      };
+      FormalReviewNavigator.debugOpenSession = (context, sectionId) async {};
+      addTearDown(() => FormalReviewNavigator.debugOpenSession = null);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: hubTree(
+            courseProvider: _ScopeStubCourseProvider('anki:deck1'),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // initState 的首次 due 刷新。
+      expect(refreshRuns, 1);
+      expect(heroNumber(tester), '0');
+
+      // 模拟一次复习会话结束（调度器还欠 2 张）：pop 返回后必须重取快照。
+      dueAfterSync = {11, 22};
+      await tester.ensureVisible(find.text('Anki 复习'));
+      await tester.tap(find.text('Anki 复习'));
+      await tester.pumpAndSettle();
+
+      expect(refreshRuns, 2,
+          reason: '复习会话只改调度器，返回 Play 页必须显式 refresh，'
+              '否则仓库里的 schedulerDue 还是进会话前的旧值');
+      expect(heroNumber(tester), '2');
+    });
   });
 
   group('long-press info popup', () {

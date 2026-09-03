@@ -1,7 +1,6 @@
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/import/anki_import_execution_plan.dart';
 import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
-import 'package:turna/application/anki_official/projection/official_anki_projection_service.dart';
 
 /// Summary of a completed Anki import (legacy parser-era shape retained:
 /// the official flow fills the same fields for the done step).
@@ -137,9 +136,9 @@ final class OfficialAnkiImportPreviewModel extends AnkiImportPreviewModel {
     required this.cardCount,
     required this.noteCount,
     required this.decks,
+    this.cardCountByDeck = const {},
     required this.schemas,
     required this.suggestions,
-    required this.service,
     Set<int>? confirmedNotetypes,
     Set<int>? skippedNotetypes,
     this.needsMapping = false,
@@ -158,9 +157,12 @@ final class OfficialAnkiImportPreviewModel extends AnkiImportPreviewModel {
   final int cardCount;
   final int noteCount;
   final List<OfficialAnkiDeckNode> decks;
+
+  /// deckId → 牌组真实卡数（含后代累计）。deck tree 的 new/learn/review
+  /// 是今日到期队列数，牌组结构行不能拿它们当卡总数。
+  final Map<int, int> cardCountByDeck;
   final List<OfficialAnkiProjectionSchema> schemas;
   final Map<int, OfficialAnkiMappingSuggestion> suggestions;
-  final OfficialAnkiCourseProjectionService service;
 
   final Set<int> confirmedNotetypes;
   final Set<int> skippedNotetypes;

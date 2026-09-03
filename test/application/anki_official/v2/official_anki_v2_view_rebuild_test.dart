@@ -2,10 +2,9 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:path/path.dart' as p;
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
-import 'package:turna/application/anki_official/official_anki_paths.dart';
+import 'package:turna/application/anki_official/projection/official_anki_projection_ids.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_view_rebuilder.dart';
@@ -81,12 +80,49 @@ void main() {
     return sourceId;
   }
 
-  OfficialAnkiV2ViewRebuilder rebuilder() => OfficialAnkiV2ViewRebuilder(
+  OfficialAnkiV2ViewRebuilder rebuilder({int? lessonSize}) =>
+      OfficialAnkiV2ViewRebuilder(
         engine: engine,
         catalog: catalog,
         course: course,
         profileId: 'profile-v2-view',
+        lessonSize: lessonSize ?? OfficialAnkiV2ViewRebuilder.defaultLessonSize,
       );
+
+  /// 独立 source：一个牌组里 seed 指定 cardId 的卡（notetype 1）。
+  void seedSourceWithCards(
+    String sourceId, {
+    int deckId = 10,
+    required List<int> cardIds,
+  }) {
+    OfficialAnkiSourceDao(catalog).upsertSource(
+      sourceId: sourceId,
+      profileId: 'profile-v2-view',
+      sourceHash: 'hash-$sourceId',
+      sourceSize: 10,
+      displayName: sourceId,
+      state: 'active',
+      backendCommit: 'pending',
+      nowMillis: 1,
+    );
+    OfficialAnkiSourceDao(catalog).markChainV2(
+      sourceId: sourceId,
+      nowMillis: 1,
+    );
+    OfficialAnkiSourceDao(catalog).upsertCardBatch(
+      sourceId: sourceId,
+      cards: [
+        for (var i = 0; i < cardIds.length; i++)
+          OfficialAnkiCardDescriptor(
+            cardId: cardIds[i],
+            noteId: 1000 + i,
+            deckId: deckId,
+            templateOrd: 0,
+            notetypeId: 1,
+          ),
+      ],
+    );
+  }
 
   test('rebuild is idempotent: same input, same rows, twice', () async {
     seedActiveV2Source();
@@ -166,8 +202,69 @@ void main() {
       backendCommit: 'pending',
       nowMillis: 1,
     );
+    catalog.handle.execute("UPDATE anki_sources SET chain = 'v1' WHERE source_id = 'src-v1-x'");
     final result = await rebuilder().rebuild();
     expect(result.sourceCount, 0);
     expect(result.rowCount, 0);
+  });
+
+  test('flat deck splits into lessonSize chunks in stable cardId order',
+      () async {
+    seedSourceWithCards('src-split', cardIds: [105, 101, 104, 102, 103]);
+    final store = OfficialAnkiV2ViewStore(course);
+    await rebuilder(lessonSize: 2).rebuild();
+
+    final lessonIds = (await store.lessonIds()).toList();
+    expect(lessonIds, hasLength(3), reason: '5 张卡、每课时 2 张 → 3 课时');
+
+    // 组内按 cardId 稳定序切片（seed 顺序打乱也不影响分组）。
+    final members = {
+      for (final id in lessonIds)
+        id: [for (final row in await store.rowsForLesson(id)) row.cardId],
+    };
+    final grouped = members.values.map((e) => (e.join(','))).toSet();
+    expect(grouped, {'101,102', '103,104', '105'});
+
+    // 首片 part=1，lessonId 与旧「一路径 = 一课时」派生完全一致。
+    final flatGroupKey = ['Deck A', 'Deck A', 'Deck A'].join('\u001f');
+    final firstPartId = officialAnkiLessonId(
+      sourceId: 'src-split',
+      groupKey: flatGroupKey,
+      part: 1,
+    );
+    expect(members, containsPair(firstPartId, [101, 102]));
+
+    // 幂等：重跑同输入，3 个课时 id 与成员不变。
+    await rebuilder(lessonSize: 2).rebuild();
+    final rerun = {
+      for (final id in await store.lessonIds())
+        id: [for (final row in await store.rowsForLesson(id)) row.cardId],
+    };
+    expect(rerun, members);
+  });
+
+  test('multi-level decks group by last path segment and chunk within',
+      () async {
+    engine.deckTree = const [
+      OfficialAnkiDeckNode(deckId: 10, name: 'Deck A', level: 0),
+      OfficialAnkiDeckNode(deckId: 11, name: 'Deck A::B', level: 1),
+      OfficialAnkiDeckNode(deckId: 12, name: 'Deck A::B::C', level: 2),
+      OfficialAnkiDeckNode(deckId: 13, name: 'Deck A::B::D', level: 2),
+    ];
+    seedSourceWithCards('src-tree', deckId: 12, cardIds: [201, 202, 203]);
+    seedSourceWithCards('src-tree2', deckId: 13, cardIds: [301, 302]);
+
+    final store = OfficialAnkiV2ViewStore(course);
+    await rebuilder(lessonSize: 2).rebuild();
+
+    final lessons = <String, List<int>>{
+      for (final id in await store.lessonIds())
+        id: [for (final row in await store.rowsForLesson(id)) row.cardId],
+    };
+    expect(lessons, hasLength(3), reason: 'C 切 2 片 + D 1 片');
+    expect(lessons.values.map((e) => e.join(',')), {
+      '201,202', '203', // C：同末段组内切片
+      '301,302', // D：独立末段组
+    });
   });
 }

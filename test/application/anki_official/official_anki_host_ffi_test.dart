@@ -9,6 +9,7 @@ import 'package:turna/application/anki_official/contract/official_anki_errors.da
 import 'package:turna/application/anki_official/engine/official_anki_engine_ffi.dart';
 import 'package:turna/application/anki_official/engine/official_anki_native_transport.dart';
 import 'package:turna/application/anki_official/engine/official_anki_session.dart';
+import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 
 bool get _requireNative =>
@@ -143,6 +144,7 @@ void main() {
       displayName: 'isolate-unicode',
     );
     expect(imported.state, OfficialAnkiSourceState.previewReady);
+    await Future<void>.delayed(const Duration(milliseconds: 50));
     expect(ticks, greaterThan(0));
   });
 

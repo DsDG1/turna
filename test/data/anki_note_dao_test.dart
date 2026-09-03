@@ -173,23 +173,6 @@ void main() {
     expect(await importDao.dailyReviewLimitFor('imp1'), isNull);
   });
 
-  test('projectionForCard exposes per-card recognition evidence', () async {
-    await db.customStatement(
-      "INSERT INTO anki_practice_projections "
-      "(import_id, card_id, kind, status, confidence, evidence_json, "
-      "payload_json, source_fingerprint, updated_at) "
-      "VALUES ('imp1', 2, 'structured', 'generated', 0.9, "
-      "'{\"why\":\"frontBack\"}', '{}', 'fp', 42)",
-    );
-
-    final projection = await noteDao.projectionForCard('imp1', 2);
-    expect(projection, isNotNull);
-    expect(projection!.kind, 'structured');
-    expect(projection.status, 'generated');
-    expect(projection.evidence['why'], 'frontBack');
-    expect(await noteDao.projectionForCard('imp1', 999), isNull);
-  });
-
   test('deleteByImport cascades across all three NoteStore tables', () async {
     await seedNote('imp1', 100);
     await seedCard('imp1', 200, 100, wordId: 'anki-imp1-c200');
@@ -203,28 +186,5 @@ void main() {
     expect(await countOf('anki_cards_meta', 'imp1'), 0);
   });
 
-  test('deleteByImport also clears deck index, issues and projections',
-      () async {
-    await seedNote('imp1', 1);
-    await seedCard('imp1', 2, 1, wordId: 'anki-imp1-c2');
-    await db.customStatement(
-      "INSERT INTO anki_decks (import_id, did, name, parent_did, card_count, "
-      "recovered) VALUES ('imp1', 7, 'Deck', 0, 1, 0)",
-    );
-    await db.customStatement(
-      "INSERT INTO anki_import_issues (import_id, severity, code, message, "
-      "resolved) VALUES ('imp1', 'warn', 'x', 'm', 0)",
-    );
-    await db.customStatement(
-      "INSERT INTO anki_practice_projections "
-      "(import_id, card_id, kind, status, updated_at) "
-      "VALUES ('imp1', 2, 'k', 'ok', 1)",
-    );
 
-    await noteDao.deleteByImport('imp1');
-
-    expect(await countOf('anki_decks', 'imp1'), 0);
-    expect(await countOf('anki_import_issues', 'imp1'), 0);
-    expect(await countOf('anki_practice_projections', 'imp1'), 0);
-  });
 }

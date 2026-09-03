@@ -1,7 +1,7 @@
 // turna-migration-v1 import tests (plan 34 §R7 / OS-22): export → import
 // round-trip, checksum tampering, zip-slip, schema-too-new and the
-// legacy-pending disposition — imported Anki rows never enter the live
-// anki_* tables.
+// legacy-ignore disposition — imported Anki rows are ignored entirely
+// (v1 retired, Step 6).
 
 import 'dart:convert';
 import 'dart:io';
@@ -73,7 +73,8 @@ void main() {
     expect(restored.single.read<int>('interval_days'), 3);
   });
 
-  test('legacy Anki rows land in legacy_pending_migrations only', () async {
+  test('legacy Anki rows are ignored; the rest of the package still applies',
+      () async {
     await source.customStatement(
       "INSERT INTO anki_imports (import_id, source_path, source_hash, "
       "imported_at) VALUES ('legacy-imp-1', 'a.apkg', 'hash-1', 1)",
@@ -84,11 +85,9 @@ void main() {
     final result = await importer.importFrom(zip);
 
     expect(result.applied, isTrue);
-    expect(result.legacyPendingImports, ['legacy-imp-1']);
-    final pending = await importer.pendingImportIds();
-    expect(pending, ['legacy-imp-1']);
-    // The LIVE legacy tables stay empty — the Legacy scheduler is never
-    // activated by an import (plan 34 §R7-3).
+    expect(result.legacyIgnoredImports, ['legacy-imp-1']);
+    // The LIVE legacy tables stay empty — the v1 scheduler is gone and the
+    // import must never resurrect it (plan 34 §R7-3 / Step 6).
     // The target had no anki imports before and must still have none.
     final liveImports = await target
         .customSelect(
@@ -119,10 +118,11 @@ void main() {
 
     expect(result.applied, isFalse);
     expect(result.rejection, TurnaMigrationImportRejection.checksumMismatch);
-    // Zero partial restore.
+    // Zero partial restore: the round-trip test proves srs rows are written
+    // on success, so a zero count here proves nothing was applied.
     final rows = await target
         .customSelect(
-          'SELECT COUNT(*) AS n FROM legacy_pending_migrations',
+          'SELECT COUNT(*) AS n FROM srs_states',
         )
         .get();
     expect(rows.single.read<int>('n'), 0);

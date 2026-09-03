@@ -3,13 +3,11 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
-import 'package:turna/application/anki_official/projection/official_anki_projection_ids.dart';
 import 'package:turna/application/anki_official/render/official_anki_reviewer_router.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_course_read.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/data/course_database.dart' hide Section, Unit, Lesson, LessonContent;
-import 'package:drift/drift.dart';
 import 'package:turna/domain/course/section.dart';
 
 class OfficialAnkiCanonicalRef {
@@ -62,44 +60,11 @@ class OfficialAnkiCourseEntry {
     OfficialAnkiDatabase? catalog,
     required CourseDatabase course,
   }) async {
-    // v2 读面（B6）：视图 section 并入。activeSectionIds 自带 flag 门
-    // （关时返回空集）——回退后视图里的历史行不会混入 v1 读面。
-    // Catalog is optional: v1 visibility is the Course manifest/index.
-    // Missing catalogOf used to return {} and hide a fully projected tree.
-    final v2Ids = catalog == null
-        ? const <String>{}
-        : await OfficialAnkiV2CourseRead(
-            catalog: catalog,
-            course: course,
-          ).activeSectionIds();
-    if (catalog != null) {
-      catalog.handle.userVersion;
-    }
-    final manifests = await course.customSelect(
-      'SELECT source_id, source_fingerprint FROM official_anki_projection_manifest',
-    ).get();
-    final ids = <String>{...v2Ids};
-    for (final row in manifests) {
-      final sourceId = row.read<String>('source_id');
-      final fingerprint = row.read<String>('source_fingerprint');
-      final sections = await course.customSelect(
-        'SELECT DISTINCT section_id, source_fingerprint '
-        'FROM official_anki_projection_index WHERE source_id = ?',
-        variables: [Variable(sourceId)],
-      ).get();
-      if (sections.isEmpty) continue;
-      final consistent = sections.every(
-        (section) => section.read<String>('source_fingerprint') == fingerprint,
-      );
-      if (!consistent) continue;
-      for (final section in sections) {
-        final id = section.read<String>('section_id');
-        if (officialAnkiIsOwnedTreeId(sourceId: sourceId, id: id)) {
-          ids.add(id);
-        }
-      }
-    }
-    return ids;
+    if (catalog == null) return const <String>{};
+    return await OfficialAnkiV2CourseRead(
+      catalog: catalog,
+      course: course,
+    ).activeSectionIds();
   }
 
   /// CourseDatabase index (v1 manifest) plus optional catalog (v2 views).

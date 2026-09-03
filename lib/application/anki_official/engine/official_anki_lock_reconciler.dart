@@ -3,8 +3,7 @@ import 'package:turna/application/anki_official/contract/official_anki_dto.dart'
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/introduction/card_introduction_store.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
-import 'package:turna/application/anki_official/projection/official_anki_projection_store.dart';
-import 'package:turna/courses/course_loader.dart';
+import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 
 /// P1: the course-completion gate lives in the Official scheduler.
 ///
@@ -38,19 +37,21 @@ class OfficialAnkiLockReconciler {
     try {
       final resolved = engine ?? OfficialAnkiCompositionRoot.engine;
       if (resolved == null) return 0;
-      final course = CourseLoader.databaseOrNull();
-      if (course == null) return 0;
-      final rows = await OfficialAnkiCourseProjectionStore(course)
-          .listIndexRows(sourceId);
-      if (rows.isEmpty) return 0;
+      final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+      if (catalog == null) return 0;
+      final cardIds = OfficialAnkiSourceDao(catalog)
+          .listCards(sourceId)
+          .map((c) => c.cardId)
+          .toList();
+      if (cardIds.isEmpty) return 0;
       // Ledger-direct on purpose: the lock must not depend on any
       // in-memory mirror (a cold process would otherwise suspend
       // everything, introduced cards included).
       final introduced = await CardIntroductionStore.resolve()
           .introducedCardIdsFromLedger(sourceId);
       final toSuspend = [
-        for (final row in rows)
-          if (!introduced.contains(row.cardId)) row.cardId,
+        for (final cardId in cardIds)
+          if (!introduced.contains(cardId)) cardId,
       ]..sort();
       if (toSuspend.isEmpty) return 0;
       await _applyInBatches(

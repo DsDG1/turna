@@ -7,7 +7,7 @@ import 'package:turna/application/anki_official/contract/official_anki_dto.dart'
 import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_maintenance.dart';
-import 'package:turna/application/anki_official/lifecycle/official_anki_uninstall_saga.dart';
+import 'package:turna/application/anki_official/v2/official_anki_v2_retire_service.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
@@ -154,14 +154,17 @@ void main() {
     );
     final root = Directory.systemTemp.createTempSync('turna-un-c-');
     addTearDown(() => root.deleteSync(recursive: true));
-    await OfficialAnkiUninstallSaga(
+    final course = CourseDatabase(NativeDatabase.memory());
+    addTearDown(course.close);
+    await OfficialAnkiV2RetireService(
       catalog: catalog,
       engine: engine,
+      course: course,
       paths: OfficialAnkiPaths(
         profileId: 'profile-c-01',
         profileRoot: root,
       ),
-    ).run('src-c');
+    ).runRetireJob(sourceId: 'src-c');
     final kinds = catalog.handle
         .select(
           'SELECT kind FROM anki_maintenance_jobs WHERE profile_id = ?',
@@ -169,7 +172,7 @@ void main() {
         )
         .map((row) => row['kind'] as String)
         .toSet();
-    expect(kinds, contains(OfficialAnkiMaintenanceKind.compactCourse.wire));
+    expect(kinds, contains(OfficialAnkiMaintenanceKind.compactCollection.wire));
     expect(kinds, contains(OfficialAnkiMaintenanceKind.compactCatalog.wire));
   });
 }

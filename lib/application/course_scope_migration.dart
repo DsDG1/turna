@@ -1,7 +1,6 @@
 import 'package:turna/application/course_catalog.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/courses/course_loader.dart';
-import 'package:turna/data/anki_owner_authority_dao.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/course_scope.dart';
@@ -38,8 +37,6 @@ class CourseScopeRepairResult {
 /// collections, projections or study records.
 class CourseScopePreferenceMigrator {
   CourseScopePreferenceMigrator._();
-
-  static const int codecVersion = 1;
 
   /// Repairs the persisted [PrefsConstants.courseScope] and
   /// [PrefsConstants.courseOrder]. Safe to run on every startup: encoded
@@ -86,7 +83,6 @@ class CourseScopePreferenceMigrator {
         if (scope != null) {
           // Already migrated; still validate the target still exists.
           if (_scopeExists(scope, catalog)) {
-            await _ensureCodecVersion(db);
             return null;
           }
           effective = BuiltinCourseScope(currentLanguageCode);
@@ -162,7 +158,6 @@ class CourseScopePreferenceMigrator {
       await prefs.setStringList(PrefsConstants.courseOrder, rebuilt);
     }
 
-    await _ensureCodecVersion(db);
     if (!changedScope && !changedOrder) return null;
 
     final result = CourseScopeRepairResult(
@@ -172,18 +167,6 @@ class CourseScopePreferenceMigrator {
       newOrderWire: newOrderWire,
       reason: reason,
     );
-    try {
-      final dao = AnkiOwnerAuthorityDao(db);
-      await dao.recordScopeRepair(
-        oldCourseScope: result.oldScopeWire,
-        newCourseScope: result.newScopeWire,
-        oldCourseOrder: result.oldOrderWire,
-        newCourseOrder: result.newOrderWire,
-        reason: result.reason,
-      );
-    } catch (e) {
-      logger.w('CourseScopePreferenceMigrator: journal write failed: $e');
-    }
     logger.i(
       'CourseScopePreferenceMigrator: repaired scope '
       '"${result.oldScopeWire}" → "${result.newScopeWire}" (${result.reason})',
@@ -194,18 +177,6 @@ class CourseScopePreferenceMigrator {
   static bool _scopeExists(
       CourseScope scope, List<CourseCatalogEntry> catalog) {
     return catalog.any((entry) => entry.scope == scope);
-  }
-
-  static Future<void> _ensureCodecVersion(CourseDatabase db) async {
-    try {
-      final dao = AnkiOwnerAuthorityDao(db);
-      final current = await dao.scopeCodecVersion();
-      if (current != codecVersion) {
-        await dao.setScopeCodecVersion(codecVersion);
-      }
-    } catch (e) {
-      logger.w('CourseScopePreferenceMigrator: codec version write: $e');
-    }
   }
 
   static AppPrefs? _prefsOrNull() {

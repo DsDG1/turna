@@ -2,7 +2,6 @@ import 'package:turna/application/anki_official/contract/official_anki_contract.
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
-import 'package:turna/application/anki_official/engine/official_anki_mutation_receipt.dart';
 import 'package:turna/application/anki_official/engine/official_anki_operation_coordinator.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
@@ -27,7 +26,6 @@ class OfficialReviewSession {
   OfficialReviewSession({
     required this.engine,
     OfficialAnkiFeatureFlags? flags,
-    this.receipts,
     this.coordinator,
     this.profileId = 'profile-default-01',
     this.allowedCardIds,
@@ -35,7 +33,6 @@ class OfficialReviewSession {
 
   final OfficialAnkiEngine engine;
   final OfficialAnkiFeatureFlags flags;
-  final OfficialAnkiMutationReceiptStore? receipts;
   final OfficialAnkiOperationCoordinator? coordinator;
   final String profileId;
   /// When set, only these card IDs may be shown or answered.
@@ -53,7 +50,6 @@ class OfficialReviewSession {
   OfficialUndoStatus? undoStatus;
   var isFilteredDeck = false;
   String? lastClientMutationId;
-  String? blockedMutationId;
 
   bool get canUndo => undoStatus?.canUndo == true;
   bool get canRedo => undoStatus?.canRedo == true;
@@ -171,16 +167,7 @@ class OfficialReviewSession {
       } else {
         phase = OfficialReviewPhase.showingQuestion;
         questionShownAt = DateTime.now().millisecondsSinceEpoch;
-        if (receipts?.hasBlocking(current!.cardId) == true) {
-          phase = OfficialReviewPhase.reconciling;
-          lastError = const OfficialAnkiException(
-            code: OfficialAnkiErrorCode.needsReconciliation,
-            messageKey: 'official_anki.answer_commit_unknown',
-            recoverable: true,
-          );
-        } else {
-          lastError = null;
-        }
+        lastError = null;
       }
     } on OfficialAnkiException catch (error) {
       if (error.code == OfficialAnkiErrorCode.queueEmpty) {
@@ -300,29 +287,12 @@ class OfficialReviewSession {
         debugDetails: 'cardId=${card.cardId}',
       );
     }
-    if (receipts?.hasBlocking(card.cardId) == true) {
-      phase = OfficialReviewPhase.reconciling;
-      lastError = const OfficialAnkiException(
-        code: OfficialAnkiErrorCode.needsReconciliation,
-        messageKey: 'official_anki.answer_commit_unknown',
-        recoverable: true,
-      );
-      throw lastError!;
-    }
     coordinator?.guardSchedulerWrite();
     inFlight = true;
     phase = OfficialReviewPhase.committingAnswer;
     answerVisibleElapsed.stop();
     lastClientMutationId =
         'mut-${q.queueEpoch}-${card.cardId}-${DateTime.now().microsecondsSinceEpoch}';
-    final now = DateTime.now().millisecondsSinceEpoch;
-    receipts?.prepare(
-      mutationId: lastClientMutationId!,
-      cardId: card.cardId,
-      queueEpoch: q.queueEpoch,
-      rating: rating,
-      nowMillis: now,
-    );
     try {
       final elapsed = answerVisibleElapsed.elapsedMilliseconds;
       final result = await engine.answerCard(
@@ -343,7 +313,6 @@ class OfficialReviewSession {
               'expectedCardId=${card.cardId} resultCardId=${result.cardId} committed=${result.committed}',
         );
       }
-      receipts?.markCommitted(lastClientMutationId!, now);
       phase = OfficialReviewPhase.refreshingQueue;
       await refreshQueue();
       await _refreshStatus();
@@ -353,8 +322,6 @@ class OfficialReviewSession {
       if (error.code == OfficialAnkiErrorCode.schedulingContextStale) {
         phase = OfficialReviewPhase.staleContext;
       } else if (error.code == OfficialAnkiErrorCode.answerCommitUnknown) {
-        receipts?.markUnknown(lastClientMutationId!, now);
-        blockedMutationId = lastClientMutationId;
         phase = OfficialReviewPhase.reconciling;
         lastError = error;
       } else {

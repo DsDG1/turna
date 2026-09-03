@@ -8,13 +8,10 @@ import 'package:turna/application/anki_official/engine/official_formal_due_snaps
 import 'package:turna/application/anki_official/engine/official_formal_due_update.dart';
 import 'package:turna/application/anki_official/introduction/imported_history_introducer.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
-import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
-import 'package:turna/application/anki_official/migration/official_anki_production_router.dart';
+import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
-import 'package:turna/courses/course_loader.dart';
-import 'package:turna/data/anki_import_dao.dart';
 
 /// Refreshes official-routed import ids and the six formal-due sets per
 /// source into [OfficialFormalDueRepository] (maintainability plan Wave 1).
@@ -30,7 +27,16 @@ class OfficialAnkiHomeDueSync {
 
   static Future<void>? _inFlight;
 
+  /// Test seam: replaces the refresh body wholesale (Play Hub / review hub
+  /// widget tests stub due refreshes without an engine or collection).
+  static Future<void> Function()? debugRefreshOverride;
+
   Future<void> refresh() async {
+    final override = debugRefreshOverride;
+    if (override != null) {
+      await override();
+      return;
+    }
     final existing = _inFlight;
     if (existing != null) {
       await existing;
@@ -102,8 +108,7 @@ class OfficialAnkiHomeDueSync {
     }
     try {
       final support = await getApplicationSupportDirectory();
-      const router = OfficialAnkiProductionRouter();
-      final paths = router.pathsForDefaultProfile(support);
+      final paths = OfficialAnkiPaths.defaultProfile(support);
       if (!paths.catalogFile.existsSync()) {
         _commitOrDrop(
           repo,
@@ -119,17 +124,18 @@ class OfficialAnkiHomeDueSync {
       );
       final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog!;
       try {
-        final dao = OfficialAnkiMigrationDao(catalog);
         final sources = OfficialAnkiSourceDao(catalog);
-        await _adoptCourseImports(router, dao, sources);
         if (!OfficialAnkiFeatureFlags.current.allowsOfficialScheduler) {
+          final activeSources = sources
+              .listSources('profile-default-01')
+              .where((s) => s.state == 'active');
           _commitOrDrop(
             repo,
             const OfficialFormalDueSnapshotBuilder().build(
               sources: [
-                for (final importId in router.officialImportIds(dao: dao))
+                for (final s in activeSources)
                   OfficialFormalDueSourceInput(
-                    importId: importId,
+                    importId: s.sourceId,
                     schedulerDueCardIds: const {},
                     schedulerDueSynced: false,
                   ),
@@ -214,27 +220,7 @@ class OfficialAnkiHomeDueSync {
         Future<Set<int>> fetchBuriedCardIds({int? deckId}) => fetchByQuery(
             deckId == null ? 'is:buried' : 'deck:$deckId is:buried');
 
-        // R3-2: retired evidence must stay consistent with the projection
-        // state. A retired (uninstalled/tombstoned) card is one whose
-        // course placement row was deactivated — hard deletes simply leave
-        // the set empty, and the router intersects whatever we return with
-        // the source's placements.
-        Future<Set<int>> fetchRetiredCardIds({int? deckId}) async {
-          try {
-            final course = CourseLoader.databaseOrNull();
-            if (course == null) return const <int>{};
-            final rows = await course
-                .customSelect(
-                  'SELECT card_id FROM anki_course_card_placements '
-                  'WHERE active = 0',
-                )
-                .get();
-            return {for (final row in rows) row.read<int>('card_id')};
-          } catch (suppressed) {
-            debugPrint('[OfficialAnkiHomeDueSync] [OfficialAnkiHomeDueSync] home-due sync step suppressed: $suppressed');
-            return const <int>{};
-          }
-        }
+
 
         // Exact card-id formal due (doc 34 W5 / plan 34 R3): all six sets
         // per source, never count approximation. The router is pure — it
@@ -253,15 +239,12 @@ class OfficialAnkiHomeDueSync {
               'did:$deckId (is:due OR is:learn OR is:new)',
             );
         final baseGeneration = repo.generation;
-        final collected = await router.collectFormalDueCardIds(
-          dao: dao,
+        final collected = await _collectFormalDueCardIds(
           sources: sources,
-          setCurrentDeck: session.setCurrentDeck,
           searchSchedulerDueCardIds: searchSchedulerDue,
           searchUnfilteredDueCardIds: searchUnfilteredDue,
           getSuspendedCardIds: fetchSuspendedCardIds,
           getBuriedCardIds: fetchBuriedCardIds,
-          getRetiredCardIds: fetchRetiredCardIds,
         );
         if (repo.isStale(baseGeneration)) {
           // A mutation or concurrent refresh landed while we were
@@ -272,15 +255,12 @@ class OfficialAnkiHomeDueSync {
             'retrying once',
           );
           final retryBase = repo.generation;
-          final retried = await router.collectFormalDueCardIds(
-            dao: dao,
+          final retried = await _collectFormalDueCardIds(
             sources: sources,
-            setCurrentDeck: session.setCurrentDeck,
             searchSchedulerDueCardIds: searchSchedulerDue,
             searchUnfilteredDueCardIds: searchUnfilteredDue,
             getSuspendedCardIds: fetchSuspendedCardIds,
             getBuriedCardIds: fetchBuriedCardIds,
-            getRetiredCardIds: fetchRetiredCardIds,
           );
           final result = repo.commit(
             const OfficialFormalDueSnapshotBuilder().build(
@@ -336,17 +316,15 @@ class OfficialAnkiHomeDueSync {
 
   Future<void> _reconcileLocks() async {
     try {
-      final course = CourseLoader.databaseOrNull();
-      if (course == null) return;
-      final rows = await course.customSelect(
-        'SELECT DISTINCT source_id FROM official_anki_projection_index',
-      ).get();
-      if (rows.isEmpty) return;
+      final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+      if (catalog == null) return;
+      final sources = OfficialAnkiSourceDao(catalog).listSources('profile-default-01');
+      if (sources.isEmpty) return;
       final reconciler = OfficialAnkiLockReconciler.resolve();
-      for (final row in rows) {
-        await reconciler.reconcileSource(
-          sourceId: row.read<String>('source_id'),
-        );
+      for (final s in sources) {
+        if (s.state == 'active') {
+          await reconciler.reconcileSource(sourceId: s.sourceId);
+        }
       }
     } catch (error) {
       debugPrint('[OfficialAnkiHomeDueSync] lock reconcile failed: $error');
@@ -355,17 +333,17 @@ class OfficialAnkiHomeDueSync {
 
   Future<void> _adoptImportedHistory(OfficialAnkiSession session) async {
     try {
-      final course = CourseLoader.databaseOrNull();
-      if (course == null) return;
-      final rows = await course.customSelect(
-        'SELECT DISTINCT source_id, card_id FROM official_anki_projection_index',
-      ).get();
+      final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+      if (catalog == null) return;
+      final rows = catalog.handle.select(
+        'SELECT DISTINCT source_id, card_id FROM anki_source_cards',
+      );
       if (rows.isEmpty) return;
       final cardIdsBySource = <String, Set<int>>{};
       for (final row in rows) {
         cardIdsBySource
-            .putIfAbsent(row.read<String>('source_id'), () => <int>{})
-            .add(row.read<int>('card_id'));
+            .putIfAbsent(row['source_id'] as String, () => <int>{})
+            .add(row['card_id'] as int);
       }
       await const ImportedHistoryIntroducer().adopt(
         searchPage: session.searchCardsPage,
@@ -378,22 +356,68 @@ class OfficialAnkiHomeDueSync {
     }
   }
 
-  Future<void> _adoptCourseImports(
-    OfficialAnkiProductionRouter router,
-    OfficialAnkiMigrationDao dao,
-    OfficialAnkiSourceDao sources,
-  ) async {
-    try {
-      final course = CourseLoader.databaseOrNull();
-      if (course == null) return;
-      for (final row in await AnkiImportDao(course).getAll()) {
-        router.adoptExistingIfCatalogMatches(
-          dao: dao,
-          sources: sources,
-          importId: row.importId,
-          sourceHash: row.sourceHash,
+  static Future<_CollectedFormalDue> _collectFormalDueCardIds({
+    required OfficialAnkiSourceDao sources,
+    required Future<Set<int>> Function({required int deckId}) searchSchedulerDueCardIds,
+    required Future<Set<int>> Function({required int deckId}) searchUnfilteredDueCardIds,
+    required Future<Set<int>> Function({int? deckId}) getSuspendedCardIds,
+    required Future<Set<int>> Function({int? deckId}) getBuriedCardIds,
+    String profileId = 'profile-default-01',
+  }) async {
+    final activeSources = sources
+        .listSources(profileId)
+        .where((s) => s.state == 'active')
+        .toList();
+    final allSuspended = await getSuspendedCardIds();
+    final allBuried = await getBuriedCardIds();
+    final inputs = <OfficialFormalDueSourceInput>[];
+    final rawDueByImport = <String, int>{};
+
+    for (final source in activeSources) {
+      final cards = sources.listCards(source.sourceId);
+      if (cards.isEmpty) {
+        inputs.add(
+          OfficialFormalDueSourceInput(
+            importId: source.sourceId,
+            schedulerDueCardIds: const {},
+            schedulerDueSynced: true,
+          ),
         );
+        rawDueByImport[source.sourceId] = 0;
+        continue;
       }
-    } catch (suppressed) { debugPrint('[OfficialAnkiHomeDueSync] suppressed error: $suppressed'); }
+      final deckId = cards.first.deckId;
+      final cardIds = {for (final c in cards) c.cardId};
+      final queueIds = await searchSchedulerDueCardIds(deckId: deckId);
+      final dueIds = queueIds.intersection(cardIds);
+      final unfiltered = await searchUnfilteredDueCardIds(deckId: deckId);
+      final rawIds = unfiltered.intersection(cardIds);
+
+      rawDueByImport[source.sourceId] = rawIds.length;
+      inputs.add(
+        OfficialFormalDueSourceInput(
+          importId: source.sourceId,
+          schedulerDueCardIds: dueIds,
+          schedulerDueSynced: true,
+          activePlacementCardIds: cardIds,
+          suspendedCardIds: allSuspended.intersection(cardIds),
+          buriedCardIds: allBuried.intersection(cardIds),
+        ),
+      );
+    }
+    return _CollectedFormalDue(
+      inputs: inputs,
+      rawDueByImport: rawDueByImport,
+    );
   }
+}
+
+class _CollectedFormalDue {
+  const _CollectedFormalDue({
+    required this.inputs,
+    required this.rawDueByImport,
+  });
+
+  final List<OfficialFormalDueSourceInput> inputs;
+  final Map<String, int> rawDueByImport;
 }

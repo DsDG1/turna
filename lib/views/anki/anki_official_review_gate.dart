@@ -1,21 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_session.dart';
 
+import 'package:turna/application/anki_official/engine/official_anki_native_availability.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
-import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
-import 'package:turna/application/anki_official/migration/official_anki_production_router.dart';
 import 'package:turna/application/anki_official/migration/official_anki_review_gate_decision.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
+import 'package:turna/application/anki_official/review/official_anki_routed_source.dart';
 
 import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_error_view.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
-import 'package:turna/courses/course_loader.dart';
-import 'package:turna/data/anki_import_dao.dart';
 
 /// Capability gate for official-routed sources. Fail-closed if cutover says
 /// official but the collection is not ready. Never opens a different-semantics
@@ -23,7 +22,6 @@ import 'package:turna/data/anki_import_dao.dart';
 class AnkiOfficialReviewGate {
   const AnkiOfficialReviewGate({
     this.catalogExists,
-    this.routerOverride,
     this.catalogOverride,
     this.navigatorOverride,
     this.ensureCollectionReadyOverride,
@@ -31,18 +29,17 @@ class AnkiOfficialReviewGate {
   });
 
   final bool Function(OfficialAnkiPaths paths)? catalogExists;
-  final OfficialAnkiProductionRouter? routerOverride;
   final OfficialAnkiDatabase Function(String path)? catalogOverride;
   final Future<void> Function(
     BuildContext context,
-    OfficialAnkiProductionRouter router,
+    dynamic router,
     OfficialAnkiPaths paths,
     OfficialAnkiSession session,
     OfficialAnkiRoutedSource target,
   )? navigatorOverride;
   final Future<bool> Function(OfficialAnkiSession session)?
       ensureCollectionReadyOverride;
-  final bool Function(OfficialAnkiProductionRouter router)?
+  final bool Function(dynamic router)?
       routerCanOpenOfficialReviewOverride;
 
   Future<bool> openInsteadOfLegacy(
@@ -58,8 +55,7 @@ class AnkiOfficialReviewGate {
 
     final support = await getApplicationSupportDirectory();
     if (!context.mounted) return false;
-    final router = routerOverride ?? const OfficialAnkiProductionRouter();
-    final paths = router.pathsForDefaultProfile(support);
+    final paths = OfficialAnkiPaths.defaultProfile(support);
     final catalogPresent = catalogExists != null
         ? catalogExists!(paths)
         : paths.catalogFile.existsSync();
@@ -75,35 +71,22 @@ class AnkiOfficialReviewGate {
         ? catalogOverride!(paths.catalogFile.path)
         : OfficialAnkiDatabase.file(paths.catalogFile.path);
     try {
-      final dao = OfficialAnkiMigrationDao(catalog);
       final sources = OfficialAnkiSourceDao(catalog);
-      final sourceHash = await _sourceHashForImport(importId);
-      if (!context.mounted) return true;
-      if (sourceHash != null && sourceHash.isNotEmpty) {
-        router.adoptExistingIfCatalogMatches(
-          dao: dao,
-          sources: sources,
-          importId: importId,
-          sourceHash: sourceHash,
-        );
-      }
-      final routed = router.engineForImport(
-        importId: importId,
-        dao: dao,
-        sources: sources,
-        cutoverEnabled: cutoverEnabled,
-        sourceHash: sourceHash,
-      );
-      final target = router.reviewTargetForImport(
-        dao: dao,
-        sources: sources,
-        importId: importId,
-        cutoverEnabled: cutoverEnabled,
-        sourceHash: sourceHash,
-      );
+      final source = sources.findById(importId);
+      final isOfficial = source != null && source.state == 'active';
+      final routed = isOfficial ? AnkiEngineKind.official : AnkiEngineKind.legacy;
+      final cards = isOfficial ? sources.listCards(source.sourceId) : const <OfficialAnkiCardDescriptor>[];
+      final target = isOfficial && cards.isNotEmpty
+          ? OfficialAnkiRoutedSource(
+              importId: importId,
+              sourceId: source.sourceId,
+              deckId: cards.first.deckId,
+              cardIds: {for (final c in cards) c.cardId},
+            )
+          : null;
       final canOpen = routerCanOpenOfficialReviewOverride != null
-          ? routerCanOpenOfficialReviewOverride!(router)
-          : router.canOpenOfficialReview();
+          ? routerCanOpenOfficialReviewOverride!(null)
+          : OfficialAnkiNativeAvailability.current;
       final decision = decideOfficialReviewGate(
         cutoverEnabled: cutoverEnabled,
         routedEngine: routed,
@@ -136,7 +119,7 @@ class AnkiOfficialReviewGate {
       if (navigatorOverride != null) {
         await navigatorOverride!(
           context,
-          router,
+          null,
           paths,
           session,
           target!,
@@ -156,24 +139,7 @@ class AnkiOfficialReviewGate {
     String importId, {
     bool? cutoverEnabledOverride,
   }) {
-    final routed = const OfficialAnkiProductionRouter().engineForImport(
-      importId: importId,
-      cutoverEnabled: cutoverEnabledOverride,
-    );
-    if (routed != AnkiEngineKind.official) return false;
-    _snackFailClosed(context);
-    return true;
-  }
-
-  Future<String?> _sourceHashForImport(String importId) async {
-    try {
-      final course = CourseLoader.databaseOrNull();
-      if (course == null) return null;
-      return (await AnkiImportDao(course).getById(importId))?.sourceHash;
-    } catch (suppressed) {
-      debugPrint('[AnkiOfficialReviewGate] suppressed error: $suppressed');
-      return null;
-    }
+    return false;
   }
 
   Future<bool> _ensureCollectionReady(OfficialAnkiSession session) async {

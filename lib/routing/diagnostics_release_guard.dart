@@ -16,13 +16,6 @@ class DiagnosticsReleaseGuard extends AutoRouteGuard {
 
   static const Set<String> guardedRouteNames = {
     'OfficialAnkiReviewerRoute',
-    // OfficialAnkiRepairCenterRoute is a product storage/repair page
-    // (doc 41 S8), not a diagnostics surface.
-    // OfficialAnkiReviewRoute was deleted with the orphan review page
-    // (doc 39 P1-A); the page lives on only as a test/support fixture.
-    // OfficialAnkiMigrationPreviewRoute was deleted with the preview
-    // cluster (doc 39 P1-B).
-    'OfficialAnkiSourceManagementRoute',
   };
 
   /// Whether diagnostics surfaces are reachable in this build at all.

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
@@ -198,7 +199,7 @@ void main() {
     final question = av.showQuestion();
     await player.firstPlayStarted.future;
     expect(player.events.where((e) => e.startsWith('play:')), [
-      'play:${root.path}/q1.mp3',
+      'play:${p.join(root.path, 'q1.mp3')}',
     ]);
     final answer = av.showAnswer();
     await player.stopAfterFirstPlay.future;
@@ -206,8 +207,8 @@ void main() {
     await question;
     await answer;
     final plays = player.events.where((e) => e.startsWith('play:')).toList();
-    expect(plays, isNot(contains('play:${root.path}/q2.mp3')));
-    expect(plays, contains('play:${root.path}/a1.mp3'));
+    expect(plays, isNot(contains('play:${p.join(root.path, 'q2.mp3')}')));
+    expect(plays, contains('play:${p.join(root.path, 'a1.mp3')}'));
     expect(player.events, contains('stop'));
   });
 

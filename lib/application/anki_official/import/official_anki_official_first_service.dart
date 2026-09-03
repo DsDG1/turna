@@ -1,28 +1,17 @@
-import 'dart:io';
-
-import 'package:path_provider/path_provider.dart';
-import 'package:turna/application/anki_official/engine/official_anki_lock_reconciler.dart';
-import 'package:turna/application/anki_official/import/unified_anki_import_orchestrator.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/import/anki_import_execution_plan.dart';
+import 'package:turna/application/anki_official/import/official_anki_import_saga.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
-import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
-import 'package:turna/application/anki_official/official_anki_ids.dart';
-import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
 import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
-import 'package:turna/application/anki_official/projection/official_anki_projection_service.dart';
-import 'package:turna/application/anki_official/lifecycle/official_anki_source_metadata_dao.dart';
-import 'package:turna/application/anki_official/storage/official_anki_database.dart';
-import 'package:turna/application/anki_official/import/official_anki_import_saga.dart';
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/data/course_database.dart';
 
-/// Projection-preview snapshot after Official-first saga + migration link.
+/// Projection-preview snapshot after Official-first staging.
 class OfficialAnkiOfficialFirstPreview {
   const OfficialAnkiOfficialFirstPreview({
     required this.sourceId,
@@ -30,9 +19,9 @@ class OfficialAnkiOfficialFirstPreview {
     required this.cardCount,
     required this.noteCount,
     required this.decks,
+    required this.cardCountByDeck,
     required this.schemas,
     required this.suggestions,
-    required this.service,
   });
 
   final String sourceId;
@@ -40,20 +29,19 @@ class OfficialAnkiOfficialFirstPreview {
   final int cardCount;
   final int noteCount;
   final List<OfficialAnkiDeckNode> decks;
+
+  /// deckId → 牌组真实卡数（含后代累计，staging 卡账本统计）。deck tree
+  /// 的 new/learn/review 是今日到期队列数，不能当卡总数展示。
+  final Map<int, int> cardCountByDeck;
   final List<OfficialAnkiProjectionSchema> schemas;
   final Map<int, OfficialAnkiMappingSuggestion> suggestions;
-  final OfficialAnkiCourseProjectionService service;
 }
 
-/// Application-side Official-first import (doc 34 W4-02 / G-C C3).
-///
-/// The wizard UI confirms mappings and updates course scope; this type owns
-/// saga, migration-link, projection preview, and publish so those stages
-/// share one [AnkiImportExecutionPlan].
+/// Application-side Official-first import service.
 class OfficialAnkiOfficialFirstService {
   const OfficialAnkiOfficialFirstService();
 
-  /// Official-first pick path: saga → migration link → projection preview.
+  /// Official-first pick path: saga -> staging -> preview.
   Future<OfficialAnkiOfficialFirstPreview> importThenPreview({
     required String filePath,
     required AnkiImportExecutionPlan plan,
@@ -101,70 +89,12 @@ class OfficialAnkiOfficialFirstService {
       );
     }
     final sourceHash = readSourceHash(official.sourceId) ?? 'official-unknown';
-    final effectiveFlags =
-        flags ?? OfficialAnkiFeatureFlags.current;
-    // v2 链（step4.md B2）：migration link 是 v1 Legacy↔Official 关切，
-    // v2 零写入 `legacy_anki_migrations`（守卫测试锁死）。
-    if (!effectiveFlags.allowsV2ImportChain) {
-      await recordMigration(
-        importId: official.sourceId,
-        official: official,
-        hash: sourceHash,
-        cardCount: official.cardCount,
-      );
-    }
     return preparePreview(
       official: official,
       sourceHash: sourceHash,
       course: course,
-      flags: effectiveFlags,
+      flags: flags ?? OfficialAnkiFeatureFlags.current,
     );
-  }
-
-  Future<void> recordMigration({
-    required String importId,
-    required OfficialAnkiImportResult official,
-    required String hash,
-    required int cardCount,
-  }) async {
-    final support = await getApplicationSupportDirectory();
-    final paths = OfficialAnkiPaths(
-      profileId: 'profile-default-01',
-      profileRoot: Directory('${support.path}/official_anki/default'),
-    );
-    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog ??
-        OfficialAnkiDatabase.file(paths.catalogFile.path);
-    try {
-      final migrationDao = OfficialAnkiMigrationDao(catalog);
-      final now = DateTime.now().millisecondsSinceEpoch;
-      final existing = migrationDao.findByLegacyImport(
-        profileId: paths.profileId,
-        legacyImportId: importId,
-      );
-      if (existing == null) {
-        migrationDao.insertObservingOfficial(
-          migrationId: newOfficialAnkiId('mig'),
-          profileId: paths.profileId,
-          legacyImportId: importId,
-          officialSourceId: official.sourceId,
-          sourceHash: hash,
-          nowMillis: now,
-          cardCount: cardCount,
-        );
-      } else if (existing.recordedKind != 'official' ||
-          existing.officialSourceId != official.sourceId) {
-        migrationDao.setOfficialSourceAndRecordedKind(
-          migrationId: existing.migrationId,
-          officialSourceId: official.sourceId,
-          recordedKind: 'official',
-          nowMillis: now,
-        );
-      }
-    } finally {
-      if (OfficialAnkiCompositionRoot.readOnlyCatalog == null) {
-        catalog.close();
-      }
-    }
   }
 
   String? readSourceHash(String sourceId) {
@@ -196,37 +126,17 @@ class OfficialAnkiOfficialFirstService {
         messageKey: 'official_anki.catalog_missing',
       );
     }
-    final service = OfficialAnkiCompositionRoot.createProjectionService(
-      engine: engine,
-      catalog: catalog,
-      course: course,
-      sourceId: official.sourceId,
-      profileId: OfficialAnkiCompositionRoot.locatorPaths?.profileId ??
-          'profile-default-01',
-      flags: flags ?? OfficialAnkiFeatureFlags.current,
-    );
-    final metadata = OfficialAnkiSourceMetadataDao(catalog);
-    var notetypeIds = metadata.notetypeIds(official.sourceId);
-    var sourceDeckIds = metadata.deckIds(official.sourceId).toSet();
-    if (notetypeIds.isEmpty || sourceDeckIds.isEmpty) {
-      final cards = OfficialAnkiSourceDao(catalog).listCards(official.sourceId);
-      if (notetypeIds.isEmpty) {
-        final ids = <int>{};
-        for (final card in cards) {
-          final id = card.notetypeId;
-          if (id != null) ids.add(id);
-        }
-        notetypeIds = ids.toList();
-      }
-      if (sourceDeckIds.isEmpty) {
-        sourceDeckIds = {for (final card in cards) card.deckId};
-      }
-      // v2：`anki_source_notetypes`/`anki_source_decks` 属零写入的 13 张
-      // 表——notetype/deck id 直接由卡描述子派生，不落关联行。
-      if (!(flags ?? OfficialAnkiFeatureFlags.current).allowsV2ImportChain) {
-        metadata.replaceAssociations(sourceId: official.sourceId, cards: cards);
-      }
+
+    final cards = OfficialAnkiSourceDao(catalog).listCards(official.sourceId);
+    final ids = <int>{};
+    final sourceDeckIds = <int>{};
+    for (final card in cards) {
+      final id = card.notetypeId;
+      if (id != null) ids.add(id);
+      sourceDeckIds.add(card.deckId);
     }
+    final notetypeIds = ids.toList();
+
     final schemas = await engine.getProjectionSchemas(
       notetypeIds: notetypeIds,
       includeSamples: true,
@@ -240,51 +150,13 @@ class OfficialAnkiOfficialFirstService {
       cardCount: official.cardCount,
       noteCount: official.noteCount,
       decks: decks,
+      cardCountByDeck: _cumulativeCardCountByDeck(allDecks, cards),
       schemas: schemas,
       suggestions: {
         for (final schema in schemas)
-          schema.notetypeId: service.suggestFor(schema),
+          schema.notetypeId: officialAnkiSuggestMapping(schema),
       },
-      service: service,
     );
-  }
-
-  Future<OfficialAnkiProjectionPublishResult> projectAndPublish({
-    required OfficialAnkiCourseProjectionService service,
-    required String sourceId,
-    required String sourceHash,
-    required List<int> notetypeIds,
-  }) async {
-    final result = await service.projectSource(notetypeIds: notetypeIds);
-    if (result.needsMapping || result.failed || result.cancelled) {
-      return result;
-    }
-    await UnifiedAnkiImportOrchestrator.instance.publishFromProjection(
-      sourceId: sourceId,
-      sourceHash: sourceHash,
-    );
-    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
-    if (catalog != null) {
-      final dao = OfficialAnkiSourceDao(catalog);
-      final source = dao.findById(sourceId);
-      if (source != null && source.state != OfficialAnkiSourceState.active.wire) {
-        dao.transitionSource(
-          sourceId: sourceId,
-          expectedState: source.state,
-          nextState: OfficialAnkiSourceState.active.wire,
-          nowMillis: DateTime.now().millisecondsSinceEpoch,
-          importedAtMillis: DateTime.now().millisecondsSinceEpoch,
-        );
-      }
-    }
-    // P1: seed the scheduler lock right after publish — every card the
-    // ledger did not introduce (fresh imports minus imported history)
-    // stays suspended until its lesson completes. Fail-closed: the home
-    // due sync re-runs the reconcile idempotently if this pass fails.
-    await OfficialAnkiLockReconciler.resolve().reconcileSource(
-          sourceId: sourceId,
-        );
-    return result;
   }
 }
 
@@ -307,4 +179,27 @@ List<OfficialAnkiDeckNode> _scopeDecks(
           ))
         deck,
   ];
+}
+
+/// deckId → 牌组（含后代）卡数：对每张卡沿其牌组名路径（'A::B::C'）逐级
+/// 前缀累计，父牌组行即显示子树总数。不在树里的 deckId 无处展示，跳过。
+Map<int, int> _cumulativeCardCountByDeck(
+  List<OfficialAnkiDeckNode> tree,
+  List<OfficialAnkiCardDescriptor> cards,
+) {
+  final nameByDeckId = {for (final deck in tree) deck.deckId: deck.name};
+  final deckIdByName = {for (final deck in tree) deck.name: deck.deckId};
+  final counts = <int, int>{};
+  for (final card in cards) {
+    final name = nameByDeckId[card.deckId];
+    if (name == null) continue;
+    final segments = name.split('::');
+    for (var i = 1; i <= segments.length; i++) {
+      final ancestorId = deckIdByName[segments.sublist(0, i).join('::')];
+      if (ancestorId != null) {
+        counts[ancestorId] = (counts[ancestorId] ?? 0) + 1;
+      }
+    }
+  }
+  return counts;
 }

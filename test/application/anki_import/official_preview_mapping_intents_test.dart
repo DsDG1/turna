@@ -4,7 +4,6 @@ import 'package:turna/application/anki_import/recognition/official_recognition_t
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/import/anki_import_execution_plan.dart';
 import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
-import 'package:turna/application/anki_official/projection/official_anki_projection_service.dart';
 
 void main() {
   test('skip clears needsMapping when that notetype was the only blocker', () {
@@ -40,7 +39,6 @@ void main() {
           candidates: [],
         ),
       },
-      service: _StubService(),
       needsMapping: true,
     );
 
@@ -50,9 +48,4 @@ void main() {
     expect(preview.needsMapping, isFalse);
     expect(officialRecognitionTriage(preview, schema).skipped, isTrue);
   });
-}
-
-class _StubService implements OfficialAnkiCourseProjectionService {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => null;
 }

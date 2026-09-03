@@ -25,7 +25,6 @@ import 'package:turna/application/anki_official/migration/official_anki_engine_k
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
-import 'package:turna/application/anki_official/projection/official_anki_projection_store.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/course_provider.dart';
@@ -39,7 +38,6 @@ import 'package:turna/data/course_database.dart';
 import 'package:turna/data/course_repository.dart';
 import 'package:turna/data/review_history_dao.dart';
 import 'package:turna/data/srs_state_dao.dart';
-import 'package:turna/di/injection.dart';
 import 'package:turna/domain/repositories/i_course_repository.dart';
 import 'package:turna/service/locator.dart';
 
@@ -200,12 +198,6 @@ void main() {
             pkg.path,
         officialFirst: const OfficialAnkiOfficialFirstService(),
         courseDatabase: course,
-        readOfficialProjectionSummary: (sourceId) async =>
-            OfficialProjectionSummary(
-          sourceId: sourceId,
-          sectionIds: const {},
-          itemCount: 0,
-        ),
         courseProvider: courseProvider,
       ),
     );

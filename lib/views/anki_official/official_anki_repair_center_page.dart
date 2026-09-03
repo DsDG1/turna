@@ -9,7 +9,6 @@ import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycl
 import 'package:turna/application/anki_official/lifecycle/official_anki_maintenance.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_pending_imports.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_storage_audit.dart';
-import 'package:turna/application/anki_official/lifecycle/official_anki_uninstall_saga.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
@@ -327,36 +326,20 @@ class _OfficialAnkiRepairCenterPageState
       _snack(AppStrings.ankiRepairActionUnavailable);
       return;
     }
-    final source = OfficialAnkiSourceDao(catalog).findById(sourceId);
     setState(() => _busy = true);
     try {
-      if (source != null &&
-          (source.isV2 ||
-              source.state == OfficialAnkiSourceState.retiring.wire)) {
-        CourseDatabase? course;
-        try {
-          if (getIt.isRegistered<CourseDatabase>()) {
-            course = getIt<CourseDatabase>();
-          }
-        } catch (_) {}
-        await OfficialAnkiV2RetireService(
-          catalog: catalog,
-          paths: paths,
-          course: course,
-          engine: OfficialAnkiCompositionRoot.engine,
-        ).runRetireJob(sourceId: sourceId);
-      } else {
-        final engine = OfficialAnkiCompositionRoot.engine;
-        if (engine == null) {
-          _snack(AppStrings.ankiRepairActionUnavailable);
-          return;
+      CourseDatabase? course;
+      try {
+        if (getIt.isRegistered<CourseDatabase>()) {
+          course = getIt<CourseDatabase>();
         }
-        await OfficialAnkiUninstallSaga(
-          catalog: catalog,
-          engine: engine,
-          paths: paths,
-        ).run(sourceId);
-      }
+      } catch (_) {}
+      await OfficialAnkiV2RetireService(
+        catalog: catalog,
+        paths: paths,
+        course: course,
+        engine: OfficialAnkiCompositionRoot.engine,
+      ).runRetireJob(sourceId: sourceId);
     } finally {
       if (mounted) {
         setState(() => _busy = false);

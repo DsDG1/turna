@@ -1,13 +1,10 @@
-import 'package:drift/drift.dart' show Variable;
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
-import 'package:turna/application/anki_official/projection/official_anki_projection_ids.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_view_store.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/courses/languages/course_lookup.dart';
-import 'package:turna/data/anki_owner_authority_dao.dart';
 import 'package:turna/data/course_database.dart' hide Section;
 import 'package:turna/domain/course/course_scope.dart';
 import 'package:turna/domain/course/section.dart';
@@ -162,116 +159,15 @@ class CourseCatalog {
       ));
     }
 
-    // Official sources — authority rows first, then manifest-only sources
-    // imported before the authority table was introduced.
-    final officialIds = <String>{};
-    if (db != null) {
-      Future<int> officialCardCount(String sourceId) async {
-        try {
-          final rows = await db!.customSelect(
-            'SELECT COUNT(*) AS n FROM official_anki_projection_index '
-            'WHERE source_id = ?',
-            variables: [Variable.withString(sourceId)],
-          ).get();
-          return rows.isEmpty ? 0 : rows.single.read<int>('n');
-        } catch (_) {
-          return 0;
-        }
-      }
-
-      final dao = AnkiOwnerAuthorityDao(db);
-      try {
-        // Read every authority row, not only active ones. A pending/retired
-        // row still owns its source id and must suppress the legacy manifest
-        // fallback below; otherwise an uninstalling or already-uninstalled
-        // source is resurrected as a zero-card course.
-        for (final row in await dao.listSources(officialProfileId)) {
-          if (!officialIds.add(row.sourceId)) continue;
-          if (row.backendKind != 'official' ||
-              row.state != AnkiSourceVisibility.active) {
-            continue;
-          }
-          entries.add(CourseCatalogEntry(
-            scope: OfficialAnkiCourseScope(
-              profileId: officialProfileId,
-              sourceId: row.sourceId,
-            ),
-            displayName: row.displayName,
-            isBuiltin: false,
-            officialSourceId: row.sourceId,
-            sectionCount: sections
-                .where(
-                    (s) => officialSourceIdFromSectionId(s.id) == row.sourceId)
-                .length,
-            cardCount: await officialCardCount(row.sourceId),
-          ));
-        }
-      } catch (e) {
-        logger.w('CourseCatalog: authority lookup failed: $e');
-      }
-
-      // Manifest fallback for pre-v21 imports.
-      try {
-        final manifests = await db
-            .customSelect(
-              'SELECT source_id, source_fingerprint '
-              'FROM official_anki_projection_manifest',
-            )
-            .get();
-        for (final manifest in manifests) {
-          final sourceId = manifest.read<String>('source_id');
-          if (officialIds.contains(sourceId)) continue;
-          final fingerprint = manifest.read<String>('source_fingerprint');
-          final rows = await db.customSelect(
-            'SELECT DISTINCT section_id, source_fingerprint '
-            'FROM official_anki_projection_index WHERE source_id = ?',
-            variables: [Variable.withString(sourceId)],
-          ).get();
-          if (rows.isEmpty) continue;
-          final consistent = rows.every(
-            (row) => row.read<String>('source_fingerprint') == fingerprint,
-          );
-          if (!consistent) continue;
-          final sectionIds = rows
-              .map((row) => row.read<String>('section_id'))
-              .where(
-                  (id) => officialAnkiIsOwnedTreeId(sourceId: sourceId, id: id))
-              .toSet();
-          if (sectionIds.isEmpty) continue;
-          if (!officialIds.add(sourceId)) continue;
-          final name = sections
-              .where((s) => sectionIds.contains(s.id))
-              .map((s) => s.name)
-              .firstOrNull;
-          entries.add(CourseCatalogEntry(
-            scope: OfficialAnkiCourseScope(
-              profileId: officialProfileId,
-              sourceId: sourceId,
-            ),
-            displayName: name ?? sourceId,
-            isBuiltin: false,
-            officialSourceId: sourceId,
-            sectionCount: sectionIds.length,
-            cardCount: await officialCardCount(sourceId),
-          ));
-        }
-      } catch (e) {
-        logger.w('CourseCatalog: manifest fallback failed: $e');
-      }
-    }
-
-    // v2 视图条目（B6 读面）：视图 + 账本 chain='v2' active 合成；
-    // flag 关时为空（回退后 v2 旧来源条目不可见，但账本/配置区/视图
-    // 数据都在——翻回 flag 即恢复，回退语义的对称面）。
+    // Official sources (v2 monolith read)
     try {
       final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
       if (catalog != null && db != null) {
         final activeSources = {
-          for (final source in OfficialAnkiSourceDao(catalog).listV2Sources(
+          for (final source in OfficialAnkiSourceDao(catalog).listSources(
             officialProfileId,
-            states: {'active'},
           ))
-            source.sourceId: source,
+            if (source.state == 'active') source.sourceId: source,
         };
         final summaries = await OfficialAnkiV2ViewStore(db).sectionSummaries();
         final sectionCounts = <String, int>{};
@@ -284,7 +180,6 @@ class CourseCatalog {
               (cardCounts[summary.sourceId] ?? 0) + summary.cardCount;
         }
         for (final sourceId in sectionCounts.keys) {
-          if (officialIds.contains(sourceId)) continue;
           entries.add(CourseCatalogEntry(
             scope: OfficialAnkiCourseScope(
               profileId: officialProfileId,

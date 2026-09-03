@@ -15,7 +15,6 @@ void main() {
             'lib/application/study_session/study_session_controller.dart',
             'lib/application/study_session/anki_study_session_host.dart',
             'lib/application/anki_official/review/formal_review_launcher.dart',
-            'lib/application/anki_official/import/unified_anki_import_orchestrator.dart',
             'lib/application/study_session/study_product_analytics.dart',
             'lib/views/review/components/study_card_surface.dart',
             // Doc 39 P1-A: the orphan review page/practice surface live on
@@ -355,11 +354,14 @@ void main() {
       ).readAsStringSync();
       expect(launcher.contains('officialCapable'), isFalse);
       expect(launcher.contains('schedulerRuntimeAvailable'), isTrue);
-      final orch = File(
-        'lib/application/anki_official/import/unified_anki_import_orchestrator.dart',
-      ).readAsStringSync();
-      expect(orch.contains('officialCapable'), isFalse);
-      expect(orch.contains('persistedOwnerIsOfficial'), isTrue);
+      // Step 6: the orchestrator (already an empty hook after doc 39) is
+      // fully deleted; its owner decisions live in the v2 commit chain.
+      expect(
+        File(
+          'lib/application/anki_official/import/unified_anki_import_orchestrator.dart',
+        ).existsSync(),
+        isFalse,
+      );
     });
 
     test('dead dual-policy and unused user migration saga are gone', () {
@@ -620,12 +622,14 @@ void main() {
         isFalse,
         reason: 'OfficialAnkiFeatureFlags.diagnostics was unused',
       );
-      final orch = File(
-        'lib/application/anki_official/import/unified_anki_import_orchestrator.dart',
-      ).readAsStringSync();
-      expect(orch.contains('void invalidate('), isFalse);
-      expect(orch.contains('wroteTurnaSrs'), isFalse);
-      expect(orch.contains('turnaSrsWordIds'), isFalse);
+      // Step 6: the empty orchestrator hook is fully deleted.
+      expect(
+        File(
+          'lib/application/anki_official/import/unified_anki_import_orchestrator.dart',
+        ).existsSync(),
+        isFalse,
+        reason: 'the retired v1 publish orchestrator must stay deleted',
+      );
       for (final entity in Directory('lib').listSync(recursive: true)) {
         if (entity is! File || !entity.path.endsWith('.dart')) continue;
         final text = entity.readAsStringSync();

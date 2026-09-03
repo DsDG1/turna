@@ -17,7 +17,6 @@ void main() {
         // OfficialAnkiReviewRoute (doc 39 P1-A) and
         // OfficialAnkiMigrationPreviewRoute (doc 39 P1-B) likewise.
         'OfficialAnkiReviewerRoute',
-        'OfficialAnkiSourceManagementRoute',
       ]),
     );
     expect(

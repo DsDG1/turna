@@ -6,30 +6,18 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
+import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
+import 'package:turna/application/anki_official/storage/official_anki_database.dart';
+import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/courses/course_loader.dart';
-import 'package:turna/data/anki_owner_authority_dao.dart';
-import 'package:turna/data/course_database.dart' hide Section;
-import 'package:turna/data/course_repository.dart';
+import 'package:turna/data/course_database.dart';
 import 'package:turna/domain/course/course_scope.dart';
-import 'package:turna/domain/course/section.dart';
 import 'package:turna/service/locator.dart';
 
 import '../helpers/in_memory_course_db.dart';
-
-/// An official projection section shell: `official-anki-<sourceId>-s<deck>`.
-Section _officialSection(String sourceId, String name, {int deck = 10}) {
-  return Section(
-    id: 'official-anki-$sourceId-s$deck',
-    name: name,
-    description: 'Official projection',
-    level: 'OfficialAnki',
-    prerequisiteSectionIds: const [],
-    units: const [],
-  );
-}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -37,35 +25,50 @@ void main() {
 
   late CourseDatabase db;
   late AppPrefs appPrefs;
-  late AnkiOwnerAuthorityDao dao;
+  late OfficialAnkiDatabase catalog;
 
   const srcA = 'src-4f8b2c9d1e';
   const srcB = 'src-99aa88bb77';
 
   setUp(() async {
     db = await seedInMemoryCourseDb();
-    dao = AnkiOwnerAuthorityDao(db);
-    final repo = CourseRepository(db);
-    await repo.bulkInsertCourseTree(_officialSection(srcA, 'Deck A Top'));
-    await repo
-        .bulkInsertCourseTree(_officialSection(srcA, 'Deck A Sub', deck: 11));
-    await repo.bulkInsertCourseTree(_officialSection(srcB, 'Deck B Top'));
-    // One authority row per official source, active + official backend.
+    catalog = OfficialAnkiDatabase.memory();
+    OfficialAnkiCompositionRoot.readOnlyCatalog = catalog;
+    // The catalog ledger + course tree view a real v2 publish writes: one
+    // active source row per official source (display name lives there), and
+    // view rows for each of its sections — official section shells come
+    // from the view alone (Step 6 removed the drift-table assembly).
+    final sources = OfficialAnkiSourceDao(catalog);
     for (final (sourceId, name) in const [
       (srcA, 'Deck A'),
       (srcB, 'Deck B'),
     ]) {
-      await dao.upsertSource(
-        courseId: 'course-$sourceId',
-        profileId: 'profile-default-01',
+      sources.upsertSource(
         sourceId: sourceId,
-        backendKind: 'official',
-        displayName: name,
+        profileId: 'profile-default-01',
         sourceHash: 'hash-$sourceId',
-        sourceFingerprint: 'fp-$sourceId',
-        state: AnkiSourceVisibility.active,
+        sourceSize: 1,
+        displayName: name,
+        state: 'active',
+        backendCommit: 'test',
+        nowMillis: 1,
       );
     }
+    await db.customStatement(
+      "INSERT INTO anki_course_tree_view "
+      "(source_id, card_id, note_id, deck_id, word_id, section_key, section_id, "
+      " unit_id, lesson_id, lesson_key, presentation_kind, source_hash, "
+      " mapping_version, rebuilt_at_millis) VALUES "
+      "('$srcA', 1, 1, 10, 'w1', 'Deck A Top', 'official-anki-$srcA-s10', "
+      "'official-anki-$srcA-s10-u1', 'official-anki-$srcA-s10-l1', 'lk', "
+      "'flip', 'hash-$srcA', 1, 1),"
+      "('$srcA', 2, 2, 11, 'w2', 'Deck A Sub', 'official-anki-$srcA-s11', "
+      "'official-anki-$srcA-s11-u1', 'official-anki-$srcA-s11-l1', 'lk', "
+      "'flip', 'hash-$srcA', 1, 1),"
+      "('$srcB', 3, 3, 10, 'w3', 'Deck B Top', 'official-anki-$srcB-s10', "
+      "'official-anki-$srcB-s10-u1', 'official-anki-$srcB-s10-l1', 'lk', "
+      "'flip', 'hash-$srcB', 1, 1)",
+    );
     CourseLoader.invalidateCaches();
 
     SharedPreferences.setMockInitialValues({});
@@ -86,8 +89,25 @@ void main() {
 
   tearDown(() async {
     OfficialAnkiCourseEntry.resetHooks();
+    OfficialAnkiCompositionRoot.readOnlyCatalog = null;
+    catalog.close();
     await db.close();
   });
+
+  /// Step 6: retiring a v2 source = its catalog row leaves the active set
+  /// (the old `anki_course_sources.visibility` authority row is gone).
+  void retireSource(String sourceId) {
+    OfficialAnkiSourceDao(catalog).upsertSource(
+      sourceId: sourceId,
+      profileId: 'profile-default-01',
+      sourceHash: 'hash-$sourceId',
+      sourceSize: 1,
+      displayName: sourceId,
+      state: 'retired',
+      backendCommit: 'test',
+      nowMillis: 2,
+    );
+  }
 
   test('builtin scope hides BOTH legacy and official Anki sections (R1-2)',
       () async {
@@ -204,14 +224,8 @@ void main() {
       'official scope with no catalog entry still falls back to builtin',
       () async {
     OfficialAnkiCourseEntry.activeSectionIds = () => {};
-    await dao.commitVisibility(
-      courseId: 'course-$srcA',
-      state: AnkiSourceVisibility.retired,
-    );
-    await dao.commitVisibility(
-      courseId: 'course-$srcB',
-      state: AnkiSourceVisibility.retired,
-    );
+    retireSource(srcA);
+    retireSource(srcB);
     await appPrefs.setString(
       PrefsConstants.courseScope,
       OfficialAnkiCourseScope(
@@ -252,29 +266,9 @@ void main() {
 
   group('broken anki:src preference handling (R1-6 provider path)', () {
     test('with exactly one official source, anki:src re-binds to it', () async {
-      // Keep a valid old projection manifest/index for B. Once an authority
-      // row exists, its retired state must win; the pre-v21 manifest fallback
-      // must not resurrect it in course management.
-      await db.customStatement(
-        "INSERT INTO official_anki_projection_manifest (source_id, "
-        "active_generation, source_fingerprint, projection_version, "
-        "section_count, lesson_count, item_count, published_at_millis) "
-        "VALUES (?, 'gen-b', 'fp-b', 1, 1, 1, 1, 1)",
-        [srcB],
-      );
-      await db.customStatement(
-        "INSERT INTO official_anki_projection_index (source_id, card_id, "
-        "word_id, section_id, unit_id, lesson_id, projection_kind, "
-        "source_fingerprint, projection_version) VALUES "
-        "(?, 1, 'word-b', ?, 'official-anki-src-99aa88bb77-u1', "
-        "'official-anki-src-99aa88bb77-l1-p1', 'flip', 'fp-b', 1)",
-        [srcB, 'official-anki-$srcB-s10'],
-      );
-      // Retire source B so only A remains visible.
-      await dao.commitVisibility(
-        courseId: 'course-$srcB',
-        state: AnkiSourceVisibility.retired,
-      );
+      // Retire source B in the catalog so only A remains visible; the
+      // retired source must not come back through any fallback.
+      retireSource(srcB);
       await appPrefs.setString(PrefsConstants.courseScope, 'anki:src');
 
       final provider = CourseProvider(appPrefs);

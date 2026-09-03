@@ -6,7 +6,6 @@ import 'package:drift/drift.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:turna/data/anki_legacy_write_fence.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 
@@ -34,8 +33,6 @@ class AnkiNoteDao {
     bool? marked,
     int? flag,
   }) async {
-    LegacyWriteFence.instance
-        .assertAllowed(importId: importId, operation: 'setCardState');
     final updates = <String>[];
     final args = <Object?>[];
     if (suspended != null) {
@@ -198,57 +195,61 @@ class AnkiNoteDao {
   /// Return the explainability record for a derived practice card. A null
   /// result means the card predates Canonical Store v2 or intentionally has
   /// no structured projection; the canonical Anki card remains authoritative.
+  ///
+  /// Step 6: `anki_practice_projections` was dropped with course.db v24, so
+  /// this always degrades to null on current schemas (kept so the card
+  /// browser keeps working for pre-v2 imports).
   Future<AnkiPracticeProjectionRecord?> projectionForCard(
     String importId,
     int cardId,
   ) async {
-    final rows = await _db.customSelect('''
-      SELECT card_id, kind, status, confidence, evidence_json, payload_json,
-             source_fingerprint, updated_at
-      FROM anki_practice_projections
-      WHERE import_id = ? AND card_id = ?
-      LIMIT 1
-    ''', variables: [
-      Variable.withString(importId),
-      Variable.withInt(cardId),
-    ]).get();
-    if (rows.isEmpty) return null;
-    final row = rows.first;
-    Map<String, Object?> decodeMap(String column) {
-      try {
-        final value = jsonDecode(row.read<String>(column));
-        return value is Map
-            ? Map<String, Object?>.from(value)
-            : const <String, Object?>{};
-      } catch (suppressed) {
-        debugPrint('[AnkiNoteDao] suppressed error: $suppressed');
-        return const <String, Object?>{};
+    try {
+      final rows = await _db.customSelect('''
+        SELECT card_id, kind, status, confidence, evidence_json, payload_json,
+               source_fingerprint, updated_at
+        FROM anki_practice_projections
+        WHERE import_id = ? AND card_id = ?
+        LIMIT 1
+      ''', variables: [
+        Variable.withString(importId),
+        Variable.withInt(cardId),
+      ]).get();
+      if (rows.isEmpty) return null;
+      final row = rows.first;
+      Map<String, Object?> decodeMap(String column) {
+        try {
+          final value = jsonDecode(row.read<String>(column));
+          return value is Map
+              ? Map<String, Object?>.from(value)
+              : const <String, Object?>{};
+        } catch (suppressed) {
+          debugPrint('[AnkiNoteDao] suppressed error: $suppressed');
+          return const <String, Object?>{};
+        }
       }
+
+      return AnkiPracticeProjectionRecord(
+        cardId: row.read<int>('card_id'),
+        kind: row.read<String>('kind'),
+        status: row.read<String>('status'),
+        confidence: row.read<double>('confidence'),
+        evidence: decodeMap('evidence_json'),
+        payload: decodeMap('payload_json'),
+        sourceFingerprint: row.read<String>('source_fingerprint'),
+        updatedAt: row.read<int>('updated_at'),
+      );
+    } catch (_) {
+      return null;
     }
-
-    return AnkiPracticeProjectionRecord(
-      cardId: row.read<int>('card_id'),
-      kind: row.read<String>('kind'),
-      status: row.read<String>('status'),
-      confidence: row.read<double>('confidence'),
-      evidence: decodeMap('evidence_json'),
-      payload: decodeMap('payload_json'),
-      sourceFingerprint: row.read<String>('source_fingerprint'),
-      updatedAt: row.read<int>('updated_at'),
-    );
   }
-
 
   // ------------------------- delete (unload) ---------------------------
 
   /// Delete all NoteStore rows for an import. Called on deck unload to
-  /// clean notetypes/notes/cards_meta plus the per-import derived tables
-  /// (deck index, import issues, practice projections) — previously those
-  /// three leaked a full row set on every uninstall. srs_states are cleaned
-  /// separately by the `anki-<importId>-` prefix.
+  /// clean notetypes/notes/cards_meta (the deck index, issue log and
+  /// practice projection tables were dropped with course.db v24).
+  /// srs_states are cleaned separately by the `anki-<importId>-` prefix.
   Future<void> deleteByImport(String importId) async {
-    LegacyWriteFence.instance
-        .assertAllowed(importId: importId, operation: 'deleteByImport');
     await _db.transaction(() async {
       await (_db.delete(_db.ankiNotetypes)
             ..where((t) => t.importId.equals(importId)))
@@ -259,18 +260,6 @@ class AnkiNoteDao {
       await (_db.delete(_db.ankiCardsMeta)
             ..where((t) => t.importId.equals(importId)))
           .go();
-      await _db.customStatement(
-        'DELETE FROM anki_decks WHERE import_id = ?',
-        [importId],
-      );
-      await _db.customStatement(
-        'DELETE FROM anki_import_issues WHERE import_id = ?',
-        [importId],
-      );
-      await _db.customStatement(
-        'DELETE FROM anki_practice_projections WHERE import_id = ?',
-        [importId],
-      );
     });
   }
 

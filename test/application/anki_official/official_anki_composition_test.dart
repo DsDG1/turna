@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
+import 'package:turna/application/anki_official/engine/official_anki_session.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 
@@ -62,7 +63,16 @@ void main() {
       platformReady: true,
     );
     final root = Directory.systemTemp.createTempSync('turna-comp-single-');
-    addTearDown(() => root.deleteSync(recursive: true));
+    addTearDown(() async {
+      final s = OfficialAnkiCompositionRoot.session;
+      if (s is OfficialAnkiSession) {
+        await s.dispose();
+      }
+      OfficialAnkiCompositionRoot.session = null;
+      try {
+        root.deleteSync(recursive: true);
+      } catch (_) {}
+    });
     final first = OfficialAnkiCompositionRoot.requireImporter(
       supportDir: root,
       useFake: true,

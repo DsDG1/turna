@@ -91,7 +91,7 @@ class OfficialAnkiImportPreview extends StatelessWidget {
                       InfoRow(
                         deck.name,
                         AppStrings.ankiDeckCardCount(
-                          deck.newCount + deck.learnCount + deck.reviewCount,
+                          preview.cardCountByDeck[deck.deckId] ?? 0,
                         ),
                       ),
                   ],

@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -6,7 +5,6 @@ import 'package:turna/application/anki_official/contract/official_anki_dto.dart'
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/engine/official_anki_session.dart';
-import 'package:turna/application/anki_official/import/official_anki_commit_receipt.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
 import 'package:turna/application/anki_official/import/official_anki_source_hasher.dart';
 import 'package:turna/application/anki_official/import/official_anki_staging_manager.dart';
@@ -16,9 +14,9 @@ import 'package:turna/application/anki_official/official_anki_feature_flags.dart
 import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
-import 'package:turna/application/anki_official/projection/official_anki_projection_service.dart';
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
+import 'package:turna/application/anki_official/v2/official_anki_v2_card_index.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_unowned_card_reclaimer.dart';
 
 /// Staging-first import control plane (doc 42 P1): start + cancel only.
@@ -157,7 +155,7 @@ class OfficialAnkiImportSaga {
   Future<OfficialAnkiImportResult> commitLive({
     required String sourceId,
     required String packagePath,
-    OfficialAnkiCourseProjectionService? projection,
+    dynamic projection,
     Map<int, OfficialAnkiMappingSuggestion> suggestions = const {},
     Set<int> confirmedNotetypes = const {},
     Set<int> skippedNotetypes = const {},
@@ -260,28 +258,17 @@ class OfficialAnkiImportSaga {
         session is OfficialAnkiSession &&
         OfficialAnkiCompositionRoot.executionMode ==
             OfficialAnkiExecutionMode.worker) {
-      // crash-hunt PR1: the receipt is the heaviest catalog segment of the
-      // chain (one anki_source_cards row per card, sync sqlite) plus one
-      // engine RPC round-trip per 200 cards — it froze the UI isolate on
-      // large decks until Android killed the process (ANR). The worker owns
-      // both the engine handle and a catalog connection, so the whole
-      // segment runs there. Test-injected engines / fake sessions take the
-      // inline fallback below, same sequence.
-      await session.commitReceipt(
+      await session.v2CardIndex(
         attemptId: attempt.attemptId,
         sourceId: sourceId,
-        noteIds: imported.associatedNoteIds,
-        nowMillis: _now,
       );
     } else {
-      await officialAnkiRunCommitReceipt(
+      await officialAnkiV2RunCardIndex(
+        sources: sources,
         attempts: attempts,
-        catalog: sources.database,
         engine: engine,
         attemptId: attempt.attemptId,
         sourceId: sourceId,
-        noteIds: imported.associatedNoteIds,
-        nowMillis: _now,
       );
     }
 
@@ -351,73 +338,13 @@ class OfficialAnkiImportSaga {
   }
 
   void _promoteMappings({
-    required OfficialAnkiCourseProjectionService? projection,
+    dynamic projection,
     required String sourceId,
     required String? stagingPath,
     required Map<int, OfficialAnkiMappingSuggestion> suggestions,
     required Set<int> confirmedNotetypes,
     required Set<int> skippedNotetypes,
-  }) {
-    if (projection == null) return;
-    var merged = Map<int, OfficialAnkiMappingSuggestion>.from(suggestions);
-    var confirmed = {...confirmedNotetypes};
-    var skipped = {...skippedNotetypes};
-    if (stagingPath != null) {
-      final file = File('$stagingPath/mapping.json');
-      if (file.existsSync()) {
-        try {
-          final raw = jsonDecode(file.readAsStringSync());
-          if (raw is Map) {
-            final map = Map<String, Object?>.from(raw);
-            final stored = map['suggestions'];
-            if (stored is Map) {
-              for (final entry in stored.entries) {
-                final id = int.tryParse('${entry.key}');
-                if (id == null || entry.value is! Map) continue;
-                merged[id] = OfficialAnkiMappingSuggestion.fromJson(
-                  Map<String, Object?>.from(entry.value as Map),
-                );
-              }
-            }
-            final c = map['confirmed'];
-            if (c is List) {
-              confirmed.addAll(
-                c.map((e) => (e as num).toInt()),
-              );
-            }
-            final s = map['skipped'];
-            if (s is List) {
-              skipped.addAll(
-                s.map((e) => (e as num).toInt()),
-              );
-            }
-          }
-        } catch (suppressed) {
-          debugPrint('[OfficialAnkiImportSaga] mapping.json: $suppressed');
-        }
-      }
-    }
-    OfficialAnkiProjectionSchema schemaFor(int id) {
-      final suggestion = merged[id];
-      return OfficialAnkiProjectionSchema(
-        notetypeId: id,
-        name: 'nt-$id',
-        kind: 'normal',
-        fieldNames: const ['Front', 'Back'],
-        templateNames: const ['Card 1'],
-        schemaFingerprint: suggestion?.schemaFingerprint ?? '',
-      );
-    }
-
-    for (final id in skipped) {
-      projection.skipNotetype(schema: schemaFor(id));
-    }
-    for (final id in confirmed) {
-      final suggestion = merged[id];
-      if (suggestion == null) continue;
-      projection.confirmMapping(schema: schemaFor(id), suggestion: suggestion);
-    }
-  }
+  }) {}
 
   Future<void> cancelActive() async {
     OfficialAnkiCompositionRoot.stagingDiscardRequested = true;

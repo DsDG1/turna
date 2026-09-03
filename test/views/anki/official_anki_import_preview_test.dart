@@ -6,7 +6,6 @@ import 'package:turna/application/anki_import/recognition/lexicon/field_roles.da
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/import/anki_import_execution_plan.dart';
 import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
-import 'package:turna/application/anki_official/projection/official_anki_projection_service.dart';
 import 'package:turna/views/anki/import_wizard/official_anki_import_preview.dart';
 
 /// Doc 37 §4 — the preview's per-notetype "four-piece": sample card by
@@ -25,6 +24,7 @@ void main() {
       decks: const [
         OfficialAnkiDeckNode(deckId: 1, name: 'Default', level: 1),
       ],
+      cardCountByDeck: const {1: 42},
       schemas: [
         OfficialAnkiProjectionSchema(
           notetypeId: 1,
@@ -64,7 +64,6 @@ void main() {
           ],
         ),
       },
-      service: _StubService(),
       showAllRecognition: true,
     );
     await tester.pumpWidget(MaterialApp(
@@ -77,6 +76,9 @@ void main() {
         ),
       ),
     ));
+
+    // 0) 牌组结构行显示账本真实卡数（而非今日到期队列数）。
+    expect(find.text('42 张卡片'), findsOneWidget);
 
     // 1) archetype chip + confidence band.
     expect(find.byKey(const Key('recognition-chip-1')), findsOneWidget);
@@ -145,7 +147,6 @@ void main() {
           ],
         ),
       },
-      service: _StubService(),
       confirmedNotetypes: {1},
       showAllRecognition: true,
     );
@@ -175,11 +176,6 @@ AnkiImportExecutionPlan _plan() => const AnkiImportExecutionPlan(
     );
 
 class _StubController implements AnkiImportController {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => null;
-}
-
-class _StubService implements OfficialAnkiCourseProjectionService {
   @override
   dynamic noSuchMethod(Invocation invocation) => null;
 }

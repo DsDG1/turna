@@ -27,8 +27,6 @@ import 'package:turna/application/anki_official/official_anki_paths.dart'
     as _i65;
 import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart'
     as _i62;
-import 'package:turna/application/anki_official/projection/official_anki_projection_service.dart'
-    as _i75;
 import 'package:turna/application/anki_official/render/official_anki_render_facade.dart'
     as _i69;
 import 'package:turna/application/anki_official/render/official_anki_render_state.dart'
@@ -68,14 +66,10 @@ import 'package:turna/views/anki/anki_review_screen.dart' as _i18;
 import 'package:turna/views/anki/anki_review_session_page.dart' as _i19;
 import 'package:turna/views/anki_official/official_anki_mapping_page.dart'
     as _i37;
-import 'package:turna/views/anki_official/official_anki_migration_center_page.dart'
-    as _i38;
 import 'package:turna/views/anki_official/official_anki_repair_center_page.dart'
     as _i39;
 import 'package:turna/views/anki_official/official_anki_reviewer_page.dart'
     as _i40;
-import 'package:turna/views/anki_official/official_anki_source_management_page.dart'
-    as _i41;
 import 'package:turna/views/courses/course_management_page.dart' as _i23;
 import 'package:turna/views/courses/section_picker_page.dart' as _i46;
 import 'package:turna/views/dictionary/dictionary_page.dart' as _i27;
@@ -1192,20 +1186,6 @@ class OfficialAnkiMappingRouteArgs {
 }
 
 /// generated route for
-/// [_i38.OfficialAnkiMigrationCenterPage]
-class OfficialAnkiMigrationCenterRoute extends _i55.PageRouteInfo<void> {
-  const OfficialAnkiMigrationCenterRoute({List<_i55.PageRouteInfo>? children})
-      : super(OfficialAnkiMigrationCenterRoute.name, initialChildren: children);
-
-  static const String name = 'OfficialAnkiMigrationCenterRoute';
-
-  static _i55.PageInfo page = _i55.PageInfo(
-    name,
-    builder: (data) {
-      return const _i38.OfficialAnkiMigrationCenterPage();
-    },
-  );
-}
 
 /// generated route for
 /// [_i39.OfficialAnkiRepairCenterPage]
@@ -1404,112 +1384,7 @@ class OfficialAnkiReviewerRouteArgs {
       controller.hashCode;
 }
 
-/// generated route for
-/// [_i41.OfficialAnkiSourceManagementPage]
-class OfficialAnkiSourceManagementRoute
-    extends _i55.PageRouteInfo<OfficialAnkiSourceManagementRouteArgs> {
-  OfficialAnkiSourceManagementRoute({
-    _i56.Key? key,
-    required _i71.OfficialAnkiEngine engine,
-    required _i64.OfficialAnkiDatabase catalog,
-    required _i72.CourseDatabase course,
-    required String profileId,
-    _i73.OfficialAnkiFeatureFlags? flags,
-    _i74.CourseProvider? courseProvider,
-    _i75.OfficialAnkiCourseProjectionService Function(String)? serviceOf,
-    List<_i55.PageRouteInfo>? children,
-  }) : super(
-          OfficialAnkiSourceManagementRoute.name,
-          args: OfficialAnkiSourceManagementRouteArgs(
-            key: key,
-            engine: engine,
-            catalog: catalog,
-            course: course,
-            profileId: profileId,
-            flags: flags,
-            courseProvider: courseProvider,
-            serviceOf: serviceOf,
-          ),
-          initialChildren: children,
-        );
-
-  static const String name = 'OfficialAnkiSourceManagementRoute';
-
-  static _i55.PageInfo page = _i55.PageInfo(
-    name,
-    builder: (data) {
-      final args = data.argsAs<OfficialAnkiSourceManagementRouteArgs>();
-      return _i41.OfficialAnkiSourceManagementPage(
-        key: args.key,
-        engine: args.engine,
-        catalog: args.catalog,
-        course: args.course,
-        profileId: args.profileId,
-        flags: args.flags,
-        courseProvider: args.courseProvider,
-        serviceOf: args.serviceOf,
-      );
-    },
-  );
-}
-
-class OfficialAnkiSourceManagementRouteArgs {
-  const OfficialAnkiSourceManagementRouteArgs({
-    this.key,
-    required this.engine,
-    required this.catalog,
-    required this.course,
-    required this.profileId,
-    this.flags,
-    this.courseProvider,
-    this.serviceOf,
-  });
-
-  final _i56.Key? key;
-
-  final _i71.OfficialAnkiEngine engine;
-
-  final _i64.OfficialAnkiDatabase catalog;
-
-  final _i72.CourseDatabase course;
-
-  final String profileId;
-
-  final _i73.OfficialAnkiFeatureFlags? flags;
-
-  final _i74.CourseProvider? courseProvider;
-
-  final _i75.OfficialAnkiCourseProjectionService Function(String)? serviceOf;
-
-  @override
-  String toString() {
-    return 'OfficialAnkiSourceManagementRouteArgs{key: $key, engine: $engine, catalog: $catalog, course: $course, profileId: $profileId, flags: $flags, courseProvider: $courseProvider, serviceOf: $serviceOf}';
-  }
-
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    if (other is! OfficialAnkiSourceManagementRouteArgs) return false;
-    return key == other.key &&
-        engine == other.engine &&
-        catalog == other.catalog &&
-        course == other.course &&
-        profileId == other.profileId &&
-        flags == other.flags &&
-        courseProvider == other.courseProvider;
-  }
-
-  @override
-  int get hashCode =>
-      key.hashCode ^
-      engine.hashCode ^
-      catalog.hashCode ^
-      course.hashCode ^
-      profileId.hashCode ^
-      flags.hashCode ^
-      courseProvider.hashCode;
-}
-
+//
 /// generated route for
 /// [_i42.PrivacyDetailsPage]
 class PrivacyDetailsRoute extends _i55.PageRouteInfo<void> {

@@ -95,11 +95,17 @@ class OfficialAnkiV2CourseRead {
     final lessonNames = <String, String>{}; // lessonId → 名
     final lessonUnits = <String, String>{}; // lessonId → unitId
     final sectionUnits = <String, Set<String>>{}; // sectionId → unitIds
+    // 树序：lesson_id/unit_id 都是 hash，不能当排序键；按组内首卡
+    // （最小 card_id）排序，切分课时后 Lesson 1..N 才按卡序出现。
+    final lessonOrder = <String, int>{}; // lessonId → 最小 cardId
+    final unitOrder = <String, int>{}; // unitId → 最小 cardId
     for (final row in await _treeRows()) {
       if (!activeSources.contains(row.sourceId)) continue;
       unitNames.putIfAbsent(row.unitId, () => row.lessonKey);
       lessonNames.putIfAbsent(row.lessonId, () => row.lessonKey);
       lessonUnits.putIfAbsent(row.lessonId, () => row.unitId);
+      lessonOrder.putIfAbsent(row.lessonId, () => row.cardId);
+      unitOrder.putIfAbsent(row.unitId, () => row.cardId);
       sectionUnits
           .putIfAbsent(row.sectionId, () => <String>{})
           .add(row.unitId);
@@ -109,17 +115,34 @@ class OfficialAnkiV2CourseRead {
     for (final summary in summaries) {
       if (!activeSources.contains(summary.sourceId)) continue;
       final units = <Unit>[];
-      final seenUnits = <String>{};
-      for (final unitId in sectionUnits[summary.sectionId] ?? const <String>{}) {
-        if (!seenUnits.add(unitId)) continue;
+      final unitIds = (sectionUnits[summary.sectionId] ?? const <String>{})
+          .toList()
+        ..sort((a, b) =>
+            (unitOrder[a] ?? 0).compareTo(unitOrder[b] ?? 0));
+      for (final unitId in unitIds) {
+        final unitLessonIds = [
+          for (final entry in lessonUnits.entries)
+            if (entry.value == unitId) entry.key,
+        ]..sort((a, b) =>
+            (lessonOrder[a] ?? 0).compareTo(lessonOrder[b] ?? 0));
+        // 同一 unit 内多个课时共用同一 lessonKey（切分的 part 片）时按
+        // 卡序加 (n) 后缀，避免 N 个课时同名；不同 lessonKey 互不加缀。
+        final namesInUnit = <String, int>{}; // lessonKey → 片数
+        for (final lessonId in unitLessonIds) {
+          final key = lessonNames[lessonId] ?? lessonId;
+          namesInUnit[key] = (namesInUnit[key] ?? 0) + 1;
+        }
+        final partCounter = <String, int>{};
         final lessons = <Lesson>[];
-        final seenLessons = <String>{};
-        for (final entry in lessonUnits.entries) {
-          if (entry.value != unitId) continue;
-          if (!seenLessons.add(entry.key)) continue;
+        for (final lessonId in unitLessonIds) {
+          final key = lessonNames[lessonId] ?? lessonId;
+          final hasSiblings = (namesInUnit[key] ?? 0) > 1;
+          final part = hasSiblings
+              ? (partCounter[key] = (partCounter[key] ?? 0) + 1)
+              : null;
           lessons.add(Lesson(
-            id: entry.key,
-            name: lessonNames[entry.key] ?? entry.key,
+            id: lessonId,
+            name: part == null ? key : '$key ($part)',
             content: const LessonContent(),
           ));
         }

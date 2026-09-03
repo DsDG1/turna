@@ -232,7 +232,10 @@ void main() {
       reason: 'v2 路径对 course.db 旧 anki 表零写入（守卫）: $violations',
     );
 
-    // 旧表内容级断言（statement 钩子的净状态对照）。
+    // 旧表在 v24 中已被彻底删除。
+    final existingTables = (await course.customSelect(
+      "SELECT name FROM sqlite_master WHERE type='table'",
+    ).get()).map((row) => row.read<String>('name')).toSet();
     for (final table in const [
       'official_anki_projection_index',
       'official_anki_projection_manifest',
@@ -241,8 +244,7 @@ void main() {
       'anki_course_sources',
       'anki_import_jobs',
     ]) {
-      final rows = await course.customSelect('SELECT COUNT(*) AS n FROM $table').get();
-      expect(rows.single.read<int>('n'), 0, reason: '$table 必须保持空');
+      expect(existingTables.contains(table), isFalse, reason: '$table 必须已被彻底删除');
     }
   });
 

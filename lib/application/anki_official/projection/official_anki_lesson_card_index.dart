@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
-import 'package:turna/application/anki_official/projection/official_anki_projection_store.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_course_read.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/di/injection.dart';
@@ -32,9 +31,8 @@ class OfficialAnkiLessonCardEntry {
 
 /// P0 single source for "which Official cards belong to one course lesson".
 ///
-/// Backed by the `official_anki_projection_index` rows the projection publish
-/// wrote: `cardId`, `wordId` and `sourceId` are structured columns there, so
-/// consumers (lesson-complete unlock, redo flush, new-card quota) resolve
+/// Backed by v2 lesson card rows: `cardId`, `wordId` and `sourceId` are
+/// structured columns there, so consumers (lesson-complete unlock, redo flush, new-card quota) resolve
 /// cards without guessing identities out of interaction-id strings. Lessons
 /// without rows — legacy imported courses, synthetic lessons — resolve to
 /// `null` and keep their own behavior.
@@ -89,32 +87,15 @@ class OfficialAnkiLessonCardIndex {
     try {
       final course = getIt<CourseDatabase>();
       final v2Entries = await _resolveV2Entries(course, lessonId);
-      if (v2Entries != null) {
-        if (v2Entries.isEmpty) return null;
-        return OfficialAnkiLessonCardIndex(
-          lessonId: lessonId,
-          sourceId: v2Entries.first.sourceId,
-          entries: [
-            for (final entry in v2Entries)
-              OfficialAnkiLessonCardEntry(
-                wordId: entry.wordId,
-                cardId: entry.cardId,
-              ),
-          ],
-        );
-      }
-      final rows = await OfficialAnkiCourseProjectionStore(
-        course,
-      ).indexRowsForLesson(lessonId);
-      if (rows.isEmpty) return null;
+      if (v2Entries == null || v2Entries.isEmpty) return null;
       return OfficialAnkiLessonCardIndex(
         lessonId: lessonId,
-        sourceId: rows.first.sourceId,
+        sourceId: v2Entries.first.sourceId,
         entries: [
-          for (final row in rows)
+          for (final entry in v2Entries)
             OfficialAnkiLessonCardEntry(
-              wordId: row.wordId,
-              cardId: row.cardId,
+              wordId: entry.wordId,
+              cardId: entry.cardId,
             ),
         ],
       );

@@ -2,9 +2,9 @@
 // OS-22). Validation is fail-closed: manifest format/version, SHA256SUMS
 // coverage, zip-slip protection and a capacity gate run BEFORE anything is
 // staged. The apply phase is transactional for database rows; a failure
-// rolls back to zero partial restores. Legacy Anki rows NEVER enter the
-// live anki_* tables — they land in `legacy_pending_migrations` until the
-// user confirms an R4 owner cutover.
+// rolls back to zero partial restores. Legacy Anki rows are ignored: the
+// v1 chain is retired (Step 6) and its `legacy_pending_migrations` parking
+// table no longer exists, so a package restores only non-Anki progress.
 
 import 'dart:convert';
 import 'dart:io';
@@ -37,7 +37,7 @@ class TurnaMigrationImportResult {
     this.restoredMistakes = 0,
     this.restoredSettings = 0,
     this.restoredMediaObjects = 0,
-    this.legacyPendingImports = const [],
+    this.legacyIgnoredImports = const [],
   });
 
   final bool applied;
@@ -49,8 +49,8 @@ class TurnaMigrationImportResult {
   final int restoredSettings;
   final int restoredMediaObjects;
 
-  /// Legacy Anki import ids parked as pending migration.
-  final List<String> legacyPendingImports;
+  /// Legacy Anki import ids found in the package but ignored (v1 retired).
+  final List<String> legacyIgnoredImports;
 
   const TurnaMigrationImportResult.rejected(TurnaMigrationImportRejection r)
       : this._(applied: false, rejection: r);
@@ -61,7 +61,7 @@ class TurnaMigrationImportResult {
     required int mistakes,
     required int settings,
     required int mediaObjects,
-    required List<String> pendingImports,
+    required List<String> ignoredImports,
   }) : this._(
           applied: true,
           restoredSrsStates: srsStates,
@@ -69,7 +69,7 @@ class TurnaMigrationImportResult {
           restoredMistakes: mistakes,
           restoredSettings: settings,
           restoredMediaObjects: mediaObjects,
-          legacyPendingImports: pendingImports,
+          legacyIgnoredImports: ignoredImports,
         );
 }
 
@@ -306,31 +306,12 @@ class TurnaMigrationImporter {
           restoredEvents++;
         }
         // Mistake log rows are pref-backed JSON in the export; they are
-        // counted for the result only — anki-owned mistakes belong to the
-        // pending import.
+        // counted for the result only, never restored.
         restoredMistakes = mistakes.length;
 
-        // Legacy Anki rows → pending migration ONLY (plan 34 §R7-3): the
-        // live anki_* tables stay untouched and the Legacy scheduler is
-        // never activated by an import.
-        for (final source in ankiSources) {
-          final importId = source['import_id'] as String? ?? '';
-          if (importId.isEmpty) continue;
-          await _db.customStatement(
-            'INSERT OR REPLACE INTO legacy_pending_migrations '
-            '(import_id, source_hash, payload_json, received_at) '
-            'VALUES (?, ?, ?, ?)',
-            [
-              importId,
-              source['source_hash'] as String? ?? '',
-              jsonEncode({
-                'source': source,
-                'manifest': manifest,
-              }),
-              DateTime.now().millisecondsSinceEpoch,
-            ],
-          );
-        }
+        // Legacy Anki rows are ignored entirely (Step 6): the v1 chain is
+        // retired and its parking table was dropped with course.db v24.
+        // Only the ids are surfaced on the result for the UI note.
       });
 
       // Media: content-addressed objects land under the media root.
@@ -354,7 +335,7 @@ class TurnaMigrationImporter {
         mistakes: restoredMistakes,
         settings: settingsEntries.length,
         mediaObjects: restoredMedia,
-        pendingImports: [
+        ignoredImports: [
           for (final source in ankiSources)
             if ((source['import_id'] as String? ?? '').isNotEmpty)
               source['import_id'] as String,
@@ -387,23 +368,5 @@ class TurnaMigrationImporter {
       // Non-POSIX hosts: assume enough space rather than blocking import.
     }
     return minFreeBytes * 2;
-  }
-
-  /// Pending legacy imports recorded by earlier imports.
-  Future<List<String>> pendingImportIds() async {
-    final rows = await _db
-        .customSelect(
-          'SELECT import_id FROM legacy_pending_migrations ORDER BY received_at',
-        )
-        .get();
-    return [for (final row in rows) row.read<String>('import_id')];
-  }
-
-  /// Removes a pending entry (after the user confirms a cutover or declines).
-  Future<void> clearPending(String importId) async {
-    await _db.customStatement(
-      'DELETE FROM legacy_pending_migrations WHERE import_id = ?',
-      [importId],
-    );
   }
 }

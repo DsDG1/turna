@@ -4,15 +4,12 @@ import 'package:turna/application/anki_official/import/official_anki_import_orch
 import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_maintenance.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_repair_executor.dart';
-import 'package:turna/application/anki_official/lifecycle/official_anki_uninstall_saga.dart';
-import 'package:turna/application/anki_official/migration/official_first_reanchor.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_unowned_card_reclaimer.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/di/injection.dart';
-import 'package:turna/service/locator.dart';
 
 /// Single Official startup entry (doc 42 P3): lease → repair/census →
 /// re-anchor → pending cleanup. Achievements and orphan media stay separate.
@@ -99,11 +96,6 @@ class OfficialAnkiStartupRecovery {
           orchestrator: orch,
           paths: paths,
           profileId: profileId,
-          uninstall: OfficialAnkiUninstallSaga(
-            catalog: catalog,
-            engine: engine,
-            paths: paths,
-          ),
           maintenanceLeaseOwnerToken: ownerToken,
         );
         // Ledger 已空、但 collection 里仍有无主卡（用户放弃过中断导入，
@@ -120,11 +112,6 @@ class OfficialAnkiStartupRecovery {
             officialAnkiStartupLog('unowned purge: $error', warning: true);
           }
         }
-      }
-      try {
-        await OfficialFirstReanchor().runIfNeeded(getIt<AppPrefs>());
-      } catch (e) {
-        officialAnkiStartupLog('P5F re-anchor skipped: $e', warning: true);
       }
       try {
         final resumed =

@@ -171,14 +171,6 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
                     onTap: () => context.router
                         .push(const AnkiImportRoute()),
                   ),
-                  _AddCourseTile(
-                    icon: Icons.sync_alt_rounded,
-                    title: 'Migrate Legacy Anki sources',
-                    subtitle:
-                        'Review differences, scheduling policy, and recovery',
-                    onTap: () => context.router
-                        .push(const OfficialAnkiMigrationCenterRoute()),
-                  ),
                 ],
               ),
             ),

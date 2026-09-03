@@ -7,9 +7,12 @@ import 'package:turna/application/anki_official/engine/official_anki_review_sess
 import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
 import 'package:turna/application/anki_official/introduction/card_introduction_store.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
-import 'package:turna/application/anki_official/migration/official_anki_production_router.dart';
+import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/review/formal_review_launcher.dart';
+import 'package:turna/application/anki_official/review/official_anki_routed_source.dart';
 import 'package:turna/application/anki_official/review/official_formal_review_production_loader.dart';
+import 'package:turna/application/anki_official/storage/official_anki_database.dart';
+import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/domain/anki/canonical_card_key.dart';
@@ -42,16 +45,21 @@ void main() {
   const importId = 'src-hydration';
 
   late CourseDatabase db;
+  late OfficialAnkiDatabase catalog;
 
   setUp(() {
     OfficialFormalDueRepository.instance.resetForTest();
     CardIntroductionStore.debugOverride = null;
     db = CourseDatabase(NativeDatabase.memory());
+    catalog = OfficialAnkiDatabase.memory();
+    OfficialAnkiCompositionRoot.readOnlyCatalog = catalog;
   });
 
   tearDown(() async {
     CardIntroductionStore.debugOverride = null;
     OfficialFormalDueRepository.instance.resetForTest();
+    OfficialAnkiCompositionRoot.readOnlyCatalog = null;
+    catalog.close();
     await GetIt.instance.reset();
     await db.close();
   });
@@ -70,14 +78,35 @@ void main() {
       status: CardIntroductionStatus.introduced,
       introducedBy: CardIntroducedBy.course,
     );
-    // The projection index the lock reconciler reads: cards 1 and 2 of this
-    // source (a real publish writes these rows).
+    // The catalog ledger a real v2 publish writes: the lock reconciler reads
+    // the source's card ids from it (cards 1 and 2 of this source).
+    OfficialAnkiSourceDao(catalog).upsertSource(
+      sourceId: importId,
+      profileId: 'profile-default-01',
+      sourceHash: 'fp',
+      sourceSize: 1,
+      displayName: 'hydration.apkg',
+      state: 'active',
+      backendCommit: 'test',
+      nowMillis: 1,
+    );
+    OfficialAnkiSourceDao(catalog).replaceCards(
+      sourceId: importId,
+      cards: const [
+        OfficialAnkiCardDescriptor(
+            cardId: 1, noteId: 1, deckId: 1, templateOrd: 0, noteGuid: 'g1'),
+        OfficialAnkiCardDescriptor(
+            cardId: 2, noteId: 2, deckId: 1, templateOrd: 0, noteGuid: 'g2'),
+      ],
+    );
+    // The course tree view the loader's read path resolves the course from.
     await db.customStatement(
-      "INSERT INTO official_anki_projection_index "
-      "(source_id, card_id, word_id, section_id, unit_id, lesson_id, "
-      " projection_kind, source_fingerprint, projection_version) VALUES "
-      "('$importId', 1, 'w1', 's', 'u', 'l', 'flip', 'fp', 1),"
-      "('$importId', 2, 'w2', 's', 'u', 'l', 'flip', 'fp', 1)",
+      "INSERT INTO anki_course_tree_view "
+      "(source_id, card_id, note_id, deck_id, word_id, section_key, section_id, "
+      " unit_id, lesson_id, lesson_key, presentation_kind, source_hash, "
+      " mapping_version, rebuilt_at_millis) VALUES "
+      "('$importId', 1, 1, 1, 'w1', 'sk', 's', 'u', 'l', 'lk', 'flip', 'fp', 1, 1),"
+      "('$importId', 2, 2, 1, 'w2', 'sk', 's', 'u', 'l', 'lk', 'flip', 'fp', 1, 1)",
     );
     GetIt.instance.registerSingleton<CourseDatabase>(db);
 

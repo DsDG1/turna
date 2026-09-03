@@ -313,7 +313,7 @@ class CourseDatabase extends _$CourseDatabase {
 
   /// Single source of truth for the drift schema version, so tests and
   /// backup code never hard-code a stale literal.
-  static const int kSchemaVersion = 23;
+  static const int kSchemaVersion = 24;
 
   @override
   int get schemaVersion => kSchemaVersion;
@@ -325,12 +325,9 @@ class CourseDatabase extends _$CourseDatabase {
           await _addAnkiStateColumns(m.database);
           await _ensureAnkiCanonicalV2(m.database);
           await _ensureFunLabSnapshotTables(m.database);
-          await _ensureOfficialProjectionIndex(m.database);
-          await _ensureOfficialProjectionManifest(m.database);
           await _ensureAnkiUnificationTables(m.database);
           await _ensureAiCompanionTables(m.database);
           await _ensureGemEconomyTables(m.database);
-          await _ensureOwnerAuthorityTables(m.database);
           await _ensureV2CourseTreeView(m.database);
           await _backfillReviewSourceIdentity(m.database);
         },
@@ -358,27 +355,14 @@ class CourseDatabase extends _$CourseDatabase {
               'anki_notetypes',
               'anki_notes',
               'anki_cards_meta',
-              'anki_practice_projections',
-              'anki_import_issues',
-              'anki_decks',
-              'anki_imports',
               'srs_states',
               'review_events',
               'fun_lab_snapshot_anki_state',
               'fun_lab_snapshot_review_events',
               'fun_lab_snapshot_srs',
               'fun_lab_snapshot_meta',
-              'official_anki_projection_index',
-              'official_anki_projection_manifest',
-              'anki_course_sources',
-              'anki_course_card_placements',
-              'anki_owner_transitions',
-              'course_scope_repair_journal',
-              'legacy_pending_migrations',
-              'anki_card_presentations',
               'anki_card_introduction_states',
               'study_product_events',
-              'anki_import_jobs',
               'anki_course_tree_view',
             ]) {
               await m.deleteTable(tableName);
@@ -387,11 +371,8 @@ class CourseDatabase extends _$CourseDatabase {
             await _addAnkiStateColumns(m.database);
             await _ensureAnkiCanonicalV2(m.database);
             await _ensureFunLabSnapshotTables(m.database);
-            await _ensureOfficialProjectionIndex(m.database);
-            await _ensureOfficialProjectionManifest(m.database);
             await _ensureAnkiUnificationTables(m.database);
             await _ensureAiCompanionTables(m.database);
-            await _ensureOwnerAuthorityTables(m.database);
             await _ensureV2CourseTreeView(m.database);
             return;
           }
@@ -507,11 +488,7 @@ class CourseDatabase extends _$CourseDatabase {
             await _ensureFunLabSnapshotTables(m.database);
           }
           if (from < 16) {
-            await _ensureOfficialProjectionIndex(m.database);
             await _ensureAiCompanionTables(m.database);
-          }
-          if (from < 17) {
-            await _ensureOfficialProjectionManifest(m.database);
           }
           if (from < 18) {
             await _ensureAnkiUnificationTables(m.database);
@@ -524,14 +501,6 @@ class CourseDatabase extends _$CourseDatabase {
           if (from < 20) {
             await _addReviewSourceIdentityColumns(m.database);
             await _backfillReviewSourceIdentity(m.database);
-          }
-          if (from < 21) {
-            // v21: anki_course_sources becomes the production owner authority
-            // (plan 34 §6.1): write fence, owner generation, transition
-            // journal, and the course-scope repair journal. The table existed
-            // since v18 but had no writers, so the new columns start at their
-            // safe defaults without any backfill.
-            await _ensureOwnerAuthorityTables(m.database);
           }
           if (from < 22) {
             // v22: drop the anki_prerendered_html cache ("智能去解密"). Its
@@ -548,6 +517,32 @@ class CourseDatabase extends _$CourseDatabase {
             // stateless materialized view: one row per card, DROP+REBUILD
             // at any time from Collection + config decisions + ledger. The
             // v1 projection tables stay untouched (flag-off = v1 exactly).
+            await _ensureV2CourseTreeView(m.database);
+          }
+          if (from < 24) {
+            // v24 (ADR 0043 D4 / ADR 0044 / step6.md): drop all 11 legacy v1
+            // anki projection, placement, presentation, and migration tables.
+            // Only anki_course_tree_view and anki_card_introduction_states remain.
+            const ankiTablesToDrop = [
+              'official_anki_projection_index',
+              'official_anki_projection_manifest',
+              'anki_course_card_placements',
+              'anki_card_presentations',
+              'anki_practice_projections',
+              'anki_decks',
+              'anki_import_issues',
+              'anki_course_sources',
+              'anki_owner_transitions',
+              'course_scope_repair_journal',
+              'anki_import_jobs',
+              'legacy_pending_migrations',
+              'course_meta_v21_codec',
+            ];
+
+            for (final table in ankiTablesToDrop) {
+              await m.database.customStatement('DROP TABLE IF EXISTS $table');
+            }
+            await _ensureAnkiUnificationTables(m.database);
             await _ensureV2CourseTreeView(m.database);
           }
         },
@@ -789,46 +784,6 @@ class CourseDatabase extends _$CourseDatabase {
     ''');
   }
 
-  static Future<void> _ensureOfficialProjectionIndex(
-    GeneratedDatabase database,
-  ) async {
-    await database.customStatement('''
-      CREATE TABLE IF NOT EXISTS official_anki_projection_index (
-        source_id TEXT NOT NULL,
-        card_id INTEGER NOT NULL,
-        word_id TEXT NOT NULL,
-        section_id TEXT NOT NULL,
-        unit_id TEXT NOT NULL,
-        lesson_id TEXT NOT NULL,
-        projection_kind TEXT NOT NULL,
-        source_fingerprint TEXT NOT NULL,
-        projection_version INTEGER NOT NULL,
-        PRIMARY KEY(source_id, card_id, projection_kind)
-      )
-    ''');
-    await database.customStatement('''
-      CREATE UNIQUE INDEX IF NOT EXISTS official_anki_projection_word_source_idx
-      ON official_anki_projection_index(source_id, word_id, projection_kind)
-    ''');
-  }
-
-  static Future<void> _ensureOfficialProjectionManifest(
-    GeneratedDatabase database,
-  ) async {
-    await database.customStatement('''
-      CREATE TABLE IF NOT EXISTS official_anki_projection_manifest (
-        source_id TEXT PRIMARY KEY NOT NULL,
-        active_generation TEXT NOT NULL,
-        source_fingerprint TEXT NOT NULL,
-        projection_version INTEGER NOT NULL,
-        section_count INTEGER NOT NULL,
-        lesson_count INTEGER NOT NULL,
-        item_count INTEGER NOT NULL,
-        published_at_millis INTEGER NOT NULL
-      )
-    ''');
-  }
-
   /// Schema v23: v2 chain materialized course-tree view (ADR 0043 D3 — the
   /// two v1 projection tables collapse into this one). No independent
   /// state: rebuilds are DELETE+INSERT inside a single transaction, so a
@@ -867,183 +822,10 @@ class CourseDatabase extends _$CourseDatabase {
     ''');
   }
 
-  /// Schema v21 owner-authority structures (plan 34 §6.1–§6.2):
-  /// - `anki_course_sources` gains the write fence, owner generation and
-  ///   last-transition columns. `state` stays the single visibility column.
-  /// - `anki_owner_transitions` journals every Legacy→Official cutover; a
-  ///   partial unique index allows at most one in-flight transition per
-  ///   course_id.
-  /// - `course_scope_repair_journal` records the idempotent courseScope /
-  ///   courseOrder preference repairs so codec migrations are auditable.
-  static Future<void> _ensureOwnerAuthorityTables(
-    GeneratedDatabase database,
-  ) async {
-    // Idempotent column adds (fresh creates already include them below).
-    Future<void> addColumn(String table, String column, String ddl) async {
-      final columns =
-          await database.customSelect('PRAGMA table_info($table)').get();
-      if (columns.isEmpty) return;
-      if (columns.any((row) => row.read<String>('name') == column)) return;
-      await database.customStatement(
-        'ALTER TABLE $table ADD COLUMN $column $ddl',
-      );
-    }
-
-    await database.customStatement('''
-      CREATE TABLE IF NOT EXISTS anki_course_sources (
-        course_id TEXT PRIMARY KEY NOT NULL,
-        profile_id TEXT NOT NULL,
-        source_id TEXT NOT NULL,
-        backend_kind TEXT NOT NULL,
-        display_name TEXT NOT NULL DEFAULT '',
-        source_hash TEXT NOT NULL,
-        source_fingerprint TEXT NOT NULL,
-        state TEXT NOT NULL,
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL,
-        owner_generation INTEGER NOT NULL DEFAULT 0,
-        write_fence TEXT NOT NULL DEFAULT 'open',
-        active_projection_generation TEXT,
-        last_transition_id TEXT
-      )
-    ''');
-    await addColumn('anki_course_sources', 'owner_generation',
-        'INTEGER NOT NULL DEFAULT 0');
-    await addColumn(
-        'anki_course_sources', 'write_fence', "TEXT NOT NULL DEFAULT 'open'");
-    await addColumn(
-        'anki_course_sources', 'active_projection_generation', 'TEXT');
-    await addColumn('anki_course_sources', 'last_transition_id', 'TEXT');
-    await database.customStatement('''
-      CREATE UNIQUE INDEX IF NOT EXISTS anki_course_sources_profile_source_idx
-      ON anki_course_sources(profile_id, source_id)
-    ''');
-    await database.customStatement('''
-      CREATE TABLE IF NOT EXISTS anki_owner_transitions (
-        transition_id TEXT PRIMARY KEY NOT NULL,
-        profile_id TEXT NOT NULL,
-        legacy_import_id TEXT,
-        official_source_id TEXT NOT NULL,
-        course_id TEXT NOT NULL,
-        from_backend TEXT NOT NULL,
-        to_backend TEXT NOT NULL,
-        phase TEXT NOT NULL,
-        generation INTEGER NOT NULL,
-        policy TEXT NOT NULL,
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL,
-        last_error_code TEXT
-      )
-    ''');
-    // At most one in-flight transition per course. Terminal phases
-    // (complete/rolledBackLegacy/rollbackEligible/noLegacyScheduleRollback)
-    // are excluded so history stays append-only.
-    await database.customStatement('''
-      CREATE UNIQUE INDEX IF NOT EXISTS anki_owner_transitions_inflight_idx
-      ON anki_owner_transitions(course_id)
-      WHERE phase IN (
-        'discovered', 'awaitingUserPolicy', 'backingUp', 'importingOfficial',
-        'verifyingIdentity', 'projectionStaging', 'cutoverReady', 'frozen',
-        'committing', 'rollbackPending', 'recoveringForward'
-      )
-    ''');
-    await database.customStatement('''
-      CREATE TABLE IF NOT EXISTS course_scope_repair_journal (
-        journal_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        repaired_at INTEGER NOT NULL,
-        old_course_scope TEXT,
-        new_course_scope TEXT NOT NULL,
-        old_course_order TEXT,
-        new_course_order TEXT NOT NULL,
-        reason TEXT NOT NULL
-      )
-    ''');
-    await database.customStatement('''
-      CREATE TABLE IF NOT EXISTS course_meta_v21_codec (
-        key TEXT PRIMARY KEY NOT NULL,
-        value TEXT NOT NULL
-      )
-    ''');
-    // turna-migration-v1 imports (plan 34 §R7-3): legacy Anki rows land
-    // here as pending — they never enter the live anki_* tables or
-    // activate the Legacy scheduler until the user confirms an R4 cutover.
-    await database.customStatement('''
-      CREATE TABLE IF NOT EXISTS legacy_pending_migrations (
-        import_id TEXT PRIMARY KEY NOT NULL,
-        source_hash TEXT NOT NULL DEFAULT '',
-        payload_json TEXT NOT NULL,
-        received_at INTEGER NOT NULL
-      )
-    ''');
-  }
-
-  /// Canonical course identity, one-card placements, presentations,
-  /// introduction state, product events, and import saga jobs.
+  /// Canonical introduction state and study product events.
   static Future<void> _ensureAnkiUnificationTables(
     GeneratedDatabase database,
   ) async {
-    await database.customStatement('''
-      CREATE TABLE IF NOT EXISTS anki_course_sources (
-        course_id TEXT PRIMARY KEY NOT NULL,
-        profile_id TEXT NOT NULL,
-        source_id TEXT NOT NULL,
-        backend_kind TEXT NOT NULL,
-        display_name TEXT NOT NULL DEFAULT '',
-        source_hash TEXT NOT NULL,
-        source_fingerprint TEXT NOT NULL,
-        state TEXT NOT NULL,
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL
-      )
-    ''');
-    await database.customStatement('''
-      CREATE UNIQUE INDEX IF NOT EXISTS anki_course_sources_profile_source_idx
-      ON anki_course_sources(profile_id, source_id)
-    ''');
-    await database.customStatement('''
-      CREATE TABLE IF NOT EXISTS anki_course_card_placements (
-        placement_id TEXT PRIMARY KEY NOT NULL,
-        course_id TEXT NOT NULL,
-        profile_id TEXT NOT NULL,
-        source_id TEXT NOT NULL,
-        card_id INTEGER NOT NULL,
-        section_id TEXT NOT NULL,
-        unit_id TEXT NOT NULL,
-        lesson_id TEXT NOT NULL,
-        display_order INTEGER NOT NULL DEFAULT 0,
-        active INTEGER NOT NULL DEFAULT 1,
-        projection_version INTEGER NOT NULL DEFAULT 1,
-        source_fingerprint TEXT NOT NULL DEFAULT '',
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL
-      )
-    ''');
-    await database.customStatement('''
-      CREATE UNIQUE INDEX IF NOT EXISTS anki_course_card_placements_active_idx
-      ON anki_course_card_placements(course_id, source_id, card_id)
-      WHERE active = 1
-    ''');
-    await database.customStatement('''
-      CREATE TABLE IF NOT EXISTS anki_card_presentations (
-        course_id TEXT NOT NULL,
-        source_id TEXT NOT NULL,
-        card_id INTEGER NOT NULL,
-        presentation_kind TEXT NOT NULL,
-        payload_json TEXT NOT NULL,
-        status TEXT NOT NULL,
-        mapping_version INTEGER NOT NULL DEFAULT 1,
-        classifier_version INTEGER NOT NULL DEFAULT 1,
-        source_fingerprint TEXT NOT NULL DEFAULT '',
-        user_confirmed INTEGER NOT NULL DEFAULT 0,
-        updated_at INTEGER NOT NULL,
-        PRIMARY KEY(course_id, source_id, card_id, presentation_kind, status)
-      )
-    ''');
-    await database.customStatement('''
-      CREATE UNIQUE INDEX IF NOT EXISTS anki_card_presentations_active_idx
-      ON anki_card_presentations(course_id, source_id, card_id)
-      WHERE status = 'active'
-    ''');
     await database.customStatement('''
       CREATE TABLE IF NOT EXISTS anki_card_introduction_states (
         course_id TEXT NOT NULL,
@@ -1074,26 +856,6 @@ class CourseDatabase extends _$CourseDatabase {
         session_id TEXT,
         undone_at INTEGER,
         effects_state TEXT NOT NULL DEFAULT 'applied'
-      )
-    ''');
-    await database.customStatement('''
-      CREATE TABLE IF NOT EXISTS anki_import_jobs (
-        job_id TEXT PRIMARY KEY NOT NULL,
-        course_id TEXT NOT NULL,
-        source_path TEXT NOT NULL,
-        source_hash TEXT NOT NULL,
-        state TEXT NOT NULL,
-        canonical_commit_ref TEXT,
-        expected_card_count INTEGER NOT NULL DEFAULT 0,
-        canonical_card_count INTEGER NOT NULL DEFAULT 0,
-        placement_count INTEGER NOT NULL DEFAULT 0,
-        active_presentation_count INTEGER NOT NULL DEFAULT 0,
-        introduced_count INTEGER NOT NULL DEFAULT 0,
-        error_code TEXT,
-        error_detail TEXT,
-        retry_count INTEGER NOT NULL DEFAULT 0,
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL
       )
     ''');
   }

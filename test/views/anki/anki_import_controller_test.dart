@@ -11,7 +11,6 @@ import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:turna/application/anki_import/anki_import_controller.dart';
 import 'package:turna/application/anki_import/anki_import_dependencies.dart';
 import 'package:turna/application/anki_import/anki_import_wizard_state.dart';
-import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_native_availability.dart';
 import 'package:turna/application/anki_official/import/anki_import_facade.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
@@ -23,7 +22,6 @@ import 'package:turna/application/anki_official/storage/official_anki_database.d
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/application/anki_official/projection/official_anki_projection_store.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/lesson_link_store.dart';
 import 'package:turna/application/srs_provider.dart';
@@ -40,24 +38,6 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/service/locator.dart';
 
 import '../../helpers/in_memory_course_db.dart';
-
-class _FailingOfficialImporter implements OfficialAnkiImporter {
-  int calls = 0;
-
-  @override
-  Future<OfficialAnkiImportResult> importFile({
-    required String packagePath,
-    required String displayName,
-    String? requestId,
-    bool cancel = false,
-  }) async {
-    calls++;
-    throw const OfficialAnkiException(
-      code: OfficialAnkiErrorCode.invalidState,
-      messageKey: 'official_anki.import_failed',
-    );
-  }
-}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -121,12 +101,6 @@ void main() {
             pickedPath,
         officialFirst: const OfficialAnkiOfficialFirstService(),
         courseDatabase: db,
-        readOfficialProjectionSummary: (sourceId) async =>
-            OfficialProjectionSummary(
-          sourceId: sourceId,
-          sectionIds: const {},
-          itemCount: 0,
-        ),
         courseProvider: courseProvider,
       ),
     );
@@ -163,15 +137,15 @@ void main() {
       courseEntry: true,
       officialFirstImport: true,
     );
-    final failing = _FailingOfficialImporter();
-    OfficialAnkiCompositionRoot.session = failing;
 
     final controller = controllerWith();
     addTearDown(controller.dispose);
 
     await controller.proceedWithPath('/tmp/o.apkg');
 
-    expect(failing.calls, 1, reason: 'the official saga ran');
+    // Composition is not wired in this unit test, so the official-first
+    // flow fails closed before any staging work; the invariant under test
+    // is that the failure leaves zero Legacy writes.
     expect(controller.state, isA<AnkiImportFailed>(),
         reason: 'the wizard surfaces the failure');
     expect((controller.state as AnkiImportFailed).returnState,

@@ -238,9 +238,9 @@ String? officialAnkiMappingConflict(OfficialAnkiMappingSuggestion suggestion) {
 /// status, and recognition provenance rides along (doc 37 §5 — preview
 /// computes this fresh, confirmed rows are never touched by it).
 OfficialAnkiMappingSuggestion officialAnkiSuggestMapping(
-  OfficialAnkiProjectionSchema schema,
-  CardRecognizer recognizer,
-) {
+  OfficialAnkiProjectionSchema schema, [
+  CardRecognizer recognizer = const CardRecognizer(),
+]) {
   final result = recognizer.recognizeNotetype(schema);
   final boundIndices = result.roles.values
       .map((binding) => binding.fieldIndex)

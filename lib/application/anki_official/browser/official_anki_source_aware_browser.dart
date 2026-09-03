@@ -3,7 +3,6 @@ import 'package:turna/application/anki_official/contract/official_anki_errors.da
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
-import 'package:turna/application/anki_official/migration/official_anki_production_router.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/core/html_stripper.dart';
 import 'package:turna/data/anki_note_dao.dart';
@@ -114,14 +113,14 @@ class OfficialAnkiSourceAwareBrowser {
   OfficialAnkiSourceAwareBrowser({
     required this.sources,
     required this.legacyNotes,
-    this.router = const OfficialAnkiProductionRouter(),
     this.engine,
     OfficialAnkiPreviewCache? previewCache,
   }) : previewCache = previewCache ?? OfficialAnkiPreviewCache();
 
+  static const defaultProfileId = 'profile-default-01';
+
   final OfficialAnkiSourceDao sources;
   final AnkiNoteDao legacyNotes;
-  final OfficialAnkiProductionRouter router;
 
   /// When set, Official search/suspend go through the Collection. Catalog
   /// rows still bound the source; they are not a substitute for search.
@@ -141,16 +140,12 @@ class OfficialAnkiSourceAwareBrowser {
     int? deckId,
     String? tag,
     AnkiEngineKind? ownerHint,
-    String profileId = OfficialAnkiProductionRouter.defaultProfileId,
+    String profileId = defaultProfileId,
   }) async {
     final owner = ownerHint ??
         (sources.findById(importOrSourceId) != null
             ? AnkiEngineKind.official
-            : router.engineForImport(
-                importId: importOrSourceId,
-                sources: sources,
-                profileId: profileId,
-              ));
+            : AnkiEngineKind.legacy);
     if (owner == AnkiEngineKind.official) {
       return (await searchWithAvailability(
         importOrSourceId: importOrSourceId,
@@ -181,16 +176,12 @@ class OfficialAnkiSourceAwareBrowser {
     required String importOrSourceId,
     OfficialBrowserFilter filter = const OfficialBrowserFilter(),
     AnkiEngineKind? ownerHint,
-    String profileId = OfficialAnkiProductionRouter.defaultProfileId,
+    String profileId = defaultProfileId,
   }) async {
     final owner = ownerHint ??
         (sources.findById(importOrSourceId) != null
             ? AnkiEngineKind.official
-            : router.engineForImport(
-                importId: importOrSourceId,
-                sources: sources,
-                profileId: profileId,
-              ));
+            : AnkiEngineKind.legacy);
     if (owner != AnkiEngineKind.official) {
       final rows = await _searchLegacyReadonly(
         importOrSourceId,
@@ -222,7 +213,7 @@ class OfficialAnkiSourceAwareBrowser {
     final resolvedId = source.sourceId;
     final catalogCards = sources.listCardsForImport(
       sourceId: resolvedId,
-      profileId: OfficialAnkiProductionRouter.defaultProfileId,
+      profileId: defaultProfileId,
     );
     final allowed = {for (final card in catalogCards) card.cardId};
     final byId = {for (final card in catalogCards) card.cardId: card};

@@ -49,13 +49,19 @@ class OfficialAnkiV2ViewRebuilder {
     required this.catalog,
     required this.course,
     required this.profileId,
+    this.lessonSize = defaultLessonSize,
     this.nowMillis,
   });
+
+  /// 每课时卡数上限（v1 投影器 lessonSize=20 的 v2 对齐语义）：同一
+  /// (section, unit, lesson) 组内按 cardId 稳定序切片，part = 序号 ~/ size + 1。
+  static const int defaultLessonSize = 20;
 
   final OfficialAnkiEngine engine;
   final OfficialAnkiDatabase catalog;
   final CourseDatabase course;
   final String profileId;
+  final int lessonSize;
   final int Function()? nowMillis;
 
   /// K11「重建中」占位信号（进程内、无持久状态——视图本身无状态）。
@@ -101,32 +107,25 @@ class OfficialAnkiV2ViewRebuilder {
         final mapping = await decisions.readImportMapping(source.sourceId);
         final kindsByNotetype = _kindsByNotetype(mapping);
         final skipped = mapping?.notetypeIdsSkipped ?? const <int>{};
+        // 牌组路径 → 放置键（section/unit/lesson）。lessonId 不在此定：
+        // 同组卡按 cardId 稳定序切片后再定 part（见 _chunkedRows）。
+        final placed = <_PlacedCard>[];
         for (final card in cardsBySource[source.sourceId] ?? const []) {
           final path = deckPaths[card.deckId] ?? const <String>[];
           final topDeckId = _topDeckId(card.deckId, deckPaths);
-          final placement =
-              _place(source.sourceId, path, placements[topDeckId]);
           // 用户明确跳过的 notetype 不进课程树（与 v1 映射语义一致）。
           if (card.notetypeId != null && skipped.contains(card.notetypeId)) {
             continue;
           }
-          rows.add(OfficialAnkiV2ViewRow(
-            sourceId: source.sourceId,
-            cardId: card.cardId,
-            noteId: card.noteId,
-            deckId: card.deckId,
-            wordId:
-                officialAnkiWordId(profileId: profileId, cardId: card.cardId),
-            sectionKey: placement.sectionKey,
-            sectionId: placement.sectionId,
-            unitId: placement.unitId,
-            lessonId: placement.lessonId,
-            lessonKey: placement.lessonKey,
+          placed.add(_PlacedCard(
+            card: card,
+            placement:
+                _place(source.sourceId, path, placements[topDeckId]),
             presentationKind:
                 kindsByNotetype[card.notetypeId ?? -1] ?? 'showWord',
-            sourceHash: source.sourceHash,
           ));
         }
+        rows.addAll(_chunkedRows(source, placed));
       }
       if (cancelToken?.isCancelled ?? false) {
         return _result(sources.length, 0, started, cancelled: true);
@@ -156,6 +155,56 @@ class OfficialAnkiV2ViewRebuilder {
     );
   }
 
+  /// 同 (section, unit, lesson) 组内按 cardId 稳定序每 [lessonSize] 张切
+  /// 一片：part = 序号 ~/ size + 1。组不超片长时 part=1，lessonId 与旧
+  /// 「一牌组一路径 = 一课时」派生完全一致（小牌组零迁移影响）。
+  List<OfficialAnkiV2ViewRow> _chunkedRows(
+    OfficialAnkiSourceRow source,
+    List<_PlacedCard> placed,
+  ) {
+    final size = lessonSize < 1 ? 1 : lessonSize;
+    final byGroup = <String, List<_PlacedCard>>{};
+    for (final entry in placed) {
+      final groupKey = [
+        entry.placement.sectionKey,
+        entry.placement.unitKey,
+        entry.placement.lessonKey,
+      ].join('\u001f');
+      byGroup.putIfAbsent(groupKey, () => []).add(entry);
+    }
+    final rows = <OfficialAnkiV2ViewRow>[];
+    for (final groupEntry in byGroup.entries) {
+      final group = groupEntry.value
+        ..sort((a, b) => a.card.cardId.compareTo(b.card.cardId));
+      for (var i = 0; i < group.length; i++) {
+        final placedCard = group[i];
+        final placement = placedCard.placement;
+        rows.add(OfficialAnkiV2ViewRow(
+          sourceId: source.sourceId,
+          cardId: placedCard.card.cardId,
+          noteId: placedCard.card.noteId,
+          deckId: placedCard.card.deckId,
+          wordId: officialAnkiWordId(
+            profileId: profileId,
+            cardId: placedCard.card.cardId,
+          ),
+          sectionKey: placement.sectionKey,
+          sectionId: placement.sectionId,
+          unitId: placement.unitId,
+          lessonId: officialAnkiLessonId(
+            sourceId: source.sourceId,
+            groupKey: groupEntry.key,
+            part: (i ~/ size) + 1,
+          ),
+          lessonKey: placement.lessonKey,
+          presentationKind: placedCard.presentationKind,
+          sourceHash: source.sourceHash,
+        ));
+      }
+    }
+    return rows;
+  }
+
   /// deckId → 名字路径（'A::B::C' 拆段）。
   static Map<int, List<String>> _deckPaths(List<OfficialAnkiDeckNode> tree) {
     return {
@@ -178,6 +227,7 @@ class OfficialAnkiV2ViewRebuilder {
 
   /// 放置决策：覆盖优先（D2 用户决策），否则按 deck 路径默认派生——
   /// 第一段 = section、第二段 = unit、末段 = lesson；单段牌组三级同段。
+  /// lessonId 由 [_chunkedRows] 切片后生成。
   static _Placement _place(
     String sourceId,
     List<String> path,
@@ -211,11 +261,7 @@ class OfficialAnkiV2ViewRebuilder {
         sourceId: sourceId,
         deckPath: [sectionKey, unitKey],
       ),
-      lessonId: officialAnkiLessonId(
-        sourceId: sourceId,
-        groupKey: [sectionKey, unitKey, lessonKey].join('\u001f'),
-        part: 1,
-      ),
+      unitKey: unitKey,
       lessonKey: lessonKey,
     );
   }
@@ -244,18 +290,30 @@ class OfficialAnkiV2ViewRebuilder {
   }
 }
 
+class _PlacedCard {
+  const _PlacedCard({
+    required this.card,
+    required this.placement,
+    required this.presentationKind,
+  });
+
+  final OfficialAnkiCardDescriptor card;
+  final _Placement placement;
+  final String presentationKind;
+}
+
 class _Placement {
   const _Placement({
     required this.sectionKey,
     required this.sectionId,
     required this.unitId,
-    required this.lessonId,
+    required this.unitKey,
     required this.lessonKey,
   });
 
   final String sectionKey;
   final String sectionId;
   final String unitId;
-  final String lessonId;
+  final String unitKey;
   final String lessonKey;
 }

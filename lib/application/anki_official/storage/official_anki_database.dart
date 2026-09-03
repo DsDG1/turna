@@ -5,7 +5,7 @@ import 'package:turna/application/anki_official/contract/official_anki_errors.da
 import 'package:turna/application/anki_official/storage/official_anki_sqlite.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 
-const int kOfficialAnkiCatalogSchemaVersion = 13;
+const int kOfficialAnkiCatalogSchemaVersion = 14;
 
 /// Independent catalog. Must not live in CourseDatabase (downgrade wipes it).
 class OfficialAnkiDatabase {
@@ -72,7 +72,10 @@ class OfficialAnkiDatabase {
     _db.execute('BEGIN');
     try {
       if (version == 0) {
-        _createV1();
+        _createV14();
+        _db.execute('PRAGMA user_version = $kOfficialAnkiCatalogSchemaVersion');
+        _db.execute('COMMIT');
+        return;
       }
       if (version <= 1) {
         _upgradeToV2();
@@ -88,9 +91,6 @@ class OfficialAnkiDatabase {
       }
       if (version <= 5) {
         _upgradeToV6();
-      }
-      if (version <= 6) {
-        _upgradeToV7();
       }
       if (version <= 7) {
         _upgradeToV8();
@@ -110,6 +110,9 @@ class OfficialAnkiDatabase {
       if (version <= 12) {
         _upgradeToV13();
       }
+      if (version <= 13) {
+        _upgradeToV14();
+      }
       _db.execute('PRAGMA user_version = $kOfficialAnkiCatalogSchemaVersion');
       _db.execute('COMMIT');
     } catch (suppressed) {
@@ -119,61 +122,7 @@ class OfficialAnkiDatabase {
     }
   }
 
-  void _createV1() {
-    _db.execute('''
-CREATE TABLE anki_sources (
-  source_id TEXT PRIMARY KEY,
-  profile_id TEXT NOT NULL,
-  source_hash TEXT NOT NULL,
-  source_size INTEGER NOT NULL,
-  display_name TEXT NOT NULL,
-  original_uri TEXT,
-  state TEXT NOT NULL,
-  backend_commit TEXT NOT NULL,
-  contract_major INTEGER NOT NULL,
-  contract_minor INTEGER NOT NULL,
-  import_options_json TEXT NOT NULL,
-  active_attempt_id TEXT,
-  imported_at_millis INTEGER,
-  last_error_code TEXT,
-  last_error_safe_message TEXT,
-  created_at_millis INTEGER NOT NULL,
-  updated_at_millis INTEGER NOT NULL,
-  UNIQUE(profile_id, source_hash)
-);
-''');
-    _db.execute('''
-CREATE TABLE anki_source_cards (
-  source_id TEXT NOT NULL REFERENCES anki_sources(source_id) ON DELETE CASCADE,
-  card_id INTEGER NOT NULL,
-  note_id INTEGER NOT NULL,
-  deck_id INTEGER NOT NULL,
-  note_guid TEXT,
-  template_ord INTEGER NOT NULL,
-  PRIMARY KEY(source_id, card_id)
-);
-''');
-    _db.execute(
-      'CREATE INDEX anki_source_cards_card_idx ON anki_source_cards(card_id)',
-    );
-    _db.execute('''
-CREATE TABLE anki_import_attempts (
-  attempt_id TEXT PRIMARY KEY,
-  source_id TEXT NOT NULL REFERENCES anki_sources(source_id),
-  request_id TEXT NOT NULL UNIQUE,
-  state TEXT NOT NULL,
-  checkpoint_id TEXT,
-  native_import_token TEXT,
-  imported_note_ids_json TEXT,
-  cursor_json TEXT,
-  started_at_millis INTEGER NOT NULL,
-  heartbeat_at_millis INTEGER NOT NULL,
-  completed_at_millis INTEGER,
-  last_error_code TEXT,
-  recovery_count INTEGER NOT NULL DEFAULT 0
-);
-''');
-  }
+
 
   void _upgradeToV2() {
     _db.execute('''
@@ -217,19 +166,6 @@ CREATE TABLE IF NOT EXISTS anki_import_attempt_notes (
 
   void _upgradeToV3() {
     _db.execute('''
-CREATE TABLE IF NOT EXISTS anki_projection_mappings (
-  profile_id TEXT NOT NULL,
-  notetype_id INTEGER NOT NULL,
-  schema_fingerprint TEXT NOT NULL,
-  mapping_json TEXT NOT NULL,
-  status TEXT NOT NULL,
-  user_confirmed INTEGER NOT NULL,
-  mapping_version INTEGER NOT NULL,
-  updated_at_millis INTEGER NOT NULL,
-  PRIMARY KEY(profile_id, notetype_id)
-);
-''');
-    _db.execute('''
 CREATE TABLE IF NOT EXISTS anki_projection_jobs (
   job_id TEXT PRIMARY KEY,
   source_id TEXT NOT NULL REFERENCES anki_sources(source_id),
@@ -243,18 +179,6 @@ CREATE TABLE IF NOT EXISTS anki_projection_jobs (
   heartbeat_at_millis INTEGER NOT NULL,
   completed_at_millis INTEGER,
   last_error_code TEXT
-);
-''');
-    _db.execute('''
-CREATE TABLE IF NOT EXISTS anki_course_placement_overrides (
-  source_id TEXT NOT NULL REFERENCES anki_sources(source_id),
-  card_id INTEGER NOT NULL,
-  section_key TEXT,
-  unit_key TEXT,
-  lesson_key TEXT,
-  locked INTEGER NOT NULL,
-  updated_at_millis INTEGER NOT NULL,
-  PRIMARY KEY(source_id, card_id)
 );
 ''');
     _db.execute('''
@@ -368,25 +292,6 @@ CREATE TABLE IF NOT EXISTS legacy_anki_card_map (
     _db.execute(
       'CREATE INDEX IF NOT EXISTS legacy_anki_card_map_migration_idx '
       'ON legacy_anki_card_map(migration_id)',
-    );
-  }
-
-  void _upgradeToV7() {
-    _db.execute('''
-CREATE TABLE IF NOT EXISTS anki_scheduler_mutations (
-  mutation_id TEXT PRIMARY KEY,
-  profile_id TEXT NOT NULL,
-  card_id INTEGER NOT NULL,
-  queue_epoch INTEGER NOT NULL,
-  rating TEXT,
-  state TEXT NOT NULL,
-  created_at_millis INTEGER NOT NULL,
-  updated_at_millis INTEGER NOT NULL
-);
-''');
-    _db.execute(
-      'CREATE INDEX IF NOT EXISTS anki_scheduler_mutations_card_idx '
-      'ON anki_scheduler_mutations(profile_id, card_id, state)',
     );
   }
 
@@ -654,6 +559,136 @@ CREATE TABLE IF NOT EXISTS anki_cleanup_receipts (
       'CREATE INDEX IF NOT EXISTS anki_sources_chain_idx '
       'ON anki_sources(profile_id, chain, state)',
     );
+  }
+
+  /// Step 6 (ADR 0043 D4 / ADR 0044): drop all legacy tables, converging catalog to exactly 5 core tables.
+  void _upgradeToV14() {
+    const keep = {
+      'anki_sources',
+      'anki_source_cards',
+      'anki_import_attempts',
+      'anki_maintenance_jobs',
+      'anki_maintenance_leases',
+    };
+    final existing = _db
+        .select("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+        .map((r) => r['name'] as String)
+        .where((name) => !keep.contains(name))
+        .toList();
+    for (final table in existing) {
+      _db.execute('DROP TABLE IF EXISTS $table');
+    }
+  }
+
+  /// Fresh install v14: exactly 5 core tables and their indices.
+  void _createV14() {
+    _db.execute('''
+CREATE TABLE anki_sources (
+  source_id TEXT PRIMARY KEY,
+  profile_id TEXT NOT NULL,
+  source_hash TEXT NOT NULL,
+  source_size INTEGER NOT NULL,
+  display_name TEXT NOT NULL,
+  original_uri TEXT,
+  state TEXT NOT NULL,
+  backend_commit TEXT NOT NULL,
+  contract_major INTEGER NOT NULL,
+  contract_minor INTEGER NOT NULL,
+  import_options_json TEXT NOT NULL,
+  active_attempt_id TEXT,
+  imported_at_millis INTEGER,
+  last_error_code TEXT,
+  last_error_safe_message TEXT,
+  created_at_millis INTEGER NOT NULL,
+  updated_at_millis INTEGER NOT NULL,
+  chain TEXT NOT NULL DEFAULT 'v2',
+  UNIQUE(profile_id, source_hash)
+);
+''');
+    _db.execute(
+      'CREATE INDEX IF NOT EXISTS anki_sources_chain_idx '
+      'ON anki_sources(profile_id, chain, state)',
+    );
+    _db.execute('''
+CREATE TABLE anki_source_cards (
+  source_id TEXT NOT NULL REFERENCES anki_sources(source_id) ON DELETE CASCADE,
+  card_id INTEGER NOT NULL,
+  note_id INTEGER NOT NULL,
+  deck_id INTEGER NOT NULL,
+  note_guid TEXT,
+  template_ord INTEGER NOT NULL,
+  notetype_id INTEGER,
+  PRIMARY KEY(source_id, card_id)
+);
+''');
+    _db.execute(
+      'CREATE INDEX anki_source_cards_card_idx ON anki_source_cards(card_id)',
+    );
+    _db.execute('''
+CREATE TABLE anki_import_attempts (
+  attempt_id TEXT PRIMARY KEY,
+  source_id TEXT NOT NULL REFERENCES anki_sources(source_id),
+  request_id TEXT NOT NULL UNIQUE,
+  state TEXT NOT NULL,
+  checkpoint_id TEXT,
+  native_import_token TEXT,
+  imported_note_ids_json TEXT,
+  cursor_json TEXT,
+  started_at_millis INTEGER NOT NULL,
+  heartbeat_at_millis INTEGER NOT NULL,
+  completed_at_millis INTEGER,
+  last_error_code TEXT,
+  recovery_count INTEGER NOT NULL DEFAULT 0,
+  user_intent TEXT NOT NULL DEFAULT 'undecided',
+  native_commit_state TEXT NOT NULL DEFAULT 'unknown',
+  pre_import_generation INTEGER,
+  committed_generation INTEGER,
+  projection_generation TEXT,
+  cleanup_phase TEXT,
+  phase TEXT NOT NULL DEFAULT '',
+  staging_path TEXT,
+  receipt_note_ids_json TEXT,
+  receipt_scope_json TEXT,
+  pre_import_usn INTEGER
+);
+''');
+    _db.execute(
+      'CREATE INDEX IF NOT EXISTS anki_import_attempts_state_intent_idx '
+      'ON anki_import_attempts(state, user_intent)',
+    );
+    _db.execute('''
+CREATE TABLE IF NOT EXISTS anki_maintenance_jobs (
+  job_id TEXT PRIMARY KEY,
+  profile_id TEXT NOT NULL,
+  source_id TEXT,
+  kind TEXT NOT NULL,
+  state TEXT NOT NULL,
+  input_generation INTEGER,
+  attempt_count INTEGER NOT NULL DEFAULT 0,
+  before_bytes INTEGER,
+  after_bytes INTEGER,
+  reclaimed_bytes INTEGER,
+  created_at_millis INTEGER NOT NULL,
+  heartbeat_at_millis INTEGER NOT NULL,
+  completed_at_millis INTEGER,
+  last_error_code TEXT
+);
+''');
+    _db.execute(
+      'CREATE INDEX IF NOT EXISTS anki_maintenance_jobs_profile_state_idx '
+      'ON anki_maintenance_jobs(profile_id, state, kind)',
+    );
+    _db.execute('''
+CREATE TABLE IF NOT EXISTS anki_maintenance_leases (
+  profile_id TEXT PRIMARY KEY,
+  owner_token TEXT NOT NULL,
+  operation_kind TEXT NOT NULL,
+  acquired_at_millis INTEGER NOT NULL,
+  heartbeat_at_millis INTEGER NOT NULL,
+  expires_at_millis INTEGER NOT NULL,
+  process_id TEXT
+);
+''');
   }
 
   void close() => _db.dispose();

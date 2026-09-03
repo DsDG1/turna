@@ -158,24 +158,13 @@ class _CourseDatabaseV6 extends db.CourseDatabase {
 /// A hypothetical newer schema used to verify downgrade behavior: opening
 /// a future DB with the current code must not crash - it wipes + recreates the
 /// schema (the course DB is a reseedable derived cache).
-class _CourseDatabaseV24 extends db.CourseDatabase {
-  _CourseDatabaseV24(super.e);
+class _CourseDatabaseV25 extends db.CourseDatabase {
+  _CourseDatabaseV25(super.e);
 
   @override
   int get schemaVersion => db.CourseDatabase.kSchemaVersion + 1;
 }
 
-class _CourseDatabaseV23 extends db.CourseDatabase {
-  _CourseDatabaseV23(super.e);
-
-  @override
-  int get schemaVersion => 23;
-
-  @override
-  MigrationStrategy get migration => MigrationStrategy(
-        onCreate: (m) async => await m.createAll(),
-      );
-}
 
 /// v15 is the last schema before the official Anki derived projection index.
 class _CourseDatabaseV15 extends db.CourseDatabase {
@@ -554,10 +543,7 @@ void main() {
             "'official_anki_projection_manifest') ORDER BY name",
           )
           .get();
-      expect(tables.map((row) => row.read<String>('name')), [
-        'official_anki_projection_index',
-        'official_anki_projection_manifest',
-      ]);
+      expect(tables, isEmpty);
       final legacy = await migrated
           .customSelect(
             "SELECT name FROM sqlite_master WHERE type = 'table' "
@@ -577,10 +563,10 @@ void main() {
       await File(path).parent.delete(recursive: true);
     });
 
-    test('v24 -> v23 downgrade wipes and recreates instead of crashing',
+    test('v25 -> v24 downgrade wipes and recreates instead of crashing',
         () async {
       final path = await _tempDbPath();
-      final newer = _CourseDatabaseV24(NativeDatabase(File(path)));
+      final newer = _CourseDatabaseV25(NativeDatabase(File(path)));
       await _forceOpen(newer);
       await newer.into(newer.sections).insert(
             const db.SectionsCompanion(
@@ -613,7 +599,7 @@ void main() {
       await File(path).parent.delete(recursive: true);
     });
 
-    test('v20 -> v21 adds owner authority columns, tables and defaults',
+    test('v20 -> v24 migration drops legacy owner authority tables and unifies on v2',
         () async {
       final path = await _tempDbPath();
       final raw = sqlite.sqlite3.open(path);
@@ -640,63 +626,50 @@ void main() {
 
       final migrated = db.CourseDatabase(NativeDatabase(File(path)));
       await _forceOpen(migrated);
-      expect(migrated.schemaVersion, 23);
+      expect(migrated.schemaVersion, 24);
 
-      final rows = await migrated
-          .customSelect(
-            'SELECT owner_generation, write_fence, active_projection_generation, '
-            'last_transition_id, backend_kind, state FROM anki_course_sources '
-            "WHERE course_id = 'course-a'",
-          )
-          .get();
-      final row = rows.single;
-      // v21 defaults applied to pre-existing rows without data loss.
-      expect(row.read<int>('owner_generation'), 0);
-      expect(row.read<String>('write_fence'), 'open');
-      expect(row.data['active_projection_generation'], equals(null));
-      expect(row.data['last_transition_id'], equals(null));
-      expect(row.read<String>('backend_kind'), 'legacyTurna');
-      expect(row.read<String>('state'), 'active');
-
-      final tables = await migrated
+      // In v24, anki_course_sources, anki_owner_transitions, course_scope_repair_journal,
+      // and course_meta_v21_codec are physically dropped.
+      final droppedTables = await migrated
           .customSelect(
             "SELECT name FROM sqlite_master WHERE type = 'table' "
-            "AND name IN ('anki_owner_transitions','course_scope_repair_journal',"
+            "AND name IN ('anki_course_sources','anki_owner_transitions','course_scope_repair_journal',"
             "'course_meta_v21_codec') ORDER BY name",
           )
           .get();
-      expect(tables.map((r) => r.read<String>('name')), [
-        'anki_owner_transitions',
-        'course_meta_v21_codec',
-        'course_scope_repair_journal',
-      ]);
+      expect(droppedTables, isEmpty);
 
-      final indexes = await migrated
+      // Core v2 tables exist.
+      final v2Tables = await migrated
           .customSelect(
-            "SELECT name FROM sqlite_master WHERE type = 'index' "
-            "AND name = 'anki_owner_transitions_inflight_idx'",
+            "SELECT name FROM sqlite_master WHERE type = 'table' "
+            "AND name IN ('anki_course_tree_view','anki_card_introduction_states') ORDER BY name",
           )
           .get();
-      expect(indexes, hasLength(1));
+      expect(v2Tables.map((r) => r.read<String>('name')), [
+        'anki_card_introduction_states',
+        'anki_course_tree_view',
+      ]);
 
       await migrated.close();
       await File(path).parent.delete(recursive: true);
     });
 
-    test('fresh create at v21 contains owner authority schema', () async {
+    test('fresh create at v24 contains v2 course tree view and introduction states', () async {
       final database = db.CourseDatabase(NativeDatabase.memory());
       await _forceOpen(database);
-      expect(database.schemaVersion, 23);
-      final columns = await database
-          .customSelect('PRAGMA table_info(anki_course_sources)')
+      expect(database.schemaVersion, 24);
+      final tables = await database
+          .customSelect(
+            "SELECT name FROM sqlite_master WHERE type = 'table' "
+            "AND name IN ('anki_course_tree_view','anki_card_introduction_states','anki_course_sources') "
+            "ORDER BY name",
+          )
           .get();
-      final names = columns.map((r) => r.read<String>('name')).toSet();
-      expect(names, containsAll([
-        'owner_generation',
-        'write_fence',
-        'active_projection_generation',
-        'last_transition_id',
-      ]));
+      expect(tables.map((r) => r.read<String>('name')), [
+        'anki_card_introduction_states',
+        'anki_course_tree_view',
+      ]);
       await database.close();
     });
 

@@ -7,8 +7,8 @@ import 'package:turna/application/anki_official/engine/official_anki_engine.dart
 import 'package:turna/application/anki_official/engine/official_anki_lock_reconciler.dart';
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
-import 'package:turna/application/anki_official/migration/official_anki_migration_dao.dart';
-import 'package:turna/application/anki_official/migration/official_anki_production_router.dart';
+import 'package:turna/application/anki_official/official_anki_paths.dart';
+import 'package:turna/application/anki_official/review/official_anki_routed_source.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/review/official_formal_review_coordinator.dart';
@@ -287,16 +287,20 @@ class OfficialFormalReviewProductionLoader {
     String importId,
   ) async {
     final support = await getApplicationSupportDirectory();
-    const router = OfficialAnkiProductionRouter();
-    final paths = router.pathsForDefaultProfile(support);
+    final paths = OfficialAnkiPaths.defaultProfile(support);
     if (!paths.catalogFile.existsSync()) return null;
     final catalog = OfficialAnkiDatabase.file(paths.catalogFile.path);
     try {
-      return router.reviewTargetForImport(
-        dao: OfficialAnkiMigrationDao(catalog),
-        sources: OfficialAnkiSourceDao(catalog),
+      final sources = OfficialAnkiSourceDao(catalog);
+      final source = sources.findById(importId);
+      if (source == null || source.state != 'active') return null;
+      final cards = sources.listCards(source.sourceId);
+      if (cards.isEmpty) return null;
+      return OfficialAnkiRoutedSource(
         importId: importId,
-        profileId: profileId,
+        sourceId: source.sourceId,
+        deckId: cards.first.deckId,
+        cardIds: {for (final c in cards) c.cardId},
       );
     } finally {
       catalog.close();

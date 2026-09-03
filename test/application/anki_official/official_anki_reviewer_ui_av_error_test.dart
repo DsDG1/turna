@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:path/path.dart' as p;
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
 import 'package:turna/application/anki_official/render/official_anki_av_coordinator.dart';
@@ -46,7 +47,11 @@ void main() {
 
   test('DOM/renderComplete happens before that side autoplay', () async {
     final root = Directory.systemTemp.createTempSync('turna-ui-av-');
-    addTearDown(() => root.deleteSync(recursive: true));
+    addTearDown(() {
+      try {
+        root.deleteSync(recursive: true);
+      } catch (_) {}
+    });
     File('${root.path}/a.mp3').writeAsBytesSync([1]);
     File('${root.path}/b.mp3').writeAsBytesSync([2]);
     final player = _HoldPlayPlayer();
@@ -66,7 +71,7 @@ void main() {
     );
     expect(controller.ui.surface, OfficialAnkiReviewerSurface.visible);
     await player.started.future;
-    expect(player.events, contains('play:${root.path}/b.mp3'));
+    expect(player.events, contains('play:${p.join(root.path, 'b.mp3')}'));
     player.release.complete();
   });
 

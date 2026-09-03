@@ -47,6 +47,14 @@ class StudySessionController extends ChangeNotifier {
 
   int get currentIndex => _index;
   int get totalCount => items.length;
+
+  /// Cards with a committed recall outcome this session (undo/redo aware).
+  ///
+  /// Live-queue hosts replace [items] after every answer (plan 34 D4), so at
+  /// completion [totalCount] is the residual scheduler queue — never the
+  /// session size. Completion summaries must count with this instead.
+  int get answeredCount => rememberedCount + forgottenCount;
+
   int get generation => _generation;
   bool get isComplete => phase == StudyCardPhase.completed;
   bool get isLocked => _locked;

@@ -34,7 +34,7 @@ void main() {
     final version =
         db.handle.select('PRAGMA user_version').first['user_version'] as int;
     expect(version, kOfficialAnkiCatalogSchemaVersion);
-    expect(version, 12);
+    expect(version, 14);
     final columns = db.handle
         .select("SELECT name FROM pragma_table_info('anki_import_attempts')")
         .map((row) => row['name'] as String)

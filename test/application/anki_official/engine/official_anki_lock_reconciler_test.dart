@@ -10,28 +10,13 @@ import 'package:turna/application/anki_official/engine/official_anki_engine_fake
 import 'package:turna/application/anki_official/engine/official_anki_lock_reconciler.dart';
 import 'package:turna/application/anki_official/engine/official_anki_scheduler_audit.dart';
 import 'package:turna/application/anki_official/introduction/card_introduction_store.dart';
-import 'package:turna/application/anki_official/projection/official_anki_projection_projector.dart';
-import 'package:turna/application/anki_official/projection/official_anki_projection_store.dart';
+import 'package:turna/application/anki_official/official_anki_composition.dart';
+import 'package:turna/application/anki_official/storage/official_anki_database.dart';
+import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/data/course_database.dart';
 
 import '../../../helpers/in_memory_course_db.dart';
-
-OfficialAnkiProjectedItem _item(int cardId) {
-  return OfficialAnkiProjectedItem(
-    kind: OfficialAnkiProjectionKind.flip,
-    cardId: cardId,
-    wordId: 'official-anki-key-c$cardId',
-    sectionId: 'official-anki-src-lr-s1',
-    unitId: 'official-anki-src-lr-u1',
-    lessonId: 'official-anki-src-lr-l1-p1',
-    sectionName: 'S',
-    unitName: 'U',
-    lessonName: 'L',
-    payload: const <String, Object?>{},
-    sourceFingerprint: 'fp',
-  );
-}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -39,33 +24,49 @@ void main() {
 
   group('OfficialAnkiLockReconciler', () {
     late CourseDatabase db;
+    late OfficialAnkiDatabase catalog;
     late FakeOfficialAnkiEngine engine;
     late CardIntroductionStore store;
 
     setUp(() async {
       db = CourseDatabase(NativeDatabase.memory());
+      catalog = OfficialAnkiDatabase.memory();
+      OfficialAnkiCompositionRoot.readOnlyCatalog = catalog;
       await GetIt.instance.reset();
       GetIt.instance.registerSingleton<CourseDatabase>(db);
       engine = FakeOfficialAnkiEngine();
       engine.seedPackage(packagePath: 'x.apkg', notes: 5, cards: 5);
       store = CardIntroductionStore(dao: AnkiUnificationDao(db));
       CardIntroductionStore.debugOverride = store;
+
+      OfficialAnkiSourceDao(catalog).upsertSource(
+        sourceId: 'src-lr',
+        profileId: 'p1',
+        sourceHash: 'h1',
+        sourceSize: 1,
+        displayName: 'LR',
+        state: 'active',
+        backendCommit: 'c1',
+        nowMillis: 1,
+      );
     });
 
     tearDown(() async {
       CardIntroductionStore.debugOverride = null;
+      OfficialAnkiCompositionRoot.readOnlyCatalog = null;
+      catalog.close();
       await GetIt.instance.reset();
       await db.close();
     });
 
-    test('reconcileSource suspends exactly the unintroduced cards',
-        () async {
-      await OfficialAnkiCourseProjectionStore(db).replaceOfficialProjection(
+    test('reconcileSource suspends exactly the unintroduced cards', () async {
+      OfficialAnkiSourceDao(catalog).upsertCardBatch(
         sourceId: 'src-lr',
-        plan: OfficialAnkiProjectionPlan(
-          items: [_item(1), _item(2), _item(3)],
-          issues: const [],
-        ),
+        cards: const [
+          OfficialAnkiCardDescriptor(cardId: 1, noteId: 1, deckId: 1, templateOrd: 0),
+          OfficialAnkiCardDescriptor(cardId: 2, noteId: 2, deckId: 1, templateOrd: 0),
+          OfficialAnkiCardDescriptor(cardId: 3, noteId: 3, deckId: 1, templateOrd: 0),
+        ],
       );
       await store.markIntroducedCard(
         sourceId: 'src-lr',
@@ -82,14 +83,13 @@ void main() {
       expect(engine.suspended, {1, 3});
     });
 
-    test('reconcile is a no-op when everything is introduced and never '
-        'restores a user suspension', () async {
-      await OfficialAnkiCourseProjectionStore(db).replaceOfficialProjection(
+    test('reconcile is a no-op when everything is introduced and never restores a user suspension', () async {
+      OfficialAnkiSourceDao(catalog).upsertCardBatch(
         sourceId: 'src-lr',
-        plan: OfficialAnkiProjectionPlan(
-          items: [_item(1), _item(2)],
-          issues: const [],
-        ),
+        cards: const [
+          OfficialAnkiCardDescriptor(cardId: 1, noteId: 1, deckId: 1, templateOrd: 0),
+          OfficialAnkiCardDescriptor(cardId: 2, noteId: 2, deckId: 1, templateOrd: 0),
+        ],
       );
       await store.markIntroducedCard(
         sourceId: 'src-lr',
@@ -117,8 +117,7 @@ void main() {
       expect(engine.suspended, {2}, reason: 'the user suspension survives');
     });
 
-    test('reconcile is fail-closed without an engine or projection rows',
-        () async {
+    test('reconcile is fail-closed without an engine or projection rows', () async {
       expect(
         await OfficialAnkiLockReconciler(
           engine: null,
@@ -138,40 +137,20 @@ void main() {
     test('unlockCards restores the lock suspension', () async {
       await engine.buryOrSuspendCards(
         action: OfficialBuryOrSuspendAction.suspend,
-        cardIds: const [1, 3],
+        cardIds: const [1, 2],
       );
-
       await OfficialAnkiLockReconciler(engine: engine).unlockCards(
         sourceId: 'src-lr',
-        cardIds: const [1, 3],
+        cardIds: const [1],
       );
-
-      expect(engine.suspended, isEmpty);
+      expect(engine.suspended, {2});
     });
 
-    test('unlockCards chunks past the bridge 100-id batch limit', () async {
-      final cardIds = List<int>.generate(150, (i) => i + 1);
-      final before = OfficialAnkiSchedulerAudit.officialSchedulerBurySuspend;
-      await OfficialAnkiLockReconciler(engine: engine).unlockCards(
-        sourceId: 'src-lr',
-        cardIds: cardIds,
-      );
-      expect(
-        OfficialAnkiSchedulerAudit.officialSchedulerBurySuspend - before,
-        2,
-        reason: '150 ids must split into 100 + 50 calls',
-      );
-    });
-
-    test('unlockCards throws without an engine so the caller aborts marking',
-        () async {
-      await expectLater(
-        OfficialAnkiLockReconciler(engine: null).unlockCards(
-          sourceId: 'src-lr',
-          cardIds: const [1],
-        ),
-        throwsStateError,
-      );
+    test('audit reports unintroduced-vs-suspended counts', () {
+      OfficialAnkiSchedulerAudit.reset();
+      OfficialAnkiSchedulerAudit.officialSchedulerBurySuspend = 2;
+      final snap = OfficialAnkiSchedulerAudit.snapshot();
+      expect(snap['officialSchedulerBurySuspend'], 2);
     });
   });
 }

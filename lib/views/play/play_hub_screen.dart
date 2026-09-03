@@ -45,6 +45,11 @@ import 'package:turna/views/theme.dart';
 class PlayHubScreen extends StatefulWidget {
   const PlayHubScreen({super.key});
 
+  /// Test seam: exposes the state's TTL reset (the TTL is process-wide).
+  @visibleForTesting
+  static void resetDueRefreshTtlForTest() =>
+      _PlayHubScreenState.resetDueRefreshTtlForTest();
+
   @override
   State<PlayHubScreen> createState() => _PlayHubScreenState();
 }
@@ -54,6 +59,11 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
   /// (first visit), and a re-mount within this window does not re-refresh.
   static const _dueRefreshTtl = Duration(minutes: 5);
   static DateTime? _lastDueRefreshAt;
+
+  /// Test seam: clears the process-wide TTL so widget tests observe the
+  /// initState refresh deterministically.
+  @visibleForTesting
+  static void resetDueRefreshTtlForTest() => _lastDueRefreshAt = null;
 
   @override
   void initState() {
@@ -72,18 +82,19 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
     if (mounted) setState(() {});
   }
 
-  void _openAnkiReview(BuildContext context) {
+  Future<void> _openAnkiReview(BuildContext context) async {
     final repo = OfficialFormalDueRepository.instance;
-    unawaited(
-      const FormalReviewLauncher().open(
-        context,
-        entry: FormalReviewEntryKind.playHub,
-        courseId: 'anki',
-        officialOwner: repo.officialImportIds.isNotEmpty,
-        schedulerRuntimeAvailable:
-            OfficialAnkiFeatureFlags.current.allowsOfficialScheduler,
-      ),
+    await const FormalReviewLauncher().open(
+      context,
+      entry: FormalReviewEntryKind.playHub,
+      courseId: 'anki',
+      officialOwner: repo.officialImportIds.isNotEmpty,
+      schedulerRuntimeAvailable:
+          OfficialAnkiFeatureFlags.current.allowsOfficialScheduler,
     );
+    // 复习会话只改调度器，仓库的 schedulerDue 要等下一次 refresh 才更新；
+    // 返回 Play 页立即重取，Hero 数字才跟得上复习结果。
+    await _refreshOfficialDue();
   }
 
   // ── 数据浮窗 ────────────────────────────────────────────────────
@@ -194,6 +205,16 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Official due 快照仓库是 ChangeNotifier 单例：commit / mutation 只发通知。
+    // 本页挂在 IndexedStack 里整个进程只 mount 一次，不订阅的话 Hero 大数字
+    // 永远冻结在 initState 那次刷新读到的值上（启动竞态失败时一直是 0）。
+    return ListenableBuilder(
+      listenable: OfficialFormalDueRepository.instance,
+      builder: (context, _) => _buildHub(context),
+    );
+  }
+
+  Widget _buildHub(BuildContext context) {
     final snapshot = _gatherSnapshot(context);
     final totalDue = snapshot.totalDue;
     final ankiChipCount = snapshot.ankiUnavailable

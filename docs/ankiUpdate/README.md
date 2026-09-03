@@ -82,6 +82,6 @@
 | Step 3 | 桥补写操作：读写配置区（op 41+）、牌组配置 | 契约测试绿 | 周 |
 | Step 4 | v2 导入→课程树链落码，和 v1 并存（flag 开关） | 复活后已关闭：C3/C4/R4 全过（2026-09-02，ADR 0044；生产 `v2ImportChain=true`，见 [step4-r4-runbook.md](./step4-r4-runbook.md)） | 月 |
 | Step 5 | 存量用户切换 | 2026-09-01 取消；复活后随 Step 4 关闭**重新决策**（ADR 0044 条 5） | 周 |
-| Step 6 | 分批删旧代码 | **未开始**（前置已满足：Step 4 于 2026-09-02 关闭；吸收原 PR2 目标，ADR 0044 条 4） | 周 |
+| Step 6 | 分批删旧代码 | **施工中，代码侧完成**：Catalog v14（18→5 表）+ course.db v24、Phase 1–4 旧代码删除（净删约 2 万行）、`v2ImportChain` flag 退役、Guard 锁门测试全绿、`flutter analyze` 归零（2026-09-03，分支 `p1-dead-code-cleanup`，未提交）；待真机冒烟 4 项通过后正式关闭，详见 [step6.md](./step6.md) | 周 |
 
 总量估计 **2~3 个月专注施工**（历史估计）。顺序当时规定不能乱。六步均不得再开工：Step 1–3 已发生但整条失败；Step 4 未关闭；Step 5 取消；Step 6 未开始。

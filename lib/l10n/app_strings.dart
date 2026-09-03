@@ -1484,8 +1484,6 @@ class AppStrings {
         return '清理无用媒体';
       case 'metadata_prune':
         return '清理过期元数据';
-      case 'checkpoint_release':
-        return '释放检查点';
       case 'compact_collection':
         return '压缩收藏库';
       case 'compact_catalog':

@@ -310,8 +310,6 @@ class OfficialAnkiMaintenanceRunner {
         }
         await engine.pruneEmptyMetadata();
         return const OfficialAnkiCompactResult();
-      case OfficialAnkiMaintenanceKind.checkpointRelease:
-        return const OfficialAnkiCompactResult();
       case OfficialAnkiMaintenanceKind.compactCollection:
         final engine = this.engine;
         if (engine == null) {

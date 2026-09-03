@@ -44,8 +44,6 @@ class OfficialAnkiStorageAudit {
       files['official_catalog.sqlite'] = _size(paths.catalogFile);
       files['media_dir'] = _dirSize(paths.mediaFolder);
       files['backups'] = _dirSize(paths.backups);
-      files['checkpoints'] =
-          _dirSize(Directory('${paths.profileRoot.path}/checkpoints'));
     }
 
     Map<String, int> sqlitePages(File file) {
@@ -77,11 +75,6 @@ class OfficialAnkiStorageAudit {
       'sourcesByState': sourcesByState,
       'attemptsByState': attemptsByState,
       'sourceCardAssociations': count('SELECT COUNT(*) FROM anki_source_cards'),
-      'projectionMappings':
-          count('SELECT COUNT(*) FROM anki_projection_mappings'),
-      'checkpointReady': count(
-        "SELECT COUNT(*) FROM anki_checkpoint_files WHERE state = 'ready'",
-      ),
       'maintenancePending': count(
         "SELECT COUNT(*) FROM anki_maintenance_jobs "
         "WHERE state IN ('pending','retry_wait','running')",

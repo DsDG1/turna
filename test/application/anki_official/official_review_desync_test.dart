@@ -280,6 +280,28 @@ void main() {
     );
   });
 
+  test('answeredCount tracks committed cards while totalCount follows the '
+      'shrinking live queue (regression: 记忆率 4000%)', () async {
+    final h = _Harness(FakeOfficialAnkiEngine());
+    h.engine.seedPackage(packagePath: 'x.apkg', notes: 3, cards: 3);
+    await h.start();
+
+    while (!h.controller.isComplete) {
+      await h.rateCurrent(RecallOutcome.remembered);
+      await h.advanceFromScheduler();
+    }
+
+    expect(h.engine.answeredIds, {1, 2, 3});
+    expect(h.controller.rememberedCount, 3);
+    expect(h.controller.forgottenCount, 0);
+    expect(h.controller.answeredCount, 3,
+        reason: 'the completion denominator must be the answered cards, '
+            'not whatever the last rebuild left in the queue');
+    expect(h.controller.totalCount, lessThan(3),
+        reason: 'the live queue is drained at completion — totalCount is '
+            'the residual, which is exactly why summaries must not use it');
+  });
+
   test('P3: reportSchedulerDesync surfaces a retryable desync state',
       () async {
     final h = _Harness(FakeOfficialAnkiEngine());

@@ -4,9 +4,7 @@ import 'package:turna/application/anki_official/engine/official_anki_engine.dart
 import 'package:turna/application/anki_official/import/official_anki_import_saga.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
-import 'package:turna/application/anki_official/lifecycle/official_anki_checkpoint_dao.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
-import 'package:turna/application/anki_official/lifecycle/official_anki_source_metadata_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
@@ -131,15 +129,6 @@ class OfficialAnkiImportOrchestrator {
       debugPrint('[OfficialAnkiImportOrchestrator] restore: $suppressed');
       return _markTerminal(attempt, OfficialAnkiSourceState.quarantined);
     }
-    try {
-      await OfficialAnkiCheckpointDao(sources.database).releaseFile(
-        paths: paths,
-        checkpointId: checkpointId,
-        nowMillis: _now,
-      );
-    } catch (suppressed) {
-      debugPrint('[OfficialAnkiImportOrchestrator] ckpt release: $suppressed');
-    }
     return _markTerminal(attempt, OfficialAnkiSourceState.rolledBack);
   }
 
@@ -256,11 +245,6 @@ class OfficialAnkiImportOrchestrator {
     }
     _trip(OfficialAnkiFaultPoint.afterCardsBeforeActive);
     await engine.checkCollection();
-    final cards = sources.listCards(sourceId);
-    OfficialAnkiSourceMetadataDao(sources.database).replaceAssociations(
-      sourceId: sourceId,
-      cards: cards,
-    );
     attempts.transition(
       attemptId: attemptId,
       expectedState: OfficialAnkiSourceState.indexingCards.wire,

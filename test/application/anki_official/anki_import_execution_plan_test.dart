@@ -1,9 +1,12 @@
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/import/anki_import_execution_plan.dart';
 import 'package:turna/application/anki_official/import/anki_import_facade.dart';
 import 'package:turna/application/anki_official/import/official_anki_official_first_service.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
+import 'package:turna/data/course_database.dart';
 
 OfficialAnkiFeatureFlags _fullOfficial({bool officialFirst = true}) {
   return OfficialAnkiFeatureFlags.productionAndroid.copyWith(
@@ -143,8 +146,8 @@ void main() {
 
       // The legacy UnifiedAnkiImportRequest/importPackage path (which could
       // flip persistedOwnerIsOfficial false) was deleted in doc 39 P1-C;
-      // identity publishing now only goes through publishFromProjection,
-      // which never writes Turna SRS.
+      // the v2 commit chain (official_anki_v2_import_service) never writes
+      // Turna SRS.
       expect(plan.writesTurnaAnkiSrs, isFalse);
       expect(plan.writesLegacyNoteStore, isFalse);
       expect(plan.owner, AnkiImportOwner.official);
@@ -231,14 +234,12 @@ void main() {
     );
     expect(plan.isOfficialFirst, isFalse);
     expect(
-      await const OfficialAnkiOfficialFirstService().importPackage(
+      () => const OfficialAnkiOfficialFirstService().importThenPreview(
         filePath: '/tmp/deck.apkg',
         plan: plan,
+        course: CourseDatabase(NativeDatabase.memory()),
       ),
-      isNull,
+      throwsA(isA<OfficialAnkiException>()),
     );
-    // importAndRecord was deleted (doc 39 P1-G); the fail-closed
-    // behavior is already pinned by the importPackage null above.
-
   });
 }

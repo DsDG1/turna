@@ -15,6 +15,7 @@ import 'package:turna/application/anki_import/anki_import_completion_coordinator
 import 'package:turna/application/anki_import/anki_import_dependencies.dart';
 import 'package:turna/application/anki_import/anki_import_wizard_state.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
+import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -382,7 +383,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     final official = _officialPreviewOf(controller);
     if (official == null) return;
     final suggestion =
-        official.suggestions[schema.notetypeId] ?? official.service.suggestFor(schema);
+        official.suggestions[schema.notetypeId] ?? officialAnkiSuggestMapping(schema);
     await context.router.push(
       OfficialAnkiMappingRoute(
         notetypeName: schema.name,

@@ -1,11 +1,9 @@
-import 'package:turna/application/anki_official/migration/official_anki_write_owner.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/core/sm2.dart';
 import 'package:turna/domain/course/srs_word.dart';
 import 'package:turna/domain/review/recall_outcome.dart';
 import 'package:turna/domain/review/review_item.dart';
 import 'package:turna/domain/review/review_ledger.dart';
-import 'package:turna/domain/review/review_source.dart';
 
 /// Ledger implementation for Turna course cards and legacy Anki imports.
 ///
@@ -82,11 +80,6 @@ class TurnaReviewLedger implements ReviewLedger {
     RecallOutcome outcome, {
     int durationMs = 0,
   }) async {
-    if (key.source is LegacyAnkiSource) {
-      assertLegacySrsAnswerAllowed(
-        importId: (key.source as LegacyAnkiSource).importId,
-      );
-    }
     final now = DateTime.now();
     final word = _srsProvider.state[key.rawId];
     if (word == null) {
@@ -132,13 +125,6 @@ class TurnaReviewLedger implements ReviewLedger {
 
   @override
   Future<bool> undo(ReviewEventReceipt receipt) async {
-    if (receipt.source is LegacyAnkiSource) {
-      // The undo of an answer is itself a Legacy SRS write and must obey
-      // the same fence as the answer (plan 34 §R4-1 writer matrix).
-      assertLegacySrsAnswerAllowed(
-        importId: (receipt.source as LegacyAnkiSource).importId,
-      );
-    }
     final prev = receipt.opaqueUndoState;
     if (prev is SrsWord) {
       return prev.type == SrsItemType.expression

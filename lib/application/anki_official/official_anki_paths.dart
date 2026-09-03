@@ -17,6 +17,13 @@ class OfficialAnkiPaths {
     }
   }
 
+  factory OfficialAnkiPaths.defaultProfile(Directory support) {
+    return OfficialAnkiPaths(
+      profileId: 'profile-default-01',
+      profileRoot: Directory('${support.path}/official_anki/default'),
+    );
+  }
+
   static final _opaqueProfileId = RegExp(r'^[A-Za-z0-9_-]{8,64}$');
 
   final String profileId;
