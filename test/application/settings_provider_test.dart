@@ -87,6 +87,25 @@ void main() {
     });
   });
 
+  group('Read-aloud master switch', () {
+    test('tts feature gate defaults off and persists', () async {
+      expect(settings.ttsFeatureEnabled, isFalse);
+
+      await settings.setTtsFeatureEnabled(true);
+      final reloaded = SettingsProvider(prefs);
+      expect(reloaded.ttsFeatureEnabled, isTrue);
+    });
+
+    test('resetLearningDefaults keeps the gate untouched', () async {
+      await settings.setTtsFeatureEnabled(true);
+
+      await settings.resetLearningDefaults();
+
+      // The gate is a feature flag, not a learning parameter.
+      expect(settings.ttsFeatureEnabled, isTrue);
+    });
+  });
+
   group('Per-course settings', () {
     test('auto-read-on-tap defaults to true for any scope', () {
       expect(settings.autoReadOnTapFor(''), isTrue);

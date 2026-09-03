@@ -228,6 +228,9 @@ class LocalStateKeys {
   static const String soundEffects = 'settings.soundEffects';
   static const String haptic = 'settings.haptic';
   static const String ttsSpeed = 'settings.ttsSpeed';
+  // Master gate for the read-aloud feature (auto-read + per-course TTS entry
+  // in course management). Opt-in: false until the user enables it.
+  static const String ttsFeatureEnabled = 'settings.ttsFeatureEnabled';
   // Legacy: 'settings.ttsEngine' selected the bundled Piper offline model in
   // the Swahili build. Turkish uses system/Google TTS only, so the engine
   // toggle was removed; the key is retained for back-compat reads.

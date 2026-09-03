@@ -75,7 +75,8 @@ void main() {
     expect(find.byIcon(Icons.settings_outlined), findsOneWidget);
   });
 
-  testWidgets('default path avoids backdrop blur', (tester) async {
+  testWidgets('default path frosts the backdrop with a blur filter',
+      (tester) async {
     await tester.pumpWidget(
       wrap(
         BottomNavigator(
@@ -84,8 +85,19 @@ void main() {
         ),
       ),
     );
-    expect(find.byType(BackdropFilter), findsNothing);
+    expect(find.byType(BackdropFilter), findsOneWidget);
     expect(find.byType(ClipRRect), findsWidgets);
+    // The blur must stay clipped inside the capsule so it cannot bleed
+    // outside the rounded corners.
+    expect(
+      find.descendant(
+        of: find.byType(ClipRRect),
+        matching: find.byType(BackdropFilter),
+      ),
+      findsOneWidget,
+    );
+    // Selection lens keeps its sliding position animation.
+    expect(find.byType(AnimatedPositioned), findsOneWidget);
   });
 
   testWidgets('high contrast stays solid without blur', (tester) async {

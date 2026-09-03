@@ -508,8 +508,23 @@ void main() {
       final transition = tester.widget<FadeTransition>(reveal);
       expect(transition.opacity.value, inExclusiveRange(0, 1));
 
+      // 帘式揭示：行占位高度随因子连续增长，下方单元卡由布局推动。
+      final curtain = tester.widget<SizeTransition>(
+        find.ancestor(of: reveal, matching: find.byType(SizeTransition)),
+      );
+      expect(curtain.sizeFactor.value, inExclusiveRange(0, 1));
+
       await tester.pumpAndSettle();
       expect(find.text('Motion Lesson'), findsOneWidget);
+      expect(
+        tester
+            .widget<SizeTransition>(
+              find.ancestor(of: reveal, matching: find.byType(SizeTransition)),
+            )
+            .sizeFactor
+            .value,
+        1.0,
+      );
     });
 
     testWidgets('reduced motion reveals lessons without transition widgets',
@@ -536,6 +551,144 @@ void main() {
         find.byKey(const ValueKey<String>('lesson-reveal-quiet-lesson')),
         findsNothing,
       );
+    });
+
+    testWidgets('collapsing a unit keeps its rows mounted until the reveal '
+        'runs back to zero', (tester) async {
+      final section = _testSection(
+        id: 's-retract',
+        unitName: 'Retract Unit',
+        lessons: [_testLesson('retract-lesson', 'Retract Lesson')],
+      );
+      final provider = _FakeCourseProvider(
+        currentSection: section,
+        loadState: SectionLoadState.loaded,
+      );
+
+      await tester.pumpWidget(pumpTree(provider));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Retract Unit'));
+      await tester.pumpAndSettle();
+      expect(find.text('Retract Lesson'), findsOneWidget);
+
+      await tester.tap(find.text('Retract Unit'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      // 收回途中：行仍在列表里，高度因子处于中间值。
+      expect(find.text('Retract Lesson'), findsOneWidget);
+      expect(_curtainFactor(tester, 'retract-lesson'), inExclusiveRange(0, 1));
+
+      await tester.pumpAndSettle();
+      // 归零后行才移除，移除时高度已为 0，无视觉跳变。
+      expect(find.text('Retract Lesson'), findsNothing);
+    });
+
+    testWidgets('re-tapping a mid-collapse unit resumes from its current '
+        'extent', (tester) async {
+      final section = _testSection(
+        id: 's-resume',
+        unitName: 'Resume Unit',
+        lessons: [_testLesson('resume-lesson', 'Resume Lesson')],
+      );
+      final provider = _FakeCourseProvider(
+        currentSection: section,
+        loadState: SectionLoadState.loaded,
+      );
+
+      await tester.pumpWidget(pumpTree(provider));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Resume Unit'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Resume Unit'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 80));
+      final midCollapse = _curtainFactor(tester, 'resume-lesson');
+      expect(midCollapse, inExclusiveRange(0, 1));
+
+      await tester.tap(find.text('Resume Unit'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 40));
+      expect(
+        _curtainFactor(tester, 'resume-lesson'),
+        greaterThan(midCollapse),
+      );
+
+      // 行从未离开列表，展开完成后回到完整高度。
+      await tester.pumpAndSettle();
+      expect(find.text('Resume Lesson'), findsOneWidget);
+      expect(_curtainFactor(tester, 'resume-lesson'), 1.0);
+    });
+
+    testWidgets('switching units retracts and unfolds concurrently',
+        (tester) async {
+      final section = Section(
+        id: 's-concurrent',
+        name: 'Concurrent Section',
+        description: '',
+        prerequisiteSectionIds: const [],
+        units: [
+          Unit(
+            id: 'u-alpha',
+            name: 'Alpha Unit',
+            description: '',
+            prerequisiteUnitIds: const [],
+            lessons: [_testLesson('alpha-lesson', 'Alpha Lesson')],
+          ),
+          Unit(
+            id: 'u-beta',
+            name: 'Beta Unit',
+            description: '',
+            prerequisiteUnitIds: const [],
+            lessons: [_testLesson('beta-lesson', 'Beta Lesson')],
+          ),
+        ],
+      );
+      final provider = _FakeCourseProvider(
+        currentSection: section,
+        loadState: SectionLoadState.loaded,
+      );
+
+      await tester.pumpWidget(pumpTree(provider));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Alpha Unit'));
+      await tester.pumpAndSettle();
+      expect(find.text('Alpha Lesson'), findsOneWidget);
+      expect(find.text('Beta Lesson'), findsNothing);
+
+      await tester.tap(find.text('Beta Unit'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      // 并发窗口内：A 的行仍在收回途中，B 的行已在展开。
+      expect(find.text('Alpha Lesson'), findsOneWidget);
+      expect(find.text('Beta Lesson'), findsOneWidget);
+
+      await tester.pumpAndSettle();
+      expect(find.text('Alpha Lesson'), findsNothing);
+      expect(find.text('Beta Lesson'), findsOneWidget);
+    });
+
+    testWidgets('reduced motion collapses instantly without retaining rows',
+        (tester) async {
+      final section = _testSection(
+        id: 's-snap',
+        unitName: 'Snap Unit',
+        lessons: [_testLesson('snap-lesson', 'Snap Lesson')],
+      );
+      final provider = _FakeCourseProvider(
+        currentSection: section,
+        loadState: SectionLoadState.loaded,
+      );
+
+      await tester.pumpWidget(pumpTree(provider, disableAnimations: true));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Snap Unit'));
+      await tester.pump();
+      expect(find.text('Snap Lesson'), findsOneWidget);
+
+      await tester.tap(find.text('Snap Unit'));
+      await tester.pump();
+      expect(find.text('Snap Lesson'), findsNothing);
     });
 
     testWidgets('section switcher collapses and remains pinned while scrolling',
@@ -778,6 +931,18 @@ void main() {
     });
   });
 }
+
+/// Reads the current curtain size factor of the reveal slot wrapping the
+/// given lesson row (see `lesson-reveal-*` keys in CourseTree).
+double _curtainFactor(WidgetTester tester, String lessonId) => tester
+    .widget<SizeTransition>(
+      find.ancestor(
+        of: find.byKey(ValueKey<String>('lesson-reveal-$lessonId')),
+        matching: find.byType(SizeTransition),
+      ),
+    )
+    .sizeFactor
+    .value;
 
 Section _shellSection(String id) => Section(
       id: id,

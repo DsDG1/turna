@@ -26,6 +26,11 @@ abstract final class TurnaMotion {
   /// 弹性入场：小图标的「跳入」，仅用于 24px 级元素，禁止大块面使用。
   static const Curve springIn = Curves.easeOutBack;
 
+  /// 镜头滑动：轻微过冲（~5%）后落位，选中胶囊等镜头级大件位移专用。
+  /// 比 [springIn] 温和——过冲幅度减半且无回弹 anticipation，读作
+  /// 「滑过头一点再停稳」的物理感，而不是弹跳。
+  static const Curve lensGlide = Cubic(0.22, 1.18, 0.36, 1.0);
+
   /// reduceMotion 时把时长归零，曲线保留（零时长下曲线无意义）。
   static Duration scaled(Duration duration, bool reduceMotion) =>
       reduceMotion ? Duration.zero : duration;

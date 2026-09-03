@@ -1,5 +1,6 @@
 // Dart imports:
 import 'dart:async';
+import 'dart:math' as math;
 
 // Flutter imports:
 import 'package:flutter/material.dart';
@@ -101,12 +102,31 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
     final courseProvider = context.watch<CourseProvider>();
     final entries = courseProvider.catalogEntries;
     final activeScope = courseProvider.courseScope;
+    // The read-aloud per-course entry is opt-in: it only appears once the
+    // master switch in Settings > Learning is on.
+    final ttsFeatureEnabled = context.select<SettingsProvider, bool>(
+      (p) => p.ttsFeatureEnabled,
+    );
 
     return Column(
       children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              AppStrings.courseManagementMyCourses,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: TurnaTheme.textSecondaryColor(context),
+              ),
+            ),
+          ),
+        ),
         Expanded(
           child: ReorderableListView(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.fromLTRB(20, 4, 20, 20),
             buildDefaultDragHandles: false,
             onReorderItem: (oldIndex, newIndex) =>
                 _onReorder(context, entries, oldIndex, newIndex),
@@ -118,6 +138,7 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
                   index: i,
                   isActive: entries[i].wireKey == activeScope,
                   isHighlighted: entries[i].wireKey == _highlightWire,
+                  ttsFeatureEnabled: ttsFeatureEnabled,
                   onTap: () => _selectCourse(context, entries[i]),
                   onSettings: () => _showTtsSettings(
                     context,
@@ -154,22 +175,12 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
                       color: TurnaTheme.textSecondaryColor(context),
                     ),
                   ),
-                    const SizedBox(height: 8),
-                    OfficialPendingImportBanner(
-                      onChanged: () => setState(() {}),
-                    ),
-                    TextButton(
-                      key: const Key('course-open-repair-center-footer'),
-                      onPressed: () => context.router
-                          .push(OfficialAnkiRepairCenterRoute()),
-                      child: Text(AppStrings.storageRepairCenterLink),
-                    ),
-                    _AddCourseTile(
-                    icon: Icons.upload_file_rounded,
-                    title: AppStrings.homeFromAnki,
-                    subtitle: AppStrings.homeFromAnkiSubtitle,
-                    onTap: () => context.router
-                        .push(const AnkiImportRoute()),
+                  const SizedBox(height: 8),
+                  OfficialPendingImportBanner(
+                    onChanged: () => setState(() {}),
+                  ),
+                  _AddCourseCard(
+                    onTap: () => context.router.push(const AnkiImportRoute()),
                   ),
                 ],
               ),
@@ -294,7 +305,7 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
       builder: (_) => _CourseTtsSettingsSheet(
         scope: scope,
         name: name,
-        settings: getIt<SettingsProvider>(),
+        settings: context.read<SettingsProvider>(),
       ),
     );
   }
@@ -305,6 +316,7 @@ class _CourseCard extends StatelessWidget {
   final int index;
   final bool isActive;
   final bool isHighlighted;
+  final bool ttsFeatureEnabled;
   final VoidCallback onTap;
   final VoidCallback onSettings;
   final VoidCallback? onDelete;
@@ -315,6 +327,7 @@ class _CourseCard extends StatelessWidget {
     required this.index,
     required this.isActive,
     this.isHighlighted = false,
+    required this.ttsFeatureEnabled,
     required this.onTap,
     required this.onSettings,
     required this.onDelete,
@@ -325,18 +338,21 @@ class _CourseCard extends StatelessWidget {
     final accent = isActive
         ? TurnaTheme.brandTeal
         : TurnaTheme.textSecondaryColor(context);
+    final hasMenuActions = ttsFeatureEnabled || onDelete != null;
+    final radius = BorderRadius.circular(TurnaTheme.radiusLarge);
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Material(
         color: TurnaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        borderRadius: radius,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+          borderRadius: radius,
           child: Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(12, 12, 4, 12),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+              borderRadius: radius,
               border: Border.all(
                 color: isActive || isHighlighted
                     ? TurnaTheme.brandTeal
@@ -346,29 +362,30 @@ class _CourseCard extends StatelessWidget {
             ),
             child: Row(
               children: [
-                ReorderableDragStartListener(
-                  index: index,
-                  child: Icon(
-                    Icons.drag_indicator_rounded,
-                    color: TurnaTheme.textSecondaryColor(context),
-                  ),
-                ),
-                const SizedBox(width: 12),
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
+                    gradient: isActive
+                        ? const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [TurnaTheme.brandTeal, TurnaTheme.brandSky],
+                          )
+                        : null,
+                    color: isActive
+                        ? null
+                        : accent.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   child: Icon(
                     entry.isBuiltin
                         ? Icons.language_rounded
                         : Icons.style_rounded,
-                    color: accent,
+                    color: isActive ? Colors.white : accent,
                     size: 24,
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -403,36 +420,96 @@ class _CourseCard extends StatelessWidget {
                           ],
                         ],
                       ),
-                      if (entry.isBuiltin) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          AppStrings.courseManagementBuiltinSubtitle,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: TurnaTheme.textSecondaryColor(context),
-                          ),
+                      const SizedBox(height: 4),
+                      Text(
+                        entry.isBuiltin
+                            ? AppStrings.courseManagementBuiltinSubtitle
+                            : AppStrings.courseManagementCardCount(
+                                entry.cardCount,
+                              ),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: TurnaTheme.textSecondaryColor(context),
                         ),
-                      ],
+                      ),
                     ],
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(
-                    Icons.record_voice_over_rounded,
-                    color: TurnaTheme.brandTeal,
-                  ),
-                  tooltip: AppStrings.courseTtsSettingsTitle,
-                  onPressed: onSettings,
-                ),
-                if (onDelete != null)
-                  IconButton(
-                    icon: const Icon(
-                      Icons.delete_outline_rounded,
-                      color: TurnaTheme.error,
+                if (isActive)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: Icon(
+                      Icons.check_circle_rounded,
+                      color: TurnaTheme.brandTeal,
+                      size: 22,
                     ),
-                    tooltip: AppStrings.ankiUninstallDeck,
-                    onPressed: onDelete,
                   ),
+                // Card actions collapse into one overflow menu: TTS settings
+                // (gated by the opt-in master switch) + remove. The built-in
+                // course with read-aloud off renders no menu at all.
+                if (hasMenuActions)
+                  PopupMenuButton<String>(
+                    tooltip: AppStrings.commonMoreActions,
+                    icon: Icon(
+                      Icons.more_vert_rounded,
+                      color: TurnaTheme.textSecondaryColor(context),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    onSelected: (value) {
+                      if (value == 'tts') {
+                        onSettings();
+                      } else if (value == 'delete') {
+                        onDelete?.call();
+                      }
+                    },
+                    itemBuilder: (_) => [
+                      if (ttsFeatureEnabled)
+                        PopupMenuItem(
+                          value: 'tts',
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.record_voice_over_rounded,
+                                size: 20,
+                                color: TurnaTheme.brandTeal,
+                              ),
+                              const SizedBox(width: 10),
+                              Text(AppStrings.courseTtsSettingsTitle),
+                            ],
+                          ),
+                        ),
+                      if (onDelete != null)
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.delete_outline_rounded,
+                                size: 20,
+                                color: TurnaTheme.error,
+                              ),
+                              const SizedBox(width: 10),
+                              Text(AppStrings.courseManagementRemoveCourse),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ReorderableDragStartListener(
+                  index: index,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 14,
+                      horizontal: 10,
+                    ),
+                    child: Icon(
+                      Icons.drag_indicator_rounded,
+                      color: TurnaTheme.textHintColor(context),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -468,37 +545,104 @@ class _Badge extends StatelessWidget {
   }
 }
 
-class _AddCourseTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
+/// Hero entry card for adding a course — dashed teal outline so it reads as
+/// "create/import here" instead of another course in the list.
+class _AddCourseCard extends StatelessWidget {
   final VoidCallback onTap;
 
-  const _AddCourseTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
+  const _AddCourseCard({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(icon, color: TurnaTheme.brandTeal),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-      subtitle: Text(
-        subtitle,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontSize: 12,
-          color: TurnaTheme.textSecondaryColor(context),
+    final radius = BorderRadius.circular(TurnaTheme.radiusLarge);
+    return Material(
+      color: Colors.transparent,
+      borderRadius: radius,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: radius,
+        child: CustomPaint(
+          foregroundPainter: _DashedBorderPainter(
+            color: TurnaTheme.brandTeal.withValues(alpha: 0.45),
+            radius: TurnaTheme.radiusLarge,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 18),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(
+                  Icons.add_circle_outline_rounded,
+                  size: 28,
+                  color: TurnaTheme.brandTeal,
+                ),
+                const SizedBox(width: 10),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      AppStrings.courseManagementImportTitle,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: TurnaTheme.brandTeal,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      AppStrings.homeFromAnkiSubtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: TurnaTheme.textSecondaryColor(context),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ),
       ),
-      onTap: onTap,
     );
   }
+}
+
+/// Dashed rounded-rect border, drawn once per paint pass — no packages.
+class _DashedBorderPainter extends CustomPainter {
+  static const double _dashWidth = 6;
+  static const double _dashGap = 5;
+  static const double _strokeWidth = 1.6;
+
+  final Color color;
+  final double radius;
+
+  const _DashedBorderPainter({required this.color, required this.radius});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          Offset.zero & size,
+          Radius.circular(radius),
+        ),
+      );
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = _strokeWidth;
+    final metric = path.computeMetrics().first;
+    var distance = 0.0;
+    while (distance < metric.length) {
+      final next = math.min(distance + _dashWidth, metric.length);
+      canvas.drawPath(metric.extractPath(distance, next), paint);
+      distance = next + _dashGap;
+    }
+  }
+
+  @override
+  bool shouldRepaint(_DashedBorderPainter oldDelegate) =>
+      color != oldDelegate.color || radius != oldDelegate.radius;
 }
 
 /// Bottom sheet for a single course's smart-TTS settings: the auto-read

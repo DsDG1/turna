@@ -1,5 +1,6 @@
 // Flutter imports:
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollDirection;
 
 // Package imports:
 import 'package:auto_route/auto_route.dart';
@@ -47,7 +48,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int currentIndex = 0;
-  bool _barHidden = false;
+  final ScrollHidePolicy _hidePolicy = ScrollHidePolicy();
 
   /// Lazy visited tabs (Plan 3 §23.2): a tab subtree is built on first
   /// visit and kept mounted afterwards (state/scroll survive), but hidden
@@ -82,15 +83,19 @@ class _HomePageState extends State<HomePage> {
     _onTabIndexChanged(getIt<TabRouter>().index.value);
   }
 
-  bool _onUserScroll(UserScrollNotification notification) {
-    final next = ScrollHidePolicy.nextHidden(
-      hidden: _barHidden,
-      axis: notification.metrics.axis,
-      direction: notification.direction,
-      pixels: notification.metrics.pixels,
-    );
-    if (next != _barHidden) {
-      setState(() => _barHidden = next);
+  bool _onScrollNotification(ScrollNotification notification) {
+    if (notification is ScrollUpdateNotification) {
+      final changed = _hidePolicy.onScrollUpdate(
+        axis: notification.metrics.axis,
+        pixels: notification.metrics.pixels,
+        scrollDelta: notification.scrollDelta,
+      );
+      if (changed) {
+        setState(() {});
+      }
+    } else if (notification is UserScrollNotification &&
+        notification.direction == ScrollDirection.idle) {
+      _hidePolicy.onSettled();
     }
     return false;
   }
@@ -189,7 +194,7 @@ class _HomePageState extends State<HomePage> {
       appBar: appBars[currentIndex],
       extendBody: true,
       bottomNavigationBar: ScrollHideBar(
-        hidden: _barHidden,
+        hidden: _hidePolicy.hidden,
         child: BottomNavigator(
           currentIndex: currentIndex,
           onPress: onBottomNavigatorTapped,
@@ -201,8 +206,8 @@ class _HomePageState extends State<HomePage> {
             bottom: mq.padding.bottom + BottomNavigator.overlayExtent,
           ),
         ),
-        child: NotificationListener<UserScrollNotification>(
-          onNotification: _onUserScroll,
+        child: NotificationListener<ScrollNotification>(
+          onNotification: _onScrollNotification,
           // 原生默认瞬时切换：懒挂载 / Offstage / TickerMode / 语义隔离
           // 都由承载层承担。
           child: TabStack(
@@ -222,8 +227,9 @@ class _HomePageState extends State<HomePage> {
     if (!a11y.quietFeedback) {
       context.read<SettingsProvider>().triggerHaptic(HapticFeedbackType.light);
     }
-    if (_barHidden) {
-      setState(() => _barHidden = false);
+    if (_hidePolicy.hidden) {
+      _hidePolicy.reveal();
+      setState(() {});
     }
     // Route through TabRouter so external callers (e.g. the lesson "去设置"
     // dialog) and the nav bar share one write path. The listener applies it.
@@ -234,7 +240,7 @@ class _HomePageState extends State<HomePage> {
     if (index == currentIndex) return;
     setState(() {
       currentIndex = index;
-      _barHidden = false;
+      _hidePolicy.reveal();
       _visited[index] = true;
     });
   }

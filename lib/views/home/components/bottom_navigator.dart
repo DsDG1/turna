@@ -1,4 +1,7 @@
 // Flutter imports:
+import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 
 // Package imports:
@@ -13,16 +16,21 @@ import 'package:turna/views/theme.dart';
 /// Floating rounded frosted-glass tab bar.
 ///
 /// Sits above the home indicator with side insets so page content can peek
-/// through. The normal path uses a translucent fake-glass surface and places
-/// a single animated lens behind the selected destination. Avoiding backdrop
-/// sampling keeps scrolling cheap. High-contrast / focus-mode use a solid fill
-/// and skip the sheen.
+/// through. The default path blurs the backdrop through a [BackdropFilter]
+/// clipped to the capsule, with a translucent fill on top; the blurred strip
+/// is small (~64px tall) and isolated by a [RepaintBoundary], keeping the
+/// per-frame backdrop sampling acceptable. High-contrast / focus-mode keep
+/// the solid fill and skip the blur.
 class BottomNavigator extends StatelessWidget {
   static const double capsuleHeight = 64;
   static const double sideInset = 16;
   static const double bottomGap = 8;
   static const double topShadowPad = 8;
   static const double capsuleRadius = 28;
+
+  /// Backdrop blur strength for the frosted capsule (modest sigma keeps the
+  /// filter cheap; stronger values add little at this strip height).
+  static const double frostSigma = 16;
 
   /// Extra body padding so scrollables clear the floating capsule
   /// (excludes the system home-indicator inset, which [MediaQuery.padding]
@@ -61,12 +69,16 @@ class BottomNavigator extends StatelessWidget {
           children: [
             AnimatedPositioned(
               duration: TurnaMotion.scaled(TurnaMotion.smooth, reduceMotion),
-              curve: TurnaMotion.easeOut,
+              curve: TurnaMotion.lensGlide,
               left: currentIndex * itemWidth + lensInset,
               top: 6,
               bottom: 6,
               width: itemWidth - lensInset * 2,
-              child: _SelectionLens(solid: solidGlass),
+              child: _LensSlide(
+                index: currentIndex,
+                reduceMotion: reduceMotion,
+                child: _SelectionLens(solid: solidGlass),
+              ),
             ),
             Positioned.fill(
               child: Row(
@@ -157,7 +169,18 @@ class BottomNavigator extends StatelessWidget {
       ),
     );
 
-    final capsule = ClipRRect(borderRadius: radius, child: surface);
+    final capsule = ClipRRect(
+      borderRadius: radius,
+      child: solidGlass
+          ? surface
+          : BackdropFilter(
+              filter: ImageFilter.blur(
+                sigmaX: frostSigma,
+                sigmaY: frostSigma,
+              ),
+              child: surface,
+            ),
+    );
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -173,6 +196,62 @@ class BottomNavigator extends StatelessWidget {
         ),
         child: RepaintBoundary(child: capsule),
       ),
+    );
+  }
+}
+
+/// Squash-stretch for the gliding selection lens: stretches along the travel
+/// axis mid-flight and settles at rest. Same duration as the position slide,
+/// driven as an arc (scale 1 → peak → 1) so it starts and ends at rest.
+class _LensSlide extends StatefulWidget {
+  final int index;
+  final bool reduceMotion;
+  final Widget child;
+
+  const _LensSlide({
+    required this.index,
+    required this.reduceMotion,
+    required this.child,
+  });
+
+  @override
+  State<_LensSlide> createState() => _LensSlideState();
+}
+
+class _LensSlideState extends State<_LensSlide>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: TurnaMotion.smooth,
+  );
+
+  @override
+  void didUpdateWidget(covariant _LensSlide oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.index != oldWidget.index && !widget.reduceMotion) {
+      _controller.forward(from: 0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final arc = math.sin(math.pi * _controller.value);
+        return Transform.scale(
+          scaleX: 1 + 0.10 * arc,
+          scaleY: 1 - 0.06 * arc,
+          child: child,
+        );
+      },
+      child: widget.child,
     );
   }
 }
@@ -264,18 +343,27 @@ class _NavItem extends StatelessWidget {
                     duration: duration,
                     switchInCurve: Curves.easeOutCubic,
                     switchOutCurve: Curves.easeInCubic,
-                    transitionBuilder: (child, animation) => FadeTransition(
-                      opacity: animation,
-                      child: ScaleTransition(
-                        scale: Tween<double>(begin: 0.85, end: 1.0).animate(
-                          CurvedAnimation(
-                            parent: animation,
-                            curve: Curves.easeOutBack,
-                          ),
+                    transitionBuilder: (child, animation) {
+                      // The incoming child matches the new state; it springs
+                      // in while outgoing icons shrink away.
+                      final incoming =
+                          (child.key as ValueKey<bool>).value == isSelected;
+                      return FadeTransition(
+                        opacity: animation,
+                        child: ScaleTransition(
+                          scale: incoming
+                              ? Tween<double>(begin: 0.78, end: 1.0).animate(
+                                  CurvedAnimation(
+                                    parent: animation,
+                                    curve: TurnaMotion.springIn,
+                                  ),
+                                )
+                              : Tween<double>(begin: 1.0, end: 0.82)
+                                  .animate(animation),
+                          child: child,
                         ),
-                        child: child,
-                      ),
-                    ),
+                      );
+                    },
                     child: Icon(
                       isSelected ? filled : outlined,
                       key: ValueKey(isSelected),
@@ -285,14 +373,18 @@ class _NavItem extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                AnimatedDefaultTextStyle(
+                  duration: duration,
+                  curve: TurnaMotion.easeOut,
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                     color: isSelected ? selectedColor : idleColor,
+                  ),
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],

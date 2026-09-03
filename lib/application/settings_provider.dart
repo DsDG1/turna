@@ -22,6 +22,7 @@ class SettingsProvider extends ChangeNotifier {
   bool _soundEffectsEnabled = true;
   bool _hapticFeedbackEnabled = true;
   double _ttsSpeed = 1.0;
+  bool _ttsFeatureEnabled = false;
   bool _dailyReminderEnabled = false;
   int _dailyReminderHour = 19;
   int _dailyReminderMinute = 0;
@@ -39,6 +40,13 @@ class SettingsProvider extends ChangeNotifier {
   bool get soundEffectsEnabled => _soundEffectsEnabled;
   bool get hapticFeedbackEnabled => _hapticFeedbackEnabled;
   double get ttsSpeed => _ttsSpeed;
+
+  /// Master gate for read-aloud: opt-in (default off). While off, auto-read
+  /// never fires and course management hides the per-course TTS entry; manual
+  /// speak buttons keep working. Not reset by "reset learning defaults" —
+  /// it gates a feature, not a learning parameter.
+  bool get ttsFeatureEnabled => _ttsFeatureEnabled;
+
   bool get dailyReminderEnabled => _dailyReminderEnabled;
   int get dailyReminderHour => _dailyReminderHour;
   int get dailyReminderMinute => _dailyReminderMinute;
@@ -69,6 +77,9 @@ class SettingsProvider extends ChangeNotifier {
         .getValue();
     _ttsSpeed = _appPrefs.preferences
         .getDouble(LocalStateKeys.ttsSpeed, defaultValue: 1.0)
+        .getValue();
+    _ttsFeatureEnabled = _appPrefs.preferences
+        .getBool(LocalStateKeys.ttsFeatureEnabled, defaultValue: false)
         .getValue();
     _dailyReminderEnabled = _appPrefs.preferences
         .getBool(LocalStateKeys.dailyReminderEnabled, defaultValue: false)
@@ -125,6 +136,12 @@ class SettingsProvider extends ChangeNotifier {
     final clamped = value.clamp(0.5, 2.0);
     _ttsSpeed = clamped;
     await _appPrefs.setDouble(LocalStateKeys.ttsSpeed, clamped);
+    notifyListeners();
+  }
+
+  Future<void> setTtsFeatureEnabled(bool value) async {
+    _ttsFeatureEnabled = value;
+    await _appPrefs.setBool(LocalStateKeys.ttsFeatureEnabled, value: value);
     notifyListeners();
   }
 

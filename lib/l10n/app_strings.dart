@@ -25,6 +25,7 @@ class AppStrings {
   static String get commonGotIt => '知道了';
   static String get commonOk => '确定';
   static String get commonSave => '保存';
+  static String get commonMoreActions => '更多操作';
   static String get commonImport => '导入';
   static String get commonLater => '稍后';
   static String get commonUndo => '撤销';
@@ -326,6 +327,9 @@ class AppStrings {
   static String get settingsThemeSystem => '跟随系统';
   static String get settingsLearningLanguageTitle => '学习语言';
   static String get settingsLearningLanguageSubtitle => '选择你正在学习的语言';
+  static String get settingsTtsFeatureTitle => '朗读功能';
+  static String get settingsTtsFeatureSubtitle =>
+      '开启后自动朗读生效，并可在「课程管理」中为每门课程配置';
   static String get settingsTtsSpeedTitle => 'TTS 语速';
   static String get settingsTtsSpeedSubtitle => '调整语音播放速度';
   static String settingsTtsSpeedValue(String ttsSpeed) => '${ttsSpeed}x';
@@ -609,6 +613,10 @@ class AppStrings {
   static String get courseManagementCurrentBadge => '当前';
   static String get courseManagementDefaultBadge => '默认';
   static String get courseManagementBuiltinSubtitle => '默认课程，不可删除';
+  static String get courseManagementMyCourses => '我的课程';
+  static String courseManagementCardCount(int count) => '$count 张卡片';
+  static String get courseManagementRemoveCourse => '移除课程';
+  static String get courseManagementImportTitle => '从 Anki 导入课程';
   static String get courseManagementAddTitle => '添加课程';
 
   // Per-course smart-TTS settings (course management page).

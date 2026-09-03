@@ -47,10 +47,16 @@ String detectSpeakLanguage(String text) {
 }
 
 /// Whether the active course auto-reads content on tap / reveal.
+///
+/// Gated by the opt-in master switch ([SettingsProvider.ttsFeatureEnabled]):
+/// while off, auto-read never fires even if a course opts in per-course.
+/// Manual speak buttons are not affected.
 bool autoReadOnTapForActiveCourse() {
   try {
+    final settings = getIt<SettingsProvider>();
+    if (!settings.ttsFeatureEnabled) return false;
     final scope = getIt<CourseProvider>().courseScope;
-    return getIt<SettingsProvider>().autoReadOnTapFor(scope);
+    return settings.autoReadOnTapFor(scope);
   } catch (_) {
     return false;
   }

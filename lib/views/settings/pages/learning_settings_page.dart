@@ -3,17 +3,20 @@ import 'package:flutter/material.dart';
 
 // Package imports:
 import 'package:auto_route/auto_route.dart';
+import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/settings/commands/reset_learning_settings_command.dart';
 import 'package:turna/application/settings/settings_destination.dart';
 import 'package:turna/application/settings/settings_operation_result.dart';
+import 'package:turna/application/settings_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/settings/pages/settings_category_body.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/views/settings/widgets/settings_learning_section.dart';
 import 'package:turna/views/settings/widgets/settings_reminder_section.dart';
+import 'package:turna/views/settings/widgets/settings_sound_section.dart';
 
 /// Learning category page (formal route: `/settings/learning`).
 ///
@@ -80,7 +83,14 @@ class _LearningSettingsPageState extends State<LearningSettingsPage> {
               children: [
                 const SettingsLanguageSelectorTile(),
                 settingsTileDivider(context),
-                const SettingsTtsSpeedTile(),
+                SettingsToggleTile(
+                  icon: Icons.record_voice_over_rounded,
+                  title: AppStrings.settingsTtsFeatureTitle,
+                  subtitle: AppStrings.settingsTtsFeatureSubtitle,
+                  valueSelector: (p) => p.ttsFeatureEnabled,
+                  onChanged: (p, v) => p.setTtsFeatureEnabled(v),
+                ),
+                _TtsSpeedGate(),
                 settingsTileDivider(context),
                 const SettingsSrsRetentionTile(),
                 settingsTileDivider(context),
@@ -122,6 +132,29 @@ class _LearningSettingsPageState extends State<LearningSettingsPage> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// TTS speed only exists while the read-aloud master switch is on — same
+/// show/hide pattern as the daily-reminder time row. The divider travels
+/// with the tile so a hidden tile never leaves a double divider behind.
+class _TtsSpeedGate extends StatelessWidget {
+  const _TtsSpeedGate();
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = context.select<SettingsProvider, bool>(
+      (p) => p.ttsFeatureEnabled,
+    );
+    if (!enabled) return const SizedBox.shrink();
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        settingsTileDivider(context),
+        const SettingsTtsSpeedTile(),
+      ],
     );
   }
 }

@@ -30,7 +30,8 @@ import 'components/section_switcher.dart';
 ///
 /// 1. 吸顶变形头（章节卡 ↔ 悬浮条，滚动擦拭变形），是页内「一镜到底」
 ///    的起点；
-/// 2. 单元卡列表（展开时内嵌课程旅程面：旅程线 + 课程瓦片）。
+/// 2. 单元卡列表（展开时内嵌课程旅程面：旅程线 + 课程瓦片，帘式逐行
+///    揭示；收起反向收回，切换单元时收/展双动画并发）。
 ///
 /// 数据管线不变：章节懒加载、due/weak 投影、每节独立的手风琴状态、
 /// PageStorage 滚动位置全部保留。
@@ -42,7 +43,7 @@ class CourseTree extends StatefulWidget {
 }
 
 class _CourseTreeState extends State<CourseTree>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   /// Defensive section loads already scheduled for the next frame.
   final Set<String> _scheduledEnsure = {};
 
@@ -50,21 +51,22 @@ class _CourseTreeState extends State<CourseTree>
   /// the learner lose the place they were working from.
   final Map<String, String?> _expandedUnitBySection = {};
 
-  late final AnimationController _lessonRevealController;
+  /// 每个「section/unit」一把揭示控制器：目标单元 forward、收起单元
+  /// reverse，两把同时跑即手风琴切换的并发双动画。控制器常驻本表、
+  /// 不在中途 dispose——section 切换的 AnimatedSwitcher 淡出期间旧子树
+  /// 仍持有派生动画的监听，提前释放会触发 dispose-while-listened
+  /// assert；随 State dispose 统一释放。
+  final Map<String, AnimationController> _revealByUnit = {};
 
-  @override
-  void initState() {
-    super.initState();
-    _lessonRevealController = AnimationController(
-      vsync: this,
-      duration: TurnaMotion.base,
-      value: 1,
-    );
-  }
+  /// 正在收回、课程行仍保留在列表中的单元键。控制器归零后行才移除
+  /// （此时行高已为 0，移除不产生视觉跳变）。
+  final Set<String> _collapsingUnitKeys = {};
 
   @override
   void dispose() {
-    _lessonRevealController.dispose();
+    for (final controller in _revealByUnit.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -201,10 +203,13 @@ class _CourseTreeState extends State<CourseTree>
 
     // 单元头 + 展开单元的课程行交替铺开为 Sliver 列表行：课程行经
     // [LessonRowShell] 与单元卡头逐行拼合成一张整卡，同时保留懒加载
-    // （百课单元不全量构建）。
+    // （百课单元不全量构建）。收起中的单元行也保留在列表里，直到揭示
+    // 动画归零后再移除。
     final items = <_TreeItem>[];
     for (final unit in section.units) {
       final expanded = expandedUnitId == unit.id;
+      final retracting = !expanded &&
+          _collapsingUnitKeys.contains(_unitKey(section.id, unit.id));
       items.add(
         _UnitHeaderItem(
           sectionId: section.id,
@@ -212,10 +217,11 @@ class _CourseTreeState extends State<CourseTree>
           dueLessonCount: status.dueCountByUnit[unit.id] ?? 0,
           weakLessonCount: status.weakCountByUnit[unit.id] ?? 0,
           expanded: expanded,
+          retainsLessonRows: expanded || retracting,
         ),
       );
 
-      if (expanded) {
+      if (expanded || retracting) {
         String? nextUpLessonId;
         try {
           final progress = context.read<ProgressProvider>();
@@ -259,9 +265,9 @@ class _CourseTreeState extends State<CourseTree>
             (context, index) {
               final item = items[index];
               final (top, bottom) = switch (item) {
-                _UnitHeaderItem(expanded: final expanded) => (
+                _UnitHeaderItem(retainsLessonRows: final attached) => (
                     6.0,
-                    expanded ? 0.0 : 6.0
+                    attached ? 0.0 : 6.0
                   ),
                 _LessonItem(isLast: final isLast) => (0.0, isLast ? 6.0 : 0.0),
               };
@@ -283,12 +289,16 @@ class _CourseTreeState extends State<CourseTree>
                     expanded: expanded,
                     reduceMotion: reduceMotion,
                   ),
-                _LessonItem() => _buildAnimatedLessonTile(item, reduceMotion),
+                _LessonItem() => _buildLessonTile(item),
               };
 
+              final padding = EdgeInsets.fromLTRB(12, top, 12, bottom);
+              if (item is _LessonItem && !reduceMotion) {
+                return _buildRevealSlot(item, padding: padding, tile: child);
+              }
               return Padding(
                 key: item.key,
-                padding: EdgeInsets.fromLTRB(12, top, 12, bottom),
+                padding: padding,
                 child: child,
               );
             },
@@ -335,13 +345,13 @@ class _CourseTreeState extends State<CourseTree>
     );
   }
 
-  Widget _buildAnimatedLessonTile(_LessonItem item, bool reduceMotion) {
+  Widget _buildLessonTile(_LessonItem item) {
     final lesson = item.lesson;
     final previousLessonId = item.indexInUnit > 0
         ? item.unit.lessons[item.indexInUnit - 1].id
         : null;
 
-    Widget tile = Selector<ProgressProvider,
+    return Selector<ProgressProvider,
         ({bool completed, bool perfect, bool previousCompleted})>(
       selector: (_, progress) => (
         completed: progress.isLessonCompleted(lesson.id),
@@ -365,21 +375,43 @@ class _CourseTreeState extends State<CourseTree>
         ),
       ),
     );
+  }
 
-    if (reduceMotion) return tile;
-
-    final reveal = _lessonRevealController.drive(
+  /// 课程行的「帘式揭示」slot：[SizeTransition] 包住整行（含边距），行
+  /// 占位高度随因子从 0 连续增长到自然高度，下方单元卡由布局推动平滑
+  /// 下移；行内容保持自然尺寸，仅被裁剪揭示。逐行交错由
+  /// [TurnaMotion.stagger] 封顶起点，任意课数都在同一时长窗口内完成。
+  Widget _buildRevealSlot(
+    _LessonItem item, {
+    required EdgeInsets padding,
+    required Widget tile,
+  }) {
+    final reveal = _revealByUnit[_unitKey(item.sectionId, item.unit.id)];
+    if (reveal == null) {
+      return Padding(key: item.key, padding: padding, child: tile);
+    }
+    final factor = reveal.drive(
       CurveTween(curve: TurnaMotion.stagger(item.indexInUnit)),
     );
-    return FadeTransition(
-      key: ValueKey<String>('lesson-reveal-${lesson.id}'),
-      opacity: reveal,
-      child: SlideTransition(
-        position: Tween<Offset>(
-          begin: const Offset(0, 0.05),
-          end: Offset.zero,
-        ).animate(reveal),
-        child: tile,
+    return SizeTransition(
+      key: item.key,
+      sizeFactor: factor,
+      alignment: AlignmentDirectional.topStart,
+      child: Padding(
+        padding: padding,
+        child: FadeTransition(
+          key: ValueKey<String>('lesson-reveal-${item.lesson.id}'),
+          opacity: factor,
+          child: AnimatedBuilder(
+            animation: factor,
+            builder: (context, child) => ExcludeSemantics(
+              // 揭示未完成（含收回途中）的行不进入语义树。
+              excluding: factor.value < 1,
+              child: child,
+            ),
+            child: tile,
+          ),
+        ),
       ),
     );
   }
@@ -445,23 +477,70 @@ class _CourseTreeState extends State<CourseTree>
     );
   }
 
+  static String _unitKey(String sectionId, String unitId) =>
+      '$sectionId/$unitId';
+
+  AnimationController _revealFor(String sectionId, String unitId) {
+    final key = _unitKey(sectionId, unitId);
+    return _revealByUnit.putIfAbsent(key, () {
+      final controller = AnimationController(
+        vsync: this,
+        duration: TurnaMotion.base,
+      );
+      controller.addStatusListener((status) {
+        // reverse() 归零以 dismissed 收尾：行高此时已为 0，下一帧移除
+        // 不产生视觉跳变。forward 完成是 completed，与此路径无关。
+        if (status != AnimationStatus.dismissed) return;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          setState(() => _collapsingUnitKeys.remove(key));
+        });
+      });
+      return controller;
+    });
+  }
+
   void _toggleUnit({
     required String sectionId,
     required String unitId,
     required bool expanded,
     required bool reduceMotion,
   }) {
-    setState(() {
-      _expandedUnitBySection[sectionId] = expanded ? null : unitId;
-    });
+    final key = _unitKey(sectionId, unitId);
 
-    if (!expanded) {
+    void retract(String id) {
       if (reduceMotion) {
-        _lessonRevealController.value = 1;
+        _revealFor(sectionId, id).value = 0;
       } else {
-        _lessonRevealController.forward(from: 0);
+        _collapsingUnitKeys.add(_unitKey(sectionId, id));
+        _revealFor(sectionId, id).reverse();
       }
     }
+
+    setState(() {
+      if (expanded) {
+        _expandedUnitBySection[sectionId] = null;
+        retract(unitId);
+        return;
+      }
+
+      final previousUnitId = _expandedUnitBySection[sectionId];
+      if (previousUnitId != null && previousUnitId != unitId) {
+        retract(previousUnitId);
+      }
+      _expandedUnitBySection[sectionId] = unitId;
+      _collapsingUnitKeys.remove(key);
+
+      final reveal = _revealFor(sectionId, unitId);
+      if (reduceMotion) {
+        reveal.value = 1;
+      } else if (reveal.isAnimating) {
+        // 收回途中重开：从当前收回处接续展开，避免跳变。
+        reveal.forward();
+      } else {
+        reveal.forward(from: 0);
+      }
+    });
   }
 
   void _navigateToLesson(BuildContext tileContext, Lesson lesson) {
@@ -619,12 +698,17 @@ class _UnitHeaderItem extends _TreeItem {
   final int weakLessonCount;
   final bool expanded;
 
+  /// 下方是否还挂着课程行（展开中，或收起动画仍在保留行）。决定卡头
+  /// 的底缘边距：有行时为 0 以保持拼卡，行全部移除后恢复分隔。
+  final bool retainsLessonRows;
+
   const _UnitHeaderItem({
     required this.sectionId,
     required this.unit,
     required this.dueLessonCount,
     required this.weakLessonCount,
     required this.expanded,
+    required this.retainsLessonRows,
   });
 
   @override
