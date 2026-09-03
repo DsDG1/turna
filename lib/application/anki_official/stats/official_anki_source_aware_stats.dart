@@ -1,6 +1,9 @@
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
+import 'package:turna/application/anki_official/introduction/card_introduction_store.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
+import 'package:turna/application/anki_official/stats/official_anki_retention_curve_service.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
+import 'package:turna/application/memory_curve_provider.dart';
 
 enum OfficialStatsAvailability {
   available,
@@ -33,6 +36,9 @@ class OfficialAnkiSourceAwareStatsSnapshot {
     this.revlogCount,
     this.retentionPassed,
     this.retentionFailed,
+    this.retentionByInterval = const [],
+    this.unintroducedCount = 0,
+    this.userSuspendedCount = 0,
     this.note = 'official_stats_available',
   });
 
@@ -55,6 +61,9 @@ class OfficialAnkiSourceAwareStatsSnapshot {
   final int? revlogCount;
   final int? retentionPassed;
   final int? retentionFailed;
+  final List<RetentionPoint> retentionByInterval;
+  final int unintroducedCount;
+  final int userSuspendedCount;
   final String note;
 
   bool get metricsProven => availability == OfficialStatsAvailability.available;
@@ -108,6 +117,7 @@ class OfficialAnkiSourceAwareStats {
       return _fromTotals(sourceId: sourceId, totalCards: 0);
     }
 
+    final ids = cards.map((card) => card.cardId).toList(growable: false);
     var newCards = 0;
     var learningCards = 0;
     var reviewCards = 0;
@@ -124,7 +134,6 @@ class OfficialAnkiSourceAwareStats {
     var retentionPassed = 0;
     var retentionFailed = 0;
     try {
-      final ids = cards.map((card) => card.cardId).toList(growable: false);
       for (var start = 0; start < ids.length; start += _batchSize) {
         final end = (start + _batchSize).clamp(0, ids.length);
         final batch = await engine.statsForCardsBatch(ids.sublist(start, end));
@@ -161,6 +170,21 @@ class OfficialAnkiSourceAwareStats {
       );
     }
 
+    List<RetentionPoint> retentionCurve = const [];
+    var unintroducedCount = 0;
+    var userSuspended = 0;
+    try {
+      retentionCurve = await const OfficialAnkiRetentionCurveService()
+          .retentionCurveForCards(ids);
+      final introduced = await CardIntroductionStore.resolve()
+          .introducedCardIdsFromLedger(src.sourceId);
+      unintroducedCount =
+          cards.where((c) => !introduced.contains(c.cardId)).length;
+      userSuspended = (suspendedCards > unintroducedCount)
+          ? suspendedCards - unintroducedCount
+          : 0;
+    } catch (_) {}
+
     return _fromTotals(
       sourceId: sourceId,
       totalCards: total,
@@ -179,6 +203,9 @@ class OfficialAnkiSourceAwareStats {
       revlogs: revlogs,
       retentionPassed: retentionPassed,
       retentionFailed: retentionFailed,
+      retentionByInterval: retentionCurve,
+      unintroducedCount: unintroducedCount,
+      userSuspendedCount: userSuspended,
     );
   }
 
@@ -200,6 +227,9 @@ class OfficialAnkiSourceAwareStats {
     int revlogs = 0,
     int retentionPassed = 0,
     int retentionFailed = 0,
+    List<RetentionPoint> retentionByInterval = const [],
+    int unintroducedCount = 0,
+    int userSuspendedCount = 0,
   }) {
     return OfficialAnkiSourceAwareStatsSnapshot(
       sourceId: sourceId,
@@ -221,6 +251,9 @@ class OfficialAnkiSourceAwareStats {
       revlogCount: revlogs,
       retentionPassed: retentionPassed,
       retentionFailed: retentionFailed,
+      retentionByInterval: retentionByInterval,
+      unintroducedCount: unintroducedCount,
+      userSuspendedCount: userSuspendedCount,
     );
   }
 

@@ -238,14 +238,32 @@ class OfficialFormalReviewLiveQueue extends ChangeNotifier {
     );
   }
 
+  bool _pendingRebuild = false;
+
   /// Rebuilds the batch items from the refreshed live queue. Called after
   /// every answer / undo / bury / suspend — the session queue is already
   /// refreshed by then; this maps it back onto shared StudyItems, rendering
   /// previously unseen cards first.
   Future<OfficialLiveQueueRebuildResult> rebuildFromLiveQueue() async {
-    if (rebuilding) return const OfficialLiveQueueRebuildStale();
+    if (rebuilding) {
+      _pendingRebuild = true;
+      return const OfficialLiveQueueRebuildStale();
+    }
     rebuilding = true;
     lastRebuildError = null;
+    OfficialLiveQueueRebuildResult? lastResult;
+    try {
+      do {
+        _pendingRebuild = false;
+        lastResult = await _doRebuild();
+      } while (_pendingRebuild);
+      return lastResult;
+    } finally {
+      rebuilding = false;
+    }
+  }
+
+  Future<OfficialLiveQueueRebuildResult> _doRebuild() async {
     try {
       final queue = session.queue;
       if (queue == null) return const OfficialLiveQueueRebuildStale();
@@ -328,8 +346,6 @@ class OfficialFormalReviewLiveQueue extends ChangeNotifier {
     } catch (error) {
       lastRebuildError = error;
       return OfficialLiveQueueRebuildFailed(error);
-    } finally {
-      rebuilding = false;
     }
   }
 

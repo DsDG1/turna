@@ -3,22 +3,28 @@ import 'dart:async';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:turna/application/study_session/anki_review_content.dart';
-import 'package:turna/application/study_session/anki_study_session_host.dart';
+import 'package:turna/application/achievements/achievement_service.dart';
+import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
+import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
+import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
+import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
+import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/anki_official/review/formal_review_launcher.dart';
 import 'package:turna/application/anki_official/review/formal_review_source_coordinator.dart';
+import 'package:turna/application/anki_official/review/official_formal_review_coordinator.dart';
 import 'package:turna/application/anki_official/review/official_formal_review_production_loader.dart';
+import 'package:turna/application/course_provider.dart';
+import 'package:turna/application/game_provider.dart';
+import 'package:turna/application/gems_provider.dart';
+import 'package:turna/application/study_session/anki_review_content.dart';
+import 'package:turna/application/study_session/anki_study_session_host.dart';
 import 'package:turna/application/study_session/study_ledger_adapters.dart';
 import 'package:turna/application/study_session/study_product_analytics.dart';
 import 'package:turna/application/study_session/study_session_controller.dart';
-import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
-import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
-import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
-import 'package:turna/application/anki_official/official_anki_ids.dart';
-import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
-import 'package:turna/application/anki_official/review/official_formal_review_coordinator.dart';
-import 'package:turna/application/course_provider.dart';
+import 'package:turna/application/study_stats_provider.dart';
+import 'package:turna/di/injection.dart';
+import 'package:provider/provider.dart';
+import 'package:turna/domain/study/study_log.dart';
 import 'package:turna/domain/anki/card_presentation.dart';
 import 'package:turna/domain/anki/study_models.dart';
 import 'package:turna/domain/course/interaction.dart';
@@ -81,11 +87,70 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
   bool _advancingSource = false;
   bool _advanceScheduled = false;
   bool _reviewAllComplete = false;
+  int _earnedXp = 0;
+  bool _sessionCompletedRecorded = false;
+  final DateTime _sessionStartedAt = DateTime.now();
 
   /// Wave 2 (§8.4): a Blocked load — the scheduler owes cards but none
   /// could be rendered. Surfaced with retry / continue-later; never
   /// silently ends the source.
   OfficialFormalReviewBlocked? _blockedLoad;
+
+  Future<void> _recordSessionCompletion({
+    required int total,
+    required int remembered,
+    required int forgotten,
+    required Duration elapsed,
+  }) async {
+    if (total == 0 || _sessionCompletedRecorded) return;
+    _sessionCompletedRecorded = true;
+    try {
+      final study = context.read<StudyStatsProvider?>();
+      final game = context.read<GameProvider?>();
+      final gems = context.read<GemsProvider?>();
+      final achievements = getIt.isRegistered<AchievementService>()
+          ? getIt<AchievementService>()
+          : null;
+
+      var xp = remembered * 10 + forgotten * 2;
+      if (game != null) {
+        final awarded = await game.awardXP(
+          XPEvent.srsReviewSession,
+          multiplier: total.toDouble(),
+        );
+        if (awarded > 0) xp = awarded;
+      }
+      if (gems != null) {
+        await gems.earnGems(
+          GemEvent.srsReviewSession,
+          eventId: GemRewardEventIds.reviewSession(
+            kind: 'anki',
+            completedAt: DateTime.now(),
+            sessionSequence: '0',
+          ),
+        );
+      }
+      if (study != null) {
+        await study.recordActivity(
+          type: StudyActivityType.srsReview,
+          xpEarned: xp,
+          durationSeconds: elapsed.inSeconds,
+          correctCount: remembered,
+          incorrectCount: forgotten,
+        );
+      }
+      if (achievements != null) {
+        await achievements.recordReviewSession(cardsAnswered: total);
+      }
+      if (mounted) {
+        setState(() {
+          _earnedXp = xp;
+        });
+      }
+    } catch (e) {
+      debugPrint('[AnkiReviewSessionPage] session settlement failed: $e');
+    }
+  }
 
   @override
   void initState() {
@@ -105,17 +170,25 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
   void _onController() {
     if (!mounted) return;
     final controller = _controller;
-    if (controller?.isComplete == true &&
-        _sourceCoordinator != null &&
-        !_advancingSource &&
-        !_advanceScheduled) {
-      _advanceScheduled = true;
-      WidgetsBinding.instance.addPostFrameCallback(
-        (_) {
-          _advanceScheduled = false;
-          unawaited(_advanceReviewAll());
-        },
-      );
+    if (controller != null && controller.isComplete) {
+      if (_sourceCoordinator != null &&
+          !_advancingSource &&
+          !_advanceScheduled) {
+        _advanceScheduled = true;
+        WidgetsBinding.instance.addPostFrameCallback(
+          (_) {
+            _advanceScheduled = false;
+            unawaited(_advanceReviewAll());
+          },
+        );
+      } else if (_sourceCoordinator == null && !_sessionCompletedRecorded) {
+        unawaited(_recordSessionCompletion(
+          total: controller.answeredCount,
+          remembered: controller.rememberedCount,
+          forgotten: controller.forgottenCount,
+          elapsed: DateTime.now().difference(controller.startedAt),
+        ));
+      }
     }
     setState(() {});
   }
@@ -257,6 +330,12 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
           _loading = false;
         });
       }
+      unawaited(_recordSessionCompletion(
+        total: coordinator.totalCount,
+        remembered: coordinator.rememberedCount,
+        forgotten: coordinator.forgottenCount,
+        elapsed: DateTime.now().difference(_sessionStartedAt),
+      ));
       _advancingSource = false;
       return;
     }
@@ -478,8 +557,8 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
                         totalCount: reviewAll.totalCount,
                         rememberedCount: reviewAll.rememberedCount,
                         forgottenCount: reviewAll.forgottenCount,
-                        elapsed: Duration.zero,
-                        xpEarned: 0,
+                        elapsed: DateTime.now().difference(_sessionStartedAt),
+                        xpEarned: _earnedXp,
                         gemsEarned: 0,
                         onFinish: () => Navigator.of(context).maybePop(),
                       ),
@@ -501,6 +580,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
             ? null
             : '${reviewAll!.currentIndex + 1}/${reviewAll.targets.length} · '
                 '${reviewAll.current!.displayName}',
+        earnedXp: _earnedXp,
       );
     }
 
@@ -706,6 +786,7 @@ class _AnkiStudySessionView extends StatelessWidget {
     this.liveQueue,
     this.onRetryBlockedCard,
     this.sourceProgress,
+    this.earnedXp = 0,
   });
 
   final StudySessionController controller;
@@ -719,6 +800,7 @@ class _AnkiStudySessionView extends StatelessWidget {
   /// Wave 2 §8.3: retries the blocked current card in the same session.
   final Future<void> Function()? onRetryBlockedCard;
   final String? sourceProgress;
+  final int earnedXp;
 
   /// Live scheduler contract (plan 34 D4): after every committed mutation
   /// the next card is the scheduler's refreshed [OfficialReviewSession.current]
@@ -738,6 +820,16 @@ class _AnkiStudySessionView extends StatelessWidget {
       if (item.cardKey.cardId == currentCardId) {
         await controller.advanceTo(item.sessionItemId);
         return;
+      }
+    }
+    // Give liveQueue one chance to reconcile if rebuild is in flight or pending
+    if (liveQueue != null) {
+      await liveQueue!.rebuildFromLiveQueue();
+      for (final item in controller.items) {
+        if (item.cardKey.cardId == currentCardId) {
+          await controller.advanceTo(item.sessionItemId);
+          return;
+        }
       }
     }
     // Unreachable while the scheduler's current always sits inside the
@@ -762,7 +854,7 @@ class _AnkiStudySessionView extends StatelessWidget {
             rememberedCount: controller.rememberedCount,
             forgottenCount: controller.forgottenCount,
             elapsed: DateTime.now().difference(controller.startedAt),
-            xpEarned: 0,
+            xpEarned: earnedXp,
             gemsEarned: 0,
             onFinish: () => Navigator.of(context).maybePop(),
           ),

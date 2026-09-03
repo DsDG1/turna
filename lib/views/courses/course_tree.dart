@@ -92,11 +92,27 @@ class _CourseTreeState extends State<CourseTree>
           final section = snapshot.section;
           if (section == null) return _buildEmptyMessage(context);
 
-          return _buildSectionScrollView(
+          final scrollView = _buildSectionScrollView(
             context,
             snapshot: snapshot,
             section: section,
             reduceMotion: reduceMotion,
+          );
+
+          if (reduceMotion) return scrollView;
+
+          return AnimatedSwitcher(
+            duration: const Duration(milliseconds: 260),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            transitionBuilder: (child, animation) => FadeTransition(
+              opacity: animation,
+              child: child,
+            ),
+            child: KeyedSubtree(
+              key: ValueKey<String>('section-viewport-${section.id}'),
+              child: scrollView,
+            ),
           );
         },
       ),
@@ -187,6 +203,17 @@ class _CourseTreeState extends State<CourseTree>
       );
 
       if (expanded) {
+        String? nextUpLessonId;
+        try {
+          final progress = context.read<ProgressProvider>();
+          for (final lesson in unit.lessons) {
+            if (!progress.isLessonCompleted(lesson.id)) {
+              nextUpLessonId = lesson.id;
+              break;
+            }
+          }
+        } catch (_) {}
+
         for (var i = 0; i < unit.lessons.length; i++) {
           final lesson = unit.lessons[i];
           items.add(
@@ -195,6 +222,8 @@ class _CourseTreeState extends State<CourseTree>
               lesson: lesson,
               attention: status.attentionForLesson(lesson.id),
               isLast: i == unit.lessons.length - 1,
+              indexInUnit: i,
+              isNextUp: lesson.id == nextUpLessonId,
             ),
           );
         }
@@ -220,7 +249,7 @@ class _CourseTreeState extends State<CourseTree>
                     4.0,
                     expanded ? 0.0 : 4.0
                   ),
-                _LessonItem(isLast: final isLast) => (0.0, isLast ? 4.0 : 0.0),
+                _LessonItem(isLast: final isLast) => (0.0, isLast ? 8.0 : 0.0),
               };
 
               final child = switch (item) {
@@ -258,11 +287,15 @@ class _CourseTreeState extends State<CourseTree>
                   lesson: final lesson,
                   attention: final attention,
                   isLast: final isLast,
+                  indexInUnit: final indexInUnit,
+                  isNextUp: final isNextUp,
                 ) =>
                   _buildAnimatedLessonTile(
                     lesson: lesson,
                     attention: attention,
                     isLast: isLast,
+                    indexInUnit: indexInUnit,
+                    isNextUp: isNextUp,
                     reduceMotion: reduceMotion,
                   ),
               };
@@ -286,6 +319,8 @@ class _CourseTreeState extends State<CourseTree>
     required Lesson lesson,
     required _Attention attention,
     required bool isLast,
+    required int indexInUnit,
+    required bool isNextUp,
     required bool reduceMotion,
   }) {
     Widget tile = Selector<ProgressProvider, ({bool completed, bool perfect})>(
@@ -297,6 +332,7 @@ class _CourseTreeState extends State<CourseTree>
         lesson: lesson,
         isCompleted: value.completed,
         isPerfect: value.perfect,
+        isNextUp: isNextUp && !value.completed,
         attention: attention,
         isLast: isLast,
         onTap: () => _navigateToLesson(context, lesson),
@@ -305,15 +341,18 @@ class _CourseTreeState extends State<CourseTree>
 
     if (reduceMotion) return tile;
 
+    final startInterval = (indexInUnit.clamp(0, 5) * 0.04).clamp(0.0, 0.20);
     final reveal = _lessonRevealController.drive(
-      CurveTween(curve: Curves.easeOutCubic),
+      CurveTween(
+        curve: Interval(startInterval, 1.0, curve: Curves.easeOutCubic),
+      ),
     );
     tile = FadeTransition(
       key: ValueKey<String>('lesson-reveal-${lesson.id}'),
       opacity: reveal,
       child: SlideTransition(
         position: Tween<Offset>(
-          begin: const Offset(0, 0.04),
+          begin: const Offset(0, 0.05),
           end: Offset.zero,
         ).animate(reveal),
         child: tile,
@@ -568,12 +607,16 @@ class _LessonItem extends _TreeItem {
   final Lesson lesson;
   final _Attention attention;
   final bool isLast;
+  final int indexInUnit;
+  final bool isNextUp;
 
   const _LessonItem({
     required this.sectionId,
     required this.lesson,
     required this.attention,
     required this.isLast,
+    this.indexInUnit = 0,
+    this.isNextUp = false,
   });
 
   @override
@@ -666,6 +709,21 @@ class _UnitHeader extends StatelessWidget {
         decoration: BoxDecoration(
           color: TurnaTheme.cardBg(context),
           borderRadius: borderRadius,
+          border: Border.all(
+            color: TurnaTheme.dividerBg(context).withValues(
+              alpha: expanded ? 0.85 : 0.5,
+            ),
+            width: 1.0,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: TurnaTheme.brandNavy.withValues(
+                alpha: expanded ? 0.07 : 0.035,
+              ),
+              blurRadius: expanded ? 10 : 5,
+              offset: Offset(0, expanded ? 3 : 2),
+            ),
+          ],
         ),
         child: Material(
           color: Colors.transparent,
@@ -910,6 +968,7 @@ class _LessonTile extends StatelessWidget {
   final Lesson lesson;
   final bool isCompleted;
   final bool isPerfect;
+  final bool isNextUp;
   final _Attention attention;
   final bool isLast;
   final VoidCallback onTap;
@@ -918,6 +977,7 @@ class _LessonTile extends StatelessWidget {
     required this.lesson,
     required this.isCompleted,
     required this.isPerfect,
+    this.isNextUp = false,
     required this.attention,
     required this.isLast,
     required this.onTap,
@@ -939,6 +999,10 @@ class _LessonTile extends StatelessWidget {
       if (attentionText != null) attentionText,
     ];
 
+    final cardBg = isNextUp
+        ? TurnaTheme.brandTeal.withValues(alpha: 0.04)
+        : TurnaTheme.cardBg(context);
+
     return Semantics(
       button: true,
       label: semanticsParts.join('，'),
@@ -946,39 +1010,98 @@ class _LessonTile extends StatelessWidget {
       excludeSemantics: true,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: TurnaTheme.cardBg(context),
+          color: cardBg,
           borderRadius: borderRadius,
           border: Border(
             top: BorderSide(color: TurnaTheme.dividerBg(context)),
           ),
+          boxShadow: isLast
+              ? [
+                  BoxShadow(
+                    color: TurnaTheme.brandNavy.withValues(alpha: 0.04),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : null,
         ),
         child: Material(
           color: Colors.transparent,
           child: InkWell(
             borderRadius: borderRadius,
             onTap: onTap,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              child: Row(
+            child: ClipRRect(
+              borderRadius: borderRadius,
+              child: Stack(
+                children: [
+                  if (isNextUp)
+                    Positioned(
+                      left: 0,
+                      top: 0,
+                      bottom: 0,
+                      child: Container(
+                        width: 3.5,
+                        color: TurnaTheme.brandTeal,
+                      ),
+                    ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    child: Row(
                 children: [
                   _LessonTypeIcon(
                     type: lesson.type,
                     completed: isCompleted,
                     perfect: isPerfect,
+                    isNextUp: isNextUp,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: Text(
-                      lesson.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: isCompleted
-                            ? TurnaTheme.textSecondaryColor(context)
-                            : TurnaTheme.textPrimaryColor(context),
-                      ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            lesson.name,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: isNextUp
+                                  ? FontWeight.w700
+                                  : FontWeight.w600,
+                              color: isCompleted
+                                  ? TurnaTheme.textSecondaryColor(context)
+                                  : TurnaTheme.textPrimaryColor(context),
+                            ),
+                          ),
+                        ),
+                        if (isNextUp) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: TurnaTheme.brandTeal
+                                  .withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(
+                                TurnaTheme.radiusRound,
+                              ),
+                            ),
+                            child: const Text(
+                              '下一课',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: TurnaTheme.brandTeal,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                   if (attention != _Attention.none) ...[
@@ -989,15 +1112,20 @@ class _LessonTile extends StatelessWidget {
                   Icon(
                     Icons.chevron_right_rounded,
                     size: 18,
-                    color: TurnaTheme.textHintColor(context),
+                    color: isNextUp
+                        ? TurnaTheme.brandTeal
+                        : TurnaTheme.textHintColor(context),
                   ),
                 ],
               ),
             ),
-          ),
+          ],
         ),
       ),
-    );
+    ),
+  ),
+),
+);
   }
 }
 
@@ -1005,15 +1133,25 @@ class _LessonTypeIcon extends StatelessWidget {
   final LessonType type;
   final bool completed;
   final bool perfect;
+  final bool isNextUp;
 
   const _LessonTypeIcon({
     required this.type,
     required this.completed,
     required this.perfect,
+    this.isNextUp = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final (bgAlpha, iconColor) = switch (type) {
+      LessonType.challenge => (0.15, TurnaTheme.warning),
+      LessonType.listening => (0.12, TurnaTheme.brandSky),
+      LessonType.reading => (0.12, TurnaTheme.brandTeal),
+      LessonType.review => (0.12, TurnaTheme.leagueAmethyst),
+      LessonType.normal => (0.09, TurnaTheme.brandTeal),
+    };
+
     return SizedBox.square(
       dimension: 36,
       child: Stack(
@@ -1022,18 +1160,32 @@ class _LessonTypeIcon extends StatelessWidget {
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
-                color: TurnaTheme.brandTeal.withValues(alpha: 0.09),
+                color: isNextUp
+                    ? TurnaTheme.brandTeal.withValues(alpha: 0.14)
+                    : iconColor.withValues(alpha: bgAlpha),
                 borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
                 border: perfect
                     ? Border.all(
                         color: TurnaTheme.anatolianClay.withValues(alpha: 0.65),
                       )
+                    : isNextUp
+                        ? Border.all(
+                            color: TurnaTheme.brandTeal.withValues(alpha: 0.5),
+                          )
+                        : null,
+                boxShadow: isNextUp
+                    ? [
+                        BoxShadow(
+                          color: TurnaTheme.brandReed.withValues(alpha: 0.25),
+                          blurRadius: 6,
+                        ),
+                      ]
                     : null,
               ),
               child: Icon(
                 _lessonTypeIcon(type),
                 size: 18,
-                color: TurnaTheme.brandTeal,
+                color: isNextUp ? TurnaTheme.brandTeal : iconColor,
               ),
             ),
           ),

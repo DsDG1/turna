@@ -5,6 +5,7 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
+import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
 import 'package:turna/application/diagnostics/performance_trace.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/review_dashboard/review_dashboard_models.dart';
@@ -139,6 +140,27 @@ class ReviewDashboardRepository {
       account('grammar', isNew, isDue, isOverdue);
     }
 
+    try {
+      final officialSnapshot = OfficialFormalDueRepository.instance.snapshot;
+      if (!officialSnapshot.unavailable) {
+        for (final entry in officialSnapshot.byImport.entries) {
+          final src = entry.value;
+          final key = 'official:${src.importId}';
+          final sourceDue = src.formalDueCardKeys.length;
+          final sourceTotal = src.introducedCardIds.isNotEmpty
+              ? src.introducedCardIds.length
+              : src.schedulerDueCardIds.length;
+          if (sourceTotal > 0 || sourceDue > 0) {
+            totalBySource[key] = sourceTotal;
+            if (sourceDue > 0) {
+              due += sourceDue;
+              dueBySource[key] = sourceDue;
+            }
+          }
+        }
+      }
+    } catch (_) {}
+
     // ── Today's events: bounded query, never allEvents() ────────────────
     final todayEvents = await _reviewDao.eventsBetween(startOfToday, now);
     final reviewedToday = todayEvents.length;
@@ -161,13 +183,24 @@ class ReviewDashboardRepository {
     for (final s in dailyStats.values) {
       final d = DateTime(s.date.year, s.date.month, s.date.day);
       minutesByDay[d] = s.totalDurationSeconds ~/ 60;
+      if (s.totalQuestions > (reviewedByDay[d] ?? 0)) {
+        reviewedByDay[d] = s.totalQuestions;
+      }
       if (d == startOfToday) todayStats = s;
     }
     final studyMinutes = (todayStats?.totalDurationSeconds ?? 0) ~/ 60;
     final answered =
         (todayStats?.correctCount ?? 0) + (todayStats?.incorrectCount ?? 0);
-    final double? accuracy =
-        answered == 0 ? null : todayStats!.correctCount / answered;
+    final effectiveReviewedToday =
+        answered > reviewedToday ? answered : reviewedToday;
+    final effectiveCorrectToday = (todayStats?.correctCount ?? 0) > correctToday
+        ? todayStats!.correctCount
+        : correctToday;
+    final effectiveCompletedCards =
+        answered > completedCards ? answered : completedCards;
+    final double? accuracy = effectiveReviewedToday == 0
+        ? null
+        : effectiveCorrectToday / effectiveReviewedToday;
 
     final user = _appPrefs.authUser.getValue();
     final xpGoal = user.dailyXpGoal;
@@ -255,9 +288,9 @@ class ReviewDashboardRepository {
       generatedAt: now,
       dataRevision: revision,
       today: TodayProgress(
-        reviewedToday: reviewedToday,
-        correctToday: correctToday,
-        completedCards: completedCards,
+        reviewedToday: effectiveReviewedToday,
+        correctToday: effectiveCorrectToday,
+        completedCards: effectiveCompletedCards,
         todayXp: todayStats?.totalXp,
         xpGoal: xpGoal,
       ),

@@ -145,6 +145,8 @@ class OfficialReviewSession {
       }
       final dueCmp = b.dueCount.compareTo(a.dueCount);
       if (dueCmp != 0) return dueCmp;
+      final levelCmp = a.level.compareTo(b.level);
+      if (levelCmp != 0) return levelCmp;
       final aDefault = a.name == 'Default';
       final bDefault = b.name == 'Default';
       if (aDefault != bDefault) return aDefault ? 1 : -1;
@@ -153,7 +155,7 @@ class OfficialReviewSession {
     return usable;
   }
 
-  Future<void> refreshQueue() async {
+  Future<void> refreshQueue({bool checkNextDecks = true}) async {
     if (disposed) return;
     _requireFlag();
     phase = OfficialReviewPhase.loadingQueue;
@@ -161,6 +163,9 @@ class OfficialReviewSession {
       queue = await engine.getReviewQueue(fetchLimit: _queueFetchLimit);
       current = _selectCurrent(queue!);
       if (current == null) {
+        if (checkNextDecks && await _tryAdvanceToNextDueDeck()) {
+          return;
+        }
         congrats = await engine.congratsInfo();
         phase = OfficialReviewPhase.completed;
         lastError = null;
@@ -171,6 +176,9 @@ class OfficialReviewSession {
       }
     } on OfficialAnkiException catch (error) {
       if (error.code == OfficialAnkiErrorCode.queueEmpty) {
+        if (checkNextDecks && await _tryAdvanceToNextDueDeck()) {
+          return;
+        }
         current = null;
         queue = null;
         congrats = await engine.congratsInfo();
@@ -183,6 +191,26 @@ class OfficialReviewSession {
           ? OfficialReviewPhase.staleContext
           : OfficialReviewPhase.recoverableError;
     }
+  }
+
+  Future<bool> _tryAdvanceToNextDueDeck() async {
+    try {
+      final decks = await engine.listDeckTree();
+      for (final deck in orderDecksForReview(decks)) {
+        await engine.setCurrentDeck(deck.deckId);
+        try {
+          final probed = await engine.getReviewQueue(fetchLimit: 1);
+          final candidate = _selectCurrent(probed);
+          if (candidate != null) {
+            await refreshQueue(checkNextDecks: false);
+            return current != null;
+          }
+        } on OfficialAnkiException {
+          continue;
+        }
+      }
+    } catch (_) {}
+    return false;
   }
 
   /// Narrow the live queue to the StudyItems the shared host actually shows.

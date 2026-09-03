@@ -82,9 +82,10 @@ class _AnkiDeckStatsPageState extends State<AnkiDeckStatsPage> {
                       ),
                       const SizedBox(height: 12),
                       _MetricCard(
-                        title: '暂停 / 埋藏',
-                        value: '${officialSnap.suspendedCount ?? 0} / '
-                            '${officialSnap.buriedCount ?? 0}',
+                        title: '卡片门控（未解锁 / 暂停 / 埋藏）',
+                        value: officialSnap.unintroducedCount > 0
+                            ? '${officialSnap.unintroducedCount} 待学 · ${officialSnap.userSuspendedCount} 暂停 / ${officialSnap.buriedCount ?? 0} 埋藏'
+                            : '${officialSnap.suspendedCount ?? 0} / ${officialSnap.buriedCount ?? 0}',
                         icon: Icons.pause_circle_outline,
                       ),
                       const SizedBox(height: 12),
@@ -115,6 +116,25 @@ class _AnkiDeckStatsPageState extends State<AnkiDeckStatsPage> {
                                 '${officialSnap.retentionSample})',
                         icon: Icons.track_changes,
                       ),
+                      if (officialSnap.retentionByInterval.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('按间隔保持率（记忆曲线）',
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.w700)),
+                                const SizedBox(height: 12),
+                                RetentionCurveChart(
+                                    curve: officialSnap.retentionByInterval),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
                     const SizedBox(height: 12),
                     Card(

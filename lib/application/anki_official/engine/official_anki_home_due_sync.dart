@@ -314,11 +314,26 @@ class OfficialAnkiHomeDueSync {
     }
   }
 
+  static bool _importedHistoryAdopted = false;
+  static DateTime? _lastLockReconciliation;
+
+  /// Invalidate the caches when an import completes or new cards are unlocked.
+  static void markDirty() {
+    _importedHistoryAdopted = false;
+    _lastLockReconciliation = null;
+  }
+
   Future<void> _reconcileLocks() async {
+    final last = _lastLockReconciliation;
+    final now = DateTime.now();
+    if (last != null && now.difference(last) < const Duration(minutes: 2)) {
+      return;
+    }
     try {
       final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
       if (catalog == null) return;
-      final sources = OfficialAnkiSourceDao(catalog).listSources('profile-default-01');
+      final sources =
+          OfficialAnkiSourceDao(catalog).listSources('profile-default-01');
       if (sources.isEmpty) return;
       final reconciler = OfficialAnkiLockReconciler.resolve();
       for (final s in sources) {
@@ -326,12 +341,14 @@ class OfficialAnkiHomeDueSync {
           await reconciler.reconcileSource(sourceId: s.sourceId);
         }
       }
+      _lastLockReconciliation = DateTime.now();
     } catch (error) {
       debugPrint('[OfficialAnkiHomeDueSync] lock reconcile failed: $error');
     }
   }
 
   Future<void> _adoptImportedHistory(OfficialAnkiSession session) async {
+    if (_importedHistoryAdopted) return;
     try {
       final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
       if (catalog == null) return;
@@ -349,6 +366,7 @@ class OfficialAnkiHomeDueSync {
         searchPage: session.searchCardsPage,
         cardIdsBySource: cardIdsBySource,
       );
+      _importedHistoryAdopted = true;
     } catch (error) {
       debugPrint(
         '[OfficialAnkiHomeDueSync] imported-history adopt failed: $error',

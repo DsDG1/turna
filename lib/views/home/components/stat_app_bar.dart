@@ -79,9 +79,14 @@ class CourseSwitchButton extends StatelessWidget {
         ),
       ),
       style: TextButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
+        backgroundColor: TurnaTheme.brandTeal.withValues(alpha: 0.08),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
+          side: BorderSide(
+            color: TurnaTheme.brandTeal.withValues(alpha: 0.20),
+            width: 1,
+          ),
         ),
       ),
     );
@@ -98,6 +103,10 @@ class Streak extends StatelessWidget {
       decoration: BoxDecoration(
         color: TurnaTheme.streakChipBg(context),
         borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
+        border: Border.all(
+          color: TurnaTheme.glassBorder(context),
+          width: 1,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -140,6 +149,10 @@ class ScoreCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: TurnaTheme.scoreChipBg(context),
         borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
+        border: Border.all(
+          color: TurnaTheme.glassBorder(context),
+          width: 1,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

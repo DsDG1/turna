@@ -2,12 +2,13 @@
 import 'package:flutter/material.dart';
 
 // Package imports:
-import 'package:auto_route/auto_route.dart';
+import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:turna/application/progress_provider.dart';
 import 'package:turna/domain/course/section.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/views/courses/components/section_bottom_sheet.dart';
 import 'package:turna/views/courses/components/section_visuals.dart';
 import 'package:turna/views/theme.dart';
 
@@ -40,7 +41,7 @@ class SectionSwitcher extends StatelessWidget {
         child: _SectionHeaderCard(
           section: section,
           collapseProgress: t,
-          onTap: () => context.router.push(const SectionPickerRoute()),
+          onTap: () => showSectionBottomSheet(context),
         ),
       ),
     );
@@ -111,6 +112,19 @@ class _SectionHeaderCard extends StatelessWidget {
     final shadowAlpha = 1 - collapseProgress;
     final borderRadius = BorderRadius.circular(radius);
 
+    final progress = context.select<ProgressProvider?, double>((p) {
+      if (p == null || section.units.isEmpty) return 0.0;
+      var total = 0;
+      var completed = 0;
+      for (final unit in section.units) {
+        for (final lesson in unit.lessons) {
+          total++;
+          if (p.isLessonCompleted(lesson.id)) completed++;
+        }
+      }
+      return total == 0 ? 0.0 : completed / total;
+    });
+
     return Semantics(
       button: true,
       label: '${AppStrings.coursesChooseSection}：${section.name}',
@@ -119,6 +133,12 @@ class _SectionHeaderCard extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           borderRadius: borderRadius,
+          border: Border.all(
+            color: TurnaTheme.dividerBg(context).withValues(
+              alpha: 0.6 + 0.4 * shadowAlpha,
+            ),
+            width: 1.0,
+          ),
           boxShadow: [
             BoxShadow(
               color: TurnaTheme.brandNavy.withValues(
@@ -135,44 +155,72 @@ class _SectionHeaderCard extends StatelessWidget {
           child: InkWell(
             onTap: onTap,
             borderRadius: borderRadius,
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: _lerp(16, 12)),
-              child: Row(
+            child: ClipRRect(
+              borderRadius: borderRadius,
+              child: Stack(
                 children: [
-                  Container(
-                    width: iconExtent,
-                    height: iconExtent,
-                    decoration: BoxDecoration(
-                      color: colors.background,
-                      borderRadius: BorderRadius.circular(
-                        _lerp(TurnaTheme.radiusMedium, TurnaTheme.radiusSmall),
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: _lerp(16, 12)),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: iconExtent,
+                          height: iconExtent,
+                          decoration: BoxDecoration(
+                            color: colors.background,
+                            borderRadius: BorderRadius.circular(
+                              _lerp(
+                                TurnaTheme.radiusMedium,
+                                TurnaTheme.radiusSmall,
+                              ),
+                            ),
+                          ),
+                          child: Icon(
+                            SectionVisuals.iconFor(section.id),
+                            size: iconSize,
+                            color: colors.foreground,
+                          ),
+                        ),
+                        SizedBox(width: gap),
+                        Expanded(
+                          child: Text(
+                            section.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: fontSize,
+                              fontWeight: FontWeight.w700,
+                              color: TurnaTheme.textPrimaryColor(context),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(
+                          Icons.unfold_more_rounded,
+                          color: TurnaTheme.textHintColor(context),
+                          size: _lerp(28, 22),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (progress > 0)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: SizedBox(
+                        height: 2.5,
+                        child: LinearProgressIndicator(
+                          value: progress,
+                          backgroundColor: Colors.transparent,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            progress >= 1.0
+                                ? TurnaTheme.anatolianClay
+                                : TurnaTheme.brandTeal,
+                          ),
+                        ),
                       ),
                     ),
-                    child: Icon(
-                      SectionVisuals.iconFor(section.id),
-                      size: iconSize,
-                      color: colors.foreground,
-                    ),
-                  ),
-                  SizedBox(width: gap),
-                  Expanded(
-                    child: Text(
-                      section.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: fontSize,
-                        fontWeight: FontWeight.w700,
-                        color: TurnaTheme.textPrimaryColor(context),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Icon(
-                    Icons.unfold_more_rounded,
-                    color: TurnaTheme.textHintColor(context),
-                    size: _lerp(28, 22),
-                  ),
                 ],
               ),
             ),

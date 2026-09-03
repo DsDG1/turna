@@ -703,6 +703,71 @@ void main() {
         ),
       );
     });
+
+    testWidgets('highlights the next-up lesson with next-up indicator tag',
+        (tester) async {
+      final section = _testSection(
+        id: 's-next-up',
+        unitName: 'Next Up Unit',
+        lessons: [
+          _testLesson('l-1', 'Lesson Completed'),
+          _testLesson('l-2', 'Lesson Next Up'),
+        ],
+      );
+      final game = _FakeGameProvider()..complete('l-1');
+      final provider = _FakeCourseProvider(
+        currentSection: section,
+        loadState: SectionLoadState.loaded,
+      );
+
+      await tester.pumpWidget(pumpTree(provider, gameProvider: game));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Next Up Unit'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('下一课'), findsOneWidget);
+      expect(find.text('Lesson Next Up'), findsOneWidget);
+    });
+
+    testWidgets(
+        'transitions smoothly between sections with AnimatedSwitcher viewport',
+        (tester) async {
+      final s1 = _testSection(
+        id: 's-1',
+        unitName: 'Unit 1',
+        lessons: [_testLesson('l-1', 'Lesson 1')],
+      );
+      final s2 = _testSection(
+        id: 's-2',
+        unitName: 'Unit 2',
+        lessons: [_testLesson('l-2', 'Lesson 2')],
+      );
+      final provider = _FakeCourseProvider(
+        currentSection: s1,
+        sections: [s1, s2],
+        loadState: SectionLoadState.loaded,
+      );
+
+      await tester.pumpWidget(pumpTree(provider));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('section-viewport-s-1')),
+        findsOneWidget,
+      );
+
+      provider.showSection(s2);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.byType(AnimatedSwitcher), findsOneWidget);
+
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey<String>('section-viewport-s-2')),
+        findsOneWidget,
+      );
+      expect(find.text('Unit 2'), findsOneWidget);
+    });
   });
 }
 
