@@ -5,6 +5,7 @@ import 'package:turna/application/anki_official/engine/official_anki_engine.dart
 import 'package:turna/application/anki_official/lifecycle/official_anki_file_log.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
+import 'package:turna/application/anki_import/recognition/recognize/result.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
 import 'package:turna/application/anki_official/projection/official_anki_projection_paging.dart';
@@ -101,8 +102,14 @@ class OfficialAnkiV2LessonContent {
       final mapping = suggestions[projectionRow.notetypeId];
       if (mapping == null) continue; // 无映射决策 = v1 needsMapping 同语义
       final values = payloads.values(projectionRow, mapping);
+      var kind = _kindFor(row.presentationKind);
+      if (values.archetypeViolated) {
+        kind = values.archetype == CardArchetype.choice
+            ? OfficialAnkiProjectionKind.flip
+            : OfficialAnkiProjectionKind.canonicalLink;
+      }
       final item = OfficialAnkiProjectedItem(
-        kind: _kindFor(row.presentationKind),
+        kind: kind,
         cardId: row.cardId,
         wordId: row.wordId,
         sectionId: row.sectionId,
@@ -145,12 +152,12 @@ class OfficialAnkiV2LessonContent {
     );
   }
 
-  /// kind 用视图行存储值（单一事实源）；损坏/未知名降 showWord。
+  /// kind 用视图行存储值（单一事实源）；损坏/未知名降 flip。
   static OfficialAnkiProjectionKind _kindFor(String name) {
     for (final kind in OfficialAnkiProjectionKind.values) {
       if (kind.name == name) return kind;
     }
-    return OfficialAnkiProjectionKind.showWord;
+    return OfficialAnkiProjectionKind.flip;
   }
 
   /// `<notetypeId, suggestion>` 解码（导入侧 `_encodeSuggestions` 的逆）。

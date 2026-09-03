@@ -13,7 +13,6 @@ enum OfficialExercisePreset { auto, choice, fillBlank, listen, flip }
 /// importable as fidelity links.
 const Map<OfficialExercisePreset, List<String>> _presetKinds = {
   OfficialExercisePreset.auto: [
-    'showWord',
     'flip',
     'multipleChoice',
     'multiSelect',
@@ -30,7 +29,7 @@ const Map<OfficialExercisePreset, List<String>> _presetKinds = {
   ],
   OfficialExercisePreset.fillBlank: ['fillBlank', 'flip', 'canonicalLink'],
   OfficialExercisePreset.listen: ['listenPick', 'flip', 'canonicalLink'],
-  OfficialExercisePreset.flip: ['flip', 'showWord', 'canonicalLink'],
+  OfficialExercisePreset.flip: ['flip', 'canonicalLink'],
 };
 
 List<String> presetKinds(OfficialExercisePreset preset) =>

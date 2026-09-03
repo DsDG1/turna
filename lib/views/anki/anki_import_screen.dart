@@ -14,15 +14,13 @@ import 'package:turna/application/anki_import/official_import_error_messages.dar
 import 'package:turna/application/anki_import/anki_import_completion_coordinator.dart';
 import 'package:turna/application/anki_import/anki_import_dependencies.dart';
 import 'package:turna/application/anki_import/anki_import_wizard_state.dart';
-import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
-import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/anki/import_wizard/anki_import_done_step.dart';
 import 'package:turna/views/anki/import_wizard/anki_import_wizard_widgets.dart';
-import 'package:turna/views/anki/import_wizard/official_anki_import_preview.dart';
+import 'package:turna/views/anki/import_wizard/modern_anki_import_preview.dart';
 import 'package:turna/views/anki/import_wizard/official_pending_import_banner.dart';
 import 'package:turna/views/theme.dart';
 
@@ -365,51 +363,11 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     String? failureMessage,
   ) {
     final official = previewing.preview as OfficialAnkiImportPreviewModel;
-    return OfficialAnkiImportPreview(
+    return ModernAnkiImportPreview(
       preview: official,
       controller: controller,
       error: failureMessage,
-      onOpenMapping: (schema) => unawaited(_openOfficialMapping(
-        controller,
-        schema,
-      )),
     );
-  }
-
-  Future<void> _openOfficialMapping(
-    AnkiImportController controller,
-    OfficialAnkiProjectionSchema schema,
-  ) async {
-    final official = _officialPreviewOf(controller);
-    if (official == null) return;
-    final suggestion =
-        official.suggestions[schema.notetypeId] ?? officialAnkiSuggestMapping(schema);
-    await context.router.push(
-      OfficialAnkiMappingRoute(
-        notetypeName: schema.name,
-        suggestion: suggestion,
-        schema: schema,
-        onConfirm: (next) {
-          controller.confirmOfficialMapping(schema, next);
-        },
-        onSkip: () {
-          controller.skipOfficialNotetype(schema);
-        },
-      ),
-    );
-  }
-
-  OfficialAnkiImportPreviewModel? _officialPreviewOf(
-    AnkiImportController controller,
-  ) {
-    final state = controller.state;
-    final effective =
-        state is AnkiImportFailed ? state.returnState : state;
-    if (effective is AnkiImportPreviewing &&
-        effective.preview is OfficialAnkiImportPreviewModel) {
-      return effective.preview as OfficialAnkiImportPreviewModel;
-    }
-    return null;
   }
 
   // ─── Step 4: Done ───────────────────────────────────────────────────

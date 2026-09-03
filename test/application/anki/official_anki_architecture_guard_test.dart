@@ -583,7 +583,7 @@ void main() {
           lessThanOrEqualTo(700),
           reason: 'import screen must stay a shell');
       for (final step in const [
-        'lib/views/anki/import_wizard/official_anki_import_preview.dart',
+        'lib/views/anki/import_wizard/modern_anki_import_preview.dart',
         'lib/views/anki/import_wizard/anki_import_done_step.dart',
       ]) {
         expect(lineCount(step), lessThanOrEqualTo(500), reason: step);

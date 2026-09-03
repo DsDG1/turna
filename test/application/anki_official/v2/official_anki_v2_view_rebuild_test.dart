@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/native.dart';
@@ -7,6 +8,7 @@ import 'package:turna/application/anki_official/engine/official_anki_engine_fake
 import 'package:turna/application/anki_official/projection/official_anki_projection_ids.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
+import 'package:turna/application/anki_official/v2/official_anki_v2_config_keys.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_view_rebuilder.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_view_store.dart';
 import 'package:turna/data/course_database.dart';
@@ -266,5 +268,63 @@ void main() {
       '201,202', '203', // C：同末段组内切片
       '301,302', // D：独立末段组
     });
+  });
+
+  test('default fallback presentationKind is flip (not showWord)', () async {
+    seedActiveV2Source(sourceId: 'src-kind-fallback');
+    await rebuilder().rebuild();
+    final store = OfficialAnkiV2ViewStore(course);
+    final lessonIds = await store.lessonIds();
+    final rows = await store.rowsForLesson(lessonIds.first);
+    expect(rows, isNotEmpty);
+    for (final row in rows) {
+      expect(row.presentationKind, 'flip', reason: '无 mapping 决策时兜底为 flip，非 showWord');
+    }
+  });
+
+  test('archetype basicPair resolves to flip regardless of enabledKinds order', () async {
+    final a = seedActiveV2Source(sourceId: 'src-kind-basic');
+    engine.configStore[OfficialAnkiV2ConfigKeys.importMapping(a)] = {
+      'schema': 1,
+      'confirmed': [1],
+      'skipped': [],
+      'suggestions': jsonEncode({
+        '1': {
+          'archetype': 'basicPair',
+          'enabledKinds': ['showWord', 'flip', 'multipleChoice'],
+        },
+      }),
+    };
+    await rebuilder().rebuild();
+    final store = OfficialAnkiV2ViewStore(course);
+    final lessonIds = await store.lessonIds();
+    final rows = await store.rowsForLesson(lessonIds.first);
+    expect(rows, isNotEmpty);
+    for (final row in rows) {
+      expect(row.presentationKind, 'flip', reason: 'basicPair 必须解析为 flip 翻转卡');
+    }
+  });
+
+  test('archetype choice resolves to multipleChoice when enabled', () async {
+    final a = seedActiveV2Source(sourceId: 'src-kind-choice');
+    engine.configStore[OfficialAnkiV2ConfigKeys.importMapping(a)] = {
+      'schema': 1,
+      'confirmed': [1],
+      'skipped': [],
+      'suggestions': jsonEncode({
+        '1': {
+          'archetype': 'choice',
+          'enabledKinds': ['flip', 'multipleChoice'],
+        },
+      }),
+    };
+    await rebuilder().rebuild();
+    final store = OfficialAnkiV2ViewStore(course);
+    final lessonIds = await store.lessonIds();
+    final rows = await store.rowsForLesson(lessonIds.first);
+    expect(rows, isNotEmpty);
+    for (final row in rows) {
+      expect(row.presentationKind, 'multipleChoice', reason: 'choice 且启用选择题必须解析为 multipleChoice');
+    }
   });
 }

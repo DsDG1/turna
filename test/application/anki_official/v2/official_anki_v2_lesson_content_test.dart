@@ -229,7 +229,7 @@ void main() {
     }
   });
 
-  test('unknown presentation kind degrades to showWord', () async {
+  test('unknown presentation kind degrades to flip', () async {
     OfficialAnkiV2LessonContent.flagsOf = () => v2On;
     await OfficialAnkiV2ViewStore(course).replaceAll(
       rows: const [
@@ -254,8 +254,8 @@ void main() {
     expect(lesson, isNotNull);
     expect(
       lesson!.content.stages.single.items.single.id,
-      startsWith('w-7-pshowWord-'),
-      reason: '损坏/未知的 kind 降 showWord，不拖垮整课时',
+      startsWith('w-7-pflip-'),
+      reason: '损坏/未知的 kind 降 flip，不拖垮整课时',
     );
   });
 

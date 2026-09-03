@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:turna/application/anki_import/recognition/recognize/result.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_file_log.dart';
@@ -122,7 +123,7 @@ class OfficialAnkiV2ViewRebuilder {
             placement:
                 _place(source.sourceId, path, placements[topDeckId]),
             presentationKind:
-                kindsByNotetype[card.notetypeId ?? -1] ?? 'showWord',
+                kindsByNotetype[card.notetypeId ?? -1] ?? 'flip',
           ));
         }
         rows.addAll(_chunkedRows(source, placed));
@@ -266,7 +267,7 @@ class OfficialAnkiV2ViewRebuilder {
     );
   }
 
-  /// notetype → 主呈现 kind（决策里 enabledKinds 的第一个）。
+  /// notetype → 主呈现 kind（依据识别原型与 enabledKinds 决策）。
   static Map<int, String> _kindsByNotetype(
     OfficialAnkiV2MappingDecision? mapping,
   ) {
@@ -278,15 +279,51 @@ class OfficialAnkiV2ViewRebuilder {
       for (final entry in decoded.entries) {
         final id = int.tryParse('${entry.key}');
         if (id == null || entry.value is! Map) continue;
-        final kinds = (entry.value as Map)['enabledKinds'];
-        if (kinds is List && kinds.isNotEmpty) {
-          out[id] = '${kinds.first}';
-        }
+        final map = entry.value as Map;
+        final archetypeStr = map['archetype'] as String?;
+        final rawKinds = map['enabledKinds'];
+        final enabled = rawKinds is List
+            ? rawKinds.map((e) => '$e').toSet()
+            : const <String>{};
+        out[id] = _resolvePrimaryKind(
+          archetypeStr: archetypeStr,
+          enabledKinds: enabled,
+        );
       }
       return out;
     } catch (_) {
       return const {};
     }
+  }
+
+  static String _resolvePrimaryKind({
+    required String? archetypeStr,
+    required Set<String> enabledKinds,
+  }) {
+    final archetype = CardArchetype.values.firstWhere(
+      (a) => a.name == archetypeStr,
+      orElse: () => CardArchetype.basicPair,
+    );
+    return switch (archetype) {
+      CardArchetype.choice => enabledKinds.contains('multipleChoice')
+          ? 'multipleChoice'
+          : (enabledKinds.contains('multiSelect')
+              ? 'multiSelect'
+              : (enabledKinds.contains('flip') ? 'flip' : 'canonicalLink')),
+      CardArchetype.cloze => enabledKinds.contains('fillBlank')
+          ? 'fillBlank'
+          : 'canonicalLink',
+      CardArchetype.audioFirst => enabledKinds.contains('listenPick')
+          ? 'listenPick'
+          : (enabledKinds.contains('flip') ? 'flip' : 'canonicalLink'),
+      CardArchetype.typeIn => enabledKinds.contains('typeAnswer')
+          ? 'typeAnswer'
+          : (enabledKinds.contains('flip') ? 'flip' : 'canonicalLink'),
+      CardArchetype.richHtml => 'canonicalLink',
+      CardArchetype.basicPair => enabledKinds.contains('flip')
+          ? 'flip'
+          : (enabledKinds.contains('showWord') ? 'showWord' : 'canonicalLink'),
+    };
   }
 }
 

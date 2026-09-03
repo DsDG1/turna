@@ -67,5 +67,62 @@ void main() {
         List.generate(12, (i) => 'opt$i').join('|');
     expect(EmbeddedOptionsParser.parseOptionPool(many), hasLength(8));
     expect(EmbeddedOptionsParser.parseOptionPool('  '), isEmpty);
+    expect(
+      EmbeddedOptionsParser.parseOptionPool('北京||上海||广州||深圳'),
+      ['北京', '上海', '广州', '深圳'],
+    );
+    expect(
+      EmbeddedOptionsParser.parseOptionPool('Item1###Item2###Item3'),
+      ['Item1', 'Item2', 'Item3'],
+    );
+  });
+
+  test('extractEmbeddedOptions supports circled numbers and Chinese brackets', () {
+    const circled = '下列属于偶数的是：\n① 1\n② 2\n③ 3\n④ 4';
+    final parsedCircled = EmbeddedOptionsParser.extractEmbeddedOptions(circled);
+    expect(parsedCircled, isNotNull);
+    expect(parsedCircled!.options, ['1', '2', '3', '4']);
+    expect(
+      EmbeddedOptionsParser.parseCorrectIndices('②、④', parsedCircled.options),
+      [1, 3],
+    );
+
+    const chineseBrackets = '单选题：\n（A） 苹果\n（B） 香蕉\n（C） 橙子';
+    final parsedBrackets = EmbeddedOptionsParser.extractEmbeddedOptions(chineseBrackets);
+    expect(parsedBrackets, isNotNull);
+    expect(parsedBrackets!.options, ['苹果', '香蕉', '橙子']);
+  });
+
+  test('extractMultiFieldOptions collects separate option columns', () {
+    final fieldNames = ['Question', 'OptionA', 'OptionB', 'OptionC', 'OptionD', 'Answer'];
+    final fieldValues = [
+      '我国第一部宪法颁布年份？',
+      '1949年',
+      '1954年',
+      '1978年',
+      '1982年',
+      'B',
+    ];
+
+    final options = EmbeddedOptionsParser.extractMultiFieldOptions(
+      fieldNames,
+      fieldValues,
+    );
+    expect(options, ['1949年', '1954年', '1978年', '1982年']);
+
+    final correct = EmbeddedOptionsParser.parseCorrectIndices(
+      fieldValues[5],
+      options!,
+    );
+    expect(correct, [1]);
+  });
+
+  test('options with media preserve [sound:] and <img> tags', () {
+    const front = '听音选图：\nA. <img src="dog.jpg"> [sound:dog.mp3]\nB. <img src="cat.jpg"> [sound:cat.mp3]';
+    final parsed = EmbeddedOptionsParser.extractEmbeddedOptions(front);
+    expect(parsed, isNotNull);
+    expect(parsed!.options.length, 2);
+    expect(parsed.options[0], contains('<img src="dog.jpg">'));
+    expect(parsed.options[0], contains('[sound:dog.mp3]'));
   });
 }

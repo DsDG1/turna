@@ -55,7 +55,6 @@ class OfficialAnkiMappingSuggestion {
     this.userConfirmed = false,
     this.updatedAtMillis = 0,
     this.enabledKinds = const <String>[
-      'showWord',
       'flip',
       'multipleChoice',
       'multiSelect',

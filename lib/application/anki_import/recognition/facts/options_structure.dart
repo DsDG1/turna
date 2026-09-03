@@ -19,19 +19,28 @@ enum PracticeChoiceCardinality { single, multi, unknown, conflict }
 /// options.dart`). Pure structure, zero topic words.
 class EmbeddedOptionsParser {
   /// Whether [text] looks like it contains lettered options (A./B. …),
+  /// circled numbers (①/②), or bracketed options ((A)/(B), （A）/（B）),
   /// even when they are jammed into one paragraph without newlines.
   static bool looksLikeEmbeddedOptions(String text) {
     final letterHits = RegExp(
-      r'(?<![A-Za-z0-9])([A-Da-d])\s*[.、．:：)）]',
+      r'(?<![A-Za-z0-9])([A-Ha-h])\s*[.、．:：)）\]】]',
     ).allMatches(text).length;
     if (letterHits >= 2) return true;
+    final circledHits = RegExp(
+      r'[①-⑧]',
+    ).allMatches(text).length;
+    if (circledHits >= 2) return true;
+    final bracketHits = RegExp(
+      r'[（(【\[]\s*([A-Ha-h1-8])\s*[）)】\]]',
+    ).allMatches(text).length;
+    if (bracketHits >= 2) return true;
     final numHits = RegExp(
-      r'(?<![A-Za-z0-9])([1-4])\s*[.、．:：)）]',
+      r'(?<![A-Za-z0-9])([1-8])\s*[.、．:：)）\]】]',
     ).allMatches(text).length;
     return numHits >= 2;
   }
 
-  /// Extract `A. option` / `1) option` options from a front-face string.
+  /// Extract `A. option` / `1) option` / `（A） option` / `① option` from a front-face string.
   static ParsedEmbeddedOptions? extractEmbeddedOptions(String front) {
     // 1) Line-oriented parse
     final lines = front.split(RegExp(r'\r?\n'));
@@ -39,16 +48,17 @@ class EmbeddedOptionsParser {
     final promptLines = <String>[];
     final optionLine = RegExp(
       r'^\s*(?:'
-      r'([A-Fa-f])\s*[.、．:：)）]\s*'
-      r'|\(([A-Fa-f])\)\s*'
-      r'|([1-9])\s*[.、．:：)）]\s*'
+      r'([A-Ha-h])\s*[.、．:：)）\]】]\s*'
+      r'|[（(【\[]\s*([A-Ha-h1-8])\s*[）)】\]]\s*'
+      r'|([①-⑧])\s*'
+      r'|([1-8])\s*[.、．:：)）\]】]\s*'
       r')(.+)$',
     );
 
     for (final line in lines) {
       final m = optionLine.firstMatch(line);
       if (m != null) {
-        final text = (m.group(4) ?? '').trim();
+        final text = (m.group(5) ?? '').trim();
         if (text.isNotEmpty) lineOptions.add(text);
       } else if (lineOptions.isEmpty) {
         if (line.trim().isNotEmpty) promptLines.add(line.trim());
@@ -62,16 +72,23 @@ class EmbeddedOptionsParser {
       );
     }
 
-    // 2) Inline parse (no newlines between A./B./C./D.)
+    // 2) Inline parse (no newlines between A./B./C./D. or (A)/(B))
     final inline = RegExp(
-      r'(?<![A-Za-z0-9])([A-Da-d])\s*[.、．:：)）]\s*',
+      r'(?:(?<![A-Za-z0-9])([A-Ha-h])\s*[.、．:：)）\]】]\s*'
+      r'|[（(【\[]\s*([A-Ha-h])\s*[）)】\]]\s*'
+      r'|([①-⑧])\s*)',
     );
     final matches = inline.allMatches(front).toList();
     if (matches.length < 2) return null;
 
     var start = 0;
     for (var i = 0; i < matches.length; i++) {
-      if (matches[i].group(1)!.toUpperCase() == 'A') {
+      final rawLabel = (matches[i].group(1) ??
+              matches[i].group(2) ??
+              matches[i].group(3) ??
+              '')
+          .toUpperCase();
+      if (rawLabel == 'A' || rawLabel == '①') {
         start = i;
         break;
       }
@@ -79,12 +96,12 @@ class EmbeddedOptionsParser {
     final run = matches.sublist(start);
     if (run.length < 2) return null;
 
-    if (run.first.group(1)!.toUpperCase() != 'A') return null;
-
-    final labels = [
-      for (final m in run) m.group(1)!.toUpperCase().codeUnitAt(0) - 65,
-    ];
-    if (labels.first != 0) return null;
+    final firstLabel = (run.first.group(1) ??
+            run.first.group(2) ??
+            run.first.group(3) ??
+            '')
+        .toUpperCase();
+    if (firstLabel != 'A' && firstLabel != '①') return null;
 
     final options = <String>[];
     for (var i = 0; i < run.length; i++) {
@@ -130,9 +147,13 @@ class EmbeddedOptionsParser {
     if (exact >= 0) return [exact];
 
     final compactLetters = answer.replaceAll(RegExp(r'[,;、|/＋+\s]+'), '');
-    if (RegExp(r'^[A-Fa-f]+$').hasMatch(compactLetters)) {
+    if (RegExp(r'^[A-Ha-h]+$').hasMatch(compactLetters)) {
       for (final c in compactLetters.toUpperCase().codeUnits) {
         addIfValid(c - 65);
+      }
+    } else if (RegExp(r'^[①-⑧]+$').hasMatch(compactLetters)) {
+      for (final c in compactLetters.runes) {
+        addIfValid(c - 0x2460);
       }
     } else {
       final numberParts = answer
@@ -176,28 +197,49 @@ class EmbeddedOptionsParser {
     final s = lower.trim();
     if (s.isEmpty) return false;
     if (isAnswerFieldName(s)) return false;
-    if (RegExp(r'^(option|choice|opt|选项|备选)\s*[_-]?\s*[a-f0-9]?$')
+    if (RegExp(r'^(option|choice|opt|选项|备选)\s*[_-]?\s*[a-h0-9]?$')
         .hasMatch(s)) {
       return true;
     }
-    if (RegExp(r'^q[_-]?\s*[a-f1-9]$').hasMatch(s)) return true;
-    if (RegExp(r'^[a-f]$').hasMatch(s)) return true;
-    if (RegExp(r'^[甲乙丙丁戊己]$').hasMatch(s)) return true;
-    if (RegExp(r'^选项\s*[a-f甲乙丙丁1-9]$').hasMatch(s)) return true;
-    if (RegExp(r'^选项[一二三四五六]$').hasMatch(s)) return true;
-    if (RegExp(r'^(option|choice)\s*[a-f1-9]$').hasMatch(s)) return true;
-    if (RegExp(r'^(option|choice|opt)[_-][a-f1-9]$').hasMatch(s)) return true;
+    if (RegExp(r'^q[_-]?\s*[a-h1-9]$').hasMatch(s)) return true;
+    if (RegExp(r'^[a-h]$').hasMatch(s)) return true;
+    if (RegExp(r'^[甲乙丙丁戊己庚辛]$').hasMatch(s)) return true;
+    if (RegExp(r'^选项\s*[a-h甲乙丙丁1-9]$').hasMatch(s)) return true;
+    if (RegExp(r'^选项[一二三四五六七八]$').hasMatch(s)) return true;
+    if (RegExp(r'^(option|choice)\s*[a-h1-9]$').hasMatch(s)) return true;
+    if (RegExp(r'^(option|choice|opt)[_-][a-h1-9]$').hasMatch(s)) return true;
     return false;
   }
 
-  /// Split an option-pool field value (`A|B|C` / newline / `;` lists).
+  /// Extract option pool from separate fields (OptionA..D, A..D, Q_1..Q_10, etc.)
+  static List<String>? extractMultiFieldOptions(
+    List<String> fieldNames,
+    List<String> fieldValues,
+  ) {
+    final pairs = <(int index, String name, String val)>[];
+    for (var i = 0; i < fieldNames.length; i++) {
+      final name = fieldNames[i].toLowerCase();
+      if (isOptionFieldName(name) && i < fieldValues.length) {
+        final val = fieldValues[i].trim();
+        if (val.isNotEmpty) {
+          pairs.add((i, name, val));
+        }
+      }
+    }
+    if (pairs.length >= 2) {
+      return pairs.map((p) => p.$3).toList();
+    }
+    return null;
+  }
+
+  /// Split an option-pool field value (`A|B|C` / newline / `;` / `||` lists).
   static List<String> parseOptionPool(
     String raw, {
     int maxOptions = 8,
     int maxChars = 80,
   }) {
     final parts = raw
-        .split(RegExp(r'[\n|;,]+'))
+        .split(RegExp(r'\|\||###|[\r\n|;,]+'))
         .map(CardText.shortText)
         .where((part) => part.isNotEmpty)
         .toList();

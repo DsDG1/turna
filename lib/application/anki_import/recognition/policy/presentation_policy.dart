@@ -20,8 +20,14 @@ class OfficialAnkiPresentationPolicy {
       return OfficialAnkiProjectionKind.canonicalLink;
     }
     // Iron-law downgrade (§3.7): this card violated its notetype's
-    // archetype, so it keeps the fidelity rendering.
+    // archetype. For choice questions, fallback gracefully to flip;
+    // other complex cards keep fidelity rendering.
     if (values.archetypeViolated) {
+      if (values.archetype == CardArchetype.choice) {
+        final enabled = mapping?.enabledKinds.toSet() ??
+            const <String>{'flip', 'canonicalLink'};
+        return _pairFallback(enabled, values);
+      }
       return OfficialAnkiProjectionKind.canonicalLink;
     }
 
@@ -34,7 +40,6 @@ class OfficialAnkiPresentationPolicy {
 
     final enabled = mapping?.enabledKinds.toSet() ??
         const <String>{
-          'showWord',
           'flip',
           'multipleChoice',
           'multiSelect',

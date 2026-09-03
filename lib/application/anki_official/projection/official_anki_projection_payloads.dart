@@ -227,10 +227,16 @@ class OfficialAnkiProjectionPayloads {
           clozeAnswer = cloze.$2;
         }
       case CardArchetype.choice:
+        final candidateNames = mapping?.candidates
+                .map((c) => c.fieldName)
+                .toList() ??
+            const <String>[];
         final extracted = _resolveChoice(
           raw(FieldRole.options),
           raw(FieldRole.prompt),
           nativeText,
+          fieldNames: candidateNames,
+          fieldValues: row.fields,
         );
         if (extracted == null) {
           archetypeViolated = true;
@@ -529,15 +535,39 @@ class OfficialAnkiProjectionPayloads {
     );
   }
 
-  /// Resolve a choice card from either an option-pool field or embedded
-  /// front options. Null when nothing aligns (the caller marks the card
-  /// violated — the iron law).
+  /// Resolve a choice card from multi-field options, an option-pool field,
+  /// or embedded front options. Null when nothing aligns (the caller marks
+  /// the card violated — the iron law).
   ({List<String> options, List<int> correctIndices, String prompt})?
       _resolveChoice(
     String optionsRaw,
     String promptRaw,
-    String answerText,
-  ) {
+    String answerText, {
+    List<String> fieldNames = const [],
+    List<String> fieldValues = const [],
+  }) {
+    // 1) Multi-field options:
+    if (fieldNames.isNotEmpty && fieldValues.isNotEmpty) {
+      final multi = EmbeddedOptionsParser.extractMultiFieldOptions(
+        fieldNames,
+        fieldValues,
+      );
+      if (multi != null && multi.length >= 2) {
+        final correct = EmbeddedOptionsParser.parseCorrectIndices(
+          answerText,
+          multi,
+        );
+        if (correct.isNotEmpty) {
+          return (
+            options: multi,
+            correctIndices: correct,
+            prompt: CardText.shortText(promptRaw),
+          );
+        }
+      }
+    }
+
+    // 2) Delimited option-pool field:
     final pool = EmbeddedOptionsParser.parseOptionPool(optionsRaw);
     if (pool.length >= 2) {
       final correct = EmbeddedOptionsParser.parseCorrectIndices(
@@ -553,6 +583,8 @@ class OfficialAnkiProjectionPayloads {
       }
       return null;
     }
+
+    // 3) Embedded front options:
     final embedded = EmbeddedOptionsParser.extractEmbeddedOptions(promptRaw);
     if (embedded == null) return null;
     final correct = EmbeddedOptionsParser.parseCorrectIndices(

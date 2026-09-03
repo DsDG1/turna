@@ -1,6 +1,7 @@
 import '../config.dart';
 import '../facts/card_facts.dart';
 import '../facts/notetype_facts.dart';
+import '../facts/options_structure.dart';
 import '../lexicon/field_roles.dart';
 import 'result.dart';
 
@@ -143,8 +144,34 @@ String? _choicePoolBound(
   NotetypeFacts facts,
   Map<FieldRole, FieldBinding> roles,
 ) {
-  final options = roles[FieldRole.options];
   final response = roles[FieldRole.response];
+
+  // 1) Multi-field options check (OptionA..D, A..D, Q_1..Q_4, etc.)
+  final multiFieldOptionNames = facts.fieldNames
+      .where((name) =>
+          EmbeddedOptionsParser.isOptionFieldName(name.toLowerCase()))
+      .toList();
+  if (multiFieldOptionNames.length >= 2 && response != null) {
+    for (final sample in facts.samples) {
+      final pool = EmbeddedOptionsParser.extractMultiFieldOptions(
+        facts.fieldNames,
+        sample,
+      );
+      if (pool != null && pool.length >= 2) {
+        if (response.fieldIndex < sample.length) {
+          final ans = sample[response.fieldIndex];
+          final correct =
+              EmbeddedOptionsParser.parseCorrectIndices(ans, pool);
+          if (correct.isNotEmpty) {
+            return 'multi_field_pool=${pool.length}, answer=${pool[correct.first]}';
+          }
+        }
+      }
+    }
+  }
+
+  // 2) Single option-pool field check
+  final options = roles[FieldRole.options];
   if (options == null || response == null) return null;
   final pool = CardFacts.of(facts.nonEmptySamplesOf(options.fieldIndex))
       .parseOptionPool();
