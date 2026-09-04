@@ -9,11 +9,10 @@ import 'package:turna/application/anki_official/projection/official_anki_mapping
 /// buriedCardCount, hasScheduling, hasReviewHistory, missingMediaCount,
 /// failedMediaCount, platformDowngrades) were deleted — the official-first
 /// flow never filled them, so every read was a constant default. The
-/// zero-caller copyWith went with them.
+/// zero-caller copyWith went with them. Step 6.5 同理删除 unitCount（恒 0）。
 class AnkiImportSummary {
   final String importId;
   final int sectionCount;
-  final int unitCount;
   final int lessonCount;
   final int cardCount;
   final int wordEntryCount;
@@ -22,7 +21,6 @@ class AnkiImportSummary {
   const AnkiImportSummary({
     required this.importId,
     required this.sectionCount,
-    required this.unitCount,
     required this.lessonCount,
     required this.cardCount,
     required this.wordEntryCount,

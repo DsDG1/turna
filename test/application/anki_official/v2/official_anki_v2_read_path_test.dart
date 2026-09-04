@@ -4,7 +4,6 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
-import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/projection/official_anki_lesson_card_index.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
@@ -31,7 +30,6 @@ void main() {
   const part3Id = 'official-anki-src-v2-read-l-abc-p3';
   const otherLessonId = 'official-anki-legacy-l-xyz-p1';
 
-  const v2On = OfficialAnkiFeatureFlags.productionAndroid;
 
   setUp(() async {
     catalog = OfficialAnkiDatabase.memory();
@@ -96,15 +94,12 @@ void main() {
   tearDown(() async {
     OfficialAnkiCompositionRoot.readOnlyCatalog = null;
     OfficialAnkiCompositionRoot.locatorPaths = null;
-    OfficialAnkiV2CourseRead.flagsOf =
-        () => OfficialAnkiFeatureFlags.current;
     OfficialAnkiLessonCardIndex.debugResolver = null;
     await getIt.reset();
   });
 
   test('flag on: lesson card index resolves from the view (stable order)',
       () async {
-    OfficialAnkiV2CourseRead.flagsOf = () => v2On;
     final index = await OfficialAnkiLessonCardIndex.resolveForLesson(lessonId);
     expect(index, isNotNull);
     expect(index!.cardIds, [7, 9], reason: '稳定 card-id 序');
@@ -114,7 +109,6 @@ void main() {
 
   test('flag on: non-v2 lesson falls through to the v1 projection index',
       () async {
-    OfficialAnkiV2CourseRead.flagsOf = () => v2On;
     // 视图里没有 otherLessonId → 返回 null（该库从未投影过它），
     // 证明 v1 读面未被劫持。
     final index =
@@ -123,7 +117,6 @@ void main() {
   });
 
   test('flag on: section shells synthesize from the view', () async {
-    OfficialAnkiV2CourseRead.flagsOf = () => v2On;
     final read = OfficialAnkiV2CourseRead(catalog: catalog, course: course);
     final shells = await read.sectionShells();
     expect(shells, hasLength(1));
@@ -139,7 +132,6 @@ void main() {
 
   test('flag on: retiring source disappears from shells and mapping',
       () async {
-    OfficialAnkiV2CourseRead.flagsOf = () => v2On;
     OfficialAnkiSourceDao(catalog)
         .markRetiring(sourceId: sourceId, nowMillis: 2);
     final read = OfficialAnkiV2CourseRead(catalog: catalog, course: course);
@@ -153,7 +145,6 @@ void main() {
 
   test('flag on: same-key lesson parts list in card order with (n) suffix',
       () async {
-    OfficialAnkiV2CourseRead.flagsOf = () => v2On;
     // 同一 unit、同一 lessonKey 的三个 part 片；cardId 序 ≠ lesson_id
     // hash 序（p1 < p3 < p2 按首卡），树壳必须按首卡排序并加 (n) 后缀。
     OfficialAnkiV2ViewRow partRow(String id, int cardId, int noteId) =>
@@ -212,7 +203,6 @@ void main() {
   });
 
   test('flag on: units list in first-card order within a section', () async {
-    OfficialAnkiV2CourseRead.flagsOf = () => v2On;
     const unitLate = 'official-anki-src-v2-read-u-late';
     await OfficialAnkiV2ViewStore(course).replaceAll(
       rows: [

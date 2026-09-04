@@ -267,7 +267,6 @@ class CourseProvider extends ChangeNotifier {
   }
 
   OfficialAnkiV2CourseRead? _v2Read() {
-    if (!OfficialAnkiCourseEntry.flagsOf().allowsV2ImportChain) return null;
     final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
     CourseDatabase? course;
     try {

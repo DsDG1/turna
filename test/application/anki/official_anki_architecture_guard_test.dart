@@ -645,15 +645,16 @@ void main() {
       ).readAsStringSync();
       expect(first.contains('importOfficialOrNull'), isFalse);
       expect(first.contains('facade.importFile'), isFalse);
-      final orch = File(
-        'lib/application/anki_official/import/official_anki_import_orchestrator.dart',
-      ).readAsStringSync();
+      // Step 6.5: the v1 recovery orchestrator (recoverAttempt/rollback/
+      // resumeIndexing — unreachable in production) is fully deleted; its
+      // live-first remnants went with it.
       expect(
-        RegExp(r'\b(importFile|_importFile)\s*\(').hasMatch(orch),
+        File(
+          'lib/application/anki_official/import/official_anki_import_orchestrator.dart',
+        ).existsSync(),
         isFalse,
-        reason: 'orchestrator must not keep live-first importFile',
+        reason: 'the v1 recovery orchestrator must stay deleted',
       );
-      expect(orch.contains('createBackup'), isFalse);
     });
 
     test('unsupported platform never selects Legacy writer (execution plan)', () {

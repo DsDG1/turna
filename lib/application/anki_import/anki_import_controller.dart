@@ -473,7 +473,6 @@ class AnkiImportController extends ChangeNotifier {
       summary: AnkiImportSummary(
         importId: preview.sourceId,
         sectionCount: result.sectionCount,
-        unitCount: 0,
         lessonCount: result.lessonCount,
         cardCount: result.cardCount,
         wordEntryCount: result.cardCount,

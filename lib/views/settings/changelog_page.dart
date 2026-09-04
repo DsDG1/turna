@@ -60,7 +60,13 @@ class ChangelogPage extends StatelessWidget {
     return buf.toString();
   }
 
-  Future<void> _copyToClipboard(BuildContext context, String text) async {
+  /// 复制文本到剪贴板并弹出确认提示；正文「一键复制」按钮与独立页
+  /// 共用。复制的内容始终是当前实际展示的版本（asset 原文优先，加载
+  /// 失败时为内置后援拼接）。
+  static Future<void> copyTextToClipboard(
+    BuildContext context,
+    String text,
+  ) async {
     await Clipboard.setData(ClipboardData(text: text));
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -83,22 +89,8 @@ class ChangelogPage extends StatelessWidget {
                 fontWeight: FontWeight.w700,
               ),
         ),
-        actions: [
-          IconButton(
-            tooltip: AppStrings.changelogCopyTooltip,
-            icon: const Icon(Icons.content_copy_rounded),
-            onPressed: () => _copyToClipboard(
-              context,
-              buildClipboardText(),
-            ),
-          ),
-        ],
       ),
-      body: ChangelogFromAsset(
-        showFallbackBanner: true,
-        fallbackReleases: fallbackReleases,
-        onCopyText: (text) => _copyToClipboard(context, text),
-      ),
+      body: const ChangelogFromAsset(showFallbackBanner: true),
     );
   }
 }
@@ -150,7 +142,7 @@ class JourneyOverviewCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            'Varnamala Plus 从原型到 0.7 的 7 个阶段',
+            'Varnamala Plus 从原型到 0.8 的 8 个阶段',
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: TurnaTheme.textHintColor(context),
                 ),
@@ -201,7 +193,8 @@ const String kDefaultChangelogAssetPath = 'assets/changelog.md';
 ///
 /// 切换到 About 页"更新日志"Tab 时,由 [AboutTurnaPage] 直接嵌入,
 /// 不再走独立路由;`ChangelogPage` 独立路由仍保留,以兼容设置页入口与
-/// 测试。
+/// 测试。两种入口的「一键复制」按钮都在 [_ReleaseList] 正文里,复制的
+/// 始终是当前实际展示的内容。
 class ChangelogFromAsset extends StatelessWidget {
   /// 加载的资源路径,默认 `assets/changelog.md`。
   final String assetPath;
@@ -212,16 +205,11 @@ class ChangelogFromAsset extends StatelessWidget {
   /// 是否在 fallback 路径上方显示一行提示。
   final bool showFallbackBanner;
 
-  /// 当前已加载的 markdown 文本(用于复制按钮等需要 markdown 字符串的
-  /// 场景);fallback 路径下传 null 则使用 [buildClipboardText] 硬编码版。
-  final void Function(String text)? onCopyText;
-
   const ChangelogFromAsset({
     super.key,
     this.assetPath = kDefaultChangelogAssetPath,
     this.fallbackReleases = ChangelogPage.fallbackReleases,
     this.showFallbackBanner = false,
-    this.onCopyText,
   });
 
   @override
@@ -237,7 +225,6 @@ class ChangelogFromAsset extends StatelessWidget {
             releases: fallbackReleases,
             banner: showFallbackBanner ? AppStrings.changeloadFallback : null,
             sourceText: null,
-            onCopyText: onCopyText,
           );
         }
         final releases = parseChangelogMarkdown(snapshot.data!);
@@ -246,14 +233,12 @@ class ChangelogFromAsset extends StatelessWidget {
             releases: fallbackReleases,
             banner: showFallbackBanner ? AppStrings.changeloadFallback : null,
             sourceText: null,
-            onCopyText: onCopyText,
           );
         }
         return _ReleaseList(
           releases: releases,
           banner: null,
           sourceText: snapshot.data,
-          onCopyText: onCopyText,
         );
       },
     );
@@ -298,13 +283,11 @@ class _ReleaseList extends StatelessWidget {
   final List<ChangelogRelease> releases;
   final String? banner;
   final String? sourceText;
-  final void Function(String text)? onCopyText;
 
   const _ReleaseList({
     required this.releases,
     required this.banner,
     required this.sourceText,
-    required this.onCopyText,
   });
 
   @override
@@ -360,6 +343,19 @@ class _ReleaseList extends StatelessWidget {
           ),
           if (i < releases.length - 1) const SizedBox(height: 14),
         ],
+        const SizedBox(height: 20),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.tonalIcon(
+            onPressed: () => ChangelogPage.copyTextToClipboard(
+              context,
+              sourceText ??
+                  ChangelogPage.buildClipboardText(releases: releases),
+            ),
+            icon: const Icon(Icons.content_copy_rounded, size: 18),
+            label: Text(AppStrings.changelogCopyButton),
+          ),
+        ),
         const SizedBox(height: 24),
         Text(
           AppStrings.changelogFooterNote,

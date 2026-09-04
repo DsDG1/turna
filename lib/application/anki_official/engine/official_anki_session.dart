@@ -11,7 +11,6 @@ import 'package:turna/application/anki_official/engine/official_anki_engine_ffi.
 import 'package:turna/application/anki_official/engine/official_anki_native_transport.dart';
 import 'package:turna/application/anki_official/engine/official_anki_operation_coordinator.dart';
 import 'package:turna/application/anki_official/engine/official_anki_session_cleanup.dart';
-import 'package:turna/application/anki_official/import/official_anki_import_orchestrator.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
@@ -610,7 +609,6 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
 class _WorkerState {
   OfficialAnkiEngine? engine;
   OfficialAnkiDatabase? db;
-  OfficialAnkiImportOrchestrator? orchestrator;
   OfficialAnkiPaths? paths;
   final ops = OfficialAnkiOperationCoordinator();
 }
@@ -782,14 +780,6 @@ Future<void> _handleWorkerCommand(
           resolvedLibrary = transport.libraryPath;
           state.engine = FfiOfficialAnkiEngine.connect(transport);
         }
-        final sources = OfficialAnkiSourceDao(state.db!);
-        final attempts = OfficialAnkiImportAttemptDao(state.db!);
-        state.orchestrator = OfficialAnkiImportOrchestrator(
-          engine: state.engine!,
-          sources: sources,
-          attempts: attempts,
-          paths: paths,
-        );
         reply.send(<String, Object?>{
           'ok': true,
           'handle': state.engine is FfiOfficialAnkiEngine
@@ -805,7 +795,6 @@ Future<void> _handleWorkerCommand(
           state.db?.close();
           state.db = null;
           state.engine = null;
-          state.orchestrator = null;
           state.paths = null;
         }
         reply.send(const <String, Object?>{'ok': true});

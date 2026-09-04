@@ -1,8 +1,8 @@
-import 'package:turna/application/anki_official/import/official_anki_import_orchestrator.dart';
-import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
+import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_maintenance.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
+import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_retire_service.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
@@ -15,7 +15,8 @@ class OfficialAnkiRepairExecutor {
   Future<OfficialAnkiRepairReport> run({
     required CourseDatabase course,
     required OfficialAnkiDatabase catalog,
-    required OfficialAnkiImportOrchestrator orchestrator,
+    required OfficialAnkiEngine engine,
+    required OfficialAnkiSourceDao sources,
     OfficialAnkiPaths? paths,
     dynamic uninstall,
     String profileId = 'profile-default-01',
@@ -27,9 +28,9 @@ class OfficialAnkiRepairExecutor {
         catalog: catalog,
         paths: paths,
         course: course,
-        engine: orchestrator.engine,
+        engine: engine,
       );
-      final pending = orchestrator.sources
+      final pending = sources
           .listSources(profileId)
           .where((row) =>
               row.state == 'pending_cleanup' || row.state == 'retiring');
@@ -47,7 +48,7 @@ class OfficialAnkiRepairExecutor {
       maintenance = await OfficialAnkiMaintenanceRunner(
         catalog: catalog,
         paths: paths,
-        engine: orchestrator.engine,
+        engine: engine,
         course: course,
       ).runPending(
         profileId: profileId,
@@ -75,38 +76,4 @@ class OfficialAnkiRepairReport {
   final int recoveredAttempts;
   final int resumedCleanups;
   final int maintenanceJobs;
-}
-
-class OfficialAnkiImportSagaCoordinator {
-  OfficialAnkiImportSagaCoordinator(this.orchestrator);
-
-  final OfficialAnkiImportOrchestrator orchestrator;
-
-  Future<void> requestDiscard(String attemptId) async {
-    orchestrator.attempts.setUserIntent(
-      attemptId: attemptId,
-      intent: OfficialAnkiUserIntent.discard,
-      nowMillis: DateTime.now().millisecondsSinceEpoch,
-    );
-    await orchestrator.engine.cancel();
-    final attempt = orchestrator.attempts.find(attemptId);
-    if (attempt == null) return;
-    if (!attempt.state.contains('preview') &&
-        attempt.state != 'indexing_cards' &&
-        attempt.state != 'indexing_notes' &&
-        attempt.state != 'importing_official' &&
-        attempt.state != 'backing_up' &&
-        attempt.state != 'preparing') {
-      return;
-    }
-    await orchestrator.rollbackAttempt(attempt);
-  }
-
-  Future<void> requestContinue(String attemptId) async {
-    orchestrator.attempts.setUserIntent(
-      attemptId: attemptId,
-      intent: OfficialAnkiUserIntent.continueImport,
-      nowMillis: DateTime.now().millisecondsSinceEpoch,
-    );
-  }
 }

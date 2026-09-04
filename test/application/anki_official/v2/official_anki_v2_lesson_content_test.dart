@@ -7,14 +7,12 @@ import 'package:turna/application/anki_import/recognition/lexicon/field_roles.da
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
-import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/projection/official_anki_lesson_card_index.dart';
 import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_config_keys.dart';
-import 'package:turna/application/anki_official/v2/official_anki_v2_course_read.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_lesson_content.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_view_store.dart';
 import 'package:turna/data/course_database.dart';
@@ -41,7 +39,6 @@ void main() {
   const sourceId = 'src-v2-content';
   const lessonId = 'official-anki-src-v2-content-l-abc-p1';
 
-  const v2On = OfficialAnkiFeatureFlags.productionAndroid;
 
   OfficialAnkiMappingSuggestion suggestion() => OfficialAnkiMappingSuggestion(
         candidates: const [
@@ -171,16 +168,11 @@ void main() {
     OfficialAnkiCompositionRoot.readOnlyCatalog = null;
     OfficialAnkiCompositionRoot.locatorPaths = null;
     OfficialAnkiCompositionRoot.debugEngineOverride = null;
-    OfficialAnkiV2LessonContent.flagsOf =
-        () => OfficialAnkiFeatureFlags.current;
-    OfficialAnkiV2CourseRead.flagsOf =
-        () => OfficialAnkiFeatureFlags.current;
     await getIt.reset();
   });
 
   test('flag on: derives flip content from view rows + engine fields',
       () async {
-    OfficialAnkiV2LessonContent.flagsOf = () => v2On;
     catalogWrites.clear();
     courseWrites.clear();
     final lesson = await OfficialAnkiV2LessonContent.lessonFor(lessonId);
@@ -206,8 +198,6 @@ void main() {
 
   test('answer-linkage: derived ids resolve back to the view cards',
       () async {
-    OfficialAnkiV2LessonContent.flagsOf = () => v2On;
-    OfficialAnkiV2CourseRead.flagsOf = () => v2On;
     final lesson = await OfficialAnkiV2LessonContent.lessonFor(lessonId);
     expect(lesson, isNotNull);
 
@@ -230,7 +220,6 @@ void main() {
   });
 
   test('unknown presentation kind degrades to flip', () async {
-    OfficialAnkiV2LessonContent.flagsOf = () => v2On;
     await OfficialAnkiV2ViewStore(course).replaceAll(
       rows: const [
         OfficialAnkiV2ViewRow(
@@ -261,7 +250,6 @@ void main() {
 
   test('non-v2 lesson id falls through to null (v1 path continues)',
       () async {
-    OfficialAnkiV2LessonContent.flagsOf = () => v2On;
     final lesson = await OfficialAnkiV2LessonContent.lessonFor(
       'some-v1-or-unknown-lesson',
     );
@@ -269,7 +257,6 @@ void main() {
   });
 
   test('missing or corrupt mapping decision is fail-closed', () async {
-    OfficialAnkiV2LessonContent.flagsOf = () => v2On;
 
     // 决策键整个缺失（K10 损坏按 missing 语义）。
     engine.configStore.clear();
@@ -281,14 +268,12 @@ void main() {
   });
 
   test('engine absent: null, not a throw', () async {
-    OfficialAnkiV2LessonContent.flagsOf = () => v2On;
     OfficialAnkiCompositionRoot.debugEngineOverride = null;
     final lesson = await OfficialAnkiV2LessonContent.lessonFor(lessonId);
     expect(lesson, isNull);
   });
 
   test('deterministic: deriving twice yields identical content', () async {
-    OfficialAnkiV2LessonContent.flagsOf = () => v2On;
     final first = await OfficialAnkiV2LessonContent.lessonFor(lessonId);
     final second = await OfficialAnkiV2LessonContent.lessonFor(lessonId);
     expect(

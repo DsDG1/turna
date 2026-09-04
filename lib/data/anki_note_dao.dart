@@ -7,7 +7,6 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/data/course_database.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 
 /// Data access object for leftover Legacy NoteStore tables
 /// (`anki_notetypes`, `anki_notes`, `anki_cards_meta`, schema v9).
@@ -192,57 +191,6 @@ class AnkiNoteDao {
     ];
   }
 
-  /// Return the explainability record for a derived practice card. A null
-  /// result means the card predates Canonical Store v2 or intentionally has
-  /// no structured projection; the canonical Anki card remains authoritative.
-  ///
-  /// Step 6: `anki_practice_projections` was dropped with course.db v24, so
-  /// this always degrades to null on current schemas (kept so the card
-  /// browser keeps working for pre-v2 imports).
-  Future<AnkiPracticeProjectionRecord?> projectionForCard(
-    String importId,
-    int cardId,
-  ) async {
-    try {
-      final rows = await _db.customSelect('''
-        SELECT card_id, kind, status, confidence, evidence_json, payload_json,
-               source_fingerprint, updated_at
-        FROM anki_practice_projections
-        WHERE import_id = ? AND card_id = ?
-        LIMIT 1
-      ''', variables: [
-        Variable.withString(importId),
-        Variable.withInt(cardId),
-      ]).get();
-      if (rows.isEmpty) return null;
-      final row = rows.first;
-      Map<String, Object?> decodeMap(String column) {
-        try {
-          final value = jsonDecode(row.read<String>(column));
-          return value is Map
-              ? Map<String, Object?>.from(value)
-              : const <String, Object?>{};
-        } catch (suppressed) {
-          debugPrint('[AnkiNoteDao] suppressed error: $suppressed');
-          return const <String, Object?>{};
-        }
-      }
-
-      return AnkiPracticeProjectionRecord(
-        cardId: row.read<int>('card_id'),
-        kind: row.read<String>('kind'),
-        status: row.read<String>('status'),
-        confidence: row.read<double>('confidence'),
-        evidence: decodeMap('evidence_json'),
-        payload: decodeMap('payload_json'),
-        sourceFingerprint: row.read<String>('source_fingerprint'),
-        updatedAt: row.read<int>('updated_at'),
-      );
-    } catch (_) {
-      return null;
-    }
-  }
-
   // ------------------------- delete (unload) ---------------------------
 
   /// Delete all NoteStore rows for an import. Called on deck unload to
@@ -326,28 +274,6 @@ class _LikeWithEscape extends Expression<bool> {
       other.target == target &&
       other.pattern == pattern &&
       other.escape == escape;
-}
-
-class AnkiPracticeProjectionRecord {
-  final int cardId;
-  final String kind;
-  final String status;
-  final double confidence;
-  final Map<String, Object?> evidence;
-  final Map<String, Object?> payload;
-  final String sourceFingerprint;
-  final int updatedAt;
-
-  const AnkiPracticeProjectionRecord({
-    required this.cardId,
-    required this.kind,
-    required this.status,
-    this.confidence = 0,
-    this.evidence = const {},
-    this.payload = const {},
-    this.sourceFingerprint = '',
-    this.updatedAt = 0,
-  });
 }
 
 /// Plain data class for an Anki note row (decoupled from the Drift row).

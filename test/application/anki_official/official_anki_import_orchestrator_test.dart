@@ -7,7 +7,6 @@ import 'package:turna/application/anki_official/contract/official_anki_errors.da
 import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
 import 'package:turna/application/anki_official/engine/official_anki_worker.dart';
 import 'package:turna/application/anki_official/import/anki_import_facade.dart';
-import 'package:turna/application/anki_official/import/official_anki_import_orchestrator.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_saga.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
@@ -25,12 +24,6 @@ class _Harness {
     engine = FakeOfficialAnkiEngine();
     final root = Directory.systemTemp.createTempSync('turna-official-profile-');
     paths = OfficialAnkiPaths(profileId: 'profile-test-01', profileRoot: root);
-    orchestrator = OfficialAnkiImportOrchestrator(
-      engine: OfficialAnkiWorker(engine),
-      sources: sources,
-      attempts: attempts,
-      paths: paths,
-    );
     OfficialAnkiCompositionRoot.debugStagingEngineOverride = engine;
     OfficialAnkiCompositionRoot.stagingDiscardRequested = false;
   }
@@ -40,7 +33,6 @@ class _Harness {
   late final OfficialAnkiImportAttemptDao attempts;
   late final FakeOfficialAnkiEngine engine;
   late final OfficialAnkiPaths paths;
-  late final OfficialAnkiImportOrchestrator orchestrator;
 
   OfficialAnkiImportSaga saga() => OfficialAnkiImportSaga(
         sources: sources,

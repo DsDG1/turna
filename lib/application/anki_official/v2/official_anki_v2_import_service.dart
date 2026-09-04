@@ -43,8 +43,8 @@ class OfficialAnkiV2CommitResult {
 }
 
 /// v2 导入链的发布段（step4.md B1+B2）：staging/preview 与 v1 共用
-/// （saga.startStaging 只写 sources/attempts 两张账本表），从 commitLive
-/// 起整体接管——
+/// （saga.startStaging 只写 sources/attempts 两张账本表），提交段整体
+/// 由本服务接管——
 ///
 /// 1. 幂等打开 live 引擎（Step 1 修复语义）→ `importPackage`；
 /// 2. **receipt 即刻吸收进 attempt 行**（单条 UPDATE，K2 无 receipt 窗口

@@ -1,5 +1,3 @@
-import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
-
 abstract class OfficialAnkiImporter {
   Future<OfficialAnkiImportResult> importFile({
     required String packagePath,
@@ -7,18 +5,6 @@ abstract class OfficialAnkiImporter {
     String? requestId,
     bool cancel = false,
   });
-}
-
-enum OfficialAnkiRecoveryAction { resume, retry, reconcile, leave, rollback, quarantine }
-
-class OfficialAnkiRecoveryDecision {
-  const OfficialAnkiRecoveryDecision({
-    required this.action,
-    required this.state,
-  });
-
-  final OfficialAnkiRecoveryAction action;
-  final OfficialAnkiSourceState state;
 }
 
 /// Doc 39 P5: the five never-produced values (`hashing`, `cancelRequested`,
@@ -120,105 +106,6 @@ extension OfficialAnkiSourceStateWire on OfficialAnkiSourceState {
   bool get allowsPreview =>
       this == OfficialAnkiSourceState.previewReady ||
       this == OfficialAnkiSourceState.active;
-}
-
-OfficialAnkiRecoveryDecision decideOfficialAnkiRecovery(
-  OfficialAnkiAttemptRow attempt,
-) {
-  final state = OfficialAnkiSourceStateWire.parse(attempt.state);
-  if (state == OfficialAnkiSourceState.quarantined ||
-      state == OfficialAnkiSourceState.retired ||
-      state == OfficialAnkiSourceState.rolledBack) {
-    return OfficialAnkiRecoveryDecision(
-      action: OfficialAnkiRecoveryAction.leave,
-      state: state,
-    );
-  }
-  if (state == OfficialAnkiSourceState.active ||
-      state == OfficialAnkiSourceState.completed) {
-    return const OfficialAnkiRecoveryDecision(
-      action: OfficialAnkiRecoveryAction.leave,
-      state: OfficialAnkiSourceState.active,
-    );
-  }
-  if (state == OfficialAnkiSourceState.previewReady) {
-    if (attempt.userIntent == 'discard') {
-      return const OfficialAnkiRecoveryDecision(
-        action: OfficialAnkiRecoveryAction.rollback,
-        state: OfficialAnkiSourceState.rollbackPending,
-      );
-    }
-    return const OfficialAnkiRecoveryDecision(
-      action: OfficialAnkiRecoveryAction.leave,
-      state: OfficialAnkiSourceState.previewReady,
-    );
-  }
-  if (state == OfficialAnkiSourceState.cancelRequested ||
-      state == OfficialAnkiSourceState.rollbackPending) {
-    return const OfficialAnkiRecoveryDecision(
-      action: OfficialAnkiRecoveryAction.rollback,
-      state: OfficialAnkiSourceState.rollbackPending,
-    );
-  }
-  if (state == OfficialAnkiSourceState.selected ||
-      state == OfficialAnkiSourceState.preparing ||
-      state == OfficialAnkiSourceState.backingUp ||
-      state == OfficialAnkiSourceState.staging) {
-    if (attempt.hasImportedNotes) {
-      return const OfficialAnkiRecoveryDecision(
-        action: OfficialAnkiRecoveryAction.resume,
-        state: OfficialAnkiSourceState.indexingCards,
-      );
-    }
-    return const OfficialAnkiRecoveryDecision(
-      action: OfficialAnkiRecoveryAction.retry,
-      state: OfficialAnkiSourceState.failedBeforeImport,
-    );
-  }
-  if (state == OfficialAnkiSourceState.importingOfficial &&
-      !attempt.hasImportedNotes) {
-    if (attempt.checkpointId != null &&
-        attempt.checkpointId!.isNotEmpty &&
-        attempt.nativeCommitState != 'committed') {
-      return const OfficialAnkiRecoveryDecision(
-        action: OfficialAnkiRecoveryAction.rollback,
-        state: OfficialAnkiSourceState.rollbackPending,
-      );
-    }
-    return const OfficialAnkiRecoveryDecision(
-      action: OfficialAnkiRecoveryAction.quarantine,
-      state: OfficialAnkiSourceState.quarantined,
-    );
-  }
-  if (state == OfficialAnkiSourceState.indexingNotes ||
-      state == OfficialAnkiSourceState.indexingCards ||
-      (state == OfficialAnkiSourceState.importingOfficial &&
-          attempt.hasImportedNotes)) {
-    return const OfficialAnkiRecoveryDecision(
-      action: OfficialAnkiRecoveryAction.resume,
-      state: OfficialAnkiSourceState.indexingCards,
-    );
-  }
-  return const OfficialAnkiRecoveryDecision(
-    action: OfficialAnkiRecoveryAction.reconcile,
-    state: OfficialAnkiSourceState.needsReconciliation,
-  );
-}
-
-enum OfficialAnkiFaultPoint {
-  beforeHash,
-  afterSourceBeforeCheckpoint,
-  afterCheckpointBeforeImport,
-  duringImportCancel,
-  afterImportBeforeNoteIds,
-  afterNativeImportBeforeReceiptCommit,
-  afterNoteIdsBeforeCards,
-  afterReceiptBeforeCardIndexComplete,
-  afterMidBatchCursor,
-  afterCardsBeforeActive,
-  afterPreviewReady,
-  afterActiveRestart,
-  afterActiveBeforeCheckpointRelease,
 }
 
 class OfficialAnkiImportResult {

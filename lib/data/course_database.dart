@@ -994,47 +994,10 @@ class CourseDatabase extends _$CourseDatabase {
     );
     await addColumn('anki_imports', 'last_error', 'TEXT');
 
-    await database.customStatement('''
-      CREATE TABLE IF NOT EXISTS anki_decks (
-        import_id TEXT NOT NULL REFERENCES anki_imports(import_id)
-          ON DELETE CASCADE,
-        did INTEGER NOT NULL,
-        name TEXT NOT NULL,
-        parent_did INTEGER NOT NULL DEFAULT 0,
-        card_count INTEGER NOT NULL DEFAULT 0,
-        recovered INTEGER NOT NULL DEFAULT 0,
-        PRIMARY KEY (import_id, did)
-      )
-    ''');
-    await database.customStatement('''
-      CREATE TABLE IF NOT EXISTS anki_practice_projections (
-        import_id TEXT NOT NULL REFERENCES anki_imports(import_id)
-          ON DELETE CASCADE,
-        card_id INTEGER NOT NULL,
-        kind TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'candidate',
-        confidence REAL NOT NULL DEFAULT 0,
-        evidence_json TEXT NOT NULL DEFAULT '{}',
-        payload_json TEXT NOT NULL DEFAULT '{}',
-        source_fingerprint TEXT NOT NULL DEFAULT '',
-        updated_at INTEGER NOT NULL DEFAULT 0,
-        PRIMARY KEY (import_id, card_id)
-      )
-    ''');
-    await database.customStatement('''
-      CREATE TABLE IF NOT EXISTS anki_import_issues (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        import_id TEXT NOT NULL REFERENCES anki_imports(import_id)
-          ON DELETE CASCADE,
-        severity TEXT NOT NULL,
-        code TEXT NOT NULL,
-        entity_type TEXT NOT NULL DEFAULT '',
-        entity_id TEXT NOT NULL DEFAULT '',
-        message TEXT NOT NULL,
-        details_json TEXT NOT NULL DEFAULT '{}',
-        resolved INTEGER NOT NULL DEFAULT 0
-      )
-    ''');
+    // v24 (step6.md) dropped the v1 projection tables this helper used to
+    // create (`anki_decks`, `anki_practice_projections`,
+    // `anki_import_issues`); only the raw-SQL columns and indexes that the
+    // drift schema does not model survive here.
     await database.customStatement('''
       CREATE INDEX IF NOT EXISTS anki_cards_meta_note_idx
       ON anki_cards_meta(import_id, note_id)
@@ -1050,10 +1013,6 @@ class CourseDatabase extends _$CourseDatabase {
     await database.customStatement('''
       CREATE INDEX IF NOT EXISTS anki_notes_guid_idx
       ON anki_notes(import_id, guid)
-    ''');
-    await database.customStatement('''
-      CREATE INDEX IF NOT EXISTS anki_import_issues_import_idx
-      ON anki_import_issues(import_id, severity, code)
     ''');
   }
 

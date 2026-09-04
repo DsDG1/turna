@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
-import 'package:turna/application/anki_official/import/official_anki_import_orchestrator.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_saga.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
@@ -38,7 +37,6 @@ void main() {
     OfficialAnkiImportAttemptDao attempts,
     FakeOfficialAnkiEngine engine,
     OfficialAnkiPaths paths,
-    OfficialAnkiImportOrchestrator orch,
     void Function() dispose,
   }) harness() {
     final db = OfficialAnkiDatabase.memory();
@@ -54,19 +52,12 @@ void main() {
     );
     OfficialAnkiCompositionRoot.debugStagingEngineOverride = engine;
     OfficialAnkiCompositionRoot.stagingDiscardRequested = false;
-    final orch = OfficialAnkiImportOrchestrator(
-      engine: engine,
-      sources: sources,
-      attempts: attempts,
-      paths: paths,
-    );
     return (
       db: db,
       sources: sources,
       attempts: attempts,
       engine: engine,
       paths: paths,
-      orch: orch,
       dispose: () {
         OfficialAnkiCompositionRoot.debugStagingEngineOverride = null;
         OfficialAnkiCompositionRoot.stagingEngine = null;
@@ -84,7 +75,6 @@ void main() {
       OfficialAnkiImportAttemptDao attempts,
       FakeOfficialAnkiEngine engine,
       OfficialAnkiPaths paths,
-      OfficialAnkiImportOrchestrator orch,
       void Function() dispose,
     }) h, {
     String displayName = 'life',
@@ -138,31 +128,6 @@ void main() {
       paths: h.paths,
     ).cancelSource(imported.sourceId);
     expect(h.sources.findById(imported.sourceId), isNull);
-    expect(h.engine.restoreCalls, 0);
-  });
-
-  test('fault in importingOfficial rolls back to quarantined', () async {
-    final h = harness();
-    addTearDown(h.dispose);
-    h.sources.upsertSource(
-      sourceId: 'src-fault',
-      profileId: h.paths.profileId,
-      sourceHash: 'h-f',
-      sourceSize: 1,
-      displayName: 'fault',
-      state: OfficialAnkiSourceState.importingOfficial.wire,
-      backendCommit: 'c',
-      nowMillis: 1,
-    );
-    h.attempts.insert(
-      attemptId: 'att-fault',
-      sourceId: 'src-fault',
-      requestId: 'req',
-      state: OfficialAnkiSourceState.importingOfficial.wire,
-      nowMillis: 1,
-    );
-    final recovered = await h.orch.rollbackAttempt(h.attempts.find('att-fault')!);
-    expect(recovered.state, OfficialAnkiSourceState.quarantined);
     expect(h.engine.restoreCalls, 0);
   });
 

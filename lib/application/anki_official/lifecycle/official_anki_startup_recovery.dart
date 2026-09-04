@@ -1,6 +1,5 @@
 import 'package:turna/application/anki_official/anki_deck_manager.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_file_log.dart';
-import 'package:turna/application/anki_official/import/official_anki_import_orchestrator.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_maintenance.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_repair_executor.dart';
@@ -84,16 +83,11 @@ class OfficialAnkiStartupRecovery {
         }
       }
       if (engine != null && paths != null) {
-        final orch = OfficialAnkiImportOrchestrator(
-          engine: engine,
-          sources: OfficialAnkiSourceDao(catalog),
-          attempts: OfficialAnkiImportAttemptDao(catalog),
-          paths: paths,
-        );
         await const OfficialAnkiRepairExecutor().run(
           course: getIt<CourseDatabase>(),
           catalog: catalog,
-          orchestrator: orch,
+          engine: engine,
+          sources: OfficialAnkiSourceDao(catalog),
           paths: paths,
           profileId: profileId,
           maintenanceLeaseOwnerToken: ownerToken,

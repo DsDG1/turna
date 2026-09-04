@@ -1,5 +1,4 @@
 import 'package:turna/application/anki_official/official_anki_composition.dart';
-import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_view_store.dart';
@@ -13,10 +12,8 @@ import 'package:turna/domain/course/unit.dart';
 
 /// B6：v2 课程树读面（step4.md）。
 ///
-/// flag 关（默认）时本类所有入口返回空/false，读面 = v1 原样——这是
-/// 「v1 零回归」的结构保证。flag 开时：
 /// - 课程树壳从 `anki_course_tree_view` 长出来（与 v1 投影片壳并存，
-///   两代数据同时可见——回退语义的对称面：flag 只路由新导入）；
+///   两代数据同时可见）；
 /// - 目录条目按「视图 + 账本 active」合成（retiring 即刻消失）；
 /// - 复习链课时→卡映射走视图（lesson card index 的 v2 分支）。
 ///
@@ -29,13 +26,9 @@ class OfficialAnkiV2CourseRead {
   final OfficialAnkiDatabase catalog;
   final CourseDatabase course;
 
-  static OfficialAnkiFeatureFlags Function() flagsOf =
-      () => OfficialAnkiFeatureFlags.current;
-
-  /// flag 开 + catalog/course 可得 + 视图有内容时返回 true；任何一步
-  /// 不可用都回落 v1 读面。
+  /// catalog/course 可得 + 视图有内容时返回 true；任何一步不可用都
+  /// 回落 v1 读面。
   static Future<bool> get enabled {
-    if (!flagsOf().allowsV2ImportChain) return Future.value(false);
     final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
     CourseDatabase? course;
     try {
@@ -60,7 +53,6 @@ class OfficialAnkiV2CourseRead {
   /// v2 供给）。section id 由重建器按 owned-tree 规则生成，天然通过
   /// `officialAnkiIsOwnedTreeId` 校验。
   Future<Set<String>> activeSectionIds() async {
-    if (!flagsOf().allowsV2ImportChain) return const {};
     final summaries = await OfficialAnkiV2ViewStore(course).sectionSummaries();
     final activeSources = _activeV2SourceIds();
     return {
@@ -85,7 +77,6 @@ class OfficialAnkiV2CourseRead {
   /// 课时 id 驱动，卡映射经 lesson card index 的 v2 分支解析——视图是
   /// 结构事实的唯一来源，正文派生自卡（D3：可重建）。
   Future<List<Section>> sectionShells() async {
-    if (!flagsOf().allowsV2ImportChain) return const [];
     final store = OfficialAnkiV2ViewStore(course);
     final summaries = await store.sectionSummaries();
     if (summaries.isEmpty) return const [];
@@ -193,7 +184,6 @@ class OfficialAnkiV2CourseRead {
   /// 复习链课时→卡映射（lesson card index 的 v2 供给，稳定 card-id 序）。
   Future<List<({String wordId, int cardId, String sourceId})>>
       lessonCardEntriesForLesson(String lessonId) async {
-    if (!flagsOf().allowsV2ImportChain) return const [];
     final rows = await OfficialAnkiV2ViewStore(course).rowsForLesson(lessonId);
     final activeSources = _activeV2SourceIds();
     return [
@@ -205,7 +195,6 @@ class OfficialAnkiV2CourseRead {
 
   /// 该课时是否由 v2 视图供給（lesson card index 的分叉判定）。
   Future<bool> isV2Lesson(String lessonId) async {
-    if (!flagsOf().allowsV2ImportChain) return false;
     final rows = await OfficialAnkiV2ViewStore(course).rowsForLesson(lessonId);
     return rows.isNotEmpty;
   }

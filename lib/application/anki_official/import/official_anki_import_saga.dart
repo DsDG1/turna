@@ -1,22 +1,17 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
-import 'package:turna/application/anki_official/engine/official_anki_session.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
 import 'package:turna/application/anki_official/import/official_anki_source_hasher.dart';
 import 'package:turna/application/anki_official/import/official_anki_staging_manager.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
-import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
-import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
-import 'package:turna/application/anki_official/v2/official_anki_v2_card_index.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_unowned_card_reclaimer.dart';
 
 /// Staging-first import control plane (doc 42 P1): start + cancel only.
@@ -151,200 +146,6 @@ class OfficialAnkiImportSaga {
       rethrow;
     }
   }
-
-  Future<OfficialAnkiImportResult> commitLive({
-    required String sourceId,
-    required String packagePath,
-    dynamic projection,
-    Map<int, OfficialAnkiMappingSuggestion> suggestions = const {},
-    Set<int> confirmedNotetypes = const {},
-    Set<int> skippedNotetypes = const {},
-  }) async {
-    final digest = await hasher.hashFile(packagePath);
-    final existing = sources.findByHash(paths.profileId, digest.sha256);
-    if (existing != null &&
-        existing.state == OfficialAnkiSourceState.active.wire &&
-        existing.sourceId != sourceId) {
-      return OfficialAnkiImportResult(
-        sourceId: existing.sourceId,
-        attemptId: existing.sourceId,
-        state: OfficialAnkiSourceState.active,
-        cardCount: sources.cardCount(existing.sourceId),
-        noteCount: 0,
-        alreadyImported: true,
-      );
-    }
-    if (existing != null &&
-        existing.state == OfficialAnkiSourceState.active.wire &&
-        existing.sourceId == sourceId) {
-      return OfficialAnkiImportResult(
-        sourceId: sourceId,
-        attemptId: sourceId,
-        state: OfficialAnkiSourceState.active,
-        cardCount: sources.cardCount(sourceId),
-        noteCount: 0,
-        alreadyImported: true,
-      );
-    }
-
-    OfficialAnkiAttemptRow? attempt;
-    for (final row in attempts.unfinished()) {
-      if (row.sourceId == sourceId) {
-        attempt = row;
-        break;
-      }
-    }
-    if (attempt == null) {
-      throw const OfficialAnkiException(
-        code: OfficialAnkiErrorCode.invalidState,
-        messageKey: 'official_anki.invalid_state',
-        debugDetails: 'commit_without_preview',
-      );
-    }
-    var engine = liveEngine ?? OfficialAnkiCompositionRoot.engine;
-    if (engine == null) {
-      // Step1 task B (device follow-up): the live session only exists after
-      // home due sync or the review gate opened it; going straight from a
-      // fresh install to the wizard leaves it null and commit failed with
-      // capabilityMissing on-device. Bootstrap it here via the same road
-      // the due sync takes (requireImporter single-flights).
-      await OfficialAnkiCompositionRoot.requireImporter();
-      engine = OfficialAnkiCompositionRoot.engine;
-    }
-    if (engine == null) {
-      throw const OfficialAnkiException(
-        code: OfficialAnkiErrorCode.capabilityMissing,
-        messageKey: 'official_anki.importer_not_ready',
-      );
-    }
-
-    attempts.setPhase(
-      attemptId: attempt.attemptId,
-      phase: OfficialAnkiAttemptPhase.committing,
-      nowMillis: _now,
-    );
-    if (_discarded) {
-      attempts.setPhase(
-        attemptId: attempt.attemptId,
-        phase: OfficialAnkiAttemptPhase.quarantined,
-        nowMillis: _now,
-      );
-      throw _cancelled();
-    }
-
-    OfficialAnkiImportLog imported;
-    try {
-      // Step1 task B: if the user goes straight to the wizard after cold
-      // start, nothing has opened the live engine yet (home due sync and
-      // the review gate are the only openers) — import would fail with
-      // INVALID_STATE. Idempotent open, no-op when already open.
-      await engine.openProfile(paths);
-      imported = await engine.importPackage(
-        packagePath: packagePath,
-        withScheduling: true,
-      );
-    } catch (error) {
-      attempts.setPhase(
-        attemptId: attempt.attemptId,
-        phase: OfficialAnkiAttemptPhase.quarantined,
-        nowMillis: _now,
-      );
-      rethrow;
-    }
-
-    final session = OfficialAnkiCompositionRoot.session;
-    if (liveEngine == null &&
-        OfficialAnkiCompositionRoot.debugEngineOverride == null &&
-        session is OfficialAnkiSession &&
-        OfficialAnkiCompositionRoot.executionMode ==
-            OfficialAnkiExecutionMode.worker) {
-      await session.v2CardIndex(
-        attemptId: attempt.attemptId,
-        sourceId: sourceId,
-      );
-    } else {
-      await officialAnkiV2RunCardIndex(
-        sources: sources,
-        attempts: attempts,
-        engine: engine,
-        attemptId: attempt.attemptId,
-        sourceId: sourceId,
-      );
-    }
-
-    _promoteMappings(
-      projection: projection,
-      sourceId: sourceId,
-      stagingPath: attempt.stagingPath,
-      suggestions: suggestions,
-      confirmedNotetypes: confirmedNotetypes,
-      skippedNotetypes: skippedNotetypes,
-    );
-
-    attempts.setPhase(
-      attemptId: attempt.attemptId,
-      phase: OfficialAnkiAttemptPhase.projecting,
-      nowMillis: _now,
-    );
-    return OfficialAnkiImportResult(
-      sourceId: sourceId,
-      attemptId: attempt.attemptId,
-      state: OfficialAnkiSourceState.staging,
-      cardCount: imported.cardCount,
-      noteCount: imported.noteCount,
-      collectionCardCount: imported.cardCount,
-      collectionNoteCount: imported.noteCount,
-    );
-  }
-
-  Future<void> finishCommit({
-    required String sourceId,
-    required String attemptId,
-    required bool published,
-  }) async {
-    final attempt = attempts.find(attemptId);
-    final stagingRoot = attempt?.stagingPath == null
-        ? null
-        : Directory(attempt!.stagingPath!);
-    await manager.kill();
-    if (stagingRoot != null) {
-      await OfficialAnkiStagingManager.deleteDirectory(stagingRoot);
-    }
-    if (!published) return;
-    attempts.setPhase(
-      attemptId: attemptId,
-      phase: OfficialAnkiAttemptPhase.completed,
-      nowMillis: _now,
-    );
-    try {
-      attempts.transition(
-        attemptId: attemptId,
-        expectedState: attempt?.state ?? OfficialAnkiSourceState.staging.wire,
-        nextState: OfficialAnkiSourceState.completed.wire,
-        nowMillis: _now,
-      );
-    } catch (suppressed) {
-      debugPrint('[OfficialAnkiImportSaga] complete attempt: $suppressed');
-    }
-    final source = sources.findById(sourceId);
-    if (source != null && source.state != OfficialAnkiSourceState.active.wire) {
-      sources.transitionSource(
-        sourceId: sourceId,
-        expectedState: source.state,
-        nextState: OfficialAnkiSourceState.active.wire,
-        nowMillis: _now,
-      );
-    }
-  }
-
-  void _promoteMappings({
-    dynamic projection,
-    required String sourceId,
-    required String? stagingPath,
-    required Map<int, OfficialAnkiMappingSuggestion> suggestions,
-    required Set<int> confirmedNotetypes,
-    required Set<int> skippedNotetypes,
-  }) {}
 
   Future<void> cancelActive() async {
     OfficialAnkiCompositionRoot.stagingDiscardRequested = true;

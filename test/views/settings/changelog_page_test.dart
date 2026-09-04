@@ -10,6 +10,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/settings/changelog_page.dart';
 
 void main() {
@@ -57,6 +58,10 @@ void main() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMessageHandler('flutter/assets', handler);
   }
+
+  setUp(() {
+    rootBundle.clear();
+  });
 
   test('parseChangelogMarkdown extracts at least 3 releases', () {
     final releases = parseChangelogMarkdown(fakeChangelog);
@@ -127,5 +132,96 @@ void main() {
 
   test('parseChangelogMarkdown returns empty list when no sections', () {
     expect(parseChangelogMarkdown('# only h1\nno sections here'), isEmpty);
+  });
+
+  // 「一键复制」：Clipboard.setData 走 platform method channel，用
+  // setMockMethodCallHandler 捕获，避免真实剪贴板。
+  testWidgets('一键复制 copies the rendered asset markdown', (tester) async {
+    await installHandler(okHandler);
+    String? copied;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') {
+        copied = (call.arguments as Map?)?['text'] as String?;
+      }
+      return null;
+    });
+    addTearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null);
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ChangelogFromAsset(
+            assetPath: 'assets/changelog.md',
+            fallbackReleases: const [],
+          ),
+        ),
+      ),
+    );
+    for (var i = 0; i < 5; i++) {
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      await tester.pump();
+    }
+    await tester.scrollUntilVisible(
+      find.text(AppStrings.changelogCopyButton),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text(AppStrings.changelogCopyButton));
+    await tester.pump();
+
+    // 复制的是 asset 原文（当前实际展示内容），不是内置后援。
+    expect(copied, isNotNull);
+    expect(copied, contains('# Changelog'));
+    expect(copied, contains('1.1.0'));
+    expect(find.text(AppStrings.changelogCopied), findsOneWidget);
+  });
+
+  testWidgets('一键复制 falls back to built-in releases on load error',
+      (tester) async {
+    await installHandler(failHandler);
+    String? copied;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') {
+        copied = (call.arguments as Map?)?['text'] as String?;
+      }
+      return null;
+    });
+    addTearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null);
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ChangelogFromAsset(
+            assetPath: 'assets/does_not_exist.md',
+            fallbackReleases: ChangelogPage.fallbackReleases,
+          ),
+        ),
+      ),
+    );
+    for (var i = 0; i < 5; i++) {
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      await tester.pump();
+    }
+    await tester.scrollUntilVisible(
+      find.text(AppStrings.changelogCopyButton),
+      400,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.text(AppStrings.changelogCopyButton));
+    await tester.pump();
+
+    // 后援拼接文本含历程与最新版本 0.8。
+    expect(copied, isNotNull);
+    expect(copied, contains('## 更新历程'));
+    expect(copied, contains('### 0.8 —'));
+    expect(find.text(AppStrings.changelogCopied), findsOneWidget);
   });
 }

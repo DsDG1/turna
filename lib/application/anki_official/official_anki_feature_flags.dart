@@ -100,9 +100,6 @@ class OfficialAnkiFeatureFlags {
   bool get allowsOfficialFirstImport =>
       officialFirstImport && allowsOfficialImport && allowsCourseEntry;
 
-  /// v2 chain gate (step4.md A1, retired at step6.md): always true.
-  bool get allowsV2ImportChain => true;
-
   OfficialAnkiFeatureFlags copyWith({
     bool? engine,
     bool? import,

@@ -21,24 +21,6 @@ enum OfficialAnkiUserIntent {
       };
 }
 
-enum OfficialAnkiNativeCommitState {
-  notStarted,
-  committed,
-  unknown;
-
-  String get wire => switch (this) {
-        OfficialAnkiNativeCommitState.notStarted => 'not_started',
-        OfficialAnkiNativeCommitState.committed => 'committed',
-        OfficialAnkiNativeCommitState.unknown => 'unknown',
-      };
-
-  static OfficialAnkiNativeCommitState parse(String? raw) => switch (raw) {
-        'not_started' => OfficialAnkiNativeCommitState.notStarted,
-        'committed' => OfficialAnkiNativeCommitState.committed,
-        _ => OfficialAnkiNativeCommitState.unknown,
-      };
-}
-
 enum OfficialAnkiMaintenanceKind {
   mediaGc,
   metadataPrune,
@@ -272,8 +254,6 @@ abstract final class OfficialAnkiAttemptPhase {
   static const cancelled = 'cancelled';
   static const committing = 'committing';
   static const receiptCommitted = 'receipt_committed';
-  static const projecting = 'projecting';
-  static const publishing = 'publishing';
   static const completed = 'completed';
   static const quarantined = 'quarantined';
 

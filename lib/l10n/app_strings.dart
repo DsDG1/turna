@@ -500,7 +500,7 @@ class AppStrings {
       '以下为 Turna 主要版本与功能里程碑，条目为简要摘要，便于快速了解近期改动。';
   static String get changelogFooterNote =>
       '更详细的工程说明见仓库 docs/decisions/ 与 README。';
-  static String get changelogCopyTooltip => '复制当前页内容';
+  static String get changelogCopyButton => '一键复制';
   static String get changelogCopied => '已复制到剪贴板';
   static String get changeloadFallback => '无法读取 assets/changelog.md，已切换到内置版本';
 

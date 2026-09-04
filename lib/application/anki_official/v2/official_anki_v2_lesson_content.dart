@@ -4,7 +4,6 @@ import 'package:crypto/crypto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_file_log.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
-import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_import/recognition/recognize/result.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
@@ -40,13 +39,8 @@ import 'package:turna/domain/course/stage.dart';
 class OfficialAnkiV2LessonContent {
   OfficialAnkiV2LessonContent._();
 
-  /// Test seam（与 `OfficialAnkiV2CourseRead.flagsOf` 同款）。
-  static OfficialAnkiFeatureFlags Function() flagsOf =
-      () => OfficialAnkiFeatureFlags.current;
-
   /// v2 课时 → 带正文的完整 [Lesson]；非 v2 课时或派生不可用 → null。
   static Future<Lesson?> lessonFor(String lessonId) async {
-    if (!flagsOf().allowsV2ImportChain) return null;
     final course = _courseOrNull();
     final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
     if (course == null || catalog == null) return null;

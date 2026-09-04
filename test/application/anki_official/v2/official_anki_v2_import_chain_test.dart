@@ -232,7 +232,8 @@ void main() {
       reason: 'v2 路径对 course.db 旧 anki 表零写入（守卫）: $violations',
     );
 
-    // 旧表在 v24 中已被彻底删除。
+    // 旧表在 v24 中已被彻底删除（含 onCreate 侧：新装库不得经
+    // `_ensureAnkiCanonicalV2` 复活 v1 投影表——新装/升级 schema 一致）。
     final existingTables = (await course.customSelect(
       "SELECT name FROM sqlite_master WHERE type='table'",
     ).get()).map((row) => row.read<String>('name')).toSet();
@@ -243,6 +244,9 @@ void main() {
       'anki_card_presentations',
       'anki_course_sources',
       'anki_import_jobs',
+      'anki_decks',
+      'anki_practice_projections',
+      'anki_import_issues',
     ]) {
       expect(existingTables.contains(table), isFalse, reason: '$table 必须已被彻底删除');
     }

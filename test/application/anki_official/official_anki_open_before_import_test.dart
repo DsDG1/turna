@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
@@ -11,6 +12,8 @@ import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
+import 'package:turna/application/anki_official/v2/official_anki_v2_import_service.dart';
+import 'package:turna/data/course_database.dart';
 
 import '../../helpers/in_memory_course_db.dart';
 
@@ -149,18 +152,27 @@ void main() {
     expect(h.live.calls, isEmpty);
   });
 
-  test('commitLive opens the live engine before importing', () async {
+  test('v2 commit opens the live engine before importing', () async {
     final h = harness();
     addTearDown(h.dispose);
+    final course = CourseDatabase(NativeDatabase.memory());
+    addTearDown(course.close);
 
     await h.saga.startStaging(packagePath: pkg.path, displayName: 'unicode');
-    // Live engine fresh: no home due-sync, no review gate ran. commitLive
-    // must open it itself before importPackage, or the strict engine fails.
-    final committed = await h.saga.commitLive(
+    // Live engine fresh: no home due-sync, no review gate ran. The v2
+    // commit chain must open it itself before importPackage, or the strict
+    // engine fails with import_before_open (Step 1 task B contract).
+    final committed = await OfficialAnkiV2ImportService(
+      catalog: h.catalog,
+      paths: h.paths,
+      course: course,
+      engine: h.live,
+    ).commit(
       sourceId: h.sources.listSources(h.paths.profileId).single.sourceId,
       packagePath: pkg.path,
+      displayName: 'unicode',
     );
-    expect(committed.alreadyImported, isFalse);
+    expect(committed.sourceId, isNotEmpty);
     expect(h.live.importCount, 1);
     expect(
       h.live.calls.indexOf('openProfile') <

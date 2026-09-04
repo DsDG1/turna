@@ -205,11 +205,6 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
   }
 
   Future<void> _showDetails(AnkiCardBrowserRecord row) async {
-    final projection = await _dao.projectionForCard(
-      row.card.importId,
-      row.card.cardId,
-    );
-    if (!mounted) return;
     await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
@@ -226,20 +221,7 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
                 _DiagnosticRow('Note Type', '#${row.note.mid}'),
                 _DiagnosticRow('Deck', '#${row.card.did}'),
                 _DiagnosticRow('原卡渲染', row.card.renderMode),
-                _DiagnosticRow(
-                  '课程练习',
-                  projection == null
-                      ? '仅保留原卡（无派生记录）'
-                      : '${_projectionKindLabel(projection.kind)} · '
-                          '${_projectionStatusLabel(projection.status)}',
-                ),
-                if (projection != null && projection.evidence.isNotEmpty)
-                  _DiagnosticRow(
-                    '识别依据',
-                    projection.evidence.entries
-                        .map((entry) => '${entry.key}=${entry.value}')
-                        .join('，'),
-                  ),
+                _DiagnosticRow('课程练习', '仅保留原卡（无派生记录）'),
                 const SizedBox(height: 12),
                 Text('原始字段',
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -285,20 +267,6 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
       ),
     );
   }
-
-  String _projectionKindLabel(String kind) => switch (kind) {
-        'structured' => '派生结构化练习',
-        'canonical' => 'Anki 原卡',
-        _ => kind,
-      };
-
-  String _projectionStatusLabel(String status) => switch (status) {
-        'generated' => '已生成',
-        'fallback' => '识别冲突，已回退原卡',
-        'fidelity_required' => '需按原模板显示',
-        'not_materialized' => '按需加载',
-        _ => status,
-      };
 
   @override
   Widget build(BuildContext context) {

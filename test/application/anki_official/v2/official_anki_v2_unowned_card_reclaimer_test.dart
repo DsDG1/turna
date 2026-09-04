@@ -4,8 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
-import 'package:turna/application/anki_official/import/official_anki_import_orchestrator.dart';
-import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
+import 'package:turna/application/anki_official/import/official_anki_import_saga.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_maintenance.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
@@ -127,17 +126,19 @@ void main() {
       phase: OfficialAnkiAttemptPhase.committing,
     );
 
-    final orch = OfficialAnkiImportOrchestrator(
-      engine: engine,
+    // K2 中断恢复（v2 committing）：丢弃账本 + 回收 collection 幽灵卡。
+    // 编排器删除后，中断导入的生产恢复路径 = saga.cancelSource（pending
+    // banner 手动丢弃走同一方法）。
+    await OfficialAnkiImportSaga(
       sources: sources,
       attempts: OfficialAnkiImportAttemptDao(catalog),
       paths: paths,
-    );
-    final result = await orch.recoverAttempt(
-      OfficialAnkiImportAttemptDao(catalog).find('att-kill')!,
-    );
+      liveEngine: engine,
+    ).cancelSource('src-kill');
 
-    expect(result.state, OfficialAnkiSourceState.cancelled);
+    final attempts = OfficialAnkiImportAttemptDao(catalog);
+    expect(attempts.find('att-kill'), isNull, reason: '账本随 source 终删');
+    expect(attempts.unfinished(), isEmpty);
     expect(sources.findById('src-kill'), isNull);
     expect(engine.cards.keys, [1]);
     expect(sources.findById('src-live'), isNotNull);
