@@ -6,6 +6,9 @@ Never writes the live course without an explicit host merge path + confirm.
 from __future__ import annotations
 
 from typing import Any, Mapping
+import logging
+from src.application.experience_host import ExperienceHost
+logger = logging.getLogger(__name__)
 
 
 def _is_headless_ui() -> bool:
@@ -15,7 +18,7 @@ def _is_headless_ui() -> bool:
     return is_headless_ui()
 
 
-def is_goal_allowed(host: Any) -> tuple[bool, str]:
+def is_goal_allowed(host: ExperienceHost) -> tuple[bool, str]:
     """Return (allowed, deny_reason) from policy + settings."""
     try:
         from src.backend.experience.policy import resolve_policy
@@ -40,7 +43,7 @@ def is_goal_allowed(host: Any) -> tuple[bool, str]:
         return False, f"Goal 策略读取失败：{exc.__class__.__name__}"
 
 
-def _build_goal_chat_fn(host: Any) -> Any | None:
+def _build_goal_chat_fn(host: ExperienceHost) -> Any | None:
     """K-09: sync chat_fn wrapping ``request_chat`` (mirrors git_skill.run_git_skill).
 
     Returns None when AI config is incomplete or the M-08 daily budget gate
@@ -89,7 +92,7 @@ def _build_goal_chat_fn(host: Any) -> Any | None:
         return None
 
 
-def build_plan_for_host(host: Any, goal_text: str = "", *, expand: bool = False) -> Any:
+def build_plan_for_host(host: ExperienceHost, goal_text: str = "", *, expand: bool = False) -> Any:
     """Build GoalPlan from live Experience context. Never raises → empty plan."""
     from src.backend.experience.planner import GoalPlan, expand_goal_local, plan_from_context
 
@@ -112,14 +115,14 @@ def build_plan_for_host(host: Any, goal_text: str = "", *, expand: bool = False)
                         chat_fn=_build_goal_chat_fn(host),
                     )
             except Exception:
-                pass
+                logger.debug("application/goal_controller.py:build_plan_for_host best-effort step failed", exc_info=True)
             return expand_goal_local(ctx, goal_text=goal_text or "")
         return plan_from_context(ctx, goal_text=goal_text or "")
     except Exception:
         return GoalPlan(goal_text=goal_text or "", notes=["规划异常"])
 
 
-def run_sandbox_for_host(host: Any, plan: Any) -> tuple[Any | None, Any | None, str]:
+def run_sandbox_for_host(host: ExperienceHost, plan: Any) -> tuple[Any | None, Any | None, str]:
     """Stage plan in CourseSandbox. Returns (sandbox, merge_plan, error).
 
     E3-B2 stub path (local, no LLM): used as the fallback when AI config is
@@ -159,7 +162,7 @@ def _collect_fill_lesson_ids(plan: Any) -> list[str]:
 
 
 def run_sandbox_real_fill_for_host(
-    host: Any,
+    host: ExperienceHost,
     plan: Any,
     *,
     on_complete: Any | None = None,
@@ -215,7 +218,7 @@ def run_sandbox_real_fill_for_host(
                 try:
                     on_complete(box, mp)
                 except Exception:
-                    pass
+                    logger.debug("application/goal_controller.py:run_sandbox_real_fill_for_host best-effort step failed", exc_info=True)
             return box, mp, ""
 
         # Real generation: stage non-fill steps synchronously first.
@@ -224,7 +227,7 @@ def run_sandbox_real_fill_for_host(
                 try:
                     box.mark_action(step)
                 except Exception:
-                    pass
+                    logger.debug("application/goal_controller.py:run_sandbox_real_fill_for_host best-effort step failed", exc_info=True)
 
         def _done() -> None:
             mp = box.to_merge_plan()
@@ -232,7 +235,7 @@ def run_sandbox_real_fill_for_host(
                 try:
                     on_complete(box, mp)
                 except Exception:
-                    pass
+                    logger.debug("application/goal_controller.py:_done best-effort step failed", exc_info=True)
 
         synchronous = _run_real_fill_chain(host, box, fill_ids, config, _done)
         if synchronous:
@@ -243,26 +246,26 @@ def run_sandbox_real_fill_for_host(
         return None, None, str(exc) or exc.__class__.__name__
 
 
-def _record_event_safe(host: Any, kind: str, summary: str, **kwargs: Any) -> None:
+def _record_event_safe(host: ExperienceHost, kind: str, summary: str, **kwargs: Any) -> None:
     try:
         record = getattr(host, "_record_experience_event", None)
         if callable(record):
             record(kind, summary, **kwargs)
     except Exception:
-        pass
+        logger.debug("application/goal_controller.py:_record_event_safe best-effort step failed", exc_info=True)
 
 
-def _sync_focus_ring_safe(host: Any) -> None:
+def _sync_focus_ring_safe(host: ExperienceHost) -> None:
     fn = getattr(host, "_sync_focus_ring", None)
     if callable(fn):
         try:
             fn()
         except Exception:
-            pass
+            logger.debug("application/goal_controller.py:_sync_focus_ring_safe best-effort step failed", exc_info=True)
 
 
 def _run_real_fill_chain(
-    host: Any,
+    host: ExperienceHost,
     box: Any,
     fill_ids: list[str],
     config: Any,
@@ -290,7 +293,7 @@ def _run_real_fill_chain(
         try:
             on_done()
         except Exception:
-            pass
+            logger.debug("application/goal_controller.py:_run_real_fill_chain best-effort step failed", exc_info=True)
         return True
     metrics = getattr(host, "experience_metrics", None)
     guard = getattr(host, "conflict_guard", None)
@@ -309,7 +312,7 @@ def _run_real_fill_chain(
             try:
                 on_done()
             except Exception:
-                pass
+                logger.debug("application/goal_controller.py:_next best-effort step failed", exc_info=True)
             return
         lid = fill_ids[index]
         try:
@@ -330,7 +333,7 @@ def _run_real_fill_chain(
                 try:
                     metrics.inc_guard("rejected")
                 except Exception:
-                    pass
+                    logger.debug("application/goal_controller.py:_next best-effort step failed", exc_info=True)
                 _next(index + 1)
                 return
         _sync_focus_ring_safe(host)
@@ -340,7 +343,7 @@ def _run_real_fill_chain(
             if metrics is not None:
                 metrics.inc_job("ai", "started")
         except Exception:
-            pass
+            logger.debug("application/goal_controller.py:_next best-effort step failed", exc_info=True)
 
         draft = copy.deepcopy(section)
 
@@ -364,14 +367,14 @@ def _run_real_fill_chain(
                 if metrics is not None:
                     metrics.inc_job("ai", "finished")
             except Exception:
-                pass
+                logger.debug("application/goal_controller.py:_on_ok best-effort step failed", exc_info=True)
             if guard is not None:
                 try:
                     guard.release(guard_key, job_id)
                     if metrics is not None:
                         metrics.inc_guard("released")
                 except Exception:
-                    pass
+                    logger.debug("application/goal_controller.py:_on_ok best-effort step failed", exc_info=True)
             _sync_focus_ring_safe(host)
             new_lesson = None
             if isinstance(result, dict):
@@ -413,12 +416,12 @@ def _run_real_fill_chain(
                 if metrics is not None:
                     metrics.inc_job("ai", "failed")
             except Exception:
-                pass
+                logger.debug("application/goal_controller.py:_on_err best-effort step failed", exc_info=True)
             if guard is not None:
                 try:
                     guard.release(guard_key, job_id)
                 except Exception:
-                    pass
+                    logger.debug("application/goal_controller.py:_on_err best-effort step failed", exc_info=True)
             _sync_focus_ring_safe(host)
             # Skip-on-fail (decision 3): non-modal status, continue batch.
             _status(host, f"{lid} 生成失败，已跳过：{msg}")
@@ -433,13 +436,13 @@ def _run_real_fill_chain(
         try:
             setattr(host, "_experience_worker", worker)
         except Exception:
-            pass
+            logger.debug("application/goal_controller.py:_next best-effort step failed", exc_info=True)
 
     _next(0)
     return bool(state["finished_inline"])
 
 
-def show_plan_dialog(host: Any, plan: Any) -> str:
+def show_plan_dialog(host: ExperienceHost, plan: Any) -> str:
     """Show plan information only. Returns ``ok``."""
     from src.backend.experience.planner import format_plan_summary
 
@@ -452,11 +455,11 @@ def show_plan_dialog(host: Any, plan: Any) -> str:
         text = format_plan_summary(plan)
         QMessageBox.information(parent, "Goal 规划", text[:4000] if text else "（空计划）")
     except Exception:
-        pass
+        logger.debug("application/goal_controller.py:show_plan_dialog best-effort step failed", exc_info=True)
     return "ok"
 
 
-def show_merge_checklist(host: Any, plan: Any, merge_plan: Any) -> list[str] | None:
+def show_merge_checklist(host: ExperienceHost, plan: Any, merge_plan: Any) -> list[str] | None:
     """Show GoalMergeDialog; return selected keys or None if cancelled."""
     from src.backend.experience.planner import format_plan_summary
 
@@ -493,7 +496,7 @@ def show_merge_checklist(host: Any, plan: Any, merge_plan: Any) -> list[str] | N
             return None
 
 
-def apply_sandbox_lessons_to_host(host: Any, merge_plan: Any) -> int:
+def apply_sandbox_lessons_to_host(host: ExperienceHost, merge_plan: Any) -> int:
     """E3-B2: apply mergeable lesson payloads via Batch LessonPatch + Undo.
 
     Returns number of lessons patched. Does not dispatch AI skills.
@@ -560,24 +563,24 @@ def apply_sandbox_lessons_to_host(host: Any, merge_plan: Any) -> int:
             if tree is not None and hasattr(cmd, "signals"):
                 cmd.signals.changed.connect(tree.refresh_incremental)
         except Exception:
-            pass
+            logger.debug("application/goal_controller.py:apply_sandbox_lessons_to_host best-effort step failed", exc_info=True)
         stack.push(cmd)
         try:
             inv = getattr(adapter, "invalidate_node_index", None)
             if callable(inv):
                 inv()
         except Exception:
-            pass
+            logger.debug("application/goal_controller.py:apply_sandbox_lessons_to_host best-effort step failed", exc_info=True)
         try:
             host._refresh_experience(immediate=True)
         except Exception:
-            pass
+            logger.debug("application/goal_controller.py:apply_sandbox_lessons_to_host best-effort step failed", exc_info=True)
         return len(patches)
     except Exception:
         return 0
 
 
-def apply_merge_plan_on_host(host: Any, merge_plan: Any) -> int:
+def apply_merge_plan_on_host(host: ExperienceHost, merge_plan: Any) -> int:
     """E3-B2: LessonPatch batch for sandbox payloads + skill dispatch for rest.
 
     Returns total operations (patches + skill dispatches).
@@ -638,7 +641,7 @@ def apply_merge_plan_on_host(host: Any, merge_plan: Any) -> int:
     return n
 
 
-def _plan_goal_async(host: Any, goal_text: str, on_plan: Any) -> bool:
+def _plan_goal_async(host: ExperienceHost, goal_text: str, on_plan: Any) -> bool:
     """K-09: run the LLM expand path on a background worker.
 
     Returns True when the request was dispatched (``on_plan`` will fire on the
@@ -667,7 +670,7 @@ def _plan_goal_async(host: Any, goal_text: str, on_plan: Any) -> bool:
         return False
 
 
-def _record_plan_built(host: Any, plan: Any) -> None:
+def _record_plan_built(host: ExperienceHost, plan: Any) -> None:
     """Telemetry/metrics for a freshly built plan (never raises)."""
     try:
         record = getattr(host, "_record_experience_event", None)
@@ -682,10 +685,10 @@ def _record_plan_built(host: Any, plan: Any) -> None:
         if metrics is not None and hasattr(metrics, "inc_suggestion"):
             metrics.inc_suggestion("goal.plan", "applied")
     except Exception:
-        pass
+        logger.debug("application/goal_controller.py:_record_plan_built best-effort step failed", exc_info=True)
 
 
-def experience_goal_plan(host: Any, scope: Mapping[str, Any] | None = None) -> None:
+def experience_goal_plan(host: ExperienceHost, scope: Mapping[str, Any] | None = None) -> None:
     """goal.plan entry: build + show plan (no sandbox write)."""
     ok, reason = is_goal_allowed(host)
     if not ok:
@@ -711,14 +714,14 @@ def experience_goal_plan(host: Any, scope: Mapping[str, Any] | None = None) -> N
     _done(plan)
 
 
-def experience_goal_expand(host: Any, scope: Mapping[str, Any] | None = None) -> None:
+def experience_goal_expand(host: ExperienceHost, scope: Mapping[str, Any] | None = None) -> None:
     """goal.expand: local (or optional LLM) richer plan."""
     scope = dict(scope or {})
     scope["expand"] = True
     experience_goal_plan(host, scope)
 
 
-def show_batch_diff_for_merge(host: Any, merge_plan: Any) -> bool:
+def show_batch_diff_for_merge(host: ExperienceHost, merge_plan: Any) -> bool:
     """E3-B3: one consolidated SectionDiffView confirm for all selected lessons.
 
     Builds a before/after section pair by splicing each mergeable
@@ -797,7 +800,7 @@ def show_batch_diff_for_merge(host: Any, merge_plan: Any) -> bool:
         return True
 
 
-def experience_goal_run(host: Any, scope: Mapping[str, Any] | None = None) -> None:
+def experience_goal_run(host: ExperienceHost, scope: Mapping[str, Any] | None = None) -> None:
     """goal.run: plan → sandbox(real-fill) → checklist → batch Diff → merge."""
     from src.backend.experience.sandbox import filter_merge_plan
 
@@ -834,7 +837,7 @@ def experience_goal_run(host: Any, scope: Mapping[str, Any] | None = None) -> No
                     scope={"items": len(mp)},
                 )
         except Exception:
-            pass
+            logger.debug("application/goal_controller.py:_after_sandbox best-effort step failed", exc_info=True)
 
         selected = show_merge_checklist(host, plan, mp)
         if selected is None:
@@ -848,7 +851,7 @@ def experience_goal_run(host: Any, scope: Mapping[str, Any] | None = None) -> No
                         scope={},
                     )
             except Exception:
-                pass
+                logger.debug("application/goal_controller.py:_after_sandbox best-effort step failed", exc_info=True)
             return
 
         filtered = filter_merge_plan(mp, selected)
@@ -875,7 +878,7 @@ def experience_goal_run(host: Any, scope: Mapping[str, Any] | None = None) -> No
                     scope={"dispatched": n},
                 )
         except Exception:
-            pass
+            logger.debug("application/goal_controller.py:_after_sandbox best-effort step failed", exc_info=True)
 
     def _start_sandbox() -> None:
         try:
@@ -909,24 +912,24 @@ def experience_goal_run(host: Any, scope: Mapping[str, Any] | None = None) -> No
     _start_sandbox()
 
 
-def clear_goal_state(host: Any) -> None:
+def clear_goal_state(host: ExperienceHost) -> None:
     """Lifecycle: drop sandbox / last plan on course close."""
     for attr in ("_goal_sandbox", "_goal_merge_plan", "_goal_last_plan"):
         try:
             if hasattr(host, attr):
                 setattr(host, attr, None)
         except Exception:
-            pass
+            logger.debug("application/goal_controller.py:clear_goal_state best-effort step failed", exc_info=True)
 
 
-def _status(host: Any, msg: str) -> None:
+def _status(host: ExperienceHost, msg: str) -> None:
     try:
         host.statusBar().showMessage(msg, 6000)
     except Exception:
-        pass
+        logger.debug("application/goal_controller.py:_status best-effort step failed", exc_info=True)
 
 
-def _info(host: Any, title: str, body: str) -> None:
+def _info(host: ExperienceHost, title: str, body: str) -> None:
     if _is_headless_ui():
         return
     try:
@@ -935,10 +938,10 @@ def _info(host: Any, title: str, body: str) -> None:
         parent = host if isinstance(host, QWidget) else None
         QMessageBox.information(parent, title, body)
     except Exception:
-        pass
+        logger.debug("application/goal_controller.py:_info best-effort step failed", exc_info=True)
 
 
-def _confirm_merge(host: Any, merge_plan: Any) -> bool:
+def _confirm_merge(host: ExperienceHost, merge_plan: Any) -> bool:
     if _is_headless_ui():
         # Headless/offscreen: auto-confirm (same as the exception fallback).
         return True

@@ -4,6 +4,8 @@ from __future__ import annotations
 from typing import Any
 
 from src.application.ui_guard import safe_information, safe_question, safe_warning
+import logging
+logger = logging.getLogger(__name__)
 
 def _experience_git_skill(host, action: str) -> None:
     """K-24: read-only git skill (commit message / explain diff).
@@ -70,7 +72,7 @@ def _experience_git_skill(host, action: str) -> None:
                 scope={},
             )
         except Exception:
-            pass
+            logger.debug("application/experience_handlers/multimodal.py:_on_ok best-effort step failed", exc_info=True)
         if metrics is not None:
             metrics.inc_suggestion(action, "applied")
         host._show_git_skill_result(job_label, reply)
@@ -186,7 +188,7 @@ def _experience_ocr(
         try:
             host._refresh_experience(immediate=False, focus_only=True)
         except Exception:
-            pass
+            logger.debug("application/experience_handlers/multimodal.py:_experience_ocr best-effort step failed", exc_info=True)
 
     worker = host._make_ai_worker(ocr_records, target, lang=lang)
 
@@ -221,7 +223,7 @@ def _experience_ocr(
                         if win.add_attachment_record(new_rec):
                             added += 1
                     except Exception:
-                        pass
+                        logger.debug("application/experience_handlers/multimodal.py:_on_ok best-effort step failed", exc_info=True)
                 # Orphan scanned-PDF temp files (signal path) are cleaned
                 # up after OCR; bar-owned image temp files are left intact.
                 if unlink_after:
@@ -232,9 +234,9 @@ def _experience_ocr(
                             missing_ok=True
                         )
                     except Exception:
-                        pass
+                        logger.debug("application/experience_handlers/multimodal.py:_on_ok best-effort step failed", exc_info=True)
         except Exception:
-            pass
+            logger.debug("application/experience_handlers/multimodal.py:_on_ok best-effort step failed", exc_info=True)
         if tray is not None:
             tray.finish(job_id)
         if metrics is not None:
@@ -243,12 +245,12 @@ def _experience_ocr(
             try:
                 host._sync_experience_attachments()
             except Exception:
-                pass
+                logger.debug("application/experience_handlers/multimodal.py:_on_ok best-effort step failed", exc_info=True)
         if hasattr(host, "experience"):
             try:
                 host.experience.invalidate()
             except Exception:
-                pass
+                logger.debug("application/experience_handlers/multimodal.py:_on_ok best-effort step failed", exc_info=True)
         try:
             # §14.5.3: Timeline records only action_id + closed-set scope
             # (count + status); never OCR text or file paths.
@@ -259,7 +261,7 @@ def _experience_ocr(
                 scope={"count": added, "status": "ok" if added else "no_text"},
             )
         except Exception:
-            pass
+            logger.debug("application/experience_handlers/multimodal.py:_on_ok best-effort step failed", exc_info=True)
         if metrics is not None and added:
             metrics.inc_suggestion(ACTION_ID, "applied")
         if added:
@@ -319,7 +321,7 @@ def _show_git_skill_result(host, title: str, text: str) -> None:
                 QApplication.clipboard().setText(text)
                 host.statusBar().showMessage("已复制到剪贴板", 3000)
             except Exception:
-                pass
+                logger.debug("application/experience_handlers/multimodal.py:_copy best-effort step failed", exc_info=True)
 
         copy_btn.clicked.connect(_copy)
         close_btn.clicked.connect(dlg.accept)

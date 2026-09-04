@@ -1,18 +1,21 @@
-"""K-05 node AI edit — Experience wrap of AiEditMixin._on_ai_edit (v4.61).
+"""K-05 node AI edit — Experience wrap of MainWindow._on_ai_edit (v4.61).
 
 Does **not** copy generate_edit / NodeAiEditDialog; only resolves target and
-delegates to the existing host path (preview + confirm + Undo inside mixin).
+delegates to the existing host path (preview + confirm + Undo in src/app.py).
 """
 from __future__ import annotations
 
 from typing import Any
+import logging
+from src.application.experience_host import ExperienceHost
+logger = logging.getLogger(__name__)
 
 
 _EDIT_KINDS = frozenset({"section", "unit", "lesson"})
 
 
 def resolve_edit_target(
-    host: Any,
+    host: ExperienceHost,
     scope: dict | None = None,
     *,
     action_id: str = "",
@@ -40,7 +43,7 @@ def resolve_edit_target(
         return None
 
 
-def handle_node_edit(host: Any, scope: dict | None = None) -> None:
+def handle_node_edit(host: ExperienceHost, scope: dict | None = None) -> None:
     """Dispatch funnel entry for section/unit/lesson.edit."""
     scope = scope if isinstance(scope, dict) else {}
     action_hint = str(scope.get("action_id") or "")
@@ -55,7 +58,7 @@ def handle_node_edit(host: Any, scope: dict | None = None) -> None:
                 "请先在课程树选中节 / 单元 / 课，再 AI 编辑", 5000
             )
         except Exception:
-            pass
+            logger.debug("application/experience_handlers/edit.py:handle_node_edit best-effort step failed", exc_info=True)
         return
 
     kind, node_id = target
@@ -64,7 +67,7 @@ def handle_node_edit(host: Any, scope: dict | None = None) -> None:
         try:
             host.statusBar().showMessage("AI 编辑入口不可用", 4000)
         except Exception:
-            pass
+            logger.debug("application/experience_handlers/edit.py:handle_node_edit best-effort step failed", exc_info=True)
         return
 
     metrics = getattr(host, "experience_metrics", None)
@@ -75,12 +78,12 @@ def handle_node_edit(host: Any, scope: dict | None = None) -> None:
         try:
             host.statusBar().showMessage(f"AI 编辑失败：{exc}", 5000)
         except Exception:
-            pass
+            logger.debug("application/experience_handlers/edit.py:handle_node_edit best-effort step failed", exc_info=True)
         if metrics is not None:
             try:
                 metrics.inc_suggestion(aid, "error")
             except Exception:
-                pass
+                logger.debug("application/experience_handlers/edit.py:handle_node_edit best-effort step failed", exc_info=True)
         return
 
     record = getattr(host, "_record_experience_event", None)
@@ -93,7 +96,7 @@ def handle_node_edit(host: Any, scope: dict | None = None) -> None:
                 scope={"kind": kind, "id": node_id},
             )
         except Exception:
-            pass
+            logger.debug("application/experience_handlers/edit.py:handle_node_edit best-effort step failed", exc_info=True)
 
 
 # Registry aliases (same body; resolve uses action_id when scope lacks kind).

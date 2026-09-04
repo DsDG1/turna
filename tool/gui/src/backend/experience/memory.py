@@ -15,6 +15,8 @@ import time
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Sequence
+import logging
+logger = logging.getLogger(__name__)
 
 
 # Closed keys allowed on a recorded intent / skill entry.
@@ -132,7 +134,7 @@ class SessionMemory:
             hints.append(h)
             self._lesson_styles[lid] = hints[-max(1, int(limit)) :]
         except Exception:
-            pass
+            logger.debug("backend/experience/memory.py:record_lesson_style best-effort step failed", exc_info=True)
 
     def lesson_style_hints(self, lesson_id: str) -> list[str]:
         """R-07: style hints recorded for one lesson (oldest first)."""
@@ -342,7 +344,7 @@ class ProjectMemory:
             bucket["recent_skills"] = skills[-max(1, int(limit)) :]
             self._maybe_save_disk()
         except Exception:
-            pass
+            logger.debug("backend/experience/memory.py:record_skill best-effort step failed", exc_info=True)
 
     def snapshot(self) -> dict[str, Any] | None:
         if not self._active_key:
@@ -374,7 +376,7 @@ class ProjectMemory:
                 "preferred_templates": list(data.get("preferred_templates") or []),
             }
         except Exception:
-            pass
+            logger.debug("backend/experience/memory.py:_maybe_load_disk best-effort step failed", exc_info=True)
 
     def _maybe_save_disk(self) -> None:
         if not self.persist_enabled or not self._active_key:
@@ -383,7 +385,7 @@ class ProjectMemory:
             path = project_memory_file(self.persist_dir, self._active_key)
             save_project_snapshot(path, self.snapshot())
         except Exception:
-            pass
+            logger.debug("backend/experience/memory.py:_maybe_save_disk best-effort step failed", exc_info=True)
 
 
 def author_memory_file(base_dir: Any) -> "Any":
@@ -413,7 +415,7 @@ def save_author_snapshot(path: Any, snapshot: Mapping[str, Any] | None) -> bool:
                 if p.is_file():
                     p.unlink()
             except Exception:
-                pass
+                logger.debug("backend/experience/memory.py:save_author_snapshot best-effort step failed", exc_info=True)
             return True
         p = Path(path)
         p.parent.mkdir(parents=True, exist_ok=True)
@@ -439,7 +441,7 @@ def save_author_snapshot(path: Any, snapshot: Mapping[str, Any] | None) -> bool:
                 if p.is_file():
                     p.unlink()
             except Exception:
-                pass
+                logger.debug("backend/experience/memory.py:save_author_snapshot best-effort step failed", exc_info=True)
             return True
         blob = json.dumps(payload, ensure_ascii=False, indent=0)
         low = blob.lower()
@@ -551,7 +553,7 @@ class AuthorMemory:
             prefs = data.get("language_prefs") or {}
             self._language_prefs = dict(prefs) if isinstance(prefs, Mapping) else {}
         except Exception:
-            pass
+            logger.debug("backend/experience/memory.py:_maybe_load_disk best-effort step failed", exc_info=True)
 
     def _maybe_save_disk(self) -> None:
         if not self.persist_enabled:
@@ -560,7 +562,7 @@ class AuthorMemory:
             path = author_memory_file(self.persist_dir)
             save_author_snapshot(path, self.snapshot())
         except Exception:
-            pass
+            logger.debug("backend/experience/memory.py:_maybe_save_disk best-effort step failed", exc_info=True)
 
     def _maybe_delete_disk(self) -> None:
         """Unlink author.json when clearing (only if persist path known)."""
@@ -578,7 +580,7 @@ class AuthorMemory:
             if p.is_file():
                 p.unlink()
         except Exception:
-            pass
+            logger.debug("backend/experience/memory.py:_maybe_delete_disk best-effort step failed", exc_info=True)
 
 
 @dataclass
@@ -607,7 +609,7 @@ class ExperienceMemory:
             try:
                 self.author.clear()
             except Exception:
-                pass
+                logger.debug("backend/experience/memory.py:clear_author best-effort step failed", exc_info=True)
             return False
 
     def clear_all(self) -> None:
@@ -630,7 +632,7 @@ class ExperienceMemory:
             try:
                 self.project.record_skill(rec.action_id)
             except Exception:
-                pass
+                logger.debug("backend/experience/memory.py:record_intent best-effort step failed", exc_info=True)
         return rec
 
     def record_lesson_style(
@@ -640,7 +642,7 @@ class ExperienceMemory:
         try:
             self.session.record_lesson_style(lesson_id, hint, limit=limit)
         except Exception:
-            pass
+            logger.debug("backend/experience/memory.py:record_lesson_style best-effort step failed", exc_info=True)
 
     def lesson_style_hints(self, lesson_id: str) -> list[str]:
         """R-07: style hints for one lesson; empty on any failure."""
@@ -656,7 +658,7 @@ class ExperienceMemory:
         try:
             self.project.configure_persist(enabled=enabled, base_dir=base_dir)
         except Exception:
-            pass
+            logger.debug("backend/experience/memory.py:configure_project_persist best-effort step failed", exc_info=True)
 
     def configure_author_persist(
         self, *, enabled: bool = False, base_dir: Any = None
@@ -665,7 +667,7 @@ class ExperienceMemory:
         try:
             self.author.configure_persist(enabled=enabled, base_dir=base_dir)
         except Exception:
-            pass
+            logger.debug("backend/experience/memory.py:configure_author_persist best-effort step failed", exc_info=True)
 
     def bind_course(self, course_dir: Any | None) -> None:
         """Bind project bucket using C-15 course_key when possible."""

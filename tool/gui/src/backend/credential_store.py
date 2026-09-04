@@ -14,6 +14,8 @@ import urllib.parse
 from typing import Optional
 
 from PySide6.QtCore import QSettings
+import logging
+logger = logging.getLogger(__name__)
 
 _KEYRING_SERVICE = "turna.git"
 # Legacy keyring service from the pre-rebrand "Varnamala" days. We still
@@ -39,7 +41,7 @@ def _read_keyring_token(account: str) -> Optional[str]:
     except Exception:
         # If the new service refuses to write, return the legacy value
         # without persisting so callers at least see the token once.
-        pass
+        logger.debug("backend/credential_store.py:_read_keyring_token best-effort step failed", exc_info=True)
     return legacy
 
 
@@ -133,7 +135,7 @@ def delete_git_token(url: str) -> bool:
                     keyring.delete_password(_KEYRING_SERVICE_LEGACY, account)
                 except Exception:
                     # Old service may be unwritable; leave it intact.
-                    pass
+                    logger.debug("backend/credential_store.py:delete_git_token best-effort step failed", exc_info=True)
             return True
         except Exception:
             _warn_keyring_unavailable_once()

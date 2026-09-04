@@ -37,6 +37,8 @@ from dataclasses import dataclass
 from typing import Any, Mapping
 
 from src.backend.experience.actions import ActionSpec, APP_BUILTIN_PREFIX
+import logging
+logger = logging.getLogger(__name__)
 
 
 OBSERVER = "observer"
@@ -298,6 +300,27 @@ def resolve_policy(
     )
 
 
+def is_dangerous_skill_allowed(settings: Any | None = None) -> bool:
+    """Return True only when the dangerous-skill switch is on **and** not observer.
+
+    S-15: observer mode must have zero
+    dangerous side-effects, so this is the single guard every dispatch site
+    should read rather than the raw ``experience_allow_dangerous_skills`` flag.
+    Default off - dangerous skills ship locked.
+
+    C-07: derived from :func:`resolve_policy` so the trust-boundary decision
+    has one source of truth; this signature is kept for existing callers/tests.
+    """
+    if settings is None:
+        try:
+            from src.application.runtime_context import current_settings
+
+            settings = current_settings()
+        except Exception:
+            return False
+    return resolve_policy(settings).allow_dangerous
+
+
 def can_dispatch(spec: ActionSpec | None, policy: PolicyDecision) -> tuple[bool, str]:
     """Decide whether ``spec`` may dispatch under ``policy``.
 
@@ -331,7 +354,7 @@ def can_dispatch(spec: ActionSpec | None, policy: PolicyDecision) -> tuple[bool,
         if is_denied_immersive(action_id):
             return False, "该操作在 Immersive 禁区（不可自动执行）"
     except Exception:
-        pass
+        logger.debug("backend/experience/policy.py:can_dispatch best-effort step failed", exc_info=True)
     # E3-A: goal.* requires allow_goal (default off); still needs_confirm for run.
     # P3: full auto also unlocks goal path when allow_autonomous_write.
     if action_id.startswith("goal."):

@@ -40,6 +40,8 @@ from src.backend.lesson_content import (
     move_sub_lesson,
 )
 from src.backend.course_adapter import CourseAdapter
+import logging
+logger = logging.getLogger(__name__)
 
 
 class _Signals(QObject):
@@ -315,42 +317,6 @@ class RenameStageCommand(UpdateFieldCommand):
     def __init__(self, stage: dict[str, Any], new_name: str) -> None:
         super().__init__(stage, "name", new_name)
         self.setText("重命名教学步骤")
-
-
-class ReplaceItemCommand(QUndoCommand):
-    """Replace a single item in a stage while preserving its position."""
-
-    def __init__(
-        self,
-        stage: dict[str, Any],
-        item_id: str,
-        new_item: dict[str, Any],
-    ) -> None:
-        super().__init__("改写题目")
-        self.stage = stage
-        self.item_id = item_id
-        self.new_item = deepcopy(new_item)
-        self.old_item: dict[str, Any] | None = None
-        self.index = -1
-        self.signals = _make_changed()
-
-    def redo(self) -> None:
-        items = self.stage.get("items", [])
-        for i, it in enumerate(items):
-            if it.get("id") == self.item_id:
-                self.index = i
-                self.old_item = deepcopy(it)
-                items[i] = deepcopy(self.new_item)
-                break
-        self.signals.changed.emit()
-
-    def undo(self) -> None:
-        if self.old_item is None or self.index < 0:
-            return
-        items = self.stage.get("items", [])
-        if 0 <= self.index < len(items):
-            items[self.index] = deepcopy(self.old_item)
-        self.signals.changed.emit()
 
 
 # --- Tree-level structural commands ---------------------------------------
@@ -761,7 +727,7 @@ class DuplicateLessonCommand(QUndoCommand):
             try:
                 self.adapter.delete_lesson(self.new_lesson_id)
             except KeyError:
-                pass
+                logger.debug("application/commands.py:undo best-effort step failed", exc_info=True)
         self.signals.changed.emit()
 
 
@@ -802,7 +768,7 @@ class BulkDeleteLessonsCommand(QUndoCommand):
             try:
                 self.adapter.delete_lesson(lid)
             except KeyError:
-                pass
+                logger.debug("application/commands.py:redo best-effort step failed", exc_info=True)
         self.signals.changed.emit()
 
     def undo(self) -> None:
@@ -839,7 +805,7 @@ class BulkDuplicateLessonsCommand(QUndoCommand):
             try:
                 self.adapter.delete_lesson(nid)
             except KeyError:
-                pass
+                logger.debug("application/commands.py:undo best-effort step failed", exc_info=True)
         self.new_ids = []
         self.signals.changed.emit()
 
@@ -1047,7 +1013,7 @@ class ImportAiSectionCommand(_ResourceMergeMixin, QUndoCommand):
         try:
             self.adapter.delete_section(self.section_id)
         except KeyError:
-            pass
+            logger.debug("application/commands.py:undo best-effort step failed", exc_info=True)
         self._rollback_resources()
         self.signals.changed.emit()
 
@@ -1672,12 +1638,12 @@ class SoftHygieneCommand(QUndoCommand):
 
     def redo(self) -> None:
         from src.backend.experience.soft_autopilot import (
-            apply_soft_batch,
+            apply_soft_fixes,
             snapshot_resources,
         )
 
         self.snapshot = snapshot_resources(self.adapter)
-        apply_soft_batch(self.adapter, self.batch)
+        apply_soft_fixes(self.adapter, self.batch)
         self.signals.changed.emit()
 
     def undo(self) -> None:

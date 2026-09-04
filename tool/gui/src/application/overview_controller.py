@@ -6,6 +6,9 @@ Duck-types MainWindow. Keeps open / heat / locate / validation paths out of
 from __future__ import annotations
 
 from typing import Any, Mapping, Sequence
+import logging
+from src.application.experience_host import ExperienceHost
+logger = logging.getLogger(__name__)
 
 
 def lesson_error_counts_from_problems(
@@ -37,7 +40,7 @@ def lesson_error_counts_from_problems(
     return counts
 
 
-def open_overview(host: Any) -> None:
+def open_overview(host: ExperienceHost) -> None:
     """Open or raise the course structure overview window."""
     from src.infrastructure.telemetry import telemetry
     from src.widgets.course_overview import CourseOverviewWindow
@@ -59,7 +62,7 @@ def open_overview(host: Any) -> None:
     host._overview_window.activateWindow()
 
 
-def sync_overview_heat_errors(host: Any) -> None:
+def sync_overview_heat_errors(host: ExperienceHost) -> None:
     """O-01: push per-lesson validate error counts into the overview (if open)."""
     win = getattr(host, "_overview_window", None)
     if win is None:
@@ -79,30 +82,30 @@ def sync_overview_heat_errors(host: Any) -> None:
     try:
         win.set_lesson_error_counts(counts)
     except Exception:
-        pass
+        logger.debug("application/overview_controller.py:sync_overview_heat_errors best-effort step failed", exc_info=True)
 
 
-def on_overview_lesson_selected(host: Any, lesson_id: str) -> None:
+def on_overview_lesson_selected(host: ExperienceHost, lesson_id: str) -> None:
     """Locate a lesson clicked in the overview inside the main tree."""
     try:
         host.showNormal()
         host.raise_()
         host.activateWindow()
     except Exception:
-        pass
+        logger.debug("application/overview_controller.py:on_overview_lesson_selected best-effort step failed", exc_info=True)
     try:
         host.tree.select_lesson(lesson_id)
     except Exception:
-        pass
+        logger.debug("application/overview_controller.py:on_overview_lesson_selected best-effort step failed", exc_info=True)
 
 
-def on_overview_validation(host: Any, problems: list) -> None:
+def on_overview_validation(host: ExperienceHost, problems: list) -> None:
     """Open the existing validation report with problems from the overview."""
     try:
         host._show_validation_report(problems, title="课程结构总览 - 校验结果")
     except Exception:
-        pass
+        logger.debug("application/overview_controller.py:on_overview_validation best-effort step failed", exc_info=True)
 
 
-def on_overview_destroyed(host: Any, *_args: Any) -> None:
+def on_overview_destroyed(host: ExperienceHost, *_args: Any) -> None:
     host._overview_window = None

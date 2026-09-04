@@ -15,6 +15,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, Callable, Protocol
+import logging
+logger = logging.getLogger(__name__)
 
 
 # Known save entry reasons (documentation / telemetry). Unknown strings are OK.
@@ -91,7 +93,7 @@ def run_save_pipeline(
         try:
             on_triggered(request)
         except Exception:
-            pass
+            logger.debug("application/save_pipeline.py:run_save_pipeline best-effort step failed", exc_info=True)
 
     soft_n = 0
     soft_error: str | None = None
@@ -104,7 +106,7 @@ def run_save_pipeline(
                 try:
                     on_soft_error(exc)
                 except Exception:
-                    pass
+                    logger.debug("application/save_pipeline.py:run_save_pipeline best-effort step failed", exc_info=True)
 
     result = do_save()
     ok = bool(getattr(result, "ok", False))
@@ -136,12 +138,12 @@ def run_save_pipeline(
                     outcome.brief = str(brief).strip() or None
             except Exception:
                 # Brief failure must not change ok / blocked_reason.
-                pass
+                logger.debug("application/save_pipeline.py:run_save_pipeline best-effort step failed", exc_info=True)
         if build_success_message is not None:
             try:
                 outcome.message = build_success_message(outcome) or outcome.message
             except Exception:
-                pass
+                logger.debug("application/save_pipeline.py:run_save_pipeline best-effort step failed", exc_info=True)
         if after_success is not None:
             after_success(outcome)
     else:

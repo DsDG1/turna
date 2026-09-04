@@ -6,9 +6,10 @@ from typing import Any
 from PySide6.QtWidgets import QDialog
 
 from src.application.ui_guard import safe_information, safe_question, safe_warning
+from src.application.experience_host import ExperienceHost
 
 
-def handle_quality_campaign(host: Any, scope: dict) -> None:
+def handle_quality_campaign(host: ExperienceHost, scope: dict) -> None:
     """E2.0 K-16: worst-N / empty campaign queue dialog."""
     from src.dialogs.quality_campaign_dialog import (
         QualityCampaignDialog,
@@ -78,7 +79,7 @@ def handle_quality_campaign(host: Any, scope: dict) -> None:
         host.statusBar().showMessage(f"暂不支持战役处理 {kind}", 4000)
 
 
-def handle_soft_preview_hygiene(host: Any, scope: dict | None = None) -> None:
+def handle_soft_preview_hygiene(host: ExperienceHost, scope: dict | None = None) -> None:
     """v4.12 Skill: preview Soft rule fixes, confirm, apply via Undo.
 
     Zero LLM. Does **not** flip ``experience_soft_autopilot`` default.

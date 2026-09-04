@@ -6,9 +6,12 @@ Duck-types MainWindow. Keeps open / OCR / import / draft-append paths out of
 from __future__ import annotations
 
 from typing import Any
+import logging
+from src.application.experience_host import ExperienceHost
+logger = logging.getLogger(__name__)
 
 
-def open_workshop(host: Any) -> None:
+def open_workshop(host: ExperienceHost) -> None:
     """Open or raise the workshop window (beta warning + signal wiring)."""
     from src.dialogs.workshop_window import WorkshopWindow
     from src.infrastructure.telemetry import telemetry
@@ -39,10 +42,10 @@ def open_workshop(host: Any) -> None:
     try:
         host._refresh_experience(immediate=False, focus_only=True)
     except Exception:
-        pass
+        logger.debug("application/workshop_controller.py:open_workshop best-effort step failed", exc_info=True)
 
 
-def show_beta_warning_once(host: Any, key: str, title: str, message: str) -> None:
+def show_beta_warning_once(host: ExperienceHost, key: str, title: str, message: str) -> None:
     """One-shot beta warning; headless skips modal but marks shown."""
     from src.application.ui_guard import safe_information
 
@@ -54,15 +57,15 @@ def show_beta_warning_once(host: Any, key: str, title: str, message: str) -> Non
         settings.setValue(key, True)
 
 
-def on_workshop_attachments_changed(host: Any) -> None:
+def on_workshop_attachments_changed(host: ExperienceHost) -> None:
     try:
         host._sync_experience_attachments()
         host.experience.invalidate()
     except Exception:
-        pass
+        logger.debug("application/workshop_controller.py:on_workshop_attachments_changed best-effort step failed", exc_info=True)
 
 
-def sync_workshop_ocr_enabled(host: Any) -> None:
+def sync_workshop_ocr_enabled(host: ExperienceHost) -> None:
     try:
         from src.backend.experience.ocr_skill import is_ocr_enabled
 
@@ -74,11 +77,11 @@ def sync_workshop_ocr_enabled(host: Any) -> None:
         if exp is not None and hasattr(exp, "set_ocr_enabled"):
             exp.set_ocr_enabled(enabled)
     except Exception:
-        pass
+        logger.debug("application/workshop_controller.py:sync_workshop_ocr_enabled best-effort step failed", exc_info=True)
 
 
 def on_workshop_ocr_requested(
-    host: Any, temp_path: str, original_name: str, unlink_after: bool
+    host: ExperienceHost, temp_path: str, original_name: str, unlink_after: bool
 ) -> None:
     try:
         from pathlib import Path
@@ -95,17 +98,17 @@ def on_workshop_ocr_requested(
         try:
             host.statusBar().showMessage("OCR 触发失败", 5000)
         except Exception:
-            pass
+            logger.debug("application/workshop_controller.py:on_workshop_ocr_requested best-effort step failed", exc_info=True)
 
 
-def on_workshop_locate(host: Any, section_id: str) -> None:
+def on_workshop_locate(host: ExperienceHost, section_id: str) -> None:
     host.showNormal()
     host.raise_()
     host.activateWindow()
     host.tree.select_section(section_id)
 
 
-def on_textbook_sections(host: Any, sections: list, strategy: str) -> None:
+def on_textbook_sections(host: ExperienceHost, sections: list, strategy: str) -> None:
     from src.application.ui_guard import safe_information, safe_warning
 
     if not host.course_dir:
@@ -157,7 +160,7 @@ def on_textbook_sections(host: Any, sections: list, strategy: str) -> None:
         offer_open_teacher_after_import(host, host._last_imported_section_id)
 
 
-def offer_open_teacher_after_import(host: Any, section_id: str | None) -> None:
+def offer_open_teacher_after_import(host: ExperienceHost, section_id: str | None) -> None:
     from src.application.ui_guard import is_headless_ui, safe_question
 
     if not section_id:
@@ -188,7 +191,7 @@ def offer_open_teacher_after_import(host: Any, section_id: str | None) -> None:
                 return
 
 
-def import_draft_into_section(host: Any, draft: dict, section_id: str) -> None:
+def import_draft_into_section(host: ExperienceHost, draft: dict, section_id: str) -> None:
     from src.application.commands import AppendUnitsToSectionCommand
     from src.application.ui_guard import safe_information, safe_warning
     from src.backend.lesson_content import clone_unit_with_fresh_ids
@@ -222,7 +225,7 @@ def import_draft_into_section(host: Any, draft: dict, section_id: str) -> None:
     offer_open_teacher_after_import(host, section_id)
 
 
-def record_draft_import(host: Any, draft: dict, section_id: str | None) -> None:
+def record_draft_import(host: ExperienceHost, draft: dict, section_id: str | None) -> None:
     if not section_id:
         return
     project = (
@@ -242,7 +245,7 @@ def record_draft_import(host: Any, draft: dict, section_id: str | None) -> None:
     )
 
 
-def import_draft_into_unit(host: Any, draft: dict, unit_id: str) -> None:
+def import_draft_into_unit(host: ExperienceHost, draft: dict, unit_id: str) -> None:
     from src.application.commands import AppendLessonsToUnitCommand
     from src.application.ui_guard import safe_information, safe_warning
     from src.backend.lesson_content import clone_lesson_with_fresh_ids

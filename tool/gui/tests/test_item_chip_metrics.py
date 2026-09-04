@@ -120,7 +120,7 @@ class ChipMetricsTest(unittest.TestCase):
 
         adapter = SimpleNamespace(vocab=[], expressions=[], grammar_points=[])
         with patch(
-            "src.app.current_ai_config",
+            "src.application.runtime_context.current_ai_config",
             return_value=SimpleNamespace(is_complete=True),
         ), patch(
             "src.dialogs.ai.worker.AiRequestWorker", _FakeWorker
@@ -195,7 +195,7 @@ class ChipMetricsTest(unittest.TestCase):
         applied: list[str] = []
         adapter = SimpleNamespace(vocab=[], expressions=[], grammar_points=[])
         with patch(
-            "src.app.current_ai_config",
+            "src.application.runtime_context.current_ai_config",
             return_value=SimpleNamespace(is_complete=True),
         ), patch(
             "src.dialogs.ai.worker.AiRequestWorker", _FakeWorker
@@ -253,7 +253,7 @@ class LessonStyleChipTest(unittest.TestCase):
 
         adapter = SimpleNamespace(vocab=[], expressions=[], grammar_points=[])
         with patch(
-            "src.app.current_ai_config",
+            "src.application.runtime_context.current_ai_config",
             return_value=SimpleNamespace(is_complete=True),
         ), patch(
             "src.dialogs.ai.worker.AiRequestWorker", _FakeWorker

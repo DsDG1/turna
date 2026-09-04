@@ -14,6 +14,8 @@ Timeline 只记 action_id + ``truncate_reply``（≤80），不记截图/回复�
 from __future__ import annotations
 
 from typing import Any, Tuple
+import logging
+logger = logging.getLogger(__name__)
 
 ACTION_ID = "app.screenshot_explain"
 JOB_ID = "screenshot-explain"
@@ -110,7 +112,7 @@ def explain_current(win: Any) -> None:
         try:
             win._refresh_experience(immediate=False, focus_only=True)
         except Exception:  # noqa: BLE001
-            pass
+            logger.debug("application/screenshot_controller.py:explain_current best-effort step failed", exc_info=True)
 
     worker = win._make_ai_worker(run_screenshot_skill, config, png_bytes, None)
 
@@ -133,7 +135,7 @@ def explain_current(win: Any) -> None:
                 scope={},
             )
         except Exception:  # noqa: BLE001
-            pass
+            logger.debug("application/screenshot_controller.py:_on_ok best-effort step failed", exc_info=True)
         if metrics is not None:
             metrics.inc_suggestion(ACTION_ID, "applied")
         # Reuse K-24 read-only preview (offscreen guard inside).

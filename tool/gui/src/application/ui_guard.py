@@ -17,6 +17,8 @@ from contextvars import ContextVar
 from typing import Any, Iterator
 
 from src.backend.experience.auto_apply import AutoApplyToken
+import logging
+logger = logging.getLogger(__name__)
 
 # Immersive full-auto: skip human Yes/No and preview strip (still Undo in handlers).
 _auto_confirm: ContextVar[bool] = ContextVar("ui_guard_auto_confirm", default=False)
@@ -38,7 +40,7 @@ def is_auto_confirm() -> bool:
         if token is not None and token.still_valid():
             return True
     except Exception:
-        pass
+        logger.debug("application/ui_guard.py:is_auto_confirm best-effort step failed", exc_info=True)
     return False
 
 
@@ -51,7 +53,7 @@ def is_suppress_ui() -> bool:
         if token is not None and token.still_valid() and bool(token.opaque):
             return True
     except Exception:
-        pass
+        logger.debug("application/ui_guard.py:is_suppress_ui best-effort step failed", exc_info=True)
     return False
 
 
@@ -62,7 +64,7 @@ def current_auto_token() -> AutoApplyToken | None:
         if token is not None and token.still_valid():
             return token
     except Exception:
-        pass
+        logger.debug("application/ui_guard.py:current_auto_token best-effort step failed", exc_info=True)
     return None
 
 
@@ -78,7 +80,7 @@ def resolve_auto_apply_state(widget: Any = None) -> tuple[bool, bool, AutoApplyT
         if token is not None:
             return True, bool(token.opaque), token
     except Exception:
-        pass
+        logger.debug("application/ui_guard.py:resolve_auto_apply_state best-effort step failed", exc_info=True)
 
     host_token = _find_host_token(widget)
     if host_token is not None:
@@ -88,7 +90,7 @@ def resolve_auto_apply_state(widget: Any = None) -> tuple[bool, bool, AutoApplyT
         if bool(_auto_confirm.get()):
             return True, bool(_suppress_ui.get()), None
     except Exception:
-        pass
+        logger.debug("application/ui_guard.py:resolve_auto_apply_state best-effort step failed", exc_info=True)
     return False, False, None
 
 
@@ -135,7 +137,7 @@ def _find_host_token(widget: Any) -> AutoApplyToken | None:
             if tok is not None:
                 return tok
     except Exception:
-        pass
+        logger.debug("application/ui_guard.py:_find_host_token best-effort step failed", exc_info=True)
     return None
 
 
@@ -168,15 +170,15 @@ def auto_confirm_scope(
         try:
             _auto_confirm.reset(t1)
         except Exception:
-            pass
+            logger.debug("application/ui_guard.py:auto_confirm_scope best-effort step failed", exc_info=True)
         try:
             _suppress_ui.reset(t2)
         except Exception:
-            pass
+            logger.debug("application/ui_guard.py:auto_confirm_scope best-effort step failed", exc_info=True)
         try:
             _auto_token.reset(t3)
         except Exception:
-            pass
+            logger.debug("application/ui_guard.py:auto_confirm_scope best-effort step failed", exc_info=True)
 
 
 def is_headless_ui() -> bool:
@@ -205,7 +207,7 @@ def _status_fallback(parent: Any, text: str, ms: int = 6000) -> None:
             if bar is not None and hasattr(bar, "showMessage"):
                 bar.showMessage(str(text or "")[:240], ms)
     except Exception:
-        pass
+        logger.debug("application/ui_guard.py:_status_fallback best-effort step failed", exc_info=True)
 
 
 def safe_information(

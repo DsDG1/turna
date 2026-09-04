@@ -18,6 +18,8 @@ from typing import Any, Callable
 from src.backend import ai_stream, ai_usage
 from src.backend.ai.config import AiApiConfig, AiCancelled
 from src.backend.ai.parse import content_text
+import logging
+logger = logging.getLogger(__name__)
 
 
 def _urlopen(req: urllib.request.Request, timeout: float | None = None):
@@ -34,7 +36,7 @@ def _urlopen(req: urllib.request.Request, timeout: float | None = None):
         if u is not None:
             urlopen_fn = u.request.urlopen
     except ImportError:
-        pass
+        logger.debug("backend/ai/client.py:_urlopen best-effort step failed", exc_info=True)
     return urlopen_fn(req, timeout=timeout)  # noqa: S310
 
 

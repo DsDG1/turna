@@ -190,6 +190,7 @@ class SavePipelineHostIntegrationTest(unittest.TestCase):
         self.win.adapter.expressions = []
 
     def test_execute_save_close_auto_runs_soft(self) -> None:
+        from src.application.save_host import execute_save
         from src.application.save_pipeline import REASON_CLOSE_AUTO, SaveRequest
         from unittest.mock import MagicMock
 
@@ -203,7 +204,8 @@ class SavePipelineHostIntegrationTest(unittest.TestCase):
             return _FakeSaveResult(ok=True, message="保存成功")
 
         self.win.adapter.save = fake_save  # type: ignore[method-assign]
-        outcome = self.win._execute_save(
+        outcome = execute_save(
+            self.win,
             SaveRequest(
                 reason=REASON_CLOSE_AUTO,
                 run_soft=True,

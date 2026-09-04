@@ -26,6 +26,8 @@ from PySide6.QtWidgets import (
 )
 
 from src.infrastructure.operations_log import operations
+import logging
+logger = logging.getLogger(__name__)
 
 _MAX_TEXT = 200
 _MAX_TARGET = 80
@@ -44,13 +46,13 @@ def _window_name(widget: QWidget | None) -> str:
         if window is not None:
             return window.windowTitle() or window.objectName() or type(window).__name__
     except Exception:
-        pass
+        logger.debug("infrastructure/user_action_filter.py:_window_name best-effort step failed", exc_info=True)
     if widget is not None:
         try:
             top = widget.window()
             return top.windowTitle() or top.objectName() or type(top).__name__
         except Exception:
-            pass
+            logger.debug("infrastructure/user_action_filter.py:_window_name best-effort step failed", exc_info=True)
     return ""
 
 
@@ -67,7 +69,7 @@ def _target_name(obj: QObject) -> str:
         ):
             is_secret = True
     except Exception:
-        pass
+        logger.debug("infrastructure/user_action_filter.py:_target_name best-effort step failed", exc_info=True)
 
     getters = ("text", "windowTitle", "title") if not is_secret else ("windowTitle", "title")
     for getter in getters:
@@ -159,5 +161,5 @@ class UserActionFilter(QObject):
                         )
         except Exception:
             # Telemetry must never crash the application.
-            pass
+            logger.debug("infrastructure/user_action_filter.py:eventFilter best-effort step failed", exc_info=True)
         return False

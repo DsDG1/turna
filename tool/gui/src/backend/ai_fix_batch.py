@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from src.teacher.error_mapper import problem_to_node_ref
+from src.backend.error_mapper import problem_to_node_ref
 
 
 @dataclass

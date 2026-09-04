@@ -11,7 +11,6 @@ from src.backend.experience.actions import (
     DANGEROUS_ACTION_IDS,
     get_action,
     is_dangerous,
-    is_dangerous_skill_allowed,
 )
 from src.backend.experience.context_bus import (
     ExperienceContext,
@@ -76,6 +75,7 @@ from src.backend.experience.policy import (
     PRESENCE_LEVEL_BY_MODE,
     PolicyDecision,
     can_dispatch,
+    is_dangerous_skill_allowed,
     normalize_experience_mode,
     resolve_policy,
 )

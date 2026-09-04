@@ -11,6 +11,7 @@ from typing import Any, Optional
 from PySide6.QtCore import QObject, QTimer
 
 from src.backend.experience.policy import resolve_policy
+from src.application.experience_host import ExperienceHost
 
 logger = logging.getLogger("turna.ambient_heartbeat")
 
@@ -21,7 +22,7 @@ class AmbientHeartbeatService(QObject):
     # Align with MainWindow / presence_drive HEARTBEAT_IDLE_INTERVAL_MS.
     HEARTBEAT_INTERVAL_MS = 15_000
 
-    def __init__(self, host: Any, parent: Optional[QObject] = None) -> None:
+    def __init__(self, host: ExperienceHost, parent: Optional[QObject] = None) -> None:
         super().__init__(parent)
         self._host = host
         self._timer = QTimer(self)

@@ -10,9 +10,12 @@ Duck-types MainWindow. Preserves:
 from __future__ import annotations
 
 from typing import Any
+import logging
+from src.application.experience_host import ExperienceHost
+logger = logging.getLogger(__name__)
 
 
-def clear_ai_key_on_exit(host: Any) -> None:
+def clear_ai_key_on_exit(host: ExperienceHost) -> None:
     """Wipe the API key from memory and storage when the window closes."""
     try:
         if getattr(host, "_ai_config", None) is not None:
@@ -21,10 +24,10 @@ def clear_ai_key_on_exit(host: Any) -> None:
             host._settings_obj.ai_api_key = ""
             host._settings_obj.save_to_qsettings(host._settings)
     except Exception:
-        pass
+        logger.debug("application/close_controller.py:clear_ai_key_on_exit best-effort step failed", exc_info=True)
 
 
-def handle_close_event(host: Any, event: Any) -> None:
+def handle_close_event(host: ExperienceHost, event: Any) -> None:
     """Handle MainWindow closeEvent body (accept/ignore + teardown)."""
     from src.application.ui_guard import is_headless_ui, safe_warning
     from src.infrastructure.telemetry import telemetry
@@ -133,7 +136,7 @@ def handle_close_event(host: Any, event: Any) -> None:
     try:
         host._flush_experience_metrics("app_close")
     except Exception:
-        pass
+        logger.debug("application/close_controller.py:handle_close_event best-effort step failed", exc_info=True)
 
     try:
         ww = getattr(host, "_workshop_window", None)
@@ -156,4 +159,4 @@ def handle_close_event(host: Any, event: Any) -> None:
     try:
         host._record_window_duration()
     except Exception:
-        pass
+        logger.debug("application/close_controller.py:handle_close_event best-effort step failed", exc_info=True)

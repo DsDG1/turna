@@ -8,6 +8,8 @@ from src.application.experience_handlers.util import (
     _validate_course_problems,
 )
 from src.application.ui_guard import safe_information, safe_question, safe_warning
+import logging
+logger = logging.getLogger(__name__)
 
 def _experience_why_current(host) -> None:
     """O-06 / ⌘K /why: explain first error for current course (local).
@@ -113,7 +115,7 @@ def _experience_clear_author(host, scope: dict | None = None) -> None:
             try:
                 metrics.inc_suggestion("memory.clear_author", "rejected")
             except Exception:
-                pass
+                logger.debug("application/experience_handlers/memory_nav.py:_experience_clear_author best-effort step failed", exc_info=True)
         host.statusBar().showMessage("已取消清除画像", 3000)
         return
 
@@ -129,13 +131,13 @@ def _experience_clear_author(host, scope: dict | None = None) -> None:
         try:
             sync()
         except Exception:
-            pass
+            logger.debug("application/experience_handlers/memory_nav.py:_experience_clear_author best-effort step failed", exc_info=True)
     refresh = getattr(host, "_refresh_experience", None)
     if callable(refresh):
         try:
             refresh(immediate=True)
         except Exception:
-            pass
+            logger.debug("application/experience_handlers/memory_nav.py:_experience_clear_author best-effort step failed", exc_info=True)
 
     # Timeline closed-set — never style_hints text.
     record = getattr(host, "_record_experience_event", None)
@@ -148,13 +150,13 @@ def _experience_clear_author(host, scope: dict | None = None) -> None:
                 scope={"cleared": True, "layer": "author"},
             )
         except Exception:
-            pass
+            logger.debug("application/experience_handlers/memory_nav.py:_experience_clear_author best-effort step failed", exc_info=True)
     metrics = getattr(host, "experience_metrics", None)
     if metrics is not None:
         try:
             metrics.inc_suggestion("memory.clear_author", "applied")
         except Exception:
-            pass
+            logger.debug("application/experience_handlers/memory_nav.py:_experience_clear_author best-effort step failed", exc_info=True)
     host.statusBar().showMessage("已清除作者画像", 5000)
 
 handle_clear_author = _experience_clear_author
@@ -318,7 +320,7 @@ def _locate_item_in_course(
                 if st is not None and it is not None:
                     return st, it, str(lesson.get("id") or lesson_id)
             except Exception:
-                pass
+                logger.debug("application/experience_handlers/memory_nav.py:_locate_item_in_course best-effort step failed", exc_info=True)
         for sec in list(getattr(adapter, "sections", None) or []):
             if not isinstance(sec, dict):
                 continue
@@ -343,7 +345,7 @@ def _experience_item_similar(host, scope: dict | None = None) -> None:
         try:
             host.statusBar().showMessage("请先打开课程目录", 5000)
         except Exception:
-            pass
+            logger.debug("application/experience_handlers/memory_nav.py:_experience_item_similar best-effort step failed", exc_info=True)
         return
 
     item_id = str(scope.get("item_id") or scope.get("id") or "").strip()
@@ -356,7 +358,7 @@ def _experience_item_similar(host, scope: dict | None = None) -> None:
         try:
             host.statusBar().showMessage("请先在教师模式选中题目", 5000)
         except Exception:
-            pass
+            logger.debug("application/experience_handlers/memory_nav.py:_experience_item_similar best-effort step failed", exc_info=True)
         return
     if not lesson_id:
         ref = getattr(host, "_current_node_ref", None)
@@ -371,7 +373,7 @@ def _experience_item_similar(host, scope: dict | None = None) -> None:
         try:
             host.statusBar().showMessage(f"找不到题目 id={item_id}", 5000)
         except Exception:
-            pass
+            logger.debug("application/experience_handlers/memory_nav.py:_experience_item_similar best-effort step failed", exc_info=True)
         return
 
     from src.teacher.item_ai_chip import run_item_chip
@@ -391,7 +393,7 @@ def _experience_item_similar(host, scope: dict | None = None) -> None:
         try:
             host.statusBar().showMessage(f"相似题失败：{exc}", 5000)
         except Exception:
-            pass
+            logger.debug("application/experience_handlers/memory_nav.py:_experience_item_similar best-effort step failed", exc_info=True)
         return
 
     record = getattr(host, "_record_experience_event", None)
@@ -404,7 +406,7 @@ def _experience_item_similar(host, scope: dict | None = None) -> None:
                 scope={"item_id": item_id, "lesson_id": lesson_id or ""},
             )
         except Exception:
-            pass
+            logger.debug("application/experience_handlers/memory_nav.py:_experience_item_similar best-effort step failed", exc_info=True)
 
 
 handle_item_similar = _experience_item_similar

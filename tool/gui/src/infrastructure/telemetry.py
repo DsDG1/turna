@@ -23,6 +23,8 @@ if str(_GUI_DIR) not in sys.path:
     sys.path.insert(0, str(_GUI_DIR))
 
 from src.application.settings import app_data_dir
+import logging
+logger = logging.getLogger(__name__)
 
 _LOG_DIR = app_data_dir()
 _LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -59,7 +61,7 @@ class Telemetry:
             try:
                 handler.close()
             except Exception:
-                pass
+                logger.debug("infrastructure/telemetry.py:_setup_handler best-effort step failed", exc_info=True)
             self._logger.removeHandler(handler)
         handler = logging.handlers.TimedRotatingFileHandler(
             self._log_file,
@@ -78,7 +80,7 @@ class Telemetry:
             try:
                 handler.close()
             except Exception:
-                pass
+                logger.debug("infrastructure/telemetry.py:close best-effort step failed", exc_info=True)
             self._logger.removeHandler(handler)
 
     @staticmethod
@@ -112,7 +114,7 @@ class Telemetry:
                         file=sys.stderr,
                     )
                 except Exception:  # noqa: BLE001 — even stderr can fail in CI
-                    pass
+                    logger.debug("infrastructure/telemetry.py:_write best-effort step failed", exc_info=True)
 
     def start_session(self) -> None:
         """Record application/session start."""
@@ -293,7 +295,7 @@ class Telemetry:
                     if record_dt < since:
                         continue
                 except Exception:
-                    pass
+                    logger.debug("infrastructure/telemetry.py:usage_summary best-effort step failed", exc_info=True)
 
             is_today = False
             try:
@@ -302,7 +304,7 @@ class Telemetry:
                 ).date()
                 is_today = record_date == today
             except Exception:
-                pass
+                logger.debug("infrastructure/telemetry.py:usage_summary best-effort step failed", exc_info=True)
 
             model = payload.get("model", "")
             usage = payload.get("usage") or {}
@@ -351,7 +353,7 @@ class Telemetry:
         try:
             self._log_file.write_text("", encoding="utf-8")
         except Exception:
-            pass
+            logger.debug("infrastructure/telemetry.py:clear best-effort step failed", exc_info=True)
 
 
 # Module singleton for production use.

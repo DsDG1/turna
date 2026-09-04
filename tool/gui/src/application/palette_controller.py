@@ -16,6 +16,9 @@ never auto-dispatches, never writes the course tree.
 from __future__ import annotations
 
 from typing import Any, Mapping, MutableMapping, Sequence
+import logging
+from src.application.experience_host import ExperienceHost
+logger = logging.getLogger(__name__)
 
 # Confidence below this (and non-app write actions) requires S-04 confirm.
 LOW_CONFIDENCE_THRESHOLD = 0.8
@@ -81,7 +84,7 @@ def enrich_fill_empty_scope(
     return out
 
 
-def empty_lessons_from_host(host: Any) -> list[str]:
+def empty_lessons_from_host(host: ExperienceHost) -> list[str]:
     """Best-effort empty lesson ids from Experience context."""
     try:
         exp = getattr(host, "experience", None)
@@ -94,7 +97,7 @@ def empty_lessons_from_host(host: Any) -> list[str]:
         return []
 
 
-def open_command_palette(host: Any) -> Any:
+def open_command_palette(host: ExperienceHost) -> Any:
     """Create, wire, and show the ⌘K palette on ``host``.
 
     Returns the dialog instance (for tests). Does not call LLM.
@@ -123,7 +126,7 @@ def open_command_palette(host: Any) -> Any:
         try:
             dlg.set_async_candidate_hook(hook)
         except Exception:
-            pass
+            logger.debug("application/palette_controller.py:open_command_palette best-effort step failed", exc_info=True)
     # M-04: mic visible only when experience/voice_palette is on.
     try:
         from src.backend.experience.voice_skill import is_voice_palette_enabled
@@ -137,12 +140,12 @@ def open_command_palette(host: Any) -> Any:
     try:
         host._active_command_palette = dlg  # type: ignore[attr-defined]
     except Exception:
-        pass
+        logger.debug("application/palette_controller.py:open_command_palette best-effort step failed", exc_info=True)
     dlg.show_and_focus()
     return dlg
 
 
-def transcribe_to_palette(host: Any, palette: Any | None = None) -> None:
+def transcribe_to_palette(host: ExperienceHost, palette: Any | None = None) -> None:
     """M-04: local mic transcription → fill palette input (no auto-dispatch).
 
     ``host`` duck-types MainWindow: ``_settings_obj``, ``job_tray``,
@@ -163,7 +166,7 @@ def transcribe_to_palette(host: Any, palette: Any | None = None) -> None:
         try:
             host.statusBar().showMessage(msg, ms)
         except Exception:
-            pass
+            logger.debug("application/palette_controller.py:_status best-effort step failed", exc_info=True)
 
     if not is_voice_palette_enabled(getattr(host, "_settings_obj", None)):
         _status(status_message("disabled"))
@@ -192,17 +195,17 @@ def transcribe_to_palette(host: Any, palette: Any | None = None) -> None:
         try:
             tray.start(VOICE_JOB_ID, f"{VOICE_JOB_LABEL}…", kind="local")
         except Exception:
-            pass
+            logger.debug("application/palette_controller.py:transcribe_to_palette best-effort step failed", exc_info=True)
     if metrics is not None:
         try:
             metrics.inc_job("local", "started")
         except Exception:
-            pass
+            logger.debug("application/palette_controller.py:transcribe_to_palette best-effort step failed", exc_info=True)
     if dlg is not None and hasattr(dlg, "set_voice_busy"):
         try:
             dlg.set_voice_busy(True)
         except Exception:
-            pass
+            logger.debug("application/palette_controller.py:transcribe_to_palette best-effort step failed", exc_info=True)
 
     # Lang hint from course if present; Sphinx is English-centric by default.
     lang = "en-US"
@@ -216,14 +219,14 @@ def transcribe_to_palette(host: Any, palette: Any | None = None) -> None:
             # Keep en-US for Sphinx; user can edit free-form after fill.
             lang = "en-US"
     except Exception:
-        pass
+        logger.debug("application/palette_controller.py:transcribe_to_palette best-effort step failed", exc_info=True)
 
     def _finish(text: str, status: str) -> None:
         if tray is not None:
             try:
                 tray.finish(VOICE_JOB_ID)
             except Exception:
-                pass
+                logger.debug("application/palette_controller.py:_finish best-effort step failed", exc_info=True)
         if metrics is not None:
             try:
                 if status in ("ok", "too_long"):
@@ -231,12 +234,12 @@ def transcribe_to_palette(host: Any, palette: Any | None = None) -> None:
                 else:
                     metrics.inc_job("local", "failed")
             except Exception:
-                pass
+                logger.debug("application/palette_controller.py:_finish best-effort step failed", exc_info=True)
         if dlg is not None and hasattr(dlg, "set_voice_busy"):
             try:
                 dlg.set_voice_busy(False)
             except Exception:
-                pass
+                logger.debug("application/palette_controller.py:_finish best-effort step failed", exc_info=True)
         # §14.5.3: closed-set only — never transcript text.
         scope = build_voice_metrics(status, ok=status in ("ok", "too_long"))
         record = getattr(host, "_record_experience_event", None)
@@ -249,14 +252,14 @@ def transcribe_to_palette(host: Any, palette: Any | None = None) -> None:
                     scope=scope,
                 )
             except Exception:
-                pass
+                logger.debug("application/palette_controller.py:_finish best-effort step failed", exc_info=True)
         if status in ("ok", "too_long") and text:
             target = dlg if dlg is not None else getattr(host, "_active_command_palette", None)
             if target is not None and hasattr(target, "set_input_text"):
                 try:
                     target.set_input_text(text)
                 except Exception:
-                    pass
+                    logger.debug("application/palette_controller.py:_finish best-effort step failed", exc_info=True)
             _status(status_message(status))
         else:
             _status(status_message(status))
@@ -280,7 +283,7 @@ def transcribe_to_palette(host: Any, palette: Any | None = None) -> None:
         try:
             host._experience_worker = worker
         except Exception:
-            pass
+            logger.debug("application/palette_controller.py:transcribe_to_palette best-effort step failed", exc_info=True)
         return
 
     # Sync fallback (tests without worker factory).
@@ -288,7 +291,7 @@ def transcribe_to_palette(host: Any, palette: Any | None = None) -> None:
     _finish(text, status)
 
 
-def dispatch_palette_payload(host: Any, payload: Mapping[str, Any] | None) -> None:
+def dispatch_palette_payload(host: ExperienceHost, payload: Mapping[str, Any] | None) -> None:
     """Route one palette (or help.fix) payload through gates then skills."""
     payload = dict(payload or {})
     action = str(payload.get("action_id") or "")
@@ -300,7 +303,7 @@ def dispatch_palette_payload(host: Any, payload: Mapping[str, Any] | None) -> No
 
         telemetry.record_event("experience.palette", payload={"action_id": action})
     except Exception:
-        pass
+        logger.debug("application/palette_controller.py:dispatch_palette_payload best-effort step failed", exc_info=True)
 
     confidence = float(payload.get("confidence") or 1.0)
     scope = dict(payload.get("scope") or {})
@@ -354,14 +357,14 @@ def dispatch_palette_payload(host: Any, payload: Mapping[str, Any] | None) -> No
                 scope=scope,
             )
         except Exception:
-            pass
+            logger.debug("application/palette_controller.py:dispatch_palette_payload best-effort step failed", exc_info=True)
 
     suggest = getattr(host, "_on_experience_suggestion", None)
     if callable(suggest):
         suggest({"action_id": action, "scope": scope})
 
 
-def show_help_tour(host: Any) -> None:
+def show_help_tour(host: ExperienceHost) -> None:
     """K-25: clickable slash tour — each row dispatches like ⌘K exact slash.
 
     Skips ``app.help`` to avoid recursion. Parent is ``host`` when it is a
@@ -447,7 +450,7 @@ def _is_qwidget(obj: Any) -> bool:
         return False
 
 
-def run_palette_llm_classify(host: Any) -> None:
+def run_palette_llm_classify(host: ExperienceHost) -> None:
     """C-06: fire AiRequestWorker for pending palette query (S-10 / v4.46)."""
     from src.backend.experience.intent_llm import (
         classify_intent_sync,
@@ -477,7 +480,7 @@ def run_palette_llm_classify(host: Any) -> None:
         try:
             prev.cancel()
         except Exception:
-            pass
+            logger.debug("application/palette_controller.py:run_palette_llm_classify best-effort step failed", exc_info=True)
 
     def _target(cancel_check=None):
         return classify_intent_sync(
@@ -506,11 +509,11 @@ def run_palette_llm_classify(host: Any) -> None:
             payload={"phase": "start", "q_len": len(query)},
         )
     except Exception:
-        pass
+        logger.debug("application/palette_controller.py:run_palette_llm_classify best-effort step failed", exc_info=True)
     worker.start()
 
 
-def apply_palette_llm_result(host: Any, query: str, intent: Any) -> None:
+def apply_palette_llm_result(host: ExperienceHost, query: str, intent: Any) -> None:
     """C-06: push LLM Intent into the open palette if still matching."""
     pal = getattr(host, "_active_command_palette", None)
     if pal is None:
@@ -534,7 +537,7 @@ def apply_palette_llm_result(host: Any, query: str, intent: Any) -> None:
         try:
             pal.apply_async_candidates(query, [])
         except Exception:
-            pass
+            logger.debug("application/palette_controller.py:apply_palette_llm_result best-effort step failed", exc_info=True)
     try:
         from src.infrastructure.telemetry import telemetry
 
@@ -548,4 +551,4 @@ def apply_palette_llm_result(host: Any, query: str, intent: Any) -> None:
             },
         )
     except Exception:
-        pass
+        logger.debug("application/palette_controller.py:apply_palette_llm_result best-effort step failed", exc_info=True)

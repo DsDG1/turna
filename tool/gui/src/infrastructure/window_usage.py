@@ -17,6 +17,8 @@ import time
 from PySide6.QtGui import QCloseEvent, QShowEvent
 
 from src.infrastructure.operations_log import operations
+import logging
+logger = logging.getLogger(__name__)
 
 
 class WindowUsageMixin:
@@ -35,7 +37,7 @@ class WindowUsageMixin:
         try:
             operations.record_action("window.open", self._window_name())
         except Exception:
-            pass
+            logger.debug("infrastructure/window_usage.py:showEvent best-effort step failed", exc_info=True)
         super().showEvent(event)  # type: ignore[misc]
 
     def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802
@@ -49,5 +51,5 @@ class WindowUsageMixin:
             )
             operations.record_action("window.close", self._window_name())
         except Exception:
-            pass
+            logger.debug("infrastructure/window_usage.py:closeEvent best-effort step failed", exc_info=True)
         super().closeEvent(event)  # type: ignore[misc]

@@ -11,7 +11,9 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.app import _validate_course_problems  # noqa: E402
+from src.application.experience_skills_mixin import (  # noqa: E402
+    _validate_course_problems,
+)
 from src.backend.experience.context_bus import (  # noqa: E402
     build_experience_context,
 )

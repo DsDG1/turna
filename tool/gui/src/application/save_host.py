@@ -6,9 +6,12 @@ Duck-types MainWindow. Soft / SavePipeline / yellow hints / brief stay here so
 from __future__ import annotations
 
 from typing import Any
+import logging
+from src.application.experience_host import ExperienceHost
+logger = logging.getLogger(__name__)
 
 
-def want_save_brief(host: Any) -> bool:
+def want_save_brief(host: ExperienceHost) -> bool:
     """O-10: optional post-save brief when setting is on (default off)."""
     try:
         return bool(
@@ -18,7 +21,7 @@ def want_save_brief(host: Any) -> bool:
         return False
 
 
-def apply_soft_before_save(host: Any) -> int:
+def apply_soft_before_save(host: ExperienceHost) -> int:
     """E2.1+ Soft Autopilot: apply whitelist hygiene via Undo when enabled.
 
     Returns number of fixes applied (0 when off / nothing to do).
@@ -48,11 +51,11 @@ def apply_soft_before_save(host: Any) -> int:
             scope={"count": len(batch)},
         )
     except Exception:
-        pass
+        logger.warning("application/save_host.py:apply_soft_before_save best-effort step failed", exc_info=True)
     return len(batch)
 
 
-def after_save_quality_hints(host: Any) -> str:
+def after_save_quality_hints(host: ExperienceHost) -> str:
     """S-12: after successful save, surface yellow quality proposals.
 
     Returns a status-bar message when yellow hints exist, else \"\".
@@ -69,7 +72,7 @@ def after_save_quality_hints(host: Any) -> str:
         try:
             host._refresh_ambient()
         except Exception:
-            pass
+            logger.warning("application/save_host.py:after_save_quality_hints best-effort step failed", exc_info=True)
         try:
             host._record_experience_event(
                 "save.yellow_hints",
@@ -82,13 +85,13 @@ def after_save_quality_hints(host: Any) -> str:
                 },
             )
         except Exception:
-            pass
+            logger.warning("application/save_host.py:after_save_quality_hints best-effort step failed", exc_info=True)
         return str(summary.get("message") or "")
     except Exception:
         return ""
 
 
-def on_save(host: Any, *, reason: str = "menu") -> bool:
+def on_save(host: ExperienceHost, *, reason: str = "menu") -> bool:
     """Toolbar / shortcut / palette save entry (E5-A → SavePipeline)."""
     from src.application.save_pipeline import REASON_PALETTE, SaveRequest
 
@@ -107,7 +110,7 @@ def on_save(host: Any, *, reason: str = "menu") -> bool:
     return bool(outcome.ok)
 
 
-def execute_save(host: Any, request: Any) -> Any:
+def execute_save(host: ExperienceHost, request: Any) -> Any:
     """E5-A: single save orchestration for menu / palette / close paths.
 
     Never calls close/quit. Soft failures never block a valid save.
@@ -136,28 +139,28 @@ def execute_save(host: Any, request: Any) -> Any:
         try:
             host.statusBar().showMessage(f"Soft Autopilot 跳过：{exc}", 4000)
         except Exception:
-            pass
+            logger.warning("application/save_host.py:_on_soft_error best-effort step failed", exc_info=True)
 
     def _after_success(outcome: SaveOutcome) -> None:
         try:
             host.tree.refresh()
         except Exception:
-            pass
+            logger.warning("application/save_host.py:_after_success best-effort step failed", exc_info=True)
         try:
             host._sync_focus_ring()
         except Exception:
-            pass
+            logger.warning("application/save_host.py:_after_success best-effort step failed", exc_info=True)
         try:
             host.undo_stack.setClean()
         except Exception:
-            pass
+            logger.warning("application/save_host.py:_after_success best-effort step failed", exc_info=True)
         if outcome.reason in CLOSE_REASONS:
             return
         try:
             host.experience.set_validate_problems(None)
             host._refresh_experience(immediate=True)
         except Exception:
-            pass
+            logger.warning("application/save_host.py:_after_success best-effort step failed", exc_info=True)
         yellow_msg = ""
         try:
             yellow_msg = after_save_quality_hints(host) or ""
@@ -176,36 +179,36 @@ def execute_save(host: Any, request: Any) -> Any:
         try:
             host.statusBar().showMessage(msg, 6000)
         except Exception:
-            pass
+            logger.warning("application/save_host.py:_after_success best-effort step failed", exc_info=True)
 
     def _after_failure(outcome: SaveOutcome) -> None:
         try:
             host.tree.refresh()
         except Exception:
-            pass
+            logger.warning("application/save_host.py:_after_failure best-effort step failed", exc_info=True)
         try:
             host._sync_focus_ring()
         except Exception:
-            pass
+            logger.warning("application/save_host.py:_after_failure best-effort step failed", exc_info=True)
         try:
             host.statusBar().showMessage(
                 outcome.message or "保存失败（已回滚）", 8000
             )
         except Exception:
-            pass
+            logger.warning("application/save_host.py:_after_failure best-effort step failed", exc_info=True)
         if outcome.errors:
             try:
                 host.experience.set_validate_problems(outcome.errors)
                 host._refresh_experience(immediate=True)
             except Exception:
-                pass
+                logger.warning("application/save_host.py:_after_failure best-effort step failed", exc_info=True)
             if request.show_validation_ui:
                 try:
                     host._show_validation_report(
                         outcome.errors, title="校验失败（已回滚）"
                     )
                 except Exception:
-                    pass
+                    logger.warning("application/save_host.py:_after_failure best-effort step failed", exc_info=True)
 
     def _build_brief(outcome: SaveOutcome) -> str | None:
         try:

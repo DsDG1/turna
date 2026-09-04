@@ -14,7 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from src.teacher.error_mapper import humanize_problem
+from src.backend.error_mapper import humanize_problem
 
 
 @dataclass(frozen=True)

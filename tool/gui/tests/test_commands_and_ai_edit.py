@@ -228,7 +228,8 @@ class TreeCommandsUndoTest(unittest.TestCase):
         cmd = MoveLessonCommand(self.adapter, unit["id"], 0, 1)
         self.stack.push(cmd)
         moved = [l["id"] for l in unit["lessons"]]
-        self.assertEqual(moved, [ids[1], ids[0]])
+        # Fixture seeds >2 lessons; a 0→1 move swaps only the first two.
+        self.assertEqual(moved, [ids[1], ids[0]] + ids[2:])
         self.stack.undo()
         self.assertEqual([l["id"] for l in unit["lessons"]], ids)
 

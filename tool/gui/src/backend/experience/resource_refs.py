@@ -17,6 +17,8 @@ from __future__ import annotations
 
 from copy import deepcopy
 from typing import Any, Iterator
+import logging
+logger = logging.getLogger(__name__)
 
 # Reference key whitelist (wide scope, mirrors tool/course_cli.py lint).
 _SCALAR_REF_FIELDS: dict[str, tuple[str, ...]] = {
@@ -145,7 +147,7 @@ def find_resource_refs(
                             }
                         )
             except Exception:
-                pass
+                logger.debug("backend/experience/resource_refs.py:find_resource_refs best-effort step failed", exc_info=True)
         return {"count": len(refs), "refs": refs}
     except Exception:
         return empty
@@ -265,7 +267,7 @@ def build_replacement_steps(
                     )
                     steps.append(("field", gp, patch))
             except Exception:
-                pass
+                logger.debug("backend/experience/resource_refs.py:build_replacement_steps best-effort step failed", exc_info=True)
         return steps
     except Exception:
         return []

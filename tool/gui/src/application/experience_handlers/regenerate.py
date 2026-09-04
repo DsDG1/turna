@@ -1,13 +1,17 @@
 """Regenerate / balance / spiral / reading skill implementations (M7)."""
 from __future__ import annotations
 
-from typing import Any
+from dataclasses import dataclass
+from typing import Any, Callable
 
 from PySide6.QtWidgets import QDialog, QMessageBox
 
 from src.application.commands import MergeAiSectionCommand
 from src.application.ui_guard import safe_information, safe_question, safe_warning
 from src.infrastructure.telemetry import telemetry
+import logging
+from src.application.experience_host import ExperienceHost
+logger = logging.getLogger(__name__)
 
 def _experience_regenerate(host, scope: dict) -> None:
     """v4.15 K-05: regenerate the selected lesson/unit in place (保 id splice).
@@ -418,7 +422,7 @@ handle_run_regen_flow = _run_regen_flow
 
 
 def apply_regen_result(
-    host: Any,
+    host: ExperienceHost,
     old_section: dict,
     new_section: dict,
     *,
@@ -477,7 +481,7 @@ def apply_regen_result(
             try:
                 cmd.signals.changed.connect(host._on_ai_edit_applied)
             except Exception:
-                pass
+                logger.debug("application/experience_handlers/regenerate.py:apply_regen_result best-effort step failed", exc_info=True)
         host.undo_stack.push(cmd)
         host.experience_metrics.inc_suggestion(action_id, "applied")
         host._record_experience_event(
@@ -497,7 +501,7 @@ def apply_regen_result(
 BATCH_REGEN_CAP = 5
 
 
-def _batch_regen_lesson_ids(host: Any, scope: dict | None) -> list[str]:
+def _batch_regen_lesson_ids(host: ExperienceHost, scope: dict | None) -> list[str]:
     """Resolve ordered unique lesson ids from scope or multi_selection."""
     ids: list[str] = []
     seen: set[str] = set()
@@ -535,170 +539,274 @@ def _batch_regen_lesson_ids(host: Any, scope: dict | None) -> list[str]:
     return ids[:BATCH_REGEN_CAP]
 
 
-def _experience_batch_regenerate(host: Any, scope: dict) -> None:
-    """T-04 AI / v4.57: sequential multi-lesson regenerate → one Batch Undo."""
+@dataclass(frozen=True)
+class _BatchRegenSpec:
+    """Per-kind configuration for the shared batch-regeneration flow."""
+
+    action_id: str                     # suggestion / metric id
+    title: str                         # 批量重生成 / 批量重生成单元
+    noun: str                          # 课 / 单元
+    unit_word: str                     # counting phrase suffix: "3 课" / "3 个单元"
+    cap: int
+    job_id: str
+    node_prefix: str                   # lesson / unit (job tray node_key)
+    select_hint: str                   # empty multi-selection hint
+    resolve_ids: Callable[[ExperienceHost, dict | None], list[str]]
+    find: Callable[[Any, str], tuple[dict, str]]          # -> (section, display name)
+    regen: Callable[..., dict]                            # (config, spec, draft, id)
+    extract: Callable[[dict, dict, str], list]            # -> lesson patches
+    apply_question: Callable[[int, int], str]             # (n_patches, n_items)
+    cmd_texts: Callable[[int, int], tuple[str, str]]      # -> (batch label, undo text)
+    applied_msg: Callable[[int, int], str]
+    event_scope: Callable[[int, int], dict]
+    after_msg: Callable[[int, int], str]
+
+
+def _find_lesson_target(adapter: Any, lid: str) -> tuple[dict, str]:
+    section, _unit, lesson = adapter.find_lesson(lid)
+    return section, (lesson.get("name") or lid)
+
+
+def _find_unit_target(adapter: Any, uid: str) -> tuple[dict, str]:
+    section, unit = adapter.find_unit(uid)
+    return section, (unit.get("name") or uid)
+
+
+def _regen_lesson_target(config: Any, ai_spec: Any, draft: dict, lid: str) -> dict:
+    from src.backend.ai_generator import regenerate_lesson_in_section
+
+    return regenerate_lesson_in_section(config, ai_spec, draft, lid, instruction=None)
+
+
+def _regen_unit_target(config: Any, ai_spec: Any, draft: dict, uid: str) -> dict:
+    from src.backend.ai_generator import regenerate_unit_in_section
+
+    return regenerate_unit_in_section(config, ai_spec, draft, uid, instruction=None)
+
+
+def _extract_lesson_patches(old_sec: dict, new_sec: dict, lid: str) -> list:
+    from src.backend.experience.patch import lesson_patches_from_section_diff
+
+    # Each AI result is a full section with one lesson rewritten;
+    # extract only that lesson against the pre-batch snapshot.
+    return lesson_patches_from_section_diff(old_sec, new_sec, only_lesson_ids={lid})
+
+
+def _extract_unit_patches(old_sec: dict, new_sec: dict, uid: str) -> list:
+    from src.backend.experience.patch import lesson_patches_from_section_diff
+
+    only = _lesson_ids_in_unit(old_sec, uid) or _lesson_ids_in_unit(new_sec, uid)
+    patches = lesson_patches_from_section_diff(
+        old_sec, new_sec, only_lesson_ids=only or None
+    )
+    if not patches:
+        patches = lesson_patches_from_section_diff(old_sec, new_sec)
+    return patches
+
+
+def _lesson_batch_spec() -> _BatchRegenSpec:
+    return _BatchRegenSpec(
+        action_id="lesson.batch_regenerate",
+        title="批量重生成",
+        noun="课",
+        unit_word="课",
+        cap=BATCH_REGEN_CAP,
+        job_id="batch-regen",
+        node_prefix="lesson",
+        select_hint="请先多选课时，或用 ⌘K /batch-regen 时已有选中",
+        resolve_ids=_batch_regen_lesson_ids,
+        find=_find_lesson_target,
+        regen=_regen_lesson_target,
+        extract=_extract_lesson_patches,
+        apply_question=lambda n, _n_items: (
+            f"将应用 {n} 课变更（一个 Undo）。是否继续？"
+        ),
+        cmd_texts=lambda n, _n_items: (f"批量重生成 {n} 课", f"批量重生成 {n} 课"),
+        applied_msg=lambda n, _n_items: f"批量重生成已应用 {n} 课",
+        event_scope=lambda n, _n_items: {"count": n},
+        after_msg=lambda n, _n_items: f"批量重生成已应用 {n} 课，记得保存",
+    )
+
+
+def _unit_batch_spec() -> _BatchRegenSpec:
+    return _BatchRegenSpec(
+        action_id="unit.batch_regenerate",
+        title="批量重生成单元",
+        noun="单元",
+        unit_word="个单元",
+        cap=UNIT_BATCH_REGEN_CAP,
+        job_id="unit-batch-regen",
+        node_prefix="unit",
+        select_hint="请先多选单元，或用 ⌘K /unit-batch-regen 时已有选中",
+        resolve_ids=_batch_regen_unit_ids,
+        find=_find_unit_target,
+        regen=_regen_unit_target,
+        extract=_extract_unit_patches,
+        apply_question=lambda n, n_items: (
+            f"将应用 {n_items} 单元共 {n} 课变更（一个 Undo）。是否继续？"
+        ),
+        cmd_texts=lambda n, n_items: (
+            f"批量重生成 {n_items} 单元",
+            f"批量重生成 {n_items} 单元（{n} 课）",
+        ),
+        applied_msg=lambda n, n_items: f"批量重生成单元已应用 {n_items} 单元/{n} 课",
+        event_scope=lambda n, n_items: {"count": n, "units": n_items},
+        after_msg=lambda n, n_items: f"批量重生成单元已应用 {n_items} 单元，记得保存",
+    )
+
+
+def _run_batch_regen_flow(
+    host: ExperienceHost, scope: dict, spec: _BatchRegenSpec
+) -> None:
+    """Shared sequential batch regeneration: guard → confirm → AI chain → patch.
+
+    Lessons (T-04 / v4.57) and units (v4.59) run the identical skeleton; all
+    per-kind behaviour lives in *spec*. Results are collected per item, then
+    applied as one ApplyBatchPatchCommand (single Undo) after a preview
+    question.
+    """
     import copy
 
     if not host.course_dir:
         safe_warning(host, "未加载课程目录", "请先打开课程目录。")
         return
-    lesson_ids = _batch_regen_lesson_ids(host, scope)
-    if len(lesson_ids) < 1:
-        host.statusBar().showMessage(
-            "请先多选课时，或用 ⌘K /batch-regen 时已有选中", 5000
-        )
+    ids = spec.resolve_ids(host, scope)
+    if len(ids) < 1:
+        host.statusBar().showMessage(spec.select_hint, 5000)
         return
     if host.job_tray.is_busy_ai():
-        safe_information(host, "批量重生成", "当前有 AI 任务进行中，请稍候。")
+        safe_information(host, spec.title, "当前有 AI 任务进行中，请稍候。")
         return
     deny = getattr(host, "_deny_ai_write_if_blocked", None)
-    if callable(deny) and deny(label="批量重生成"):
+    if callable(deny) and deny(label=spec.title):
         return
 
-    # Resolve (lesson_id, section_id, section_dict) triples.
+    # Resolve (item_id, section_id, section_dict) triples.
     targets: list[tuple[str, str, dict]] = []
-    for lid in lesson_ids:
+    for iid in ids:
         try:
-            section, _unit, lesson = host.adapter.find_lesson(lid)
-            targets.append(
-                (lid, str(section.get("id") or ""), section)
-            )
+            section, _name = spec.find(host.adapter, iid)
+            targets.append((iid, str(section.get("id") or ""), section))
         except KeyError:
             continue
     if not targets:
-        safe_warning(host, "批量重生成", "选中的课时无法在课程中定位。")
+        safe_warning(host, spec.title, f"选中的{spec.noun}无法在课程中定位。")
         return
 
     names = []
-    for lid, _sid, _sec in targets[:12]:
+    for iid, _sid, _sec in targets[:12]:
         try:
-            _s, _u, les = host.adapter.find_lesson(lid)
-            names.append(f"· {les.get('name') or lid}（{lid}）")
+            _s, display = spec.find(host.adapter, iid)
+            names.append(f"· {display}（{iid}）")
         except Exception:
-            names.append(f"· {lid}")
-    more = "" if len(targets) <= 12 else f"\n…共 {len(targets)} 课"
+            names.append(f"· {iid}")
+    more = "" if len(targets) <= 12 else f"\n…共 {len(targets)} {spec.noun}"
     if not safe_question(
         host,
-        "批量重生成",
-        f"将顺序 AI 重生成 {len(targets)} 课（上限 {BATCH_REGEN_CAP}），"
+        spec.title,
+        f"将顺序 AI 重生成 {len(targets)} {spec.unit_word}（上限 {spec.cap}），"
         f"确认后预览再一批应用（可 Undo）：\n"
         + "\n".join(names)
         + more
-        + "\n\n失败的课会跳过，不中止整批。",
+        + f"\n\n失败的{spec.noun}会跳过，不中止整批。",
         default_yes=False,
     ):
-        host.experience_metrics.inc_suggestion("lesson.batch_regenerate", "rejected")
+        host.experience_metrics.inc_suggestion(spec.action_id, "rejected")
         return
 
-    from src.backend.ai_generator import AiCourseSpec, regenerate_lesson_in_section
+    from src.backend.ai_generator import AiCourseSpec
     from src.dialogs.ai.worker import AiRequestWorker
 
     config = host._ai_config
-    spec = AiCourseSpec()
+    ai_spec = AiCourseSpec()
     # Per-section original snapshot for patch extraction.
     section_snaps: dict[str, dict] = {}
-    for _lid, sid, section in targets:
+    for _iid, sid, section in targets:
         if sid not in section_snaps:
             section_snaps[sid] = copy.deepcopy(section)
 
-    results: list[tuple[str, str, dict]] = []  # (lesson_id, section_id, new_section)
+    results: list[tuple[str, str, dict]] = []  # (item_id, section_id, new_section)
     chain = list(targets)
-    job_id = "batch-regen"
+    job_id = spec.job_id
 
     def _finish_batch() -> None:
         host.job_tray.finish_job(job_id)
         host.experience_metrics.inc_job("ai", "finished")
         if not results:
-            safe_warning(host, "批量重生成", "没有成功生成任何课。")
+            safe_warning(host, spec.title, f"没有成功生成任何{spec.noun}。")
             return
-        # Build LessonPatches across all sections.
-        from src.backend.experience.patch import (
-            batch_patch,
-            lesson_patches_from_section_diff,
-        )
+        from src.backend.experience.patch import batch_patch
         from src.application.commands import ApplyBatchPatchCommand
 
         all_patches = []
-        for lid, sid, new_sec in results:
+        for iid, sid, new_sec in results:
             old_sec = section_snaps.get(sid) or {}
-            # Each AI result is a full section with one lesson rewritten;
-            # extract only that lesson against the pre-batch snapshot.
-            all_patches.extend(
-                lesson_patches_from_section_diff(
-                    old_sec, new_sec, only_lesson_ids={lid}
-                )
-            )
+            all_patches.extend(spec.extract(old_sec, new_sec, iid))
         if not all_patches:
-            safe_warning(host, "批量重生成", "生成结果无法抽取课级补丁。")
+            safe_warning(host, spec.title, "生成结果无法抽取课级补丁。")
             return
 
         n = len(all_patches)
+        n_items = len(results)
         if not safe_question(
             host,
-            "确认应用批量重生成",
-            f"将应用 {n} 课变更（一个 Undo）。是否继续？",
+            f"确认应用{spec.title}",
+            spec.apply_question(n, n_items),
             default_yes=True,
         ):
-            host.experience_metrics.inc_suggestion(
-                "lesson.batch_regenerate", "rejected"
-            )
+            host.experience_metrics.inc_suggestion(spec.action_id, "rejected")
             return
         try:
+            batch_label, cmd_text = spec.cmd_texts(n, n_items)
             cmd = ApplyBatchPatchCommand(
                 adapter=host.adapter,
-                batch=batch_patch(all_patches, label=f"批量重生成 {n} 课"),
-                text=f"批量重生成 {n} 课",
+                batch=batch_patch(all_patches, label=batch_label),
+                text=cmd_text,
             )
             if hasattr(cmd, "signals") and hasattr(host, "_on_ai_edit_applied"):
                 try:
                     cmd.signals.changed.connect(host._on_ai_edit_applied)
                 except Exception:
-                    pass
+                    logger.debug("application/experience_handlers/regenerate.py:_finish_batch best-effort step failed", exc_info=True)
             host.undo_stack.push(cmd)
-            host.experience_metrics.inc_suggestion(
-                "lesson.batch_regenerate", "applied"
-            )
+            host.experience_metrics.inc_suggestion(spec.action_id, "applied")
             host._record_experience_event(
-                "lesson.batch_regenerate",
-                f"批量重生成已应用 {n} 课",
-                action_id="lesson.batch_regenerate",
-                scope={"count": n},
+                spec.action_id,
+                spec.applied_msg(n, n_items),
+                action_id=spec.action_id,
+                scope=spec.event_scope(n, n_items),
             )
-            host._refresh_validate_after_ai(
-                f"批量重生成已应用 {n} 课，记得保存"
-            )
+            host._refresh_validate_after_ai(spec.after_msg(n, n_items))
         except Exception as exc:
-            safe_warning(host, "批量重生成", f"应用失败：{exc}")
+            safe_warning(host, spec.title, f"应用失败：{exc}")
 
     def _run_next() -> None:
         if not chain:
             _finish_batch()
             return
-        lid, sid, section = chain.pop(0)
+        iid, sid, section = chain.pop(0)
         host.job_tray.start_job(
             job_id,
-            f"批量重生成：{lid}（剩余 {len(chain)}）…",
+            f"{spec.title}：{iid}（剩余 {len(chain)}）…",
             kind="ai",
-            node_key=f"lesson:{lid}",
+            node_key=f"{spec.node_prefix}:{iid}",
         )
         draft = copy.deepcopy(section_snaps.get(sid) or section)
 
         def _target() -> dict:
-            return regenerate_lesson_in_section(
-                config, spec, draft, lid, instruction=None
-            )
+            return spec.regen(config, ai_spec, draft, iid)
 
         # Test/offscreen hook: run the AI target inline (no QThread).
         if getattr(host, "_batch_regen_inline", False):
             try:
                 result = _target()
                 if isinstance(result, dict) and result != draft:
-                    results.append((lid, sid, result))
+                    results.append((iid, sid, result))
             except Exception as exc:
                 try:
-                    host.statusBar().showMessage(f"跳过 {lid}：{exc}", 4000)
+                    host.statusBar().showMessage(f"跳过 {iid}：{exc}", 4000)
                 except Exception:
-                    pass
+                    logger.debug("application/experience_handlers/regenerate.py:_run_next best-effort step failed", exc_info=True)
             _run_next()
             return
 
@@ -706,14 +814,14 @@ def _experience_batch_regenerate(host: Any, scope: dict) -> None:
 
         def _ok(result: object) -> None:
             if isinstance(result, dict) and result != draft:
-                results.append((lid, sid, result))
+                results.append((iid, sid, result))
             _run_next()
 
         def _err(msg: str) -> None:
             try:
-                host.statusBar().showMessage(f"跳过 {lid}：{msg}", 4000)
+                host.statusBar().showMessage(f"跳过 {iid}：{msg}", 4000)
             except Exception:
-                pass
+                logger.debug("application/experience_handlers/regenerate.py:_err best-effort step failed", exc_info=True)
             _run_next()
 
         w.result_ready.connect(_ok)
@@ -723,9 +831,14 @@ def _experience_batch_regenerate(host: Any, scope: dict) -> None:
 
     host.experience_metrics.inc_job("ai", "started")
     host.job_tray.start_job(
-        job_id, f"批量重生成 0/{len(targets)} …", kind="ai", node_key=""
+        job_id, f"{spec.title} 0/{len(targets)} …", kind="ai", node_key=""
     )
     _run_next()
+
+
+def _experience_batch_regenerate(host: ExperienceHost, scope: dict) -> None:
+    """T-04 AI / v4.57: sequential multi-lesson regenerate → one Batch Undo."""
+    _run_batch_regen_flow(host, scope, _lesson_batch_spec())
 
 
 handle_batch_regenerate = _experience_batch_regenerate
@@ -735,7 +848,7 @@ handle_batch_regenerate = _experience_batch_regenerate
 UNIT_BATCH_REGEN_CAP = 3
 
 
-def _batch_regen_unit_ids(host: Any, scope: dict | None) -> list[str]:
+def _batch_regen_unit_ids(host: ExperienceHost, scope: dict | None) -> list[str]:
     """Resolve ordered unique unit ids from scope or multi_selection."""
     ids: list[str] = []
     seen: set[str] = set()
@@ -785,207 +898,13 @@ def _lesson_ids_in_unit(section: dict, unit_id: str) -> set[str]:
                     out.add(str(les["id"]))
             break
     except Exception:
-        pass
+        logger.debug("application/experience_handlers/regenerate.py:_lesson_ids_in_unit best-effort step failed", exc_info=True)
     return out
 
 
-def _experience_batch_regenerate_units(host: Any, scope: dict) -> None:
+def _experience_batch_regenerate_units(host: ExperienceHost, scope: dict) -> None:
     """v4.59: sequential multi-unit regenerate → one Batch Undo."""
-    import copy
-
-    if not host.course_dir:
-        safe_warning(host, "未加载课程目录", "请先打开课程目录。")
-        return
-    unit_ids = _batch_regen_unit_ids(host, scope)
-    if len(unit_ids) < 1:
-        host.statusBar().showMessage(
-            "请先多选单元，或用 ⌘K /unit-batch-regen 时已有选中", 5000
-        )
-        return
-    if host.job_tray.is_busy_ai():
-        safe_information(host, "批量重生成单元", "当前有 AI 任务进行中，请稍候。")
-        return
-    deny = getattr(host, "_deny_ai_write_if_blocked", None)
-    if callable(deny) and deny(label="批量重生成单元"):
-        return
-
-    targets: list[tuple[str, str, dict]] = []
-    for uid in unit_ids:
-        try:
-            section, unit = host.adapter.find_unit(uid)
-            targets.append(
-                (uid, str(section.get("id") or ""), section)
-            )
-        except KeyError:
-            continue
-    if not targets:
-        safe_warning(host, "批量重生成单元", "选中的单元无法在课程中定位。")
-        return
-
-    names = []
-    for uid, _sid, _sec in targets[:12]:
-        try:
-            _s, unit = host.adapter.find_unit(uid)
-            names.append(f"· {unit.get('name') or uid}（{uid}）")
-        except Exception:
-            names.append(f"· {uid}")
-    more = "" if len(targets) <= 12 else f"\n…共 {len(targets)} 单元"
-    if not safe_question(
-        host,
-        "批量重生成单元",
-        f"将顺序 AI 重生成 {len(targets)} 个单元（上限 {UNIT_BATCH_REGEN_CAP}），"
-        f"确认后预览再一批应用（可 Undo）：\n"
-        + "\n".join(names)
-        + more
-        + "\n\n失败的单元会跳过，不中止整批。",
-        default_yes=False,
-    ):
-        host.experience_metrics.inc_suggestion(
-            "unit.batch_regenerate", "rejected"
-        )
-        return
-
-    from src.backend.ai_generator import AiCourseSpec, regenerate_unit_in_section
-    from src.dialogs.ai.worker import AiRequestWorker
-
-    config = host._ai_config
-    spec = AiCourseSpec()
-    section_snaps: dict[str, dict] = {}
-    for _uid, sid, section in targets:
-        if sid not in section_snaps:
-            section_snaps[sid] = copy.deepcopy(section)
-
-    results: list[tuple[str, str, dict]] = []  # (unit_id, section_id, new_section)
-    chain = list(targets)
-    job_id = "unit-batch-regen"
-
-    def _finish_batch() -> None:
-        host.job_tray.finish_job(job_id)
-        host.experience_metrics.inc_job("ai", "finished")
-        if not results:
-            safe_warning(host, "批量重生成单元", "没有成功生成任何单元。")
-            return
-        from src.backend.experience.patch import (
-            batch_patch,
-            lesson_patches_from_section_diff,
-        )
-        from src.application.commands import ApplyBatchPatchCommand
-
-        all_patches = []
-        for uid, sid, new_sec in results:
-            old_sec = section_snaps.get(sid) or {}
-            only = _lesson_ids_in_unit(old_sec, uid) or _lesson_ids_in_unit(
-                new_sec, uid
-            )
-            patches = lesson_patches_from_section_diff(
-                old_sec, new_sec, only_lesson_ids=only or None
-            )
-            if not patches:
-                patches = lesson_patches_from_section_diff(old_sec, new_sec)
-            all_patches.extend(patches)
-        if not all_patches:
-            safe_warning(host, "批量重生成单元", "生成结果无法抽取课级补丁。")
-            return
-
-        n = len(all_patches)
-        n_units = len(results)
-        if not safe_question(
-            host,
-            "确认应用批量重生成单元",
-            f"将应用 {n_units} 单元共 {n} 课变更（一个 Undo）。是否继续？",
-            default_yes=True,
-        ):
-            host.experience_metrics.inc_suggestion(
-                "unit.batch_regenerate", "rejected"
-            )
-            return
-        try:
-            cmd = ApplyBatchPatchCommand(
-                adapter=host.adapter,
-                batch=batch_patch(
-                    all_patches, label=f"批量重生成 {n_units} 单元"
-                ),
-                text=f"批量重生成 {n_units} 单元（{n} 课）",
-            )
-            if hasattr(cmd, "signals") and hasattr(host, "_on_ai_edit_applied"):
-                try:
-                    cmd.signals.changed.connect(host._on_ai_edit_applied)
-                except Exception:
-                    pass
-            host.undo_stack.push(cmd)
-            host.experience_metrics.inc_suggestion(
-                "unit.batch_regenerate", "applied"
-            )
-            host._record_experience_event(
-                "unit.batch_regenerate",
-                f"批量重生成单元已应用 {n_units} 单元/{n} 课",
-                action_id="unit.batch_regenerate",
-                scope={"count": n, "units": n_units},
-            )
-            host._refresh_validate_after_ai(
-                f"批量重生成单元已应用 {n_units} 单元，记得保存"
-            )
-        except Exception as exc:
-            safe_warning(host, "批量重生成单元", f"应用失败：{exc}")
-
-    def _run_next() -> None:
-        if not chain:
-            _finish_batch()
-            return
-        uid, sid, section = chain.pop(0)
-        host.job_tray.start_job(
-            job_id,
-            f"批量重生成单元：{uid}（剩余 {len(chain)}）…",
-            kind="ai",
-            node_key=f"unit:{uid}",
-        )
-        draft = copy.deepcopy(section_snaps.get(sid) or section)
-
-        def _target() -> dict:
-            return regenerate_unit_in_section(
-                config, spec, draft, uid, instruction=None
-            )
-
-        if getattr(host, "_batch_regen_inline", False):
-            try:
-                result = _target()
-                if isinstance(result, dict) and result != draft:
-                    results.append((uid, sid, result))
-            except Exception as exc:
-                try:
-                    host.statusBar().showMessage(f"跳过 {uid}：{exc}", 4000)
-                except Exception:
-                    pass
-            _run_next()
-            return
-
-        w = AiRequestWorker(_target)
-
-        def _ok(result: object) -> None:
-            if isinstance(result, dict) and result != draft:
-                results.append((uid, sid, result))
-            _run_next()
-
-        def _err(msg: str) -> None:
-            try:
-                host.statusBar().showMessage(f"跳过 {uid}：{msg}", 4000)
-            except Exception:
-                pass
-            _run_next()
-
-        w.result_ready.connect(_ok)
-        w.error_occurred.connect(_err)
-        w.start()
-        host._experience_worker = w
-
-    host.experience_metrics.inc_job("ai", "started")
-    host.job_tray.start_job(
-        job_id,
-        f"批量重生成单元 0/{len(targets)} …",
-        kind="ai",
-        node_key="",
-    )
-    _run_next()
+    _run_batch_regen_flow(host, scope, _unit_batch_spec())
 
 
 handle_batch_regenerate_units = _experience_batch_regenerate_units

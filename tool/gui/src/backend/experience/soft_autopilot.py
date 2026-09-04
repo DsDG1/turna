@@ -20,6 +20,8 @@ import re
 from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Any, Iterable
+import logging
+logger = logging.getLogger(__name__)
 
 
 # Fields eligible for trim on vocab / expression entries.
@@ -277,7 +279,7 @@ def apply_soft_fixes(
         try:
             notify()
         except Exception:
-            pass
+            logger.debug("backend/experience/soft_autopilot.py:apply_soft_fixes best-effort step failed", exc_info=True)
     return batch
 
 
@@ -302,4 +304,4 @@ def restore_resources(adapter: Any, snap: dict[str, list[dict[str, Any]]]) -> No
         try:
             notify()
         except Exception:
-            pass
+            logger.debug("backend/experience/soft_autopilot.py:restore_resources best-effort step failed", exc_info=True)

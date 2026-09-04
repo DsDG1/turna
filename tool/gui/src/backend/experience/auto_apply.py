@@ -17,6 +17,8 @@ from time import time
 from typing import Any, Deque, Mapping
 
 from src.backend.experience.actions import DANGEROUS_ACTION_IDS, is_dangerous
+import logging
+logger = logging.getLogger(__name__)
 
 
 # B — never auto, often never do (prefixes or exact ids)
@@ -129,7 +131,7 @@ def bind_auto_apply_token(host: Any, token: AutoApplyToken | None) -> None:
     try:
         host._auto_apply_token = token
     except Exception:
-        pass
+        logger.debug("backend/experience/auto_apply.py:bind_auto_apply_token best-effort step failed", exc_info=True)
 
 
 def clear_auto_apply_token(host: Any) -> None:

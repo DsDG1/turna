@@ -4,9 +4,12 @@ from __future__ import annotations
 from typing import Any
 
 from src.application.ui_guard import safe_information, safe_question, safe_warning
+import logging
+from src.application.experience_host import ExperienceHost
+logger = logging.getLogger(__name__)
 
 
-def handle_open_workshop(host: Any, scope: dict | None = None) -> None:
+def handle_open_workshop(host: ExperienceHost, scope: dict | None = None) -> None:
     """Open / focus the course workshop window."""
     from src.application.workshop_controller import open_workshop
 
@@ -17,7 +20,7 @@ def handle_open_workshop(host: Any, scope: dict | None = None) -> None:
         safe_warning(host, "课程工坊", f"无法打开工坊：{exc}")
 
 
-def _workshop_draft_sections(host: Any) -> list[dict]:
+def _workshop_draft_sections(host: ExperienceHost) -> list[dict]:
     """Best-effort pull of design-panel draft section(s)."""
     win = getattr(host, "_workshop_window", None)
     if win is None:
@@ -28,7 +31,7 @@ def _workshop_draft_sections(host: Any) -> list[dict]:
             if secs:
                 return list(secs)
     except Exception:
-        pass
+        logger.debug("application/experience_handlers/textbook.py:_workshop_draft_sections best-effort step failed", exc_info=True)
     try:
         panel = getattr(win, "_design_panel", None)
         ctrl = getattr(panel, "_controller", None) if panel else None
@@ -36,11 +39,11 @@ def _workshop_draft_sections(host: Any) -> list[dict]:
         if isinstance(draft, dict) and draft:
             return [draft]
     except Exception:
-        pass
+        logger.debug("application/experience_handlers/textbook.py:_workshop_draft_sections best-effort step failed", exc_info=True)
     return []
 
 
-def handle_import_draft(host: Any, scope: dict | None = None) -> None:
+def handle_import_draft(host: ExperienceHost, scope: dict | None = None) -> None:
     """Confirm then import workshop draft into the course (existing import path)."""
     from src.application.workshop_controller import on_textbook_sections
 
@@ -58,7 +61,7 @@ def handle_import_draft(host: Any, scope: dict | None = None) -> None:
                 "工坊尚无草稿。请先在课程工坊生成课节草稿。", 6000
             )
         except Exception:
-            pass
+            logger.debug("application/experience_handlers/textbook.py:handle_import_draft best-effort step failed", exc_info=True)
         host.experience_metrics.inc_suggestion("textbook.import_draft", "rejected")
         return
     n = len(sections)
@@ -84,7 +87,7 @@ def handle_import_draft(host: Any, scope: dict | None = None) -> None:
         safe_warning(host, "导入草稿", str(exc))
 
 
-def handle_grounded_fill(host: Any, scope: dict | None = None) -> None:
+def handle_grounded_fill(host: ExperienceHost, scope: dict | None = None) -> None:
     """Fill current/empty lesson with attachment-grounded instruction."""
     from src.backend.experience.textbook_skill import build_grounded_instruction
 
@@ -109,7 +112,7 @@ def handle_grounded_fill(host: Any, scope: dict | None = None) -> None:
             if els:
                 lesson_id = str(els[0])
         except Exception:
-            pass
+            logger.debug("application/experience_handlers/textbook.py:handle_grounded_fill best-effort step failed", exc_info=True)
     if not lesson_id:
         host.statusBar().showMessage("请先选中要填充的空课", 5000)
         return
@@ -140,7 +143,7 @@ def handle_grounded_fill(host: Any, scope: dict | None = None) -> None:
         idx = getattr(host.adapter, "index", None) or {}
         lang = str(idx.get("displayName") or idx.get("language") or lang)
     except Exception:
-        pass
+        logger.debug("application/experience_handlers/textbook.py:handle_grounded_fill best-effort step failed", exc_info=True)
     instruction = build_grounded_instruction(attachments, language=lang)
 
     try:

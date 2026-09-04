@@ -16,6 +16,8 @@ from __future__ import annotations
 from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any, Sequence, Union
+import logging
+logger = logging.getLogger(__name__)
 
 
 class PatchError(ValueError):
@@ -424,7 +426,7 @@ def apply_resolved_batch(steps: Sequence[ResolvedStep]) -> None:
                 elif kind == "lesson" and isinstance(patch, LessonPatch):
                     revert_lesson_patch(host, patch)
             except Exception:
-                pass  # best-effort rollback
+                logger.debug("backend/experience/patch.py:apply_resolved_batch best-effort step failed", exc_info=True)
         raise
 
 

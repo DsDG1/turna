@@ -13,6 +13,8 @@ from typing import Any, Mapping, Sequence
 
 from src.backend.experience.conflict_guard import node_key
 from src.backend.experience.context_bus import WEAK_SECTION_THRESHOLD
+import logging
+logger = logging.getLogger(__name__)
 
 
 def infer_scope_node_key(
@@ -142,7 +144,7 @@ def _scope_extras(scope: Mapping[str, Any], action_id: str) -> str:
                 try:
                     return f"（均分 {float(mean):.2f}）"
                 except Exception:
-                    pass
+                    logger.debug("backend/experience/scope_format.py:_scope_extras best-effort step failed", exc_info=True)
         if action_id == "listening.fill_gaps":
             n = scope.get("gap_count")
             if n is not None:

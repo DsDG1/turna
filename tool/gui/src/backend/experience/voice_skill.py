@@ -17,6 +17,8 @@ with C-06 "LLM candidates do not auto-Enter").
 from __future__ import annotations
 
 from typing import Any, Literal
+import logging
+logger = logging.getLogger(__name__)
 
 # Closed status set for voice results + telemetry (no free-form text).
 VoiceStatus = Literal[
@@ -49,7 +51,7 @@ def is_voice_palette_enabled(settings: Any) -> bool:
             try:
                 return bool(settings.get("experience_voice_palette", False))
             except Exception:
-                pass
+                logger.debug("backend/experience/voice_skill.py:is_voice_palette_enabled best-effort step failed", exc_info=True)
         return bool(getattr(settings, "experience_voice_palette", False))
     except Exception:
         return False
@@ -80,7 +82,7 @@ def voice_available() -> tuple[bool, str]:
     except Exception:
         # list_microphone_names may fail without a live device; still treat
         # as available if packages import (actual capture maps no_mic later).
-        pass
+        logger.debug("backend/experience/voice_skill.py:voice_available best-effort step failed", exc_info=True)
     return True, "ok"
 
 

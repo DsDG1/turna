@@ -11,7 +11,6 @@ not implemented yet fall back to the E0 navigation placeholder.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
 
 
 @dataclass(frozen=True)
@@ -242,26 +241,3 @@ def is_dangerous(action_id: str) -> bool:
     """True when the action is marked dangerous in the registry."""
     spec = get_action(action_id)
     return bool(spec is not None and spec.dangerous)
-
-
-def is_dangerous_skill_allowed(settings: Any | None = None) -> bool:
-    """Return True only when the dangerous-skill switch is on **and** not observer.
-
-    S-15: observer mode must have zero
-    dangerous side-effects, so this is the single guard every dispatch site
-    should read rather than the raw ``experience_allow_dangerous_skills`` flag.
-    Default off - dangerous skills ship locked.
-
-    C-07: delegates to ``policy.resolve_policy`` so the trust-boundary decision
-    has one source of truth; this signature is kept for existing callers/tests.
-    """
-    from src.backend.experience.policy import resolve_policy
-
-    if settings is None:
-        try:
-            from src.app import current_settings
-
-            settings = current_settings()
-        except Exception:
-            return False
-    return resolve_policy(settings).allow_dangerous

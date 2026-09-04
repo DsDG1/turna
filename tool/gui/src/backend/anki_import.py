@@ -22,6 +22,8 @@ import tempfile
 import zipfile
 from dataclasses import dataclass, field
 from typing import Any
+import logging
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -110,7 +112,7 @@ def parse_apkg(apkg_path: str) -> AnkiCollection:
                 with open(media_path, "r", encoding="utf-8") as f:
                     collection.media = json.load(f)
             except (json.JSONDecodeError, OSError):
-                pass
+                logger.debug("backend/anki_import.py:parse_apkg best-effort step failed", exc_info=True)
 
         # Open SQLite database
         conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
@@ -328,7 +330,7 @@ def _parse_decks(decks_json: str) -> dict[int, AnkiDeck]:
             name = data.get("name", f"Deck {did}")
             result[did] = AnkiDeck(id=did, name=name)
     except (json.JSONDecodeError, TypeError):
-        pass
+        logger.debug("backend/anki_import.py:_parse_decks best-effort step failed", exc_info=True)
     return result
 
 
@@ -351,7 +353,7 @@ def _parse_notetypes(models_json: str) -> dict[int, AnkiNotetype]:
                 is_cloze=is_cloze,
             )
     except (json.JSONDecodeError, TypeError):
-        pass
+        logger.debug("backend/anki_import.py:_parse_notetypes best-effort step failed", exc_info=True)
     return result
 
 

@@ -27,7 +27,10 @@
 
 - `src.application.ai_runtime.AiRuntime` / `runtime_from_host`
 - **dialogs/** 禁止 `from src.app import current_ai_config|current_settings`
-- 门禁：`python3 tool/gui/tool/check_ai_boundaries.py --fail-dialogs-app`
+- **backend/、application/** 禁止 `from src.app import …`：非 dialog 代码经
+  `src.application.runtime_context.current_settings|current_ai_config` 读取
+  （MainWindow 启动时注册 provider，关闭时注销）
+- 门禁：`python3 tool/gui/tool/check_ai_boundaries.py --fail-dialogs-app --fail-backend-app`
 
 ## 1d. Experience 分发（M4 / M7）
 
@@ -47,10 +50,9 @@
 
 ## 1f. 节点 AI 编辑（M5）+ 遗留对话框（M8）
 
-- **生产路径**：树 AI 编辑 → `dialogs/ai/node_edit_dialog.NodeAiEditDialog`
+- **生产路径**：树 AI 编辑 → `experience_handlers.edit.handle_node_edit` → `MainWindow._on_ai_edit`（M7 分发注册表；原 `dialogs/ai/node_edit_dialog` 无引用已移除）
 - **底层**：`generate_edit` / `regenerate_*_in_section`
 - **LEGACY**：`AiGeneratorDialog`（文件头标注）— 工坊生成 UI + 测试；**禁止**再扩 edit_mode
-- 新 edit 能力只改 `NodeAiEditDialog`
 
 ## 2. 包布局（M1 后真源）
 
@@ -151,4 +153,28 @@ make test-gui-ci
 # AI 核心子集
 QT_QPA_PLATFORM=offscreen python3 tool/gui/run_gui_tests.py fast
 # 或指定：test_ai_generator test_ai_pipeline test_ai_phased test_ai_stream test_ai_cache
+```
+
+## 8. Experience host 契约与债务棘轮（2026-09 补充）
+
+- **host 协议化**：experience handler/controller 的 host 参数统一注解为
+  `src.application.experience_host.ExperienceHost`（typing.Protocol，结构化匹配，
+  MainWindow 无需改继承）。协议声明了 handler 层实际访问的全部 113 个成员
+  （23 公开 + 90 内部契约）。backend 侧（`auto_apply.py` / `precognition.py`）
+  刻意保留 `host: Any`，避免 backend → application 反向 import。
+- **防漂移门禁**：`--fail-undeclared-host-access` —— 已注解模块出现未声明
+  的 `host._x` 访问即失败；新增耦合必须先写进协议。
+- **backend → UI 禁令**：`--fail-backend-ui` —— backend/ 禁止 import
+  widgets/dialogs/teacher/theme/app（error_mapper、TEMPLATE_BADGES 已下沉 backend）。
+- **吞异常棘轮**：`--max-except-pass 56` —— 全 src 静默 `except: pass` 数量
+  只许降不许升。application/backend/infrastructure 核心层已全部改为
+  `logger.debug/warning(..., exc_info=True)`；剩余 56 处集中在 dialogs/widgets/teacher UI 层。
+- **循环依赖**：experience 三元环已切（actions 为纯叶子，`is_dangerous_skill_allowed`
+  真源在 policy）；`ai_error_analyzer` 直接引用 `dialogs/ai/worker`。
+- **完整门禁命令**：
+
+```bash
+python3 tool/gui/tool/check_ai_boundaries.py \
+  --fail-private --fail-dialogs-app --fail-backend-app \
+  --fail-backend-ui --fail-undeclared-host-access --max-except-pass 56
 ```

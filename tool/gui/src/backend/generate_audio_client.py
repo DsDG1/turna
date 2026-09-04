@@ -25,6 +25,8 @@ if str(_TOOL_DIR) not in sys.path:
     sys.path.insert(0, str(_TOOL_DIR))
 
 from src.backend.course_adapter import _REPO_ROOT  # noqa: E402
+import logging
+logger = logging.getLogger(__name__)
 
 #: Path to the standalone TTS script this bridge drives.
 GENERATE_AUDIO_SCRIPT = _TOOL_DIR / "generate_audio.py"
@@ -107,7 +109,7 @@ def _preview_via_subprocess(course_dir: Path, sounds_dir: Path) -> dict[str, int
             existing = int(counts.get("skipped", 0))
             return {"total": total, "existing": existing}
     except Exception:
-        pass
+        logger.debug("backend/generate_audio_client.py:_preview_via_subprocess best-effort step failed", exc_info=True)
     return {"total": 0, "existing": 0}
 
 
@@ -214,7 +216,7 @@ def run_generate(
                     skipped = int(counts.get("skipped", skipped))
                     total = int(counts.get("total", total))
                 except ValueError:
-                    pass
+                    logger.debug("backend/generate_audio_client.py:run_generate best-effort step failed", exc_info=True)
     finally:
         proc.wait()
         stderr = proc.stderr.read()

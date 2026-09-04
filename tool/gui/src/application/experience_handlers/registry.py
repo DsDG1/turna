@@ -19,18 +19,19 @@ from src.application.experience_handlers import (
     resources,
     textbook,
 )
+from src.application.experience_host import ExperienceHost
 
 Handler = Callable[..., None]
 HANDLERS: dict[str, Handler] = {}
 
 
 def _status(msg: str) -> Handler:
-    def _h(host: Any, scope: dict) -> None:
+    def _h(host: ExperienceHost, scope: dict) -> None:
         host.statusBar().showMessage(msg, 5000)
     return _h
 
 
-def _publish(host: Any, scope: dict) -> None:
+def _publish(host: ExperienceHost, scope: dict) -> None:
     pub = getattr(host, "_on_publish", None)
     if callable(pub):
         pub()
@@ -38,13 +39,13 @@ def _publish(host: Any, scope: dict) -> None:
         host.statusBar().showMessage("发布入口不可用", 4000)
 
 
-def _open_hygiene(host: Any, scope: dict) -> None:
+def _open_hygiene(host: ExperienceHost, scope: dict) -> None:
     filt = str(scope.get("filter") or "待补")
     host._on_resources(initial_filter=filt)
 
 
 def _goal(fn_name: str) -> Handler:
-    def _h(host: Any, scope: dict) -> None:
+    def _h(host: ExperienceHost, scope: dict) -> None:
         from src.application import goal_controller as gc
         getattr(gc, fn_name)(host, scope)
     return _h
@@ -53,7 +54,7 @@ def _goal(fn_name: str) -> Handler:
 def _mod(module: Any, name: str, *, pass_scope: bool = True, **fixed) -> Handler:
     """Lazy getattr so monkeypatches on the module hit dispatch."""
 
-    def _h(host: Any, scope: dict) -> None:
+    def _h(host: ExperienceHost, scope: dict) -> None:
         fn = getattr(module, name)
         if fixed:
             if pass_scope:
@@ -69,13 +70,13 @@ def _mod(module: Any, name: str, *, pass_scope: bool = True, **fixed) -> Handler
     return _h
 
 
-def _screenshot(host: Any, scope: dict) -> None:
+def _screenshot(host: ExperienceHost, scope: dict) -> None:
     from src.application.screenshot_controller import explain_current
     explain_current(host)
 
 
 def _git(action_id: str) -> Handler:
-    def _h(host: Any, scope: dict) -> None:
+    def _h(host: ExperienceHost, scope: dict) -> None:
         multimodal.handle_git_skill(host, action_id)
     return _h
 
@@ -97,7 +98,7 @@ def register_all() -> dict[str, Handler]:
         "attachment.open_in_workshop": lambda h, s: h._on_workshop(),
         "lesson.regenerate": _mod(regenerate, "handle_regenerate"),
         "unit.regenerate": _mod(regenerate, "handle_regenerate"),
-        # v4.61 K-05: wrap AiEditMixin._on_ai_edit (dialog + generate_edit).
+        # v4.61 K-05: wrap MainWindow._on_ai_edit (src/app.py; dialog + generate_edit).
         "section.edit": _mod(edit, "handle_node_edit"),
         "unit.edit": _mod(edit, "handle_node_edit"),
         "lesson.edit": _mod(edit, "handle_node_edit"),

@@ -17,6 +17,8 @@ from __future__ import annotations
 
 import base64
 from typing import Any, Literal, Sequence
+import logging
+logger = logging.getLogger(__name__)
 
 # Max chars of the explanation reply kept for the Timeline short summary.
 REPLY_SUMMARY_MAX_CHARS = 80
@@ -49,7 +51,7 @@ def is_screenshot_explain_enabled(settings: Any) -> bool:
             try:
                 return bool(settings.get("experience_screenshot_explain", False))
             except Exception:
-                pass
+                logger.debug("backend/experience/screenshot_skill.py:is_screenshot_explain_enabled best-effort step failed", exc_info=True)
         return bool(getattr(settings, "experience_screenshot_explain", False))
     except Exception:
         return False

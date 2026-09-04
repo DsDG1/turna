@@ -12,6 +12,9 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any, Mapping
+import logging
+from src.application.experience_host import ExperienceHost
+logger = logging.getLogger(__name__)
 
 # Telemetry / flush reasons (aligned with C-15).
 REASON_CLOSE_COURSE = "close_course"
@@ -20,7 +23,7 @@ REASON_APP_CLOSE = "app_close"
 
 
 def clear_experience_session(
-    host: Any,
+    host: ExperienceHost,
     *,
     reason: str = REASON_CLOSE_COURSE,
     flush_metrics: bool = True,
@@ -48,7 +51,7 @@ def clear_experience_session(
             if callable(flush):
                 flush(reason)
         except Exception:
-            pass
+            logger.debug("application/course_lifecycle.py:clear_experience_session best-effort step failed", exc_info=True)
 
     if pause_workshop:
         _pause_workshop(host)
@@ -63,7 +66,7 @@ def clear_experience_session(
                 if hasattr(exp, "set_ocr_enabled"):
                     exp.set_ocr_enabled(False)
         except Exception:
-            pass
+            logger.debug("application/course_lifecycle.py:clear_experience_session best-effort step failed", exc_info=True)
     else:
         # Keep adapter but still drop workshop draft (switch mid-flight).
         try:
@@ -71,7 +74,7 @@ def clear_experience_session(
             if exp is not None and hasattr(exp, "set_workshop_draft"):
                 exp.set_workshop_draft(None)
         except Exception:
-            pass
+            logger.debug("application/course_lifecycle.py:clear_experience_session best-effort step failed", exc_info=True)
 
     for attr, method in (
         ("experience_timeline", "clear"),
@@ -90,14 +93,14 @@ def clear_experience_session(
 
         clear_goal_state(host)
     except Exception:
-        pass
+        logger.debug("application/course_lifecycle.py:clear_experience_session best-effort step failed", exc_info=True)
 
     try:
         keys = getattr(host, "_shown_suggestion_keys", None)
         if isinstance(keys, set):
             keys.clear()
     except Exception:
-        pass
+        logger.debug("application/course_lifecycle.py:clear_experience_session best-effort step failed", exc_info=True)
 
     # N3/F3: new course may re-run silent drive for the same action fingerprints.
     try:
@@ -105,21 +108,21 @@ def clear_experience_session(
 
         clear_drive_seen(host)
     except Exception:
-        pass
+        logger.debug("application/course_lifecycle.py:clear_experience_session best-effort step failed", exc_info=True)
 
     # P2: allow campaign auto-offer again for the next course session.
     try:
         if hasattr(host, "_campaign_auto_offered_for"):
             host._campaign_auto_offered_for = None
     except Exception:
-        pass
+        logger.debug("application/course_lifecycle.py:clear_experience_session best-effort step failed", exc_info=True)
 
     try:
         archived = getattr(host, "_ambient_archived", None)
         if isinstance(archived, set):
             archived.clear()
     except Exception:
-        pass
+        logger.debug("application/course_lifecycle.py:clear_experience_session best-effort step failed", exc_info=True)
 
     try:
         tree = getattr(host, "tree", None)
@@ -130,19 +133,19 @@ def clear_experience_session(
                 try:
                     tree.apply_focus_ring({})
                 except Exception:
-                    pass
+                    logger.debug("application/course_lifecycle.py:clear_experience_session best-effort step failed", exc_info=True)
     except Exception:
-        pass
+        logger.debug("application/course_lifecycle.py:clear_experience_session best-effort step failed", exc_info=True)
 
     try:
         banner = getattr(host, "ambient_banner", None)
         if banner is not None and hasattr(banner, "clear"):
             banner.clear()
     except Exception:
-        pass
+        logger.debug("application/course_lifecycle.py:clear_experience_session best-effort step failed", exc_info=True)
 
 
-def prepare_course_switch(host: Any, old_dir: Path | None) -> None:
+def prepare_course_switch(host: ExperienceHost, old_dir: Path | None) -> None:
     """Flush metrics for the outgoing course, then full session clear.
 
     Call **before** assigning ``host.course_dir`` to the new path.
@@ -155,7 +158,7 @@ def prepare_course_switch(host: Any, old_dir: Path | None) -> None:
         if callable(flush):
             flush(REASON_COURSE_SWITCH, course_dir=old_dir)
     except Exception:
-        pass
+        logger.debug("application/course_lifecycle.py:prepare_course_switch best-effort step failed", exc_info=True)
     clear_experience_session(
         host,
         reason=REASON_COURSE_SWITCH,
@@ -166,7 +169,7 @@ def prepare_course_switch(host: Any, old_dir: Path | None) -> None:
 
 
 def bind_loaded_course(
-    host: Any,
+    host: ExperienceHost,
     path: Path,
     *,
     status_message: str | None = None,
@@ -186,7 +189,7 @@ def bind_loaded_course(
     try:
         host.tree.display(host.adapter)
     except Exception:
-        pass
+        logger.debug("application/course_lifecycle.py:bind_loaded_course best-effort step failed", exc_info=True)
     try:
         host.undo_stack.clear()
         # setUndoLimit only takes effect on an empty stack; re-apply the
@@ -195,19 +198,19 @@ def bind_loaded_course(
         if callable(apply):
             apply()
     except Exception:
-        pass
+        logger.debug("application/course_lifecycle.py:bind_loaded_course best-effort step failed", exc_info=True)
     try:
         enable = getattr(host, "_enable_editor_actions", None)
         if callable(enable):
             enable()
     except Exception:
-        pass
+        logger.debug("application/course_lifecycle.py:bind_loaded_course best-effort step failed", exc_info=True)
     try:
         add_recent = getattr(host, "_add_recent_repo", None)
         if callable(add_recent):
             add_recent(path)
     except Exception:
-        pass
+        logger.debug("application/course_lifecycle.py:bind_loaded_course best-effort step failed", exc_info=True)
 
     # C-13: bind project memory bucket to this course (session already cleared).
     try:
@@ -215,7 +218,7 @@ def bind_loaded_course(
         if mem is not None and hasattr(mem, "bind_course"):
             mem.bind_course(path)
     except Exception:
-        pass
+        logger.debug("application/course_lifecycle.py:bind_loaded_course best-effort step failed", exc_info=True)
 
     try:
         from src.infrastructure.telemetry import telemetry
@@ -225,39 +228,39 @@ def bind_loaded_course(
             payload["path"] = str(path)
         telemetry.record_event(telemetry_event, payload=payload)
     except Exception:
-        pass
+        logger.debug("application/course_lifecycle.py:bind_loaded_course best-effort step failed", exc_info=True)
 
     msg = status_message if status_message is not None else f"已加载: {path}"
     try:
         host.statusBar().showMessage(msg, 4000 if "已加载" in msg else 5000)
     except Exception:
-        pass
+        logger.debug("application/course_lifecycle.py:bind_loaded_course best-effort step failed", exc_info=True)
 
     try:
         host._current_node_ref = None
     except Exception:
-        pass
+        logger.debug("application/course_lifecycle.py:bind_loaded_course best-effort step failed", exc_info=True)
 
     try:
         from src.application.presence_drive import clear_drive_seen
 
         clear_drive_seen(host)
     except Exception:
-        pass
+        logger.debug("application/course_lifecycle.py:bind_loaded_course best-effort step failed", exc_info=True)
 
     try:
         host._refresh_experience(immediate=True)
     except Exception:
-        pass
+        logger.debug("application/course_lifecycle.py:bind_loaded_course best-effort step failed", exc_info=True)
     try:
         start = getattr(host, "_start_experience_diagnose", None)
         if callable(start):
             start()
     except Exception:
-        pass
+        logger.debug("application/course_lifecycle.py:bind_loaded_course best-effort step failed", exc_info=True)
 
 
-def _pause_workshop(host: Any) -> None:
+def _pause_workshop(host: ExperienceHost) -> None:
     """Interrupt in-flight work and hide workshop (keep instance for restore)."""
     win = getattr(host, "_workshop_window", None)
     if win is None:
@@ -266,14 +269,14 @@ def _pause_workshop(host: Any) -> None:
         if hasattr(win, "interrupt_and_save"):
             win.interrupt_and_save()
     except Exception:
-        pass
+        logger.debug("application/course_lifecycle.py:_pause_workshop best-effort step failed", exc_info=True)
     try:
         win.hide()
     except Exception:
-        pass
+        logger.debug("application/course_lifecycle.py:_pause_workshop best-effort step failed", exc_info=True)
 
 
-def _call_if(host: Any, attr: str, method: str) -> None:
+def _call_if(host: ExperienceHost, attr: str, method: str) -> None:
     try:
         obj = getattr(host, attr, None)
         if obj is None:
@@ -282,4 +285,4 @@ def _call_if(host: Any, attr: str, method: str) -> None:
         if callable(fn):
             fn()
     except Exception:
-        pass
+        logger.debug("application/course_lifecycle.py:_call_if best-effort step failed", exc_info=True)

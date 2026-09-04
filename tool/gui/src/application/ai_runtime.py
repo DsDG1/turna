@@ -14,6 +14,7 @@ from typing import Any, Callable
 
 from src.application.settings import Settings
 from src.backend.ai_generator import AiApiConfig
+from src.application.experience_host import ExperienceHost
 
 
 @dataclass(frozen=True)
@@ -42,7 +43,7 @@ def empty_ai_runtime() -> AiRuntime:
     )
 
 
-def runtime_from_host(host: Any) -> AiRuntime:
+def runtime_from_host(host: ExperienceHost) -> AiRuntime:
     """Build an :class:`AiRuntime` from a MainWindow-like host object."""
 
     def config_fn() -> AiApiConfig:
@@ -53,7 +54,7 @@ def runtime_from_host(host: Any) -> AiRuntime:
                 return cfg
             curr = getattr(curr, "_parent_window", None) or (curr.parentWidget() if hasattr(curr, "parentWidget") else None)
         try:
-            from src.app import current_ai_config
+            from src.application.runtime_context import current_ai_config
             return current_ai_config()
         except Exception:
             return AiApiConfig()
@@ -66,7 +67,7 @@ def runtime_from_host(host: Any) -> AiRuntime:
                 return s
             curr = getattr(curr, "_parent_window", None) or (curr.parentWidget() if hasattr(curr, "parentWidget") else None)
         try:
-            from src.app import current_settings
+            from src.application.runtime_context import current_settings
             return current_settings()
         except Exception:
             return Settings()

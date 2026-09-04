@@ -32,6 +32,8 @@ import threading
 from collections import OrderedDict
 from pathlib import Path
 from typing import Any
+import logging
+logger = logging.getLogger(__name__)
 
 # Disk files are named ``<key>.json``; keys must stay SHA-256 hex digests so a
 # future key-format change cannot escape ``disk_dir`` via path segments.
@@ -275,7 +277,7 @@ class AiCache:
                 if tmp.exists():
                     tmp.unlink()
             except OSError:
-                pass
+                logger.debug("backend/ai_cache.py:_save_to_disk best-effort step failed", exc_info=True)
 
     def _load_from_disk(self, key: str) -> dict[str, Any] | None:
         if self._disk_dir is None:

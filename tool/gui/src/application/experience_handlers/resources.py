@@ -4,6 +4,8 @@ from __future__ import annotations
 from typing import Any
 
 from src.application.ui_guard import safe_information, safe_question, safe_warning
+import logging
+logger = logging.getLogger(__name__)
 
 def _experience_dedupe_suggest(host, scope: dict) -> None:
     """K-20: open resources with a duplicate-aware filter; never auto-delete."""
@@ -98,7 +100,7 @@ def _experience_align_pos(host, scope: dict) -> None:
         try:
             host._refresh_experience(immediate=False, focus_only=True)
         except Exception:
-            pass
+            logger.debug("application/experience_handlers/resources.py:_experience_align_pos best-effort step failed", exc_info=True)
 
     worker = host._make_ai_worker(
         run_pos_alignment, config, adapter, language=lang
@@ -152,12 +154,12 @@ def _experience_align_pos(host, scope: dict) -> None:
                 scope={"count": len(steps)},
             )
         except Exception:
-            pass
+            logger.debug("application/experience_handlers/resources.py:_on_ok best-effort step failed", exc_info=True)
         if hasattr(host, "_refresh_validate_after_ai"):
             try:
                 host._refresh_validate_after_ai()
             except Exception:
-                pass
+                logger.debug("application/experience_handlers/resources.py:_on_ok best-effort step failed", exc_info=True)
         host.statusBar().showMessage(
             f"词性对齐：已更新 {len(steps)} 个词条（可 Ctrl+Z 撤销）", 6000
         )
@@ -291,12 +293,12 @@ def _experience_resolve_term_conflicts(host, scope: dict) -> None:
             scope={"count": len(steps)},
         )
     except Exception:
-        pass
+        logger.debug("application/experience_handlers/resources.py:_experience_resolve_term_conflicts best-effort step failed", exc_info=True)
     if hasattr(host, "_refresh_validate_after_ai"):
         try:
             host._refresh_validate_after_ai()
         except Exception:
-            pass
+            logger.debug("application/experience_handlers/resources.py:_experience_resolve_term_conflicts best-effort step failed", exc_info=True)
     host.statusBar().showMessage(
         f"词条冲突：已统一 {len(steps)} 处释义（可 Ctrl+Z 撤销）", 6000
     )
@@ -327,7 +329,7 @@ def _experience_compare_sections(host, scope: dict) -> None:
             multi = getattr(ctx, "multi_selection", None)
             pins = getattr(ctx, "pinned_refs", None)
     except Exception:
-        pass
+        logger.debug("application/experience_handlers/resources.py:_experience_compare_sections best-effort step failed", exc_info=True)
     if selection is None:
         selection = getattr(host, "_current_node_ref", None)
 
@@ -358,7 +360,7 @@ def _experience_compare_sections(host, scope: dict) -> None:
             scope={"section_ids": list(pair)},
         )
     except Exception:
-        pass
+        logger.debug("application/experience_handlers/resources.py:_experience_compare_sections best-effort step failed", exc_info=True)
 
     # Non-modal preferred in tests; production still shows a simple dialog.
     if getattr(host, "_compare_sections_non_modal", False):
@@ -403,7 +405,7 @@ def _experience_batch_set_template(host, scope: dict) -> None:
                 if not raw_ids and ctx.selection is not None and ctx.selection.kind == "lesson":
                     raw_ids = [ctx.selection.id]
         except Exception:
-            pass
+            logger.debug("application/experience_handlers/resources.py:_experience_batch_set_template best-effort step failed", exc_info=True)
     lesson_ids = [str(x) for x in raw_ids if str(x)]
     template = str(scope.get("template") or "").strip()
     if not lesson_ids:
@@ -470,7 +472,7 @@ def _experience_batch_set_template(host, scope: dict) -> None:
     try:
         host.tree.refresh_incremental()
     except Exception:
-        pass
+        logger.debug("application/experience_handlers/resources.py:_experience_batch_set_template best-effort step failed", exc_info=True)
 
 handle_batch_set_template = _experience_batch_set_template
 
@@ -502,7 +504,7 @@ def _batch_polish_pairs(host, scope: dict) -> list[tuple[str, str]]:
                 if kind and rid:
                     pairs.append((str(kind), str(rid)))
         except Exception:
-            pass
+            logger.debug("application/experience_handlers/resources.py:_batch_polish_pairs best-effort step failed", exc_info=True)
     out: list[tuple[str, str]] = []
     for k, i in pairs:
         if k in ("vocab", "expressions") and i and (k, i) not in out:
@@ -614,7 +616,7 @@ def _experience_batch_polish(host, scope: dict) -> None:
         try:
             host._refresh_experience(immediate=False, focus_only=True)
         except Exception:
-            pass
+            logger.debug("application/experience_handlers/resources.py:_experience_batch_polish best-effort step failed", exc_info=True)
 
     worker = host._make_ai_worker(
         run_batch_polish, config, entries, language=lang
@@ -672,12 +674,12 @@ def _experience_batch_polish(host, scope: dict) -> None:
                 scope={"count": len(steps)},
             )
         except Exception:
-            pass
+            logger.debug("application/experience_handlers/resources.py:_on_ok best-effort step failed", exc_info=True)
         if hasattr(host, "_refresh_validate_after_ai"):
             try:
                 host._refresh_validate_after_ai()
             except Exception:
-                pass
+                logger.debug("application/experience_handlers/resources.py:_on_ok best-effort step failed", exc_info=True)
         host.statusBar().showMessage(
             f"批量润色：已更新 {len(steps)} 处字段（可 Ctrl+Z 撤销）", 6000
         )
@@ -792,7 +794,7 @@ def _experience_fill_stubs_batch(host, scope: dict) -> None:
         try:
             host._refresh_experience(immediate=False, focus_only=True)
         except Exception:
-            pass
+            logger.debug("application/experience_handlers/resources.py:_experience_fill_stubs_batch best-effort step failed", exc_info=True)
 
     worker = host._make_ai_worker(run_batch_polish, config, stubs, language=lang)
 
@@ -866,12 +868,12 @@ def _experience_fill_stubs_batch(host, scope: dict) -> None:
                 scope={"count": len(steps)},
             )
         except Exception:
-            pass
+            logger.debug("application/experience_handlers/resources.py:_on_ok best-effort step failed", exc_info=True)
         if hasattr(host, "_refresh_validate_after_ai"):
             try:
                 host._refresh_validate_after_ai()
             except Exception:
-                pass
+                logger.debug("application/experience_handlers/resources.py:_on_ok best-effort step failed", exc_info=True)
         host.statusBar().showMessage(
             f"补全待补：已更新 {len(steps)} 处字段（可 Ctrl+Z 撤销）", 6000
         )

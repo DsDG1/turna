@@ -11,18 +11,22 @@ and clears the token.
 """
 from __future__ import annotations
 
+import logging
 from typing import Any, Callable
 
 from PySide6.QtWidgets import QMessageBox
 
 from src.application.experience_handlers.registry import HANDLERS, register_all
+from src.application.experience_host import ExperienceHost
 from src.backend.experience import can_dispatch, get_action
 from src.infrastructure.telemetry import telemetry
+
+logger = logging.getLogger(__name__)
 
 # Ensure map is populated (idempotent).
 register_all()
 
-Handler = Callable[[Any, dict], None]
+Handler = Callable[[ExperienceHost, dict], None]
 
 HANDLER_OPTIONAL_ACTIONS: frozenset[str] = frozenset(
     {
@@ -41,7 +45,7 @@ def register(action_id: str, handler: Handler) -> None:
     HANDLERS[action_id] = handler
 
 
-def _record_auto_metric(host: Any, stage: str, action_id: str = "") -> None:
+def _record_auto_metric(host: ExperienceHost, stage: str, action_id: str = "") -> None:
     """Best-effort metrics for auto pipeline; never raises."""
     try:
         metrics = getattr(host, "experience_metrics", None)
@@ -59,10 +63,10 @@ def _record_auto_metric(host: Any, stage: str, action_id: str = "") -> None:
             if mapped:
                 metrics.inc_suggestion(action_id, mapped)
     except Exception:
-        pass
+        logger.warning("application/experience_dispatch.py:_record_auto_metric best-effort step failed", exc_info=True)
 
 
-def dispatch_experience_action(host: Any, suggestion: dict) -> None:
+def dispatch_experience_action(host: ExperienceHost, suggestion: dict) -> None:
     """Single funnel: Dock / Ambient / palette → policy → handler."""
     action = str(suggestion.get("action_id") or "")
     scope = suggestion.get("scope") or {}
@@ -121,7 +125,7 @@ def dispatch_experience_action(host: Any, suggestion: dict) -> None:
     try:
         host._dispatch_action_id = action
     except Exception:
-        pass
+        logger.warning("application/experience_dispatch.py:dispatch_experience_action best-effort step failed", exc_info=True)
 
     def _run() -> None:
         handler(host, scope)
@@ -145,7 +149,7 @@ def dispatch_experience_action(host: Any, suggestion: dict) -> None:
                 ring = ensure_audit_ring(host)
                 record_audit(ring, action, count=1, kind="auto_scheduled")
             except Exception:
-                pass
+                logger.warning("application/experience_dispatch.py:dispatch_experience_action best-effort step failed", exc_info=True)
             _record_auto_metric(host, "scheduled", action)
             # Keep host token after scope ends so async offer can still auto.
             with auto_confirm_scope(opaque=opaque, token=token):
@@ -157,7 +161,7 @@ def dispatch_experience_action(host: Any, suggestion: dict) -> None:
                         ring = ensure_audit_ring(host)
                         record_audit(ring, action, count=1, kind="auto_failed")
                     except Exception:
-                        pass
+                        logger.warning("application/experience_dispatch.py:dispatch_experience_action best-effort step failed", exc_info=True)
                     if not opaque:
                         try:
                             host.statusBar().showMessage(
@@ -165,7 +169,7 @@ def dispatch_experience_action(host: Any, suggestion: dict) -> None:
                                 6000,
                             )
                         except Exception:
-                            pass
+                            logger.warning("application/experience_dispatch.py:dispatch_experience_action best-effort step failed", exc_info=True)
         else:
             # Leaving full-auto path: do not leave a stale token from prior run.
             # (Only clear if current token belongs to a different non-auto action.)
@@ -176,7 +180,7 @@ def dispatch_experience_action(host: Any, suggestion: dict) -> None:
                 if existing is not None and existing.action_id == action:
                     bind_auto_apply_token(host, None)
             except Exception:
-                pass
+                logger.warning("application/experience_dispatch.py:dispatch_experience_action best-effort step failed", exc_info=True)
             _run()
     except Exception as exc:
         # Last-resort: run once without swallowing silently when auto setup failed.
@@ -189,10 +193,10 @@ def dispatch_experience_action(host: Any, suggestion: dict) -> None:
                     f"执行失败：{action}（{exc2 or exc}）"[:240], 6000
                 )
             except Exception:
-                pass
+                logger.warning("application/experience_dispatch.py:dispatch_experience_action best-effort step failed", exc_info=True)
     finally:
         try:
             if getattr(host, "_dispatch_action_id", None) == action:
                 host._dispatch_action_id = ""
         except Exception:
-            pass
+            logger.warning("application/experience_dispatch.py:dispatch_experience_action best-effort step failed", exc_info=True)

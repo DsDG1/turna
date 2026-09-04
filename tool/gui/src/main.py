@@ -16,6 +16,8 @@ from PySide6.QtWidgets import QApplication
 from src.app import MainWindow
 from src.application.settings import app_data_dir
 from src.theme import apply_theme
+import logging
+logger = logging.getLogger(__name__)
 
 _LOG_DIR = app_data_dir()
 _LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -56,7 +58,7 @@ def _install_excepthook() -> None:
                 )
                 dlg.exec()
         except Exception:
-            pass
+            logger.debug("main.py:_hook best-effort step failed", exc_info=True)
         old_hook(exc_type, exc_value, exc_tb)
 
     sys.excepthook = _hook

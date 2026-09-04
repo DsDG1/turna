@@ -19,6 +19,8 @@ dicts shaped for ``resource_batch_skill.run_batch_polish``.
 from __future__ import annotations
 
 from typing import Any, Iterable
+import logging
+logger = logging.getLogger(__name__)
 
 ACTION_ID = "resource.fill_stubs_batch"
 
@@ -103,7 +105,7 @@ def select_stub_entries(
                 if shaped is not None:
                     out.append(shaped)
     except Exception:
-        pass
+        logger.debug("backend/experience/resource_stub_select.py:select_stub_entries best-effort step failed", exc_info=True)
     try:
         for entry in (expressions or []):
             if is_stub_vocab_entry(entry):
@@ -111,7 +113,7 @@ def select_stub_entries(
                 if shaped is not None:
                     out.append(shaped)
     except Exception:
-        pass
+        logger.debug("backend/experience/resource_stub_select.py:select_stub_entries best-effort step failed", exc_info=True)
     if include_grammar:
         try:
             for entry in (grammar_points or []):
@@ -120,7 +122,7 @@ def select_stub_entries(
                     if shaped is not None:
                         out.append(shaped)
         except Exception:
-            pass
+            logger.debug("backend/experience/resource_stub_select.py:select_stub_entries best-effort step failed", exc_info=True)
     return out
 
 

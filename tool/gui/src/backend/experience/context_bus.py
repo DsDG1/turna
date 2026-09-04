@@ -177,7 +177,7 @@ def _build_node_badges(
         badges.setdefault(nid, {})["busy"] = 1
     if validate_problems:
         try:
-            from src.teacher.error_mapper import problem_to_node_ref
+            from src.backend.error_mapper import problem_to_node_ref
 
             secs = list(sections or [])
             for problem in validate_problems:
@@ -201,9 +201,8 @@ def _build_node_badges(
                 cur = badges.setdefault(nid, {})
                 cur["errors"] = int(cur.get("errors") or 0) + 1
         except Exception:
-            pass
+            logger.debug("backend/experience/context_bus.py:_build_node_badges best-effort step failed", exc_info=True)
     return badges
-
 
 def empty_lessons_among(
     selected_lesson_ids: Sequence[str] | None,
@@ -368,6 +367,8 @@ def build_experience_context(
 
 # local_suggestions lives in experience.suggestions (M6); re-export for stable imports.
 from src.backend.experience.suggestions import local_suggestions  # noqa: E402
+import logging
+logger = logging.getLogger(__name__)
 
 def _course_dir_str(course_dir: Any) -> str | None:
     if course_dir is None:
@@ -639,7 +640,7 @@ def _course_hygiene(adapter: Any) -> dict[str, int]:
                     # sample lives on suggestion scope instead — keep count only).
                     out["duplicate_sample_hash"] = hash(sample) % 10_000_000
     except Exception:
-        pass
+        logger.debug("backend/experience/context_bus.py:_course_hygiene best-effort step failed", exc_info=True)
     # V-06: local vocab↔expression term conflict count (never raises).
     try:
         from src.backend.experience.term_conflict_skill import (
@@ -650,7 +651,7 @@ def _course_hygiene(adapter: Any) -> dict[str, int]:
             evaluate_term_conflicts(adapter).get("count") or 0
         )
     except Exception:
-        pass
+        logger.debug("backend/experience/context_bus.py:_course_hygiene best-effort step failed", exc_info=True)
     return out
 
 
@@ -704,7 +705,7 @@ def _resolve_validate(
                             }
                         )
             except Exception:
-                pass
+                logger.debug("backend/experience/context_bus.py:_resolve_validate best-effort step failed", exc_info=True)
         except Exception:
             problems = []
     elif validate_problems is not None:

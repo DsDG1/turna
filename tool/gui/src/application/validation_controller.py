@@ -2,9 +2,12 @@
 from __future__ import annotations
 
 from typing import Any, Sequence
+import logging
+from src.application.experience_host import ExperienceHost
+logger = logging.getLogger(__name__)
 
 
-def jump_to_node(host: Any, node_ref: tuple[str, str]) -> None:
+def jump_to_node(host: ExperienceHost, node_ref: tuple[str, str]) -> None:
     """Select the given node in the course tree."""
     kind, node_id = node_ref
     tree = getattr(host, "tree", None)
@@ -18,11 +21,11 @@ def jump_to_node(host: Any, node_ref: tuple[str, str]) -> None:
         elif kind == "unit":
             tree.select_unit(node_id)
     except Exception:
-        pass
+        logger.debug("application/validation_controller.py:jump_to_node best-effort step failed", exc_info=True)
 
 
 def show_validation_report(
-    host: Any,
+    host: ExperienceHost,
     problems: Sequence[dict],
     title: str = "校验结果",
 ) -> None:

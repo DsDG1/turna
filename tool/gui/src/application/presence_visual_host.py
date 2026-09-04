@@ -12,9 +12,12 @@ from __future__ import annotations
 from typing import Any, Optional
 
 from src.backend.experience.policy import resolve_policy
+import logging
+from src.application.experience_host import ExperienceHost
+logger = logging.getLogger(__name__)
 
 
-def presence_level_of(host: Any) -> int:
+def presence_level_of(host: ExperienceHost) -> int:
     try:
         settings = getattr(host, "_settings_obj", None)
         return int(resolve_policy(settings).presence_level)
@@ -22,7 +25,7 @@ def presence_level_of(host: Any) -> int:
         return 1
 
 
-def _settings_flag(host: Any, name: str, default: bool = False) -> bool:
+def _settings_flag(host: ExperienceHost, name: str, default: bool = False) -> bool:
     try:
         s = getattr(host, "_settings_obj", None)
         if s is None:
@@ -32,7 +35,7 @@ def _settings_flag(host: Any, name: str, default: bool = False) -> bool:
         return default
 
 
-def should_follow_mouse(host: Any) -> bool:
+def should_follow_mouse(host: ExperienceHost) -> bool:
     """Continuous mouse reticle — opt-in debug only (default False)."""
     try:
         if presence_level_of(host) < 1:
@@ -42,17 +45,17 @@ def should_follow_mouse(host: Any) -> bool:
         return False
 
 
-def should_show_secondary_cursor(host: Any) -> bool:
+def should_show_secondary_cursor(host: ExperienceHost) -> bool:
     """Back-compat name: means continuous mouse tracking (almost always False)."""
     return should_follow_mouse(host)
 
 
-def should_job_lockout_visual(host: Any) -> bool:
+def should_job_lockout_visual(host: ExperienceHost) -> bool:
     """Light lockout chrome during AI jobs (default True)."""
     return _settings_flag(host, "experience_job_lockout_visual", True)
 
 
-def sync_secondary_cursor(host: Any) -> None:
+def sync_secondary_cursor(host: ExperienceHost) -> None:
     """Enable/disable mouse-follow tracking only. Never raises."""
     if host is None:
         return
@@ -68,13 +71,13 @@ def sync_secondary_cursor(host: Any) -> None:
                 overlay.setGeometry(host.rect())
                 overlay.raise_()
             except Exception:
-                pass
+                logger.debug("application/presence_visual_host.py:sync_secondary_cursor best-effort step failed", exc_info=True)
         _sync_mouse_filter(host, want)
     except Exception:
-        pass
+        logger.debug("application/presence_visual_host.py:sync_secondary_cursor best-effort step failed", exc_info=True)
 
 
-def ensure_secondary_cursor(host: Any) -> Any:
+def ensure_secondary_cursor(host: ExperienceHost) -> Any:
     """Create overlay if missing; sync mouse-follow (usually off)."""
     if host is None:
         return None
@@ -88,18 +91,18 @@ def ensure_secondary_cursor(host: Any) -> Any:
             try:
                 overlay.setGeometry(host.rect())
             except Exception:
-                pass
+                logger.debug("application/presence_visual_host.py:ensure_secondary_cursor best-effort step failed", exc_info=True)
         sync_secondary_cursor(host)
         return overlay
     except Exception:
         try:
             host._gaze_overlay = None
         except Exception:
-            pass
+            logger.debug("application/presence_visual_host.py:ensure_secondary_cursor best-effort step failed", exc_info=True)
         return None
 
 
-def on_mouse_global(host: Any, global_pos: Any) -> None:
+def on_mouse_global(host: ExperienceHost, global_pos: Any) -> None:
     """Forward global mouse position only when follow is explicitly on."""
     try:
         if not should_follow_mouse(host):
@@ -112,11 +115,11 @@ def on_mouse_global(host: Any, global_pos: Any) -> None:
         if hasattr(overlay, "set_mouse_global"):
             overlay.set_mouse_global(global_pos)
     except Exception:
-        pass
+        logger.debug("application/presence_visual_host.py:on_mouse_global best-effort step failed", exc_info=True)
 
 
 def begin_job(
-    host: Any,
+    host: ExperienceHost,
     *,
     node_id: str = "",
     label: str = "AI working",
@@ -141,7 +144,7 @@ def begin_job(
             overlay.show()
             overlay.raise_()
         except Exception:
-            pass
+            logger.debug("application/presence_visual_host.py:begin_job best-effort step failed", exc_info=True)
         if hasattr(overlay, "set_lockout"):
             overlay.set_lockout(rect, text)
         if target_widget is not None:
@@ -157,7 +160,7 @@ def begin_job(
                 if hasattr(target_widget, "setEnabled"):
                     target_widget.setEnabled(False)
             except Exception:
-                pass
+                logger.debug("application/presence_visual_host.py:begin_job best-effort step failed", exc_info=True)
         try:
             sb = getattr(host, "statusBar", None)
             if callable(sb):
@@ -165,12 +168,12 @@ def begin_job(
                 if bar is not None and hasattr(bar, "showMessage"):
                     bar.showMessage(f"AI 处理中：{label}", 4000)
         except Exception:
-            pass
+            logger.debug("application/presence_visual_host.py:begin_job best-effort step failed", exc_info=True)
     except Exception:
-        pass
+        logger.debug("application/presence_visual_host.py:begin_job best-effort step failed", exc_info=True)
 
 
-def end_job(host: Any, node_id: str = "") -> None:
+def end_job(host: ExperienceHost, node_id: str = "") -> None:
     """Clear lockout and restore disabled widgets."""
     del node_id
     try:
@@ -183,7 +186,7 @@ def end_job(host: Any, node_id: str = "") -> None:
                     overlay.enable_tracking(False)
                 overlay.hide()
             except Exception:
-                pass
+                logger.debug("application/presence_visual_host.py:end_job best-effort step failed", exc_info=True)
         locked = getattr(host, "_presence_lock_widgets", None) or []
         host._presence_lock_widgets = []
         for widget, prior in locked:
@@ -191,12 +194,12 @@ def end_job(host: Any, node_id: str = "") -> None:
                 if widget is not None and hasattr(widget, "setEnabled"):
                     widget.setEnabled(bool(prior))
             except Exception:
-                pass
+                logger.debug("application/presence_visual_host.py:end_job best-effort step failed", exc_info=True)
     except Exception:
-        pass
+        logger.debug("application/presence_visual_host.py:end_job best-effort step failed", exc_info=True)
 
 
-def _resolve_job_rect(host: Any, target_widget: Any) -> Any:
+def _resolve_job_rect(host: ExperienceHost, target_widget: Any) -> Any:
     """Best-effort QRect in host coordinates for lockout chrome."""
     from PySide6.QtCore import QRect
 
@@ -205,7 +208,7 @@ def _resolve_job_rect(host: Any, target_widget: Any) -> Any:
             top_left = target_widget.mapTo(host, target_widget.rect().topLeft())
             return QRect(top_left, target_widget.rect().size())
         except Exception:
-            pass
+            logger.debug("application/presence_visual_host.py:_resolve_job_rect best-effort step failed", exc_info=True)
     try:
         tree = getattr(host, "tree", None)
         tree_widget = getattr(tree, "tree", tree) if tree is not None else None
@@ -216,14 +219,14 @@ def _resolve_job_rect(host: Any, target_widget: Any) -> Any:
                 top_left = tree_widget.mapTo(host, vrect.topLeft())
                 return QRect(top_left, vrect.size())
     except Exception:
-        pass
+        logger.debug("application/presence_visual_host.py:_resolve_job_rect best-effort step failed", exc_info=True)
     return QRect(12, 40, 180, 36)
 
 
 class _PresenceMouseFilter:
     """QObject event filter: forward mouse moves only when follow is on."""
 
-    def __init__(self, host: Any) -> None:
+    def __init__(self, host: ExperienceHost) -> None:
         self._host = host
 
     def eventFilter(self, obj: Any, event: Any) -> bool:  # noqa: N802
@@ -243,11 +246,11 @@ class _PresenceMouseFilter:
                     return False
                 on_mouse_global(self._host, gp)
         except Exception:
-            pass
+            logger.debug("application/presence_visual_host.py:eventFilter best-effort step failed", exc_info=True)
         return False
 
 
-def _sync_mouse_filter(host: Any, want: bool) -> None:
+def _sync_mouse_filter(host: ExperienceHost, want: bool) -> None:
     """Install app-level mouse filter only while continuous follow is on."""
     try:
         from PySide6.QtCore import QObject
@@ -274,16 +277,16 @@ def _sync_mouse_filter(host: Any, want: bool) -> None:
                 try:
                     host.setMouseTracking(True)
                 except Exception:
-                    pass
+                    logger.debug("application/presence_visual_host.py:_sync_mouse_filter best-effort step failed", exc_info=True)
         else:
             if filt is not None:
                 try:
                     app.removeEventFilter(filt)
                 except Exception:
-                    pass
+                    logger.debug("application/presence_visual_host.py:_sync_mouse_filter best-effort step failed", exc_info=True)
                 try:
                     host._presence_mouse_filter = None
                 except Exception:
-                    pass
+                    logger.debug("application/presence_visual_host.py:_sync_mouse_filter best-effort step failed", exc_info=True)
     except Exception:
-        pass
+        logger.debug("application/presence_visual_host.py:_sync_mouse_filter best-effort step failed", exc_info=True)

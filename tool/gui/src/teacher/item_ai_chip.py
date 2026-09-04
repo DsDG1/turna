@@ -42,7 +42,7 @@ def _notify_timeline(
 
 def _ai_generation_kwargs() -> dict[str, Any]:
     try:
-        from src.app import current_settings
+        from src.application.runtime_context import current_settings
 
         s = current_settings()
         return {
@@ -71,7 +71,7 @@ def run_item_chip(
     the session ExperienceMemory and prior same-lesson styles are appended to
     the worker instruction (「本课已用风格：…」).
     """
-    from src.app import current_ai_config
+    from src.application.runtime_context import current_ai_config
     from src.backend.ai_generator import request_item_transform
     from src.dialogs.ai.worker import AiRequestWorker
 

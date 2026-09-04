@@ -16,6 +16,8 @@ if TYPE_CHECKING:
     from PySide6.QtCore import QSettings
 
 from src.backend.ai_generator import AiCourseSpec
+import logging
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -130,7 +132,7 @@ class AiPromptLibrary:
                 if isinstance(parsed, list):
                     return parsed
             except Exception:
-                pass
+                logger.debug("backend/ai_prompt_library.py:_template_list best-effort step failed", exc_info=True)
         return []
 
     def _save_template_list(self, templates: list[dict[str, Any]]) -> None:
@@ -179,7 +181,7 @@ class AiPromptLibrary:
                 if isinstance(parsed, list):
                     return parsed
             except Exception:
-                pass
+                logger.debug("backend/ai_prompt_library.py:_history_list best-effort step failed", exc_info=True)
         return []
 
     def _save_history_list(self, history: list[dict[str, Any]]) -> None:
@@ -206,7 +208,7 @@ class AiPromptLibrary:
                 if isinstance(parsed, dict):
                     return parsed
             except Exception:
-                pass
+                logger.debug("backend/ai_prompt_library.py:_overrides_dict best-effort step failed", exc_info=True)
         return {}
 
     def _save_overrides_dict(self, overrides: dict[str, dict[str, Any]]) -> None:

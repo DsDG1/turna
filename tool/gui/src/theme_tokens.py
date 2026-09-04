@@ -36,19 +36,14 @@ BRAND_SAND = "#EAD9B8"       # warmSand / secondaryContainer
 # ---------------------------------------------------------------------------
 # Template badge palette (theme-independent - colored chips w/ white text)
 # ---------------------------------------------------------------------------
-# Curated to harmonize with the Turna brand while staying distinguishable
-# via hue separation. Only ``listening`` carries the brand teal; the rest
-# retain their established hues to preserve visual memory.
-TEMPLATE_BADGES: dict[str, str] = {
-    "listening": BRAND_TEAL,      # brand teal (was #3B82F6 blue)
-    "reading": "#10B981",           # emerald - kept
-    "mastery": "#F59E0B",           # amber - kept
-    "intro": "#6366F1",             # indigo - kept
-    "practice": "#8B5CF6",          # violet - kept
-    "review": "#EC4899",            # rose - kept
-    "legacy": "#6B7280",            # slate - kept
-}
-TEMPLATE_BADGE_DEFAULT = "#6B7280"
+# Canonical data lives with the lesson-template schema in
+# ``backend.lesson_content`` (backend must not import theme modules);
+# re-exported here for the ``template_badge_color`` helper and back-compat.
+from src.backend.lesson_content import TEMPLATE_COLOR_DEFAULT as _BADGE_DEFAULT
+from src.backend.lesson_content import TEMPLATE_COLORS as _TEMPLATE_COLORS
+
+TEMPLATE_BADGES: dict[str, str] = dict(_TEMPLATE_COLORS)
+TEMPLATE_BADGE_DEFAULT = _BADGE_DEFAULT
 
 # Resource-type pill colors (knowledge bubbles, review table)
 RESOURCE_TYPE_COLORS: dict[str, str] = {

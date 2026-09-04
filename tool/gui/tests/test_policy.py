@@ -1,7 +1,7 @@
 """C-07 policy.py — single source of truth for Experience dispatch gating.
 
-Covers ``resolve_policy`` + ``can_dispatch`` and the delegation of
-``is_dangerous_skill_allowed`` to the policy module.
+Covers ``resolve_policy`` + ``can_dispatch`` and
+``is_dangerous_skill_allowed`` (owned by the policy module).
 Default-safe semantics must not change: observer 三零, dangerous/soft
 default off.
 """
@@ -358,10 +358,10 @@ class CanDispatchTests(unittest.TestCase):
 
 
 class DelegationTests(unittest.TestCase):
-    """actions.is_dangerous_skill_allowed delegates to policy."""
+    """policy.is_dangerous_skill_allowed derives from resolve_policy."""
 
     def test_dangerous_helper_delegates(self):
-        from src.backend.experience.actions import is_dangerous_skill_allowed
+        from src.backend.experience.policy import is_dangerous_skill_allowed
 
         self.assertFalse(
             is_dangerous_skill_allowed(

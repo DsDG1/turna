@@ -13,6 +13,9 @@ Red lines:
 from __future__ import annotations
 
 from typing import Any, Iterable, Mapping
+import logging
+from src.application.experience_host import ExperienceHost
+logger = logging.getLogger(__name__)
 
 # Closed set: local / low-risk write skills only (F3 v1).
 SILENT_DRIVE_ALLOWLIST: frozenset[str] = frozenset(
@@ -53,7 +56,7 @@ def _is_drive_enabled(policy: Any) -> bool:
         return False
 
 
-def is_experience_ai_busy(host: Any) -> bool:
+def is_experience_ai_busy(host: ExperienceHost) -> bool:
     """True when JobTray has AI-kind work (or host flag). Never raises."""
     if host is None:
         return False
@@ -63,12 +66,12 @@ def is_experience_ai_busy(host: Any) -> bool:
             if bool(tray.is_busy_ai()):
                 return True
     except Exception:
-        pass
+        logger.debug("application/presence_drive.py:is_experience_ai_busy best-effort step failed", exc_info=True)
     try:
         if bool(getattr(host, "_presence_ai_busy", False)):
             return True
     except Exception:
-        pass
+        logger.debug("application/presence_drive.py:is_experience_ai_busy best-effort step failed", exc_info=True)
     return False
 
 
@@ -88,11 +91,11 @@ def is_silent_drive_action(action_id: str | None) -> bool:
         if is_denied_immersive(aid):
             return False
     except Exception:
-        pass
+        logger.debug("application/presence_drive.py:is_silent_drive_action best-effort step failed", exc_info=True)
     return True
 
 
-def _seen_set(host: Any) -> set[str]:
+def _seen_set(host: ExperienceHost) -> set[str]:
     try:
         s = getattr(host, "_presence_drive_seen", None)
         if isinstance(s, set):
@@ -120,12 +123,12 @@ def _proposal_payload(prop: Any) -> tuple[str, dict, str]:
                 str(prop.get("title") or ""),
             )
     except Exception:
-        pass
+        logger.debug("application/presence_drive.py:_proposal_payload best-effort step failed", exc_info=True)
     return "", {}, ""
 
 
 def maybe_silent_drive_proposals(
-    host: Any,
+    host: ExperienceHost,
     props: Iterable[Any] | None,
     policy: Any,
 ) -> int:
@@ -165,13 +168,13 @@ def maybe_silent_drive_proposals(
                     kind="silent_drive",
                 )
             except Exception:
-                pass
+                logger.debug("application/presence_drive.py:maybe_silent_drive_proposals best-effort step failed", exc_info=True)
             try:
                 metrics = getattr(host, "experience_metrics", None)
                 if metrics is not None and hasattr(metrics, "inc_auto"):
                     metrics.inc_auto("scheduled")
             except Exception:
-                pass
+                logger.debug("application/presence_drive.py:maybe_silent_drive_proposals best-effort step failed", exc_info=True)
             try:
                 dispatch_experience_action(
                     host,
@@ -199,7 +202,7 @@ def maybe_silent_drive_proposals(
                         kind="silent_drive_failed",
                     )
                 except Exception:
-                    pass
+                    logger.debug("application/presence_drive.py:maybe_silent_drive_proposals best-effort step failed", exc_info=True)
                 _notify_silent_result(
                     host,
                     action_id=action_id,
@@ -212,7 +215,7 @@ def maybe_silent_drive_proposals(
     return n
 
 
-def _refresh_host_after_silent(host: Any) -> None:
+def _refresh_host_after_silent(host: ExperienceHost) -> None:
     """P0-b: best-effort tree/experience refresh after silent write."""
     try:
         fn = getattr(host, "_refresh_experience", None)
@@ -220,17 +223,17 @@ def _refresh_host_after_silent(host: Any) -> None:
             fn(immediate=False)
             return
     except Exception:
-        pass
+        logger.debug("application/presence_drive.py:_refresh_host_after_silent best-effort step failed", exc_info=True)
     try:
         tree = getattr(host, "tree", None)
         adapter = getattr(host, "adapter", None)
         if tree is not None and adapter is not None and hasattr(tree, "display"):
             tree.display(adapter)
     except Exception:
-        pass
+        logger.debug("application/presence_drive.py:_refresh_host_after_silent best-effort step failed", exc_info=True)
 
 
-def maybe_silent_drive_precog(host: Any, policy: Any) -> int:
+def maybe_silent_drive_precog(host: ExperienceHost, policy: Any) -> int:
     """From precog cache, enqueue fill/soft when full_auto. Returns count."""
     if host is None or not _is_drive_enabled(policy):
         return 0
@@ -267,16 +270,16 @@ def maybe_silent_drive_precog(host: Any, policy: Any) -> int:
         return 0
 
 
-def clear_drive_seen(host: Any) -> None:
+def clear_drive_seen(host: ExperienceHost) -> None:
     """Reset session throttle (e.g. on course switch)."""
     try:
         host._presence_drive_seen = set()
     except Exception:
-        pass
+        logger.debug("application/presence_drive.py:clear_drive_seen best-effort step failed", exc_info=True)
 
 
 def _notify_silent_result(
-    host: Any,
+    host: ExperienceHost,
     *,
     action_id: str,
     title: str = "",
@@ -294,7 +297,7 @@ def _notify_silent_result(
             kind="silent_ok" if ok else "silent_fail",
         )
     except Exception:
-        pass
+        logger.debug("application/presence_drive.py:_notify_silent_result best-effort step failed", exc_info=True)
     try:
         sb = getattr(host, "statusBar", None)
         if not callable(sb):
@@ -312,4 +315,4 @@ def _notify_silent_result(
             else:
                 bar.showMessage(f"自动失败：{label}", 4000)
     except Exception:
-        pass
+        logger.debug("application/presence_drive.py:_notify_silent_result best-effort step failed", exc_info=True)

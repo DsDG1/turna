@@ -18,6 +18,8 @@ import re
 from typing import Any, Callable, Iterable
 
 from src.backend.experience.intent_router import Intent
+import logging
+logger = logging.getLogger(__name__)
 
 LLM_INTENT_MIN_CONFIDENCE = 0.55
 
@@ -52,7 +54,7 @@ def is_llm_intent_enabled(
     """
     if settings is None:
         try:
-            from src.app import current_settings
+            from src.application.runtime_context import current_settings
 
             settings = current_settings()
         except Exception:
@@ -199,7 +201,7 @@ def _default_label(action_id: str) -> str:
         if spec is not None and spec.title:
             return str(spec.title)
     except Exception:
-        pass
+        logger.debug("backend/experience/intent_llm.py:_default_label best-effort step failed", exc_info=True)
     return action_id
 
 
@@ -214,7 +216,7 @@ def _content_from_body(body: Any) -> str:
             msg = choices[0].get("message") or {}
             return str(msg.get("content") or "")
     except Exception:
-        pass
+        logger.debug("backend/experience/intent_llm.py:_content_from_body best-effort step failed", exc_info=True)
     return str(body.get("content") or "")
 
 
@@ -230,7 +232,7 @@ def _extract_json_object(raw: Any) -> dict[str, Any] | None:
         if isinstance(obj, dict):
             return obj
     except Exception:
-        pass
+        logger.debug("backend/experience/intent_llm.py:_extract_json_object best-effort step failed", exc_info=True)
     # Fenced ```json ... ```
     m = _CODE_FENCE_RE.search(text)
     if m:
@@ -239,7 +241,7 @@ def _extract_json_object(raw: Any) -> dict[str, Any] | None:
             if isinstance(obj, dict):
                 return obj
         except Exception:
-            pass
+            logger.debug("backend/experience/intent_llm.py:_extract_json_object best-effort step failed", exc_info=True)
     # First {...} slice
     start = text.find("{")
     end = text.rfind("}")
@@ -249,5 +251,5 @@ def _extract_json_object(raw: Any) -> dict[str, Any] | None:
             if isinstance(obj, dict):
                 return obj
         except Exception:
-            pass
+            logger.debug("backend/experience/intent_llm.py:_extract_json_object best-effort step failed", exc_info=True)
     return None

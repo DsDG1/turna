@@ -23,6 +23,8 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 from typing import Any, Literal
+import logging
+logger = logging.getLogger(__name__)
 
 # Action id this skill is dispatched under (mirrors actions.py registry).
 ACTION_ID = "textbook.ocr_suggest"
@@ -50,7 +52,7 @@ def is_ocr_enabled(settings: Any) -> bool:
             try:
                 return bool(settings.get("experience_ocr_enabled", False))
             except Exception:
-                pass
+                logger.debug("backend/experience/ocr_skill.py:is_ocr_enabled best-effort step failed", exc_info=True)
         return bool(getattr(settings, "experience_ocr_enabled", False))
     except Exception:
         return False
@@ -156,7 +158,7 @@ def _run_ocr_pdf(path: Any, lang: str) -> tuple[str, str]:
                     try:
                         img.close()
                     except Exception:
-                        pass
+                        logger.debug("backend/experience/ocr_skill.py:_run_ocr_pdf best-effort step failed", exc_info=True)
                 if status == "missing_dep":
                     not_found_dep = True
                     continue
@@ -168,7 +170,7 @@ def _run_ocr_pdf(path: Any, lang: str) -> tuple[str, str]:
             try:
                 doc.close()
             except Exception:
-                pass
+                logger.debug("backend/experience/ocr_skill.py:_run_ocr_pdf best-effort step failed", exc_info=True)
         if not_found_dep:
             # Dep missing surfaced mid-loop but we may still have text.
             pass
@@ -204,7 +206,7 @@ def run_ocr(path: Any, *, lang: str = "eng") -> tuple[str, str]:
                 try:
                     img.close()
                 except Exception:
-                    pass
+                    logger.debug("backend/experience/ocr_skill.py:run_ocr best-effort step failed", exc_info=True)
         if _is_pdf_path(path):
             return _run_ocr_pdf(path, lang)
         return "", "no_text"

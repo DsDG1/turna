@@ -16,9 +16,12 @@ from PySide6.QtWidgets import QDialog
 
 from src.application.commands import MergeAiSectionCommand
 from src.application.ui_guard import safe_information, safe_warning
+import logging
+from src.application.experience_host import ExperienceHost
+logger = logging.getLogger(__name__)
 
 
-def _resolve_target_section_id(host: Any, scope: dict) -> str:
+def _resolve_target_section_id(host: ExperienceHost, scope: dict) -> str:
     """Resolve the section to append shells into (scope > selection > first)."""
     sid = str((scope or {}).get("section_id") or "").strip()
     if sid:
@@ -36,17 +39,17 @@ def _resolve_target_section_id(host: Any, scope: dict) -> str:
                 section, _u, _l = host.adapter.find_lesson(nid)
                 return str(section.get("id") or "")
         except Exception:
-            pass
+            logger.debug("application/experience_handlers/outline.py:_resolve_target_section_id best-effort step failed", exc_info=True)
     try:
         sections = getattr(host.adapter, "sections", None) or []
         if sections and isinstance(sections[0], dict):
             return str(sections[0].get("id") or "")
     except Exception:
-        pass
+        logger.debug("application/experience_handlers/outline.py:_resolve_target_section_id best-effort step failed", exc_info=True)
     return ""
 
 
-def handle_outline_shells(host: Any, scope: dict | None = None) -> None:
+def handle_outline_shells(host: ExperienceHost, scope: dict | None = None) -> None:
     """Paste bullet outline → append unit/lesson shells to a section (Undo)."""
     from src.backend.experience.outline_skill import (
         ACTION_ID,
@@ -139,7 +142,7 @@ def handle_outline_shells(host: Any, scope: dict | None = None) -> None:
         try:
             cmd.signals.changed.connect(host._on_ai_edit_applied)
         except Exception:
-            pass
+            logger.debug("application/experience_handlers/outline.py:handle_outline_shells best-effort step failed", exc_info=True)
     host.undo_stack.push(cmd)
     host.experience_metrics.inc_suggestion(ACTION_ID, "applied")
     host._record_experience_event(

@@ -1466,7 +1466,7 @@ class CourseAdapter:
             try:
                 shutil.rmtree(old, ignore_errors=True)
             except Exception:  # noqa: BLE001 — best-effort prune
-                pass
+                logger.debug("backend/course_adapter.py:_prune_old_backups best-effort step failed", exc_info=True)
 
     def _replace_course_files_with(self, tmp_dir: Path, course_dir: Path) -> None:
         """Atomically replace course files with those in ``tmp_dir``.

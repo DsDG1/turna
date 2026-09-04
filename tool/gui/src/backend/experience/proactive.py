@@ -10,6 +10,8 @@ from datetime import date, datetime, timezone
 from typing import Any, Iterable, Mapping, Sequence
 
 from src.backend.experience.context_bus import ExperienceContext, local_suggestions
+import logging
+logger = logging.getLogger(__name__)
 
 # Mute levels persisted in settings (string values).
 MUTE_OFF = "off"
@@ -196,7 +198,7 @@ def evaluate_ambient_batch(
                 else:
                     in_cooldown.add(r.proposal_id)
         except Exception:
-            pass
+            logger.debug("backend/experience/proactive.py:evaluate_ambient_batch best-effort step failed", exc_info=True)
 
     out: list[AmbientProposal] = []
     seen: set[str] = set()

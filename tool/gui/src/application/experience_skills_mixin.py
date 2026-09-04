@@ -16,6 +16,8 @@ from PySide6.QtWidgets import QMessageBox
 
 from src.application.ui_guard import safe_warning
 from src.backend.experience.proactive import make_mute
+import logging
+logger = logging.getLogger(__name__)
 
 
 def _validate_course_problems(course_dir) -> list[dict]:
@@ -100,7 +102,7 @@ class ExperienceSkillsMixin:
             if isinstance(raw, dict) and raw:
                 return dict(raw)
         except Exception:
-            pass
+            logger.debug("application/experience_skills_mixin.py:_usage_today_for_policy best-effort step failed", exc_info=True)
         try:
             self._sync_usage_today()
             shell = getattr(self, "experience", None)
@@ -108,13 +110,13 @@ class ExperienceSkillsMixin:
             if isinstance(raw, dict) and raw:
                 return dict(raw)
         except Exception:
-            pass
+            logger.debug("application/experience_skills_mixin.py:_usage_today_for_policy best-effort step failed", exc_info=True)
         try:
             ctx = getattr(self.experience, "context", None)
             if ctx is not None and getattr(ctx, "usage_today", None):
                 return dict(ctx.usage_today)
         except Exception:
-            pass
+            logger.debug("application/experience_skills_mixin.py:_usage_today_for_policy best-effort step failed", exc_info=True)
         return None
     def _resolve_experience_policy(self, *, action_id: str | None = None):
         """C-07 + M-08: resolve policy with live settings + usage_today."""
@@ -144,7 +146,7 @@ class ExperienceSkillsMixin:
         try:
             self.statusBar().showMessage(f"{reason}：{label}", 6000)
         except Exception:
-            pass
+            logger.debug("application/experience_skills_mixin.py:_deny_ai_write_if_blocked best-effort step failed", exc_info=True)
         return True
     def _load_experience_mute_dict(self) -> dict:
         import json
@@ -190,7 +192,7 @@ class ExperienceSkillsMixin:
             )
             self._settings_obj.save_to_qsettings(self._settings)
         except Exception:
-            pass
+            logger.debug("application/experience_skills_mixin.py:_save_defer_store best-effort step failed", exc_info=True)
     def _refresh_ambient(self) -> None:
         """E2.0 + A3 ①: evaluate up to 3 Ambient proposals (local, no LLM)."""
         from src.backend.experience.proactive import evaluate_ambient_batch
@@ -227,7 +229,7 @@ class ExperienceSkillsMixin:
                 }
                 defer_store.purge_resolved(current_ids)
             except Exception:
-                pass
+                logger.debug("application/experience_skills_mixin.py:_refresh_ambient best-effort step failed", exc_info=True)
         if not props:
             self.ambient_banner.clear()
         elif getattr(policy, "runtime_opaque", False):
@@ -242,7 +244,7 @@ class ExperienceSkillsMixin:
                     if bar is not None and hasattr(bar, "showMessage"):
                         bar.showMessage("…", 800)
             except Exception:
-                pass
+                logger.debug("application/experience_skills_mixin.py:_refresh_ambient best-effort step failed", exc_info=True)
         else:
             self.ambient_banner.show_proposals(props)
             self.experience_metrics.inc_ambient("shown")
@@ -258,14 +260,14 @@ class ExperienceSkillsMixin:
             if getattr(policy, "allow_full_auto_apply", False):
                 maybe_silent_drive_proposals(self, props, policy)
         except Exception:
-            pass
+            logger.debug("application/experience_skills_mixin.py:_refresh_ambient best-effort step failed", exc_info=True)
         # P2: once-per-course campaign auto surface (writes still confirm).
         try:
             from src.application.presence_mode import maybe_auto_enqueue_campaign
 
             maybe_auto_enqueue_campaign(self)
         except Exception:
-            pass
+            logger.debug("application/experience_skills_mixin.py:_refresh_ambient best-effort step failed", exc_info=True)
         # P5: local precognition refresh (soft/empty/weak fingerprints).
         try:
             from src.backend.experience.precognition import (
@@ -301,9 +303,9 @@ class ExperienceSkillsMixin:
 
                         maybe_silent_drive_precog(self, policy)
                     except Exception:
-                        pass
+                        logger.debug("application/experience_skills_mixin.py:_refresh_ambient best-effort step failed", exc_info=True)
         except Exception:
-            pass
+            logger.debug("application/experience_skills_mixin.py:_refresh_ambient best-effort step failed", exc_info=True)
     def _on_ambient_heartbeat(self) -> None:
         """A3 ③ + F4 + P2: re-evaluate only when AI is idle.
 
@@ -327,7 +329,7 @@ class ExperienceSkillsMixin:
             if hasattr(self, "isActiveWindow") and not self.isActiveWindow():
                 return
         except Exception:
-            pass
+            logger.debug("application/experience_skills_mixin.py:_on_ambient_heartbeat best-effort step failed", exc_info=True)
         # P2: do not refresh/drive while AI is still answering.
         if is_experience_ai_busy(self):
             self._pause_ambient_heartbeat_until_idle()
@@ -345,14 +347,14 @@ class ExperienceSkillsMixin:
             if hb is not None and hb.isActive():
                 hb.stop()
         except Exception:
-            pass
+            logger.debug("application/experience_skills_mixin.py:_pause_ambient_heartbeat_until_idle best-effort step failed", exc_info=True)
 
     def _on_job_tray_ai_busy_changed(self, busy: bool) -> None:
         """P2: AI job started → pause heartbeat; all done → start full interval."""
         try:
             self._presence_ai_busy = bool(busy)
         except Exception:
-            pass
+            logger.debug("application/experience_skills_mixin.py:_on_job_tray_ai_busy_changed best-effort step failed", exc_info=True)
         if busy:
             self._pause_ambient_heartbeat_until_idle()
             return
@@ -376,7 +378,7 @@ class ExperienceSkillsMixin:
                 hb.start()
             self._heartbeat_wait_idle = False
         except Exception:
-            pass
+            logger.debug("application/experience_skills_mixin.py:_on_job_tray_ai_busy_changed best-effort step failed", exc_info=True)
     def _on_ambient_accepted(self, proposal) -> None:
         from src.backend.experience.proactive import AmbientProposal
 
@@ -513,7 +515,7 @@ class ExperienceSkillsMixin:
                     section, _unit, _lesson = self.adapter.find_lesson(node_id)
                     return section
         except KeyError:
-            pass
+            logger.debug("application/experience_skills_mixin.py:_current_section_for_experience best-effort step failed", exc_info=True)
         sections = getattr(self.adapter, "sections", None) or []
         return sections[0] if sections else None
     def _experience_open_validation(self) -> None:

@@ -13,6 +13,8 @@ from __future__ import annotations
 import hashlib
 import os
 from typing import Any, Mapping, Sequence
+import logging
+logger = logging.getLogger(__name__)
 
 
 # Closed key set for Context / Dock / telemetry (no free-form blobs).
@@ -51,7 +53,7 @@ def _content_text(content: Mapping[str, Any]) -> str:
         if content.get("type") == "text":
             return str(content.get("text") or "")
     except Exception:
-        pass
+        logger.debug("backend/experience/attachments.py:_content_text best-effort step failed", exc_info=True)
     return ""
 
 
@@ -76,7 +78,7 @@ def _kind_of(name: str, content: Mapping[str, Any]) -> str:
         if content.get("type") == "image_url":
             return "image"
     except Exception:
-        pass
+        logger.debug("backend/experience/attachments.py:_kind_of best-effort step failed", exc_info=True)
     ext = os.path.splitext(name)[1].lower()
     return _KIND_BY_EXT.get(ext, "other")
 

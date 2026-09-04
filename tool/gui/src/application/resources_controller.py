@@ -7,9 +7,12 @@ telemetry event names.
 from __future__ import annotations
 
 from typing import Any
+import logging
+from src.application.experience_host import ExperienceHost
+logger = logging.getLogger(__name__)
 
 
-def open_resources(host: Any, initial_filter: str = "") -> None:
+def open_resources(host: ExperienceHost, initial_filter: str = "") -> None:
     """Open local resources: teacher vocab table or full resource editor."""
     from PySide6.QtWidgets import QDialog, QDialogButtonBox, QVBoxLayout
 
@@ -40,7 +43,7 @@ def open_resources(host: Any, initial_filter: str = "") -> None:
             try:
                 host.statusBar().showMessage("词库已修改，记得保存", 5000)
             except Exception:
-                pass
+                logger.debug("application/resources_controller.py:open_resources best-effort step failed", exc_info=True)
         return
 
     from src.widgets.resource_editor import ResourceEditorDialog
@@ -71,16 +74,16 @@ def open_resources(host: Any, initial_filter: str = "") -> None:
             )
             host._sync_experience_focus()
         except Exception:
-            pass
+            logger.debug("application/resources_controller.py:open_resources best-effort step failed", exc_info=True)
 
     try:
         if editor.is_dirty():
             host.statusBar().showMessage("资源已修改，记得保存", 5000)
     except Exception:
-        pass
+        logger.debug("application/resources_controller.py:open_resources best-effort step failed", exc_info=True)
 
 
-def open_git_library(host: Any) -> None:
+def open_git_library(host: ExperienceHost) -> None:
     """Open the Git resource library dialog."""
     from src.dialogs.git_library_dialog import GitLibraryDialog
     from src.infrastructure.telemetry import telemetry
@@ -96,10 +99,10 @@ def open_git_library(host: Any) -> None:
         try:
             host.statusBar().showMessage(f"已从 Git 资源库加载: {clone}", 5000)
         except Exception:
-            pass
+            logger.debug("application/resources_controller.py:open_git_library best-effort step failed", exc_info=True)
 
 
-def open_publish(host: Any) -> None:
+def open_publish(host: ExperienceHost) -> None:
     """Open publish dialog; refresh tree/detail on success."""
     from src.infrastructure.telemetry import telemetry
     from src.widgets.publish_dialog import PublishDialog
@@ -115,13 +118,13 @@ def open_publish(host: Any) -> None:
         try:
             host.tree.refresh()
         except Exception:
-            pass
+            logger.debug("application/resources_controller.py:open_publish best-effort step failed", exc_info=True)
         if not teacher_mode and getattr(host, "_current_node_ref", None) is not None:
             try:
                 host.detail.show_node(host.adapter, host._current_node_ref)
             except Exception:
-                pass
+                logger.debug("application/resources_controller.py:open_publish best-effort step failed", exc_info=True)
         try:
             host.statusBar().showMessage("发布成功", 5000)
         except Exception:
-            pass
+            logger.debug("application/resources_controller.py:open_publish best-effort step failed", exc_info=True)

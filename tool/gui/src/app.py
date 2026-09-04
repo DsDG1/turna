@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
 )
 
+from src.application import runtime_context
 from src.application.commands import (
     AiEditLessonCommand,
     AiEditUnitCommand,
@@ -42,37 +43,21 @@ from src.infrastructure.telemetry import telemetry
 from src.theme import apply_theme, current_palette
 from src.widgets.course_tree import CourseTreeWidget
 from src.widgets.detail_panel import DetailPanel
-
-
-def _active_main_window() -> "MainWindow | None":
-    """Return the active MainWindow, or None when no window is present (tests)."""
-    app = QApplication.instance()
-    if app is None:
-        return None
-    for widget in app.topLevelWidgets():
-        if isinstance(widget, MainWindow):
-            return widget
-    return None
+import logging
+logger = logging.getLogger(__name__)
 
 
 def current_ai_config() -> AiApiConfig:
-    """Return the current AI config from the active MainWindow.
+    """Current AI config, delegated to the runtime_context registry.
 
-    Dialogs that need AI configuration should call this helper instead of
-    importing `MainWindow` or inspecting widgets directly.
+    Kept as a re-export point so existing callers (and tests) are unaffected.
     """
-    win = _active_main_window()
-    if win is not None and hasattr(win, "_ai_config") and win._ai_config is not None:
-        return win._ai_config
-    return AiApiConfig()
+    return runtime_context.current_ai_config()
 
 
 def current_settings() -> Settings:
-    """Return the Settings instance from the active MainWindow (or a default)."""
-    win = _active_main_window()
-    if win is not None and hasattr(win, "_settings_obj") and win._settings_obj is not None:
-        return win._settings_obj
-    return Settings()
+    """Current settings, delegated to the runtime_context registry."""
+    return runtime_context.current_settings()
 
 
 class _ButtonSizePolicyFilter(QObject):
@@ -125,6 +110,13 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
         # AI API config is managed centrally via the Settings panel. Base URL
         # and model are persisted; the API key is memory-only and cleared on exit.
         self._ai_config = self._load_ai_config()
+        # Live getters so lower layers read settings without importing src.app.
+        # Lambdas (not snapshots) because _save_ai_config / Settings dialog rebind.
+        runtime_context.set_providers(
+            self,
+            settings_fn=lambda: self._settings_obj,
+            config_fn=lambda: self._ai_config,
+        )
         self._apply_ai_cache()
 
         self.undo_stack = QUndoStack(self)
@@ -201,7 +193,7 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
             knowledge_prompt.load_overrides_from(AiPromptLibrary(self._settings))
         except Exception:
             # Prompt overrides are an enhancement; never block startup.
-            pass
+            logger.debug("app.py:_load_extraction_prompt_overrides best-effort step failed", exc_info=True)
 
     def _build_undo_actions(self) -> None:
         self.undo_action = self.undo_stack.createUndoAction(self, "撤销")
@@ -954,7 +946,7 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
                     if reply != QMessageBox.StandardButton.Yes:
                         return
             except Exception:
-                pass
+                logger.debug("app.py:_on_ai_edit best-effort step failed", exc_info=True)
 
         sid = section.get("id", "")
         if kind == "section":
@@ -1311,7 +1303,7 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
                 )
                 return
         except Exception:
-            pass
+            logger.debug("app.py:_on_generate_audio best-effort step failed", exc_info=True)
 
         sounds_dir = generate_audio_client.sounds_dir_for(
             self.course_dir, self._settings_obj
@@ -1371,7 +1363,7 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
                 if tray is not None:
                     tray.finish_job("tts-generate")
             except Exception:
-                pass
+                logger.debug("app.py:_on_finished_ok best-effort step failed", exc_info=True)
             self.tree.refresh()
             telemetry.record_event(
                 "tts.generate",
@@ -1389,7 +1381,7 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
                 if tray is not None:
                     tray.finish_job("tts-generate")
             except Exception:
-                pass
+                logger.debug("app.py:_on_failed best-effort step failed", exc_info=True)
             telemetry.record_error(
                 RuntimeError(msg), context={"event": "tts.generate_failed"}
             )
@@ -1741,6 +1733,7 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
             if self._overview_window is not None:
                 self._overview_window.close()
                 self._overview_window = None
+            runtime_context.clear_providers(self)
             self._clear_ai_key_on_exit()
             self._record_window_duration()
 
@@ -1757,4 +1750,4 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
                 )
                 operations.record_action("window.close", "MainWindow")
         except Exception:
-            pass
+            logger.debug("app.py:_record_window_duration best-effort step failed", exc_info=True)

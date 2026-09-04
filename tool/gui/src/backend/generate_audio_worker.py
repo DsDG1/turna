@@ -11,6 +11,8 @@ from PySide6.QtCore import QThread, Signal
 
 from src.backend import generate_audio_client
 from src.backend.generate_audio_client import TtsOptions
+import logging
+logger = logging.getLogger(__name__)
 
 
 class GenerateAudioWorker(QThread):
@@ -70,7 +72,7 @@ class GenerateAudioWorker(QThread):
                     total = int(counts.get("total", total))
                     self.progress.emit(done, total)
                 except ValueError:
-                    pass
+                    logger.debug("backend/generate_audio_worker.py:_on_line best-effort step failed", exc_info=True)
 
         try:
             result = generate_audio_client.run_generate(

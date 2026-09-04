@@ -11,6 +11,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any, Mapping
+import logging
+logger = logging.getLogger(__name__)
 
 CONFIG_KIND = "turna.ai_config"
 # Legacy kind from the pre-rebrand "Varnamala" days. We still accept it on
@@ -60,7 +62,7 @@ def discover_repo_roots(*, extra: Path | None = None) -> list[Path]:
             seen.add(key)
             roots.append(r)
         except Exception:
-            pass
+            logger.debug("backend/ai_config_file.py:_add best-effort step failed", exc_info=True)
 
     try:
         here = Path(__file__).resolve()
@@ -72,7 +74,7 @@ def discover_repo_roots(*, extra: Path | None = None) -> list[Path]:
             except Exception:
                 continue
     except Exception:
-        pass
+        logger.debug("backend/ai_config_file.py:discover_repo_roots best-effort step failed", exc_info=True)
 
     if extra is not None:
         try:
@@ -85,7 +87,7 @@ def discover_repo_roots(*, extra: Path | None = None) -> list[Path]:
                 except Exception:
                     continue
         except Exception:
-            pass
+            logger.debug("backend/ai_config_file.py:discover_repo_roots best-effort step failed", exc_info=True)
     return roots
 
 
@@ -218,7 +220,7 @@ def apply_ai_dict_to_settings(settings: Any, ai: Mapping[str, Any]) -> list[str]
                 )
                 applied.append("timeout")
             except Exception:
-                pass
+                logger.debug("backend/ai_config_file.py:apply_ai_dict_to_settings best-effort step failed", exc_info=True)
         if "temperature" in ai:
             try:
                 settings.ai_temperature = max(
@@ -226,13 +228,13 @@ def apply_ai_dict_to_settings(settings: Any, ai: Mapping[str, Any]) -> list[str]
                 )
                 applied.append("temperature")
             except Exception:
-                pass
+                logger.debug("backend/ai_config_file.py:apply_ai_dict_to_settings best-effort step failed", exc_info=True)
         if "retry_max" in ai:
             try:
                 settings.ai_retry_max = max(0, min(5, int(ai.get("retry_max") or 0)))
                 applied.append("retry_max")
             except Exception:
-                pass
+                logger.debug("backend/ai_config_file.py:apply_ai_dict_to_settings best-effort step failed", exc_info=True)
         if "supports_reasoning" in ai:
             settings.ai_supports_reasoning = bool(ai.get("supports_reasoning"))
             applied.append("supports_reasoning")
@@ -255,7 +257,7 @@ def apply_ai_dict_to_settings(settings: Any, ai: Mapping[str, Any]) -> list[str]
                 )
                 applied.append("max_parallel_lessons")
             except Exception:
-                pass
+                logger.debug("backend/ai_config_file.py:apply_ai_dict_to_settings best-effort step failed", exc_info=True)
         if "pipeline_default_mode" in ai:
             v = str(ai.get("pipeline_default_mode") or "fast")
             if v not in {"fast", "refine"}:

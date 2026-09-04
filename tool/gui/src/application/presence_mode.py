@@ -14,6 +14,9 @@ from src.backend.experience.policy import (
     SOVEREIGN,
     normalize_experience_mode,
 )
+import logging
+from src.application.experience_host import ExperienceHost
+logger = logging.getLogger(__name__)
 
 # Ctrl+Shift+D — Demote to copilot (documented in design + settings tooltip).
 DEMOTE_SHORTCUT = "Ctrl+Shift+D"
@@ -67,17 +70,17 @@ def should_confirm_sovereign_enter(old_mode: Any, new_mode: Any) -> bool:
     return new == SOVEREIGN and old != SOVEREIGN
 
 
-def mark_sovereign_entered(host: Any) -> None:
+def mark_sovereign_entered(host: ExperienceHost) -> None:
     """Record sovereign enter timestamp for demote cooldown. Never raises."""
     if host is None:
         return
     try:
         host._sovereign_entered_at = float(time())
     except Exception:
-        pass
+        logger.debug("application/presence_mode.py:mark_sovereign_entered best-effort step failed", exc_info=True)
 
 
-def sovereign_demote_cooldown_remaining(host: Any) -> float:
+def sovereign_demote_cooldown_remaining(host: ExperienceHost) -> float:
     """Seconds remaining before demote from sovereign is allowed (0 if free)."""
     if host is None:
         return 0.0
@@ -99,7 +102,7 @@ def sovereign_demote_cooldown_remaining(host: Any) -> float:
 
 def demote_to_copilot(
     settings: Any,
-    host: Any = None,
+    host: ExperienceHost = None,
     *,
     force: bool = False,
 ) -> bool:
@@ -129,7 +132,7 @@ def demote_to_copilot(
                 try:
                     invalidate_auto_apply(host)
                 except Exception:
-                    pass
+                    logger.debug("application/presence_mode.py:demote_to_copilot best-effort step failed", exc_info=True)
             return False
 
         if current == SOVEREIGN and not force:
@@ -147,7 +150,7 @@ def demote_to_copilot(
                                     4000,
                                 )
                 except Exception:
-                    pass
+                    logger.debug("application/presence_mode.py:demote_to_copilot best-effort step failed", exc_info=True)
                 return False
 
         settings.experience_mode = COPILOT
@@ -155,12 +158,12 @@ def demote_to_copilot(
             try:
                 invalidate_auto_apply(host)
             except Exception:
-                pass
+                logger.debug("application/presence_mode.py:demote_to_copilot best-effort step failed", exc_info=True)
         try:
             if host is not None:
                 host._sovereign_entered_at = None
         except Exception:
-            pass
+            logger.debug("application/presence_mode.py:demote_to_copilot best-effort step failed", exc_info=True)
         return True
     except Exception:
         return False
@@ -196,7 +199,7 @@ def confirm_sovereign_enter(parent: Any) -> bool:
 
             sleep(min(0.05, SOVEREIGN_ENTER_STEP_GAP_S))  # UI feels sequential; CI-fast
         except Exception:
-            pass
+            logger.debug("application/presence_mode.py:confirm_sovereign_enter best-effort step failed", exc_info=True)
         ok2 = safe_question(
             parent,
             SOVEREIGN_WARN_TITLE,
@@ -208,7 +211,7 @@ def confirm_sovereign_enter(parent: Any) -> bool:
         return False
 
 
-def campaign_items_for_host(host: Any) -> list[dict[str, Any]]:
+def campaign_items_for_host(host: ExperienceHost) -> list[dict[str, Any]]:
     """Build campaign targets from host Context; never raises."""
     try:
         from src.dialogs.quality_campaign_dialog import build_campaign_items
@@ -229,7 +232,7 @@ def campaign_items_for_host(host: Any) -> list[dict[str, Any]]:
         return []
 
 
-def maybe_auto_enqueue_campaign(host: Any) -> bool:
+def maybe_auto_enqueue_campaign(host: ExperienceHost) -> bool:
     """P2: once per course session, surface quality campaign when active bundle.
 
     - Requires ``resolve_policy(...).allow_campaign_auto``.
@@ -271,16 +274,16 @@ def maybe_auto_enqueue_campaign(host: Any) -> bool:
                                 5000,
                             )
                 except Exception:
-                    pass
+                    logger.debug("application/presence_mode.py:maybe_auto_enqueue_campaign best-effort step failed", exc_info=True)
                 try:
                     metrics = getattr(host, "experience_metrics", None)
                     if metrics is not None:
                         metrics.inc_ambient("shown")
                 except Exception:
-                    pass
+                    logger.debug("application/presence_mode.py:maybe_auto_enqueue_campaign best-effort step failed", exc_info=True)
                 return True
         except Exception:
-            pass
+            logger.debug("application/presence_mode.py:maybe_auto_enqueue_campaign best-effort step failed", exc_info=True)
         try:
             from src.application.experience_handlers.quality import (
                 handle_quality_campaign,
@@ -288,7 +291,7 @@ def maybe_auto_enqueue_campaign(host: Any) -> bool:
 
             handle_quality_campaign(host, {})
         except Exception:
-            pass
+            logger.debug("application/presence_mode.py:maybe_auto_enqueue_campaign best-effort step failed", exc_info=True)
         return True
     except Exception:
         return False

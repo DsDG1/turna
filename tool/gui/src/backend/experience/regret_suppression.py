@@ -46,7 +46,7 @@ class RegretSuppressionEngine:
             if fingerprint and callable(fn):
                 self._reapply_fn[str(fingerprint)] = fn
         except Exception:
-            pass
+            logger.debug("backend/experience/regret_suppression.py:register_reapply best-effort step failed", exc_info=True)
 
     def log_undo_action(
         self,

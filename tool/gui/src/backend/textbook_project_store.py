@@ -21,6 +21,8 @@ if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
 from src.backend.textbook_project import TextbookProject
+import logging
+logger = logging.getLogger(__name__)
 
 
 _PROJECT_FILE = "project.json"
@@ -135,7 +137,7 @@ def record_imported_sections(
     try:
         (store or TextbookProjectStore()).save_project(project)
     except Exception:
-        pass
+        logger.debug("backend/textbook_project_store.py:record_imported_sections best-effort step failed", exc_info=True)
     return added
 
 
@@ -268,12 +270,12 @@ class TextbookProjectStore:
                     original_path.read_text(encoding="utf-8"), encoding="utf-8"
                 )
             except OSError:
-                pass  # backup is best-effort; migration itself must not fail
+                logger.debug("backend/textbook_project_store.py:_migrate_v1_to_v2 best-effort step failed", exc_info=True)
         project.version = 2
         try:
             self.save_project(project)
         except OSError:
-            pass
+            logger.debug("backend/textbook_project_store.py:_migrate_v1_to_v2 best-effort step failed", exc_info=True)
         return project
 
     def save_project(self, project: TextbookProject) -> None:
@@ -308,7 +310,7 @@ class TextbookProjectStore:
                         for e in data.get("projects", [])
                     ]
             except (OSError, json.JSONDecodeError):
-                pass
+                logger.debug("backend/textbook_project_store.py:_update_index_for_project best-effort step failed", exc_info=True)
 
         by_id = {s.project_id: s for s in summaries}
         by_id[project.project_id] = ProjectSummary.from_project(project)

@@ -1,6 +1,8 @@
 """P3 structure / balance / spiral / reading / POS suggestions."""
 from __future__ import annotations
 from typing import Any
+import logging
+logger = logging.getLogger(__name__)
 
 def collect(ctx) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
@@ -77,5 +79,5 @@ def collect(ctx) -> list[dict[str, Any]]:
                 }
             )
     except Exception:
-        pass
+        logger.debug("backend/experience/suggestions/p3_structure.py:collect best-effort step failed", exc_info=True)
     return out

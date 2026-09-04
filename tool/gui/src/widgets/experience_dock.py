@@ -48,7 +48,7 @@ def _budget_line(ctx: ExperienceContext | None) -> str:
                 used = int(usage.get("requests") or 0)
         limit = 0
         try:
-            from src.app import current_settings
+            from src.application.runtime_context import current_settings
 
             limit = int(
                 getattr(current_settings(), "experience_daily_ai_budget", 0) or 0
