@@ -144,10 +144,16 @@ void main() {
     }
     await tester.pumpAndSettle(const Duration(seconds: 1));
 
-    expect(find.byType(ChangelogReleaseCard), findsWidgets);
+    // v0.8 的「更新历程」卡片增至 8 个阶段后加高了首屏，release 卡片
+    // 落到首屏之下——默认 finder 会跳过 offstage 子树。这里断言的语义
+    // 是「资产内容已渲染成卡片」，用 skipOffstage:false 而非「在首屏内」。
+    expect(
+      find.byType(ChangelogReleaseCard, skipOffstage: false),
+      findsWidgets,
+    );
     // Asset now uses the unified 0.x numbering, matching the manifest.
-    expect(find.text('0.7'), findsWidgets);
-    expect(find.text('1.1.0'), findsNothing,
+    expect(find.text('0.7', skipOffstage: false), findsWidgets);
+    expect(find.text('1.1.0', skipOffstage: false), findsNothing,
         reason: 'legacy 1.x ids must be renumbered to the 0.x scheme');
   });
 }

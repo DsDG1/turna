@@ -3,7 +3,7 @@ import 'dart:convert';
 
 /// Typed results for the depth-learning tutor genres. Each is produced by
 /// `AiHintProvider`'s genre methods (`explainGrammarPoint`, `compareSynonyms`,
-/// `decomposeSentence`, `explainWhyWrong`), which ask the model for a small
+/// `decomposeSentence`), which ask the model for a small
 /// JSON object and parse it client-side via the `fromJson` factories here.
 ///
 /// The factories are tolerant: missing keys or wrong-typed values collapse to
@@ -120,34 +120,6 @@ class SentenceBreakdown {
         tokens: _objectList(m['tokens']).map(SentenceToken.fromJson).toList(),
         structure: (m['structure'] ?? '').toString(),
       );
-}
-
-/// Explanation of why a learner's answer was wrong and how to avoid it.
-class WhyWrongExplanation {
-  const WhyWrongExplanation({
-    required this.whyWrong,
-    required this.whatYouProbablyThought,
-    required this.howToRemember,
-  });
-
-  final String whyWrong;
-  final String whatYouProbablyThought;
-  final String howToRemember;
-
-  static WhyWrongExplanation fromJson(Map<String, dynamic> m) =>
-      WhyWrongExplanation(
-        whyWrong: (m['whyWrong'] ?? '').toString(),
-        whatYouProbablyThought: (m['whatYouProbablyThought'] ?? '').toString(),
-        howToRemember: (m['howToRemember'] ?? '').toString(),
-      );
-
-  String toPlainText() {
-    final buf = StringBuffer()
-      ..writeln('错在哪：$whyWrong')
-      ..writeln('你可能以为：$whatYouProbablyThought')
-      ..writeln('如何记住：$howToRemember');
-    return buf.toString().trimRight();
-  }
 }
 
 /// Dictionary AI enrichment (examples + mnemonic; optional synonyms/gloss).

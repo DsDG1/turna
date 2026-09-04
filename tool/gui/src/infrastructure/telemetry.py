@@ -214,6 +214,37 @@ class Telemetry:
         except Exception:
             return []
 
+    def record_experience_metrics(
+        self,
+        snapshot: dict[str, Any],
+        reason: str = "manual",
+        course_dir: Any = None,
+    ) -> None:
+        from src.backend.experience.metrics import course_attribution, export_snapshot
+
+        exported = export_snapshot(snapshot)
+        payload: dict[str, Any] = {
+            "reason": reason,
+            "metrics": exported if exported is not None else snapshot,
+        }
+        attr = course_attribution(course_dir)
+        if attr:
+            payload.update(attr)
+        self.record_event("experience.metrics", payload=payload)
+
+    def recent_experience_metrics(self, limit: int = 50) -> list[dict[str, Any]]:
+        out: list[dict[str, Any]] = []
+        for line in reversed(self.recent_lines(max(limit * 3, 100))):
+            try:
+                rec = json.loads(line)
+                if rec.get("event") == "experience.metrics":
+                    out.append(rec)
+                    if len(out) >= limit:
+                        break
+            except Exception:
+                continue
+        return list(reversed(out))
+
     def usage_summary(
         self, since: datetime | None = None
     ) -> dict[str, dict[str, Any]]:

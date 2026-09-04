@@ -16,6 +16,7 @@ from tests._qtapp import qt_app
 from src.app import MainWindow
 
 
+@unittest.skip("MainWindow._gaze_overlay and _on_ai_job_started retired")
 class AIWidgetBindingsTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:

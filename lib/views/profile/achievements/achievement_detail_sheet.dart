@@ -281,15 +281,19 @@ class _TierRow extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Text(
-                      '${tier.rarity.displayName} · ${tier.target} $unit',
-                      style:
-                          Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: unlocked
-                                    ? TurnaTheme.textPrimaryColor(context)
-                                    : TurnaTheme.textSecondaryColor(context),
-                              ),
+                    Expanded(
+                      child: Text(
+                        '${tier.rarity.displayName} · ${tier.target} $unit',
+                        style:
+                            Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: unlocked
+                                      ? TurnaTheme.textPrimaryColor(context)
+                                      : TurnaTheme.textSecondaryColor(context),
+                                ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                     if (tierState?.origin ==
                         AchievementUnlockOrigin.migration) ...[

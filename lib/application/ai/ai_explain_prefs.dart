@@ -295,19 +295,12 @@ class AiQuickChips {
   static const simplerWords = '用更简单的话再说一遍';
   static const whatGrammar = '这是在考什么语法？';
   static const synonymDiff = '和近义词有什么区别？';
-  static const whyWrong = '我为什么会错？';
 
-  /// Chips always shown in companion chat.
+  /// Chips shown in companion chat.
   static const List<String> always = [
     simplerExample,
     simplerWords,
     whatGrammar,
     synonymDiff,
   ];
-
-  /// Extra chip when the learner has submitted an answer.
-  static List<String> forContext({required bool hasUserAnswer}) {
-    if (hasUserAnswer) return [...always, whyWrong];
-    return always;
-  }
 }

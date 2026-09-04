@@ -72,6 +72,13 @@ class OfficialStorageOptimizeService {
     final now = DateTime.now().millisecondsSinceEpoch;
     final jobs = OfficialAnkiMaintenanceJobDao(resolvedCatalog);
     final profileId = resolvedPaths.profileId;
+    // media_gc 排最前：压缩前先删无主媒体，VACUUM 之后 collection 与
+    // 媒体目录的体积一次到位——手动优化即完整的手动回收路径。
+    jobs.enqueue(
+      profileId: profileId,
+      kind: OfficialAnkiMaintenanceKind.mediaGc,
+      nowMillis: now,
+    );
     jobs.enqueue(
       profileId: profileId,
       kind: OfficialAnkiMaintenanceKind.compactCollection,

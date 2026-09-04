@@ -222,6 +222,12 @@ class LocalStateKeys {
   // Mistake log — JSON-serialized List<MistakeEntry>.
   static const String mistakeLog = 'mistake.log';
 
+  // Mistake dashboard aggregates (错题仪表盘) — daily new-mistake counts
+  // (JSON map 'yyyy-MM-dd' -> int, pruned to the last 30 days) and the
+  // cumulative count of mistakes mastered out of the log.
+  static const String mistakeDailyCounts = 'mistake.dailyCounts';
+  static const String mistakeMasteredTotal = 'mistake.masteredTotal';
+
   // Settings
   static const String themeMode =
       'settings.themeMode'; // 'light' | 'dark' | 'system'

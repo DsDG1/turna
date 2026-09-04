@@ -52,11 +52,15 @@ class AchievementOverviewHeader extends StatelessWidget {
                 size: 26,
               ),
               const SizedBox(width: 8),
-              Text(
-                AppStrings.achievementsOverviewTitle,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
+              Expanded(
+                child: Text(
+                  AppStrings.achievementsOverviewTitle,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
@@ -161,15 +165,20 @@ class AchievementNearestCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              Text(
-                AppStrings.achievementsTierProgress(
-                  progress.currentProgress,
-                  nextTarget,
+              Flexible(
+                child: Text(
+                  AppStrings.achievementsTierProgress(
+                    progress.currentProgress,
+                    nextTarget,
+                  ),
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: accent,
+                        fontWeight: FontWeight.w700,
+                      ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
                 ),
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: accent,
-                      fontWeight: FontWeight.w700,
-                    ),
               ),
             ],
           ),

@@ -11,6 +11,7 @@ import 'package:turna/application/anki_official/introduction/card_introduction_e
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
+import 'package:turna/application/anki_official/v2/official_anki_v2_post_retire_reclaimer.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_retire_service.dart';
 import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/mistake_provider.dart';
@@ -156,7 +157,13 @@ class AnkiDeckManager {
   /// → ②③④同步推进一遍（引擎在场时一次走完）；引擎缺席时 job 留队，
   /// 下次启动 `runPending` 续跑——两种情况都返回 true（用户视角已移除，
   /// 与 v1「deferred 返回 false」的差别在于 v2 的收敛由 job 表保证）。
-  Future<bool> _uninstallV2Source(String sourceId) async {
+  ///
+  /// [leaseOwnerToken] 由启动恢复路径透传，使删除后的字节回收 drain 能
+  /// 复用已持有的维护 lease；UI 删除不传，drain 自行获取。
+  Future<bool> _uninstallV2Source(
+    String sourceId, {
+    String? leaseOwnerToken,
+  }) async {
     await OfficialAnkiCompositionRoot.initializeReadOnlyLocator();
     final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
     final paths = OfficialAnkiCompositionRoot.locatorPaths;
@@ -187,18 +194,30 @@ class AnkiDeckManager {
       }
     }
 
+    // 字节回收必须排在引擎删除之后（媒体 GC 依赖卡已删完才能识别无主
+    // 文件），所以回收器链在 enginePass 完成之处，而不是删除当刻。
+    Future<void> reclaimPass() => OfficialAnkiV2PostRetireReclaimer(
+          catalog: catalog,
+          paths: paths,
+          engine: engine,
+          course: _courseDatabase(),
+          leaseOwnerToken: leaseOwnerToken,
+        ).run();
+
     // 小源：同步走完引擎删除（F4 测试与日常小包）。大源（含 10 万卡
     // 夹具）：beginRetire 已让课程树即刻不可见，引擎分批删卡不挡 UI，
-    // 否则确认删除会卡死，表现就是「删不掉」。
+    // 否则确认删除会卡死，表现就是「删不掉」。两种体量都不在 UI 等待
+    // 字节回收——drain 分离执行，失败留队由下次启动收敛。
     final owned = OfficialAnkiSourceDao(catalog).cardCount(sourceId);
     if (owned <= OfficialAnkiV2RetireService.defaultDeleteChunk) {
       await enginePass();
+      unawaited(reclaimPass());
     } else {
       debugPrint(
         '[AnkiDeckManager] v2 retire engine pass detached: '
         '$sourceId ($owned cards)',
       );
-      unawaited(enginePass());
+      unawaited(enginePass().then((_) => reclaimPass()));
     }
     return true;
   }
@@ -256,11 +275,14 @@ class AnkiDeckManager {
   /// caller knows the removal is deferred. Retrying [uninstall] — or
   /// [retryPendingOfficialCleanups] on the next start — resumes the saga.
   /// Hard-uninstall an official source using the v2 retire service.
-  Future<bool> uninstallOfficialSource(String sourceId) =>
-      _uninstallV2Source(sourceId);
+  Future<bool> uninstallOfficialSource(
+    String sourceId, {
+    String? leaseOwnerToken,
+  }) =>
+      _uninstallV2Source(sourceId, leaseOwnerToken: leaseOwnerToken);
 
   /// Retry every `pending_cleanup` or `retiring` source whose cleanup was interrupted.
-  Future<int> retryPendingOfficialCleanups() async {
+  Future<int> retryPendingOfficialCleanups({String? leaseOwnerToken}) async {
     final pendingSourceIds = <String>{};
     try {
       await OfficialAnkiCompositionRoot.initializeReadOnlyLocator();
@@ -282,7 +304,10 @@ class AnkiDeckManager {
     var resumed = 0;
     for (final sourceId in pendingSourceIds) {
       try {
-        if (await uninstallOfficialSource(sourceId)) {
+        if (await uninstallOfficialSource(
+          sourceId,
+          leaseOwnerToken: leaseOwnerToken,
+        )) {
           resumed++;
         }
       } catch (e) {
@@ -364,7 +389,6 @@ class AnkiDeckManager {
   /// for prefs-based storage (suggest SQLite migration above this).
   bool get shouldMigrateToSqlite => ankiSrsCount > 5000;
 }
-
 
 /// The persisted owner(s) an uninstall id resolves to. Mirrored imports
 /// (legacy main write + official mirror) carry both sides; [officialSourceId]

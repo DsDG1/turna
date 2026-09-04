@@ -45,8 +45,8 @@ class OfficialAnkiStartupRecovery {
       // skipped entirely. Open the engine only when the catalog says there
       // is work — users without anki pay nothing at startup.
       if (engine == null && paths != null) {
-        final hasMaintenanceWork =
-            OfficialAnkiMaintenanceJobDao(catalog).pending(profileId: profileId)
+        final hasMaintenanceWork = OfficialAnkiMaintenanceJobDao(catalog)
+                .pending(profileId: profileId)
                 .isNotEmpty ||
             OfficialAnkiSourceDao(catalog)
                 .listSources(profileId)
@@ -61,7 +61,8 @@ class OfficialAnkiStartupRecovery {
                 OfficialAnkiCompositionRoot.requireImporter)();
             engine = OfficialAnkiCompositionRoot.engine;
           } catch (error) {
-            officialAnkiStartupLog('startup engine open failed: $error', warning: true);
+            officialAnkiStartupLog('startup engine open failed: $error',
+                warning: true);
           }
         }
       }
@@ -79,7 +80,8 @@ class OfficialAnkiStartupRecovery {
             );
           }
         } catch (error) {
-          officialAnkiStartupLog('v2 view rebuild enqueue: $error', warning: true);
+          officialAnkiStartupLog('v2 view rebuild enqueue: $error',
+              warning: true);
         }
       }
       if (engine != null && paths != null) {
@@ -106,15 +108,31 @@ class OfficialAnkiStartupRecovery {
             officialAnkiStartupLog('unowned purge: $error', warning: true);
           }
         }
+        // 回收 purge 只入队 media_gc/compact job；这里在同一把 lease 内
+        // 顺手消费掉，否则又要等到下次启动才见体积回落。
+        try {
+          await OfficialAnkiMaintenanceRunner(
+            catalog: catalog,
+            paths: paths,
+            engine: engine,
+            course: getIt<CourseDatabase>(),
+          ).runPending(
+            profileId: profileId,
+            leaseOwnerToken: ownerToken,
+          );
+        } catch (error) {
+          officialAnkiStartupLog('post-purge drain: $error', warning: true);
+        }
       }
       try {
-        final resumed =
-            await getIt<AnkiDeckManager>().retryPendingOfficialCleanups();
+        final resumed = await getIt<AnkiDeckManager>()
+            .retryPendingOfficialCleanups(leaseOwnerToken: ownerToken);
         if (resumed > 0) {
           officialAnkiStartupLog('resumed $resumed pending cleanups');
         }
       } catch (e) {
-        officialAnkiStartupLog('pending cleanup retry skipped: $e', warning: true);
+        officialAnkiStartupLog('pending cleanup retry skipped: $e',
+            warning: true);
       }
     } finally {
       lease.release(profileId: profileId, ownerToken: ownerToken);

@@ -18,6 +18,7 @@ if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
 
+@unittest.skip("Ambient banner and MainWindow.experience retired")
 class MainWindowObserverModeTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:

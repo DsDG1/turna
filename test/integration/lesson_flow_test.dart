@@ -185,6 +185,12 @@ void main() {
     vm.submitInteraction(true, userAnswerText: 'Asante');
     vm.advance();
 
+    // 完成态不再同步置位：advance 触发的 _onLessonCompleted 要先 await
+    // 官方 Anki 副作用（索引/解锁/重刷）才把 _isComplete 置 true——排空
+    // 事件队列后再断言，而不是假设同步完成。
+    for (var i = 0; i < 20 && !vm.isComplete; i++) {
+      await Future<void>.delayed(Duration.zero);
+    }
     expect(vm.isComplete, isTrue);
 
     await game.recordLessonCompletion(

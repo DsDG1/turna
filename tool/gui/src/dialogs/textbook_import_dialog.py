@@ -718,9 +718,9 @@ class TextbookImportDialog(QDialog):
             self._show_error_with_recovery(STEP_CHAPTERS, result)
 
     def _ai_config(self):
-        from src.app import current_ai_config
+        from src.application.ai_runtime import runtime_from_host
 
-        return current_ai_config()
+        return runtime_from_host(self.parentWidget() or self).config()
 
     # ------------------------------------------------------------- ⑤ review
 

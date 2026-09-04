@@ -33,6 +33,7 @@ from src.application.commands import (
     MergeAiSectionCommand,
 )
 from src.application.settings import Settings, migrate_legacy_varnamala_qsettings
+from src.application.experience_skills_mixin import ExperienceSkillsMixin
 from src.backend.ai_generator import AiApiConfig
 from src.backend.course_adapter import CourseAdapter
 from src.backend.import_step_result import ImportStepResult
@@ -58,22 +59,20 @@ def current_ai_config() -> AiApiConfig:
     """Return the current AI config from the active MainWindow.
 
     Dialogs that need AI configuration should call this helper instead of
-    maintaining their own input fields. Returns an empty config if no main
-    window is present (e.g. during tests).
+    importing `MainWindow` or inspecting widgets directly.
     """
-    window = _active_main_window()
-    return window._ai_config if window is not None else AiApiConfig()
+    win = _active_main_window()
+    if win is not None and hasattr(win, "_ai_config") and win._ai_config is not None:
+        return win._ai_config
+    return AiApiConfig()
 
 
 def current_settings() -> Settings:
-    """Return the current Settings from the active MainWindow.
-
-    Mirrors ``current_ai_config`` for non-AI preferences (e.g. the AI retry
-    limit). Returns a default ``Settings`` instance when no main window is
-    present (tests / sandbox).
-    """
-    window = _active_main_window()
-    return window._settings_obj if window is not None else Settings()
+    """Return the Settings instance from the active MainWindow (or a default)."""
+    win = _active_main_window()
+    if win is not None and hasattr(win, "_settings_obj") and win._settings_obj is not None:
+        return win._settings_obj
+    return Settings()
 
 
 class _ButtonSizePolicyFilter(QObject):
@@ -95,7 +94,7 @@ class _ButtonSizePolicyFilter(QObject):
         return False
 
 
-class MainWindow(QMainWindow):
+class MainWindow(ExperienceSkillsMixin, QMainWindow):
     """Application main window: tree on the left, detail panel on the right."""
 
     def __init__(self) -> None:

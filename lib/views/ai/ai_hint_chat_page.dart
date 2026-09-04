@@ -245,19 +245,14 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
                       },
                     ),
                   ),
-                  Selector<AiHintProvider,
-                      ({AiHintState state, bool hasAnswer})>(
-                    selector: (_, w) => (
-                      state: w.state,
-                      hasAnswer: w.context?.hasSubmittedAnswer ?? false,
-                    ),
-                    builder: (context, snap, _) {
-                      final busy = snap.state == AiHintState.loading;
+                  Selector<AiHintProvider, AiHintState>(
+                    selector: (_, w) => w.state,
+                    builder: (context, state, _) {
+                      final busy = state == AiHintState.loading;
                       return Column(
                         children: [
                           AiQuickChipsBar(
                             enabled: !busy,
-                            hasUserAnswer: snap.hasAnswer,
                             onChip: (label) => _onSend(label),
                           ),
                           if (busy) const LinearProgressIndicator(),

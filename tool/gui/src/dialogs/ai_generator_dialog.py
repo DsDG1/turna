@@ -54,7 +54,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from src.app import current_ai_config, current_settings
+from src.application.ai_runtime import runtime_from_host
 from src.backend.ai_generator import (
     AiApiConfig,
     AiCourseSpec,
@@ -133,7 +133,8 @@ class AiGeneratorDialog(QDialog):
         self.setAcceptDrops(True)
         # API config is managed centrally in the Settings panel and held in
         # memory by MainWindow. Dialogs must not maintain their own input fields.
-        self._config = current_ai_config()
+        self._runtime = runtime_from_host(parent)
+        self._config = self._runtime.config()
         self._generated: dict | None = None
         self._mode = "normal"
         self._normal_tab = "topic"
@@ -1520,7 +1521,7 @@ class AiGeneratorDialog(QDialog):
         when no MainWindow/Settings is available (sandbox-safe).
         """
         try:
-            s = current_settings()
+            s = self._runtime.settings()
             return max(0, min(5, getattr(s, "ai_retry_max", 1)))
         except Exception:
             return 1
@@ -1528,7 +1529,7 @@ class AiGeneratorDialog(QDialog):
     def _ai_generation_kwargs(self) -> dict[str, Any]:
         """Return timeout and temperature from Settings for AI workers."""
         try:
-            s = current_settings()
+            s = self._runtime.settings()
             timeout = float(getattr(s, "ai_timeout", 120.0))
             temperature = float(getattr(s, "ai_temperature", 0.7))
         except Exception:

@@ -18,6 +18,7 @@ import 'package:turna/application/streak_provider.dart';
 import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/data/study_log_repository.dart';
+import 'package:turna/domain/study/study_log.dart';
 import 'package:turna/data/srs_state_dao.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/locator.dart';
@@ -136,6 +137,26 @@ void main() {
     await tester.pump();
     await tester.pumpAndSettle();
     expect(find.text(AppStrings.reviewContinueCta), findsOneWidget);
+  });
+
+  testWidgets('seven-day chart with reviews does not overflow', (tester) async {
+    await StudyLogRepository(appPrefs).appendLog(
+      StudyLog(
+        id: 'chart-seed',
+        timestamp: DateTime.now(),
+        type: StudyActivityType.srsReview,
+        correctCount: 12,
+        incorrectCount: 3,
+      ),
+    );
+
+    await pumpPage(tester);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(
+      find.text(AppStrings.reviewSevenDaySummary(1, 15)),
+      findsOneWidget,
+    );
   });
 
   testWidgets('dashboard has no overflow at 200% text scale', (tester) async {

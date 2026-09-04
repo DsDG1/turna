@@ -884,6 +884,21 @@ class TurnaTheme {
           foregroundColor: Colors.white,
           elevation: 4,
         ),
+        snackBarTheme: SnackBarThemeData(
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radiusXLarge),
+            side: const BorderSide(color: Color(0x1F1F727E), width: 1),
+          ),
+          backgroundColor: const Color(0xF2FFFFFF),
+          contentTextStyle: const TextStyle(
+            color: textPrimary,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+          elevation: 4,
+          insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        ),
         dividerTheme: const DividerThemeData(
           color: divider,
           thickness: 1,
@@ -1045,6 +1060,21 @@ class TurnaTheme {
           foregroundColor: Colors.white,
           elevation: 4,
         ),
+        snackBarTheme: SnackBarThemeData(
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radiusXLarge),
+            side: const BorderSide(color: Color(0x3D78C7B8), width: 1),
+          ),
+          backgroundColor: const Color(0xF2182832),
+          contentTextStyle: const TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+          elevation: 4,
+          insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        ),
         dividerTheme: const DividerThemeData(
           color: Color(0xFF2B414C),
           thickness: 1,
@@ -1159,6 +1189,21 @@ class TurnaTheme {
           outline: Colors.black,
           highContrast: true,
         ),
+        snackBarTheme: SnackBarThemeData(
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radiusXLarge),
+            side: const BorderSide(color: Colors.black, width: 2),
+          ),
+          backgroundColor: Colors.white,
+          contentTextStyle: const TextStyle(
+            color: Colors.black,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
+          elevation: 6,
+          insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        ),
         dividerTheme: const DividerThemeData(
           color: Colors.black54,
           thickness: 1,
@@ -1271,6 +1316,21 @@ class TurnaTheme {
           foreground: Colors.white,
           outline: Colors.white,
           highContrast: true,
+        ),
+        snackBarTheme: SnackBarThemeData(
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radiusXLarge),
+            side: const BorderSide(color: Colors.white, width: 2),
+          ),
+          backgroundColor: Colors.black,
+          contentTextStyle: const TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+          ),
+          elevation: 6,
+          insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         ),
         dividerTheme: const DividerThemeData(
           color: Colors.white54,

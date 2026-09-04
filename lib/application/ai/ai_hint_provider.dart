@@ -470,32 +470,6 @@ class AiHintProvider extends AiStreamingSessionBase {
     );
   }
 
-  /// Explain why [userAnswer] was wrong.
-  Future<WhyWrongExplanation> explainWhyWrong({
-    required AiEngineConfig config,
-    required String language,
-    required String userAnswer,
-    required String correctAnswer,
-    required String questionContext,
-    AiCancelToken? cancelToken,
-  }) {
-    return _typedChat<WhyWrongExplanation>(
-      config: config,
-      cancelToken: cancelToken,
-      systemPrompt: 'You are a language-learning tutor. The learner is '
-          'practicing $language. Help the learner understand a mistake. '
-          'Respond with ONLY a JSON object (no markdown fences): {"whyWrong": '
-          'string, "whatYouProbablyThought": string, "howToRemember": string}. '
-          'All fields in Chinese.',
-      userPrompt: 'Question: $questionContext\n'
-          'My answer: $userAnswer\n'
-          'Correct answer: $correctAnswer\n'
-          'Explain why my answer is wrong, what I probably confused it with, '
-          'and a mnemonic to remember the correct answer.',
-      parse: WhyWrongExplanation.fromJson,
-    );
-  }
-
   void _recordRecent(String language) {
     final context = _context;
     if (context == null) return;

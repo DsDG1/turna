@@ -244,12 +244,6 @@ void main() {
         'structure': 'SV',
       });
       expect(d.toPlainText(), contains('Ben'));
-      final w = WhyWrongExplanation.fromJson({
-        'whyWrong': 'w',
-        'whatYouProbablyThought': 't',
-        'howToRemember': 'm',
-      });
-      expect(w.toPlainText(), contains('w'));
     });
   });
 

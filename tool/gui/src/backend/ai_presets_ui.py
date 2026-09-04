@@ -40,3 +40,18 @@ TEACHER_PRESET_INSTRUCTIONS: tuple[str, ...] = (
     "改成适合听力练习的题型，并补 transcript / 可朗读文本",
     "润色题干与选项表述，保持答案与 id 不变",
 )
+
+# Item-level chip presets (blueprint cards & form chips).
+ITEM_CHIP_LABELS: tuple[str, ...] = (
+    "润色",
+    "改听力",
+    "加干扰",
+    "相似",
+)
+
+ITEM_CHIP_INSTRUCTIONS: tuple[str, ...] = (
+    "润色题干表述，语言自然纯正，保持答案与 id 不变",
+    "改成适合听力练习的题型，并补 transcript / 可朗读文本，保持答案与 id 不变",
+    "干扰项加强：选项同词性、近义，避免离谱拼写，保持答案与 id 不变",
+    "在保留 id、runtimeType 与正确答案语义的前提下，改写成考查点相同的平行相似题：换情境或换说法，勿改题型，勿改 id，勿改正确选项含义。",
+)

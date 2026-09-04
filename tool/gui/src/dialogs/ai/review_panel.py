@@ -175,6 +175,13 @@ class ReviewPanel(QWidget):
         self.refresh()
 
     # ------------------------------------------------------------------ state
+    def _ai_config(self):
+        controller = getattr(self._design_panel, "_controller", None)
+        if controller is not None and hasattr(controller, "ai_config"):
+            return controller.ai_config()
+        from src.application.ai_runtime import runtime_from_host
+        return runtime_from_host(self).config()
+
     def _draft(self) -> dict | None:
         """Current editor truth from the design panel (None when empty)."""
         return self._design_panel._current_editor_json_silent()
@@ -283,9 +290,7 @@ class ReviewPanel(QWidget):
         mode = str(controller.params.get("generation_mode") or "fast")
         model_json = ""
         try:
-            from src.app import current_ai_config
-
-            cfg = current_ai_config()
+            cfg = self._ai_config()
             model_json = (
                 getattr(cfg, "model_json", None)
                 or getattr(cfg, "model", "")
@@ -399,14 +404,13 @@ class ReviewPanel(QWidget):
                 }
             ]
         hint = build_quality_fix_hint_for_dimension(report, dimension)
-        from src.app import current_ai_config
         from src.dialogs.ai_fix_dialog import AiFixDialog
 
         dlg = AiFixDialog(
             problems,
             draft,
             self._course_context_for_fix(draft),
-            current_ai_config(),
+            self._ai_config(),
             parent=self,
             initial_hint=hint,
             window_title=f"按质量维修复 · {short}",
@@ -427,11 +431,10 @@ class ReviewPanel(QWidget):
         if controller.is_busy:
             QMessageBox.information(self, "清待补", "当前有任务进行中，请稍候。")
             return
-        from src.app import current_ai_config
         from src.backend.ai_generator import fill_needs_review_resources
         from src.dialogs.ai.worker import AiRequestWorker
 
-        config = current_ai_config()
+        config = self._ai_config()
         self._fill_review_btn.setEnabled(False)
         self._hint_label.setText("正在补全 [待补] / needs-review …")
 
@@ -565,14 +568,13 @@ class ReviewPanel(QWidget):
         if not problems:
             QMessageBox.information(self, "AI 修复", "校验没有发现问题，无需修复。")
             return
-        from src.app import current_ai_config
         from src.dialogs.ai_fix_dialog import AiFixDialog
 
         dlg = AiFixDialog(
             problems,
             draft,
             self._course_context_for_fix(draft),
-            current_ai_config(),
+            self._ai_config(),
             parent=self,
         )
 
@@ -614,14 +616,13 @@ class ReviewPanel(QWidget):
                 }
             ]
         hint = build_quality_fix_hint(report)
-        from src.app import current_ai_config
         from src.dialogs.ai_fix_dialog import AiFixDialog
 
         dlg = AiFixDialog(
             problems,
             draft,
             self._course_context_for_fix(draft),
-            current_ai_config(),
+            self._ai_config(),
             parent=self,
             initial_hint=hint,
             window_title="按质量分 AI 修复",

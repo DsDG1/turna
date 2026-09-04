@@ -114,6 +114,27 @@ class Settings:
     tts_force: bool = False
     tts_api_key: str = ""  # memory-only
 
+    # --- External AI Config File ---
+    ai_config_file_path: str = ""
+    ai_config_file_autoload: bool = False
+    ai_config_file_autosave: bool = False
+
+    # --- Experience & Ambient AI settings ---
+    experience_mode: str = "copilot"
+    experience_allow_dangerous_skills: bool = False
+    experience_goal_enabled: bool = False
+    experience_goal_llm: bool = False
+    experience_daily_ai_budget: int = 0
+    experience_memory_persist_project: bool = False
+    experience_memory_persist_author: bool = False
+    experience_outline_shell: bool = False
+    experience_mute_json: str = ""
+    experience_immersive_full_auto: bool = True
+    experience_immersive_opaque: bool = True
+    experience_soft_autopilot: bool = False
+    experience_sovereign_enabled: bool = False
+    experience_llm_intent: bool = False
+
     @classmethod
     def load_from_qsettings(cls, qsettings: QSettings) -> "Settings":
         """Load a Settings instance from the supplied QSettings object."""
@@ -220,6 +241,55 @@ class Settings:
         if qsettings.contains("tts/api_key"):
             qsettings.remove("tts/api_key")
 
+        # External AI config file
+        ai_config_file_path = _str_or_empty(qsettings.value("ai/config_file_path", ""))
+        ai_config_file_autoload = _bool_or_default(
+            qsettings.value("ai/config_file_autoload", False), False
+        )
+        ai_config_file_autosave = _bool_or_default(
+            qsettings.value("ai/config_file_autosave", False), False
+        )
+
+        # Experience & Ambient AI settings
+        experience_mode = _str_or_default(qsettings.value("experience/mode", "copilot"), "copilot")
+        experience_allow_dangerous_skills = _bool_or_default(
+            qsettings.value("experience/allow_dangerous_skills", False), False
+        )
+        experience_goal_enabled = _bool_or_default(
+            qsettings.value("experience/goal_enabled", False), False
+        )
+        experience_goal_llm = _bool_or_default(
+            qsettings.value("experience/goal_llm", False), False
+        )
+        experience_daily_ai_budget = _int_or_default(
+            qsettings.value("experience/daily_ai_budget", 0), 0
+        )
+        experience_memory_persist_project = _bool_or_default(
+            qsettings.value("experience/memory_persist_project", False), False
+        )
+        experience_memory_persist_author = _bool_or_default(
+            qsettings.value("experience/memory_persist_author", False), False
+        )
+        experience_outline_shell = _bool_or_default(
+            qsettings.value("experience/outline_shell", False), False
+        )
+        experience_mute_json = _str_or_empty(qsettings.value("experience/mute_json", ""))
+        experience_immersive_full_auto = _bool_or_default(
+            qsettings.value("experience/immersive_full_auto", True), True
+        )
+        experience_immersive_opaque = _bool_or_default(
+            qsettings.value("experience/immersive_opaque", True), True
+        )
+        experience_soft_autopilot = _bool_or_default(
+            qsettings.value("experience/soft_autopilot", False), False
+        )
+        experience_sovereign_enabled = _bool_or_default(
+            qsettings.value("experience/sovereign_enabled", False), False
+        )
+        experience_llm_intent = _bool_or_default(
+            qsettings.value("experience/llm_intent", False), False
+        )
+
         return cls(
             theme=theme,
             ui_scale_percent=scale,
@@ -254,6 +324,23 @@ class Settings:
             tts_speed=tts_speed,
             tts_force=tts_force,
             tts_api_key="",  # Memory-only: never restore from storage.
+            ai_config_file_path=ai_config_file_path,
+            ai_config_file_autoload=ai_config_file_autoload,
+            ai_config_file_autosave=ai_config_file_autosave,
+            experience_mode=experience_mode,
+            experience_allow_dangerous_skills=experience_allow_dangerous_skills,
+            experience_goal_enabled=experience_goal_enabled,
+            experience_goal_llm=experience_goal_llm,
+            experience_daily_ai_budget=experience_daily_ai_budget,
+            experience_memory_persist_project=experience_memory_persist_project,
+            experience_memory_persist_author=experience_memory_persist_author,
+            experience_outline_shell=experience_outline_shell,
+            experience_mute_json=experience_mute_json,
+            experience_immersive_full_auto=experience_immersive_full_auto,
+            experience_immersive_opaque=experience_immersive_opaque,
+            experience_soft_autopilot=experience_soft_autopilot,
+            experience_sovereign_enabled=experience_sovereign_enabled,
+            experience_llm_intent=experience_llm_intent,
         )
 
     def save_to_qsettings(self, qsettings: QSettings) -> None:
@@ -308,11 +395,40 @@ class Settings:
         if qsettings.contains("tts/api_key"):
             qsettings.remove("tts/api_key")
 
+        # External AI config file (path + flags; api key is never in QSettings)
+        qsettings.setValue("ai/config_file_path", self.ai_config_file_path)
+        qsettings.setValue("ai/config_file_autoload", self.ai_config_file_autoload)
+        qsettings.setValue("ai/config_file_autosave", self.ai_config_file_autosave)
+
+        # Experience & Ambient AI settings
+        qsettings.setValue("experience/mode", self.experience_mode)
+        qsettings.setValue("experience/allow_dangerous_skills", self.experience_allow_dangerous_skills)
+        qsettings.setValue("experience/goal_enabled", self.experience_goal_enabled)
+        qsettings.setValue("experience/goal_llm", self.experience_goal_llm)
+        qsettings.setValue("experience/daily_ai_budget", self.experience_daily_ai_budget)
+        qsettings.setValue("experience/memory_persist_project", self.experience_memory_persist_project)
+        qsettings.setValue("experience/memory_persist_author", self.experience_memory_persist_author)
+        qsettings.setValue("experience/outline_shell", self.experience_outline_shell)
+        qsettings.setValue("experience/mute_json", self.experience_mute_json)
+        qsettings.setValue("experience/immersive_full_auto", self.experience_immersive_full_auto)
+        qsettings.setValue("experience/immersive_opaque", self.experience_immersive_opaque)
+        qsettings.setValue("experience/soft_autopilot", self.experience_soft_autopilot)
+        qsettings.setValue("experience/sovereign_enabled", self.experience_sovereign_enabled)
+        qsettings.setValue("experience/llm_intent", self.experience_llm_intent)
+
     def add_recent_repo(self, path: Path | str) -> None:
         """Add a repository path to the top of the recent list."""
+        import os
         from datetime import datetime, timezone
 
-        path_str = str(Path(path).resolve())
+        raw_str = str(path)
+        if raw_str.startswith("/") and not raw_str.startswith("//") and os.name == "nt":
+            path_str = raw_str
+        else:
+            try:
+                path_str = str(Path(path).resolve())
+            except Exception:
+                path_str = raw_str
         repos = [r for r in self.recent_repos if r.get("path") != path_str]
         repos.insert(
             0,
@@ -322,7 +438,19 @@ class Settings:
 
     def remove_recent_repo(self, path: str) -> None:
         """Remove a single repository entry by path."""
-        self.recent_repos = [r for r in self.recent_repos if r.get("path") != path]
+        import os
+
+        raw_str = str(path)
+        target = raw_str
+        if not (raw_str.startswith("/") and os.name == "nt"):
+            try:
+                target = str(Path(path).resolve())
+            except Exception:
+                target = raw_str
+        self.recent_repos = [
+            r for r in self.recent_repos
+            if r.get("path") != raw_str and r.get("path") != target
+        ]
 
     def clear_recent_repos(self) -> None:
         """Clear the entire recent repository history."""
@@ -364,6 +492,23 @@ class Settings:
             tts_speed=self.tts_speed,
             tts_force=self.tts_force,
             tts_api_key=self.tts_api_key,
+            ai_config_file_path=self.ai_config_file_path,
+            ai_config_file_autoload=self.ai_config_file_autoload,
+            ai_config_file_autosave=self.ai_config_file_autosave,
+            experience_mode=self.experience_mode,
+            experience_allow_dangerous_skills=self.experience_allow_dangerous_skills,
+            experience_goal_enabled=self.experience_goal_enabled,
+            experience_goal_llm=self.experience_goal_llm,
+            experience_daily_ai_budget=self.experience_daily_ai_budget,
+            experience_memory_persist_project=self.experience_memory_persist_project,
+            experience_memory_persist_author=self.experience_memory_persist_author,
+            experience_outline_shell=self.experience_outline_shell,
+            experience_mute_json=self.experience_mute_json,
+            experience_immersive_full_auto=self.experience_immersive_full_auto,
+            experience_immersive_opaque=self.experience_immersive_opaque,
+            experience_soft_autopilot=self.experience_soft_autopilot,
+            experience_sovereign_enabled=self.experience_sovereign_enabled,
+            experience_llm_intent=self.experience_llm_intent,
         )
 
 

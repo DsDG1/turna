@@ -12,12 +12,10 @@ class AiQuickChipsBar extends StatelessWidget {
   const AiQuickChipsBar({
     super.key,
     required this.onChip,
-    this.hasUserAnswer = false,
     this.enabled = true,
   });
 
   final ValueChanged<String> onChip;
-  final bool hasUserAnswer;
   final bool enabled;
 
   @override
@@ -25,7 +23,7 @@ class AiQuickChipsBar extends StatelessWidget {
     if (accessibilityOf(context).focusMode) {
       return const SizedBox.shrink();
     }
-    final chips = AiQuickChips.forContext(hasUserAnswer: hasUserAnswer);
+    const chips = AiQuickChips.always;
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

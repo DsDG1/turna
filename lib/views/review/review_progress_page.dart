@@ -405,6 +405,8 @@ class _StreakCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           SizedBox(
+            // Bars share leftover height after the day labels so a tall
+            // count never overflows this box (was 52px bar + label in 56px).
             height: 56,
             child: _SevenDayChart(points: snapshot.last7Days),
           ),
@@ -447,28 +449,42 @@ class _SevenDayChart extends StatelessWidget {
           if (i > 0) const SizedBox(width: 6),
           Expanded(
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Container(
-                  height: maxCount == 0
-                      ? 4.0
-                      : (points[i].reviewedCount == 0
-                          ? 4.0
-                          : 12.0 + 40.0 * points[i].reviewedCount / maxCount),
-                  decoration: BoxDecoration(
-                    color: points[i].reviewedCount == 0
-                        ? TurnaTheme.dividerBg(context)
-                        : TurnaTheme.brandTeal.withValues(
-                            alpha: 0.45 +
-                                0.55 * points[i].reviewedCount / maxCount),
-                    borderRadius: BorderRadius.circular(3),
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final maxH = constraints.maxHeight;
+                      final count = points[i].reviewedCount;
+                      final h = maxCount == 0 || count == 0
+                          ? 4.0.clamp(0.0, maxH)
+                          : (4.0 + (maxH - 4.0) * count / maxCount)
+                              .clamp(4.0, maxH);
+                      return Align(
+                        alignment: Alignment.bottomCenter,
+                        child: Container(
+                          width: constraints.maxWidth,
+                          height: h,
+                          decoration: BoxDecoration(
+                            color: count == 0
+                                ? TurnaTheme.dividerBg(context)
+                                : TurnaTheme.brandTeal.withValues(
+                                    alpha: 0.45 + 0.55 * count / maxCount,
+                                  ),
+                            borderRadius: BorderRadius.circular(3),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   '${points[i].localDay.day}',
+                  maxLines: 1,
+                  overflow: TextOverflow.clip,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
                         fontSize: 9,
+                        height: 1.0,
                         color: TurnaTheme.textHintColor(context),
                       ),
                 ),

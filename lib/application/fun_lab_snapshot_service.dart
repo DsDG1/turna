@@ -142,6 +142,14 @@ class FunLabSnapshotService {
     ),
     _SnapshotPref(LocalStateKeys.lessonWordLinks, _SnapshotPrefType.string),
     _SnapshotPref(LocalStateKeys.mistakeLog, _SnapshotPrefType.string),
+    _SnapshotPref(
+      LocalStateKeys.mistakeDailyCounts,
+      _SnapshotPrefType.string,
+    ),
+    _SnapshotPref(
+      LocalStateKeys.mistakeMasteredTotal,
+      _SnapshotPrefType.int_,
+    ),
     _SnapshotPref('study.logs', _SnapshotPrefType.string),
     _SnapshotPref('study.logs.recent', _SnapshotPrefType.string),
     _SnapshotPref('study.dailyStats', _SnapshotPrefType.string),

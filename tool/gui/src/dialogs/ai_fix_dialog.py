@@ -221,10 +221,10 @@ class AiFixDialog(QDialog):
 
     def _ai_generation_kwargs(self) -> dict[str, Any]:
         """Read timeout and temperature from central Settings."""
-        from src.app import current_settings
+        from src.application.ai_runtime import runtime_from_host
 
         try:
-            s = current_settings()
+            s = runtime_from_host(self.parentWidget() or self).settings()
             return {
                 "timeout": float(getattr(s, "ai_timeout", 120.0)),
                 "temperature": float(getattr(s, "ai_temperature", 0.2)),

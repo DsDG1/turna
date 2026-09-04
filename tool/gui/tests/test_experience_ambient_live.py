@@ -18,6 +18,7 @@ if str(_GUI) not in sys.path:
 from tests._qtapp import qt_app  # noqa: E402
 
 
+@unittest.skip("Ambient banner and MainWindow.experience retired")
 class AmbientHeartbeatTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:

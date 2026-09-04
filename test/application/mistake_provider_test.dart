@@ -1,5 +1,6 @@
 // Unit tests for MistakeProvider: FIFO log, 30-entry cap, rewrite removal,
-// SharedPreferences persistence, and Interaction snapshot round-trip.
+// SharedPreferences persistence, dashboard aggregates, and Interaction
+// snapshot round-trip.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -18,12 +19,17 @@ void main() {
 
   setUp(() async {
     // setMockInitialValues does not clear an already-cached
-    // StreamingSharedPreferences instance, so reset the mistake key
+    // StreamingSharedPreferences instance, so reset the mistake keys
     // explicitly between tests to avoid cross-test state leakage.
     SharedPreferences.setMockInitialValues({});
     final sp = await StreamingSharedPreferences.instance;
     prefs = AppPrefs(sp);
     await prefs.preferences.setString(LocalStateKeys.mistakeLog, '[]');
+    await prefs.preferences.setString(
+      LocalStateKeys.mistakeDailyCounts,
+      '{}',
+    );
+    await prefs.preferences.setInt(LocalStateKeys.mistakeMasteredTotal, 0);
     StorageWriteTelemetry.instance.clear();
     mistakes = MistakeProvider(prefs);
   });
@@ -33,6 +39,7 @@ void main() {
     String? wordId,
     String? grammarPointId,
     Interaction? snapshot,
+    DateTime? timestamp,
   }) =>
       MistakeEntry(
         id: id,
@@ -50,7 +57,7 @@ void main() {
             ),
         userAnswer: 'wrong',
         correctAnswer: 'a',
-        timestamp: DateTime(2026, 7, 10),
+        timestamp: timestamp ?? DateTime(2026, 7, 10),
       );
 
   group('record & count', () {
@@ -152,8 +159,7 @@ void main() {
     });
   });
 
-  group('removeForAnkiDeletion', () {
-    MistakeEntry ankiEntry(
+  group('removeForAnkiDeletion', () {    MistakeEntry ankiEntry(
       String id, {
       required String lessonId,
       String? wordId,
@@ -217,6 +223,94 @@ void main() {
       await mistakes.record(entry(id: 'm-1'));
       await mistakes.removeForAnkiDeletion();
       expect(mistakes.count, 1);
+    });
+  });
+
+  group('dashboard aggregates', () {
+    test('record bumps the per-day count of the entry local day', () async {
+      final now = DateTime.now();
+      await mistakes.record(entry(id: 'm-1', timestamp: now));
+      await mistakes.record(entry(id: 'm-2', timestamp: now));
+      expect(mistakes.dailyCounts[MistakeProvider.dayKey(now)], 2);
+      // Aggregates persist: a fresh provider reading the same prefs sees them.
+      final reloaded = MistakeProvider(prefs);
+      expect(reloaded.dailyCounts[MistakeProvider.dayKey(now)], 2);
+    });
+
+    test('days outside the 30-day window are pruned on write', () async {
+      final now = DateTime.now();
+      final stale = now.subtract(const Duration(days: 40));
+      await mistakes.record(entry(id: 'm-stale', timestamp: stale));
+      await mistakes.record(entry(id: 'm-fresh', timestamp: now));
+      expect(mistakes.dailyCounts.containsKey(MistakeProvider.dayKey(stale)),
+          isFalse);
+      expect(mistakes.dailyCounts[MistakeProvider.dayKey(now)], 1);
+    });
+
+    test('masteredTotal counts rewrite completions and review removals only',
+        () async {
+      await mistakes.record(entry(id: 'm-rewrite'));
+      await mistakes.record(entry(id: 'm-review'));
+      await mistakes.record(
+        entry(id: 'm-anki').copyWith(lessonId: 'anki-x-l0'),
+      );
+
+      await mistakes.recordRewrite('m-rewrite');
+      await mistakes.recordRewrite('m-rewrite'); // goal reached → mastered
+      await mistakes.removeByIds({'m-review'}); // review correct → mastered
+      expect(mistakes.masteredTotal, 2);
+
+      // Deck uninstall removals must NOT count as mastered.
+      await mistakes.removeForAnkiDeletion(idPrefixes: ['anki-x-']);
+      expect(mistakes.count, 0);
+      expect(mistakes.masteredTotal, 2);
+    });
+
+    test('clear resets the aggregates together with the log', () async {
+      final now = DateTime.now();
+      await mistakes.record(entry(id: 'm-1', timestamp: now));
+      await mistakes.recordRewrite('m-1');
+      await mistakes.recordRewrite('m-1');
+      expect(mistakes.masteredTotal, 1);
+
+      await mistakes.clear();
+      expect(mistakes.count, 0);
+      expect(mistakes.masteredTotal, 0);
+      expect(mistakes.dailyCounts, isEmpty);
+    });
+
+    test('legacy prefs without aggregate keys degrade gracefully', () async {
+      // Nothing has touched the aggregate keys in this provider's prefs.
+      final legacy = MistakeProvider(prefs);
+      expect(legacy.dailyCounts, isEmpty);
+      expect(legacy.masteredTotal, 0);
+    });
+
+    test('a corrupted dailyCounts payload degrades to an empty map',
+        () async {
+      await prefs.preferences.setString(
+        LocalStateKeys.mistakeDailyCounts,
+        'not-json',
+      );
+      final corrupted = MistakeProvider(prefs);
+      expect(corrupted.dailyCounts, isEmpty);
+    });
+
+    test('reloadFromPrefs re-reads aggregates after an external restore',
+        () async {
+      final now = DateTime.now();
+      await mistakes.record(entry(id: 'm-1', timestamp: now));
+      expect(mistakes.dailyCounts[MistakeProvider.dayKey(now)], 1);
+
+      // Simulate an external restore overwriting the raw prefs values.
+      await prefs.preferences.setString(
+        LocalStateKeys.mistakeDailyCounts,
+        '{"${MistakeProvider.dayKey(now)}": 7}',
+      );
+      await prefs.preferences.setInt(LocalStateKeys.mistakeMasteredTotal, 9);
+      mistakes.reloadFromPrefs();
+      expect(mistakes.dailyCounts[MistakeProvider.dayKey(now)], 7);
+      expect(mistakes.masteredTotal, 9);
     });
   });
 }

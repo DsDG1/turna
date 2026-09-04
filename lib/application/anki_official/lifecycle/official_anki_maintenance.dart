@@ -230,6 +230,11 @@ class OfficialAnkiMaintenanceRunner {
   static const freelistBytesThreshold = 16 * 1024 * 1024;
   static const freelistRatioThreshold = 0.20;
 
+  /// Safety cap for the re-snapshot loop: a job body can enqueue follow-up
+  /// jobs, and the loop drains them in the same run — bounded so a runaway
+  /// enqueuer cannot spin forever.
+  static const int maxAttemptsPerRun = 64;
+
   /// [leaseOwnerToken] lets a caller that already holds the maintenance
   /// lease (startup recovery) reuse it instead of being rejected by its
   /// own lease. Standalone callers keep the default random token and the
@@ -252,29 +257,44 @@ class OfficialAnkiMaintenanceRunner {
     }
     var completed = 0;
     try {
-      for (final row in jobs.pending(profileId: profileId)) {
-        final jobId = row['job_id'] as String;
-        final kind = OfficialAnkiMaintenanceKind.tryParse(
-          row['kind'] as String? ?? '',
-        );
-        if (kind == null) continue;
-        try {
-          final result = await _runKind(kind, row);
-          jobs.markCompleted(
-            jobId: jobId,
-            nowMillis: DateTime.now().millisecondsSinceEpoch,
-            beforeBytes: result.beforeBytes,
-            afterBytes: result.afterBytes,
-            reclaimedBytes: result.reclaimedBytes,
+      // Re-snapshot until no unseen job remains: a job body may enqueue
+      // follow-ups (v2_source_delete → media_gc/compact_*) that must be
+      // drained under this same lease, not left for the next run. Jobs that
+      // failed into retry_wait are excluded via [attempted] so one call
+      // never re-runs them.
+      final attempted = <String>{};
+      while (attempted.length < maxAttemptsPerRun) {
+        final rows = jobs
+            .pending(profileId: profileId)
+            .where((row) => !attempted.contains(row['job_id']))
+            .toList();
+        if (rows.isEmpty) break;
+        for (final row in rows) {
+          if (attempted.length >= maxAttemptsPerRun) break;
+          final jobId = row['job_id'] as String;
+          attempted.add(jobId);
+          final kind = OfficialAnkiMaintenanceKind.tryParse(
+            row['kind'] as String? ?? '',
           );
-          completed++;
-        } catch (error) {
-          officialAnkiMaintenanceLog('$kind failed: $error', warning: true);
-          jobs.markFailed(
-            jobId: jobId,
-            nowMillis: DateTime.now().millisecondsSinceEpoch,
-            errorCode: 'maintenance_failed',
-          );
+          if (kind == null) continue;
+          try {
+            final result = await _runKind(kind, row);
+            jobs.markCompleted(
+              jobId: jobId,
+              nowMillis: DateTime.now().millisecondsSinceEpoch,
+              beforeBytes: result.beforeBytes,
+              afterBytes: result.afterBytes,
+              reclaimedBytes: result.reclaimedBytes,
+            );
+            completed++;
+          } catch (error) {
+            officialAnkiMaintenanceLog('$kind failed: $error', warning: true);
+            jobs.markFailed(
+              jobId: jobId,
+              nowMillis: DateTime.now().millisecondsSinceEpoch,
+              errorCode: 'maintenance_failed',
+            );
+          }
         }
       }
     } finally {
@@ -291,9 +311,11 @@ class OfficialAnkiMaintenanceRunner {
       case OfficialAnkiMaintenanceKind.mediaGc:
         final engine = this.engine;
         if (engine == null) {
-          return const OfficialAnkiCompactResult(
-            skippedReason: 'engine_unavailable',
-          );
+          // Same keep-alive contract as compact_collection/v2_source_delete:
+          // media bytes are only reclaimed with the engine, so an engine-less
+          // run must leave the job in retry_wait for a run that has one —
+          // completing it here would orphan the media files forever.
+          throw StateError('media_gc requires engine');
         }
         final gc = await engine.gcUnusedMedia(dryRun: false);
         return OfficialAnkiCompactResult(
@@ -326,32 +348,13 @@ class OfficialAnkiMaintenanceRunner {
           await engine.openProfile(paths);
         } on OfficialAnkiException catch (error) {
           if (error.code != OfficialAnkiErrorCode.collectionAlreadyOpen) {
-            if (_skippableEngineState(error)) {
-              officialAnkiMaintenanceLog(
-                'compactCollection skipped open: $error',
-                warning: true,
-              );
-              return OfficialAnkiCompactResult(
-                skippedReason: error.code.name,
-              );
-            }
+            // Transient states (scheduler busy / locked / wrong state) mean
+            // "not now" — rethrow so the job lands in retry_wait instead of
+            // being completed without compacting.
             rethrow;
           }
         }
-        try {
-          return await engine.compactCollection(force: forceCompact);
-        } on OfficialAnkiException catch (error) {
-          if (_skippableEngineState(error)) {
-            officialAnkiMaintenanceLog(
-              'compactCollection skipped: $error',
-              warning: true,
-            );
-            return OfficialAnkiCompactResult(
-              skippedReason: error.code.name,
-            );
-          }
-          rethrow;
-        }
+        return await engine.compactCollection(force: forceCompact);
       case OfficialAnkiMaintenanceKind.compactCatalog:
         return compactSqliteFile(paths.catalogFile, force: forceCompact);
       case OfficialAnkiMaintenanceKind.compactCourse:
@@ -384,7 +387,8 @@ class OfficialAnkiMaintenanceRunner {
         final result = await OfficialAnkiV2ViewRebuilder(
           engine: engine,
           catalog: catalog,
-          course: course ?? (throw StateError('v2_view_rebuild requires course')),
+          course:
+              course ?? (throw StateError('v2_view_rebuild requires course')),
           profileId: paths.profileId,
         ).rebuild();
         return OfficialAnkiCompactResult(
@@ -504,16 +508,5 @@ class OfficialAnkiMaintenanceRunner {
       afterBytes: after,
       freelistBytesAfter: 0,
     );
-  }
-}
-
-bool _skippableEngineState(OfficialAnkiException error) {
-  switch (error.code) {
-    case OfficialAnkiErrorCode.invalidState:
-    case OfficialAnkiErrorCode.schedulerBusy:
-    case OfficialAnkiErrorCode.collectionLocked:
-      return true;
-    default:
-      return false;
   }
 }

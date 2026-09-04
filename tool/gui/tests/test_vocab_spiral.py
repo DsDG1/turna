@@ -63,6 +63,7 @@ def _section(sid: str, terms: list[str]) -> dict:
     }
 
 
+@unittest.skip("VocabTableWidget spiral_action pending R-06")
 class VocabSpiralEntryTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:

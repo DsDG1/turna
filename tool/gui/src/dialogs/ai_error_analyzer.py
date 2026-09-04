@@ -21,7 +21,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from src.app import current_ai_config
+from src.application.ai_runtime import runtime_from_host
 from src.backend.ai_generator import request_chat
 from src.dialogs.ai_generator_dialog import AiRequestWorker
 from src.infrastructure.telemetry import telemetry
@@ -71,7 +71,7 @@ class AiErrorAnalyzerDialog(QDialog):
         self._traceback = traceback_text
         self._context = context or {}
         # API config is managed centrally in the Settings panel.
-        self._config = current_ai_config()
+        self._config = runtime_from_host(parent).config()
         self._worker: AiRequestWorker | None = None
         self._build_ui()
 

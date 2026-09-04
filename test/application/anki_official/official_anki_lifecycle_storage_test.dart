@@ -171,7 +171,7 @@ void main() {
     expect(ran, greaterThan(0));
   });
 
-  test('compactCollection invalid_state completes the job instead of retrying',
+  test('compactCollection invalid_state keeps the job alive (retry_wait)',
       () async {
     final h = harness();
     addTearDown(h.dispose);
@@ -187,8 +187,55 @@ void main() {
       paths: h.paths,
       engine: h.engine,
     ).runPending(profileId: h.paths.profileId);
-    expect(ran, 1);
-    expect(jobs.pending(profileId: h.paths.profileId), isEmpty);
+    // Transient engine states must not consume the job: a completed-but-
+    // skipped compact is exactly how deleted decks kept their bytes.
+    expect(ran, 0);
+    final row = jobs.pending(profileId: h.paths.profileId).single;
+    expect(row['state'], OfficialAnkiMaintenanceJobState.retryWait.wire);
+    expect(row['attempt_count'], 1);
+  });
+
+  test('compactCollection scheduler_busy keeps the job alive (retry_wait)',
+      () async {
+    final h = harness();
+    addTearDown(h.dispose);
+    h.engine.failCompact = true;
+    final jobs = OfficialAnkiMaintenanceJobDao(h.db);
+    jobs.enqueue(
+      profileId: h.paths.profileId,
+      kind: OfficialAnkiMaintenanceKind.compactCollection,
+      nowMillis: DateTime.now().millisecondsSinceEpoch,
+    );
+    final ran = await OfficialAnkiMaintenanceRunner(
+      catalog: h.db,
+      paths: h.paths,
+      engine: h.engine,
+    ).runPending(profileId: h.paths.profileId);
+    expect(ran, 0);
+    final row = jobs.pending(profileId: h.paths.profileId).single;
+    expect(row['state'], OfficialAnkiMaintenanceJobState.retryWait.wire);
+  });
+
+  test('mediaGc without engine keeps the job alive (retry_wait)', () async {
+    final h = harness();
+    addTearDown(h.dispose);
+    h.engine.mediaFiles['orphan.mp3'] = 4096;
+    final jobs = OfficialAnkiMaintenanceJobDao(h.db);
+    jobs.enqueue(
+      profileId: h.paths.profileId,
+      kind: OfficialAnkiMaintenanceKind.mediaGc,
+      nowMillis: DateTime.now().millisecondsSinceEpoch,
+    );
+    final ran = await OfficialAnkiMaintenanceRunner(
+      catalog: h.db,
+      paths: h.paths,
+    ).runPending(profileId: h.paths.profileId);
+    // No engine → the job must survive for an engine-bearing run instead of
+    // being completed with media bytes still on disk.
+    expect(ran, 0);
+    final row = jobs.pending(profileId: h.paths.profileId).single;
+    expect(row['state'], OfficialAnkiMaintenanceJobState.retryWait.wire);
+    expect(row['attempt_count'], 1);
   });
 
   test('catalog schema is v14 with strictly 5 core tables', () {
@@ -199,7 +246,8 @@ void main() {
     expect(version, kOfficialAnkiCatalogSchemaVersion);
     expect(version, 14);
     final tables = db.handle
-        .select("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+        .select(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
         .map((row) => row['name'] as String)
         .toSet();
     expect(

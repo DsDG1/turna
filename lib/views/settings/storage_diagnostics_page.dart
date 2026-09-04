@@ -19,6 +19,7 @@ import 'package:turna/application/maintenance/official_storage_optimize_service.
 import 'package:turna/application/maintenance/storage_inventory_service.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/routing/platform_page_route.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/settings/storage_category_items_page.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
@@ -308,7 +309,8 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
   }
 
   Future<void> _openOfficialCollection(StorageInventoryReport report) async {
-    final bytes = _bytesOf(report, const {StorageArtifactCategory.officialAnki});
+    final bytes =
+        _bytesOf(report, const {StorageArtifactCategory.officialAnki});
     await _pushCategoryItems(
       title: AppStrings.storageOfficialCollectionTitle,
       totalBytesLabel: _formatBytes(bytes),
@@ -343,7 +345,8 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
     Future<OfficialAnkiGhostPurgeResult> Function()? onForcePurge,
   }) async {
     final changed = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
+      platformPageRoute<bool>(
+        context: context,
         builder: (_) => StorageCategoryItemsPage(
           title: title,
           totalBytesLabel: totalBytesLabel,

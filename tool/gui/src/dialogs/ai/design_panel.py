@@ -124,11 +124,12 @@ class DesignPanel(QWidget):
         self.setAcceptDrops(True)
 
         if controller is None:
-            from src.app import current_ai_config, current_settings
+            from src.application.ai_runtime import runtime_from_host
 
+            runtime = runtime_from_host(self)
             controller = DesignController(
-                ai_config_fn=current_ai_config,
-                settings_fn=current_settings,
+                ai_config_fn=runtime.config,
+                settings_fn=runtime.settings,
                 validator=(
                     adapter.validate_section_json if adapter is not None else None
                 ),
@@ -588,10 +589,9 @@ class DesignPanel(QWidget):
         self.busy_changed.emit(busy, stage)
 
     def _on_usage_update(self, usage: dict) -> None:
-        from src.app import current_ai_config
         from src.backend.ai_summary import format_ai_status_line
 
-        cfg = current_ai_config()
+        cfg = self._controller.ai_config()
         model_json = (
             getattr(cfg, "model_json", None) or getattr(cfg, "model", "") or ""
         )

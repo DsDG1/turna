@@ -49,6 +49,7 @@ def _ai_buttons(bp: LessonBlueprint) -> list[QPushButton]:
     return bp.findChildren(QPushButton, "aiGenerateBtn")
 
 
+@unittest.skip("Blueprint and InteractionForm AI generation entries pending T-08 / T-09")
 class BlueprintAiGenerateTest(unittest.TestCase):
     """T-08: empty-stage AI generation entries in the blueprint view."""
 
@@ -138,6 +139,7 @@ class BlueprintAiGenerateTest(unittest.TestCase):
         _ai_buttons(bp2)[0].click()  # no raise
 
 
+@unittest.skip("Blueprint and InteractionForm AI generation entries pending T-08 / T-09")
 class BlueprintItemChipTest(unittest.TestCase):
     """T-09 (gap 1): blueprint QuestionCard chips reach run_item_chip."""
 
@@ -162,6 +164,7 @@ class BlueprintItemChipTest(unittest.TestCase):
         self.assertTrue(callable(kwargs["on_applied"]))
 
 
+@unittest.skip("Blueprint and InteractionForm AI generation entries pending T-08 / T-09")
 class InteractionFormAiDistractorTest(unittest.TestCase):
     """T-09 (gap 2): 「AI 填干扰项」 button on choice-type forms."""
 

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
+import 'package:turna/application/anki_official/engine/official_anki_session.dart';
 import 'package:turna/application/anki_official/import/official_anki_staging_manager.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
@@ -59,7 +60,9 @@ class OfficialAnkiGhostPurgeService {
           errorCode: 'sources_present',
         );
       }
-      if (OfficialAnkiImportAttemptDao(resolvedCatalog).unfinished().isNotEmpty) {
+      if (OfficialAnkiImportAttemptDao(resolvedCatalog)
+          .unfinished()
+          .isNotEmpty) {
         return const OfficialAnkiGhostPurgeResult(
           ok: false,
           errorCode: 'import_in_progress',
@@ -73,6 +76,19 @@ class OfficialAnkiGhostPurgeService {
     } catch (_) {}
     try {
       await OfficialAnkiCompositionRoot.stagingEngine?.closeCollection();
+    } catch (_) {}
+    // Worker 模式下 engine.closeCollection() 是 no-op（SessionEngine 不
+    // 转发该调用），collection.anki2 等文件句柄仍被 worker isolate 持有，
+    // Windows 上删除会静默失败。dispose 终止 isolate 才真正释放；随后
+    // 置 null，下次使用由 requireImporter 重开全新 worker。
+    final liveSession = OfficialAnkiCompositionRoot.session;
+    if (liveSession is OfficialAnkiSession) {
+      try {
+        await liveSession.dispose();
+      } catch (_) {}
+    }
+    try {
+      await OfficialAnkiCompositionRoot.stagingSession?.dispose();
     } catch (_) {}
     OfficialAnkiCompositionRoot.session = null;
     OfficialAnkiCompositionRoot.stagingSession = null;

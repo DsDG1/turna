@@ -170,6 +170,10 @@ class DesignController:
         self._cache_hits_at_start: int = 0
 
     # ------------------------------------------------------------------ state
+    def ai_config(self) -> Any:
+        """Return the active AI config."""
+        return self._ai_config_fn()
+
     @property
     def chat(self) -> list[ChatMessage]:
         return list(self._chat)

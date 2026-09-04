@@ -30,14 +30,13 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: AiQuickChipsBar(
-            hasUserAnswer: true,
             onChip: (label) => tapped = label,
           ),
         ),
       ),
     );
     expect(find.text(AiQuickChips.simplerExample), findsOneWidget);
-    expect(find.text(AiQuickChips.whyWrong), findsOneWidget);
+    expect(find.text(AiQuickChips.whatGrammar), findsOneWidget);
     await tester.tap(find.text(AiQuickChips.simplerExample));
     await tester.pump();
     expect(tapped, AiQuickChips.simplerExample);

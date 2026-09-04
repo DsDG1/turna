@@ -28,14 +28,14 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Literal
 
 from src.backend.ai_fixer import build_correction_prompt
-from src.backend.ai_generator import (
+from src.backend.ai import (
     AiApiConfig,
     AiCancelled,
     AiCourseSpec,
-    _auto_fix_resources,
-    _coerce_problem_messages,
-    _normalize_resources,
+    auto_fix_resources,
+    coerce_problem_messages,
     explain_course,
+    normalize_resources,
     request_correction,
     request_course_with_retry,
     structural_diff,
@@ -321,7 +321,7 @@ def run_pipeline(
             state.draft,
             level=spec.level,
             resource_pool=spec.resource_pool,
-            structural_errors=_coerce_problem_messages(_error_problems(state.problems)),
+            structural_errors=coerce_problem_messages(_error_problems(state.problems)),
         )
         state.quality = {
             "scores": dict(report.scores),
@@ -409,11 +409,11 @@ def _fix_step(
         return
 
     # --- Rule-based pass (no LLM): normalize + dangling-ref stubs. ---
-    _normalize_resources(draft)
-    _auto_fix_resources(draft)
+    normalize_resources(draft)
+    auto_fix_resources(draft)
 
     if fill_needs_review:
-        from src.backend.ai_generator import fill_needs_review_resources
+        from src.backend.ai import fill_needs_review_resources
 
         draft = fill_needs_review_resources(
             config,
@@ -461,8 +461,8 @@ def _fix_step(
         if removed:
             state.errors.append(f"fix: 修正试图删除既有 id（{removed}），已回滚。")
             break
-        _normalize_resources(fixed)
-        _auto_fix_resources(fixed)
+        normalize_resources(fixed)
+        auto_fix_resources(fixed)
         draft = fixed
         state.draft = draft
         problems = _error_problems(list(validator(draft) or []) if validator else [])

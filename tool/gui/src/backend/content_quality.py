@@ -105,6 +105,7 @@ class ContentQualityIssue:
     path: str = ""
     lesson_id: str | None = None
     item_id: str | None = None
+    gap_kind: str = ""
 
 
 @dataclass
@@ -575,6 +576,21 @@ def _score_audio_ready(
                         path=f"{path}/items/{iid}",
                         lesson_id=lid,
                         item_id=iid,
+                        gap_kind="missing_audio",
+                    )
+                )
+            elif has_audio and not has_transcript:
+                iid = str(item.get("id") or "?")
+                lid = str(lesson.get("id") or "?")
+                issues.append(
+                    ContentQualityIssue(
+                        level="warning",
+                        dimension="audio_ready",
+                        message="听力题有音频但缺少 transcript",
+                        path=f"{path}/items/{iid}",
+                        lesson_id=lid,
+                        item_id=iid,
+                        gap_kind="missing_transcript",
                     )
                 )
 
@@ -605,6 +621,7 @@ def _score_audio_ready(
                             message=f"listening 阶段 {pid} 无题目",
                             path=f"lessons/{lid}/listeningPhases/{pid}",
                             lesson_id=lid,
+                            gap_kind="empty_phase",
                         )
                     )
 
@@ -787,6 +804,124 @@ def build_quality_fix_hint_for_dimension(
     return "\n".join(lines)
 
 
+def evaluate_unit_spiral(section: dict[str, Any]) -> dict[str, Any]:
+    """Evaluate spiral vocabulary gaps in a section (Phase 3 Route A / K08)."""
+    if not isinstance(section, dict):
+        return {
+            "section_id": "",
+            "total_introduced": 0,
+            "surfaced_count": 0,
+            "unsurfaced_count": 0,
+            "unsurfaced": [],
+        }
+
+    sid = str(section.get("id") or "")
+    words = section.get("words") or []
+    word_map = {
+        str(w.get("id")): w
+        for w in words
+        if isinstance(w, dict) and w.get("id")
+    }
+
+    introduced: set[str] = set()
+    practiced: set[str] = set()
+
+    for unit in section.get("units") or []:
+        if not isinstance(unit, dict):
+            continue
+        for lesson in unit.get("lessons") or []:
+            if not isinstance(lesson, dict):
+                continue
+            content = lesson.get("content") or {}
+            for stage in content.get("stages") or []:
+                if not isinstance(stage, dict):
+                    continue
+                for item in stage.get("items") or []:
+                    if not isinstance(item, dict):
+                        continue
+                    wid = str(item.get("wordId") or "").strip()
+                    rtype = str(item.get("runtimeType") or "")
+                    if wid in word_map:
+                        introduced.add(wid)
+                        if rtype != "showWord":
+                            practiced.add(wid)
+            for sub in content.get("subLessons") or []:
+                if not isinstance(sub, dict):
+                    continue
+                for stage in sub.get("stages") or []:
+                    if not isinstance(stage, dict):
+                        continue
+                    for item in stage.get("items") or []:
+                        if not isinstance(item, dict):
+                            continue
+                        wid = str(item.get("wordId") or "").strip()
+                        rtype = str(item.get("runtimeType") or "")
+                        if wid in word_map:
+                            introduced.add(wid)
+                            if rtype != "showWord":
+                                practiced.add(wid)
+
+    unsurfaced = []
+    for wid in introduced:
+        if wid not in practiced:
+            w = word_map[wid]
+            unsurfaced.append(
+                {
+                    "word_id": wid,
+                    "id": wid,
+                    "term": str(w.get("term") or w.get("word") or ""),
+                }
+            )
+
+    return {
+        "section_id": sid,
+        "total_introduced": len(introduced),
+        "surfaced_count": len(practiced),
+        "unsurfaced_count": len(unsurfaced),
+        "unsurfaced": unsurfaced,
+    }
+
+
+def _iter_lessons(section: dict[str, Any]):
+    """Yield (unit, lesson) pairs in a section."""
+    if not isinstance(section, dict):
+        return
+    for unit in section.get("units") or []:
+        if not isinstance(unit, dict):
+            continue
+        for lesson in unit.get("lessons") or []:
+            if isinstance(lesson, dict):
+                yield unit, lesson
+
+
+def evaluate_reading_passage(lesson: dict[str, Any]) -> dict[str, Any]:
+    """Evaluate reading passage completeness for a lesson (K-18)."""
+    if not isinstance(lesson, dict):
+        return {"empty": False, "lesson_id": "", "reason": ""}
+    lid = str(lesson.get("id") or "")
+    if lesson.get("template") != "reading":
+        return {"empty": False, "lesson_id": lid, "reason": ""}
+    content = lesson.get("content")
+    if not isinstance(content, dict):
+        return {"empty": True, "lesson_id": lid, "reason": "缺少 content"}
+    rp = content.get("readingPassage")
+    if not isinstance(rp, dict):
+        return {"empty": True, "lesson_id": lid, "reason": "缺少 readingPassage"}
+    title = str(rp.get("title") or "").strip()
+    if not title:
+        return {"empty": True, "lesson_id": lid, "reason": "缺少标题"}
+    paragraphs = rp.get("paragraphs")
+    if not isinstance(paragraphs, list) or not paragraphs:
+        return {"empty": True, "lesson_id": lid, "reason": "段落为空"}
+    clean_paras = [str(p or "").strip() for p in paragraphs if str(p or "").strip()]
+    if not clean_paras:
+        return {"empty": True, "lesson_id": lid, "reason": "段落为空"}
+    placeholders = {"…", "...", "tbd", "todo", "[待补]", "待补", "placeholder"}
+    if all(p.lower() in placeholders for p in clean_paras):
+        return {"empty": True, "lesson_id": lid, "reason": "包含占位文本"}
+    return {"empty": False, "lesson_id": lid, "reason": ""}
+
+
 # Re-export hygiene counters for callers that only need counts.
 __all__ = [
     "ContentQualityIssue",
@@ -800,4 +935,7 @@ __all__ = [
     "count_needs_review",
     "count_empty_translations",
     "find_dangling_refs",
+    "evaluate_unit_spiral",
+    "evaluate_reading_passage",
+    "_iter_lessons",
 ]

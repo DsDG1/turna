@@ -79,15 +79,9 @@ class AchievementBadgeCard extends StatelessWidget {
                     if (isNew)
                       _NewTag(accent: accent)
                     else if (funPreview)
-                      Text(
-                        AppStrings.achievementsFunPreviewBanner,
-                        style: Theme.of(context)
-                            .textTheme
-                            .labelSmall
-                            ?.copyWith(color: TurnaTheme.textHintColor(context)),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.right,
+                      _NewTag(
+                        accent: TurnaTheme.textHintColor(context),
+                        label: AppStrings.achievementsFunPreviewTag,
                       ),
                   ],
                 ),
@@ -239,8 +233,9 @@ class AchievementBadge extends StatelessWidget {
 
 class _NewTag extends StatelessWidget {
   final Color accent;
+  final String? label;
 
-  const _NewTag({required this.accent});
+  const _NewTag({required this.accent, this.label});
 
   @override
   Widget build(BuildContext context) {
@@ -251,7 +246,7 @@ class _NewTag extends StatelessWidget {
         borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
       ),
       child: Text(
-        AppStrings.achievementsNewBadgeTag,
+        label ?? AppStrings.achievementsNewBadgeTag,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: accent,
               fontWeight: FontWeight.w800,

@@ -17,13 +17,13 @@ import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
 import 'package:turna/views/theme.dart';
 import 'package:turna/views/widgets/turna_select.dart';
 
-/// The four depth-learning genres offered by the tutor sheet.
-enum DepthGenre { grammar, synonyms, decompose, whyWrong }
+/// The three depth-learning genres offered by the tutor sheet.
+enum DepthGenre { grammar, synonyms, decompose }
 
-/// Bottom sheet attached to the in-lesson AI button. Offers four "deep"
-/// explanations of the current question - grammar point, synonym nuance,
-/// sentence decomposition, and why-was-it-wrong - each a one-shot JSON call
-/// through [AiHintProvider] rendered as a structured card.
+/// Bottom sheet attached to the in-lesson AI button. Offers three "deep"
+/// explanations of the current question - grammar point, synonym nuance and
+/// sentence decomposition - each a one-shot JSON call through [AiHintProvider]
+/// rendered as a structured card.
 ///
 /// Reads the current question from [AiHintProvider.context] and the LLM config
 /// from [AiEngineConfigHolder], so it needs no constructor arguments.
@@ -106,19 +106,6 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
     final ctx = _qctx;
     if (ctx == null) return;
 
-    if (_genre == DepthGenre.whyWrong) {
-      final answered = ctx.userAnswer != null && ctx.userAnswer!.isNotEmpty;
-      final hasCorrect =
-          ctx.correctLabel != null && ctx.correctLabel!.isNotEmpty;
-      if (!answered || !hasCorrect) {
-        setState(() {
-          _error = AppStrings.aiDepthNeedAnswer;
-          _result = null;
-        });
-        return;
-      }
-    }
-
     _cancelToken?.cancel();
     final token = AiCancelToken();
     _cancelToken = token;
@@ -167,18 +154,6 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
             cancelToken: token,
           );
           _result = _decomposeWidget(r);
-          _resultCopyText = r.toPlainText();
-          break;
-        case DepthGenre.whyWrong:
-          final r = await provider.explainWhyWrong(
-            config: config,
-            language: ctx.language,
-            userAnswer: ctx.userAnswer!,
-            correctAnswer: ctx.correctLabel!,
-            questionContext: ctx.promptLabel,
-            cancelToken: token,
-          );
-          _result = _whyWrongWidget(r);
           _resultCopyText = r.toPlainText();
           break;
       }
@@ -284,11 +259,6 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
         DepthGenre.decompose,
         AppStrings.aiDepthDecompose,
         Icons.account_tree_outlined
-      ),
-      (
-        DepthGenre.whyWrong,
-        AppStrings.aiDepthWhyWrong,
-        Icons.help_outline_rounded
       ),
     ];
     return TurnaChoiceGrid<DepthGenre>(
@@ -410,12 +380,6 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
           ),
         const SizedBox(height: 8),
         _labeled(AppStrings.aiDepthStructure, r.structure),
-      ]);
-
-  Widget _whyWrongWidget(WhyWrongExplanation r) => _card([
-        _labeled(AppStrings.aiDepthWhyWrongLabel, r.whyWrong),
-        _labeled(AppStrings.aiDepthProbablyThought, r.whatYouProbablyThought),
-        _labeled(AppStrings.aiDepthHowToRemember, r.howToRemember),
       ]);
 
   Widget _card(List<Widget> children) => AiSurfaceCard(

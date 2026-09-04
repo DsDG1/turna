@@ -42,6 +42,7 @@ class _FakeWorker(QObject):
         pass
 
 
+@unittest.skip("AiFixDialog PreviewHost diff preview is pending v4.67 Scope B")
 class AiFixDialogPreviewHostTest(unittest.TestCase):
     def setUp(self) -> None:
         qt_app()

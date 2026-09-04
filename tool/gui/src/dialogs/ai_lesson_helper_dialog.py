@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from src.app import current_ai_config, current_settings
+from src.application.ai_runtime import runtime_from_host
 from src.backend.ai_generator import (
     AiApiConfig,
     request_item_transform,
@@ -63,7 +63,8 @@ class AiLessonHelperDialog(QDialog):
         self.setMinimumSize(QSize(520, 400))
 
         # API config is managed centrally in the Settings panel.
-        self._config = current_ai_config()
+        self._runtime = runtime_from_host(parent)
+        self._config = self._runtime.config()
         self._result: dict[str, Any] | None = None
         self._worker: AiRequestWorker | None = None
 
@@ -227,7 +228,7 @@ class AiLessonHelperDialog(QDialog):
     def _ai_generation_kwargs(self) -> dict[str, Any]:
         """Read timeout and temperature from central Settings."""
         try:
-            s = current_settings()
+            s = self._runtime.settings()
             return {
                 "timeout": float(getattr(s, "ai_timeout", 120.0)),
                 "temperature": float(getattr(s, "ai_temperature", 0.7)),

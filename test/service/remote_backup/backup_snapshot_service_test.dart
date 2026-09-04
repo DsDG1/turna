@@ -89,7 +89,18 @@ void main() {
 
   tearDown(() async {
     await db.close();
-    if (tmp.existsSync()) tmp.deleteSync(recursive: true);
+    // Windows 上杀软扫描或句柄延迟释放会让递归删除偶发 errno 32（“另一
+    // 个程序正在使用此文件”）；重试几轮，仍失败就留给系统临时目录清理，
+    // 不让用例本身背时序的锅。
+    for (var attempt = 0; attempt < 5; attempt++) {
+      if (!tmp.existsSync()) return;
+      try {
+        tmp.deleteSync(recursive: true);
+        return;
+      } on FileSystemException {
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+      }
+    }
   });
 
   Future<Map<String, dynamic>> readJsonEntry(Archive archive, String name) =>

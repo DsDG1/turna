@@ -20,7 +20,8 @@ void main() {
     // service used to run engine-less and compactCollection degraded to
     // the raw-file path, which cannot rebuild rslib's `COLLATE unicase`
     // indexes. It must bootstrap the same session the due sync opens and
-    // run all three jobs through it.
+    // run all jobs through it — media_gc first so unused media is gone
+    // before the databases shrink.
     final catalog = OfficialAnkiDatabase.memory();
     addTearDown(catalog.close);
     final root = Directory.systemTemp.createTempSync('turna-opt-boot-');
@@ -41,13 +42,13 @@ void main() {
       paths: OfficialAnkiPaths(profileId: 'p-opt-01', profileRoot: root),
     );
     expect(result.ok, isTrue);
-    expect(result.completedJobs, 3);
+    expect(result.completedJobs, 4);
     expect(bootstraps, 1);
     expect(engine.compactCalls, 1);
+    expect(engine.gcCalls, greaterThan(0));
   });
 
-  test('force compact fails closed when the engine cannot bootstrap',
-      () async {
+  test('force compact fails closed when the engine cannot bootstrap', () async {
     final catalog = OfficialAnkiDatabase.memory();
     addTearDown(catalog.close);
     final root = Directory.systemTemp.createTempSync('turna-opt-fail-');
@@ -65,9 +66,11 @@ void main() {
     expect(result.ok, isFalse);
     expect(result.errorCode, 'importer_not_ready');
     expect(result.completedJobs, 0);
-    final count = catalog.handle.select(
-      'SELECT COUNT(*) AS n FROM anki_maintenance_jobs',
-    ).first['n'] as int;
+    final count = catalog.handle
+        .select(
+          'SELECT COUNT(*) AS n FROM anki_maintenance_jobs',
+        )
+        .first['n'] as int;
     expect(count, 0, reason: 'fail closed must not enqueue zombie jobs');
   });
 }

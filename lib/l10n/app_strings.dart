@@ -838,6 +838,36 @@ class AppStrings {
   static String get reviewCorrectAnswer => '正确答案';
   static String get reviewDash => '—';
   static String reviewGrammarChip(String title) => '语法：$title';
+  static String get reviewMistakeFilterAll => '全部';
+  static String reviewRewriteProgress(int count, int goal) =>
+      '已重写 $count / $goal 次，再答对 ${goal - count} 次自动移除';
+  static String timeAgo(DateTime time, {DateTime? now}) {
+    final current = now ?? DateTime.now();
+    final diff = current.difference(time);
+    if (diff.inSeconds < 60) return '刚刚';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}分钟前';
+    if (diff.inHours < 24) return '${diff.inHours}小时前';
+    if (diff.inDays <= 7) return '${diff.inDays}天前';
+    final yearPrefix = time.year == current.year ? '' : '${time.year}年';
+    return '$yearPrefix${time.month}月${time.day}日';
+  }
+
+  // ── Mistake dashboard (错题仪表盘) ──
+  static String get mistakeDashboardTitle => '错题仪表盘';
+  static String get mistakeDashboardActiveLabel => '活跃错题';
+  static String get mistakeDashboardMasteredLabel => '累计已攻克';
+  static String get mistakeDashboardConsolidateLabel => '待巩固';
+  static String get mistakeDashboardTrendTitle => '近14天错题趋势';
+  static String get mistakeDashboardTrendEmpty => '近14天暂无新错题，保持！';
+  static String mistakeDashboardTrendSummary(int days, int total) =>
+      '近14天有 $days 天出现新错题，共 $total 个';
+  static String get mistakeDashboardDistributionTitle => '类型分布';
+  static String get mistakeDashboardOtherType => '其他';
+  static String get mistakeDashboardFrequentTitle => '高频错题';
+  static String mistakeDashboardTimes(int count) => '$count 次';
+  static String get mistakeDashboardOldestTitle => '最久未攻克';
+  static String get mistakeDashboardEmptyTitle => '暂无错题数据';
+  static String get mistakeDashboardEmptyMessage => '答题产生的错题统计会出现在这里。';
   static String get reviewPracticeTitle => '练习';
   static String get reviewCannotPractice => '此错题无法练习。';
   static String get reviewPracticeMistakeTitle => '错题练习';
@@ -1059,13 +1089,11 @@ class AppStrings {
   static String get aiDepthGrammar => '语法讲解';
   static String get aiDepthSynonyms => '近义词辨析';
   static String get aiDepthDecompose => '句子拆解';
-  static String get aiDepthWhyWrong => '为什么做错了';
   static String get aiDepthGrammarPointLabel => '语法点';
   static String get aiDepthSynonymWordsLabel => '要辨析的词（逗号分隔）';
   static String get aiDepthGenerate => '生成';
   static String get aiDepthCopy => '复制';
   static String get aiDepthCopied => '已复制';
-  static String get aiDepthNeedAnswer => '需要先作答并核对才能讲解错因';
   static String aiDepthError(Object error) => '出错了：$error';
   static String get aiDepthRelatedExamples => '相关例句';
   static String get aiDepthContrastWith => '易混淆';
@@ -1073,9 +1101,6 @@ class AppStrings {
   static String get aiDepthWhenToUseA => '用 A 的场景';
   static String get aiDepthWhenToUseB => '用 B 的场景';
   static String get aiDepthStructure => '句型';
-  static String get aiDepthWhyWrongLabel => '错在哪';
-  static String get aiDepthProbablyThought => '你可能以为';
-  static String get aiDepthHowToRemember => '如何记住';
 
   // ── AI companion errors (unified) ──
   static String get aiErrorNotConfigured => '请先配置 AI API';
@@ -1148,7 +1173,6 @@ class AppStrings {
   static String get aiExplainCardDisclaimer => '解释仅供理解，以卡片答案为准。';
 
   // ── Mistake / weak one-tap ──
-  static String get aiExplainWhyWrong => '为什么错';
   static String get aiExplainWeakWord => 'AI 讲解';
 
   // ── AI tutor (Phase 2.2) ──
@@ -1713,6 +1737,7 @@ class AppStrings {
   static String achievementsUnlockBannerCount(int count) => '本次获得 $count 枚徽章';
   static String get achievementsUnlockBannerViewAll => '查看成就';
   static String get achievementsFunPreviewBanner => '预览全部（Fun Lab，非真实解锁）';
+  static String get achievementsFunPreviewTag => '预览';
   static String get achievementsGemRewardSuffix => '宝石';
   // 系列名称与描述（key = seriesId）
   static String get achievementsSeriesCourseJourney => '课程行者';

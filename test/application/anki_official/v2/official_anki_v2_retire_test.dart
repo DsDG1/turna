@@ -132,8 +132,8 @@ void main() {
     // 幂等：重复 begin 不炸、复用 pending job。
     final jobId2 = await service().beginRetire(sourceId: sourceId);
     expect(jobId2, jobId);
-    expect(OfficialAnkiSourceDao(catalog).findById(sourceId)!.state,
-        'retiring');
+    expect(
+        OfficialAnkiSourceDao(catalog).findById(sourceId)!.state, 'retiring');
   });
 
   test('②③④ full job: engine delete + 5-table final delete + GC jobs',
@@ -185,8 +185,7 @@ void main() {
       engine: null,
     ).runRetireJob(sourceId: sourceId);
     expect(completed, isFalse, reason: '引擎缺席 → job 留队重跑');
-    expect(OfficialAnkiSourceDao(catalog).findById(sourceId)!.state,
-        'retiring',
+    expect(OfficialAnkiSourceDao(catalog).findById(sourceId)!.state, 'retiring',
         reason: '不产生无主且不可见的卡：账本行保留到引擎删除完成');
     expect(engine.cards, isNotEmpty, reason: '引擎里的卡未被误删');
   });
@@ -205,6 +204,14 @@ void main() {
     expect(completed, greaterThanOrEqualTo(1));
     expect(OfficialAnkiSourceDao(catalog).findById(sourceId), isNull,
         reason: 'runPending 把 retiring 序列推进到终删');
+    // 重快照循环：retire 第④步入队的 media_gc/compact_* 必须在同一把
+    // lease、同一次 runPending 里被消费，而不是留到下次启动。
+    expect(
+      OfficialAnkiMaintenanceJobDao(catalog)
+          .pending(profileId: paths.profileId),
+      isEmpty,
+      reason: 'retire 入队的回收 job 应同轮 drain 完毕',
+    );
   });
 
   test('maintenance runner keeps v2_source_delete alive without engine',
@@ -259,9 +266,11 @@ void main() {
     engine.seedPackage(packagePath: 'pkg.apkg', notes: 5, cards: 5);
 
     await service(deleteChunk: 2).beginRetire(sourceId: sourceId);
-    expect(await service(deleteChunk: 2).runRetireJob(sourceId: sourceId), isTrue);
+    expect(
+        await service(deleteChunk: 2).runRetireJob(sourceId: sourceId), isTrue);
     expect(engine.cards, isEmpty);
-    expect(engine.deleteCardsCallCount, 3, reason: '5 ids / chunk 2 = 3 batches');
+    expect(engine.deleteCardsCallCount, 3,
+        reason: '5 ids / chunk 2 = 3 batches');
     expect(OfficialAnkiSourceDao(catalog).findById(sourceId), isNull);
   });
 }

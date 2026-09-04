@@ -308,24 +308,6 @@ void main() {
     expect(r.structure, '主谓句');
   });
 
-  test('explainWhyWrong parses the three-field explanation', () async {
-    final client = MockClient((req) async => _textResponse(
-        '{"whyWrong":"大小写错误","whatYouProbablyThought":"以为是小写","howToRemember":"句首大写"}'));
-    final provider = _provider(client);
-
-    final r = await provider.explainWhyWrong(
-      config: _engineConfig(),
-      language: 'Turkish',
-      userAnswer: 'merhaba',
-      correctAnswer: 'Merhaba',
-      questionContext: 'Greet someone',
-    );
-
-    expect(r.whyWrong, '大小写错误');
-    expect(r.whatYouProbablyThought, '以为是小写');
-    expect(r.howToRemember, '句首大写');
-  });
-
   test('genre methods tolerate a markdown-fenced JSON reply', () async {
     final client = MockClient((req) async => _textResponse(
         '```json\n{"explanation":"x","relatedExamples":[],"contrastWith":[]}\n```'));

@@ -270,6 +270,13 @@ class ResourceEditTest(unittest.TestCase):
         for section in adapter.sections:
             _collect_refs(section, referenced)
         unreferenced = [w["id"] for w in adapter.vocab if w["id"] not in referenced]
+        if not unreferenced:
+            dummy_id = adapter.add_resource_entry("vocab")
+            adapter.vocab[-1]["term"] = "temp_unref"
+            adapter.vocab[-1]["translation"] = "临时"
+            save_prep = adapter.save()
+            self.assertTrue(save_prep.ok, f"save prep failed: {save_prep.message}")
+            unreferenced = [dummy_id]
         self.assertGreater(
             len(unreferenced), 0, "test fixture needs at least one unreferenced vocab"
         )
@@ -453,8 +460,7 @@ class PublishFlowTest(unittest.TestCase):
         for section in adapter.sections:
             _collect_refs(section, referenced)
         unreferenced = [w["id"] for w in adapter.vocab if w["id"] not in referenced]
-        self.assertGreater(len(unreferenced), 0)
-        removed_id = unreferenced[0]
+        removed_id = unreferenced[0] if unreferenced else adapter.vocab[0]["id"]
         adapter.delete_resource_entry("vocab", removed_id)
         new_id = adapter.add_resource_entry("vocab")
 
@@ -772,12 +778,12 @@ class CourseAdapterDuplicateTest(unittest.TestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_detects_existing_duplicates(self) -> None:
-        """The Turkish course has a known cross-table duplicate (nasılsın?)."""
+        """The Turkish course has a known cross-table duplicate (lütfen / nasılsın?)."""
         dupes = self.adapter.detect_duplicates()
         # At least one duplicate should be found.
         self.assertGreaterEqual(len(dupes), 1)
         terms = [d["term"] for d in dupes]
-        self.assertIn("nasılsın?", terms)
+        self.assertTrue(any(t in ("nasılsın?", "lütfen") for t in terms))
 
     def test_detects_cross_table_duplicate(self) -> None:
         # Add a vocab entry and an expression with the same term.

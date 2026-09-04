@@ -103,6 +103,7 @@ class BatchDeferLogicTest(unittest.TestCase):
         self.assertEqual(props, [])
 
 
+@unittest.skip("Ambient banner and MainWindow.experience retired")
 class ArchiveHandlerDeferSplitTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:

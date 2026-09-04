@@ -12,15 +12,15 @@ import copy
 import json
 from typing import Any, Callable
 
-from src.backend.ai_generator import (
+from src.backend.ai import (
     SYSTEM_AUTHORING,
     AiApiConfig,
     AiCancelled,
     AiCourseSpec,
-    _splice_lesson_in_place,
     generate_with_validate_loop,
     request_course_with_retry,
     request_lesson_transform,
+    splice_lesson_in_place,
 )
 from src.backend.ai_pedagogy import pedagogy_prompt_block
 
@@ -379,7 +379,7 @@ def fill_lessons_from_outline(
                 raise AiCancelled("请求已取消。")
             lid, new_lesson = _fill_one(lesson_ol)
             if new_lesson is not None:
-                _splice_lesson_in_place(section, lid, new_lesson)
+                splice_lesson_in_place(section, lid, new_lesson)
             if on_lesson_done:
                 on_lesson_done(lid, idx + 1, total)
         return section
@@ -408,7 +408,7 @@ def fill_lessons_from_outline(
                 lid = str(futures[fut].get("id") or "")
                 new_lesson = None
             if new_lesson is not None:
-                _splice_lesson_in_place(section, lid, new_lesson)
+                splice_lesson_in_place(section, lid, new_lesson)
             with lock:
                 done_count += 1
                 cur = done_count
@@ -470,7 +470,7 @@ def request_course_phased(
         ),
     )
     if fill_needs_review:
-        from src.backend.ai_generator import fill_needs_review_resources
+        from src.backend.ai import fill_needs_review_resources
 
         _progress("fill_needs_review")
         section = fill_needs_review_resources(

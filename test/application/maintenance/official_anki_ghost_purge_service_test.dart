@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
+import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/maintenance/official_anki_ghost_purge_service.dart';
 
@@ -75,8 +76,57 @@ void main() {
     expect(result.deletedEntries, greaterThan(0));
     expect(File(p.join(root.path, 'collection.anki2')).existsSync(), isFalse);
     expect(staging.existsSync(), isFalse);
-    expect(Directory(p.join(root.path, 'collection.media')).existsSync(), isTrue,
+    expect(
+        Directory(p.join(root.path, 'collection.media')).existsSync(), isTrue,
         reason: 'ensureLayout recreates the empty media folder');
+  });
+
+  test('fails closed while an import attempt is unfinished', () async {
+    final catalog = OfficialAnkiDatabase.memory();
+    addTearDown(catalog.close);
+    final root = Directory.systemTemp.createTempSync('turna-ghost-imp-');
+    addTearDown(() {
+      try {
+        root.deleteSync(recursive: true);
+      } catch (_) {}
+    });
+    final paths = OfficialAnkiPaths(
+      profileId: 'profile-default-01',
+      profileRoot: root,
+    );
+    // attempts 外键指向 anki_sources；真实世界里这个态来自
+    // deleteSourceV2 之外的残留路径，这里先建源再摘掉源行来模拟。
+    OfficialAnkiSourceDao(catalog).upsertSource(
+      sourceId: 'src-inflight',
+      profileId: paths.profileId,
+      sourceHash: 'hash-inflight',
+      sourceSize: 1,
+      displayName: 'Inflight',
+      state: 'active',
+      backendCommit: 'test',
+      nowMillis: 1,
+    );
+    OfficialAnkiImportAttemptDao(catalog).insert(
+      attemptId: 'att-1',
+      sourceId: 'src-inflight',
+      requestId: 'req-1',
+      state: 'importing_official',
+      phase: 'importing',
+      nowMillis: 1,
+    );
+    final db = catalog.handle;
+    db.execute('PRAGMA foreign_keys = OFF');
+    db.execute("DELETE FROM anki_sources WHERE source_id = 'src-inflight'");
+    db.execute('PRAGMA foreign_keys = ON');
+    File(p.join(root.path, 'collection.anki2')).writeAsBytesSync([1, 2, 3]);
+
+    final result = await const OfficialAnkiGhostPurgeService().run(
+      catalog: catalog,
+      paths: paths,
+    );
+    expect(result.ok, isFalse);
+    expect(result.errorCode, 'import_in_progress');
+    expect(File(p.join(root.path, 'collection.anki2')).existsSync(), isTrue);
   });
 
   test('fails closed without paths', () async {

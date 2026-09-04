@@ -50,6 +50,16 @@ class ReviewHistoryDao {
 
   ReviewHistoryDao(this._db);
 
+  /// Local-day bucketing shifts each timestamp by the host's current UTC
+  /// offset before truncating to a day. The SQL `'localtime'` modifier is
+  /// deliberately avoided: SQLite ≥3.51 rewrote the date/time subsystem and
+  /// some 3.51.x builds return NULL for `'localtime'`/`'utc'` modifiers,
+  /// which silently emptied every dashboard aggregation on those hosts
+  /// (devices bundle sqlite via sqlite3_flutter_libs and will hit the same
+  /// family on upgrade). Trade-off: events inside the ±1h DST shift of a
+  /// couple of days per year may bucket into the neighbouring day.
+  int get _localUtcOffsetMs => DateTime.now().timeZoneOffset.inMilliseconds;
+
   /// Append a review event.
   Future<void> insertEvent(ReviewEventRecord event) async {
     await _db.into(_db.reviewEvents).insert(
@@ -129,12 +139,13 @@ class ReviewHistoryDao {
     DateTime to,
   ) async {
     final rows = await _db.customSelect(
-      'SELECT date(reviewed_at / 1000, \'unixepoch\', \'localtime\') AS day,'
+      'SELECT date((reviewed_at + ?) / 1000, \'unixepoch\') AS day,'
       ' COUNT(*) AS reviewed '
       'FROM review_events '
       'WHERE reviewed_at >= ? AND reviewed_at < ? '
       'GROUP BY day ORDER BY day ASC',
       variables: [
+        Variable<int>(_localUtcOffsetMs),
         Variable<int>(from.millisecondsSinceEpoch),
         Variable<int>(to.millisecondsSinceEpoch),
       ],
@@ -170,11 +181,11 @@ class ReviewHistoryDao {
     ];
     _appendFilterPredicates(predicates, variables, filter);
     final rows = await _db.customSelect(
-      "SELECT strftime('$format', reviewed_at / 1000, 'unixepoch', "
-      "'localtime') AS bucket, COUNT(*) AS reviewed "
+      "SELECT strftime('$format', (reviewed_at + ?) / 1000, 'unixepoch') "
+      'AS bucket, COUNT(*) AS reviewed '
       'FROM review_events WHERE ${predicates.join(' AND ')} '
       'GROUP BY bucket ORDER BY bucket ASC',
-      variables: variables,
+      variables: [Variable<int>(_localUtcOffsetMs), ...variables],
       readsFrom: {_db.reviewEvents},
     ).get();
     final result = [
