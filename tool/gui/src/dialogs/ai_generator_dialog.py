@@ -17,19 +17,13 @@ deleted when the dialog closes.
 """
 from __future__ import annotations
 
-import logging
-logger = logging.getLogger(__name__)
-
-
 import json
-import shutil
-import tempfile
+import logging
 import time
-import uuid
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import Qt, QSize, QTimer
+from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QDragEnterEvent, QDropEvent
 from PySide6.QtWidgets import (
     QCheckBox,
@@ -44,8 +38,6 @@ from PySide6.QtWidgets import (
     QInputDialog,
     QLabel,
     QLineEdit,
-    QListWidget,
-    QListWidgetItem,
     QMessageBox,
     QProgressBar,
     QPushButton,
@@ -78,35 +70,40 @@ from src.backend.ai_generator import (
 from src.backend.ai_genre import genre_tags_in_text
 from src.backend.ai_prompt_library import AiPromptHistory, AiPromptTemplate, prompt_library
 from src.backend.ai_usage import format_usage_line
-from src.backend.attachment_extractor import extract_attachment
 from src.dialogs.ai.attachment_bar import AttachmentBar
+from src.dialogs.ai.chat_expand_window import ChatExpandWindow
+from src.dialogs.ai.chat_view import (
+    DEFAULT_PALETTE as _CHAT_PALETTE,
+    ChatView,
+)
+from src.dialogs.ai.generator_chat_coordinator import GeneratorChatCoordinator, escape_html
+from src.dialogs.ai.generator_preview_coordinator import (
+    GeneratorPreviewCoordinator,
+    confirm_structural_removal,
+    find_line_for_path,
+    jump_editor_to_path,
+    try_preview_lesson,
+    view_section_diff,
+)
+from src.dialogs.ai.generator_wizard_panel import GeneratorWizardPanel
+from src.dialogs.ai.generator_worker_hub import GeneratorWorkerHub, record_cache_stats
+from src.dialogs.ai.prompt_template_bar import PromptTemplateBar
+from src.dialogs.ai.result_window import ResultExpandWindow
 from src.dialogs.ai.worker import (
     AttachmentRecord as _AttachmentRecord,
     AiRequestWorker,
     is_valid_http_url as _is_valid_http_url,
 )
-from src.dialogs.ai.chat_view import (
-    DEFAULT_PALETTE as _CHAT_PALETTE,
-    ChatView,
-    escape_html as _escape_html,
-)
-from src.dialogs.ai.prompt_template_bar import PromptTemplateBar
 from src.infrastructure.telemetry import telemetry
 from src.theme_tokens import BRAND_REED, BRAND_TEAL, BRAND_TEAL_DARK
 from src.widgets.json_editor import JsonEditor
+from src.widgets.result_preview import ResultPreviewWidget
 
+logger = logging.getLogger(__name__)
 
-def _record_cache_stats() -> None:
-    """第三枪 批次① Step 9: record AI cache stats to telemetry after each request.
-
-    Records ``ai.cache.stats`` with hits/misses/entries so cache effectiveness
-    is visible in the telemetry log. No-op when no default cache is configured.
-    """
-    from src.backend.ai_cache import get_default_cache
-
-    cache = get_default_cache()
-    if cache is not None:
-        telemetry.record_event("ai.cache.stats", payload=cache.stats().as_dict())
+# Backward-compat aliases
+_record_cache_stats = record_cache_stats
+_escape_html = escape_html
 
 
 class AiGeneratorDialog(QDialog):
@@ -116,10 +113,6 @@ class AiGeneratorDialog(QDialog):
     ready to be appended to ``adapter.sections`` and registered in the index.
     """
 
-    # Live stream preview cap (chars): beyond this, throttled flushes only
-    # update a counter instead of re-laying-out the whole editor/label.
-    # Mirrors design_panel._STREAM_JSON_LIVE_LIMIT. The final flush renders
-    # the complete text regardless.
     _STREAM_TEXT_LIVE_LIMIT = 8192
 
     def __init__(
@@ -135,45 +128,109 @@ class AiGeneratorDialog(QDialog):
         self.resize(1180, 860)
         self.setMinimumSize(QSize(900, 640))
         self.setAcceptDrops(True)
-        # API config is managed centrally in the Settings panel and held in
-        # memory by MainWindow. Dialogs must not maintain their own input fields.
+
         self._runtime = runtime_from_host(parent)
         self._config = self._runtime.config()
         self._generated: dict | None = None
         self._mode = "normal"
         self._normal_tab = "topic"
 
-        self._messages: list[ChatMessage] = []
-        self._attachments: list[_AttachmentRecord] = []
+        # Specialized sub-coordinators
+        self._worker_hub = GeneratorWorkerHub(self)
+        self._preview_coord = GeneratorPreviewCoordinator(self)
+        self._chat_coord = GeneratorChatCoordinator(self)
+
+        self._worker_hub.chunk_rendered.connect(self._on_chunk_rendered)
+        self._worker_hub.usage_updated.connect(self._on_usage_updated)
+        self._worker_hub.stage_changed.connect(self._set_stage_label)
+
         self._prompt_library = prompt_library()
         self._draft_json: dict | None = None
-        self._current_worker: AiRequestWorker | None = None
         self._busy_normal = False
         self._busy_wish = False
-        self._chat_expand: QWidget | None = None
-        self._json_window: QWidget | None = None
-        # Set True during reject()/closeEvent() so worker slots can bail out
-        # instead of touching destroyed widgets. (B6)
         self._closing = False
-        # ``_request_start`` is reset to a fresh perf_counter() before each
-        # worker starts and cleared to ``None`` after it finishes (B7 fix),
-        # so duration measurements never inherit a stale timestamp.
-        self._request_start: float | None = None
-        # Streaming scratch state: ``_stream_buffer`` accumulates fragments,
-        # ``_stream_target`` is "alignment" / "explain" / "json" so the chunk
-        # handler knows where to render. View updates are throttled via
-        # ``_stream_flush_timer`` (per-chunk full-document rewrites are O(n^2)).
-        self._stream_buffer = ""
-        self._stream_target: str | None = None
-        self._stream_dirty = False
-        self._stream_flush_timer = QTimer(self)
-        self._stream_flush_timer.setSingleShot(True)
-        self._stream_flush_timer.setInterval(120)
-        self._stream_flush_timer.timeout.connect(self._flush_stream_view)
 
         self._build_ui()
         self._update_api_status()
         self._apply_edit_mode_ui()
+
+    # --- Property Forwarding (100% Backward Compatibility) ---------------
+
+    @property
+    def _messages(self) -> list[ChatMessage]:
+        return self._chat_coord.messages
+
+    @_messages.setter
+    def _messages(self, val: list[ChatMessage]) -> None:
+        self._chat_coord.messages = val
+
+    @property
+    def _attachments(self) -> list[_AttachmentRecord]:
+        return self._chat_coord.attachments
+
+    @_attachments.setter
+    def _attachments(self, val: list[_AttachmentRecord]) -> None:
+        self._chat_coord.attachments = val
+
+    @property
+    def _current_worker(self) -> AiRequestWorker | None:
+        return self._worker_hub.current_worker
+
+    @_current_worker.setter
+    def _current_worker(self, val: AiRequestWorker | None) -> None:
+        self._worker_hub._current_worker = val
+
+    @property
+    def _request_start(self) -> float | None:
+        return self._worker_hub.request_start
+
+    @_request_start.setter
+    def _request_start(self, val: float | None) -> None:
+        self._worker_hub.request_start = val
+
+    @property
+    def _stream_buffer(self) -> str:
+        return self._worker_hub.stream_buffer
+
+    @_stream_buffer.setter
+    def _stream_buffer(self, val: str) -> None:
+        self._worker_hub._stream_buffer = val
+
+    @property
+    def _stream_target(self) -> str | None:
+        return self._worker_hub.stream_target
+
+    @_stream_target.setter
+    def _stream_target(self, val: str | None) -> None:
+        self._worker_hub._stream_target = val
+
+    @property
+    def _stream_dirty(self) -> bool:
+        return self._worker_hub._stream_dirty
+
+    @_stream_dirty.setter
+    def _stream_dirty(self, val: bool) -> None:
+        self._worker_hub._stream_dirty = val
+
+    @property
+    def _stream_flush_timer(self):
+        return self._worker_hub._stream_flush_timer
+
+    @property
+    def _json_window(self) -> ResultExpandWindow | None:
+        return self._preview_coord.json_window
+
+    @_json_window.setter
+    def _json_window(self, win: ResultExpandWindow | None) -> None:
+        self._preview_coord.json_window = win
+
+    @property
+    def _chat_expand(self) -> ChatExpandWindow | None:
+        return self._chat_coord.chat_expand_window
+
+    @_chat_expand.setter
+    def _chat_expand(self, win: ChatExpandWindow | None) -> None:
+        self._chat_coord.chat_expand_window = win
 
     # --- UI construction -------------------------------------------------
 
@@ -198,13 +255,10 @@ class AiGeneratorDialog(QDialog):
         self._stack.addWidget(self._wish_panel)
         root.addLayout(self._stack, 1)
 
-        # Build the single shared template bar once (B8); it is reparented
-        # into the active panel by _update_mode_ui.
         self._build_template_selector()
         self._template_bar.set_library(self._prompt_library)
         self._template_bar.template_applied.connect(self._on_template_applied)
         self._template_bar.history_applied.connect(self._on_history_applied)
-        # Wire topic/extra text changes to genre-tag sync.
         self.topic_edit.textChanged.connect(self._on_topic_text_changed)
         self.extra_edit.textChanged.connect(self._on_topic_text_changed)
 
@@ -222,7 +276,7 @@ class AiGeneratorDialog(QDialog):
         self._set_tab_order()
 
     def _set_tab_order(self) -> None:
-        """Keyboard tab order for the wish-mode input cluster (P5.6)."""
+        """Keyboard tab order for the wish-mode input cluster."""
         from PySide6.QtWidgets import QWidget as _W
 
         _W.setTabOrder(self.input_edit, self.attach_btn)
@@ -322,31 +376,21 @@ class AiGeneratorDialog(QDialog):
         return widget
 
     def _build_template_selector(self) -> QWidget:
-        """Return the single shared template/genre selector (B8 fix).
-
-        Created once and cached on ``self._template_bar``; subsequent calls
-        (from the wish panel) return the same instance. Reparenting happens in
-        ``_update_mode_ui`` so the bar lives in whichever panel is visible —
-        it is never rebuilt, so template/genre state stays global and unique.
-        """
         if getattr(self, "_template_bar", None) is not None:
             return self._template_bar
         bar = PromptTemplateBar()
         bar.template_changed.connect(self._on_template_changed_value)
         bar.genre_toggled.connect(self._on_genre_toggled)
         self._template_bar = bar
-        # Backwards-compat attributes used elsewhere in this class.
         self.template_combo = bar.template_combo
         self._template_cards = bar._template_cards
         self.genre_switch = bar.genre_switch
         return bar
 
     def _on_template_changed_value(self, template: str) -> None:
-        """React to a template change from the shared bar (replaces combo index)."""
         self._update_input_placeholders()
 
     def _on_genre_toggled(self, enabled: bool) -> None:
-        """React to the genre-batch toggle from the shared bar."""
         self._update_input_placeholders()
         self._sync_template_from_genre_tags()
 
@@ -363,9 +407,8 @@ class AiGeneratorDialog(QDialog):
         self.normal_tabs.addTab(self._wizard_panel, "向导生成")
         self.normal_tabs.currentChanged.connect(self._on_normal_tab_changed)
         result_group = self._build_result_group()
-        # Change 1: 2-column layout — input tabs on the left, result preview +
-        # JSON on the right (JSON can further pop out into its own window).
-        self._normal_splitter = QSplitter(Qt.Horizontal)
+
+        self._normal_splitter = QSplitter(Qt.Orientation.Horizontal)
         self._normal_splitter.setContentsMargins(0, 0, 0, 0)
         self._normal_splitter.addWidget(self.normal_tabs)
         self._normal_splitter.addWidget(result_group)
@@ -382,8 +425,7 @@ class AiGeneratorDialog(QDialog):
         layout = QVBoxLayout(widget)
         layout.setSpacing(12)
         layout.setContentsMargins(0, 0, 0, 0)
-        # The template bar slot is filled by _update_mode_ui (single shared
-        # instance reparented between panels — B8 fix).
+
         self._normal_template_slot = QVBoxLayout()
         self._normal_template_slot.setContentsMargins(0, 0, 0, 0)
         layout.addLayout(self._normal_template_slot)
@@ -392,12 +434,12 @@ class AiGeneratorDialog(QDialog):
             from PySide6.QtWidgets import QPlainTextEdit
             scope = self._edit_mode.get("scope", "section")
             scope_id = self._edit_mode.get("scope_id", "")
-            
+
             info_lbl = QLabel(f"<b>正在编辑 {scope.upper()} : {scope_id}</b>")
             from src.theme import current_palette as _cp
             info_lbl.setStyleSheet(f"color: {_cp()['info']};")
             layout.addWidget(info_lbl)
-            
+
             layout.addWidget(QLabel("修改要求/指令 (例如：增加两个练习题，补充单词Merhaba)："))
             self.edit_instruction_input = QPlainTextEdit()
             self.edit_instruction_input.setPlaceholderText("你想对该节点做出什么具体的改变？AI 将根据此指令进行精确重写。")
@@ -408,104 +450,32 @@ class AiGeneratorDialog(QDialog):
         return widget
 
     def _build_wizard_panel(self) -> QWidget:
-        """Guided lesson creation that does not consume AI tokens."""
-        from PySide6.QtCore import Qt
+        """Guided lesson creation panel delegating to GeneratorWizardPanel."""
+        panel = GeneratorWizardPanel(self.adapter, palette=self._chat_palette(), parent=self)
+        self.wizard_name_edit = panel.name_edit
+        self.wizard_desc_edit = panel.desc_edit
+        self.wizard_word_list = panel.word_list
+        self.wizard_summary = panel.summary_label
+        self.wizard_generate_btn = panel.generate_btn
+        panel.generated_ready.connect(self._on_wizard_generated_ready)
+        return panel
 
-        widget = QWidget()
-        layout = QVBoxLayout(widget)
-        layout.setSpacing(12)
-        layout.setContentsMargins(0, 0, 0, 0)
-
-        layout.addWidget(QLabel("<b>向导生成：从词库选题自动生成 intro 课程</b>"))
-
-        form = QFormLayout()
-        self.wizard_name_edit = QLineEdit()
-        self.wizard_name_edit.setPlaceholderText("如：问候语")
-        self.wizard_desc_edit = QLineEdit()
-        self.wizard_desc_edit.setPlaceholderText("一句话说明这节课学什么")
-        form.addRow("名称:", self.wizard_name_edit)
-        form.addRow("描述:", self.wizard_desc_edit)
-        layout.addLayout(form)
-
-        layout.addWidget(QLabel("选择要教学的词："))
-        self.wizard_word_list = QListWidget()
-        for wid, label in self.adapter.vocab_options():
-            item = QListWidgetItem(label)
-            item.setData(Qt.ItemDataRole.UserRole, wid)
-            item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
-            item.setCheckState(Qt.CheckState.Unchecked)
-            self.wizard_word_list.addItem(item)
-        layout.addWidget(self.wizard_word_list)
-
-        self.wizard_summary = QLabel("已选 0 个词")
-        self.wizard_summary.setStyleSheet(
-            f"color: {self._pal('text_secondary', '#9CA3AF')};"
-        )
-        layout.addWidget(self.wizard_summary)
-        self.wizard_word_list.itemChanged.connect(self._update_wizard_summary)
-
-        self.wizard_generate_btn = QPushButton("生成课程")
-        self.wizard_generate_btn.clicked.connect(self._on_wizard_generate)
-        layout.addWidget(self.wizard_generate_btn)
-        layout.addStretch()
-        return widget
-
-    def _update_wizard_summary(self, _item: "QListWidgetItem") -> None:
-        n = sum(
-            1
-            for i in range(self.wizard_word_list.count())
-            if self.wizard_word_list.item(i).checkState() == Qt.CheckState.Checked
-        )
-        self.wizard_summary.setText(f"已选 {n} 个词，将生成 {n} 个教学环节")
+    def _update_wizard_summary(self, item: Any = None) -> None:
+        self._wizard_panel.update_summary(item)
 
     def _selected_wizard_words(self) -> list[dict[str, Any]]:
-        ids = {
-            self.wizard_word_list.item(i).data(Qt.ItemDataRole.UserRole)
-            for i in range(self.wizard_word_list.count())
-            if self.wizard_word_list.item(i).checkState() == Qt.CheckState.Checked
-        }
-        return [w for w in self.adapter.vocab if w.get("id") in ids]
+        return self._wizard_panel.selected_words()
 
     def _on_wizard_generate(self) -> None:
-        from src.backend.lesson_content import build_intro_lesson
+        self._wizard_panel.generate()
 
-        words = self._selected_wizard_words()
-        if not words:
-            self.wizard_summary.setText("⚠️ 请至少选择 1 个词")
-            self.wizard_summary.setStyleSheet(f"color: {self._pal('error', '#E74C3C')};")
-            return
-        lesson = build_intro_lesson(
-            self.wizard_name_edit.text().strip(),
-            self.wizard_desc_edit.text().strip(),
-            words,
-        )
-        # Wrap the lesson in a single-unit section so the dialog's import path
-        # can treat wizard output the same as AI-generated output.
-        section = {
-            "id": f"wizard-{lesson.get('id', 'lesson')}",
-            "name": lesson.get("name", "向导课程"),
-            "description": lesson.get("description", ""),
-            "prerequisiteSectionIds": [],
-            "words": [],
-            "expressions": [],
-            "grammarPoints": [],
-            "units": [
-                {
-                    "id": f"wizard-{lesson.get('id', 'lesson')}-u1",
-                    "name": "Unit 1",
-                    "description": "",
-                    "prerequisiteUnitIds": [],
-                    "lessons": [lesson],
-                }
-            ],
-        }
+    def _on_wizard_generated_ready(self, section: dict[str, Any]) -> None:
         self._generated = section
         self.json_edit.setPlainText(json.dumps(section, ensure_ascii=False, indent=2))
         self.reset_btn.setEnabled(False)
         self.result_preview.show_section(section)
         self.result_preview.setVisible(True)
         self._update_mode_ui()
-        telemetry.record_event("ai.wizard.generate", payload={"lesson_id": lesson.get("id", "")})
 
     def _on_normal_tab_changed(self, index: int) -> None:
         self._normal_tab = "topic" if index == 0 else "wizard"
@@ -518,7 +488,6 @@ class AiGeneratorDialog(QDialog):
 
         self.topic_edit = QLineEdit()
         self.topic_edit.setPlaceholderText("例如：旅行词汇 [intro]")
-        # textChanged is wired once in __init__ (together with extra_edit).
         layout.addWidget(QLabel("主题:"))
         layout.addWidget(self.topic_edit, 1)
 
@@ -529,26 +498,19 @@ class AiGeneratorDialog(QDialog):
         return widget
 
     def _build_result_group(self) -> QGroupBox:
-        from src.widgets.result_preview import ResultPreviewWidget
-
         grp = QGroupBox("生成结果（可编辑 JSON）")
         layout = QVBoxLayout(grp)
         layout.setSpacing(8)
         self.result_preview = ResultPreviewWidget(self.adapter, grp)
         self.result_preview.setVisible(False)
         self.result_preview.validity_changed.connect(self._on_preview_validity)
-        # Override the preview's validate button so it validates the JSON
-        # currently in the editor (which the user may have edited), not a
-        # stale cached copy.
         self.result_preview.validate_btn.clicked.disconnect()
         self.result_preview.validate_btn.clicked.connect(self._on_validate_from_editor)
         layout.addWidget(self.result_preview)
         self.json_edit = JsonEditor()
         self.json_edit.restyle(self._chat_palette())
         self.result_preview.node_activated.connect(self._on_preview_node_activated)
-        # JSON editor lives in a dedicated host slot so it can be reparented
-        # into the independent ResultExpandWindow (Change 1) without disturbing
-        # the surrounding layout.
+
         self._normal_json_host = QVBoxLayout()
         self._normal_json_host.setContentsMargins(0, 0, 0, 0)
         self._normal_json_host.addWidget(self.json_edit)
@@ -639,7 +601,6 @@ class AiGeneratorDialog(QDialog):
         hint_row.addWidget(self.expand_btn)
         layout.addLayout(hint_row)
 
-        # Template bar slot filled by _update_mode_ui (shared single instance).
         self._wish_template_slot = QVBoxLayout()
         self._wish_template_slot.setContentsMargins(0, 0, 0, 0)
         layout.addLayout(self._wish_template_slot)
@@ -658,7 +619,6 @@ class AiGeneratorDialog(QDialog):
         self.chat_view.restyle(self._chat_palette())
         chat_layout.addWidget(self.chat_view)
 
-        # --- progress row (sits above the chat, slim) -------------------
         self.wish_progress = QProgressBar()
         self.wish_progress.setRange(0, 0)
         self.wish_progress.setVisible(False)
@@ -680,10 +640,6 @@ class AiGeneratorDialog(QDialog):
         progress_row.addStretch()
         progress_row.addWidget(self.wish_usage_label)
 
-        # --- collapsible result summary (one-screen, P5.3) --------------
-        # A frame whose collapsed state shows a single summary line and whose
-        # expanded state reveals the structured preview + plain-language
-        # explanation. Default collapsed so chat + input fit one screen.
         self._result_frame = QFrame()
         self._result_frame.setStyleSheet(
             f"QFrame {{ border: 1px solid {self._pal('ai_bubble_bg', '#2C313C')}; "
@@ -707,8 +663,6 @@ class AiGeneratorDialog(QDialog):
         result_header.addWidget(self._result_toggle)
         result_v.addLayout(result_header)
 
-        from src.widgets.result_preview import ResultPreviewWidget
-
         self.wish_result_preview = ResultPreviewWidget(self.adapter, widget)
         self.wish_result_preview.setVisible(False)
         self.wish_result_preview.validity_changed.connect(self._on_preview_validity)
@@ -717,10 +671,6 @@ class AiGeneratorDialog(QDialog):
         self.wish_result_preview.node_activated.connect(self._on_preview_node_activated)
         result_v.addWidget(self.wish_result_preview)
 
-        # Wish-side JSON editor (P3.3 / B1): the single source of truth for the
-        # imported JSON in wish mode. ``_current_json`` reads this, not _generated.
-        # It lives in a dedicated host slot so it can be reparented into the
-        # independent ResultExpandWindow (Change 1).
         self.wish_json_edit = JsonEditor()
         self.wish_json_edit.restyle(self._chat_palette())
         self.wish_json_edit.setVisible(False)
@@ -817,7 +767,6 @@ class AiGeneratorDialog(QDialog):
         input_widget.setLayout(input_row)
         self._wish_input_widget = input_widget
 
-        # Wrap input row + attachment strip in one fixed-height container.
         input_stack = QWidget()
         input_stack_layout = QVBoxLayout(input_stack)
         input_stack_layout.setContentsMargins(0, 0, 0, 0)
@@ -825,27 +774,22 @@ class AiGeneratorDialog(QDialog):
         input_stack_layout.addWidget(self._attachment_bar)
         input_stack_layout.addWidget(input_widget)
 
-        # --- left column: chat (grows) + input (fixed) -------------------
-        left_col = QSplitter(Qt.Vertical)
+        left_col = QSplitter(Qt.Orientation.Vertical)
         left_col.setContentsMargins(0, 0, 0, 0)
         left_col.addWidget(chat_container)
         left_col.addWidget(input_stack)
-        left_col.setStretchFactor(0, 1)   # chat grows
-        left_col.setStretchFactor(1, 0)   # input: fixed
+        left_col.setStretchFactor(0, 1)
+        left_col.setStretchFactor(1, 0)
         left_col.setCollapsible(0, False)
         left_col.setCollapsible(1, False)
         left_col.setSizes([520, 150])
 
-        # --- 2-column horizontal splitter: chat+input | result -----------
-        # Change 1: split the wish panel into two columns so the result preview
-        # + explanation no longer crush the chat. The JSON editor itself lives
-        # in the independent ResultExpandWindow (opened after generation).
-        self.wish_splitter = QSplitter(Qt.Horizontal)
+        self.wish_splitter = QSplitter(Qt.Orientation.Horizontal)
         self.wish_splitter.setContentsMargins(0, 0, 0, 0)
         self.wish_splitter.addWidget(left_col)
         self.wish_splitter.addWidget(self._result_frame)
-        self.wish_splitter.setStretchFactor(0, 3)   # chat+input column grows
-        self.wish_splitter.setStretchFactor(1, 2)   # result column
+        self.wish_splitter.setStretchFactor(0, 3)
+        self.wish_splitter.setStretchFactor(1, 2)
         self.wish_splitter.setCollapsible(0, False)
         self.wish_splitter.setCollapsible(1, False)
         self.wish_splitter.setSizes([620, 420])
@@ -853,18 +797,12 @@ class AiGeneratorDialog(QDialog):
 
         layout.addLayout(progress_row)
         layout.addWidget(self.wish_splitter, 1)
-
         return widget
 
     def _on_result_toggle(self, expanded: bool) -> None:
-        """Expand/collapse the wish result preview + explanation (P5.3)."""
         self._result_toggle.setText("收起" if expanded else "展开")
         self.wish_result_preview.setVisible(expanded)
-        # The explain group is shown only when there is an explanation AND expanded.
         self.explain_group.setVisible(expanded and bool(self.explain_group.property("_has_text")))
-        # The JSON editor lives in its own host slot / independent window, so
-        # the expanded sizes no longer need to reserve 300px for JSON — keep
-        # the preview/explanation compact and leave room for the chat.
         if expanded:
             self.wish_splitter.setSizes([520, 520])
         else:
@@ -883,63 +821,33 @@ class AiGeneratorDialog(QDialog):
 
     def _on_json_window_toggled(self, checked: bool) -> None:
         """Pop the active JSON editor into a non-modal independent window."""
-        from src.dialogs.ai.result_window import ResultExpandWindow
-
-        # Keep both toggle buttons in sync (only the visible one is clickable,
-        # but stay consistent on mode switch).
-        for btn in (self._json_window_btn, self._wish_json_window_btn):
-            btn.blockSignals(True)
-            btn.setChecked(checked)
-            btn.blockSignals(False)
-
-        editor = self._active_json_editor()
-        if checked:
-            if self._json_window is None:
-                self._json_window = ResultExpandWindow(self)
-                self._json_window.finished.connect(self._on_json_window_closed)
-            self._json_window.host_editor(editor)
-            editor.setVisible(True)
-            self._json_window.show()
-            self._json_window.raise_()
-            self._json_window.activateWindow()
-        else:
-            # Close the window; _on_json_window_closed reparents the editor back.
-            self._close_json_window()
+        self._preview_coord.on_json_window_toggled(
+            checked,
+            self._active_json_editor(),
+            self._active_json_host(),
+            [self._json_window_btn, self._wish_json_window_btn],
+            self._on_json_window_closed,
+        )
 
     def _return_json_editor_to_host(self) -> None:
-        """Reparent the JSON editor back into its in-dialog host slot."""
-        win = self._json_window
-        if win is None:
-            return
-        editor = win.release_editor()
-        if editor is not None:
-            self._active_json_host().addWidget(editor)
-            editor.setVisible(True)
+        self._preview_coord.return_json_editor_to_host(self._active_json_host())
 
     def _on_json_window_closed(self) -> None:
-        """Window closed by the user → editor returns to the dialog, toggles reset."""
-        self._return_json_editor_to_host()
-        self._json_window = None
+        self._preview_coord.close_json_window(self._active_json_host())
         for btn in (self._json_window_btn, self._wish_json_window_btn):
             btn.blockSignals(True)
             btn.setChecked(False)
             btn.blockSignals(False)
 
     def _open_json_window(self) -> None:
-        """Programmatically open the JSON window (used after generation)."""
         btn = self._active_json_window_btn()
         if not btn.isChecked():
-            btn.setChecked(True)  # triggers _on_json_window_toggled
+            btn.setChecked(True)
 
     def _close_json_window(self) -> None:
-        win = self._json_window
-        if win is not None:
-            self._return_json_editor_to_host()
-            win.close()
-            self._json_window = None
+        self._preview_coord.close_json_window(self._active_json_host())
 
     def _result_summary_text(self, section: dict) -> str:
-        """One-line collapsed summary: ✓ 已生成 · N 单元 · M 课时 · K 词."""
         units = section.get("units") or []
         n_units = len(units)
         n_lessons = sum(len(u.get("lessons") or []) for u in units if isinstance(u, dict))
@@ -949,7 +857,6 @@ class AiGeneratorDialog(QDialog):
     # --- Mode switching ---------------------------------------------------
 
     def _apply_edit_mode_ui(self) -> None:
-        """Adjust button labels when opened in edit mode."""
         if self._edit_mode is None:
             return
         scope = self._edit_mode.get("scope", "section")
@@ -959,7 +866,6 @@ class AiGeneratorDialog(QDialog):
             "lesson": "应用编辑（Lesson）",
         }.get(scope, "应用编辑")
         self._button_box.button(QDialogButtonBox.StandardButton.Ok).setText(label)
-        # Wizard generation does not make sense in edit mode; hide the tab.
         if hasattr(self, "normal_tabs") and hasattr(self, "_wizard_panel"):
             wizard_idx = self.normal_tabs.indexOf(self._wizard_panel)
             if wizard_idx >= 0:
@@ -968,12 +874,6 @@ class AiGeneratorDialog(QDialog):
     # --- Wish expand / restore -------------------------------------------
 
     def _on_expand_toggled(self, expanded: bool) -> None:
-        """Open/close the enlarged chat sub-window (P5.5).
-
-        The sub-window is a separate non-modal top-level with its own ChatView
-        driven by the same ``_messages`` list; geometry is persisted to
-        QSettings so restore is exact.
-        """
         if expanded:
             self._open_chat_expand()
             self.expand_btn.setText("↕ 还原")
@@ -982,35 +882,21 @@ class AiGeneratorDialog(QDialog):
             self.expand_btn.setText("↕ 放大聊天")
 
     def _open_chat_expand(self) -> None:
-        from src.dialogs.ai.chat_expand_window import ChatExpandWindow
-
-        if getattr(self, "_chat_expand", None) is None:
-            self._chat_expand = ChatExpandWindow(self._chat_palette(), self)
-            self._chat_expand.send_requested.connect(self._on_expand_send)
-            self._chat_expand.finished.connect(self._on_chat_expand_closed)
-            self._load_chat_expand_geometry()
-        win = self._chat_expand
-        win.render(self._messages)
-        win.show()
-        win.raise_()
-        win.activateWindow()
+        self._chat_coord.open_chat_expand(
+            self,
+            self._chat_palette(),
+            self._on_expand_send,
+            self._on_chat_expand_closed,
+        )
 
     def _close_chat_expand(self) -> None:
-        win = getattr(self, "_chat_expand", None)
-        if win is not None:
-            self._save_chat_expand_geometry(win)
-            win.close()
+        self._chat_coord.close_chat_expand()
 
     def _on_chat_expand_closed(self) -> None:
-        self._save_chat_expand_geometry(self._chat_expand)
-        self.expand_btn.blockSignals(True)
-        self.expand_btn.setChecked(False)
-        self.expand_btn.setText("↕ 放大聊天")
-        self.expand_btn.blockSignals(False)
+        self._chat_coord.on_chat_expand_closed(self.expand_btn)
 
     def _on_expand_send(self) -> None:
-        """Mirror the expand window's input into the panel, then send."""
-        win = getattr(self, "_chat_expand", None)
+        win = self._chat_coord.chat_expand_window
         if win is None:
             return
         text = win.input_text().strip()
@@ -1021,27 +907,13 @@ class AiGeneratorDialog(QDialog):
         self._on_send_message()
 
     def _load_chat_expand_geometry(self) -> None:
-        from PySide6.QtCore import QSettings
+        if self._chat_coord.chat_expand_window is not None:
+            self._chat_coord._load_chat_expand_geometry(self._chat_coord.chat_expand_window)
 
-        win = getattr(self, "_chat_expand", None)
-        if win is None:
-            return
-        qs = QSettings("Turna", "CourseEditor")
-        geo = qs.value("ai_chat_expand/geometry")
-        if geo is not None:
-            win.restoreGeometry(geo)
-        if qs.value("ai_chat_expand/maximized", False) in (True, "true", "1"):
-            win.showMaximized()
-
-    def _save_chat_expand_geometry(self, win) -> None:
-        from PySide6.QtCore import QSettings
-
-        qs = QSettings("Turna", "CourseEditor")
-        qs.setValue("ai_chat_expand/geometry", win.saveGeometry())
-        qs.setValue("ai_chat_expand/maximized", win.isMaximized())
+    def _save_chat_expand_geometry(self, win: Any) -> None:
+        self._chat_coord._save_chat_expand_geometry(win)
 
     def config(self) -> AiApiConfig:
-        """Return the current API config sourced from the Settings panel."""
         return self._config
 
     def _on_mode_changed(self, index: int) -> None:
@@ -1052,11 +924,7 @@ class AiGeneratorDialog(QDialog):
         is_normal = self._mode == "normal"
         self._normal_panel.setVisible(is_normal)
         self._wish_panel.setVisible(not is_normal)
-        # Reparent the single shared template bar into the visible panel (B8).
         self._place_template_bar(is_normal)
-        # Change 1: the JSON independent window hosts whichever editor is
-        # active. On a mode switch, reparent the editor in the window (if open)
-        # to the new active editor, and sync the in-panel toggle buttons.
         self._sync_json_window_on_mode_switch()
         self._button_box.button(QDialogButtonBox.StandardButton.Ok).setEnabled(
             self._generated is not None
@@ -1064,13 +932,11 @@ class AiGeneratorDialog(QDialog):
         self._button_box.button(QDialogButtonBox.StandardButton.Ok).setText("导入到课程")
 
     def _sync_json_window_on_mode_switch(self) -> None:
-        """If the JSON window is open, host the now-active editor in it."""
-        if self._json_window is None:
+        win = self._preview_coord.json_window
+        if win is None:
             return
-        # Return the previous editor to its host, then host the active one.
-        prev = self._json_window.release_editor()
+        prev = win.release_editor()
         if prev is not None:
-            # Figure out which host the previous editor belongs to.
             if prev is self.wish_json_edit:
                 self._wish_json_host.addWidget(prev)
             else:
@@ -1078,7 +944,7 @@ class AiGeneratorDialog(QDialog):
             prev.setVisible(True)
         active = self._active_json_editor()
         if active is not None:
-            self._json_window.host_editor(active)
+            win.host_editor(active)
             active.setVisible(True)
 
     def _place_template_bar(self, is_normal: bool) -> None:
@@ -1086,8 +952,6 @@ class AiGeneratorDialog(QDialog):
         if bar is None:
             return
         target = self._normal_template_slot if is_normal else self._wish_template_slot
-        # Remove the bar from whichever slot currently holds it, then add to
-        # the target. addWidget reparents the bar into the target panel.
         for slot in (self._normal_template_slot, self._wish_template_slot):
             if slot is target:
                 continue
@@ -1106,12 +970,6 @@ class AiGeneratorDialog(QDialog):
         return False
 
     def _current_topic_text(self) -> str:
-        """Topic source by mode — fixes the wish-mode stale-topic read.
-
-        Normal mode reads the topic line edit; wish mode derives the topic
-        from the last user message in the conversation (the spec_bar topic
-        edit is normal-only and orphaned when the bar is reparented to wish).
-        """
         if self._mode == "normal":
             return self.topic_edit.text()
         for msg in reversed(self._messages):
@@ -1134,13 +992,11 @@ class AiGeneratorDialog(QDialog):
         )
 
     def _on_topic_text_changed(self, text: str) -> None:
-        """Detect genre tags in normal mode topic/extra input."""
         if not self.genre_switch.isChecked():
             return
         self._sync_template_from_genre_tags()
 
     def _sync_template_from_genre_tags(self) -> None:
-        """Set the template combo to the default fallback based on detected genre tag."""
         if not self.genre_switch.isChecked():
             return
         combined = f"{self._current_topic_text()} {self.extra_edit.text()}"
@@ -1151,12 +1007,6 @@ class AiGeneratorDialog(QDialog):
         self._template_bar.select_template(template)
 
     def _ensure_api_configured(self) -> bool:
-        """Ensure the centrally-managed API config is complete.
-
-        If incomplete, prompt the user to open the Settings panel. No connection
-        test is performed here; the Settings panel is the single place to manage
-        API configuration.
-        """
         if self._config.is_complete and _is_valid_http_url(self._config.base_url):
             return True
         QMessageBox.warning(
@@ -1178,21 +1028,13 @@ class AiGeneratorDialog(QDialog):
             self.api_status.setText(f"<font color='{err_color}'>未配置</font>")
 
     def _reconnect(self, btn, slot) -> None:
-        """Reconnect a button's clicked signal to ``slot`` (ignore 'no such signal')."""
         try:
             btn.clicked.disconnect()
         except RuntimeError:
-            logger.debug("dialogs/ai_generator_dialog.py:1180 best-effort step failed", exc_info=True)
+            logger.debug("dialogs/ai_generator_dialog.py:reconnect best-effort step failed", exc_info=True)
         btn.clicked.connect(slot)
 
     def _set_busy(self, busy: bool, normal: bool = False, stage: str = "") -> None:
-        """Enable/disable UI while an AI request is running.
-
-        When ``busy`` is True the primary action button is repurposed as a
-        ``取消生成`` button that cancels the in-flight worker; when it returns
-        to idle the original action is restored. ``stage`` sets the staged
-        progress label text (e.g. ``对齐中…``).
-        """
         if stage:
             self._set_stage_label(stage)
         if normal:
@@ -1226,7 +1068,7 @@ class AiGeneratorDialog(QDialog):
                 self.attach_btn.setEnabled(True)
                 self.wish_progress.setVisible(False)
             self.input_edit.setEnabled(not busy)
-        win = getattr(self, "_chat_expand", None)
+        win = self._chat_coord.chat_expand_window
         if win is not None and win.isVisible():
             win.set_busy(busy and not normal)
 
@@ -1237,45 +1079,19 @@ class AiGeneratorDialog(QDialog):
         if hasattr(self, "wish_stage_label"):
             self.wish_stage_label.setText(stage)
             self.wish_stage_label.setVisible(bool(stage))
-        win = getattr(self, "_chat_expand", None)
+        win = self._chat_coord.chat_expand_window
         if win is not None and win.isVisible():
             win.set_stage(stage)
 
     # --- Streaming chunk + usage display --------------------------------
 
     def _current_usage_label(self) -> QLabel:
-        """Return the usage label for the active mode."""
         return self.wish_usage_label if self._mode == "wish" else self.usage_label
 
     def _on_worker_chunk(self, fragment: str) -> None:
-        """Accumulate a streaming fragment; views refresh on a throttle timer.
+        self._worker_hub.on_worker_chunk(fragment)
 
-        For alignment/explain (free text) the flush appends into the chat /
-        explain bubble so the teacher sees tokens arrive in near real time.
-        For normal-mode JSON generation the flush keeps a running preview in
-        the JSON editor so the teacher can watch the model write. Buffering +
-        throttled flush avoids a full-document rewrite per SSE chunk (O(n^2)).
-        """
-        if not fragment:
-            return
-        self._stream_buffer = (getattr(self, "_stream_buffer", "") or "") + fragment
-        self._stream_dirty = True
-        self._stream_flush_timer.start()
-
-    def _flush_stream_view(self, final: bool = False) -> None:
-        """Render the accumulated stream buffer once per throttle interval.
-
-        Live flushes (``final=False``) cap the rendered text at
-        ``_STREAM_TEXT_LIVE_LIMIT`` characters: re-laying-out a huge document
-        every 120 ms dominates the UI thread during long generations, so past
-        the limit we only refresh a character counter. The final flush
-        (``final=True`` from ``_finish_stream``) always renders the complete
-        text — it is the only place the full explain/JSON preview lands.
-        """
-        if not self._stream_dirty:
-            return
-        self._stream_dirty = False
-        text = self._stream_buffer
+    def _on_chunk_rendered(self, text: str, final: bool) -> None:
         n = len(text)
         if self._mode == "wish":
             if self._stream_target == "explain":
@@ -1286,172 +1102,68 @@ class AiGeneratorDialog(QDialog):
                 self.explain_group.setProperty("_has_text", True)
                 self.explain_group.setVisible(self._result_toggle.isChecked())
             elif self._stream_target == "alignment":
-                self._render_streaming_chat(self._stream_buffer)
+                self._render_streaming_chat(text)
         else:
-            # Normal-mode JSON generation: running preview in the JSON editor
-            # so the teacher can watch the model write.
             if not final and n > self._STREAM_TEXT_LIVE_LIMIT:
                 self.stage_label.setText(f"生成中… 已接收约 {n} 字符")
                 self.stage_label.setVisible(True)
             else:
                 self.json_edit.setPlainText(text)
 
+    def _flush_stream_view(self, final: bool = False) -> None:
+        self._worker_hub._flush_stream_view(final=final)
+
     def _render_streaming_chat(self, partial_text: str) -> None:
-        """Re-render the chat with the in-flight assistant turn appended."""
         self.chat_view.render_streaming(self._messages, partial_text, self._chat_palette())
-        win = getattr(self, "_chat_expand", None)
-        if win is not None and win.isVisible():
-            win.render_streaming(self._messages, partial_text)
+        self._chat_coord.render_streaming_expand_chat(partial_text)
 
     def _sync_expand_chat(self) -> None:
-        """Re-render the expand sub-window's chat to match the panel (P5.5)."""
-        win = getattr(self, "_chat_expand", None)
-        if win is not None and win.isVisible():
-            win.render(self._messages)
+        self._chat_coord.sync_expand_chat()
 
     def _on_worker_usage(self, usage: object) -> None:
-        """Update the usage/cost label and record the token count."""
-        try:
-            usage_dict = dict(usage) if isinstance(usage, dict) else {}
-        except Exception:  # noqa: BLE001
-            usage_dict = {}
         model = self._config.model if self._config is not None else ""
-        line = format_usage_line(usage_dict, model)
+        self._worker_hub.on_worker_usage(usage, model)
+
+    def _on_usage_updated(self, line: str, usage_dict: dict) -> None:
         label = self._current_usage_label()
         label.setText(line)
         label.setVisible(bool(line) and line != "≈ 0 tokens")
-        win = getattr(self, "_chat_expand", None)
+        win = self._chat_coord.chat_expand_window
         if win is not None and win.isVisible():
             win.set_usage(line)
-        try:
-            telemetry.record_event(
-                "ai.usage",
-                payload={
-                    "model": model,
-                    "prompt_tokens": usage_dict.get("prompt_tokens", 0),
-                    "completion_tokens": usage_dict.get("completion_tokens", 0),
-                    "total_tokens": usage_dict.get("total_tokens", 0),
-                },
-            )
-        except Exception:  # noqa: BLE001 — telemetry must not crash the UI
-            logger.debug("dialogs/ai_generator_dialog.py:1332 best-effort step failed", exc_info=True)
 
     def _begin_stream(self, target: str) -> None:
-        """Reset the streaming scratch buffer for a new worker."""
-        self._stream_flush_timer.stop()
-        self._stream_dirty = False
-        self._stream_buffer = ""
-        self._stream_target = target
+        self._worker_hub.begin_stream(target)
 
     def _finish_stream(self) -> None:
-        """Clear the streaming scratch state (call after result/error)."""
-        # Flush whatever accumulated but was not rendered yet with final=True
-        # so the view ends up showing the complete streamed text (bypassing
-        # the live-size guard) before we reset.
-        if self._stream_dirty:
-            self._flush_stream_view(final=True)
-        self._stream_flush_timer.stop()
-        self._stream_buffer = ""
-        self._stream_target = None
+        self._worker_hub.finish_stream()
 
     def _duration_since_request_start(self) -> float:
-        """Milliseconds since the current request started (B7-safe).
-
-        ``_request_start`` is reset to a fresh ``time.perf_counter()`` before
-        each worker is started and cleared to ``None`` afterward. If a ready/
-        error handler fires without a live timestamp (e.g. a stray signal), we
-        fall back to 0 rather than computing against a stale or None value.
-        """
-        start = getattr(self, "_request_start", None)
-        if start is None:
-            return 0.0
-        return (time.perf_counter() - start) * 1000
+        return self._worker_hub.duration_since_request_start()
 
     def _cancel_current_worker(self) -> None:
-        worker = self._current_worker
-        if worker is not None and worker.isRunning():
-            worker.cancel()
-            self._set_stage_label("正在取消…")
+        self._worker_hub.cancel_current_worker()
 
     def _disconnect_worker_signals(self, worker: AiRequestWorker | None) -> None:
-        """Disconnect all dialog-side slots from a worker's signals.
-
-        Called from ``reject``/``closeEvent`` so a worker that is still
-        finishing its HTTP read cannot emit ``result_ready`` /
-        ``error_occurred`` into a dialog whose C++ side is being torn down
-        (which would either crash Qt or invoke a slot on a deleted
-        QObject). The worker itself is kept alive by ``_LIVE_WORKERS``
-        until its ``finished`` signal fires, so this is purely about
-        silencing the UI-bound signals. (B6)
-        """
-        if worker is None:
-            return
-        for sig_name in ("result_ready", "error_occurred", "completed", "chunk_ready", "usage_ready", "finished"):
-            try:
-                sig = getattr(worker, sig_name, None)
-                if sig is not None:
-                    sig.disconnect()
-            except (TypeError, RuntimeError):
-                # No connections or already disconnected — safe.
-                logger.debug("dialogs/ai_generator_dialog.py:1390 best-effort step failed", exc_info=True)
+        self._worker_hub.disconnect_worker_signals(worker)
 
     def _register_worker(self, worker: AiRequestWorker) -> None:
-        """Remember the active worker and clear the reference when it finishes.
-
-        Without the ``finished`` hook, a completed worker lingered in
-        ``_current_worker`` (harmless, since callers check ``isRunning()``,
-        but it pinned a QThread in memory). The finished signal fires after
-        ``completed``/``error_occurred`` regardless of success or cancel.
-        """
-        self._current_worker = worker
-        worker.finished.connect(self._forget_worker)
+        self._worker_hub.register_worker(worker)
 
     def _forget_worker(self) -> None:
-        # Only clear if the finished worker is still the one we registered —
-        # a newer worker may already have replaced it.
-        worker = self.sender()
-        if worker is self._current_worker:
-            self._current_worker = None
+        self._worker_hub._forget_worker()
 
     def _on_worker_error(self, message: str) -> None:
         if self._closing:
             return
-        duration_ms = self._duration_since_request_start()
-        cancelled = "取消" in message or "cancelled" in message.lower()
-        telemetry.record_duration(
-            "ai.generate",
-            duration_ms,
-            payload={
-                "mode": self._mode,
-                "success": False,
-                "cancelled": cancelled,
-                "error": message if not cancelled else "cancelled",
-            },
-        )
-        _record_cache_stats()
         self._set_busy(False, normal=self._busy_normal)
         self._set_stage_label("")
-        # Treat cancellation quietly (the user already knows they cancelled).
+        cancelled = self._worker_hub.handle_worker_error(message, self._mode, self)
         if cancelled:
-            self.statusMessage = message  # noqa: F841 — keep a trace for debugging
-            return
-        self._offer_error_analysis(
-            message, context={"action": "ai.generate", "mode": self._mode}
-        )
+            self.statusMessage = message
 
     def _offer_error_analysis(self, message: str, context: dict[str, Any]) -> None:
-        """Show a failure dialog with an optional "AI 分析原因" button (C12)."""
-        from src.dialogs.ai_error_analyzer import offer_ai_analysis
-        if offer_ai_analysis(self, "请求失败", message):
-            import traceback
-
-            from src.dialogs.ai_error_analyzer import AiErrorAnalyzerDialog
-
-            AiErrorAnalyzerDialog(
-                traceback.format_exc(),
-                context=context,
-                parent=self,
-            ).exec()
+        self._worker_hub.offer_error_analysis(self, message, context)
 
     def _current_spec(self) -> AiCourseSpec:
         spec = AiCourseSpec(
@@ -1470,11 +1182,6 @@ class AiGeneratorDialog(QDialog):
         return spec
 
     def _course_resource_summary(self) -> dict[str, list] | None:
-        """Trimmed snapshot of existing course resources for the prompt (P0-5).
-
-        Returns None when the course has no resources yet — the prompt then
-        stays byte-identical to the pre-P0-5 behaviour.
-        """
         if self.adapter is None:
             return None
         summary = {
@@ -1493,7 +1200,6 @@ class AiGeneratorDialog(QDialog):
         return summary
 
     def _apply_prompt_fields(self, obj) -> None:
-        """Copy the shared prompt fields (topic/level/unit/lessons/template/genre/extra)."""
         self.topic_edit.setText(obj.topic)
         self.level_combo.setCurrentText(obj.level)
         self.unit_spin.setValue(obj.unit_count)
@@ -1503,7 +1209,6 @@ class AiGeneratorDialog(QDialog):
         self.extra_edit.setText(obj.extra_instructions)
 
     def _on_template_applied(self, obj: object) -> None:
-        """Apply a saved template or handle a save request from the template bar."""
         if isinstance(obj, dict) and obj.get("action") == "save_request":
             name = obj.get("name", "")
             if name:
@@ -1519,11 +1224,6 @@ class AiGeneratorDialog(QDialog):
     # --- Normal mode actions ---------------------------------------------
 
     def _ai_retry_max(self) -> int:
-        """Max validation-retry rounds for normal-mode generation (C3).
-
-        Sourced from Settings (``ai_retry_max``, clamped 0-5); falls back to 1
-        when no MainWindow/Settings is available (sandbox-safe).
-        """
         try:
             s = self._runtime.settings()
             return max(0, min(5, getattr(s, "ai_retry_max", 1)))
@@ -1531,7 +1231,6 @@ class AiGeneratorDialog(QDialog):
             return 1
 
     def _ai_generation_kwargs(self) -> dict[str, Any]:
-        """Return timeout and temperature from Settings for AI workers."""
         try:
             s = self._runtime.settings()
             timeout = float(getattr(s, "ai_timeout", 120.0))
@@ -1541,55 +1240,12 @@ class AiGeneratorDialog(QDialog):
             temperature = 0.7
         return {"timeout": timeout, "temperature": temperature}
 
-    def _make_edit_worker(self, spec: AiCourseSpec, **kwargs: Any) -> "AiRequestWorker":
-        """Build the edit-mode worker, dispatching by scope (C5/B3).
-
-        - ``lesson``: regenerate only that lesson in place (local regen, few
-          tokens) and splice it back into the section.
-        - ``unit``: regenerate each lesson in the unit in place.
-        - ``section`` (default): full-section edit via ``generate_edit``; the
-          structural-conservation check (B3) runs after the result lands.
-        """
-        scope = self._edit_mode.get("scope", "section")
-        scope_id = self._edit_mode.get("scope_id", "")
-        existing = self._edit_mode["existing_section"]
-
+    def _make_edit_worker(self, spec: AiCourseSpec, **kwargs: Any) -> AiRequestWorker:
         instruction = None
         if hasattr(self, "edit_instruction_input"):
             instruction = self.edit_instruction_input.toPlainText().strip() or None
-
-        if scope == "lesson" and scope_id:
-            return AiRequestWorker(
-                regenerate_lesson_in_section,
-                self._config,
-                spec,
-                existing,
-                scope_id,
-                instruction=instruction,
-                **kwargs,
-            )
-        if scope == "unit" and scope_id:
-            return AiRequestWorker(
-                regenerate_unit_in_section,
-                self._config,
-                spec,
-                existing,
-                scope_id,
-                instruction=instruction,
-                **kwargs,
-            )
-
-        if instruction:
-            spec.extra_instructions = (spec.extra_instructions or "") + f"\n\n编辑指令：\n{instruction}"
-
-        return AiRequestWorker(
-            generate_edit,
-            self._config,
-            spec,
-            existing,
-            scope,
-            scope_id,
-            **kwargs,
+        return self._worker_hub.make_edit_worker(
+            self._config, spec, self._edit_mode, instruction=instruction, **kwargs
         )
 
     def _on_generate_normal(self) -> None:
@@ -1606,17 +1262,12 @@ class AiGeneratorDialog(QDialog):
         telemetry.record_event("ai.generate.start", payload={"mode": "normal", "edit_mode": self._edit_mode is not None})
         spec = self._current_spec()
         if self._edit_mode is None:
-            # Plain generation: ground the model on existing course resources
-            # so it reuses ids instead of re-creating duplicates (P0-5).
             spec.course_resources = self._course_resource_summary()
         self._template_bar.record_history(spec)
         kwargs = self._ai_generation_kwargs()
         if self._edit_mode is not None:
             worker = self._make_edit_worker(spec, **kwargs)
         else:
-            # Normal mode: generate with validate-and-retry self-healing (C3).
-            # The real validator returns Problem dicts; request_course_with_retry
-            # coerces them to error strings and re-prompts up to N rounds.
             validator = self.adapter.validate_section_json
             worker = AiRequestWorker(
                 request_course_with_retry,
@@ -1646,8 +1297,6 @@ class AiGeneratorDialog(QDialog):
             payload={"mode": "normal", "success": True, "edit_mode": self._edit_mode is not None},
         )
         _record_cache_stats()
-        # Structural conservation guard (B3 / U1-4): if the model silently
-        # dropped units/lessons/words (any edit scope), confirm before accepting.
         if (
             self._edit_mode is not None
             and isinstance(parsed, dict)
@@ -1660,19 +1309,16 @@ class AiGeneratorDialog(QDialog):
                 if k.startswith("removed_") and v
             }
             if removed_only and not self._confirm_structural_removal(diff):
-                # Teacher rejected the removals: keep the current state intact.
                 self._set_busy(False, normal=True, stage="")
                 self._finish_stream()
                 self._request_start = None
                 return
         self._generated = parsed
-        # Replace the streamed partial preview with the finalized parsed JSON.
         self.json_edit.set_json(parsed)
         self.reset_btn.setEnabled(True)
         if isinstance(parsed, dict):
             self.result_preview.show_section(parsed)
             self.result_preview.setVisible(True)
-        # P3.4/P3.5: surface the diff + try-preview buttons when there is a result.
         self.try_btn.setVisible(isinstance(parsed, dict))
         self.diff_btn.setVisible(
             isinstance(parsed, dict)
@@ -1682,49 +1328,9 @@ class AiGeneratorDialog(QDialog):
         self._update_mode_ui()
 
     def _confirm_structural_removal(self, diff: dict[str, set[str]]) -> bool:
-        """Ask the teacher to accept AI-removed units/lessons/words (B3).
-
-        Returns True to accept the edited section as-is, False to discard it
-        and keep the existing state. Only deletions prompt (additions/renames
-        are not surfaced here, per guiplan2 §6).
-        """
-        parts: list[str] = []
-        labels = [
-            ("removed_units", "单元"),
-            ("removed_lessons", "课时"),
-            ("removed_words", "词汇"),
-            ("removed_expressions", "表达"),
-            ("removed_grammar", "语法点"),
-        ]
-        for key, label in labels:
-            ids = diff.get(key) or set()
-            if ids:
-                preview = ", ".join(sorted(ids)[:8])
-                more = f" 等 {len(ids)} 个" if len(ids) > 8 else ""
-                parts.append(f"{label}：{preview}{more}")
-        if not parts:
-            return True
-        msg = (
-            "AI 在编辑中删除了以下内容（结构保护）。\n"
-            "若只想改一两题，请改用教师模式「AI 改这题」或工坊局部重生成。\n\n"
-            + "\n".join(parts)
-            + "\n\n是否仍接受这些删除？"
-        )
-        btn = QMessageBox.question(
-            self,
-            "AI 删除了内容",
-            msg,
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
-        )
-        return btn == QMessageBox.Yes
+        return confirm_structural_removal(self, diff)
 
     def _on_normal_worker_done(self) -> None:
-        """Finalize the normal-mode worker: clear busy + streaming state.
-
-        ``_request_start`` is reset here too (defensive fix for B7) so the next
-        request's duration never inherits a stale timestamp.
-        """
         if self._closing:
             return
         self._set_busy(False, normal=True, stage="")
@@ -1732,7 +1338,6 @@ class AiGeneratorDialog(QDialog):
         self._request_start = None
 
     def _on_preview_validity(self, ok: bool) -> None:
-        """Enable/disable the import (Ok) button based on preview validation."""
         if self._generated is not None:
             self._button_box.button(QDialogButtonBox.StandardButton.Ok).setEnabled(ok)
 
@@ -1741,54 +1346,21 @@ class AiGeneratorDialog(QDialog):
             self._active_json_editor().set_json(self._generated)
 
     def _on_view_diff(self) -> None:
-        """Show the structural diff between the existing section and the current
-        generated/edited JSON (P3.4)."""
-        from src.widgets.diff_view import SectionDiffView
-
         if self._edit_mode is None or not isinstance(self._edit_mode.get("existing_section"), dict):
             return
         try:
             generated = self._current_json()
         except ValueError:
             return
-        SectionDiffView(self._edit_mode["existing_section"], generated, self).exec()
+        view_section_diff(self, self._edit_mode["existing_section"], generated)
 
     def _on_try_preview(self) -> None:
-        """Pick a lesson from the current section and try it (P3.5).
-
-        Uses a vocab override built from the section's own ``words`` so word
-        cards resolve before the section is imported into the adapter.
-        """
-        from src.teacher.preview_window import LessonPreviewDialog
-
         try:
             section = self._current_json()
         except ValueError as exc:
             QMessageBox.warning(self, "无法试做", str(exc))
             return
-        lessons: list[tuple[str, dict]] = []
-        for unit in section.get("units") or []:
-            if not isinstance(unit, dict):
-                continue
-            for lesson in unit.get("lessons") or []:
-                if isinstance(lesson, dict) and lesson.get("id"):
-                    label = f"{unit.get('name', unit.get('id', '?'))} › {lesson.get('name', lesson['id'])}"
-                    lessons.append((label, lesson))
-        if not lessons:
-            QMessageBox.information(self, "无可试做课时", "当前课程没有课时可试做。")
-            return
-        if len(lessons) == 1:
-            lesson = lessons[0][1]
-        else:
-            items = [lbl for lbl, _ in lessons]
-            choice, ok = QInputDialog.getItem(
-                self, "选择课时试做", "课时：", items, 0, False
-            )
-            if not ok:
-                return
-            lesson = next(l for lbl, l in lessons if lbl == choice)
-        vocab_override = {w.get("id"): w for w in (section.get("words") or []) if isinstance(w, dict) and w.get("id")}
-        LessonPreviewDialog(self.adapter, lesson, self, vocab_override=vocab_override).exec()
+        try_preview_lesson(self, self.adapter, section)
 
     def _on_validate_json(self) -> None:
         try:
@@ -1803,11 +1375,6 @@ class AiGeneratorDialog(QDialog):
         )
 
     def _on_validate_from_editor(self) -> None:
-        """Validate the current (possibly edited) JSON via the preview widget.
-
-        Parses the editor text in normal mode (or the cached generated dict in
-        wish mode), refreshes the preview overview cards, then runs validation.
-        """
         try:
             data = self._current_json()
         except ValueError as exc:
@@ -1815,11 +1382,9 @@ class AiGeneratorDialog(QDialog):
             return
         preview = self.wish_result_preview if self._mode == "wish" else self.result_preview
         preview.show_section(data)
-        preview._on_validate()  # noqa: SLF001 — reuse the widget's validate path
+        preview._on_validate()
 
     def _current_json(self) -> dict:
-        # Single JSON truth source (B1 fix, §4.5): always read from the editor
-        # of the active mode. ``_generated`` is only a restore snapshot now.
         editor = self.wish_json_edit if self._mode == "wish" else self.json_edit
         raw = editor.toPlainText().strip()
         if not raw:
@@ -1834,59 +1399,23 @@ class AiGeneratorDialog(QDialog):
         return data
 
     def _on_preview_node_activated(self, path: str) -> None:
-        """Jump the active JSON editor to the line matching the tree path (P3.1)."""
-        editor = self._active_json_editor()
-        text = editor.toPlainText()
-        if not text or not path:
-            return
-        # Locate by id segment if present, else by structural heuristic: find the
-        # first line whose key matches the deepest id in the path.
-        from PySide6.QtGui import QTextCursor
-
-        line_no = self._find_line_for_path(text, path)
-        if line_no is None:
-            return
-        cursor = editor.textCursor()
-        cursor.movePosition(QTextCursor.MoveOperation.Start)
-        for _ in range(line_no - 1):
-            cursor.movePosition(QTextCursor.MoveOperation.Down)
-        editor.setTextCursor(cursor)
-        editor.setFocus()
+        jump_editor_to_path(self._active_json_editor(), path)
 
     def _find_line_for_path(self, text: str, path: str) -> int | None:
-        """Return the 1-based line whose content contains the id in an
-        ``id:<id>`` path payload. Returns None for structural-only paths.
-
-        Uses ``str.find`` + a newline count up to the match offset instead of
-        materializing the whole ``splitlines()`` list on every click — for a
-        5000-line generated course this is O(match_offset) string scans vs
-        the old O(total_lines) full-list allocation per click. (P9)
-        """
-        if not path.startswith("id:"):
-            return None
-        target = f'"{path[3:]}"'
-        idx = text.find(target)
-        if idx < 0:
-            return None
-        # 1-based line number = number of '\n' before idx + 1.
-        return text.count("\n", 0, idx) + 1
+        return find_line_for_path(text, path)
 
     # --- Wish mode actions -----------------------------------------------
 
     def _chat_palette(self) -> dict[str, str]:
-        """Return the palette for chat rendering (theme-aware once P5.4 lands)."""
         try:
             from src.theme import current_palette
-
             return current_palette()
         except Exception:
             return _CHAT_PALETTE
 
     def _pal(self, key: str, fallback: str) -> str:
-        """Theme-aware color lookup for build-time stylesheets (P5.4)."""
         try:
             from src.theme import current_palette
-
             return current_palette().get(key, fallback)
         except Exception:
             return fallback
@@ -1895,17 +1424,10 @@ class AiGeneratorDialog(QDialog):
         self.chat_view.render(self._messages, self._chat_palette())
         self._sync_expand_chat()
 
-    def _input_key_press(self, event) -> None:
-        key = event.key()
-        mods = event.modifiers()
-        if key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
-            if mods == Qt.KeyboardModifier.ControlModifier:
-                self._on_send_message()
-                return
-            if mods == Qt.KeyboardModifier.NoModifier and self._enter_to_send.isChecked():
-                self._on_send_message()
-                return
-        QTextEdit.keyPressEvent(self.input_edit, event)
+    def _input_key_press(self, event: Any) -> None:
+        self._chat_coord.handle_input_key_press(
+            event, self.input_edit, self._on_send_message, self._enter_to_send.isChecked()
+        )
 
     def _on_send_message(self) -> None:
         text = self.input_edit.toPlainText().strip()
@@ -1952,7 +1474,6 @@ class AiGeneratorDialog(QDialog):
         worker.start()
 
     def _on_alignment_worker_done(self) -> None:
-        """Finalize the alignment worker (clear busy + streaming state)."""
         if self._closing:
             return
         self._set_busy(False, stage="")
@@ -1972,31 +1493,7 @@ class AiGeneratorDialog(QDialog):
         self._render_chat()
 
     def _add_attachment_paths(self, paths: list[Path]) -> None:
-        for path in paths:
-            temp_name = f"turna_wish_{uuid.uuid4().hex[:8]}_{path.name}"
-            temp_path = Path(tempfile.gettempdir()) / temp_name
-            try:
-                shutil.copy(str(path), str(temp_path))
-            except OSError as exc:
-                QMessageBox.warning(self, "添加失败", f"无法复制文件 {path.name}: {exc}")
-                continue
-            result = extract_attachment(temp_path)
-            if not result.ok:
-                QMessageBox.warning(
-                    self, "提取失败", f"{path.name}: {result.error}"
-                )
-                try:
-                    temp_path.unlink(missing_ok=True)
-                except OSError:
-                    logger.debug("dialogs/ai_generator_dialog.py:1986 best-effort step failed", exc_info=True)
-                continue
-            self._attachment_bar.add_attachment(
-                _AttachmentRecord(
-                    temp_path=temp_path,
-                    original_name=path.name,
-                    content=result.content or {},
-                )
-            )
+        self._chat_coord.add_attachment_paths(paths, self._attachment_bar, self)
 
     def _on_attach_files(self) -> None:
         paths, _filter = QFileDialog.getOpenFileNames(
@@ -2005,13 +1502,11 @@ class AiGeneratorDialog(QDialog):
             "",
             "支持的文件 (*.png *.jpg *.jpeg *.gif *.webp *.pdf *.doc *.docx *.txt *.md *.csv *.json *.yaml *.yml);;所有文件 (*)",
         )
-        if not paths:
-            return
-        self._add_attachment_paths([Path(p) for p in paths])
+        if paths:
+            self._add_attachment_paths([Path(p) for p in paths])
 
     def _on_attachments_changed(self) -> None:
-        """Sync the internal list with the AttachmentBar widget."""
-        self._attachments = list(self._attachment_bar.attachments())
+        self._chat_coord.sync_attachments(self._attachment_bar)
 
     def _on_wish_generate(self) -> None:
         if not self._ensure_api_configured():
@@ -2080,27 +1575,14 @@ class AiGeneratorDialog(QDialog):
 
         self.wish_result_preview.show_section(parsed)
         self.wish_result_preview.setVisible(self._result_toggle.isChecked())
-        # Populate the wish JSON editor (P3.3 / B1): the editor is the single
-        # source of truth the import reads, so write the AI output into it.
         self.wish_json_edit.set_json(parsed)
         self.wish_json_edit.setVisible(True)
-        # Surface the one-line summary + collapsible frame (collapsed by default
-        # so chat + input stay on one screen — P5.3).
         self._result_frame.setVisible(True)
         self._result_summary.setText(self._result_summary_text(parsed))
-        # Make the JSON-window toggle available now that there is content.
         self._wish_json_window_btn.setVisible(True)
-        # Change 1: instead of expanding the in-pane result to 300px (which
-        # crammed JSON + preview + explanation into the chat area), pop the
-        # JSON editor into its own independent window so the chat stays
-        # readable. Keep the result frame collapsed to its summary line.
         self._result_toggle.setChecked(False)
         self._open_json_window()
 
-        # B2 fix: clear the generation worker's streaming state and reset the
-        # request timer before starting the explain worker, so the cancel
-        # button + duration measurement point at the explain request, not the
-        # (already-finished) generation request.
         self._finish_stream()
         self._request_start = time.perf_counter()
         kwargs = self._ai_generation_kwargs()
@@ -2118,7 +1600,6 @@ class AiGeneratorDialog(QDialog):
         worker.start()
 
     def _on_explain_worker_done(self) -> None:
-        """Finalize the explain worker (clear busy + streaming state)."""
         if self._closing:
             return
         self._set_busy(False, stage="")
@@ -2133,8 +1614,6 @@ class AiGeneratorDialog(QDialog):
         safe = _escape_html(text)
         self.explain_label.setHtml(safe)
         self.explain_group.setProperty("_has_text", True)
-        # Auto-expand the result panel so the explanation is surfaced (preserves
-        # the pre-P5.3 behaviour where the explanation always appeared).
         if not self._result_toggle.isChecked():
             self._result_toggle.setChecked(True)
         else:
@@ -2148,7 +1627,6 @@ class AiGeneratorDialog(QDialog):
         )
 
     def _on_explain_error(self, message: str) -> None:
-        """Handle explain-course failure without masking it (B11)."""
         if self._closing:
             return
         telemetry.record_event(
@@ -2201,7 +1679,6 @@ class AiGeneratorDialog(QDialog):
                 data["id"] = existing_id
                 sid = existing_id
         else:
-            # Allow user to edit id if conflict (normal mode imports a new section).
             existing_ids = {s.get("id") for s in self.adapter.sections}
             existing_index_ids = {
                 e.get("id") for e in self.adapter.index.get("sections", [])
@@ -2218,8 +1695,6 @@ class AiGeneratorDialog(QDialog):
                 sid = new_sid
             data["id"] = sid
 
-        # Use format-only validation: AI outputs intentionally reuse existing
-        # unit/lesson ids. The importer (app.py) decides overwrite vs append.
         problems = self.adapter.validate_section_json(
             data, check_existing_ids=False
         )
@@ -2262,21 +1737,9 @@ class AiGeneratorDialog(QDialog):
     # --- Cleanup ---------------------------------------------------------
 
     def _cleanup_attachments(self) -> None:
-        for att in self._attachments:
-            try:
-                att.temp_path.unlink(missing_ok=True)
-            except OSError:
-                logger.debug("dialogs/ai_generator_dialog.py:2264 best-effort step failed", exc_info=True)
-        self._attachment_bar.clear_attachments()
-        self._attachments.clear()
-        win = getattr(self, "_chat_expand", None)
-        if win is not None:
-            try:
-                self._save_chat_expand_geometry(win)
-            except Exception:  # noqa: BLE001
-                logger.debug("dialogs/ai_generator_dialog.py:2272 best-effort step failed", exc_info=True)
-            win.close()
-            self._chat_expand = None
+        self._chat_coord.cleanup_attachments(self._attachment_bar)
+        self._chat_coord.close_chat_expand()
+        self._chat_coord.chat_expand_window = None
 
     def reject(self) -> None:
         self._closing = True
