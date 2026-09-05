@@ -660,10 +660,12 @@ def _plan_goal_async(host: ExperienceHost, goal_text: str, on_plan: Any) -> bool
 
         _status(host, "Goal 规划中（AI 扩展）…")
         worker = AiRequestWorker(build_plan_for_host, host, goal_text, expand=True)
-        worker.result_ready.connect(lambda plan: on_plan(plan))
-        worker.error_occurred.connect(
-            lambda msg: _status(host, f"Goal 规划失败：{msg}")
-        )
+
+        def _on_plan_error(msg: str) -> None:
+            _status(host, f"Goal 规划失败：{msg}")
+
+        worker.result_ready.connect(on_plan)
+        worker.error_occurred.connect(_on_plan_error)
         worker.start()
         return True
     except Exception:

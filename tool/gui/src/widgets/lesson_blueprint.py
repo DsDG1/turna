@@ -21,6 +21,7 @@ mutated directly.
 """
 from __future__ import annotations
 
+import functools
 from typing import Any
 
 from PySide6.QtCore import Signal
@@ -127,6 +128,18 @@ class ClickableLabel(QLabel):
         super().mouseReleaseEvent(event)
 
 
+def _card_move_item(card: BlueprintItemCard, delta: int, _c: bool = False) -> None:
+    card.blueprint._on_move_item(card.stage, card.item, delta)
+
+
+def _card_delete_item(card: BlueprintItemCard, _c: bool = False) -> None:
+    card.blueprint._on_delete_item(card.stage, card.item)
+
+
+def _card_change_item_type(card: BlueprintItemCard, new_type: str) -> None:
+    card.blueprint._on_change_item_type(card.stage, card.item, new_type)
+
+
 class BlueprintItemCard(QFrame):
     """A wrapper card for a single item in edit mode that can be expanded or collapsed."""
 
@@ -200,18 +213,18 @@ class BlueprintItemCard(QFrame):
             up_btn = QPushButton("↑")
             up_btn.setFixedWidth(28)
             up_btn.setEnabled(idx > 0)
-            up_btn.clicked.connect(lambda: self.blueprint._on_move_item(self.stage, self.item, -1))
+            up_btn.clicked.connect(functools.partial(_card_move_item, self, -1))
             header.addWidget(up_btn)
 
             down_btn = QPushButton("↓")
             down_btn.setFixedWidth(28)
             down_btn.setEnabled(idx >= 0 and idx < len(items) - 1)
-            down_btn.clicked.connect(lambda: self.blueprint._on_move_item(self.stage, self.item, 1))
+            down_btn.clicked.connect(functools.partial(_card_move_item, self, 1))
             header.addWidget(down_btn)
 
             del_btn = QPushButton("删除")
             del_btn.setMinimumWidth(48)
-            del_btn.clicked.connect(lambda: self.blueprint._on_delete_item(self.stage, self.item))
+            del_btn.clicked.connect(functools.partial(_card_delete_item, self))
             header.addWidget(del_btn)
 
         self._layout.addLayout(header)
@@ -219,18 +232,10 @@ class BlueprintItemCard(QFrame):
         if self.expanded:
             qcard = QuestionCard(self.blueprint.adapter, self.item)
             qcard.changed.connect(self.blueprint.changed.emit)
-            qcard.delete_requested.connect(
-                lambda _c=False: self.blueprint._on_delete_item(self.stage, self.item)
-            )
-            qcard.type_changed.connect(
-                lambda nt: self.blueprint._on_change_item_type(self.stage, self.item, nt)
-            )
-            qcard.move_up_requested.connect(
-                lambda _c=False: self.blueprint._on_move_item(self.stage, self.item, -1)
-            )
-            qcard.move_down_requested.connect(
-                lambda _c=False: self.blueprint._on_move_item(self.stage, self.item, 1)
-            )
+            qcard.delete_requested.connect(functools.partial(_card_delete_item, self))
+            qcard.type_changed.connect(functools.partial(_card_change_item_type, self))
+            qcard.move_up_requested.connect(functools.partial(_card_move_item, self, -1))
+            qcard.move_down_requested.connect(functools.partial(_card_move_item, self, 1))
             self._layout.addWidget(qcard)
 
     def _toggle_expand(self) -> None:
@@ -410,15 +415,18 @@ class LessonBlueprint(QWidget):
             up = QPushButton("↑")
             up.setFixedWidth(30)
             up.setEnabled(idx > 0)
-            up.clicked.connect(lambda _c=False, i=idx: self._on_move_phase(i, -1))
+            up.setProperty("phase_idx", idx)
+            up.clicked.connect(self._on_phase_up_clicked)
             card.header_layout().addWidget(up)
             down = QPushButton("↓")
             down.setFixedWidth(30)
             down.setEnabled(idx < total - 1)
-            down.clicked.connect(lambda _c=False, i=idx: self._on_move_phase(i, 1))
+            down.setProperty("phase_idx", idx)
+            down.clicked.connect(self._on_phase_down_clicked)
             card.header_layout().addWidget(down)
             dele = QPushButton("删除")
-            dele.clicked.connect(lambda _c=False, p=phase: self._on_delete_phase(p))
+            dele.setProperty("phase_idx", idx)
+            dele.clicked.connect(self._on_phase_delete_clicked)
             card.header_layout().addWidget(dele)
 
         # audio + transcript summary line
@@ -476,13 +484,13 @@ class LessonBlueprint(QWidget):
             form.setSpacing(6)
             title_edit = QLineEdit(passage.get("title", ""))
             title_edit.setPlaceholderText("篇章标题")
-            title_edit.textChanged.connect(lambda v: passage.__setitem__("title", v))
+            title_edit.textChanged.connect(self._on_passage_title_changed)
             form.addWidget(QLabel("标题"))
             form.addWidget(title_edit)
             diff = QSpinBox()
             diff.setRange(1, 5)
             diff.setValue(int(passage.get("difficulty", 1)))
-            diff.valueChanged.connect(lambda v: passage.__setitem__("difficulty", v))
+            diff.valueChanged.connect(self._on_passage_difficulty_changed)
             form.addWidget(QLabel("难度 (1-5)"))
             form.addWidget(diff)
             from PySide6.QtWidgets import QTextEdit
@@ -490,12 +498,7 @@ class LessonBlueprint(QWidget):
             paras = QTextEdit("\n\n".join(passage.get("paragraphs", [])))
             paras.setMaximumHeight(140)
             paras.setPlaceholderText("段落之间用空行分隔")
-            paras.textChanged.connect(
-                lambda e=paras, pa=passage: pa.__setitem__(
-                    "paragraphs",
-                    [s.strip() for s in e.toPlainText().split("\n\n") if s.strip()],
-                )
-            )
+            paras.textChanged.connect(self._on_passage_paragraphs_changed)
             form.addWidget(QLabel("正文段落（空行分隔）"))
             form.addWidget(paras)
             passage_card.add_body(_wrap(form))
@@ -552,7 +555,8 @@ class LessonBlueprint(QWidget):
         card = _Card(sub.get("name", "教学环节"), f"{len(stages)} 步 · {item_count} 题")
         if not self.read_only:
             dele = QPushButton("删除环节")
-            dele.clicked.connect(lambda _c=False, s=sub: self._on_delete_sub_lesson(s))
+            dele.setProperty("sub_id", sub.get("id", ""))
+            dele.clicked.connect(self._on_delete_sub_lesson_clicked)
             card.header_layout().addWidget(dele)
         for st in stages:
             stage_lbl = QLabel(f"步骤：{st.get('name', st.get('id', ''))}")
@@ -609,9 +613,8 @@ class LessonBlueprint(QWidget):
         combo.currentIndexChanged.connect(self._on_item_type_combo_changed)
         row.addWidget(combo)
         add_btn = QPushButton("+ 添加题目")
-        add_btn.clicked.connect(
-            lambda _c=False, st=stage, c=combo: self._on_add_item(st, c)
-        )
+        add_btn.setProperty("stage_id", stage.get("id", ""))
+        add_btn.clicked.connect(self._on_add_item_clicked)
         row.addWidget(add_btn)
         row.addStretch()
         return row
@@ -765,6 +768,78 @@ class LessonBlueprint(QWidget):
             return DeleteSubLessonCommand(content, sub)
 
         self._push(make, lambda: delete_sub_lesson(content, sub.get("id", "")))
+
+    def _on_phase_up_clicked(self) -> None:
+        btn = self.sender()
+        if isinstance(btn, QPushButton):
+            idx = btn.property("phase_idx")
+            if isinstance(idx, int):
+                self._on_move_phase(idx, -1)
+
+    def _on_phase_down_clicked(self) -> None:
+        btn = self.sender()
+        if isinstance(btn, QPushButton):
+            idx = btn.property("phase_idx")
+            if isinstance(idx, int):
+                self._on_move_phase(idx, 1)
+
+    def _on_phase_delete_clicked(self) -> None:
+        btn = self.sender()
+        if isinstance(btn, QPushButton):
+            idx = btn.property("phase_idx")
+            if isinstance(idx, int):
+                phases = self.lesson.get("content", {}).get("listeningPhases", [])
+                if 0 <= idx < len(phases):
+                    self._on_delete_phase(phases[idx])
+
+    def _on_passage_title_changed(self, value: str) -> None:
+        passage = self.lesson.setdefault("content", {}).setdefault(ContentKey.READING_PASSAGE, {})
+        passage["title"] = value
+
+    def _on_passage_difficulty_changed(self, value: int) -> None:
+        passage = self.lesson.setdefault("content", {}).setdefault(ContentKey.READING_PASSAGE, {})
+        passage["difficulty"] = value
+
+    def _on_passage_paragraphs_changed(self) -> None:
+        edit = self.sender()
+        if isinstance(edit, QTextEdit):
+            passage = self.lesson.setdefault("content", {}).setdefault(ContentKey.READING_PASSAGE, {})
+            passage["paragraphs"] = [
+                s.strip() for s in edit.toPlainText().split("\n\n") if s.strip()
+            ]
+
+    def _on_delete_sub_lesson_clicked(self) -> None:
+        btn = self.sender()
+        if isinstance(btn, QPushButton):
+            sub_id = btn.property("sub_id")
+            if isinstance(sub_id, str) and sub_id:
+                subs = self.lesson.get("content", {}).get(ContentKey.SUB_LESSONS, [])
+                sub = next((s for s in subs if s.get("id") == sub_id), None)
+                if sub is not None:
+                    self._on_delete_sub_lesson(sub)
+
+    def _find_stage_by_id(self, stage_id: str) -> dict[str, Any] | None:
+        content = self.lesson.get("content", {})
+        for st in content.get(ContentKey.STAGES, []):
+            if st.get("id") == stage_id:
+                return st
+        for sub in content.get(ContentKey.SUB_LESSONS, []):
+            for st in sub.get(ContentKey.STAGES, []):
+                if st.get("id") == stage_id:
+                    return st
+        for ph in content.get("listeningPhases", []):
+            if ph.get("id") == stage_id:
+                return ph
+        return None
+
+    def _on_add_item_clicked(self) -> None:
+        btn = self.sender()
+        if isinstance(btn, QPushButton):
+            stage_id = btn.property("stage_id")
+            stage = self._find_stage_by_id(stage_id) if isinstance(stage_id, str) else None
+            combo = btn.parentWidget().findChild(QComboBox) if btn.parentWidget() else None
+            if stage is not None:
+                self._on_add_item(stage, combo)
 
 
 def _wrap(layout) -> QWidget:

@@ -528,7 +528,7 @@ class SettingsDialog(QDialog):
         self.git_clone_root_edit.setPlaceholderText("默认克隆目录，如 ~/.turna/course-clones")
         clone_root_row.addWidget(self.git_clone_root_edit, 1)
         browse_clone = QPushButton("浏览...")
-        browse_clone.clicked.connect(lambda: self._pick_dir(self.git_clone_root_edit))
+        browse_clone.clicked.connect(self._on_browse_clone_root_clicked)
         clone_root_row.addWidget(browse_clone)
         basic_form.addRow("克隆根目录:", clone_root_row)
 
@@ -551,7 +551,7 @@ class SettingsDialog(QDialog):
         self.assets_repo_root_edit.setPlaceholderText("留空则自动检测（项目根目录）")
         assets_row.addWidget(self.assets_repo_root_edit, 1)
         browse_assets = QPushButton("浏览...")
-        browse_assets.clicked.connect(lambda: self._pick_dir(self.assets_repo_root_edit))
+        browse_assets.clicked.connect(self._on_browse_assets_root_clicked)
         assets_row.addWidget(browse_assets)
         basic_form.addRow("Assets 仓库根目录:", assets_row)
 
@@ -650,6 +650,12 @@ class SettingsDialog(QDialog):
         layout.addWidget(cred_group)
         layout.addStretch(1)
         return tab
+
+    def _on_browse_clone_root_clicked(self) -> None:
+        self._pick_dir(self.git_clone_root_edit)
+
+    def _on_browse_assets_root_clicked(self) -> None:
+        self._pick_dir(self.assets_repo_root_edit)
 
     def _pick_dir(self, line_edit: QLineEdit) -> None:
         chosen = QFileDialog.getExistingDirectory(self, "选择目录", line_edit.text() or "")

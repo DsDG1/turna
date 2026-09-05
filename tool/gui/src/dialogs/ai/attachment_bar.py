@@ -176,7 +176,7 @@ class AttachmentBar(QWidget):
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.setFlat(True)
             btn.setProperty("attachment_index", idx)
-            btn.clicked.connect(lambda _c=False, r=record: self._preview_attachment(r))
+            btn.clicked.connect(self._on_chip_btn_clicked)
             self._chips_layout.addWidget(btn)
 
             if self._ocr_enabled:
@@ -189,18 +189,33 @@ class AttachmentBar(QWidget):
                 if is_img:
                     ocr_btn = QPushButton("OCR")
                     ocr_btn.setToolTip(f"对 {record.original_name} 执行 OCR")
-                    ocr_btn.clicked.connect(
-                        lambda _c=False, r=record: self.ocr_requested.emit(
-                            r.temp_path.as_posix()
-                            if hasattr(r.temp_path, "as_posix")
-                            else str(r.temp_path).replace("\\", "/"),
-                            r.original_name,
-                            False,
-                        )
-                    )
+                    ocr_btn.setProperty("attachment_index", idx)
+                    ocr_btn.clicked.connect(self._on_ocr_btn_clicked)
                     self._chips_layout.addWidget(ocr_btn)
 
         self._chips_layout.addStretch()
+
+    def _on_chip_btn_clicked(self) -> None:
+        sender = self.sender()
+        if not sender:
+            return
+        idx = sender.property("attachment_index")
+        if idx is not None and 0 <= int(idx) < len(self._attachments):
+            self._preview_attachment(self._attachments[int(idx)])
+
+    def _on_ocr_btn_clicked(self) -> None:
+        sender = self.sender()
+        if not sender:
+            return
+        idx = sender.property("attachment_index")
+        if idx is not None and 0 <= int(idx) < len(self._attachments):
+            r = self._attachments[int(idx)]
+            path_str = (
+                r.temp_path.as_posix()
+                if hasattr(r.temp_path, "as_posix")
+                else str(r.temp_path).replace("\\", "/")
+            )
+            self.ocr_requested.emit(path_str, r.original_name, False)
 
     @staticmethod
     def _chip_label(record: AttachmentRecord) -> str:

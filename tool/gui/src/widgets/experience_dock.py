@@ -217,6 +217,7 @@ class ExperienceDock(QWidget):
 
         self._ctx: ExperienceContext | None = None
         self._suggestion_payloads: list[dict[str, Any]] = []
+        self._timeline_payloads: list[dict[str, Any]] = []
         self._suggestion_buttons: list[QPushButton] = []
         self._focused_suggestion: int | None = None
         self._metrics_base_style = (
@@ -405,21 +406,28 @@ class ExperienceDock(QWidget):
             self._sug_layout.addStretch(1)
             return
 
-        for sug in suggestions[:3]:
+        for idx, sug in enumerate(suggestions[:3]):
             title = str(sug.get("title") or sug.get("action_id") or "建议")
             btn = QPushButton(title)
             btn.setToolTip(
                 f"{sug.get('action_id') or ''}\n教师模式: [ / ] 导航 · Enter 激活".strip()
             )
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn.clicked.connect(
-                lambda _checked=False, s=dict(sug): self.suggestion_clicked.emit(s)
-            )
+            btn.setProperty("suggestion_idx", idx)
+            btn.clicked.connect(self._on_suggestion_btn_clicked)
             self._sug_layout.addWidget(btn)
             self._suggestion_payloads.append(dict(sug))
             self._suggestion_buttons.append(btn)
         self._sug_layout.addStretch(1)
         self._apply_suggestion_focus_style()
+
+    def _on_suggestion_btn_clicked(self) -> None:
+        sender = self.sender()
+        if not sender:
+            return
+        idx = sender.property("suggestion_idx")
+        if idx is not None and 0 <= int(idx) < len(self._suggestion_payloads):
+            self.suggestion_clicked.emit(self._suggestion_payloads[int(idx)])
 
     # --- R-04 suggestion keyboard navigation ----------------------------
 
@@ -480,8 +488,9 @@ class ExperienceDock(QWidget):
             self._tl_layout.addWidget(empty)
             return
 
+        self._timeline_payloads = []
         # Newest last in data → show newest first in UI.
-        for event in reversed(events[-5:]):
+        for idx, event in enumerate(reversed(events[-5:])):
             summary = _short(str(event.get("summary") or event.get("kind") or "事件"))
             btn = QPushButton(summary)
             tip = str(event.get("undo_hint") or "Ctrl+Z 可撤销")
@@ -490,7 +499,15 @@ class ExperienceDock(QWidget):
             btn.setToolTip(tip)
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.setStyleSheet("text-align: left; font-size: 11px;")
-            btn.clicked.connect(
-                lambda _c=False, e=dict(event): self.timeline_clicked.emit(e)
-            )
+            btn.setProperty("timeline_idx", idx)
+            btn.clicked.connect(self._on_timeline_btn_clicked)
+            self._timeline_payloads.append(dict(event))
             self._tl_layout.addWidget(btn)
+
+    def _on_timeline_btn_clicked(self) -> None:
+        sender = self.sender()
+        if not sender:
+            return
+        idx = sender.property("timeline_idx")
+        if idx is not None and 0 <= int(idx) < len(self._timeline_payloads):
+            self.timeline_clicked.emit(self._timeline_payloads[int(idx)])

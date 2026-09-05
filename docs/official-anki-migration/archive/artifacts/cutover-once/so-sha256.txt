@@ -1,2 +1,0 @@
-179c2ad004ebbeea7568ec0b21901aaf2986cfcb86d9f21581fc3a4b19cbef6f  android/app/src/main/jniLibs/arm64-v8a/libturna_anki.so
-9d20e7712aa04ec4e8dc8ffabf1e152a326d16d8e0c237917faf3d33f5712e61  APK:lib/arm64-v8a/libturna_anki.so (stripped)

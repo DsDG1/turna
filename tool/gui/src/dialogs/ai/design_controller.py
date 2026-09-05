@@ -579,8 +579,10 @@ class DesignController:
 
     # ------------------------------------------------------------------ cancel
     def cancel(self) -> None:
-        if self._worker is not None and hasattr(self._worker, "cancel"):
-            self._worker.cancel()
+        if self._worker is not None:
+            self._disconnect_worker(self._worker)
+            if hasattr(self._worker, "cancel"):
+                self._worker.cancel()
 
     # ------------------------------------------------------------------ worker plumbing
     def _ai_kwargs(self) -> dict[str, Any]:
@@ -610,31 +612,68 @@ class DesignController:
         **worker_kwargs: Any,
     ) -> None:
         worker = self._worker_factory(target, *args, **worker_kwargs)
-        if hasattr(worker, "result_ready"):
-            worker.result_ready.connect(
-                lambda result: self._finish_worker(worker, on_result, result)
-            )
-        if hasattr(worker, "error_occurred"):
-            error_cb = on_error or self._on_error
-            worker.error_occurred.connect(
-                lambda msg: self._fail_worker(worker, msg, error_cb)
-            )
-        if hasattr(worker, "chunk_ready"):
-            worker.chunk_ready.connect(
-                lambda chunk: self._deliver_chunk(worker, on_chunk, chunk)
-            )
-        if hasattr(worker, "usage_ready"):
-            worker.usage_ready.connect(
-                lambda usage: self._deliver_usage(worker, usage)
-            )
-        if hasattr(worker, "progress_ready"):
-            worker.progress_ready.connect(
-                lambda progress: self._deliver_progress(worker, progress)
-            )
-        self._snapshot_cache_hits()
         self._worker = worker
+        self._active_on_result = on_result
+        self._active_on_chunk = on_chunk
+        self._active_on_error = on_error or self._on_error
+        if hasattr(worker, "result_ready"):
+            worker.result_ready.connect(self._on_worker_result_ready)
+        if hasattr(worker, "error_occurred"):
+            worker.error_occurred.connect(self._on_worker_error_occurred)
+        if hasattr(worker, "chunk_ready"):
+            worker.chunk_ready.connect(self._on_worker_chunk_ready)
+        if hasattr(worker, "usage_ready"):
+            worker.usage_ready.connect(self._on_worker_usage_ready)
+        if hasattr(worker, "progress_ready"):
+            worker.progress_ready.connect(self._on_worker_progress_ready)
+        self._snapshot_cache_hits()
         self._on_busy_changed(True, stage)
         worker.start()
+
+    def _disconnect_worker(self, worker: Any) -> None:
+        if worker is None:
+            return
+        for sig_name, slot in (
+            ("result_ready", self._on_worker_result_ready),
+            ("error_occurred", self._on_worker_error_occurred),
+            ("chunk_ready", self._on_worker_chunk_ready),
+            ("usage_ready", self._on_worker_usage_ready),
+            ("progress_ready", self._on_worker_progress_ready),
+        ):
+            sig = getattr(worker, sig_name, None)
+            if sig is not None and hasattr(sig, "disconnect"):
+                try:
+                    sig.disconnect(slot)
+                except Exception:
+                    pass
+
+    def _on_worker_result_ready(self, result: Any) -> None:
+        worker = self._worker
+        cb = getattr(self, "_active_on_result", None)
+        if worker is not None and cb is not None:
+            self._finish_worker(worker, cb, result)
+
+    def _on_worker_error_occurred(self, message: str) -> None:
+        worker = self._worker
+        cb = getattr(self, "_active_on_error", None) or self._on_error
+        if worker is not None:
+            self._fail_worker(worker, message, cb)
+
+    def _on_worker_chunk_ready(self, chunk: str) -> None:
+        worker = self._worker
+        cb = getattr(self, "_active_on_chunk", None)
+        if worker is not None and cb is not None:
+            self._deliver_chunk(worker, cb, chunk)
+
+    def _on_worker_usage_ready(self, usage: Any) -> None:
+        worker = self._worker
+        if worker is not None:
+            self._deliver_usage(worker, usage)
+
+    def _on_worker_progress_ready(self, progress: Any) -> None:
+        worker = self._worker
+        if worker is not None:
+            self._deliver_progress(worker, progress)
 
     def _snapshot_cache_hits(self) -> None:
         """Record cache hit counter before a request (U0-2)."""
@@ -686,7 +725,11 @@ class DesignController:
     ) -> None:
         if worker is not self._worker:
             return  # stale worker from a cancelled/superseded request
+        self._disconnect_worker(worker)
         self._worker = None
+        self._active_on_result = None
+        self._active_on_chunk = None
+        self._active_on_error = None
         self._refresh_cache_hit_flag()
         self._on_busy_changed(False, "")
         on_result(result)
@@ -696,7 +739,11 @@ class DesignController:
     ) -> None:
         if worker is not self._worker:
             return
+        self._disconnect_worker(worker)
         self._worker = None
+        self._active_on_result = None
+        self._active_on_chunk = None
+        self._active_on_error = None
         self._on_busy_changed(False, "")
         on_error(message)
 

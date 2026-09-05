@@ -1,3 +1,0 @@
-date: 2026-08-25T17:04:47+08:00
-command: flutter test test/golden/course_tree_golden_test.dart test/golden/play_hub_golden_test.dart
-result: 4 passed / 0 failed

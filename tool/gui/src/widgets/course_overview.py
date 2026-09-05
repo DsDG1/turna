@@ -109,7 +109,13 @@ class _LessonChip(QPushButton):
         self.setToolTip("\n".join(tip_lines))
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setStyleSheet(_chip_style(tmpl, empty))
-        self.clicked.connect(lambda: on_click(lesson.get("id", "")))
+        self._lesson_id = str(lesson.get("id", ""))
+        self._on_click = on_click
+        self.clicked.connect(self._on_chip_clicked)
+
+    def _on_chip_clicked(self) -> None:
+        if callable(self._on_click):
+            self._on_click(self._lesson_id)
 
 
 class CourseOverviewWindow(QWidget):
@@ -185,7 +191,8 @@ class CourseOverviewWindow(QWidget):
                 f"border-radius: 4px; color: {color}; background: transparent; }}"
                 f"QPushButton:checked {{ background: {color}; color: white; }}"
             )
-            btn.clicked.connect(lambda _checked=False, t=tmpl: self._on_template_toggle(t))
+            btn.setProperty("template_type", tmpl)
+            btn.clicked.connect(self._on_template_btn_clicked)
             self._template_buttons[tmpl] = btn
             self._filter_layout.addWidget(btn)
         self._clear_filter_btn = QPushButton("清除")
@@ -418,6 +425,14 @@ class CourseOverviewWindow(QWidget):
         # O(course); coalesce to one rebuild per quiet window (250 ms, same
         # convention as MainWindow's tree refresh debounce).
         self._filter_timer.start()
+
+    def _on_template_btn_clicked(self) -> None:
+        sender = self.sender()
+        if not sender:
+            return
+        tmpl = sender.property("template_type")
+        if isinstance(tmpl, str):
+            self._on_template_toggle(tmpl)
 
     def _on_template_toggle(self, tmpl: str) -> None:
         # Exclusive toggle: clicking the active filter clears it.

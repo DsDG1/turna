@@ -1,6 +1,0 @@
-Device B
-
-date: 2026-08-18
-scope: OUT OF SCOPE (product decision: Device B 不考虑)
-adb devices: only 3B15AG00FPB00000 (Device A PLG110 API 36)
-Device B is not a P4 production gate.

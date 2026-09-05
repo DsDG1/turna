@@ -211,14 +211,37 @@ class QuestionCard(QFrame):
         if multi_line:
             edit = QTextEdit()
             edit.setPlainText(str(self.item.get(field, "") or ""))
-            edit.textChanged.connect(lambda: self._set_field(field, edit.toPlainText()))
+            edit.setProperty("bound_field", field)
+            edit.textChanged.connect(self._on_text_edit_changed)
             layout.addWidget(edit)
             return edit
         edit = QLineEdit()
         edit.setText(str(self.item.get(field, "") or ""))
-        edit.textChanged.connect(lambda t: self._set_field(field, t))
+        edit.setProperty("bound_field", field)
+        edit.textChanged.connect(self._on_line_edit_changed)
         layout.addWidget(edit)
         return edit
+
+    def _on_text_edit_changed(self) -> None:
+        sender = self.sender()
+        if isinstance(sender, QTextEdit):
+            field = sender.property("bound_field")
+            if field:
+                self._set_field(str(field), sender.toPlainText())
+
+    def _on_line_edit_changed(self, text: str) -> None:
+        sender = self.sender()
+        if isinstance(sender, QLineEdit):
+            field = sender.property("bound_field")
+            if field:
+                self._set_field(str(field), text)
+
+    def _on_combo_field_changed(self, _index: int) -> None:
+        sender = self.sender()
+        if isinstance(sender, QComboBox):
+            field = sender.property("bound_field")
+            if field:
+                self._set_field(str(field), sender.currentData() or "")
 
     def _set_field(self, field: str, value: Any) -> None:
         self.item[field] = value
@@ -240,18 +263,16 @@ class QuestionCard(QFrame):
             model = build_options_model(self.adapter.grammar_options(), placeholder="(未关联)")
         combo.setModel(model)
         select_by_id(combo, model, self.item.get(ItemKey.GRAMMAR_POINT_ID) or "")
-        combo.currentIndexChanged.connect(
-            lambda _i: self._set_field(ItemKey.GRAMMAR_POINT_ID, combo.currentData() or "")
-        )
+        combo.setProperty("bound_field", ItemKey.GRAMMAR_POINT_ID)
+        combo.currentIndexChanged.connect(self._on_combo_field_changed)
         layout.addWidget(QLabel(field_label(ItemKey.GRAMMAR_POINT_ID)))
         layout.addWidget(combo)
 
     def _build_show_word(self, layout: QVBoxLayout) -> None:
         layout.addWidget(QLabel(field_label(ItemKey.WORD_ID)))
         combo = self._word_combo(self.item.get(ItemKey.WORD_ID, ""))
-        combo.currentIndexChanged.connect(
-            lambda _i: self._set_field(ItemKey.WORD_ID, combo.currentData() or "")
-        )
+        combo.setProperty("bound_field", ItemKey.WORD_ID)
+        combo.currentIndexChanged.connect(self._on_combo_field_changed)
         layout.addWidget(combo)
         self._add_labeled_edit(layout, "context")
         # Inline overrides: when non-empty the app prefers them over the vocab
@@ -305,18 +326,15 @@ class QuestionCard(QFrame):
         else:
             correct_set = set(self.item.get(ItemKey.CORRECT_INDICES, []) or [])
 
+        self._option_rows = rows
+        self._options_exclusive = exclusive
         for i, opt in enumerate(options):
             row = _OptionRow(str(opt), i in correct_set, exclusive=exclusive)
             if group is not None:
                 group.addButton(row.selector)
-            row.selector.toggled.connect(
-                lambda checked, ex=exclusive, r_list=rows: self._on_option_toggled(
-                    checked, ex, r_list
-                )
-            )
-            row.edit.textChanged.connect(
-                lambda text, idx=i: self._on_option_text_changed(idx, text)
-            )
+            row.selector.toggled.connect(self._on_option_row_toggled)
+            row.edit.setProperty("option_index", i)
+            row.edit.textChanged.connect(self._on_option_row_text_changed)
             rows.append(row)
             layout.addWidget(row)
 
@@ -329,27 +347,37 @@ class QuestionCard(QFrame):
         btn_row.addWidget(del_btn)
         layout.addLayout(btn_row)
 
+    def _on_option_row_toggled(self, checked: bool) -> None:
+        rows = getattr(self, "_option_rows", [])
+        exclusive = getattr(self, "_options_exclusive", True)
+        self._on_option_toggled(checked, exclusive, rows)
+
+    def _on_option_row_text_changed(self, text: str) -> None:
+        sender = self.sender()
+        if isinstance(sender, QLineEdit):
+            idx = sender.property("option_index")
+            if idx is not None:
+                self._on_option_text_changed(int(idx), text)
+
     def _on_option_toggled(
         self, checked: bool, exclusive: bool, rows: list[_OptionRow]
     ) -> None:
+        if not checked:
+            return
         if exclusive:
-            if not checked:
-                return
-            for i, row in enumerate(rows):
-                if row.selector.isChecked():
-                    self._set_field(ItemKey.CORRECT_INDEX, i)
+            for idx, r in enumerate(rows):
+                if r.selector.isChecked():
+                    self._set_field(ItemKey.CORRECT_INDEX, idx)
                     return
         else:
-            self._set_field(
-                ItemKey.CORRECT_INDICES,
-                [i for i, row in enumerate(rows) if row.selector.isChecked()],
-            )
+            indices = [i for i, r in enumerate(rows) if r.selector.isChecked()]
+            self._set_field(ItemKey.CORRECT_INDICES, indices)
 
-    def _on_option_text_changed(self, idx: int, text: str) -> None:
-        opts = self.item.setdefault(ItemKey.OPTIONS, [])
-        if idx < len(opts):
-            opts[idx] = text
-        self.changed.emit()
+    def _on_option_text_changed(self, index: int, text: str) -> None:
+        opts = list(self.item.get(ItemKey.OPTIONS, []) or [])
+        if 0 <= index < len(opts):
+            opts[index] = text
+            self._set_field(ItemKey.OPTIONS, opts)
 
     def _on_add_option(self) -> None:
         self.item.setdefault(ItemKey.OPTIONS, []).append("新选项")
@@ -376,9 +404,22 @@ class QuestionCard(QFrame):
     def _build_fill_blank(self, layout: QVBoxLayout) -> None:
         self._add_labeled_edit(layout, "sentence")
         self._add_labeled_edit(layout, "answer")
-        self._add_labeled_edit(layout, "hint")
-        self._add_media_list(layout, "audioAssets")
-        self._add_media_list(layout, "imageAssets")
+        self._add_labeled_edit(layout, "translation")
+        layout.addWidget(QLabel(field_label("hints")))
+        edit = QTextEdit()
+        hints = self.item.get("hints")
+        if isinstance(hints, list):
+            edit.setPlainText("\n".join(str(h) for h in hints))
+        else:
+            edit.setPlainText(str(hints or ""))
+        edit.textChanged.connect(self._on_hints_text_changed)
+        layout.addWidget(edit)
+
+    def _on_hints_text_changed(self) -> None:
+        sender = self.sender()
+        if isinstance(sender, QTextEdit):
+            lines = [ln.strip() for ln in sender.toPlainText().splitlines() if ln.strip()]
+            self._set_field("hints", lines)
 
     def _build_translate(self, layout: QVBoxLayout) -> None:
         self._add_labeled_edit(layout, "source")
@@ -391,18 +432,13 @@ class QuestionCard(QFrame):
             edit.setPlainText("\n".join(str(h) for h in hints))
         else:
             edit.setPlainText(str(hints or ""))
-        edit.textChanged.connect(
-            lambda: self._set_field(
-                "hints",
-                [ln.strip() for ln in edit.toPlainText().splitlines() if ln.strip()],
-            )
-        )
+        edit.textChanged.connect(self._on_hints_text_changed)
         layout.addWidget(edit)
 
     def _build_true_false(self, layout: QVBoxLayout) -> None:
         layout.addWidget(QLabel("陈述:"))
         edit = QLineEdit(str(self.item.get("statement", "")))
-        edit.textChanged.connect(lambda t: self._set_field("statement", t))
+        edit.textChanged.connect(self._on_statement_text_changed)
         layout.addWidget(edit)
         true_btn = QRadioButton("正确")
         false_btn = QRadioButton("错误")
@@ -410,12 +446,23 @@ class QuestionCard(QFrame):
             true_btn.setChecked(True)
         else:
             false_btn.setChecked(True)
-        true_btn.toggled.connect(lambda c: self._set_field("answer", True) if c else None)
-        false_btn.toggled.connect(lambda c: self._set_field("answer", False) if c else None)
+        true_btn.toggled.connect(self._on_true_btn_toggled)
+        false_btn.toggled.connect(self._on_false_btn_toggled)
         row = QHBoxLayout()
         row.addWidget(true_btn)
         row.addWidget(false_btn)
         layout.addLayout(row)
+
+    def _on_statement_text_changed(self, text: str) -> None:
+        self._set_field("statement", text)
+
+    def _on_true_btn_toggled(self, checked: bool) -> None:
+        if checked:
+            self._set_field("answer", True)
+
+    def _on_false_btn_toggled(self, checked: bool) -> None:
+        if checked:
+            self._set_field("answer", False)
 
     def _build_short_answer(self, layout: QVBoxLayout) -> None:
         self._add_labeled_edit(layout, "prompt")
@@ -431,10 +478,14 @@ class QuestionCard(QFrame):
         from src.widgets.interaction_forms import StringListEditor
 
         layout.addWidget(QLabel(field_label(field)))
+
+        def _on_media_changed(vals: list[str]) -> None:
+            self._set_field(field, vals)
+
         layout.addWidget(
             StringListEditor(
                 list(self.item.get(field) or []),
-                lambda v, n=field: self._set_field(n, v),
+                _on_media_changed,
             )
         )
 
@@ -442,8 +493,11 @@ class QuestionCard(QFrame):
         """Plain flip card: click the face to reveal the other side."""
         layout.addWidget(QLabel(field_label("front")))
         front_edit = QLineEdit(str(self.item.get("front", "") or ""))
-        front_edit.textChanged.connect(lambda t: self._set_field("front", t))
+        front_edit.textChanged.connect(self._on_front_text_changed)
         layout.addWidget(front_edit)
+
+    def _on_front_text_changed(self, text: str) -> None:
+        self._set_field("front", text)
 
         self._flip_label = QLabel("(点击下方按钮翻面)")
         self._flip_label.setWordWrap(True)
@@ -464,13 +518,17 @@ class QuestionCard(QFrame):
         if hint:
             hint_btn = QPushButton("提示")
             hint_btn.setToolTip(hint)
-            hint_btn.clicked.connect(
-                lambda: QMessageBox.information(self, "提示", hint or "(空)")
-            )
+            hint_btn.setProperty("hint_text", hint)
+            hint_btn.clicked.connect(self._on_hint_button_clicked)
             layout.addWidget(hint_btn)
 
         self._add_media_list(layout, "audioAssets")
         self._add_media_list(layout, "imageAssets")
+
+    def _on_hint_button_clicked(self) -> None:
+        sender = self.sender()
+        hint = sender.property("hint_text") if sender else ""
+        QMessageBox.information(self, "提示", str(hint) if hint else "(空)")
 
     def _on_toggle_anki_flip(self) -> None:
         self._revealed = not getattr(self, "_revealed", False)

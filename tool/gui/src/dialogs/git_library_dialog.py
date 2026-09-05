@@ -6,6 +6,7 @@ assets/courses/<lang>/ directory. Includes LAN collaboration sharing.
 """
 from __future__ import annotations
 
+import functools
 import logging
 logger = logging.getLogger(__name__)
 
@@ -570,7 +571,8 @@ class GitLibraryDialog(QDialog):
                 copy_btn = QPushButton("复制")
                 copy_btn.setFixedWidth(50)
                 copy_btn.setStyleSheet("padding: 2px; font-size: 11px;")
-                copy_btn.clicked.connect(lambda checked=False, u=url: self._copy_to_clipboard(u))
+                copy_btn.setProperty("copy_url", url)
+                copy_btn.clicked.connect(self._on_copy_url_clicked)
                 row_layout.addWidget(copy_btn)
                 
                 self.lan_addresses_widget.layout().addLayout(row_layout)
@@ -581,6 +583,14 @@ class GitLibraryDialog(QDialog):
             self.start_share_btn.setEnabled(connected)
             self.stop_share_btn.setEnabled(False)
             self.port_edit.setEnabled(True)
+
+    def _on_copy_url_clicked(self) -> None:
+        sender = self.sender()
+        if not sender:
+            return
+        url = sender.property("copy_url")
+        if isinstance(url, str):
+            self._copy_to_clipboard(url)
 
     def _copy_to_clipboard(self, text: str) -> None:
         from PySide6.QtGui import QGuiApplication
@@ -1375,15 +1385,36 @@ class GitLibraryDialog(QDialog):
         self._set_git_busy(True, label)
         worker = AiRequestWorker(fn, *args)
         worker.result_ready.connect(
-            lambda result: self._on_git_result(
-                worker, result, on_ok, ok_title, ok_message
+            functools.partial(
+                self._on_git_worker_result, worker, on_ok, ok_title, ok_message
             )
         )
         worker.error_occurred.connect(
-            lambda msg: self._on_git_error(worker, msg, error_title, on_error)
+            functools.partial(
+                self._on_git_worker_error, worker, error_title, on_error
+            )
         )
         self._git_worker = worker
         worker.start()
+
+    def _on_git_worker_result(
+        self,
+        worker: Any,
+        on_ok: Any,
+        ok_title: str,
+        ok_message: str,
+        result: Any,
+    ) -> None:
+        self._on_git_result(worker, result, on_ok, ok_title, ok_message)
+
+    def _on_git_worker_error(
+        self,
+        worker: Any,
+        error_title: str,
+        on_error: Any,
+        msg: str,
+    ) -> None:
+        self._on_git_error(worker, msg, error_title, on_error)
 
     def _on_git_result(
         self,

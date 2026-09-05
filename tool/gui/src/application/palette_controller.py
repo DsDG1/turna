@@ -15,8 +15,9 @@ never auto-dispatches, never writes the course tree.
 """
 from __future__ import annotations
 
-from typing import Any, Mapping, MutableMapping, Sequence
+import functools
 import logging
+from typing import Any, Mapping, MutableMapping, Sequence
 from src.application.experience_host import ExperienceHost
 logger = logging.getLogger(__name__)
 
@@ -97,6 +98,22 @@ def empty_lessons_from_host(host: ExperienceHost) -> list[str]:
         return []
 
 
+def _on_palette_command_triggered(host: ExperienceHost, payload: Any) -> None:
+    dispatch_palette_payload(host, dict(payload or {}))
+
+
+def _on_palette_intent_resolved(metrics: Any, _text: Any, _action: Any) -> None:
+    metrics.inc_intent_resolved()
+
+
+def _on_palette_intent_fellthrough(metrics: Any, _text: Any) -> None:
+    metrics.inc_intent_fell_through()
+
+
+def _on_palette_voice_requested(host: ExperienceHost, dlg: Any) -> None:
+    transcribe_to_palette(host, dlg)
+
+
 def open_command_palette(host: ExperienceHost) -> Any:
     """Create, wire, and show the ⌘K palette on ``host``.
 
@@ -108,17 +125,17 @@ def open_command_palette(host: ExperienceHost) -> Any:
     dlg = CommandPalette(parent)
     dlg.set_history(history_rows_from_timeline(getattr(host, "experience_timeline", None)))
     dlg.command_triggered.connect(
-        lambda payload: dispatch_palette_payload(host, dict(payload or {}))
+        functools.partial(_on_palette_command_triggered, host)
     )
     metrics = getattr(host, "experience_metrics", None)
     if metrics is not None:
         if hasattr(metrics, "inc_intent_resolved"):
             dlg.intent_resolved.connect(
-                lambda _text, _action: metrics.inc_intent_resolved()
+                functools.partial(_on_palette_intent_resolved, metrics)
             )
         if hasattr(metrics, "inc_intent_fell_through"):
             dlg.intent_fellthrough.connect(
-                lambda _text: metrics.inc_intent_fell_through()
+                functools.partial(_on_palette_intent_fellthrough, metrics)
             )
     # C-06 prep: host may install an async provider later; default is no-op.
     hook = getattr(host, "_palette_async_candidate_hook", None)
@@ -135,7 +152,9 @@ def open_command_palette(host: ExperienceHost) -> Any:
         dlg.set_voice_enabled(is_voice_palette_enabled(settings))
     except Exception:
         dlg.set_voice_enabled(False)
-    dlg.voice_requested.connect(lambda: transcribe_to_palette(host, dlg))
+    dlg.voice_requested.connect(
+        functools.partial(_on_palette_voice_requested, host, dlg)
+    )
     # Keep a weak ref so async voice callbacks can fill the open dialog.
     try:
         host._active_command_palette = dlg  # type: ignore[attr-defined]

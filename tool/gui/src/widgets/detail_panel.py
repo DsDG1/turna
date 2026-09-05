@@ -200,8 +200,8 @@ class DetailPanel(QWidget):
         self._advanced_btn.setCheckable(True)
         self._blueprint_btn.setChecked(self._lesson_view_mode == "blueprint")
         self._advanced_btn.setChecked(self._lesson_view_mode == "advanced")
-        self._blueprint_btn.clicked.connect(lambda: self._set_lesson_view("blueprint"))
-        self._advanced_btn.clicked.connect(lambda: self._set_lesson_view("advanced"))
+        self._blueprint_btn.clicked.connect(self._on_blueprint_view_clicked)
+        self._advanced_btn.clicked.connect(self._on_advanced_view_clicked)
         bar.addWidget(self._blueprint_btn)
         bar.addWidget(self._advanced_btn)
         bar.addStretch()
@@ -214,6 +214,12 @@ class DetailPanel(QWidget):
 
         self._render_lesson_view()
         return container
+
+    def _on_blueprint_view_clicked(self) -> None:
+        self._set_lesson_view("blueprint")
+
+    def _on_advanced_view_clicked(self) -> None:
+        self._set_lesson_view("advanced")
 
     def _set_lesson_view(self, mode: str) -> None:
         if mode == self._lesson_view_mode:

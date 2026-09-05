@@ -107,9 +107,8 @@ class PromptTemplateBar(QWidget):
             card.setCursor(Qt.CursorShape.PointingHandCursor)
             card.setMinimumWidth(86)
             card.setStyleSheet(_card_stylesheet(selected=False))
-            card.clicked.connect(
-                lambda _checked=False, t=template: self.select_template(t)
-            )
+            card.setProperty("template_name", template)
+            card.clicked.connect(self._on_template_card_clicked)
             self._template_cards[template] = card
             cards_row.addWidget(card)
         cards_row.addWidget(self.template_combo)
@@ -158,6 +157,14 @@ class PromptTemplateBar(QWidget):
 
         # Default selection = mixed.
         self.select_template("mixed", emit=False)
+
+    def _on_template_card_clicked(self) -> None:
+        sender = self.sender()
+        if not sender:
+            return
+        template = sender.property("template_name")
+        if isinstance(template, str):
+            self.select_template(template)
 
     # --- public API ------------------------------------------------------
 

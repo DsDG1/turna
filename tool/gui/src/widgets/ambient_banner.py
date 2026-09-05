@@ -90,15 +90,9 @@ class AmbientBanner(QWidget):
         self._mute_btn.setFlat(True)
         self._mute_btn.setToolTip("暂停主动提案（Dock 被动建议仍可用）")
         mute_menu = QMenu(self)
-        mute_menu.addAction("静音 4 小时").triggered.connect(
-            lambda: self._on_mute(MUTE_HOURS4)
-        )
-        mute_menu.addAction("静音今日").triggered.connect(
-            lambda: self._on_mute(MUTE_TODAY)
-        )
-        mute_menu.addAction("永久静音").triggered.connect(
-            lambda: self._on_mute(MUTE_PERMANENT)
-        )
+        mute_menu.addAction("静音 4 小时").triggered.connect(self._on_mute_hours4)
+        mute_menu.addAction("静音今日").triggered.connect(self._on_mute_today)
+        mute_menu.addAction("永久静音").triggered.connect(self._on_mute_permanent)
         self._mute_btn.setMenu(mute_menu)
         row_layout.addWidget(self._mute_btn)
         outer.addWidget(self._row)
@@ -189,8 +183,8 @@ class AmbientBanner(QWidget):
         xbtn.setFlat(True)
         xbtn.setFixedSize(20, 20)
         xbtn.setToolTip("归档此条")
-        pid = proposal.id
-        xbtn.clicked.connect(lambda _checked=False, pid=pid: self._archive_pid(pid))
+        xbtn.setProperty("proposal_id", proposal.id)
+        xbtn.clicked.connect(self._on_archive_row_clicked)
         lay.addWidget(dot)
         lay.addWidget(lbl, stretch=1)
         lay.addWidget(xbtn)
@@ -201,6 +195,23 @@ class AmbientBanner(QWidget):
             w.setParent(None)
             w.deleteLater()
         self._collapsed_rows = []
+
+    def _on_archive_row_clicked(self) -> None:
+        sender = self.sender()
+        if not sender:
+            return
+        pid = sender.property("proposal_id")
+        if isinstance(pid, str):
+            self._archive_pid(pid)
+
+    def _on_mute_hours4(self) -> None:
+        self._on_mute(MUTE_HOURS4)
+
+    def _on_mute_today(self) -> None:
+        self._on_mute(MUTE_TODAY)
+
+    def _on_mute_permanent(self) -> None:
+        self._on_mute(MUTE_PERMANENT)
 
     def _on_accept(self) -> None:
         if not self._queue:

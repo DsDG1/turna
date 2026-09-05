@@ -201,9 +201,7 @@ class DesignPanel(QWidget):
         self._gen_mode_combo.addItem("精修（流水线）", "phased")
         self._gen_mode_combo.setVisible(False)
         self._gen_mode_combo.currentIndexChanged.connect(self._on_gen_mode_changed)
-        self._level_combo.currentTextChanged.connect(
-            lambda _t: self._refresh_pedagogy_badge()
-        )
+        self._level_combo.currentTextChanged.connect(self._on_level_text_changed)
         for w in (
             self._topic_edit,
             self._level_combo,
@@ -655,6 +653,9 @@ class DesignPanel(QWidget):
         self._skip_explain_check.setEnabled(refine)
         if not refine:
             self._checklist_widget.setVisible(False)
+        self._refresh_pedagogy_badge()
+
+    def _on_level_text_changed(self, _text: str) -> None:
         self._refresh_pedagogy_badge()
 
     def _refresh_pedagogy_badge(self) -> None:

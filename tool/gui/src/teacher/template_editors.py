@@ -153,13 +153,49 @@ class TeacherTemplateWidget(QWidget):
 
     def _build_card(self, stage: dict[str, Any], item: dict[str, Any]) -> QuestionCard:
         card = QuestionCard(self.adapter, item)
+        card.setProperty("stage", stage)
         card.changed.connect(self.changed.emit)
-        card.delete_requested.connect(lambda _c=False, st=stage, it=item: self._delete_item(st, it))
-        card.type_changed.connect(lambda new_type, st=stage, it=item: self._change_item_type(st, it, new_type))
-        card.move_up_requested.connect(lambda _c=False, st=stage, it=item: self._move_item(st, it, -1))
-        card.move_down_requested.connect(lambda _c=False, st=stage, it=item: self._move_item(st, it, 1))
-        card.ai_rewrite_requested.connect(lambda _c=False, st=stage, it=item: self._on_ai_rewrite_item(st, it))
+        card.delete_requested.connect(self._on_card_delete_requested)
+        card.type_changed.connect(self._on_card_type_changed)
+        card.move_up_requested.connect(self._on_card_move_up_requested)
+        card.move_down_requested.connect(self._on_card_move_down_requested)
+        card.ai_rewrite_requested.connect(self._on_card_ai_rewrite_requested)
         return card
+
+    def _on_card_delete_requested(self) -> None:
+        card = self.sender()
+        if isinstance(card, QuestionCard):
+            stage = card.property("stage")
+            if isinstance(stage, dict):
+                self._delete_item(stage, card.item)
+
+    def _on_card_type_changed(self, new_type: str) -> None:
+        card = self.sender()
+        if isinstance(card, QuestionCard):
+            stage = card.property("stage")
+            if isinstance(stage, dict):
+                self._change_item_type(stage, card.item, new_type)
+
+    def _on_card_move_up_requested(self) -> None:
+        card = self.sender()
+        if isinstance(card, QuestionCard):
+            stage = card.property("stage")
+            if isinstance(stage, dict):
+                self._move_item(stage, card.item, -1)
+
+    def _on_card_move_down_requested(self) -> None:
+        card = self.sender()
+        if isinstance(card, QuestionCard):
+            stage = card.property("stage")
+            if isinstance(stage, dict):
+                self._move_item(stage, card.item, 1)
+
+    def _on_card_ai_rewrite_requested(self) -> None:
+        card = self.sender()
+        if isinstance(card, QuestionCard):
+            stage = card.property("stage")
+            if isinstance(stage, dict):
+                self._on_ai_rewrite_item(stage, card.item)
 
     def _on_ai_rewrite_item(self, stage: dict[str, Any], item: dict[str, Any]) -> None:
         dialog = AiLessonHelperDialog(
@@ -266,9 +302,19 @@ class TeacherTemplateWidget(QWidget):
         layout.addStretch()
 
         add_btn = QPushButton("+ 添加题目")
-        add_btn.clicked.connect(lambda _c=False, st=stage, cb=combo: self._on_add_item(st, cb))
+        add_btn.setProperty("stage", stage)
+        add_btn.setProperty("combo", combo)
+        add_btn.clicked.connect(self._on_add_item_btn_clicked)
         layout.addWidget(add_btn)
         return row
+
+    def _on_add_item_btn_clicked(self) -> None:
+        btn = self.sender()
+        if isinstance(btn, QPushButton):
+            stage = btn.property("stage")
+            combo = btn.property("combo")
+            if isinstance(stage, dict) and isinstance(combo, QComboBox):
+                self._on_add_item(stage, combo)
 
     def _on_add_item(self, stage: dict[str, Any], combo: QComboBox) -> None:
         rt = combo.currentData() or "multipleChoice"
@@ -352,24 +398,23 @@ class ListeningTeacherWidget(TeacherTemplateWidget):
         for pt in ("wordPairing", "dialogue", "summary"):
             type_combo.addItem(pt, pt)
         type_combo.setCurrentIndex(type_combo.findData(phase.get("type", "wordPairing")))
-        type_combo.currentIndexChanged.connect(
-            lambda _i, p=phase, cb=type_combo: self._on_phase_type_changed(p, cb)
-        )
+        type_combo.setProperty("phase", phase)
+        type_combo.currentIndexChanged.connect(self._on_phase_type_combo_changed)
         playout.addWidget(QLabel("阶段类型："))
         playout.addWidget(type_combo)
 
         playout.addWidget(QLabel("音频资源："))
         audio_edit = QLineEdit(phase.get("audioAsset", ""))
-        audio_edit.textChanged.connect(lambda t, p=phase: p.__setitem__("audioAsset", t))
+        audio_edit.setProperty("phase", phase)
+        audio_edit.textChanged.connect(self._on_phase_audio_changed)
         playout.addWidget(audio_edit)
 
         playout.addWidget(QLabel("Transcript："))
         transcript_edit = QTextEdit()
         transcript_edit.setPlainText(phase.get("transcript", ""))
         transcript_edit.setMaximumHeight(80)
-        transcript_edit.textChanged.connect(
-            lambda e=transcript_edit, p=phase: p.__setitem__("transcript", e.toPlainText())
-        )
+        transcript_edit.setProperty("phase", phase)
+        transcript_edit.textChanged.connect(self._on_phase_transcript_changed)
         playout.addWidget(transcript_edit)
 
         if listening_phase_has_items(phase.get("type", "")):
@@ -379,6 +424,27 @@ class ListeningTeacherWidget(TeacherTemplateWidget):
 
         playout.addStretch()
         return widget
+
+    def _on_phase_type_combo_changed(self, _index: int) -> None:
+        combo = self.sender()
+        if isinstance(combo, QComboBox):
+            phase = combo.property("phase")
+            if isinstance(phase, dict):
+                self._on_phase_type_changed(phase, combo)
+
+    def _on_phase_audio_changed(self, text: str) -> None:
+        edit = self.sender()
+        if isinstance(edit, QLineEdit):
+            phase = edit.property("phase")
+            if isinstance(phase, dict):
+                phase["audioAsset"] = text
+
+    def _on_phase_transcript_changed(self) -> None:
+        edit = self.sender()
+        if isinstance(edit, QTextEdit):
+            phase = edit.property("phase")
+            if isinstance(phase, dict):
+                phase["transcript"] = edit.toPlainText()
 
     def _build_phase_header(self, phase: dict[str, Any]) -> QWidget:
         header = QWidget()
@@ -391,20 +457,58 @@ class ListeningTeacherWidget(TeacherTemplateWidget):
         hlayout.addWidget(title)
         hlayout.addStretch()
 
-        hlayout.addWidget(self._tool_button("重命名", "重命名", lambda _c=False, p=phase: self._on_rename_phase(p)))
+        rename_btn = self._tool_button("重命名", "重命名", self._on_rename_phase_clicked)
+        rename_btn.setProperty("phase", phase)
+        hlayout.addWidget(rename_btn)
 
         phases = self.lesson.get("content", {}).get("listeningPhases", []) or []
         idx = phases.index(phase) if phase in phases else -1
-        up_btn = self._tool_button("↑", "上移", lambda _c=False, p=phase, i=idx: self._on_move_phase(p, i, -1))
+        up_btn = self._tool_button("↑", "上移", self._on_move_phase_up_clicked)
+        up_btn.setProperty("phase", phase)
+        up_btn.setProperty("index", idx)
         up_btn.setEnabled(idx > 0)
         hlayout.addWidget(up_btn)
-        down_btn = self._tool_button("↓", "下移", lambda _c=False, p=phase, i=idx: self._on_move_phase(p, i, 1))
+        down_btn = self._tool_button("↓", "下移", self._on_move_phase_down_clicked)
+        down_btn.setProperty("phase", phase)
+        down_btn.setProperty("index", idx)
         down_btn.setEnabled(idx >= 0 and idx < len(phases) - 1)
         hlayout.addWidget(down_btn)
 
-        hlayout.addWidget(self._tool_button("删除", "删除", lambda _c=False, p=phase: self._on_delete_phase(p)))
+        delete_btn = self._tool_button("删除", "删除", self._on_delete_phase_clicked)
+        delete_btn.setProperty("phase", phase)
+        hlayout.addWidget(delete_btn)
 
         return header
+
+    def _on_rename_phase_clicked(self) -> None:
+        btn = self.sender()
+        if isinstance(btn, QPushButton):
+            phase = btn.property("phase")
+            if isinstance(phase, dict):
+                self._on_rename_phase(phase)
+
+    def _on_move_phase_up_clicked(self) -> None:
+        btn = self.sender()
+        if isinstance(btn, QPushButton):
+            phase = btn.property("phase")
+            idx = btn.property("index")
+            if isinstance(phase, dict) and isinstance(idx, int):
+                self._on_move_phase(phase, idx, -1)
+
+    def _on_move_phase_down_clicked(self) -> None:
+        btn = self.sender()
+        if isinstance(btn, QPushButton):
+            phase = btn.property("phase")
+            idx = btn.property("index")
+            if isinstance(phase, dict) and isinstance(idx, int):
+                self._on_move_phase(phase, idx, 1)
+
+    def _on_delete_phase_clicked(self) -> None:
+        btn = self.sender()
+        if isinstance(btn, QPushButton):
+            phase = btn.property("phase")
+            if isinstance(phase, dict):
+                self._on_delete_phase(phase)
 
     def _on_add_phase(self) -> None:
         if self.undo_stack is not None:
@@ -494,7 +598,8 @@ class ReadingTeacherWidget(TeacherTemplateWidget):
         passage = self.lesson.setdefault("content", {}).setdefault("readingPassage", {})
         layout.addWidget(QLabel("标题："))
         title_edit = QLineEdit(passage.get("title", ""))
-        title_edit.textChanged.connect(lambda t, p=passage: p.__setitem__("title", t))
+        title_edit.setProperty("passage", passage)
+        title_edit.textChanged.connect(self._on_passage_title_changed)
         layout.addWidget(title_edit)
 
         layout.addWidget(QLabel("正文段落（每段一行）："))
@@ -502,13 +607,25 @@ class ReadingTeacherWidget(TeacherTemplateWidget):
         paragraphs = passage.get("paragraphs", []) or []
         paragraphs_edit.setPlainText("\n\n".join(paragraphs))
         paragraphs_edit.setMaximumHeight(160)
-        paragraphs_edit.textChanged.connect(
-            lambda e=paragraphs_edit, p=passage: p.__setitem__(
-                "paragraphs",
-                [para.strip() for para in e.toPlainText().split("\n\n") if para.strip()],
-            )
-        )
+        paragraphs_edit.setProperty("passage", passage)
+        paragraphs_edit.textChanged.connect(self._on_passage_paragraphs_changed)
         layout.addWidget(paragraphs_edit)
+
+    def _on_passage_title_changed(self, text: str) -> None:
+        edit = self.sender()
+        if isinstance(edit, QLineEdit):
+            passage = edit.property("passage")
+            if isinstance(passage, dict):
+                passage["title"] = text
+
+    def _on_passage_paragraphs_changed(self) -> None:
+        edit = self.sender()
+        if isinstance(edit, QTextEdit):
+            passage = edit.property("passage")
+            if isinstance(passage, dict):
+                passage["paragraphs"] = [
+                    para.strip() for para in edit.toPlainText().split("\n\n") if para.strip()
+                ]
 
         stage = self._stage()
         if stage is not None:

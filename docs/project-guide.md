@@ -1,4 +1,4 @@
-# Turna Plus 项目指南（详尽版）
+# Turna 项目指南（详尽版）
 
 > 本文是 README 的深度补充。README 给出概览与快速上手，本文给出每个子系统的设计、实现要点与决策依据。阅读顺序建议：先读 README，再按需查阅本文相应章节。
 >
@@ -32,7 +32,7 @@
 
 ## 1. 项目定位与设计哲学
 
-**Turna Plus** 是基于上游 [Turna](https://github.com/rshrc/Varnamala) 的本地优先（local-first）、离线 Flutter 语言学习框架，当前目标语为 **Turkish（土耳其语）**。它在上游 Section/Unit/Lesson/SRS/错题本骨架之上，持续做三件事：
+**Turna** 是基于上游 [Varnamala](https://github.com/rshrc/Varnamala) 的本地优先（local-first）、离线 Flutter 语言学习框架，当前目标语为 **Turkish（土耳其语）**。它在上游 Section/Unit/Lesson/SRS/错题本骨架之上，持续做三件事：
 
 - **深化复习引擎**：从 SM-2 升级到 **FSRS**（Free Spaced Repetition Scheduler），并加入记忆曲线可视化与复习历史持久化。
 - **打通 Anki 生态**：可直接导入 `.apkg` 牌组，按 notetype 智能映射为课程结构，复杂牌组以 WebView 高保真渲染，并与本应用 SRS/错题/统计流水线双向打通。

@@ -311,23 +311,35 @@ class ListeningPhasesEditor(QWidget):
         phases = self.lesson["content"][ContentKey.LISTENING_PHASES]
         if row < 0 or row >= len(phases):
             return
+        self._current_phase_index = row
         phase = phases[row]
         self._clear_meta()
         if "audioAsset" in phase:
             self.audio_edit = QLineEdit(phase.get("audioAsset", ""))
-            self.audio_edit.textChanged.connect(
-                lambda v: phase.__setitem__("audioAsset", v)
-            )
+            self.audio_edit.textChanged.connect(self._on_audio_changed)
             self.meta_layout.addRow("audioAsset:", self.audio_edit)
         if "transcript" in phase:
             self.transcript_edit = QTextEdit(phase.get("transcript", ""))
             self.transcript_edit.setMaximumHeight(80)
-            self.transcript_edit.textChanged.connect(
-                lambda e=self.transcript_edit, p=phase: p.__setitem__(
-                    "transcript", e.toPlainText()
-                )
-            )
+            self.transcript_edit.textChanged.connect(self._on_transcript_changed)
             self.meta_layout.addRow("transcript:", self.transcript_edit)
+
+    def _current_phase(self) -> dict[str, Any] | None:
+        phases = self.lesson.get("content", {}).get(ContentKey.LISTENING_PHASES, [])
+        idx = getattr(self, "_current_phase_index", -1)
+        if 0 <= idx < len(phases):
+            return phases[idx]
+        return None
+
+    def _on_audio_changed(self, text: str) -> None:
+        phase = self._current_phase()
+        if phase is not None:
+            phase["audioAsset"] = text
+
+    def _on_transcript_changed(self) -> None:
+        phase = self._current_phase()
+        if phase is not None and hasattr(self, "transcript_edit"):
+            phase["transcript"] = self.transcript_edit.toPlainText()
         if ContentKey.ITEMS in phase:
             self.item_panel.show_stage(phase)
         else:
@@ -372,6 +384,7 @@ class ReadingEditor(QWidget):
             "linkedWordIds": [],
             "linkedExpressionIds": [],
         })
+        self.passage = passage
         stages = content.setdefault(ContentKey.STAGES, [])
         if not stages:
             add_stage(content, "Comprehension")
@@ -380,20 +393,16 @@ class ReadingEditor(QWidget):
         passage_box = QGroupBox("阅读篇章")
         pform = QFormLayout()
         self.title_edit = QLineEdit(passage.get("title", ""))
-        self.title_edit.textChanged.connect(lambda v: passage.__setitem__("title", v))
+        self.title_edit.textChanged.connect(self._on_title_changed)
         pform.addRow("title:", self.title_edit)
         self.diff_spin = QSpinBox()
         self.diff_spin.setRange(1, 5)
         self.diff_spin.setValue(int(passage.get("difficulty", 1)))
-        self.diff_spin.valueChanged.connect(lambda v: passage.__setitem__("difficulty", v))
+        self.diff_spin.valueChanged.connect(self._on_diff_changed)
         pform.addRow("difficulty:", self.diff_spin)
         self.paras_edit = QTextEdit("\n\n".join(passage.get("paragraphs", [])))
         self.paras_edit.setMaximumHeight(120)
-        self.paras_edit.textChanged.connect(
-            lambda e=self.paras_edit, p=passage: p.__setitem__(
-                "paragraphs", [s.strip() for s in e.toPlainText().split("\n\n") if s.strip()]
-            )
-        )
+        self.paras_edit.textChanged.connect(self._on_paras_changed)
         pform.addRow("paragraphs (空行分隔):", self.paras_edit)
         passage_box.setLayout(pform)
         layout.addWidget(passage_box)
@@ -401,6 +410,17 @@ class ReadingEditor(QWidget):
         self.item_panel = ItemListPanel(adapter)
         layout.addWidget(self.item_panel, 1)
         self.item_panel.show_stage(stages[0])
+
+    def _on_title_changed(self, text: str) -> None:
+        self.passage["title"] = text
+
+    def _on_diff_changed(self, val: int) -> None:
+        self.passage["difficulty"] = val
+
+    def _on_paras_changed(self) -> None:
+        self.passage["paragraphs"] = [
+            s.strip() for s in self.paras_edit.toPlainText().split("\n\n") if s.strip()
+        ]
 
 
 class LessonEditor(QWidget):

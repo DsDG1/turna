@@ -1,3 +1,0 @@
-debug apk: 65dd5ae5010f1f14781e1ce6af9566e1ede04e2b4612c6f966101bf7bec36270
-jniLibs so: 1493d32c5f9f5e66b467803cb804bd4c24993bc5525c9859c2e03e85827ffd48
-1493d32c5f9f5e66b467803cb804bd4c24993bc5525c9859c2e03e85827ffd48  /home/whwen/documents/reso/Varnamalaplus/Varnamalaplus/android/app/src/main/jniLibs/arm64-v8a/libturna_anki.so

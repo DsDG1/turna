@@ -14,6 +14,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+import functools
 import sys
 import time
 from dataclasses import dataclass
@@ -341,16 +342,28 @@ class TextbookImportController:
 
         self._load_id += 1
         load_id = self._load_id
+        self._load_path = path
+        self._load_on_done = on_done
         worker = self._worker_factory(self._read_source_text, path)
-        worker.result_ready.connect(
-            lambda text: self._apply_loaded_text(path, text, load_id, on_done)
-        )
-        worker.error_occurred.connect(
-            lambda msg: self._on_load_error(path, msg, load_id, on_done)
-        )
+        worker.result_ready.connect(self._on_load_result_ready)
+        worker.error_occurred.connect(self._on_load_error_occurred)
         self._load_worker = worker
         worker.start()
         return None
+
+    def _on_load_result_ready(self, text: str) -> None:
+        path = getattr(self, "_load_path", None)
+        load_id = getattr(self, "_load_id", 0)
+        on_done = getattr(self, "_load_on_done", None)
+        if path is not None:
+            self._apply_loaded_text(path, text, load_id, on_done)
+
+    def _on_load_error_occurred(self, msg: str) -> None:
+        path = getattr(self, "_load_path", None)
+        load_id = getattr(self, "_load_id", 0)
+        on_done = getattr(self, "_load_on_done", None)
+        if path is not None:
+            self._on_load_error(path, msg, load_id, on_done)
 
     def _apply_loaded_text(
         self,
@@ -524,22 +537,18 @@ class TextbookImportController:
             overlap_chars=self._preset.overlap_chars,
             max_retries=1,
         )
-        self._connect_and_start(
-            idx,
-            worker,
-            on_ready=lambda kp, idx=idx, w=worker: self._on_extract_ready(idx, kp, w),
-            on_error=lambda msg, idx=idx, w=worker: self._on_extract_error(
-                idx, msg, w, strategy=strategy
-            ),
-        )
+        worker._chapter_idx = idx
+        worker._extract_strategy = strategy
+        worker._worker_kind = "extract"
+        self._connect_and_start(idx, worker)
 
     def _connect_and_start(
         self,
         idx: int,
         worker: Any,
         *,
-        on_ready: Callable[[Any], None],
-        on_error: Callable[[str], None],
+        on_ready: Callable[[Any], None] | None = None,
+        on_error: Callable[[str], None] | None = None,
     ) -> None:
         """Wire AiRequestWorker-compatible signals and start the worker.
 
@@ -548,17 +557,33 @@ class TextbookImportController:
         superseded retry) can be recognised as stale and ignored.
         """
         if hasattr(worker, "result_ready"):
-            worker.result_ready.connect(on_ready)
+            slot_ready = on_ready if on_ready is not None else functools.partial(self._on_extract_ready_worker, idx, worker)
+            worker.result_ready.connect(slot_ready)
         if hasattr(worker, "error_occurred"):
-            worker.error_occurred.connect(on_error)
+            slot_error = on_error if on_error is not None else functools.partial(self._on_extract_error_worker, idx, worker)
+            worker.error_occurred.connect(slot_error)
         if hasattr(worker, "chunk_ready"):
             worker.chunk_ready.connect(self._on_extract_chunk)
         if hasattr(worker, "usage_ready"):
-            worker.usage_ready.connect(
-                lambda usage, idx=idx, w=worker: self._on_usage_guarded(idx, usage, w)
-            )
+            worker.usage_ready.connect(functools.partial(self._on_usage_worker, idx, worker))
         self._active_workers[idx] = worker
         worker.start()
+
+    def _on_extract_ready_worker(self, idx: int, worker: object, kp: KnowledgePoints) -> None:
+        self._on_extract_ready(idx, kp, worker)
+
+    def _on_extract_error_worker(self, idx: int, worker: object, message: str) -> None:
+        strategy = getattr(worker, "_extract_strategy", "standard")
+        self._on_extract_error(idx, message, worker, strategy=strategy)
+
+    def _on_usage_worker(self, idx: int, worker: object, usage: Any) -> None:
+        self._on_usage_guarded(idx, usage, worker)
+
+    def _on_reextract_ready_worker(self, idx: int, worker: object, kp: KnowledgePoints) -> None:
+        self._on_reextract_ready(idx, kp, worker)
+
+    def _on_reextract_error_worker(self, idx: int, worker: object, message: str) -> None:
+        self._on_reextract_error(idx, message, worker)
 
     def _is_active(self, idx: int, worker: object) -> bool:
         """True if ``worker`` is still the tracked worker for chapter ``idx``."""
@@ -799,8 +824,8 @@ class TextbookImportController:
         self._connect_and_start(
             index,
             worker,
-            on_ready=lambda kp, idx=index, w=worker: self._on_reextract_ready(idx, kp, w),
-            on_error=lambda msg, idx=index, w=worker: self._on_reextract_error(idx, msg, w),
+            on_ready=functools.partial(self._on_reextract_ready_worker, index, worker),
+            on_error=functools.partial(self._on_reextract_error_worker, index, worker),
         )
         return ImportStepResult.success("extract", "开始按质量重抽…")
 

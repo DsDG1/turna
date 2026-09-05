@@ -99,9 +99,8 @@ class AiLessonHelperDialog(QDialog):
             btn = QPushButton(label)
             btn.setFlat(True)
             btn.setToolTip(instruction)
-            btn.clicked.connect(
-                lambda _c=False, t=instruction: self._append_instruction(t)
-            )
+            btn.setProperty("instruction_text", instruction)
+            btn.clicked.connect(self._on_preset_chip_clicked)
             chips_layout.addWidget(btn)
         chips_layout.addStretch()
         layout.addWidget(chips)
@@ -138,6 +137,14 @@ class AiLessonHelperDialog(QDialog):
         self.run_btn.setDefault(True)
         self.run_btn.clicked.connect(self._on_run)
         layout.addWidget(self.run_btn)
+
+    def _on_preset_chip_clicked(self) -> None:
+        sender = self.sender()
+        if not sender:
+            return
+        t = sender.property("instruction_text")
+        if isinstance(t, str):
+            self._append_instruction(t)
 
     def _append_instruction(self, text: str) -> None:
         current = self.instruction_edit.toPlainText().strip()

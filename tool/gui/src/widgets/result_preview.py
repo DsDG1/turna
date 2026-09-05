@@ -395,11 +395,20 @@ class ResultPreviewWidget(QWidget):
         menu = QMenu(self)
         label = "AI 重生成本课时" if kind == "lesson" else "AI 重生成该单元"
         act = QAction(label, menu)
-        act.triggered.connect(
-            lambda _=False, k=kind, i=str(node_id): self.regenerate_requested.emit(k, i)
-        )
+        act.setProperty("regen_kind", kind)
+        act.setProperty("regen_id", str(node_id))
+        act.triggered.connect(self._on_regenerate_action_triggered)
         menu.addAction(act)
         menu.exec(self.tree.viewport().mapToGlobal(pos))
+
+    def _on_regenerate_action_triggered(self) -> None:
+        sender = self.sender()
+        if not sender:
+            return
+        k = sender.property("regen_kind")
+        i = sender.property("regen_id")
+        if isinstance(k, str) and isinstance(i, str):
+            self.regenerate_requested.emit(k, i)
 
     def _highlight_problems(self, problems: list[dict[str, Any]]) -> None:
         """Mark tree nodes whose unit/lesson id matches a problem path (P3.1)."""

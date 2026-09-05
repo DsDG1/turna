@@ -7,6 +7,7 @@ dangling ids cannot be typed by hand (guiplan §5 reference-integrity guard).
 """
 from __future__ import annotations
 
+import functools
 from typing import Any, Callable
 
 from PySide6.QtGui import QStandardItemModel
@@ -75,8 +76,14 @@ class StringListEditor(QWidget):
         self._refresh()
         self.add_btn.clicked.connect(self._on_add)
         self.del_btn.clicked.connect(self._on_del)
-        self.up_btn.clicked.connect(lambda: self._move(-1))
-        self.down_btn.clicked.connect(lambda: self._move(1))
+        self.up_btn.clicked.connect(self._on_move_up)
+        self.down_btn.clicked.connect(self._on_move_down)
+
+    def _on_move_up(self) -> None:
+        self._move(-1)
+
+    def _on_move_down(self) -> None:
+        self._move(1)
 
     def _refresh(self) -> None:
         self.list_widget.clear()
@@ -186,33 +193,34 @@ class InteractionForm(QWidget):
                 edit = QTextEdit()
                 edit.setAcceptRichText(False)
                 edit.setPlainText(str(value or ""))
-                edit.textChanged.connect(
-                    lambda e=edit, n=spec.name: self._set(n, e.toPlainText())
-                )
+                edit.setProperty("field_name", spec.name)
+                edit.textChanged.connect(self._on_text_edit_changed)
                 return edit
             edit = QLineEdit(str(value or ""))
-            edit.textChanged.connect(lambda v, n=spec.name: self._set(n, v))
+            edit.setProperty("field_name", spec.name)
+            edit.textChanged.connect(self._on_line_edit_changed)
             return edit
         if spec.kind == "int":
             spin = QSpinBox()
             spin.setRange(0, 2147483647)
             spin.setValue(int(value or 0))
-            spin.valueChanged.connect(lambda v, n=spec.name: self._set(n, v))
+            spin.setProperty("field_name", spec.name)
+            spin.valueChanged.connect(self._on_spin_changed)
             return spin
         if spec.kind == "bool":
             chk = QCheckBox()
             chk.setChecked(bool(value))
-            chk.toggled.connect(lambda v, n=spec.name: self._set(n, v))
+            chk.setProperty("field_name", spec.name)
+            chk.toggled.connect(self._on_chk_toggled)
             return chk
         if spec.kind == "string_list":
             return StringListEditor(
-                list(value or []), lambda v, n=spec.name: self._set(n, v)
+                list(value or []), functools.partial(self._set, spec.name)
             )
         if spec.kind == "int_list":
             edit = QLineEdit(", ".join(str(i) for i in (value or [])))
-            edit.textChanged.connect(
-                lambda v, n=spec.name: self._set(n, _parse_int_list(v))
-            )
+            edit.setProperty("field_name", spec.name)
+            edit.textChanged.connect(self._on_int_list_changed)
             return edit
         if spec.kind in ("ref_word", "ref_expression", "ref_grammar"):
             combo = _ref_combo(
@@ -223,11 +231,52 @@ class InteractionForm(QWidget):
                 expression_model=self._expression_model,
                 grammar_model=self._grammar_model,
             )
-            combo.currentIndexChanged.connect(
-                lambda _i, c=combo, n=spec.name: self._set(n, c.currentData())
-            )
+            combo.setProperty("field_name", spec.name)
+            combo.currentIndexChanged.connect(self._on_ref_combo_changed)
             return combo
         return QLabel(str(value))
+
+    def _on_text_edit_changed(self) -> None:
+        edit = self.sender()
+        if isinstance(edit, QTextEdit):
+            name = edit.property("field_name")
+            if isinstance(name, str):
+                self._set(name, edit.toPlainText())
+
+    def _on_line_edit_changed(self, text: str) -> None:
+        edit = self.sender()
+        if isinstance(edit, QLineEdit):
+            name = edit.property("field_name")
+            if isinstance(name, str):
+                self._set(name, text)
+
+    def _on_spin_changed(self, val: int) -> None:
+        spin = self.sender()
+        if isinstance(spin, QSpinBox):
+            name = spin.property("field_name")
+            if isinstance(name, str):
+                self._set(name, val)
+
+    def _on_chk_toggled(self, checked: bool) -> None:
+        chk = self.sender()
+        if isinstance(chk, QCheckBox):
+            name = chk.property("field_name")
+            if isinstance(name, str):
+                self._set(name, checked)
+
+    def _on_int_list_changed(self, text: str) -> None:
+        edit = self.sender()
+        if isinstance(edit, QLineEdit):
+            name = edit.property("field_name")
+            if isinstance(name, str):
+                self._set(name, _parse_int_list(text))
+
+    def _on_ref_combo_changed(self, _index: int) -> None:
+        combo = self.sender()
+        if isinstance(combo, QComboBox):
+            name = combo.property("field_name")
+            if isinstance(name, str):
+                self._set(name, combo.currentData())
 
     def _set(self, name: str, value: Any) -> None:
         self.item[name] = value

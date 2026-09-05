@@ -105,18 +105,17 @@ class BulkMergeResolveDialog(QDialog):
             combo.addItem("合并（默认全选）", _MERGE)
             combo.addItem("跳过", _SKIP)
             combo.addItem("细看…", _DETAIL)
-            combo.currentIndexChanged.connect(
-                lambda _idx, r=row, c=combo: self._on_action_changed(r, c)
-            )
+            combo.setProperty("row_idx", row)
+            combo.currentIndexChanged.connect(self._on_combo_index_changed)
             self._combos.append(combo)
             self._table.setCellWidget(row, 4, combo)
         layout.addWidget(self._table, 1)
 
         bulk_row = QHBoxLayout()
         merge_all = QPushButton("全部合并")
-        merge_all.clicked.connect(lambda: self._set_all(_MERGE))
+        merge_all.clicked.connect(self._on_merge_all_clicked)
         skip_all = QPushButton("全部跳过")
-        skip_all.clicked.connect(lambda: self._set_all(_SKIP))
+        skip_all.clicked.connect(self._on_skip_all_clicked)
         bulk_row.addWidget(merge_all)
         bulk_row.addWidget(skip_all)
         bulk_row.addStretch(1)
@@ -130,6 +129,20 @@ class BulkMergeResolveDialog(QDialog):
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
+
+    def _on_combo_index_changed(self, _idx: int) -> None:
+        sender = self.sender()
+        if not isinstance(sender, QComboBox):
+            return
+        row = sender.property("row_idx")
+        if row is not None:
+            self._on_action_changed(int(row), sender)
+
+    def _on_merge_all_clicked(self) -> None:
+        self._set_all(_MERGE)
+
+    def _on_skip_all_clicked(self) -> None:
+        self._set_all(_SKIP)
 
     def _on_action_changed(self, row: int, combo: QComboBox) -> None:
         action = combo.currentData()

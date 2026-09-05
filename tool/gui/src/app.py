@@ -421,7 +421,16 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
         for repo in repos:
             path = repo.get("path", "")
             action = self.recent_menu.addAction(path)
-            action.triggered.connect(lambda checked=False, p=path: self._open_repo_path(p))
+            action.setProperty("repo_path", path)
+            action.triggered.connect(self._on_recent_repo_action_triggered)
+
+    def _on_recent_repo_action_triggered(self) -> None:
+        sender = self.sender()
+        if not sender:
+            return
+        p = sender.property("repo_path")
+        if isinstance(p, str):
+            self._open_repo_path(p)
 
     def _clear_recent_repos(self) -> None:
         self._settings_obj.clear_recent_repos()

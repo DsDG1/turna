@@ -392,7 +392,8 @@ class CourseTreeWidget(QTreeWidget):
                 menu.addSeparator()
             act_dup_lesson = QAction("复制 Lesson", self)
             act_dup_lesson.setShortcut("Ctrl+D")
-            act_dup_lesson.triggered.connect(lambda: self._duplicate_lessons([node_id]))
+            act_dup_lesson.setProperty("node_id", node_id)
+            act_dup_lesson.triggered.connect(self._on_act_dup_lesson_triggered)
             menu.addAction(act_dup_lesson)
             menu.addAction("删除 Lesson", lambda: self._delete_lesson(node_id))
             menu.addSeparator()
@@ -400,6 +401,14 @@ class CourseTreeWidget(QTreeWidget):
             menu.addAction("AI 修正此 Lesson", lambda: self.ai_fix_requested.emit("lesson", node_id))
         if not menu.isEmpty():
             menu.exec(self.viewport().mapToGlobal(pos))
+
+    def _on_act_dup_lesson_triggered(self) -> None:
+        sender = self.sender()
+        if not sender:
+            return
+        node_id = sender.property("node_id")
+        if isinstance(node_id, str):
+            self._duplicate_lessons([node_id])
 
     def _push(self, cmd) -> None:
         """Push a command onto the undo stack if available, else run redo once."""
@@ -676,13 +685,13 @@ class CourseTreeWidget(QTreeWidget):
         self._move_up_btn.setText("↑")
         self._move_up_btn.setToolTip("上移（可跨 Unit/Section）")
         self._move_up_btn.setEnabled(False)
-        self._move_up_btn.clicked.connect(lambda: self._move_current(-1))
+        self._move_up_btn.clicked.connect(self._on_move_up_clicked)
         bar.addWidget(self._move_up_btn)
         self._move_down_btn = QToolButton()
         self._move_down_btn.setText("↓")
         self._move_down_btn.setToolTip("下移（可跨 Unit/Section）")
         self._move_down_btn.setEnabled(False)
-        self._move_down_btn.clicked.connect(lambda: self._move_current(1))
+        self._move_down_btn.clicked.connect(self._on_move_down_clicked)
         bar.addWidget(self._move_down_btn)
         bar.addStretch()
         layout.addLayout(bar)
@@ -796,6 +805,12 @@ class CourseTreeWidget(QTreeWidget):
             for unit in section.get("units", []):
                 result.append((sid, unit.get("id", "")))
         return result
+
+    def _on_move_up_clicked(self) -> None:
+        self._move_current(-1)
+
+    def _on_move_down_clicked(self) -> None:
+        self._move_current(1)
 
     def _move_current(self, direction: int) -> None:
         """Move the current item up (direction=-1) or down (+1).

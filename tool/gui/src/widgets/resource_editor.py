@@ -198,10 +198,22 @@ class ResourceTableWidget(QWidget):
     ) -> None:
         items = entry.get("practiceItems") or []
         btn = QPushButton(f"编辑练习（{len(items)} 题）")
-        btn.clicked.connect(
-            lambda _c, e=entry: self._open_practice_dialog(e)
-        )
+        btn.setProperty("entry_id", str(entry.get("id", "")))
+        btn.clicked.connect(self._on_practice_btn_clicked)
         self.table.setCellWidget(row, col, btn)
+
+    def _on_practice_btn_clicked(self) -> None:
+        sender = self.sender()
+        if not sender:
+            return
+        entry_id = sender.property("entry_id")
+        if not entry_id:
+            return
+        entries = self.adapter._resource_list(self.row_type)
+        for entry in entries:
+            if entry.get("id") == entry_id:
+                self._open_practice_dialog(entry)
+                break
 
     def _open_practice_dialog(self, entry: dict) -> None:
         items = entry.setdefault("practiceItems", [])
@@ -472,8 +484,11 @@ class PracticeItemsDialog(QDialog):
         layout.addWidget(self.panel, 1)
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         buttons.rejected.connect(self.reject)
-        buttons.clicked.connect(lambda _b: self.reject())
+        buttons.clicked.connect(self._on_close_clicked)
         layout.addWidget(buttons)
+
+    def _on_close_clicked(self, _button: Any) -> None:
+        self.reject()
 
 
 class ResourceEditorDialog(QWidget):

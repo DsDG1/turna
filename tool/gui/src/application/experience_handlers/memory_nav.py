@@ -183,13 +183,16 @@ def _start_experience_diagnose(host) -> None:
     )
     host.experience_metrics.inc_job("validate", "started")
     host._refresh_experience(immediate=False, focus_only=True)
-    worker = AiRequestWorker(lambda: _validate_course_problems(course_dir))
-    worker.result_ready.connect(
-        lambda problems, d=course_dir: host._on_diagnose_problems(d, problems)
-    )
-    worker.error_occurred.connect(
-        lambda msg, d=course_dir: host._on_diagnose_failed(d, msg)
-    )
+    worker = AiRequestWorker(_validate_course_problems, course_dir)
+
+    def _on_problems(problems: object) -> None:
+        host._on_diagnose_problems(course_dir, problems)
+
+    def _on_failed(msg: str) -> None:
+        host._on_diagnose_failed(course_dir, msg)
+
+    worker.result_ready.connect(_on_problems)
+    worker.error_occurred.connect(_on_failed)
     worker.start()
     host._diagnose_worker = worker
 

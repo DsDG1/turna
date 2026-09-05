@@ -214,9 +214,9 @@ class AiFixDialog(QDialog):
         self._worker = worker
         # Identity guard: a cancelled worker may still emit result/error before
         # terminating; ignore signals from any worker that is no longer current.
-        worker.result_ready.connect(lambda r, w=worker: self._on_result(w, r))
-        worker.error_occurred.connect(lambda m, w=worker: self._on_error(w, m))
-        worker.completed.connect(lambda w=worker: self._on_completed(w))
+        worker.result_ready.connect(self._on_worker_result)
+        worker.error_occurred.connect(self._on_worker_error)
+        worker.completed.connect(self._on_worker_completed)
         worker.start()
 
     def _ai_generation_kwargs(self) -> dict[str, Any]:
@@ -358,6 +358,40 @@ class AiFixDialog(QDialog):
         self.retry_btn.setEnabled(True)
         self._worker = None
 
+    def _disconnect_worker(self, worker: AiRequestWorker | None = None) -> None:
+        w = worker or self._worker
+        if w is not None:
+            try:
+                w.result_ready.disconnect(self._on_worker_result)
+            except Exception:
+                pass
+            try:
+                w.error_occurred.disconnect(self._on_worker_error)
+            except Exception:
+                pass
+            try:
+                w.completed.disconnect(self._on_worker_completed)
+            except Exception:
+                pass
+
+    def _on_worker_result(self, result: object) -> None:
+        worker = getattr(self, "_worker", None)
+        if worker is None or self.sender() is not worker:
+            return
+        self._on_result(worker, result)
+
+    def _on_worker_error(self, message: str) -> None:
+        worker = getattr(self, "_worker", None)
+        if worker is None or self.sender() is not worker:
+            return
+        self._on_error(worker, message)
+
+    def _on_worker_completed(self) -> None:
+        worker = getattr(self, "_worker", None)
+        if worker is None or self.sender() is not worker:
+            return
+        self._on_completed(worker)
+
     def _on_button_clicked(self, button: QPushButton) -> None:
         role = self._button_box.buttonRole(button)
         if role == QDialogButtonBox.ButtonRole.ApplyRole:
@@ -369,6 +403,8 @@ class AiFixDialog(QDialog):
         return self._corrected
 
     def closeEvent(self, event) -> None:  # noqa: N802
-        if self._worker is not None and self._worker.isRunning():
-            self._worker.cancel()
+        if self._worker is not None:
+            self._disconnect_worker(self._worker)
+            if self._worker.isRunning():
+                self._worker.cancel()
         super().closeEvent(event)

@@ -240,7 +240,7 @@ class TextbookImportDialog(QDialog):
         lay.addWidget(QLabel("勾选要导入的章节："))
         btns = QHBoxLayout()
         select_all = QPushButton("全选")
-        select_all.clicked.connect(lambda: self._set_all_chapters(True))
+        select_all.clicked.connect(self._select_all_chapters)
         invert = QPushButton("反选")
         invert.clicked.connect(self._invert_chapters)
         btns.addWidget(select_all)
@@ -272,9 +272,7 @@ class TextbookImportDialog(QDialog):
         self._concurrency_spin.setRange(1, 3)
         self._concurrency_spin.setValue(1)
         self._concurrency_spin.setToolTip("同时抽取的章节数（1=串行，越大越快但 token 并发消耗更高）")
-        self._concurrency_spin.valueChanged.connect(
-            lambda v: setattr(self._controller, "max_concurrent", int(v))
-        )
+        self._concurrency_spin.valueChanged.connect(self._on_concurrency_changed)
         opt_row.addWidget(self._concurrency_spin)
         opt_row.addStretch()
         lay.addLayout(opt_row)
@@ -336,11 +334,9 @@ class TextbookImportDialog(QDialog):
         left_lay.addWidget(self._chapter_recovery_label)
 
         self._retry_btn = QPushButton("重试本章")
-        self._retry_btn.clicked.connect(lambda: self._on_retry_chapter("standard"))
+        self._retry_btn.clicked.connect(self._on_retry_standard_clicked)
         self._retry_vocab_btn = QPushButton("仅抽词汇")
-        self._retry_vocab_btn.clicked.connect(
-            lambda: self._on_retry_chapter("vocab_only")
-        )
+        self._retry_vocab_btn.clicked.connect(self._on_retry_vocab_clicked)
         self._skip_btn = QPushButton("跳过本章")
         self._skip_btn.clicked.connect(self._on_skip_chapter)
         self._reextract_btn = QPushButton("按质量重抽")
@@ -381,7 +377,7 @@ class TextbookImportDialog(QDialog):
         nav_row = QHBoxLayout()
         self._design_btn = QPushButton("AI 设计课程 →")
         self._design_btn.setToolTip("用资源池里的知识点，让 AI 编排成课程（课程工坊）")
-        self._design_btn.clicked.connect(lambda: self.design_requested.emit())
+        self._design_btn.clicked.connect(self._on_design_btn_clicked)
         # Only meaningful inside the workshop, which owns the design stage.
         self._design_btn.setVisible(self._embedded)
         nav_row.addWidget(self._design_btn)
@@ -409,9 +405,7 @@ class TextbookImportDialog(QDialog):
             self._strategy_group.addButton(radio, i)
             self._strategy_buttons[value] = radio
             strategy_lay.addWidget(radio)
-        self._strategy_group.idToggled.connect(
-            lambda _id, checked: self._on_strategy_changed() if checked else None
-        )
+        self._strategy_group.idToggled.connect(self._on_strategy_id_toggled)
         lay.addWidget(strategy_box)
 
         # Bulk preview panel.
@@ -420,7 +414,7 @@ class TextbookImportDialog(QDialog):
 
         btns = QHBoxLayout()
         back_btn = QPushButton("<- 返回审校")
-        back_btn.clicked.connect(lambda: self._go_to_step(STEP_REVIEW))
+        back_btn.clicked.connect(self._on_back_to_review_clicked)
         btns.addWidget(back_btn)
         btns.addStretch()
         self._import_btn = QPushButton("确认导入 ↗")
@@ -687,6 +681,13 @@ class TextbookImportDialog(QDialog):
             item.setCheckState(Qt.CheckState.Checked if cr.keep else Qt.CheckState.Unchecked)
             self._chapter_list.addItem(item)
 
+    def _select_all_chapters(self) -> None:
+        self._set_all_chapters(True)
+
+    def _on_concurrency_changed(self, value: int) -> None:
+        if hasattr(self, "_controller"):
+            self._controller.max_concurrent = int(value)
+
     def _set_all_chapters(self, checked: bool) -> None:
         state = Qt.CheckState.Checked if checked else Qt.CheckState.Unchecked
         for i in range(self._chapter_list.count()):
@@ -810,6 +811,12 @@ class TextbookImportDialog(QDialog):
             QMessageBox.warning(self, "重试抽取", result.message)
         else:
             self._set_busy(True, "重试中…")
+
+    def _on_retry_standard_clicked(self) -> None:
+        self._on_retry_chapter("standard")
+
+    def _on_retry_vocab_clicked(self) -> None:
+        self._on_retry_chapter("vocab_only")
 
     def _on_skip_chapter(self) -> None:
         if self._selected_chapter_index is None:
@@ -951,6 +958,16 @@ class TextbookImportDialog(QDialog):
             payload={"strategy": self._current_strategy()},
         )
         self._refresh_preview()
+
+    def _on_strategy_id_toggled(self, _id: int, checked: bool) -> None:
+        if checked:
+            self._on_strategy_changed()
+
+    def _on_back_to_review_clicked(self) -> None:
+        self._go_to_step(STEP_REVIEW)
+
+    def _on_design_btn_clicked(self) -> None:
+        self.design_requested.emit()
 
     def _goto_import_preview(self) -> None:
         """Apply review edits, then show the import/preview page."""

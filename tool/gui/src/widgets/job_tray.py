@@ -187,10 +187,9 @@ class JobTray(QWidget):
                     if job.node_key
                     else "该任务无关联节点，无法定位"
                 )
-                # Capture job_id by value via default arg.
-                loc.triggered.connect(
-                    lambda _checked=False, jid=job.job_id: self.emit_locate(jid)
-                )
+                # Store job_id on action property.
+                loc.setProperty("job_id", job.job_id)
+                loc.triggered.connect(self._on_locate_action_triggered)
                 menu.addAction(loc)
 
                 cancel = QAction("  取消", menu)
@@ -201,6 +200,14 @@ class JobTray(QWidget):
                 menu.addAction(cancel)
                 menu.addSeparator()
         menu.exec(self._label.mapToGlobal(self._label.rect().bottomLeft()))
+
+    def _on_locate_action_triggered(self) -> None:
+        sender = self.sender()
+        if not sender:
+            return
+        jid = sender.property("job_id")
+        if isinstance(jid, str):
+            self.emit_locate(jid)
 
 
 # Re-export kinds for call sites that prefer importing from the widget.

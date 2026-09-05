@@ -124,9 +124,8 @@ class ReviewPanel(QWidget):
             btn.setFlat(True)
             btn.setEnabled(False)
             btn.setToolTip(f"查看「{short}」维度问题并一键修复（建议性）")
-            btn.clicked.connect(
-                lambda _c=False, d=dim: self._on_dimension_clicked(d)
-            )
+            btn.setProperty("dimension_key", dim)
+            btn.clicked.connect(self._on_dim_btn_clicked)
             self._dim_buttons[dim] = btn
             self._dim_row.addWidget(btn)
         self._dim_row.addStretch(1)
@@ -366,6 +365,14 @@ class ReviewPanel(QWidget):
             color = pal.get("success", pal["text_secondary"])
         self._quality_label.setStyleSheet(f"color: {color}; font-size: 11px;")
         self._quality_label.setVisible(True)
+
+    def _on_dim_btn_clicked(self) -> None:
+        sender = self.sender()
+        if not sender:
+            return
+        dim = sender.property("dimension_key")
+        if isinstance(dim, str):
+            self._on_dimension_clicked(dim)
 
     def _on_dimension_clicked(self, dimension: str) -> None:
         """U0-3: show issues for one dimension; offer targeted AI fix."""

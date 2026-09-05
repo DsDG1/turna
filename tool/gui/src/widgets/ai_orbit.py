@@ -323,12 +323,18 @@ class AiOrbitWidget(QWidget):
         bubble = KnowledgeBubble(
             entry, res_type, parent=self.bubbles_container, show_close=True
         )
-        bubble.closed.connect(lambda: self.remove_knowledge_point(payload, bubble))
+        bubble.closed.connect(self._on_bubble_closed)
         self.bubbles_layout.addWidget(bubble)
         self.prompt_label.setText(
             f"已投入 {len(self.dropped_items)} 个知识点 · Ctrl+Enter 生成"
         )
         self.focus_changed.emit()
+
+    def _on_bubble_closed(self) -> None:
+        sender = self.sender()
+        if isinstance(sender, KnowledgeBubble):
+            payload = {"entry": sender.data, "resource_type": sender.resource_type}
+            self.remove_knowledge_point(payload, sender)
 
     def remove_knowledge_point(
         self, payload: dict[str, Any], bubble: KnowledgeBubble

@@ -1,8 +1,9 @@
 """Validation report dialog + tree jump (S-10 final / v4.56)."""
 from __future__ import annotations
 
-from typing import Any, Sequence
+import functools
 import logging
+from typing import Any, Sequence
 from src.application.experience_host import ExperienceHost
 logger = logging.getLogger(__name__)
 
@@ -39,7 +40,7 @@ def show_validation_report(
     dlg.resize(640, 420)
     report = ValidationReportWidget(host.adapter, dlg)
     report.show_problems(list(problems))
-    report.jump_to.connect(lambda ref: jump_to_node(host, ref))
+    report.jump_to.connect(functools.partial(jump_to_node, host))
     report.ai_fix_requested.connect(host._on_ai_fix_requested)
     report.ai_batch_fix_requested.connect(host._on_ai_batch_fix_requested)
     report.ai_fix_single_requested.connect(host._on_ai_fix_single)

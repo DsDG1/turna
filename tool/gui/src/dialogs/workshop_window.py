@@ -124,7 +124,7 @@ class WorkshopWindow(QDialog):
         self._project_btn.setFlat(True)
         self._project_btn.setStyleSheet("font-weight: 600;")
         self._project_btn.setToolTip("点击返回项目库，切换或新建项目")
-        self._project_btn.clicked.connect(lambda: self._go_to_library())
+        self._project_btn.clicked.connect(self._on_project_btn_clicked)
         row.addWidget(self._project_btn)
         self._lang_label = QLabel("")
         self._lang_label.setStyleSheet(
@@ -150,7 +150,8 @@ class WorkshopWindow(QDialog):
             btn.setStyleSheet(
                 f"color: {current_palette()['text_secondary']}; letter-spacing: 1px;"
             )
-            btn.clicked.connect(lambda _c=False, k=key: self._on_checklist_clicked(k))
+            btn.setProperty("checklist_key", key)
+            btn.clicked.connect(self._on_checklist_btn_clicked)
             self._checklist_btns[key] = btn
             self._checklist_row.addWidget(btn)
         row.addLayout(self._checklist_row)
@@ -341,6 +342,17 @@ class WorkshopWindow(QDialog):
             btn.setStyleSheet(f"color: {color}; letter-spacing: 1px; font-weight: 600;")
             btn.setVisible(True)
         self._checklist_label.setText(self._format_checklist())
+
+    def _on_project_btn_clicked(self) -> None:
+        self._go_to_library()
+
+    def _on_checklist_btn_clicked(self) -> None:
+        sender = self.sender()
+        if not sender:
+            return
+        k = sender.property("checklist_key")
+        if isinstance(k, str):
+            self._on_checklist_clicked(k)
 
     def _on_checklist_clicked(self, key: str) -> None:
         """U3-1: jump to the corresponding column/tab in the unified workspace."""

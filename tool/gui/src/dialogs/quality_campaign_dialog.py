@@ -118,10 +118,10 @@ class QualityCampaignDialog(QDialog):
 
         row = QHBoxLayout()
         self.locate_btn = QPushButton("定位")
-        self.locate_btn.clicked.connect(lambda: self._finish("locate"))
+        self.locate_btn.clicked.connect(self._on_locate_clicked)
         self.ai_btn = QPushButton("AI 处理")
         self.ai_btn.setToolTip("空课→填充路径；节→AI 编辑该节（现有对话框）")
-        self.ai_btn.clicked.connect(lambda: self._finish("ai_edit"))
+        self.ai_btn.clicked.connect(self._on_ai_edit_clicked)
         row.addWidget(self.locate_btn)
         row.addWidget(self.ai_btn)
         row.addStretch()
@@ -137,6 +137,12 @@ class QualityCampaignDialog(QDialog):
 
     def action(self) -> str:
         return self._action
+
+    def _on_locate_clicked(self) -> None:
+        self._finish("locate")
+
+    def _on_ai_edit_clicked(self) -> None:
+        self._finish("ai_edit")
 
     def _finish(self, action: str) -> None:
         item = self.list.currentItem()

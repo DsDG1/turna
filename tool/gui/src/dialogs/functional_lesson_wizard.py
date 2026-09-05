@@ -258,15 +258,13 @@ class FunctionalLessonWizard(QDialog):
         box = QGroupBox(f"阶段 {idx + 1}：{_PHASE_LABELS.get(ptype, ptype)}")
         form = QFormLayout(box)
         name_edit = QLineEdit(phase.get("name", ""))
-        name_edit.textChanged.connect(lambda v: phase.__setitem__("name", v))
+        name_edit.setProperty("phase_idx", idx)
+        name_edit.textChanged.connect(self._on_phase_name_changed)
         form.addRow("名称：", name_edit)
         audio_edit = QLineEdit(phase.get("audioAsset", ""))
         audio_edit.setPlaceholderText("音频资源路径（可留空）")
-        audio_edit.textChanged.connect(
-            lambda v: phase.__setitem__("audioAsset", v)
-            if ("audioAsset" in phase or v)
-            else None
-        )
+        audio_edit.setProperty("phase_idx", idx)
+        audio_edit.textChanged.connect(self._on_phase_audio_changed)
         form.addRow("音频：", audio_edit)
         # Ensure audioAsset/transcript keys exist for dialogue/summary editing.
         if "audioAsset" not in phase:
@@ -276,14 +274,61 @@ class FunctionalLessonWizard(QDialog):
         transcript_edit = QTextEdit(phase.get("transcript", ""))
         transcript_edit.setMaximumHeight(70)
         transcript_edit.setPlaceholderText("转录文本（可留空）")
-        transcript_edit.textChanged.connect(
-            lambda e=transcript_edit, p=phase: p.__setitem__("transcript", e.toPlainText())
-        )
+        transcript_edit.setProperty("phase_idx", idx)
+        transcript_edit.textChanged.connect(self._on_phase_transcript_changed)
         form.addRow("转录：", transcript_edit)
         del_btn = QPushButton("删除该阶段")
-        del_btn.clicked.connect(lambda _c=False, p=phase: self._on_wizard_delete_phase(p))
+        del_btn.setProperty("phase_idx", idx)
+        del_btn.clicked.connect(self._on_phase_del_clicked)
         form.addRow("", del_btn)
         return box
+
+    def _get_phase_by_idx(self, idx: int) -> dict[str, Any] | None:
+        phases = self._lesson.get("content", {}).get("listeningPhases", [])
+        if 0 <= idx < len(phases):
+            return phases[idx]
+        return None
+
+    def _on_phase_name_changed(self, text: str) -> None:
+        sender = self.sender()
+        if not sender:
+            return
+        idx = sender.property("phase_idx")
+        if idx is not None:
+            phase = self._get_phase_by_idx(int(idx))
+            if phase is not None:
+                phase["name"] = text
+
+    def _on_phase_audio_changed(self, text: str) -> None:
+        sender = self.sender()
+        if not sender:
+            return
+        idx = sender.property("phase_idx")
+        if idx is not None:
+            phase = self._get_phase_by_idx(int(idx))
+            if phase is not None:
+                if "audioAsset" in phase or text:
+                    phase["audioAsset"] = text
+
+    def _on_phase_transcript_changed(self) -> None:
+        sender = self.sender()
+        if not isinstance(sender, QTextEdit):
+            return
+        idx = sender.property("phase_idx")
+        if idx is not None:
+            phase = self._get_phase_by_idx(int(idx))
+            if phase is not None:
+                phase["transcript"] = sender.toPlainText()
+
+    def _on_phase_del_clicked(self) -> None:
+        sender = self.sender()
+        if not sender:
+            return
+        idx = sender.property("phase_idx")
+        if idx is not None:
+            phase = self._get_phase_by_idx(int(idx))
+            if phase is not None:
+                self._on_wizard_delete_phase(phase)
 
     def _on_wizard_add_phase(self) -> None:
         pt = self._phase_type_combo.currentData() if hasattr(self, "_phase_type_combo") else "dialogue"
@@ -304,28 +349,41 @@ class FunctionalLessonWizard(QDialog):
             {"title": "", "paragraphs": [], "difficulty": 1, "linkedWordIds": [], "linkedExpressionIds": []},
         )
         title_edit = QLineEdit(passage.get("title", ""))
-        title_edit.textChanged.connect(lambda v: passage.__setitem__("title", v))
+        title_edit.textChanged.connect(self._on_reading_title_changed)
         form.addRow("篇章标题：", title_edit)
         diff = QSpinBox()
         diff.setRange(1, 5)
         diff.setValue(int(passage.get("difficulty", 1)))
-        diff.valueChanged.connect(lambda v: passage.__setitem__("difficulty", v))
+        diff.valueChanged.connect(self._on_reading_diff_changed)
         form.addRow("难度（1-5）：", diff)
         paras = QTextEdit("\n\n".join(passage.get("paragraphs", [])))
         paras.setMaximumHeight(160)
         paras.setPlaceholderText("段落之间用空行分隔")
-        paras.textChanged.connect(
-            lambda e=paras, pa=passage: pa.__setitem__(
-                "paragraphs",
-                [s.strip() for s in e.toPlainText().split("\n\n") if s.strip()],
-            )
-        )
+        paras.textChanged.connect(self._on_reading_paras_changed)
         form.addRow("正文段落：", paras)
         hint = QLabel("理解题（选择/判断/简答）可在创建后的蓝图中编辑。")
         hint.setWordWrap(True)
         hint.setStyleSheet(f"color: {current_palette()['text_secondary']};")
         form.addRow("", hint)
         return wrap
+
+    def _on_reading_title_changed(self, text: str) -> None:
+        passage = self._lesson.get("content", {}).get("readingPassage")
+        if isinstance(passage, dict):
+            passage["title"] = text
+
+    def _on_reading_diff_changed(self, value: int) -> None:
+        passage = self._lesson.get("content", {}).get("readingPassage")
+        if isinstance(passage, dict):
+            passage["difficulty"] = value
+
+    def _on_reading_paras_changed(self) -> None:
+        sender = self.sender()
+        if not isinstance(sender, QTextEdit):
+            return
+        passage = self._lesson.get("content", {}).get("readingPassage")
+        if isinstance(passage, dict):
+            passage["paragraphs"] = [s.strip() for s in sender.toPlainText().split("\n\n") if s.strip()]
 
     def _build_mastery_config(self) -> QWidget:
         wrap = QWidget()
@@ -337,11 +395,20 @@ class FunctionalLessonWizard(QDialog):
         for rt, label in _MASTERY_TYPES:
             cb = QCheckBox(label)
             cb.setChecked(rt in existing)
-            cb.stateChanged.connect(lambda _s, r=rt: self._on_mastery_type_toggled(r))
+            cb.setProperty("runtime_type", rt)
+            cb.stateChanged.connect(self._on_mastery_cb_state_changed)
             self._mastery_checks[rt] = cb
             v.addWidget(cb)
         v.addStretch()
         return wrap
+
+    def _on_mastery_cb_state_changed(self, _state: int) -> None:
+        sender = self.sender()
+        if not sender:
+            return
+        rt = sender.property("runtime_type")
+        if isinstance(rt, str):
+            self._on_mastery_type_toggled(rt)
 
     def _on_mastery_type_toggled(self, rt: str) -> None:
         stage = self._lesson["content"]["stages"][0]

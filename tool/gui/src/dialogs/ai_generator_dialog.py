@@ -1549,11 +1549,15 @@ class AiGeneratorDialog(QDialog):
         worker.error_occurred.connect(self._on_worker_error)
         worker.chunk_ready.connect(self._on_worker_chunk)
         worker.usage_ready.connect(self._on_worker_usage)
-        worker.completed.connect(lambda: None)
+        worker.completed.connect(self._on_wish_generation_completed)
         self._begin_stream("json")
         self._register_worker(worker)
         self._set_busy(True, stage="生成中（流式）…")
         worker.start()
+
+    def _on_wish_generation_completed(self) -> None:
+        """No-op completion hook for wish worker; explain worker follows on ready."""
+        pass
 
     def _on_wish_generation_ready(self, parsed: object) -> None:
         if self._closing:
