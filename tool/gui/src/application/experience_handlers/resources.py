@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any
 
 from src.application.ui_guard import safe_information, safe_question, safe_warning
+from src.backend.schema_constants import ResourceKey
 import logging
 logger = logging.getLogger(__name__)
 
@@ -122,7 +123,7 @@ def _experience_align_pos(host, scope: dict) -> None:
                 if str(word.get("pos") or "") == str(new_pos):
                     continue
                 patch = field_patch(
-                    word, "pos", new_pos, target_kind="vocab", target_id=wid
+                    word, "pos", new_pos, target_kind=ResourceKey.VOCAB, target_id=wid
                 )
                 steps.append(("field", word, patch))
                 changed_ids.append(wid)
@@ -234,12 +235,12 @@ def _experience_resolve_term_conflicts(host, scope: dict) -> None:
         host, "统一词条冲突释义", text + "\n\n统一为 vocab 释义？",
         default_yes=False,
     ):
-        direction = "vocab"
+        direction = ResourceKey.VOCAB
     elif safe_question(
         host, "统一词条冲突释义", "改为统一为 expression 释义？",
         default_yes=False,
     ):
-        direction = "expression"
+        direction = ResourceKey.EXPRESSIONS
     else:
         if metrics is not None:
             metrics.inc_suggestion(ACTION_ID, "rejected")
@@ -254,13 +255,13 @@ def _experience_resolve_term_conflicts(host, scope: dict) -> None:
         e = expr_by_id.get(c["expression_id"])
         if w is None or e is None:
             continue
-        if direction == "vocab":
+        if direction == ResourceKey.VOCAB:
             new_val = w.get("translation")
             if e.get("translation") == new_val:
                 continue
             patch = field_patch(
                 e, "translation", new_val,
-                target_kind="expressions", target_id=c["expression_id"],
+                target_kind=ResourceKey.EXPRESSIONS, target_id=c["expression_id"],
             )
             steps.append(("field", e, patch))
         else:
@@ -269,7 +270,7 @@ def _experience_resolve_term_conflicts(host, scope: dict) -> None:
                 continue
             patch = field_patch(
                 w, "translation", new_val,
-                target_kind="vocab", target_id=c["vocab_id"],
+                target_kind=ResourceKey.VOCAB, target_id=c["vocab_id"],
             )
             steps.append(("field", w, patch))
     if not steps:
@@ -521,7 +522,7 @@ def _batch_polish_pairs(host, scope: dict) -> list[tuple[str, str]]:
             logger.debug("application/experience_handlers/resources.py:_batch_polish_pairs best-effort step failed", exc_info=True)
     out: list[tuple[str, str]] = []
     for k, i in pairs:
-        if k in ("vocab", "expressions") and i and (k, i) not in out:
+        if k in (ResourceKey.VOCAB, ResourceKey.EXPRESSIONS) and i and (k, i) not in out:
             out.append((k, i))
     return out
 
@@ -569,7 +570,7 @@ def _experience_batch_polish(host, scope: dict) -> None:
     entries: list[dict] = []
     kind_by_id: dict[str, str] = {}
     for kind, rid in pairs:
-        pool = vocab_by_id if kind == "vocab" else expr_by_id
+        pool = vocab_by_id if kind == ResourceKey.VOCAB else expr_by_id
         entry = pool.get(rid)
         if entry is None:
             continue
@@ -581,7 +582,7 @@ def _experience_batch_polish(host, scope: dict) -> None:
                 "term": str(entry.get("term") or ""),
                 "translation": str(entry.get("translation") or ""),
                 "pronunciation": str(entry.get("pronunciation") or ""),
-                "pos": str(entry.get("pos") or "") if kind == "vocab" else "",
+                "pos": str(entry.get("pos") or "") if kind == ResourceKey.VOCAB else "",
             }
         )
     if not entries:
@@ -649,9 +650,9 @@ def _experience_batch_polish(host, scope: dict) -> None:
                 kind = kind_by_id.get(rid)
                 if kind is None:
                     continue
-                if field == "pos" and kind != "vocab":
+                if field == "pos" and kind != ResourceKey.VOCAB:
                     continue  # expressions 无 pos
-                pool = vocab_by_id if kind == "vocab" else expr_by_id
+                pool = vocab_by_id if kind == ResourceKey.VOCAB else expr_by_id
                 entry = pool.get(rid)
                 if entry is None:
                     continue
@@ -826,9 +827,9 @@ def _experience_fill_stubs_batch(host, scope: dict) -> None:
                 kind = kind_by_id.get(rid)
                 if kind is None:
                     continue
-                if field == "pos" and kind != "vocab":
+                if field == "pos" and kind != ResourceKey.VOCAB:
                     continue  # expressions 无 pos
-                pool = vocab_by_id if kind == "vocab" else expr_by_id
+                pool = vocab_by_id if kind == ResourceKey.VOCAB else expr_by_id
                 entry = pool.get(rid)
                 if entry is None:
                     continue
@@ -844,7 +845,7 @@ def _experience_fill_stubs_batch(host, scope: dict) -> None:
             # old tags so undo restores them.
             for rid in filled_ids:
                 kind = kind_by_id.get(rid)
-                pool = vocab_by_id if kind == "vocab" else expr_by_id
+                pool = vocab_by_id if kind == ResourceKey.VOCAB else expr_by_id
                 entry = pool.get(rid)
                 if entry is None:
                     continue

@@ -12,70 +12,79 @@ import uuid
 from dataclasses import dataclass
 from typing import Any
 
+from src.backend.schema_constants import (
+    KEY_EXPRESSIONS,
+    KEY_GRAMMAR,
+    KEY_GRAMMAR_POINTS,
+    KEY_ITEMS,
+    KEY_LISTENING_PHASES,
+    KEY_READING_PASSAGE,
+    KEY_RUNTIME_TYPE,
+    KEY_STAGES,
+    KEY_SUB_LESSONS,
+    KEY_VOCAB,
+    ContentKey,
+    CourseKey,
+    InteractionType,
+    ItemKey,
+    ListeningPhaseType,
+    ResourceKey,
+    TemplateType,
+)
+
 CONTENT_BY_TEMPLATE: dict[str, set[str]] = {
-    "intro": {"subLessons"},
-    "practice": {"subLessons"},
-    "review": {"subLessons", "stages"},
-    "listening": {"listeningPhases"},
-    "reading": {"readingPassage", "stages"},
-    "mastery": {"stages"},
-    "legacy": {"stages", "subLessons", "listeningPhases"},
+    TemplateType.INTRO: {ContentKey.SUB_LESSONS},
+    TemplateType.PRACTICE: {ContentKey.SUB_LESSONS},
+    TemplateType.REVIEW: {ContentKey.SUB_LESSONS, ContentKey.STAGES},
+    TemplateType.LISTENING: {ContentKey.LISTENING_PHASES},
+    TemplateType.READING: {ContentKey.READING_PASSAGE, ContentKey.STAGES},
+    TemplateType.MASTERY: {ContentKey.STAGES},
+    TemplateType.LEGACY: {ContentKey.STAGES, ContentKey.SUB_LESSONS, ContentKey.LISTENING_PHASES},
 }
 
 PRIMARY_CONTENT_KEY: dict[str, str] = {
-    "intro": "subLessons",
-    "practice": "subLessons",
-    "review": "subLessons",
-    "listening": "listeningPhases",
-    "reading": "readingPassage",
-    "mastery": "stages",
-    "legacy": "stages",
+    TemplateType.INTRO: ContentKey.SUB_LESSONS,
+    TemplateType.PRACTICE: ContentKey.SUB_LESSONS,
+    TemplateType.REVIEW: ContentKey.SUB_LESSONS,
+    TemplateType.LISTENING: ContentKey.LISTENING_PHASES,
+    TemplateType.READING: ContentKey.READING_PASSAGE,
+    TemplateType.MASTERY: ContentKey.STAGES,
+    TemplateType.LEGACY: ContentKey.STAGES,
 }
 
-LISTENING_PHASE_TYPES = ("wordPairing", "dialogue", "summary")
-
-ALLOWED_RUNTIME_TYPES = (
-    "showWord",
-    "multipleChoice",
-    "multiSelect",
-    "fillBlank",
-    "translateSentence",
-    "listenAndPick",
-    "typeTheWord",
-    "listenOnly",
-    "reorderSentence",
-    "readingMcq",
-    "readingTrueFalse",
-    "readingShortAnswer",
-    "ankiCard",
-    "ankiHtmlCard",
+LISTENING_PHASE_TYPES = (
+    ListeningPhaseType.WORD_PAIRING,
+    ListeningPhaseType.DIALOGUE,
+    ListeningPhaseType.SUMMARY,
 )
 
+ALLOWED_RUNTIME_TYPES = tuple(t.value for t in InteractionType)
+
 INTERACTION_LABELS: dict[str, str] = {
-    "showWord": "展示生词",
-    "multipleChoice": "选择题",
-    "multiSelect": "多选题",
-    "fillBlank": "填空题",
-    "translateSentence": "翻译题",
-    "listenAndPick": "听音选词",
-    "typeTheWord": "听写题",
-    "listenOnly": "只听不答",
-    "reorderSentence": "排序句子",
-    "readingMcq": "阅读选择",
-    "readingTrueFalse": "阅读判断",
-    "readingShortAnswer": "阅读简答",
-    "ankiCard": "Anki 卡片",
-    "ankiHtmlCard": "Anki HTML 卡片",
+    InteractionType.SHOW_WORD: "展示生词",
+    InteractionType.MULTIPLE_CHOICE: "选择题",
+    InteractionType.MULTI_SELECT: "多选题",
+    InteractionType.FILL_BLANK: "填空题",
+    InteractionType.TRANSLATE_SENTENCE: "翻译题",
+    InteractionType.LISTEN_AND_PICK: "听音选词",
+    InteractionType.TYPE_THE_WORD: "听写题",
+    InteractionType.LISTEN_ONLY: "只听不答",
+    InteractionType.REORDER_SENTENCE: "排序句子",
+    InteractionType.READING_MCQ: "阅读选择",
+    InteractionType.READING_TRUE_FALSE: "阅读判断",
+    InteractionType.READING_SHORT_ANSWER: "阅读简答",
+    InteractionType.ANKI_CARD: "Anki 卡片",
+    InteractionType.ANKI_HTML_CARD: "Anki HTML 卡片",
 }
 
 TEMPLATE_LABELS: dict[str, str] = {
-    "intro": "认识新词",
-    "practice": "巩固练习",
-    "review": "复习",
-    "listening": "听力训练",
-    "reading": "阅读理解",
-    "mastery": "综合测验",
-    "legacy": "基础题",
+    TemplateType.INTRO: "认识新词",
+    TemplateType.PRACTICE: "巩固练习",
+    TemplateType.REVIEW: "复习",
+    TemplateType.LISTENING: "听力训练",
+    TemplateType.READING: "阅读理解",
+    TemplateType.MASTERY: "综合测验",
+    TemplateType.LEGACY: "基础题",
 }
 
 #: Soft badge color per functional template. Shared by the course tree and the
@@ -83,13 +92,13 @@ TEMPLATE_LABELS: dict[str, str] = {
 #: Theme-independent chips (white text); ``listening`` carries the Turna brand
 #: teal — keep the hex in sync with ``theme_tokens.BRAND_TEAL`` (ADR 0033).
 TEMPLATE_COLORS: dict[str, str] = {
-    "listening": "#1F727E",  # ≡ theme_tokens.BRAND_TEAL
-    "reading": "#10B981",    # emerald
-    "mastery": "#F59E0B",    # amber
-    "intro": "#6366F1",      # indigo
-    "practice": "#8B5CF6",   # violet
-    "review": "#EC4899",     # rose
-    "legacy": "#6B7280",     # slate
+    TemplateType.LISTENING: "#1F727E",  # ≡ theme_tokens.BRAND_TEAL
+    TemplateType.READING: "#10B981",    # emerald
+    TemplateType.MASTERY: "#F59E0B",    # amber
+    TemplateType.INTRO: "#6366F1",      # indigo
+    TemplateType.PRACTICE: "#8B5CF6",   # violet
+    TemplateType.REVIEW: "#EC4899",     # rose
+    TemplateType.LEGACY: "#6B7280",     # slate
 }
 TEMPLATE_COLOR_DEFAULT = "#6B7280"
 
@@ -103,7 +112,7 @@ class FieldSpec:
 
 
 INTERACTION_SCHEMA: dict[str, list[FieldSpec]] = {
-    "showWord": [
+    InteractionType.SHOW_WORD: [
         FieldSpec("id", False, "string", ""),
         FieldSpec("wordId", True, "ref_word"),
         FieldSpec("context", False, "string", ""),
@@ -119,7 +128,7 @@ INTERACTION_SCHEMA: dict[str, list[FieldSpec]] = {
         FieldSpec("imageAsset", False, "string", ""),
         FieldSpec("example", False, "string", ""),
     ],
-    "multipleChoice": [
+    InteractionType.MULTIPLE_CHOICE: [
         FieldSpec("id", False, "string", ""),
         FieldSpec("prompt", True, "string", ""),
         FieldSpec("options", True, "string_list", []),
@@ -128,7 +137,7 @@ INTERACTION_SCHEMA: dict[str, list[FieldSpec]] = {
         FieldSpec("grammarPointId", False, "ref_grammar", ""),
         FieldSpec("audioAssets", False, "string_list", []),
     ],
-    "multiSelect": [
+    InteractionType.MULTI_SELECT: [
         FieldSpec("id", False, "string", ""),
         FieldSpec("prompt", True, "string", ""),
         FieldSpec("options", True, "string_list", []),
@@ -138,7 +147,7 @@ INTERACTION_SCHEMA: dict[str, list[FieldSpec]] = {
         FieldSpec("imageAsset", False, "string", ""),
         FieldSpec("grammarPointId", False, "ref_grammar", ""),
     ],
-    "fillBlank": [
+    InteractionType.FILL_BLANK: [
         FieldSpec("id", False, "string", ""),
         FieldSpec("sentence", True, "string", ""),
         FieldSpec("answer", True, "string", ""),
@@ -147,14 +156,14 @@ INTERACTION_SCHEMA: dict[str, list[FieldSpec]] = {
         FieldSpec("audioAssets", False, "string_list", []),
         FieldSpec("imageAssets", False, "string_list", []),
     ],
-    "translateSentence": [
+    InteractionType.TRANSLATE_SENTENCE: [
         FieldSpec("id", False, "string", ""),
         FieldSpec("source", True, "string", ""),
         FieldSpec("expected", True, "string", ""),
         FieldSpec("hints", False, "string_list", []),
         FieldSpec("grammarPointId", False, "ref_grammar", ""),
     ],
-    "listenAndPick": [
+    InteractionType.LISTEN_AND_PICK: [
         FieldSpec("id", False, "string", ""),
         FieldSpec("audioAsset", True, "string", ""),
         FieldSpec("prompt", True, "string", ""),
@@ -162,40 +171,40 @@ INTERACTION_SCHEMA: dict[str, list[FieldSpec]] = {
         FieldSpec("correctIndex", True, "int", 0),
         FieldSpec("grammarPointId", False, "ref_grammar", ""),
     ],
-    "typeTheWord": [
+    InteractionType.TYPE_THE_WORD: [
         FieldSpec("id", False, "string", ""),
         FieldSpec("audioAsset", True, "string", ""),
         FieldSpec("prompt", True, "string", ""),
         FieldSpec("expected", True, "string", ""),
         FieldSpec("grammarPointId", False, "ref_grammar", ""),
     ],
-    "listenOnly": [
+    InteractionType.LISTEN_ONLY: [
         FieldSpec("id", False, "string", ""),
         FieldSpec("audioAsset", False, "string", ""),
         FieldSpec("transcript", False, "string", ""),
         FieldSpec("prompt", False, "string", "Listen to the summary"),
         FieldSpec("grammarPointId", False, "ref_grammar", ""),
     ],
-    "reorderSentence": [
+    InteractionType.REORDER_SENTENCE: [
         FieldSpec("id", False, "string", ""),
         FieldSpec("scrambled", True, "string_list", []),
         FieldSpec("correct", True, "string_list", []),
         FieldSpec("grammarPointId", False, "ref_grammar", ""),
     ],
-    "readingMcq": [
+    InteractionType.READING_MCQ: [
         FieldSpec("id", False, "string", ""),
         FieldSpec("prompt", True, "string", ""),
         FieldSpec("options", True, "string_list", []),
         FieldSpec("correctIndex", True, "int", 0),
         FieldSpec("grammarPointId", False, "ref_grammar", ""),
     ],
-    "readingTrueFalse": [
+    InteractionType.READING_TRUE_FALSE: [
         FieldSpec("id", False, "string", ""),
         FieldSpec("statement", True, "string", ""),
         FieldSpec("answer", True, "bool", False),
         FieldSpec("grammarPointId", False, "ref_grammar", ""),
     ],
-    "readingShortAnswer": [
+    InteractionType.READING_SHORT_ANSWER: [
         FieldSpec("id", False, "string", ""),
         FieldSpec("prompt", True, "string", ""),
         FieldSpec("expectedAnswer", True, "string", ""),
@@ -204,7 +213,7 @@ INTERACTION_SCHEMA: dict[str, list[FieldSpec]] = {
     # Anki deck imports (app side: interaction.dart AnkiCard / AnkiHtmlCard).
     # Plain-text flip card produced by the GUI importer; sourceNoteId traces
     # back to the originating Anki note.
-    "ankiCard": [
+    InteractionType.ANKI_CARD: [
         FieldSpec("id", False, "string", ""),
         FieldSpec("front", True, "string", ""),
         FieldSpec("back", True, "string", ""),
@@ -216,7 +225,7 @@ INTERACTION_SCHEMA: dict[str, list[FieldSpec]] = {
     # Fidelity-track flip card preserving the original Anki template HTML.
     # wordId is a synthetic anki-<importId>-c<cardId> key, deliberately NOT a
     # ref_word (it does not resolve into vocab.json).
-    "ankiHtmlCard": [
+    InteractionType.ANKI_HTML_CARD: [
         FieldSpec("id", False, "string", ""),
         FieldSpec("frontHtml", True, "string", ""),
         FieldSpec("backHtml", True, "string", ""),
@@ -233,7 +242,7 @@ INTERACTION_SCHEMA: dict[str, list[FieldSpec]] = {
 
 def default_interaction(runtime_type: str) -> dict[str, Any]:
     """Return a minimal valid item dict for the given runtimeType."""
-    item: dict[str, Any] = {"runtimeType": runtime_type}
+    item: dict[str, Any] = {ItemKey.RUNTIME_TYPE: runtime_type}
     for spec in INTERACTION_SCHEMA[runtime_type]:
         # Deep-copy: defaults in the shared schema table are mutable (lists),
         # handing out the same object would alias state across items.
@@ -243,10 +252,10 @@ def default_interaction(runtime_type: str) -> dict[str, Any]:
 
 def normalize_item(item: dict[str, Any]) -> dict[str, Any]:
     """Ensure item has every schema field (fill defaults for missing)."""
-    rt = item.get("runtimeType")
+    rt = item.get(ItemKey.RUNTIME_TYPE)
     if rt not in INTERACTION_SCHEMA:
         raise ValueError(f"unknown runtimeType: {rt}")
-    out = {"runtimeType": rt}
+    out = {ItemKey.RUNTIME_TYPE: rt}
     for spec in INTERACTION_SCHEMA[rt]:
         if spec.name in item:
             out[spec.name] = item[spec.name]
@@ -262,7 +271,7 @@ _CONTENT_META_KEYS: frozenset[str] = frozenset({"linkedGrammarPointIds"})
 
 
 def allowed_content_keys(template: str) -> set[str]:
-    return CONTENT_BY_TEMPLATE.get(template, {"stages"}) | _CONTENT_META_KEYS
+    return CONTENT_BY_TEMPLATE.get(template, {ContentKey.STAGES}) | _CONTENT_META_KEYS
 
 
 def switch_template(lesson: dict[str, Any], new_template: str) -> None:
@@ -278,10 +287,10 @@ def switch_template(lesson: dict[str, Any], new_template: str) -> None:
     for key in list(content.keys()):
         if key not in allowed:
             del content[key]
-    primary = PRIMARY_CONTENT_KEY.get(new_template, "stages")
-    if primary == "readingPassage":
-        if "readingPassage" not in content:
-            content["readingPassage"] = _empty_reading_passage()
+    primary = PRIMARY_CONTENT_KEY.get(new_template, ContentKey.STAGES)
+    if primary == ContentKey.READING_PASSAGE:
+        if ContentKey.READING_PASSAGE not in content:
+            content[ContentKey.READING_PASSAGE] = _empty_reading_passage()
     elif primary and primary not in content:
         content[primary] = []
 
@@ -711,30 +720,30 @@ def add_sub_lesson(stage_container: dict[str, Any], name: str = "New sub-lesson"
     sub = {
         "id": short_id("sl"),
         "name": name,
-        "stages": [
-            {"id": short_id("st"), "name": "Stage 1", "items": []},
+        ContentKey.STAGES: [
+            {"id": short_id("st"), "name": "Stage 1", ContentKey.ITEMS: []},
         ],
     }
-    stage_container.setdefault("subLessons", []).append(sub)
+    stage_container.setdefault(ContentKey.SUB_LESSONS, []).append(sub)
     return sub
 
 
 def add_stage(stage_container: dict[str, Any], name: str = "New stage") -> dict[str, Any]:
-    stage = {"id": short_id("st"), "name": name, "items": []}
-    stage_container.setdefault("stages", []).append(stage)
+    stage = {"id": short_id("st"), "name": name, ContentKey.ITEMS: []}
+    stage_container.setdefault(ContentKey.STAGES, []).append(stage)
     return stage
 
 
 def add_item(stage: dict[str, Any], runtime_type: str) -> dict[str, Any]:
     item = default_interaction(runtime_type)
     item["id"] = short_id(runtime_type[:2])
-    stage.setdefault("items", []).append(item)
+    stage.setdefault(ContentKey.ITEMS, []).append(item)
     return item
 
 
 def delete_item(stage: dict[str, Any], item_id: str) -> bool:
     """Remove the item with the given id from the stage. Returns True if found."""
-    items = stage.get("items", [])
+    items = stage.get(ContentKey.ITEMS, [])
     for i, item in enumerate(items):
         if item.get("id") == item_id:
             del items[i]
@@ -744,7 +753,7 @@ def delete_item(stage: dict[str, Any], item_id: str) -> bool:
 
 def move_item(stage: dict[str, Any], from_idx: int, to_idx: int) -> None:
     """Move an item within its stage by index."""
-    items = stage.get("items", [])
+    items = stage.get(ContentKey.ITEMS, [])
     if not (0 <= from_idx < len(items) and 0 <= to_idx < len(items)):
         return
     item = items.pop(from_idx)
@@ -753,7 +762,7 @@ def move_item(stage: dict[str, Any], from_idx: int, to_idx: int) -> None:
 
 def move_stage(sub_lesson: dict[str, Any], from_idx: int, to_idx: int) -> None:
     """Move a stage within a sub-lesson by index."""
-    stages = sub_lesson.get("stages", [])
+    stages = sub_lesson.get(ContentKey.STAGES, [])
     if not (0 <= from_idx < len(stages) and 0 <= to_idx < len(stages)):
         return
     stage = stages.pop(from_idx)
@@ -762,7 +771,7 @@ def move_stage(sub_lesson: dict[str, Any], from_idx: int, to_idx: int) -> None:
 
 def move_sub_lesson(content: dict[str, Any], from_idx: int, to_idx: int) -> None:
     """Move a sub-lesson within the lesson content by index."""
-    subs = content.get("subLessons", [])
+    subs = content.get(ContentKey.SUB_LESSONS, [])
     if not (0 <= from_idx < len(subs) and 0 <= to_idx < len(subs)):
         return
     sub = subs.pop(from_idx)
@@ -781,7 +790,7 @@ def rename_stage(stage: dict[str, Any], name: str) -> None:
 
 def delete_stage(sub_lesson: dict[str, Any], stage_id: str) -> bool:
     """Remove the stage with the given id from the sub-lesson. Returns True if found."""
-    stages = sub_lesson.get("stages", [])
+    stages = sub_lesson.get(ContentKey.STAGES, [])
     for i, stage in enumerate(stages):
         if stage.get("id") == stage_id:
             del stages[i]
@@ -791,7 +800,7 @@ def delete_stage(sub_lesson: dict[str, Any], stage_id: str) -> bool:
 
 def delete_sub_lesson(content: dict[str, Any], sub_lesson_id: str) -> bool:
     """Remove the sub-lesson with the given id from the lesson content. Returns True if found."""
-    subs = content.get("subLessons", [])
+    subs = content.get(ContentKey.SUB_LESSONS, [])
     for i, sub in enumerate(subs):
         if sub.get("id") == sub_lesson_id:
             del subs[i]
@@ -846,7 +855,7 @@ def switch_runtime_type(item: dict[str, Any], new_runtime_type: str) -> dict[str
     # Build a mapping from the new item's canonical field name to the best old value.
     semantic_values: dict[str, Any] = {}
     for old_field, old_value in item.items():
-        if old_field == "runtimeType":
+        if old_field == ItemKey.RUNTIME_TYPE:
             continue
         if old_field in new_field_names:
             semantic_values[old_field] = old_value
@@ -863,7 +872,7 @@ def switch_runtime_type(item: dict[str, Any], new_runtime_type: str) -> dict[str
     # Apply preserved values, but only if the type is compatible.
     for spec in new_schema:
         name = spec.name
-        if name == "runtimeType":
+        if name == ItemKey.RUNTIME_TYPE:
             continue
         if name == "id":
             new_item[name] = item.get("id") or new_item[name]
@@ -901,7 +910,7 @@ def switch_runtime_type(item: dict[str, Any], new_runtime_type: str) -> dict[str
 
 def add_listening_phase(
     lesson: dict[str, Any],
-    phase_type: str = "wordPairing",
+    phase_type: str = ListeningPhaseType.WORD_PAIRING,
     name: str = "New phase",
 ) -> dict[str, Any]:
     phase: dict[str, Any] = {
@@ -909,18 +918,18 @@ def add_listening_phase(
         "name": name,
         "type": phase_type,
     }
-    if phase_type in ("wordPairing", "dialogue"):
-        phase["items"] = []
-    if phase_type in ("dialogue", "summary"):
+    if phase_type in (ListeningPhaseType.WORD_PAIRING, ListeningPhaseType.DIALOGUE):
+        phase[ContentKey.ITEMS] = []
+    if phase_type in (ListeningPhaseType.DIALOGUE, ListeningPhaseType.SUMMARY):
         phase["audioAsset"] = ""
         phase["transcript"] = ""
-    lesson.setdefault("content", {}).setdefault("listeningPhases", []).append(phase)
+    lesson.setdefault("content", {}).setdefault(ContentKey.LISTENING_PHASES, []).append(phase)
     return phase
 
 
 def delete_listening_phase(lesson: dict[str, Any], phase_id: str) -> bool:
     """Remove the listening phase with the given id. Returns True if found."""
-    phases = lesson.get("content", {}).get("listeningPhases", [])
+    phases = lesson.get("content", {}).get(ContentKey.LISTENING_PHASES, [])
     for i, phase in enumerate(phases):
         if phase.get("id") == phase_id:
             del phases[i]
@@ -930,7 +939,7 @@ def delete_listening_phase(lesson: dict[str, Any], phase_id: str) -> bool:
 
 def move_listening_phase(lesson: dict[str, Any], from_idx: int, to_idx: int) -> None:
     """Move a listening phase by index."""
-    phases = lesson.get("content", {}).get("listeningPhases", [])
+    phases = lesson.get("content", {}).get(ContentKey.LISTENING_PHASES, [])
     if not (0 <= from_idx < len(phases) and 0 <= to_idx < len(phases)):
         return
     phase = phases.pop(from_idx)
@@ -944,7 +953,7 @@ def rename_listening_phase(phase: dict[str, Any], name: str) -> None:
 
 def listening_phase_has_items(phase_type: str) -> bool:
     """Return True if the listening phase type supports items."""
-    return phase_type in ("wordPairing", "dialogue")
+    return phase_type in (ListeningPhaseType.WORD_PAIRING, ListeningPhaseType.DIALOGUE)
 
 
 SLUG_RE = re.compile(r"[^a-z0-9]+")

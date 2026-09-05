@@ -20,6 +20,12 @@ from src.backend.ai_bench import (
     find_dangling_refs,
     score_section_hygiene,
 )
+from src.backend.schema_constants import (
+    ContentKey,
+    InteractionType,
+    ItemKey,
+    TemplateType,
+)
 
 Dimension = Literal[
     "coverage",
@@ -57,39 +63,72 @@ _LEVEL_SENTENCE_WORDS: dict[str, int] = {
 
 _MCQ_TYPES = frozenset(
     {
-        "multipleChoice",
-        "listenAndPick",
-        "multiSelect",
+        InteractionType.MULTIPLE_CHOICE,
+        InteractionType.LISTEN_AND_PICK,
+        InteractionType.MULTI_SELECT,
         "trueFalse",
     }
 )
 _PRACTICE_TYPES = frozenset(
     {
-        "multipleChoice",
-        "translateSentence",
-        "fillBlank",
-        "reorderSentence",
-        "listenAndPick",
-        "typeTheWord",
-        "multiSelect",
+        InteractionType.MULTIPLE_CHOICE,
+        InteractionType.TRANSLATE_SENTENCE,
+        InteractionType.FILL_BLANK,
+        InteractionType.REORDER_SENTENCE,
+        InteractionType.LISTEN_AND_PICK,
+        InteractionType.TYPE_THE_WORD,
+        InteractionType.MULTI_SELECT,
         "trueFalse",
         "shortAnswer",
         "matchWords",
     }
 )
 _TEMPLATE_HINTS: dict[str, frozenset[str]] = {
-    "intro": frozenset({"showWord", "multipleChoice", "listenAndPick", "translateSentence"}),
-    "practice": frozenset({"multipleChoice", "fillBlank", "translateSentence", "reorderSentence"}),
-    "review": frozenset({"multipleChoice", "translateSentence", "fillBlank", "matchWords"}),
-    "listening": frozenset({"listenAndPick", "typeTheWord", "multipleChoice"}),
-    "reading": frozenset({"multipleChoice", "trueFalse", "shortAnswer"}),
-    "mastery": frozenset(
+    TemplateType.INTRO: frozenset(
         {
-            "multipleChoice",
-            "fillBlank",
-            "translateSentence",
-            "listenAndPick",
-            "multiSelect",
+            InteractionType.SHOW_WORD,
+            InteractionType.MULTIPLE_CHOICE,
+            InteractionType.LISTEN_AND_PICK,
+            InteractionType.TRANSLATE_SENTENCE,
+        }
+    ),
+    TemplateType.PRACTICE: frozenset(
+        {
+            InteractionType.MULTIPLE_CHOICE,
+            InteractionType.FILL_BLANK,
+            InteractionType.TRANSLATE_SENTENCE,
+            InteractionType.REORDER_SENTENCE,
+        }
+    ),
+    TemplateType.REVIEW: frozenset(
+        {
+            InteractionType.MULTIPLE_CHOICE,
+            InteractionType.TRANSLATE_SENTENCE,
+            InteractionType.FILL_BLANK,
+            "matchWords",
+        }
+    ),
+    TemplateType.LISTENING: frozenset(
+        {
+            InteractionType.LISTEN_AND_PICK,
+            InteractionType.TYPE_THE_WORD,
+            InteractionType.MULTIPLE_CHOICE,
+        }
+    ),
+    TemplateType.READING: frozenset(
+        {
+            InteractionType.MULTIPLE_CHOICE,
+            "trueFalse",
+            "shortAnswer",
+        }
+    ),
+    TemplateType.MASTERY: frozenset(
+        {
+            InteractionType.MULTIPLE_CHOICE,
+            InteractionType.FILL_BLANK,
+            InteractionType.TRANSLATE_SENTENCE,
+            InteractionType.LISTEN_AND_PICK,
+            InteractionType.MULTI_SELECT,
         }
     ),
 }
@@ -207,26 +246,26 @@ def _iter_items_with_path(section: dict[str, Any]):
         content = lesson.get("content") or {}
         if not isinstance(content, dict):
             continue
-        for stage in content.get("stages") or []:
+        for stage in content.get(ContentKey.STAGES) or []:
             if not isinstance(stage, dict):
                 continue
-            for item in stage.get("items") or []:
+            for item in stage.get(ContentKey.ITEMS) or []:
                 if isinstance(item, dict):
                     yield lesson, item, f"lessons/{lid}/stages"
-        for sub in content.get("subLessons") or []:
+        for sub in content.get(ContentKey.SUB_LESSONS) or []:
             if not isinstance(sub, dict):
                 continue
-            for stage in sub.get("stages") or []:
+            for stage in sub.get(ContentKey.STAGES) or []:
                 if not isinstance(stage, dict):
                     continue
-                for item in stage.get("items") or []:
+                for item in stage.get(ContentKey.ITEMS) or []:
                     if isinstance(item, dict):
                         yield lesson, item, f"lessons/{lid}/subLessons"
-        for phase in content.get("listeningPhases") or []:
+        for phase in content.get(ContentKey.LISTENING_PHASES) or []:
             if not isinstance(phase, dict):
                 continue
             pid = str(phase.get("id") or "?")
-            for item in phase.get("items") or []:
+            for item in phase.get(ContentKey.ITEMS) or []:
                 if isinstance(item, dict):
                     yield lesson, item, f"lessons/{lid}/listeningPhases/{pid}"
 
@@ -243,10 +282,10 @@ def _count_practice_hits_for_words(section: dict[str, Any]) -> dict[str, int]:
     """How many non-showWord practice items reference each word id."""
     hits: dict[str, int] = {wid: 0 for wid in _word_ids(section)}
     for _lesson, item, _path in _iter_items_with_path(section):
-        rt = str(item.get("runtimeType") or "")
-        if rt == "showWord":
+        rt = str(item.get(ItemKey.RUNTIME_TYPE) or "")
+        if rt == InteractionType.SHOW_WORD:
             continue
-        if rt not in _PRACTICE_TYPES and rt != "showWord":
+        if rt not in _PRACTICE_TYPES and rt != InteractionType.SHOW_WORD:
             # still count explicit wordId on other interactive types
             pass
         candidates: list[str] = []
@@ -275,7 +314,7 @@ def _count_practice_hits_for_words(section: dict[str, Any]) -> dict[str, int]:
                 continue
             wid = str(w.get("id") or "")
             term = str(w.get("term") or "").strip()
-            if wid in hits and term and term.lower() in blob and rt != "showWord":
+            if wid in hits and term and term.lower() in blob and rt != InteractionType.SHOW_WORD:
                 hits[wid] += 1
     return hits
 
@@ -307,25 +346,25 @@ def _lesson_runtime_types(lesson: dict[str, Any]) -> list[str]:
     content = lesson.get("content") or {}
     if not isinstance(content, dict):
         return types
-    for stage in content.get("stages") or []:
+    for stage in content.get(ContentKey.STAGES) or []:
         if isinstance(stage, dict):
-            for item in stage.get("items") or []:
-                if isinstance(item, dict) and item.get("runtimeType"):
-                    types.append(str(item["runtimeType"]))
-    for sub in content.get("subLessons") or []:
+            for item in stage.get(ContentKey.ITEMS) or []:
+                if isinstance(item, dict) and item.get(ItemKey.RUNTIME_TYPE):
+                    types.append(str(item[ItemKey.RUNTIME_TYPE]))
+    for sub in content.get(ContentKey.SUB_LESSONS) or []:
         if not isinstance(sub, dict):
             continue
-        for stage in sub.get("stages") or []:
+        for stage in sub.get(ContentKey.STAGES) or []:
             if isinstance(stage, dict):
-                for item in stage.get("items") or []:
-                    if isinstance(item, dict) and item.get("runtimeType"):
-                        types.append(str(item["runtimeType"]))
-    for phase in content.get("listeningPhases") or []:
+                for item in stage.get(ContentKey.ITEMS) or []:
+                    if isinstance(item, dict) and item.get(ItemKey.RUNTIME_TYPE):
+                        types.append(str(item[ItemKey.RUNTIME_TYPE]))
+    for phase in content.get(ContentKey.LISTENING_PHASES) or []:
         if not isinstance(phase, dict):
             continue
-        for item in phase.get("items") or []:
-            if isinstance(item, dict) and item.get("runtimeType"):
-                types.append(str(item["runtimeType"]))
+        for item in phase.get(ContentKey.ITEMS) or []:
+            if isinstance(item, dict) and item.get(ItemKey.RUNTIME_TYPE):
+                types.append(str(item[ItemKey.RUNTIME_TYPE]))
     return types
 
 
@@ -402,9 +441,9 @@ def _score_balance(section: dict[str, Any], issues: list[ContentQualityIssue]) -
 def _score_distractor(section: dict[str, Any], issues: list[ContentQualityIssue]) -> float:
     mcq_items: list[tuple[dict[str, Any], dict[str, Any], str]] = []
     for lesson, item, path in _iter_items_with_path(section):
-        rt = str(item.get("runtimeType") or "")
-        if rt in _MCQ_TYPES or isinstance(item.get("options"), list):
-            if isinstance(item.get("options"), list) and len(item["options"]) >= 2:
+        rt = str(item.get(ItemKey.RUNTIME_TYPE) or "")
+        if rt in _MCQ_TYPES or isinstance(item.get(ItemKey.OPTIONS), list):
+            if isinstance(item.get(ItemKey.OPTIONS), list) and len(item[ItemKey.OPTIONS]) >= 2:
                 mcq_items.append((lesson, item, path))
 
     if not mcq_items:
@@ -414,7 +453,7 @@ def _score_distractor(section: dict[str, Any], issues: list[ContentQualityIssue]
     for lesson, item, path in mcq_items:
         lid = str(lesson.get("id") or "?")
         iid = str(item.get("id") or "?")
-        options = [str(o).strip() for o in item.get("options") or []]
+        options = [str(o).strip() for o in item.get(ItemKey.OPTIONS) or []]
         if len(options) != len(set(options)):
             penalties += 1
             issues.append(
@@ -557,11 +596,11 @@ def _score_audio_ready(
     empty_phases = 0
 
     for lesson, item, path in _iter_items_with_path(section):
-        rt = str(item.get("runtimeType") or "")
-        if rt in ("listenAndPick", "typeTheWord") or "listen" in rt.lower():
+        rt = str(item.get(ItemKey.RUNTIME_TYPE) or "")
+        if rt in (InteractionType.LISTEN_AND_PICK, InteractionType.TYPE_THE_WORD) or "listen" in rt.lower():
             item_count += 1
-            audio = item.get("audioAsset")
-            transcript = item.get("transcript") or item.get("text")
+            audio = item.get(ItemKey.AUDIO_ASSET)
+            transcript = item.get(ItemKey.TRANSCRIPT) or item.get("text")
             has_audio = isinstance(audio, str) and audio.strip()
             has_transcript = isinstance(transcript, str) and transcript.strip()
             if not has_audio and not has_transcript:
@@ -821,27 +860,27 @@ def evaluate_lesson_balance(lesson: dict[str, Any]) -> dict[str, Any]:
     content = lesson.get("content") or {}
     items: list[dict[str, Any]] = []
     if isinstance(content, dict):
-        for stage in content.get("stages") or []:
+        for stage in content.get(ContentKey.STAGES) or []:
             if isinstance(stage, dict):
-                for it in stage.get("items") or []:
+                for it in stage.get(ContentKey.ITEMS) or []:
                     if isinstance(it, dict):
                         items.append(it)
-        for sub in content.get("subLessons") or []:
+        for sub in content.get(ContentKey.SUB_LESSONS) or []:
             if isinstance(sub, dict):
-                for stage in sub.get("stages") or []:
+                for stage in sub.get(ContentKey.STAGES) or []:
                     if isinstance(stage, dict):
-                        for it in stage.get("items") or []:
+                        for it in stage.get(ContentKey.ITEMS) or []:
                             if isinstance(it, dict):
                                 items.append(it)
-        for phase in content.get("listeningPhases") or []:
+        for phase in content.get(ContentKey.LISTENING_PHASES) or []:
             if isinstance(phase, dict):
-                for it in phase.get("items") or []:
+                for it in phase.get(ContentKey.ITEMS) or []:
                     if isinstance(it, dict):
                         items.append(it)
 
     counts: dict[str, int] = {}
     for it in items:
-        t = str(it.get("runtimeType") or "").strip()
+        t = str(it.get(ItemKey.RUNTIME_TYPE) or "").strip()
         if t:
             counts[t] = counts.get(t, 0) + 1
 
@@ -929,21 +968,21 @@ def evaluate_unit_spiral(section: dict[str, Any]) -> dict[str, Any]:
         items: list[dict[str, Any]] = []
         content = lesson.get("content") or {}
         if isinstance(content, dict):
-            for stage in content.get("stages") or []:
+            for stage in content.get(ContentKey.STAGES) or []:
                 if isinstance(stage, dict):
-                    for it in stage.get("items") or []:
+                    for it in stage.get(ContentKey.ITEMS) or []:
                         if isinstance(it, dict):
                             items.append(it)
-            for sub in content.get("subLessons") or []:
+            for sub in content.get(ContentKey.SUB_LESSONS) or []:
                 if isinstance(sub, dict):
-                    for stage in sub.get("stages") or []:
+                    for stage in sub.get(ContentKey.STAGES) or []:
                         if isinstance(stage, dict):
-                            for it in stage.get("items") or []:
+                            for it in stage.get(ContentKey.ITEMS) or []:
                                 if isinstance(it, dict):
                                     items.append(it)
-            for phase in content.get("listeningPhases") or []:
+            for phase in content.get(ContentKey.LISTENING_PHASES) or []:
                 if isinstance(phase, dict):
-                    for it in phase.get("items") or []:
+                    for it in phase.get(ContentKey.ITEMS) or []:
                         if isinstance(it, dict):
                             items.append(it)
         lesson_items.append(items)

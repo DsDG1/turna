@@ -34,6 +34,7 @@ from PySide6.QtWidgets import (
 
 from src.backend.course_adapter import CourseAdapter
 from src.backend.lesson_content import ALLOWED_RUNTIME_TYPES
+from src.backend.schema_constants import InteractionType, ItemKey
 from src.i18n.labels import field_label, interaction_label
 from src.widgets.option_models import build_options_model, select_by_id
 
@@ -77,20 +78,20 @@ class QuestionCard(QFrame):
     ai_rewrite_requested = Signal()
 
     _CONTENT_BUILDERS: dict[str, str] = {
-        "showWord": "_build_show_word",
-        "multipleChoice": "_build_single_choice",
-        "readingMcq": "_build_single_choice",
-        "listenAndPick": "_build_single_choice",
-        "multiSelect": "_build_multi_select",
-        "fillBlank": "_build_fill_blank",
-        "translateSentence": "_build_translate",
-        "readingTrueFalse": "_build_true_false",
-        "readingShortAnswer": "_build_short_answer",
-        "typeTheWord": "_build_type_the_word",
-        "listenOnly": "_build_listen_only",
-        "reorderSentence": "_build_reorder_sentence",
-        "ankiCard": "_build_anki_card",
-        "ankiHtmlCard": "_build_anki_html_card",
+        InteractionType.SHOW_WORD: "_build_show_word",
+        InteractionType.MULTIPLE_CHOICE: "_build_single_choice",
+        InteractionType.READING_MCQ: "_build_single_choice",
+        InteractionType.LISTEN_AND_PICK: "_build_single_choice",
+        InteractionType.MULTI_SELECT: "_build_multi_select",
+        InteractionType.FILL_BLANK: "_build_fill_blank",
+        InteractionType.TRANSLATE_SENTENCE: "_build_translate",
+        InteractionType.READING_TRUE_FALSE: "_build_true_false",
+        InteractionType.READING_SHORT_ANSWER: "_build_short_answer",
+        InteractionType.TYPE_THE_WORD: "_build_type_the_word",
+        InteractionType.LISTEN_ONLY: "_build_listen_only",
+        InteractionType.REORDER_SENTENCE: "_build_reorder_sentence",
+        InteractionType.ANKI_CARD: "_build_anki_card",
+        InteractionType.ANKI_HTML_CARD: "_build_anki_html_card",
     }
 
     def __init__(
@@ -131,7 +132,7 @@ class QuestionCard(QFrame):
         self._type_combo = QComboBox()
         for rt in ALLOWED_RUNTIME_TYPES:
             self._type_combo.addItem(interaction_label(rt), rt)
-        rt = self.item.get("runtimeType", "")
+        rt = self.item.get(ItemKey.RUNTIME_TYPE, "")
         for i in range(self._type_combo.count()):
             if self._type_combo.itemData(i) == rt:
                 self._type_combo.setCurrentIndex(i)
@@ -171,7 +172,7 @@ class QuestionCard(QFrame):
         if self._type_combo is None:
             return
         new_type = self._type_combo.currentData()
-        if new_type == self.item.get("runtimeType"):
+        if new_type == self.item.get(ItemKey.RUNTIME_TYPE):
             return
         self.type_changed.emit(new_type)
 
@@ -194,7 +195,7 @@ class QuestionCard(QFrame):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(10)
 
-        rt = self.item.get("runtimeType", "")
+        rt = self.item.get(ItemKey.RUNTIME_TYPE, "")
         method_name = self._CONTENT_BUILDERS.get(rt, "_build_fallback")
         builder = getattr(self, method_name, self._build_fallback)
         builder(layout)
@@ -238,18 +239,18 @@ class QuestionCard(QFrame):
         if model is None:
             model = build_options_model(self.adapter.grammar_options(), placeholder="(未关联)")
         combo.setModel(model)
-        select_by_id(combo, model, self.item.get("grammarPointId") or "")
+        select_by_id(combo, model, self.item.get(ItemKey.GRAMMAR_POINT_ID) or "")
         combo.currentIndexChanged.connect(
-            lambda _i: self._set_field("grammarPointId", combo.currentData() or "")
+            lambda _i: self._set_field(ItemKey.GRAMMAR_POINT_ID, combo.currentData() or "")
         )
-        layout.addWidget(QLabel(field_label("grammarPointId")))
+        layout.addWidget(QLabel(field_label(ItemKey.GRAMMAR_POINT_ID)))
         layout.addWidget(combo)
 
     def _build_show_word(self, layout: QVBoxLayout) -> None:
-        layout.addWidget(QLabel(field_label("wordId")))
-        combo = self._word_combo(self.item.get("wordId", ""))
+        layout.addWidget(QLabel(field_label(ItemKey.WORD_ID)))
+        combo = self._word_combo(self.item.get(ItemKey.WORD_ID, ""))
         combo.currentIndexChanged.connect(
-            lambda _i: self._set_field("wordId", combo.currentData() or "")
+            lambda _i: self._set_field(ItemKey.WORD_ID, combo.currentData() or "")
         )
         layout.addWidget(combo)
         self._add_labeled_edit(layout, "context")
@@ -292,17 +293,17 @@ class QuestionCard(QFrame):
 
     def _build_options_editor(self, layout: QVBoxLayout, exclusive: bool) -> None:
         """Build radio/checkbox options list with add/delete buttons."""
-        options = list(self.item.get("options", []) or [])
+        options = list(self.item.get(ItemKey.OPTIONS, []) or [])
         group = QButtonGroup(self) if exclusive else None
         if group is not None:
             group.setExclusive(True)
 
         rows: list[_OptionRow] = []
         if exclusive:
-            correct_idx = int(self.item.get("correctIndex", 0) or 0)
+            correct_idx = int(self.item.get(ItemKey.CORRECT_INDEX, 0) or 0)
             correct_set = {correct_idx}
         else:
-            correct_set = set(self.item.get("correctIndices", []) or [])
+            correct_set = set(self.item.get(ItemKey.CORRECT_INDICES, []) or [])
 
         for i, opt in enumerate(options):
             row = _OptionRow(str(opt), i in correct_set, exclusive=exclusive)
@@ -336,40 +337,40 @@ class QuestionCard(QFrame):
                 return
             for i, row in enumerate(rows):
                 if row.selector.isChecked():
-                    self._set_field("correctIndex", i)
+                    self._set_field(ItemKey.CORRECT_INDEX, i)
                     return
         else:
             self._set_field(
-                "correctIndices",
+                ItemKey.CORRECT_INDICES,
                 [i for i, row in enumerate(rows) if row.selector.isChecked()],
             )
 
     def _on_option_text_changed(self, idx: int, text: str) -> None:
-        opts = self.item.setdefault("options", [])
+        opts = self.item.setdefault(ItemKey.OPTIONS, [])
         if idx < len(opts):
             opts[idx] = text
         self.changed.emit()
 
     def _on_add_option(self) -> None:
-        self.item.setdefault("options", []).append("新选项")
+        self.item.setdefault(ItemKey.OPTIONS, []).append("新选项")
         self._build_content()
         self.changed.emit()
 
     def _on_del_option(self) -> None:
-        opts = self.item.get("options", [])
+        opts = self.item.get(ItemKey.OPTIONS, [])
         if len(opts) > 2:
             opts.pop()
             self._build_content()
             self.changed.emit()
 
     def _build_single_choice(self, layout: QVBoxLayout) -> None:
-        self._add_labeled_edit(layout, "prompt")
-        if self.item.get("runtimeType") == "multipleChoice":
-            self._add_media_list(layout, "audioAssets")
+        self._add_labeled_edit(layout, ItemKey.PROMPT)
+        if self.item.get(ItemKey.RUNTIME_TYPE) == InteractionType.MULTIPLE_CHOICE:
+            self._add_media_list(layout, ItemKey.AUDIO_ASSETS)
         self._build_options_editor(layout, exclusive=True)
 
     def _build_multi_select(self, layout: QVBoxLayout) -> None:
-        self._add_labeled_edit(layout, "prompt")
+        self._add_labeled_edit(layout, ItemKey.PROMPT)
         self._build_options_editor(layout, exclusive=False)
 
     def _build_fill_blank(self, layout: QVBoxLayout) -> None:

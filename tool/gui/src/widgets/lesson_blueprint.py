@@ -50,6 +50,7 @@ from src.backend.lesson_content import (
     move_item,
     switch_runtime_type,
 )
+from src.backend.schema_constants import ContentKey, TemplateType
 from src.theme import current_palette
 from src.teacher.question_cards import QuestionCard
 
@@ -290,22 +291,22 @@ class LessonBlueprint(QWidget):
         ids = set()
         content = self.lesson.get("content", {})
         template = self.lesson.get("template", "legacy")
-        if template == "listening":
-            for phase in content.get("listeningPhases", []):
-                for item in phase.get("items", []):
+        if template == TemplateType.LISTENING:
+            for phase in content.get(ContentKey.LISTENING_PHASES, []):
+                for item in phase.get(ContentKey.ITEMS, []):
                     item_id = item.get("id")
                     if item_id:
                         ids.add(item_id)
-        elif template in ("reading", "mastery"):
-            for stage in content.get("stages", []):
-                for item in stage.get("items", []):
+        elif template in (TemplateType.READING, TemplateType.MASTERY):
+            for stage in content.get(ContentKey.STAGES, []):
+                for item in stage.get(ContentKey.ITEMS, []):
                     item_id = item.get("id")
                     if item_id:
                         ids.add(item_id)
         else:
-            for sub in content.get("subLessons", []):
-                for stage in sub.get("stages", []):
-                    for item in stage.get("items", []):
+            for sub in content.get(ContentKey.SUB_LESSONS, []):
+                for stage in sub.get(ContentKey.STAGES, []):
+                    for item in stage.get(ContentKey.ITEMS, []):
                         item_id = item.get("id")
                         if item_id:
                             ids.add(item_id)
@@ -316,25 +317,25 @@ class LessonBlueprint(QWidget):
         if self._first_build:
             self._first_build = False
             content = self.lesson.setdefault("content", {})
-            template = self.lesson.get("template", "legacy")
-            if template == "listening":
-                for phase in content.setdefault("listeningPhases", []):
-                    items = phase.setdefault("items", [])
+            template = self.lesson.get("template", TemplateType.LEGACY)
+            if template == TemplateType.LISTENING:
+                for phase in content.setdefault(ContentKey.LISTENING_PHASES, []):
+                    items = phase.setdefault(ContentKey.ITEMS, [])
                     if items:
                         item_id = items[0].get("id")
                         if item_id:
                             self.expanded_item_ids.add(item_id)
-            elif template in ("reading", "mastery"):
-                for stage in content.setdefault("stages", []):
-                    items = stage.setdefault("items", [])
+            elif template in (TemplateType.READING, TemplateType.MASTERY):
+                for stage in content.setdefault(ContentKey.STAGES, []):
+                    items = stage.setdefault(ContentKey.ITEMS, [])
                     if items:
                         item_id = items[0].get("id")
                         if item_id:
                             self.expanded_item_ids.add(item_id)
             else:
-                for sub in content.setdefault("subLessons", []):
-                    for stage in sub.setdefault("stages", []):
-                        items = stage.setdefault("items", [])
+                for sub in content.setdefault(ContentKey.SUB_LESSONS, []):
+                    for stage in sub.setdefault(ContentKey.STAGES, []):
+                        items = stage.setdefault(ContentKey.ITEMS, [])
                         if items:
                             item_id = items[0].get("id")
                             if item_id:
@@ -444,7 +445,7 @@ class LessonBlueprint(QWidget):
     def _build_reading(self) -> None:
         content = self.lesson.setdefault("content", {})
         passage = content.setdefault(
-            "readingPassage",
+            ContentKey.READING_PASSAGE,
             {
                 "title": "",
                 "paragraphs": [],
@@ -453,7 +454,7 @@ class LessonBlueprint(QWidget):
                 "linkedExpressionIds": [],
             },
         )
-        stages = content.setdefault("stages", [])
+        stages = content.setdefault(ContentKey.STAGES, [])
         if not stages:
             from src.backend.lesson_content import add_stage
 
@@ -500,7 +501,7 @@ class LessonBlueprint(QWidget):
             passage_card.add_body(_wrap(form))
         self._host_layout.insertWidget(0, passage_card)
 
-        qcard = _Card("理解题", f"{len(stage.get('items', []))} 道题")
+        qcard = _Card("理解题", f"{len(stage.get(ContentKey.ITEMS, []))} 道题")
         qcard.add_body(self._build_items_block(stage))
         self._host_layout.insertWidget(1, qcard)
 
@@ -508,13 +509,13 @@ class LessonBlueprint(QWidget):
 
     def _build_mastery(self) -> None:
         content = self.lesson.setdefault("content", {})
-        stages = content.setdefault("stages", [])
+        stages = content.setdefault(ContentKey.STAGES, [])
         if not stages:
             from src.backend.lesson_content import add_stage
 
             add_stage(content, "Check")
         stage = stages[0]
-        card = _Card("综合测验", f"{len(stage.get('items', []))} 道题")
+        card = _Card("综合测验", f"{len(stage.get(ContentKey.ITEMS, []))} 道题")
         card.add_body(self._build_items_block(stage))
         self._host_layout.insertWidget(0, card)
 
@@ -522,7 +523,7 @@ class LessonBlueprint(QWidget):
 
     def _build_sublessons(self) -> None:
         content = self.lesson.setdefault("content", {})
-        subs = content.get("subLessons", [])
+        subs = content.get(ContentKey.SUB_LESSONS, [])
         if subs:
             row = QHBoxLayout()
             row.setSpacing(10)
@@ -546,8 +547,8 @@ class LessonBlueprint(QWidget):
             self._host_layout.insertWidget(0, add_btn)
 
     def _build_sublesson_card(self, sub: dict[str, Any]) -> _Card:
-        stages = sub.get("stages", [])
-        item_count = sum(len(st.get("items", [])) for st in stages)
+        stages = sub.get(ContentKey.STAGES, [])
+        item_count = sum(len(st.get(ContentKey.ITEMS, [])) for st in stages)
         card = _Card(sub.get("name", "教学环节"), f"{len(stages)} 步 · {item_count} 题")
         if not self.read_only:
             dele = QPushButton("删除环节")

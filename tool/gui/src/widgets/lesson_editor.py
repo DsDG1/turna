@@ -39,6 +39,7 @@ from src.backend.lesson_content import (
     allowed_content_keys,
     switch_template,
 )
+from src.backend.schema_constants import ContentKey, ItemKey
 from src.theme import current_palette
 from src.widgets.interaction_forms import InteractionForm
 
@@ -77,7 +78,7 @@ class ItemListPanel(QWidget):
     def show_stage(self, stage: dict[str, Any]) -> None:
         self.stage = stage
         self._refresh()
-        if stage.get("items"):
+        if stage.get(ContentKey.ITEMS):
             self.list_widget.setCurrentRow(0)
         else:
             self._clear_form()
@@ -86,8 +87,8 @@ class ItemListPanel(QWidget):
         self.list_widget.clear()
         if not self.stage:
             return
-        for item in self.stage.get("items", []):
-            rt = item.get("runtimeType", "?")
+        for item in self.stage.get(ContentKey.ITEMS, []):
+            rt = item.get(ItemKey.RUNTIME_TYPE, "?")
             label = INTERACTION_LABELS.get(rt, rt)
             prompt = (
                 item.get("prompt")
@@ -146,10 +147,10 @@ class SubLessonTreeEditor(QWidget):
         self.lesson = lesson
         content = lesson.setdefault("content", {})
         allowed = allowed_content_keys(lesson.get("template", "legacy"))
-        if "subLessons" in allowed:
-            content.setdefault("subLessons", [])
-        if "stages" in allowed:
-            content.setdefault("stages", [])
+        if ContentKey.SUB_LESSONS in allowed:
+            content.setdefault(ContentKey.SUB_LESSONS, [])
+        if ContentKey.STAGES in allowed:
+            content.setdefault(ContentKey.STAGES, [])
 
         layout = QVBoxLayout(self)
         splitter = QSplitter()
@@ -168,9 +169,9 @@ class SubLessonTreeEditor(QWidget):
         self.sub_list.currentRowChanged.connect(self._on_sub_select)
         self.stage_list.currentRowChanged.connect(self._on_stage_select)
         self._refresh_subs()
-        if content["subLessons"]:
+        if content[ContentKey.SUB_LESSONS]:
             self.sub_list.setCurrentRow(0)
-        elif content["stages"]:
+        elif content[ContentKey.STAGES]:
             self._show_flat_stages()
 
     def _labeled(self, title: str, inner: QWidget, on_add: Any) -> QWidget:
@@ -186,11 +187,11 @@ class SubLessonTreeEditor(QWidget):
 
     def _refresh_subs(self) -> None:
         self.sub_list.clear()
-        for sub in self.lesson["content"].get("subLessons", []):
+        for sub in self.lesson["content"].get(ContentKey.SUB_LESSONS, []):
             self.sub_list.addItem(sub.get("name", sub.get("id", "")))
 
     def _on_sub_select(self, row: int) -> None:
-        subs = self.lesson["content"].get("subLessons", [])
+        subs = self.lesson["content"].get(ContentKey.SUB_LESSONS, [])
         if row < 0 or row >= len(subs):
             return
         self._current_sub = subs[row]
@@ -198,34 +199,34 @@ class SubLessonTreeEditor(QWidget):
 
     def _refresh_stages(self, sub: dict[str, Any]) -> None:
         self.stage_list.clear()
-        for st in sub.get("stages", []):
+        for st in sub.get(ContentKey.STAGES, []):
             self.stage_list.addItem(st.get("name", st.get("id", "")))
-        if sub.get("stages"):
+        if sub.get(ContentKey.STAGES):
             self.stage_list.setCurrentRow(0)
 
     def _on_stage_select(self, row: int) -> None:
-        subs = self.lesson["content"].get("subLessons", [])
-        stages = self._current_sub.get("stages", []) if hasattr(self, "_current_sub") else []
+        subs = self.lesson["content"].get(ContentKey.SUB_LESSONS, [])
+        stages = self._current_sub.get(ContentKey.STAGES, []) if hasattr(self, "_current_sub") else []
         if row < 0 or row >= len(stages):
             return
         self.item_panel.show_stage(stages[row])
 
     def _show_flat_stages(self) -> None:
-        stages = self.lesson["content"].get("stages", [])
-        self._current_sub = {"stages": stages}
+        stages = self.lesson["content"].get(ContentKey.STAGES, [])
+        self._current_sub = {ContentKey.STAGES: stages}
         self._refresh_stages(self._current_sub)
 
     def _add_sub(self) -> None:
         sub = add_sub_lesson(self.lesson["content"])
         self._refresh_subs()
-        self.sub_list.setCurrentRow(len(self.lesson["content"]["subLessons"]) - 1)
+        self.sub_list.setCurrentRow(len(self.lesson["content"][ContentKey.SUB_LESSONS]) - 1)
 
     def _add_stage(self) -> None:
         if not hasattr(self, "_current_sub") or not self._current_sub:
             return
         stage = add_stage(self._current_sub)
         self._refresh_stages(self._current_sub)
-        self.stage_list.setCurrentRow(len(self._current_sub["stages"]) - 1)
+        self.stage_list.setCurrentRow(len(self._current_sub[ContentKey.STAGES]) - 1)
 
 
 class MasteryEditor(QWidget):
@@ -236,7 +237,7 @@ class MasteryEditor(QWidget):
         self.adapter = adapter
         self.lesson = lesson
         content = lesson.setdefault("content", {})
-        stages = content.setdefault("stages", [])
+        stages = content.setdefault(ContentKey.STAGES, [])
         if not stages:
             add_stage(content, "Check")
 
@@ -257,7 +258,7 @@ class ListeningPhasesEditor(QWidget):
         self.adapter = adapter
         self.lesson = lesson
         content = lesson.setdefault("content", {})
-        content.setdefault("listeningPhases", [])
+        content.setdefault(ContentKey.LISTENING_PHASES, [])
 
         layout = QVBoxLayout(self)
         splitter = QSplitter()
@@ -283,8 +284,10 @@ class ListeningPhasesEditor(QWidget):
         self.item_panel = ItemListPanel(adapter)
         self.meta_host = QWidget()
         self.meta_layout = QFormLayout(self.meta_host)
+        self.meta_layout.setContentsMargins(0, 0, 0, 0)
         right = QWidget()
         rv = QVBoxLayout(right)
+        rv.setContentsMargins(0, 0, 0, 0)
         rv.addWidget(self.meta_host)
         rv.addWidget(self.item_panel, 1)
         splitter.addWidget(right)
@@ -296,16 +299,16 @@ class ListeningPhasesEditor(QWidget):
         self.add_phase_btn.clicked.connect(self._on_add_phase)
         self.del_phase_btn.clicked.connect(self._on_del_phase)
         self._refresh()
-        if content["listeningPhases"]:
+        if content[ContentKey.LISTENING_PHASES]:
             self.phase_list.setCurrentRow(0)
 
     def _refresh(self) -> None:
         self.phase_list.clear()
-        for ph in self.lesson["content"]["listeningPhases"]:
+        for ph in self.lesson["content"][ContentKey.LISTENING_PHASES]:
             self.phase_list.addItem(f"{ph.get('type', '?')} — {ph.get('name', '')}")
 
     def _on_phase_select(self, row: int) -> None:
-        phases = self.lesson["content"]["listeningPhases"]
+        phases = self.lesson["content"][ContentKey.LISTENING_PHASES]
         if row < 0 or row >= len(phases):
             return
         phase = phases[row]
@@ -325,7 +328,7 @@ class ListeningPhasesEditor(QWidget):
                 )
             )
             self.meta_layout.addRow("transcript:", self.transcript_edit)
-        if "items" in phase:
+        if ContentKey.ITEMS in phase:
             self.item_panel.show_stage(phase)
         else:
             self.item_panel.show_stage({"items": []})
@@ -362,14 +365,14 @@ class ReadingEditor(QWidget):
         self.adapter = adapter
         self.lesson = lesson
         content = lesson.setdefault("content", {})
-        passage = content.setdefault("readingPassage", {
+        passage = content.setdefault(ContentKey.READING_PASSAGE, {
             "title": "",
             "paragraphs": [],
             "difficulty": 1,
             "linkedWordIds": [],
             "linkedExpressionIds": [],
         })
-        stages = content.setdefault("stages", [])
+        stages = content.setdefault(ContentKey.STAGES, [])
         if not stages:
             add_stage(content, "Comprehension")
 

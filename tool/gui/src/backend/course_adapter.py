@@ -23,6 +23,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[4]
 from src.backend.course_io import CourseIoService, SaveResult
 from src.backend.course_exchange import CourseExchangeService
 from src.backend.course_release import CourseReleaseService
+from src.backend.schema_constants import ResourceKey
 
 
 from src.backend.course_section_merge import (
@@ -112,9 +113,9 @@ class CourseAdapter:
         self._hash_cache = {
             "index": self._state_hash({"index": snap["index"]}),
             "sections": self._state_hash({"sections": snap["sections"]}),
-            "vocab": self._state_hash({"vocab": snap["vocab"]}),
-            "expressions": self._state_hash({"expressions": snap["expressions"]}),
-            "grammar_points": self._state_hash({"grammar_points": snap["grammar_points"]}),
+            ResourceKey.VOCAB: self._state_hash({ResourceKey.VOCAB: snap[ResourceKey.VOCAB]}),
+            ResourceKey.EXPRESSIONS: self._state_hash({ResourceKey.EXPRESSIONS: snap[ResourceKey.EXPRESSIONS]}),
+            ResourceKey.GRAMMAR_POINTS: self._state_hash({ResourceKey.GRAMMAR_POINTS: snap[ResourceKey.GRAMMAR_POINTS]}),
         }
 
     def invalidate_node_index(self) -> None:
@@ -482,22 +483,22 @@ class CourseAdapter:
         raise KeyError(f"unknown lesson: {lesson_id}")
 
     def _resource_list(self, row_type: str) -> list[dict[str, Any]]:
-        if row_type == "vocab":
+        if row_type == ResourceKey.VOCAB:
             return self.vocab
-        if row_type == "expressions":
+        if row_type == ResourceKey.EXPRESSIONS:
             return self.expressions
-        if row_type == "grammar_points":
+        if row_type == ResourceKey.GRAMMAR_POINTS:
             return self.grammar_points
         raise ValueError(f"unknown resource type: {row_type}")
 
     def _set_resource_list(
         self, row_type: str, entries: list[dict[str, Any]]
     ) -> None:
-        if row_type == "vocab":
+        if row_type == ResourceKey.VOCAB:
             self.vocab = entries
-        elif row_type == "expressions":
+        elif row_type == ResourceKey.EXPRESSIONS:
             self.expressions = entries
-        elif row_type == "grammar_points":
+        elif row_type == ResourceKey.GRAMMAR_POINTS:
             self.grammar_points = entries
         else:
             raise ValueError(f"unknown resource type: {row_type}")
@@ -505,8 +506,8 @@ class CourseAdapter:
     def add_resource_entry(self, row_type: str) -> str:
         """Append a blank entry with a fresh id, return the id."""
         from src.backend.lesson_content import short_id
-        if row_type in ("vocab", "expressions"):
-            prefix = "w" if row_type == "vocab" else "e"
+        if row_type in (ResourceKey.VOCAB, ResourceKey.EXPRESSIONS):
+            prefix = "w" if row_type == ResourceKey.VOCAB else "e"
             entry: dict[str, Any] = {
                 "id": short_id(prefix),
                 "term": "",
@@ -515,7 +516,7 @@ class CourseAdapter:
                 "audioAsset": None,
                 "tags": [],
             }
-        elif row_type == "grammar_points":
+        elif row_type == ResourceKey.GRAMMAR_POINTS:
             entry = {
                 "id": short_id("g"),
                 "title": "",
