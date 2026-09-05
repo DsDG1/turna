@@ -76,6 +76,23 @@ class QuestionCard(QFrame):
     move_down_requested = Signal()
     ai_rewrite_requested = Signal()
 
+    _CONTENT_BUILDERS: dict[str, str] = {
+        "showWord": "_build_show_word",
+        "multipleChoice": "_build_single_choice",
+        "readingMcq": "_build_single_choice",
+        "listenAndPick": "_build_single_choice",
+        "multiSelect": "_build_multi_select",
+        "fillBlank": "_build_fill_blank",
+        "translateSentence": "_build_translate",
+        "readingTrueFalse": "_build_true_false",
+        "readingShortAnswer": "_build_short_answer",
+        "typeTheWord": "_build_type_the_word",
+        "listenOnly": "_build_listen_only",
+        "reorderSentence": "_build_reorder_sentence",
+        "ankiCard": "_build_anki_card",
+        "ankiHtmlCard": "_build_anki_html_card",
+    }
+
     def __init__(
         self,
         adapter: CourseAdapter,
@@ -177,33 +194,10 @@ class QuestionCard(QFrame):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(10)
 
-        rt = self.item.get("runtimeType")
-        if rt == "showWord":
-            self._build_show_word(layout)
-        elif rt in ("multipleChoice", "readingMcq", "listenAndPick"):
-            self._build_single_choice(layout)
-        elif rt == "multiSelect":
-            self._build_multi_select(layout)
-        elif rt in ("fillBlank",):
-            self._build_fill_blank(layout)
-        elif rt in ("translateSentence",):
-            self._build_translate(layout)
-        elif rt == "readingTrueFalse":
-            self._build_true_false(layout)
-        elif rt == "readingShortAnswer":
-            self._build_short_answer(layout)
-        elif rt == "typeTheWord":
-            self._build_type_the_word(layout)
-        elif rt == "listenOnly":
-            self._build_listen_only(layout)
-        elif rt == "reorderSentence":
-            self._build_reorder_sentence(layout)
-        elif rt == "ankiCard":
-            self._build_anki_card(layout)
-        elif rt == "ankiHtmlCard":
-            self._build_anki_html_card(layout)
-        else:
-            self._build_fallback(layout)
+        rt = self.item.get("runtimeType", "")
+        method_name = self._CONTENT_BUILDERS.get(rt, "_build_fallback")
+        builder = getattr(self, method_name, self._build_fallback)
+        builder(layout)
 
         self._build_grammar_combo(layout)
 
@@ -296,105 +290,87 @@ class QuestionCard(QFrame):
             )
         )
 
-    def _build_single_choice(self, layout: QVBoxLayout) -> None:
-        self._add_labeled_edit(layout, "prompt")
-        if self.item.get("runtimeType") == "multipleChoice":
-            self._add_media_list(layout, "audioAssets")
+    def _build_options_editor(self, layout: QVBoxLayout, exclusive: bool) -> None:
+        """Build radio/checkbox options list with add/delete buttons."""
         options = list(self.item.get("options", []) or [])
-        correct = int(self.item.get("correctIndex", 0) or 0)
-
-        group = QButtonGroup(self)
-        group.setExclusive(True)
+        group = QButtonGroup(self) if exclusive else None
+        if group is not None:
+            group.setExclusive(True)
 
         rows: list[_OptionRow] = []
+        if exclusive:
+            correct_idx = int(self.item.get("correctIndex", 0) or 0)
+            correct_set = {correct_idx}
+        else:
+            correct_set = set(self.item.get("correctIndices", []) or [])
 
-        def _sync() -> None:
+        for i, opt in enumerate(options):
+            row = _OptionRow(str(opt), i in correct_set, exclusive=exclusive)
+            if group is not None:
+                group.addButton(row.selector)
+            row.selector.toggled.connect(
+                lambda checked, ex=exclusive, r_list=rows: self._on_option_toggled(
+                    checked, ex, r_list
+                )
+            )
+            row.edit.textChanged.connect(
+                lambda text, idx=i: self._on_option_text_changed(idx, text)
+            )
+            rows.append(row)
+            layout.addWidget(row)
+
+        add_btn = QPushButton("+ 添加选项")
+        del_btn = QPushButton("- 删除末项")
+        add_btn.clicked.connect(self._on_add_option)
+        del_btn.clicked.connect(self._on_del_option)
+        btn_row = QHBoxLayout()
+        btn_row.addWidget(add_btn)
+        btn_row.addWidget(del_btn)
+        layout.addLayout(btn_row)
+
+    def _on_option_toggled(
+        self, checked: bool, exclusive: bool, rows: list[_OptionRow]
+    ) -> None:
+        if exclusive:
+            if not checked:
+                return
             for i, row in enumerate(rows):
                 if row.selector.isChecked():
                     self._set_field("correctIndex", i)
                     return
-
-        def _update_text(idx: int, text: str) -> None:
-            opts = self.item.setdefault("options", [])
-            if idx < len(opts):
-                opts[idx] = text
-            self.changed.emit()
-
-        for i, opt in enumerate(options):
-            row = _OptionRow(str(opt), i == correct, exclusive=True)
-            row.selector.toggled.connect(lambda checked, r=row: _sync() if checked else None)
-            row.edit.textChanged.connect(lambda t, idx=i: _update_text(idx, t))
-            group.addButton(row.selector)
-            rows.append(row)
-            layout.addWidget(row)
-
-        def _add_option() -> None:
-            self.item.setdefault("options", []).append("新选项")
-            self._build_content()
-            self.changed.emit()
-
-        def _del_option() -> None:
-            opts = self.item.get("options", [])
-            if len(opts) > 2:
-                opts.pop()
-                self._build_content()
-                self.changed.emit()
-
-        add_btn = QPushButton("+ 添加选项")
-        del_btn = QPushButton("- 删除末项")
-        add_btn.clicked.connect(_add_option)
-        del_btn.clicked.connect(_del_option)
-        row = QHBoxLayout()
-        row.addWidget(add_btn)
-        row.addWidget(del_btn)
-        layout.addLayout(row)
-
-    def _build_multi_select(self, layout: QVBoxLayout) -> None:
-        self._add_labeled_edit(layout, "prompt")
-        options = list(self.item.get("options", []) or [])
-        correct = set(self.item.get("correctIndices", []) or [])
-
-        rows: list[_OptionRow] = []
-
-        def _sync() -> None:
+        else:
             self._set_field(
                 "correctIndices",
                 [i for i, row in enumerate(rows) if row.selector.isChecked()],
             )
 
-        def _update_text(idx: int, text: str) -> None:
-            opts = self.item.setdefault("options", [])
-            if idx < len(opts):
-                opts[idx] = text
-            self.changed.emit()
+    def _on_option_text_changed(self, idx: int, text: str) -> None:
+        opts = self.item.setdefault("options", [])
+        if idx < len(opts):
+            opts[idx] = text
+        self.changed.emit()
 
-        for i, opt in enumerate(options):
-            row = _OptionRow(str(opt), i in correct, exclusive=False)
-            row.selector.toggled.connect(_sync)
-            row.edit.textChanged.connect(lambda t, idx=i: _update_text(idx, t))
-            rows.append(row)
-            layout.addWidget(row)
+    def _on_add_option(self) -> None:
+        self.item.setdefault("options", []).append("新选项")
+        self._build_content()
+        self.changed.emit()
 
-        def _add_option() -> None:
-            self.item.setdefault("options", []).append("新选项")
+    def _on_del_option(self) -> None:
+        opts = self.item.get("options", [])
+        if len(opts) > 2:
+            opts.pop()
             self._build_content()
             self.changed.emit()
 
-        def _del_option() -> None:
-            opts = self.item.get("options", [])
-            if len(opts) > 2:
-                opts.pop()
-                self._build_content()
-                self.changed.emit()
+    def _build_single_choice(self, layout: QVBoxLayout) -> None:
+        self._add_labeled_edit(layout, "prompt")
+        if self.item.get("runtimeType") == "multipleChoice":
+            self._add_media_list(layout, "audioAssets")
+        self._build_options_editor(layout, exclusive=True)
 
-        add_btn = QPushButton("+ 添加选项")
-        del_btn = QPushButton("- 删除末项")
-        add_btn.clicked.connect(_add_option)
-        del_btn.clicked.connect(_del_option)
-        row = QHBoxLayout()
-        row.addWidget(add_btn)
-        row.addWidget(del_btn)
-        layout.addLayout(row)
+    def _build_multi_select(self, layout: QVBoxLayout) -> None:
+        self._add_labeled_edit(layout, "prompt")
+        self._build_options_editor(layout, exclusive=False)
 
     def _build_fill_blank(self, layout: QVBoxLayout) -> None:
         self._add_labeled_edit(layout, "sentence")
@@ -473,28 +449,14 @@ class QuestionCard(QFrame):
         self._flip_label.setStyleSheet("padding: 6px; color: #9aa4b6;")
         layout.addWidget(self._flip_label)
 
-        flip_btn = QPushButton("翻面（显示背面）")
+        self._flip_btn = QPushButton("翻面（显示背面）")
         self._revealed = False
-
-        def _toggle() -> None:
-            self._revealed = not self._revealed
-            text = (self.item.get("back", "") or "(空)") if self._revealed \
-                else (self.item.get("front", "") or "(空)")
-            self._flip_label.setText(text)
-            flip_btn.setText("翻面（显示背面）" if self._revealed else "翻面（显示正面）")
-
-        flip_btn.clicked.connect(_toggle)
-        layout.addWidget(flip_btn)
+        self._flip_btn.clicked.connect(self._on_toggle_anki_flip)
+        layout.addWidget(self._flip_btn)
 
         layout.addWidget(QLabel(field_label("back")))
         back_edit = QLineEdit(str(self.item.get("back", "") or ""))
-
-        def _on_back_changed(text: str) -> None:
-            self._set_field("back", text)
-            if self._revealed:
-                self._flip_label.setText(text or "(空)")
-
-        back_edit.textChanged.connect(_on_back_changed)
+        back_edit.textChanged.connect(self._on_anki_back_changed)
         layout.addWidget(back_edit)
 
         hint = str(self.item.get("hint", "") or "")
@@ -508,6 +470,26 @@ class QuestionCard(QFrame):
 
         self._add_media_list(layout, "audioAssets")
         self._add_media_list(layout, "imageAssets")
+
+    def _on_toggle_anki_flip(self) -> None:
+        self._revealed = not getattr(self, "_revealed", False)
+        text = (
+            (self.item.get("back", "") or "(空)")
+            if self._revealed
+            else (self.item.get("front", "") or "(空)")
+        )
+        if hasattr(self, "_flip_label"):
+            self._flip_label.setText(text)
+        if hasattr(self, "_flip_btn"):
+            self._flip_btn.setText(
+                "翻面（显示背面）" if self._revealed else "翻面（显示正面）"
+            )
+
+    def _on_anki_back_changed(self, text: str) -> None:
+        self._set_field("back", text)
+        if getattr(self, "_revealed", False) and hasattr(self, "_flip_label"):
+            self._flip_label.setText(text or "(空)")
+
 
     def _build_anki_html_card(self, layout: QVBoxLayout) -> None:
         """Degraded preview: tag-stripped text; full rendering is app-side."""
