@@ -1,6 +1,10 @@
 """Textbook project library: create, resume, or delete import projects."""
 from __future__ import annotations
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 from pathlib import Path
 from typing import Any
 
@@ -160,9 +164,9 @@ class TextbookLibraryDialog(QDialog):
                     try:
                         getattr(prev, sig_name).disconnect()
                     except (TypeError, RuntimeError, AttributeError):
-                        pass
+                        logger.debug("dialogs/textbook_library_dialog.py:162 best-effort step failed", exc_info=True)
             except Exception:  # noqa: BLE001 — defensive; never block new op
-                pass
+                logger.debug("dialogs/textbook_library_dialog.py:164 best-effort step failed", exc_info=True)
         self._set_git_busy(True, label)
         worker = AiRequestWorker(fn, *args)
 

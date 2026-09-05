@@ -118,7 +118,7 @@ class DetailPanel(QWidget):
             try:
                 self.form.metadata_changed.disconnect(self._meta_connection)
             except (TypeError, RuntimeError):
-                pass
+                logger.debug("widgets/detail_panel.py:120 best-effort step failed", exc_info=True)
             self._meta_connection = None
         self._meta_connection = self.form.metadata_changed.connect(self.tree_changed.emit)
 

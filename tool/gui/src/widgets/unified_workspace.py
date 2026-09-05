@@ -5,6 +5,10 @@ auto-switch to knowledge after extraction, and add-to-orbit without drag.
 """
 from __future__ import annotations
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 from typing import Any
 
 from PySide6.QtCore import Qt, QSettings, QByteArray, QTimer, Signal
@@ -327,14 +331,14 @@ class UnifiedWorkspaceWidget(QWidget):
                 if 0 <= idx < self.left_tabs.count():
                     self.left_tabs.setCurrentIndex(idx)
             except (TypeError, ValueError):
-                pass
+                logger.debug("widgets/unified_workspace.py:329 best-effort step failed", exc_info=True)
         if right is not None:
             try:
                 idx = int(right)
                 if 0 <= idx < self.right_tabs.count():
                     self.right_tabs.setCurrentIndex(idx)
             except (TypeError, ValueError):
-                pass
+                logger.debug("widgets/unified_workspace.py:336 best-effort step failed", exc_info=True)
         state = s.value(self._settings_key("splitter"))
         if isinstance(state, QByteArray) and not state.isEmpty():
             self.splitter.restoreState(state)
@@ -345,7 +349,7 @@ class UnifiedWorkspaceWidget(QWidget):
                 if not ba.isEmpty():
                     self.splitter.restoreState(ba)
             except Exception:
-                pass
+                logger.debug("widgets/unified_workspace.py:347 best-effort step failed", exc_info=True)
 
     # ------------------------------------------------------------------ public
     def _update_focus_summary(self) -> None:

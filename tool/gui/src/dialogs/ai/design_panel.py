@@ -8,6 +8,10 @@ All state lives in ``DesignController``; the panel renders and forwards.
 """
 from __future__ import annotations
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 import html
 import tempfile
 import uuid
@@ -471,7 +475,7 @@ class DesignPanel(QWidget):
             self._project.design = self._controller.to_design_dict()
             self._store.save_project(self._project)
         except Exception:
-            pass  # autosave must never break the flow
+            logger.debug("dialogs/ai/design_panel.py:473 best-effort step failed", exc_info=True)
 
     def flush_autosave(self) -> None:
         """Persist any pending design state immediately (workshop interrupt)."""
@@ -813,7 +817,7 @@ class DesignPanel(QWidget):
                 try:
                     temp_path.unlink()
                 except OSError:
-                    pass
+                    logger.debug("dialogs/ai/design_panel.py:815 best-effort step failed", exc_info=True)
                 QMessageBox.warning(
                     self, "附件无法读取", f"{path.name}：{result.error or '未知错误'}"
                 )
@@ -832,7 +836,7 @@ class DesignPanel(QWidget):
             try:
                 record.temp_path.unlink()
             except OSError:
-                pass
+                logger.debug("dialogs/ai/design_panel.py:834 best-effort step failed", exc_info=True)
 
     def cleanup_attachments(self) -> None:
         """Delete remaining temp files and clear the bar (interrupt/close)."""

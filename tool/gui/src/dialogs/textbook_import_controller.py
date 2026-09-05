@@ -10,6 +10,10 @@ majority of the import logic unit-testable without a QApplication event loop.
 """
 from __future__ import annotations
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 import sys
 import time
 from dataclasses import dataclass
@@ -1047,7 +1051,7 @@ class TextbookImportController:
                 if callable(status_hook):
                     status_hook(f"自动保存失败：{exc}")
             except Exception:  # noqa: BLE001 — never break on the error path
-                pass
+                logger.debug("dialogs/textbook_import_controller.py:1049 best-effort step failed", exc_info=True)
 
     def flush_autosave(self) -> None:
         """Force-write any throttled autosave state (close/interrupt safety)."""

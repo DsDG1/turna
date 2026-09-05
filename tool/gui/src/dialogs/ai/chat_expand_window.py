@@ -8,6 +8,10 @@ Geometry is persisted to QSettings so restore is exact (fixes the old
 """
 from __future__ import annotations
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QDialog,
@@ -116,7 +120,7 @@ class ChatExpandWindow(WindowUsageMixin, QDialog):
                 context={"window": "ChatExpand"},
             )
         except Exception:
-            pass
+            logger.debug("dialogs/ai/chat_expand_window.py:118 best-effort step failed", exc_info=True)
         self.send_requested.emit()
 
     def render(self, messages) -> None:

@@ -14,6 +14,10 @@ parent-agnostically.
 """
 from __future__ import annotations
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 import time
 
 from PySide6.QtCore import Qt, QSettings
@@ -128,4 +132,4 @@ class ResultExpandWindow(QDialog):
             )
             operations.record_action("window.close", name)
         except Exception:
-            pass
+            logger.debug("dialogs/ai/result_window.py:130 best-effort step failed", exc_info=True)

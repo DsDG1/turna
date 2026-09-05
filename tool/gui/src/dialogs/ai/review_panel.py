@@ -10,6 +10,10 @@ aiEnhance perception U0: generation summary card + clickable quality dims.
 """
 from __future__ import annotations
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 from typing import Any
 
 from PySide6.QtWidgets import (
@@ -542,7 +546,7 @@ class ReviewPanel(QWidget):
                     ],
                 }
             except Exception:
-                pass
+                logger.debug("dialogs/ai/review_panel.py:544 best-effort step failed", exc_info=True)
         return {
             "node_kind": "section",
             "node_id": draft.get("id", ""),

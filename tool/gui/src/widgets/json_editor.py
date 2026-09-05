@@ -7,6 +7,10 @@ editor follows the light/dark theme.
 """
 from __future__ import annotations
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 import json
 from typing import Any
 
@@ -32,7 +36,7 @@ def _palette() -> dict[str, str]:
         try:
             return current_palette()
         except Exception:  # noqa: BLE001
-            pass
+            logger.debug("widgets/json_editor.py:34 best-effort step failed", exc_info=True)
     return {
         "ai_accent": BRAND_REED,
         "text": "#E8EAF0",

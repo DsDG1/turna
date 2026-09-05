@@ -5,6 +5,10 @@ helper dialog. Advanced rewrite still opens ``AiLessonHelperDialog``.
 """
 from __future__ import annotations
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 from typing import Any, Callable
 
 from PySide6.QtWidgets import QMessageBox, QWidget
@@ -132,7 +136,7 @@ def run_item_chip(
             try:
                 fn(*args)
             except Exception:
-                pass
+                logger.debug("teacher/item_ai_chip.py:134 best-effort step failed", exc_info=True)
 
     guard_key = f"item:{item_id}"
     job_id = f"chip-{item_id}"
@@ -251,7 +255,7 @@ def run_item_chip(
                     try:
                         rec(str(lesson_id), instruction)
                     except Exception:
-                        pass
+                        logger.debug("teacher/item_ai_chip.py:253 best-effort step failed", exc_info=True)
             telemetry.record_event(
                 "experience.chip.applied", payload={"item_id": item_id}
             )

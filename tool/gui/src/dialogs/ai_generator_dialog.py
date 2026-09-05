@@ -17,6 +17,10 @@ deleted when the dialog closes.
 """
 from __future__ import annotations
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 import json
 import shutil
 import tempfile
@@ -1178,7 +1182,7 @@ class AiGeneratorDialog(QDialog):
         try:
             btn.clicked.disconnect()
         except RuntimeError:
-            pass
+            logger.debug("dialogs/ai_generator_dialog.py:1180 best-effort step failed", exc_info=True)
         btn.clicked.connect(slot)
 
     def _set_busy(self, busy: bool, normal: bool = False, stage: str = "") -> None:
@@ -1330,7 +1334,7 @@ class AiGeneratorDialog(QDialog):
                 },
             )
         except Exception:  # noqa: BLE001 — telemetry must not crash the UI
-            pass
+            logger.debug("dialogs/ai_generator_dialog.py:1332 best-effort step failed", exc_info=True)
 
     def _begin_stream(self, target: str) -> None:
         """Reset the streaming scratch buffer for a new worker."""
@@ -1389,7 +1393,7 @@ class AiGeneratorDialog(QDialog):
                     sig.disconnect()
             except (TypeError, RuntimeError):
                 # No connections or already disconnected — safe.
-                pass
+                logger.debug("dialogs/ai_generator_dialog.py:1390 best-effort step failed", exc_info=True)
 
     def _register_worker(self, worker: AiRequestWorker) -> None:
         """Remember the active worker and clear the reference when it finishes.
@@ -1984,7 +1988,7 @@ class AiGeneratorDialog(QDialog):
                 try:
                     temp_path.unlink(missing_ok=True)
                 except OSError:
-                    pass
+                    logger.debug("dialogs/ai_generator_dialog.py:1986 best-effort step failed", exc_info=True)
                 continue
             self._attachment_bar.add_attachment(
                 _AttachmentRecord(
@@ -2262,7 +2266,7 @@ class AiGeneratorDialog(QDialog):
             try:
                 att.temp_path.unlink(missing_ok=True)
             except OSError:
-                pass
+                logger.debug("dialogs/ai_generator_dialog.py:2264 best-effort step failed", exc_info=True)
         self._attachment_bar.clear_attachments()
         self._attachments.clear()
         win = getattr(self, "_chat_expand", None)
@@ -2270,7 +2274,7 @@ class AiGeneratorDialog(QDialog):
             try:
                 self._save_chat_expand_geometry(win)
             except Exception:  # noqa: BLE001
-                pass
+                logger.debug("dialogs/ai_generator_dialog.py:2272 best-effort step failed", exc_info=True)
             win.close()
             self._chat_expand = None
 

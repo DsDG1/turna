@@ -6,6 +6,10 @@ red removed, yellow changed). Backed by ``full_section_diff`` (pure function).
 """
 from __future__ import annotations
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 from typing import Any
 
 from PySide6.QtGui import QColor
@@ -34,7 +38,7 @@ def _pal() -> dict[str, str]:
         try:
             return current_palette()
         except Exception:  # noqa: BLE001
-            pass
+            logger.debug("widgets/diff_view.py:36 best-effort step failed", exc_info=True)
     return {"success": "#27AE60", "error": "#E74C3C", "warning": "#FF9F43"}
 
 

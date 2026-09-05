@@ -5,6 +5,10 @@ pending action; Esc / 「丢弃」 cancels. Never auto-writes the course tree.
 """
 from __future__ import annotations
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 from typing import Any, Callable
 
 from PySide6.QtCore import Qt, Signal
@@ -185,7 +189,7 @@ class PreviewHost(QWidget):
                     )
                 return
         except Exception:
-            pass
+            logger.debug("widgets/preview_host.py:187 best-effort step failed", exc_info=True)
         self._title.setText(title or "预览")
         self._summary.setText(summary or "")
         self._apply_btn.setEnabled(True)
@@ -224,7 +228,7 @@ class PreviewHost(QWidget):
                 kind=kind,
             )
         except Exception:
-            pass
+            logger.debug("widgets/preview_host.py:226 best-effort step failed", exc_info=True)
         try:
             metrics = getattr(host, "experience_metrics", None) if host else None
             if metrics is not None:
@@ -235,7 +239,7 @@ class PreviewHost(QWidget):
                         action_id, "applied" if ok else "rejected"
                     )
         except Exception:
-            pass
+            logger.debug("widgets/preview_host.py:237 best-effort step failed", exc_info=True)
         if ok or opaque:
             return
         try:
@@ -248,7 +252,7 @@ class PreviewHost(QWidget):
                 if bar is not None and hasattr(bar, "showMessage"):
                     bar.showMessage(msg, 6000)
         except Exception:
-            pass
+            logger.debug("widgets/preview_host.py:250 best-effort step failed", exc_info=True)
 
     def clear(self) -> None:
         self._busy = False
@@ -309,5 +313,5 @@ class PreviewHost(QWidget):
             try:
                 fn()
             except Exception:
-                pass
+                logger.debug("widgets/preview_host.py:311 best-effort step failed", exc_info=True)
         self.discarded.emit()

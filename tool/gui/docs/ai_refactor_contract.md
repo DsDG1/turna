@@ -166,9 +166,9 @@ QT_QPA_PLATFORM=offscreen python3 tool/gui/run_gui_tests.py fast
   的 `host._x` 访问即失败；新增耦合必须先写进协议。
 - **backend → UI 禁令**：`--fail-backend-ui` —— backend/ 禁止 import
   widgets/dialogs/teacher/theme/app（error_mapper、TEMPLATE_BADGES 已下沉 backend）。
-- **吞异常棘轮**：`--max-except-pass 56` —— 全 src 静默 `except: pass` 数量
-  只许降不许升。application/backend/infrastructure 核心层已全部改为
-  `logger.debug/warning(..., exc_info=True)`；剩余 56 处集中在 dialogs/widgets/teacher UI 层。
+- **吞异常棘轮**：`--max-except-pass 0` —— 全 src 静默 `except: pass` 数量
+  已全部清零（0 处）。全仓（含 dialogs/widgets/teacher 等 UI 层）已全部改为
+  `logger.debug/warning(..., exc_info=True)` 防御性日志记录，彻底杜绝黑盒静默失败。
 - **循环依赖**：experience 三元环已切（actions 为纯叶子，`is_dangerous_skill_allowed`
   真源在 policy）；`ai_error_analyzer` 直接引用 `dialogs/ai/worker`。
 - **完整门禁命令**：
@@ -176,5 +176,5 @@ QT_QPA_PLATFORM=offscreen python3 tool/gui/run_gui_tests.py fast
 ```bash
 python3 tool/gui/tool/check_ai_boundaries.py \
   --fail-private --fail-dialogs-app --fail-backend-app \
-  --fail-backend-ui --fail-undeclared-host-access --max-except-pass 56
+  --fail-backend-ui --fail-undeclared-host-access --max-except-pass 0
 ```

@@ -1,6 +1,10 @@
 """E3-B1 Goal merge checklist dialog (select subset of sandbox items)."""
 from __future__ import annotations
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 from typing import Any
 
 from PySide6.QtCore import Qt
@@ -71,7 +75,7 @@ class GoalMergeDialog(QDialog):
                 elif getattr(it, "kind", "") == "action":
                     tag = " · skill"
             except Exception:
-                pass
+                logger.debug("widgets/goal_merge_dialog.py:73 best-effort step failed", exc_info=True)
             label = (
                 f"[{getattr(it, 'kind', '?')}] "
                 f"{getattr(it, 'summary', '') or getattr(it, 'action_id', key)}"

@@ -388,7 +388,7 @@ class ResourceTableWidget(QWidget):
             try:
                 self.adapter.delete_resource_entry(self.row_type, entry_id)
             except KeyError:
-                pass
+                logger.debug("widgets/resource_editor.py:390 best-effort step failed", exc_info=True)
         self._refresh()
         self._dirty = True
         self.adapter.notify_resources_changed()

@@ -13,6 +13,10 @@ and autosaves.
 """
 from __future__ import annotations
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 from typing import Any
 
 from PySide6.QtCore import Qt, QSettings, QTimer, Signal
@@ -230,7 +234,7 @@ class WorkshopWindow(QDialog):
             try:
                 self._unified_workspace.save_ui_state()
             except Exception:
-                pass
+                logger.debug("dialogs/workshop_window.py:232 best-effort step failed", exc_info=True)
         self._save_current_state()
         self._stack.setCurrentIndex(0)
         self._update_header()
@@ -421,7 +425,7 @@ class WorkshopWindow(QDialog):
             try:
                 self._unified_workspace.save_ui_state()
             except Exception:
-                pass
+                logger.debug("dialogs/workshop_window.py:423 best-effort step failed", exc_info=True)
             old_ws = self._unified_workspace
             self._unified_workspace = None
             old_ws.hide()
@@ -438,7 +442,7 @@ class WorkshopWindow(QDialog):
             try:
                 old.cleanup_attachments()
             except Exception:
-                pass
+                logger.debug("dialogs/workshop_window.py:440 best-effort step failed", exc_info=True)
             self._design_panel = None
             old.setParent(None)
             QTimer.singleShot(0, old.deleteLater)
@@ -468,7 +472,7 @@ class WorkshopWindow(QDialog):
             try:
                 self._unified_workspace.save_ui_state()
             except Exception:
-                pass
+                logger.debug("dialogs/workshop_window.py:470 best-effort step failed", exc_info=True)
         self._save_current_state()
 
         self._teardown_workspace()
@@ -598,7 +602,7 @@ class WorkshopWindow(QDialog):
         try:
             self._store.save_project(self._project)
         except Exception:
-            pass
+            logger.debug("dialogs/workshop_window.py:600 best-effort step failed", exc_info=True)
 
     def _save_current_state(self) -> None:
         """Autosave design panel state (import controller saves itself)."""
@@ -606,7 +610,7 @@ class WorkshopWindow(QDialog):
             try:
                 self._unified_workspace.save_ui_state()
             except Exception:
-                pass
+                logger.debug("dialogs/workshop_window.py:608 best-effort step failed", exc_info=True)
         if self._design_panel is not None:
             # Immediate write on interrupt / project switch (P2 throttled path).
             if hasattr(self._design_panel, "flush_autosave"):

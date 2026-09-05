@@ -6,6 +6,10 @@ with preview + confirm (no silent writes).
 """
 from __future__ import annotations
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 from typing import Any
 
 from PySide6.QtCore import QTimer, Qt, Signal
@@ -312,7 +316,7 @@ class ExperienceDock(QWidget):
             if wline:
                 lines.append(wline)
         except Exception:
-            pass
+            logger.debug("widgets/experience_dock.py:314 best-effort step failed", exc_info=True)
         # E4/M-01: attachment summary one-liner (closed shape; no raw content).
         try:
             from src.backend.experience.attachments import format_attachments_line
@@ -321,7 +325,7 @@ class ExperienceDock(QWidget):
             if aline:
                 lines.append(aline)
         except Exception:
-            pass
+            logger.debug("widgets/experience_dock.py:323 best-effort step failed", exc_info=True)
         # C-13: compact recent intents from SessionMemory.
         try:
             intents = list(getattr(ctx, "recent_intents", None) or [])
@@ -335,7 +339,7 @@ class ExperienceDock(QWidget):
                 if aid:
                     lines.append(f"最近意图 · {aid}" + (f"（{len(intents)}）" if len(intents) > 1 else ""))
         except Exception:
-            pass
+            logger.debug("widgets/experience_dock.py:337 best-effort step failed", exc_info=True)
         # C-14: one compact metrics line (interception / apply / ambient / guard).
         mline = _metrics_line(getattr(ctx, "metrics", None))
         if mline:

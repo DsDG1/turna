@@ -6,6 +6,10 @@ assets/courses/<lang>/ directory. Includes LAN collaboration sharing.
 """
 from __future__ import annotations
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -508,7 +512,7 @@ class GitLibraryDialog(QDialog):
                     f"{len(sections)} 个 section）"
                 )
         except Exception:
-            pass
+            logger.debug("dialogs/git_library_dialog.py:510 best-effort step failed", exc_info=True)
         self.status_label.setText(summary)
         self._refresh_server_ui()
 
@@ -1009,7 +1013,7 @@ class GitLibraryDialog(QDialog):
                         self.log_text.verticalScrollBar().maximum()
                     )
             except Exception:
-                pass
+                logger.debug("dialogs/git_library_dialog.py:1011 best-effort step failed", exc_info=True)
             self._refresh_peers()
         else:
             if self._last_log_len != 0:
@@ -1141,7 +1145,7 @@ class GitLibraryDialog(QDialog):
                 data = json.loads(memo_file.read_text(encoding="utf-8"))
                 messages = data.get("messages", [])
             except Exception:
-                pass
+                logger.debug("dialogs/git_library_dialog.py:1143 best-effort step failed", exc_info=True)
 
         messages.append({
             "id": memo_id,
@@ -1190,14 +1194,14 @@ class GitLibraryDialog(QDialog):
             ips.append(s.getsockname()[0])
             s.close()
         except Exception:
-            pass
+            logger.debug("dialogs/git_library_dialog.py:1192 best-effort step failed", exc_info=True)
         try:
             hostname = socket.gethostname()
             for ip in socket.gethostbyname_ex(hostname)[2]:
                 if ip not in ips and not ip.startswith("127."):
                     ips.append(ip)
         except Exception:
-            pass
+            logger.debug("dialogs/git_library_dialog.py:1199 best-effort step failed", exc_info=True)
         if not ips:
             ips.append("127.0.0.1")
         return ips
@@ -1278,7 +1282,7 @@ class GitLibraryDialog(QDialog):
             try:
                 thread.server.server_close()
             except Exception:  # noqa: BLE001 — best-effort cleanup
-                pass
+                logger.debug("dialogs/git_library_dialog.py:1280 best-effort step failed", exc_info=True)
             QMessageBox.critical(self, "启动失败", f"发生未知错误：\n{exc}")
             self.git_server_thread = None
 
@@ -1306,7 +1310,7 @@ class GitLibraryDialog(QDialog):
             try:
                 thread.stop()
             except Exception:
-                pass
+                logger.debug("dialogs/git_library_dialog.py:1308 best-effort step failed", exc_info=True)
             self.git_server_thread = None
 
     def _on_connect(self) -> None:
@@ -1357,9 +1361,9 @@ class GitLibraryDialog(QDialog):
                     try:
                         getattr(prev, sig_name).disconnect()
                     except (TypeError, RuntimeError, AttributeError):
-                        pass
+                        logger.debug("dialogs/git_library_dialog.py:1359 best-effort step failed", exc_info=True)
             except Exception:  # noqa: BLE001 — defensive; never block new op
-                pass
+                logger.debug("dialogs/git_library_dialog.py:1361 best-effort step failed", exc_info=True)
         self._set_git_busy(True, label)
         worker = AiRequestWorker(fn, *args)
         worker.result_ready.connect(

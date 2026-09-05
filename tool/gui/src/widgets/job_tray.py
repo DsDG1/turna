@@ -9,6 +9,10 @@ with an explanatory tooltip rather than silently killing workers (§14.5.2).
 """
 from __future__ import annotations
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 from typing import Any
 
 from PySide6.QtCore import Qt, Signal
@@ -96,7 +100,7 @@ class JobTray(QWidget):
             self._last_ai_busy = busy
             self.ai_busy_changed.emit(busy)
         except Exception:
-            pass
+            logger.debug("widgets/job_tray.py:98 best-effort step failed", exc_info=True)
 
     def active_jobs(self) -> list[dict[str, Any]]:
         return self._registry.snapshots()

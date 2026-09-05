@@ -19,7 +19,7 @@ Usage (repo root or any cwd)::
     python3 tool/gui/tool/check_ai_boundaries.py --fail-dialogs-app
     python3 tool/gui/tool/check_ai_boundaries.py --fail-backend-app
     python3 tool/gui/tool/check_ai_boundaries.py --fail-backend-ui
-    python3 tool/gui/tool/check_ai_boundaries.py --max-except-pass 56
+    python3 tool/gui/tool/check_ai_boundaries.py --max-except-pass 0
 
 Exit codes:
   0 — no failing checks (warns still print)
@@ -267,7 +267,7 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         metavar="N",
         help="Exit 1 if silent `except: pass` count in src/ exceeds N "
-        "(ratchet; current baseline 56)",
+        "(ratchet; current baseline 0)",
     )
     parser.add_argument(
         "--fail-undeclared-host-access",

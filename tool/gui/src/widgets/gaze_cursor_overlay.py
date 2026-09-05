@@ -11,6 +11,10 @@ Invariants:
 """
 from __future__ import annotations
 
+import logging
+logger = logging.getLogger(__name__)
+
+
 from typing import Optional
 
 from PySide6.QtCore import QPoint, QRect, QTimer, Qt
@@ -73,7 +77,7 @@ class GazeCursorOverlay(QWidget):
             if self._anim_timer.isActive():
                 self._anim_timer.stop()
         except Exception:
-            pass
+            logger.debug("widgets/gaze_cursor_overlay.py:75 best-effort step failed", exc_info=True)
         self._is_locked = False
         self._locked_rect = None
         self._lock_text = ""
@@ -98,7 +102,7 @@ class GazeCursorOverlay(QWidget):
                     int(my * 0.35 + sy * 0.65),
                 )
         except Exception:
-            pass
+            logger.debug("widgets/gaze_cursor_overlay.py:100 best-effort step failed", exc_info=True)
 
     def set_gaze_target(self, pos: QPoint) -> None:
         """Legacy API: set target in overlay-local coordinates."""
@@ -107,7 +111,7 @@ class GazeCursorOverlay(QWidget):
         try:
             self._target_pos = QPoint(pos)
         except Exception:
-            pass
+            logger.debug("widgets/gaze_cursor_overlay.py:109 best-effort step failed", exc_info=True)
 
     # --- lockout ---------------------------------------------------------
 
@@ -159,7 +163,7 @@ class GazeCursorOverlay(QWidget):
 
                 self.set_mouse_global(QCursor.pos())
         except Exception:
-            pass
+            logger.debug("widgets/gaze_cursor_overlay.py:161 best-effort step failed", exc_info=True)
         if self._cursor_pos == self._target_pos and not self._is_locked:
             return
         try:
@@ -179,7 +183,7 @@ class GazeCursorOverlay(QWidget):
             self._last_paint_pos = QPoint(nx, ny)
             self.update()
         except Exception:
-            pass
+            logger.debug("widgets/gaze_cursor_overlay.py:181 best-effort step failed", exc_info=True)
 
     def mousePressEvent(self, event) -> None:  # noqa: N802
         try:
@@ -195,7 +199,7 @@ class GazeCursorOverlay(QWidget):
             try:
                 event.ignore()
             except Exception:
-                pass
+                logger.debug("widgets/gaze_cursor_overlay.py:197 best-effort step failed", exc_info=True)
 
     def paintEvent(self, event) -> None:  # noqa: N802
         del event
@@ -242,4 +246,4 @@ class GazeCursorOverlay(QWidget):
 
             painter.end()
         except Exception:
-            pass
+            logger.debug("widgets/gaze_cursor_overlay.py:244 best-effort step failed", exc_info=True)
