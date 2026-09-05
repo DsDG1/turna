@@ -189,5 +189,82 @@ class GitLibraryDialogAsyncTest(unittest.TestCase):
         self.assertEqual(dlg._clone_dir, Path("/tmp/clone"))
 
 
+class GitLibraryDialogUiStructureTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.app = qt_app()
+
+    def test_ui_components_and_tabs_initialized(self) -> None:
+        dlg = GitLibraryDialog(CourseAdapter())
+
+        # Verify 3 tabs created with correct labels
+        self.assertEqual(dlg.tabs.count(), 3)
+        self.assertEqual(dlg.tabs.tabText(0), "远程协作 / 同步")
+        self.assertEqual(dlg.tabs.tabText(1), "局域网协作共享")
+        self.assertEqual(dlg.tabs.tabText(2), "团队留言板")
+
+        # Verify Tab 1 controls exist
+        self.assertIsNotNone(dlg.sync_tab)
+        self.assertIsNotNone(dlg.remotes_table)
+        self.assertIsNotNone(dlg.save_remote_btn)
+        self.assertIsNotNone(dlg.del_remote_btn)
+        self.assertIsNotNone(dlg.url_edit)
+        self.assertIsNotNone(dlg.dir_edit)
+        self.assertIsNotNone(dlg.lang_edit)
+        self.assertIsNotNone(dlg.connect_btn)
+        self.assertIsNotNone(dlg.open_btn)
+        self.assertIsNotNone(dlg.fetch_btn)
+        self.assertIsNotNone(dlg.pull_btn)
+        self.assertIsNotNone(dlg.push_btn)
+        self.assertIsNotNone(dlg.copy_btn)
+        self.assertIsNotNone(dlg.sync_res_btn)
+        self.assertIsNotNone(dlg.branch_combo)
+        self.assertIsNotNone(dlg.new_branch_btn)
+        self.assertIsNotNone(dlg.switch_branch_btn)
+        self.assertIsNotNone(dlg.del_branch_btn)
+        self.assertIsNotNone(dlg.diff_preview_btn)
+        self.assertIsNotNone(dlg.history_table)
+        self.assertIsNotNone(dlg.file_tree)
+
+        # Verify Tab 2 controls exist
+        self.assertIsNotNone(dlg.lan_tab)
+        self.assertIsNotNone(dlg.lan_info_label)
+        self.assertIsNotNone(dlg.port_edit)
+        self.assertIsNotNone(dlg.lan_bind_combo)
+        self.assertIsNotNone(dlg.lan_token_edit)
+        self.assertIsNotNone(dlg.lan_readonly_check)
+        self.assertIsNotNone(dlg.lan_allow_ips_edit)
+        self.assertIsNotNone(dlg.start_share_btn)
+        self.assertIsNotNone(dlg.stop_share_btn)
+        self.assertIsNotNone(dlg.server_status_label)
+        self.assertIsNotNone(dlg.lan_addresses_widget)
+        self.assertIsNotNone(dlg.peers_label)
+        self.assertIsNotNone(dlg.log_text)
+
+        # Verify Tab 3 controls exist
+        self.assertIsNotNone(dlg.memo_tab)
+        self.assertIsNotNone(dlg.memo_search_edit)
+        self.assertIsNotNone(dlg.memo_text)
+        self.assertIsNotNone(dlg.memo_prev_btn)
+        self.assertIsNotNone(dlg.memo_next_btn)
+        self.assertIsNotNone(dlg.memo_page_label)
+        self.assertIsNotNone(dlg.memo_reply_combo)
+        self.assertIsNotNone(dlg.memo_input)
+        self.assertIsNotNone(dlg.send_memo_btn)
+        self.assertIsNotNone(dlg.memo_edit_btn)
+        self.assertIsNotNone(dlg.memo_del_btn)
+
+        # Verify footer
+        self.assertIsNotNone(dlg.status_label)
+
+    def test_decomposed_builder_methods_exist(self) -> None:
+        dlg = GitLibraryDialog(CourseAdapter())
+        self.assertTrue(callable(getattr(dlg, "_build_sync_tab", None)))
+        self.assertTrue(callable(getattr(dlg, "_build_lan_tab", None)))
+        self.assertTrue(callable(getattr(dlg, "_build_memo_tab", None)))
+        self.assertTrue(callable(getattr(dlg, "_build_footer", None)))
+
+
 if __name__ == "__main__":
     unittest.main()
+

@@ -119,15 +119,26 @@ class GitLibraryDialog(QDialog):
         layout.setContentsMargins(16, 16, 16, 16)
 
         self.tabs = QTabWidget()
+        self.tabs.addTab(self._build_sync_tab(), "远程协作 / 同步")
+        self.tabs.addTab(self._build_lan_tab(), "局域网协作共享")
+        self.tabs.addTab(self._build_memo_tab(), "团队留言板")
+        # Pause the 1s log-poll timer whenever the LAN tab isn't visible so
+        # the (potentially large) join + toPlainText comparison doesn't run
+        # every second for the whole dialog lifetime while the user is on
+        # another tab. Restarted on tab switch if a server is running. (P2)
+        self.tabs.currentChanged.connect(self._on_tab_changed)
 
-        # --- Tab 1: Remote Collaboration ---
+        layout.addWidget(self.tabs)
+        self._build_footer(layout)
+
+    def _build_sync_tab(self) -> QWidget:
+        """Tab 1: Remote Collaboration & Sync."""
         self.sync_tab = QWidget()
         sync_layout = QVBoxLayout(self.sync_tab)
         sync_layout.setSpacing(10)
         sync_layout.setContentsMargins(8, 8, 8, 8)
 
         # Saved remotes table (one-click reconnect).
-        from PySide6.QtWidgets import QHeaderView
         sync_layout.addWidget(QLabel("已保存的远程仓库（双击连接）:"))
         self.remotes_table = QTableWidget(0, 4)
         self.remotes_table.setHorizontalHeaderLabels(["名称", "URL", "本地目录", "语言"])
@@ -265,9 +276,10 @@ class GitLibraryDialog(QDialog):
         self.file_tree.itemDoubleClicked.connect(self._on_file_tree_double_click)
         sync_layout.addWidget(self.file_tree)
 
-        self.tabs.addTab(self.sync_tab, "远程协作 / 同步")
+        return self.sync_tab
 
-        # --- Tab 2: LAN Share ---
+    def _build_lan_tab(self) -> QWidget:
+        """Tab 2: LAN Share & Collaboration."""
         self.lan_tab = QWidget()
         lan_layout = QVBoxLayout(self.lan_tab)
         lan_layout.setSpacing(12)
@@ -341,9 +353,10 @@ class GitLibraryDialog(QDialog):
         self.log_text.setStyleSheet(f"background-color: {current_palette()['bg_input']}; color: {current_palette()['success']}; font-family: monospace;")
         lan_layout.addWidget(self.log_text)
 
-        self.tabs.addTab(self.lan_tab, "局域网协作共享")
+        return self.lan_tab
 
-        # --- Tab 3: Team Memo Board ---
+    def _build_memo_tab(self) -> QWidget:
+        """Tab 3: Team Memo Board."""
         self.memo_tab = QWidget()
         memo_layout = QVBoxLayout(self.memo_tab)
         memo_layout.setSpacing(10)
@@ -408,15 +421,10 @@ class GitLibraryDialog(QDialog):
         edit_row.addStretch()
         memo_layout.addLayout(edit_row)
 
-        self.tabs.addTab(self.memo_tab, "团队留言板")
-        # Pause the 1s log-poll timer whenever the LAN tab isn't visible so
-        # the (potentially large) join + toPlainText comparison doesn't run
-        # every second for the whole dialog lifetime while the user is on
-        # another tab. Restarted on tab switch if a server is running. (P2)
-        self.tabs.currentChanged.connect(self._on_tab_changed)
+        return self.memo_tab
 
-        layout.addWidget(self.tabs)
-
+    def _build_footer(self, layout: QVBoxLayout) -> None:
+        """Build status label and dialog button box at the bottom."""
         # Status + course summary (shared, at bottom).
         self.status_label = QLabel("尚未连接。")
         self.status_label.setWordWrap(True)
