@@ -85,6 +85,8 @@ class DesignPanel(QWidget):
     busy_changed = Signal(bool, str)
     #: Formatted usage line — for the workshop's unified bottom bar.
     usage_changed = Signal(str)
+    #: (temp_path, original_name, unlink_after) — requested OCR
+    ocr_requested = Signal(str, str, bool)
 
     def __init__(
         self,
@@ -212,7 +214,9 @@ class DesignPanel(QWidget):
         self._chat_view = ChatView()
         layout.addWidget(self._chat_view, 1)
 
+        self._ocr_enabled = False
         self._attachment_bar = AttachmentBar(self)
+        self._attachment_bar.ocr_requested.connect(self.ocr_requested.emit)
         layout.addWidget(self._attachment_bar)
 
         chat_row = QHBoxLayout()
@@ -760,6 +764,11 @@ class DesignPanel(QWidget):
         if paths:
             self._add_attachment_paths([Path(p) for p in paths])
 
+    def set_ocr_enabled(self, enabled: bool) -> None:
+        self._ocr_enabled = bool(enabled)
+        if hasattr(self, "_attachment_bar") and self._attachment_bar is not None:
+            self._attachment_bar.set_ocr_enabled(self._ocr_enabled)
+
     def _add_attachment_paths(self, paths: list[Path]) -> None:
         """Copy to temp + extract text/image content, then add to the bar.
 
@@ -780,6 +789,27 @@ class DesignPanel(QWidget):
                 continue
             result = extract_attachment(temp_path)
             if not result.ok or result.content is None:
+                err_msg = str(result.error or "")
+                if getattr(self, "_ocr_enabled", False) and ("扫描件" in err_msg or "图片 PDF" in err_msg):
+                    from src.backend.experience.ocr_skill import ocr_available
+
+                    avail, _ = ocr_available()
+                    if avail:
+                        reply = QMessageBox.question(
+                            self,
+                            "OCR 识别",
+                            f"{path.name} 可能是扫描件或图片 PDF，是否使用 OCR 识别文字？",
+                            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                        )
+                        if reply == QMessageBox.StandardButton.Yes:
+                            self.ocr_requested.emit(
+                                temp_path.as_posix()
+                                if hasattr(temp_path, "as_posix")
+                                else str(temp_path).replace("\\", "/"),
+                                path.name,
+                                True,
+                            )
+                            continue
                 try:
                     temp_path.unlink()
                 except OSError:

@@ -139,10 +139,29 @@ def dispatch_experience_action(host: ExperienceHost, suggestion: dict) -> None:
             record_audit,
         )
         from src.application.ui_guard import auto_confirm_scope
+        from src.backend.experience.circuit_breaker import get_circuit_breaker
 
         auto = is_auto_apply_allowed(action, policy)
+        cb = get_circuit_breaker()
+        if auto:
+            cb_allowed, cb_reason = cb.can_auto_dispatch(action)
+            if not cb_allowed:
+                auto = False
+                logger.warning(
+                    "Circuit breaker intercepted auto-apply for %s: %s",
+                    action,
+                    cb_reason,
+                )
+                opaque_candidate = bool(getattr(policy, "runtime_opaque", False))
+                if not opaque_candidate:
+                    try:
+                        host.statusBar().showMessage(cb_reason[:240], 6000)
+                    except Exception:
+                        logger.warning("application/experience_dispatch.py: cb status failed", exc_info=True)
+
         opaque = bool(getattr(policy, "runtime_opaque", False)) and auto
         if auto:
+            cb.record_dispatch(action)
             token = issue_auto_apply_token(action, opaque=opaque)
             bind_auto_apply_token(host, token)
             try:
@@ -155,7 +174,9 @@ def dispatch_experience_action(host: ExperienceHost, suggestion: dict) -> None:
             with auto_confirm_scope(opaque=opaque, token=token):
                 try:
                     _run()
+                    cb.record_success(action)
                 except Exception as exc:
+                    cb.record_failure(action, str(exc))
                     _record_auto_metric(host, "failed", action)
                     try:
                         ring = ensure_audit_ring(host)

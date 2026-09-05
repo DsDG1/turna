@@ -22,6 +22,11 @@ _ROOT = _GUI.parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 from tests._course_fixture import copy_turkish_course  # noqa: E402
 
 

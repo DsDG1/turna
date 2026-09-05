@@ -14,6 +14,7 @@ class GuardHold:
     node_key: str
     job_id: str
     label: str = ""
+    fingerprint: str = ""
 
 
 class ConflictGuard:
@@ -31,12 +32,24 @@ class ConflictGuard:
     def holder(self, node_key: str) -> GuardHold | None:
         return self._holds.get(node_key)
 
+    def hold_fingerprint(self, node_key: str) -> str:
+        h = self._holds.get(str(node_key or "").strip())
+        return h.fingerprint if h else ""
+
+    def verify_fingerprint(self, node_key: str, current_fingerprint: str) -> bool:
+        """True if hold has no fingerprint or if current matches hold fingerprint."""
+        h = self._holds.get(str(node_key or "").strip())
+        if h is None or not h.fingerprint:
+            return True
+        return h.fingerprint == str(current_fingerprint or "")
+
     def try_acquire(
         self,
         node_key: str,
         job_id: str,
         *,
         label: str = "",
+        fingerprint: str = "",
     ) -> bool:
         """Return True if acquired; False if another job holds the node."""
         key = str(node_key or "").strip()
@@ -46,7 +59,12 @@ class ConflictGuard:
         existing = self._holds.get(key)
         if existing is not None and existing.job_id != jid:
             return False
-        self._holds[key] = GuardHold(node_key=key, job_id=jid, label=label or jid)
+        self._holds[key] = GuardHold(
+            node_key=key,
+            job_id=jid,
+            label=label or jid,
+            fingerprint=str(fingerprint or ""),
+        )
         return True
 
     def release(self, node_key: str, job_id: str | None = None) -> bool:

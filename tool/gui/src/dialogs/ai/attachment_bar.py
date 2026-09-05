@@ -114,10 +114,12 @@ class AttachmentBar(QWidget):
     """Horizontal chip list of attachments with preview and deletion."""
 
     attachments_changed = Signal()
+    ocr_requested = Signal(str, str, bool)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._attachments: list[AttachmentRecord] = []
+        self._ocr_enabled: bool = False
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
@@ -131,6 +133,10 @@ class AttachmentBar(QWidget):
         self._placeholder.setObjectName("hintLabel")
         self._chips_layout.addWidget(self._placeholder)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+
+    def set_ocr_enabled(self, enabled: bool) -> None:
+        self._ocr_enabled = bool(enabled)
+        self._rebuild_chips()
 
     def attachments(self) -> list[AttachmentRecord]:
         return list(self._attachments)
@@ -172,6 +178,27 @@ class AttachmentBar(QWidget):
             btn.setProperty("attachment_index", idx)
             btn.clicked.connect(lambda _c=False, r=record: self._preview_attachment(r))
             self._chips_layout.addWidget(btn)
+
+            if self._ocr_enabled:
+                is_img = (
+                    record.content.get("type") == "image_url"
+                    or record.original_name.lower().endswith(
+                        (".png", ".jpg", ".jpeg", ".bmp", ".webp")
+                    )
+                )
+                if is_img:
+                    ocr_btn = QPushButton("OCR")
+                    ocr_btn.setToolTip(f"对 {record.original_name} 执行 OCR")
+                    ocr_btn.clicked.connect(
+                        lambda _c=False, r=record: self.ocr_requested.emit(
+                            r.temp_path.as_posix()
+                            if hasattr(r.temp_path, "as_posix")
+                            else str(r.temp_path).replace("\\", "/"),
+                            r.original_name,
+                            False,
+                        )
+                    )
+                    self._chips_layout.addWidget(ocr_btn)
 
         self._chips_layout.addStretch()
 

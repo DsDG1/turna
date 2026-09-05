@@ -126,6 +126,27 @@ def reset_main_window(win) -> None:
             win.experience.set_usage_today({})
         except Exception:  # noqa: BLE001
             pass
+    if hasattr(win, "job_tray") and win.job_tray is not None:
+        try:
+            win.job_tray.clear()
+        except Exception:  # noqa: BLE001
+            pass
+    if hasattr(win, "experience_metrics") and win.experience_metrics is not None:
+        try:
+            win.experience_metrics.clear()
+        except Exception:  # noqa: BLE001
+            pass
+    if hasattr(win, "_shown_suggestion_keys") and isinstance(win._shown_suggestion_keys, set):
+        win._shown_suggestion_keys.clear()
+    if hasattr(win, "_ambient_archived") and isinstance(win._ambient_archived, set):
+        win._ambient_archived.clear()
+    if hasattr(win, "_campaign_auto_offered_for"):
+        win._campaign_auto_offered_for = None
+    if hasattr(win, "_undo_detail_timer") and win._undo_detail_timer is not None:
+        try:
+            win._undo_detail_timer.stop()
+        except Exception:  # noqa: BLE001
+            pass
     if hasattr(win, "tree") and win.tree is not None:
         try:
             win.tree.adapter = win.adapter

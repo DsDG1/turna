@@ -423,6 +423,10 @@ class CourseTreeWidget(QTreeWidget):
                 cmd = NewLessonCommand(self.adapter, unit_id, template, name)
                 cmd.signals.changed.connect(self._on_command_changed)
                 self._push(cmd)
+                if hasattr(dlg, "generate_with_ai") and dlg.generate_with_ai():
+                    win = self.window()
+                    if hasattr(win, "_experience_fill_empty"):
+                        win._experience_fill_empty({"first_lesson_id": cmd.lesson_id})
 
     def _open_functional_wizard(
         self, unit_id: str, template: str, name: str

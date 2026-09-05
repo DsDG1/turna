@@ -245,11 +245,68 @@ class MetadataForm(QGroupBox):
             cmd.redo()
             self.metadata_changed.emit()
 
+    def _current_node(self) -> dict[str, Any] | None:
+        if self._adapter is None or not self._node_id:
+            return None
+        try:
+            if self._kind == "section":
+                return self._adapter.find_section(self._node_id)
+            if self._kind == "unit":
+                _s, unit = self._adapter.find_unit(self._node_id)
+                return unit
+            if self._kind == "lesson":
+                _s, _u, lesson = self._adapter.find_lesson(self._node_id)
+                return lesson
+        except Exception:
+            return None
+        return None
+
+    def is_in_sync(self) -> bool:
+        """Return True if form inputs match the current model node state."""
+        if self._adapter is None or not self._node_id:
+            return True
+        node = self._current_node()
+        if node is None:
+            return False
+        if self.name_edit.text() != (node.get("name") or ""):
+            return False
+        if self.desc_edit.toPlainText() != (node.get("description") or ""):
+            return False
+        prereq_key = {
+            "section": "prerequisiteSectionIds",
+            "unit": "prerequisiteUnitIds",
+            "lesson": "prerequisiteLessonIds",
+        }.get(self._kind)
+        if prereq_key:
+            model_prereqs = list(node.get(prereq_key) or [])
+            ui_prereqs = [
+                self.prereq_list.item(i).data(Qt.ItemDataRole.UserRole)
+                for i in range(self.prereq_list.count())
+                if self.prereq_list.item(i).checkState() == Qt.CheckState.Checked
+            ]
+            if set(ui_prereqs) != set(model_prereqs):
+                return False
+        if self._kind == "lesson" and self.grammar_link_row.isVisible():
+            model_grammar = list((node.get("content") or {}).get("linkedGrammarPointIds") or [])
+            ui_grammar = [
+                self.grammar_link_list.item(i).data(Qt.ItemDataRole.UserRole)
+                for i in range(self.grammar_link_list.count())
+                if self.grammar_link_list.item(i).checkState() == Qt.CheckState.Checked
+            ]
+            if set(ui_grammar) != set(model_grammar):
+                return False
+        return True
+
     def _commit_name_desc(self) -> None:
         if self._loading or self._adapter is None or not self._node_id:
             return
+        node = self._current_node()
+        if node is None:
+            return
         name = self.name_edit.text()
         desc = self.desc_edit.toPlainText()
+        if name == (node.get("name") or "") and desc == (node.get("description") or ""):
+            return
         if self._kind == "section":
             self._push(UpdateSectionMetaCommand(self._adapter, self._node_id, name, desc))
         elif self._kind == "unit":
@@ -260,11 +317,24 @@ class MetadataForm(QGroupBox):
     def _commit_prereqs(self) -> None:
         if self._loading or self._adapter is None or not self._node_id:
             return
+        node = self._current_node()
+        if node is None:
+            return
+        prereq_key = {
+            "section": "prerequisiteSectionIds",
+            "unit": "prerequisiteUnitIds",
+            "lesson": "prerequisiteLessonIds",
+        }.get(self._kind)
+        if not prereq_key:
+            return
         checked = [
             self.prereq_list.item(i).data(Qt.ItemDataRole.UserRole)
             for i in range(self.prereq_list.count())
             if self.prereq_list.item(i).checkState() == Qt.CheckState.Checked
         ]
+        model_prereqs = list(node.get(prereq_key) or [])
+        if checked == model_prereqs or (not checked and not model_prereqs):
+            return
         if self._kind == "section":
             self._push(UpdateSectionPrereqsCommand(self._adapter, self._node_id, checked))
         elif self._kind == "unit":
@@ -277,11 +347,17 @@ class MetadataForm(QGroupBox):
             return
         if self._kind != "lesson" or not self.grammar_link_row.isVisible():
             return
+        node = self._current_node()
+        if node is None:
+            return
         checked = [
             self.grammar_link_list.item(i).data(Qt.ItemDataRole.UserRole)
             for i in range(self.grammar_link_list.count())
             if self.grammar_link_list.item(i).checkState() == Qt.CheckState.Checked
         ]
+        model_grammar = list((node.get("content") or {}).get("linkedGrammarPointIds") or [])
+        if checked == model_grammar or (not checked and not model_grammar):
+            return
         self._push(
             UpdateLessonLinkedGrammarCommand(self._adapter, self._node_id, checked)
         )

@@ -451,6 +451,20 @@ def _experience_batch_set_template(host, scope: dict) -> None:
     ):
         host.experience_metrics.inc_suggestion("lesson.batch_set_template", "rejected")
         return
+
+    from src.backend.experience.transaction import (
+        create_transaction_snapshot,
+        verify_transaction_integrity,
+    )
+
+    node_keys = [f"lesson:{lid}" for lid in changed]
+    tx_snap = create_transaction_snapshot(host.adapter, "lesson.batch_set_template", node_keys)
+    ok, reason = verify_transaction_integrity(host.adapter, tx_snap)
+    if not ok:
+        safe_warning(host, "批量设置课型已被取消", f"未能安全应用变更：{reason}")
+        host.experience_metrics.inc_suggestion("lesson.batch_set_template", "rejected")
+        return
+
     cmd = ApplyBatchPatchCommand(
         steps=steps,
         adapter=host.adapter,

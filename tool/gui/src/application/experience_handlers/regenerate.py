@@ -328,7 +328,18 @@ def _run_regen_flow(
 
     sid = str(section.get("id") or "section")
     guard_key = f"{kind}:{node_id}"
-    if not host.conflict_guard.try_acquire(guard_key, job_id, label=job_label):
+
+    from src.backend.experience.transaction import (
+        create_transaction_snapshot,
+        verify_transaction_integrity,
+    )
+
+    tx_snap = create_transaction_snapshot(host.adapter, action_id, [guard_key])
+    node_fp = tx_snap.node_fingerprints.get(guard_key, "")
+
+    if not host.conflict_guard.try_acquire(
+        guard_key, job_id, label=job_label, fingerprint=node_fp
+    ):
         host.experience_metrics.inc_guard("rejected")
         safe_information(host, job_label, f"节点忙碌：{host.conflict_guard.busy_summary()}"
         )
@@ -377,6 +388,14 @@ def _run_regen_flow(
         if result == section:
             host.statusBar().showMessage("生成结果与原内容一致", 4000)
             return
+
+        ok, reason = verify_transaction_integrity(host.adapter, tx_snap)
+        if not ok:
+            logger.warning("Transaction integrity check failed: %s", reason)
+            safe_warning(host, f"{job_label}已被取消", f"未能安全应用变更：{reason}")
+            host.experience_metrics.inc_suggestion(action_id, "rejected")
+            return
+
         from src.widgets.diff_view import SectionDiffView
 
         dlg = SectionDiffView(
@@ -404,6 +423,16 @@ def _run_regen_flow(
         )
         if not applied:
             host.experience_metrics.inc_suggestion(action_id, "rejected")
+        else:
+            try:
+                from src.backend.experience.circuit_breaker import get_circuit_breaker
+
+                get_circuit_breaker().record_success(action_id)
+            except Exception:
+                logger.debug(
+                    "experience_handlers/regenerate.py:_on_ok best-effort cb record_success failed",
+                    exc_info=True,
+                )
 
     def _on_err(msg: str) -> None:
         host.job_tray.finish_job(job_id)
@@ -411,6 +440,15 @@ def _run_regen_flow(
         host.conflict_guard.release(guard_key, job_id)
         host.experience_metrics.inc_guard("released")
         host._sync_focus_ring()
+        try:
+            from src.backend.experience.circuit_breaker import get_circuit_breaker
+
+            get_circuit_breaker().record_failure(action_id, msg)
+        except Exception:
+            logger.debug(
+                "experience_handlers/regenerate.py:_on_err best-effort cb record_failure failed",
+                exc_info=True,
+            )
         safe_warning(host, f"{job_label}失败", msg)
 
     worker.result_ready.connect(_on_ok)
@@ -716,6 +754,10 @@ def _run_batch_regen_flow(
 
     from src.backend.ai_generator import AiCourseSpec
     from src.dialogs.ai.worker import AiRequestWorker
+    from src.backend.experience.transaction import (
+        create_transaction_snapshot,
+        verify_transaction_integrity,
+    )
 
     config = host._ai_config
     ai_spec = AiCourseSpec()
@@ -725,6 +767,9 @@ def _run_batch_regen_flow(
         if sid not in section_snaps:
             section_snaps[sid] = copy.deepcopy(section)
 
+    node_keys = [f"{spec.node_prefix}:{iid}" for iid, _sid, _sec in targets]
+    tx_snap = create_transaction_snapshot(host.adapter, spec.action_id, node_keys)
+
     results: list[tuple[str, str, dict]] = []  # (item_id, section_id, new_section)
     chain = list(targets)
     job_id = spec.job_id
@@ -733,6 +778,12 @@ def _run_batch_regen_flow(
         host.job_tray.finish_job(job_id)
         host.experience_metrics.inc_job("ai", "finished")
         if not results:
+            try:
+                from src.backend.experience.circuit_breaker import get_circuit_breaker
+
+                get_circuit_breaker().record_failure(spec.action_id, "batch generated no results")
+            except Exception:
+                logger.debug("experience_handlers/regenerate.py:_finish_batch best-effort cb failed", exc_info=True)
             safe_warning(host, spec.title, f"没有成功生成任何{spec.noun}。")
             return
         from src.backend.experience.patch import batch_patch
@@ -744,6 +795,19 @@ def _run_batch_regen_flow(
             all_patches.extend(spec.extract(old_sec, new_sec, iid))
         if not all_patches:
             safe_warning(host, spec.title, "生成结果无法抽取课级补丁。")
+            return
+
+        ok, reason = verify_transaction_integrity(host.adapter, tx_snap)
+        if not ok:
+            logger.warning("Batch transaction integrity check failed: %s", reason)
+            safe_warning(host, f"{spec.title}已被取消", f"未能安全应用批量变更：{reason}")
+            host.experience_metrics.inc_suggestion(spec.action_id, "rejected")
+            try:
+                from src.backend.experience.circuit_breaker import get_circuit_breaker
+
+                get_circuit_breaker().record_failure(spec.action_id, reason)
+            except Exception:
+                logger.debug("experience_handlers/regenerate.py:_finish_batch best-effort cb failed", exc_info=True)
             return
 
         n = len(all_patches)
@@ -770,6 +834,12 @@ def _run_batch_regen_flow(
                     logger.debug("application/experience_handlers/regenerate.py:_finish_batch best-effort step failed", exc_info=True)
             host.undo_stack.push(cmd)
             host.experience_metrics.inc_suggestion(spec.action_id, "applied")
+            try:
+                from src.backend.experience.circuit_breaker import get_circuit_breaker
+
+                get_circuit_breaker().record_success(spec.action_id)
+            except Exception:
+                logger.debug("experience_handlers/regenerate.py:_finish_batch best-effort cb failed", exc_info=True)
             host._record_experience_event(
                 spec.action_id,
                 spec.applied_msg(n, n_items),
@@ -778,6 +848,12 @@ def _run_batch_regen_flow(
             )
             host._refresh_validate_after_ai(spec.after_msg(n, n_items))
         except Exception as exc:
+            try:
+                from src.backend.experience.circuit_breaker import get_circuit_breaker
+
+                get_circuit_breaker().record_failure(spec.action_id, str(exc))
+            except Exception:
+                logger.debug("experience_handlers/regenerate.py:_finish_batch best-effort cb failed", exc_info=True)
             safe_warning(host, spec.title, f"应用失败：{exc}")
 
     def _run_next() -> None:

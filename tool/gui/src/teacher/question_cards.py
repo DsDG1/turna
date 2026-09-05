@@ -205,10 +205,7 @@ class QuestionCard(QFrame):
         else:
             self._build_fallback(layout)
 
-        # Grammar point reference is common to the regular runtime types.
-        # Anki types carry no grammarPointId (app returns null there).
-        if rt not in ("ankiCard", "ankiHtmlCard"):
-            self._build_grammar_combo(layout)
+        self._build_grammar_combo(layout)
 
         self.layout().addWidget(self._content_widget)
 

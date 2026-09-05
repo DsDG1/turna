@@ -75,10 +75,10 @@ class IsOcrEnabledTest(unittest.TestCase):
 
 class OcrAvailableTest(unittest.TestCase):
     def test_real_env_missing_dep(self) -> None:
-        # pytesseract is not installed in this environment.
+        # pytesseract is not installed or binary missing in this environment.
         avail, reason = ocr_available()
         self.assertFalse(avail)
-        self.assertEqual(reason, "missing_dep")
+        self.assertIn(reason, ("missing_dep", "missing_binary"))
 
     def test_ok_with_fake_dep_and_binary(self) -> None:
         fake = _FakeTesseract()
@@ -105,11 +105,12 @@ class RunOcrTest(unittest.TestCase):
         self.assertEqual((text, status), ("", "no_text"))
 
     def test_real_env_image_missing_dep(self) -> None:
-        # Real PNG, but pytesseract absent -> missing_dep (never raises).
+        # Real PNG, but pytesseract absent or binary missing -> missing_dep or missing_binary.
         png = _make_png()
         self.addCleanup(png.unlink, missing_ok=True)
         text, status = run_ocr(png)
-        self.assertEqual((text, status), ("", "missing_dep"))
+        self.assertEqual(text, "")
+        self.assertIn(status, ("missing_dep", "missing_binary"))
 
     def test_ok_with_fake_tesseract(self) -> None:
         png = _make_png()
@@ -465,11 +466,12 @@ class DispatchTest(unittest.TestCase):
 
 class RunOcrPdfTest(unittest.TestCase):
     def test_missing_dep_when_no_fitz(self) -> None:
-        # Real env has no PyMuPDF; a .pdf path -> missing_dep (never raises).
+        # When PyMuPDF is absent, a .pdf path -> missing_dep (never raises).
         pdf = Path(tempfile.gettempdir()) / f"ocr_pdf_{os.getpid()}.pdf"
         pdf.write_bytes(b"%PDF-1.4 fake")
         self.addCleanup(pdf.unlink, missing_ok=True)
-        text, status = run_ocr(pdf, lang="eng")
+        with patch.dict(sys.modules, {"fitz": None}):
+            text, status = run_ocr(pdf, lang="eng")
         self.assertEqual((text, status), ("", "missing_dep"))
 
     def test_ok_with_fake_fitz_and_tesseract(self) -> None:

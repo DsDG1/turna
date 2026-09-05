@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QToolBar,
     QToolButton,
     QVBoxLayout,
+    QWidget,
 )
 
 from src.application import runtime_context
@@ -33,16 +34,24 @@ from src.application.commands import (
     AppendUnitsToSectionCommand,
     MergeAiSectionCommand,
 )
+from src.application.course_lifecycle import clear_experience_session, REASON_CLOSE_COURSE
+from src.application.experience_shell import ExperienceShell, format_health_status_line
 from src.application.settings import Settings, migrate_legacy_varnamala_qsettings
 from src.application.experience_skills_mixin import ExperienceSkillsMixin
 from src.backend.ai_generator import AiApiConfig
 from src.backend.course_adapter import CourseAdapter
+from src.backend.experience.conflict_guard import ConflictGuard
+from src.backend.experience.metrics import ExperienceMetrics
+from src.backend.experience.proactive import make_mute
 from src.backend.import_step_result import ImportStepResult
 from src.backend.import_strategy import ImportStrategy
 from src.infrastructure.telemetry import telemetry
 from src.theme import apply_theme, current_palette
+from src.widgets.ambient_banner import AmbientBanner
 from src.widgets.course_tree import CourseTreeWidget
 from src.widgets.detail_panel import DetailPanel
+from src.widgets.experience_dock import ExperienceDock
+from src.widgets.job_tray import JobTray
 import logging
 logger = logging.getLogger(__name__)
 
@@ -132,11 +141,61 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
         # Background interactive-save worker (see _save_course_async).
         self._save_worker = None
 
+        self.experience_metrics = ExperienceMetrics()
+        self.conflict_guard = ConflictGuard()
+        self.experience = ExperienceShell(parent=self, debounce_ms=120)
+        self.experience.context_changed.connect(self._on_experience_context_changed)
+        self.experience_dock_widget = ExperienceDock(self)
+        self.experience_dock_widget.suggestion_clicked.connect(self._on_experience_suggestion)
+        self.experience_dock_widget.pin_toggled.connect(self._on_experience_pin_toggled)
+
+        self._health_status_label = QLabel("未加载课程", self)
+        self.experience.status_line_changed.connect(self._health_status_label.setText)
+
+        self._shown_suggestion_keys: set[str] = set()
+        self._ambient_archived: set[str] = set()
+        self._defer_store = self._load_defer_store()
+        self._ambient_mute = make_mute(self._load_experience_mute_dict())
+        self._campaign_auto_offered_for: Any = None
+        self._dispatch_action_id: str = ""
+        self._experience_worker = None
+        self._diagnose_worker = None
+        self._presence_lock_widgets: list[Any] = []
+        self._presence_mouse_filter = None
+        self._presence_drive_seen: set[str] = set()
+        self._presence_ai_busy: bool = False
+        self._sovereign_entered_at = None
+        self._gaze_overlay = None
+        self._goal_last_plan = None
+        self._goal_sandbox = None
+        self._active_command_palette = None
+        self._palette_llm_worker = None
+        self._last_compare_report = None
+        self._teacher_focused_item_id = None
+
+        self._undo_detail_timer = QTimer(self)
+        self._undo_detail_timer.setSingleShot(True)
+        self._undo_detail_timer.setInterval(50)
+        self._undo_detail_timer.timeout.connect(self._flush_undo_detail_refresh)
+        self.undo_stack.indexChanged.connect(self._on_undo_index_changed)
+
+        try:
+            self.adapter.add_resource_listener(self._on_experience_resources_changed)
+        except Exception:
+            logger.debug("app.py: add_resource_listener best-effort failed", exc_info=True)
+
         self._build_toolbar()
         self._build_central()
         self._build_status_bar()
         self._build_undo_actions()
         self._import_service = self._make_import_service()
+        from src.application.ai_edit_controller import AiEditController
+        from src.application.ai_fix_controller import AiFixController
+        from src.application.audio_controller import AudioController
+
+        self._ai_edit_controller = AiEditController()
+        self._ai_fix_controller = AiFixController()
+        self._audio_controller = AudioController()
         self._usage_t0 = time.perf_counter()
         self._load_extraction_prompt_overrides()
         self._maybe_open_last_repo()
@@ -287,6 +346,17 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
         toolbar.addAction(self.settings_action)
 
     def _build_central(self) -> None:
+        container = QWidget(self)
+        root_layout = QVBoxLayout(container)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setSpacing(0)
+
+        self.ambient_banner = AmbientBanner(container)
+        self.ambient_banner.accepted.connect(self._on_ambient_accepted)
+        self.ambient_banner.archived.connect(self._on_ambient_archived)
+        self.ambient_banner.mute_changed.connect(self._on_ambient_mute_changed)
+        root_layout.addWidget(self.ambient_banner)
+
         splitter = QSplitter(Qt.Horizontal)
 
         self.tree = CourseTreeWidget()
@@ -308,11 +378,22 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
 
         splitter.setStretchFactor(0, 2)
         splitter.setStretchFactor(1, 3)
-        self.setCentralWidget(splitter)
+        root_layout.addWidget(splitter, 1)
+        self.setCentralWidget(container)
 
     def _build_status_bar(self) -> None:
         status = QStatusBar()
         status.setFixedHeight(28)
+
+        self.job_tray = JobTray(self)
+        self.job_tray.job_activated.connect(self._on_job_activated)
+        status.addPermanentWidget(self.job_tray)
+
+        self._health_status_label.setStyleSheet(
+            f"color: {current_palette().get('text_secondary', '#888')}; font-size: 11px;"
+        )
+        status.addPermanentWidget(self._health_status_label)
+
         disclaimer = QLabel("AI 生成内容仅供参考，请作者自行审核其准确性与适用性。")
         disclaimer.setStyleSheet(
             f"color: {current_palette()['text_secondary']}; font-size: 11px;"
@@ -871,261 +952,19 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
         return self.adapter.validate_section_json(wrapper, check_existing_ids=check_existing_ids)
 
     def _on_ai_edit(self, kind: str, node_id: str) -> None:
-        from src.dialogs.ai_generator_dialog import AiGeneratorDialog
-
-        telemetry.record_event("ai.edit.open", payload={"kind": kind, "node_id": node_id})
-        self._show_beta_warning_once(
-            "ai_beta_warning_shown",
-            "AI 编辑课程",
-            "AI 编辑结果仅供参考，请作者自行审核。\n\n"
-            "本功能会消耗大量 token，且建议模型支持 1M 上下文窗口。\n\n"
-            "点击「确定」继续。",
-        )
-
-        if not self.course_dir:
-            QMessageBox.warning(self, "未加载课程目录", "请先打开课程目录。")
-            return
-
-        try:
-            if kind == "section":
-                section = self.adapter.find_section(node_id)
-            elif kind == "unit":
-                section, _unit = self.adapter.find_unit(node_id)
-            elif kind == "lesson":
-                section, _unit, _lesson = self.adapter.find_lesson(node_id)
-            else:
-                return
-        except KeyError as exc:
-            QMessageBox.warning(self, "无法编辑", str(exc))
-            return
-
-        edit_mode = {
-            "scope": kind,
-            "scope_id": node_id,
-            "existing_section": section,
-        }
-        dlg = AiGeneratorDialog(self.adapter, self, edit_mode=edit_mode)
-        if not dlg.exec():
-            telemetry.record_event("ai.edit.cancelled", payload={"kind": kind})
-            return
-        try:
-            new_section = dlg.section_json()
-        except ValueError as exc:
-            QMessageBox.warning(self, "无法应用编辑", str(exc))
-            return
-
-        # U1-4: section-level apply-time structural guard. Unit/lesson edits
-        # intentionally return a *partial* section shell from the model, so a
-        # full-section structural_diff would false-positive every time; those
-        # scopes keep the dialog-side guard + id-conflict flow instead.
-        if kind == "section":
-            try:
-                from src.backend.ai_generator import structural_diff
-
-                diff = structural_diff(section, new_section)
-                removed = {
-                    k: v
-                    for k, v in diff.items()
-                    if str(k).startswith("removed_") and v
-                }
-                if removed:
-                    parts = [
-                        f"{k}: {', '.join(sorted(list(v))[:6])}"
-                        for k, v in removed.items()
-                    ]
-                    reply = QMessageBox.question(
-                        self,
-                        "结构保护",
-                        "应用前检测到删除：\n"
-                        + "\n".join(parts)
-                        + "\n\n建议改用局部重生成 / 教师改题。是否仍继续应用？",
-                        QMessageBox.StandardButton.Yes
-                        | QMessageBox.StandardButton.No,
-                        QMessageBox.StandardButton.No,
-                    )
-                    if reply != QMessageBox.StandardButton.Yes:
-                        return
-            except Exception:
-                logger.debug("app.py:_on_ai_edit best-effort step failed", exc_info=True)
-
-        sid = section.get("id", "")
-        if kind == "section":
-            plan = self.adapter.plan_section_merge(sid, new_section)
-            from src.dialogs.ai.ai_merge_preview_dialog import AiMergePreviewDialog
-
-            preview = AiMergePreviewDialog(plan, parent=self)
-            if preview.exec() != QDialog.DialogCode.Accepted:
-                telemetry.record_event("ai.edit.merge.cancelled", payload={"kind": kind, "node_id": node_id})
-                return
-            cmd = MergeAiSectionCommand(self.adapter, preview.plan())
-            cmd.signals.changed.connect(self._on_ai_edit_applied)
-            self.undo_stack.push(cmd)
-            self.tree.select_section(sid)
-        elif kind == "unit":
-            new_unit = self._extract_unit(new_section, node_id)
-            if new_unit is None:
-                # AI did not return a unit with the same id - tolerate it by
-                # taking the first unit, then surface it as an id conflict.
-                units = new_section.get("units") or []
-                if units and isinstance(units[0], dict):
-                    new_unit = units[0]
-                else:
-                    QMessageBox.warning(
-                        self, "无法应用编辑", "AI 返回的 JSON 中找不到 unit。"
-                    )
-                    return
-            problems = self._validate_node("unit", new_unit, check_existing_ids=False)
-            errors = [p for p in problems if p.get("level") == "error"]
-            if errors:
-                QMessageBox.warning(self, "AI 编辑校验失败", "\n".join(p["message"] for p in errors))
-                return
-            conflicts = self._detect_ai_edit_conflicts("unit", node_id, new_unit)
-            if conflicts:
-                choice = self._ask_ai_edit_conflict_resolution("unit", conflicts)
-                if choice == "cancel":
-                    return
-                if choice == "rename":
-                    from src.backend.lesson_content import clone_unit_with_fresh_ids
-
-                    fresh = clone_unit_with_fresh_ids(
-                        new_unit, name=f"{new_unit.get('name', '')} 副本"
-                    )
-                    cmd = AppendUnitCommand(self.adapter, sid, fresh)
-                    cmd.signals.changed.connect(self._on_ai_edit_applied)
-                    self.undo_stack.push(cmd)
-                    self.tree.refresh_incremental()
-                    telemetry.record_event(
-                        "ai.edit.conflict.rename", payload={"kind": "unit"}
-                    )
-                    return
-                # overwrite: pin the id back to node_id and replace in place.
-                new_unit["id"] = node_id
-            cmd = AiEditUnitCommand(
-                self.adapter, sid, node_id, new_unit, resource_section=new_section
-            )
-            cmd.signals.changed.connect(self._on_ai_edit_applied)
-            self.undo_stack.push(cmd)
-            self.tree.refresh_incremental()
-        elif kind == "lesson":
-            new_lesson = self._extract_lesson(new_section, node_id)
-            if new_lesson is None:
-                # AI did not return a lesson with the same id - tolerate it by
-                # taking the first lesson, then surface it as an id conflict.
-                for u in new_section.get("units") or []:
-                    if isinstance(u, dict):
-                        lessons = u.get("lessons") or []
-                        if lessons and isinstance(lessons[0], dict):
-                            new_lesson = lessons[0]
-                            break
-                if new_lesson is None:
-                    QMessageBox.warning(
-                        self, "无法应用编辑", "AI 返回的 JSON 中找不到 lesson。"
-                    )
-                    return
-            problems = self._validate_node("lesson", new_lesson, check_existing_ids=False)
-            errors = [p for p in problems if p.get("level") == "error"]
-            if errors:
-                QMessageBox.warning(self, "AI 编辑校验失败", "\n".join(p["message"] for p in errors))
-                return
-            conflicts = self._detect_ai_edit_conflicts("lesson", node_id, new_lesson)
-            if conflicts:
-                choice = self._ask_ai_edit_conflict_resolution("lesson", conflicts)
-                if choice == "cancel":
-                    return
-                if choice == "rename":
-                    from src.backend.lesson_content import clone_lesson_with_fresh_ids
-
-                    fresh = clone_lesson_with_fresh_ids(
-                        new_lesson, name=f"{new_lesson.get('name', '')} 副本"
-                    )
-                    fresh["prerequisiteLessonIds"] = []
-                    _ls, _lu, _ll = self.adapter.find_lesson(node_id)
-                    cmd = AppendLessonCommand(self.adapter, _lu.get("id", ""), fresh)
-                    cmd.signals.changed.connect(self._on_ai_edit_applied)
-                    self.undo_stack.push(cmd)
-                    self.tree.refresh_incremental()
-                    telemetry.record_event(
-                        "ai.edit.conflict.rename", payload={"kind": "lesson"}
-                    )
-                    return
-                # overwrite: pin the id back to node_id and replace in place.
-                new_lesson["id"] = node_id
-            cmd = AiEditLessonCommand(
-                self.adapter, node_id, new_lesson, resource_section=new_section
-            )
-            cmd.signals.changed.connect(self._on_ai_edit_applied)
-            self.undo_stack.push(cmd)
-            self.tree.refresh_incremental()
-
-        telemetry.record_event("ai.edit.applied", payload={"kind": kind, "node_id": node_id})
-        if self._current_node_ref is not None:
-            self._on_node_selected(self._current_node_ref)
-        self.statusBar().showMessage(
-            f"已应用 AI 编辑（{kind}），记得保存", 8000
-        )
+        self._ai_edit_controller.handle_ai_edit(self, kind, node_id)
 
     def _detect_ai_edit_conflicts(
         self, kind: str, node_id: str, new_node: dict
     ) -> list[tuple[str, str, str]]:
-        """Return ``(id_type, id, detail)`` tuples for id conflicts between the
-        AI-edited node and the rest of the course.
-
-        A conflict exists when the AI changed the node's own id, or (for a
-        unit) a lesson inside the new unit reuses a lesson id that already
-        exists elsewhere in the course.
-        """
-        conflicts: list[tuple[str, str, str]] = []
-        new_id = new_node.get("id", "")
-        if new_id and new_id != node_id:
-            conflicts.append((kind, new_id, f"AI 把 {kind} id 改成了「{new_id}」"))
-        if kind == "unit":
-            from src.backend.lesson_content import all_lesson_ids
-
-            other_lesson_ids = all_lesson_ids(self.adapter.sections)
-            # Exclude lessons currently in the target unit - they get replaced.
-            try:
-                _s, cur_unit = self.adapter.find_unit(node_id)
-                cur_lesson_ids = {l.get("id") for l in cur_unit.get("lessons", [])}
-            except KeyError:
-                cur_lesson_ids = set()
-            other_lesson_ids -= cur_lesson_ids
-            for lesson in new_node.get("lessons", []):
-                if not isinstance(lesson, dict):
-                    continue
-                lid = lesson.get("id", "")
-                if lid and lid in other_lesson_ids:
-                    conflicts.append(
-                        ("lesson", lid, f"lesson id「{lid}」与课程其他位置冲突")
-                    )
-        return conflicts
+        return self._ai_edit_controller.detect_conflicts(
+            self.adapter, kind, node_id, new_node
+        )
 
     def _ask_ai_edit_conflict_resolution(
         self, kind: str, conflicts: list[tuple[str, str, str]]
     ) -> str:
-        """Ask the user how to resolve an AI-edit id conflict.
-
-        Returns ``"overwrite"``, ``"rename"`` or ``"cancel"``.
-        """
-        detail = "\n".join(f"· {c[2]}" for c in conflicts)
-        msg = QMessageBox(self)
-        msg.setWindowTitle("ID 冲突")
-        msg.setIcon(QMessageBox.Icon.Warning)
-        msg.setText(f"AI 编辑的 {kind} 存在 id 冲突：\n\n{detail}")
-        msg.setInformativeText(
-            "覆盖：用 AI 内容替换原节点（保留原 id；unit 内子课时冲突仍可能导致保存时报错）\n"
-            "重命名追加：生成新 id 作为新节点追加到同级（原节点保留，避免冲突）\n"
-            "取消：放弃本次编辑"
-        )
-        overwrite = msg.addButton("覆盖", QMessageBox.ButtonRole.AcceptRole)
-        rename = msg.addButton("重命名追加", QMessageBox.ButtonRole.ActionRole)
-        msg.addButton("取消", QMessageBox.ButtonRole.RejectRole)
-        msg.exec()
-        clicked = msg.clickedButton()
-        if clicked == overwrite:
-            return "overwrite"
-        if clicked == rename:
-            return "rename"
-        return "cancel"
+        return self._ai_edit_controller.ask_conflict_resolution(self, kind, conflicts)
 
     def _on_ai_edit_applied(self) -> None:
         self.tree.refresh_incremental()
@@ -1135,43 +974,19 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
 
     def _on_ai_fix_from_tree(self, kind: str, node_id: str) -> None:
         """Handle AI fix request from the course tree context menu."""
-        # Validate the node to collect concrete problems for the prompt.
-        try:
-            if kind == "section":
-                node_json = self.adapter.find_section(node_id)
-            elif kind == "unit":
-                section, node_json = self.adapter.find_unit(node_id)
-            elif kind == "lesson":
-                _section, _unit, node_json = self.adapter.find_lesson(node_id)
-            else:
-                return
-            problems = self._validate_node(kind, node_json)
-        except KeyError:
-            QMessageBox.warning(self, "无法定位节点", f"找不到节点：{kind}/{node_id}")
-            return
-        if not problems:
-            QMessageBox.information(self, "无需修正", "当前节点没有检测到校验问题。")
-            return
-        # U1-2: pass *all* problems on this node (not only the first).
-        pairs = [(p, (kind, node_id)) for p in problems]
-        self._on_ai_batch_fix_requested(pairs)
+        self._ai_fix_controller.handle_ai_fix_from_tree(self, kind, node_id)
 
     @staticmethod
     def _extract_unit(new_section: dict, unit_id: str) -> dict | None:
-        for u in new_section.get("units") or []:
-            if isinstance(u, dict) and u.get("id") == unit_id:
-                return u
-        return None
+        from src.application.ai_edit_controller import AiEditController
+
+        return AiEditController.extract_unit(new_section, unit_id)
 
     @staticmethod
     def _extract_lesson(new_section: dict, lesson_id: str) -> dict | None:
-        for u in new_section.get("units") or []:
-            if not isinstance(u, dict):
-                continue
-            for l in u.get("lessons") or []:
-                if isinstance(l, dict) and l.get("id") == lesson_id:
-                    return l
-        return None
+        from src.application.ai_edit_controller import AiEditController
+
+        return AiEditController.extract_lesson(new_section, lesson_id)
 
     def _on_node_selected(self, node_ref: tuple[str, str]) -> None:
         self._current_node_ref = node_ref
@@ -1283,116 +1098,7 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
 
     def _on_generate_audio(self) -> None:
         """Generate listening-lesson audio (MiniMax TTS) for the loaded course."""
-        from PySide6.QtCore import Qt
-        from PySide6.QtWidgets import QMessageBox, QProgressDialog
-
-        from src.backend import generate_audio_client
-        from src.backend.generate_audio_worker import GenerateAudioWorker
-        from src.dialogs.generate_audio_dialog import GenerateAudioDialog
-
-        if not self.course_dir:
-            QMessageBox.warning(self, "生成听力音频", "请先打开课程目录。")
-            return
-
-        # Save first so collect_entries reads the latest transcripts.
-        try:
-            result = self.adapter.save()
-            if not result.ok:
-                QMessageBox.warning(
-                    self, "生成听力音频", "课程保存失败，已取消生成。"
-                )
-                return
-        except Exception:
-            logger.debug("app.py:_on_generate_audio best-effort step failed", exc_info=True)
-
-        sounds_dir = generate_audio_client.sounds_dir_for(
-            self.course_dir, self._settings_obj
-        )
-        preview = generate_audio_client.preview_generation(
-            self.course_dir, self._settings_obj
-        )
-        telemetry.record_event(
-            "tts.open",
-            payload={
-                "total": int(preview.get("total", 0)),
-                "existing": int(preview.get("existing", 0)),
-                "sounds_dir": str(sounds_dir),
-            },
-        )
-        dlg = GenerateAudioDialog(self._settings_obj, preview, parent=self)
-        if dlg.exec() != QDialog.DialogCode.Accepted:
-            return
-
-        opts = generate_audio_client.TtsOptions(
-            voice_id=dlg.voice_id(),
-            model=dlg.model(),
-            speed=dlg.speed(),
-            force=dlg.force(),
-        )
-        if not dlg.api_key():
-            QMessageBox.warning(self, "生成听力音频", "请填写 MiniMax API Key。")
-            return
-        self._settings_obj.save_to_qsettings(self._settings)
-
-        worker = GenerateAudioWorker(
-            self.course_dir, sounds_dir, opts, dlg.api_key(), parent=self
-        )
-
-        progress = QProgressDialog("正在生成听力音频…", "取消", 0, 0, self)
-        progress.setWindowModality(Qt.WindowModality.NonModal)
-        progress.setWindowTitle("生成听力音频")
-        progress.setValue(0)
-
-        # Duck-typed job tray: absent on some MainWindow variants — guard it.
-        tray = getattr(self, "job_tray", None)
-        try:
-            if tray is not None:
-                tray.start_job("tts-generate", "生成听力音频…")
-        except Exception:
-            tray = None
-
-        def _on_progress(done: int, total: int) -> None:
-            if total > 0:
-                progress.setMaximum(total)
-                progress.setValue(done)
-                progress.setLabelText(f"正在生成听力音频… {done}/{total}")
-
-        def _on_finished_ok(generated: int, skipped: int, total: int) -> None:
-            progress.close()
-            try:
-                if tray is not None:
-                    tray.finish_job("tts-generate")
-            except Exception:
-                logger.debug("app.py:_on_finished_ok best-effort step failed", exc_info=True)
-            self.tree.refresh()
-            telemetry.record_event(
-                "tts.generate",
-                payload={"generated": generated, "skipped": skipped, "total": total},
-            )
-            QMessageBox.information(
-                self,
-                "生成听力音频",
-                f"完成：生成 {generated} 条，跳过 {skipped} 条，共 {total} 条。",
-            )
-
-        def _on_failed(msg: str) -> None:
-            progress.close()
-            try:
-                if tray is not None:
-                    tray.finish_job("tts-generate")
-            except Exception:
-                logger.debug("app.py:_on_failed best-effort step failed", exc_info=True)
-            telemetry.record_error(
-                RuntimeError(msg), context={"event": "tts.generate_failed"}
-            )
-            QMessageBox.warning(self, "生成听力音频失败", msg)
-
-        progress.canceled.connect(worker.cancel)
-        worker.progress.connect(_on_progress)
-        worker.finished_ok.connect(_on_finished_ok)
-        worker.failed.connect(_on_failed)
-        self._generate_worker = worker  # keep strong ref until finished
-        worker.start()
+        self._audio_controller.handle_generate_audio(self)
 
     def _on_save(self, *, reason: str = "menu") -> None:
         telemetry.record_event("repo.save.triggered", payload={"reason": reason})
@@ -1494,60 +1200,7 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
         pairs: list[tuple[dict[str, Any], tuple[str, str] | None]],
     ) -> None:
         """Group problems by node and run AiFixDialog once per node (sequential)."""
-        from src.backend.ai_fix_batch import group_problems_for_fix
-
-        problems = [p for p, _ref in pairs if isinstance(p, dict)]
-        # Prefer explicit refs from the UI when path mapping fails.
-        fallback: tuple[str, str] | None = None
-        for _p, ref in pairs:
-            if ref is not None:
-                fallback = ref
-                break
-        batches = group_problems_for_fix(
-            problems,
-            getattr(self.adapter, "sections", None) or [],
-            fallback_ref=fallback,
-        )
-        if not batches:
-            # Fall back: group by provided node_ref pairs.
-            by_ref: dict[tuple[str, str], list[dict[str, Any]]] = {}
-            order: list[tuple[str, str]] = []
-            for problem, ref in pairs:
-                if ref is None or not isinstance(problem, dict):
-                    continue
-                if ref not in by_ref:
-                    by_ref[ref] = []
-                    order.append(ref)
-                by_ref[ref].append(problem)
-            from src.backend.ai_fix_batch import FixBatch
-
-            batches = [
-                FixBatch(kind=k, node_id=i, problems=by_ref[(k, i)])
-                for k, i in order
-            ]
-        if not batches:
-            QMessageBox.information(
-                self, "AI 自动修正", "所选问题无法定位到课程节点，请双击跳转后从树菜单修复。"
-            )
-            return
-        if len(batches) > 1:
-            QMessageBox.information(
-                self,
-                "AI 批量修正",
-                f"已按节点分成 {len(batches)} 批，将依次修复（每批确认一次）。",
-            )
-        applied = 0
-        for batch in batches:
-            if self._apply_ai_fix_for_node(
-                batch.kind, batch.node_id, batch.problems
-            ):
-                applied += 1
-        if applied:
-            if self._current_node_ref is not None:
-                self._on_node_selected(self._current_node_ref)
-            self.statusBar().showMessage(
-                f"AI 自动修正已应用 {applied}/{len(batches)} 批，记得保存", 5000
-            )
+        self._ai_fix_controller.run_ai_fix_batch(self, pairs)
 
     def _apply_ai_fix_for_node(
         self,
@@ -1556,90 +1209,9 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
         problems: list[dict[str, Any]],
     ) -> bool:
         """Run one AiFixDialog + merge for a single node. Returns True if applied."""
-        try:
-            if kind == "section":
-                node_json = self.adapter.find_section(node_id)
-            elif kind == "unit":
-                _section, node_json = self.adapter.find_unit(node_id)
-            elif kind == "lesson":
-                _section, _unit, node_json = self.adapter.find_lesson(node_id)
-            else:
-                return False
-        except KeyError:
-            QMessageBox.warning(self, "无法定位节点", f"找不到节点：{kind}/{node_id}")
-            return False
-
-        course_context = {
-            "node_kind": kind,
-            "node_id": node_id,
-            "language": self.adapter.index.get("language", "en"),
-            "existing_resource_ids": {
-                "vocab": [w.get("id") for w in self.adapter.vocab if w.get("id")],
-                "expressions": [e.get("id") for e in self.adapter.expressions if e.get("id")],
-                "grammar_points": [g.get("id") for g in self.adapter.grammar_points if g.get("id")],
-            },
-        }
-        from src.dialogs.ai_fix_dialog import AiFixDialog
-
-        dlg = AiFixDialog(
-            problems,
-            node_json,
-            course_context,
-            self._ai_config,
-            parent=self,
+        return self._ai_fix_controller.apply_ai_fix_for_node(
+            self, kind, node_id, problems
         )
-        if dlg.exec() != QDialog.DialogCode.Accepted:
-            return False
-        corrected = dlg.corrected_node()
-        if corrected is None:
-            return False
-
-        # Validate the corrected node locally before applying.
-        post = self._validate_node(kind, corrected, check_existing_ids=False)
-        errors = [p for p in post if p.get("level") == "error"]
-        if errors:
-            detail = "\n".join(f"[{p['level']}] {p['message']}" for p in errors)
-            QMessageBox.warning(self, "AI 修正后仍有问题", detail)
-            return False
-
-        # Apply via undo stack.
-        if kind == "section":
-            plan = self.adapter.plan_section_merge(node_id, corrected)
-            from src.dialogs.ai.ai_merge_preview_dialog import AiMergePreviewDialog
-
-            preview = AiMergePreviewDialog(plan, parent=self)
-            if preview.exec() != QDialog.DialogCode.Accepted:
-                telemetry.record_event(
-                    "ai.fix.merge.cancelled",
-                    payload={"kind": kind, "node_id": node_id},
-                )
-                return False
-            cmd = MergeAiSectionCommand(self.adapter, preview.plan())
-            cmd.signals.changed.connect(self._on_ai_edit_applied)
-            self.undo_stack.push(cmd)
-            self.tree.select_section(node_id)
-        elif kind == "unit":
-            section, _ = self.adapter.find_unit(node_id)
-            cmd = AiEditUnitCommand(
-                self.adapter,
-                section.get("id", ""),
-                node_id,
-                corrected,
-                resource_section=corrected,
-            )
-            cmd.signals.changed.connect(self._on_ai_edit_applied)
-            self.undo_stack.push(cmd)
-            self.tree.refresh_incremental()
-        elif kind == "lesson":
-            cmd = AiEditLessonCommand(
-                self.adapter, node_id, corrected, resource_section=corrected
-            )
-            cmd.signals.changed.connect(self._on_ai_edit_applied)
-            self.undo_stack.push(cmd)
-            self.tree.refresh_incremental()
-        else:
-            return False
-        return True
 
     def _jump_to_node(self, node_ref: tuple[str, str]) -> None:
         kind, node_id = node_ref
@@ -1737,17 +1309,140 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
             self._clear_ai_key_on_exit()
             self._record_window_duration()
 
-    def _record_window_duration(self) -> None:
+    def _record_window_duration(
+        self, name: str = "MainWindow", duration_s: float | None = None, **payload
+    ) -> None:
         try:
             from src.infrastructure.operations_log import operations
+
+            if duration_s is not None:
+                telemetry.record_event(
+                    f"window.{name}.duration", duration_s=duration_s, **payload
+                )
+                return
 
             start = getattr(self, "_usage_t0", None)
             if start:
                 operations.record_duration(
                     "window.duration",
                     (time.perf_counter() - start) * 1000.0,
-                    payload={"window": "MainWindow"},
+                    payload={"window": name},
                 )
-                operations.record_action("window.close", "MainWindow")
+                operations.record_action("window.close", name)
         except Exception:
             logger.debug("app.py:_record_window_duration best-effort step failed", exc_info=True)
+
+    def _on_undo_index_changed(self, _idx: int) -> None:
+        self._undo_detail_timer.start()
+
+    def _flush_undo_detail_refresh(self) -> None:
+        self._undo_detail_timer.stop()
+        if self._current_node_ref and self.adapter:
+            if hasattr(self, "detail") and self.detail is not None:
+                self.detail.show_node(self.adapter, self._current_node_ref)
+
+    def _on_job_activated(self, job_id: str) -> None:
+        if not hasattr(self, "job_tray") or self.job_tray is None:
+            return
+        job = self.job_tray.registry.get(job_id)
+        if job is None:
+            self.statusBar().showMessage(f"任务未找到：{job_id}", 4000)
+            return
+        node_key = getattr(job, "node_key", "") or ""
+        if not node_key:
+            self.statusBar().showMessage(f"任务无对应节点：{job.label or job_id}", 4000)
+            return
+        if node_key.startswith("section:"):
+            sec_id = node_key[len("section:"):]
+            self.tree.select_section(sec_id)
+        elif node_key.startswith("lesson:"):
+            les_id = node_key[len("lesson:"):]
+            self.tree.select_lesson(les_id)
+        elif node_key.startswith("unit:"):
+            unit_id = node_key[len("unit:"):]
+            if hasattr(self.tree, "select_unit"):
+                self.tree.select_unit(unit_id)
+
+    def _sync_focus_ring(self) -> None:
+        if not hasattr(self, "focus_ring") or self.focus_ring is None:
+            return
+        self.focus_ring.clear_roles("selected", "pinned")
+        if self._current_node_ref:
+            kind, nid = self._current_node_ref
+            self.focus_ring.set(f"{kind}:{nid}", "selected")
+        if hasattr(self, "experience") and self.experience is not None:
+            for pref in getattr(self.experience, "pinned_refs", []):
+                if isinstance(pref, tuple) and len(pref) == 2:
+                    self.focus_ring.set(f"{pref[0]}:{pref[1]}", "pinned")
+
+    def _on_experience_context_changed(self, ctx) -> None:
+        if hasattr(self, "experience_dock_widget") and self.experience_dock_widget is not None:
+            sugs = getattr(self.experience, "suggestions", []) if hasattr(self, "experience") else []
+            self.experience_dock_widget.apply_context_and_suggestions(ctx, sugs)
+        if hasattr(self, "_refresh_ambient"):
+            self._refresh_ambient()
+
+    def _on_experience_pin_toggled(self) -> None:
+        if hasattr(self, "experience") and self.experience is not None:
+            self.experience.toggle_pin_selection()
+            self._sync_focus_ring()
+            self._refresh_experience(immediate=False, focus_only=True)
+
+    def _refresh_experience(self, *, immediate: bool = False, focus_only: bool = False) -> None:
+        if self.course_dir is None:
+            clear_experience_session(self, reason=REASON_CLOSE_COURSE)
+            if hasattr(self, "_health_status_label"):
+                self._health_status_label.setText(format_health_status_line(None))
+            return
+
+        if hasattr(self, "experience") and self.experience is not None:
+            self.experience.set_adapter(self.adapter)
+            if hasattr(self, "job_tray") and self.job_tray is not None:
+                self.experience.set_active_jobs(self.job_tray.active_jobs())
+            if hasattr(self, "_current_node_ref"):
+                self.experience.set_selection(self._current_node_ref)
+            if focus_only:
+                self.experience.invalidate_focus()
+            else:
+                if immediate:
+                    self.experience.rebuild_now()
+                else:
+                    self.experience.invalidate()
+
+    def _on_experience_resources_changed(self) -> None:
+        if hasattr(self, "experience") and self.experience is not None:
+            self.experience.mark_stale()
+
+    def _flush_experience_metrics(self, reason: str = "", *, course_dir: Any = None) -> None:
+        metrics = getattr(self, "experience_metrics", None)
+        if metrics is not None and hasattr(metrics, "snapshot"):
+            snap = metrics.snapshot()
+            telemetry.record_event(
+                "experience.metrics_flush",
+                reason=reason,
+                course_dir=str(course_dir or self.course_dir or ""),
+                **snap,
+            )
+
+    def _record_experience_event(self, event_name: str, label: str = "", **payload) -> None:
+        try:
+            telemetry.record_event(event_name, label=label, **payload)
+        except Exception:
+            logger.debug("MainWindow._record_experience_event best-effort failed", exc_info=True)
+
+    def _on_workshop_ocr_requested(
+        self, path: str, original_name: str, unlink_after: bool = False
+    ) -> None:
+        from src.application.workshop_controller import on_workshop_ocr_requested
+
+        on_workshop_ocr_requested(self, path, original_name, unlink_after)
+
+    def _on_undo_index_changed(self, idx: int = 0) -> None:
+        if hasattr(self, "_undo_detail_timer"):
+            self._undo_detail_timer.start()
+
+    def _flush_undo_detail_refresh(self) -> None:
+        if hasattr(self, "_undo_detail_timer") and self._undo_detail_timer.isActive():
+            self._undo_detail_timer.stop()
+        if getattr(self, "_current_node_ref", None) and getattr(self, "course_dir", None):
+            self._on_node_selected(self._current_node_ref)

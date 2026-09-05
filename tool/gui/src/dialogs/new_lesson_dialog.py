@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from PySide6.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QDialog,
     QDialogButtonBox,
@@ -29,6 +30,9 @@ class NewLessonDialog(QDialog):
             self.template_combo.addItem(f"{TEMPLATE_LABELS.get(t, t)} ({t})", t)
         self.template_combo.currentIndexChanged.connect(self._update_wizard_btn)
         form.addRow("课型:", self.template_combo)
+        self.ai_generate_check = QCheckBox("使用 AI 生成内容")
+        self.ai_generate_check.setChecked(False)
+        form.addRow("", self.ai_generate_check)
 
         buttons = QDialogButtonBox()
         self._wizard_btn = buttons.addButton(
@@ -58,3 +62,6 @@ class NewLessonDialog(QDialog):
 
     def lesson_name(self) -> str:
         return self.name_edit.text().strip()
+
+    def generate_with_ai(self) -> bool:
+        return self.ai_generate_check.isChecked()

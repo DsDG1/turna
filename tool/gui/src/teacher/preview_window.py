@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QButtonGroup,
     QCheckBox,
@@ -32,19 +33,35 @@ from src.backend.course_adapter import CourseAdapter
 from src.backend.lesson_content import listening_phase_has_items
 from src.theme import current_palette
 
+PREVIEW_FIX_INSTRUCTION = "教师试做答错：题干/选项可能有歧义或难度不当，请优化，保持 id 与正确答案不变"
+
+
+def _preview_fix_suggest_enabled(settings: Any | None = None) -> bool:
+    try:
+        from src.application.runtime_context import current_settings
+
+        st = settings or current_settings()
+        return bool(getattr(st, "experience_preview_fix_suggest", False))
+    except Exception:
+        return False
+
 
 class _PreviewCard(QFrame):
     """A single try-it-yourself question card bound to one item."""
+
+    answered_wrong = Signal(dict)
 
     def __init__(
         self,
         adapter: CourseAdapter,
         item: dict[str, Any],
         vocab_override: dict[str, dict[str, Any]] | None = None,
+        stage: dict[str, Any] | None = None,
     ) -> None:
         super().__init__()
         self.adapter = adapter
         self.item = item
+        self.stage = stage or {}
         self._vocab_override = vocab_override or {}
         self.setFrameShape(QFrame.Shape.StyledPanel)
         self.setStyleSheet(
@@ -54,6 +71,9 @@ class _PreviewCard(QFrame):
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(8)
         self._build(layout)
+
+    def _emit_wrong(self) -> None:
+        self.answered_wrong.emit({"item": self.item, "stage": self.stage})
 
     def _term_for(self, ref_id: str) -> str:
         # Prefer a vocab override (used by the AI dialog's 试做 so generated
@@ -117,6 +137,8 @@ class _PreviewCard(QFrame):
                 btn = group.button(i)
                 if btn is not None and btn.isChecked():
                     ok = i == correct
+                    if not ok:
+                        self._emit_wrong()
                     QMessageBox.information(
                         self, "结果", "✅ 答对了！" if ok else f"❌ 正确答案是第 {correct + 1} 项"
                     )
@@ -139,6 +161,8 @@ class _PreviewCard(QFrame):
         def _check() -> None:
             chosen = {i for i, cb in enumerate(boxes) if cb.isChecked()}
             ok = chosen == correct
+            if not ok:
+                self._emit_wrong()
             QMessageBox.information(
                 self, "结果",
                 "✅ 答对了！" if ok else f"❌ 正确答案是第 {[c+1 for c in sorted(correct)]} 项",
@@ -161,6 +185,8 @@ class _PreviewCard(QFrame):
 
         def _check() -> None:
             ok = edit.text().strip().lower() == answer.strip().lower()
+            if not ok:
+                self._emit_wrong()
             QMessageBox.information(
                 self, "结果", "✅ 答对了！" if ok else f"❌ 正确答案：{answer}"
             )
@@ -180,6 +206,8 @@ class _PreviewCard(QFrame):
 
         def _check() -> None:
             ok = edit.text().strip().lower() == answer.strip().lower()
+            if not ok:
+                self._emit_wrong()
             QMessageBox.information(
                 self, "结果", "✅ 答对了！" if ok else f"❌ 参考答案：{answer}"
             )
@@ -205,6 +233,8 @@ class _PreviewCard(QFrame):
         def _check() -> None:
             chosen = true_btn.isChecked()
             ok = chosen == answer
+            if not ok:
+                self._emit_wrong()
             QMessageBox.information(
                 self, "结果", "✅ 答对了！" if ok else f"❌ 正确答案：{'正确' if answer else '错误'}"
             )
@@ -233,6 +263,7 @@ class LessonPreviewDialog(QDialog):
         self.adapter = adapter
         self.lesson = lesson
         self._vocab_override = vocab_override or {}
+        self._last_wrong_payload: dict[str, Any] | None = None
         self.setWindowTitle(f"预览：{lesson.get('name', lesson.get('id', ''))}")
         self.resize(560, 640)
         self._build()
@@ -242,19 +273,21 @@ class LessonPreviewDialog(QDialog):
         for sl in content.get("subLessons", []) or []:
             for stage in sl.get("stages", []) or []:
                 for item in stage.get("items", []) or []:
-                    yield sl.get("name", ""), stage.get("name", ""), item
+                    yield sl.get("name", ""), stage.get("name", ""), item, stage
         for stage in content.get("stages", []) or []:
             for item in stage.get("items", []) or []:
-                yield "", stage.get("name", ""), item
+                yield "", stage.get("name", ""), item, stage
         for phase in content.get("listeningPhases", []) or []:
             if listening_phase_has_items(phase.get("type", "")):
                 for item in phase.get("items", []) or []:
-                    yield "", phase.get("name", ""), item
+                    yield "", phase.get("name", ""), item, phase
 
     def _build(self) -> None:
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(10)
+        layout = self.layout()
+        if layout is None:
+            layout = QVBoxLayout(self)
+            layout.setContentsMargins(16, 16, 16, 16)
+            layout.setSpacing(10)
 
         title = QLabel(f"预览：{self.lesson.get('name', '')}")
         pal = current_palette()
@@ -264,8 +297,20 @@ class LessonPreviewDialog(QDialog):
         hint.setStyleSheet(f"color: {pal['text_secondary']}; font-size: 11px;")
         layout.addWidget(hint)
 
+        self._fix_bar = QWidget()
+        self._fix_bar.setHidden(True)
+        bar_layout = QHBoxLayout(self._fix_bar)
+        bar_layout.setContentsMargins(0, 0, 0, 0)
+        self._fix_label = QLabel("答错了？可以让 AI 针对该题提出修改建议：")
+        self._fix_btn = QPushButton("获取 AI 改题建议")
+        self._fix_btn.clicked.connect(self._on_fix_suggest_clicked)
+        bar_layout.addWidget(self._fix_label)
+        bar_layout.addWidget(self._fix_btn)
+        bar_layout.addStretch()
+        layout.addWidget(self._fix_bar)
+
         count = 0
-        for sl_name, st_name, item in self._iter_items():
+        for sl_name, st_name, item, stage in self._iter_items():
             label_parts = []
             if sl_name:
                 label_parts.append(sl_name)
@@ -273,7 +318,9 @@ class LessonPreviewDialog(QDialog):
                 label_parts.append(st_name)
             if label_parts:
                 layout.addWidget(QLabel("  ›  ".join(label_parts)))
-            layout.addWidget(_PreviewCard(self.adapter, item, self._vocab_override))
+            card = _PreviewCard(self.adapter, item, self._vocab_override, stage=stage)
+            card.answered_wrong.connect(self._on_card_answered_wrong)
+            layout.addWidget(card)
             count += 1
         if count == 0:
             layout.addWidget(QLabel("这节课还没有题目，先在编辑器里添加。"))
@@ -282,10 +329,31 @@ class LessonPreviewDialog(QDialog):
         close_btn.clicked.connect(self.accept)
         layout.addWidget(close_btn)
 
+    def _on_card_answered_wrong(self, payload: dict) -> None:
+        if not _preview_fix_suggest_enabled():
+            return
+        self._last_wrong_payload = payload
+        self._fix_bar.setHidden(False)
+
+    def _on_fix_suggest_clicked(self) -> None:
+        if not self._last_wrong_payload:
+            return
+        from src.teacher.item_ai_chip import run_item_chip
+
+        run_item_chip(
+            self,
+            item=self._last_wrong_payload.get("item"),
+            stage=self._last_wrong_payload.get("stage"),
+            instruction=PREVIEW_FIX_INSTRUCTION,
+            lesson_id=str(self.lesson.get("id") or ""),
+        )
+
     def refresh(self) -> None:
         """Rebuild from the current lesson state (re-read after edits)."""
-        while self.layout().count() > 0:
-            child = self.layout().takeAt(0)
-            if child.widget():
-                child.widget().deleteLater()
+        layout = self.layout()
+        if layout is not None:
+            while layout.count() > 0:
+                child = layout.takeAt(0)
+                if child.widget():
+                    child.widget().deleteLater()
         self._build()

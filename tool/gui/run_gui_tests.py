@@ -56,6 +56,12 @@ def _ensure_path() -> None:
     if gui not in sys.path:
         sys.path.insert(0, gui)
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    os.environ.setdefault("PYTHONUTF8", "1")
+    os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
 
 def list_test_modules() -> list[Path]:
@@ -88,13 +94,31 @@ def cmd_list_fast() -> int:
     return 0
 
 
-def cmd_gate() -> int:
+def cmd_e1() -> int:
     _ensure_path()
     script = TESTS_DIR / "experience_e1_gate_smoke.py"
     if not script.is_file():
         print(f"error: missing {script}", file=sys.stderr)
         return 1
     return subprocess.call([sys.executable, str(script)], cwd=str(GUI_DIR))
+
+
+def cmd_e2() -> int:
+    _ensure_path()
+    script = TESTS_DIR / "experience_e2_gate_smoke.py"
+    if not script.is_file():
+        print(f"error: missing {script}", file=sys.stderr)
+        return 1
+    return subprocess.call([sys.executable, str(script)], cwd=str(GUI_DIR))
+
+
+def cmd_gate() -> int:
+    _ensure_path()
+    code1 = cmd_e1()
+    if code1 != 0:
+        return code1
+    print("\n", flush=True)
+    return cmd_e2()
 
 
 def cmd_fast() -> int:
@@ -175,12 +199,16 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "tier",
-        choices=("gate", "fast", "ci", "full", "clean-cache", "list-fast"),
+        choices=("gate", "e1", "e2", "fast", "ci", "full", "clean-cache", "list-fast"),
         help="Which tier / maintenance action to run",
     )
     args = parser.parse_args(argv)
     if args.tier == "gate":
         return cmd_gate()
+    if args.tier == "e1":
+        return cmd_e1()
+    if args.tier == "e2":
+        return cmd_e2()
     if args.tier == "fast":
         return cmd_fast()
     if args.tier == "ci":

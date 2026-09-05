@@ -129,6 +129,18 @@ from src.backend.experience.goal_generate import (
     force_lesson_id,
     is_lesson_payload_mergeable,
 )
+from src.backend.experience.transaction import (
+    TransactionSnapshot,
+    create_transaction_snapshot,
+    rollback_transaction,
+    verify_transaction_integrity,
+)
+from src.backend.experience.circuit_breaker import (
+    CircuitBreaker,
+    CircuitState,
+    get_circuit_breaker,
+    reset_circuit_breaker,
+)
 
 __all__ = [
     "ACTIONS",
@@ -233,4 +245,12 @@ __all__ = [
     "revert_field_patch",
     "revert_item_patch",
     "route_intent",
+    "TransactionSnapshot",
+    "create_transaction_snapshot",
+    "rollback_transaction",
+    "verify_transaction_integrity",
+    "CircuitBreaker",
+    "CircuitState",
+    "get_circuit_breaker",
+    "reset_circuit_breaker",
 ]

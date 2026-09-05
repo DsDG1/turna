@@ -12,6 +12,7 @@ is editor-only (CSV stays column-free; interactions do not fit table cells).
 """
 from __future__ import annotations
 
+import logging
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
@@ -31,6 +32,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+logger = logging.getLogger(__name__)
 
 # api.py is the single gateway to course_cli (it puts tool/ on sys.path);
 # importing the module through it keeps this file importable standalone.
@@ -251,15 +254,105 @@ class ResourceTableWidget(QWidget):
         self._dirty = True
         self.adapter.notify_resources_changed()
 
+    def selected_refs(self) -> list[tuple[str, str]]:
+        rows = sorted({idx.row() for idx in self.table.selectedIndexes()})
+        refs: list[tuple[str, str]] = []
+        for r in rows:
+            item = self.table.item(r, 0)
+            if item and item.text():
+                refs.append((self.row_type, item.text()))
+        return refs
+
+    def _delete_confirm_text(self, label: str, report: dict[str, Any]) -> str:
+        count = report.get("count", 0)
+        if count == 0:
+            return f"确认删除 {label}？\n（未发现引用，可安全删除）\n保存时 validate 会校验悬空引用。"
+        refs = report.get("refs", [])
+        lines = [f"确认删除 {label}？\n检测到 {count} 处引用："]
+        for r in refs[:5]:
+            lid = r.get("lesson_id") or ""
+            iid = r.get("item_id") or ""
+            lines.append(f"  - Lesson: {lid}, Item: {iid}")
+        if count > 5:
+            lines.append(f"  ... 等共 {count} 处引用")
+        lines.append("保存时 validate 会校验悬空引用。")
+        return "\n".join(lines)
+
+    def _choose_replacement(self, old_id: str) -> str | None:
+        from PySide6.QtWidgets import QInputDialog
+        from src.backend.experience.resource_refs import find_replacement_candidates
+
+        candidates = find_replacement_candidates(self.adapter, self.row_type, old_id)
+        entries = getattr(self.adapter, self.row_type, [])
+        all_ids = [str(e.get("id")) for e in entries if str(e.get("id")) != old_id and e.get("id")]
+        choices = [c for c in candidates if c in all_ids] + [i for i in all_ids if i not in candidates]
+        if not choices:
+            return None
+        choice, ok = QInputDialog.getItem(
+            self, "选择替换词条", f"将引用 {old_id} 替换为:", choices, 0, False
+        )
+        return choice if ok and choice else None
+
+    def _propose_replacement(self, entry_id: str) -> bool:
+        new_id = self._choose_replacement(entry_id)
+        if not new_id or new_id == entry_id:
+            return False
+        reply = QMessageBox.question(
+            self,
+            "替换引用",
+            f"是否将所有对 {entry_id} 的引用替换为 {new_id}？",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return False
+        from src.backend.experience.resource_refs import build_replacement_steps
+        steps = build_replacement_steps(self.adapter, self.row_type, entry_id, new_id)
+        if not steps:
+            return False
+        host = self.window()
+        undo_stack = getattr(host, "undo_stack", None)
+        if undo_stack is not None:
+            from src.application.commands import ApplyBatchPatchCommand
+            cmd = ApplyBatchPatchCommand(steps=steps, adapter=self.adapter, text=f"替换引用 {entry_id} -> {new_id}")
+            undo_stack.push(cmd)
+        else:
+            from src.backend.experience.patch import apply_resolved_batch
+            try:
+                apply_resolved_batch(steps)
+                if hasattr(self.adapter, "invalidate_node_index"):
+                    self.adapter.invalidate_node_index()
+            except Exception:
+                return False
+        self._dirty = True
+        self.adapter.notify_resources_changed()
+        return True
+
+    def _maybe_propose_batch_replacement(self, entry_ids: list[str] | None = None) -> None:
+        if not entry_ids:
+            cur = self._current_entry_id()
+            entry_ids = [cur] if cur else []
+        from src.backend.experience.resource_refs import find_resource_refs
+        for eid in entry_ids:
+            if not eid:
+                continue
+            rep = find_resource_refs(self.adapter, self.row_type, eid)
+            if rep.get("count", 0) > 0:
+                self._propose_replacement(eid)
+
     def _on_del(self) -> None:
         entry_id = self._current_entry_id()
         if not entry_id:
             return
+        from src.backend.experience.resource_refs import find_resource_refs
+        report = find_resource_refs(self.adapter, self.row_type, entry_id)
+        msg = self._delete_confirm_text(f"{self.row_type} [{entry_id}]", report)
         reply = QMessageBox.question(
-            self, "删除", f"确认删除 {self.row_type} [{entry_id}]？\n保存时 validate 会校验悬空引用。",
+            self, "删除", msg,
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply != QMessageBox.StandardButton.Yes:
+            if report.get("count", 0) > 0:
+                self._maybe_propose_batch_replacement([entry_id])
             return
         try:
             self.adapter.delete_resource_entry(self.row_type, entry_id)
@@ -278,18 +371,20 @@ class ResourceTableWidget(QWidget):
         if not rows:
             QMessageBox.information(self, "批量删除", "请先选中要删除的行。")
             return
+        entry_ids = []
+        for r in rows:
+            item = self.table.item(r, 0)
+            if item and item.text():
+                entry_ids.append(item.text())
         reply = QMessageBox.question(
             self, "批量删除",
             f"确认删除 {len(rows)} 行？保存时 validate 会校验悬空引用。",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply != QMessageBox.StandardButton.Yes:
+            self._maybe_propose_batch_replacement(entry_ids)
             return
-        for r in rows:
-            item = self.table.item(r, 0)
-            if not item:
-                continue
-            entry_id = item.text()
+        for entry_id in entry_ids:
             try:
                 self.adapter.delete_resource_entry(self.row_type, entry_id)
             except KeyError:
@@ -315,6 +410,19 @@ class ResourceTableWidget(QWidget):
             self._refresh()
             self._dirty = True
             self.adapter.notify_resources_changed()
+            host = self.window()
+            if not hasattr(host, "_start_experience_diagnose"):
+                parent = self.parent()
+                while parent is not None:
+                    if hasattr(parent, "_start_experience_diagnose"):
+                        host = parent
+                        break
+                    parent = parent.parent()
+            if hasattr(host, "_start_experience_diagnose"):
+                try:
+                    host._start_experience_diagnose()
+                except Exception:
+                    logger.debug("resource_editor._on_import diagnose best-effort failed", exc_info=True)
             if problems:
                 detail = "\n".join(f"[{p['level']}] {p['message']}" for p in problems)
                 QMessageBox.information(self, "导入完成（含警告）", detail)
@@ -420,6 +528,14 @@ class ResourceEditorDialog(QWidget):
 
     def is_dirty(self) -> bool:
         return any(tab.is_dirty() for tab in self.tabs)
+
+    def selected_refs(self) -> list[tuple[str, str]]:
+        idx = self.tab_widget.currentIndex()
+        if 0 <= idx < len(self.tabs):
+            return self.tabs[idx].selected_refs()
+        if self.tabs:
+            return self.tabs[0].selected_refs()
+        return []
 
     def _on_search_changed(self, text: str) -> None:
         for tab in self.tabs:

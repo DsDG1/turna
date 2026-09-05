@@ -70,6 +70,15 @@ class ConflictGuardTest(unittest.TestCase):
         self.assertIn("lesson:l1", text)
         self.assertIn("AI 编辑", text)
 
+    def test_fingerprint_hold(self) -> None:
+        g = ConflictGuard()
+        g.try_acquire("lesson:l1", "j1", fingerprint="fp12345")
+        self.assertEqual(g.hold_fingerprint("lesson:l1"), "fp12345")
+        self.assertTrue(g.verify_fingerprint("lesson:l1", "fp12345"))
+        self.assertFalse(g.verify_fingerprint("lesson:l1", "different_fp"))
+        self.assertTrue(g.verify_fingerprint("lesson:unknown", "any"))
+
 
 if __name__ == "__main__":
     unittest.main()
+

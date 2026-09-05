@@ -804,6 +804,97 @@ def build_quality_fix_hint_for_dimension(
     return "\n".join(lines)
 
 
+def evaluate_lesson_balance(lesson: dict[str, Any]) -> dict[str, Any]:
+    """Evaluate question type balance and template diversity in a lesson."""
+    if not isinstance(lesson, dict):
+        return {
+            "balanced": False,
+            "total": 0,
+            "unique": 0,
+            "counts": {},
+            "hint_hit": False,
+            "missing_hint_types": [],
+            "dominant": None,
+            "issues": ["没有任何题目"],
+        }
+
+    content = lesson.get("content") or {}
+    items: list[dict[str, Any]] = []
+    if isinstance(content, dict):
+        for stage in content.get("stages") or []:
+            if isinstance(stage, dict):
+                for it in stage.get("items") or []:
+                    if isinstance(it, dict):
+                        items.append(it)
+        for sub in content.get("subLessons") or []:
+            if isinstance(sub, dict):
+                for stage in sub.get("stages") or []:
+                    if isinstance(stage, dict):
+                        for it in stage.get("items") or []:
+                            if isinstance(it, dict):
+                                items.append(it)
+        for phase in content.get("listeningPhases") or []:
+            if isinstance(phase, dict):
+                for it in phase.get("items") or []:
+                    if isinstance(it, dict):
+                        items.append(it)
+
+    counts: dict[str, int] = {}
+    for it in items:
+        t = str(it.get("runtimeType") or "").strip()
+        if t:
+            counts[t] = counts.get(t, 0) + 1
+
+    total = sum(counts.values())
+    unique = len(counts)
+    issues: list[str] = []
+
+    if total == 0:
+        return {
+            "balanced": False,
+            "total": 0,
+            "unique": 0,
+            "counts": {},
+            "hint_hit": False,
+            "missing_hint_types": [],
+            "dominant": None,
+            "issues": ["没有任何题目"],
+        }
+
+    dominant: dict[str, Any] | None = None
+    for t, c in counts.items():
+        share = c / total
+        if share >= 0.7:
+            dominant = {"type": t, "count": c, "share": share}
+            issues.append(f"{t} 题型占比过高 ({share:.1%})")
+            break
+
+    template = str(lesson.get("template") or "practice").strip()
+    hints = _TEMPLATE_HINTS.get(template)
+    hint_hit = True
+    missing_hint_types: list[str] = []
+
+    if hints:
+        hit_set = set(counts.keys()) & hints
+        if not hit_set:
+            hint_hit = False
+            missing_hint_types = sorted(hints - set(counts.keys()))
+            issues.append(f"未包含该模板推荐的核心题型: {', '.join(missing_hint_types)}")
+
+    balanced = (len(issues) == 0) and hint_hit and (dominant is None)
+
+    return {
+        "balanced": balanced,
+        "total": total,
+        "unique": unique,
+        "counts": counts,
+        "hint_hit": hint_hit,
+        "missing_hint_types": missing_hint_types,
+        "dominant": dominant,
+        "issues": issues,
+    }
+
+
 def evaluate_unit_spiral(section: dict[str, Any]) -> dict[str, Any]:
     """Evaluate spiral vocabulary gaps in a section (Phase 3 Route A / K08)."""
     if not isinstance(section, dict):
@@ -823,60 +914,89 @@ def evaluate_unit_spiral(section: dict[str, Any]) -> dict[str, Any]:
         if isinstance(w, dict) and w.get("id")
     }
 
-    introduced: set[str] = set()
-    practiced: set[str] = set()
-
+    # Flatten lessons in sequential order
+    ordered_lessons: list[dict[str, Any]] = []
     for unit in section.get("units") or []:
         if not isinstance(unit, dict):
             continue
         for lesson in unit.get("lessons") or []:
-            if not isinstance(lesson, dict):
-                continue
-            content = lesson.get("content") or {}
+            if isinstance(lesson, dict):
+                ordered_lessons.append(lesson)
+
+    # Collect items per lesson
+    lesson_items: list[list[dict[str, Any]]] = []
+    for lesson in ordered_lessons:
+        items: list[dict[str, Any]] = []
+        content = lesson.get("content") or {}
+        if isinstance(content, dict):
             for stage in content.get("stages") or []:
-                if not isinstance(stage, dict):
-                    continue
-                for item in stage.get("items") or []:
-                    if not isinstance(item, dict):
-                        continue
-                    wid = str(item.get("wordId") or "").strip()
-                    rtype = str(item.get("runtimeType") or "")
-                    if wid in word_map:
-                        introduced.add(wid)
-                        if rtype != "showWord":
-                            practiced.add(wid)
+                if isinstance(stage, dict):
+                    for it in stage.get("items") or []:
+                        if isinstance(it, dict):
+                            items.append(it)
             for sub in content.get("subLessons") or []:
-                if not isinstance(sub, dict):
-                    continue
-                for stage in sub.get("stages") or []:
-                    if not isinstance(stage, dict):
-                        continue
-                    for item in stage.get("items") or []:
-                        if not isinstance(item, dict):
-                            continue
-                        wid = str(item.get("wordId") or "").strip()
-                        rtype = str(item.get("runtimeType") or "")
-                        if wid in word_map:
-                            introduced.add(wid)
-                            if rtype != "showWord":
-                                practiced.add(wid)
+                if isinstance(sub, dict):
+                    for stage in sub.get("stages") or []:
+                        if isinstance(stage, dict):
+                            for it in stage.get("items") or []:
+                                if isinstance(it, dict):
+                                    items.append(it)
+            for phase in content.get("listeningPhases") or []:
+                if isinstance(phase, dict):
+                    for it in phase.get("items") or []:
+                        if isinstance(it, dict):
+                            items.append(it)
+        lesson_items.append(items)
+
+    # Track introduction lesson for each word
+    intro_lesson: dict[str, tuple[int, str]] = {}
+    for idx, (lesson, items) in enumerate(zip(ordered_lessons, lesson_items)):
+        lid = str(lesson.get("id") or "")
+        for it in items:
+            wid = str(it.get("wordId") or "").strip()
+            if wid in word_map and wid not in intro_lesson:
+                intro_lesson[wid] = (idx, lid)
+
+    # Check which words are surfaced in strictly later lessons
+    surfaced: set[str] = set()
+    for wid, (intro_idx, _) in intro_lesson.items():
+        w_obj = word_map[wid]
+        term = str(w_obj.get("term") or w_obj.get("word") or "").strip().lower()
+        for idx in range(intro_idx + 1, len(ordered_lessons)):
+            items = lesson_items[idx]
+            found = False
+            for it in items:
+                it_wid = str(it.get("wordId") or "").strip()
+                if it_wid == wid:
+                    found = True
+                    break
+                if term:
+                    opts = [str(o).strip().lower() for o in (it.get("options") or [])]
+                    exp = str(it.get("expected") or it.get("expectedAnswer") or "").strip().lower()
+                    if term in opts or term == exp:
+                        found = True
+                        break
+            if found:
+                surfaced.add(wid)
+                break
 
     unsurfaced = []
-    for wid in introduced:
-        if wid not in practiced:
+    for wid, (_, intro_lid) in intro_lesson.items():
+        if wid not in surfaced:
             w = word_map[wid]
             unsurfaced.append(
                 {
                     "word_id": wid,
-                    "id": wid,
                     "term": str(w.get("term") or w.get("word") or ""),
+                    "intro_lesson_id": intro_lid,
+                    "section_id": sid,
                 }
             )
 
     return {
         "section_id": sid,
-        "total_introduced": len(introduced),
-        "surfaced_count": len(practiced),
+        "total_introduced": len(intro_lesson),
+        "surfaced_count": len(surfaced),
         "unsurfaced_count": len(unsurfaced),
         "unsurfaced": unsurfaced,
     }
@@ -935,6 +1055,7 @@ __all__ = [
     "count_needs_review",
     "count_empty_translations",
     "find_dangling_refs",
+    "evaluate_lesson_balance",
     "evaluate_unit_spiral",
     "evaluate_reading_passage",
     "_iter_lessons",
