@@ -88,6 +88,29 @@ class SavePipelineTest(unittest.TestCase):
         self.assertEqual(soft_errs, ["soft boom"])
         self.assertEqual(len(successes), 1)
 
+    def test_soft_error_then_validation_failure_still_fails(self) -> None:
+        """Soft boom must not mask structural red: after_failure + soft_error."""
+        soft_errs: list[str] = []
+        failures: list[SaveOutcome] = []
+
+        outcome = run_save_pipeline(
+            SaveRequest(reason=REASON_MENU, run_soft=True),
+            do_save=lambda: _FakeSaveResult(
+                ok=False,
+                message="校验失败，已回滚",
+                errors=[{"level": "error", "message": "bad"}],
+            ),
+            apply_soft=lambda: (_ for _ in ()).throw(RuntimeError("soft boom")),
+            on_soft_error=lambda e: soft_errs.append(str(e)),
+            after_success=lambda o: self.fail("must not succeed"),
+            after_failure=lambda o: failures.append(o),
+        )
+        self.assertFalse(outcome.ok)
+        self.assertEqual(outcome.blocked_reason, "validation")
+        self.assertIn("soft boom", outcome.soft_error or "")
+        self.assertEqual(len(failures), 1)
+        self.assertEqual(len(soft_errs), 1)
+
     def test_validation_failure_calls_after_failure(self) -> None:
         failures: list[SaveOutcome] = []
         errors = [{"level": "error", "message": "bad"}]

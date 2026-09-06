@@ -4,6 +4,35 @@
 
  ## 当前基线
 
+- 日期：2026-09-06（测试去重第一、二步：整文件删除 11 个零覆盖测试 + 2 个死 src 模块 + adversarial_matrix 瘦身；`python -m unittest` 收集 2492 例 / 0 加载错误）
+- 全量用例（上次记录）：2492 collected（skipped≈4：2 个 course_tree 为环境条件跳过 + 2 个 defer_resurface 永久 skip）；唯一确定性失败为基线已知 `test_textbook_controller.LoadFileAsyncTest.test_stale_load_result_is_ignored`（HEAD worktree 复现，非本批引入），命令：
+  ```bash
+  QT_QPA_PLATFORM=offscreen python3 -m unittest discover -s tests -p "test_*.py"
+  ```
+
+## 2026-09-06 测试去重第一步（零覆盖损失清理）
+
+用例数 2574 -> 2520（-54，其中 35 例本就整文件 skip 永不执行）。删除 11 个测试文件约 1300 行 + 2 个死 src 模块：
+
+| 类别 | 删除 | 依据 |
+|---|---|---|
+| 全 skip 占位（6 文件 35 例） | `test_observer_mode` / `test_experience_ambient_live` / `test_vocab_spiral` / `test_ai_widget_bindings` / `test_blueprint_form_ai` / `test_ai_fix_dialog_preview` | 被测 API 已退役或从未实现（T-08/T-09/R-06/v4.67 占位）；活覆盖在 test_policy / test_sovereign_and_ambient / test_experience_spiral_vocab 等 |
+| 测死代码（2 文件 6 例） | `test_e4_multimodal_engine_phase4` / `test_spiral_vocab_generator_phase3` | `E4MultimodalEngine`、`SpiralVocabGenerator` 全仓无引用，模块一并删除；真实链路由 test_experience_spiral_vocab 覆盖 |
+| 委托层重复（1 文件 4 例） | `test_course_exchange` | course_adapter.py:570-590 全委托，test_course_adapter 逐对更强 |
+| 一次性阶段门（2 文件 10 例） | `test_skill_contracts_q03` / `test_o13_save_guards` | 与 test_experience_actions/test_item_similar/test_node_edit_skill/test_job_registry 等三重重复；o13 唯一独有用例 `test_soft_error_then_validation_failure_still_fails` 迁入 `test_save_pipeline.SavePipelineTest` |
+
+连带修改：`test_adversarial_matrix.py` 删除 `test_o13_module_cross_references_matrix` 元测试并更新覆盖表 D1/D4/D6/D10 行（去掉对已删文件的引用）；删除死模块 `src/backend/experience/e4_multimodal_engine.py`、`spiral_vocab_generator.py`。
+
+验证：受影响模块定向 164 例 OK；全量分两段完成（负载下 GitAsyncTest 卡死一次，单文件复跑 0.4s OK；两处 FAIL 中 publish 链路用例单跑通过、stale 用例为基线既有问题）。
+
+## 2026-09-06 测试去重第二步（adversarial_matrix 瘦身）
+
+用例数 2520 -> 2492（-28）；`test_adversarial_matrix.py` 778 -> 296 行。删除与持续性测试逐条重复的 18 个类 28 例（D1/D2/D12/D13/D15/D16/D17/D19/D20/D21/D22/D23/D24/D26/D29/D30/D31/D33 + 弱断言 `test_actions_registry_non_empty`），删除前逐对核实 counterpart（test_experience_patch / test_experience_actions / test_experience_batch_polish / test_experience_align_pos / test_memory_persist / test_item_similar / test_experience_outline_shells / test_experience_defer_resurface / test_defer_store / test_immersive_p3p6 / test_save_host / test_policy / test_goal_sandbox）。保留 10 例独有覆盖：D3（mute 经 QSettings 重启组合）、D5/D9（SOFT_RULE_IDS hygiene-only 闭集方向）、D11（job_tray cancel 源码契约）、D14（4 例泄漏封闭：OCR scope/voice 三键/attachment 无 body/polish scope 形状）、D18（clear_experience_session 关 OCR hint，lifecycle 测试未覆盖）、D27（AmbientBanner 无 setFocus）、D28（accept 走 dispatch 漏斗）。docstring 覆盖表改为纯索引 + *direct* 标注，无测试文件文本依赖。
+
+验证：矩阵 + 15 个 counterpart 模块 237 例 OK；`run_gui_tests.py ci`（L0 gate + L1 fast）1514 例 0 失败。
+
+## 2026-08-05 之前的历史基线
+
 - 日期：2026-08-05（Turna wetland palette ADR 0033：`BRAND_CLAY`/`BRAND_SAND` 常量 + Flutter 核心 hex 对照含 clay/sand/tealDark；`tests.test_theme` 29 OK）
 - 主题专项：`python -m unittest tests.test_theme` → 29 passed
 - 全量用例（上次记录）：1276 passed（skipped=2），命令：
