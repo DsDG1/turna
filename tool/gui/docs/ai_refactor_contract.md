@@ -209,7 +209,7 @@ QT_QPA_PLATFORM=offscreen python3 tool/gui/run_gui_tests.py fast
 python3 tool/gui/tool/check_ai_boundaries.py \
   --fail-private --fail-dialogs-app --fail-backend-app \
   --fail-backend-ui --fail-backend-qt --fail-undeclared-host-access \
-  --fail-dialogs-pipeline --max-except-pass 0
+  --fail-dialogs-pipeline --max-except-pass 0 \n  --max-broad-except 836 --max-hardcoded-style-hex 29
 ```
 
 ## 10. 管线入口收拢与 app→dialogs 棘轮（2026-09-06）
@@ -246,3 +246,19 @@ python3 tool/gui/tool/check_ai_boundaries.py \
   （`item_commands` / `tree_commands` / `ai_commands` / `meta_commands` +
   `_base` 共享件），`__init__` 全量再导出，调用方与测试导入路径零改动。
 
+
+## 12. P2 深水区棘轮（2026-09-06）
+
+- **宽泛异常棘轮**：`--max-broad-except 836` —— 全 src `except Exception`
+  处数只减不增。不做批量收窄（行为风险 > 收益）；新代码应捕获具体异常
+  或至少 `logger.debug(..., exc_info=True)`。
+- **内联样式棘轮**：`--max-hardcoded-style-hex 29` —— `setStyleSheet`
+  内嵌 hex 色且无 palette 回退的调用只减不增（暗/亮主题适配缺陷）。
+  新样式应走 `current_palette()` / theme token。
+- **审查后保留**：DesignController（分区清晰的内聚状态机，方法均短）、
+  CourseAdapter（后端无 Qt 状态类，方法均短）—— 强拆只增加间接层。
+- **MainWindow**：1107 → 721 行（shell / repo_session_host /
+  experience_window_bridge / save_host / section_import_service 五向拆分，
+  方法名保留委托）。
+- **textbook_import_dialog**：1004 → 727 行（constants.py + pages.py）。
+- **DesignPanel**：932 → 816 行（UI 构建迁 design_panel_build.py）。
