@@ -65,8 +65,8 @@ class SettingsDialogOperationLogTest(unittest.TestCase):
         dlg = SettingsDialog(settings, prompt_library=_make_prompt_library())
         from PySide6.QtWidgets import QMessageBox
         with patch.object(dlg, "_refresh_operation_log"), \
-             patch("src.dialogs.settings_dialog.operations.clear") as cleared, \
-             patch("src.dialogs.settings_dialog.QMessageBox.question",
+             patch("src.dialogs.settings.operation_log_tab.operations.clear") as cleared, \
+             patch("src.dialogs.settings.operation_log_tab.QMessageBox.question",
                    return_value=QMessageBox.StandardButton.Yes):
             dlg._on_clear_operation_log()
             cleared.assert_called_once()
@@ -92,7 +92,7 @@ class ExtractionPromptTabTest(unittest.TestCase):
             dlg.extraction_lang_edit.setText("Turkish")
             dlg.extraction_src_edit.setText("Chinese")
             dlg._extraction_edits["intro"].setPlainText("测试覆盖引导语ABC")
-            with patch("src.dialogs.settings_dialog.QMessageBox.information"):
+            with patch("src.dialogs.settings.extraction_prompt_tab.QMessageBox.information"):
                 dlg._on_extraction_save()
             # Persisted in the library …
             self.assertIsNotNone(lib.extraction_override("Turkish", "Chinese"))
