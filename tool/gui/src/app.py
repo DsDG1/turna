@@ -5,38 +5,51 @@ import time
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QEvent, QObject, Qt, QSettings, QTimer
-from PySide6.QtGui import QAction, QKeySequence, QUndoStack
+from PySide6.QtCore import QEvent, QObject, QSettings, QTimer
+from PySide6.QtGui import QUndoStack
 from PySide6.QtWidgets import (
     QApplication,
-    QDialog,
-    QFileDialog,
     QLabel,
     QMainWindow,
-    QMenu,
     QMessageBox,
     QPushButton,
     QSizePolicy,
-    QSplitter,
-    QStatusBar,
-    QToolBar,
-    QToolButton,
-    QVBoxLayout,
-    QWidget,
 )
 
 from src.application import runtime_context
-from src.application.commands import (
-    AiEditLessonCommand,
-    AiEditUnitCommand,
-    AppendLessonCommand,
-    AppendLessonsToUnitCommand,
-    AppendUnitCommand,
-    AppendUnitsToSectionCommand,
-    MergeAiSectionCommand,
+from src.application.experience_shell import ExperienceShell
+from src.application.experience_window_bridge import (
+    flush_experience_metrics,
+    on_experience_context_changed,
+    on_experience_pin_toggled,
+    on_experience_resources_changed,
+    record_experience_event,
+    refresh_experience,
+    sync_focus_ring,
 )
-from src.application.course_lifecycle import clear_experience_session, REASON_CLOSE_COURSE
-from src.application.experience_shell import ExperienceShell, format_health_status_line
+from src.application.main_window_shell import (
+    build_central,
+    build_status_bar,
+    build_toolbar,
+    build_undo_actions,
+)
+from src.application.repo_session_host import (
+    add_recent_repo,
+    apply_ai_cache,
+    clear_recent_repos,
+    enable_editor_actions,
+    load_ai_config,
+    load_recent_repos,
+    maybe_open_last_repo,
+    on_new_course,
+    on_open,
+    on_recent_repo_action_triggered,
+    open_repo_path,
+    populate_recent_menu,
+    save_ai_config,
+    show_load_error,
+)
+from src.application.save_host import run_async_direct_save
 from src.application.settings import Settings, migrate_legacy_varnamala_qsettings
 from src.application.experience_skills_mixin import ExperienceSkillsMixin
 from src.backend.ai_generator import AiApiConfig
@@ -47,12 +60,8 @@ from src.backend.experience.proactive import make_mute
 from src.backend.import_step_result import ImportStepResult
 from src.backend.import_strategy import ImportStrategy
 from src.infrastructure.telemetry import telemetry
-from src.theme import apply_theme, current_palette
-from src.widgets.ambient_banner import AmbientBanner
-from src.widgets.course_tree import CourseTreeWidget
-from src.widgets.detail_panel import DetailPanel
+from src.theme import apply_theme
 from src.widgets.experience_dock import ExperienceDock
-from src.widgets.job_tray import JobTray
 import logging
 logger = logging.getLogger(__name__)
 
@@ -202,42 +211,9 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
         self._maybe_open_last_repo()
 
     def _make_import_service(self):
-        """Build the shared section-import pipeline with UI callbacks wired."""
-        from src.application.section_import_service import SectionImportService
+        from src.application.section_import_service import build_import_service
 
-        def _merge_resolver(plan):
-            from src.dialogs.ai.ai_merge_preview_dialog import AiMergePreviewDialog
-
-            preview = AiMergePreviewDialog(plan, parent=self)
-            if preview.exec() != QDialog.DialogCode.Accepted:
-                return None
-            return preview.plan()
-
-        def _bulk_merge_resolver(plans):
-            from src.widgets.bulk_merge_resolve_panel import BulkMergeResolveDialog
-
-            return BulkMergeResolveDialog.resolve(plans, parent=self)
-
-        def _on_status(msg: str) -> None:
-            # Resource notes are suffixes to the action message, not replacements.
-            if msg.startswith("（"):
-                self.statusBar().showMessage(
-                    self.statusBar().currentMessage() + msg, 8000
-                )
-            else:
-                self.statusBar().showMessage(msg, 8000)
-
-        return SectionImportService(
-            None,
-            self.undo_stack,
-            adapter_fn=lambda: self.adapter,
-            show_error=lambda title, msg: QMessageBox.warning(self, title, msg),
-            show_info=lambda title, msg: QMessageBox.information(self, title, msg),
-            merge_resolver=_merge_resolver,
-            bulk_merge_resolver=_bulk_merge_resolver,
-            on_command_pushed=self._on_import_command_pushed,
-            on_status=_on_status,
-        )
+        return build_import_service(self)
 
     def _on_import_command_pushed(self, cmd, section_id: str) -> None:
         """Wire an import undo command to the tree and reveal the section."""
@@ -256,12 +232,7 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
             logger.debug("app.py:_load_extraction_prompt_overrides best-effort step failed", exc_info=True)
 
     def _build_undo_actions(self) -> None:
-        self.undo_action = self.undo_stack.createUndoAction(self, "撤销")
-        self.undo_action.setShortcut(QKeySequence.StandardKey.Undo)
-        self.redo_action = self.undo_stack.createRedoAction(self, "重做")
-        self.redo_action.setShortcut(QKeySequence.StandardKey.Redo)
-        self.addAction(self.undo_action)
-        self.addAction(self.redo_action)
+        build_undo_actions(self)
 
     def _on_undo_clean_changed(self, clean: bool) -> None:
         if self.course_dir is not None:
@@ -272,319 +243,56 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
             self.setWindowTitle(base + marker)
 
     def _build_toolbar(self) -> None:
-        toolbar = QToolBar("main")
-        toolbar.setMovable(False)
-        toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
-        self.addToolBar(toolbar)
-
-        self.repo_menu_btn = QToolButton(self)
-        self.repo_menu_btn.setText("课程仓库")
-        self.repo_menu_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
-        self.repo_menu = QMenu(self)
-        self.repo_menu.addAction("新建课程目录…").triggered.connect(self._on_new_course)
-        self.repo_menu.addAction("打开课程目录…").triggered.connect(self._on_open)
-        self.repo_menu.addSeparator()
-        self.recent_menu = QMenu("最近仓库", self)
-        self.recent_menu.aboutToShow.connect(self._populate_recent_menu)
-        self.repo_menu.addMenu(self.recent_menu)
-        self.repo_menu.addAction("清除历史记录").triggered.connect(self._clear_recent_repos)
-        self.repo_menu_btn.setMenu(self.repo_menu)
-        toolbar.addWidget(self.repo_menu_btn)
-
-        self.save_action = QAction("保存", self)
-        self.save_action.setEnabled(False)
-        self.save_action.triggered.connect(self._on_save)
-        toolbar.addAction(self.save_action)
-
-        toolbar.addSeparator()
-
-        self.workshop_action = QAction("课程工坊", self)
-        self.workshop_action.setEnabled(False)
-        self.workshop_action.setToolTip("教材 → 知识 → 课程，一站式创作工作区")
-        self.workshop_action.triggered.connect(self._on_workshop)
-        toolbar.addAction(self.workshop_action)
-
-        self.overview_action = QAction("总览", self)
-        self.overview_action.setEnabled(False)
-        self.overview_action.setToolTip("课程结构总览（Section / Unit / Lesson 鸟瞰，点击定位）")
-        self.overview_action.triggered.connect(self._on_overview)
-        toolbar.addAction(self.overview_action)
-
-        self.resources_menu_btn = QToolButton(self)
-        self.resources_menu_btn.setText("资源库")
-        self.resources_menu_btn.setEnabled(False)
-        self.resources_menu_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
-        self.resources_menu = QMenu(self)
-        self.resources_menu.addAction("本地资源").triggered.connect(self._on_resources)
-        self.resources_menu.addAction("Git 资源库").triggered.connect(self._on_git_library)
-        self.resources_menu_btn.setMenu(self.resources_menu)
-        toolbar.addWidget(self.resources_menu_btn)
-
-        self.publish_action = QAction("发布", self)
-        self.publish_action.setEnabled(False)
-        self.publish_action.triggered.connect(self._on_publish)
-        toolbar.addAction(self.publish_action)
-
-        self.generate_audio_action = QAction("生成听力音频", self)
-        self.generate_audio_action.setEnabled(False)
-        self.generate_audio_action.setToolTip(
-            "扫描课程中的听力阶段，用 MiniMax TTS 生成 audioAsset 对应的 MP3"
-        )
-        self.generate_audio_action.triggered.connect(self._on_generate_audio)
-        toolbar.addAction(self.generate_audio_action)
-
-        toolbar.addSeparator()
-
-        self.mode_action = QAction("教师模式", self)
-        self.mode_action.setCheckable(True)
-        self.mode_action.toggled.connect(self._on_mode_toggled)
-        toolbar.addAction(self.mode_action)
-
-        toolbar.addSeparator()
-
-        self.settings_action = QAction("设置", self)
-        self.settings_action.triggered.connect(self._on_settings)
-        toolbar.addAction(self.settings_action)
-
+        build_toolbar(self)
     def _build_central(self) -> None:
-        container = QWidget(self)
-        root_layout = QVBoxLayout(container)
-        root_layout.setContentsMargins(0, 0, 0, 0)
-        root_layout.setSpacing(0)
-
-        self.ambient_banner = AmbientBanner(container)
-        self.ambient_banner.accepted.connect(self._on_ambient_accepted)
-        self.ambient_banner.archived.connect(self._on_ambient_archived)
-        self.ambient_banner.mute_changed.connect(self._on_ambient_mute_changed)
-        root_layout.addWidget(self.ambient_banner)
-
-        splitter = QSplitter(Qt.Horizontal)
-
-        self.tree = CourseTreeWidget()
-        self.tree.undo_stack = self.undo_stack
-        self.tree.node_selected.connect(self._on_node_selected)
-        self.tree.tree_changed.connect(self._on_tree_changed)
-        self.tree.ai_edit_requested.connect(self._on_ai_edit)
-        self.tree.ai_fix_requested.connect(self._on_ai_fix_from_tree)
-        self.tree.rename_requested.connect(self._on_rename_requested)
-        splitter.addWidget(self.tree.wrap_with_move_toolbar())
-
-        self.detail = DetailPanel()
-        self.detail.undo_stack = self.undo_stack
-        self.detail.ai_config = self._ai_config
-        # Detail edits change node labels without rebuilding the tree, so they
-        # mark it stale; the tree's own tree_changed already rebuilt itself.
-        self.detail.tree_changed.connect(self._on_detail_tree_changed)
-        splitter.addWidget(self.detail)
-
-        splitter.setStretchFactor(0, 2)
-        splitter.setStretchFactor(1, 3)
-        root_layout.addWidget(splitter, 1)
-        self.setCentralWidget(container)
-
+        build_central(self)
     def _build_status_bar(self) -> None:
-        status = QStatusBar()
-        status.setFixedHeight(28)
-
-        self.job_tray = JobTray(self)
-        self.job_tray.job_activated.connect(self._on_job_activated)
-        status.addPermanentWidget(self.job_tray)
-
-        self._health_status_label.setStyleSheet(
-            f"color: {current_palette().get('text_secondary', '#888')}; font-size: 11px;"
-        )
-        status.addPermanentWidget(self._health_status_label)
-
-        disclaimer = QLabel("AI 生成内容仅供参考，请作者自行审核其准确性与适用性。")
-        disclaimer.setStyleSheet(
-            f"color: {current_palette()['text_secondary']}; font-size: 11px;"
-        )
-        disclaimer.setToolTip(disclaimer.text())
-        status.addPermanentWidget(disclaimer)
-        self.setStatusBar(status)
-
+        build_status_bar(self)
     # --- Recent repository management ------------------------------------
 
     def _load_recent_repos(self) -> list[dict[str, str]]:
-        return [dict(r) for r in self._settings_obj.recent_repos]
+        return load_recent_repos(self)
 
     def _add_recent_repo(self, path: Path) -> None:
-        self._settings_obj.add_recent_repo(path)
-        self._settings_obj.save_to_qsettings(self._settings)
+        add_recent_repo(self, path)
 
     def _populate_recent_menu(self) -> None:
-        self.recent_menu.clear()
-        repos = self._load_recent_repos()
-        if not repos:
-            action = self.recent_menu.addAction("（无历史记录）")
-            action.setEnabled(False)
-            return
-        for repo in repos:
-            path = repo.get("path", "")
-            action = self.recent_menu.addAction(path)
-            action.setProperty("repo_path", path)
-            action.triggered.connect(self._on_recent_repo_action_triggered)
+        populate_recent_menu(self)
 
     def _on_recent_repo_action_triggered(self) -> None:
-        sender = self.sender()
-        if not sender:
-            return
-        p = sender.property("repo_path")
-        if isinstance(p, str):
-            self._open_repo_path(p)
+        on_recent_repo_action_triggered(self)
 
     def _clear_recent_repos(self) -> None:
-        self._settings_obj.clear_recent_repos()
-        self._settings_obj.save_to_qsettings(self._settings)
+        clear_recent_repos(self)
 
     def _load_ai_config(self) -> AiApiConfig:
-        """Load AI API config from the central Settings object."""
-        return AiApiConfig(
-            base_url=self._settings_obj.ai_base_url,
-            api_key=self._settings_obj.ai_api_key,
-            model=self._settings_obj.ai_model,
-            supports_reasoning=self._settings_obj.ai_supports_reasoning,
-            model_chat=self._settings_obj.ai_model_chat,
-            model_json=self._settings_obj.ai_model_json,
-            strict_schema=self._settings_obj.ai_strict_schema,
-        )
+        return load_ai_config(self)
 
     def _save_ai_config(self, config: AiApiConfig) -> None:
-        """Persist AI API config through the central Settings object."""
-        self._settings_obj.ai_base_url = config.base_url
-        self._settings_obj.ai_api_key = config.api_key
-        self._settings_obj.ai_model = config.model
-        self._settings_obj.ai_supports_reasoning = config.supports_reasoning
-        self._settings_obj.save_to_qsettings(self._settings)
+        save_ai_config(self, config)
 
     def _apply_ai_cache(self) -> None:
-        """第三枪 批次① Step 9: install/clear the process-wide AI cache.
-
-        Called on startup and whenever the user toggles
-        ``ai_cache_enabled`` in Settings. When disabled, the default cache is
-        cleared so no stale entries survive a re-enable. Disk persistence is
-        not enabled in this build (memory-only LRU); a future iteration can
-        add a ``ai/cache_disk_dir`` setting.
-        """
-        from src.backend.ai_cache import AiCache, set_default_cache
-
-        if self._settings_obj.ai_cache_enabled:
-            set_default_cache(AiCache(maxsize=128, enabled=True))
-        else:
-            set_default_cache(None)
+        apply_ai_cache(self)
 
     def _maybe_open_last_repo(self) -> None:
-        repos = self._load_recent_repos()
-        if not repos:
-            return
-        last_path = repos[0].get("path", "")
-        if not last_path or not Path(last_path).exists():
-            return
-        reply = QMessageBox.question(
-            self,
-            "打开最近仓库",
-            f"是否打开上次使用的课程仓库？\n{last_path}",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.Yes,
-        )
-        if reply == QMessageBox.StandardButton.Yes:
-            self._open_repo_path(last_path)
+        maybe_open_last_repo(self)
 
     def _open_repo_path(self, path_str: str) -> None:
-        path = Path(path_str)
-        if not path.exists() or not CourseAdapter.is_course_dir(path):
-            QMessageBox.warning(self, "无法打开", f"目录不存在或不是有效的课程仓库：\n{path}")
-            return
-        try:
-            self.adapter.load(path)
-        except Exception as exc:
-            telemetry.record_error(
-                exc,
-                context={"action": "repo.open", "path": str(path)},
-            )
-            self._show_load_error(str(exc))
-            return
-        self.course_dir = path
-        self.tree.display(self.adapter)
-        self.undo_stack.clear()
-        self._enable_editor_actions()
-        self._add_recent_repo(path)
-        telemetry.record_event(
-            "repo.open",
-            payload={"path": str(path)},
-        )
-        self.statusBar().showMessage(f"已加载: {self.course_dir}", 4000)
+        open_repo_path(self, path_str)
 
     def _show_load_error(self, message: str) -> None:
-        """Show a load error dialog with optional AI analysis."""
-        from src.dialogs.ai_error_analyzer import offer_ai_analysis
-        if offer_ai_analysis(self, "加载失败", message):
-            import traceback
-
-            from src.dialogs.ai_error_analyzer import AiErrorAnalyzerDialog
-
-            AiErrorAnalyzerDialog(
-                traceback.format_exc(),
-                context={"action": "repo.open"},
-                parent=self,
-            ).exec()
+        show_load_error(self, message)
 
     def _enable_editor_actions(self) -> None:
-        self.save_action.setEnabled(True)
-        self.workshop_action.setEnabled(True)
-        self.overview_action.setEnabled(True)
-        self.resources_menu_btn.setEnabled(True)
-        self.publish_action.setEnabled(True)
-        self.generate_audio_action.setEnabled(True)
+        enable_editor_actions(self)
 
     # --- Toolbar actions -------------------------------------------------
 
     def _on_new_course(self) -> None:
-        from src.dialogs.init_course_dialog import InitCourseDialog
-
-        dlg = InitCourseDialog(self.adapter, self)
-        if not dlg.exec():
-            telemetry.record_event("repo.new.cancelled")
-            return
-        init_dir = dlg.init_dir()
-        if not init_dir:
-            return
-        self.course_dir = init_dir
-        self.tree.display(self.adapter)
-        self.undo_stack.clear()
-        self._enable_editor_actions()
-        self._add_recent_repo(init_dir)
-        telemetry.record_event(
-            "repo.new",
-            payload={"course_dir": str(init_dir)},
-        )
-        self.statusBar().showMessage(f"已新建并加载: {init_dir}", 5000)
+        on_new_course(self)
 
     def _on_open(self) -> None:
-        start = str(self.course_dir) if self.course_dir else ""
-        chosen = QFileDialog.getExistingDirectory(self, "选择课程目录", start)
-        if not chosen:
-            telemetry.record_event("repo.open.cancelled")
-            return
-        try:
-            self.adapter.load(Path(chosen))
-        except Exception as exc:
-            telemetry.record_error(
-                exc,
-                context={"action": "repo.open", "path": chosen},
-            )
-            self._show_load_error(str(exc))
-            return
-        self.course_dir = Path(chosen)
-        self.tree.display(self.adapter)
-        self.undo_stack.clear()
-        self._enable_editor_actions()
-        self._add_recent_repo(self.course_dir)
-        telemetry.record_event(
-            "repo.open",
-            payload={"path": str(self.course_dir)},
-        )
-        self.statusBar().showMessage(f"已加载: {self.course_dir}", 4000)
+        on_open(self)
 
     def _on_mode_toggled(self, checked: bool) -> None:
         self.teacher_mode = checked
@@ -871,55 +579,7 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
         self._save_course_async()
 
     def _save_course_async(self) -> None:
-        """Run adapter.save() on a background worker (interactive saves).
-
-        The full save chain (temp-dir write + validate + backup + file replace
-        + snapshot + lint) used to run on the UI thread, freezing the window
-        for hundreds of ms on large courses. It now runs on an
-        AiRequestWorker. Structural edits are frozen for the duration: the
-        save thread iterates the in-memory model, and blocking input keeps the
-        same data-safety guarantee the old synchronous freeze provided, while
-        the UI thread stays responsive (status bar, window dragging).
-        """
-        from src.application.ai_request_worker import AiRequestWorker
-
-        prev = getattr(self, "_save_worker", None)
-        if prev is not None and prev.isRunning():
-            self.statusBar().showMessage("正在保存…", 2000)
-            return
-        if self.adapter is None:
-            return
-
-        self.save_action.setEnabled(False)
-        self.centralWidget().setEnabled(False)
-        self.statusBar().showMessage("保存中…")
-
-        worker = AiRequestWorker(self.adapter.save)
-
-        def _unfreeze() -> None:
-            self.save_action.setEnabled(True)
-            self.centralWidget().setEnabled(True)
-            self._save_worker = None
-
-        def _on_result(result) -> None:
-            _unfreeze()
-            self.tree.refresh()
-            if result.ok:
-                self.undo_stack.setClean()
-                self.statusBar().showMessage(result.message or "保存成功", 5000)
-            else:
-                self.statusBar().showMessage(result.message or "保存失败（已回滚）", 8000)
-                if result.errors:
-                    self._show_validation_report(result.errors, title="校验失败（已回滚）")
-
-        def _on_error(message: str) -> None:
-            _unfreeze()
-            self.statusBar().showMessage(f"保存失败：{message}", 8000)
-
-        worker.result_ready.connect(_on_result)
-        worker.error_occurred.connect(_on_error)
-        self._save_worker = worker
-        worker.start()
+        run_async_direct_save(self)
 
     def _show_validation_report(
         self, problems: list[dict], title: str = "校验结果"
@@ -1023,71 +683,25 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
                 self.tree.select_unit(unit_id)
 
     def _sync_focus_ring(self) -> None:
-        if not hasattr(self, "focus_ring") or self.focus_ring is None:
-            return
-        self.focus_ring.clear_roles("selected", "pinned")
-        if self._current_node_ref:
-            kind, nid = self._current_node_ref
-            self.focus_ring.set(f"{kind}:{nid}", "selected")
-        if hasattr(self, "experience") and self.experience is not None:
-            for pref in getattr(self.experience, "pinned_refs", []):
-                if isinstance(pref, tuple) and len(pref) == 2:
-                    self.focus_ring.set(f"{pref[0]}:{pref[1]}", "pinned")
+        sync_focus_ring(self)
 
     def _on_experience_context_changed(self, ctx) -> None:
-        if hasattr(self, "experience_dock_widget") and self.experience_dock_widget is not None:
-            sugs = getattr(self.experience, "suggestions", []) if hasattr(self, "experience") else []
-            self.experience_dock_widget.apply_context_and_suggestions(ctx, sugs)
-        if hasattr(self, "_refresh_ambient"):
-            self._refresh_ambient()
+        on_experience_context_changed(self, ctx)
 
     def _on_experience_pin_toggled(self) -> None:
-        if hasattr(self, "experience") and self.experience is not None:
-            self.experience.toggle_pin_selection()
-            self._sync_focus_ring()
-            self._refresh_experience(immediate=False, focus_only=True)
+        on_experience_pin_toggled(self)
 
     def _refresh_experience(self, *, immediate: bool = False, focus_only: bool = False) -> None:
-        if self.course_dir is None:
-            clear_experience_session(self, reason=REASON_CLOSE_COURSE)
-            if hasattr(self, "_health_status_label"):
-                self._health_status_label.setText(format_health_status_line(None))
-            return
-
-        if hasattr(self, "experience") and self.experience is not None:
-            self.experience.set_adapter(self.adapter)
-            if hasattr(self, "job_tray") and self.job_tray is not None:
-                self.experience.set_active_jobs(self.job_tray.active_jobs())
-            if hasattr(self, "_current_node_ref"):
-                self.experience.set_selection(self._current_node_ref)
-            if focus_only:
-                self.experience.invalidate_focus()
-            else:
-                if immediate:
-                    self.experience.rebuild_now()
-                else:
-                    self.experience.invalidate()
+        refresh_experience(self, immediate=immediate, focus_only=focus_only)
 
     def _on_experience_resources_changed(self) -> None:
-        if hasattr(self, "experience") and self.experience is not None:
-            self.experience.mark_stale()
+        on_experience_resources_changed(self)
 
     def _flush_experience_metrics(self, reason: str = "", *, course_dir: Any = None) -> None:
-        metrics = getattr(self, "experience_metrics", None)
-        if metrics is not None and hasattr(metrics, "snapshot"):
-            snap = metrics.snapshot()
-            telemetry.record_event(
-                "experience.metrics_flush",
-                reason=reason,
-                course_dir=str(course_dir or self.course_dir or ""),
-                **snap,
-            )
+        flush_experience_metrics(self, reason=reason, course_dir=course_dir)
 
     def _record_experience_event(self, event_name: str, label: str = "", **payload) -> None:
-        try:
-            telemetry.record_event(event_name, label=label, **payload)
-        except Exception:
-            logger.debug("MainWindow._record_experience_event best-effort failed", exc_info=True)
+        record_experience_event(self, event_name, label=label, **payload)
 
     def _on_workshop_ocr_requested(
         self, path: str, original_name: str, unlink_after: bool = False

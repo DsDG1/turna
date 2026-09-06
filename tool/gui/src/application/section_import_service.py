@@ -266,3 +266,45 @@ class SectionImportService:
                 )
             results.append(result)
         return results, counts
+
+
+# --- Host-coupled builder (moved from src/app.py, P2-A) ---
+
+
+def build_import_service(host):
+    """Build the shared section-import pipeline with UI callbacks wired."""
+    from src.application.section_import_service import SectionImportService
+
+    def _merge_resolver(plan):
+        from src.dialogs.ai.ai_merge_preview_dialog import AiMergePreviewDialog
+
+        preview = AiMergePreviewDialog(plan, parent=host)
+        if preview.exec() != QDialog.DialogCode.Accepted:
+            return None
+        return preview.plan()
+
+    def _bulk_merge_resolver(plans):
+        from src.widgets.bulk_merge_resolve_panel import BulkMergeResolveDialog
+
+        return BulkMergeResolveDialog.resolve(plans, parent=host)
+
+    def _on_status(msg: str) -> None:
+        # Resource notes are suffixes to the action message, not replacements.
+        if msg.startswith("（"):
+            host.statusBar().showMessage(
+                host.statusBar().currentMessage() + msg, 8000
+            )
+        else:
+            host.statusBar().showMessage(msg, 8000)
+
+    return SectionImportService(
+        None,
+        host.undo_stack,
+        adapter_fn=lambda: host.adapter,
+        show_error=lambda title, msg: QMessageBox.warning(host, title, msg),
+        show_info=lambda title, msg: QMessageBox.information(host, title, msg),
+        merge_resolver=_merge_resolver,
+        bulk_merge_resolver=_bulk_merge_resolver,
+        on_command_pushed=host._on_import_command_pushed,
+        on_status=_on_status,
+    )

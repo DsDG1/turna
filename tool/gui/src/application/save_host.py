@@ -235,3 +235,58 @@ def execute_save(host: ExperienceHost, request: Any) -> Any:
         on_triggered=_on_triggered,
         build_brief=_build_brief if request.want_ai_brief else None,
     )
+
+
+# --- Interactive async direct save (moved from src/app.py, P2-A) ---
+
+
+def run_async_direct_save(host) -> None:
+    """Run adapter.save() on a background worker (interactive saves).
+
+    The full save chain (temp-dir write + validate + backup + file replace
+    + snapshot + lint) used to run on the UI thread, freezing the window
+    for hundreds of ms on large courses. It now runs on an
+    AiRequestWorker. Structural edits are frozen for the duration: the
+    save thread iterates the in-memory model, and blocking input keeps the
+    same data-safety guarantee the old synchronous freeze provided, while
+    the UI thread stays responsive (status bar, window dragging).
+    """
+    from src.application.ai_request_worker import AiRequestWorker
+
+    prev = getattr(host, "_save_worker", None)
+    if prev is not None and prev.isRunning():
+        host.statusBar().showMessage("正在保存…", 2000)
+        return
+    if host.adapter is None:
+        return
+
+    host.save_action.setEnabled(False)
+    host.centralWidget().setEnabled(False)
+    host.statusBar().showMessage("保存中…")
+
+    worker = AiRequestWorker(host.adapter.save)
+
+    def _unfreeze() -> None:
+        host.save_action.setEnabled(True)
+        host.centralWidget().setEnabled(True)
+        host._save_worker = None
+
+    def _on_result(result) -> None:
+        _unfreeze()
+        host.tree.refresh()
+        if result.ok:
+            host.undo_stack.setClean()
+            host.statusBar().showMessage(result.message or "保存成功", 5000)
+        else:
+            host.statusBar().showMessage(result.message or "保存失败（已回滚）", 8000)
+            if result.errors:
+                host._show_validation_report(result.errors, title="校验失败（已回滚）")
+
+    def _on_error(message: str) -> None:
+        _unfreeze()
+        host.statusBar().showMessage(f"保存失败：{message}", 8000)
+
+    worker.result_ready.connect(_on_result)
+    worker.error_occurred.connect(_on_error)
+    host._save_worker = worker
+    worker.start()
