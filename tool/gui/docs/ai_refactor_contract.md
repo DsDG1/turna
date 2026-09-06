@@ -231,3 +231,18 @@ python3 tool/gui/tool/check_ai_boundaries.py \
   别名 `rewrite_ids_deterministic`；design_controller / section_import_service
   改用公开名。
 
+## 11. 巨型对话框/文件拆分（2026-09-06 续）
+
+- **SectionAiDialog**：ai_generator_dialog.py 1803 → 774 行薄壳 +
+  `dialogs/ai/generator_panels.py`（UI 构建）/ `generator_view_state.py`
+  （模式切换、忙碌态、流渲染）/ `generator_flows.py`（生成、校验、导入流程，
+  `AiRequestWorker` 函数内惰性导入保 `mock.patch` 兼容）。属性转发层保留；
+  测试 patch 目标由 `ai_generator_dialog.X` 同步至 `generator_flows.X`。
+- **SettingsDialog**：settings_dialog.py 1208 → 372 行薄壳 +
+  `dialogs/settings/` 包 7 个 tab 模块（外观 / ai_tab / ai_usage_tab /
+  extraction_prompt_tab / editor_tab / git_library_tab / operation_log_tab）。
+  全部 widget 属性名与方法名保留。
+- **commands.py 拆包**：application/commands.py 1739 行 → `commands/` 包
+  （`item_commands` / `tree_commands` / `ai_commands` / `meta_commands` +
+  `_base` 共享件），`__init__` 全量再导出，调用方与测试导入路径零改动。
+
