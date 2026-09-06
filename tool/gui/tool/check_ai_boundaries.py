@@ -241,6 +241,54 @@ def count_silent_except_pass() -> int:
     return total
 
 
+def count_broad_except() -> int:
+    """Count ``except Exception`` handlers in src (ratchet; debt only shrinks)."""
+    total = 0
+    for path in _iter_py(_SRC):
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8", errors="replace"))
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ExceptHandler):
+                t = node.type
+                if isinstance(t, ast.Name) and t.id == "Exception":
+                    total += 1
+    return total
+
+
+_HEX_COLOR = re.compile(r"#[0-9a-fA-F]{3,8}\b")
+_PALETTE_HINT = re.compile(
+    r"_pal\(|current_palette|ai_color|palette\(|_chat_palette|palette\["
+)
+
+
+def count_hardcoded_style_hex() -> int:
+    """Count ``setStyleSheet`` calls embedding a hex color with no palette use.
+
+    Palette-driven inline styles stay themeable; hex literals without a
+    palette lookup render the same color in every theme (dark-mode bugs).
+    Ratchet: this count must not grow.
+    """
+    total = 0
+    for path in _iter_py(_SRC):
+        src = path.read_text(encoding="utf-8", errors="replace")
+        try:
+            tree = ast.parse(src)
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "setStyleSheet"
+            ):
+                seg = ast.get_source_segment(src, node)
+                if seg and _HEX_COLOR.search(seg) and not _PALETTE_HINT.search(seg):
+                    total += 1
+    return total
+
+
 def _declared_host_members() -> set[str]:
     """Names declared on the ExperienceHost protocol (or empty if absent)."""
     proto = _SRC / "application" / "experience_host.py"
@@ -358,6 +406,22 @@ def main(argv: list[str] | None = None) -> int:
         "(ratchet; current baseline 0)",
     )
     parser.add_argument(
+        "--max-broad-except",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Exit 1 if `except Exception` handler count in src/ exceeds N "
+        "(ratchet; baseline recorded in ai_refactor_contract.md)",
+    )
+    parser.add_argument(
+        "--max-hardcoded-style-hex",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Exit 1 if inline setStyleSheet calls with a hex color and no "
+        "palette lookup exceed N (ratchet)",
+    )
+    parser.add_argument(
         "--fail-undeclared-host-access",
         action="store_true",
         help="Exit 1 if ExperienceHost-annotated modules touch undeclared "
@@ -374,6 +438,8 @@ def main(argv: list[str] | None = None) -> int:
     host_drift = scan_undeclared_host_access()
     app_dialogs = scan_app_dialogs_imports()
     dialogs_pipeline = scan_dialogs_pipeline_imports()
+    broad_except = count_broad_except()
+    style_hex = count_hardcoded_style_hex()
 
     print("=== AI boundary scan ===")
     print(f"gui root: {_GUI_ROOT}")
@@ -402,6 +468,8 @@ def main(argv: list[str] | None = None) -> int:
     for rel, n, snip in host_drift:
         print(f"  HOST  {rel}:{n}: {snip}")
     print(f"silent except-pass handlers in src: {except_pass}")
+    print(f"broad `except Exception` handlers in src: {broad_except}")
+    print(f"inline setStyleSheet with hex + no palette: {style_hex}")
 
     # Baseline summary for docs
     print("---")
@@ -410,7 +478,8 @@ def main(argv: list[str] | None = None) -> int:
         f"backend_app={len(backend_app)} backend_ui={len(backend_ui)} "
         f"backend_qt={len(backend_qt)} "
         f"app_dialogs={len(app_dialogs)} dialogs_pipeline={len(dialogs_pipeline)} "
-        f"host_drift={len(host_drift)} except_pass={except_pass}"
+        f"host_drift={len(host_drift)} except_pass={except_pass} "
+        f"broad_except={broad_except} style_hex={style_hex}"
     )
 
     rc = 0
@@ -431,6 +500,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.fail_undeclared_host_access and host_drift:
         rc = 1
     if args.max_except_pass is not None and except_pass > args.max_except_pass:
+        rc = 1
+    if args.max_broad_except is not None and broad_except > args.max_broad_except:
+        rc = 1
+    if args.max_hardcoded_style_hex is not None and style_hex > args.max_hardcoded_style_hex:
         rc = 1
     return rc
 
