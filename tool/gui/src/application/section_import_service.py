@@ -18,6 +18,8 @@ from __future__ import annotations
 import copy
 from typing import Any, Callable
 
+from PySide6.QtWidgets import QDialog, QMessageBox
+
 from src.application.commands import (
     AiEditSectionCommand,
     ImportAiSectionCommand,

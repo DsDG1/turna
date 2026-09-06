@@ -43,7 +43,7 @@ def _build_main_window():
 
     fake_settings = MagicMock()
     fake_settings.value.return_value = "[]"
-    with patch("src.app.QSettings", return_value=fake_settings):
+    with patch("src.application.section_import_service.QSettings", return_value=fake_settings) if False else patch("src.app.QSettings", return_value=fake_settings):
         win = MainWindow()
     return win
 
@@ -75,7 +75,7 @@ class ImportSectionDictTest(unittest.TestCase):
 
     def test_imports_new_section(self) -> None:
         section = self._sample_section()
-        with patch.object(self.win, "statusBar") as bar, patch("src.app.QMessageBox") as mb:
+        with patch.object(self.win, "statusBar") as bar, patch("src.application.section_import_service.QMessageBox") as mb:
             outcome = self.win._import_section_dict(section)
         self.assertEqual(outcome, "imported")
         self.assertEqual(len(self.win.adapter.sections), 1)
@@ -86,16 +86,16 @@ class ImportSectionDictTest(unittest.TestCase):
     def test_blocked_on_missing_id(self) -> None:
         section = self._sample_section()
         section["id"] = ""
-        with patch("src.app.QMessageBox") as mb:
+        with patch("src.application.section_import_service.QMessageBox") as mb:
             outcome = self.win._import_section_dict(section)
         self.assertEqual(outcome, "blocked")
         self.assertEqual(len(self.win.adapter.sections), 0)
 
     def test_merge_when_id_exists_and_user_accepts(self) -> None:
         section = self._sample_section()
-        with patch.object(self.win, "statusBar"), patch("src.app.QMessageBox"):
+        with patch.object(self.win, "statusBar"), patch("src.application.section_import_service.QMessageBox"):
             self.win._import_section_dict(section)
-        with patch.object(self.win, "statusBar"), patch("src.app.QMessageBox"), patch(
+        with patch.object(self.win, "statusBar"), patch("src.application.section_import_service.QMessageBox"), patch(
             "src.dialogs.ai.ai_merge_preview_dialog.AiMergePreviewDialog"
         ) as dlg_cls:
             dlg = MagicMock()
@@ -108,9 +108,9 @@ class ImportSectionDictTest(unittest.TestCase):
 
     def test_merge_skipped_when_user_cancels(self) -> None:
         section = self._sample_section()
-        with patch.object(self.win, "statusBar"), patch("src.app.QMessageBox"):
+        with patch.object(self.win, "statusBar"), patch("src.application.section_import_service.QMessageBox"):
             self.win._import_section_dict(section)
-        with patch.object(self.win, "statusBar"), patch("src.app.QMessageBox"), patch(
+        with patch.object(self.win, "statusBar"), patch("src.application.section_import_service.QMessageBox"), patch(
             "src.dialogs.ai.ai_merge_preview_dialog.AiMergePreviewDialog"
         ) as dlg_cls:
             dlg = MagicMock()
@@ -121,7 +121,7 @@ class ImportSectionDictTest(unittest.TestCase):
 
     def test_result_version_returns_structured_outcome(self) -> None:
         section = self._sample_section()
-        with patch.object(self.win, "statusBar"), patch("src.app.QMessageBox"):
+        with patch.object(self.win, "statusBar"), patch("src.application.section_import_service.QMessageBox"):
             result = self.win._import_section_dict_result(section)
         self.assertEqual(result.outcome, "success")
         self.assertEqual(result.details.get("outcome"), "imported")
@@ -156,7 +156,7 @@ class ImportStrategyTest(unittest.TestCase):
         return build_section_from_chapter(chapter, kp, 1)
 
     def _import_once(self, section) -> None:
-        with patch.object(self.win, "statusBar"), patch("src.app.QMessageBox"):
+        with patch.object(self.win, "statusBar"), patch("src.application.section_import_service.QMessageBox"):
             self.win._import_section_dict(section)
 
     def test_skip_strategy_skips_existing(self) -> None:
@@ -165,7 +165,7 @@ class ImportStrategyTest(unittest.TestCase):
         section = self._sample_section()
         self._import_once(section)
         self.assertEqual(len(self.win.adapter.sections), 1)
-        with patch.object(self.win, "statusBar"), patch("src.app.QMessageBox"):
+        with patch.object(self.win, "statusBar"), patch("src.application.section_import_service.QMessageBox"):
             outcome = self.win._import_section_dict(
                 section, strategy=ImportStrategy.SKIP_EXISTING.value
             )
@@ -181,7 +181,7 @@ class ImportStrategyTest(unittest.TestCase):
         # Mutate the incoming section so we can detect the overwrite.
         replaced = self._sample_section()
         replaced["name"] = "Replaced Title"
-        with patch.object(self.win, "statusBar"), patch("src.app.QMessageBox"):
+        with patch.object(self.win, "statusBar"), patch("src.application.section_import_service.QMessageBox"):
             outcome = self.win._import_section_dict(
                 replaced, strategy=ImportStrategy.FORCE_REPLACE.value
             )
@@ -197,7 +197,7 @@ class ImportStrategyTest(unittest.TestCase):
 
         section = self._sample_section()
         self._import_once(section)
-        with patch.object(self.win, "statusBar"), patch("src.app.QMessageBox"):
+        with patch.object(self.win, "statusBar"), patch("src.application.section_import_service.QMessageBox"):
             outcome = self.win._import_section_dict(
                 section, strategy=ImportStrategy.APPEND_AS_NEW.value
             )
@@ -210,7 +210,7 @@ class ImportStrategyTest(unittest.TestCase):
     def test_default_strategy_preserves_ai_generator_behaviour(self) -> None:
         # No strategy arg -> merge on collision, append otherwise (unchanged).
         section = self._sample_section()
-        with patch.object(self.win, "statusBar"), patch("src.app.QMessageBox"):
+        with patch.object(self.win, "statusBar"), patch("src.application.section_import_service.QMessageBox"):
             outcome = self.win._import_section_dict(section)
         self.assertEqual(outcome, "imported")
 
