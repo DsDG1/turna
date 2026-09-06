@@ -2,7 +2,7 @@
 
 | 字段 | 值 |
 |------|-----|
-| **配套** | [`experienceai.md`](../experienceai.md) §10.4 / §13.2.2 |
+| **配套** | [`experienceai.md`](./experienceai.md) §10.4 / §13.2.2 |
 | **用途** | 真人勾选；**不**因本文件存在而宣称 E3 ✅ |
 | **自动化** | 代码门禁见 `experience_e1_gate_smoke.py`（含 G13–G16）；`[自动]` 行已由既有测试/门禁佐证 |
 | **结果** | ✅ H1–H17 全部通过（2026-07-22，H1–H11 自动化 + H12–H17 人工）→ `experienceai.md` §2.1 E3 标 ✅ |

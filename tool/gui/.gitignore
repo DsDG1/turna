@@ -1,2 +1,4 @@
 # Local runtime data (textbook import projects, caches, etc.)
 var/
+.pytest_cache/
+__pycache__/

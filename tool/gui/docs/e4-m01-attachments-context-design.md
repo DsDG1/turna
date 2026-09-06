@@ -5,7 +5,7 @@
 | **文档编号** | `VAR-GUI-EXP-M01-DESIGN` |
 | **版本** | v1.1（v4.36 已实施） |
 | **日期** | 2026-07-22 |
-| **上游规范** | `tool/gui/experienceai.md` v4.36（§2.4 E4、§8.2 attachments、§14.5.3、§16.3 M-01） |
+| **上游规范** | `tool/gui/docs/archive/experienceai.md` v4.36（§2.4 E4、§8.2 attachments、§14.5.3、§16.3 M-01） |
 | **状态** | ✅ 已实施（v4.36）；本文档留作契约存档 |
 | **范围** | 已有 PDF/Word/图片/文本抽取 → `ExperienceContext.attachments` 摘要快照 + 感知建议 |
 | **非范围** | OCR 建议链（M-03）、语音（M-04）、截图解释（M-05）、附件内容自动喂 LLM、课程 JSON 契约变更、附件持久化落盘 |

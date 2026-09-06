@@ -8,7 +8,6 @@ sandbox, so the produced exe must be verified on the developer's machine.
 Usage:
     python tool/gui/build_gui.py            # build onefile exe
     python tool/gui/build_gui.py --clean    # remove build/ dist/ first
-    python tool/gui/build_gui.py --onedir   # onedir instead of onefile
 """
 
 from __future__ import annotations
@@ -39,7 +38,7 @@ def require_pyinstaller() -> str:
     return pi
 
 
-def build(clean: bool, onedir: bool) -> int:
+def build(clean: bool) -> int:
     if not SPEC.exists():
         print(f"error: spec not found: {SPEC}", file=sys.stderr)
         return 1
@@ -60,10 +59,9 @@ def build(clean: bool, onedir: bool) -> int:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Build the Turna GUI exe.")
     parser.add_argument("--clean", action="store_true", help="Remove build/ and dist/ first.")
-    parser.add_argument("--onedir", action="store_true", help="Build onedir instead of onefile.")
     args = parser.parse_args(argv)
     require_pyinstaller()
-    return build(clean=args.clean, onedir=args.onedir)
+    return build(clean=args.clean)
 
 
 if __name__ == "__main__":

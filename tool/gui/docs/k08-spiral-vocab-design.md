@@ -5,7 +5,7 @@
 | **文档编号** | `VAR-GUI-EXP-K08-DESIGN` |
 | **版本** | v1.0（v4.37 已实施） |
 | **日期** | 2026-07-22 |
-| **上游规范** | `tool/gui/experienceai.md` v4.37（§2.4 P4 Skills、§8.3 action 表、§11.5 done、§16.3 K-08） |
+| **上游规范** | `tool/gui/docs/archive/experienceai.md` v4.37（§2.4 P4 Skills、§8.3 action 表、§11.5 done、§16.3 K-08） |
 | **状态** | ✅ 已实施（v4.37）；本文档留作契约存档 |
 | **范围** | section 级「词汇螺旋缺口」本地评估 → Dock/⌘K 建议 → 人确认 → 复用 K-05 引擎追加复现题 |
 | **非范围** | 跨 section 螺旋、词频目标值调参、自动改写已有题、新设置键、新门禁 G |

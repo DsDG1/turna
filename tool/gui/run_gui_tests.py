@@ -169,6 +169,13 @@ def cmd_full() -> int:
     )
 
 
+def cmd_usability() -> int:
+    """T.9 headless teacher-path smoke (offline; not part of ci default)."""
+    script = TESTS_DIR / "usability_smoke.py"
+    print(f"=== T.9 usability smoke: {script.name} ===", flush=True)
+    return subprocess.call([sys.executable, str(script)], cwd=str(GUI_DIR))
+
+
 def cmd_ci() -> int:
     """PR / pre-commit default: L0 gate then L1 fast (not full UI suite)."""
     print("=== CI tier: L0 gate + L1 fast ===", flush=True)
@@ -199,7 +206,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "tier",
-        choices=("gate", "e1", "e2", "fast", "ci", "full", "clean-cache", "list-fast"),
+        choices=("gate", "e1", "e2", "fast", "ci", "full", "usability", "clean-cache", "list-fast"),
         help="Which tier / maintenance action to run",
     )
     args = parser.parse_args(argv)
@@ -215,6 +222,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_ci()
     if args.tier == "full":
         return cmd_full()
+    if args.tier == "usability":
+        return cmd_usability()
     if args.tier == "clean-cache":
         return cmd_clean_cache()
     if args.tier == "list-fast":

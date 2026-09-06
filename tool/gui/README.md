@@ -429,9 +429,6 @@ python tool/gui/build_gui.py
 
 # 清理构建缓存并重新构建
 python tool/gui/build_gui.py --clean
-
-# 构建目录形式 (onedir 模式，适合调试)
-python tool/gui/build_gui.py --onedir
 ```
 
 具体的 PyInstaller 打包配置文件参见 [`turna_gui.spec`](./turna_gui.spec)。
