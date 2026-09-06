@@ -16,19 +16,53 @@ from __future__ import annotations
 
 import copy
 from dataclasses import dataclass, field
-from typing import Any, Callable, Literal
+from typing import TYPE_CHECKING, Any, Callable, Literal
 
 from src.backend.ai.config import AiApiConfig, AiCourseSpec, ChatMessage
 from src.backend.ai.course_generate import generate_from_chat, request_course_with_retry
 
 GenerationMode = Literal["fast", "refine"]
 
-# Lazy types for annotations / PipelineOptions — avoid circular import with
-# ai_pipeline → ai_generator → ai package → facade.
-try:
-    from src.backend.ai_pipeline import PipelineState  # type: ignore
-except Exception:  # pragma: no cover
-    PipelineState = Any  # type: ignore
+if TYPE_CHECKING:  # pragma: no cover
+    from src.backend.ai_pipeline import PipelineState
+
+
+# --- Lazy pipeline re-exports (public API surface) --------------------------
+#
+# ``run_pipeline`` / ``PipelineState`` / checklist constants live in
+# ``src.backend.ai_pipeline``; ``request_course`` in ``src.backend.ai_phased``.
+# They are re-exported here lazily (PEP 562) — never as module globals — so the
+# ``ai_pipeline → ai_generator → ai package`` import cycle can never leave a
+# half-imported placeholder behind, and UI callers get a single import point.
+# Importing the pipeline modules directly from dialogs is blocked by the
+# boundary gate (``tool/check_ai_boundaries.py --fail-dialogs-pipeline``).
+
+_PIPELINE_EXPORTS = frozenset(
+    {
+        "run_pipeline",
+        "PipelineState",
+        "PipelineStep",
+        "CHECKLIST_STEPS",
+        "STATUS_PENDING",
+        "STATUS_RUNNING",
+        "STATUS_DONE",
+        "STATUS_SKIPPED",
+        "STATUS_FAILED",
+    }
+)
+
+
+def __getattr__(name: str) -> Any:
+    """Forward pipeline/phased API names lazily (PEP 562)."""
+    if name in _PIPELINE_EXPORTS:
+        from src.backend import ai_pipeline
+
+        return getattr(ai_pipeline, name)
+    if name == "request_course":
+        from src.backend import ai_phased
+
+        return getattr(ai_phased, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def normalize_generation_mode(mode: str | None) -> GenerationMode:

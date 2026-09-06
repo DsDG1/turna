@@ -41,9 +41,13 @@ from src.backend.ai_generator import (
     regenerate_unit_in_section,
     request_alignment_reply,
 )
-from src.backend.ai_phased import request_course
-from src.backend.ai_pipeline import PipelineState, PipelineStep, run_pipeline
-from src.backend.textbook_to_course import _rewrite_ids_deterministic
+from src.backend.ai.facade import (
+    PipelineState,
+    PipelineStep,
+    request_course,
+    run_pipeline,
+)
+from src.backend.textbook_to_course import rewrite_ids_deterministic
 
 logger = logging.getLogger(__name__)
 
@@ -386,7 +390,7 @@ class DesignController:
             if sid:
                 # Deterministic structural ids keep draft iterations and
                 # re-imports merge-friendly (reuses the textbook helper, §3.3).
-                _rewrite_ids_deterministic(section, sid)
+                rewrite_ids_deterministic(section, sid)
             self._draft = section
             self._on_draft_ready(section)
             self._on_design_changed()
@@ -453,7 +457,7 @@ class DesignController:
         if isinstance(state.draft, dict):
             sid = state.draft.get("id")
             if sid:
-                _rewrite_ids_deterministic(state.draft, sid)
+                rewrite_ids_deterministic(state.draft, sid)
             self._draft = state.draft
             self._on_draft_ready(self._draft)
             if state.explanation:

@@ -31,7 +31,7 @@ from src.backend.import_strategy import (
     resolve_action,
     unique_section_id,
 )
-from src.backend.textbook_to_course import _rewrite_ids_deterministic
+from src.backend.textbook_to_course import rewrite_ids_deterministic
 from src.infrastructure.telemetry import telemetry
 
 #: Sentinel for "no pre-resolved merge decision was supplied" — distinct from
@@ -140,7 +140,7 @@ class SectionImportService:
             # the existing section and make the course fail validation on save.
             section = copy.deepcopy(section)
             section["id"] = new_id
-            _rewrite_ids_deterministic(section, new_id)
+            rewrite_ids_deterministic(section, new_id)
             section.setdefault("prerequisiteSectionIds", [])
             cmd = ImportAiSectionCommand(self.adapter, section)
             self.undo_stack.push(cmd)

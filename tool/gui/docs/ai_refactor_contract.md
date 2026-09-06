@@ -201,11 +201,33 @@ QT_QPA_PLATFORM=offscreen python3 tool/gui/run_gui_tests.py fast
   `dialogs/ai_fix_dialog.py:_disconnect_worker` 与
   `dialogs/ai/design_controller.py:_disconnect_worker`。）
 - **循环依赖**：experience 三元环已切（actions 为纯叶子，`is_dangerous_skill_allowed`
-  真源在 policy）；`ai_error_analyzer` 直接引用 `dialogs/ai/worker`。
+  真源在 policy）；`ai_error_analyzer` 直接引用 `dialogs/ai/worker`。（2026-09-06 补记：
+  worker 已下沉 `src/application/ai_request_worker.py`，`ai_error_analyzer` 改走新路径。）
 - **完整门禁命令**：
 
 ```bash
 python3 tool/gui/tool/check_ai_boundaries.py \
   --fail-private --fail-dialogs-app --fail-backend-app \
-  --fail-backend-ui --fail-backend-qt --fail-undeclared-host-access --max-except-pass 0
+  --fail-backend-ui --fail-backend-qt --fail-undeclared-host-access \
+  --fail-dialogs-pipeline --max-except-pass 0
 ```
+
+## 10. 管线入口收拢与 app→dialogs 棘轮（2026-09-06）
+
+- **dialogs → 管线内部禁令**：`--fail-dialogs-pipeline` —— dialogs/ 禁止直接
+  import `backend.ai_pipeline` / `backend.ai_phased`，统一走
+  `src.backend.ai.facade`（PEP 562 模块级 `__getattr__` 惰性转发
+  `run_pipeline`/`PipelineState`/`PipelineStep`/`CHECKLIST_STEPS`/`STATUS_*`/
+  `request_course`，保持原有循环导入规避设计）。当前基线 **0**。
+- **app/application → dialogs 棘轮**：`--fail-app-dialogs` —— application 层
+  不得 import dialogs 的**基础设施**（worker/helper），当前已清零并下沉：
+  `src/application/ai_request_worker.py`（原 `dialogs/ai/worker.py`，29 个文件
+  引用点同步）、`src/backend/quality_campaign.py`（原 dialogs 里的纯排序函数）。
+  剩余 **13** 处为 controller / app.py 作为组合根**启动对话框窗口**的既定
+  模式（InitCourseDialog/SettingsDialog/AiFixDialog/WorkshopWindow 等），
+  属已知债务，暂 warn 不 fail；新增 import 需走对话框启动模式而非再引入
+  基础设施依赖。
+- **私有符号外泄清零**：`textbook_to_course._rewrite_ids_deterministic` 增加公开
+  别名 `rewrite_ids_deterministic`；design_controller / section_import_service
+  改用公开名。
+

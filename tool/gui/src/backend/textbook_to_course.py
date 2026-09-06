@@ -85,6 +85,11 @@ def _rewrite_ids_deterministic(section: dict[str, Any], section_id: str) -> None
             _stages(content.get("stages"), lesson["id"])
 
 
+# Public alias: importers outside this module (dialogs/application layers)
+# must use the non-underscore name (boundary gate rule 1).
+rewrite_ids_deterministic = _rewrite_ids_deterministic
+
+
 def _build_lesson(template: str, title: str, kp: KnowledgePoints) -> dict[str, Any]:
     """Build one lesson from ``kp.words`` using the requested template.
 

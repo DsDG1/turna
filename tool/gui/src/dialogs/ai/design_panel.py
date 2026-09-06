@@ -42,7 +42,7 @@ from src.application.ai_prompt_library import (
     AiPromptTemplate,
     prompt_library,
 )
-from src.backend.ai_pipeline import (
+from src.backend.ai.facade import (
     CHECKLIST_STEPS,
     STATUS_DONE,
     STATUS_FAILED,
