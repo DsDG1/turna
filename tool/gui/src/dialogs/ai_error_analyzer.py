@@ -22,7 +22,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.application.ai_runtime import runtime_from_host
-from src.backend.ai_generator import request_chat
+from src.backend.ai import request_chat
 from src.application.ai_request_worker import AiRequestWorker
 from src.infrastructure.telemetry import telemetry
 from src.theme import current_palette

@@ -53,8 +53,8 @@ class TestCircuitBreaker(unittest.TestCase):
             self.cb.record_failure("test.action", "err")
         self.assertEqual(self.cb.state, CircuitState.OPEN)
 
-        # Wait for reset timeout
-        time.sleep(0.25)
+        # Fast-forward time past reset timeout
+        self.cb._last_failure_time -= (self.cb._reset_timeout + 0.1)
 
         # In half-open, trial is allowed
         self.assertEqual(self.cb.state, CircuitState.HALF_OPEN)
@@ -68,7 +68,7 @@ class TestCircuitBreaker(unittest.TestCase):
     def test_half_open_failure_retrips_immediately(self):
         for _ in range(3):
             self.cb.record_failure("test.action", "err")
-        time.sleep(0.25)
+        self.cb._last_failure_time -= (self.cb._reset_timeout + 0.1)
         self.assertEqual(self.cb.state, CircuitState.HALF_OPEN)
 
         # Failure during trial immediately re-opens
@@ -85,8 +85,11 @@ class TestCircuitBreaker(unittest.TestCase):
         self.assertFalse(allowed)
         self.assertIn("频控限制", reason)
 
-        # After window passes, allowed again
-        time.sleep(1.05)
+        # After window passes, allowed again (fast-forward timestamps)
+        from collections import deque
+        self.cb._burst_history = deque(
+            t - (self.cb._burst_window_seconds + 0.1) for t in self.cb._burst_history
+        )
         allowed, reason = self.cb.can_auto_dispatch("test.action")
         self.assertTrue(allowed)
 

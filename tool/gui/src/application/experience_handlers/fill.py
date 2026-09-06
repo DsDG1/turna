@@ -107,7 +107,7 @@ def _run_fill_lesson_patch_flow(
         return
     host._sync_focus_ring()
 
-    from src.backend.ai_generator import AiCourseSpec, regenerate_lesson_in_section
+    from src.backend.ai import AiCourseSpec, regenerate_lesson_in_section
     from src.application.ai_request_worker import AiRequestWorker
 
     config = host._ai_config
@@ -275,7 +275,7 @@ def _experience_fill_stubs(host) -> None:
         safe_information(host, "清待补", "没有可用的 section。")
         return
 
-    from src.backend.ai_generator import fill_needs_review_resources
+    from src.backend.ai import fill_needs_review_resources
     from src.application.ai_request_worker import AiRequestWorker
 
     sid = str(section.get("id") or "section")

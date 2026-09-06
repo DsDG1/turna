@@ -33,10 +33,6 @@ String mapOfficialErrorToHuman(OfficialAnkiException e) {
       e.code == OfficialAnkiErrorCode.ioError) {
     return AppStrings.ankiFileReadFailed;
   }
-  if (e.code == OfficialAnkiErrorCode.unsupportedPlatform ||
-      e.code == OfficialAnkiErrorCode.contractVersionMismatch) {
-    return AppStrings.ankiPickFileError;
-  }
   return '${AppStrings.ankiImportFailedHuman} (${e.code.name})';
 }
 
@@ -47,9 +43,6 @@ String mapGeneralErrorToHuman(Object error) {
   final msg = error.toString();
   if (msg.contains('.colpkg')) {
     return AppStrings.ankiColpkgUnsupported;
-  }
-  if (msg.contains('.apkg')) {
-    return AppStrings.ankiPickFileError;
   }
   return AppStrings.ankiParseFailed(error);
 }

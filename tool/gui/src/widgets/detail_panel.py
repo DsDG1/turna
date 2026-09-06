@@ -8,7 +8,7 @@ from PySide6.QtCore import Signal
 from PySide6.QtGui import QUndoStack
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QSplitter, QVBoxLayout, QWidget
 
-from src.backend.ai_generator import AiApiConfig
+from src.backend.ai import AiApiConfig
 
 logger = logging.getLogger(__name__)
 from src.backend.course_adapter import CourseAdapter

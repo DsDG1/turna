@@ -29,7 +29,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.backend.ai_fixer import build_correction_prompt
-from src.backend.ai_generator import request_correction
+from src.backend.ai import request_correction
 from src.dialogs.ai_error_analyzer import AiErrorAnalyzerDialog, offer_ai_analysis
 from src.application.ai_request_worker import AiRequestWorker, safe_disconnect
 from src.infrastructure.telemetry import telemetry
@@ -251,7 +251,7 @@ class AiFixDialog(QDialog):
             kind = self._course_context.get("node_kind", "section")
             if kind == "section":
                 from src.widgets.diff_view import _pal, _CATEGORY_LABELS
-                from src.backend.ai_generator import full_section_diff
+                from src.backend.ai import full_section_diff
 
                 diff = full_section_diff(self._node_json, self._corrected)
                 any_change = any(

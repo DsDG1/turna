@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.backend import ai_presets
-from src.backend.ai_generator import verify_connection
+from src.backend.ai import verify_connection
 from src.theme import current_palette
 
 
@@ -215,7 +215,7 @@ def on_provider_changed(dlg, _index: int) -> None:
 
 
 def on_test_connection(dlg) -> None:
-    from src.backend.ai_generator import AiApiConfig
+    from src.backend.ai import AiApiConfig
 
     dlg._sync_to_settings()
     config = AiApiConfig(

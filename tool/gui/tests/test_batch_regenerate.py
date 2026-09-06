@@ -185,11 +185,11 @@ class BatchHandlerTest(unittest.TestCase):
                 return_value=True,
             ),
             patch(
-                "src.backend.ai_generator.regenerate_lesson_in_section",
+                "src.backend.ai.regenerate_lesson_in_section",
                 side_effect=fake_regen,
             ),
             patch(
-                "src.backend.ai_generator.AiCourseSpec", return_value=object()
+                "src.backend.ai.AiCourseSpec", return_value=object()
             ),
         ):
             handle_batch_regenerate(
@@ -362,11 +362,11 @@ class UnitBatchHandlerTest(unittest.TestCase):
                 return_value=True,
             ),
             patch(
-                "src.backend.ai_generator.regenerate_unit_in_section",
+                "src.backend.ai.regenerate_unit_in_section",
                 side_effect=fake_regen,
             ),
             patch(
-                "src.backend.ai_generator.AiCourseSpec", return_value=object()
+                "src.backend.ai.AiCourseSpec", return_value=object()
             ),
         ):
             handle_batch_regenerate_units(

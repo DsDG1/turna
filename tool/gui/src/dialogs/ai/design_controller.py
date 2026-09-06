@@ -31,7 +31,7 @@ from typing import Any, Callable
 
 import copy
 
-from src.backend.ai_generator import (
+from src.backend.ai import (
     AiCourseSpec,
     ChatMessage,
     apply_genre_to_spec,

@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from src.application.settings import Settings
-from src.backend.ai_generator import AiApiConfig
+from src.backend.ai import AiApiConfig
 import logging
 logger = logging.getLogger(__name__)
 

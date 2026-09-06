@@ -32,7 +32,7 @@ from src.application.commands import (
     RenameListeningPhaseCommand,
     ReplaceItemCommand,
 )
-from src.backend.ai_generator import AiApiConfig
+from src.backend.ai import AiApiConfig
 from src.backend.course_adapter import CourseAdapter
 from src.backend.lesson_content import (
     ALLOWED_RUNTIME_TYPES,

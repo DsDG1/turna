@@ -10,12 +10,11 @@ from typing import Any
 
 from PySide6.QtWidgets import QDialogButtonBox, QLabel, QMessageBox
 
-from src.backend.ai_generator import (
+from src.backend.ai import (
     AiCourseSpec,
     apply_genre_to_spec,
-    genre_to_template,
 )
-from src.backend.ai_genre import genre_tags_in_text
+from src.backend.ai_genre import genre_tags_in_text, genre_to_template
 from src.application.ai_request_worker import is_valid_http_url as _is_valid_http_url
 from src.dialogs.ai.generator_chat_coordinator import escape_html as _escape_html
 

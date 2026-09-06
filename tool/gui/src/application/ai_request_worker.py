@@ -17,7 +17,7 @@ from typing import Any
 from PySide6.QtCore import QThread, Signal
 from PySide6.QtWidgets import QWidget
 
-from src.backend.ai_generator import AiCancelled
+from src.backend.ai import AiCancelled
 
 logger = logging.getLogger(__name__)
 

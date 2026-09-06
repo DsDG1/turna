@@ -147,6 +147,13 @@ class PrereqEditTest(unittest.TestCase):
         _s, _u, reloaded_lesson = reloaded.find_lesson(lid)
         self.assertEqual(reloaded_lesson["prerequisiteLessonIds"], [other_lid])
 
+
+class PrereqOptionsTest(unittest.TestCase):
+    def setUp(self) -> None:
+        from tests._course_fixture import COURSE_SRC
+
+        self.course_dir = COURSE_SRC
+
     def test_section_prereq_options_exclude_self(self) -> None:
         adapter = CourseAdapter()
         adapter.load(self.course_dir)
@@ -329,12 +336,9 @@ class ResourceEditTest(unittest.TestCase):
 
 class PublishFlowTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="turna_gui_"))
-        self.course_dir = self.tmp / "turkish"
-        copy_turkish_course(self.course_dir)
+        from tests._course_fixture import COURSE_SRC
 
-    def tearDown(self) -> None:
-        shutil.rmtree(self.tmp, ignore_errors=True)
+        self.course_dir = COURSE_SRC
 
     def test_detect_changes_after_edit(self) -> None:
         adapter = CourseAdapter()
@@ -390,57 +394,6 @@ class PublishFlowTest(unittest.TestCase):
             "simultaneous vocab+expressions changes must not double-bump",
         )
 
-    def test_set_linked_grammar_points_round_trip(self) -> None:
-        adapter = CourseAdapter()
-        adapter.load(self.course_dir)
-        lesson = adapter.sections[0]["units"][0]["lessons"][0]
-        lid = lesson["id"]
-        self.assertTrue(adapter.grammar_points, "fixture must have grammar points")
-        adapter.set_linked_grammar_points(lid, ["g-bogus"])
-        self.assertEqual(lesson["content"]["linkedGrammarPointIds"], ["g-bogus"])
-        # Dangling linked grammar id fails validate -> save rolls back the
-        # in-memory state (constraint #4).
-        result = adapter.save()
-        self.assertFalse(result.ok, "dangling linkedGrammarPointIds must fail validate")
-        restored = adapter.find_lesson(lid)[2]
-        self.assertNotIn(
-            "linkedGrammarPointIds",
-            restored.get("content", {}),
-            "failed save must roll back the in-memory edit",
-        )
-
-    def test_set_linked_grammar_points_persists_when_valid(self) -> None:
-        adapter = CourseAdapter()
-        adapter.load(self.course_dir)
-        lesson = adapter.sections[0]["units"][0]["lessons"][0]
-        lid = lesson["id"]
-        valid_ids = [g["id"] for g in adapter.grammar_points[:2]]
-        adapter.set_linked_grammar_points(lid, valid_ids)
-        result = adapter.save()
-        self.assertTrue(result.ok, f"save failed: {result.message}")
-        reloaded = CourseAdapter()
-        reloaded.load(self.course_dir)
-        reloaded_lesson = next(
-            l for u in reloaded.sections[0]["units"]
-            for l in u["lessons"] if l["id"] == lid
-        )
-        self.assertEqual(
-            reloaded_lesson["content"].get("linkedGrammarPointIds"), valid_ids
-        )
-
-    def test_apply_version_bump_persists(self) -> None:
-        adapter = CourseAdapter()
-        adapter.load(self.course_dir)
-        cur_version = adapter.index["version"]
-        adapter.sections[0]["name"] = "Renamed Section"
-        plan = adapter.version_bump_plan()
-        adapter.apply_version_bump(plan)
-        result = adapter.save()
-        self.assertTrue(result.ok, f"save failed: {result.message}")
-        reloaded = CourseAdapter()
-        reloaded.load(self.course_dir)
-        self.assertEqual(reloaded.index["version"], cur_version + 1)
-
     def test_release_diff_added_removed(self) -> None:
         adapter = CourseAdapter()
         adapter.load(self.course_dir)
@@ -495,6 +448,65 @@ class PublishFlowTest(unittest.TestCase):
         self.assertEqual(plan, {})
 
 
+class PublishFlowPersistTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_gui_"))
+        self.course_dir = self.tmp / "turkish"
+        copy_turkish_course(self.course_dir)
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_set_linked_grammar_points_round_trip(self) -> None:
+        adapter = CourseAdapter()
+        adapter.load(self.course_dir)
+        lesson = adapter.sections[0]["units"][0]["lessons"][0]
+        lid = lesson["id"]
+        self.assertTrue(adapter.grammar_points, "fixture must have grammar points")
+        adapter.set_linked_grammar_points(lid, ["g-bogus"])
+        self.assertEqual(lesson["content"]["linkedGrammarPointIds"], ["g-bogus"])
+        result = adapter.save()
+        self.assertFalse(result.ok, "dangling linkedGrammarPointIds must fail validate")
+        restored = adapter.find_lesson(lid)[2]
+        self.assertNotIn(
+            "linkedGrammarPointIds",
+            restored.get("content", {}),
+            "failed save must roll back the in-memory edit",
+        )
+
+    def test_set_linked_grammar_points_persists_when_valid(self) -> None:
+        adapter = CourseAdapter()
+        adapter.load(self.course_dir)
+        lesson = adapter.sections[0]["units"][0]["lessons"][0]
+        lid = lesson["id"]
+        valid_ids = [g["id"] for g in adapter.grammar_points[:2]]
+        adapter.set_linked_grammar_points(lid, valid_ids)
+        result = adapter.save()
+        self.assertTrue(result.ok, f"save failed: {result.message}")
+        reloaded = CourseAdapter()
+        reloaded.load(self.course_dir)
+        reloaded_lesson = next(
+            l for u in reloaded.sections[0]["units"]
+            for l in u["lessons"] if l["id"] == lid
+        )
+        self.assertEqual(
+            reloaded_lesson["content"].get("linkedGrammarPointIds"), valid_ids
+        )
+
+    def test_apply_version_bump_persists(self) -> None:
+        adapter = CourseAdapter()
+        adapter.load(self.course_dir)
+        cur_version = adapter.index["version"]
+        adapter.sections[0]["name"] = "Renamed Section"
+        plan = adapter.version_bump_plan()
+        adapter.apply_version_bump(plan)
+        result = adapter.save()
+        self.assertTrue(result.ok, f"save failed: {result.message}")
+        reloaded = CourseAdapter()
+        reloaded.load(self.course_dir)
+        self.assertEqual(reloaded.index["version"], cur_version + 1)
+
+
 class InitNewTest(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = Path(tempfile.mkdtemp(prefix="turna_init_"))
@@ -538,15 +550,17 @@ class InitNewTest(unittest.TestCase):
 
 
 class ValidateSectionJsonTest(unittest.TestCase):
-    def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="turna_validate_"))
-        self.course_dir = self.tmp / "turkish"
-        copy_turkish_course(self.course_dir)
-        self.adapter = CourseAdapter()
-        self.adapter.load(self.course_dir)
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.tmp = Path(tempfile.mkdtemp(prefix="turna_validate_"))
+        cls.course_dir = cls.tmp / "turkish"
+        copy_turkish_course(cls.course_dir)
+        cls.adapter = CourseAdapter()
+        cls.adapter.load(cls.course_dir)
 
-    def tearDown(self) -> None:
-        shutil.rmtree(self.tmp, ignore_errors=True)
+    @classmethod
+    def tearDownClass(cls) -> None:
+        shutil.rmtree(cls.tmp, ignore_errors=True)
 
     def _valid_section(self) -> dict[str, Any]:
         return {
@@ -768,14 +782,10 @@ class CourseAdapterResourcePackTest(unittest.TestCase):
 
 class CourseAdapterDuplicateTest(unittest.TestCase):
     def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="turna_gui_"))
-        self.course_dir = self.tmp / "turkish"
-        copy_turkish_course(self.course_dir)
-        self.adapter = CourseAdapter()
-        self.adapter.load(self.course_dir)
+        from tests._course_fixture import COURSE_SRC
 
-    def tearDown(self) -> None:
-        shutil.rmtree(self.tmp, ignore_errors=True)
+        self.adapter = CourseAdapter()
+        self.adapter.load(COURSE_SRC)
 
     def test_detects_existing_duplicates(self) -> None:
         """The Turkish course has a known cross-table duplicate (lütfen / nasılsın?)."""

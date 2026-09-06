@@ -43,6 +43,7 @@ class ExperienceHost(Protocol):
     def rect(self) -> Any: ...
 
     # ── Core services (stable public API) ────────────────────────────────
+    session: Any                    # application.course_session.CourseSession
     adapter: Any                    # backend.course_adapter.CourseAdapter
     course_dir: str                 # '' when no repo is open
     job_tray: Any                   # background job tray (is_busy_ai / jobs)

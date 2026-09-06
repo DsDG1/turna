@@ -10,7 +10,7 @@ from typing import Any
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
-from src.backend.ai_generator import (
+from src.backend.ai import (
     AiApiConfig,
     AiCourseSpec,
     generate_edit,

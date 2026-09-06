@@ -10,7 +10,7 @@ from pathlib import Path
 
 from PySide6.QtWidgets import QMessageBox
 
-from src.backend.ai_generator import AiApiConfig
+from src.backend.ai import AiApiConfig
 from src.backend.course_adapter import CourseAdapter
 from src.infrastructure.telemetry import telemetry
 
@@ -92,40 +92,56 @@ def apply_ai_cache(host) -> None:
 
 
 def maybe_open_last_repo(host) -> None:
+    from src.application.ui_guard import is_headless_ui, safe_question
+
+    if is_headless_ui():
+        return
     repos = host._load_recent_repos()
     if not repos:
         return
     last_path = repos[0].get("path", "")
     if not last_path or not Path(last_path).exists():
         return
-    reply = QMessageBox.question(
+    if safe_question(
         host,
         "打开最近仓库",
         f"是否打开上次使用的课程仓库？\n{last_path}",
-        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        QMessageBox.StandardButton.Yes,
-    )
-    if reply == QMessageBox.StandardButton.Yes:
+        default_yes=True,
+    ):
         host._open_repo_path(last_path)
 
 
 def open_repo_path(host, path_str: str) -> None:
+    from src.application.ui_guard import safe_warning
+
     path = Path(path_str)
     if not path.exists() or not CourseAdapter.is_course_dir(path):
-        QMessageBox.warning(host, "无法打开", f"目录不存在或不是有效的课程仓库：\n{path}")
+        safe_warning(host, "无法打开", f"目录不存在或不是有效的课程仓库：\n{path}")
         return
-    try:
-        host.adapter.load(path)
-    except Exception as exc:
-        telemetry.record_error(
-            exc,
-            context={"action": "repo.open", "path": str(path)},
-        )
-        host._show_load_error(str(exc))
-        return
-    host.course_dir = path
+    session = getattr(host, "session", None)
+    if session is not None:
+        try:
+            session.open_course(path)
+        except Exception as exc:
+            telemetry.record_error(
+                exc,
+                context={"action": "repo.open", "path": str(path)},
+            )
+            host._show_load_error(str(exc))
+            return
+    else:
+        try:
+            host.adapter.load(path)
+        except Exception as exc:
+            telemetry.record_error(
+                exc,
+                context={"action": "repo.open", "path": str(path)},
+            )
+            host._show_load_error(str(exc))
+            return
+        host.course_dir = path
+        host.undo_stack.clear()
     host.tree.display(host.adapter)
-    host.undo_stack.clear()
     host._enable_editor_actions()
     host._add_recent_repo(path)
     telemetry.record_event(

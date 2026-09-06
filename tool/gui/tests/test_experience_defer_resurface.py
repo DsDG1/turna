@@ -103,49 +103,5 @@ class BatchDeferLogicTest(unittest.TestCase):
         self.assertEqual(props, [])
 
 
-@unittest.skip("Ambient banner and MainWindow.experience retired")
-class ArchiveHandlerDeferSplitTest(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        from tests._mainwindow_fixture import build_main_window
-
-        cls.win = build_main_window()
-
-    def setUp(self) -> None:
-        from tests._mainwindow_fixture import reset_main_window
-
-        reset_main_window(self.win)
-        # Stub a matching live suggestion so purge_resolved() in _refresh_ambient
-        # does not treat the just-deferred proposal as resolved (empty current).
-        self.win.experience._ctx = None
-        self.win.experience._suggestions = [
-            _sug(0, "validate.open_and_fix", {"error_count": 2})
-        ]
-        self.win._ambient_archived.clear()
-        self.win._defer_store = DeferStore()
-        self.prop = AmbientProposal(
-            id=proposal_id_for("validate.open_and_fix", {"error_count": 2}),
-            title="校验错误",
-            body="2 个错误",
-            action_id="validate.open_and_fix",
-            scope={"error_count": 2},
-            priority=0,
-        )
-        self.win.ambient_banner.show_proposals([self.prop])
-
-    def test_setting_off_uses_session_archive(self) -> None:
-        self.win._settings_obj.experience_defer_resurface = False
-        self.win._on_ambient_archived(self.prop.id)
-        self.assertIn(self.prop.id, self.win._ambient_archived)
-        self.assertEqual(len(self.win._defer_store), 0)
-
-    def test_setting_on_defers_to_store(self) -> None:
-        self.win._settings_obj.experience_defer_resurface = True
-        self.win._on_ambient_archived(self.prop.id)
-        self.assertNotIn(self.prop.id, self.win._ambient_archived)
-        self.assertEqual(len(self.win._defer_store), 1)
-        self.assertIsNotNone(self.win._defer_store.get(self.prop.id))
-
-
 if __name__ == "__main__":
     unittest.main()

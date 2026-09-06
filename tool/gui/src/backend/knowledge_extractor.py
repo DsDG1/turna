@@ -26,7 +26,7 @@ from __future__ import annotations
 from typing import Any, Callable, Literal
 
 from src.backend.ai_fixer import extract_json_object
-from src.backend.ai_generator import AiApiConfig, AiCancelled, generate_with_validate_loop
+from src.backend.ai import AiApiConfig, AiCancelled, generate_with_validate_loop
 from src.backend.knowledge_merger import resource_key
 from src.backend.knowledge_prompt import (
     _MAX_CHAPTER_CHARS,

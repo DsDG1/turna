@@ -335,10 +335,10 @@ tool/gui/
 │   │   ├── workshop_window.py    # 课程工坊壳：项目库 + 画布 + checklist + 底栏
 │   │   ├── git_library_dialog.py # Git 资源库（远程协作/LAN 共享/团队留言板）
 │   │   ├── textbook_library_dialog.py # 课本项目库（含从 Git 导入/发布到 Git）
-│   │   ├── ai_generator_dialog.py# 树节点 AI 快速编辑对话框
+│   │   ├── ai_generator_dialog.py# 兼容薄垫片（实现已迁至 ai/section_ai_dialog.py）
 │   │   ├── init_course_dialog.py # 课程仓库初始化向导
 │   │   ├── settings_dialog.py    # 应用全局配置面板（含 Git 库 tab）
-│   │   └── ai/                   # DesignPanel / ReviewPanel / worker 等
+│   │   └── ai/                   # section_ai_dialog / node_edit_dialog / DesignPanel / ReviewPanel 等
 │   └── widgets/                  # 可复用 UI 组件
 │       ├── unified_workspace.py  # 创意画布三栏布局
 │       ├── ai_orbit.py           # 中栏 AI 轨道

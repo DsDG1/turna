@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from src.backend.ai_generator import ChatMessage
+from src.backend.ai import ChatMessage
 from src.backend.attachment_extractor import extract_attachment
 from src.dialogs.ai.attachment_bar import AttachmentBar
 from src.dialogs.ai.chat_expand_window import ChatExpandWindow

@@ -206,4 +206,16 @@ void main() {
     );
     expect(failed.returnState, isA<AnkiImportSelecting>());
   });
+
+  test('picking a colpkg file routes to ankiColpkgUnsupported guidance', () async {
+    final controller = controllerWith(pickedPath: '/tmp/collection.colpkg');
+    addTearDown(controller.dispose);
+
+    await controller.pickFile();
+
+    expect(controller.state, isA<AnkiImportFailed>());
+    final failed = controller.state as AnkiImportFailed;
+    expect(failed.message, equals(AppStrings.ankiColpkgUnsupported));
+    expect(failed.returnState, isA<AnkiImportSelecting>());
+  });
 }

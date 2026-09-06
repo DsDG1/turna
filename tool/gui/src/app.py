@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.application import runtime_context
+from src.application.course_session import CourseSession
 from src.application.experience_shell import ExperienceShell
 from src.application.experience_window_bridge import (
     flush_experience_metrics,
@@ -52,7 +53,7 @@ from src.application.repo_session_host import (
 from src.application.save_host import run_async_direct_save
 from src.application.settings import Settings, migrate_legacy_varnamala_qsettings
 from src.application.experience_skills_mixin import ExperienceSkillsMixin
-from src.backend.ai_generator import AiApiConfig
+from src.backend.ai import AiApiConfig
 from src.backend.course_adapter import CourseAdapter
 from src.backend.experience.conflict_guard import ConflictGuard
 from src.backend.experience.metrics import ExperienceMetrics
@@ -106,13 +107,9 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
         self.setWindowTitle("Turna 课程编辑器")
         self.resize(1280, 800)
 
-        self.adapter = CourseAdapter()
-        self.course_dir: Path | None = None
-        self._current_node_ref: tuple[str, str] | None = None
-        self.teacher_mode: bool = False
+        self.session = CourseSession(parent=self)
         self._workshop_window = None
         self._overview_window = None
-        self._last_imported_section_id: str | None = None
 
         self._settings = QSettings("Turna", "CourseEditor")
         self._settings_obj = Settings.load_from_qsettings(self._settings)
@@ -138,7 +135,6 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
         )
         self._apply_ai_cache()
 
-        self.undo_stack = QUndoStack(self)
         self.undo_stack.setUndoLimit(self._settings_obj.undo_limit)
         self.undo_stack.cleanChanged.connect(self._on_undo_clean_changed)
 
@@ -151,8 +147,6 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
         # Background interactive-save worker (see _save_course_async).
         self._save_worker = None
 
-        self.experience_metrics = ExperienceMetrics()
-        self.conflict_guard = ConflictGuard()
         self.experience = ExperienceShell(parent=self, debounce_ms=120)
         self.experience.context_changed.connect(self._on_experience_context_changed)
         self.experience_dock_widget = ExperienceDock(self)
@@ -719,3 +713,69 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
             self._undo_detail_timer.stop()
         if getattr(self, "_current_node_ref", None) and getattr(self, "course_dir", None):
             self._on_node_selected(self._current_node_ref)
+
+    # ── CourseSession Transparent Properties ─────────────────────────────
+
+    @property
+    def adapter(self) -> CourseAdapter:
+        return self.session.adapter
+
+    @adapter.setter
+    def adapter(self, val: CourseAdapter) -> None:
+        self.session.adapter = val
+
+    @property
+    def course_dir(self) -> Path | None:
+        return self.session.course_dir
+
+    @course_dir.setter
+    def course_dir(self, val: Path | None) -> None:
+        self.session.course_dir = Path(val) if val is not None else None
+
+    @property
+    def undo_stack(self) -> QUndoStack:
+        return self.session.undo_stack
+
+    @undo_stack.setter
+    def undo_stack(self, val: QUndoStack) -> None:
+        self.session.undo_stack = val
+
+    @property
+    def _current_node_ref(self) -> tuple[str, str] | None:
+        return self.session.current_node_ref
+
+    @_current_node_ref.setter
+    def _current_node_ref(self, val: tuple[str, str] | None) -> None:
+        self.session.current_node_ref = val
+
+    @property
+    def teacher_mode(self) -> bool:
+        return self.session.teacher_mode
+
+    @teacher_mode.setter
+    def teacher_mode(self, val: bool) -> None:
+        self.session.teacher_mode = val
+
+    @property
+    def conflict_guard(self) -> ConflictGuard:
+        return self.session.conflict_guard
+
+    @conflict_guard.setter
+    def conflict_guard(self, val: ConflictGuard) -> None:
+        self.session.conflict_guard = val
+
+    @property
+    def experience_metrics(self) -> ExperienceMetrics:
+        return self.session.experience_metrics
+
+    @experience_metrics.setter
+    def experience_metrics(self, val: ExperienceMetrics) -> None:
+        self.session.experience_metrics = val
+
+    @property
+    def _last_imported_section_id(self) -> str | None:
+        return self.session.last_imported_section_id
+
+    @_last_imported_section_id.setter
+    def _last_imported_section_id(self, val: str | None) -> None:
+        self.session.last_imported_section_id = val

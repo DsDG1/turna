@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from PySide6.QtCore import QSettings
 
-from src.backend.ai_generator import AiCourseSpec
+from src.backend.ai import AiCourseSpec
 import logging
 logger = logging.getLogger(__name__)
 

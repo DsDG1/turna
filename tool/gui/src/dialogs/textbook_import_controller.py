@@ -10,11 +10,8 @@ majority of the import logic unit-testable without a QApplication event loop.
 """
 from __future__ import annotations
 
-import logging
-logger = logging.getLogger(__name__)
-
-
 import functools
+import logging
 import sys
 import time
 from dataclasses import dataclass
@@ -26,29 +23,43 @@ _GUI = Path(__file__).resolve().parents[2]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.attachment_extractor import extract_attachment
 from src.backend.extraction_quality import (
     ExtractionQualityReport,
     compute_quality_report,
 )
 from src.backend.import_step_result import ImportStepResult
-from src.backend.import_strategy import SectionImportPreview, plan_bulk_import
-from src.backend.knowledge_extractor import (
-    extract_knowledge_points_windowed,
-    reextract_knowledge_targeted,
-)
-from src.backend.knowledge_merger import MergeReport, apply as merge_knowledge_points
+from src.backend.import_strategy import SectionImportPreview
+from src.backend.knowledge_merger import MergeReport
 from src.backend.knowledge_schema import KnowledgePoints
-from src.backend.markdown_chopper import Chapter, split_chapters
+from src.backend.markdown_chopper import Chapter
 from src.backend.textbook_presets import TextbookPreset, preset_for
 from src.backend.textbook_project import TextbookProject
-from src.backend.textbook_project_store import _new_project_id
-from src.backend.textbook_to_course import build_section_from_chapter
+from src.dialogs.textbook_import.extraction_pipeline import (
+    UsageDict,
+    _ZERO_USAGE,
+    accumulate_usage,
+    apply_reviewed_rows,
+    estimate_remaining_seconds,
+    make_extraction_worker,
+    make_targeted_reextract_worker,
+)
+from src.dialogs.textbook_import.persistence import (
+    execute_autosave,
+    serialize_to_project,
+)
+from src.dialogs.textbook_import.section_builder import (
+    build_raw_sections,
+    compute_import_previews,
+    merge_knowledge_in_place,
+)
+from src.dialogs.textbook_import.source_loader import (
+    read_source_text,
+    split_markdown_into_chapters,
+    validate_source_path,
+)
 from src.infrastructure.telemetry import telemetry
 
-#: Usage dict shape: {"prompt_tokens", "completion_tokens", "total_tokens"}.
-UsageDict = dict[str, int]
-_ZERO_USAGE: UsageDict = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -77,6 +88,9 @@ class TextbookImportController:
         language: Target language being taught (e.g. ``"Turkish"``).
         source_language: Source/explanation language (e.g. ``"Chinese"``).
     """
+
+    STEP_PICK, STEP_PARSE, STEP_CHAPTERS, STEP_EXTRACT, STEP_REVIEW, STEP_IMPORT = range(6)
+    _AUTOSAVE_INTERVAL = 2.0  # seconds between throttled autosave writes
 
     def __init__(
         self,
@@ -111,11 +125,7 @@ class TextbookImportController:
         self._project_name = project_name
         self._preset = preset or preset_for("general")
         self._max_concurrent = max(1, int(max_concurrent))
-        # P4-2: when a ``standard`` extraction fails, automatically retry the
-        # chapter once with ``vocab_only`` (disable via the
-        # ``textbook/auto_cascade`` settings key).
         self._auto_cascade = bool(auto_cascade)
-        # Strategies already tried per chapter (anti-loop guard for cascade).
         self._attempted_strategies: dict[int, set[str]] = {}
 
         self._source_path: Path | None = None
@@ -125,13 +135,8 @@ class TextbookImportController:
         self._active_workers: dict[int, Any] = {}
         self._cancelled = False
         self._autosave_enabled = True
-        # Guard for asynchronous file loading: incremented on every new load so
-        # late results from a superseded request are discarded.
         self._load_id: int = 0
         self._load_worker: Any | None = None
-        # Autosave throttle: extraction fires _autosave() per completed
-        # chapter; writes are coalesced to at most one per interval while
-        # discrete transitions force an immediate save (force=True).
         self._autosave_dirty = False
         self._last_autosave_at = 0.0
         self._extract_start_time: float | None = None
@@ -230,14 +235,10 @@ class TextbookImportController:
         if not self._chapters:
             return self.STEP_PARSE
         if any(cr.knowledge is not None or cr.error for cr in self._chapters):
-            # Extraction has started or finished.
             if self._active_workers or self._extract_queue:
                 return self.STEP_EXTRACT
             return self.STEP_REVIEW
         return self.STEP_CHAPTERS
-
-    # ------------------------------------------------------------------ steps
-    STEP_PICK, STEP_PARSE, STEP_CHAPTERS, STEP_EXTRACT, STEP_REVIEW, STEP_IMPORT = range(6)
 
     def _emit_step(self, step: int, result: ImportStepResult | None = None) -> None:
         self._on_step_changed(step, result)
@@ -245,47 +246,18 @@ class TextbookImportController:
     # ------------------------------------------------------------------ helpers
     @staticmethod
     def _read_source_text(path: Path) -> str:
-        """Read text from a .md/.txt file or extract it from a text PDF.
-
-        Raises ``OSError`` for filesystem errors and ``RuntimeError`` for
-        parse/extraction errors so both sync and async callers can share the
-        same message conversion.
-        """
-        suffix = path.suffix.lower()
-        if suffix in (".md", ".txt"):
-            return path.read_text(encoding="utf-8")
-
-        result = extract_attachment(path)
-        if not result.ok:
-            raise RuntimeError(
-                f"{result.error}\n建议改用 .md/.txt，或使用文本原生 PDF（扫描件暂不支持）。"
-            )
-        text = result.content.get("text", "") if result.content else ""
-        if not text.strip():
-            raise RuntimeError("PDF 未提取到文本（可能是扫描件）。")
-        return text
+        """Read text from a .md/.txt file or extract it from a text PDF."""
+        return read_source_text(path)
 
     # ------------------------------------------------------------------ ① pick / ② parse
     def load_file(self, path: Path) -> ImportStepResult:
-        """Load and parse the source file synchronously.
-
-        Returns a ``parse`` step result. On success the controller moves to the
-        ``chapters`` step internally; the view should observe ``on_step_changed``.
-        """
+        """Load and parse the source file synchronously."""
         self._cancelled = False
-        if not path.exists():
-            return ImportStepResult.error("pick", f"文件不存在：{path}")
-        suffix = path.suffix.lower()
-        if suffix not in (".md", ".txt", ".pdf"):
-            return ImportStepResult.error(
-                "pick",
-                "不支持的文件类型，请选择 .md / .txt / .pdf。",
-                recoverable=True,
-                recovery_options=["重新选择"],
-            )
+        val_error = validate_source_path(path)
+        if val_error is not None:
+            return val_error
 
         self._source_path = path
-
         try:
             self._md = self._read_source_text(path)
         except OSError as exc:
@@ -314,42 +286,43 @@ class TextbookImportController:
         *,
         on_done: Callable[[ImportStepResult], None] | None = None,
     ) -> ImportStepResult | None:
-        """Load and parse the source file in a background worker.
-
-        Performs cheap validation synchronously and returns an
-        ``ImportStepResult`` immediately on validation failure. Otherwise
-        returns ``None`` and calls ``on_done`` on the UI thread when the worker
-        finishes. Late results from a superseded request are discarded via
-        ``self._load_id``.
-        """
+        """Load and parse the source file in a background worker."""
         self._cancelled = False
-        if not path.exists():
-            result = ImportStepResult.error("pick", f"文件不存在：{path}")
+        val_error = validate_source_path(path)
+        if val_error is not None:
             if on_done is not None:
-                on_done(result)
-            return result
-        suffix = path.suffix.lower()
-        if suffix not in (".md", ".txt", ".pdf"):
-            result = ImportStepResult.error(
-                "pick",
-                "不支持的文件类型，请选择 .md / .txt / .pdf。",
-                recoverable=True,
-                recovery_options=["重新选择"],
-            )
-            if on_done is not None:
-                on_done(result)
-            return result
+                on_done(val_error)
+            return val_error
 
         self._load_id += 1
         load_id = self._load_id
         self._load_path = path
-        self._load_on_done = on_done
         worker = self._worker_factory(self._read_source_text, path)
-        worker.result_ready.connect(self._on_load_result_ready)
-        worker.error_occurred.connect(self._on_load_error_occurred)
+        slot_ready = functools.partial(self._on_load_worker_result, load_id, path, on_done)
+        slot_error = functools.partial(self._on_load_worker_error, load_id, path, on_done)
+        worker.result_ready.connect(slot_ready)
+        worker.error_occurred.connect(slot_error)
         self._load_worker = worker
         worker.start()
         return None
+
+    def _on_load_worker_result(
+        self,
+        load_id: int,
+        path: Path,
+        on_done: Callable[[ImportStepResult], None] | None,
+        text: str,
+    ) -> None:
+        self._apply_loaded_text(path, text, load_id, on_done)
+
+    def _on_load_worker_error(
+        self,
+        load_id: int,
+        path: Path,
+        on_done: Callable[[ImportStepResult], None] | None,
+        msg: str,
+    ) -> None:
+        self._on_load_error(path, msg, load_id, on_done)
 
     def _on_load_result_ready(self, text: str) -> None:
         path = getattr(self, "_load_path", None)
@@ -391,25 +364,25 @@ class TextbookImportController:
     def _on_load_error(
         self,
         path: Path,
-        message: str,
+        msg: str,
         load_id: int,
         on_done: Callable[[ImportStepResult], None] | None,
     ) -> None:
-        """UI-thread callback for a failed async file load."""
+        """UI-thread callback for an async file load error."""
         if load_id != self._load_id:
             return
-        self._source_path = path
         result = ImportStepResult.error(
             "parse",
-            message,
+            msg,
             recoverable=True,
             recovery_options=["重新选择"],
         )
+        self._emit_step(self.STEP_PICK, result)
         if on_done is not None:
             on_done(result)
 
     def _split_into_chapters(self) -> None:
-        chapters = split_chapters(self._md)
+        chapters = split_markdown_into_chapters(self._md)
         self._chapters = [_ChapterResult(chapter=ch) for ch in chapters]
 
     # ------------------------------------------------------------------ ③ chapters
@@ -444,8 +417,6 @@ class TextbookImportController:
             )
 
         self._cancelled = False
-        # Defensively cancel any workers still in flight from a prior run so
-        # their eventual _finish_worker cannot double-process the new queue.
         for worker in list(self._active_workers.values()):
             if hasattr(worker, "cancel"):
                 worker.cancel()
@@ -464,17 +435,10 @@ class TextbookImportController:
         return ImportStepResult.success("extract", "开始提取知识点…")
 
     def _extract_next(self) -> None:
-        """Fill the active-worker pool up to ``max_concurrent`` from the queue.
-
-        Concurrency is configurable (bookplan2 Phase 5); default 1 preserves the
-        historical serial behaviour. When the queue is drained and no workers
-        remain in flight, the controller moves to the review step. If a cancel
-        is in progress, the cancelled step is emitted only once the last worker
-        finishes (or immediately if none were in flight).
-        """
+        """Fill the active-worker pool up to ``max_concurrent`` from the queue."""
         if self._cancelled:
             if not self._active_workers:
-                self._autosave(force=True)  # persist state before reporting cancel
+                self._autosave(force=True)
                 self._emit_step(
                     self.STEP_EXTRACT,
                     ImportStepResult.cancelled("extract", "提取已取消。"),
@@ -491,7 +455,7 @@ class TextbookImportController:
 
         if not self._active_workers and not self._extract_queue:
             self.compute_quality_report(adapter=None)
-            self._autosave(force=True)  # extraction done — persist everything
+            self._autosave(force=True)
             self._emit_step(
                 self.STEP_REVIEW,
                 ImportStepResult.success("extract", "提取完成，请审校结果。"),
@@ -513,33 +477,19 @@ class TextbookImportController:
         self._launch_worker(idx, strategy=self._preset.strategy)
 
     def _launch_worker(self, idx: int, *, strategy: str) -> None:
-        """Create + connect + start an extraction worker for chapter ``idx``.
-
-        Shared by the batch path (``_start_worker``) and single-chapter retry.
-        ``strategy`` overrides the preset's strategy so retry can request
-        ``vocab_only``. Other knobs (temperature/max_tokens/max_chars/window
-        sizes) come from the active preset. The attempted strategy is recorded
-        per chapter so the P4-2 auto-cascade cannot loop.
-        """
+        """Create + connect + start an extraction worker for chapter ``idx``."""
         cr = self._chapters[idx]
         self._attempted_strategies.setdefault(idx, set()).add(strategy)
-        worker = self._worker_factory(
-            extract_knowledge_points_windowed,
+        worker = make_extraction_worker(
+            self._worker_factory,
             self._ai_config_fn(),
             self._language,
             self._source_language,
             cr.chapter,
-            strategy=strategy,
-            temperature=self._preset.temperature,
-            max_tokens=self._preset.max_tokens,
-            max_chapter_chars=self._preset.max_chapter_chars,
-            max_window_chars=self._preset.window_chars,
-            overlap_chars=self._preset.overlap_chars,
-            max_retries=1,
+            self._preset,
+            strategy,
+            idx,
         )
-        worker._chapter_idx = idx
-        worker._extract_strategy = strategy
-        worker._worker_kind = "extract"
         self._connect_and_start(idx, worker)
 
     def _connect_and_start(
@@ -550,12 +500,7 @@ class TextbookImportController:
         on_ready: Callable[[Any], None] | None = None,
         on_error: Callable[[str], None] | None = None,
     ) -> None:
-        """Wire AiRequestWorker-compatible signals and start the worker.
-
-        The worker identity is bound into every callback so signals arriving
-        after this worker was dropped from ``_active_workers`` (cancelled run,
-        superseded retry) can be recognised as stale and ignored.
-        """
+        """Wire AiRequestWorker-compatible signals and start the worker."""
         if hasattr(worker, "result_ready"):
             slot_ready = on_ready if on_ready is not None else functools.partial(self._on_extract_ready_worker, idx, worker)
             worker.result_ready.connect(slot_ready)
@@ -600,29 +545,14 @@ class TextbookImportController:
             self._on_usage(idx, usage)
 
     def _on_usage(self, idx: int, usage: UsageDict) -> None:
-        """Accumulate per-chapter + project token usage (bookplan2 Phase 5)."""
-        if not isinstance(usage, dict):
-            return
-        cur = self._usage_by_chapter.get(idx, _ZERO_USAGE)
-        merged = {
-            k: int(cur.get(k, 0)) + int(usage.get(k, 0) or 0)
-            for k in ("prompt_tokens", "completion_tokens", "total_tokens")
-        }
-        self._usage_by_chapter[idx] = merged
-        self._project_usage = {
-            k: sum(c.get(k, 0) for c in self._usage_by_chapter.values())
-            for k in ("prompt_tokens", "completion_tokens", "total_tokens")
-        }
+        """Accumulate per-chapter + project token usage."""
+        merged, project_usage = accumulate_usage(self._usage_by_chapter, idx, usage)
+        self._project_usage = project_usage
         self._on_usage_update(idx, dict(merged), dict(self._project_usage))
 
     def _estimate_remaining_seconds(self, completed: int) -> int | None:
         """Linear estimate of remaining extraction time, or None if unknown."""
-        if self._extract_start_time is None or completed <= 0:
-            return None
-        elapsed = time.monotonic() - self._extract_start_time
-        per_chapter = elapsed / completed
-        remaining = self._extract_total - completed
-        return max(1, int(round(per_chapter * remaining)))
+        return estimate_remaining_seconds(self._extract_start_time, completed, self._extract_total)
 
     def _on_extract_chunk(self, fragment: str) -> None:
         if fragment:
@@ -630,7 +560,7 @@ class TextbookImportController:
 
     def _on_extract_ready(self, idx: int, kp: KnowledgePoints, worker: object) -> None:
         if not self._is_active(idx, worker):
-            return  # stale worker from a cancelled/superseded run
+            return
         if 0 <= idx < len(self._chapters):
             self._chapters[idx].knowledge = kp
             self._chapters[idx].error = ""
@@ -649,17 +579,13 @@ class TextbookImportController:
         self, idx: int, message: str, worker: object, *, strategy: str = "standard"
     ) -> None:
         if not self._is_active(idx, worker):
-            return  # stale worker from a cancelled/superseded run
+            return
         if (
             self._auto_cascade
             and not self._cancelled
             and strategy == "standard"
             and "vocab_only" not in self._attempted_strategies.get(idx, set())
         ):
-            # P4-2: standard extraction failed - automatically cascade to a
-            # vocab_only retry of the same chapter (once; usage accumulates
-            # under the same chapter index). Only a vocab_only failure leaves
-            # the chapter in the error state.
             self._active_workers.pop(idx, None)
             self._on_extract_log(
                 "\n  … 标准抽取失败，自动降级为仅词汇（vocab_only）重试本章…"
@@ -693,29 +619,8 @@ class TextbookImportController:
         self,
         rows: list[tuple[int, str, dict[str, Any]]],
     ) -> None:
-        """Replace each chapter's knowledge with the curated rows.
-
-        ``rows`` is a list of ``(chapter_index, resource_type, entry_dict)`` for
-        kept entries. ``resource_type`` is one of ``word``/``expression``/
-        ``grammarPoint``.
-        """
-        for cr in self._chapters:
-            if cr.knowledge is not None:
-                cr.knowledge.words = []
-                cr.knowledge.expressions = []
-                cr.knowledge.grammarPoints = []
-        for ci, rtype, entry in rows:
-            if not (0 <= ci < len(self._chapters)):
-                continue
-            cr = self._chapters[ci]
-            if cr.knowledge is None:
-                cr.knowledge = KnowledgePoints()
-            if rtype == "word":
-                cr.knowledge.words.append(entry)
-            elif rtype == "expression":
-                cr.knowledge.expressions.append(entry)
-            elif rtype == "grammarPoint":
-                cr.knowledge.grammarPoints.append(entry)
+        """Replace each chapter's knowledge with the curated rows."""
+        apply_reviewed_rows(self._chapters, rows)
         self.compute_quality_report(adapter=None)
         self._autosave(force=True)
 
@@ -737,11 +642,7 @@ class TextbookImportController:
         index: int,
         mode: Literal["standard", "vocab_only"] = "standard",
     ) -> ImportStepResult:
-        """Retry extraction for a single failed chapter.
-
-        ``mode="vocab_only"`` asks the model for words only, as a fallback when
-        the full extraction keeps failing.
-        """
+        """Retry extraction for a single failed chapter."""
         if not (0 <= index < len(self._chapters)):
             return ImportStepResult.error("extract", "章节索引无效。")
         if index in self._active_workers:
@@ -765,14 +666,7 @@ class TextbookImportController:
         return ImportStepResult.success("extract", "开始重试抽取…")
 
     def reextract_chapter_targeted(self, index: int) -> ImportStepResult:
-        """Re-extract one chapter guided by its quality issues (P4-4).
-
-        The chapter must already hold extracted knowledge and the quality
-        report must list issues for it; the worker asks the model for a
-        complete corrected result which then replaces ``cr.knowledge`` and the
-        quality scores are recomputed. Returns a recoverable error (and
-        launches nothing) when there is nothing to fix.
-        """
+        """Re-extract one chapter guided by its quality issues."""
         if not (0 <= index < len(self._chapters)):
             return ImportStepResult.error("extract", "章节索引无效。")
         if index in self._active_workers:
@@ -809,17 +703,16 @@ class TextbookImportController:
             "textbook.extract.chapter.targeted_reextract",
             payload={"chapter_index": index, "issue_count": len(issues)},
         )
-        worker = self._worker_factory(
-            reextract_knowledge_targeted,
+        worker = make_targeted_reextract_worker(
+            self._worker_factory,
             config,
             self._language,
             self._source_language,
             cr.chapter,
             cr.knowledge,
             issues,
-            temperature=self._preset.temperature,
-            max_tokens=self._preset.max_tokens,
-            max_retries=1,
+            self._preset,
+            index,
         )
         self._connect_and_start(
             index,
@@ -831,7 +724,7 @@ class TextbookImportController:
 
     def _on_reextract_ready(self, idx: int, kp: KnowledgePoints, worker: object) -> None:
         if not self._is_active(idx, worker):
-            return  # stale worker from a cancelled/superseded run
+            return
         if 0 <= idx < len(self._chapters):
             self._chapters[idx].knowledge = kp
             self._chapters[idx].error = ""
@@ -843,16 +736,13 @@ class TextbookImportController:
                 "textbook.extract.chapter.targeted_reextract.success",
                 payload={"chapter_index": idx},
             )
-            # Recompute quality scores against the corrected extraction.
             self.compute_quality_report(adapter=None)
         self._autosave()
         self._finish_worker(idx)
 
     def _on_reextract_error(self, idx: int, message: str, worker: object) -> None:
         if not self._is_active(idx, worker):
-            return  # stale worker from a cancelled/superseded run
-        # Keep the original extraction: a failed re-extract must not turn a
-        # merely low-quality chapter into a failed one.
+            return
         self._on_extract_log(f"\n  ✗ 按质量重抽失败：{message}（已保留原抽取结果）")
         telemetry.record_event(
             "textbook.extract.chapter.targeted_reextract.failure",
@@ -868,50 +758,18 @@ class TextbookImportController:
 
     # ------------------------------------------------------------------ ⑥ import
     def _build_section_list(self) -> list[tuple[int, dict[str, Any]]]:
-        """Build ``(0-based chapter index, section dict)`` for every kept,
-        non-empty chapter. Shared by ``build_sections`` and ``preview_import``
-        so the preview's section ids match what import will actually emit.
-
-        The section ``idx`` passed to ``build_section_from_chapter`` is the
-        1-based position over **all** chapters (kept or not), matching the
-        historical deterministic id scheme.
-        """
-        out: list[tuple[int, dict[str, Any]]] = []
-        for ci, cr in enumerate(self._chapters, start=1):
-            if not cr.keep or cr.knowledge is None:
-                continue
-            kp = cr.knowledge
-            if not kp.words and not kp.expressions and not kp.grammarPoints:
-                continue
-            out.append(
-                (
-                    ci - 1,
-                    build_section_from_chapter(
-                        cr.chapter, kp, ci, lesson_template=self._preset.lesson_template
-                    ),
-                )
-            )
-        return out
+        """Build ``(0-based chapter index, section dict)`` for kept, non-empty chapters."""
+        return build_raw_sections(
+            self._chapters, lesson_template=self._preset.lesson_template
+        )
 
     def _chapters_tuples(self) -> list[tuple[Chapter, KnowledgePoints | None]]:
         """ ``(chapter, knowledge)`` pairs for merger / quality analysis."""
         return [(cr.chapter, cr.knowledge) for cr in self._chapters]
 
     def merge_knowledge(self, adapter: Any | None) -> MergeReport:
-        """Dedup intra-project ids and align course-collision ids in place.
-
-        Idempotent. Call before ``build_sections`` so the emitted sections carry
-        unified ids and ``CourseAdapter.merge_section_resources`` does not create
-        duplicate terms. Returns the merger report for telemetry / display.
-        """
-        report = merge_knowledge_points(self._chapters_tuples(), adapter)
-        telemetry.record_event(
-            "textbook.merge.applied",
-            payload={
-                "intra_project": report.intra_project_count,
-                "course_collisions": report.course_collision_count,
-            },
-        )
+        """Dedup intra-project ids and align course-collision ids in place."""
+        report = merge_knowledge_in_place(self._chapters_tuples(), adapter)
         self._autosave(force=True)
         return report
 
@@ -920,62 +778,11 @@ class TextbookImportController:
         adapter: Any | None,
         strategy: str,
     ) -> list[SectionImportPreview]:
-        """Compute a read-only per-section import plan for the preview panel.
-
-        Does not mutate chapter knowledge: the ``KnowledgeMerger`` is run in
-        analyze-only mode so ``new_*`` / ``duplicate_*`` counts reflect the
-        post-merge state the user will get on confirm. Section-id planning
-        delegates to ``plan_bulk_import`` so the preview matches execution.
-        """
-        from src.backend.knowledge_merger import analyze as analyze_knowledge
-
+        """Compute a read-only per-section import plan for the preview panel."""
         built = self._build_section_list()
-        if not built:
-            return []
-        sections = [s for _, s in built]
-        report = analyze_knowledge(self._chapters_tuples(), adapter)
-        plans = plan_bulk_import(sections, adapter, strategy)
-
-        previews: list[SectionImportPreview] = []
-        for (chapter_index, section), plan in zip(built, plans):
-            cr = self._chapters[chapter_index]
-            kp = cr.knowledge
-            words = len(kp.words) if kp else 0
-            expressions = len(kp.expressions) if kp else 0
-            grammar = len(kp.grammarPoints) if kp else 0
-            dup_words = dup_expr = dup_gram = 0
-            for col in report.collisions_for_chapter(chapter_index):
-                # Skip collisions ``apply`` will not act on (e.g. a course entry
-                # with an empty id has no target to align to); counting them as
-                # duplicates would mislead the preview's new/duplicate split.
-                if not col.target_id:
-                    continue
-                if col.resource_type == "word":
-                    dup_words += 1
-                elif col.resource_type == "expression":
-                    dup_expr += 1
-                else:
-                    dup_gram += 1
-            previews.append(
-                SectionImportPreview(
-                    chapter_index=chapter_index,
-                    title=cr.chapter.title,
-                    source_id=plan.source_id,
-                    target_id=plan.target_id,
-                    exists=plan.exists,
-                    action=plan.action,
-                    word_count=words,
-                    expression_count=expressions,
-                    grammar_count=grammar,
-                    new_words=words - dup_words,
-                    new_expressions=expressions - dup_expr,
-                    new_grammar=grammar - dup_gram,
-                    duplicate_words=dup_words,
-                    duplicate_expressions=dup_expr,
-                    duplicate_grammar=dup_gram,
-                )
-            )
-        return previews
+        return compute_import_previews(
+            self._chapters_tuples(), built, self._chapters, adapter, strategy
+        )
 
     def build_sections(self) -> ImportStepResult:
         """Build importable section dicts and notify via ``on_sections_ready``."""
@@ -1001,24 +808,17 @@ class TextbookImportController:
         """Serialize current controller state into a ``TextbookProject``."""
         project_name = name or self._project_name or "未命名项目"
         project_id = getattr(self, "_project_id", "")
-        if not project_id:
-            project_id = _new_project_id(project_name)
-            self._project_id = project_id
-        project = TextbookProject.create(
+        project = serialize_to_project(
             project_id=project_id,
-            name=project_name,
+            project_name=project_name,
             source_path=self._source_path,
             markdown=self._md,
             language=self._language,
             source_language=self._source_language,
+            chapters=self._chapters,
+            current_step=self.current_step,
         )
-        project.set_chapters(
-            [(cr.chapter, cr.keep, cr.knowledge, cr.error) for cr in self._chapters]
-        )
-        project.current_step = self.current_step
-        # Snapshot the merged knowledge as the resource pool (connectplan §3.1);
-        # dedup stays with the import-time KnowledgeMerger.
-        project.update_resource_pool()
+        self._project_id = project.project_id
         return project
 
     def apply_project(self, project: TextbookProject) -> None:
@@ -1039,19 +839,10 @@ class TextbookImportController:
         self._autosave_dirty = False
         self._last_autosave_at = 0.0
         self._attempted_strategies = {}
-        # Notify the view so it can render the restored step.
         self._emit_step(project.current_step)
 
-    _AUTOSAVE_INTERVAL = 2.0  # seconds between throttled autosave writes
-
     def _autosave(self, *, force: bool = False) -> None:
-        """Build a project snapshot and forward it to the autosave callback.
-
-        Throttled to one write per ``_AUTOSAVE_INTERVAL`` unless ``force``;
-        skipped writes mark the state dirty so ``flush_autosave`` can persist
-        them before closing. Serializing the full project (markdown +
-        chapters) per completed chapter would otherwise stall the UI.
-        """
+        """Build a project snapshot and forward it to the autosave callback."""
         if not self._autosave_enabled or self._on_autosave is None:
             return
         now = time.monotonic()
@@ -1060,23 +851,11 @@ class TextbookImportController:
             return
         self._autosave_dirty = False
         self._last_autosave_at = now
-        try:
-            self._on_autosave(self.to_project())
-        except Exception as exc:
-            # Autosave must never break the workflow, but a permanently-failing
-            # autosave (disk full, read-only project dir) used to lose all
-            # extraction work silently. Record the error so the failure is at
-            # least observable in telemetry, and surface it once to the user
-            # via the status hook if available. (B9)
-            telemetry.record_error(
-                exc, context={"action": "textbook.autosave"}
-            )
-            try:
-                status_hook = getattr(self, "_status_hook", None)
-                if callable(status_hook):
-                    status_hook(f"自动保存失败：{exc}")
-            except Exception:  # noqa: BLE001 — never break on the error path
-                logger.debug("dialogs/textbook_import_controller.py:1049 best-effort step failed", exc_info=True)
+        execute_autosave(
+            self._on_autosave,
+            self.to_project(),
+            status_hook=getattr(self, "_status_hook", None),
+        )
 
     def flush_autosave(self) -> None:
         """Force-write any throttled autosave state (close/interrupt safety)."""
@@ -1085,12 +864,7 @@ class TextbookImportController:
 
     # ------------------------------------------------------------------ cancel
     def cancel(self) -> None:
-        """Cancel all in-flight extraction workers (bookplan2 Phase 5 concurrency).
-
-        Sets the cancel flag and asks every active worker to abort. The
-        cancelled step is emitted once the last worker reports back (via
-        ``_extract_next``), or immediately if none were in flight.
-        """
+        """Cancel all in-flight extraction workers."""
         self._cancelled = True
         telemetry.record_event("textbook.extract.cancel")
         for worker in list(self._active_workers.values()):
@@ -1108,4 +882,3 @@ class TextbookImportController:
         from src.application.ai_request_worker import AiRequestWorker
 
         return AiRequestWorker(target, *args, **kwargs)
-

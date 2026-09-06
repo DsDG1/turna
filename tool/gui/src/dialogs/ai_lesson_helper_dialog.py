@@ -26,14 +26,14 @@ from PySide6.QtWidgets import (
 )
 
 from src.application.ai_runtime import runtime_from_host
-from src.backend.ai_generator import (
+from src.backend.ai import (
     AiApiConfig,
     request_item_transform,
     request_lesson_transform,
 )
 from src.backend.course_adapter import CourseAdapter
 from src.dialogs.ai_error_analyzer import AiErrorAnalyzerDialog, offer_ai_analysis
-from src.dialogs.ai_generator_dialog import AiRequestWorker
+from src.application.ai_request_worker import AiRequestWorker
 from src.infrastructure.telemetry import telemetry
 
 

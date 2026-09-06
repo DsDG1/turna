@@ -16,18 +16,18 @@ from typing import Any
 
 from PySide6.QtWidgets import QDialogButtonBox, QInputDialog, QMessageBox
 
-from src.backend.ai_generator import (
+from src.backend.ai import (
     AiCourseSpec,
     ChatMessage,
     detect_genre_from_spec,
     explain_course,
     generate_edit,
     generate_from_chat,
-    genre_to_template,
     request_alignment_reply,
     request_course_with_retry,
     structural_diff,
 )
+from src.backend.ai_genre import genre_to_template
 from src.application.ai_prompt_library import AiPromptHistory, AiPromptTemplate
 from src.dialogs.ai.generator_chat_coordinator import escape_html as _escape_html
 from src.dialogs.ai.generator_preview_coordinator import (

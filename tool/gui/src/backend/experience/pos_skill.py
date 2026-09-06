@@ -198,7 +198,7 @@ def run_pos_alignment(
     map so callers report a non-modal status message. Pure: no Qt, no tree writes.
     """
     try:
-        from src.backend.ai_generator import request_chat
+        from src.backend.ai import request_chat
 
         messages, _terms = build_pos_alignment_messages(
             config, adapter, language=language, source_language=source_language

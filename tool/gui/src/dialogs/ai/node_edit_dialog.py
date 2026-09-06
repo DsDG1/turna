@@ -12,7 +12,7 @@ from typing import Any
 
 from PySide6.QtWidgets import QWidget
 
-from src.dialogs.ai_generator_dialog import SectionAiDialog
+from src.dialogs.ai.section_ai_dialog import SectionAiDialog
 
 
 class NodeAiEditDialog(SectionAiDialog):

@@ -32,23 +32,35 @@ def _git_available() -> bool:
 
 @unittest.skipUnless(_git_available(), "git not installed")
 class GitLibraryTest(unittest.TestCase):
-    def setUp(self) -> None:
-        self.tmp = Path(tempfile.mkdtemp(prefix="turna_git_"))
-        # Create a bare "remote".
-        self.remote = self.tmp / "remote.git"
+    _class_tmp: Path | None = None
+    _template_remote: Path | None = None
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls._class_tmp = Path(tempfile.mkdtemp(prefix="turna_git_seed_"))
+        cls._template_remote = cls._class_tmp / "remote.git"
         subprocess.run(
-            ["git", "init", "--bare", str(self.remote)],
+            ["git", "init", "--bare", str(cls._template_remote)],
             capture_output=True,
             check=True,
         )
-        # Seed an initial commit in a working repo, then push to the remote.
-        seed = self.tmp / "seed"
+        seed = cls._class_tmp / "seed"
         copy_turkish_course(seed)
-        # Remove any nested .git from the source (shouldn't be one, but be safe).
         nested = seed / ".git"
         if nested.exists():
             shutil.rmtree(nested, ignore_errors=True)
-        self._commit_all(seed, "initial", remote=str(self.remote))
+        cls._commit_all_static(seed, "initial", remote=str(cls._template_remote))
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        if cls._class_tmp is not None:
+            shutil.rmtree(cls._class_tmp, ignore_errors=True)
+
+    def setUp(self) -> None:
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_git_"))
+        self.remote = self.tmp / "remote.git"
+        assert self._template_remote is not None
+        shutil.copytree(self._template_remote, self.remote)
         self.lib = GitLibrary()
         self.clone_dir = self.tmp / "clone"
 
@@ -56,6 +68,10 @@ class GitLibraryTest(unittest.TestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def _commit_all(self, repo: Path, msg: str, remote: str | None = None) -> None:
+        self._commit_all_static(repo, msg, remote=remote)
+
+    @staticmethod
+    def _commit_all_static(repo: Path, msg: str, remote: str | None = None) -> None:
         env = {
             "GIT_AUTHOR_NAME": "t",
             "GIT_AUTHOR_EMAIL": "t@t",

@@ -16,8 +16,9 @@ from tests._qtapp import qt_app  # noqa: E402
 
 from PySide6.QtCore import Qt
 
-from src.backend.ai_generator import AiApiConfig
-from src.dialogs.ai_generator_dialog import AiGeneratorDialog, AiRequestWorker
+from src.backend.ai import AiApiConfig
+from src.application.ai_request_worker import AiRequestWorker
+from src.dialogs.ai.section_ai_dialog import AiGeneratorDialog
 
 
 class TestAiRequestWorker(unittest.TestCase):

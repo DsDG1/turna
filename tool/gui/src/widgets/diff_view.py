@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from src.backend.ai_generator import full_section_diff
+from src.backend.ai import full_section_diff
 
 try:
     from src.theme import current_palette

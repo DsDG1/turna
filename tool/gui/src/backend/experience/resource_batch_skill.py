@@ -196,7 +196,7 @@ def run_batch_polish(
     no tree writes.
     """
     try:
-        from src.backend.ai_generator import content_text, request_chat
+        from src.backend.ai import content_text, request_chat
 
         clean = [
             e

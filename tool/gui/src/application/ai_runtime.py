@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from typing import Any, Callable
 
 from src.application.settings import Settings
-from src.backend.ai_generator import AiApiConfig
+from src.backend.ai import AiApiConfig
 from src.application.experience_host import ExperienceHost
 
 

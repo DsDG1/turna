@@ -132,7 +132,7 @@ class AiEditController:
     ) -> bool:
         """U1-4: section-level apply-time structural guard. False = abort."""
         try:
-            from src.backend.ai_generator import structural_diff
+            from src.backend.ai import structural_diff
 
             diff = structural_diff(section, new_section)
             removed = {

@@ -15,9 +15,9 @@ from tests._qtapp import qt_app  # noqa: E402
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDialog, QDialogButtonBox
 
-from src.backend.ai_generator import AiApiConfig
+from src.backend.ai import AiApiConfig
 from src.dialogs.ai.node_edit_dialog import NodeAiEditDialog
-from src.dialogs.ai_generator_dialog import AiGeneratorDialog
+from src.dialogs.ai.section_ai_dialog import AiGeneratorDialog
 
 
 def _section(sid: str = "sec-1") -> dict:

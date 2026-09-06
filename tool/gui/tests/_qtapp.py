@@ -6,6 +6,11 @@ singleton.
 """
 from __future__ import annotations
 
+import os
+
+# Default to offscreen platform for all tests to prevent headless execution from hanging on native modal dialogs
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
 from PySide6.QtWidgets import QApplication
 
 _app: QApplication | None = None

@@ -54,6 +54,21 @@ def _build_main_window() -> MainWindow:
         return MainWindow()
 
 
+def _teardown_window(win: MainWindow | None) -> None:
+    if win is None:
+        return
+    try:
+        if hasattr(win, "_tree_refresh_timer") and win._tree_refresh_timer.isActive():
+            win._tree_refresh_timer.stop()
+        if hasattr(win, "_undo_detail_timer") and win._undo_detail_timer.isActive():
+            win._undo_detail_timer.stop()
+        if hasattr(win, "experience") and hasattr(win.experience, "_timer") and win.experience._timer.isActive():
+            win.experience._timer.stop()
+        win.close()
+    except Exception:
+        pass
+
+
 class CloseEventTest(unittest.TestCase):
     """closeEvent delegates to close_controller (SavePipeline + headless guard)."""
 
@@ -63,6 +78,9 @@ class CloseEventTest(unittest.TestCase):
         self.win.course_dir = Path("/tmp/fake-course")
         self.adapter = MagicMock()
         self.win.adapter = self.adapter
+
+    def tearDown(self) -> None:
+        _teardown_window(self.win)
 
     def test_no_changes_accepts_close(self) -> None:
         self.adapter.detect_changes.return_value = {
@@ -82,7 +100,9 @@ class CloseEventTest(unittest.TestCase):
         """Offscreen CI must never hang on the save prompt: auto-discard."""
         self.adapter.detect_changes.return_value = {"vocab": True}
         event = QCloseEvent()
-        with patch("src.application.save_host.execute_save") as ex:
+        with patch("src.application.ui_guard.is_headless_ui", return_value=True), patch(
+            "src.application.save_host.execute_save"
+        ) as ex:
             self.win.closeEvent(event)
         ex.assert_not_called()
         self.assertTrue(event.isAccepted())
@@ -299,6 +319,7 @@ class AsyncSaveTest(unittest.TestCase):
         # result that clears the ref.
         while win._save_worker is not None:
             app.processEvents()
+            time.sleep(0.01)
             if time.perf_counter() - t0 > timeout:
                 raise AssertionError("save worker did not finish in time")
 
@@ -488,6 +509,9 @@ class TeacherModeToggleTest(unittest.TestCase):
         self.adapter = _real_lookup_adapter()
         self.win.adapter = self.adapter
 
+    def tearDown(self) -> None:
+        _teardown_window(self.win)
+
     def test_no_floating_teacher_window_attr(self) -> None:
         # The floating TeacherWindow was removed; teacher mode renders inline.
         self.assertFalse(hasattr(self.win, "_teacher_window"))
@@ -553,6 +577,7 @@ class AiEditConflictTest(unittest.TestCase):
     def tearDown(self) -> None:
         import shutil
 
+        _teardown_window(self.win)
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_detect_unit_no_conflict_when_id_preserved(self) -> None:
@@ -678,6 +703,7 @@ class WorkshopImportTargetTest(unittest.TestCase):
     def tearDown(self) -> None:
         import shutil
 
+        _teardown_window(self.win)
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def test_import_draft_into_section_appends_units_and_resources(self) -> None:
@@ -838,6 +864,7 @@ class GenerateAudioTest(unittest.TestCase):
     def tearDown(self) -> None:
         import shutil
 
+        _teardown_window(self.win)
         shutil.rmtree(self.tmp, ignore_errors=True)
         self.win.hide()
 

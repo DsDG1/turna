@@ -140,6 +140,7 @@ class GitAsyncTest(unittest.TestCase):
         t0 = time.perf_counter()
         while dlg._git_worker is not None:
             app.processEvents()
+            time.sleep(0.01)
             if time.perf_counter() - t0 > timeout:
                 raise AssertionError("git worker did not finish in time")
 

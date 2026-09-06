@@ -338,12 +338,16 @@ class GitLibrary:
     def _env_for(self, cwd: Path) -> dict[str, str]:
         """Build the environment for a git subprocess, injecting auth if set."""
         env = dict(os.environ)
+        # Prevent git from blocking on interactive credentials in background/test execution
+        env["GIT_TERMINAL_PROMPT"] = "0"
         # SSH key override
         if self._ssh_key_path:
             key = os.path.expanduser(self._ssh_key_path)
             env["GIT_SSH_COMMAND"] = (
-                f"ssh -i {key} -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+                f"ssh -i {key} -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
             )
+        elif "GIT_SSH_COMMAND" not in env:
+            env["GIT_SSH_COMMAND"] = "ssh -o BatchMode=yes"
         return env
 
     def _extra_args_for_https(self, url: str | None = None) -> list[str]:

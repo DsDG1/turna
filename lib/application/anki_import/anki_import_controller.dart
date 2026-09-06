@@ -23,8 +23,8 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/utils/validated_file_picker.dart';
 
 /// File extensions accepted by the Anki import wizard.
-/// `.colpkg` is unsupported until an Official backend exists (doc 34 W4-08).
-const List<String> kAnkiImportExtensions = ['apkg'];
+/// `.colpkg` is picked and routes to human guidance (doc 34 W4-08).
+const List<String> kAnkiImportExtensions = ['apkg', 'colpkg'];
 
 class _OfficialFirstCommitResult {
   const _OfficialFirstCommitResult({

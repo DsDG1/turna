@@ -515,6 +515,24 @@ def regenerate_lesson_in_section(
     fields), so unchanged units/lessons cost no tokens. Returns the
     reassembled full section JSON.
     """
+    import sys
+    ai_gen = sys.modules.get("src.backend.ai_generator")
+    if ai_gen is not None:
+        patched = getattr(ai_gen, "regenerate_lesson_in_section", None)
+        if patched is not None and patched is not regenerate_lesson_in_section:
+            return patched(
+                config,
+                spec,
+                existing_section,
+                lesson_id,
+                instruction=instruction,
+                timeout=timeout,
+                temperature=temperature,
+                cancel_check=cancel_check,
+                on_chunk=on_chunk,
+                usage_callback=usage_callback,
+            )
+
     _, lesson = find_lesson(existing_section, lesson_id)
     if lesson is None:
         raise ValueError(f"未找到课时「{lesson_id}」。")
@@ -551,6 +569,24 @@ def regenerate_unit_in_section(
     usage), then splices each result back. The section id and other units are
     untouched. ``cancel_check`` is honoured between lessons.
     """
+    import sys
+    ai_gen = sys.modules.get("src.backend.ai_generator")
+    if ai_gen is not None:
+        patched = getattr(ai_gen, "regenerate_unit_in_section", None)
+        if patched is not None and patched is not regenerate_unit_in_section:
+            return patched(
+                config,
+                spec,
+                existing_section,
+                unit_id,
+                instruction=instruction,
+                timeout=timeout,
+                temperature=temperature,
+                cancel_check=cancel_check,
+                on_chunk=on_chunk,
+                usage_callback=usage_callback,
+            )
+
     unit = next(
         (u for u in (existing_section.get("units") or []) if isinstance(u, dict) and u.get("id") == unit_id),
         None,

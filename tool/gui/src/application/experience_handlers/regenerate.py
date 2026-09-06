@@ -363,7 +363,7 @@ def _run_regen_flow(
         return
     host._sync_focus_ring()
 
-    from src.backend.ai_generator import (
+    from src.backend.ai import (
         AiCourseSpec,
         regenerate_lesson_in_section,
         regenerate_unit_in_section,
@@ -650,13 +650,13 @@ def _find_unit_target(adapter: Any, uid: str) -> tuple[dict, str]:
 
 
 def _regen_lesson_target(config: Any, ai_spec: Any, draft: dict, lid: str) -> dict:
-    from src.backend.ai_generator import regenerate_lesson_in_section
+    from src.backend.ai import regenerate_lesson_in_section
 
     return regenerate_lesson_in_section(config, ai_spec, draft, lid, instruction=None)
 
 
 def _regen_unit_target(config: Any, ai_spec: Any, draft: dict, uid: str) -> dict:
-    from src.backend.ai_generator import regenerate_unit_in_section
+    from src.backend.ai import regenerate_unit_in_section
 
     return regenerate_unit_in_section(config, ai_spec, draft, uid, instruction=None)
 
@@ -950,7 +950,7 @@ def _run_batch_regen_flow(
     """
     import copy
 
-    from src.backend.ai_generator import AiCourseSpec
+    from src.backend.ai import AiCourseSpec
     from src.backend.experience.transaction import create_transaction_snapshot
 
     targets = _batch_regen_prepare(host, spec, scope)

@@ -61,7 +61,7 @@ class AnkiImportDependencies {
         dialogTitle: dialogTitle,
       ).then((result) {
         if (result == null || result.files.isEmpty) return null;
-        return result.files.single.path;
+        return result.files.first.path;
       }),
       officialFirst: const OfficialAnkiOfficialFirstService(),
       courseDatabase: getIt<CourseDatabase>(),

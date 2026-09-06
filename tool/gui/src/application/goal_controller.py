@@ -68,7 +68,7 @@ def _build_goal_chat_fn(host: ExperienceHost) -> Any | None:
 
         def _chat(prompt: str) -> str | None:
             try:
-                from src.backend.ai_generator import content_text, request_chat
+                from src.backend.ai import content_text, request_chat
 
                 messages = [
                     {
@@ -286,7 +286,7 @@ def _run_real_fill_chain(
     """
     import copy
 
-    from src.backend.ai_generator import AiCourseSpec, regenerate_lesson_in_section
+    from src.backend.ai import AiCourseSpec, regenerate_lesson_in_section
 
     adapter = getattr(host, "adapter", None)
     if adapter is None:

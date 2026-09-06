@@ -75,7 +75,7 @@ def run_git_skill(
     Raises ``RuntimeError`` on network/parse failure (propagated by the worker
     as ``error_occurred``). ``action_id`` selects the message builder.
     """
-    from src.backend.ai_generator import content_text, request_chat
+    from src.backend.ai import content_text, request_chat
 
     if action_id == "git.commit_message":
         messages = build_commit_message_messages(diff_text)

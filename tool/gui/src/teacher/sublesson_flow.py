@@ -24,7 +24,7 @@ from PySide6.QtWidgets import (
 )
 from shiboken6 import isValid
 
-from src.backend.ai_generator import AiApiConfig
+from src.backend.ai import AiApiConfig
 from src.backend.course_adapter import CourseAdapter
 from src.backend.lesson_content import (
     INTERACTION_LABELS,

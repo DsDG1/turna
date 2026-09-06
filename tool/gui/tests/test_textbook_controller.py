@@ -132,7 +132,9 @@ def _fake_worker_factory(result: KnowledgePoints | Exception | None) -> Any:
 
 class LoadFileTest(unittest.TestCase):
     def test_md_file_splits_into_chapters(self) -> None:
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8"
+        ) as f:
             f.write(_sample_md())
             path = Path(f.name)
         try:
@@ -165,7 +167,9 @@ class LoadFileTest(unittest.TestCase):
 
 class LoadFileAsyncTest(unittest.TestCase):
     def test_async_md_file_splits_into_chapters(self) -> None:
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8"
+        ) as f:
             f.write(_sample_md())
             path = Path(f.name)
         try:
@@ -211,7 +215,9 @@ class LoadFileAsyncTest(unittest.TestCase):
             path.unlink()
 
     def test_stale_load_result_is_ignored(self) -> None:
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False) as f:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".md", delete=False, encoding="utf-8"
+        ) as f:
             f.write(_sample_md())
             path = Path(f.name)
         try:

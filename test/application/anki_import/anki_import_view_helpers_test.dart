@@ -38,5 +38,33 @@ void main() {
         expect(message, isNot(contains(r'\$')), reason: 'code=$code');
       }
     });
+
+    test('unsupportedPlatform and contractVersionMismatch do not show pick file error', () {
+      for (final code in [
+        OfficialAnkiErrorCode.unsupportedPlatform,
+        OfficialAnkiErrorCode.contractVersionMismatch,
+      ]) {
+        final message = mapOfficialErrorToHuman(
+          OfficialAnkiException(code: code, messageKey: 'k'),
+        );
+        expect(message, isNot(equals(AppStrings.ankiPickFileError)));
+        expect(message, contains(AppStrings.ankiImportFailedHuman));
+      }
+    });
+  });
+
+  group('mapGeneralErrorToHuman', () {
+    test('general error containing .apkg does not report pick file error', () {
+      final error = Exception('Failed reading /storage/emulated/0/Download/vocab.apkg: zip error');
+      final message = mapGeneralErrorToHuman(error);
+      expect(message, isNot(equals(AppStrings.ankiPickFileError)));
+      expect(message, contains('Failed reading'));
+    });
+
+    test('error containing .colpkg returns colpkg unsupported message', () {
+      final error = Exception('Cannot import /path/to/archive.colpkg');
+      final message = mapGeneralErrorToHuman(error);
+      expect(message, equals(AppStrings.ankiColpkgUnsupported));
+    });
   });
 }

@@ -167,7 +167,7 @@ def classify_intent_sync(
     if not ids:
         return None
     try:
-        from src.backend.ai_generator import request_chat
+        from src.backend.ai import request_chat
 
         messages = build_classify_messages(t, ids)
         model = None

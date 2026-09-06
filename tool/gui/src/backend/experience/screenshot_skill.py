@@ -102,7 +102,7 @@ def run_screenshot_skill(
     Raises ``RuntimeError`` on network/parse failure (propagated by the worker
     as ``error_occurred``). Pure: no Qt, no tree writes.
     """
-    from src.backend.ai_generator import content_text, request_chat
+    from src.backend.ai import content_text, request_chat
 
     messages = build_screenshot_messages(png_bytes, prompt=prompt)
     body = request_chat(config, messages, temperature=0.4)
