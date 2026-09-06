@@ -153,7 +153,7 @@ class TestAiGeneratorDialogAsync(unittest.TestCase):
         course = {"id": "ai-travel", "name": "Travel", "units": []}
 
         with patch(
-            "src.dialogs.ai_generator_dialog.request_course_with_retry", return_value=course
+            "src.dialogs.ai.generator_flows.request_course_with_retry", return_value=course
         ):
             with patch.object(
                 AiRequestWorker, "start", lambda self: self.run()
@@ -170,7 +170,7 @@ class TestAiGeneratorDialogAsync(unittest.TestCase):
         dlg.topic_edit.setText("Travel")
 
         with patch(
-            "src.dialogs.ai_generator_dialog.request_course_with_retry",
+            "src.dialogs.ai.generator_flows.request_course_with_retry",
             side_effect=RuntimeError("network down"),
         ):
             with patch.object(
@@ -190,7 +190,7 @@ class TestAiGeneratorDialogAsync(unittest.TestCase):
         dlg.input_edit.setText("I want a travel course")
 
         with patch(
-            "src.dialogs.ai_generator_dialog.request_alignment_reply",
+            "src.dialogs.ai.generator_flows.request_alignment_reply",
             return_value="Sure, here is the plan.",
         ):
             with patch.object(
@@ -209,10 +209,10 @@ class TestAiGeneratorDialogAsync(unittest.TestCase):
         course = {"id": "ai-food", "name": "Food", "units": []}
 
         with patch(
-            "src.dialogs.ai_generator_dialog.generate_from_chat", return_value=course
+            "src.dialogs.ai.generator_flows.generate_from_chat", return_value=course
         ):
             with patch(
-                "src.dialogs.ai_generator_dialog.explain_course",
+                "src.dialogs.ai.generator_flows.explain_course",
                 return_value="This course teaches food vocabulary.",
             ):
                 with patch.object(
@@ -246,7 +246,7 @@ class TestAiGeneratorDialogAsync(unittest.TestCase):
         dlg.topic_edit.setText("Travel")
         course = {"id": "ai-travel", "name": "Travel", "units": []}
         with patch(
-            "src.dialogs.ai_generator_dialog.request_course_with_retry", return_value=course
+            "src.dialogs.ai.generator_flows.request_course_with_retry", return_value=course
         ):
             with patch.object(AiRequestWorker, "start", lambda self: self.run()):
                 dlg._on_generate_normal()
@@ -277,7 +277,7 @@ class TestAiGeneratorDialogAsync(unittest.TestCase):
                 item.setCheckState(Qt.CheckState.Checked)
 
         with patch(
-            "src.dialogs.ai_generator_dialog.generate_from_chat"
+            "src.dialogs.ai.generator_flows.generate_from_chat"
         ) as mock_ai_generate:
             dlg._on_wizard_generate()
 
@@ -293,7 +293,7 @@ class TestAiGeneratorDialogAsync(unittest.TestCase):
         dlg._update_mode_ui()
         course = {"id": "ai-food", "name": "Food", "units": []}
         with patch(
-            "src.dialogs.ai_generator_dialog.explain_course",
+            "src.dialogs.ai.generator_flows.explain_course",
             return_value="This course teaches food vocabulary.",
         ):
             with patch.object(

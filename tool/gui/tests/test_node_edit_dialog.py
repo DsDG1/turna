@@ -118,7 +118,7 @@ class TestNodeAiEditDialogEntry(NodeEditDialogTestCase):
         dlg = self._make()
         dlg.json_edit.setPlainText(json.dumps(_section("sec-1"), ensure_ascii=False))
         with patch(
-            "src.dialogs.ai_generator_dialog.view_section_diff"
+            "src.dialogs.ai.generator_flows.view_section_diff"
         ) as view_diff:
             dlg._on_view_diff()
         view_diff.assert_called_once()
