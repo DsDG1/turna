@@ -80,6 +80,14 @@ INSERT INTO anki_import_attempts (
         .toList();
   }
 
+  /// 该 source 当前未终态的 attempt 行（无则 null）。
+  OfficialAnkiAttemptRow? unfinishedBySource(String sourceId) {
+    for (final row in unfinished()) {
+      if (row.sourceId == sourceId) return row;
+    }
+    return null;
+  }
+
   void setPhase({
     required String attemptId,
     required String phase,

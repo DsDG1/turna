@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 from PySide6.QtCore import Qt, QPoint
@@ -30,9 +31,11 @@ from PySide6.QtWidgets import (
 from src.backend.ai_fixer import build_correction_prompt
 from src.backend.ai_generator import request_correction
 from src.dialogs.ai_error_analyzer import AiErrorAnalyzerDialog, offer_ai_analysis
-from src.dialogs.ai_generator_dialog import AiRequestWorker
+from src.dialogs.ai.worker import AiRequestWorker, safe_disconnect
 from src.infrastructure.telemetry import telemetry
 from src.theme import current_palette
+
+logger = logging.getLogger(__name__)
 
 
 class AiFixDialog(QDialog):
@@ -265,7 +268,7 @@ class AiFixDialog(QDialog):
                     changed_c = QColor(pal.get("warning", "#FF9F43"))
 
                     hint = QLabel("绿=新增  红=删除  黄=修改")
-                    hint.setStyleSheet(f"color: {pal.get('text_secondary', '#9CA3AF')}; font-size: 11px;")
+                    hint.setStyleSheet(f"color: {current_palette()['text_secondary']}; font-size: 11px;")
                     self.preview_lay.addWidget(hint)
 
                     tree = QTreeWidget()
@@ -361,18 +364,9 @@ class AiFixDialog(QDialog):
     def _disconnect_worker(self, worker: AiRequestWorker | None = None) -> None:
         w = worker or self._worker
         if w is not None:
-            try:
-                w.result_ready.disconnect(self._on_worker_result)
-            except Exception:
-                pass
-            try:
-                w.error_occurred.disconnect(self._on_worker_error)
-            except Exception:
-                pass
-            try:
-                w.completed.disconnect(self._on_worker_completed)
-            except Exception:
-                pass
+            safe_disconnect(w.result_ready, self._on_worker_result)
+            safe_disconnect(w.error_occurred, self._on_worker_error)
+            safe_disconnect(w.completed, self._on_worker_completed)
 
     def _on_worker_result(self, result: object) -> None:
         worker = getattr(self, "_worker", None)

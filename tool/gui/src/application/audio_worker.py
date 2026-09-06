@@ -1,8 +1,9 @@
-"""Background worker for TTS listening-audio generation.
+"""QThread shell for TTS listening-audio generation (application layer).
 
-Runs ``generate_audio_client.run_generate`` (a blocking subprocess) on a
-QThread and forwards per-file progress + a final summary to the UI thread via
-signals. Mirrors ``AiRequestWorker``'s ``_LIVE_WORKERS`` keepalive registry and
+Runs the pure-stdlib orchestration in
+``src.backend.generate_audio_client.run_tts_generation`` on a QThread and
+forwards per-file progress + a final summary to the UI thread via signals.
+Mirrors ``AiRequestWorker``'s ``_LIVE_WORKERS`` keepalive registry and
 cooperative ``cancel()`` pattern.
 """
 from __future__ import annotations
@@ -11,8 +12,6 @@ from PySide6.QtCore import QThread, Signal
 
 from src.backend import generate_audio_client
 from src.backend.generate_audio_client import TtsOptions
-import logging
-logger = logging.getLogger(__name__)
 
 
 class GenerateAudioWorker(QThread):
@@ -55,33 +54,14 @@ class GenerateAudioWorker(QThread):
         _LIVE_WORKERS.discard(self)
 
     def run(self) -> None:
-        done = 0
-        total = 0
-
-        def _on_line(line: str) -> None:
-            nonlocal done, total
-            stripped = line.strip()
-            if stripped.startswith("Generated "):
-                done += 1
-                self.progress.emit(done, total or -1)
-            elif stripped.startswith("{"):
-                import json
-
-                try:
-                    counts = json.loads(stripped)
-                    total = int(counts.get("total", total))
-                    self.progress.emit(done, total)
-                except ValueError:
-                    logger.debug("backend/generate_audio_worker.py:_on_line best-effort step failed", exc_info=True)
-
         try:
-            result = generate_audio_client.run_generate(
+            result = generate_audio_client.run_tts_generation(
                 self._course_dir,
                 self._sounds_dir,
                 self._opts,
                 self._api_key,
-                on_line=_on_line,
-                cancel_check=lambda: self._cancelled,
+                on_progress=lambda done, total: self.progress.emit(done, total),
+                is_cancelled=lambda: self._cancelled,
             )
         except Exception as exc:  # noqa: BLE001
             if not self._cancelled:

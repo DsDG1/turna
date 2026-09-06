@@ -15,7 +15,7 @@ if str(_GUI) not in sys.path:
 
 
 from src.application.settings import Settings  # noqa: E402
-from src.backend.ai_prompt_library import AiPromptLibrary  # noqa: E402
+from src.application.ai_prompt_library import AiPromptLibrary  # noqa: E402
 from src.dialogs.settings_dialog import SettingsDialog  # noqa: E402
 from tests._qtapp import _App  # noqa: E402
 

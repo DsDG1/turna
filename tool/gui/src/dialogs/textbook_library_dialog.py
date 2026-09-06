@@ -29,6 +29,7 @@ from PySide6.QtWidgets import (
 from src.backend.textbook_project import TextbookProject
 from src.backend.textbook_project_store import ProjectSummary, TextbookProjectStore
 from src.application.settings import course_clones_dir
+from src.dialogs.git_library.git_worker_hub import GitWorkerHub
 
 _STEP_LABELS = [
     "选择教材",
@@ -125,11 +126,20 @@ class TextbookLibraryDialog(QDialog):
 
         self._table.itemSelectionChanged.connect(self._update_button_state)
 
-        # --- async git worker plumbing (see _run_git_async) ---------------
-        self._git_worker = None
+        # --- async git worker plumbing (delegates to GitWorkerHub) --------
+        self.git_worker_hub = GitWorkerHub(self)
         self._git_busy_label = QLabel("")
         self._git_busy_label.setVisible(False)
         layout.addWidget(self._git_busy_label)
+
+    @property
+    def _git_worker(self) -> Any:
+        """Compat view of the hub's in-flight worker (tests poll it)."""
+        return self.git_worker_hub._worker
+
+    @_git_worker.setter
+    def _git_worker(self, val: Any) -> None:
+        self.git_worker_hub._worker = val
 
     def _set_git_busy(self, busy: bool, label: str = "") -> None:
         """Toggle the async-git busy state (disable git buttons + hint)."""
@@ -149,46 +159,13 @@ class TextbookLibraryDialog(QDialog):
         """Run a git/backend call in a background worker (main thread stays
         responsive during network clone/push).
 
-        Mirrors GitLibraryDialog._run_git_async: cancels/disconnects any
+        Delegates to the shared ``GitWorkerHub`` (cancels/disconnects any
         still-running previous worker, shows a busy hint, and delivers the
-        result (or error message) back on the UI thread.
+        result or error message back on the UI thread).
         """
-        from src.dialogs.ai.worker import AiRequestWorker
-
-        prev = getattr(self, "_git_worker", None)
-        if prev is not None:
-            try:
-                if prev.isRunning():
-                    prev.cancel()
-                for sig_name in ("result_ready", "error_occurred", "completed", "finished"):
-                    try:
-                        getattr(prev, sig_name).disconnect()
-                    except (TypeError, RuntimeError, AttributeError):
-                        logger.debug("dialogs/textbook_library_dialog.py:162 best-effort step failed", exc_info=True)
-            except Exception:  # noqa: BLE001 — defensive; never block new op
-                logger.debug("dialogs/textbook_library_dialog.py:164 best-effort step failed", exc_info=True)
-        self._set_git_busy(True, label)
-        worker = AiRequestWorker(fn, *args)
-
-        def _on_result(result) -> None:
-            if worker is not self._git_worker:
-                return
-            self._git_worker = None
-            self._set_git_busy(False)
-            if on_ok is not None:
-                on_ok(result)
-
-        def _on_error(message: str) -> None:
-            if worker is not self._git_worker:
-                return
-            self._git_worker = None
-            self._set_git_busy(False)
-            QMessageBox.critical(self, error_title, message)
-
-        worker.result_ready.connect(_on_result)
-        worker.error_occurred.connect(_on_error)
-        self._git_worker = worker
-        worker.start()
+        self.git_worker_hub.run_async(
+            label, fn, *args, on_ok=on_ok, error_title=error_title
+        )
 
     def _refresh_list(self) -> None:
         self._summaries = self._store.list_project_summaries()
@@ -384,7 +361,7 @@ class TextbookLibraryDialog(QDialog):
 
     def _on_import_from_git(self) -> None:
         """Clone a saved git remote and create a project from a textbook file within it."""
-        from src.backend import git_remote_catalog
+        from src.application import git_remote_catalog
         from src.backend.git_library import GitLibrary
 
         remotes = git_remote_catalog.load_remotes()
@@ -449,7 +426,7 @@ class TextbookLibraryDialog(QDialog):
         if summary is None:
             QMessageBox.information(self, "未选择项目", "请先选择一个项目。")
             return
-        from src.backend import git_remote_catalog
+        from src.application import git_remote_catalog
         from src.backend.git_library import GitLibrary
 
         remotes = git_remote_catalog.load_remotes()

@@ -20,7 +20,7 @@ from src.backend.ai_presets import (
     pricing_for_model,
     provider_names,
 )
-from src.backend.ai_prompt_library import (
+from src.application.ai_prompt_library import (
     AiPromptLibrary,
     AiPromptTemplate,
 )

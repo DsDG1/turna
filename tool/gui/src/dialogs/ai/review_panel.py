@@ -342,9 +342,9 @@ class ReviewPanel(QWidget):
                 btn.setEnabled(True)
                 # Soft color cue for low dimensions.
                 if score < 0.7:
-                    btn.setStyleSheet("color: #dc2626; font-weight: 600;")
+                    btn.setStyleSheet(f"color: {current_palette()['danger_hover']}; font-weight: 600;")
                 elif score < 0.85:
-                    btn.setStyleSheet("color: #d97706;")
+                    btn.setStyleSheet(f"color: {current_palette()['warning']};")
                 else:
                     btn.setStyleSheet("")
         line = (

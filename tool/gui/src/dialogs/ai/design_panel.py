@@ -37,7 +37,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from src.backend.ai_prompt_library import (
+from src.application.ai_prompt_library import (
     AiPromptHistory,
     AiPromptTemplate,
     prompt_library,
@@ -55,6 +55,7 @@ from src.dialogs.ai.chat_view import ChatView
 from src.dialogs.ai.design_controller import DesignController
 from src.dialogs.ai.prompt_template_bar import PromptTemplateBar
 from src.dialogs.ai.worker import AttachmentRecord
+from src.theme import current_palette
 from src.widgets.json_editor import JsonEditor
 
 _TEMPLATES = ("mixed", "intro", "practice", "review", "listening", "reading", "mastery")
@@ -675,19 +676,19 @@ class DesignPanel(QWidget):
             mark = _STEP_MARKS.get(status, "○")
             label.setText(f"{mark}{_STEP_LABELS.get(step, step)}")
             if status == STATUS_FAILED:
-                label.setStyleSheet("color: #dc2626; font-weight: 700;")
+                label.setStyleSheet(f"color: {current_palette()['danger_hover']}; font-weight: 700;")
                 label.setToolTip(f"{_STEP_LABELS.get(step, step)} 失败")
             elif status == STATUS_DONE:
-                label.setStyleSheet("color: #16a34a;")
+                label.setStyleSheet(f"color: {current_palette()['success']};")
                 label.setToolTip(f"{_STEP_LABELS.get(step, step)} 完成")
             elif status == STATUS_RUNNING:
-                label.setStyleSheet("color: #d97706; font-weight: 700;")
+                label.setStyleSheet(f"color: {current_palette()['warning']}; font-weight: 700;")
                 label.setToolTip(f"{_STEP_LABELS.get(step, step)} 进行中…")
             elif status == STATUS_SKIPPED:
-                label.setStyleSheet("color: gray;")
+                label.setStyleSheet(f"color: {current_palette()['text_disabled']};")
                 label.setToolTip(f"{_STEP_LABELS.get(step, step)} 已跳过")
             else:
-                label.setStyleSheet("color: gray;")
+                label.setStyleSheet(f"color: {current_palette()['text_disabled']};")
                 label.setToolTip(f"{_STEP_LABELS.get(step, step)} 等待")
 
     def _on_pipeline_step(self, statuses: dict[str, str]) -> None:

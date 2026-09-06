@@ -50,6 +50,10 @@ _BACKEND_UI = re.compile(
     rf"^\s*(?:from\s+src\.{_UI_MODULES}(?:\.|\s+import\s)|import\s+src\.{_UI_MODULES}\b)",
     re.MULTILINE,
 )
+_BACKEND_QT = re.compile(
+    r"^\s*(?:from\s+PySide6(?:\.\w+)*\s+import\s|import\s+PySide6\b)",
+    re.MULTILINE,
+)
 
 
 def _iter_py(root: Path):
@@ -147,6 +151,22 @@ def scan_backend_ui_imports() -> list[tuple[str, int, str]]:
             path.read_text(encoding="utf-8", errors="replace").splitlines(), 1
         ):
             if _BACKEND_UI.search(line):
+                rel = path.relative_to(_GUI_ROOT).as_posix()
+                hits.append((rel, n, line.strip()[:160]))
+    return hits
+
+
+def scan_backend_qt_imports() -> list[tuple[str, int, str]]:
+    """backend/ importing PySide6 directly (framework coupling, Qt-free rule)."""
+    hits: list[tuple[str, int, str]] = []
+    root = _SRC / "backend"
+    if not root.is_dir():
+        return hits
+    for path in _iter_py(root):
+        for n, line in enumerate(
+            path.read_text(encoding="utf-8", errors="replace").splitlines(), 1
+        ):
+            if _BACKEND_QT.search(line):
                 rel = path.relative_to(_GUI_ROOT).as_posix()
                 hits.append((rel, n, line.strip()[:160]))
     return hits
@@ -262,6 +282,11 @@ def main(argv: list[str] | None = None) -> int:
         help="Exit 1 if backend/ imports widgets/dialogs/teacher/theme/app",
     )
     parser.add_argument(
+        "--fail-backend-qt",
+        action="store_true",
+        help="Exit 1 if backend/ imports PySide6 (Qt-free backend rule)",
+    )
+    parser.add_argument(
         "--max-except-pass",
         type=int,
         default=None,
@@ -281,6 +306,7 @@ def main(argv: list[str] | None = None) -> int:
     dialogs_app = scan_dialogs_app_imports()
     backend_app = scan_lower_layer_app_imports()
     backend_ui = scan_backend_ui_imports()
+    backend_qt = scan_backend_qt_imports()
     except_pass = count_silent_except_pass()
     host_drift = scan_undeclared_host_access()
 
@@ -298,6 +324,9 @@ def main(argv: list[str] | None = None) -> int:
     print(f"backend → UI-layer imports: {len(backend_ui)}")
     for rel, n, snip in backend_ui:
         print(f"  BUI   {rel}:{n}: {snip}")
+    print(f"backend → PySide6 imports: {len(backend_qt)}")
+    for rel, n, snip in backend_qt:
+        print(f"  BQT   {rel}:{n}: {snip}")
     print(f"undeclared host._x accesses: {len(host_drift)}")
     for rel, n, snip in host_drift:
         print(f"  HOST  {rel}:{n}: {snip}")
@@ -308,6 +337,7 @@ def main(argv: list[str] | None = None) -> int:
     print(
         f"summary private={len(private)} dialogs_app={len(dialogs_app)} "
         f"backend_app={len(backend_app)} backend_ui={len(backend_ui)} "
+        f"backend_qt={len(backend_qt)} "
         f"host_drift={len(host_drift)} except_pass={except_pass}"
     )
 
@@ -319,6 +349,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.fail_backend_app and backend_app:
         rc = 1
     if args.fail_backend_ui and backend_ui:
+        rc = 1
+    if args.fail_backend_qt and backend_qt:
         rc = 1
     if args.fail_undeclared_host_access and host_drift:
         rc = 1

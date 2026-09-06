@@ -197,10 +197,10 @@ class GitAsyncTest(unittest.TestCase):
             remote.url = "https://example.com/r.git"
             remote.local_dir = str(clone_dir)
             with unittest.mock.patch(
-                "src.backend.git_remote_catalog.load_remotes",
+                "src.application.git_remote_catalog.load_remotes",
                 return_value=[remote],
             ), unittest.mock.patch(
-                "src.backend.git_remote_catalog.mark_synced",
+                "src.application.git_remote_catalog.mark_synced",
             ), unittest.mock.patch(
                 "src.backend.git_library.GitLibrary", return_value=fake_git
             ), unittest.mock.patch(

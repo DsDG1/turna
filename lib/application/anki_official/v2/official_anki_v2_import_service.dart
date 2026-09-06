@@ -158,13 +158,7 @@ class OfficialAnkiV2ImportService {
       );
     }
 
-    OfficialAnkiAttemptRow? attempt;
-    for (final row in attempts.unfinished()) {
-      if (row.sourceId == sourceId) {
-        attempt = row;
-        break;
-      }
-    }
+    final attempt = attempts.unfinishedBySource(sourceId);
     if (attempt == null) {
       throw const OfficialAnkiException(
         code: OfficialAnkiErrorCode.invalidState,

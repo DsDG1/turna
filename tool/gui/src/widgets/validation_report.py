@@ -126,7 +126,7 @@ class ValidationReportWidget(QWidget):
         self._problems = []
         self.list_widget.clear()
         self.title.setText("校验结果")
-        self.title.setStyleSheet("font-weight: 700; color: #FFFFFF;")
+        self.title.setStyleSheet(f"font-weight: 700; color: {current_palette()['text']};")
         self._hint.setVisible(False)
         self.ai_fix_btn.setEnabled(False)
 

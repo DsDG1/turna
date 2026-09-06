@@ -138,210 +138,19 @@ class Settings:
     @classmethod
     def load_from_qsettings(cls, qsettings: QSettings) -> "Settings":
         """Load a Settings instance from the supplied QSettings object."""
-        recent_raw = qsettings.value("recent_repos", "[]")
-        recent_repos: list[dict[str, Any]] = []
-        if isinstance(recent_raw, str):
-            try:
-                parsed = json.loads(recent_raw)
-                if isinstance(parsed, list):
-                    recent_repos = [
-                        item for item in parsed
-                        if isinstance(item, dict) and item.get("path")
-                    ]
-            except Exception:
-                recent_repos = []
-
-        # Read persisted AI config. The API key is intentionally memory-only;
-        # we do not load it from QSettings and actively remove any stale value
-        # left behind by earlier versions.
-        ai_base_url = _str_or_empty(qsettings.value("ai/base_url", ""))
-        ai_model = _str_or_empty(qsettings.value("ai/model", ""))
-        ai_provider = _str_or_default(qsettings.value("ai/provider", "custom"), "custom")
-        if ai_provider not in {"deepseek", "openai", "moonshot", "ollama", "custom"}:
-            ai_provider = "custom"
-        if qsettings.contains("ai/api_key"):
-            qsettings.remove("ai/api_key")
-
-        theme = _str_or_default(qsettings.value("appearance/theme", "dark"), "dark")
-        if theme not in {"dark", "light", "high-contrast-dark", "high-contrast-light"}:
-            theme = "dark"
-
-        scale = _int_or_default(qsettings.value("appearance/ui_scale_percent", 100), 100)
-        scale = max(80, min(150, scale))
-
-        auto_save = _bool_or_default(
-            qsettings.value("editor/auto_save_on_close", False), False
-        )
-        undo_limit = _int_or_default(qsettings.value("editor/undo_limit", 100), 100)
-        undo_limit = max(10, min(500, undo_limit))
-
-        ai_retry_max = _int_or_default(qsettings.value("ai/retry_max", 1), 1)
-        ai_retry_max = max(0, min(5, ai_retry_max))
-
-        ai_timeout = _float_or_default(qsettings.value("ai/timeout", 120.0), 120.0)
-        ai_timeout = max(5.0, min(600.0, ai_timeout))
-
-        ai_temperature = _float_or_default(qsettings.value("ai/temperature", 0.7), 0.7)
-        ai_temperature = max(0.0, min(2.0, ai_temperature))
-
-        ai_supports_reasoning = _bool_or_default(
-            qsettings.value("ai/supports_reasoning", False), False
-        )
-
-        # Advanced AI options (第三枪 批次①). All keys are tolerant of missing
-        # values so older installs upgrade cleanly.
-        ai_model_chat = _str_or_empty(qsettings.value("ai/model_chat", ""))
-        ai_model_json = _str_or_empty(qsettings.value("ai/model_json", ""))
-        ai_strict_schema = _str_or_default(
-            qsettings.value("ai/strict_schema", "auto"), "auto"
-        )
-        if ai_strict_schema not in {"auto", "on", "off"}:
-            ai_strict_schema = "auto"
-        ai_cache_enabled = _bool_or_default(
-            qsettings.value("ai/cache_enabled", False), False
-        )
-        ai_fill_needs_review = _bool_or_default(
-            qsettings.value("ai/fill_needs_review", False), False
-        )
-        ai_max_parallel_lessons = _int_or_default(
-            qsettings.value("ai/max_parallel_lessons", 1), 1
-        )
-        ai_max_parallel_lessons = max(1, min(8, ai_max_parallel_lessons))
-        ai_pipeline_default_mode = _str_or_default(
-            qsettings.value("ai/pipeline_default_mode", "fast"), "fast"
-        )
-        if ai_pipeline_default_mode not in {"fast", "refine"}:
-            ai_pipeline_default_mode = "fast"
-
-        # Git library configuration
-        git_clone_root = _str_or_empty(qsettings.value("git/clone_root", ""))
-        git_bin = _str_or_empty(qsettings.value("git/bin", ""))
-        default_lang_code = _str_or_empty(qsettings.value("git/default_lang", ""))
-        lan_default_port = _int_or_default(
-            qsettings.value("git/lan_port", 5000), 5000
-        )
-        lan_default_port = max(1, min(65535, lan_default_port))
-        lan_bind_address = _str_or_default(
-            qsettings.value("git/lan_bind", "0.0.0.0"), "0.0.0.0"
-        )
-        lan_token = _str_or_empty(qsettings.value("git/lan_token", ""))
-        git_timeout = _float_or_default(qsettings.value("git/timeout", 60.0), 60.0)
-        git_timeout = max(5.0, min(600.0, git_timeout))
-        assets_repo_root = _str_or_empty(qsettings.value("git/assets_root", ""))
-
-        # MiniMax TTS config. API key is memory-only (never loaded from disk);
-        # we actively remove any stale value like ai_api_key.
-        tts_voice_id = _str_or_default(qsettings.value("tts/voice_id", ""), "female-tianmei")
-        tts_voice_id = tts_voice_id or "female-tianmei"
-        tts_model = _str_or_default(qsettings.value("tts/model", ""), "speech-2.8-hd")
-        tts_model = tts_model or "speech-2.8-hd"
-        tts_speed = _float_or_default(qsettings.value("tts/speed", 0.9), 0.9)
-        tts_speed = max(0.5, min(2.0, tts_speed))
-        tts_force = _bool_or_default(qsettings.value("tts/force", False), False)
-        if qsettings.contains("tts/api_key"):
-            qsettings.remove("tts/api_key")
-
-        # External AI config file
-        ai_config_file_path = _str_or_empty(qsettings.value("ai/config_file_path", ""))
-        ai_config_file_autoload = _bool_or_default(
-            qsettings.value("ai/config_file_autoload", False), False
-        )
-        ai_config_file_autosave = _bool_or_default(
-            qsettings.value("ai/config_file_autosave", False), False
-        )
-
-        # Experience & Ambient AI settings
-        experience_mode = _str_or_default(qsettings.value("experience/mode", "copilot"), "copilot")
-        experience_allow_dangerous_skills = _bool_or_default(
-            qsettings.value("experience/allow_dangerous_skills", False), False
-        )
-        experience_goal_enabled = _bool_or_default(
-            qsettings.value("experience/goal_enabled", False), False
-        )
-        experience_goal_llm = _bool_or_default(
-            qsettings.value("experience/goal_llm", False), False
-        )
-        experience_daily_ai_budget = _int_or_default(
-            qsettings.value("experience/daily_ai_budget", 0), 0
-        )
-        experience_memory_persist_project = _bool_or_default(
-            qsettings.value("experience/memory_persist_project", False), False
-        )
-        experience_memory_persist_author = _bool_or_default(
-            qsettings.value("experience/memory_persist_author", False), False
-        )
-        experience_outline_shell = _bool_or_default(
-            qsettings.value("experience/outline_shell", False), False
-        )
-        experience_mute_json = _str_or_empty(qsettings.value("experience/mute_json", ""))
-        experience_immersive_full_auto = _bool_or_default(
-            qsettings.value("experience/immersive_full_auto", True), True
-        )
-        experience_immersive_opaque = _bool_or_default(
-            qsettings.value("experience/immersive_opaque", True), True
-        )
-        experience_soft_autopilot = _bool_or_default(
-            qsettings.value("experience/soft_autopilot", False), False
-        )
-        experience_sovereign_enabled = _bool_or_default(
-            qsettings.value("experience/sovereign_enabled", False), False
-        )
-        experience_llm_intent = _bool_or_default(
-            qsettings.value("experience/llm_intent", False), False
-        )
-
-        return cls(
-            theme=theme,
-            ui_scale_percent=scale,
-            ai_base_url=ai_base_url,
-            ai_api_key="",  # Memory-only: never restore from storage.
-            ai_model=ai_model,
-            ai_provider=ai_provider,
-            ai_retry_max=ai_retry_max,
-            ai_timeout=ai_timeout,
-            ai_temperature=ai_temperature,
-            ai_supports_reasoning=ai_supports_reasoning,
-            ai_model_chat=ai_model_chat,
-            ai_model_json=ai_model_json,
-            ai_strict_schema=ai_strict_schema,
-            ai_cache_enabled=ai_cache_enabled,
-            ai_fill_needs_review=ai_fill_needs_review,
-            ai_max_parallel_lessons=ai_max_parallel_lessons,
-            ai_pipeline_default_mode=ai_pipeline_default_mode,
-            auto_save_on_close=auto_save,
-            undo_limit=undo_limit,
-            recent_repos=recent_repos,
-            git_clone_root=git_clone_root,
-            git_bin=git_bin,
-            default_lang_code=default_lang_code,
-            lan_default_port=lan_default_port,
-            lan_bind_address=lan_bind_address,
-            lan_token=lan_token,
-            git_timeout=git_timeout,
-            assets_repo_root=assets_repo_root,
-            tts_voice_id=tts_voice_id,
-            tts_model=tts_model,
-            tts_speed=tts_speed,
-            tts_force=tts_force,
-            tts_api_key="",  # Memory-only: never restore from storage.
-            ai_config_file_path=ai_config_file_path,
-            ai_config_file_autoload=ai_config_file_autoload,
-            ai_config_file_autosave=ai_config_file_autosave,
-            experience_mode=experience_mode,
-            experience_allow_dangerous_skills=experience_allow_dangerous_skills,
-            experience_goal_enabled=experience_goal_enabled,
-            experience_goal_llm=experience_goal_llm,
-            experience_daily_ai_budget=experience_daily_ai_budget,
-            experience_memory_persist_project=experience_memory_persist_project,
-            experience_memory_persist_author=experience_memory_persist_author,
-            experience_outline_shell=experience_outline_shell,
-            experience_mute_json=experience_mute_json,
-            experience_immersive_full_auto=experience_immersive_full_auto,
-            experience_immersive_opaque=experience_immersive_opaque,
-            experience_soft_autopilot=experience_soft_autopilot,
-            experience_sovereign_enabled=experience_sovereign_enabled,
-            experience_llm_intent=experience_llm_intent,
-        )
+        data: dict[str, Any] = {}
+        for loader in (
+            _load_appearance_settings,
+            _load_recent_repo_settings,
+            _load_ai_settings,
+            _load_editor_settings,
+            _load_git_settings,
+            _load_tts_settings,
+            _load_ai_config_file_settings,
+            _load_experience_settings,
+        ):
+            data.update(loader(qsettings))
+        return cls(**data)
 
     def save_to_qsettings(self, qsettings: QSettings) -> None:
         """Persist this Settings instance to the supplied QSettings object."""
@@ -510,6 +319,192 @@ class Settings:
             experience_sovereign_enabled=self.experience_sovereign_enabled,
             experience_llm_intent=self.experience_llm_intent,
         )
+
+
+def _load_appearance_settings(qsettings: QSettings) -> dict[str, Any]:
+    theme = _str_or_default(qsettings.value("appearance/theme", "dark"), "dark")
+    if theme not in {"dark", "light", "high-contrast-dark", "high-contrast-light"}:
+        theme = "dark"
+    scale = _int_or_default(qsettings.value("appearance/ui_scale_percent", 100), 100)
+    scale = max(80, min(150, scale))
+    return {"theme": theme, "ui_scale_percent": scale}
+
+
+def _load_recent_repo_settings(qsettings: QSettings) -> dict[str, Any]:
+    recent_raw = qsettings.value("recent_repos", "[]")
+    recent_repos: list[dict[str, Any]] = []
+    if isinstance(recent_raw, str):
+        try:
+            parsed = json.loads(recent_raw)
+            if isinstance(parsed, list):
+                recent_repos = [
+                    item for item in parsed
+                    if isinstance(item, dict) and item.get("path")
+                ]
+        except Exception:
+            recent_repos = []
+    return {"recent_repos": recent_repos}
+
+
+def _load_ai_settings(qsettings: QSettings) -> dict[str, Any]:
+    # The API key is intentionally memory-only; we do not load it from
+    # QSettings and actively remove any stale value left behind by earlier
+    # versions.
+    if qsettings.contains("ai/api_key"):
+        qsettings.remove("ai/api_key")
+    ai_provider = _str_or_default(qsettings.value("ai/provider", "custom"), "custom")
+    if ai_provider not in {"deepseek", "openai", "moonshot", "ollama", "custom"}:
+        ai_provider = "custom"
+    ai_retry_max = _int_or_default(qsettings.value("ai/retry_max", 1), 1)
+    ai_retry_max = max(0, min(5, ai_retry_max))
+    ai_timeout = _float_or_default(qsettings.value("ai/timeout", 120.0), 120.0)
+    ai_timeout = max(5.0, min(600.0, ai_timeout))
+    ai_temperature = _float_or_default(qsettings.value("ai/temperature", 0.7), 0.7)
+    ai_temperature = max(0.0, min(2.0, ai_temperature))
+    # Advanced AI options (第三枪 批次①). All keys are tolerant of missing
+    # values so older installs upgrade cleanly.
+    ai_strict_schema = _str_or_default(
+        qsettings.value("ai/strict_schema", "auto"), "auto"
+    )
+    if ai_strict_schema not in {"auto", "on", "off"}:
+        ai_strict_schema = "auto"
+    ai_max_parallel_lessons = _int_or_default(
+        qsettings.value("ai/max_parallel_lessons", 1), 1
+    )
+    ai_max_parallel_lessons = max(1, min(8, ai_max_parallel_lessons))
+    ai_pipeline_default_mode = _str_or_default(
+        qsettings.value("ai/pipeline_default_mode", "fast"), "fast"
+    )
+    if ai_pipeline_default_mode not in {"fast", "refine"}:
+        ai_pipeline_default_mode = "fast"
+    return {
+        "ai_base_url": _str_or_empty(qsettings.value("ai/base_url", "")),
+        "ai_model": _str_or_empty(qsettings.value("ai/model", "")),
+        "ai_provider": ai_provider,
+        "ai_retry_max": ai_retry_max,
+        "ai_timeout": ai_timeout,
+        "ai_temperature": ai_temperature,
+        "ai_supports_reasoning": _bool_or_default(
+            qsettings.value("ai/supports_reasoning", False), False
+        ),
+        "ai_model_chat": _str_or_empty(qsettings.value("ai/model_chat", "")),
+        "ai_model_json": _str_or_empty(qsettings.value("ai/model_json", "")),
+        "ai_strict_schema": ai_strict_schema,
+        "ai_cache_enabled": _bool_or_default(
+            qsettings.value("ai/cache_enabled", False), False
+        ),
+        "ai_fill_needs_review": _bool_or_default(
+            qsettings.value("ai/fill_needs_review", False), False
+        ),
+        "ai_max_parallel_lessons": ai_max_parallel_lessons,
+        "ai_pipeline_default_mode": ai_pipeline_default_mode,
+    }
+
+
+def _load_editor_settings(qsettings: QSettings) -> dict[str, Any]:
+    undo_limit = _int_or_default(qsettings.value("editor/undo_limit", 100), 100)
+    undo_limit = max(10, min(500, undo_limit))
+    return {
+        "auto_save_on_close": _bool_or_default(
+            qsettings.value("editor/auto_save_on_close", False), False
+        ),
+        "undo_limit": undo_limit,
+    }
+
+
+def _load_git_settings(qsettings: QSettings) -> dict[str, Any]:
+    lan_default_port = _int_or_default(
+        qsettings.value("git/lan_port", 5000), 5000
+    )
+    lan_default_port = max(1, min(65535, lan_default_port))
+    git_timeout = _float_or_default(qsettings.value("git/timeout", 60.0), 60.0)
+    git_timeout = max(5.0, min(600.0, git_timeout))
+    return {
+        "git_clone_root": _str_or_empty(qsettings.value("git/clone_root", "")),
+        "git_bin": _str_or_empty(qsettings.value("git/bin", "")),
+        "default_lang_code": _str_or_empty(qsettings.value("git/default_lang", "")),
+        "lan_default_port": lan_default_port,
+        "lan_bind_address": _str_or_default(
+            qsettings.value("git/lan_bind", "0.0.0.0"), "0.0.0.0"
+        ),
+        "lan_token": _str_or_empty(qsettings.value("git/lan_token", "")),
+        "git_timeout": git_timeout,
+        "assets_repo_root": _str_or_empty(qsettings.value("git/assets_root", "")),
+    }
+
+
+def _load_tts_settings(qsettings: QSettings) -> dict[str, Any]:
+    # MiniMax TTS config. API key is memory-only (never loaded from disk);
+    # we actively remove any stale value like ai_api_key.
+    if qsettings.contains("tts/api_key"):
+        qsettings.remove("tts/api_key")
+    tts_voice_id = _str_or_default(qsettings.value("tts/voice_id", ""), "female-tianmei")
+    tts_model = _str_or_default(qsettings.value("tts/model", ""), "speech-2.8-hd")
+    tts_speed = _float_or_default(qsettings.value("tts/speed", 0.9), 0.9)
+    tts_speed = max(0.5, min(2.0, tts_speed))
+    return {
+        "tts_voice_id": tts_voice_id or "female-tianmei",
+        "tts_model": tts_model or "speech-2.8-hd",
+        "tts_speed": tts_speed,
+        "tts_force": _bool_or_default(qsettings.value("tts/force", False), False),
+    }
+
+
+def _load_ai_config_file_settings(qsettings: QSettings) -> dict[str, Any]:
+    return {
+        "ai_config_file_path": _str_or_empty(qsettings.value("ai/config_file_path", "")),
+        "ai_config_file_autoload": _bool_or_default(
+            qsettings.value("ai/config_file_autoload", False), False
+        ),
+        "ai_config_file_autosave": _bool_or_default(
+            qsettings.value("ai/config_file_autosave", False), False
+        ),
+    }
+
+
+def _load_experience_settings(qsettings: QSettings) -> dict[str, Any]:
+    return {
+        "experience_mode": _str_or_default(
+            qsettings.value("experience/mode", "copilot"), "copilot"
+        ),
+        "experience_allow_dangerous_skills": _bool_or_default(
+            qsettings.value("experience/allow_dangerous_skills", False), False
+        ),
+        "experience_goal_enabled": _bool_or_default(
+            qsettings.value("experience/goal_enabled", False), False
+        ),
+        "experience_goal_llm": _bool_or_default(
+            qsettings.value("experience/goal_llm", False), False
+        ),
+        "experience_daily_ai_budget": _int_or_default(
+            qsettings.value("experience/daily_ai_budget", 0), 0
+        ),
+        "experience_memory_persist_project": _bool_or_default(
+            qsettings.value("experience/memory_persist_project", False), False
+        ),
+        "experience_memory_persist_author": _bool_or_default(
+            qsettings.value("experience/memory_persist_author", False), False
+        ),
+        "experience_outline_shell": _bool_or_default(
+            qsettings.value("experience/outline_shell", False), False
+        ),
+        "experience_mute_json": _str_or_empty(qsettings.value("experience/mute_json", "")),
+        "experience_immersive_full_auto": _bool_or_default(
+            qsettings.value("experience/immersive_full_auto", True), True
+        ),
+        "experience_immersive_opaque": _bool_or_default(
+            qsettings.value("experience/immersive_opaque", True), True
+        ),
+        "experience_soft_autopilot": _bool_or_default(
+            qsettings.value("experience/soft_autopilot", False), False
+        ),
+        "experience_sovereign_enabled": _bool_or_default(
+            qsettings.value("experience/sovereign_enabled", False), False
+        ),
+        "experience_llm_intent": _bool_or_default(
+            qsettings.value("experience/llm_intent", False), False
+        ),
+    }
 
 
 def _str_or_empty(value: Any) -> str:

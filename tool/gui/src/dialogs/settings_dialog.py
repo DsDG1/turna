@@ -40,10 +40,10 @@ from PySide6.QtWidgets import (
 
 from src.application.settings import Settings, app_data_dir
 from src.backend import ai_presets
-from src.backend import credential_store
-from src.backend import git_remote_catalog
+from src.application import credential_store
+from src.application import git_remote_catalog
 from src.backend.ai_generator import verify_connection
-from src.backend.ai_prompt_library import AiPromptLibrary
+from src.application.ai_prompt_library import AiPromptLibrary
 from src.backend.knowledge_prompt import (
     KnowledgePromptTemplates,
     default_library,

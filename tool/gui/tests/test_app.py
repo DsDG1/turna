@@ -55,6 +55,8 @@ def _build_main_window() -> MainWindow:
 
 
 class CloseEventTest(unittest.TestCase):
+    """closeEvent delegates to close_controller (SavePipeline + headless guard)."""
+
     def setUp(self) -> None:
         _TestApp.get()
         self.win = _build_main_window()
@@ -76,46 +78,87 @@ class CloseEventTest(unittest.TestCase):
             mock_question.assert_not_called()
         self.assertTrue(event.isAccepted())
 
-    def test_dirty_save_accepts_close(self) -> None:
-        self.adapter.detect_changes.return_value = {"index": True}
-        self.adapter.save.return_value = SaveResult(ok=True)
+    def test_headless_dirty_discards_close(self) -> None:
+        """Offscreen CI must never hang on the save prompt: auto-discard."""
+        self.adapter.detect_changes.return_value = {"vocab": True}
         event = QCloseEvent()
-        with patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.Save):
+        with patch("src.application.save_host.execute_save") as ex:
             self.win.closeEvent(event)
-        self.adapter.save.assert_called_once()
+        ex.assert_not_called()
+        self.assertTrue(event.isAccepted())
+
+    def test_dirty_save_prompt_accepts_close(self) -> None:
+        self.adapter.detect_changes.return_value = {"index": True}
+        self.win._settings_obj.auto_save_on_close = False
+        event = QCloseEvent()
+        with patch(
+            "src.application.ui_guard.is_headless_ui", return_value=False
+        ), patch.object(
+            QMessageBox, "question", return_value=QMessageBox.StandardButton.Save
+        ), patch(
+            "src.application.save_host.execute_save"
+        ) as ex:
+            ex.return_value = MagicMock(ok=True, errors=[], message="")
+            self.win.closeEvent(event)
+        ex.assert_called_once()
         self.assertTrue(event.isAccepted())
 
     def test_dirty_discard_accepts_close(self) -> None:
         self.adapter.detect_changes.return_value = {"vocab": True}
         event = QCloseEvent()
-        with patch.object(
+        with patch(
+            "src.application.ui_guard.is_headless_ui", return_value=False
+        ), patch.object(
             QMessageBox, "question", return_value=QMessageBox.StandardButton.Discard
-        ):
+        ), patch("src.application.save_host.execute_save") as ex:
             self.win.closeEvent(event)
-        self.adapter.save.assert_not_called()
+        ex.assert_not_called()
         self.assertTrue(event.isAccepted())
 
     def test_dirty_cancel_ignores_close(self) -> None:
         self.adapter.detect_changes.return_value = {"sections": True}
         event = QCloseEvent()
-        with patch.object(
+        with patch(
+            "src.application.ui_guard.is_headless_ui", return_value=False
+        ), patch.object(
             QMessageBox, "question", return_value=QMessageBox.StandardButton.Cancel
-        ):
+        ), patch("src.application.save_host.execute_save") as ex:
             self.win.closeEvent(event)
-        self.adapter.save.assert_not_called()
+        ex.assert_not_called()
         self.assertFalse(event.isAccepted())
 
     def test_dirty_save_failure_ignores_close_and_warns(self) -> None:
         self.adapter.detect_changes.return_value = {"index": True}
-        self.adapter.save.return_value = SaveResult(
-            ok=False, errors=[{"level": "error", "message": "bad"}]
-        )
+        self.win._settings_obj.auto_save_on_close = False
         event = QCloseEvent()
-        with patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.Save):
-            with patch.object(QMessageBox, "warning") as mock_warning:
-                self.win.closeEvent(event)
+        with patch(
+            "src.application.ui_guard.is_headless_ui", return_value=False
+        ), patch.object(
+            QMessageBox, "question", return_value=QMessageBox.StandardButton.Save
+        ), patch(
+            "src.application.save_host.execute_save"
+        ) as ex, patch(
+            "src.application.ui_guard.safe_warning"
+        ) as mock_warning:
+            ex.return_value = MagicMock(
+                ok=False, errors=[{"level": "error", "message": "bad"}], message="bad"
+            )
+            self.win.closeEvent(event)
         self.assertFalse(event.isAccepted())
         mock_warning.assert_called_once()
+
+    def test_dirty_auto_save_accepts_close(self) -> None:
+        self.adapter.detect_changes.return_value = {"index": True}
+        self.win._settings_obj.auto_save_on_close = True
+        event = QCloseEvent()
+        with patch(
+            "src.application.save_host.execute_save"
+        ) as ex, patch.object(QMessageBox, "question") as mock_question:
+            ex.return_value = MagicMock(ok=True, errors=[], message="")
+            self.win.closeEvent(event)
+            mock_question.assert_not_called()
+        ex.assert_called_once()
+        self.assertTrue(event.isAccepted())
 
     def test_close_clears_api_key(self) -> None:
         self.adapter.detect_changes.return_value = {
@@ -353,14 +396,16 @@ class AutoSaveOnCloseTest(unittest.TestCase):
         win._settings_obj.auto_save_on_close = True
         adapter = MagicMock()
         adapter.detect_changes.return_value = {"index": True}
-        adapter.save.return_value = SaveResult(ok=True)
         win.adapter = adapter
 
         event = QCloseEvent()
-        with patch.object(QMessageBox, "question") as mock_question:
+        with patch.object(QMessageBox, "question") as mock_question, patch(
+            "src.application.save_host.execute_save"
+        ) as ex:
+            ex.return_value = MagicMock(ok=True, errors=[], message="")
             win.closeEvent(event)
             mock_question.assert_not_called()
-        adapter.save.assert_called_once()
+        ex.assert_called_once()
         self.assertTrue(event.isAccepted())
 
     def test_auto_save_failure_ignores_close(self) -> None:
@@ -369,15 +414,16 @@ class AutoSaveOnCloseTest(unittest.TestCase):
         win._settings_obj.auto_save_on_close = True
         adapter = MagicMock()
         adapter.detect_changes.return_value = {"index": True}
-        adapter.save.return_value = SaveResult(
-            ok=False, errors=[{"level": "error", "message": "bad"}]
-        )
         win.adapter = adapter
 
         event = QCloseEvent()
-        with patch.object(QMessageBox, "warning") as mock_warning:
+        with patch(
+            "src.application.save_host.execute_save"
+        ) as ex, patch("src.application.ui_guard.safe_warning") as mock_warning:
+            ex.return_value = MagicMock(
+                ok=False, errors=[{"level": "error", "message": "bad"}], message="bad"
+            )
             win.closeEvent(event)
-        adapter.save.assert_called_once()
         self.assertFalse(event.isAccepted())
         mock_warning.assert_called_once()
 
@@ -534,7 +580,7 @@ class AiEditConflictTest(unittest.TestCase):
         self.assertTrue(any(c[1] == "changed-by-ai" for c in conflicts))
 
     def _patch_dialog(self, new_section):
-        patcher = patch("src.dialogs.ai_generator_dialog.AiGeneratorDialog")
+        patcher = patch("src.dialogs.ai.node_edit_dialog.NodeAiEditDialog")
         mock = patcher.start()
         mock.return_value.exec.return_value = True
         mock.return_value.section_json.return_value = new_section
@@ -758,11 +804,13 @@ class WorkshopImportTargetTest(unittest.TestCase):
         try:
             with unittest.mock.patch.object(
                 QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes
-            ), unittest.mock.patch.object(
-                self.win, "_on_workshop_locate"
+            ), unittest.mock.patch(
+                "src.application.ui_guard.is_headless_ui", return_value=False
+            ), unittest.mock.patch(
+                "src.application.workshop_controller.on_workshop_locate"
             ) as locate:
                 self.win._offer_open_teacher_after_import(self.section["id"])
-                locate.assert_called_once_with(self.section["id"])
+                locate.assert_called_once_with(self.win, self.section["id"])
             self.assertTrue(self.win.teacher_mode)
         finally:
             self.win.hide()
@@ -866,7 +914,7 @@ class GenerateAudioTest(unittest.TestCase):
 
         # The method binds these via local imports, so patch the source modules.
         with patch(
-            "src.backend.generate_audio_worker.GenerateAudioWorker",
+            "src.application.audio_worker.GenerateAudioWorker",
             return_value=fake_worker,
         ), patch(
             "src.dialogs.generate_audio_dialog.GenerateAudioDialog",

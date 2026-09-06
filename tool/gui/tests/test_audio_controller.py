@@ -53,7 +53,7 @@ class TestAudioController(unittest.TestCase):
     @patch("src.backend.generate_audio_client.sounds_dir_for")
     @patch("src.backend.generate_audio_client.preview_generation")
     @patch("src.dialogs.generate_audio_dialog.GenerateAudioDialog")
-    @patch("src.backend.generate_audio_worker.GenerateAudioWorker")
+    @patch("src.application.audio_worker.GenerateAudioWorker")
     @patch("src.application.audio_controller.QMessageBox.information")
     def test_spawns_worker_and_completes(
         self, mock_info, mock_worker_cls, mock_dlg_cls, mock_preview, mock_sounds

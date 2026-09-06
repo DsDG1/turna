@@ -15,7 +15,6 @@ from typing import Any
 from PySide6.QtWidgets import QMessageBox
 
 from src.application.ui_guard import safe_warning
-from src.backend.experience.proactive import make_mute
 import logging
 logger = logging.getLogger(__name__)
 
@@ -149,318 +148,49 @@ class ExperienceSkillsMixin:
             logger.debug("application/experience_skills_mixin.py:_deny_ai_write_if_blocked best-effort step failed", exc_info=True)
         return True
     def _load_experience_mute_dict(self) -> dict:
-        import json
+        from src.application.ambient_controller import load_experience_mute_dict
+        return load_experience_mute_dict(self)
 
-        raw = getattr(self._settings_obj, "experience_mute_json", "") or ""
-        if not raw.strip():
-            return {}
-        try:
-            data = json.loads(raw)
-            return data if isinstance(data, dict) else {}
-        except json.JSONDecodeError:
-            return {}
     def _save_experience_mute(self) -> None:
-        import json
+        from src.application.ambient_controller import save_experience_mute
+        save_experience_mute(self)
 
-        self._settings_obj.experience_mute_json = json.dumps(
-            self._ambient_mute.to_dict(), ensure_ascii=False
-        )
-        self._settings_obj.save_to_qsettings(self._settings)
     def _load_defer_store(self):
-        """A3 ②: load DeferStore from ``experience_defer_json`` (never raises)."""
-        import json
+        from src.application.ambient_controller import load_defer_store
+        return load_defer_store(self)
 
-        from src.backend.experience.defer_store import DeferStore
-
-        raw = getattr(self._settings_obj, "experience_defer_json", "") or ""
-        if not raw.strip():
-            return DeferStore()
-        try:
-            data = json.loads(raw)
-            return DeferStore.from_dict(data if isinstance(data, dict) else {})
-        except (json.JSONDecodeError, ValueError):
-            return DeferStore()
     def _save_defer_store(self) -> None:
-        import json
+        from src.application.ambient_controller import save_defer_store
+        save_defer_store(self)
 
-        store = getattr(self, "_defer_store", None)
-        if store is None:
-            return
-        try:
-            self._settings_obj.experience_defer_json = json.dumps(
-                store.to_dict(), ensure_ascii=False
-            )
-            self._settings_obj.save_to_qsettings(self._settings)
-        except Exception:
-            logger.debug("application/experience_skills_mixin.py:_save_defer_store best-effort step failed", exc_info=True)
     def _refresh_ambient(self) -> None:
-        """E2.0 + A3 ①: evaluate up to 3 Ambient proposals (local, no LLM)."""
-        from src.backend.experience.proactive import evaluate_ambient_batch
+        from src.application.ambient_controller import refresh_ambient
+        refresh_ambient(self)
 
-        if not hasattr(self, "ambient_banner"):
-            return
-        from src.backend.experience import resolve_policy
-
-        policy = resolve_policy(getattr(self, "_settings_obj", None))
-        if policy.is_observer:
-            self.ambient_banner.clear()
-            return
-        ctx = self.experience.context
-        # A3 ② + P2: defer via policy effective flag (active bundle ORs setting).
-        defer_on = bool(getattr(policy, "allow_defer_resurface", False))
-        defer_store = self._defer_store if defer_on else None
-        props = evaluate_ambient_batch(
-            ctx,
-            mute=self._ambient_mute,
-            archived_ids=self._ambient_archived,
-            suggestions=self.experience.suggestions,
-            limit=3,
-            defer_store=defer_store,
-        )
-        # A3 ②: drop defers whose issue has resolved (best-effort, never raises).
-        if defer_store is not None:
-            try:
-                from src.backend.experience.proactive import proposal_id_for
-
-                current_ids = {
-                    proposal_id_for(str(s.get("action_id") or ""), dict(s.get("scope") or {}))
-                    for s in (self.experience.suggestions or [])
-                    if isinstance(s, dict) and s.get("action_id")
-                }
-                defer_store.purge_resolved(current_ids)
-            except Exception:
-                logger.debug("application/experience_skills_mixin.py:_refresh_ambient best-effort step failed", exc_info=True)
-        if not props:
-            self.ambient_banner.clear()
-        elif getattr(policy, "runtime_opaque", False):
-            # P4/F4: opaque — hide explanatory ambient text but still count
-            # evaluation (silent presence). Heartbeat must keep refreshing.
-            self.ambient_banner.clear()
-            self.experience_metrics.inc_ambient("shown")
-            try:
-                sb = getattr(self, "statusBar", None)
-                if callable(sb) and props:
-                    bar = sb()
-                    if bar is not None and hasattr(bar, "showMessage"):
-                        bar.showMessage("…", 800)
-            except Exception:
-                logger.debug("application/experience_skills_mixin.py:_refresh_ambient best-effort step failed", exc_info=True)
-        else:
-            self.ambient_banner.show_proposals(props)
-            self.experience_metrics.inc_ambient("shown")
-            # A3 ②: count resurfaced proposals separately (no-op when defer_store
-            # is None - no deferred_resurface source is produced).
-            for _p in props:
-                if getattr(_p, "source", "") == "deferred_resurface":
-                    self.experience_metrics.inc_ambient("resurfaced")
-        # F3: immersive full-auto silent drive of allowlisted ambient props.
-        try:
-            from src.application.presence_drive import maybe_silent_drive_proposals
-
-            if getattr(policy, "allow_full_auto_apply", False):
-                maybe_silent_drive_proposals(self, props, policy)
-        except Exception:
-            logger.debug("application/experience_skills_mixin.py:_refresh_ambient best-effort step failed", exc_info=True)
-        # P2: once-per-course campaign auto surface (writes still confirm).
-        try:
-            from src.application.presence_mode import maybe_auto_enqueue_campaign
-
-            maybe_auto_enqueue_campaign(self)
-        except Exception:
-            logger.debug("application/experience_skills_mixin.py:_refresh_ambient best-effort step failed", exc_info=True)
-        # P5: local precognition refresh (soft/empty/weak fingerprints).
-        try:
-            from src.backend.experience.precognition import (
-                get_or_create_precog,
-                refresh_local_precog,
-            )
-
-            if getattr(policy, "allow_full_auto_apply", False) or getattr(
-                policy, "is_active_bundle", False
-            ):
-                cache = get_or_create_precog(self)
-                ctx = self.experience.context
-                budget_ok = bool(getattr(policy, "allow_ai_skill", True))
-                refresh_local_precog(
-                    cache,
-                    adapter=getattr(self, "adapter", None),
-                    empty_lessons=list(getattr(ctx, "empty_lessons", None) or [])
-                    if ctx
-                    else [],
-                    quality_by_section=dict(
-                        getattr(ctx, "quality_by_section", None) or {}
-                    )
-                    if ctx
-                    else {},
-                    budget_ok=budget_ok,
-                )
-                # F3: after precog miss/hit, try soft/fill silent drive once.
-                if getattr(policy, "allow_full_auto_apply", False):
-                    try:
-                        from src.application.presence_drive import (
-                            maybe_silent_drive_precog,
-                        )
-
-                        maybe_silent_drive_precog(self, policy)
-                    except Exception:
-                        logger.debug("application/experience_skills_mixin.py:_refresh_ambient best-effort step failed", exc_info=True)
-        except Exception:
-            logger.debug("application/experience_skills_mixin.py:_refresh_ambient best-effort step failed", exc_info=True)
     def _on_ambient_heartbeat(self) -> None:
-        """A3 ③ + F4 + P2: re-evaluate only when AI is idle.
-
-        Interval is full ``HEARTBEAT_IDLE_INTERVAL_MS`` after each successful
-        tick **or** after AI jobs finish (timer restarts from idle moment).
-        While AI is busy the timer is stopped so the interval does not count.
-        """
-        if not hasattr(self, "ambient_banner") or self.course_dir is None:
-            return
-        from src.backend.experience import resolve_policy
-        from src.application.presence_drive import is_experience_ai_busy
-
-        policy = resolve_policy(getattr(self, "_settings_obj", None))
-        if policy.is_observer:
-            return
-        live = bool(getattr(policy, "allow_ambient_live", False))
-        defer = bool(getattr(policy, "allow_defer_resurface", False))
-        if not (live or defer):
-            return
-        try:
-            if hasattr(self, "isActiveWindow") and not self.isActiveWindow():
-                return
-        except Exception:
-            logger.debug("application/experience_skills_mixin.py:_on_ambient_heartbeat best-effort step failed", exc_info=True)
-        # P2: do not refresh/drive while AI is still answering.
-        if is_experience_ai_busy(self):
-            self._pause_ambient_heartbeat_until_idle()
-            return
-        if live and getattr(self.experience, "_content_stale", False):
-            self.experience.invalidate(immediate=False)
-        else:
-            self._refresh_ambient()
+        from src.application.ambient_controller import on_ambient_heartbeat
+        on_ambient_heartbeat(self)
 
     def _pause_ambient_heartbeat_until_idle(self) -> None:
-        """Stop interval clock; resume full interval when AI goes idle."""
-        try:
-            self._heartbeat_wait_idle = True
-            hb = getattr(self, "_ambient_heartbeat", None)
-            if hb is not None and hb.isActive():
-                hb.stop()
-        except Exception:
-            logger.debug("application/experience_skills_mixin.py:_pause_ambient_heartbeat_until_idle best-effort step failed", exc_info=True)
+        from src.application.ambient_controller import pause_heartbeat_until_idle
+        pause_heartbeat_until_idle(self)
 
     def _on_job_tray_ai_busy_changed(self, busy: bool) -> None:
-        """P2: AI job started → pause heartbeat; all done → start full interval."""
-        try:
-            self._presence_ai_busy = bool(busy)
-        except Exception:
-            logger.debug("application/experience_skills_mixin.py:_on_job_tray_ai_busy_changed best-effort step failed", exc_info=True)
-        if busy:
-            self._pause_ambient_heartbeat_until_idle()
-            return
-        # Became idle: start counting the full interval only now.
-        try:
-            hb = getattr(self, "_ambient_heartbeat", None)
-            if hb is None:
-                return
-            from src.backend.experience import resolve_policy
-            from src.application.presence_drive import HEARTBEAT_IDLE_INTERVAL_MS
+        from src.application.ambient_controller import on_job_tray_ai_busy_changed
+        on_job_tray_ai_busy_changed(self, busy)
 
-            policy = resolve_policy(getattr(self, "_settings_obj", None))
-            live = bool(getattr(policy, "allow_ambient_live", False))
-            defer = bool(getattr(policy, "allow_defer_resurface", False))
-            if policy.is_observer or not (live or defer):
-                return
-            if self.course_dir is None:
-                return
-            hb.setInterval(int(HEARTBEAT_IDLE_INTERVAL_MS))
-            if not hb.isActive():
-                hb.start()
-            self._heartbeat_wait_idle = False
-        except Exception:
-            logger.debug("application/experience_skills_mixin.py:_on_job_tray_ai_busy_changed best-effort step failed", exc_info=True)
     def _on_ambient_accepted(self, proposal) -> None:
-        from src.backend.experience.proactive import AmbientProposal
+        from src.application.ambient_controller import on_ambient_accepted
+        on_ambient_accepted(self, proposal)
 
-        if isinstance(proposal, AmbientProposal):
-            payload = {
-                "action_id": proposal.action_id,
-                "scope": dict(proposal.scope),
-                "title": proposal.title,
-            }
-            pid = proposal.id
-        else:
-            payload = {
-                "action_id": str(proposal.get("action_id") or ""),
-                "scope": dict(proposal.get("scope") or {}),
-                "title": str(proposal.get("title") or ""),
-            }
-            pid = str(proposal.get("id") or "")
-        if pid:
-            self._ambient_archived.add(pid)
-        # A3 ①: promote the next proposal instead of hiding the banner.
-        self._refresh_ambient()
-        self.experience_metrics.inc_ambient("accepted")
-        self._record_experience_event(
-            "ambient.accept",
-            payload.get("title") or payload["action_id"],
-            action_id=payload["action_id"],
-            scope=payload.get("scope"),
-        )
-        self._on_experience_suggestion(payload)
     def _on_ambient_archived(self, proposal_id: str) -> None:
-        pid = str(proposal_id or "")
-        if not pid:
-            return
-        from src.backend.experience import resolve_policy
+        from src.application.ambient_controller import on_ambient_archived
+        on_ambient_archived(self, proposal_id)
 
-        defer_on = bool(
-            getattr(
-                resolve_policy(getattr(self, "_settings_obj", None)),
-                "allow_defer_resurface",
-                False,
-            )
-        )
-        # Look up the proposal in the current queue to capture action_id.
-        prop = None
-        for p in self.ambient_banner.proposals():
-            if getattr(p, "id", "") == pid:
-                prop = p
-                break
-        if defer_on and prop is not None:
-            # A3 ②: defer with escalating cooldown (15->30->60min->permanent).
-            record = self._defer_store.add(
-                pid, getattr(prop, "action_id", "") or ""
-            )
-            if not record.re_surface_after_iso:
-                # Escalated to permanent -> session-level archive, no resurface.
-                self._ambient_archived.add(pid)
-                self.experience_metrics.inc_ambient("dismissed")
-            else:
-                self._save_defer_store()
-                self.experience_metrics.inc_ambient("deferred")
-        else:
-            # Legacy: session-only archive (no resurface).
-            self._ambient_archived.add(pid)
-            self.experience_metrics.inc_ambient("dismissed")
-        self.statusBar().showMessage("已归档本条主动建议", 3000)
-        self._refresh_ambient()
     def _on_ambient_mute_changed(self, level: str) -> None:
-        self._ambient_mute = make_mute(level)
-        self._save_experience_mute()
-        self.ambient_banner.clear()
-        self.experience_metrics.inc_ambient("muted")
-        labels = {
-            "hours4": "4 小时",
-            "today": "今日",
-            "permanent": "永久",
-        }
-        self.statusBar().showMessage(
-            f"主动建议已静音（{labels.get(level, level)}）", 5000
-        )
-        self._record_experience_event(
-            "ambient.mute", f"静音 {level}", action_id="app.mute"
-        )
+        from src.application.ambient_controller import on_ambient_mute_changed
+        on_ambient_mute_changed(self, level)
+
     def _on_experience_suggestion(self, suggestion: dict) -> None:
         """Dispatch Experience suggestions via the M4/M7 handler registry.
 

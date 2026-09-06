@@ -26,6 +26,7 @@ timeout/temperature/retry injection.
 """
 from __future__ import annotations
 
+import logging
 from typing import Any, Callable
 
 import copy
@@ -43,6 +44,8 @@ from src.backend.ai_generator import (
 from src.backend.ai_phased import request_course
 from src.backend.ai_pipeline import PipelineState, PipelineStep, run_pipeline
 from src.backend.textbook_to_course import _rewrite_ids_deterministic
+
+logger = logging.getLogger(__name__)
 
 #: Usage dict shape: {"prompt_tokens", "completion_tokens", "total_tokens"}.
 UsageDict = dict[str, int]
@@ -644,8 +647,10 @@ class DesignController:
             if sig is not None and hasattr(sig, "disconnect"):
                 try:
                     sig.disconnect(slot)
-                except Exception:
-                    pass
+                except (AttributeError, TypeError, RuntimeError):
+                    # Qt raises RuntimeError when the slot is not connected;
+                    # test doubles may raise the others.
+                    logger.debug("dialogs/ai/design_controller.py:_disconnect_worker safe skip", exc_info=True)
 
     def _on_worker_result_ready(self, result: Any) -> None:
         worker = self._worker

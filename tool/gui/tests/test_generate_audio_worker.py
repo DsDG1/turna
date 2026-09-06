@@ -12,7 +12,7 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.generate_audio_worker import GenerateAudioWorker  # noqa: E402
+from src.application.audio_worker import GenerateAudioWorker  # noqa: E402
 from src.backend.generate_audio_client import GenerateResult, TtsOptions  # noqa: E402
 
 
@@ -52,7 +52,7 @@ class GenerateAudioWorkerTest(unittest.TestCase):
             return GenerateResult(generated=2, skipped=1, total=3)
 
         with patch(
-            "src.backend.generate_audio_worker.generate_audio_client.run_generate",
+            "src.backend.generate_audio_client.run_generate",
             side_effect=fake_run,
         ):
             worker = GenerateAudioWorker(Path("/c"), Path("/s"), TtsOptions(), "k")
@@ -72,7 +72,7 @@ class GenerateAudioWorkerTest(unittest.TestCase):
             raise RuntimeError("boom")
 
         with patch(
-            "src.backend.generate_audio_worker.generate_audio_client.run_generate",
+            "src.backend.generate_audio_client.run_generate",
             side_effect=fake_run,
         ):
             worker = GenerateAudioWorker(Path("/c"), Path("/s"), TtsOptions(), "k")
@@ -91,7 +91,7 @@ class GenerateAudioWorkerTest(unittest.TestCase):
             return GenerateResult(generated=1, skipped=0, total=1)
 
         with patch(
-            "src.backend.generate_audio_worker.generate_audio_client.run_generate",
+            "src.backend.generate_audio_client.run_generate",
             side_effect=fake_run,
         ):
             worker = GenerateAudioWorker(Path("/c"), Path("/s"), TtsOptions(), "k")

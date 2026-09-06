@@ -226,3 +226,45 @@ def run_generate(
             f"generate_audio 退出码 {proc.returncode}：\n{stderr.strip() or '(无错误输出)'}"
         )
     return GenerateResult(generated=generated, skipped=skipped, total=total)
+
+
+def run_tts_generation(
+    course_dir: Path,
+    sounds_dir: Path,
+    opts: TtsOptions,
+    api_key: str,
+    *,
+    on_progress: Callable[[int, int], None],
+    is_cancelled: Callable[[], bool],
+) -> GenerateResult:
+    """Run the blocking TTS subprocess with parsed-line progress callbacks.
+
+    Pure-stdlib orchestration (no Qt): ``on_progress(files_done, total)``
+    fires per "Generated" line and on the total-count JSON line; ``total``
+    is ``-1`` until the subprocess reports it. Raises whatever
+    ``run_generate`` raises — the Qt shell in ``application/audio_worker``
+    decides how failures surface.
+    """
+    state = {"done": 0, "total": 0}
+
+    def _on_line(line: str) -> None:
+        stripped = line.strip()
+        if stripped.startswith("Generated "):
+            state["done"] += 1
+            on_progress(state["done"], state["total"] or -1)
+        elif stripped.startswith("{"):
+            try:
+                counts = json.loads(stripped)
+                state["total"] = int(counts.get("total", state["total"]))
+                on_progress(state["done"], state["total"])
+            except ValueError:
+                logger.debug("backend/generate_audio_client.py:run_tts_generation best-effort step failed", exc_info=True)
+
+    return run_generate(
+        course_dir,
+        sounds_dir,
+        opts,
+        api_key,
+        on_line=_on_line,
+        cancel_check=is_cancelled,
+    )

@@ -6,8 +6,8 @@ from unittest.mock import patch
 
 from PySide6.QtCore import QSettings
 
-from src.backend import git_remote_catalog
-from src.backend.git_remote_catalog import SavedRemote
+from src.application import git_remote_catalog
+from src.application.git_remote_catalog import SavedRemote
 
 
 class SavedRemoteDataclassTest(unittest.TestCase):
@@ -33,11 +33,11 @@ class RemoteCatalogCrudTest(unittest.TestCase):
         QSettings.setDefaultFormat(QSettings.Format.IniFormat)
         QSettings.setPath(QSettings.Format.IniFormat, QSettings.Scope.UserScope, "/tmp/opencode/test-remotes")
         # Start clean.
-        from src.backend import git_remote_catalog as grc
+        from src.application import git_remote_catalog as grc
         grc.save_remotes([])
 
     def tearDown(self) -> None:
-        from src.backend import git_remote_catalog as grc
+        from src.application import git_remote_catalog as grc
         grc.save_remotes([])
 
     def test_add_and_load(self) -> None:

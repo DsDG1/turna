@@ -22,7 +22,7 @@ class AudioController:
     def handle_generate_audio(self, window: Any) -> None:
         """Generate listening-lesson audio (MiniMax TTS) for the loaded course."""
         from src.backend import generate_audio_client
-        from src.backend.generate_audio_worker import GenerateAudioWorker
+        from src.application.audio_worker import GenerateAudioWorker
         from src.dialogs.generate_audio_dialog import GenerateAudioDialog
 
         course_dir = getattr(window, "course_dir", None)

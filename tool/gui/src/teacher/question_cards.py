@@ -36,6 +36,7 @@ from src.backend.course_adapter import CourseAdapter
 from src.backend.lesson_content import ALLOWED_RUNTIME_TYPES
 from src.backend.schema_constants import InteractionType, ItemKey
 from src.i18n.labels import field_label, interaction_label
+from src.theme import current_palette
 from src.widgets.option_models import build_options_model, select_by_id
 
 #: Media refs under this protocol resolve inside the app's Anki import dir,
@@ -501,7 +502,7 @@ class QuestionCard(QFrame):
 
         self._flip_label = QLabel("(点击下方按钮翻面)")
         self._flip_label.setWordWrap(True)
-        self._flip_label.setStyleSheet("padding: 6px; color: #9aa4b6;")
+        self._flip_label.setStyleSheet(f"padding: 6px; color: {current_palette()['text_disabled']};")
         layout.addWidget(self._flip_label)
 
         self._flip_btn = QPushButton("翻面（显示背面）")

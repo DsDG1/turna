@@ -715,9 +715,9 @@ class D28AmbientAcceptDispatchTest(unittest.TestCase):
         needs_confirm + Undo), never pushing a merge command itself."""
         import inspect
 
-        from src.application.experience_skills_mixin import ExperienceSkillsMixin
+        from src.application.ambient_controller import on_ambient_accepted
 
-        src = inspect.getsource(ExperienceSkillsMixin._on_ambient_accepted)
+        src = inspect.getsource(on_ambient_accepted)
         self.assertIn("_on_experience_suggestion", src)
         self.assertNotIn("MergeAiSectionCommand", src)
         self.assertNotIn("undo_stack.push", src)

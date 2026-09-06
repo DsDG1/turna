@@ -6,6 +6,7 @@ result / error / streaming-chunk / usage signals to the UI thread.
 """
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,6 +16,8 @@ from PySide6.QtCore import QThread, Signal
 from PySide6.QtWidgets import QWidget
 
 from src.backend.ai_generator import AiCancelled
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -155,3 +158,21 @@ def is_valid_http_url(url: str) -> bool:
 
 # Backwards-compat alias for the old private name.
 _is_valid_http_url = is_valid_http_url
+
+def safe_disconnect(sig: Any, slot: Any = None) -> bool:
+    """Disconnect a Qt signal, tolerating the "not connected" failure modes.
+
+    Qt raises ``RuntimeError`` when the slot is not connected; fake workers in
+    tests may raise ``AttributeError``/``TypeError`` instead. Returns True when
+    a connection was actually removed. Shared by the dialogs that manage their
+    own ``AiRequestWorker`` lifecycles (ai_fix_dialog, textbook_library_dialog).
+    """
+    try:
+        if slot is None:
+            sig.disconnect()
+        else:
+            sig.disconnect(slot)
+        return True
+    except (AttributeError, TypeError, RuntimeError):
+        logger.debug("dialogs/ai/worker.py:safe_disconnect safe skip", exc_info=True)
+        return False

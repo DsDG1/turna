@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
+from typing import Any
 
 from PySide6.QtCore import QEvent, QObject, Qt, QSettings, QTimer
 from PySide6.QtGui import QAction, QKeySequence, QUndoStack
@@ -247,7 +248,7 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
         """Load persisted extraction-prompt overrides into the default library."""
         try:
             from src.backend import knowledge_prompt
-            from src.backend.ai_prompt_library import AiPromptLibrary
+            from src.application.ai_prompt_library import AiPromptLibrary
 
             knowledge_prompt.load_overrides_from(AiPromptLibrary(self._settings))
         except Exception:
@@ -683,125 +684,44 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
             self._settings.setValue(key, True)
 
     def _on_workshop(self) -> None:
-        """Open the unified authoring workspace (connectplan Phase 2).
+        """Open the unified authoring workspace (connectplan Phase 2)."""
+        from src.application import workshop_controller
 
-        The workshop is the single entry for course authoring: textbook
-        import, grounded AI design, and from-scratch AI generation (blank
-        projects) all live inside it. Opening it restores the last project
-        at its persisted stage (随时中断、无限次恢复).
-        """
-        from src.dialogs.workshop_window import WorkshopWindow
-
-        telemetry.record_event("workshop.open")
-        self._show_beta_warning_once(
-            "workshop_beta_warning_shown",
-            "课程工坊",
-            "课程工坊：从教材到课程一站式创作，AI 生成结果请自行审核。\n\n"
-            "知识点提取与 AI 生成都可能消耗大量 token，建议模型支持 1M 上下文窗口。\n\n"
-            "点击「确定」继续。",
-        )
-
-        if self._workshop_window is None:
-            self._workshop_window = WorkshopWindow(self.adapter, self)
-            self._workshop_window.sections_ready.connect(self._on_textbook_sections)
-            self._workshop_window.locate_requested.connect(self._on_workshop_locate)
-            self._workshop_window.restore_last_session()
-        self._workshop_window.show()
-        self._workshop_window.raise_()
-        self._workshop_window.activateWindow()
+        workshop_controller.open_workshop(self)
 
     def _on_workshop_locate(self, section_id: str) -> None:
         """Reveal an imported section in the main course tree."""
-        self.showNormal()
-        self.raise_()
-        self.activateWindow()
-        self.tree.select_section(section_id)
+        from src.application import workshop_controller
+
+        workshop_controller.on_workshop_locate(self, section_id)
 
     def _on_overview(self) -> None:
         """Open the course structure overview window (workshop2 P4)."""
-        from src.widgets.course_overview import CourseOverviewWindow
+        from src.application import overview_controller
 
-        telemetry.record_event("overview.open")
-        if self._overview_window is None:
-            self._overview_window = CourseOverviewWindow(self.adapter, self)
-            self._overview_window.lesson_selected.connect(self._on_overview_lesson_selected)
-            self._overview_window.validation_requested.connect(self._on_overview_validation)
-            self._overview_window.destroyed.connect(self._on_overview_destroyed)
-        self._overview_window.refresh()
-        self._overview_window.show()
-        self._overview_window.raise_()
-        self._overview_window.activateWindow()
+        overview_controller.open_overview(self)
 
     def _on_overview_lesson_selected(self, lesson_id: str) -> None:
         """Locate a lesson clicked in the overview inside the main tree."""
-        self.showNormal()
-        self.raise_()
-        self.activateWindow()
-        self.tree.select_lesson(lesson_id)
+        from src.application import overview_controller
+
+        overview_controller.on_overview_lesson_selected(self, lesson_id)
 
     def _on_overview_validation(self, problems: list) -> None:
         """Open the existing validation report with problems from the overview."""
-        self._show_validation_report(problems, title="课程结构总览 - 校验结果")
+        from src.application import overview_controller
+
+        overview_controller.on_overview_validation(self, problems)
 
     def _on_overview_destroyed(self, *_args) -> None:
-        self._overview_window = None
+        from src.application import overview_controller
+
+        overview_controller.on_overview_destroyed(self, *_args)
 
     def _on_textbook_sections(self, sections: list, strategy: str) -> None:
-        if not self.course_dir:
-            QMessageBox.warning(self, "未加载课程目录", "请先打开课程目录。")
-            return
-        # Workshop "import into existing section/unit" modes (encoded in the
-        # strategy string by ImportTargetDialog).
-        if strategy.startswith("into_section:"):
-            self._import_draft_into_section(sections[0], strategy.split(":", 1)[1])
-            return
-        if strategy.startswith("into_unit:"):
-            self._import_draft_into_unit(sections[0], strategy.split(":", 1)[1])
-            return
-        results, counts = self._import_service.import_bulk(sections, strategy=strategy)
-        successful = [
-            (
-                (r.details or {}).get("source_id", ""),
-                (r.details or {}).get("section_id", ""),
-            )
-            for r in results
-            if (r.details or {}).get("outcome") in ("imported", "merged", "replaced")
-        ]
-        summary = (
-            f"导入完成：新增 {counts['imported']} 个，"
-            f"合并 {counts['merged']} 个，"
-            f"覆盖 {counts['replaced']} 个，"
-            f"跳过 {counts['skipped']} 个，"
-            f"失败 {counts['blocked']} 个。"
-        )
-        # Record the import back into the workshop's current project so the
-        # library can show 已导入 (connectplan P0-2); import_map tracks where
-        # each source id actually landed (P1-1). merge_from() preserves both
-        # fields, so later autosaves cannot clobber them.
-        project = (
-            self._workshop_window.current_project()
-            if self._workshop_window is not None
-            else None
-        )
-        if project is not None and successful:
-            from src.backend.textbook_project_store import record_imported_sections
+        from src.application import workshop_controller
 
-            added = record_imported_sections(
-                project,
-                [final for _, final in successful],
-                id_pairs=[(src, final) for src, final in successful if src],
-            )
-            if added:
-                summary += "\n项目已记录导入状态。"
-        if successful:
-            self._last_imported_section_id = successful[-1][1]
-            if self._workshop_window is not None:
-                self._workshop_window.on_import_finished(
-                    self._last_imported_section_id
-                )
-        QMessageBox.information(self, "导入教材", summary)
-        if successful:
-            self._offer_open_teacher_after_import(self._last_imported_section_id)
+        workshop_controller.on_textbook_sections(self, sections, strategy)
 
     def _offer_open_teacher_after_import(self, section_id: str | None) -> None:
         """After workshop import, optionally switch to teacher mode and locate.
@@ -809,144 +729,27 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
         Skips the modal prompt when the main window is not visible (unit tests /
         headless automation) so batch imports never hang on QMessageBox.
         """
-        if not section_id:
-            return
-        if not self.isVisible():
-            return
-        reply = QMessageBox.question(
-            self,
-            "导入完成",
-            "要切换到教师模式并在课程树中定位该章节吗？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.Yes,
-        )
-        if reply != QMessageBox.StandardButton.Yes:
-            return
-        if not self.teacher_mode:
-            self.mode_action.setChecked(True)
-            # toggled signal may already fire; ensure mode is applied
-            if not self.teacher_mode:
-                self._on_mode_toggled(True)
-        self._on_workshop_locate(section_id)
-        # Prefer first lesson under the section for teacher surface.
-        try:
-            section = self.adapter.find_section(section_id)
-        except Exception:
-            return
-        for unit in section.get("units") or []:
-            for lesson in unit.get("lessons") or []:
-                lid = lesson.get("id")
-                if lid:
-                    self.tree.select_lesson(lid)
-                    return
+        from src.application import workshop_controller
+
+        workshop_controller.offer_open_teacher_after_import(self, section_id)
 
     def _import_draft_into_section(self, draft: dict, section_id: str) -> None:
-        """Append the draft's units into an existing section as new units.
+        """Append the draft's units into an existing section as new units."""
+        from src.application import workshop_controller
 
-        Each unit is cloned with fresh ids (unit id + every lesson's structural
-        ids) so it cannot collide with the existing course. The draft's
-        top-level resources are merged (and rolled back on undo) so lesson
-        references resolve.
-        """
-        from src.backend.lesson_content import clone_unit_with_fresh_ids
-
-        try:
-            section = self.adapter.find_section(section_id)
-        except KeyError:
-            QMessageBox.warning(self, "找不到目标", f"目标 Section「{section_id}」不存在。")
-            return
-        units = [u for u in draft.get("units") or [] if isinstance(u, dict)]
-        if not units:
-            QMessageBox.information(self, "无可导入内容", "草稿中没有 Unit。")
-            return
-        fresh_units = [
-            clone_unit_with_fresh_ids(u, name=u.get("name", "新 Unit")) for u in units
-        ]
-        cmd = AppendUnitsToSectionCommand(
-            self.adapter, section_id, fresh_units, resource_section=draft
-        )
-        cmd.signals.changed.connect(self._on_ai_edit_applied)
-        self.undo_stack.push(cmd)
-        self.tree.refresh_incremental()
-        self.adapter.notify_resources_changed()
-        self.statusBar().showMessage(
-            f"已把 {len(fresh_units)} 个 Unit 追加到「{section.get('name', section_id)}」，记得保存",
-            8000,
-        )
-        self._record_draft_import(draft, section_id)
-        if self._workshop_window is not None:
-            self._workshop_window.on_import_finished(section_id)
-        self._offer_open_teacher_after_import(section_id)
+        workshop_controller.import_draft_into_section(self, draft, section_id)
 
     def _record_draft_import(self, draft: dict, section_id: str | None) -> None:
-        """Persist a workshop draft-import back into the project so the
-        workshop's 已导入 checklist mark and locate button survive a close +
-        reopen (mirrors the bulk-import path in _on_textbook_sections)."""
-        if not section_id:
-            return
-        project = (
-            self._workshop_window.current_project()
-            if self._workshop_window is not None
-            else None
-        )
-        if project is None:
-            return
-        from src.backend.textbook_project_store import record_imported_sections
+        """Persist a workshop draft-import back into the project."""
+        from src.application import workshop_controller
 
-        source_id = draft.get("id", "") if isinstance(draft, dict) else ""
-        record_imported_sections(
-            project,
-            [section_id],
-            id_pairs=[(source_id, section_id)] if source_id else None,
-        )
+        workshop_controller.record_draft_import(self, draft, section_id)
 
     def _import_draft_into_unit(self, draft: dict, unit_id: str) -> None:
-        """Append the draft's lessons into an existing unit as new lessons.
+        """Append the draft's lessons into an existing unit as new lessons."""
+        from src.application import workshop_controller
 
-        Each lesson is cloned with fresh ids so it cannot collide with the
-        existing course. The draft's top-level resources are merged (and
-        rolled back on undo) so lesson references resolve.
-        """
-        from src.backend.lesson_content import clone_lesson_with_fresh_ids
-
-        try:
-            _s, unit = self.adapter.find_unit(unit_id)
-        except KeyError:
-            QMessageBox.warning(self, "找不到目标", f"目标 Unit「{unit_id}」不存在。")
-            return
-        lessons = [
-            lesson
-            for u in draft.get("units") or []
-            if isinstance(u, dict)
-            for lesson in u.get("lessons") or []
-            if isinstance(lesson, dict)
-        ]
-        if not lessons:
-            QMessageBox.information(self, "无可导入内容", "草稿中没有 Lesson。")
-            return
-        fresh_lessons = [
-            clone_lesson_with_fresh_ids(lesson, name=lesson.get("name", "新 Lesson"))
-            for lesson in lessons
-        ]
-        for lesson in fresh_lessons:
-            lesson["prerequisiteLessonIds"] = []
-        cmd = AppendLessonsToUnitCommand(
-            self.adapter, unit_id, fresh_lessons, resource_section=draft
-        )
-        cmd.signals.changed.connect(self._on_ai_edit_applied)
-        self.undo_stack.push(cmd)
-        self.tree.refresh_incremental()
-        self.adapter.notify_resources_changed()
-        self.statusBar().showMessage(
-            f"已把 {len(fresh_lessons)} 个 Lesson 追加到「{unit.get('name', unit_id)}」，记得保存",
-            8000,
-        )
-        section_id = _s.get("id") if isinstance(_s, dict) else None
-        self._record_draft_import(draft, section_id)
-        if section_id and self._workshop_window is not None:
-            self._workshop_window.on_import_finished(section_id)
-        if section_id:
-            self._offer_open_teacher_after_import(section_id)
+        workshop_controller.import_draft_into_unit(self, draft, unit_id)
 
     def _validate_node(self, kind: str, node_json: dict, *, check_existing_ids: bool = True) -> list[dict]:
         """Validate a section/unit/lesson node by wrapping it in a temp section."""
@@ -1044,66 +847,20 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
         if self._overview_window is not None and self._overview_window.isVisible():
             self._overview_window.refresh()
 
-    def _on_resources(self) -> None:
-        telemetry.record_event("resources.open", payload={"teacher_mode": self.teacher_mode})
-        if self.teacher_mode:
-            from PySide6.QtWidgets import QDialog, QDialogButtonBox
+    def _on_resources(self, initial_filter: str = "") -> None:
+        from src.application import resources_controller
 
-            from src.teacher.vocab_table import VocabTableWidget
-
-            dlg = QDialog(self)
-            dlg.setWindowTitle("词库")
-            dlg.resize(760, 520)
-            table = VocabTableWidget(self.adapter, dlg)
-            buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
-            buttons.rejected.connect(dlg.reject)
-            layout = QVBoxLayout(dlg)
-            layout.addWidget(table)
-            layout.addWidget(buttons)
-            dlg.exec()
-            if table.is_dirty():
-                self.statusBar().showMessage("词库已修改，记得保存", 5000)
-            return
-        from PySide6.QtWidgets import QDialog, QDialogButtonBox
-
-        from src.widgets.resource_editor import ResourceEditorDialog
-
-        dlg = QDialog(self)
-        dlg.setWindowTitle("资源编辑")
-        dlg.resize(900, 560)
-        editor = ResourceEditorDialog(self.adapter, dlg)
-        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
-        buttons.rejected.connect(dlg.reject)
-        layout = QVBoxLayout(dlg)
-        layout.addWidget(editor)
-        layout.addWidget(buttons)
-        dlg.exec()
-
-        if editor.is_dirty():
-            self.statusBar().showMessage("资源已修改，记得保存", 5000)
+        resources_controller.open_resources(self, initial_filter=initial_filter)
 
     def _on_git_library(self) -> None:
-        from src.dialogs.git_library_dialog import GitLibraryDialog
+        from src.application import resources_controller
 
-        telemetry.record_event("git_library.open")
-        dlg = GitLibraryDialog(self.adapter, self, settings=self._settings_obj)
-        dlg.open_requested.connect(self._open_repo_path)
-        dlg.exec()
-        # After the dialog closes, if a clone dir was opened, reflect it.
-        clone = dlg.clone_dir()
-        if clone is not None and self.course_dir == clone:
-            self.statusBar().showMessage(f"已从 Git 资源库加载: {clone}", 5000)
+        resources_controller.open_git_library(self)
 
     def _on_publish(self) -> None:
-        from src.widgets.publish_dialog import PublishDialog
+        from src.application import resources_controller
 
-        telemetry.record_event("publish.open", payload={"teacher_mode": self.teacher_mode})
-        dlg = PublishDialog(self.adapter, self, teacher_friendly=self.teacher_mode)
-        if dlg.exec():
-            self.tree.refresh()
-            if not self.teacher_mode and self._current_node_ref is not None:
-                self.detail.show_node(self.adapter, self._current_node_ref)
-            self.statusBar().showMessage("发布成功", 5000)
+        resources_controller.open_publish(self)
 
     def _on_generate_audio(self) -> None:
         """Generate listening-lesson audio (MiniMax TTS) for the loaded course."""
@@ -1168,27 +925,9 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
         self, problems: list[dict], title: str = "校验结果"
     ) -> None:
         """Show a non-modal validation report panel with double-click-to-jump."""
-        from PySide6.QtWidgets import QDialog, QDialogButtonBox, QVBoxLayout
+        from src.application import validation_controller
 
-        from src.widgets.validation_report import ValidationReportWidget
-
-        dlg = QDialog(self)
-        dlg.setWindowTitle(title)
-        dlg.resize(640, 420)
-        report = ValidationReportWidget(self.adapter, dlg)
-        report.show_problems(problems)
-        report.jump_to.connect(self._jump_to_node)
-        # Single-select uses legacy signal; multi-select uses batch (widget
-        # emits exactly one of the two per click).
-        report.ai_fix_requested.connect(self._on_ai_fix_requested)
-        report.ai_batch_fix_requested.connect(self._on_ai_batch_fix_requested)
-        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
-        buttons.rejected.connect(dlg.reject)
-        layout = QVBoxLayout(dlg)
-        layout.addWidget(report)
-        layout.addWidget(buttons)
-        dlg.setModal(False)
-        dlg.show()
+        validation_controller.show_validation_report(self, problems, title=title)
 
     def _on_ai_fix_requested(
         self, problem: dict[str, Any], node_ref: tuple[str, str] | None
@@ -1223,100 +962,20 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
         )
 
     def _jump_to_node(self, node_ref: tuple[str, str]) -> None:
-        kind, node_id = node_ref
-        if kind == "lesson":
-            self.tree.select_lesson(node_id)
-        elif kind == "section":
-            self.tree.select_section(node_id)
-        elif kind == "unit":
-            self.tree.select_unit(node_id)
+        from src.application import validation_controller
+
+        validation_controller.jump_to_node(self, node_ref)
 
     def _clear_ai_key_on_exit(self) -> None:
-        """Wipe the API key from memory and storage when the window closes.
+        """Wipe the API key from memory and storage when the window closes."""
+        from src.application import close_controller
 
-        Base URL and model are preserved for the next session, but the API key
-        is intentionally ephemeral.
-        """
-        self._ai_config.api_key = ""
-        self._settings_obj.ai_api_key = ""
-        self._settings_obj.save_to_qsettings(self._settings)
+        close_controller.clear_ai_key_on_exit(self)
 
     def closeEvent(self, event) -> None:  # noqa: N802
-        telemetry.record_event("app.close_requested")
-        # Wait out an in-flight background save so the save thread never
-        # races shutdown (equivalent to the old synchronous save on close).
-        save_worker = getattr(self, "_save_worker", None)
-        if save_worker is not None and save_worker.isRunning():
-            save_worker.wait()
-        if self.course_dir and self.adapter and any(self.adapter.detect_changes().values()):
-            if self._settings_obj.auto_save_on_close:
-                result = self.adapter.save()
-                if result.ok:
-                    telemetry.record_event("app.close_saved")
-                    event.accept()
-                else:
-                    event.ignore()
-                    detail_text = "\n".join(
-                        f"[{e.get('level', 'error')}] {e.get('message', '')}"
-                        for e in result.errors
-                    )
-                    QMessageBox.warning(
-                        self,
-                        "自动保存失败（窗口未关闭）",
-                        detail_text or result.message or "未知错误",
-                    )
-                # Fall through to the shared teardown below on success.
+        from src.application import close_controller
 
-            else:
-                reply = QMessageBox.question(
-                    self,
-                    "未保存的更改",
-                    "当前课程有未保存的更改，是否保存？",
-                    (
-                        QMessageBox.StandardButton.Save
-                        | QMessageBox.StandardButton.Discard
-                        | QMessageBox.StandardButton.Cancel
-                    ),
-                    QMessageBox.StandardButton.Save,
-                )
-                if reply == QMessageBox.StandardButton.Save:
-                    result = self.adapter.save()
-                    if result.ok:
-                        telemetry.record_event("app.close_saved")
-                        event.accept()
-                    else:
-                        event.ignore()
-                        detail_text = "\n".join(
-                            f"[{e.get('level', 'error')}] {e.get('message', '')}"
-                            for e in result.errors
-                        )
-                        QMessageBox.warning(
-                            self,
-                            "保存失败（窗口未关闭）",
-                            detail_text or result.message or "未知错误",
-                        )
-                elif reply == QMessageBox.StandardButton.Discard:
-                    telemetry.record_event("app.close_discarded")
-                    event.accept()
-                else:
-                    telemetry.record_event("app.close_cancelled")
-                    event.ignore()
-        else:
-            event.accept()
-
-        if event.isAccepted():
-            # Persist and tear down the workshop so no authoring state is
-            # lost and the window does not dangle (随时中断、无限次恢复).
-            if self._workshop_window is not None:
-                self._workshop_window.interrupt_and_save()
-                self._workshop_window.close()
-                self._workshop_window = None
-            if self._overview_window is not None:
-                self._overview_window.close()
-                self._overview_window = None
-            runtime_context.clear_providers(self)
-            self._clear_ai_key_on_exit()
-            self._record_window_duration()
+        close_controller.handle_close_event(self, event)
 
     def _record_window_duration(
         self, name: str = "MainWindow", duration_s: float | None = None, **payload
@@ -1340,15 +999,6 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
                 operations.record_action("window.close", name)
         except Exception:
             logger.debug("app.py:_record_window_duration best-effort step failed", exc_info=True)
-
-    def _on_undo_index_changed(self, _idx: int) -> None:
-        self._undo_detail_timer.start()
-
-    def _flush_undo_detail_refresh(self) -> None:
-        self._undo_detail_timer.stop()
-        if self._current_node_ref and self.adapter:
-            if hasattr(self, "detail") and self.detail is not None:
-                self.detail.show_node(self.adapter, self._current_node_ref)
 
     def _on_job_activated(self, job_id: str) -> None:
         if not hasattr(self, "job_tray") or self.job_tray is None:

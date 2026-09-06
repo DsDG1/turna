@@ -148,5 +148,55 @@ class TestCourseSectionMergeService(unittest.TestCase):
         self.assertEqual(len(added_lessons), 1)
 
 
+    def test_validate_section_json_unit_id_duplicates(self):
+        adapter = DummyAdapter()
+        section = {
+            "id": "s2",
+            "name": "S",
+            "units": [
+                {"id": "u1", "lessons": []},  # collides with existing u1
+                {"id": "u1", "lessons": []},  # and is a local duplicate
+                {"id": "", "lessons": []},  # empty id
+            ],
+        }
+        problems = CourseSectionMergeService.validate_section_json(adapter, section)
+        dup = [p for p in problems if p["path"] == "unit:u1"]
+        self.assertEqual(len(dup), 2)  # existing-collision + local duplicate
+        self.assertTrue(any(p["path"] == "units" and "unit id" in p["message"] for p in problems))
+
+    def test_validate_section_json_check_existing_ids_flag(self):
+        adapter = DummyAdapter()
+        section = {"id": "s1", "name": "S", "units": [{"id": "u1", "lessons": []}]}
+        # Default: reusing the existing section/unit ids is flagged.
+        strict = CourseSectionMergeService.validate_section_json(adapter, section)
+        self.assertTrue(any("已存在" in p["message"] for p in strict))
+        # Merge paths pass check_existing_ids=False: existing ids are reused
+        # on purpose and only local duplicates remain errors.
+        merged = CourseSectionMergeService.validate_section_json(
+            adapter, section, check_existing_ids=False
+        )
+        self.assertFalse(any("已存在" in p["message"] for p in merged))
+
+    def test_validate_section_json_unit_limit(self):
+        from src.backend import api
+
+        adapter = DummyAdapter()
+        section = {
+            "id": "s2",
+            "name": "S",
+            "units": [
+                {"id": f"u{i}", "lessons": []}
+                for i in range(api.MAX_UNITS_PER_SECTION + 1)
+            ],
+        }
+        problems = CourseSectionMergeService.validate_section_json(adapter, section)
+        self.assertTrue(
+            any(
+                p["path"] == "units" and "超过上限" in p["message"]
+                for p in problems
+            )
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -50,8 +50,9 @@
 
 ## 1f. 节点 AI 编辑（M5）+ 遗留对话框（M8）
 
-- **生产路径**：树 AI 编辑 → `experience_handlers.edit.handle_node_edit` → `MainWindow._on_ai_edit`（M7 分发注册表；原 `dialogs/ai/node_edit_dialog` 无引用已移除）
-- **底层**：`generate_edit` / `regenerate_*_in_section`
+- **生产路径**：树 AI 编辑 → `experience_handlers.edit.handle_node_edit` → `MainWindow._on_ai_edit` → `AiEditController.handle_ai_edit` → **`NodeAiEditDialog`**（`dialogs/ai/node_edit_dialog.py`，2026-09 收口；构造签名 `scope/scope_id/existing_section`）
+- **共享引擎**：`ai_generator_dialog.SectionAiDialog` 承载 normal/wish 生成与 edit_mode 引擎的唯一实现；`AiGeneratorDialog` 是其上的工坊生成专用壳（LEGACY 名称保留），公开签名**不再接受** `edit_mode`
+- **底层**：`generate_edit` / `regenerate_*_in_section`（经 `GeneratorWorkerHub.make_edit_worker`）
 - **LEGACY**：`AiGeneratorDialog`（文件头标注）— 工坊生成 UI + 测试；**禁止**再扩 edit_mode
 
 ## 2. 包布局（M1 后真源）
@@ -136,7 +137,7 @@ src/backend/ai_generator.py   # 兼容薄层：旧 import / monkeypatch 路径
 | M2 | `generate_course()` 单一 facade | ✅ |
 | M3 | dialogs 配置 DI（`AiRuntime`），禁止 `src.app` | ✅ |
 | M4 | Experience handler 注册表 + dispatch | ✅ |
-| M5 | 树编辑 → `NodeAiEditDialog`；巨石标 LEGACY | ✅ |
+| M5 | 树编辑 → `NodeAiEditDialog`；巨石标 LEGACY | ✅（2026-09 复核落地：`NodeAiEditDialog` 恢复为生产入口，`AiGeneratorDialog` 公开签名去 edit_mode） |
 | M6 | suggestions collectors 拆分 | ✅ |
 | M7 | skill 体迁入 `experience_handlers/*` | ✅ |
 | M8 | LEGACY 标注 + 契约收口 | ✅ |
@@ -166,9 +167,39 @@ QT_QPA_PLATFORM=offscreen python3 tool/gui/run_gui_tests.py fast
   的 `host._x` 访问即失败；新增耦合必须先写进协议。
 - **backend → UI 禁令**：`--fail-backend-ui` —— backend/ 禁止 import
   widgets/dialogs/teacher/theme/app（error_mapper、TEMPLATE_BADGES 已下沉 backend）。
+- **backend → Qt 禁令**：`--fail-backend-qt`（2026-09 新增）—— backend/ 禁止
+  import PySide6。原 4 处 Qt 耦合已清：`credential_store` / `git_remote_catalog` /
+  `ai_prompt_library` 迁往 `src/application/`（纯持久化 helper，调用方全在
+  dialogs/app 层）；`generate_audio_worker` 拆分为纯逻辑
+  `generate_audio_client.run_tts_generation` + Qt 壳 `application/audio_worker.py`。
+
+## 9. P2/P3 债务清理基线（2026-09）
+
+- **MainWindow 瘦身**：app.py 1457 → 1107 行 —— closeEvent→`close_controller`、
+  工坊/教材导入 7 方法→`workshop_controller`、总览 4→`overview_controller`、
+  资源 3→`resources_controller`、校验报告→`validation_controller`；
+  死代码（重复定义的 `_on_undo_index_changed` 等）已删。`_save_course_async`
+  保留在 app（与 `save_host.execute_save` 语义不同：后台直存 vs SavePipeline）。
+- **Mixin 收口**：`experience_skills_mixin` 691 → 421 行，ambient 组 11 方法
+  迁至 `application/ambient_controller.py`（模块函数 + ExperienceHost 注解），
+  mixin 仅剩 policy/funnel + 薄包装；协议新增
+  `_defer_store`/`_ambient_mute`/`_heartbeat_wait_idle`/`_ambient_heartbeat`/
+  `_save_worker`。孤儿心跳定时器代码（无创建点、相关测试整类 skip）暂保留。
+- **GitLibraryDialog 按域拆分**：1631 → 425 行壳 + `dialogs/git_library/`
+  包（`git_worker_hub`/`sync`/`remotes`/`branches`/`repo_browser`/`lan_share`/
+  `memo`，模块函数以 `dlg` 为上下文）；`textbook_library_dialog` 复用
+  `GitWorkerHub` 消除镜像 plumbing。全部 widget 属性名与方法名保留。
+- **顺延项**：`run_pipeline`（250 行）/`run_item_chip`（243 行）巨型函数拆分；
+  138 处内联 `setStyleSheet` 全量收口（硬编码 hex 9 处已清）。
 - **吞异常棘轮**：`--max-except-pass 0` —— 全 src 静默 `except: pass` 数量
   已全部清零（0 处）。全仓（含 dialogs/widgets/teacher 等 UI 层）已全部改为
   `logger.debug/warning(..., exc_info=True)` 防御性日志记录，彻底杜绝黑盒静默失败。
+  （2026-09 补记：Qt signal disconnect 守卫处曾回归 4 处
+  `except Exception: pass`，已改为
+  `except (TypeError/RuntimeError[/AttributeError]) + logger.debug(..., exc_info=True)`
+  并与 `generator_worker_hub` 既有惯例对齐；门禁重回 0，见
+  `dialogs/ai_fix_dialog.py:_disconnect_worker` 与
+  `dialogs/ai/design_controller.py:_disconnect_worker`。）
 - **循环依赖**：experience 三元环已切（actions 为纯叶子，`is_dangerous_skill_allowed`
   真源在 policy）；`ai_error_analyzer` 直接引用 `dialogs/ai/worker`。
 - **完整门禁命令**：
@@ -176,5 +207,5 @@ QT_QPA_PLATFORM=offscreen python3 tool/gui/run_gui_tests.py fast
 ```bash
 python3 tool/gui/tool/check_ai_boundaries.py \
   --fail-private --fail-dialogs-app --fail-backend-app \
-  --fail-backend-ui --fail-undeclared-host-access --max-except-pass 0
+  --fail-backend-ui --fail-backend-qt --fail-undeclared-host-access --max-except-pass 0
 ```

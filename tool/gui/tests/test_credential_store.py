@@ -14,12 +14,12 @@ class CredentialStoreTokenTest(unittest.TestCase):
         QSettings.setPath(QSettings.Format.IniFormat, QSettings.Scope.UserScope, "/tmp/opencode/test-creds")
 
     def test_get_returns_none_when_not_set(self) -> None:
-        from src.backend import credential_store
+        from src.application import credential_store
         with patch.object(credential_store, "_keyring_available", return_value=False):
             self.assertIsNone(credential_store.get_git_token("https://github.com/x/y.git"))
 
     def test_set_and_get_roundtrip_fallback(self) -> None:
-        from src.backend import credential_store
+        from src.application import credential_store
         with patch.object(credential_store, "_keyring_available", return_value=False):
             credential_store.set_git_token("https://github.com/x/y.git", "secret123")
             self.assertEqual(
@@ -28,7 +28,7 @@ class CredentialStoreTokenTest(unittest.TestCase):
             )
 
     def test_delete_returns_true_when_existed(self) -> None:
-        from src.backend import credential_store
+        from src.application import credential_store
         with patch.object(credential_store, "_keyring_available", return_value=False):
             url = "https://github.com/x/z.git"
             credential_store.set_git_token(url, "tok")
@@ -36,18 +36,18 @@ class CredentialStoreTokenTest(unittest.TestCase):
             self.assertIsNone(credential_store.get_git_token(url))
 
     def test_delete_returns_false_when_not_set(self) -> None:
-        from src.backend import credential_store
+        from src.application import credential_store
         with patch.object(credential_store, "_keyring_available", return_value=False):
             self.assertFalse(credential_store.delete_git_token("https://gitlab.com/none.git"))
 
     def test_account_for_url_extracts_host(self) -> None:
-        from src.backend.credential_store import _account_for_url
+        from src.application.credential_store import _account_for_url
         self.assertEqual(_account_for_url("https://github.com/x/y.git"), "github.com")
         self.assertEqual(_account_for_url("https://gitlab.com/a/b"), "gitlab.com")
         self.assertEqual(_account_for_url(""), "default")
 
     def test_keyring_path_uses_keyring_when_available(self) -> None:
-        from src.backend import credential_store
+        from src.application import credential_store
         mock_keyring = MagicMock()
         mock_keyring.get_password.return_value = "keyring-token"
         mock_keyring.set_password = MagicMock()
@@ -68,19 +68,19 @@ class CredentialStoreSshKeyTest(unittest.TestCase):
         QSettings.setPath(QSettings.Format.IniFormat, QSettings.Scope.UserScope, "/tmp/opencode/test-creds-ssh")
 
     def test_ssh_key_roundtrip(self) -> None:
-        from src.backend import credential_store
+        from src.application import credential_store
         credential_store.set_ssh_key_path("/home/user/.ssh/id_ed25519")
         self.assertEqual(credential_store.get_ssh_key_path(), "/home/user/.ssh/id_ed25519")
 
     def test_ssh_key_default_empty(self) -> None:
-        from src.backend import credential_store
+        from src.application import credential_store
         credential_store.set_ssh_key_path("")
         self.assertEqual(credential_store.get_ssh_key_path(), "")
 
 
 class KeyringStatusTest(unittest.TestCase):
     def test_returns_dict_with_keys(self) -> None:
-        from src.backend import credential_store
+        from src.application import credential_store
         with patch.object(credential_store, "_keyring_available", return_value=False):
             status = credential_store.keyring_status()
             self.assertIn("available", status)

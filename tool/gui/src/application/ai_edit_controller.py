@@ -111,7 +111,7 @@ class AiEditController:
 
     def handle_ai_edit(self, window: Any, kind: str, node_id: str) -> None:
         """Main flow for AI edit triggered from tree or commands."""
-        from src.dialogs.ai_generator_dialog import AiGeneratorDialog
+        from src.dialogs.ai.node_edit_dialog import NodeAiEditDialog
 
         telemetry.record_event("ai.edit.open", payload={"kind": kind, "node_id": node_id})
         if hasattr(window, "_show_beta_warning_once"):
@@ -141,12 +141,13 @@ class AiEditController:
             QMessageBox.warning(window, "无法编辑", str(exc))
             return
 
-        edit_mode = {
-            "scope": kind,
-            "scope_id": node_id,
-            "existing_section": section,
-        }
-        dlg = AiGeneratorDialog(adapter, window, edit_mode=edit_mode)
+        dlg = NodeAiEditDialog(
+            adapter,
+            window,
+            scope=kind,
+            scope_id=node_id,
+            existing_section=section,
+        )
         if not dlg.exec():
             telemetry.record_event("ai.edit.cancelled", payload={"kind": kind})
             return

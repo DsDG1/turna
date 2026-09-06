@@ -63,6 +63,7 @@ class ExperienceHost(Protocol):
     _settings_obj: Any              # Settings instance (probed)
     _settings: Any                  # legacy alias, probed
     _ai_config: Any                 # AiApiConfig for workers (probed)
+    _save_worker: Any               # in-flight background save AiRequestWorker
     _resolve_experience_policy: _Handler      # () -> PolicyDecision (probed)
     _deny_ai_write_if_blocked: _Handler       # (label=…) -> bool gate (probed)
     _usage_today_for_policy: _Handler         # usage dict for budget (probed)
@@ -97,6 +98,10 @@ class ExperienceHost(Protocol):
     _flush_experience_metrics: _Handler
     _shown_suggestion_keys: Any               # set of already-shown keys
     _ambient_archived: Any
+    _ambient_mute: Any                        # proactive mute state (make_mute)
+    _defer_store: Any                         # A3 ② DeferStore (defer resurface)
+    _heartbeat_wait_idle: bool                # ambient heartbeat paused flag
+    _ambient_heartbeat: Any                   # QTimer (orphan: no creator in src)
     _campaign_auto_offered_for: Any
     _precog_cache: Any
     _experience_why_current: _Handler         # probed

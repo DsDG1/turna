@@ -43,7 +43,6 @@ def show_validation_report(
     report.jump_to.connect(functools.partial(jump_to_node, host))
     report.ai_fix_requested.connect(host._on_ai_fix_requested)
     report.ai_batch_fix_requested.connect(host._on_ai_batch_fix_requested)
-    report.ai_fix_single_requested.connect(host._on_ai_fix_single)
     buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
     buttons.rejected.connect(dlg.reject)
     layout = QVBoxLayout(dlg)

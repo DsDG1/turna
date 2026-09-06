@@ -1,3 +1,4 @@
+import 'package:path/path.dart' as p;
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/import/anki_import_execution_plan.dart';
@@ -78,7 +79,7 @@ class OfficialAnkiOfficialFirstService {
       paths: livePaths,
     ).startStaging(
       packagePath: filePath,
-      displayName: filePath.split(RegExp(r'[/\\]')).last,
+      displayName: p.basename(filePath),
     );
     final state = official.state;
     if (!state.allowsPreview) {

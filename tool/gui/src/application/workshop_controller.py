@@ -30,10 +30,15 @@ def open_workshop(host: ExperienceHost) -> None:
         host._workshop_window = WorkshopWindow(host.adapter, host)
         host._workshop_window.sections_ready.connect(host._on_textbook_sections)
         host._workshop_window.locate_requested.connect(host._on_workshop_locate)
-        host._workshop_window.attachments_changed.connect(
-            host._on_workshop_attachments_changed
-        )
-        host._workshop_window.ocr_requested.connect(host._on_workshop_ocr_requested)
+        # Older WorkshopWindow revisions lack the attachment/OCR signals.
+        if hasattr(host._workshop_window, "attachments_changed"):
+            host._workshop_window.attachments_changed.connect(
+                host._on_workshop_attachments_changed
+            )
+        if hasattr(host._workshop_window, "ocr_requested"):
+            host._workshop_window.ocr_requested.connect(
+                host._on_workshop_ocr_requested
+            )
         host._workshop_window.restore_last_session()
     sync_workshop_ocr_enabled(host)
     host._workshop_window.show()

@@ -23,7 +23,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.backend.ai_genre import GENRE_TEMPLATES
-from src.backend.ai_prompt_library import AiPromptLibrary, AiPromptHistory, AiPromptTemplate
+from src.application.ai_prompt_library import AiPromptLibrary, AiPromptHistory, AiPromptTemplate
 from src.theme_tokens import BRAND_REED, BRAND_TEAL
 
 

@@ -28,6 +28,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.backend.experience.intent_router import Intent, match_commands
+from src.theme import current_palette
 
 # Hook: (query_text) -> None  (host schedules async work; may call apply_async_candidates)
 AsyncCandidateHook = Callable[[str], None]
@@ -58,7 +59,7 @@ class CommandPalette(QDialog):
 
         # F14: visible chrome without system title bar.
         self._title = QLabel("命令面板 · Ctrl/⌘+K · 双击或 Enter 执行 · Esc 关闭")
-        self._title.setStyleSheet("color: #64748b; font-size: 11px;")
+        self._title.setStyleSheet(f"color: {current_palette()['text_disabled']}; font-size: 11px;")
         layout.addWidget(self._title)
 
         row = QHBoxLayout()

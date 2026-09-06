@@ -1,4 +1,13 @@
-"""Dialog for generating a course section with an AI (OpenAI-compatible) API.
+"""Shared section-AI dialog engine + workshop generation facade.
+
+This module hosts :class:`SectionAiDialog`, the single implementation of the
+normal/wish generation UI **and** of node AI editing (edit_mode engine). Two
+thin facades sit on top of it:
+
+- :class:`AiGeneratorDialog` (bottom of this file) — workshop course
+  generation UI; generation only, no ``edit_mode``.
+- :class:`src.dialogs.ai.node_edit_dialog.NodeAiEditDialog` — production
+  entry for course-tree AI editing (ai_refactor_contract §1f).
 
 Supports two modes:
 - Normal mode: legacy form-based generation, JSON editor, then import.
@@ -68,7 +77,7 @@ from src.backend.ai_generator import (
     structural_diff,
 )
 from src.backend.ai_genre import genre_tags_in_text
-from src.backend.ai_prompt_library import AiPromptHistory, AiPromptTemplate, prompt_library
+from src.application.ai_prompt_library import AiPromptHistory, AiPromptTemplate, prompt_library
 from src.backend.ai_usage import format_usage_line
 from src.dialogs.ai.attachment_bar import AttachmentBar
 from src.dialogs.ai.chat_expand_window import ChatExpandWindow
@@ -106,11 +115,16 @@ _record_cache_stats = record_cache_stats
 _escape_html = escape_html
 
 
-class AiGeneratorDialog(QDialog):
-    """AI course generator dialog with normal and wish modes.
+class SectionAiDialog(QDialog):
+    """Shared engine behind the generation and node-edit dialogs.
 
     On accept, ``section_json()`` returns the (possibly edited) section dict
     ready to be appended to ``adapter.sections`` and registered in the index.
+
+    ``edit_mode`` is an internal engine switch (instruction rewrite + chat
+    revision of an existing section); external callers must go through
+    :class:`src.dialogs.ai.node_edit_dialog.NodeAiEditDialog` instead of
+    passing it directly.
     """
 
     _STREAM_TEXT_LIVE_LIMIT = 8192
@@ -1774,3 +1788,15 @@ class AiGeneratorDialog(QDialog):
     def section_json(self) -> dict:
         """Return the (possibly edited) section dict to import."""
         return self._current_json()
+
+
+class AiGeneratorDialog(SectionAiDialog):
+    """Workshop course-generation UI (LEGACY name kept for compatibility).
+
+    Generation-only facade over :class:`SectionAiDialog`. Node AI editing has
+    moved to :class:`src.dialogs.ai.node_edit_dialog.NodeAiEditDialog`; this
+    class no longer accepts an ``edit_mode`` argument.
+    """
+
+    def __init__(self, adapter, parent: QWidget | None = None) -> None:
+        super().__init__(adapter, parent, edit_mode=None)

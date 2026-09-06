@@ -76,40 +76,31 @@ class OfficialAnkiImportSaga {
       stagingPath: stagingPaths.profileRoot.path,
     );
     try {
-      if (_discarded) {
-        await _abandon(
-          sourceId: sourceId,
-          attemptId: attemptId,
-          stagingRoot: stagingPaths.profileRoot,
-        );
-        throw _cancelled();
-      }
+      await _guardDiscard(
+        sourceId: sourceId,
+        attemptId: attemptId,
+        stagingRoot: stagingPaths.profileRoot,
+      );
       final engine = await manager.acquire(stagingPaths);
       attempts.setPhase(
         attemptId: attemptId,
         phase: OfficialAnkiAttemptPhase.stagingImporting,
         nowMillis: _now,
       );
-      if (_discarded) {
-        await _abandon(
-          sourceId: sourceId,
-          attemptId: attemptId,
-          stagingRoot: stagingPaths.profileRoot,
-        );
-        throw _cancelled();
-      }
+      await _guardDiscard(
+        sourceId: sourceId,
+        attemptId: attemptId,
+        stagingRoot: stagingPaths.profileRoot,
+      );
       final imported = await engine.importPackage(
         packagePath: packagePath,
         withScheduling: false,
       );
-      if (_discarded) {
-        await _abandon(
-          sourceId: sourceId,
-          attemptId: attemptId,
-          stagingRoot: stagingPaths.profileRoot,
-        );
-        throw _cancelled();
-      }
+      await _guardDiscard(
+        sourceId: sourceId,
+        attemptId: attemptId,
+        stagingRoot: stagingPaths.profileRoot,
+      );
       attempts.setPhase(
         attemptId: attemptId,
         phase: OfficialAnkiAttemptPhase.previewReady,
@@ -171,13 +162,7 @@ class OfficialAnkiImportSaga {
   }
 
   Future<void> cancelSource(String sourceId) async {
-    OfficialAnkiAttemptRow? row;
-    for (final candidate in attempts.unfinished()) {
-      if (candidate.sourceId == sourceId) {
-        row = candidate;
-        break;
-      }
-    }
+    final row = attempts.unfinishedBySource(sourceId);
     if (row == null) return;
     final wasV2 = sources.findById(sourceId)?.isV2 ?? false;
     await _abandon(
@@ -202,6 +187,22 @@ class OfficialAnkiImportSaga {
         messageKey: 'official_anki.import_cancelled',
         recoverable: true,
       );
+
+  /// Abandons the attempt and throws the canonical cancelled error once
+  /// a discard was requested; a no-op otherwise.
+  Future<void> _guardDiscard({
+    required String sourceId,
+    required String attemptId,
+    required Directory? stagingRoot,
+  }) async {
+    if (!_discarded) return;
+    await _abandon(
+      sourceId: sourceId,
+      attemptId: attemptId,
+      stagingRoot: stagingRoot,
+    );
+    throw _cancelled();
+  }
 
   Future<void> _abandon({
     required String sourceId,

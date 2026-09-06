@@ -1,8 +1,7 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as p;
 import 'package:turna/application/anki_import/official_import_error_messages.dart';
 import 'package:turna/application/anki_import/anki_import_completion_coordinator.dart';
 import 'package:turna/application/anki_import/anki_import_dependencies.dart';
@@ -184,7 +183,6 @@ class AnkiImportController extends ChangeNotifier {
     preview.confirmedNotetypes.add(schema.notetypeId);
     preview.skippedNotetypes.remove(schema.notetypeId);
     refreshOfficialPreviewNeedsMapping(preview);
-    _persistStagingMappings(preview);
     notifyListeners();
   }
 
@@ -194,7 +192,6 @@ class AnkiImportController extends ChangeNotifier {
     preview.skippedNotetypes.add(schema.notetypeId);
     preview.confirmedNotetypes.remove(schema.notetypeId);
     refreshOfficialPreviewNeedsMapping(preview);
-    _persistStagingMappings(preview);
     notifyListeners();
   }
 
@@ -347,33 +344,6 @@ class AnkiImportController extends ChangeNotifier {
   OfficialAnkiImportPreviewModel? get _officialPreview =>
       _previewOf<OfficialAnkiImportPreviewModel>();
 
-  void _persistStagingMappings(OfficialAnkiImportPreviewModel preview) {
-    try {
-      final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
-      if (catalog == null) return;
-      final unfinished = OfficialAnkiImportAttemptDao(catalog)
-          .unfinished()
-          .where((row) => row.sourceId == preview.sourceId);
-      if (unfinished.isEmpty) return;
-      final stagingPath = unfinished.first.stagingPath;
-      if (stagingPath == null || stagingPath.isEmpty) return;
-      final dir = Directory(stagingPath);
-      if (!dir.existsSync()) return;
-      File('${dir.path}/mapping.json').writeAsStringSync(
-        jsonEncode({
-          'confirmed': preview.confirmedNotetypes.toList(),
-          'skipped': preview.skippedNotetypes.toList(),
-          'suggestions': {
-            for (final entry in preview.suggestions.entries)
-              '${entry.key}': entry.value.toJson(),
-          },
-        }),
-      );
-    } catch (suppressed) {
-      debugPrint('[AnkiImport] staging mapping.json: $suppressed');
-    }
-  }
-
   bool _stale(int op) => _disposed || op != _operation;
 
   void _failToSelect(String message) => _emit(AnkiImportFailed(
@@ -464,7 +434,7 @@ class AnkiImportController extends ChangeNotifier {
     ).commit(
       sourceId: preview.sourceId,
       packagePath: preview.filePath,
-      displayName: preview.filePath.split(RegExp(r'[/\\]')).last,
+      displayName: p.basename(preview.filePath),
       suggestions: preview.suggestions,
       confirmedNotetypes: preview.confirmedNotetypes,
       skippedNotetypes: preview.skippedNotetypes,

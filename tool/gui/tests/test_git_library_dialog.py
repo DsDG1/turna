@@ -18,7 +18,7 @@ from tests._qtapp import qt_app  # noqa: E402
 from PySide6.QtWidgets import QMessageBox
 
 from src.backend.course_adapter import CourseAdapter
-from src.dialogs import git_library_dialog
+from src.dialogs.git_library import git_worker_hub
 from src.dialogs.git_library_dialog import GitLibraryDialog
 
 
@@ -104,8 +104,8 @@ class GitLibraryDialogAsyncTest(unittest.TestCase):
 
     def setUp(self) -> None:
         self.workers: list[_FakeWorker] = []
-        self._orig_worker = git_library_dialog.AiRequestWorker
-        git_library_dialog.AiRequestWorker = self._make_worker
+        self._orig_worker = git_worker_hub.AiRequestWorker
+        git_worker_hub.AiRequestWorker = self._make_worker
         self._message_boxes: list[tuple[str, str]] = []
         self._orig_info = QMessageBox.information
         self._orig_critical = QMessageBox.critical
@@ -113,7 +113,7 @@ class GitLibraryDialogAsyncTest(unittest.TestCase):
         QMessageBox.critical = self._fake_critical
 
     def tearDown(self) -> None:
-        git_library_dialog.AiRequestWorker = self._orig_worker
+        git_worker_hub.AiRequestWorker = self._orig_worker
         QMessageBox.information = self._orig_info
         QMessageBox.critical = self._orig_critical
 

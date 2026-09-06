@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from typing import Any
 import logging
+from src.application import runtime_context
 from src.application.experience_host import ExperienceHost
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,11 @@ def handle_close_event(host: ExperienceHost, event: Any) -> None:
     from src.infrastructure.telemetry import telemetry
 
     telemetry.record_event("app.close_requested")
+    # Wait out an in-flight background save so the save thread never races
+    # shutdown (equivalent to the old synchronous save on close).
+    save_worker = getattr(host, "_save_worker", None)
+    if save_worker is not None and save_worker.isRunning():
+        save_worker.wait()
     course_dir = getattr(host, "course_dir", None)
     adapter = getattr(host, "adapter", None)
     dirty = False
@@ -155,6 +161,7 @@ def handle_close_event(host: ExperienceHost, event: Any) -> None:
     except Exception:
         host._overview_window = None
 
+    runtime_context.clear_providers(host)
     clear_ai_key_on_exit(host)
     try:
         host._record_window_duration()
