@@ -91,7 +91,7 @@ def on_workshop_ocr_requested(
     try:
         from pathlib import Path
 
-        from src.dialogs.ai.worker import AttachmentRecord
+        from src.application.ai_request_worker import AttachmentRecord
 
         rec = AttachmentRecord(
             temp_path=Path(temp_path),

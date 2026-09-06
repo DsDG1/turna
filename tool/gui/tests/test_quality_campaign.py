@@ -10,7 +10,7 @@ if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
 from src.backend.experience import get_action  # noqa: E402
-from src.dialogs.quality_campaign_dialog import build_campaign_items  # noqa: E402
+from src.backend.quality_campaign import build_campaign_items  # noqa: E402
 
 
 class BuildCampaignItemsTest(unittest.TestCase):

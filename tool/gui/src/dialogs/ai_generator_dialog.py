@@ -98,7 +98,7 @@ from src.dialogs.ai.generator_wizard_panel import GeneratorWizardPanel
 from src.dialogs.ai.generator_worker_hub import GeneratorWorkerHub, record_cache_stats
 from src.dialogs.ai.prompt_template_bar import PromptTemplateBar
 from src.dialogs.ai.result_window import ResultExpandWindow
-from src.dialogs.ai.worker import (
+from src.application.ai_request_worker import (
     AttachmentRecord as _AttachmentRecord,
     AiRequestWorker,
     is_valid_http_url as _is_valid_http_url,

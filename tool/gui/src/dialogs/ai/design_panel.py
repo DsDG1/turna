@@ -54,7 +54,7 @@ from src.dialogs.ai.attachment_bar import AttachmentBar
 from src.dialogs.ai.chat_view import ChatView
 from src.dialogs.ai.design_controller import DesignController
 from src.dialogs.ai.prompt_template_bar import PromptTemplateBar
-from src.dialogs.ai.worker import AttachmentRecord
+from src.application.ai_request_worker import AttachmentRecord
 from src.theme import current_palette
 from src.widgets.json_editor import JsonEditor
 

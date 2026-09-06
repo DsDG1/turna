@@ -214,7 +214,7 @@ def confirm_sovereign_enter(parent: Any) -> bool:
 def campaign_items_for_host(host: ExperienceHost) -> list[dict[str, Any]]:
     """Build campaign targets from host Context; never raises."""
     try:
-        from src.dialogs.quality_campaign_dialog import build_campaign_items
+        from src.backend.quality_campaign import build_campaign_items
 
         exp = getattr(host, "experience", None)
         ctx = getattr(exp, "context", None) if exp is not None else None

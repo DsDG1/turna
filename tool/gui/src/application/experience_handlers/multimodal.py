@@ -206,7 +206,7 @@ def _experience_ocr(
                         import uuid
                         from pathlib import Path
 
-                        from src.dialogs.ai.worker import AttachmentRecord
+                        from src.application.ai_request_worker import AttachmentRecord
 
                         base_name = Path(
                             getattr(record, "original_name", "image")

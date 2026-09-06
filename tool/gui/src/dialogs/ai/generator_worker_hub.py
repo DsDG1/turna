@@ -18,7 +18,7 @@ from src.backend.ai_generator import (
     regenerate_unit_in_section,
 )
 from src.backend.ai_usage import format_usage_line
-from src.dialogs.ai.worker import AiRequestWorker
+from src.application.ai_request_worker import AiRequestWorker
 from src.infrastructure.telemetry import telemetry
 
 logger = logging.getLogger(__name__)

@@ -13,7 +13,7 @@ from src.dialogs.ai.generator_chat_coordinator import (
     GeneratorChatCoordinator,
     escape_html,
 )
-from src.dialogs.ai.worker import AttachmentRecord
+from src.application.ai_request_worker import AttachmentRecord
 
 
 class TestGeneratorChatCoordinator(unittest.TestCase):

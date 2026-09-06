@@ -355,7 +355,7 @@ def _run_real_fill_chain(
         factory = getattr(host, "_goal_fill_worker_factory", None)
         worker = factory(_target) if callable(factory) else None
         if worker is None:
-            from src.dialogs.ai.worker import AiRequestWorker
+            from src.application.ai_request_worker import AiRequestWorker
 
             worker = AiRequestWorker(_target)
             state["finished_inline"] = False
@@ -656,7 +656,7 @@ def _plan_goal_async(host: ExperienceHost, goal_text: str, on_plan: Any) -> bool
             return False
         if _is_headless_ui():
             return False
-        from src.dialogs.ai.worker import AiRequestWorker
+        from src.application.ai_request_worker import AiRequestWorker
 
         _status(host, "Goal 规划中（AI 扩展）…")
         worker = AiRequestWorker(build_plan_for_host, host, goal_text, expand=True)

@@ -195,7 +195,7 @@ class RegenerateSkillTest(unittest.TestCase):
             else QDialog.DialogCode.Rejected
         )
         with patch(
-            "src.dialogs.ai.worker.AiRequestWorker", _FakeWorker
+            "src.application.ai_request_worker.AiRequestWorker", _FakeWorker
         ), patch(
             "src.backend.ai_generator.regenerate_lesson_in_section",
             side_effect=_regen,
@@ -297,7 +297,7 @@ class RegenerateSkillTest(unittest.TestCase):
         from src.application.experience_skills_mixin import ExperienceSkillsMixin
 
         with patch(
-            "src.dialogs.ai.worker.AiRequestWorker", _FakeWorker
+            "src.application.ai_request_worker.AiRequestWorker", _FakeWorker
         ), patch(
             "src.backend.ai_generator.regenerate_lesson_in_section",
             side_effect=RuntimeError("boom"),

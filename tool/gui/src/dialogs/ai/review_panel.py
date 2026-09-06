@@ -443,7 +443,7 @@ class ReviewPanel(QWidget):
             QMessageBox.information(self, "清待补", "当前有任务进行中，请稍候。")
             return
         from src.backend.ai_generator import fill_needs_review_resources
-        from src.dialogs.ai.worker import AiRequestWorker
+        from src.application.ai_request_worker import AiRequestWorker
 
         config = self._ai_config()
         self._fill_review_btn.setEnabled(False)

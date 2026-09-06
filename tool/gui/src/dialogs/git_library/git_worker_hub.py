@@ -13,7 +13,7 @@ from typing import Any
 
 from PySide6.QtCore import QObject
 
-from src.dialogs.ai.worker import AiRequestWorker, safe_disconnect
+from src.application.ai_request_worker import AiRequestWorker, safe_disconnect
 
 logger = logging.getLogger(__name__)
 

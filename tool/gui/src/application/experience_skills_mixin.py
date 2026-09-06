@@ -227,7 +227,7 @@ class ExperienceSkillsMixin:
         factory = getattr(self, "_goal_fill_worker_factory", None)
         if callable(factory):
             return factory(target, *args, **kwargs)
-        from src.dialogs.ai.worker import AiRequestWorker
+        from src.application.ai_request_worker import AiRequestWorker
 
         return AiRequestWorker(target, *args, **kwargs)
     def _current_section_for_experience(self) -> dict | None:

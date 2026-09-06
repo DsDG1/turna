@@ -475,7 +475,7 @@ def run_palette_llm_classify(host: ExperienceHost) -> None:
         classify_intent_sync,
         is_llm_intent_enabled,
     )
-    from src.dialogs.ai.worker import AiRequestWorker
+    from src.application.ai_request_worker import AiRequestWorker
 
     query = str(getattr(host, "_palette_llm_pending_query", "") or "").strip()
     if not query:

@@ -8,7 +8,7 @@ from tests._qtapp import qt_app
 
 from src.backend.ai_generator import AiApiConfig, AiCourseSpec
 from src.dialogs.ai.generator_worker_hub import GeneratorWorkerHub
-from src.dialogs.ai.worker import AiRequestWorker
+from src.application.ai_request_worker import AiRequestWorker
 
 
 class TestGeneratorWorkerHub(unittest.TestCase):

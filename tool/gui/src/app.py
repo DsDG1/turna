@@ -881,7 +881,7 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
         same data-safety guarantee the old synchronous freeze provided, while
         the UI thread stays responsive (status bar, window dragging).
         """
-        from src.dialogs.ai.worker import AiRequestWorker
+        from src.application.ai_request_worker import AiRequestWorker
 
         prev = getattr(self, "_save_worker", None)
         if prev is not None and prev.isRunning():

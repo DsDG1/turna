@@ -77,7 +77,7 @@ def run_item_chip(
     """
     from src.application.runtime_context import current_ai_config
     from src.backend.ai_generator import request_item_transform
-    from src.dialogs.ai.worker import AiRequestWorker
+    from src.application.ai_request_worker import AiRequestWorker
 
     instruction = (instruction or "").strip()
     if not instruction:

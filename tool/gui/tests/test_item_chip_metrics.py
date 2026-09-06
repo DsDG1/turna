@@ -123,7 +123,7 @@ class ChipMetricsTest(unittest.TestCase):
             "src.application.runtime_context.current_ai_config",
             return_value=SimpleNamespace(is_complete=True),
         ), patch(
-            "src.dialogs.ai.worker.AiRequestWorker", _FakeWorker
+            "src.application.ai_request_worker.AiRequestWorker", _FakeWorker
         ), patch("src.teacher.item_ai_chip.QMessageBox"):
             run_item_chip(
                 child,
@@ -198,7 +198,7 @@ class ChipMetricsTest(unittest.TestCase):
             "src.application.runtime_context.current_ai_config",
             return_value=SimpleNamespace(is_complete=True),
         ), patch(
-            "src.dialogs.ai.worker.AiRequestWorker", _FakeWorker
+            "src.application.ai_request_worker.AiRequestWorker", _FakeWorker
         ), patch("src.teacher.item_ai_chip.QMessageBox"):
             run_item_chip(
                 owner,
@@ -256,7 +256,7 @@ class LessonStyleChipTest(unittest.TestCase):
             "src.application.runtime_context.current_ai_config",
             return_value=SimpleNamespace(is_complete=True),
         ), patch(
-            "src.dialogs.ai.worker.AiRequestWorker", _FakeWorker
+            "src.application.ai_request_worker.AiRequestWorker", _FakeWorker
         ), patch("src.teacher.item_ai_chip.QMessageBox"):
             run_item_chip(
                 child,

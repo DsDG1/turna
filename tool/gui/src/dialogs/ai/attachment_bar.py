@@ -24,7 +24,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from src.dialogs.ai.worker import AttachmentRecord
+from src.application.ai_request_worker import AttachmentRecord
 
 
 class AttachmentPreviewDialog(QDialog):

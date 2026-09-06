@@ -11,10 +11,8 @@ from src.application.experience_host import ExperienceHost
 
 def handle_quality_campaign(host: ExperienceHost, scope: dict) -> None:
     """E2.0 K-16: worst-N / empty campaign queue dialog."""
-    from src.dialogs.quality_campaign_dialog import (
-        QualityCampaignDialog,
-        build_campaign_items,
-    )
+    from src.backend.quality_campaign import build_campaign_items
+    from src.dialogs.quality_campaign_dialog import QualityCampaignDialog
 
     ctx = host.experience.context
     quality = dict(ctx.quality_by_section) if ctx is not None else {}

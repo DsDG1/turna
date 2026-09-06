@@ -255,7 +255,7 @@ def _fake_worker_factory():
 
 
 def _image_record(name: str = "scan.png"):
-    from src.dialogs.ai.worker import AttachmentRecord
+    from src.application.ai_request_worker import AttachmentRecord
 
     return AttachmentRecord(
         temp_path=Path("/tmp/scan.png"),
@@ -391,7 +391,7 @@ class DispatchTest(unittest.TestCase):
         self.assertTrue(any("未识别到文本" in m for m in host._status))
 
     def test_ocr_all_dedup_skips_already_ocrd(self) -> None:
-        from src.dialogs.ai.worker import AttachmentRecord
+        from src.application.ai_request_worker import AttachmentRecord
 
         img = _image_record("a.png")
         txt = AttachmentRecord(
@@ -416,7 +416,7 @@ class DispatchTest(unittest.TestCase):
         )
 
     def test_single_record_unlinks_orphan(self) -> None:
-        from src.dialogs.ai.worker import AttachmentRecord
+        from src.application.ai_request_worker import AttachmentRecord
 
         src = Path(tempfile.gettempdir()) / f"ocr_src_{os.getpid()}.pdf"
         src.write_bytes(b"%PDF fake scanned")
@@ -440,7 +440,7 @@ class DispatchTest(unittest.TestCase):
         self.assertFalse(src.exists())
 
     def test_single_record_no_unlink_when_bar_owned(self) -> None:
-        from src.dialogs.ai.worker import AttachmentRecord
+        from src.application.ai_request_worker import AttachmentRecord
 
         src = Path(tempfile.gettempdir()) / f"ocr_keep_{os.getpid()}.png"
         src.write_bytes(b"\x89PNG fake")
@@ -514,7 +514,7 @@ class RunOcrPdfTest(unittest.TestCase):
 
 class OcrRecordsTest(unittest.TestCase):
     def _rec(self, ctype, name="x", temp=None):
-        from src.dialogs.ai.worker import AttachmentRecord
+        from src.application.ai_request_worker import AttachmentRecord
 
         content = (
             {"type": "image_url", "image_url": {"url": "data:x"}}
@@ -538,7 +538,7 @@ class OcrRecordsTest(unittest.TestCase):
         self.assertIs(out[1][0], prec)
 
     def test_skips_records_without_temp_path(self):
-        from src.dialogs.ai.worker import AttachmentRecord
+        from src.application.ai_request_worker import AttachmentRecord
 
         rec = AttachmentRecord(
             temp_path=None,
@@ -557,7 +557,7 @@ class AttachmentBarOcrButtonTest(unittest.TestCase):
 
     def _bar_with_records(self):
         from src.dialogs.ai.attachment_bar import AttachmentBar
-        from src.dialogs.ai.worker import AttachmentRecord
+        from src.application.ai_request_worker import AttachmentRecord
 
         bar = AttachmentBar()
         self.addCleanup(bar.deleteLater)
@@ -715,7 +715,7 @@ def _ctx_with_image_attachment():
 
     from src.backend.experience import build_experience_context
     from src.backend.experience.attachments import build_attachment_snapshot
-    from src.dialogs.ai.worker import AttachmentRecord
+    from src.application.ai_request_worker import AttachmentRecord
 
     adapter = SimpleNamespace(
         sections=[], vocab=[], expressions=[], grammar_points=[],
@@ -762,7 +762,7 @@ class DockOcrSuggestionTest(unittest.TestCase):
 
         from src.backend.experience import build_experience_context, local_suggestions
         from src.backend.experience.attachments import build_attachment_snapshot
-        from src.dialogs.ai.worker import AttachmentRecord
+        from src.application.ai_request_worker import AttachmentRecord
 
         adapter = SimpleNamespace(
             sections=[], vocab=[], expressions=[], grammar_points=[],
@@ -811,7 +811,7 @@ class ShellOcrEnabledHintTest(unittest.TestCase):
 
     def test_set_ocr_enabled_drives_suggestion(self):
         from src.backend.experience.attachments import build_attachment_snapshot
-        from src.dialogs.ai.worker import AttachmentRecord
+        from src.application.ai_request_worker import AttachmentRecord
 
         shell = self._make_shell()
         img = AttachmentRecord(
@@ -833,7 +833,7 @@ class ShellOcrEnabledHintTest(unittest.TestCase):
 
     def test_set_ocr_enabled_default_off(self):
         from src.backend.experience.attachments import build_attachment_snapshot
-        from src.dialogs.ai.worker import AttachmentRecord
+        from src.application.ai_request_worker import AttachmentRecord
 
         shell = self._make_shell()
         img = AttachmentRecord(

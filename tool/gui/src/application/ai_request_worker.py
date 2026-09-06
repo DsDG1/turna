@@ -1,6 +1,8 @@
 """Background AI request worker + small shared helpers.
 
-Extracted from the original monolithic ``ai_generator_dialog.py`` (guiplan2 P5).
+Extracted from the original monolithic ``ai_generator_dialog.py`` (guiplan2 P5),
+then relocated from ``src/dialogs/ai/worker.py`` to the application layer so
+``src/application/**`` no longer reaches into the dialogs UI package.
 ``AiRequestWorker`` runs a synchronous AI call in a QThread and forwards
 result / error / streaming-chunk / usage signals to the UI thread.
 """
@@ -174,5 +176,5 @@ def safe_disconnect(sig: Any, slot: Any = None) -> bool:
             sig.disconnect(slot)
         return True
     except (AttributeError, TypeError, RuntimeError):
-        logger.debug("dialogs/ai/worker.py:safe_disconnect safe skip", exc_info=True)
+        logger.debug("application/ai_request_worker.py:safe_disconnect safe skip", exc_info=True)
         return False

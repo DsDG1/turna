@@ -226,7 +226,7 @@ class BalanceSkillTest(unittest.TestCase):
             "src.application.experience_handlers.regenerate.safe_question",
             return_value=confirm,
         ), patch(
-            "src.dialogs.ai.worker.AiRequestWorker", _FakeWorker
+            "src.application.ai_request_worker.AiRequestWorker", _FakeWorker
         ), patch(
             "src.backend.ai_generator.regenerate_lesson_in_section",
             side_effect=_regen,

@@ -108,7 +108,7 @@ def _run_fill_lesson_patch_flow(
     host._sync_focus_ring()
 
     from src.backend.ai_generator import AiCourseSpec, regenerate_lesson_in_section
-    from src.dialogs.ai.worker import AiRequestWorker
+    from src.application.ai_request_worker import AiRequestWorker
 
     config = host._ai_config
     if config is None or not getattr(config, "is_complete", False):
@@ -276,7 +276,7 @@ def _experience_fill_stubs(host) -> None:
         return
 
     from src.backend.ai_generator import fill_needs_review_resources
-    from src.dialogs.ai.worker import AiRequestWorker
+    from src.application.ai_request_worker import AiRequestWorker
 
     sid = str(section.get("id") or "section")
     guard_key = f"section:{sid}"
@@ -405,7 +405,7 @@ def _experience_fill_listening_gaps(
         return
 
     from src.backend.ai import fill_listening_gaps
-    from src.dialogs.ai.worker import AiRequestWorker
+    from src.application.ai_request_worker import AiRequestWorker
 
     sid = str(section.get("id") or "section")
     guard_key = f"section:{sid}"

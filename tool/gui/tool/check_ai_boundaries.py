@@ -9,7 +9,11 @@ Checks:
    (lower layers must read settings via ``src.application.runtime_context``).
 4. ``src/backend/**`` imports of UI layers (widgets/dialogs/teacher/theme/app)
    — backend must stay UI-free.
-5. Ratchet: count of silent ``except Exception: pass`` handlers in src must
+5. ``src/application/**`` / ``src/app.py`` imports of ``src.dialogs`` — the
+   application layer must not reach into the dialogs UI package.
+6. ``src/dialogs/**`` direct imports of ``backend.ai_pipeline`` /
+   ``backend.ai_phased`` — dialogs must go through ``src.backend.ai.facade``.
+7. Ratchet: count of silent ``except Exception: pass`` handlers in src must
    not exceed a ceiling (debt only shrinks, never grows).
 
 Usage (repo root or any cwd)::
@@ -19,6 +23,8 @@ Usage (repo root or any cwd)::
     python3 tool/gui/tool/check_ai_boundaries.py --fail-dialogs-app
     python3 tool/gui/tool/check_ai_boundaries.py --fail-backend-app
     python3 tool/gui/tool/check_ai_boundaries.py --fail-backend-ui
+    python3 tool/gui/tool/check_ai_boundaries.py --fail-app-dialogs
+    python3 tool/gui/tool/check_ai_boundaries.py --fail-dialogs-pipeline
     python3 tool/gui/tool/check_ai_boundaries.py --max-except-pass 0
 
 Exit codes:
@@ -43,6 +49,14 @@ _NAME_TOKEN = re.compile(r"\b(_[A-Za-z]\w*)\b")
 # Only match real import statements (not docstrings / comments that mention them).
 _DIALOGS_APP = re.compile(
     r"^\s*(?:from\s+src\.app\s+import\s+|import\s+src\.app\b)",
+    re.MULTILINE,
+)
+_APP_DIALOGS = re.compile(
+    r"^\s*(?:from\s+src\.dialogs(?:\.\w+)*\s+import\s+|import\s+src\.dialogs\b)",
+    re.MULTILINE,
+)
+_DIALOGS_PIPELINE = re.compile(
+    r"^\s*from\s+src\.backend\.ai_(?:pipeline|phased)\s+import\s+",
     re.MULTILINE,
 )
 _UI_MODULES = r"(?:app|main|theme|theme_tokens|widgets|dialogs|teacher)"
@@ -118,6 +132,45 @@ def scan_dialogs_app_imports() -> list[tuple[str, int, str]]:
     for path in _iter_py(dialogs):
         for n, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
             if _DIALOGS_APP.search(line):
+                rel = path.relative_to(_GUI_ROOT).as_posix()
+                hits.append((rel, n, line.strip()[:160]))
+    return hits
+
+
+def scan_app_dialogs_imports() -> list[tuple[str, int, str]]:
+    """application/** or src/app.py importing the dialogs UI package.
+
+    The application layer must not reach into ``src.dialogs`` (widgets/panels
+    live above it); shared Qt plumbing belongs in ``src/application`` itself.
+    """
+    hits: list[tuple[str, int, str]] = []
+    targets = [Path(_SRC) / "app.py"]
+    app_root = _SRC / "application"
+    if app_root.is_dir():
+        targets.extend(_iter_py(app_root))
+    for path in targets:
+        if not path.is_file():
+            continue
+        for n, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+            if _APP_DIALOGS.search(line):
+                rel = path.relative_to(_GUI_ROOT).as_posix()
+                hits.append((rel, n, line.strip()[:160]))
+    return hits
+
+
+def scan_dialogs_pipeline_imports() -> list[tuple[str, int, str]]:
+    """dialogs/** importing ai_pipeline / ai_phased directly.
+
+    Dialogs must go through the ``src.backend.ai.facade`` entry point; the
+    pipeline internals are not public API.
+    """
+    hits: list[tuple[str, int, str]] = []
+    dialogs = _SRC / "dialogs"
+    if not dialogs.is_dir():
+        return hits
+    for path in _iter_py(dialogs):
+        for n, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+            if _DIALOGS_PIPELINE.search(line):
                 rel = path.relative_to(_GUI_ROOT).as_posix()
                 hits.append((rel, n, line.strip()[:160]))
     return hits
@@ -282,6 +335,16 @@ def main(argv: list[str] | None = None) -> int:
         help="Exit 1 if backend/ imports widgets/dialogs/teacher/theme/app",
     )
     parser.add_argument(
+        "--fail-app-dialogs",
+        action="store_true",
+        help="Exit 1 if application/ or src/app.py imports src.dialogs",
+    )
+    parser.add_argument(
+        "--fail-dialogs-pipeline",
+        action="store_true",
+        help="Exit 1 if dialogs/ imports backend.ai_pipeline or backend.ai_phased",
+    )
+    parser.add_argument(
         "--fail-backend-qt",
         action="store_true",
         help="Exit 1 if backend/ imports PySide6 (Qt-free backend rule)",
@@ -309,6 +372,8 @@ def main(argv: list[str] | None = None) -> int:
     backend_qt = scan_backend_qt_imports()
     except_pass = count_silent_except_pass()
     host_drift = scan_undeclared_host_access()
+    app_dialogs = scan_app_dialogs_imports()
+    dialogs_pipeline = scan_dialogs_pipeline_imports()
 
     print("=== AI boundary scan ===")
     print(f"gui root: {_GUI_ROOT}")
@@ -327,6 +392,12 @@ def main(argv: list[str] | None = None) -> int:
     print(f"backend → PySide6 imports: {len(backend_qt)}")
     for rel, n, snip in backend_qt:
         print(f"  BQT   {rel}:{n}: {snip}")
+    print(f"application/app → dialogs imports: {len(app_dialogs)}")
+    for rel, n, snip in app_dialogs:
+        print(f"  ADLG  {rel}:{n}: {snip}")
+    print(f"dialogs → ai_pipeline/ai_phased direct imports: {len(dialogs_pipeline)}")
+    for rel, n, snip in dialogs_pipeline:
+        print(f"  DPIP  {rel}:{n}: {snip}")
     print(f"undeclared host._x accesses: {len(host_drift)}")
     for rel, n, snip in host_drift:
         print(f"  HOST  {rel}:{n}: {snip}")
@@ -338,6 +409,7 @@ def main(argv: list[str] | None = None) -> int:
         f"summary private={len(private)} dialogs_app={len(dialogs_app)} "
         f"backend_app={len(backend_app)} backend_ui={len(backend_ui)} "
         f"backend_qt={len(backend_qt)} "
+        f"app_dialogs={len(app_dialogs)} dialogs_pipeline={len(dialogs_pipeline)} "
         f"host_drift={len(host_drift)} except_pass={except_pass}"
     )
 
@@ -349,6 +421,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.fail_backend_app and backend_app:
         rc = 1
     if args.fail_backend_ui and backend_ui:
+        rc = 1
+    if args.fail_app_dialogs and app_dialogs:
+        rc = 1
+    if args.fail_dialogs_pipeline and dialogs_pipeline:
         rc = 1
     if args.fail_backend_qt and backend_qt:
         rc = 1

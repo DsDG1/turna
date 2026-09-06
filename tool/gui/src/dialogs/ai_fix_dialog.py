@@ -31,7 +31,7 @@ from PySide6.QtWidgets import (
 from src.backend.ai_fixer import build_correction_prompt
 from src.backend.ai_generator import request_correction
 from src.dialogs.ai_error_analyzer import AiErrorAnalyzerDialog, offer_ai_analysis
-from src.dialogs.ai.worker import AiRequestWorker, safe_disconnect
+from src.application.ai_request_worker import AiRequestWorker, safe_disconnect
 from src.infrastructure.telemetry import telemetry
 from src.theme import current_palette
 

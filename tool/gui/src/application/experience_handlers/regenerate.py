@@ -351,7 +351,7 @@ def _run_regen_flow(
         regenerate_lesson_in_section,
         regenerate_unit_in_section,
     )
-    from src.dialogs.ai.worker import AiRequestWorker
+    from src.application.ai_request_worker import AiRequestWorker
 
     config = host._ai_config
     spec = AiCourseSpec()
@@ -753,7 +753,7 @@ def _run_batch_regen_flow(
         return
 
     from src.backend.ai_generator import AiCourseSpec
-    from src.dialogs.ai.worker import AiRequestWorker
+    from src.application.ai_request_worker import AiRequestWorker
     from src.backend.experience.transaction import (
         create_transaction_snapshot,
         verify_transaction_integrity,

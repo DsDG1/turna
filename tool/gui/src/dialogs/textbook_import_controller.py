@@ -1105,7 +1105,7 @@ class TextbookImportController:
     # ------------------------------------------------------------------ helpers
     @staticmethod
     def _default_worker_factory(target, *args, **kwargs):
-        from src.dialogs.ai.worker import AiRequestWorker
+        from src.application.ai_request_worker import AiRequestWorker
 
         return AiRequestWorker(target, *args, **kwargs)
 

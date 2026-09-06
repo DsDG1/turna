@@ -170,7 +170,7 @@ def _start_experience_diagnose(host) -> None:
     """
     if not host.course_dir:
         return
-    from src.dialogs.ai.worker import AiRequestWorker
+    from src.application.ai_request_worker import AiRequestWorker
 
     previous = getattr(host, "_diagnose_worker", None)
     if previous is not None:
