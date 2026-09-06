@@ -34,6 +34,24 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from src.dialogs.textbook_import.constants import (
+    _PAGE_FOR_STEP,
+    _STEPPER_STAGES,
+    _STEP_TITLES,
+    _STRATEGY_OPTIONS,
+    STEP_CHAPTERS,
+    STEP_EXTRACT,
+    STEP_IMPORT,
+    STEP_PARSE,
+    STEP_PICK,
+    STEP_REVIEW,
+)
+from src.dialogs.textbook_import.pages import (
+    build_import_page,
+    build_knowledge_page,
+    build_source_page,
+    build_ui,
+)
 from src.backend.import_step_result import ImportStepResult
 from src.backend.import_strategy import ImportStrategy
 from src.backend.textbook_project import TextbookProject
@@ -44,36 +62,6 @@ from src.infrastructure.telemetry import telemetry
 from src.theme import ai_color, current_palette
 from src.widgets.bulk_import_preview_panel import BulkImportPreviewPanel
 from src.widgets.resource_review_table import ResourceReviewTable, ResourceRow
-
-# Import-strategy radio options shown on the import page (bookplan2 Phase 4).
-_STRATEGY_OPTIONS = (
-    (ImportStrategy.MERGE.value, "合并预览（交互逐章确认）"),
-    (ImportStrategy.SKIP_EXISTING.value, "跳过已存在 section"),
-    (ImportStrategy.FORCE_REPLACE.value, "覆盖已存在 section"),
-    (ImportStrategy.APPEND_AS_NEW.value, "作为新 section 追加（自动改 id）"),
-)
-
-# Steps of the timeline. STEP_PARSE is kept for project.json compatibility
-# (saved projects persist numeric current_step values) but has no page of its
-# own — the parse preview lives inline on the source page (P0-4).
-# Pages were reorganized into three stages in Phase 2 (connectplan §4.2):
-# 素材 (pick + chapters) / 知识 (extract + review) / 导入.
-STEP_PICK, STEP_PARSE, STEP_CHAPTERS, STEP_EXTRACT, STEP_REVIEW, STEP_IMPORT = range(6)
-_PAGE_FOR_STEP = {
-    STEP_PICK: 0,
-    STEP_PARSE: 0,
-    STEP_CHAPTERS: 0,
-    STEP_EXTRACT: 1,
-    STEP_REVIEW: 1,
-    STEP_IMPORT: 2,
-}
-_STEPPER_STAGES = (STEP_CHAPTERS, STEP_EXTRACT, STEP_IMPORT)
-_STEP_TITLES = {
-    STEP_CHAPTERS: "① 素材",
-    STEP_EXTRACT: "② 知识",
-    STEP_IMPORT: "③ 导入",
-}
-
 
 class TextbookImportDialog(QDialog):
     """Single-window textbook import timeline. Emits ``sections_ready``."""
@@ -151,278 +139,13 @@ class TextbookImportDialog(QDialog):
     # ------------------------------------------------------------------ UI
 
     def _build_ui(self) -> None:
-        root = QVBoxLayout(self)
-        root.setContentsMargins(16, 16, 16, 16)
-        root.setSpacing(12)
-
-        # Left stepper + right stacked pages.
-        body = QHBoxLayout()
-        self._stepper_widget = QWidget()
-        stepper_col = QVBoxLayout(self._stepper_widget)
-        stepper_col.setContentsMargins(0, 0, 0, 0)
-        stepper_col.setSpacing(6)
-        self._stepper_labels: dict[int, QLabel] = {}
-        for step in _STEPPER_STAGES:
-            lbl = QLabel(_STEP_TITLES[step])
-            lbl.setFixedWidth(120)
-            self._stepper_labels[step] = lbl
-            stepper_col.addWidget(lbl)
-        stepper_col.addStretch()
-        body.addWidget(self._stepper_widget)
-
-        self._stack = QStackedWidget()
-        self._stack.addWidget(self._build_source_page())
-        self._stack.addWidget(self._build_knowledge_page())
-        self._stack.addWidget(self._build_import_page())
-        body.addWidget(self._stack, 1)
-        root.addLayout(body, 1)
-
-        # Bottom progress row + cancel (wrappable so hosts can hide it).
-        self._bottom_bar = QWidget()
-        bottom = QHBoxLayout(self._bottom_bar)
-        bottom.setContentsMargins(0, 0, 0, 0)
-        self._progress = QProgressBar()
-        self._progress.setRange(0, 0)
-        self._progress.setVisible(False)
-        bottom.addWidget(self._progress)
-        self._stage_label = QLabel("")
-        self._stage_label.setStyleSheet(f"color: {ai_color('ai_accent')}; font-size: 12px;")
-        bottom.addWidget(self._stage_label)
-        bottom.addStretch()
-        self._usage_label = QLabel("")
-        self._usage_label.setStyleSheet(
-            f"color: {current_palette()['text_secondary']}; font-size: 11px;"
-        )
-        bottom.addWidget(self._usage_label)
-        self._autosave_label = QLabel("")
-        self._autosave_label.setStyleSheet(
-            f"color: {current_palette()['text_secondary']}; font-size: 11px;"
-        )
-        bottom.addWidget(self._autosave_label)
-        self._cancel_btn = QPushButton("取消")
-        self._cancel_btn.clicked.connect(self._on_cancel)
-        bottom.addWidget(self._cancel_btn)
-        root.addWidget(self._bottom_bar)
-
+        build_ui(self)
     def _build_source_page(self) -> QWidget:
-        """素材页: file pick + inline preview + chapter selection (P2-1)."""
-        page = QWidget()
-        lay = QVBoxLayout(page)
-        lay.addWidget(QLabel("拖入教材文件，或点击「选择文件」。支持 .md / .txt / .pdf（文本原生 PDF）。"))
-        row = QHBoxLayout()
-        self._pick_btn = QPushButton("选择文件…")
-        self._pick_btn.clicked.connect(self._on_pick_file)
-        row.addWidget(self._pick_btn)
-        self._picked_label = QLabel("未选择")
-        row.addWidget(self._picked_label, 1)
-        self._load_busy_label = QLabel("解析中…（可关闭，进度已自动保存）")
-        self._load_busy_label.setStyleSheet(
-            f"color: {current_palette()['ai_accent']};"
-        )
-        self._load_busy_label.setVisible(False)
-        row.addWidget(self._load_busy_label)
-        lay.addLayout(row)
-        self._parse_error_label = QLabel("")
-        self._parse_error_label.setStyleSheet(f"color: {current_palette()['error']};")
-        self._parse_error_label.setWordWrap(True)
-        self._parse_error_label.setVisible(False)
-        lay.addWidget(self._parse_error_label)
-        self._preview_caption = QLabel("内容预览（前 2000 字）：")
-        self._preview_caption.setVisible(False)
-        lay.addWidget(self._preview_caption)
-        self._parse_preview = QTextEdit()
-        self._parse_preview.setReadOnly(True)
-        self._parse_preview.setVisible(False)
-        self._parse_preview.setMaximumHeight(140)
-        lay.addWidget(self._parse_preview)
-
-        # Chapter selection (formerly its own page).
-        lay.addWidget(QLabel("勾选要导入的章节："))
-        btns = QHBoxLayout()
-        select_all = QPushButton("全选")
-        select_all.clicked.connect(self._select_all_chapters)
-        invert = QPushButton("反选")
-        invert.clicked.connect(self._invert_chapters)
-        btns.addWidget(select_all)
-        btns.addWidget(invert)
-        btns.addStretch()
-        lay.addLayout(btns)
-        self._chapter_list = QListWidget()
-        lay.addWidget(self._chapter_list, 1)
-        self._empty_chapters_label = QLabel("未切到章节（请确认标题层级 ≥ ##）")
-        self._empty_chapters_label.setStyleSheet(
-            f"color: {current_palette()['text_secondary']};"
-        )
-        self._empty_chapters_label.setVisible(False)
-        lay.addWidget(self._empty_chapters_label)
-        # Extraction options (bookplan2 Phase 5): textbook type + concurrency.
-        from src.backend.textbook_presets import preset_names, preset_for
-
-        opt_row = QHBoxLayout()
-        opt_row.addWidget(QLabel("教材类型："))
-        self._preset_combo = QComboBox()
-        for name in preset_names():
-            preset = preset_for(name)
-            self._preset_combo.addItem(preset.label, name)
-        self._preset_combo.currentIndexChanged.connect(self._apply_preset)
-        opt_row.addWidget(self._preset_combo)
-        opt_row.addSpacing(12)
-        opt_row.addWidget(QLabel("并发："))
-        self._concurrency_spin = QSpinBox()
-        self._concurrency_spin.setRange(1, 3)
-        self._concurrency_spin.setValue(1)
-        self._concurrency_spin.setToolTip("同时抽取的章节数（1=串行，越大越快但 token 并发消耗更高）")
-        self._concurrency_spin.valueChanged.connect(self._on_concurrency_changed)
-        opt_row.addWidget(self._concurrency_spin)
-        opt_row.addStretch()
-        lay.addLayout(opt_row)
-
-        next_btn = QPushButton("提取知识点 →")
-        next_btn.clicked.connect(self._start_extraction)
-        lay.addWidget(next_btn)
-        return page
-
+        return build_source_page(self)
     def _build_knowledge_page(self) -> QWidget:
-        """知识页: extraction log on top, review area below (P2-1)."""
-        page = QWidget()
-        lay = QVBoxLayout(page)
-
-        splitter = QSplitter(Qt.Orientation.Vertical)
-
-        # Top: extraction progress log.
-        log_box = QWidget()
-        log_lay = QVBoxLayout(log_box)
-        log_lay.setContentsMargins(0, 0, 0, 0)
-        log_lay.addWidget(QLabel("提取日志："))
-        # U0-6: extract status light (window progress / cascade / reextract).
-        self._extract_status_label = QLabel("抽取状态：空闲")
-        self._extract_status_label.setWordWrap(True)
-        self._extract_status_label.setStyleSheet(
-            f"color: {current_palette()['text_secondary']}; font-size: 11px; font-weight: 600;"
-        )
-        log_lay.addWidget(self._extract_status_label)
-        self._extract_log = QTextEdit()
-        self._extract_log.setReadOnly(True)
-        log_lay.addWidget(self._extract_log)
-        splitter.addWidget(log_box)
-
-        # Bottom: review area (formerly its own page).
-        review_box = QWidget()
-        review_lay = QVBoxLayout(review_box)
-        review_lay.setContentsMargins(0, 0, 0, 0)
-        review_lay.addWidget(
-            QLabel("审校抽取结果：可编辑、批量删除；红色=错误，黄色=警告。")
-        )
-
-        review_splitter = QSplitter(Qt.Orientation.Horizontal)
-
-        # Left: chapter quality list + recovery controls.
-        left = QWidget()
-        left_lay = QVBoxLayout(left)
-        left_lay.addWidget(QLabel("章节质量"))
-        self._chapter_quality_list = QListWidget()
-        self._chapter_quality_list.currentRowChanged.connect(
-            self._on_chapter_quality_selected
-        )
-        left_lay.addWidget(self._chapter_quality_list, 1)
-
-        self._chapter_recovery_label = QLabel("")
-        self._chapter_recovery_label.setStyleSheet(
-            f"color: {current_palette()['text_secondary']}; font-size: 11px;"
-        )
-        self._chapter_recovery_label.setWordWrap(True)
-        left_lay.addWidget(self._chapter_recovery_label)
-
-        self._retry_btn = QPushButton("重试本章")
-        self._retry_btn.clicked.connect(self._on_retry_standard_clicked)
-        self._retry_vocab_btn = QPushButton("仅抽词汇")
-        self._retry_vocab_btn.clicked.connect(self._on_retry_vocab_clicked)
-        self._skip_btn = QPushButton("跳过本章")
-        self._skip_btn.clicked.connect(self._on_skip_chapter)
-        self._reextract_btn = QPushButton("按质量重抽")
-        self._reextract_btn.setToolTip(
-            "把本章的质量问题回灌给 AI，重新抽取并替换本章知识点"
-        )
-        self._reextract_btn.clicked.connect(self._on_reextract_chapter)
-        for btn in (
-            self._retry_btn,
-            self._retry_vocab_btn,
-            self._skip_btn,
-            self._reextract_btn,
-        ):
-            btn.setVisible(False)
-            left_lay.addWidget(btn)
-
-        review_splitter.addWidget(left)
-
-        # Right: unified review table.
-        self._review_table = ResourceReviewTable()
-        self._review_table.rows_changed.connect(self._on_review_rows_changed)
-        self._review_table.fix_requested.connect(self._on_ai_fix_requested)
-        review_splitter.addWidget(self._review_table)
-        review_splitter.setStretchFactor(0, 1)
-        review_splitter.setStretchFactor(1, 4)
-
-        review_lay.addWidget(review_splitter, 1)
-
-        self._quality_summary_label = QLabel("")
-        review_lay.addWidget(self._quality_summary_label)
-
-        splitter.addWidget(review_box)
-        splitter.setStretchFactor(0, 1)
-        splitter.setStretchFactor(1, 2)
-        lay.addWidget(splitter, 1)
-
-        # Navigate to the import / preview page (bookplan2 Phase 4).
-        nav_row = QHBoxLayout()
-        self._design_btn = QPushButton("AI 设计课程 →")
-        self._design_btn.setToolTip("用资源池里的知识点，让 AI 编排成课程（课程工坊）")
-        self._design_btn.clicked.connect(self._on_design_btn_clicked)
-        # Only meaningful inside the workshop, which owns the design stage.
-        self._design_btn.setVisible(self._embedded)
-        nav_row.addWidget(self._design_btn)
-        next_btn = QPushButton("下一步：预览导入 ->")
-        next_btn.clicked.connect(self._goto_import_preview)
-        nav_row.addWidget(next_btn)
-        nav_row.addStretch(1)
-        lay.addLayout(nav_row)
-        return page
-
+        return build_knowledge_page(self)
     def _build_import_page(self) -> QWidget:
-        page = QWidget()
-        lay = QVBoxLayout(page)
-        lay.addWidget(QLabel("选择导入策略，预览每个章节将生成的 section 与冲突，确认后导入。"))
-
-        # Strategy radio group.
-        strategy_box = QGroupBox("导入策略")
-        strategy_lay = QVBoxLayout(strategy_box)
-        self._strategy_group = QButtonGroup(self)
-        self._strategy_buttons: dict[str, QRadioButton] = {}
-        for i, (value, label) in enumerate(_STRATEGY_OPTIONS):
-            radio = QRadioButton(label)
-            if i == 0:
-                radio.setChecked(True)
-            self._strategy_group.addButton(radio, i)
-            self._strategy_buttons[value] = radio
-            strategy_lay.addWidget(radio)
-        self._strategy_group.idToggled.connect(self._on_strategy_id_toggled)
-        lay.addWidget(strategy_box)
-
-        # Bulk preview panel.
-        self._preview_panel = BulkImportPreviewPanel()
-        lay.addWidget(self._preview_panel, 1)
-
-        btns = QHBoxLayout()
-        back_btn = QPushButton("<- 返回审校")
-        back_btn.clicked.connect(self._on_back_to_review_clicked)
-        btns.addWidget(back_btn)
-        btns.addStretch()
-        self._import_btn = QPushButton("确认导入 ↗")
-        self._import_btn.clicked.connect(self._on_import)
-        btns.addWidget(self._import_btn)
-        lay.addLayout(btns)
-        return page
-
+        return build_import_page(self)
     # ------------------------------------------------------------- step nav
 
     def _go_to_step(self, step: int) -> None:
