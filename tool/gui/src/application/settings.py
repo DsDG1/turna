@@ -132,7 +132,6 @@ class Settings:
     experience_immersive_full_auto: bool = True
     experience_immersive_opaque: bool = True
     experience_soft_autopilot: bool = False
-    experience_sovereign_enabled: bool = False
     experience_llm_intent: bool = False
 
     @classmethod
@@ -222,7 +221,6 @@ class Settings:
         qsettings.setValue("experience/immersive_full_auto", self.experience_immersive_full_auto)
         qsettings.setValue("experience/immersive_opaque", self.experience_immersive_opaque)
         qsettings.setValue("experience/soft_autopilot", self.experience_soft_autopilot)
-        qsettings.setValue("experience/sovereign_enabled", self.experience_sovereign_enabled)
         qsettings.setValue("experience/llm_intent", self.experience_llm_intent)
 
     def add_recent_repo(self, path: Path | str) -> None:
@@ -316,7 +314,6 @@ class Settings:
             experience_immersive_full_auto=self.experience_immersive_full_auto,
             experience_immersive_opaque=self.experience_immersive_opaque,
             experience_soft_autopilot=self.experience_soft_autopilot,
-            experience_sovereign_enabled=self.experience_sovereign_enabled,
             experience_llm_intent=self.experience_llm_intent,
         )
 
@@ -497,9 +494,6 @@ def _load_experience_settings(qsettings: QSettings) -> dict[str, Any]:
         ),
         "experience_soft_autopilot": _bool_or_default(
             qsettings.value("experience/soft_autopilot", False), False
-        ),
-        "experience_sovereign_enabled": _bool_or_default(
-            qsettings.value("experience/sovereign_enabled", False), False
         ),
         "experience_llm_intent": _bool_or_default(
             qsettings.value("experience/llm_intent", False), False

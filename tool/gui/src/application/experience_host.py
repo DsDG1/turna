@@ -121,7 +121,6 @@ class ExperienceHost(Protocol):
     _presence_mouse_filter: Any               # event filter installed on host
     _presence_drive_seen: Any
     _presence_ai_busy: bool                   # probed
-    _sovereign_entered_at: Any                # timestamp or None
     _on_mode_toggled: _Handler
 
     # ── Workshop / git / textbook ────────────────────────────────────────
@@ -161,7 +160,6 @@ class ExperienceHost(Protocol):
     _last_compare_report: Any
     _compare_sections_non_modal: _Handler     # probed
     _batch_regen_inline: Any                  # probed
-    _last_demote_blocked_s: Any
     _last_help_dialog: Any
     _on_resources: _Handler                   # hygiene window opener
     _on_publish: _Handler                     # probed

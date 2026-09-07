@@ -1,5 +1,7 @@
 # AI 侵入度阶梯 -- 极端档扩张提案（sovereign / 强制共生档）
 
+> ⚰️ **已废弃（2026-09-07）**：Sovereign 档已从代码库整体移除。原因：进入确认/降档冷却等守护机制从未接线，档位实际不可达且存在手动改 QSettings 静默激活的 foot-gun；反悔抑制/副光标等配套模块为零调用死代码，已一并删除。侵入度阶梯收敛为 observer / copilot / active / immersive 四档。本文仅作历史设计记录保留。
+
 | 字段 | 值 |
 |------|-----|
 | **文档编号** | `VAR-GUI-EXP-SOVEREIGN-PROPOSAL` |

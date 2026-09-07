@@ -145,7 +145,7 @@ class ResolvePolicyTests(unittest.TestCase):
                 self.assertEqual(p.mode, mode)
                 self.assertEqual(p.presence_level, level)
                 self.assertEqual(p.is_observer, level == 0)
-                if mode in ("immersive", "sovereign"):
+                if mode in ("immersive",):
                     self.assertTrue(p.allow_full_auto_apply)
                     self.assertTrue(p.runtime_opaque)
                     self.assertTrue(p.allow_autonomous_write)
@@ -374,35 +374,6 @@ class DelegationTests(unittest.TestCase):
                 _make_settings(experience_mode="copilot", experience_allow_dangerous_skills=True)
             )
         )
-
-class SovereignModeTests(unittest.TestCase):
-    def test_sovereign_presence_level_and_flags(self):
-        from src.backend.experience.policy import resolve_policy
-
-        s = _make_settings(experience_mode="sovereign")
-        p = resolve_policy(s)
-        self.assertEqual(p.mode, "sovereign")
-        self.assertEqual(p.presence_level, 4)
-        self.assertTrue(p.sovereign_mode_enabled)
-        self.assertTrue(p.allow_full_auto_apply)
-        self.assertTrue(p.runtime_opaque)
-        self.assertTrue(p.allow_dangerous)
-        self.assertTrue(p.is_active_bundle)
-
-    def test_sovereign_sub_switch_enabled(self):
-        from src.backend.experience.policy import resolve_policy
-
-        s = _make_settings(experience_mode="active", experience_sovereign_enabled=True)
-        p = resolve_policy(s)
-        self.assertEqual(p.presence_level, 4)
-        self.assertTrue(p.sovereign_mode_enabled)
-
-    def test_should_confirm_sovereign_enter(self):
-        from src.application.presence_mode import should_confirm_sovereign_enter
-
-        self.assertTrue(should_confirm_sovereign_enter("copilot", "sovereign"))
-        self.assertTrue(should_confirm_sovereign_enter("immersive", "sovereign"))
-        self.assertFalse(should_confirm_sovereign_enter("sovereign", "sovereign"))
 
 
 if __name__ == "__main__":

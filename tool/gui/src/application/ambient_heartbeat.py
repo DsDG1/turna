@@ -1,7 +1,7 @@
 """A3 Ambient Background Heartbeat Service & DeferStore Backfill.
 
 Provides 15s background heartbeat for recalculating Ambient proposals and
-handling silent DeferStore backfill when presence_level >= 2 (active/immersive/sovereign).
+handling silent DeferStore backfill when presence_level >= 2 (active/immersive).
 """
 from __future__ import annotations
 
@@ -51,7 +51,7 @@ class AmbientHeartbeatService(QObject):
             if not getattr(policy, "allow_ambient_live", False):
                 return
 
-            # Trigger Ambient suggestions update on active/immersive/sovereign
+            # Trigger Ambient suggestions update on active/immersive
             exp = getattr(self._host, "experience", None)
             if exp is not None and hasattr(exp, "refresh_ambient_proposals"):
                 exp.refresh_ambient_proposals()

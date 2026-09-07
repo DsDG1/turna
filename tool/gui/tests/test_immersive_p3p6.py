@@ -321,20 +321,6 @@ class SetCAutoApplyTest(unittest.TestCase):
             ok, _ = can_dispatch(spec, p)
             self.assertFalse(ok, f"observer must deny dangerous {aid}")
 
-    def test_sovereign_matches_immersive_c_logic(self):
-        """Sovereign (presence_level 4) inherits immersive C auto logic."""
-        from src.backend.experience.auto_apply import is_auto_apply_allowed
-        from src.backend.experience.policy import resolve_policy
-
-        p = resolve_policy(_settings(experience_mode="sovereign"))
-        self.assertTrue(p.allow_full_auto_apply)
-        for aid in self._C_IDS:
-            self.assertTrue(
-                is_auto_apply_allowed(aid, p),
-                f"{aid} should auto-apply under sovereign (inherits immersive)",
-            )
-        self.assertFalse(is_auto_apply_allowed("course.outline_shells", p))
-
 
 if __name__ == "__main__":
     unittest.main()

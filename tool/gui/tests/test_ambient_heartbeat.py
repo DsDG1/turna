@@ -1,4 +1,4 @@
-"""Unit tests for AmbientHeartbeatService tick gating (migrated from test_sovereign_and_ambient)."""
+"""Unit tests for AmbientHeartbeatService tick gating (migrated from the removed R1 presence tests)."""
 from __future__ import annotations
 
 import sys

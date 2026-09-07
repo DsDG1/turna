@@ -32,8 +32,7 @@
 
 ## H5 — 降档与安全阀
 
-1. Immersive/Sovereign 下 Ctrl+Shift+D → Copilot。  
-2. Sovereign 进入后立即降档（观察 300s 冷却是否提示）。  
+1. Immersive 下 Ctrl+Shift+D → Copilot。  
 
 | 期望 | 通过 |
 |------|------|

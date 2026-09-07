@@ -26,7 +26,7 @@ class ActionSpec:
     # 而是=「immersive 下参与集合 C 的 auto-vs-confirm 分流」——
     #   * copilot/active：仍受 ``experience_allow_dangerous_skills`` 总开关锁定
     #     （``can_dispatch`` 在非 full-auto 下仍拒），开关开则经既有 confirm 派发；
-    #   * immersive/sovereign：dangerous 派发，C 成员 auto+Undo、非 C dangerous 落
+    #   * immersive：dangerous 派发，C 成员 auto+Undo、非 C dangerous 落
     #     confirm（``is_auto_apply_allowed`` 分流）。
     # 见 ``AUTO_APPLY_DANGEROUS_WHEN_IMMERSIVE``（集合 C）与 ``is_dangerous_skill_allowed``。
     dangerous: bool = False

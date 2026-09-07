@@ -45,17 +45,15 @@ OBSERVER = "observer"
 COPILOT = "copilot"
 ACTIVE = "active"
 IMMERSIVE = "immersive"
-SOVEREIGN = "sovereign"
 
 EXPERIENCE_MODES: frozenset[str] = frozenset(
-    {OBSERVER, COPILOT, ACTIVE, IMMERSIVE, SOVEREIGN}
+    {OBSERVER, COPILOT, ACTIVE, IMMERSIVE}
 )
 PRESENCE_LEVEL_BY_MODE: dict[str, int] = {
     OBSERVER: 0,
     COPILOT: 1,
     ACTIVE: 2,
     IMMERSIVE: 3,
-    SOVEREIGN: 4,
 }
 
 # M-08: which usage_today key counts toward the daily budget.
@@ -103,8 +101,6 @@ class PolicyDecision:
     # P3 immersive full-auto + runtime opacity (settings can turn off)
     allow_full_auto_apply: bool = False
     runtime_opaque: bool = False
-    # Sovereign tier: synchronous sovereign takeover mode
-    sovereign_mode_enabled: bool = False
 
     @property
     def is_observer(self) -> bool:
@@ -232,20 +228,8 @@ def resolve_policy(
         opaque_flag = True if opaque_flag is None else bool(opaque_flag)
     except Exception:
         opaque_flag = True
-    try:
-        sovereign_flag = bool(getattr(s, "experience_sovereign_enabled", False))
-    except Exception:
-        sovereign_flag = False
 
     is_observer = presence_level == 0
-    sovereign = (mode == SOVEREIGN or sovereign_flag) and not is_observer
-    if sovereign:
-        presence_level = 4
-        active_bundle = True
-        immersive = True
-        sovereign_mode_enabled = True
-    else:
-        sovereign_mode_enabled = False
 
     # P2 active bundle: presence >= 2 ORs presence features without mutating settings.
     active_bundle = presence_level >= 2 and not is_observer
@@ -256,7 +240,7 @@ def resolve_policy(
     allow_ambient_live = (ambient_live_flag or active_bundle) and not is_observer
     allow_defer_resurface = (defer_flag or active_bundle) and not is_observer
     allow_campaign_auto = bool(active_bundle)
-    # P3: full auto + opacity + autonomous write under immersive / sovereign.
+    # P3: full auto + opacity + autonomous write under immersive.
     allow_full_auto_apply = bool(immersive and full_auto_flag)
     runtime_opaque = bool(immersive and opaque_flag)
     # When full auto, dangerous registry actions may dispatch if flag on OR full auto
@@ -296,7 +280,6 @@ def resolve_policy(
         allow_campaign_auto=allow_campaign_auto,
         allow_full_auto_apply=allow_full_auto_apply,
         runtime_opaque=runtime_opaque,
-        sovereign_mode_enabled=sovereign_mode_enabled,
     )
 
 
@@ -334,7 +317,7 @@ def can_dispatch(spec: ActionSpec | None, policy: PolicyDecision) -> tuple[bool,
       actions pass even in observer (they do not write the tree).
     * ``soft.*`` local hygiene passes budget gate (zero network).
     * dangerous actions require ``policy.allow_dangerous`` **only outside
-      full-auto** (copilot/active); under immersive/sovereign dangerous actions
+      full-auto** (copilot/active); under immersive dangerous actions
       dispatch and set C partitions auto-vs-confirm (see
       ``auto_apply.is_auto_apply_allowed``).
     * In observer mode, any tree-writing AI action (``needs_confirm=True`` and
@@ -364,7 +347,7 @@ def can_dispatch(spec: ActionSpec | None, policy: PolicyDecision) -> tuple[bool,
             return False, "Goal 规划已关闭（设置 ▸ 体验 OS 中开启；Observer 下不可用）"
         return True, ""
     # C-20 retarget (v4.69): dangerous lock 仅在非 full-auto（copilot/active）
-    # 生效。immersive/sovereign 下 dangerous 派发——C 成员 auto+Undo、非 C
+    # 生效。immersive 下 dangerous 派发——C 成员 auto+Undo、非 C
     # dangerous 落 confirm（由 ``is_auto_apply_allowed`` + dispatch else 分流）。
     if (
         spec.dangerous

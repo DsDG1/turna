@@ -4,11 +4,24 @@
 
  ## 当前基线
 
-- 日期：2026-09-07（噱头清理第一、二步：删除 3 个孤儿模块 + Sovereign 档；`python -m unittest` 收集 2485 例 / 0 加载错误）
-- 全量用例（上次记录）：2485 collected（skipped≈4：2 个 course_tree 为环境条件跳过 + 2 个 defer_resurface 永久 skip）；唯一确定性失败为基线已知 `test_textbook_controller.LoadFileAsyncTest.test_stale_load_result_is_ignored`（HEAD worktree 复现，非本批引入），命令：
+- 日期：2026-09-07（噱头清理第一、二步：删除 3 个孤儿模块 + Sovereign 档；`python -m unittest` 收集 2481 例 / 0 加载错误）
+- 全量用例（上次记录）：2481 collected（skipped≈4：2 个 course_tree 为环境条件跳过 + 2 个 defer_resurface 永久 skip）；唯一确定性失败为基线已知 `test_textbook_controller.LoadFileAsyncTest.test_stale_load_result_is_ignored`（HEAD worktree 复现，非本批引入），命令：
   ```bash
   QT_QPA_PLATFORM=offscreen python3 -m unittest discover -s tests -p "test_*.py"
   ```
+
+## 2026-09-07 噱头清理第二步（Sovereign 档移除）
+
+用例数 2485 -> 2481（-4：SovereignModeTests 3 例 + immersive C 集等价对照 1 例）。侵入度阶梯收敛为 observer/copilot/active/immersive 四档（presence_level 0–3）。删除依据：档位无任何 UI 入口不可达，且进入确认（confirm_sovereign_enter）与降档冷却守护均为零调用者——手动改 QSettings 可静默激活，属 foot-gun。
+
+| 文件 | 变更 |
+|---|---|
+| `backend/experience/policy.py` | 删 SOVEREIGN 常量/档位映射/sovereign_mode_enabled 字段/标志读取与分支；旧持久化值 "sovereign" 经 normalize 回落 copilot |
+| `application/presence_mode.py` | 删 sovereign 生命周期函数（enter 确认/冷却锁/mark）、警告文案与 demote 内冷却块；保留 demote_to_copilot（Immersive 复用）、should_confirm_immersive_enter、campaign 函数 |
+| `application/settings.py` | 删 experience_sovereign_enabled 四处（字段/save/clone/load） |
+| `application/experience_host.py`、`src/app.py` | 删 _sovereign_entered_at / _last_demote_blocked_s 协议与初始化 |
+| tests | test_policy 删 SovereignModeTests、修 four_modes 断言；test_immersive_p3p6 删 sovereign C 集对照例 |
+| docs | sovereign 提案移入 docs/archive/ 加废弃头注；E_INTRUSIVE_WALKTHROUGH 删 sovereign 步骤 |
 
 ## 2026-09-07 噱头清理第一步（孤儿模块删除）
 
