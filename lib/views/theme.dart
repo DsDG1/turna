@@ -67,18 +67,18 @@ class TurnaTheme {
   static const Color amethystLeague = Color(0xFF9B59B6);
 
   // BACKGROUND COLORS
-  static const Color background = Color(0xFFF7FAF9);
+  static const Color background = Color(0xFFF2F8F3);
   static const Color surface = Colors.white;
-  static const Color scaffoldBackground = Color(0xFFF3F8F7);
+  static const Color scaffoldBackground = Color(0xFFEDF5EE);
   static const Color cardBackground = Colors.white;
   static const Color elevatedSurface = Color(0xFFFFFFFF);
-  static const Color divider = Color(0xFFE3EBE9);
+  static const Color divider = Color(0xFFDFEBE0);
 
   /// Dark scaffold / window chrome (≡ Android `turna_scaffold_dark`).
-  static const Color darkScaffold = Color(0xFF101B22);
+  static const Color darkScaffold = Color(0xFF1B2E25);
 
   /// Dark AppBar / status bar surface (≡ Android `turna_appbar_dark`).
-  static const Color darkAppBar = Color(0xFF182832);
+  static const Color darkAppBar = Color(0xFF243D30);
 
   // TEXT COLORS
   static const Color textPrimary = Color(0xFF1C2730);
@@ -107,16 +107,16 @@ class TurnaTheme {
   static const LinearGradient softGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [Color(0xFFF7FAF9), Color(0xFFE8F2F0)],
+    colors: [Color(0xFFF2F8F3), Color(0xFFE3F1E5)],
   );
 
   static const LinearGradient courseTreeGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
     colors: [
-      Color(0xFFF7FAF9),
-      Color(0xFFEFF7F5),
-      Color(0xFFE8F2F0),
+      Color(0xFFF2F8F3),
+      Color(0xFFE9F4EA),
+      Color(0xFFE3F1E5),
     ],
     stops: [0.0, 0.5, 1.0],
   );
@@ -127,9 +127,9 @@ class TurnaTheme {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Color(0xFF101B22),
-                Color(0xFF142129),
-                Color(0xFF182832),
+                Color(0xFF1B2E25),
+                Color(0xFF20362B),
+                Color(0xFF243D30),
               ],
               stops: [0.0, 0.5, 1.0],
             )
@@ -441,7 +441,7 @@ class TurnaTheme {
       _isDark(context)
           ? Color.alphaBlend(
               accent.withValues(alpha: alpha),
-              const Color(0xFF182832),
+              const Color(0xFF243D30),
             )
           : Color.alphaBlend(
               accent.withValues(alpha: alpha),
@@ -596,38 +596,38 @@ class TurnaTheme {
       Theme.of(context).scaffoldBackgroundColor;
 
   static Color cardBg(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF182832) : Colors.white;
+      _isDark(context) ? const Color(0xFF243D30) : Colors.white;
 
   static Color elevatedCardBg(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF20323D) : const Color(0xFFFFFFFF);
+      _isDark(context) ? const Color(0xFF2A4638) : const Color(0xFFFFFFFF);
 
   static Color dividerBg(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF2B414C) : divider;
+      _isDark(context) ? const Color(0xFF385246) : divider;
 
   static Color textPrimaryColor(BuildContext context) =>
       Theme.of(context).colorScheme.onSurface;
 
   static Color textSecondaryColor(BuildContext context) =>
-      _isDark(context) ? const Color(0xFFB6C4CB) : textSecondary;
+      _isDark(context) ? const Color(0xFFB9CCC0) : textSecondary;
 
   static Color textHintColor(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF7D929C) : textHint;
+      _isDark(context) ? const Color(0xFF84998C) : textHint;
 
   static Color inputFillColor(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF142129) : const Color(0xFFF3F8F7);
+      _isDark(context) ? const Color(0xFF20362B) : const Color(0xFFEDF5EE);
 
   static Color statCardBorder(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF2B414C) : divider;
+      _isDark(context) ? const Color(0xFF385246) : divider;
 
   static Color bottomNavBg(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF182832) : Colors.white;
+      _isDark(context) ? const Color(0xFF243D30) : Colors.white;
 
   /// Translucent frosted fill for the floating home tab bar. Paired with the
   /// capsule's backdrop blur: transparent enough for the blur to read, opaque
   /// enough to keep labels legible over worst-case content scrolling
   /// underneath.
   static Color floatingBarFill(BuildContext context) => _isDark(context)
-      ? const Color(0xFF182832).withValues(alpha: 0.60)
+      ? const Color(0xFF243D30).withValues(alpha: 0.60)
       : Colors.white.withValues(alpha: 0.65);
 
   /// Single-layer drop under the floating tab capsule. No accent glow —
@@ -833,7 +833,7 @@ class TurnaTheme {
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: const Color(0xFFF3F8F7),
+          fillColor: const Color(0xFFEDF5EE),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           border: OutlineInputBorder(
@@ -863,7 +863,7 @@ class TurnaTheme {
           elevation: 0,
         ),
         chipTheme: expressiveChipTheme(
-          background: const Color(0xFFF3F8F7),
+          background: const Color(0xFFEDF5EE),
           selectedFill: brandTeal.withValues(alpha: 0.16),
           label: textSecondary,
           selectedLabel: brandTeal,
@@ -967,7 +967,7 @@ class TurnaTheme {
         ),
         cardTheme: CardThemeData(
           elevation: 0,
-          color: const Color(0xFF182832),
+          color: const Color(0xFF243D30),
           surfaceTintColor: Colors.transparent,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusLarge),
@@ -1009,7 +1009,7 @@ class TurnaTheme {
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: const Color(0xFF142129),
+          fillColor: const Color(0xFF20362B),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           border: OutlineInputBorder(
@@ -1032,28 +1032,28 @@ class TurnaTheme {
         bottomNavigationBarTheme: const BottomNavigationBarThemeData(
           backgroundColor: Colors.transparent,
           selectedItemColor: brandReed,
-          unselectedItemColor: Color(0xFF7D929C),
+          unselectedItemColor: Color(0xFF84998C),
           showSelectedLabels: true,
           showUnselectedLabels: true,
           type: BottomNavigationBarType.fixed,
           elevation: 0,
         ),
         chipTheme: expressiveChipTheme(
-          background: const Color(0xFF142129),
+          background: const Color(0xFF20362B),
           selectedFill: brandTeal.withValues(alpha: 0.28),
-          label: const Color(0xFFB6C4CB),
+          label: const Color(0xFFB9CCC0),
           selectedLabel: brandReed,
-          outline: const Color(0xFF2B414C),
+          outline: const Color(0xFF385246),
         ),
         segmentedButtonTheme: expressiveSegmentedTheme(
           selectedFill: brandTeal.withValues(alpha: 0.28),
           selectedForeground: brandReed,
-          foreground: const Color(0xFFB6C4CB),
-          outline: const Color(0xFF2B414C),
+          foreground: const Color(0xFFB9CCC0),
+          outline: const Color(0xFF385246),
         ),
         progressIndicatorTheme: const ProgressIndicatorThemeData(
           color: brandTealLight,
-          linearTrackColor: Color(0xFF2B414C),
+          linearTrackColor: Color(0xFF385246),
         ),
         floatingActionButtonTheme: const FloatingActionButtonThemeData(
           backgroundColor: brandTeal,
@@ -1066,7 +1066,7 @@ class TurnaTheme {
             borderRadius: BorderRadius.circular(radiusXLarge),
             side: const BorderSide(color: Color(0x3D78C7B8), width: 1),
           ),
-          backgroundColor: const Color(0xF2182832),
+          backgroundColor: const Color(0xF2243D30),
           contentTextStyle: const TextStyle(
             color: Colors.white,
             fontSize: 14,
@@ -1076,7 +1076,7 @@ class TurnaTheme {
           insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         ),
         dividerTheme: const DividerThemeData(
-          color: Color(0xFF2B414C),
+          color: Color(0xFF385246),
           thickness: 1,
         ),
         textTheme: const TextTheme(
@@ -1095,16 +1095,16 @@ class TurnaTheme {
           titleLarge:
               TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
           titleMedium:
-              TextStyle(color: Color(0xFFB6C4CB), fontWeight: FontWeight.w500),
+              TextStyle(color: Color(0xFFB9CCC0), fontWeight: FontWeight.w500),
           titleSmall:
-              TextStyle(color: Color(0xFFB6C4CB), fontWeight: FontWeight.w500),
+              TextStyle(color: Color(0xFFB9CCC0), fontWeight: FontWeight.w500),
           bodyLarge: TextStyle(color: Colors.white),
-          bodyMedium: TextStyle(color: Color(0xFFB6C4CB)),
-          bodySmall: TextStyle(color: Color(0xFF7D929C)),
+          bodyMedium: TextStyle(color: Color(0xFFB9CCC0)),
+          bodySmall: TextStyle(color: Color(0xFF84998C)),
           labelLarge:
               TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-          labelMedium: TextStyle(color: Color(0xFFB6C4CB)),
-          labelSmall: TextStyle(color: Color(0xFF7D929C)),
+          labelMedium: TextStyle(color: Color(0xFFB9CCC0)),
+          labelSmall: TextStyle(color: Color(0xFF84998C)),
         ),
       );
 

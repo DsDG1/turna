@@ -1,9 +1,10 @@
-/// Converts card HTML into plain speakable text for TTS.
+/// Converts card HTML into plain visible/speakable text.
 ///
 /// Drops `<script>`/`<style>`/`<head>` blocks (their text is not visible card
-/// content), converts `<br>` to newlines, strips remaining tags, decodes the
-/// common entities, and collapses whitespace. Mirrors the stripping already
-/// done by the WebView text fallback so TTS reads the same text the user sees.
+/// content), converts `<br>` to whitespace, strips remaining tags, decodes the
+/// common entities, and collapses whitespace. The WebView text fallback
+/// (desktop / web) renders through this same function, so TTS reads exactly
+/// the text the user sees.
 String stripHtml(String html) {
   if (html.isEmpty) return '';
   var t = html

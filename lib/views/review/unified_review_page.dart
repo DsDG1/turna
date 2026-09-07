@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:turna/application/achievements/achievement_service.dart';
 import 'package:turna/application/audio_controller.dart';
-import 'package:turna/application/game_provider.dart';
-import 'package:turna/application/gems_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/review/review_session_controller.dart';
 import 'package:turna/application/ai/ai_card_context_resolver.dart';
+import 'package:turna/application/study_session/session_settlement_service.dart';
 import 'package:turna/application/study_session/study_product_analytics.dart';
-import 'package:turna/application/study_stats_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/course/mistake_entry.dart';
@@ -16,7 +13,6 @@ import 'package:turna/domain/review/recall_outcome.dart';
 import 'package:turna/domain/review/review_item.dart';
 import 'package:turna/domain/review/review_ledger.dart';
 import 'package:turna/domain/review/review_ledger_resolver.dart';
-import 'package:turna/domain/study/study_log.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/components/ai_card_explain_sheet.dart';
 import 'package:turna/views/anki/anki_webview_sizing.dart';
@@ -138,42 +134,13 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
     final total = remembered + forgotten;
     if (total == 0) return;
 
-    try {
-      final study = context.read<StudyStatsProvider?>();
-      final game = context.read<GameProvider?>();
-      final gems = context.read<GemsProvider?>();
-      final achievements = getIt<AchievementService>();
-
-      var xp = 15;
-      if (game != null) {
-        xp = await game.awardXP(
-          XPEvent.srsReviewSession,
-          multiplier: total.toDouble(),
-        );
-      }
-      if (gems != null) {
-        await gems.earnGems(
-          GemEvent.srsReviewSession,
-          eventId: GemRewardEventIds.reviewSession(
-            kind: 'srs',
-            completedAt: DateTime.now(),
-            sessionSequence: _gemSessionSequence,
-          ),
-        );
-      }
-      if (study != null) {
-        await study.recordActivity(
-          type: StudyActivityType.srsReview,
-          xpEarned: xp,
-          durationSeconds: _controller.elapsed.inSeconds,
-          correctCount: remembered,
-          incorrectCount: forgotten,
-        );
-      }
-      // Achievement evaluation after every authoritative write above; the
-      // per-card delta feeds the durable totalReviewedCards projection.
-      await achievements.recordReviewSession(cardsAnswered: total);
-    } catch (_) {}
+    await SessionSettlementService.fromContext(context).settle(
+      source: SessionSettlementSource.srs,
+      sessionSequence: _gemSessionSequence,
+      remembered: remembered,
+      forgotten: forgotten,
+      elapsed: _controller.elapsed,
+    );
   }
 
   @override

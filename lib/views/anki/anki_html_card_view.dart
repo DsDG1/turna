@@ -8,6 +8,9 @@ import 'package:flutter/material.dart';
 // Package imports:
 import 'package:webview_flutter/webview_flutter.dart';
 
+// Project imports:
+import 'package:turna/core/html_stripper.dart';
+
 // Package imports:
 import 'package:path/path.dart' as p;
 
@@ -371,7 +374,8 @@ class AnkiHtmlCardViewState extends State<AnkiHtmlCardView> {
 }
 
 /// Stripped-text fallback used on platforms without a WebView implementation
-/// (desktop / web). Shows the card's visible text without HTML.
+/// (desktop / web). Shows the card's visible text without HTML, sharing
+/// [stripHtml] with the TTS pipeline so both read the same text.
 class _HtmlTextFallback extends StatelessWidget {
   final String html;
   final bool typeAnswerEnabled;
@@ -383,30 +387,7 @@ class _HtmlTextFallback extends StatelessWidget {
     this.onTypeAnswerChanged,
   });
 
-  static final _tagRegex = RegExp(r'<[^>]+>');
-  static final _entityRegex = RegExp(r'&(amp|lt|gt|nbsp|quot);');
-
-  String get _text {
-    // Drop script/style/head blocks first - their text content is not visible
-    // card text (notably the notetype's <style> css from the official
-    // engine's rendered-card payload).
-    var t = html
-        .replaceAll(RegExp(r'<script[^>]*>.*?</script>', dotAll: true), '')
-        .replaceAll(RegExp(r'<style[^>]*>.*?</style>', dotAll: true), '')
-        .replaceAll(RegExp(r'<head[^>]*>.*?</head>', dotAll: true), '')
-        .replaceAll(_tagRegex, '')
-        .replaceAllMapped(
-            _entityRegex,
-            (m) => switch (m.group(1)) {
-                  'amp' => '&',
-                  'lt' => '<',
-                  'gt' => '>',
-                  'nbsp' => ' ',
-                  _ => '"',
-                });
-    // Collapse the whitespace the HTML head/style injected.
-    return t.replaceAll(RegExp(r'\s+'), ' ').trim();
-  }
+  String get _text => stripHtml(html);
 
   @override
   Widget build(BuildContext context) {

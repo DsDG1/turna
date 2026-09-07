@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:turna/application/achievements/achievement_service.dart';
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
@@ -14,17 +13,13 @@ import 'package:turna/application/anki_official/review/formal_review_source_coor
 import 'package:turna/application/anki_official/review/official_formal_review_coordinator.dart';
 import 'package:turna/application/anki_official/review/official_formal_review_production_loader.dart';
 import 'package:turna/application/course_provider.dart';
-import 'package:turna/application/game_provider.dart';
-import 'package:turna/application/gems_provider.dart';
 import 'package:turna/application/study_session/anki_review_content.dart';
 import 'package:turna/application/study_session/anki_study_session_host.dart';
+import 'package:turna/application/study_session/session_settlement_service.dart';
 import 'package:turna/application/study_session/study_ledger_adapters.dart';
 import 'package:turna/application/study_session/study_product_analytics.dart';
 import 'package:turna/application/study_session/study_session_controller.dart';
-import 'package:turna/application/study_stats_provider.dart';
-import 'package:turna/di/injection.dart';
 import 'package:provider/provider.dart';
-import 'package:turna/domain/study/study_log.dart';
 import 'package:turna/domain/anki/card_presentation.dart';
 import 'package:turna/domain/anki/study_models.dart';
 import 'package:turna/domain/course/interaction.dart';
@@ -91,6 +86,11 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
   bool _sessionCompletedRecorded = false;
   final DateTime _sessionStartedAt = DateTime.now();
 
+  /// One per page instance: scopes the settlement gem reward's
+  /// idempotency key so every completed session earns exactly once.
+  final String _gemSessionSequence =
+      DateTime.now().microsecondsSinceEpoch.toString();
+
   /// Wave 2 (§8.4): a Blocked load — the scheduler owes cards but none
   /// could be rendered. Surfaced with retry / continue-later; never
   /// silently ends the source.
@@ -104,51 +104,17 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
   }) async {
     if (total == 0 || _sessionCompletedRecorded) return;
     _sessionCompletedRecorded = true;
-    try {
-      final study = context.read<StudyStatsProvider?>();
-      final game = context.read<GameProvider?>();
-      final gems = context.read<GemsProvider?>();
-      final achievements = getIt.isRegistered<AchievementService>()
-          ? getIt<AchievementService>()
-          : null;
-
-      var xp = remembered * 10 + forgotten * 2;
-      if (game != null) {
-        final awarded = await game.awardXP(
-          XPEvent.srsReviewSession,
-          multiplier: total.toDouble(),
-        );
-        if (awarded > 0) xp = awarded;
-      }
-      if (gems != null) {
-        await gems.earnGems(
-          GemEvent.srsReviewSession,
-          eventId: GemRewardEventIds.reviewSession(
-            kind: 'anki',
-            completedAt: DateTime.now(),
-            sessionSequence: '0',
-          ),
-        );
-      }
-      if (study != null) {
-        await study.recordActivity(
-          type: StudyActivityType.srsReview,
-          xpEarned: xp,
-          durationSeconds: elapsed.inSeconds,
-          correctCount: remembered,
-          incorrectCount: forgotten,
-        );
-      }
-      if (achievements != null) {
-        await achievements.recordReviewSession(cardsAnswered: total);
-      }
-      if (mounted) {
-        setState(() {
-          _earnedXp = xp;
-        });
-      }
-    } catch (e) {
-      debugPrint('[AnkiReviewSessionPage] session settlement failed: $e');
+    final xp = await SessionSettlementService.fromContext(context).settle(
+      source: SessionSettlementSource.anki,
+      sessionSequence: _gemSessionSequence,
+      remembered: remembered,
+      forgotten: forgotten,
+      elapsed: elapsed,
+    );
+    if (mounted) {
+      setState(() {
+        _earnedXp = xp;
+      });
     }
   }
 

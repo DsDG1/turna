@@ -166,10 +166,10 @@ void main() {
     test('Android colors.xml matches Flutter surface tokens', () {
       final colors =
           File('android/app/src/main/res/values/colors.xml').readAsStringSync();
-      expect(colors.contains('turna_scaffold_light">#F3F8F7'), isTrue);
+      expect(colors.contains('turna_scaffold_light">#EDF5EE'), isTrue);
       expect(colors.contains('turna_appbar_light">#FFFFFF'), isTrue);
-      expect(colors.contains('turna_scaffold_dark">#101B22'), isTrue);
-      expect(colors.contains('turna_appbar_dark">#182832'), isTrue);
+      expect(colors.contains('turna_scaffold_dark">#1B2E25'), isTrue);
+      expect(colors.contains('turna_appbar_dark">#243D30'), isTrue);
     });
 
     test('Android light styles wire statusBar to turna_appbar_light', () {
