@@ -65,6 +65,37 @@ class ExperienceSkillsMixin:
             action_id=action_id,
             usage_today=self._usage_today_for_policy(),
         )
+
+    def _on_demote_experience(self) -> None:
+        """Ctrl+Shift+D safety valve: demote mode to copilot, persist, refresh.
+
+        demote_to_copilot itself never persists; the QSettings write mirrors
+        ambient_controller's runtime-persist pattern. Never raises.
+        """
+        try:
+            from src.application.presence_mode import demote_to_copilot
+
+            changed = demote_to_copilot(getattr(self, "_settings_obj", None), host=self)
+            if changed:
+                try:
+                    self._settings_obj.save_to_qsettings(self._settings)
+                    sb = getattr(self, "statusBar", None)
+                    if callable(sb):
+                        bar = sb()
+                        if bar is not None and hasattr(bar, "showMessage"):
+                            bar.showMessage("已降档回 Copilot（Ctrl+Shift+D）", 4000)
+                except Exception:
+                    logger.debug("application/experience_skills_mixin.py:_on_demote_experience best-effort step failed", exc_info=True)
+                refresh = getattr(self, "_refresh_experience", None)
+                if callable(refresh):
+                    try:
+                        refresh(immediate=True)
+                    except TypeError:
+                        refresh()
+                    except Exception:
+                        logger.debug("application/experience_skills_mixin.py:_on_demote_experience best-effort step failed", exc_info=True)
+        except Exception:
+            logger.debug("application/experience_skills_mixin.py:_on_demote_experience best-effort step failed", exc_info=True)
     def _deny_ai_write_if_blocked(self, *, label: str = "AI") -> bool:
         """Return True if AI write must not proceed (budget / observer).
 

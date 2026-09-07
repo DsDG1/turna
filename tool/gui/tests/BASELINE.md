@@ -4,11 +4,27 @@
 
  ## 当前基线
 
-- 日期：2026-09-07（噱头清理第一、二步：删除 3 个孤儿模块 + Sovereign 档；`python -m unittest` 收集 2481 例 / 0 加载错误）
-- 全量用例（上次记录）：2481 collected（skipped≈4：2 个 course_tree 为环境条件跳过 + 2 个 defer_resurface 永久 skip）；唯一确定性失败为基线已知 `test_textbook_controller.LoadFileAsyncTest.test_stale_load_result_is_ignored`（HEAD worktree 复现，非本批引入），命令：
+- 日期：2026-09-07（噱头清理三步完成：孤儿模块删除 + Sovereign 移除 + 体验 OS tab 落地；`python -m unittest` 收集 2499 例 / 0 加载错误）
+- 全量用例（上次记录）：2499 collected（skipped≈4：2 个 course_tree 为环境条件跳过 + 2 个 defer_resurface 永久 skip）；唯一确定性失败为基线已知 `test_textbook_controller.LoadFileAsyncTest.test_stale_load_result_is_ignored`（HEAD worktree 复现，非本批引入），命令：
   ```bash
   QT_QPA_PLATFORM=offscreen python3 -m unittest discover -s tests -p "test_*.py"
   ```
+
+## 2026-09-07 噱头清理第三步（体验 OS tab / Immersive 活过来）
+
+用例数 2481 -> 2499（+18：ExperienceSettingsTest 5 + ExperienceTabTest 6 + test_experience_demote 4 + test_fill_nokey_guard 3）。`experience_mode` 此前无任何 UI 入口（Active/Immersive 不可达），本批补齐入口与安全阀：
+
+| 文件 | 变更 |
+|---|---|
+| `src/dialogs/settings/experience_tab.py`（新） | 模式四档下拉 + Immersive 子开关（full_auto/opaque）+ Goal/LLM 意图/危险技能/日配额开关 |
+| `settings_dialog.py` | 新 tab（index 5「体验 OS」，共 8 tab）；`_load_values`/`_sync_to_settings`/`_apply` 补 7 个 experience 字段（`_apply` 白名单此前不含任何 experience_\*，同时补齐 advanced AI 字段搬运缺口）；进 Immersive 时 `safe_question` 风险确认，拒绝回滚下拉（headless 默认拒绝） |
+| `main_window_shell.py` + `experience_skills_mixin.py` + `app.py` | `Ctrl+Shift+D` 降档快捷键（`build_experience_actions`）+ `_on_demote_experience` 处理器（demote + 落盘 + 状态栏 + 刷新） |
+| `experience_handlers/fill.py` | `lesson.fill_empty` 无 Key 从回退 NodeAiEditDialog 模态改为状态栏降级；`resource.fill_stubs` 起线程前加 `is_complete` 预检（防异步失败弹窗） |
+| `settings.py` | loader 加 mode 合法集校验（非法/遗留值回落 copilot） |
+| `experience_dispatch.py` | 危险技能拒绝文案指向 设置 ▸ 体验 OS（该 tab 现已存在） |
+| docs | `E_INTRUSIVE_WALKTHROUGH.md` 重写（事件驱动触发、无 Key 降级、SectionDiffView 仍确认的已知取舍） |
+
+已知取舍（后续项）：SectionDiffView 未集成 auto-apply token（fill_empty/fill_stubs 生成后仍人工确认）；ExperienceDock 指标行不含 auto 计数、`format_audit_lines` 无展示端点；`AmbientHeartbeatService` 保持预留未接线。
 
 ## 2026-09-07 噱头清理第二步（Sovereign 档移除）
 

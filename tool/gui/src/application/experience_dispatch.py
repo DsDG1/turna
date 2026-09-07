@@ -113,7 +113,7 @@ def dispatch_experience_action(host: ExperienceHost, suggestion: dict) -> None:
                     host,
                     "危险技能已锁定",
                     f"「{spec.title}」属于危险技能（删 id / 跨节改写 / Hard import），默认关闭。\n"
-                    "请在 设置 ▸ AI ▸ 允许危险技能 中开启后再试。",
+                    "请在 设置 ▸ 体验 OS ▸ 允许危险技能 中开启后再试。",
                 )
         return
 

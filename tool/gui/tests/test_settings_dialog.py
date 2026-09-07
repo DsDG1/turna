@@ -51,8 +51,9 @@ class SettingsDialogOperationLogTest(unittest.TestCase):
         with patch("src.app.QSettings", return_value=_make_qsettings()):
             settings = Settings.load_from_qsettings(_make_qsettings())
         dlg = SettingsDialog(settings, prompt_library=_make_prompt_library())
-        self.assertEqual(dlg.tabs.tabText(6), "操作日志")
-        self.assertEqual(dlg.tabs.count(), 7)
+        self.assertEqual(dlg.tabs.tabText(5), "体验 OS")
+        self.assertEqual(dlg.tabs.tabText(7), "操作日志")
+        self.assertEqual(dlg.tabs.count(), 8)
         # Refresh / clear / open-dir buttons exist and are wired (no raise).
         dlg._refresh_operation_log()
         self.assertIsNotNone(dlg.oplog_view)
@@ -175,6 +176,95 @@ class SettingsDialogAdvancedAiTest(unittest.TestCase):
         self.assertEqual(dlg2.ai_strict_schema_combo.currentData(), "off")
         self.assertTrue(dlg2.ai_cache_check.isChecked())
         self.assertEqual(dlg2.ai_max_parallel_lessons_spin.value(), 3)
+
+
+class ExperienceTabTest(unittest.TestCase):
+    """体验 OS tab: mode ladder + immersive sub-switches + feature gates."""
+
+    def _make_dialog(self, **overrides) -> "SettingsDialog":
+        _App.get()
+        store = {k: v for k, v in overrides.items()}
+        qs = _make_qsettings()
+        qs.value = lambda key, default=None: store.get(key, default)
+        with patch("src.app.QSettings", return_value=qs):
+            settings = Settings.load_from_qsettings(qs)
+        dlg = SettingsDialog(settings, prompt_library=_make_prompt_library())
+        self.addCleanup(dlg.deleteLater)
+        return dlg
+
+    def test_load_values_populates_experience_fields(self) -> None:
+        dlg = self._make_dialog(
+            **{
+                "experience/mode": "active",
+                "experience/immersive_full_auto": False,
+                "experience/immersive_opaque": False,
+                "experience/goal_enabled": True,
+                "experience/llm_intent": True,
+                "experience/allow_dangerous_skills": True,
+                "experience/daily_ai_budget": 42,
+            }
+        )
+        self.assertEqual(dlg.experience_mode_combo.currentData(), "active")
+        self.assertFalse(dlg.experience_immersive_full_auto_check.isChecked())
+        self.assertFalse(dlg.experience_immersive_opaque_check.isChecked())
+        self.assertTrue(dlg.experience_goal_check.isChecked())
+        self.assertTrue(dlg.experience_llm_intent_check.isChecked())
+        self.assertTrue(dlg.experience_dangerous_check.isChecked())
+        self.assertEqual(dlg.experience_budget_spin.value(), 42)
+
+    def test_sync_to_settings_persists_experience_fields(self) -> None:
+        dlg = self._make_dialog()
+        dlg.experience_mode_combo.setCurrentIndex(
+            dlg.experience_mode_combo.findData("observer")
+        )
+        dlg.experience_immersive_full_auto_check.setChecked(False)
+        dlg.experience_budget_spin.setValue(7)
+        dlg._sync_to_settings()
+        self.assertEqual(dlg._settings.experience_mode, "observer")
+        self.assertFalse(dlg._settings.experience_immersive_full_auto)
+        self.assertEqual(dlg._settings.experience_daily_ai_budget, 7)
+
+    def test_apply_copies_experience_fields_to_original(self) -> None:
+        dlg = self._make_dialog()
+        dlg.experience_budget_spin.setValue(9)
+        dlg.experience_goal_check.setChecked(True)
+        dlg._apply()
+        self.assertEqual(dlg._original.experience_daily_ai_budget, 9)
+        self.assertTrue(dlg._original.experience_goal_enabled)
+        self.assertEqual(dlg._original.experience_mode, "copilot")
+
+    def test_immersive_enter_declined_rolls_back_mode(self) -> None:
+        """Headless safe_question returns default_no → combo rolls back."""
+        dlg = self._make_dialog()
+        dlg.experience_mode_combo.setCurrentIndex(
+            dlg.experience_mode_combo.findData("immersive")
+        )
+        declined = dlg._confirm_experience_mode_change()
+        self.assertFalse(declined)
+        self.assertEqual(dlg.experience_mode_combo.currentData(), "copilot")
+        dlg._apply()
+        self.assertEqual(dlg._original.experience_mode, "copilot")
+
+    def test_immersive_enter_accepted_applies_mode(self) -> None:
+        dlg = self._make_dialog()
+        dlg.experience_mode_combo.setCurrentIndex(
+            dlg.experience_mode_combo.findData("immersive")
+        )
+        with patch("src.dialogs.settings_dialog.safe_question", return_value=True) as sq:
+            ok = dlg._confirm_experience_mode_change()
+            self.assertTrue(ok)
+            sq.assert_called_once()
+            dlg._apply()
+        self.assertEqual(dlg._original.experience_mode, "immersive")
+
+    def test_non_immersive_change_needs_no_confirm(self) -> None:
+        dlg = self._make_dialog(**{"experience/mode": "copilot"})
+        dlg.experience_mode_combo.setCurrentIndex(
+            dlg.experience_mode_combo.findData("active")
+        )
+        with patch("src.dialogs.settings_dialog.safe_question") as sq:
+            self.assertTrue(dlg._confirm_experience_mode_change())
+            sq.assert_not_called()
 
 
 if __name__ == "__main__":

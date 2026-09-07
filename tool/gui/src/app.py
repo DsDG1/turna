@@ -30,6 +30,7 @@ from src.application.experience_window_bridge import (
 )
 from src.application.main_window_shell import (
     build_central,
+    build_experience_actions,
     build_status_bar,
     build_toolbar,
     build_undo_actions,
@@ -190,6 +191,7 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
         self._build_central()
         self._build_status_bar()
         self._build_undo_actions()
+        self._build_experience_actions()
         self._import_service = self._make_import_service()
         from src.application.ai_edit_controller import AiEditController
         from src.application.ai_fix_controller import AiFixController
@@ -225,6 +227,9 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
 
     def _build_undo_actions(self) -> None:
         build_undo_actions(self)
+
+    def _build_experience_actions(self) -> None:
+        build_experience_actions(self)
 
     def _on_undo_clean_changed(self, clean: bool) -> None:
         if self.course_dir is not None:

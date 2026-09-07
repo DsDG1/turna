@@ -54,6 +54,13 @@ from src.dialogs.settings.extraction_prompt_tab import (
     on_extraction_delete,
     on_extraction_save,
 )
+from src.dialogs.settings.experience_tab import build_experience_tab
+from src.application.presence_mode import (
+    IMMERSIVE_WARN_TEXT,
+    IMMERSIVE_WARN_TITLE,
+    should_confirm_immersive_enter,
+)
+from src.application.ui_guard import safe_question
 from src.dialogs.settings.git_library_tab import (
     build_git_library_tab,
     edit_remote_dialog,
@@ -106,6 +113,7 @@ class SettingsDialog(QDialog):
         self.tabs.addTab(self._build_ai_usage_tab(), "AI 用量")
         self.tabs.addTab(self._build_extraction_prompt_tab(), "提取 Prompt")
         self.tabs.addTab(self._build_editor_tab(), "编辑器")
+        self.tabs.addTab(self._build_experience_tab(), "体验 OS")
         self.tabs.addTab(self._build_git_library_tab(), "Git 库")
         self.tabs.addTab(self._build_operation_log_tab(), "操作日志")
         layout.addWidget(self.tabs)
@@ -174,6 +182,8 @@ class SettingsDialog(QDialog):
 
     def _build_editor_tab(self) -> QWidget:
         return build_editor_tab(self)
+    def _build_experience_tab(self) -> QWidget:
+        return build_experience_tab(self)
     def _build_git_library_tab(self) -> QWidget:
         return build_git_library_tab(self)
     def _on_browse_clone_root_clicked(self) -> None:
@@ -255,6 +265,25 @@ class SettingsDialog(QDialog):
         self.auto_save_check.setChecked(self._settings.auto_save_on_close)
         self.undo_spin.setValue(self._settings.undo_limit)
 
+        # Experience OS tab
+        mode_idx = self.experience_mode_combo.findData(self._settings.experience_mode)
+        if mode_idx < 0:
+            mode_idx = self.experience_mode_combo.findData("copilot")
+        if mode_idx >= 0:
+            self.experience_mode_combo.setCurrentIndex(mode_idx)
+        self.experience_immersive_full_auto_check.setChecked(
+            self._settings.experience_immersive_full_auto
+        )
+        self.experience_immersive_opaque_check.setChecked(
+            self._settings.experience_immersive_opaque
+        )
+        self.experience_goal_check.setChecked(self._settings.experience_goal_enabled)
+        self.experience_llm_intent_check.setChecked(self._settings.experience_llm_intent)
+        self.experience_dangerous_check.setChecked(
+            self._settings.experience_allow_dangerous_skills
+        )
+        self.experience_budget_spin.setValue(self._settings.experience_daily_ai_budget)
+
         # Git library tab
         self.git_clone_root_edit.setText(self._settings.git_clone_root)
         self.git_bin_edit.setText(self._settings.git_bin)
@@ -302,6 +331,21 @@ class SettingsDialog(QDialog):
         self._settings.auto_save_on_close = self.auto_save_check.isChecked()
         self._settings.undo_limit = self.undo_spin.value()
 
+        # Experience OS tab
+        self._settings.experience_mode = self.experience_mode_combo.currentData()
+        self._settings.experience_immersive_full_auto = (
+            self.experience_immersive_full_auto_check.isChecked()
+        )
+        self._settings.experience_immersive_opaque = (
+            self.experience_immersive_opaque_check.isChecked()
+        )
+        self._settings.experience_goal_enabled = self.experience_goal_check.isChecked()
+        self._settings.experience_llm_intent = self.experience_llm_intent_check.isChecked()
+        self._settings.experience_allow_dangerous_skills = (
+            self.experience_dangerous_check.isChecked()
+        )
+        self._settings.experience_daily_ai_budget = self.experience_budget_spin.value()
+
         # Git library tab
         self._settings.git_clone_root = self.git_clone_root_edit.text().strip()
         self._settings.git_bin = self.git_bin_edit.text().strip()
@@ -342,6 +386,7 @@ class SettingsDialog(QDialog):
         self.accept()
 
     def _apply(self) -> None:
+        self._confirm_experience_mode_change()
         self._sync_to_settings()
         self._original.theme = self._settings.theme
         self._original.ui_scale_percent = self._settings.ui_scale_percent
@@ -364,7 +409,45 @@ class SettingsDialog(QDialog):
         self._original.lan_token = self._settings.lan_token
         self._original.git_timeout = self._settings.git_timeout
         self._original.assets_repo_root = self._settings.assets_repo_root
+        # Experience OS tab（含既有缺口补齐：advanced AI 字段此前也不搬运）
+        self._original.ai_model_chat = self._settings.ai_model_chat
+        self._original.ai_model_json = self._settings.ai_model_json
+        self._original.ai_strict_schema = self._settings.ai_strict_schema
+        self._original.ai_cache_enabled = self._settings.ai_cache_enabled
+        self._original.ai_fill_needs_review = self._settings.ai_fill_needs_review
+        self._original.ai_max_parallel_lessons = self._settings.ai_max_parallel_lessons
+        self._original.ai_pipeline_default_mode = self._settings.ai_pipeline_default_mode
+        self._original.experience_mode = self._settings.experience_mode
+        self._original.experience_immersive_full_auto = (
+            self._settings.experience_immersive_full_auto
+        )
+        self._original.experience_immersive_opaque = self._settings.experience_immersive_opaque
+        self._original.experience_goal_enabled = self._settings.experience_goal_enabled
+        self._original.experience_llm_intent = self._settings.experience_llm_intent
+        self._original.experience_allow_dangerous_skills = (
+            self._settings.experience_allow_dangerous_skills
+        )
+        self._original.experience_daily_ai_budget = self._settings.experience_daily_ai_budget
         self.settings_changed.emit()
+
+    def _confirm_experience_mode_change(self) -> bool:
+        """Gate immersive entry; on decline, roll the combo back to the live mode.
+
+        Headless/offscreen (tests/CI): safe_question returns ``default_yes``
+        (False) without blocking, so immersive cannot be enabled silently.
+        """
+        new_mode = self.experience_mode_combo.currentData()
+        if not should_confirm_immersive_enter(self._original.experience_mode, new_mode):
+            return True
+        ok = safe_question(self, IMMERSIVE_WARN_TITLE, IMMERSIVE_WARN_TEXT, default_yes=False)
+        if ok:
+            return True
+        idx = self.experience_mode_combo.findData(self._original.experience_mode)
+        if idx < 0:
+            idx = self.experience_mode_combo.findData("copilot")
+        if idx >= 0:
+            self.experience_mode_combo.setCurrentIndex(idx)
+        return False
 
     def current_settings(self) -> Settings:
         """Return the working settings object used by the dialog."""

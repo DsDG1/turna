@@ -39,7 +39,8 @@ def _experience_fill_empty(host, scope: dict) -> None:
 
     Failure / precondition paths use **statusBar only** (no modal
     QMessageBox) so headless tests never hang waiting for OK. Incomplete
-    AI config falls back to ``_on_ai_edit`` (settings / legacy dialog).
+    AI config is a statusBar dead-end (silent-drive callers must not get
+    a modal — configure the key in 设置 ▸ AI 配置 first).
     """
     first = str(scope.get("first_lesson_id") or "")
     if not first:
@@ -60,8 +61,7 @@ def _experience_fill_empty(host, scope: dict) -> None:
         return
     config = getattr(host, "_ai_config", None)
     if config is None or not getattr(config, "is_complete", False):
-        # No key: keep legacy dialog path so author can still open settings.
-        host._on_ai_edit("lesson", first)
+        host.statusBar().showMessage("AI 配置不完整：设置 ▸ AI 配置 填写 Key/Model", 5000)
         return
     if host.job_tray.is_busy_ai():
         host.statusBar().showMessage("当前有 AI 任务进行中，请稍候", 4000)
@@ -267,6 +267,12 @@ def _experience_fill_stubs(host) -> None:
     deny = getattr(host, "_deny_ai_write_if_blocked", None)
     if callable(deny) and deny(label="清待补"):
         return
+    config = getattr(host, "_ai_config", None)
+    if config is None or not getattr(config, "is_complete", False):
+        # Precheck before acquiring the guard / starting a worker so an
+        # unconfigured key cannot end in an async failure popup.
+        host.statusBar().showMessage("AI 配置不完整：设置 ▸ AI 配置 填写 Key/Model", 5000)
+        return
     if host.job_tray.is_busy_ai():
         safe_information(host, "清待补", "当前有 AI 任务进行中，请稍候。")
         return
@@ -288,7 +294,6 @@ def _experience_fill_stubs(host) -> None:
         return
     host._sync_focus_ring()
 
-    config = host._ai_config
     draft = copy.deepcopy(section)
     host.job_tray.start_job(
         job_id,

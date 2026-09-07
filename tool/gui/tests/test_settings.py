@@ -571,5 +571,73 @@ class SettingsTtsTest(unittest.TestCase):
         self.assertEqual(clone.tts_api_key, "sk-c")
 
 
+class ExperienceSettingsTest(unittest.TestCase):
+    """体验 OS 字段：mode 合法集校验 + immersive 子开关持久化。"""
+
+    def test_defaults_when_empty(self) -> None:
+        qs = _make_qsettings({"recent_repos": "[]"})
+        settings = Settings.load_from_qsettings(qs)
+        self.assertEqual(settings.experience_mode, "copilot")
+        self.assertTrue(settings.experience_immersive_full_auto)
+        self.assertTrue(settings.experience_immersive_opaque)
+        self.assertFalse(settings.experience_goal_enabled)
+        self.assertFalse(settings.experience_llm_intent)
+        self.assertFalse(settings.experience_allow_dangerous_skills)
+        self.assertEqual(settings.experience_daily_ai_budget, 0)
+
+    def test_loads_experience_fields(self) -> None:
+        qs = _make_qsettings({
+            "recent_repos": "[]",
+            "experience/mode": "immersive",
+            "experience/immersive_full_auto": False,
+            "experience/immersive_opaque": False,
+            "experience/goal_enabled": True,
+            "experience/llm_intent": True,
+            "experience/allow_dangerous_skills": True,
+            "experience/daily_ai_budget": 30,
+        })
+        settings = Settings.load_from_qsettings(qs)
+        self.assertEqual(settings.experience_mode, "immersive")
+        self.assertFalse(settings.experience_immersive_full_auto)
+        self.assertFalse(settings.experience_immersive_opaque)
+        self.assertTrue(settings.experience_goal_enabled)
+        self.assertTrue(settings.experience_llm_intent)
+        self.assertTrue(settings.experience_allow_dangerous_skills)
+        self.assertEqual(settings.experience_daily_ai_budget, 30)
+
+    def test_legacy_sovereign_mode_degrades_to_copilot(self) -> None:
+        qs = _make_qsettings({
+            "recent_repos": "[]",
+            "experience/mode": "sovereign",
+        })
+        settings = Settings.load_from_qsettings(qs)
+        self.assertEqual(settings.experience_mode, "copilot")
+
+    def test_persists_experience_fields(self) -> None:
+        qs = _make_qsettings({"recent_repos": "[]"})
+        settings = Settings(
+            experience_mode="active",
+            experience_immersive_full_auto=False,
+            experience_goal_enabled=True,
+            experience_daily_ai_budget=15,
+        )
+        settings.save_to_qsettings(qs)
+        self.assertEqual(qs.value("experience/mode"), "active")
+        self.assertEqual(qs.value("experience/immersive_full_auto"), False)
+        self.assertEqual(qs.value("experience/goal_enabled"), True)
+        self.assertEqual(qs.value("experience/daily_ai_budget"), 15)
+
+    def test_clone_preserves_experience_fields(self) -> None:
+        settings = Settings(
+            experience_mode="immersive",
+            experience_immersive_opaque=False,
+            experience_daily_ai_budget=5,
+        )
+        clone = settings.clone()
+        self.assertEqual(clone.experience_mode, "immersive")
+        self.assertFalse(clone.experience_immersive_opaque)
+        self.assertEqual(clone.experience_daily_ai_budget, 5)
+
+
 if __name__ == "__main__":
     unittest.main()

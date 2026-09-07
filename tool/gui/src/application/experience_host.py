@@ -164,6 +164,7 @@ class ExperienceHost(Protocol):
     _on_resources: _Handler                   # hygiene window opener
     _on_publish: _Handler                     # probed
     _on_save: _Handler                        # probed
+    _on_demote_experience: _Handler           # Ctrl+Shift+D demote valve
     _on_experience_suggestion: _Handler       # probed
     _on_experience_pin_toggled: _Handler      # probed
     _enable_editor_actions: _Handler          # probed

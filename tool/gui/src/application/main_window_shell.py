@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.theme import current_palette
+from src.application.presence_mode import DEMOTE_SHORTCUT
 from src.widgets.ambient_banner import AmbientBanner
 from src.widgets.course_tree import CourseTreeWidget
 from src.widgets.detail_panel import DetailPanel
@@ -35,6 +36,14 @@ def build_undo_actions(host) -> None:
     host.redo_action.setShortcut(QKeySequence.StandardKey.Redo)
     host.addAction(host.undo_action)
     host.addAction(host.redo_action)
+
+
+def build_experience_actions(host) -> None:
+    """Ctrl+Shift+D — demote experience mode back to copilot (one-key safety valve)."""
+    host.demote_action = QAction("降档回 Copilot", host)
+    host.demote_action.setShortcut(QKeySequence(DEMOTE_SHORTCUT))
+    host.demote_action.triggered.connect(host._on_demote_experience)
+    host.addAction(host.demote_action)
 
 
 def build_toolbar(host) -> None:

@@ -459,11 +459,20 @@ def _load_ai_config_file_settings(qsettings: QSettings) -> dict[str, Any]:
     }
 
 
+# Legal experience_mode values (mirror of policy.EXPERIENCE_MODES; policy
+# normalize is the runtime authority — this guards what gets persisted/loaded).
+_LEGAL_EXPERIENCE_MODES = frozenset({"observer", "copilot", "active", "immersive"})
+
+
 def _load_experience_settings(qsettings: QSettings) -> dict[str, Any]:
+    mode = _str_or_default(
+        qsettings.value("experience/mode", "copilot"), "copilot"
+    )
+    if mode not in _LEGAL_EXPERIENCE_MODES:
+        # Legacy/typo values (e.g. removed "sovereign") degrade to copilot.
+        mode = "copilot"
     return {
-        "experience_mode": _str_or_default(
-            qsettings.value("experience/mode", "copilot"), "copilot"
-        ),
+        "experience_mode": mode,
         "experience_allow_dangerous_skills": _bool_or_default(
             qsettings.value("experience/allow_dangerous_skills", False), False
         ),
