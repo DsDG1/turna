@@ -4,11 +4,22 @@
 
  ## 当前基线
 
-- 日期：2026-09-06（测试去重第一、二步：整文件删除 11 个零覆盖测试 + 2 个死 src 模块 + adversarial_matrix 瘦身；`python -m unittest` 收集 2492 例 / 0 加载错误）
-- 全量用例（上次记录）：2492 collected（skipped≈4：2 个 course_tree 为环境条件跳过 + 2 个 defer_resurface 永久 skip）；唯一确定性失败为基线已知 `test_textbook_controller.LoadFileAsyncTest.test_stale_load_result_is_ignored`（HEAD worktree 复现，非本批引入），命令：
+- 日期：2026-09-07（噱头清理第一、二步：删除 3 个孤儿模块 + Sovereign 档；`python -m unittest` 收集 2485 例 / 0 加载错误）
+- 全量用例（上次记录）：2485 collected（skipped≈4：2 个 course_tree 为环境条件跳过 + 2 个 defer_resurface 永久 skip）；唯一确定性失败为基线已知 `test_textbook_controller.LoadFileAsyncTest.test_stale_load_result_is_ignored`（HEAD worktree 复现，非本批引入），命令：
   ```bash
   QT_QPA_PLATFORM=offscreen python3 -m unittest discover -s tests -p "test_*.py"
   ```
+
+## 2026-09-07 噱头清理第一步（孤儿模块删除）
+
+用例数 2492（上次记录）-> 2485（实测）。删除 3 个零生产调用者模块约 710 行 + 2 个陪跑测试文件（-8 例），其中 3 例 AmbientHeartbeatService 心跳门控测试迁入新文件 `test_ambient_heartbeat.py`：
+
+| 类别 | 删除 | 依据 |
+|---|---|---|
+| 死模块（src 零 import，spec/conftest/动态导入全查证） | `src/application/presence_visual_host.py` / `src/widgets/gaze_cursor_overlay.py` / `src/backend/experience/regret_suppression.py` | AI 副光标/输入锁定遮罩/反悔抑制引擎从未接线；所读设置旗标（experience_gaze_cursor 等）从未在 Settings 定义 |
+| 陪跑测试 | `test_sovereign_and_ambient.py`（5 例，其中 3 例心跳迁移）、`test_direct_commit_and_regret.py`（3 例） | 仅测上述死模块 |
+
+连带修改：`experience_host.py` 删 `_gaze_overlay` 协议字段；`app.py` 删 `_gaze_overlay` 初始化。
 
 ## 2026-09-06 测试去重第一步（零覆盖损失清理）
 
@@ -16,7 +27,7 @@
 
 | 类别 | 删除 | 依据 |
 |---|---|---|
-| 全 skip 占位（6 文件 35 例） | `test_observer_mode` / `test_experience_ambient_live` / `test_vocab_spiral` / `test_ai_widget_bindings` / `test_blueprint_form_ai` / `test_ai_fix_dialog_preview` | 被测 API 已退役或从未实现（T-08/T-09/R-06/v4.67 占位）；活覆盖在 test_policy / test_sovereign_and_ambient / test_experience_spiral_vocab 等 |
+| 全 skip 占位（6 文件 35 例） | `test_observer_mode` / `test_experience_ambient_live` / `test_vocab_spiral` / `test_ai_widget_bindings` / `test_blueprint_form_ai` / `test_ai_fix_dialog_preview` | 被测 API 已退役或从未实现（T-08/T-09/R-06/v4.67 占位）；活覆盖在 test_policy / test_ambient_heartbeat / test_experience_spiral_vocab 等 |
 | 测死代码（2 文件 6 例） | `test_e4_multimodal_engine_phase4` / `test_spiral_vocab_generator_phase3` | `E4MultimodalEngine`、`SpiralVocabGenerator` 全仓无引用，模块一并删除；真实链路由 test_experience_spiral_vocab 覆盖 |
 | 委托层重复（1 文件 4 例） | `test_course_exchange` | course_adapter.py:570-590 全委托，test_course_adapter 逐对更强 |
 | 一次性阶段门（2 文件 10 例） | `test_skill_contracts_q03` / `test_o13_save_guards` | 与 test_experience_actions/test_item_similar/test_node_edit_skill/test_job_registry 等三重重复；o13 唯一独有用例 `test_soft_error_then_validation_failure_still_fails` 迁入 `test_save_pipeline.SavePipelineTest` |

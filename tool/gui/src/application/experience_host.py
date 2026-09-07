@@ -122,7 +122,6 @@ class ExperienceHost(Protocol):
     _presence_drive_seen: Any
     _presence_ai_busy: bool                   # probed
     _sovereign_entered_at: Any                # timestamp or None
-    _gaze_overlay: Any                        # gaze overlay widget or None
     _on_mode_toggled: _Handler
 
     # ── Workshop / git / textbook ────────────────────────────────────────

@@ -168,8 +168,6 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
         self._presence_mouse_filter = None
         self._presence_drive_seen: set[str] = set()
         self._presence_ai_busy: bool = False
-        self._sovereign_entered_at = None
-        self._gaze_overlay = None
         self._goal_last_plan = None
         self._goal_sandbox = None
         self._active_command_palette = None
