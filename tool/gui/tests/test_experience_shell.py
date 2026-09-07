@@ -481,7 +481,7 @@ class MainWindowExperienceWireTest(unittest.TestCase):
         self.assertIn("课程目录", self.win.statusBar().currentMessage())
 
     def test_suggestion_fill_empty_incomplete_ai_falls_back_to_editor(self) -> None:
-        """Without complete AI config, keep legacy ``_on_ai_edit`` path."""
+        """Incomplete AI config: statusBar dead-end (no modal / legacy dialog)."""
         from pathlib import Path
         from unittest.mock import MagicMock
 
@@ -499,8 +499,9 @@ class MainWindowExperienceWireTest(unittest.TestCase):
             }
         )
         self.win.tree.select_lesson.assert_called_once_with("s1-l1")
-        self.win._on_ai_edit.assert_called_once_with("lesson", "s1-l1")
+        self.win._on_ai_edit.assert_not_called()
         self.win._run_fill_lesson_patch_flow.assert_not_called()
+        self.assertIn("AI 配置不完整", self.win.statusBar().currentMessage())
 
     def test_suggestion_fill_empty_complete_ai_uses_lesson_patch_flow(self) -> None:
         """With course + complete AI config, dispatch LessonPatch fill flow."""
