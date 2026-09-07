@@ -14,6 +14,7 @@ import 'package:turna/application/course_catalog.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/diagnostics/cache_diagnostics_registry.dart';
 import 'package:turna/application/diagnostics/runtime_memory_snapshot.dart';
+import 'package:turna/application/maintenance/database_doctor_service.dart';
 import 'package:turna/application/maintenance/official_anki_ghost_purge_service.dart';
 import 'package:turna/application/maintenance/official_storage_optimize_service.dart';
 import 'package:turna/application/maintenance/storage_inventory_service.dart';
@@ -172,9 +173,17 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
     OfficialStorageOptimizeResult result;
     try {
       final injected = widget.optimizeDatabases;
-      result = injected != null
-          ? await injected(force: true)
-          : await const OfficialStorageOptimizeService().runForceCompact();
+      if (injected != null) {
+        result = await injected(force: true);
+      } else {
+        final doctorRes =
+            await const DatabaseDoctorService().optimizeAll(force: true);
+        result = OfficialStorageOptimizeResult(
+          ok: doctorRes.ok,
+          completedJobs: doctorRes.ankiJobsCompleted,
+          errorCode: doctorRes.errorCode,
+        );
+      }
     } catch (e) {
       debugPrint('[StorageDiagnostics] optimize failed: $e');
       result = const OfficialStorageOptimizeResult(
@@ -450,8 +459,10 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
           alignment: Alignment.centerLeft,
           child: TextButton(
             key: const Key('storage-open-repair-center'),
-            onPressed: () =>
-                context.router.push(OfficialAnkiRepairCenterRoute()),
+            onPressed: () async {
+              await context.router.push(OfficialAnkiRepairCenterRoute());
+              if (mounted) _rescan();
+            },
             child: Text(AppStrings.storageRepairCenterLink),
           ),
         ),

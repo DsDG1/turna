@@ -30,6 +30,8 @@ class BuildReleaseTests(unittest.TestCase):
         version: str = "0.4.0-test",
         skip_web: bool = False,
         skip_content_validation: bool = True,
+        skip_native: bool = True,
+        ensure_native_mock: MagicMock | None = None,
     ) -> tuple[list[str], list[tuple[Path, Path]]]:
         """Run build_release.build_release with mocked subprocess/shutil.
 
@@ -44,7 +46,7 @@ class BuildReleaseTests(unittest.TestCase):
             # Path.exists() checks in build_release succeed.
             # cmd[0] is the flutter executable path (possibly absolute).
             if cmd[1:4] == ["build", "apk", "--release"]:
-                apk = cwd / "build" / "app" / "outputs" / "flutter-apk" / "app-release.apk"
+                apk = cwd / "build" / "app" / "outputs" / "flutter-apk" / "app-arm64-v8a-release.apk"
                 apk.parent.mkdir(parents=True, exist_ok=True)
                 apk.write_text("apk", encoding="utf-8")
             elif cmd[1:4] == ["build", "appbundle", "--release"]:
@@ -57,37 +59,47 @@ class BuildReleaseTests(unittest.TestCase):
                 web.write_text("html", encoding="utf-8")
             elif cmd[0] == sys.executable and "export_content_inventory" in cmd[1]:
                 inventory = cwd / "docs" / "content_inventory_current.md"
-                inventory.parent.mkdir(parents=True, exist_ok=True)
-                inventory.write_text("inventory", encoding="utf-8")
+                if not inventory.exists():
+                    inventory.parent.mkdir(parents=True, exist_ok=True)
+                    inventory.write_text("inventory", encoding="utf-8")
             return MagicMock(returncode=0)
 
-        def fake_copy2(src: os.PathLike[str], dst: os.PathLike[str]) -> None:
+        def fake_copy2(src: os.PathLike[str], dst: os.PathLike[str], *args: object, **kwargs: object) -> None:
             copies.append((Path(src), Path(dst)))
 
-        def fake_copytree(src: os.PathLike[str], dst: os.PathLike[str]) -> None:
+        def fake_copytree(src: os.PathLike[str], dst: os.PathLike[str], *args: object, **kwargs: object) -> None:
             copies.append((Path(src), Path(dst)))
 
         def fake_rmtree(path: os.PathLike[str]) -> None:
             pass
 
+        native_patch = (
+            patch("build_release.ensure_native_library", new=ensure_native_mock)
+            if ensure_native_mock is not None
+            else patch("build_release.ensure_native_library")
+        )
+
         with patch("build_release.subprocess.run", side_effect=fake_run), \
              patch("build_release.shutil.which", return_value="/flutter"), \
              patch("build_release.shutil.copy2", side_effect=fake_copy2), \
              patch("build_release.shutil.copytree", side_effect=fake_copytree), \
-             patch("build_release.shutil.rmtree", side_effect=fake_rmtree):
+             patch("build_release.shutil.rmtree", side_effect=fake_rmtree), \
+             patch("build_release.assert_native_in_artifact"), \
+             native_patch:
             artifacts = build_release.build_release(
                 version=version,
                 output_dir=self.output_dir,
                 skip_web=skip_web,
                 skip_content_validation=skip_content_validation,
+                skip_native=skip_native,
             )
 
         joined_commands = [" ".join(c) for c in commands]
         return joined_commands, copies
 
     @staticmethod
-    def _has_command(commands: list[str], suffix: str) -> bool:
-        return any(c.endswith(suffix) for c in commands)
+    def _has_command(commands: list[str], needle: str) -> bool:
+        return any(needle in c for c in commands)
 
     def test_build_commands_include_pub_get_and_build_runner(self) -> None:
         commands, _ = self._run_build()
@@ -118,6 +130,16 @@ class BuildReleaseTests(unittest.TestCase):
         self.assertTrue(self._has_command(commands, "flutter build web --release"))
         dst_names = [dst.name for _, dst in copies]
         self.assertIn("turna-v0.4.0-test-web", dst_names)
+
+    def test_native_build_is_skipped_with_flag(self) -> None:
+        mock_ensure = MagicMock()
+        self._run_build(skip_native=True, ensure_native_mock=mock_ensure)
+        mock_ensure.assert_not_called()
+
+    def test_native_build_when_not_skipped(self) -> None:
+        mock_ensure = MagicMock()
+        self._run_build(skip_native=False, ensure_native_mock=mock_ensure)
+        mock_ensure.assert_called_once()
 
     def test_content_validation_commands_when_not_skipped(self) -> None:
         commands, _ = self._run_build(skip_content_validation=False)

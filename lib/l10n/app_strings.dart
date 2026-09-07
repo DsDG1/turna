@@ -1547,6 +1547,67 @@ class AppStrings {
         return state;
     }
   }
+
+  static String ankiRepairJobErrorExplanation(String? code) {
+    if (code == null || code.isEmpty) return '未发生错误';
+    switch (code) {
+      case 'importer_not_ready':
+        return 'Anki 引擎初始化未完成，请重试';
+      case 'maintenance_failed':
+        return '后台维护任务执行中断，建议重试';
+      case 'collectionAlreadyOpen':
+        return '集合被独占占用，请重试';
+      case 'sqlite_busy':
+        return '数据库正忙，稍后重试即可';
+      case 'migration_duplicate_writer':
+        return '检测到多重写入冲突，已自动废弃重复任务';
+      default:
+        return '异常代码: $code';
+    }
+  }
+
+  static String get databaseDoctorTitle => '数据库健康与修复中心';
+  static String get databaseDoctorHealthy => '数据库状态健康良好';
+  static String get databaseDoctorWarning => '发现待处理或需优化的项目';
+  static String get databaseDoctorError => '检测到数据库异常，建议修复';
+  static String get databaseDoctorOneClickOptimize => '一键体检与优化';
+  static String get databaseDoctorOneClickRepair => '一键修复全部';
+  static String get databaseDoctorChecking => '正在全面体检…';
+  static String get databaseDoctorOptimizing => '正在优化数据库…';
+  static String get databaseDoctorRepairing => '正在修复…';
+  static String get databaseDoctorCourseDbTitle => '核心课程与学习数据';
+  static String get databaseDoctorCourseDbOk => '完整性良好 (Integrity OK)';
+  static String get databaseDoctorAnkiDbTitle => 'Anki 牌组与集合';
+  static String get databaseDoctorAnkiDbNotConfigured => '未配置外部牌组（状态正常）';
+  static String get databaseDoctorAnkiDbOk => '集合状态正常';
+  static String get databaseDoctorStorageTitle => '磁盘与残留文件';
+  static String get databaseDoctorStorageNoOrphans => '无残留文件';
+  static String get databaseDoctorCleanAllOrphans => '一键清理全部残留';
+  static String get databaseDoctorRetryAllJobs => '重试全部任务';
+  static String get databaseDoctorClearFailedJobs => '清空失败记录';
+  static String get databaseDoctorAdvancedTools => '高级诊断与维护工具';
+  static String get databaseDoctorCheckIntegrity => '完整性检查 (Integrity Check)';
+  static String get databaseDoctorRebuildIndexes => '重建与优化索引 (Reindex)';
+  static String get databaseDoctorCheckCollection => '检验 Anki 集合 (Collection Check)';
+  static String get databaseDoctorCleanOrphanConfirmTitle => '清理残留文件？';
+  static String get databaseDoctorCleanOrphanConfirmBody =>
+      '将彻底删除未登记的残留媒体与临时文件，不会影响您现有的课程和学习进度。';
+  static String databaseDoctorOptimizeDoneMessage({
+    required int reclaimedBytes,
+    required int ankiJobs,
+  }) {
+    final buffer = StringBuffer('优化完成：');
+    if (reclaimedBytes > 0) {
+      final mb = (reclaimedBytes / (1024 * 1024)).toStringAsFixed(1);
+      buffer.write('释放了 $mb MB 空间，');
+    }
+    buffer.write('索引已重建并优化');
+    if (ankiJobs > 0) {
+      buffer.write('（已完成 $ankiJobs 项 Anki 维护）');
+    }
+    return buffer.toString();
+  }
+
   static String get ankiOfficialMappingSuggested => '推荐';
   // Exercise-kind presets on the official mapping page: which practice to
   // generate from this notetype (writes suggestion.enabledKinds).

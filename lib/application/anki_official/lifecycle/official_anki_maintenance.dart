@@ -207,6 +207,60 @@ WHERE job_id = ?
       ],
     );
   }
+
+  void retryJob({
+    required String jobId,
+    required int nowMillis,
+  }) {
+    _db.execute(
+      '''
+UPDATE anki_maintenance_jobs SET
+  state = ?, heartbeat_at_millis = ?, last_error_code = NULL
+WHERE job_id = ?
+''',
+      [
+        OfficialAnkiMaintenanceJobState.pending.wire,
+        nowMillis,
+        jobId,
+      ],
+    );
+  }
+
+  int retryAllFailed({
+    required String profileId,
+    required int nowMillis,
+  }) {
+    _db.execute(
+      '''
+UPDATE anki_maintenance_jobs SET
+  state = ?, heartbeat_at_millis = ?, last_error_code = NULL
+WHERE profile_id = ? AND state IN (?, ?)
+''',
+      [
+        OfficialAnkiMaintenanceJobState.pending.wire,
+        nowMillis,
+        profileId,
+        OfficialAnkiMaintenanceJobState.failed.wire,
+        OfficialAnkiMaintenanceJobState.retryWait.wire,
+      ],
+    );
+    return _db.updatedRows;
+  }
+
+  void deleteJob({required String jobId}) {
+    _db.execute(
+      'DELETE FROM anki_maintenance_jobs WHERE job_id = ?',
+      [jobId],
+    );
+  }
+
+  int clearFailed({required String profileId}) {
+    _db.execute(
+      'DELETE FROM anki_maintenance_jobs WHERE profile_id = ? AND state = ?',
+      [profileId, OfficialAnkiMaintenanceJobState.failed.wire],
+    );
+    return _db.updatedRows;
+  }
 }
 
 class OfficialAnkiMaintenanceRunner {

@@ -61,7 +61,7 @@ class CourseManagementPage extends StatelessWidget {
         actions: [
           IconButton(
             key: const Key('course-open-repair-center'),
-            tooltip: AppStrings.ankiRepairCenterTitle,
+            tooltip: AppStrings.databaseDoctorTitle,
             icon: const Icon(Icons.healing_outlined),
             onPressed: () =>
                 context.router.push(OfficialAnkiRepairCenterRoute()),

@@ -431,7 +431,7 @@ class TtsAvailabilityChecker {
   Future<bool> openGoogleTtsInstallPage() async {
     try {
       if (await canLaunchUrl(googleTtsPlayStoreUri)) {
-        return launchUrl(
+        return await launchUrl(
           googleTtsPlayStoreUri,
           mode: LaunchMode.externalApplication,
         );

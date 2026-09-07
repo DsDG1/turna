@@ -93,7 +93,7 @@ pubspec_overrides.yaml.disabled
 tool/var/
 
 # Golden pixel failure dumps (regenerate locally; do not commit)
-test/golden/failures/
+test/**/failures/
 
 # Build artifacts / release output
 dist/

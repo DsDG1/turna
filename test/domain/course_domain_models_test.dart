@@ -107,5 +107,32 @@ void main() {
         'gp.greetings',
       );
     });
+
+    test('interactionGrammarPointId reads optional field on all variants used',
+        () {
+      const mc = Interaction.multipleChoice(
+        id: 'a',
+        prompt: 'p',
+        options: ['x', 'y'],
+        correctIndex: 0,
+        grammarPointId: 'gp.a',
+      );
+      const fb = Interaction.fillBlank(
+        id: 'b',
+        sentence: '___',
+        answer: 'x',
+        grammarPointId: 'gp.b',
+      );
+      const bare = Interaction.multipleChoice(
+        id: 'c',
+        prompt: 'p',
+        options: ['x'],
+        correctIndex: 0,
+      );
+
+      expect(interactionGrammarPointId(mc), 'gp.a');
+      expect(interactionGrammarPointId(fb), 'gp.b');
+      expect(interactionGrammarPointId(bare), isNull);
+    });
   });
 }

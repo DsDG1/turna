@@ -169,4 +169,30 @@ void main() {
     expect(exported, isNotEmpty);
     expect(exported.single.contains('maintenancePending'), isTrue);
   });
+
+  testWidgets('health card renders and allows one-click optimize', (tester) async {
+    final db = OfficialAnkiDatabase.memory();
+    addTearDown(db.close);
+    final root = Directory.systemTemp.createTempSync('turna-repair-health-');
+    addTearDown(() => root.deleteSync(recursive: true));
+    final paths = OfficialAnkiPaths(
+      profileId: 'profile-repair-health',
+      profileRoot: root,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: OfficialAnkiRepairCenterPage(
+          catalog: db,
+          paths: paths,
+          scanner: _EmptyScanner(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('repair-doctor-optimize')), findsOneWidget);
+    expect(find.text(AppStrings.databaseDoctorOneClickOptimize), findsOneWidget);
+    expect(find.text(AppStrings.databaseDoctorTitle), findsOneWidget);
+  });
 }

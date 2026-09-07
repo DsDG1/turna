@@ -13,6 +13,13 @@ analyzer:
     - '**/*.freezed.dart'
     - '**/*.gr.dart'
     - 'lib/gen/**'
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
   errors:
     # `@JsonKey` is legal on freezed constructor parameters — the analyzer
     # flags it as `invalid_annotation_target` because it sees the parameter
