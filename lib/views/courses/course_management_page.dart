@@ -257,11 +257,9 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
     // Uninstall with the COMPLETE source identity — never a truncated id.
     final deletionId = entry.officialSourceId ?? entry.legacyImportId!;
     var uninstallCompleted = false;
-    var uninstallFailed = false;
     try {
       uninstallCompleted = await getIt<AnkiDeckManager>().uninstall(deletionId);
     } catch (e) {
-      uninstallFailed = true;
       debugPrint('[CourseManagement] uninstall failed for $deletionId: $e');
     }
     if (!context.mounted) return;
@@ -278,14 +276,15 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
       [for (final e in courseProvider.catalogEntries) e.wireKey],
     );
     if (!context.mounted) return;
+    // v2 删除序列里用户可见的移除在账本 COMMIT 即生效；false（locator
+    // 未就绪）与抛错（提交前失败）都意味着本次什么都没删掉 → 「未完成，
+    // 请重试」此时才与课程列表状态一致。
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          uninstallFailed
-              ? AppStrings.ankiDeckRemovalFailed
-              : uninstallCompleted
-                  ? AppStrings.ankiDeckRemoved
-                  : AppStrings.ankiDeckRemovalPending,
+          uninstallCompleted
+              ? AppStrings.ankiDeckRemoved
+              : AppStrings.ankiDeckRemovalFailed,
         ),
       ),
     );

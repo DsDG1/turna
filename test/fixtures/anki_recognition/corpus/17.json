@@ -1,0 +1,83 @@
+{
+  "id": "17",
+  "description": "选择题（正面 <br> 换行的 HTML 选项，答案为字母）",
+  "schema": {
+    "notetypeId": 17,
+    "name": "ChoiceHtml",
+    "kind": "normal",
+    "fieldNames": [
+      "Question",
+      "Answer"
+    ],
+    "templateNames": [
+      "Card 1"
+    ],
+    "schemaFingerprint": "fp17",
+    "samples": [
+      {
+        "noteId": 1,
+        "fields": [
+          "我国的第一部宪法颁布于哪一年？<br>A. 1949年<br>B. 1954年<br>C. 1978年<br>D. 1982年",
+          "B"
+        ],
+        "truncated": false
+      },
+      {
+        "noteId": 2,
+        "fields": [
+          "下列哪项属于可再生能源？<br>A. 煤炭<br>B. 石油<br>C. 太阳能<br>D. 天然气",
+          "C"
+        ],
+        "truncated": false
+      },
+      {
+        "noteId": 3,
+        "fields": [
+          "光在真空中的速度约为？<br>A. 3×10^5 km/s<br>B. 3×10^6 km/s<br>C. 3×10^4 km/s<br>D. 3×10^7 km/s",
+          "A"
+        ],
+        "truncated": false
+      }
+    ],
+    "templateFacts": {
+      "hash": "h17",
+      "templates": [
+        {
+          "ord": 0,
+          "name": "Card 1",
+          "frontFields": [
+            0
+          ],
+          "backFields": [
+            0,
+            1
+          ],
+          "filters": {
+            "typeIn": false,
+            "tts": [],
+            "hint": [],
+            "script": false,
+            "complexHtml": false
+          }
+        }
+      ],
+      "reqs": [
+        {
+          "cardOrd": 0,
+          "kind": "ANY",
+          "fieldOrds": [
+            0
+          ]
+        }
+      ]
+    }
+  },
+  "expected": {
+    "archetype": "choice",
+    "band": "auto",
+    "roles": {
+      "Question": "prompt",
+      "Answer": "response"
+    }
+  }
+}

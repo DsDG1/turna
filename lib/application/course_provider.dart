@@ -139,12 +139,40 @@ class CourseProvider extends ChangeNotifier {
 
   /// Persist the course order shown in the course-management page. [wires]
   /// uses the v1 codec wire keys (see [CourseScopeCodec]).
+  ///
+  /// The new order is applied to [catalogEntries] synchronously (before the
+  /// first await) so a ReorderableListView drop lands on the final layout in
+  /// the same frame — the SDK resets its gap animations immediately, so a
+  /// rebuild that only arrives after the prefs write + catalog reload makes
+  /// the card bounce back to its old slot and then teleport (the drag
+  /// "flash"). The async tail below re-derives the same order and is a
+  /// no-op visually.
   Future<void> persistCourseOrder(List<String> wires) async {
+    _applyOrderToCatalog(wires);
+    notifyListeners();
     final prefs = _appPrefs;
     if (prefs == null) return;
     await prefs.setStringList(PrefsConstants.courseOrder, wires);
     await _reloadCatalog();
     notifyListeners();
+  }
+
+  /// Synchronous half of [persistCourseOrder]: reorder the cached catalog
+  /// entries by [wires] (unknown keys skipped, unmentioned entries kept at
+  /// the tail) — mirrors the merge tail of [_reloadCatalog].
+  void _applyOrderToCatalog(List<String> wires) {
+    final byWire = {for (final e in _catalogEntries) e.wireKey: e};
+    final ordered = <CourseCatalogEntry>[];
+    final seen = <String>{};
+    for (final wire in wires) {
+      final entry = byWire[wire];
+      if (entry == null || !seen.add(wire)) continue;
+      ordered.add(entry);
+    }
+    for (final entry in _catalogEntries) {
+      if (seen.add(entry.wireKey)) ordered.add(entry);
+    }
+    _catalogEntries = List.unmodifiable(ordered);
   }
 
   /// Whether [load] has completed at least once.

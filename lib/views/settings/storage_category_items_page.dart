@@ -195,14 +195,15 @@ class _StorageCategoryItemsPageState extends State<StorageCategoryItemsPage> {
     }
     setState(() => _busy = true);
     var completed = 0;
-    var pending = 0;
     var failed = 0;
     for (final item in actionable) {
       try {
         if (await widget.uninstall(item.id)) {
           completed++;
         } else {
-          pending++;
+          // false = locator 未就绪，本次什么都没删掉（v2 的延迟清理都
+          // 返回 true，由 job 表收敛）——按未完成计数才与列表状态一致。
+          failed++;
         }
       } catch (_) {
         failed++;
@@ -213,10 +214,10 @@ class _StorageCategoryItemsPageState extends State<StorageCategoryItemsPage> {
     _selected.clear();
     setState(() => _busy = false);
     final message = failed > 0
-        ? AppStrings.ankiDeckRemovalFailed
-        : pending > 0 && completed == 0
-            ? AppStrings.ankiDeckRemovalPending
-            : AppStrings.ankiDeckRemoved;
+        ? (completed > 0
+            ? AppStrings.ankiDeckRemovalPartial(completed, failed)
+            : AppStrings.ankiDeckRemovalFailed)
+        : AppStrings.ankiDeckRemoved;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(

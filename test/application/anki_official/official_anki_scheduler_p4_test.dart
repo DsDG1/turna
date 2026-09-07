@@ -163,7 +163,7 @@ void main() {
     ).readAsStringSync();
     expect(reviewSource.contains('official_anki_spike_models'), isFalse);
     final preview = File(
-      'lib/views/anki_official/official_anki_canonical_link_view.dart',
+      'lib/views/anki_official/official_anki_canonical_card_view.dart',
     ).readAsStringSync();
     expect(preview.contains('official-review-again'), isFalse);
     expect(preview.contains('official-review-good'), isFalse);

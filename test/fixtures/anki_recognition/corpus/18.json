@@ -1,0 +1,107 @@
+{
+  "id": "18",
+  "description": "混合牌组（约半数卡片是选择题，A6m 进 review 档）",
+  "schema": {
+    "notetypeId": 18,
+    "name": "MixedChoice",
+    "kind": "normal",
+    "fieldNames": [
+      "Question",
+      "Answer"
+    ],
+    "templateNames": [
+      "Card 1"
+    ],
+    "schemaFingerprint": "fp18",
+    "samples": [
+      {
+        "noteId": 1,
+        "fields": [
+          "我国的第一部宪法颁布于哪一年？\nA. 1949年\nB. 1954年\nC. 1978年\nD. 1982年",
+          "B"
+        ],
+        "truncated": false
+      },
+      {
+        "noteId": 2,
+        "fields": [
+          "下列哪项属于可再生能源？\nA. 煤炭\nB. 石油\nC. 太阳能\nD. 天然气",
+          "C"
+        ],
+        "truncated": false
+      },
+      {
+        "noteId": 3,
+        "fields": [
+          "光在真空中的速度约为？\nA. 3×10^5 km/s\nB. 3×10^6 km/s\nC. 3×10^4 km/s\nD. 3×10^7 km/s",
+          "A"
+        ],
+        "truncated": false
+      },
+      {
+        "noteId": 4,
+        "fields": [
+          "photosynthesis",
+          "光合作用"
+        ],
+        "truncated": false
+      },
+      {
+        "noteId": 5,
+        "fields": [
+          "mitochondrion",
+          "线粒体"
+        ],
+        "truncated": false
+      },
+      {
+        "noteId": 6,
+        "fields": [
+          "chloroplast",
+          "叶绿体"
+        ],
+        "truncated": false
+      }
+    ],
+    "templateFacts": {
+      "hash": "h18",
+      "templates": [
+        {
+          "ord": 0,
+          "name": "Card 1",
+          "frontFields": [
+            0
+          ],
+          "backFields": [
+            0,
+            1
+          ],
+          "filters": {
+            "typeIn": false,
+            "tts": [],
+            "hint": [],
+            "script": false,
+            "complexHtml": false
+          }
+        }
+      ],
+      "reqs": [
+        {
+          "cardOrd": 0,
+          "kind": "ANY",
+          "fieldOrds": [
+            0
+          ]
+        }
+      ]
+    }
+  },
+  "expected": {
+    "archetype": "choice",
+    "band": "review",
+    "roles": {
+      "Question": "prompt",
+      "Answer": "response"
+    }
+  }
+}

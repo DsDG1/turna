@@ -8,7 +8,7 @@ library;
 
 /// Bump when recognition logic changes in a way that should invalidate
 /// cached suggestions for unconfirmed mappings.
-const int recognizerVersion = 1;
+const int recognizerVersion = 2;
 
 // ---------------------------------------------------------------------------
 // L1 field-role binding weights (§3.5)
@@ -68,6 +68,7 @@ const double ruleContentComplexHtmlWeight = 0.90; // A2 content twin
 const double ruleEmbeddedOptionsUnparsedWeight = 0.90; // iron law
 const double ruleSampleClozeWeight = 0.80; // A5 content
 const double ruleEmbeddedOptionsWeight = 0.80; // A6 content
+const double ruleEmbeddedOptionsMixedWeight = 0.78; // A6m content, review band
 const double ruleAudioFirstWeight = 0.80; // A7 content
 const double ruleShortPairWeight = 0.75; // A8 content
 const double ruleDefaultPairedWeight = 0.60; // A9 with a bound pair
@@ -86,6 +87,10 @@ const double corroboratedPairBonus = 0.15;
 // ---------------------------------------------------------------------------
 
 const double sampleRateThreshold = 0.60;
+
+/// A6m floor: option-looking fronts at this rate..sampleRateThreshold fire
+/// the mixed choice rule at review-band confidence instead of nothing.
+const double embeddedOptionsReviewRate = 0.40;
 
 // ---------------------------------------------------------------------------
 // Confidence bands (§3.6)

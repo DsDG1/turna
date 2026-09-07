@@ -136,6 +136,52 @@ void main() {
         OfficialAnkiSourceDao(catalog).findById(sourceId)!.state, 'retiring');
   });
 
+  test('① beginRetire: post-commit view-row failure defers instead of failing',
+      () async {
+    final sourceId = await seedActiveV2Source();
+    // 预置视图行（用户已见课程）。
+    await OfficialAnkiV2ViewStore(course).replaceAll(
+      rows: [
+        OfficialAnkiV2ViewRow(
+          sourceId: sourceId,
+          cardId: 1,
+          noteId: 1,
+          deckId: 10,
+          wordId: 'w-1',
+          sectionKey: 'Deck A',
+          sectionId: 'official-anki-$sourceId-s1',
+          unitId: 'official-anki-$sourceId-u1',
+          lessonId: 'official-anki-$sourceId-l1',
+          lessonKey: 'Deck A',
+          presentationKind: 'showWord',
+          sourceHash: 'hash-$sourceId',
+        ),
+      ],
+      rebuiltAtMillis: 1,
+    );
+    // 模拟 COMMIT 之后的瞬时存储错误（busy/locked）：让视图定向删行必败。
+    await course.customStatement('DROP TABLE anki_course_tree_view');
+
+    final jobId = await service().beginRetire(sourceId: sourceId);
+
+    expect(jobId, isNotEmpty,
+        reason: '视图删行失败不得把已提交的移除报成失败（UI 会一边显示'
+            '已移除、一边提示「移除未完成」）');
+    expect(
+      OfficialAnkiSourceDao(catalog).findById(sourceId)!.state,
+      'retiring',
+      reason: '账本事务已提交且不得回滚（旧实现在 COMMIT 后执行 ROLLBACK '
+          '会再抛错并掩盖原始异常）',
+    );
+    expect(
+      OfficialAnkiMaintenanceJobDao(catalog)
+          .pending(profileId: paths.profileId)
+          .any((j) => j['kind'] == 'v2_source_delete'),
+      isTrue,
+      reason: '删除 job 已入队，残留视图行由 job ③ 的视图重建收敛',
+    );
+  });
+
   test('②③④ full job: engine delete + 5-table final delete + GC jobs',
       () async {
     final sourceId = await seedActiveV2Source();

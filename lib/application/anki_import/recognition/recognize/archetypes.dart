@@ -101,6 +101,13 @@ const List<ArchetypeRule> archetypeRules = [
     probe: _embeddedOptions,
   ),
   ArchetypeRule(
+    id: 'A6m',
+    layer: RuleLayer.content,
+    target: CardArchetype.choice,
+    weight: ruleEmbeddedOptionsMixedWeight,
+    probe: _embeddedOptionsMixed,
+  ),
+  ArchetypeRule(
     id: 'A7',
     layer: RuleLayer.content,
     target: CardArchetype.audioFirst,
@@ -243,6 +250,30 @@ String? _embeddedOptions(
   final aligned = CardFacts.of(facts.nonEmptySamplesOf(response.fieldIndex))
       .parseCorrectIndices(embedded.options);
   return aligned.isEmpty ? null : '${embedded.options.length} options';
+}
+
+/// Mixed deck: only part of the samples look like choice questions. Fires
+/// below the A6 rate threshold but still requires answer alignment, and its
+/// lower weight keeps the result in the review band for user confirmation.
+String? _embeddedOptionsMixed(
+  NotetypeFacts facts,
+  Map<FieldRole, FieldBinding> roles,
+) {
+  final prompt = roles[FieldRole.prompt];
+  final response = roles[FieldRole.response];
+  if (prompt == null || response == null) return null;
+  final front = CardFacts.of(facts.nonEmptySamplesOf(prompt.fieldIndex));
+  final rate = front.looksLikeOptionsRate;
+  if (rate < embeddedOptionsReviewRate || rate >= sampleRateThreshold) {
+    return null; // A6 owns the full-rate case
+  }
+  final embedded = front.extractEmbeddedOptions();
+  if (embedded == null) return null;
+  final aligned = CardFacts.of(facts.nonEmptySamplesOf(response.fieldIndex))
+      .parseCorrectIndices(embedded.options);
+  return aligned.isEmpty
+      ? null
+      : 'mixed ${embedded.options.length} options';
 }
 
 String? _audioFirst(

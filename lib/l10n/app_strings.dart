@@ -1602,7 +1602,12 @@ class AppStrings {
   static String get ankiUninstallConfirmTitle => '移除此牌组？';
   static String get ankiUninstallConfirmBody => '将删除该牌组的卡片、复习进度和媒体文件，此操作无法撤销。';
   static String get ankiDeckRemoved => '牌组已移除';
-  static String get ankiDeckRemovalPending => '牌组正在清理，重启应用后会自动重试';
+  /// 批量移除的部分成功文案：`uninstall` 返回 false（locator 未就绪，
+  /// 什么都没发生）与抛错（提交前失败）都按「未完成」计数——v2 删除
+  /// 序列里用户可见的移除在账本 COMMIT 即生效，之后的清理失败不再
+  /// 归入此列。
+  static String ankiDeckRemovalPartial(int completed, int failed) =>
+      '已移除 $completed 项，$failed 项未完成，请稍后重试';
   static String get ankiDeckRemovalFailed => '牌组移除未完成，请稍后重试';
   static String get ankiShowAnswer => '显示答案';
   static String get ankiShowAnswerFlip => '显示答案 / 翻面';
@@ -2042,6 +2047,8 @@ class AppStrings {
   // ── Official Anki errors ──
   static String get officialAnkiRetryCurrentSide => '重试当前面';
   static String get officialAnkiErrorFallback => '官方卡片暂时无法显示，请重试。';
+  static String get officialAnkiCanonicalFlipHint => '先翻面查看答案后继续';
+  static String get officialAnkiCanonicalViewed => '已查看原卡';
 
   /// Localize an `official_anki.*` message key emitted by the native bridge
   /// or the Dart engine layer. Unknown keys resolve to a generic user-facing

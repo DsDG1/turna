@@ -10,7 +10,7 @@ import 'package:turna/courses/languages/vocab.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
-import 'package:turna/views/anki_official/official_anki_canonical_link_view.dart';
+import 'package:turna/views/anki_official/official_anki_canonical_card_view.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/lesson/components/lesson_practice_card.dart';
 import 'package:turna/views/theme.dart';
@@ -42,8 +42,9 @@ class ShowWordRenderer extends InteractionRenderer {
   ) {
     final i = interaction as ShowWord;
     if (OfficialAnkiCourseEntry.parseCanonicalLink(i.context) != null) {
-      return OfficialAnkiCanonicalLinkView(
+      return OfficialAnkiCanonicalCardView(
         contextToken: i.context!,
+        submitted: state.submitted,
         onSubmit: (correct) => onSubmit(correct),
       );
     }
@@ -52,7 +53,7 @@ class ShowWordRenderer extends InteractionRenderer {
     final vocab = (hasInline || isUnknown) ? null : vocabById[i.wordId];
     final term = hasInline ? i.term! : (vocab?.term ?? (isUnknown ? '' : i.wordId));
     final translation = hasInline ? (i.translation ?? '') : (vocab?.translation ?? '');
-    final contextSentence = i.example ?? (OfficialAnkiCourseEntry.parseCanonicalLink(i.context) == null ? i.context : null);
+    final contextSentence = i.example ?? i.context;
 
     return _ShowWordCard(
       term: term,

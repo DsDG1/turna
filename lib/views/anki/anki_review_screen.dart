@@ -373,11 +373,9 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
     final importId = LegacyAnkiIdentifiers.importIdFromSectionId(sectionId);
     if (importId.isEmpty) return;
     var uninstallCompleted = false;
-    var uninstallFailed = false;
     try {
       uninstallCompleted = await getIt<AnkiDeckManager>().uninstall(importId);
     } catch (e) {
-      uninstallFailed = true;
       debugPrint('[AnkiReview] uninstall failed for $importId: $e');
     }
     if (!context.mounted) return;
@@ -394,14 +392,14 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
       await courseProvider.reloadCourse();
     }
     if (!context.mounted) return;
+    // 与课程管理页同语义：false/抛错 = 本次未删成（提交前失败），
+    // 「已移除」只在删除确实生效时出现。
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          uninstallFailed
-              ? AppStrings.ankiDeckRemovalFailed
-              : uninstallCompleted
-                  ? AppStrings.ankiDeckRemoved
-                  : AppStrings.ankiDeckRemovalPending,
+          uninstallCompleted
+              ? AppStrings.ankiDeckRemoved
+              : AppStrings.ankiDeckRemovalFailed,
         ),
       ),
     );

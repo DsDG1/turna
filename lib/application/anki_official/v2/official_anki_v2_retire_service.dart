@@ -55,6 +55,11 @@ class OfficialAnkiV2RetireService {
   /// 提交后定向删除该 source 的视图行——无需引擎、即刻不可见（K6
   /// 「用户视角即刻移除」）。返回 jobId。source 已 retiring 时幂等返回
   /// 既有 pending job。
+  ///
+  /// 视图删行在事务**之外** best-effort 执行：此刻账本已提交，source 在
+  /// 读面（catalog active 过滤）已不可见，行残留由 job ③ 的视图重建收
+  /// 敛——该步失败绝不能回滚或向上抛「移除未完成」，否则 UI 会一边显示
+  /// 已移除、一边提示移除失败。
   Future<String> beginRetire({required String sourceId}) async {
     final sources = OfficialAnkiSourceDao(catalog);
     final source = sources.findById(sourceId);
@@ -64,32 +69,39 @@ class OfficialAnkiV2RetireService {
     final jobs = OfficialAnkiMaintenanceJobDao(catalog);
     final db = catalog.handle;
     db.execute('BEGIN');
+    final String jobId;
     try {
       if (source.state != OfficialAnkiSourceState.retiring.wire) {
         sources.markRetiring(sourceId: sourceId, nowMillis: _now);
       }
-      final jobId = jobs.enqueue(
+      jobId = jobs.enqueue(
         profileId: source.profileId,
         kind: OfficialAnkiMaintenanceKind.v2SourceDelete,
         sourceId: sourceId,
         nowMillis: _now,
       );
       db.execute('COMMIT');
-      // 即刻不可见：视图定向删行（不等 job、不需引擎）。读面的目录
-      // 过滤（catalog active）同时兜底。
-      final courseDb = course;
-      if (courseDb != null) {
-        await courseDb.customStatement(
-          'DELETE FROM anki_course_tree_view WHERE source_id = ?',
-          [sourceId],
-        );
-      }
-      officialAnkiV2Log('retire begin: $sourceId (job $jobId)');
-      return jobId;
     } catch (error) {
       db.execute('ROLLBACK');
       rethrow;
     }
+    // 即刻不可见：视图定向删行（不等 job、不需引擎）。
+    final courseDb = course;
+    if (courseDb != null) {
+      try {
+        await courseDb.customStatement(
+          'DELETE FROM anki_course_tree_view WHERE source_id = ?',
+          [sourceId],
+        );
+      } catch (error) {
+        officialAnkiV2Log(
+          'retire view row delete deferred: $sourceId ($error)',
+          warning: true,
+        );
+      }
+    }
+    officialAnkiV2Log('retire begin: $sourceId (job $jobId)');
+    return jobId;
   }
 
   /// ②③④ job 体：幂等执行，任一段可重入。供维护 runner 与修复中心

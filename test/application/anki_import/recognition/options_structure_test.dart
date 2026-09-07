@@ -125,4 +125,47 @@ void main() {
     expect(parsed.options[0], contains('<img src="dog.jpg">'));
     expect(parsed.options[0], contains('[sound:dog.mp3]'));
   });
+
+  test('HTML line breaks become newlines before option parsing', () {
+    const front = 'Which animal barks?<br>A. Cat<br>B. Dog<br>C. Bird';
+    expect(EmbeddedOptionsParser.looksLikeEmbeddedOptions(front), isTrue);
+    final parsed = EmbeddedOptionsParser.extractEmbeddedOptions(front);
+    expect(parsed, isNotNull);
+    expect(parsed!.options, ['Cat', 'Dog', 'Bird']);
+    expect(parsed.prompt, 'Which animal barks?');
+  });
+
+  test('div-wrapped options and entities are normalized', () {
+    const front =
+        '<div>我国的首都是哪里？</div><div>A.&nbsp;上海</div><div>B. 北京</div><div>C. 广州</div>';
+    final parsed = EmbeddedOptionsParser.extractEmbeddedOptions(front);
+    expect(parsed, isNotNull);
+    expect(parsed!.options, ['上海', '北京', '广州']);
+    expect(EmbeddedOptionsParser.parseCorrectIndices('B', parsed.options), [1]);
+  });
+
+  test('answer with repeated option label aligns by exact text', () {
+    const options = ['上海', '北京', '广州'];
+    expect(
+      EmbeddedOptionsParser.parseCorrectIndices('B. 北京', options),
+      [1],
+    );
+    expect(
+      EmbeddedOptionsParser.parseCorrectIndices('（B）北京', options),
+      [1],
+    );
+    expect(
+      EmbeddedOptionsParser.parseCorrectIndices('答案：C. 广州', options),
+      [2],
+    );
+  });
+
+  test('inline numbered options parse from a single line', () {
+    const front = '选出偶数：1. 3 2. 4 3. 5 4. 7';
+    final parsed = EmbeddedOptionsParser.extractEmbeddedOptions(front);
+    expect(parsed, isNotNull);
+    expect(parsed!.options, ['3', '4', '5', '7']);
+    expect(parsed.prompt, '选出偶数：');
+    expect(EmbeddedOptionsParser.parseCorrectIndices('2', parsed.options), [1]);
+  });
 }

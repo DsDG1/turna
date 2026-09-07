@@ -170,9 +170,16 @@ class AnkiDeckManager {
     if (catalog == null || paths == null) {
       return false;
     }
+    // 账本行已不存在 = 该源此前已完成终删（retire ③ 跑完、账本五表已
+    // 清）。当次调用无事可做，按「已移除」汇报——否则课程列表已隐藏
+    // 该源、消息却说移除未完成，两态矛盾。
+    final sources = OfficialAnkiSourceDao(catalog);
+    if (sources.findById(sourceId) == null) {
+      return true;
+    }
     // B5 契约：引擎缺席（含解析抛错）不得阻塞 ①账本单事务（job 留队
     // 续跑）。用户可见的「移除失败」只剩两处来源：locator 未就绪的
-    // 早退 return false，或 beginRetire 自身抛错（unknown source / DB）。
+    // 早退 return false，或 beginRetire 自身抛错（DB）。
     OfficialAnkiEngine? engine;
     try {
       engine = await _resolveOfficialEngine();
@@ -207,8 +214,10 @@ class AnkiDeckManager {
     // 小源：同步走完引擎删除（F4 测试与日常小包）。大源（含 10 万卡
     // 夹具）：beginRetire 已让课程树即刻不可见，引擎分批删卡不挡 UI，
     // 否则确认删除会卡死，表现就是「删不掉」。两种体量都不在 UI 等待
-    // 字节回收——drain 分离执行，失败留队由下次启动收敛。
-    final owned = OfficialAnkiSourceDao(catalog).cardCount(sourceId);
+    // 字节回收——drain 分离执行，失败留队由下次启动收敛。计数读失败
+    // 时按大源处理（后台续跑），绝不让 post-commit 的读取异常把已提交
+    // 的移除报成「未完成」。
+    final owned = _retireCardCount(sources, sourceId);
     if (owned <= OfficialAnkiV2RetireService.defaultDeleteChunk) {
       await enginePass();
       unawaited(reclaimPass());
@@ -220,6 +229,17 @@ class AnkiDeckManager {
       unawaited(enginePass().then((_) => reclaimPass()));
     }
     return true;
+  }
+
+  /// 体量探测（决定引擎删除走同步还是后台）。账本已提交 retiring 后
+  /// 此读仍可能瞬时失败（busy/locked）；失败按「体量未知=大源」处理。
+  int _retireCardCount(OfficialAnkiSourceDao sources, String sourceId) {
+    try {
+      return sources.cardCount(sourceId);
+    } catch (error) {
+      debugPrint('[AnkiDeckManager] v2 retire card count failed: $error');
+      return OfficialAnkiV2RetireService.defaultDeleteChunk + 1;
+    }
   }
 
   /// Resolve which persisted owner an uninstall id belongs to.

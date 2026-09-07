@@ -18,10 +18,43 @@ enum PracticeChoiceCardinality { single, multi, unknown, conflict }
 /// (A/B/C/D) in Anki cards (absorbs the old `anki_practice/embedded_
 /// options.dart`). Pure structure, zero topic words.
 class EmbeddedOptionsParser {
+  static final RegExp _blockTagRegex = RegExp(
+    r'<br\s*/?>|</p>|</div>|</li>|</tr>|</h[1-6]>',
+    caseSensitive: false,
+  );
+
+  static final RegExp _anyTagRegex = RegExp(r'<[^>]+>');
+
+  /// Convert block-level HTML to newlines, strip formatting tags (keeping
+  /// media tags like `<img>`/`<audio>`), and decode common entities so
+  /// option scanning sees the same text the user does (Anki fields
+  /// routinely use `<br>`/`<div>` instead of `\n`).
+  static String normalizeForOptionScan(String raw) {
+    return raw
+        .replaceAll(_blockTagRegex, '\n')
+        .replaceAllMapped(_anyTagRegex, (m) {
+          final tag = m.group(0)!.toLowerCase();
+          return tag.startsWith('<img') ||
+                  tag.startsWith('<audio') ||
+                  tag.startsWith('<video') ||
+                  tag.startsWith('<source')
+              ? m.group(0)!
+              : '';
+        })
+        .replaceAll('&nbsp;', ' ')
+        .replaceAll('&amp;', '&')
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&#39;', "'")
+        .replaceAll('&apos;', "'");
+  }
+
   /// Whether [text] looks like it contains lettered options (A./B. …),
   /// circled numbers (①/②), or bracketed options ((A)/(B), （A）/（B）),
   /// even when they are jammed into one paragraph without newlines.
-  static bool looksLikeEmbeddedOptions(String text) {
+  static bool looksLikeEmbeddedOptions(String raw) {
+    final text = normalizeForOptionScan(raw);
     final letterHits = RegExp(
       r'(?<![A-Za-z0-9])([A-Ha-h])\s*[.、．:：)）\]】]',
     ).allMatches(text).length;
@@ -41,7 +74,8 @@ class EmbeddedOptionsParser {
   }
 
   /// Extract `A. option` / `1) option` / `（A） option` / `① option` from a front-face string.
-  static ParsedEmbeddedOptions? extractEmbeddedOptions(String front) {
+  static ParsedEmbeddedOptions? extractEmbeddedOptions(String rawFront) {
+    final front = normalizeForOptionScan(rawFront);
     // 1) Line-oriented parse
     final lines = front.split(RegExp(r'\r?\n'));
     final lineOptions = <String>[];
@@ -75,20 +109,24 @@ class EmbeddedOptionsParser {
     // 2) Inline parse (no newlines between A./B./C./D. or (A)/(B))
     final inline = RegExp(
       r'(?:(?<![A-Za-z0-9])([A-Ha-h])\s*[.、．:：)）\]】]\s*'
-      r'|[（(【\[]\s*([A-Ha-h])\s*[）)】\]]\s*'
-      r'|([①-⑧])\s*)',
+      r'|[（(【\[]\s*([A-Ha-h1-8])\s*[）)】\]]\s*'
+      r'|([①-⑧])\s*'
+      r'|(?<![A-Za-z0-9])([1-8])\s*[.、．:：)）\]】]\s*)',
     );
     final matches = inline.allMatches(front).toList();
     if (matches.length < 2) return null;
 
+    String labelOf(int i) => (matches[i].group(1) ??
+            matches[i].group(2) ??
+            matches[i].group(3) ??
+            matches[i].group(4) ??
+            '')
+        .toUpperCase();
+
     var start = 0;
     for (var i = 0; i < matches.length; i++) {
-      final rawLabel = (matches[i].group(1) ??
-              matches[i].group(2) ??
-              matches[i].group(3) ??
-              '')
-          .toUpperCase();
-      if (rawLabel == 'A' || rawLabel == '①') {
+      final rawLabel = labelOf(i);
+      if (rawLabel == 'A' || rawLabel == '①' || rawLabel == '1') {
         start = i;
         break;
       }
@@ -96,12 +134,10 @@ class EmbeddedOptionsParser {
     final run = matches.sublist(start);
     if (run.length < 2) return null;
 
-    final firstLabel = (run.first.group(1) ??
-            run.first.group(2) ??
-            run.first.group(3) ??
-            '')
-        .toUpperCase();
-    if (firstLabel != 'A' && firstLabel != '①') return null;
+    final firstLabel = labelOf(start);
+    if (firstLabel != 'A' && firstLabel != '①' && firstLabel != '1') {
+      return null;
+    }
 
     final options = <String>[];
     for (var i = 0; i < run.length; i++) {
@@ -123,11 +159,27 @@ class EmbeddedOptionsParser {
     List<String> options,
   ) {
     var answer = answerRaw.trim();
-    answer = answer
+    final answerWithLabel = answer
         .replaceFirst(
           RegExp(
             r'^(答案|正确答案|正确选项|正解|Answer|Ans)\s*[:：]?\s*',
             caseSensitive: false,
+          ),
+          '',
+        )
+        .trim();
+    answer = answerWithLabel;
+    // Answers often repeat the option label: `A. 选项文本` / `（B）文本`.
+    // Strip that prefix so the exact-match branch below can align it.
+    answer = answer
+        .replaceFirst(
+          RegExp(
+            r'^(?:'
+            r'[A-Ha-h]\s*[.、．:：)）\]】]'
+            r'|[（(【\[]\s*[A-Ha-h1-8]\s*[）)】\]]'
+            r'|[①-⑧]'
+            r'|[1-9]\s*[.、．:：)）\]】]'
+            r')\s*',
           ),
           '',
         )
@@ -140,13 +192,15 @@ class EmbeddedOptionsParser {
       if (i >= 0 && i < options.length) indices.add(i);
     }
 
-    // Exact full-string match first
-    final exact = options.indexWhere(
-      (o) => o == answer || o.toLowerCase() == answer.toLowerCase(),
-    );
-    if (exact >= 0) return [exact];
+    // Exact full-string match first (label-stripped, then raw)
+    for (final candidate in [answer, answerWithLabel]) {
+      final exact = options.indexWhere(
+        (o) => o == candidate || o.toLowerCase() == candidate.toLowerCase(),
+      );
+      if (exact >= 0) return [exact];
+    }
 
-    final compactLetters = answer.replaceAll(RegExp(r'[,;、|/＋+\s]+'), '');
+    final compactLetters = answerWithLabel.replaceAll(RegExp(r'[,;、|/＋+\s]+'), '');
     if (RegExp(r'^[A-Ha-h]+$').hasMatch(compactLetters)) {
       for (final c in compactLetters.toUpperCase().codeUnits) {
         addIfValid(c - 65);
@@ -156,7 +210,7 @@ class EmbeddedOptionsParser {
         addIfValid(c - 0x2460);
       }
     } else {
-      final numberParts = answer
+      final numberParts = answerWithLabel
           .split(RegExp(r'[,;、|/＋+\s]+'))
           .map((s) => s.trim())
           .where((s) => s.isNotEmpty)

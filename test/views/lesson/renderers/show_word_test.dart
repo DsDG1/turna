@@ -115,12 +115,12 @@ void main() {
     await tester.pumpWidget(harness.build(renderer, interaction));
     expect(find.byKey(const Key('official-canonical-fail-closed')),
         findsOneWidget);
-    expect(find.byKey(const Key('official-canonical-open')), findsNothing);
+    expect(find.byKey(const Key('official-canonical-continue')), findsNothing);
     expect(find.text('Habari'), findsNothing);
     expect(find.byType(OfficialAnkiReviewerPage), findsNothing);
   });
 
-  testWidgets('canonicalLink pushes OfficialAnkiReviewerPage on tap',
+  testWidgets('canonicalLink renders inline without a route push',
       (tester) async {
     ensurePathProviderMockForTest();
     OfficialAnkiCourseEntry.resetHooks();
@@ -139,19 +139,21 @@ void main() {
       context: 'official-canonical-link:src1:9',
     );
     await tester.pumpWidget(harness.buildRouted(renderer, interaction));
-    // AutoRoute resolves the initial host page asynchronously.
+    // AutoRoute resolves the initial host page asynchronously; boot then
+    // fails deterministically (no worker session in the test environment).
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('official-canonical-open')), findsOneWidget);
+
+    // No route push ever happens: the card itself is the surface.
     expect(find.byType(OfficialAnkiReviewerPage), findsNothing);
-    await tester.tap(find.byKey(const Key('official-canonical-open')));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
-    expect(find.byType(OfficialAnkiReviewerPage), findsOneWidget);
-    final page = tester.widget<OfficialAnkiReviewerPage>(
-      find.byType(OfficialAnkiReviewerPage),
+    expect(find.byKey(const Key('official-canonical-boot-failed')),
+        findsOneWidget);
+    // Release hatch: a card whose boot failed must not stall the lesson.
+    final button = tester.widget<FilledButton>(
+      find.byKey(const Key('official-canonical-continue')),
     );
-    expect(page.sourceId, 'src1');
-    expect(page.cardId, 9);
-    expect(page.paths.profileId, 'profile-default-01');
+    expect(button.onPressed, isNotNull);
+    await tester.tap(find.byKey(const Key('official-canonical-continue')));
+    await tester.pumpAndSettle();
+    expect(harness.submissions, [(true, null)]);
   });
 }

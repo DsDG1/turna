@@ -304,5 +304,41 @@
     "evidence": [
       "A8:short_pair w=0.75"
     ]
+  },
+  "17": {
+    "archetype": "choice",
+    "confidence": "0.880",
+    "band": "auto",
+    "roles": {
+      "prompt": {
+        "field": "Question",
+        "confidence": "1.000"
+      },
+      "response": {
+        "field": "Answer",
+        "confidence": "1.000"
+      }
+    },
+    "evidence": [
+      "A6:4 options w=0.80"
+    ]
+  },
+  "18": {
+    "archetype": "choice",
+    "confidence": "0.780",
+    "band": "review",
+    "roles": {
+      "prompt": {
+        "field": "Question",
+        "confidence": "1.000"
+      },
+      "response": {
+        "field": "Answer",
+        "confidence": "1.000"
+      }
+    },
+    "evidence": [
+      "A6m:mixed 4 options w=0.78"
+    ]
   }
 }

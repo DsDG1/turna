@@ -235,6 +235,35 @@ void main() {
       );
     });
 
+    test('persistCourseOrder applies the new order before its first await',
+        () async {
+      final provider = CourseProvider(appPrefs);
+      await provider.load();
+
+      final deckA = LegacyAnkiCourseScope('deckaa').wireKey;
+      final deckB = LegacyAnkiCourseScope('deckbb').wireKey;
+      var notifications = 0;
+      provider.addListener(() => notifications++);
+
+      // 不 await：断言须在第一个 await 之前成立——ReorderableListView
+      // 松手当帧就要拿到最终顺序并重建，否则卡片先弹回原位、目录
+      // reload 落地后再瞬移到新位置（课程管理拖动排序的闪现）。
+      final pending = provider.persistCourseOrder([deckB, builtinWire, deckA]);
+
+      expect(
+        provider.catalogEntries.map((e) => e.wireKey),
+        [deckB, builtinWire, deckA],
+      );
+      expect(notifications, 1,
+          reason: '同步通知让列表的落位动画与最终顺序同帧衔接');
+
+      await pending;
+      expect(
+        provider.catalogEntries.map((e) => e.wireKey),
+        [deckB, builtinWire, deckA],
+      );
+    });
+
     test('stored order drops deleted decks and appends unknown new decks',
         () async {
       final deckA = LegacyAnkiCourseScope('deckaa').wireKey;
