@@ -53,9 +53,8 @@ private_keys/
 # FVM Version Cache
 .fvm/
 
-# Firebase configuration files (Android google-services.json is tracked)
+# Firebase: Android google-services.json and lib/firebase_options.dart are tracked.
 ios/Runner/GoogleService-Info.plist
-lib/firebase_options.dart
 node_modules/
 serviceAccountKey.json
 

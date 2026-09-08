@@ -4,7 +4,7 @@
 
 合并本流程后，维护者配置 GitHub Secrets，即可用 **Actions → Firebase App Distribution → Run workflow**（或推送 `v*` 标签）打出 arm64 发布 APK，并上传到 App Distribution。测试员会收到 App Tester 通知 / 安装链接。
 
-Android 应用配置 `android/app/google-services.json` 已入库（Firebase 项目 `turna-d0d5e`，包名 `me.dsdogs.turna`）。**不要**提交服务账号 JSON 或 keystore。App Distribution **上传**走 Firebase Admin API（`FIREBASE_APP_ID` + `FIREBASE_SERVICE_ACCOUNT`）；APK 不必内嵌完整 Firebase SDK。
+Android 应用配置已入库：`android/app/google-services.json`、`lib/firebase_options.dart`，入口 `Firebase.initializeApp`（仅 Android）。**不要**提交服务账号 JSON 或 keystore。App Distribution **上传**仍走 Admin API（`FIREBASE_APP_ID` + `FIREBASE_SERVICE_ACCOUNT`）。
 
 ## 触发方式
 
@@ -48,10 +48,10 @@ Android 应用配置 `android/app/google-services.json` 已入库（Firebase 项
 
 1. GitHub → Actions → **Firebase App Distribution** → **Run workflow**。
 2. 可选：`version`（默认 `pubspec` 版本 + `-dist.<run_number>`）、`groups`（默认 `testers`）、`release_notes`（默认最近一次 commit subject）。
-3. 成功后：Firebase Console → App Distribution 能看到该 APK；测试员走 App Tester 或邮件链接安装。同一 run 还会挂一份 APK artifact（保留 14 天）。
+3. 成功后：Firebase Console → App Distribution 能看到该 APK；测试员安装 **App Tester**（Play 上的 Firebase App Tester），打开邀请链接或等通知即可安装。同一 run 还会挂一份 APK artifact（保留 14 天）。
 
 ## 限制
 
 - 产物仅 **arm64-v8a**（与 `build_release.py` / doc 34 §14.2 一致）。
-- 本工作流只负责**分发**；未额外加入 Flutter Firebase SDK。
+- 应用侧已接 `firebase_core` + `lib/firebase_options.dart`（仅 Android）。未加 Analytics / App Distribution 客户端 SDK；测试员用 **App Tester** 安装分发 APK。
 - 首次上传前必须已配置 `FIREBASE_SERVICE_ACCOUNT`、tester 组 `testers`（或 dispatch 时改 `groups`），否则 upload step 会失败。
