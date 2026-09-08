@@ -560,10 +560,18 @@ fn build_recognition_typein(packages: &Path, expected: &Path) -> Result<serde_js
                 col,
                 "听写卡",
                 &["提示", "拼写答案"],
-                &[("Card 1", "{{提示}}", "{{FrontSide}}<hr>{{拼写答案}}{{type:拼写答案}}")],
+                &[(
+                    "Card 1",
+                    "{{提示}}",
+                    "{{FrontSide}}<hr>{{拼写答案}}{{type:拼写答案}}",
+                )],
             )?;
             col.add_basic("听写卡", "turnafix000011", &["听写：spell-probe", "答案甲"])?;
-            col.add_basic("听写卡", "turnafix000012", &["听写：second-probe", "答案乙"])?;
+            col.add_basic(
+                "听写卡",
+                "turnafix000012",
+                &["听写：second-probe", "答案乙"],
+            )?;
             Ok(())
         },
     )
@@ -599,7 +607,11 @@ fn build_recognition_optionpool(packages: &Path, expected: &Path) -> Result<serd
             col.add_basic(
                 "题库单选",
                 "turnafix000014",
-                &["土耳其的首都是哪里？", "安卡拉|伊斯坦布尔|伊兹密尔|科尼亚", "安卡拉"],
+                &[
+                    "土耳其的首都是哪里？",
+                    "安卡拉|伊斯坦布尔|伊兹密尔|科尼亚",
+                    "安卡拉",
+                ],
             )?;
             Ok(())
         },
@@ -626,10 +638,22 @@ fn build_recognition_zh_composite(packages: &Path, expected: &Path) -> Result<se
                 col,
                 "复合字段卡",
                 &["词汇表汉字", "词汇表释义", "读音标注"],
-                &[("Card 1", "{{词汇表汉字}}", "{{FrontSide}}<hr>{{词汇表释义}}{{读音标注}}")],
+                &[(
+                    "Card 1",
+                    "{{词汇表汉字}}",
+                    "{{FrontSide}}<hr>{{词汇表释义}}{{读音标注}}",
+                )],
             )?;
-            col.add_basic("复合字段卡", "turnafix000015", &["复合", "composite", "fùhé"])?;
-            col.add_basic("复合字段卡", "turnafix000016", &["结构", "structure", "jiégòu"])?;
+            col.add_basic(
+                "复合字段卡",
+                "turnafix000015",
+                &["复合", "composite", "fùhé"],
+            )?;
+            col.add_basic(
+                "复合字段卡",
+                "turnafix000016",
+                &["结构", "structure", "jiégòu"],
+            )?;
             Ok(())
         },
     )

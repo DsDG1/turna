@@ -10,8 +10,8 @@ use serde::Deserialize;
 use serde_json::json;
 use serde_json::Value;
 
-use crate::engine::MAX_REQUEST_BYTES;
 use crate::engine::parse_req;
+use crate::engine::MAX_REQUEST_BYTES;
 use crate::engine::STATUS_CARD_NOT_FOUND;
 use crate::engine::STATUS_INVALID_ARGUMENT;
 use crate::engine::STATUS_RENDER_FAILED;
@@ -185,8 +185,7 @@ pub fn compare_typed_answer(handle: u64, request: &[u8]) -> Result<Value, i32> {
     if request.len() > MAX_REQUEST_BYTES {
         return Err(STATUS_INVALID_ARGUMENT);
     }
-    let parsed: CompareRequest =
-        parse_req(request)?;
+    let parsed: CompareRequest = parse_req(request)?;
     if parsed.provided.len() > 16_384 {
         return Err(STATUS_INVALID_ARGUMENT);
     }
@@ -212,8 +211,7 @@ pub fn extract_cloze_op(handle: u64, request: &[u8]) -> Result<Value, i32> {
     if request.len() > MAX_REQUEST_BYTES {
         return Err(STATUS_INVALID_ARGUMENT);
     }
-    let parsed: ExtractRequest =
-        parse_req(request)?;
+    let parsed: ExtractRequest = parse_req(request)?;
     if let (Some(text), Some(ordinal)) = (parsed.text.as_ref(), parsed.ordinal) {
         if text.len() > 1_048_576 || ordinal == 0 {
             return Err(STATUS_INVALID_ARGUMENT);

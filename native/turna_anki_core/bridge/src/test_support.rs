@@ -9,9 +9,9 @@ use std::time::UNIX_EPOCH;
 use crate::engine::alloc_engine;
 use crate::engine::dispatch;
 use crate::engine::open_collection;
+use crate::engine::OpenRequest;
 use crate::engine::OP_IMPORT_PACKAGE;
 use crate::engine::OP_SEARCH_CARDS_PAGE;
-use crate::engine::OpenRequest;
 use serde_json::json;
 
 /// Open a fresh engine on a throwaway collection. `tag` keeps the temp
@@ -85,8 +85,12 @@ pub(crate) fn page_all_card_ids(handle: u64) -> Vec<i64> {
         if let Some(t) = token.as_deref() {
             body["page_token"] = json!(t);
         }
-        let page = dispatch(handle, OP_SEARCH_CARDS_PAGE, &serde_json::to_vec(&body).unwrap())
-            .unwrap();
+        let page = dispatch(
+            handle,
+            OP_SEARCH_CARDS_PAGE,
+            &serde_json::to_vec(&body).unwrap(),
+        )
+        .unwrap();
         ids.extend(
             page["cardIds"]
                 .as_array()

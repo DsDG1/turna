@@ -837,7 +837,12 @@ mod tests {
         .unwrap();
         let token = begin["snapshotToken"].as_str().unwrap().to_string();
 
-        call(handle, crate::engine::OP_SET_CURRENT_DECK, json!({"deckId": 1})).unwrap();
+        call(
+            handle,
+            crate::engine::OP_SET_CURRENT_DECK,
+            json!({"deckId": 1}),
+        )
+        .unwrap();
         let queue = call(
             handle,
             crate::engine::OP_GET_REVIEW_QUEUE,
@@ -914,9 +919,7 @@ mod tests {
         )
         .unwrap();
         let token = begin["snapshotToken"].as_str().unwrap().to_string();
-        crate::engine::bump_content_generation(
-            &mut slot(handle).unwrap().engine.lock().unwrap(),
-        );
+        crate::engine::bump_content_generation(&mut slot(handle).unwrap().engine.lock().unwrap());
         let err = call(
             handle,
             OP_GET_PROJECTION_ROWS_BATCH,
@@ -969,12 +972,7 @@ mod tests {
                 if let Some(t) = page_token.as_deref() {
                     body["page_token"] = json!(t);
                 }
-                let page = call(
-                    handle,
-                    crate::engine::OP_SEARCH_CARDS_PAGE,
-                    body,
-                )
-                .unwrap();
+                let page = call(handle, crate::engine::OP_SEARCH_CARDS_PAGE, body).unwrap();
                 card_ids.extend(
                     page["cardIds"]
                         .as_array()

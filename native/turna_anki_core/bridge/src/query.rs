@@ -17,8 +17,8 @@ use crate::engine::parse_req_or_default;
 use crate::engine::slot;
 use crate::engine::STATUS_BACKEND_PANIC;
 use crate::engine::STATUS_CARD_NOT_FOUND;
-use crate::engine::STATUS_INVALID_ARGUMENT;
 use crate::engine::STATUS_INTERNAL_ERROR;
+use crate::engine::STATUS_INVALID_ARGUMENT;
 use crate::engine::STATUS_PAGE_TOKEN_STALE;
 use crate::ops::map_anki_error;
 use crate::ops::require_open;
@@ -154,8 +154,7 @@ pub fn search_cards_page(handle: u64, request: &[u8]) -> Result<Value, i32> {
 }
 
 pub fn get_note_cards_batch(handle: u64, request: &[u8]) -> Result<Value, i32> {
-    let parsed: NoteBatchRequest =
-        parse_req(request)?;
+    let parsed: NoteBatchRequest = parse_req(request)?;
     if parsed.note_ids.len() > MAX_BATCH {
         return Err(STATUS_INVALID_ARGUMENT);
     }
@@ -188,9 +187,8 @@ pub(crate) fn note_cards_by_note(
     let db = col.storage.db();
     for chunk in note_ids.chunks(SQL_CHUNK) {
         let placeholders = vec!["?"; chunk.len()].join(",");
-        let sql = format!(
-            "SELECT id, nid FROM cards WHERE nid IN ({placeholders}) ORDER BY nid, ord"
-        );
+        let sql =
+            format!("SELECT id, nid FROM cards WHERE nid IN ({placeholders}) ORDER BY nid, ord");
         let mut stmt = db.prepare(&sql).map_err(|_| STATUS_INTERNAL_ERROR)?;
         let rows = stmt
             .query_map(rusqlite::params_from_iter(chunk.iter()), |row| {
@@ -217,8 +215,7 @@ pub(crate) struct CardDescriptorRow {
 }
 
 pub fn get_card_descriptors_batch(handle: u64, request: &[u8]) -> Result<Value, i32> {
-    let parsed: CardBatchRequest =
-        parse_req(request)?;
+    let parsed: CardBatchRequest = parse_req(request)?;
     if parsed.card_ids.len() > MAX_BATCH {
         return Err(STATUS_INVALID_ARGUMENT);
     }
@@ -307,10 +304,10 @@ pub(crate) fn card_descriptor_rows(
 #[cfg(test)]
 mod reference {
     use super::*;
+    use crate::ops::map_anki_error;
     use anki::notes::NoteId;
     use anki::services::CardsService;
     use anki::services::NotesService;
-    use crate::ops::map_anki_error;
 
     pub fn note_cards_batch(col: &mut Collection, note_ids: &[i64]) -> Result<Value, i32> {
         let mut notes = Vec::new();
@@ -327,10 +324,7 @@ mod reference {
         Ok(json!({ "notes": notes }))
     }
 
-    pub fn card_descriptors_batch(
-        col: &mut Collection,
-        card_ids: &[i64],
-    ) -> Result<Value, i32> {
+    pub fn card_descriptors_batch(col: &mut Collection, card_ids: &[i64]) -> Result<Value, i32> {
         let mut cards = Vec::new();
         for card_id in card_ids {
             let card = CardsService::get_card(col, anki_proto::cards::CardId { cid: *card_id })
