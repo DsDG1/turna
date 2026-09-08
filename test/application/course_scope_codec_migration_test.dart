@@ -26,7 +26,7 @@ void main() {
     test('wire keys use the versioned unambiguous format', () {
       expect(
         const BuiltinCourseScope('turkish').wireKey,
-        'course-scope:v1:builtin:turkish',
+        'course-scope:v1:builtin:tr',
       );
       expect(
         const LegacyAnkiCourseScope('imp1').wireKey,

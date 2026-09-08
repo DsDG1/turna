@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "language": "fr",
+  "words": [
+    {
+      "id": "fr-w-bonjour",
+      "term": "bonjour",
+      "translation": "hello",
+      "pronunciation": "bon-zhoor",
+      "tags": ["greeting"]
+    },
+    {
+      "id": "fr-w-merci",
+      "term": "merci",
+      "translation": "thank you",
+      "pronunciation": "mehr-see",
+      "tags": ["greeting"]
+    },
+    {
+      "id": "fr-w-oui",
+      "term": "oui",
+      "translation": "yes",
+      "pronunciation": "wee",
+      "tags": ["basic"]
+    },
+    {
+      "id": "fr-w-non",
+      "term": "non",
+      "translation": "no",
+      "pronunciation": "nohn",
+      "tags": ["basic"]
+    },
+    {
+      "id": "fr-w-au-revoir",
+      "term": "au revoir",
+      "translation": "goodbye",
+      "pronunciation": "oh ruh-vwar",
+      "tags": ["greeting"]
+    }
+  ]
+}

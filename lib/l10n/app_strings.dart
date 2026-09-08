@@ -360,7 +360,7 @@ class AppStrings {
       'Google TTS 就绪（$locale）——推荐用于学习';
   static String get settingsTtsGoogleInstalledMissingVoice =>
       'Google 已安装——请在系统 TTS 设置中下载土耳其语语音数据';
-  static String get settingsTtsTurkishVoiceMissing => '土耳其语语音未就绪——打开系统 TTS 设置';
+  static String settingsTtsVoiceMissing(String name) => '$name 语音未就绪——打开系统 TTS 设置';
   static String settingsTtsGoogleMissing(Object oem) =>
       '未检测到 Google TTS（引擎：$oem）';
   static String get settingsVoiceSourceTitle => '语音来源';
@@ -612,12 +612,21 @@ class AppStrings {
   static String get courseManagementTitle => '课程管理';
   static String get courseManagementCurrentBadge => '当前';
   static String get courseManagementDefaultBadge => '默认';
-  static String get courseManagementBuiltinSubtitle => '默认课程，不可删除';
+  static String get courseManagementBuiltinSubtitle => '内置课程';
   static String get courseManagementMyCourses => '我的课程';
   static String courseManagementCardCount(int count) => '$count 张卡片';
   static String get courseManagementRemoveCourse => '移除课程';
   static String get courseManagementImportTitle => '从 Anki 导入课程';
   static String get courseManagementAddTitle => '添加课程';
+  static String get courseManagementRestoreTitle => '已卸载的语言';
+  static String courseManagementRestore(String name) => '恢复 $name';
+  static String courseManagementRestored(String name) => '$name 已恢复';
+  static String get courseManagementRestoreFailed => '恢复未完成，请稍后重试';
+  static String get courseUninstallConfirmTitle => '移除此内置课程？';
+  static String courseUninstallConfirmBody(String name, int cards) =>
+      '将删除 $name 的课程内容（$cards 张卡片）、复习进度、错题和学习记录，'
+      '此操作无法撤销。之后可在「添加课程」区重新恢复课程内容。';
+  static String get courseUninstallAction => '移除课程';
 
   // Per-course smart-TTS settings (course management page).
   static String get courseTtsSettingsTitle => '朗读设置';
@@ -1969,14 +1978,15 @@ class AppStrings {
 
   // ── Splash ──
   static String get splashReclaiming => '重拾语言学习';
-  static String get splashLearnTurkish => 'Learn Turkish • Türkçe öğren';
+  static String splashLearnLanguage(String name, String nativeLabel) =>
+      'Learn $name • $nativeLabel';
   static String get splashFreeForever => '免费。永远。';
   static String get splashAppName => 'Turna';
   static String get splashSubtitle => '没有会失去的生命值，没有要补充的体力。\n纯粹的学习。';
   static String get splashGetStarted => '开始使用';
-  static String get splashTurkishVoiceMissingTitle => '缺少土耳其语语音数据';
-  static String get splashTurkishVoiceMissingBody =>
-      '已安装 Google 文字转语音，但尚未下载土耳其语语音包。\n\n打开系统 TTS 设置 → 首选引擎 = Google → 安装土耳其语（Türkçe）语音数据。';
+  static String splashVoiceMissingTitle(String name) => '缺少$name语音数据';
+  static String splashVoiceMissingBody(String name) =>
+      '已安装 Google 文字转语音，但尚未下载$name语音包。\n\n打开系统 TTS 设置 → 首选引擎 = Google → 安装$name语音数据。';
   static String get splashGoogleTtsMissingTitle => 'Google TTS 不可用';
   static String get splashGoogleTtsMissingBody =>
       '此设备未显示 Google 文字转语音（或包可见性阻止了引擎发现）。\n\n安装「Google 语音识别与合成」，设为首选引擎，并下载土耳其语语音。';

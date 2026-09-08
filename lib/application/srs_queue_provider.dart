@@ -16,6 +16,7 @@ import 'package:turna/core/sm2.dart';
 import 'package:turna/core/srs_scheduler.dart';
 import 'package:turna/data/review_history_dao.dart';
 import 'package:turna/data/srs_state_dao.dart';
+import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/domain/course/lesson_word_link.dart';
 import 'package:turna/domain/course/srs_word.dart';
 import 'package:turna/service/locator.dart';
@@ -43,6 +44,34 @@ abstract class SrsQueueProvider extends ChangeNotifier {
 
   /// Production default: continuous FSRS memory model (ADR 0028).
   late SrsScheduler engine;
+
+  /// Builtin language whose rows are in the in-memory cache. Null = all
+  /// languages (Anki / postpone paths).
+  String? _languageFilter = LanguageCodes.turkish;
+
+  String get languageFilter =>
+      _languageFilter ?? LanguageCodes.turkish;
+
+  Future<void> setLanguageFilter(String? languageCode) async {
+    final next = languageCode == null
+        ? null
+        : LanguageCodes.canonicalize(languageCode);
+    if (next == _languageFilter && _loaded) return;
+    _languageFilter = next;
+    _loaded = false;
+    _cachedState = null;
+    invalidateDueCaches();
+    _bumpReviewDataRevision();
+    await ensureLoaded();
+  }
+
+  void _bumpReviewDataRevision() {
+    try {
+      if (GetIt.I.isRegistered<ReviewDataRevision>()) {
+        GetIt.I<ReviewDataRevision>().bump();
+      }
+    } catch (_) {}
+  }
 
   /// Override scheduler in unit tests (e.g. deterministic SM-2).
   @visibleForTesting
@@ -129,7 +158,11 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     if (reviewDao != null) {
       try {
         sameDayFails =
-            await reviewDao.countFailsOnLocalDay(word.wordId, reviewedAt);
+            await reviewDao.countFailsOnLocalDay(
+              word.wordId,
+              reviewedAt,
+              languageCode: languageFilter,
+            );
       } catch (_) {
         sameDayFails = 0;
       }
@@ -215,7 +248,10 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     if (_loaded) return;
     _loaded = true;
     try {
-      var loaded = await srsDao.loadQueue(queueId);
+      var loaded = await srsDao.loadQueue(
+        queueId,
+        languageCode: _languageFilter,
+      );
       if (loaded.isEmpty && !_migrationDone()) {
         loaded = await _migrateFromPrefs();
       }
@@ -236,7 +272,10 @@ abstract class SrsQueueProvider extends ChangeNotifier {
   /// Force the in-memory queue to match SQLite after an external transactional
   /// restore or bulk schedule edit (for example the Fun Lab checkpoint).
   Future<void> reloadFromStorage() async {
-    final loaded = await srsDao.loadQueue(queueId);
+    final loaded = await srsDao.loadQueue(
+      queueId,
+      languageCode: _languageFilter,
+    );
     _cachedState = loaded;
     _loaded = true;
     invalidateDueCaches();
@@ -261,7 +300,11 @@ abstract class SrsQueueProvider extends ChangeNotifier {
         (k, v) => MapEntry(k, SrsWord.fromJson(v as Map<String, dynamic>)),
       );
       if (migrated.isNotEmpty) {
-        await srsDao.upsertBatch(queueId, migrated.values);
+        await srsDao.upsertBatch(
+          queueId,
+          migrated.values,
+          languageCode: languageFilter,
+        );
       }
     } catch (e) {
       logger.w('$logTag legacy blob parse failed; starting empty: $e');
@@ -275,8 +318,8 @@ abstract class SrsQueueProvider extends ChangeNotifier {
   void registerItem(
     String id, {
     SrsItemType type = SrsItemType.word,
-    SrsSourceKind sourceKind = SrsSourceKind.course,
-    String sourceId = 'course',
+    SrsSourceKind sourceKind = SrsSourceKind.builtin,
+    String? sourceId,
     String? ownerId,
   }) {
     final current = state;
@@ -284,7 +327,7 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     current[id] = SrsWord.fresh(id).copyWith(
       type: type,
       sourceKind: queueId == 'grammar' ? SrsSourceKind.grammar : sourceKind,
-      sourceId: queueId == 'grammar' ? 'grammar' : sourceId,
+      sourceId: queueId == 'grammar' ? 'grammar' : (sourceId ?? languageFilter),
       ownerId: ownerId,
     );
     _commitAndPersist(current);
@@ -295,8 +338,8 @@ abstract class SrsQueueProvider extends ChangeNotifier {
   void registerAllItems(
     Iterable<String> ids, {
     SrsItemType type = SrsItemType.word,
-    SrsSourceKind sourceKind = SrsSourceKind.course,
-    String sourceId = 'course',
+    SrsSourceKind sourceKind = SrsSourceKind.builtin,
+    String? sourceId,
     String? ownerId,
   }) {
     final current = state;
@@ -306,7 +349,8 @@ abstract class SrsQueueProvider extends ChangeNotifier {
         current[id] = SrsWord.fresh(id).copyWith(
           type: type,
           sourceKind: queueId == 'grammar' ? SrsSourceKind.grammar : sourceKind,
-          sourceId: queueId == 'grammar' ? 'grammar' : sourceId,
+          sourceId:
+              queueId == 'grammar' ? 'grammar' : (sourceId ?? languageFilter),
           ownerId: ownerId,
         );
         changed = true;
@@ -392,7 +436,11 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     final reviewDao = _effectiveReviewDao;
     if (quality < 3 && reviewDao != null) {
       try {
-        sameDayFails = await reviewDao.countFailsOnLocalDay(id, reviewedAt);
+        sameDayFails = await reviewDao.countFailsOnLocalDay(
+          id,
+          reviewedAt,
+          languageCode: languageFilter,
+        );
       } catch (_) {
         sameDayFails = 0;
       }
@@ -414,7 +462,11 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     current[id] = updated;
     _commit(current);
     try {
-      await srsDao.upsert(queueId, updated);
+      await srsDao.upsert(
+        queueId,
+        updated,
+        languageCode: languageFilter,
+      );
     } catch (e, st) {
       logger.w('$logTag reviewItem persist failed: $e', stackTrace: st);
     }
@@ -437,14 +489,11 @@ abstract class SrsQueueProvider extends ChangeNotifier {
               queueId == 'grammar' ? SrsSourceKind.grammar : updated.sourceKind,
           sourceId: queueId == 'grammar' ? 'grammar' : updated.sourceId,
           ownerId: updated.ownerId,
+          languageCode: languageFilter,
         ));
         // Review data actually changed: invalidate dashboard/insights caches
         // (Plan 3 §16.5). Guarded — tests construct this provider without DI.
-        try {
-          if (GetIt.I.isRegistered<ReviewDataRevision>()) {
-            GetIt.I<ReviewDataRevision>().bump();
-          }
-        } catch (_) {}
+        _bumpReviewDataRevision();
       } catch (e, st) {
         logger.w('$logTag reviewEvent record failed: $e', stackTrace: st);
       }
@@ -498,7 +547,11 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     state[id] = previous;
     _commit(state);
     try {
-      await srsDao.upsert(queueId, previous);
+      await srsDao.upsert(
+        queueId,
+        previous,
+        languageCode: languageFilter,
+      );
     } catch (e, st) {
       logger.w('$logTag undo persist failed: $e', stackTrace: st);
     }
@@ -521,7 +574,11 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     state[id] = updated;
     _commit(state);
     try {
-      await srsDao.upsert(queueId, updated);
+      await srsDao.upsert(
+        queueId,
+        updated,
+        languageCode: languageFilter,
+      );
     } catch (e, st) {
       logger.w('$logTag flag persist failed: $e', stackTrace: st);
     }
@@ -639,7 +696,11 @@ abstract class SrsQueueProvider extends ChangeNotifier {
 
   Future<void> _writeBatch(Iterable<SrsWord> words) async {
     try {
-      await srsDao.upsertBatch(queueId, words);
+      await srsDao.upsertBatch(
+        queueId,
+        words,
+        languageCode: languageFilter,
+      );
     } catch (e, st) {
       logger.w('$logTag writeBatch failed: $e', stackTrace: st);
     }

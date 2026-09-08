@@ -13,11 +13,13 @@ import 'package:share_plus/share_plus.dart';
 
 // Project imports:
 import 'package:turna/application/settings_provider.dart';
+import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/diagnostics/performance_trace.dart';
 import 'package:turna/application/system_health_monitor.dart';
 import 'package:turna/core/log_capture.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/di/injection.dart';
+import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/tts_availability_checker.dart';
 import 'package:turna/routing/routing.gr.dart';
@@ -272,7 +274,10 @@ class SystemHealthPage extends StatelessWidget {
     var ttsStatus = '未检查';
     if (getIt.isRegistered<TtsAvailabilityChecker>()) {
       try {
-        final tts = await getIt<TtsAvailabilityChecker>().diagnose('tr');
+        final lang = getIt.isRegistered<LanguageProvider>()
+            ? getIt<LanguageProvider>().ttsLanguageCode
+            : LanguageCodes.turkish;
+        final tts = await getIt<TtsAvailabilityChecker>().diagnose(lang);
         ttsStatus = tts.preferredStatus.name;
       } catch (_) {
         ttsStatus = '检查失败';

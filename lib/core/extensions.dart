@@ -9,7 +9,6 @@ import 'package:auto_route/auto_route.dart';
 import 'package:intl/intl.dart';
 
 // Project imports:
-import 'package:turna/core/enums.dart';
 
 extension BreakpointUtils on BoxConstraints {
   bool get isTablet => maxWidth > 730;
@@ -226,14 +225,5 @@ extension TimeOfDayExtension on TimeOfDay {
     final dt = DateTime(now.year, now.month, now.day, hour, minute);
     final format = DateFormat('HH:mm:ss');
     return format.format(dt);
-  }
-}
-
-extension EnumType on String {
-  TargetLanguage getEnumValue() {
-    return TargetLanguage.values.firstWhere(
-      (element) => element.name == this,
-      orElse: () => TargetLanguage.turkish,
-    );
   }
 }

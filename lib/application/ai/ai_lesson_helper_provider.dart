@@ -14,6 +14,8 @@ import 'package:turna/application/ai/engine/ai_cancel_token.dart';
 import 'package:turna/application/ai/engine/ai_engine.dart';
 import 'package:turna/application/ai/engine/ai_engine_config.dart';
 import 'package:turna/application/ai/engine/ai_recent_tasks_provider.dart';
+import 'package:turna/application/language_provider.dart';
+import 'package:turna/application/language_registry.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/lesson.dart';
@@ -46,6 +48,16 @@ class AiLessonHelperProvider extends AiRequestSessionBase {
   final AiEngine _engine;
   final AiCourseService _service;
   final AiGroundedResourceProvider _groundedProvider;
+
+  /// Target language for generated-course explanations: the learner's
+  /// current language when DI is up (app runtime), the registry default in
+  /// tests.
+  static String _currentLanguageName() {
+    if (getIt.isRegistered<LanguageProvider>()) {
+      return getIt<LanguageProvider>().displayName;
+    }
+    return LanguageRegistry.instance.defaultLanguage.displayName;
+  }
 
   AiLessonHelperState _state = AiLessonHelperState.idle;
   AiLessonHelperState get state => _state;
@@ -152,8 +164,8 @@ class AiLessonHelperProvider extends AiRequestSessionBase {
         final explanation = await explainGeneratedCourse(
           engine: _engine,
           config: config,
-          spec: const AiCourseSpec(
-            language: 'Turkish',
+          spec: AiCourseSpec(
+            language: _currentLanguageName(),
             topic: '',
             level: 'A1',
             unitCount: 1,

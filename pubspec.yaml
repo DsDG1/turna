@@ -68,6 +68,12 @@ flutter:
     - assets/courses/
     - assets/courses/turkish/
     - assets/courses/turkish/sections/
+    # 法语课程是多语言并存机制的验收 fixture（1 个 section / 5 词 / 2 语法点 /
+    # 3 表达式），用于验证多门内置语言可同库共存、可切换、可卸载。
+    # 它不是正式课程，不在开发计划内；真正的新语言请自建资产树并登记
+    # assets/courses/manifest.json。
+    - assets/courses/french/
+    - assets/courses/french/sections/
     - assets/changelog.md
     - assets/anki_reviewer/
     - assets/anki_reviewer/mathjax/

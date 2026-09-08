@@ -7,6 +7,7 @@ import 'package:turna/application/review_progress_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/review_history_dao.dart';
+import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/domain/course/srs_word.dart';
 import 'package:turna/service/locator.dart';
 
@@ -127,5 +128,44 @@ void main() {
     // Only w-now is due immediately (fresh).
     expect(overdue.aggregate.totalCards, 1);
     expect(overdue.aggregate.forecast.dueToday, 1);
+  });
+
+  test('snapshot history is scoped to srs languageFilter', () async {
+    final now = DateTime.now();
+    Future<void> put(String id, String language) {
+      return reviewDao.insertEvent(ReviewEventRecord(
+        cardId: id,
+        queue: 'srs',
+        reviewedAt: now,
+        quality: 4,
+        prevIntervalDays: 1,
+        nextIntervalDays: 2,
+        prevEase: 2.5,
+        nextEase: 2.5,
+        reps: 1,
+        lapses: 0,
+        languageCode: language,
+      ));
+    }
+
+    await put('w-tr', LanguageCodes.turkish);
+    await put('w-fr', LanguageCodes.french);
+    await put('w-fr-2', LanguageCodes.french);
+
+    await srs.setLanguageFilter(LanguageCodes.turkish);
+    final tr = await progress.snapshot();
+    expect(tr.aggregate.totalReviews, 1);
+    expect(
+      tr.activity.fold<int>(0, (n, row) => n + row.reviewedCount),
+      1,
+    );
+
+    await srs.setLanguageFilter(LanguageCodes.french);
+    final fr = await progress.snapshot();
+    expect(fr.aggregate.totalReviews, 2);
+    expect(
+      fr.activity.fold<int>(0, (n, row) => n + row.reviewedCount),
+      2,
+    );
   });
 }

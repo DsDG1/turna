@@ -44,10 +44,11 @@ class _SplashPageState extends State<SplashPage> {
     final checker = getIt<TtsAvailabilityChecker>();
     final languageCode = getIt<LanguageProvider>().ttsLanguageCode;
 
-    // Preferred = Google TTS (Android) with installed Turkish voice data.
-    // isPreferredSystemTtsAvailable already configures the Google engine via
-    // resolveLanguageCode — do not call configureSystemEngine again here
-    // (concurrent setEngine races crash flutter_tts on Android).
+    // Preferred = Google TTS (Android) with installed target-language
+    // voice data. isPreferredSystemTtsAvailable already configures the
+    // Google engine via resolveLanguageCode — do not call
+    // configureSystemEngine again here (concurrent setEngine races crash
+    // flutter_tts on Android).
     final preferred = await checker.isPreferredSystemTtsAvailable(languageCode);
     if (preferred) return;
 
@@ -55,10 +56,11 @@ class _SplashPageState extends State<SplashPage> {
 
     final diag = await checker.diagnose(languageCode);
     if (!mounted) return;
+    final languageName = getIt<LanguageProvider>().displayName;
     final (title, body) = switch (diag.preferredStatus) {
-      TtsPreferredStatus.turkishVoiceMissing => (
-          AppStrings.splashTurkishVoiceMissingTitle,
-          AppStrings.splashTurkishVoiceMissingBody,
+      TtsPreferredStatus.voiceMissing => (
+          AppStrings.splashVoiceMissingTitle(languageName),
+          AppStrings.splashVoiceMissingBody(languageName),
         ),
       TtsPreferredStatus.googleMissing => (
           AppStrings.splashGoogleTtsMissingTitle,

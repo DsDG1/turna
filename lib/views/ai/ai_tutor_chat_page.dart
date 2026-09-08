@@ -11,6 +11,7 @@ import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/ai_tutor_chat_provider.dart';
 import 'package:turna/application/ai/chat_auto_scroll_coordinator.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
+import 'package:turna/application/language_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/chat_bubble.dart';
 import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
@@ -52,7 +53,7 @@ class _AiTutorChatPageState extends State<AiTutorChatPage> {
       prefs = context.read<AiExplainPrefsStore>();
     } catch (_) {}
     _provider = AiTutorChatProvider(prefs: prefs);
-    _provider.setLanguage('Turkish');
+    _provider.setLanguage(context.read<LanguageProvider>().displayName);
     if (widget.initialMode != null) {
       _provider.setMode(widget.initialMode!);
     }

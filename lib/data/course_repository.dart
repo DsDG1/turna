@@ -10,6 +10,7 @@ import 'package:turna/core/logger.dart';
 import 'package:turna/core/utils.dart';
 import 'package:turna/data/course_database.dart' as db;
 import 'package:turna/data/course_database_seeder.dart';
+import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/domain/course/expression.dart';
 import 'package:turna/domain/course/grammar_point.dart';
 import 'package:turna/domain/course/interaction.dart';
@@ -39,13 +40,18 @@ class CourseRepository implements ICourseRepository {
   /// `units` empty) in on-disk order. The id tiebreak keeps the order
   /// deterministic when sort orders collide across writers.
   @override
-  Future<List<Section>> sectionShells() async {
-    final rows = await (database.select(database.sections)
-          ..orderBy([
-            (t) => OrderingTerm(expression: t.sortOrder),
-            (t) => OrderingTerm(expression: t.id),
-          ]))
-        .get();
+  Future<List<Section>> sectionShells({String? languageCode}) async {
+    final query = database.select(database.sections);
+    if (languageCode != null) {
+      query.where(
+        (t) => t.languageCode.equals(LanguageCodes.canonicalize(languageCode)),
+      );
+    }
+    query.orderBy([
+      (t) => OrderingTerm(expression: t.sortOrder),
+      (t) => OrderingTerm(expression: t.id),
+    ]);
+    final rows = await query.get();
     return [
       for (final r in rows)
         Section(
@@ -62,8 +68,14 @@ class CourseRepository implements ICourseRepository {
 
   /// Full vocabulary list.
   @override
-  Future<List<WordEntry>> vocabulary() async {
-    final rows = await database.select(database.vocabulary).get();
+  Future<List<WordEntry>> vocabulary({String? languageCode}) async {
+    final query = database.select(database.vocabulary);
+    if (languageCode != null) {
+      query.where(
+        (t) => t.languageCode.equals(LanguageCodes.canonicalize(languageCode)),
+      );
+    }
+    final rows = await query.get();
     // crash-hunt PR1: after an official import this table holds one row per
     // card (tens of thousands on big decks) and the per-row tags jsonDecode
     // froze course reload on the UI isolate. Drift rows are plain data —
@@ -76,8 +88,14 @@ class CourseRepository implements ICourseRepository {
 
   /// All grammar points.
   @override
-  Future<List<GrammarPoint>> grammarPoints() async {
-    final rows = await database.select(database.grammarPoints).get();
+  Future<List<GrammarPoint>> grammarPoints({String? languageCode}) async {
+    final query = database.select(database.grammarPoints);
+    if (languageCode != null) {
+      query.where(
+        (t) => t.languageCode.equals(LanguageCodes.canonicalize(languageCode)),
+      );
+    }
+    final rows = await query.get();
     return [for (final r in rows) _toGrammarPoint(r)];
   }
 
@@ -92,8 +110,14 @@ class CourseRepository implements ICourseRepository {
 
   /// All expressions / phrases.
   @override
-  Future<List<Expression>> expressions() async {
-    final rows = await database.select(database.expressions).get();
+  Future<List<Expression>> expressions({String? languageCode}) async {
+    final query = database.select(database.expressions);
+    if (languageCode != null) {
+      query.where(
+        (t) => t.languageCode.equals(LanguageCodes.canonicalize(languageCode)),
+      );
+    }
+    final rows = await query.get();
     return [for (final r in rows) _toExpression(r)];
   }
 
@@ -345,6 +369,10 @@ class CourseRepository implements ICourseRepository {
       // per lesson rather than interleaved with SQLite awaits).
       final sectionCompanion = db.SectionsCompanion(
         id: Value(section.id),
+        languageCode: Value(section.level == 'Anki' ||
+                section.level == 'OfficialAnki'
+            ? 'anki'
+            : LanguageCodes.turkish),
         name: Value(section.name),
         description: Value(section.description),
         level: Value(section.level ?? ''),
@@ -361,6 +389,10 @@ class CourseRepository implements ICourseRepository {
         final u = section.units[uOrder];
         unitCompanions.add(db.UnitsCompanion(
           id: Value(u.id),
+          languageCode: Value(section.level == 'Anki' ||
+                  section.level == 'OfficialAnki'
+              ? 'anki'
+              : LanguageCodes.turkish),
           sectionId: Value(section.id),
           name: Value(u.name),
           description: Value(u.description),
@@ -371,6 +403,10 @@ class CourseRepository implements ICourseRepository {
           final l = u.lessons[lOrder];
           lessonCompanions.add(db.LessonsCompanion(
             id: Value(l.id),
+            languageCode: Value(section.level == 'Anki' ||
+                    section.level == 'OfficialAnki'
+                ? 'anki'
+                : LanguageCodes.turkish),
             unitId: Value(u.id),
             name: Value(l.name),
             description: Value(l.description),
@@ -381,6 +417,10 @@ class CourseRepository implements ICourseRepository {
           ));
           contentCompanions.add(db.LessonContentsCompanion(
             lessonId: Value(l.id),
+            languageCode: Value(section.level == 'Anki' ||
+                    section.level == 'OfficialAnki'
+                ? 'anki'
+                : LanguageCodes.turkish),
             contentJson: Value(jsonEncode(l.content.toJson())),
           ));
         }
@@ -424,6 +464,7 @@ class CourseRepository implements ICourseRepository {
       for (final w in words)
         db.VocabularyCompanion(
           id: Value(w.id),
+          languageCode: const Value('anki'),
           term: Value(w.term),
           translation: Value(w.translation),
           pronunciation: Value(w.pronunciation),
@@ -494,11 +535,121 @@ class CourseRepository implements ICourseRepository {
   /// by [DatabaseSeeder] after seeding), or `null` if the DB has not been
   /// seeded yet. Used by the content-update prompt (ADR 0002) to detect
   /// version bumps.
-  Future<String?> contentVersion() async {
-    final row = await (database.select(database.courseMeta)
-          ..where((t) => t.key.equals(DatabaseSeeder.metaContentVersion)))
-        .getSingleOrNull();
-    return row?.value;
+  /// Delete one packed builtin language (content + SRS + history + mistakes).
+  Future<void> deleteBuiltinLanguage(String languageCode) async {
+    final code = LanguageCodes.canonicalize(languageCode);
+    await database.transaction(() async {
+      await (database.delete(database.lessonContents)
+            ..where((t) => t.languageCode.equals(code)))
+          .go();
+      await (database.delete(database.lessons)
+            ..where((t) => t.languageCode.equals(code)))
+          .go();
+      await (database.delete(database.units)
+            ..where((t) => t.languageCode.equals(code)))
+          .go();
+      await (database.delete(database.sections)
+            ..where((t) => t.languageCode.equals(code)))
+          .go();
+      await (database.delete(database.vocabulary)
+            ..where((t) => t.languageCode.equals(code)))
+          .go();
+      await (database.delete(database.grammarPoints)
+            ..where((t) => t.languageCode.equals(code)))
+          .go();
+      await (database.delete(database.expressions)
+            ..where((t) => t.languageCode.equals(code)))
+          .go();
+      await (database.delete(database.srsStates)
+            ..where((t) => t.languageCode.equals(code)))
+          .go();
+      await (database.delete(database.reviewEvents)
+            ..where((t) => t.languageCode.equals(code)))
+          .go();
+      await (database.delete(database.mistakes)
+            ..where((t) => t.languageCode.equals(code)))
+          .go();
+      await (database.delete(database.mistakeAggregates)
+            ..where((t) => t.languageCode.equals(code)))
+          .go();
+      await (database.delete(database.courseMeta)
+            ..where((t) =>
+                t.key.equals(DatabaseSeeder.metaContentVersionFor(code))))
+          .go();
+      // Turkish also maintained the legacy unsuffixed key until schema v25;
+      // leave no stale version behind for the next reseed decision.
+      if (code == LanguageCodes.turkish) {
+        await (database.delete(database.courseMeta)
+              ..where((t) => t.key.equals(DatabaseSeeder.metaContentVersion)))
+            .go();
+      }
+      // The marker (not the version wipe) is what stops cold-start seeding
+      // from resurrecting this language.
+      await database.into(database.courseMeta).insertOnConflictUpdate(
+            db.CourseMetaCompanion(
+              key: Value(DatabaseSeeder.metaUninstalledFor(code)),
+              value: const Value('1'),
+            ),
+          );
+    });
+  }
+
+  /// Remove the uninstall marker so the language can be reseeded again.
+  Future<void> clearLanguageUninstallMarker(String languageCode) async {
+    final code = LanguageCodes.canonicalize(languageCode);
+    await (database.delete(database.courseMeta)
+          ..where((t) => t.key.equals(DatabaseSeeder.metaUninstalledFor(code))))
+        .go();
+  }
+
+  /// Language codes carrying an `uninstalled:<code>` marker.
+  Future<Set<String>> uninstalledLanguageCodes() async {
+    const prefix = '${DatabaseSeeder.metaUninstalled}:';
+    final rows = await (database.select(database.courseMeta)
+          ..where((t) => t.key.like('$prefix%')))
+        .get();
+    return rows
+        .map((row) => row.key.substring(prefix.length))
+        .where((code) => code.isNotEmpty)
+        .toSet();
+  }
+
+  /// Content item count (vocabulary + grammar points + expressions) per
+  /// builtin language — the "cards" figure shown in the uninstall
+  /// confirmation.
+  Future<Map<String, int>> builtinCardCounts() async {
+    final rows = await database.customSelect(
+      'SELECT language_code AS code, COUNT(*) AS n FROM ('
+      'SELECT language_code FROM vocabulary '
+      'UNION ALL SELECT language_code FROM grammar_points '
+      'UNION ALL SELECT language_code FROM expressions'
+      ') GROUP BY language_code',
+      readsFrom: {
+        database.vocabulary,
+        database.grammarPoints,
+        database.expressions,
+      },
+    ).get();
+    return {
+      for (final row in rows)
+        LanguageCodes.canonicalize(row.read<String>('code')):
+            row.read<int>('n'),
+    };
+  }
+
+  Future<String?> contentVersion({String? languageCode}) async {
+    final keys = [
+      if (languageCode != null)
+        DatabaseSeeder.metaContentVersionFor(languageCode),
+      DatabaseSeeder.metaContentVersion,
+    ];
+    for (final key in keys) {
+      final row = await (database.select(database.courseMeta)
+            ..where((t) => t.key.equals(key)))
+          .getSingleOrNull();
+      if (row != null) return row.value;
+    }
+    return null;
   }
 
   /// Static + pure so Isolate.run closures can call it without capturing

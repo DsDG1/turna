@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "language": "fr",
+  "displayName": "French",
+  "sections": [
+    {
+      "id": "fr-section1",
+      "name": "Section 1",
+      "description": "Saluer en français",
+      "level": "A1",
+      "prerequisiteSectionIds": [],
+      "file": "sections/fr-section1.json"
+    }
+  ]
+}

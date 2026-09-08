@@ -68,7 +68,8 @@ Section _ankiDeckSection(String importId, String name) {
   );
 }
 
-const builtinWire = 'course-scope:v1:builtin:turkish';
+const builtinWire = 'course-scope:v1:builtin:tr';
+const frenchWire = 'course-scope:v1:builtin:fr';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -395,7 +396,7 @@ void main() {
         entries.skip(1).map((e) => e.legacyImportId),
         containsAll(['deckaa', 'deckbb']),
       );
-      expect(entries.skip(1).every((e) => !e.isBuiltin), isTrue);
+      expect(entries.where((e) => e.isBuiltin).length, greaterThanOrEqualTo(1));
     });
 
     test('persistCourseOrder reorders entries and survives a restart',
@@ -409,14 +410,14 @@ void main() {
 
       expect(
         provider.catalogEntries.map((e) => e.wireKey),
-        [deckB, builtinWire, deckA],
+        [deckB, builtinWire, deckA, frenchWire],
       );
 
       final restored = CourseProvider(appPrefs);
       await restored.load();
       expect(
         restored.catalogEntries.map((e) => e.wireKey),
-        [deckB, builtinWire, deckA],
+        [deckB, builtinWire, deckA, frenchWire],
       );
     });
 
@@ -437,7 +438,7 @@ void main() {
 
       expect(
         provider.catalogEntries.map((e) => e.wireKey),
-        [deckB, builtinWire, deckA],
+        [deckB, builtinWire, deckA, frenchWire],
       );
       expect(notifications, 1,
           reason: '同步通知让列表的落位动画与最终顺序同帧衔接');
@@ -445,7 +446,7 @@ void main() {
       await pending;
       expect(
         provider.catalogEntries.map((e) => e.wireKey),
-        [deckB, builtinWire, deckA],
+        [deckB, builtinWire, deckA, frenchWire],
       );
     });
 
@@ -463,7 +464,7 @@ void main() {
 
       expect(
         provider.catalogEntries.map((e) => e.wireKey),
-        [deckA, builtinWire, deckB],
+        [deckA, builtinWire, frenchWire, deckB],
         reason:
             'stale ids are dropped, the built-in course always appears, and '
             'courses missing from the stored order are appended at the end',
@@ -479,7 +480,7 @@ void main() {
 
       expect(
         provider.catalogEntries.map((e) => e.legacyImportId ?? 'builtin'),
-        ['deckbb', 'builtin', 'deckaa'],
+        ['deckbb', 'builtin', 'deckaa', 'builtin'],
       );
     });
 

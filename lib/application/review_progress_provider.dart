@@ -172,6 +172,7 @@ class ReviewProgressProvider {
     for (final w in _srs.state.values) {
       final origin = switch (w.sourceKind) {
         SrsSourceKind.course => ReviewSourceKind.course,
+        SrsSourceKind.builtin => ReviewSourceKind.course,
         SrsSourceKind.grammar => ReviewSourceKind.grammar,
         SrsSourceKind.ankiLegacy => ReviewSourceKind.ankiDeck,
         SrsSourceKind.ankiOfficial => ReviewSourceKind.ankiOfficial,
@@ -188,6 +189,7 @@ class ReviewProgressProvider {
     final history = await _reviewDao.sourceReviewCounts(
       DateTime.fromMillisecondsSinceEpoch(0),
       DateTime.now(),
+      filter: _historyFilter(const ReviewProgressFilter()),
     );
     return _listSources(_allTagged(), historicalKeys: history.keys.toSet());
   }
@@ -459,6 +461,7 @@ class ReviewProgressProvider {
       sourceId: sourceId,
       queue: queue,
       type: type,
+      languageCode: _srs.languageFilter,
     );
   }
 

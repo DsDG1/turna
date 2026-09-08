@@ -4,6 +4,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 // Project imports:
+import 'package:turna/application/language_provider.dart';
+import 'package:turna/application/language_registry.dart';
+import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/home/turna_welcomes.dart';
 import 'package:turna/views/theme.dart';
@@ -37,6 +40,11 @@ class _CenterDisplayState extends State<CenterDisplay>
     super.didChangeDependencies();
     if (_textsInitialized) return;
     _textsInitialized = true;
+    // The learner's current language when DI is up (warm starts); the
+    // registry default covers first run and tests.
+    final code = getIt.isRegistered<LanguageProvider>()
+        ? getIt<LanguageProvider>().selectedLanguageCode
+        : LanguageRegistry.instance.defaultCode;
     _texts = [
       _TextItem(
         AppStrings.splashReclaiming,
@@ -45,7 +53,10 @@ class _CenterDisplayState extends State<CenterDisplay>
         const Duration(milliseconds: 1000),
       ),
       _TextItem(
-        AppStrings.splashLearnTurkish,
+        AppStrings.splashLearnLanguage(
+          LanguageRegistry.instance.displayName(code),
+          LanguageRegistry.instance.nativeLabel(code),
+        ),
         FontWeight.w600,
         (context) => TurnaTheme.textSecondaryColor(context),
         const Duration(milliseconds: 1000),

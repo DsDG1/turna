@@ -343,4 +343,60 @@ void main() {
       expect(logs.single.id, 'recovered');
     });
   });
+
+  group('deleteByLanguage', () {
+    test('removes only the target language (logs + daily stats)', () async {
+      final now = DateTime.now();
+      await repo.appendLog(StudyLog(
+        id: 'tr-1',
+        timestamp: now,
+        type: StudyActivityType.lessonComplete,
+        xpEarned: 10,
+      ));
+      await repo.appendLog(StudyLog(
+        id: 'fr-1',
+        timestamp: now,
+        type: StudyActivityType.lessonComplete,
+        xpEarned: 20,
+        languageCode: 'fr',
+      ));
+
+      await repo.deleteByLanguage('fr');
+
+      final logs = await repo.readLogs();
+      expect(logs.map((l) => l.id), ['tr-1']);
+      // Unmarked rows count as turkish and survive a french wipe.
+      final trStats = await repo.readDailyStats(now, languageCode: 'tr');
+      expect(trStats?.totalXp, 10);
+      final frStats = await repo.readDailyStats(now, languageCode: 'fr');
+      expect(frStats, isNull);
+    });
+
+    test('deleting turkish also removes legacy unsuffixed daily stats',
+        () async {
+      final now = DateTime.now();
+      await repo.appendLog(StudyLog(
+        id: 'tr-1',
+        timestamp: now,
+        type: StudyActivityType.lessonComplete,
+        xpEarned: 10,
+      ));
+      await repo.appendLog(StudyLog(
+        id: 'fr-1',
+        timestamp: now,
+        type: StudyActivityType.lessonComplete,
+        xpEarned: 20,
+        languageCode: 'fr',
+      ));
+
+      await repo.deleteByLanguage('tr');
+
+      final logs = await repo.readLogs();
+      expect(logs.map((l) => l.id), ['fr-1']);
+      final frStats = await repo.readDailyStats(now, languageCode: 'fr');
+      expect(frStats?.totalXp, 20);
+      final trStats = await repo.readDailyStats(now, languageCode: 'tr');
+      expect(trStats, isNull);
+    });
+  });
 }

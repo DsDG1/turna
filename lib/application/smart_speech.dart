@@ -4,6 +4,7 @@ import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/core/language_detector.dart';
 import 'package:turna/di/injection.dart';
+import 'package:turna/domain/course/language_codes.dart';
 
 /// The target and native (translation) TTS languages for the currently
 /// active course.
@@ -30,7 +31,7 @@ SpeechLanguages currentSpeechLanguages() {
     final native = getIt<SettingsProvider>().nativeLanguageCodeFor(scope);
     return SpeechLanguages(target: target, native: native);
   } catch (_) {
-    return const SpeechLanguages(target: 'tr', native: 'en');
+    return SpeechLanguages(target: LanguageCodes.turkish, native: 'en');
   }
 }
 

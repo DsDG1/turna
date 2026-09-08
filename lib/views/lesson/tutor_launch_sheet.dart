@@ -44,7 +44,7 @@ class _TutorLaunchSheetState extends State<TutorLaunchSheet> {
     final config = context.read<AiEngineConfigHolder>().config;
     final provider = context.read<SrsTutorProvider>();
     _providerRef = provider;
-    final language = context.read<LanguageProvider>().selectedLanguage.name;
+    final language = context.read<LanguageProvider>().displayName;
     final focus = _focus;
     final router = context.router;
 

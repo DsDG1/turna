@@ -1,0 +1,18 @@
+{
+  "languages": [
+    {
+      "code": "tr",
+      "displayName": "Turkish",
+      "ttsLocale": "tr-TR",
+      "dir": "turkish",
+      "nativeLabel": "Türkçe öğren"
+    },
+    {
+      "code": "fr",
+      "displayName": "French",
+      "ttsLocale": "fr-FR",
+      "dir": "french",
+      "nativeLabel": "Apprendre le français"
+    }
+  ]
+}

@@ -27,9 +27,11 @@ import 'package:turna/core/logger.dart';
 import 'package:turna/core/verbose.dart';
 import 'package:turna/application/anki_official/introduction/card_introduction_store.dart';
 import 'package:turna/application/course_scope_migration.dart';
+import 'package:turna/application/language_registry.dart';
 import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/data/course_database_seeder.dart';
+import 'package:turna/data/course_db_backup.dart';
 import 'package:turna/domain/repositories/i_credential_store.dart';
 import 'package:turna/service/secure_credential_store.dart';
 import 'package:turna/di/injection.dart';
@@ -50,7 +52,7 @@ class AppPrefs {
     this.preferences,
   )   : currentLanguage = preferences.getString(
           PrefsConstants.currentLanguage,
-          defaultValue: "turkish",
+          defaultValue: "tr",
         ),
         authUser = preferences.getCustomValue(
           PrefsConstants.authUser,
@@ -515,6 +517,12 @@ Future<CourseDatabase> _openAndSeedCourseDatabase() async {
 
   final dir = await getApplicationDocumentsDirectory();
   final file = File(p.join(dir.path, 'course.db'));
+  // Pre-migration safety net: snapshot the file while nothing holds it.
+  // Same loader override as the background isolate below, applied to THIS
+  // isolate so the raw sqlite3 probe resolves the same native library
+  // (open.overrideFor is per-isolate state; the call is idempotent).
+  ensureOfficialAnkiSqlite();
+  await backupCourseDbBeforeMigration(file);
   // SQL runs on a dedicated background isolate so large imports (Anki deck
   // assembly, SRS migration) never occupy the UI thread — every awaited
   // statement becomes a real suspension point and progress UI keeps
@@ -528,6 +536,7 @@ Future<CourseDatabase> _openAndSeedCourseDatabase() async {
   );
 
   try {
+    await LanguageRegistry.instance.load();
     await DatabaseSeeder(db).seedIfNeeded();
   } catch (e, st) {
     logger.e('Course database seed failed', error: e, stackTrace: st);

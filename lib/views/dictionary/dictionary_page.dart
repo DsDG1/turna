@@ -12,6 +12,7 @@ import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/ai/hint_genres.dart';
 import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/dictionary_search.dart';
+import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/smart_speech.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -260,7 +261,7 @@ class _DictionaryAiSheetState extends State<_DictionaryAiSheet> {
     if (!config.isComplete) return;
     await context.read<DictionaryAiProvider>().enrich(
           config: config,
-          language: 'Turkish',
+          language: context.read<LanguageProvider>().displayName,
           term: widget.hit.title,
           translation: widget.hit.subtitle,
         );

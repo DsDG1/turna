@@ -238,7 +238,7 @@ class _QuickSettingsGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final language = context.select<LanguageProvider, String>(
-      (provider) => provider.selectedLanguage.displayName,
+      (provider) => provider.displayName,
     );
     final themeMode = context.select<ThemeProvider, ThemeMode>(
       (provider) => provider.themeMode,

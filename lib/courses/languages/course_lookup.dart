@@ -13,6 +13,5 @@ import 'package:turna/domain/course/section.dart';
 /// convenience re-export so call sites can keep using
 /// [loadSectionShells].
 Future<List<Section>> loadSectionShells() async {
-  final course = await CourseLoader.load();
-  return course.sectionShells;
+  return CourseLoader.loadAllSectionShells();
 }

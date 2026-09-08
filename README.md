@@ -34,6 +34,12 @@ Android 是主要目标平台（需要 JDK 17），iOS 和 Web 只做有限支�
 
 仓库里另有一个面向课程创作者的 PySide6 桌面编辑器，位于 [`tool/gui/`](./tool/gui/)，与 App 本体无关，其目录下有单独的说明。
 
+## 多语言与法语 fixture
+
+App 支持多门内置语言课程并存：目录并排、词 SRS / 复习历史 / 错题本 / 学习统计按语言隔离、可独立卸载与恢复（卸载标记、恢复入口在课程管理页），语言服务（TTS、AI 提示词、文案）跟随当前语言。语言清单由 [`assets/courses/manifest.json`](./assets/courses/manifest.json) 声明。
+
+**仓库里的法语课程（`assets/courses/french/`）是多语言并存机制的验收 fixture，不是真的课程，不在开发计划内**——它只有 1 个 Section / 5 个词 / 2 个语法点 / 3 条表达，专门用来逼出并验证"两门语言同库共存、互不串台、可卸载"的行为（见 `test/courses/multi_language_coexistence_test.dart`）。正式课程目前只有土耳其语（A1–B2）。未来真正新增语言时，应自建完整资产树并在 manifest.json 登记，而不是扩充这个 fixture。
+
 ## 致谢
 
 项目的骨架来自开源项目 [Varnamala](https://github.com/rshrc/Varnamala)，内置课程的复习算法基于 [fsrs](https://pub.dev/packages/fsrs)。本仓库是独立的个人分支，与上游无关；需要原版功能请访问上游仓库。

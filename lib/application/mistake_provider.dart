@@ -9,7 +9,12 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/application/diagnostics/storage_write_telemetry.dart';
+import 'package:turna/core/logger.dart';
+import 'package:turna/data/course_database.dart';
+import 'package:turna/data/mistake_repository.dart';
+import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/domain/course/mistake_entry.dart';
 import 'package:turna/service/locator.dart';
 
@@ -29,7 +34,17 @@ class MistakeProvider extends ChangeNotifier {
 
   MistakeProvider(this.appPrefs);
 
-  static const int maxEntries = 30;
+  MistakeRepository? _repository;
+
+  @visibleForTesting
+  void useRepository(MistakeRepository repository) {
+    _repository = repository;
+  }
+  String _languageCode = LanguageCodes.turkish;
+  bool _loaded = false;
+  bool _prefsMigrated = false;
+
+  static const int maxEntries = 200;
 
   /// Correct rewrites needed before an entry leaves the log.
   static const int rewriteGoal = 2;
@@ -46,9 +61,48 @@ class MistakeProvider extends ChangeNotifier {
   Map<String, int>? _dailyCountsCache;
   int? _masteredTotalCache;
 
-  List<MistakeEntry> get entries {
-    if (_cachedView != null) return _cachedView!;
+  String get languageCode => _languageCode;
 
+  MistakeRepository? get _repo {
+    if (_repository != null) return _repository;
+    try {
+      if (getIt.isRegistered<CourseDatabase>()) {
+        _repository = MistakeRepository(getIt<CourseDatabase>());
+      }
+    } catch (_) {}
+    return _repository;
+  }
+
+  Future<void> setLanguage(String code) async {
+    final next = LanguageCodes.canonicalize(code);
+    if (next == _languageCode && _loaded) return;
+    _languageCode = next;
+    _loaded = false;
+    _cached = null;
+    _cachedView = null;
+    _dailyCountsCache = null;
+    _masteredTotalCache = null;
+    await ensureLoaded();
+    notifyListeners();
+  }
+
+  Future<void> ensureLoaded() async {
+    if (_loaded) return;
+    await _migratePrefsIfNeeded();
+    final repo = _repo;
+    if (repo != null) {
+      _cached = await repo.load(_languageCode);
+      _dailyCountsCache = await repo.loadDailyCounts(_languageCode);
+      _masteredTotalCache = await repo.loadMasteredTotal(_languageCode);
+      _cachedView = List.unmodifiable(_cached!);
+      _loaded = true;
+      return;
+    }
+    _readPrefsIntoCache();
+    _loaded = true;
+  }
+
+  void _readPrefsIntoCache() {
     final raw = appPrefs.preferences
         .getString(_prefsKey, defaultValue: '[]')
         .getValue();
@@ -61,6 +115,12 @@ class MistakeProvider extends ChangeNotifier {
       _cached = <MistakeEntry>[];
     }
     _cachedView = List.unmodifiable(_cached!);
+  }
+
+  List<MistakeEntry> get entries {
+    if (_cachedView != null) return _cachedView!;
+    if (_repo != null && !_loaded) return const [];
+    _readPrefsIntoCache();
     return _cachedView!;
   }
 
@@ -107,6 +167,7 @@ class MistakeProvider extends ChangeNotifier {
   /// Add a new mistake. If the log exceeds [maxEntries], the oldest entry is
   /// removed. The entry's local day is counted in [dailyCounts].
   Future<void> record(MistakeEntry entry) async {
+    await ensureLoaded();
     final current = entries.toList();
     current.add(entry);
     if (current.length > maxEntries) {
@@ -119,6 +180,7 @@ class MistakeProvider extends ChangeNotifier {
   /// [rewriteGoal], the entry is removed from the log and counted as
   /// mastered.
   Future<void> recordRewrite(String entryId) async {
+    await ensureLoaded();
     final current = entries.toList();
     final index = current.indexWhere((e) => e.id == entryId);
     if (index == -1) return;
@@ -140,6 +202,7 @@ class MistakeProvider extends ChangeNotifier {
   /// and counted as mastered.
   Future<void> removeByIds(Set<String> ids) async {
     if (ids.isEmpty) return;
+    await ensureLoaded();
     final current = entries.toList();
     final before = current.length;
     current.removeWhere((e) => ids.contains(e.id));
@@ -162,6 +225,7 @@ class MistakeProvider extends ChangeNotifier {
     Set<int> cardIds = const <int>{},
   }) async {
     if (idPrefixes.isEmpty && cardIds.isEmpty) return;
+    await ensureLoaded();
     final current = entries.toList();
     final before = current.length;
     current.removeWhere((entry) {
@@ -195,6 +259,7 @@ class MistakeProvider extends ChangeNotifier {
 
   /// Drop decoded state after an external checkpoint restore.
   void reloadFromPrefs() {
+    _loaded = false;
     _cached = null;
     _cachedView = null;
     _dailyCountsCache = null;
@@ -206,41 +271,92 @@ class MistakeProvider extends ChangeNotifier {
   /// mistake was recorded before snapshots were saved.
   Interaction? toInteraction(MistakeEntry entry) => entry.interactionSnapshot;
 
+  Future<void> _migratePrefsIfNeeded() async {
+    if (_prefsMigrated) return;
+    _prefsMigrated = true;
+    final repo = _repo;
+    if (repo == null) return;
+    final logJson = appPrefs.preferences
+        .getString(_prefsKey, defaultValue: '[]')
+        .getValue();
+    final countsJson = appPrefs.preferences
+        .getString(_dailyCountsKey, defaultValue: '{}')
+        .getValue();
+    final mastered = appPrefs.preferences
+        .getInt(_masteredTotalKey, defaultValue: 0)
+        .getValue();
+    if (logJson.trim().isEmpty || logJson.trim() == '[]') {
+      if (countsJson.trim().isEmpty || countsJson.trim() == '{}') {
+        if (mastered == 0) return;
+      }
+    }
+    try {
+      final migrated = await repo.migrateFromPrefsJson(
+        languageCode: LanguageCodes.turkish,
+        logJson: logJson,
+        dailyCountsJson: countsJson,
+        masteredTotal: mastered,
+      );
+      if (migrated) {
+        await appPrefs.preferences.setString(_prefsKey, '[]');
+        await appPrefs.setString(_dailyCountsKey, '{}');
+        await appPrefs.setInt(_masteredTotalKey, 0);
+      }
+    } catch (error, stackTrace) {
+      // prefs stay untouched: the next launch retries (plan §6.2). The
+      // in-memory flag keeps this session from hammering a broken path.
+      logger.e(
+        'MistakeProvider prefs→SQLite migration failed; will retry next boot',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
   Future<void> _persist(
     List<MistakeEntry> list, {
     DateTime? dayBump,
     int masteredDelta = 0,
     bool resetAggregates = false,
   }) async {
-    final encoded = jsonEncode(list.map((e) => e.toJson()).toList());
-    final stopwatch = Stopwatch()..start();
-    await appPrefs.preferences.setString(_prefsKey, encoded);
-    stopwatch.stop();
-    StorageWriteTelemetry.instance.record(
-      key: _prefsKey,
-      estimatedBytes: utf8.encode(encoded).length,
-      elapsed: stopwatch.elapsed,
-    );
     if (resetAggregates) {
       _dailyCountsCache = <String, int>{};
       _masteredTotalCache = 0;
-      await appPrefs.setString(_dailyCountsKey, '{}');
-      await appPrefs.setInt(_masteredTotalKey, 0);
     } else {
       if (dayBump != null) {
-        await appPrefs.setString(
-          _dailyCountsKey,
-          jsonEncode(_bumpDailyCount(dayBump)),
-        );
+        _bumpDailyCount(dayBump);
       }
       if (masteredDelta != 0) {
-        final total = masteredTotal + masteredDelta;
-        await appPrefs.setInt(_masteredTotalKey, total);
-        _masteredTotalCache = total;
+        _masteredTotalCache = masteredTotal + masteredDelta;
       }
     }
     _cached = list;
-    _cachedView = null; // invalidate; next entries call rebuilds the view
+    _cachedView = List.unmodifiable(list);
+    final repo = _repo;
+    if (repo != null) {
+      await repo.replaceAll(
+        languageCode: _languageCode,
+        entries: list,
+        dailyCounts: _dailyCountsCache ?? {},
+        masteredTotal: _masteredTotalCache ?? 0,
+        maxEntries: maxEntries,
+      );
+    } else {
+      final encoded = jsonEncode(list.map((e) => e.toJson()).toList());
+      final stopwatch = Stopwatch()..start();
+      await appPrefs.preferences.setString(_prefsKey, encoded);
+      stopwatch.stop();
+      StorageWriteTelemetry.instance.record(
+        key: _prefsKey,
+        estimatedBytes: utf8.encode(encoded).length,
+        elapsed: stopwatch.elapsed,
+      );
+      await appPrefs.setString(
+        _dailyCountsKey,
+        jsonEncode(_dailyCountsCache ?? {}),
+      );
+      await appPrefs.setInt(_masteredTotalKey, _masteredTotalCache ?? 0);
+    }
     notifyListeners();
   }
 

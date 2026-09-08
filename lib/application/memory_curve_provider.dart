@@ -88,7 +88,9 @@ class MemoryCurveProvider {
 
     // Empirical retention curve: recall rate bucketed by the interval that was
     // in effect *before* each review (prevIntervalDays).
-    final events = (await _reviewDao.allEvents())
+    final events = (await _reviewDao.allEvents(
+      languageCode: prefix == null ? _srs.languageFilter : null,
+    ))
         .where((e) => prefix == null || e.cardId.startsWith(prefix))
         .toList();
     final bucketRecalled = <int, int>{};

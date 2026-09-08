@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:turna/application/audio_controller.dart';
+import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/review/review_session_controller.dart';
 import 'package:turna/application/ai/ai_card_context_resolver.dart';
@@ -164,7 +165,7 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
     final context_ = const AiCardContextResolver().resolve(
       item,
       answerRevealed: _controller.isRevealed,
-      language: 'tr',
+      language: context.read<LanguageProvider>().ttsLanguageCode,
     );
     if (!context_.supported) {
       ScaffoldMessenger.of(context).showSnackBar(

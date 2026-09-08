@@ -7,7 +7,6 @@ import 'package:turna/application/accessibility_provider.dart';
 import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/settings_provider.dart';
-import 'package:turna/core/enums.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/audio/vocab_audio_resolver.dart';
 import 'package:turna/service/locator.dart';
@@ -86,9 +85,6 @@ class _FakeFlutterTts implements FlutterTts {
 class _FakeLanguageProvider implements LanguageProvider {
   @override
   String get ttsLanguageCode => 'tr';
-
-  @override
-  TargetLanguage get selectedLanguage => TargetLanguage.turkish;
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

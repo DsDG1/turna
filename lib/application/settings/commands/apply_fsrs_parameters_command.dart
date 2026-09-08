@@ -84,7 +84,12 @@ class ApplyFsrsParametersCommand {
     final readWatch = Stopwatch()..start();
     final List<ReviewEventRecord> events;
     try {
-      events = await getIt<ReviewHistoryDao>().allEvents();
+      final languageCode = getIt.isRegistered<SrsProvider>()
+          ? getIt<SrsProvider>().languageFilter
+          : null;
+      events = await getIt<ReviewHistoryDao>().allEvents(
+        languageCode: languageCode,
+      );
     } on Object catch (error) {
       return FsrsOptimizeFailed(
         code: 'fsrs.readFailed',

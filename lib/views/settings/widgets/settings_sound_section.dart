@@ -77,13 +77,16 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
     final d = _diagnostics!;
     switch (d.preferredStatus) {
       case TtsPreferredStatus.ready:
-        final locale = d.resolvedLocale ?? 'tr';
+        final locale =
+            d.resolvedLocale ?? getIt<LanguageProvider>().ttsLanguageCode;
         return AppStrings.settingsTtsReady(locale);
-      case TtsPreferredStatus.turkishVoiceMissing:
+      case TtsPreferredStatus.voiceMissing:
         if (d.hasGoogleEngine) {
           return AppStrings.settingsTtsGoogleInstalledMissingVoice;
         }
-        return AppStrings.settingsTtsTurkishVoiceMissing;
+        return AppStrings.settingsTtsVoiceMissing(
+          getIt<LanguageProvider>().displayName,
+        );
       case TtsPreferredStatus.googleMissing:
         final oem = d.engines.isEmpty ? 'none listed' : d.engines.join(', ');
         return AppStrings.settingsTtsGoogleMissing(oem);

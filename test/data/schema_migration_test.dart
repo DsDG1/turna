@@ -158,8 +158,8 @@ class _CourseDatabaseV6 extends db.CourseDatabase {
 /// A hypothetical newer schema used to verify downgrade behavior: opening
 /// a future DB with the current code must not crash - it wipes + recreates the
 /// schema (the course DB is a reseedable derived cache).
-class _CourseDatabaseV25 extends db.CourseDatabase {
-  _CourseDatabaseV25(super.e);
+class _CourseDatabaseV26 extends db.CourseDatabase {
+  _CourseDatabaseV26(super.e);
 
   @override
   int get schemaVersion => db.CourseDatabase.kSchemaVersion + 1;
@@ -566,7 +566,7 @@ void main() {
     test('v25 -> v24 downgrade wipes and recreates instead of crashing',
         () async {
       final path = await _tempDbPath();
-      final newer = _CourseDatabaseV25(NativeDatabase(File(path)));
+      final newer = _CourseDatabaseV26(NativeDatabase(File(path)));
       await _forceOpen(newer);
       await newer.into(newer.sections).insert(
             const db.SectionsCompanion(
@@ -626,7 +626,7 @@ void main() {
 
       final migrated = db.CourseDatabase(NativeDatabase(File(path)));
       await _forceOpen(migrated);
-      expect(migrated.schemaVersion, 24);
+      expect(migrated.schemaVersion, db.CourseDatabase.kSchemaVersion);
 
       // In v24, anki_course_sources, anki_owner_transitions, course_scope_repair_journal,
       // and course_meta_v21_codec are physically dropped.
@@ -655,10 +655,10 @@ void main() {
       await File(path).parent.delete(recursive: true);
     });
 
-    test('fresh create at v24 contains v2 course tree view and introduction states', () async {
+    test('fresh create at current schema contains v2 course tree view and introduction states', () async {
       final database = db.CourseDatabase(NativeDatabase.memory());
       await _forceOpen(database);
-      expect(database.schemaVersion, 24);
+      expect(database.schemaVersion, db.CourseDatabase.kSchemaVersion);
       final tables = await database
           .customSelect(
             "SELECT name FROM sqlite_master WHERE type = 'table' "
@@ -727,7 +727,7 @@ void main() {
             row.read<String>('source_id'),
           ),
       };
-      expect(identity['opaque-course'], ('course', 'course'));
+      expect(identity['opaque-course'], ('builtin', 'tr'));
       expect(identity['grammar-row'], ('grammar', 'grammar'));
       expect(identity['anki-legacy-a-c7'], ('ankiLegacy', 'legacy-a'));
       expect(identity['official-anki-official-a-c8'],

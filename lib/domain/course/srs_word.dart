@@ -9,7 +9,7 @@ enum SrsItemType { word, expression }
 
 /// Persisted source ownership for review statistics. Values are stable SQLite
 /// wire names; do not rename existing enum cases.
-enum SrsSourceKind { course, grammar, ankiLegacy, ankiOfficial }
+enum SrsSourceKind { course, grammar, builtin, ankiLegacy, ankiOfficial }
 
 /// Spaced-repetition state for a [WordEntry] or [Expression]. Persisted per-id.
 ///

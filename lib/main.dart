@@ -24,6 +24,7 @@ import 'package:turna/core/log_capture.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/audio/anki_audio_resolver.dart';
+import 'package:turna/domain/course/course_scope.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/system_health_monitor.dart';
 import 'package:turna/service/local_reminder_service.dart';
@@ -102,9 +103,22 @@ Future<void> main() async {
     // expressions) before the course tree shows lessons. Deferred from
     // setupLocator so runApp paints the splash without waiting on the full
     // table read. Idempotent one-shot loads.
-    await loadVocabulary();
-    await loadGrammarPoints();
-    await loadExpressions();
+    //
+    // Preheat the PERSISTED scope's language (prefs are sync-readable now)
+    // instead of the manifest's first entry, so a learner whose last course
+    // was French never observes Turkish data in the compatibility maps
+    // while CourseProvider.load() catches up. Non-builtin/unreadable
+    // scopes fall back to the registry default, matching the provider's
+    // own _syncPracticeLanguage fallback.
+    final persistedScope = CourseScopeCodec.decode(
+      getIt<AppPrefs>().courseScope.getValue(),
+    );
+    final preheatLanguage = persistedScope is BuiltinCourseScope
+        ? persistedScope.languageCode
+        : null;
+    await loadVocabulary(preheatLanguage);
+    await loadGrammarPoints(preheatLanguage);
+    await loadExpressions(preheatLanguage);
 
     // Hydrate SRS state from SQLite before any screen reads due counts. This
     // also runs the one-time prefs->SQLite migration (schema v7) on first boot

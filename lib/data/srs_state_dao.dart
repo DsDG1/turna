@@ -4,6 +4,7 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/data/course_database.dart';
+import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/domain/course/srs_word.dart';
 
 /// Data access object for the `srs_states` table - the durable store for
@@ -21,34 +22,65 @@ class SrsStateDao {
 
   /// Load every [SrsWord] in [queue] into an id-keyed map. Used by
   /// [SrsQueueProvider.ensureLoaded] at startup to hydrate the in-memory cache.
-  Future<Map<String, SrsWord>> loadQueue(String queue) async {
-    final rows = await (_db.select(_db.srsStates)
-          ..where((t) => t.queue.equals(queue)))
-        .get();
+  Future<Map<String, SrsWord>> loadQueue(
+    String queue, {
+    String? languageCode,
+  }) async {
+    final query = _db.select(_db.srsStates)..where((t) => t.queue.equals(queue));
+    if (languageCode != null) {
+      query.where(
+        (t) => t.languageCode.equals(LanguageCodes.canonicalize(languageCode)),
+      );
+    }
+    final rows = await query.get();
     return {for (final r in rows) r.wordId: _toSrsWord(r)};
   }
 
   /// Insert or update a single [SrsWord] in [queue].
-  Future<void> upsert(String queue, SrsWord word) async {
-    await _db
-        .into(_db.srsStates)
-        .insertOnConflictUpdate(_toCompanion(queue, word));
+  Future<void> upsert(
+    String queue,
+    SrsWord word, {
+    String languageCode = LanguageCodes.turkish,
+  }) async {
+    await _db.into(_db.srsStates).insertOnConflictUpdate(
+          _toCompanion(queue, word, languageCode: languageCode),
+        );
   }
 
   /// Insert or update many [SrsWord]s in one transaction (bulk import /
   /// migration backfill).
-  Future<void> upsertBatch(String queue, Iterable<SrsWord> words) async {
+  Future<void> upsertBatch(
+    String queue,
+    Iterable<SrsWord> words, {
+    String languageCode = LanguageCodes.turkish,
+  }) async {
     await _db.batch((b) {
       for (final w in words) {
-        b.insert(_db.srsStates, _toCompanion(queue, w),
-            onConflict: DoUpdate((_) => _toCompanion(queue, w)));
+        final companion = _toCompanion(queue, w, languageCode: languageCode);
+        b.insert(
+          _db.srsStates,
+          companion,
+          onConflict: DoUpdate((_) => companion),
+        );
       }
     });
   }
 
   /// Delete a single state row by [wordId].
-  Future<void> delete(String wordId) async {
-    await (_db.delete(_db.srsStates)..where((t) => t.wordId.equals(wordId)))
+  Future<void> delete(String wordId, {String? languageCode}) async {
+    final query = _db.delete(_db.srsStates)..where((t) => t.wordId.equals(wordId));
+    if (languageCode != null) {
+      query.where(
+        (t) => t.languageCode.equals(LanguageCodes.canonicalize(languageCode)),
+      );
+    }
+    await query.go();
+  }
+
+  Future<void> deleteByLanguage(String languageCode) async {
+    await (_db.delete(_db.srsStates)
+          ..where((t) =>
+              t.languageCode.equals(LanguageCodes.canonicalize(languageCode))))
         .go();
   }
 
@@ -93,17 +125,24 @@ class SrsStateDao {
 
   /// Most recent [limit] reviewed rows in [queue] (newest first), filtered
   /// to those that have been reviewed at least once. Optional [since]
-  /// narrows to rows reviewed on/after the given instant. Used by the
-  /// personalized tutor ([SrsTutorProvider]) to assemble context.
+  /// narrows to rows reviewed on/after the given instant; optional
+  /// [languageCode] keeps other languages out of the tutor context. Used
+  /// by the personalized tutor ([SrsTutorProvider]) to assemble context.
   Future<List<SrsWord>> recentReviews({
     String queue = 'srs',
     int limit = 20,
     DateTime? since,
+    String? languageCode,
   }) async {
     if (limit <= 0) return const <SrsWord>[];
     final query = _db.select(_db.srsStates)
       ..where((t) => t.queue.equals(queue))
       ..where((t) => t.lastReviewedAt.isNotNull());
+    if (languageCode != null) {
+      query.where(
+        (t) => t.languageCode.equals(LanguageCodes.canonicalize(languageCode)),
+      );
+    }
     if (since != null) {
       query.where(
         (t) =>
@@ -117,9 +156,14 @@ class SrsStateDao {
     return [for (final r in rows) _toSrsWord(r)];
   }
 
-  SrsStatesCompanion _toCompanion(String queue, SrsWord w) {
+  SrsStatesCompanion _toCompanion(
+    String queue,
+    SrsWord w, {
+    String languageCode = LanguageCodes.turkish,
+  }) {
     return SrsStatesCompanion.insert(
       wordId: w.wordId,
+      languageCode: Value(LanguageCodes.canonicalize(languageCode)),
       queue: queue,
       dueAt: w.dueAt.millisecondsSinceEpoch,
       intervalDays: Value(w.intervalDays),

@@ -43,7 +43,7 @@ class CourseScopePreferenceMigrator {
   /// values pass through unchanged and repairs land in
   /// `course_scope_repair_journal` exactly once per change.
   static Future<CourseScopeRepairResult?> repair({
-    String currentLanguageCode = 'turkish',
+    String currentLanguageCode = 'tr',
     CourseDatabase? courseDb,
   }) async {
     final prefs = _prefsOrNull();
@@ -130,7 +130,7 @@ class CourseScopePreferenceMigrator {
     for (final entry in catalog) {
       switch (entry.scope) {
         case BuiltinCourseScope():
-          wireByLegacyKey[''] = entry.wireKey;
+          wireByLegacyKey.putIfAbsent('', () => entry.wireKey);
         case LegacyAnkiCourseScope(importId: final id):
           wireByLegacyKey['anki:$id'] = entry.wireKey;
         case OfficialAnkiCourseScope(sourceId: final id):

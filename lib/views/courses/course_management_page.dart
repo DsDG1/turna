@@ -14,8 +14,8 @@ import 'package:turna/application/anki_official/anki_deck_manager.dart';
 import 'package:turna/application/course_catalog.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/language_provider.dart';
+import 'package:turna/application/language_registry.dart';
 import 'package:turna/application/settings_provider.dart';
-import 'package:turna/core/enums.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/course_scope.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -101,6 +101,7 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
   Widget build(BuildContext context) {
     final courseProvider = context.watch<CourseProvider>();
     final entries = courseProvider.catalogEntries;
+    final restorable = courseProvider.restorableBuiltinLanguages;
     final activeScope = courseProvider.courseScope;
     // The read-aloud per-course entry is opt-in: it only appears once the
     // master switch in Settings > Learning is on.
@@ -143,11 +144,10 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
                   onSettings: () => _showTtsSettings(
                     context,
                     entries[i].wireKey,
-                    entries[i].isBuiltin
-                        ? TargetLanguage.turkish.displayName
-                        : entries[i].displayName,
+                    entries[i].displayName,
                   ),
-                  onDelete: entries[i].isBuiltin
+                  onDelete: entries[i].isBuiltin &&
+                          entries.where((e) => e.isBuiltin).length < 2
                       ? null
                       : () => _confirmDelete(context, entries[i]),
                 ),
@@ -182,6 +182,25 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
                   _AddCourseCard(
                     onTap: () => context.router.push(const AnkiImportRoute()),
                   ),
+                  if (restorable.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      AppStrings.courseManagementRestoreTitle,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: TurnaTheme.textSecondaryColor(context),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    for (final language in restorable)
+                      _RestoreLanguageCard(
+                        key: ValueKey('course-restore-${language.code}'),
+                        displayName: language.displayName,
+                        onRestore: () =>
+                            _restoreLanguage(context, language.code),
+                      ),
+                  ],
                 ],
               ),
             ),
@@ -211,7 +230,8 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
     final courseProvider = context.read<CourseProvider>();
     if (entry.isBuiltin) {
       final languageProvider = context.read<LanguageProvider>();
-      languageProvider.setLanguage(TargetLanguage.turkish);
+      final code = (entry.scope as BuiltinCourseScope).languageCode;
+      languageProvider.setLanguageCode(code);
       unawaited(languageProvider.cacheLanguage());
     }
     await courseProvider.setScope(entry.scope);
@@ -227,16 +247,31 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
     // Exact-source confirmation (plan 34 R1-7): display name, short source
     // id and card count, so deleting one source can never be confused with
     // a sibling sharing the `src-` prefix.
-    final idDetail = entry.shortId.isEmpty
-        ? ''
-        : '\n${entry.shortId} · ${entry.cardCount} cards';
+    final bool isBuiltin = entry.isBuiltin;
+    final String content;
+    final String title;
+    final String actionLabel;
+    if (isBuiltin) {
+      title = AppStrings.courseUninstallConfirmTitle;
+      content = AppStrings.courseUninstallConfirmBody(
+        entry.displayName,
+        entry.cardCount,
+      );
+      actionLabel = AppStrings.courseUninstallAction;
+    } else {
+      final idDetail = entry.shortId.isEmpty
+          ? ''
+          : '\n${entry.shortId} · ${entry.cardCount} cards';
+      title = AppStrings.ankiUninstallConfirmTitle;
+      content =
+          '${entry.displayName}$idDetail\n\n${AppStrings.ankiUninstallConfirmBody}';
+      actionLabel = AppStrings.ankiUninstallDeck;
+    }
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text(AppStrings.ankiUninstallConfirmTitle),
-        content: Text(
-          '${entry.displayName}$idDetail\n\n${AppStrings.ankiUninstallConfirmBody}',
-        ),
+        title: Text(title),
+        content: Text(content),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -247,29 +282,39 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
               backgroundColor: TurnaTheme.error,
             ),
             onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(AppStrings.ankiUninstallDeck),
+            child: Text(actionLabel),
           ),
         ],
       ),
     );
     if (confirmed != true || !context.mounted) return;
 
-    // Uninstall with the COMPLETE source identity — never a truncated id.
-    final deletionId = entry.officialSourceId ?? entry.legacyImportId!;
-    var uninstallCompleted = false;
-    try {
-      uninstallCompleted = await getIt<AnkiDeckManager>().uninstall(deletionId);
-    } catch (e) {
-      debugPrint('[CourseManagement] uninstall failed for $deletionId: $e');
-    }
-    if (!context.mounted) return;
     final courseProvider = context.read<CourseProvider>();
-    if (courseProvider.scope == entry.scope) {
-      // The active scope pointed at the removed course — fall back to the
-      // built-in course (setScope reloads the tree itself).
-      await courseProvider.setScope(const BuiltinCourseScope('turkish'));
+    var uninstallCompleted = false;
+    if (entry.isBuiltin) {
+      final code = (entry.scope as BuiltinCourseScope).languageCode;
+      try {
+        await courseProvider.uninstallBuiltinLanguage(code);
+        uninstallCompleted = true;
+      } catch (e) {
+        debugPrint('[CourseManagement] builtin uninstall failed for $code: $e');
+      }
     } else {
-      await courseProvider.reloadCourse();
+      // Uninstall with the COMPLETE source identity — never a truncated id.
+      final deletionId = entry.officialSourceId ?? entry.legacyImportId!;
+      try {
+        uninstallCompleted = await getIt<AnkiDeckManager>().uninstall(deletionId);
+      } catch (e) {
+        debugPrint('[CourseManagement] uninstall failed for $deletionId: $e');
+      }
+      if (!context.mounted) return;
+      if (courseProvider.scope == entry.scope) {
+        await courseProvider.setScope(
+          CourseCatalog.fallbackBuiltin(courseProvider.catalogEntries),
+        );
+      } else {
+        await courseProvider.reloadCourse();
+      }
     }
     // Drop the removed course from the persisted order.
     await courseProvider.persistCourseOrder(
@@ -285,6 +330,31 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
           uninstallCompleted
               ? AppStrings.ankiDeckRemoved
               : AppStrings.ankiDeckRemovalFailed,
+        ),
+      ),
+    );
+  }
+
+  /// Restore an uninstalled builtin language (marker cleared + assets
+  /// reseeded). Content comes back; learning progress stays deleted.
+  Future<void> _restoreLanguage(BuildContext context, String code) async {
+    final courseProvider = context.read<CourseProvider>();
+    var restored = false;
+    try {
+      await courseProvider.reinstallBuiltinLanguage(code);
+      restored = true;
+    } catch (e) {
+      debugPrint('[CourseManagement] reinstall failed for $code: $e');
+    }
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          restored
+              ? AppStrings.courseManagementRestored(
+                  LanguageRegistry.instance.displayName(code),
+                )
+              : AppStrings.courseManagementRestoreFailed,
         ),
       ),
     );
@@ -393,9 +463,7 @@ class _CourseCard extends StatelessWidget {
                         children: [
                           Flexible(
                             child: Text(
-                              entry.isBuiltin
-                                  ? TargetLanguage.turkish.displayName
-                                  : entry.displayName,
+                              entry.displayName,
                               overflow: TextOverflow.ellipsis,
                               style: Theme.of(context)
                                   .textTheme
@@ -596,6 +664,73 @@ class _AddCourseCard extends StatelessWidget {
                       ),
                     ),
                   ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One row per uninstalled builtin language in the restore list.
+class _RestoreLanguageCard extends StatelessWidget {
+  final String displayName;
+  final VoidCallback onRestore;
+
+  const _RestoreLanguageCard({
+    super.key,
+    required this.displayName,
+    required this.onRestore,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.circular(TurnaTheme.radiusLarge);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: TurnaTheme.cardBg(context),
+        borderRadius: radius,
+        child: InkWell(
+          onTap: onRestore,
+          borderRadius: radius,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.language_rounded,
+                    size: 20,
+                    color: TurnaTheme.brandTeal,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    displayName,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: onRestore,
+                  icon: const Icon(
+                    Icons.restore_rounded,
+                    size: 18,
+                    color: TurnaTheme.brandTeal,
+                  ),
+                  label: Text(AppStrings.courseManagementRestore(displayName)),
                 ),
               ],
             ),

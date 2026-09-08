@@ -12,8 +12,15 @@ abstract class IStudyLogRepository {
     DateTime? since,
     DateTime? until,
     StudyActivityType? type,
+    String? languageCode,
   });
-  Future<Map<String, DailyStudyStats>> readAllDailyStats();
-  Future<List<DailyStudyStats>> readLastNDays(int n);
+  Future<Map<String, DailyStudyStats>> readAllDailyStats({
+    String? languageCode,
+  });
+  Future<List<DailyStudyStats>> readLastNDays(int n, {String? languageCode});
   Future<void> clearAll();
+
+  /// Remove one language's logs and daily aggregates (builtin uninstall
+  /// path). Rows written before the language dimension count as turkish.
+  Future<void> deleteByLanguage(String languageCode);
 }

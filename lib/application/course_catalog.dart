@@ -3,10 +3,12 @@ import 'package:turna/application/anki_official/projection/official_anki_course_
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_view_store.dart';
 import 'package:turna/core/logger.dart';
+import 'package:turna/application/language_registry.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/courses/languages/course_lookup.dart';
 import 'package:turna/data/course_database.dart' hide Section;
 import 'package:turna/domain/course/course_scope.dart';
+import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/domain/course/section.dart';
 
 /// One selectable course in the course catalog (plan 34 D2).
@@ -55,7 +57,9 @@ class CourseCatalogEntry {
 
 /// Loads the authoritative course catalog.
 ///
-/// - The built-in language course is always first and always present.
+/// - Built-in language courses: one entry per language with content in the
+///   DB (or, when the DB has no builtin content at all, per manifest
+///   language), minus languages the user uninstalled.
 /// - Legacy Anki decks come from the section shells (level `Anki`).
 /// - Official Anki sources come from `anki_course_sources` (the v21
 ///   authority) plus the projection manifest for sources imported before
@@ -95,10 +99,14 @@ class CourseCatalog {
   }
 
   /// Loads the catalog. [shells] are the (unfiltered) section shells; pass
-  /// null to load them here.
+  /// null to load them here. [uninstalledLanguageCodes] carries the
+  /// `uninstalled:<code>` markers so marked languages stay out of the
+  /// catalog; [builtinCardCounts] fills the builtin entries' [CourseCatalogEntry.cardCount].
   static Future<List<CourseCatalogEntry>> load({
     List<Section>? shells,
     CourseDatabase? courseDb,
+    Set<String> uninstalledLanguageCodes = const {},
+    Map<String, int> builtinCardCounts = const {},
   }) async {
     final sections = shells ?? await loadSectionShells();
     CourseDatabase? db = courseDb;
@@ -108,17 +116,58 @@ class CourseCatalog {
       db = null;
     }
 
+    final languageBySection = <String, String>{};
+    if (db != null) {
+      try {
+        languageBySection.addAll(await CourseLoader.sectionLanguageCodes());
+      } catch (_) {}
+    }
+    final codesFromDb = <String>{};
+    for (final section in sections) {
+      if (section.level == 'Anki' ||
+          OfficialAnkiCourseEntry.isOfficialSectionId(section.id)) {
+        continue;
+      }
+      codesFromDb.add(
+        LanguageCodes.canonicalize(
+          languageBySection[section.id] ?? LanguageCodes.turkish,
+        ),
+      );
+    }
+    final builtinCodes = <String>[
+      for (final language in LanguageRegistry.instance.languages)
+        if (codesFromDb.contains(language.code) &&
+            !uninstalledLanguageCodes.contains(language.code))
+          language.code,
+      for (final code in codesFromDb)
+        if (!LanguageRegistry.instance.languages.any((l) => l.code == code) &&
+            !uninstalledLanguageCodes.contains(code))
+          code,
+    ];
+    if (builtinCodes.isEmpty) {
+      for (final language in LanguageRegistry.instance.languages) {
+        if (uninstalledLanguageCodes.contains(language.code)) continue;
+        builtinCodes.add(language.code);
+      }
+    }
     final entries = <CourseCatalogEntry>[
-      CourseCatalogEntry(
-        scope: const BuiltinCourseScope('turkish'),
-        displayName: 'Turkish',
-        isBuiltin: true,
-        sectionCount: sections
-            .where((s) =>
-                s.level != 'Anki' &&
-                !OfficialAnkiCourseEntry.isOfficialSectionId(s.id))
-            .length,
-      ),
+      for (final code in builtinCodes)
+        CourseCatalogEntry(
+          scope: BuiltinCourseScope(code),
+          displayName: LanguageRegistry.instance.displayName(code),
+          isBuiltin: true,
+          sectionCount: sections.where((s) {
+            if (s.level == 'Anki' ||
+                OfficialAnkiCourseEntry.isOfficialSectionId(s.id)) {
+              return false;
+            }
+            final sectionCode = LanguageCodes.canonicalize(
+              languageBySection[s.id] ?? LanguageCodes.turkish,
+            );
+            return sectionCode == code;
+          }).length,
+          cardCount: builtinCardCounts[code] ?? 0,
+        ),
     ];
 
     // Legacy decks — one entry per import id found in the shells.
@@ -202,13 +251,27 @@ class CourseCatalog {
 
   /// Whether [sectionId] belongs to [scope]. Exact ownership only — never a
   /// prefix that could span two sources (plan 34 R1-3).
-  static bool sectionBelongsToScope(CourseScope scope, String sectionId) {
+  static bool sectionBelongsToScope(
+    CourseScope scope,
+    String sectionId, {
+    String? languageCode,
+  }) {
     return switch (scope) {
-      BuiltinCourseScope() => false,
+      BuiltinCourseScope(languageCode: final code) =>
+        languageCode != null &&
+            LanguageCodes.canonicalize(languageCode) ==
+                LanguageCodes.canonicalize(code),
       LegacyAnkiCourseScope(importId: final id) =>
         legacyImportIdFromSectionId(sectionId) == id,
       OfficialAnkiCourseScope(sourceId: final id) =>
         officialSourceIdFromSectionId(sectionId) == id,
     };
+  }
+
+  static CourseScope fallbackBuiltin(List<CourseCatalogEntry> catalog) {
+    for (final entry in catalog) {
+      if (entry.isBuiltin) return entry.scope;
+    }
+    return BuiltinCourseScope(LanguageRegistry.instance.defaultCode);
   }
 }

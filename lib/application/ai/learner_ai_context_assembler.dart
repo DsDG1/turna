@@ -1,6 +1,8 @@
 // Project imports:
 import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/learner_ai_context.dart';
+import 'package:turna/application/language_provider.dart';
+import 'package:turna/application/language_registry.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/study_stats_provider.dart';
 import 'package:turna/di/injection.dart';
@@ -10,10 +12,19 @@ import 'package:turna/di/injection.dart';
 class LearnerAiContextAssembler {
   const LearnerAiContextAssembler._();
 
+  /// The learner's current language; the registry default when DI is not
+  /// available (tests, no-turkish-assets startup paths).
+  static String _currentLanguageName() {
+    if (getIt.isRegistered<LanguageProvider>()) {
+      return getIt<LanguageProvider>().displayName;
+    }
+    return LanguageRegistry.instance.defaultLanguage.displayName;
+  }
+
   /// Assemble when [inject] is true; otherwise returns empty language-only
   /// context so callers can always `setLearnerContext` without branching.
   static Future<LearnerAiContext> assembleIfInjectEnabled({
-    String languageName = 'Turkish',
+    String? languageName,
     String? cefrLevel,
     AiExplainPrefsStore? prefs,
     bool? injectOverride,
@@ -21,16 +32,18 @@ class LearnerAiContextAssembler {
     final inject = injectOverride ??
         AiExplainPrefsStore.resolve(prefs: prefs, allowEphemeral: true)
             .injectLearnerContext;
+    final name = languageName ?? _currentLanguageName();
     if (!inject) {
-      return LearnerAiContext.empty(languageName);
+      return LearnerAiContext.empty(name);
     }
-    return assemble(languageName: languageName, cefrLevel: cefrLevel);
+    return assemble(languageName: name, cefrLevel: cefrLevel);
   }
 
   static Future<LearnerAiContext> assemble({
-    String languageName = 'Turkish',
+    String? languageName,
     String? cefrLevel,
   }) async {
+    final name = languageName ?? _currentLanguageName();
     final mistakes = <String>[];
     final weak = <String>[];
 
@@ -56,7 +69,7 @@ class LearnerAiContextAssembler {
     } catch (_) {}
 
     return LearnerAiContext.assemble(
-      languageName: languageName,
+      languageName: name,
       cefrLevel: cefrLevel,
       recentMistakeSummaries: mistakes,
       weakTerms: weak,

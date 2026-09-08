@@ -157,6 +157,8 @@ extension GetItInjectableX on _i174.GetIt {
       () => audioModule.speechPlayer,
       instanceName: 'speechPlayer',
     );
+    gh.lazySingleton<_i551.MistakeProvider>(
+        () => _i551.MistakeProvider(gh<_i523.AppPrefs>()));
     gh.lazySingleton<_i656.AudioPlayer>(
       () => audioModule.audioPlayer,
       instanceName: 'audioPlayer',
@@ -179,8 +181,6 @@ extension GetItInjectableX on _i174.GetIt {
         () => _i854.LessonLinkStore(gh<_i523.AppPrefs>()));
     gh.lazySingleton<_i409.LessonProgressProvider>(
         () => _i409.LessonProgressProvider(gh<_i523.AppPrefs>()));
-    gh.lazySingleton<_i551.MistakeProvider>(
-        () => _i551.MistakeProvider(gh<_i523.AppPrefs>()));
     gh.lazySingleton<_i166.ScoreProvider>(
         () => _i166.ScoreProvider(gh<_i523.AppPrefs>()));
     gh.lazySingleton<_i927.StreakProvider>(

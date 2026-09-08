@@ -11,6 +11,7 @@ import 'package:turna/application/ai/ai_diagnosis_provider.dart';
 import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/ai_saved_explanations.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
+import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/ai/learner_ai_context.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/study_stats_provider.dart';
@@ -47,7 +48,7 @@ class _AiDiagnosisPageState extends State<AiDiagnosisPage> {
   }
 
   Future<LearnerAiContext> _buildContext() async {
-    const language = 'Turkish';
+    final language = context.read<LanguageProvider>().displayName;
 
     final mistakes = <String>[];
     try {

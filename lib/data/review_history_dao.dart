@@ -5,6 +5,7 @@ import 'package:injectable/injectable.dart';
 // Project imports:
 import 'package:turna/application/diagnostics/performance_trace.dart';
 import 'package:turna/data/course_database.dart';
+import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/domain/course/srs_word.dart';
 
 enum ActivityGranularity { day, week, month }
@@ -32,11 +33,13 @@ class ReviewHistoryFilter {
     this.sourceId,
     this.queue,
     this.type,
+    this.languageCode,
   });
   final SrsSourceKind? sourceKind;
   final String? sourceId;
   final String? queue;
   final String? type;
+  final String? languageCode;
 }
 
 /// Data access object for the `review_events` table - the per-card review
@@ -82,20 +85,29 @@ class ReviewHistoryDao {
   }
 
   /// Full history for one card, oldest first.
-  Future<List<ReviewEventRecord>> eventsForCard(String cardId) async {
-    final rows = await (_db.select(_db.reviewEvents)
-          ..where((t) => t.cardId.equals(cardId))
-          ..orderBy([(t) => OrderingTerm.asc(t.reviewedAt)]))
-        .get();
+  Future<List<ReviewEventRecord>> eventsForCard(
+    String cardId, {
+    String? languageCode,
+  }) async {
+    final query = _db.select(_db.reviewEvents)
+      ..where((t) => t.cardId.equals(cardId));
+    _whereLanguage(query, languageCode);
+    query.orderBy([(t) => OrderingTerm.asc(t.reviewedAt)]);
+    final rows = await query.get();
     return rows.map(_toRecord).toList();
   }
 
   /// Most recent [limit] events across all cards (newest first).
-  Future<List<ReviewEventRecord>> recentEvents({int limit = 500}) async {
-    final rows = await (_db.select(_db.reviewEvents)
-          ..orderBy([(t) => OrderingTerm.desc(t.reviewedAt)])
-          ..limit(limit))
-        .get();
+  Future<List<ReviewEventRecord>> recentEvents({
+    int limit = 500,
+    String? languageCode,
+  }) async {
+    final query = _db.select(_db.reviewEvents);
+    _whereLanguage(query, languageCode);
+    query
+      ..orderBy([(t) => OrderingTerm.desc(t.reviewedAt)])
+      ..limit(limit);
+    final rows = await query.get();
     return rows.map(_toRecord).toList();
   }
 
@@ -105,13 +117,14 @@ class ReviewHistoryDao {
   /// **Never call this from the dashboard home** (Plan 3 §14.2): it loads and
   /// sorts the complete history. Use [eventsBetween] /
   /// [dailyActivityBetween] for bounded, aggregation-friendly reads.
-  Future<List<ReviewEventRecord>> allEvents() async {
-    final rows = await (_db.select(_db.reviewEvents)
-          ..orderBy([
-            (t) => OrderingTerm.asc(t.cardId),
-            (t) => OrderingTerm.asc(t.reviewedAt),
-          ]))
-        .get();
+  Future<List<ReviewEventRecord>> allEvents({String? languageCode}) async {
+    final query = _db.select(_db.reviewEvents);
+    _whereLanguage(query, languageCode);
+    query.orderBy([
+      (t) => OrderingTerm.asc(t.cardId),
+      (t) => OrderingTerm.asc(t.reviewedAt),
+    ]);
+    final rows = await query.get();
     return rows.map(_toRecord).toList();
   }
 
@@ -119,14 +132,16 @@ class ReviewHistoryDao {
   /// instead of the full history. Ordered chronologically.
   Future<List<ReviewEventRecord>> eventsBetween(
     DateTime from,
-    DateTime to,
-  ) async {
-    final rows = await (_db.select(_db.reviewEvents)
-          ..where((t) =>
-              t.reviewedAt.isBiggerOrEqualValue(from.millisecondsSinceEpoch) &
-              t.reviewedAt.isSmallerThanValue(to.millisecondsSinceEpoch))
-          ..orderBy([(t) => OrderingTerm.asc(t.reviewedAt)]))
-        .get();
+    DateTime to, {
+    String? languageCode,
+  }) async {
+    final query = _db.select(_db.reviewEvents)
+      ..where((t) =>
+          t.reviewedAt.isBiggerOrEqualValue(from.millisecondsSinceEpoch) &
+          t.reviewedAt.isSmallerThanValue(to.millisecondsSinceEpoch));
+    _whereLanguage(query, languageCode);
+    query.orderBy([(t) => OrderingTerm.asc(t.reviewedAt)]);
+    final rows = await query.get();
     return rows.map(_toRecord).toList();
   }
 
@@ -136,18 +151,24 @@ class ReviewHistoryDao {
   /// is bounded by the number of days, not the number of events.
   Future<List<DailyActivityRow>> dailyActivityBetween(
     DateTime from,
-    DateTime to,
-  ) async {
+    DateTime to, {
+    String? languageCode,
+  }) async {
+    final lang = languageCode == null
+        ? null
+        : LanguageCodes.canonicalize(languageCode);
     final rows = await _db.customSelect(
       'SELECT date((reviewed_at + ?) / 1000, \'unixepoch\') AS day,'
       ' COUNT(*) AS reviewed '
       'FROM review_events '
       'WHERE reviewed_at >= ? AND reviewed_at < ? '
+      '${lang == null ? '' : 'AND language_code = ? '}'
       'GROUP BY day ORDER BY day ASC',
       variables: [
         Variable<int>(_localUtcOffsetMs),
         Variable<int>(from.millisecondsSinceEpoch),
         Variable<int>(to.millisecondsSinceEpoch),
+        if (lang != null) Variable<String>(lang),
       ],
       readsFrom: {_db.reviewEvents},
     ).get();
@@ -276,6 +297,12 @@ class ReviewHistoryDao {
       predicates.add('type = ?');
       variables.add(Variable.withString(filter.type!));
     }
+    if (filter.languageCode != null) {
+      predicates.add('language_code = ?');
+      variables.add(
+        Variable.withString(LanguageCodes.canonicalize(filter.languageCode!)),
+      );
+    }
   }
 
   /// Review totals per persisted logical source. Card ids are opaque here.
@@ -314,34 +341,62 @@ class ReviewHistoryDao {
   }
 
   /// Total event count (dashboard / diagnostics).
-  Future<int> count() async {
+  Future<int> count({String? languageCode}) async {
     final count = _db.selectOnly(_db.reviewEvents)
       ..addColumns([_db.reviewEvents.id.count()]);
+    if (languageCode != null) {
+      count.where(
+        _db.reviewEvents.languageCode
+            .equals(LanguageCodes.canonicalize(languageCode)),
+      );
+    }
     final row = await count.getSingle();
     return row.read(_db.reviewEvents.id.count()) ?? 0;
   }
 
   /// Number of **fail** reviews (quality < 3) for [cardId] on the local
   /// calendar day of [day]. Used by the same-day relearn ladder (ADR 0029).
-  Future<int> countFailsOnLocalDay(String cardId, DateTime day) async {
+  Future<int> countFailsOnLocalDay(
+    String cardId,
+    DateTime day, {
+    String? languageCode,
+  }) async {
     final start = DateTime(day.year, day.month, day.day);
     final end = start.add(const Duration(days: 1));
     final startMs = start.millisecondsSinceEpoch;
     final endMs = end.millisecondsSinceEpoch;
-    final rows = await (_db.select(_db.reviewEvents)
-          ..where((t) =>
-              t.cardId.equals(cardId) &
-              t.reviewedAt.isBiggerOrEqualValue(startMs) &
-              t.reviewedAt.isSmallerThanValue(endMs) &
-              t.quality.isSmallerThanValue(3)))
-        .get();
+    final query = _db.select(_db.reviewEvents)
+      ..where((t) =>
+          t.cardId.equals(cardId) &
+          t.reviewedAt.isBiggerOrEqualValue(startMs) &
+          t.reviewedAt.isSmallerThanValue(endMs) &
+          t.quality.isSmallerThanValue(3));
+    _whereLanguage(query, languageCode);
+    final rows = await query.get();
     return rows.length;
+  }
+
+  void _whereLanguage(
+    SimpleSelectStatement<$ReviewEventsTable, ReviewEvent> query,
+    String? languageCode,
+  ) {
+    if (languageCode == null) return;
+    query.where(
+      (t) => t.languageCode.equals(LanguageCodes.canonicalize(languageCode)),
+    );
   }
 
   /// Delete events whose `cardId` starts with [prefix] (Anki deck uninstall).
   Future<void> deleteByCardPrefix(String prefix) async {
     await (_db.delete(_db.reviewEvents)
           ..where((t) => t.cardId.like('$prefix%')))
+        .go();
+  }
+
+  Future<void> deleteByLanguage(String languageCode) async {
+    await (_db.delete(_db.reviewEvents)
+          ..where((t) =>
+              t.languageCode.equals(LanguageCodes.canonicalize(languageCode))))
         .go();
   }
 
@@ -384,6 +439,7 @@ class ReviewHistoryDao {
       sourceKind: Value(e.sourceKind.name),
       sourceId: Value(e.sourceId),
       ownerId: Value(e.ownerId),
+      languageCode: Value(e.languageCode),
     );
   }
 
@@ -406,6 +462,7 @@ class ReviewHistoryDao {
       sourceKind: _sourceKind(row.sourceKind),
       sourceId: row.sourceId ?? 'course',
       ownerId: row.ownerId,
+      languageCode: row.languageCode,
     );
   }
 
@@ -442,6 +499,7 @@ class ReviewEventRecord {
   final SrsSourceKind sourceKind;
   final String sourceId;
   final String? ownerId;
+  final String languageCode;
 
   const ReviewEventRecord({
     this.id,
@@ -460,6 +518,7 @@ class ReviewEventRecord {
     this.sourceKind = SrsSourceKind.course,
     this.sourceId = 'course',
     this.ownerId,
+    this.languageCode = LanguageCodes.turkish,
   });
 
   /// A recall is successful at SM-2 quality >= 3.

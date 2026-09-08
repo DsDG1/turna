@@ -10,6 +10,7 @@ import 'package:injectable/injectable.dart';
 // Project imports:
 import 'package:turna/application/diagnostics/storage_write_telemetry.dart';
 import 'package:turna/core/logger.dart';
+import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/domain/repositories/i_study_log_repository.dart';
 import 'package:turna/domain/study/daily_stats.dart';
 import 'package:turna/domain/study/study_log.dart';
@@ -98,6 +99,7 @@ class StudyLogRepository implements IStudyLogRepository {
     DateTime? since,
     DateTime? until,
     StudyActivityType? type,
+    String? languageCode,
   }) async {
     final all = await _readAllLogsMerged();
     var logs = all;
@@ -113,6 +115,18 @@ class StudyLogRepository implements IStudyLogRepository {
     if (type != null) {
       logs = logs.where((l) => l.type == type).toList();
     }
+    if (languageCode != null) {
+      final code = LanguageCodes.canonicalize(languageCode);
+      logs = logs
+          .where(
+            (l) =>
+                LanguageCodes.canonicalize(
+                  l.languageCode ?? LanguageCodes.turkish,
+                ) ==
+                code,
+          )
+          .toList();
+    }
     // Defensive copy so callers can't mutate the shared [_mergedLogsCache].
     // When a filter ran, `logs` is already a fresh list; only copy when it's
     // still the cached reference (no filter, or all filters were no-ops).
@@ -122,15 +136,9 @@ class StudyLogRepository implements IStudyLogRepository {
     return logs;
   }
 
-  @override
-  Future<Map<String, DailyStudyStats>> readAllDailyStats() async {
+  Future<Map<String, DailyStudyStats>> _loadRawDailyStats() async {
     final cached = _dailyStatsCache;
     if (cached != null) {
-      // Defensive copy: _updateDailyStats mutates the cached map instance in
-      // place (all[key] = ...; all.removeWhere(...)) and reassigns it as the
-      // cache. A caller iterating a returned reference concurrently with a
-      // queued write would throw ConcurrentModificationException. Hand back a
-      // fresh map so callers can't mutate or race the cache.
       return Map.of(cached);
     }
 
@@ -144,22 +152,64 @@ class StudyLogRepository implements IStudyLogRepository {
       _dailyStatsCache = decoded;
       return Map.of(decoded);
     } catch (e) {
-      // Corrupted prefs (partial write / migration glitch): return empty
-      // instead of crashing the profile page. Mirrors SrsProvider.state guard.
       logger.w('StudyLogRepository dailyStats decode failed: $e');
       _dailyStatsCache = <String, DailyStudyStats>{};
       return <String, DailyStudyStats>{};
     }
   }
 
-  Future<DailyStudyStats?> readDailyStats(DateTime date) async {
-    final all = await readAllDailyStats();
+  @override
+  Future<Map<String, DailyStudyStats>> readAllDailyStats({
+    String? languageCode,
+  }) async {
+    final raw = await _loadRawDailyStats();
+    if (languageCode == null) {
+      final merged = <String, DailyStudyStats>{};
+      raw.forEach((key, value) {
+        final dateKey = key.contains('|') ? key.substring(key.indexOf('|') + 1) : key;
+        final existing = merged[dateKey];
+        merged[dateKey] = existing == null
+            ? value
+            : DailyStudyStats(
+                date: value.date,
+                totalXp: existing.totalXp + value.totalXp,
+                totalDurationSeconds:
+                    existing.totalDurationSeconds + value.totalDurationSeconds,
+                correctCount: existing.correctCount + value.correctCount,
+                incorrectCount: existing.incorrectCount + value.incorrectCount,
+                lessonCount: existing.lessonCount + value.lessonCount,
+                reviewCount: existing.reviewCount + value.reviewCount,
+              );
+      });
+      return merged;
+    }
+    final code = LanguageCodes.canonicalize(languageCode);
+    final prefix = '$code|';
+    final filtered = <String, DailyStudyStats>{};
+    raw.forEach((key, value) {
+      if (key.startsWith(prefix)) {
+        filtered[key.substring(prefix.length)] = value;
+      } else if (!key.contains('|') && code == LanguageCodes.turkish) {
+        filtered[key] = value;
+      }
+    });
+    return filtered;
+  }
+
+  Future<DailyStudyStats?> readDailyStats(
+    DateTime date, {
+    String? languageCode,
+  }) async {
+    final all = await readAllDailyStats(languageCode: languageCode);
     return all[_dateKey(date)];
   }
 
   @override
-  Future<List<DailyStudyStats>> readLastNDays(int n) async {
-    final all = await readAllDailyStats();
+  Future<List<DailyStudyStats>> readLastNDays(
+    int n, {
+    String? languageCode,
+  }) async {
+    final all = await readAllDailyStats(languageCode: languageCode);
     final today = DateTime.now();
     final result = <DailyStudyStats>[];
     for (var i = n - 1; i >= 0; i--) {
@@ -186,6 +236,48 @@ class StudyLogRepository implements IStudyLogRepository {
         _dailyStatsCache = null;
         _mergedLogsCache = null;
       });
+
+  @override
+  Future<void> deleteByLanguage(String languageCode) async {
+    final code = LanguageCodes.canonicalize(languageCode);
+    await _enqueueWrite(() async {
+      _invalidateMergedLogs();
+      final main = await _readMainLogs();
+      await _writeMainLogs(
+        main
+            .where((l) =>
+                LanguageCodes.canonicalize(
+                  l.languageCode ?? LanguageCodes.turkish,
+                ) !=
+                code)
+            .toList(),
+      );
+      final recent = await _readRecentLogs();
+      await _writeRecentLogs(
+        recent
+            .where((l) =>
+                LanguageCodes.canonicalize(
+                  l.languageCode ?? LanguageCodes.turkish,
+                ) !=
+                code)
+            .toList(),
+      );
+
+      final stats = await _loadRawDailyStats();
+      final prefix = '$code|';
+      stats.removeWhere((key, value) {
+        if (key.startsWith(prefix)) return true;
+        // Legacy keys without a `lang|` prefix predate the language
+        // dimension and belong to turkish.
+        return !key.contains('|') && code == LanguageCodes.turkish;
+      });
+      final encoded = jsonEncode(
+        stats.map((k, v) => MapEntry(k, v.toJson())),
+      );
+      await _writeString(_dailyStatsKey, encoded);
+      _dailyStatsCache = stats;
+    });
+  }
 
   // --- internal ---
 
@@ -328,8 +420,11 @@ class StudyLogRepository implements IStudyLogRepository {
   }
 
   Future<void> _updateDailyStats(StudyLog log) async {
-    final all = await readAllDailyStats();
-    final key = _dateKey(log.timestamp);
+    final all = await _loadRawDailyStats();
+    final lang = LanguageCodes.canonicalize(
+      log.languageCode ?? LanguageCodes.turkish,
+    );
+    final key = '$lang|${_dateKey(log.timestamp)}';
     final existing = all[key] ??
         DailyStudyStats(
           date: DateTime(

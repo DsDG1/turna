@@ -12,6 +12,7 @@ import 'package:turna/application/ai/engine/ai_engine.dart';
 import 'package:turna/application/ai/engine/ai_engine_config.dart';
 import 'package:turna/application/ai/engine/ai_recent_tasks_provider.dart';
 import 'package:turna/application/ai/learner_ai_context.dart';
+import 'package:turna/application/language_registry.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
 
@@ -47,7 +48,9 @@ class AiTutorChatProvider extends AiStreamingSessionBase {
   AiTutorChatMode _mode = AiTutorChatMode.qa;
   AiTutorChatMode get mode => _mode;
 
-  String _language = 'Turkish';
+  // Target language for prompts; the page sets the learner's current
+  // language right after construction — this default covers DI-less tests.
+  String _language = LanguageRegistry.instance.defaultLanguage.displayName;
   String get language => _language;
 
   LearnerAiContext? _learnerContext;

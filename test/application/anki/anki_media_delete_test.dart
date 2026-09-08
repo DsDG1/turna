@@ -73,7 +73,7 @@ class _CleanupRepo implements ICourseRepository {
   }
 
   @override
-  Future<List<Section>> sectionShells() async => [];
+  Future<List<Section>> sectionShells({String? languageCode}) async => [];
 
   @override
   Future<void> bulkInsertCourseTree(Section section) async {}
@@ -101,16 +101,16 @@ class _CleanupRepo implements ICourseRepository {
   Future<String?> sectionIdForLesson(String lessonId) async => null;
 
   @override
-  Future<List<WordEntry>> vocabulary() async => [];
+  Future<List<WordEntry>> vocabulary({String? languageCode}) async => [];
 
   @override
-  Future<List<GrammarPoint>> grammarPoints() async => [];
+  Future<List<GrammarPoint>> grammarPoints({String? languageCode}) async => [];
 
   @override
   Future<GrammarPoint?> grammarPointById(String id) async => null;
 
   @override
-  Future<List<Expression>> expressions() async => [];
+  Future<List<Expression>> expressions({String? languageCode}) async => [];
 
   @override
   Future<Expression?> expressionById(String id) async => null;

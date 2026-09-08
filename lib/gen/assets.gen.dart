@@ -54,8 +54,17 @@ class $AssetsAnkiReviewerGen {
 class $AssetsCoursesGen {
   const $AssetsCoursesGen();
 
+  /// Directory path: assets/courses/french
+  $AssetsCoursesFrenchGen get french => const $AssetsCoursesFrenchGen();
+
+  /// File path: assets/courses/manifest.json
+  String get manifest => 'assets/courses/manifest.json';
+
   /// Directory path: assets/courses/turkish
   $AssetsCoursesTurkishGen get turkish => const $AssetsCoursesTurkishGen();
+
+  /// List of all assets
+  List<String> get values => [manifest];
 }
 
 class $AssetsImagesGen {
@@ -170,6 +179,29 @@ class $AssetsAnkiReviewerMathjaxGen {
   List<String> get values => [texSvgFull];
 }
 
+class $AssetsCoursesFrenchGen {
+  const $AssetsCoursesFrenchGen();
+
+  /// File path: assets/courses/french/expressions.json
+  String get expressions => 'assets/courses/french/expressions.json';
+
+  /// File path: assets/courses/french/grammar_points.json
+  String get grammarPoints => 'assets/courses/french/grammar_points.json';
+
+  /// File path: assets/courses/french/index.json
+  String get index => 'assets/courses/french/index.json';
+
+  /// Directory path: assets/courses/french/sections
+  $AssetsCoursesFrenchSectionsGen get sections =>
+      const $AssetsCoursesFrenchSectionsGen();
+
+  /// File path: assets/courses/french/vocab.json
+  String get vocab => 'assets/courses/french/vocab.json';
+
+  /// List of all assets
+  List<String> get values => [expressions, grammarPoints, index, vocab];
+}
+
 class $AssetsCoursesTurkishGen {
   const $AssetsCoursesTurkishGen();
 
@@ -214,6 +246,16 @@ class $AssetsImagesTurnaGen {
 
   /// List of all assets
   List<AssetGenImage> get values => [turnaCelebrate, turnaReading, turnaWaving];
+}
+
+class $AssetsCoursesFrenchSectionsGen {
+  const $AssetsCoursesFrenchSectionsGen();
+
+  /// File path: assets/courses/french/sections/fr-section1.json
+  String get frSection1 => 'assets/courses/french/sections/fr-section1.json';
+
+  /// List of all assets
+  List<String> get values => [frSection1];
 }
 
 class $AssetsCoursesTurkishSectionsGen {

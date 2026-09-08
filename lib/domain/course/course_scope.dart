@@ -1,3 +1,5 @@
+import 'package:turna/domain/course/language_codes.dart';
+
 /// Typed course scope identity (plan 34 D1).
 ///
 /// A course scope names exactly one selectable course: the built-in
@@ -24,12 +26,16 @@ class BuiltinCourseScope extends CourseScope {
 
   final String languageCode;
 
-  @override
-  bool operator ==(Object other) =>
-      other is BuiltinCourseScope && other.languageCode == languageCode;
+  String get canonicalLanguageCode =>
+      LanguageCodes.canonicalize(languageCode);
 
   @override
-  int get hashCode => Object.hash('builtin', languageCode);
+  bool operator ==(Object other) =>
+      other is BuiltinCourseScope &&
+      other.canonicalLanguageCode == canonicalLanguageCode;
+
+  @override
+  int get hashCode => Object.hash('builtin', canonicalLanguageCode);
 
   @override
   String toString() => 'BuiltinCourseScope($languageCode)';
@@ -102,7 +108,7 @@ class CourseScopeCodec {
 
   static String encode(CourseScope scope) => switch (scope) {
         BuiltinCourseScope(languageCode: final code) =>
-          '${prefix}builtin:${_encode(code)}',
+          '${prefix}builtin:${_encode(LanguageCodes.canonicalize(code))}',
         LegacyAnkiCourseScope(importId: final importId) =>
           '${prefix}legacy:${_encode(importId)}',
         OfficialAnkiCourseScope(
@@ -128,7 +134,7 @@ class CourseScopeCodec {
     final rest = body.substring(separator + 1);
     switch (kind) {
       case 'builtin':
-        return BuiltinCourseScope(_decode(rest));
+        return BuiltinCourseScope(LanguageCodes.canonicalize(_decode(rest)));
       case 'legacy':
         return LegacyAnkiCourseScope(_decode(rest));
       case 'official':
@@ -166,7 +172,7 @@ class CourseScopeCodec {
     if (trimmed.isEmpty) {
       return (
         LegacyScopeResolution.resolved,
-        BuiltinCourseScope(currentLanguageCode)
+        BuiltinCourseScope(LanguageCodes.canonicalize(currentLanguageCode))
       );
     }
     if (isEncodedKey(trimmed)) {
@@ -178,7 +184,7 @@ class CourseScopeCodec {
       // bare language ids before the anki: scheme existed).
       return (
         LegacyScopeResolution.resolved,
-        BuiltinCourseScope(trimmed),
+        BuiltinCourseScope(LanguageCodes.canonicalize(trimmed)),
       );
     }
     final id = trimmed.substring(ankiPrefix.length);

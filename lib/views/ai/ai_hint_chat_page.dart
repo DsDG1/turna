@@ -14,6 +14,7 @@ import 'package:turna/application/ai/chat_auto_scroll_coordinator.dart';
 import 'package:turna/application/ai/engine/ai_engine_config.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/ai/learner_ai_context_assembler.dart';
+import 'package:turna/application/language_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/chat_bubble.dart';
 import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
@@ -92,7 +93,8 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
     try {
       final inject = context.read<AiExplainPrefsStore>().injectLearnerContext;
       if (inject) {
-        final lang = widget.context?.language ?? 'Turkish';
+        final lang = widget.context?.language
+            ?? context.read<LanguageProvider>().displayName;
         provider.setLearnerContext(
           await LearnerAiContextAssembler.assemble(languageName: lang),
         );

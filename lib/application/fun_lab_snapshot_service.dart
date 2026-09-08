@@ -163,13 +163,13 @@ class FunLabSnapshotService {
   ];
 
   static const _srsColumns =
-      'word_id, queue, due_at, interval_days, ease, reps, lapses, '
+      'language_code, word_id, queue, due_at, interval_days, ease, reps, lapses, '
       'is_leech, is_suspended, is_buried, type, last_reviewed_at, '
       'stability, difficulty, fsrs_state, learning_step, source_kind, '
       'source_id, owner_id';
 
   static const _reviewColumns =
-      'id, card_id, queue, reviewed_at, quality, prev_interval_days, '
+      'id, card_id, language_code, queue, reviewed_at, quality, prev_interval_days, '
       'next_interval_days, prev_ease, next_ease, reps, lapses, type, '
       'source_key, source_kind, source_id, owner_id';
 

@@ -10,9 +10,9 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/application/mistake_provider.dart';
-import 'package:turna/courses/languages/grammar_points.dart';
-import 'package:turna/courses/languages/vocab.dart';
+import 'package:turna/courses/languages/language_content_store.dart';
 import 'package:turna/data/study_log_repository.dart';
+import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/domain/study/daily_stats.dart';
 import 'package:turna/domain/study/study_log.dart';
 
@@ -26,6 +26,15 @@ class StudyStatsProvider extends ChangeNotifier {
       StreamController<List<DailyStudyStats>>.broadcast();
 
   StudyStatsProvider(this._repository, this._mistakeProvider);
+
+  String _languageCode = LanguageCodes.turkish;
+
+  String get languageCode => _languageCode;
+
+  void setLanguage(String code) {
+    _languageCode = LanguageCodes.canonicalize(code);
+    notifyListeners();
+  }
 
   /// Record a completed study activity. Call this from lesson, review, and game screens.
   Future<void> recordActivity({
@@ -47,6 +56,7 @@ class StudyStatsProvider extends ChangeNotifier {
       correctCount: correctCount,
       incorrectCount: incorrectCount,
       wordIds: wordIds,
+      languageCode: _languageCode,
     );
 
     await _repository.appendLog(log);
@@ -64,7 +74,10 @@ class StudyStatsProvider extends ChangeNotifier {
   /// Get today's statistics snapshot.
   Future<DailyStudyStats> getTodayStats() async {
     final today = DateTime.now();
-    return await _repository.readDailyStats(today) ??
+    return await _repository.readDailyStats(
+          today,
+          languageCode: _languageCode,
+        ) ??
         DailyStudyStats(
           date: DateTime(today.year, today.month, today.day),
         );
@@ -72,17 +85,17 @@ class StudyStatsProvider extends ChangeNotifier {
 
   /// Stream of daily stats for the last 7 days (for charts).
   Stream<List<DailyStudyStats>> getWeeklyStatsStream() async* {
-    yield await _repository.readLastNDays(7);
+    yield await _repository.readLastNDays(7, languageCode: _languageCode);
     yield* _dailyStatsController.stream;
   }
 
   /// Get last N days of stats (synchronous-ish, returns Future).
   Future<List<DailyStudyStats>> getLastNDays(int n) =>
-      _repository.readLastNDays(n);
+      _repository.readLastNDays(n, languageCode: _languageCode);
 
   /// Total study time in minutes across all recorded history.
   Future<int> getTotalStudyMinutes() async {
-    final all = await _repository.readAllDailyStats();
+    final all = await _repository.readAllDailyStats(languageCode: _languageCode);
     final totalSeconds = all.values.fold<int>(
       0,
       (sum, d) => sum + d.totalDurationSeconds,
@@ -92,7 +105,7 @@ class StudyStatsProvider extends ChangeNotifier {
 
   /// Overall accuracy across all recorded history.
   Future<double> getOverallAccuracy() async {
-    final all = await _repository.readAllDailyStats();
+    final all = await _repository.readAllDailyStats(languageCode: _languageCode);
     var correct = 0;
     var incorrect = 0;
     for (final d in all.values) {
@@ -105,19 +118,19 @@ class StudyStatsProvider extends ChangeNotifier {
 
   /// Total XP earned across all recorded history.
   Future<int> getTotalRecordedXp() async {
-    final all = await _repository.readAllDailyStats();
+    final all = await _repository.readAllDailyStats(languageCode: _languageCode);
     return all.values.fold<int>(0, (sum, d) => sum + d.totalXp);
   }
 
   /// Total lessons completed across all recorded history.
   Future<int> getTotalRecordedLessons() async {
-    final all = await _repository.readAllDailyStats();
+    final all = await _repository.readAllDailyStats(languageCode: _languageCode);
     return all.values.fold<int>(0, (sum, d) => sum + d.lessonCount);
   }
 
   /// Total reviews completed across all recorded history.
   Future<int> getTotalRecordedReviews() async {
-    final all = await _repository.readAllDailyStats();
+    final all = await _repository.readAllDailyStats(languageCode: _languageCode);
     return all.values.fold<int>(0, (sum, d) => sum + d.reviewCount);
   }
 
@@ -128,7 +141,7 @@ class StudyStatsProvider extends ChangeNotifier {
   /// Returns a map with keys `ankiLessons` and `ankiReviews` (ints). When no
   /// logs carry an `anki-` lesson id, both are zero.
   Future<Map<String, int>> getAnkiActivityCounts() async {
-    final logs = await _repository.readLogs();
+    final logs = await _repository.readLogs(languageCode: _languageCode);
     var ankiLessons = 0;
     var ankiReviews = 0;
     for (final log in logs) {
@@ -233,7 +246,10 @@ class StudyStatsProvider extends ChangeNotifier {
 
   Future<void> _emitDailyStats() async {
     try {
-      final stats = await _repository.readLastNDays(7);
+      final stats = await _repository.readLastNDays(
+        7,
+        languageCode: _languageCode,
+      );
       if (!_dailyStatsController.isClosed) {
         _dailyStatsController.add(stats);
       }

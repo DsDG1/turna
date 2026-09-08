@@ -38,26 +38,28 @@ class TtsDiagnostics {
     }
     if (resolvedLocale == null) {
       return hasGoogleEngine
-          ? TtsPreferredStatus.turkishVoiceMissing
+          ? TtsPreferredStatus.voiceMissing
           : TtsPreferredStatus.googleMissing;
     }
     if (!localeInstalled) {
-      return TtsPreferredStatus.turkishVoiceMissing;
+      return TtsPreferredStatus.voiceMissing;
     }
     return TtsPreferredStatus.ready;
   }
 }
 
-/// Product-facing status of the preferred system voice (Google + Turkish).
+/// Product-facing status of the preferred system voice (Google + target
+/// language).
 enum TtsPreferredStatus {
-  /// Google engine selected and a Turkish locale is usable.
+  /// Google engine selected and a target-language locale is usable.
   ready,
 
   /// Google TTS package not visible / not installed (Android).
   googleMissing,
 
-  /// Engine present but Turkish voice data not installed or locale unsupported.
-  turkishVoiceMissing,
+  /// Engine present but the target language's voice data is not installed
+  /// or its locale is unsupported.
+  voiceMissing,
 }
 
 /// Inspects the device's local TTS capabilities and, when appropriate, selects
@@ -113,12 +115,12 @@ class TtsAvailabilityChecker {
       if (parts.length > 1) '${lang}_${parts[1].toUpperCase()}',
     };
 
-    // Turkish: common Google / OEM pack tags.
-    if (lang == 'tr') {
-      candidates.addAll(const [
-        'tr-TR',
-        'tr_TR',
-      ]);
+    // Region-tagged OEM packs (tr-TR, fr-FR, …).
+    if (parts.length == 1) {
+      final upper = lang.toUpperCase();
+      if (lang.length == 2) {
+        candidates.addAll(['$lang-$upper', '${lang}_$upper']);
+      }
     }
 
     return candidates.toList(growable: false);
@@ -300,7 +302,7 @@ class TtsAvailabilityChecker {
       if (installed == false) {
         debugPrint(
           'TtsAvailabilityChecker: preferred system TTS unavailable '
-          '(locale $resolved not installed — download Turkish voice data)',
+          '(locale $resolved not installed — download its voice data)',
         );
         return false;
       }

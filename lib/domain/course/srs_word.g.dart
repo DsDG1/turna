@@ -61,6 +61,7 @@ const _$SrsItemTypeEnumMap = {
 const _$SrsSourceKindEnumMap = {
   SrsSourceKind.course: 'course',
   SrsSourceKind.grammar: 'grammar',
+  SrsSourceKind.builtin: 'builtin',
   SrsSourceKind.ankiLegacy: 'ankiLegacy',
   SrsSourceKind.ankiOfficial: 'ankiOfficial',
 };

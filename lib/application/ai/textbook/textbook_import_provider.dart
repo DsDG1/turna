@@ -11,6 +11,8 @@ import 'package:turna/application/ai/engine/ai_cancel_token.dart';
 import 'package:turna/application/ai/engine/ai_engine.dart';
 import 'package:turna/application/ai/engine/ai_engine_config.dart';
 import 'package:turna/application/ai/engine/ai_recent_tasks_provider.dart';
+import 'package:turna/application/language_provider.dart';
+import 'package:turna/application/language_registry.dart';
 import 'package:turna/application/ai/textbook/import_plan.dart';
 import 'package:turna/application/ai/textbook/knowledge_merger.dart';
 import 'package:turna/application/ai/textbook/knowledge_prompt.dart';
@@ -96,7 +98,11 @@ class TextbookImportProvider extends AiRequestSessionBase {
   bool _isBusy = false;
   bool get isBusy => _isBusy;
 
-  String _language = 'Turkish';
+  // Target language of imported textbook content; defaults to the
+  // learner's current language (registry default in tests without DI).
+  String _language = getIt.isRegistered<LanguageProvider>()
+      ? getIt<LanguageProvider>().displayName
+      : LanguageRegistry.instance.defaultLanguage.displayName;
   String get language => _language;
 
   String _sourceLanguage = 'Chinese';

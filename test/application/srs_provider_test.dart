@@ -26,7 +26,11 @@ class _ControllableReviewHistoryDao implements ReviewHistoryDao {
   final Future<int> _failCountFuture;
 
   @override
-  Future<int> countFailsOnLocalDay(String cardId, DateTime day) =>
+  Future<int> countFailsOnLocalDay(
+    String cardId,
+    DateTime day, {
+    String? languageCode,
+  }) =>
       _failCountFuture;
 
   @override

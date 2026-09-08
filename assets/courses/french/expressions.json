@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "language": "fr",
+  "expressions": [
+    {
+      "id": "fr-e-bonjour",
+      "term": "Bonjour !",
+      "translation": "Hello!",
+      "pronunciation": "bon-zhoor",
+      "tags": ["greeting"]
+    },
+    {
+      "id": "fr-e-ca-va",
+      "term": "Ça va ?",
+      "translation": "How are you?",
+      "pronunciation": "sa va",
+      "tags": ["greeting", "question"]
+    },
+    {
+      "id": "fr-e-merci",
+      "term": "Merci beaucoup",
+      "translation": "Thank you very much",
+      "pronunciation": "mehr-see bo-koo",
+      "tags": ["greeting"]
+    }
+  ]
+}

@@ -15,10 +15,12 @@ import 'package:turna/application/ai/ai_hint_provider.dart';
 import 'package:turna/application/ai/ai_lesson_helper_provider.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/ai/learner_ai_context_assembler.dart';
+import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/gems_provider.dart';
+import 'package:turna/application/language_registry.dart';
 import 'package:turna/application/lesson_viewmodel.dart';
-import 'package:turna/core/enums.dart';
+import 'package:turna/domain/course/course_scope.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/course/lesson.dart';
@@ -147,11 +149,12 @@ class _NewLessonPageState extends State<NewLessonPage> {
     }
 
     final ctx = AiQuestionContext(
-      // The loaded course is hardcoded to Turkish (CourseLoader.baseDir);
-      // derive the persona's language label from that, not from the user's
-      // LanguageProvider preference (a TTS/UI setting that could diverge once
-      // a second TargetLanguage ships).
-      language: TargetLanguage.turkish.displayName,
+      language: LanguageRegistry.instance.displayName(
+        switch (context.read<CourseProvider>().scope) {
+          BuiltinCourseScope(languageCode: final code) => code,
+          _ => LanguageRegistry.instance.defaultCode,
+        },
+      ),
       typeLabel: interactionTypeLabel(interaction),
       promptLabel: interactionPromptLabel(interaction),
       optionsLabel: interactionOptionsLabel(interaction),

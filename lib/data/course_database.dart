@@ -20,6 +20,8 @@ part 'course_database.g.dart';
 /// added in v6 — older rows read back as `null`).
 class Sections extends Table {
   TextColumn get id => text()();
+  TextColumn get languageCode =>
+      text().withDefault(const Constant('tr'))();
   TextColumn get name => text()();
   TextColumn get description => text().withDefault(const Constant(''))();
   TextColumn get level => text().withDefault(const Constant(''))();
@@ -34,6 +36,8 @@ class Sections extends Table {
 /// `units` index rows — one per [Unit], scoped to a section.
 class Units extends Table {
   TextColumn get id => text()();
+  TextColumn get languageCode =>
+      text().withDefault(const Constant('tr'))();
   TextColumn get sectionId => text().customConstraint(
         'NOT NULL REFERENCES sections(id) ON DELETE CASCADE',
       )();
@@ -50,6 +54,8 @@ class Units extends Table {
 /// `lessons` index rows — one per [Lesson], scoped to a unit.
 class Lessons extends Table {
   TextColumn get id => text()();
+  TextColumn get languageCode =>
+      text().withDefault(const Constant('tr'))();
   TextColumn get unitId => text().customConstraint(
         'NOT NULL REFERENCES units(id) ON DELETE CASCADE',
       )();
@@ -72,6 +78,8 @@ class LessonContents extends Table {
   TextColumn get lessonId => text().customConstraint(
         'NOT NULL REFERENCES lessons(id) ON DELETE CASCADE',
       )();
+  TextColumn get languageCode =>
+      text().withDefault(const Constant('tr'))();
   TextColumn get contentJson => text()();
 
   @override
@@ -81,6 +89,8 @@ class LessonContents extends Table {
 /// Vocabulary — one row per [WordEntry].
 class Vocabulary extends Table {
   TextColumn get id => text()();
+  TextColumn get languageCode =>
+      text().withDefault(const Constant('tr'))();
   TextColumn get term => text()();
   TextColumn get translation => text()();
   TextColumn get pronunciation => text().nullable()();
@@ -88,7 +98,7 @@ class Vocabulary extends Table {
   TextColumn get tags => text().withDefault(const Constant('[]'))();
 
   @override
-  Set<Column> get primaryKey => {id};
+  Set<Column> get primaryKey => {languageCode, id};
 }
 
 /// Grammar points — one row per [GrammarPoint]. `exampleExpressionIds` /
@@ -96,6 +106,8 @@ class Vocabulary extends Table {
 /// `practiceItems` is a JSON-encoded list of [Interaction] drills.
 class GrammarPoints extends Table {
   TextColumn get id => text()();
+  TextColumn get languageCode =>
+      text().withDefault(const Constant('tr'))();
   TextColumn get title => text()();
   TextColumn get explanation => text().withDefault(const Constant(''))();
   TextColumn get exampleExpressionIds =>
@@ -105,7 +117,7 @@ class GrammarPoints extends Table {
   TextColumn get practiceItems => text().withDefault(const Constant('[]'))();
 
   @override
-  Set<Column> get primaryKey => {id};
+  Set<Column> get primaryKey => {languageCode, id};
 }
 
 /// Key-value meta for the course cache (e.g. content version from index.json).
@@ -121,6 +133,8 @@ class CourseMeta extends Table {
 @DataClassName('ExpressionEntry')
 class Expressions extends Table {
   TextColumn get id => text()();
+  TextColumn get languageCode =>
+      text().withDefault(const Constant('tr'))();
   TextColumn get term => text()();
   TextColumn get translation => text()();
   TextColumn get pronunciation => text().nullable()();
@@ -128,7 +142,7 @@ class Expressions extends Table {
   TextColumn get tags => text().withDefault(const Constant('[]'))();
 
   @override
-  Set<Column> get primaryKey => {id};
+  Set<Column> get primaryKey => {languageCode, id};
 }
 
 /// `anki_imports` — one row per imported Anki deck (.apkg/.colpkg).
@@ -231,6 +245,8 @@ class AnkiCardsMeta extends Table {
 /// [SrsItemType] name (`'word'` / `'expression'`).
 class SrsStates extends Table {
   TextColumn get wordId => text()();
+  TextColumn get languageCode =>
+      text().withDefault(const Constant('tr'))();
   TextColumn get queue => text()();
   IntColumn get dueAt => integer()();
   IntColumn get intervalDays => integer().withDefault(const Constant(1))();
@@ -253,7 +269,7 @@ class SrsStates extends Table {
   TextColumn get ownerId => text().nullable()();
 
   @override
-  Set<Column> get primaryKey => {wordId};
+  Set<Column> get primaryKey => {languageCode, wordId};
 }
 
 /// `review_events` - one row per SRS review (the per-card history that powers
@@ -271,9 +287,15 @@ class SrsStates extends Table {
   columns: {#sourceKey},
   unique: true,
 )
+@TableIndex(
+  name: 'review_events_language_time_idx',
+  columns: {#languageCode, #reviewedAt},
+)
 class ReviewEvents extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get cardId => text()();
+  TextColumn get languageCode =>
+      text().withDefault(const Constant('tr'))();
   TextColumn get queue => text()();
   IntColumn get reviewedAt => integer()();
   IntColumn get quality => integer()();
@@ -288,6 +310,38 @@ class ReviewEvents extends Table {
   TextColumn get sourceKind => text().nullable()();
   TextColumn get sourceId => text().nullable()();
   TextColumn get ownerId => text().nullable()();
+}
+
+/// FIFO-ish mistake log, one row per recorded wrong answer, scoped by language.
+class Mistakes extends Table {
+  TextColumn get id => text()();
+  TextColumn get languageCode =>
+      text().withDefault(const Constant('tr'))();
+  TextColumn get lessonId => text()();
+  TextColumn get stageId => text()();
+  TextColumn get interactionId => text()();
+  TextColumn get wordId => text().nullable()();
+  TextColumn get expressionId => text().nullable()();
+  TextColumn get grammarPointId => text().nullable()();
+  TextColumn get interactionSnapshotJson => text().nullable()();
+  TextColumn get userAnswer => text().withDefault(const Constant(''))();
+  TextColumn get correctAnswer => text().withDefault(const Constant(''))();
+  IntColumn get timestampMs => integer()();
+  IntColumn get rewriteCount => integer().withDefault(const Constant(0))();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => {languageCode, id};
+}
+
+class MistakeAggregates extends Table {
+  TextColumn get languageCode => text()();
+  TextColumn get dailyCountsJson =>
+      text().withDefault(const Constant('{}'))();
+  IntColumn get masteredTotal => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => {languageCode};
 }
 
 @DriftDatabase(
@@ -306,6 +360,8 @@ class ReviewEvents extends Table {
     AnkiCardsMeta,
     SrsStates,
     ReviewEvents,
+    Mistakes,
+    MistakeAggregates,
   ],
 )
 class CourseDatabase extends _$CourseDatabase {
@@ -313,7 +369,7 @@ class CourseDatabase extends _$CourseDatabase {
 
   /// Single source of truth for the drift schema version, so tests and
   /// backup code never hard-code a stale literal.
-  static const int kSchemaVersion = 24;
+  static const int kSchemaVersion = 25;
 
   @override
   int get schemaVersion => kSchemaVersion;
@@ -364,6 +420,8 @@ class CourseDatabase extends _$CourseDatabase {
               'anki_card_introduction_states',
               'study_product_events',
               'anki_course_tree_view',
+              'mistakes',
+              'mistake_aggregates',
             ]) {
               await m.deleteTable(tableName);
             }
@@ -545,8 +603,260 @@ class CourseDatabase extends _$CourseDatabase {
             await _ensureAnkiUnificationTables(m.database);
             await _ensureV2CourseTreeView(m.database);
           }
+          if (from < 25) {
+            // One transaction so a failure mid-migration (e.g. between the
+            // composite-PK table drops and renames) rolls the whole step
+            // back instead of leaving a half-migrated, unrecoverable DB.
+            // The foreign_keys PRAGMAs inside are no-ops under a
+            // transaction, but none of the rebuilt tables declare FOREIGN
+            // KEY clauses, so there is nothing to defer.
+            await m.database.transaction(() async {
+              await _migrateToLanguageDimension(m.database);
+            });
+          }
         },
       );
+
+  /// v25: language dimension on content + practice tables, composite PKs
+  /// for vocab/grammar/expressions/srs, mistakes table, contentVersion:tr.
+  static Future<void> _migrateToLanguageDimension(
+    GeneratedDatabase database,
+  ) async {
+    Future<bool> hasColumn(String table, String column) async {
+      final columns =
+          await database.customSelect('PRAGMA table_info($table)').get();
+      if (columns.isEmpty) return false;
+      return columns.any((row) => row.read<String>('name') == column);
+    }
+
+    Future<void> addLanguageColumn(String table) async {
+      final columns =
+          await database.customSelect('PRAGMA table_info($table)').get();
+      if (columns.isEmpty) return;
+      if (columns.any((row) => row.read<String>('name') == 'language_code')) {
+        return;
+      }
+      await database.customStatement(
+        "ALTER TABLE $table ADD COLUMN language_code TEXT NOT NULL DEFAULT 'tr'",
+      );
+    }
+
+    for (final table in const [
+      'sections',
+      'units',
+      'lessons',
+      'lesson_contents',
+      'vocabulary',
+      'grammar_points',
+      'expressions',
+      'srs_states',
+      'review_events',
+      'fun_lab_snapshot_srs',
+      'fun_lab_snapshot_review_events',
+    ]) {
+      await addLanguageColumn(table);
+    }
+
+    if (await hasColumn('srs_states', 'word_id')) {
+      await database.customStatement('''
+        UPDATE srs_states SET
+          source_kind = CASE
+            WHEN queue = 'grammar' THEN 'grammar'
+            WHEN word_id LIKE 'official-anki-%-c%' THEN 'ankiOfficial'
+            WHEN word_id LIKE 'anki-%-c%' THEN 'ankiLegacy'
+            ELSE 'builtin'
+          END,
+          source_id = CASE
+            WHEN queue = 'grammar' THEN COALESCE(language_code, 'tr')
+            WHEN word_id LIKE 'official-anki-%-c%' THEN source_id
+            WHEN word_id LIKE 'anki-%-c%' THEN source_id
+            ELSE COALESCE(language_code, 'tr')
+          END
+        WHERE source_kind IS NULL OR source_kind = 'course'
+          OR source_id IS NULL OR source_id = 'course'
+      ''');
+    }
+
+    Future<void> rebuildCompositePk({
+      required String table,
+      required String createSql,
+      required String insertSql,
+    }) async {
+      final info =
+          await database.customSelect('PRAGMA table_info($table)').get();
+      if (info.isEmpty) return;
+      final pkCols = [
+        for (final row in info)
+          if ((row.data['pk'] as int? ?? row.read<int>('pk')) > 0)
+            row.read<String>('name'),
+      ];
+      if (pkCols.contains('language_code') && pkCols.length >= 2) return;
+      await database.customStatement('PRAGMA foreign_keys = OFF');
+      await database.customStatement(createSql);
+      await database.customStatement(insertSql);
+      await database.customStatement('DROP TABLE $table');
+      await database.customStatement(
+        'ALTER TABLE ${table}_v25 RENAME TO $table',
+      );
+      await database.customStatement('PRAGMA foreign_keys = ON');
+    }
+
+    await rebuildCompositePk(
+      table: 'vocabulary',
+      createSql: '''
+        CREATE TABLE vocabulary_v25 (
+          language_code TEXT NOT NULL DEFAULT 'tr',
+          id TEXT NOT NULL,
+          term TEXT NOT NULL,
+          translation TEXT NOT NULL,
+          pronunciation TEXT,
+          audio_asset TEXT,
+          tags TEXT NOT NULL DEFAULT '[]',
+          PRIMARY KEY (language_code, id)
+        )
+      ''',
+      insertSql: '''
+        INSERT INTO vocabulary_v25
+          (language_code, id, term, translation, pronunciation, audio_asset, tags)
+        SELECT COALESCE(language_code, 'tr'), id, term, translation,
+               pronunciation, audio_asset, tags
+        FROM vocabulary
+      ''',
+    );
+    await rebuildCompositePk(
+      table: 'grammar_points',
+      createSql: '''
+        CREATE TABLE grammar_points_v25 (
+          language_code TEXT NOT NULL DEFAULT 'tr',
+          id TEXT NOT NULL,
+          title TEXT NOT NULL,
+          explanation TEXT NOT NULL DEFAULT '',
+          example_expression_ids TEXT NOT NULL DEFAULT '[]',
+          example_sentence_ids TEXT NOT NULL DEFAULT '[]',
+          practice_items TEXT NOT NULL DEFAULT '[]',
+          PRIMARY KEY (language_code, id)
+        )
+      ''',
+      insertSql: '''
+        INSERT INTO grammar_points_v25
+          (language_code, id, title, explanation, example_expression_ids,
+           example_sentence_ids, practice_items)
+        SELECT COALESCE(language_code, 'tr'), id, title, explanation,
+               example_expression_ids, example_sentence_ids, practice_items
+        FROM grammar_points
+      ''',
+    );
+    await rebuildCompositePk(
+      table: 'expressions',
+      createSql: '''
+        CREATE TABLE expressions_v25 (
+          language_code TEXT NOT NULL DEFAULT 'tr',
+          id TEXT NOT NULL,
+          term TEXT NOT NULL,
+          translation TEXT NOT NULL,
+          pronunciation TEXT,
+          audio_asset TEXT,
+          tags TEXT NOT NULL DEFAULT '[]',
+          PRIMARY KEY (language_code, id)
+        )
+      ''',
+      insertSql: '''
+        INSERT INTO expressions_v25
+          (language_code, id, term, translation, pronunciation, audio_asset, tags)
+        SELECT COALESCE(language_code, 'tr'), id, term, translation,
+               pronunciation, audio_asset, tags
+        FROM expressions
+      ''',
+    );
+    await rebuildCompositePk(
+      table: 'srs_states',
+      createSql: '''
+        CREATE TABLE srs_states_v25 (
+          language_code TEXT NOT NULL DEFAULT 'tr',
+          word_id TEXT NOT NULL,
+          queue TEXT NOT NULL,
+          due_at INTEGER NOT NULL,
+          interval_days INTEGER NOT NULL DEFAULT 1,
+          ease REAL NOT NULL DEFAULT 2.5,
+          reps INTEGER NOT NULL DEFAULT 0,
+          lapses INTEGER NOT NULL DEFAULT 0,
+          is_leech INTEGER NOT NULL DEFAULT 0,
+          is_suspended INTEGER NOT NULL DEFAULT 0,
+          is_buried INTEGER NOT NULL DEFAULT 0,
+          type TEXT NOT NULL DEFAULT 'word',
+          last_reviewed_at INTEGER,
+          stability REAL,
+          difficulty REAL,
+          fsrs_state INTEGER NOT NULL DEFAULT 1,
+          learning_step INTEGER,
+          source_kind TEXT,
+          source_id TEXT,
+          owner_id TEXT,
+          PRIMARY KEY (language_code, word_id)
+        )
+      ''',
+      insertSql: '''
+        INSERT INTO srs_states_v25
+          (language_code, word_id, queue, due_at, interval_days, ease, reps,
+           lapses, is_leech, is_suspended, is_buried, type, last_reviewed_at,
+           stability, difficulty, fsrs_state, learning_step, source_kind,
+           source_id, owner_id)
+        SELECT COALESCE(language_code, 'tr'), word_id, queue, due_at,
+               interval_days, ease, reps, lapses, is_leech, is_suspended,
+               is_buried, type, last_reviewed_at, stability, difficulty,
+               fsrs_state, learning_step, source_kind, source_id, owner_id
+        FROM srs_states
+      ''',
+    );
+
+    if (await hasColumn('srs_states', 'word_id')) {
+      await database.customStatement('''
+        CREATE INDEX IF NOT EXISTS srs_states_source_identity_idx
+        ON srs_states(source_kind, source_id)
+      ''');
+    }
+    if (await hasColumn('review_events', 'card_id')) {
+      await database.customStatement('''
+        CREATE INDEX IF NOT EXISTS review_events_language_time_idx
+        ON review_events(language_code, reviewed_at)
+      ''');
+    }
+
+    await database.customStatement('''
+      CREATE TABLE IF NOT EXISTS mistakes (
+        id TEXT NOT NULL,
+        language_code TEXT NOT NULL DEFAULT 'tr',
+        lesson_id TEXT NOT NULL,
+        stage_id TEXT NOT NULL,
+        interaction_id TEXT NOT NULL,
+        word_id TEXT,
+        expression_id TEXT,
+        grammar_point_id TEXT,
+        interaction_snapshot_json TEXT,
+        user_answer TEXT NOT NULL DEFAULT '',
+        correct_answer TEXT NOT NULL DEFAULT '',
+        timestamp_ms INTEGER NOT NULL,
+        rewrite_count INTEGER NOT NULL DEFAULT 0,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (language_code, id)
+      )
+    ''');
+    await database.customStatement('''
+      CREATE TABLE IF NOT EXISTS mistake_aggregates (
+        language_code TEXT NOT NULL PRIMARY KEY,
+        daily_counts_json TEXT NOT NULL DEFAULT '{}',
+        mastered_total INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+
+    if (await hasColumn('course_meta', 'key')) {
+      await database.customStatement('''
+        INSERT OR IGNORE INTO course_meta (key, value)
+        SELECT 'contentVersion:tr', value FROM course_meta
+        WHERE key = 'contentVersion'
+      ''');
+    }
+  }
 
   static Future<void> _addReviewSourceIdentityColumns(
     GeneratedDatabase database,
@@ -874,7 +1184,8 @@ class CourseDatabase extends _$CourseDatabase {
     ''');
     await database.customStatement('''
       CREATE TABLE IF NOT EXISTS fun_lab_snapshot_srs (
-        word_id TEXT PRIMARY KEY,
+        language_code TEXT NOT NULL DEFAULT 'tr',
+        word_id TEXT NOT NULL,
         queue TEXT NOT NULL,
         due_at INTEGER NOT NULL,
         interval_days INTEGER NOT NULL,
@@ -892,13 +1203,15 @@ class CourseDatabase extends _$CourseDatabase {
         learning_step INTEGER,
         source_kind TEXT,
         source_id TEXT,
-        owner_id TEXT
+        owner_id TEXT,
+        PRIMARY KEY (language_code, word_id)
       )
     ''');
     await database.customStatement('''
       CREATE TABLE IF NOT EXISTS fun_lab_snapshot_review_events (
         id INTEGER PRIMARY KEY,
         card_id TEXT NOT NULL,
+        language_code TEXT NOT NULL DEFAULT 'tr',
         queue TEXT NOT NULL,
         reviewed_at INTEGER NOT NULL,
         quality INTEGER NOT NULL,

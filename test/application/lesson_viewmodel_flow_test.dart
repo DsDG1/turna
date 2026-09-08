@@ -1258,7 +1258,12 @@ class _GateHoldingReviewHistoryDao implements ReviewHistoryDao {
   final Future<int> _hold;
 
   @override
-  Future<int> countFailsOnLocalDay(String cardId, DateTime localDay) => _hold;
+  Future<int> countFailsOnLocalDay(
+    String cardId,
+    DateTime localDay, {
+    String? languageCode,
+  }) =>
+      _hold;
 
   @override
   Future<void> insertEvent(ReviewEventRecord event) async {}

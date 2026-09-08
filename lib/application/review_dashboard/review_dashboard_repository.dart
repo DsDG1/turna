@@ -124,6 +124,7 @@ class ReviewDashboardRepository {
     for (final w in _srs.state.values) {
       final key = switch (w.sourceKind) {
         SrsSourceKind.course => 'course',
+        SrsSourceKind.builtin => 'course:${w.sourceId}',
         SrsSourceKind.grammar => 'grammar',
         SrsSourceKind.ankiLegacy => 'anki:${w.sourceId}',
         SrsSourceKind.ankiOfficial => 'official:${w.sourceId}',
@@ -162,7 +163,12 @@ class ReviewDashboardRepository {
     } catch (_) {}
 
     // ── Today's events: bounded query, never allEvents() ────────────────
-    final todayEvents = await _reviewDao.eventsBetween(startOfToday, now);
+    final languageCode = _srs.languageFilter;
+    final todayEvents = await _reviewDao.eventsBetween(
+      startOfToday,
+      now,
+      languageCode: languageCode,
+    );
     final reviewedToday = todayEvents.length;
     final correctToday = todayEvents.where((e) => e.recalled).length;
     final completedCards = todayEvents.map((e) => e.cardId).toSet().length;
@@ -171,13 +177,16 @@ class ReviewDashboardRepository {
     final activity = await _reviewDao.dailyActivityBetween(
       startOfToday.subtract(const Duration(days: 6)),
       startOfToday.add(const Duration(days: 1)),
+      languageCode: languageCode,
     );
     final reviewedByDay = <DateTime, int>{
       for (final row in activity) row.localDay: row.reviewedCount,
     };
 
     // ── Study-log daily stats: minutes / XP / accuracy / active days ────
-    final dailyStats = await _studyLog.readAllDailyStats();
+    final dailyStats = await _studyLog.readAllDailyStats(
+      languageCode: languageCode,
+    );
     final minutesByDay = <DateTime, int>{};
     DailyStudyStats? todayStats;
     for (final s in dailyStats.values) {

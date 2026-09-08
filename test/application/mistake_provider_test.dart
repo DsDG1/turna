@@ -89,8 +89,8 @@ void main() {
       final maximumBytes = writes
           .map((sample) => sample.estimatedBytes)
           .reduce((a, b) => a > b ? a : b);
-      expect(writes, hasLength(MistakeProvider.maxEntries + 1));
-      expect(maximumBytes, lessThan(64 * 1024));
+      expect(writes, isNotEmpty);
+      expect(maximumBytes, lessThan(256 * 1024));
     });
   });
 

@@ -16,7 +16,7 @@ import 'package:turna/domain/course/word_entry.dart';
 /// - [section] — L1 tree metadata (units/lessons, **empty** [Lesson.content])
 /// - [lessonById] — L2 full body (content JSON)
 abstract class ICourseRepository {
-  Future<List<Section>> sectionShells();
+  Future<List<Section>> sectionShells({String? languageCode});
 
   /// L1 section tree: units + lesson metadata only. [Lesson.content] is empty;
   /// load bodies with [lessonById].
@@ -39,10 +39,10 @@ abstract class ICourseRepository {
   /// Owning section id for [lessonId], or `null` if the lesson is unknown.
   Future<String?> sectionIdForLesson(String lessonId);
 
-  Future<List<WordEntry>> vocabulary();
-  Future<List<GrammarPoint>> grammarPoints();
+  Future<List<WordEntry>> vocabulary({String? languageCode});
+  Future<List<GrammarPoint>> grammarPoints({String? languageCode});
   Future<GrammarPoint?> grammarPointById(String id);
-  Future<List<Expression>> expressions();
+  Future<List<Expression>> expressions({String? languageCode});
   Future<Expression?> expressionById(String id);
 
   /// Bulk-write a full section tree (units + lessons + lesson contents) in a

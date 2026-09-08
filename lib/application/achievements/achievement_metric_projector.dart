@@ -8,9 +8,11 @@ import 'package:injectable/injectable.dart';
 import 'package:turna/application/achievements/achievement_evaluator.dart';
 import 'package:turna/application/lesson_progress_provider.dart';
 import 'package:turna/application/score_provider.dart';
+import 'package:turna/application/srs_provider.dart';
 import 'package:turna/application/streak_provider.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/data/study_log_repository.dart';
+import 'package:turna/di/injection.dart';
 import 'package:turna/domain/study/study_log.dart';
 import 'package:turna/service/locator.dart';
 
@@ -108,6 +110,15 @@ class AchievementMetricProjector {
     this._studyLogRepository,
   );
 
+  static String? _srsLanguageCode() {
+    try {
+      if (getIt.isRegistered<SrsProvider>()) {
+        return getIt<SrsProvider>().languageFilter;
+      }
+    } catch (_) {}
+    return null;
+  }
+
   /// In-memory projection (empty until first [readProjection]/[buildSnapshot]).
   AchievementMetricProjection get projection =>
       _projectionCache ?? AchievementMetricProjection();
@@ -142,11 +153,16 @@ class AchievementMetricProjector {
     var bestDailyXp = persisted.maxDailyXpEver;
     var reviewedFromLogs = 0;
     try {
-      final dailyStats = await _studyLogRepository.readAllDailyStats();
+      final languageCode = _srsLanguageCode();
+      final dailyStats = await _studyLogRepository.readAllDailyStats(
+        languageCode: languageCode,
+      );
       for (final stats in dailyStats.values) {
         if (stats.totalXp > bestDailyXp) bestDailyXp = stats.totalXp;
       }
-      final logs = await _studyLogRepository.readLogs();
+      final logs = await _studyLogRepository.readLogs(
+        languageCode: languageCode,
+      );
       for (final log in logs) {
         reviewedFromLogs += _reviewedCardsIn(log);
       }

@@ -2,8 +2,6 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:turna/core/enums.dart';
-import 'package:turna/core/extensions.dart';
 import 'package:turna/domain/auth/local_user.dart';
 import 'package:turna/gen/assets.gen.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -21,7 +19,7 @@ class ShareProgressCard extends StatelessWidget {
   final int gems;
   final int completedLessons;
   final int perfectLessons;
-  final TargetLanguage targetLanguage;
+  final String targetLanguageName;
 
   const ShareProgressCard({
     super.key,
@@ -31,7 +29,7 @@ class ShareProgressCard extends StatelessWidget {
     required this.gems,
     required this.completedLessons,
     required this.perfectLessons,
-    required this.targetLanguage,
+    required this.targetLanguageName,
   });
 
   @override
@@ -259,7 +257,7 @@ class ShareProgressCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      targetLanguage.name.toTitleCase,
+                      targetLanguageName,
                       style: const TextStyle(
                         color: TurnaTheme.textOnPrimary,
                         fontSize: 26,

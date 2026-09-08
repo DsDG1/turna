@@ -12,12 +12,11 @@ import 'package:provider/provider.dart';
 import 'package:turna/application/anki_official/anki_deck_manager.dart';
 import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/language_provider.dart';
+import 'package:turna/application/language_registry.dart';
 import 'package:turna/application/settings/commands/apply_fsrs_parameters_command.dart';
 import 'package:turna/application/settings/settings_operation_result.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/streak_provider.dart';
-import 'package:turna/core/enums.dart';
-import 'package:turna/core/extensions.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
@@ -28,15 +27,16 @@ class SettingsLanguageSelectorTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final current = context.select<LanguageProvider, TargetLanguage>(
-      (p) => p.selectedLanguage,
+    final current = context.select<LanguageProvider, String>(
+      (p) => p.selectedLanguageCode,
     );
+    final languages = LanguageRegistry.instance.languages;
 
-    return PopupMenuButton<TargetLanguage>(
+    return PopupMenuButton<String>(
       initialValue: current,
       onSelected: (value) {
         final languageProvider = context.read<LanguageProvider>();
-        languageProvider.setLanguage(value);
+        languageProvider.setLanguageCode(value);
         // Persistence failure must not become an unhandled async error —
         // catch it and surface once instead.
         unawaited(
@@ -47,25 +47,26 @@ class SettingsLanguageSelectorTile extends StatelessWidget {
           }),
         );
       },
-      itemBuilder: (context) => TargetLanguage.values
+      itemBuilder: (context) => languages
           .map(
             (lang) => PopupMenuItem(
-              value: lang,
+              value: lang.code,
               child: Row(
                 children: [
                   Icon(
                     Icons.language_rounded,
                     size: 18,
-                    color: lang == current
+                    color: lang.code == current
                         ? TurnaTheme.brandTeal
                         : TurnaTheme.textHint,
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    lang.name.toTitleCase,
+                    lang.displayName,
                     style: TextStyle(
-                      fontWeight:
-                          lang == current ? FontWeight.w700 : FontWeight.w400,
+                      fontWeight: lang.code == current
+                          ? FontWeight.w700
+                          : FontWeight.w400,
                     ),
                   ),
                 ],
@@ -81,7 +82,7 @@ class SettingsLanguageSelectorTile extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              current.name.toTitleCase,
+              LanguageRegistry.instance.displayName(current),
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: TurnaTheme.brandTeal,
                     fontWeight: FontWeight.w700,

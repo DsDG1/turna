@@ -16,8 +16,8 @@ import 'package:turna/application/anki_official/engine/official_formal_due_repos
 import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/anki_official/engine/official_anki_home_due_sync.dart';
 import 'package:turna/data/anki_import_dao.dart';
+import 'package:turna/application/course_catalog.dart';
 import 'package:turna/application/course_provider.dart';
-import 'package:turna/domain/course/course_scope.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
@@ -245,8 +245,12 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
       }
     }
     // Splice the dragged deck order right after the builtin course.
-    final builtinWire = const BuiltinCourseScope('turkish').wireKey;
-    final builtinIndex = order.indexOf(builtinWire);
+    final builtinWire = provider.catalogEntries
+        .where((e) => e.isBuiltin)
+        .map((e) => e.wireKey)
+        .firstOrNull;
+    final builtinIndex =
+        builtinWire == null ? -1 : order.indexOf(builtinWire);
     order.insertAll(
       builtinIndex < 0 ? order.length : builtinIndex + 1,
       reorderedWires.toList(),
@@ -268,8 +272,11 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
         .map((entry) => entry.wireKey)
         .where((wire) => wire != pinnedWire)
         .toList();
-    final builtinWire = const BuiltinCourseScope('turkish').wireKey;
-    final at = wires.indexOf(builtinWire);
+    final builtinWire = provider.catalogEntries
+        .where((e) => e.isBuiltin)
+        .map((e) => e.wireKey)
+        .firstOrNull;
+    final at = builtinWire == null ? -1 : wires.indexOf(builtinWire);
     wires.insert(at < 0 ? 0 : at + 1, pinnedWire);
     await provider.persistCourseOrder(wires);
   }
@@ -387,7 +394,9 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
     if (removedWasActive) {
       // The active scope pointed at the removed course — fall back to the
       // built-in course (setScope reloads the tree itself).
-      await courseProvider.setScope(const BuiltinCourseScope('turkish'));
+      await courseProvider.setScope(
+        CourseCatalog.fallbackBuiltin(courseProvider.catalogEntries),
+      );
     } else {
       await courseProvider.reloadCourse();
     }

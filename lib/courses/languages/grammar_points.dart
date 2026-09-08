@@ -1,5 +1,7 @@
-// Project imports:
-import 'package:turna/courses/course_loader.dart';
+export 'package:turna/courses/languages/language_content_store.dart'
+    show grammarPointById;
+
+import 'package:turna/courses/languages/language_content_store.dart';
 import 'package:turna/domain/course/grammar_point.dart';
 
 /// Grammar points for the grammar-review SRS queue.
@@ -10,20 +12,14 @@ import 'package:turna/domain/course/grammar_point.dart';
 /// populated as a side-effect of the first call to [loadGrammarPoints]
 /// and remains valid for the rest of the session — the grammar review screen
 /// can use it without awaiting any future.
-Future<List<GrammarPoint>> loadGrammarPoints() async {
-  final course = await CourseLoader.load();
-  _populateGrammarLookups(course);
-  return course.grammarPoints;
+Future<List<GrammarPoint>> loadGrammarPoints([String? languageCode]) async {
+  final store = languageCode == null
+      ? LanguageContentStore.active
+      : LanguageContentStore.of(languageCode);
+  await store.ensureLoaded();
+  if (languageCode == null ||
+      languageCode == LanguageContentStore.activeCode) {
+    store.publishGlobals();
+  }
+  return store.grammarPoints;
 }
-
-void _populateGrammarLookups(CourseLoader course) {
-  grammarPointById
-    ..clear()
-    ..addAll(course.grammarPointsById);
-}
-
-/// Synchronous lookup-by-id map, populated on first [loadGrammarPoints]
-/// call. Read by the grammar review screen (which has no async context in
-/// `build()`).
-final Map<String, GrammarPoint> grammarPointById =
-    <String, GrammarPoint>{};

@@ -6,6 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:injectable/injectable.dart';
 
+// Project imports:
+import 'package:turna/application/language_provider.dart';
+import 'package:turna/di/injection.dart';
+
 /// Schedules a gentle daily review reminder (no streak pressure).
 @lazySingleton
 class LocalReminderService {
@@ -14,12 +18,29 @@ class LocalReminderService {
   static const int notificationId = 2201;
   static const String channelId = 'turna_daily_review';
   static const String channelName = 'Daily review';
-  static const String reminderBody = 'Time for a quick Turkish review';
 
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
 
   bool _initialized = false;
+
+  /// Notification copy snapshots the learner's current language at schedule
+  /// time — the notification itself fires later, without process context.
+  String _reminderBody() {
+    if (getIt.isRegistered<LanguageProvider>()) {
+      final name = getIt<LanguageProvider>().displayName;
+      return 'Time for a quick $name review';
+    }
+    return 'Time for a quick review';
+  }
+
+  String _channelDescription() {
+    if (getIt.isRegistered<LanguageProvider>()) {
+      return 'Gentle daily reminder to review '
+          '${getIt<LanguageProvider>().displayName}';
+    }
+    return 'Gentle daily reminder';
+  }
 
   /// Optional override for unit tests (no platform channels).
   @visibleForTesting
@@ -67,16 +88,16 @@ class LocalReminderService {
     if (kIsWeb) return;
     await init();
 
-    const androidDetails = AndroidNotificationDetails(
+    final androidDetails = AndroidNotificationDetails(
       channelId,
       channelName,
-      channelDescription: 'Gentle daily reminder to review Turkish',
+      channelDescription: _channelDescription(),
       importance: Importance.defaultImportance,
       priority: Priority.defaultPriority,
     );
-    const details = NotificationDetails(
+    final details = NotificationDetails(
       android: androidDetails,
-      iOS: DarwinNotificationDetails(),
+      iOS: const DarwinNotificationDetails(),
     );
 
     // periodicallyShow approximates a daily cadence without the timezone
@@ -85,7 +106,7 @@ class LocalReminderService {
     await _plugin.periodicallyShow(
       notificationId,
       'Turna',
-      reminderBody,
+      _reminderBody(),
       RepeatInterval.daily,
       details,
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,

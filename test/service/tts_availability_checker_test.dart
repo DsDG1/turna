@@ -303,7 +303,7 @@ void main() {
 
           expect(await checker.isPreferredSystemTtsAvailable('tr'), isFalse);
           final diag = await checker.diagnose('tr');
-          expect(diag.preferredStatus, TtsPreferredStatus.turkishVoiceMissing);
+          expect(diag.preferredStatus, TtsPreferredStatus.voiceMissing);
           expect(diag.hasGoogleEngine, isTrue);
         },
       );

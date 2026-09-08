@@ -1,0 +1,20 @@
+{
+  "grammarPoints": [
+    {
+      "id": "fr-g-etre",
+      "title": "Être in the present",
+      "explanation": "Je suis, tu es, il/elle est — the present tense of être.",
+      "exampleExpressionIds": ["fr-e-ca-va"],
+      "exampleSentenceIds": [],
+      "practiceItems": []
+    },
+    {
+      "id": "fr-g-articles",
+      "title": "Definite articles le / la / les",
+      "explanation": "French nouns take a gender-marked article: le livre, la table, les livres.",
+      "exampleExpressionIds": [],
+      "exampleSentenceIds": [],
+      "practiceItems": []
+    }
+  ]
+}

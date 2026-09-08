@@ -120,6 +120,7 @@ class _FakeSrsStateDao implements SrsStateDao {
     String queue = 'srs',
     int limit = 20,
     DateTime? since,
+    String? languageCode,
   }) async {
     var filtered = _rows.where((w) => w.lastReviewedAt != null).toList()
       ..sort((a, b) => b.lastReviewedAt!.compareTo(a.lastReviewedAt!));

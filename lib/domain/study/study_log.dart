@@ -18,6 +18,7 @@ class StudyLog {
   final int correctCount;
   final int incorrectCount;
   final List<String> wordIds;
+  final String? languageCode;
 
   StudyLog({
     required this.id,
@@ -29,6 +30,7 @@ class StudyLog {
     this.correctCount = 0,
     this.incorrectCount = 0,
     this.wordIds = const [],
+    this.languageCode,
   });
 
   Map<String, dynamic> toJson() => {
@@ -41,6 +43,7 @@ class StudyLog {
         'correctCount': correctCount,
         'incorrectCount': incorrectCount,
         'wordIds': wordIds,
+        if (languageCode != null) 'languageCode': languageCode,
       };
 
   factory StudyLog.fromJson(Map<String, dynamic> json) => StudyLog(
@@ -56,5 +59,6 @@ class StudyLog {
                 ?.map((e) => e as String)
                 .toList() ??
             const [],
+        languageCode: json['languageCode'] as String?,
       );
 }

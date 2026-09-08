@@ -13,6 +13,14 @@ class $SectionsTable extends Sections with TableInfo<$SectionsTable, Section> {
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
       'id', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _languageCodeMeta =
+      const VerificationMeta('languageCode');
+  @override
+  late final GeneratedColumn<String> languageCode = GeneratedColumn<String>(
+      'language_code', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('tr'));
   static const VerificationMeta _nameMeta = const VerificationMeta('name');
   @override
   late final GeneratedColumn<String> name = GeneratedColumn<String>(
@@ -50,8 +58,15 @@ class $SectionsTable extends Sections with TableInfo<$SectionsTable, Section> {
       requiredDuringInsert: false,
       defaultValue: const Constant(0));
   @override
-  List<GeneratedColumn> get $columns =>
-      [id, name, description, level, prerequisiteSectionIds, sortOrder];
+  List<GeneratedColumn> get $columns => [
+        id,
+        languageCode,
+        name,
+        description,
+        level,
+        prerequisiteSectionIds,
+        sortOrder
+      ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -66,6 +81,12 @@ class $SectionsTable extends Sections with TableInfo<$SectionsTable, Section> {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     } else if (isInserting) {
       context.missing(_idMeta);
+    }
+    if (data.containsKey('language_code')) {
+      context.handle(
+          _languageCodeMeta,
+          languageCode.isAcceptableOrUnknown(
+              data['language_code']!, _languageCodeMeta));
     }
     if (data.containsKey('name')) {
       context.handle(
@@ -104,6 +125,8 @@ class $SectionsTable extends Sections with TableInfo<$SectionsTable, Section> {
     return Section(
       id: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      languageCode: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}language_code'])!,
       name: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}name'])!,
       description: attachedDatabase.typeMapping
@@ -126,6 +149,7 @@ class $SectionsTable extends Sections with TableInfo<$SectionsTable, Section> {
 
 class Section extends DataClass implements Insertable<Section> {
   final String id;
+  final String languageCode;
   final String name;
   final String description;
   final String level;
@@ -133,6 +157,7 @@ class Section extends DataClass implements Insertable<Section> {
   final int sortOrder;
   const Section(
       {required this.id,
+      required this.languageCode,
       required this.name,
       required this.description,
       required this.level,
@@ -142,6 +167,7 @@ class Section extends DataClass implements Insertable<Section> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
+    map['language_code'] = Variable<String>(languageCode);
     map['name'] = Variable<String>(name);
     map['description'] = Variable<String>(description);
     map['level'] = Variable<String>(level);
@@ -153,6 +179,7 @@ class Section extends DataClass implements Insertable<Section> {
   SectionsCompanion toCompanion(bool nullToAbsent) {
     return SectionsCompanion(
       id: Value(id),
+      languageCode: Value(languageCode),
       name: Value(name),
       description: Value(description),
       level: Value(level),
@@ -166,6 +193,7 @@ class Section extends DataClass implements Insertable<Section> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Section(
       id: serializer.fromJson<String>(json['id']),
+      languageCode: serializer.fromJson<String>(json['languageCode']),
       name: serializer.fromJson<String>(json['name']),
       description: serializer.fromJson<String>(json['description']),
       level: serializer.fromJson<String>(json['level']),
@@ -179,6 +207,7 @@ class Section extends DataClass implements Insertable<Section> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
+      'languageCode': serializer.toJson<String>(languageCode),
       'name': serializer.toJson<String>(name),
       'description': serializer.toJson<String>(description),
       'level': serializer.toJson<String>(level),
@@ -190,6 +219,7 @@ class Section extends DataClass implements Insertable<Section> {
 
   Section copyWith(
           {String? id,
+          String? languageCode,
           String? name,
           String? description,
           String? level,
@@ -197,6 +227,7 @@ class Section extends DataClass implements Insertable<Section> {
           int? sortOrder}) =>
       Section(
         id: id ?? this.id,
+        languageCode: languageCode ?? this.languageCode,
         name: name ?? this.name,
         description: description ?? this.description,
         level: level ?? this.level,
@@ -207,6 +238,9 @@ class Section extends DataClass implements Insertable<Section> {
   Section copyWithCompanion(SectionsCompanion data) {
     return Section(
       id: data.id.present ? data.id.value : this.id,
+      languageCode: data.languageCode.present
+          ? data.languageCode.value
+          : this.languageCode,
       name: data.name.present ? data.name.value : this.name,
       description:
           data.description.present ? data.description.value : this.description,
@@ -222,6 +256,7 @@ class Section extends DataClass implements Insertable<Section> {
   String toString() {
     return (StringBuffer('Section(')
           ..write('id: $id, ')
+          ..write('languageCode: $languageCode, ')
           ..write('name: $name, ')
           ..write('description: $description, ')
           ..write('level: $level, ')
@@ -232,13 +267,14 @@ class Section extends DataClass implements Insertable<Section> {
   }
 
   @override
-  int get hashCode => Object.hash(
-      id, name, description, level, prerequisiteSectionIds, sortOrder);
+  int get hashCode => Object.hash(id, languageCode, name, description, level,
+      prerequisiteSectionIds, sortOrder);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Section &&
           other.id == this.id &&
+          other.languageCode == this.languageCode &&
           other.name == this.name &&
           other.description == this.description &&
           other.level == this.level &&
@@ -248,6 +284,7 @@ class Section extends DataClass implements Insertable<Section> {
 
 class SectionsCompanion extends UpdateCompanion<Section> {
   final Value<String> id;
+  final Value<String> languageCode;
   final Value<String> name;
   final Value<String> description;
   final Value<String> level;
@@ -256,6 +293,7 @@ class SectionsCompanion extends UpdateCompanion<Section> {
   final Value<int> rowid;
   const SectionsCompanion({
     this.id = const Value.absent(),
+    this.languageCode = const Value.absent(),
     this.name = const Value.absent(),
     this.description = const Value.absent(),
     this.level = const Value.absent(),
@@ -265,6 +303,7 @@ class SectionsCompanion extends UpdateCompanion<Section> {
   });
   SectionsCompanion.insert({
     required String id,
+    this.languageCode = const Value.absent(),
     required String name,
     this.description = const Value.absent(),
     this.level = const Value.absent(),
@@ -275,6 +314,7 @@ class SectionsCompanion extends UpdateCompanion<Section> {
         name = Value(name);
   static Insertable<Section> custom({
     Expression<String>? id,
+    Expression<String>? languageCode,
     Expression<String>? name,
     Expression<String>? description,
     Expression<String>? level,
@@ -284,6 +324,7 @@ class SectionsCompanion extends UpdateCompanion<Section> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (languageCode != null) 'language_code': languageCode,
       if (name != null) 'name': name,
       if (description != null) 'description': description,
       if (level != null) 'level': level,
@@ -296,6 +337,7 @@ class SectionsCompanion extends UpdateCompanion<Section> {
 
   SectionsCompanion copyWith(
       {Value<String>? id,
+      Value<String>? languageCode,
       Value<String>? name,
       Value<String>? description,
       Value<String>? level,
@@ -304,6 +346,7 @@ class SectionsCompanion extends UpdateCompanion<Section> {
       Value<int>? rowid}) {
     return SectionsCompanion(
       id: id ?? this.id,
+      languageCode: languageCode ?? this.languageCode,
       name: name ?? this.name,
       description: description ?? this.description,
       level: level ?? this.level,
@@ -319,6 +362,9 @@ class SectionsCompanion extends UpdateCompanion<Section> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<String>(id.value);
+    }
+    if (languageCode.present) {
+      map['language_code'] = Variable<String>(languageCode.value);
     }
     if (name.present) {
       map['name'] = Variable<String>(name.value);
@@ -346,6 +392,7 @@ class SectionsCompanion extends UpdateCompanion<Section> {
   String toString() {
     return (StringBuffer('SectionsCompanion(')
           ..write('id: $id, ')
+          ..write('languageCode: $languageCode, ')
           ..write('name: $name, ')
           ..write('description: $description, ')
           ..write('level: $level, ')
@@ -367,6 +414,14 @@ class $UnitsTable extends Units with TableInfo<$UnitsTable, Unit> {
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
       'id', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _languageCodeMeta =
+      const VerificationMeta('languageCode');
+  @override
+  late final GeneratedColumn<String> languageCode = GeneratedColumn<String>(
+      'language_code', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('tr'));
   static const VerificationMeta _sectionIdMeta =
       const VerificationMeta('sectionId');
   @override
@@ -405,8 +460,15 @@ class $UnitsTable extends Units with TableInfo<$UnitsTable, Unit> {
       requiredDuringInsert: false,
       defaultValue: const Constant(0));
   @override
-  List<GeneratedColumn> get $columns =>
-      [id, sectionId, name, description, prerequisiteUnitIds, sortOrder];
+  List<GeneratedColumn> get $columns => [
+        id,
+        languageCode,
+        sectionId,
+        name,
+        description,
+        prerequisiteUnitIds,
+        sortOrder
+      ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -421,6 +483,12 @@ class $UnitsTable extends Units with TableInfo<$UnitsTable, Unit> {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     } else if (isInserting) {
       context.missing(_idMeta);
+    }
+    if (data.containsKey('language_code')) {
+      context.handle(
+          _languageCodeMeta,
+          languageCode.isAcceptableOrUnknown(
+              data['language_code']!, _languageCodeMeta));
     }
     if (data.containsKey('section_id')) {
       context.handle(_sectionIdMeta,
@@ -461,6 +529,8 @@ class $UnitsTable extends Units with TableInfo<$UnitsTable, Unit> {
     return Unit(
       id: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      languageCode: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}language_code'])!,
       sectionId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}section_id'])!,
       name: attachedDatabase.typeMapping
@@ -483,6 +553,7 @@ class $UnitsTable extends Units with TableInfo<$UnitsTable, Unit> {
 
 class Unit extends DataClass implements Insertable<Unit> {
   final String id;
+  final String languageCode;
   final String sectionId;
   final String name;
   final String description;
@@ -490,6 +561,7 @@ class Unit extends DataClass implements Insertable<Unit> {
   final int sortOrder;
   const Unit(
       {required this.id,
+      required this.languageCode,
       required this.sectionId,
       required this.name,
       required this.description,
@@ -499,6 +571,7 @@ class Unit extends DataClass implements Insertable<Unit> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
+    map['language_code'] = Variable<String>(languageCode);
     map['section_id'] = Variable<String>(sectionId);
     map['name'] = Variable<String>(name);
     map['description'] = Variable<String>(description);
@@ -510,6 +583,7 @@ class Unit extends DataClass implements Insertable<Unit> {
   UnitsCompanion toCompanion(bool nullToAbsent) {
     return UnitsCompanion(
       id: Value(id),
+      languageCode: Value(languageCode),
       sectionId: Value(sectionId),
       name: Value(name),
       description: Value(description),
@@ -523,6 +597,7 @@ class Unit extends DataClass implements Insertable<Unit> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Unit(
       id: serializer.fromJson<String>(json['id']),
+      languageCode: serializer.fromJson<String>(json['languageCode']),
       sectionId: serializer.fromJson<String>(json['sectionId']),
       name: serializer.fromJson<String>(json['name']),
       description: serializer.fromJson<String>(json['description']),
@@ -536,6 +611,7 @@ class Unit extends DataClass implements Insertable<Unit> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
+      'languageCode': serializer.toJson<String>(languageCode),
       'sectionId': serializer.toJson<String>(sectionId),
       'name': serializer.toJson<String>(name),
       'description': serializer.toJson<String>(description),
@@ -546,6 +622,7 @@ class Unit extends DataClass implements Insertable<Unit> {
 
   Unit copyWith(
           {String? id,
+          String? languageCode,
           String? sectionId,
           String? name,
           String? description,
@@ -553,6 +630,7 @@ class Unit extends DataClass implements Insertable<Unit> {
           int? sortOrder}) =>
       Unit(
         id: id ?? this.id,
+        languageCode: languageCode ?? this.languageCode,
         sectionId: sectionId ?? this.sectionId,
         name: name ?? this.name,
         description: description ?? this.description,
@@ -562,6 +640,9 @@ class Unit extends DataClass implements Insertable<Unit> {
   Unit copyWithCompanion(UnitsCompanion data) {
     return Unit(
       id: data.id.present ? data.id.value : this.id,
+      languageCode: data.languageCode.present
+          ? data.languageCode.value
+          : this.languageCode,
       sectionId: data.sectionId.present ? data.sectionId.value : this.sectionId,
       name: data.name.present ? data.name.value : this.name,
       description:
@@ -577,6 +658,7 @@ class Unit extends DataClass implements Insertable<Unit> {
   String toString() {
     return (StringBuffer('Unit(')
           ..write('id: $id, ')
+          ..write('languageCode: $languageCode, ')
           ..write('sectionId: $sectionId, ')
           ..write('name: $name, ')
           ..write('description: $description, ')
@@ -587,13 +669,14 @@ class Unit extends DataClass implements Insertable<Unit> {
   }
 
   @override
-  int get hashCode => Object.hash(
-      id, sectionId, name, description, prerequisiteUnitIds, sortOrder);
+  int get hashCode => Object.hash(id, languageCode, sectionId, name,
+      description, prerequisiteUnitIds, sortOrder);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Unit &&
           other.id == this.id &&
+          other.languageCode == this.languageCode &&
           other.sectionId == this.sectionId &&
           other.name == this.name &&
           other.description == this.description &&
@@ -603,6 +686,7 @@ class Unit extends DataClass implements Insertable<Unit> {
 
 class UnitsCompanion extends UpdateCompanion<Unit> {
   final Value<String> id;
+  final Value<String> languageCode;
   final Value<String> sectionId;
   final Value<String> name;
   final Value<String> description;
@@ -611,6 +695,7 @@ class UnitsCompanion extends UpdateCompanion<Unit> {
   final Value<int> rowid;
   const UnitsCompanion({
     this.id = const Value.absent(),
+    this.languageCode = const Value.absent(),
     this.sectionId = const Value.absent(),
     this.name = const Value.absent(),
     this.description = const Value.absent(),
@@ -620,6 +705,7 @@ class UnitsCompanion extends UpdateCompanion<Unit> {
   });
   UnitsCompanion.insert({
     required String id,
+    this.languageCode = const Value.absent(),
     required String sectionId,
     required String name,
     this.description = const Value.absent(),
@@ -631,6 +717,7 @@ class UnitsCompanion extends UpdateCompanion<Unit> {
         name = Value(name);
   static Insertable<Unit> custom({
     Expression<String>? id,
+    Expression<String>? languageCode,
     Expression<String>? sectionId,
     Expression<String>? name,
     Expression<String>? description,
@@ -640,6 +727,7 @@ class UnitsCompanion extends UpdateCompanion<Unit> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (languageCode != null) 'language_code': languageCode,
       if (sectionId != null) 'section_id': sectionId,
       if (name != null) 'name': name,
       if (description != null) 'description': description,
@@ -652,6 +740,7 @@ class UnitsCompanion extends UpdateCompanion<Unit> {
 
   UnitsCompanion copyWith(
       {Value<String>? id,
+      Value<String>? languageCode,
       Value<String>? sectionId,
       Value<String>? name,
       Value<String>? description,
@@ -660,6 +749,7 @@ class UnitsCompanion extends UpdateCompanion<Unit> {
       Value<int>? rowid}) {
     return UnitsCompanion(
       id: id ?? this.id,
+      languageCode: languageCode ?? this.languageCode,
       sectionId: sectionId ?? this.sectionId,
       name: name ?? this.name,
       description: description ?? this.description,
@@ -674,6 +764,9 @@ class UnitsCompanion extends UpdateCompanion<Unit> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<String>(id.value);
+    }
+    if (languageCode.present) {
+      map['language_code'] = Variable<String>(languageCode.value);
     }
     if (sectionId.present) {
       map['section_id'] = Variable<String>(sectionId.value);
@@ -701,6 +794,7 @@ class UnitsCompanion extends UpdateCompanion<Unit> {
   String toString() {
     return (StringBuffer('UnitsCompanion(')
           ..write('id: $id, ')
+          ..write('languageCode: $languageCode, ')
           ..write('sectionId: $sectionId, ')
           ..write('name: $name, ')
           ..write('description: $description, ')
@@ -722,6 +816,14 @@ class $LessonsTable extends Lessons with TableInfo<$LessonsTable, Lesson> {
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
       'id', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _languageCodeMeta =
+      const VerificationMeta('languageCode');
+  @override
+  late final GeneratedColumn<String> languageCode = GeneratedColumn<String>(
+      'language_code', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('tr'));
   static const VerificationMeta _unitIdMeta = const VerificationMeta('unitId');
   @override
   late final GeneratedColumn<String> unitId = GeneratedColumn<String>(
@@ -776,6 +878,7 @@ class $LessonsTable extends Lessons with TableInfo<$LessonsTable, Lesson> {
   @override
   List<GeneratedColumn> get $columns => [
         id,
+        languageCode,
         unitId,
         name,
         description,
@@ -798,6 +901,12 @@ class $LessonsTable extends Lessons with TableInfo<$LessonsTable, Lesson> {
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     } else if (isInserting) {
       context.missing(_idMeta);
+    }
+    if (data.containsKey('language_code')) {
+      context.handle(
+          _languageCodeMeta,
+          languageCode.isAcceptableOrUnknown(
+              data['language_code']!, _languageCodeMeta));
     }
     if (data.containsKey('unit_id')) {
       context.handle(_unitIdMeta,
@@ -846,6 +955,8 @@ class $LessonsTable extends Lessons with TableInfo<$LessonsTable, Lesson> {
     return Lesson(
       id: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      languageCode: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}language_code'])!,
       unitId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}unit_id'])!,
       name: attachedDatabase.typeMapping
@@ -872,6 +983,7 @@ class $LessonsTable extends Lessons with TableInfo<$LessonsTable, Lesson> {
 
 class Lesson extends DataClass implements Insertable<Lesson> {
   final String id;
+  final String languageCode;
   final String unitId;
   final String name;
   final String description;
@@ -881,6 +993,7 @@ class Lesson extends DataClass implements Insertable<Lesson> {
   final int sortOrder;
   const Lesson(
       {required this.id,
+      required this.languageCode,
       required this.unitId,
       required this.name,
       required this.description,
@@ -892,6 +1005,7 @@ class Lesson extends DataClass implements Insertable<Lesson> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
+    map['language_code'] = Variable<String>(languageCode);
     map['unit_id'] = Variable<String>(unitId);
     map['name'] = Variable<String>(name);
     map['description'] = Variable<String>(description);
@@ -905,6 +1019,7 @@ class Lesson extends DataClass implements Insertable<Lesson> {
   LessonsCompanion toCompanion(bool nullToAbsent) {
     return LessonsCompanion(
       id: Value(id),
+      languageCode: Value(languageCode),
       unitId: Value(unitId),
       name: Value(name),
       description: Value(description),
@@ -920,6 +1035,7 @@ class Lesson extends DataClass implements Insertable<Lesson> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return Lesson(
       id: serializer.fromJson<String>(json['id']),
+      languageCode: serializer.fromJson<String>(json['languageCode']),
       unitId: serializer.fromJson<String>(json['unitId']),
       name: serializer.fromJson<String>(json['name']),
       description: serializer.fromJson<String>(json['description']),
@@ -935,6 +1051,7 @@ class Lesson extends DataClass implements Insertable<Lesson> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
+      'languageCode': serializer.toJson<String>(languageCode),
       'unitId': serializer.toJson<String>(unitId),
       'name': serializer.toJson<String>(name),
       'description': serializer.toJson<String>(description),
@@ -947,6 +1064,7 @@ class Lesson extends DataClass implements Insertable<Lesson> {
 
   Lesson copyWith(
           {String? id,
+          String? languageCode,
           String? unitId,
           String? name,
           String? description,
@@ -956,6 +1074,7 @@ class Lesson extends DataClass implements Insertable<Lesson> {
           int? sortOrder}) =>
       Lesson(
         id: id ?? this.id,
+        languageCode: languageCode ?? this.languageCode,
         unitId: unitId ?? this.unitId,
         name: name ?? this.name,
         description: description ?? this.description,
@@ -968,6 +1087,9 @@ class Lesson extends DataClass implements Insertable<Lesson> {
   Lesson copyWithCompanion(LessonsCompanion data) {
     return Lesson(
       id: data.id.present ? data.id.value : this.id,
+      languageCode: data.languageCode.present
+          ? data.languageCode.value
+          : this.languageCode,
       unitId: data.unitId.present ? data.unitId.value : this.unitId,
       name: data.name.present ? data.name.value : this.name,
       description:
@@ -985,6 +1107,7 @@ class Lesson extends DataClass implements Insertable<Lesson> {
   String toString() {
     return (StringBuffer('Lesson(')
           ..write('id: $id, ')
+          ..write('languageCode: $languageCode, ')
           ..write('unitId: $unitId, ')
           ..write('name: $name, ')
           ..write('description: $description, ')
@@ -997,13 +1120,14 @@ class Lesson extends DataClass implements Insertable<Lesson> {
   }
 
   @override
-  int get hashCode => Object.hash(id, unitId, name, description, type, template,
-      prerequisiteLessonIds, sortOrder);
+  int get hashCode => Object.hash(id, languageCode, unitId, name, description,
+      type, template, prerequisiteLessonIds, sortOrder);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Lesson &&
           other.id == this.id &&
+          other.languageCode == this.languageCode &&
           other.unitId == this.unitId &&
           other.name == this.name &&
           other.description == this.description &&
@@ -1015,6 +1139,7 @@ class Lesson extends DataClass implements Insertable<Lesson> {
 
 class LessonsCompanion extends UpdateCompanion<Lesson> {
   final Value<String> id;
+  final Value<String> languageCode;
   final Value<String> unitId;
   final Value<String> name;
   final Value<String> description;
@@ -1025,6 +1150,7 @@ class LessonsCompanion extends UpdateCompanion<Lesson> {
   final Value<int> rowid;
   const LessonsCompanion({
     this.id = const Value.absent(),
+    this.languageCode = const Value.absent(),
     this.unitId = const Value.absent(),
     this.name = const Value.absent(),
     this.description = const Value.absent(),
@@ -1036,6 +1162,7 @@ class LessonsCompanion extends UpdateCompanion<Lesson> {
   });
   LessonsCompanion.insert({
     required String id,
+    this.languageCode = const Value.absent(),
     required String unitId,
     required String name,
     this.description = const Value.absent(),
@@ -1049,6 +1176,7 @@ class LessonsCompanion extends UpdateCompanion<Lesson> {
         name = Value(name);
   static Insertable<Lesson> custom({
     Expression<String>? id,
+    Expression<String>? languageCode,
     Expression<String>? unitId,
     Expression<String>? name,
     Expression<String>? description,
@@ -1060,6 +1188,7 @@ class LessonsCompanion extends UpdateCompanion<Lesson> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (languageCode != null) 'language_code': languageCode,
       if (unitId != null) 'unit_id': unitId,
       if (name != null) 'name': name,
       if (description != null) 'description': description,
@@ -1074,6 +1203,7 @@ class LessonsCompanion extends UpdateCompanion<Lesson> {
 
   LessonsCompanion copyWith(
       {Value<String>? id,
+      Value<String>? languageCode,
       Value<String>? unitId,
       Value<String>? name,
       Value<String>? description,
@@ -1084,6 +1214,7 @@ class LessonsCompanion extends UpdateCompanion<Lesson> {
       Value<int>? rowid}) {
     return LessonsCompanion(
       id: id ?? this.id,
+      languageCode: languageCode ?? this.languageCode,
       unitId: unitId ?? this.unitId,
       name: name ?? this.name,
       description: description ?? this.description,
@@ -1101,6 +1232,9 @@ class LessonsCompanion extends UpdateCompanion<Lesson> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<String>(id.value);
+    }
+    if (languageCode.present) {
+      map['language_code'] = Variable<String>(languageCode.value);
     }
     if (unitId.present) {
       map['unit_id'] = Variable<String>(unitId.value);
@@ -1134,6 +1268,7 @@ class LessonsCompanion extends UpdateCompanion<Lesson> {
   String toString() {
     return (StringBuffer('LessonsCompanion(')
           ..write('id: $id, ')
+          ..write('languageCode: $languageCode, ')
           ..write('unitId: $unitId, ')
           ..write('name: $name, ')
           ..write('description: $description, ')
@@ -1161,6 +1296,14 @@ class $LessonContentsTable extends LessonContents
       type: DriftSqlType.string,
       requiredDuringInsert: true,
       $customConstraints: 'NOT NULL REFERENCES lessons(id) ON DELETE CASCADE');
+  static const VerificationMeta _languageCodeMeta =
+      const VerificationMeta('languageCode');
+  @override
+  late final GeneratedColumn<String> languageCode = GeneratedColumn<String>(
+      'language_code', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('tr'));
   static const VerificationMeta _contentJsonMeta =
       const VerificationMeta('contentJson');
   @override
@@ -1168,7 +1311,7 @@ class $LessonContentsTable extends LessonContents
       'content_json', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
   @override
-  List<GeneratedColumn> get $columns => [lessonId, contentJson];
+  List<GeneratedColumn> get $columns => [lessonId, languageCode, contentJson];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1184,6 +1327,12 @@ class $LessonContentsTable extends LessonContents
           lessonId.isAcceptableOrUnknown(data['lesson_id']!, _lessonIdMeta));
     } else if (isInserting) {
       context.missing(_lessonIdMeta);
+    }
+    if (data.containsKey('language_code')) {
+      context.handle(
+          _languageCodeMeta,
+          languageCode.isAcceptableOrUnknown(
+              data['language_code']!, _languageCodeMeta));
     }
     if (data.containsKey('content_json')) {
       context.handle(
@@ -1204,6 +1353,8 @@ class $LessonContentsTable extends LessonContents
     return LessonContent(
       lessonId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}lesson_id'])!,
+      languageCode: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}language_code'])!,
       contentJson: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}content_json'])!,
     );
@@ -1217,12 +1368,17 @@ class $LessonContentsTable extends LessonContents
 
 class LessonContent extends DataClass implements Insertable<LessonContent> {
   final String lessonId;
+  final String languageCode;
   final String contentJson;
-  const LessonContent({required this.lessonId, required this.contentJson});
+  const LessonContent(
+      {required this.lessonId,
+      required this.languageCode,
+      required this.contentJson});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['lesson_id'] = Variable<String>(lessonId);
+    map['language_code'] = Variable<String>(languageCode);
     map['content_json'] = Variable<String>(contentJson);
     return map;
   }
@@ -1230,6 +1386,7 @@ class LessonContent extends DataClass implements Insertable<LessonContent> {
   LessonContentsCompanion toCompanion(bool nullToAbsent) {
     return LessonContentsCompanion(
       lessonId: Value(lessonId),
+      languageCode: Value(languageCode),
       contentJson: Value(contentJson),
     );
   }
@@ -1239,6 +1396,7 @@ class LessonContent extends DataClass implements Insertable<LessonContent> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return LessonContent(
       lessonId: serializer.fromJson<String>(json['lessonId']),
+      languageCode: serializer.fromJson<String>(json['languageCode']),
       contentJson: serializer.fromJson<String>(json['contentJson']),
     );
   }
@@ -1247,18 +1405,24 @@ class LessonContent extends DataClass implements Insertable<LessonContent> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'lessonId': serializer.toJson<String>(lessonId),
+      'languageCode': serializer.toJson<String>(languageCode),
       'contentJson': serializer.toJson<String>(contentJson),
     };
   }
 
-  LessonContent copyWith({String? lessonId, String? contentJson}) =>
+  LessonContent copyWith(
+          {String? lessonId, String? languageCode, String? contentJson}) =>
       LessonContent(
         lessonId: lessonId ?? this.lessonId,
+        languageCode: languageCode ?? this.languageCode,
         contentJson: contentJson ?? this.contentJson,
       );
   LessonContent copyWithCompanion(LessonContentsCompanion data) {
     return LessonContent(
       lessonId: data.lessonId.present ? data.lessonId.value : this.lessonId,
+      languageCode: data.languageCode.present
+          ? data.languageCode.value
+          : this.languageCode,
       contentJson:
           data.contentJson.present ? data.contentJson.value : this.contentJson,
     );
@@ -1268,43 +1432,50 @@ class LessonContent extends DataClass implements Insertable<LessonContent> {
   String toString() {
     return (StringBuffer('LessonContent(')
           ..write('lessonId: $lessonId, ')
+          ..write('languageCode: $languageCode, ')
           ..write('contentJson: $contentJson')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(lessonId, contentJson);
+  int get hashCode => Object.hash(lessonId, languageCode, contentJson);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is LessonContent &&
           other.lessonId == this.lessonId &&
+          other.languageCode == this.languageCode &&
           other.contentJson == this.contentJson);
 }
 
 class LessonContentsCompanion extends UpdateCompanion<LessonContent> {
   final Value<String> lessonId;
+  final Value<String> languageCode;
   final Value<String> contentJson;
   final Value<int> rowid;
   const LessonContentsCompanion({
     this.lessonId = const Value.absent(),
+    this.languageCode = const Value.absent(),
     this.contentJson = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   LessonContentsCompanion.insert({
     required String lessonId,
+    this.languageCode = const Value.absent(),
     required String contentJson,
     this.rowid = const Value.absent(),
   })  : lessonId = Value(lessonId),
         contentJson = Value(contentJson);
   static Insertable<LessonContent> custom({
     Expression<String>? lessonId,
+    Expression<String>? languageCode,
     Expression<String>? contentJson,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (lessonId != null) 'lesson_id': lessonId,
+      if (languageCode != null) 'language_code': languageCode,
       if (contentJson != null) 'content_json': contentJson,
       if (rowid != null) 'rowid': rowid,
     });
@@ -1312,10 +1483,12 @@ class LessonContentsCompanion extends UpdateCompanion<LessonContent> {
 
   LessonContentsCompanion copyWith(
       {Value<String>? lessonId,
+      Value<String>? languageCode,
       Value<String>? contentJson,
       Value<int>? rowid}) {
     return LessonContentsCompanion(
       lessonId: lessonId ?? this.lessonId,
+      languageCode: languageCode ?? this.languageCode,
       contentJson: contentJson ?? this.contentJson,
       rowid: rowid ?? this.rowid,
     );
@@ -1326,6 +1499,9 @@ class LessonContentsCompanion extends UpdateCompanion<LessonContent> {
     final map = <String, Expression>{};
     if (lessonId.present) {
       map['lesson_id'] = Variable<String>(lessonId.value);
+    }
+    if (languageCode.present) {
+      map['language_code'] = Variable<String>(languageCode.value);
     }
     if (contentJson.present) {
       map['content_json'] = Variable<String>(contentJson.value);
@@ -1340,6 +1516,7 @@ class LessonContentsCompanion extends UpdateCompanion<LessonContent> {
   String toString() {
     return (StringBuffer('LessonContentsCompanion(')
           ..write('lessonId: $lessonId, ')
+          ..write('languageCode: $languageCode, ')
           ..write('contentJson: $contentJson, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -1358,6 +1535,14 @@ class $VocabularyTable extends Vocabulary
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
       'id', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _languageCodeMeta =
+      const VerificationMeta('languageCode');
+  @override
+  late final GeneratedColumn<String> languageCode = GeneratedColumn<String>(
+      'language_code', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('tr'));
   static const VerificationMeta _termMeta = const VerificationMeta('term');
   @override
   late final GeneratedColumn<String> term = GeneratedColumn<String>(
@@ -1390,7 +1575,7 @@ class $VocabularyTable extends Vocabulary
       defaultValue: const Constant('[]'));
   @override
   List<GeneratedColumn> get $columns =>
-      [id, term, translation, pronunciation, audioAsset, tags];
+      [id, languageCode, term, translation, pronunciation, audioAsset, tags];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1405,6 +1590,12 @@ class $VocabularyTable extends Vocabulary
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     } else if (isInserting) {
       context.missing(_idMeta);
+    }
+    if (data.containsKey('language_code')) {
+      context.handle(
+          _languageCodeMeta,
+          languageCode.isAcceptableOrUnknown(
+              data['language_code']!, _languageCodeMeta));
     }
     if (data.containsKey('term')) {
       context.handle(
@@ -1440,13 +1631,15 @@ class $VocabularyTable extends Vocabulary
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {id};
+  Set<GeneratedColumn> get $primaryKey => {languageCode, id};
   @override
   VocabularyData map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return VocabularyData(
       id: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      languageCode: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}language_code'])!,
       term: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}term'])!,
       translation: attachedDatabase.typeMapping
@@ -1468,6 +1661,7 @@ class $VocabularyTable extends Vocabulary
 
 class VocabularyData extends DataClass implements Insertable<VocabularyData> {
   final String id;
+  final String languageCode;
   final String term;
   final String translation;
   final String? pronunciation;
@@ -1475,6 +1669,7 @@ class VocabularyData extends DataClass implements Insertable<VocabularyData> {
   final String tags;
   const VocabularyData(
       {required this.id,
+      required this.languageCode,
       required this.term,
       required this.translation,
       this.pronunciation,
@@ -1484,6 +1679,7 @@ class VocabularyData extends DataClass implements Insertable<VocabularyData> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
+    map['language_code'] = Variable<String>(languageCode);
     map['term'] = Variable<String>(term);
     map['translation'] = Variable<String>(translation);
     if (!nullToAbsent || pronunciation != null) {
@@ -1499,6 +1695,7 @@ class VocabularyData extends DataClass implements Insertable<VocabularyData> {
   VocabularyCompanion toCompanion(bool nullToAbsent) {
     return VocabularyCompanion(
       id: Value(id),
+      languageCode: Value(languageCode),
       term: Value(term),
       translation: Value(translation),
       pronunciation: pronunciation == null && nullToAbsent
@@ -1516,6 +1713,7 @@ class VocabularyData extends DataClass implements Insertable<VocabularyData> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return VocabularyData(
       id: serializer.fromJson<String>(json['id']),
+      languageCode: serializer.fromJson<String>(json['languageCode']),
       term: serializer.fromJson<String>(json['term']),
       translation: serializer.fromJson<String>(json['translation']),
       pronunciation: serializer.fromJson<String?>(json['pronunciation']),
@@ -1528,6 +1726,7 @@ class VocabularyData extends DataClass implements Insertable<VocabularyData> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
+      'languageCode': serializer.toJson<String>(languageCode),
       'term': serializer.toJson<String>(term),
       'translation': serializer.toJson<String>(translation),
       'pronunciation': serializer.toJson<String?>(pronunciation),
@@ -1538,6 +1737,7 @@ class VocabularyData extends DataClass implements Insertable<VocabularyData> {
 
   VocabularyData copyWith(
           {String? id,
+          String? languageCode,
           String? term,
           String? translation,
           Value<String?> pronunciation = const Value.absent(),
@@ -1545,6 +1745,7 @@ class VocabularyData extends DataClass implements Insertable<VocabularyData> {
           String? tags}) =>
       VocabularyData(
         id: id ?? this.id,
+        languageCode: languageCode ?? this.languageCode,
         term: term ?? this.term,
         translation: translation ?? this.translation,
         pronunciation:
@@ -1555,6 +1756,9 @@ class VocabularyData extends DataClass implements Insertable<VocabularyData> {
   VocabularyData copyWithCompanion(VocabularyCompanion data) {
     return VocabularyData(
       id: data.id.present ? data.id.value : this.id,
+      languageCode: data.languageCode.present
+          ? data.languageCode.value
+          : this.languageCode,
       term: data.term.present ? data.term.value : this.term,
       translation:
           data.translation.present ? data.translation.value : this.translation,
@@ -1571,6 +1775,7 @@ class VocabularyData extends DataClass implements Insertable<VocabularyData> {
   String toString() {
     return (StringBuffer('VocabularyData(')
           ..write('id: $id, ')
+          ..write('languageCode: $languageCode, ')
           ..write('term: $term, ')
           ..write('translation: $translation, ')
           ..write('pronunciation: $pronunciation, ')
@@ -1581,13 +1786,14 @@ class VocabularyData extends DataClass implements Insertable<VocabularyData> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, term, translation, pronunciation, audioAsset, tags);
+  int get hashCode => Object.hash(
+      id, languageCode, term, translation, pronunciation, audioAsset, tags);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is VocabularyData &&
           other.id == this.id &&
+          other.languageCode == this.languageCode &&
           other.term == this.term &&
           other.translation == this.translation &&
           other.pronunciation == this.pronunciation &&
@@ -1597,6 +1803,7 @@ class VocabularyData extends DataClass implements Insertable<VocabularyData> {
 
 class VocabularyCompanion extends UpdateCompanion<VocabularyData> {
   final Value<String> id;
+  final Value<String> languageCode;
   final Value<String> term;
   final Value<String> translation;
   final Value<String?> pronunciation;
@@ -1605,6 +1812,7 @@ class VocabularyCompanion extends UpdateCompanion<VocabularyData> {
   final Value<int> rowid;
   const VocabularyCompanion({
     this.id = const Value.absent(),
+    this.languageCode = const Value.absent(),
     this.term = const Value.absent(),
     this.translation = const Value.absent(),
     this.pronunciation = const Value.absent(),
@@ -1614,6 +1822,7 @@ class VocabularyCompanion extends UpdateCompanion<VocabularyData> {
   });
   VocabularyCompanion.insert({
     required String id,
+    this.languageCode = const Value.absent(),
     required String term,
     required String translation,
     this.pronunciation = const Value.absent(),
@@ -1625,6 +1834,7 @@ class VocabularyCompanion extends UpdateCompanion<VocabularyData> {
         translation = Value(translation);
   static Insertable<VocabularyData> custom({
     Expression<String>? id,
+    Expression<String>? languageCode,
     Expression<String>? term,
     Expression<String>? translation,
     Expression<String>? pronunciation,
@@ -1634,6 +1844,7 @@ class VocabularyCompanion extends UpdateCompanion<VocabularyData> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (languageCode != null) 'language_code': languageCode,
       if (term != null) 'term': term,
       if (translation != null) 'translation': translation,
       if (pronunciation != null) 'pronunciation': pronunciation,
@@ -1645,6 +1856,7 @@ class VocabularyCompanion extends UpdateCompanion<VocabularyData> {
 
   VocabularyCompanion copyWith(
       {Value<String>? id,
+      Value<String>? languageCode,
       Value<String>? term,
       Value<String>? translation,
       Value<String?>? pronunciation,
@@ -1653,6 +1865,7 @@ class VocabularyCompanion extends UpdateCompanion<VocabularyData> {
       Value<int>? rowid}) {
     return VocabularyCompanion(
       id: id ?? this.id,
+      languageCode: languageCode ?? this.languageCode,
       term: term ?? this.term,
       translation: translation ?? this.translation,
       pronunciation: pronunciation ?? this.pronunciation,
@@ -1667,6 +1880,9 @@ class VocabularyCompanion extends UpdateCompanion<VocabularyData> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<String>(id.value);
+    }
+    if (languageCode.present) {
+      map['language_code'] = Variable<String>(languageCode.value);
     }
     if (term.present) {
       map['term'] = Variable<String>(term.value);
@@ -1693,6 +1909,7 @@ class VocabularyCompanion extends UpdateCompanion<VocabularyData> {
   String toString() {
     return (StringBuffer('VocabularyCompanion(')
           ..write('id: $id, ')
+          ..write('languageCode: $languageCode, ')
           ..write('term: $term, ')
           ..write('translation: $translation, ')
           ..write('pronunciation: $pronunciation, ')
@@ -1715,6 +1932,14 @@ class $GrammarPointsTable extends GrammarPoints
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
       'id', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _languageCodeMeta =
+      const VerificationMeta('languageCode');
+  @override
+  late final GeneratedColumn<String> languageCode = GeneratedColumn<String>(
+      'language_code', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('tr'));
   static const VerificationMeta _titleMeta = const VerificationMeta('title');
   @override
   late final GeneratedColumn<String> title = GeneratedColumn<String>(
@@ -1755,6 +1980,7 @@ class $GrammarPointsTable extends GrammarPoints
   @override
   List<GeneratedColumn> get $columns => [
         id,
+        languageCode,
         title,
         explanation,
         exampleExpressionIds,
@@ -1775,6 +2001,12 @@ class $GrammarPointsTable extends GrammarPoints
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     } else if (isInserting) {
       context.missing(_idMeta);
+    }
+    if (data.containsKey('language_code')) {
+      context.handle(
+          _languageCodeMeta,
+          languageCode.isAcceptableOrUnknown(
+              data['language_code']!, _languageCodeMeta));
     }
     if (data.containsKey('title')) {
       context.handle(
@@ -1810,13 +2042,15 @@ class $GrammarPointsTable extends GrammarPoints
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {id};
+  Set<GeneratedColumn> get $primaryKey => {languageCode, id};
   @override
   GrammarPoint map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return GrammarPoint(
       id: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      languageCode: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}language_code'])!,
       title: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}title'])!,
       explanation: attachedDatabase.typeMapping
@@ -1839,6 +2073,7 @@ class $GrammarPointsTable extends GrammarPoints
 
 class GrammarPoint extends DataClass implements Insertable<GrammarPoint> {
   final String id;
+  final String languageCode;
   final String title;
   final String explanation;
   final String exampleExpressionIds;
@@ -1846,6 +2081,7 @@ class GrammarPoint extends DataClass implements Insertable<GrammarPoint> {
   final String practiceItems;
   const GrammarPoint(
       {required this.id,
+      required this.languageCode,
       required this.title,
       required this.explanation,
       required this.exampleExpressionIds,
@@ -1855,6 +2091,7 @@ class GrammarPoint extends DataClass implements Insertable<GrammarPoint> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
+    map['language_code'] = Variable<String>(languageCode);
     map['title'] = Variable<String>(title);
     map['explanation'] = Variable<String>(explanation);
     map['example_expression_ids'] = Variable<String>(exampleExpressionIds);
@@ -1866,6 +2103,7 @@ class GrammarPoint extends DataClass implements Insertable<GrammarPoint> {
   GrammarPointsCompanion toCompanion(bool nullToAbsent) {
     return GrammarPointsCompanion(
       id: Value(id),
+      languageCode: Value(languageCode),
       title: Value(title),
       explanation: Value(explanation),
       exampleExpressionIds: Value(exampleExpressionIds),
@@ -1879,6 +2117,7 @@ class GrammarPoint extends DataClass implements Insertable<GrammarPoint> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return GrammarPoint(
       id: serializer.fromJson<String>(json['id']),
+      languageCode: serializer.fromJson<String>(json['languageCode']),
       title: serializer.fromJson<String>(json['title']),
       explanation: serializer.fromJson<String>(json['explanation']),
       exampleExpressionIds:
@@ -1893,6 +2132,7 @@ class GrammarPoint extends DataClass implements Insertable<GrammarPoint> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
+      'languageCode': serializer.toJson<String>(languageCode),
       'title': serializer.toJson<String>(title),
       'explanation': serializer.toJson<String>(explanation),
       'exampleExpressionIds': serializer.toJson<String>(exampleExpressionIds),
@@ -1903,6 +2143,7 @@ class GrammarPoint extends DataClass implements Insertable<GrammarPoint> {
 
   GrammarPoint copyWith(
           {String? id,
+          String? languageCode,
           String? title,
           String? explanation,
           String? exampleExpressionIds,
@@ -1910,6 +2151,7 @@ class GrammarPoint extends DataClass implements Insertable<GrammarPoint> {
           String? practiceItems}) =>
       GrammarPoint(
         id: id ?? this.id,
+        languageCode: languageCode ?? this.languageCode,
         title: title ?? this.title,
         explanation: explanation ?? this.explanation,
         exampleExpressionIds: exampleExpressionIds ?? this.exampleExpressionIds,
@@ -1919,6 +2161,9 @@ class GrammarPoint extends DataClass implements Insertable<GrammarPoint> {
   GrammarPoint copyWithCompanion(GrammarPointsCompanion data) {
     return GrammarPoint(
       id: data.id.present ? data.id.value : this.id,
+      languageCode: data.languageCode.present
+          ? data.languageCode.value
+          : this.languageCode,
       title: data.title.present ? data.title.value : this.title,
       explanation:
           data.explanation.present ? data.explanation.value : this.explanation,
@@ -1938,6 +2183,7 @@ class GrammarPoint extends DataClass implements Insertable<GrammarPoint> {
   String toString() {
     return (StringBuffer('GrammarPoint(')
           ..write('id: $id, ')
+          ..write('languageCode: $languageCode, ')
           ..write('title: $title, ')
           ..write('explanation: $explanation, ')
           ..write('exampleExpressionIds: $exampleExpressionIds, ')
@@ -1948,13 +2194,14 @@ class GrammarPoint extends DataClass implements Insertable<GrammarPoint> {
   }
 
   @override
-  int get hashCode => Object.hash(id, title, explanation, exampleExpressionIds,
-      exampleSentenceIds, practiceItems);
+  int get hashCode => Object.hash(id, languageCode, title, explanation,
+      exampleExpressionIds, exampleSentenceIds, practiceItems);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is GrammarPoint &&
           other.id == this.id &&
+          other.languageCode == this.languageCode &&
           other.title == this.title &&
           other.explanation == this.explanation &&
           other.exampleExpressionIds == this.exampleExpressionIds &&
@@ -1964,6 +2211,7 @@ class GrammarPoint extends DataClass implements Insertable<GrammarPoint> {
 
 class GrammarPointsCompanion extends UpdateCompanion<GrammarPoint> {
   final Value<String> id;
+  final Value<String> languageCode;
   final Value<String> title;
   final Value<String> explanation;
   final Value<String> exampleExpressionIds;
@@ -1972,6 +2220,7 @@ class GrammarPointsCompanion extends UpdateCompanion<GrammarPoint> {
   final Value<int> rowid;
   const GrammarPointsCompanion({
     this.id = const Value.absent(),
+    this.languageCode = const Value.absent(),
     this.title = const Value.absent(),
     this.explanation = const Value.absent(),
     this.exampleExpressionIds = const Value.absent(),
@@ -1981,6 +2230,7 @@ class GrammarPointsCompanion extends UpdateCompanion<GrammarPoint> {
   });
   GrammarPointsCompanion.insert({
     required String id,
+    this.languageCode = const Value.absent(),
     required String title,
     this.explanation = const Value.absent(),
     this.exampleExpressionIds = const Value.absent(),
@@ -1991,6 +2241,7 @@ class GrammarPointsCompanion extends UpdateCompanion<GrammarPoint> {
         title = Value(title);
   static Insertable<GrammarPoint> custom({
     Expression<String>? id,
+    Expression<String>? languageCode,
     Expression<String>? title,
     Expression<String>? explanation,
     Expression<String>? exampleExpressionIds,
@@ -2000,6 +2251,7 @@ class GrammarPointsCompanion extends UpdateCompanion<GrammarPoint> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (languageCode != null) 'language_code': languageCode,
       if (title != null) 'title': title,
       if (explanation != null) 'explanation': explanation,
       if (exampleExpressionIds != null)
@@ -2013,6 +2265,7 @@ class GrammarPointsCompanion extends UpdateCompanion<GrammarPoint> {
 
   GrammarPointsCompanion copyWith(
       {Value<String>? id,
+      Value<String>? languageCode,
       Value<String>? title,
       Value<String>? explanation,
       Value<String>? exampleExpressionIds,
@@ -2021,6 +2274,7 @@ class GrammarPointsCompanion extends UpdateCompanion<GrammarPoint> {
       Value<int>? rowid}) {
     return GrammarPointsCompanion(
       id: id ?? this.id,
+      languageCode: languageCode ?? this.languageCode,
       title: title ?? this.title,
       explanation: explanation ?? this.explanation,
       exampleExpressionIds: exampleExpressionIds ?? this.exampleExpressionIds,
@@ -2035,6 +2289,9 @@ class GrammarPointsCompanion extends UpdateCompanion<GrammarPoint> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<String>(id.value);
+    }
+    if (languageCode.present) {
+      map['language_code'] = Variable<String>(languageCode.value);
     }
     if (title.present) {
       map['title'] = Variable<String>(title.value);
@@ -2062,6 +2319,7 @@ class GrammarPointsCompanion extends UpdateCompanion<GrammarPoint> {
   String toString() {
     return (StringBuffer('GrammarPointsCompanion(')
           ..write('id: $id, ')
+          ..write('languageCode: $languageCode, ')
           ..write('title: $title, ')
           ..write('explanation: $explanation, ')
           ..write('exampleExpressionIds: $exampleExpressionIds, ')
@@ -2274,6 +2532,14 @@ class $ExpressionsTable extends Expressions
   late final GeneratedColumn<String> id = GeneratedColumn<String>(
       'id', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _languageCodeMeta =
+      const VerificationMeta('languageCode');
+  @override
+  late final GeneratedColumn<String> languageCode = GeneratedColumn<String>(
+      'language_code', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('tr'));
   static const VerificationMeta _termMeta = const VerificationMeta('term');
   @override
   late final GeneratedColumn<String> term = GeneratedColumn<String>(
@@ -2306,7 +2572,7 @@ class $ExpressionsTable extends Expressions
       defaultValue: const Constant('[]'));
   @override
   List<GeneratedColumn> get $columns =>
-      [id, term, translation, pronunciation, audioAsset, tags];
+      [id, languageCode, term, translation, pronunciation, audioAsset, tags];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -2321,6 +2587,12 @@ class $ExpressionsTable extends Expressions
       context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
     } else if (isInserting) {
       context.missing(_idMeta);
+    }
+    if (data.containsKey('language_code')) {
+      context.handle(
+          _languageCodeMeta,
+          languageCode.isAcceptableOrUnknown(
+              data['language_code']!, _languageCodeMeta));
     }
     if (data.containsKey('term')) {
       context.handle(
@@ -2356,13 +2628,15 @@ class $ExpressionsTable extends Expressions
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {id};
+  Set<GeneratedColumn> get $primaryKey => {languageCode, id};
   @override
   ExpressionEntry map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return ExpressionEntry(
       id: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      languageCode: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}language_code'])!,
       term: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}term'])!,
       translation: attachedDatabase.typeMapping
@@ -2384,6 +2658,7 @@ class $ExpressionsTable extends Expressions
 
 class ExpressionEntry extends DataClass implements Insertable<ExpressionEntry> {
   final String id;
+  final String languageCode;
   final String term;
   final String translation;
   final String? pronunciation;
@@ -2391,6 +2666,7 @@ class ExpressionEntry extends DataClass implements Insertable<ExpressionEntry> {
   final String tags;
   const ExpressionEntry(
       {required this.id,
+      required this.languageCode,
       required this.term,
       required this.translation,
       this.pronunciation,
@@ -2400,6 +2676,7 @@ class ExpressionEntry extends DataClass implements Insertable<ExpressionEntry> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['id'] = Variable<String>(id);
+    map['language_code'] = Variable<String>(languageCode);
     map['term'] = Variable<String>(term);
     map['translation'] = Variable<String>(translation);
     if (!nullToAbsent || pronunciation != null) {
@@ -2415,6 +2692,7 @@ class ExpressionEntry extends DataClass implements Insertable<ExpressionEntry> {
   ExpressionsCompanion toCompanion(bool nullToAbsent) {
     return ExpressionsCompanion(
       id: Value(id),
+      languageCode: Value(languageCode),
       term: Value(term),
       translation: Value(translation),
       pronunciation: pronunciation == null && nullToAbsent
@@ -2432,6 +2710,7 @@ class ExpressionEntry extends DataClass implements Insertable<ExpressionEntry> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return ExpressionEntry(
       id: serializer.fromJson<String>(json['id']),
+      languageCode: serializer.fromJson<String>(json['languageCode']),
       term: serializer.fromJson<String>(json['term']),
       translation: serializer.fromJson<String>(json['translation']),
       pronunciation: serializer.fromJson<String?>(json['pronunciation']),
@@ -2444,6 +2723,7 @@ class ExpressionEntry extends DataClass implements Insertable<ExpressionEntry> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'id': serializer.toJson<String>(id),
+      'languageCode': serializer.toJson<String>(languageCode),
       'term': serializer.toJson<String>(term),
       'translation': serializer.toJson<String>(translation),
       'pronunciation': serializer.toJson<String?>(pronunciation),
@@ -2454,6 +2734,7 @@ class ExpressionEntry extends DataClass implements Insertable<ExpressionEntry> {
 
   ExpressionEntry copyWith(
           {String? id,
+          String? languageCode,
           String? term,
           String? translation,
           Value<String?> pronunciation = const Value.absent(),
@@ -2461,6 +2742,7 @@ class ExpressionEntry extends DataClass implements Insertable<ExpressionEntry> {
           String? tags}) =>
       ExpressionEntry(
         id: id ?? this.id,
+        languageCode: languageCode ?? this.languageCode,
         term: term ?? this.term,
         translation: translation ?? this.translation,
         pronunciation:
@@ -2471,6 +2753,9 @@ class ExpressionEntry extends DataClass implements Insertable<ExpressionEntry> {
   ExpressionEntry copyWithCompanion(ExpressionsCompanion data) {
     return ExpressionEntry(
       id: data.id.present ? data.id.value : this.id,
+      languageCode: data.languageCode.present
+          ? data.languageCode.value
+          : this.languageCode,
       term: data.term.present ? data.term.value : this.term,
       translation:
           data.translation.present ? data.translation.value : this.translation,
@@ -2487,6 +2772,7 @@ class ExpressionEntry extends DataClass implements Insertable<ExpressionEntry> {
   String toString() {
     return (StringBuffer('ExpressionEntry(')
           ..write('id: $id, ')
+          ..write('languageCode: $languageCode, ')
           ..write('term: $term, ')
           ..write('translation: $translation, ')
           ..write('pronunciation: $pronunciation, ')
@@ -2497,13 +2783,14 @@ class ExpressionEntry extends DataClass implements Insertable<ExpressionEntry> {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, term, translation, pronunciation, audioAsset, tags);
+  int get hashCode => Object.hash(
+      id, languageCode, term, translation, pronunciation, audioAsset, tags);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is ExpressionEntry &&
           other.id == this.id &&
+          other.languageCode == this.languageCode &&
           other.term == this.term &&
           other.translation == this.translation &&
           other.pronunciation == this.pronunciation &&
@@ -2513,6 +2800,7 @@ class ExpressionEntry extends DataClass implements Insertable<ExpressionEntry> {
 
 class ExpressionsCompanion extends UpdateCompanion<ExpressionEntry> {
   final Value<String> id;
+  final Value<String> languageCode;
   final Value<String> term;
   final Value<String> translation;
   final Value<String?> pronunciation;
@@ -2521,6 +2809,7 @@ class ExpressionsCompanion extends UpdateCompanion<ExpressionEntry> {
   final Value<int> rowid;
   const ExpressionsCompanion({
     this.id = const Value.absent(),
+    this.languageCode = const Value.absent(),
     this.term = const Value.absent(),
     this.translation = const Value.absent(),
     this.pronunciation = const Value.absent(),
@@ -2530,6 +2819,7 @@ class ExpressionsCompanion extends UpdateCompanion<ExpressionEntry> {
   });
   ExpressionsCompanion.insert({
     required String id,
+    this.languageCode = const Value.absent(),
     required String term,
     required String translation,
     this.pronunciation = const Value.absent(),
@@ -2541,6 +2831,7 @@ class ExpressionsCompanion extends UpdateCompanion<ExpressionEntry> {
         translation = Value(translation);
   static Insertable<ExpressionEntry> custom({
     Expression<String>? id,
+    Expression<String>? languageCode,
     Expression<String>? term,
     Expression<String>? translation,
     Expression<String>? pronunciation,
@@ -2550,6 +2841,7 @@ class ExpressionsCompanion extends UpdateCompanion<ExpressionEntry> {
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
+      if (languageCode != null) 'language_code': languageCode,
       if (term != null) 'term': term,
       if (translation != null) 'translation': translation,
       if (pronunciation != null) 'pronunciation': pronunciation,
@@ -2561,6 +2853,7 @@ class ExpressionsCompanion extends UpdateCompanion<ExpressionEntry> {
 
   ExpressionsCompanion copyWith(
       {Value<String>? id,
+      Value<String>? languageCode,
       Value<String>? term,
       Value<String>? translation,
       Value<String?>? pronunciation,
@@ -2569,6 +2862,7 @@ class ExpressionsCompanion extends UpdateCompanion<ExpressionEntry> {
       Value<int>? rowid}) {
     return ExpressionsCompanion(
       id: id ?? this.id,
+      languageCode: languageCode ?? this.languageCode,
       term: term ?? this.term,
       translation: translation ?? this.translation,
       pronunciation: pronunciation ?? this.pronunciation,
@@ -2583,6 +2877,9 @@ class ExpressionsCompanion extends UpdateCompanion<ExpressionEntry> {
     final map = <String, Expression>{};
     if (id.present) {
       map['id'] = Variable<String>(id.value);
+    }
+    if (languageCode.present) {
+      map['language_code'] = Variable<String>(languageCode.value);
     }
     if (term.present) {
       map['term'] = Variable<String>(term.value);
@@ -2609,6 +2906,7 @@ class ExpressionsCompanion extends UpdateCompanion<ExpressionEntry> {
   String toString() {
     return (StringBuffer('ExpressionsCompanion(')
           ..write('id: $id, ')
+          ..write('languageCode: $languageCode, ')
           ..write('term: $term, ')
           ..write('translation: $translation, ')
           ..write('pronunciation: $pronunciation, ')
@@ -4483,6 +4781,14 @@ class $SrsStatesTable extends SrsStates
   late final GeneratedColumn<String> wordId = GeneratedColumn<String>(
       'word_id', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _languageCodeMeta =
+      const VerificationMeta('languageCode');
+  @override
+  late final GeneratedColumn<String> languageCode = GeneratedColumn<String>(
+      'language_code', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('tr'));
   static const VerificationMeta _queueMeta = const VerificationMeta('queue');
   @override
   late final GeneratedColumn<String> queue = GeneratedColumn<String>(
@@ -4612,6 +4918,7 @@ class $SrsStatesTable extends SrsStates
   @override
   List<GeneratedColumn> get $columns => [
         wordId,
+        languageCode,
         queue,
         dueAt,
         intervalDays,
@@ -4646,6 +4953,12 @@ class $SrsStatesTable extends SrsStates
           wordId.isAcceptableOrUnknown(data['word_id']!, _wordIdMeta));
     } else if (isInserting) {
       context.missing(_wordIdMeta);
+    }
+    if (data.containsKey('language_code')) {
+      context.handle(
+          _languageCodeMeta,
+          languageCode.isAcceptableOrUnknown(
+              data['language_code']!, _languageCodeMeta));
     }
     if (data.containsKey('queue')) {
       context.handle(
@@ -4739,13 +5052,15 @@ class $SrsStatesTable extends SrsStates
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {wordId};
+  Set<GeneratedColumn> get $primaryKey => {languageCode, wordId};
   @override
   SrsState map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
     return SrsState(
       wordId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}word_id'])!,
+      languageCode: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}language_code'])!,
       queue: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}queue'])!,
       dueAt: attachedDatabase.typeMapping
@@ -4793,6 +5108,7 @@ class $SrsStatesTable extends SrsStates
 
 class SrsState extends DataClass implements Insertable<SrsState> {
   final String wordId;
+  final String languageCode;
   final String queue;
   final int dueAt;
   final int intervalDays;
@@ -4813,6 +5129,7 @@ class SrsState extends DataClass implements Insertable<SrsState> {
   final String? ownerId;
   const SrsState(
       {required this.wordId,
+      required this.languageCode,
       required this.queue,
       required this.dueAt,
       required this.intervalDays,
@@ -4835,6 +5152,7 @@ class SrsState extends DataClass implements Insertable<SrsState> {
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['word_id'] = Variable<String>(wordId);
+    map['language_code'] = Variable<String>(languageCode);
     map['queue'] = Variable<String>(queue);
     map['due_at'] = Variable<int>(dueAt);
     map['interval_days'] = Variable<int>(intervalDays);
@@ -4873,6 +5191,7 @@ class SrsState extends DataClass implements Insertable<SrsState> {
   SrsStatesCompanion toCompanion(bool nullToAbsent) {
     return SrsStatesCompanion(
       wordId: Value(wordId),
+      languageCode: Value(languageCode),
       queue: Value(queue),
       dueAt: Value(dueAt),
       intervalDays: Value(intervalDays),
@@ -4913,6 +5232,7 @@ class SrsState extends DataClass implements Insertable<SrsState> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return SrsState(
       wordId: serializer.fromJson<String>(json['wordId']),
+      languageCode: serializer.fromJson<String>(json['languageCode']),
       queue: serializer.fromJson<String>(json['queue']),
       dueAt: serializer.fromJson<int>(json['dueAt']),
       intervalDays: serializer.fromJson<int>(json['intervalDays']),
@@ -4938,6 +5258,7 @@ class SrsState extends DataClass implements Insertable<SrsState> {
     serializer ??= driftRuntimeOptions.defaultSerializer;
     return <String, dynamic>{
       'wordId': serializer.toJson<String>(wordId),
+      'languageCode': serializer.toJson<String>(languageCode),
       'queue': serializer.toJson<String>(queue),
       'dueAt': serializer.toJson<int>(dueAt),
       'intervalDays': serializer.toJson<int>(intervalDays),
@@ -4961,6 +5282,7 @@ class SrsState extends DataClass implements Insertable<SrsState> {
 
   SrsState copyWith(
           {String? wordId,
+          String? languageCode,
           String? queue,
           int? dueAt,
           int? intervalDays,
@@ -4981,6 +5303,7 @@ class SrsState extends DataClass implements Insertable<SrsState> {
           Value<String?> ownerId = const Value.absent()}) =>
       SrsState(
         wordId: wordId ?? this.wordId,
+        languageCode: languageCode ?? this.languageCode,
         queue: queue ?? this.queue,
         dueAt: dueAt ?? this.dueAt,
         intervalDays: intervalDays ?? this.intervalDays,
@@ -5005,6 +5328,9 @@ class SrsState extends DataClass implements Insertable<SrsState> {
   SrsState copyWithCompanion(SrsStatesCompanion data) {
     return SrsState(
       wordId: data.wordId.present ? data.wordId.value : this.wordId,
+      languageCode: data.languageCode.present
+          ? data.languageCode.value
+          : this.languageCode,
       queue: data.queue.present ? data.queue.value : this.queue,
       dueAt: data.dueAt.present ? data.dueAt.value : this.dueAt,
       intervalDays: data.intervalDays.present
@@ -5039,6 +5365,7 @@ class SrsState extends DataClass implements Insertable<SrsState> {
   String toString() {
     return (StringBuffer('SrsState(')
           ..write('wordId: $wordId, ')
+          ..write('languageCode: $languageCode, ')
           ..write('queue: $queue, ')
           ..write('dueAt: $dueAt, ')
           ..write('intervalDays: $intervalDays, ')
@@ -5064,6 +5391,7 @@ class SrsState extends DataClass implements Insertable<SrsState> {
   @override
   int get hashCode => Object.hash(
       wordId,
+      languageCode,
       queue,
       dueAt,
       intervalDays,
@@ -5087,6 +5415,7 @@ class SrsState extends DataClass implements Insertable<SrsState> {
       identical(this, other) ||
       (other is SrsState &&
           other.wordId == this.wordId &&
+          other.languageCode == this.languageCode &&
           other.queue == this.queue &&
           other.dueAt == this.dueAt &&
           other.intervalDays == this.intervalDays &&
@@ -5109,6 +5438,7 @@ class SrsState extends DataClass implements Insertable<SrsState> {
 
 class SrsStatesCompanion extends UpdateCompanion<SrsState> {
   final Value<String> wordId;
+  final Value<String> languageCode;
   final Value<String> queue;
   final Value<int> dueAt;
   final Value<int> intervalDays;
@@ -5130,6 +5460,7 @@ class SrsStatesCompanion extends UpdateCompanion<SrsState> {
   final Value<int> rowid;
   const SrsStatesCompanion({
     this.wordId = const Value.absent(),
+    this.languageCode = const Value.absent(),
     this.queue = const Value.absent(),
     this.dueAt = const Value.absent(),
     this.intervalDays = const Value.absent(),
@@ -5152,6 +5483,7 @@ class SrsStatesCompanion extends UpdateCompanion<SrsState> {
   });
   SrsStatesCompanion.insert({
     required String wordId,
+    this.languageCode = const Value.absent(),
     required String queue,
     required int dueAt,
     this.intervalDays = const Value.absent(),
@@ -5176,6 +5508,7 @@ class SrsStatesCompanion extends UpdateCompanion<SrsState> {
         dueAt = Value(dueAt);
   static Insertable<SrsState> custom({
     Expression<String>? wordId,
+    Expression<String>? languageCode,
     Expression<String>? queue,
     Expression<int>? dueAt,
     Expression<int>? intervalDays,
@@ -5198,6 +5531,7 @@ class SrsStatesCompanion extends UpdateCompanion<SrsState> {
   }) {
     return RawValuesInsertable({
       if (wordId != null) 'word_id': wordId,
+      if (languageCode != null) 'language_code': languageCode,
       if (queue != null) 'queue': queue,
       if (dueAt != null) 'due_at': dueAt,
       if (intervalDays != null) 'interval_days': intervalDays,
@@ -5222,6 +5556,7 @@ class SrsStatesCompanion extends UpdateCompanion<SrsState> {
 
   SrsStatesCompanion copyWith(
       {Value<String>? wordId,
+      Value<String>? languageCode,
       Value<String>? queue,
       Value<int>? dueAt,
       Value<int>? intervalDays,
@@ -5243,6 +5578,7 @@ class SrsStatesCompanion extends UpdateCompanion<SrsState> {
       Value<int>? rowid}) {
     return SrsStatesCompanion(
       wordId: wordId ?? this.wordId,
+      languageCode: languageCode ?? this.languageCode,
       queue: queue ?? this.queue,
       dueAt: dueAt ?? this.dueAt,
       intervalDays: intervalDays ?? this.intervalDays,
@@ -5270,6 +5606,9 @@ class SrsStatesCompanion extends UpdateCompanion<SrsState> {
     final map = <String, Expression>{};
     if (wordId.present) {
       map['word_id'] = Variable<String>(wordId.value);
+    }
+    if (languageCode.present) {
+      map['language_code'] = Variable<String>(languageCode.value);
     }
     if (queue.present) {
       map['queue'] = Variable<String>(queue.value);
@@ -5335,6 +5674,7 @@ class SrsStatesCompanion extends UpdateCompanion<SrsState> {
   String toString() {
     return (StringBuffer('SrsStatesCompanion(')
           ..write('wordId: $wordId, ')
+          ..write('languageCode: $languageCode, ')
           ..write('queue: $queue, ')
           ..write('dueAt: $dueAt, ')
           ..write('intervalDays: $intervalDays, ')
@@ -5379,6 +5719,14 @@ class $ReviewEventsTable extends ReviewEvents
   late final GeneratedColumn<String> cardId = GeneratedColumn<String>(
       'card_id', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _languageCodeMeta =
+      const VerificationMeta('languageCode');
+  @override
+  late final GeneratedColumn<String> languageCode = GeneratedColumn<String>(
+      'language_code', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('tr'));
   static const VerificationMeta _queueMeta = const VerificationMeta('queue');
   @override
   late final GeneratedColumn<String> queue = GeneratedColumn<String>(
@@ -5465,6 +5813,7 @@ class $ReviewEventsTable extends ReviewEvents
   List<GeneratedColumn> get $columns => [
         id,
         cardId,
+        languageCode,
         queue,
         reviewedAt,
         quality,
@@ -5498,6 +5847,12 @@ class $ReviewEventsTable extends ReviewEvents
           cardId.isAcceptableOrUnknown(data['card_id']!, _cardIdMeta));
     } else if (isInserting) {
       context.missing(_cardIdMeta);
+    }
+    if (data.containsKey('language_code')) {
+      context.handle(
+          _languageCodeMeta,
+          languageCode.isAcceptableOrUnknown(
+              data['language_code']!, _languageCodeMeta));
     }
     if (data.containsKey('queue')) {
       context.handle(
@@ -5594,6 +5949,8 @@ class $ReviewEventsTable extends ReviewEvents
           .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
       cardId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}card_id'])!,
+      languageCode: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}language_code'])!,
       queue: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}queue'])!,
       reviewedAt: attachedDatabase.typeMapping
@@ -5634,6 +5991,7 @@ class $ReviewEventsTable extends ReviewEvents
 class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
   final int id;
   final String cardId;
+  final String languageCode;
   final String queue;
   final int reviewedAt;
   final int quality;
@@ -5651,6 +6009,7 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
   const ReviewEvent(
       {required this.id,
       required this.cardId,
+      required this.languageCode,
       required this.queue,
       required this.reviewedAt,
       required this.quality,
@@ -5670,6 +6029,7 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
     final map = <String, Expression>{};
     map['id'] = Variable<int>(id);
     map['card_id'] = Variable<String>(cardId);
+    map['language_code'] = Variable<String>(languageCode);
     map['queue'] = Variable<String>(queue);
     map['reviewed_at'] = Variable<int>(reviewedAt);
     map['quality'] = Variable<int>(quality);
@@ -5699,6 +6059,7 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
     return ReviewEventsCompanion(
       id: Value(id),
       cardId: Value(cardId),
+      languageCode: Value(languageCode),
       queue: Value(queue),
       reviewedAt: Value(reviewedAt),
       quality: Value(quality),
@@ -5730,6 +6091,7 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
     return ReviewEvent(
       id: serializer.fromJson<int>(json['id']),
       cardId: serializer.fromJson<String>(json['cardId']),
+      languageCode: serializer.fromJson<String>(json['languageCode']),
       queue: serializer.fromJson<String>(json['queue']),
       reviewedAt: serializer.fromJson<int>(json['reviewedAt']),
       quality: serializer.fromJson<int>(json['quality']),
@@ -5752,6 +6114,7 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
     return <String, dynamic>{
       'id': serializer.toJson<int>(id),
       'cardId': serializer.toJson<String>(cardId),
+      'languageCode': serializer.toJson<String>(languageCode),
       'queue': serializer.toJson<String>(queue),
       'reviewedAt': serializer.toJson<int>(reviewedAt),
       'quality': serializer.toJson<int>(quality),
@@ -5772,6 +6135,7 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
   ReviewEvent copyWith(
           {int? id,
           String? cardId,
+          String? languageCode,
           String? queue,
           int? reviewedAt,
           int? quality,
@@ -5789,6 +6153,7 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
       ReviewEvent(
         id: id ?? this.id,
         cardId: cardId ?? this.cardId,
+        languageCode: languageCode ?? this.languageCode,
         queue: queue ?? this.queue,
         reviewedAt: reviewedAt ?? this.reviewedAt,
         quality: quality ?? this.quality,
@@ -5808,6 +6173,9 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
     return ReviewEvent(
       id: data.id.present ? data.id.value : this.id,
       cardId: data.cardId.present ? data.cardId.value : this.cardId,
+      languageCode: data.languageCode.present
+          ? data.languageCode.value
+          : this.languageCode,
       queue: data.queue.present ? data.queue.value : this.queue,
       reviewedAt:
           data.reviewedAt.present ? data.reviewedAt.value : this.reviewedAt,
@@ -5836,6 +6204,7 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
     return (StringBuffer('ReviewEvent(')
           ..write('id: $id, ')
           ..write('cardId: $cardId, ')
+          ..write('languageCode: $languageCode, ')
           ..write('queue: $queue, ')
           ..write('reviewedAt: $reviewedAt, ')
           ..write('quality: $quality, ')
@@ -5858,6 +6227,7 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
   int get hashCode => Object.hash(
       id,
       cardId,
+      languageCode,
       queue,
       reviewedAt,
       quality,
@@ -5878,6 +6248,7 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
       (other is ReviewEvent &&
           other.id == this.id &&
           other.cardId == this.cardId &&
+          other.languageCode == this.languageCode &&
           other.queue == this.queue &&
           other.reviewedAt == this.reviewedAt &&
           other.quality == this.quality &&
@@ -5897,6 +6268,7 @@ class ReviewEvent extends DataClass implements Insertable<ReviewEvent> {
 class ReviewEventsCompanion extends UpdateCompanion<ReviewEvent> {
   final Value<int> id;
   final Value<String> cardId;
+  final Value<String> languageCode;
   final Value<String> queue;
   final Value<int> reviewedAt;
   final Value<int> quality;
@@ -5914,6 +6286,7 @@ class ReviewEventsCompanion extends UpdateCompanion<ReviewEvent> {
   const ReviewEventsCompanion({
     this.id = const Value.absent(),
     this.cardId = const Value.absent(),
+    this.languageCode = const Value.absent(),
     this.queue = const Value.absent(),
     this.reviewedAt = const Value.absent(),
     this.quality = const Value.absent(),
@@ -5932,6 +6305,7 @@ class ReviewEventsCompanion extends UpdateCompanion<ReviewEvent> {
   ReviewEventsCompanion.insert({
     this.id = const Value.absent(),
     required String cardId,
+    this.languageCode = const Value.absent(),
     required String queue,
     required int reviewedAt,
     required int quality,
@@ -5959,6 +6333,7 @@ class ReviewEventsCompanion extends UpdateCompanion<ReviewEvent> {
   static Insertable<ReviewEvent> custom({
     Expression<int>? id,
     Expression<String>? cardId,
+    Expression<String>? languageCode,
     Expression<String>? queue,
     Expression<int>? reviewedAt,
     Expression<int>? quality,
@@ -5977,6 +6352,7 @@ class ReviewEventsCompanion extends UpdateCompanion<ReviewEvent> {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (cardId != null) 'card_id': cardId,
+      if (languageCode != null) 'language_code': languageCode,
       if (queue != null) 'queue': queue,
       if (reviewedAt != null) 'reviewed_at': reviewedAt,
       if (quality != null) 'quality': quality,
@@ -5997,6 +6373,7 @@ class ReviewEventsCompanion extends UpdateCompanion<ReviewEvent> {
   ReviewEventsCompanion copyWith(
       {Value<int>? id,
       Value<String>? cardId,
+      Value<String>? languageCode,
       Value<String>? queue,
       Value<int>? reviewedAt,
       Value<int>? quality,
@@ -6014,6 +6391,7 @@ class ReviewEventsCompanion extends UpdateCompanion<ReviewEvent> {
     return ReviewEventsCompanion(
       id: id ?? this.id,
       cardId: cardId ?? this.cardId,
+      languageCode: languageCode ?? this.languageCode,
       queue: queue ?? this.queue,
       reviewedAt: reviewedAt ?? this.reviewedAt,
       quality: quality ?? this.quality,
@@ -6039,6 +6417,9 @@ class ReviewEventsCompanion extends UpdateCompanion<ReviewEvent> {
     }
     if (cardId.present) {
       map['card_id'] = Variable<String>(cardId.value);
+    }
+    if (languageCode.present) {
+      map['language_code'] = Variable<String>(languageCode.value);
     }
     if (queue.present) {
       map['queue'] = Variable<String>(queue.value);
@@ -6090,6 +6471,7 @@ class ReviewEventsCompanion extends UpdateCompanion<ReviewEvent> {
     return (StringBuffer('ReviewEventsCompanion(')
           ..write('id: $id, ')
           ..write('cardId: $cardId, ')
+          ..write('languageCode: $languageCode, ')
           ..write('queue: $queue, ')
           ..write('reviewedAt: $reviewedAt, ')
           ..write('quality: $quality, ')
@@ -6104,6 +6486,966 @@ class ReviewEventsCompanion extends UpdateCompanion<ReviewEvent> {
           ..write('sourceKind: $sourceKind, ')
           ..write('sourceId: $sourceId, ')
           ..write('ownerId: $ownerId')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $MistakesTable extends Mistakes with TableInfo<$MistakesTable, Mistake> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MistakesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _languageCodeMeta =
+      const VerificationMeta('languageCode');
+  @override
+  late final GeneratedColumn<String> languageCode = GeneratedColumn<String>(
+      'language_code', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('tr'));
+  static const VerificationMeta _lessonIdMeta =
+      const VerificationMeta('lessonId');
+  @override
+  late final GeneratedColumn<String> lessonId = GeneratedColumn<String>(
+      'lesson_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _stageIdMeta =
+      const VerificationMeta('stageId');
+  @override
+  late final GeneratedColumn<String> stageId = GeneratedColumn<String>(
+      'stage_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _interactionIdMeta =
+      const VerificationMeta('interactionId');
+  @override
+  late final GeneratedColumn<String> interactionId = GeneratedColumn<String>(
+      'interaction_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _wordIdMeta = const VerificationMeta('wordId');
+  @override
+  late final GeneratedColumn<String> wordId = GeneratedColumn<String>(
+      'word_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _expressionIdMeta =
+      const VerificationMeta('expressionId');
+  @override
+  late final GeneratedColumn<String> expressionId = GeneratedColumn<String>(
+      'expression_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _grammarPointIdMeta =
+      const VerificationMeta('grammarPointId');
+  @override
+  late final GeneratedColumn<String> grammarPointId = GeneratedColumn<String>(
+      'grammar_point_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _interactionSnapshotJsonMeta =
+      const VerificationMeta('interactionSnapshotJson');
+  @override
+  late final GeneratedColumn<String> interactionSnapshotJson =
+      GeneratedColumn<String>('interaction_snapshot_json', aliasedName, true,
+          type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _userAnswerMeta =
+      const VerificationMeta('userAnswer');
+  @override
+  late final GeneratedColumn<String> userAnswer = GeneratedColumn<String>(
+      'user_answer', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _correctAnswerMeta =
+      const VerificationMeta('correctAnswer');
+  @override
+  late final GeneratedColumn<String> correctAnswer = GeneratedColumn<String>(
+      'correct_answer', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(''));
+  static const VerificationMeta _timestampMsMeta =
+      const VerificationMeta('timestampMs');
+  @override
+  late final GeneratedColumn<int> timestampMs = GeneratedColumn<int>(
+      'timestamp_ms', aliasedName, false,
+      type: DriftSqlType.int, requiredDuringInsert: true);
+  static const VerificationMeta _rewriteCountMeta =
+      const VerificationMeta('rewriteCount');
+  @override
+  late final GeneratedColumn<int> rewriteCount = GeneratedColumn<int>(
+      'rewrite_count', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _sortOrderMeta =
+      const VerificationMeta('sortOrder');
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+      'sort_order', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        languageCode,
+        lessonId,
+        stageId,
+        interactionId,
+        wordId,
+        expressionId,
+        grammarPointId,
+        interactionSnapshotJson,
+        userAnswer,
+        correctAnswer,
+        timestampMs,
+        rewriteCount,
+        sortOrder
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'mistakes';
+  @override
+  VerificationContext validateIntegrity(Insertable<Mistake> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('language_code')) {
+      context.handle(
+          _languageCodeMeta,
+          languageCode.isAcceptableOrUnknown(
+              data['language_code']!, _languageCodeMeta));
+    }
+    if (data.containsKey('lesson_id')) {
+      context.handle(_lessonIdMeta,
+          lessonId.isAcceptableOrUnknown(data['lesson_id']!, _lessonIdMeta));
+    } else if (isInserting) {
+      context.missing(_lessonIdMeta);
+    }
+    if (data.containsKey('stage_id')) {
+      context.handle(_stageIdMeta,
+          stageId.isAcceptableOrUnknown(data['stage_id']!, _stageIdMeta));
+    } else if (isInserting) {
+      context.missing(_stageIdMeta);
+    }
+    if (data.containsKey('interaction_id')) {
+      context.handle(
+          _interactionIdMeta,
+          interactionId.isAcceptableOrUnknown(
+              data['interaction_id']!, _interactionIdMeta));
+    } else if (isInserting) {
+      context.missing(_interactionIdMeta);
+    }
+    if (data.containsKey('word_id')) {
+      context.handle(_wordIdMeta,
+          wordId.isAcceptableOrUnknown(data['word_id']!, _wordIdMeta));
+    }
+    if (data.containsKey('expression_id')) {
+      context.handle(
+          _expressionIdMeta,
+          expressionId.isAcceptableOrUnknown(
+              data['expression_id']!, _expressionIdMeta));
+    }
+    if (data.containsKey('grammar_point_id')) {
+      context.handle(
+          _grammarPointIdMeta,
+          grammarPointId.isAcceptableOrUnknown(
+              data['grammar_point_id']!, _grammarPointIdMeta));
+    }
+    if (data.containsKey('interaction_snapshot_json')) {
+      context.handle(
+          _interactionSnapshotJsonMeta,
+          interactionSnapshotJson.isAcceptableOrUnknown(
+              data['interaction_snapshot_json']!,
+              _interactionSnapshotJsonMeta));
+    }
+    if (data.containsKey('user_answer')) {
+      context.handle(
+          _userAnswerMeta,
+          userAnswer.isAcceptableOrUnknown(
+              data['user_answer']!, _userAnswerMeta));
+    }
+    if (data.containsKey('correct_answer')) {
+      context.handle(
+          _correctAnswerMeta,
+          correctAnswer.isAcceptableOrUnknown(
+              data['correct_answer']!, _correctAnswerMeta));
+    }
+    if (data.containsKey('timestamp_ms')) {
+      context.handle(
+          _timestampMsMeta,
+          timestampMs.isAcceptableOrUnknown(
+              data['timestamp_ms']!, _timestampMsMeta));
+    } else if (isInserting) {
+      context.missing(_timestampMsMeta);
+    }
+    if (data.containsKey('rewrite_count')) {
+      context.handle(
+          _rewriteCountMeta,
+          rewriteCount.isAcceptableOrUnknown(
+              data['rewrite_count']!, _rewriteCountMeta));
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(_sortOrderMeta,
+          sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {languageCode, id};
+  @override
+  Mistake map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Mistake(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      languageCode: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}language_code'])!,
+      lessonId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}lesson_id'])!,
+      stageId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}stage_id'])!,
+      interactionId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}interaction_id'])!,
+      wordId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}word_id']),
+      expressionId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}expression_id']),
+      grammarPointId: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}grammar_point_id']),
+      interactionSnapshotJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}interaction_snapshot_json']),
+      userAnswer: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}user_answer'])!,
+      correctAnswer: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}correct_answer'])!,
+      timestampMs: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}timestamp_ms'])!,
+      rewriteCount: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}rewrite_count'])!,
+      sortOrder: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}sort_order'])!,
+    );
+  }
+
+  @override
+  $MistakesTable createAlias(String alias) {
+    return $MistakesTable(attachedDatabase, alias);
+  }
+}
+
+class Mistake extends DataClass implements Insertable<Mistake> {
+  final String id;
+  final String languageCode;
+  final String lessonId;
+  final String stageId;
+  final String interactionId;
+  final String? wordId;
+  final String? expressionId;
+  final String? grammarPointId;
+  final String? interactionSnapshotJson;
+  final String userAnswer;
+  final String correctAnswer;
+  final int timestampMs;
+  final int rewriteCount;
+  final int sortOrder;
+  const Mistake(
+      {required this.id,
+      required this.languageCode,
+      required this.lessonId,
+      required this.stageId,
+      required this.interactionId,
+      this.wordId,
+      this.expressionId,
+      this.grammarPointId,
+      this.interactionSnapshotJson,
+      required this.userAnswer,
+      required this.correctAnswer,
+      required this.timestampMs,
+      required this.rewriteCount,
+      required this.sortOrder});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['language_code'] = Variable<String>(languageCode);
+    map['lesson_id'] = Variable<String>(lessonId);
+    map['stage_id'] = Variable<String>(stageId);
+    map['interaction_id'] = Variable<String>(interactionId);
+    if (!nullToAbsent || wordId != null) {
+      map['word_id'] = Variable<String>(wordId);
+    }
+    if (!nullToAbsent || expressionId != null) {
+      map['expression_id'] = Variable<String>(expressionId);
+    }
+    if (!nullToAbsent || grammarPointId != null) {
+      map['grammar_point_id'] = Variable<String>(grammarPointId);
+    }
+    if (!nullToAbsent || interactionSnapshotJson != null) {
+      map['interaction_snapshot_json'] =
+          Variable<String>(interactionSnapshotJson);
+    }
+    map['user_answer'] = Variable<String>(userAnswer);
+    map['correct_answer'] = Variable<String>(correctAnswer);
+    map['timestamp_ms'] = Variable<int>(timestampMs);
+    map['rewrite_count'] = Variable<int>(rewriteCount);
+    map['sort_order'] = Variable<int>(sortOrder);
+    return map;
+  }
+
+  MistakesCompanion toCompanion(bool nullToAbsent) {
+    return MistakesCompanion(
+      id: Value(id),
+      languageCode: Value(languageCode),
+      lessonId: Value(lessonId),
+      stageId: Value(stageId),
+      interactionId: Value(interactionId),
+      wordId:
+          wordId == null && nullToAbsent ? const Value.absent() : Value(wordId),
+      expressionId: expressionId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(expressionId),
+      grammarPointId: grammarPointId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(grammarPointId),
+      interactionSnapshotJson: interactionSnapshotJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(interactionSnapshotJson),
+      userAnswer: Value(userAnswer),
+      correctAnswer: Value(correctAnswer),
+      timestampMs: Value(timestampMs),
+      rewriteCount: Value(rewriteCount),
+      sortOrder: Value(sortOrder),
+    );
+  }
+
+  factory Mistake.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Mistake(
+      id: serializer.fromJson<String>(json['id']),
+      languageCode: serializer.fromJson<String>(json['languageCode']),
+      lessonId: serializer.fromJson<String>(json['lessonId']),
+      stageId: serializer.fromJson<String>(json['stageId']),
+      interactionId: serializer.fromJson<String>(json['interactionId']),
+      wordId: serializer.fromJson<String?>(json['wordId']),
+      expressionId: serializer.fromJson<String?>(json['expressionId']),
+      grammarPointId: serializer.fromJson<String?>(json['grammarPointId']),
+      interactionSnapshotJson:
+          serializer.fromJson<String?>(json['interactionSnapshotJson']),
+      userAnswer: serializer.fromJson<String>(json['userAnswer']),
+      correctAnswer: serializer.fromJson<String>(json['correctAnswer']),
+      timestampMs: serializer.fromJson<int>(json['timestampMs']),
+      rewriteCount: serializer.fromJson<int>(json['rewriteCount']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'languageCode': serializer.toJson<String>(languageCode),
+      'lessonId': serializer.toJson<String>(lessonId),
+      'stageId': serializer.toJson<String>(stageId),
+      'interactionId': serializer.toJson<String>(interactionId),
+      'wordId': serializer.toJson<String?>(wordId),
+      'expressionId': serializer.toJson<String?>(expressionId),
+      'grammarPointId': serializer.toJson<String?>(grammarPointId),
+      'interactionSnapshotJson':
+          serializer.toJson<String?>(interactionSnapshotJson),
+      'userAnswer': serializer.toJson<String>(userAnswer),
+      'correctAnswer': serializer.toJson<String>(correctAnswer),
+      'timestampMs': serializer.toJson<int>(timestampMs),
+      'rewriteCount': serializer.toJson<int>(rewriteCount),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+    };
+  }
+
+  Mistake copyWith(
+          {String? id,
+          String? languageCode,
+          String? lessonId,
+          String? stageId,
+          String? interactionId,
+          Value<String?> wordId = const Value.absent(),
+          Value<String?> expressionId = const Value.absent(),
+          Value<String?> grammarPointId = const Value.absent(),
+          Value<String?> interactionSnapshotJson = const Value.absent(),
+          String? userAnswer,
+          String? correctAnswer,
+          int? timestampMs,
+          int? rewriteCount,
+          int? sortOrder}) =>
+      Mistake(
+        id: id ?? this.id,
+        languageCode: languageCode ?? this.languageCode,
+        lessonId: lessonId ?? this.lessonId,
+        stageId: stageId ?? this.stageId,
+        interactionId: interactionId ?? this.interactionId,
+        wordId: wordId.present ? wordId.value : this.wordId,
+        expressionId:
+            expressionId.present ? expressionId.value : this.expressionId,
+        grammarPointId:
+            grammarPointId.present ? grammarPointId.value : this.grammarPointId,
+        interactionSnapshotJson: interactionSnapshotJson.present
+            ? interactionSnapshotJson.value
+            : this.interactionSnapshotJson,
+        userAnswer: userAnswer ?? this.userAnswer,
+        correctAnswer: correctAnswer ?? this.correctAnswer,
+        timestampMs: timestampMs ?? this.timestampMs,
+        rewriteCount: rewriteCount ?? this.rewriteCount,
+        sortOrder: sortOrder ?? this.sortOrder,
+      );
+  Mistake copyWithCompanion(MistakesCompanion data) {
+    return Mistake(
+      id: data.id.present ? data.id.value : this.id,
+      languageCode: data.languageCode.present
+          ? data.languageCode.value
+          : this.languageCode,
+      lessonId: data.lessonId.present ? data.lessonId.value : this.lessonId,
+      stageId: data.stageId.present ? data.stageId.value : this.stageId,
+      interactionId: data.interactionId.present
+          ? data.interactionId.value
+          : this.interactionId,
+      wordId: data.wordId.present ? data.wordId.value : this.wordId,
+      expressionId: data.expressionId.present
+          ? data.expressionId.value
+          : this.expressionId,
+      grammarPointId: data.grammarPointId.present
+          ? data.grammarPointId.value
+          : this.grammarPointId,
+      interactionSnapshotJson: data.interactionSnapshotJson.present
+          ? data.interactionSnapshotJson.value
+          : this.interactionSnapshotJson,
+      userAnswer:
+          data.userAnswer.present ? data.userAnswer.value : this.userAnswer,
+      correctAnswer: data.correctAnswer.present
+          ? data.correctAnswer.value
+          : this.correctAnswer,
+      timestampMs:
+          data.timestampMs.present ? data.timestampMs.value : this.timestampMs,
+      rewriteCount: data.rewriteCount.present
+          ? data.rewriteCount.value
+          : this.rewriteCount,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Mistake(')
+          ..write('id: $id, ')
+          ..write('languageCode: $languageCode, ')
+          ..write('lessonId: $lessonId, ')
+          ..write('stageId: $stageId, ')
+          ..write('interactionId: $interactionId, ')
+          ..write('wordId: $wordId, ')
+          ..write('expressionId: $expressionId, ')
+          ..write('grammarPointId: $grammarPointId, ')
+          ..write('interactionSnapshotJson: $interactionSnapshotJson, ')
+          ..write('userAnswer: $userAnswer, ')
+          ..write('correctAnswer: $correctAnswer, ')
+          ..write('timestampMs: $timestampMs, ')
+          ..write('rewriteCount: $rewriteCount, ')
+          ..write('sortOrder: $sortOrder')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      languageCode,
+      lessonId,
+      stageId,
+      interactionId,
+      wordId,
+      expressionId,
+      grammarPointId,
+      interactionSnapshotJson,
+      userAnswer,
+      correctAnswer,
+      timestampMs,
+      rewriteCount,
+      sortOrder);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Mistake &&
+          other.id == this.id &&
+          other.languageCode == this.languageCode &&
+          other.lessonId == this.lessonId &&
+          other.stageId == this.stageId &&
+          other.interactionId == this.interactionId &&
+          other.wordId == this.wordId &&
+          other.expressionId == this.expressionId &&
+          other.grammarPointId == this.grammarPointId &&
+          other.interactionSnapshotJson == this.interactionSnapshotJson &&
+          other.userAnswer == this.userAnswer &&
+          other.correctAnswer == this.correctAnswer &&
+          other.timestampMs == this.timestampMs &&
+          other.rewriteCount == this.rewriteCount &&
+          other.sortOrder == this.sortOrder);
+}
+
+class MistakesCompanion extends UpdateCompanion<Mistake> {
+  final Value<String> id;
+  final Value<String> languageCode;
+  final Value<String> lessonId;
+  final Value<String> stageId;
+  final Value<String> interactionId;
+  final Value<String?> wordId;
+  final Value<String?> expressionId;
+  final Value<String?> grammarPointId;
+  final Value<String?> interactionSnapshotJson;
+  final Value<String> userAnswer;
+  final Value<String> correctAnswer;
+  final Value<int> timestampMs;
+  final Value<int> rewriteCount;
+  final Value<int> sortOrder;
+  final Value<int> rowid;
+  const MistakesCompanion({
+    this.id = const Value.absent(),
+    this.languageCode = const Value.absent(),
+    this.lessonId = const Value.absent(),
+    this.stageId = const Value.absent(),
+    this.interactionId = const Value.absent(),
+    this.wordId = const Value.absent(),
+    this.expressionId = const Value.absent(),
+    this.grammarPointId = const Value.absent(),
+    this.interactionSnapshotJson = const Value.absent(),
+    this.userAnswer = const Value.absent(),
+    this.correctAnswer = const Value.absent(),
+    this.timestampMs = const Value.absent(),
+    this.rewriteCount = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MistakesCompanion.insert({
+    required String id,
+    this.languageCode = const Value.absent(),
+    required String lessonId,
+    required String stageId,
+    required String interactionId,
+    this.wordId = const Value.absent(),
+    this.expressionId = const Value.absent(),
+    this.grammarPointId = const Value.absent(),
+    this.interactionSnapshotJson = const Value.absent(),
+    this.userAnswer = const Value.absent(),
+    this.correctAnswer = const Value.absent(),
+    required int timestampMs,
+    this.rewriteCount = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        lessonId = Value(lessonId),
+        stageId = Value(stageId),
+        interactionId = Value(interactionId),
+        timestampMs = Value(timestampMs);
+  static Insertable<Mistake> custom({
+    Expression<String>? id,
+    Expression<String>? languageCode,
+    Expression<String>? lessonId,
+    Expression<String>? stageId,
+    Expression<String>? interactionId,
+    Expression<String>? wordId,
+    Expression<String>? expressionId,
+    Expression<String>? grammarPointId,
+    Expression<String>? interactionSnapshotJson,
+    Expression<String>? userAnswer,
+    Expression<String>? correctAnswer,
+    Expression<int>? timestampMs,
+    Expression<int>? rewriteCount,
+    Expression<int>? sortOrder,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (languageCode != null) 'language_code': languageCode,
+      if (lessonId != null) 'lesson_id': lessonId,
+      if (stageId != null) 'stage_id': stageId,
+      if (interactionId != null) 'interaction_id': interactionId,
+      if (wordId != null) 'word_id': wordId,
+      if (expressionId != null) 'expression_id': expressionId,
+      if (grammarPointId != null) 'grammar_point_id': grammarPointId,
+      if (interactionSnapshotJson != null)
+        'interaction_snapshot_json': interactionSnapshotJson,
+      if (userAnswer != null) 'user_answer': userAnswer,
+      if (correctAnswer != null) 'correct_answer': correctAnswer,
+      if (timestampMs != null) 'timestamp_ms': timestampMs,
+      if (rewriteCount != null) 'rewrite_count': rewriteCount,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MistakesCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? languageCode,
+      Value<String>? lessonId,
+      Value<String>? stageId,
+      Value<String>? interactionId,
+      Value<String?>? wordId,
+      Value<String?>? expressionId,
+      Value<String?>? grammarPointId,
+      Value<String?>? interactionSnapshotJson,
+      Value<String>? userAnswer,
+      Value<String>? correctAnswer,
+      Value<int>? timestampMs,
+      Value<int>? rewriteCount,
+      Value<int>? sortOrder,
+      Value<int>? rowid}) {
+    return MistakesCompanion(
+      id: id ?? this.id,
+      languageCode: languageCode ?? this.languageCode,
+      lessonId: lessonId ?? this.lessonId,
+      stageId: stageId ?? this.stageId,
+      interactionId: interactionId ?? this.interactionId,
+      wordId: wordId ?? this.wordId,
+      expressionId: expressionId ?? this.expressionId,
+      grammarPointId: grammarPointId ?? this.grammarPointId,
+      interactionSnapshotJson:
+          interactionSnapshotJson ?? this.interactionSnapshotJson,
+      userAnswer: userAnswer ?? this.userAnswer,
+      correctAnswer: correctAnswer ?? this.correctAnswer,
+      timestampMs: timestampMs ?? this.timestampMs,
+      rewriteCount: rewriteCount ?? this.rewriteCount,
+      sortOrder: sortOrder ?? this.sortOrder,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (languageCode.present) {
+      map['language_code'] = Variable<String>(languageCode.value);
+    }
+    if (lessonId.present) {
+      map['lesson_id'] = Variable<String>(lessonId.value);
+    }
+    if (stageId.present) {
+      map['stage_id'] = Variable<String>(stageId.value);
+    }
+    if (interactionId.present) {
+      map['interaction_id'] = Variable<String>(interactionId.value);
+    }
+    if (wordId.present) {
+      map['word_id'] = Variable<String>(wordId.value);
+    }
+    if (expressionId.present) {
+      map['expression_id'] = Variable<String>(expressionId.value);
+    }
+    if (grammarPointId.present) {
+      map['grammar_point_id'] = Variable<String>(grammarPointId.value);
+    }
+    if (interactionSnapshotJson.present) {
+      map['interaction_snapshot_json'] =
+          Variable<String>(interactionSnapshotJson.value);
+    }
+    if (userAnswer.present) {
+      map['user_answer'] = Variable<String>(userAnswer.value);
+    }
+    if (correctAnswer.present) {
+      map['correct_answer'] = Variable<String>(correctAnswer.value);
+    }
+    if (timestampMs.present) {
+      map['timestamp_ms'] = Variable<int>(timestampMs.value);
+    }
+    if (rewriteCount.present) {
+      map['rewrite_count'] = Variable<int>(rewriteCount.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MistakesCompanion(')
+          ..write('id: $id, ')
+          ..write('languageCode: $languageCode, ')
+          ..write('lessonId: $lessonId, ')
+          ..write('stageId: $stageId, ')
+          ..write('interactionId: $interactionId, ')
+          ..write('wordId: $wordId, ')
+          ..write('expressionId: $expressionId, ')
+          ..write('grammarPointId: $grammarPointId, ')
+          ..write('interactionSnapshotJson: $interactionSnapshotJson, ')
+          ..write('userAnswer: $userAnswer, ')
+          ..write('correctAnswer: $correctAnswer, ')
+          ..write('timestampMs: $timestampMs, ')
+          ..write('rewriteCount: $rewriteCount, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $MistakeAggregatesTable extends MistakeAggregates
+    with TableInfo<$MistakeAggregatesTable, MistakeAggregate> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $MistakeAggregatesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _languageCodeMeta =
+      const VerificationMeta('languageCode');
+  @override
+  late final GeneratedColumn<String> languageCode = GeneratedColumn<String>(
+      'language_code', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _dailyCountsJsonMeta =
+      const VerificationMeta('dailyCountsJson');
+  @override
+  late final GeneratedColumn<String> dailyCountsJson = GeneratedColumn<String>(
+      'daily_counts_json', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('{}'));
+  static const VerificationMeta _masteredTotalMeta =
+      const VerificationMeta('masteredTotal');
+  @override
+  late final GeneratedColumn<int> masteredTotal = GeneratedColumn<int>(
+      'mastered_total', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  @override
+  List<GeneratedColumn> get $columns =>
+      [languageCode, dailyCountsJson, masteredTotal];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'mistake_aggregates';
+  @override
+  VerificationContext validateIntegrity(Insertable<MistakeAggregate> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('language_code')) {
+      context.handle(
+          _languageCodeMeta,
+          languageCode.isAcceptableOrUnknown(
+              data['language_code']!, _languageCodeMeta));
+    } else if (isInserting) {
+      context.missing(_languageCodeMeta);
+    }
+    if (data.containsKey('daily_counts_json')) {
+      context.handle(
+          _dailyCountsJsonMeta,
+          dailyCountsJson.isAcceptableOrUnknown(
+              data['daily_counts_json']!, _dailyCountsJsonMeta));
+    }
+    if (data.containsKey('mastered_total')) {
+      context.handle(
+          _masteredTotalMeta,
+          masteredTotal.isAcceptableOrUnknown(
+              data['mastered_total']!, _masteredTotalMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {languageCode};
+  @override
+  MistakeAggregate map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return MistakeAggregate(
+      languageCode: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}language_code'])!,
+      dailyCountsJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}daily_counts_json'])!,
+      masteredTotal: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}mastered_total'])!,
+    );
+  }
+
+  @override
+  $MistakeAggregatesTable createAlias(String alias) {
+    return $MistakeAggregatesTable(attachedDatabase, alias);
+  }
+}
+
+class MistakeAggregate extends DataClass
+    implements Insertable<MistakeAggregate> {
+  final String languageCode;
+  final String dailyCountsJson;
+  final int masteredTotal;
+  const MistakeAggregate(
+      {required this.languageCode,
+      required this.dailyCountsJson,
+      required this.masteredTotal});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['language_code'] = Variable<String>(languageCode);
+    map['daily_counts_json'] = Variable<String>(dailyCountsJson);
+    map['mastered_total'] = Variable<int>(masteredTotal);
+    return map;
+  }
+
+  MistakeAggregatesCompanion toCompanion(bool nullToAbsent) {
+    return MistakeAggregatesCompanion(
+      languageCode: Value(languageCode),
+      dailyCountsJson: Value(dailyCountsJson),
+      masteredTotal: Value(masteredTotal),
+    );
+  }
+
+  factory MistakeAggregate.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return MistakeAggregate(
+      languageCode: serializer.fromJson<String>(json['languageCode']),
+      dailyCountsJson: serializer.fromJson<String>(json['dailyCountsJson']),
+      masteredTotal: serializer.fromJson<int>(json['masteredTotal']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'languageCode': serializer.toJson<String>(languageCode),
+      'dailyCountsJson': serializer.toJson<String>(dailyCountsJson),
+      'masteredTotal': serializer.toJson<int>(masteredTotal),
+    };
+  }
+
+  MistakeAggregate copyWith(
+          {String? languageCode,
+          String? dailyCountsJson,
+          int? masteredTotal}) =>
+      MistakeAggregate(
+        languageCode: languageCode ?? this.languageCode,
+        dailyCountsJson: dailyCountsJson ?? this.dailyCountsJson,
+        masteredTotal: masteredTotal ?? this.masteredTotal,
+      );
+  MistakeAggregate copyWithCompanion(MistakeAggregatesCompanion data) {
+    return MistakeAggregate(
+      languageCode: data.languageCode.present
+          ? data.languageCode.value
+          : this.languageCode,
+      dailyCountsJson: data.dailyCountsJson.present
+          ? data.dailyCountsJson.value
+          : this.dailyCountsJson,
+      masteredTotal: data.masteredTotal.present
+          ? data.masteredTotal.value
+          : this.masteredTotal,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MistakeAggregate(')
+          ..write('languageCode: $languageCode, ')
+          ..write('dailyCountsJson: $dailyCountsJson, ')
+          ..write('masteredTotal: $masteredTotal')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(languageCode, dailyCountsJson, masteredTotal);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is MistakeAggregate &&
+          other.languageCode == this.languageCode &&
+          other.dailyCountsJson == this.dailyCountsJson &&
+          other.masteredTotal == this.masteredTotal);
+}
+
+class MistakeAggregatesCompanion extends UpdateCompanion<MistakeAggregate> {
+  final Value<String> languageCode;
+  final Value<String> dailyCountsJson;
+  final Value<int> masteredTotal;
+  final Value<int> rowid;
+  const MistakeAggregatesCompanion({
+    this.languageCode = const Value.absent(),
+    this.dailyCountsJson = const Value.absent(),
+    this.masteredTotal = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  MistakeAggregatesCompanion.insert({
+    required String languageCode,
+    this.dailyCountsJson = const Value.absent(),
+    this.masteredTotal = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : languageCode = Value(languageCode);
+  static Insertable<MistakeAggregate> custom({
+    Expression<String>? languageCode,
+    Expression<String>? dailyCountsJson,
+    Expression<int>? masteredTotal,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (languageCode != null) 'language_code': languageCode,
+      if (dailyCountsJson != null) 'daily_counts_json': dailyCountsJson,
+      if (masteredTotal != null) 'mastered_total': masteredTotal,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  MistakeAggregatesCompanion copyWith(
+      {Value<String>? languageCode,
+      Value<String>? dailyCountsJson,
+      Value<int>? masteredTotal,
+      Value<int>? rowid}) {
+    return MistakeAggregatesCompanion(
+      languageCode: languageCode ?? this.languageCode,
+      dailyCountsJson: dailyCountsJson ?? this.dailyCountsJson,
+      masteredTotal: masteredTotal ?? this.masteredTotal,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (languageCode.present) {
+      map['language_code'] = Variable<String>(languageCode.value);
+    }
+    if (dailyCountsJson.present) {
+      map['daily_counts_json'] = Variable<String>(dailyCountsJson.value);
+    }
+    if (masteredTotal.present) {
+      map['mastered_total'] = Variable<int>(masteredTotal.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('MistakeAggregatesCompanion(')
+          ..write('languageCode: $languageCode, ')
+          ..write('dailyCountsJson: $dailyCountsJson, ')
+          ..write('masteredTotal: $masteredTotal, ')
+          ..write('rowid: $rowid')
           ..write(')'))
         .toString();
   }
@@ -6126,12 +7468,18 @@ abstract class _$CourseDatabase extends GeneratedDatabase {
   late final $AnkiCardsMetaTable ankiCardsMeta = $AnkiCardsMetaTable(this);
   late final $SrsStatesTable srsStates = $SrsStatesTable(this);
   late final $ReviewEventsTable reviewEvents = $ReviewEventsTable(this);
+  late final $MistakesTable mistakes = $MistakesTable(this);
+  late final $MistakeAggregatesTable mistakeAggregates =
+      $MistakeAggregatesTable(this);
   late final Index reviewEventsCardIdx = Index('review_events_card_idx',
       'CREATE INDEX review_events_card_idx ON review_events (card_id)');
   late final Index reviewEventsTimeIdx = Index('review_events_time_idx',
       'CREATE INDEX review_events_time_idx ON review_events (reviewed_at)');
   late final Index reviewEventsSourceIdx = Index('review_events_source_idx',
       'CREATE UNIQUE INDEX review_events_source_idx ON review_events (source_key)');
+  late final Index reviewEventsLanguageTimeIdx = Index(
+      'review_events_language_time_idx',
+      'CREATE INDEX review_events_language_time_idx ON review_events (language_code, reviewed_at)');
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -6151,9 +7499,12 @@ abstract class _$CourseDatabase extends GeneratedDatabase {
         ankiCardsMeta,
         srsStates,
         reviewEvents,
+        mistakes,
+        mistakeAggregates,
         reviewEventsCardIdx,
         reviewEventsTimeIdx,
-        reviewEventsSourceIdx
+        reviewEventsSourceIdx,
+        reviewEventsLanguageTimeIdx
       ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules(
@@ -6206,6 +7557,7 @@ abstract class _$CourseDatabase extends GeneratedDatabase {
 
 typedef $$SectionsTableCreateCompanionBuilder = SectionsCompanion Function({
   required String id,
+  Value<String> languageCode,
   required String name,
   Value<String> description,
   Value<String> level,
@@ -6215,6 +7567,7 @@ typedef $$SectionsTableCreateCompanionBuilder = SectionsCompanion Function({
 });
 typedef $$SectionsTableUpdateCompanionBuilder = SectionsCompanion Function({
   Value<String> id,
+  Value<String> languageCode,
   Value<String> name,
   Value<String> description,
   Value<String> level,
@@ -6253,6 +7606,9 @@ class $$SectionsTableFilterComposer
   });
   ColumnFilters<String> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get languageCode => $composableBuilder(
+      column: $table.languageCode, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get name => $composableBuilder(
       column: $table.name, builder: (column) => ColumnFilters(column));
@@ -6304,6 +7660,10 @@ class $$SectionsTableOrderingComposer
   ColumnOrderings<String> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get languageCode => $composableBuilder(
+      column: $table.languageCode,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get name => $composableBuilder(
       column: $table.name, builder: (column) => ColumnOrderings(column));
 
@@ -6332,6 +7692,9 @@ class $$SectionsTableAnnotationComposer
   });
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get languageCode => $composableBuilder(
+      column: $table.languageCode, builder: (column) => column);
 
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
@@ -6394,6 +7757,7 @@ class $$SectionsTableTableManager extends RootTableManager<
               $$SectionsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback: ({
             Value<String> id = const Value.absent(),
+            Value<String> languageCode = const Value.absent(),
             Value<String> name = const Value.absent(),
             Value<String> description = const Value.absent(),
             Value<String> level = const Value.absent(),
@@ -6403,6 +7767,7 @@ class $$SectionsTableTableManager extends RootTableManager<
           }) =>
               SectionsCompanion(
             id: id,
+            languageCode: languageCode,
             name: name,
             description: description,
             level: level,
@@ -6412,6 +7777,7 @@ class $$SectionsTableTableManager extends RootTableManager<
           ),
           createCompanionCallback: ({
             required String id,
+            Value<String> languageCode = const Value.absent(),
             required String name,
             Value<String> description = const Value.absent(),
             Value<String> level = const Value.absent(),
@@ -6421,6 +7787,7 @@ class $$SectionsTableTableManager extends RootTableManager<
           }) =>
               SectionsCompanion.insert(
             id: id,
+            languageCode: languageCode,
             name: name,
             description: description,
             level: level,
@@ -6471,6 +7838,7 @@ typedef $$SectionsTableProcessedTableManager = ProcessedTableManager<
     PrefetchHooks Function({bool unitsRefs})>;
 typedef $$UnitsTableCreateCompanionBuilder = UnitsCompanion Function({
   required String id,
+  Value<String> languageCode,
   required String sectionId,
   required String name,
   Value<String> description,
@@ -6480,6 +7848,7 @@ typedef $$UnitsTableCreateCompanionBuilder = UnitsCompanion Function({
 });
 typedef $$UnitsTableUpdateCompanionBuilder = UnitsCompanion Function({
   Value<String> id,
+  Value<String> languageCode,
   Value<String> sectionId,
   Value<String> name,
   Value<String> description,
@@ -6532,6 +7901,9 @@ class $$UnitsTableFilterComposer
   });
   ColumnFilters<String> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get languageCode => $composableBuilder(
+      column: $table.languageCode, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get name => $composableBuilder(
       column: $table.name, builder: (column) => ColumnFilters(column));
@@ -6600,6 +7972,10 @@ class $$UnitsTableOrderingComposer
   ColumnOrderings<String> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get languageCode => $composableBuilder(
+      column: $table.languageCode,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get name => $composableBuilder(
       column: $table.name, builder: (column) => ColumnOrderings(column));
 
@@ -6645,6 +8021,9 @@ class $$UnitsTableAnnotationComposer
   });
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get languageCode => $composableBuilder(
+      column: $table.languageCode, builder: (column) => column);
 
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
@@ -6724,6 +8103,7 @@ class $$UnitsTableTableManager extends RootTableManager<
               $$UnitsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback: ({
             Value<String> id = const Value.absent(),
+            Value<String> languageCode = const Value.absent(),
             Value<String> sectionId = const Value.absent(),
             Value<String> name = const Value.absent(),
             Value<String> description = const Value.absent(),
@@ -6733,6 +8113,7 @@ class $$UnitsTableTableManager extends RootTableManager<
           }) =>
               UnitsCompanion(
             id: id,
+            languageCode: languageCode,
             sectionId: sectionId,
             name: name,
             description: description,
@@ -6742,6 +8123,7 @@ class $$UnitsTableTableManager extends RootTableManager<
           ),
           createCompanionCallback: ({
             required String id,
+            Value<String> languageCode = const Value.absent(),
             required String sectionId,
             required String name,
             Value<String> description = const Value.absent(),
@@ -6751,6 +8133,7 @@ class $$UnitsTableTableManager extends RootTableManager<
           }) =>
               UnitsCompanion.insert(
             id: id,
+            languageCode: languageCode,
             sectionId: sectionId,
             name: name,
             description: description,
@@ -6825,6 +8208,7 @@ typedef $$UnitsTableProcessedTableManager = ProcessedTableManager<
     PrefetchHooks Function({bool sectionId, bool lessonsRefs})>;
 typedef $$LessonsTableCreateCompanionBuilder = LessonsCompanion Function({
   required String id,
+  Value<String> languageCode,
   required String unitId,
   required String name,
   Value<String> description,
@@ -6836,6 +8220,7 @@ typedef $$LessonsTableCreateCompanionBuilder = LessonsCompanion Function({
 });
 typedef $$LessonsTableUpdateCompanionBuilder = LessonsCompanion Function({
   Value<String> id,
+  Value<String> languageCode,
   Value<String> unitId,
   Value<String> name,
   Value<String> description,
@@ -6891,6 +8276,9 @@ class $$LessonsTableFilterComposer
   });
   ColumnFilters<String> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get languageCode => $composableBuilder(
+      column: $table.languageCode, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get name => $composableBuilder(
       column: $table.name, builder: (column) => ColumnFilters(column));
@@ -6965,6 +8353,10 @@ class $$LessonsTableOrderingComposer
   ColumnOrderings<String> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get languageCode => $composableBuilder(
+      column: $table.languageCode,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get name => $composableBuilder(
       column: $table.name, builder: (column) => ColumnOrderings(column));
 
@@ -7016,6 +8408,9 @@ class $$LessonsTableAnnotationComposer
   });
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get languageCode => $composableBuilder(
+      column: $table.languageCode, builder: (column) => column);
 
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
@@ -7101,6 +8496,7 @@ class $$LessonsTableTableManager extends RootTableManager<
               $$LessonsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback: ({
             Value<String> id = const Value.absent(),
+            Value<String> languageCode = const Value.absent(),
             Value<String> unitId = const Value.absent(),
             Value<String> name = const Value.absent(),
             Value<String> description = const Value.absent(),
@@ -7112,6 +8508,7 @@ class $$LessonsTableTableManager extends RootTableManager<
           }) =>
               LessonsCompanion(
             id: id,
+            languageCode: languageCode,
             unitId: unitId,
             name: name,
             description: description,
@@ -7123,6 +8520,7 @@ class $$LessonsTableTableManager extends RootTableManager<
           ),
           createCompanionCallback: ({
             required String id,
+            Value<String> languageCode = const Value.absent(),
             required String unitId,
             required String name,
             Value<String> description = const Value.absent(),
@@ -7134,6 +8532,7 @@ class $$LessonsTableTableManager extends RootTableManager<
           }) =>
               LessonsCompanion.insert(
             id: id,
+            languageCode: languageCode,
             unitId: unitId,
             name: name,
             description: description,
@@ -7216,12 +8615,14 @@ typedef $$LessonsTableProcessedTableManager = ProcessedTableManager<
 typedef $$LessonContentsTableCreateCompanionBuilder = LessonContentsCompanion
     Function({
   required String lessonId,
+  Value<String> languageCode,
   required String contentJson,
   Value<int> rowid,
 });
 typedef $$LessonContentsTableUpdateCompanionBuilder = LessonContentsCompanion
     Function({
   Value<String> lessonId,
+  Value<String> languageCode,
   Value<String> contentJson,
   Value<int> rowid,
 });
@@ -7256,6 +8657,9 @@ class $$LessonContentsTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnFilters<String> get languageCode => $composableBuilder(
+      column: $table.languageCode, builder: (column) => ColumnFilters(column));
+
   ColumnFilters<String> get contentJson => $composableBuilder(
       column: $table.contentJson, builder: (column) => ColumnFilters(column));
 
@@ -7289,6 +8693,10 @@ class $$LessonContentsTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnOrderings<String> get languageCode => $composableBuilder(
+      column: $table.languageCode,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get contentJson => $composableBuilder(
       column: $table.contentJson, builder: (column) => ColumnOrderings(column));
 
@@ -7322,6 +8730,9 @@ class $$LessonContentsTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  GeneratedColumn<String> get languageCode => $composableBuilder(
+      column: $table.languageCode, builder: (column) => column);
+
   GeneratedColumn<String> get contentJson => $composableBuilder(
       column: $table.contentJson, builder: (column) => column);
 
@@ -7371,21 +8782,25 @@ class $$LessonContentsTableTableManager extends RootTableManager<
               $$LessonContentsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback: ({
             Value<String> lessonId = const Value.absent(),
+            Value<String> languageCode = const Value.absent(),
             Value<String> contentJson = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
               LessonContentsCompanion(
             lessonId: lessonId,
+            languageCode: languageCode,
             contentJson: contentJson,
             rowid: rowid,
           ),
           createCompanionCallback: ({
             required String lessonId,
+            Value<String> languageCode = const Value.absent(),
             required String contentJson,
             Value<int> rowid = const Value.absent(),
           }) =>
               LessonContentsCompanion.insert(
             lessonId: lessonId,
+            languageCode: languageCode,
             contentJson: contentJson,
             rowid: rowid,
           ),
@@ -7447,6 +8862,7 @@ typedef $$LessonContentsTableProcessedTableManager = ProcessedTableManager<
     PrefetchHooks Function({bool lessonId})>;
 typedef $$VocabularyTableCreateCompanionBuilder = VocabularyCompanion Function({
   required String id,
+  Value<String> languageCode,
   required String term,
   required String translation,
   Value<String?> pronunciation,
@@ -7456,6 +8872,7 @@ typedef $$VocabularyTableCreateCompanionBuilder = VocabularyCompanion Function({
 });
 typedef $$VocabularyTableUpdateCompanionBuilder = VocabularyCompanion Function({
   Value<String> id,
+  Value<String> languageCode,
   Value<String> term,
   Value<String> translation,
   Value<String?> pronunciation,
@@ -7475,6 +8892,9 @@ class $$VocabularyTableFilterComposer
   });
   ColumnFilters<String> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get languageCode => $composableBuilder(
+      column: $table.languageCode, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get term => $composableBuilder(
       column: $table.term, builder: (column) => ColumnFilters(column));
@@ -7504,6 +8924,10 @@ class $$VocabularyTableOrderingComposer
   ColumnOrderings<String> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get languageCode => $composableBuilder(
+      column: $table.languageCode,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get term => $composableBuilder(
       column: $table.term, builder: (column) => ColumnOrderings(column));
 
@@ -7532,6 +8956,9 @@ class $$VocabularyTableAnnotationComposer
   });
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get languageCode => $composableBuilder(
+      column: $table.languageCode, builder: (column) => column);
 
   GeneratedColumn<String> get term =>
       $composableBuilder(column: $table.term, builder: (column) => column);
@@ -7576,6 +9003,7 @@ class $$VocabularyTableTableManager extends RootTableManager<
               $$VocabularyTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback: ({
             Value<String> id = const Value.absent(),
+            Value<String> languageCode = const Value.absent(),
             Value<String> term = const Value.absent(),
             Value<String> translation = const Value.absent(),
             Value<String?> pronunciation = const Value.absent(),
@@ -7585,6 +9013,7 @@ class $$VocabularyTableTableManager extends RootTableManager<
           }) =>
               VocabularyCompanion(
             id: id,
+            languageCode: languageCode,
             term: term,
             translation: translation,
             pronunciation: pronunciation,
@@ -7594,6 +9023,7 @@ class $$VocabularyTableTableManager extends RootTableManager<
           ),
           createCompanionCallback: ({
             required String id,
+            Value<String> languageCode = const Value.absent(),
             required String term,
             required String translation,
             Value<String?> pronunciation = const Value.absent(),
@@ -7603,6 +9033,7 @@ class $$VocabularyTableTableManager extends RootTableManager<
           }) =>
               VocabularyCompanion.insert(
             id: id,
+            languageCode: languageCode,
             term: term,
             translation: translation,
             pronunciation: pronunciation,
@@ -7635,6 +9066,7 @@ typedef $$VocabularyTableProcessedTableManager = ProcessedTableManager<
 typedef $$GrammarPointsTableCreateCompanionBuilder = GrammarPointsCompanion
     Function({
   required String id,
+  Value<String> languageCode,
   required String title,
   Value<String> explanation,
   Value<String> exampleExpressionIds,
@@ -7645,6 +9077,7 @@ typedef $$GrammarPointsTableCreateCompanionBuilder = GrammarPointsCompanion
 typedef $$GrammarPointsTableUpdateCompanionBuilder = GrammarPointsCompanion
     Function({
   Value<String> id,
+  Value<String> languageCode,
   Value<String> title,
   Value<String> explanation,
   Value<String> exampleExpressionIds,
@@ -7664,6 +9097,9 @@ class $$GrammarPointsTableFilterComposer
   });
   ColumnFilters<String> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get languageCode => $composableBuilder(
+      column: $table.languageCode, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get title => $composableBuilder(
       column: $table.title, builder: (column) => ColumnFilters(column));
@@ -7695,6 +9131,10 @@ class $$GrammarPointsTableOrderingComposer
   ColumnOrderings<String> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get languageCode => $composableBuilder(
+      column: $table.languageCode,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get title => $composableBuilder(
       column: $table.title, builder: (column) => ColumnOrderings(column));
 
@@ -7725,6 +9165,9 @@ class $$GrammarPointsTableAnnotationComposer
   });
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get languageCode => $composableBuilder(
+      column: $table.languageCode, builder: (column) => column);
 
   GeneratedColumn<String> get title =>
       $composableBuilder(column: $table.title, builder: (column) => column);
@@ -7770,6 +9213,7 @@ class $$GrammarPointsTableTableManager extends RootTableManager<
               $$GrammarPointsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback: ({
             Value<String> id = const Value.absent(),
+            Value<String> languageCode = const Value.absent(),
             Value<String> title = const Value.absent(),
             Value<String> explanation = const Value.absent(),
             Value<String> exampleExpressionIds = const Value.absent(),
@@ -7779,6 +9223,7 @@ class $$GrammarPointsTableTableManager extends RootTableManager<
           }) =>
               GrammarPointsCompanion(
             id: id,
+            languageCode: languageCode,
             title: title,
             explanation: explanation,
             exampleExpressionIds: exampleExpressionIds,
@@ -7788,6 +9233,7 @@ class $$GrammarPointsTableTableManager extends RootTableManager<
           ),
           createCompanionCallback: ({
             required String id,
+            Value<String> languageCode = const Value.absent(),
             required String title,
             Value<String> explanation = const Value.absent(),
             Value<String> exampleExpressionIds = const Value.absent(),
@@ -7797,6 +9243,7 @@ class $$GrammarPointsTableTableManager extends RootTableManager<
           }) =>
               GrammarPointsCompanion.insert(
             id: id,
+            languageCode: languageCode,
             title: title,
             explanation: explanation,
             exampleExpressionIds: exampleExpressionIds,
@@ -7955,6 +9402,7 @@ typedef $$CourseMetaTableProcessedTableManager = ProcessedTableManager<
 typedef $$ExpressionsTableCreateCompanionBuilder = ExpressionsCompanion
     Function({
   required String id,
+  Value<String> languageCode,
   required String term,
   required String translation,
   Value<String?> pronunciation,
@@ -7965,6 +9413,7 @@ typedef $$ExpressionsTableCreateCompanionBuilder = ExpressionsCompanion
 typedef $$ExpressionsTableUpdateCompanionBuilder = ExpressionsCompanion
     Function({
   Value<String> id,
+  Value<String> languageCode,
   Value<String> term,
   Value<String> translation,
   Value<String?> pronunciation,
@@ -7984,6 +9433,9 @@ class $$ExpressionsTableFilterComposer
   });
   ColumnFilters<String> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get languageCode => $composableBuilder(
+      column: $table.languageCode, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get term => $composableBuilder(
       column: $table.term, builder: (column) => ColumnFilters(column));
@@ -8013,6 +9465,10 @@ class $$ExpressionsTableOrderingComposer
   ColumnOrderings<String> get id => $composableBuilder(
       column: $table.id, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get languageCode => $composableBuilder(
+      column: $table.languageCode,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get term => $composableBuilder(
       column: $table.term, builder: (column) => ColumnOrderings(column));
 
@@ -8041,6 +9497,9 @@ class $$ExpressionsTableAnnotationComposer
   });
   GeneratedColumn<String> get id =>
       $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get languageCode => $composableBuilder(
+      column: $table.languageCode, builder: (column) => column);
 
   GeneratedColumn<String> get term =>
       $composableBuilder(column: $table.term, builder: (column) => column);
@@ -8085,6 +9544,7 @@ class $$ExpressionsTableTableManager extends RootTableManager<
               $$ExpressionsTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback: ({
             Value<String> id = const Value.absent(),
+            Value<String> languageCode = const Value.absent(),
             Value<String> term = const Value.absent(),
             Value<String> translation = const Value.absent(),
             Value<String?> pronunciation = const Value.absent(),
@@ -8094,6 +9554,7 @@ class $$ExpressionsTableTableManager extends RootTableManager<
           }) =>
               ExpressionsCompanion(
             id: id,
+            languageCode: languageCode,
             term: term,
             translation: translation,
             pronunciation: pronunciation,
@@ -8103,6 +9564,7 @@ class $$ExpressionsTableTableManager extends RootTableManager<
           ),
           createCompanionCallback: ({
             required String id,
+            Value<String> languageCode = const Value.absent(),
             required String term,
             required String translation,
             Value<String?> pronunciation = const Value.absent(),
@@ -8112,6 +9574,7 @@ class $$ExpressionsTableTableManager extends RootTableManager<
           }) =>
               ExpressionsCompanion.insert(
             id: id,
+            languageCode: languageCode,
             term: term,
             translation: translation,
             pronunciation: pronunciation,
@@ -9610,6 +11073,7 @@ typedef $$AnkiCardsMetaTableProcessedTableManager = ProcessedTableManager<
     PrefetchHooks Function({bool importId})>;
 typedef $$SrsStatesTableCreateCompanionBuilder = SrsStatesCompanion Function({
   required String wordId,
+  Value<String> languageCode,
   required String queue,
   required int dueAt,
   Value<int> intervalDays,
@@ -9632,6 +11096,7 @@ typedef $$SrsStatesTableCreateCompanionBuilder = SrsStatesCompanion Function({
 });
 typedef $$SrsStatesTableUpdateCompanionBuilder = SrsStatesCompanion Function({
   Value<String> wordId,
+  Value<String> languageCode,
   Value<String> queue,
   Value<int> dueAt,
   Value<int> intervalDays,
@@ -9664,6 +11129,9 @@ class $$SrsStatesTableFilterComposer
   });
   ColumnFilters<String> get wordId => $composableBuilder(
       column: $table.wordId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get languageCode => $composableBuilder(
+      column: $table.languageCode, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get queue => $composableBuilder(
       column: $table.queue, builder: (column) => ColumnFilters(column));
@@ -9732,6 +11200,10 @@ class $$SrsStatesTableOrderingComposer
   });
   ColumnOrderings<String> get wordId => $composableBuilder(
       column: $table.wordId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get languageCode => $composableBuilder(
+      column: $table.languageCode,
+      builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get queue => $composableBuilder(
       column: $table.queue, builder: (column) => ColumnOrderings(column));
@@ -9802,6 +11274,9 @@ class $$SrsStatesTableAnnotationComposer
   });
   GeneratedColumn<String> get wordId =>
       $composableBuilder(column: $table.wordId, builder: (column) => column);
+
+  GeneratedColumn<String> get languageCode => $composableBuilder(
+      column: $table.languageCode, builder: (column) => column);
 
   GeneratedColumn<String> get queue =>
       $composableBuilder(column: $table.queue, builder: (column) => column);
@@ -9882,6 +11357,7 @@ class $$SrsStatesTableTableManager extends RootTableManager<
               $$SrsStatesTableAnnotationComposer($db: db, $table: table),
           updateCompanionCallback: ({
             Value<String> wordId = const Value.absent(),
+            Value<String> languageCode = const Value.absent(),
             Value<String> queue = const Value.absent(),
             Value<int> dueAt = const Value.absent(),
             Value<int> intervalDays = const Value.absent(),
@@ -9904,6 +11380,7 @@ class $$SrsStatesTableTableManager extends RootTableManager<
           }) =>
               SrsStatesCompanion(
             wordId: wordId,
+            languageCode: languageCode,
             queue: queue,
             dueAt: dueAt,
             intervalDays: intervalDays,
@@ -9926,6 +11403,7 @@ class $$SrsStatesTableTableManager extends RootTableManager<
           ),
           createCompanionCallback: ({
             required String wordId,
+            Value<String> languageCode = const Value.absent(),
             required String queue,
             required int dueAt,
             Value<int> intervalDays = const Value.absent(),
@@ -9948,6 +11426,7 @@ class $$SrsStatesTableTableManager extends RootTableManager<
           }) =>
               SrsStatesCompanion.insert(
             wordId: wordId,
+            languageCode: languageCode,
             queue: queue,
             dueAt: dueAt,
             intervalDays: intervalDays,
@@ -9991,6 +11470,7 @@ typedef $$ReviewEventsTableCreateCompanionBuilder = ReviewEventsCompanion
     Function({
   Value<int> id,
   required String cardId,
+  Value<String> languageCode,
   required String queue,
   required int reviewedAt,
   required int quality,
@@ -10010,6 +11490,7 @@ typedef $$ReviewEventsTableUpdateCompanionBuilder = ReviewEventsCompanion
     Function({
   Value<int> id,
   Value<String> cardId,
+  Value<String> languageCode,
   Value<String> queue,
   Value<int> reviewedAt,
   Value<int> quality,
@@ -10040,6 +11521,9 @@ class $$ReviewEventsTableFilterComposer
 
   ColumnFilters<String> get cardId => $composableBuilder(
       column: $table.cardId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get languageCode => $composableBuilder(
+      column: $table.languageCode, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get queue => $composableBuilder(
       column: $table.queue, builder: (column) => ColumnFilters(column));
@@ -10101,6 +11585,10 @@ class $$ReviewEventsTableOrderingComposer
   ColumnOrderings<String> get cardId => $composableBuilder(
       column: $table.cardId, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get languageCode => $composableBuilder(
+      column: $table.languageCode,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get queue => $composableBuilder(
       column: $table.queue, builder: (column) => ColumnOrderings(column));
 
@@ -10160,6 +11648,9 @@ class $$ReviewEventsTableAnnotationComposer
 
   GeneratedColumn<String> get cardId =>
       $composableBuilder(column: $table.cardId, builder: (column) => column);
+
+  GeneratedColumn<String> get languageCode => $composableBuilder(
+      column: $table.languageCode, builder: (column) => column);
 
   GeneratedColumn<String> get queue =>
       $composableBuilder(column: $table.queue, builder: (column) => column);
@@ -10232,6 +11723,7 @@ class $$ReviewEventsTableTableManager extends RootTableManager<
           updateCompanionCallback: ({
             Value<int> id = const Value.absent(),
             Value<String> cardId = const Value.absent(),
+            Value<String> languageCode = const Value.absent(),
             Value<String> queue = const Value.absent(),
             Value<int> reviewedAt = const Value.absent(),
             Value<int> quality = const Value.absent(),
@@ -10250,6 +11742,7 @@ class $$ReviewEventsTableTableManager extends RootTableManager<
               ReviewEventsCompanion(
             id: id,
             cardId: cardId,
+            languageCode: languageCode,
             queue: queue,
             reviewedAt: reviewedAt,
             quality: quality,
@@ -10268,6 +11761,7 @@ class $$ReviewEventsTableTableManager extends RootTableManager<
           createCompanionCallback: ({
             Value<int> id = const Value.absent(),
             required String cardId,
+            Value<String> languageCode = const Value.absent(),
             required String queue,
             required int reviewedAt,
             required int quality,
@@ -10286,6 +11780,7 @@ class $$ReviewEventsTableTableManager extends RootTableManager<
               ReviewEventsCompanion.insert(
             id: id,
             cardId: cardId,
+            languageCode: languageCode,
             queue: queue,
             reviewedAt: reviewedAt,
             quality: quality,
@@ -10323,6 +11818,466 @@ typedef $$ReviewEventsTableProcessedTableManager = ProcessedTableManager<
     ),
     ReviewEvent,
     PrefetchHooks Function()>;
+typedef $$MistakesTableCreateCompanionBuilder = MistakesCompanion Function({
+  required String id,
+  Value<String> languageCode,
+  required String lessonId,
+  required String stageId,
+  required String interactionId,
+  Value<String?> wordId,
+  Value<String?> expressionId,
+  Value<String?> grammarPointId,
+  Value<String?> interactionSnapshotJson,
+  Value<String> userAnswer,
+  Value<String> correctAnswer,
+  required int timestampMs,
+  Value<int> rewriteCount,
+  Value<int> sortOrder,
+  Value<int> rowid,
+});
+typedef $$MistakesTableUpdateCompanionBuilder = MistakesCompanion Function({
+  Value<String> id,
+  Value<String> languageCode,
+  Value<String> lessonId,
+  Value<String> stageId,
+  Value<String> interactionId,
+  Value<String?> wordId,
+  Value<String?> expressionId,
+  Value<String?> grammarPointId,
+  Value<String?> interactionSnapshotJson,
+  Value<String> userAnswer,
+  Value<String> correctAnswer,
+  Value<int> timestampMs,
+  Value<int> rewriteCount,
+  Value<int> sortOrder,
+  Value<int> rowid,
+});
+
+class $$MistakesTableFilterComposer
+    extends Composer<_$CourseDatabase, $MistakesTable> {
+  $$MistakesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get languageCode => $composableBuilder(
+      column: $table.languageCode, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get lessonId => $composableBuilder(
+      column: $table.lessonId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get stageId => $composableBuilder(
+      column: $table.stageId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get interactionId => $composableBuilder(
+      column: $table.interactionId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get wordId => $composableBuilder(
+      column: $table.wordId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get expressionId => $composableBuilder(
+      column: $table.expressionId, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get grammarPointId => $composableBuilder(
+      column: $table.grammarPointId,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get interactionSnapshotJson => $composableBuilder(
+      column: $table.interactionSnapshotJson,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get userAnswer => $composableBuilder(
+      column: $table.userAnswer, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get correctAnswer => $composableBuilder(
+      column: $table.correctAnswer, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get timestampMs => $composableBuilder(
+      column: $table.timestampMs, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get rewriteCount => $composableBuilder(
+      column: $table.rewriteCount, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnFilters(column));
+}
+
+class $$MistakesTableOrderingComposer
+    extends Composer<_$CourseDatabase, $MistakesTable> {
+  $$MistakesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+      column: $table.id, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get languageCode => $composableBuilder(
+      column: $table.languageCode,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get lessonId => $composableBuilder(
+      column: $table.lessonId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get stageId => $composableBuilder(
+      column: $table.stageId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get interactionId => $composableBuilder(
+      column: $table.interactionId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get wordId => $composableBuilder(
+      column: $table.wordId, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get expressionId => $composableBuilder(
+      column: $table.expressionId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get grammarPointId => $composableBuilder(
+      column: $table.grammarPointId,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get interactionSnapshotJson => $composableBuilder(
+      column: $table.interactionSnapshotJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get userAnswer => $composableBuilder(
+      column: $table.userAnswer, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get correctAnswer => $composableBuilder(
+      column: $table.correctAnswer,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get timestampMs => $composableBuilder(
+      column: $table.timestampMs, builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get rewriteCount => $composableBuilder(
+      column: $table.rewriteCount,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+      column: $table.sortOrder, builder: (column) => ColumnOrderings(column));
+}
+
+class $$MistakesTableAnnotationComposer
+    extends Composer<_$CourseDatabase, $MistakesTable> {
+  $$MistakesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get languageCode => $composableBuilder(
+      column: $table.languageCode, builder: (column) => column);
+
+  GeneratedColumn<String> get lessonId =>
+      $composableBuilder(column: $table.lessonId, builder: (column) => column);
+
+  GeneratedColumn<String> get stageId =>
+      $composableBuilder(column: $table.stageId, builder: (column) => column);
+
+  GeneratedColumn<String> get interactionId => $composableBuilder(
+      column: $table.interactionId, builder: (column) => column);
+
+  GeneratedColumn<String> get wordId =>
+      $composableBuilder(column: $table.wordId, builder: (column) => column);
+
+  GeneratedColumn<String> get expressionId => $composableBuilder(
+      column: $table.expressionId, builder: (column) => column);
+
+  GeneratedColumn<String> get grammarPointId => $composableBuilder(
+      column: $table.grammarPointId, builder: (column) => column);
+
+  GeneratedColumn<String> get interactionSnapshotJson => $composableBuilder(
+      column: $table.interactionSnapshotJson, builder: (column) => column);
+
+  GeneratedColumn<String> get userAnswer => $composableBuilder(
+      column: $table.userAnswer, builder: (column) => column);
+
+  GeneratedColumn<String> get correctAnswer => $composableBuilder(
+      column: $table.correctAnswer, builder: (column) => column);
+
+  GeneratedColumn<int> get timestampMs => $composableBuilder(
+      column: $table.timestampMs, builder: (column) => column);
+
+  GeneratedColumn<int> get rewriteCount => $composableBuilder(
+      column: $table.rewriteCount, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+}
+
+class $$MistakesTableTableManager extends RootTableManager<
+    _$CourseDatabase,
+    $MistakesTable,
+    Mistake,
+    $$MistakesTableFilterComposer,
+    $$MistakesTableOrderingComposer,
+    $$MistakesTableAnnotationComposer,
+    $$MistakesTableCreateCompanionBuilder,
+    $$MistakesTableUpdateCompanionBuilder,
+    (Mistake, BaseReferences<_$CourseDatabase, $MistakesTable, Mistake>),
+    Mistake,
+    PrefetchHooks Function()> {
+  $$MistakesTableTableManager(_$CourseDatabase db, $MistakesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MistakesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MistakesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MistakesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> id = const Value.absent(),
+            Value<String> languageCode = const Value.absent(),
+            Value<String> lessonId = const Value.absent(),
+            Value<String> stageId = const Value.absent(),
+            Value<String> interactionId = const Value.absent(),
+            Value<String?> wordId = const Value.absent(),
+            Value<String?> expressionId = const Value.absent(),
+            Value<String?> grammarPointId = const Value.absent(),
+            Value<String?> interactionSnapshotJson = const Value.absent(),
+            Value<String> userAnswer = const Value.absent(),
+            Value<String> correctAnswer = const Value.absent(),
+            Value<int> timestampMs = const Value.absent(),
+            Value<int> rewriteCount = const Value.absent(),
+            Value<int> sortOrder = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              MistakesCompanion(
+            id: id,
+            languageCode: languageCode,
+            lessonId: lessonId,
+            stageId: stageId,
+            interactionId: interactionId,
+            wordId: wordId,
+            expressionId: expressionId,
+            grammarPointId: grammarPointId,
+            interactionSnapshotJson: interactionSnapshotJson,
+            userAnswer: userAnswer,
+            correctAnswer: correctAnswer,
+            timestampMs: timestampMs,
+            rewriteCount: rewriteCount,
+            sortOrder: sortOrder,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String id,
+            Value<String> languageCode = const Value.absent(),
+            required String lessonId,
+            required String stageId,
+            required String interactionId,
+            Value<String?> wordId = const Value.absent(),
+            Value<String?> expressionId = const Value.absent(),
+            Value<String?> grammarPointId = const Value.absent(),
+            Value<String?> interactionSnapshotJson = const Value.absent(),
+            Value<String> userAnswer = const Value.absent(),
+            Value<String> correctAnswer = const Value.absent(),
+            required int timestampMs,
+            Value<int> rewriteCount = const Value.absent(),
+            Value<int> sortOrder = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              MistakesCompanion.insert(
+            id: id,
+            languageCode: languageCode,
+            lessonId: lessonId,
+            stageId: stageId,
+            interactionId: interactionId,
+            wordId: wordId,
+            expressionId: expressionId,
+            grammarPointId: grammarPointId,
+            interactionSnapshotJson: interactionSnapshotJson,
+            userAnswer: userAnswer,
+            correctAnswer: correctAnswer,
+            timestampMs: timestampMs,
+            rewriteCount: rewriteCount,
+            sortOrder: sortOrder,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$MistakesTableProcessedTableManager = ProcessedTableManager<
+    _$CourseDatabase,
+    $MistakesTable,
+    Mistake,
+    $$MistakesTableFilterComposer,
+    $$MistakesTableOrderingComposer,
+    $$MistakesTableAnnotationComposer,
+    $$MistakesTableCreateCompanionBuilder,
+    $$MistakesTableUpdateCompanionBuilder,
+    (Mistake, BaseReferences<_$CourseDatabase, $MistakesTable, Mistake>),
+    Mistake,
+    PrefetchHooks Function()>;
+typedef $$MistakeAggregatesTableCreateCompanionBuilder
+    = MistakeAggregatesCompanion Function({
+  required String languageCode,
+  Value<String> dailyCountsJson,
+  Value<int> masteredTotal,
+  Value<int> rowid,
+});
+typedef $$MistakeAggregatesTableUpdateCompanionBuilder
+    = MistakeAggregatesCompanion Function({
+  Value<String> languageCode,
+  Value<String> dailyCountsJson,
+  Value<int> masteredTotal,
+  Value<int> rowid,
+});
+
+class $$MistakeAggregatesTableFilterComposer
+    extends Composer<_$CourseDatabase, $MistakeAggregatesTable> {
+  $$MistakeAggregatesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get languageCode => $composableBuilder(
+      column: $table.languageCode, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get dailyCountsJson => $composableBuilder(
+      column: $table.dailyCountsJson,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<int> get masteredTotal => $composableBuilder(
+      column: $table.masteredTotal, builder: (column) => ColumnFilters(column));
+}
+
+class $$MistakeAggregatesTableOrderingComposer
+    extends Composer<_$CourseDatabase, $MistakeAggregatesTable> {
+  $$MistakeAggregatesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get languageCode => $composableBuilder(
+      column: $table.languageCode,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get dailyCountsJson => $composableBuilder(
+      column: $table.dailyCountsJson,
+      builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<int> get masteredTotal => $composableBuilder(
+      column: $table.masteredTotal,
+      builder: (column) => ColumnOrderings(column));
+}
+
+class $$MistakeAggregatesTableAnnotationComposer
+    extends Composer<_$CourseDatabase, $MistakeAggregatesTable> {
+  $$MistakeAggregatesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get languageCode => $composableBuilder(
+      column: $table.languageCode, builder: (column) => column);
+
+  GeneratedColumn<String> get dailyCountsJson => $composableBuilder(
+      column: $table.dailyCountsJson, builder: (column) => column);
+
+  GeneratedColumn<int> get masteredTotal => $composableBuilder(
+      column: $table.masteredTotal, builder: (column) => column);
+}
+
+class $$MistakeAggregatesTableTableManager extends RootTableManager<
+    _$CourseDatabase,
+    $MistakeAggregatesTable,
+    MistakeAggregate,
+    $$MistakeAggregatesTableFilterComposer,
+    $$MistakeAggregatesTableOrderingComposer,
+    $$MistakeAggregatesTableAnnotationComposer,
+    $$MistakeAggregatesTableCreateCompanionBuilder,
+    $$MistakeAggregatesTableUpdateCompanionBuilder,
+    (
+      MistakeAggregate,
+      BaseReferences<_$CourseDatabase, $MistakeAggregatesTable,
+          MistakeAggregate>
+    ),
+    MistakeAggregate,
+    PrefetchHooks Function()> {
+  $$MistakeAggregatesTableTableManager(
+      _$CourseDatabase db, $MistakeAggregatesTable table)
+      : super(TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$MistakeAggregatesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$MistakeAggregatesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$MistakeAggregatesTableAnnotationComposer(
+                  $db: db, $table: table),
+          updateCompanionCallback: ({
+            Value<String> languageCode = const Value.absent(),
+            Value<String> dailyCountsJson = const Value.absent(),
+            Value<int> masteredTotal = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              MistakeAggregatesCompanion(
+            languageCode: languageCode,
+            dailyCountsJson: dailyCountsJson,
+            masteredTotal: masteredTotal,
+            rowid: rowid,
+          ),
+          createCompanionCallback: ({
+            required String languageCode,
+            Value<String> dailyCountsJson = const Value.absent(),
+            Value<int> masteredTotal = const Value.absent(),
+            Value<int> rowid = const Value.absent(),
+          }) =>
+              MistakeAggregatesCompanion.insert(
+            languageCode: languageCode,
+            dailyCountsJson: dailyCountsJson,
+            masteredTotal: masteredTotal,
+            rowid: rowid,
+          ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ));
+}
+
+typedef $$MistakeAggregatesTableProcessedTableManager = ProcessedTableManager<
+    _$CourseDatabase,
+    $MistakeAggregatesTable,
+    MistakeAggregate,
+    $$MistakeAggregatesTableFilterComposer,
+    $$MistakeAggregatesTableOrderingComposer,
+    $$MistakeAggregatesTableAnnotationComposer,
+    $$MistakeAggregatesTableCreateCompanionBuilder,
+    $$MistakeAggregatesTableUpdateCompanionBuilder,
+    (
+      MistakeAggregate,
+      BaseReferences<_$CourseDatabase, $MistakeAggregatesTable,
+          MistakeAggregate>
+    ),
+    MistakeAggregate,
+    PrefetchHooks Function()>;
 
 class $CourseDatabaseManager {
   final _$CourseDatabase _db;
@@ -10355,4 +12310,8 @@ class $CourseDatabaseManager {
       $$SrsStatesTableTableManager(_db, _db.srsStates);
   $$ReviewEventsTableTableManager get reviewEvents =>
       $$ReviewEventsTableTableManager(_db, _db.reviewEvents);
+  $$MistakesTableTableManager get mistakes =>
+      $$MistakesTableTableManager(_db, _db.mistakes);
+  $$MistakeAggregatesTableTableManager get mistakeAggregates =>
+      $$MistakeAggregatesTableTableManager(_db, _db.mistakeAggregates);
 }

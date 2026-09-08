@@ -13,11 +13,23 @@ import 'package:turna/application/anki_official/projection/official_anki_course_
 import 'package:turna/application/anki_official/v2/official_anki_v2_course_read.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_decision_store.dart';
 import 'package:turna/application/course_catalog.dart';
+import 'package:turna/application/grammar_review_provider.dart';
+import 'package:turna/application/language_provider.dart';
+import 'package:turna/application/language_registry.dart';
+import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/application/srs_provider.dart';
+import 'package:turna/application/study_stats_provider.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/courses/languages/course_lookup.dart';
+import 'package:turna/courses/languages/language_content_store.dart';
 import 'package:turna/data/course_database.dart' show CourseDatabase;
+import 'package:turna/data/course_database_seeder.dart' show DatabaseSeeder;
+import 'package:turna/data/course_repository.dart';
+import 'package:turna/data/study_log_repository.dart';
+import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/course_scope.dart';
+import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/domain/course/section.dart';
 import 'package:turna/domain/course/unit.dart';
 import 'package:turna/domain/course/lesson.dart';
@@ -67,10 +79,17 @@ class CourseProvider extends ChangeNotifier {
   bool _isLoaded = false;
 
   /// Active course scope (typed). Built-in language course by default.
-  CourseScope _scope = const BuiltinCourseScope('turkish');
+  CourseScope _scope = const BuiltinCourseScope(LanguageCodes.turkish);
+
+  Map<String, String> _sectionLanguageCodes = const {};
 
   /// Catalog of selectable courses, loaded with the shells.
   List<CourseCatalogEntry> _catalogEntries = const [];
+
+  /// Builtin languages carrying an `uninstalled:<code>` marker — candidates
+  /// for the restore list on the course-management page. Refreshed with the
+  /// catalog.
+  List<({String code, String displayName})> _restorableLanguages = const [];
 
   /// Ids of sections whose full body (units/lessons) has been loaded.
   final Set<String> _loadedSectionIds = {};
@@ -121,9 +140,10 @@ class CourseProvider extends ChangeNotifier {
   List<CourseCatalogEntry> get catalogEntries =>
       List.unmodifiable(_catalogEntries);
 
-  /// Whether [sectionId] belongs to the active scope. Exact ownership only.
-  bool sectionInActiveScope(String sectionId) =>
-      CourseCatalog.sectionBelongsToScope(_scope, sectionId);
+  /// Uninstalled builtin languages that can be restored (marker cleared +
+  /// assets reseeded) from the course-management page.
+  List<({String code, String displayName})> get restorableBuiltinLanguages =>
+      List.unmodifiable(_restorableLanguages);
 
   /// Legacy view over [catalogEntries]. Prefer [catalogEntries].
   List<({String scope, String name, bool isBuiltin})> get courseEntries {
@@ -327,6 +347,11 @@ class CourseProvider extends ChangeNotifier {
       rawShells,
       activeIds: officialActive,
     );
+    try {
+      _sectionLanguageCodes = await CourseLoader.sectionLanguageCodes();
+    } catch (_) {
+      _sectionLanguageCodes = const {};
+    }
     await _reloadCatalog(shells: _allSections);
     _sections = _applyScopeFilter(_allSections);
     if (_scope case BuiltinCourseScope() when _sections.isEmpty) {
@@ -357,7 +382,7 @@ class CourseProvider extends ChangeNotifier {
         'CourseProvider.load: scope "$_scope" matches no sections, '
         'falling back to built-in course',
       );
-      _scope = const BuiltinCourseScope('turkish');
+      _scope = _fallbackBuiltin();
       await _persistScope();
       _sections = _applyScopeFilter(_allSections);
     }
@@ -372,6 +397,7 @@ class CourseProvider extends ChangeNotifier {
       );
     }
     notifyListeners();
+    await _syncPracticeLanguage();
     if (_currentSectionId != null) {
       await ensureSectionLoaded(_currentSectionId!);
     }
@@ -534,6 +560,104 @@ class CourseProvider extends ChangeNotifier {
     await _persistScopeDecisionToConfig(next);
     CourseLoader.invalidateCaches();
     await reloadCourse();
+    await _syncPracticeLanguage();
+  }
+
+  Future<void> uninstallBuiltinLanguage(String languageCode) async {
+    final code = LanguageCodes.canonicalize(languageCode);
+    CourseDatabase? db;
+    try {
+      db = CourseLoader.databaseOrNull();
+    } catch (_) {
+      db = null;
+    }
+    if (db == null) return;
+    await CourseRepository(db).deleteBuiltinLanguage(code);
+    // Study logs/daily aggregates live in prefs, not the course DB.
+    try {
+      if (getIt.isRegistered<StudyLogRepository>()) {
+        await getIt<StudyLogRepository>().deleteByLanguage(code);
+      }
+    } catch (error) {
+      logger.w('CourseProvider: study log cleanup for $code failed: $error');
+    }
+    LanguageContentStore.drop(code);
+    CourseLoader.invalidateCaches();
+    if (_scope == BuiltinCourseScope(code)) {
+      await setScope(_fallbackBuiltin());
+    } else {
+      await reloadCourse();
+    }
+  }
+
+  /// Restore a previously uninstalled builtin language: clear the marker and
+  /// reseed its content from the packed assets. Learning progress (SRS /
+  /// history / mistakes) was deleted at uninstall time and stays gone.
+  Future<void> reinstallBuiltinLanguage(String languageCode) async {
+    final code = LanguageCodes.canonicalize(languageCode);
+    CourseDatabase? db;
+    try {
+      db = CourseLoader.databaseOrNull();
+    } catch (_) {
+      db = null;
+    }
+    if (db == null) return;
+    await CourseRepository(db).clearLanguageUninstallMarker(code);
+    final seeded = await DatabaseSeeder(db).seedLanguage(code);
+    if (!seeded) {
+      logger.w('CourseProvider: reinstall of "$code" seeded nothing '
+          '(marker cleared; missing asset?)');
+    }
+    await reloadCourse();
+  }
+
+  Future<void> _syncPracticeLanguage() async {
+    final code = switch (_scope) {
+      BuiltinCourseScope(languageCode: final languageCode) =>
+        LanguageCodes.canonicalize(languageCode),
+      _ => LanguageRegistry.instance.defaultCode,
+    };
+    try {
+      await LanguageContentStore.activate(code);
+    } catch (error) {
+      logger.w('CourseProvider: content store activate for "$code" failed '
+          '(globals keep the previous language): $error');
+    }
+    try {
+      if (getIt.isRegistered<LanguageProvider>()) {
+        getIt<LanguageProvider>().setLanguageCode(code);
+      }
+    } catch (error) {
+      logger.w('CourseProvider: language sync failed: $error');
+    }
+    try {
+      if (getIt.isRegistered<SrsProvider>()) {
+        await getIt<SrsProvider>().setLanguageFilter(code);
+      }
+    } catch (error) {
+      logger.w('CourseProvider: SRS language sync failed: $error');
+    }
+    try {
+      if (getIt.isRegistered<GrammarReviewProvider>()) {
+        await getIt<GrammarReviewProvider>().setLanguageFilter(code);
+      }
+    } catch (error) {
+      logger.w('CourseProvider: grammar language sync failed: $error');
+    }
+    try {
+      if (getIt.isRegistered<MistakeProvider>()) {
+        await getIt<MistakeProvider>().setLanguage(code);
+      }
+    } catch (error) {
+      logger.w('CourseProvider: mistake language sync failed: $error');
+    }
+    try {
+      if (getIt.isRegistered<StudyStatsProvider>()) {
+        getIt<StudyStatsProvider>().setLanguage(code);
+      }
+    } catch (error) {
+      logger.w('CourseProvider: stats language sync failed: $error');
+    }
   }
 
   Future<void> _persistScopeDecisionToConfig(CourseScope next) async {
@@ -560,7 +684,7 @@ class CourseProvider extends ChangeNotifier {
     }
     final trimmed = raw.trim();
     if (trimmed.isEmpty) {
-      await setScope(const BuiltinCourseScope('turkish'));
+      await setScope(_fallbackBuiltin());
       return;
     }
     if (trimmed.startsWith('anki:')) {
@@ -587,7 +711,7 @@ class CourseProvider extends ChangeNotifier {
     }
     logger.w('CourseProvider.setCourseScope: unresolvable scope "$raw", '
         'falling back to builtin');
-    await setScope(const BuiltinCourseScope('turkish'));
+    await setScope(_fallbackBuiltin());
   }
 
   /// Keep only the sections belonging to the active scope: built-in course
@@ -602,7 +726,9 @@ class CourseProvider extends ChangeNotifier {
 
   bool _catalogStillHasScope(CourseScope scope) {
     return switch (scope) {
-      BuiltinCourseScope() => true,
+      BuiltinCourseScope() =>
+        _catalogEntries.any((e) => e.scope == scope) ||
+            _catalogEntries.any((e) => e.isBuiltin),
       LegacyAnkiCourseScope(importId: final id) =>
         _catalogEntries.any((e) => e.legacyImportId == id),
       OfficialAnkiCourseScope(sourceId: final id) =>
@@ -612,13 +738,21 @@ class CourseProvider extends ChangeNotifier {
 
   bool _sectionInScope(Section s) {
     return switch (_scope) {
-      BuiltinCourseScope() => _isAnyAnkiSection(s) == false,
+      BuiltinCourseScope(languageCode: final code) =>
+        _isAnyAnkiSection(s) == false &&
+            LanguageCodes.canonicalize(
+                  _sectionLanguageCodes[s.id] ?? LanguageCodes.turkish,
+                ) ==
+                LanguageCodes.canonicalize(code),
       LegacyAnkiCourseScope(importId: final id) =>
         CourseCatalog.legacyImportIdFromSectionId(s.id) == id,
       OfficialAnkiCourseScope(sourceId: final id) =>
         CourseCatalog.officialSourceIdFromSectionId(s.id) == id,
     };
   }
+
+  CourseScope _fallbackBuiltin() =>
+      CourseCatalog.fallbackBuiltin(_catalogEntries);
 
   /// True for every Legacy or Official Anki section regardless of level
   /// tagging — the builtin language course must never show either
@@ -629,8 +763,37 @@ class CourseProvider extends ChangeNotifier {
         OfficialAnkiCourseEntry.isOfficialSectionId(s.id);
   }
 
+  /// Marker codes + content counts for [CourseCatalog.load]; empty when the
+  /// DB is not reachable (tests without a DB).
+  Future<(Set<String>, Map<String, int>)> _uninstalledAndCardCounts() async {
+    CourseDatabase? db;
+    try {
+      db = CourseLoader.databaseOrNull();
+    } catch (_) {
+      db = null;
+    }
+    if (db == null) return (const <String>{}, const <String, int>{});
+    final repo = CourseRepository(db);
+    return (
+      await repo.uninstalledLanguageCodes(),
+      await repo.builtinCardCounts(),
+    );
+  }
+
   Future<void> _reloadCatalog({List<Section>? shells}) async {
-    final entries = await CourseCatalog.load(shells: shells ?? _allSections);
+    final (uninstalled, cardCounts) = await _uninstalledAndCardCounts();
+    final entries = await CourseCatalog.load(
+      shells: shells ?? _allSections,
+      uninstalledLanguageCodes: uninstalled,
+      builtinCardCounts: cardCounts,
+    );
+    _restorableLanguages = List.unmodifiable([
+      for (final code in uninstalled)
+        (
+          code: code,
+          displayName: LanguageRegistry.instance.displayName(code),
+        ),
+    ]);
     final stored = _appPrefs?.preferences.getStringList(
             PrefsConstants.courseOrder,
             defaultValue: const []).getValue() ??
@@ -642,7 +805,7 @@ class CourseProvider extends ChangeNotifier {
     byWire.forEach((wire, entry) {
       switch (entry.scope) {
         case BuiltinCourseScope():
-          wireForStored[''] = wire;
+          wireForStored.putIfAbsent('', () => wire);
         case LegacyAnkiCourseScope(importId: final id):
           wireForStored['anki:$id'] = wire;
         case OfficialAnkiCourseScope(sourceId: final id):
@@ -660,11 +823,6 @@ class CourseProvider extends ChangeNotifier {
       final entry = byWire[wire];
       if (entry == null || !seen.add(wire)) continue;
       ordered.add(entry);
-    }
-    // The built-in course always exists, even if absent from stored order.
-    final builtinWire = const BuiltinCourseScope('turkish').wireKey;
-    if (byWire.containsKey(builtinWire) && seen.add(builtinWire)) {
-      ordered.insert(0, byWire[builtinWire]!);
     }
     // Sources not yet in the stored order go last.
     for (final entry in entries) {
@@ -723,10 +881,10 @@ class CourseProvider extends ChangeNotifier {
         }
       }
     } else if (raw.isEmpty) {
-      _scope = const BuiltinCourseScope('turkish');
+      _scope = _fallbackBuiltin();
       return;
     }
-    _scope = const BuiltinCourseScope('turkish');
+    _scope = _fallbackBuiltin();
   }
 
   Future<void> _persistScope() async {

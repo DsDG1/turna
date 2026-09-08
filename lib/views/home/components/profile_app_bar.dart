@@ -128,7 +128,7 @@ class _ShareProgressSheetState extends State<_ShareProgressSheet> {
                             gems: gems,
                             completedLessons: completedLessons,
                             perfectLessons: perfectLessons,
-                            targetLanguage: languageProvider.selectedLanguage,
+                            targetLanguageName: languageProvider.displayName,
                           ),
                         ),
                       ),

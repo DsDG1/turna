@@ -1,0 +1,51 @@
+{
+  "id": "fr-section1",
+  "name": "Section 1",
+  "description": "Saluer en français",
+  "level": "A1",
+  "prerequisiteSectionIds": [],
+  "units": [
+    {
+      "id": "fr-s1-u1",
+      "name": "Greetings",
+      "description": "How to say hello and thank you in French.",
+      "prerequisiteUnitIds": [],
+      "lessons": [
+        {
+          "id": "fr-s1-l1",
+          "name": "Bonjour",
+          "description": "Meet common French greetings.",
+          "type": "normal",
+          "template": "legacy",
+          "prerequisiteLessonIds": [],
+          "content": {
+            "stages": [
+              {
+                "id": "fr-stage-s1-l1",
+                "name": "Welcome",
+                "description": "",
+                "prerequisiteStageIds": [],
+                "items": [
+                  {
+                    "runtimeType": "showWord",
+                    "id": "fr-sw-bonjour",
+                    "wordId": "fr-w-bonjour",
+                    "context": "bonjour — hello"
+                  },
+                  {
+                    "runtimeType": "multipleChoice",
+                    "id": "fr-mc-bonjour",
+                    "prompt": "What does \"Bonjour\" mean?",
+                    "options": ["Hello", "Goodbye", "Please", "Sorry"],
+                    "correctIndex": 0
+                  }
+                ]
+              }
+            ],
+            "subLessons": []
+          }
+        }
+      ]
+    }
+  ]
+}

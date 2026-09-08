@@ -9,7 +9,6 @@ import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:turna/application/course_catalog.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/settings_provider.dart';
-import 'package:turna/core/enums.dart';
 import 'package:turna/domain/course/course_scope.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/locator.dart';
@@ -92,7 +91,7 @@ void main() {
       (tester) async {
     await pumpPage(tester);
 
-    expect(find.text(TargetLanguage.turkish.displayName), findsOneWidget);
+    expect(find.text('Builtin Turkish'), findsOneWidget);
     expect(find.text('JLPT N5 词库'), findsOneWidget);
     expect(find.text(AppStrings.courseManagementCardCount(1204)),
         findsOneWidget);

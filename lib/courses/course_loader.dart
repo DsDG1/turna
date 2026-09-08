@@ -5,7 +5,9 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart' show visibleForTesting;
 
 // Project imports:
+import 'package:turna/application/language_registry.dart';
 import 'package:turna/courses/course_validator.dart';
+import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/data/course_database.dart'
     hide
         Section,
@@ -66,28 +68,29 @@ class CourseLoader {
     required this.expressionsById,
   });
 
-  /// Directory holding the seed JSON assets (index + per-section files +
-  /// vocab + grammar points). Used by [DatabaseSeeder]; exposed for seed-time
-  /// file resolution.
-  static const String baseDir = 'assets/courses/turkish';
+  /// Directory holding the seed JSON assets for [languageCode].
+  static String baseDirFor(String languageCode) {
+    final dir = LanguageRegistry.instance.assetDir(languageCode);
+    return 'assets/courses/$dir';
+  }
 
-  /// Course index: metadata + one lightweight entry per section with a `file`
-  /// pointer (relative to [baseDir]) to that section's full JSON. Seed source.
-  static const String indexAsset = '$baseDir/index.json';
+  static String indexAssetFor(String languageCode) =>
+      '${baseDirFor(languageCode)}/index.json';
 
-  /// Full vocabulary list (seed source).
-  static const String vocabAsset = '$baseDir/vocab.json';
+  static String vocabAssetFor(String languageCode) =>
+      '${baseDirFor(languageCode)}/vocab.json';
 
-  /// Grammar points (seed source).
-  static const String grammarPointsAsset = '$baseDir/grammar_points.json';
+  static String grammarPointsAssetFor(String languageCode) =>
+      '${baseDirFor(languageCode)}/grammar_points.json';
 
-  /// Expressions / phrases (seed source).
-  static const String expressionsAsset = '$baseDir/expressions.json';
+  static String expressionsAssetFor(String languageCode) =>
+      '${baseDirFor(languageCode)}/expressions.json';
 
-  /// Cached in-flight / completed load of the index + vocabulary so they are
-  /// read once per process even though both [loadVocabulary] (startup)
-  /// and [loadSectionShells] (CourseProvider.load) call [load].
-  static Future<CourseLoader>? _instance;
+  /// Turkish asset dir — tests that `File()`-read the packed tree.
+  static String get baseDir => baseDirFor(LanguageCodes.turkish);
+
+  /// Cached per-language loads of index + vocabulary.
+  static final Map<String, Future<CourseLoader>> _instances = {};
 
   /// Max resolved lesson bodies kept in process memory (L2 LRU).
   @visibleForTesting
@@ -123,7 +126,7 @@ class CourseLoader {
 
   /// Drop process-lifetime load caches (call after content reseed).
   static void invalidateCaches() {
-    _instance = null;
+    _instances.clear();
     _sectionLoads.clear();
     _lessonLoads.clear();
   }
@@ -145,22 +148,43 @@ class CourseLoader {
     );
   }
 
-  /// Load the index + vocabulary (no section bodies). Subsequent calls return
-  /// the cached result (the same future), so the DB is queried exactly once
-  /// per session for shells + vocab.
-  static Future<CourseLoader> load() {
-    return _instance ??= _loadFresh();
+  /// Every section shell in the database (all builtin languages + Anki).
+  static Future<List<Section>> loadAllSectionShells() {
+    return CourseRepository(_db).sectionShells();
   }
 
-  static Future<CourseLoader> _loadFresh() async {
+  /// section id → language code for builtin rows (Anki rows still carry a
+  /// language_code default but ownership is by Anki source, not this map).
+  static Future<Map<String, String>> sectionLanguageCodes() async {
+    final rows = await _db.customSelect(
+      'SELECT id, language_code FROM sections',
+      readsFrom: {_db.sections},
+    ).get();
+    return {
+      for (final row in rows)
+        row.read<String>('id'):
+            LanguageCodes.canonicalize(row.read<String>('language_code')),
+    };
+  }
+
+  /// Load the index + vocabulary (no section bodies) for [languageCode].
+  /// Subsequent calls for the same language return the cached result.
+  static Future<CourseLoader> load([String? languageCode]) {
+    final code = LanguageCodes.canonicalize(
+      languageCode ?? LanguageRegistry.instance.defaultCode,
+    );
+    return _instances[code] ??= _loadFresh(code);
+  }
+
+  static Future<CourseLoader> _loadFresh(String languageCode) async {
     final repo = CourseRepository(_db);
     // The four lookups are independent — fan them out instead of awaiting
     // four DB round-trips in series on the cold-start path.
     final results = await Future.wait<dynamic>([
-      repo.sectionShells(),
-      repo.vocabulary(),
-      repo.grammarPoints(),
-      repo.expressions(),
+      repo.sectionShells(languageCode: languageCode),
+      repo.vocabulary(languageCode: languageCode),
+      repo.grammarPoints(languageCode: languageCode),
+      repo.expressions(languageCode: languageCode),
     ]);
     final shells = results[0] as List<Section>;
     final vocab = results[1] as List<WordEntry>;

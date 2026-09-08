@@ -143,7 +143,13 @@ class SrsTutorProvider extends ChangeNotifier {
         _mistakes.entries,
         limit: weakLimit,
       );
-      recentReviews = await _srsDao.recentReviews(limit: srsLimit);
+      // Same language scope as the two buckets above (both come from
+      // [_mistakes]); without the filter the tutor context would mix in
+      // reviews from every installed language.
+      recentReviews = await _srsDao.recentReviews(
+        limit: srsLimit,
+        languageCode: _mistakes.languageCode,
+      );
     } on AiCancelled {
       _state = SrsTutorState.idle;
       _cancelToken = null;
