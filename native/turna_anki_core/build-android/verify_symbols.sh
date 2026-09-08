@@ -47,7 +47,7 @@ echo "  readelf: ${readelf_bin}"
 echo "  nm:      ${nm_bin}"
 
 header="$("${readelf_bin}" -h "${so}")"
-echo "${header}" | rg -q 'AArch64|aarch64' || {
+echo "${header}" | grep -Ei -q 'aarch64' || {
   echo "ELF machine is not AArch64:" >&2
   echo "${header}" >&2
   exit 1
@@ -60,18 +60,18 @@ if [[ "${base}" != "libturna_anki.so" ]]; then
 fi
 
 dyn="$("${readelf_bin}" -d "${so}" || true)"
-if echo "${dyn}" | rg -q 'libc\.so\.6'; then
+if echo "${dyn}" | grep -F -q 'libc.so.6'; then
   echo "unexpected host glibc dependency (libc.so.6):" >&2
   echo "${dyn}" >&2
   exit 1
 fi
 
 echo "NEEDED:"
-echo "${dyn}" | rg 'NEEDED' || true
+echo "${dyn}" | grep 'NEEDED' || true
 
 missing=0
 for sym in turna_anki_abi_version turna_anki_engine_new turna_anki_call turna_anki_buffer_free; do
-  if ! "${nm_bin}" -D "${so}" | rg -q "T ${sym}$"; then
+  if ! "${nm_bin}" -D "${so}" | grep -E -q "T ${sym}$"; then
     echo "missing exported symbol: ${sym}" >&2
     missing=1
   else
@@ -80,7 +80,7 @@ for sym in turna_anki_abi_version turna_anki_engine_new turna_anki_call turna_an
 done
 if [[ "${missing}" -ne 0 ]]; then
   echo "dynsym dump:" >&2
-  "${nm_bin}" -D "${so}" | rg 'T ' >&2 || true
+  "${nm_bin}" -D "${so}" | grep 'T ' >&2 || true
   exit 1
 fi
 
