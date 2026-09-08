@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "644663272231",
+    "project_id": "turna-d0d5e",
+    "storage_bucket": "turna-d0d5e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:644663272231:android:4b600e3bcdef21a051bf02",
+        "android_client_info": {
+          "package_name": "me.dsdogs.turna"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDL4jPsphIbpZGICOKybt_2dhsYhFtcz1s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

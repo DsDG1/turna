@@ -31,6 +31,7 @@ class BuildReleaseTests(unittest.TestCase):
         skip_web: bool = False,
         skip_content_validation: bool = True,
         skip_native: bool = True,
+        skip_aab: bool = False,
         ensure_native_mock: MagicMock | None = None,
     ) -> tuple[list[str], list[tuple[Path, Path]]]:
         """Run build_release.build_release with mocked subprocess/shutil.
@@ -92,6 +93,7 @@ class BuildReleaseTests(unittest.TestCase):
                 skip_web=skip_web,
                 skip_content_validation=skip_content_validation,
                 skip_native=skip_native,
+                skip_aab=skip_aab,
             )
 
         joined_commands = [" ".join(c) for c in commands]
@@ -118,6 +120,13 @@ class BuildReleaseTests(unittest.TestCase):
         dst_names = [dst.name for _, dst in copies]
         self.assertIn("turna-v0.4.0-test-release.apk", dst_names)
         self.assertIn("turna-v0.4.0-test-release.aab", dst_names)
+
+    def test_aab_build_is_skipped_with_flag(self) -> None:
+        commands, copies = self._run_build(skip_aab=True)
+        self.assertFalse(self._has_command(commands, "flutter build appbundle --release"))
+        dst_names = [dst.name for _, dst in copies]
+        self.assertNotIn("turna-v0.4.0-test-release.aab", dst_names)
+        self.assertIn("turna-v0.4.0-test-release.apk", dst_names)
 
     def test_web_build_is_skipped_with_flag(self) -> None:
         commands, copies = self._run_build(skip_web=True)

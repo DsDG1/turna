@@ -132,6 +132,7 @@ def build_release(
     skip_web: bool,
     skip_content_validation: bool,
     skip_native: bool,
+    skip_aab: bool = False,
 ) -> list[Path]:
     root = project_root()
     flutter = require_flutter()
@@ -182,23 +183,28 @@ def build_release(
         assert_native_in_artifact(apk_dst)
     artifacts.append(apk_dst)
 
-    run(
-        [
-            flutter,
-            "build",
-            "appbundle",
-            "--release",
-            "--target-platform",
-            "android-arm64",
-        ],
-        cwd=root,
-    )
-    aab_src = root / "build" / "app" / "outputs" / "bundle" / "release" / "app-release.aab"
-    aab_dst = output_dir / f"turna-v{version}-release.aab"
-    copy_artifact(aab_src, aab_dst)
-    if not skip_native:
-        assert_native_in_artifact(aab_dst)
-    artifacts.append(aab_dst)
+    if skip_aab:
+        print("-> skipping appbundle (--skip-aab)")
+    else:
+        run(
+            [
+                flutter,
+                "build",
+                "appbundle",
+                "--release",
+                "--target-platform",
+                "android-arm64",
+            ],
+            cwd=root,
+        )
+        aab_src = (
+            root / "build" / "app" / "outputs" / "bundle" / "release" / "app-release.aab"
+        )
+        aab_dst = output_dir / f"turna-v{version}-release.aab"
+        copy_artifact(aab_src, aab_dst)
+        if not skip_native:
+            assert_native_in_artifact(aab_dst)
+        artifacts.append(aab_dst)
 
     if not skip_web:
         run([flutter, "build", "web", "--release"], cwd=root)
@@ -246,6 +252,11 @@ def main(argv: list[str] | None = None) -> int:
             "(CI smoke only; never use for a real release)."
         ),
     )
+    parser.add_argument(
+        "--skip-aab",
+        action="store_true",
+        help="Skip the flutter build appbundle step (APK-only distribution).",
+    )
     args = parser.parse_args(argv)
 
     version = validate_version(args.version)
@@ -259,6 +270,7 @@ def main(argv: list[str] | None = None) -> int:
         skip_web=args.skip_web,
         skip_content_validation=args.skip_content_validation,
         skip_native=args.skip_native,
+        skip_aab=args.skip_aab,
     )
 
     print("\nRelease build complete:")
