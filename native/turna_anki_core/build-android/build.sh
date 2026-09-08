@@ -63,6 +63,9 @@ echo "  cargo-ndk:       $(cargo ndk --version 2>/dev/null || cargo-ndk --versio
 echo "  output:          ${jni_out}/${abi}/libturna_anki.so"
 
 cd "${root}"
+if command -v rustup >/dev/null 2>&1; then
+  rustup target add aarch64-linux-android
+fi
 cargo ndk \
   -t "${abi}" \
   --platform "${platform}" \
