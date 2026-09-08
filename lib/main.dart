@@ -5,6 +5,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+// Package imports:
+import 'package:firebase_core/firebase_core.dart';
+
 // Project imports:
 import 'package:turna/application/achievements/achievement_service.dart';
 import 'package:turna/application/ai/ai_explain_prefs.dart';
@@ -25,6 +28,7 @@ import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/audio/anki_audio_resolver.dart';
 import 'package:turna/domain/course/course_scope.dart';
+import 'package:turna/firebase_options.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/system_health_monitor.dart';
 import 'package:turna/service/local_reminder_service.dart';
@@ -56,6 +60,13 @@ Future<void> main() async {
   _installGlobalErrorHandlers();
 
   WidgetsFlutterBinding.ensureInitialized();
+  // Firebase is registered for Android (turna-d0d5e) only. Other platforms
+  // keep the existing startup path until FlutterFire is re-run for them.
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  }
   configureDependencies();
 
   // AppPrefs (and other async-native services) must be registered before the

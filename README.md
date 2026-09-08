@@ -30,7 +30,7 @@ flutter analyze
 flutter test   # 测试基线记录在 test/BASELINE.md
 ```
 
-Android 是主要目标平台（需要 JDK 17），iOS 和 Web 只做有限支持。课程内容已覆盖 A1 到 B2 共 8 个分级 Section，全部为真实内容，清单见 [`docs/content_inventory_current.md`](./docs/content_inventory_current.md)。
+Android 是主要目标平台（需要 JDK 17），iOS 和 Web 只做有限支持。课程内容已覆盖 A1 到 B2 共 8 个分级 Section，全部为真实内容，清单见 [`docs/content_inventory_current.md`](./docs/content_inventory_current.md)。向测试员分发 APK 用 GitHub Actions → Firebase App Distribution，一次性 Console / Secrets 配置见 [`docs/firebase-app-distribution.md`](./docs/firebase-app-distribution.md)。
 
 仓库里另有一个面向课程创作者的 PySide6 桌面编辑器，位于 [`tool/gui/`](./tool/gui/)，与 App 本体无关，其目录下有单独的说明。
 

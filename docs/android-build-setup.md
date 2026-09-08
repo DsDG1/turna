@@ -79,6 +79,12 @@ flutter pub run build_runner build --delete-conflicting-outputs
 
 ---
 
+## Firebase App Distribution
+
+向测试员分发 arm64 发布 APK：GitHub Actions 工作流 `.github/workflows/firebase_app_distribution.yml`（`workflow_dispatch` 或 `v*` tag）。一次性 Firebase Console 与 GitHub Secrets 见 [`docs/firebase-app-distribution.md`](./firebase-app-distribution.md)。
+
+---
+
 ## 与 OHOS 退役的关系
 
 - 仓库不再包含 `ohos/` 产品 target 或 OHOS fork 补丁目录/脚本。
