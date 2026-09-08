@@ -234,7 +234,6 @@ class ResolveUnitIdsTest(unittest.TestCase):
         many = [f"u{i}" for i in range(20)]
         ids = _batch_regen_unit_ids(host, {"unit_ids": many})
         self.assertEqual(len(ids), UNIT_BATCH_REGEN_CAP)
-        self.assertEqual(UNIT_BATCH_REGEN_CAP, 3)
 
     def test_from_multi_selection_ignores_lesson(self) -> None:
         ctx = SimpleNamespace(

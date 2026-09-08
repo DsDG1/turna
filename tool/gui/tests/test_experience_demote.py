@@ -63,7 +63,6 @@ class DemoteActionTest(unittest.TestCase):
         host = self._make_host(mode="immersive")
         host._on_demote_experience()
         self.assertEqual(host._settings_obj.experience_mode, "copilot")
-        self.assertEqual(host._settings_obj.experience_mode, "copilot")
         self.assertEqual(host._settings.value("experience/mode"), "copilot")
         self.assertTrue(host.refresh_calls)  # experience refreshed
 

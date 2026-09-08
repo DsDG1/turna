@@ -37,13 +37,18 @@ abstract final class TurnaMotion {
 
   /// 列表交错入场区间：第 [index] 个元素在 `[step*index, 1]` 内完成，
   /// 起点封顶 [maxStart]，长列表后段不再无限推迟。
+  ///
+  /// [span] 让某个维度提前完成（区间为 `[start, start+span]`）：例如揭示
+  /// 动画的透明度用 `span < 1` 收在尺寸之前——部分不透明期间每行每帧
+  /// 都要 saveLayer，缩短该窗口直接降低合成成本。默认 1.0 即原有行为。
   static Interval stagger(
     int index, {
     double step = 0.04,
     double maxStart = 0.20,
+    double span = 1.0,
     Curve curve = easeOut,
   }) {
     final start = (index * step).clamp(0.0, maxStart);
-    return Interval(start, 1.0, curve: curve);
+    return Interval(start, (start + span).clamp(start, 1.0), curve: curve);
   }
 }

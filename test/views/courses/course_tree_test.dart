@@ -527,6 +527,54 @@ void main() {
       );
     });
 
+    testWidgets('reveal opacity settles early while the curtain still grows',
+        (tester) async {
+      final section = _testSection(
+        id: 's-early-fade',
+        unitName: 'Early Fade Unit',
+        lessons: [_testLesson('early-fade-lesson', 'Early Fade Lesson')],
+      );
+      final provider = _FakeCourseProvider(
+        currentSection: section,
+        loadState: SectionLoadState.loaded,
+      );
+
+      await tester.pumpWidget(pumpTree(provider));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Early Fade Unit'));
+      await tester.pump();
+
+      final reveal = find.byKey(
+        const ValueKey<String>('lesson-reveal-early-fade-lesson'),
+      );
+      expect(reveal, findsOneWidget);
+
+      // 170/200ms：透明度已在揭示前段子窗口收满（此后行直接绘制、不再
+      // saveLayer），而帘式高度因子仍在生长。
+      await tester.pump(const Duration(milliseconds: 170));
+      expect(tester.widget<FadeTransition>(reveal).opacity.value, 1.0);
+      expect(
+        tester
+            .widget<SizeTransition>(
+              find.ancestor(of: reveal, matching: find.byType(SizeTransition)),
+            )
+            .sizeFactor
+            .value,
+        lessThan(1.0),
+      );
+
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<SizeTransition>(
+              find.ancestor(of: reveal, matching: find.byType(SizeTransition)),
+            )
+            .sizeFactor
+            .value,
+        1.0,
+      );
+    });
+
     testWidgets('reduced motion reveals lessons without transition widgets',
         (tester) async {
       final section = _testSection(

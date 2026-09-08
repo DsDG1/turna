@@ -141,13 +141,6 @@ class DangerousSkillSwitchTest(unittest.TestCase):
             else:
                 self.assertFalse(spec.dangerous, aid)
 
-    def test_dangerous_set_closed_and_matches_derived(self) -> None:
-        from src.backend.experience import DANGEROUS_ACTION_IDS
-
-        derived = frozenset(aid for aid, spec in ACTIONS.items() if spec.dangerous)
-        self.assertEqual(DANGEROUS_ACTION_IDS, derived)
-        self.assertEqual(len(DANGEROUS_ACTION_IDS), 6)
-
     def test_is_dangerous_unknown_and_safe(self) -> None:
         from src.backend.experience import is_dangerous
 

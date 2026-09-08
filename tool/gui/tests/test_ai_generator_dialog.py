@@ -86,14 +86,6 @@ class TestAiRequestWorker(unittest.TestCase):
         self.assertEqual(chunks, ["frag1", "frag2"])
         self.assertEqual(usages, [{"total_tokens": 42}])
 
-    def test_worker_does_not_inject_into_plain_callable(self) -> None:
-        """A target without on_chunk/usage_callback params is not given them."""
-        def plain():
-            return "ok"
-
-        worker = AiRequestWorker(plain)
-        self._run_worker(worker)  # must not raise TypeError
-
     def test_worker_injects_cancel_check_when_accepted(self) -> None:
         captured: dict = {}
 

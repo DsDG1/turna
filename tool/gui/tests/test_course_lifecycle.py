@@ -55,8 +55,6 @@ class _FakeHost:
     """Minimal host for pure lifecycle tests (no Qt MainWindow)."""
 
     def __init__(self) -> None:
-        from src.backend.experience.memory import ExperienceMemory
-
         self.course_dir: Path | None = Path("/tmp/old-course")
         self.experience = _FakeShell()
         self.experience_timeline = ExperienceTimeline(maxlen=10)
@@ -69,9 +67,6 @@ class _FakeHost:
         self.focus_ring.set("lesson:l1", FocusRole.BUSY, label="busy")
         self.experience_metrics = ExperienceMetrics()
         self.experience_metrics.inc_intent_resolved()
-        self.experience_memory = ExperienceMemory()
-        self.experience_memory.bind_course("/tmp/old-course")
-        self.experience_memory.record_intent("app.help", label="help")
         self._shown_suggestion_keys: set[str] = {"a:1"}
         self._ambient_archived: set[str] = {"p1"}
         self.tree = MagicMock()
@@ -126,7 +121,6 @@ class ClearExperienceSessionTest(unittest.TestCase):
         self.assertEqual(host.focus_ring.as_id_role_map(), {})
         self.assertEqual(host.experience_timeline.recent(), [])
         self.assertIsNone(host.experience.adapter)
-        self.assertEqual(len(host.experience_memory.session), 0)  # C-13 session cleared
         self.assertEqual(host._shown_suggestion_keys, set())
         self.assertEqual(host._ambient_archived, set())
         self.assertEqual(host._flush_calls[0][0], REASON_CLOSE_COURSE)

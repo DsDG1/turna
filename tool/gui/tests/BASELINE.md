@@ -4,11 +4,31 @@
 
  ## 当前基线
 
-- 日期：2026-09-07（噱头清理三步完成：孤儿模块删除 + Sovereign 移除 + 体验 OS tab 落地；`python -m unittest` 收集 2499 例 / 0 加载错误）
-- 全量用例（上次记录）：2499 collected（skipped≈4：2 个 course_tree 为环境条件跳过 + 2 个 defer_resurface 永久 skip）；唯一确定性失败为基线已知 `test_textbook_controller.LoadFileAsyncTest.test_stale_load_result_is_ignored`（HEAD worktree 复现，非本批引入），命令：
+- 日期：2026-09-08（测试去重第四轮：死链/陪跑/恒真断言清理）；`python -m unittest` 收集 2371 例 / 0 加载错误
+- 全量用例（上次记录）：2499 collected；唯一确定性失败为基线已知 `test_textbook_controller.LoadFileAsyncTest.test_stale_load_result_is_ignored`（HEAD worktree 复现，非本批引入），命令：
   ```bash
   QT_QPA_PLATFORM=offscreen python3 -m unittest discover -s tests -p "test_*.py"
   ```
+- 记录勘误 ×2（历史条目原文保留）：① 2026-09-07 基线头所写「2 个 defer_resurface 永久 skip」经核实不存在（该文件 4 例无任何 skip 标记）；② 2026-09-06 adversarial 瘦身条目所写「保留 10 例独有覆盖」中 D14×4 与 D27 共 5 例实为与常规测试逐字或更强重复，已于本轮删除。
+
+## 2026-09-08 测试去重第四轮（死链清理 + 恒真断言 + 重复对）
+
+用例数 2499 -> 2371（-128）。三个来源：死代码陪跑（-104）、恒真/回声断言（-13）、重复对（-11）。
+
+| 类别 | 删除 | 依据 |
+|---|---|---|
+| 死模块陪跑（4 文件 28 例 + 3 个 src 死模块） | `test_semantic_search`（13）/ `test_ai_config_file`（5）/ `test_ambient_heartbeat`（3）/ `test_lesson_heat`（7） | src 全仓零引用逐一 grep 查证：`backend/semantic_search.py` 无任何生产 import；`backend/ai_config_file.py` 的 save/load/validate 无调用者（settings.py:450 `_load_ai_config_file_settings` 是读 QSettings 的同名巧合，不经该模块）；`AmbientHeartbeatService` 无创建者（生产心跳走 `ambient_controller.on_ambient_heartbeat`，上轮已注明"预留未接线"）；lesson_heat 死链终于 `win.set_lesson_error_counts`——该方法在任何窗口类上都不存在，AttributeError 被 try/except 吞掉 |
+| heat 死链 src 清理 | `overview_stats.py` 的 HEAT_*/LessonHeat/heat_tint_hex/lesson_heat + `overview_controller.py` 的 lesson_error_counts_from_problems/sync_overview_heat_errors 及调用点 + `experience_host.py` 孤儿协议字段 `_ambient_heartbeat` | 同上；`test_overview_controller` 删 LessonErrorCountsTest/SyncHeatTest（-3），OpenOverviewTest 保留 |
+| memory/attachments 半成品（仅删测试，src 保留待接线） | `test_experience_memory`（25）/ `test_memory_persist`（10）/ `test_experience_attachments` 5 个机类（-22，保留 ContractRoutingTest）/ `test_experience_ocr` DockOcrSuggestion+ShellOcrEnabledHint（-6）/ `test_item_chip_metrics.LessonStyleChipTest`（-4）/ `test_course_lifecycle` memory fixture 与断言 | `ExperienceMemory` 生产零实例化、`ExperienceShell.set_attachments/set_recent_intents/set_author_profile` 零调用者 → ctx.attachments 恒空、clear_author 恒走"不可用"分支。**产品取舍**：src 半成品（含设置旗标 experience_memory_persist_*、dock 展示分支、chip 探针）保留，后续若接线需重写这批测试 |
+| adversarial_matrix 漏网重复 | D14RedactionClosedScopeTest（4 例）+ D27AmbientNoFocusStealTest（1 例） | D14 三项有更强对照（test_experience_ocr BuildSuggestionTest 精确 dict / test_experience_voice / test_experience_batch_polish），attachment 子项对照已随半成品删除（快照机生产不可达）；D27 与 `test_experience_ambient_batch.test_no_setfocus_source_contract` 逐字相同。矩阵现存 5 例（D3/D5D9/D11/D18/D28）全部独有，覆盖表已同步 |
+| 恒真/回声断言（13 例 + 2 行） | save_pipeline `test_close_reasons_constant`（常量自含）、operations_log `test_record_action_redacts_explicitly`（喂什么读什么）、preview_fix_suggest `test_instruction_constant_stable`（长文案抄写）、theme ValidThemesTest×2（测 frozenset 语义）、schema_constants×3（测 StrEnum 语言语义，wire-format/JSON 序列化契约保留）、ai_generator_dialog `test_worker_does_not_inject_into_plain_callable`（零断言且 worker 吞异常永不可能失败）、ai_generator `test_strict_schema_marks_are_process_local...`（集合推导按构造排除下划线键后断言）、experience_actions `test_dangerous_set_closed_and_matches_derived`（与 actions.py:235 同表达式重算）、experience_metrics `test_exception_safe_provider_via_shell_snapshot`（inc 100 次断言 len>0）、job_tray `test_cancel_signal_exists`（信号无 emit/connect）；experience_demote 连写两遍的断言、batch_regenerate cap 常量回声各删一行 | 逐条核对，均无信息量 |
+| ai_generator 重复类 | TestAttachmentExtractor（8 例）+ `test_build_prompt_includes_draft`（造了 draft 未传入，名实不符） | `test_attachment_extractor.py` 全部更强（UTF-8/PDF/DOCX/截断/MIME）；prompt 结构已由 TestBuildPrompt 覆盖 |
+| settings 四重模式去重 | `test_persists_advanced_ai_fields` + `test_persists_git_fields`（-2） | 写侧 key 字面量由「loads（锁读侧字面量）+ round_trip（锁往返一致性）」联合覆盖：写错 key 必使 round_trip 失败、双侧同改必使 loads 失败。注意 `test_persists_new_ai_fields`/`test_persists_experience_fields` 无 round_trip 对照，保留；TTS 组 persists 即 api_key_never_persisted 安全断言，保留 |
+| focus 快路径重复对 | `test_experience_shell.test_invalidate_focus_does_not_call_build_experience_context`（-1，断言并入 perf 版） | 与 `test_experience_perf.test_focus_only_under_budget_and_skips_build` 同 monkeypatch 同断言，perf 版另有时延预算；ctx.selection.id 内容断言已并入 |
+| 文案修正 | `test_experience_align_pos` skipTest 文案 | 「Flutter pos_tag.dart not yet created (C step pending)」陈旧——该文件早已存在，skip 永不触发 |
+| 附带修复（非本批引入） | `test_resources_controller` 模块头加 `import src.dialogs.git_library` | 存量潜在 bug：`patch("src.dialogs.git_library_dialog.GitLibraryDialog")` 在子模块未被导入时无法解析；顺序 discover 被先前模块掩盖，隔离/并行跑（`affected -j` / 分段验证）必炸。包优先导入可破 dialog↔package 循环 |
+
+验证：`run_gui_tests.py ci`（E1+E2 gate 5/5 + L1 fast 111 纯模块 1420 例 0 失败）；L2 qtish 71 模块 4 路并行（`run_modules_parallel`）95s 全绿（其中 test_app 94s 为最长尾）；受影响模块定向全绿；全测试目录 grep 对已删符号零残留。注意：单进程顺序 `discover` 全量在本机长时间不终止（CPU 匀速爬升疑似计时器空转，与 2026-09-06 记录的「负载下 GitAsyncTest 卡死」同性质），本轮起 L2 验证采用并行分段方式。
 
 ## 2026-09-07 噱头清理第三步（体验 OS tab / Immersive 活过来）
 

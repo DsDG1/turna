@@ -15,6 +15,7 @@ import 'package:turna/application/srs_provider.dart';
 import 'package:turna/application/weak_word_quiz_assembler.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/lesson.dart';
+import 'package:turna/domain/course/mistake_entry.dart';
 import 'package:turna/domain/course/section.dart';
 import 'package:turna/domain/course/unit.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -61,6 +62,16 @@ class _CourseTreeState extends State<CourseTree>
   /// 正在收回、课程行仍保留在列表中的单元键。控制器归零后行才移除
   /// （此时行高已为 0，移除不产生视觉跳变）。
   final Set<String> _collapsingUnitKeys = {};
+
+  /// 状态投影缓存：due/weak 聚合是 O(全部待复习词)，且只取决于三个
+  /// 输入——section、due 词集、错题列表。三者均为实例稳定来源（内容
+  /// 变化才产生新实例：SrsProvider.dueWordIdSet / MistakeProvider.entries
+  /// 的内部缓存 getter；CourseProvider 重载时更换 section 实例），因此
+  /// 用 identity 三元组判失效。展开手风琴等与投影无关的重建直接复用。
+  _StatusProjection? _projectionCache;
+  Section? _projectionSection;
+  Set<String>? _projectionDueWords;
+  List<MistakeEntry>? _projectionMistakeEntries;
 
   @override
   void dispose() {
@@ -381,6 +392,10 @@ class _CourseTreeState extends State<CourseTree>
   /// 占位高度随因子从 0 连续增长到自然高度，下方单元卡由布局推动平滑
   /// 下移；行内容保持自然尺寸，仅被裁剪揭示。逐行交错由
   /// [TurnaMotion.stagger] 封顶起点，任意课数都在同一时长窗口内完成。
+  ///
+  /// 透明度因子比尺寸提前收尾（[TurnaMotion.stagger] 的 `span`）：部分
+  /// 不透明期间每行每帧都要 saveLayer，把淡入压进揭示前段子窗口，动画
+  /// 后段行达到完全不透明后直接绘制、不再离屏合成。
   Widget _buildRevealSlot(
     _LessonItem item, {
     required EdgeInsets padding,
@@ -390,23 +405,28 @@ class _CourseTreeState extends State<CourseTree>
     if (reveal == null) {
       return Padding(key: item.key, padding: padding, child: tile);
     }
-    final factor = reveal.drive(
+    final sizeFactor = reveal.drive(
       CurveTween(curve: TurnaMotion.stagger(item.indexInUnit)),
+    );
+    final opacityFactor = reveal.drive(
+      CurveTween(
+        curve: TurnaMotion.stagger(item.indexInUnit, span: 0.6),
+      ),
     );
     return SizeTransition(
       key: item.key,
-      sizeFactor: factor,
+      sizeFactor: sizeFactor,
       alignment: AlignmentDirectional.topStart,
       child: Padding(
         padding: padding,
         child: FadeTransition(
           key: ValueKey<String>('lesson-reveal-${item.lesson.id}'),
-          opacity: factor,
+          opacity: opacityFactor,
           child: AnimatedBuilder(
-            animation: factor,
+            animation: sizeFactor,
             builder: (context, child) => ExcludeSemantics(
               // 揭示未完成（含收回途中）的行不进入语义树。
-              excluding: factor.value < 1,
+              excluding: sizeFactor.value < 1,
               child: child,
             ),
             child: tile,
@@ -421,15 +441,28 @@ class _CourseTreeState extends State<CourseTree>
     Section section,
   ) {
     Set<String> dueWordIds = const {};
+    List<MistakeEntry> mistakeEntries = const [];
     Set<String> weakWordIds = const {};
     final dueLessonIds = <String>{};
     final weakLessonIds = <String>{};
 
     try {
+      // select 必须每次 build 都执行以保住 provider 依赖注册，随后才允许
+      // 走缓存短路。
       dueWordIds = context.select((SrsProvider p) => p.dueWordIdSet);
-      weakWordIds = WeakWordQuizAssembler.aggregateWeakWords(
-        context.select((MistakeProvider p) => p.entries),
-      ).map((word) => word.wordId).toSet();
+      mistakeEntries = context.select((MistakeProvider p) => p.entries);
+
+      final cached = _projectionCache;
+      if (cached != null &&
+          identical(_projectionSection, section) &&
+          identical(_projectionDueWords, dueWordIds) &&
+          identical(_projectionMistakeEntries, mistakeEntries)) {
+        return cached;
+      }
+
+      weakWordIds = WeakWordQuizAssembler.aggregateWeakWords(mistakeEntries)
+          .map((word) => word.wordId)
+          .toSet();
 
       if (getIt.isRegistered<LessonLinkStore>()) {
         final store = getIt<LessonLinkStore>();
@@ -469,12 +502,17 @@ class _CourseTreeState extends State<CourseTree>
       }
     }
 
-    return _StatusProjection(
+    final projection = _StatusProjection(
       dueLessonIds: dueLessonIds,
       weakLessonIds: weakLessonIds,
       dueCountByUnit: dueCountByUnit,
       weakCountByUnit: weakCountByUnit,
     );
+    _projectionCache = projection;
+    _projectionSection = section;
+    _projectionDueWords = dueWordIds;
+    _projectionMistakeEntries = mistakeEntries;
+    return projection;
   }
 
   static String _unitKey(String sectionId, String unitId) =>

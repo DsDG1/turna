@@ -19,7 +19,7 @@ exact invariant (combo paths / closed-set directions / source contracts):
 | D11 | flyout 取消误杀 worker                | *direct* job_tray source: cancel disabled |
 | D12 | dangerous 派发闸                      | ``test_experience_actions`` six-rewrite set + gate |
 | D13 | LLM 回包外 id / field                 | ``test_experience_batch_polish`` + ``test_experience_align_pos`` |
-| D14 | Timeline/telemetry 泄密               | *direct* closed scopes (OCR/voice/polish/attachments) |
+| D14 | Timeline/telemetry 泄密               | ``test_experience_ocr`` scope / ``test_experience_voice`` / ``test_experience_batch_polish`` scope shape（attachments 快照路径未接线，陪跑已删） |
 | D15 | Goal 自治写默认 False（immersive P3 可开） | ``test_policy`` + ``test_goal_sandbox`` |
 | D16 | 资源批改字段白名单                    | ``test_experience_batch_polish`` drops id/term |
 | D17 | surface 污染 polish 建议              | ``test_experience_batch_polish`` surface cases |
@@ -29,7 +29,7 @@ exact invariant (combo paths / closed-set directions / source contracts):
 | D23 | outline_shells 写操作+默认关          | ``test_experience_outline_shells`` |
 | D24 | 大纲解析注入                          | ``test_experience_outline_shells`` never-raises + ids unique |
 | D26 | A3 ② defer 不 nag                     | ``test_experience_defer_resurface`` + ``test_defer_store`` MAX_DISMISS |
-| D27 | A3 ① Ambient 不抢焦                   | *direct* AmbientBanner 源码无 setFocus |
+| D27 | A3 ① Ambient 不抢焦                   | ``test_experience_ambient_batch`` setFocus source contract |
 | D28 | A3 ① accept 经 dispatch（不脏盘）     | *direct* _on_ambient_accepted -> _on_experience_suggestion |
 | D29 | Immersive 禁区 B 永不 auto            | ``test_immersive_p3p6`` |
 | D30 | observer 覆盖 immersive               | ``test_immersive_p3p6`` |
@@ -54,9 +54,7 @@ if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
 from src.application.settings import Settings  # noqa: E402
-from src.backend.experience.attachments import build_attachment_snapshot  # noqa: E402
 from src.backend.experience.context_bus import ExperienceContext  # noqa: E402
-from src.backend.experience.ocr_skill import build_ocr_suggestion  # noqa: E402
 from src.backend.experience.proactive import (  # noqa: E402
     MUTE_PERMANENT,
     MuteState,
@@ -64,8 +62,6 @@ from src.backend.experience.proactive import (  # noqa: E402
     make_mute,
 )
 from src.backend.experience.soft_autopilot import SOFT_RULE_IDS  # noqa: E402
-from src.backend.experience.suggestions import p2_resources  # noqa: E402
-from src.backend.experience.voice_skill import build_voice_metrics  # noqa: E402
 
 
 def _ctx(**kwargs) -> ExperienceContext:
@@ -163,65 +159,6 @@ class D11SourceContractTest(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# D14 — closed scopes / metrics (no term/path/prompt/transcript)
-# ---------------------------------------------------------------------------
-
-
-class D14RedactionClosedScopeTest(unittest.TestCase):
-    def test_ocr_suggestion_scope_closed(self) -> None:
-        sug = build_ocr_suggestion("att-abc", "image", "ok")
-        assert sug is not None
-        scope = sug["scope"]
-        self.assertEqual(set(scope.keys()), {"ref_id", "kind", "status"})
-        blob = json.dumps(scope, ensure_ascii=False)
-        self.assertNotIn("path", blob)
-        self.assertNotIn("/", blob)  # no filesystem path fragment
-
-    def test_voice_metrics_closed_no_transcript(self) -> None:
-        m = build_voice_metrics("ok", ok=True, engine="sphinx")
-        self.assertEqual(set(m.keys()), {"status", "ok", "engine"})
-        blob = json.dumps(m, ensure_ascii=False)
-        self.assertNotIn("transcript", blob)
-        self.assertNotIn("secret speech", blob)
-
-    def test_attachment_snapshot_no_body(self) -> None:
-        snap = build_attachment_snapshot(
-            [
-                {
-                    "name": "讲义.pdf",
-                    "kind": "pdf",
-                    "content": "SECRET_BODY_TEXT",
-                    "temp_path": "/tmp/secret/path.pdf",
-                }
-            ]
-        )
-        blob = json.dumps(snap, ensure_ascii=False)
-        self.assertNotIn("SECRET_BODY_TEXT", blob)
-        self.assertNotIn("/tmp/secret", blob)
-        for row in snap:
-            self.assertNotIn("content", row)
-            self.assertNotIn("temp_path", row)
-            # name is basename-only per M-01 (may appear in Dock, not body)
-            self.assertNotIn("SECRET", str(row.get("name", "")))
-
-    def test_polish_scope_shape_has_no_term_key(self) -> None:
-        """Collector scope uses count + entry_ids only (§14.5.3)."""
-        ctx = SimpleNamespace(
-            surface="resources",
-            multi_selection=[
-                SimpleNamespace(kind="vocab", id="w1"),
-                SimpleNamespace(kind="vocab", id="w2"),
-            ],
-        )
-        hits = p2_resources.collect(ctx)
-        self.assertEqual(len(hits), 1)
-        scope = hits[0]["scope"]
-        self.assertEqual(set(scope.keys()), {"count", "entry_ids"})
-        self.assertNotIn("term", scope)
-        self.assertNotIn("translation", scope)
-
-
-# ---------------------------------------------------------------------------
 # D18 — clear_experience_session clears OCR hint
 # ---------------------------------------------------------------------------
 
@@ -263,18 +200,8 @@ class D18LifecycleClearTest(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# D26 / D27 / D28 - A3 ①② companion Ambient (v4.66 P4)
+# D26 / D28 - A3 ①② companion Ambient (v4.66 P4)
 # ---------------------------------------------------------------------------
-
-
-class D27AmbientNoFocusStealTest(unittest.TestCase):
-    def test_banner_source_has_no_setfocus(self) -> None:
-        """D27: AmbientBanner must never steal focus (source contract)."""
-        import inspect
-
-        from src.widgets.ambient_banner import AmbientBanner
-
-        self.assertNotIn("setFocus", inspect.getsource(AmbientBanner))
 
 
 class D28AmbientAcceptDispatchTest(unittest.TestCase):

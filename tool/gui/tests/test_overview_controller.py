@@ -1,4 +1,4 @@
-"""S-10 v4.55: overview_controller pure heat + duck-host open wiring."""
+"""S-10 v4.55: overview_controller duck-host open wiring."""
 from __future__ import annotations
 
 import sys
@@ -12,55 +12,11 @@ if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
 from src.application.overview_controller import (  # noqa: E402
-    lesson_error_counts_from_problems,
     on_overview_destroyed,
     on_overview_lesson_selected,
     on_overview_validation,
     open_overview,
-    sync_overview_heat_errors,
 )
-
-
-class LessonErrorCountsTest(unittest.TestCase):
-    def test_counts_errors_by_lesson_id(self) -> None:
-        problems = [
-            {"level": "error", "path": "section:s1/unit:u1/lesson:l1/item:x"},
-            {"level": "err", "path": "lesson:l1"},
-            {"level": "warning", "path": "lesson:l1"},
-            {"level": "error", "path": "lesson:l2"},
-            {"level": "error", "path": "unit:u1"},  # no lesson
-            "junk",
-        ]
-        self.assertEqual(
-            lesson_error_counts_from_problems(problems),
-            {"l1": 2, "l2": 1},
-        )
-
-    def test_empty_and_garbage_safe(self) -> None:
-        self.assertEqual(lesson_error_counts_from_problems(None), {})
-        self.assertEqual(lesson_error_counts_from_problems([]), {})
-        self.assertEqual(lesson_error_counts_from_problems([None, 1, {}]), {})
-
-
-class SyncHeatTest(unittest.TestCase):
-    def test_noop_without_window(self) -> None:
-        host = SimpleNamespace(_overview_window=None, experience=None)
-        sync_overview_heat_errors(host)  # must not raise
-
-    def test_prefers_context_validate_problems(self) -> None:
-        win = MagicMock()
-        ctx = SimpleNamespace(
-            validate_problems=[
-                {"level": "error", "path": "lesson:L9"},
-            ]
-        )
-        exp = SimpleNamespace(
-            _validate_problems=[{"level": "error", "path": "lesson:OLD"}],
-            context=ctx,
-        )
-        host = SimpleNamespace(_overview_window=win, experience=exp)
-        sync_overview_heat_errors(host)
-        win.set_lesson_error_counts.assert_called_once_with({"L9": 1})
 
 
 class OpenOverviewTest(unittest.TestCase):
@@ -69,7 +25,6 @@ class OpenOverviewTest(unittest.TestCase):
         host = SimpleNamespace(
             adapter=object(),
             _overview_window=None,
-            experience=SimpleNamespace(_validate_problems=[], context=None),
             _on_overview_lesson_selected=MagicMock(),
             _on_overview_validation=MagicMock(),
             _on_overview_destroyed=MagicMock(),

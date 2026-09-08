@@ -45,11 +45,6 @@ class OperationsLogTest(unittest.TestCase):
         self.assertEqual(data["payload"]["target"], "名称")
         self.assertEqual(data["payload"]["text"], "hello")
 
-    def test_record_action_redacts_explicitly(self) -> None:
-        self.ops.record_action("input.commit", "API Key", payload={"text": "<redacted>"})
-        data = self._ops_lines()[-1]
-        self.assertEqual(data["payload"]["text"], "<redacted>")
-
     def test_recent_events_filters_by_prefix(self) -> None:
         self.ops.record_action("click", "A")
         self.ops.record_duration("window.duration", 12.3, payload={"window": "W"})

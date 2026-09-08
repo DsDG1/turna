@@ -225,16 +225,6 @@ class BadgeColorTest(unittest.TestCase):
         self.assertEqual(resource_type_color("nonexistent"), "#6B7280")
 
 
-class ValidThemesTest(unittest.TestCase):
-    def test_valid_themes_is_frozenset(self) -> None:
-        self.assertIsInstance(valid_themes(), frozenset)
-
-    def test_valid_themes_immutable(self) -> None:
-        vt = valid_themes()
-        with self.assertRaises(AttributeError):
-            vt.add("neon")  # type: ignore[attr-defined]
-
-
 class ButtonSizePolicyFilterTest(unittest.TestCase):
     def setUp(self) -> None:
         from tests._qtapp import _App

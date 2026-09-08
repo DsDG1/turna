@@ -163,31 +163,6 @@ class ExperienceShellRebuildTest(unittest.TestCase):
         self.assertTrue(events)
         self.assertIs(events[-1], ctx1)
 
-    def test_invalidate_focus_does_not_call_build_experience_context(self) -> None:
-        """C-03: focus-only must skip the full build pipeline."""
-        self.shell.set_adapter(self.adapter)
-        self.shell.set_selection(("lesson", "s1-l1"))
-        self.shell.rebuild_now()
-        import src.backend.experience.context_bus as cb
-
-        original = cb.build_experience_context
-        called = {"n": 0}
-
-        def _boom(*a, **k):
-            called["n"] += 1
-            raise AssertionError("focus-only must not call build_experience_context")
-
-        cb.build_experience_context = _boom
-        try:
-            self.shell.set_selection(("section", "section1"))
-            self.shell.invalidate_focus()
-            ctx = self.shell.context
-            assert ctx is not None
-            self.assertEqual(ctx.selection.id, "section1")
-        finally:
-            cb.build_experience_context = original
-        self.assertEqual(called["n"], 0)
-
     def test_invalidate_focus_falls_back_when_no_ctx(self) -> None:
         """C-03: with no retained ctx, focus-only falls back to full rebuild."""
         self.shell.set_adapter(self.adapter)

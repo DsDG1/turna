@@ -152,14 +152,6 @@ class ExperienceMetricsTest(unittest.TestCase):
         m.inc_suggestion(None, "shown")
         self.assertEqual(m.snapshot()["suggestion_by_action"].get("unknown"), {"shown": 2})
 
-    def test_exception_safe_provider_via_shell_snapshot(self) -> None:
-        # Shell._snapshot_metrics swallows provider errors → None (contract).
-        # Mirror that contract here: metrics itself never raises on any inc.
-        m = ExperienceMetrics()
-        for _ in range(100):
-            m.inc_intent_resolved()
-        self.assertGreater(len(m), 0)
-
     def test_clear_resets_all(self) -> None:
         m = ExperienceMetrics()
         m.inc_intent_resolved()

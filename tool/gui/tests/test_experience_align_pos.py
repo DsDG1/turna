@@ -359,7 +359,7 @@ class CrossStackAlignmentTest(unittest.TestCase):
     def test_flutter_pos_tag_file_exists_and_matches(self):
         flutter_path = _GUI.parents[1] / "lib" / "domain" / "course" / "pos_tag.dart"
         if not flutter_path.exists():
-            self.skipTest("Flutter pos_tag.dart not yet created (C step pending)")
+            self.skipTest("Flutter pos_tag.dart missing in this checkout")
         text = flutter_path.read_text(encoding="utf-8")
         for tag in POS_TAGS:
             self.assertIn(tag, text, f"Flutter enum missing POS tag '{tag}'")

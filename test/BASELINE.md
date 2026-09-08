@@ -1,3 +1,5 @@
+Generated: 2026-09-08 (主页卡片展开性能 P0+P1)：揭示动画透明度因子经 `TurnaMotion.stagger` 新增 `span` 参数提前收尾（区间 `[start, start+0.6]`），部分不透明期每行每帧 saveLayer 的窗口砍掉后 40%，动画后段行达完全不透明后直接绘制；`_resolveStatusProjection` 加 identity 三元组缓存（section / dueWordIdSet / mistakeEntries 均实例稳定来源，内容变化才换实例），展开手风琴等与投影无关的重建不再重算 O(全部待复习词) 聚合。定向 **23 passed**（course_tree_test 22→23，新增「透明度先于帘式高度收满」断言）；全量 **1735 passed / 12 failed，12 个全为 golden 本机既有差异**（stash 干净 HEAD 复现同样 72.46%/98.02% diff 佐证；基线在册字体切换后 golden 陈旧）。`flutter analyze` No issues found。
+
 Generated: 2026-09-02 (未完成导入挡新导入)：导入页未完成导入显示「系统错误」+「必须先放弃才能导入新卡」；选文件/startStaging 前 fail-closed。定向 **4 passed**：view_helpers 2→3、interrupted_import_card 1、controller unfinished 1。`dart analyze` 改动文件 0 issue。
 
 Generated: 2026-09-02 (v2 10万卡删不掉)：课程管理 `uninstall` 在 UI isolate 同步 `runRetireJob`（先 `listCards` 物化全部所有权行再 op 32），大源确认删除卡住、树还在。改：`beginRetire` 后仅 ≤5000 卡等待引擎段；更大源 detached；引擎删改 `listCardIdsPage` 分批+yield。定向 **4 passed**（retire 分页 1 + begin/full + F4 uninstall）。**真机 PLG110 用户验证通过**。

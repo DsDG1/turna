@@ -102,7 +102,6 @@ class ExperienceHost(Protocol):
     _ambient_mute: Any                        # proactive mute state (make_mute)
     _defer_store: Any                         # A3 ② DeferStore (defer resurface)
     _heartbeat_wait_idle: bool                # ambient heartbeat paused flag
-    _ambient_heartbeat: Any                   # QTimer (orphan: no creator in src)
     _campaign_auto_offered_for: Any
     _precog_cache: Any
     _experience_why_current: _Handler         # probed

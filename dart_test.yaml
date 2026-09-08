@@ -1,2 +1,9 @@
+# 全局单测限时：任何一条测试超过 2 分钟直接判失败并打印栈。
+# 目的：pumpAndSettle 卡死、挂住的后台资源（isolate/timer/socket）把
+# 一次跑测拖成 10 分钟级假死时，能快速点名出事的测试，而不是干等。
+timeout: 2m
+
 tags:
+  # golden 渲染（字体加载 + 大图栅格化 + 多主题变体）放宽到 5 分钟。
   golden:
+    timeout: 5m

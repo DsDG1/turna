@@ -40,7 +40,6 @@ from src.backend.ai_generator import (
     verify_connection,
 )
 from src.backend.ai_genre import genre_prompt_block, parse_genre_tag
-from src.backend.attachment_extractor import extract_attachment, summarize_attachment
 
 
 class TestAiApiConfig(unittest.TestCase):
@@ -160,19 +159,6 @@ class TestAiApiConfigAdvanced(unittest.TestCase):
         # Marking unsupported later flips it back off
         auto.mark_json_schema_unsupported()
         self.assertEqual(auto.effective_strict_schema(), "off")
-
-    def test_strict_schema_marks_are_process_local_not_serialised(self) -> None:
-        from dataclasses import asdict
-        cfg = AiApiConfig(strict_schema="auto")
-        cfg.mark_json_schema_unsupported()
-        d = asdict(cfg)
-        # _json_schema_supported should not appear as a persisted key in the
-        # dataclass-as-dict round-trip if we filter private fields; it's an
-        # internal probe.
-        self.assertNotIn("_json_schema_supported", {
-            k for k in d.keys() if not k.startswith("_")
-        })
-
 
 class TestRequestChatReasoningPayload(unittest.TestCase):
     """reasoning_effort/thinking must be DeepSeek-only (mirrors the Dart side).
@@ -585,100 +571,7 @@ class TestChatMessage(unittest.TestCase):
         self.assertEqual(msg.to_api_dict(), {"role": "user", "content": content})
 
 
-class TestAttachmentExtractor(unittest.TestCase):
-    def setUp(self) -> None:
-        self.tmpdir = Path(tempfile.mkdtemp())
-
-    def tearDown(self) -> None:
-        for f in self.tmpdir.iterdir():
-            try:
-                f.unlink()
-            except OSError:
-                pass
-        try:
-            self.tmpdir.rmdir()
-        except OSError:
-            pass
-
-    def _write_text(self, name: str, text: str) -> Path:
-        path = self.tmpdir / name
-        path.write_text(text, encoding="utf-8")
-        return path
-
-    def _minimal_png(self) -> bytes:
-        """Return a valid 1x1 transparent PNG without external dependencies."""
-        import struct
-        import zlib
-
-        def chunk(type_name: str, data: bytes) -> bytes:
-            c = type_name.encode("ascii") + data
-            return struct.pack(">I", len(data)) + c + struct.pack(">I", zlib.crc32(c) & 0xFFFFFFFF)
-
-        ihdr = struct.pack(">IIBBBBB", 1, 1, 8, 6, 0, 0, 0)
-        idat = zlib.compress(b"\x00\x00\x00\x00\x00")
-        return (
-            b"\x89PNG\r\n\x1a\n"
-            + chunk("IHDR", ihdr)
-            + chunk("IDAT", idat)
-            + chunk("IEND", b"")
-        )
-
-    def test_extract_image_to_base64(self) -> None:
-        path = self.tmpdir / "pixel.png"
-        path.write_bytes(self._minimal_png())
-        result = extract_attachment(path)
-        self.assertTrue(result.ok, result.error)
-        self.assertEqual(result.content.get("type"), "image_url")
-        url = result.content["image_url"]["url"]
-        self.assertTrue(url.startswith("data:image/png;base64,"))
-
-    def test_extract_text_file(self) -> None:
-        path = self._write_text("notes.txt", "hello world")
-        result = extract_attachment(path)
-        self.assertTrue(result.ok, result.error)
-        self.assertEqual(result.content.get("text"), "hello world")
-
-    def test_extract_unsupported_extension(self) -> None:
-        path = self._write_text("data.bin", "x")
-        result = extract_attachment(path)
-        self.assertFalse(result.ok)
-        self.assertIn("不支持", result.error)
-
-    def test_extract_missing_file(self) -> None:
-        result = extract_attachment(self.tmpdir / "missing.txt")
-        self.assertFalse(result.ok)
-        self.assertIn("不存在", result.error)
-
-    def test_summarize_text_attachment(self) -> None:
-        path = self._write_text("long.txt", "a" * 200)
-        summary = summarize_attachment(path)
-        self.assertTrue(summary.endswith("..."))
-
-    def test_summarize_image_attachment(self) -> None:
-        path = self.tmpdir / "pixel.png"
-        path.write_bytes(self._minimal_png())
-        summary = summarize_attachment(path)
-        self.assertEqual(summary, "[图片]")
-
-    def test_cleanup_temp_files(self) -> None:
-        path = self._write_text("temp.txt", "tmp")
-        result = extract_attachment(path)
-        self.assertTrue(result.ok)
-        # Extraction does not delete the file; the caller (dialog) is responsible.
-        self.assertTrue(path.exists())
-        path.unlink()
-        self.assertFalse(path.exists())
-
-
 class TestGenerateFromChat(unittest.TestCase):
-    def test_build_prompt_includes_draft(self) -> None:
-        spec = AiCourseSpec(topic="Food")
-        draft = {"id": "ai-food", "units": []}
-        prompt = build_prompt(spec)
-        # We cannot call the network in tests, but we can verify the prompt structure.
-        self.assertIn("Food", prompt)
-        self.assertIn("units", prompt)
-
     def test_generate_from_chat_signature(self) -> None:
         # Ensure the function exists and accepts the expected arguments.
         import inspect

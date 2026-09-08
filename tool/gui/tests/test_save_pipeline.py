@@ -12,7 +12,6 @@ if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
 from src.application.save_pipeline import (  # noqa: E402
-    CLOSE_REASONS,
     REASON_CLOSE_AUTO,
     REASON_MENU,
     REASON_PALETTE,
@@ -171,9 +170,6 @@ class SavePipelineTest(unittest.TestCase):
             compose_status_message(base="保存成功", soft_count=0),
             "保存成功",
         )
-
-    def test_close_reasons_constant(self) -> None:
-        self.assertIn(REASON_CLOSE_AUTO, CLOSE_REASONS)
 
     def test_menu_and_close_same_soft_order(self) -> None:
         """Regression: close must be able to run Soft before save (E5-A)."""

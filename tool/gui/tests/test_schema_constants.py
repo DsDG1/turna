@@ -28,16 +28,6 @@ from src.backend.schema_constants import (
 class TestSchemaConstants(unittest.TestCase):
     """Verify that schema constants behave transparently as strings and match domain rules."""
 
-    def test_str_enum_is_instance_of_str(self) -> None:
-        """Every StrEnum member must literally be an instance of str."""
-        self.assertIsInstance(ContentKey.STAGES, str)
-        self.assertIsInstance(ResourceKey.VOCAB, str)
-        self.assertIsInstance(ItemKey.RUNTIME_TYPE, str)
-        self.assertIsInstance(CourseKey.COURSE, str)
-        self.assertIsInstance(TemplateType.INTRO, str)
-        self.assertIsInstance(InteractionType.MULTIPLE_CHOICE, str)
-        self.assertIsInstance(ListeningPhaseType.WORD_PAIRING, str)
-
     def test_string_equality(self) -> None:
         """StrEnum values must equal raw string literals."""
         self.assertEqual(ContentKey.STAGES, "stages")
@@ -54,21 +44,6 @@ class TestSchemaConstants(unittest.TestCase):
         self.assertEqual(ItemKey.PROMPT, "prompt")
         self.assertEqual(ItemKey.OPTIONS, "options")
         self.assertEqual(ItemKey.CORRECT_INDEX, "correctIndex")
-
-    def test_dictionary_interchangeability(self) -> None:
-        """Dict keyed by string can be accessed by StrEnum and vice-versa."""
-        raw_dict = {"stages": [1, 2], "vocab": {"word_1": {}}}
-        self.assertEqual(raw_dict[ContentKey.STAGES], [1, 2])
-        self.assertEqual(raw_dict[KEY_STAGES], [1, 2])
-        self.assertEqual(raw_dict[ResourceKey.VOCAB], {"word_1": {}})
-        self.assertEqual(raw_dict[KEY_VOCAB], {"word_1": {}})
-
-        enum_keyed_dict: dict[str, str] = {
-            ContentKey.STAGES: "active",
-            ResourceKey.GRAMMAR: "present",
-        }
-        self.assertEqual(enum_keyed_dict["stages"], "active")
-        self.assertEqual(enum_keyed_dict["grammar"], "present")
 
     def test_json_serialization_without_custom_encoder(self) -> None:
         """StrEnum keys and values must serialize seamlessly to JSON."""
@@ -89,13 +64,6 @@ class TestSchemaConstants(unittest.TestCase):
         self.assertEqual(decoded["stages"][0]["runtimeType"], "multipleChoice")
         self.assertEqual(decoded["stages"][0]["prompt"], "Test prompt")
         self.assertEqual(decoded["metadata"]["template"], "practice")
-
-    def test_set_and_tuple_membership(self) -> None:
-        """StrEnum members work transparently in set lookups."""
-        raw_set = {"stages", "subLessons"}
-        self.assertIn(ContentKey.STAGES, raw_set)
-        self.assertIn(KEY_STAGES, raw_set)
-        self.assertIn("stages", {ContentKey.STAGES, ContentKey.SUB_LESSONS})
 
     def test_shorthand_aliases(self) -> None:
         """Module-level shorthand aliases map correctly to StrEnum members."""

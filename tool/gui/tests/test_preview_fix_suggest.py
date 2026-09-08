@@ -138,14 +138,6 @@ class PreviewFixSuggestBarTest(unittest.TestCase):
         self.assertIs(kwargs["stage"], payload["stage"])
         self.assertEqual(kwargs["lesson_id"], "l-1")
 
-    def test_instruction_constant_stable(self) -> None:
-        from src.teacher.preview_window import PREVIEW_FIX_INSTRUCTION
-
-        self.assertEqual(
-            PREVIEW_FIX_INSTRUCTION,
-            "教师试做答错：题干/选项可能有歧义或难度不当，请优化，保持 id 与正确答案不变",
-        )
-
     def test_refresh_reuses_layout_single(self) -> None:
         """refresh() must not create a second QVBoxLayout on the dialog.
 

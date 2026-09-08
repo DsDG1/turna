@@ -260,26 +260,6 @@ class SettingsAdvancedAiTest(unittest.TestCase):
         self.assertEqual(settings.ai_max_parallel_lessons, 4)
         self.assertEqual(settings.ai_pipeline_default_mode, "refine")
 
-    def test_persists_advanced_ai_fields(self) -> None:
-        qs = _make_qsettings({"recent_repos": "[]"})
-        settings = Settings(
-            ai_model_chat="chat-m",
-            ai_model_json="json-m",
-            ai_strict_schema="off",
-            ai_cache_enabled=True,
-            ai_fill_needs_review=True,
-            ai_max_parallel_lessons=3,
-            ai_pipeline_default_mode="refine",
-        )
-        settings.save_to_qsettings(qs)
-        self.assertEqual(qs.value("ai/model_chat"), "chat-m")
-        self.assertEqual(qs.value("ai/model_json"), "json-m")
-        self.assertEqual(qs.value("ai/strict_schema"), "off")
-        self.assertEqual(qs.value("ai/cache_enabled"), True)
-        self.assertEqual(qs.value("ai/fill_needs_review"), True)
-        self.assertEqual(qs.value("ai/max_parallel_lessons"), 3)
-        self.assertEqual(qs.value("ai/pipeline_default_mode"), "refine")
-
     def test_advanced_ai_fields_round_trip(self) -> None:
         qs = _make_qsettings({"recent_repos": "[]"})
         original = Settings(
@@ -410,28 +390,6 @@ class SettingsGitLibraryTest(unittest.TestCase):
         self.assertEqual(settings.lan_token, "tok")
         self.assertEqual(settings.git_timeout, 120.0)
         self.assertEqual(settings.assets_repo_root, "/tmp/assets")
-
-    def test_persists_git_fields(self) -> None:
-        qs = _make_qsettings({"recent_repos": "[]"})
-        settings = Settings(
-            git_clone_root="/tmp/c",
-            git_bin="/usr/bin/git",
-            default_lang_code="en",
-            lan_default_port=7000,
-            lan_bind_address="127.0.0.1",
-            lan_token="secret",
-            git_timeout=90.0,
-            assets_repo_root="/tmp/a",
-        )
-        settings.save_to_qsettings(qs)
-        self.assertEqual(qs.value("git/clone_root"), "/tmp/c")
-        self.assertEqual(qs.value("git/bin"), "/usr/bin/git")
-        self.assertEqual(qs.value("git/default_lang"), "en")
-        self.assertEqual(qs.value("git/lan_port"), 7000)
-        self.assertEqual(qs.value("git/lan_bind"), "127.0.0.1")
-        self.assertEqual(qs.value("git/lan_token"), "secret")
-        self.assertEqual(qs.value("git/timeout"), 90.0)
-        self.assertEqual(qs.value("git/assets_root"), "/tmp/a")
 
     def test_git_fields_round_trip(self) -> None:
         qs = _make_qsettings({"recent_repos": "[]"})

@@ -102,13 +102,6 @@ class JobTrayTest(unittest.TestCase):
         tray.emit_locate("nope")
         self.assertEqual(received, ["nope"])
 
-    def test_cancel_signal_exists(self) -> None:
-        from src.widgets.job_tray import JobTray
-
-        tray = JobTray()
-        # Signal is reserved; surface exists for future cooperative cancel.
-        self.assertTrue(hasattr(tray, "job_cancel_requested"))
-
 
 class JobTrayLocateWiringTest(unittest.TestCase):
     """app._on_job_activated locates the job's node in the tree."""

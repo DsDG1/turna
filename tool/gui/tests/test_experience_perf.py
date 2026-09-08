@@ -105,6 +105,10 @@ class FocusOnlyPerfTest(unittest.TestCase):
             cb.build_experience_context = original
         self.assertLess(dt, _BUDGET_MS, f"focus-only took {dt:.1f}ms")
         self.assertEqual(called["n"], 0)
+        # C-03: the retained ctx keeps the new selection without a rebuild.
+        ctx = shell.context
+        assert ctx is not None
+        self.assertEqual(ctx.selection.id, "section1")
 
 
 if __name__ == "__main__":

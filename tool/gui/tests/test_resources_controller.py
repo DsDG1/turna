@@ -11,6 +11,8 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
+import src.dialogs.git_library  # noqa: F401,E402 — package-first import (dialog<->package cycle); patch target needs the submodule loaded
+
 
 class _FakeDlg:
     def __init__(self, *args, **kwargs):
