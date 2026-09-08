@@ -79,4 +79,4 @@ if [[ ! -f "${so}" ]]; then
   exit 1
 fi
 
-exec "${root}/build-android/verify_symbols.sh" "${so}"
+exec bash "${root}/build-android/verify_symbols.sh" "${so}"
