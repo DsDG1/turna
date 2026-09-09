@@ -179,6 +179,7 @@ jobs:
 
       - name: Build release APK
         run: |
+          sed -i '/^org\.gradle\.java\.home=/d' android/gradle.properties
           python3 tool/build_release.py \
             --version "${{ steps.meta.outputs.version }}" \
             --skip-web \
