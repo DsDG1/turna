@@ -18,6 +18,13 @@ part 'course_database.g.dart';
 /// `sections` index rows — one per [Section]. `level` stores the CEFR tag
 /// ("A1"…"B2") or the "Anki" marker for imported decks (empty = unknown;
 /// added in v6 — older rows read back as `null`).
+///
+/// v26: composite PK `(language_code, id)` so languages with overlapping ids
+/// coexist. The decorative single-column FK clauses the tree tables used to
+/// declare are gone with it — they were never enforced at runtime (no
+/// `PRAGMA foreign_keys = ON` anywhere) and a single-column reference into a
+/// composite-PK parent is not a valid parent key. Language deletion cascades
+/// explicitly inside [CourseRepository.deleteBuiltinLanguage]'s transaction.
 class Sections extends Table {
   TextColumn get id => text()();
   TextColumn get languageCode =>
@@ -30,7 +37,7 @@ class Sections extends Table {
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
 
   @override
-  Set<Column> get primaryKey => {id};
+  Set<Column> get primaryKey => {languageCode, id};
 }
 
 /// `units` index rows — one per [Unit], scoped to a section.
@@ -38,9 +45,7 @@ class Units extends Table {
   TextColumn get id => text()();
   TextColumn get languageCode =>
       text().withDefault(const Constant('tr'))();
-  TextColumn get sectionId => text().customConstraint(
-        'NOT NULL REFERENCES sections(id) ON DELETE CASCADE',
-      )();
+  TextColumn get sectionId => text()();
   TextColumn get name => text()();
   TextColumn get description => text().withDefault(const Constant(''))();
   TextColumn get prerequisiteUnitIds =>
@@ -48,7 +53,7 @@ class Units extends Table {
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
 
   @override
-  Set<Column> get primaryKey => {id};
+  Set<Column> get primaryKey => {languageCode, id};
 }
 
 /// `lessons` index rows — one per [Lesson], scoped to a unit.
@@ -56,9 +61,7 @@ class Lessons extends Table {
   TextColumn get id => text()();
   TextColumn get languageCode =>
       text().withDefault(const Constant('tr'))();
-  TextColumn get unitId => text().customConstraint(
-        'NOT NULL REFERENCES units(id) ON DELETE CASCADE',
-      )();
+  TextColumn get unitId => text()();
   TextColumn get name => text()();
   TextColumn get description => text().withDefault(const Constant(''))();
   TextColumn get type => text().withDefault(const Constant('normal'))();
@@ -68,22 +71,20 @@ class Lessons extends Table {
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
 
   @override
-  Set<Column> get primaryKey => {id};
+  Set<Column> get primaryKey => {languageCode, id};
 }
 
 /// Lesson body — the full [LessonContent] serialized as JSON. One row per
 /// lesson. Stored normalized (the seeder runs `_normalizeSection` first), so
 /// reads are a pure `LessonContent.fromJson(jsonDecode(blob))`.
 class LessonContents extends Table {
-  TextColumn get lessonId => text().customConstraint(
-        'NOT NULL REFERENCES lessons(id) ON DELETE CASCADE',
-      )();
+  TextColumn get lessonId => text()();
   TextColumn get languageCode =>
       text().withDefault(const Constant('tr'))();
   TextColumn get contentJson => text()();
 
   @override
-  Set<Column> get primaryKey => {lessonId};
+  Set<Column> get primaryKey => {languageCode, lessonId};
 }
 
 /// Vocabulary — one row per [WordEntry].
@@ -369,7 +370,7 @@ class CourseDatabase extends _$CourseDatabase {
 
   /// Single source of truth for the drift schema version, so tests and
   /// backup code never hard-code a stale literal.
-  static const int kSchemaVersion = 25;
+  static const int kSchemaVersion = 26;
 
   @override
   int get schemaVersion => kSchemaVersion;
@@ -614,6 +615,16 @@ class CourseDatabase extends _$CourseDatabase {
               await _migrateToLanguageDimension(m.database);
             });
           }
+          if (from < 26) {
+            // v26: the course-tree tables (sections / units / lessons /
+            // lesson_contents) get the same composite-PK treatment v25 gave
+            // the content tables. One transaction for the same
+            // all-or-nothing reason; the dropped decorative FK clauses were
+            // never enforced at runtime (no PRAGMA foreign_keys = ON).
+            await m.database.transaction(() async {
+              await _migrateCourseTreeCompositePk(m.database);
+            });
+          }
         },
       );
 
@@ -681,6 +692,7 @@ class CourseDatabase extends _$CourseDatabase {
       required String table,
       required String createSql,
       required String insertSql,
+      String suffix = '_v25',
     }) async {
       final info =
           await database.customSelect('PRAGMA table_info($table)').get();
@@ -696,7 +708,7 @@ class CourseDatabase extends _$CourseDatabase {
       await database.customStatement(insertSql);
       await database.customStatement('DROP TABLE $table');
       await database.customStatement(
-        'ALTER TABLE ${table}_v25 RENAME TO $table',
+        'ALTER TABLE $table$suffix RENAME TO $table',
       );
       await database.customStatement('PRAGMA foreign_keys = ON');
     }
@@ -856,6 +868,135 @@ class CourseDatabase extends _$CourseDatabase {
         WHERE key = 'contentVersion'
       ''');
     }
+  }
+
+  /// v26: composite PKs `(language_code, id)` on the course-tree tables so
+  /// languages (and the 'anki' pseudo-language) with overlapping ids coexist
+  /// instead of colliding on the old single-column PK. The v25 step already
+  /// added the language_code column to these tables; here they are rebuilt
+  /// with the composite PK. The decorative single-column FK clauses are not
+  /// recreated: they were never enforced (no `PRAGMA foreign_keys = ON` in
+  /// this app) and a single-column reference into a composite-PK parent is
+  /// not a valid parent key. Language deletion cascades explicitly inside
+  /// [CourseRepository.deleteBuiltinLanguage]'s transaction.
+  static Future<void> _migrateCourseTreeCompositePk(
+    GeneratedDatabase database,
+  ) async {
+    Future<void> rebuildCompositePk({
+      required String table,
+      required String createSql,
+      required String insertSql,
+    }) async {
+      final info =
+          await database.customSelect('PRAGMA table_info($table)').get();
+      if (info.isEmpty) return;
+      final pkCols = [
+        for (final row in info)
+          if ((row.data['pk'] as int? ?? row.read<int>('pk')) > 0)
+            row.read<String>('name'),
+      ];
+      if (pkCols.contains('language_code') && pkCols.length >= 2) return;
+      await database.customStatement(createSql);
+      await database.customStatement(insertSql);
+      await database.customStatement('DROP TABLE $table');
+      await database.customStatement(
+        'ALTER TABLE ${table}_v26 RENAME TO $table',
+      );
+    }
+
+    // Column lists mirror the drift class declaration order; language_code
+    // falls back to 'tr' for pre-v25 rows (the column shipped with a 'tr'
+    // DEFAULT, this is belt-and-suspenders for hand-built databases).
+    await rebuildCompositePk(
+      table: 'sections',
+      createSql: '''
+        CREATE TABLE sections_v26 (
+          id TEXT NOT NULL,
+          language_code TEXT NOT NULL DEFAULT 'tr',
+          name TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          level TEXT NOT NULL DEFAULT '',
+          prerequisite_section_ids TEXT NOT NULL DEFAULT '[]',
+          sort_order INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY (language_code, id)
+        )
+      ''',
+      insertSql: '''
+        INSERT INTO sections_v26 (
+          id, language_code, name, description, level,
+          prerequisite_section_ids, sort_order
+        )
+        SELECT id, COALESCE(language_code, 'tr'), name, description, level,
+               prerequisite_section_ids, sort_order
+        FROM sections
+      ''',
+    );
+    await rebuildCompositePk(
+      table: 'units',
+      createSql: '''
+        CREATE TABLE units_v26 (
+          id TEXT NOT NULL,
+          language_code TEXT NOT NULL DEFAULT 'tr',
+          section_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          prerequisite_unit_ids TEXT NOT NULL DEFAULT '[]',
+          sort_order INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY (language_code, id)
+        )
+      ''',
+      insertSql: '''
+        INSERT INTO units_v26 (
+          id, language_code, section_id, name, description,
+          prerequisite_unit_ids, sort_order
+        )
+        SELECT id, COALESCE(language_code, 'tr'), section_id, name,
+               description, prerequisite_unit_ids, sort_order
+        FROM units
+      ''',
+    );
+    await rebuildCompositePk(
+      table: 'lessons',
+      createSql: '''
+        CREATE TABLE lessons_v26 (
+          id TEXT NOT NULL,
+          language_code TEXT NOT NULL DEFAULT 'tr',
+          unit_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          type TEXT NOT NULL DEFAULT 'normal',
+          template TEXT NOT NULL DEFAULT 'legacy',
+          prerequisite_lesson_ids TEXT NOT NULL DEFAULT '[]',
+          sort_order INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY (language_code, id)
+        )
+      ''',
+      insertSql: '''
+        INSERT INTO lessons_v26 (
+          id, language_code, unit_id, name, description, type, template,
+          prerequisite_lesson_ids, sort_order
+        )
+        SELECT id, COALESCE(language_code, 'tr'), unit_id, name, description,
+               type, template, prerequisite_lesson_ids, sort_order
+        FROM lessons
+      ''',
+    );
+    await rebuildCompositePk(
+      table: 'lesson_contents',
+      createSql: '''
+        CREATE TABLE lesson_contents_v26 (
+          lesson_id TEXT NOT NULL,
+          language_code TEXT NOT NULL DEFAULT 'tr',
+          content_json TEXT NOT NULL,
+          PRIMARY KEY (language_code, lesson_id)
+        )
+      ''',
+      insertSql: '''
+        INSERT INTO lesson_contents_v26 (lesson_id, language_code, content_json)
+        SELECT lesson_id, COALESCE(language_code, 'tr'), content_json
+        FROM lesson_contents
+      ''',
+    );
   }
 
   static Future<void> _addReviewSourceIdentityColumns(

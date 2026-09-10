@@ -614,6 +614,18 @@ class CourseRepository implements ICourseRepository {
         .toSet();
   }
 
+  /// Lesson ids owned by one language, collected BEFORE the language's rows
+  /// are deleted so the uninstall cascade can drop them from the persisted
+  /// lesson-progress sets.
+  Future<Set<String>> lessonIdsForLanguage(String languageCode) async {
+    final code = LanguageCodes.canonicalize(languageCode);
+    final rows = await (database.selectOnly(database.lessons)
+          ..addColumns([database.lessons.id])
+          ..where(database.lessons.languageCode.equals(code)))
+        .get();
+    return {for (final row in rows) row.read(database.lessons.id)!};
+  }
+
   /// Content item count (vocabulary + grammar points + expressions) per
   /// builtin language — the "cards" figure shown in the uninstall
   /// confirmation.

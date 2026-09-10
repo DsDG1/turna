@@ -9,7 +9,6 @@
 // coverage:ignore-file
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-
 import 'package:audioplayers/audioplayers.dart' as _i656;
 import 'package:flutter_tts/flutter_tts.dart' as _i50;
 import 'package:get_it/get_it.dart' as _i174;

@@ -506,7 +506,8 @@ Future<void> setupLocator() async {
 ///
 /// Non-web platforms use [NativeDatabase] (sqlite3 FFI). Web is unsupported.
 Future<CourseDatabase> _openAndSeedCourseDatabase() async {
-  final CourseDatabase db;
+  // Non-final: the backup-restore path replaces a broken database handle.
+  CourseDatabase db;
 
   if (kIsWeb) {
     throw UnsupportedError(
@@ -528,12 +529,30 @@ Future<CourseDatabase> _openAndSeedCourseDatabase() async {
   // statement becomes a real suspension point and progress UI keeps
   // rendering. [ensureOfficialAnkiSqlite] resolves the native sqlite3
   // library inside that isolate (open.overrideFor is per-isolate state).
-  db = CourseDatabase(
-    NativeDatabase.createInBackground(
-      file,
-      isolateSetup: ensureOfficialAnkiSqlite,
-    ),
-  );
+  CourseDatabase openCourseDb() => CourseDatabase(
+        NativeDatabase.createInBackground(
+          file,
+          isolateSetup: ensureOfficialAnkiSqlite,
+        ),
+      );
+
+  db = openCourseDb();
+  try {
+    // Drift opens lazily: this trivial read forces the open + the migration
+    // chain to run here (inside try) rather than at the first caller query.
+    await db.customSelect('SELECT COUNT(*) AS n FROM sqlite_master').get();
+  } catch (e, st) {
+    // Open/migrate failed. Without a recovery this is a permanent startup
+    // crash loop; the pre-migration snapshots exist for exactly this case.
+    logger.e('Course DB open/migrate failed', error: e, stackTrace: st);
+    await db.close();
+    final restored = await restoreCourseDbFromBackup(file);
+    if (restored == null) rethrow;
+    db = openCourseDb();
+    // Let a second failure propagate — retrying beyond one restore would
+    // just loop on a deterministically broken backup.
+    await db.customSelect('SELECT COUNT(*) AS n FROM sqlite_master').get();
+  }
 
   try {
     await LanguageRegistry.instance.load();

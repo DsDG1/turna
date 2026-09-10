@@ -402,9 +402,17 @@ class ReviewHistoryDao {
 
   /// Remove the newest event for one card. Used by the single-step review
   /// undo action; Anki sessions never allow two pending undos at once.
-  Future<bool> deleteLatestForCard(String cardId) async {
-    final row = await (_db.select(_db.reviewEvents)
-          ..where((t) => t.cardId.equals(cardId))
+  /// Pass [languageCode] so an undo can never delete another language's
+  /// event when wordIds collide across languages.
+  Future<bool> deleteLatestForCard(String cardId, {String? languageCode}) async {
+    final query = _db.select(_db.reviewEvents)
+      ..where((t) => t.cardId.equals(cardId));
+    if (languageCode != null) {
+      query.where(
+        (t) => t.languageCode.equals(LanguageCodes.canonicalize(languageCode)),
+      );
+    }
+    final row = await (query
           ..orderBy([(t) => OrderingTerm.desc(t.id)])
           ..limit(1))
         .getSingleOrNull();

@@ -58,11 +58,15 @@ abstract class SrsQueueProvider extends ChangeNotifier {
         : LanguageCodes.canonicalize(languageCode);
     if (next == _languageFilter && _loaded) return;
     _languageFilter = next;
+    _loadGeneration++;
     _loaded = false;
     _cachedState = null;
     invalidateDueCaches();
-    _bumpReviewDataRevision();
     await ensureLoaded();
+    // Bump only after the new language is hydrated: a bump issued while
+    // [state] is still empty lets revision-keyed consumers (dashboard /
+    // insights) cache an empty snapshot under the fresh revision.
+    _bumpReviewDataRevision();
   }
 
   void _bumpReviewDataRevision() {
@@ -200,6 +204,11 @@ abstract class SrsQueueProvider extends ChangeNotifier {
   int? _cachedDueCount;
   bool _loaded = false;
 
+  /// Monotonic token bumped by [setLanguageFilter]. A hydration run started
+  /// under an older token discards its result — a slow load for language A
+  /// must not merge into the cache after the user already switched to B.
+  int _loadGeneration = 0;
+
   /// Ids with a grade currently in flight (between [reviewItem] start and the
   /// completion of its DB persists). [undoReview] refuses while a grade is in
   /// flight so the grade can't overwrite an undo restored mid-grade.
@@ -246,15 +255,20 @@ abstract class SrsQueueProvider extends ChangeNotifier {
   /// the DB. Idempotent; safe to call multiple times.
   Future<void> ensureLoaded() async {
     if (_loaded) return;
+    final generation = _loadGeneration;
+    final filterAtStart = _languageFilter;
     _loaded = true;
     try {
       var loaded = await srsDao.loadQueue(
         queueId,
-        languageCode: _languageFilter,
+        languageCode: filterAtStart,
       );
       if (loaded.isEmpty && !_migrationDone()) {
-        loaded = await _migrateFromPrefs();
+        loaded = await _migrateFromPrefs(filterAtStart);
       }
+      // A newer setLanguageFilter superseded this run; its own ensureLoaded
+      // owns the cache now. Merging here would mix languages.
+      if (_loadGeneration != generation) return;
       final current = _cachedState ?? <String, SrsWord>{};
       // Merge: don't clobber in-memory mutations made before load completed.
       for (final e in loaded.entries) {
@@ -288,8 +302,10 @@ abstract class SrsQueueProvider extends ChangeNotifier {
 
   /// One-time migration of the legacy prefs blob into SQLite. Returns the
   /// parsed map (empty on parse failure). Always marks the migration done so a
-  /// corrupt blob is not retried.
-  Future<Map<String, SrsWord>> _migrateFromPrefs() async {
+  /// corrupt blob is not retried. [languageCode] is the filter captured when
+  /// the hydration run started, so a switch racing the load can't re-tag the
+  /// backfilled rows.
+  Future<Map<String, SrsWord>> _migrateFromPrefs(String? languageCode) async {
     final raw = appPrefs.preferences
         .getString(statePrefsKey, defaultValue: '{}')
         .getValue();
@@ -303,7 +319,7 @@ abstract class SrsQueueProvider extends ChangeNotifier {
         await srsDao.upsertBatch(
           queueId,
           migrated.values,
-          languageCode: languageFilter,
+          languageCode: languageCode ?? LanguageCodes.turkish,
         );
       }
     } catch (e) {
@@ -430,6 +446,12 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     final word = current[id];
     if (word == null) return null;
     final reviewedAt = DateTime.now();
+    // Grade under the language the card was hydrated with: every DB write
+    // below uses this snapshot, and the in-memory commit is skipped if a
+    // language switch raced an await in here — otherwise a Turkish card's
+    // grade would land in the French row and clobber the French cache.
+    final filterAtStart = _languageFilter;
+    final languageAtStart = filterAtStart ?? LanguageCodes.turkish;
 
     // Same-day fail ladder needs how many fails already logged today.
     var sameDayFails = 0;
@@ -439,7 +461,7 @@ abstract class SrsQueueProvider extends ChangeNotifier {
         sameDayFails = await reviewDao.countFailsOnLocalDay(
           id,
           reviewedAt,
-          languageCode: languageFilter,
+          languageCode: languageAtStart,
         );
       } catch (_) {
         sameDayFails = 0;
@@ -460,12 +482,12 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     }
     final updated = graded.copyWith(lastReviewedAt: reviewedAt);
     current[id] = updated;
-    _commit(current);
+    if (_languageFilter == filterAtStart) _commit(current);
     try {
       await srsDao.upsert(
         queueId,
         updated,
-        languageCode: languageFilter,
+        languageCode: languageAtStart,
       );
     } catch (e, st) {
       logger.w('$logTag reviewItem persist failed: $e', stackTrace: st);
@@ -489,7 +511,7 @@ abstract class SrsQueueProvider extends ChangeNotifier {
               queueId == 'grammar' ? SrsSourceKind.grammar : updated.sourceKind,
           sourceId: queueId == 'grammar' ? 'grammar' : updated.sourceId,
           ownerId: updated.ownerId,
-          languageCode: languageFilter,
+          languageCode: languageAtStart,
         ));
         // Review data actually changed: invalidate dashboard/insights caches
         // (Plan 3 §16.5). Guarded — tests construct this provider without DI.
@@ -533,24 +555,32 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     String? eventSourceKey,
   }) async {
     if (_gradesInFlight.contains(id)) return false;
+    final current = state;
+    // Same snapshot pattern as _doReviewItem: the event deletes below await,
+    // so a language switch racing them must not re-tag the restored row or
+    // write the old language's word into the new language's cache.
+    final filterAtStart = _languageFilter;
+    final languageAtStart = filterAtStart ?? LanguageCodes.turkish;
     final reviewDao = _effectiveReviewDao;
     // The review write and its history event are persisted independently, so
     // the user can reach Undo before the event insert finishes. Restoring the
     // captured state is still safe; deleting the event is best-effort.
     if (reviewDao != null) {
       if (eventSourceKey == null) {
-        await reviewDao.deleteLatestForCard(id);
+        await reviewDao.deleteLatestForCard(id, languageCode: languageAtStart);
       } else {
         await reviewDao.deleteBySourceKey(eventSourceKey);
       }
     }
-    state[id] = previous;
-    _commit(state);
+    if (_languageFilter == filterAtStart) {
+      current[id] = previous;
+      _commit(current);
+    }
     try {
       await srsDao.upsert(
         queueId,
         previous,
-        languageCode: languageFilter,
+        languageCode: languageAtStart,
       );
     } catch (e, st) {
       logger.w('$logTag undo persist failed: $e', stackTrace: st);
@@ -684,35 +714,39 @@ abstract class SrsQueueProvider extends ChangeNotifier {
   @protected
   Future<void> persist(Map<String, SrsWord> map) async {
     _commit(map);
-    await _writeBatch(map.values);
+    await _writeBatch(map.values, languageCode: _languageFilter);
   }
 
   /// Synchronous commit + fire-and-forget batch write (for the `void` register
   /// methods, which cannot await).
   void _commitAndPersist(Map<String, SrsWord> map) {
     _commit(map);
-    _writeBatch(map.values);
+    _writeBatch(map.values, languageCode: _languageFilter);
   }
 
-  Future<void> _writeBatch(Iterable<SrsWord> words) async {
+  Future<void> _writeBatch(
+    Iterable<SrsWord> words, {
+    String? languageCode,
+  }) async {
     try {
       await srsDao.upsertBatch(
         queueId,
         words,
-        languageCode: languageFilter,
+        languageCode: languageCode ?? languageFilter,
       );
     } catch (e, st) {
       logger.w('$logTag writeBatch failed: $e', stackTrace: st);
     }
   }
 
-  /// Clear queue state (content-update reset).
+  /// Clear queue state (content-update reset) for the current language only —
+  /// one language's content bump must not wipe another language's progress.
   Future<void> clear() async {
     _cachedState = <String, SrsWord>{};
     invalidateDueCaches();
     notifyListeners();
     try {
-      await srsDao.clearQueue(queueId);
+      await srsDao.clearQueue(queueId, languageCode: _languageFilter);
     } catch (e, st) {
       logger.w('$logTag clear failed: $e', stackTrace: st);
     }

@@ -16,6 +16,7 @@ import 'package:turna/application/course_catalog.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/language_registry.dart';
+import 'package:turna/application/lesson_progress_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/application/study_stats_provider.dart';
@@ -572,6 +573,14 @@ class CourseProvider extends ChangeNotifier {
       db = null;
     }
     if (db == null) return;
+    // Collect the language's lesson ids before their rows are deleted — the
+    // persisted lesson-progress sets (prefs) must stop counting them.
+    Set<String> lessonIds = const {};
+    try {
+      lessonIds = await CourseRepository(db).lessonIdsForLanguage(code);
+    } catch (error) {
+      logger.w('CourseProvider: lesson id collection for $code failed: $error');
+    }
     await CourseRepository(db).deleteBuiltinLanguage(code);
     // Study logs/daily aggregates live in prefs, not the course DB.
     try {
@@ -580,6 +589,15 @@ class CourseProvider extends ChangeNotifier {
       }
     } catch (error) {
       logger.w('CourseProvider: study log cleanup for $code failed: $error');
+    }
+    try {
+      if (getIt.isRegistered<LessonProgressProvider>() &&
+          lessonIds.isNotEmpty) {
+        await getIt<LessonProgressProvider>().removeLessonIds(lessonIds);
+      }
+    } catch (error) {
+      logger.w('CourseProvider: lesson progress cleanup for $code failed: '
+          '$error');
     }
     LanguageContentStore.drop(code);
     CourseLoader.invalidateCaches();
@@ -620,12 +638,22 @@ class CourseProvider extends ChangeNotifier {
     try {
       await LanguageContentStore.activate(code);
     } catch (error) {
+      // The compatibility globals still hold the previous language; switching
+      // the downstream providers anyway would leave TTS/AI/stats on the new
+      // language while vocab/grammar lookups resolve against the old one.
+      // Abort the whole chain so every consumer stays on the old language.
       logger.w('CourseProvider: content store activate for "$code" failed '
-          '(globals keep the previous language): $error');
+          '(keeping the previous language everywhere): $error');
+      return;
     }
     try {
       if (getIt.isRegistered<LanguageProvider>()) {
-        getIt<LanguageProvider>().setLanguageCode(code);
+        final languageProvider = getIt<LanguageProvider>();
+        languageProvider.setLanguageCode(code);
+        // Keep prefs in sync with the practice language (same pattern as the
+        // course management page) so a later Home re-entry can't pull the
+        // selection back to a stale persisted value.
+        unawaited(languageProvider.cacheLanguage());
       }
     } catch (error) {
       logger.w('CourseProvider: language sync failed: $error');
@@ -838,6 +866,28 @@ class CourseProvider extends ChangeNotifier {
     final decoded = CourseScopeCodec.decode(raw);
     if (decoded != null) {
       _scope = decoded;
+      // A persisted builtin scope may point at a language the user
+      // uninstalled if the process died between the uninstall transaction
+      // and the scope persist. Restoring it verbatim would leave the Learn
+      // tab permanently empty, so fall back to an installed builtin course.
+      if (decoded is BuiltinCourseScope) {
+        try {
+          final db = CourseLoader.databaseOrNull();
+          final uninstalled = db == null
+              ? const <String>{}
+              : await CourseRepository(db).uninstalledLanguageCodes();
+          if (uninstalled
+              .contains(LanguageCodes.canonicalize(decoded.languageCode))) {
+            logger.w(
+                'CourseProvider: persisted scope "$decoded" is uninstalled; '
+                'falling back to a builtin course');
+            _scope = _fallbackBuiltin();
+            await _persistScope();
+          }
+        } catch (error) {
+          logger.w('CourseProvider: uninstall-marker check failed: $error');
+        }
+      }
       return;
     }
     // Legacy value: resolve against the catalog (single source wins;

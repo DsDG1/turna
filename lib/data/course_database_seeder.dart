@@ -73,7 +73,20 @@ class DatabaseSeeder {
     var wrote = false;
     CourseLoader.invalidateCaches();
     for (final language in languages) {
-      wrote = await _seedLanguageIfNeeded(language) || wrote;
+      try {
+        wrote = await _seedLanguageIfNeeded(language) || wrote;
+      } catch (e, st) {
+        // One broken built-in language (corrupt asset / manifest / validation)
+        // must not take the whole startup down with it: log, skip that
+        // language, keep seeding the rest. The explicit reinstall path
+        // ([seedLanguage]) still throws so a user-triggered restore surfaces
+        // its error.
+        logger.e(
+          'Seed for ${language.code} failed; skipping that language '
+          '(others continue): $e',
+          stackTrace: st,
+        );
+      }
     }
     CourseLoader.invalidateCaches();
     return wrote;
@@ -259,8 +272,32 @@ class DatabaseSeeder {
 
     // Stream per section: parse → cross-id check against running sets → write
     // → drop Freezed graph. Avoids holding all ~9300 lesson bodies in RAM.
-    final seenUnitIds = <String>{};
-    final seenLessonIds = <String>{};
+    //
+    // The running sets are primed with the OTHER builtin languages' ids so a
+    // cross-language collision fails validation with a clear error instead of
+    // relying on schema constraints (v26 lets same-id rows coexist across
+    // languages). Anki import rows are deliberately excluded — their ids
+    // never gate builtin reseeding.
+    final otherBuiltinCodes = [
+      for (final l in LanguageRegistry.instance.languages)
+        if (l.code != code) l.code,
+    ];
+    final seenUnitIds = <String>{
+      if (otherBuiltinCodes.isNotEmpty)
+        for (final row in await (db.selectOnly(db.units)
+              ..addColumns([db.units.id])
+              ..where(db.units.languageCode.isIn(otherBuiltinCodes)))
+            .get())
+          row.read(db.units.id)!,
+    };
+    final seenLessonIds = <String>{
+      if (otherBuiltinCodes.isNotEmpty)
+        for (final row in await (db.selectOnly(db.lessons)
+              ..addColumns([db.lessons.id])
+              ..where(db.lessons.languageCode.isIn(otherBuiltinCodes)))
+            .get())
+          row.read(db.lessons.id)!,
+    };
     var sectionCount = 0;
 
     for (var sOrder = 0; sOrder < entries.length; sOrder++) {

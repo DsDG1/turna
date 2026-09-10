@@ -115,6 +115,37 @@ class LessonProgressProvider extends ChangeNotifier {
     _completedLessonsController.add(Set.unmodifiable(_completedLessonIds));
   }
 
+  /// Drop the given lessons from the completed / perfect sets (a language's
+  /// uninstall cascade). Rewrites the persisted sets and the derived counters
+  /// so totals stop counting lessons of a course that no longer exists.
+  Future<void> removeLessonIds(Set<String> lessonIds) async {
+    if (lessonIds.isEmpty) return;
+    _completedLessonIds.removeAll(lessonIds);
+    _perfectLessonIds.removeAll(lessonIds);
+
+    await Future.wait([
+      appPrefs.preferences.setStringList(
+        LocalStateKeys.completedLessonIds,
+        _completedLessonIds.toList(growable: false),
+      ),
+      appPrefs.preferences.setStringList(
+        LocalStateKeys.perfectLessonIds,
+        _perfectLessonIds.toList(growable: false),
+      ),
+      appPrefs.preferences.setInt(
+        LocalStateKeys.lessonsCompleted,
+        _completedLessonIds.length,
+      ),
+      appPrefs.preferences.setInt(
+        LocalStateKeys.perfectLessons,
+        _perfectLessonIds.length,
+      ),
+    ]);
+
+    notifyListeners();
+    _completedLessonsController.add(Set.unmodifiable(_completedLessonIds));
+  }
+
   List<String> _readStringList(String key, List<String> fallback) =>
       appPrefs.preferences
           .getStringList(key, defaultValue: fallback)

@@ -112,7 +112,7 @@ void main() {
 
     final migrated = CourseDatabase(NativeDatabase(File(path)));
     await migrated.customSelect('SELECT 1').get();
-    expect(migrated.schemaVersion, 25);
+    expect(migrated.schemaVersion, CourseDatabase.kSchemaVersion);
 
     final dao = SrsStateDao(migrated);
     final loaded = await dao.loadQueue('srs', languageCode: LanguageCodes.turkish);
@@ -210,5 +210,133 @@ void main() {
       await backupCourseDbBeforeMigration(File('$path.missing')),
       isNull,
     );
+  });
+
+  test('v26 rebuilds the course tree with composite PKs and keeps rows',
+      () async {
+    final path = await _tempDbPath();
+    addTearDown(() async {
+      final parent = File(path).parent;
+      if (await parent.exists()) await parent.delete(recursive: true);
+    });
+
+    final raw = sqlite.sqlite3.open(path);
+    raw.execute('''
+      CREATE TABLE sections (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '',
+        level TEXT NOT NULL DEFAULT '', prerequisite_section_ids TEXT NOT NULL DEFAULT '[]',
+        sort_order INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE TABLE units (
+        id TEXT PRIMARY KEY, section_id TEXT NOT NULL, name TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '', prerequisite_unit_ids TEXT NOT NULL DEFAULT '[]',
+        sort_order INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE TABLE lessons (
+        id TEXT PRIMARY KEY, unit_id TEXT NOT NULL, name TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '', type TEXT NOT NULL DEFAULT 'normal',
+        template TEXT NOT NULL DEFAULT 'legacy',
+        prerequisite_lesson_ids TEXT NOT NULL DEFAULT '[]', sort_order INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE TABLE lesson_contents (
+        lesson_id TEXT PRIMARY KEY, content_json TEXT NOT NULL
+      );
+      CREATE TABLE course_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+      INSERT INTO sections (id, name) VALUES ('sec-1', 'Section 1');
+      INSERT INTO units (id, section_id, name) VALUES ('u-1', 'sec-1', 'Unit 1');
+      INSERT INTO lessons (id, unit_id, name) VALUES ('l-shared', 'u-1', 'Lesson 1');
+      INSERT INTO lesson_contents (lesson_id, content_json)
+        VALUES ('l-shared', '{"stages":[]}');
+      PRAGMA user_version = 24;
+    ''');
+    raw.dispose();
+
+    final migrated = CourseDatabase(NativeDatabase(File(path)));
+    await migrated.customSelect('SELECT 1').get();
+    expect(migrated.schemaVersion, 26);
+
+    // Rows survive with the language backfilled to 'tr'.
+    final lesson = await migrated.customSelect(
+      "SELECT language_code, name FROM lessons WHERE id = 'l-shared'",
+    ).getSingle();
+    expect(lesson.read<String>('language_code'), LanguageCodes.turkish);
+    expect(lesson.read<String>('name'), 'Lesson 1');
+    final content = await migrated.customSelect(
+      "SELECT content_json FROM lesson_contents WHERE lesson_id = 'l-shared'",
+    ).getSingle();
+    expect(content.read<String>('content_json'), '{"stages":[]}');
+
+    // The PK is now composite: the same id under another language coexists.
+    await migrated.customInsert(
+      "INSERT INTO lessons (id, language_code, unit_id, name, description) "
+      "VALUES ('l-shared', 'fr', 'u-1', 'Leçon 1', '')",
+    );
+    final both = await migrated.customSelect(
+      "SELECT language_code FROM lessons WHERE id = 'l-shared' "
+      "ORDER BY language_code",
+    ).get();
+    expect(both.map((r) => r.read<String>('language_code')), ['fr', 'tr']);
+
+    // PRAGMA table_info shows language_code + id as the (composite) PK.
+    final info = await migrated.customSelect('PRAGMA table_info(lessons)').get();
+    final pkCols = [
+      for (final row in info)
+        if ((row.data['pk'] as int? ?? row.read<int>('pk')) > 0)
+          row.read<String>('name'),
+    ]..sort();
+    expect(pkCols, ['id', 'language_code']);
+
+    await migrated.close();
+  });
+
+  test('restoreCourseDbFromBackup replaces a broken db with the newest snapshot',
+      () async {
+    final path = await _tempDbPath();
+    addTearDown(() async {
+      final parent = File(path).parent;
+      if (await parent.exists()) await parent.delete(recursive: true);
+    });
+    final dbFile = File(path);
+
+    // Two snapshots on disk; the newest one wins.
+    for (final version in [24, 25]) {
+      final bak = File('$path.v$version.bak');
+      final raw = sqlite.sqlite3.open(bak.path);
+      raw.execute('''
+        CREATE TABLE course_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+        INSERT INTO course_meta VALUES ('k', 'v$version');
+        PRAGMA user_version = $version;
+      ''');
+      raw.dispose();
+    }
+    // A garbage "broken" database plus stale WAL/SHM sidecars.
+    await dbFile.writeAsBytes([0xde, 0xad, 0xbe, 0xef]);
+    File('$path-wal').writeAsStringSync('junk');
+    File('$path-shm').writeAsStringSync('junk');
+
+    final restored = await restoreCourseDbFromBackup(dbFile);
+    expect(restored, isNotNull);
+
+    expect(await File('$path.v25.bak').exists(), isTrue); // backup kept
+    expect(await File('$path-wal').exists(), isFalse); // sidecars dropped
+    final check = sqlite.sqlite3.open(dbFile.path);
+    expect(check.select('PRAGMA user_version').first['user_version'] as int, 25);
+    expect(
+      check.select("SELECT value FROM course_meta WHERE key = 'k'").length,
+      1,
+    );
+    check.dispose();
+  });
+
+  test('restoreCourseDbFromBackup returns null without any backup', () async {
+    final path = await _tempDbPath();
+    addTearDown(() async {
+      final parent = File(path).parent;
+      if (await parent.exists()) await parent.delete(recursive: true);
+    });
+    final dbFile = File(path);
+    await dbFile.writeAsBytes([0xde, 0xad]);
+
+    expect(await restoreCourseDbFromBackup(dbFile), isNull);
   });
 }

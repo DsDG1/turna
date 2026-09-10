@@ -15,7 +15,6 @@ import 'package:turna/application/lesson_progress_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/srs_provider.dart';
-import 'package:turna/application/srs_queue_provider.dart';
 import 'package:turna/application/study_stats_provider.dart';
 import 'package:turna/data/study_log_repository.dart';
 import 'package:turna/di/injection.dart';
@@ -122,20 +121,47 @@ class PostRestoreReloadRegistry {
     );
 
     // ── learning state ──
+    // Queue providers hold a per-language filter; re-point it at the restored
+    // selection (re-read by the 'language' step above) BEFORE reloading so the
+    // reload reads the restored language's rows instead of whatever was
+    // active before the restore.
     _registerIf(
       'srs',
       () => getIt.isRegistered<SrsProvider>(),
-      () async => getIt<SrsProvider>().reloadFromStorage(),
+      () async {
+        final language = _restoredLanguage();
+        if (language != null) {
+          await getIt<SrsProvider>().setLanguageFilter(language);
+        }
+        await getIt<SrsProvider>().reloadFromStorage();
+      },
     );
     _registerIf(
       'grammarReview',
       () => getIt.isRegistered<GrammarReviewProvider>(),
-      () async => getIt<GrammarReviewProvider>().reloadFromStorage(),
+      () async {
+        final language = _restoredLanguage();
+        if (language != null) {
+          await getIt<GrammarReviewProvider>().setLanguageFilter(language);
+        }
+        await getIt<GrammarReviewProvider>().reloadFromStorage();
+      },
     );
     _registerIf(
       'mistakes',
       () => getIt.isRegistered<MistakeProvider>(),
-      () async => getIt<MistakeProvider>().reloadFromPrefs(),
+      () async {
+        // reloadFromPrefs only drops the decoded caches; follow with a real
+        // load so the mistake log is visible immediately after a restore
+        // instead of staying empty until the next record.
+        getIt<MistakeProvider>().reloadFromPrefs();
+        final language = _restoredLanguage();
+        if (language != null) {
+          await getIt<MistakeProvider>().setLanguage(language);
+        } else {
+          await getIt<MistakeProvider>().ensureLoaded();
+        }
+      },
     );
     _registerIf(
       'lessonProgress',
@@ -159,11 +185,6 @@ class PostRestoreReloadRegistry {
       () => getIt.isRegistered<AchievementService>(),
       () async => getIt<AchievementService>().reloadFromPrefs(),
     );
-    _registerIf(
-      'srsQueue',
-      () => getIt.isRegistered<SrsQueueProvider>(),
-      () async => getIt<SrsQueueProvider>().reloadFromStorage(),
-    );
 
     // ── AI non-sensitive config ──
     _registerIf(
@@ -171,6 +192,15 @@ class PostRestoreReloadRegistry {
       () => getIt.isRegistered<AiExplainPrefsStore>(),
       () async => getIt<AiExplainPrefsStore>().load(),
     );
+  }
+
+  /// Language selection as (re)read by the 'language' step, or null when
+  /// [LanguageProvider] isn't registered — queue steps then keep the filter
+  /// they already hold.
+  String? _restoredLanguage() {
+    return getIt.isRegistered<LanguageProvider>()
+        ? getIt<LanguageProvider>().selectedLanguageCode
+        : null;
   }
 
   /// Runs every registered step in order. Never throws: step failures are

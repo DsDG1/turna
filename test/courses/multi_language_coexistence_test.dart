@@ -491,4 +491,43 @@ void main() {
     expect(language.ttsLanguageCode, 'fr');
     expect(language.selectedLanguageCode, LanguageCodes.french);
   });
+
+  test('cold start with a persisted uninstalled scope falls back to a live course',
+      () async {
+    SharedPreferences.setMockInitialValues({});
+    final sp = await StreamingSharedPreferences.instance;
+    final prefs = AppPrefs(sp);
+
+    // The language still exists at this point — collect its lesson ids and
+    // simulate the kill window: prefs still point at french when the marker
+    // has already been written.
+    expect(
+      await CourseRepository(db).lessonIdsForLanguage(LanguageCodes.french),
+      isNotEmpty,
+    );
+    final provider = CourseProvider(prefs);
+    await provider.load();
+    await provider.uninstallBuiltinLanguage(LanguageCodes.french);
+    await prefs.setString(
+      PrefsConstants.courseScope,
+      const BuiltinCourseScope(LanguageCodes.french).wireKey,
+    );
+
+    // Cold start: the persisted scope names an uninstalled language; the
+    // provider must fall back to an installed course instead of an empty
+    // tree.
+    final fresh = CourseProvider(prefs);
+    await fresh.load();
+
+    expect(fresh.sections, isNotEmpty);
+    expect(
+      fresh.scope,
+      isNot(const BuiltinCourseScope(LanguageCodes.french)),
+    );
+    // The fallback is persisted too, so the next cold start is clean.
+    expect(
+      prefs.courseScope.getValue(),
+      isNot(const BuiltinCourseScope(LanguageCodes.french).wireKey),
+    );
+  });
 }

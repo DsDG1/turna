@@ -91,9 +91,16 @@ class SrsStateDao {
         .go();
   }
 
-  /// Delete every row in [queue] (content-update reset).
-  Future<void> clearQueue(String queue) async {
-    await (_db.delete(_db.srsStates)..where((t) => t.queue.equals(queue))).go();
+  /// Delete every row in [queue] (content-update reset). Pass [languageCode]
+  /// to spare the other languages' rows; null clears every language.
+  Future<void> clearQueue(String queue, {String? languageCode}) async {
+    final query = _db.delete(_db.srsStates)..where((t) => t.queue.equals(queue));
+    if (languageCode != null) {
+      query.where(
+        (t) => t.languageCode.equals(LanguageCodes.canonicalize(languageCode)),
+      );
+    }
+    await query.go();
   }
 
   /// Count every active schedule that can be moved by the Fun Lab time

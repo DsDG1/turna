@@ -19,6 +19,7 @@ import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/grammar_review_provider.dart';
+import 'package:turna/application/language_registry.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/courses/languages/expressions.dart';
 import 'package:turna/courses/languages/grammar_points.dart';
@@ -133,9 +134,12 @@ Future<void> main() async {
 
     // Hydrate SRS state from SQLite before any screen reads due counts. This
     // also runs the one-time prefs->SQLite migration (schema v7) on first boot
-    // after upgrade. Idempotent.
-    await getIt<SrsProvider>().ensureLoaded();
-    await getIt<GrammarReviewProvider>().ensureLoaded();
+    // after upgrade. Idempotent. Hydrate under the persisted scope's language
+    // (same rationale as the vocabulary preheat above) so due badges don't
+    // flash another language's counts before CourseProvider.load() syncs.
+    final srsLanguage = preheatLanguage ?? LanguageRegistry.instance.defaultCode;
+    await getIt<SrsProvider>().setLanguageFilter(srsLanguage);
+    await getIt<GrammarReviewProvider>().setLanguageFilter(srsLanguage);
 
     await OfficialAnkiCompositionRoot.initializeReadOnlyLocator();
     await getIt<CourseProvider>().load();

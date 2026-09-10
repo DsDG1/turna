@@ -118,7 +118,7 @@ class $SectionsTable extends Sections with TableInfo<$SectionsTable, Section> {
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {id};
+  Set<GeneratedColumn> get $primaryKey => {languageCode, id};
   @override
   Section map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
@@ -427,9 +427,7 @@ class $UnitsTable extends Units with TableInfo<$UnitsTable, Unit> {
   @override
   late final GeneratedColumn<String> sectionId = GeneratedColumn<String>(
       'section_id', aliasedName, false,
-      type: DriftSqlType.string,
-      requiredDuringInsert: true,
-      $customConstraints: 'NOT NULL REFERENCES sections(id) ON DELETE CASCADE');
+      type: DriftSqlType.string, requiredDuringInsert: true);
   static const VerificationMeta _nameMeta = const VerificationMeta('name');
   @override
   late final GeneratedColumn<String> name = GeneratedColumn<String>(
@@ -522,7 +520,7 @@ class $UnitsTable extends Units with TableInfo<$UnitsTable, Unit> {
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {id};
+  Set<GeneratedColumn> get $primaryKey => {languageCode, id};
   @override
   Unit map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
@@ -828,9 +826,7 @@ class $LessonsTable extends Lessons with TableInfo<$LessonsTable, Lesson> {
   @override
   late final GeneratedColumn<String> unitId = GeneratedColumn<String>(
       'unit_id', aliasedName, false,
-      type: DriftSqlType.string,
-      requiredDuringInsert: true,
-      $customConstraints: 'NOT NULL REFERENCES units(id) ON DELETE CASCADE');
+      type: DriftSqlType.string, requiredDuringInsert: true);
   static const VerificationMeta _nameMeta = const VerificationMeta('name');
   @override
   late final GeneratedColumn<String> name = GeneratedColumn<String>(
@@ -948,7 +944,7 @@ class $LessonsTable extends Lessons with TableInfo<$LessonsTable, Lesson> {
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {id};
+  Set<GeneratedColumn> get $primaryKey => {languageCode, id};
   @override
   Lesson map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
@@ -1293,9 +1289,7 @@ class $LessonContentsTable extends LessonContents
   @override
   late final GeneratedColumn<String> lessonId = GeneratedColumn<String>(
       'lesson_id', aliasedName, false,
-      type: DriftSqlType.string,
-      requiredDuringInsert: true,
-      $customConstraints: 'NOT NULL REFERENCES lessons(id) ON DELETE CASCADE');
+      type: DriftSqlType.string, requiredDuringInsert: true);
   static const VerificationMeta _languageCodeMeta =
       const VerificationMeta('languageCode');
   @override
@@ -1346,7 +1340,7 @@ class $LessonContentsTable extends LessonContents
   }
 
   @override
-  Set<GeneratedColumn> get $primaryKey => {lessonId};
+  Set<GeneratedColumn> get $primaryKey => {languageCode, lessonId};
   @override
   LessonContent map(Map<String, dynamic> data, {String? tablePrefix}) {
     final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
@@ -7510,27 +7504,6 @@ abstract class _$CourseDatabase extends GeneratedDatabase {
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules(
         [
           WritePropagation(
-            on: TableUpdateQuery.onTableName('sections',
-                limitUpdateKind: UpdateKind.delete),
-            result: [
-              TableUpdate('units', kind: UpdateKind.delete),
-            ],
-          ),
-          WritePropagation(
-            on: TableUpdateQuery.onTableName('units',
-                limitUpdateKind: UpdateKind.delete),
-            result: [
-              TableUpdate('lessons', kind: UpdateKind.delete),
-            ],
-          ),
-          WritePropagation(
-            on: TableUpdateQuery.onTableName('lessons',
-                limitUpdateKind: UpdateKind.delete),
-            result: [
-              TableUpdate('lesson_contents', kind: UpdateKind.delete),
-            ],
-          ),
-          WritePropagation(
             on: TableUpdateQuery.onTableName('anki_imports',
                 limitUpdateKind: UpdateKind.delete),
             result: [
@@ -7576,25 +7549,6 @@ typedef $$SectionsTableUpdateCompanionBuilder = SectionsCompanion Function({
   Value<int> rowid,
 });
 
-final class $$SectionsTableReferences
-    extends BaseReferences<_$CourseDatabase, $SectionsTable, Section> {
-  $$SectionsTableReferences(super.$_db, super.$_table, super.$_typedResult);
-
-  static MultiTypedResultKey<$UnitsTable, List<Unit>> _unitsRefsTable(
-          _$CourseDatabase db) =>
-      MultiTypedResultKey.fromTable(db.units,
-          aliasName: $_aliasNameGenerator(db.sections.id, db.units.sectionId));
-
-  $$UnitsTableProcessedTableManager get unitsRefs {
-    final manager = $$UnitsTableTableManager($_db, $_db.units)
-        .filter((f) => f.sectionId.id.sqlEquals($_itemColumn<String>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(_unitsRefsTable($_db));
-    return ProcessedTableManager(
-        manager.$state.copyWith(prefetchedData: cache));
-  }
-}
-
 class $$SectionsTableFilterComposer
     extends Composer<_$CourseDatabase, $SectionsTable> {
   $$SectionsTableFilterComposer({
@@ -7625,27 +7579,6 @@ class $$SectionsTableFilterComposer
 
   ColumnFilters<int> get sortOrder => $composableBuilder(
       column: $table.sortOrder, builder: (column) => ColumnFilters(column));
-
-  Expression<bool> unitsRefs(
-      Expression<bool> Function($$UnitsTableFilterComposer f) f) {
-    final $$UnitsTableFilterComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.id,
-        referencedTable: $db.units,
-        getReferencedColumn: (t) => t.sectionId,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$UnitsTableFilterComposer(
-              $db: $db,
-              $table: $db.units,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
-    return f(composer);
-  }
 }
 
 class $$SectionsTableOrderingComposer
@@ -7710,27 +7643,6 @@ class $$SectionsTableAnnotationComposer
 
   GeneratedColumn<int> get sortOrder =>
       $composableBuilder(column: $table.sortOrder, builder: (column) => column);
-
-  Expression<T> unitsRefs<T extends Object>(
-      Expression<T> Function($$UnitsTableAnnotationComposer a) f) {
-    final $$UnitsTableAnnotationComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.id,
-        referencedTable: $db.units,
-        getReferencedColumn: (t) => t.sectionId,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$UnitsTableAnnotationComposer(
-              $db: $db,
-              $table: $db.units,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
-    return f(composer);
-  }
 }
 
 class $$SectionsTableTableManager extends RootTableManager<
@@ -7742,9 +7654,9 @@ class $$SectionsTableTableManager extends RootTableManager<
     $$SectionsTableAnnotationComposer,
     $$SectionsTableCreateCompanionBuilder,
     $$SectionsTableUpdateCompanionBuilder,
-    (Section, $$SectionsTableReferences),
+    (Section, BaseReferences<_$CourseDatabase, $SectionsTable, Section>),
     Section,
-    PrefetchHooks Function({bool unitsRefs})> {
+    PrefetchHooks Function()> {
   $$SectionsTableTableManager(_$CourseDatabase db, $SectionsTable table)
       : super(TableManagerState(
           db: db,
@@ -7796,31 +7708,9 @@ class $$SectionsTableTableManager extends RootTableManager<
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
-              .map((e) =>
-                  (e.readTable(table), $$SectionsTableReferences(db, table, e)))
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
-          prefetchHooksCallback: ({unitsRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [if (unitsRefs) db.units],
-              addJoins: null,
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (unitsRefs)
-                    await $_getPrefetchedData<Section, $SectionsTable, Unit>(
-                        currentTable: table,
-                        referencedTable:
-                            $$SectionsTableReferences._unitsRefsTable(db),
-                        managerFromTypedResult: (p0) =>
-                            $$SectionsTableReferences(db, table, p0).unitsRefs,
-                        referencedItemsForCurrentItem:
-                            (item, referencedItems) => referencedItems
-                                .where((e) => e.sectionId == item.id),
-                        typedResults: items)
-                ];
-              },
-            );
-          },
+          prefetchHooksCallback: null,
         ));
 }
 
@@ -7833,9 +7723,9 @@ typedef $$SectionsTableProcessedTableManager = ProcessedTableManager<
     $$SectionsTableAnnotationComposer,
     $$SectionsTableCreateCompanionBuilder,
     $$SectionsTableUpdateCompanionBuilder,
-    (Section, $$SectionsTableReferences),
+    (Section, BaseReferences<_$CourseDatabase, $SectionsTable, Section>),
     Section,
-    PrefetchHooks Function({bool unitsRefs})>;
+    PrefetchHooks Function()>;
 typedef $$UnitsTableCreateCompanionBuilder = UnitsCompanion Function({
   required String id,
   Value<String> languageCode,
@@ -7857,39 +7747,6 @@ typedef $$UnitsTableUpdateCompanionBuilder = UnitsCompanion Function({
   Value<int> rowid,
 });
 
-final class $$UnitsTableReferences
-    extends BaseReferences<_$CourseDatabase, $UnitsTable, Unit> {
-  $$UnitsTableReferences(super.$_db, super.$_table, super.$_typedResult);
-
-  static $SectionsTable _sectionIdTable(_$CourseDatabase db) => db.sections
-      .createAlias($_aliasNameGenerator(db.units.sectionId, db.sections.id));
-
-  $$SectionsTableProcessedTableManager get sectionId {
-    final $_column = $_itemColumn<String>('section_id')!;
-
-    final manager = $$SectionsTableTableManager($_db, $_db.sections)
-        .filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_sectionIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-        manager.$state.copyWith(prefetchedData: [item]));
-  }
-
-  static MultiTypedResultKey<$LessonsTable, List<Lesson>> _lessonsRefsTable(
-          _$CourseDatabase db) =>
-      MultiTypedResultKey.fromTable(db.lessons,
-          aliasName: $_aliasNameGenerator(db.units.id, db.lessons.unitId));
-
-  $$LessonsTableProcessedTableManager get lessonsRefs {
-    final manager = $$LessonsTableTableManager($_db, $_db.lessons)
-        .filter((f) => f.unitId.id.sqlEquals($_itemColumn<String>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(_lessonsRefsTable($_db));
-    return ProcessedTableManager(
-        manager.$state.copyWith(prefetchedData: cache));
-  }
-}
-
 class $$UnitsTableFilterComposer
     extends Composer<_$CourseDatabase, $UnitsTable> {
   $$UnitsTableFilterComposer({
@@ -7905,6 +7762,9 @@ class $$UnitsTableFilterComposer
   ColumnFilters<String> get languageCode => $composableBuilder(
       column: $table.languageCode, builder: (column) => ColumnFilters(column));
 
+  ColumnFilters<String> get sectionId => $composableBuilder(
+      column: $table.sectionId, builder: (column) => ColumnFilters(column));
+
   ColumnFilters<String> get name => $composableBuilder(
       column: $table.name, builder: (column) => ColumnFilters(column));
 
@@ -7917,47 +7777,6 @@ class $$UnitsTableFilterComposer
 
   ColumnFilters<int> get sortOrder => $composableBuilder(
       column: $table.sortOrder, builder: (column) => ColumnFilters(column));
-
-  $$SectionsTableFilterComposer get sectionId {
-    final $$SectionsTableFilterComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.sectionId,
-        referencedTable: $db.sections,
-        getReferencedColumn: (t) => t.id,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$SectionsTableFilterComposer(
-              $db: $db,
-              $table: $db.sections,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
-    return composer;
-  }
-
-  Expression<bool> lessonsRefs(
-      Expression<bool> Function($$LessonsTableFilterComposer f) f) {
-    final $$LessonsTableFilterComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.id,
-        referencedTable: $db.lessons,
-        getReferencedColumn: (t) => t.unitId,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$LessonsTableFilterComposer(
-              $db: $db,
-              $table: $db.lessons,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
-    return f(composer);
-  }
 }
 
 class $$UnitsTableOrderingComposer
@@ -7976,6 +7795,9 @@ class $$UnitsTableOrderingComposer
       column: $table.languageCode,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get sectionId => $composableBuilder(
+      column: $table.sectionId, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get name => $composableBuilder(
       column: $table.name, builder: (column) => ColumnOrderings(column));
 
@@ -7988,26 +7810,6 @@ class $$UnitsTableOrderingComposer
 
   ColumnOrderings<int> get sortOrder => $composableBuilder(
       column: $table.sortOrder, builder: (column) => ColumnOrderings(column));
-
-  $$SectionsTableOrderingComposer get sectionId {
-    final $$SectionsTableOrderingComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.sectionId,
-        referencedTable: $db.sections,
-        getReferencedColumn: (t) => t.id,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$SectionsTableOrderingComposer(
-              $db: $db,
-              $table: $db.sections,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
-    return composer;
-  }
 }
 
 class $$UnitsTableAnnotationComposer
@@ -8025,6 +7827,9 @@ class $$UnitsTableAnnotationComposer
   GeneratedColumn<String> get languageCode => $composableBuilder(
       column: $table.languageCode, builder: (column) => column);
 
+  GeneratedColumn<String> get sectionId =>
+      $composableBuilder(column: $table.sectionId, builder: (column) => column);
+
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
 
@@ -8036,47 +7841,6 @@ class $$UnitsTableAnnotationComposer
 
   GeneratedColumn<int> get sortOrder =>
       $composableBuilder(column: $table.sortOrder, builder: (column) => column);
-
-  $$SectionsTableAnnotationComposer get sectionId {
-    final $$SectionsTableAnnotationComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.sectionId,
-        referencedTable: $db.sections,
-        getReferencedColumn: (t) => t.id,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$SectionsTableAnnotationComposer(
-              $db: $db,
-              $table: $db.sections,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
-    return composer;
-  }
-
-  Expression<T> lessonsRefs<T extends Object>(
-      Expression<T> Function($$LessonsTableAnnotationComposer a) f) {
-    final $$LessonsTableAnnotationComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.id,
-        referencedTable: $db.lessons,
-        getReferencedColumn: (t) => t.unitId,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$LessonsTableAnnotationComposer(
-              $db: $db,
-              $table: $db.lessons,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
-    return f(composer);
-  }
 }
 
 class $$UnitsTableTableManager extends RootTableManager<
@@ -8088,9 +7852,9 @@ class $$UnitsTableTableManager extends RootTableManager<
     $$UnitsTableAnnotationComposer,
     $$UnitsTableCreateCompanionBuilder,
     $$UnitsTableUpdateCompanionBuilder,
-    (Unit, $$UnitsTableReferences),
+    (Unit, BaseReferences<_$CourseDatabase, $UnitsTable, Unit>),
     Unit,
-    PrefetchHooks Function({bool sectionId, bool lessonsRefs})> {
+    PrefetchHooks Function()> {
   $$UnitsTableTableManager(_$CourseDatabase db, $UnitsTable table)
       : super(TableManagerState(
           db: db,
@@ -8142,55 +7906,9 @@ class $$UnitsTableTableManager extends RootTableManager<
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
-              .map((e) =>
-                  (e.readTable(table), $$UnitsTableReferences(db, table, e)))
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
-          prefetchHooksCallback: ({sectionId = false, lessonsRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [if (lessonsRefs) db.lessons],
-              addJoins: <
-                  T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic>>(state) {
-                if (sectionId) {
-                  state = state.withJoin(
-                    currentTable: table,
-                    currentColumn: table.sectionId,
-                    referencedTable: $$UnitsTableReferences._sectionIdTable(db),
-                    referencedColumn:
-                        $$UnitsTableReferences._sectionIdTable(db).id,
-                  ) as T;
-                }
-
-                return state;
-              },
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (lessonsRefs)
-                    await $_getPrefetchedData<Unit, $UnitsTable, Lesson>(
-                        currentTable: table,
-                        referencedTable:
-                            $$UnitsTableReferences._lessonsRefsTable(db),
-                        managerFromTypedResult: (p0) =>
-                            $$UnitsTableReferences(db, table, p0).lessonsRefs,
-                        referencedItemsForCurrentItem: (item,
-                                referencedItems) =>
-                            referencedItems.where((e) => e.unitId == item.id),
-                        typedResults: items)
-                ];
-              },
-            );
-          },
+          prefetchHooksCallback: null,
         ));
 }
 
@@ -8203,9 +7921,9 @@ typedef $$UnitsTableProcessedTableManager = ProcessedTableManager<
     $$UnitsTableAnnotationComposer,
     $$UnitsTableCreateCompanionBuilder,
     $$UnitsTableUpdateCompanionBuilder,
-    (Unit, $$UnitsTableReferences),
+    (Unit, BaseReferences<_$CourseDatabase, $UnitsTable, Unit>),
     Unit,
-    PrefetchHooks Function({bool sectionId, bool lessonsRefs})>;
+    PrefetchHooks Function()>;
 typedef $$LessonsTableCreateCompanionBuilder = LessonsCompanion Function({
   required String id,
   Value<String> languageCode,
@@ -8231,40 +7949,6 @@ typedef $$LessonsTableUpdateCompanionBuilder = LessonsCompanion Function({
   Value<int> rowid,
 });
 
-final class $$LessonsTableReferences
-    extends BaseReferences<_$CourseDatabase, $LessonsTable, Lesson> {
-  $$LessonsTableReferences(super.$_db, super.$_table, super.$_typedResult);
-
-  static $UnitsTable _unitIdTable(_$CourseDatabase db) => db.units
-      .createAlias($_aliasNameGenerator(db.lessons.unitId, db.units.id));
-
-  $$UnitsTableProcessedTableManager get unitId {
-    final $_column = $_itemColumn<String>('unit_id')!;
-
-    final manager = $$UnitsTableTableManager($_db, $_db.units)
-        .filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_unitIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-        manager.$state.copyWith(prefetchedData: [item]));
-  }
-
-  static MultiTypedResultKey<$LessonContentsTable, List<LessonContent>>
-      _lessonContentsRefsTable(_$CourseDatabase db) =>
-          MultiTypedResultKey.fromTable(db.lessonContents,
-              aliasName: $_aliasNameGenerator(
-                  db.lessons.id, db.lessonContents.lessonId));
-
-  $$LessonContentsTableProcessedTableManager get lessonContentsRefs {
-    final manager = $$LessonContentsTableTableManager($_db, $_db.lessonContents)
-        .filter((f) => f.lessonId.id.sqlEquals($_itemColumn<String>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(_lessonContentsRefsTable($_db));
-    return ProcessedTableManager(
-        manager.$state.copyWith(prefetchedData: cache));
-  }
-}
-
 class $$LessonsTableFilterComposer
     extends Composer<_$CourseDatabase, $LessonsTable> {
   $$LessonsTableFilterComposer({
@@ -8279,6 +7963,9 @@ class $$LessonsTableFilterComposer
 
   ColumnFilters<String> get languageCode => $composableBuilder(
       column: $table.languageCode, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get unitId => $composableBuilder(
+      column: $table.unitId, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get name => $composableBuilder(
       column: $table.name, builder: (column) => ColumnFilters(column));
@@ -8298,47 +7985,6 @@ class $$LessonsTableFilterComposer
 
   ColumnFilters<int> get sortOrder => $composableBuilder(
       column: $table.sortOrder, builder: (column) => ColumnFilters(column));
-
-  $$UnitsTableFilterComposer get unitId {
-    final $$UnitsTableFilterComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.unitId,
-        referencedTable: $db.units,
-        getReferencedColumn: (t) => t.id,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$UnitsTableFilterComposer(
-              $db: $db,
-              $table: $db.units,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
-    return composer;
-  }
-
-  Expression<bool> lessonContentsRefs(
-      Expression<bool> Function($$LessonContentsTableFilterComposer f) f) {
-    final $$LessonContentsTableFilterComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.id,
-        referencedTable: $db.lessonContents,
-        getReferencedColumn: (t) => t.lessonId,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$LessonContentsTableFilterComposer(
-              $db: $db,
-              $table: $db.lessonContents,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
-    return f(composer);
-  }
 }
 
 class $$LessonsTableOrderingComposer
@@ -8356,6 +8002,9 @@ class $$LessonsTableOrderingComposer
   ColumnOrderings<String> get languageCode => $composableBuilder(
       column: $table.languageCode,
       builder: (column) => ColumnOrderings(column));
+
+  ColumnOrderings<String> get unitId => $composableBuilder(
+      column: $table.unitId, builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get name => $composableBuilder(
       column: $table.name, builder: (column) => ColumnOrderings(column));
@@ -8375,26 +8024,6 @@ class $$LessonsTableOrderingComposer
 
   ColumnOrderings<int> get sortOrder => $composableBuilder(
       column: $table.sortOrder, builder: (column) => ColumnOrderings(column));
-
-  $$UnitsTableOrderingComposer get unitId {
-    final $$UnitsTableOrderingComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.unitId,
-        referencedTable: $db.units,
-        getReferencedColumn: (t) => t.id,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$UnitsTableOrderingComposer(
-              $db: $db,
-              $table: $db.units,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
-    return composer;
-  }
 }
 
 class $$LessonsTableAnnotationComposer
@@ -8411,6 +8040,9 @@ class $$LessonsTableAnnotationComposer
 
   GeneratedColumn<String> get languageCode => $composableBuilder(
       column: $table.languageCode, builder: (column) => column);
+
+  GeneratedColumn<String> get unitId =>
+      $composableBuilder(column: $table.unitId, builder: (column) => column);
 
   GeneratedColumn<String> get name =>
       $composableBuilder(column: $table.name, builder: (column) => column);
@@ -8429,47 +8061,6 @@ class $$LessonsTableAnnotationComposer
 
   GeneratedColumn<int> get sortOrder =>
       $composableBuilder(column: $table.sortOrder, builder: (column) => column);
-
-  $$UnitsTableAnnotationComposer get unitId {
-    final $$UnitsTableAnnotationComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.unitId,
-        referencedTable: $db.units,
-        getReferencedColumn: (t) => t.id,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$UnitsTableAnnotationComposer(
-              $db: $db,
-              $table: $db.units,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
-    return composer;
-  }
-
-  Expression<T> lessonContentsRefs<T extends Object>(
-      Expression<T> Function($$LessonContentsTableAnnotationComposer a) f) {
-    final $$LessonContentsTableAnnotationComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.id,
-        referencedTable: $db.lessonContents,
-        getReferencedColumn: (t) => t.lessonId,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$LessonContentsTableAnnotationComposer(
-              $db: $db,
-              $table: $db.lessonContents,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
-    return f(composer);
-  }
 }
 
 class $$LessonsTableTableManager extends RootTableManager<
@@ -8481,9 +8072,9 @@ class $$LessonsTableTableManager extends RootTableManager<
     $$LessonsTableAnnotationComposer,
     $$LessonsTableCreateCompanionBuilder,
     $$LessonsTableUpdateCompanionBuilder,
-    (Lesson, $$LessonsTableReferences),
+    (Lesson, BaseReferences<_$CourseDatabase, $LessonsTable, Lesson>),
     Lesson,
-    PrefetchHooks Function({bool unitId, bool lessonContentsRefs})> {
+    PrefetchHooks Function()> {
   $$LessonsTableTableManager(_$CourseDatabase db, $LessonsTable table)
       : super(TableManagerState(
           db: db,
@@ -8543,60 +8134,9 @@ class $$LessonsTableTableManager extends RootTableManager<
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
-              .map((e) =>
-                  (e.readTable(table), $$LessonsTableReferences(db, table, e)))
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
-          prefetchHooksCallback: (
-              {unitId = false, lessonContentsRefs = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [
-                if (lessonContentsRefs) db.lessonContents
-              ],
-              addJoins: <
-                  T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic>>(state) {
-                if (unitId) {
-                  state = state.withJoin(
-                    currentTable: table,
-                    currentColumn: table.unitId,
-                    referencedTable: $$LessonsTableReferences._unitIdTable(db),
-                    referencedColumn:
-                        $$LessonsTableReferences._unitIdTable(db).id,
-                  ) as T;
-                }
-
-                return state;
-              },
-              getPrefetchedDataCallback: (items) async {
-                return [
-                  if (lessonContentsRefs)
-                    await $_getPrefetchedData<Lesson, $LessonsTable,
-                            LessonContent>(
-                        currentTable: table,
-                        referencedTable: $$LessonsTableReferences
-                            ._lessonContentsRefsTable(db),
-                        managerFromTypedResult: (p0) =>
-                            $$LessonsTableReferences(db, table, p0)
-                                .lessonContentsRefs,
-                        referencedItemsForCurrentItem: (item,
-                                referencedItems) =>
-                            referencedItems.where((e) => e.lessonId == item.id),
-                        typedResults: items)
-                ];
-              },
-            );
-          },
+          prefetchHooksCallback: null,
         ));
 }
 
@@ -8609,9 +8149,9 @@ typedef $$LessonsTableProcessedTableManager = ProcessedTableManager<
     $$LessonsTableAnnotationComposer,
     $$LessonsTableCreateCompanionBuilder,
     $$LessonsTableUpdateCompanionBuilder,
-    (Lesson, $$LessonsTableReferences),
+    (Lesson, BaseReferences<_$CourseDatabase, $LessonsTable, Lesson>),
     Lesson,
-    PrefetchHooks Function({bool unitId, bool lessonContentsRefs})>;
+    PrefetchHooks Function()>;
 typedef $$LessonContentsTableCreateCompanionBuilder = LessonContentsCompanion
     Function({
   required String lessonId,
@@ -8627,27 +8167,6 @@ typedef $$LessonContentsTableUpdateCompanionBuilder = LessonContentsCompanion
   Value<int> rowid,
 });
 
-final class $$LessonContentsTableReferences extends BaseReferences<
-    _$CourseDatabase, $LessonContentsTable, LessonContent> {
-  $$LessonContentsTableReferences(
-      super.$_db, super.$_table, super.$_typedResult);
-
-  static $LessonsTable _lessonIdTable(_$CourseDatabase db) =>
-      db.lessons.createAlias(
-          $_aliasNameGenerator(db.lessonContents.lessonId, db.lessons.id));
-
-  $$LessonsTableProcessedTableManager get lessonId {
-    final $_column = $_itemColumn<String>('lesson_id')!;
-
-    final manager = $$LessonsTableTableManager($_db, $_db.lessons)
-        .filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_lessonIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-        manager.$state.copyWith(prefetchedData: [item]));
-  }
-}
-
 class $$LessonContentsTableFilterComposer
     extends Composer<_$CourseDatabase, $LessonContentsTable> {
   $$LessonContentsTableFilterComposer({
@@ -8657,31 +8176,14 @@ class $$LessonContentsTableFilterComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnFilters<String> get lessonId => $composableBuilder(
+      column: $table.lessonId, builder: (column) => ColumnFilters(column));
+
   ColumnFilters<String> get languageCode => $composableBuilder(
       column: $table.languageCode, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get contentJson => $composableBuilder(
       column: $table.contentJson, builder: (column) => ColumnFilters(column));
-
-  $$LessonsTableFilterComposer get lessonId {
-    final $$LessonsTableFilterComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.lessonId,
-        referencedTable: $db.lessons,
-        getReferencedColumn: (t) => t.id,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$LessonsTableFilterComposer(
-              $db: $db,
-              $table: $db.lessons,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
-    return composer;
-  }
 }
 
 class $$LessonContentsTableOrderingComposer
@@ -8693,32 +8195,15 @@ class $$LessonContentsTableOrderingComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  ColumnOrderings<String> get lessonId => $composableBuilder(
+      column: $table.lessonId, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get languageCode => $composableBuilder(
       column: $table.languageCode,
       builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<String> get contentJson => $composableBuilder(
       column: $table.contentJson, builder: (column) => ColumnOrderings(column));
-
-  $$LessonsTableOrderingComposer get lessonId {
-    final $$LessonsTableOrderingComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.lessonId,
-        referencedTable: $db.lessons,
-        getReferencedColumn: (t) => t.id,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$LessonsTableOrderingComposer(
-              $db: $db,
-              $table: $db.lessons,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
-    return composer;
-  }
 }
 
 class $$LessonContentsTableAnnotationComposer
@@ -8730,31 +8215,14 @@ class $$LessonContentsTableAnnotationComposer
     super.$addJoinBuilderToRootComposer,
     super.$removeJoinBuilderFromRootComposer,
   });
+  GeneratedColumn<String> get lessonId =>
+      $composableBuilder(column: $table.lessonId, builder: (column) => column);
+
   GeneratedColumn<String> get languageCode => $composableBuilder(
       column: $table.languageCode, builder: (column) => column);
 
   GeneratedColumn<String> get contentJson => $composableBuilder(
       column: $table.contentJson, builder: (column) => column);
-
-  $$LessonsTableAnnotationComposer get lessonId {
-    final $$LessonsTableAnnotationComposer composer = $composerBuilder(
-        composer: this,
-        getCurrentColumn: (t) => t.lessonId,
-        referencedTable: $db.lessons,
-        getReferencedColumn: (t) => t.id,
-        builder: (joinBuilder,
-                {$addJoinBuilderToRootComposer,
-                $removeJoinBuilderFromRootComposer}) =>
-            $$LessonsTableAnnotationComposer(
-              $db: $db,
-              $table: $db.lessons,
-              $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-              joinBuilder: joinBuilder,
-              $removeJoinBuilderFromRootComposer:
-                  $removeJoinBuilderFromRootComposer,
-            ));
-    return composer;
-  }
 }
 
 class $$LessonContentsTableTableManager extends RootTableManager<
@@ -8766,9 +8234,12 @@ class $$LessonContentsTableTableManager extends RootTableManager<
     $$LessonContentsTableAnnotationComposer,
     $$LessonContentsTableCreateCompanionBuilder,
     $$LessonContentsTableUpdateCompanionBuilder,
-    (LessonContent, $$LessonContentsTableReferences),
+    (
+      LessonContent,
+      BaseReferences<_$CourseDatabase, $LessonContentsTable, LessonContent>
+    ),
     LessonContent,
-    PrefetchHooks Function({bool lessonId})> {
+    PrefetchHooks Function()> {
   $$LessonContentsTableTableManager(
       _$CourseDatabase db, $LessonContentsTable table)
       : super(TableManagerState(
@@ -8805,46 +8276,9 @@ class $$LessonContentsTableTableManager extends RootTableManager<
             rowid: rowid,
           ),
           withReferenceMapper: (p0) => p0
-              .map((e) => (
-                    e.readTable(table),
-                    $$LessonContentsTableReferences(db, table, e)
-                  ))
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
               .toList(),
-          prefetchHooksCallback: ({lessonId = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [],
-              addJoins: <
-                  T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic>>(state) {
-                if (lessonId) {
-                  state = state.withJoin(
-                    currentTable: table,
-                    currentColumn: table.lessonId,
-                    referencedTable:
-                        $$LessonContentsTableReferences._lessonIdTable(db),
-                    referencedColumn:
-                        $$LessonContentsTableReferences._lessonIdTable(db).id,
-                  ) as T;
-                }
-
-                return state;
-              },
-              getPrefetchedDataCallback: (items) async {
-                return [];
-              },
-            );
-          },
+          prefetchHooksCallback: null,
         ));
 }
 
@@ -8857,9 +8291,12 @@ typedef $$LessonContentsTableProcessedTableManager = ProcessedTableManager<
     $$LessonContentsTableAnnotationComposer,
     $$LessonContentsTableCreateCompanionBuilder,
     $$LessonContentsTableUpdateCompanionBuilder,
-    (LessonContent, $$LessonContentsTableReferences),
+    (
+      LessonContent,
+      BaseReferences<_$CourseDatabase, $LessonContentsTable, LessonContent>
+    ),
     LessonContent,
-    PrefetchHooks Function({bool lessonId})>;
+    PrefetchHooks Function()>;
 typedef $$VocabularyTableCreateCompanionBuilder = VocabularyCompanion Function({
   required String id,
   Value<String> languageCode,

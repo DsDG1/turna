@@ -3,6 +3,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/data/srs_state_dao.dart';
+import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/domain/course/srs_word.dart';
 
 import '../helpers/in_memory_course_db.dart';
@@ -139,6 +140,23 @@ void main() {
 
       await dao.clearQueue('srs');
       expect(await dao.loadQueue('srs'), isEmpty);
+      expect((await dao.loadQueue('grammar')).keys, ['gp-1']);
+    });
+
+    test('clearQueue with a languageCode spares the other languages',
+        () async {
+      await dao.upsert('srs', makeWord(id: 'w-1'));
+      await dao.upsert(
+        'srs',
+        makeWord(id: 'fr-w-bonjour'),
+        languageCode: LanguageCodes.french,
+      );
+      await dao.upsert('grammar', makeWord(id: 'gp-1'));
+
+      await dao.clearQueue('srs', languageCode: LanguageCodes.turkish);
+      // No language filter on load = every language, so the survivor proves
+      // the delete was scoped.
+      expect((await dao.loadQueue('srs')).keys, ['fr-w-bonjour']);
       expect((await dao.loadQueue('grammar')).keys, ['gp-1']);
     });
 

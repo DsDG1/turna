@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
+import 'package:turna/application/language_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/repositories/i_course_repository.dart';
 
@@ -46,6 +47,18 @@ class AiGroundedResourceProvider extends ChangeNotifier {
   bool get hasResources =>
       _words.isNotEmpty || _expressions.isNotEmpty || _grammarPoints.isNotEmpty;
 
+  /// Current practice language, or null when [LanguageProvider] isn't
+  /// registered (tests without DI). Null deliberately means "no filter" so
+  /// those environments keep the unscoped behavior.
+  String? get _currentLanguage {
+    try {
+      if (getIt.isRegistered<LanguageProvider>()) {
+        return getIt<LanguageProvider>().selectedLanguageCode;
+      }
+    } catch (_) {}
+    return null;
+  }
+
   /// Loads resources from the DB. Safe to call multiple times; it will refresh
   /// the cached snapshot.
   Future<void> load({List<String>? scope}) async {
@@ -55,12 +68,13 @@ class AiGroundedResourceProvider extends ChangeNotifier {
       return;
     }
     final requestedScope = scope ?? const ['words', 'expressions', 'grammarPoints'];
+    final languageCode = _currentLanguage;
     _isLoading = true;
     _error = null;
     notifyListeners();
     try {
       if (requestedScope.contains('words')) {
-        final rows = await _repository.vocabulary();
+        final rows = await _repository.vocabulary(languageCode: languageCode);
         _words = [
           for (final w in rows)
             {
@@ -76,7 +90,7 @@ class AiGroundedResourceProvider extends ChangeNotifier {
       }
 
       if (requestedScope.contains('expressions')) {
-        final rows = await _repository.expressions();
+        final rows = await _repository.expressions(languageCode: languageCode);
         _expressions = [
           for (final e in rows)
             {
@@ -92,7 +106,7 @@ class AiGroundedResourceProvider extends ChangeNotifier {
       }
 
       if (requestedScope.contains('grammarPoints')) {
-        final rows = await _repository.grammarPoints();
+        final rows = await _repository.grammarPoints(languageCode: languageCode);
         _grammarPoints = [
           for (final g in rows)
             {
