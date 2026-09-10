@@ -88,4 +88,22 @@ class NotetypeFacts {
           values[fieldIndex],
     ];
   }
+
+  /// Row-paired values of two fields (front/answer). Rows without the
+  /// first field's value drop out; an empty second value stays and
+  /// counts as unaligned — [nonEmptySamplesOf] on both sides separately
+  /// would silently break the row pairing.
+  List<(String, String)> pairedSamplesOf(int fieldIndex, int pairedFieldIndex) {
+    return [
+      for (final values in samples)
+        if (fieldIndex < values.length &&
+            values[fieldIndex].trim().isNotEmpty)
+          (
+            values[fieldIndex],
+            pairedFieldIndex < values.length
+                ? values[pairedFieldIndex]
+                : '',
+          ),
+    ];
+  }
 }

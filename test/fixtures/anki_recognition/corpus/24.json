@@ -1,0 +1,107 @@
+{
+  "id": "24",
+  "description": "部分选项样但答案永不对齐（铁律下限降至 30%，保真而非静默翻转）",
+  "schema": {
+    "notetypeId": 24,
+    "name": "PartiallyOptionLike",
+    "kind": "normal",
+    "fieldNames": [
+      "Question",
+      "Answer"
+    ],
+    "templateNames": [
+      "Card 1"
+    ],
+    "schemaFingerprint": "fp24",
+    "samples": [
+      {
+        "noteId": 1,
+        "fields": [
+          "以下哪个说法正确？\nA. 甲说法\nB. 乙说法\nC. 丙说法",
+          "这道题需要结合材料进行论述分析，无法用单一选项概括，答案取决于具体的语境和条件设定，需要分段论述各选项的适用范围。"
+        ],
+        "truncated": false
+      },
+      {
+        "noteId": 2,
+        "fields": [
+          "下列哪项描述准确？\nA. 描述一\nB. 描述二",
+          "本题考查综合分析能力，各选项均有部分正确性，需要结合教材原文与实际案例展开对比论述后方可判断，不能简单作答。"
+        ],
+        "truncated": false
+      },
+      {
+        "noteId": 3,
+        "fields": [
+          "Na",
+          "钠"
+        ],
+        "truncated": false
+      },
+      {
+        "noteId": 4,
+        "fields": [
+          "Fe",
+          "铁"
+        ],
+        "truncated": false
+      },
+      {
+        "noteId": 5,
+        "fields": [
+          "Cu",
+          "铜"
+        ],
+        "truncated": false
+      },
+      {
+        "noteId": 6,
+        "fields": [
+          "Ag",
+          "银"
+        ],
+        "truncated": false
+      }
+    ],
+    "templateFacts": {
+      "hash": "h24",
+      "templates": [
+        {
+          "ord": 0,
+          "name": "Card 1",
+          "frontFields": [
+            0
+          ],
+          "backFields": [
+            0,
+            1
+          ],
+          "filters": {
+            "typeIn": false,
+            "tts": [],
+            "hint": [],
+            "script": false,
+            "complexHtml": false
+          }
+        }
+      ],
+      "reqs": [
+        {
+          "cardOrd": 0,
+          "kind": "ANY",
+          "fieldOrds": [
+            0
+          ]
+        }
+      ]
+    }
+  },
+  "expected": {
+    "archetype": "richHtml",
+    "band": "auto",
+    "roles": {
+      "Question": "prompt",
+      "Answer": "response"
+    }
+  }
+}

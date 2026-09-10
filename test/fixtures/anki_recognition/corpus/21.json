@@ -1,0 +1,83 @@
+{
+  "id": "21",
+  "description": "选项在背面牌组（正面题干、背面选项+显式答案标记，A6b 进 review 档）",
+  "schema": {
+    "notetypeId": 21,
+    "name": "OptionsOnBack",
+    "kind": "normal",
+    "fieldNames": [
+      "Question",
+      "Answer"
+    ],
+    "templateNames": [
+      "Card 1"
+    ],
+    "schemaFingerprint": "fp21",
+    "samples": [
+      {
+        "noteId": 1,
+        "fields": [
+          "中国的首都是哪座城市？请从背面选项中选择正确答案。",
+          "A. 北京\nB. 上海\nC. 广州\n答案：A"
+        ],
+        "truncated": false
+      },
+      {
+        "noteId": 2,
+        "fields": [
+          "下列哪条河流是世界上长度最长的河流？请认真作答。",
+          "A. 黄河\nB. 长江\nC. 尼罗河\n答案：C"
+        ],
+        "truncated": false
+      },
+      {
+        "noteId": 3,
+        "fields": [
+          "一年之中一共有多少个季节？请选择正确的选项。",
+          "A. 两个\nB. 三个\nC. 四个\n答案：C"
+        ],
+        "truncated": false
+      }
+    ],
+    "templateFacts": {
+      "hash": "h21",
+      "templates": [
+        {
+          "ord": 0,
+          "name": "Card 1",
+          "frontFields": [
+            0
+          ],
+          "backFields": [
+            0,
+            1
+          ],
+          "filters": {
+            "typeIn": false,
+            "tts": [],
+            "hint": [],
+            "script": false,
+            "complexHtml": false
+          }
+        }
+      ],
+      "reqs": [
+        {
+          "cardOrd": 0,
+          "kind": "ANY",
+          "fieldOrds": [
+            0
+          ]
+        }
+      ]
+    }
+  },
+  "expected": {
+    "archetype": "choice",
+    "band": "review",
+    "roles": {
+      "Question": "prompt",
+      "Answer": "response"
+    }
+  }
+}

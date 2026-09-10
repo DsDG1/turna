@@ -1,5 +1,6 @@
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import '../config.dart';
+import '../facts/card_facts.dart';
 import '../facts/notetype_facts.dart';
 import '../lexicon/field_roles.dart';
 import 'archetypes.dart';
@@ -102,6 +103,16 @@ class CardRecognizer {
       final prompt = roles[FieldRole.prompt];
       final response = roles[FieldRole.response];
       if (prompt == null || response == null) return 0;
+      // Unresolved choice signal: option-looking content that no choice
+      // rule could verify. Corroborating a silent auto flip over it is
+      // exactly how mixed decks used to become flip cards without a
+      // review — the deck belongs in the review band instead.
+      for (final binding in [prompt, response]) {
+        final rate = CardFacts.of(
+          facts.nonEmptySamplesOf(binding.fieldIndex),
+        ).looksLikeOptionsRate;
+        if (rate >= unresolvedOptionSignalFloor) return 0;
+      }
       final strongScores = prompt.confidence >= bandAutoMin &&
           response.confidence >= bandAutoMin;
       bool hasSignal(FieldBinding binding, String signal) =>

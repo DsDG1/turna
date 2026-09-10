@@ -2,6 +2,7 @@ import 'package:turna/application/anki_official/projection/official_anki_mapping
 import 'package:turna/application/anki_official/projection/official_anki_projection_payloads.dart';
 import 'package:turna/domain/anki/card_presentation.dart';
 
+import '../facts/text_metrics.dart';
 import '../recognize/result.dart';
 
 /// L4: the thin archetype × preference table (doc 37 §3.8). The old
@@ -20,13 +21,19 @@ class OfficialAnkiPresentationPolicy {
       return OfficialAnkiProjectionKind.canonicalLink;
     }
     // Iron-law downgrade (§3.7): this card violated its notetype's
-    // archetype. For choice questions, fallback gracefully to flip;
-    // other complex cards keep fidelity rendering.
+    // archetype. For choice questions, only a genuinely short pair
+    // degrades to flip — a long stem or an explanation-sized back keeps
+    // fidelity rendering (mixed decks: the non-choice minority used to
+    // land here as raw flip cards). Other complex cards keep fidelity.
     if (values.archetypeViolated) {
       if (values.archetype == CardArchetype.choice) {
-        final enabled = mapping?.enabledKinds.toSet() ??
-            const <String>{'flip', 'canonicalLink'};
-        return _pairFallback(enabled, values);
+        final pairLike = CardText.isShortAnswer(values.target) &&
+            CardText.isShortAnswer(values.native);
+        if (pairLike) {
+          final enabled = mapping?.enabledKinds.toSet() ??
+              const <String>{'flip', 'canonicalLink'};
+          return _pairFallback(enabled, values);
+        }
       }
       return OfficialAnkiProjectionKind.canonicalLink;
     }

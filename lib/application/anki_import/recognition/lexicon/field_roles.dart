@@ -1,7 +1,7 @@
 import '../config.dart';
 
 /// Bump when the lexicon data below changes.
-const int lexiconVersion = 1;
+const int lexiconVersion = 2;
 
 /// Field roles across recognition, persisted mappings, and projection.
 ///
@@ -79,6 +79,10 @@ const Map<FieldRole, List<String>> _exactTerms = {
   FieldRole.response: [
     'back', 'answer', 'meaning', 'translation', 'gloss', 'definition',
     '背面', '反面', '答案', '释义', '翻译', '后面', '解词',
+    // Answer-column shorthands: exact-only on purpose — `key`/`ans` as
+    // contains-terms would hijack `keyword`/`translateAns`-style names.
+    'ans', 'key', 'correct', 'correctanswer', 'right',
+    '正确答案', '正确选项', '参考答案', '解答', '正解',
   ],
   FieldRole.options: ['options', 'option', 'choice', 'choices', '选项', '备选'],
   FieldRole.audio: ['audio', 'sound', '音频', '声音', '发音'],
@@ -92,7 +96,12 @@ const Map<FieldRole, List<String>> _exactTerms = {
   ],
   FieldRole.example: ['example', 'sentence', 'context', '例句', '语境'],
   FieldRole.hint: ['hint', '提示', '线索'],
-  FieldRole.extra: ['extra', 'note', '补充', '备注'],
+  FieldRole.extra: [
+    'extra', 'note', '补充', '备注',
+    // Explanation columns must bind here so they never drift into the
+    // response role through positional priors (答案：B。解析：… decks).
+    '解析', '解释', 'explanation', 'rationale', 'analysis',
+  ],
   FieldRole.unitLabel: ['unit', 'chapter', '单元', '章'],
   FieldRole.lessonLabel: ['lesson', 'topic', '课', '节'],
 };
@@ -111,7 +120,7 @@ const Map<FieldRole, List<String>> _containsTerms = {
   FieldRole.pronunciation: ['pronun', 'ipa', 'phonetic', '音标', '拼音', '读音'],
   FieldRole.example: ['example', '例句'],
   FieldRole.hint: ['hint', '提示'],
-  FieldRole.extra: ['extra', '补充'],
+  FieldRole.extra: ['extra', '补充', '解析', '解释', 'explan', 'rationale'],
   FieldRole.unitLabel: ['unit', 'chapter', '单元'],
   FieldRole.lessonLabel: ['lesson', 'topic', '课时'],
 };

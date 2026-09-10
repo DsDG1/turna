@@ -1,0 +1,83 @@
+{
+  "id": "20",
+  "description": "无标记行池牌组（每行一个选项、答案为裸字母，策略 3 + 对齐门禁）",
+  "schema": {
+    "notetypeId": 20,
+    "name": "UnlabeledPool",
+    "kind": "normal",
+    "fieldNames": [
+      "Question",
+      "Answer"
+    ],
+    "templateNames": [
+      "Card 1"
+    ],
+    "schemaFingerprint": "fp20",
+    "samples": [
+      {
+        "noteId": 1,
+        "fields": [
+          "北京\n上海\n广州\n深圳",
+          "B"
+        ],
+        "truncated": false
+      },
+      {
+        "noteId": 2,
+        "fields": [
+          "春天\n夏天\n秋天\n冬天",
+          "C"
+        ],
+        "truncated": false
+      },
+      {
+        "noteId": 3,
+        "fields": [
+          "红色\n绿色\n蓝色\n黄色",
+          "A"
+        ],
+        "truncated": false
+      }
+    ],
+    "templateFacts": {
+      "hash": "h20",
+      "templates": [
+        {
+          "ord": 0,
+          "name": "Card 1",
+          "frontFields": [
+            0
+          ],
+          "backFields": [
+            0,
+            1
+          ],
+          "filters": {
+            "typeIn": false,
+            "tts": [],
+            "hint": [],
+            "script": false,
+            "complexHtml": false
+          }
+        }
+      ],
+      "reqs": [
+        {
+          "cardOrd": 0,
+          "kind": "ANY",
+          "fieldOrds": [
+            0
+          ]
+        }
+      ]
+    }
+  },
+  "expected": {
+    "archetype": "choice",
+    "band": "auto",
+    "roles": {
+      "Question": "prompt",
+      "Answer": "response"
+    }
+  }
+}

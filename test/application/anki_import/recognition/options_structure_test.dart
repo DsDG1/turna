@@ -168,4 +168,99 @@ void main() {
     expect(parsed.prompt, '选出偶数：');
     expect(EmbeddedOptionsParser.parseCorrectIndices('2', parsed.options), [1]);
   });
+
+  test('full-width letters fold to ASCII for scanning', () {
+    expect(
+      EmbeddedOptionsParser.looksLikeEmbeddedOptions('Ａ．北京\nＢ．上海\nＣ．广州'),
+      isTrue,
+    );
+    final parsed = EmbeddedOptionsParser.extractEmbeddedOptions('首都：\nＡ．北京\nＢ．上海');
+    expect(parsed, isNotNull);
+    expect(parsed!.options, ['北京', '上海']);
+    expect(parsed.prompt, '首都：');
+  });
+
+  test('ideographic full stop works as a label separator', () {
+    final parsed = EmbeddedOptionsParser.extractEmbeddedOptions('题干\nA。甲\nB。乙');
+    expect(parsed, isNotNull);
+    expect(parsed!.options, ['甲', '乙']);
+  });
+
+  test('sequential space-separated labels look like options', () {
+    expect(EmbeddedOptionsParser.looksLikeEmbeddedOptions('A 甲\nB 乙\nC 丙'), isTrue);
+    // Prose with scattered standalone letters is not sequential.
+    expect(
+      EmbeddedOptionsParser.looksLikeEmbeddedOptions('A big cat and a small dog'),
+      isFalse,
+    );
+  });
+
+  test('parseCorrectIndices handles 。 suffixes and explanation tails', () {
+    const options = ['甲', '乙', '丙'];
+    expect(EmbeddedOptionsParser.parseCorrectIndices('B。', options), [1]);
+    expect(EmbeddedOptionsParser.parseCorrectIndices('B.', options), [1]);
+    expect(
+      EmbeddedOptionsParser.parseCorrectIndices('答案：B。解析：因为甲不正确。', options),
+      [1],
+    );
+    expect(EmbeddedOptionsParser.parseCorrectIndices('B 解析：甲不正确', options), [1]);
+    expect(EmbeddedOptionsParser.parseCorrectIndices('答案是AC', options), [0, 2]);
+    // English answers containing clause words keep their full text.
+    expect(
+      EmbeddedOptionsParser.parseCorrectIndices('Ever since 1990', ['Ever since 1990', 'x']),
+      [0],
+    );
+  });
+
+  test('parseCorrectIndices aligns option text with whitespace differences', () {
+    expect(EmbeddedOptionsParser.parseCorrectIndices('选项 一', ['选项一', '选项二']), [0]);
+    expect(EmbeddedOptionsParser.parseCorrectIndices('选项二。', ['选项一', '选项二']), [1]);
+  });
+
+  test('unlabeled line pool parses as loose options', () {
+    final parsed = EmbeddedOptionsParser.extractEmbeddedOptions('北京\n上海\n广州\n深圳');
+    expect(parsed, isNotNull);
+    expect(parsed!.loose, isTrue);
+    expect(parsed.options, ['北京', '上海', '广州', '深圳']);
+    expect(parsed.prompt, '');
+    // A long paragraph line is not a pool member.
+    expect(
+      EmbeddedOptionsParser.extractEmbeddedOptions(
+        '这是一段很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长的段落文字，'
+        '超过了八十个字符的限制，所以不会被当成选项池',
+      ),
+      isNull,
+    );
+  });
+
+  test('isBareLabelAnswer and hasUnlabeledOptionLines', () {
+    expect(EmbeddedOptionsParser.isBareLabelAnswer('B'), isTrue);
+    expect(EmbeddedOptionsParser.isBareLabelAnswer('B。'), isTrue);
+    expect(EmbeddedOptionsParser.isBareLabelAnswer('③'), isTrue);
+    expect(EmbeddedOptionsParser.isBareLabelAnswer('2'), isTrue);
+    expect(EmbeddedOptionsParser.isBareLabelAnswer('北京'), isFalse);
+    expect(EmbeddedOptionsParser.hasUnlabeledOptionLines('甲\n乙\n丙'), isTrue);
+    expect(EmbeddedOptionsParser.hasUnlabeledOptionLines('甲\n乙'), isFalse);
+  });
+
+  test('extractBackFaceChoice resolves options plus explicit marker', () {
+    final parsed = EmbeddedOptionsParser.extractBackFaceChoice(
+      'A. 北京\nB. 上海\nC. 广州\n答案：B',
+    );
+    expect(parsed, isNotNull);
+    expect(parsed!.options, ['北京', '上海', '广州']);
+    expect(parsed.correctIndices, [1]);
+    expect(parsed.prompt, '');
+    // No explicit marker → not a back-face choice.
+    expect(
+      EmbeddedOptionsParser.extractBackFaceChoice('A. 北京\nB. 上海'),
+      isNull,
+    );
+    // Multi-letter marker answers resolve to every index.
+    expect(
+      EmbeddedOptionsParser.extractBackFaceChoice('A. 北京\nB. 上海\nC. 广州\n答案：AC')
+          ?.correctIndices,
+      [0, 2],
+    );
+  });
 }

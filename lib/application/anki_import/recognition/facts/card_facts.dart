@@ -1,6 +1,64 @@
 import 'options_structure.dart';
 import 'text_metrics.dart';
 
+/// Row-paired choice measurement: how many sample rows parse as choice
+/// and how many of those align an answer. Rates, not a single lucky
+/// sample — a mixed deck must be measured honestly (doc 37 §3.4).
+class ChoiceRowStats {
+  const ChoiceRowStats({
+    required this.totalRows,
+    required this.parseRows,
+    required this.alignedRows,
+  });
+
+  /// Rows with a non-empty front value.
+  final int totalRows;
+
+  /// Rows whose front parsed as ≥2 options (loose rows only count once
+  /// their answer aligned).
+  final int parseRows;
+
+  /// Rows whose front parsed AND whose paired answer aligned.
+  final int alignedRows;
+
+  double get parseRate => totalRows == 0 ? 0 : parseRows / totalRows;
+  double get alignRate => parseRows == 0 ? 0 : alignedRows / parseRows;
+}
+
+/// Measure choice rows across paired (front, answer) values. Unlabeled
+/// line pools ([ParsedEmbeddedOptions.loose]) count as parsed only when
+/// their answer aligns — a paragraph split by `<br>` must not
+/// masquerade as an option pool.
+ChoiceRowStats measureChoiceRows(List<(String, String)> rows) {
+  var total = 0;
+  var parsed = 0;
+  var aligned = 0;
+  for (final (front, answer) in rows) {
+    if (front.trim().isEmpty) continue;
+    total++;
+    final embedded = EmbeddedOptionsParser.extractEmbeddedOptions(front);
+    if (embedded == null) continue;
+    final hit = EmbeddedOptionsParser.parseCorrectIndices(
+      answer,
+      embedded.options,
+    ).isNotEmpty;
+    if (embedded.loose) {
+      if (hit) {
+        parsed++;
+        aligned++;
+      }
+      continue;
+    }
+    parsed++;
+    if (hit) aligned++;
+  }
+  return ChoiceRowStats(
+    totalRows: total,
+    parseRows: parsed,
+    alignedRows: aligned,
+  );
+}
+
 /// L0 content probes over one field's sample values (or one card's field
 /// values at projection time). Pure measurement — the archetype rules
 /// decide what the measurements mean.

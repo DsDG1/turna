@@ -231,10 +231,12 @@ class OfficialAnkiProjectionPayloads {
                 .map((c) => c.fieldName)
                 .toList() ??
             const <String>[];
+        // Raw response, not the collapsed shortText: back-face layouts
+        // need their line structure to expose options + answer markers.
         final extracted = _resolveChoice(
           raw(FieldRole.options),
           raw(FieldRole.prompt),
-          nativeText,
+          raw(FieldRole.response),
           fieldNames: candidateNames,
           fieldValues: row.fields,
         );
@@ -274,9 +276,17 @@ class OfficialAnkiProjectionPayloads {
             archetypeViolated = true;
           }
         } else if (EmbeddedOptionsParser.looksLikeEmbeddedOptions(
-          CardText.stripHtml(promptRawValue),
-        )) {
-          final extracted = _resolveChoice('', promptRawValue, nativeText);
+              CardText.stripHtml(promptRawValue),
+            ) ||
+            (EmbeddedOptionsParser.isBareLabelAnswer(nativeText) &&
+                EmbeddedOptionsParser.hasUnlabeledOptionLines(
+                  promptRawValue,
+                ))) {
+          final extracted = _resolveChoice(
+            '',
+            promptRawValue,
+            raw(FieldRole.response),
+          );
           if (extracted == null) {
             archetypeViolated = true;
           } else {
@@ -586,12 +596,33 @@ class OfficialAnkiProjectionPayloads {
 
     // 3) Embedded front options:
     final embedded = EmbeddedOptionsParser.extractEmbeddedOptions(promptRaw);
-    if (embedded == null) return null;
+    if (embedded == null) {
+      // 4) Options and the explicit answer share the back face:
+      final back = EmbeddedOptionsParser.extractBackFaceChoice(answerText);
+      if (back == null) return null;
+      return (
+        options: back.options,
+        correctIndices: back.correctIndices,
+        prompt: CardText.shortText(promptRaw),
+      );
+    }
     final correct = EmbeddedOptionsParser.parseCorrectIndices(
       answerText,
       embedded.options,
     );
-    if (correct.isEmpty) return null;
+    if (correct.isEmpty) {
+      // The back face may still carry an explicit marker even when the
+      // answer field itself did not align.
+      final back = EmbeddedOptionsParser.extractBackFaceChoice(answerText);
+      if (back == null) return null;
+      return (
+        options: back.options,
+        correctIndices: back.correctIndices,
+        prompt: embedded.prompt.isNotEmpty
+            ? embedded.prompt
+            : CardText.shortText(promptRaw),
+      );
+    }
     return (
       options: embedded.options,
       correctIndices: correct,

@@ -8,7 +8,7 @@ library;
 
 /// Bump when recognition logic changes in a way that should invalidate
 /// cached suggestions for unconfirmed mappings.
-const int recognizerVersion = 2;
+const int recognizerVersion = 3;
 
 // ---------------------------------------------------------------------------
 // L1 field-role binding weights (§3.5)
@@ -69,6 +69,7 @@ const double ruleEmbeddedOptionsUnparsedWeight = 0.90; // iron law
 const double ruleSampleClozeWeight = 0.80; // A5 content
 const double ruleEmbeddedOptionsWeight = 0.80; // A6 content
 const double ruleEmbeddedOptionsMixedWeight = 0.78; // A6m content, review band
+const double ruleBackFaceOptionsWeight = 0.78; // A6b content, review band
 const double ruleAudioFirstWeight = 0.80; // A7 content
 const double ruleShortPairWeight = 0.75; // A8 content
 const double ruleDefaultPairedWeight = 0.60; // A9 with a bound pair
@@ -88,9 +89,26 @@ const double corroboratedPairBonus = 0.15;
 
 const double sampleRateThreshold = 0.60;
 
-/// A6m floor: option-looking fronts at this rate..sampleRateThreshold fire
-/// the mixed choice rule at review-band confidence instead of nothing.
-const double embeddedOptionsReviewRate = 0.40;
+/// A6m floor: option-looking fronts below [sampleRateThreshold] but at
+/// least this rate fire the mixed choice rule at review-band confidence.
+const double embeddedOptionsMixedFloor = 0.25;
+
+/// A6-unparsed floor: option-looking fronts at least this rate whose
+/// answers never align keep fidelity instead of silently flipping.
+const double embeddedOptionsIronLawFloor = 0.30;
+
+/// Fraction of parseable choice rows whose paired answer must align
+/// before a choice rule (A4/A6/A6m/A6b) may fire.
+const double choiceAlignRateThreshold = 0.60;
+
+/// Option-looking content at or above this rate on the prompt/response
+/// field is an unresolved choice signal: basicPair wins over it lose the
+/// corroboration bonus so the deck lands in review, never silent auto.
+const double unresolvedOptionSignalFloor = 0.20;
+
+/// A6b floor: back-face values at least this rate must parse as options
+/// (with an explicit answer marker) before the options-on-back rule fires.
+const double backFaceOptionsParseFloor = 0.50;
 
 // ---------------------------------------------------------------------------
 // Confidence bands (§3.6)

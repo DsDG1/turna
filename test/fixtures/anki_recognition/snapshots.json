@@ -109,7 +109,7 @@
       }
     },
     "evidence": [
-      "A4:pool=4, answer=巴黎 w=0.90"
+      "A4:pool_rows=2, parse=100%, align=100% w=0.90"
     ]
   },
   "07": {
@@ -127,7 +127,7 @@
       }
     },
     "evidence": [
-      "A6:3 options w=0.80"
+      "A6:parse=100%, align=100% w=0.80"
     ]
   },
   "08": {
@@ -145,7 +145,7 @@
       }
     },
     "evidence": [
-      "A6-unparsed:answer_not_aligned w=0.90"
+      "A6-unparsed:answer_not_aligned parse=100%, align=0% w=0.90"
     ]
   },
   "09": {
@@ -320,7 +320,7 @@
       }
     },
     "evidence": [
-      "A6:4 options w=0.80"
+      "A6:parse=100%, align=100% w=0.80"
     ]
   },
   "18": {
@@ -338,7 +338,138 @@
       }
     },
     "evidence": [
-      "A6m:mixed 4 options w=0.78"
+      "A6m:mixed parse=50%, align=100% w=0.78"
+    ]
+  },
+  "19": {
+    "archetype": "choice",
+    "confidence": "0.780",
+    "band": "review",
+    "roles": {
+      "prompt": {
+        "field": "Question",
+        "confidence": "1.000"
+      },
+      "response": {
+        "field": "Answer",
+        "confidence": "1.000"
+      }
+    },
+    "evidence": [
+      "A6m:mixed parse=50%, align=100% w=0.78"
+    ]
+  },
+  "20": {
+    "archetype": "choice",
+    "confidence": "0.880",
+    "band": "auto",
+    "roles": {
+      "prompt": {
+        "field": "Question",
+        "confidence": "1.000"
+      },
+      "response": {
+        "field": "Answer",
+        "confidence": "1.000"
+      }
+    },
+    "evidence": [
+      "A6:parse=100%, align=100% w=0.80"
+    ]
+  },
+  "21": {
+    "archetype": "choice",
+    "confidence": "0.780",
+    "band": "review",
+    "roles": {
+      "prompt": {
+        "field": "Question",
+        "confidence": "1.000"
+      },
+      "response": {
+        "field": "Answer",
+        "confidence": "1.000"
+      }
+    },
+    "evidence": [
+      "A6b:back_options parse=100% w=0.78"
+    ]
+  },
+  "22": {
+    "archetype": "choice",
+    "confidence": "0.880",
+    "band": "auto",
+    "roles": {
+      "prompt": {
+        "field": "Question",
+        "confidence": "1.000"
+      },
+      "response": {
+        "field": "Answer",
+        "confidence": "1.000"
+      }
+    },
+    "evidence": [
+      "A6:parse=100%, align=100% w=0.80"
+    ]
+  },
+  "23": {
+    "archetype": "choice",
+    "confidence": "0.900",
+    "band": "auto",
+    "roles": {
+      "prompt": {
+        "field": "Question",
+        "confidence": "1.000"
+      },
+      "response": {
+        "field": "Answer",
+        "confidence": "1.000"
+      },
+      "extra": {
+        "field": "解析",
+        "confidence": "0.900"
+      }
+    },
+    "evidence": [
+      "A4:multi_field_pool=4, parse=100%, align=100% w=0.90"
+    ]
+  },
+  "24": {
+    "archetype": "richHtml",
+    "confidence": "0.900",
+    "band": "auto",
+    "roles": {
+      "prompt": {
+        "field": "Question",
+        "confidence": "1.000"
+      },
+      "response": {
+        "field": "Answer",
+        "confidence": "1.000"
+      }
+    },
+    "evidence": [
+      "A6-unparsed:answer_not_aligned parse=33%, align=0% w=0.90",
+      "A8:short_pair w=0.75"
+    ]
+  },
+  "25": {
+    "archetype": "basicPair",
+    "confidence": "0.750",
+    "band": "review",
+    "roles": {
+      "prompt": {
+        "field": "Front",
+        "confidence": "1.000"
+      },
+      "response": {
+        "field": "Back",
+        "confidence": "1.000"
+      }
+    },
+    "evidence": [
+      "A8:short_pair w=0.75"
     ]
   }
 }

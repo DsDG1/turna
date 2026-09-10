@@ -108,6 +108,13 @@ const List<ArchetypeRule> archetypeRules = [
     probe: _embeddedOptionsMixed,
   ),
   ArchetypeRule(
+    id: 'A6b',
+    layer: RuleLayer.content,
+    target: CardArchetype.choice,
+    weight: ruleBackFaceOptionsWeight,
+    probe: _embeddedOptionsOnBack,
+  ),
+  ArchetypeRule(
     id: 'A7',
     layer: RuleLayer.content,
     target: CardArchetype.audioFirst,
@@ -147,46 +154,82 @@ String? _templateTypeIn(
   return facts.hasTypeInFilter ? 'template:{{type:}}' : null;
 }
 
+String _pct(double rate) => '${(rate * 100).round()}%';
+
 String? _choicePoolBound(
   NotetypeFacts facts,
   Map<FieldRole, FieldBinding> roles,
 ) {
   final response = roles[FieldRole.response];
+  if (response == null) return null;
 
-  // 1) Multi-field options check (OptionA..D, A..D, Q_1..Q_4, etc.)
+  // 1) Multi-field options (OptionA..D, A..D, Q_1..Q_4, etc.): a binding
+  // signal strong enough for the auto band, so the answer must align on
+  // most pool rows — not just on one lucky sample.
   final multiFieldOptionNames = facts.fieldNames
       .where((name) =>
           EmbeddedOptionsParser.isOptionFieldName(name.toLowerCase()))
       .toList();
-  if (multiFieldOptionNames.length >= 2 && response != null) {
-    for (final sample in facts.samples) {
+  if (multiFieldOptionNames.length >= 2) {
+    var poolRows = 0;
+    var alignedRows = 0;
+    for (final row in facts.samples) {
       final pool = EmbeddedOptionsParser.extractMultiFieldOptions(
         facts.fieldNames,
-        sample,
+        row,
       );
-      if (pool != null && pool.length >= 2) {
-        if (response.fieldIndex < sample.length) {
-          final ans = sample[response.fieldIndex];
-          final correct =
-              EmbeddedOptionsParser.parseCorrectIndices(ans, pool);
-          if (correct.isNotEmpty) {
-            return 'multi_field_pool=${pool.length}, answer=${pool[correct.first]}';
-          }
-        }
+      if (pool == null || pool.length < 2) continue;
+      poolRows++;
+      final answer =
+          response.fieldIndex < row.length ? row[response.fieldIndex] : '';
+      if (EmbeddedOptionsParser.parseCorrectIndices(answer, pool).isNotEmpty) {
+        alignedRows++;
       }
+    }
+    final stats = ChoiceRowStats(
+      totalRows: facts.samples.length,
+      parseRows: poolRows,
+      alignedRows: alignedRows,
+    );
+    if (stats.parseRate >= sampleRateThreshold &&
+        stats.alignRate >= choiceAlignRateThreshold) {
+      return 'multi_field_pool=${multiFieldOptionNames.length}, '
+          'parse=${_pct(stats.parseRate)}, align=${_pct(stats.alignRate)}';
     }
   }
 
-  // 2) Single option-pool field check
+  // 2) Single option-pool field: each row aligns against its own pool
+  // (pools are frequently per-row, so one global pool would misalign).
   final options = roles[FieldRole.options];
-  if (options == null || response == null) return null;
-  final pool = CardFacts.of(facts.nonEmptySamplesOf(options.fieldIndex))
-      .parseOptionPool();
-  if (pool.length < 2) return null;
-  final correct = CardFacts.of(facts.nonEmptySamplesOf(response.fieldIndex))
-      .parseCorrectIndices(pool);
-  if (correct.isEmpty) return null;
-  return 'pool=${pool.length}, answer=${pool[correct.first]}';
+  if (options == null) return null;
+  var total = 0;
+  var poolRows = 0;
+  var alignedRows = 0;
+  for (final values in facts.samples) {
+    final poolRaw =
+        options.fieldIndex < values.length ? values[options.fieldIndex] : '';
+    if (poolRaw.trim().isEmpty) continue;
+    total++;
+    final pool = EmbeddedOptionsParser.parseOptionPool(poolRaw);
+    if (pool.length < 2) continue;
+    poolRows++;
+    final answer =
+        response.fieldIndex < values.length ? values[response.fieldIndex] : '';
+    if (EmbeddedOptionsParser.parseCorrectIndices(answer, pool).isNotEmpty) {
+      alignedRows++;
+    }
+  }
+  final stats = ChoiceRowStats(
+    totalRows: total,
+    parseRows: poolRows,
+    alignedRows: alignedRows,
+  );
+  if (stats.parseRate >= sampleRateThreshold &&
+      stats.alignRate >= choiceAlignRateThreshold) {
+    return 'pool_rows=$poolRows, '
+        'parse=${_pct(stats.parseRate)}, align=${_pct(stats.alignRate)}';
+  }
+  return null;
 }
 
 String? _contentScript(
@@ -209,19 +252,28 @@ String? _embeddedOptionsUnparsed(
   NotetypeFacts facts,
   Map<FieldRole, FieldBinding> roles,
 ) {
-  // Iron law: the front face looks like an options list but the answer
-  // never aligns → the notetype is untrustworthy, keep fidelity.
+  // Iron law: option-looking fronts whose answers never align keep
+  // fidelity. The floor is deliberately low — a partially choice-looking
+  // deck must not silently become a flip deck.
   final prompt = roles[FieldRole.prompt];
-  final response = roles[FieldRole.response];
   if (prompt == null) return null;
+  final response = roles[FieldRole.response];
   final front = CardFacts.of(facts.nonEmptySamplesOf(prompt.fieldIndex));
-  if (front.looksLikeOptionsRate < sampleRateThreshold) return null;
-  final embedded = front.extractEmbeddedOptions();
-  if (embedded == null) return 'options_unparsed';
-  if (response == null) return 'answer_missing';
-  final aligned = CardFacts.of(facts.nonEmptySamplesOf(response.fieldIndex))
-      .parseCorrectIndices(embedded.options);
-  return aligned.isEmpty ? 'answer_not_aligned' : null;
+  final likeRate = front.looksLikeOptionsRate;
+  if (response == null) {
+    return likeRate >= embeddedOptionsIronLawFloor ? 'answer_missing' : null;
+  }
+  final stats = measureChoiceRows(
+    facts.pairedSamplesOf(prompt.fieldIndex, response.fieldIndex),
+  );
+  if (stats.alignRate >= choiceAlignRateThreshold) return null;
+  final signal = likeRate > stats.parseRate ? likeRate : stats.parseRate;
+  if (signal < embeddedOptionsIronLawFloor) return null;
+  if (stats.parseRate < embeddedOptionsIronLawFloor) {
+    return 'options_unparsed';
+  }
+  return 'answer_not_aligned '
+      'parse=${_pct(stats.parseRate)}, align=${_pct(stats.alignRate)}';
 }
 
 String? _sampleClozeMarkers(
@@ -243,18 +295,19 @@ String? _embeddedOptions(
   final prompt = roles[FieldRole.prompt];
   final response = roles[FieldRole.response];
   if (prompt == null || response == null) return null;
-  final front = CardFacts.of(facts.nonEmptySamplesOf(prompt.fieldIndex));
-  if (front.looksLikeOptionsRate < sampleRateThreshold) return null;
-  final embedded = front.extractEmbeddedOptions();
-  if (embedded == null) return null; // the unparsed twin already fired
-  final aligned = CardFacts.of(facts.nonEmptySamplesOf(response.fieldIndex))
-      .parseCorrectIndices(embedded.options);
-  return aligned.isEmpty ? null : '${embedded.options.length} options';
+  final stats = measureChoiceRows(
+    facts.pairedSamplesOf(prompt.fieldIndex, response.fieldIndex),
+  );
+  if (stats.parseRate < sampleRateThreshold) return null;
+  if (stats.alignRate < choiceAlignRateThreshold) {
+    return null; // the unparsed twin owns unaligned decks
+  }
+  return 'parse=${_pct(stats.parseRate)}, align=${_pct(stats.alignRate)}';
 }
 
-/// Mixed deck: only part of the samples look like choice questions. Fires
-/// below the A6 rate threshold but still requires answer alignment, and its
-/// lower weight keeps the result in the review band for user confirmation.
+/// Mixed deck: only part of the samples look like choice questions. The
+/// floor sits below A6's rate on purpose — sparse mixed decks still get
+/// recognized — and the alignment gate keeps ungradeable decks out.
 String? _embeddedOptionsMixed(
   NotetypeFacts facts,
   Map<FieldRole, FieldBinding> roles,
@@ -262,18 +315,42 @@ String? _embeddedOptionsMixed(
   final prompt = roles[FieldRole.prompt];
   final response = roles[FieldRole.response];
   if (prompt == null || response == null) return null;
-  final front = CardFacts.of(facts.nonEmptySamplesOf(prompt.fieldIndex));
-  final rate = front.looksLikeOptionsRate;
-  if (rate < embeddedOptionsReviewRate || rate >= sampleRateThreshold) {
+  final stats = measureChoiceRows(
+    facts.pairedSamplesOf(prompt.fieldIndex, response.fieldIndex),
+  );
+  if (stats.parseRate < embeddedOptionsMixedFloor ||
+      stats.parseRate >= sampleRateThreshold) {
     return null; // A6 owns the full-rate case
   }
-  final embedded = front.extractEmbeddedOptions();
-  if (embedded == null) return null;
-  final aligned = CardFacts.of(facts.nonEmptySamplesOf(response.fieldIndex))
-      .parseCorrectIndices(embedded.options);
-  return aligned.isEmpty
-      ? null
-      : 'mixed ${embedded.options.length} options';
+  if (stats.alignRate < choiceAlignRateThreshold) return null;
+  return 'mixed parse=${_pct(stats.parseRate)}, align=${_pct(stats.alignRate)}';
+}
+
+/// Options-on-back layout: the front carries the stem, the back carries
+/// both the options and an explicit answer marker (`答案：B`). A6/A6m own
+/// fronts that carry their own options, so this only competes on the
+/// rest; review-band weight — a newer pattern, proven before promoted.
+String? _embeddedOptionsOnBack(
+  NotetypeFacts facts,
+  Map<FieldRole, FieldBinding> roles,
+) {
+  final prompt = roles[FieldRole.prompt];
+  final response = roles[FieldRole.response];
+  if (prompt == null || response == null) return null;
+  var total = 0;
+  var parsed = 0;
+  for (final values in facts.samples) {
+    final back =
+        response.fieldIndex < values.length ? values[response.fieldIndex] : '';
+    if (back.trim().isEmpty) continue;
+    total++;
+    if (EmbeddedOptionsParser.extractBackFaceChoice(back) != null) parsed++;
+  }
+  if (total == 0) return null;
+  final rate = parsed / total;
+  return rate >= backFaceOptionsParseFloor
+      ? 'back_options parse=${_pct(rate)}'
+      : null;
 }
 
 String? _audioFirst(

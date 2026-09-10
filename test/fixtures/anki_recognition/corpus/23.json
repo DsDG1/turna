@@ -1,0 +1,122 @@
+{
+  "id": "23",
+  "description": "多字段选项+解析字段牌组（A4 行配对对齐，解析绑定 extra 不抢 response）",
+  "schema": {
+    "notetypeId": 23,
+    "name": "MultiFieldWithRationale",
+    "kind": "normal",
+    "fieldNames": [
+      "Question",
+      "A",
+      "B",
+      "C",
+      "D",
+      "Answer",
+      "解析"
+    ],
+    "templateNames": [
+      "Card 1"
+    ],
+    "schemaFingerprint": "fp23",
+    "samples": [
+      {
+        "noteId": 1,
+        "fields": [
+          "下列哪座城市是中国的首都？",
+          "上海",
+          "北京",
+          "广州",
+          "深圳",
+          "B",
+          "北京是中国的首都，这是基本的地理常识。"
+        ],
+        "truncated": false
+      },
+      {
+        "noteId": 2,
+        "fields": [
+          "一年有多少个月？",
+          "十个月",
+          "十二个月",
+          "十四个月",
+          "十六个月",
+          "B",
+          "一年共有十二个月，即一到十二月。"
+        ],
+        "truncated": false
+      },
+      {
+        "noteId": 3,
+        "fields": [
+          "水的沸点在一个标准大气压下是多少摄氏度？",
+          "80 度",
+          "90 度",
+          "100 度",
+          "110 度",
+          "C",
+          "标准大气压下水的沸点为 100 摄氏度。"
+        ],
+        "truncated": false
+      },
+      {
+        "noteId": 4,
+        "fields": [
+          "光速大约是每秒多少公里？",
+          "三万公里",
+          "三十万公里",
+          "三百万公里",
+          "三千万公里",
+          "B",
+          "真空光速约为每秒三十万公里。"
+        ],
+        "truncated": false
+      }
+    ],
+    "templateFacts": {
+      "hash": "h23",
+      "templates": [
+        {
+          "ord": 0,
+          "name": "Card 1",
+          "frontFields": [
+            0
+          ],
+          "backFields": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ],
+          "filters": {
+            "typeIn": false,
+            "tts": [],
+            "hint": [],
+            "script": false,
+            "complexHtml": false
+          }
+        }
+      ],
+      "reqs": [
+        {
+          "cardOrd": 0,
+          "kind": "ANY",
+          "fieldOrds": [
+            0
+          ]
+        }
+      ]
+    }
+  },
+  "expected": {
+    "archetype": "choice",
+    "band": "auto",
+    "roles": {
+      "Question": "prompt",
+      "Answer": "response",
+      "解析": "extra"
+    }
+  }
+}

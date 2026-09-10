@@ -1,0 +1,91 @@
+{
+  "id": "22",
+  "description": "答案带句号牌组（答案为「B。」式，句号剥离后对齐）",
+  "schema": {
+    "notetypeId": 22,
+    "name": "PeriodAnswer",
+    "kind": "normal",
+    "fieldNames": [
+      "Question",
+      "Answer"
+    ],
+    "templateNames": [
+      "Card 1"
+    ],
+    "schemaFingerprint": "fp22",
+    "samples": [
+      {
+        "noteId": 1,
+        "fields": [
+          "下列哪个是哺乳动物？\nA. 鲨鱼\nB. 海豚\nC. 乌龟",
+          "B。"
+        ],
+        "truncated": false
+      },
+      {
+        "noteId": 2,
+        "fields": [
+          "太阳系中最大的行星是？\nA. 地球\nB. 木星\nC. 火星",
+          "B。"
+        ],
+        "truncated": false
+      },
+      {
+        "noteId": 3,
+        "fields": [
+          "水的化学式是？\nA. CO2\nB. H2O\nC. O2",
+          "B。"
+        ],
+        "truncated": false
+      },
+      {
+        "noteId": 4,
+        "fields": [
+          "中国的国土面积居世界第几？\nA. 第三\nB. 第四\nC. 第五",
+          "A。"
+        ],
+        "truncated": false
+      }
+    ],
+    "templateFacts": {
+      "hash": "h22",
+      "templates": [
+        {
+          "ord": 0,
+          "name": "Card 1",
+          "frontFields": [
+            0
+          ],
+          "backFields": [
+            0,
+            1
+          ],
+          "filters": {
+            "typeIn": false,
+            "tts": [],
+            "hint": [],
+            "script": false,
+            "complexHtml": false
+          }
+        }
+      ],
+      "reqs": [
+        {
+          "cardOrd": 0,
+          "kind": "ANY",
+          "fieldOrds": [
+            0
+          ]
+        }
+      ]
+    }
+  },
+  "expected": {
+    "archetype": "choice",
+    "band": "auto",
+    "roles": {
+      "Question": "prompt",
+      "Answer": "response"
+    }
+  }
+}

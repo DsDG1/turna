@@ -1,0 +1,91 @@
+{
+  "id": "25",
+  "description": "未解决选项信号阻止静默 auto 翻转（佐证加分门禁，pair 降为 review）",
+  "schema": {
+    "notetypeId": 25,
+    "name": "UnresolvedOptionSignal",
+    "kind": "normal",
+    "fieldNames": [
+      "Front",
+      "Back"
+    ],
+    "templateNames": [
+      "Card 1"
+    ],
+    "schemaFingerprint": "fp25",
+    "samples": [
+      {
+        "noteId": 1,
+        "fields": [
+          "选项 A 和 B 的区别是什么？",
+          "区别在于用途不同，需要结合上下文具体分析才能理解其中的差异与联系。"
+        ],
+        "truncated": false
+      },
+      {
+        "noteId": 2,
+        "fields": [
+          "Na",
+          "钠"
+        ],
+        "truncated": false
+      },
+      {
+        "noteId": 3,
+        "fields": [
+          "Fe",
+          "铁"
+        ],
+        "truncated": false
+      },
+      {
+        "noteId": 4,
+        "fields": [
+          "Cu",
+          "铜"
+        ],
+        "truncated": false
+      }
+    ],
+    "templateFacts": {
+      "hash": "h25",
+      "templates": [
+        {
+          "ord": 0,
+          "name": "Card 1",
+          "frontFields": [
+            0
+          ],
+          "backFields": [
+            0,
+            1
+          ],
+          "filters": {
+            "typeIn": false,
+            "tts": [],
+            "hint": [],
+            "script": false,
+            "complexHtml": false
+          }
+        }
+      ],
+      "reqs": [
+        {
+          "cardOrd": 0,
+          "kind": "ANY",
+          "fieldOrds": [
+            0
+          ]
+        }
+      ]
+    }
+  },
+  "expected": {
+    "archetype": "basicPair",
+    "band": "review",
+    "roles": {
+      "Front": "prompt",
+      "Back": "response"
+    }
+  }
+}
