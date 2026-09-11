@@ -13,6 +13,10 @@ import 'package:turna/application/anki_official/projection/official_anki_course_
 import 'package:turna/application/anki_official/v2/official_anki_v2_course_read.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_decision_store.dart';
 import 'package:turna/application/course_catalog.dart';
+import 'package:turna/application/course_pack/course_pack.dart';
+import 'package:turna/application/course_pack/course_pack_importer.dart';
+import 'package:turna/application/course_pack/course_pack_media.dart';
+import 'package:turna/application/course_pack/imported_languages.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/language_registry.dart';
@@ -549,6 +553,15 @@ class CourseProvider extends ChangeNotifier {
   /// v2（B6/K14）：提交即持久化两层——prefs（兼容 v1 读面）+ 配置区决策
   /// 键 `turna.course.scope`（随 collection.anki2 备份走）；不等进程正常
   /// 退出。配置区写经引擎，best-effort 不阻塞切换。
+  /// Move off [languageCode] if it is the active builtin scope (pack import
+  /// about to rewrite that language).
+  Future<void> switchAwayIfActive(String languageCode) async {
+    final code = LanguageCodes.canonicalize(languageCode);
+    if (_scope == BuiltinCourseScope(code)) {
+      await setScope(_fallbackBuiltin());
+    }
+  }
+
   Future<void> setScope(CourseScope next) async {
     if (next == _scope && _isLoaded) return;
     _scope = next;
@@ -596,6 +609,9 @@ class CourseProvider extends ChangeNotifier {
     }
     LanguageContentStore.drop(code);
     CourseLoader.invalidateCaches();
+    if (ImportedLanguageRegistry.instance.contains(code)) {
+      await CoursePackMedia.deleteExtractedMedia(code);
+    }
     if (_scope == BuiltinCourseScope(code)) {
       await setScope(_fallbackBuiltin());
     } else {
@@ -616,6 +632,19 @@ class CourseProvider extends ChangeNotifier {
     }
     if (db == null) return;
     await CourseRepository(db).clearLanguageUninstallMarker(code);
+    await ImportedLanguageRegistry.instance.hydrate(db);
+    if (ImportedLanguageRegistry.instance.contains(code)) {
+      final packFile = await CoursePackImporter.persistedPackFile(code);
+      if (packFile == null || !packFile.existsSync()) {
+        throw const CoursePackMissingException();
+      }
+      await CoursePackImporter(
+        db,
+        onImportingActiveCode: switchAwayIfActive,
+      ).importFromFile(packFile.path);
+      await reloadCourse();
+      return;
+    }
     final seeded = await DatabaseSeeder(db).seedLanguage(code);
     if (!seeded) {
       logger.w('CourseProvider: reinstall of "$code" seeded nothing '
@@ -812,7 +841,8 @@ class CourseProvider extends ChangeNotifier {
       for (final code in uninstalled)
         (
           code: code,
-          displayName: LanguageRegistry.instance.displayName(code),
+          displayName: ImportedLanguageRegistry.instance.displayNameOrNull(code) ??
+              LanguageRegistry.instance.displayName(code),
         ),
     ]);
     final stored = _appPrefs?.preferences.getStringList(

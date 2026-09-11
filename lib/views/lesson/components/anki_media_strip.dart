@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 
 // Project imports:
 import 'package:turna/application/audio_controller.dart';
+import 'package:turna/application/course_pack/course_pack_media.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/audio/anki_audio_resolver.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -64,13 +65,13 @@ class _AnkiMediaStripState extends State<AnkiMediaStrip> {
     final resolve = widget.resolveMediaPath ?? _mediaResolver.resolveMediaPath;
     final images = <String>[];
     for (final asset in widget.imageAssets) {
-      if (!AnkiAudioResolver.isAnkiAsset(asset)) continue;
+      if (!_isExternalMedia(asset)) continue;
       final path = await _resolveSafely(resolve, asset);
       if (path != null) images.add(path);
     }
     final audios = <({String ref, bool available})>[];
     for (final asset in widget.audioAssets) {
-      if (!AnkiAudioResolver.isAnkiAsset(asset)) continue;
+      if (!_isExternalMedia(asset)) continue;
       audios.add(
         (ref: asset, available: await _resolveSafely(resolve, asset) != null),
       );
@@ -87,6 +88,9 @@ class _AnkiMediaStripState extends State<AnkiMediaStrip> {
     String ref,
   ) async {
     try {
+      if (CoursePackMedia.isPackAsset(ref)) {
+        return await CoursePackMedia.resolveFile(ref);
+      }
       return await resolve(ref);
     } catch (_) {
       return null;
@@ -94,7 +98,7 @@ class _AnkiMediaStripState extends State<AnkiMediaStrip> {
   }
 
   Future<void> _play(String ref) async {
-    final play = widget.playAudio ?? getIt<AudioController>().playAnkiMedia;
+    final play = widget.playAudio ?? _playDefault;
     var started = false;
     try {
       started = await play(ref);
@@ -107,6 +111,17 @@ class _AnkiMediaStripState extends State<AnkiMediaStrip> {
       );
     }
   }
+
+  Future<bool> _playDefault(String ref) {
+    final audio = getIt<AudioController>();
+    if (CoursePackMedia.isPackAsset(ref)) {
+      return audio.playCoursePackMedia(ref);
+    }
+    return audio.playAnkiMedia(ref);
+  }
+
+  static bool _isExternalMedia(String asset) =>
+      AnkiAudioResolver.isAnkiAsset(asset) || CoursePackMedia.isPackAsset(asset);
 
   @override
   Widget build(BuildContext context) {

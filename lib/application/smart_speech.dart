@@ -1,4 +1,5 @@
 // Project imports:
+import 'package:turna/application/course_pack/imported_languages.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/language_registry.dart';
@@ -43,8 +44,10 @@ SpeechLanguages currentSpeechLanguages() {
     return SpeechLanguages(
       target: target,
       native: native,
-      signatureChars: LanguageRegistry.instance
-          .signatureChars(languageProvider.selectedLanguageCode),
+      signatureChars: ImportedLanguageRegistry.instance
+              .signatureCharsOrNull(languageProvider.selectedLanguageCode) ??
+          LanguageRegistry.instance
+              .signatureChars(languageProvider.selectedLanguageCode),
     );
   } catch (_) {
     return const SpeechLanguages(

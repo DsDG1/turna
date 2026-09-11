@@ -35,10 +35,21 @@ import 'package:turna/domain/course/word_entry.dart';
 ///
 /// Every write path **clears course tables before INSERT** so residue cannot
 /// cause primary-key conflicts on cold start.
+/// Optional asset loader used by `.turnapack` import. [assetKey] is either a
+/// bundled path (`assets/courses/<dir>/index.json`) or the pack-relative
+/// key (`index.json`). Return `null` to fall through to [AssetBundle].
+typedef CourseSource = Future<String?> Function(String assetKey);
+
 class DatabaseSeeder {
   final CourseDatabase db;
   final AssetBundle? bundle;
-  DatabaseSeeder(this.db, {this.bundle});
+  final CourseSource? source;
+  DatabaseSeeder(this.db, {this.bundle, this.source});
+
+  /// Test hook: invoked inside the import transaction after language tables
+  /// are cleared and before rows are written. Throw to simulate a mid-write
+  /// failure and assert the outer transaction leaves zero residue.
+  Future<void> Function()? debugAfterLanguageTablesCleared;
 
   static const String metaContentVersion = 'contentVersion';
   static String metaContentVersionFor(String languageCode) =>
@@ -58,8 +69,31 @@ class DatabaseSeeder {
   /// The content version is the composite of `index.json` and
   /// `expressions.json` versions (`"$indexVersion+$expressionsVersion"`), so
   /// bumping either triggers a reseed.
-  Future<String> _loadAsset(String key) {
+  Future<String> _loadAsset(String key) async {
+    if (source != null) {
+      final direct = await source!(key);
+      if (direct != null) return direct;
+      final relative = _packRelativeKey(key);
+      if (relative != key) {
+        final fromPack = await source!(relative);
+        if (fromPack != null) return fromPack;
+      }
+      if (_importingFromSource) {
+        throw StateError('Course pack is missing $key');
+      }
+    }
     return (bundle ?? rootBundle).loadString(key);
+  }
+
+  bool _importingFromSource = false;
+
+  String _packRelativeKey(String key) {
+    const assetsPrefix = 'assets/courses/';
+    if (!key.startsWith(assetsPrefix)) return key;
+    final rest = key.substring(assetsPrefix.length);
+    final slash = rest.indexOf('/');
+    if (slash < 0) return key;
+    return rest.substring(slash + 1);
   }
 
   Future<String?> _tryLoadAsset(String key) async {
@@ -93,6 +127,65 @@ class DatabaseSeeder {
     }
     CourseLoader.invalidateCaches();
     return wrote;
+  }
+
+  /// Seed (or reseed) [languageCode] from [source], ignoring the packed
+  /// language manifest and the same-version short-circuit when [force] is
+  /// true. Writes run in one outer transaction so a failure leaves no rows.
+  Future<bool> seedLanguageFromSource(
+    String languageCode, {
+    bool force = false,
+  }) async {
+    if (source == null) {
+      throw StateError('seedLanguageFromSource requires a CourseSource');
+    }
+    if (!LanguageRegistry.instance.isLoaded) {
+      await LanguageRegistry.instance.load(bundle: bundle);
+    }
+    final code = LanguageCodes.canonicalize(languageCode);
+    final language = LanguageRegistry.instance.byCode(code);
+    CourseLoader.invalidateCaches();
+    _importingFromSource = true;
+    try {
+      return await db.transaction(() async {
+        final indexRaw = await _loadAsset(CourseLoader.indexAssetFor(code));
+        final index = jsonDecode(indexRaw) as Map<String, dynamic>;
+        final indexLanguage = LanguageCodes.canonicalize(
+          '${index['language'] ?? language.code}',
+        );
+        if (indexLanguage != language.code) {
+          throw StateError(
+            'Language manifest/index mismatch: pack ${language.code} '
+            'vs index.json $indexLanguage',
+          );
+        }
+        final indexVersion = '${index['version'] ?? 0}';
+        final expressionsRaw = await _tryLoadAsset(
+          CourseLoader.expressionsAssetFor(code),
+        );
+        final expressionsVersion = expressionsRaw == null
+            ? '0'
+            : '${(jsonDecode(expressionsRaw) as Map<String, dynamic>)['version'] ?? 0}';
+        final assetVersion = '$indexVersion+$expressionsVersion';
+        final storedVersion = await _readMeta(metaContentVersionFor(code));
+        final existingSections = await (db.select(db.sections)
+              ..where((t) => t.languageCode.equals(code))
+              ..limit(1))
+            .get();
+        if (!force && storedVersion == assetVersion && existingSections.isNotEmpty) {
+          return false;
+        }
+        await _clearLanguageTables(code);
+        final fail = debugAfterLanguageTablesCleared;
+        if (fail != null) await fail();
+        await _seedLanguage(language, indexRaw: indexRaw, index: index);
+        await _writeMeta(metaContentVersionFor(code), assetVersion);
+        return true;
+      });
+    } finally {
+      _importingFromSource = false;
+      CourseLoader.invalidateCaches();
+    }
   }
 
   /// Force one language through the seed path (restore after uninstall).
@@ -297,30 +390,28 @@ class DatabaseSeeder {
     // Stream per section: parse → cross-id check against running sets → write
     // → drop Freezed graph. Avoids holding all ~9300 lesson bodies in RAM.
     //
-    // The running sets are primed with the OTHER builtin languages' ids so a
-    // cross-language collision fails validation with a clear error instead of
-    // relying on schema constraints (v26 lets same-id rows coexist across
-    // languages). Anki import rows are deliberately excluded — their ids
-    // never gate builtin reseeding.
-    final otherBuiltinCodes = [
-      for (final l in LanguageRegistry.instance.languages)
-        if (l.code != code) l.code,
-    ];
+    // Prime with every other language's ids except Anki pseudo-rows so a
+    // second imported pack also collides with the first. Anki import rows
+    // are excluded — their ids never gate course reseeding.
     final seenUnitIds = <String>{
-      if (otherBuiltinCodes.isNotEmpty)
-        for (final row in await (db.selectOnly(db.units)
-              ..addColumns([db.units.id])
-              ..where(db.units.languageCode.isIn(otherBuiltinCodes)))
-            .get())
-          row.read(db.units.id)!,
+      for (final row in await (db.selectOnly(db.units)
+            ..addColumns([db.units.id])
+            ..where(
+              db.units.languageCode.equals(code).not() &
+                  db.units.languageCode.equals('anki').not(),
+            ))
+          .get())
+        row.read(db.units.id)!,
     };
     final seenLessonIds = <String>{
-      if (otherBuiltinCodes.isNotEmpty)
-        for (final row in await (db.selectOnly(db.lessons)
-              ..addColumns([db.lessons.id])
-              ..where(db.lessons.languageCode.isIn(otherBuiltinCodes)))
-            .get())
-          row.read(db.lessons.id)!,
+      for (final row in await (db.selectOnly(db.lessons)
+            ..addColumns([db.lessons.id])
+            ..where(
+              db.lessons.languageCode.equals(code).not() &
+                  db.lessons.languageCode.equals('anki').not(),
+            ))
+          .get())
+        row.read(db.lessons.id)!,
     };
     var sectionCount = 0;
 
@@ -451,7 +542,6 @@ class DatabaseSeeder {
   /// new errors for this section. Mutates [seenUnitIds] / [seenLessonIds]
   /// on success paths for unique ids (duplicates are still recorded in the
   /// sets so later collisions continue to be detected).
-  @visibleForTesting
   static List<String> collectCrossCourseIdErrorsAgainst(
     Section section, {
     required Set<String> seenUnitIds,

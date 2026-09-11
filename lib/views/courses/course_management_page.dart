@@ -12,14 +12,19 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:turna/application/anki_official/anki_deck_manager.dart';
 import 'package:turna/application/course_catalog.dart';
+import 'package:turna/application/course_pack/course_pack.dart';
+import 'package:turna/application/course_pack/course_pack_importer.dart';
+import 'package:turna/application/course_pack/imported_languages.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/language_registry.dart';
 import 'package:turna/application/settings_provider.dart';
+import 'package:turna/courses/course_loader.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/course_scope.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/utils/validated_file_picker.dart';
 import 'package:turna/views/anki/import_wizard/official_pending_import_banner.dart';
 import 'package:turna/views/theme.dart';
 
@@ -182,6 +187,13 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
                   _AddCourseCard(
                     onTap: () => context.router.push(const AnkiImportRoute()),
                   ),
+                  const SizedBox(height: 8),
+                  _AddCourseCard(
+                    key: const Key('course-import-pack'),
+                    title: AppStrings.courseManagementImportPackTitle,
+                    subtitle: AppStrings.courseManagementImportPackSubtitle,
+                    onTap: () => _importCoursePack(context),
+                  ),
                   if (restorable.isNotEmpty) ...[
                     const SizedBox(height: 16),
                     Text(
@@ -207,6 +219,109 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
           ),
         ),
       ],
+    );
+  }
+
+  Future<void> _importCoursePack(BuildContext context) async {
+    // True only while the progress dialog is on the root navigator; the
+    // error handlers must not pop when the failure preceded the dialog
+    // (e.g. "database not ready" — popping then would close this page).
+    var progressShown = false;
+    try {
+      final picked = await ValidatedFilePicker.pickFiles(
+        allowedExtensions: const ['turnapack', 'json'],
+        dialogTitle: AppStrings.courseManagementImportPackTitle,
+      );
+      if (picked == null || picked.files.isEmpty) return;
+      final path = picked.files.first.path;
+      if (path == null) return;
+      final db = CourseLoader.databaseOrNull();
+      if (db == null) {
+        throw const CoursePackImportException(['课程数据库尚未就绪']);
+      }
+      if (!context.mounted) return;
+      final phase = ValueNotifier<CoursePackImportPhase>(
+        CoursePackImportPhase.decoding,
+      );
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => ValueListenableBuilder<CoursePackImportPhase>(
+          valueListenable: phase,
+          builder: (ctx, value, _) => AlertDialog(
+            content: Row(
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(width: 16),
+                Expanded(child: Text(_importPhaseLabel(value))),
+              ],
+            ),
+          ),
+        ),
+      );
+      progressShown = true;
+      final courseProvider = context.read<CourseProvider>();
+      final result = await CoursePackImporter(
+        db,
+        onImportingActiveCode: courseProvider.switchAwayIfActive,
+        onPhase: (p) => phase.value = p,
+      ).importFromFile(path);
+      await courseProvider.reloadCourse();
+      if (!context.mounted) return;
+      Navigator.of(context, rootNavigator: true).pop();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            AppStrings.courseManagementImportPackSuccess(
+              result.displayName,
+              result.sectionCount,
+              result.wordCount,
+            ),
+          ),
+        ),
+      );
+    } on ValidatedFilePickerInvalidExtension {
+      if (!context.mounted) return;
+      _showPackErrors(context, ['文件类型不受支持']);
+    } on CoursePackImportException catch (e) {
+      if (!context.mounted) return;
+      if (progressShown) {
+        Navigator.of(context, rootNavigator: true).maybePop();
+      }
+      _showPackErrors(context, e.errors);
+    } catch (e) {
+      if (!context.mounted) return;
+      if (progressShown) {
+        Navigator.of(context, rootNavigator: true).maybePop();
+      }
+      _showPackErrors(context, [e.toString()]);
+    }
+  }
+
+  static String _importPhaseLabel(CoursePackImportPhase phase) =>
+      switch (phase) {
+        CoursePackImportPhase.decoding =>
+          AppStrings.courseManagementImportPackDecoding,
+        CoursePackImportPhase.validating =>
+          AppStrings.courseManagementImportPackValidating,
+        CoursePackImportPhase.writing =>
+          AppStrings.courseManagementImportPackWriting,
+      };
+
+  void _showPackErrors(BuildContext context, List<String> errors) {
+    final shown = errors.take(5).join('\n');
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(AppStrings.courseManagementImportPackFailedTitle),
+        content: Text('$shown\n\n${AppStrings.courseManagementImportPackLogHint}'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: Text(AppStrings.commonOk),
+          ),
+        ],
+      ),
     );
   }
 
@@ -340,9 +455,12 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
   Future<void> _restoreLanguage(BuildContext context, String code) async {
     final courseProvider = context.read<CourseProvider>();
     var restored = false;
+    var message = AppStrings.courseManagementRestoreFailed;
     try {
       await courseProvider.reinstallBuiltinLanguage(code);
       restored = true;
+    } on CoursePackMissingException {
+      message = AppStrings.courseManagementRestorePackMissing;
     } catch (e) {
       debugPrint('[CourseManagement] reinstall failed for $code: $e');
     }
@@ -352,9 +470,10 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
         content: Text(
           restored
               ? AppStrings.courseManagementRestored(
-                  LanguageRegistry.instance.displayName(code),
+                  ImportedLanguageRegistry.instance.displayNameOrNull(code) ??
+                      LanguageRegistry.instance.displayName(code),
                 )
-              : AppStrings.courseManagementRestoreFailed,
+              : message,
         ),
       ),
     );
@@ -499,6 +618,30 @@ class _CourseCard extends StatelessWidget {
                           color: TurnaTheme.textSecondaryColor(context),
                         ),
                       ),
+                      if (entry.scope is BuiltinCourseScope) ...[
+                        Builder(
+                          builder: (context) {
+                            final code =
+                                (entry.scope as BuiltinCourseScope).languageCode;
+                            final attribution = ImportedLanguageRegistry
+                                .instance
+                                .licenseAttributionOrNull(code);
+                            if (attribution == null) {
+                              return const SizedBox.shrink();
+                            }
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 2),
+                              child: Text(
+                                attribution,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: TurnaTheme.textSecondaryColor(context),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -616,8 +759,15 @@ class _Badge extends StatelessWidget {
 /// "create/import here" instead of another course in the list.
 class _AddCourseCard extends StatelessWidget {
   final VoidCallback onTap;
+  final String? title;
+  final String? subtitle;
 
-  const _AddCourseCard({required this.onTap});
+  const _AddCourseCard({
+    super.key,
+    required this.onTap,
+    this.title,
+    this.subtitle,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -648,7 +798,7 @@ class _AddCourseCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      AppStrings.courseManagementImportTitle,
+                      title ?? AppStrings.courseManagementImportTitle,
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
@@ -657,7 +807,7 @@ class _AddCourseCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      AppStrings.homeFromAnkiSubtitle,
+                      subtitle ?? AppStrings.homeFromAnkiSubtitle,
                       style: TextStyle(
                         fontSize: 12,
                         color: TurnaTheme.textSecondaryColor(context),

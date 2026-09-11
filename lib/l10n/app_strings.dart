@@ -617,6 +617,18 @@ class AppStrings {
   static String courseManagementCardCount(int count) => '$count 张卡片';
   static String get courseManagementRemoveCourse => '移除课程';
   static String get courseManagementImportTitle => '从 Anki 导入课程';
+  static String get courseManagementImportPackTitle => '导入课程包';
+  static String get courseManagementImportPackSubtitle => '从 .turnapack 文件添加独立课程';
+  static String get courseManagementImportPackDecoding => '正在解析课程包…';
+  static String get courseManagementImportPackValidating => '正在校验课程内容…';
+  static String get courseManagementImportPackWriting => '正在写入课程库…';
+  static String courseManagementImportPackSuccess(
+          String name, int sections, int words) =>
+      '已导入 $name（$sections 个章节 / $words 个词）';
+  static String get courseManagementImportPackFailedTitle => '无法导入课程包';
+  static String get courseManagementImportPackLogHint => '完整日志已记录';
+  static String get courseManagementRestorePackMissing =>
+      '无法恢复，需重新导入课程包';
   static String get courseManagementAddTitle => '添加课程';
   static String get courseManagementRestoreTitle => '已卸载的语言';
   static String courseManagementRestore(String name) => '恢复 $name';

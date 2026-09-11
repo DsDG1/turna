@@ -666,6 +666,7 @@ JSON 位于 `assets/courses/turkish/`，由 `CourseLoader` 加载、`DatabaseSee
 每个 section 含 `units -> lessons -> content`（stages / subLessons / listeningPhases / readingPassage）。Interaction 变体由 `runtimeType` 区分。完整 authoring 契约见：
 
 - [`docs/authoring/course-layout.md`](./authoring/course-layout.md)
+- [`docs/authoring/course-pack-format.md`](./authoring/course-pack-format.md)（外部课程运行时只吃 `.turnapack` v1 JSON 或 v2 zip+`media/`，见 [ADR 0043](./decisions/0043-turnapack-external-courses.md)）
 - [`docs/authoring/lesson-type-templates.md`](./authoring/lesson-type-templates.md)
 - [`docs/authoring/listening-show-format.md`](./authoring/listening-show-format.md)
 - [`docs/authoring/textbook-import.md`](./authoring/textbook-import.md)
@@ -710,7 +711,7 @@ python -m unittest discover -s tool/gui/tests -p "test_*.py"  # GUI 1276 项（�
 | [`docs/content_inventory_current.md`](./content_inventory_current.md) | Turkish 内容清单 |
 | [`docs/ai_companion_implementation.md`](./ai_companion_implementation.md) | AI companion 实现边界 |
 | [`docs/advanced-settings-system-health.md`](./advanced-settings-system-health.md) | 高级设置与系统健康 |
-| [`docs/decisions/`](./decisions/) | 架构决策记录（ADR 0030–0041） |
+| [`docs/decisions/`](./decisions/) | 架构决策记录（ADR；含 [0043](./decisions/0043-turnapack-external-courses.md) 外部课程经 `.turnapack` 进入） |
 | [`docs/official-anki-migration/`](./official-anki-migration/README.md) | 官方 Anki Core 迁移文档索引；活跃收口入口为 doc 34 |
 | [`docs/android-build-setup.md`](./android-build-setup.md) | Android / 官方 Flutter 构建配置 |
 | [`docs/analysis/project-framework-analysis.md`](./analysis/project-framework-analysis.md) | 项目框架分析 |

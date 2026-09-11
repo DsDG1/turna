@@ -99,6 +99,10 @@ void main() {
         findsOneWidget);
     expect(find.text(AppStrings.courseManagementMyCourses), findsOneWidget);
     expect(find.text(AppStrings.courseManagementImportTitle), findsOneWidget);
+    expect(
+      find.text(AppStrings.courseManagementImportPackTitle),
+      findsOneWidget,
+    );
   });
 
   testWidgets(

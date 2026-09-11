@@ -5,6 +5,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
+import 'package:turna/application/course_pack/imported_languages.dart';
 import 'package:turna/application/language_registry.dart';
 import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/service/locator.dart';
@@ -18,13 +19,19 @@ class LanguageProvider extends ChangeNotifier {
   LanguageProvider(this.appPrefs);
 
   String get displayName =>
+      ImportedLanguageRegistry.instance.displayNameOrNull(selectedLanguageCode) ??
       LanguageRegistry.instance.displayName(selectedLanguageCode);
 
-  /// TTS language code for the currently selected target language.
-  String get ttsLanguageCode =>
-      LanguageRegistry.instance.ttsLanguageCode(selectedLanguageCode);
+  String get ttsLanguageCode {
+    final locale = ttsLocale;
+    final normalized = locale.replaceAll('_', '-');
+    final dash = normalized.indexOf('-');
+    if (dash <= 0) return normalized.toLowerCase();
+    return normalized.substring(0, dash).toLowerCase();
+  }
 
   String get ttsLocale =>
+      ImportedLanguageRegistry.instance.ttsLocaleOrNull(selectedLanguageCode) ??
       LanguageRegistry.instance.ttsLocale(selectedLanguageCode);
 
   void initLanguage() {

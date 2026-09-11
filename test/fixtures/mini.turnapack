@@ -1,0 +1,1989 @@
+{
+  "format": "turnapack/1",
+  "packVersion": 1,
+  "language": {
+    "code": "es",
+    "displayName": "Spanish",
+    "ttsLocale": "es-ES",
+    "nativeLabel": "Test Language"
+  },
+  "license": {
+    "name": "CC BY-SA 4.0",
+    "attribution": "LibreLingo community",
+    "link": "https://creativecommons.org/licenses/by-sa/4.0/legalcode"
+  },
+  "files": {
+    "index.json": {
+      "version": 1,
+      "language": "es",
+      "displayName": "Spanish",
+      "sections": [
+        {
+          "id": "ll-es-s-1",
+          "name": "Basics",
+          "description": "Basics",
+          "level": "A1",
+          "prerequisiteSectionIds": [],
+          "file": "sections/ll-es-s-1.json"
+        }
+      ]
+    },
+    "vocab.json": {
+      "version": 1,
+      "language": "es",
+      "words": [
+        {
+          "id": "ll-es-w-un",
+          "term": "un",
+          "translation": "a/an (masc.)",
+          "tags": [
+            "noun"
+          ]
+        },
+        {
+          "id": "ll-es-w-es",
+          "term": "es",
+          "translation": "is",
+          "tags": [
+            "noun"
+          ]
+        },
+        {
+          "id": "ll-es-w-max",
+          "term": "Max",
+          "translation": "Max (name)",
+          "tags": [
+            "noun"
+          ]
+        },
+        {
+          "id": "ll-es-w-y",
+          "term": "y",
+          "translation": "and",
+          "tags": [
+            "noun"
+          ]
+        },
+        {
+          "id": "ll-es-w-buen",
+          "term": "buen",
+          "translation": "good",
+          "tags": [
+            "noun"
+          ]
+        },
+        {
+          "id": "ll-es-w-provecho",
+          "term": "provecho",
+          "translation": "profit",
+          "tags": [
+            "noun"
+          ]
+        },
+        {
+          "id": "ll-es-w-perro",
+          "term": "perro",
+          "translation": "dog",
+          "tags": [
+            "noun"
+          ]
+        },
+        {
+          "id": "ll-es-w-gato",
+          "term": "gato",
+          "translation": "cat",
+          "tags": [
+            "noun"
+          ]
+        },
+        {
+          "id": "ll-es-w-oso",
+          "term": "oso",
+          "translation": "bear",
+          "tags": [
+            "noun"
+          ]
+        },
+        {
+          "id": "ll-es-w-le-n",
+          "term": "león",
+          "translation": "lion",
+          "tags": [
+            "noun"
+          ]
+        },
+        {
+          "id": "ll-es-w-pato",
+          "term": "pato",
+          "translation": "duck",
+          "tags": [
+            "noun"
+          ]
+        },
+        {
+          "id": "ll-es-w-caballo",
+          "term": "caballo",
+          "translation": "horse",
+          "tags": [
+            "noun"
+          ]
+        },
+        {
+          "id": "ll-es-w-el-gato",
+          "term": "el gato",
+          "translation": "the cat",
+          "tags": [
+            "noun"
+          ]
+        },
+        {
+          "id": "ll-es-w-un-oso",
+          "term": "un oso",
+          "translation": "a bear",
+          "tags": [
+            "noun"
+          ]
+        },
+        {
+          "id": "ll-es-w-un-le-n",
+          "term": "un león",
+          "translation": "a lion",
+          "tags": [
+            "noun"
+          ]
+        },
+        {
+          "id": "ll-es-w-el-pato",
+          "term": "el pato",
+          "translation": "the duck",
+          "tags": [
+            "noun"
+          ]
+        },
+        {
+          "id": "ll-es-w-un-caballo",
+          "term": "un caballo",
+          "translation": "a horse",
+          "tags": [
+            "noun"
+          ]
+        },
+        {
+          "id": "ll-es-w-el-perro",
+          "term": "el perro",
+          "translation": "the dog",
+          "tags": [
+            "noun"
+          ]
+        },
+        {
+          "id": "ll-es-w-el",
+          "term": "el",
+          "translation": "the",
+          "tags": [
+            "noun"
+          ]
+        },
+        {
+          "id": "ll-es-w-foo",
+          "term": "foo",
+          "translation": "la leche",
+          "tags": [
+            "noun"
+          ]
+        },
+        {
+          "id": "ll-es-w-agua",
+          "term": "agua",
+          "translation": "agua",
+          "tags": [
+            "noun"
+          ]
+        },
+        {
+          "id": "ll-es-w-agua2",
+          "term": "agua2",
+          "translation": "agua",
+          "tags": [
+            "noun"
+          ]
+        },
+        {
+          "id": "ll-es-w-c-mo-est-s-tu",
+          "term": "Cómo estás tu?",
+          "translation": "How are you?",
+          "tags": [
+            "noun"
+          ]
+        },
+        {
+          "id": "ll-es-w-como",
+          "term": "Como",
+          "translation": "how",
+          "tags": [
+            "noun"
+          ]
+        },
+        {
+          "id": "ll-es-w-est-s",
+          "term": "estás",
+          "translation": "how",
+          "tags": [
+            "noun"
+          ]
+        },
+        {
+          "id": "ll-es-w-hoy",
+          "term": "hoy",
+          "translation": "how",
+          "tags": [
+            "noun"
+          ]
+        },
+        {
+          "id": "ll-es-w-tu",
+          "term": "tu",
+          "translation": "you",
+          "tags": [
+            "noun"
+          ]
+        },
+        {
+          "id": "ll-es-w-pasta",
+          "term": "pasta",
+          "translation": "pasta",
+          "tags": [
+            "noun"
+          ]
+        },
+        {
+          "id": "ll-es-w-pasta1",
+          "term": "pasta1",
+          "translation": "pasta__1",
+          "tags": [
+            "noun"
+          ]
+        },
+        {
+          "id": "ll-es-w-pasta2",
+          "term": "pasta2",
+          "translation": "pasta__2",
+          "tags": [
+            "noun"
+          ]
+        },
+        {
+          "id": "ll-es-w-pasta3",
+          "term": "pasta3",
+          "translation": "pasta__3",
+          "tags": [
+            "noun"
+          ]
+        }
+      ]
+    },
+    "expressions.json": {
+      "version": 4,
+      "language": "es",
+      "expressions": [
+        {
+          "id": "ll-es-e-es-un-caballo",
+          "term": "Es un caballo",
+          "translation": "It's a horse",
+          "tags": [
+            "phrase"
+          ]
+        },
+        {
+          "id": "ll-es-e-max-es-un-perro",
+          "term": "Max es un perro",
+          "translation": "Max is a dog",
+          "tags": [
+            "phrase"
+          ]
+        },
+        {
+          "id": "ll-es-e-un-pato-y-un-caballo",
+          "term": "Un pato y un caballo",
+          "translation": "A duck and a horse",
+          "tags": [
+            "phrase"
+          ]
+        },
+        {
+          "id": "ll-es-e-perro",
+          "term": "perro",
+          "translation": "dog",
+          "tags": [
+            "phrase"
+          ]
+        },
+        {
+          "id": "ll-es-e-le-n",
+          "term": "león",
+          "translation": "lion",
+          "tags": [
+            "phrase"
+          ]
+        },
+        {
+          "id": "ll-es-e-cerdo",
+          "term": "cerdo",
+          "translation": "pig",
+          "tags": [
+            "phrase"
+          ]
+        },
+        {
+          "id": "ll-es-e-como-est-s-hoy",
+          "term": "¿Como, estás hoy?",
+          "translation": "How are you today?",
+          "tags": [
+            "phrase"
+          ]
+        },
+        {
+          "id": "ll-es-e-tu-como-est-s-hoy",
+          "term": "Tu como estás hoy?",
+          "translation": "How are you today?",
+          "tags": [
+            "phrase"
+          ]
+        }
+      ]
+    },
+    "grammar_points.json": {
+      "grammarPoints": []
+    },
+    "sections/ll-es-s-1.json": {
+      "id": "ll-es-s-1",
+      "name": "Basics",
+      "description": "Basics",
+      "prerequisiteSectionIds": [],
+      "units": [
+        {
+          "id": "ll-es-u-1",
+          "name": "Basics",
+          "description": "Basics",
+          "prerequisiteUnitIds": [],
+          "lessons": [
+            {
+              "id": "ll-es-l-2",
+              "name": "Animals",
+              "description": "",
+              "type": "normal",
+              "template": "intro",
+              "prerequisiteLessonIds": [],
+              "content": {
+                "subLessons": [
+                  {
+                    "id": "ll-es-sl-perro",
+                    "name": "perro",
+                    "stages": [
+                      {
+                        "id": "ll-es-st-perro",
+                        "name": "Learn & produce",
+                        "items": [
+                          {
+                            "runtimeType": "showWord",
+                            "id": "ll-es-i-sw-1",
+                            "wordId": "ll-es-w-perro",
+                            "context": "perro — dog"
+                          },
+                          {
+                            "runtimeType": "translateSentence",
+                            "id": "ll-es-i-ts-2",
+                            "source": "dog",
+                            "expected": "perro",
+                            "hints": [
+                              "can",
+                              "hound"
+                            ]
+                          },
+                          {
+                            "runtimeType": "multipleChoice",
+                            "id": "ll-es-i-mc-3",
+                            "prompt": "dog",
+                            "options": [
+                              "perro",
+                              "gato",
+                              "oso",
+                              "león"
+                            ],
+                            "correctIndex": 0
+                          },
+                          {
+                            "runtimeType": "fillBlank",
+                            "id": "ll-es-i-fb-4",
+                            "sentence": "_____.",
+                            "answer": "perro",
+                            "hint": "dog"
+                          },
+                          {
+                            "runtimeType": "typeTheWord",
+                            "id": "ll-es-i-ttw-5",
+                            "audioAsset": "ll-es-w-perro",
+                            "prompt": "Type what you hear",
+                            "expected": "perro"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ll-es-sl-gato",
+                    "name": "gato",
+                    "stages": [
+                      {
+                        "id": "ll-es-st-gato",
+                        "name": "Learn & produce",
+                        "items": [
+                          {
+                            "runtimeType": "showWord",
+                            "id": "ll-es-i-sw-6",
+                            "wordId": "ll-es-w-gato",
+                            "context": "gato — cat"
+                          },
+                          {
+                            "runtimeType": "translateSentence",
+                            "id": "ll-es-i-ts-7",
+                            "source": "cat",
+                            "expected": "gato",
+                            "hints": []
+                          },
+                          {
+                            "runtimeType": "multipleChoice",
+                            "id": "ll-es-i-mc-8",
+                            "prompt": "cat",
+                            "options": [
+                              "gato",
+                              "perro",
+                              "oso",
+                              "león"
+                            ],
+                            "correctIndex": 0
+                          },
+                          {
+                            "runtimeType": "fillBlank",
+                            "id": "ll-es-i-fb-9",
+                            "sentence": "_____.",
+                            "answer": "gato",
+                            "hint": "cat"
+                          },
+                          {
+                            "runtimeType": "typeTheWord",
+                            "id": "ll-es-i-ttw-10",
+                            "audioAsset": "ll-es-w-gato",
+                            "prompt": "Type what you hear",
+                            "expected": "gato"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ll-es-sl-oso",
+                    "name": "oso",
+                    "stages": [
+                      {
+                        "id": "ll-es-st-oso",
+                        "name": "Learn & produce",
+                        "items": [
+                          {
+                            "runtimeType": "showWord",
+                            "id": "ll-es-i-sw-11",
+                            "wordId": "ll-es-w-oso",
+                            "context": "oso — bear"
+                          },
+                          {
+                            "runtimeType": "translateSentence",
+                            "id": "ll-es-i-ts-12",
+                            "source": "bear",
+                            "expected": "oso",
+                            "hints": []
+                          },
+                          {
+                            "runtimeType": "multipleChoice",
+                            "id": "ll-es-i-mc-13",
+                            "prompt": "bear",
+                            "options": [
+                              "oso",
+                              "perro",
+                              "gato",
+                              "león"
+                            ],
+                            "correctIndex": 0
+                          },
+                          {
+                            "runtimeType": "fillBlank",
+                            "id": "ll-es-i-fb-14",
+                            "sentence": "_____.",
+                            "answer": "oso",
+                            "hint": "bear"
+                          },
+                          {
+                            "runtimeType": "typeTheWord",
+                            "id": "ll-es-i-ttw-15",
+                            "audioAsset": "ll-es-w-oso",
+                            "prompt": "Type what you hear",
+                            "expected": "oso"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ll-es-sl-le-n",
+                    "name": "león",
+                    "stages": [
+                      {
+                        "id": "ll-es-st-le-n",
+                        "name": "Learn & produce",
+                        "items": [
+                          {
+                            "runtimeType": "showWord",
+                            "id": "ll-es-i-sw-16",
+                            "wordId": "ll-es-w-le-n",
+                            "context": "león — lion"
+                          },
+                          {
+                            "runtimeType": "translateSentence",
+                            "id": "ll-es-i-ts-17",
+                            "source": "lion",
+                            "expected": "león",
+                            "hints": []
+                          },
+                          {
+                            "runtimeType": "multipleChoice",
+                            "id": "ll-es-i-mc-18",
+                            "prompt": "lion",
+                            "options": [
+                              "león",
+                              "perro",
+                              "gato",
+                              "oso"
+                            ],
+                            "correctIndex": 0
+                          },
+                          {
+                            "runtimeType": "fillBlank",
+                            "id": "ll-es-i-fb-19",
+                            "sentence": "_____.",
+                            "answer": "león",
+                            "hint": "lion"
+                          },
+                          {
+                            "runtimeType": "typeTheWord",
+                            "id": "ll-es-i-ttw-20",
+                            "audioAsset": "ll-es-w-le-n",
+                            "prompt": "Type what you hear",
+                            "expected": "león"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ll-es-sl-pato",
+                    "name": "pato",
+                    "stages": [
+                      {
+                        "id": "ll-es-st-pato",
+                        "name": "Learn & produce",
+                        "items": [
+                          {
+                            "runtimeType": "showWord",
+                            "id": "ll-es-i-sw-21",
+                            "wordId": "ll-es-w-pato",
+                            "context": "pato — duck"
+                          },
+                          {
+                            "runtimeType": "translateSentence",
+                            "id": "ll-es-i-ts-22",
+                            "source": "duck",
+                            "expected": "pato",
+                            "hints": []
+                          },
+                          {
+                            "runtimeType": "multipleChoice",
+                            "id": "ll-es-i-mc-23",
+                            "prompt": "duck",
+                            "options": [
+                              "pato",
+                              "perro",
+                              "gato",
+                              "oso"
+                            ],
+                            "correctIndex": 0
+                          },
+                          {
+                            "runtimeType": "fillBlank",
+                            "id": "ll-es-i-fb-24",
+                            "sentence": "_____.",
+                            "answer": "pato",
+                            "hint": "duck"
+                          },
+                          {
+                            "runtimeType": "typeTheWord",
+                            "id": "ll-es-i-ttw-25",
+                            "audioAsset": "ll-es-w-pato",
+                            "prompt": "Type what you hear",
+                            "expected": "pato"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ll-es-sl-caballo",
+                    "name": "caballo",
+                    "stages": [
+                      {
+                        "id": "ll-es-st-caballo",
+                        "name": "Learn & produce",
+                        "items": [
+                          {
+                            "runtimeType": "showWord",
+                            "id": "ll-es-i-sw-26",
+                            "wordId": "ll-es-w-caballo",
+                            "context": "caballo — horse"
+                          },
+                          {
+                            "runtimeType": "translateSentence",
+                            "id": "ll-es-i-ts-27",
+                            "source": "horse",
+                            "expected": "caballo",
+                            "hints": []
+                          },
+                          {
+                            "runtimeType": "multipleChoice",
+                            "id": "ll-es-i-mc-28",
+                            "prompt": "horse",
+                            "options": [
+                              "caballo",
+                              "perro",
+                              "gato",
+                              "oso"
+                            ],
+                            "correctIndex": 0
+                          },
+                          {
+                            "runtimeType": "fillBlank",
+                            "id": "ll-es-i-fb-29",
+                            "sentence": "_____.",
+                            "answer": "caballo",
+                            "hint": "horse"
+                          },
+                          {
+                            "runtimeType": "typeTheWord",
+                            "id": "ll-es-i-ttw-30",
+                            "audioAsset": "ll-es-w-caballo",
+                            "prompt": "Type what you hear",
+                            "expected": "caballo"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ll-es-sl-el-gato",
+                    "name": "el gato",
+                    "stages": [
+                      {
+                        "id": "ll-es-st-el-gato",
+                        "name": "Learn & produce",
+                        "items": [
+                          {
+                            "runtimeType": "showWord",
+                            "id": "ll-es-i-sw-31",
+                            "wordId": "ll-es-w-el-gato",
+                            "context": "el gato — the cat"
+                          },
+                          {
+                            "runtimeType": "translateSentence",
+                            "id": "ll-es-i-ts-32",
+                            "source": "the cat",
+                            "expected": "el gato",
+                            "hints": []
+                          },
+                          {
+                            "runtimeType": "multipleChoice",
+                            "id": "ll-es-i-mc-33",
+                            "prompt": "the cat",
+                            "options": [
+                              "el gato",
+                              "perro",
+                              "gato",
+                              "oso"
+                            ],
+                            "correctIndex": 0
+                          },
+                          {
+                            "runtimeType": "fillBlank",
+                            "id": "ll-es-i-fb-34",
+                            "sentence": "_____.",
+                            "answer": "el gato",
+                            "hint": "the cat"
+                          },
+                          {
+                            "runtimeType": "typeTheWord",
+                            "id": "ll-es-i-ttw-35",
+                            "audioAsset": "ll-es-w-el-gato",
+                            "prompt": "Type what you hear",
+                            "expected": "el gato"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ll-es-sl-un-oso",
+                    "name": "un oso",
+                    "stages": [
+                      {
+                        "id": "ll-es-st-un-oso",
+                        "name": "Learn & produce",
+                        "items": [
+                          {
+                            "runtimeType": "showWord",
+                            "id": "ll-es-i-sw-36",
+                            "wordId": "ll-es-w-un-oso",
+                            "context": "un oso — a bear"
+                          },
+                          {
+                            "runtimeType": "translateSentence",
+                            "id": "ll-es-i-ts-37",
+                            "source": "a bear",
+                            "expected": "un oso",
+                            "hints": []
+                          },
+                          {
+                            "runtimeType": "multipleChoice",
+                            "id": "ll-es-i-mc-38",
+                            "prompt": "a bear",
+                            "options": [
+                              "un oso",
+                              "perro",
+                              "gato",
+                              "oso"
+                            ],
+                            "correctIndex": 0
+                          },
+                          {
+                            "runtimeType": "fillBlank",
+                            "id": "ll-es-i-fb-39",
+                            "sentence": "_____.",
+                            "answer": "un oso",
+                            "hint": "a bear"
+                          },
+                          {
+                            "runtimeType": "typeTheWord",
+                            "id": "ll-es-i-ttw-40",
+                            "audioAsset": "ll-es-w-un-oso",
+                            "prompt": "Type what you hear",
+                            "expected": "un oso"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ll-es-sl-un-le-n",
+                    "name": "un león",
+                    "stages": [
+                      {
+                        "id": "ll-es-st-un-le-n",
+                        "name": "Learn & produce",
+                        "items": [
+                          {
+                            "runtimeType": "showWord",
+                            "id": "ll-es-i-sw-41",
+                            "wordId": "ll-es-w-un-le-n",
+                            "context": "un león — a lion"
+                          },
+                          {
+                            "runtimeType": "translateSentence",
+                            "id": "ll-es-i-ts-42",
+                            "source": "a lion",
+                            "expected": "un león",
+                            "hints": []
+                          },
+                          {
+                            "runtimeType": "multipleChoice",
+                            "id": "ll-es-i-mc-43",
+                            "prompt": "a lion",
+                            "options": [
+                              "un león",
+                              "perro",
+                              "gato",
+                              "oso"
+                            ],
+                            "correctIndex": 0
+                          },
+                          {
+                            "runtimeType": "fillBlank",
+                            "id": "ll-es-i-fb-44",
+                            "sentence": "_____.",
+                            "answer": "un león",
+                            "hint": "a lion"
+                          },
+                          {
+                            "runtimeType": "typeTheWord",
+                            "id": "ll-es-i-ttw-45",
+                            "audioAsset": "ll-es-w-un-le-n",
+                            "prompt": "Type what you hear",
+                            "expected": "un león"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ll-es-sl-el-pato",
+                    "name": "el pato",
+                    "stages": [
+                      {
+                        "id": "ll-es-st-el-pato",
+                        "name": "Learn & produce",
+                        "items": [
+                          {
+                            "runtimeType": "showWord",
+                            "id": "ll-es-i-sw-46",
+                            "wordId": "ll-es-w-el-pato",
+                            "context": "el pato — the duck"
+                          },
+                          {
+                            "runtimeType": "translateSentence",
+                            "id": "ll-es-i-ts-47",
+                            "source": "the duck",
+                            "expected": "el pato",
+                            "hints": []
+                          },
+                          {
+                            "runtimeType": "multipleChoice",
+                            "id": "ll-es-i-mc-48",
+                            "prompt": "the duck",
+                            "options": [
+                              "el pato",
+                              "perro",
+                              "gato",
+                              "oso"
+                            ],
+                            "correctIndex": 0
+                          },
+                          {
+                            "runtimeType": "fillBlank",
+                            "id": "ll-es-i-fb-49",
+                            "sentence": "_____.",
+                            "answer": "el pato",
+                            "hint": "the duck"
+                          },
+                          {
+                            "runtimeType": "typeTheWord",
+                            "id": "ll-es-i-ttw-50",
+                            "audioAsset": "ll-es-w-el-pato",
+                            "prompt": "Type what you hear",
+                            "expected": "el pato"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ll-es-sl-un-caballo",
+                    "name": "un caballo",
+                    "stages": [
+                      {
+                        "id": "ll-es-st-un-caballo",
+                        "name": "Learn & produce",
+                        "items": [
+                          {
+                            "runtimeType": "showWord",
+                            "id": "ll-es-i-sw-51",
+                            "wordId": "ll-es-w-un-caballo",
+                            "context": "un caballo — a horse"
+                          },
+                          {
+                            "runtimeType": "translateSentence",
+                            "id": "ll-es-i-ts-52",
+                            "source": "a horse",
+                            "expected": "un caballo",
+                            "hints": []
+                          },
+                          {
+                            "runtimeType": "multipleChoice",
+                            "id": "ll-es-i-mc-53",
+                            "prompt": "a horse",
+                            "options": [
+                              "un caballo",
+                              "perro",
+                              "gato",
+                              "oso"
+                            ],
+                            "correctIndex": 0
+                          },
+                          {
+                            "runtimeType": "fillBlank",
+                            "id": "ll-es-i-fb-54",
+                            "sentence": "_____.",
+                            "answer": "un caballo",
+                            "hint": "a horse"
+                          },
+                          {
+                            "runtimeType": "typeTheWord",
+                            "id": "ll-es-i-ttw-55",
+                            "audioAsset": "ll-es-w-un-caballo",
+                            "prompt": "Type what you hear",
+                            "expected": "un caballo"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ll-es-sl-el-perro",
+                    "name": "el perro",
+                    "stages": [
+                      {
+                        "id": "ll-es-st-el-perro",
+                        "name": "Learn & produce",
+                        "items": [
+                          {
+                            "runtimeType": "showWord",
+                            "id": "ll-es-i-sw-56",
+                            "wordId": "ll-es-w-el-perro",
+                            "context": "el perro — the dog"
+                          },
+                          {
+                            "runtimeType": "translateSentence",
+                            "id": "ll-es-i-ts-57",
+                            "source": "the dog",
+                            "expected": "el perro",
+                            "hints": [
+                              "el can",
+                              "the hound"
+                            ]
+                          },
+                          {
+                            "runtimeType": "multipleChoice",
+                            "id": "ll-es-i-mc-58",
+                            "prompt": "the dog",
+                            "options": [
+                              "el perro",
+                              "perro",
+                              "gato",
+                              "oso"
+                            ],
+                            "correctIndex": 0
+                          },
+                          {
+                            "runtimeType": "fillBlank",
+                            "id": "ll-es-i-fb-59",
+                            "sentence": "_____.",
+                            "answer": "el perro",
+                            "hint": "the dog"
+                          },
+                          {
+                            "runtimeType": "typeTheWord",
+                            "id": "ll-es-i-ttw-60",
+                            "audioAsset": "ll-es-w-el-perro",
+                            "prompt": "Type what you hear",
+                            "expected": "el perro"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ll-es-sl-2-phrases",
+                    "name": "Phrases",
+                    "stages": [
+                      {
+                        "id": "ll-es-st-2-phrases",
+                        "name": "Phrases",
+                        "items": [
+                          {
+                            "runtimeType": "translateSentence",
+                            "id": "ll-es-i-ts-61",
+                            "source": "It's a horse",
+                            "expected": "Es un caballo",
+                            "hints": []
+                          },
+                          {
+                            "runtimeType": "multipleChoice",
+                            "id": "ll-es-i-mc-62",
+                            "prompt": "It's a horse",
+                            "options": [
+                              "Es un caballo",
+                              "perro",
+                              "gato",
+                              "oso"
+                            ],
+                            "correctIndex": 0
+                          },
+                          {
+                            "runtimeType": "reorderSentence",
+                            "id": "ll-es-i-rs-63",
+                            "scrambled": [
+                              "caballo",
+                              "Es",
+                              "un",
+                              "es",
+                              "Max"
+                            ],
+                            "correct": [
+                              "Es",
+                              "un",
+                              "caballo"
+                            ]
+                          },
+                          {
+                            "runtimeType": "translateSentence",
+                            "id": "ll-es-i-ts-64",
+                            "source": "Max is a dog",
+                            "expected": "Max es un perro",
+                            "hints": [
+                              "Max es un can"
+                            ]
+                          },
+                          {
+                            "runtimeType": "multipleChoice",
+                            "id": "ll-es-i-mc-65",
+                            "prompt": "Max is a dog",
+                            "options": [
+                              "Max es un perro",
+                              "perro",
+                              "gato",
+                              "oso"
+                            ],
+                            "correctIndex": 0
+                          },
+                          {
+                            "runtimeType": "reorderSentence",
+                            "id": "ll-es-i-rs-66",
+                            "scrambled": [
+                              "un",
+                              "perro",
+                              "es",
+                              "Max",
+                              "y",
+                              "buen"
+                            ],
+                            "correct": [
+                              "Max",
+                              "es",
+                              "un",
+                              "perro"
+                            ]
+                          },
+                          {
+                            "runtimeType": "translateSentence",
+                            "id": "ll-es-i-ts-67",
+                            "source": "A duck and a horse",
+                            "expected": "Un pato y un caballo",
+                            "hints": []
+                          },
+                          {
+                            "runtimeType": "multipleChoice",
+                            "id": "ll-es-i-mc-68",
+                            "prompt": "A duck and a horse",
+                            "options": [
+                              "Un pato y un caballo",
+                              "perro",
+                              "gato",
+                              "oso"
+                            ],
+                            "correctIndex": 0
+                          },
+                          {
+                            "runtimeType": "reorderSentence",
+                            "id": "ll-es-i-rs-69",
+                            "scrambled": [
+                              "Un",
+                              "pato",
+                              "un",
+                              "y",
+                              "caballo",
+                              "es",
+                              "Max"
+                            ],
+                            "correct": [
+                              "Un",
+                              "pato",
+                              "y",
+                              "un",
+                              "caballo"
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "id": "ll-es-l-asdsdasdasd",
+              "name": "Short Input Test 0",
+              "description": "",
+              "type": "normal",
+              "template": "intro",
+              "prerequisiteLessonIds": [
+                "ll-es-l-2"
+              ],
+              "content": {
+                "subLessons": [
+                  {
+                    "id": "ll-es-sl-perro",
+                    "name": "perro",
+                    "stages": [
+                      {
+                        "id": "ll-es-st-perro",
+                        "name": "Learn & produce",
+                        "items": [
+                          {
+                            "runtimeType": "showWord",
+                            "id": "ll-es-i-sw-70",
+                            "wordId": "ll-es-w-perro",
+                            "context": "perro — the dog"
+                          },
+                          {
+                            "runtimeType": "translateSentence",
+                            "id": "ll-es-i-ts-71",
+                            "source": "the dog",
+                            "expected": "perro",
+                            "hints": [
+                              "el can",
+                              "can",
+                              "el perro",
+                              "dog"
+                            ]
+                          },
+                          {
+                            "runtimeType": "multipleChoice",
+                            "id": "ll-es-i-mc-72",
+                            "prompt": "the dog",
+                            "options": [
+                              "perro",
+                              "un",
+                              "a/an (masc.)",
+                              "es"
+                            ],
+                            "correctIndex": 0
+                          },
+                          {
+                            "runtimeType": "fillBlank",
+                            "id": "ll-es-i-fb-73",
+                            "sentence": "_____.",
+                            "answer": "perro",
+                            "hint": "the dog"
+                          },
+                          {
+                            "runtimeType": "typeTheWord",
+                            "id": "ll-es-i-ttw-74",
+                            "audioAsset": "ll-es-w-perro",
+                            "prompt": "Type what you hear",
+                            "expected": "perro"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ll-es-sl-asdsdasdasd-phrases",
+                    "name": "Phrases",
+                    "stages": [
+                      {
+                        "id": "ll-es-st-asdsdasdasd-phrases",
+                        "name": "Phrases",
+                        "items": [
+                          {
+                            "runtimeType": "translateSentence",
+                            "id": "ll-es-i-ts-75",
+                            "source": "dog",
+                            "expected": "perro",
+                            "hints": []
+                          },
+                          {
+                            "runtimeType": "multipleChoice",
+                            "id": "ll-es-i-mc-76",
+                            "prompt": "dog",
+                            "options": [
+                              "perro",
+                              "un",
+                              "a/an (masc.)",
+                              "es"
+                            ],
+                            "correctIndex": 0
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "id": "ll-es-l-shortinputtest1",
+              "name": "Short Input Test 1",
+              "description": "",
+              "type": "normal",
+              "template": "intro",
+              "prerequisiteLessonIds": [
+                "ll-es-l-asdsdasdasd"
+              ],
+              "content": {
+                "subLessons": [
+                  {
+                    "id": "ll-es-sl-foo",
+                    "name": "foo",
+                    "stages": [
+                      {
+                        "id": "ll-es-st-foo",
+                        "name": "Learn & produce",
+                        "items": [
+                          {
+                            "runtimeType": "showWord",
+                            "id": "ll-es-i-sw-77",
+                            "wordId": "ll-es-w-foo",
+                            "context": "foo — la leche"
+                          },
+                          {
+                            "runtimeType": "translateSentence",
+                            "id": "ll-es-i-ts-78",
+                            "source": "la leche",
+                            "expected": "foo",
+                            "hints": []
+                          },
+                          {
+                            "runtimeType": "multipleChoice",
+                            "id": "ll-es-i-mc-79",
+                            "prompt": "la leche",
+                            "options": [
+                              "foo",
+                              "un",
+                              "a/an (masc.)",
+                              "es"
+                            ],
+                            "correctIndex": 0
+                          },
+                          {
+                            "runtimeType": "fillBlank",
+                            "id": "ll-es-i-fb-80",
+                            "sentence": "_____.",
+                            "answer": "foo",
+                            "hint": "la leche"
+                          },
+                          {
+                            "runtimeType": "typeTheWord",
+                            "id": "ll-es-i-ttw-81",
+                            "audioAsset": "ll-es-w-foo",
+                            "prompt": "Type what you hear",
+                            "expected": "foo"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "id": "ll-es-l-53453345345",
+              "name": "Short Input Test 2",
+              "description": "",
+              "type": "normal",
+              "template": "intro",
+              "prerequisiteLessonIds": [
+                "ll-es-l-shortinputtest1"
+              ],
+              "content": {
+                "subLessons": [
+                  {
+                    "id": "ll-es-sl-agua",
+                    "name": "agua",
+                    "stages": [
+                      {
+                        "id": "ll-es-st-agua",
+                        "name": "Learn & produce",
+                        "items": [
+                          {
+                            "runtimeType": "showWord",
+                            "id": "ll-es-i-sw-82",
+                            "wordId": "ll-es-w-agua",
+                            "context": "agua — agua"
+                          },
+                          {
+                            "runtimeType": "translateSentence",
+                            "id": "ll-es-i-ts-83",
+                            "source": "agua",
+                            "expected": "agua",
+                            "hints": []
+                          },
+                          {
+                            "runtimeType": "multipleChoice",
+                            "id": "ll-es-i-mc-84",
+                            "prompt": "agua",
+                            "options": [
+                              "agua",
+                              "agua2",
+                              "un",
+                              "a/an (masc.)"
+                            ],
+                            "correctIndex": 0
+                          },
+                          {
+                            "runtimeType": "fillBlank",
+                            "id": "ll-es-i-fb-85",
+                            "sentence": "_____.",
+                            "answer": "agua",
+                            "hint": "agua"
+                          },
+                          {
+                            "runtimeType": "typeTheWord",
+                            "id": "ll-es-i-ttw-86",
+                            "audioAsset": "ll-es-w-agua",
+                            "prompt": "Type what you hear",
+                            "expected": "agua"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ll-es-sl-agua2",
+                    "name": "agua2",
+                    "stages": [
+                      {
+                        "id": "ll-es-st-agua2",
+                        "name": "Learn & produce",
+                        "items": [
+                          {
+                            "runtimeType": "showWord",
+                            "id": "ll-es-i-sw-87",
+                            "wordId": "ll-es-w-agua2",
+                            "context": "agua2 — agua"
+                          },
+                          {
+                            "runtimeType": "translateSentence",
+                            "id": "ll-es-i-ts-88",
+                            "source": "agua",
+                            "expected": "agua2",
+                            "hints": []
+                          },
+                          {
+                            "runtimeType": "multipleChoice",
+                            "id": "ll-es-i-mc-89",
+                            "prompt": "agua",
+                            "options": [
+                              "agua2",
+                              "agua",
+                              "un",
+                              "a/an (masc.)"
+                            ],
+                            "correctIndex": 0
+                          },
+                          {
+                            "runtimeType": "fillBlank",
+                            "id": "ll-es-i-fb-90",
+                            "sentence": "_____.",
+                            "answer": "agua2",
+                            "hint": "agua"
+                          },
+                          {
+                            "runtimeType": "typeTheWord",
+                            "id": "ll-es-i-ttw-91",
+                            "audioAsset": "ll-es-w-agua2",
+                            "prompt": "Type what you hear",
+                            "expected": "agua2"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "id": "ll-es-l-asdsdas233",
+              "name": "Short Input Test 3",
+              "description": "",
+              "type": "normal",
+              "template": "intro",
+              "prerequisiteLessonIds": [
+                "ll-es-l-53453345345"
+              ],
+              "content": {
+                "subLessons": [
+                  {
+                    "id": "ll-es-sl-c-mo-est-s-tu",
+                    "name": "Cómo estás tu?",
+                    "stages": [
+                      {
+                        "id": "ll-es-st-c-mo-est-s-tu",
+                        "name": "Learn & produce",
+                        "items": [
+                          {
+                            "runtimeType": "showWord",
+                            "id": "ll-es-i-sw-92",
+                            "wordId": "ll-es-w-c-mo-est-s-tu",
+                            "context": "Cómo estás tu? — How are you?"
+                          },
+                          {
+                            "runtimeType": "translateSentence",
+                            "id": "ll-es-i-ts-93",
+                            "source": "How are you?",
+                            "expected": "Cómo estás tu?",
+                            "hints": []
+                          },
+                          {
+                            "runtimeType": "multipleChoice",
+                            "id": "ll-es-i-mc-94",
+                            "prompt": "How are you?",
+                            "options": [
+                              "Cómo estás tu?",
+                              "un",
+                              "a/an (masc.)",
+                              "es"
+                            ],
+                            "correctIndex": 0
+                          },
+                          {
+                            "runtimeType": "fillBlank",
+                            "id": "ll-es-i-fb-95",
+                            "sentence": "_____.",
+                            "answer": "Cómo estás tu?",
+                            "hint": "How are you?"
+                          },
+                          {
+                            "runtimeType": "typeTheWord",
+                            "id": "ll-es-i-ttw-96",
+                            "audioAsset": "ll-es-w-c-mo-est-s-tu",
+                            "prompt": "Type what you hear",
+                            "expected": "Cómo estás tu?"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "id": "ll-es-l-listening-test-0",
+              "name": "Listening test 0",
+              "description": "",
+              "type": "normal",
+              "template": "intro",
+              "prerequisiteLessonIds": [
+                "ll-es-l-asdsdas233"
+              ],
+              "content": {
+                "subLessons": [
+                  {
+                    "id": "ll-es-sl-perro",
+                    "name": "perro",
+                    "stages": [
+                      {
+                        "id": "ll-es-st-perro",
+                        "name": "Learn & produce",
+                        "items": [
+                          {
+                            "runtimeType": "showWord",
+                            "id": "ll-es-i-sw-97",
+                            "wordId": "ll-es-w-perro",
+                            "context": "perro — the dog"
+                          },
+                          {
+                            "runtimeType": "translateSentence",
+                            "id": "ll-es-i-ts-98",
+                            "source": "the dog",
+                            "expected": "perro",
+                            "hints": [
+                              "el can",
+                              "can",
+                              "el perro",
+                              "dog"
+                            ]
+                          },
+                          {
+                            "runtimeType": "multipleChoice",
+                            "id": "ll-es-i-mc-99",
+                            "prompt": "the dog",
+                            "options": [
+                              "perro",
+                              "un",
+                              "a/an (masc.)",
+                              "es"
+                            ],
+                            "correctIndex": 0
+                          },
+                          {
+                            "runtimeType": "fillBlank",
+                            "id": "ll-es-i-fb-100",
+                            "sentence": "_____.",
+                            "answer": "perro",
+                            "hint": "the dog"
+                          },
+                          {
+                            "runtimeType": "listenAndPick",
+                            "id": "ll-es-i-lap-102",
+                            "audioAsset": "ll-es-w-perro",
+                            "prompt": "What did you hear?",
+                            "options": [
+                              "perro",
+                              "un",
+                              "a/an (masc.)",
+                              "es"
+                            ],
+                            "correctIndex": 0
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ll-es-sl-listening-test-0-phrases",
+                    "name": "Phrases",
+                    "stages": [
+                      {
+                        "id": "ll-es-st-listening-test-0-phrases",
+                        "name": "Phrases",
+                        "items": [
+                          {
+                            "runtimeType": "translateSentence",
+                            "id": "ll-es-i-ts-103",
+                            "source": "dog",
+                            "expected": "perro",
+                            "hints": []
+                          },
+                          {
+                            "runtimeType": "multipleChoice",
+                            "id": "ll-es-i-mc-104",
+                            "prompt": "dog",
+                            "options": [
+                              "perro",
+                              "un",
+                              "a/an (masc.)",
+                              "es"
+                            ],
+                            "correctIndex": 0
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "id": "ll-es-l-options-test-0",
+              "name": "Options test 0",
+              "description": "",
+              "type": "normal",
+              "template": "practice",
+              "prerequisiteLessonIds": [
+                "ll-es-l-listening-test-0"
+              ],
+              "content": {
+                "subLessons": [
+                  {
+                    "id": "ll-es-sl-options-test-0",
+                    "name": "Options test 0",
+                    "stages": [
+                      {
+                        "id": "ll-es-st-options-test-0",
+                        "name": "Options test 0",
+                        "prerequisiteStageIds": [],
+                        "items": [
+                          {
+                            "runtimeType": "translateSentence",
+                            "id": "ll-es-i-ts-105",
+                            "source": "dog",
+                            "expected": "perro",
+                            "hints": []
+                          },
+                          {
+                            "runtimeType": "multipleChoice",
+                            "id": "ll-es-i-mc-106",
+                            "prompt": "dog",
+                            "options": [
+                              "perro",
+                              "león",
+                              "cerdo",
+                              "un"
+                            ],
+                            "correctIndex": 0
+                          },
+                          {
+                            "runtimeType": "translateSentence",
+                            "id": "ll-es-i-ts-107",
+                            "source": "lion",
+                            "expected": "león",
+                            "hints": []
+                          },
+                          {
+                            "runtimeType": "multipleChoice",
+                            "id": "ll-es-i-mc-108",
+                            "prompt": "lion",
+                            "options": [
+                              "león",
+                              "perro",
+                              "cerdo",
+                              "un"
+                            ],
+                            "correctIndex": 0
+                          },
+                          {
+                            "runtimeType": "translateSentence",
+                            "id": "ll-es-i-ts-109",
+                            "source": "pig",
+                            "expected": "cerdo",
+                            "hints": []
+                          },
+                          {
+                            "runtimeType": "multipleChoice",
+                            "id": "ll-es-i-mc-110",
+                            "prompt": "pig",
+                            "options": [
+                              "cerdo",
+                              "perro",
+                              "león",
+                              "un"
+                            ],
+                            "correctIndex": 0
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "id": "ll-es-l-chips-test-0",
+              "name": "Chips test 0",
+              "description": "",
+              "type": "normal",
+              "template": "practice",
+              "prerequisiteLessonIds": [
+                "ll-es-l-options-test-0"
+              ],
+              "content": {
+                "subLessons": [
+                  {
+                    "id": "ll-es-sl-chips-test-0",
+                    "name": "Chips test 0",
+                    "stages": [
+                      {
+                        "id": "ll-es-st-chips-test-0",
+                        "name": "Chips test 0",
+                        "prerequisiteStageIds": [],
+                        "items": [
+                          {
+                            "runtimeType": "translateSentence",
+                            "id": "ll-es-i-ts-111",
+                            "source": "How are you today?",
+                            "expected": "¿Como, estás hoy?",
+                            "hints": [
+                              "¿Hoy como estás?"
+                            ]
+                          },
+                          {
+                            "runtimeType": "multipleChoice",
+                            "id": "ll-es-i-mc-112",
+                            "prompt": "How are you today?",
+                            "options": [
+                              "¿Como, estás hoy?",
+                              "Tu como estás hoy?",
+                              "un",
+                              "a/an (masc.)"
+                            ],
+                            "correctIndex": 0
+                          },
+                          {
+                            "runtimeType": "reorderSentence",
+                            "id": "ll-es-i-rs-113",
+                            "scrambled": [
+                              "estás",
+                              "hoy?",
+                              "¿Como,",
+                              "un",
+                              "es"
+                            ],
+                            "correct": [
+                              "¿Como,",
+                              "estás",
+                              "hoy?"
+                            ]
+                          },
+                          {
+                            "runtimeType": "translateSentence",
+                            "id": "ll-es-i-ts-114",
+                            "source": "How are you today?",
+                            "expected": "Tu como estás hoy?",
+                            "hints": [
+                              "Como estás hoy?"
+                            ]
+                          },
+                          {
+                            "runtimeType": "multipleChoice",
+                            "id": "ll-es-i-mc-115",
+                            "prompt": "How are you today?",
+                            "options": [
+                              "Tu como estás hoy?",
+                              "¿Como, estás hoy?",
+                              "un",
+                              "a/an (masc.)"
+                            ],
+                            "correctIndex": 0
+                          },
+                          {
+                            "runtimeType": "reorderSentence",
+                            "id": "ll-es-i-rs-116",
+                            "scrambled": [
+                              "hoy?",
+                              "estás",
+                              "como",
+                              "Tu",
+                              "un",
+                              "es"
+                            ],
+                            "correct": [
+                              "Tu",
+                              "como",
+                              "estás",
+                              "hoy?"
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            },
+            {
+              "id": "ll-es-l-32424234",
+              "name": "Cards test",
+              "description": "",
+              "type": "normal",
+              "template": "intro",
+              "prerequisiteLessonIds": [
+                "ll-es-l-chips-test-0"
+              ],
+              "content": {
+                "subLessons": [
+                  {
+                    "id": "ll-es-sl-pasta",
+                    "name": "pasta",
+                    "stages": [
+                      {
+                        "id": "ll-es-st-pasta",
+                        "name": "Learn & produce",
+                        "items": [
+                          {
+                            "runtimeType": "showWord",
+                            "id": "ll-es-i-sw-117",
+                            "wordId": "ll-es-w-pasta",
+                            "context": "pasta — pasta"
+                          },
+                          {
+                            "runtimeType": "translateSentence",
+                            "id": "ll-es-i-ts-118",
+                            "source": "pasta",
+                            "expected": "pasta",
+                            "hints": []
+                          },
+                          {
+                            "runtimeType": "multipleChoice",
+                            "id": "ll-es-i-mc-119",
+                            "prompt": "pasta",
+                            "options": [
+                              "pasta",
+                              "pasta1",
+                              "pasta2",
+                              "pasta3"
+                            ],
+                            "correctIndex": 0
+                          },
+                          {
+                            "runtimeType": "fillBlank",
+                            "id": "ll-es-i-fb-120",
+                            "sentence": "_____.",
+                            "answer": "pasta",
+                            "hint": "pasta"
+                          },
+                          {
+                            "runtimeType": "typeTheWord",
+                            "id": "ll-es-i-ttw-121",
+                            "audioAsset": "ll-es-w-pasta",
+                            "prompt": "Type what you hear",
+                            "expected": "pasta"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ll-es-sl-pasta1",
+                    "name": "pasta1",
+                    "stages": [
+                      {
+                        "id": "ll-es-st-pasta1",
+                        "name": "Learn & produce",
+                        "items": [
+                          {
+                            "runtimeType": "showWord",
+                            "id": "ll-es-i-sw-122",
+                            "wordId": "ll-es-w-pasta1",
+                            "context": "pasta1 — pasta__1"
+                          },
+                          {
+                            "runtimeType": "translateSentence",
+                            "id": "ll-es-i-ts-123",
+                            "source": "pasta__1",
+                            "expected": "pasta1",
+                            "hints": []
+                          },
+                          {
+                            "runtimeType": "multipleChoice",
+                            "id": "ll-es-i-mc-124",
+                            "prompt": "pasta__1",
+                            "options": [
+                              "pasta1",
+                              "pasta",
+                              "pasta2",
+                              "pasta3"
+                            ],
+                            "correctIndex": 0
+                          },
+                          {
+                            "runtimeType": "fillBlank",
+                            "id": "ll-es-i-fb-125",
+                            "sentence": "_____.",
+                            "answer": "pasta1",
+                            "hint": "pasta__1"
+                          },
+                          {
+                            "runtimeType": "typeTheWord",
+                            "id": "ll-es-i-ttw-126",
+                            "audioAsset": "ll-es-w-pasta1",
+                            "prompt": "Type what you hear",
+                            "expected": "pasta1"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ll-es-sl-pasta2",
+                    "name": "pasta2",
+                    "stages": [
+                      {
+                        "id": "ll-es-st-pasta2",
+                        "name": "Learn & produce",
+                        "items": [
+                          {
+                            "runtimeType": "showWord",
+                            "id": "ll-es-i-sw-127",
+                            "wordId": "ll-es-w-pasta2",
+                            "context": "pasta2 — pasta__2"
+                          },
+                          {
+                            "runtimeType": "translateSentence",
+                            "id": "ll-es-i-ts-128",
+                            "source": "pasta__2",
+                            "expected": "pasta2",
+                            "hints": []
+                          },
+                          {
+                            "runtimeType": "multipleChoice",
+                            "id": "ll-es-i-mc-129",
+                            "prompt": "pasta__2",
+                            "options": [
+                              "pasta2",
+                              "pasta",
+                              "pasta1",
+                              "pasta3"
+                            ],
+                            "correctIndex": 0
+                          },
+                          {
+                            "runtimeType": "fillBlank",
+                            "id": "ll-es-i-fb-130",
+                            "sentence": "_____.",
+                            "answer": "pasta2",
+                            "hint": "pasta__2"
+                          },
+                          {
+                            "runtimeType": "typeTheWord",
+                            "id": "ll-es-i-ttw-131",
+                            "audioAsset": "ll-es-w-pasta2",
+                            "prompt": "Type what you hear",
+                            "expected": "pasta2"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ll-es-sl-pasta3",
+                    "name": "pasta3",
+                    "stages": [
+                      {
+                        "id": "ll-es-st-pasta3",
+                        "name": "Learn & produce",
+                        "items": [
+                          {
+                            "runtimeType": "showWord",
+                            "id": "ll-es-i-sw-132",
+                            "wordId": "ll-es-w-pasta3",
+                            "context": "pasta3 — pasta__3"
+                          },
+                          {
+                            "runtimeType": "translateSentence",
+                            "id": "ll-es-i-ts-133",
+                            "source": "pasta__3",
+                            "expected": "pasta3",
+                            "hints": []
+                          },
+                          {
+                            "runtimeType": "multipleChoice",
+                            "id": "ll-es-i-mc-134",
+                            "prompt": "pasta__3",
+                            "options": [
+                              "pasta3",
+                              "pasta",
+                              "pasta1",
+                              "pasta2"
+                            ],
+                            "correctIndex": 0
+                          },
+                          {
+                            "runtimeType": "fillBlank",
+                            "id": "ll-es-i-fb-135",
+                            "sentence": "_____.",
+                            "answer": "pasta3",
+                            "hint": "pasta__3"
+                          },
+                          {
+                            "runtimeType": "typeTheWord",
+                            "id": "ll-es-i-ttw-136",
+                            "audioAsset": "ll-es-w-pasta3",
+                            "prompt": "Type what you hear",
+                            "expected": "pasta3"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

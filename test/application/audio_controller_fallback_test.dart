@@ -2,13 +2,17 @@
 // These tests avoid real platform channels by subclassing [AudioController]
 // and overriding the methods that would touch [AudioPlayer] / [FlutterTts].
 
+import 'dart:io';
+
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_tts/flutter_tts.dart';
+import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:turna/application/accessibility_provider.dart';
 import 'package:turna/application/audio_controller.dart';
+import 'package:turna/application/course_pack/course_pack_media.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/di/injection.dart';
@@ -77,6 +81,7 @@ class _TestAudioController extends AudioController {
   final List<String> ttsCalls = [];
   final List<String> assetCalls = [];
   final List<String> ankiCalls = [];
+  final List<String> packCalls = [];
 
   _TestAudioController(VocabAudioResolver resolver)
       : super(
@@ -102,6 +107,12 @@ class _TestAudioController extends AudioController {
   @override
   Future<bool> playAnkiMedia(String ref) async {
     ankiCalls.add(ref);
+    return true;
+  }
+
+  @override
+  Future<bool> playCoursePackMedia(String ref) async {
+    packCalls.add(ref);
     return true;
   }
 }
@@ -142,6 +153,19 @@ void main() {
       await controller.speakWord('w-test-audio');
 
       expect(controller.assetCalls, ['assets/audio/turkish/test.mp3']);
+      expect(controller.ttsCalls, isEmpty);
+    });
+
+    test('audioAsset turnapack URI → pack playback, no TTS', () async {
+      resolver.entries['w-pack'] = const ResolvedVocabAudio(
+        audioAsset: 'turnapack://es/hola.mp3',
+        speakText: 'hola',
+      );
+
+      await controller.speakWord('w-pack');
+
+      expect(controller.packCalls, ['turnapack://es/hola.mp3']);
+      expect(controller.assetCalls, isEmpty);
       expect(controller.ttsCalls, isEmpty);
     });
 
@@ -246,6 +270,16 @@ void main() {
       expect(controller.ttsCalls, isEmpty);
     });
 
+    test('turnapack reference → pack playback before asset routing', () async {
+      await controller.speakListenContent(
+        audioAsset: 'turnapack://es/hola.mp3',
+        transcript: 'must not use TTS',
+      );
+      expect(controller.packCalls, ['turnapack://es/hola.mp3']);
+      expect(controller.assetCalls, isEmpty);
+      expect(controller.ttsCalls, isEmpty);
+    });
+
     test('word id with transcript → prefer transcript TTS', () async {
       await controller.speakListenContent(
         audioAsset: 'w-habari',
@@ -324,6 +358,58 @@ void main() {
       expect(await controller.playAnkiMedia('anki://imp/missing.mp3'), isFalse);
       expect(await controller.playAnkiMedia('assets/audio.mp3'), isFalse);
       expect(speechPlayer.playedSources, isEmpty);
+    });
+  });
+
+  group('AudioController.playCoursePackMedia', () {
+    setUp(() async {
+      await getIt.reset();
+      SharedPreferences.setMockInitialValues({});
+      final sp = await StreamingSharedPreferences.instance;
+      final prefs = AppPrefs(sp);
+      getIt.registerLazySingleton<AppPrefs>(() => prefs);
+      getIt.registerLazySingleton<SettingsProvider>(
+        () => SettingsProvider(prefs),
+      );
+      getIt.registerLazySingleton<AccessibilityProvider>(
+        () => AccessibilityProvider(prefs),
+      );
+    });
+
+    tearDown(() async {
+      CoursePackMedia.debugPersistRoot = null;
+      await getIt.reset();
+    });
+
+    test('resolved pack reference plays through DeviceFileSource', () async {
+      final root = await Directory.systemTemp.createTemp('pack-audio-');
+      addTearDown(() {
+        if (root.existsSync()) root.deleteSync(recursive: true);
+      });
+      CoursePackMedia.debugPersistRoot = root;
+      final file = File(p.join(root.path, 'es', 'media', 'hola.mp3'))
+        ..createSync(recursive: true)
+        ..writeAsBytesSync(const [1, 2, 3]);
+      final speechPlayer = _RecordingAudioPlayer();
+      final controller = AudioController(
+        _FakeFlutterTts(),
+        _FakeLanguageProvider(),
+        getIt<SettingsProvider>(),
+        getIt<AccessibilityProvider>(),
+        _MapVocabAudioResolver({}),
+        audioPlayer: _FakeAudioPlayer(),
+        speechPlayer: speechPlayer,
+      );
+
+      expect(
+        await controller.playCoursePackMedia('turnapack://es/hola.mp3'),
+        isTrue,
+      );
+      expect(speechPlayer.playedSources.single, isA<DeviceFileSource>());
+      expect(
+        (speechPlayer.playedSources.single as DeviceFileSource).path,
+        file.path,
+      );
     });
   });
 }

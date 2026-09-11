@@ -13,6 +13,7 @@ import 'package:injectable/injectable.dart';
 import 'package:turna/application/accessibility_provider.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/render/official_anki_media_resolver.dart';
+import 'package:turna/application/course_pack/course_pack_media.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/domain/audio/anki_audio_resolver.dart';
@@ -363,9 +364,17 @@ class AudioController {
       await playAnkiMedia(wordId);
       return;
     }
+    if (CoursePackMedia.isPackAsset(wordId)) {
+      await playCoursePackMedia(wordId);
+      return;
+    }
     final resolved = _vocabAudioResolver.resolve(wordId);
     final asset = resolved.audioAsset;
     if (asset != null && asset.isNotEmpty) {
+      if (CoursePackMedia.isPackAsset(asset)) {
+        await playCoursePackMedia(asset);
+        return;
+      }
       await speakFromAsset(asset);
       return;
     }
@@ -390,6 +399,21 @@ class AudioController {
       return true;
     } catch (e) {
       debugPrint('Error playing official Anki media: $e');
+      return false;
+    }
+  }
+
+  /// Play an imported course-pack media file (`turnapack://` reference).
+  Future<bool> playCoursePackMedia(String ref) async {
+    if (!CoursePackMedia.isPackAsset(ref)) return false;
+    try {
+      final path = await CoursePackMedia.resolveFile(ref);
+      if (path == null) return false;
+      await _speechPlayer.stop();
+      await _speechPlayer.play(DeviceFileSource(path));
+      return true;
+    } catch (e) {
+      debugPrint('Error playing course-pack media: $e');
       return false;
     }
   }
@@ -424,6 +448,8 @@ class AudioController {
     if (asset != null && asset.isNotEmpty) {
       if (AnkiAudioResolver.isAnkiAsset(asset)) {
         await playAnkiMedia(asset);
+      } else if (CoursePackMedia.isPackAsset(asset)) {
+        await playCoursePackMedia(asset);
       } else if (isAssetPath(asset)) {
         await speakFromAsset(asset);
       } else if (await playOfficialMediaFile(asset)) {

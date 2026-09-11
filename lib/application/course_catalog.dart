@@ -3,6 +3,7 @@ import 'package:turna/application/anki_official/projection/official_anki_course_
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_view_store.dart';
 import 'package:turna/core/logger.dart';
+import 'package:turna/application/course_pack/imported_languages.dart';
 import 'package:turna/application/language_registry.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/courses/languages/course_lookup.dart';
@@ -146,6 +147,11 @@ class CourseCatalog {
       final sectionCode = builtinLanguageOf(section.id, languageBySection);
       if (sectionCode != null) codesFromDb.add(sectionCode);
     }
+    if (db != null) {
+      try {
+        await ImportedLanguageRegistry.instance.hydrate(db);
+      } catch (_) {}
+    }
     final builtinCodes = <String>[
       for (final language in LanguageRegistry.instance.languages)
         if (codesFromDb.contains(language.code) &&
@@ -166,7 +172,8 @@ class CourseCatalog {
       for (final code in builtinCodes)
         CourseCatalogEntry(
           scope: BuiltinCourseScope(code),
-          displayName: LanguageRegistry.instance.displayName(code),
+          displayName: ImportedLanguageRegistry.instance.displayNameOrNull(code) ??
+              LanguageRegistry.instance.displayName(code),
           isBuiltin: true,
           sectionCount: sections.where((s) {
             if (s.level == 'Anki' ||

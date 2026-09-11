@@ -1,19 +1,20 @@
+// Dart imports:
+import 'dart:io';
+
 // Flutter imports:
 import 'package:flutter/material.dart';
 
 // Project imports:
+import 'package:turna/application/course_pack/course_pack_media.dart';
 import 'package:turna/views/theme.dart';
 
-/// A memory-bounded [Image.asset] for interaction prompts.
+/// A memory-bounded image for interaction prompts.
 ///
-/// Decodes the asset capped to the display width (clamped to 600 logical px)
-/// so a multi-megapixel image is never decoded for a column-width slot. The
-/// cache-width/height math uses the device pixel ratio so the decode matches
-/// the physical display resolution.
+/// Bundled assets use [Image.asset]. Imported `.turnapack` media
+/// (`turnapack://<code>/file`) resolves to an on-disk file.
 ///
-/// Shared by [MultipleChoiceRenderer] and [MultiSelectRenderer] (previously
-/// each inlined an identical `Builder` + `MediaQuery.devicePixelRatioOf`
-/// block).
+/// Decodes the image capped to the display width (clamped to 600 logical px)
+/// so a multi-megapixel image is never decoded for a column-width slot.
 class CachedAssetImage extends StatelessWidget {
   final String asset;
   final double maxHeight;
@@ -29,11 +30,28 @@ class CachedAssetImage extends StatelessWidget {
     final dpr = MediaQuery.devicePixelRatioOf(context);
     final cacheWidth =
         (MediaQuery.sizeOf(context).width.clamp(0, 600) * dpr).round();
+    final cacheHeight = (maxHeight * dpr).round();
+    if (CoursePackMedia.isPackAsset(asset)) {
+      return FutureBuilder<String?>(
+        future: CoursePackMedia.resolveFile(asset),
+        builder: (context, snapshot) {
+          final path = snapshot.data;
+          if (path == null) return const SizedBox.shrink();
+          return Image.file(
+            File(path),
+            fit: BoxFit.cover,
+            cacheWidth: cacheWidth,
+            cacheHeight: cacheHeight,
+            errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+          );
+        },
+      );
+    }
     return Image.asset(
       asset,
       fit: BoxFit.cover,
       cacheWidth: cacheWidth,
-      cacheHeight: (maxHeight * dpr).round(),
+      cacheHeight: cacheHeight,
     );
   }
 }

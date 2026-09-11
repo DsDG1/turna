@@ -11,6 +11,7 @@ import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
 import 'package:turna/views/anki_official/official_anki_canonical_card_view.dart';
+import 'package:turna/views/lesson/components/cached_asset_image.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/lesson/components/lesson_practice_card.dart';
 import 'package:turna/views/theme.dart';
@@ -56,9 +57,12 @@ class ShowWordRenderer extends InteractionRenderer {
     final contextSentence = i.example ?? i.context;
 
     return _ShowWordCard(
+      wordId: i.wordId,
       term: term,
       translation: translation,
       contextSentence: contextSentence,
+      imageAsset: i.imageAsset,
+      speakVocab: !hasInline && !isUnknown,
       audioController: _audioController,
       onTap: () => onSubmit(true),
       isUnknown: isUnknown,
@@ -67,17 +71,23 @@ class ShowWordRenderer extends InteractionRenderer {
 }
 
 class _ShowWordCard extends StatelessWidget {
+  final String wordId;
   final String term;
   final String translation;
   final String? contextSentence;
+  final String? imageAsset;
+  final bool speakVocab;
   final AudioController audioController;
   final VoidCallback onTap;
   final bool isUnknown;
 
   const _ShowWordCard({
+    required this.wordId,
     required this.term,
     required this.translation,
     required this.contextSentence,
+    required this.imageAsset,
+    required this.speakVocab,
     required this.audioController,
     required this.onTap,
     this.isUnknown = false,
@@ -119,7 +129,9 @@ class _ShowWordCard extends StatelessWidget {
                     label: AppStrings.lessonSpeakTerm(term),
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
-                      onTap: () => audioController.speak(term),
+                      onTap: () => speakVocab
+                          ? audioController.speakWord(wordId)
+                          : audioController.speak(term),
                       child: FittedBox(
                         fit: BoxFit.scaleDown,
                         child: Row(
@@ -145,6 +157,10 @@ class _ShowWordCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 12),
+                  if (imageAsset != null && imageAsset!.isNotEmpty) ...[
+                    RoundedCachedAssetImage(asset: imageAsset!),
+                    const SizedBox(height: 12),
+                  ],
                   if (translation.isNotEmpty)
                     Text(
                       translation,

@@ -529,7 +529,7 @@ void main() {
       // Tapping the word speaks the term and does not submit.
       await tester.tap(find.text('Habari'));
       await tester.pumpAndSettle();
-      expect(audio.lastSpoken, 'Habari');
+      expect(audio.lastSpoken, 'w-test-show');
       expect(harness.submissions, isEmpty);
 
       // Tapping the context sentence speaks only the target-language part.
