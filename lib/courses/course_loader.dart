@@ -195,7 +195,8 @@ class CourseLoader {
       vocabulary: vocab,
       vocabularyById: {for (final w in vocab) w.id: w},
       vocabularyByTerm: {
-        for (final w in vocab) w.term.toLowerCase(): w,
+        for (final w in vocab)
+          LanguageCodes.lookupFoldKey(w.term, languageCode): w,
       },
       vocabularyByTranslation: {
         for (final w in vocab) w.translation.toLowerCase(): w,

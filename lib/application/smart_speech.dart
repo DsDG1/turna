@@ -1,6 +1,7 @@
 // Project imports:
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/language_provider.dart';
+import 'package:turna/application/language_registry.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/core/language_detector.dart';
 import 'package:turna/di/injection.dart';
@@ -9,7 +10,11 @@ import 'package:turna/domain/course/language_codes.dart';
 /// The target and native (translation) TTS languages for the currently
 /// active course.
 class SpeechLanguages {
-  const SpeechLanguages({required this.target, required this.native});
+  const SpeechLanguages({
+    required this.target,
+    required this.native,
+    this.signatureChars,
+  });
 
   /// BCP-47 base code of the language being learned (e.g. `tr`).
   final String target;
@@ -17,6 +22,11 @@ class SpeechLanguages {
   /// BCP-47 base code of the learner's translation / native language for this
   /// course (e.g. `en`), used as the TTS fallback for plain-Latin text.
   final String native;
+
+  /// The target language's distinguishing-letter set, forwarded to
+  /// [LanguageDetector]'s `signatureChars`. `null` keeps the detector's
+  /// Turkish default.
+  final String? signatureChars;
 }
 
 /// Resolve the target + native TTS languages for the active course.
@@ -26,12 +36,22 @@ class SpeechLanguages {
 /// throw just because smart-speech can't resolve its inputs.
 SpeechLanguages currentSpeechLanguages() {
   try {
-    final target = getIt<LanguageProvider>().ttsLanguageCode;
+    final languageProvider = getIt<LanguageProvider>();
+    final target = languageProvider.ttsLanguageCode;
     final scope = getIt<CourseProvider>().courseScope;
     final native = getIt<SettingsProvider>().nativeLanguageCodeFor(scope);
-    return SpeechLanguages(target: target, native: native);
+    return SpeechLanguages(
+      target: target,
+      native: native,
+      signatureChars: LanguageRegistry.instance
+          .signatureChars(languageProvider.selectedLanguageCode),
+    );
   } catch (_) {
-    return SpeechLanguages(target: LanguageCodes.turkish, native: 'en');
+    return const SpeechLanguages(
+      target: LanguageCodes.turkish,
+      native: 'en',
+      signatureChars: LanguageDetector.defaultSignatureChars,
+    );
   }
 }
 
@@ -44,6 +64,7 @@ String detectSpeakLanguage(String text) {
     text,
     targetLanguage: langs.target,
     nativeLanguage: langs.native,
+    signatureChars: langs.signatureChars,
   );
 }
 

@@ -13,6 +13,7 @@ class LanguageDescriptor {
     required this.ttsLocale,
     required this.dir,
     this.nativeLabel,
+    this.signatureChars,
   });
 
   /// Canonical language code (`tr`, `fr`, …).
@@ -28,6 +29,12 @@ class LanguageDescriptor {
   /// How the language names itself ("Türkçe öğren", "Apprendre le
   /// français") for splash copy; falls back to [displayName].
   final String? nativeLabel;
+
+  /// Letters that mark this language in Latin-script text (`ğĞıİşŞ` for tr,
+  /// `àâæçéèêëîïôœùûüÿ…` for fr). Consumed by `LanguageDetector` to pick a
+  /// TTS voice: text containing one of these is definitely the target
+  /// language. `null` = no signature (Latin-only detection).
+  final String? signatureChars;
 
   String get displayNativeLabel => nativeLabel ?? displayName;
 
@@ -51,6 +58,9 @@ class LanguageDescriptor {
       nativeLabel: json['nativeLabel'] == null
           ? null
           : '${json['nativeLabel']}',
+      signatureChars: json['signatureChars'] == null
+          ? null
+          : '${json['signatureChars']}',
     );
   }
 }
@@ -71,6 +81,7 @@ class LanguageManifest {
       ttsLocale: 'tr-TR',
       dir: 'turkish',
       nativeLabel: 'Türkçe öğren',
+      signatureChars: 'ğĞıİşŞ',
     ),
     LanguageDescriptor(
       code: LanguageCodes.french,
@@ -78,6 +89,7 @@ class LanguageManifest {
       ttsLocale: 'fr-FR',
       dir: 'french',
       nativeLabel: 'Apprendre le français',
+      signatureChars: 'àâæçéèêëîïôœùûüÿÀÂÆÇÉÈÊËÎÏÔŒÙÛÜŸ',
     ),
   ];
 

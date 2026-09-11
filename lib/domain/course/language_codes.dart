@@ -39,4 +39,21 @@ class LanguageCodes {
         return trimmed;
     }
   }
+
+  /// Fold [text] into the lookup key used by the per-language term index
+  /// (`vocabularyByTerm` / dictionary lookups). Must be applied on BOTH the
+  /// index-build and the query side.
+  ///
+  /// Turkish needs locale-aware lowercasing: content spelled with a dotted
+  /// `İ` or ASCII `I` folds to `i`/`i̇` under plain `toLowerCase()`, while
+  /// users type the correct Turkish lowercase (`i` for İ, `ı` for I).
+  /// Mapping `İ`→`i` and ASCII `I`→`ı` before lowercasing makes both sides
+  /// agree. Other languages use plain lowercase.
+  static String lookupFoldKey(String text, String languageCode) {
+    var s = text.trim();
+    if (canonicalize(languageCode) == turkish) {
+      s = s.replaceAll('İ', 'i').replaceAll('I', 'ı');
+    }
+    return s.toLowerCase();
+  }
 }

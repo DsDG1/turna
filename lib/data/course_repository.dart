@@ -347,7 +347,13 @@ class CourseRepository implements ICourseRepository {
   /// Uses Drift [batch] so a multi-hundred-lesson Anki section is one
   /// prepared statement stream instead of thousands of awaited round-trips.
   @override
-  Future<void> bulkInsertCourseTree(Section section) async {
+  Future<void> bulkInsertCourseTree(Section section,
+      {String? languageCode}) async {
+    final code = languageCode != null
+        ? LanguageCodes.canonicalize(languageCode)
+        : (section.level == 'Anki' || section.level == 'OfficialAnki'
+            ? 'anki'
+            : LanguageCodes.turkish);
     // Wrap the MAX-read + batch-write in a transaction so a concurrent
     // reader cannot see a half-built tree (new section row but no units/
     // lessons yet) and so two imports racing on the same `nextOrder` see a
@@ -369,10 +375,7 @@ class CourseRepository implements ICourseRepository {
       // per lesson rather than interleaved with SQLite awaits).
       final sectionCompanion = db.SectionsCompanion(
         id: Value(section.id),
-        languageCode: Value(section.level == 'Anki' ||
-                section.level == 'OfficialAnki'
-            ? 'anki'
-            : LanguageCodes.turkish),
+        languageCode: Value(code),
         name: Value(section.name),
         description: Value(section.description),
         level: Value(section.level ?? ''),
@@ -389,10 +392,7 @@ class CourseRepository implements ICourseRepository {
         final u = section.units[uOrder];
         unitCompanions.add(db.UnitsCompanion(
           id: Value(u.id),
-          languageCode: Value(section.level == 'Anki' ||
-                  section.level == 'OfficialAnki'
-              ? 'anki'
-              : LanguageCodes.turkish),
+          languageCode: Value(code),
           sectionId: Value(section.id),
           name: Value(u.name),
           description: Value(u.description),
@@ -403,10 +403,7 @@ class CourseRepository implements ICourseRepository {
           final l = u.lessons[lOrder];
           lessonCompanions.add(db.LessonsCompanion(
             id: Value(l.id),
-            languageCode: Value(section.level == 'Anki' ||
-                    section.level == 'OfficialAnki'
-                ? 'anki'
-                : LanguageCodes.turkish),
+            languageCode: Value(code),
             unitId: Value(u.id),
             name: Value(l.name),
             description: Value(l.description),
@@ -417,10 +414,7 @@ class CourseRepository implements ICourseRepository {
           ));
           contentCompanions.add(db.LessonContentsCompanion(
             lessonId: Value(l.id),
-            languageCode: Value(section.level == 'Anki' ||
-                    section.level == 'OfficialAnki'
-                ? 'anki'
-                : LanguageCodes.turkish),
+            languageCode: Value(code),
             contentJson: Value(jsonEncode(l.content.toJson())),
           ));
         }
@@ -458,13 +452,17 @@ class CourseRepository implements ICourseRepository {
 
   /// Bulk-upsert vocabulary entries (Anki importer). Single [batch] write.
   @override
-  Future<void> bulkInsertVocabulary(List<WordEntry> words) async {
+  Future<void> bulkInsertVocabulary(List<WordEntry> words,
+      {String? languageCode}) async {
     if (words.isEmpty) return;
+    final code = languageCode == null
+        ? 'anki'
+        : LanguageCodes.canonicalize(languageCode);
     final companions = [
       for (final w in words)
         db.VocabularyCompanion(
           id: Value(w.id),
-          languageCode: const Value('anki'),
+          languageCode: Value(code),
           term: Value(w.term),
           translation: Value(w.translation),
           pronunciation: Value(w.pronunciation),

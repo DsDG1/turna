@@ -18,6 +18,8 @@ import 'package:turna/application/srs_provider.dart';
 import 'package:turna/application/study_stats_provider.dart';
 import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/courses/course_loader.dart';
+import 'package:turna/courses/languages/expressions.dart';
+import 'package:turna/courses/languages/grammar_points.dart';
 import 'package:turna/courses/languages/language_content_store.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/data/course_database_seeder.dart';
@@ -528,6 +530,23 @@ void main() {
     expect(
       prefs.courseScope.getValue(),
       isNot(const BuiltinCourseScope(LanguageCodes.french).wireKey),
+    );
+  });
+
+  test('legacy language aliases republish the active store globals', () async {
+    // Loading by a legacy alias ('french') while 'fr' is active must still
+    // republish the compatibility globals — the comparison is canonicalized.
+    await LanguageContentStore.activate(LanguageCodes.french);
+    await loadExpressions('french');
+    await loadGrammarPoints('french');
+    expect(
+      expressionsById.keys.every((id) => id.startsWith('fr-')),
+      isTrue,
+      reason: 'aliased load of the ACTIVE language must publish its globals',
+    );
+    expect(
+      grammarPointById.keys.every((id) => id.startsWith('fr-')),
+      isTrue,
     );
   });
 }

@@ -126,6 +126,7 @@ class _AnkiCardBodyState extends State<_AnkiCardBody>
       widget.back,
       targetLanguage: langs.target,
       nativeLanguage: langs.native,
+      signatureChars: langs.signatureChars,
     );
   }
 

@@ -104,12 +104,15 @@ class _MultipleChoiceBodyState extends State<_MultipleChoiceBody> {
     final langs = currentSpeechLanguages();
     const detector = LanguageDetector();
     final optionLang = detector.inferOptionLanguage(widget.prompt,
-        targetLanguage: langs.target, nativeLanguage: langs.native);
+        targetLanguage: langs.target,
+        nativeLanguage: langs.native,
+        signatureChars: langs.signatureChars);
     final lang = detector.detectOption(
       widget.options[idx],
       optionLanguage: optionLang,
       targetLanguage: langs.target,
       nativeLanguage: langs.native,
+      signatureChars: langs.signatureChars,
     );
     getIt<AudioController>().speak(widget.options[idx], languageCode: lang);
   }

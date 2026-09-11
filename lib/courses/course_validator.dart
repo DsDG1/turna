@@ -1,5 +1,6 @@
 // Project imports:
 import 'package:turna/domain/course/expression.dart';
+import 'package:turna/domain/course/grammar_point.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/domain/course/listening_phase.dart';
@@ -58,10 +59,16 @@ void validateCourse(
   List<Section> sections,
   List<WordEntry> vocabulary, [
   List<Expression> expressions = const [],
+  List<GrammarPoint> grammarPoints = const [],
 ]) {
   final errors = <String>[];
   final vocabIds = <String>{for (final w in vocabulary) w.id};
   final expressionIds = <String>{for (final e in expressions) e.id};
+  errors.addAll(collectResourceIdCollisionErrors(
+    vocabulary: vocabulary,
+    grammarPoints: grammarPoints,
+    expressions: expressions,
+  ));
 
   // Sections.
   final sectionIds = <String>{};
@@ -118,6 +125,37 @@ void validateCourse(
   if (errors.isNotEmpty) {
     throw CourseValidationException(errors);
   }
+}
+
+/// Cross-pool id uniqueness within one language. `srs_states` is keyed by
+/// `(language_code, word_id)` with no `queue` column in the PK, so an id
+/// shared between the vocabulary / grammar / expression pools would make
+/// their schedule rows clobber each other. Enforced at seed time (see
+/// [DatabaseSeeder]) and inside [validateCourse].
+List<String> collectResourceIdCollisionErrors({
+  required Iterable<WordEntry> vocabulary,
+  required Iterable<GrammarPoint> grammarPoints,
+  required Iterable<Expression> expressions,
+}) {
+  final errors = <String>[];
+  final ownerById = <String, String>{};
+  void check(Iterable<String> ids, String pool) {
+    for (final id in ids) {
+      final owner = ownerById[id];
+      if (owner != null && owner != pool) {
+        errors.add('Id "$id" is used by both "$owner" and "$pool"; SRS state '
+            'is keyed by (language_code, id) across pools and the rows would '
+            'clobber each other.');
+      } else {
+        ownerById[id] ??= pool;
+      }
+    }
+  }
+
+  check(vocabulary.map((w) => w.id), 'vocabulary');
+  check(grammarPoints.map((g) => g.id), 'grammar points');
+  check(expressions.map((e) => e.id), 'expressions');
+  return errors;
 }
 
 /// Validate a single [section] in isolation against the invariants the rest

@@ -763,9 +763,7 @@ class CourseProvider extends ChangeNotifier {
     return switch (_scope) {
       BuiltinCourseScope(languageCode: final code) =>
         _isAnyAnkiSection(s) == false &&
-            LanguageCodes.canonicalize(
-                  _sectionLanguageCodes[s.id] ?? LanguageCodes.turkish,
-                ) ==
+            CourseCatalog.builtinLanguageOf(s.id, _sectionLanguageCodes) ==
                 LanguageCodes.canonicalize(code),
       LegacyAnkiCourseScope(importId: final id) =>
         CourseCatalog.legacyImportIdFromSectionId(s.id) == id,

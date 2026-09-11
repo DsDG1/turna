@@ -21,8 +21,10 @@ import 'package:turna/application/ai/ai_resource_consistency.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/courses/course_validator.dart';
+import 'package:turna/courses/languages/language_content_store.dart';
 import 'package:turna/data/course_database.dart' as db;
 import 'package:turna/di/injection.dart';
+import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/domain/course/section.dart';
 
@@ -275,6 +277,11 @@ class AiCourseProvider extends AiRequestSessionBase {
       await database.into(database.lessons).insertOnConflictUpdate(
             db.LessonsCompanion(
               id: Value(lesson.id),
+              // Carry the row's own language: the table's PK is
+              // (language_code, id), so omitting it would upsert under the
+              // 'tr' default and fork a duplicate row instead of updating
+              // the existing one.
+              languageCode: Value(existing.languageCode),
               unitId: Value(existing.unitId),
               name: Value(lesson.name),
               description: Value(lesson.description),
@@ -288,6 +295,7 @@ class AiCourseProvider extends AiRequestSessionBase {
       await database.into(database.lessonContents).insertOnConflictUpdate(
             db.LessonContentsCompanion(
               lessonId: Value(lesson.id),
+              languageCode: Value(existing.languageCode),
               contentJson: Value(jsonEncode(lesson.content.toJson())),
             ),
           );
@@ -323,11 +331,20 @@ class AiCourseProvider extends AiRequestSessionBase {
   ) async {
     final database = getIt<db.CourseDatabase>();
     final nextOrder = await _nextSectionSortOrder(database);
+    // Tag every row with the owning language: the payload's `language` field
+    // wins (importers can set it explicitly); otherwise the active practice
+    // language. Without this the column default 'tr' would silently file
+    // non-Turkish content under the Turkish course.
+    final code = LanguageCodes.canonicalize(
+      '${parsed['language'] ?? LanguageContentStore.activeCode}',
+    );
+    await _assertNoCrossLanguageIdCollision(database, section, code);
 
     await database.transaction(() async {
       await database.into(database.sections).insertOnConflictUpdate(
             db.SectionsCompanion(
               id: Value(section.id),
+              languageCode: Value(code),
               name: Value(section.name),
               description: Value(section.description),
               prerequisiteSectionIds:
@@ -341,6 +358,7 @@ class AiCourseProvider extends AiRequestSessionBase {
         await database.into(database.units).insertOnConflictUpdate(
               db.UnitsCompanion(
                 id: Value(u.id),
+                languageCode: Value(code),
                 sectionId: Value(section.id),
                 name: Value(u.name),
                 description: Value(u.description),
@@ -353,6 +371,7 @@ class AiCourseProvider extends AiRequestSessionBase {
           await database.into(database.lessons).insertOnConflictUpdate(
                 db.LessonsCompanion(
                   id: Value(l.id),
+                  languageCode: Value(code),
                   unitId: Value(u.id),
                   name: Value(l.name),
                   description: Value(l.description),
@@ -366,6 +385,7 @@ class AiCourseProvider extends AiRequestSessionBase {
           await database.into(database.lessonContents).insertOnConflictUpdate(
                 db.LessonContentsCompanion(
                   lessonId: Value(l.id),
+                  languageCode: Value(code),
                   contentJson: Value(jsonEncode(l.content.toJson())),
                 ),
               );
@@ -373,13 +393,75 @@ class AiCourseProvider extends AiRequestSessionBase {
       }
 
       // Top-level resources: words / expressions / grammar points.
-      await _writeResources(database, parsed);
+      await _writeResources(database, parsed, code);
     });
+  }
+
+  /// Runtime reads look rows up by bare id (`section(id)` / `lessonById(id)`
+  /// / `sectionIdForUnit`), so the same id under two languages would throw
+  /// downstream. Reject the write up front with a clear error instead.
+  Future<void> _assertNoCrossLanguageIdCollision(
+    db.CourseDatabase database,
+    Section section,
+    String code,
+  ) async {
+    Future<String?> otherLanguageOf(
+      List<String> rowLanguages,
+    ) =>
+        Future.value(
+          rowLanguages.where((c) => c != code).firstOrNull,
+        );
+    Future<void> check(String table, String id, Future<String?> other) async {
+      final owner = await other;
+      if (owner != null) {
+        throw StateError(
+          'Cannot save AI course into language "$code": $table id "$id" is '
+          'already used by language "$owner" (ids must be unique across '
+          'languages — runtime lookups are by bare id).',
+        );
+      }
+    }
+
+    await check(
+      'section',
+      section.id,
+      otherLanguageOf(
+        await (database.select(database.sections)
+              ..where((t) => t.id.equals(section.id)))
+            .map((r) => r.languageCode)
+            .get(),
+      ),
+    );
+    for (final unit in section.units) {
+      await check(
+        'unit',
+        unit.id,
+        otherLanguageOf(
+          await (database.select(database.units)
+                ..where((t) => t.id.equals(unit.id)))
+              .map((r) => r.languageCode)
+              .get(),
+        ),
+      );
+      for (final lesson in unit.lessons) {
+        await check(
+          'lesson',
+          lesson.id,
+          otherLanguageOf(
+            await (database.select(database.lessons)
+                  ..where((t) => t.id.equals(lesson.id)))
+                .map((r) => r.languageCode)
+                .get(),
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _writeResources(
     db.CourseDatabase database,
     Map<String, dynamic> parsed,
+    String code,
   ) async {
     final words = (parsed['words'] as List?) ?? const [];
     for (final w in words) {
@@ -387,6 +469,7 @@ class AiCourseProvider extends AiRequestSessionBase {
       await database.into(database.vocabulary).insertOnConflictUpdate(
             db.VocabularyCompanion(
               id: Value(w['id']?.toString() ?? ''),
+              languageCode: Value(code),
               term: Value(w['term']?.toString() ?? ''),
               translation: Value(w['translation']?.toString() ?? ''),
               pronunciation: Value(w['pronunciation']?.toString()),
@@ -401,6 +484,7 @@ class AiCourseProvider extends AiRequestSessionBase {
       await database.into(database.expressions).insertOnConflictUpdate(
             db.ExpressionsCompanion(
               id: Value(e['id']?.toString() ?? ''),
+              languageCode: Value(code),
               term: Value(e['term']?.toString() ?? ''),
               translation: Value(e['translation']?.toString() ?? ''),
               pronunciation: Value(e['pronunciation']?.toString()),
@@ -415,6 +499,7 @@ class AiCourseProvider extends AiRequestSessionBase {
       await database.into(database.grammarPoints).insertOnConflictUpdate(
             db.GrammarPointsCompanion(
               id: Value(g['id']?.toString() ?? ''),
+              languageCode: Value(code),
               title: Value(g['title']?.toString() ?? ''),
               explanation: Value(g['explanation']?.toString() ?? ''),
               exampleExpressionIds:

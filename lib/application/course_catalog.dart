@@ -98,6 +98,21 @@ class CourseCatalog {
     return importId;
   }
 
+  /// Attribute a section to a builtin language: its recorded `language_code`,
+  /// or `'tr'` ONLY when the whole [languageBySection] map is empty (a failed
+  /// `sectionLanguageCodes` query must degrade to the historical behavior
+  /// rather than blank the course). When the map loaded fine, a missing id
+  /// means a non-DB shell (e.g. the v2 view) — it belongs to no builtin
+  /// language, so return `null` instead of dumping it under Turkish.
+  static String? builtinLanguageOf(
+    String sectionId,
+    Map<String, String> languageBySection,
+  ) {
+    final code = languageBySection[sectionId];
+    if (code != null) return LanguageCodes.canonicalize(code);
+    return languageBySection.isEmpty ? LanguageCodes.turkish : null;
+  }
+
   /// Loads the catalog. [shells] are the (unfiltered) section shells; pass
   /// null to load them here. [uninstalledLanguageCodes] carries the
   /// `uninstalled:<code>` markers so marked languages stay out of the
@@ -128,11 +143,8 @@ class CourseCatalog {
           OfficialAnkiCourseEntry.isOfficialSectionId(section.id)) {
         continue;
       }
-      codesFromDb.add(
-        LanguageCodes.canonicalize(
-          languageBySection[section.id] ?? LanguageCodes.turkish,
-        ),
-      );
+      final sectionCode = builtinLanguageOf(section.id, languageBySection);
+      if (sectionCode != null) codesFromDb.add(sectionCode);
     }
     final builtinCodes = <String>[
       for (final language in LanguageRegistry.instance.languages)
@@ -161,10 +173,7 @@ class CourseCatalog {
                 OfficialAnkiCourseEntry.isOfficialSectionId(s.id)) {
               return false;
             }
-            final sectionCode = LanguageCodes.canonicalize(
-              languageBySection[s.id] ?? LanguageCodes.turkish,
-            );
-            return sectionCode == code;
+            return builtinLanguageOf(s.id, languageBySection) == code;
           }).length,
           cardCount: builtinCardCounts[code] ?? 0,
         ),

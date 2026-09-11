@@ -76,10 +76,12 @@ class _CleanupRepo implements ICourseRepository {
   Future<List<Section>> sectionShells({String? languageCode}) async => [];
 
   @override
-  Future<void> bulkInsertCourseTree(Section section) async {}
+  Future<void> bulkInsertCourseTree(Section section,
+      {String? languageCode}) async {}
 
   @override
-  Future<void> bulkInsertVocabulary(List<WordEntry> words) async {}
+  Future<void> bulkInsertVocabulary(List<WordEntry> words,
+      {String? languageCode}) async {}
 
   @override
   Future<void> deleteOfficialProjection(String sourceId) async {}

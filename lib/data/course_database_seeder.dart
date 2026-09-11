@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/services.dart' show AssetBundle, rootBundle;
 
 // Package imports:
-import 'package:drift/drift.dart';
+import 'package:drift/drift.dart' hide Expression;
 
 // Project imports:
 import 'package:turna/application/language_registry.dart';
@@ -13,9 +13,12 @@ import 'package:turna/core/logger.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/courses/course_validator.dart';
 import 'package:turna/courses/language_manifest.dart';
-import 'package:turna/data/course_database.dart' hide Section;
+import 'package:turna/data/course_database.dart' hide Section, GrammarPoint;
+import 'package:turna/domain/course/expression.dart';
+import 'package:turna/domain/course/grammar_point.dart';
 import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/domain/course/section.dart';
+import 'package:turna/domain/course/word_entry.dart';
 
 /// Seeds [CourseDatabase] from the bundled JSON assets.
 ///
@@ -98,11 +101,14 @@ class DatabaseSeeder {
   /// first — [_seedLanguageIfNeeded] skips marked languages.
   Future<bool> seedLanguage(String languageCode) async {
     await LanguageRegistry.instance.load(bundle: bundle);
-    final language = LanguageRegistry.instance.byCode(languageCode);
-    if (language.code != LanguageCodes.canonicalize(languageCode)) {
+    final code = LanguageCodes.canonicalize(languageCode);
+    // byCode() synthesizes a descriptor for unknown codes, so it can't
+    // distinguish manifest members — check the manifest list directly.
+    if (!LanguageRegistry.instance.languages.any((l) => l.code == code)) {
       logger.w('Cannot seed unknown language $languageCode');
       return false;
     }
+    final language = LanguageRegistry.instance.byCode(code);
     CourseLoader.invalidateCaches();
     final wrote = await _seedLanguageIfNeeded(language);
     CourseLoader.invalidateCaches();
@@ -237,18 +243,36 @@ class DatabaseSeeder {
     required String indexRaw,
     required Map<String, dynamic> index,
   }) async {
-    await _seedSections(language, index: index);
-    await _seedGrammarPoints(language);
-    await _seedExpressions(language);
+    final code = language.code;
+    final vocabRaw = await _loadAsset(CourseLoader.vocabAssetFor(code));
+    final vocab = parseVocabulary(vocabRaw);
+    final grammarPoints = await _loadGrammarPointsAsset(code);
+    final expressions = await _loadExpressionsAsset(code);
+    // srs_states is keyed by (language_code, id) with no queue column in the
+    // PK — a shared id across the vocab/grammar/expression pools would let
+    // schedule rows clobber each other. Reject the language before writing.
+    final collisions = collectResourceIdCollisionErrors(
+      vocabulary: vocab,
+      grammarPoints: grammarPoints,
+      expressions: expressions,
+    );
+    if (collisions.isNotEmpty) {
+      for (final err in collisions) {
+        logger.e(err);
+      }
+      throw CourseValidationException(collisions);
+    }
+    await _seedSections(language, index: index, vocab: vocab);
+    await _seedGrammarPoints(language, grammarPoints);
+    await _seedExpressions(language, expressions);
   }
 
   Future<void> _seedSections(
     LanguageDescriptor language, {
     required Map<String, dynamic> index,
+    required List<WordEntry> vocab,
   }) async {
     final entries = (index['sections'] as List).cast<Map<String, dynamic>>();
-    final vocabRaw = await _loadAsset(CourseLoader.vocabAssetFor(language.code));
-    final vocab = parseVocabulary(vocabRaw);
     final code = language.code;
     final baseDir = CourseLoader.baseDirFor(code);
 
@@ -449,12 +473,25 @@ class DatabaseSeeder {
     return errors;
   }
 
-  Future<void> _seedGrammarPoints(LanguageDescriptor language) async {
+  Future<List<GrammarPoint>> _loadGrammarPointsAsset(String code) async {
     final raw = await _tryLoadAsset(
-      CourseLoader.grammarPointsAssetFor(language.code),
+      CourseLoader.grammarPointsAssetFor(code),
     );
-    if (raw == null) return;
-    final points = parseGrammarPoints(raw);
+    return raw == null ? const <GrammarPoint>[] : parseGrammarPoints(raw);
+  }
+
+  Future<List<Expression>> _loadExpressionsAsset(String code) async {
+    final raw = await _tryLoadAsset(
+      CourseLoader.expressionsAssetFor(code),
+    );
+    return raw == null ? const <Expression>[] : parseExpressions(raw);
+  }
+
+  Future<void> _seedGrammarPoints(
+    LanguageDescriptor language,
+    List<GrammarPoint> points,
+  ) async {
+    if (points.isEmpty) return;
     final code = language.code;
 
     await db.batch((b) {
@@ -479,12 +516,11 @@ class DatabaseSeeder {
     logger.i('Seeded grammar points: ${points.length}');
   }
 
-  Future<void> _seedExpressions(LanguageDescriptor language) async {
-    final raw = await _tryLoadAsset(
-      CourseLoader.expressionsAssetFor(language.code),
-    );
-    if (raw == null) return;
-    final expressions = parseExpressions(raw);
+  Future<void> _seedExpressions(
+    LanguageDescriptor language,
+    List<Expression> expressions,
+  ) async {
+    if (expressions.isEmpty) return;
     final code = language.code;
 
     await db.batch((b) {

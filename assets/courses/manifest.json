@@ -5,14 +5,16 @@
       "displayName": "Turkish",
       "ttsLocale": "tr-TR",
       "dir": "turkish",
-      "nativeLabel": "Türkçe öğren"
+      "nativeLabel": "Türkçe öğren",
+      "signatureChars": "ğĞıİşŞ"
     },
     {
       "code": "fr",
       "displayName": "French",
       "ttsLocale": "fr-FR",
       "dir": "french",
-      "nativeLabel": "Apprendre le français"
+      "nativeLabel": "Apprendre le français",
+      "signatureChars": "àâæçéèêëîïôœùûüÿÀÂÆÇÉÈÊËÎÏÔŒÙÛÜŸ"
     }
   ]
 }

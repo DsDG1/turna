@@ -1,7 +1,6 @@
 // Project imports:
-import 'package:turna/courses/languages/expressions.dart';
-import 'package:turna/courses/languages/grammar_points.dart';
-import 'package:turna/courses/languages/vocab.dart';
+import 'package:turna/courses/languages/language_content_store.dart';
+import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/domain/course/expression.dart';
 import 'package:turna/domain/course/grammar_point.dart';
 import 'package:turna/domain/course/word_entry.dart';
@@ -39,12 +38,16 @@ class DictionaryHit {
 /// Pure function over the in-memory maps populated at startup — no I/O.
 List<DictionaryHit> searchDictionary(String query, {int limit = 50}) {
   final q = query.trim().toLowerCase();
+  // Target-side matching uses the same language-aware fold as the
+  // vocabularyByTerm index (Turkish İ/I handling).
+  final qTarget =
+      LanguageCodes.lookupFoldKey(query, LanguageContentStore.activeCode);
   if (q.isEmpty) return const [];
 
   final hits = <DictionaryHit>[];
 
   for (final entry in vocabById.values) {
-    if (_matchesVocab(entry, q)) {
+    if (_matchesVocab(entry, q, qTarget)) {
       hits.add(DictionaryHit(
         kind: DictionaryHitKind.vocab,
         id: entry.id,
@@ -88,8 +91,11 @@ List<DictionaryHit> searchDictionary(String query, {int limit = 50}) {
   return hits;
 }
 
-bool _matchesVocab(WordEntry e, String q) {
-  if (e.term.toLowerCase().contains(q)) return true;
+bool _matchesVocab(WordEntry e, String q, String qTarget) {
+  if (LanguageCodes.lookupFoldKey(e.term, LanguageContentStore.activeCode)
+      .contains(qTarget)) {
+    return true;
+  }
   if (e.translation.toLowerCase().contains(q)) return true;
   if (e.pronunciation?.toLowerCase().contains(q) == true) return true;
   for (final t in e.tags) {

@@ -110,4 +110,80 @@ void main() {
       throwsA(isA<CourseValidationException>()),
     );
   });
+
+  test('seedLanguage returns false for a language absent from the manifest',
+      () async {
+    // byCode() synthesizes descriptors for unknown codes, so the guard must
+    // consult the manifest list — not the descriptor.
+    final bundle = _collidingBundle();
+    final db = CourseDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+
+    final seeder = DatabaseSeeder(db, bundle: bundle);
+    expect(await seeder.seedLanguage('de'), isFalse);
+  });
+
+  test('seedIfNeeded skips a language whose resource ids collide internally',
+      () async {
+    // srs_states is keyed by (language_code, id) across the vocab / grammar /
+    // expression pools — 'cc' reuses the same id in both pools and must be
+    // skipped; 'dd' (clean French fixture) still seeds.
+    final frenchSection =
+        File('assets/courses/french/sections/fr-section1.json')
+            .readAsStringSync();
+    final bundle = _MapBundle({
+      _manifestPath: jsonEncode({
+        'languages': [
+          {'code': 'cc', 'displayName': 'Cc', 'ttsLocale': 'cc-CC', 'dir': 'cc'},
+          {'code': 'dd', 'displayName': 'Dd', 'ttsLocale': 'dd-DD', 'dir': 'dd'},
+        ],
+      }),
+      'assets/courses/cc/index.json': jsonEncode({
+        'language': 'cc',
+        'version': '1',
+        'sections': [
+          {'file': 'sections/s1.json'},
+        ],
+      }),
+      'assets/courses/cc/vocab.json': jsonEncode({
+        'version': '1',
+        'language': 'cc',
+        'words': [
+          {'id': 'dup-1', 'term': 'x', 'translation': 'y'},
+        ],
+      }),
+      'assets/courses/cc/grammar_points.json': jsonEncode({
+        'grammarPoints': [
+          {
+            'id': 'dup-1',
+            'title': 't',
+            'explanation': 'e',
+            'exampleExpressionIds': <String>[],
+            'exampleSentenceIds': <String>[],
+            'practiceItems': <Map<String, dynamic>>[],
+          },
+        ],
+      }),
+      'assets/courses/cc/sections/s1.json': frenchSection,
+      'assets/courses/dd/index.json': jsonEncode({
+        'language': 'dd',
+        'version': '1',
+        'sections': [
+          {'file': 'sections/s1.json'},
+        ],
+      }),
+      'assets/courses/dd/vocab.json':
+          File('assets/courses/french/vocab.json').readAsStringSync(),
+      'assets/courses/dd/sections/s1.json': frenchSection,
+    });
+    final db = CourseDatabase(NativeDatabase.memory());
+    addTearDown(db.close);
+
+    final wrote = await DatabaseSeeder(db, bundle: bundle).seedIfNeeded();
+
+    expect(wrote, isTrue);
+    final repo = CourseRepository(db);
+    expect(await repo.sectionShells(languageCode: 'cc'), isEmpty);
+    expect(await repo.sectionShells(languageCode: 'dd'), isNotEmpty);
+  });
 }

@@ -3,6 +3,7 @@ export 'package:turna/courses/languages/language_content_store.dart'
 
 import 'package:turna/courses/languages/language_content_store.dart';
 import 'package:turna/domain/course/expression.dart';
+import 'package:turna/domain/course/language_codes.dart';
 
 /// Loads the full expression list into memory and exposes a synchronous
 /// id lookup map used by renderers / review UI.
@@ -14,7 +15,8 @@ Future<List<Expression>> loadExpressions([String? languageCode]) async {
       : LanguageContentStore.of(languageCode);
   await store.ensureLoaded();
   if (languageCode == null ||
-      languageCode == LanguageContentStore.activeCode) {
+      LanguageCodes.canonicalize(languageCode) ==
+          LanguageContentStore.activeCode) {
     store.publishGlobals();
   }
   return store.expressions;

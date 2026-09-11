@@ -47,6 +47,10 @@ class LanguageRegistry {
 
   String ttsLanguageCode(String code) => byCode(code).ttsLanguageCode;
 
+  /// The language's distinguishing-letter set for `LanguageDetector`
+  /// (`null` = no signature; absent on synthesized descriptors).
+  String? signatureChars(String code) => byCode(code).signatureChars;
+
   String assetDir(String code) => byCode(code).dir;
 
   Future<void> load({AssetBundle? bundle}) async {

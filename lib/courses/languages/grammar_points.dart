@@ -3,6 +3,7 @@ export 'package:turna/courses/languages/language_content_store.dart'
 
 import 'package:turna/courses/languages/language_content_store.dart';
 import 'package:turna/domain/course/grammar_point.dart';
+import 'package:turna/domain/course/language_codes.dart';
 
 /// Grammar points for the grammar-review SRS queue.
 ///
@@ -18,7 +19,8 @@ Future<List<GrammarPoint>> loadGrammarPoints([String? languageCode]) async {
       : LanguageContentStore.of(languageCode);
   await store.ensureLoaded();
   if (languageCode == null ||
-      languageCode == LanguageContentStore.activeCode) {
+      LanguageCodes.canonicalize(languageCode) ==
+          LanguageContentStore.activeCode) {
     store.publishGlobals();
   }
   return store.grammarPoints;

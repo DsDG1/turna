@@ -47,11 +47,15 @@ abstract class ICourseRepository {
 
   /// Bulk-write a full section tree (units + lessons + lesson contents) in a
   /// single transaction, upserting by id. Used by importers (Anki decks);
-  /// language courses still flow through the seeder.
-  Future<void> bulkInsertCourseTree(Section section);
+  /// language courses still flow through the seeder. [languageCode] tags the
+  /// rows' `language_code`; `null` derives it (Anki-level sections → 'anki',
+  /// otherwise 'tr').
+  Future<void> bulkInsertCourseTree(Section section, {String? languageCode});
 
   /// Bulk-write vocabulary entries (upsert by id). Used by importers.
-  Future<void> bulkInsertVocabulary(List<WordEntry> words);
+  /// [languageCode] tags the rows; `null` means 'anki' (the importer path).
+  Future<void> bulkInsertVocabulary(List<WordEntry> words,
+      {String? languageCode});
 
   /// Delete vocabulary entries whose tags contain [tag] (exact list-element
   /// match on the JSON-encoded tags column). Returns the number of rows

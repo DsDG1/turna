@@ -316,4 +316,79 @@ void main() {
       expect(pair.back, 'zh');
     });
   });
+
+  group('signatureChars (per-language signature)', () {
+    const frSignature = 'àâæçéèêëîïôœùûüÿÀÂÆÇÉÈÊËÎÏÔŒÙÛÜŸ';
+
+    test('French signature letters route to the French target', () {
+      expect(
+        detector.detect('écouter',
+            targetLanguage: 'fr',
+            nativeLanguage: native,
+            signatureChars: frSignature),
+        'fr',
+      );
+      expect(
+        detector.detect('français',
+            targetLanguage: 'fr',
+            nativeLanguage: native,
+            signatureChars: frSignature),
+        'fr',
+      );
+      // Plain-ASCII French stays ambiguous -> native fallback, as before.
+      expect(
+        detector.detect('bonjour',
+            targetLanguage: 'fr',
+            nativeLanguage: native,
+            signatureChars: frSignature),
+        native,
+      );
+    });
+
+    test('French signature drives MCQ option inference', () {
+      // "écouter" reads as French -> the options are the native language.
+      expect(
+        detector.inferOptionLanguage('écouter',
+            targetLanguage: 'fr',
+            nativeLanguage: native,
+            signatureChars: frSignature),
+        native,
+      );
+      expect(
+        detector.inferOptionLanguage('bonjour',
+            targetLanguage: 'fr',
+            nativeLanguage: native,
+            signatureChars: frSignature),
+        'fr',
+      );
+    });
+
+    test('French signature drives Anki front/back pairing', () {
+      final pair = detector.detectCardPair('écouter', 'to listen',
+          targetLanguage: 'fr',
+          nativeLanguage: native,
+          signatureChars: frSignature);
+      expect(pair.front, 'fr');
+      expect(pair.back, native);
+    });
+
+    test('empty signature disables signature matching entirely', () {
+      // A language with no distinguishing letters: Turkish-specific letters
+      // must NOT mark text as that target.
+      expect(
+        detector.detect('teşekkürler',
+            targetLanguage: 'de',
+            nativeLanguage: native,
+            signatureChars: ''),
+        native,
+      );
+      expect(
+        detector.inferOptionLanguage('teşekkürler',
+            targetLanguage: 'de',
+            nativeLanguage: native,
+            signatureChars: ''),
+        'de',
+      );
+    });
+  });
 }
