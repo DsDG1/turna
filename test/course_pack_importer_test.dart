@@ -386,4 +386,91 @@ void main() {
       throwsA(isA<CoursePackImportException>()),
     );
   });
+
+  test('nested media/ paths are rejected', () async {
+    // `media/media/x.jpg` would write under media/media/ on disk while
+    // turnapack:// resolution strips one level — the ref could never
+    // resolve, so the pack is refused up front.
+    final zip = _zipOf(
+      _miniPack(format: 'turnapack/2', imageAsset: 'media/media/x.jpg'),
+      {'media/x.jpg': const [0xFF, 0xD8, 0xFF, 0xD9]},
+    );
+    expect(
+      () => importer().importFromBytes(zip),
+      throwsA(isA<CoursePackImportException>()),
+    );
+  });
+
+  test('index sections[].id must match the section file id', () async {
+    final pack = _miniPack();
+    final index = pack['files']['index.json'] as Map<String, dynamic>;
+    (index['sections'] as List).first['id'] = 'll-es-s-9';
+    expect(
+      () => importer().importFromString(jsonEncode(pack)),
+      throwsA(isA<CoursePackImportException>()),
+    );
+  });
+
+  test('non-UTF8 bytes surface a clean import error', () async {
+    expect(
+      () => importer().importFromBytes(const [0xFF, 0xFE, 0x00, 0x01]),
+      throwsA(isA<CoursePackImportException>()),
+    );
+  });
+
+  test('reimport replaces extracted media', () async {
+    final jpeg = [0xFF, 0xD8, 0xFF, 0xD9];
+    await importer().importFromBytes(
+      _zipOf(_miniPack(format: 'turnapack/2', imageAsset: 'media/a.jpg'),
+          {'a.jpg': jpeg}),
+    );
+    await importer().importFromBytes(
+      _zipOf(_miniPack(format: 'turnapack/2', imageAsset: 'media/b.jpg'),
+          {'b.jpg': jpeg}),
+    );
+    final mediaDir = Directory(p.join(persistDir.path, 'es', 'media'));
+    expect(File(p.join(mediaDir.path, 'a.jpg')).existsSync(), isFalse);
+    expect(File(p.join(mediaDir.path, 'b.jpg')).existsSync(), isTrue);
+    expect(
+      Directory('${mediaDir.path}.staging').existsSync(),
+      isFalse,
+      reason: 'staging dir must be consumed by the rename',
+    );
+  });
+
+  test('failed reimport of an uninstalled language keeps its marker',
+      () async {
+    await importer().importFromString(jsonEncode(_miniPack()));
+    await db.into(db.courseMeta).insertOnConflictUpdate(
+          CourseMetaCompanion.insert(
+            key: 'uninstalled:es',
+            value: '1',
+          ),
+        );
+    expect(
+      () => importer(fail: () async => throw StateError('boom'))
+          .importFromString(jsonEncode(_miniPack())),
+      throwsA(anything),
+    );
+    final markers = await (db.select(db.courseMeta)
+          ..where((t) => t.key.equals('uninstalled:es')))
+        .get();
+    expect(markers, hasLength(1),
+        reason: 'marker must survive so the language stays restorable');
+  });
+
+  test('successful reimport clears a stale uninstall marker', () async {
+    await importer().importFromString(jsonEncode(_miniPack()));
+    await db.into(db.courseMeta).insertOnConflictUpdate(
+          CourseMetaCompanion.insert(
+            key: 'uninstalled:es',
+            value: '1',
+          ),
+        );
+    await importer().importFromString(jsonEncode(_miniPack()));
+    final markers = await (db.select(db.courseMeta)
+          ..where((t) => t.key.equals('uninstalled:es')))
+        .get();
+    expect(markers, isEmpty);
+  });
 }

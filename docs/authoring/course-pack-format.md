@@ -55,6 +55,8 @@ media/hola.mp3
 
 允许的扩展名：`.jpg` `.jpeg` `.png` `.webp` `.gif` `.mp3` `.ogg` `.wav` `.m4a` `.aac` `.opus`。
 
+`media/` 只收平铺文件名，不允许嵌套子目录（`media/media/x.jpg`、`media/sub/x.jpg` 一律拒绝）——`turnapack://` 解析按单层剥前缀处理，嵌套路径落盘后永远无法解析。
+
 ## 硬规则
 
 - `format` 精确白名单 `turnapack/1` 与 `turnapack/2`；未知值拒绝。
@@ -78,3 +80,12 @@ python tool/librelingo_import.py \
 `--code` 一律来自 CLI，不读取 LibreLingo `IETF BCP 47`（`test-1` 不合正则）。
 
 `Modules` / `Skills` / `New words` 等内容块嵌在头块（`Course:` / `Module:` / `Skill:`）内或与其平级均可——test-1 fixture 用嵌套形态，真实仓库（`LibreLingo-ES-from-EN`，module 名带尾斜杠）用平级形态，两者都支持。真实课程需单独浅克隆到仓库旁并在转换后跑 `course_cli.py validate`（when-present 测试 `test_real_es_course_converts_and_validates_when_present`）。
+
+转换器的几条生成规则（防碰撞 / 达标）：
+
+- 词条/表达 id 由 `slugify(term)` 派生；折叠后丢信息的词（带重音、非拉丁文字）自动加 `-<sha256 前 6 位>` 后缀保证唯一，同词重复转换结果稳定。
+- 一个模块内 lesson 数按 30 切成多个 unit（`ll-<code>-u-<m>-<k>`）——运行时校验单 unit 上限 40 课。
+- lesson id 取 skill `Id`，撞名时追加序号后缀。
+- 选择题选项做确定性乱序，`correctIndex` 不再恒为 0；干扰项排除题干文本本身。
+- Mini-dictionary 按 `Language.Name` / `For speakers of.Name` 选目标语桶，多义项逗号合并。
+- `Special characters` 自动映射到 `signatureChars`（`--signature-chars` 可覆盖）。

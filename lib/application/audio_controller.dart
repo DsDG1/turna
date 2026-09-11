@@ -372,11 +372,13 @@ class AudioController {
     final asset = resolved.audioAsset;
     if (asset != null && asset.isNotEmpty) {
       if (CoursePackMedia.isPackAsset(asset)) {
-        await playCoursePackMedia(asset);
+        if (await playCoursePackMedia(asset)) return;
+        // Extracted media missing (e.g. backup restored without the
+        // imported_courses tree) — fall through to TTS on the term.
+      } else {
+        await speakFromAsset(asset);
         return;
       }
-      await speakFromAsset(asset);
-      return;
     }
     if (await playOfficialMediaFile(wordId)) return;
     await speak(resolved.speakText);
@@ -449,7 +451,12 @@ class AudioController {
       if (AnkiAudioResolver.isAnkiAsset(asset)) {
         await playAnkiMedia(asset);
       } else if (CoursePackMedia.isPackAsset(asset)) {
-        await playCoursePackMedia(asset);
+        if (await playCoursePackMedia(asset)) return;
+        if (text.isNotEmpty) {
+          // Pack media file missing — speak the transcript rather than
+          // staying silent.
+          await speak(text);
+        }
       } else if (isAssetPath(asset)) {
         await speakFromAsset(asset);
       } else if (await playOfficialMediaFile(asset)) {

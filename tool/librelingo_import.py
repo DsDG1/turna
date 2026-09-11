@@ -42,6 +42,9 @@ IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 AUDIO_EXTS = {".mp3", ".ogg", ".wav", ".m4a", ".aac", ".opus"}
 _MEDIA_SIDECAR = "_media"
 
+# Soft target: ~30 lessons per unit; the runtime validator hard-fails at 40.
+UNIT_LESSON_CHUNK = 30
+
 
 class MediaLibrary:
     """Index image/audio files by lowercase stem and filename."""
@@ -100,6 +103,10 @@ def slugify(text: str) -> str:
     folded = ID_SAFE_RE.sub("-", (text or "").strip().lower())
     folded = HYPHEN_RE.sub("-", folded).strip("-")
     return folded or "x"
+
+
+def short_hash(text: str, length: int = 6) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:length]
 
 
 def prefixed(code: str, kind: str, fragment: str) -> str:
@@ -196,22 +203,40 @@ def parse_skill_phrases(skill: dict[str, Any]) -> list[dict[str, Any]]:
     return phrases
 
 
-def parse_mini_dictionary_target(skill: dict[str, Any]) -> list[tuple[str, str]]:
+def parse_mini_dictionary_target(
+    skill: dict[str, Any],
+    *,
+    source_name: str = "",
+    target_name: str = "",
+) -> list[tuple[str, str]]:
     """Target-language side of Mini-dictionary → (term, translation).
 
     The source-language direction is discarded (Turna dictionary is global
-    on the target side).
+    on the target side). The target bucket is picked by name — a course for
+    non-English speakers must not read its own source language as target.
     """
     block = skill.get(_SKILL_DICT)
     if not isinstance(block, dict):
         return []
-    # Prefer a non-English bucket as the target-language side.
+    source_l = source_name.strip().lower()
+    target_l = target_name.strip().lower()
     target_entries: Any = None
-    for key, value in block.items():
-        if str(key).strip().lower() == "english":
-            continue
-        target_entries = value
-        break
+    if target_l:
+        for key, value in block.items():
+            if str(key).strip().lower() == target_l:
+                target_entries = value
+                break
+    if target_entries is None and source_l:
+        for key, value in block.items():
+            if str(key).strip().lower() != source_l:
+                target_entries = value
+                break
+    if target_entries is None:
+        for key, value in block.items():
+            if str(key).strip().lower() == "english":
+                continue
+            target_entries = value
+            break
     if target_entries is None:
         return []
     pairs: list[tuple[str, str]] = []
@@ -219,15 +244,15 @@ def parse_mini_dictionary_target(skill: dict[str, Any]) -> list[tuple[str, str]]
         if isinstance(item, dict):
             for term, meaning in item.items():
                 term_s = str(term).strip()
-                if not term_s:
-                    continue
-                if isinstance(meaning, list) and meaning:
-                    meaning_s = str(meaning[0]).strip()
+                if isinstance(meaning, list):
+                    meaning_s = ", ".join(
+                        m for m in (str(x).strip() for x in meaning) if m
+                    )
                 else:
                     meaning_s = str(meaning or "").strip()
+                if not term_s or not meaning_s:
+                    continue
                 pairs.append((term_s, meaning_s))
-        elif isinstance(item, str) and item.strip():
-            pairs.append((item.strip(), ""))
     return pairs
 
 
@@ -244,6 +269,8 @@ class CourseBuilder:
         default_level: str | None,
         signature_chars: str | None,
         media: MediaLibrary | None = None,
+        source_name: str = "",
+        target_name: str = "",
     ) -> None:
         if not CODE_RE.fullmatch(code):
             raise ValueError(
@@ -259,6 +286,8 @@ class CourseBuilder:
         self.default_level = default_level
         self.signature_chars = signature_chars
         self.media = media or MediaLibrary([])
+        self.source_name = source_name
+        self.target_name = target_name
         self.media_files: dict[str, Path] = {}
         self._media_names: set[str] = set()
         self.words_by_id: dict[str, dict[str, Any]] = {}
@@ -266,12 +295,31 @@ class CourseBuilder:
         self.sections: list[dict[str, Any]] = []
         self._lesson_seq = 0
         self._item_seq = 0
+        self._lesson_ids: set[str] = set()
+        # slug → owning term, per id kind ("w" / "e"). slugify() folds every
+        # non-[a-z0-9-] char to "-", so accent-minimal pairs (más/mús) and
+        # whole non-Latin scripts collide; collisions get a deterministic
+        # hash suffix instead of silently merging two different words.
+        self._slug_owner: dict[str, dict[str, str]] = {"w": {}, "e": {}}
+
+    def _unique_slug(self, kind: str, text: str) -> str:
+        owners = self._slug_owner[kind]
+        base = slugify(text)
+        if base == text.strip().lower() and owners.get(base) in (None, text):
+            owners[base] = text
+            return base
+        for length in (6, 12, 24):
+            candidate = f"{base}-{short_hash(text, length)}"
+            if owners.get(candidate) in (None, text):
+                owners[candidate] = text
+                return candidate
+        raise ValueError(f"cannot derive a unique id slug for {text!r}")
 
     def word_id(self, term: str) -> str:
-        return prefixed(self.code, "w", slugify(term))
+        return prefixed(self.code, "w", self._unique_slug("w", term))
 
     def expression_id(self, phrase: str) -> str:
-        return prefixed(self.code, "e", slugify(phrase))
+        return prefixed(self.code, "e", self._unique_slug("e", phrase))
 
     def next_item_id(self, kind: str) -> str:
         self._item_seq += 1
@@ -354,11 +402,22 @@ class CourseBuilder:
         return eid
 
     def distractors(
-        self, correct: str, *, skill_terms: list[str], limit: int = 3
+        self,
+        correct: str,
+        *,
+        skill_terms: list[str],
+        limit: int = 3,
+        exclude: str | None = None,
     ) -> list[str]:
-        """Pick unique translations/terms different from [correct]."""
+        """Pick unique translations/terms different from [correct].
+
+        [exclude] keeps the prompt string itself out of the pool — otherwise
+        a translation prompt can appear as one of its own options.
+        """
         pool: list[str] = []
         seen = {correct}
+        if exclude:
+            seen.add(exclude)
         for term in skill_terms:
             if term and term not in seen:
                 seen.add(term)
@@ -373,16 +432,19 @@ class CourseBuilder:
     def multiple_choice(
         self, prompt: str, correct: str, skill_terms: list[str]
     ) -> dict[str, Any] | None:
-        distractors = self.distractors(correct, skill_terms=skill_terms)
+        distractors = self.distractors(
+            correct, skill_terms=skill_terms, exclude=prompt
+        )
         if len(distractors) < 3:
             return None
-        options = [correct, *distractors[:3]]
+        item_id = self.next_item_id("mc")
+        options = fisher_yates([correct, *distractors[:3]], item_id)
         return {
             "runtimeType": "multipleChoice",
-            "id": self.next_item_id("mc"),
+            "id": item_id,
             "prompt": prompt,
             "options": options,
-            "correctIndex": 0,
+            "correctIndex": options.index(correct),
         }
 
     def fill_blank(self, term: str, translation: str) -> dict[str, Any]:
@@ -459,14 +521,15 @@ class CourseBuilder:
         if len(correct) < 2:
             return None
         seed_key = f"ll-{self.code}-{phrase_id}"
-        scrambled = fisher_yates(correct, seed_key)
         extras: list[str] = []
         for chip in chip_pool:
             if chip and chip not in correct and chip not in extras:
                 extras.append(chip)
             if len(extras) >= 2:
                 break
-        scrambled = scrambled + extras
+        # Decoy chips are shuffled into the pool, not appended — appending
+        # pinned them to the tail where the pattern was trivially readable.
+        scrambled = fisher_yates(correct + extras, seed_key)
         return {
             "runtimeType": "reorderSentence",
             "id": self.next_item_id("rs"),
@@ -493,9 +556,6 @@ class CourseBuilder:
         stored = self.words_by_id[wid]
         audio_rel = stored.get("_audio")
         image_rel = stored.get("_image")
-        hints = list(word.get("synonyms") or []) + list(
-            word.get("also_accepted") or []
-        )
         items: list[dict[str, Any]] = [
             self.show_word(
                 wid,
@@ -503,19 +563,27 @@ class CourseBuilder:
                 word["translation"],
                 image_asset=image_rel,
             ),
-            self.translate_sentence(
-                word["translation"] or word["term"],
-                word["term"],
-                hints,
-            ),
         ]
-        mc = self.multiple_choice(
-            word["translation"] or word["term"],
-            word["term"],
-            skill_terms,
-        )
-        if mc is not None:
-            items.append(mc)
+        # No/self translation → translation exercises would be degenerate
+        # "copy the prompt" items; keep showWord/fillBlank/dictation only.
+        if word["translation"] and word["translation"] != word["term"]:
+            hints = list(word.get("synonyms") or []) + list(
+                word.get("also_accepted") or []
+            )
+            items.append(
+                self.translate_sentence(
+                    word["translation"],
+                    word["term"],
+                    hints,
+                )
+            )
+            mc = self.multiple_choice(
+                word["translation"],
+                word["term"],
+                skill_terms,
+            )
+            if mc is not None:
+                items.append(mc)
         items.append(self.fill_blank(word["term"], word["translation"]))
         if listening:
             lap = self.listen_and_pick(
@@ -526,13 +594,15 @@ class CourseBuilder:
             items.append(
                 self.type_the_word(wid, word["term"], audio_asset=audio_rel)
             )
-        slug = slugify(word["term"])
+        # Derive the sub-lesson/stage ids from the (already disambiguated)
+        # word id — two words sharing a slug get distinct ids this way.
+        frag = wid[len(f"ll-{self.code}-w-"):]
         return {
-            "id": prefixed(self.code, "sl", slug),
+            "id": prefixed(self.code, "sl", frag),
             "name": word["term"],
             "stages": [
                 {
-                    "id": prefixed(self.code, "st", slug),
+                    "id": prefixed(self.code, "st", frag),
                     "name": "Learn & produce",
                     "items": items,
                 }
@@ -555,17 +625,21 @@ class CourseBuilder:
                 phrase["translation"],
                 alternatives=phrase.get("alternatives"),
             )
-            hints = list(phrase.get("alternatives") or [])
-            items.append(
-                self.translate_sentence(
-                    phrase["translation"], phrase["phrase"], hints
+            if (
+                phrase["translation"]
+                and phrase["translation"] != phrase["phrase"]
+            ):
+                hints = list(phrase.get("alternatives") or [])
+                items.append(
+                    self.translate_sentence(
+                        phrase["translation"], phrase["phrase"], hints
+                    )
                 )
-            )
-            mc = self.multiple_choice(
-                phrase["translation"], phrase["phrase"], skill_terms
-            )
-            if mc is not None:
-                items.append(mc)
+                mc = self.multiple_choice(
+                    phrase["translation"], phrase["phrase"], skill_terms
+                )
+                if mc is not None:
+                    items.append(mc)
             reorder = self.reorder(phrase["phrase"], eid, chip_pool)
             if reorder is not None:
                 items.append(reorder)
@@ -610,7 +684,11 @@ class CourseBuilder:
             phrases = parse_skill_phrases(skill)
             if not words and not phrases:
                 continue
-            for pair in parse_mini_dictionary_target(skill):
+            for pair in parse_mini_dictionary_target(
+                skill,
+                source_name=self.source_name,
+                target_name=self.target_name,
+            ):
                 self.add_word(pair[0], pair[1], tags=["noun"])
             skill_terms = [w["term"] for w in words] + [p["phrase"] for p in phrases]
             chip_pool = [w["term"] for w in self.words_by_id.values()]
@@ -621,12 +699,26 @@ class CourseBuilder:
             raw_id = skill.get("Id", self._lesson_seq)
             lesson_frag = slugify(str(raw_id))
             lesson_id = prefixed(self.code, "l", lesson_frag)
+            # Skill "Id" is a course-local number with no uniqueness
+            # guarantee across modules — suffix on collision instead of
+            # producing duplicate lesson ids (the validator hard-fails).
+            suffix = 1
+            while lesson_id in self._lesson_ids:
+                suffix += 1
+                lesson_id = prefixed(self.code, "l", f"{lesson_frag}-{suffix}")
+            self._lesson_ids.add(lesson_id)
             use_intro = len(words) >= len(phrases) and bool(words)
             if use_intro:
-                sub_lessons = [
-                    self.intro_sublesson(w, skill_terms, listening=listening)
-                    for w in words
-                ]
+                sub_lessons = []
+                seen_sub_ids: set[str] = set()
+                for w in words:
+                    sub = self.intro_sublesson(
+                        w, skill_terms, listening=listening
+                    )
+                    if sub["id"] in seen_sub_ids:
+                        continue
+                    seen_sub_ids.add(sub["id"])
+                    sub_lessons.append(sub)
                 if phrases:
                     p_items = self.practice_items(
                         phrases, skill_terms, chip_pool, [], listening=False
@@ -686,7 +778,31 @@ class CourseBuilder:
         if not lessons:
             return None
         section_id = prefixed(self.code, "s", str(index + 1))
-        unit_id = prefixed(self.code, "u", str(index + 1))
+        # A LibreLingo module can carry far more skills than the app allows
+        # per unit (kMaxLessonsPerUnit = 40) — chunk into units of 30.
+        chunks = [
+            lessons[i : i + UNIT_LESSON_CHUNK]
+            for i in range(0, len(lessons), UNIT_LESSON_CHUNK)
+        ]
+        units: list[dict[str, Any]] = []
+        for chunk_index, chunk in enumerate(chunks):
+            if len(chunks) == 1:
+                unit_id = prefixed(self.code, "u", str(index + 1))
+                unit_name = module_name
+            else:
+                unit_id = prefixed(
+                    self.code, "u", f"{index + 1}-{chunk_index + 1}"
+                )
+                unit_name = f"{module_name} ({chunk_index + 1})"
+            units.append(
+                {
+                    "id": unit_id,
+                    "name": unit_name,
+                    "description": module_name,
+                    "prerequisiteUnitIds": [units[-1]["id"]] if units else [],
+                    "lessons": chunk,
+                }
+            )
         if self.default_level:
             level = self.default_level
         elif total <= 1:
@@ -702,15 +818,7 @@ class CourseBuilder:
             "name": module_name,
             "description": module_name,
             "prerequisiteSectionIds": [prev_section_id] if prev_section_id else [],
-            "units": [
-                {
-                    "id": unit_id,
-                    "name": module_name,
-                    "description": module_name,
-                    "prerequisiteUnitIds": [],
-                    "lessons": lessons,
-                }
-            ],
+            "units": units,
         }
         self.sections.append({"section": section, "level": level, "file": f"sections/{section_id}.json"})
         return section_id
@@ -804,6 +912,14 @@ def convert_course(
     native_label = str(
         language_block.get("Name") or display_name
     )
+    # Used to pick the Mini-dictionary bucket that is the target language —
+    # the "first non-English" heuristic breaks for -from-XX courses.
+    target_name = str(language_block.get("Name") or "")
+    speakers_block = course.get("For speakers of") or {}
+    source_name = str(speakers_block.get("Name") or "")
+    # LibreLingo "Special characters" is exactly what signatureChars feeds
+    # (LanguageDetector signature set) — adopt it unless overridden.
+    special_chars = "".join(_string_list(course.get("Special characters")))
     license_block = course.get("License") or {}
     license_info = {
         "name": str(
@@ -838,8 +954,10 @@ def convert_course(
         license_info=license_info,
         pack_version=pack_version,
         default_level=default_level,
-        signature_chars=signature_chars,
+        signature_chars=signature_chars or (special_chars or None),
         media=media,
+        source_name=source_name,
+        target_name=target_name,
     )
     prev_section: str | None = None
     total = len(modules)

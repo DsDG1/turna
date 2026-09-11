@@ -5,7 +5,8 @@
     "code": "es",
     "displayName": "Spanish",
     "ttsLocale": "es-ES",
-    "nativeLabel": "Test Language"
+    "nativeLabel": "Test Language",
+    "signatureChars": "áÁéÉíÍóÓúÚüÜñÑ¿¡"
   },
   "license": {
     "name": "CC BY-SA 4.0",
@@ -105,7 +106,7 @@
           ]
         },
         {
-          "id": "ll-es-w-le-n",
+          "id": "ll-es-w-le-n-3d3fe0",
           "term": "león",
           "translation": "lion",
           "tags": [
@@ -129,7 +130,7 @@
           ]
         },
         {
-          "id": "ll-es-w-el-gato",
+          "id": "ll-es-w-el-gato-b7860d",
           "term": "el gato",
           "translation": "the cat",
           "tags": [
@@ -137,7 +138,7 @@
           ]
         },
         {
-          "id": "ll-es-w-un-oso",
+          "id": "ll-es-w-un-oso-2c1c3f",
           "term": "un oso",
           "translation": "a bear",
           "tags": [
@@ -145,7 +146,7 @@
           ]
         },
         {
-          "id": "ll-es-w-un-le-n",
+          "id": "ll-es-w-un-le-n-7aeaa6",
           "term": "un león",
           "translation": "a lion",
           "tags": [
@@ -153,7 +154,7 @@
           ]
         },
         {
-          "id": "ll-es-w-el-pato",
+          "id": "ll-es-w-el-pato-cf80c9",
           "term": "el pato",
           "translation": "the duck",
           "tags": [
@@ -161,7 +162,7 @@
           ]
         },
         {
-          "id": "ll-es-w-un-caballo",
+          "id": "ll-es-w-un-caballo-0c056a",
           "term": "un caballo",
           "translation": "a horse",
           "tags": [
@@ -169,7 +170,7 @@
           ]
         },
         {
-          "id": "ll-es-w-el-perro",
+          "id": "ll-es-w-el-perro-cccb32",
           "term": "el perro",
           "translation": "the dog",
           "tags": [
@@ -209,7 +210,7 @@
           ]
         },
         {
-          "id": "ll-es-w-c-mo-est-s-tu",
+          "id": "ll-es-w-c-mo-est-s-tu-2575cd",
           "term": "Cómo estás tu?",
           "translation": "How are you?",
           "tags": [
@@ -225,7 +226,7 @@
           ]
         },
         {
-          "id": "ll-es-w-est-s",
+          "id": "ll-es-w-est-s-9803d0",
           "term": "estás",
           "translation": "how",
           "tags": [
@@ -287,7 +288,7 @@
       "language": "es",
       "expressions": [
         {
-          "id": "ll-es-e-es-un-caballo",
+          "id": "ll-es-e-es-un-caballo-e8952e",
           "term": "Es un caballo",
           "translation": "It's a horse",
           "tags": [
@@ -295,7 +296,7 @@
           ]
         },
         {
-          "id": "ll-es-e-max-es-un-perro",
+          "id": "ll-es-e-max-es-un-perro-a896a5",
           "term": "Max es un perro",
           "translation": "Max is a dog",
           "tags": [
@@ -303,7 +304,7 @@
           ]
         },
         {
-          "id": "ll-es-e-un-pato-y-un-caballo",
+          "id": "ll-es-e-un-pato-y-un-caballo-a2c4ef",
           "term": "Un pato y un caballo",
           "translation": "A duck and a horse",
           "tags": [
@@ -319,7 +320,7 @@
           ]
         },
         {
-          "id": "ll-es-e-le-n",
+          "id": "ll-es-e-le-n-3d3fe0",
           "term": "león",
           "translation": "lion",
           "tags": [
@@ -335,7 +336,7 @@
           ]
         },
         {
-          "id": "ll-es-e-como-est-s-hoy",
+          "id": "ll-es-e-como-est-s-hoy-fd00af",
           "term": "¿Como, estás hoy?",
           "translation": "How are you today?",
           "tags": [
@@ -343,7 +344,7 @@
           ]
         },
         {
-          "id": "ll-es-e-tu-como-est-s-hoy",
+          "id": "ll-es-e-tu-como-est-s-hoy-31a1fd",
           "term": "Tu como estás hoy?",
           "translation": "How are you today?",
           "tags": [
@@ -405,12 +406,12 @@
                             "id": "ll-es-i-mc-3",
                             "prompt": "dog",
                             "options": [
-                              "perro",
-                              "gato",
                               "oso",
-                              "león"
+                              "gato",
+                              "león",
+                              "perro"
                             ],
-                            "correctIndex": 0
+                            "correctIndex": 3
                           },
                           {
                             "runtimeType": "fillBlank",
@@ -456,12 +457,12 @@
                             "id": "ll-es-i-mc-8",
                             "prompt": "cat",
                             "options": [
+                              "oso",
                               "gato",
                               "perro",
-                              "oso",
                               "león"
                             ],
-                            "correctIndex": 0
+                            "correctIndex": 1
                           },
                           {
                             "runtimeType": "fillBlank",
@@ -507,12 +508,12 @@
                             "id": "ll-es-i-mc-13",
                             "prompt": "bear",
                             "options": [
-                              "oso",
+                              "león",
                               "perro",
-                              "gato",
-                              "león"
+                              "oso",
+                              "gato"
                             ],
-                            "correctIndex": 0
+                            "correctIndex": 2
                           },
                           {
                             "runtimeType": "fillBlank",
@@ -533,17 +534,17 @@
                     ]
                   },
                   {
-                    "id": "ll-es-sl-le-n",
+                    "id": "ll-es-sl-le-n-3d3fe0",
                     "name": "león",
                     "stages": [
                       {
-                        "id": "ll-es-st-le-n",
+                        "id": "ll-es-st-le-n-3d3fe0",
                         "name": "Learn & produce",
                         "items": [
                           {
                             "runtimeType": "showWord",
                             "id": "ll-es-i-sw-16",
-                            "wordId": "ll-es-w-le-n",
+                            "wordId": "ll-es-w-le-n-3d3fe0",
                             "context": "león — lion"
                           },
                           {
@@ -558,12 +559,12 @@
                             "id": "ll-es-i-mc-18",
                             "prompt": "lion",
                             "options": [
-                              "león",
-                              "perro",
                               "gato",
-                              "oso"
+                              "oso",
+                              "perro",
+                              "león"
                             ],
-                            "correctIndex": 0
+                            "correctIndex": 3
                           },
                           {
                             "runtimeType": "fillBlank",
@@ -575,7 +576,7 @@
                           {
                             "runtimeType": "typeTheWord",
                             "id": "ll-es-i-ttw-20",
-                            "audioAsset": "ll-es-w-le-n",
+                            "audioAsset": "ll-es-w-le-n-3d3fe0",
                             "prompt": "Type what you hear",
                             "expected": "león"
                           }
@@ -609,12 +610,12 @@
                             "id": "ll-es-i-mc-23",
                             "prompt": "duck",
                             "options": [
+                              "oso",
                               "pato",
-                              "perro",
                               "gato",
-                              "oso"
+                              "perro"
                             ],
-                            "correctIndex": 0
+                            "correctIndex": 1
                           },
                           {
                             "runtimeType": "fillBlank",
@@ -660,12 +661,12 @@
                             "id": "ll-es-i-mc-28",
                             "prompt": "horse",
                             "options": [
-                              "caballo",
-                              "perro",
                               "gato",
-                              "oso"
+                              "caballo",
+                              "oso",
+                              "perro"
                             ],
-                            "correctIndex": 0
+                            "correctIndex": 1
                           },
                           {
                             "runtimeType": "fillBlank",
@@ -686,17 +687,17 @@
                     ]
                   },
                   {
-                    "id": "ll-es-sl-el-gato",
+                    "id": "ll-es-sl-el-gato-b7860d",
                     "name": "el gato",
                     "stages": [
                       {
-                        "id": "ll-es-st-el-gato",
+                        "id": "ll-es-st-el-gato-b7860d",
                         "name": "Learn & produce",
                         "items": [
                           {
                             "runtimeType": "showWord",
                             "id": "ll-es-i-sw-31",
-                            "wordId": "ll-es-w-el-gato",
+                            "wordId": "ll-es-w-el-gato-b7860d",
                             "context": "el gato — the cat"
                           },
                           {
@@ -712,9 +713,9 @@
                             "prompt": "the cat",
                             "options": [
                               "el gato",
-                              "perro",
                               "gato",
-                              "oso"
+                              "oso",
+                              "perro"
                             ],
                             "correctIndex": 0
                           },
@@ -728,7 +729,7 @@
                           {
                             "runtimeType": "typeTheWord",
                             "id": "ll-es-i-ttw-35",
-                            "audioAsset": "ll-es-w-el-gato",
+                            "audioAsset": "ll-es-w-el-gato-b7860d",
                             "prompt": "Type what you hear",
                             "expected": "el gato"
                           }
@@ -737,17 +738,17 @@
                     ]
                   },
                   {
-                    "id": "ll-es-sl-un-oso",
+                    "id": "ll-es-sl-un-oso-2c1c3f",
                     "name": "un oso",
                     "stages": [
                       {
-                        "id": "ll-es-st-un-oso",
+                        "id": "ll-es-st-un-oso-2c1c3f",
                         "name": "Learn & produce",
                         "items": [
                           {
                             "runtimeType": "showWord",
                             "id": "ll-es-i-sw-36",
-                            "wordId": "ll-es-w-un-oso",
+                            "wordId": "ll-es-w-un-oso-2c1c3f",
                             "context": "un oso — a bear"
                           },
                           {
@@ -762,12 +763,12 @@
                             "id": "ll-es-i-mc-38",
                             "prompt": "a bear",
                             "options": [
+                              "gato",
                               "un oso",
                               "perro",
-                              "gato",
                               "oso"
                             ],
-                            "correctIndex": 0
+                            "correctIndex": 1
                           },
                           {
                             "runtimeType": "fillBlank",
@@ -779,7 +780,7 @@
                           {
                             "runtimeType": "typeTheWord",
                             "id": "ll-es-i-ttw-40",
-                            "audioAsset": "ll-es-w-un-oso",
+                            "audioAsset": "ll-es-w-un-oso-2c1c3f",
                             "prompt": "Type what you hear",
                             "expected": "un oso"
                           }
@@ -788,17 +789,17 @@
                     ]
                   },
                   {
-                    "id": "ll-es-sl-un-le-n",
+                    "id": "ll-es-sl-un-le-n-7aeaa6",
                     "name": "un león",
                     "stages": [
                       {
-                        "id": "ll-es-st-un-le-n",
+                        "id": "ll-es-st-un-le-n-7aeaa6",
                         "name": "Learn & produce",
                         "items": [
                           {
                             "runtimeType": "showWord",
                             "id": "ll-es-i-sw-41",
-                            "wordId": "ll-es-w-un-le-n",
+                            "wordId": "ll-es-w-un-le-n-7aeaa6",
                             "context": "un león — a lion"
                           },
                           {
@@ -813,12 +814,12 @@
                             "id": "ll-es-i-mc-43",
                             "prompt": "a lion",
                             "options": [
+                              "oso",
                               "un león",
                               "perro",
-                              "gato",
-                              "oso"
+                              "gato"
                             ],
-                            "correctIndex": 0
+                            "correctIndex": 1
                           },
                           {
                             "runtimeType": "fillBlank",
@@ -830,7 +831,7 @@
                           {
                             "runtimeType": "typeTheWord",
                             "id": "ll-es-i-ttw-45",
-                            "audioAsset": "ll-es-w-un-le-n",
+                            "audioAsset": "ll-es-w-un-le-n-7aeaa6",
                             "prompt": "Type what you hear",
                             "expected": "un león"
                           }
@@ -839,17 +840,17 @@
                     ]
                   },
                   {
-                    "id": "ll-es-sl-el-pato",
+                    "id": "ll-es-sl-el-pato-cf80c9",
                     "name": "el pato",
                     "stages": [
                       {
-                        "id": "ll-es-st-el-pato",
+                        "id": "ll-es-st-el-pato-cf80c9",
                         "name": "Learn & produce",
                         "items": [
                           {
                             "runtimeType": "showWord",
                             "id": "ll-es-i-sw-46",
-                            "wordId": "ll-es-w-el-pato",
+                            "wordId": "ll-es-w-el-pato-cf80c9",
                             "context": "el pato — the duck"
                           },
                           {
@@ -864,12 +865,12 @@
                             "id": "ll-es-i-mc-48",
                             "prompt": "the duck",
                             "options": [
-                              "el pato",
                               "perro",
+                              "el pato",
                               "gato",
                               "oso"
                             ],
-                            "correctIndex": 0
+                            "correctIndex": 1
                           },
                           {
                             "runtimeType": "fillBlank",
@@ -881,7 +882,7 @@
                           {
                             "runtimeType": "typeTheWord",
                             "id": "ll-es-i-ttw-50",
-                            "audioAsset": "ll-es-w-el-pato",
+                            "audioAsset": "ll-es-w-el-pato-cf80c9",
                             "prompt": "Type what you hear",
                             "expected": "el pato"
                           }
@@ -890,17 +891,17 @@
                     ]
                   },
                   {
-                    "id": "ll-es-sl-un-caballo",
+                    "id": "ll-es-sl-un-caballo-0c056a",
                     "name": "un caballo",
                     "stages": [
                       {
-                        "id": "ll-es-st-un-caballo",
+                        "id": "ll-es-st-un-caballo-0c056a",
                         "name": "Learn & produce",
                         "items": [
                           {
                             "runtimeType": "showWord",
                             "id": "ll-es-i-sw-51",
-                            "wordId": "ll-es-w-un-caballo",
+                            "wordId": "ll-es-w-un-caballo-0c056a",
                             "context": "un caballo — a horse"
                           },
                           {
@@ -916,9 +917,9 @@
                             "prompt": "a horse",
                             "options": [
                               "un caballo",
+                              "oso",
                               "perro",
-                              "gato",
-                              "oso"
+                              "gato"
                             ],
                             "correctIndex": 0
                           },
@@ -932,7 +933,7 @@
                           {
                             "runtimeType": "typeTheWord",
                             "id": "ll-es-i-ttw-55",
-                            "audioAsset": "ll-es-w-un-caballo",
+                            "audioAsset": "ll-es-w-un-caballo-0c056a",
                             "prompt": "Type what you hear",
                             "expected": "un caballo"
                           }
@@ -941,17 +942,17 @@
                     ]
                   },
                   {
-                    "id": "ll-es-sl-el-perro",
+                    "id": "ll-es-sl-el-perro-cccb32",
                     "name": "el perro",
                     "stages": [
                       {
-                        "id": "ll-es-st-el-perro",
+                        "id": "ll-es-st-el-perro-cccb32",
                         "name": "Learn & produce",
                         "items": [
                           {
                             "runtimeType": "showWord",
                             "id": "ll-es-i-sw-56",
-                            "wordId": "ll-es-w-el-perro",
+                            "wordId": "ll-es-w-el-perro-cccb32",
                             "context": "el perro — the dog"
                           },
                           {
@@ -969,12 +970,12 @@
                             "id": "ll-es-i-mc-58",
                             "prompt": "the dog",
                             "options": [
-                              "el perro",
-                              "perro",
                               "gato",
-                              "oso"
+                              "oso",
+                              "perro",
+                              "el perro"
                             ],
-                            "correctIndex": 0
+                            "correctIndex": 3
                           },
                           {
                             "runtimeType": "fillBlank",
@@ -986,7 +987,7 @@
                           {
                             "runtimeType": "typeTheWord",
                             "id": "ll-es-i-ttw-60",
-                            "audioAsset": "ll-es-w-el-perro",
+                            "audioAsset": "ll-es-w-el-perro-cccb32",
                             "prompt": "Type what you hear",
                             "expected": "el perro"
                           }
@@ -1014,22 +1015,22 @@
                             "id": "ll-es-i-mc-62",
                             "prompt": "It's a horse",
                             "options": [
-                              "Es un caballo",
                               "perro",
+                              "Es un caballo",
                               "gato",
                               "oso"
                             ],
-                            "correctIndex": 0
+                            "correctIndex": 1
                           },
                           {
                             "runtimeType": "reorderSentence",
                             "id": "ll-es-i-rs-63",
                             "scrambled": [
-                              "caballo",
                               "Es",
+                              "Max",
                               "un",
-                              "es",
-                              "Max"
+                              "caballo",
+                              "es"
                             ],
                             "correct": [
                               "Es",
@@ -1051,22 +1052,22 @@
                             "id": "ll-es-i-mc-65",
                             "prompt": "Max is a dog",
                             "options": [
-                              "Max es un perro",
-                              "perro",
                               "gato",
-                              "oso"
+                              "oso",
+                              "perro",
+                              "Max es un perro"
                             ],
-                            "correctIndex": 0
+                            "correctIndex": 3
                           },
                           {
                             "runtimeType": "reorderSentence",
                             "id": "ll-es-i-rs-66",
                             "scrambled": [
-                              "un",
-                              "perro",
-                              "es",
                               "Max",
+                              "un",
                               "y",
+                              "es",
+                              "perro",
                               "buen"
                             ],
                             "correct": [
@@ -1088,24 +1089,24 @@
                             "id": "ll-es-i-mc-68",
                             "prompt": "A duck and a horse",
                             "options": [
-                              "Un pato y un caballo",
+                              "oso",
                               "perro",
                               "gato",
-                              "oso"
+                              "Un pato y un caballo"
                             ],
-                            "correctIndex": 0
+                            "correctIndex": 3
                           },
                           {
                             "runtimeType": "reorderSentence",
                             "id": "ll-es-i-rs-69",
                             "scrambled": [
                               "Un",
-                              "pato",
-                              "un",
                               "y",
+                              "Max",
                               "caballo",
                               "es",
-                              "Max"
+                              "un",
+                              "pato"
                             ],
                             "correct": [
                               "Un",
@@ -1164,12 +1165,12 @@
                             "id": "ll-es-i-mc-72",
                             "prompt": "the dog",
                             "options": [
-                              "perro",
-                              "un",
                               "a/an (masc.)",
-                              "es"
+                              "es",
+                              "perro",
+                              "un"
                             ],
-                            "correctIndex": 0
+                            "correctIndex": 2
                           },
                           {
                             "runtimeType": "fillBlank",
@@ -1209,12 +1210,12 @@
                             "id": "ll-es-i-mc-76",
                             "prompt": "dog",
                             "options": [
-                              "perro",
                               "un",
+                              "es",
                               "a/an (masc.)",
-                              "es"
+                              "perro"
                             ],
-                            "correctIndex": 0
+                            "correctIndex": 3
                           }
                         ]
                       }
@@ -1260,12 +1261,12 @@
                             "id": "ll-es-i-mc-79",
                             "prompt": "la leche",
                             "options": [
-                              "foo",
-                              "un",
+                              "es",
                               "a/an (masc.)",
-                              "es"
+                              "foo",
+                              "un"
                             ],
-                            "correctIndex": 0
+                            "correctIndex": 2
                           },
                           {
                             "runtimeType": "fillBlank",
@@ -1314,34 +1315,15 @@
                             "context": "agua — agua"
                           },
                           {
-                            "runtimeType": "translateSentence",
-                            "id": "ll-es-i-ts-83",
-                            "source": "agua",
-                            "expected": "agua",
-                            "hints": []
-                          },
-                          {
-                            "runtimeType": "multipleChoice",
-                            "id": "ll-es-i-mc-84",
-                            "prompt": "agua",
-                            "options": [
-                              "agua",
-                              "agua2",
-                              "un",
-                              "a/an (masc.)"
-                            ],
-                            "correctIndex": 0
-                          },
-                          {
                             "runtimeType": "fillBlank",
-                            "id": "ll-es-i-fb-85",
+                            "id": "ll-es-i-fb-83",
                             "sentence": "_____.",
                             "answer": "agua",
                             "hint": "agua"
                           },
                           {
                             "runtimeType": "typeTheWord",
-                            "id": "ll-es-i-ttw-86",
+                            "id": "ll-es-i-ttw-84",
                             "audioAsset": "ll-es-w-agua",
                             "prompt": "Type what you hear",
                             "expected": "agua"
@@ -1360,39 +1342,39 @@
                         "items": [
                           {
                             "runtimeType": "showWord",
-                            "id": "ll-es-i-sw-87",
+                            "id": "ll-es-i-sw-85",
                             "wordId": "ll-es-w-agua2",
                             "context": "agua2 — agua"
                           },
                           {
                             "runtimeType": "translateSentence",
-                            "id": "ll-es-i-ts-88",
+                            "id": "ll-es-i-ts-86",
                             "source": "agua",
                             "expected": "agua2",
                             "hints": []
                           },
                           {
                             "runtimeType": "multipleChoice",
-                            "id": "ll-es-i-mc-89",
+                            "id": "ll-es-i-mc-87",
                             "prompt": "agua",
                             "options": [
-                              "agua2",
-                              "agua",
                               "un",
-                              "a/an (masc.)"
+                              "a/an (masc.)",
+                              "agua2",
+                              "es"
                             ],
-                            "correctIndex": 0
+                            "correctIndex": 2
                           },
                           {
                             "runtimeType": "fillBlank",
-                            "id": "ll-es-i-fb-90",
+                            "id": "ll-es-i-fb-88",
                             "sentence": "_____.",
                             "answer": "agua2",
                             "hint": "agua"
                           },
                           {
                             "runtimeType": "typeTheWord",
-                            "id": "ll-es-i-ttw-91",
+                            "id": "ll-es-i-ttw-89",
                             "audioAsset": "ll-es-w-agua2",
                             "prompt": "Type what you hear",
                             "expected": "agua2"
@@ -1416,49 +1398,49 @@
               "content": {
                 "subLessons": [
                   {
-                    "id": "ll-es-sl-c-mo-est-s-tu",
+                    "id": "ll-es-sl-c-mo-est-s-tu-2575cd",
                     "name": "Cómo estás tu?",
                     "stages": [
                       {
-                        "id": "ll-es-st-c-mo-est-s-tu",
+                        "id": "ll-es-st-c-mo-est-s-tu-2575cd",
                         "name": "Learn & produce",
                         "items": [
                           {
                             "runtimeType": "showWord",
-                            "id": "ll-es-i-sw-92",
-                            "wordId": "ll-es-w-c-mo-est-s-tu",
+                            "id": "ll-es-i-sw-90",
+                            "wordId": "ll-es-w-c-mo-est-s-tu-2575cd",
                             "context": "Cómo estás tu? — How are you?"
                           },
                           {
                             "runtimeType": "translateSentence",
-                            "id": "ll-es-i-ts-93",
+                            "id": "ll-es-i-ts-91",
                             "source": "How are you?",
                             "expected": "Cómo estás tu?",
                             "hints": []
                           },
                           {
                             "runtimeType": "multipleChoice",
-                            "id": "ll-es-i-mc-94",
+                            "id": "ll-es-i-mc-92",
                             "prompt": "How are you?",
                             "options": [
-                              "Cómo estás tu?",
                               "un",
+                              "es",
                               "a/an (masc.)",
-                              "es"
+                              "Cómo estás tu?"
                             ],
-                            "correctIndex": 0
+                            "correctIndex": 3
                           },
                           {
                             "runtimeType": "fillBlank",
-                            "id": "ll-es-i-fb-95",
+                            "id": "ll-es-i-fb-93",
                             "sentence": "_____.",
                             "answer": "Cómo estás tu?",
                             "hint": "How are you?"
                           },
                           {
                             "runtimeType": "typeTheWord",
-                            "id": "ll-es-i-ttw-96",
-                            "audioAsset": "ll-es-w-c-mo-est-s-tu",
+                            "id": "ll-es-i-ttw-94",
+                            "audioAsset": "ll-es-w-c-mo-est-s-tu-2575cd",
                             "prompt": "Type what you hear",
                             "expected": "Cómo estás tu?"
                           }
@@ -1490,13 +1472,13 @@
                         "items": [
                           {
                             "runtimeType": "showWord",
-                            "id": "ll-es-i-sw-97",
+                            "id": "ll-es-i-sw-95",
                             "wordId": "ll-es-w-perro",
                             "context": "perro — the dog"
                           },
                           {
                             "runtimeType": "translateSentence",
-                            "id": "ll-es-i-ts-98",
+                            "id": "ll-es-i-ts-96",
                             "source": "the dog",
                             "expected": "perro",
                             "hints": [
@@ -1508,33 +1490,33 @@
                           },
                           {
                             "runtimeType": "multipleChoice",
-                            "id": "ll-es-i-mc-99",
+                            "id": "ll-es-i-mc-97",
                             "prompt": "the dog",
                             "options": [
-                              "perro",
-                              "un",
                               "a/an (masc.)",
-                              "es"
+                              "perro",
+                              "es",
+                              "un"
                             ],
-                            "correctIndex": 0
+                            "correctIndex": 1
                           },
                           {
                             "runtimeType": "fillBlank",
-                            "id": "ll-es-i-fb-100",
+                            "id": "ll-es-i-fb-98",
                             "sentence": "_____.",
                             "answer": "perro",
                             "hint": "the dog"
                           },
                           {
                             "runtimeType": "listenAndPick",
-                            "id": "ll-es-i-lap-102",
+                            "id": "ll-es-i-lap-100",
                             "audioAsset": "ll-es-w-perro",
                             "prompt": "What did you hear?",
                             "options": [
                               "perro",
-                              "un",
                               "a/an (masc.)",
-                              "es"
+                              "es",
+                              "un"
                             ],
                             "correctIndex": 0
                           }
@@ -1552,22 +1534,22 @@
                         "items": [
                           {
                             "runtimeType": "translateSentence",
-                            "id": "ll-es-i-ts-103",
+                            "id": "ll-es-i-ts-101",
                             "source": "dog",
                             "expected": "perro",
                             "hints": []
                           },
                           {
                             "runtimeType": "multipleChoice",
-                            "id": "ll-es-i-mc-104",
+                            "id": "ll-es-i-mc-102",
                             "prompt": "dog",
                             "options": [
-                              "perro",
-                              "un",
+                              "es",
                               "a/an (masc.)",
-                              "es"
+                              "perro",
+                              "un"
                             ],
-                            "correctIndex": 0
+                            "correctIndex": 2
                           }
                         ]
                       }
@@ -1598,60 +1580,60 @@
                         "items": [
                           {
                             "runtimeType": "translateSentence",
-                            "id": "ll-es-i-ts-105",
+                            "id": "ll-es-i-ts-103",
                             "source": "dog",
                             "expected": "perro",
                             "hints": []
                           },
                           {
                             "runtimeType": "multipleChoice",
-                            "id": "ll-es-i-mc-106",
+                            "id": "ll-es-i-mc-104",
                             "prompt": "dog",
                             "options": [
                               "perro",
-                              "león",
+                              "un",
                               "cerdo",
-                              "un"
+                              "león"
                             ],
                             "correctIndex": 0
                           },
                           {
                             "runtimeType": "translateSentence",
-                            "id": "ll-es-i-ts-107",
+                            "id": "ll-es-i-ts-105",
                             "source": "lion",
                             "expected": "león",
                             "hints": []
                           },
                           {
                             "runtimeType": "multipleChoice",
-                            "id": "ll-es-i-mc-108",
+                            "id": "ll-es-i-mc-106",
                             "prompt": "lion",
                             "options": [
-                              "león",
-                              "perro",
                               "cerdo",
-                              "un"
+                              "perro",
+                              "un",
+                              "león"
                             ],
-                            "correctIndex": 0
+                            "correctIndex": 3
                           },
                           {
                             "runtimeType": "translateSentence",
-                            "id": "ll-es-i-ts-109",
+                            "id": "ll-es-i-ts-107",
                             "source": "pig",
                             "expected": "cerdo",
                             "hints": []
                           },
                           {
                             "runtimeType": "multipleChoice",
-                            "id": "ll-es-i-mc-110",
+                            "id": "ll-es-i-mc-108",
                             "prompt": "pig",
                             "options": [
-                              "cerdo",
                               "perro",
-                              "león",
-                              "un"
+                              "cerdo",
+                              "un",
+                              "león"
                             ],
-                            "correctIndex": 0
+                            "correctIndex": 1
                           }
                         ]
                       }
@@ -1682,7 +1664,7 @@
                         "items": [
                           {
                             "runtimeType": "translateSentence",
-                            "id": "ll-es-i-ts-111",
+                            "id": "ll-es-i-ts-109",
                             "source": "How are you today?",
                             "expected": "¿Como, estás hoy?",
                             "hints": [
@@ -1691,25 +1673,25 @@
                           },
                           {
                             "runtimeType": "multipleChoice",
-                            "id": "ll-es-i-mc-112",
+                            "id": "ll-es-i-mc-110",
                             "prompt": "How are you today?",
                             "options": [
-                              "¿Como, estás hoy?",
-                              "Tu como estás hoy?",
                               "un",
-                              "a/an (masc.)"
+                              "a/an (masc.)",
+                              "Tu como estás hoy?",
+                              "¿Como, estás hoy?"
                             ],
-                            "correctIndex": 0
+                            "correctIndex": 3
                           },
                           {
                             "runtimeType": "reorderSentence",
-                            "id": "ll-es-i-rs-113",
+                            "id": "ll-es-i-rs-111",
                             "scrambled": [
-                              "estás",
-                              "hoy?",
                               "¿Como,",
+                              "estás",
                               "un",
-                              "es"
+                              "es",
+                              "hoy?"
                             ],
                             "correct": [
                               "¿Como,",
@@ -1719,7 +1701,7 @@
                           },
                           {
                             "runtimeType": "translateSentence",
-                            "id": "ll-es-i-ts-114",
+                            "id": "ll-es-i-ts-112",
                             "source": "How are you today?",
                             "expected": "Tu como estás hoy?",
                             "hints": [
@@ -1728,26 +1710,26 @@
                           },
                           {
                             "runtimeType": "multipleChoice",
-                            "id": "ll-es-i-mc-115",
+                            "id": "ll-es-i-mc-113",
                             "prompt": "How are you today?",
                             "options": [
+                              "a/an (masc.)",
                               "Tu como estás hoy?",
-                              "¿Como, estás hoy?",
                               "un",
-                              "a/an (masc.)"
+                              "¿Como, estás hoy?"
                             ],
-                            "correctIndex": 0
+                            "correctIndex": 1
                           },
                           {
                             "runtimeType": "reorderSentence",
-                            "id": "ll-es-i-rs-116",
+                            "id": "ll-es-i-rs-114",
                             "scrambled": [
                               "hoy?",
+                              "Tu",
+                              "es",
                               "estás",
                               "como",
-                              "Tu",
-                              "un",
-                              "es"
+                              "un"
                             ],
                             "correct": [
                               "Tu",
@@ -1784,39 +1766,20 @@
                         "items": [
                           {
                             "runtimeType": "showWord",
-                            "id": "ll-es-i-sw-117",
+                            "id": "ll-es-i-sw-115",
                             "wordId": "ll-es-w-pasta",
                             "context": "pasta — pasta"
                           },
                           {
-                            "runtimeType": "translateSentence",
-                            "id": "ll-es-i-ts-118",
-                            "source": "pasta",
-                            "expected": "pasta",
-                            "hints": []
-                          },
-                          {
-                            "runtimeType": "multipleChoice",
-                            "id": "ll-es-i-mc-119",
-                            "prompt": "pasta",
-                            "options": [
-                              "pasta",
-                              "pasta1",
-                              "pasta2",
-                              "pasta3"
-                            ],
-                            "correctIndex": 0
-                          },
-                          {
                             "runtimeType": "fillBlank",
-                            "id": "ll-es-i-fb-120",
+                            "id": "ll-es-i-fb-116",
                             "sentence": "_____.",
                             "answer": "pasta",
                             "hint": "pasta"
                           },
                           {
                             "runtimeType": "typeTheWord",
-                            "id": "ll-es-i-ttw-121",
+                            "id": "ll-es-i-ttw-117",
                             "audioAsset": "ll-es-w-pasta",
                             "prompt": "Type what you hear",
                             "expected": "pasta"
@@ -1835,39 +1798,39 @@
                         "items": [
                           {
                             "runtimeType": "showWord",
-                            "id": "ll-es-i-sw-122",
+                            "id": "ll-es-i-sw-118",
                             "wordId": "ll-es-w-pasta1",
                             "context": "pasta1 — pasta__1"
                           },
                           {
                             "runtimeType": "translateSentence",
-                            "id": "ll-es-i-ts-123",
+                            "id": "ll-es-i-ts-119",
                             "source": "pasta__1",
                             "expected": "pasta1",
                             "hints": []
                           },
                           {
                             "runtimeType": "multipleChoice",
-                            "id": "ll-es-i-mc-124",
+                            "id": "ll-es-i-mc-120",
                             "prompt": "pasta__1",
                             "options": [
                               "pasta1",
                               "pasta",
-                              "pasta2",
-                              "pasta3"
+                              "pasta3",
+                              "pasta2"
                             ],
                             "correctIndex": 0
                           },
                           {
                             "runtimeType": "fillBlank",
-                            "id": "ll-es-i-fb-125",
+                            "id": "ll-es-i-fb-121",
                             "sentence": "_____.",
                             "answer": "pasta1",
                             "hint": "pasta__1"
                           },
                           {
                             "runtimeType": "typeTheWord",
-                            "id": "ll-es-i-ttw-126",
+                            "id": "ll-es-i-ttw-122",
                             "audioAsset": "ll-es-w-pasta1",
                             "prompt": "Type what you hear",
                             "expected": "pasta1"
@@ -1886,39 +1849,39 @@
                         "items": [
                           {
                             "runtimeType": "showWord",
-                            "id": "ll-es-i-sw-127",
+                            "id": "ll-es-i-sw-123",
                             "wordId": "ll-es-w-pasta2",
                             "context": "pasta2 — pasta__2"
                           },
                           {
                             "runtimeType": "translateSentence",
-                            "id": "ll-es-i-ts-128",
+                            "id": "ll-es-i-ts-124",
                             "source": "pasta__2",
                             "expected": "pasta2",
                             "hints": []
                           },
                           {
                             "runtimeType": "multipleChoice",
-                            "id": "ll-es-i-mc-129",
+                            "id": "ll-es-i-mc-125",
                             "prompt": "pasta__2",
                             "options": [
-                              "pasta2",
                               "pasta",
                               "pasta1",
-                              "pasta3"
+                              "pasta3",
+                              "pasta2"
                             ],
-                            "correctIndex": 0
+                            "correctIndex": 3
                           },
                           {
                             "runtimeType": "fillBlank",
-                            "id": "ll-es-i-fb-130",
+                            "id": "ll-es-i-fb-126",
                             "sentence": "_____.",
                             "answer": "pasta2",
                             "hint": "pasta__2"
                           },
                           {
                             "runtimeType": "typeTheWord",
-                            "id": "ll-es-i-ttw-131",
+                            "id": "ll-es-i-ttw-127",
                             "audioAsset": "ll-es-w-pasta2",
                             "prompt": "Type what you hear",
                             "expected": "pasta2"
@@ -1937,39 +1900,39 @@
                         "items": [
                           {
                             "runtimeType": "showWord",
-                            "id": "ll-es-i-sw-132",
+                            "id": "ll-es-i-sw-128",
                             "wordId": "ll-es-w-pasta3",
                             "context": "pasta3 — pasta__3"
                           },
                           {
                             "runtimeType": "translateSentence",
-                            "id": "ll-es-i-ts-133",
+                            "id": "ll-es-i-ts-129",
                             "source": "pasta__3",
                             "expected": "pasta3",
                             "hints": []
                           },
                           {
                             "runtimeType": "multipleChoice",
-                            "id": "ll-es-i-mc-134",
+                            "id": "ll-es-i-mc-130",
                             "prompt": "pasta__3",
                             "options": [
-                              "pasta3",
                               "pasta",
                               "pasta1",
+                              "pasta3",
                               "pasta2"
                             ],
-                            "correctIndex": 0
+                            "correctIndex": 2
                           },
                           {
                             "runtimeType": "fillBlank",
-                            "id": "ll-es-i-fb-135",
+                            "id": "ll-es-i-fb-131",
                             "sentence": "_____.",
                             "answer": "pasta3",
                             "hint": "pasta__3"
                           },
                           {
                             "runtimeType": "typeTheWord",
-                            "id": "ll-es-i-ttw-136",
+                            "id": "ll-es-i-ttw-132",
                             "audioAsset": "ll-es-w-pasta3",
                             "prompt": "Type what you hear",
                             "expected": "pasta3"

@@ -26,17 +26,23 @@ from librelingo_import import (  # type: ignore
 )
 
 
-def _write_course(root: Path, skills: dict[str, str], modules: list[str] | None = None) -> Path:
+def _write_course(
+    root: Path,
+    skills: dict[str, str],
+    modules: list[str] | None = None,
+    language_name: str = "Test Language",
+    source_name: str = "English",
+) -> Path:
     course_dir = root / "course"
     course_dir.mkdir()
     (course_dir / "course.yaml").write_text(
-        """
+        f"""
 Course:
   Language:
-    Name: Test Language
+    Name: {language_name}
     IETF BCP 47: test-1
   For speakers of:
-    Name: English
+    Name: {source_name}
   License:
     Name: Attribution-ShareAlike 4.0 International
     Short name: CC BY-SA 4.0
@@ -58,6 +64,40 @@ Course:
     for name, body in skills.items():
         (skills_dir / name).write_text(body.strip() + "\n", encoding="utf-8")
         (skills_dir / name.replace(".yaml", ".md")).write_text("ignore me\n", encoding="utf-8")
+    return course_dir
+
+
+def _write_course_modules(
+    root: Path, modules: dict[str, dict[str, str]]
+) -> Path:
+    """Multi-module variant of _write_course: {module_dir: {skill_file: body}}."""
+    course_dir = root / "course"
+    course_dir.mkdir()
+    module_list = "\n".join(f"    - {name}" for name in modules)
+    (course_dir / "course.yaml").write_text(
+        f"""
+Course:
+  Language:
+    Name: Test Language
+    IETF BCP 47: test-1
+  For speakers of:
+    Name: English
+  Modules:
+{module_list}
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    for module, skills in modules.items():
+        skills_dir = course_dir / module / "skills"
+        skills_dir.mkdir(parents=True)
+        skill_list = "\n".join(f"    - {name}" for name in skills)
+        (course_dir / module / "module.yaml").write_text(
+            f"Module:\n  Name: {module}\n  Skills:\n{skill_list}\n",
+            encoding="utf-8",
+        )
+        for name, body in skills.items():
+            (skills_dir / name).write_text(body.strip() + "\n", encoding="utf-8")
     return course_dir
 
 
@@ -452,6 +492,329 @@ Skill:
             manifest = json.loads(zipfile.ZipFile(out).read("pack.json"))
             self.assertEqual(manifest["format"], "turnapack/2")
             self.assertNotIn("_media", manifest)
+
+    def test_slug_collisions_get_distinct_word_ids(self) -> None:
+        # "más" and "mús" both fold to slug "m-s" — without disambiguation
+        # the second word vanished and its sub-lesson taught the first.
+        skill = """
+Skill:
+  Name: Accents
+  Id: accents
+  New words:
+    - Word: más
+      Translation: more
+    - Word: mús
+      Translation: muse
+    - Word: gato
+      Translation: cat
+    - Word: perro
+      Translation: dog
+  Phrases: []
+"""
+        with tempfile.TemporaryDirectory() as tmp:
+            course_dir = _write_course(Path(tmp), {"a.yaml": skill})
+            pack = convert_course(
+                course_dir, code="es", display_name="S", tts_locale="es-ES"
+            )
+            words = {w["term"]: w["id"] for w in pack["files"]["vocab.json"]["words"]}
+            self.assertIn("más", words)
+            self.assertIn("mús", words)
+            self.assertNotEqual(words["más"], words["mús"])
+            unpacked = Path(tmp) / "unpacked"
+            unpack_pack(pack, unpacked)
+            self.assertEqual(validate_unpacked(unpacked), 0)
+
+    def test_slug_collision_across_skills_points_at_right_word(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            course_dir = _write_course(
+                Path(tmp),
+                {
+                    "a.yaml": """
+Skill:
+  Name: A
+  Id: 1
+  New words:
+    - Word: más
+      Translation: more
+    - Word: gato
+      Translation: cat
+    - Word: perro
+      Translation: dog
+    - Word: oso
+      Translation: bear
+  Phrases: []
+""",
+                    "b.yaml": """
+Skill:
+  Name: B
+  Id: 2
+  New words:
+    - Word: mús
+      Translation: muse
+    - Word: leon
+      Translation: lion
+    - Word: tigre
+      Translation: tiger
+    - Word: lobo
+      Translation: wolf
+  Phrases: []
+""",
+                },
+            )
+            pack = convert_course(
+                course_dir, code="es", display_name="S", tts_locale="es-ES"
+            )
+        words = {w["term"]: w["id"] for w in pack["files"]["vocab.json"]["words"]}
+        section = pack["files"]["sections/ll-es-s-1.json"]
+        for lesson in section["units"][0]["lessons"]:
+            for sub in lesson["content"]["subLessons"]:
+                show = next(
+                    i for i in sub["stages"][0]["items"]
+                    if i["runtimeType"] == "showWord"
+                )
+                self.assertEqual(show["wordId"], words[sub["name"]])
+
+    def test_non_latin_terms_get_unique_ids(self) -> None:
+        # Every CJK term folds to slug "x" — hash suffixes keep them apart.
+        skill = """
+Skill:
+  Name: Kanji
+  Id: kanji
+  New words:
+    - Word: 猫
+      Translation: cat
+    - Word: 犬
+      Translation: dog
+    - Word: 鳥
+      Translation: bird
+    - Word: 魚
+      Translation: fish
+  Phrases: []
+"""
+        with tempfile.TemporaryDirectory() as tmp:
+            course_dir = _write_course(Path(tmp), {"a.yaml": skill})
+            pack = convert_course(
+                course_dir, code="ja", display_name="J", tts_locale="ja-JP"
+            )
+            words = pack["files"]["vocab.json"]["words"]
+            self.assertEqual(len(words), 4)
+            self.assertEqual(len({w["id"] for w in words}), 4)
+            unpacked = Path(tmp) / "unpacked"
+            unpack_pack(pack, unpacked)
+            self.assertEqual(validate_unpacked(unpacked), 0)
+
+    def test_module_chunks_into_units_beyond_chunk_size(self) -> None:
+        # kMaxLessonsPerUnit is 40 — a big module must split into units.
+        skills = {
+            f"s{i:02d}.yaml": f"""
+Skill:
+  Name: S{i}
+  Id: {i}
+  New words:
+    - Word: w{i}
+      Translation: t{i}
+  Phrases: []
+"""
+            for i in range(45)
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            course_dir = _write_course(Path(tmp), skills)
+            pack = convert_course(
+                course_dir, code="es", display_name="S", tts_locale="es-ES"
+            )
+            section = pack["files"]["sections/ll-es-s-1.json"]
+            self.assertEqual(len(section["units"]), 2)
+            self.assertEqual(len(section["units"][0]["lessons"]), 30)
+            self.assertEqual(len(section["units"][1]["lessons"]), 15)
+            unpacked = Path(tmp) / "unpacked"
+            unpack_pack(pack, unpacked)
+            self.assertEqual(validate_unpacked(unpacked), 0)
+
+    def test_duplicate_skill_ids_get_unique_lesson_ids(self) -> None:
+        body = """
+Skill:
+  Name: X
+  Id: 1
+  New words:
+    - Word: w
+      Translation: t
+    - Word: w2
+      Translation: t2
+    - Word: w3
+      Translation: t3
+    - Word: w4
+      Translation: t4
+  Phrases: []
+"""
+        with tempfile.TemporaryDirectory() as tmp:
+            course_dir = _write_course_modules(
+                Path(tmp), {"m1": {"a.yaml": body}, "m2": {"b.yaml": body}}
+            )
+            pack = convert_course(
+                course_dir, code="es", display_name="S", tts_locale="es-ES"
+            )
+            lesson_ids = [
+                lesson["id"]
+                for name, section in pack["files"].items()
+                if name.startswith("sections/")
+                for unit in section["units"]
+                for lesson in unit["lessons"]
+            ]
+            self.assertEqual(len(lesson_ids), len(set(lesson_ids)))
+            unpacked = Path(tmp) / "unpacked"
+            unpack_pack(pack, unpacked)
+            self.assertEqual(validate_unpacked(unpacked), 0)
+
+    def test_multiple_choice_shuffles_and_never_offers_prompt(self) -> None:
+        # "dog" is both a translation (of perro) and a word in the same
+        # skill — it must not appear among the options for prompt "dog".
+        skill = """
+Skill:
+  Name: Animals
+  Id: animals
+  New words:
+    - Word: perro
+      Translation: dog
+    - Word: dog
+      Translation: domestic animal
+    - Word: gato
+      Translation: cat
+    - Word: oso
+      Translation: bear
+    - Word: leon
+      Translation: lion
+  Phrases:
+    - Phrase: el perro come
+      Translation: the dog eats
+"""
+        with tempfile.TemporaryDirectory() as tmp:
+            course_dir = _write_course(Path(tmp), {"a.yaml": skill})
+            pack = convert_course(
+                course_dir, code="es", display_name="S", tts_locale="es-ES"
+            )
+        section = pack["files"]["sections/ll-es-s-1.json"]
+        mcs = [
+            item
+            for u in section["units"]
+            for l in u["lessons"]
+            for sl in l["content"]["subLessons"]
+            for st in sl["stages"]
+            for item in st["items"]
+            if item["runtimeType"] in ("multipleChoice", "listenAndPick")
+        ]
+        self.assertTrue(mcs)
+        for item in mcs:
+            self.assertNotIn(item["prompt"], item["options"])
+        indexes = {item["correctIndex"] for item in mcs}
+        self.assertTrue(
+            any(i != 0 for i in indexes),
+            f"correctIndex stayed 0 for every item: {sorted(indexes)}",
+        )
+
+    def test_mini_dictionary_uses_named_target_bucket(self) -> None:
+        # Course for Spanish speakers — the "Spanish" bucket is the source
+        # side and must not be imported as target vocabulary.
+        skill = """
+Skill:
+  Name: X
+  Id: x
+  New words:
+    - Word: tlhingan
+      Translation: klingon
+    - Word: maj
+      Translation: good
+    - Word: qap
+      Translation: success
+    - Word: ter
+      Translation: day
+  Phrases: []
+  Mini-dictionary:
+    Spanish:
+      - el: the
+    Klingon:
+      - jIH: I
+"""
+        with tempfile.TemporaryDirectory() as tmp:
+            course_dir = _write_course(
+                Path(tmp),
+                {"x.yaml": skill},
+                language_name="Klingon",
+                source_name="Spanish",
+            )
+            pack = convert_course(
+                course_dir, code="tlh", display_name="K", tts_locale="tlh"
+            )
+        terms = {w["term"] for w in pack["files"]["vocab.json"]["words"]}
+        self.assertIn("jIH", terms)
+        self.assertNotIn("el", terms)
+
+    def test_word_without_translation_skips_translation_items(self) -> None:
+        skill = """
+Skill:
+  Name: Loanwords
+  Id: loan
+  New words:
+    - Word: okay
+      Translation: okay
+    - Word: sí
+      Translation: yes
+    - Word: no
+      Translation: no
+    - Word: brandname
+  Phrases: []
+"""
+        with tempfile.TemporaryDirectory() as tmp:
+            course_dir = _write_course(Path(tmp), {"a.yaml": skill})
+            pack = convert_course(
+                course_dir, code="es", display_name="S", tts_locale="es-ES"
+            )
+            section = pack["files"]["sections/ll-es-s-1.json"]
+            sub_by_name = {
+                sl["name"]: sl
+                for l in section["units"][0]["lessons"]
+                for sl in l["content"]["subLessons"]
+            }
+            bare = sub_by_name["brandname"]
+            kinds = {
+                i["runtimeType"]
+                for st in bare["stages"]
+                for i in st["items"]
+            }
+            self.assertIn("showWord", kinds)
+            self.assertNotIn("translateSentence", kinds)
+            self.assertNotIn("multipleChoice", kinds)
+            # term == translation (loanword) is degenerate too.
+            loanword = sub_by_name["okay"]
+            self.assertFalse(
+                any(
+                    i["runtimeType"] == "translateSentence"
+                    for st in loanword["stages"]
+                    for i in st["items"]
+                )
+            )
+            # A word without a translation must never produce a degenerate
+            # copy-the-prompt item anywhere.
+            for st in bare["stages"]:
+                for item in st["items"]:
+                    if item["runtimeType"] == "translateSentence":
+                        self.assertNotEqual(item["source"], item["expected"])
+            unpacked = Path(tmp) / "unpacked"
+            unpack_pack(pack, unpacked)
+            self.assertEqual(validate_unpacked(unpacked), 0)
+
+    def test_special_chars_default_signature_chars(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            course_dir = _write_course(Path(tmp), {"a.yaml": HELLO_SKILL})
+            yaml_path = course_dir / "course.yaml"
+            yaml_path.write_text(
+                yaml_path.read_text(encoding="utf-8")
+                + '  Special characters:\n    - "á"\n    - "ñ"\n',
+                encoding="utf-8",
+            )
+            pack = convert_course(
+                course_dir, code="es", display_name="S", tts_locale="es-ES"
+            )
+        self.assertEqual(pack["language"]["signatureChars"], "áñ")
 
 
 class TestLibreLingoTest1Fixture(unittest.TestCase):

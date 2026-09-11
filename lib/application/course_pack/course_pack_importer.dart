@@ -53,7 +53,7 @@ class CoursePackImporter {
     if (!file.existsSync()) {
       throw const CoursePackImportException(['Pack file does not exist']);
     }
-    return importFromBytes(file.readAsBytesSync(), sourcePath: path);
+    return importFromBytes(await file.readAsBytes(), sourcePath: path);
   }
 
   Future<CoursePackImportResult> importFromBytes(
@@ -76,7 +76,13 @@ class CoursePackImporter {
     if (bytes.length > CoursePack.maxBytes) {
       throw const CoursePackImportException(['Pack exceeds 20 MB limit']);
     }
-    return importFromString(utf8.decode(bytes), sourcePath: sourcePath);
+    final String raw;
+    try {
+      raw = utf8.decode(bytes);
+    } on FormatException {
+      throw const CoursePackImportException(['Pack is not valid UTF-8']);
+    }
+    return importFromString(raw, sourcePath: sourcePath);
   }
 
   Future<CoursePackImportResult> importFromString(
@@ -220,7 +226,17 @@ class CoursePackImporter {
         throw CoursePackImportException(['Missing section file $file']);
       }
       try {
-        sections.add(parseSection(rawSection));
+        final section = parseSection(rawSection);
+        final declaredId = '${entry['id'] ?? ''}';
+        if (declaredId.isNotEmpty && declaredId != section.id) {
+          throw CoursePackImportException([
+            'index.json sections[].id "$declaredId" != $file id '
+            '"${section.id}"',
+          ]);
+        }
+        sections.add(section);
+      } on CoursePackImportException {
+        rethrow;
       } catch (e) {
         throw CoursePackImportException(['Failed to parse $file: $e']);
       }
@@ -282,7 +298,6 @@ class CoursePackImporter {
     // deletes/replaces the previously installed course's extracted media.
     onPhase?.call(CoursePackImportPhase.writing);
     await onImportingActiveCode?.call(code);
-    await CourseRepository(db).clearLanguageUninstallMarker(code);
 
     final seeder = DatabaseSeeder(
       db,
@@ -290,6 +305,9 @@ class CoursePackImporter {
     );
     seeder.debugAfterLanguageTablesCleared = afterTablesCleared;
     await seeder.seedLanguageFromSource(code, force: true);
+    // Cleared only after a successful seed: a failed reimport of a previously
+    // uninstalled language must leave the marker so it stays restorable.
+    await CourseRepository(db).clearLanguageUninstallMarker(code);
 
     if (extractedMedia.isEmpty) {
       await CoursePackMedia.deleteExtractedMedia(code, persist: persistDir);
@@ -381,14 +399,17 @@ class CoursePackImporter {
         throw const CoursePackImportException(['Zip entry escapes pack root']);
       }
       if (!entry.isFile) continue;
-      uncompressed += entry.size;
+      // entry.size is the declared header size — a forged header can
+      // under-report; content is the real decompressed length.
+      final content = entry.content;
+      uncompressed += content.length;
       if (uncompressed > CoursePackMedia.maxUncompressedBytes) {
         throw const CoursePackImportException([
           'Uncompressed pack exceeds 200 MB limit',
         ]);
       }
       if (name == 'pack.json') {
-        if (entry.size > CoursePack.maxBytes) {
+        if (content.length > CoursePack.maxBytes) {
           throw const CoursePackImportException([
             'pack.json exceeds 20 MB limit',
           ]);
@@ -396,7 +417,7 @@ class CoursePackImporter {
         packEntry = entry;
         continue;
       }
-      if (entry.size > CoursePackMedia.maxSingleFileBytes) {
+      if (content.length > CoursePackMedia.maxSingleFileBytes) {
         throw CoursePackImportException([
           'Media file $name exceeds 15 MB limit',
         ]);
@@ -404,10 +425,16 @@ class CoursePackImporter {
       if (name == 'media' || !name.startsWith('media/')) continue;
       final relative = name.substring('media/'.length);
       if (relative.isEmpty || relative.endsWith('/')) continue;
+      // Media refs are flat `media/<file>` — a nested path would write under
+      // `media/media/` on disk while `turnapack://` resolution strips one
+      // level, so the reference would never resolve.
+      if (relative.startsWith('media/')) {
+        throw CoursePackImportException(['Nested media path $name']);
+      }
       if (!CoursePackMedia.isAllowedMediaName(relative)) {
         throw CoursePackImportException(['Unsupported media file $name']);
       }
-      media[relative] = List<int>.from(entry.content);
+      media[relative] = List<int>.from(content);
     }
     if (packEntry == null) {
       throw const CoursePackImportException(['Zip is missing pack.json']);
@@ -422,26 +449,41 @@ class CoursePackImporter {
     }
   }
 
+  /// Files land in a sibling `media.staging/` directory first and are moved
+  /// into place only after every write succeeded — a mid-write failure
+  /// (disk full, killed process) never leaves a half-written `media/`.
   static Future<void> _writeExtractedMedia(
     String code,
     Directory persistDir,
     Map<String, List<int>> extractedMedia,
   ) async {
     final dir = await CoursePackMedia.mediaDirectory(code, persist: persistDir);
-    if (dir.existsSync()) {
-      dir.deleteSync(recursive: true);
+    final staging = Directory('${dir.path}.staging');
+    if (staging.existsSync()) {
+      staging.deleteSync(recursive: true);
     }
-    dir.createSync(recursive: true);
-    for (final entry in extractedMedia.entries) {
-      final relative = entry.key;
-      if (!CoursePackMedia.isAllowedMediaName(relative)) continue;
-      final destPath = p.normalize(p.join(dir.path, relative));
-      final dest = File(destPath);
-      if (!p.isWithin(dir.path, destPath) && destPath != dir.path) {
-        throw CoursePackImportException(['Unsafe media path $relative']);
+    staging.createSync(recursive: true);
+    try {
+      for (final entry in extractedMedia.entries) {
+        final relative = entry.key;
+        if (!CoursePackMedia.isAllowedMediaName(relative)) continue;
+        final destPath = p.normalize(p.join(staging.path, relative));
+        final dest = File(destPath);
+        if (!p.isWithin(staging.path, destPath) && destPath != staging.path) {
+          throw CoursePackImportException(['Unsafe media path $relative']);
+        }
+        dest.parent.createSync(recursive: true);
+        dest.writeAsBytesSync(entry.value);
       }
-      dest.parent.createSync(recursive: true);
-      dest.writeAsBytesSync(entry.value);
+      if (dir.existsSync()) {
+        dir.deleteSync(recursive: true);
+      }
+      staging.renameSync(dir.path);
+    } catch (_) {
+      if (staging.existsSync()) {
+        staging.deleteSync(recursive: true);
+      }
+      rethrow;
     }
   }
 
