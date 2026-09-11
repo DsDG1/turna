@@ -38,6 +38,9 @@ import 'package:turna/views/theme.dart';
 /// 4. 练习工具三列（薄弱单词 / 词典 / 复习进度）——薄弱单词与复习进度
 ///    支持长按浮窗，词典无（「部分按钮生效」）
 ///
+/// 非语言课程（Anki 牌组）没有内置词表可查：复习队列只留 Anki 复习，
+/// 练习工具只留复习进度，单词/词典入口整体隐藏。
+///
 /// 交互契约：短按一律直接进入页面；长按仅在有数据可看的入口上生效，
 /// 浮窗实现见 `info_popup.dart`。
 class PlayHubScreen extends StatefulWidget {
@@ -370,7 +373,7 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
           ),
           const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
-          // ── 练习工具（三列紧凑格） ─────────────────────────────
+          // ── 练习工具（语言课三列；Anki 课只留复习进度） ──────────
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -406,17 +409,17 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
                         ),
                       ),
                       const SizedBox(width: 12),
-                    ],
-                    Expanded(
-                      child: CompactToolTile(
-                        title: AppStrings.playDictionaryTitle,
-                        icon: Icons.menu_book_outlined,
-                        accentColor: TurnaTheme.brandSky,
-                        onTap: () =>
-                            context.router.push(const DictionaryRoute()),
+                      Expanded(
+                        child: CompactToolTile(
+                          title: AppStrings.playDictionaryTitle,
+                          icon: Icons.menu_book_outlined,
+                          accentColor: TurnaTheme.brandSky,
+                          onTap: () =>
+                              context.router.push(const DictionaryRoute()),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
+                      const SizedBox(width: 12),
+                    ],
                     Expanded(
                       child: Builder(
                         builder: (tileContext) => CompactToolTile(

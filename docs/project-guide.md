@@ -294,7 +294,7 @@ Explain → Practice → Rate 三段流（见 2.4 Skill Acquisition Theory）。
 
 - **队列按 `CourseScope` 切开**（[ADR 0037](./decisions/0037-anki-course-review-unification.md)）：语言课只显示错题 / 单词 / 语法；导入 Anki 只显示 Anki 复习（并隐藏薄弱单词）。「开始今日复习」与个人页快捷入口同一套隔离。
 - **AI 助手行**：单行卡 + 引擎就绪/未配置状态 chip → AI Hub。
-- **练习工具**：语言课为薄弱单词 / 词典 / 复习进度；Anki 课为词典 / 复习进度。
+- **练习工具**：语言课为薄弱单词 / 词典 / 复习进度；Anki 课只保留复习进度（非语言课程无内置词表，词典入口一并隐藏）。
 
 **长按浮窗交互契约**（`info_popup.dart` + `play_info_panels.dart`）：短按一律直接进入页面；长按在**有数据可看**的入口上生效（主卡、四个队列、薄弱单词、复习进度、AI 助手；词典不参与）。浮窗挂根 Overlay、锚定在被按卡片旁（下方空间不足自动翻到上方），打开 = 自锚点方向缩放 + 逐行 stagger 滑入（`easeOutBack`），关闭反向；`reducedMotion`/系统禁用动画退化为纯淡入淡出；打开触发 medium 触感（`sensoryReduce` 跳过）；卡片带 `Semantics(onLongPress)` 长按语义。**注意**：浮窗内容位于页面 Provider 树之上，面板组件一律通过构造注入数据（`PlayQueueSnapshot` / `AiEngineConfig` / `StudyStatsProvider` 实例），不得在面板 build 内做 inherited provider 查找。
 

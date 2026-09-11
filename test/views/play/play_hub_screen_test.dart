@@ -145,13 +145,16 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // 今日复习 Hero 与队列仍在，语言课队列与薄弱单词整体消失。
+    // 今日复习 Hero 与队列仍在，语言课队列与单词类工具整体消失
+    // （词典查的是内置词表，非语言课程下无意义，一并隐藏）。
     expect(find.text(AppStrings.playTodayHeroTitle), findsOneWidget);
     expect(find.text(AppStrings.playQueueSectionTitle), findsOneWidget);
     expect(find.text('Anki 复习'), findsOneWidget);
     expect(find.text('错题复习'), findsNothing);
     expect(find.text('语法复习'), findsNothing);
     expect(find.text('薄弱单词'), findsNothing);
+    expect(find.text('词典'), findsNothing);
+    expect(find.text('复习进度'), findsOneWidget);
   });
 
   testWidgets('play hub review queues follow course scope switches',
