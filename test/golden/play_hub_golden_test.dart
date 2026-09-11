@@ -38,7 +38,7 @@ void main() {
     await tester.pumpWidget(
       MultiProvider(
         providers: [
-          // Playground Hero 资格判断（默认 scope '' → 显示 Hero）。
+          // 队列显隐按 scope 判定（默认 scope '' → 语言课队列）。
           ChangeNotifierProvider(create: (_) => CourseProvider()),
           ChangeNotifierProvider(create: (_) => MistakeProvider(prefs)),
           ChangeNotifierProvider(

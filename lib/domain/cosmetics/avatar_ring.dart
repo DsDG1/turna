@@ -171,8 +171,7 @@ class CosmeticCatalog {
   static bool _isPrimarySurface(CosmeticSurface surface) => switch (surface) {
         CosmeticSurface.profile ||
         CosmeticSurface.lessonComplete ||
-        CosmeticSurface.reviewComplete ||
-        CosmeticSurface.playground =>
+        CosmeticSurface.reviewComplete =>
           true,
         CosmeticSurface.settings => false,
       };

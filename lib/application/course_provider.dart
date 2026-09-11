@@ -120,11 +120,6 @@ class CourseProvider extends ChangeNotifier {
   /// unfiltered list.
   List<Section> get sections => List.unmodifiable(_sections);
 
-  /// How many sections have their full body loaded. Cheap fingerprint input
-  /// for content-revision cache keys (Playground, AI context): changes only
-  /// when section bodies actually load or reset.
-  int get loadedSectionCount => _loadedSectionIds.length;
-
   /// Unfiltered view of every section (built-in course + all imported Anki
   /// decks), regardless of [scope].
   List<Section> get allSections => List.unmodifiable(_allSections);
@@ -414,12 +409,12 @@ class CourseProvider extends ChangeNotifier {
   ///
   /// The in-flight future is registered in [_sectionLoadFutures] BEFORE the
   /// loading-state [notifyListeners]: listeners run synchronously, and a
-  /// listener that re-calls this method for the same id (e.g. the Playground
-  /// availability reload) must coalesce onto the in-flight future — notifying
-  /// first let the re-entrant call see an empty map and start a duplicate
-  /// fetch (the repeated "starting fetch" log lines / self-sustaining retry
-  /// storm). The future always completes normally; load failures are
-  /// surfaced via [sectionLoadState]/[sectionLoadError] because several
+  /// listener that re-calls this method for the same id must coalesce onto
+  /// the in-flight future — notifying first let the re-entrant call see an
+  /// empty map and start a duplicate fetch (the repeated "starting fetch"
+  /// log lines / self-sustaining retry storm). The future always completes
+  /// normally; load failures are surfaced via
+  /// [sectionLoadState]/[sectionLoadError] because several
   /// callers await it fire-and-forget without an error handler.
   Future<void> ensureSectionLoaded(String id) {
     if (_loadedSectionIds.contains(id)) {

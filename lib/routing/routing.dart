@@ -46,10 +46,6 @@ class AppRouter extends RootStackRouter {
         AutoRoute(page: TextbookImportRoute.page),
         AutoRoute(page: AiHubRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: AiFeatureGuideRoute.page),
-        // 语言课程 Playground：CourseReadyGuard 之上再由页面自身做资格
-        // 二次检查（Anki scope 拦截返回），见 language_playground_page。
-        AutoRoute(
-            page: LanguagePlaygroundRoute.page, guards: [_courseReadyGuard]),
         AutoRoute(page: DailyChallengeRoute.page),
         AutoRoute(page: SrsReviewRoute.page),
         AutoRoute(page: ReviewProgressRoute.page, guards: [_courseReadyGuard]),

@@ -3,8 +3,8 @@ import 'package:turna/domain/course/course_scope.dart';
 /// Which Play / Profile review queues a course scope may show (ADR 0037).
 ///
 /// Typed [CourseScope] is the only discriminator. Wire-key overloads decode
-/// with [CourseScopeCodec]; the sole leftover string inspection is the same
-/// `anki:` legacy prefix used by [LanguagePlaygroundEligibility].
+/// with [CourseScopeCodec]; the sole leftover string inspection is the
+/// `anki:` legacy prefix.
 abstract final class PlayReviewEligibility {
   static bool isLanguage(CourseScope scope) => scope is BuiltinCourseScope;
 

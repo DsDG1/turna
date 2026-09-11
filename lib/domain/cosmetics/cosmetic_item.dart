@@ -17,7 +17,6 @@ enum CosmeticSurface {
   profile,
   lessonComplete,
   reviewComplete,
-  playground,
 }
 
 enum CosmeticAccessibilityVariant { standard, staticAlternative }

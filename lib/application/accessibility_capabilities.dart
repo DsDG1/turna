@@ -11,7 +11,7 @@ import 'package:turna/application/accessibility_provider.dart';
 ///
 /// Components declare which capabilities they consume instead of reaching
 /// into an arbitrary provider: every key surface (settings, review, AI,
-/// Playground, cosmetics) can be audited and tested against this interface.
+/// cosmetics) can be audited and tested against this interface.
 /// [AccessibilityProvider] is the single production implementation; tests
 /// inject fakes to pin each capability's effect.
 abstract interface class AccessibilityCapabilities {

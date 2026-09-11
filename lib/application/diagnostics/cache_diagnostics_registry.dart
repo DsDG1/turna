@@ -1,6 +1,5 @@
 import 'package:flutter/painting.dart';
 import 'package:turna/application/ai/engine/ai_engine.dart';
-import 'package:turna/application/playground/playground_index_cache.dart';
 import 'package:turna/application/review_dashboard/review_dashboard_repository.dart';
 import 'package:turna/di/injection.dart';
 
@@ -36,7 +35,6 @@ class CacheDiagnosticsRegistry {
   factory CacheDiagnosticsRegistry.production() {
     return CacheDiagnosticsRegistry([
       if (getIt.isRegistered<AiEngine>()) _AiCacheAdapter(getIt<AiEngine>()),
-      _PlaygroundCacheAdapter(PlaygroundIndexCache.instance),
       if (getIt.isRegistered<ReviewDashboardRepository>())
         _DashboardCacheAdapter(getIt<ReviewDashboardRepository>()),
       _FlutterImageCacheAdapter(),
@@ -72,25 +70,6 @@ class _AiCacheAdapter implements CacheDiagnosticsAdapter {
   Future<CacheClearResult> clearRegenerable() async {
     final before = engine.cacheStats().entries;
     engine.clearCache();
-    return CacheClearResult(owner: owner, clearedEntries: before);
-  }
-}
-
-class _PlaygroundCacheAdapter implements CacheDiagnosticsAdapter {
-  _PlaygroundCacheAdapter(this.cache);
-  final PlaygroundIndexCache cache;
-  @override
-  String get owner => 'playground.revisionCache';
-  @override
-  Future<CacheFootprint> inspect() async => CacheFootprint(
-        owner: owner,
-        entries: cache.entryCount,
-        estimatedBytes: null,
-      );
-  @override
-  Future<CacheClearResult> clearRegenerable() async {
-    final before = cache.entryCount;
-    cache.clear();
     return CacheClearResult(owner: owner, clearedEntries: before);
   }
 }

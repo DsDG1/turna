@@ -27,8 +27,8 @@ import 'package:turna/views/widgets/turna_select.dart';
 /// select the small immutable slice they depend on. A token batch therefore
 /// rebuilds one bubble, not the whole page.
 ///
-/// [initialMode] is consumed on open so the three Playground entries
-/// (问一问/句子纠错/情景对话) land directly on their mode (Plan 3 §19.2).
+/// [initialMode] is consumed on open so callers can land directly on a
+/// specific mode (问一问/句子纠错/情景对话).
 @RoutePage()
 class AiTutorChatPage extends StatefulWidget {
   const AiTutorChatPage({super.key, this.initialMode});

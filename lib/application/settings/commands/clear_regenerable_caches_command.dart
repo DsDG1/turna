@@ -60,8 +60,8 @@ class ClearRegenerableCachesCommand {
     try {
       final outcomes = <CacheClearOutcome>[];
 
-      // Owners: registry adapters (AI cache, playground index, dashboard
-      // cache, Flutter image cache) — each isolated.
+      // Owners: registry adapters (AI cache, dashboard cache, Flutter
+      // image cache) — each isolated.
       final registry = CacheDiagnosticsRegistry.production();
       for (final adapter in registry.adapters) {
         try {

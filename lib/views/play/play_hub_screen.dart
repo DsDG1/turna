@@ -18,7 +18,6 @@ import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/play/play_review_eligibility.dart';
-import 'package:turna/application/playground/language_playground_eligibility.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/application/study_stats_provider.dart';
 import 'package:turna/application/weak_word_quiz_assembler.dart';
@@ -32,12 +31,11 @@ import 'package:turna/views/theme.dart';
 /// 练习页主页（2026-08 焕新版）。
 ///
 /// 信息架构（自上而下）：
-/// 1. Playground Hero（仅语言课程）
-/// 2. 今日复习主 CTA——大数字总待复习 + 四队列速览 chips，短按智能进入
+/// 1. 今日复习主 CTA——大数字总待复习 + 四队列速览 chips，短按智能进入
 ///    最高优先级队列，长按看全队列浮窗
-/// 3. 复习队列 2×2（错题 / 单词 / 语法 / Anki）——每格长按弹出数据浮窗
-/// 4. AI 助手行（引擎状态点）——长按看引擎配置浮窗
-/// 5. 练习工具三列（薄弱单词 / 词典 / 复习进度）——薄弱单词与复习进度
+/// 2. 复习队列 2×2（错题 / 单词 / 语法 / Anki）——每格长按弹出数据浮窗
+/// 3. AI 助手行（引擎状态点）——长按看引擎配置浮窗
+/// 4. 练习工具三列（薄弱单词 / 词典 / 复习进度）——薄弱单词与复习进度
 ///    支持长按浮窗，词典无（「部分按钮生效」）
 ///
 /// 交互契约：短按一律直接进入页面；长按仅在有数据可看的入口上生效，
@@ -222,11 +220,6 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
         : snapshot.ankiDueCount;
     final engineReady =
         context.select((AiEngineConfigHolder h) => h.config.isComplete);
-
-    // Playground 只属于语言课程：Anki/Official Anki scope 下 Hero 连同其
-    // 专属间距一起消失（三层隔离的第一层；页面与数据层仍各自防御）。
-    final playgroundEligible = context.select((CourseProvider p) =>
-        LanguagePlaygroundEligibility.isEligibleScope(p.courseScope));
     final ankiCourse = snapshot.ankiCourse;
 
     return RepaintBoundary(
@@ -234,20 +227,6 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
         physics: const BouncingScrollPhysics(),
         slivers: [
           const SliverToBoxAdapter(child: SizedBox(height: 16)),
-
-          // ── Playground（仅语言课程） ─────────────────────────
-          if (playgroundEligible)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                child: PlaygroundHero(
-                  title: AppStrings.playgroundTitle,
-                  subtitle: AppStrings.playgroundHeroSubtitle,
-                  onTap: () =>
-                      context.router.push(const LanguagePlaygroundRoute()),
-                ),
-              ),
-            ),
 
           // ── 今日复习主 CTA ────────────────────────────────────
           SliverToBoxAdapter(

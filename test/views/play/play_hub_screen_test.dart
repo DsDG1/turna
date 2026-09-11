@@ -1,4 +1,3 @@
-import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -19,11 +18,9 @@ import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/views/play/play_hub_screen.dart';
 import 'package:turna/views/play/components/play_tiles.dart';
-import 'package:turna/views/playground/language_playground_page.dart';
 
 import '../../helpers/in_memory_course_db.dart';
 
@@ -40,27 +37,6 @@ class _ScopeStubCourseProvider extends CourseProvider {
 
   @override
   String get courseScope => _scopeWire;
-}
-
-/// Hand-written host route (no codegen) so router-level tests can push real
-/// pages without dragging in the full app shell.
-class _HubHostRoute extends PageRouteInfo<void> {
-  const _HubHostRoute() : super(_HubHostRoute.name);
-
-  static const String name = '_HubHostRoute';
-
-  static PageInfo page = PageInfo(
-    name,
-    builder: (_) => const Scaffold(body: PlayHubScreen()),
-  );
-}
-
-class _HubTestRouter extends RootStackRouter {
-  @override
-  List<AutoRoute> get routes => [
-        AutoRoute(page: _HubHostRoute.page, initial: true),
-        AutoRoute(page: LanguagePlaygroundRoute.page),
-      ];
 }
 
 void main() {
@@ -115,25 +91,12 @@ void main() {
         courseProvider: courseProvider,
       );
 
-  Widget routedTree(
-    RootStackRouter router, {
-    _ScopeStubCourseProvider? courseProvider,
-  }) =>
-      MaterialApp.router(
-        routerConfig: router.config(),
-        builder: (context, child) =>
-            wrapProviders(child!, courseProvider: courseProvider),
-      );
-
   testWidgets('renders redesigned play hub sections', (tester) async {
     await tester.binding.setSurfaceSize(const Size(400, 1600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     await tester.pumpWidget(MaterialApp(home: hubTree()));
     await tester.pumpAndSettle();
-
-    expect(find.text('Playground'), findsOneWidget);
-    expect(find.text(AppStrings.playgroundHeroSubtitle), findsOneWidget);
 
     // 今日复习 Hero：标题 + 四队列速览 chips。
     expect(find.text(AppStrings.playTodayHeroTitle), findsOneWidget);
@@ -171,7 +134,7 @@ void main() {
     expect(find.byType(PageView), findsNothing);
   });
 
-  testWidgets('playground hero is fully hidden for Anki course scope',
+  testWidgets('Anki course scope shows only the anki review queue',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(400, 1600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -182,10 +145,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Hero、文案与其专属间距一起消失；今日复习 Hero 与队列仍在。
-    expect(find.byType(PlaygroundHero), findsNothing);
-    expect(find.text('Playground'), findsNothing);
-    expect(find.text(AppStrings.playgroundHeroSubtitle), findsNothing);
+    // 今日复习 Hero 与队列仍在，语言课队列与薄弱单词整体消失。
     expect(find.text(AppStrings.playTodayHeroTitle), findsOneWidget);
     expect(find.text(AppStrings.playQueueSectionTitle), findsOneWidget);
     expect(find.text('Anki 复习'), findsOneWidget);
@@ -194,7 +154,7 @@ void main() {
     expect(find.text('薄弱单词'), findsNothing);
   });
 
-  testWidgets('playground hero visibility follows course switches',
+  testWidgets('play hub review queues follow course scope switches',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(400, 1600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -203,35 +163,20 @@ void main() {
     await tester
         .pumpWidget(MaterialApp(home: hubTree(courseProvider: courseProvider)));
     await tester.pumpAndSettle();
-    expect(find.text('Playground'), findsOneWidget);
+    expect(find.text('错题复习'), findsOneWidget);
+    expect(find.text('Anki 复习'), findsNothing);
 
     // 语言 → Anki：IndexedStack 保留的 Play Hub 必须随 scope 通知重建。
     courseProvider.scopeWire = 'anki:deck1';
     await tester.pumpAndSettle();
-    expect(find.text('Playground'), findsNothing);
+    expect(find.text('Anki 复习'), findsOneWidget);
+    expect(find.text('错题复习'), findsNothing);
 
-    // Anki → 语言：入口恢复。
+    // Anki → 语言：语言课队列恢复。
     courseProvider.scopeWire = '';
     await tester.pumpAndSettle();
-    expect(find.text('Playground'), findsOneWidget);
-  });
-
-  testWidgets('playground hero opens the playground page, not match words',
-      (tester) async {
-    await tester.binding.setSurfaceSize(const Size(400, 1600));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-
-    await tester.pumpWidget(routedTree(_HubTestRouter()));
-    await tester.pumpAndSettle();
-
-    await tester.ensureVisible(find.text('Playground'));
-    await tester.tap(find.text('Playground'));
-    await tester.pumpAndSettle();
-
-    // 独立 Playground 首页（而非旧的单词配对页）。
-    expect(find.byType(LanguagePlaygroundPage), findsOneWidget);
-    expect(find.text(AppStrings.playgroundSmartStartTitle), findsOneWidget);
-    expect(find.text('HOST'), findsNothing);
+    expect(find.text('错题复习'), findsOneWidget);
+    expect(find.text('Anki 复习'), findsNothing);
   });
 
   testWidgets('Anki review tile opens the shared session host', (tester) async {

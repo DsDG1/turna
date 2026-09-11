@@ -52,7 +52,6 @@ class PerformanceTrace {
   static const Map<String, int> slowThresholdMs = {
     'dashboard.load': 50,
     'insights.load': 50,
-    'playground.index': 50,
     'ai.ask': 1000,
     'ai.firstChunk': 500,
     'storage.scan': 50,
