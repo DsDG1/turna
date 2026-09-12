@@ -609,6 +609,18 @@ class CourseProvider extends ChangeNotifier {
     }
     LanguageContentStore.drop(code);
     CourseLoader.invalidateCaches();
+    // The overlay is normally hydrated when the catalog loaded, but that
+    // load fails silently in places — without a re-read here the uninstall
+    // would skip (leak) the extracted `imported_courses/<code>/media` tree.
+    if (!ImportedLanguageRegistry.instance.contains(code)) {
+      try {
+        await ImportedLanguageRegistry.instance.hydrate(db);
+      } catch (error) {
+        logger.w(
+          'CourseProvider: overlay re-hydrate for "$code" failed: $error',
+        );
+      }
+    }
     if (ImportedLanguageRegistry.instance.contains(code)) {
       await CoursePackMedia.deleteExtractedMedia(code);
     }

@@ -624,6 +624,92 @@ class CourseRepository implements ICourseRepository {
     return {for (final row in rows) row.read(database.lessons.id)!};
   }
 
+  /// Vocabulary / grammar-point / expression ids owned by one language —
+  /// the live resource-id set the pack importer compares against after a
+  /// re-import to prune learner rows (see [deleteOrphanedLearnerRows]).
+  Future<Set<String>> resourceIdsForLanguage(String languageCode) async {
+    final code = LanguageCodes.canonicalize(languageCode);
+    final rows = await database
+        .customSelect(
+          'SELECT id FROM ('
+          'SELECT id FROM vocabulary WHERE language_code = ? '
+          'UNION ALL SELECT id FROM grammar_points WHERE language_code = ? '
+          'UNION ALL SELECT id FROM expressions WHERE language_code = ?'
+          ')',
+          variables: [
+            Variable.withString(code),
+            Variable.withString(code),
+            Variable.withString(code),
+          ],
+          readsFrom: {
+            database.vocabulary,
+            database.grammarPoints,
+            database.expressions,
+          },
+        )
+        .get();
+    return {for (final row in rows) row.read<String>('id')};
+  }
+
+  /// Whether the language currently owns any content rows — how the pack
+  /// importer detects that an import *replaces* an installed course (and
+  /// should therefore ask for confirmation). The uninstall path deletes
+  /// content rows, so a reinstall never trips this.
+  Future<bool> languageHasContent(String languageCode) async {
+    final code = LanguageCodes.canonicalize(languageCode);
+    final row = await (database.selectOnly(database.sections)
+          ..addColumns([countAll()])
+          ..where(database.sections.languageCode.equals(code)))
+        .getSingle();
+    return (row.read(countAll()) ?? 0) > 0;
+  }
+
+  /// Delete learner rows whose resource/lesson ids no longer exist after a
+  /// pack re-import replaced this language's content. Rows for surviving
+  /// ids keep their SRS / mistake state — that is the "pack update
+  /// preserves progress" contract; only dead ids (removed words/lessons,
+  /// or residue from a *different* pack under the same code) are dropped
+  /// so they cannot resurface as ghost due cards or unresolvable mistakes.
+  ///
+  /// `srs_states` covers the vocab, expression and grammar queues alike
+  /// (PK is `(language_code, word_id)` with the pool encoded in `queue`).
+  /// `mistake_aggregates` is daily-count data, not resource-keyed, and is
+  /// left alone.
+  Future<void> deleteOrphanedLearnerRows(
+    String languageCode, {
+    required Set<String> liveResourceIds,
+    required Set<String> liveLessonIds,
+  }) async {
+    final code = LanguageCodes.canonicalize(languageCode);
+    final liveResources = liveResourceIds.toList();
+    final liveLessons = liveLessonIds.toList();
+    await database.transaction(() async {
+      await (database.delete(database.srsStates)
+            ..where((t) =>
+                t.languageCode.equals(code) &
+                t.wordId.isNotIn(liveResources)))
+          .go();
+      await (database.delete(database.reviewEvents)
+            ..where((t) =>
+                t.languageCode.equals(code) &
+                t.cardId.isNotIn(liveResources)))
+          .go();
+      // A mistake row is dead when any of its nullable resource references
+      // is dead, or when its (always present) lesson no longer exists.
+      await (database.delete(database.mistakes)
+            ..where((t) =>
+                t.languageCode.equals(code) &
+                (t.lessonId.isNotIn(liveLessons) |
+                    (t.wordId.isNotNull() &
+                        t.wordId.isNotIn(liveResources)) |
+                    (t.expressionId.isNotNull() &
+                        t.expressionId.isNotIn(liveResources)) |
+                    (t.grammarPointId.isNotNull() &
+                        t.grammarPointId.isNotIn(liveResources)))))
+          .go();
+    });
+  }
+
   /// Content item count (vocabulary + grammar points + expressions) per
   /// builtin language — the "cards" figure shown in the uninstall
   /// confirmation.

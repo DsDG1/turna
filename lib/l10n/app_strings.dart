@@ -627,6 +627,12 @@ class AppStrings {
       '已导入 $name（$sections 个章节 / $words 个词）';
   static String get courseManagementImportPackFailedTitle => '无法导入课程包';
   static String get courseManagementImportPackLogHint => '完整日志已记录';
+  static String get coursePackReplaceConfirmTitle => '替换现有课程？';
+  static String coursePackReplaceConfirmBody(String name) =>
+      '该语言已安装课程「$name」。导入将替换其内容；仍存在的词汇保留学习进度，'
+      '已移除内容的进度将被清除。';
+  static String get coursePackReplaceConfirmAction => '替换';
+  static String get coursePackImportCancelled => '已取消导入';
   static String get courseManagementRestorePackMissing =>
       '无法恢复，需重新导入课程包';
   static String get courseManagementAddTitle => '添加课程';

@@ -493,6 +493,51 @@ Skill:
             self.assertEqual(manifest["format"], "turnapack/2")
             self.assertNotIn("_media", manifest)
 
+    def test_audio_field_references_attach_hash_named_files(self) -> None:
+        # Real LibreLingo courses name audio after hashes and reference the
+        # files only through the word's `Audio:` list — term-name matching
+        # alone never finds them.
+        skill = """
+Skill:
+  Name: Animals
+  Id: 2
+  New words:
+    - Word: perro
+      Translation: dog
+      Audio:
+        - 9e7dc7f0d0f1.mp3
+    - Word: gato
+      Translation: cat
+
+Phrases:
+  - Phrase: Max es un perro
+    Translation: Max is a dog
+"""
+        with tempfile.TemporaryDirectory() as tmp:
+            course_dir = _write_course(Path(tmp), {"animals.yaml": skill})
+            audio = course_dir / "audio"
+            audio.mkdir()
+            (audio / "9e7dc7f0d0f1.mp3").write_bytes(b"ID3")
+            (audio / "gato.mp3").write_bytes(b"ID3")
+            pack = convert_course(
+                course_dir,
+                code="es",
+                display_name="Spanish",
+                tts_locale="es-ES",
+            )
+            words = {
+                w["id"]: w for w in pack["files"]["vocab.json"]["words"]
+            }
+            self.assertEqual(
+                words["ll-es-w-perro"]["audioAsset"],
+                "media/9e7dc7f0d0f1.mp3",
+            )
+            # No Audio field → term-name matching still attaches.
+            self.assertEqual(
+                words["ll-es-w-gato"]["audioAsset"],
+                "media/gato.mp3",
+            )
+
     def test_slug_collisions_get_distinct_word_ids(self) -> None:
         # "más" and "mús" both fold to slug "m-s" — without disambiguation
         # the second word vanished and its sub-lesson taught the first.

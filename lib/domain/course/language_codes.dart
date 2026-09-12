@@ -19,6 +19,11 @@ class LanguageCodes {
     french: 'french',
   };
 
+  /// Azerbaijani shares Turkish's dotted/dotless-I casing rules (ASCII `I`
+  /// lowercases to `ı`, `İ` to `i`). Packed courses never use it, but an
+  /// imported pack may.
+  static const String azerbaijani = 'az';
+
   static String canonicalize(String raw) {
     final trimmed = raw.trim();
     if (trimmed.isEmpty) return turkish;
@@ -44,15 +49,20 @@ class LanguageCodes {
   /// (`vocabularyByTerm` / dictionary lookups). Must be applied on BOTH the
   /// index-build and the query side.
   ///
-  /// Turkish needs locale-aware lowercasing: content spelled with a dotted
-  /// `İ` or ASCII `I` folds to `i`/`i̇` under plain `toLowerCase()`, while
-  /// users type the correct Turkish lowercase (`i` for İ, `ı` for I).
-  /// Mapping `İ`→`i` and ASCII `I`→`ı` before lowercasing makes both sides
-  /// agree. Other languages use plain lowercase.
+  /// `İ` (U+0130) is folded to `i` for every language: plain
+  /// `toLowerCase()` turns it into `i` + combining dot (U+0307), a key no
+  /// one can type, and no Latin-script language distinguishes `i̇` from
+  /// `i` in a way that matters for lookup. The dotless rule — ASCII `I`
+  /// folding to `ı` — applies to Turkish-style casing only: content
+  /// spelled with a dotted `İ` or ASCII `I` folds to `i`/`ı`, matching
+  /// what users of those languages type. Other languages use plain
+  /// lowercase.
   static String lookupFoldKey(String text, String languageCode) {
     var s = text.trim();
-    if (canonicalize(languageCode) == turkish) {
-      s = s.replaceAll('İ', 'i').replaceAll('I', 'ı');
+    s = s.replaceAll('İ', 'i');
+    final code = canonicalize(languageCode);
+    if (code == turkish || code == azerbaijani) {
+      s = s.replaceAll('I', 'ı');
     }
     return s.toLowerCase();
   }

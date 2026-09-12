@@ -70,17 +70,17 @@ def resource_type_color(resource_type: str) -> str:
 
 _DARK_PALETTE: dict[str, str] = {
     # Surfaces
-    "bg": "#1B2E25",
-    "bg_secondary": "#243D30",
-    "bg_input": "#20362B",
-    "bg_elevated": "#2A4638",
+    "bg": "#0F2119",
+    "bg_secondary": "#152B21",
+    "bg_input": "#12261C",
+    "bg_elevated": "#1B3529",
     "bg_disabled": "#1C2A28",
     # Text
     "text": "#E8EAF0",
     "text_secondary": "#B9CCC0",
     "text_disabled": "#84998C",
     # Borders
-    "border": "#385246",
+    "border": "#2C453A",
     "border_hover": BRAND_REED,
     # Accent (Turna teal family - was Tailwind blue)
     "accent": BRAND_TEAL,
@@ -102,20 +102,20 @@ _DARK_PALETTE: dict[str, str] = {
     "scrollbar": "#3A5A55",
     "scrollbar_hover": "#5A7A75",
     # Depth / brand
-    "surface_elevated": "#2A4638",
+    "surface_elevated": "#1B3529",
     "shadow": "#000000",
     "glow": BRAND_REED,
     "accent_gradient_start": BRAND_TEAL,
     "accent_gradient_end": BRAND_TEAL_LIGHT,
-    "toolbar_gradient_start": "#243D30",
-    "toolbar_gradient_end": "#1B2E25",
+    "toolbar_gradient_start": "#152B21",
+    "toolbar_gradient_end": "#0F2119",
     "ai_orbit_glow": BRAND_REED,
     # AI dialog semantic colors (Turna-aligned)
-    "ai_chat_bg": "#20362B",
-    "ai_bubble_bg": "#2A4638",
+    "ai_chat_bg": "#12261C",
+    "ai_bubble_bg": "#1B3529",
     "ai_user_bubble": BRAND_TEAL,
-    "ai_card_bg": "#243D30",
-    "ai_chip_bg": "#20362B",
+    "ai_card_bg": "#152B21",
+    "ai_chip_bg": "#12261C",
     "ai_accent": BRAND_REED,
     "ai_accent_border": BRAND_TEAL,
     "ai_beta_bg": "#664400",
@@ -124,9 +124,9 @@ _DARK_PALETTE: dict[str, str] = {
 
 _LIGHT_PALETTE: dict[str, str] = {
     # Surfaces
-    "bg": "#F2F8F3",
+    "bg": "#FFFFFF",
     "bg_secondary": "#FFFFFF",
-    "bg_input": "#EDF5EE",
+    "bg_input": "#F5F6F5",
     "bg_elevated": "#FFFFFF",
     "bg_disabled": "#F3F4F6",
     # Text
@@ -134,7 +134,7 @@ _LIGHT_PALETTE: dict[str, str] = {
     "text_secondary": "#4A5568",
     "text_disabled": "#9CA3AF",
     # Borders
-    "border": "#DFEBE0",
+    "border": "#E5E7E5",
     "border_hover": BRAND_TEAL,
     # Accent (Turna teal family - was Tailwind blue)
     "accent": BRAND_TEAL,
@@ -161,11 +161,11 @@ _LIGHT_PALETTE: dict[str, str] = {
     "glow": BRAND_REED,
     "accent_gradient_start": BRAND_TEAL,
     "accent_gradient_end": BRAND_TEAL_LIGHT,
-    "toolbar_gradient_start": "#F2F8F3",
-    "toolbar_gradient_end": "#E3F1E5",
+    "toolbar_gradient_start": "#FFFFFF",
+    "toolbar_gradient_end": "#F6F8F6",
     "ai_orbit_glow": BRAND_REED,
     # AI dialog semantic colors (light variants)
-    "ai_chat_bg": "#EDF5EE",
+    "ai_chat_bg": "#F5F6F5",
     "ai_bubble_bg": "#FFFFFF",
     "ai_user_bubble": BRAND_TEAL,
     "ai_card_bg": "#FFFFFF",

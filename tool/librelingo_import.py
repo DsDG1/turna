@@ -37,6 +37,9 @@ _TRANSLATION = "Translation"
 _SYNONYMS = "Synonyms"
 _ALSO_ACCEPTED = "Also accepted"
 _ALT_VERSIONS = "Alternative versions"
+# Real LibreLingo courses name audio files after hashes and reference them
+# only through this field — file-name-equals-term matching alone misses them.
+_WORD_AUDIO = "Audio"
 
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 AUDIO_EXTS = {".mp3", ".ogg", ".wav", ".m4a", ".aac", ".opus"}
@@ -179,6 +182,7 @@ def parse_skill_words(skill: dict[str, Any]) -> list[dict[str, Any]]:
                 "synonyms": _string_list(raw.get(_SYNONYMS)),
                 "also_accepted": _string_list(raw.get(_ALSO_ACCEPTED)),
                 "images": _string_list(raw.get("Images")),
+                "audio": _string_list(raw.get(_WORD_AUDIO)),
             }
         )
     return words
@@ -337,9 +341,14 @@ class CourseBuilder:
 
     def attach_word_media(self, word: dict[str, Any]) -> None:
         image_keys = list(word.get("images") or [])
+        # The explicit Audio references come first — hash-named files are
+        # only reachable through them; term/slug matching stays as the
+        # legacy fallback for courses without Audio fields.
         image_path = self.media.lookup_image(image_keys)
         audio_path = self.media.lookup_audio(
-            image_keys + [word.get("term") or "", slugify(word.get("term") or "")]
+            list(word.get("audio") or [])
+            + image_keys
+            + [word.get("term") or "", slugify(word.get("term") or "")]
         )
         if image_path is not None:
             word["_image"] = self.register_media(image_path)

@@ -24,6 +24,27 @@ void main() {
       expect(LanguageCodes.lookupFoldKey('I', 'fr'), 'i');
     });
 
+    test('İ folds to plain i in every language (no combining-dot keys)', () {
+      // Plain toLowerCase() would produce 'i' + U+0307 here — a key no
+      // typed query can ever match.
+      expect(LanguageCodes.lookupFoldKey('İzmir', 'fr'), 'izmir');
+      expect(LanguageCodes.lookupFoldKey('İzmir', 'de'), 'izmir');
+      expect(
+        LanguageCodes.lookupFoldKey('İzmir', 'az'),
+        LanguageCodes.lookupFoldKey('izmir', 'az'),
+      );
+    });
+
+    test('Azerbaijani shares the Turkish dotless-I rule', () {
+      expect(LanguageCodes.lookupFoldKey('IRAQ', 'az'), 'ıraq');
+      expect(
+        LanguageCodes.lookupFoldKey('QIRIM', 'az'),
+        LanguageCodes.lookupFoldKey('qırım', 'az'),
+      );
+      // Non-dotless languages keep ASCII I → i.
+      expect(LanguageCodes.lookupFoldKey('IRAQ', 'en'), 'iraq');
+    });
+
     test('trims whitespace', () {
       expect(LanguageCodes.lookupFoldKey('  Merhaba ', 'tr'), 'merhaba');
     });

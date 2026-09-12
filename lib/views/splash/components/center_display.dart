@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 // Project imports:
+import 'package:turna/application/course_pack/imported_languages.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/language_registry.dart';
 import 'package:turna/di/injection.dart';
@@ -42,9 +43,19 @@ class _CenterDisplayState extends State<CenterDisplay>
     _textsInitialized = true;
     // The learner's current language when DI is up (warm starts); the
     // registry default covers first run and tests.
-    final code = getIt.isRegistered<LanguageProvider>()
-        ? getIt<LanguageProvider>().selectedLanguageCode
-        : LanguageRegistry.instance.defaultCode;
+    final languageProvider = getIt.isRegistered<LanguageProvider>()
+        ? getIt<LanguageProvider>()
+        : null;
+    final code = languageProvider?.selectedLanguageCode ??
+        LanguageRegistry.instance.defaultCode;
+    // Imported courses keep their names in the `importedLang:` overlay —
+    // the packed registry would synthesize the raw code ("sw"). When DI is
+    // down the registry fallback is all we have.
+    final displayName = languageProvider?.displayName ??
+        LanguageRegistry.instance.displayName(code);
+    final nativeLabel =
+        ImportedLanguageRegistry.instance.nativeLabelOrNull(code) ??
+            LanguageRegistry.instance.nativeLabel(code);
     _texts = [
       _TextItem(
         AppStrings.splashReclaiming,
@@ -53,10 +64,7 @@ class _CenterDisplayState extends State<CenterDisplay>
         const Duration(milliseconds: 1000),
       ),
       _TextItem(
-        AppStrings.splashLearnLanguage(
-          LanguageRegistry.instance.displayName(code),
-          LanguageRegistry.instance.nativeLabel(code),
-        ),
+        AppStrings.splashLearnLanguage(displayName, nativeLabel),
         FontWeight.w600,
         (context) => TurnaTheme.textSecondaryColor(context),
         const Duration(milliseconds: 1000),

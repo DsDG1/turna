@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:turna/application/anki_official/anki_deck_manager.dart';
 import 'package:turna/application/audio_controller.dart';
+import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/language_registry.dart';
 import 'package:turna/application/settings/commands/apply_fsrs_parameters_command.dart';
@@ -18,62 +19,54 @@ import 'package:turna/application/settings/settings_operation_result.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/streak_provider.dart';
 import 'package:turna/di/injection.dart';
+import 'package:turna/domain/course/course_scope.dart';
+import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/views/theme.dart';
 
+/// Learning-language picker. Switches the *course scope* (the same action
+/// as tapping a course in course management) so the course tree, SRS /
+/// mistake / stats filters and the persisted selection all move together —
+/// flipping only [LanguageProvider] used to leave practice on the old
+/// course and silently revert on the next scope restore. Lists every
+/// installed builtin-scope language, imported `.turnapack` courses
+/// included; falls back to the packed manifest while the catalog has not
+/// loaded yet.
 class SettingsLanguageSelectorTile extends StatelessWidget {
   const SettingsLanguageSelectorTile({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final current = context.select<LanguageProvider, String>(
-      (p) => p.selectedLanguageCode,
-    );
-    final languages = LanguageRegistry.instance.languages;
+    final courseProvider = context.watch<CourseProvider>();
+    final entries = courseProvider.catalogEntries
+        .where((e) => e.isBuiltin)
+        .toList(growable: false);
+    final fromCatalog = entries.isNotEmpty;
+    final activeScope = courseProvider.courseScope;
+    final languageProvider = context.watch<LanguageProvider>();
+    final fallbackCurrent = languageProvider.selectedLanguageCode;
 
     return PopupMenuButton<String>(
-      initialValue: current,
-      onSelected: (value) {
-        final languageProvider = context.read<LanguageProvider>();
-        languageProvider.setLanguageCode(value);
-        // Persistence failure must not become an unhandled async error —
-        // catch it and surface once instead.
-        unawaited(
-          languageProvider.cacheLanguage().catchError((Object error) {
-            if (kDebugMode) {
-              debugPrint('Language persist failed: $error');
-            }
-          }),
-        );
-      },
-      itemBuilder: (context) => languages
-          .map(
-            (lang) => PopupMenuItem(
-              value: lang.code,
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.language_rounded,
-                    size: 18,
-                    color: lang.code == current
-                        ? TurnaTheme.brandTeal
-                        : TurnaTheme.textHint,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    lang.displayName,
-                    style: TextStyle(
-                      fontWeight: lang.code == current
-                          ? FontWeight.w700
-                          : FontWeight.w400,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          )
-          .toList(),
+      initialValue: fromCatalog ? activeScope : fallbackCurrent,
+      onSelected: (value) => _switchCourse(context, value),
+      itemBuilder: (context) => fromCatalog
+          ? [
+              for (final entry in entries)
+                _menuItem(
+                  (entry.scope as BuiltinCourseScope).languageCode,
+                  entry.displayName,
+                  entry.wireKey == activeScope,
+                ),
+            ]
+          : [
+              for (final lang in LanguageRegistry.instance.languages)
+                _menuItem(
+                  lang.code,
+                  lang.displayName,
+                  lang.code == fallbackCurrent,
+                ),
+            ],
       child: SettingsTile(
         icon: Icons.language_rounded,
         title: AppStrings.settingsLearningLanguageTitle,
@@ -82,7 +75,7 @@ class SettingsLanguageSelectorTile extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              LanguageRegistry.instance.displayName(current),
+              languageProvider.displayName,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: TurnaTheme.brandTeal,
                     fontWeight: FontWeight.w700,
@@ -97,6 +90,55 @@ class SettingsLanguageSelectorTile extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  PopupMenuItem<String> _menuItem(String code, String label, bool selected) =>
+      PopupMenuItem(
+        value: code,
+        child: Row(
+          children: [
+            Icon(
+              Icons.language_rounded,
+              size: 18,
+              color: selected ? TurnaTheme.brandTeal : TurnaTheme.textHint,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
+              ),
+            ),
+          ],
+        ),
+      );
+
+  Future<void> _switchCourse(BuildContext context, String code) async {
+    // Same sequence as course management's _selectCourse: flip the language
+    // immediately for TTS/display feedback, then let setScope own the full
+    // cascade (course tree reload, SRS/mistakes/stats filters, persistence).
+    final languageProvider = context.read<LanguageProvider>();
+    languageProvider.setLanguageCode(code);
+    // Persistence failure must not become an unhandled async error —
+    // catch it and surface once instead.
+    unawaited(
+      languageProvider.cacheLanguage().catchError((Object error) {
+        if (kDebugMode) {
+          debugPrint('Language persist failed: $error');
+        }
+      }),
+    );
+    try {
+      await context.read<CourseProvider>().setScope(
+            BuiltinCourseScope(LanguageCodes.canonicalize(code)),
+          );
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('切换学习语言失败:$error')),
+        );
+      }
+    }
   }
 }
 

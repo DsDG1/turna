@@ -263,6 +263,138 @@ void main() {
     expect(words, hasLength(1));
   });
 
+  Future<void> insertSrs(String wordId) => db.into(db.srsStates).insert(
+        SrsStatesCompanion.insert(
+          wordId: wordId,
+          queue: 'srs',
+          dueAt: 0,
+          languageCode: const Value('es'),
+        ),
+      );
+
+  Future<void> insertMistake(
+    String id, {
+    String? wordId,
+    required String lessonId,
+  }) =>
+      db.into(db.mistakes).insert(
+            MistakesCompanion.insert(
+              id: id,
+              lessonId: lessonId,
+              stageId: 'll-es-st-hola',
+              interactionId: 'll-es-i-sw-1',
+              timestampMs: 0,
+              languageCode: const Value('es'),
+              wordId: wordId == null ? const Value.absent() : Value(wordId),
+            ),
+          );
+
+  test('reimport with a different id set prunes orphaned learner rows',
+      () async {
+    await importer().importFromString(jsonEncode(_miniPack()));
+    await insertSrs('ll-es-w-hola'); // old pack's word: gone in pack B
+    await insertSrs('ll-es-w-agua'); // shared word: must keep its state
+    await insertSrs('ll-es-w-oldghost'); // residue from an even older pack
+    await db.into(db.reviewEvents).insert(
+          ReviewEventsCompanion.insert(
+            cardId: 'll-es-w-oldghost',
+            queue: 'srs',
+            reviewedAt: 0,
+            quality: 3,
+            prevIntervalDays: 1,
+            nextIntervalDays: 2,
+            prevEase: 2.5,
+            nextEase: 2.5,
+            reps: 1,
+            lapses: 0,
+            languageCode: const Value('es'),
+          ),
+        );
+    await insertMistake('m-ghost-word',
+        wordId: 'll-es-w-oldghost', lessonId: 'll-es-l-1');
+    await insertMistake('m-dead-word',
+        wordId: 'll-es-w-hola', lessonId: 'll-es-l-1');
+    await insertMistake('m-dead-lesson', lessonId: 'll-es-l-1');
+    await insertMistake('m-live', wordId: 'll-es-w-agua', lessonId: 'll-es-l-2');
+
+    // Different pack under the same code: hola/lesson-1 gone, agua/lesson-2
+    // in — the ids both packs share must keep their SRS/mistake state.
+    await importer().importFromString(jsonEncode(
+      _miniPack(wordId: 'll-es-w-agua', lessonId: 'll-es-l-2'),
+    ));
+
+    final srs = await (db.select(db.srsStates)
+          ..where((t) => t.languageCode.equals('es')))
+        .get();
+    expect(srs.map((r) => r.wordId), ['ll-es-w-agua']);
+    final events = await (db.select(db.reviewEvents)
+          ..where((t) => t.languageCode.equals('es')))
+        .get();
+    expect(events, isEmpty);
+    final mistakes = await (db.select(db.mistakes)
+          ..where((t) => t.languageCode.equals('es')))
+        .get();
+    expect(mistakes.map((m) => m.id), ['m-live']);
+  });
+
+  test('same-pack reimport preserves learner rows', () async {
+    await importer().importFromString(jsonEncode(_miniPack()));
+    // Progress for a word the pack still owns, plus a legacy ghost row that
+    // predates pruning (must self-heal away even on a same-pack reimport).
+    await insertSrs('ll-es-w-hola');
+    await insertSrs('ll-es-w-legacy-ghost');
+    await insertMistake('m-keep', wordId: 'll-es-w-hola', lessonId: 'll-es-l-1');
+
+    await importer().importFromString(jsonEncode(_miniPack()));
+
+    final srs = await (db.select(db.srsStates)
+          ..where((t) => t.languageCode.equals('es')))
+        .get();
+    expect(srs.map((r) => r.wordId), ['ll-es-w-hola']);
+    final mistakes = await (db.select(db.mistakes)
+          ..where((t) => t.languageCode.equals('es')))
+        .get();
+    expect(mistakes.map((m) => m.id), ['m-keep']);
+  });
+
+  test('declining the replace confirmation writes nothing', () async {
+    await importer().importFromString(jsonEncode(_miniPack()));
+    var askedCode = '';
+    var askedName = '';
+    await expectLater(
+      CoursePackImporter(
+        db,
+        persistDirectory: persistDir,
+        confirmReplaceExisting: (code, existingName) async {
+          askedCode = code;
+          askedName = existingName;
+          return false;
+        },
+      ).importFromString(jsonEncode(_miniPack(wordId: 'll-es-w-agua'))),
+      throwsA(isA<CoursePackImportCancelled>()),
+    );
+    expect(askedCode, 'es');
+    expect(askedName, 'Spanish');
+    final words = await (db.select(db.vocabulary)
+          ..where((t) => t.languageCode.equals('es')))
+        .get();
+    expect(words.map((w) => w.id), ['ll-es-w-hola']);
+  });
+
+  test('accepting the replace confirmation imports', () async {
+    await importer().importFromString(jsonEncode(_miniPack()));
+    final result = await CoursePackImporter(
+      db,
+      persistDirectory: persistDir,
+      confirmReplaceExisting: (code, existingName) async => true,
+    ).importFromString(jsonEncode(_miniPack(wordId: 'll-es-w-agua')));
+    expect(result.wordCount, 1);
+    final words = await (db.select(db.vocabulary)
+          ..where((t) => t.languageCode.equals('es')))
+        .get();
+    expect(words.map((w) => w.id), ['ll-es-w-agua']);
+  });
+
   test('mid-write failure leaves zero residue', () async {
     expect(
       () => importer(fail: () async => throw StateError('boom'))

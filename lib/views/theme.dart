@@ -67,18 +67,18 @@ class TurnaTheme {
   static const Color amethystLeague = Color(0xFF9B59B6);
 
   // BACKGROUND COLORS
-  static const Color background = Color(0xFFF2F8F3);
+  static const Color background = Colors.white;
   static const Color surface = Colors.white;
-  static const Color scaffoldBackground = Color(0xFFEDF5EE);
+  static const Color scaffoldBackground = Colors.white;
   static const Color cardBackground = Colors.white;
   static const Color elevatedSurface = Color(0xFFFFFFFF);
-  static const Color divider = Color(0xFFDFEBE0);
+  static const Color divider = Color(0xFFE5E7E5);
 
   /// Dark scaffold / window chrome (≡ Android `turna_scaffold_dark`).
-  static const Color darkScaffold = Color(0xFF1B2E25);
+  static const Color darkScaffold = Color(0xFF0F2119);
 
   /// Dark AppBar / status bar surface (≡ Android `turna_appbar_dark`).
-  static const Color darkAppBar = Color(0xFF243D30);
+  static const Color darkAppBar = Color(0xFF152B21);
 
   // TEXT COLORS
   static const Color textPrimary = Color(0xFF1C2730);
@@ -107,16 +107,16 @@ class TurnaTheme {
   static const LinearGradient softGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [Color(0xFFF2F8F3), Color(0xFFE3F1E5)],
+    colors: [Color(0xFFFFFFFF), Color(0xFFF6F8F6)],
   );
 
   static const LinearGradient courseTreeGradient = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
     colors: [
-      Color(0xFFF2F8F3),
-      Color(0xFFE9F4EA),
-      Color(0xFFE3F1E5),
+      Color(0xFFFFFFFF),
+      Color(0xFFFAFBFA),
+      Color(0xFFF6F8F6),
     ],
     stops: [0.0, 0.5, 1.0],
   );
@@ -127,9 +127,9 @@ class TurnaTheme {
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Color(0xFF1B2E25),
-                Color(0xFF20362B),
-                Color(0xFF243D30),
+                Color(0xFF0F2119),
+                Color(0xFF12261C),
+                Color(0xFF152B21),
               ],
               stops: [0.0, 0.5, 1.0],
             )
@@ -441,7 +441,7 @@ class TurnaTheme {
       _isDark(context)
           ? Color.alphaBlend(
               accent.withValues(alpha: alpha),
-              const Color(0xFF243D30),
+              const Color(0xFF152B21),
             )
           : Color.alphaBlend(
               accent.withValues(alpha: alpha),
@@ -596,13 +596,13 @@ class TurnaTheme {
       Theme.of(context).scaffoldBackgroundColor;
 
   static Color cardBg(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF243D30) : Colors.white;
+      _isDark(context) ? const Color(0xFF152B21) : Colors.white;
 
   static Color elevatedCardBg(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF2A4638) : const Color(0xFFFFFFFF);
+      _isDark(context) ? const Color(0xFF1B3529) : const Color(0xFFFFFFFF);
 
   static Color dividerBg(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF385246) : divider;
+      _isDark(context) ? const Color(0xFF2C453A) : divider;
 
   static Color textPrimaryColor(BuildContext context) =>
       Theme.of(context).colorScheme.onSurface;
@@ -614,20 +614,20 @@ class TurnaTheme {
       _isDark(context) ? const Color(0xFF84998C) : textHint;
 
   static Color inputFillColor(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF20362B) : const Color(0xFFEDF5EE);
+      _isDark(context) ? const Color(0xFF12261C) : const Color(0xFFF5F6F5);
 
   static Color statCardBorder(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF385246) : divider;
+      _isDark(context) ? const Color(0xFF2C453A) : divider;
 
   static Color bottomNavBg(BuildContext context) =>
-      _isDark(context) ? const Color(0xFF243D30) : Colors.white;
+      _isDark(context) ? const Color(0xFF152B21) : Colors.white;
 
   /// Translucent frosted fill for the floating home tab bar. Paired with the
   /// capsule's backdrop blur: transparent enough for the blur to read, opaque
   /// enough to keep labels legible over worst-case content scrolling
   /// underneath.
   static Color floatingBarFill(BuildContext context) => _isDark(context)
-      ? const Color(0xFF243D30).withValues(alpha: 0.60)
+      ? const Color(0xFF152B21).withValues(alpha: 0.60)
       : Colors.white.withValues(alpha: 0.65);
 
   /// Single-layer drop under the floating tab capsule. No accent glow —
@@ -833,7 +833,7 @@ class TurnaTheme {
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: const Color(0xFFEDF5EE),
+          fillColor: const Color(0xFFF5F6F5),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           border: OutlineInputBorder(
@@ -863,7 +863,7 @@ class TurnaTheme {
           elevation: 0,
         ),
         chipTheme: expressiveChipTheme(
-          background: const Color(0xFFEDF5EE),
+          background: const Color(0xFFF5F6F5),
           selectedFill: brandTeal.withValues(alpha: 0.16),
           label: textSecondary,
           selectedLabel: brandTeal,
@@ -967,7 +967,7 @@ class TurnaTheme {
         ),
         cardTheme: CardThemeData(
           elevation: 0,
-          color: const Color(0xFF243D30),
+          color: const Color(0xFF152B21),
           surfaceTintColor: Colors.transparent,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusLarge),
@@ -1009,7 +1009,7 @@ class TurnaTheme {
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: const Color(0xFF20362B),
+          fillColor: const Color(0xFF12261C),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           border: OutlineInputBorder(
@@ -1039,21 +1039,21 @@ class TurnaTheme {
           elevation: 0,
         ),
         chipTheme: expressiveChipTheme(
-          background: const Color(0xFF20362B),
+          background: const Color(0xFF12261C),
           selectedFill: brandTeal.withValues(alpha: 0.28),
           label: const Color(0xFFB9CCC0),
           selectedLabel: brandReed,
-          outline: const Color(0xFF385246),
+          outline: const Color(0xFF2C453A),
         ),
         segmentedButtonTheme: expressiveSegmentedTheme(
           selectedFill: brandTeal.withValues(alpha: 0.28),
           selectedForeground: brandReed,
           foreground: const Color(0xFFB9CCC0),
-          outline: const Color(0xFF385246),
+          outline: const Color(0xFF2C453A),
         ),
         progressIndicatorTheme: const ProgressIndicatorThemeData(
           color: brandTealLight,
-          linearTrackColor: Color(0xFF385246),
+          linearTrackColor: Color(0xFF2C453A),
         ),
         floatingActionButtonTheme: const FloatingActionButtonThemeData(
           backgroundColor: brandTeal,
@@ -1066,7 +1066,7 @@ class TurnaTheme {
             borderRadius: BorderRadius.circular(radiusXLarge),
             side: const BorderSide(color: Color(0x3D78C7B8), width: 1),
           ),
-          backgroundColor: const Color(0xF2243D30),
+          backgroundColor: const Color(0xF2152B21),
           contentTextStyle: const TextStyle(
             color: Colors.white,
             fontSize: 14,
@@ -1076,7 +1076,7 @@ class TurnaTheme {
           insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         ),
         dividerTheme: const DividerThemeData(
-          color: Color(0xFF385246),
+          color: Color(0xFF2C453A),
           thickness: 1,
         ),
         textTheme: const TextTheme(

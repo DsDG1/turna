@@ -15,6 +15,7 @@ import 'package:turna/application/ai/ai_hint_provider.dart';
 import 'package:turna/application/ai/ai_lesson_helper_provider.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/ai/learner_ai_context_assembler.dart';
+import 'package:turna/application/course_pack/imported_languages.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/gems_provider.dart';
@@ -148,13 +149,18 @@ class _NewLessonPageState extends State<NewLessonPage> {
       return;
     }
 
+    final languageCode = switch (context.read<CourseProvider>().scope) {
+      BuiltinCourseScope(languageCode: final code) => code,
+      _ => LanguageRegistry.instance.defaultCode,
+    };
     final ctx = AiQuestionContext(
-      language: LanguageRegistry.instance.displayName(
-        switch (context.read<CourseProvider>().scope) {
-          BuiltinCourseScope(languageCode: final code) => code,
-          _ => LanguageRegistry.instance.defaultCode,
-        },
-      ),
+      // Overlay first: an imported course's display name lives in the
+      // `importedLang:` meta, not the packed registry (which would
+      // synthesize the raw code).
+      language: ImportedLanguageRegistry.instance.displayNameOrNull(
+            languageCode,
+          ) ??
+          LanguageRegistry.instance.displayName(languageCode),
       typeLabel: interactionTypeLabel(interaction),
       promptLabel: interactionPromptLabel(interaction),
       optionsLabel: interactionOptionsLabel(interaction),

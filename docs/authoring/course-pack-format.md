@@ -55,7 +55,7 @@ media/hola.mp3
 
 允许的扩展名：`.jpg` `.jpeg` `.png` `.webp` `.gif` `.mp3` `.ogg` `.wav` `.m4a` `.aac` `.opus`。
 
-`media/` 只收平铺文件名，不允许嵌套子目录（`media/media/x.jpg`、`media/sub/x.jpg` 一律拒绝）——`turnapack://` 解析按单层剥前缀处理，嵌套路径落盘后永远无法解析。
+`media/` 的规范形态是平铺文件名；嵌套子目录（`media/sub/x.jpg`）实际可用——解压按原相对路径落盘，`turnapack://` 解析剥掉一层 `media/` 前缀后保留子路径。唯一被拒绝的是 `media/media/…` 双前缀（防打包错误）。
 
 ## 硬规则
 

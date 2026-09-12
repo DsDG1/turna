@@ -24,7 +24,7 @@ class LessonLinkStore {
   Future<void> _writeChain = Future.value();
 
   /// Full map (all [LinkType]s). Mutations must go through [upsertFirstSeen]
-  /// or [replaceAll].
+  /// or [removeIds].
   Map<String, LessonWordLink> readAll() {
     if (_cache != null) return Map.of(_cache!);
 
@@ -72,6 +72,20 @@ class LessonLinkStore {
   }
 
   String? lessonNameFor(String id) => linkFor(id)?.lessonName;
+
+  /// Drop the given word ids (e.g. resources a pack re-import removed —
+  /// see `CourseRepository.deleteOrphanedLearnerRows`). Serializes writes.
+  Future<void> removeIds(Set<String> wordIds) {
+    return _enqueue(() async {
+      final current = readAll();
+      final removed = wordIds.where(current.containsKey);
+      if (removed.isEmpty) return;
+      for (final id in removed) {
+        current.remove(id);
+      }
+      await _persist(current);
+    });
+  }
 
   /// O(1) lookup without copying the full map. Returns `null` if unknown.
   LessonWordLink? linkFor(String id) {

@@ -38,16 +38,24 @@ class SpeechLanguages {
 SpeechLanguages currentSpeechLanguages() {
   try {
     final languageProvider = getIt<LanguageProvider>();
+    final code = languageProvider.selectedLanguageCode;
     final target = languageProvider.ttsLanguageCode;
     final scope = getIt<CourseProvider>().courseScope;
     final native = getIt<SettingsProvider>().nativeLanguageCodeFor(scope);
     return SpeechLanguages(
       target: target,
       native: native,
+      // The trailing `?? ''` is "no signature", NOT "keep the detector's
+      // Turkish default": a course that declares no signature set (e.g. an
+      // imported pack without `signatureChars`) must not route Turkish
+      // letters in its translations to the target-language voice. Builtin
+      // tr/fr always declare their set, so '' only reaches undeclared
+      // languages. The null below (DI failure) stays Turkish on purpose —
+      // the app's original target language.
       signatureChars: ImportedLanguageRegistry.instance
-              .signatureCharsOrNull(languageProvider.selectedLanguageCode) ??
-          LanguageRegistry.instance
-              .signatureChars(languageProvider.selectedLanguageCode),
+              .signatureCharsOrNull(code) ??
+          LanguageRegistry.instance.signatureChars(code) ??
+          '',
     );
   } catch (_) {
     return const SpeechLanguages(

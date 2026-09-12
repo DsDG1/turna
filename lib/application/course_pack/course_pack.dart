@@ -255,6 +255,17 @@ class CoursePackMissingException implements Exception {
   String toString() => 'Persisted course pack is missing';
 }
 
+/// The user declined the "replace the existing course for this language?"
+/// confirmation. Nothing was written — distinct from
+/// [CoursePackImportException] so the UI can show a quiet cancel instead
+/// of an error dialog.
+class CoursePackImportCancelled implements Exception {
+  const CoursePackImportCancelled(this.code);
+  final String code;
+  @override
+  String toString() => 'Import of "$code" cancelled by user';
+}
+
 enum CoursePackImportPhase { decoding, validating, writing }
 
 class CoursePackImportResult {

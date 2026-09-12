@@ -4,11 +4,16 @@ import 'dart:io';
 import 'package:archive/archive.dart';
 import 'package:drift/drift.dart' hide Expression;
 import 'package:path/path.dart' as p;
-import 'package:turna/application/course_catalog.dart';
 import 'package:turna/application/course_pack/course_pack.dart';
 import 'package:turna/application/course_pack/course_pack_media.dart';
 import 'package:turna/application/course_pack/imported_languages.dart';
+import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/language_registry.dart';
+import 'package:turna/application/lesson_link_store.dart';
+import 'package:turna/application/lesson_progress_provider.dart';
+import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/application/srs_provider.dart';
+import 'package:turna/core/logger.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/courses/course_validator.dart';
 import 'package:turna/courses/languages/language_content_store.dart';
@@ -16,6 +21,7 @@ import 'package:turna/data/course_database.dart'
     hide Section, GrammarPoint, Unit, Lesson, LessonContent, Vocabulary;
 import 'package:turna/data/course_database_seeder.dart';
 import 'package:turna/data/course_repository.dart';
+import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/expression.dart';
 import 'package:turna/domain/course/grammar_point.dart';
 import 'package:turna/domain/course/language_codes.dart';
@@ -30,12 +36,20 @@ class CoursePackImporter {
     this.onPhase,
     this.persistDirectory,
     this.afterTablesCleared,
+    this.confirmReplaceExisting,
   });
 
   final CourseDatabase db;
 
   /// When the pack language is the active builtin scope, switch away first.
   final Future<void> Function(String code)? onImportingActiveCode;
+
+  /// Invoked when the language already has installed content rows, before
+  /// anything is written. Returning `false` aborts with
+  /// [CoursePackImportCancelled]; `null` (no callback — tests, reinstall)
+  /// means "just replace", matching the pre-confirmation behavior.
+  final Future<bool> Function(String code, String existingDisplayName)?
+      confirmReplaceExisting;
 
   /// Coarse progress signal for the import dialog (decode → validate → write).
   final void Function(CoursePackImportPhase phase)? onPhase;
@@ -291,6 +305,20 @@ class CoursePackImporter {
       throw CoursePackImportException(cross);
     }
 
+    final repository = CourseRepository(db);
+    // Replacing an installed course is destructive-ish (SRS state for ids
+    // the new pack drops is pruned below) — give the caller one chance to
+    // back out before anything is written.
+    if (await repository.languageHasContent(code)) {
+      final existingDisplayName =
+          ImportedLanguageRegistry.instance.displayNameOrNull(code) ?? code;
+      final proceed =
+          await confirmReplaceExisting?.call(code, existingDisplayName);
+      if (proceed == false) {
+        throw CoursePackImportCancelled(code);
+      }
+    }
+
     final persistDir = persistDirectory ?? await _defaultPersistDir();
     await persistDir.create(recursive: true);
 
@@ -298,6 +326,12 @@ class CoursePackImporter {
     // deletes/replaces the previously installed course's extracted media.
     onPhase?.call(CoursePackImportPhase.writing);
     await onImportingActiveCode?.call(code);
+
+    // Learner rows outlive the content-table wipe by design (a same-pack
+    // update must preserve progress); snapshot the pre-import ids so rows
+    // referencing ids the new pack dropped can be pruned after seeding.
+    final oldLessonIds = await repository.lessonIdsForLanguage(code);
+    final oldResourceIds = await repository.resourceIdsForLanguage(code);
 
     final seeder = DatabaseSeeder(
       db,
@@ -308,6 +342,22 @@ class CoursePackImporter {
     // Cleared only after a successful seed: a failed reimport of a previously
     // uninstalled language must leave the marker so it stays restorable.
     await CourseRepository(db).clearLanguageUninstallMarker(code);
+
+    // Ghost rows (due cards and mistakes whose word/lesson no longer
+    // resolves, e.g. after importing a *different* pack under the same
+    // code) must not leak into the new course. Runs unconditionally so it
+    // also self-heals orphans created before this guard existed.
+    final liveLessonIds = await repository.lessonIdsForLanguage(code);
+    final liveResourceIds = await repository.resourceIdsForLanguage(code);
+    await repository.deleteOrphanedLearnerRows(
+      code,
+      liveResourceIds: liveResourceIds,
+      liveLessonIds: liveLessonIds,
+    );
+    await _pruneProgressAndRefreshProviders(
+      deadResourceIds: oldResourceIds.difference(liveResourceIds),
+      deadLessonIds: oldLessonIds.difference(liveLessonIds),
+    );
 
     if (extractedMedia.isEmpty) {
       await CoursePackMedia.deleteExtractedMedia(code, persist: persistDir);
@@ -349,6 +399,57 @@ class CoursePackImporter {
       wordCount: vocab.length,
       attribution: pack.license.attribution,
     );
+  }
+
+  /// Prefs-side cleanup after the DB prune (lesson-progress sets, first-seen
+  /// word links) plus an explicit cache re-read for the providers holding
+  /// learner rows in memory — `setLanguageFilter`/`setLanguage` early-return
+  /// when the practice language did not change, so without this a
+  /// re-imported course would keep serving the pre-prune caches.
+  ///
+  /// Best-effort like the uninstall cascade in CourseProvider: a failed
+  /// prefs refresh must not fail an import whose DB writes all succeeded.
+  Future<void> _pruneProgressAndRefreshProviders({
+    required Set<String> deadResourceIds,
+    required Set<String> deadLessonIds,
+  }) async {
+    try {
+      if (deadLessonIds.isNotEmpty &&
+          getIt.isRegistered<LessonProgressProvider>()) {
+        await getIt<LessonProgressProvider>().removeLessonIds(deadLessonIds);
+      }
+    } catch (error) {
+      logger.w('CoursePackImporter: lesson progress prune failed: $error');
+    }
+    try {
+      if (deadResourceIds.isNotEmpty && getIt.isRegistered<LessonLinkStore>()) {
+        await getIt<LessonLinkStore>().removeIds(deadResourceIds);
+      }
+    } catch (error) {
+      logger.w('CoursePackImporter: word link prune failed: $error');
+    }
+    try {
+      if (getIt.isRegistered<SrsProvider>()) {
+        await getIt<SrsProvider>().reloadFromStorage();
+      }
+    } catch (error) {
+      logger.w('CoursePackImporter: SRS reload failed: $error');
+    }
+    try {
+      if (getIt.isRegistered<GrammarReviewProvider>()) {
+        await getIt<GrammarReviewProvider>().reloadFromStorage();
+      }
+    } catch (error) {
+      logger.w('CoursePackImporter: grammar reload failed: $error');
+    }
+    try {
+      if (getIt.isRegistered<MistakeProvider>()) {
+        // void by design: it only drops caches; the next ensureLoaded re-reads.
+        getIt<MistakeProvider>().reloadFromPrefs();
+      }
+    } catch (error) {
+      logger.w('CoursePackImporter: mistake reload failed: $error');
+    }
   }
 
   static Future<File?> persistedPackFile(
@@ -512,21 +613,4 @@ class CoursePackImporter {
       yield point.id;
     }
   }
-}
-
-/// Used by the management page to switch the active course before overwrite.
-Future<void> switchAwayFromImportedCode({
-  required String importingCode,
-  required String activeWire,
-  required Future<void> Function(dynamic scope) setScope,
-  required List<CourseCatalogEntry> catalog,
-}) async {
-  const scopePrefix = 'course-scope:v1:builtin:';
-  if (!activeWire.startsWith(scopePrefix)) return;
-  final activeCode = activeWire.substring(scopePrefix.length);
-  if (LanguageCodes.canonicalize(activeCode) !=
-      LanguageCodes.canonicalize(importingCode)) {
-    return;
-  }
-  await setScope(CourseCatalog.fallbackBuiltin(catalog));
 }

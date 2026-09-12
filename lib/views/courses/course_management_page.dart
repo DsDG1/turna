@@ -265,6 +265,8 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
         db,
         onImportingActiveCode: courseProvider.switchAwayIfActive,
         onPhase: (p) => phase.value = p,
+        confirmReplaceExisting: (code, existingName) =>
+            _confirmReplace(context, existingName),
       ).importFromFile(path);
       await courseProvider.reloadCourse();
       if (!context.mounted) return;
@@ -289,6 +291,16 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
         Navigator.of(context, rootNavigator: true).maybePop();
       }
       _showPackErrors(context, e.errors);
+    } on CoursePackImportCancelled {
+      // Quiet exit — the user just declined the replace confirmation, no
+      // error dialog on top of it.
+      if (!context.mounted) return;
+      if (progressShown) {
+        Navigator.of(context, rootNavigator: true).maybePop();
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppStrings.coursePackImportCancelled)),
+      );
     } catch (e) {
       if (!context.mounted) return;
       if (progressShown) {
@@ -307,6 +319,30 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
         CoursePackImportPhase.writing =>
           AppStrings.courseManagementImportPackWriting,
       };
+
+  /// "Replace the course already installed for this language?"
+  /// (pack importer's confirmReplaceExisting callback). Stacks on top of
+  /// the progress dialog; same shape as [_confirmDelete].
+  Future<bool> _confirmReplace(BuildContext context, String name) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(AppStrings.coursePackReplaceConfirmTitle),
+        content: Text(AppStrings.coursePackReplaceConfirmBody(name)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(AppStrings.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(AppStrings.coursePackReplaceConfirmAction),
+          ),
+        ],
+      ),
+    );
+    return confirmed == true;
+  }
 
   void _showPackErrors(BuildContext context, List<String> errors) {
     final shown = errors.take(5).join('\n');
