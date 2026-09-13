@@ -227,7 +227,9 @@ class DictionaryHitTile extends StatelessWidget {
         AiExplainPrefsStore? prefs;
         try {
           prefs = context.read<AiExplainPrefsStore>();
-        } catch (_) {}
+        } catch (_) {
+          // Optional dependency: AI explain sheet runs without saved prefs.
+        }
         return ChangeNotifierProvider(
           create: (_) => DictionaryAiProvider(prefs: prefs),
           child: _DictionaryAiSheet(hit: hit),

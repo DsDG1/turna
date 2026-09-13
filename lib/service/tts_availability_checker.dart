@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:injectable/injectable.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:turna/core/logger.dart';
 
 /// Snapshot of the device's TTS capabilities for UI / debugging.
 class TtsDiagnostics {
@@ -136,7 +137,7 @@ class TtsAvailabilityChecker {
       if (engines is! List) return const [];
       return engines.map(_engineName).toList(growable: false);
     } catch (e, st) {
-      debugPrint('TtsAvailabilityChecker: listEngineNames failed: $e\n$st');
+      logger.w('TtsAvailabilityChecker: listEngineNames failed: $e\n$st');
       return const [];
     }
   }
@@ -176,14 +177,14 @@ class TtsAvailabilityChecker {
         if (defaultTargetPlatform == TargetPlatform.android) {
           final installed = await _isLanguageInstalledSafe(candidate);
           if (installed == true) {
-            debugPrint(
+            logger.d(
               'TtsAvailabilityChecker: resolved installed language '
               '"$candidate" for "$languageCode"',
             );
             return candidate;
           }
           if (installed == false) {
-            debugPrint(
+            logger.d(
               'TtsAvailabilityChecker: "$candidate" available but not installed',
             );
             continue;
@@ -191,7 +192,7 @@ class TtsAvailabilityChecker {
           // installed == null → API unsupported / failed; fall through.
         }
 
-        debugPrint(
+        logger.d(
           'TtsAvailabilityChecker: resolved language "$candidate" for "$languageCode"',
         );
         return candidate;
@@ -200,20 +201,20 @@ class TtsAvailabilityChecker {
       // No installed pack found: if something was merely available, still
       // return it so callers can attempt speak (network voice / OEM quirks).
       if (firstAvailable != null) {
-        debugPrint(
+        logger.d(
           'TtsAvailabilityChecker: using available-but-maybe-uninstalled '
           'locale "$firstAvailable" for "$languageCode"',
         );
         return firstAvailable;
       }
 
-      debugPrint(
+      logger.d(
         'TtsAvailabilityChecker: no available locale for "$languageCode" '
         '(candidates=$candidates)',
       );
       return null;
     } catch (e, st) {
-      debugPrint(
+      logger.w(
         'TtsAvailabilityChecker: failed to resolve language: $e\n$st',
       );
       return null;
@@ -260,7 +261,7 @@ class TtsAvailabilityChecker {
 
       return true;
     } catch (e, st) {
-      debugPrint(
+      logger.w(
         'TtsAvailabilityChecker: failed to query availability: $e\n$st',
       );
       return false;
@@ -279,7 +280,7 @@ class TtsAvailabilityChecker {
     if (defaultTargetPlatform == TargetPlatform.android) {
       final hasGoogle = await hasGoogleTtsEngine();
       if (!hasGoogle) {
-        debugPrint(
+        logger.d(
           'TtsAvailabilityChecker: preferred system TTS unavailable '
           '(Google TTS not installed or not visible — check AndroidManifest '
           '<queries> for TTS_SERVICE)',
@@ -290,7 +291,7 @@ class TtsAvailabilityChecker {
 
     final resolved = await resolveLanguageCode(languageCode);
     if (resolved == null) {
-      debugPrint(
+      logger.d(
         'TtsAvailabilityChecker: preferred system TTS unavailable '
         '(no locale for $languageCode)',
       );
@@ -300,7 +301,7 @@ class TtsAvailabilityChecker {
     if (defaultTargetPlatform == TargetPlatform.android) {
       final installed = await _isLanguageInstalledSafe(resolved);
       if (installed == false) {
-        debugPrint(
+        logger.d(
           'TtsAvailabilityChecker: preferred system TTS unavailable '
           '(locale $resolved not installed — download its voice data)',
         );
@@ -308,7 +309,7 @@ class TtsAvailabilityChecker {
       }
     }
 
-    debugPrint(
+    logger.d(
       'TtsAvailabilityChecker: preferred system TTS available '
       '(lang=$languageCode, resolved=$resolved)',
     );
@@ -390,7 +391,7 @@ class TtsAvailabilityChecker {
     try {
       final engines = await _tts.getEngines;
       if (engines is! List) {
-        debugPrint(
+        logger.d(
           'TtsAvailabilityChecker: getEngines returned non-list ($engines). '
           'If Google TTS is installed, ensure AndroidManifest declares '
           '<queries> for android.intent.action.TTS_SERVICE.',
@@ -400,10 +401,10 @@ class TtsAvailabilityChecker {
       }
 
       final engineNames = engines.map(_engineName).toList(growable: false);
-      debugPrint('TtsAvailabilityChecker: engines=$engineNames');
+      logger.d('TtsAvailabilityChecker: engines=$engineNames');
 
       if (engineNames.isEmpty) {
-        debugPrint(
+        logger.d(
           'TtsAvailabilityChecker: empty engine list. On Android 11+ this '
           'often means missing <queries> for TTS_SERVICE in AndroidManifest.',
         );
@@ -413,15 +414,15 @@ class TtsAvailabilityChecker {
 
       if (hasGoogle) {
         await _tts.setEngine(googleEngineId);
-        debugPrint('TtsAvailabilityChecker: selected Google TTS engine');
+        logger.d('TtsAvailabilityChecker: selected Google TTS engine');
       } else {
-        debugPrint(
+        logger.d(
           'TtsAvailabilityChecker: Google TTS not installed; using device default engine',
         );
       }
       _engineConfigured = true;
     } catch (e, st) {
-      debugPrint('TtsAvailabilityChecker: failed to set engine: $e\n$st');
+      logger.w('TtsAvailabilityChecker: failed to set engine: $e\n$st');
       // Still mark configured to avoid retry thrashing; caller can force.
       _engineConfigured = true;
     }
@@ -438,12 +439,12 @@ class TtsAvailabilityChecker {
           mode: LaunchMode.externalApplication,
         );
       }
-      debugPrint(
+      logger.d(
         'TtsAvailabilityChecker: cannot launch Google TTS store URL',
       );
       return false;
     } catch (e, st) {
-      debugPrint(
+      logger.w(
         'TtsAvailabilityChecker: openGoogleTtsInstallPage failed: $e\n$st',
       );
       return false;
@@ -466,13 +467,13 @@ class TtsAvailabilityChecker {
       return result == true;
     } on MissingPluginException {
       // Fallback when native side is not wired: try a common settings URI.
-      debugPrint(
+      logger.d(
         'TtsAvailabilityChecker: openTtsSettings channel missing; '
         'user should open Settings → Accessibility → Text-to-speech',
       );
       return false;
     } catch (e, st) {
-      debugPrint(
+      logger.w(
         'TtsAvailabilityChecker: openSystemTtsSettings failed: $e\n$st',
       );
       return false;
@@ -492,7 +493,7 @@ class TtsAvailabilityChecker {
       }
       return null;
     } catch (e) {
-      debugPrint(
+      logger.w(
         'TtsAvailabilityChecker: isLanguageInstalled($language) failed: $e',
       );
       return null;

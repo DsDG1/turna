@@ -2,6 +2,7 @@
 import 'package:flutter/foundation.dart';
 
 // Project imports:
+import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/service/locator.dart';
 
@@ -109,13 +110,11 @@ class AiExplainPrefsStore extends ChangeNotifier {
       // Tests and early bootstrap before registration.
       return AiExplainPrefsStore();
     }
-    // Release without registration: still functional but log once via assert.
-    assert(() {
-      // ignore: avoid_print
-      print(
-          'AiExplainPrefsStore.resolve: GetIt not registered; using ephemeral');
-      return true;
-    }());
+    // Release without registration: still functional, but log once so the
+    // degraded mode is visible in the transparency log.
+    logger.w(
+      'AiExplainPrefsStore.resolve: GetIt not registered; using ephemeral',
+    );
     return AiExplainPrefsStore();
   }
 

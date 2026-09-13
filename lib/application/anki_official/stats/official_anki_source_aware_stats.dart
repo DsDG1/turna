@@ -4,6 +4,7 @@ import 'package:turna/application/anki_official/migration/official_anki_engine_k
 import 'package:turna/application/anki_official/stats/official_anki_retention_curve_service.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/memory_curve_provider.dart';
+import 'package:turna/core/logger.dart';
 
 enum OfficialStatsAvailability {
   available,
@@ -183,7 +184,10 @@ class OfficialAnkiSourceAwareStats {
       userSuspended = (suspendedCards > unintroducedCount)
           ? suspendedCards - unintroducedCount
           : 0;
-    } catch (_) {}
+    } catch (e, st) {
+      logger.w('OfficialAnkiStats: per-source extras failed',
+          error: e, stackTrace: st);
+    }
 
     return _fromTotals(
       sourceId: sourceId,

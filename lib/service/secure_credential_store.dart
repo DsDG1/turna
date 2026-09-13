@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 // Project imports:
+import 'package:turna/core/logger.dart';
 import 'package:turna/domain/repositories/i_credential_store.dart';
 
 /// Platform-backed credential storage (Android Keystore via EncryptedShared-
@@ -86,7 +87,7 @@ class SecureCredentialStore implements ICredentialStore {
 
   void _degrade(Object error) {
     if (kDebugMode) {
-      debugPrint('SecureCredentialStore: plugin unavailable ($error), '
+      logger.w('SecureCredentialStore: plugin unavailable ($error), '
           'degrading to session-only storage.');
     }
     _pluginHealthy = false;

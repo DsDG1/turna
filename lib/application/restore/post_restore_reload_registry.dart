@@ -16,6 +16,7 @@ import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/application/study_stats_provider.dart';
+import 'package:turna/core/logger.dart';
 import 'package:turna/data/study_log_repository.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/service/local_reminder_service.dart';
@@ -221,7 +222,7 @@ class PostRestoreReloadRegistry {
         reloaded.add(step.name);
       } catch (error) {
         if (kDebugMode) {
-          debugPrint('PostRestoreReload step "${step.name}" failed: $error');
+          logger.w('PostRestoreReload step "${step.name}" failed: $error');
         }
         failures[step.name] = error.toString();
       }

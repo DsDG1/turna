@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/render/official_anki_present_ack.dart';
+import 'package:turna/core/logger.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_error_view.dart';
 
 const officialAnkiReviewerViewType = 'official_anki_reviewer';
@@ -128,7 +129,7 @@ class OfficialAnkiReviewerViewState extends State<OfficialAnkiReviewerView> {
         }
         return null;
       case 'renderError':
-        debugPrint('[OfficialAnkiReviewer] renderError ${call.arguments}');
+        logger.w('[OfficialAnkiReviewer] renderError ${call.arguments}');
         final raw = call.arguments?.toString() ?? '';
         final code =
             raw.isEmpty || raw == 'renderError' ? 'UNRENDERABLE_CARD' : raw;
@@ -172,7 +173,7 @@ class OfficialAnkiReviewerViewState extends State<OfficialAnkiReviewerView> {
           });
           return OfficialAnkiPresentResult.fromNative(raw);
         } catch (error) {
-          debugPrint('[OfficialAnkiReviewer] present failed $error');
+          logger.w('[OfficialAnkiReviewer] present failed $error');
           return OfficialAnkiPresentResult(
             ok: false,
             code: 'RENDER_TIMEOUT',

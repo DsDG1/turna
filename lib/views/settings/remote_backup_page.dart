@@ -6,6 +6,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:intl/intl.dart';
 
 // Project imports:
+import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/locator.dart';
@@ -179,7 +180,7 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
   /// replaced when the (masked) password field contains a new entry; an
   /// empty field plus the "已保存凭据" placeholder keeps the existing one.
   Future<void> _saveAndTest() async {
-    debugPrint('SAVEANDTEST: store=${_configStore != null} busy=$_busy '
+    logger.d('SAVEANDTEST: store=${_configStore != null} busy=$_busy '
         'canSave=$_canSave');
     final store = _configStore;
     if (store == null || _busy) return;

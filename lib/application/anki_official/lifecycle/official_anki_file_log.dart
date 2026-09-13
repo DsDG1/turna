@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:turna/core/logger.dart';
 
 /// D8 文件日志通道（step4.md C1，Step 1 发现 #4 的答复）。
@@ -23,7 +22,7 @@ void officialAnkiFileLog(
   } else {
     logger.i(line);
   }
-  debugPrint(line);
+  logger.d(line);
 }
 
 /// 启动恢复日志（doc 41 §7 / step4.md C1 覆盖清单第一项）。

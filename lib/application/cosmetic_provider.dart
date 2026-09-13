@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 // Package imports:
 import 'package:injectable/injectable.dart';
 
+import 'package:turna/core/logger.dart';
 // Project imports:
 import 'package:turna/application/diagnostics/storage_write_telemetry.dart';
 import 'package:turna/application/gems_provider.dart';
@@ -267,12 +268,14 @@ class CosmeticProvider extends ChangeNotifier {
   }
 
   Future<void> _enqueue(Future<void> Function() op) {
-    _opChain = _opChain.then((_) => op()).catchError((Object e) {
-      assert(() {
-        // ignore: avoid_print
-        print('CosmeticProvider op failed: $e');
-        return true;
-      }());
+    _opChain = _opChain.then((_) => op()).catchError((Object e, StackTrace st) {
+      // Chain-internal failures must not break later ops, but they still
+      // surface in the transparency log.
+      logger.w(
+        'CosmeticProvider op failed',
+        error: e,
+        stackTrace: st,
+      );
     });
     return _opChain;
   }

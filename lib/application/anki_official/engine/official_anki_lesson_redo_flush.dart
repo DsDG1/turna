@@ -1,7 +1,7 @@
-import 'package:flutter/foundation.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
+import 'package:turna/core/logger.dart';
 
 /// Outcome of a lesson-redo Official flush (ADR 0037 提前复习).
 class OfficialAnkiLessonRedoFlushResult {
@@ -54,7 +54,7 @@ class OfficialAnkiLessonRedoFlush {
     try {
       final resolved = engine ?? OfficialAnkiCompositionRoot.engine;
       if (resolved == null) {
-        debugPrint(
+        logger.d(
           '[OfficialAnkiLessonRedoFlush] official engine unavailable',
         );
         return OfficialAnkiLessonRedoFlushResult(
@@ -70,7 +70,7 @@ class OfficialAnkiLessonRedoFlush {
         failed: outcome.answered + outcome.skippedRatedToday < answers.length,
       );
     } catch (error) {
-      debugPrint('[OfficialAnkiLessonRedoFlush] fail-closed: $error');
+      logger.w('[OfficialAnkiLessonRedoFlush] fail-closed: $error');
       return OfficialAnkiLessonRedoFlushResult(
         requested: answers.length,
         failed: true,

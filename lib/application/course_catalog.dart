@@ -136,7 +136,10 @@ class CourseCatalog {
     if (db != null) {
       try {
         languageBySection.addAll(await CourseLoader.sectionLanguageCodes());
-      } catch (_) {}
+      } catch (e, st) {
+        logger.w('CourseCatalog: section language codes failed',
+            error: e, stackTrace: st);
+      }
     }
     final codesFromDb = <String>{};
     for (final section in sections) {
@@ -150,7 +153,10 @@ class CourseCatalog {
     if (db != null) {
       try {
         await ImportedLanguageRegistry.instance.hydrate(db);
-      } catch (_) {}
+      } catch (e, st) {
+        logger.w('CourseCatalog: imported-language registry hydrate failed',
+            error: e, stackTrace: st);
+      }
     }
     final builtinCodes = <String>[
       for (final language in LanguageRegistry.instance.languages)

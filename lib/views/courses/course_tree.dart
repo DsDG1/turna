@@ -241,7 +241,10 @@ class _CourseTreeState extends State<CourseTree> with TickerProviderStateMixin {
               break;
             }
           }
-        } catch (_) {}
+        } catch (_) {
+          // Optional dependency: without progress the tree simply starts at
+          // the first lesson instead of the next uncompleted one.
+        }
 
         for (var i = 0; i < unit.lessons.length; i++) {
           final lesson = unit.lessons[i];

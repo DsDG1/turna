@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:sqlite3/sqlite3.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/storage/official_anki_sqlite.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:turna/core/logger.dart';
 
 const int kOfficialAnkiCatalogSchemaVersion = 14;
 
@@ -13,7 +13,7 @@ class OfficialAnkiDatabase {
     try {
       _migrate();
     } catch (suppressed) {
-      debugPrint('[OfficialAnkiDatabase] suppressed error: $suppressed');
+      logger.w('[OfficialAnkiDatabase] suppressed error: $suppressed');
       // A failed migration (e.g. future schema version) must not leak the
       // open handle — on Windows that keeps the file locked for the caller.
       _db.dispose();
@@ -25,7 +25,7 @@ class OfficialAnkiDatabase {
     try {
       _migrate();
     } catch (suppressed) {
-      debugPrint('[OfficialAnkiDatabase] suppressed error: $suppressed');
+      logger.w('[OfficialAnkiDatabase] suppressed error: $suppressed');
       _db.dispose();
       rethrow;
     }
@@ -116,7 +116,7 @@ class OfficialAnkiDatabase {
       _db.execute('PRAGMA user_version = $kOfficialAnkiCatalogSchemaVersion');
       _db.execute('COMMIT');
     } catch (suppressed) {
-      debugPrint('[OfficialAnkiDatabase] suppressed error: $suppressed');
+      logger.w('[OfficialAnkiDatabase] suppressed error: $suppressed');
       _db.execute('ROLLBACK');
       rethrow;
     }

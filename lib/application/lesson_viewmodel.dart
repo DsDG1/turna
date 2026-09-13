@@ -18,6 +18,7 @@ import 'package:turna/application/anki_official/engine/official_anki_lock_reconc
 import 'package:turna/application/anki_official/projection/official_anki_lesson_card_index.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_lesson_content.dart';
 import 'package:turna/application/game_provider.dart';
+import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/application/study_session/study_product_analytics.dart';
 import 'package:turna/application/study_session/study_session_controller.dart';
@@ -355,7 +356,7 @@ class LessonViewModel extends ChangeNotifier {
       try {
         lesson = await CourseLoader.loadLessonById(lessonId);
       } catch (e) {
-        debugPrint('loadLesson($lessonId) failed: $e');
+        logger.w('loadLesson($lessonId) failed: $e');
         lesson = null;
       }
     }
@@ -936,7 +937,7 @@ class LessonViewModel extends ChangeNotifier {
             cardIds: newlyIntroduced,
           );
         } catch (error) {
-          debugPrint(
+          logger.w(
             'Official unlock failed; keeping cards unintroduced: $error',
           );
           return;
@@ -1290,7 +1291,7 @@ class LessonViewModel extends ChangeNotifier {
             .ensureForCardIds(_ankiCardIdsInLesson());
       }
     } catch (e, st) {
-      debugPrint('Official Anki lesson complete side-effect failed: $e\n$st');
+      logger.w('Official Anki lesson complete side-effect failed: $e\n$st');
     }
     _isComplete = true;
     notifyListeners();
@@ -1309,7 +1310,7 @@ class LessonViewModel extends ChangeNotifier {
       // side-effect failure (XP/gems/stats) doesn't crash the app. The
       // side effects in [LessonCompletionCoordinator] are already
       // individually guarded, this is the outer backstop.
-      debugPrint('LessonCompletionCoordinator failed: $e\n$st');
+      logger.w('LessonCompletionCoordinator failed: $e\n$st');
     }
   }
 

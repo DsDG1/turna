@@ -19,6 +19,7 @@ import 'package:turna/application/maintenance/database_doctor_service.dart';
 import 'package:turna/application/maintenance/storage_inventory_service.dart';
 import 'package:turna/core/log_capture.dart';
 
+import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/anki/import_wizard/official_pending_import_banner.dart';
@@ -693,7 +694,12 @@ class _OfficialAnkiRepairCenterPageState
               engine: _engine,
             ).runRetireJob(sourceId: s.sourceId);
           }
-        } catch (_) {}
+        } catch (e, st) {
+          // One-click repair must still finish the remaining steps, but a
+          // swallowed step failure would report success falsely.
+          logger.w('RepairCenter: one-click repair step failed',
+              error: e, stackTrace: st);
+        }
       }
       if (mounted) {
         _snack('一键修复执行完毕');
@@ -761,7 +767,10 @@ class _OfficialAnkiRepairCenterPageState
         try {
           await OfficialAnkiCompositionRoot.requireImporter();
           engine = OfficialAnkiCompositionRoot.engine;
-        } catch (_) {}
+        } catch (e) {
+          // Availability probe: engine may be legitimately absent.
+          logger.d('RepairCenter: engine import probe failed: $e');
+        }
       }
       await OfficialAnkiMaintenanceRunner(
         catalog: catalog,
@@ -983,7 +992,10 @@ class _OfficialAnkiRepairCenterPageState
     await Clipboard.setData(ClipboardData(text: withLogs));
     try {
       await Share.share(withLogs, subject: AppStrings.ankiRepairCenterTitle);
-    } catch (_) {}
+    } catch (_) {
+      // Best-effort secondary channel: the clipboard copy above already
+      // succeeded and the snack below tells the user so.
+    }
     if (mounted) _snack(AppStrings.ankiRepairExportCopied);
   }
 

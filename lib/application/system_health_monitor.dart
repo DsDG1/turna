@@ -12,6 +12,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 // Project imports:
 import 'package:turna/application/diagnostics/system_health_policy.dart';
 import 'package:turna/core/log_capture.dart';
+import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/service/locator.dart';
@@ -230,7 +231,7 @@ class SystemHealthMonitor extends ChangeNotifier {
     await _save();
     notifyListeners();
     if (!integrityOk) {
-      debugPrint('SystemHealth self-check integrity: $integrityResult');
+      logger.d('SystemHealth self-check integrity: $integrityResult');
     }
     return checkPassed;
   }

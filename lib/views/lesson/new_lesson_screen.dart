@@ -176,7 +176,9 @@ class _NewLessonPageState extends State<NewLessonPage> {
     AiExplainPrefsStore? prefsStore;
     try {
       prefsStore = context.read<AiExplainPrefsStore>();
-    } catch (_) {}
+    } catch (_) {
+      // Optional dependency: AI context injection stays disabled without it.
+    }
     final learner = await LearnerAiContextAssembler.assembleIfInjectEnabled(
       languageName: ctx.language,
       prefs: prefsStore,

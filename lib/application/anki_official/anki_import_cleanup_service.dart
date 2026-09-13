@@ -1,5 +1,4 @@
 // Flutter imports:
-import 'package:flutter/foundation.dart';
 
 // Project imports:
 import 'package:turna/application/anki_official/introduction/card_introduction_eligibility.dart';
@@ -7,6 +6,7 @@ import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/srs_provider.dart';
+import 'package:turna/core/logger.dart';
 import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/anki_note_dao.dart';
 import 'package:turna/data/anki_unification_dao.dart';
@@ -78,14 +78,14 @@ class AnkiImportCleanupService {
     try {
       await audioController?.stopSpeechPlayer();
     } catch (e) {
-      debugPrint(
+      logger.w(
         '[AnkiImportCleanupService] stopSpeechPlayer failed '
         'for $importId: $e',
       );
     }
     final report = await audioResolver.deleteImportMedia(importId);
     if (!report.fullyDeleted) {
-      debugPrint(
+      logger.d(
         '[AnkiImportCleanupService] ${report.remainingFiles} media file(s) '
         'of $importId stayed locked; the orphan sweep will retry: '
         '${[

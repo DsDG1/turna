@@ -19,6 +19,7 @@ import 'package:turna/application/anki_official/storage/official_anki_import_att
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_import_service.dart';
+import 'package:turna/core/logger.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/utils/validated_file_picker.dart';
 
@@ -248,7 +249,7 @@ class AnkiImportController extends ChangeNotifier {
     } catch (error) {
       if (_stale(op)) return;
       _committingPlan = null;
-      debugPrint('[AnkiImport] commit failed: $error');
+      logger.w('[AnkiImport] commit failed: $error');
       _emit(AnkiImportFailed(
         message: AppStrings.ankiImportFailed(error),
         returnState: AnkiImportPreviewing(preview: preview),
@@ -304,7 +305,7 @@ class AnkiImportController extends ChangeNotifier {
       try {
         await OfficialAnkiCompositionRoot.stagingEngineFromSession()?.cancel();
       } catch (suppressed) {
-        debugPrint('[AnkiImport] staging cancel: $suppressed');
+        logger.w('[AnkiImport] staging cancel: $suppressed');
       }
       return;
     }

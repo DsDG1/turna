@@ -4,6 +4,7 @@ import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
 import 'package:turna/application/anki_official/render/official_anki_render_state.dart';
 import 'package:turna/application/anki_official/render/official_anki_reviewer_router.dart';
+import 'package:turna/core/logger.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_error_view.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_page.dart';
@@ -102,7 +103,7 @@ class _OfficialAnkiCanonicalCardViewState
       controller.addListener(_onControllerChanged);
       await controller.loadAndShowQuestion(ref.cardId);
     } catch (error, stack) {
-      debugPrint('[OfficialAnkiCanonicalCardView] boot error $error\n$stack');
+      logger.w('[OfficialAnkiCanonicalCardView] boot error $error\n$stack');
       _bootError = error;
     } finally {
       if (mounted) setState(() => _booting = false);

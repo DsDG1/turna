@@ -1,6 +1,6 @@
-import 'package:flutter/foundation.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
+import 'package:turna/core/logger.dart';
 
 /// Option A (ADR 0037): on first-pass lesson complete, raise today's
 /// remaining Official new-card quota so it covers this lesson's cards.
@@ -47,7 +47,7 @@ class OfficialAnkiLessonUnlockQuota {
       }
       return extra;
     } catch (error) {
-      debugPrint('[OfficialAnkiLessonUnlockQuota] fail-closed: $error');
+      logger.w('[OfficialAnkiLessonUnlockQuota] fail-closed: $error');
       return 0;
     }
   }

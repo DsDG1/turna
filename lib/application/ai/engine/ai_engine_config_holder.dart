@@ -10,6 +10,7 @@ import 'package:injectable/injectable.dart';
 // Project imports:
 import 'package:turna/application/diagnostics/storage_write_telemetry.dart';
 import 'package:turna/application/ai/engine/ai_engine_config.dart';
+import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/repositories/i_credential_store.dart';
 import 'package:turna/service/locator.dart';
@@ -183,7 +184,7 @@ class AiEngineConfigHolder extends ChangeNotifier {
     } catch (error) {
       migrationFailedStage = 'migrate';
       if (kDebugMode) {
-        debugPrint('AiEngineConfigHolder: credential migration failed at '
+        logger.w('AiEngineConfigHolder: credential migration failed at '
             'stage migrate (${error.runtimeType}); plaintext kept.');
       }
       // Never delete the plaintext on failure — the user's key must survive.
@@ -212,7 +213,7 @@ class AiEngineConfigHolder extends ChangeNotifier {
     } catch (error) {
       migrationFailedStage = 'persistKey';
       if (kDebugMode) {
-        debugPrint('AiEngineConfigHolder: secure key write failed '
+        logger.w('AiEngineConfigHolder: secure key write failed '
             '(${error.runtimeType}).');
       }
     }
@@ -240,7 +241,7 @@ class AiEngineConfigHolder extends ChangeNotifier {
   Future<String?> _readStoredKey() {
     return _credentials.read(apiKeyId).catchError((Object error) {
       if (kDebugMode) {
-        debugPrint('AiEngineConfigHolder: secure key read failed '
+        logger.w('AiEngineConfigHolder: secure key read failed '
             '(${error.runtimeType}).');
       }
       return null;

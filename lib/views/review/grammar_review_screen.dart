@@ -11,6 +11,7 @@ import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/gems_provider.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/study_stats_provider.dart';
+import 'package:turna/core/logger.dart';
 import 'package:turna/core/sm2.dart';
 import 'package:turna/courses/languages/grammar_points.dart';
 import 'package:turna/di/injection.dart';
@@ -136,7 +137,7 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
         multiplier: reviewedCount.toDouble(),
       );
     } catch (e) {
-      debugPrint('Error awarding grammar review XP: $e');
+      logger.w('Error awarding grammar review XP: $e');
     }
 
     final gems = GemEvent.grammarReviewSession.amount;
@@ -150,7 +151,7 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
         ),
       );
     } catch (e) {
-      debugPrint('Error earning grammar review gems: $e');
+      logger.w('Error earning grammar review gems: $e');
     }
 
     if (!mounted) return;
@@ -169,7 +170,7 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
             incorrectCount: 0,
           );
     } catch (e) {
-      debugPrint('Error recording grammar study stats: $e');
+      logger.w('Error recording grammar study stats: $e');
     }
 
     // Achievement evaluation after the authoritative writes above.
@@ -177,7 +178,7 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
       await getIt<AchievementService>()
           .recordReviewSession(cardsAnswered: reviewedCount);
     } catch (e) {
-      debugPrint('Error evaluating achievements: $e');
+      logger.w('Error evaluating achievements: $e');
     }
   }
 

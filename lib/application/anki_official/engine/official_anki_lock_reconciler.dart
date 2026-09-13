@@ -1,9 +1,9 @@
-import 'package:flutter/foundation.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/introduction/card_introduction_store.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
+import 'package:turna/core/logger.dart';
 
 /// P1: the course-completion gate lives in the Official scheduler.
 ///
@@ -61,7 +61,7 @@ class OfficialAnkiLockReconciler {
       );
       return toSuspend.length;
     } catch (error) {
-      debugPrint('[OfficialAnkiLockReconciler] reconcile failed: $error');
+      logger.w('[OfficialAnkiLockReconciler] reconcile failed: $error');
       return 0;
     }
   }

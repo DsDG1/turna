@@ -4,8 +4,8 @@ import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_retire_service.dart';
+import 'package:turna/core/logger.dart';
 import 'package:turna/data/course_database.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 
 /// Production executor for the startup repair pass: drives pending v2
 /// retire sequences to completion and drains pending maintenance jobs.
@@ -37,7 +37,7 @@ class OfficialAnkiRepairExecutor {
           await retireService.runRetireJob(sourceId: source.sourceId);
           cleanups++;
         } catch (error) {
-          debugPrint('[OfficialAnkiRepair] cleanup ${source.sourceId}: $error');
+          logger.w('[OfficialAnkiRepair] cleanup ${source.sourceId}: $error');
         }
       }
     }

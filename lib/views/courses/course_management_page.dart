@@ -19,6 +19,7 @@ import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/language_registry.dart';
 import 'package:turna/application/settings_provider.dart';
+import 'package:turna/core/logger.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/course_scope.dart';
@@ -449,7 +450,7 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
         await courseProvider.uninstallBuiltinLanguage(code);
         uninstallCompleted = true;
       } catch (e) {
-        debugPrint('[CourseManagement] builtin uninstall failed for $code: $e');
+        logger.w('[CourseManagement] builtin uninstall failed for $code: $e');
       }
     } else {
       // Uninstall with the COMPLETE source identity — never a truncated id.
@@ -458,7 +459,7 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
         uninstallCompleted =
             await getIt<AnkiDeckManager>().uninstall(deletionId);
       } catch (e) {
-        debugPrint('[CourseManagement] uninstall failed for $deletionId: $e');
+        logger.w('[CourseManagement] uninstall failed for $deletionId: $e');
       }
       if (!context.mounted) return;
       if (courseProvider.scope == entry.scope) {
@@ -500,7 +501,7 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
     } on CoursePackMissingException {
       message = AppStrings.courseManagementRestorePackMissing;
     } catch (e) {
-      debugPrint('[CourseManagement] reinstall failed for $code: $e');
+      logger.w('[CourseManagement] reinstall failed for $code: $e');
     }
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(

@@ -18,6 +18,7 @@ import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/srs_provider.dart';
+import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/core/theme.dart';
@@ -139,7 +140,7 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
               if (deckIds.contains(deck.deckId)) names[deck.deckId] = deck.name;
             }
           } catch (suppressed) {
-            debugPrint('[AnkiCardBrowserPage] suppressed error: $suppressed');
+            logger.w('[AnkiCardBrowserPage] suppressed error: $suppressed');
           }
         }
         if (!mounted) return;

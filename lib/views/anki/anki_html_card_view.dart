@@ -13,6 +13,7 @@ import 'package:turna/core/html_stripper.dart';
 
 // Package imports:
 import 'package:path/path.dart' as p;
+import 'package:turna/core/logger.dart';
 
 /// WebView shell for a single rendered Anki card face (fidelity track,
 /// deep-adaptation plan §5.2).
@@ -235,7 +236,7 @@ class AnkiHtmlCardViewState extends State<AnkiHtmlCardView> {
       final root = p.normalize(widget.allowedMediaBasePath);
       return p.equals(requested, root) || p.isWithin(root, requested);
     } catch (suppressed) {
-      debugPrint('[AnkiHtmlCardView] suppressed error: $suppressed');
+      logger.w('[AnkiHtmlCardView] suppressed error: $suppressed');
       return false;
     }
   }

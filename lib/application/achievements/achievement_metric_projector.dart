@@ -115,7 +115,9 @@ class AchievementMetricProjector {
       if (getIt.isRegistered<SrsProvider>()) {
         return getIt<SrsProvider>().languageFilter;
       }
-    } catch (_) {}
+    } catch (_) {
+      // Optional dependency: projector runs outside full DI in some tests.
+    }
     return null;
   }
 

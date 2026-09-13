@@ -4,7 +4,7 @@ import 'package:turna/application/anki_official/contract/official_anki_errors.da
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/engine/official_anki_operation_coordinator.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:turna/core/logger.dart';
 
 enum OfficialReviewPhase {
   idle,
@@ -211,7 +211,12 @@ class OfficialReviewSession {
           continue;
         }
       }
-    } catch (_) {}
+    } catch (e, st) {
+      // Unexpected probe failure: report it instead of silently reporting
+      // "no deck ready", which the caller cannot distinguish from the truth.
+      logger.w('OfficialReviewSession: deck probe failed',
+          error: e, stackTrace: st);
+    }
     return false;
   }
 
@@ -428,7 +433,7 @@ class OfficialReviewSession {
       congrats = await engine.congratsInfo();
       isFilteredDeck = congrats?.isFilteredDeck ?? false;
     } catch (suppressed) {
-      debugPrint('[OfficialAnkiReviewSession] suppressed error: $suppressed');
+      logger.w('[OfficialAnkiReviewSession] suppressed error: $suppressed');
     }
   }
 

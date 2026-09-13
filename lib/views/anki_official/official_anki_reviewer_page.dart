@@ -10,6 +10,7 @@ import 'package:turna/application/anki_official/render/official_anki_render_faca
 import 'package:turna/application/anki_official/render/official_anki_render_state.dart';
 import 'package:turna/application/anki_official/render/official_anki_typed_answer_controller.dart';
 import 'package:turna/application/audio_controller.dart';
+import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_error_view.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_stage.dart';
@@ -81,7 +82,7 @@ class _OfficialAnkiReviewerPageState extends State<OfficialAnkiReviewerPage> {
       );
       await _controller!.loadAndShowQuestion(widget.cardId);
     } catch (error, stack) {
-      debugPrint('[OfficialAnkiReviewer] boot error $error\n$stack');
+      logger.w('[OfficialAnkiReviewer] boot error $error\n$stack');
       _bootError = error;
     } finally {
       if (mounted) setState(() => _booting = false);

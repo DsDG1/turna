@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
@@ -13,6 +12,7 @@ import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_unowned_card_reclaimer.dart';
+import 'package:turna/core/logger.dart';
 
 /// Staging-first import control plane (doc 42 P1): start + cancel only.
 class OfficialAnkiImportSaga {
@@ -219,7 +219,7 @@ class OfficialAnkiImportSaga {
         nowMillis: _now,
       );
     } catch (suppressed) {
-      debugPrint('[OfficialAnkiImportSaga] intent: $suppressed');
+      logger.w('[OfficialAnkiImportSaga] intent: $suppressed');
     }
     await manager.kill();
     if (stagingRoot != null) {
@@ -242,12 +242,12 @@ class OfficialAnkiImportSaga {
         );
       }
     } catch (suppressed) {
-      debugPrint('[OfficialAnkiImportSaga] phase: $suppressed');
+      logger.w('[OfficialAnkiImportSaga] phase: $suppressed');
     }
     try {
       sources.deleteSource(profileId: paths.profileId, sourceId: sourceId);
     } catch (suppressed) {
-      debugPrint('[OfficialAnkiImportSaga] deleteSource: $suppressed');
+      logger.w('[OfficialAnkiImportSaga] deleteSource: $suppressed');
     }
   }
 }

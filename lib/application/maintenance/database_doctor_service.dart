@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:turna/application/anki_official/anki_deck_manager.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
@@ -12,6 +11,7 @@ import 'package:turna/application/anki_official/storage/official_anki_database.d
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/course_catalog.dart';
 import 'package:turna/application/maintenance/storage_inventory_service.dart';
+import 'package:turna/core/logger.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/di/injection.dart';
 import 'storage_maintenance_platform_stub.dart'
@@ -234,7 +234,15 @@ class DatabaseDoctorService {
         walBytes = await platform.fileSizeBytes('$mainFile-wal');
         shmBytes = await platform.fileSizeBytes('$mainFile-shm');
       }
-    } catch (_) {}
+    } catch (e, st) {
+      // Size pragmas are advisory, but a silent zero row in the health
+      // report is misleading — record why the probe failed.
+      logger.w(
+        'DatabaseDoctor: file-size probe failed',
+        error: e,
+        stackTrace: st,
+      );
+    }
 
     // Row counts
     var sectionCount = 0;
@@ -248,7 +256,13 @@ class DatabaseDoctorService {
       lessonCount = await _countTable(db, 'lessons');
       wordCount = await _countTable(db, 'vocabulary');
       srsCount = await _countTable(db, 'srs_states');
-    } catch (_) {}
+    } catch (e, st) {
+      logger.w(
+        'DatabaseDoctor: row-count probe failed',
+        error: e,
+        stackTrace: st,
+      );
+    }
 
     // PRAGMA integrity_check
     var integrityOk = true;
@@ -269,7 +283,13 @@ class DatabaseDoctorService {
     try {
       final rows = await db.customSelect('PRAGMA foreign_key_check').get();
       foreignKeyViolations = rows.length;
-    } catch (_) {}
+    } catch (e, st) {
+      logger.w(
+        'DatabaseDoctor: foreign_key_check probe failed',
+        error: e,
+        stackTrace: st,
+      );
+    }
 
     return CourseDbHealthReport(
       totalBytes: totalBytes,
@@ -367,7 +387,7 @@ class DatabaseDoctorService {
         orphans: orphans,
       );
     } catch (e) {
-      debugPrint('[DatabaseDoctorService] storage scan failed: $e');
+      logger.w('[DatabaseDoctorService] storage scan failed: $e');
       return const StorageOrphanReport(
         orphanCount: 0,
         orphanBytes: 0,
@@ -427,7 +447,7 @@ class DatabaseDoctorService {
         courseDbReclaimedBytes: reclaimed,
       );
     } catch (e) {
-      debugPrint('[DatabaseDoctorService] optimizeCourseDb failed: $e');
+      logger.w('[DatabaseDoctorService] optimizeCourseDb failed: $e');
       return DatabaseOptimizationResult(
         ok: false,
         errorCode: 'optimize_failed',
@@ -461,7 +481,11 @@ class DatabaseDoctorService {
         try {
           await OfficialAnkiCompositionRoot.requireImporter();
           resolvedEngine = OfficialAnkiCompositionRoot.engine;
-        } catch (_) {}
+        } catch (e) {
+          // Availability probe: the engine is legitimately absent on some
+          // platforms; log at debug so silence does not hide wiring bugs.
+          logger.d('DatabaseDoctor: engine import probe failed: $e');
+        }
       }
 
       if (resolvedEngine != null) {
@@ -494,7 +518,7 @@ class DatabaseDoctorService {
             forceCompact: true,
           ).runPending(profileId: profileId);
         } catch (e) {
-          debugPrint('[DatabaseDoctorService] anki maintenance failed: $e');
+          logger.w('[DatabaseDoctorService] anki maintenance failed: $e');
         }
       }
     }
@@ -527,7 +551,7 @@ class DatabaseDoctorService {
           cleaned++;
         }
       } catch (e) {
-        debugPrint(
+        logger.w(
             '[DatabaseDoctorService] orphan clean failed for ${orphan.ownerId}: $e');
       }
     }
@@ -557,7 +581,9 @@ class DatabaseDoctorService {
       try {
         await OfficialAnkiCompositionRoot.requireImporter();
         resolvedEngine = OfficialAnkiCompositionRoot.engine;
-      } catch (_) {}
+      } catch (e) {
+        logger.d('DatabaseDoctor: engine import probe failed: $e');
+      }
     }
 
     if (resolvedEngine == null) return 0;
@@ -616,14 +642,16 @@ class DatabaseDoctorService {
       try {
         await OfficialAnkiCompositionRoot.requireImporter();
         resolvedEngine = OfficialAnkiCompositionRoot.engine;
-      } catch (_) {}
+      } catch (e) {
+        logger.d('DatabaseDoctor: engine import probe failed: $e');
+      }
     }
     if (resolvedEngine == null) return false;
     try {
       await resolvedEngine.checkCollection();
       return true;
     } catch (e) {
-      debugPrint('[DatabaseDoctorService] checkCollection failed: $e');
+      logger.w('[DatabaseDoctorService] checkCollection failed: $e');
       return false;
     }
   }

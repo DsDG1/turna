@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_lock_reconciler.dart';
@@ -12,6 +11,7 @@ import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
+import 'package:turna/core/logger.dart';
 
 /// Refreshes official-routed import ids and the six formal-due sets per
 /// source into [OfficialFormalDueRepository] (maintainability plan Wave 1).
@@ -248,7 +248,7 @@ class OfficialAnkiHomeDueSync {
           // A mutation or concurrent refresh landed while we were
           // collecting; re-collect once so the newest state is not
           // clobbered by older data (bounded retry, never an overwrite).
-          debugPrint(
+          logger.d(
             '[OfficialAnkiHomeDueSync] generation moved during collect; '
             'retrying once',
           );
@@ -268,7 +268,7 @@ class OfficialAnkiHomeDueSync {
             basedOnGeneration: retryBase,
           );
           if (result != OfficialFormalDueCommitResult.committed) {
-            debugPrint(
+            logger.d(
               '[OfficialAnkiHomeDueSync] retry still stale; dropping result',
             );
           }
@@ -306,7 +306,7 @@ class OfficialAnkiHomeDueSync {
       basedOnGeneration: basedOnGeneration ?? repo.generation,
     );
     if (result != OfficialFormalDueCommitResult.committed) {
-      debugPrint(
+      logger.d(
         '[OfficialAnkiHomeDueSync] stale generation; dropping refresh result',
       );
     }
@@ -341,7 +341,7 @@ class OfficialAnkiHomeDueSync {
       }
       _lastLockReconciliation = DateTime.now();
     } catch (error) {
-      debugPrint('[OfficialAnkiHomeDueSync] lock reconcile failed: $error');
+      logger.w('[OfficialAnkiHomeDueSync] lock reconcile failed: $error');
     }
   }
 
@@ -366,7 +366,7 @@ class OfficialAnkiHomeDueSync {
       );
       _importedHistoryAdopted = true;
     } catch (error) {
-      debugPrint(
+      logger.w(
         '[OfficialAnkiHomeDueSync] imported-history adopt failed: $error',
       );
     }

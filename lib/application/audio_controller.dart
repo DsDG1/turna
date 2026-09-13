@@ -16,6 +16,7 @@ import 'package:turna/application/anki_official/render/official_anki_media_resol
 import 'package:turna/application/course_pack/course_pack_media.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/settings_provider.dart';
+import 'package:turna/core/logger.dart';
 import 'package:turna/domain/audio/anki_audio_resolver.dart';
 import 'package:turna/domain/audio/vocab_audio_resolver.dart';
 import 'package:turna/gen/assets.gen.dart';
@@ -138,7 +139,7 @@ class AudioController {
         mode: PlayerMode.lowLatency,
       );
     } catch (e) {
-      debugPrint('Error playing sound: $e');
+      logger.w('Error playing sound: $e');
     }
   }
 
@@ -210,7 +211,7 @@ class AudioController {
       );
     }
     _lastTtsLanguage = lang;
-    debugPrint('AudioController: system TTS language bound to "$lang"');
+    logger.d('AudioController: system TTS language bound to "$lang"');
   }
 
   /// Re-select Google TTS (if present) and clear the cached language so the
@@ -225,7 +226,7 @@ class AudioController {
     try {
       await _tts.stop();
     } catch (e) {
-      debugPrint('AudioController: stopSystemTts failed: $e');
+      logger.w('AudioController: stopSystemTts failed: $e');
     }
   }
 
@@ -238,7 +239,7 @@ class AudioController {
       await _speechPlayer.stop();
       await _speechPlayer.release();
     } catch (e) {
-      debugPrint('AudioController: stopSpeechPlayer failed: $e');
+      logger.w('AudioController: stopSpeechPlayer failed: $e');
     }
   }
 
@@ -254,7 +255,7 @@ class AudioController {
       _lastTtsRate = rate;
     }
     await _tts.stop();
-    debugPrint(
+    logger.d(
       'TTS route: system (lang=$_lastTtsLanguage, '
       'uiSpeed=$effectiveSpeed, flutterRate=$rate)',
     );
@@ -303,10 +304,10 @@ class AudioController {
           languageCode: languageCode);
       const ok = TtsSpeakResult(source: TtsSpeakSource.system);
       _lastSpeakResult = ok;
-      debugPrint('TTS route: system OK');
+      logger.d('TTS route: system OK');
       return ok;
     } catch (e) {
-      debugPrint('TTS route: system failed: $e');
+      logger.w('TTS route: system failed: $e');
       final fail = TtsSpeakResult(
         source: TtsSpeakSource.failed,
         error: 'system: $e',
@@ -347,7 +348,7 @@ class AudioController {
       await _speechPlayer.stop();
       await _speechPlayer.play(AssetSource(normalizeAssetPath(assetPath)));
     } catch (e) {
-      debugPrint('Error playing asset audio: $e');
+      logger.w('Error playing asset audio: $e');
     }
   }
 
@@ -400,7 +401,7 @@ class AudioController {
       await _speechPlayer.play(DeviceFileSource(file.path));
       return true;
     } catch (e) {
-      debugPrint('Error playing official Anki media: $e');
+      logger.w('Error playing official Anki media: $e');
       return false;
     }
   }
@@ -415,7 +416,7 @@ class AudioController {
       await _speechPlayer.play(DeviceFileSource(path));
       return true;
     } catch (e) {
-      debugPrint('Error playing course-pack media: $e');
+      logger.w('Error playing course-pack media: $e');
       return false;
     }
   }
@@ -432,7 +433,7 @@ class AudioController {
       await _speechPlayer.play(DeviceFileSource(path));
       return true;
     } catch (e) {
-      debugPrint('Error playing Anki media: $e');
+      logger.w('Error playing Anki media: $e');
       return false;
     }
   }

@@ -18,6 +18,7 @@ import 'package:turna/application/maintenance/database_doctor_service.dart';
 import 'package:turna/application/maintenance/official_anki_ghost_purge_service.dart';
 import 'package:turna/application/maintenance/official_storage_optimize_service.dart';
 import 'package:turna/application/maintenance/storage_inventory_service.dart';
+import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/platform_page_route.dart';
@@ -185,7 +186,7 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
         );
       }
     } catch (e) {
-      debugPrint('[StorageDiagnostics] optimize failed: $e');
+      logger.w('[StorageDiagnostics] optimize failed: $e');
       result = const OfficialStorageOptimizeResult(
         ok: false,
         errorCode: 'optimize_failed',
@@ -240,7 +241,7 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
           cleaned++;
         }
       } catch (e) {
-        debugPrint('[StorageDiagnostics] orphan delete failed '
+        logger.w('[StorageDiagnostics] orphan delete failed '
             'for ${orphan.ownerId}: $e');
       }
     }
@@ -278,7 +279,10 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
     if (injected != null) return injected();
     try {
       await OfficialAnkiCompositionRoot.initializeReadOnlyLocator();
-    } catch (_) {}
+    } catch (e) {
+      // Availability probe: without a catalog the list simply stays empty.
+      logger.d('StorageDiagnostics: readOnly locator init failed: $e');
+    }
     final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
     if (catalog == null) return const [];
     return [
@@ -372,7 +376,9 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
     CourseProvider? course;
     try {
       course = Provider.of<CourseProvider>(context, listen: false);
-    } catch (_) {}
+    } catch (_) {
+      // Optional dependency: the provider is absent in narrow test hosts.
+    }
     if (course != null) {
       await course.reloadCourse();
     }

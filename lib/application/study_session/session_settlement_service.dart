@@ -4,6 +4,7 @@ import 'package:turna/application/achievements/achievement_service.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/gems_provider.dart';
 import 'package:turna/application/study_stats_provider.dart';
+import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/study/study_log.dart';
 
@@ -104,7 +105,7 @@ class SessionSettlementService {
       // per-session delta feeds the durable totalReviewedCards projection.
       await achievements?.recordReviewSession(cardsAnswered: total);
     } catch (e) {
-      debugPrint('[SessionSettlement] settlement failed: $e');
+      logger.w('[SessionSettlement] settlement failed: $e');
     }
     return xp;
   }

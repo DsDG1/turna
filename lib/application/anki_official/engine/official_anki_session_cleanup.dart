@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:isolate';
 
 import 'package:turna/application/anki_official/engine/official_anki_native_transport.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:turna/core/logger.dart';
 
 /// Shared close-ownership token for graceful dispose and timeout cleanup.
 class OfficialAnkiCloseOwnership {
@@ -167,7 +167,7 @@ class OfficialAnkiSessionCleanup {
         closeAttempts: 0,
       );
     } catch (suppressed) {
-      debugPrint(
+      logger.w(
           '[OfficialAnkiSessionCleanup] [OfficialAnkiSessionCleanup] cleanup step suppressed: $suppressed');
       orphan = true;
     }
@@ -195,7 +195,7 @@ class OfficialAnkiSessionCleanup {
     } on TimeoutException {
       orphan = true;
     } catch (suppressed) {
-      debugPrint(
+      logger.w(
           '[OfficialAnkiSessionCleanup] [OfficialAnkiSessionCleanup] cleanup step suppressed: $suppressed');
       orphan = true;
     }

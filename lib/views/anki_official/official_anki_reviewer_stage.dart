@@ -7,6 +7,7 @@ import 'package:turna/application/anki_official/official_anki_feature_flags.dart
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/render/official_anki_answer_presenter.dart';
 import 'package:turna/application/anki_official/render/official_anki_render_state.dart';
+import 'package:turna/core/logger.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_error_view.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_view.dart';
 
@@ -70,7 +71,7 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
         await _controller.showAnswer();
       }
     } catch (error) {
-      debugPrint('[OfficialAnkiReviewer] flip error $error');
+      logger.w('[OfficialAnkiReviewer] flip error $error');
     }
   }
 

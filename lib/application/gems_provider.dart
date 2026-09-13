@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
+import 'package:turna/core/logger.dart';
 import 'package:turna/data/gem_ledger_dao.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/cosmetics/avatar_ring.dart';
@@ -211,12 +212,12 @@ class GemsProvider extends ChangeNotifier {
         await _mirrorProjection(ledger);
       }
       if (!result.isCompleted) result.complete(true);
-    }).catchError((Object e) {
-      assert(() {
-        // ignore: avoid_print
-        print('GemsProvider spendGems failed: $e');
-        return true;
-      }());
+    }).catchError((Object e, StackTrace st) {
+      logger.w(
+        'GemsProvider spendGems failed',
+        error: e,
+        stackTrace: st,
+      );
       if (!result.isCompleted) result.complete(false);
     });
     return result.future;
@@ -324,12 +325,15 @@ class GemsProvider extends ChangeNotifier {
   }
 
   Future<void> _enqueueWrite(Future<void> Function() op) {
-    _writeChain = _writeChain.then((_) => op()).catchError((Object e) {
-      assert(() {
-        // ignore: avoid_print
-        print('GemsProvider write failed: $e');
-        return true;
-      }());
+    _writeChain =
+        _writeChain.then((_) => op()).catchError((Object e, StackTrace st) {
+      // Chain-internal failures must not break later writes, but they still
+      // surface in the transparency log (gem writes are currency-grade).
+      logger.w(
+        'GemsProvider write failed',
+        error: e,
+        stackTrace: st,
+      );
     });
     return _writeChain;
   }

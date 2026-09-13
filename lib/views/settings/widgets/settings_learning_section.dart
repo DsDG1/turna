@@ -18,6 +18,7 @@ import 'package:turna/application/settings/commands/apply_fsrs_parameters_comman
 import 'package:turna/application/settings/settings_operation_result.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/streak_provider.dart';
+import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/course_scope.dart';
 import 'package:turna/domain/course/language_codes.dart';
@@ -124,7 +125,7 @@ class SettingsLanguageSelectorTile extends StatelessWidget {
     unawaited(
       languageProvider.cacheLanguage().catchError((Object error) {
         if (kDebugMode) {
-          debugPrint('Language persist failed: $error');
+          logger.w('Language persist failed: $error');
         }
       }),
     );

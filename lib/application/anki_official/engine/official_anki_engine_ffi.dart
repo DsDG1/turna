@@ -6,7 +6,7 @@ import 'package:turna/application/anki_official/engine/official_anki_scheduler_a
 import 'package:turna/application/anki_official/engine/official_anki_native_transport.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:turna/core/logger.dart';
 
 typedef OfficialAnkiNativeCall = OfficialAnkiEnvelopeResponse Function({
   required int operationId,
@@ -85,7 +85,7 @@ class FfiOfficialAnkiEngine implements OfficialAnkiEngine {
       _paths = null;
       rethrow;
     } catch (suppressed) {
-      debugPrint('[OfficialAnkiEngineFfi] suppressed error: $suppressed');
+      logger.w('[OfficialAnkiEngineFfi] suppressed error: $suppressed');
       _paths = null;
       rethrow;
     }
@@ -541,7 +541,7 @@ class FfiOfficialAnkiEngine implements OfficialAnkiEngine {
         await closeCollection();
       }
     } catch (suppressed) {
-      debugPrint('[OfficialAnkiEngineFfi] suppressed error: $suppressed');
+      logger.w('[OfficialAnkiEngineFfi] suppressed error: $suppressed');
       _paths = null;
     }
     transport?.engineClose(handle);

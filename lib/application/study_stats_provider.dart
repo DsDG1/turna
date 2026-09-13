@@ -10,6 +10,7 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/core/logger.dart';
 import 'package:turna/courses/languages/language_content_store.dart';
 import 'package:turna/data/study_log_repository.dart';
 import 'package:turna/domain/course/language_codes.dart';
@@ -261,7 +262,7 @@ class StudyStatsProvider extends ChangeNotifier {
     } catch (e) {
       // Don't let a stats-emit failure escape as an unhandled async-void
       // exception; the stream subscribers just won't get this update.
-      debugPrint('StudyStatsProvider _emitDailyStats failed: $e');
+      logger.w('StudyStatsProvider _emitDailyStats failed: $e');
     }
   }
 

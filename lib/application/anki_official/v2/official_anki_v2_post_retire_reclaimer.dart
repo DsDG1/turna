@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart' show debugPrint;
-
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_file_log.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_maintenance.dart';
@@ -7,6 +5,7 @@ import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/maintenance/official_anki_ghost_purge_service.dart';
+import 'package:turna/core/logger.dart';
 import 'package:turna/data/course_database.dart';
 
 /// B5 收尾（Step 1 发现 #3 的补漏）：retire 序列第④步只把字节回收
@@ -59,7 +58,7 @@ class OfficialAnkiV2PostRetireReclaimer {
         leaseOwnerToken: leaseOwnerToken,
       );
     } catch (error) {
-      debugPrint('[PostRetireReclaimer] drain failed: $error');
+      logger.w('[PostRetireReclaimer] drain failed: $error');
     }
     try {
       // 账本空才动 ghost 文件：retire 被打断（source 仍在 retiring）时
@@ -75,7 +74,7 @@ class OfficialAnkiV2PostRetireReclaimer {
         );
       }
     } catch (error) {
-      debugPrint('[PostRetireReclaimer] ghost purge failed: $error');
+      logger.w('[PostRetireReclaimer] ghost purge failed: $error');
     }
   }
 }

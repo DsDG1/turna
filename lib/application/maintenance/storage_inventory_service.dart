@@ -4,6 +4,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'package:turna/application/ai/engine/ai_engine.dart';
+import 'package:turna/core/logger.dart';
 import 'package:turna/core/performance_trace.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_pending_imports.dart';
@@ -333,7 +334,12 @@ class StorageInventoryService {
             ledgerPaths.add(p.normalize(path));
           }
         }
-      } catch (_) {}
+      } catch (e, st) {
+        // Missing ledger rows here would hide orphan staging dirs from the
+        // inventory (and thus from cleanup).
+        logger.w('StorageInventory: unfinished-import listing failed',
+            error: e, stackTrace: st);
+      }
     }
     final reports = <StorageArtifactReport>[];
     for (final dir in await _listSubdirectories(stagingRoot.path)) {

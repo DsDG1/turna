@@ -6,8 +6,8 @@ import 'package:path/path.dart' as p;
 import 'anki_media_delete_report.dart';
 import 'anki_media_platform_stub.dart'
     if (dart.library.io) 'anki_media_platform_io.dart' as platform;
+import 'package:turna/core/logger.dart';
 import 'package:turna/domain/audio/vocab_audio_resolver.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
 
 /// Resolves Anki media assets (audio/images) from the extracted media directory.
 ///
@@ -79,7 +79,7 @@ class AnkiAudioResolver implements VocabAudioResolver {
       }
       return platform.ankiDeleteDirectoryBestEffort(mediaPath);
     } catch (suppressed) {
-      debugPrint('[AnkiAudioResolver] suppressed error: $suppressed');
+      logger.w('[AnkiAudioResolver] suppressed error: $suppressed');
       return AnkiMediaDeleteReport(
         remainingFiles: 1,
         remainingPaths: [mediaPath],

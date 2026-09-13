@@ -17,6 +17,7 @@ import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/anki_official/engine/official_anki_home_due_sync.dart';
 import 'package:turna/application/course_catalog.dart';
 import 'package:turna/application/course_provider.dart';
+import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
@@ -381,7 +382,7 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
     try {
       uninstallCompleted = await getIt<AnkiDeckManager>().uninstall(importId);
     } catch (e) {
-      debugPrint('[AnkiReview] uninstall failed for $importId: $e');
+      logger.w('[AnkiReview] uninstall failed for $importId: $e');
     }
     if (!context.mounted) return;
     final courseProvider = context.read<CourseProvider>();

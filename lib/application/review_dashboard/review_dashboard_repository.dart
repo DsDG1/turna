@@ -6,6 +6,7 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
+import 'package:turna/core/logger.dart';
 import 'package:turna/core/performance_trace.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/review_dashboard/review_dashboard_models.dart';
@@ -160,7 +161,10 @@ class ReviewDashboardRepository {
           }
         }
       }
-    } catch (_) {}
+    } catch (e, st) {
+      // Due totals are the dashboard's headline; record why they degraded.
+      logger.w('ReviewDashboard: due totals failed', error: e, stackTrace: st);
+    }
 
     // ── Today's events: bounded query, never allEvents() ────────────────
     final languageCode = _srs.languageFilter;

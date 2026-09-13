@@ -152,7 +152,7 @@ Future<void> main() async {
       try {
         await getIt<AchievementService>().initialize();
       } catch (e) {
-        debugPrint('[Achievements] startup initialize skipped: $e');
+        logger.d('[Achievements] startup initialize skipped: $e');
       }
     }());
 
@@ -160,7 +160,7 @@ Future<void> main() async {
       try {
         await const OfficialAnkiStartupRecovery().run();
       } catch (e) {
-        debugPrint('[OfficialAnki] startup recovery skipped: $e');
+        logger.d('[OfficialAnki] startup recovery skipped: $e');
       }
     }());
 
@@ -176,10 +176,10 @@ Future<void> main() async {
               (await importDao.getById(importId))?.sourceHash,
         );
         if (swept > 0) {
-          debugPrint('[AnkiMedia] swept $swept orphan media dir(s)');
+          logger.d('[AnkiMedia] swept $swept orphan media dir(s)');
         }
       } catch (e) {
-        debugPrint('[AnkiMedia] orphan sweep skipped: $e');
+        logger.d('[AnkiMedia] orphan sweep skipped: $e');
       }
     }());
 

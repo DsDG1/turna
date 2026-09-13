@@ -1,10 +1,10 @@
-import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3/sqlite3.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_sqlite.dart';
 import 'package:turna/application/memory_curve_provider.dart';
+import 'package:turna/core/logger.dart';
 
 class OfficialAnkiRetentionCurveService {
   const OfficialAnkiRetentionCurveService({this.paths});
@@ -29,7 +29,7 @@ class OfficialAnkiRetentionCurveService {
         final support = await getApplicationSupportDirectory();
         effectivePaths = OfficialAnkiPaths.defaultProfile(support);
       } catch (e) {
-        debugPrint(
+        logger.w(
             '[OfficialAnkiRetentionCurveService] supportDir resolution failed: $e');
         return const [];
       }
@@ -92,7 +92,7 @@ class OfficialAnkiRetentionCurveService {
       }
       return curve;
     } catch (e, st) {
-      debugPrint(
+      logger.w(
           '[OfficialAnkiRetentionCurveService] error reading revlog: $e\n$st');
       return const [];
     } finally {

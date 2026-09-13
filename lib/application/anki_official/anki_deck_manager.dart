@@ -2,7 +2,6 @@
 import 'dart:async';
 
 // Package imports:
-import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
@@ -17,6 +16,7 @@ import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/application/anki_official/official_anki_ids.dart';
+import 'package:turna/core/logger.dart';
 import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/anki_note_dao.dart';
 import 'package:turna/data/anki_unification_dao.dart';
@@ -184,7 +184,7 @@ class AnkiDeckManager {
     try {
       engine = await _resolveOfficialEngine();
     } catch (error) {
-      debugPrint('[AnkiDeckManager] v2 retire engine absent: $error');
+      logger.w('[AnkiDeckManager] v2 retire engine absent: $error');
     }
     final service = OfficialAnkiV2RetireService(
       catalog: catalog,
@@ -197,7 +197,7 @@ class AnkiDeckManager {
       try {
         await service.runRetireJob(sourceId: sourceId);
       } catch (error) {
-        debugPrint('[AnkiDeckManager] v2 retire deferred: $error');
+        logger.w('[AnkiDeckManager] v2 retire deferred: $error');
       }
     }
 
@@ -222,7 +222,7 @@ class AnkiDeckManager {
       await enginePass();
       unawaited(reclaimPass());
     } else {
-      debugPrint(
+      logger.d(
         '[AnkiDeckManager] v2 retire engine pass detached: '
         '$sourceId ($owned cards)',
       );
@@ -237,7 +237,7 @@ class AnkiDeckManager {
     try {
       return sources.cardCount(sourceId);
     } catch (error) {
-      debugPrint('[AnkiDeckManager] v2 retire card count failed: $error');
+      logger.w('[AnkiDeckManager] v2 retire card count failed: $error');
       return OfficialAnkiV2RetireService.defaultDeleteChunk + 1;
     }
   }
@@ -255,7 +255,7 @@ class AnkiDeckManager {
         );
       }
     } catch (e) {
-      debugPrint(
+      logger.w(
         '[AnkiDeckManager] ledger owner lookup failed for $importId: $e',
       );
     }
@@ -338,7 +338,7 @@ class AnkiDeckManager {
         );
       }
     } catch (e) {
-      debugPrint('[AnkiDeckManager] pending catalog lookup failed: $e');
+      logger.w('[AnkiDeckManager] pending catalog lookup failed: $e');
     }
 
     var resumed = 0;
@@ -351,7 +351,7 @@ class AnkiDeckManager {
           resumed++;
         }
       } catch (e) {
-        debugPrint(
+        logger.w(
           '[AnkiDeckManager] pending cleanup retry failed for $sourceId: $e',
         );
       }
@@ -400,7 +400,7 @@ class AnkiDeckManager {
           ? getIt<AudioController>()
           : null;
     } catch (suppressed) {
-      debugPrint('[AnkiDeckManager] suppressed error: $suppressed');
+      logger.w('[AnkiDeckManager] suppressed error: $suppressed');
       return null;
     }
   }

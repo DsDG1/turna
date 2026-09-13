@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:turna/application/anki_official/contract/official_anki_contract.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
@@ -14,6 +13,7 @@ import 'package:turna/application/anki_official/official_anki_feature_flags.dart
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
+import 'package:turna/core/logger.dart';
 
 class OfficialAnkiRuntimeProbe {
   const OfficialAnkiRuntimeProbe({
@@ -207,13 +207,13 @@ class OfficialAnkiCompositionRoot {
       if (!allowInProcessFallback ||
           flags.allowsOfficialImport ||
           flags.allowsOfficialRenderer) {
-        debugPrint(
+        logger.w(
           '[OfficialAnki] worker isolate failed ($error); fail closed',
         );
         executionMode = OfficialAnkiExecutionMode.none;
         rethrow;
       }
-      debugPrint(
+      logger.w(
         '[OfficialAnki] worker isolate failed ($error); '
         'in-process fallback enabled',
       );

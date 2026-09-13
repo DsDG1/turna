@@ -18,7 +18,7 @@ import 'package:turna/application/anki_official/storage/official_anki_database.d
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_card_index.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:turna/core/logger.dart';
 
 /// Persistent worker isolate that owns FFI, hashing, and the catalog.
 ///
@@ -575,7 +575,7 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
           try {
             _control?.cancel(handle);
           } catch (suppressed) {
-            debugPrint('[OfficialAnkiSession] suppressed error: $suppressed');
+            logger.w('[OfficialAnkiSession] suppressed error: $suppressed');
           }
           await _rpcDispose();
         },

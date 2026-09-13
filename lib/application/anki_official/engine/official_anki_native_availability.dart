@@ -1,9 +1,8 @@
 import 'dart:ffi';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
-
 import 'official_anki_native_transport.dart';
+import 'package:turna/core/logger.dart';
 
 /// Process-wide answer to "is `libturna_anki.so` actually loadable here?".
 ///
@@ -47,7 +46,7 @@ class OfficialAnkiNativeAvailability {
   }
 
   static void _reportUnavailable(String detail) {
-    debugPrint(
+    logger.d(
       '[OfficialAnki] libturna_anki.so not loadable ($detail); '
       'routing new imports/unrecorded sources to the legacy stack',
     );

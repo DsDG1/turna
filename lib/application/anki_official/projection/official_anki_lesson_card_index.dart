@@ -1,6 +1,6 @@
-import 'package:flutter/foundation.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_course_read.dart';
+import 'package:turna/core/logger.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';
@@ -100,7 +100,7 @@ class OfficialAnkiLessonCardIndex {
         ],
       );
     } catch (error) {
-      debugPrint('OfficialAnkiLessonCardIndex resolve failed: $error');
+      logger.w('OfficialAnkiLessonCardIndex resolve failed: $error');
       return null;
     }
   }

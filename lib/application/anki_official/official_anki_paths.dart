@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:turna/core/logger.dart';
 
 class OfficialAnkiPaths {
   OfficialAnkiPaths({
@@ -48,7 +48,7 @@ class OfficialAnkiPaths {
       if (cols.length < 4) return 0;
       return (int.tryParse(cols[3]) ?? 0) * 1024;
     } catch (suppressed) {
-      debugPrint('[OfficialAnkiPaths] suppressed error: $suppressed');
+      logger.w('[OfficialAnkiPaths] suppressed error: $suppressed');
       return 0;
     }
   }
@@ -60,7 +60,7 @@ class OfficialAnkiPaths {
         await tempFolder.delete(recursive: true);
       }
     } catch (suppressed) {
-      debugPrint('[OfficialAnkiPaths] suppressed error: $suppressed');
+      logger.w('[OfficialAnkiPaths] suppressed error: $suppressed');
     }
     try {
       if (profileRoot.existsSync()) {
@@ -69,13 +69,13 @@ class OfficialAnkiPaths {
             try {
               entity.deleteSync();
             } catch (suppressed) {
-              debugPrint('[OfficialAnkiPaths] suppressed error: $suppressed');
+              logger.w('[OfficialAnkiPaths] suppressed error: $suppressed');
             }
           }
         }
       }
     } catch (suppressed) {
-      debugPrint('[OfficialAnkiPaths] suppressed error: $suppressed');
+      logger.w('[OfficialAnkiPaths] suppressed error: $suppressed');
     }
   }
 

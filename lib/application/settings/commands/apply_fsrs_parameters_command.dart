@@ -11,6 +11,7 @@ import 'package:turna/application/settings/settings_operation_result.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/core/fsrs_optimizer.dart';
+import 'package:turna/core/logger.dart';
 import 'package:turna/data/review_history_dao.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/service/locator.dart';
@@ -133,7 +134,7 @@ class ApplyFsrsParametersCommand {
       );
     }
     if (kDebugMode) {
-      debugPrint('FSRS optimize: read=${readWatch.elapsedMilliseconds}ms '
+      logger.d('FSRS optimize: read=${readWatch.elapsedMilliseconds}ms '
           'fit=${optimizeWatch.elapsedMilliseconds}ms '
           'apply=${applyWatch.elapsedMilliseconds}ms '
           '(${result.reviewCount} reviews / ${result.cardCount} cards)');
