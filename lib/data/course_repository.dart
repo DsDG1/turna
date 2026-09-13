@@ -59,8 +59,7 @@ class CourseRepository implements ICourseRepository {
           name: r.name,
           description: r.description,
           level: r.level.isEmpty ? null : r.level,
-          prerequisiteSectionIds:
-              _decodeStringList(r.prerequisiteSectionIds),
+          prerequisiteSectionIds: _decodeStringList(r.prerequisiteSectionIds),
           units: const <Unit>[],
         ),
     ];
@@ -137,8 +136,8 @@ class CourseRepository implements ICourseRepository {
       explanation: row.explanation,
       exampleExpressionIds: _decodeStringList(row.exampleExpressionIds),
       exampleSentenceIds: _decodeStringList(row.exampleSentenceIds),
-      practiceItems:
-          _decodePracticeItems(row.practiceItems, owner: 'grammar point ${row.id}'),
+      practiceItems: _decodePracticeItems(row.practiceItems,
+          owner: 'grammar point ${row.id}'),
     );
   }
 
@@ -311,8 +310,7 @@ class CourseRepository implements ICourseRepository {
     // decode. Rows and bodies are plain data; decode them off-isolate.
     return Isolate.run(() {
       return [
-        for (final lr in lessonRows)
-          _toLesson(lr, contentByLessonId[lr.id]),
+        for (final lr in lessonRows) _toLesson(lr, contentByLessonId[lr.id]),
       ];
     });
   }
@@ -362,12 +360,10 @@ class CourseRepository implements ICourseRepository {
     // — there is no UNIQUE constraint on sort_order, so the L1 tree's
     // ordering would flicker between launches.
     await database.transaction(() async {
-      final maxRow = await database
-          .customSelect(
-            'SELECT MAX(sort_order) AS m FROM sections',
-            readsFrom: {database.sections},
-          )
-          .getSingleOrNull();
+      final maxRow = await database.customSelect(
+        'SELECT MAX(sort_order) AS m FROM sections',
+        readsFrom: {database.sections},
+      ).getSingleOrNull();
       final maxOrder = maxRow?.read<int?>('m');
       final nextOrder = (maxOrder ?? -1) + 1;
 
@@ -629,25 +625,23 @@ class CourseRepository implements ICourseRepository {
   /// re-import to prune learner rows (see [deleteOrphanedLearnerRows]).
   Future<Set<String>> resourceIdsForLanguage(String languageCode) async {
     final code = LanguageCodes.canonicalize(languageCode);
-    final rows = await database
-        .customSelect(
-          'SELECT id FROM ('
-          'SELECT id FROM vocabulary WHERE language_code = ? '
-          'UNION ALL SELECT id FROM grammar_points WHERE language_code = ? '
-          'UNION ALL SELECT id FROM expressions WHERE language_code = ?'
-          ')',
-          variables: [
-            Variable.withString(code),
-            Variable.withString(code),
-            Variable.withString(code),
-          ],
-          readsFrom: {
-            database.vocabulary,
-            database.grammarPoints,
-            database.expressions,
-          },
-        )
-        .get();
+    final rows = await database.customSelect(
+      'SELECT id FROM ('
+      'SELECT id FROM vocabulary WHERE language_code = ? '
+      'UNION ALL SELECT id FROM grammar_points WHERE language_code = ? '
+      'UNION ALL SELECT id FROM expressions WHERE language_code = ?'
+      ')',
+      variables: [
+        Variable.withString(code),
+        Variable.withString(code),
+        Variable.withString(code),
+      ],
+      readsFrom: {
+        database.vocabulary,
+        database.grammarPoints,
+        database.expressions,
+      },
+    ).get();
     return {for (final row in rows) row.read<String>('id')};
   }
 
@@ -686,13 +680,11 @@ class CourseRepository implements ICourseRepository {
     await database.transaction(() async {
       await (database.delete(database.srsStates)
             ..where((t) =>
-                t.languageCode.equals(code) &
-                t.wordId.isNotIn(liveResources)))
+                t.languageCode.equals(code) & t.wordId.isNotIn(liveResources)))
           .go();
       await (database.delete(database.reviewEvents)
             ..where((t) =>
-                t.languageCode.equals(code) &
-                t.cardId.isNotIn(liveResources)))
+                t.languageCode.equals(code) & t.cardId.isNotIn(liveResources)))
           .go();
       // A mistake row is dead when any of its nullable resource references
       // is dead, or when its (always present) lesson no longer exists.
@@ -700,8 +692,7 @@ class CourseRepository implements ICourseRepository {
             ..where((t) =>
                 t.languageCode.equals(code) &
                 (t.lessonId.isNotIn(liveLessons) |
-                    (t.wordId.isNotNull() &
-                        t.wordId.isNotIn(liveResources)) |
+                    (t.wordId.isNotNull() & t.wordId.isNotIn(liveResources)) |
                     (t.expressionId.isNotNull() &
                         t.expressionId.isNotIn(liveResources)) |
                     (t.grammarPointId.isNotNull() &
@@ -777,7 +768,8 @@ class CourseRepository implements ICourseRepository {
         // Corrupted content blob (partial write / migration glitch): degrade
         // to an empty LessonContent instead of crashing section()/lessonById()
         // for the whole row. Mirrors _decodePracticeItems / _decodeStringList.
-        logger.w('Corrupted content for lesson ${row.id}, treating as empty: $e');
+        logger
+            .w('Corrupted content for lesson ${row.id}, treating as empty: $e');
         content = const LessonContent();
       }
     }
@@ -797,8 +789,8 @@ class CourseRepository implements ICourseRepository {
   /// [LessonType.normal], mirroring the `@Default(LessonType.normal)` fallback
   /// in `Lesson.fromJson` so the read path never crashes section()/lessonById().
   static LessonType _lessonTypeByName(String name) {
-    final resolved = enumByName(LessonType.values, name,
-        fallback: LessonType.normal);
+    final resolved =
+        enumByName(LessonType.values, name, fallback: LessonType.normal);
     if (resolved == LessonType.normal && name != LessonType.normal.name) {
       logger.w('Unknown LessonType "$name", falling back to normal');
     }
@@ -810,7 +802,8 @@ class CourseRepository implements ICourseRepository {
   static LessonTemplate _lessonTemplateByName(String name) {
     final resolved = enumByName(LessonTemplate.values, name,
         fallback: LessonTemplate.legacy);
-    if (resolved == LessonTemplate.legacy && name != LessonTemplate.legacy.name) {
+    if (resolved == LessonTemplate.legacy &&
+        name != LessonTemplate.legacy.name) {
       logger.w('Unknown LessonTemplate "$name", falling back to legacy');
     }
     return resolved;

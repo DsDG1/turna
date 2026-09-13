@@ -4,7 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/anki_official/render/official_anki_present_ack.dart';
 
 void main() {
-  test('rapid question/answer/question supersedes and keeps newest height', () async {
+  test('rapid question/answer/question supersedes and keeps newest height',
+      () async {
     final gate = OfficialAnkiPresentGate();
     final started = <int>[];
     final completers = <int, Completer<OfficialAnkiPresentResult>>{};
@@ -79,7 +80,9 @@ void main() {
     expect(parsed.recoverable, isTrue);
   });
 
-  test('deduper skips same card/side/generation and lets a newer generation through', () {
+  test(
+      'deduper skips same card/side/generation and lets a newer generation through',
+      () {
     final deduper = OfficialAnkiPresentDeduper();
     expect(
       deduper.shouldSkip(cardId: 10, generation: 1, side: 'question'),

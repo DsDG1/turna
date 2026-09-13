@@ -91,8 +91,7 @@ class LearnerAiContext {
     return LearnerAiContext(
       languageName: languageName,
       cefrLevel: cefrLevel,
-      recentMistakeSummaries:
-          _dedupeTrim(recentMistakeSummaries, maxMistakes),
+      recentMistakeSummaries: _dedupeTrim(recentMistakeSummaries, maxMistakes),
       weakTerms: _dedupeTrim(weakTerms, maxWeakTerms),
       recentLessonTitles: _dedupeTrim(recentLessonTitles, 4),
       builtAt: DateTime.now(),

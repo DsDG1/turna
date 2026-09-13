@@ -159,7 +159,8 @@ void main() {
       expect(controller.canRedo, isFalse);
     });
 
-    test('buryCurrent and suspendCurrent delegate to ledger and advance card', () async {
+    test('buryCurrent and suspendCurrent delegate to ledger and advance card',
+        () async {
       final official = _FakeStudyLedger(owner: StudyLedgerOwner.officialAnki);
       final host = AnkiStudySessionHost(
         resolver: StudyLedgerResolver(official: official),

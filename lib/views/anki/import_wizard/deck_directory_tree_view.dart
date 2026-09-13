@@ -219,17 +219,15 @@ class DeckTreeNodeWidget extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 13,
-                    fontWeight:
-                        hasChildren ? FontWeight.w600 : FontWeight.w400,
+                    fontWeight: hasChildren ? FontWeight.w600 : FontWeight.w400,
                     color: TurnaTheme.textPrimaryColor(context),
                   ),
                 ),
               ),
               if (node.archetypeLabel != null) ...[
                 GestureDetector(
-                  onTap: onInspectNode != null
-                      ? () => onInspectNode!(node)
-                      : null,
+                  onTap:
+                      onInspectNode != null ? () => onInspectNode!(node) : null,
                   child: Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 6,

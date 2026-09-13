@@ -50,8 +50,7 @@ class _ProfileQuickActionsState extends State<ProfileQuickActions> {
     final srsDue = context.select((SrsProvider p) => p.dueCount);
     final mistakesCount =
         context.select((MistakeProvider p) => p.entries.length);
-    final grammarDue =
-        context.select((GrammarReviewProvider p) => p.dueCount);
+    final grammarDue = context.select((GrammarReviewProvider p) => p.dueCount);
     final ankiDue = context.select(
       (SrsProvider p) => OfficialFormalDueRepository.instance
           .aggregatedAnkiDue(p.getDueAnkiWords()),
@@ -125,9 +124,8 @@ class _ProfileQuickActionsState extends State<ProfileQuickActions> {
                           courseId: 'anki',
                           officialOwner: OfficialFormalDueRepository
                               .instance.officialImportIds.isNotEmpty,
-                          schedulerRuntimeAvailable:
-                              OfficialAnkiFeatureFlags
-                                  .current.allowsOfficialScheduler,
+                          schedulerRuntimeAvailable: OfficialAnkiFeatureFlags
+                              .current.allowsOfficialScheduler,
                         ),
                       );
                     },

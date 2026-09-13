@@ -66,8 +66,8 @@ void main() {
     });
 
     test('elevated button theme stays teal primary (not clay)', () {
-      final bg = TurnaTheme.lightTheme.elevatedButtonTheme.style
-          ?.backgroundColor
+      final bg = TurnaTheme
+          .lightTheme.elevatedButtonTheme.style?.backgroundColor
           ?.resolve({});
       expect(bg, TurnaTheme.brandTeal);
       expect(bg, isNot(TurnaTheme.anatolianClay));
@@ -209,14 +209,17 @@ void main() {
       final dec = TurnaTheme.primaryCtaDecoration();
       expect(dec.gradient, TurnaTheme.buttonGradient);
       expect(
-        (dec.gradient as LinearGradient).colors.contains(TurnaTheme.anatolianClay),
+        (dec.gradient as LinearGradient)
+            .colors
+            .contains(TurnaTheme.anatolianClay),
         isFalse,
       );
     });
   });
 
   group('Clay helpers', () {
-    testWidgets('clayAccent and claySoftTint use anatolianClay', (tester) async {
+    testWidgets('clayAccent and claySoftTint use anatolianClay',
+        (tester) async {
       await tester.pumpWidget(
         MaterialApp(
           theme: TurnaTheme.lightTheme,
@@ -227,7 +230,8 @@ void main() {
                 TurnaTheme.claySoftTint(context),
                 TurnaTheme.softTint(context, TurnaTheme.anatolianClay),
               );
-              expect(TurnaTheme.clayOnSandText(context), TurnaTheme.anatolianClay);
+              expect(
+                  TurnaTheme.clayOnSandText(context), TurnaTheme.anatolianClay);
               return const SizedBox.shrink();
             },
           ),
@@ -254,8 +258,8 @@ void main() {
     test('course tree complete/perfect uses anatolianClay', () {
       // 「湿地晨光」重构后课程树拆为组件：单元进度在 unit_card.dart，
       // 完美角标（原 _LessonTypeIcon）在 lesson_tile.dart。
-      final unitSrc =
-          File('lib/views/courses/components/unit_card.dart').readAsStringSync();
+      final unitSrc = File('lib/views/courses/components/unit_card.dart')
+          .readAsStringSync();
       expect(unitSrc.contains('TurnaTheme.anatolianClay'), isTrue);
       expect(
         RegExp(r'isFullyComplete[\s\S]{0,200}anatolianClay').hasMatch(unitSrc),
@@ -273,8 +277,8 @@ void main() {
     });
 
     test('profile learning stats XP accent uses clay', () {
-      final src =
-          File('lib/views/profile/widgets/learning_stats.dart').readAsStringSync();
+      final src = File('lib/views/profile/widgets/learning_stats.dart')
+          .readAsStringSync();
       expect(src.contains('TurnaTheme.anatolianClay'), isTrue);
       expect(src.contains('profileXpToday'), isTrue);
     });
@@ -287,7 +291,8 @@ void main() {
     });
 
     test('play hub weak-words tile uses clay secondary accent', () {
-      final src = File('lib/views/play/play_hub_screen.dart').readAsStringSync();
+      final src =
+          File('lib/views/play/play_hub_screen.dart').readAsStringSync();
       expect(src.contains('TurnaTheme.anatolianClay'), isTrue);
       expect(src.contains('playWeakWordsTitle'), isTrue);
     });

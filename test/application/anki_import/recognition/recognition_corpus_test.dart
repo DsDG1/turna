@@ -22,11 +22,9 @@ void main() {
   for (final entry in cases) {
     final id = entry['id'] as String;
     final description = entry['description'] as String;
-    final schema =
-        OfficialAnkiProjectionSchema.fromJson(
-            (entry['schema'] as Map).cast<String, Object?>());
-    final expected =
-        (entry['expected'] as Map).cast<String, Object?>();
+    final schema = OfficialAnkiProjectionSchema.fromJson(
+        (entry['schema'] as Map).cast<String, Object?>());
+    final expected = (entry['expected'] as Map).cast<String, Object?>();
     final result = recognizer.recognizeNotetype(schema);
 
     test('corpus $id: $description', () {
@@ -61,8 +59,7 @@ void main() {
 
   test('corpus snapshot matches committed golden', () {
     expect(cases, isNotEmpty, reason: 'corpus fixtures missing');
-    final snapshotFile =
-        File('test/fixtures/anki_recognition/snapshots.json');
+    final snapshotFile = File('test/fixtures/anki_recognition/snapshots.json');
     final actual = <String, Object?>{};
     for (final entry in cases) {
       final id = entry['id'] as String;
@@ -77,8 +74,7 @@ void main() {
           for (final role in result.roles.keys)
             role.name: {
               'field': result.roles[role]!.fieldName,
-              'confidence':
-                  result.roles[role]!.confidence.toStringAsFixed(3),
+              'confidence': result.roles[role]!.confidence.toStringAsFixed(3),
             },
         },
         'evidence': [
@@ -99,8 +95,8 @@ void main() {
       isTrue,
       reason: 'snapshot missing; run with UPDATE_RECOGNIZER_SNAPSHOTS=1',
     );
-    final expected = jsonDecode(snapshotFile.readAsStringSync())
-        as Map<String, Object?>;
+    final expected =
+        jsonDecode(snapshotFile.readAsStringSync()) as Map<String, Object?>;
     expect(actual, expected);
   });
 }

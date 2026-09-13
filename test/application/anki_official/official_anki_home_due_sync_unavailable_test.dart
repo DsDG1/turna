@@ -31,7 +31,8 @@ void main() {
     );
   });
 
-  test('pageTokenStale stays retryable and is not swallowed as unavailable', () {
+  test('pageTokenStale stays retryable and is not swallowed as unavailable',
+      () {
     expect(
       OfficialAnkiHomeDueSync.marksUnavailableWithoutRethrow(
         error(OfficialAnkiErrorCode.pageTokenStale),

@@ -30,8 +30,9 @@ class StreakProvider extends ChangeNotifier {
   int? _pendingPreviousStreak;
   StreakCheckResult get lastStreakCheckResult => _lastStreakCheckResult;
 
-  int get streak =>
-      appPrefs.preferences.getInt(LocalStateKeys.streak, defaultValue: 0).getValue();
+  int get streak => appPrefs.preferences
+      .getInt(LocalStateKeys.streak, defaultValue: 0)
+      .getValue();
 
   String get lastStreakDateRaw => appPrefs.preferences
       .getString(LocalStateKeys.lastStreakDate, defaultValue: '')

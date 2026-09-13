@@ -215,9 +215,7 @@ class OfficialAnkiProjectionPayloads {
     switch (archetype) {
       case CardArchetype.cloze:
         final cloze = _extractCloze(
-          raw(FieldRole.prompt).isNotEmpty
-              ? raw(FieldRole.prompt)
-              : nativeText,
+          raw(FieldRole.prompt).isNotEmpty ? raw(FieldRole.prompt) : nativeText,
           row.templateOrdinal,
         );
         if (cloze == null) {
@@ -227,10 +225,9 @@ class OfficialAnkiProjectionPayloads {
           clozeAnswer = cloze.$2;
         }
       case CardArchetype.choice:
-        final candidateNames = mapping?.candidates
-                .map((c) => c.fieldName)
-                .toList() ??
-            const <String>[];
+        final candidateNames =
+            mapping?.candidates.map((c) => c.fieldName).toList() ??
+                const <String>[];
         // Raw response, not the collapsed shortText: back-face layouts
         // need their line structure to expose options + answer markers.
         final extracted = _resolveChoice(
@@ -368,9 +365,8 @@ class OfficialAnkiProjectionPayloads {
           wordId: item.wordId,
           term: values.target,
           translation: values.native,
-          pronunciation: values.pronunciation.isNotEmpty
-              ? values.pronunciation
-              : null,
+          pronunciation:
+              values.pronunciation.isNotEmpty ? values.pronunciation : null,
           audioAsset: values.audio,
           imageAsset: values.image,
           example: values.example.isNotEmpty ? values.example : null,
@@ -404,9 +400,7 @@ class OfficialAnkiProjectionPayloads {
           answer: values.clozeAnswer?.isNotEmpty == true
               ? values.clozeAnswer!
               : values.native,
-          hint: values.pronunciation.isNotEmpty
-              ? values.pronunciation
-              : null,
+          hint: values.pronunciation.isNotEmpty ? values.pronunciation : null,
           audioAssets:
               values.audio == null ? const <String>[] : [values.audio!],
           imageAssets:

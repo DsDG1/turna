@@ -56,8 +56,7 @@ void main() {
       );
 
   group('OfficialStudyBatchAssembler', () {
-    test('assembles only scheduler-due ∩ placement ∩ presentation cards',
-        () {
+    test('assembles only scheduler-due ∩ placement ∩ presentation cards', () {
       const assembler = OfficialStudyBatchAssembler();
       final items = assembler.assembleFromEligibility(
         sourceId: sourceId,
@@ -81,7 +80,8 @@ void main() {
       expect(items.first.capabilities.writesLedger, isTrue);
     });
 
-    test('FormalReviewLauncher builds Official batch for shared host', () async {
+    test('FormalReviewLauncher builds Official batch for shared host',
+        () async {
       final engine = FakeOfficialAnkiEngine();
       engine.seedPackage(packagePath: 'batch.apkg', notes: 2, cards: 2);
       final session = OfficialReviewSession(
@@ -106,14 +106,16 @@ void main() {
 
       expect(batch.items, isNotEmpty);
       expect(
-        batch.items.every((i) => i.ledgerOwner == StudyLedgerOwner.officialAnki),
+        batch.items
+            .every((i) => i.ledgerOwner == StudyLedgerOwner.officialAnki),
         isTrue,
       );
       expect(batch.ledger, isA<OfficialStudyLedger>());
       expect(batch.session, same(session));
     });
 
-    test('answering updates remaining conceptually via Official host', () async {
+    test('answering updates remaining conceptually via Official host',
+        () async {
       final engine = FakeOfficialAnkiEngine();
       engine.seedPackage(packagePath: 'batch.apkg', notes: 2, cards: 2);
       final session = OfficialReviewSession(

@@ -215,13 +215,11 @@ void main() {
 
   test('rejects reserved and builtin codes', () async {
     expect(
-      () => importer()
-          .importFromString(jsonEncode(_miniPack(code: 'anki'))),
+      () => importer().importFromString(jsonEncode(_miniPack(code: 'anki'))),
       throwsA(isA<CoursePackImportException>()),
     );
     expect(
-      () =>
-          importer().importFromString(jsonEncode(_miniPack(code: 'tr'))),
+      () => importer().importFromString(jsonEncode(_miniPack(code: 'tr'))),
       throwsA(isA<CoursePackImportException>()),
     );
   });
@@ -315,7 +313,8 @@ void main() {
     await insertMistake('m-dead-word',
         wordId: 'll-es-w-hola', lessonId: 'll-es-l-1');
     await insertMistake('m-dead-lesson', lessonId: 'll-es-l-1');
-    await insertMistake('m-live', wordId: 'll-es-w-agua', lessonId: 'll-es-l-2');
+    await insertMistake('m-live',
+        wordId: 'll-es-w-agua', lessonId: 'll-es-l-2');
 
     // Different pack under the same code: hola/lesson-1 gone, agua/lesson-2
     // in — the ids both packs share must keep their SRS/mistake state.
@@ -343,7 +342,8 @@ void main() {
     // predates pruning (must self-heal away even on a same-pack reimport).
     await insertSrs('ll-es-w-hola');
     await insertSrs('ll-es-w-legacy-ghost');
-    await insertMistake('m-keep', wordId: 'll-es-w-hola', lessonId: 'll-es-l-1');
+    await insertMistake('m-keep',
+        wordId: 'll-es-w-hola', lessonId: 'll-es-l-1');
 
     await importer().importFromString(jsonEncode(_miniPack()));
 
@@ -427,7 +427,8 @@ void main() {
       await (db.delete(db.lessonContents)
             ..where((t) => t.languageCode.equals('es')))
           .go();
-      await (db.delete(db.vocabulary)..where((t) => t.languageCode.equals('es')))
+      await (db.delete(db.vocabulary)
+            ..where((t) => t.languageCode.equals('es')))
           .go();
     });
     final packFile = File('${persistDir.path}/es.turnapack');
@@ -489,8 +490,12 @@ void main() {
           ..where((t) => t.languageCode.equals('es')))
         .get();
     expect(words.single.audioAsset, 'turnapack://es/hola.mp3');
-    expect(File(p.join(persistDir.path, 'es', 'media', 'dog1.jpg')).existsSync(), isTrue);
-    expect(File(p.join(persistDir.path, 'es', 'media', 'hola.mp3')).existsSync(), isTrue);
+    expect(
+        File(p.join(persistDir.path, 'es', 'media', 'dog1.jpg')).existsSync(),
+        isTrue);
+    expect(
+        File(p.join(persistDir.path, 'es', 'media', 'hola.mp3')).existsSync(),
+        isTrue);
     expect(
       await CoursePackMedia.resolveFile(
         'turnapack://es/dog1.jpg',
@@ -525,7 +530,9 @@ void main() {
     // resolve, so the pack is refused up front.
     final zip = _zipOf(
       _miniPack(format: 'turnapack/2', imageAsset: 'media/media/x.jpg'),
-      {'media/x.jpg': const [0xFF, 0xD8, 0xFF, 0xD9]},
+      {
+        'media/x.jpg': const [0xFF, 0xD8, 0xFF, 0xD9]
+      },
     );
     expect(
       () => importer().importFromBytes(zip),
@@ -570,8 +577,7 @@ void main() {
     );
   });
 
-  test('failed reimport of an uninstalled language keeps its marker',
-      () async {
+  test('failed reimport of an uninstalled language keeps its marker', () async {
     await importer().importFromString(jsonEncode(_miniPack()));
     await db.into(db.courseMeta).insertOnConflictUpdate(
           CourseMetaCompanion.insert(

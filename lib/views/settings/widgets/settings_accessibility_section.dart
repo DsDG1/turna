@@ -98,7 +98,8 @@ class _AccessibilityScaleTile extends StatefulWidget {
   });
 
   @override
-  State<_AccessibilityScaleTile> createState() => _AccessibilityScaleTileState();
+  State<_AccessibilityScaleTile> createState() =>
+      _AccessibilityScaleTileState();
 }
 
 class _AccessibilityScaleTileState extends State<_AccessibilityScaleTile> {
@@ -106,8 +107,8 @@ class _AccessibilityScaleTileState extends State<_AccessibilityScaleTile> {
 
   @override
   Widget build(BuildContext context) {
-    final persisted = context
-        .select<AccessibilityProvider, int>(widget.valueSelector);
+    final persisted =
+        context.select<AccessibilityProvider, int>(widget.valueSelector);
     final value = _dragValue ?? persisted;
 
     return Padding(
@@ -171,7 +172,8 @@ class _AccessibilityScaleTileState extends State<_AccessibilityScaleTile> {
               inactiveColor: TurnaTheme.dividerBg(context),
               onChanged: (v) {
                 setState(() => _dragValue = v.round());
-                widget.onPreview(context.read<AccessibilityProvider>(), v.round());
+                widget.onPreview(
+                    context.read<AccessibilityProvider>(), v.round());
               },
               onChangeEnd: (v) async {
                 await widget.onCommit(

@@ -56,7 +56,8 @@ void main() {
     expect(harness.presenter.presentGeneration, generationBefore + 1);
   });
 
-  testWidgets('rating is enabled only after the answer receipt', (tester) async {
+  testWidgets('rating is enabled only after the answer receipt',
+      (tester) async {
     await _mount(tester);
     expect(find.byKey(const Key('official-review-good')), findsNothing);
     await tester.tap(find.byKey(const Key('official-review-show-answer')));

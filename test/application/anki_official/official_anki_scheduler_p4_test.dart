@@ -15,7 +15,8 @@ import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/render/official_anki_present_ack.dart';
 import '../../support/official_anki_review_fixture.dart';
 
-import 'official_anki_formal_review_ack_test.dart' show officialFormalReviewPresenter;
+import 'official_anki_formal_review_ack_test.dart'
+    show officialFormalReviewPresenter;
 
 void main() {
   // The contract-id/golden/VERSION assertions moved to
@@ -288,7 +289,8 @@ void main() {
         await tester.pump();
       }
     }
-    expect(find.byKey(const Key('official-review-show-answer')), findsOneWidget);
+    expect(
+        find.byKey(const Key('official-review-show-answer')), findsOneWidget);
     expect(find.byKey(const Key('official-review-good')), findsNothing);
     presenter.acceptPresent(
       OfficialPresentAck(
@@ -317,7 +319,8 @@ void main() {
     expect(find.byKey(const Key('official-review-easy')), findsNothing);
   });
 
-  test('allowedCardIds skips leftover deck mates and does not answer them', () async {
+  test('allowedCardIds skips leftover deck mates and does not answer them',
+      () async {
     OfficialAnkiSchedulerAudit.reset();
     final fake = FakeOfficialAnkiEngine();
     fake.seedPackage(packagePath: 'x.apkg', notes: 2, cards: 2);
@@ -371,7 +374,8 @@ void main() {
     expect(fake.answeredIds.contains(1), isFalse);
   });
 
-  test('queueEmpty clears current so completed is not an invalid state', () async {
+  test('queueEmpty clears current so completed is not an invalid state',
+      () async {
     OfficialAnkiSchedulerAudit.reset();
     final fake = FakeOfficialAnkiEngine();
     fake.seedPackage(packagePath: 'x.apkg', notes: 1, cards: 1);

@@ -336,9 +336,8 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
         StateError('blocked:${result.sourceId}'),
         kind: FormalReviewFailureKind.render,
         retryable: true,
-        code: result.failures.isNotEmpty
-            ? result.failures.first.code
-            : 'unknown',
+        code:
+            result.failures.isNotEmpty ? result.failures.first.code : 'unknown',
       );
       setState(() {
         _blockedLoad = result;
@@ -472,8 +471,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                   child: Material(
                     color: TurnaTheme.error.withValues(alpha: 0.10),
-                    borderRadius:
-                        BorderRadius.circular(TurnaTheme.radiusLarge),
+                    borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(14, 12, 8, 8),
                       child: Column(
@@ -1079,7 +1077,8 @@ class _AnkiSessionToolbar extends StatelessWidget {
                   Icon(
                     Icons.style_rounded,
                     size: 16,
-                    color: TurnaTheme.accentOnCard(context, TurnaTheme.brandSky),
+                    color:
+                        TurnaTheme.accentOnCard(context, TurnaTheme.brandSky),
                   ),
                   const SizedBox(width: 6),
                   Expanded(

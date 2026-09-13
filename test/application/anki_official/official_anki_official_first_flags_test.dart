@@ -60,6 +60,7 @@ void main() {
     final on = off.copyWith(officialFirstImport: true);
     expect(on.officialFirstImport, isTrue);
     expect(on.copyWith().officialFirstImport, isTrue);
-    expect(on.copyWith(officialFirstImport: false).officialFirstImport, isFalse);
+    expect(
+        on.copyWith(officialFirstImport: false).officialFirstImport, isFalse);
   });
 }

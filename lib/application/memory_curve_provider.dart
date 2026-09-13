@@ -117,7 +117,8 @@ class MemoryCurveProvider {
       meanMastery: meanMastery,
       trackedCards: tracked,
       totalCards: all.length,
-      forecast: Forecast(dueToday: dueToday, due7Days: due7Days, due30Days: due30Days),
+      forecast: Forecast(
+          dueToday: dueToday, due7Days: due7Days, due30Days: due30Days),
       maturity: MaturityBreakdown(
         newCards: newCards,
         young: young,

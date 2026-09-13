@@ -97,7 +97,8 @@ void main() {
           flags,
           filePath: filePath,
         ),
-        pickFilePath: ({required allowedExtensions, required dialogTitle}) async =>
+        pickFilePath: (
+                {required allowedExtensions, required dialogTitle}) async =>
             pickedPath,
         officialFirst: const OfficialAnkiOfficialFirstService(),
         courseDatabase: db,
@@ -207,7 +208,8 @@ void main() {
     expect(failed.returnState, isA<AnkiImportSelecting>());
   });
 
-  test('picking a colpkg file routes to ankiColpkgUnsupported guidance', () async {
+  test('picking a colpkg file routes to ankiColpkgUnsupported guidance',
+      () async {
     final controller = controllerWith(pickedPath: '/tmp/collection.colpkg');
     addTearDown(controller.dispose);
 

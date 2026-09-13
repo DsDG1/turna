@@ -52,8 +52,7 @@ void main() {
     });
 
     final shells = await CourseRepository(db).sectionShells();
-    final trCountReal =
-        shells.where((s) => !s.id.startsWith('fr-')).length;
+    final trCountReal = shells.where((s) => !s.id.startsWith('fr-')).length;
     const ghost = Section(
       id: 'ghost-no-db-row',
       name: 'Ghost',

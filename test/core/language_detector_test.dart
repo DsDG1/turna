@@ -377,16 +377,12 @@ void main() {
       // must NOT mark text as that target.
       expect(
         detector.detect('teşekkürler',
-            targetLanguage: 'de',
-            nativeLanguage: native,
-            signatureChars: ''),
+            targetLanguage: 'de', nativeLanguage: native, signatureChars: ''),
         native,
       );
       expect(
         detector.inferOptionLanguage('teşekkürler',
-            targetLanguage: 'de',
-            nativeLanguage: native,
-            signatureChars: ''),
+            targetLanguage: 'de', nativeLanguage: native, signatureChars: ''),
         'de',
       );
     });

@@ -141,7 +141,8 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-          home: hubTree(courseProvider: _ScopeStubCourseProvider('anki:deck1'))),
+          home:
+              hubTree(courseProvider: _ScopeStubCourseProvider('anki:deck1'))),
     );
     await tester.pumpAndSettle();
 
@@ -224,17 +225,19 @@ void main() {
     /// Hero 右侧大数字（digit-only Text，队列 chip 是「Anki N」不会误配）。
     String heroNumber(WidgetTester tester) {
       final digitOnly = RegExp(r'^\d+$');
-      final texts = tester.widgetList<Text>(
-        find.descendant(
-          of: find.byType(TodayHeroCard),
-          matching: find.byWidgetPredicate(
-            (widget) =>
-                widget is Text &&
-                widget.data != null &&
-                digitOnly.hasMatch(widget.data!),
-          ),
-        ),
-      ).toList();
+      final texts = tester
+          .widgetList<Text>(
+            find.descendant(
+              of: find.byType(TodayHeroCard),
+              matching: find.byWidgetPredicate(
+                (widget) =>
+                    widget is Text &&
+                    widget.data != null &&
+                    digitOnly.hasMatch(widget.data!),
+              ),
+            ),
+          )
+          .toList();
       return texts.isEmpty ? '<missing>' : texts.first.data!;
     }
 

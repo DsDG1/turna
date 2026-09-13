@@ -97,9 +97,7 @@ class OfficialAnkiV2CourseRead {
       lessonUnits.putIfAbsent(row.lessonId, () => row.unitId);
       lessonOrder.putIfAbsent(row.lessonId, () => row.cardId);
       unitOrder.putIfAbsent(row.unitId, () => row.cardId);
-      sectionUnits
-          .putIfAbsent(row.sectionId, () => <String>{})
-          .add(row.unitId);
+      sectionUnits.putIfAbsent(row.sectionId, () => <String>{}).add(row.unitId);
     }
 
     final sections = <Section>[];
@@ -108,14 +106,12 @@ class OfficialAnkiV2CourseRead {
       final units = <Unit>[];
       final unitIds = (sectionUnits[summary.sectionId] ?? const <String>{})
           .toList()
-        ..sort((a, b) =>
-            (unitOrder[a] ?? 0).compareTo(unitOrder[b] ?? 0));
+        ..sort((a, b) => (unitOrder[a] ?? 0).compareTo(unitOrder[b] ?? 0));
       for (final unitId in unitIds) {
         final unitLessonIds = [
           for (final entry in lessonUnits.entries)
             if (entry.value == unitId) entry.key,
-        ]..sort((a, b) =>
-            (lessonOrder[a] ?? 0).compareTo(lessonOrder[b] ?? 0));
+        ]..sort((a, b) => (lessonOrder[a] ?? 0).compareTo(lessonOrder[b] ?? 0));
         // 同一 unit 内多个课时共用同一 lessonKey（切分的 part 片）时按
         // 卡序加 (n) 后缀，避免 N 个课时同名；不同 lessonKey 互不加缀。
         final namesInUnit = <String, int>{}; // lessonKey → 片数
@@ -137,7 +133,8 @@ class OfficialAnkiV2CourseRead {
             content: const LessonContent(),
           ));
         }
-        units.add(Unit(id: unitId, name: unitNames[unitId] ?? unitId, lessons: lessons));
+        units.add(Unit(
+            id: unitId, name: unitNames[unitId] ?? unitId, lessons: lessons));
       }
       sections.add(Section(
         id: summary.sectionId,
@@ -152,12 +149,14 @@ class OfficialAnkiV2CourseRead {
 
   Future<List<OfficialAnkiV2ViewRow>> _treeRows() async {
     try {
-      final rows = await course.customSelect(
-        'SELECT source_id, card_id, note_id, deck_id, word_id, section_key, '
-        'section_id, unit_id, lesson_id, lesson_key, presentation_kind, '
-        'source_hash, mapping_version FROM anki_course_tree_view '
-        'ORDER BY source_id, section_id, unit_id, lesson_id, card_id',
-      ).get();
+      final rows = await course
+          .customSelect(
+            'SELECT source_id, card_id, note_id, deck_id, word_id, section_key, '
+            'section_id, unit_id, lesson_id, lesson_key, presentation_kind, '
+            'source_hash, mapping_version FROM anki_course_tree_view '
+            'ORDER BY source_id, section_id, unit_id, lesson_id, card_id',
+          )
+          .get();
       return [
         for (final row in rows)
           OfficialAnkiV2ViewRow(

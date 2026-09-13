@@ -56,7 +56,8 @@ class _GatedReviewHistoryDao implements ReviewHistoryDao {
   }
 
   @override
-  Future<bool> deleteLatestForCard(String cardId, {String? languageCode}) async {
+  Future<bool> deleteLatestForCard(String cardId,
+      {String? languageCode}) async {
     await _deleteGate;
     return true;
   }
@@ -93,7 +94,8 @@ void main() {
     test('grade persists under the graded language and spares the new cache',
         () async {
       final failCount = Completer<int>();
-      final reviewDao = _GatedReviewHistoryDao(failCountFuture: failCount.future);
+      final reviewDao =
+          _GatedReviewHistoryDao(failCountFuture: failCount.future);
       srs.setReviewHistoryDaoForTesting(reviewDao);
       srs.registerWord('w-1');
       expect(srs.languageFilter, LanguageCodes.turkish);

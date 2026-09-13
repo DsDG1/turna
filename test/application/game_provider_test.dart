@@ -164,7 +164,8 @@ void main() {
   });
 
   group('achievements separation', () {
-    test('incrementScore never writes the v1 achievement list (single-writer '
+    test(
+        'incrementScore never writes the v1 achievement list (single-writer '
         'contract: unlocks belong to AchievementService)', () async {
       await game.incrementScore(1000);
       expect(unlocked(), isEmpty);

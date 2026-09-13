@@ -84,7 +84,8 @@ Map<String, dynamic> _sectionPayload({
 
 AiCourseProvider _provider() => AiCourseProvider.withEngine(
       AiEngine(
-        AiHttpClient.withClient(MockClient((_) async => http.Response('', 500))),
+        AiHttpClient.withClient(
+            MockClient((_) async => http.Response('', 500))),
         AiCache.forTest(maxEntries: 0, enabled: false),
       ),
     );
@@ -141,8 +142,7 @@ void main() {
     expect(vocab.map((w) => w.id), contains('ai-fr-w1'));
   });
 
-  test('saveSectionJson falls back to the active practice language',
-      () async {
+  test('saveSectionJson falls back to the active practice language', () async {
     await LanguageContentStore.activate('fr');
     await _provider().saveSectionJson(_sectionPayload());
 

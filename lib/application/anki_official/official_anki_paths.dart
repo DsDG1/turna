@@ -30,7 +30,8 @@ class OfficialAnkiPaths {
   final Directory profileRoot;
 
   File get collectionFile => File('${profileRoot.path}/collection.anki2');
-  Directory get mediaFolder => Directory('${profileRoot.path}/collection.media');
+  Directory get mediaFolder =>
+      Directory('${profileRoot.path}/collection.media');
   File get mediaDb => File('${profileRoot.path}/collection.media.db2');
   Directory get backups => Directory('${profileRoot.path}/backups');
   File get engineJson => File('${profileRoot.path}/engine.json');
@@ -58,18 +59,24 @@ class OfficialAnkiPaths {
       if (tempFolder.existsSync()) {
         await tempFolder.delete(recursive: true);
       }
-    } catch (suppressed) { debugPrint('[OfficialAnkiPaths] suppressed error: $suppressed'); }
+    } catch (suppressed) {
+      debugPrint('[OfficialAnkiPaths] suppressed error: $suppressed');
+    }
     try {
       if (profileRoot.existsSync()) {
         for (final entity in profileRoot.listSync(followLinks: false)) {
           if (entity is File && entity.path.endsWith('.tmp')) {
             try {
               entity.deleteSync();
-            } catch (suppressed) { debugPrint('[OfficialAnkiPaths] suppressed error: $suppressed'); }
+            } catch (suppressed) {
+              debugPrint('[OfficialAnkiPaths] suppressed error: $suppressed');
+            }
           }
         }
       }
-    } catch (suppressed) { debugPrint('[OfficialAnkiPaths] suppressed error: $suppressed'); }
+    } catch (suppressed) {
+      debugPrint('[OfficialAnkiPaths] suppressed error: $suppressed');
+    }
   }
 
   Map<String, String> openPayload({required String backendCommit}) {

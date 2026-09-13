@@ -8,7 +8,8 @@ void main() {
       final db = OfficialAnkiDatabase.memory();
       try {
         final tables = db.handle
-            .select("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+            .select(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
             .map((row) => row['name'] as String)
             .toSet();
 
@@ -67,7 +68,8 @@ void main() {
     });
 
     test('v2 导入与读取不再依赖双轨 Flag 门禁', () {
-      final file = File('lib/application/anki_official/official_anki_feature_flags.dart');
+      final file = File(
+          'lib/application/anki_official/official_anki_feature_flags.dart');
       expect(file.existsSync(), isTrue);
       final text = file.readAsStringSync();
       expect(text.contains('v2ImportChain'), isFalse,

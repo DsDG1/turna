@@ -143,8 +143,7 @@ void main() {
       expect((await dao.loadQueue('grammar')).keys, ['gp-1']);
     });
 
-    test('clearQueue with a languageCode spares the other languages',
-        () async {
+    test('clearQueue with a languageCode spares the other languages', () async {
       await dao.upsert('srs', makeWord(id: 'w-1'));
       await dao.upsert(
         'srs',

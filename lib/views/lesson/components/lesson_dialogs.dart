@@ -320,14 +320,12 @@ class _LessonCompletionSummary extends StatelessWidget {
             color: Colors.transparent,
             child: Ink(
               decoration: TurnaTheme.primaryCtaDecoration(
-                borderRadius:
-                    BorderRadius.circular(TurnaTheme.radiusMedium),
+                borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 elevated: false,
               ),
               child: InkWell(
                 onTap: () => Navigator.of(context).pop(true),
-                borderRadius:
-                    BorderRadius.circular(TurnaTheme.radiusMedium),
+                borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
                 child: Center(
                   child: Text(
                     AppStrings.lessonContinueUpper,

@@ -127,8 +127,7 @@ void main() {
         (tester) async {
       SharedPreferences.setMockInitialValues({});
       final preferences = await StreamingSharedPreferences.instance;
-      final accessibility =
-          AccessibilityProvider(AppPrefs(preferences));
+      final accessibility = AccessibilityProvider(AppPrefs(preferences));
       final courseProvider = _FakeCourseProvider(_loadedSection());
 
       await tester.pumpWidget(

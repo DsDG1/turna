@@ -115,8 +115,9 @@ class AchievementNearestCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = AchievementUiCatalog.colorFor(seriesId);
-    final ratio =
-        nextTarget > 0 ? (progress.currentProgress / nextTarget).clamp(0.0, 1.0) : 0.0;
+    final ratio = nextTarget > 0
+        ? (progress.currentProgress / nextTarget).clamp(0.0, 1.0)
+        : 0.0;
 
     return Material(
       color: TurnaTheme.cardBg(context),
@@ -144,16 +145,16 @@ class AchievementNearestCard extends StatelessWidget {
                   children: [
                     Text(
                       AchievementUiCatalog.titleFor(seriesId),
-                      style:
-                          Theme.of(context).textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 6),
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
+                      borderRadius:
+                          BorderRadius.circular(TurnaTheme.radiusRound),
                       child: LinearProgressIndicator(
                         value: ratio,
                         minHeight: 5,

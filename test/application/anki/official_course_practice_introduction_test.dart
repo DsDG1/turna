@@ -97,8 +97,7 @@ void main() {
       expect(store.introducedCountForSource(sourceId), 1);
     });
 
-    test('legacy course cards degrade to practice (no Turna ledger write)',
-        () {
+    test('legacy course cards degrade to practice (no Turna ledger write)', () {
       final legacy = CanonicalCardKey(
         backend: AnkiBackendKind.legacyTurna,
         profileId: profile,

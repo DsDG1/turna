@@ -114,8 +114,7 @@ Map<String, dynamic>? applyPlanToSection(
   SectionImportPlan plan,
 ) {
   if (!plan.willWrite) return null;
-  if (plan.action == ImportAction.appendNew &&
-      plan.targetId != plan.sourceId) {
+  if (plan.action == ImportAction.appendNew && plan.targetId != plan.sourceId) {
     return _rewriteSectionId(section, plan.sourceId, plan.targetId);
   }
   return section;
@@ -132,8 +131,10 @@ Map<String, dynamic> _rewriteSectionId(
   if (units is! List) return out;
   out['units'] = [
     for (final u in units)
-      if (u is Map) _rewriteNestedId(Map<String, dynamic>.from(u), from, to)
-      else u,
+      if (u is Map)
+        _rewriteNestedId(Map<String, dynamic>.from(u), from, to)
+      else
+        u,
   ];
   return out;
 }

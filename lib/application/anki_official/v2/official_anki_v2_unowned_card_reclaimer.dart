@@ -36,7 +36,8 @@ class OfficialAnkiV2UnownedCardReclaimer {
       try {
         await OfficialAnkiCompositionRoot.requireImporter();
       } catch (error) {
-        officialAnkiV2Log('unowned purge: engine bootstrap $error', warning: true);
+        officialAnkiV2Log('unowned purge: engine bootstrap $error',
+            warning: true);
         return 0;
       }
       resolved = OfficialAnkiCompositionRoot.engine;

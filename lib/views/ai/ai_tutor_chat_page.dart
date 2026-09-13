@@ -142,7 +142,9 @@ class _AiTutorChatPageState extends State<AiTutorChatPage> {
               return Column(
                 children: [
                   const _ModeSection(),
-                  Expanded(child: _MessageList(scrollCtrl: _scrollCtrl, autoScroll: _autoScroll)),
+                  Expanded(
+                      child: _MessageList(
+                          scrollCtrl: _scrollCtrl, autoScroll: _autoScroll)),
                   const _ErrorBanner(),
                   const _ActivityIndicator(),
                   _Composer(onSend: _onSend, inputCtrl: _inputCtrl),
@@ -284,8 +286,7 @@ class _MessageList extends StatelessWidget {
             // following; returning to the bottom unlocks.
             if (n.direction == ScrollDirection.forward) {
               autoScroll.lockFollow();
-            } else if (n.metrics.pixels >=
-                n.metrics.maxScrollExtent - 120) {
+            } else if (n.metrics.pixels >= n.metrics.maxScrollExtent - 120) {
               autoScroll.unlockFollow();
             }
             return false;
@@ -312,10 +313,8 @@ class _MessageList extends StatelessWidget {
                 return Selector<AiTutorChatProvider, int>(
                   selector: (_, p) => p.streamingRevision,
                   builder: (context, _, __) {
-                    final content = context
-                        .read<AiTutorChatProvider>()
-                        .messages[i]
-                        .content;
+                    final content =
+                        context.read<AiTutorChatProvider>().messages[i].content;
                     return ChatBubble(role: 'assistant', content: content);
                   },
                 );

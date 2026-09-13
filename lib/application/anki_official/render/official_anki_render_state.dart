@@ -298,8 +298,9 @@ class OfficialAnkiReviewerController implements OfficialAnswerPresenter {
     ui = OfficialAnkiReviewerUi.visible(side: side, generation: generation);
     _notify();
     if (!_autoplay) return;
-    final avSide =
-        side == 'answer' ? OfficialAnkiAvSide.answer : OfficialAnkiAvSide.question;
+    final avSide = side == 'answer'
+        ? OfficialAnkiAvSide.answer
+        : OfficialAnkiAvSide.question;
     // Flip must not wait for AV/TTS. Old-generation completion is ignored.
     av.startAutoplay(side: avSide, token: _avPlayGeneration);
   }

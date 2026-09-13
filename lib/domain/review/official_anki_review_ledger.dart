@@ -24,7 +24,8 @@ class OfficialAnkiReviewLedger implements ReviewLedger {
         OfficialReviewPhase.recoverableError ||
         OfficialReviewPhase.staleContext ||
         OfficialReviewPhase.fatalError ||
-        OfficialReviewPhase.reconciling => true,
+        OfficialReviewPhase.reconciling =>
+          true,
         _ => false,
       };
       return ReviewDueSummary(dueCount: 0, isUnavailable: unavailable);
@@ -44,7 +45,8 @@ class OfficialAnkiReviewLedger implements ReviewLedger {
   ) async {
     final source = key.source;
     if (source is! OfficialAnkiSource) {
-      throw StateError('Official ledger received a non-official source: $source');
+      throw StateError(
+          'Official ledger received a non-official source: $source');
     }
     final card = _session.current;
     if (card == null || card.cardId != source.cardId) {
@@ -76,7 +78,8 @@ class OfficialAnkiReviewLedger implements ReviewLedger {
   }) async {
     final source = key.source;
     if (source is! OfficialAnkiSource) {
-      throw StateError('Official ledger received a non-official source: $source');
+      throw StateError(
+          'Official ledger received a non-official source: $source');
     }
     final now = DateTime.now();
     final prev = await preview(key, outcome);

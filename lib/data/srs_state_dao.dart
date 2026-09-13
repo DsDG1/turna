@@ -26,7 +26,8 @@ class SrsStateDao {
     String queue, {
     String? languageCode,
   }) async {
-    final query = _db.select(_db.srsStates)..where((t) => t.queue.equals(queue));
+    final query = _db.select(_db.srsStates)
+      ..where((t) => t.queue.equals(queue));
     if (languageCode != null) {
       query.where(
         (t) => t.languageCode.equals(LanguageCodes.canonicalize(languageCode)),
@@ -68,7 +69,8 @@ class SrsStateDao {
 
   /// Delete a single state row by [wordId].
   Future<void> delete(String wordId, {String? languageCode}) async {
-    final query = _db.delete(_db.srsStates)..where((t) => t.wordId.equals(wordId));
+    final query = _db.delete(_db.srsStates)
+      ..where((t) => t.wordId.equals(wordId));
     if (languageCode != null) {
       query.where(
         (t) => t.languageCode.equals(LanguageCodes.canonicalize(languageCode)),
@@ -94,7 +96,8 @@ class SrsStateDao {
   /// Delete every row in [queue] (content-update reset). Pass [languageCode]
   /// to spare the other languages' rows; null clears every language.
   Future<void> clearQueue(String queue, {String? languageCode}) async {
-    final query = _db.delete(_db.srsStates)..where((t) => t.queue.equals(queue));
+    final query = _db.delete(_db.srsStates)
+      ..where((t) => t.queue.equals(queue));
     if (languageCode != null) {
       query.where(
         (t) => t.languageCode.equals(LanguageCodes.canonicalize(languageCode)),

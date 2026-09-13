@@ -35,6 +35,7 @@ class OfficialReviewSession {
   final OfficialAnkiFeatureFlags flags;
   final OfficialAnkiOperationCoordinator? coordinator;
   final String profileId;
+
   /// When set, only these card IDs may be shown or answered.
   Set<int>? allowedCardIds;
 
@@ -95,7 +96,8 @@ class OfficialReviewSession {
         await engine.setCurrentDeck(deck.deckId);
         try {
           final probed = await engine.getReviewQueue(fetchLimit: 1);
-          final due = probed.newCount + probed.learningCount + probed.reviewCount;
+          final due =
+              probed.newCount + probed.learningCount + probed.reviewCount;
           if (probed.cards.isEmpty) continue;
           if (due > bestDue) {
             best = deck;
@@ -425,7 +427,9 @@ class OfficialReviewSession {
       undoStatus = await engine.getUndoStatus();
       congrats = await engine.congratsInfo();
       isFilteredDeck = congrats?.isFilteredDeck ?? false;
-    } catch (suppressed) { debugPrint('[OfficialAnkiReviewSession] suppressed error: $suppressed'); }
+    } catch (suppressed) {
+      debugPrint('[OfficialAnkiReviewSession] suppressed error: $suppressed');
+    }
   }
 
   void applyFailure(Object error) {

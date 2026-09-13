@@ -196,8 +196,7 @@ class _DetailContent extends StatelessWidget {
         ...series.tiers.map((tier) {
           final tierState = service.state.tierState(tier.id);
           final unlocked = tierState != null;
-          final isCurrentPursuit =
-              progress.nextTier?.id == tier.id;
+          final isCurrentPursuit = progress.nextTier?.id == tier.id;
           return _TierRow(
             tier: tier,
             tierState: tierState,
@@ -232,8 +231,7 @@ class _TierRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rarityColor = AchievementUiCatalog.rarityColor(tier.rarity);
-    final cosmetic =
-        AchievementUiCatalog.cosmeticLabel(tier.cosmeticRewardId);
+    final cosmetic = AchievementUiCatalog.cosmeticLabel(tier.cosmeticRewardId);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -266,8 +264,7 @@ class _TierRow extends StatelessWidget {
               ),
             ),
             child: unlocked
-                ? const Icon(Icons.check_rounded,
-                    color: Colors.white, size: 18)
+                ? const Icon(Icons.check_rounded, color: Colors.white, size: 18)
                 : Icon(
                     Icons.lock_outline_rounded,
                     size: 15,
@@ -284,13 +281,12 @@ class _TierRow extends StatelessWidget {
                     Expanded(
                       child: Text(
                         '${tier.rarity.displayName} · ${tier.target} $unit',
-                        style:
-                            Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  color: unlocked
-                                      ? TurnaTheme.textPrimaryColor(context)
-                                      : TurnaTheme.textSecondaryColor(context),
-                                ),
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: unlocked
+                                  ? TurnaTheme.textPrimaryColor(context)
+                                  : TurnaTheme.textSecondaryColor(context),
+                            ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -342,7 +338,8 @@ class _MiniTag extends StatelessWidget {
   final String text;
   final Color color;
 
-  const _MiniTag({required this.context, required this.text, required this.color});
+  const _MiniTag(
+      {required this.context, required this.text, required this.color});
 
   @override
   Widget build(BuildContext context) {

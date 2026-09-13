@@ -128,8 +128,8 @@ class _AiSavedListPageState extends State<AiSavedListPage> {
                                       .textTheme
                                       .labelSmall
                                       ?.copyWith(
-                                        color: TurnaTheme.textHintColor(
-                                            context),
+                                        color:
+                                            TurnaTheme.textHintColor(context),
                                       ),
                                 ),
                               ],

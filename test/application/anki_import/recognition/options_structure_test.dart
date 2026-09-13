@@ -63,8 +63,7 @@ void main() {
       EmbeddedOptionsParser.parseOptionPool('a\n\nb; a, c'),
       ['a', 'b', 'c'],
     );
-    final many =
-        List.generate(12, (i) => 'opt$i').join('|');
+    final many = List.generate(12, (i) => 'opt$i').join('|');
     expect(EmbeddedOptionsParser.parseOptionPool(many), hasLength(8));
     expect(EmbeddedOptionsParser.parseOptionPool('  '), isEmpty);
     expect(
@@ -77,7 +76,8 @@ void main() {
     );
   });
 
-  test('extractEmbeddedOptions supports circled numbers and Chinese brackets', () {
+  test('extractEmbeddedOptions supports circled numbers and Chinese brackets',
+      () {
     const circled = '下列属于偶数的是：\n① 1\n② 2\n③ 3\n④ 4';
     final parsedCircled = EmbeddedOptionsParser.extractEmbeddedOptions(circled);
     expect(parsedCircled, isNotNull);
@@ -88,13 +88,21 @@ void main() {
     );
 
     const chineseBrackets = '单选题：\n（A） 苹果\n（B） 香蕉\n（C） 橙子';
-    final parsedBrackets = EmbeddedOptionsParser.extractEmbeddedOptions(chineseBrackets);
+    final parsedBrackets =
+        EmbeddedOptionsParser.extractEmbeddedOptions(chineseBrackets);
     expect(parsedBrackets, isNotNull);
     expect(parsedBrackets!.options, ['苹果', '香蕉', '橙子']);
   });
 
   test('extractMultiFieldOptions collects separate option columns', () {
-    final fieldNames = ['Question', 'OptionA', 'OptionB', 'OptionC', 'OptionD', 'Answer'];
+    final fieldNames = [
+      'Question',
+      'OptionA',
+      'OptionB',
+      'OptionC',
+      'OptionD',
+      'Answer'
+    ];
     final fieldValues = [
       '我国第一部宪法颁布年份？',
       '1949年',
@@ -118,7 +126,8 @@ void main() {
   });
 
   test('options with media preserve [sound:] and <img> tags', () {
-    const front = '听音选图：\nA. <img src="dog.jpg"> [sound:dog.mp3]\nB. <img src="cat.jpg"> [sound:cat.mp3]';
+    const front =
+        '听音选图：\nA. <img src="dog.jpg"> [sound:dog.mp3]\nB. <img src="cat.jpg"> [sound:cat.mp3]';
     final parsed = EmbeddedOptionsParser.extractEmbeddedOptions(front);
     expect(parsed, isNotNull);
     expect(parsed!.options.length, 2);
@@ -174,7 +183,8 @@ void main() {
       EmbeddedOptionsParser.looksLikeEmbeddedOptions('Ａ．北京\nＢ．上海\nＣ．广州'),
       isTrue,
     );
-    final parsed = EmbeddedOptionsParser.extractEmbeddedOptions('首都：\nＡ．北京\nＢ．上海');
+    final parsed =
+        EmbeddedOptionsParser.extractEmbeddedOptions('首都：\nＡ．北京\nＢ．上海');
     expect(parsed, isNotNull);
     expect(parsed!.options, ['北京', '上海']);
     expect(parsed.prompt, '首都：');
@@ -187,10 +197,12 @@ void main() {
   });
 
   test('sequential space-separated labels look like options', () {
-    expect(EmbeddedOptionsParser.looksLikeEmbeddedOptions('A 甲\nB 乙\nC 丙'), isTrue);
+    expect(EmbeddedOptionsParser.looksLikeEmbeddedOptions('A 甲\nB 乙\nC 丙'),
+        isTrue);
     // Prose with scattered standalone letters is not sequential.
     expect(
-      EmbeddedOptionsParser.looksLikeEmbeddedOptions('A big cat and a small dog'),
+      EmbeddedOptionsParser.looksLikeEmbeddedOptions(
+          'A big cat and a small dog'),
       isFalse,
     );
   });
@@ -203,22 +215,28 @@ void main() {
       EmbeddedOptionsParser.parseCorrectIndices('答案：B。解析：因为甲不正确。', options),
       [1],
     );
-    expect(EmbeddedOptionsParser.parseCorrectIndices('B 解析：甲不正确', options), [1]);
+    expect(
+        EmbeddedOptionsParser.parseCorrectIndices('B 解析：甲不正确', options), [1]);
     expect(EmbeddedOptionsParser.parseCorrectIndices('答案是AC', options), [0, 2]);
     // English answers containing clause words keep their full text.
     expect(
-      EmbeddedOptionsParser.parseCorrectIndices('Ever since 1990', ['Ever since 1990', 'x']),
+      EmbeddedOptionsParser.parseCorrectIndices(
+          'Ever since 1990', ['Ever since 1990', 'x']),
       [0],
     );
   });
 
-  test('parseCorrectIndices aligns option text with whitespace differences', () {
-    expect(EmbeddedOptionsParser.parseCorrectIndices('选项 一', ['选项一', '选项二']), [0]);
-    expect(EmbeddedOptionsParser.parseCorrectIndices('选项二。', ['选项一', '选项二']), [1]);
+  test('parseCorrectIndices aligns option text with whitespace differences',
+      () {
+    expect(
+        EmbeddedOptionsParser.parseCorrectIndices('选项 一', ['选项一', '选项二']), [0]);
+    expect(
+        EmbeddedOptionsParser.parseCorrectIndices('选项二。', ['选项一', '选项二']), [1]);
   });
 
   test('unlabeled line pool parses as loose options', () {
-    final parsed = EmbeddedOptionsParser.extractEmbeddedOptions('北京\n上海\n广州\n深圳');
+    final parsed =
+        EmbeddedOptionsParser.extractEmbeddedOptions('北京\n上海\n广州\n深圳');
     expect(parsed, isNotNull);
     expect(parsed!.loose, isTrue);
     expect(parsed.options, ['北京', '上海', '广州', '深圳']);

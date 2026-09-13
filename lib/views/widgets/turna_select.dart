@@ -59,9 +59,7 @@ class TurnaChoiceCard<T> extends StatelessWidget {
     const accent = TurnaTheme.brandTeal;
     final radius = BorderRadius.circular(TurnaTheme.radiusLarge);
     return Material(
-      color: on
-          ? accent.withValues(alpha: 0.14)
-          : TurnaTheme.cardBg(context),
+      color: on ? accent.withValues(alpha: 0.14) : TurnaTheme.cardBg(context),
       borderRadius: radius,
       child: InkWell(
         onTap: () => onSelected(value),
@@ -93,9 +91,7 @@ class TurnaChoiceCard<T> extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: on ? FontWeight.w700 : FontWeight.w500,
-                    color: on
-                        ? accent
-                        : TurnaTheme.textPrimaryColor(context),
+                    color: on ? accent : TurnaTheme.textPrimaryColor(context),
                   ),
                 ),
               ),

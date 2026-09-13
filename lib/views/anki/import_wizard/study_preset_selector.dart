@@ -137,9 +137,8 @@ class StudyPresetSelector extends StatelessWidget {
                           title,
                           style: TextStyle(
                             fontSize: 14,
-                            fontWeight: isSelected
-                                ? FontWeight.w700
-                                : FontWeight.w600,
+                            fontWeight:
+                                isSelected ? FontWeight.w700 : FontWeight.w600,
                             color: isSelected
                                 ? activeColor
                                 : TurnaTheme.textPrimaryColor(context),

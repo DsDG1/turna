@@ -104,7 +104,9 @@ class _Harness {
       ),
       assembler: const OfficialStudyBatchAssembler(profileId: 'profile-test'),
       items: const [],
-      activePlacementCardKeys: {for (final id in [1, 2, 3]) _key(id)},
+      activePlacementCardKeys: {
+        for (final id in [1, 2, 3]) _key(id)
+      },
     );
     await queue.rebuildFromLiveQueue();
     final host = AnkiStudySessionHost(
@@ -185,7 +187,8 @@ void main() {
     h.expectSyncedWithScheduler();
   });
 
-  test('again reinsertion keeps the card owed and later commits still '
+  test(
+      'again reinsertion keeps the card owed and later commits still '
       'follow the queue', () async {
     final h = _Harness(_LearningReinsertEngine());
     h.engine.seedPackage(packagePath: 'x.apkg', notes: 3, cards: 3);
@@ -209,7 +212,8 @@ void main() {
     expect(h.engine.answeredIds, {1, 2});
   });
 
-  test('bury via the onMutated hook rebuilds and advances to the scheduler '
+  test(
+      'bury via the onMutated hook rebuilds and advances to the scheduler '
       'current', () async {
     final h = _Harness(FakeOfficialAnkiEngine());
     h.engine.seedPackage(packagePath: 'x.apkg', notes: 3, cards: 3);
@@ -280,7 +284,8 @@ void main() {
     );
   });
 
-  test('answeredCount tracks committed cards while totalCount follows the '
+  test(
+      'answeredCount tracks committed cards while totalCount follows the '
       'shrinking live queue (regression: 记忆率 4000%)', () async {
     final h = _Harness(FakeOfficialAnkiEngine());
     h.engine.seedPackage(packagePath: 'x.apkg', notes: 3, cards: 3);
@@ -302,8 +307,7 @@ void main() {
             'the residual, which is exactly why summaries must not use it');
   });
 
-  test('P3: reportSchedulerDesync surfaces a retryable desync state',
-      () async {
+  test('P3: reportSchedulerDesync surfaces a retryable desync state', () async {
     final h = _Harness(FakeOfficialAnkiEngine());
     h.engine.seedPackage(packagePath: 'x.apkg', notes: 3, cards: 3);
     await h.start();

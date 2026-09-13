@@ -45,7 +45,8 @@ class OfficialAnkiV2DecisionStore {
 
   /// 删除映射决策（source 卸载终删时清理命名空间）。
   Future<void> deleteImportMapping(String sourceId) async {
-    await _engine.setConfig(OfficialAnkiV2ConfigKeys.importMapping(sourceId), null);
+    await _engine.setConfig(
+        OfficialAnkiV2ConfigKeys.importMapping(sourceId), null);
   }
 
   Future<bool> writeDeckPlacement({
@@ -81,7 +82,8 @@ class OfficialAnkiV2DecisionStore {
   }
 
   Future<void> deleteDeckPlacement(int deckId) async {
-    await _engine.setConfig(OfficialAnkiV2ConfigKeys.coursePlacement(deckId), null);
+    await _engine.setConfig(
+        OfficialAnkiV2ConfigKeys.coursePlacement(deckId), null);
   }
 
   /// B6：课程切换 = 改一个配置区决策键。best-effort —— 引擎不可用时
@@ -100,7 +102,8 @@ class OfficialAnkiV2DecisionStore {
 
   Future<String?> readCourseScope() async {
     try {
-      final value = await _engine.getConfig(OfficialAnkiV2ConfigKeys.courseScope);
+      final value =
+          await _engine.getConfig(OfficialAnkiV2ConfigKeys.courseScope);
       if (!value.found || value.value is! Map) return null;
       return (value.value as Map)['wireKey'] as String?;
     } catch (_) {

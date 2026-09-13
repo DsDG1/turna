@@ -212,8 +212,9 @@ class SrsTutorProvider extends ChangeNotifier {
 
     _lastPlan = parsed.parsed;
     _generatedSectionId = parsed.parsed['id'] as String?;
-    _generatedSectionName =
-        (parsed.parsed['name'] as String?) ?? sectionName ?? 'Personalized Review';
+    _generatedSectionName = (parsed.parsed['name'] as String?) ??
+        sectionName ??
+        'Personalized Review';
     _state = SrsTutorState.ready;
     notifyListeners();
 
@@ -224,8 +225,7 @@ class SrsTutorProvider extends ChangeNotifier {
       // The AI assigns the section id; if it forgot, synthesize a stable id
       // derived from the current timestamp so the lesson player can still
       // navigate to it.
-      _generatedSectionId ??=
-          'tutor-${DateTime.now().millisecondsSinceEpoch}';
+      _generatedSectionId ??= 'tutor-${DateTime.now().millisecondsSinceEpoch}';
       _state = SrsTutorState.saved;
       _recordRecent(focus);
     } on AiCancelled {
@@ -260,12 +260,12 @@ class SrsTutorProvider extends ChangeNotifier {
         SrsTutorFocus.weakWords => AiTaskKind.tutorWeakWords,
       };
       getIt<AiRecentTasksProvider>().record(
-            AiRecentTask(
-              kind: kind,
-              summary: _generatedSectionName ?? 'Tutor',
-              timestamp: DateTime.now(),
-            ),
-          );
+        AiRecentTask(
+          kind: kind,
+          summary: _generatedSectionName ?? 'Tutor',
+          timestamp: DateTime.now(),
+        ),
+      );
     } catch (_) {
       // Advisory only.
     }
@@ -313,8 +313,7 @@ class SrsTutorProvider extends ChangeNotifier {
     } else {
       for (final m in mistakes) {
         final id = m.wordId ?? m.expressionId ?? m.grammarPointId ?? m.id;
-        buf.writeln(
-            '- [$id] lesson=${m.lessonId} stage=${m.stageId} '
+        buf.writeln('- [$id] lesson=${m.lessonId} stage=${m.stageId} '
             'user="${m.userAnswer}" correct="${m.correctAnswer}" '
             'at=${m.timestamp.toIso8601String()}');
       }
@@ -335,14 +334,14 @@ class SrsTutorProvider extends ChangeNotifier {
 
     buf
       ..writeln()
-      ..writeln('## Recent SRS reviews (newest first; ${recentReviews.length})');
+      ..writeln(
+          '## Recent SRS reviews (newest first; ${recentReviews.length})');
     if (recentReviews.isEmpty) {
       buf.writeln('- (none)');
     } else {
       for (final r in recentReviews.take(10)) {
         final when = r.lastReviewedAt?.toIso8601String() ?? 'never';
-        buf.writeln(
-            '- [${r.wordId}] type=${r.type.name} reps=${r.reps} '
+        buf.writeln('- [${r.wordId}] type=${r.type.name} reps=${r.reps} '
             'ease=${r.ease.toStringAsFixed(2)} lapses=${r.lapses} '
             'leech=${r.isLeech} lastReviewed=$when');
       }

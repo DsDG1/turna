@@ -1,7 +1,6 @@
 // Unit tests for the streaming pipeline primitives (Plan 3 §21/§26.3):
 // delta coalescing (order/loss/cancel) and the auto-scroll throttle/lock.
 
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/ai/chat_auto_scroll_coordinator.dart';
@@ -21,8 +20,7 @@ void main() {
         c.add('x');
       }
       expect(batches, isEmpty, reason: 'nothing before the interval fires');
-      await Future<void>.delayed(
-          StreamDeltaCoalescer.testInterval * 2);
+      await Future<void>.delayed(StreamDeltaCoalescer.testInterval * 2);
       expect(batches.length, 1,
           reason: '100 deltas in one interval = one UI commit');
       expect(batches.single, 'x' * 100);
@@ -46,8 +44,7 @@ void main() {
       c.cancel();
     });
 
-    test('flush emits pending content immediately and exactly once',
-        () async {
+    test('flush emits pending content immediately and exactly once', () async {
       final batches = <String>[];
       final c = StreamDeltaCoalescer(
         interval: const Duration(seconds: 30),
@@ -98,7 +95,8 @@ void main() {
       final list = ListView.builder(
         controller: controller,
         itemCount: 200,
-        itemBuilder: (_, i) => Text('line $i', textDirection: TextDirection.ltr),
+        itemBuilder: (_, i) =>
+            Text('line $i', textDirection: TextDirection.ltr),
       );
       await tester.pumpWidget(
         MaterialApp(home: Scaffold(body: SizedBox(height: 200, child: list))),
@@ -121,8 +119,7 @@ void main() {
     testWidgets('user scrolling up locks following; returning unlocks',
         (tester) async {
       final controller = ScrollController();
-      final coordinator = ChatAutoScrollCoordinator()
-        ..attach(controller);
+      final coordinator = ChatAutoScrollCoordinator()..attach(controller);
 
       final list = ListView.builder(
         controller: controller,

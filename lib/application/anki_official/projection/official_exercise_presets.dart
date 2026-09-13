@@ -42,8 +42,7 @@ List<String> presetKinds(OfficialExercisePreset preset) =>
 OfficialExercisePreset presetOf(List<String> enabledKinds) {
   final set = enabledKinds.toSet();
   for (final entry in _presetKinds.entries) {
-    if (set.length == entry.value.length &&
-        set.containsAll(entry.value)) {
+    if (set.length == entry.value.length && set.containsAll(entry.value)) {
       return entry.key;
     }
   }

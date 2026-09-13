@@ -56,7 +56,8 @@ void main() {
       expect(seenTime, const TimeOfDay(hour: 9, minute: 15));
     });
 
-    test('resetLearningDefaults restores TTS, reminder, and retention', () async {
+    test('resetLearningDefaults restores TTS, reminder, and retention',
+        () async {
       await settings.setTtsSpeed(1.5);
       await settings.setDailyReminderEnabled(true);
       await settings.setDailyReminderTime(const TimeOfDay(hour: 8, minute: 15));

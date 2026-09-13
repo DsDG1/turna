@@ -62,7 +62,9 @@ class MarkdownChopper {
 
   String _headingTitle(String line, int level) {
     final prefix = '#' * level + ' ';
-    return line.startsWith(prefix) ? line.substring(prefix.length).trim() : line.trim();
+    return line.startsWith(prefix)
+        ? line.substring(prefix.length).trim()
+        : line.trim();
   }
 
   String _slugify(String title) {
@@ -95,5 +97,6 @@ class _Heading {
 }
 
 extension _StringX on String {
-  bool get isWhitespace => this == ' ' || this == '\t' || this == '\n' || this == '\r';
+  bool get isWhitespace =>
+      this == ' ' || this == '\t' || this == '\n' || this == '\r';
 }

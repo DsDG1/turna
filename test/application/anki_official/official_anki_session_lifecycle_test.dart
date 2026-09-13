@@ -39,7 +39,8 @@ void main() {
     }
   });
 
-  test('ensureCollectionOpen can be called twice on the same session', () async {
+  test('ensureCollectionOpen can be called twice on the same session',
+      () async {
     final root = Directory.systemTemp.createTempSync('turna-ensure-open-');
     addTearDown(() => root.deleteSync(recursive: true));
     final session = await OfficialAnkiSession.spawn(
@@ -73,7 +74,8 @@ void main() {
     await Future.wait([first, second]);
   });
 
-  test('timed-out handle cleanup is not engineClose on the caller isolate', () async {
+  test('timed-out handle cleanup is not engineClose on the caller isolate',
+      () async {
     final caller = Isolate.current.debugName;
     officialAnkiCloseHandleInCleanupIsolate(handle: 0, libraryPath: '');
     final remoteName = await Isolate.run(() => Isolate.current.debugName);

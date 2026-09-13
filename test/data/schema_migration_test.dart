@@ -165,7 +165,6 @@ class _CourseDatabaseV26 extends db.CourseDatabase {
   int get schemaVersion => db.CourseDatabase.kSchemaVersion + 1;
 }
 
-
 /// v15 is the last schema before the official Anki derived projection index.
 class _CourseDatabaseV15 extends db.CourseDatabase {
   _CourseDatabaseV15(super.e);
@@ -599,7 +598,8 @@ void main() {
       await File(path).parent.delete(recursive: true);
     });
 
-    test('v20 -> v24 migration drops legacy owner authority tables and unifies on v2',
+    test(
+        'v20 -> v24 migration drops legacy owner authority tables and unifies on v2',
         () async {
       final path = await _tempDbPath();
       final raw = sqlite.sqlite3.open(path);
@@ -655,7 +655,9 @@ void main() {
       await File(path).parent.delete(recursive: true);
     });
 
-    test('fresh create at current schema contains v2 course tree view and introduction states', () async {
+    test(
+        'fresh create at current schema contains v2 course tree view and introduction states',
+        () async {
       final database = db.CourseDatabase(NativeDatabase.memory());
       await _forceOpen(database);
       expect(database.schemaVersion, db.CourseDatabase.kSchemaVersion);

@@ -21,11 +21,13 @@ class AnkiImportDao {
     if (rows.isEmpty) return const <AnkiImportRecord>[];
     // Fetch lifecycle columns for every import in a single query instead of
     // one _toRecord re-query per row (N+1 -> 2 queries).
-    final lifecycleRows = await _db.customSelect(
-      'SELECT import_id, status, source_card_count, stored_card_count, '
-      'indexed_card_count, imported_scheduling, last_error, daily_new_limit, '
-      'daily_review_limit FROM anki_imports',
-    ).get();
+    final lifecycleRows = await _db
+        .customSelect(
+          'SELECT import_id, status, source_card_count, stored_card_count, '
+          'indexed_card_count, imported_scheduling, last_error, daily_new_limit, '
+          'daily_review_limit FROM anki_imports',
+        )
+        .get();
     final lifecycleById = <String, QueryRow>{
       for (final r in lifecycleRows) r.read<String>('import_id'): r,
     };

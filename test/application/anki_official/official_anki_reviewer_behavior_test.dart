@@ -98,7 +98,8 @@ void main() {
     expect(controller.typed.hint, isNull);
   });
 
-  test('loadAndShowQuestion does not expose a card before present generation is reserved',
+  test(
+      'loadAndShowQuestion does not expose a card before present generation is reserved',
       () async {
     final fake = FakeOfficialAnkiEngine();
     fake.seedPackage(packagePath: 'x.apkg', notes: 1, cards: 1);
@@ -167,10 +168,13 @@ void main() {
     await av.showQuestion();
     await av.showAnswer(autoplay: false);
     await av.showQuestion(autoplay: false);
-    expect(player.events.where((e) => e == 'stop').length, greaterThanOrEqualTo(2));
+    expect(player.events.where((e) => e == 'stop').length,
+        greaterThanOrEqualTo(2));
   });
 
-  test('showAnswer during multi-tag question does not resume the next question tag', () async {
+  test(
+      'showAnswer during multi-tag question does not resume the next question tag',
+      () async {
     final root = Directory.systemTemp.createTempSync('turna-av-flip-gen-');
     addTearDown(() => root.deleteSync(recursive: true));
     File('${root.path}/q1.mp3').writeAsBytesSync([1]);
@@ -240,7 +244,8 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 5));
     await av.nextCard();
     await playing;
-    expect(player.events.where((e) => e.startsWith('play:')).length, lessThan(2));
+    expect(
+        player.events.where((e) => e.startsWith('play:')).length, lessThan(2));
     expect(player.events, contains('stop'));
   });
 
@@ -262,7 +267,9 @@ void main() {
         answerDisplayHtml: '',
         css: '',
         questionAvTags: const [OfficialAnkiAvTag.sound('a.mp3')],
-        answerAvTags: const [OfficialAnkiAvTag.tts(fieldText: 'Hi', lang: 'en')],
+        answerAvTags: const [
+          OfficialAnkiAvTag.tts(fieldText: 'Hi', lang: 'en')
+        ],
       ),
     );
     await av.showQuestion();
@@ -271,7 +278,8 @@ void main() {
     await av.nextCard();
     expect(player.events.where((e) => e.startsWith('play:')).length, 1);
     expect(player.events.where((e) => e.startsWith('tts:')).length, 1);
-    expect(player.events.where((e) => e == 'stop').length, greaterThanOrEqualTo(2));
+    expect(player.events.where((e) => e == 'stop').length,
+        greaterThanOrEqualTo(2));
 
     final limited = RecordingOfficialAnkiAvPlayer();
     await limited.speak(
@@ -283,7 +291,8 @@ void main() {
     expect(limited.events, contains('tts:en:Hi'));
     expect(limited.events, contains('tts-voice-limited:Alice'));
     expect(limited.events, contains('tts-args-limited:speed=2'));
-    expect(limited.events.where((e) => e.startsWith('tts:en:')).single, 'tts:en:Hi');
+    expect(limited.events.where((e) => e.startsWith('tts:en:')).single,
+        'tts:en:Hi');
   });
 
   test('typed controller freezes input and calls official compare', () async {
@@ -316,7 +325,8 @@ void main() {
     expect(typed.phase, OfficialAnkiTypedPhase.recoverableError);
     expect(typed.frozen, isFalse);
 
-    typed.attach(const OfficialAnkiTypedAnswerHint(marker: '[[type:NoSuchField]]'));
+    typed.attach(
+        const OfficialAnkiTypedAnswerHint(marker: '[[type:NoSuchField]]'));
     typed.updateProvided('x');
     final failed = await typed.compare(cardId: 1, generation: typed.generation);
     expect(failed, isNull);
@@ -333,17 +343,23 @@ void main() {
       comparisonHtml: '<code id=typeans>ok</code>',
     );
     expect(OfficialAnkiTypedAnswerHtml.hasFrontSideAnswerRule(html), isTrue);
-    expect(applied.indexOf('<hr id=answer>'), lessThan(applied.indexOf('typeans')));
+    expect(applied.indexOf('<hr id=answer>'),
+        lessThan(applied.indexOf('typeans')));
     expect(applied.contains('[[type:'), isFalse);
   });
 
-  test('body class replaces previous cardN and never adds desktop platform classes', () {
+  test(
+      'body class replaces previous cardN and never adds desktop platform classes',
+      () {
     final first = OfficialAnkiBodyClass.apply(
       current: {'stale', 'card', 'card1'},
       templateOrdinal: 1,
       night: true,
     );
-    expect(first, containsAll(<String>['card', 'card2', 'nightMode', 'night_mode', 'stale']));
+    expect(
+        first,
+        containsAll(
+            <String>['card', 'card2', 'nightMode', 'night_mode', 'stale']));
     expect(first.contains('card1'), isFalse);
     expect(first.contains('isWin'), isFalse);
     expect(OfficialAnkiBodyClass.fromNative(templateOrdinal: 0), 'card card1');
@@ -359,12 +375,15 @@ void main() {
     expect(
       source.contains('if (_hcpp == null)'),
       isFalse,
-      reason: 'HCPP probe must not swap CircularProgressIndicator for PlatformViewLink',
+      reason:
+          'HCPP probe must not swap CircularProgressIndicator for PlatformViewLink',
     );
     expect(source.contains('CircularProgressIndicator'), isFalse);
     expect(source.contains('_hcppCached'), isTrue);
-    final manifest = File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
-    expect(manifest.contains('io.flutter.embedding.android.EnableHcpp'), isTrue);
+    final manifest =
+        File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
+    expect(
+        manifest.contains('io.flutter.embedding.android.EnableHcpp'), isTrue);
     expect(
       manifest.contains('android.permission.INTERNET'),
       isTrue,
@@ -394,9 +413,11 @@ void main() {
     );
   });
 
-  test('production reviewer page does not construct the recording AV player', () {
-    final page = File('lib/views/anki_official/official_anki_reviewer_page.dart')
-        .readAsStringSync();
+  test('production reviewer page does not construct the recording AV player',
+      () {
+    final page =
+        File('lib/views/anki_official/official_anki_reviewer_page.dart')
+            .readAsStringSync();
     expect(page.contains('RecordingOfficialAnkiAvPlayer('), isFalse);
     expect(page.contains('OfficialAnkiAvPlayerAdapter('), isTrue);
   });

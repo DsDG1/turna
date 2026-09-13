@@ -152,71 +152,71 @@ class _OfficialAnkiPracticeReviewSurfaceState
       data: MediaQuery.of(context)
           .copyWith(textScaler: TextScaler.linear(cardTextScale / 100.0)),
       child: GestureDetector(
-      onTap: isAnswerPhase ? null : widget.onShowAnswer,
-      child: LessonPracticeCard(
-        variant: isAnswerPhase
-            ? LessonPracticeCardVariant.back
-            : LessonPracticeCardVariant.front,
-        appearAnimation: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            const SizedBox(height: 12),
-            Text(
-              interaction.front,
-              style: TextStyle(
-                fontSize: 32,
-                fontWeight: FontWeight.w700,
-                color: TurnaTheme.textPrimaryColor(context),
-              ),
-              textAlign: TextAlign.center,
-            ),
-            if (interaction.hint != null && interaction.hint!.isNotEmpty) ...[
-              const SizedBox(height: 8),
+        onTap: isAnswerPhase ? null : widget.onShowAnswer,
+        child: LessonPracticeCard(
+          variant: isAnswerPhase
+              ? LessonPracticeCardVariant.back
+              : LessonPracticeCardVariant.front,
+          appearAnimation: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const SizedBox(height: 12),
               Text(
-                interaction.hint!,
+                interaction.front,
                 style: TextStyle(
-                  fontSize: 18,
-                  color: TurnaTheme.brandTeal,
-                  fontStyle: FontStyle.italic,
-                ),
-              ),
-            ],
-            if (interaction.audioAssets.isNotEmpty ||
-                interaction.imageAssets.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              AnkiMediaStrip(
-                audioAssets: interaction.audioAssets,
-                imageAssets: interaction.imageAssets,
-              ),
-            ],
-            const SizedBox(height: 24),
-            if (isAnswerPhase) ...[
-              const Divider(),
-              const SizedBox(height: 16),
-              Text(
-                interaction.back,
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w500,
-                  color: TurnaTheme.textSecondaryColor(context),
+                  fontSize: 32,
+                  fontWeight: FontWeight.w700,
+                  color: TurnaTheme.textPrimaryColor(context),
                 ),
                 textAlign: TextAlign.center,
               ),
-            ] else ...[
-              const SizedBox(height: 16),
-              Text(
-                AppStrings.ankiShowAnswerFlip,
-                style: TextStyle(
-                  fontSize: 14,
-                  color: TurnaTheme.textHintColor(context),
+              if (interaction.hint != null && interaction.hint!.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  interaction.hint!,
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: TurnaTheme.brandTeal,
+                    fontStyle: FontStyle.italic,
+                  ),
                 ),
-              ),
+              ],
+              if (interaction.audioAssets.isNotEmpty ||
+                  interaction.imageAssets.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                AnkiMediaStrip(
+                  audioAssets: interaction.audioAssets,
+                  imageAssets: interaction.imageAssets,
+                ),
+              ],
+              const SizedBox(height: 24),
+              if (isAnswerPhase) ...[
+                const Divider(),
+                const SizedBox(height: 16),
+                Text(
+                  interaction.back,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w500,
+                    color: TurnaTheme.textSecondaryColor(context),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ] else ...[
+                const SizedBox(height: 16),
+                Text(
+                  AppStrings.ankiShowAnswerFlip,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: TurnaTheme.textHintColor(context),
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
-      ),
       ),
     );
   }

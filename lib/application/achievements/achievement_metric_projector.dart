@@ -66,10 +66,10 @@ class AchievementMetricProjection {
       AchievementMetricProjection(
         totalReviewedCards: (json['totalReviewedCards'] as num?)?.toInt() ?? 0,
         maxDailyXpEver: (json['maxDailyXpEver'] as num?)?.toInt() ?? 0,
-        studiedWordIds: ((json['studiedWordIds'] as List?)
-                    ?.map((e) => e.toString()) ??
-                const Iterable<String>.empty())
-            .toSet(),
+        studiedWordIds:
+            ((json['studiedWordIds'] as List?)?.map((e) => e.toString()) ??
+                    const Iterable<String>.empty())
+                .toSet(),
         updatedAt: json['updatedAt'] == null
             ? null
             : DateTime.parse(json['updatedAt'] as String),
@@ -134,8 +134,8 @@ class AchievementMetricProjector {
       if (raw.isEmpty) {
         decoded = AchievementMetricProjection();
       } else {
-        decoded =
-            AchievementMetricProjection.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+        decoded = AchievementMetricProjection.fromJson(
+            jsonDecode(raw) as Map<String, dynamic>);
       }
     } catch (e) {
       logger.w('Achievement projection decode failed, resetting: $e');
@@ -181,10 +181,9 @@ class AchievementMetricProjector {
       currentStreakDays: _streakProvider.realStreak,
       totalXp: _scoreProvider.score,
       maxDailyXp: bestDailyXp,
-      totalReviewedCards:
-          reviewedFromLogs > persisted.totalReviewedCards
-              ? reviewedFromLogs
-              : persisted.totalReviewedCards,
+      totalReviewedCards: reviewedFromLogs > persisted.totalReviewedCards
+          ? reviewedFromLogs
+          : persisted.totalReviewedCards,
       uniqueWordsStudied: studiedWords.length,
     );
   }
@@ -226,7 +225,8 @@ class AchievementMetricProjector {
   }
 
   Future<void> _enqueueProjectionWrite(
-    AchievementMetricProjection Function(AchievementMetricProjection current) op,
+    AchievementMetricProjection Function(AchievementMetricProjection current)
+        op,
   ) {
     _writeChain = _writeChain.then((_) async {
       final current = await readProjection();

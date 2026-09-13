@@ -154,9 +154,8 @@ class OfficialAnkiImportSaga {
       await _abandon(
         sourceId: row.sourceId,
         attemptId: row.attemptId,
-        stagingRoot: row.stagingPath == null
-            ? null
-            : Directory(row.stagingPath!),
+        stagingRoot:
+            row.stagingPath == null ? null : Directory(row.stagingPath!),
       );
     }
   }
@@ -179,8 +178,7 @@ class OfficialAnkiImportSaga {
     }
   }
 
-  bool get _discarded =>
-      OfficialAnkiCompositionRoot.stagingDiscardRequested;
+  bool get _discarded => OfficialAnkiCompositionRoot.stagingDiscardRequested;
 
   OfficialAnkiException _cancelled() => const OfficialAnkiException(
         code: OfficialAnkiErrorCode.importCancelled,

@@ -42,8 +42,8 @@ const _manifestPath = 'assets/courses/manifest.json';
 _MapBundle _collidingBundle() {
   final frenchVocab =
       File('assets/courses/french/vocab.json').readAsStringSync();
-  final frenchSection =
-      File('assets/courses/french/sections/fr-section1.json').readAsStringSync();
+  final frenchSection = File('assets/courses/french/sections/fr-section1.json')
+      .readAsStringSync();
 
   String indexFor(String code) => jsonEncode({
         'language': code,
@@ -81,8 +81,7 @@ void main() {
     LanguageRegistry.instance.resetForTest();
   });
 
-  test('seedIfNeeded skips a colliding language and keeps the other',
-      () async {
+  test('seedIfNeeded skips a colliding language and keeps the other', () async {
     final bundle = _collidingBundle();
     final db = CourseDatabase(NativeDatabase.memory());
     addTearDown(db.close);
@@ -97,8 +96,7 @@ void main() {
     expect(await repo.sectionShells(languageCode: 'yy'), isEmpty);
   });
 
-  test('seedLanguage still throws on a cross-language id collision',
-      () async {
+  test('seedLanguage still throws on a cross-language id collision', () async {
     final bundle = _collidingBundle();
     final db = CourseDatabase(NativeDatabase.memory());
     addTearDown(db.close);
@@ -134,8 +132,18 @@ void main() {
     final bundle = _MapBundle({
       _manifestPath: jsonEncode({
         'languages': [
-          {'code': 'cc', 'displayName': 'Cc', 'ttsLocale': 'cc-CC', 'dir': 'cc'},
-          {'code': 'dd', 'displayName': 'Dd', 'ttsLocale': 'dd-DD', 'dir': 'dd'},
+          {
+            'code': 'cc',
+            'displayName': 'Cc',
+            'ttsLocale': 'cc-CC',
+            'dir': 'cc'
+          },
+          {
+            'code': 'dd',
+            'displayName': 'Dd',
+            'ttsLocale': 'dd-DD',
+            'dir': 'dd'
+          },
         ],
       }),
       'assets/courses/cc/index.json': jsonEncode({

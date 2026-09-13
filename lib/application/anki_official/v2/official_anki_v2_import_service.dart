@@ -73,8 +73,7 @@ class OfficialAnkiV2ImportService {
   final OfficialAnkiEngine? engine;
   final int Function()? nowMillis;
 
-  int get _now =>
-      nowMillis?.call() ?? DateTime.now().millisecondsSinceEpoch;
+  int get _now => nowMillis?.call() ?? DateTime.now().millisecondsSinceEpoch;
 
   /// staging 目录回收（与 v1 finishCommit 同语义，v2 复用）。
   Future<void> finishCommit({
@@ -84,9 +83,8 @@ class OfficialAnkiV2ImportService {
   }) async {
     final attempts = OfficialAnkiImportAttemptDao(catalog);
     final attempt = attempts.find(attemptId);
-    final stagingRoot = attempt?.stagingPath == null
-        ? null
-        : Directory(attempt!.stagingPath!);
+    final stagingRoot =
+        attempt?.stagingPath == null ? null : Directory(attempt!.stagingPath!);
     if (stagingRoot != null) {
       await OfficialAnkiStagingManager.deleteDirectory(stagingRoot);
     }
@@ -146,8 +144,7 @@ class OfficialAnkiV2ImportService {
       );
     }
     // 已完成的 source：幂等重放 = 只重建视图（守恒：不重复导入）。
-    if (source.state == OfficialAnkiSourceState.active.wire &&
-        source.isV2) {
+    if (source.state == OfficialAnkiSourceState.active.wire && source.isV2) {
       await _rebuild();
       return OfficialAnkiV2CommitResult(
         sourceId: sourceId,

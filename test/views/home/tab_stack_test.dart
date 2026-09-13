@@ -71,8 +71,7 @@ void main() {
     expect(tester.hasRunningAnimations, isFalse);
   });
 
-  testWidgets('hidden tab content is excluded from semantics',
-      (tester) async {
+  testWidgets('hidden tab content is excluded from semantics', (tester) async {
     await tester.pumpWidget(pumpStack(tester, index: 0));
     await tester.pumpAndSettle();
 

@@ -55,9 +55,7 @@ class _AiDiagnosisPageState extends State<AiDiagnosisPage> {
       final mp = context.read<MistakeProvider>();
       for (final e in mp.entries.take(12)) {
         mistakes.add(LearnerAiContext.summarizeMistake(
-          prompt: e.interactionId.isNotEmpty
-              ? e.interactionId
-              : e.lessonId,
+          prompt: e.interactionId.isNotEmpty ? e.interactionId : e.lessonId,
           userAnswer: e.userAnswer,
         ));
       }
@@ -203,8 +201,7 @@ class _AiDiagnosisPageState extends State<AiDiagnosisPage> {
                             final text = p.report!.toPlainText();
                             Clipboard.setData(ClipboardData(text: text));
                             ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-                              SnackBar(
-                                  content: Text(AppStrings.aiDepthCopied)),
+                              SnackBar(content: Text(AppStrings.aiDepthCopied)),
                             );
                           },
                           icon: const Icon(Icons.copy_rounded),

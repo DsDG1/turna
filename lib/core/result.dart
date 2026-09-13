@@ -91,7 +91,8 @@ final class Success<T> extends Result<T> {
       Result.guardSync(() => transform(value));
 
   @override
-  Result<R> flatMap<R>(Result<R> Function(T value) transform) => transform(value);
+  Result<R> flatMap<R>(Result<R> Function(T value) transform) =>
+      transform(value);
 
   @override
   R fold<R>({

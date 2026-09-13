@@ -27,8 +27,7 @@ part 'course_database.g.dart';
 /// explicitly inside [CourseRepository.deleteBuiltinLanguage]'s transaction.
 class Sections extends Table {
   TextColumn get id => text()();
-  TextColumn get languageCode =>
-      text().withDefault(const Constant('tr'))();
+  TextColumn get languageCode => text().withDefault(const Constant('tr'))();
   TextColumn get name => text()();
   TextColumn get description => text().withDefault(const Constant(''))();
   TextColumn get level => text().withDefault(const Constant(''))();
@@ -43,8 +42,7 @@ class Sections extends Table {
 /// `units` index rows — one per [Unit], scoped to a section.
 class Units extends Table {
   TextColumn get id => text()();
-  TextColumn get languageCode =>
-      text().withDefault(const Constant('tr'))();
+  TextColumn get languageCode => text().withDefault(const Constant('tr'))();
   TextColumn get sectionId => text()();
   TextColumn get name => text()();
   TextColumn get description => text().withDefault(const Constant(''))();
@@ -59,8 +57,7 @@ class Units extends Table {
 /// `lessons` index rows — one per [Lesson], scoped to a unit.
 class Lessons extends Table {
   TextColumn get id => text()();
-  TextColumn get languageCode =>
-      text().withDefault(const Constant('tr'))();
+  TextColumn get languageCode => text().withDefault(const Constant('tr'))();
   TextColumn get unitId => text()();
   TextColumn get name => text()();
   TextColumn get description => text().withDefault(const Constant(''))();
@@ -79,8 +76,7 @@ class Lessons extends Table {
 /// reads are a pure `LessonContent.fromJson(jsonDecode(blob))`.
 class LessonContents extends Table {
   TextColumn get lessonId => text()();
-  TextColumn get languageCode =>
-      text().withDefault(const Constant('tr'))();
+  TextColumn get languageCode => text().withDefault(const Constant('tr'))();
   TextColumn get contentJson => text()();
 
   @override
@@ -90,8 +86,7 @@ class LessonContents extends Table {
 /// Vocabulary — one row per [WordEntry].
 class Vocabulary extends Table {
   TextColumn get id => text()();
-  TextColumn get languageCode =>
-      text().withDefault(const Constant('tr'))();
+  TextColumn get languageCode => text().withDefault(const Constant('tr'))();
   TextColumn get term => text()();
   TextColumn get translation => text()();
   TextColumn get pronunciation => text().nullable()();
@@ -107,8 +102,7 @@ class Vocabulary extends Table {
 /// `practiceItems` is a JSON-encoded list of [Interaction] drills.
 class GrammarPoints extends Table {
   TextColumn get id => text()();
-  TextColumn get languageCode =>
-      text().withDefault(const Constant('tr'))();
+  TextColumn get languageCode => text().withDefault(const Constant('tr'))();
   TextColumn get title => text()();
   TextColumn get explanation => text().withDefault(const Constant(''))();
   TextColumn get exampleExpressionIds =>
@@ -134,8 +128,7 @@ class CourseMeta extends Table {
 @DataClassName('ExpressionEntry')
 class Expressions extends Table {
   TextColumn get id => text()();
-  TextColumn get languageCode =>
-      text().withDefault(const Constant('tr'))();
+  TextColumn get languageCode => text().withDefault(const Constant('tr'))();
   TextColumn get term => text()();
   TextColumn get translation => text()();
   TextColumn get pronunciation => text().nullable()();
@@ -246,8 +239,7 @@ class AnkiCardsMeta extends Table {
 /// [SrsItemType] name (`'word'` / `'expression'`).
 class SrsStates extends Table {
   TextColumn get wordId => text()();
-  TextColumn get languageCode =>
-      text().withDefault(const Constant('tr'))();
+  TextColumn get languageCode => text().withDefault(const Constant('tr'))();
   TextColumn get queue => text()();
   IntColumn get dueAt => integer()();
   IntColumn get intervalDays => integer().withDefault(const Constant(1))();
@@ -295,8 +287,7 @@ class SrsStates extends Table {
 class ReviewEvents extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get cardId => text()();
-  TextColumn get languageCode =>
-      text().withDefault(const Constant('tr'))();
+  TextColumn get languageCode => text().withDefault(const Constant('tr'))();
   TextColumn get queue => text()();
   IntColumn get reviewedAt => integer()();
   IntColumn get quality => integer()();
@@ -316,8 +307,7 @@ class ReviewEvents extends Table {
 /// FIFO-ish mistake log, one row per recorded wrong answer, scoped by language.
 class Mistakes extends Table {
   TextColumn get id => text()();
-  TextColumn get languageCode =>
-      text().withDefault(const Constant('tr'))();
+  TextColumn get languageCode => text().withDefault(const Constant('tr'))();
   TextColumn get lessonId => text()();
   TextColumn get stageId => text()();
   TextColumn get interactionId => text()();
@@ -337,8 +327,7 @@ class Mistakes extends Table {
 
 class MistakeAggregates extends Table {
   TextColumn get languageCode => text()();
-  TextColumn get dailyCountsJson =>
-      text().withDefault(const Constant('{}'))();
+  TextColumn get dailyCountsJson => text().withDefault(const Constant('{}'))();
   IntColumn get masteredTotal => integer().withDefault(const Constant(0))();
 
   @override
@@ -567,8 +556,8 @@ class CourseDatabase extends _$CourseDatabase {
             // caller when the legacy Anki layer was removed (doc 35), so the
             // table has been guaranteed empty since. IF EXISTS also covers
             // fresh installs and pre-v10 upgrades, which never created it.
-            await m.database.customStatement(
-                'DROP TABLE IF EXISTS anki_prerendered_html');
+            await m.database
+                .customStatement('DROP TABLE IF EXISTS anki_prerendered_html');
           }
           if (from < 23) {
             // v23 (ADR 0043 D3 / step4.md B3): the v2 course-tree view —

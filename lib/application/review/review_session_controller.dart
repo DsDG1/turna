@@ -15,9 +15,11 @@ import 'package:turna/domain/review/review_ledger_resolver.dart';
 class ReviewSessionController extends ChangeNotifier {
   final List<ReviewItem> items;
   final ReviewLedgerResolver ledgerResolver;
-  final Future<void> Function(ReviewItem item, RecallOutcome outcome)? onOutcomeRecorded;
+  final Future<void> Function(ReviewItem item, RecallOutcome outcome)?
+      onOutcomeRecorded;
   final Future<void> Function(ReviewEventReceipt receipt)? onOutcomeUndone;
-  final Future<void> Function(int remembered, int forgotten)? onSessionCompleted;
+  final Future<void> Function(int remembered, int forgotten)?
+      onSessionCompleted;
 
   ReviewSessionController({
     required this.items,

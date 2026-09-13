@@ -61,7 +61,6 @@ class AnkiNoteDao {
     );
   }
 
-
   /// Search raw note fields within one imported deck. The JSON column is
   /// intentionally searched as text; the browser strips HTML only for display.
   Future<List<AnkiCardBrowserRecord>> searchNotes(

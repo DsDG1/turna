@@ -193,8 +193,7 @@ class OfficialAnkiMappingSuggestion {
       direction: direction == 'targetToNative'
           ? 'promptToResponse'
           : (direction == 'nativeToTarget' ? 'responseToPrompt' : direction),
-      archetype:
-          json['archetype'] as String? ?? CardArchetype.basicPair.name,
+      archetype: json['archetype'] as String? ?? CardArchetype.basicPair.name,
       recognitionConfidence:
           (json['recognitionConfidence'] as num?)?.toDouble() ?? 0,
       recognizerVersion: (json['recognizerVersion'] as num?)?.toInt() ?? 0,
@@ -241,9 +240,8 @@ OfficialAnkiMappingSuggestion officialAnkiSuggestMapping(
   CardRecognizer recognizer = const CardRecognizer(),
 ]) {
   final result = recognizer.recognizeNotetype(schema);
-  final boundIndices = result.roles.values
-      .map((binding) => binding.fieldIndex)
-      .toSet();
+  final boundIndices =
+      result.roles.values.map((binding) => binding.fieldIndex).toSet();
   return OfficialAnkiMappingSuggestion(
     candidates: [
       for (final binding in result.roles.values)

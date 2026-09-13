@@ -293,7 +293,8 @@ class AiHttpClient {
       if (!sawSse) {
         // Non-SSE fallback: parse the buffered body as a normal completion.
         final content = _extractBufferedContent(rawBuf.toString());
-        out.add(AiStreamChunk(delta: content, finishReason: 'stop', done: true));
+        out.add(
+            AiStreamChunk(delta: content, finishReason: 'stop', done: true));
         return;
       }
       // Stream ended without an explicit `[DONE]` sentinel.
@@ -345,7 +346,12 @@ class AiHttpClient {
       );
     } catch (e) {
       sw.stop();
-      return (ok: false, error: e.toString(), model: '', latencyMs: sw.elapsedMilliseconds);
+      return (
+        ok: false,
+        error: e.toString(),
+        model: '',
+        latencyMs: sw.elapsedMilliseconds
+      );
     }
   }
 

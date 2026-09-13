@@ -74,7 +74,6 @@ class AnkiSourceRouteResolver {
         ? AnkiEngineKind.official
         : AnkiEngineKind.legacy;
   }
-
 }
 
 class OfficialAnkiPlatformCapability {

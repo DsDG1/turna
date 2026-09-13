@@ -30,7 +30,8 @@ class BinaryRecallBar extends StatelessWidget {
             label: AppStrings.reviewBinaryForgotten,
             interval: forgottenPreview?.intervalLabel,
             color: TurnaTheme.error,
-            onPressed: enabled ? () => onOutcome(RecallOutcome.forgotten) : null,
+            onPressed:
+                enabled ? () => onOutcome(RecallOutcome.forgotten) : null,
           ),
         ),
         const SizedBox(width: 12),
@@ -39,7 +40,8 @@ class BinaryRecallBar extends StatelessWidget {
             label: AppStrings.reviewBinaryRemembered,
             interval: rememberedPreview?.intervalLabel,
             color: TurnaTheme.brandTeal,
-            onPressed: enabled ? () => onOutcome(RecallOutcome.remembered) : null,
+            onPressed:
+                enabled ? () => onOutcome(RecallOutcome.remembered) : null,
           ),
         ),
       ],

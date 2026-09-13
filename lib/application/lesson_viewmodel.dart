@@ -877,8 +877,7 @@ class LessonViewModel extends ChangeNotifier {
     if (index == null) return const [];
     final anyWrong = <int, bool>{};
     for (final submitted in _submittedInteractions) {
-      if (submitted.stageIndex < 0 ||
-          submitted.stageIndex >= _stages.length) {
+      if (submitted.stageIndex < 0 || submitted.stageIndex >= _stages.length) {
         continue;
       }
       final items = _stages[submitted.stageIndex].items;
@@ -890,8 +889,7 @@ class LessonViewModel extends ChangeNotifier {
         items[submitted.interactionIndex],
       );
       if (cardId == null) continue;
-      anyWrong[cardId] =
-          (anyWrong[cardId] ?? false) || !submitted.correct;
+      anyWrong[cardId] = (anyWrong[cardId] ?? false) || !submitted.correct;
     }
     return [
       for (final entry in anyWrong.entries)
@@ -934,9 +932,9 @@ class LessonViewModel extends ChangeNotifier {
         // user suspension of an already-taught card survives a redo.
         try {
           await OfficialAnkiLockReconciler.resolve().unlockCards(
-                sourceId: index.sourceId,
-                cardIds: newlyIntroduced,
-              );
+            sourceId: index.sourceId,
+            cardIds: newlyIntroduced,
+          );
         } catch (error) {
           debugPrint(
             'Official unlock failed; keeping cards unintroduced: $error',

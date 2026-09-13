@@ -170,7 +170,8 @@ void main() {
     expect(exported.single.contains('maintenancePending'), isTrue);
   });
 
-  testWidgets('health card renders and allows one-click optimize', (tester) async {
+  testWidgets('health card renders and allows one-click optimize',
+      (tester) async {
     final db = OfficialAnkiDatabase.memory();
     addTearDown(db.close);
     final root = Directory.systemTemp.createTempSync('turna-repair-health-');
@@ -192,7 +193,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('repair-doctor-optimize')), findsOneWidget);
-    expect(find.text(AppStrings.databaseDoctorOneClickOptimize), findsOneWidget);
+    expect(
+        find.text(AppStrings.databaseDoctorOneClickOptimize), findsOneWidget);
     expect(find.text(AppStrings.databaseDoctorTitle), findsOneWidget);
   });
 }

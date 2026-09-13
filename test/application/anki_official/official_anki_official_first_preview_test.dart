@@ -69,8 +69,7 @@ void main() {
     );
   }
 
-  test('per-deck counts aggregate child decks into the parent row',
-      () async {
+  test('per-deck counts aggregate child decks into the parent row', () async {
     final preview = await previewWithCards(const [
       OfficialAnkiCardDescriptor(
         cardId: 1,

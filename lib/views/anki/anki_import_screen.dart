@@ -73,34 +73,34 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         if (leave && context.mounted) context.router.pop();
       },
       child: Scaffold(
-      appBar: AppBar(
-        title: Text(
-          AppStrings.ankiImportTitle,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      leading: IconButton(
-        icon: const Icon(Icons.arrow_back),
-        onPressed: () async {
-          final leave = await _confirmLeave(context, controller);
-          // Same as the PopScope handler: pop unconditionally after the
-          // confirm — maybePop re-enters the canPop gate forever.
-          if (leave && context.mounted) context.router.pop();
-        },
-      ),
-      ),
-      body: Column(
-        children: [
-          WizardStepper(currentStep: controller.state.step),
-          Expanded(
-            child: AnimatedBuilder(
-              animation: controller,
-              builder: (context, _) => _buildBody(context, controller),
-            ),
+        appBar: AppBar(
+          title: Text(
+            AppStrings.ankiImportTitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-        ],
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () async {
+              final leave = await _confirmLeave(context, controller);
+              // Same as the PopScope handler: pop unconditionally after the
+              // confirm — maybePop re-enters the canPop gate forever.
+              if (leave && context.mounted) context.router.pop();
+            },
+          ),
+        ),
+        body: Column(
+          children: [
+            WizardStepper(currentStep: controller.state.step),
+            Expanded(
+              child: AnimatedBuilder(
+                animation: controller,
+                builder: (context, _) => _buildBody(context, controller),
+              ),
+            ),
+          ],
+        ),
       ),
-    ),
     );
   }
 
@@ -178,7 +178,8 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       case AnkiImportCommitting():
         return _buildCommittingStep(controller, effective);
       case AnkiImportPreviewing():
-        return _buildPreviewStep(context, controller, effective, failureMessage);
+        return _buildPreviewStep(
+            context, controller, effective, failureMessage);
       case AnkiImportCompleted():
         return _buildDoneStep(controller, effective);
       case AnkiImportFailed():
@@ -235,8 +236,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 32),
-                    if (error != null ||
-                        catalogHasUnfinishedOfficialImport())
+                    if (error != null || catalogHasUnfinishedOfficialImport())
                       Padding(
                         padding: const EdgeInsets.only(bottom: 16),
                         child: Text(
@@ -420,11 +420,9 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
   String? controllerCompletedImportId(AnkiImportController controller) {
     final state = controller.state;
     if (state is AnkiImportCompleted) return state.summary.importId;
-    if (state is AnkiImportFailed &&
-        state.returnState is AnkiImportCompleted) {
+    if (state is AnkiImportFailed && state.returnState is AnkiImportCompleted) {
       return (state.returnState as AnkiImportCompleted).summary.importId;
     }
     return null;
   }
-
 }

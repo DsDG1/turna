@@ -40,9 +40,9 @@ class WeakWordQuizAssembler {
     int minMistakes = defaultMinMistakes,
     int limit = defaultMaxItems,
   }) {
-    final cutoff =
-        (now ?? DateTime.now()).subtract(Duration(days: windowDays));
-    final counts = <String, ({int count, DateTime last, MistakeEntry? snapshot})>{};
+    final cutoff = (now ?? DateTime.now()).subtract(Duration(days: windowDays));
+    final counts =
+        <String, ({int count, DateTime last, MistakeEntry? snapshot})>{};
 
     for (final e in entries) {
       if (e.timestamp.isBefore(cutoff)) continue;
@@ -60,14 +60,13 @@ class WeakWordQuizAssembler {
       }
     }
 
-    final qualified = counts.entries
-        .where((e) => e.value.count >= minMistakes)
-        .toList()
-      ..sort((a, b) {
-        final byCount = b.value.count.compareTo(a.value.count);
-        if (byCount != 0) return byCount;
-        return b.value.last.compareTo(a.value.last);
-      });
+    final qualified =
+        counts.entries.where((e) => e.value.count >= minMistakes).toList()
+          ..sort((a, b) {
+            final byCount = b.value.count.compareTo(a.value.count);
+            if (byCount != 0) return byCount;
+            return b.value.last.compareTo(a.value.last);
+          });
 
     final result = <WeakWord>[];
     for (final e in qualified) {

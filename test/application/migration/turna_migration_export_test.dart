@@ -139,8 +139,7 @@ void main() {
     }
     expect(names.any((n) => n.startsWith('media/')), isTrue);
 
-    final settingsFile =
-        archive.firstWhere((f) => f.name == 'settings.json');
+    final settingsFile = archive.firstWhere((f) => f.name == 'settings.json');
     final settingsJson =
         jsonDecode(utf8.decode(settingsFile.content as List<int>))
             as Map<String, dynamic>;
@@ -186,10 +185,12 @@ void main() {
       platform: 'test',
     );
     final first = await exporter.exportTo(tempRoot);
-    final before = await db.customSelect('SELECT COUNT(*) AS c FROM srs_states').get();
+    final before =
+        await db.customSelect('SELECT COUNT(*) AS c FROM srs_states').get();
     final secondDir = Directory('${tempRoot.path}/second')..createSync();
     final second = await exporter.exportTo(secondDir);
-    final after = await db.customSelect('SELECT COUNT(*) AS c FROM srs_states').get();
+    final after =
+        await db.customSelect('SELECT COUNT(*) AS c FROM srs_states').get();
 
     expect(before.single.read<int>('c'), after.single.read<int>('c'));
     expect(first.manifest['format'], second.manifest['format']);

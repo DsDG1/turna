@@ -43,7 +43,8 @@ enum AchievementRarity {
   final String displayName;
   final int defaultGemReward;
 
-  const AchievementRarity({required this.displayName, required this.defaultGemReward});
+  const AchievementRarity(
+      {required this.displayName, required this.defaultGemReward});
 }
 
 /// One unlockable badge inside a series. Tier ids are stable forever: the

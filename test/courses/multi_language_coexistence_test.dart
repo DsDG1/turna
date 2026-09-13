@@ -62,7 +62,8 @@ void main() {
     final fr = await repo.sectionShells(languageCode: LanguageCodes.french);
     expect(tr, isNotEmpty);
     expect(fr, isNotEmpty);
-    expect(tr.map((s) => s.id).toSet().intersection(fr.map((s) => s.id).toSet()),
+    expect(
+        tr.map((s) => s.id).toSet().intersection(fr.map((s) => s.id).toSet()),
         isEmpty);
 
     final trVocab = await repo.vocabulary(languageCode: LanguageCodes.turkish);
@@ -78,7 +79,8 @@ void main() {
     await provider.load();
 
     final builtins = provider.catalogEntries.where((e) => e.isBuiltin).toList();
-    expect(builtins.map((e) => e.displayName), containsAll(['Turkish', 'French']));
+    expect(
+        builtins.map((e) => e.displayName), containsAll(['Turkish', 'French']));
 
     await provider.setScope(const BuiltinCourseScope(LanguageCodes.turkish));
     expect(
@@ -92,7 +94,8 @@ void main() {
     expect(provider.sections, isNotEmpty);
   });
 
-  test('SRS due queues, review history and mistakes do not leak across languages',
+  test(
+      'SRS due queues, review history and mistakes do not leak across languages',
       () async {
     final srs = SrsStateDao(db);
     final history = ReviewHistoryDao(db);
@@ -119,8 +122,10 @@ void main() {
       languageCode: LanguageCodes.french,
     );
 
-    final trQueue = await srs.loadQueue('srs', languageCode: LanguageCodes.turkish);
-    final frQueue = await srs.loadQueue('srs', languageCode: LanguageCodes.french);
+    final trQueue =
+        await srs.loadQueue('srs', languageCode: LanguageCodes.turkish);
+    final frQueue =
+        await srs.loadQueue('srs', languageCode: LanguageCodes.french);
     expect(trQueue.keys, ['w-merhaba']);
     expect(frQueue.keys, ['fr-w-bonjour']);
 
@@ -143,7 +148,8 @@ void main() {
       languageCode: LanguageCodes.french,
     );
     expect(
-      (await srs.loadQueue('grammar', languageCode: LanguageCodes.turkish)).keys,
+      (await srs.loadQueue('grammar', languageCode: LanguageCodes.turkish))
+          .keys,
       ['g-present-to-be'],
     );
     expect(
@@ -346,7 +352,8 @@ void main() {
       1,
     );
     final trSources = await progress.listSources();
-    expect(trSources.map((s) => s.kind), isNot(contains(ReviewSourceKind.ankiDeck)));
+    expect(trSources.map((s) => s.kind),
+        isNot(contains(ReviewSourceKind.ankiDeck)));
 
     await srs.setLanguageFilter(LanguageCodes.french);
     await grammar.setLanguageFilter(LanguageCodes.french);
@@ -382,7 +389,8 @@ void main() {
     await provider.uninstallBuiltinLanguage(LanguageCodes.french);
 
     final repo = CourseRepository(db);
-    expect(await repo.sectionShells(languageCode: LanguageCodes.french), isEmpty);
+    expect(
+        await repo.sectionShells(languageCode: LanguageCodes.french), isEmpty);
     expect(await repo.vocabulary(languageCode: LanguageCodes.french), isEmpty);
     expect(
       await repo.sectionShells(languageCode: LanguageCodes.turkish),
@@ -399,11 +407,15 @@ void main() {
 
     final catalog = await CourseCatalog.load();
     expect(
-      catalog.where((e) => e.isBuiltin).map((e) => (e.scope as BuiltinCourseScope).canonicalLanguageCode),
+      catalog
+          .where((e) => e.isBuiltin)
+          .map((e) => (e.scope as BuiltinCourseScope).canonicalLanguageCode),
       isNot(contains(LanguageCodes.french)),
     );
     expect(
-      catalog.where((e) => e.isBuiltin).map((e) => (e.scope as BuiltinCourseScope).canonicalLanguageCode),
+      catalog
+          .where((e) => e.isBuiltin)
+          .map((e) => (e.scope as BuiltinCourseScope).canonicalLanguageCode),
       contains(LanguageCodes.turkish),
     );
   });
@@ -418,7 +430,8 @@ void main() {
     final reseeded = await DatabaseSeeder(db).seedIfNeeded();
     expect(reseeded, isFalse);
     final repo = CourseRepository(db);
-    expect(await repo.sectionShells(languageCode: LanguageCodes.french), isEmpty);
+    expect(
+        await repo.sectionShells(languageCode: LanguageCodes.french), isEmpty);
     expect(await repo.uninstalledLanguageCodes(), {LanguageCodes.french});
 
     // Restorable list surfaces the marker; catalog keeps counting cards.
@@ -428,7 +441,9 @@ void main() {
     );
     final entries = provider.catalogEntries;
     final trEntry = entries.firstWhere(
-      (e) => e.isBuiltin && (e.scope as BuiltinCourseScope).languageCode == LanguageCodes.turkish,
+      (e) =>
+          e.isBuiltin &&
+          (e.scope as BuiltinCourseScope).languageCode == LanguageCodes.turkish,
     );
     expect(trEntry.cardCount, greaterThan(0));
 
@@ -438,7 +453,8 @@ void main() {
       await repo.sectionShells(languageCode: LanguageCodes.french),
       isNotEmpty,
     );
-    expect(await repo.vocabulary(languageCode: LanguageCodes.french), isNotEmpty);
+    expect(
+        await repo.vocabulary(languageCode: LanguageCodes.french), isNotEmpty);
     expect(await repo.uninstalledLanguageCodes(), isEmpty);
     expect(provider.restorableBuiltinLanguages, isEmpty);
     // A later cold start must not re-trigger seeding either.
@@ -494,7 +510,8 @@ void main() {
     expect(language.selectedLanguageCode, LanguageCodes.french);
   });
 
-  test('cold start with a persisted uninstalled scope falls back to a live course',
+  test(
+      'cold start with a persisted uninstalled scope falls back to a live course',
       () async {
     SharedPreferences.setMockInitialValues({});
     final sp = await StreamingSharedPreferences.instance;

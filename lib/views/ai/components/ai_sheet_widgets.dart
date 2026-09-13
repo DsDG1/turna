@@ -36,8 +36,7 @@ class AiGroupCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final a =
-        TurnaTheme.accentOnCard(context, accent ?? TurnaTheme.brandTeal);
+    final a = TurnaTheme.accentOnCard(context, accent ?? TurnaTheme.brandTeal);
     return Container(
       padding: padding,
       decoration: BoxDecoration(

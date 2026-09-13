@@ -169,7 +169,8 @@ class OfficialFormalReviewProductionLoader {
         }
       }
       presentations = {
-        for (final face in faces.values) face.presentation.cardKey: face.presentation,
+        for (final face in faces.values)
+          face.presentation.cardKey: face.presentation,
       };
     }
 

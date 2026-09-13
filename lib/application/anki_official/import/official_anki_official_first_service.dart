@@ -174,9 +174,7 @@ List<OfficialAnkiDeckNode> _scopeDecks(
     for (final deck in all)
       if (sourceDeckIds.contains(deck.deckId) ||
           names.any(
-            (name) =>
-                name == deck.name ||
-                name.startsWith('${deck.name}::'),
+            (name) => name == deck.name || name.startsWith('${deck.name}::'),
           ))
         deck,
   ];

@@ -50,7 +50,8 @@ void main() {
       expect(trace.summary(), contains('P95 40ms'));
     });
 
-    test('serialized trace cannot retain paths, keys, prompts or card text', () {
+    test('serialized trace cannot retain paths, keys, prompts or card text',
+        () {
       final trace = PerformanceTrace();
       trace.record(
         feature: '/home/alice/private/card answer',
@@ -83,7 +84,8 @@ void main() {
       expect(serialized, contains('estimatedBytes'));
     });
 
-    test('cache registry entries and clear results match each adapter', () async {
+    test('cache registry entries and clear results match each adapter',
+        () async {
       final first = _FakeCache('ai.responseCache', 7, null);
       final second = _FakeCache('flutter.imageCache', 3, 4096);
       final registry = CacheDiagnosticsRegistry([first, second]);

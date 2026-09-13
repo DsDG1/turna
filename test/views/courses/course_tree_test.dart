@@ -601,7 +601,8 @@ void main() {
       );
     });
 
-    testWidgets('collapsing a unit keeps its rows mounted until the reveal '
+    testWidgets(
+        'collapsing a unit keeps its rows mounted until the reveal '
         'runs back to zero', (tester) async {
       final section = _testSection(
         id: 's-retract',
@@ -631,7 +632,8 @@ void main() {
       expect(find.text('Retract Lesson'), findsNothing);
     });
 
-    testWidgets('re-tapping a mid-collapse unit resumes from its current '
+    testWidgets(
+        're-tapping a mid-collapse unit resumes from its current '
         'extent', (tester) async {
       final section = _testSection(
         id: 's-resume',

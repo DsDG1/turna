@@ -45,7 +45,8 @@ class CoursePack {
     }
     final languageRaw = json['language'];
     if (languageRaw is! Map) {
-      throw const CoursePackFormatException('Pack language descriptor is required');
+      throw const CoursePackFormatException(
+          'Pack language descriptor is required');
     }
     final licenseRaw = json['license'];
     if (licenseRaw is! Map) {
@@ -194,9 +195,8 @@ class CoursePackLanguage {
       displayName: '${json['displayName'] ?? ''}'.trim(),
       ttsLocale: '${json['ttsLocale'] ?? ''}'.trim(),
       nativeLabel: '${json['nativeLabel'] ?? json['displayName'] ?? ''}'.trim(),
-      signatureChars: json['signatureChars'] == null
-          ? null
-          : '${json['signatureChars']}',
+      signatureChars:
+          json['signatureChars'] == null ? null : '${json['signatureChars']}',
     );
   }
 

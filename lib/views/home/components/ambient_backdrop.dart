@@ -59,8 +59,7 @@ class _AmbientBackdropState extends State<AmbientBackdrop> {
 
   @override
   Widget build(BuildContext context) {
-    final quiet =
-        context.select<AccessibilityProvider, bool>(
+    final quiet = context.select<AccessibilityProvider, bool>(
           (p) => p.highContrast || p.focusMode,
         ) ||
         widget.reduceMotion;

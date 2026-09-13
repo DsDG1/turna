@@ -121,8 +121,7 @@ class CardIntroductionStore {
       if (separator < 0) continue;
       if (int.tryParse(rest.substring(separator + 1)) == null) continue;
       final sourceId = rest.substring(0, separator);
-      _introducedBySource[sourceId] =
-          (_introducedBySource[sourceId] ?? 0) + 1;
+      _introducedBySource[sourceId] = (_introducedBySource[sourceId] ?? 0) + 1;
     }
   }
 
@@ -198,7 +197,6 @@ class CardIntroductionStore {
     );
   }
 
-
   /// Seeds the introduction ledger for a freshly published projection.
   ///
   /// Cards whose imported history proves they were already studied
@@ -227,8 +225,7 @@ class CardIntroductionStore {
         courseId: courseId,
         key: key,
         status: eligibility.initialStatus(reps: studied ? 1 : 0),
-        introducedBy:
-            studied ? CardIntroducedBy.importedHistory : null,
+        introducedBy: studied ? CardIntroducedBy.importedHistory : null,
         introducedAt: studied ? DateTime.now() : null,
       );
       if (studied && _introduced.add(_cardToken(sourceId, cardId))) {

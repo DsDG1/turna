@@ -44,7 +44,8 @@ class OfficialAnkiCompositionRoot {
   static OfficialAnkiSession? stagingSession;
   static OfficialAnkiEngine? stagingEngine;
   static OfficialAnkiEngine? get engine => projectionEngineFromSession();
-  static OfficialAnkiExecutionMode executionMode = OfficialAnkiExecutionMode.none;
+  static OfficialAnkiExecutionMode executionMode =
+      OfficialAnkiExecutionMode.none;
   static OfficialAnkiDatabase? readOnlyCatalog;
   static OfficialAnkiPaths? locatorPaths;
   static Future<OfficialAnkiImporter>? _opening;
@@ -274,7 +275,6 @@ class OfficialAnkiCompositionRoot {
     _bindCourseEntryCatalog(paths);
     return catalog;
   }
-
 
   /// Test seam: engine used by [projectionEngineFromSession] regardless of
   /// session state. Production never sets this.

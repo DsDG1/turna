@@ -74,30 +74,31 @@ class OfficialAnkiV2ViewStore {
       await course.customStatement('DELETE FROM anki_course_tree_view');
       for (var start = 0; start < rows.length; start += _insertChunk) {
         final chunk = rows.skip(start).take(_insertChunk).toList();
-        final values = List.filled(chunk.length, '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(',');
+        final values = List.filled(
+                chunk.length, '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+            .join(',');
         await course.customStatement(
           'INSERT INTO anki_course_tree_view '
           '(source_id, card_id, note_id, deck_id, word_id, section_key, '
           'section_id, unit_id, lesson_id, lesson_key, presentation_kind, '
           'source_hash, mapping_version, rebuilt_at_millis) VALUES $values',
           [
-            for (final row in chunk)
-              ...[
-                row.sourceId,
-                row.cardId,
-                row.noteId,
-                row.deckId,
-                row.wordId,
-                row.sectionKey,
-                row.sectionId,
-                row.unitId,
-                row.lessonId,
-                row.lessonKey,
-                row.presentationKind,
-                row.sourceHash,
-                row.mappingVersion,
-                rebuiltAtMillis,
-              ],
+            for (final row in chunk) ...[
+              row.sourceId,
+              row.cardId,
+              row.noteId,
+              row.deckId,
+              row.wordId,
+              row.sectionKey,
+              row.sectionId,
+              row.unitId,
+              row.lessonId,
+              row.lessonKey,
+              row.presentationKind,
+              row.sourceHash,
+              row.mappingVersion,
+              rebuiltAtMillis,
+            ],
           ],
         );
       }
@@ -131,13 +132,15 @@ class OfficialAnkiV2ViewStore {
   /// 视图内全部 source 的分区聚合（按 source、section 分组）。
   Future<List<OfficialAnkiV2ViewSectionSummary>> sectionSummaries() async {
     try {
-      final rows = await course.customSelect(
-        'SELECT source_id, section_id, section_key, '
-        'COUNT(*) AS cards, COUNT(DISTINCT lesson_id) AS lessons '
-        'FROM anki_course_tree_view '
-        'GROUP BY source_id, section_id, section_key '
-        'ORDER BY source_id, MIN(card_id)',
-      ).get();
+      final rows = await course
+          .customSelect(
+            'SELECT source_id, section_id, section_key, '
+            'COUNT(*) AS cards, COUNT(DISTINCT lesson_id) AS lessons '
+            'FROM anki_course_tree_view '
+            'GROUP BY source_id, section_id, section_key '
+            'ORDER BY source_id, MIN(card_id)',
+          )
+          .get();
       return [
         for (final row in rows)
           OfficialAnkiV2ViewSectionSummary(
@@ -189,9 +192,11 @@ class OfficialAnkiV2ViewStore {
   /// 视图中出现过的全部 lesson id（树壳合成用）。
   Future<Set<String>> lessonIds() async {
     try {
-      final rows = await course.customSelect(
-        'SELECT DISTINCT lesson_id FROM anki_course_tree_view',
-      ).get();
+      final rows = await course
+          .customSelect(
+            'SELECT DISTINCT lesson_id FROM anki_course_tree_view',
+          )
+          .get();
       return {for (final row in rows) row.read<String>('lesson_id')};
     } catch (_) {
       return const {};
@@ -201,10 +206,12 @@ class OfficialAnkiV2ViewStore {
   /// 课时名（lesson_key 展示用）：取每课时第一行的 key。
   Future<Map<String, String>> lessonKeysById() async {
     try {
-      final rows = await course.customSelect(
-        'SELECT lesson_id, lesson_key FROM anki_course_tree_view '
-        'GROUP BY lesson_id HAVING MIN(card_id)',
-      ).get();
+      final rows = await course
+          .customSelect(
+            'SELECT lesson_id, lesson_key FROM anki_course_tree_view '
+            'GROUP BY lesson_id HAVING MIN(card_id)',
+          )
+          .get();
       return {
         for (final row in rows)
           row.read<String>('lesson_id'): row.read<String>('lesson_key'),

@@ -154,8 +154,7 @@ class _StorageCategoryItemsPageState extends State<StorageCategoryItemsPage> {
       return;
     }
     final retiring = chosen.where((item) => item.alreadyRetiring).toList();
-    final actionable =
-        chosen.where((item) => !item.alreadyRetiring).toList();
+    final actionable = chosen.where((item) => !item.alreadyRetiring).toList();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) {
@@ -221,7 +220,9 @@ class _StorageCategoryItemsPageState extends State<StorageCategoryItemsPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          retiring.isEmpty ? message : '$message · ${AppStrings.storageRetiringSkipHint}',
+          retiring.isEmpty
+              ? message
+              : '$message · ${AppStrings.storageRetiringSkipHint}',
         ),
       ),
     );
@@ -269,9 +270,8 @@ class _StorageCategoryItemsPageState extends State<StorageCategoryItemsPage> {
       );
     }
     final items = _items ?? const <StorageDeletableItem>[];
-    final showForcePurge = widget.allowForcePurge &&
-        widget.onForcePurge != null &&
-        items.isEmpty;
+    final showForcePurge =
+        widget.allowForcePurge && widget.onForcePurge != null && items.isEmpty;
     return Column(
       children: [
         if (_busy || _loading) const LinearProgressIndicator(),

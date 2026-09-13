@@ -120,8 +120,7 @@ class AnkiImportExecutionPlanner {
     String filePath = '',
     String? extensionOverride,
   }) {
-    final plat =
-        platform ?? OfficialAnkiCapabilityMatrix.current().platform;
+    final plat = platform ?? OfficialAnkiCapabilityMatrix.current().platform;
     final cutover = cutoverEnabled ?? LegacyAnkiMigrationFlags.cutoverEnabled;
     final mode = productModeFor(platform: plat, cutoverEnabled: cutover);
     final libraryOk = libraryAvailable ??

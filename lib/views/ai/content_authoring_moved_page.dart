@@ -53,8 +53,8 @@ class ContentAuthoringMovedBody extends StatelessWidget {
                 Expanded(
                   child: FilledButton.icon(
                     onPressed: gui.enabled
-                        ? () =>
-                            openExternalLink(context, ExternalLinkId.guiPlatform)
+                        ? () => openExternalLink(
+                            context, ExternalLinkId.guiPlatform)
                         : null,
                     icon: const Icon(Icons.open_in_new_rounded, size: 18),
                     label: Text(AppStrings.authoringMovedOpenGui),

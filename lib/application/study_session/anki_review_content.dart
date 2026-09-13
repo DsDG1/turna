@@ -35,8 +35,9 @@ ReviewContentBodyData reviewContentFor(
       return OfficialTemplateContent(
         frontHtml: interaction.frontHtml,
         backHtml: interaction.backHtml,
-        mediaBasePath:
-            interaction.mediaBasePath.isEmpty ? null : interaction.mediaBasePath,
+        mediaBasePath: interaction.mediaBasePath.isEmpty
+            ? null
+            : interaction.mediaBasePath,
       );
     }
   }

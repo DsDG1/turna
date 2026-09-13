@@ -2,7 +2,12 @@ import 'package:turna/application/anki_official/official_anki_feature_flags.dart
 
 enum OfficialAnkiSourceKind { official, legacy, turnaExercise }
 
-enum OfficialAnkiReviewTarget { officialReviewer, legacyRenderer, flutterExercise, error }
+enum OfficialAnkiReviewTarget {
+  officialReviewer,
+  legacyRenderer,
+  flutterExercise,
+  error
+}
 
 /// Source-kind routing. Official cards never enter the Legacy renderer.
 class OfficialAnkiReviewerRouter {

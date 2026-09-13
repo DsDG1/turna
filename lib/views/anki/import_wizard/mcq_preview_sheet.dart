@@ -117,8 +117,7 @@ class _McqPreviewContentState extends State<_McqPreviewContent> {
             EmbeddedOptionsParser.parseCorrectIndices(backVal, options);
       } else {
         // Try embedded options
-        final embedded =
-            EmbeddedOptionsParser.extractEmbeddedOptions(frontVal);
+        final embedded = EmbeddedOptionsParser.extractEmbeddedOptions(frontVal);
         if (embedded != null) {
           promptText =
               embedded.prompt.replaceAll(RegExp(r'<[^>]*>'), '').trim();
@@ -153,8 +152,8 @@ class _McqPreviewContentState extends State<_McqPreviewContent> {
                 width: 36,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: TurnaTheme.textHintColor(context)
-                      .withValues(alpha: 0.3),
+                  color:
+                      TurnaTheme.textHintColor(context).withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),

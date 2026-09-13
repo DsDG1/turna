@@ -74,7 +74,9 @@ class AiErrorMapper {
         canConfigure: true,
       );
     }
-    if (_looksAuth(lower) || text.contains('HTTP 401') || text.contains('HTTP 403')) {
+    if (_looksAuth(lower) ||
+        text.contains('HTTP 401') ||
+        text.contains('HTTP 403')) {
       return AiErrorMapping(
         kind: AiErrorKind.unauthorized,
         message: AppStrings.aiErrorUnauthorized,

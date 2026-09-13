@@ -71,9 +71,7 @@ void main() {
 
   Finder modelChatField() {
     final hint = find.text(AppStrings.settingsModelHint);
-    return find
-        .ancestor(of: hint, matching: find.byType(TextField))
-        .first;
+    return find.ancestor(of: hint, matching: find.byType(TextField)).first;
   }
 
   testWidgets('typing does not persist per keystroke; one debounced commit',
@@ -152,16 +150,13 @@ void main() {
 
     // Replace the tree with one that still watches the holder — like the
     // real app (Play Hub AI row / AI Hub hero depend on it).
-    Widget watchingTree() =>
-        ChangeNotifierProvider<AiEngineConfigHolder>.value(
+    Widget watchingTree() => ChangeNotifierProvider<AiEngineConfigHolder>.value(
           value: holder,
           child: Builder(
             builder: (context) => MaterialApp(
               home: Scaffold(
-                body: Text(context
-                    .watch<AiEngineConfigHolder>()
-                    .config
-                    .modelChat),
+                body: Text(
+                    context.watch<AiEngineConfigHolder>().config.modelChat),
               ),
             ),
           ),

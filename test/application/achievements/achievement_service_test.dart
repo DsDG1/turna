@@ -49,8 +49,8 @@ void main() {
 
       expect(results.map((r) => r.tierId), ['course_journey_001']);
       expect(stack.gemsProvider.balance, 8);
-      final state = stack.stateRepository.current
-          .tierState('course_journey_001')!;
+      final state =
+          stack.stateRepository.current.tierState('course_journey_001')!;
       expect(state.rewardGranted, isTrue);
       expect(state.origin.name, 'live');
     });
@@ -72,8 +72,12 @@ void main() {
 
       expect(
         results.map((r) => r.tierId).toList(),
-        ['course_journey_001', 'course_journey_002', 'course_journey_003',
-            'course_journey_004'],
+        [
+          'course_journey_001',
+          'course_journey_002',
+          'course_journey_003',
+          'course_journey_004'
+        ],
       );
       expect(stack.gemsProvider.balance, 8 + 12 + 18 + 25);
     });
@@ -137,7 +141,8 @@ void main() {
   });
 
   group('crash recovery (two-phase rewards)', () {
-    test('unlock persisted with rewardGranted=false is re-paid once on recovery',
+    test(
+        'unlock persisted with rewardGranted=false is re-paid once on recovery',
         () async {
       await completeLessons(1);
 
@@ -155,8 +160,8 @@ void main() {
           unlockedTiers: {
             for (final e in current.unlockedTiers.entries)
               e.key: e.key == 'course_journey_001'
-                  ? e.value.copyWith(
-                      rewardGranted: false, rewardGrantedAt: null)
+                  ? e.value
+                      .copyWith(rewardGranted: false, rewardGrantedAt: null)
                   : e.value,
           },
         ),
@@ -185,8 +190,7 @@ void main() {
         service.evaluateAndReward(),
       ]);
 
-      final allTierIds =
-          results.expand((r) => r).map((r) => r.tierId).toList();
+      final allTierIds = results.expand((r) => r).map((r) => r.tierId).toList();
       expect(allTierIds.toSet().length, allTierIds.length,
           reason: 'no tier unlocked twice');
       expect(allTierCount(allTierIds, 'course_journey_001'), 1);

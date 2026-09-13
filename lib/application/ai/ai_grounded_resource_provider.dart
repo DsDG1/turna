@@ -67,7 +67,8 @@ class AiGroundedResourceProvider extends ChangeNotifier {
       notifyListeners();
       return;
     }
-    final requestedScope = scope ?? const ['words', 'expressions', 'grammarPoints'];
+    final requestedScope =
+        scope ?? const ['words', 'expressions', 'grammarPoints'];
     final languageCode = _currentLanguage;
     _isLoading = true;
     _error = null;
@@ -106,7 +107,8 @@ class AiGroundedResourceProvider extends ChangeNotifier {
       }
 
       if (requestedScope.contains('grammarPoints')) {
-        final rows = await _repository.grammarPoints(languageCode: languageCode);
+        final rows =
+            await _repository.grammarPoints(languageCode: languageCode);
         _grammarPoints = [
           for (final g in rows)
             {
@@ -154,8 +156,8 @@ class AiGroundedResourceProvider extends ChangeNotifier {
   /// Returns the IDs of all loaded resources. Useful for lesson-helper prompts
   /// that need to constrain references without sending full resource bodies.
   Set<String> get allResourceIds => {
-    for (final w in _words) w['id']?.toString() ?? '',
-    for (final e in _expressions) e['id']?.toString() ?? '',
-    for (final g in _grammarPoints) g['id']?.toString() ?? '',
-  }..remove('');
+        for (final w in _words) w['id']?.toString() ?? '',
+        for (final e in _expressions) e['id']?.toString() ?? '',
+        for (final g in _grammarPoints) g['id']?.toString() ?? '',
+      }..remove('');
 }

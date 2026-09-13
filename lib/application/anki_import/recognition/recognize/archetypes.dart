@@ -27,8 +27,8 @@ class ArchetypeRule {
   final double weight;
 
   /// Returns evidence detail when the rule fires, null when it does not.
-  final String? Function(NotetypeFacts facts, Map<FieldRole, FieldBinding> roles)
-      probe;
+  final String? Function(
+      NotetypeFacts facts, Map<FieldRole, FieldBinding> roles) probe;
 }
 
 /// Inputs a rule probe may need beyond the facts themselves are computed
@@ -167,8 +167,8 @@ String? _choicePoolBound(
   // signal strong enough for the auto band, so the answer must align on
   // most pool rows — not just on one lucky sample.
   final multiFieldOptionNames = facts.fieldNames
-      .where((name) =>
-          EmbeddedOptionsParser.isOptionFieldName(name.toLowerCase()))
+      .where(
+          (name) => EmbeddedOptionsParser.isOptionFieldName(name.toLowerCase()))
       .toList();
   if (multiFieldOptionNames.length >= 2) {
     var poolRows = 0;
@@ -362,14 +362,14 @@ String? _audioFirst(
   if (audio == null || response == null) return null;
   // Structure: the audio field renders on a front template; content:
   // sound markers live in the prompt-bound field's samples.
-  final audioOnFront = facts.hasTemplateFacts &&
-      facts.frontFieldOrds.contains(audio.fieldIndex);
+  final audioOnFront =
+      facts.hasTemplateFacts && facts.frontFieldOrds.contains(audio.fieldIndex);
   final prompt = roles[FieldRole.prompt];
   final promptHasSound = prompt != null &&
       CardFacts.of(facts.nonEmptySamplesOf(prompt.fieldIndex)).anyContainsSound;
   if (!audioOnFront && !promptHasSound) return null;
-  final answerShort = CardFacts.of(facts.nonEmptySamplesOf(response.fieldIndex))
-      .shortRate;
+  final answerShort =
+      CardFacts.of(facts.nonEmptySamplesOf(response.fieldIndex)).shortRate;
   return answerShort >= sampleRateThreshold
       ? 'front_audio+short_answer=${(answerShort * 100).round()}%'
       : null;
@@ -385,14 +385,12 @@ String? _shortPair(
   final front = CardFacts.of(facts.nonEmptySamplesOf(prompt.fieldIndex));
   final back = CardFacts.of(facts.nonEmptySamplesOf(response.fieldIndex));
   if (front.isEmpty || back.isEmpty) return null;
-  final bothShort = front.shortRate < back.shortRate
-      ? front.shortRate
-      : back.shortRate;
+  final bothShort =
+      front.shortRate < back.shortRate ? front.shortRate : back.shortRate;
   final frontSentence = front.sentenceRate;
   final backSentence = back.sentenceRate;
-  final nonSentence = frontSentence < backSentence
-      ? 1 - backSentence
-      : 1 - frontSentence;
+  final nonSentence =
+      frontSentence < backSentence ? 1 - backSentence : 1 - frontSentence;
   return (bothShort >= sampleRateThreshold &&
           nonSentence >= sampleRateThreshold)
       ? 'short_pair'

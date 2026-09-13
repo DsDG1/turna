@@ -18,7 +18,8 @@ final class TurnaCourseSource extends ReviewSource {
   });
 
   @override
-  String toString() => 'TurnaCourseSource(section: $sectionId, lesson: $lessonId)';
+  String toString() =>
+      'TurnaCourseSource(section: $sectionId, lesson: $lessonId)';
 }
 
 /// Legacy imported Anki card stored in Drift / SQLite tables.

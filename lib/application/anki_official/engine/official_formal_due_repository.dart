@@ -347,7 +347,8 @@ class OfficialFormalDueRepository extends ChangeNotifier {
     Map<String, OfficialFormalDuePerSource> bySource,
   ) {
     return Map.unmodifiable({
-      for (final entry in bySource.entries) entry.key: _freezePerSource(entry.value),
+      for (final entry in bySource.entries)
+        entry.key: _freezePerSource(entry.value),
     });
   }
 

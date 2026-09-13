@@ -111,10 +111,8 @@ abstract final class BackupManifestPolicy {
     BackupPrefEntry(LocalStateKeys.lessonWordLinks, BackupPrefType.string),
     BackupPrefEntry(LocalStateKeys.grammarReviewState, BackupPrefType.string),
     BackupPrefEntry(LocalStateKeys.mistakeLog, BackupPrefType.string),
-    BackupPrefEntry(
-        LocalStateKeys.mistakeDailyCounts, BackupPrefType.string),
-    BackupPrefEntry(
-        LocalStateKeys.mistakeMasteredTotal, BackupPrefType.int_),
+    BackupPrefEntry(LocalStateKeys.mistakeDailyCounts, BackupPrefType.string),
+    BackupPrefEntry(LocalStateKeys.mistakeMasteredTotal, BackupPrefType.int_),
     // ── study logs / daily stats ──
     BackupPrefEntry('study.logs', BackupPrefType.string),
     BackupPrefEntry('study.logs.recent', BackupPrefType.string),

@@ -53,9 +53,9 @@ class GemLedgerDao {
   Future<int> projectedBalance() async {
     final rows = await _db
         .customSelect(
-      'SELECT COALESCE(SUM(amount), 0) AS total FROM gem_ledger '
-      "WHERE status = 'committed' AND NOT "
-      "(item_id = '$streakVoucherItemId' AND reason LIKE 'voucher:%')",
+          'SELECT COALESCE(SUM(amount), 0) AS total FROM gem_ledger '
+          "WHERE status = 'committed' AND NOT "
+          "(item_id = '$streakVoucherItemId' AND reason LIKE 'voucher:%')",
         )
         .get();
     return rows.first.read<int>('total');

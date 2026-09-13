@@ -30,7 +30,8 @@ void main() {
       registerOfficialAnkiLicenses();
       final entries = await LicenseRegistry.licenses.toList();
       expect(
-        entries.any((entry) => entry.packages.contains(kOfficialAnkiLicenseName)),
+        entries
+            .any((entry) => entry.packages.contains(kOfficialAnkiLicenseName)),
         isTrue,
       );
     });
@@ -46,7 +47,8 @@ void main() {
       expect(about.contains('showTurnaLicensePage'), isTrue);
       expect(settings.contains('showTurnaLicensePage'), isTrue);
       expect(RegExp(r'(?<!Turna)showLicensePage\(').hasMatch(about), isFalse);
-      expect(RegExp(r'(?<!Turna)showLicensePage\(').hasMatch(settings), isFalse);
+      expect(
+          RegExp(r'(?<!Turna)showLicensePage\(').hasMatch(settings), isFalse);
     });
 
     test('official import constructor stays off; production current is on', () {

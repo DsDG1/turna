@@ -135,10 +135,11 @@ class OfficialInterruptedImportCard extends StatelessWidget {
                     children: [
                       Text(
                         AppStrings.ankiPendingImportTitle,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              color: TurnaTheme.errorDark,
-                            ),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: TurnaTheme.errorDark,
+                                ),
                       ),
                       const SizedBox(height: 4),
                       Text(

@@ -67,19 +67,22 @@ class OfficialAnkiStagingManager {
       try {
         await session.dispose();
       } catch (suppressed) {
-        officialAnkiFileLog('OfficialAnkiStagingManager', 'dispose session: $suppressed');
+        officialAnkiFileLog(
+            'OfficialAnkiStagingManager', 'dispose session: $suppressed');
       }
     } else if (override == null) {
       try {
         await engine?.dispose();
       } catch (suppressed) {
-        officialAnkiFileLog('OfficialAnkiStagingManager', 'dispose engine: $suppressed');
+        officialAnkiFileLog(
+            'OfficialAnkiStagingManager', 'dispose engine: $suppressed');
       }
     } else {
       try {
         await override.closeCollection();
       } catch (suppressed) {
-        officialAnkiFileLog('OfficialAnkiStagingManager', 'close override: $suppressed');
+        officialAnkiFileLog(
+            'OfficialAnkiStagingManager', 'close override: $suppressed');
       }
     }
     OfficialAnkiCompositionRoot.stagingSession = null;
@@ -98,7 +101,8 @@ class OfficialAnkiStagingManager {
         }
         return;
       } catch (suppressed) {
-        officialAnkiFileLog('OfficialAnkiStagingManager', 'delete try $i: $suppressed');
+        officialAnkiFileLog(
+            'OfficialAnkiStagingManager', 'delete try $i: $suppressed');
         await Future<void>.delayed(Duration(milliseconds: 50 * (i + 1)));
       }
     }

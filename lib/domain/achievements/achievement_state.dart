@@ -145,13 +145,13 @@ class AchievementStateDocument {
 
   static AchievementStateDocument fromJson(Map<String, dynamic> json) =>
       AchievementStateDocument(
-        schemaVersion: (json['schemaVersion'] as num?)?.toInt() ??
-            currentSchemaVersion,
+        schemaVersion:
+            (json['schemaVersion'] as num?)?.toInt() ?? currentSchemaVersion,
         unlockedTiers: {
-          for (final entry in ((json['unlockedTiers'] as Map?)
-                      ?.cast<String, dynamic>() ??
-                  const <String, dynamic>{})
-              .entries)
+          for (final entry
+              in ((json['unlockedTiers'] as Map?)?.cast<String, dynamic>() ??
+                      const <String, dynamic>{})
+                  .entries)
             entry.key: AchievementTierState.fromJson(
               entry.value as Map<String, dynamic>,
             ),
@@ -160,8 +160,8 @@ class AchievementStateDocument {
             ? null
             : DateTime.parse(json['updatedAt'] as String),
         migrationDiagnostics: ((json['migrationDiagnostics'] as List?)
-                ?.map((e) => e.toString()) ??
-            const [])
+                    ?.map((e) => e.toString()) ??
+                const [])
             .toList(growable: false),
       );
 

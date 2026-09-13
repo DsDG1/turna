@@ -212,8 +212,8 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets(
-      'p5f_official_first_failure_leaves_zero_turna_writes', (tester) async {
+  testWidgets('p5f_official_first_failure_leaves_zero_turna_writes',
+      (tester) async {
     tester.view.physicalSize = const Size(1080, 1920);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -271,7 +271,8 @@ void main() {
     expect(failing.calls, 0, reason: 'fail-closed never starts the saga');
     expect(
       find.text(
-        AppStrings.ankiImportUnavailable('official_first_required_but_flag_off'),
+        AppStrings.ankiImportUnavailable(
+            'official_first_required_but_flag_off'),
       ),
       findsOneWidget,
     );
@@ -283,8 +284,7 @@ void main() {
     );
   });
 
-  testWidgets('official_first_off_never_reopens_legacy_writer',
-      (tester) async {
+  testWidgets('official_first_off_never_reopens_legacy_writer', (tester) async {
     tester.view.physicalSize = const Size(1080, 1920);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);

@@ -19,7 +19,8 @@ class LanguageProvider extends ChangeNotifier {
   LanguageProvider(this.appPrefs);
 
   String get displayName =>
-      ImportedLanguageRegistry.instance.displayNameOrNull(selectedLanguageCode) ??
+      ImportedLanguageRegistry.instance
+          .displayNameOrNull(selectedLanguageCode) ??
       LanguageRegistry.instance.displayName(selectedLanguageCode);
 
   String get ttsLanguageCode {

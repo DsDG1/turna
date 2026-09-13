@@ -30,10 +30,8 @@ class OfficialAnkiRepairExecutor {
         course: course,
         engine: engine,
       );
-      final pending = sources
-          .listSources(profileId)
-          .where((row) =>
-              row.state == 'pending_cleanup' || row.state == 'retiring');
+      final pending = sources.listSources(profileId).where(
+          (row) => row.state == 'pending_cleanup' || row.state == 'retiring');
       for (final source in pending) {
         try {
           await retireService.runRetireJob(sourceId: source.sourceId);

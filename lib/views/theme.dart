@@ -165,8 +165,7 @@ class TurnaTheme {
     BorderRadius? borderRadius,
     bool elevated = true,
   }) {
-    final radius =
-        borderRadius ?? BorderRadius.circular(radiusMedium);
+    final radius = borderRadius ?? BorderRadius.circular(radiusMedium);
     return BoxDecoration(
       gradient: buttonGradient,
       borderRadius: radius,
@@ -746,7 +745,8 @@ class TurnaTheme {
   static Color clayAccent(BuildContext context) => anatolianClay;
 
   /// Soft clay tint for secondary soft-tint cards (Play Hub optional tile, etc.).
-  static Color claySoftTint(BuildContext context) => softTint(context, anatolianClay);
+  static Color claySoftTint(BuildContext context) =>
+      softTint(context, anatolianClay);
 
   /// Warm sand surface for brand strips / chip fills under clay accents.
   static Color clayOnSandFill(BuildContext context) =>

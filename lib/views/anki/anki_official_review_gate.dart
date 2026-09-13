@@ -39,8 +39,7 @@ class AnkiOfficialReviewGate {
   )? navigatorOverride;
   final Future<bool> Function(OfficialAnkiSession session)?
       ensureCollectionReadyOverride;
-  final bool Function(dynamic router)?
-      routerCanOpenOfficialReviewOverride;
+  final bool Function(dynamic router)? routerCanOpenOfficialReviewOverride;
 
   Future<bool> openInsteadOfLegacy(
     BuildContext context, {
@@ -74,8 +73,11 @@ class AnkiOfficialReviewGate {
       final sources = OfficialAnkiSourceDao(catalog);
       final source = sources.findById(importId);
       final isOfficial = source != null && source.state == 'active';
-      final routed = isOfficial ? AnkiEngineKind.official : AnkiEngineKind.legacy;
-      final cards = isOfficial ? sources.listCards(source.sourceId) : const <OfficialAnkiCardDescriptor>[];
+      final routed =
+          isOfficial ? AnkiEngineKind.official : AnkiEngineKind.legacy;
+      final cards = isOfficial
+          ? sources.listCards(source.sourceId)
+          : const <OfficialAnkiCardDescriptor>[];
       final target = isOfficial && cards.isNotEmpty
           ? OfficialAnkiRoutedSource(
               importId: importId,

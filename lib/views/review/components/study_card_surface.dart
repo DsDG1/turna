@@ -65,10 +65,12 @@ class _StudyCardSurfaceState extends State<StudyCardSurface> {
   void _scheduleAck() {
     final presentation = widget.presentation;
     if (presentation == null || widget.onPresented == null) return;
-    final side =
-        widget.isRevealed || _state.submitted ? PresentationSide.answer : PresentationSide.question;
+    final side = widget.isRevealed || _state.submitted
+        ? PresentationSide.answer
+        : PresentationSide.question;
     final renderer = switch (presentation) {
-      StructuredCardPresentation() => PresentationRendererKind.flutterStructured,
+      StructuredCardPresentation() =>
+        PresentationRendererKind.flutterStructured,
       FlipCardPresentation() => PresentationRendererKind.flutterFlip,
       FidelityCardPresentation() => PresentationRendererKind.officialTemplate,
     };
@@ -147,7 +149,8 @@ class _StudyCardSurfaceState extends State<StudyCardSurface> {
       children: [
         Expanded(
           child: SingleChildScrollView(
-            child: renderer.build(interaction, _state, (correct, {userAnswerText, reviewQuality}) {
+            child: renderer.build(interaction, _state, (correct,
+                {userAnswerText, reviewQuality}) {
               setState(() {
                 _state = InteractionState(
                   submitted: true,

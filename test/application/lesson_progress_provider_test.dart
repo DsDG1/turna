@@ -49,7 +49,8 @@ void main() {
       () async {
     await progress.recordLessonCompletion(lessonId: 'tr-l-1', wasPerfect: true);
     await progress.recordLessonCompletion(lessonId: 'tr-l-2', wasPerfect: true);
-    await progress.recordLessonCompletion(lessonId: 'fr-l-1', wasPerfect: false);
+    await progress.recordLessonCompletion(
+        lessonId: 'fr-l-1', wasPerfect: false);
     expect(progress.completedLessonIds, hasLength(3));
 
     await progress.removeLessonIds({'fr-l-1'});
@@ -57,9 +58,8 @@ void main() {
     expect(progress.completedLessonIds, {'tr-l-1', 'tr-l-2'});
     expect(progress.perfectLessonIds, {'tr-l-1', 'tr-l-2'});
     expect(
-      prefs.preferences
-          .getStringList(LocalStateKeys.completedLessonIds, defaultValue: [])
-          .getValue(),
+      prefs.preferences.getStringList(LocalStateKeys.completedLessonIds,
+          defaultValue: []).getValue(),
       ['tr-l-1', 'tr-l-2'],
     );
     expect(

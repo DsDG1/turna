@@ -93,10 +93,10 @@ void main() {
 
     expect(find.text('Builtin Turkish'), findsOneWidget);
     expect(find.text('JLPT N5 词库'), findsOneWidget);
-    expect(find.text(AppStrings.courseManagementCardCount(1204)),
-        findsOneWidget);
-    expect(find.text(AppStrings.courseManagementBuiltinSubtitle),
-        findsOneWidget);
+    expect(
+        find.text(AppStrings.courseManagementCardCount(1204)), findsOneWidget);
+    expect(
+        find.text(AppStrings.courseManagementBuiltinSubtitle), findsOneWidget);
     expect(find.text(AppStrings.courseManagementMyCourses), findsOneWidget);
     expect(find.text(AppStrings.courseManagementImportTitle), findsOneWidget);
     expect(
@@ -120,7 +120,8 @@ void main() {
     expect(find.text(AppStrings.courseManagementRemoveCourse), findsOneWidget);
   });
 
-  testWidgets('read-aloud on: every card menu offers TTS settings; the '
+  testWidgets(
+      'read-aloud on: every card menu offers TTS settings; the '
       'sheet opens from it', (tester) async {
     await pumpPage(tester);
     await settings.setTtsFeatureEnabled(true);

@@ -70,8 +70,8 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
   void initState() {
     super.initState();
     final last = _lastDueRefreshAt;
-    final fresh = last != null &&
-        DateTime.now().difference(last) < _dueRefreshTtl;
+    final fresh =
+        last != null && DateTime.now().difference(last) < _dueRefreshTtl;
     if (!fresh) {
       _lastDueRefreshAt = DateTime.now();
       unawaited(_refreshOfficialDue());
@@ -137,16 +137,14 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
       mistakeCount: mistakes.length,
       mistakeGrammarCount:
           mistakes.where((e) => e.grammarPointId != null).length,
-      mistakeRewriteCount:
-          mistakes.where((e) => e.rewriteCount == 0).length,
+      mistakeRewriteCount: mistakes.where((e) => e.rewriteCount == 0).length,
       recentMistakes: recentMistakes.take(3).toList(),
       srsDue: srsDue,
-      srsExpressionDue:
-          context.select((SrsProvider p) => p.expressionDueCount),
+      srsExpressionDue: context.select((SrsProvider p) => p.expressionDueCount),
       srsSeen: context.select((SrsProvider p) => p.totalSeen),
       srsRegistered: context.select((SrsProvider p) => p.totalRegistered),
-      srsLapse: context.select(
-          (SrsProvider p) => p.getLapseWords().length + p.getLapseExpressions().length),
+      srsLapse: context.select((SrsProvider p) =>
+          p.getLapseWords().length + p.getLapseExpressions().length),
       grammarDue: context.select((GrammarReviewProvider p) => p.dueCount),
       grammarSeen: context.select((GrammarReviewProvider p) => p.totalSeen),
       grammarRegistered:
@@ -218,9 +216,8 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
   Widget _buildHub(BuildContext context) {
     final snapshot = _gatherSnapshot(context);
     final totalDue = snapshot.totalDue;
-    final ankiChipCount = snapshot.ankiUnavailable
-        ? null
-        : snapshot.ankiDueCount;
+    final ankiChipCount =
+        snapshot.ankiUnavailable ? null : snapshot.ankiDueCount;
     final engineReady =
         context.select((AiEngineConfigHolder h) => h.config.isComplete);
     final ankiCourse = snapshot.ankiCourse;
@@ -314,8 +311,7 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
                             snapshot.srsDue > 0 ? '${snapshot.srsDue}' : null,
                         onTap: () =>
                             context.router.push(const SrsReviewRoute()),
-                        onLongPress: () =>
-                            _showSrsPopup(tileContext, snapshot),
+                        onLongPress: () => _showSrsPopup(tileContext, snapshot),
                       ),
                     ),
                     Builder(
@@ -377,8 +373,7 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child:
-                  SectionTitle(title: AppStrings.playPracticeToolsTitle),
+              child: SectionTitle(title: AppStrings.playPracticeToolsTitle),
             ),
           ),
           SliverToBoxAdapter(
@@ -426,8 +421,8 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
                           title: AppStrings.playReviewProgressTitle,
                           icon: Icons.show_chart_rounded,
                           accentColor: TurnaTheme.brandTeal,
-                          onTap: () => context.router
-                              .push(const ReviewProgressRoute()),
+                          onTap: () =>
+                              context.router.push(const ReviewProgressRoute()),
                           onLongPress: () =>
                               _showReviewProgressPopup(tileContext),
                         ),
@@ -470,8 +465,7 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
       anchor: anchor,
       semanticsLabel: AppStrings.playMistakeReviewTitle,
       onEnter: () => context.router.push(const MistakeReviewRoute()),
-      builder: (enter) =>
-          MistakePanelBody(snapshot: snapshot, onEnter: enter),
+      builder: (enter) => MistakePanelBody(snapshot: snapshot, onEnter: enter),
     );
   }
 
@@ -489,8 +483,7 @@ class _PlayHubScreenState extends State<PlayHubScreen> {
       anchor: anchor,
       semanticsLabel: AppStrings.playGrammarReviewTitle,
       onEnter: () => context.router.push(const GrammarReviewRoute()),
-      builder: (enter) =>
-          GrammarPanelBody(snapshot: snapshot, onEnter: enter),
+      builder: (enter) => GrammarPanelBody(snapshot: snapshot, onEnter: enter),
     );
   }
 

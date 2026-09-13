@@ -95,7 +95,8 @@ class StudyStatsProvider extends ChangeNotifier {
 
   /// Total study time in minutes across all recorded history.
   Future<int> getTotalStudyMinutes() async {
-    final all = await _repository.readAllDailyStats(languageCode: _languageCode);
+    final all =
+        await _repository.readAllDailyStats(languageCode: _languageCode);
     final totalSeconds = all.values.fold<int>(
       0,
       (sum, d) => sum + d.totalDurationSeconds,
@@ -105,7 +106,8 @@ class StudyStatsProvider extends ChangeNotifier {
 
   /// Overall accuracy across all recorded history.
   Future<double> getOverallAccuracy() async {
-    final all = await _repository.readAllDailyStats(languageCode: _languageCode);
+    final all =
+        await _repository.readAllDailyStats(languageCode: _languageCode);
     var correct = 0;
     var incorrect = 0;
     for (final d in all.values) {
@@ -118,19 +120,22 @@ class StudyStatsProvider extends ChangeNotifier {
 
   /// Total XP earned across all recorded history.
   Future<int> getTotalRecordedXp() async {
-    final all = await _repository.readAllDailyStats(languageCode: _languageCode);
+    final all =
+        await _repository.readAllDailyStats(languageCode: _languageCode);
     return all.values.fold<int>(0, (sum, d) => sum + d.totalXp);
   }
 
   /// Total lessons completed across all recorded history.
   Future<int> getTotalRecordedLessons() async {
-    final all = await _repository.readAllDailyStats(languageCode: _languageCode);
+    final all =
+        await _repository.readAllDailyStats(languageCode: _languageCode);
     return all.values.fold<int>(0, (sum, d) => sum + d.lessonCount);
   }
 
   /// Total reviews completed across all recorded history.
   Future<int> getTotalRecordedReviews() async {
-    final all = await _repository.readAllDailyStats(languageCode: _languageCode);
+    final all =
+        await _repository.readAllDailyStats(languageCode: _languageCode);
     return all.values.fold<int>(0, (sum, d) => sum + d.reviewCount);
   }
 

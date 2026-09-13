@@ -31,19 +31,23 @@ void main() {
 
   testWidgets('AiWishChatPage pump and pointer events test', (tester) async {
     final engine = AiEngine(
-      AiHttpClient.withClient(MockClient((_) async => throw UnimplementedError())),
+      AiHttpClient.withClient(
+          MockClient((_) async => throw UnimplementedError())),
       AiCache.forTest(),
     );
     final grounded = AiGroundedResourceProvider();
-    final wishProvider = AiWishProvider.withEngine(engine, groundedProvider: grounded);
-    final courseProvider = AiCourseProvider.withEngine(engine, groundedProvider: grounded);
+    final wishProvider =
+        AiWishProvider.withEngine(engine, groundedProvider: grounded);
+    final courseProvider =
+        AiCourseProvider.withEngine(engine, groundedProvider: grounded);
 
     await tester.pumpWidget(
       MultiProvider(
         providers: [
           ChangeNotifierProvider<AiWishProvider>.value(value: wishProvider),
           ChangeNotifierProvider<AiCourseProvider>.value(value: courseProvider),
-          ChangeNotifierProvider<AiEngineConfigHolder>(create: (_) => AiEngineConfigHolder()),
+          ChangeNotifierProvider<AiEngineConfigHolder>(
+              create: (_) => AiEngineConfigHolder()),
         ],
         child: const MaterialApp(
           home: AiWishChatPage(),

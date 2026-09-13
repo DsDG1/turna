@@ -49,13 +49,11 @@ abstract class SrsQueueProvider extends ChangeNotifier {
   /// languages (Anki / postpone paths).
   String? _languageFilter = LanguageCodes.turkish;
 
-  String get languageFilter =>
-      _languageFilter ?? LanguageCodes.turkish;
+  String get languageFilter => _languageFilter ?? LanguageCodes.turkish;
 
   Future<void> setLanguageFilter(String? languageCode) async {
-    final next = languageCode == null
-        ? null
-        : LanguageCodes.canonicalize(languageCode);
+    final next =
+        languageCode == null ? null : LanguageCodes.canonicalize(languageCode);
     if (next == _languageFilter && _loaded) return;
     _languageFilter = next;
     _loadGeneration++;
@@ -161,12 +159,11 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     final reviewDao = _effectiveReviewDao;
     if (reviewDao != null) {
       try {
-        sameDayFails =
-            await reviewDao.countFailsOnLocalDay(
-              word.wordId,
-              reviewedAt,
-              languageCode: languageFilter,
-            );
+        sameDayFails = await reviewDao.countFailsOnLocalDay(
+          word.wordId,
+          reviewedAt,
+          languageCode: languageFilter,
+        );
       } catch (_) {
         sameDayFails = 0;
       }

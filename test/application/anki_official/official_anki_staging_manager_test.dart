@@ -42,7 +42,8 @@ void main() {
     expect(columns, containsAll(['phase', 'staging_path']));
   });
 
-  test('startStaging writes staging collection only; cancel deletes it', () async {
+  test('startStaging writes staging collection only; cancel deletes it',
+      () async {
     final root = Directory.systemTemp.createTempSync('turna-p1-stage-');
     addTearDown(() {
       try {

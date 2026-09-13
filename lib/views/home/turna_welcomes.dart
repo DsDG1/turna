@@ -72,7 +72,8 @@ class _TurnaWelcomesState extends State<TurnaWelcomes> {
             height: widget.height,
             fit: BoxFit.contain,
             cacheHeight:
-                (widget.height * MediaQuery.devicePixelRatioOf(context)).round(),
+                (widget.height * MediaQuery.devicePixelRatioOf(context))
+                    .round(),
           ),
         ),
       ),

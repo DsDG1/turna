@@ -44,8 +44,7 @@ class AiExplainPrefsSnapshot {
         replyLanguage: replyLanguage ?? this.replyLanguage,
         depth: depth ?? this.depth,
         allowRevealAnswer: allowRevealAnswer ?? this.allowRevealAnswer,
-        injectLearnerContext:
-            injectLearnerContext ?? this.injectLearnerContext,
+        injectLearnerContext: injectLearnerContext ?? this.injectLearnerContext,
       );
 
   /// Rules fragment injected into companion system prompts.
@@ -113,7 +112,8 @@ class AiExplainPrefsStore extends ChangeNotifier {
     // Release without registration: still functional but log once via assert.
     assert(() {
       // ignore: avoid_print
-      print('AiExplainPrefsStore.resolve: GetIt not registered; using ephemeral');
+      print(
+          'AiExplainPrefsStore.resolve: GetIt not registered; using ephemeral');
       return true;
     }());
     return AiExplainPrefsStore();
@@ -187,9 +187,11 @@ class AiExplainPrefsStore extends ChangeNotifier {
 
   Future<void> update(AiExplainPrefsSnapshot next) async {
     _snapshot = next;
-    await _writeString(AiExplainPrefKeys.replyLanguage, next.replyLanguage.name);
+    await _writeString(
+        AiExplainPrefKeys.replyLanguage, next.replyLanguage.name);
     await _writeString(AiExplainPrefKeys.depth, next.depth.name);
-    await _writeBool(AiExplainPrefKeys.allowRevealAnswer, next.allowRevealAnswer);
+    await _writeBool(
+        AiExplainPrefKeys.allowRevealAnswer, next.allowRevealAnswer);
     await _writeBool(
         AiExplainPrefKeys.injectLearnerContext, next.injectLearnerContext);
     _onPrefsAffectingCache();
@@ -267,7 +269,9 @@ class AiExplainPrefsStore extends ChangeNotifier {
 /// Build question-type strategy block for companion system prompts.
 String buildQuestionTypeStrategy(String typeLabel) {
   final t = typeLabel.toLowerCase();
-  if (t.contains('multiple') || t.contains('choice') || t.contains('mcq') ||
+  if (t.contains('multiple') ||
+      t.contains('choice') ||
+      t.contains('mcq') ||
       t.contains('选择')) {
     return 'Question strategy: analyze why distractors look plausible; '
         'do not name the correct option index or letter.';

@@ -142,7 +142,8 @@ void main() {
 
   test('archived proto is not the wire truth', () {
     expect(
-      File('native/turna_anki_core/contract/turna_anki_spike.proto').existsSync(),
+      File('native/turna_anki_core/contract/turna_anki_spike.proto')
+          .existsSync(),
       isFalse,
     );
     expect(

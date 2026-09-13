@@ -159,8 +159,7 @@ void main() {
     seedActiveV2Source(sourceId: 'src-v2-b');
     await rebuilder().rebuild();
     // a 进入 retiring（B5 ①的 CAS）。
-    OfficialAnkiSourceDao(catalog)
-        .markRetiring(sourceId: a, nowMillis: 2);
+    OfficialAnkiSourceDao(catalog).markRetiring(sourceId: a, nowMillis: 2);
     final result = await rebuilder().rebuild();
     expect(result.sourceCount, 1, reason: 'retiring 的 source 即刻不可见');
     expect(
@@ -204,7 +203,8 @@ void main() {
       backendCommit: 'pending',
       nowMillis: 1,
     );
-    catalog.handle.execute("UPDATE anki_sources SET chain = 'v1' WHERE source_id = 'src-v1-x'");
+    catalog.handle.execute(
+        "UPDATE anki_sources SET chain = 'v1' WHERE source_id = 'src-v1-x'");
     final result = await rebuilder().rebuild();
     expect(result.sourceCount, 0);
     expect(result.rowCount, 0);
@@ -278,11 +278,13 @@ void main() {
     final rows = await store.rowsForLesson(lessonIds.first);
     expect(rows, isNotEmpty);
     for (final row in rows) {
-      expect(row.presentationKind, 'flip', reason: '无 mapping 决策时兜底为 flip，非 showWord');
+      expect(row.presentationKind, 'flip',
+          reason: '无 mapping 决策时兜底为 flip，非 showWord');
     }
   });
 
-  test('archetype basicPair resolves to flip regardless of enabledKinds order', () async {
+  test('archetype basicPair resolves to flip regardless of enabledKinds order',
+      () async {
     final a = seedActiveV2Source(sourceId: 'src-kind-basic');
     engine.configStore[OfficialAnkiV2ConfigKeys.importMapping(a)] = {
       'schema': 1,
@@ -324,7 +326,8 @@ void main() {
     final rows = await store.rowsForLesson(lessonIds.first);
     expect(rows, isNotEmpty);
     for (final row in rows) {
-      expect(row.presentationKind, 'multipleChoice', reason: 'choice 且启用选择题必须解析为 multipleChoice');
+      expect(row.presentationKind, 'multipleChoice',
+          reason: 'choice 且启用选择题必须解析为 multipleChoice');
     }
   });
 }

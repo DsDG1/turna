@@ -137,7 +137,8 @@ Future<void> main() async {
     // after upgrade. Idempotent. Hydrate under the persisted scope's language
     // (same rationale as the vocabulary preheat above) so due badges don't
     // flash another language's counts before CourseProvider.load() syncs.
-    final srsLanguage = preheatLanguage ?? LanguageRegistry.instance.defaultCode;
+    final srsLanguage =
+        preheatLanguage ?? LanguageRegistry.instance.defaultCode;
     await getIt<SrsProvider>().setLanguageFilter(srsLanguage);
     await getIt<GrammarReviewProvider>().setLanguageFilter(srsLanguage);
 

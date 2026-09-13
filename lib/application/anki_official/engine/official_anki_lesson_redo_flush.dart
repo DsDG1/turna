@@ -67,8 +67,7 @@ class OfficialAnkiLessonRedoFlush {
         requested: answers.length,
         answered: outcome.answered,
         skippedRatedToday: outcome.skippedRatedToday,
-        failed: outcome.answered + outcome.skippedRatedToday <
-            answers.length,
+        failed: outcome.answered + outcome.skippedRatedToday < answers.length,
       );
     } catch (error) {
       debugPrint('[OfficialAnkiLessonRedoFlush] fail-closed: $error');

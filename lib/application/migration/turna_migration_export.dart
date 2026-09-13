@@ -112,7 +112,8 @@ class TurnaMigrationExporter {
 
     final mediaManifest = <String, dynamic>{};
     if (_legacyMediaRoot != null && await _legacyMediaRoot.exists()) {
-      await _copyMediaContentAddressed(_legacyMediaRoot, mediaDir, mediaManifest);
+      await _copyMediaContentAddressed(
+          _legacyMediaRoot, mediaDir, mediaManifest);
     }
 
     final createdAt = DateTime.now().toUtc().toIso8601String();
@@ -234,8 +235,7 @@ class TurnaMigrationExporter {
           case BackupPrefType.string:
             value = prefs.getString(key, defaultValue: '').getValue();
           case BackupPrefType.stringList:
-            value =
-                prefs.getStringList(key, defaultValue: const []).getValue();
+            value = prefs.getStringList(key, defaultValue: const []).getValue();
         }
         final sanitized =
             BackupManifestPolicy.sanitizeForSerialization(key, value);

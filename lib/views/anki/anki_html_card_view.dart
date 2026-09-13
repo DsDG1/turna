@@ -289,8 +289,9 @@ class AnkiHtmlCardViewState extends State<AnkiHtmlCardView> {
       // reports follow the zoomed layout automatically.
       css.write('html{zoom:${widget.textZoom / 100};}');
     }
-    css.write(
-        widget.dark ? ':root{color-scheme:dark;}' : ':root{color-scheme:light;}');
+    css.write(widget.dark
+        ? ':root{color-scheme:dark;}'
+        : ':root{color-scheme:light;}');
     if (widget.dark) {
       css.write(
         'body{background:#1e1e1e !important;color:#e0e0e0 !important;}'

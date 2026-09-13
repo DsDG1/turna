@@ -36,14 +36,17 @@ void main() {
   ensureSqliteLibForTestHost();
 
   test('seed and registry work when turkish assets are omitted', () async {
-    final frenchIndex = File('assets/courses/french/index.json').readAsStringSync();
-    final frenchVocab = File('assets/courses/french/vocab.json').readAsStringSync();
+    final frenchIndex =
+        File('assets/courses/french/index.json').readAsStringSync();
+    final frenchVocab =
+        File('assets/courses/french/vocab.json').readAsStringSync();
     final frenchGrammar =
         File('assets/courses/french/grammar_points.json').readAsStringSync();
     final frenchExpr =
         File('assets/courses/french/expressions.json').readAsStringSync();
     final frenchSection =
-        File('assets/courses/french/sections/fr-section1.json').readAsStringSync();
+        File('assets/courses/french/sections/fr-section1.json')
+            .readAsStringSync();
 
     final bundle = _MapBundle({
       languageManifestPath: jsonEncode({
@@ -82,7 +85,8 @@ void main() {
     expect(wrote, isTrue);
 
     final repo = CourseRepository(db);
-    expect(await repo.sectionShells(languageCode: LanguageCodes.turkish), isEmpty);
+    expect(
+        await repo.sectionShells(languageCode: LanguageCodes.turkish), isEmpty);
     final french = await repo.sectionShells(languageCode: LanguageCodes.french);
     expect(french, isNotEmpty);
     expect(french.single.id, 'fr-section1');

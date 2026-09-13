@@ -359,7 +359,8 @@ void main() {
     );
     await tester.tap(find.byKey(const Key('storage-category-official')));
     await tester.pumpAndSettle();
-    expect(find.text(AppStrings.storageOfficialCollectionEmpty), findsOneWidget);
+    expect(
+        find.text(AppStrings.storageOfficialCollectionEmpty), findsOneWidget);
     final button = tester.widget<FilledButton>(
       find.byKey(const Key('storage-delete-selected')),
     );

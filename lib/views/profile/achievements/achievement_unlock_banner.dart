@@ -73,8 +73,8 @@ class AchievementUnlockBanner extends StatelessWidget {
                   unlocks.length > 1
                       ? '$firstSeriesTitle${_moreSuffix(context)}'
                       : '$firstSeriesTitle · ${first.target} · '
-                            '+${first.gemReward} ${AppStrings.achievementsGemRewardSuffix}'
-                            '${cosmetic != null ? ' · $cosmetic' : ''}',
+                          '+${first.gemReward} ${AppStrings.achievementsGemRewardSuffix}'
+                          '${cosmetic != null ? ' · $cosmetic' : ''}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: TurnaTheme.textSecondaryColor(context),
                       ),

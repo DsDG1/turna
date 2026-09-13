@@ -32,8 +32,7 @@ void officialAnkiStartupLog(Object? message, {bool warning = false}) =>
 
 /// 维护任务日志（GC / VACUUM / v2 job）。
 void officialAnkiMaintenanceLog(Object? message, {bool warning = false}) =>
-    officialAnkiFileLog('OfficialAnkiMaintenance', message,
-        warning: warning);
+    officialAnkiFileLog('OfficialAnkiMaintenance', message, warning: warning);
 
 /// v2 链路日志（导入 commit / 视图重建 / retiring）。
 void officialAnkiV2Log(Object? message, {bool warning = false}) =>

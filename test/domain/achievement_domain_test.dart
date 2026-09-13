@@ -11,7 +11,9 @@ import 'package:turna/domain/achievements/achievement_state.dart';
 void main() {
   group('catalog contract', () {
     test('passes structural validation', () {
-      expect(() => AchievementCatalogContract.validate(AchievementCatalog.allSeries),
+      expect(
+          () =>
+              AchievementCatalogContract.validate(AchievementCatalog.allSeries),
           returnsNormally);
     });
 
@@ -39,8 +41,8 @@ void main() {
 
       expect(ladder(AchievementCatalog.courseJourneyId),
           [1, 10, 25, 50, 100, 250, 500]);
-      expect(ladder(AchievementCatalog.perfectJourneyId),
-          [1, 5, 10, 20, 50, 100]);
+      expect(
+          ladder(AchievementCatalog.perfectJourneyId), [1, 5, 10, 20, 50, 100]);
       expect(ladder(AchievementCatalog.streakJourneyId),
           [3, 7, 14, 30, 75, 125, 200, 365]);
       expect(ladder(AchievementCatalog.xpJourneyId),
@@ -173,7 +175,8 @@ void main() {
       AchievementCatalog.courseJourneyId,
     )!;
 
-    test('is 0 at zero progress (single-target series cannot pre-complete)', () {
+    test('is 0 at zero progress (single-target series cannot pre-complete)',
+        () {
       expect(course.completedTierCount(0), 0);
     });
 

@@ -790,9 +790,8 @@ class CourseProvider extends ChangeNotifier {
 
   bool _catalogStillHasScope(CourseScope scope) {
     return switch (scope) {
-      BuiltinCourseScope() =>
-        _catalogEntries.any((e) => e.scope == scope) ||
-            _catalogEntries.any((e) => e.isBuiltin),
+      BuiltinCourseScope() => _catalogEntries.any((e) => e.scope == scope) ||
+          _catalogEntries.any((e) => e.isBuiltin),
       LegacyAnkiCourseScope(importId: final id) =>
         _catalogEntries.any((e) => e.legacyImportId == id),
       OfficialAnkiCourseScope(sourceId: final id) =>
@@ -853,8 +852,9 @@ class CourseProvider extends ChangeNotifier {
       for (final code in uninstalled)
         (
           code: code,
-          displayName: ImportedLanguageRegistry.instance.displayNameOrNull(code) ??
-              LanguageRegistry.instance.displayName(code),
+          displayName:
+              ImportedLanguageRegistry.instance.displayNameOrNull(code) ??
+                  LanguageRegistry.instance.displayName(code),
         ),
     ]);
     final stored = _appPrefs?.preferences.getStringList(
@@ -913,9 +913,9 @@ class CourseProvider extends ChangeNotifier {
               : await CourseRepository(db).uninstalledLanguageCodes();
           if (uninstalled
               .contains(LanguageCodes.canonicalize(decoded.languageCode))) {
-            logger.w(
-                'CourseProvider: persisted scope "$decoded" is uninstalled; '
-                'falling back to a builtin course');
+            logger
+                .w('CourseProvider: persisted scope "$decoded" is uninstalled; '
+                    'falling back to a builtin course');
             _scope = _fallbackBuiltin();
             await _persistScope();
           }

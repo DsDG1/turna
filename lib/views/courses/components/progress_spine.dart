@@ -47,7 +47,9 @@ class ProgressSpine extends StatelessWidget {
             child: DecoratedBox(
               decoration: BoxDecoration(
                 border: Border(
-                  left: BorderSide(color: isFirst ? Colors.transparent : lineColor, width: 2.5),
+                  left: BorderSide(
+                      color: isFirst ? Colors.transparent : lineColor,
+                      width: 2.5),
                 ),
               ),
             ),
@@ -57,7 +59,9 @@ class ProgressSpine extends StatelessWidget {
             child: DecoratedBox(
               decoration: BoxDecoration(
                 border: Border(
-                  left: BorderSide(color: isLast ? Colors.transparent : lineColor, width: 2.5),
+                  left: BorderSide(
+                      color: isLast ? Colors.transparent : lineColor,
+                      width: 2.5),
                 ),
               ),
             ),
@@ -102,7 +106,8 @@ class _SpineNode extends StatelessWidget {
       decoration: BoxDecoration(
         color: fill,
         shape: BoxShape.circle,
-        border: Border.all(color: border, width: status == SpineStatus.nextUp ? 2.5 : 2),
+        border: Border.all(
+            color: border, width: status == SpineStatus.nextUp ? 2.5 : 2),
         boxShadow: glow
             ? [
                 BoxShadow(

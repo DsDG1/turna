@@ -75,7 +75,8 @@ void main() {
     player.release.complete();
   });
 
-  test('old-generation autoplay completion does not mutate current UI', () async {
+  test('old-generation autoplay completion does not mutate current UI',
+      () async {
     final root = Directory.systemTemp.createTempSync('turna-ui-stale-');
     addTearDown(() => root.deleteSync(recursive: true));
     File('${root.path}/a.mp3').writeAsBytesSync([1]);
@@ -149,7 +150,8 @@ void main() {
     for (final code in codes) {
       controller.presentGeneration = 3;
       controller.onRenderFailure(code: code, side: 'answer', generation: 3);
-      expect(controller.ui.surface, OfficialAnkiReviewerSurface.recoverableError);
+      expect(
+          controller.ui.surface, OfficialAnkiReviewerSurface.recoverableError);
       expect(controller.ui.code, code);
       expect(controller.ui.offersRetryCurrentSide, isTrue);
       expect(controller.ui.offersBack, isTrue);

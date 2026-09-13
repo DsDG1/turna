@@ -1,5 +1,6 @@
 const officialAnkiProjectionPageDefault = 200;
 const officialAnkiProjectionPageMax = 500;
+
 /// v3: semantic (natural-name) tree ordering, 60/40 packing, and the
 /// sort-order baseline. Bumping makes every existing source's stored
 /// fingerprint stale so its next projectSource republishes once with the

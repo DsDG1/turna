@@ -9,13 +9,7 @@ import 'package:turna/application/language_registry.dart';
 import 'package:turna/courses/course_validator.dart';
 import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/data/course_database.dart'
-    hide
-        Section,
-        Unit,
-        Lesson,
-        LessonContent,
-        Vocabulary,
-        GrammarPoint;
+    hide Section, Unit, Lesson, LessonContent, Vocabulary, GrammarPoint;
 import 'package:turna/data/course_repository.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/expression.dart';
@@ -291,8 +285,8 @@ class CourseLoader {
 /// Parse a single [Section] from a per-section JSON string. Used by
 /// [DatabaseSeeder] (seed path) and tests; not on the runtime read path.
 /// Visible for testing.
-Section parseSection(String raw) =>
-    Section.fromJson(_normalizeSection(jsonDecode(raw) as Map<String, dynamic>));
+Section parseSection(String raw) => Section.fromJson(
+    _normalizeSection(jsonDecode(raw) as Map<String, dynamic>));
 
 /// Pre-process a raw section map before handing it to [Section.fromJson].
 ///

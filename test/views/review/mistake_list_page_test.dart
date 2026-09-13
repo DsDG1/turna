@@ -134,7 +134,8 @@ void main() {
     );
   });
 
-  testWidgets('the removed why-wrong action leaves no UI trace', (tester) async {
+  testWidgets('the removed why-wrong action leaves no UI trace',
+      (tester) async {
     await mistakes.record(entry('w-1', wordId: 'word-1'));
     await pumpPage(tester);
 

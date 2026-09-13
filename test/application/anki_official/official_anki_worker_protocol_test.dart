@@ -15,7 +15,8 @@ import 'package:turna/application/anki_official/import/official_anki_import_stat
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 
 void main() {
-  test('session-level ops round-trip typed results through the worker', () async {
+  test('session-level ops round-trip typed results through the worker',
+      () async {
     final root = Directory.systemTemp.createTempSync('turna-proto-');
     addTearDown(() => root.deleteSync(recursive: true));
     final paths = OfficialAnkiPaths(

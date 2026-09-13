@@ -81,11 +81,14 @@ void main() {
       final text = File(
         'lib/application/anki_official/projection/official_anki_projection_payloads.dart',
       ).readAsStringSync();
-      expect(text.contains('list.add(OfficialAnkiProjectionKind.multipleChoice)'), isFalse);
+      expect(
+          text.contains('list.add(OfficialAnkiProjectionKind.multipleChoice)'),
+          isFalse);
       expect(text.contains('OfficialAnkiPresentationPolicy'), isTrue);
     });
 
-    test('formal review path does not re-run practice classifier or four-rating',
+    test(
+        'formal review path does not re-run practice classifier or four-rating',
         () {
       const paths = [
         // Doc 39 P1-A: orphan review page/surface moved to test/support.
@@ -473,7 +476,8 @@ void main() {
       );
     });
 
-    test('anki_official application layer does not import Legacy writers or views',
+    test(
+        'anki_official application layer does not import Legacy writers or views',
         () {
       const forbidden = [
         "package:turna/application/anki/anki_importer.dart",
@@ -522,10 +526,8 @@ void main() {
       expect(violations, isEmpty, reason: violations.join('\n'));
     });
 
-
     // ── Maintainability plan (Wave 1/3/4) guards ─────────────────────
-    test('formal-due has one writer: no compatibility facade resurrection',
-        () {
+    test('formal-due has one writer: no compatibility facade resurrection', () {
       expect(
         File(
           'lib/application/anki_official/engine/official_anki_home_due.dart',
@@ -582,7 +584,8 @@ void main() {
       ).readAsStringSync();
       expect(loader.contains('importId.isEmpty'), isTrue);
       expect(
-        loader.substring(loader.indexOf('importId.isEmpty') - 200,
+        loader
+            .substring(loader.indexOf('importId.isEmpty') - 200,
                 loader.indexOf('importId.isEmpty') + 200)
             .contains('ArgumentError'),
         isTrue,
@@ -613,7 +616,8 @@ void main() {
         File('lib/application/anki_import/official_first_anki_import_flow.dart')
             .existsSync(),
         isFalse,
-        reason: 'doc 40 P5.6 inlined OfficialFirstAnkiImportFlow into the controller',
+        reason:
+            'doc 40 P5.6 inlined OfficialFirstAnkiImportFlow into the controller',
       );
 
       final screen =
@@ -628,7 +632,8 @@ void main() {
       expect(screen.contains('projectAndPublish'), isFalse);
     });
 
-    test('dead feature-flag fields and empty orchestrator hook stay deleted', () {
+    test('dead feature-flag fields and empty orchestrator hook stay deleted',
+        () {
       final flags = File(
         'lib/application/anki_official/official_anki_feature_flags.dart',
       ).readAsStringSync();
@@ -673,7 +678,8 @@ void main() {
       );
     });
 
-    test('unsupported platform never selects Legacy writer (execution plan)', () {
+    test('unsupported platform never selects Legacy writer (execution plan)',
+        () {
       // Behavior is asserted in anki_import_execution_plan_test.dart
       // ("non-android is unsupported" / platform matrix). Keep a pointer so
       // W9 §13.3 CI inventory does not forget that surface.
@@ -684,7 +690,8 @@ void main() {
       final text = planTest.readAsStringSync();
       expect(text.contains('unsupported'), isTrue);
       expect(text.contains('writesLegacyNoteStore'), isTrue);
-      expect(text.contains("platform: 'ohos'") || text.contains('ohos'), isTrue);
+      expect(
+          text.contains("platform: 'ohos'") || text.contains('ohos'), isTrue);
     });
   });
 }

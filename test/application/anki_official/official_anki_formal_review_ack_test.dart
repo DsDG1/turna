@@ -53,7 +53,8 @@ Future<OfficialAnkiReviewerController> officialFormalReviewPresenter(
 }
 
 void main() {
-  Future<_Harness> mount(WidgetTester tester, {FakeOfficialAnkiEngine? engine}) async {
+  Future<_Harness> mount(WidgetTester tester,
+      {FakeOfficialAnkiEngine? engine}) async {
     OfficialAnkiSchedulerAudit.reset();
     final fake = engine ?? FakeOfficialAnkiEngine();
     if (engine == null) {
@@ -111,7 +112,8 @@ void main() {
     final harness = await mount(tester);
     expect(find.byType(AppBar), findsOneWidget);
     expect(find.text('官方卡片预览'), findsNothing);
-    expect(find.byKey(const Key('official-review-show-answer')), findsOneWidget);
+    expect(
+        find.byKey(const Key('official-review-show-answer')), findsOneWidget);
     expect(find.byKey(const Key('official-review-good')), findsNothing);
 
     harness.presenter.acceptPresent(ack(harness.presenter, side: 'question'));
@@ -151,7 +153,8 @@ void main() {
     expect(find.byType(AppBar), findsOneWidget);
   });
 
-  testWidgets('formal_review_stale_ack_cannot_unlock_next_card', (tester) async {
+  testWidgets('formal_review_stale_ack_cannot_unlock_next_card',
+      (tester) async {
     final harness = await mount(tester);
     harness.presenter.acceptPresent(ack(harness.presenter, side: 'question'));
     await tester.pump();
@@ -207,7 +210,8 @@ void main() {
     expect(harness.fake.lastMillisecondsTaken, greaterThanOrEqualTo(0));
     expect(OfficialAnkiSchedulerAudit.officialSchedulerAnswers, 1);
     expect(find.byType(AppBar), findsOneWidget);
-    expect(find.byKey(const Key('official-review-show-answer')), findsOneWidget);
+    expect(
+        find.byKey(const Key('official-review-show-answer')), findsOneWidget);
   });
 
   testWidgets('formal_review_queue_error_is_not_congrats', (tester) async {
@@ -255,7 +259,8 @@ void main() {
     await tester.pump();
     expect(harness.presenter.ui.offersRetryCurrentSide, isFalse);
     expect(find.byKey(const Key('official-review-good')), findsNothing);
-    expect(find.byKey(const Key('official-review-show-answer')), findsOneWidget);
+    expect(
+        find.byKey(const Key('official-review-show-answer')), findsOneWidget);
     final show = tester.widget<FilledButton>(
       find.byKey(const Key('official-review-show-answer')),
     );

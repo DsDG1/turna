@@ -90,8 +90,7 @@ class AiCourseService {
           'Could not parse model JSON output: $e\nFirst 200 chars: ${cleaned.substring(0, cleaned.length < 200 ? cleaned.length : 200)}');
     }
     if (parsed['units'] is! List) {
-      throw Exception(
-          "Model output is missing the top-level 'units' array.");
+      throw Exception("Model output is missing the top-level 'units' array.");
     }
     normalizeResources(parsed);
     autoFixResources(parsed);

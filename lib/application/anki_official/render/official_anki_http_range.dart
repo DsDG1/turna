@@ -8,7 +8,8 @@ class OfficialAnkiHttpRange {
     required this.status,
   });
 
-  factory OfficialAnkiHttpRange.unsatisfiable(int length) => OfficialAnkiHttpRange._(
+  factory OfficialAnkiHttpRange.unsatisfiable(int length) =>
+      OfficialAnkiHttpRange._(
         satisfiable: false,
         start: 0,
         end: -1,
@@ -30,8 +31,7 @@ class OfficialAnkiHttpRange {
   final int length;
   final int status;
 
-  int get contentLength =>
-      satisfiable && end >= start ? end - start + 1 : 0;
+  int get contentLength => satisfiable && end >= start ? end - start + 1 : 0;
 
   String get contentRange =>
       satisfiable ? 'bytes $start-$end/$length' : 'bytes */$length';
@@ -78,9 +78,7 @@ class OfficialAnkiHttpRange {
     if (start == null || start < 0 || start >= length) {
       return OfficialAnkiHttpRange.unsatisfiable(length);
     }
-    final end = right.isEmpty
-        ? length - 1
-        : int.tryParse(right);
+    final end = right.isEmpty ? length - 1 : int.tryParse(right);
     if (end == null || end < start) {
       return OfficialAnkiHttpRange.unsatisfiable(length);
     }

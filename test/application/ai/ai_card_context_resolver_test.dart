@@ -34,11 +34,9 @@ void main() {
 
     final hidden = resolver.resolve(_item(content), answerRevealed: false);
     expect(hidden.questionPlainText, 'Merhaba');
-    expect(hidden.answerPlainText, isNull,
-        reason: '未揭示时答案不得进入 prompt（§20.3）');
+    expect(hidden.answerPlainText, isNull, reason: '未揭示时答案不得进入 prompt（§20.3）');
     expect(hidden.supported, isTrue);
-    expect(
-        hidden.toPromptBlock().contains('你好'), isFalse,
+    expect(hidden.toPromptBlock().contains('你好'), isFalse,
         reason: 'prompt digest must not leak the hidden answer');
 
     final revealed = resolver.resolve(_item(content), answerRevealed: true);
@@ -55,8 +53,8 @@ void main() {
 
     final ctx = resolver.resolve(
       _item(content,
-          source: OfficialAnkiSource(
-              sourceId: 'official-1', deckId: 3, cardId: 99),
+          source:
+              OfficialAnkiSource(sourceId: 'official-1', deckId: 3, cardId: 99),
           rawId: '1699999999999'),
       answerRevealed: true,
     );
@@ -118,8 +116,7 @@ void main() {
 
   test('oversized text is clamped', () {
     final big = 'x' * 9000;
-    final content =
-        StandardCourseCardContent(frontText: big, backText: big);
+    final content = StandardCourseCardContent(frontText: big, backText: big);
     final ctx = resolver.resolve(_item(content), answerRevealed: true);
     expect(ctx.questionPlainText.length, lessThan(4100));
     expect(ctx.answerPlainText!.length, lessThan(4100));

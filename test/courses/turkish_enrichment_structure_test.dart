@@ -34,15 +34,15 @@ void main() {
 
   setUpAll(() {
     sections = _loadAllSections();
-    index = jsonDecode(
-        File('assets/courses/turkish/index.json').readAsStringSync())
-        as Map<String, dynamic>;
+    index =
+        jsonDecode(File('assets/courses/turkish/index.json').readAsStringSync())
+            as Map<String, dynamic>;
     words = (jsonDecode(
             File('assets/courses/turkish/vocab.json').readAsStringSync())
         as Map<String, dynamic>)['words'] as List<dynamic>;
-    expressions = (jsonDecode(File('assets/courses/turkish/expressions.json')
-            .readAsStringSync()) as Map<String, dynamic>)['expressions']
-        as List<dynamic>;
+    expressions = (jsonDecode(
+            File('assets/courses/turkish/expressions.json').readAsStringSync())
+        as Map<String, dynamic>)['expressions'] as List<dynamic>;
     grammarPoints = (jsonDecode(
             File('assets/courses/turkish/grammar_points.json')
                 .readAsStringSync()) as Map<String, dynamic>)['grammarPoints']
@@ -55,8 +55,8 @@ void main() {
     final levels = shells.map((s) => (s as Map)['level']).toList();
     expect(levels, ['A1', 'A1', 'A1', 'A2', 'B1', 'B1', 'B2', 'B2']);
     for (var i = 0; i < shells.length; i++) {
-      final prereq =
-          List<String>.from((shells[i] as Map)['prerequisiteSectionIds'] as List);
+      final prereq = List<String>.from(
+          (shells[i] as Map)['prerequisiteSectionIds'] as List);
       if (i == 0) {
         expect(prereq, isEmpty);
       } else {
@@ -124,9 +124,8 @@ void main() {
 
   test('parsed lessons expose playable flattened stages for intro items', () {
     final s1 = sections.firstWhere((s) => s.id == 'section1');
-    final intro = s1.units
-        .expand((u) => u.lessons)
-        .firstWhere((l) => l.id == 's1-l2');
+    final intro =
+        s1.units.expand((u) => u.lessons).firstWhere((l) => l.id == 's1-l2');
     expect(intro.template, LessonTemplate.intro);
     expect(intro.flattenedStages, isNotEmpty);
   });

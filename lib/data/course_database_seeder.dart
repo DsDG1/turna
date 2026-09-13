@@ -172,7 +172,9 @@ class DatabaseSeeder {
               ..where((t) => t.languageCode.equals(code))
               ..limit(1))
             .get();
-        if (!force && storedVersion == assetVersion && existingSections.isNotEmpty) {
+        if (!force &&
+            storedVersion == assetVersion &&
+            existingSections.isNotEmpty) {
           return false;
         }
         await _clearLanguageTables(code);
@@ -213,7 +215,8 @@ class DatabaseSeeder {
     if (uninstalled != null) {
       return false;
     }
-    final indexRaw = await _tryLoadAsset(CourseLoader.indexAssetFor(language.code));
+    final indexRaw =
+        await _tryLoadAsset(CourseLoader.indexAssetFor(language.code));
     if (indexRaw == null) {
       logger.w(
         'Skipping seed for ${language.code}: missing '

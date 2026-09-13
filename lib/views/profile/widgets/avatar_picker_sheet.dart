@@ -267,8 +267,7 @@ class _AvatarTile extends StatelessWidget {
                   AvatarWithRing(
                     radius: 22,
                     gapColor: TurnaTheme.cardBg(context),
-                    backgroundColor:
-                        avatar.background.withValues(alpha: 0.18),
+                    backgroundColor: avatar.background.withValues(alpha: 0.18),
                     child: Text(
                       avatar.emoji,
                       style: const TextStyle(fontSize: 22),
@@ -304,8 +303,7 @@ class _AvatarTile extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontWeight:
-                          selected ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                       color: selected
                           ? TurnaTheme.brandTeal
                           : TurnaTheme.textSecondaryColor(context),

@@ -145,7 +145,11 @@ void main() {
     }
 
     for (final vector in const <Map<String, Object?>>[
-      {'cardOrd': 1, 'kind': 'ANY', 'fieldOrds': <Object>[0, 2]},
+      {
+        'cardOrd': 1,
+        'kind': 'ANY',
+        'fieldOrds': <Object>[0, 2]
+      },
       <String, Object?>{},
     ]) {
       final decoded = OfficialAnkiCardRequirement.fromJson(vector);
@@ -162,7 +166,8 @@ void main() {
     expect(factsEmpty.reqs, isEmpty);
     expect(factsEmpty.isAvailable, isFalse);
 
-    final schemaEmpty = OfficialAnkiProjectionSchema.fromJson(<String, Object?>{});
+    final schemaEmpty =
+        OfficialAnkiProjectionSchema.fromJson(<String, Object?>{});
     expect(schemaEmpty.notetypeId, 0);
     expect(schemaEmpty.kind, 'normal');
     expect(schemaEmpty.fieldNames, isEmpty);
@@ -179,7 +184,11 @@ void main() {
       'templateNames': <Object>['Card 1'],
       'schemaFingerprint': 'abc123',
       'samples': <Object>[
-        {'noteId': 1, 'fields': <Object>['f', 'b'], 'truncated': false},
+        {
+          'noteId': 1,
+          'fields': <Object>['f', 'b'],
+          'truncated': false
+        },
       ],
       'templateFacts': <String, Object?>{
         'hash': 'h1',
@@ -193,7 +202,11 @@ void main() {
           }
         ],
         'reqs': <Object>[
-          {'cardOrd': 0, 'kind': 'ALL', 'fieldOrds': <Object>[0, 1]},
+          {
+            'cardOrd': 0,
+            'kind': 'ALL',
+            'fieldOrds': <Object>[0, 1]
+          },
         ],
       },
     };

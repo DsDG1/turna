@@ -186,9 +186,9 @@ String genrePromptBlock() {
   }
   lines.add(
     'Rule: if the user inserts a genre tag in the topic or extra '
-        'instructions, generate the corresponding template structure for the '
-        'matching unit or lesson; untagged parts fall back to the default '
-        'template.',
+    'instructions, generate the corresponding template structure for the '
+    'matching unit or lesson; untagged parts fall back to the default '
+    'template.',
   );
   return lines.join('\n');
 }

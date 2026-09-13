@@ -207,7 +207,8 @@ void main() {
       final batch = (result as OfficialFormalReviewReady).batch;
       expect(batch.items, isNotEmpty);
       expect(
-        batch.items.every((i) => i.ledgerOwner == StudyLedgerOwner.officialAnki),
+        batch.items
+            .every((i) => i.ledgerOwner == StudyLedgerOwner.officialAnki),
         isTrue,
       );
       expect(batch.items.every((i) => i.presentation is FlipCardPresentation),
@@ -626,7 +627,6 @@ void main() {
     },
   );
 }
-
 
 void _registerOfficialImport(String importId) {
   OfficialFormalDueRepository.instance.commit(

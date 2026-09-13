@@ -61,18 +61,20 @@ void main() {
     // toolchain host must produce an identical list.
     expect(caps.length, 41, reason: caps.toList().join(','));
     expect(caps.contains('RESTORE_BACKUP'), isTrue);
-    expect(caps.containsAll(<String>[
-      'RENDER_CARD',
-      'COMPARE_TYPED_ANSWER',
-      'EXTRACT_CLOZE_FOR_TYPING',
-      'GET_REVIEW_QUEUE',
-      'REDO',
-      'DELETE_NOTES',
-      'SCHEDULE_CARDS_AS_NEW',
-      'ANSWER_AHEAD_CARDS',
-      'ENSURE_TODAY_NEW_QUOTA',
-      'GET_PROJECTION_SCHEMAS',
-    ]), isTrue);
+    expect(
+        caps.containsAll(<String>[
+          'RENDER_CARD',
+          'COMPARE_TYPED_ANSWER',
+          'EXTRACT_CLOZE_FOR_TYPING',
+          'GET_REVIEW_QUEUE',
+          'REDO',
+          'DELETE_NOTES',
+          'SCHEDULE_CARDS_AS_NEW',
+          'ANSWER_AHEAD_CARDS',
+          'ENSURE_TODAY_NEW_QUOTA',
+          'GET_PROJECTION_SCHEMAS',
+        ]),
+        isTrue);
   });
 
   test('fixture, VERSION file, and Dart constants agree on the version', () {
@@ -81,37 +83,58 @@ void main() {
     expect((golden['payload'] as Map)['contractMinor'],
         kOfficialAnkiContractMinor);
     expect(
-      File('native/turna_anki_core/contract/VERSION')
-          .readAsStringSync()
-          .trim(),
+      File('native/turna_anki_core/contract/VERSION').readAsStringSync().trim(),
       '$kOfficialAnkiContractMajor.$kOfficialAnkiContractMinor',
     );
   });
 
   test('scheduler operation ids stay pinned', () {
-    expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.setCurrentDeck), 11);
-    expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.getReviewQueue), 12);
+    expect(
+        OfficialAnkiOperation.idFor(OfficialAnkiOperation.setCurrentDeck), 11);
+    expect(
+        OfficialAnkiOperation.idFor(OfficialAnkiOperation.getReviewQueue), 12);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.answerCard), 14);
-    expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.getUndoStatus), 15);
+    expect(
+        OfficialAnkiOperation.idFor(OfficialAnkiOperation.getUndoStatus), 15);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.undo), 16);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.redo), 27);
-    expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.buryOrSuspendCards), 28);
-    expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.countsForDeckToday), 29);
+    expect(
+        OfficialAnkiOperation.idFor(OfficialAnkiOperation.buryOrSuspendCards),
+        28);
+    expect(
+        OfficialAnkiOperation.idFor(OfficialAnkiOperation.countsForDeckToday),
+        29);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.congratsInfo), 30);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.deleteNotes), 31);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.deleteCards), 32);
-    expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.statsForCardsBatch), 33);
-    expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.scheduleCardsAsNew), 34);
-    expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.answerAheadCards), 35);
-    expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.ensureTodayNewQuota), 36);
-    expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.gcUnusedMedia), 37);
-    expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.pruneEmptyMetadata), 38);
-    expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.compactCollection), 39);
-    expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.diffCollectionCheckpoint), 40);
+    expect(
+        OfficialAnkiOperation.idFor(OfficialAnkiOperation.statsForCardsBatch),
+        33);
+    expect(
+        OfficialAnkiOperation.idFor(OfficialAnkiOperation.scheduleCardsAsNew),
+        34);
+    expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.answerAheadCards),
+        35);
+    expect(
+        OfficialAnkiOperation.idFor(OfficialAnkiOperation.ensureTodayNewQuota),
+        36);
+    expect(
+        OfficialAnkiOperation.idFor(OfficialAnkiOperation.gcUnusedMedia), 37);
+    expect(
+        OfficialAnkiOperation.idFor(OfficialAnkiOperation.pruneEmptyMetadata),
+        38);
+    expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.compactCollection),
+        39);
+    expect(
+        OfficialAnkiOperation.idFor(
+            OfficialAnkiOperation.diffCollectionCheckpoint),
+        40);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.getConfig), 41);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.setConfig), 42);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.renderCard), 10);
-    expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.compareTypedAnswer), 22);
+    expect(
+        OfficialAnkiOperation.idFor(OfficialAnkiOperation.compareTypedAnswer),
+        22);
     expect(
       OfficialAnkiOperation.idFor(OfficialAnkiOperation.extractClozeForTyping),
       23,

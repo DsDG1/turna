@@ -121,7 +121,8 @@ class _AnkiMediaStripState extends State<AnkiMediaStrip> {
   }
 
   static bool _isExternalMedia(String asset) =>
-      AnkiAudioResolver.isAnkiAsset(asset) || CoursePackMedia.isPackAsset(asset);
+      AnkiAudioResolver.isAnkiAsset(asset) ||
+      CoursePackMedia.isPackAsset(asset);
 
   @override
   Widget build(BuildContext context) {

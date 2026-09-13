@@ -159,7 +159,8 @@ void main() {
     });
   });
 
-  group('removeForAnkiDeletion', () {    MistakeEntry ankiEntry(
+  group('removeForAnkiDeletion', () {
+    MistakeEntry ankiEntry(
       String id, {
       required String lessonId,
       String? wordId,
@@ -286,8 +287,7 @@ void main() {
       expect(legacy.masteredTotal, 0);
     });
 
-    test('a corrupted dailyCounts payload degrades to an empty map',
-        () async {
+    test('a corrupted dailyCounts payload degrades to an empty map', () async {
       await prefs.preferences.setString(
         LocalStateKeys.mistakeDailyCounts,
         'not-json',

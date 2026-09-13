@@ -172,8 +172,9 @@ class CourseCatalog {
       for (final code in builtinCodes)
         CourseCatalogEntry(
           scope: BuiltinCourseScope(code),
-          displayName: ImportedLanguageRegistry.instance.displayNameOrNull(code) ??
-              LanguageRegistry.instance.displayName(code),
+          displayName:
+              ImportedLanguageRegistry.instance.displayNameOrNull(code) ??
+                  LanguageRegistry.instance.displayName(code),
           isBuiltin: true,
           sectionCount: sections.where((s) {
             if (s.level == 'Anki' ||
@@ -273,10 +274,9 @@ class CourseCatalog {
     String? languageCode,
   }) {
     return switch (scope) {
-      BuiltinCourseScope(languageCode: final code) =>
-        languageCode != null &&
-            LanguageCodes.canonicalize(languageCode) ==
-                LanguageCodes.canonicalize(code),
+      BuiltinCourseScope(languageCode: final code) => languageCode != null &&
+          LanguageCodes.canonicalize(languageCode) ==
+              LanguageCodes.canonicalize(code),
       LegacyAnkiCourseScope(importId: final id) =>
         legacyImportIdFromSectionId(sectionId) == id,
       OfficialAnkiCourseScope(sourceId: final id) =>

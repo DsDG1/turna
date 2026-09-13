@@ -293,7 +293,8 @@ class OfficialAnkiSourceAwareBrowser {
       if (back.isEmpty) {
         back = stripHtml(rendered.answerHtml).trim();
       }
-      final value = (front: front.isEmpty ? 'card #$cardId' : front, back: back);
+      final value =
+          (front: front.isEmpty ? 'card #$cardId' : front, back: back);
       previewCache.put(cardId, value);
       return value;
     } catch (_) {
@@ -310,7 +311,7 @@ class OfficialAnkiSourceAwareBrowser {
     required String search,
     required Set<int> allowed,
   }) async {
-    for (var attempt = 0; ; attempt++) {
+    for (var attempt = 0;; attempt++) {
       try {
         final ids = <int>[];
         String? pageToken;

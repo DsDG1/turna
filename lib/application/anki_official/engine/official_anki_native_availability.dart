@@ -3,7 +3,9 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
-import 'official_anki_native_transport.dart';/// Process-wide answer to "is `libturna_anki.so` actually loadable here?".
+import 'official_anki_native_transport.dart';
+
+/// Process-wide answer to "is `libturna_anki.so` actually loadable here?".
 ///
 /// The cutover flags default **on**, so routing decisions claim the official
 /// engine on Android even when the library is not packaged (wrong-ABI APK,

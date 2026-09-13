@@ -17,7 +17,8 @@ class OfficialAnkiInProcessHost implements OfficialAnkiImporter {
     required OfficialAnkiPaths paths,
     String? libraryPath,
   }) {
-    final transport = OfficialAnkiNativeTransport.open(libraryPath: libraryPath);
+    final transport =
+        OfficialAnkiNativeTransport.open(libraryPath: libraryPath);
     final engine = OfficialAnkiWorker(FfiOfficialAnkiEngine.connect(transport));
     final db = OfficialAnkiDatabase.file(paths.catalogFile.path);
     OfficialAnkiCourseEntry.catalogOf = () => db;

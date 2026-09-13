@@ -27,9 +27,8 @@ class UnifiedReviewCompletion extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final recallRate = totalCount > 0
-        ? ((rememberedCount / totalCount) * 100).round()
-        : 0;
+    final recallRate =
+        totalCount > 0 ? ((rememberedCount / totalCount) * 100).round() : 0;
     final showRewards = totalCount > 0 && (xpEarned > 0 || gemsEarned > 0);
 
     return Center(

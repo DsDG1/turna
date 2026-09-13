@@ -26,8 +26,7 @@ class BuiltinCourseScope extends CourseScope {
 
   final String languageCode;
 
-  String get canonicalLanguageCode =>
-      LanguageCodes.canonicalize(languageCode);
+  String get canonicalLanguageCode => LanguageCodes.canonicalize(languageCode);
 
   @override
   bool operator ==(Object other) =>

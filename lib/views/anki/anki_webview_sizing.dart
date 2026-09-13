@@ -73,10 +73,9 @@ AnkiWebViewSizingResult resolveAnkiWebViewSizing(AnkiWebViewSizingInput input) {
   // to edge; phones keep the standard page padding.
   final double horizontalPadding;
   if (tablet) {
-    horizontalPadding =
-        ((input.viewport.width - ankiWebViewTabletMaxWidth) / 2)
-            .clamp(20, 1000)
-            .toDouble();
+    horizontalPadding = ((input.viewport.width - ankiWebViewTabletMaxWidth) / 2)
+        .clamp(20, 1000)
+        .toDouble();
   } else if (input.viewport.width < 380) {
     horizontalPadding = 16;
   } else {
@@ -137,8 +136,9 @@ double resolveLessonCardHeight({
   if (contentHeight == null || !contentHeight.isFinite || contentHeight <= 0) {
     return currentHeight;
   }
-  final candidate =
-      contentHeight.clamp(sizing.minCardHeight, sizing.maxCardHeight).toDouble();
+  final candidate = contentHeight
+      .clamp(sizing.minCardHeight, sizing.maxCardHeight)
+      .toDouble();
   if ((candidate - currentHeight).abs() < ankiWebViewHeightEpsilon) {
     return currentHeight;
   }

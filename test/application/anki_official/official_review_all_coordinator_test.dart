@@ -180,8 +180,7 @@ void main() {
     expect(batch.items.map((i) => i.cardKey.cardId).toSet(), {1, 2});
   });
 
-  test('locked scheduler cards are NoDue, not a ready empty session',
-      () async {
+  test('locked scheduler cards are NoDue, not a ready empty session', () async {
     // P1: "course not completed yet" is a scheduler suspension, so the
     // queue itself is empty — that is what makes the session NoDue. The
     // Dart-side introduced filter that used to produce this empty state no
@@ -213,7 +212,8 @@ void main() {
       profileId: 'profile-test',
     );
 
-    final result = await loader.load(importId: 'src-new', courseId: 'anki-src-new');
+    final result =
+        await loader.load(importId: 'src-new', courseId: 'anki-src-new');
     expect(result, isA<OfficialFormalReviewNoDue>());
   });
 

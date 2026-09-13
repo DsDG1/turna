@@ -27,7 +27,8 @@ void main() {
     root = Directory.systemTemp.createTempSync('turna-v2-ghost-');
     paths = OfficialAnkiPaths(
       profileId: 'profile-v2-ghost',
-      profileRoot: Directory(p.join(root.path, 'live'))..createSync(recursive: true),
+      profileRoot: Directory(p.join(root.path, 'live'))
+        ..createSync(recursive: true),
     );
     await engine.openProfile(paths);
     engine.cards[1] = const OfficialAnkiCardDescriptor(
@@ -57,7 +58,8 @@ void main() {
     } catch (_) {}
   });
 
-  test('deletes collection cards not owned by active/retiring sources', () async {
+  test('deletes collection cards not owned by active/retiring sources',
+      () async {
     sources.upsertSource(
       sourceId: 'src-live',
       profileId: paths.profileId,

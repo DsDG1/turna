@@ -176,7 +176,8 @@ void main() {
   }) {
     final profileRoot = Directory(p.join(tmp.path, 'official_anki', 'default'));
     profileRoot.createSync(recursive: true);
-    File(p.join(profileRoot.path, 'collection.anki2')).writeAsBytesSync([1, 2, 3, 4]);
+    File(p.join(profileRoot.path, 'collection.anki2'))
+        .writeAsBytesSync([1, 2, 3, 4]);
     final catalogPath = p.join(profileRoot.path, 'official_catalog.sqlite');
     final catalog = OfficialAnkiDatabase.file(catalogPath);
     addTearDown(catalog.close);
@@ -194,7 +195,8 @@ void main() {
       deps: AnkiImportDependencies(
         planFor: ({required flags, required filePath}) =>
             AnkiImportFacade.planFor(flags, filePath: filePath),
-        pickFilePath: ({required allowedExtensions, required dialogTitle}) async =>
+        pickFilePath: (
+                {required allowedExtensions, required dialogTitle}) async =>
             pkg.path,
         officialFirst: const OfficialAnkiOfficialFirstService(),
         courseDatabase: course,
@@ -235,7 +237,8 @@ void main() {
       expect(
         h.sources.listSources(h.paths.profileId),
         isEmpty,
-        reason: 'catalog must have no source row for a cancelled staging import',
+        reason:
+            'catalog must have no source row for a cancelled staging import',
       );
       expect(
         _stagingLeftover(h.paths),
@@ -268,7 +271,8 @@ void main() {
             onTimeout: () => fail('preview discard exceeded 2s (S-b hang)'),
           );
 
-      expect(silent, isEmpty, reason: 'discard must not swallow unawaited errors');
+      expect(silent, isEmpty,
+          reason: 'discard must not swallow unawaited errors');
       expect(
         live.collectionGeneration,
         generationBefore,

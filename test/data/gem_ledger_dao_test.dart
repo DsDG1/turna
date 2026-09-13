@@ -49,8 +49,7 @@ void main() {
     expect(await ledger.projectedBalance(), 0);
   });
 
-  test('double tap / retry with the same key never double-charges',
-      () async {
+  test('double tap / retry with the same key never double-charges', () async {
     const key = 'purchase-ring_reed-fixed';
     for (var i = 0; i < 3; i++) {
       await ledger.purchase(

@@ -22,8 +22,7 @@ void main() {
       expect(
         RegExp(r'\.maybePop\(').hasMatch(source),
         isFalse,
-        reason:
-            'AnkiImportPage sits behind PopScope(canPop: false); any '
+        reason: 'AnkiImportPage sits behind PopScope(canPop: false); any '
             'maybePop in it re-enters the blocked-pop callback forever. '
             'Leave via context.router.pop() (bypasses the gate) instead.',
       );
@@ -31,7 +30,8 @@ void main() {
 
     test('pop handler and back arrow pop unconditionally after confirm', () {
       expect(
-        source.contains(RegExp(r'leave && context\.mounted\) context\.router\.pop\(\)')),
+        source.contains(
+            RegExp(r'leave && context\.mounted\) context\.router\.pop\(\)')),
         isTrue,
         reason: 'both confirm-gated leave paths must bypass the canPop gate',
       );

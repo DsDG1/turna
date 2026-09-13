@@ -154,9 +154,8 @@ class ValidatedFilePicker {
 
       var cleanBase = file.name.trim();
       if (cleanBase.isEmpty) {
-        cleanBase = rawPath != null
-            ? rawPath.split(RegExp(r'[/\\]')).last
-            : 'import';
+        cleanBase =
+            rawPath != null ? rawPath.split(RegExp(r'[/\\]')).last : 'import';
       }
 
       final lower = cleanBase.toLowerCase();

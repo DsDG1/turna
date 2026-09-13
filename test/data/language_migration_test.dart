@@ -25,7 +25,8 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   ensureSqliteLibForTestHost();
 
-  test('v24 database migrates SRS, history and mistakes onto turkish', () async {
+  test('v24 database migrates SRS, history and mistakes onto turkish',
+      () async {
     final path = await _tempDbPath();
     addTearDown(() async {
       final parent = File(path).parent;
@@ -115,7 +116,8 @@ void main() {
     expect(migrated.schemaVersion, CourseDatabase.kSchemaVersion);
 
     final dao = SrsStateDao(migrated);
-    final loaded = await dao.loadQueue('srs', languageCode: LanguageCodes.turkish);
+    final loaded =
+        await dao.loadQueue('srs', languageCode: LanguageCodes.turkish);
     expect(loaded.keys, ['w-merhaba']);
     final word = loaded['w-merhaba']!;
     expect(word.dueAt.millisecondsSinceEpoch, dueAt);
@@ -128,29 +130,37 @@ void main() {
     expect(word.fsrsState, 2);
     expect(word.lastReviewedAt!.millisecondsSinceEpoch, lastReviewed);
 
-    final row = await migrated.customSelect(
-      "SELECT language_code, source_kind, source_id FROM srs_states WHERE word_id = 'w-merhaba'",
-    ).getSingle();
+    final row = await migrated
+        .customSelect(
+          "SELECT language_code, source_kind, source_id FROM srs_states WHERE word_id = 'w-merhaba'",
+        )
+        .getSingle();
     expect(row.read<String>('language_code'), LanguageCodes.turkish);
     expect(row.read<String>('source_kind'), 'builtin');
     expect(row.read<String>('source_id'), LanguageCodes.turkish);
 
-    final event = await migrated.customSelect(
-      "SELECT language_code, quality, next_interval_days FROM review_events WHERE card_id = 'w-merhaba'",
-    ).getSingle();
+    final event = await migrated
+        .customSelect(
+          "SELECT language_code, quality, next_interval_days FROM review_events WHERE card_id = 'w-merhaba'",
+        )
+        .getSingle();
     expect(event.read<String>('language_code'), LanguageCodes.turkish);
     expect(event.read<int>('quality'), 4);
     expect(event.read<int>('next_interval_days'), 11);
 
     // CourseMeta bucketing: the legacy unsuffixed key is copied (not
     // renamed) to contentVersion:tr; both stay readable.
-    final bucket = await migrated.customSelect(
-      "SELECT value FROM course_meta WHERE key = 'contentVersion:tr'",
-    ).getSingleOrNull();
+    final bucket = await migrated
+        .customSelect(
+          "SELECT value FROM course_meta WHERE key = 'contentVersion:tr'",
+        )
+        .getSingleOrNull();
     expect(bucket?.read<String>('value'), '12+4');
-    final legacyMeta = await migrated.customSelect(
-      "SELECT value FROM course_meta WHERE key = 'contentVersion'",
-    ).getSingleOrNull();
+    final legacyMeta = await migrated
+        .customSelect(
+          "SELECT value FROM course_meta WHERE key = 'contentVersion'",
+        )
+        .getSingleOrNull();
     expect(legacyMeta?.read<String>('value'), '12+4');
 
     SharedPreferences.setMockInitialValues({
@@ -256,14 +266,18 @@ void main() {
     expect(migrated.schemaVersion, 26);
 
     // Rows survive with the language backfilled to 'tr'.
-    final lesson = await migrated.customSelect(
-      "SELECT language_code, name FROM lessons WHERE id = 'l-shared'",
-    ).getSingle();
+    final lesson = await migrated
+        .customSelect(
+          "SELECT language_code, name FROM lessons WHERE id = 'l-shared'",
+        )
+        .getSingle();
     expect(lesson.read<String>('language_code'), LanguageCodes.turkish);
     expect(lesson.read<String>('name'), 'Lesson 1');
-    final content = await migrated.customSelect(
-      "SELECT content_json FROM lesson_contents WHERE lesson_id = 'l-shared'",
-    ).getSingle();
+    final content = await migrated
+        .customSelect(
+          "SELECT content_json FROM lesson_contents WHERE lesson_id = 'l-shared'",
+        )
+        .getSingle();
     expect(content.read<String>('content_json'), '{"stages":[]}');
 
     // The PK is now composite: the same id under another language coexists.
@@ -271,14 +285,17 @@ void main() {
       "INSERT INTO lessons (id, language_code, unit_id, name, description) "
       "VALUES ('l-shared', 'fr', 'u-1', 'Leçon 1', '')",
     );
-    final both = await migrated.customSelect(
-      "SELECT language_code FROM lessons WHERE id = 'l-shared' "
-      "ORDER BY language_code",
-    ).get();
+    final both = await migrated
+        .customSelect(
+          "SELECT language_code FROM lessons WHERE id = 'l-shared' "
+          "ORDER BY language_code",
+        )
+        .get();
     expect(both.map((r) => r.read<String>('language_code')), ['fr', 'tr']);
 
     // PRAGMA table_info shows language_code + id as the (composite) PK.
-    final info = await migrated.customSelect('PRAGMA table_info(lessons)').get();
+    final info =
+        await migrated.customSelect('PRAGMA table_info(lessons)').get();
     final pkCols = [
       for (final row in info)
         if ((row.data['pk'] as int? ?? row.read<int>('pk')) > 0)
@@ -289,7 +306,8 @@ void main() {
     await migrated.close();
   });
 
-  test('restoreCourseDbFromBackup replaces a broken db with the newest snapshot',
+  test(
+      'restoreCourseDbFromBackup replaces a broken db with the newest snapshot',
       () async {
     final path = await _tempDbPath();
     addTearDown(() async {
@@ -320,7 +338,8 @@ void main() {
     expect(await File('$path.v25.bak').exists(), isTrue); // backup kept
     expect(await File('$path-wal').exists(), isFalse); // sidecars dropped
     final check = sqlite.sqlite3.open(dbFile.path);
-    expect(check.select('PRAGMA user_version').first['user_version'] as int, 25);
+    expect(
+        check.select('PRAGMA user_version').first['user_version'] as int, 25);
     expect(
       check.select("SELECT value FROM course_meta WHERE key = 'k'").length,
       1,

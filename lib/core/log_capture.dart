@@ -254,7 +254,8 @@ class LogCapture {
 
       final parent = active.parent;
       // 1) 删除最旧的 rotate 文件
-      final oldest = File('${parent.path}/${_rotatedFileName(_maxRotatedFiles)}');
+      final oldest =
+          File('${parent.path}/${_rotatedFileName(_maxRotatedFiles)}');
       if (await oldest.exists()) {
         await oldest.delete();
       }

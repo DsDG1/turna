@@ -5,7 +5,6 @@ import 'package:turna/domain/anki/card_introduction_state.dart';
 
 import '../helpers/in_memory_course_db.dart';
 
-
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 

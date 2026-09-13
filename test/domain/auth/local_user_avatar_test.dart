@@ -77,8 +77,7 @@ void main() {
     });
 
     test('catalog always includes the default avatar', () {
-      final hasDefault =
-          AvatarCatalog.all.any((a) => a.id == kAvatarDefaultId);
+      final hasDefault = AvatarCatalog.all.any((a) => a.id == kAvatarDefaultId);
       expect(hasDefault, isTrue);
     });
 

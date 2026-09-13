@@ -24,8 +24,8 @@ class ScrollHideBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final a11y = context.watch<AccessibilityProvider>();
-    final reduceMotion = MediaQuery.disableAnimationsOf(context) ||
-        a11y.reducedMotion;
+    final reduceMotion =
+        MediaQuery.disableAnimationsOf(context) || a11y.reducedMotion;
 
     return IgnorePointer(
       ignoring: hidden,

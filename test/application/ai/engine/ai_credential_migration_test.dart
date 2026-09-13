@@ -76,7 +76,8 @@ void main() {
     return holder;
   }
 
-  test('migrates a legacy plaintext key to the secure store and sanitizes '
+  test(
+      'migrates a legacy plaintext key to the secure store and sanitizes '
       'the prefs blob', () async {
     const legacy = AiEngineConfig(
       apiKey: 'sk-secret-123456',

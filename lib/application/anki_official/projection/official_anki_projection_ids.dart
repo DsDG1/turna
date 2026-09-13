@@ -28,7 +28,8 @@ String officialAnkiSectionIdForTopDeck({
   if (topDeckName.isEmpty || topDeckName == 'Recovered') {
     return officialAnkiSectionId(sourceId: sourceId, topDeckId: 0);
   }
-  final id = topDeckIds[topDeckName] ?? officialAnkiStableTopDeckId(topDeckName);
+  final id =
+      topDeckIds[topDeckName] ?? officialAnkiStableTopDeckId(topDeckName);
   return officialAnkiSectionId(sourceId: sourceId, topDeckId: id);
 }
 

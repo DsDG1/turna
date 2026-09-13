@@ -156,9 +156,9 @@ void main() {
     // Without filters, offset+limit must page the full set exactly once.
     final all = <int>[];
     for (var offset = 0; offset < 12; offset += 4) {
-      all.addAll((await noteDao.searchNotes('imp1', 'front',
-              limit: 4, offset: offset))
-          .map((r) => r.card.cardId));
+      all.addAll(
+          (await noteDao.searchNotes('imp1', 'front', limit: 4, offset: offset))
+              .map((r) => r.card.cardId));
     }
     expect(all, [for (var i = 1; i <= 10; i++) i]);
   });
@@ -185,6 +185,4 @@ void main() {
     expect(await countOf('anki_notes', 'imp1'), 0);
     expect(await countOf('anki_cards_meta', 'imp1'), 0);
   });
-
-
 }

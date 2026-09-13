@@ -67,14 +67,12 @@ class _AchievementsPageState extends State<AchievementsPage> {
 
     final views = service.progressViews();
     final totalCount = AchievementCatalog.totalBadgeCount;
-    final unlockedCount = showAllUnlocked
-        ? totalCount
-        : service.unlockedBadgeCount;
+    final unlockedCount =
+        showAllUnlocked ? totalCount : service.unlockedBadgeCount;
     final latest = service.latestUnlock;
 
     final inProgressViews = views
-        .where((v) =>
-            !v.isSeriesComplete && v.currentProgress > 0)
+        .where((v) => !v.isSeriesComplete && v.currentProgress > 0)
         .toList(growable: false);
     final unlockedViews =
         views.where((v) => v.completedTierCount > 0).toList(growable: false);
@@ -344,9 +342,8 @@ class _RecentRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final tier = AchievementCatalog.tierById(tierId);
     if (tier == null) return const SizedBox.shrink();
-    final series = AchievementCatalog.allSeries
-        .where((s) => s.tiers.contains(tier))
-        .first;
+    final series =
+        AchievementCatalog.allSeries.where((s) => s.tiers.contains(tier)).first;
     final accent = AchievementUiCatalog.colorFor(series.id);
     final date =
         '${unlockedAt.year}-${unlockedAt.month.toString().padLeft(2, '0')}-${unlockedAt.day.toString().padLeft(2, '0')}';

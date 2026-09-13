@@ -71,8 +71,7 @@ void main() {
             'masquerade as "no due"');
     final blocked = result as OfficialFormalReviewBlocked;
     expect(blocked.sourceId, 'src-a');
-    expect(blocked.schedulerCardCount, 2,
-        reason: 'the queue really had cards');
+    expect(blocked.schedulerCardCount, 2, reason: 'the queue really had cards');
     expect(blocked.failures, hasLength(2));
     expect(blocked.failures.map((f) => f.cardId), {1, 2});
     expect(blocked.failures.first.code, 'renderFailed');
@@ -80,7 +79,8 @@ void main() {
     expect(blocked.failures.first.stage, isNotNull);
   });
 
-  test('partial render failure → Ready keeps failures for the summary', () async {
+  test('partial render failure → Ready keeps failures for the summary',
+      () async {
     engine.failRenderFor = {2};
     final result = await _loader(engine).load(importId: 'src-a', courseId: 'c');
 
@@ -151,7 +151,9 @@ void main() {
       renderer: renderer,
       assembler: const OfficialStudyBatchAssembler(profileId: 'profile-test'),
       items: [],
-      activePlacementCardKeys: {for (final id in const [1, 2, 3]) key(id)},
+      activePlacementCardKeys: {
+        for (final id in const [1, 2, 3]) key(id)
+      },
     );
 
     // Card 2 cannot render. The first rebuild collects the failure while

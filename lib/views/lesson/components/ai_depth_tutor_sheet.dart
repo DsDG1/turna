@@ -178,8 +178,7 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final configured =
-        context.watch<AiEngineConfigHolder>().config.isComplete;
+    final configured = context.watch<AiEngineConfigHolder>().config.isComplete;
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
@@ -429,6 +428,4 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
               color: TurnaTheme.brandTeal,
             ),
       );
-
 }
-

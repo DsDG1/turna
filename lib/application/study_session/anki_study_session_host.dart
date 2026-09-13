@@ -108,7 +108,8 @@ class AnkiStudySessionHost {
       // shows the wrong card face.
       sessionItemId: '${mode.name}-${key.sourceId}-${key.cardId}',
       courseId: courseId,
-      placementId: placementId.isEmpty ? '${key.sourceId}-${key.cardId}' : placementId,
+      placementId:
+          placementId.isEmpty ? '${key.sourceId}-${key.cardId}' : placementId,
       cardKey: key,
       presentation: presentation,
       mode: mode,

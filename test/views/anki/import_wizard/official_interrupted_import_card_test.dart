@@ -20,7 +20,8 @@ void main() {
     expect(find.text(AppStrings.ankiPendingImportTitle), findsOneWidget);
     expect(find.text('Large Fixture'), findsOneWidget);
     expect(find.text(AppStrings.ankiImportSystemError), findsOneWidget);
-    expect(find.text(AppStrings.ankiPendingMustDiscardBeforeNew), findsOneWidget);
+    expect(
+        find.text(AppStrings.ankiPendingMustDiscardBeforeNew), findsOneWidget);
     expect(find.text(AppStrings.ankiPendingContinue), findsNothing);
     expect(find.text(AppStrings.ankiPendingImportBody('Large Fixture')),
         findsOneWidget);

@@ -47,9 +47,8 @@ void main() {
         if (entity == FileSystemEntityType.file) {
           _scanFile(File(root), needles, violations);
         } else {
-          for (final file in Directory(root)
-              .listSync(recursive: true)
-              .whereType<File>()) {
+          for (final file
+              in Directory(root).listSync(recursive: true).whereType<File>()) {
             if (_shouldSkip(file.path)) continue;
             _scanFile(file, needles, violations);
           }
@@ -99,7 +98,8 @@ void main() {
         isTrue,
       );
 
-      final so = File('android/app/src/main/jniLibs/arm64-v8a/libturna_anki.so');
+      final so =
+          File('android/app/src/main/jniLibs/arm64-v8a/libturna_anki.so');
       expect(so.existsSync(), isTrue,
           reason: 'arm64 Official native library must be packaged');
     });

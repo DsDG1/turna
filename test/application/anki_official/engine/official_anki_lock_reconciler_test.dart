@@ -63,9 +63,12 @@ void main() {
       OfficialAnkiSourceDao(catalog).upsertCardBatch(
         sourceId: 'src-lr',
         cards: const [
-          OfficialAnkiCardDescriptor(cardId: 1, noteId: 1, deckId: 1, templateOrd: 0),
-          OfficialAnkiCardDescriptor(cardId: 2, noteId: 2, deckId: 1, templateOrd: 0),
-          OfficialAnkiCardDescriptor(cardId: 3, noteId: 3, deckId: 1, templateOrd: 0),
+          OfficialAnkiCardDescriptor(
+              cardId: 1, noteId: 1, deckId: 1, templateOrd: 0),
+          OfficialAnkiCardDescriptor(
+              cardId: 2, noteId: 2, deckId: 1, templateOrd: 0),
+          OfficialAnkiCardDescriptor(
+              cardId: 3, noteId: 3, deckId: 1, templateOrd: 0),
         ],
       );
       await store.markIntroducedCard(
@@ -83,12 +86,16 @@ void main() {
       expect(engine.suspended, {1, 3});
     });
 
-    test('reconcile is a no-op when everything is introduced and never restores a user suspension', () async {
+    test(
+        'reconcile is a no-op when everything is introduced and never restores a user suspension',
+        () async {
       OfficialAnkiSourceDao(catalog).upsertCardBatch(
         sourceId: 'src-lr',
         cards: const [
-          OfficialAnkiCardDescriptor(cardId: 1, noteId: 1, deckId: 1, templateOrd: 0),
-          OfficialAnkiCardDescriptor(cardId: 2, noteId: 2, deckId: 1, templateOrd: 0),
+          OfficialAnkiCardDescriptor(
+              cardId: 1, noteId: 1, deckId: 1, templateOrd: 0),
+          OfficialAnkiCardDescriptor(
+              cardId: 2, noteId: 2, deckId: 1, templateOrd: 0),
         ],
       );
       await store.markIntroducedCard(
@@ -117,7 +124,8 @@ void main() {
       expect(engine.suspended, {2}, reason: 'the user suspension survives');
     });
 
-    test('reconcile is fail-closed without an engine or projection rows', () async {
+    test('reconcile is fail-closed without an engine or projection rows',
+        () async {
       expect(
         await OfficialAnkiLockReconciler(
           engine: null,

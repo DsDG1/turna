@@ -145,8 +145,7 @@ void main() {
     expect(find.text('hello'), findsOneWidget);
   });
 
-  testWidgets(
-      'shared AiExplainPrefsStore shapes AiHintProvider system prompt',
+  testWidgets('shared AiExplainPrefsStore shapes AiHintProvider system prompt',
       (tester) async {
     final prefs = AiExplainPrefsStore(
       initial: const AiExplainPrefsSnapshot(
@@ -209,7 +208,8 @@ void main() {
     expect(sys2.toLowerCase(), contains('detailed'));
   });
 
-  testWidgets('incomplete config holder exposes isComplete false for panel gate',
+  testWidgets(
+      'incomplete config holder exposes isComplete false for panel gate',
       (tester) async {
     final holder = AiEngineConfigHolder();
     expect(holder.config.isComplete, isFalse);

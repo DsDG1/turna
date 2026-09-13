@@ -112,7 +112,8 @@ void main() {
 
   test('a same-language restore still refreshes the queue from the DB',
       () async {
-    await prefs.setString(PrefsConstants.currentLanguage, LanguageCodes.turkish);
+    await prefs.setString(
+        PrefsConstants.currentLanguage, LanguageCodes.turkish);
     await srs.ensureLoaded();
     expect(srs.state.keys, {'w-1'});
 

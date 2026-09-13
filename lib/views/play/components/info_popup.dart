@@ -145,6 +145,7 @@ class _InfoPopupHostState extends State<_InfoPopupHost>
   static const _anchorGap = 10.0;
   static const _maxPanelWidth = 360.0;
   static const _maxPanelHeight = 420.0;
+
   /// 下方至少留出这么高才把浮窗放在锚点下方，否则翻转到上方。
   static const _preferBelowMinSpace = 200.0;
 
@@ -152,9 +153,8 @@ class _InfoPopupHostState extends State<_InfoPopupHost>
   void initState() {
     super.initState();
     final a11y = widget.anchorContext.read<AccessibilityProvider>();
-    final reduceMotion =
-        MediaQuery.disableAnimationsOf(widget.anchorContext) ||
-            a11y.reducedMotion;
+    final reduceMotion = MediaQuery.disableAnimationsOf(widget.anchorContext) ||
+        a11y.reducedMotion;
     final duration =
         reduceMotion ? Duration.zero : const Duration(milliseconds: 300);
 
@@ -188,9 +188,10 @@ class _InfoPopupHostState extends State<_InfoPopupHost>
 
   @override
   Widget build(BuildContext context) {
-    final anchorBox =
-        widget.anchorContext.findRenderObject() as RenderBox?;
-    if (anchorBox == null || !anchorBox.attached) return const SizedBox.shrink();
+    final anchorBox = widget.anchorContext.findRenderObject() as RenderBox?;
+    if (anchorBox == null || !anchorBox.attached) {
+      return const SizedBox.shrink();
+    }
 
     final overlay = Overlay.of(context);
     final overlayBox = overlay.context.findRenderObject() as RenderBox;
@@ -204,15 +205,17 @@ class _InfoPopupHostState extends State<_InfoPopupHost>
     final overlaySize = overlayBox.size;
     final belowSpace = overlaySize.height - anchorRect.bottom - _anchorGap;
     final aboveSpace = anchorRect.top - _anchorGap;
-    final placeBelow = belowSpace >= _preferBelowMinSpace || belowSpace >= aboveSpace;
+    final placeBelow =
+        belowSpace >= _preferBelowMinSpace || belowSpace >= aboveSpace;
 
     final panelWidth =
         _maxPanelWidth.clamp(0.0, overlaySize.width - _panelMargin * 2);
     final left = (anchorRect.center.dx - panelWidth / 2)
         .clamp(_panelMargin, overlaySize.width - panelWidth - _panelMargin);
 
-    final maxPanelHeight = (placeBelow ? belowSpace : aboveSpace)
-        .clamp(0.0, _maxPanelHeight) - _panelMargin;
+    final maxPanelHeight =
+        (placeBelow ? belowSpace : aboveSpace).clamp(0.0, _maxPanelHeight) -
+            _panelMargin;
 
     final panel = _AnimatedPanel(
       controller: _controller,
@@ -220,9 +223,8 @@ class _InfoPopupHostState extends State<_InfoPopupHost>
       semanticsLabel: widget.semanticsLabel,
       anchorCenterX: anchorRect.center.dx,
       top: placeBelow ? anchorRect.bottom + _anchorGap : null,
-      bottom: placeBelow
-          ? null
-          : overlaySize.height - anchorRect.top + _anchorGap,
+      bottom:
+          placeBelow ? null : overlaySize.height - anchorRect.top + _anchorGap,
       left: left,
       width: panelWidth,
       maxHeight: maxPanelHeight < 120 ? 120 : maxPanelHeight,

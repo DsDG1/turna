@@ -225,14 +225,13 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
     _requireCollectionOpen();
     final raw = search.trim().toLowerCase();
     final excludeSuspended = raw.contains('-is:suspended');
-    final wantSuspended =
-        !excludeSuspended && raw.contains('is:suspended');
+    final wantSuspended = !excludeSuspended && raw.contains('is:suspended');
     final excludeBuried = raw.contains('-is:buried');
     final wantBuried = !excludeBuried && raw.contains('is:buried');
     final excludeMarked = raw.contains('-tag:marked');
     final wantMarked = !excludeMarked && raw.contains('tag:marked');
-    final wantStudied = raw.contains('prop:reps>=1') ||
-        raw.contains('prop:reps>0');
+    final wantStudied =
+        raw.contains('prop:reps>=1') || raw.contains('prop:reps>0');
     final wantRatedToday = raw.contains('rated:1');
     final cidIds = RegExp(r'cid:([\d,]+)')
         .allMatches(raw)
@@ -291,8 +290,11 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
     if (tagMatch != null) {
       final tag = tagMatch.group(1)!;
       ids = ids
-          .where((id) => cards[id]?.tags
-              .any((candidate) => candidate.toLowerCase() == tag) == true)
+          .where((id) =>
+              cards[id]
+                  ?.tags
+                  .any((candidate) => candidate.toLowerCase() == tag) ==
+              true)
           .toList();
     }
     if (needle.isNotEmpty) {
@@ -553,10 +555,12 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
   var currentDeckId = 1;
   final buried = <int>{};
   final suspended = <int>{};
+
   /// Cards with imported history (cards.reps >= 1) — matched by the
   /// `prop:reps>=1` search term (imported-history introduction seeding).
   final studiedCardIds = <int>{};
   final answeredIds = <int>{};
+
   /// Cards Official-rated on the fake "today" — `rated:1` search.
   final ratedTodayIds = <int>{};
   int? newPerDayLimit;
@@ -997,7 +1001,8 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
   }
 
   @override
-  Future<OfficialAnkiCompactResult> compactCollection({bool force = false}) async {
+  Future<OfficialAnkiCompactResult> compactCollection(
+      {bool force = false}) async {
     compactCalls++;
     _requireCollectionOpen();
     if (failCompactInvalidState) {
@@ -1040,7 +1045,8 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
   }
 
   @override
-  Future<OfficialAnkiConfigWriteResult> setConfig(String key, Object? value) async {
+  Future<OfficialAnkiConfigWriteResult> setConfig(
+      String key, Object? value) async {
     setConfigCalls++;
     _validateConfigKey(key);
     if (!key.startsWith(_turnaConfigPrefix)) {

@@ -9,7 +9,6 @@ import 'package:turna/application/anki_official/engine/official_anki_review_sess
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/domain/anki/card_introduction_state.dart';
 
-
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -136,7 +135,6 @@ void main() {
     });
   });
 }
-
 
 void _commitSource(
   String importId, {

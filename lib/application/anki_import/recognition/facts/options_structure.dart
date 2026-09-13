@@ -96,10 +96,7 @@ class EmbeddedOptionsParser {
   static bool _hasSequentialLabels(String text) {
     final letters = RegExp(
       r'(?<![A-Za-z0-9])([A-Ha-h])(?![A-Za-z0-9])',
-    )
-        .allMatches(text)
-        .map((m) => m.group(1)!.toUpperCase())
-        .toList();
+    ).allMatches(text).map((m) => m.group(1)!.toUpperCase()).toList();
     for (var i = 1; i < letters.length; i++) {
       if (letters[i].codeUnitAt(0) == letters[i - 1].codeUnitAt(0) + 1) {
         return true;
@@ -108,10 +105,7 @@ class EmbeddedOptionsParser {
     final lineStartDigits = RegExp(
       r'^\s*([1-8])(?![0-9])',
       multiLine: true,
-    )
-        .allMatches(text)
-        .map((m) => m.group(1)!)
-        .toList();
+    ).allMatches(text).map((m) => m.group(1)!).toList();
     for (var i = 1; i < lineStartDigits.length; i++) {
       if (lineStartDigits[i].codeUnitAt(0) ==
           lineStartDigits[i - 1].codeUnitAt(0) + 1) {
@@ -311,9 +305,8 @@ class EmbeddedOptionsParser {
         .trim();
 
     // Trailing sentence punctuation (`B。` / `AC，`).
-    answerWithLabel = answerWithLabel
-        .replaceFirst(RegExp(r'[。．.;；,，、\s]+$'), '')
-        .trim();
+    answerWithLabel =
+        answerWithLabel.replaceFirst(RegExp(r'[。．.;；,，、\s]+$'), '').trim();
     if (answerWithLabel.isEmpty) return const [];
 
     // Answers often repeat the option label: `A. 选项文本` / `（B）文本`.

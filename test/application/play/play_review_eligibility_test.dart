@@ -6,8 +6,8 @@ void main() {
   test('builtin language is not an Anki review scope', () {
     expect(PlayReviewEligibility.isLanguage(const BuiltinCourseScope('tr')),
         isTrue);
-    expect(PlayReviewEligibility.isAnki(const BuiltinCourseScope('tr')),
-        isFalse);
+    expect(
+        PlayReviewEligibility.isAnki(const BuiltinCourseScope('tr')), isFalse);
     expect(PlayReviewEligibility.isLanguageScope(''), isTrue);
     expect(PlayReviewEligibility.isAnkiScope(''), isFalse);
   });

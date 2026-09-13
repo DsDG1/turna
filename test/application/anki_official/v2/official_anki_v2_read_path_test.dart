@@ -30,7 +30,6 @@ void main() {
   const part3Id = 'official-anki-src-v2-read-l-abc-p3';
   const otherLessonId = 'official-anki-legacy-l-xyz-p1';
 
-
   setUp(() async {
     catalog = OfficialAnkiDatabase.memory();
     course = CourseDatabase(NativeDatabase.memory());
@@ -130,8 +129,7 @@ void main() {
     expect(activeIds, contains('official-anki-src-v2-read-s-111'));
   });
 
-  test('flag on: retiring source disappears from shells and mapping',
-      () async {
+  test('flag on: retiring source disappears from shells and mapping', () async {
     OfficialAnkiSourceDao(catalog)
         .markRetiring(sourceId: sourceId, nowMillis: 2);
     final read = OfficialAnkiV2CourseRead(catalog: catalog, course: course);
@@ -190,11 +188,14 @@ void main() {
       course: course,
     ).sectionShells();
     final lessons = shells.single.units.single.lessons;
-    expect(lessons.map((l) => l.id).toList(), [
-      lessonId, // 首卡 7
-      part3Id, // 首卡 11
-      part2Id, // 首卡 12
-    ], reason: 'hash lesson_id 序 ≠ 卡序，按组内首卡排序');
+    expect(
+        lessons.map((l) => l.id).toList(),
+        [
+          lessonId, // 首卡 7
+          part3Id, // 首卡 11
+          part2Id, // 首卡 12
+        ],
+        reason: 'hash lesson_id 序 ≠ 卡序，按组内首卡排序');
     expect(lessons.map((l) => l.name).toList(), [
       'Deck A (1)',
       'Deck A (2)',

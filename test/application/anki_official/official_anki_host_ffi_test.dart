@@ -33,9 +33,11 @@ bool _guardNative() {
 void main() {
   final libraryPath = _libraryPath;
 
-  test('production transport loads Host .so and reports runtime metadata', () async {
+  test('production transport loads Host .so and reports runtime metadata',
+      () async {
     if (_guardNative()) return;
-    final transport = OfficialAnkiNativeTransport.open(libraryPath: libraryPath);
+    final transport =
+        OfficialAnkiNativeTransport.open(libraryPath: libraryPath);
     expect(transport.abiVersion(), 1);
     final engine = FfiOfficialAnkiEngine.connect(transport);
     addTearDown(engine.dispose);
@@ -52,7 +54,8 @@ void main() {
     expect(info.contractMinor, kOfficialAnkiContractMinor);
   });
 
-  test('Host FFI openProfile is idempotent when Collection is already open', () async {
+  test('Host FFI openProfile is idempotent when Collection is already open',
+      () async {
     if (_guardNative()) return;
     final root = Directory.systemTemp.createTempSync('turna-reopen-');
     addTearDown(() => root.deleteSync(recursive: true));
@@ -60,7 +63,8 @@ void main() {
       profileId: 'profile-reopen01',
       profileRoot: Directory('${root.path}/profile'),
     );
-    final transport = OfficialAnkiNativeTransport.open(libraryPath: libraryPath);
+    final transport =
+        OfficialAnkiNativeTransport.open(libraryPath: libraryPath);
     final engine = FfiOfficialAnkiEngine.connect(transport);
     addTearDown(engine.dispose);
     await engine.openProfile(paths);
@@ -76,7 +80,8 @@ void main() {
       profileId: 'profile-reclaim01',
       profileRoot: Directory('${root.path}/profile'),
     );
-    final transport = OfficialAnkiNativeTransport.open(libraryPath: libraryPath);
+    final transport =
+        OfficialAnkiNativeTransport.open(libraryPath: libraryPath);
     final leaked = FfiOfficialAnkiEngine.connect(transport);
     addTearDown(leaked.dispose);
     final next = FfiOfficialAnkiEngine.connect(transport);
@@ -96,7 +101,8 @@ void main() {
     );
   });
 
-  test('Dart allocator → C ABI → rslib → catalog for unicode fixture', () async {
+  test('Dart allocator → C ABI → rslib → catalog for unicode fixture',
+      () async {
     if (_guardNative()) return;
     final root = Directory.systemTemp.createTempSync('turna-host-ffi-');
     addTearDown(() => root.deleteSync(recursive: true));
@@ -104,7 +110,8 @@ void main() {
       profileId: 'profile-host-ffi01',
       profileRoot: Directory('${root.path}/profile'),
     );
-    final transport = OfficialAnkiNativeTransport.open(libraryPath: libraryPath);
+    final transport =
+        OfficialAnkiNativeTransport.open(libraryPath: libraryPath);
     final engine = FfiOfficialAnkiEngine.connect(transport);
     addTearDown(engine.dispose);
     await engine.openProfile(paths);
@@ -133,8 +140,9 @@ void main() {
     );
     addTearDown(session.dispose);
     var ticks = 0;
-    final ticker = Stream<int>.periodic(const Duration(milliseconds: 20), (i) => i)
-        .listen((_) => ticks++);
+    final ticker =
+        Stream<int>.periodic(const Duration(milliseconds: 20), (i) => i)
+            .listen((_) => ticks++);
     addTearDown(ticker.cancel);
     final pkg = File(
       p.join('test/fixtures/anki_official/packages/01-basic-unicode.apkg'),
@@ -148,7 +156,8 @@ void main() {
     expect(ticks, greaterThan(0));
   });
 
-  test('Host FFI renders nine official fixtures and compares typed answer', () async {
+  test('Host FFI renders nine official fixtures and compares typed answer',
+      () async {
     if (_guardNative()) return;
     final expectedDir = Directory('test/fixtures/anki_official/expected');
     final packages = [
@@ -169,7 +178,8 @@ void main() {
         profileId: 'profile-r${name.substring(0, 2)}01',
         profileRoot: Directory('${root.path}/profile'),
       );
-      final transport = OfficialAnkiNativeTransport.open(libraryPath: libraryPath);
+      final transport =
+          OfficialAnkiNativeTransport.open(libraryPath: libraryPath);
       final engine = FfiOfficialAnkiEngine.connect(transport);
       addTearDown(engine.dispose);
       await engine.openProfile(paths);
@@ -215,14 +225,16 @@ void main() {
       if (name == '02-basic-reversed') {
         expect(rendered.length, 2);
         expect(rendered.any((card) => card.templateOrdinal == 1), isTrue);
-        expect(rendered.any((card) => card.bodyClass.contains('card2')), isTrue);
+        expect(
+            rendered.any((card) => card.bodyClass.contains('card2')), isTrue);
         for (final card in rendered) {
           expect(card.bodyClass, contains('card${card.templateOrdinal + 1}'));
         }
       }
       if (name == '06-media-paths') {
         expect(
-          rendered.first.answerAvTags.any((tag) => tag.filename == 'paren (1).mp3'),
+          rendered.first.answerAvTags
+              .any((tag) => tag.filename == 'paren (1).mp3'),
           isTrue,
         );
         expect(rendered.first.answerDisplayHtml.contains('[sound:'), isFalse);
@@ -238,7 +250,8 @@ void main() {
       profileId: 'profile-host-sched01',
       profileRoot: Directory('${root.path}/profile'),
     );
-    final transport = OfficialAnkiNativeTransport.open(libraryPath: libraryPath);
+    final transport =
+        OfficialAnkiNativeTransport.open(libraryPath: libraryPath);
     final engine = FfiOfficialAnkiEngine.connect(transport);
     addTearDown(engine.dispose);
     await engine.openProfile(paths);

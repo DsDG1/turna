@@ -93,8 +93,8 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
     try {
       final inject = context.read<AiExplainPrefsStore>().injectLearnerContext;
       if (inject) {
-        final lang = widget.context?.language
-            ?? context.read<LanguageProvider>().displayName;
+        final lang = widget.context?.language ??
+            context.read<LanguageProvider>().displayName;
         provider.setLearnerContext(
           await LearnerAiContextAssembler.assemble(languageName: lang),
         );

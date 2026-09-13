@@ -64,7 +64,8 @@ void main() {
     await db.close();
   });
 
-  test('a cold process needs no hydration — the loader reconciles the lock '
+  test(
+      'a cold process needs no hydration — the loader reconciles the lock '
       'and the queue is the gate', () async {
     final dao = AnkiUnificationDao(db);
     await dao.upsertIntroduction(

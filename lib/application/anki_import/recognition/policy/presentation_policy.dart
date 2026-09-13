@@ -83,9 +83,7 @@ class OfficialAnkiPresentationPolicy {
         }
         return _pairFallback(enabled, values);
       case CardArchetype.typeIn:
-        if (typeAnswerEnabled &&
-            enabled.contains('typeAnswer') &&
-            hasAudio) {
+        if (typeAnswerEnabled && enabled.contains('typeAnswer') && hasAudio) {
           return OfficialAnkiProjectionKind.typeAnswer;
         }
         return _pairFallback(enabled, values);
@@ -120,7 +118,8 @@ class OfficialAnkiPresentationPolicy {
     return switch (kind) {
       OfficialAnkiProjectionKind.multipleChoice =>
         CardPresentationKind.multipleChoice,
-      OfficialAnkiProjectionKind.multiSelect => CardPresentationKind.multiSelect,
+      OfficialAnkiProjectionKind.multiSelect =>
+        CardPresentationKind.multiSelect,
       OfficialAnkiProjectionKind.fillBlank => CardPresentationKind.fillBlank,
       OfficialAnkiProjectionKind.listenPick =>
         CardPresentationKind.listenAndPick,

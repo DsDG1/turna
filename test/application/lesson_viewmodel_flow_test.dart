@@ -718,12 +718,12 @@ void main() {
       await pumpEventQueue();
 
       expect(
-        harness.srsProvider.state.keys
-            .where((k) => CanonicalCardKeyAdapter.tryParseStoredWordId(
-                  profileId: 'p',
-                  rawId: k,
-                ) !=
-                null),
+        harness.srsProvider.state.keys.where((k) =>
+            CanonicalCardKeyAdapter.tryParseStoredWordId(
+              profileId: 'p',
+              rawId: k,
+            ) !=
+            null),
         isEmpty,
         reason: 'Anki course learn must not double-write Turna SRS',
       );
@@ -894,7 +894,8 @@ void main() {
       harness.vm.advance();
       await pumpEventQueue();
       expect(harness.vm.isComplete, isTrue);
-      expect(flush.answers, isEmpty, reason: 'first pass must not write Official');
+      expect(flush.answers, isEmpty,
+          reason: 'first pass must not write Official');
       expect(lock.unlocks, hasLength(1));
       expect(lock.unlocks.single.cardIds.toSet(), {21, 22},
           reason: 'first completion lifts the scheduler lock on every '
@@ -1139,7 +1140,8 @@ void main() {
   });
 
   group('Mistake Review Flow', () {
-    test('mistake review with AnkiCard: submit remembered and forgotten advances state',
+    test(
+        'mistake review with AnkiCard: submit remembered and forgotten advances state',
         () async {
       final mistakes = [
         MistakeEntry(
@@ -1173,7 +1175,8 @@ void main() {
       ];
 
       final assembly = MistakeReviewAssembler.assemble(mistakes);
-      final harness = _buildHarness(lesson: assembly.lesson, appPrefs: appPrefs);
+      final harness =
+          _buildHarness(lesson: assembly.lesson, appPrefs: appPrefs);
       final vm = harness.vm;
       vm.loadLessonInstance(assembly.lesson, recordMistakes: false);
 
@@ -1230,7 +1233,8 @@ void main() {
       ];
 
       final assembly = MistakeReviewAssembler.assemble(mistakes);
-      final harness = _buildHarness(lesson: assembly.lesson, appPrefs: appPrefs);
+      final harness =
+          _buildHarness(lesson: assembly.lesson, appPrefs: appPrefs);
       final vm = harness.vm;
       vm.loadLessonInstance(assembly.lesson, recordMistakes: false);
 

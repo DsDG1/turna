@@ -328,8 +328,7 @@ class AppStrings {
   static String get settingsLearningLanguageTitle => '学习语言';
   static String get settingsLearningLanguageSubtitle => '选择你正在学习的语言';
   static String get settingsTtsFeatureTitle => '朗读功能';
-  static String get settingsTtsFeatureSubtitle =>
-      '开启后自动朗读生效，并可在「课程管理」中为每门课程配置';
+  static String get settingsTtsFeatureSubtitle => '开启后自动朗读生效，并可在「课程管理」中为每门课程配置';
   static String get settingsTtsSpeedTitle => 'TTS 语速';
   static String get settingsTtsSpeedSubtitle => '调整语音播放速度';
   static String settingsTtsSpeedValue(String ttsSpeed) => '${ttsSpeed}x';
@@ -360,7 +359,8 @@ class AppStrings {
       'Google TTS 就绪（$locale）——推荐用于学习';
   static String get settingsTtsGoogleInstalledMissingVoice =>
       'Google 已安装——请在系统 TTS 设置中下载土耳其语语音数据';
-  static String settingsTtsVoiceMissing(String name) => '$name 语音未就绪——打开系统 TTS 设置';
+  static String settingsTtsVoiceMissing(String name) =>
+      '$name 语音未就绪——打开系统 TTS 设置';
   static String settingsTtsGoogleMissing(Object oem) =>
       '未检测到 Google TTS（引擎：$oem）';
   static String get settingsVoiceSourceTitle => '语音来源';
@@ -618,7 +618,8 @@ class AppStrings {
   static String get courseManagementRemoveCourse => '移除课程';
   static String get courseManagementImportTitle => '从 Anki 导入课程';
   static String get courseManagementImportPackTitle => '导入课程包';
-  static String get courseManagementImportPackSubtitle => '从 .turnapack 文件添加独立课程';
+  static String get courseManagementImportPackSubtitle =>
+      '从 .turnapack 文件添加独立课程';
   static String get courseManagementImportPackDecoding => '正在解析课程包…';
   static String get courseManagementImportPackValidating => '正在校验课程内容…';
   static String get courseManagementImportPackWriting => '正在写入课程库…';
@@ -633,8 +634,7 @@ class AppStrings {
       '已移除内容的进度将被清除。';
   static String get coursePackReplaceConfirmAction => '替换';
   static String get coursePackImportCancelled => '已取消导入';
-  static String get courseManagementRestorePackMissing =>
-      '无法恢复，需重新导入课程包';
+  static String get courseManagementRestorePackMissing => '无法恢复，需重新导入课程包';
   static String get courseManagementAddTitle => '添加课程';
   static String get courseManagementRestoreTitle => '已卸载的语言';
   static String courseManagementRestore(String name) => '恢复 $name';
@@ -699,8 +699,7 @@ class AppStrings {
   static String get playDailyGotIt => '知道了';
   static String get playDailyNoQuestions => '暂无挑战题目';
   static String get playDailyCompleteFewLessons => '先完成几节课以充实题库。';
-  static String get playWeakWordsEmptyHint =>
-      '过去 30 天内错过两次的单词会出现在这里。';
+  static String get playWeakWordsEmptyHint => '过去 30 天内错过两次的单词会出现在这里。';
   static String get playWeakWordsTitleAppBar => '薄弱单词';
 
   // ── Play Hub 重构（今日复习 Hero + 复习队列 + 长按浮窗） ──
@@ -811,8 +810,7 @@ class AppStrings {
   static String get reviewMistakeReviewTitle => '错题复习';
   static String get reviewViewMistakeList => '查看错题列表';
   static String get reviewMistakeEmptyTitle => '暂无错题可复习';
-  static String get reviewMistakeEmptyHint =>
-      '错题会自动记录在此处；每次最多练习 10 个。';
+  static String get reviewMistakeEmptyHint => '错题会自动记录在此处；每次最多练习 10 个。';
   static String get reviewMyMistakesTitle => '我的错题';
   static String get reviewNoMistakesRecorded => '暂无错题记录';
   static String get reviewKeepItUp => '继续保持！';
@@ -1329,8 +1327,7 @@ class AppStrings {
       '有 $count 类卡片还分不清正面和背面，点进去看一张样卡即可。';
   static String get ankiMappingFixBlocking => '点下面红字那一行，看样卡选一下正面和背面；也可以跳过这类卡片';
   static String get ankiAdvancedOptionsTitle => '高级选项';
-  static String get ankiAdvancedOptionsSummary =>
-      '重复的卡自动合并 · 自动按单元分组';
+  static String get ankiAdvancedOptionsSummary => '重复的卡自动合并 · 自动按单元分组';
   static String get ankiAiIdentify => 'AI 智能识别';
   static String get ankiAiRetry => '重新识别';
   static String get ankiAiIdentifying => 'AI 识别中…';
@@ -1434,8 +1431,7 @@ class AppStrings {
   static String get storageOptimizeBusy => '正在优化数据库…';
   static String storageOptimizeDone(int completed) =>
       completed <= 0 ? '优化已完成' : '优化已完成（$completed 项任务）';
-  static String get storageOptimizeUnavailable =>
-      '当前无法优化数据库（收藏库尚未就绪）';
+  static String get storageOptimizeUnavailable => '当前无法优化数据库（收藏库尚未就绪）';
   static String get storageOptimizeFailed => '优化失败，未宣称释放空间';
   static String get storageRepairCenterLink => '打开修复中心';
   static String get storageOfficialCollectionTitle => 'Anki 收藏';
@@ -1457,8 +1453,7 @@ class AppStrings {
   static String get storageForcePurgeOfficialConfirmBody =>
       '将删除无对应牌组的收藏库文件、媒体缓存、检查点和临时导入目录。已导入的牌组必须先从列表删除。此操作无法撤销。';
   static String get storageForcePurgeOfficialDone => '残留文件已清空';
-  static String get storageForcePurgeOfficialBlocked =>
-      '仍有已导入牌组或未完成的导入，无法强制清空';
+  static String get storageForcePurgeOfficialBlocked => '仍有已导入牌组或未完成的导入，无法强制清空';
   static String get storageForcePurgeOfficialFailed => '强制清空失败';
   static String get ankiRepairCenterTitle => 'Anki 修复中心';
   static String get ankiRepairCenterEmptyCatalog =>
@@ -1576,7 +1571,8 @@ class AppStrings {
   static String get databaseDoctorAdvancedTools => '高级诊断与维护工具';
   static String get databaseDoctorCheckIntegrity => '完整性检查 (Integrity Check)';
   static String get databaseDoctorRebuildIndexes => '重建与优化索引 (Reindex)';
-  static String get databaseDoctorCheckCollection => '检验 Anki 集合 (Collection Check)';
+  static String get databaseDoctorCheckCollection =>
+      '检验 Anki 集合 (Collection Check)';
   static String get databaseDoctorCleanOrphanConfirmTitle => '清理残留文件？';
   static String get databaseDoctorCleanOrphanConfirmBody =>
       '将彻底删除未登记的残留媒体与临时文件，不会影响您现有的课程和学习进度。';
@@ -1651,6 +1647,7 @@ class AppStrings {
   static String get ankiUninstallConfirmTitle => '移除此牌组？';
   static String get ankiUninstallConfirmBody => '将删除该牌组的卡片、复习进度和媒体文件，此操作无法撤销。';
   static String get ankiDeckRemoved => '牌组已移除';
+
   /// 批量移除的部分成功文案：`uninstall` 返回 false（locator 未就绪，
   /// 什么都没发生）与抛错（提交前失败）都按「未完成」计数——v2 删除
   /// 序列里用户可见的移除在账本 COMMIT 即生效，之后的清理失败不再

@@ -19,7 +19,8 @@ void main() {
     );
   });
 
-  test('non-zero handle is closed once through the injectable transport', () async {
+  test('non-zero handle is closed once through the injectable transport',
+      () async {
     final transport = _FakeCleanupTransport();
     final cleanup = OfficialAnkiSessionCleanup(
       firstWait: const Duration(milliseconds: 20),
@@ -83,7 +84,8 @@ void main() {
     expect(transport.closeAttempts, 0);
   });
 
-  test('shared ownership token prevents double free on double dispose', () async {
+  test('shared ownership token prevents double free on double dispose',
+      () async {
     final transport = _FakeCleanupTransport();
     final token = OfficialAnkiCloseOwnership();
     final cleanup = OfficialAnkiSessionCleanup(
@@ -118,7 +120,8 @@ void main() {
     expect(token.claimed, isTrue);
   });
 
-  test('second wait timeout records orphan and does not block further', () async {
+  test('second wait timeout records orphan and does not block further',
+      () async {
     final started = DateTime.now();
     final cleanup = OfficialAnkiSessionCleanup(
       firstWait: const Duration(milliseconds: 10),

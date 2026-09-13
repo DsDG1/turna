@@ -66,12 +66,12 @@ void showQuickFrontPicker({
                   separatorBuilder: (_, __) => const SizedBox(height: 8),
                   itemBuilder: (_, index) {
                     final fieldName = schema.fieldNames[index];
-                    final sampleVal = sample != null &&
-                            index < sample.fields.length
-                        ? sample.fields[index]
-                            .replaceAll(RegExp(r'<[^>]*>'), '')
-                            .trim()
-                        : '';
+                    final sampleVal =
+                        sample != null && index < sample.fields.length
+                            ? sample.fields[index]
+                                .replaceAll(RegExp(r'<[^>]*>'), '')
+                                .trim()
+                            : '';
 
                     return InkWell(
                       onTap: () {

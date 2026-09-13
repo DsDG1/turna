@@ -14,8 +14,7 @@ int naturalCompare(String a, String b) {
     if (_isDigit(ac) && _isDigit(bc)) {
       final aEnd = _digitRunEnd(a, ai);
       final bEnd = _digitRunEnd(b, bi);
-      final numeric =
-          _compareDigitRuns(a, ai, aEnd, b, bi, bEnd);
+      final numeric = _compareDigitRuns(a, ai, aEnd, b, bi, bEnd);
       if (numeric != 0) return numeric;
       ai = aEnd;
       bi = bEnd;
@@ -44,7 +43,8 @@ int _digitRunEnd(String s, int start) {
 /// Compares two digit runs by numeric value without parsing: strip leading
 /// zeros, then shorter (i.e. smaller) runs sort first, equal-length runs
 /// compare lexicographically. Overflow-free for arbitrarily long runs.
-int _compareDigitRuns(String a, int aStart, int aEnd, String b, int bStart, int bEnd) {
+int _compareDigitRuns(
+    String a, int aStart, int aEnd, String b, int bStart, int bEnd) {
   var ai = aStart;
   var bi = bStart;
   while (ai < aEnd - 1 && a.codeUnitAt(ai) == 0x30) {

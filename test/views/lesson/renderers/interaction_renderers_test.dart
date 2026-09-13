@@ -182,7 +182,8 @@ void main() {
       expect(harness.submissions, [(false, '0,1')]);
     });
 
-    testWidgets('disables check until selection count is in range', (tester) async {
+    testWidgets('disables check until selection count is in range',
+        (tester) async {
       final renderer = MultiSelectRenderer();
       const interaction = Interaction.multiSelect(
         id: 'ms-3',
@@ -305,7 +306,8 @@ void main() {
       expect(harness.submissions, [(false, 'Green')]);
     });
 
-    testWidgets('typing enables CHECK via ValueListenableBuilder', (tester) async {
+    testWidgets('typing enables CHECK via ValueListenableBuilder',
+        (tester) async {
       final renderer = ReadingShortAnswerRenderer();
       const interaction = Interaction.readingShortAnswer(
         id: 'rsa-vlb',
@@ -418,7 +420,8 @@ void main() {
       expect(harness.submissions, [(false, 'Goodbye')]);
     });
 
-    testWidgets('typing enables CHECK via ValueListenableBuilder', (tester) async {
+    testWidgets('typing enables CHECK via ValueListenableBuilder',
+        (tester) async {
       final renderer = TranslateSentenceRenderer();
       const interaction = Interaction.translateSentence(
         id: 'ts-vlb',
@@ -467,7 +470,8 @@ void main() {
       expect(harness.submissions, [(false, 'Asante')]);
     });
 
-    testWidgets('typing enables CHECK via ValueListenableBuilder', (tester) async {
+    testWidgets('typing enables CHECK via ValueListenableBuilder',
+        (tester) async {
       final renderer = TypeTheWordRenderer();
       const interaction = Interaction.typeTheWord(
         id: 'ttw-vlb',
@@ -539,7 +543,8 @@ void main() {
       expect(harness.submissions, isEmpty);
     });
 
-    testWidgets('renders long terms on narrow screens without overflow', (tester) async {
+    testWidgets('renders long terms on narrow screens without overflow',
+        (tester) async {
       tester.view.physicalSize = const Size(360, 640);
       tester.view.devicePixelRatio = 1.0;
       addTearDown(() => tester.view.resetPhysicalSize());
@@ -566,7 +571,8 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('canonicalLink fail-closes without opening vocab or Legacy', (tester) async {
+    testWidgets('canonicalLink fail-closes without opening vocab or Legacy',
+        (tester) async {
       OfficialAnkiCourseEntry.resetHooks();
       addTearDown(OfficialAnkiCourseEntry.resetHooks);
       OfficialAnkiCourseEntry.flagsOf = () => const OfficialAnkiFeatureFlags();
@@ -579,12 +585,14 @@ void main() {
       await tester.pumpWidget(harness.build(renderer, interaction));
       expect(find.byKey(const Key('official-canonical-fail-closed')),
           findsOneWidget);
-      expect(find.byKey(const Key('official-canonical-continue')), findsNothing);
+      expect(
+          find.byKey(const Key('official-canonical-continue')), findsNothing);
       expect(find.text('Habari'), findsNothing);
       expect(find.byType(OfficialAnkiReviewerPage), findsNothing);
     });
 
-    testWidgets('canonicalLink renders inline without a route push', (tester) async {
+    testWidgets('canonicalLink renders inline without a route push',
+        (tester) async {
       ensurePathProviderMockForTest();
       OfficialAnkiCourseEntry.resetHooks();
       addTearDown(OfficialAnkiCourseEntry.resetHooks);

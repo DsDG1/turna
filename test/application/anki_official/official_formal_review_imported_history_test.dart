@@ -108,7 +108,8 @@ void main() {
     GetIt.instance.registerSingleton<CourseDatabase>(db);
 
     final engine = FakeOfficialAnkiEngine();
-    engine.seedPackage(packagePath: 'imported-history.apkg', notes: 2, cards: 2);
+    engine.seedPackage(
+        packagePath: 'imported-history.apkg', notes: 2, cards: 2);
 
     final loader = OfficialFormalReviewProductionLoader(
       flags: flags,

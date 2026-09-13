@@ -186,9 +186,8 @@ class LessonCheckButton extends StatelessWidget {
               child: Text(
                 label,
                 style: AppTextStyles.buttonLabel.copyWith(
-                  color: enabled
-                      ? TurnaTheme.textOnPrimary
-                      : TurnaTheme.textHint,
+                  color:
+                      enabled ? TurnaTheme.textOnPrimary : TurnaTheme.textHint,
                 ),
               ),
             ),

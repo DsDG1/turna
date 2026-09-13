@@ -130,9 +130,8 @@ class OfficialAnkiReviewerViewState extends State<OfficialAnkiReviewerView> {
       case 'renderError':
         debugPrint('[OfficialAnkiReviewer] renderError ${call.arguments}');
         final raw = call.arguments?.toString() ?? '';
-        final code = raw.isEmpty || raw == 'renderError'
-            ? 'UNRENDERABLE_CARD'
-            : raw;
+        final code =
+            raw.isEmpty || raw == 'renderError' ? 'UNRENDERABLE_CARD' : raw;
         widget.onRenderError?.call(code);
         return null;
       default:
@@ -158,7 +157,8 @@ class OfficialAnkiReviewerViewState extends State<OfficialAnkiReviewerView> {
     try {
       final result = await _gate.run(token, () async {
         try {
-          final raw = await channel.invokeMethod<dynamic>('present', <String, Object?>{
+          final raw =
+              await channel.invokeMethod<dynamic>('present', <String, Object?>{
             'cardId': widget.card.cardId,
             'generation': token,
             'questionDisplayHtml': widget.card.questionDisplayHtml,
@@ -210,8 +210,8 @@ class OfficialAnkiReviewerViewState extends State<OfficialAnkiReviewerView> {
       'mediaRoot': widget.mediaRoot,
       'theme': widget.dark ? 'night' : 'day',
       'textZoom': widget.textZoom,
-      'diagnostics': kDebugMode &&
-          OfficialAnkiFeatureFlags.current.reviewerDiagnostics,
+      'diagnostics':
+          kDebugMode && OfficialAnkiFeatureFlags.current.reviewerDiagnostics,
     };
     return PlatformViewLink(
       viewType: officialAnkiReviewerViewType,

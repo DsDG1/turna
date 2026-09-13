@@ -13,8 +13,7 @@ abstract final class OfficialAnkiV2ConfigKeys {
   static String importMapping(String sourceId) =>
       'turna.import.mapping.$sourceId';
 
-  static String coursePlacement(int deckId) =>
-      'turna.course.placement.$deckId';
+  static String coursePlacement(int deckId) => 'turna.course.placement.$deckId';
 
   static const courseScope = 'turna.course.scope';
 
@@ -107,15 +106,15 @@ class OfficialAnkiV2PlacementDecision {
       };
 
   factory OfficialAnkiV2PlacementDecision.fromJson(Map<String, Object?> json) {
-        String s(String key) => (json[key] as String?) ?? '';
-        return OfficialAnkiV2PlacementDecision(
-          deckPath: s('deckPath'),
-          sectionKey: s('section'),
-          unitKey: s('unit'),
-          lessonKey: s('lesson'),
-          schemaVersion: (json['schema'] as num?)?.toInt() ?? 1,
-        );
-      }
+    String s(String key) => (json[key] as String?) ?? '';
+    return OfficialAnkiV2PlacementDecision(
+      deckPath: s('deckPath'),
+      sectionKey: s('section'),
+      unitKey: s('unit'),
+      lessonKey: s('lesson'),
+      schemaVersion: (json['schema'] as num?)?.toInt() ?? 1,
+    );
+  }
 
   String encode() => jsonEncode(toJson());
 

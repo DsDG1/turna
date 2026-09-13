@@ -39,7 +39,9 @@ void main() {
       }
     });
 
-    test('unsupportedPlatform and contractVersionMismatch do not show pick file error', () {
+    test(
+        'unsupportedPlatform and contractVersionMismatch do not show pick file error',
+        () {
       for (final code in [
         OfficialAnkiErrorCode.unsupportedPlatform,
         OfficialAnkiErrorCode.contractVersionMismatch,
@@ -55,7 +57,8 @@ void main() {
 
   group('mapGeneralErrorToHuman', () {
     test('general error containing .apkg does not report pick file error', () {
-      final error = Exception('Failed reading /storage/emulated/0/Download/vocab.apkg: zip error');
+      final error = Exception(
+          'Failed reading /storage/emulated/0/Download/vocab.apkg: zip error');
       final message = mapGeneralErrorToHuman(error);
       expect(message, isNot(equals(AppStrings.ankiPickFileError)));
       expect(message, contains('Failed reading'));

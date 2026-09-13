@@ -220,8 +220,6 @@ class OfficialAnkiHomeDueSync {
         Future<Set<int>> fetchBuriedCardIds({int? deckId}) => fetchByQuery(
             deckId == null ? 'is:buried' : 'deck:$deckId is:buried');
 
-
-
         // Exact card-id formal due (doc 34 W5 / plan 34 R3): all six sets
         // per source, never count approximation. The router is pure — it
         // only collects. `is:new`/`is:learn` match on card type, so the
@@ -376,8 +374,10 @@ class OfficialAnkiHomeDueSync {
 
   static Future<_CollectedFormalDue> _collectFormalDueCardIds({
     required OfficialAnkiSourceDao sources,
-    required Future<Set<int>> Function({required int deckId}) searchSchedulerDueCardIds,
-    required Future<Set<int>> Function({required int deckId}) searchUnfilteredDueCardIds,
+    required Future<Set<int>> Function({required int deckId})
+        searchSchedulerDueCardIds,
+    required Future<Set<int>> Function({required int deckId})
+        searchUnfilteredDueCardIds,
     required Future<Set<int>> Function({int? deckId}) getSuspendedCardIds,
     required Future<Set<int>> Function({int? deckId}) getBuriedCardIds,
     String profileId = 'profile-default-01',

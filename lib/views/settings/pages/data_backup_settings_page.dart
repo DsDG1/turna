@@ -296,7 +296,8 @@ class DataBackupSettingsPage extends StatelessWidget {
     };
   }
 
-  Future<void> _importData(BuildContext context) async {    String? pickedPath;
+  Future<void> _importData(BuildContext context) async {
+    String? pickedPath;
     try {
       pickedPath = (await ValidatedFilePicker.pickFiles(
         allowedExtensions: const ['json'],

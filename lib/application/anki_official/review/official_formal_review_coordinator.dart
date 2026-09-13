@@ -176,8 +176,8 @@ class OfficialFormalReviewLiveQueue extends ChangeNotifier {
     required List<StudyItem> items,
     required this.activePlacementCardKeys,
     this.retiredCardKeys = const {},
-  }) : _items = List.of(items),
-       _faces = <int, OfficialRenderedFace>{};
+  })  : _items = List.of(items),
+        _faces = <int, OfficialRenderedFace>{};
 
   final OfficialReviewSession session;
   final String sourceId;

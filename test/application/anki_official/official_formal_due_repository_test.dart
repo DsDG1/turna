@@ -122,8 +122,8 @@ void main() {
 
     final result = repo.commit(
       _update(bySource: {
-        'a': _per('a', schedulerDue: {1, 2}, placement: {1, 2},
-            introduced: {1, 2}),
+        'a': _per('a',
+            schedulerDue: {1, 2}, placement: {1, 2}, introduced: {1, 2}),
       }),
       basedOnGeneration: staleBase,
     );

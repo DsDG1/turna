@@ -7,7 +7,8 @@ import 'package:turna/views/theme.dart';
 
 void main() {
   group('BinaryRecallBar', () {
-    testWidgets('renders without overflow with intervals under TurnaTheme light & dark',
+    testWidgets(
+        'renders without overflow with intervals under TurnaTheme light & dark',
         (tester) async {
       RecallOutcome? outcome;
 
@@ -126,8 +127,7 @@ void main() {
           expect(
             themeStyle?.elevation?.resolve({state}),
             0,
-            reason:
-                'theme elevation should stay 0 in $state '
+            reason: 'theme elevation should stay 0 in $state '
                 '(${theme.brightness})',
           );
         }

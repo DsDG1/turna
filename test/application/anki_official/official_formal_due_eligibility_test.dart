@@ -50,8 +50,7 @@ void main() {
     // `is:learn` match on card type), so the formula must subtract the
     // suspended/buried sets to keep the due badge off the suspended
     // backlog.
-    test('exact intersection of scheduler due and placement minus retired',
-        () {
+    test('exact intersection of scheduler due and placement minus retired', () {
       final due = computeFormalDueCardKeys(
         officialSchedulerDueCardKeys: {_key(1), _key(2), _key(3), _key(4)},
         activePlacementCardKeys: {_key(1), _key(2), _key(3)},
@@ -100,8 +99,7 @@ void main() {
         _key(1): _flip(_key(1), 'a', 'b'),
         _key(2): _flip(_key(2), 'c', 'd'),
       };
-      final items =
-          const OfficialStudyBatchAssembler().assembleFromEligibility(
+      final items = const OfficialStudyBatchAssembler().assembleFromEligibility(
         sourceId: 'src-a',
         courseId: 'course-src-a',
         queueCards: [_queueCard(1), _queueCard(2), _queueCard(3)],

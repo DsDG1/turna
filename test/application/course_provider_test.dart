@@ -293,7 +293,9 @@ void main() {
         containsAll(['deckaa', 'deckbb']),
       );
       expect(
-        provider.catalogEntries.where((e) => !e.isBuiltin).map((e) => e.displayName),
+        provider.catalogEntries
+            .where((e) => !e.isBuiltin)
+            .map((e) => e.displayName),
         containsAll(['Deck A', 'Deck B']),
       );
     });
@@ -440,8 +442,7 @@ void main() {
         provider.catalogEntries.map((e) => e.wireKey),
         [deckB, builtinWire, deckA, frenchWire],
       );
-      expect(notifications, 1,
-          reason: '同步通知让列表的落位动画与最终顺序同帧衔接');
+      expect(notifications, 1, reason: '同步通知让列表的落位动画与最终顺序同帧衔接');
 
       await pending;
       expect(
@@ -662,7 +663,8 @@ void main() {
       expect(restored.sections, hasLength(2));
     });
 
-    test('two official sources are two distinct course entries (R1-3)', () async {
+    test('two official sources are two distinct course entries (R1-3)',
+        () async {
       final provider = CourseProvider(appPrefs);
       await provider.load();
 
@@ -718,8 +720,7 @@ void main() {
       });
     });
 
-    test(
-        'official scope with no catalog entry still falls back to builtin',
+    test('official scope with no catalog entry still falls back to builtin',
         () async {
       OfficialAnkiCourseEntry.activeSectionIds = () => {};
       retireSource(srcA);
@@ -763,7 +764,8 @@ void main() {
     });
 
     group('broken anki:src preference handling (R1-6 provider path)', () {
-      test('with exactly one official source, anki:src re-binds to it', () async {
+      test('with exactly one official source, anki:src re-binds to it',
+          () async {
         // Retire source B in the catalog so only A remains visible; the
         // retired source must not come back through any fallback.
         retireSource(srcB);
@@ -796,7 +798,8 @@ void main() {
           reason: 'ambiguity must fall back to builtin, never pick the first '
               'source',
         );
-        expect(provider.sections.every((s) => s.level != 'OfficialAnki'), isTrue);
+        expect(
+            provider.sections.every((s) => s.level != 'OfficialAnki'), isTrue);
       });
     });
   });

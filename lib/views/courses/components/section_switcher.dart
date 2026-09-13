@@ -156,13 +156,13 @@ class _SectionHeaderCard extends StatelessWidget {
           child: InkWell(
             onTap: onTap,
             borderRadius: borderRadius,
-          child: ClipRRect(
-            borderRadius: borderRadius,
-            child: Stack(
-              // 展开态与收缩态的卡片高度都大于内容行：垂直居中，避免
-              // 图标方块顶在上沿「上飘」。底部进度条是 Positioned，不受影响。
-              alignment: AlignmentDirectional.centerStart,
-              children: [
+            child: ClipRRect(
+              borderRadius: borderRadius,
+              child: Stack(
+                // 展开态与收缩态的卡片高度都大于内容行：垂直居中，避免
+                // 图标方块顶在上沿「上飘」。底部进度条是 Positioned，不受影响。
+                alignment: AlignmentDirectional.centerStart,
+                children: [
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: _lerp(16, 12)),
                     child: Row(

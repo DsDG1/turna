@@ -54,7 +54,8 @@ class OfficialAnkiException implements Exception {
   factory OfficialAnkiException.fromJson(Map<String, Object?> json) {
     return OfficialAnkiException(
       code: officialAnkiErrorCodeFromName(json['code'] as String?),
-      messageKey: json['messageKey'] as String? ?? 'official_anki.backend_error',
+      messageKey:
+          json['messageKey'] as String? ?? 'official_anki.backend_error',
       recoverable: json['recoverable'] == true,
       debugDetails: json['debugDetails'] as String?,
     );

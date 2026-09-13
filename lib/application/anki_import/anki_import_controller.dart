@@ -404,7 +404,8 @@ class AnkiImportController extends ChangeNotifier {
       if (preview.skippedNotetypes.contains(schema.notetypeId)) continue;
       if (preview.confirmedNotetypes.contains(schema.notetypeId)) continue;
       preview.suggestions[schema.notetypeId] =
-          preview.suggestions[schema.notetypeId] ?? officialAnkiSuggestMapping(schema);
+          preview.suggestions[schema.notetypeId] ??
+              officialAnkiSuggestMapping(schema);
       preview.confirmedNotetypes.add(schema.notetypeId);
     }
 

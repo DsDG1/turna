@@ -83,8 +83,7 @@ sealed class OfficialFormalReviewLoadResult {
 
 /// At least one card rendered and stayed in the queue; non-blocking render
 /// failures ride along for the session summary.
-final class OfficialFormalReviewReady
-    extends OfficialFormalReviewLoadResult {
+final class OfficialFormalReviewReady extends OfficialFormalReviewLoadResult {
   const OfficialFormalReviewReady(this.batch);
 
   final OfficialFormalReviewBatch batch;
@@ -101,8 +100,7 @@ final class OfficialFormalReviewNoDue extends OfficialFormalReviewLoadResult {
 /// The queue is non-empty but NOTHING could be rendered — a visible,
 /// retryable product error. The session was disposed by the loader; no
 /// answer, bury or suspend was issued (maintainability plan §8.2).
-final class OfficialFormalReviewBlocked
-    extends OfficialFormalReviewLoadResult {
+final class OfficialFormalReviewBlocked extends OfficialFormalReviewLoadResult {
   const OfficialFormalReviewBlocked({
     required this.sourceId,
     required this.failures,

@@ -50,10 +50,11 @@ OfficialRecognitionTriage officialRecognitionTriage(
   }
   final conflict = officialAnkiMappingConflict(suggestion) != null;
   final missingPrompt = suggestion.role(FieldRole.prompt) == null;
-  final missingResponse =
-      !suggestion.singleFieldMode && suggestion.role(FieldRole.response) == null;
+  final missingResponse = !suggestion.singleFieldMode &&
+      suggestion.role(FieldRole.response) == null;
   final blocking = conflict || missingPrompt || missingResponse;
-  final advisory = !blocking && suggestion.status == OfficialAnkiMappingStatus.review;
+  final advisory =
+      !blocking && suggestion.status == OfficialAnkiMappingStatus.review;
   return OfficialRecognitionTriage(
     blocking: blocking,
     advisory: advisory,

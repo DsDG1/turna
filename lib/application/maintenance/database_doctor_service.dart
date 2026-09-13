@@ -321,9 +321,7 @@ class DatabaseDoctorService {
     final sources = sourceDao.listSources(profileId);
     final sourceCount = sources.length;
     final pendingCleanupCount = sources
-        .where((s) =>
-            s.state == 'pending_cleanup' ||
-            s.state == 'retiring')
+        .where((s) => s.state == 'pending_cleanup' || s.state == 'retiring')
         .length;
     final quarantinedCount =
         sources.where((s) => s.state == 'quarantined').length;
@@ -359,8 +357,7 @@ class DatabaseDoctorService {
           orphans: [],
         );
       }
-      final report =
-          await (scanner ?? const StorageInventoryService()).scan();
+      final report = await (scanner ?? const StorageInventoryService()).scan();
       final orphans = report.orphans;
       final orphanBytes =
           orphans.fold<int>(0, (sum, a) => sum + a.physicalBytes);

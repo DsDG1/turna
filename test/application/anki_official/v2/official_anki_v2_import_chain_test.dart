@@ -42,7 +42,8 @@ void main() {
     course = CourseDatabase(
       NativeDatabase.memory(
         setup: (raw) {
-          raw.updatesSync.listen((update) => courseWrites.add(update.tableName));
+          raw.updatesSync
+              .listen((update) => courseWrites.add(update.tableName));
         },
       ),
     );
@@ -53,8 +54,10 @@ void main() {
     engine.seedPackage(packagePath: 'pkg.apkg', notes: 3, cards: 4);
     engine.deckTree = const [
       OfficialAnkiDeckNode(deckId: 10, name: 'Turkish Basics', level: 0),
-      OfficialAnkiDeckNode(deckId: 11, name: 'Turkish Basics::Unit 1', level: 1),
-      OfficialAnkiDeckNode(deckId: 12, name: 'Turkish Basics::Unit 2', level: 1),
+      OfficialAnkiDeckNode(
+          deckId: 11, name: 'Turkish Basics::Unit 1', level: 1),
+      OfficialAnkiDeckNode(
+          deckId: 12, name: 'Turkish Basics::Unit 2', level: 1),
       OfficialAnkiDeckNode(deckId: 20, name: 'Solo Deck', level: 0),
     ];
     // seedPackage 固定 deckId=1；重写到测试牌组（1、2 → Unit 1，3、4 → Unit 2）。
@@ -74,7 +77,8 @@ void main() {
       ..addAll(rewritten);
     paths = OfficialAnkiPaths(
       profileId: 'profile-v2-01',
-      profileRoot: Directory(p.join(root.path, 'live'))..createSync(recursive: true),
+      profileRoot: Directory(p.join(root.path, 'live'))
+        ..createSync(recursive: true),
     );
   });
 
@@ -114,7 +118,8 @@ void main() {
     return (sourceId, attemptId);
   }
 
-  test('v2 commit: config decisions + ledger 5 tables + view rebuild', () async {
+  test('v2 commit: config decisions + ledger 5 tables + view rebuild',
+      () async {
     final (sourceId, attemptId) = seedStagedSource();
 
     final service = OfficialAnkiV2ImportService(
@@ -234,9 +239,13 @@ void main() {
 
     // 旧表在 v24 中已被彻底删除（含 onCreate 侧：新装库不得经
     // `_ensureAnkiCanonicalV2` 复活 v1 投影表——新装/升级 schema 一致）。
-    final existingTables = (await course.customSelect(
-      "SELECT name FROM sqlite_master WHERE type='table'",
-    ).get()).map((row) => row.read<String>('name')).toSet();
+    final existingTables = (await course
+            .customSelect(
+              "SELECT name FROM sqlite_master WHERE type='table'",
+            )
+            .get())
+        .map((row) => row.read<String>('name'))
+        .toSet();
     for (final table in const [
       'official_anki_projection_index',
       'official_anki_projection_manifest',
@@ -248,7 +257,8 @@ void main() {
       'anki_practice_projections',
       'anki_import_issues',
     ]) {
-      expect(existingTables.contains(table), isFalse, reason: '$table 必须已被彻底删除');
+      expect(existingTables.contains(table), isFalse,
+          reason: '$table 必须已被彻底删除');
     }
   });
 
@@ -330,8 +340,8 @@ void main() {
     );
     // 配置区损坏（值不再可解析）→ decode 得 null，不抛错（rslib 语义）。
     engine.configStore['turna.import.mapping.$sourceId'] = 'not-a-map';
-    final decision = await OfficialAnkiV2DecisionStore(engine)
-        .readImportMapping(sourceId);
+    final decision =
+        await OfficialAnkiV2DecisionStore(engine).readImportMapping(sourceId);
     expect(decision, isNull);
   });
 }

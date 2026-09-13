@@ -7,7 +7,8 @@ import 'package:turna/application/anki_official/render/official_anki_reviewer_ro
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_course_read.dart';
 import 'package:turna/courses/course_loader.dart';
-import 'package:turna/data/course_database.dart' hide Section, Unit, Lesson, LessonContent;
+import 'package:turna/data/course_database.dart'
+    hide Section, Unit, Lesson, LessonContent;
 import 'package:turna/domain/course/section.dart';
 
 class OfficialAnkiCanonicalRef {

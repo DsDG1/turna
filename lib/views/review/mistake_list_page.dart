@@ -40,12 +40,10 @@ class _MistakeListPageState extends State<MistakeListPage> {
     final grammarCount = mistakes.where((e) => e.grammarPointId != null).length;
     final visible = switch (_filter) {
       _MistakeFilter.all => mistakes,
-      _MistakeFilter.words => mistakes
-          .where((e) => e.wordId != null)
-          .toList(growable: false),
-      _MistakeFilter.grammar => mistakes
-          .where((e) => e.grammarPointId != null)
-          .toList(growable: false),
+      _MistakeFilter.words =>
+        mistakes.where((e) => e.wordId != null).toList(growable: false),
+      _MistakeFilter.grammar =>
+        mistakes.where((e) => e.grammarPointId != null).toList(growable: false),
     };
 
     return Scaffold(
@@ -55,8 +53,7 @@ class _MistakeListPageState extends State<MistakeListPage> {
           IconButton(
             tooltip: AppStrings.mistakeDashboardTitle,
             icon: const Icon(Icons.insights_outlined),
-            onPressed: () =>
-                context.router.push(const MistakeDashboardRoute()),
+            onPressed: () => context.router.push(const MistakeDashboardRoute()),
           ),
         ],
       ),
@@ -93,7 +90,8 @@ class _MistakeListPageState extends State<MistakeListPage> {
                         allCount: mistakes.length,
                         wordCount: wordCount,
                         grammarCount: grammarCount,
-                        onSelected: (filter) => setState(() => _filter = filter),
+                        onSelected: (filter) =>
+                            setState(() => _filter = filter),
                       ),
                     ),
                   ),

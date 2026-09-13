@@ -60,14 +60,15 @@ void main() {
           platform: plat,
           cutoverEnabled: true,
           libraryAvailable: true,
-            filePath: '/tmp/deck.apkg',
+          filePath: '/tmp/deck.apkg',
         );
         expect(plan.productMode, AnkiProductMode.ankiUnavailable, reason: plat);
         expect(plan.kind, AnkiImportExecutionKind.unsupported, reason: plat);
         expect(plan.owner, isNull, reason: plat);
         expect(plan.writesLegacyNoteStore, isFalse, reason: plat);
         expect(plan.writesTurnaAnkiSrs, isFalse, reason: plat);
-        expect(plan.facadeDecision, AnkiImportDecision.failClosed, reason: plat);
+        expect(plan.facadeDecision, AnkiImportDecision.failClosed,
+            reason: plat);
       }
     });
 
@@ -106,7 +107,6 @@ void main() {
       expect(plan.persistedOwnerIsOfficial, isFalse);
       expect(plan.reason, contains('official_first_required'));
     });
-
   });
 
   group('pre-fix mixed half-state cannot recur', () {
@@ -134,8 +134,7 @@ void main() {
       expect(plan.persistedOwnerIsOfficial, isFalse);
     });
 
-    test('unified publish path keeps plan writers official-only',
-        () async {
+    test('unified publish path keeps plan writers official-only', () async {
       final plan = AnkiImportFacade.planFor(
         _fullOfficial(),
         platform: 'android',

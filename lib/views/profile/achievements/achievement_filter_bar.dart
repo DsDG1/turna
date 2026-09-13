@@ -29,8 +29,8 @@ class AchievementFilterBar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
         children: [
-          _chip(context, AchievementFilter.all, AppStrings.achievementsFilterAll,
-              null),
+          _chip(context, AchievementFilter.all,
+              AppStrings.achievementsFilterAll, null),
           const SizedBox(width: 8),
           _chip(context, AchievementFilter.inProgress,
               AppStrings.achievementsFilterInProgress, inProgressCount),
@@ -68,14 +68,15 @@ class AchievementFilterBar extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
               border: Border.all(
-                color:
-                    isSelected ? accent : TurnaTheme.statCardBorder(context),
+                color: isSelected ? accent : TurnaTheme.statCardBorder(context),
               ),
             ),
             child: Text(
               text,
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: isSelected ? accent : TurnaTheme.textSecondaryColor(context),
+                    color: isSelected
+                        ? accent
+                        : TurnaTheme.textSecondaryColor(context),
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                   ),
             ),

@@ -52,10 +52,10 @@ SpeechLanguages currentSpeechLanguages() {
       // tr/fr always declare their set, so '' only reaches undeclared
       // languages. The null below (DI failure) stays Turkish on purpose —
       // the app's original target language.
-      signatureChars: ImportedLanguageRegistry.instance
-              .signatureCharsOrNull(code) ??
-          LanguageRegistry.instance.signatureChars(code) ??
-          '',
+      signatureChars:
+          ImportedLanguageRegistry.instance.signatureCharsOrNull(code) ??
+              LanguageRegistry.instance.signatureChars(code) ??
+              '',
     );
   } catch (_) {
     return const SpeechLanguages(

@@ -98,7 +98,8 @@ class OfficialAnkiMediaDecision {
   factory OfficialAnkiMediaDecision.denied(String reason) =>
       OfficialAnkiMediaDecision._(allowed: false, reason: reason);
 
-  factory OfficialAnkiMediaDecision.file(File file, {required String mimeType}) =>
+  factory OfficialAnkiMediaDecision.file(File file,
+          {required String mimeType}) =>
       OfficialAnkiMediaDecision._(
         allowed: true,
         file: file,

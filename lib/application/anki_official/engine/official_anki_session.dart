@@ -574,7 +574,9 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
         graceful: () async {
           try {
             _control?.cancel(handle);
-          } catch (suppressed) { debugPrint('[OfficialAnkiSession] suppressed error: $suppressed'); }
+          } catch (suppressed) {
+            debugPrint('[OfficialAnkiSession] suppressed error: $suppressed');
+          }
           await _rpcDispose();
         },
         handle: handle,
@@ -993,8 +995,7 @@ Future<Object?> dispatchOfficialAnkiScheduler(
           OfficialAheadAnswer(
             cardId: cardId,
             rating: rating,
-            millisecondsTaken:
-                (map['millisecondsTaken'] as num?)?.toInt() ?? 0,
+            millisecondsTaken: (map['millisecondsTaken'] as num?)?.toInt() ?? 0,
           ),
         );
       }

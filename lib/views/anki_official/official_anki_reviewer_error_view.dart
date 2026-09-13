@@ -74,7 +74,8 @@ class OfficialAnkiReviewerErrorView extends StatelessWidget {
                       onPressed: onRetry,
                       child: Text(AppStrings.officialAnkiRetryCurrentSide),
                     ),
-                  if (onRetry != null && onBack != null) const SizedBox(width: 12),
+                  if (onRetry != null && onBack != null)
+                    const SizedBox(width: 12),
                   if (onBack != null)
                     OutlinedButton(
                       onPressed: onBack,

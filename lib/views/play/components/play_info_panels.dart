@@ -280,15 +280,14 @@ class TodayOverviewPanelBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ankiValue = snapshot.ankiUnavailable
-        ? '—'
-        : '${snapshot.ankiDueCount}';
+    final ankiValue =
+        snapshot.ankiUnavailable ? '—' : '${snapshot.ankiDueCount}';
 
     return InfoPanelShell(
       title: AppStrings.playTodayHeroTitle,
       icon: Icons.play_circle_fill_rounded,
       accentColor: TurnaTheme.brandTeal,
-        onEnter: onEnter,
+      onEnter: onEnter,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -356,7 +355,7 @@ class MistakePanelBody extends StatelessWidget {
       title: AppStrings.playMistakeReviewTitle,
       icon: Icons.priority_high_rounded,
       accentColor: TurnaTheme.errorLight,
-        onEnter: onEnter,
+      onEnter: onEnter,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -447,7 +446,7 @@ class SrsPanelBody extends StatelessWidget {
       title: AppStrings.playReviewTitle,
       icon: Icons.repeat_rounded,
       accentColor: TurnaTheme.success,
-        onEnter: onEnter,
+      onEnter: onEnter,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -507,7 +506,7 @@ class GrammarPanelBody extends StatelessWidget {
       title: AppStrings.playGrammarReviewTitle,
       icon: Icons.menu_book_rounded,
       accentColor: TurnaTheme.brandTeal,
-        onEnter: onEnter,
+      onEnter: onEnter,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -553,7 +552,7 @@ class AnkiPanelBody extends StatelessWidget {
       title: AppStrings.playAnkiReviewTitle,
       icon: Icons.style_rounded,
       accentColor: TurnaTheme.brandSky,
-        onEnter: onEnter,
+      onEnter: onEnter,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -573,11 +572,10 @@ class AnkiPanelBody extends StatelessWidget {
                     Expanded(
                       child: Text(
                         AppStrings.playPopupAnkiUnavailable,
-                        style:
-                            Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: TurnaTheme.warning,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: TurnaTheme.warning,
+                              fontWeight: FontWeight.w600,
+                            ),
                       ),
                     ),
                   ],
@@ -632,7 +630,7 @@ class WeakWordsPanelBody extends StatelessWidget {
       title: AppStrings.playWeakWordsTitle,
       icon: Icons.fitness_center_rounded,
       accentColor: TurnaTheme.anatolianClay,
-        onEnter: onEnter,
+      onEnter: onEnter,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -721,7 +719,7 @@ class ReviewProgressPanelBody extends StatelessWidget {
       title: AppStrings.playReviewProgressTitle,
       icon: Icons.show_chart_rounded,
       accentColor: TurnaTheme.brandTeal,
-        onEnter: onEnter,
+      onEnter: onEnter,
       child: FutureBuilder<List<Object>>(
         future: Future.wait<Object>([
           stats.getLastNDays(7),
@@ -816,13 +814,12 @@ class _WeeklyBars extends StatelessWidget {
                   children: [
                     Text(
                       '${day.reviewCount}',
-                      style:
-                          Theme.of(context).textTheme.labelSmall?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: day.reviewCount == peak && peak > 0
-                                    ? TurnaTheme.brandTeal
-                                    : TurnaTheme.textHintColor(context),
-                              ),
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: day.reviewCount == peak && peak > 0
+                                ? TurnaTheme.brandTeal
+                                : TurnaTheme.textHintColor(context),
+                          ),
                     ),
                     const SizedBox(height: 4),
                     Container(
@@ -841,10 +838,9 @@ class _WeeklyBars extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       '${day.date.month}/${day.date.day}',
-                      style:
-                          Theme.of(context).textTheme.labelSmall?.copyWith(
-                                color: TurnaTheme.textHintColor(context),
-                              ),
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: TurnaTheme.textHintColor(context),
+                          ),
                     ),
                   ],
                 ),
@@ -872,7 +868,7 @@ class AiPanelBody extends StatelessWidget {
       title: AppStrings.playAiAssistantTitle,
       icon: Icons.auto_awesome_rounded,
       accentColor: TurnaTheme.amethystLeague,
-        onEnter: onEnter,
+      onEnter: onEnter,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

@@ -14,8 +14,9 @@ class ScoreProvider extends ChangeNotifier {
 
   final AppPrefs appPrefs;
 
-  int get score =>
-      appPrefs.preferences.getInt(LocalStateKeys.score, defaultValue: 0).getValue();
+  int get score => appPrefs.preferences
+      .getInt(LocalStateKeys.score, defaultValue: 0)
+      .getValue();
 
   Future<void> setScore(int value) async {
     await appPrefs.preferences.setInt(LocalStateKeys.score, value);

@@ -286,7 +286,8 @@ class StatChip extends StatelessWidget {
 class StickyImportBar extends StatelessWidget {
   final VoidCallback? onPressed;
   final String? disabledHint;
-  const StickyImportBar({super.key, required this.onPressed, this.disabledHint});
+  const StickyImportBar(
+      {super.key, required this.onPressed, this.disabledHint});
 
   @override
   Widget build(BuildContext context) {

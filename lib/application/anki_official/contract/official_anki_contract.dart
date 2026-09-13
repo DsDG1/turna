@@ -163,7 +163,6 @@ abstract final class OfficialAnkiOperation {
     }
     return id;
   }
-
 }
 
 class OfficialAnkiEnvelopeRequest {

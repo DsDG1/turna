@@ -11,7 +11,8 @@ void main() {
   final manifestFile = File(p.join(fixtureRoot, 'manifest.json'));
 
   test('official Anki fixtures exist and match the frozen manifest', () {
-    expect(manifestFile.existsSync(), isTrue, reason: 'run generate_fixtures.sh');
+    expect(manifestFile.existsSync(), isTrue,
+        reason: 'run generate_fixtures.sh');
     final manifest =
         jsonDecode(manifestFile.readAsStringSync()) as Map<String, dynamic>;
     expect(manifest['fixtureVersion'], 1);
@@ -19,7 +20,8 @@ void main() {
 
     final packages =
         (manifest['packages'] as List<dynamic>).cast<Map<String, dynamic>>();
-    final committed = packages.where((pkg) => pkg['generated'] != true).toList();
+    final committed =
+        packages.where((pkg) => pkg['generated'] != true).toList();
     expect(committed, isNotEmpty);
 
     for (final pkg in committed) {
@@ -35,7 +37,8 @@ void main() {
           .map((entry) => entry.name)
           .toSet();
       expect(
-        names.contains('collection.anki2') || names.contains('collection.anki21b'),
+        names.contains('collection.anki2') ||
+            names.contains('collection.anki21b'),
         isTrue,
         reason: pkg['file'] as String,
       );

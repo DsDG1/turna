@@ -90,16 +90,16 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
     final isMulti = isChoice &&
         sample != null &&
         EmbeddedOptionsParser.parseCorrectIndices(
-          sample.fields.length > 1 ? sample.fields[1] : '',
-          EmbeddedOptionsParser.extractMultiFieldOptions(
-                defaultSchema.fieldNames,
-                sample.fields,
-              ) ??
-              EmbeddedOptionsParser.extractEmbeddedOptions(
-                sample.fields.firstOrNull ?? '',
-              )?.options ??
-              const [],
-        ).length >=
+              sample.fields.length > 1 ? sample.fields[1] : '',
+              EmbeddedOptionsParser.extractMultiFieldOptions(
+                    defaultSchema.fieldNames,
+                    sample.fields,
+                  ) ??
+                  EmbeddedOptionsParser.extractEmbeddedOptions(
+                    sample.fields.firstOrNull ?? '',
+                  )?.options ??
+                  const [],
+            ).length >=
             2;
 
     final label = isChoice

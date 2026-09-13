@@ -82,8 +82,8 @@ void main() {
     repo.commit(
       _update(
         bySource: {
-          'a': _per('a', schedulerDue: {1, 2}, placement: {1, 2},
-              introduced: {1, 2}),
+          'a': _per('a',
+              schedulerDue: {1, 2}, placement: {1, 2}, introduced: {1, 2}),
         },
         rawDueBySource: {'a': 2},
       ),
@@ -117,8 +117,8 @@ void main() {
 
     final result = repo.commit(
       _update(bySource: {
-        'a': _per('a', schedulerDue: {1, 2}, placement: {1, 2},
-            introduced: {1, 2}),
+        'a': _per('a',
+            schedulerDue: {1, 2}, placement: {1, 2}, introduced: {1, 2}),
       }),
       basedOnGeneration: staleBase,
     );
@@ -162,8 +162,11 @@ void main() {
 
     final lateResult = repo.commit(
       _update(bySource: {
-        'a': _per('a', schedulerDue: {1}, placement: {1, 2},
-            introduced: {1, 2}, suspended: {2}),
+        'a': _per('a',
+            schedulerDue: {1},
+            placement: {1, 2},
+            introduced: {1, 2},
+            suspended: {2}),
       }),
       basedOnGeneration: staleBase,
     );

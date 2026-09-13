@@ -10,19 +10,23 @@ void main() {
   test('reviewer assets exist, are hashed, and never load a CDN', () {
     final manifestFile = File('${root.path}/manifest.json');
     expect(manifestFile.existsSync(), isTrue);
-    final manifest = jsonDecode(manifestFile.readAsStringSync()) as Map<String, dynamic>;
+    final manifest =
+        jsonDecode(manifestFile.readAsStringSync()) as Map<String, dynamic>;
     expect(manifest['mathjaxVersion'], '3.2.2');
-    expect(manifest['backendCommit'], '967aa0d578fc75181e292e95326f9b58698da25c');
+    expect(
+        manifest['backendCommit'], '967aa0d578fc75181e292e95326f9b58698da25c');
     final files = (manifest['files'] as List).cast<Map<String, dynamic>>();
-    expect(files.map((f) => f['path']), containsAll([
-      'reviewer.html',
-      'reviewer.js',
-      'reviewer.css',
-      'card-frame.html',
-      'card-frame.js',
-      'mathjax-config.js',
-      'mathjax/tex-svg-full.js',
-    ]));
+    expect(
+        files.map((f) => f['path']),
+        containsAll([
+          'reviewer.html',
+          'reviewer.js',
+          'reviewer.css',
+          'card-frame.html',
+          'card-frame.js',
+          'mathjax-config.js',
+          'mathjax/tex-svg-full.js',
+        ]));
     for (final entry in files) {
       final file = File('${root.path}/${entry['path']}');
       expect(file.existsSync(), isTrue, reason: entry['path'] as String);
@@ -42,8 +46,10 @@ void main() {
     expect(html.contains('<base href="https://anki.local/media/">'), isTrue);
     expect(html.contains('https://anki.local/assets/reviewer.js'), isTrue);
     expect(html.contains('https://anki.local/assets/reviewer.css'), isTrue);
-    expect(frameHtml.contains('<base href="https://anki.local/media/">'), isTrue);
-    expect(frameHtml.contains('https://anki.local/assets/card-frame.js'), isTrue);
+    expect(
+        frameHtml.contains('<base href="https://anki.local/media/">'), isTrue);
+    expect(
+        frameHtml.contains('https://anki.local/assets/card-frame.js'), isTrue);
     expect(js.contains('OfficialReviewer'), isTrue);
     expect(js.contains('present:'), isTrue);
     expect(js.contains('opacity = "0"'), isFalse);
@@ -54,7 +60,8 @@ void main() {
     expect(js.contains('testSnapshot'), isFalse);
     expect(frameJs.contains('testSnapshot'), isTrue);
     expect(frameJs.contains('testSnapshotResult'), isTrue);
-    expect(RegExp(r'sandbox"\s*,\s*"allow-scripts allow-').hasMatch(js), isFalse);
+    expect(
+        RegExp(r'sandbox"\s*,\s*"allow-scripts allow-').hasMatch(js), isFalse);
     expect(frameJs.contains('MATHJAX_ASSET_MISSING'), isTrue);
     expect(frameJs.contains('renderComplete'), isTrue);
     expect(frameJs.contains('scrollHeight'), isTrue);

@@ -62,7 +62,8 @@ class OfficialAnkiPresentResult {
       generation: (map['generation'] as num?)?.toInt(),
       side: map['side'] as String?,
       height: (map['height'] as num?)?.toDouble(),
-      recoverable: map['recoverable'] == true || _recoverableCodes.contains(code),
+      recoverable:
+          map['recoverable'] == true || _recoverableCodes.contains(code),
     );
   }
 

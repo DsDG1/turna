@@ -18,7 +18,10 @@ class OfficialAnkiLessonUnlockQuota {
   static const _descriptorBatch = 200;
 
   Future<int> ensureForCardIds(Iterable<int> cardIds) async {
-    final unique = {for (final id in cardIds) if (id > 0) id};
+    final unique = {
+      for (final id in cardIds)
+        if (id > 0) id
+    };
     if (unique.isEmpty) return 0;
     try {
       final resolved = engine ?? OfficialAnkiCompositionRoot.engine;

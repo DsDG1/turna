@@ -81,8 +81,7 @@ class OfficialAnkiV2ViewRebuilder {
     final store = OfficialAnkiV2ViewStore(course);
     rebuilding.value = true;
     try {
-      final sources =
-          dao.listV2Sources(profileId, states: {'active'});
+      final sources = dao.listV2Sources(profileId, states: {'active'});
       if (cancelToken?.isCancelled ?? false) {
         return _result(sources.length, 0, started, cancelled: true);
       }
@@ -120,10 +119,8 @@ class OfficialAnkiV2ViewRebuilder {
           }
           placed.add(_PlacedCard(
             card: card,
-            placement:
-                _place(source.sourceId, path, placements[topDeckId]),
-            presentationKind:
-                kindsByNotetype[card.notetypeId ?? -1] ?? 'flip',
+            placement: _place(source.sourceId, path, placements[topDeckId]),
+            presentationKind: kindsByNotetype[card.notetypeId ?? -1] ?? 'flip',
           ));
         }
         rows.addAll(_chunkedRows(source, placed));
@@ -310,9 +307,8 @@ class OfficialAnkiV2ViewRebuilder {
           : (enabledKinds.contains('multiSelect')
               ? 'multiSelect'
               : (enabledKinds.contains('flip') ? 'flip' : 'canonicalLink')),
-      CardArchetype.cloze => enabledKinds.contains('fillBlank')
-          ? 'fillBlank'
-          : 'canonicalLink',
+      CardArchetype.cloze =>
+        enabledKinds.contains('fillBlank') ? 'fillBlank' : 'canonicalLink',
       CardArchetype.audioFirst => enabledKinds.contains('listenPick')
           ? 'listenPick'
           : (enabledKinds.contains('flip') ? 'flip' : 'canonicalLink'),

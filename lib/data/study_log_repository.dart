@@ -166,7 +166,8 @@ class StudyLogRepository implements IStudyLogRepository {
     if (languageCode == null) {
       final merged = <String, DailyStudyStats>{};
       raw.forEach((key, value) {
-        final dateKey = key.contains('|') ? key.substring(key.indexOf('|') + 1) : key;
+        final dateKey =
+            key.contains('|') ? key.substring(key.indexOf('|') + 1) : key;
         final existing = merged[dateKey];
         merged[dateKey] = existing == null
             ? value

@@ -9,7 +9,8 @@ import 'package:turna/application/anki_official/projection/official_anki_mapping
 import 'package:turna/views/anki/import_wizard/modern_anki_import_preview.dart';
 
 void main() {
-  testWidgets('modern preview shows course overview, stats and deck tree', (tester) async {
+  testWidgets('modern preview shows course overview, stats and deck tree',
+      (tester) async {
     final controller = _StubController();
     final preview = OfficialAnkiImportPreviewModel(
       plan: _plan(),
@@ -19,7 +20,8 @@ void main() {
       cardCount: 42,
       noteCount: 42,
       decks: const [
-        OfficialAnkiDeckNode(deckId: 1, name: 'Biology::Genetics::Mendel', level: 1),
+        OfficialAnkiDeckNode(
+            deckId: 1, name: 'Biology::Genetics::Mendel', level: 1),
       ],
       cardCountByDeck: const {1: 42},
       schemas: [
@@ -91,7 +93,8 @@ void main() {
     expect(find.text('开始导入'), findsOneWidget);
   });
 
-  testWidgets('switching study preset mode updates suggestions', (tester) async {
+  testWidgets('switching study preset mode updates suggestions',
+      (tester) async {
     final controller = _RecordingController();
     final schema = OfficialAnkiProjectionSchema(
       notetypeId: 1,
@@ -160,7 +163,8 @@ void main() {
     expect(confirmed.$2.enabledKinds, isNot(contains('multipleChoice')));
   });
 
-  testWidgets('blocking schema displays warning and allows in-place picking', (tester) async {
+  testWidgets('blocking schema displays warning and allows in-place picking',
+      (tester) async {
     final controller = _RecordingController();
     final schema = OfficialAnkiProjectionSchema(
       notetypeId: 99,
@@ -246,13 +250,22 @@ void main() {
     expect(updated.role(FieldRole.response)?.fieldName, 'CustomCol2');
   });
 
-  testWidgets('shows choice badge and clicking chapter node opens mcq preview sheet', (tester) async {
+  testWidgets(
+      'shows choice badge and clicking chapter node opens mcq preview sheet',
+      (tester) async {
     final controller = _RecordingController();
     final schema = OfficialAnkiProjectionSchema(
       notetypeId: 10,
       name: 'ExamMCQ',
       kind: 'normal',
-      fieldNames: const ['Question', 'OptionA', 'OptionB', 'OptionC', 'OptionD', 'Answer'],
+      fieldNames: const [
+        'Question',
+        'OptionA',
+        'OptionB',
+        'OptionC',
+        'OptionD',
+        'Answer'
+      ],
       templateNames: const ['Card 1'],
       schemaFingerprint: 'fp_mcq',
       samples: const [
@@ -278,7 +291,8 @@ void main() {
       cardCount: 50,
       noteCount: 50,
       decks: const [
-        OfficialAnkiDeckNode(deckId: 1, name: 'Politics::Constitution', level: 1),
+        OfficialAnkiDeckNode(
+            deckId: 1, name: 'Politics::Constitution', level: 1),
       ],
       cardCountByDeck: const {1: 50},
       schemas: [schema],
@@ -365,7 +379,8 @@ class _StubController implements AnkiImportController {
 }
 
 class _RecordingController implements AnkiImportController {
-  final confirmedMappings = <(OfficialAnkiProjectionSchema, OfficialAnkiMappingSuggestion)>[];
+  final confirmedMappings =
+      <(OfficialAnkiProjectionSchema, OfficialAnkiMappingSuggestion)>[];
   bool committed = false;
 
   @override

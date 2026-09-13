@@ -350,7 +350,8 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(AppStrings.courseManagementImportPackFailedTitle),
-        content: Text('$shown\n\n${AppStrings.courseManagementImportPackLogHint}'),
+        content:
+            Text('$shown\n\n${AppStrings.courseManagementImportPackLogHint}'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
@@ -454,7 +455,8 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
       // Uninstall with the COMPLETE source identity — never a truncated id.
       final deletionId = entry.officialSourceId ?? entry.legacyImportId!;
       try {
-        uninstallCompleted = await getIt<AnkiDeckManager>().uninstall(deletionId);
+        uninstallCompleted =
+            await getIt<AnkiDeckManager>().uninstall(deletionId);
       } catch (e) {
         debugPrint('[CourseManagement] uninstall failed for $deletionId: $e');
       }
@@ -596,9 +598,7 @@ class _CourseCard extends StatelessWidget {
                             colors: [TurnaTheme.brandTeal, TurnaTheme.brandSky],
                           )
                         : null,
-                    color: isActive
-                        ? null
-                        : accent.withValues(alpha: 0.12),
+                    color: isActive ? null : accent.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Icon(
@@ -657,8 +657,8 @@ class _CourseCard extends StatelessWidget {
                       if (entry.scope is BuiltinCourseScope) ...[
                         Builder(
                           builder: (context) {
-                            final code =
-                                (entry.scope as BuiltinCourseScope).languageCode;
+                            final code = (entry.scope as BuiltinCourseScope)
+                                .languageCode;
                             final attribution = ImportedLanguageRegistry
                                 .instance
                                 .licenseAttributionOrNull(code);

@@ -55,23 +55,23 @@ void main() {
   final manifest = jsonDecode(
     File(p.join(fixtureRoot.path, 'manifest.json')).readAsStringSync(),
   ) as Map<String, dynamic>;
-  final packages =
-      (manifest['packages'] as List).cast<Map<String, dynamic>>();
+  final packages = (manifest['packages'] as List).cast<Map<String, dynamic>>();
 
   test('startStaging indexes the nine frozen fixtures', () async {
     final harness = _Harness();
     addTearDown(harness.dispose);
     for (final pkg in packages) {
-      final file = File(p.join(fixtureRoot.path, 'packages', pkg['file'] as String));
+      final file =
+          File(p.join(fixtureRoot.path, 'packages', pkg['file'] as String));
       harness.engine.seedPackage(
         packagePath: file.path,
         notes: pkg['expectedNotes'] as int,
         cards: pkg['expectedCards'] as int,
       );
       final imported = await harness.saga().startStaging(
-        packagePath: file.path,
-        displayName: pkg['file'] as String,
-      );
+            packagePath: file.path,
+            displayName: pkg['file'] as String,
+          );
       expect(imported.state, OfficialAnkiSourceState.previewReady);
       expect(imported.cardCount, pkg['expectedCards']);
       expect(imported.noteCount, pkg['expectedNotes']);
@@ -125,9 +125,9 @@ void main() {
     OfficialAnkiCompositionRoot.debugEngineOverride = live;
     addTearDown(() => OfficialAnkiCompositionRoot.debugEngineOverride = null);
     await harness.saga().startStaging(
-      packagePath: file.path,
-      displayName: 'reversed',
-    );
+          packagePath: file.path,
+          displayName: 'reversed',
+        );
     expect(harness.sources.listSources(harness.paths.profileId), hasLength(1));
     expect(live.importCount, 0);
   });
@@ -140,9 +140,9 @@ void main() {
     );
     harness.engine.seedPackage(packagePath: file.path, notes: 1, cards: 1);
     final result = await harness.saga().startStaging(
-      packagePath: file.path,
-      displayName: 'cancel-me',
-    );
+          packagePath: file.path,
+          displayName: 'cancel-me',
+        );
     await harness.saga().cancelActive();
     expect(harness.sources.findById(result.sourceId), isNull);
   });
@@ -154,11 +154,12 @@ void main() {
       p.join(fixtureRoot.path, 'generated', '10-large-generated-5000.apkg'),
     );
     expect(large.existsSync(), isTrue);
-    harness.engine.seedPackage(packagePath: large.path, notes: 5000, cards: 5000);
+    harness.engine
+        .seedPackage(packagePath: large.path, notes: 5000, cards: 5000);
     final result = await harness.saga().startStaging(
-      packagePath: large.path,
-      displayName: '5k',
-    );
+          packagePath: large.path,
+          displayName: '5k',
+        );
     expect(result.state, OfficialAnkiSourceState.previewReady);
     expect(result.cardCount, 5000);
     expect(result.noteCount, 5000);
@@ -171,7 +172,8 @@ void main() {
         .select('PRAGMA table_info(anki_source_cards)')
         .map((row) => row['name'] as String)
         .toSet();
-    expect(names, containsAll(['card_id', 'note_id', 'deck_id', 'template_ord']));
+    expect(
+        names, containsAll(['card_id', 'note_id', 'deck_id', 'template_ord']));
     expect(names, isNot(contains('fields')));
     expect(names, isNot(contains('qfmt')));
     expect(names, isNot(contains('css')));
@@ -192,7 +194,8 @@ void main() {
     );
   });
 
-  test('empty constructor stays off; production fromEnvironment import is on', () {
+  test('empty constructor stays off; production fromEnvironment import is on',
+      () {
     expect(const OfficialAnkiFeatureFlags().import, isFalse);
     expect(const OfficialAnkiFeatureFlags().allowsOfficialImport, isFalse);
     expect(OfficialAnkiFeatureFlags.current.import, isTrue);

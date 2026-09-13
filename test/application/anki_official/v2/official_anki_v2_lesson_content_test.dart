@@ -39,7 +39,6 @@ void main() {
   const sourceId = 'src-v2-content';
   const lessonId = 'official-anki-src-v2-content-l-abc-p1';
 
-
   OfficialAnkiMappingSuggestion suggestion() => OfficialAnkiMappingSuggestion(
         candidates: const [
           OfficialAnkiFieldCandidate(
@@ -80,7 +79,8 @@ void main() {
     course = CourseDatabase(
       NativeDatabase.memory(
         setup: (raw) {
-          raw.updatesSync.listen((update) => courseWrites.add(update.tableName));
+          raw.updatesSync
+              .listen((update) => courseWrites.add(update.tableName));
         },
       ),
     );
@@ -196,8 +196,7 @@ void main() {
     expect(courseWrites, isEmpty, reason: '派生不得写 course.db');
   });
 
-  test('answer-linkage: derived ids resolve back to the view cards',
-      () async {
+  test('answer-linkage: derived ids resolve back to the view cards', () async {
     final lesson = await OfficialAnkiV2LessonContent.lessonFor(lessonId);
     expect(lesson, isNotNull);
 
@@ -210,10 +209,8 @@ void main() {
     };
     for (final item in lesson!.content.stages.single.items) {
       final cardId = index!.cardIdForInteractionId(item.id);
-      expect(cardId, isNotNull,
-          reason: '派生的 interaction 必须能解析回卡: ${item.id}');
-      final wordId =
-          item.id.substring(0, item.id.indexOf('-pflip-'));
+      expect(cardId, isNotNull, reason: '派生的 interaction 必须能解析回卡: ${item.id}');
+      final wordId = item.id.substring(0, item.id.indexOf('-pflip-'));
       expect(cardId, byWord[wordId],
           reason: 'interaction → card 映射必须逐卡正确: ${item.id}');
     }
@@ -248,8 +245,7 @@ void main() {
     );
   });
 
-  test('non-v2 lesson id falls through to null (v1 path continues)',
-      () async {
+  test('non-v2 lesson id falls through to null (v1 path continues)', () async {
     final lesson = await OfficialAnkiV2LessonContent.lessonFor(
       'some-v1-or-unknown-lesson',
     );
@@ -257,7 +253,6 @@ void main() {
   });
 
   test('missing or corrupt mapping decision is fail-closed', () async {
-
     // 决策键整个缺失（K10 损坏按 missing 语义）。
     engine.configStore.clear();
     expect(await OfficialAnkiV2LessonContent.lessonFor(lessonId), isNull);

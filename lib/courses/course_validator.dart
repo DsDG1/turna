@@ -297,41 +297,47 @@ void _validateLessonContent(
   final hasStages = stages.isNotEmpty;
   final hasSubLessons = subLessons.isNotEmpty;
   final hasListeningPhases = listeningPhases.isNotEmpty;
-  final hasReadingPassage = content.readingPassage != null || content.passage.isNotEmpty;
+  final hasReadingPassage =
+      content.readingPassage != null || content.passage.isNotEmpty;
 
   // Template / content shape consistency.
   switch (lesson.template) {
     case LessonTemplate.intro:
     case LessonTemplate.practice:
       if (!hasSubLessons) {
-        errors.add('Lesson ${lesson.id} uses template "${lesson.template.name}" '
-            'but has no subLessons.');
+        errors
+            .add('Lesson ${lesson.id} uses template "${lesson.template.name}" '
+                'but has no subLessons.');
         return;
       }
       break;
     case LessonTemplate.listening:
       if (!hasListeningPhases) {
-        errors.add('Lesson ${lesson.id} uses template "${lesson.template.name}" '
-            'but has no listeningPhases.');
+        errors
+            .add('Lesson ${lesson.id} uses template "${lesson.template.name}" '
+                'but has no listeningPhases.');
         return;
       }
       break;
     case LessonTemplate.reading:
       if (!hasReadingPassage) {
-        errors.add('Lesson ${lesson.id} uses template "${lesson.template.name}" '
-            'but has no readingPassage or legacy passage.');
+        errors
+            .add('Lesson ${lesson.id} uses template "${lesson.template.name}" '
+                'but has no readingPassage or legacy passage.');
         return;
       }
       break;
     case LessonTemplate.mastery:
       if (!hasStages) {
-        errors.add('Lesson ${lesson.id} uses template "${lesson.template.name}" '
-            'but has no stages.');
+        errors
+            .add('Lesson ${lesson.id} uses template "${lesson.template.name}" '
+                'but has no stages.');
         return;
       }
       if (stages.length > 1) {
-        errors.add('Lesson ${lesson.id} uses template "${lesson.template.name}" '
-            'and should have a single stage, but has ${stages.length}.');
+        errors
+            .add('Lesson ${lesson.id} uses template "${lesson.template.name}" '
+                'and should have a single stage, but has ${stages.length}.');
       }
       break;
     case LessonTemplate.legacy:
@@ -353,7 +359,8 @@ void _validateLessonContent(
   }
 
   if (hasListeningPhases) {
-    _validateListeningPhases(lesson, listeningPhases, vocabIds, expressionIds, errors);
+    _validateListeningPhases(
+        lesson, listeningPhases, vocabIds, expressionIds, errors);
   }
 }
 
@@ -387,21 +394,24 @@ void _validateStages(
     for (var i = 0; i < items.length; i++) {
       final item = items[i];
       if (item.id.isEmpty) {
-        errors.add('${prefix}Item #$i in stage ${stage.id} (lesson ${lesson.id}) '
-            'has an empty id.');
+        errors
+            .add('${prefix}Item #$i in stage ${stage.id} (lesson ${lesson.id}) '
+                'has an empty id.');
       } else if (!itemIds.add(item.id)) {
         errors.add('${prefix}Duplicate item id "${item.id}" in stage '
             '${stage.id} (lesson ${lesson.id}).');
       }
       if (item is ShowWord) {
         if (!vocabIds.contains(item.wordId)) {
-          errors.add('${prefix}ShowWord "${item.id}" in stage ${stage.id} (lesson '
+          errors.add(
+              '${prefix}ShowWord "${item.id}" in stage ${stage.id} (lesson '
               '${lesson.id}) references missing wordId '
               '${item.wordId}.');
         }
         if (item.expressionId != null &&
             !expressionIds.contains(item.expressionId!)) {
-          errors.add('${prefix}ShowWord "${item.id}" in stage ${stage.id} (lesson '
+          errors.add(
+              '${prefix}ShowWord "${item.id}" in stage ${stage.id} (lesson '
               '${lesson.id}) references missing expressionId '
               '${item.expressionId}.');
         }
@@ -472,20 +482,23 @@ void _validateListeningPhases(
     for (var i = 0; i < phase.items.length; i++) {
       final item = phase.items[i];
       if (item.id.isEmpty) {
-        errors.add('Item #$i in listeningPhase ${phase.id} (lesson ${lesson.id}) '
-            'has an empty id.');
+        errors
+            .add('Item #$i in listeningPhase ${phase.id} (lesson ${lesson.id}) '
+                'has an empty id.');
       } else if (!itemIds.add(item.id)) {
         errors.add('Duplicate item id "${item.id}" in listeningPhase '
             '${phase.id} (lesson ${lesson.id}).');
       }
       if (item is ShowWord) {
         if (!vocabIds.contains(item.wordId)) {
-          errors.add('ShowWord "${item.id}" in listeningPhase ${phase.id} (lesson '
+          errors.add(
+              'ShowWord "${item.id}" in listeningPhase ${phase.id} (lesson '
               '${lesson.id}) references missing wordId ${item.wordId}.');
         }
         if (item.expressionId != null &&
             !expressionIds.contains(item.expressionId!)) {
-          errors.add('ShowWord "${item.id}" in listeningPhase ${phase.id} (lesson '
+          errors.add(
+              'ShowWord "${item.id}" in listeningPhase ${phase.id} (lesson '
               '${lesson.id}) references missing expressionId '
               '${item.expressionId}.');
         }

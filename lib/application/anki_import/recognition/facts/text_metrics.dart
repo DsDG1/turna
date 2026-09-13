@@ -103,10 +103,8 @@ class CardText {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return false;
     if (RegExp(r'[。！？!?]').hasMatch(trimmed)) return true;
-    final words = trimmed
-        .split(RegExp(r'\s+'))
-        .where((w) => w.isNotEmpty)
-        .toList();
+    final words =
+        trimmed.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
     return words.length >= 6 || trimmed.length > 50;
   }
 

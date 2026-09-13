@@ -43,8 +43,7 @@ class CourseTree extends StatefulWidget {
   State<CourseTree> createState() => _CourseTreeState();
 }
 
-class _CourseTreeState extends State<CourseTree>
-    with TickerProviderStateMixin {
+class _CourseTreeState extends State<CourseTree> with TickerProviderStateMixin {
   /// Defensive section loads already scheduled for the next frame.
   final Set<String> _scheduledEnsure = {};
 
@@ -367,8 +366,8 @@ class _CourseTreeState extends State<CourseTree>
       selector: (_, progress) => (
         completed: progress.isLessonCompleted(lesson.id),
         perfect: progress.isLessonPerfect(lesson.id),
-        previousCompleted:
-            previousLessonId != null && progress.isLessonCompleted(previousLessonId),
+        previousCompleted: previousLessonId != null &&
+            progress.isLessonCompleted(previousLessonId),
       ),
       builder: (context, value, _) => LessonRowShell(
         isFirst: item.indexInUnit == 0,

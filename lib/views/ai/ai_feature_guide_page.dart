@@ -211,9 +211,8 @@ class _HeroChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: warning
-            ? TurnaTheme.warning
-            : Colors.white.withValues(alpha: 0.22),
+        color:
+            warning ? TurnaTheme.warning : Colors.white.withValues(alpha: 0.22),
         borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
         border: Border.all(
           color: Colors.white.withValues(alpha: warning ? 0.0 : 0.35),
@@ -518,11 +517,10 @@ class _FeatureCard extends StatelessWidget {
                     Expanded(
                       child: Text(
                         s,
-                        style:
-                            Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: TurnaTheme.textSecondaryColor(context),
-                                  height: 1.5,
-                                ),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: TurnaTheme.textSecondaryColor(context),
+                              height: 1.5,
+                            ),
                       ),
                     ),
                   ],
@@ -542,10 +540,7 @@ class _FeatureCard extends StatelessWidget {
                       width: 20,
                       child: Text(
                         '${i + 1}.',
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: spec.accent,
                               fontWeight: FontWeight.w800,
                             ),
@@ -554,11 +549,10 @@ class _FeatureCard extends StatelessWidget {
                     Expanded(
                       child: Text(
                         spec.steps[i],
-                        style:
-                            Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: TurnaTheme.textSecondaryColor(context),
-                                  height: 1.5,
-                                ),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: TurnaTheme.textSecondaryColor(context),
+                              height: 1.5,
+                            ),
                       ),
                     ),
                   ],

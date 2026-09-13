@@ -27,7 +27,8 @@ class MistakeDashboardPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final entries = context.select((MistakeProvider p) => p.entries);
     final dailyCounts = context.select((MistakeProvider p) => p.dailyCounts);
-    final masteredTotal = context.select((MistakeProvider p) => p.masteredTotal);
+    final masteredTotal =
+        context.select((MistakeProvider p) => p.masteredTotal);
 
     final hasAnyData =
         entries.isNotEmpty || dailyCounts.isNotEmpty || masteredTotal > 0;
@@ -88,7 +89,9 @@ class _KpiRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final toConsolidate = entries
         .where(
-          (e) => e.rewriteCount > 0 && e.rewriteCount < MistakeProvider.rewriteGoal,
+          (e) =>
+              e.rewriteCount > 0 &&
+              e.rewriteCount < MistakeProvider.rewriteGoal,
         )
         .length;
     return Container(
@@ -241,8 +244,8 @@ class _TrendCard extends StatelessWidget {
     return [
       for (var i = 13; i >= 0; i--)
         dailyCounts[MistakeProvider.dayKey(
-          todayMidnight.subtract(Duration(days: i)),
-        )] ??
+              todayMidnight.subtract(Duration(days: i)),
+            )] ??
             0,
     ];
   }
@@ -500,7 +503,8 @@ String _entryTitle(MistakeEntry entry) {
     return vocabById[entry.wordId!]?.term ?? entry.interactionId;
   }
   if (entry.grammarPointId != null) {
-    return grammarPointById[entry.grammarPointId!]?.title ?? entry.interactionId;
+    return grammarPointById[entry.grammarPointId!]?.title ??
+        entry.interactionId;
   }
   return entry.interactionId.isNotEmpty
       ? entry.interactionId
@@ -575,7 +579,8 @@ class _OldestCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final oldest = [...entries]..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+    final oldest = [...entries]
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
     final top = oldest.take(3).toList();
     return Container(
       padding: const EdgeInsets.all(16),

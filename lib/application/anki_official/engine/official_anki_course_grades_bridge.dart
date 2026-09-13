@@ -47,7 +47,8 @@ class OfficialAnkiCourseGradesBridgeImpl
       }
       return false;
     } catch (suppressed) {
-      debugPrint('[OfficialAnkiCourseGradesBridge] [OfficialAnkiCourseGradesBridge] course-grades bridge suppressed: $suppressed');
+      debugPrint(
+          '[OfficialAnkiCourseGradesBridge] [OfficialAnkiCourseGradesBridge] course-grades bridge suppressed: $suppressed');
       return false;
     }
   }

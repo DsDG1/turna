@@ -37,7 +37,8 @@ class _ControllableReviewHistoryDao implements ReviewHistoryDao {
   Future<void> insertEvent(ReviewEventRecord event) async {}
 
   @override
-  Future<bool> deleteLatestForCard(String cardId, {String? languageCode}) async =>
+  Future<bool> deleteLatestForCard(String cardId,
+          {String? languageCode}) async =>
       false;
 
   @override

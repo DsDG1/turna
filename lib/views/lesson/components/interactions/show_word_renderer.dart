@@ -50,10 +50,13 @@ class ShowWordRenderer extends InteractionRenderer {
       );
     }
     final hasInline = i.term != null && i.term!.isNotEmpty;
-    final isUnknown = !hasInline && i.wordId.startsWith(unknownInteractionWordIdPrefix);
+    final isUnknown =
+        !hasInline && i.wordId.startsWith(unknownInteractionWordIdPrefix);
     final vocab = (hasInline || isUnknown) ? null : vocabById[i.wordId];
-    final term = hasInline ? i.term! : (vocab?.term ?? (isUnknown ? '' : i.wordId));
-    final translation = hasInline ? (i.translation ?? '') : (vocab?.translation ?? '');
+    final term =
+        hasInline ? i.term! : (vocab?.term ?? (isUnknown ? '' : i.wordId));
+    final translation =
+        hasInline ? (i.translation ?? '') : (vocab?.translation ?? '');
     final contextSentence = i.example ?? i.context;
 
     return _ShowWordCard(
@@ -186,8 +189,7 @@ class _ShowWordCard extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 12),
                           decoration: BoxDecoration(
-                            color:
-                                TurnaTheme.brandTeal.withValues(alpha: 0.06),
+                            color: TurnaTheme.brandTeal.withValues(alpha: 0.06),
                             borderRadius:
                                 BorderRadius.circular(TurnaTheme.radiusMedium),
                           ),

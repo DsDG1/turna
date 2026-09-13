@@ -95,8 +95,7 @@ void main() {
     await tester.pump();
 
     expect(confirmed, isNotNull);
-    expect(
-        confirmed!.role(FieldRole.prompt)?.fieldName, 'Front');
+    expect(confirmed!.role(FieldRole.prompt)?.fieldName, 'Front');
   });
 
   testWidgets('reassigning a role through the dropdown notifies onChanged',
@@ -150,8 +149,7 @@ void main() {
     );
   });
 
-  testWidgets(
-      'missing question and answer still lets save enter pick-front',
+  testWidgets('missing question and answer still lets save enter pick-front',
       (tester) async {
     await tester.pumpWidget(_host(OfficialAnkiMappingPage(
       notetypeName: 'Unknown',
@@ -201,8 +199,8 @@ void main() {
     )));
 
     // The default suggestion kind list reads as the 自动 preset.
-    final auto =
-        tester.widget<ChoiceChip>(find.byKey(const Key('exercise-preset-auto')));
+    final auto = tester
+        .widget<ChoiceChip>(find.byKey(const Key('exercise-preset-auto')));
     expect(auto.selected, isTrue);
 
     final choiceChip = find.byKey(const Key('exercise-preset-choice'));
@@ -219,8 +217,7 @@ void main() {
     expect(confirmed!.enabledKinds, contains('multipleChoice'));
     expect(confirmed!.enabledKinds, isNot(contains('listenPick')));
     // Field roles are untouched by the exercise choice.
-    expect(
-        confirmed!.role(FieldRole.prompt)?.fieldName, 'Front');
+    expect(confirmed!.role(FieldRole.prompt)?.fieldName, 'Front');
   });
 
   testWidgets(
@@ -260,7 +257,8 @@ void main() {
       expect(
         save.onPressed,
         isNotNull,
-        reason: 'blocking mapping must still let the user tap save (enters pick-front)',
+        reason:
+            'blocking mapping must still let the user tap save (enters pick-front)',
       );
 
       await tester.tap(find.byKey(const Key('mapping-save')));

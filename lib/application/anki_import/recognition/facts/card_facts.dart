@@ -69,8 +69,7 @@ class CardFacts {
 
   factory CardFacts.of(List<String> values) => CardFacts._(values);
 
-  int get nonEmptyCount =>
-      values.where((v) => v.trim().isNotEmpty).length;
+  int get nonEmptyCount => values.where((v) => v.trim().isNotEmpty).length;
 
   bool get isEmpty => nonEmptyCount == 0;
 

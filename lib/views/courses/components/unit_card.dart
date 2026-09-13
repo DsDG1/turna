@@ -64,7 +64,9 @@ class UnitCard extends StatelessWidget {
 
     final borderRadius = BorderRadius.vertical(
       top: const Radius.circular(TurnaTheme.radiusLarge),
-      bottom: expanded ? Radius.zero : const Radius.circular(TurnaTheme.radiusLarge),
+      bottom: expanded
+          ? Radius.zero
+          : const Radius.circular(TurnaTheme.radiusLarge),
     );
 
     return Semantics(

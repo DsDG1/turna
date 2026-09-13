@@ -162,7 +162,8 @@ void main() {
       };
       for (final path in paths) {
         final text = File(path).readAsStringSync();
-        expect(text.contains('FormalReviewLauncher().open'), isTrue, reason: path);
+        expect(text.contains('FormalReviewLauncher().open'), isTrue,
+            reason: path);
         expect(text.contains('OfficialAnkiReviewPage'), isFalse, reason: path);
         expect(
           text.contains('AnkiReviewRoute()') &&
@@ -171,13 +172,13 @@ void main() {
           reason: 'Play Hub must not stay on the deck-list route',
         );
       }
-      final session =
-          File('lib/views/anki/anki_review_session_page.dart').readAsStringSync();
+      final session = File('lib/views/anki/anki_review_session_page.dart')
+          .readAsStringSync();
       expect(session.contains('StudySessionController'), isTrue);
       expect(session.contains('ReviewSessionController'), isFalse);
       expect(session.contains('OfficialAnkiReviewPage'), isFalse);
-      final gate =
-          File('lib/views/anki/anki_official_review_gate.dart').readAsStringSync();
+      final gate = File('lib/views/anki/anki_official_review_gate.dart')
+          .readAsStringSync();
       expect(gate.contains('official_anki_review_page.dart'), isFalse);
       expect(gate.contains('Navigator.of(context).push'), isFalse);
     });
@@ -200,7 +201,8 @@ void main() {
               path.contains('official_anki_review_fixture') ||
               path.contains('practice_review_surface_fixture'),
           isTrue,
-          reason: '$path should go through FormalReviewLauncher or be the host surface',
+          reason:
+              '$path should go through FormalReviewLauncher or be the host surface',
         );
         expect(
           text.contains(

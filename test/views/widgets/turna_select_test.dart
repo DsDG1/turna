@@ -9,7 +9,8 @@ void main() {
   Widget wrap(Widget child) {
     return MaterialApp(
       theme: TurnaTheme.lightTheme,
-      home: Scaffold(body: Padding(padding: const EdgeInsets.all(8), child: child)),
+      home: Scaffold(
+          body: Padding(padding: const EdgeInsets.all(8), child: child)),
     );
   }
 

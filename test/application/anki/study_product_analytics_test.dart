@@ -61,7 +61,8 @@ void main() {
       expect(analytics.snapshot().uniqueEventCount, 0);
     });
 
-    test('loading / unavailable / error / stale stay distinct from 0 ready', () {
+    test('loading / unavailable / error / stale stay distinct from 0 ready',
+        () {
       final analytics = StudyProductAnalytics();
       analytics.record(receipt(eventId: 'evt-1'));
 
@@ -70,7 +71,8 @@ void main() {
       expect(analytics.snapshot().uniqueEventCount, 0);
 
       analytics.freshness = StudyAnalyticsFreshness.unavailable;
-      expect(analytics.snapshot().freshness, StudyAnalyticsFreshness.unavailable);
+      expect(
+          analytics.snapshot().freshness, StudyAnalyticsFreshness.unavailable);
       expect(analytics.snapshot().uniqueEventCount, 0);
 
       analytics.freshness = StudyAnalyticsFreshness.error;

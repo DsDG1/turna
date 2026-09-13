@@ -269,7 +269,8 @@ void main() {
       final targetPath = await resolver.getImportMediaPath(importId);
       // No previous media: the legacy swap left an empty rollback directory
       // as the durable crash marker.
-      final rollback = makeRollbackDir(importId, 'hash-new', withOldMedia: false);
+      final rollback =
+          makeRollbackDir(importId, 'hash-new', withOldMedia: false);
       expect(rollback.listSync(), isEmpty);
 
       await resolver.sweepOrphanMedia(

@@ -87,8 +87,7 @@ void main() {
       );
       // includeApiKey: the legacy-inclusive form is only for reading back
       // pre-migration blobs (the key now lives in the secure store).
-      final restored =
-          AiEngineConfig.fromJson(c.toJson(includeApiKey: true));
+      final restored = AiEngineConfig.fromJson(c.toJson(includeApiKey: true));
       expect(restored.preset.id, AiProvider.kimi);
       expect(restored.apiKey, 'sk-secret');
       expect(restored.modelChat, 'kimi-k2.7-code');
@@ -106,8 +105,7 @@ void main() {
         customBaseUrl: 'https://my-proxy.example.com/v1',
         modelChat: 'my-model',
       );
-      final restored =
-          AiEngineConfig.fromJson(c.toJson(includeApiKey: true));
+      final restored = AiEngineConfig.fromJson(c.toJson(includeApiKey: true));
       expect(restored.preset.id, AiProvider.custom);
       expect(restored.baseUrl, 'https://my-proxy.example.com/v1');
       expect(restored.modelChat, 'my-model');

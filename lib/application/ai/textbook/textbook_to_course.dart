@@ -17,7 +17,9 @@ class TextbookToCourse {
     final sections = <Map<String, dynamic>>[];
     for (var i = 0; i < results.length; i++) {
       final result = results[i];
-      if (!result.keep || result.knowledge == null || result.knowledge!.isEmpty) {
+      if (!result.keep ||
+          result.knowledge == null ||
+          result.knowledge!.isEmpty) {
         continue;
       }
       sections.add(

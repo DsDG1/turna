@@ -58,5 +58,4 @@ class OfficialAnkiOperationCoordinator {
   }
 
   bool get isReviewing => phase == OfficialAnkiOperationPhase.reviewing;
-
 }

@@ -171,7 +171,8 @@ void main() {
       );
     });
 
-    test('champion / sharpshooter / sage / scholar / winner / wildfire are '
+    test(
+        'champion / sharpshooter / sage / scholar / winner / wildfire are '
         'recomputed from metrics, not trusted as full completion', () async {
       await seedLessonProgress(completed: 2, perfect: 1);
       await prefs.preferences.setStringList(
@@ -213,7 +214,8 @@ void main() {
       final doc1 = stack.stateRepository.current;
 
       // Simulate the version marker being lost: run the migration body again.
-      await prefs.preferences.remove(LocalStateKeys.achievementsMigrationVersion);
+      await prefs.preferences
+          .remove(LocalStateKeys.achievementsMigrationVersion);
       await stack.migrationService.runIfNeeded();
       final doc2 = stack.stateRepository.current;
 

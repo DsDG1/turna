@@ -213,12 +213,11 @@ class OfficialAnkiV2LessonContent {
   }
 
   static Set<String> _activeV2SourceIds(OfficialAnkiDatabase catalog) {
-    final profileId =
-        OfficialAnkiCompositionRoot.locatorPaths?.profileId ??
-            'profile-default-01';
+    final profileId = OfficialAnkiCompositionRoot.locatorPaths?.profileId ??
+        'profile-default-01';
     return {
-      for (final source
-          in OfficialAnkiSourceDao(catalog).listV2Sources(profileId, states: {'active'}))
+      for (final source in OfficialAnkiSourceDao(catalog)
+          .listV2Sources(profileId, states: {'active'}))
         source.sourceId,
     };
   }

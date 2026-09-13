@@ -29,14 +29,12 @@ class ThemeProvider extends ChangeNotifier {
     return _themeMode == ThemeMode.dark;
   }
 
-  ThemeData get currentTheme => isDarkMode
-      ? TurnaTheme.darkTheme
-      : TurnaTheme.lightTheme;
+  ThemeData get currentTheme =>
+      isDarkMode ? TurnaTheme.darkTheme : TurnaTheme.lightTheme;
 
   void toggleTheme() {
-    _themeMode = _themeMode == ThemeMode.light
-        ? ThemeMode.dark
-        : ThemeMode.light;
+    _themeMode =
+        _themeMode == ThemeMode.light ? ThemeMode.dark : ThemeMode.light;
     _persist();
     notifyListeners();
   }

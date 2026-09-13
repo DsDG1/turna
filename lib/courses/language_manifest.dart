@@ -55,12 +55,10 @@ class LanguageDescriptor {
       displayName: '${json['displayName'] ?? code}',
       ttsLocale: '${json['ttsLocale'] ?? code}',
       dir: '${json['dir'] ?? LanguageCodes.packedDirs[code] ?? code}',
-      nativeLabel: json['nativeLabel'] == null
-          ? null
-          : '${json['nativeLabel']}',
-      signatureChars: json['signatureChars'] == null
-          ? null
-          : '${json['signatureChars']}',
+      nativeLabel:
+          json['nativeLabel'] == null ? null : '${json['nativeLabel']}',
+      signatureChars:
+          json['signatureChars'] == null ? null : '${json['signatureChars']}',
     );
   }
 }
@@ -101,9 +99,8 @@ class LanguageManifest {
     try {
       final raw = await source.loadString(assetPath);
       final decoded = jsonDecode(raw);
-      final list = decoded is Map<String, dynamic>
-          ? decoded['languages']
-          : decoded;
+      final list =
+          decoded is Map<String, dynamic> ? decoded['languages'] : decoded;
       if (list is! List) return packedFallback;
       final parsed = <LanguageDescriptor>[
         for (final item in list)

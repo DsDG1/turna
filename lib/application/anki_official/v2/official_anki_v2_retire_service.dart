@@ -48,8 +48,7 @@ class OfficialAnkiV2RetireService {
 
   final int deleteChunk;
 
-  int get _now =>
-      nowMillis?.call() ?? DateTime.now().millisecondsSinceEpoch;
+  int get _now => nowMillis?.call() ?? DateTime.now().millisecondsSinceEpoch;
 
   /// ① 序列入口：账本单事务（CAS active→retiring + 入队删除 job），
   /// 提交后定向删除该 source 的视图行——无需引擎、即刻不可见（K6

@@ -222,7 +222,8 @@ class _LessonRow extends StatelessWidget {
               borderRadius: radius,
               onTap: onTap,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 child: _LessonRowContent(
                   lesson: lesson,
                   isCompleted: isCompleted,
@@ -425,7 +426,8 @@ class AttentionChip extends StatelessWidget {
   final LessonAttention attention;
   final int count;
 
-  const AttentionChip({required this.attention, required this.count, super.key});
+  const AttentionChip(
+      {required this.attention, required this.count, super.key});
 
   @override
   Widget build(BuildContext context) {

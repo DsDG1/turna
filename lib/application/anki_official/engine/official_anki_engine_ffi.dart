@@ -1,4 +1,3 @@
-
 import 'package:turna/application/anki_official/contract/official_anki_contract.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
@@ -491,7 +490,8 @@ class FfiOfficialAnkiEngine implements OfficialAnkiEngine {
   }
 
   @override
-  Future<OfficialAnkiCompactResult> compactCollection({bool force = false}) async {
+  Future<OfficialAnkiCompactResult> compactCollection(
+      {bool force = false}) async {
     _requireScheduler(OfficialAnkiOperation.compactCollection);
     return OfficialAnkiCompactResult.fromJson(
       _call(OfficialAnkiOperation.compactCollection, {
@@ -521,7 +521,8 @@ class FfiOfficialAnkiEngine implements OfficialAnkiEngine {
   }
 
   @override
-  Future<OfficialAnkiConfigWriteResult> setConfig(String key, Object? value) async {
+  Future<OfficialAnkiConfigWriteResult> setConfig(
+      String key, Object? value) async {
     _requireScheduler(OfficialAnkiOperation.setConfig);
     return OfficialAnkiConfigWriteResult.fromJson(
       _call(OfficialAnkiOperation.setConfig, {

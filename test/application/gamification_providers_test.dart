@@ -41,8 +41,9 @@ void main() {
     }
   });
 
-  int balance() =>
-      prefs.preferences.getInt(LocalStateKeys.gems, defaultValue: -1).getValue();
+  int balance() => prefs.preferences
+      .getInt(LocalStateKeys.gems, defaultValue: -1)
+      .getValue();
 
   group('GemsProvider.spendGems', () {
     test('spendGems succeeds when balance is sufficient', () async {
@@ -170,16 +171,14 @@ void main() {
       );
     });
 
-    test('profile theme and completion effect buy and equip by slot',
-        () async {
+    test('profile theme and completion effect buy and equip by slot', () async {
       await gems.addGems(300);
       expect(
         await cosmetics.unlockAndEquipItem(CosmeticItems.profileSunrise),
         CosmeticActionResult.unlockedAndEquipped,
       );
       expect(
-        await cosmetics
-            .unlockAndEquipItem(CosmeticItems.completionReedBloom),
+        await cosmetics.unlockAndEquipItem(CosmeticItems.completionReedBloom),
         CosmeticActionResult.unlockedAndEquipped,
       );
 
@@ -233,8 +232,9 @@ void main() {
     });
 
     Future<int> countRows({required String kind, String? reasonPrefix}) async {
-      final where =
-          reasonPrefix == null ? 'kind = ?' : "kind = ? AND reason LIKE ? || '%'";
+      final where = reasonPrefix == null
+          ? 'kind = ?'
+          : "kind = ? AND reason LIKE ? || '%'";
       final variables = <Object?>[
         kind,
         if (reasonPrefix != null) reasonPrefix,

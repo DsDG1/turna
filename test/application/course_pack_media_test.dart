@@ -26,7 +26,8 @@ void main() {
       expect(CoursePackMedia.isAllowedMediaName('notes.txt'), isFalse);
     });
 
-    test('resolveFile only returns files inside the language media dir', () async {
+    test('resolveFile only returns files inside the language media dir',
+        () async {
       final root = await Directory.systemTemp.createTemp('pack-media-');
       addTearDown(() {
         if (root.existsSync()) root.deleteSync(recursive: true);
@@ -41,8 +42,10 @@ void main() {
         await CoursePackMedia.resolveFile('turnapack://es/dog1.jpg'),
         dog.path,
       );
-      expect(await CoursePackMedia.resolveFile('turnapack://es/../dog1.jpg'), isNull);
-      expect(await CoursePackMedia.resolveFile('turnapack://es/missing.jpg'), isNull);
+      expect(await CoursePackMedia.resolveFile('turnapack://es/../dog1.jpg'),
+          isNull);
+      expect(await CoursePackMedia.resolveFile('turnapack://es/missing.jpg'),
+          isNull);
     });
   });
 

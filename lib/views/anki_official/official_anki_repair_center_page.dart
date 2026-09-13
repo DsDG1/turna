@@ -197,9 +197,7 @@ class _OfficialAnkiRepairCenterPageState
 
     final pending = _pending;
     final pendingCleanup = _sources
-        .where((s) =>
-            s.state == 'pending_cleanup' ||
-            s.state == 'retiring')
+        .where((s) => s.state == 'pending_cleanup' || s.state == 'retiring')
         .toList();
     final quarantined =
         _sources.where((s) => s.state == 'quarantined').toList();
@@ -269,8 +267,7 @@ class _OfficialAnkiRepairCenterPageState
                 OfficialInterruptedImportCard(
                   key: Key('repair-pending-${item.sourceId}'),
                   displayName: item.displayName,
-                  onDiscard:
-                      _busy ? null : () => _discardImport(item.sourceId),
+                  onDiscard: _busy ? null : () => _discardImport(item.sourceId),
                 ),
                 const SizedBox(height: 12),
               ],
@@ -284,9 +281,8 @@ class _OfficialAnkiRepairCenterPageState
                   subtitle: AppStrings.ankiRepairSourceState(source.state),
                   actions: [
                     TextButton(
-                      onPressed: _busy
-                          ? null
-                          : () => _retryCleanup(source.sourceId),
+                      onPressed:
+                          _busy ? null : () => _retryCleanup(source.sourceId),
                       child: Text(AppStrings.ankiRepairRetryCleanup),
                     ),
                   ],
@@ -490,8 +486,7 @@ class _OfficialAnkiRepairCenterPageState
                     status: orphans.isEmpty
                         ? AppStrings.databaseDoctorStorageNoOrphans
                         : '${orphans.length} 个残留文件夹',
-                    statusColor:
-                        orphans.isEmpty ? Colors.green : Colors.orange,
+                    statusColor: orphans.isEmpty ? Colors.green : Colors.orange,
                     detail: orphans.isNotEmpty
                         ? _formatBytes(orphans.fold<int>(
                             0, (sum, a) => sum + a.physicalBytes))
@@ -547,7 +542,8 @@ class _OfficialAnkiRepairCenterPageState
             children: [
               Text(
                 title,
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                style:
+                    const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
               ),
               if (detail != null)
                 Text(
@@ -698,9 +694,7 @@ class _OfficialAnkiRepairCenterPageState
       );
       // 3. Retry pending cleanups
       final pendingCleanups = _sources
-          .where((s) =>
-              s.state == 'pending_cleanup' ||
-              s.state == 'retiring')
+          .where((s) => s.state == 'pending_cleanup' || s.state == 'retiring')
           .toList();
       for (final s in pendingCleanups) {
         try {
@@ -1078,6 +1072,7 @@ class _OfficialAnkiRepairCenterPageState
   }
 
   void _snack(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 }

@@ -1,7 +1,7 @@
 # Turna build automation.
 # Run `make help` to list targets.
 
-.PHONY: help gen analyze test test-python build-release build-release-smoke ci clean
+.PHONY: help gen format-check analyze test test-python build-release build-release-smoke ci clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -12,6 +12,9 @@ gen: ## Run build_runner (routes, freezed, json_serializable, drift, injectable)
 
 analyze: ## Static analysis
 	flutter analyze
+
+format-check: ## Fail if any Dart file is not dart-format clean
+	dart format --output=none --set-exit-if-changed lib test
 
 test: ## Run Dart tests
 	flutter test
@@ -25,7 +28,7 @@ build-release: ## Build release artifacts for a given VERSION (e.g., make build-
 build-release-smoke: ## Quick build smoke test (skips web, content validation, and the native .so build)
 	python3 tool/build_release.py --version ci-smoke --skip-web --skip-content-validation --skip-native
 
-ci: analyze test test-python build-release-smoke ## Run the full local CI equivalent
+ci: format-check analyze test test-python build-release-smoke ## Run the full local CI equivalent
 
 clean: ## Clean build artifacts
 	flutter clean && flutter pub get

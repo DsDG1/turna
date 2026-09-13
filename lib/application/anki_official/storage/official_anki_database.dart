@@ -122,8 +122,6 @@ class OfficialAnkiDatabase {
     }
   }
 
-
-
   void _upgradeToV2() {
     _db.execute('''
 CREATE TABLE IF NOT EXISTS anki_import_attempt_notes (
@@ -297,7 +295,8 @@ CREATE TABLE IF NOT EXISTS legacy_anki_card_map (
 
   void _upgradeToV8() {
     final hasColumn = _db
-        .select("SELECT name FROM pragma_table_info('legacy_anki_migrations') WHERE name='recorded_kind'")
+        .select(
+            "SELECT name FROM pragma_table_info('legacy_anki_migrations') WHERE name='recorded_kind'")
         .isNotEmpty;
     if (!hasColumn) {
       _db.execute(
@@ -571,7 +570,8 @@ CREATE TABLE IF NOT EXISTS anki_cleanup_receipts (
       'anki_maintenance_leases',
     };
     final existing = _db
-        .select("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+        .select(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
         .map((r) => r['name'] as String)
         .where((name) => !keep.contains(name))
         .toList();

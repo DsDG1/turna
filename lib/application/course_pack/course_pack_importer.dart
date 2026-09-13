@@ -145,7 +145,8 @@ class CoursePackImporter {
     if (pack.language.displayName.isEmpty ||
         pack.license.name.isEmpty ||
         pack.license.attribution.isEmpty) {
-      errors.add('language.displayName and license name/attribution are required');
+      errors.add(
+          'language.displayName and license name/attribution are required');
     }
     if (!pack.files.containsKey('index.json')) {
       errors.add('files.index.json is required');
@@ -182,15 +183,17 @@ class CoursePackImporter {
     } catch (e) {
       throw CoursePackImportException(['index.json is not valid JSON: $e']);
     }
-    final indexLanguage = LanguageCodes.canonicalize('${index['language'] ?? ''}');
+    final indexLanguage =
+        LanguageCodes.canonicalize('${index['language'] ?? ''}');
     if (indexLanguage != code) {
       throw CoursePackImportException([
         'index.language ($indexLanguage) != language.code ($code)',
       ]);
     }
 
-    final sectionEntries =
-        (index['sections'] as List<dynamic>? ?? const []).whereType<Map>().toList();
+    final sectionEntries = (index['sections'] as List<dynamic>? ?? const [])
+        .whereType<Map>()
+        .toList();
     final listedFiles = <String>{
       for (final entry in sectionEntries) '${entry['file'] ?? ''}',
     };
@@ -228,7 +231,8 @@ class CoursePackImporter {
       try {
         grammarPoints = parseGrammarPoints(grammarRaw);
       } catch (e) {
-        throw CoursePackImportException(['grammar_points.json parse failed: $e']);
+        throw CoursePackImportException(
+            ['grammar_points.json parse failed: $e']);
       }
     }
 
@@ -245,7 +249,7 @@ class CoursePackImporter {
         if (declaredId.isNotEmpty && declaredId != section.id) {
           throw CoursePackImportException([
             'index.json sections[].id "$declaredId" != $file id '
-            '"${section.id}"',
+                '"${section.id}"',
           ]);
         }
         sections.add(section);
@@ -256,7 +260,8 @@ class CoursePackImporter {
       }
     }
 
-    for (final id in _collectResourceIds(sections, vocab, expressions, grammarPoints)) {
+    for (final id
+        in _collectResourceIds(sections, vocab, expressions, grammarPoints)) {
       if (!id.startsWith(prefix)) {
         errors.add('id "$id" must start with $prefix');
       }
@@ -380,13 +385,14 @@ class CoursePackImporter {
     } else if (persistBytes != null) {
       await dest.writeAsBytes(persistBytes);
     } else {
-      await dest.writeAsString(persistText ?? jsonEncode({
-        'format': pack.format,
-        'packVersion': pack.packVersion,
-        'language': pack.language.toJson(),
-        'license': pack.license.toJson(),
-        'files': pack.files,
-      }));
+      await dest.writeAsString(persistText ??
+          jsonEncode({
+            'format': pack.format,
+            'packVersion': pack.packVersion,
+            'language': pack.language.toJson(),
+            'license': pack.license.toJson(),
+            'files': pack.files,
+          }));
     }
 
     LanguageContentStore.drop(code);

@@ -80,9 +80,8 @@ class AiEngineConfig {
 
   /// Effective Base URL: the custom URL for the `custom` preset, otherwise the
   /// preset's Base URL.
-  String get baseUrl => preset.id == AiProvider.custom
-      ? (customBaseUrl ?? '')
-      : preset.baseUrl;
+  String get baseUrl =>
+      preset.id == AiProvider.custom ? (customBaseUrl ?? '') : preset.baseUrl;
 
   /// Normalized chat-completions URL. Strips any trailing slash on [baseUrl]
   /// and appends `/chat/completions` if the user only provided the base. Mirrors

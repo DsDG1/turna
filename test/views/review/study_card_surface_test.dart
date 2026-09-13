@@ -48,7 +48,8 @@ void main() {
     expect(find.byType(FlutterCourseCardBody), findsNothing);
   });
 
-  testWidgets('flip content still uses the shared flip surface', (tester) async {
+  testWidgets('flip content still uses the shared flip surface',
+      (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
         home: Scaffold(

@@ -62,8 +62,7 @@ class RecognitionEvidence {
   final String detail;
   final CardArchetype? target;
 
-  String describe() =>
-      detail.isEmpty ? signal : '$signal ($detail)';
+  String describe() => detail.isEmpty ? signal : '$signal ($detail)';
 
   Map<String, Object?> toJson() => <String, Object?>{
         'signal': signal,
@@ -121,8 +120,7 @@ class RecognitionResult {
   RecognitionBand get band => recognitionBandFor(confidence);
 
   /// Cloze notetypes and single-field notetypes have no back side to map.
-  bool get singleField =>
-      archetype == CardArchetype.cloze || fieldCount <= 1;
+  bool get singleField => archetype == CardArchetype.cloze || fieldCount <= 1;
 
   FieldBinding? binding(FieldRole role) => roles[role];
 }

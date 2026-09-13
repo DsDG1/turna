@@ -89,8 +89,8 @@ class _TodaySummaryCardState extends _StudyFuturesState<TodaySummaryCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionTitle(context, AppStrings.profileTodayTitle,
-              Icons.insights_rounded),
+          _sectionTitle(
+              context, AppStrings.profileTodayTitle, Icons.insights_rounded),
           const SizedBox(height: 10),
           FutureBuilder<DailyStudyStats>(
             future: _todayFuture,

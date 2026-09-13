@@ -48,8 +48,8 @@ void main() {
       studiedCardIds: const {2},
     );
 
-    final studied =
-        await dao.introductionState(courseId: 'official-anki-src-hist', key: key(2));
+    final studied = await dao.introductionState(
+        courseId: 'official-anki-src-hist', key: key(2));
     expect(studied.status, CardIntroductionStatus.introduced);
     expect(studied.introducedBy, CardIntroducedBy.importedHistory);
 
@@ -76,8 +76,8 @@ void main() {
       studiedCardIds: const {7},
     );
 
-    final state =
-        await dao.introductionState(courseId: 'official-anki-src-hist', key: key(7));
+    final state = await dao.introductionState(
+        courseId: 'official-anki-src-hist', key: key(7));
     expect(state.status, CardIntroductionStatus.introduced);
     expect(state.introducedBy, CardIntroducedBy.course);
     expect(state.firstLessonId, 'official-anki-src-hist-s1');
@@ -115,27 +115,28 @@ void main() {
     await pumpEventQueue();
     await sub.cancel();
 
-    final card1 =
-        await dao.introductionState(courseId: 'official-anki-src-hist', key: key(1));
+    final card1 = await dao.introductionState(
+        courseId: 'official-anki-src-hist', key: key(1));
     expect(card1.status, CardIntroductionStatus.introduced);
     expect(card1.introducedBy, CardIntroducedBy.importedHistory);
 
-    final card2 =
-        await dao.introductionState(courseId: 'official-anki-src-hist', key: key(2));
+    final card2 = await dao.introductionState(
+        courseId: 'official-anki-src-hist', key: key(2));
     expect(card2.introducedBy, CardIntroducedBy.course);
     expect(card2.version, 1, reason: 'already introduced — no rewrite');
 
-    final card3 =
-        await dao.introductionState(courseId: 'official-anki-src-hist', key: key(3));
+    final card3 = await dao.introductionState(
+        courseId: 'official-anki-src-hist', key: key(3));
     expect(card3.status, CardIntroductionStatus.retired);
 
-    final card4 =
-        await dao.introductionState(courseId: 'official-anki-src-hist', key: key(4));
+    final card4 = await dao.introductionState(
+        courseId: 'official-anki-src-hist', key: key(4));
     expect(card4.status, CardIntroductionStatus.introduced);
     expect(card4.introducedBy, CardIntroducedBy.importedHistory);
 
     expect(
-      events.where((e) => e.kind == CardIntroductionChangeKind.introduced)
+      events
+          .where((e) => e.kind == CardIntroductionChangeKind.introduced)
           .map((e) => e.cardId)
           .toSet(),
       {1, 4},
@@ -191,11 +192,11 @@ void main() {
       store: store,
     );
 
-    final adopted =
-        await dao.introductionState(courseId: 'official-anki-src-hist', key: key(11));
+    final adopted = await dao.introductionState(
+        courseId: 'official-anki-src-hist', key: key(11));
     expect(adopted.status, CardIntroductionStatus.introduced);
-    final untouched =
-        await dao.introductionState(courseId: 'official-anki-src-hist', key: key(99));
+    final untouched = await dao.introductionState(
+        courseId: 'official-anki-src-hist', key: key(99));
     expect(untouched.status, CardIntroductionStatus.unintroduced);
     expect(store.introducedCardIdsForSource('src-hist'), {11});
     expect(store.introducedCardIdsForSource('src-other'), {12});

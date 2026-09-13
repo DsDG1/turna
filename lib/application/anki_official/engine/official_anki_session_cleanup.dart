@@ -53,7 +53,8 @@ class _NativeCleanupTransport implements OfficialAnkiCleanupTransport {
   void engineClose(int handle) => _inner.engineClose(handle);
 }
 
-OfficialAnkiCleanupTransport officialAnkiOpenCleanupTransport(String libraryPath) {
+OfficialAnkiCleanupTransport officialAnkiOpenCleanupTransport(
+    String libraryPath) {
   return _NativeCleanupTransport(
     OfficialAnkiNativeTransport.open(libraryPath: libraryPath),
   );
@@ -166,7 +167,8 @@ class OfficialAnkiSessionCleanup {
         closeAttempts: 0,
       );
     } catch (suppressed) {
-      debugPrint('[OfficialAnkiSessionCleanup] [OfficialAnkiSessionCleanup] cleanup step suppressed: $suppressed');
+      debugPrint(
+          '[OfficialAnkiSessionCleanup] [OfficialAnkiSessionCleanup] cleanup step suppressed: $suppressed');
       orphan = true;
     }
     final library = resolvedLibraryPath;
@@ -193,7 +195,8 @@ class OfficialAnkiSessionCleanup {
     } on TimeoutException {
       orphan = true;
     } catch (suppressed) {
-      debugPrint('[OfficialAnkiSessionCleanup] [OfficialAnkiSessionCleanup] cleanup step suppressed: $suppressed');
+      debugPrint(
+          '[OfficialAnkiSessionCleanup] [OfficialAnkiSessionCleanup] cleanup step suppressed: $suppressed');
       orphan = true;
     }
     return OfficialAnkiCleanupReport(

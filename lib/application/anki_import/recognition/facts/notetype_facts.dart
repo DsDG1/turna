@@ -50,8 +50,7 @@ class NotetypeFacts {
 
   /// Field ords referenced on some template's front face.
   Set<int> get frontFieldOrds => <int>{
-        for (final template in templates)
-          ...template.frontFields,
+        for (final template in templates) ...template.frontFields,
       };
 
   /// Field ords referenced on back faces only.
@@ -69,12 +68,10 @@ class NotetypeFacts {
       };
 
   /// Any template declares `{{type:}}`.
-  bool get hasTypeInFilter =>
-      templates.any((template) => template.typeIn);
+  bool get hasTypeInFilter => templates.any((template) => template.typeIn);
 
   /// Any template face carries script/event-handler/JS structure.
-  bool get hasTemplateScript =>
-      templates.any((template) => template.script);
+  bool get hasTemplateScript => templates.any((template) => template.script);
 
   /// Any template face carries complex HTML structure (table/svg/…).
   bool get hasTemplateComplexHtml =>
@@ -96,13 +93,10 @@ class NotetypeFacts {
   List<(String, String)> pairedSamplesOf(int fieldIndex, int pairedFieldIndex) {
     return [
       for (final values in samples)
-        if (fieldIndex < values.length &&
-            values[fieldIndex].trim().isNotEmpty)
+        if (fieldIndex < values.length && values[fieldIndex].trim().isNotEmpty)
           (
             values[fieldIndex],
-            pairedFieldIndex < values.length
-                ? values[pairedFieldIndex]
-                : '',
+            pairedFieldIndex < values.length ? values[pairedFieldIndex] : '',
           ),
     ];
   }

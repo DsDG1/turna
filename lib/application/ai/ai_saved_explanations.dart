@@ -89,8 +89,10 @@ class AiSavedExplanationsStore extends ChangeNotifier {
         ..clear()
         ..addAll([
           for (final e in decoded)
-            if (e is Map<String, dynamic>) SavedExplanation.fromJson(e)
-            else if (e is Map) SavedExplanation.fromJson(Map<String, dynamic>.from(e)),
+            if (e is Map<String, dynamic>)
+              SavedExplanation.fromJson(e)
+            else if (e is Map)
+              SavedExplanation.fromJson(Map<String, dynamic>.from(e)),
         ]);
       notifyListeners();
     } catch (_) {
@@ -143,6 +145,5 @@ class AiSavedExplanationsStore extends ChangeNotifier {
   }
 
   /// Create a new id (time-based; fine for local MVP).
-  static String newId() =>
-      'se_${DateTime.now().microsecondsSinceEpoch}';
+  static String newId() => 'se_${DateTime.now().microsecondsSinceEpoch}';
 }

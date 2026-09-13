@@ -249,8 +249,7 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
         .where((e) => e.isBuiltin)
         .map((e) => e.wireKey)
         .firstOrNull;
-    final builtinIndex =
-        builtinWire == null ? -1 : order.indexOf(builtinWire);
+    final builtinIndex = builtinWire == null ? -1 : order.indexOf(builtinWire);
     order.insertAll(
       builtinIndex < 0 ? order.length : builtinIndex + 1,
       reorderedWires.toList(),
@@ -426,9 +425,13 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
   }
 
   int? _dueForSection(String importId) {
-    if (OfficialFormalDueRepository.instance.officialImportIds.contains(importId)) {
-      if (OfficialFormalDueRepository.instance.snapshot.unavailable) return null;
-      return OfficialFormalDueRepository.instance.formalOfficialDueForImport(importId);
+    if (OfficialFormalDueRepository.instance.officialImportIds
+        .contains(importId)) {
+      if (OfficialFormalDueRepository.instance.snapshot.unavailable) {
+        return null;
+      }
+      return OfficialFormalDueRepository.instance
+          .formalOfficialDueForImport(importId);
     }
     // Legacy-owned section: scheduler retired (doc 35 L2), nothing is due.
     return 0;
@@ -466,7 +469,8 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
       entry: entry,
       courseId: importId.isEmpty ? 'anki' : 'anki-$importId',
       sectionId: sectionId,
-      officialOwner: OfficialFormalDueRepository.instance.officialImportIds.contains(importId),
+      officialOwner: OfficialFormalDueRepository.instance.officialImportIds
+          .contains(importId),
       schedulerRuntimeAvailable:
           OfficialAnkiFeatureFlags.current.allowsOfficialScheduler,
     );

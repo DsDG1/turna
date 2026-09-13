@@ -34,16 +34,15 @@ void main() {
       await provider.load();
       // 选一个 body 尚未加载的 section（load() 只预载第一个）。
       targetSectionId = provider.sections.last.id;
-      expect(provider.sectionLoadState(targetSectionId),
-          SectionLoadState.initial);
+      expect(
+          provider.sectionLoadState(targetSectionId), SectionLoadState.initial);
     });
 
     test('loading 通知内同步重入只 fetch 一次', () async {
       var startingFetchCount = 0;
       void capture(LogEvent e) {
         final m = e.message.toString();
-        if (m.contains('ensureSectionLoaded') &&
-            m.contains('starting fetch')) {
+        if (m.contains('ensureSectionLoaded') && m.contains('starting fetch')) {
           startingFetchCount++;
         }
       }
@@ -65,8 +64,8 @@ void main() {
 
       expect(startingFetchCount, 1,
           reason: '重入去重失效会产生多行 "starting fetch"（用户日志症状）');
-      expect(provider.sectionLoadState(targetSectionId),
-          SectionLoadState.loaded);
+      expect(
+          provider.sectionLoadState(targetSectionId), SectionLoadState.loaded);
       expect(provider.findSectionById(targetSectionId)!.units, isNotEmpty);
     });
 
@@ -78,8 +77,7 @@ void main() {
       var fetchAttempts = 0;
       void capture(LogEvent e) {
         final m = e.message.toString();
-        if (m.contains('ensureSectionLoaded') &&
-            m.contains('starting fetch')) {
+        if (m.contains('ensureSectionLoaded') && m.contains('starting fetch')) {
           fetchAttempts++;
         }
       }
@@ -99,8 +97,8 @@ void main() {
       Logger.removeLogListener(capture);
 
       expect(fetchAttempts, 1, reason: '同一 section 只应 fetch 一次');
-      expect(provider.sectionLoadState(targetSectionId),
-          SectionLoadState.error);
+      expect(
+          provider.sectionLoadState(targetSectionId), SectionLoadState.error);
     });
   });
 }

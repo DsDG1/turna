@@ -8,7 +8,8 @@ import 'package:turna/application/anki_official/official_anki_feature_flags.dart
 
 void main() {
   tearDown(() {
-    OfficialAnkiFeatureFlags.current = OfficialAnkiFeatureFlags.fromEnvironment();
+    OfficialAnkiFeatureFlags.current =
+        OfficialAnkiFeatureFlags.fromEnvironment();
     OfficialAnkiCompositionRoot.session = null;
     OfficialAnkiCompositionRoot.executionMode = OfficialAnkiExecutionMode.none;
   });
@@ -37,7 +38,8 @@ void main() {
     );
   });
 
-  test('allowInProcessFallback can attempt in-process host when import/renderer are off',
+  test(
+      'allowInProcessFallback can attempt in-process host when import/renderer are off',
       () async {
     OfficialAnkiFeatureFlags.current = const OfficialAnkiFeatureFlags();
     final root = Directory.systemTemp.createTempSync('turna-comp-fallback-');

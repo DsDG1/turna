@@ -25,8 +25,8 @@ Future<File?> backupCourseDbBeforeMigration(File dbFile) async {
     if (!await dbFile.exists()) return null;
     final raw = sqlite3.sqlite3.open(dbFile.path);
     try {
-      final version = raw.select('PRAGMA user_version').first['user_version']
-          as int;
+      final version =
+          raw.select('PRAGMA user_version').first['user_version'] as int;
       if (version <= 0 || version >= CourseDatabase.kSchemaVersion) {
         return null;
       }
@@ -69,9 +69,8 @@ Future<File?> restoreCourseDbFromBackup(File dbFile) async {
       if (entity is! File) continue;
       final name = p.basename(entity.path);
       // course.db.v24.bak / course.db.v25.bak
-      final match =
-          RegExp('^${RegExp.escape(prefix)}\\.db\\.v(\\d+)\\.bak\$')
-              .firstMatch(name);
+      final match = RegExp('^${RegExp.escape(prefix)}\\.db\\.v(\\d+)\\.bak\$')
+          .firstMatch(name);
       if (match == null) continue;
       final version = int.parse(match.group(1)!);
       final existing = candidates[version];

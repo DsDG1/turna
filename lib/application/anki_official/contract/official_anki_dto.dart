@@ -108,6 +108,7 @@ class OfficialAnkiCardDescriptor {
     );
   }
 }
+
 class OfficialAnkiImportLog {
   const OfficialAnkiImportLog({
     required this.newNoteIds,
@@ -197,11 +198,10 @@ class OfficialAnkiProgress {
   /// (doc 39 P2); no caller ever read them.
   factory OfficialAnkiProgress.fromJson(Map<String, Object?> json) {
     final wantAbort = json['want_abort'] == true;
-    final stage =
-        json['stage'] as String? ??
-            (wantAbort
-                ? 'cancelling'
-                : (json['operation_kind'] as String? ?? 'idle'));
+    final stage = json['stage'] as String? ??
+        (wantAbort
+            ? 'cancelling'
+            : (json['operation_kind'] as String? ?? 'idle'));
     return OfficialAnkiProgress(
       stage: stage,
       canCancel: json['canCancel'] == true || json['can_cancel'] == true,
@@ -471,8 +471,9 @@ class OfficialAnkiTemplateFact {
     }
 
     final filters = json['filters'];
-    final filterMap =
-        filters is Map ? Map<String, Object?>.from(filters) : const <String, Object?>{};
+    final filterMap = filters is Map
+        ? Map<String, Object?>.from(filters)
+        : const <String, Object?>{};
     return OfficialAnkiTemplateFact(
       ord: (json['ord'] as num? ?? 0).toInt(),
       name: json['name'] as String? ?? '',

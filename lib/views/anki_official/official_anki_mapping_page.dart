@@ -228,8 +228,8 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
   void _onSavePressed() {
     final conflict = officialAnkiMappingConflict(_current);
     final missingTarget = _current.role(FieldRole.prompt) == null;
-    final missingAnswer = !_current.singleFieldMode &&
-        _current.role(FieldRole.response) == null;
+    final missingAnswer =
+        !_current.singleFieldMode && _current.role(FieldRole.response) == null;
     final blocking = conflict != null || missingTarget || missingAnswer;
     if (blocking) {
       setState(() => _pickingFront = true);
@@ -269,8 +269,8 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
         [for (final c in _current.candidates) c.fieldName];
     final statusLabel = _statusLabels[_current.status] ?? _current.status.name;
     final missingTarget = _current.role(FieldRole.prompt) == null;
-    final missingAnswer = !_current.singleFieldMode &&
-        _current.role(FieldRole.response) == null;
+    final missingAnswer =
+        !_current.singleFieldMode && _current.role(FieldRole.response) == null;
     final blocking = conflict != null || missingTarget || missingAnswer;
     final needsAttention = blocking ||
         (_current.status != OfficialAnkiMappingStatus.auto &&
@@ -359,8 +359,7 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
                               widget.schema!.fieldNames[i],
                               style: TextStyle(
                                 fontSize: 12,
-                                color:
-                                    TurnaTheme.textSecondaryColor(context),
+                                color: TurnaTheme.textSecondaryColor(context),
                               ),
                             ),
                             const SizedBox(height: 4),

@@ -40,7 +40,8 @@ class _RecordingGameProvider extends GameProvider {
     bool notify = true,
   }) async {
     final awarded = await super.awardXP(event, multiplier: multiplier);
-    trace.events.add('xp:${event.name}:${multiplier.toStringAsFixed(1)}:$awarded');
+    trace.events
+        .add('xp:${event.name}:${multiplier.toStringAsFixed(1)}:$awarded');
     return awarded;
   }
 }

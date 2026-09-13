@@ -154,9 +154,8 @@ class ReviewHistoryDao {
     DateTime to, {
     String? languageCode,
   }) async {
-    final lang = languageCode == null
-        ? null
-        : LanguageCodes.canonicalize(languageCode);
+    final lang =
+        languageCode == null ? null : LanguageCodes.canonicalize(languageCode);
     final rows = await _db.customSelect(
       'SELECT date((reviewed_at + ?) / 1000, \'unixepoch\') AS day,'
       ' COUNT(*) AS reviewed '
@@ -404,7 +403,8 @@ class ReviewHistoryDao {
   /// undo action; Anki sessions never allow two pending undos at once.
   /// Pass [languageCode] so an undo can never delete another language's
   /// event when wordIds collide across languages.
-  Future<bool> deleteLatestForCard(String cardId, {String? languageCode}) async {
+  Future<bool> deleteLatestForCard(String cardId,
+      {String? languageCode}) async {
     final query = _db.select(_db.reviewEvents)
       ..where((t) => t.cardId.equals(cardId));
     if (languageCode != null) {

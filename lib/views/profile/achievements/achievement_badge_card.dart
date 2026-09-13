@@ -136,7 +136,8 @@ class AchievementBadgeCard extends StatelessWidget {
     final title = AchievementUiCatalog.titleFor(series.titleKey);
     final statusLabel = switch (status) {
       AchievementBadgeStatus.locked => AppStrings.achievementsStateLocked,
-      AchievementBadgeStatus.inProgress => AppStrings.achievementsStateInProgress,
+      AchievementBadgeStatus.inProgress =>
+        AppStrings.achievementsStateInProgress,
       AchievementBadgeStatus.unlocked => AppStrings.achievementsStateUnlocked,
       AchievementBadgeStatus.maxed => AppStrings.achievementsStateMaxed,
     };
@@ -178,9 +179,8 @@ class AchievementBadge extends StatelessWidget {
     final rarityColor = AchievementUiCatalog.rarityColor(
       nextRarity ?? AchievementRarity.sprout,
     );
-    final isUnlocked =
-        status == AchievementBadgeStatus.unlocked ||
-            status == AchievementBadgeStatus.maxed;
+    final isUnlocked = status == AchievementBadgeStatus.unlocked ||
+        status == AchievementBadgeStatus.maxed;
 
     if (!isUnlocked) {
       return Container(

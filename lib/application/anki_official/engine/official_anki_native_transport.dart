@@ -57,7 +57,8 @@ class OfficialAnkiNativeTransport {
         _engineNew = _lib.lookupFunction<_EngineNewNative, _EngineNewDart>(
           'turna_anki_engine_new',
         ),
-        _engineClose = _lib.lookupFunction<_EngineCloseNative, _EngineCloseDart>(
+        _engineClose =
+            _lib.lookupFunction<_EngineCloseNative, _EngineCloseDart>(
           'turna_anki_engine_close',
         ),
         _bufferFree = _lib.lookupFunction<_BufferFreeNative, _BufferFreeDart>(

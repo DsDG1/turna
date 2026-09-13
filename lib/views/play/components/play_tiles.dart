@@ -166,8 +166,7 @@ class TodayHeroCard extends StatelessWidget {
                     spacing: 6,
                     runSpacing: 6,
                     children: [
-                      for (final chip in chips)
-                        _QueueChip(data: chip),
+                      for (final chip in chips) _QueueChip(data: chip),
                     ],
                   ),
                 ],
@@ -221,7 +220,8 @@ class _QueueChip extends StatelessWidget {
           Container(
             width: 6,
             height: 6,
-            decoration: BoxDecoration(color: data.color, shape: BoxShape.circle),
+            decoration:
+                BoxDecoration(color: data.color, shape: BoxShape.circle),
           ),
           const SizedBox(width: 6),
           Text(
@@ -247,6 +247,7 @@ class ReviewTile extends StatelessWidget {
   final String? badge;
   final VoidCallback onTap;
   final GestureLongPressCallback? onLongPress;
+
   /// Soft-tint strength for [SoftCard] fill (default 0.10).
   final double tintAlpha;
 
@@ -415,6 +416,7 @@ class SoftCard extends StatelessWidget {
   final Widget child;
   final VoidCallback? onTap;
   final GestureLongPressCallback? onLongPress;
+
   /// Blend alpha for [TurnaTheme.softTint] (default 0.10).
   final double tintAlpha;
 

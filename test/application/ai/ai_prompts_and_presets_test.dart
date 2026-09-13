@@ -106,7 +106,8 @@ void main() {
 
   group('textbook_presets', () {
     test('builtin presets match GUI names and fields', () {
-      expect(textbookPresetNames, ['general', 'grammar', 'dialogue', 'reading']);
+      expect(
+          textbookPresetNames, ['general', 'grammar', 'dialogue', 'reading']);
       for (final name in textbookPresetNames) {
         final p = presetFor(name);
         expect(p.name, name);
@@ -146,7 +147,8 @@ void main() {
           createdAt: DateTime.utc(2026),
         );
 
-    test('verification creates two to three deterministic offline questions', () {
+    test('verification creates two to three deterministic offline questions',
+        () {
       expect(tools.verificationQuestions(sampleNote()), hasLength(2));
       final detailed = tools.verificationQuestions(
         sampleNote(body: List.filled(8, '宾格用于特指的直接宾语。').join()),

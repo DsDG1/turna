@@ -14,7 +14,6 @@ class TurnaReviewLedger implements ReviewLedger {
 
   TurnaReviewLedger(this._srsProvider);
 
-
   @override
   Future<ReviewDueSummary> dueSummary({String? scope}) async {
     if (scope != null && scope.startsWith('anki:')) {

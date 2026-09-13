@@ -22,7 +22,8 @@ class RoleBindingSolver {
       final samples = CardFacts.of(facts.nonEmptySamplesOf(index));
       final signals = <_Signal>[];
 
-      void add(FieldRole role, double weight, String signal, [String detail = '']) {
+      void add(FieldRole role, double weight, String signal,
+          [String detail = '']) {
         signals.add(_Signal(role, weight, signal, detail));
       }
 
@@ -34,16 +35,19 @@ class RoleBindingSolver {
         add(role, lexiconContainsWeight, 'lexicon:contains', name);
       }
       if (frontOrds.contains(index)) {
-        add(FieldRole.prompt, structuralFrontWeight, 'structure:front_template');
+        add(FieldRole.prompt, structuralFrontWeight,
+            'structure:front_template');
       }
       if (backOnlyOrds.contains(index)) {
-        add(FieldRole.response, structuralBackWeight, 'structure:back_template');
+        add(FieldRole.response, structuralBackWeight,
+            'structure:back_template');
       }
       if (index == 0) {
         add(FieldRole.prompt, positionalFrontWeight, 'positional:first_field');
       }
       if (index == 1) {
-        add(FieldRole.response, positionalBackWeight, 'positional:second_field');
+        add(FieldRole.response, positionalBackWeight,
+            'positional:second_field');
       }
       if (samples.anyContainsSound) {
         add(FieldRole.audio, sampleAudioWeight, 'sample:sound_ref');

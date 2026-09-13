@@ -40,6 +40,7 @@ class MistakeProvider extends ChangeNotifier {
   void useRepository(MistakeRepository repository) {
     _repository = repository;
   }
+
   String _languageCode = LanguageCodes.turkish;
   bool _loaded = false;
   bool _prefsMigrated = false;
@@ -147,10 +148,9 @@ class MistakeProvider extends ChangeNotifier {
   /// Cumulative number of mistakes mastered out of the log — either by
   /// reaching [rewriteGoal] rewrites or by being answered correctly in a
   /// mistake review session. Deck uninstalls do not count as mastered.
-  int get masteredTotal => _masteredTotalCache ??=
-      appPrefs.preferences
-          .getInt(_masteredTotalKey, defaultValue: 0)
-          .getValue();
+  int get masteredTotal => _masteredTotalCache ??= appPrefs.preferences
+      .getInt(_masteredTotalKey, defaultValue: 0)
+      .getValue();
 
   /// Number of mistakes currently stored.
   int get count => entries.length;

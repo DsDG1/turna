@@ -79,8 +79,7 @@ class OfficialAnkiFeatureFlags {
   bool get allowsProjection =>
       engine && import && catalogReady && runtimeCapable && projection;
 
-  bool get allowsCourseEntry =>
-      allowsProjection && courseEntry;
+  bool get allowsCourseEntry => allowsProjection && courseEntry;
 
   bool get allowsOfficialScheduler =>
       engine &&

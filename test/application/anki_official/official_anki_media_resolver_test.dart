@@ -15,7 +15,8 @@ void main() {
   setUp(() {
     root = Directory.systemTemp.createTempSync('turna-media-');
     final raw = jsonDecode(
-      File('test/fixtures/anki_official/media_path_vectors.json').readAsStringSync(),
+      File('test/fixtures/anki_official/media_path_vectors.json')
+          .readAsStringSync(),
     ) as Map<String, dynamic>;
     vectors = (raw['vectors'] as List).cast<Map<String, dynamic>>().map((item) {
       return item.map((key, value) => MapEntry(key, value));
@@ -48,7 +49,8 @@ void main() {
         reason: '${vector['id']} encoded=$encoded reason=${decision.reason}',
       );
       if (allowed) {
-        expect(decision.filename, vector['expectedName'], reason: '${vector['id']}');
+        expect(decision.filename, vector['expectedName'],
+            reason: '${vector['id']}');
         if (File('${root.path}/${vector['expectedName']}').existsSync()) {
           final resolved = resolver.resolveEncodedPath('/media/$encoded');
           expect(resolved.allowed, isTrue, reason: '${vector['id']} resolver');
@@ -67,10 +69,12 @@ void main() {
   test('encodedPath is used so # and ? are not treated as fragment/query', () {
     File('${root.path}/hash#tag.bin').writeAsBytesSync([1]);
     final hashUri = Uri.parse('https://anki.local/media/hash%23tag.bin');
-    expect(OfficialAnkiMediaPath.encodedPathFromUri(hashUri), '/media/hash%23tag.bin');
+    expect(OfficialAnkiMediaPath.encodedPathFromUri(hashUri),
+        '/media/hash%23tag.bin');
     expect(resolver.resolveUri(hashUri).allowed, isTrue);
     final queryUri = Uri.parse('https://anki.local/media/question%3F.png');
-    expect(OfficialAnkiMediaPath.encodedPathFromUri(queryUri), '/media/question%3F.png');
+    expect(OfficialAnkiMediaPath.encodedPathFromUri(queryUri),
+        '/media/question%3F.png');
     if (!Platform.isWindows) {
       File('${root.path}/question?.png').writeAsBytesSync([1]);
       expect(resolver.resolveUri(queryUri).allowed, isTrue);
@@ -78,9 +82,12 @@ void main() {
   });
 
   test('rejects traversal, schemes, and absolute paths', () {
-    expect(resolver.resolveUri(Uri.parse('file:///etc/passwd')).allowed, isFalse);
-    expect(resolver.resolveUri(Uri.parse('content://media/x')).allowed, isFalse);
-    expect(resolver.resolveUri(Uri.parse('http://anki.local/media/x')).allowed, isFalse);
+    expect(
+        resolver.resolveUri(Uri.parse('file:///etc/passwd')).allowed, isFalse);
+    expect(
+        resolver.resolveUri(Uri.parse('content://media/x')).allowed, isFalse);
+    expect(resolver.resolveUri(Uri.parse('http://anki.local/media/x')).allowed,
+        isFalse);
     expect(
       resolver.resolveUri(Uri.parse('https://evil.example/media/x')).allowed,
       isFalse,
@@ -92,7 +99,8 @@ void main() {
     expect(resolver.resolveRelativeName('../hello world.png').allowed, isFalse);
     expect(resolver.resolveRelativeName('/etc/passwd').allowed, isFalse);
     expect(OfficialAnkiMediaResolver.isDeniedScheme('intent://x'), isTrue);
-    expect(OfficialAnkiMediaResolver.isDeniedScheme('javascript:alert(1)'), isTrue);
+    expect(OfficialAnkiMediaResolver.isDeniedScheme('javascript:alert(1)'),
+        isTrue);
     expect(OfficialAnkiMediaResolver.isDeniedScheme('ws://anki.local'), isTrue);
   });
 
@@ -120,7 +128,8 @@ void main() {
 
   test('fixed reviewer assets stay inside the allowlist', () {
     expect(OfficialAnkiMediaResolver.isAllowedAsset('reviewer.html'), isTrue);
-    expect(OfficialAnkiMediaResolver.isAllowedAsset('mathjax/tex-svg-full.js'), isTrue);
+    expect(OfficialAnkiMediaResolver.isAllowedAsset('mathjax/tex-svg-full.js'),
+        isTrue);
     expect(OfficialAnkiMediaResolver.isAllowedAsset('card-frame.html'), isTrue);
     expect(OfficialAnkiMediaResolver.isAllowedAsset('../x.js'), isFalse);
     expect(OfficialAnkiMediaResolver.isAllowedAsset('/etc/passwd'), isFalse);
@@ -134,7 +143,8 @@ void main() {
     expect(OfficialAnkiHttpRange.parse('bytes=-500', 1000).start, 500);
     expect(OfficialAnkiHttpRange.parse('bytes=-500', 1000).contentLength, 500);
     expect(OfficialAnkiHttpRange.parse('bytes=0-99', 0).status, 416);
-    expect(OfficialAnkiHttpRange.parse('bytes=0-99', 0).contentRange, 'bytes */0');
+    expect(
+        OfficialAnkiHttpRange.parse('bytes=0-99', 0).contentRange, 'bytes */0');
     expect(OfficialAnkiHttpRange.parse('bytes=50-40', 1000).status, 416);
     expect(OfficialAnkiHttpRange.parse('bytes=1000-1001', 1000).status, 416);
     expect(OfficialAnkiHttpRange.parse('bytes=0-99,200-300', 1000).status, 416);

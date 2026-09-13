@@ -59,10 +59,9 @@ class CardRecognizer {
       archetype = CardArchetype.basicPair;
       final promptBound = roles.containsKey(FieldRole.prompt);
       final pairBound = promptBound &&
-          (roles.containsKey(FieldRole.response) || facts.fieldNames.length <= 1);
-      confidence = pairBound
-          ? ruleDefaultPairedWeight
-          : ruleDefaultBareWeight;
+          (roles.containsKey(FieldRole.response) ||
+              facts.fieldNames.length <= 1);
+      confidence = pairBound ? ruleDefaultPairedWeight : ruleDefaultBareWeight;
       evidence.add(RecognitionEvidence(
         signal: 'A9:default',
         weight: confidence,
