@@ -17,6 +17,7 @@ import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/anki_official/engine/official_anki_home_due_sync.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/di/injection.dart';
+import 'package:turna/domain/course/section.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/play/components/play_tiles.dart';
@@ -210,14 +211,17 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
   }
 
   Future<void> _reorderDecks(
-      BuildContext context, List sections, int oldIndex, int newIndex) async {
-    final reordered = List.of(sections);
+    BuildContext context,
+    List<Section> sections,
+    int oldIndex,
+    int newIndex,
+  ) async {
+    final reordered = List<Section>.of(sections);
     final item = reordered.removeAt(oldIndex);
     reordered.insert(newIndex, item);
     await context.read<CourseProvider>().reorderAnkiDecks([
       for (final section in reordered)
-        LegacyAnkiIdentifiers.importIdFromSectionId(
-            (section as dynamic).id as String),
+        LegacyAnkiIdentifiers.importIdFromSectionId(section.id),
     ]);
   }
 
@@ -364,11 +368,11 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
     return 0;
   }
 
-  int _aggregatedDue(List<dynamic> ankiSections) {
+  int _aggregatedDue(List<Section> ankiSections) {
     var total = 0;
     for (final section in ankiSections) {
       total += _dueForSection(
-            LegacyAnkiIdentifiers.importIdFromSectionId(section.id as String),
+            LegacyAnkiIdentifiers.importIdFromSectionId(section.id),
           ) ??
           0;
     }

@@ -65,7 +65,7 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
   @override
   void initState() {
     super.initState();
-    _load();
+    unawaited(_load());
   }
 
   @override
@@ -300,7 +300,7 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
                         icon: const Icon(Icons.clear),
                         onPressed: () {
                           _searchController.clear();
-                          _load();
+                          unawaited(_load());
                         },
                       ),
                 border: const OutlineInputBorder(),
@@ -619,7 +619,7 @@ class _OfficialPreviewTextState extends State<_OfficialPreviewText> {
     _front = widget.row.frontPreview;
     _back = widget.row.backPreview;
     if (_front.isEmpty) {
-      _load();
+      unawaited(_load());
     }
   }
 
