@@ -40,7 +40,7 @@ lib/
 │   ├── smart_speech.dart          # 智能朗读（语言检测 + 自动朗读）
 │   ├── accessibility_provider.dart # 6 项可访问性偏好
 │   └── game_provider.dart         # 薄 facade -> score/streak/progress/gems
-├── core/          # fsrs_engine / sm2 / language_detector / html_stripper / streak / logger
+├── core/          # fsrs_engine / sm2 / language_detector / html_stripper / streak / logger / theme
 ├── courses/       # 字母 + 语种 loader/validator（目标 Turkish）
 ├── data/          # drift CourseDatabase（schemaVersion 21）+ Seeder + DAO + Repository
 ├── di/            # GetIt + Injectable（renderer_module / audio_module）
@@ -48,7 +48,7 @@ lib/
 ├── routing/       # Auto Route + CourseReadyGuard
 ├── service/       # AppPrefs / locator / TTS / 本地提醒
 └── views/         # courses / dictionary / home / lesson / play / profile / review /
-                   # ai / anki / anki_official / settings / theme.dart
+                   # ai / anki / anki_official / settings / widgets / <feature>/components/
 ```
 
 完整分层、关键模式、领域模型、14 种 Interaction、6 种 Lesson Template 见 project-guide §3-§4。

@@ -130,7 +130,7 @@ lib/
 │   ├── accessibility_provider.dart # 6 项可访问性偏好
 │   ├── settings_provider.dart     # 含每课程 TTS 设置
 │   └── ...
-├── core/               # 纯逻辑：FSRS / SM-2 / 语言检测 / HTML / streak / logger
+├── core/               # 纯逻辑：FSRS / SM-2 / 语言检测 / HTML / streak / logger / theme
 │   ├── fsrs_engine.dart           # FSRS-backed SrsScheduler
 │   ├── fsrs_optimizer.dart        # FSRS 参数优化
 │   ├── fsrs_relearn.dart          # 失败后当日重学阶梯
@@ -156,7 +156,8 @@ lib/
 ├── routing/            # Auto Route + CourseReadyGuard
 ├── service/            # AppPrefs / locator / TTS / 本地提醒
 └── views/              # courses / dictionary / home / lesson / play / profile /
-                        # review / ai / anki / anki_official / settings / theme.dart
+                        # review / ai / anki / anki_official / settings / widgets /
+                        # <feature>/components/
 ```
 
 ### 关键模式
@@ -351,6 +352,7 @@ Explain → Practice → Rate 三段流（见 2.4 Skill Acquisition Theory）。
 
 - **复习**：`FormalReviewLauncher` → 共享 `AnkiReviewSessionRoute`。正式资格 = 官方到期搜索（`did:<deck> (is:due OR is:learn OR is:new)`，分页，不受复习队列 100 张上限约束）∩ placement ∩ **已解锁** ∩ 未暂停/搁置/退役。已解锁 = **该投影 Lesson 已完成**，或导入历史 `reps ≥ 1`。第一遍课内只解锁、不写官方 scheduler、不记错题本；新卡第一次 Again/Good 发生在 Anki 复习。第一遍下课对该课所在牌组抬高**当天**新卡名额（`ENSURE_TODAY_NEW_QUOTA` / `extend_new`），使剩余 ≥ 本课张数，不改牌组 `new_per_day` 预设。**重做已完成课**在下课 flush 官方 Again/Good（`ANSWER_AHEAD_CARDS` 临时 filtered deck）；今日已 `rated:1` 的卡跳过；flush 失败在完成摘要中可见。Official 不可用 fail-closed，不降级 Turna SRS。**无 Official 源时不再有 Legacy assembler 兜底**：`formal_review_source_coordinator.fromCatalog` 直接跳过 legacy-only 源，recorded-legacy 源进入页面后显示 `FormalReviewLauncher.failClosedMessage` 错误面，不静默换语义。
 - **卡片浏览器 / 牌组统计**：Official 源有 engine 时读 Collection / scheduler；无 engine 时 catalog 回退，stats 不得把 catalog 总数标成已证明。
+- **view 侧数据访问门面**：`application/anki_official/official_anki_catalog_service.dart` 的 `OfficialAnkiCatalogService` 统一承接页面侧 catalog/source 列表与按 id 读取、pending import 取消、maintenance job 读写、integrity check、repair 快照与 review-gate 选路规则（re-export `OfficialAnkiSourceRow`）。views 不得 import DAO 文件或实例化 `*Dao(`，由 `test/architecture/layering_guard_test.dart` 强制。
 - **示例牌组**：内存 sample 生产 fail-closed；入口已从导入页与课程管理隐藏。`startWithSample` 仅测试 haemostasis。
 
 ### 6.6 已延期（二期/远期）
@@ -455,7 +457,7 @@ Explain → Practice → Rate 三段流（见 2.4 Skill Acquisition Theory）。
 
 ### 9.1 TurnaTheme
 
-`lib/views/theme.dart` 提供 `lightTheme` / `darkTheme` / `highContrastLightTheme` / `highContrastDarkTheme`，及一组按 `Brightness` 自适应的语义化颜色 helper（`cardBg` / `scaffoldBg` / `textHintColor` / `inputFillColor` / `bottomNavBg` / `glassSurface` 等）。Play Hub 用轻量 `SoftCard`（`TurnaTheme.softTint` / `softBorder`，毛玻璃栈已移除）。
+`lib/core/theme.dart` 提供 `lightTheme` / `darkTheme` / `highContrastLightTheme` / `highContrastDarkTheme`，及一组按 `Brightness` 自适应的语义化颜色 helper（`cardBg` / `scaffoldBg` / `textHintColor` / `inputFillColor` / `bottomNavBg` / `glassSurface` 等）。Play Hub 用轻量 `SoftCard`（`TurnaTheme.softTint` / `softBorder`，毛玻璃栈已移除）。
 
 调色板（Turna「湿地鹤」ADR 0033 方案 A — 主色锁 `#1F727E`；无 peacock API）：
 
@@ -473,7 +475,7 @@ const success = Color(0xFFFFD93D);
 const warning = Color(0xFFFF9F43);
 ```
 
-主 CTA 渐变：`brandTeal → brandTealLight`（关键路径用 `TurnaTheme.primaryCtaDecoration`）。Clay 用于完成/完美角标、成就向指标、About 品牌条、Play Hub 至多一处次要 soft tint。**角色边界：** success 黄=答题反馈；clay=进度/成就；streak 橙=连胜 chip（不同控件）；高对比 secondary 可偏离 clay。**Android 状态栏/导航栏** 对齐 AppBar 表面（非 teal 铺条）：`colors.xml` + `TurnaTheme.systemUiOverlayFor`。真源：`lib/views/theme.dart` 与 `tool/gui/src/theme_tokens.py`（ADR 0033）。
+主 CTA 渐变：`brandTeal → brandTealLight`（关键路径用 `TurnaTheme.primaryCtaDecoration`）。Clay 用于完成/完美角标、成就向指标、About 品牌条、Play Hub 至多一处次要 soft tint。**角色边界：** success 黄=答题反馈；clay=进度/成就；streak 橙=连胜 chip（不同控件）；高对比 secondary 可偏离 clay。**Android 状态栏/导航栏** 对齐 AppBar 表面（非 teal 铺条）：`colors.xml` + `TurnaTheme.systemUiOverlayFor`。真源：`lib/core/theme.dart` 与 `tool/gui/src/theme_tokens.py`（ADR 0033）。
 
 `ThemeProvider`（`light / dark / system`）持久化到 `StreamingSharedPreferences`，Profile 页可切换。
 
