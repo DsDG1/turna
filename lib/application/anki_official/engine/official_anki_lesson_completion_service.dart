@@ -32,7 +32,7 @@ typedef SubmittedInteractionRecord = ({
 ///    first pass → reserve introduction quota for the lesson's cards.
 class OfficialAnkiLessonCompletionService {
   OfficialAnkiLessonCompletionService({AnkiLessonCardKeyResolver? keyResolver})
-    : _keyResolver = keyResolver ?? AnkiLessonCardKeyResolver();
+      : _keyResolver = keyResolver ?? AnkiLessonCardKeyResolver();
 
   final AnkiLessonCardKeyResolver _keyResolver;
 
@@ -63,8 +63,8 @@ class OfficialAnkiLessonCompletionService {
       return result.userShouldBeNotified;
     }
     await OfficialAnkiLessonUnlockQuota.resolve().ensureForCardIds(
-          _ankiCardIdsInLesson(stages: stages, index: index, lessonId: lessonId),
-        );
+      _ankiCardIdsInLesson(stages: stages, index: index, lessonId: lessonId),
+    );
     return false;
   }
 
@@ -88,7 +88,8 @@ class OfficialAnkiLessonCompletionService {
         continue;
       }
       final items = stages[entry.stageIndex].items;
-      if (entry.interactionIndex < 0 || entry.interactionIndex >= items.length) {
+      if (entry.interactionIndex < 0 ||
+          entry.interactionIndex >= items.length) {
         continue;
       }
       final cardId = index.cardIdForInteraction(items[entry.interactionIndex]);

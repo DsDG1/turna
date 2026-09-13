@@ -553,8 +553,8 @@ class CourseProvider extends ChangeNotifier {
   /// choice so it survives restarts; [load] falls back to the builtin
   /// course when the scoped source no longer exists.
   ///
-  /// v2（B6/K14）：提交即持久化两层——prefs（兼容 v1 读面）+ 配置区决策
-  /// 键 `turna.course.scope`（随 collection.anki2 备份走）；不等进程正常
+  /// 持久化两层（v2 决策）：prefs（兼容 v1 读面）+ 配置区决策键
+  /// `turna.course.scope`（随 collection.anki2 备份走）；不等进程正常
   /// 退出。配置区写经引擎，best-effort 不阻塞切换。
   /// Move off [languageCode] if it is the active builtin scope (pack import
   /// about to rewrite that language).

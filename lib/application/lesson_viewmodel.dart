@@ -322,8 +322,9 @@ class LessonViewModel extends ChangeNotifier {
     if (lesson != null && !_lessonHasBody(lesson)) {
       lesson = null;
     }
-    // B6 第 5 读挂点（真机 F6）：v2 课时正文派生自卡。miss（非 v2
-    // 课时 / flag 关 / 派生不可用）返回 null 落回下面的 v1 管线。
+    // v2 official-Anki 课时：正文派生自卡（lesson content is derived from
+    // the scheduler's cards）。miss（非 v2 课时 / feature flag 关 / 派生不可
+    // 用）返回 null，落回下面的 v1 课程资产管线。
     lesson ??= await OfficialAnkiV2LessonContent.lessonFor(lessonId);
     if (lesson == null) {
       try {
@@ -430,8 +431,7 @@ class LessonViewModel extends ChangeNotifier {
   }) {
     if (_lesson == null) return;
     final interaction = currentInteraction;
-    if (interaction != null &&
-        _isAnkiOwned(interaction, mistakeWordId)) {
+    if (interaction != null && _isAnkiOwned(interaction, mistakeWordId)) {
       unawaited(
         _submitAnkiOwned(
           correct: correct,
@@ -601,7 +601,8 @@ class LessonViewModel extends ChangeNotifier {
 
   /// Shared key-resolution rules + projection-index cache for this lesson
   /// (also feeds the completion service below).
-  final AnkiLessonCardKeyResolver _ankiKeyResolver = AnkiLessonCardKeyResolver();
+  final AnkiLessonCardKeyResolver _ankiKeyResolver =
+      AnkiLessonCardKeyResolver();
 
   /// Official-Anki completion side effects (unlock / redo flush / quota).
   late final OfficialAnkiLessonCompletionService _ankiCompletion =

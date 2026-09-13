@@ -2,6 +2,16 @@
 /// All values sourced from app_zh.arb.
 ///
 /// Usage: `AppStrings.xxx` or `final l10n = AppStrings.instance;`
+///
+/// ## Decision record (2026-09): deliberately hand-maintained, single-language
+///
+/// Turna ships Chinese-only by product decision. This file is NOT generated
+/// — there is no `flutter gen-l10n` step, and adding a language means
+/// hand-writing a parallel table (or reintroducing codegen). The ARB files
+/// under this directory are the historical source; they are no longer the
+/// pipeline input. If multi-language support ever becomes a requirement,
+/// budget a migration of every `AppStrings.` reference (~all view files)
+/// back to generated `AppLocalizations` before touching this table.
 class AppStrings {
   const AppStrings._();
 

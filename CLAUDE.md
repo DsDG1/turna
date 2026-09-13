@@ -103,6 +103,35 @@ Windows 用 `python`（非 `python3`）。完整 Makefile / 平台 / 发布流�
 
 ---
 
+## 工程约定（2026-09 代码质量批次落地）
+
+### 日志与错误处理
+
+- **统一用 `core/logger.dart` 的 `logger`**（t/d/i/w/f），禁 `debugPrint` 与 `print`。唯一例外：`log_capture.dart` 内部防递归的 4 处。
+- 理由：logger 进入透明度日志（用户可导出），且 release 有等级过滤；`debugPrint` 两者皆无。
+- 需要堆栈时用 `logger.w('...', error: e, stackTrace: st)`。
+- **空 catch 必须有注释说明为何安全**；操作型失败（写入/统计/诊断）至少补 `logger.w`。GetIt 可选依赖守卫与 best-effort 清理是仅有的两类可静默 catch。
+
+### 分层导入规则（由 `test/architecture/layering_guard_test.dart` 强制）
+
+- `views` 不得 import `data` —— 经 application 服务或 domain 仓库接口。
+- `application` / `domain` / `core` 不得 import `views`（`di/` 装配模块豁免）。
+- `domain` 不得 import `application` / `data` —— 需要能力时在 domain 抽接口（如 `SrsSchedulingGateway`）。
+- 共享词汇（主题 token、状态模型、结果枚举）放 `core` 或 `domain`，不放页面文件。
+
+### 状态管理选型
+
+- UI 局部状态 → `setState`；跨 widget 共享 → `provider`（`ChangeNotifier` + `context.watch/read`）。
+- 服务/仓库无 UI 依赖 → `get_it`（injectable 注解，`make gen` 再生成）。
+- 页面里不要直接 `getIt<DataLayerType>()`；数据访问走 repository 接口或 application 门面。
+
+### 错误上报通道
+
+- Provider 状态机（如 `SectionLoadState.error`）承载可恢复加载失败；一次性动作用 SnackBar。
+- 不引入全局错误弹窗；`core/result.dart` 的 `Result` 供未来 repository 接缝渐进采用。
+
+---
+
 ## Agents Available
 
 ### Flutter/Firebase Expert

@@ -185,10 +185,19 @@ class OfficialFormalDueRepository extends ChangeNotifier {
 
   OfficialFormalDueSnapshot _snapshot = OfficialFormalDueSnapshot.empty;
 
-  // Kept so a future repository teardown can detach from the introduction
-  // store; the singleton lives for the process lifetime (never cancelled).
-  // ignore: unused_field, cancel_subscriptions
+  // Kept so a repository teardown can detach from the introduction store;
+  // production never tears down (process-lifetime singleton).
   StreamSubscription<CardIntroductionChanged>? _introductionSubscription;
+
+  /// Detaches from the introduction store. Production never calls this
+  /// (process-lifetime singleton); tests use it to isolate instances.
+  @visibleForTesting
+  @override
+  void dispose() {
+    _introductionSubscription?.cancel();
+    _introductionSubscription = null;
+    super.dispose();
+  }
 
   /// Sources whose introduction events could not land because the source
   /// was absent from the snapshot at event time. The next full refresh
