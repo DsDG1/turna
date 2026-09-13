@@ -17,7 +17,8 @@ void main() {
     File('native/turna_anki_core/contract/fixtures/response_engine_info.json')
         .readAsStringSync(),
   ) as Map<String, dynamic>;
-  final caps = Set<String>.from((golden['payload'] as Map)['capabilities']);
+  final caps = Set<String>.from(
+      (golden['payload'] as Map)['capabilities'] as Iterable<dynamic>);
 
   test('single id table stays aligned with operations.md (append-only)', () {
     expect(OfficialAnkiOperation.ids, isNotEmpty);

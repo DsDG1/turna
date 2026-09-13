@@ -110,7 +110,8 @@ class OfficialAnkiV2ViewRebuilder {
         // 牌组路径 → 放置键（section/unit/lesson）。lessonId 不在此定：
         // 同组卡按 cardId 稳定序切片后再定 part（见 _chunkedRows）。
         final placed = <_PlacedCard>[];
-        for (final card in cardsBySource[source.sourceId] ?? const []) {
+        for (final card in cardsBySource[source.sourceId] ??
+            const <OfficialAnkiCardDescriptor>[]) {
           final path = deckPaths[card.deckId] ?? const <String>[];
           final topDeckId = _topDeckId(card.deckId, deckPaths);
           // 用户明确跳过的 notetype 不进课程树（与 v1 映射语义一致）。

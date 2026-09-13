@@ -8,6 +8,8 @@
 include: package:flutter_lints/flutter.yaml
 
 analyzer:
+  language:
+    strict-casts: true
   exclude:
     - '**/*.g.dart'
     - '**/*.freezed.dart'
