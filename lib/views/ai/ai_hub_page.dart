@@ -16,7 +16,7 @@ import 'package:turna/views/lesson/tutor_launch_sheet.dart';
 import 'package:turna/views/play/components/play_tiles.dart';
 import 'package:turna/views/ai/components/ai_explain_prefs_card.dart';
 import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Centralized AI surface (Phase 2.3 / Phase 3 of floofy-hugging-hopper).
 ///

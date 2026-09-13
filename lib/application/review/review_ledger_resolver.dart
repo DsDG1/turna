@@ -1,4 +1,4 @@
-import 'package:turna/domain/review/official_anki_review_ledger.dart';
+import 'package:turna/application/anki_official/review/official_anki_review_ledger.dart';
 import 'package:turna/domain/review/review_ledger.dart';
 import 'package:turna/domain/review/review_source.dart';
 import 'package:turna/domain/review/turna_review_ledger.dart';

@@ -8,7 +8,7 @@ import 'package:turna/application/game_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Splash screen "Get Started" button.
 ///

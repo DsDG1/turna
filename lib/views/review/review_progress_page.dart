@@ -11,7 +11,7 @@ import 'package:turna/application/review_dashboard/review_dashboard_repository.d
 import 'package:turna/application/accessibility_capabilities.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Review-overview home (Plan 3 §15.1): a fast, actionable "today" dashboard.
 ///

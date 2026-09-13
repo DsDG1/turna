@@ -11,7 +11,7 @@ import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/srs_tutor_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/turna_select.dart';
 
 /// Bottom sheet that launches the personalized companion flow

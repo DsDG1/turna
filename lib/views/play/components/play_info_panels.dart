@@ -9,7 +9,7 @@ import 'package:turna/domain/study/daily_stats.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/play/components/info_popup.dart';
 import 'package:turna/views/play/components/play_tiles.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Play Hub 队列数据快照：一次从 providers 读取，供浮窗面板纯展示。
 /// 全部字段同步可得（复习进度面板的 7 日数据除外，面板内自己 FutureBuilder）。

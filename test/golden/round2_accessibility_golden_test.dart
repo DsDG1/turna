@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/data/review_history_dao.dart';
 import 'package:turna/views/review/learning_insights_page.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 void main() {
   Future<void> pumpFixture(WidgetTester tester, ThemeData theme) async {

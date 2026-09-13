@@ -9,7 +9,7 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/accessibility_provider.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Material 3 风格的高斯模糊磨砂玻璃悬浮气泡 SnackBar。
 ///

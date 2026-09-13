@@ -7,7 +7,7 @@ import 'package:turna/courses/languages/vocab.dart';
 import 'package:turna/domain/course/srs_word.dart';
 import 'package:turna/domain/review/review_capabilities.dart';
 import 'package:turna/domain/review/review_item.dart';
-import 'package:turna/domain/review/review_ledger_resolver.dart';
+import 'package:turna/application/review/review_ledger_resolver.dart';
 import 'package:turna/domain/review/review_source.dart';
 import 'package:turna/domain/review/turna_review_ledger.dart';
 import 'package:turna/l10n/app_strings.dart';

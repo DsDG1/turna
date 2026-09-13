@@ -14,7 +14,7 @@ import 'package:turna/views/anki_official/official_anki_canonical_card_view.dart
 import 'package:turna/views/lesson/components/cached_asset_image.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/lesson/components/lesson_practice_card.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Flashcard introducing a vocabulary word.
 ///

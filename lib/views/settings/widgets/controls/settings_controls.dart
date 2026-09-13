@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/views/settings/widgets/primitives/settings_section.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Generic version of [SettingsToggleTile] for sources other than
 /// [SettingsProvider] (e.g. [SystemHealthMonitor.safeMode]). Same visual

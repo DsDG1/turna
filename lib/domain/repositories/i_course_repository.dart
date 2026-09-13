@@ -1,5 +1,4 @@
 // Project imports:
-import 'package:turna/data/course_database.dart' as db;
 import 'package:turna/domain/course/expression.dart';
 import 'package:turna/domain/course/grammar_point.dart';
 import 'package:turna/domain/course/lesson.dart';
@@ -70,6 +69,11 @@ abstract class ICourseRepository {
   /// projection index/manifest). No-op when no projection exists. P5F-31.
   Future<void> deleteOfficialProjection(String sourceId);
 
-  /// List all recorded Anki imports, most recent first.
-  Future<List<db.AnkiImport>> ankiImports();
+  /// The stored course content version (written by the seeder after
+  /// seeding), or `null` if the DB has not been seeded yet. Used by the
+  /// content-update prompt (ADR 0002) to detect version bumps.
+  Future<String?> contentVersion({String? languageCode});
+
+  /// Schema version of the backing database (diagnostics surface).
+  int get schemaVersion;
 }

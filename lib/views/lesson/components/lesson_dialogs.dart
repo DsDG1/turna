@@ -10,7 +10,7 @@ import 'package:turna/application/lesson_viewmodel.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/home/components/stat_app_bar.dart';
 import 'package:turna/views/profile/achievements/achievement_feedback_banner.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/cosmetic_completion_badge.dart';
 
 enum MasteryDialogResult { retry, back }

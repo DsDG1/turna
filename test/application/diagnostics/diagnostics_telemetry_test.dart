@@ -5,7 +5,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/diagnostics/cache_diagnostics_registry.dart';
-import 'package:turna/application/diagnostics/performance_trace.dart';
+import 'package:turna/core/performance_trace.dart';
 import 'package:turna/application/diagnostics/storage_write_telemetry.dart';
 
 class _FakeCache implements CacheDiagnosticsAdapter {

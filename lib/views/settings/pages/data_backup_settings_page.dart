@@ -17,7 +17,6 @@ import 'package:turna/application/settings/commands/reset_account_command.dart';
 import 'package:turna/application/settings/settings_destination.dart';
 import 'package:turna/application/migration/turna_migration_import.dart';
 import 'package:turna/application/settings/settings_operation_result.dart';
-import 'package:turna/data/course_database.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
@@ -25,7 +24,7 @@ import 'package:turna/service/export_service.dart';
 import 'package:turna/utils/validated_file_picker.dart';
 import 'package:turna/views/settings/pages/settings_category_body.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Data & backup category page (formal route: `/settings/data-backup`).
 ///
@@ -257,7 +256,7 @@ class DataBackupSettingsPage extends StatelessWidget {
     if (confirmed != true || !context.mounted) return;
 
     try {
-      final importer = TurnaMigrationImporter(db: getIt<CourseDatabase>());
+      final importer = getIt<TurnaMigrationImporter>();
       final result = await importer.importFrom(File(pickedPath));
       if (!context.mounted) return;
       if (result.applied) {

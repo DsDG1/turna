@@ -4,7 +4,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'package:turna/application/ai/engine/ai_engine.dart';
-import 'package:turna/application/diagnostics/performance_trace.dart';
+import 'package:turna/core/performance_trace.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_pending_imports.dart';
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';

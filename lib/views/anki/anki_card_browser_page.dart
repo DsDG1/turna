@@ -10,17 +10,17 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/anki_official/review/formal_review_launcher.dart';
+import 'package:turna/application/anki_official/browser/legacy_anki_card_browser.dart';
 import 'package:turna/application/anki_official/browser/official_anki_source_aware_browser.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
-import 'package:turna/data/anki_note_dao.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/application/anki_official/official_anki_ids.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/turna_select.dart';
 
 @RoutePage()
@@ -43,7 +43,7 @@ class AnkiCardBrowserPage extends StatefulWidget {
 class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
   final _searchController = TextEditingController();
   final _tagController = TextEditingController();
-  final _dao = getIt<AnkiNoteDao>();
+  final _legacy = getIt<LegacyAnkiCardBrowser>();
   Timer? _debounce;
   List<AnkiCardBrowserRecord> _rows = const [];
   List<SourceAwareBrowserCard> _officialRows = const [];
@@ -110,7 +110,7 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
       // so re-searches and row rebuilds hit the cache instead of the FFI.
       final browser = _browser ??= OfficialAnkiSourceAwareBrowser(
         sources: sources,
-        legacyNotes: _dao,
+        legacyNotes: _legacy.notes,
         engine: OfficialAnkiCompositionRoot.engine,
         previewCache: _previewCache,
       );
@@ -154,7 +154,7 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
         return;
       }
     }
-    final rows = await _dao.searchNotes(
+    final rows = await _legacy.search(
       widget.importId,
       _searchController.text,
       flag: _flag,
@@ -189,7 +189,7 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
 
   Future<void> _toggle(AnkiCardBrowserRecord row,
       {bool? marked, bool? suspended}) async {
-    await _dao.setCardState(
+    await _legacy.setCardState(
       row.card.importId,
       row.card.cardId,
       marked: marked,

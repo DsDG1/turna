@@ -7,7 +7,7 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:turna/application/accessibility_provider.dart';
 import 'package:turna/application/settings_provider.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// 长按浮窗：锚定在源卡片旁的数据详情浮层（Play Hub 专用交互）。
 ///

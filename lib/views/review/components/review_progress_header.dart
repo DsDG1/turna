@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Top progress header and navigation bar for unified review sessions.
 class ReviewProgressHeader extends StatelessWidget

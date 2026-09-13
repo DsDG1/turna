@@ -6,7 +6,7 @@ import 'package:turna/domain/achievements/achievement_definition.dart';
 import 'package:turna/domain/achievements/achievement_state.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/profile/achievements/achievement_ui_catalog.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Visual badge states rendered by [AchievementBadgeCard].
 enum AchievementBadgeStatus { locked, inProgress, unlocked, maxed }

@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 // Project imports:
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// ADR 0033 — Turna wetland/crane palette contract.
 ///
@@ -242,7 +242,7 @@ void main() {
 
   group('Legacy color aliases retired from theme source', () {
     test('theme.dart defines no peacock* identifiers', () {
-      final themeFile = File('lib/views/theme.dart');
+      final themeFile = File('lib/core/theme.dart');
       expect(themeFile.existsSync(), isTrue);
       final src = themeFile.readAsStringSync();
       // Match API identifiers only (not narrative docs outside this file).

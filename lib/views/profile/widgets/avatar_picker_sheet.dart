@@ -7,7 +7,7 @@ import 'package:turna/domain/auth/local_user.dart';
 import 'package:turna/domain/cosmetics/avatar.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/locator.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/avatar_with_ring.dart';
 
 /// Sentinel popped by [_AvatarPickerSheet] when the user taps the

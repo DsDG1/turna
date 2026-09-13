@@ -20,7 +20,7 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/lesson/components/lesson_dialogs.dart';
 import 'package:turna/views/lesson/components/lesson_stage_widgets.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
 
 /// The number of random questions a daily challenge serves.

@@ -22,7 +22,7 @@ import 'package:turna/views/anki/import_wizard/anki_import_done_step.dart';
 import 'package:turna/views/anki/import_wizard/anki_import_wizard_widgets.dart';
 import 'package:turna/views/anki/import_wizard/modern_anki_import_preview.dart';
 import 'package:turna/views/anki/import_wizard/official_pending_import_banner.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Anki import wizard shell (maintainability plan §10). The page only
 /// renders controller state, hosts dialogs/routes and performs the

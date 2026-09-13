@@ -6,7 +6,7 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
-import 'package:turna/application/diagnostics/performance_trace.dart';
+import 'package:turna/core/performance_trace.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/review_dashboard/review_dashboard_models.dart';
 import 'package:turna/application/review_dashboard/review_data_revision.dart';

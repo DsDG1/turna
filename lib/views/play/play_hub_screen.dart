@@ -26,7 +26,7 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/play/components/info_popup.dart';
 import 'package:turna/views/play/components/play_info_panels.dart';
 import 'package:turna/views/play/components/play_tiles.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// 练习页主页（2026-08 焕新版）。
 ///

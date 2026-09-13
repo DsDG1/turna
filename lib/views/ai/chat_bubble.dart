@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// A single chat message bubble, shared by the AI hint chat and the AI wish
 /// chat. `role == 'user'` is the right-aligned primary-tinted sender bubble;

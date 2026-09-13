@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// 展开单元内的「学习旅程线」（Plan「湿地晨光」§3.3）。
 ///

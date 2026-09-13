@@ -17,7 +17,7 @@ import 'package:turna/application/smart_speech.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 @RoutePage()
 class DictionaryPage extends StatefulWidget {

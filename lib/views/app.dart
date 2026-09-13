@@ -12,7 +12,7 @@ import 'package:turna/application/providers.dart';
 import 'package:turna/application/theme_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/routing/routing.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 final router = getIt<AppRouter>();
 

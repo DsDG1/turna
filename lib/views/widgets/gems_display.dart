@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/gems_provider.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/loader.dart';
 
 class GemsDisplay extends StatelessWidget {

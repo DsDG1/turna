@@ -12,7 +12,7 @@ import 'package:turna/application/anki_official/storage/official_anki_database.d
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/memory_curve_provider.dart';
 import 'package:turna/views/review/components/retention_curve_chart.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 @RoutePage()
 class AnkiDeckStatsPage extends StatefulWidget {

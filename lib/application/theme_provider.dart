@@ -6,7 +6,7 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/service/locator.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 @lazySingleton
 class ThemeProvider extends ChangeNotifier {

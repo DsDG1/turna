@@ -7,6 +7,10 @@ import 'package:turna/application/anki_official/storage/official_anki_source_dao
 import 'package:turna/core/html_stripper.dart';
 import 'package:turna/data/anki_note_dao.dart';
 
+// Re-exported so legacy-browsing UIs can consume the raw record shape
+// without importing the data layer directly.
+export 'package:turna/data/anki_note_dao.dart' show AnkiCardBrowserRecord;
+
 /// One browser row that either side can render without depending on the
 /// other store.
 class SourceAwareBrowserCard {

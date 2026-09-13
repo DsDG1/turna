@@ -11,7 +11,7 @@ import 'package:turna/application/course_pack/course_pack_media.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/audio/anki_audio_resolver.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Renders Anki deck media (`anki://<importId>/<file>` references) attached
 /// to an objectively-graded interaction (MCQ / FillBlank): one speaker

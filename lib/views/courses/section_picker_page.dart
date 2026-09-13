@@ -10,7 +10,7 @@ import 'package:turna/application/course_provider.dart';
 import 'package:turna/domain/course/section.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/courses/components/section_visuals.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 @RoutePage()
 class SectionPickerPage extends StatelessWidget {

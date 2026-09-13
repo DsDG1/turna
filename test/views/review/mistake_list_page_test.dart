@@ -18,7 +18,7 @@ import 'package:turna/domain/course/mistake_entry.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/views/review/mistake_list_page.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

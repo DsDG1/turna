@@ -7,7 +7,7 @@ import 'package:turna/application/accessibility_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/views/home/components/bottom_navigator.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

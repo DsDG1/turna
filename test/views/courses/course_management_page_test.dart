@@ -13,7 +13,7 @@ import 'package:turna/domain/course/course_scope.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/views/courses/course_management_page.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Only what the management page reads: the catalog and the active wire.
 class _FakeCourseProvider extends CourseProvider {

@@ -134,7 +134,7 @@ void main() {
     });
 
     test('theme does not override pageTransitionsTheme', () {
-      final source = _read(File('$_libRoot/views/theme.dart'));
+      final source = _read(File('$_libRoot/core/theme.dart'));
       expect(source, isNot(contains('PageTransitionsTheme')),
           reason: 'Android must use the SDK default page transitions');
     });

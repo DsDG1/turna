@@ -8,7 +8,7 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/anki_media_strip.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/lesson/components/lesson_practice_card.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Pure native review surface for practice-compatible cards in official review.
 /// Reuses the core [InteractionRenderer] system from Turna lessons.

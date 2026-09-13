@@ -20,7 +20,7 @@ import 'package:turna/application/play/play_review_eligibility.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Tappable due chips: SRS review, mistakes, Anki review.
 class ProfileQuickActions extends StatefulWidget {

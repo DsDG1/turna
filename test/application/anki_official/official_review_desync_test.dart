@@ -18,7 +18,7 @@ import 'package:turna/application/study_session/study_ledger_adapters.dart';
 import 'package:turna/application/study_session/study_session_controller.dart';
 import 'package:turna/domain/anki/canonical_card_key.dart';
 import 'package:turna/domain/anki/study_models.dart';
-import 'package:turna/domain/review/official_anki_review_ledger.dart';
+import 'package:turna/application/anki_official/review/official_anki_review_ledger.dart';
 import 'package:turna/domain/review/recall_outcome.dart';
 
 const _flags = OfficialAnkiFeatureFlags(

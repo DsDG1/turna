@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Shared visual building blocks for the AI tutor surfaces (config page, hint
 /// sheet, depth-tutor sheet, chat page) so they share one card-based design

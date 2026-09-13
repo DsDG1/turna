@@ -7,7 +7,10 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/data/course_database.dart';
-// ignore: unused_import
+import 'package:turna/domain/game/gem_consumable.dart';
+
+export 'package:turna/domain/game/gem_consumable.dart'
+    show GemConsumablePurchaseResult;
 
 /// Outcome of an atomic [GemLedgerDao.purchase].
 enum GemPurchaseResult {
@@ -19,12 +22,6 @@ enum GemPurchaseResult {
 
   /// [currentBalance] < [price].
   insufficientFunds,
-}
-
-enum GemConsumablePurchaseResult {
-  success,
-  insufficientFunds,
-  monthlyLimitReached,
 }
 
 /// Ledger row kinds (Plan 2 §8.4): append-only facts about the gem economy.

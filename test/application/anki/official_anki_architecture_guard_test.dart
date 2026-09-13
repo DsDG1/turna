@@ -32,7 +32,7 @@ void main() {
         Directory('lib/views/lesson/components/interactions'),
         forbidden: const [
           "package:turna/application/srs_provider.dart",
-          "package:turna/domain/review/official_anki_review_ledger.dart",
+          "package:turna/application/anki_official/review/official_anki_review_ledger.dart",
           "package:turna/application/anki_official/engine/official_anki_review_session.dart",
         ],
       );

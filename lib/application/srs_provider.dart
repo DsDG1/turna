@@ -6,12 +6,13 @@ import 'package:turna/application/srs_queue_provider.dart';
 import 'package:turna/core/sm2.dart';
 import 'package:turna/domain/course/lesson_word_link.dart';
 import 'package:turna/domain/course/srs_word.dart';
+import 'package:turna/domain/review/srs_scheduling_gateway.dart';
 import 'package:turna/service/locator.dart';
 
 /// Manages word + expression SRS state in the `srs_states` SQLite table
 /// (queue `'srs'`; migrated from [LocalStateKeys.srsState] in schema v7).
 @lazySingleton
-class SrsProvider extends SrsQueueProvider {
+class SrsProvider extends SrsQueueProvider implements SrsSchedulingGateway {
   SrsProvider(super.appPrefs, super.linkStore, super.srsDao);
 
   List<SrsWord>? _cachedDueExpressions;
@@ -94,6 +95,7 @@ class SrsProvider extends SrsQueueProvider {
       reviewWithOutcome(wordId, grade.outcome);
 
   /// Binary pass/fail for a word (记住·做对 / 没记住·做错).
+  @override
   Future<SrsWord?> reviewWordOutcome(
     String wordId,
     ReviewOutcome outcome, {
@@ -124,6 +126,7 @@ class SrsProvider extends SrsQueueProvider {
   ) =>
       reviewWithOutcome(expressionId, grade.outcome);
 
+  @override
   Future<SrsWord?> reviewExpressionOutcome(
     String expressionId,
     ReviewOutcome outcome, {
@@ -144,6 +147,7 @@ class SrsProvider extends SrsQueueProvider {
   /// saw before), we restore the in-memory fresh state, not a freshly
   /// re-registered one — otherwise the undo would silently re-register the
   /// id with a different timestamp.
+  @override
   Future<bool> rollbackWord(
     String wordId,
     SrsWord? previous, {
@@ -156,6 +160,7 @@ class SrsProvider extends SrsQueueProvider {
       );
 
   /// Same as [rollbackWord] but for the expression queue.
+  @override
   Future<bool> rollbackExpression(
     String expressionId,
     SrsWord? previous, {
@@ -177,6 +182,7 @@ class SrsProvider extends SrsQueueProvider {
       );
 
   /// Anki cards whose `dueAt` is in the past or now.
+  @override
   List<SrsWord> getDueAnkiWords([DateTime? now]) {
     final cutoff = now ?? DateTime.now();
     return state.values
@@ -270,6 +276,7 @@ class SrsProvider extends SrsQueueProvider {
       ..sort((a, b) => b.lapses.compareTo(a.lapses));
   }
 
+  @override
   int get dueCount => primaryCachedDueCount ?? getDueWords().length;
   int get totalSeen => state.values
       .where((w) =>
@@ -285,6 +292,7 @@ class SrsProvider extends SrsQueueProvider {
           !w.wordId.startsWith('official-anki-'))
       .length;
 
+  @override
   int get expressionDueCount =>
       _cachedExpressionDueCount ?? getDueExpressions().length;
   int get expressionTotalSeen => state.values

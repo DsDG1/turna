@@ -1,5 +1,5 @@
 import 'package:turna/application/review_dashboard/review_data_revision.dart';
-import 'package:turna/application/diagnostics/performance_trace.dart';
+import 'package:turna/core/performance_trace.dart';
 import 'package:turna/application/review_progress_provider.dart';
 
 class InsightsQuery {

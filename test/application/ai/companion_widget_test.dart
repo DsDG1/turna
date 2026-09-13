@@ -21,7 +21,7 @@ import 'package:turna/views/ai/ai_hub_page.dart';
 import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
 import 'package:turna/views/ai/components/ai_quick_chips.dart';
 import 'package:turna/views/dictionary/dictionary_page.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 void main() {
   testWidgets('quick chips invoke onChip without free typing', (tester) async {

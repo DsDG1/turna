@@ -14,7 +14,7 @@ import 'package:turna/domain/cosmetics/cosmetic_item.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/views/profile/widgets/avatar_picker_sheet.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/avatar_with_ring.dart';
 
 /// Hero-style profile header: avatar, name, one-line bio, edit + share.

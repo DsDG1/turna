@@ -11,7 +11,7 @@ import 'package:turna/courses/languages/grammar_points.dart';
 import 'package:turna/courses/languages/vocab.dart';
 import 'package:turna/domain/course/mistake_entry.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
 
 /// Single-page mistake dashboard: KPI row, 14-day new-mistake trend, type

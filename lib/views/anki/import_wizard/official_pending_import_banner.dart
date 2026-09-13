@@ -6,7 +6,7 @@ import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Interrupted staging-first import (doc 42 P3). Continue is not offered:
 /// resume never received the unfinished source id, so the button was a no-op.

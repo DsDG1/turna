@@ -18,12 +18,12 @@ import 'package:turna/application/anki_official/v2/official_anki_v2_retire_servi
 import 'package:turna/application/maintenance/database_doctor_service.dart';
 import 'package:turna/application/maintenance/storage_inventory_service.dart';
 import 'package:turna/core/log_capture.dart';
-import 'package:turna/data/course_database.dart';
+
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/anki/import_wizard/official_pending_import_banner.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Database Health & Repair Center:
 /// Handles both core CourseDatabase health and Anki official collection repair,
@@ -35,7 +35,6 @@ class OfficialAnkiRepairCenterPage extends StatefulWidget {
     this.catalog,
     this.paths,
     this.scanner,
-    this.course,
     this.engine,
     this.doctor,
     this.onContinueImport,
@@ -48,7 +47,6 @@ class OfficialAnkiRepairCenterPage extends StatefulWidget {
   final OfficialAnkiDatabase? catalog;
   final OfficialAnkiPaths? paths;
   final StorageInventoryService? scanner;
-  final CourseDatabase? course;
   final OfficialAnkiEngine? engine;
   final DatabaseDoctorService? doctor;
   final Future<void> Function(String sourceId)? onContinueImport;
@@ -77,14 +75,6 @@ class _OfficialAnkiRepairCenterPageState
 
   DatabaseDoctorService get _doctor =>
       widget.doctor ?? const DatabaseDoctorService();
-
-  CourseDatabase? get _course {
-    if (widget.course != null) return widget.course;
-    if (getIt.isRegistered<CourseDatabase>()) {
-      return getIt<CourseDatabase>();
-    }
-    return null;
-  }
 
   OfficialAnkiDatabase? get _catalog =>
       widget.catalog ?? OfficialAnkiCompositionRoot.readOnlyCatalog;
@@ -124,7 +114,6 @@ class _OfficialAnkiRepairCenterPageState
     setState(() => _inspecting = true);
     try {
       final report = await _doctor.inspectHealth(
-        course: _course,
         catalog: _catalog,
         paths: _paths,
         scanner: widget.scanner,
@@ -654,7 +643,6 @@ class _OfficialAnkiRepairCenterPageState
     setState(() => _busy = true);
     try {
       final res = await _doctor.optimizeAll(
-        course: _course,
         catalog: _catalog,
         paths: _paths,
         engine: _engine,
@@ -689,7 +677,6 @@ class _OfficialAnkiRepairCenterPageState
       await _doctor.retryFailedJobs(
         catalog: _catalog,
         paths: _paths,
-        course: _course,
         engine: _engine,
       );
       // 3. Retry pending cleanups
@@ -702,7 +689,7 @@ class _OfficialAnkiRepairCenterPageState
             await OfficialAnkiV2RetireService(
               catalog: _catalog!,
               paths: _paths!,
-              course: _course,
+              course: null,
               engine: _engine,
             ).runRetireJob(sourceId: s.sourceId);
           }
@@ -780,7 +767,6 @@ class _OfficialAnkiRepairCenterPageState
         catalog: catalog,
         paths: paths,
         engine: engine,
-        course: _course,
       ).runPending(profileId: paths.profileId);
       if (mounted) _snack('维护任务已执行');
     } finally {
@@ -797,7 +783,6 @@ class _OfficialAnkiRepairCenterPageState
       final completed = await _doctor.retryFailedJobs(
         catalog: _catalog,
         paths: _paths,
-        course: _course,
         engine: _engine,
       );
       if (mounted) _snack('已完成 $completed 项维护任务');
@@ -829,7 +814,7 @@ class _OfficialAnkiRepairCenterPageState
   Future<void> _checkIntegrity() async {
     setState(() => _busy = true);
     try {
-      final courseRes = await _doctor.checkCourseIntegrity(course: _course);
+      final courseRes = await _doctor.checkCourseIntegrity();
       var ankiRes = '未启用';
       if (_catalog != null) {
         final row = _catalog!.handle.select('PRAGMA integrity_check').first;
@@ -866,7 +851,7 @@ class _OfficialAnkiRepairCenterPageState
   Future<void> _rebuildIndexes() async {
     setState(() => _busy = true);
     try {
-      await _doctor.rebuildCourseIndexes(course: _course);
+      await _doctor.rebuildCourseIndexes();
       if (mounted) _snack('索引已重建并优化');
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -941,7 +926,6 @@ class _OfficialAnkiRepairCenterPageState
       await OfficialAnkiV2RetireService(
         catalog: catalog,
         paths: paths,
-        course: _course,
         engine: _engine,
       ).runRetireJob(sourceId: sourceId);
     } finally {

@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 class Loader extends StatelessWidget {
   const Loader({super.key});

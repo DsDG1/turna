@@ -14,7 +14,7 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/views/profile/utils/share_image_generator.dart';
 import 'package:turna/views/profile/widgets/share_progress_card.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 class ProfileAppBar extends StatelessWidget implements PreferredSizeWidget {
   const ProfileAppBar({super.key});

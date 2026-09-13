@@ -10,7 +10,7 @@ import 'package:turna/domain/course/section.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/courses/components/section_bottom_sheet.dart';
 import 'package:turna/views/courses/components/section_visuals.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Scroll-aware section entry used by the pinned course-tree header.
 ///

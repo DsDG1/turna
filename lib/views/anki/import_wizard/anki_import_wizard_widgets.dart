@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Shared wizard widgets (maintainability plan §10.5): pure view
 /// primitives receiving models + callbacks — no database, engine, DAO or

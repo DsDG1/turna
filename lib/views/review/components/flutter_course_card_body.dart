@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:turna/domain/review/review_item.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Flutter-native card renderer for standard course cards and legacy flip cards.
 class FlutterCourseCardBody extends StatelessWidget {

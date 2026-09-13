@@ -3,18 +3,14 @@ import 'package:drift/drift.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:turna/application/diagnostics/performance_trace.dart';
+import 'package:turna/core/performance_trace.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/domain/course/srs_word.dart';
+import 'package:turna/domain/review/review_activity.dart';
 
-enum ActivityGranularity { day, week, month }
-
-class ActivityBucketRow {
-  const ActivityBucketRow({required this.bucket, required this.reviewedCount});
-  final String bucket;
-  final int reviewedCount;
-}
+export 'package:turna/domain/review/review_activity.dart'
+    show ActivityGranularity, ActivityBucketRow;
 
 class RetentionBucketRow {
   const RetentionBucketRow({

@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 // Project imports:
 import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/accessibility_capabilities.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Horizontal wrap of quick-follow-up chips. Tapping calls [onChip] with the
 /// chip label (equals an ask turn).

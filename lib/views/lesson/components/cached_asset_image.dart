@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 
 // Project imports:
 import 'package:turna/application/course_pack/course_pack_media.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// A memory-bounded image for interaction prompts.
 ///

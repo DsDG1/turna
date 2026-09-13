@@ -118,7 +118,10 @@ class _CleanupRepo implements ICourseRepository {
   Future<Expression?> expressionById(String id) async => null;
 
   @override
-  Future<List<db.AnkiImport>> ankiImports() async => [];
+  Future<String?> contentVersion({String? languageCode}) async => null;
+
+  @override
+  int get schemaVersion => -1;
 }
 
 void main() {

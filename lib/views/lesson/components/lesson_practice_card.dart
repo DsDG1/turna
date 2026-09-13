@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// 视觉风格变体. 不同 variant 仅改底色和边框色阶, 共享同一套渐变 + 阴影,
 /// 以保证练习域所有主卡观感一致.

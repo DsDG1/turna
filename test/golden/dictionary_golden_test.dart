@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/courses/languages/vocab.dart';
 import 'package:turna/domain/course/word_entry.dart';
 import 'package:turna/views/dictionary/dictionary_page.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

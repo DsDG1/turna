@@ -9,7 +9,7 @@ const String kAvatarDefaultId = 'avatar_default';
 ///
 /// Rendered inside [AvatarWithRing] as a centered [Text] emoji over a tinted
 /// disk. Background colors mirror the Turna wetland palette (see
-/// `lib/views/theme.dart`) so the avatar stays on palette, but are duplicated
+/// `lib/core/theme.dart`) so the avatar stays on palette, but are duplicated
 /// as hex constants here to keep the domain layer free of UI imports — the
 /// same pattern used by [AvatarRing].
 class Avatar {
@@ -41,7 +41,7 @@ class Avatar {
 /// Order is the user-visible order in the picker; keep it curated.
 ///
 /// Background colors mirror the Turna wetland palette tokens
-/// (`lib/views/theme.dart`). Hex duplication is intentional — keeps the
+/// (`lib/core/theme.dart`). Hex duplication is intentional — keeps the
 /// domain layer free of UI imports and prevents accidental theming
 /// regressions when token values shift. Keep these in sync if the theme
 /// changes.

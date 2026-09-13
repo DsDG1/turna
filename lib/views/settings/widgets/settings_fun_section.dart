@@ -9,7 +9,7 @@ import 'package:turna/application/fun_lab_snapshot_service.dart';
 import 'package:turna/application/fun_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// A switch tile bound to [FunProvider], mirroring [AccessibilityToggleTile]
 /// (which is bound to [AccessibilityProvider]).

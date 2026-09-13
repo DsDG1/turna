@@ -15,7 +15,7 @@ import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/views/settings/widgets/settings_sound_section.dart'
     show SettingsToggleTile;
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// "高级" category (Plan 2 §6): a stable cross-feature hub with four
 /// first-level entries — AI 连接 / 存储与性能 / 系统健康与诊断 / 旧版与兼容性.

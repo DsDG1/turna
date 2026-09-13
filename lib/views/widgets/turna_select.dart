@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Exclusive 2–4 option control. Fill is the selection — no checkmark.
 class TurnaSegmented<T> extends StatelessWidget {

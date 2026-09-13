@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:turna/application/anki_import/anki_import_wizard_state.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/anki/import_wizard/anki_import_wizard_widgets.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Done step (maintainability plan §10.5): renders the unified
 /// [AnkiImportSummary] and the completion actions. "完成" pops without

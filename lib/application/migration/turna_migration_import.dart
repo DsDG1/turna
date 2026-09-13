@@ -11,6 +11,7 @@ import 'dart:io';
 
 import 'package:archive/archive.dart';
 import 'package:crypto/crypto.dart';
+import 'package:injectable/injectable.dart';
 import 'package:turna/application/migration/turna_migration_export.dart';
 import 'package:turna/data/course_database.dart';
 
@@ -89,6 +90,7 @@ const _requiredEntries = <String>[
   'SHA256SUMS',
 ];
 
+@lazySingleton
 class TurnaMigrationImporter {
   TurnaMigrationImporter({
     required CourseDatabase db,

@@ -12,7 +12,7 @@ import 'package:turna/application/settings/external_link_registry.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/settings/changelog_page.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Dedicated About page for Turna (Plan 2 §7.1).
 ///

@@ -10,7 +10,7 @@ import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/anki_media_strip.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Fill in a blanked word in a sentence. The data uses `_____` to mark the
 /// gap; we replace the first occurrence with a tappable [TextField]. Matching

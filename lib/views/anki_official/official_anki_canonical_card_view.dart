@@ -8,7 +8,7 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_error_view.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_page.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_stage.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Inline interaction surface for official `canonicalLink` items — the card
 /// renders inside the lesson itself instead of pushing the reviewer page.

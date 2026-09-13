@@ -23,7 +23,7 @@ import 'package:turna/domain/course/course_scope.dart';
 import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Learning-language picker. Switches the *course scope* (the same action
 /// as tapping a course in course management) so the course tree, SRS /

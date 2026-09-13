@@ -6,7 +6,7 @@ import 'package:turna/domain/course/unit.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/courses/components/lesson_tile.dart';
 import 'package:turna/views/home/motion/turna_motion.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// 单元卡（Plan「湿地晨光」§3.3）：抬升的内容卡头部。
 ///

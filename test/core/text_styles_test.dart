@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 // Project imports:
 import 'package:turna/core/text_styles.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 void main() {
   group('AppTextStyles', () {

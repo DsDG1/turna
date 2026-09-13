@@ -12,7 +12,7 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/views/settings/widgets/settings_sound_section.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Daily reminder toggle + time picker. All changes go through
 /// [UpdateDailyReminderCommand]: the OS schedule is applied first and the

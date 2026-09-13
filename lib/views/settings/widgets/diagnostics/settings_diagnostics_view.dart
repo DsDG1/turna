@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Compact "label + value" row for stat cards (storage breakdown, cache
 /// stats, FSRS preview, etc.). Lives inside a [SettingsCard] with

@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/courses/components/progress_spine.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 enum LessonAttention { none, due, weak }
 

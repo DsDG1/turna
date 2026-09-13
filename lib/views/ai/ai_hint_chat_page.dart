@@ -20,7 +20,7 @@ import 'package:turna/views/ai/chat_bubble.dart';
 import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
 import 'package:turna/views/ai/components/ai_quick_chips.dart';
 import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 @RoutePage()
 class AiHintChatPage extends StatefulWidget {

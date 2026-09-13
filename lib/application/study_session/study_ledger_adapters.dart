@@ -1,7 +1,7 @@
 import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
 import 'package:turna/domain/anki/canonical_card_key.dart';
 import 'package:turna/domain/anki/study_models.dart';
-import 'package:turna/domain/review/official_anki_review_ledger.dart';
+import 'package:turna/application/anki_official/review/official_anki_review_ledger.dart';
 import 'package:turna/domain/review/recall_outcome.dart';
 import 'package:turna/domain/review/review_item.dart';
 import 'package:turna/domain/review/review_ledger.dart';

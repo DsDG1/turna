@@ -7,7 +7,7 @@ import 'package:auto_route/auto_route.dart';
 // Project imports:
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Empty-state panel when AI API is not configured. Primary CTA opens config.
 class AiNotConfiguredPanel extends StatelessWidget {

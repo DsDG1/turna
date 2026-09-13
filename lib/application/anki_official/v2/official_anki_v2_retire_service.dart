@@ -9,6 +9,7 @@ import 'package:turna/application/anki_official/storage/official_anki_source_dao
 import 'package:turna/application/anki_official/v2/official_anki_v2_decision_store.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_view_rebuilder.dart';
 import 'package:turna/data/course_database.dart';
+import 'package:turna/di/injection.dart';
 
 /// B5：v2 删除轴 retiring 序列（D6/K6，Step 1 发现 #3 的结构性答复）。
 ///
@@ -25,11 +26,14 @@ class OfficialAnkiV2RetireService {
   OfficialAnkiV2RetireService({
     required this.catalog,
     required this.paths,
-    required this.course,
+    CourseDatabase? course,
     this.engine,
     this.nowMillis,
     this.deleteChunk = defaultDeleteChunk,
-  });
+  }) : course = course ??
+            (getIt.isRegistered<CourseDatabase>()
+                ? getIt<CourseDatabase>()
+                : null);
 
   final OfficialAnkiDatabase catalog;
   final OfficialAnkiPaths paths;

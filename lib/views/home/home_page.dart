@@ -16,10 +16,9 @@ import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/srs_provider.dart';
-import 'package:turna/data/course_database.dart';
-import 'package:turna/data/course_repository.dart';
-import 'package:turna/data/study_log_repository.dart';
 import 'package:turna/di/injection.dart';
+import 'package:turna/domain/repositories/i_course_repository.dart';
+import 'package:turna/domain/repositories/i_study_log_repository.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/service/tab_router.dart';
 import 'package:turna/views/content_update/content_update_dialog.dart';
@@ -34,7 +33,7 @@ import 'package:turna/views/play/play_hub_screen.dart';
 import 'package:turna/views/profile/profile_screen.dart';
 import 'package:turna/views/settings/settings_app_bar.dart';
 import 'package:turna/views/settings/settings_page.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 @RoutePage()
 class HomePage extends StatefulWidget {
@@ -132,8 +131,7 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _maybePromptContentUpdate() async {
     final appPrefs = getIt<AppPrefs>();
-    final repo = CourseRepository(getIt<CourseDatabase>());
-    final storedVersion = await repo.contentVersion();
+    final storedVersion = await getIt<ICourseRepository>().contentVersion();
     if (storedVersion == null) return; // not seeded yet
 
     final acknowledged = appPrefs.preferences
@@ -165,7 +163,7 @@ class _HomePageState extends State<HomePage> {
       await Future.wait([
         game.resetLessonProgress(),
         context.read<MistakeProvider>().clear(),
-        getIt<StudyLogRepository>().clearAll(),
+        getIt<IStudyLogRepository>().clearAll(),
         context.read<SrsProvider>().clear(),
         context.read<GrammarReviewProvider>().clear(),
       ]);

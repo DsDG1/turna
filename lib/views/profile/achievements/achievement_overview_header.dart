@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:turna/domain/achievements/achievement_state.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/profile/achievements/achievement_ui_catalog.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Hero overview: owned badge count, total, completion ratio, and the most
 /// recent unlock date. Reads exclusively from the persisted v2 state.

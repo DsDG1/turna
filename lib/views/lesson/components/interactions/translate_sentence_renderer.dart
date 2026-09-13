@@ -10,7 +10,7 @@ import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/lesson/components/lesson_practice_card.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Free-text translation. User types the translation of a source sentence.
 /// Match is case-insensitive, whitespace-trimmed, and ignores trailing

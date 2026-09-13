@@ -11,7 +11,7 @@ import 'package:turna/application/progress_provider.dart';
 import 'package:turna/domain/course/section.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/courses/components/section_visuals.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Shows a frosted-glass bottom sheet for quick section switching on the home screen.
 Future<void> showSectionBottomSheet(BuildContext context) {

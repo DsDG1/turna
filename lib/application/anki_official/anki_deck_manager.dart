@@ -275,6 +275,26 @@ class AnkiDeckManager {
     return sections.any((section) => section.id.startsWith(prefix));
   }
 
+  /// Per-deck daily new-card limit override, or `null` for the global limit.
+  Future<int?> dailyNewLimitFor(String importId) =>
+      _importDao.dailyNewLimitFor(importId);
+
+  /// Per-deck daily review limit override, or `null` for the global limit.
+  Future<int?> dailyReviewLimitFor(String importId) =>
+      _importDao.dailyReviewLimitFor(importId);
+
+  /// Persist per-deck daily limit overrides (`null` clears the override).
+  Future<void> setDailyLimits(
+    String importId, {
+    int? newLimit,
+    int? reviewLimit,
+  }) =>
+      _importDao.setDailyLimits(
+        importId,
+        newLimit: newLimit,
+        reviewLimit: reviewLimit,
+      );
+
   /// Official sources own `official-anki-<sourceId>-…` tree ids.
   Future<bool> _isOfficialSource(String importId) async {
     final prefix = 'official-anki-$importId-';

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Global learning style preset modes for imported Anki decks.
 enum StudyPresetMode {

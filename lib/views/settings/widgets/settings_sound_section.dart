@@ -11,7 +11,7 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/service/tts_availability_checker.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 class SettingsToggleTile extends StatelessWidget {
   final IconData icon;

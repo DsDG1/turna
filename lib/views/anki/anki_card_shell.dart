@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Unified visual shell for WebView-backed Anki card surfaces - course HTML
 /// cards, unified-review fidelity cards and the official preview all share

@@ -6,7 +6,7 @@ import 'package:turna/application/review_dashboard/review_data_revision.dart';
 import 'package:turna/application/review_progress_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/routing/routing.gr.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 @RoutePage()
 class ReviewSourceDetailPage extends StatefulWidget {

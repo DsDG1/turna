@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:turna/application/maintenance/official_anki_ghost_purge_service.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// One user-facing row on the storage category drill-down (official source
 /// or a legacy media directory). [id] is the uninstall identity — never a

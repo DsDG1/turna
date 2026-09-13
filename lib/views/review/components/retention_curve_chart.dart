@@ -6,7 +6,7 @@ import 'package:fl_chart/fl_chart.dart';
 
 // Project imports:
 import 'package:turna/application/memory_curve_provider.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Shared retention-vs-interval line chart (Profile + Review Progress).
 class RetentionCurveChart extends StatelessWidget {

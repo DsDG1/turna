@@ -14,7 +14,7 @@ import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
 import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Lightweight sheet: explain an SRS/Anki card without mutating scores/notes.
 Future<void> showAiCardExplainSheet(

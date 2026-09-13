@@ -6,9 +6,15 @@ import 'package:flutter/services.dart';
 import 'package:auto_route/auto_route.dart';
 
 // Project imports:
+import 'package:turna/application/settings/changelog_entries.dart';
 import 'package:turna/application/settings/release_manifest.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
+
+// Re-exported for the pages/tests that historically imported the entry
+// classes from this file; the definitions live in the application layer now.
+export 'package:turna/application/settings/changelog_entries.dart'
+    show ChangelogRelease, JourneyStep;
 
 /// Offline changelog of major milestones and feature batches.
 ///
@@ -158,32 +164,6 @@ class JourneyOverviewCard extends StatelessWidget {
       ),
     );
   }
-}
-
-/// 单条 release 数据。可公开复用。
-class ChangelogRelease {
-  final String version;
-  final String title;
-  final List<String> items;
-
-  const ChangelogRelease({
-    required this.version,
-    required this.title,
-    required this.items,
-  });
-}
-
-/// 历程步骤数据。
-class JourneyStep {
-  final String label;
-  final String title;
-  final String subtitle;
-
-  const JourneyStep({
-    required this.label,
-    required this.title,
-    required this.subtitle,
-  });
 }
 
 /// 默认的 asset 路径,可通过 [ChangelogFromAsset.assetPath] 覆盖。

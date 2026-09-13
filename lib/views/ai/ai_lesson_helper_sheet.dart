@@ -11,7 +11,7 @@ import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/lesson_viewmodel.dart';
 import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Bottom sheet for editing the current lesson with AI.
 ///

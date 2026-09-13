@@ -9,7 +9,7 @@ import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:turna/application/lesson_link_store.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/service/locator.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 import '../helpers/in_memory_course_db.dart';
 

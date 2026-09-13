@@ -14,7 +14,7 @@ import 'package:turna/service/remote_backup/remote_backup_config.dart';
 import 'package:turna/service/remote_backup/remote_backup_service.dart';
 import 'package:turna/service/remote_backup/webdav_client.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Manual WebDAV remote backup / restore. Everything is user-triggered:
 /// "立即备份" snapshots + uploads, "从远程恢复" downloads + stages the

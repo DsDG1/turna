@@ -11,7 +11,7 @@ import 'package:turna/views/anki/import_wizard/deck_directory_tree_view.dart';
 import 'package:turna/views/anki/import_wizard/mcq_preview_sheet.dart';
 import 'package:turna/views/anki/import_wizard/quick_front_picker_sheet.dart';
 import 'package:turna/views/anki/import_wizard/study_preset_selector.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Modern Anki import preview: clean, course-oriented view focusing on
 /// course asset statistics, multi-level chapter structure, and global

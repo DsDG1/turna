@@ -9,7 +9,7 @@ import 'package:turna/core/text_styles.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Renderer for [Interaction.readingShortAnswer].
 ///

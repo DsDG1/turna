@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 // Project imports:
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/settings/widgets/primitives/settings_section.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Visual tone for [SettingsInfoCard]. Maps to a tinted surface + accent
 /// border + accent icon color. All tints are theme-aware so dark mode never

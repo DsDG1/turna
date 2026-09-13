@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// A node in the multi-level deck tree.
 class DeckTreeNode {

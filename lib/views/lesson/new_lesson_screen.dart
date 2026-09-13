@@ -33,7 +33,7 @@ import 'package:turna/views/ai/ai_lesson_helper_sheet.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/lesson/components/lesson_dialogs.dart';
 import 'package:turna/views/lesson/components/lesson_stage_widgets.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 @RoutePage()
 class NewLessonPage extends StatefulWidget {

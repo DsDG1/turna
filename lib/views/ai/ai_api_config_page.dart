@@ -17,7 +17,7 @@ import 'package:turna/application/ai/engine/ai_provider_preset.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/turna_select.dart';
 
 /// AI connection settings page (高级 → AI 连接, Plan 2 §6.2).

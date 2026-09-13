@@ -6,7 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/gen/assets.gen.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Broken-streak explanation with an honest, optional display-only voucher.
 class StreakBrokenDialog extends StatefulWidget {

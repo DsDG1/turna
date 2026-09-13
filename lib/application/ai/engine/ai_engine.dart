@@ -10,7 +10,7 @@ import 'package:turna/application/ai/engine/ai_cancel_token.dart';
 import 'package:turna/application/ai/engine/ai_engine_config.dart';
 import 'package:turna/application/ai/engine/ai_engine_result.dart';
 import 'package:turna/application/ai/engine/ai_http_client.dart';
-import 'package:turna/application/diagnostics/performance_trace.dart';
+import 'package:turna/core/performance_trace.dart';
 
 /// Single choke point for every LLM call in the app.
 ///

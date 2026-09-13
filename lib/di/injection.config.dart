@@ -9,6 +9,8 @@
 // coverage:ignore-file
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
+import 'dart:io' as _i497;
+
 import 'package:audioplayers/audioplayers.dart' as _i656;
 import 'package:flutter_tts/flutter_tts.dart' as _i50;
 import 'package:get_it/get_it.dart' as _i174;
@@ -44,6 +46,7 @@ import '../application/lesson_link_store.dart' as _i854;
 import '../application/lesson_progress_provider.dart' as _i409;
 import '../application/lesson_viewmodel.dart' as _i274;
 import '../application/memory_curve_provider.dart' as _i257;
+import '../application/migration/turna_migration_import.dart' as _i591;
 import '../application/mistake_provider.dart' as _i551;
 import '../application/progress_provider.dart' as _i740;
 import '../application/review_dashboard/review_dashboard_repository.dart'
@@ -153,6 +156,12 @@ extension GetItInjectableX on _i174.GetIt {
         () => _i711.LocalReminderService());
     gh.lazySingleton<_i927.AchievementStateRepository>(
         () => _i927.AchievementStateRepository(gh<_i523.AppPrefs>()));
+    gh.lazySingleton<_i591.TurnaMigrationImporter>(
+        () => _i591.TurnaMigrationImporter(
+              db: gh<_i604.CourseDatabase>(),
+              mediaRoot: gh<_i497.Directory>(),
+              minFreeBytes: gh<int>(),
+            ));
     gh.lazySingleton<_i656.AudioPlayer>(
       () => audioModule.speechPlayer,
       instanceName: 'speechPlayer',

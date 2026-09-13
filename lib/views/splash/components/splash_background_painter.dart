@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 class SplashBackgroundPainter extends CustomPainter {
   @override

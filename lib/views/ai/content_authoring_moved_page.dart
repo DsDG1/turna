@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 // Project imports:
 import 'package:turna/application/settings/external_link_registry.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// 内容创作退场 tombstone（Plan 3 §19.4）。
 ///

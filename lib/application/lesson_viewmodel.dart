@@ -36,12 +36,12 @@ import 'package:turna/application/srs_provider.dart';
 import 'package:turna/core/sm2.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/domain/course/interaction_state.dart';
 import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/domain/course/lesson_word_link.dart';
 import 'package:turna/domain/course/mistake_entry.dart';
 import 'package:turna/domain/course/srs_word.dart';
 import 'package:turna/domain/course/stage.dart';
-import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 
 /// Derive the SRS wordId from an Anki card interaction id.
 ///

@@ -8,7 +8,7 @@ import 'package:turna/application/anki_official/projection/official_exercise_pre
 import 'package:turna/application/anki_import/anki_import_view_helpers.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_error_view.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Editable mapping wizard, phrased for non-experts: what the cards look
 /// like, which field plays which role (in plain Chinese), and which

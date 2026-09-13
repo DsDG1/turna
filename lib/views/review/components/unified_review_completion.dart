@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/profile/achievements/achievement_feedback_banner.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/cosmetic_completion_badge.dart';
 
 /// Unified review completion summary screen.

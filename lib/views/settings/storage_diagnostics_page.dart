@@ -24,7 +24,7 @@ import 'package:turna/routing/platform_page_route.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/settings/storage_category_items_page.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// User-facing storage overview ("存储与性能"): a dashboard over
 /// [StorageInventoryService] that shows total usage with a share ring, four

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 // Project imports:
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// User choice for the content-update prompt (ADR 0002).
 enum ContentUpdateChoice { keepProgress, resetProgress }

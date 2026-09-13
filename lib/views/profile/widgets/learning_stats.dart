@@ -8,7 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:turna/application/study_stats_provider.dart';
 import 'package:turna/domain/study/daily_stats.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Data-loading contract shared by [TodaySummaryCard] and [StudyStatsSection].
 ///

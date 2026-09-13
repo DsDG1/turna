@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:turna/application/anki_import/recognition/facts/options_structure.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// In-place modal bottom sheet for inspecting and fine-tuning recognized choice
 /// questions (or other archetypes) for a specific Anki notetype/chapter.

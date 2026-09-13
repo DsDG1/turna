@@ -11,7 +11,7 @@ import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/cached_asset_image.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Pick one or more options out of N.
 ///

@@ -8,7 +8,7 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:turna/application/ai/ai_saved_explanations.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 @RoutePage()
 class AiSavedListPage extends StatefulWidget {

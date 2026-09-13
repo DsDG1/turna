@@ -1,16 +1,17 @@
-import 'package:turna/application/srs_provider.dart';
 import 'package:turna/core/sm2.dart';
 import 'package:turna/domain/course/srs_word.dart';
 import 'package:turna/domain/review/recall_outcome.dart';
 import 'package:turna/domain/review/review_item.dart';
 import 'package:turna/domain/review/review_ledger.dart';
+import 'package:turna/domain/review/srs_scheduling_gateway.dart';
 
 /// Ledger implementation for Turna course cards and legacy Anki imports.
 ///
-/// Dispatches answers to [SrsProvider] (backed by Turna FSRS), computes authoritative
-/// interval previews from the FSRS engine, and provides exact snapshot undo.
+/// Dispatches answers to the SRS scheduling gateway (backed by Turna FSRS),
+/// computes authoritative interval previews from the FSRS engine, and
+/// provides exact snapshot undo.
 class TurnaReviewLedger implements ReviewLedger {
-  final SrsProvider _srsProvider;
+  final SrsSchedulingGateway _srsProvider;
 
   TurnaReviewLedger(this._srsProvider);
 

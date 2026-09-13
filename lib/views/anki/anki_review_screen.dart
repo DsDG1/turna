@@ -15,14 +15,13 @@ import 'package:turna/application/anki_official/official_anki_feature_flags.dart
 import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
 import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/anki_official/engine/official_anki_home_due_sync.dart';
-import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/application/course_catalog.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/play/components/play_tiles.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
 
 /// Anki review hub — lists imported Anki sections with due counts,
@@ -286,9 +285,9 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
     required String title,
   }) async {
     final importId = LegacyAnkiIdentifiers.importIdFromSectionId(sectionId);
-    final dao = getIt<AnkiImportDao>();
-    final currentNew = await dao.dailyNewLimitFor(importId);
-    final currentReview = await dao.dailyReviewLimitFor(importId);
+    final deckManager = getIt<AnkiDeckManager>();
+    final currentNew = await deckManager.dailyNewLimitFor(importId);
+    final currentReview = await deckManager.dailyReviewLimitFor(importId);
     if (!context.mounted) return;
     final newController = TextEditingController(
       text: currentNew?.toString() ?? '',
@@ -342,7 +341,7 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
     newController.dispose();
     reviewController.dispose();
     if (result == null || !context.mounted) return;
-    await dao.setDailyLimits(
+    await deckManager.setDailyLimits(
       importId,
       newLimit: result.newLimit,
       reviewLimit: result.reviewLimit,

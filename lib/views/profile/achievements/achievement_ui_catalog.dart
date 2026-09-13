@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:turna/domain/achievements/achievement_catalog.dart';
 import 'package:turna/domain/achievements/achievement_definition.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// UI-layer resolver for achievement presentation: icons, colors, localized
 /// strings, and progress units. The domain layer stays free of Flutter

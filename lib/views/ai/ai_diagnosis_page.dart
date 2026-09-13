@@ -18,7 +18,7 @@ import 'package:turna/application/study_stats_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
 import 'package:turna/views/lesson/tutor_launch_sheet.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 @RoutePage()
 class AiDiagnosisPage extends StatefulWidget {

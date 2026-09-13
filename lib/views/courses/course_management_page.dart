@@ -26,7 +26,7 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/utils/validated_file_picker.dart';
 import 'package:turna/views/anki/import_wizard/official_pending_import_banner.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Course management page — opened from the course switcher in the Learn
 /// tab. Lists the built-in course plus every Anki course (one entry per

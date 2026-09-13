@@ -16,7 +16,7 @@ import 'package:turna/views/profile/achievements/achievement_detail_sheet.dart';
 import 'package:turna/views/profile/achievements/achievement_filter_bar.dart';
 import 'package:turna/views/profile/achievements/achievement_overview_header.dart';
 import 'package:turna/views/profile/achievements/achievement_ui_catalog.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Badge-collection achievements home (plan §7.2): overview hero, nearest
 /// recommendations, filter chips, a two-column badge grid, and the recent

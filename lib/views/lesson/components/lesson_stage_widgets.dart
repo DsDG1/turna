@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 // Project imports:
 import 'package:turna/domain/course/reading_passage.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 class LessonStageBanner extends StatelessWidget {
   final String name;

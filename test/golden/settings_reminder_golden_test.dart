@@ -10,7 +10,7 @@ import 'package:turna/application/settings_provider.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/views/settings/widgets/settings_reminder_section.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

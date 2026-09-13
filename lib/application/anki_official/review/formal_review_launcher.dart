@@ -9,7 +9,7 @@ import 'package:turna/domain/anki/canonical_card_key.dart';
 import 'package:turna/domain/anki/card_presentation.dart';
 import 'package:turna/domain/anki/study_models.dart';
 import 'package:turna/domain/course/interaction.dart';
-import 'package:turna/domain/review/official_anki_review_ledger.dart';
+import 'package:turna/application/anki_official/review/official_anki_review_ledger.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 

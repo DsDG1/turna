@@ -14,7 +14,7 @@ import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/avatar_with_ring.dart';
 
 /// Preset daily XP goal values for the slider.

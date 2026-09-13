@@ -10,7 +10,7 @@ import 'package:turna/application/language_registry.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/home/turna_welcomes.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 class CenterDisplay extends StatefulWidget {
   const CenterDisplay({super.key});

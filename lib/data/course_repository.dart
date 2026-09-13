@@ -36,6 +36,9 @@ class CourseRepository implements ICourseRepository {
   final db.CourseDatabase database;
   CourseRepository(this.database);
 
+  @override
+  int get schemaVersion => database.schemaVersion;
+
   /// Lightweight section shells (id/name/description/prerequisiteSectionIds,
   /// `units` empty) in on-disk order. The id tiebreak keeps the order
   /// deterministic when sort orders collide across writers.
@@ -516,19 +519,6 @@ class CourseRepository implements ICourseRepository {
     });
   }
 
-  /// List all recorded Anki imports, most recent first.
-  @override
-  Future<List<db.AnkiImport>> ankiImports() async {
-    final rows = await (database.select(database.ankiImports)
-          ..orderBy([(t) => OrderingTerm.desc(t.importedAt)]))
-        .get();
-    return rows;
-  }
-
-  /// The stored course content version (composite `index+expressions`, written
-  /// by [DatabaseSeeder] after seeding), or `null` if the DB has not been
-  /// seeded yet. Used by the content-update prompt (ADR 0002) to detect
-  /// version bumps.
   /// Delete one packed builtin language (content + SRS + history + mistakes).
   Future<void> deleteBuiltinLanguage(String languageCode) async {
     final code = LanguageCodes.canonicalize(languageCode);
@@ -724,6 +714,7 @@ class CourseRepository implements ICourseRepository {
     };
   }
 
+  @override
   Future<String?> contentVersion({String? languageCode}) async {
     final keys = [
       if (languageCode != null)

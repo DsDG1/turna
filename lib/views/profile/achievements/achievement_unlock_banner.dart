@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:turna/domain/achievements/achievement_unlock_result.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/profile/achievements/achievement_ui_catalog.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Inline achievement banner for completion dialogs / pages (plan §7.5).
 /// Shows one badge or a collapsed "N 枚徽章" summary; never stacks multiple

@@ -1,6 +1,5 @@
 // Project imports:
-import 'package:turna/views/settings/changelog_page.dart'
-    show ChangelogRelease, JourneyStep;
+import 'package:turna/application/settings/changelog_entries.dart';
 
 /// Single structured source for the app's release history (Plan 2 §4.8/§7.2).
 ///

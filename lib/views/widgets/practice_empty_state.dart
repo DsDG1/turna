@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 
 // Project imports:
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// 练习/复习场景统一空状态：图标 + 主文案 + 可选副文案 + 可选动作按钮。
 ///

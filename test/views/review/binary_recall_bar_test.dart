@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/domain/review/recall_outcome.dart';
 import 'package:turna/domain/review/review_ledger.dart';
 import 'package:turna/views/review/components/binary_recall_bar.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 void main() {
   group('BinaryRecallBar', () {

@@ -9,7 +9,7 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/service/tts_availability_checker.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 import 'components/center_display.dart';
 import 'components/get_started_button.dart';

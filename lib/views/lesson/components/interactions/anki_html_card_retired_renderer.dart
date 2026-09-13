@@ -7,7 +7,7 @@ import 'package:injectable/injectable.dart';
 // Project imports:
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Placeholder for [AnkiHtmlCard] items persisted by retired Legacy imports
 /// (doc 35 L2 deleted the NoteStore fidelity renderer). Official review

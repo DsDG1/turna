@@ -8,7 +8,7 @@ import 'package:injectable/injectable.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Arrange scrambled tokens into the canonical sentence. Tap a token in the
 /// pool to move it to the answer row; tap a token in the answer row to send

@@ -8,7 +8,7 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/routing/routing.gr.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/gems_display.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/widgets/loader.dart';

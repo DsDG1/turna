@@ -11,7 +11,7 @@ import 'package:turna/application/settings/app_build_info.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Cached once per process — About footer and license page share this.
 Future<PackageInfo>? _packageInfoFuture;

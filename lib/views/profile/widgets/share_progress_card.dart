@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:turna/domain/auth/local_user.dart';
 import 'package:turna/gen/assets.gen.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// A brand-styled progress poster designed to be captured and shared.
 ///

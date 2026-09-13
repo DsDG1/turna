@@ -31,7 +31,7 @@ import 'package:turna/views/review/components/binary_recall_bar.dart';
 import 'package:turna/views/review/components/review_progress_header.dart';
 import 'package:turna/views/review/components/study_card_surface.dart';
 import 'package:turna/views/review/components/unified_review_completion.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
 
 /// Shared formal-review session for Official-owned Anki cards.

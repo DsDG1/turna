@@ -14,17 +14,17 @@ import 'package:share_plus/share_plus.dart';
 // Project imports:
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/language_provider.dart';
-import 'package:turna/application/diagnostics/performance_trace.dart';
+import 'package:turna/core/performance_trace.dart';
 import 'package:turna/application/system_health_monitor.dart';
 import 'package:turna/core/log_capture.dart';
-import 'package:turna/data/course_database.dart';
+import 'package:turna/domain/repositories/i_course_repository.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/tts_availability_checker.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// System health page — always freely dismissible (Plan §15).
 ///
@@ -268,8 +268,8 @@ class SystemHealthPage extends StatelessWidget {
   ) async {
     final settings = context.read<SettingsProvider>();
     final event = monitor.event;
-    final schemaVersion = getIt.isRegistered<CourseDatabase>()
-        ? getIt<CourseDatabase>().schemaVersion
+    final schemaVersion = getIt.isRegistered<ICourseRepository>()
+        ? getIt<ICourseRepository>().schemaVersion
         : -1;
     var ttsStatus = '未检查';
     if (getIt.isRegistered<TtsAvailabilityChecker>()) {

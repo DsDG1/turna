@@ -12,7 +12,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 // Project imports:
 import 'package:turna/core/log_capture.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// 透明度报告页 — 隐私详情页底部 pill 跳进来。
 ///

@@ -4,12 +4,12 @@ import 'package:provider/provider.dart';
 import 'package:turna/application/accessibility_capabilities.dart';
 import 'package:turna/application/cosmetic_provider.dart';
 import 'package:turna/application/gems_provider.dart';
-import 'package:turna/data/gem_ledger_dao.dart';
+import 'package:turna/domain/game/gem_consumable.dart';
 import 'package:turna/domain/cosmetics/avatar_ring.dart';
 import 'package:turna/domain/cosmetics/cosmetic_item.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/avatar_with_ring.dart';
 
 /// Slot-based cosmetic shop. The historical route name is retained so old

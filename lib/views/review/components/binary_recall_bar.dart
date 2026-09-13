@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:turna/domain/review/recall_outcome.dart';
 import 'package:turna/domain/review/review_ledger.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Unified binary recall action bar.
 ///

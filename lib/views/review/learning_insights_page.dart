@@ -11,12 +11,12 @@ import 'package:turna/application/review_dashboard/insights_repository.dart';
 import 'package:turna/application/review_dashboard/review_data_revision.dart';
 import 'package:turna/application/review_progress_provider.dart';
 import 'package:turna/di/injection.dart';
-import 'package:turna/data/review_history_dao.dart';
+import 'package:turna/domain/review/review_activity.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/profile/widgets/learning_stats.dart';
 import 'package:turna/views/review/components/retention_curve_chart.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/turna_select.dart';
 
 /// 学习洞察 — the second-level analytics page (Plan 3 §15.2).

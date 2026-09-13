@@ -21,7 +21,7 @@ import 'package:turna/domain/course/section.dart';
 import 'package:turna/domain/course/unit.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/views/courses/course_tree.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

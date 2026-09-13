@@ -24,7 +24,7 @@ import 'package:turna/views/courses/components/lesson_tile.dart';
 import 'package:turna/views/courses/components/unit_card.dart';
 import 'package:turna/views/home/components/ambient_backdrop.dart';
 import 'package:turna/views/home/motion/turna_motion.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 import 'components/section_switcher.dart';
 
 /// 学习页（课程树）——「湿地晨光」重构后的滚动结构：

@@ -13,7 +13,7 @@ import 'package:turna/domain/course/mistake_entry.dart';
 import 'package:turna/domain/review/recall_outcome.dart';
 import 'package:turna/domain/review/review_item.dart';
 import 'package:turna/domain/review/review_ledger.dart';
-import 'package:turna/domain/review/review_ledger_resolver.dart';
+import 'package:turna/application/review/review_ledger_resolver.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/components/ai_card_explain_sheet.dart';
 import 'package:turna/views/anki/anki_webview_sizing.dart';
@@ -23,7 +23,7 @@ import 'package:turna/views/review/components/study_card_surface.dart';
 import 'package:turna/views/review/components/review_progress_header.dart';
 import 'package:turna/views/review/components/unified_review_completion.dart';
 import 'package:auto_route/auto_route.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
 
 /// Unified review page providing a single, consistent review experience for all card sources.

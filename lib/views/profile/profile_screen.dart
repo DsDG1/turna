@@ -14,7 +14,7 @@ import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/home/components/profile_app_bar.dart';
 import 'package:turna/views/profile/widgets/learning_stats.dart';
 import 'package:turna/views/profile/widgets/widgets.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Slim profile page: identity hero, today's one-glance summary, review
 /// quick entries, and links to the stats / achievements detail pages. All

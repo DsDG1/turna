@@ -9,7 +9,7 @@ import 'package:turna/application/accessibility_provider.dart';
 import 'package:turna/views/settings/widgets/controls/settings_controls.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// A switch tile bound to [AccessibilityProvider], mirroring
 /// [SettingsToggleTile] (which is bound to [SettingsProvider]).

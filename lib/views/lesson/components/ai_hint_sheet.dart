@@ -9,7 +9,7 @@ import 'package:turna/application/ai/ai_hint_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
 import 'package:turna/views/lesson/components/ai_depth_tutor_sheet.dart';
-import 'package:turna/views/theme.dart';
+import 'package:turna/core/theme.dart';
 
 /// Bottom sheet that pops up when the learner taps the AI button on a
 /// lesson question. Shows the AI's explanation of the current question and

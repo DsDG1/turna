@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:turna/domain/review/recall_outcome.dart';
 import 'package:turna/domain/review/review_item.dart';
 import 'package:turna/domain/review/review_ledger.dart';
-import 'package:turna/domain/review/review_ledger_resolver.dart';
+import 'package:turna/application/review/review_ledger_resolver.dart';
 
 /// State and business logic controller for a unified review session.
 ///
