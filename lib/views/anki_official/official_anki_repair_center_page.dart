@@ -20,6 +20,7 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/anki/import_wizard/official_pending_import_banner.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 import 'package:turna/core/theme.dart';
 
 /// Database Health & Repair Center:
@@ -1041,8 +1042,5 @@ class _OfficialAnkiRepairCenterPageState
     );
   }
 
-  void _snack(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
-  }
+  void _snack(String message) => TurnaSnackBar.show(context, message);
 }

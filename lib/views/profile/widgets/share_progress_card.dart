@@ -12,6 +12,17 @@ import 'package:turna/core/theme.dart';
 /// This widget is intentionally self-contained (it does not depend on the
 /// surrounding theme) so it renders consistently when captured from an
 /// offstage [RepaintBoundary].
+///
+/// Poster accent palette — the card always renders under
+/// [TurnaTheme.lightTheme], so these accents are constants rather than
+/// context-derived theme lookups.
+const Color _shareTitleGradientTop = Color(0xFFEAFBF5);
+const Color _shareTitleGradientBottom = Color(0xFF8FE8D3);
+const Color _shareXpBoltAmber = Color(0xFFFFD54F);
+const Color _shareStreakFlame = Color(0xFFFF9D5C);
+const Color _shareGemBlue = Color(0xFF8FD8F0);
+const Color _shareLessonGreen = Color(0xFF9CE8A8);
+
 class ShareProgressCard extends StatelessWidget {
   final LocalUser user;
   final int streak;
@@ -109,7 +120,10 @@ class ShareProgressCard extends StatelessWidget {
                     shaderCallback: (bounds) => const LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
-                      colors: [Color(0xFFEAFBF5), Color(0xFF8FE8D3)],
+                      colors: [
+                        _shareTitleGradientTop,
+                        _shareTitleGradientBottom
+                      ],
                     ).createShader(bounds),
                     child: Text(
                       AppStrings.profileShareCardJourneyTitle,
@@ -295,7 +309,7 @@ class ShareProgressCard extends StatelessWidget {
                       const SizedBox(width: 4),
                       const Icon(
                         Icons.bolt_rounded,
-                        color: Color(0xFFFFD54F),
+                        color: _shareXpBoltAmber,
                         size: 16,
                       ),
                     ],
@@ -326,7 +340,7 @@ class ShareProgressCard extends StatelessWidget {
               Expanded(
                 child: _StatBox(
                   icon: Icons.local_fire_department_rounded,
-                  iconColor: const Color(0xFFFF9D5C),
+                  iconColor: _shareStreakFlame,
                   value: streak.toString(),
                   label: AppStrings.profileShareCardDayStreak,
                 ),
@@ -335,7 +349,7 @@ class ShareProgressCard extends StatelessWidget {
               Expanded(
                 child: _StatBox(
                   icon: Icons.diamond_rounded,
-                  iconColor: const Color(0xFF8FD8F0),
+                  iconColor: _shareGemBlue,
                   value: gems.toString(),
                   label: AppStrings.profileShareCardGems,
                 ),
@@ -344,7 +358,7 @@ class ShareProgressCard extends StatelessWidget {
               Expanded(
                 child: _StatBox(
                   icon: Icons.check_circle_rounded,
-                  iconColor: const Color(0xFF9CE8A8),
+                  iconColor: _shareLessonGreen,
                   value: completedLessons.toString(),
                   label: AppStrings.profileShareCardLessons,
                 ),

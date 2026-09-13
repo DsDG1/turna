@@ -5,7 +5,7 @@ content-editing tool rather than a raw Qt form.  Call :func:`apply_theme` once
 after the QApplication is created.
 
 Design language: **Turna** - aligned with the Flutter app's
-``TurnaTheme`` (``lib/views/theme.dart``). The accent family is navy / teal /
+``TurnaTheme`` (``lib/core/theme.dart``). The accent family is navy / teal /
 reed. Four themes are supported: ``dark`` (default), ``light``,
 ``high-contrast-dark``, and ``high-contrast-light``.
 

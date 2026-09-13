@@ -6,7 +6,7 @@ unit-tested headlessly and reused by ``theme.py`` (which owns the QSS
 stylesheet generation and ``QApplication`` wiring).
 
 Design language: **Turna** - aligned with the Flutter app's
-``TurnaTheme`` (``lib/views/theme.dart``). The primary accent family is
+``TurnaTheme`` (``lib/core/theme.dart``). The primary accent family is
 navy / teal / reed with restrained clay and sand accents. Four palettes are provided:
 
 * ``dark``  - default, Turna-tinted dark surfaces
@@ -21,7 +21,7 @@ for backward compatibility with the chat / orbit / workshop widgets.
 from __future__ import annotations
 
 # ---------------------------------------------------------------------------
-# Canonical Turna brand colors (mirrors lib/views/theme.dart — ADR 0033)
+# Canonical Turna brand colors (mirrors lib/core/theme.dart — ADR 0033)
 # Scheme A locked: BRAND_TEAL stays #1F727E. Keep hex in sync with Flutter.
 # ---------------------------------------------------------------------------
 BRAND_NAVY = "#19324A"

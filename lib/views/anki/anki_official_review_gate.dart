@@ -14,6 +14,7 @@ import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_error_view.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// Capability gate for official-routed sources. Fail-closed if cutover says
 /// official but the collection is not ready. Never opens a different-semantics
@@ -153,13 +154,10 @@ class AnkiOfficialReviewGate {
 
   void _snackFailClosed(BuildContext context) {
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          OfficialAnkiReviewerErrorView.localize(
-              'official_anki.review_fail_closed'),
-        ),
-      ),
+    TurnaSnackBar.show(
+      context,
+      OfficialAnkiReviewerErrorView.localize(
+          'official_anki.review_fail_closed'),
     );
   }
 }

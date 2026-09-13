@@ -91,7 +91,9 @@ class _AmbientBackdropState extends State<AmbientBackdrop> {
                           size: 380,
                           gradient: RadialGradient(
                             colors: [
-                              Color(0x1F4FC3DC), // brandSky @ ~0.12
+                              // 晨雾冷青——氛围层专用色，非 brandSky
+                              // （brandSky=0xFF4A95A8 偏深，雾感需要更亮的青）。
+                              Color(0x1F4FC3DC),
                               Color(0x0A4FC3DC),
                               Color(0x004FC3DC),
                             ],
@@ -108,7 +110,9 @@ class _AmbientBackdropState extends State<AmbientBackdrop> {
                           size: 420,
                           gradient: RadialGradient(
                             colors: [
-                              Color(0x17E8A87C), // brandReed @ ~0.09
+                              // 晨光暖杏——氛围层专用色，非 brandReed
+                              // （brandReed=0xFF78C7B8 偏冷绿，晨光需要暖调）。
+                              Color(0x17E8A87C),
                               Color(0x08E8A87C),
                               Color(0x00E8A87C),
                             ],

@@ -14,6 +14,17 @@ import 'package:turna/core/theme.dart';
 class AchievementUiCatalog {
   const AchievementUiCatalog._();
 
+  // Achievement accent palette — deliberately distinct from the league
+  // tokens (softer hues picked for badge legibility on light & dark
+  // surfaces). Brand/clay accents reuse TurnaTheme tokens below.
+  static const Color _dailyFocusGold = Color(0xFFD9A62E);
+  static const Color _vocabularyBlue = Color(0xFF42A5F5);
+  static const Color _sproutGreen = Color(0xFF8FBF9F);
+  static const Color _silverGray = Color(0xFF9AA8B5);
+  static const Color _emeraldGreen = Color(0xFF2EAF7D);
+  static const Color _rubyRed = Color(0xFFD64560);
+  static const Color _diamondBlue = Color(0xFF6FC3DF);
+
   static IconData iconFor(String iconKey) {
     switch (iconKey) {
       case AchievementCatalog.courseJourneyId:
@@ -48,11 +59,11 @@ class AchievementUiCatalog {
       case AchievementCatalog.xpJourneyId:
         return TurnaTheme.amethystLeague;
       case AchievementCatalog.dailyFocusId:
-        return const Color(0xFFD9A62E);
+        return _dailyFocusGold;
       case AchievementCatalog.reviewJourneyId:
         return TurnaTheme.brandSky;
       case AchievementCatalog.vocabularyJourneyId:
-        return const Color(0xFF42A5F5);
+        return _vocabularyBlue;
       default:
         return TurnaTheme.anatolianClay;
     }
@@ -105,21 +116,21 @@ class AchievementUiCatalog {
   static Color rarityColor(AchievementRarity rarity) {
     switch (rarity) {
       case AchievementRarity.sprout:
-        return const Color(0xFF8FBF9F);
+        return _sproutGreen;
       case AchievementRarity.bronze:
         return TurnaTheme.leagueBronze;
       case AchievementRarity.silver:
-        return const Color(0xFF9AA8B5);
+        return _silverGray;
       case AchievementRarity.gold:
         return TurnaTheme.leagueGold;
       case AchievementRarity.emerald:
-        return const Color(0xFF2EAF7D);
+        return _emeraldGreen;
       case AchievementRarity.ruby:
-        return const Color(0xFFD64560);
+        return _rubyRed;
       case AchievementRarity.amethyst:
         return TurnaTheme.leagueAmethyst;
       case AchievementRarity.diamond:
-        return const Color(0xFF6FC3DF);
+        return _diamondBlue;
     }
   }
 
