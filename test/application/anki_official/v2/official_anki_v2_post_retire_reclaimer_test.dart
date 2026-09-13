@@ -51,7 +51,7 @@ void main() {
     course.close();
     try {
       root.deleteSync(recursive: true);
-    } catch (_) {}
+    } catch (_) {/* best-effort temp cleanup */}
   });
 
   Future<void> seedActiveV2Source(String sourceId) async {

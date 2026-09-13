@@ -37,7 +37,7 @@ class _AiDiagnosisPageState extends State<AiDiagnosisPage> {
     AiExplainPrefsStore? prefs;
     try {
       prefs = context.read<AiExplainPrefsStore>();
-    } catch (_) {}
+    } catch (_) {/* prefs provider optional — fall back to defaults */}
     _provider = AiDiagnosisProvider(prefs: prefs);
   }
 
@@ -59,7 +59,9 @@ class _AiDiagnosisPageState extends State<AiDiagnosisPage> {
           userAnswer: e.userAnswer,
         ));
       }
-    } catch (_) {}
+    } catch (_) {
+      /* MistakeProvider optional — assemble without mistake summary */
+    }
 
     final weak = <String>[];
     try {
@@ -68,7 +70,7 @@ class _AiDiagnosisPageState extends State<AiDiagnosisPage> {
       for (final w in words) {
         weak.add(w.displayText);
       }
-    } catch (_) {}
+    } catch (_) {/* StudyStatsProvider optional — skip weak-word section */}
 
     return LearnerAiContext.assemble(
       languageName: language,

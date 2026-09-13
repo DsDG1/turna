@@ -51,7 +51,7 @@ class _AiTutorChatPageState extends State<AiTutorChatPage> {
     AiExplainPrefsStore? prefs;
     try {
       prefs = context.read<AiExplainPrefsStore>();
-    } catch (_) {}
+    } catch (_) {/* prefs provider optional — fall back to defaults */}
     _provider = AiTutorChatProvider(prefs: prefs);
     _provider.setLanguage(context.read<LanguageProvider>().displayName);
     if (widget.initialMode != null) {

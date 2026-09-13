@@ -130,6 +130,11 @@ Windows 用 `python`（非 `python3`）。完整 Makefile / 平台 / 发布流�
 - Provider 状态机（如 `SectionLoadState.error`）承载可恢复加载失败；一次性动作用 SnackBar。
 - 不引入全局错误弹窗；`core/result.dart` 的 `Result` 供未来 repository 接缝渐进采用。
 
+### 命名与目录约定
+
+- 页面文件统一 `*_page.dart`（存量 48 vs `_screen.dart` 9）。**新代码不得新增 `_screen.dart`**；存量 9 个（anki/lesson/play/profile/review 系，改名牵连路由与测试）渐进迁移。
+- 组件目录：跨功能共享件放 `lib/views/widgets/`；功能域私有件放 `<feature>/components/`。**新功能域目录统一用 `components/`**，不再新建 `*/widgets/`；存量 `profile/widgets`、`settings/widgets` 渐进迁移。
+
 ---
 
 ## Agents Available

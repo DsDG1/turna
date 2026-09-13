@@ -46,7 +46,7 @@ void main() {
     addTearDown(() {
       try {
         root.deleteSync(recursive: true);
-      } catch (_) {}
+      } catch (_) {/* best-effort temp cleanup */}
     });
     final file = File(p.join(root.path, 'course.db'));
     final db = CourseDatabase(NativeDatabase(file));
@@ -90,7 +90,7 @@ void main() {
     addTearDown(() {
       try {
         root.deleteSync(recursive: true);
-      } catch (_) {}
+      } catch (_) {/* best-effort temp cleanup */}
     });
     const profileId = 'p-keep-01';
     final paths = OfficialAnkiPaths(profileId: profileId, profileRoot: root);

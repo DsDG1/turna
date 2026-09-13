@@ -96,7 +96,7 @@ class OfficialAnkiStorageAudit {
       if (entity is File) {
         try {
           total += entity.lengthSync();
-        } catch (_) {}
+        } catch (_) {/* file may vanish mid-scan — skip its size */}
       }
     }
     return total;

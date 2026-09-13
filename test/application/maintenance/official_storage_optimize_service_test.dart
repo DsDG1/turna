@@ -28,7 +28,7 @@ void main() {
     addTearDown(() {
       try {
         root.deleteSync(recursive: true);
-      } catch (_) {}
+      } catch (_) {/* best-effort temp cleanup */}
     });
     final engine = FakeOfficialAnkiEngine();
     var bootstraps = 0;
@@ -55,7 +55,7 @@ void main() {
     addTearDown(() {
       try {
         root.deleteSync(recursive: true);
-      } catch (_) {}
+      } catch (_) {/* best-effort temp cleanup */}
     });
     final result = await OfficialStorageOptimizeService(
       ensureEngine: () async => throw StateError('engine unavailable'),

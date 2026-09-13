@@ -41,7 +41,7 @@ void main() {
     course.close();
     try {
       root.deleteSync(recursive: true);
-    } catch (_) {}
+    } catch (_) {/* best-effort temp cleanup */}
   });
 
   String seedActiveV2Source({

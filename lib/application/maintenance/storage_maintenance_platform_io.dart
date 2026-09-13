@@ -9,7 +9,7 @@ Future<int> directorySizeBytes(String path) async {
     if (entity is File) {
       try {
         bytes += await entity.length();
-      } catch (_) {}
+      } catch (_) {/* file may vanish mid-scan — skip its size */}
     }
   }
   return bytes;

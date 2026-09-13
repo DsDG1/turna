@@ -34,7 +34,7 @@ Future<void> showAiCardExplainSheet(
       AiExplainPrefsStore? prefs;
       try {
         prefs = context.read<AiExplainPrefsStore>();
-      } catch (_) {}
+      } catch (_) {/* prefs provider optional — fall back to defaults */}
       return ChangeNotifierProvider(
         create: (_) => AiCardExplainProvider(prefs: prefs),
         child: _AiCardExplainBody(

@@ -98,7 +98,7 @@ class OfficialAnkiRetentionCurveService {
     } finally {
       try {
         db?.dispose();
-      } catch (_) {}
+      } catch (_) {/* best-effort db dispose */}
     }
   }
 }

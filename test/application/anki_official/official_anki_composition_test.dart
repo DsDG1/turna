@@ -73,7 +73,7 @@ void main() {
       OfficialAnkiCompositionRoot.session = null;
       try {
         root.deleteSync(recursive: true);
-      } catch (_) {}
+      } catch (_) {/* best-effort temp cleanup */}
     });
     final first = OfficialAnkiCompositionRoot.requireImporter(
       supportDir: root,

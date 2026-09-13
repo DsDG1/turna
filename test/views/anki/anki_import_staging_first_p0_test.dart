@@ -162,7 +162,7 @@ void main() {
     await GetIt.instance.reset();
     try {
       tmp.deleteSync(recursive: true);
-    } catch (_) {}
+    } catch (_) {/* best-effort temp cleanup */}
   });
 
   ({

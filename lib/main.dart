@@ -85,7 +85,7 @@ Future<void> main() async {
   AiExplainPrefsStore.onCacheInvalidate = () {
     try {
       getIt<AiEngine>().clearCache();
-    } catch (_) {}
+    } catch (_) {/* AiEngine may be unregistered — best-effort cache clear */}
   };
 
   // Lock the app to portrait unless the user has enabled auto-rotation in

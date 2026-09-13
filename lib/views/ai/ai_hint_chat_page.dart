@@ -104,7 +104,7 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
       } else {
         provider.setLearnerContext(null);
       }
-    } catch (_) {}
+    } catch (_) {/* learner context optional — chat proceeds without it */}
     if (!mounted) return;
     final ctx = widget.context;
     if (provider.messages.isEmpty && ctx != null) {

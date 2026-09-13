@@ -73,10 +73,10 @@ class OfficialAnkiGhostPurgeService {
     final resolvedEngine = engine ?? OfficialAnkiCompositionRoot.engine;
     try {
       await resolvedEngine?.closeCollection();
-    } catch (_) {}
+    } catch (_) {/* best-effort engine close before forced purge */}
     try {
       await OfficialAnkiCompositionRoot.stagingEngine?.closeCollection();
-    } catch (_) {}
+    } catch (_) {/* best-effort staging engine close */}
     // Worker 模式下 engine.closeCollection() 是 no-op（SessionEngine 不
     // 转发该调用），collection.anki2 等文件句柄仍被 worker isolate 持有，
     // Windows 上删除会静默失败。dispose 终止 isolate 才真正释放；随后
@@ -85,11 +85,11 @@ class OfficialAnkiGhostPurgeService {
     if (liveSession is OfficialAnkiSession) {
       try {
         await liveSession.dispose();
-      } catch (_) {}
+      } catch (_) {/* best-effort session dispose */}
     }
     try {
       await OfficialAnkiCompositionRoot.stagingSession?.dispose();
-    } catch (_) {}
+    } catch (_) {/* best-effort staging session dispose */}
     OfficialAnkiCompositionRoot.session = null;
     OfficialAnkiCompositionRoot.stagingSession = null;
     OfficialAnkiCompositionRoot.stagingEngine = null;
@@ -131,7 +131,7 @@ class OfficialAnkiGhostPurgeService {
         file.deleteSync();
         return 1;
       }
-    } catch (_) {}
+    } catch (_) {/* file missing or locked — count as not deleted */}
     return 0;
   }
 

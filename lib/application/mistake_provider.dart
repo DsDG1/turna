@@ -70,7 +70,7 @@ class MistakeProvider extends ChangeNotifier {
       if (getIt.isRegistered<CourseDatabase>()) {
         _repository = MistakeRepository(getIt<CourseDatabase>());
       }
-    } catch (_) {}
+    } catch (_) {/* CourseDatabase optional (tests) — repo stays null */}
     return _repository;
   }
 

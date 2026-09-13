@@ -41,7 +41,7 @@ void main() {
     for (final dir in mediaNames) {
       try {
         dir.deleteSync(recursive: true);
-      } catch (_) {}
+      } catch (_) {/* best-effort temp cleanup */}
     }
     await db.close();
     await GetIt.instance.reset();

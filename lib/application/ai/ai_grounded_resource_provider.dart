@@ -55,7 +55,9 @@ class AiGroundedResourceProvider extends ChangeNotifier {
       if (getIt.isRegistered<LanguageProvider>()) {
         return getIt<LanguageProvider>().selectedLanguageCode;
       }
-    } catch (_) {}
+    } catch (_) {
+      /* LanguageProvider optional (no DI in tests); null = unscoped */
+    }
     return null;
   }
 

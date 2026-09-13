@@ -56,7 +56,7 @@ void main() {
         catalog.close();
         try {
           root.deleteSync(recursive: true);
-        } catch (_) {}
+        } catch (_) {/* best-effort temp cleanup */}
       },
     );
   }

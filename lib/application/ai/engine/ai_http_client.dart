@@ -409,7 +409,7 @@ class AiHttpClient {
     try {
       final decoded = jsonDecode(s);
       if (decoded is Map<String, dynamic>) return decoded;
-    } catch (_) {}
+    } catch (_) {/* non-JSON body — return null below */}
     return null;
   }
 

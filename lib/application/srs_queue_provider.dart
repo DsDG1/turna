@@ -72,7 +72,7 @@ abstract class SrsQueueProvider extends ChangeNotifier {
       if (GetIt.I.isRegistered<ReviewDataRevision>()) {
         GetIt.I<ReviewDataRevision>().bump();
       }
-    } catch (_) {}
+    } catch (_) {/* ReviewDataRevision optional — best-effort bump */}
   }
 
   /// Override scheduler in unit tests (e.g. deterministic SM-2).

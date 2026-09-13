@@ -215,7 +215,7 @@ class AnkiHtmlCardViewState extends State<AnkiHtmlCardView> {
               var ro = new ResizeObserver(schedule);
               if (document.documentElement) ro.observe(document.documentElement);
               if (document.body) ro.observe(document.body);
-            } catch (e) {}
+            } catch (e) { /* best-effort: load/scroll events still report height */ }
           }
           window.addEventListener('load', schedule);
           report();

@@ -104,7 +104,9 @@ class AiExplainPrefsStore extends ChangeNotifier {
     if (getIt.isRegistered<AiExplainPrefsStore>()) {
       try {
         return getIt<AiExplainPrefsStore>();
-      } catch (_) {}
+      } catch (_) {
+        /* optional GetIt dep — fall through to ephemeral/default prefs */
+      }
     }
     if (allowEphemeral || kDebugMode) {
       // Tests and early bootstrap before registration.
@@ -206,11 +208,13 @@ class AiExplainPrefsStore extends ChangeNotifier {
       if (getIt.isRegistered<Object>()) {
         // Resolved by type in a separate try so unit tests without AiEngine pass.
       }
-    } catch (_) {}
+    } catch (_) {/* no-op lookup stub; resolution failure is harmless */}
     try {
       // Direct type import would create a cycle? Prefer optional callback.
       _cacheInvalidator?.call();
-    } catch (_) {}
+    } catch (_) {
+      /* best-effort cache invalidator — listener errors must not break prefs writes */
+    }
   }
 
   /// Optional hook set by app shell to clear [AiEngine] cache on prefs change.

@@ -87,7 +87,7 @@ void main() {
     course.close();
     try {
       root.deleteSync(recursive: true);
-    } catch (_) {}
+    } catch (_) {/* best-effort temp cleanup */}
   });
 
   /// 模拟 saga.startStaging 已完成的账本状态（staging 段与 v1 共用，

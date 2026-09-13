@@ -16,7 +16,7 @@ void main() {
     addTearDown(() {
       try {
         root.deleteSync(recursive: true);
-      } catch (_) {}
+      } catch (_) {/* best-effort temp cleanup */}
     });
     final paths = OfficialAnkiPaths(
       profileId: 'profile-default-01',
@@ -50,7 +50,7 @@ void main() {
     addTearDown(() {
       try {
         bundle.deleteSync(recursive: true);
-      } catch (_) {}
+      } catch (_) {/* best-effort temp cleanup */}
     });
     final root = Directory(p.join(bundle.path, 'official_anki', 'default'))
       ..createSync(recursive: true);
@@ -88,7 +88,7 @@ void main() {
     addTearDown(() {
       try {
         root.deleteSync(recursive: true);
-      } catch (_) {}
+      } catch (_) {/* best-effort temp cleanup */}
     });
     final paths = OfficialAnkiPaths(
       profileId: 'profile-default-01',

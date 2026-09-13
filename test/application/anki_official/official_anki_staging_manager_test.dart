@@ -48,7 +48,7 @@ void main() {
     addTearDown(() {
       try {
         root.deleteSync(recursive: true);
-      } catch (_) {}
+      } catch (_) {/* best-effort temp cleanup */}
     });
     final liveRoot = Directory(p.join(root.path, 'official_anki', 'default'))
       ..createSync(recursive: true);

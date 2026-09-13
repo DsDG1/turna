@@ -25,7 +25,7 @@ void main() {
       if (vector['allowed'] == true && vector['createFile'] == true) {
         try {
           File('${root.path}/${vector['expectedName']}').writeAsBytesSync([1]);
-        } catch (_) {}
+        } catch (_) {/* best-effort fixture seed */}
       }
     }
     resolver = OfficialAnkiMediaResolver(root);
@@ -34,7 +34,7 @@ void main() {
   tearDown(() {
     try {
       root.deleteSync(recursive: true);
-    } catch (_) {}
+    } catch (_) {/* best-effort temp cleanup */}
   });
 
   test('shared media path vectors decode once and match allow/deny', () {

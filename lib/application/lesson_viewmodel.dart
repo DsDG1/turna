@@ -1,11 +1,11 @@
+// Dart imports:
+import 'dart:async';
+
 // Flutter imports:
 import 'package:flutter/foundation.dart';
 
 // Package imports:
 import 'package:injectable/injectable.dart';
-
-// Dart imports:
-import 'dart:async';
 
 // Project imports:
 import 'package:turna/application/study_session/anki_study_session_host.dart';

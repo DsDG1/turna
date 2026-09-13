@@ -47,7 +47,7 @@ void main() {
     course.close();
     try {
       root.deleteSync(recursive: true);
-    } catch (_) {}
+    } catch (_) {/* best-effort temp cleanup */}
   });
 
   /// 导入完成态的 v2 source（含所有权清单与视图行）。

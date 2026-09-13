@@ -50,7 +50,7 @@ void main() {
     addTearDown(() {
       try {
         root.deleteSync(recursive: true);
-      } catch (_) {}
+      } catch (_) {/* best-effort temp cleanup */}
     });
     File('${root.path}/a.mp3').writeAsBytesSync([1]);
     File('${root.path}/b.mp3').writeAsBytesSync([2]);

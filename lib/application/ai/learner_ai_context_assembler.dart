@@ -57,7 +57,9 @@ class LearnerAiContextAssembler {
           ));
         }
       }
-    } catch (_) {}
+    } catch (_) {
+      /* MistakeProvider optional — assemble without mistake summary */
+    }
 
     try {
       if (getIt.isRegistered<StudyStatsProvider>()) {
@@ -66,7 +68,7 @@ class LearnerAiContextAssembler {
           weak.add(w.displayText);
         }
       }
-    } catch (_) {}
+    } catch (_) {/* StudyStatsProvider optional — skip weak-word section */}
 
     return LearnerAiContext.assemble(
       languageName: name,
