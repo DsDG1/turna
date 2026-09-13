@@ -12,15 +12,12 @@ import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_course_read.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_decision_store.dart';
+import 'package:turna/application/builtin_language_service.dart';
 import 'package:turna/application/course_catalog.dart';
-import 'package:turna/application/course_pack/course_pack.dart';
-import 'package:turna/application/course_pack/course_pack_importer.dart';
-import 'package:turna/application/course_pack/course_pack_media.dart';
 import 'package:turna/application/course_pack/imported_languages.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/language_registry.dart';
-import 'package:turna/application/lesson_progress_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/application/study_stats_provider.dart';
@@ -29,9 +26,7 @@ import 'package:turna/courses/course_loader.dart';
 import 'package:turna/courses/languages/course_lookup.dart';
 import 'package:turna/courses/languages/language_content_store.dart';
 import 'package:turna/data/course_database.dart' show CourseDatabase;
-import 'package:turna/data/course_database_seeder.dart' show DatabaseSeeder;
 import 'package:turna/data/course_repository.dart';
-import 'package:turna/data/study_log_repository.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/course_scope.dart';
 import 'package:turna/domain/course/language_codes.dart';
@@ -69,6 +64,14 @@ class CourseProvider extends ChangeNotifier {
   /// construct the provider without a prefs store (scope then stays
   /// builtin).
   final AppPrefs? _appPrefs;
+
+  /// Uninstall/reinstall lifecycle for packed builtin languages; wired to
+  /// this provider's scope fallback + reload chain.
+  late final BuiltinLanguageLifecycleService _languageLifecycle =
+      BuiltinLanguageLifecycleService(
+    switchAwayIfActive: switchAwayIfActive,
+    reloadAfterChange: _reloadAfterLanguageChange,
+  );
 
   // --- Section hierarchy ---
   List<Section> _sections = const [];
@@ -572,97 +575,23 @@ class CourseProvider extends ChangeNotifier {
     await _syncPracticeLanguage();
   }
 
-  Future<void> uninstallBuiltinLanguage(String languageCode) async {
-    final code = LanguageCodes.canonicalize(languageCode);
-    CourseDatabase? db;
-    try {
-      db = CourseLoader.databaseOrNull();
-    } catch (_) {
-      db = null;
-    }
-    if (db == null) return;
-    // Collect the language's lesson ids before their rows are deleted — the
-    // persisted lesson-progress sets (prefs) must stop counting them.
-    Set<String> lessonIds = const {};
-    try {
-      lessonIds = await CourseRepository(db).lessonIdsForLanguage(code);
-    } catch (error) {
-      logger.w('CourseProvider: lesson id collection for $code failed: $error');
-    }
-    await CourseRepository(db).deleteBuiltinLanguage(code);
-    // Study logs/daily aggregates live in prefs, not the course DB.
-    try {
-      if (getIt.isRegistered<StudyLogRepository>()) {
-        await getIt<StudyLogRepository>().deleteByLanguage(code);
-      }
-    } catch (error) {
-      logger.w('CourseProvider: study log cleanup for $code failed: $error');
-    }
-    try {
-      if (getIt.isRegistered<LessonProgressProvider>() &&
-          lessonIds.isNotEmpty) {
-        await getIt<LessonProgressProvider>().removeLessonIds(lessonIds);
-      }
-    } catch (error) {
-      logger.w('CourseProvider: lesson progress cleanup for $code failed: '
-          '$error');
-    }
-    LanguageContentStore.drop(code);
-    CourseLoader.invalidateCaches();
-    // The overlay is normally hydrated when the catalog loaded, but that
-    // load fails silently in places — without a re-read here the uninstall
-    // would skip (leak) the extracted `imported_courses/<code>/media` tree.
-    if (!ImportedLanguageRegistry.instance.contains(code)) {
-      try {
-        await ImportedLanguageRegistry.instance.hydrate(db);
-      } catch (error) {
-        logger.w(
-          'CourseProvider: overlay re-hydrate for "$code" failed: $error',
-        );
-      }
-    }
-    if (ImportedLanguageRegistry.instance.contains(code)) {
-      await CoursePackMedia.deleteExtractedMedia(code);
-    }
+  Future<void> uninstallBuiltinLanguage(String languageCode) =>
+      _languageLifecycle.uninstall(languageCode);
+
+  /// Restore a previously uninstalled builtin language: clear the marker and
+  /// reseed its content from the packed assets. Learning progress (SRS /
+  /// history / mistakes) was deleted at uninstall time and stays gone.
+  Future<void> reinstallBuiltinLanguage(String languageCode) =>
+      _languageLifecycle.reinstall(languageCode);
+
+  /// After [languageCode]'s content changed: fall back to another builtin
+  /// scope when that language was active, otherwise just reload.
+  Future<void> _reloadAfterLanguageChange(String code) async {
     if (_scope == BuiltinCourseScope(code)) {
       await setScope(_fallbackBuiltin());
     } else {
       await reloadCourse();
     }
-  }
-
-  /// Restore a previously uninstalled builtin language: clear the marker and
-  /// reseed its content from the packed assets. Learning progress (SRS /
-  /// history / mistakes) was deleted at uninstall time and stays gone.
-  Future<void> reinstallBuiltinLanguage(String languageCode) async {
-    final code = LanguageCodes.canonicalize(languageCode);
-    CourseDatabase? db;
-    try {
-      db = CourseLoader.databaseOrNull();
-    } catch (_) {
-      db = null;
-    }
-    if (db == null) return;
-    await CourseRepository(db).clearLanguageUninstallMarker(code);
-    await ImportedLanguageRegistry.instance.hydrate(db);
-    if (ImportedLanguageRegistry.instance.contains(code)) {
-      final packFile = await CoursePackImporter.persistedPackFile(code);
-      if (packFile == null || !packFile.existsSync()) {
-        throw const CoursePackMissingException();
-      }
-      await CoursePackImporter(
-        db,
-        onImportingActiveCode: switchAwayIfActive,
-      ).importFromFile(packFile.path);
-      await reloadCourse();
-      return;
-    }
-    final seeded = await DatabaseSeeder(db).seedLanguage(code);
-    if (!seeded) {
-      logger.w('CourseProvider: reinstall of "$code" seeded nothing '
-          '(marker cleared; missing asset?)');
-    }
-    await reloadCourse();
   }
 
   Future<void> _syncPracticeLanguage() async {

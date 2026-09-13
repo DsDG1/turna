@@ -28,6 +28,7 @@ import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/lesson_completion_coordinator.dart';
 import 'package:turna/application/lesson_link_store.dart';
+import 'package:turna/application/anki_official/projection/anki_lesson_card_key_resolver.dart';
 import 'package:turna/application/lesson_viewmodel.dart';
 import 'package:turna/application/mistake_provider.dart'; // MistakeProvider for StudyStatsProvider
 import 'package:turna/application/mistake_review_assembler.dart';
