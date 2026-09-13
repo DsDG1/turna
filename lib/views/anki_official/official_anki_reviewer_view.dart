@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -119,7 +120,7 @@ class OfficialAnkiReviewerViewState extends State<OfficialAnkiReviewerView> {
         // Shell just became ready. Re-present if the first call raced the
         // iframe/shell (deduper lets a settled generation through again).
         widget.onReady?.call();
-        _present();
+        unawaited(_present());
         return null;
       case 'pageHeightChanged':
         final height = (call.arguments as num?)?.toDouble() ?? 0;

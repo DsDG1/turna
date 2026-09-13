@@ -35,6 +35,7 @@ linter:
     cancel_subscriptions: true
     close_sinks: true
     unnecessary_late: true
+    unawaited_futures: true
     # Prefer const where the analyzer is confident; noisy const-everywhere
     # rules left off until a dedicated cleanup pass.
     prefer_const_declarations: true

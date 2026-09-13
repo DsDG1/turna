@@ -22,6 +22,7 @@ import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/widgets/turna_select.dart';
 
 @RoutePage()
@@ -205,7 +206,7 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
     await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('卡片来源与识别诊断'),
+        title: Text(AppStrings.ankiBrowserDiagTitle),
         content: SizedBox(
           width: 560,
           child: SingleChildScrollView(
@@ -213,20 +214,24 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                _DiagnosticRow('原始 Card', '#${row.card.cardId}'),
-                _DiagnosticRow('原始 Note', '#${row.note.noteId}'),
+                _DiagnosticRow(AppStrings.ankiBrowserDiagOriginalCard,
+                    '#${row.card.cardId}'),
+                _DiagnosticRow(AppStrings.ankiBrowserDiagOriginalNote,
+                    '#${row.note.noteId}'),
                 _DiagnosticRow('Note Type', '#${row.note.mid}'),
                 _DiagnosticRow('Deck', '#${row.card.did}'),
-                _DiagnosticRow('原卡渲染', row.card.renderMode),
-                _DiagnosticRow('课程练习', '仅保留原卡（无派生记录）'),
+                _DiagnosticRow(
+                    AppStrings.ankiBrowserDiagRenderMode, row.card.renderMode),
+                _DiagnosticRow(AppStrings.ankiBrowserDiagCoursePractice,
+                    AppStrings.ankiBrowserDiagNoDerived),
                 const SizedBox(height: 12),
-                Text('原始字段',
+                Text(AppStrings.ankiBrowserDiagRawFields,
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w700,
                         )),
                 const SizedBox(height: 6),
                 for (var i = 0; i < row.note.fields.length; i++) ...[
-                  Text('字段 ${i + 1}',
+                  Text(AppStrings.ankiBrowserDiagFieldN(i + 1),
                       style: TextStyle(
                         color: TurnaTheme.textHintColor(context),
                         fontWeight: FontWeight.w600,
@@ -241,7 +246,7 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('关闭'),
+            child: Text(AppStrings.commonClose),
           ),
         ],
       ),
@@ -270,10 +275,10 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('${widget.title} · 浏览'),
+        title: Text(AppStrings.ankiBrowserPageTitle(widget.title)),
         actions: [
           IconButton(
-            tooltip: '开始复习',
+            tooltip: AppStrings.ankiReviewAll,
             icon: const Icon(Icons.play_arrow_rounded),
             onPressed: () => _openFormalReview(context),
           ),
@@ -287,7 +292,7 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
               controller: _searchController,
               onChanged: _onSearchChanged,
               decoration: InputDecoration(
-                hintText: '搜索正面、背面或标签',
+                hintText: AppStrings.ankiBrowserSearchHint,
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchController.text.isEmpty
                     ? null
@@ -308,7 +313,7 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
             child: Row(
               children: [
                 TurnaFilterChip(
-                  label: '已标记',
+                  label: AppStrings.ankiBrowserMarked,
                   selected: _marked == true,
                   onSelected: (value) {
                     setState(() => _marked = value ? true : null);
@@ -317,7 +322,7 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
                 ),
                 const SizedBox(width: 8),
                 TurnaFilterChip(
-                  label: '已埋藏',
+                  label: AppStrings.ankiBrowserBuried,
                   selected: _buried == true,
                   onSelected: (value) {
                     setState(() => _buried = value ? true : null);
@@ -326,7 +331,7 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
                 ),
                 const SizedBox(width: 8),
                 TurnaFilterChip(
-                  label: '已暂停',
+                  label: AppStrings.ankiBrowserSuspended,
                   selected: _suspended == true,
                   onSelected: (value) {
                     setState(() => _suspended = value ? true : null);
@@ -362,14 +367,14 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
                   Expanded(
                     child: DropdownButtonFormField<int?>(
                       initialValue: _deckId,
-                      decoration: const InputDecoration(
-                        labelText: '牌组',
+                      decoration: InputDecoration(
+                        labelText: AppStrings.ankiDecksLabel,
                         isDense: true,
                       ),
                       items: [
-                        const DropdownMenuItem<int?>(
+                        DropdownMenuItem<int?>(
                           value: null,
-                          child: Text('全部牌组'),
+                          child: Text(AppStrings.ankiBrowserAllDecks),
                         ),
                         for (final entry in _deckOptions.entries)
                           DropdownMenuItem<int?>(
@@ -388,8 +393,8 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
                     child: TextField(
                       controller: _tagController,
                       onChanged: _onSearchChanged,
-                      decoration: const InputDecoration(
-                        labelText: '标签',
+                      decoration: InputDecoration(
+                        labelText: AppStrings.ankiBrowserTagsLabel,
                         isDense: true,
                       ),
                     ),
@@ -405,12 +410,12 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text('卡片浏览加载失败\n$_loadError',
+                            Text(AppStrings.ankiBrowserLoadFailed(_loadError!),
                                 textAlign: TextAlign.center),
                             const SizedBox(height: 12),
                             FilledButton(
                               onPressed: _load,
-                              child: const Text('重试'),
+                              child: Text(AppStrings.commonRetry),
                             ),
                           ],
                         ),
@@ -418,13 +423,16 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
                     : _officialUnavailableReason != null
                         ? Center(
                             child: Text(
-                              'Official 卡片浏览暂不可用\n$_officialUnavailableReason',
+                              AppStrings.ankiBrowserOfficialUnavailable(
+                                  _officialUnavailableReason!),
                               textAlign: TextAlign.center,
                             ),
                           )
                         : _officialSource
                             ? (_officialRows.isEmpty
-                                ? const Center(child: Text('没有匹配的卡片'))
+                                ? Center(
+                                    child:
+                                        Text(AppStrings.ankiBrowserNoMatches))
                                 : ListView.builder(
                                     padding: const EdgeInsets.fromLTRB(
                                         12, 0, 12, 20),
@@ -440,9 +448,9 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
                                           ),
                                           subtitle: Text(
                                             'Official #${row.cardId} · note #${row.noteId}'
-                                            '${row.suspended ? ' · 已暂停' : ''}'
-                                            '${row.buried ? ' · 已埋藏' : ''}'
-                                            '${row.marked ? ' · 已标记' : ''}',
+                                            '${row.suspended ? ' · ${AppStrings.ankiBrowserSuspended}' : ''}'
+                                            '${row.buried ? ' · ${AppStrings.ankiBrowserBuried}' : ''}'
+                                            '${row.marked ? ' · ${AppStrings.ankiBrowserMarked}' : ''}',
                                             style: TextStyle(
                                               color: TurnaTheme.textHintColor(
                                                   context),
@@ -457,14 +465,19 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
                                               }
                                             },
                                             itemBuilder: (context) => [
-                                              const PopupMenuItem(
+                                              PopupMenuItem(
                                                 value: 'review',
-                                                child: Text('去复习'),
+                                                child: Text(AppStrings
+                                                    .ankiBrowserGoReview),
                                               ),
                                               PopupMenuItem(
                                                 value: 'suspend',
                                                 child: Text(
-                                                  row.suspended ? '取消暂停' : '暂停',
+                                                  row.suspended
+                                                      ? AppStrings
+                                                          .ankiBrowserUnsuspend
+                                                      : AppStrings
+                                                          .ankiCardSuspend,
                                                 ),
                                               ),
                                             ],
@@ -474,7 +487,9 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
                                     },
                                   ))
                             : _rows.isEmpty
-                                ? const Center(child: Text('没有匹配的卡片'))
+                                ? Center(
+                                    child:
+                                        Text(AppStrings.ankiBrowserNoMatches))
                                 : ListView.builder(
                                     padding: const EdgeInsets.fromLTRB(
                                         12, 0, 12, 20),
@@ -492,7 +507,7 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
                                             overflow: TextOverflow.ellipsis,
                                           ),
                                           subtitle: Text(
-                                            '#${row.card.cardId}  ${row.card.suspended ? '已暂停' : ''}${row.card.marked ? ' · 已标记' : ''}',
+                                            '#${row.card.cardId}  ${row.card.suspended ? AppStrings.ankiBrowserSuspended : ''}${row.card.marked ? ' · ${AppStrings.ankiBrowserMarked}' : ''}',
                                             style: TextStyle(
                                               color: TurnaTheme.textHintColor(
                                                   context),
@@ -514,17 +529,22 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
                                             itemBuilder: (context) => [
                                               PopupMenuItem(
                                                   value: 'review',
-                                                  child: const Text('去复习')),
+                                                  child: Text(AppStrings
+                                                      .ankiBrowserGoReview)),
                                               PopupMenuItem(
                                                   value: 'mark',
                                                   child: Text(row.card.marked
-                                                      ? '取消标记'
-                                                      : '标记')),
+                                                      ? AppStrings
+                                                          .ankiBrowserUnmark
+                                                      : AppStrings
+                                                          .ankiBrowserMark)),
                                               PopupMenuItem(
                                                   value: 'suspend',
                                                   child: Text(row.card.suspended
-                                                      ? '恢复'
-                                                      : '暂停')),
+                                                      ? AppStrings
+                                                          .ankiBrowserResume
+                                                      : AppStrings
+                                                          .ankiCardSuspend)),
                                             ],
                                           ),
                                         ),

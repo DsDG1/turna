@@ -381,7 +381,7 @@ class _ExportSheetState extends State<_ExportSheet> {
       final service = getIt<ExportService>();
       final file = await service.export();
       await service.share(file);
-      if (mounted) Navigator.of(context).maybePop();
+      if (mounted) unawaited(Navigator.of(context).maybePop());
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

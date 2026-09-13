@@ -1,3 +1,6 @@
+// Dart imports:
+import 'dart:async';
+
 // Flutter imports:
 import 'package:flutter/material.dart';
 
@@ -408,7 +411,8 @@ class _MistakeCard extends StatelessWidget {
                           .read<GrammarReviewProvider>()
                           .markDueNow(mistake.grammarPointId!);
                       if (context.mounted) {
-                        context.router.push(const GrammarReviewRoute());
+                        unawaited(
+                            context.router.push(const GrammarReviewRoute()));
                       }
                     },
                   ),

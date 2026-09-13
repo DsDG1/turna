@@ -1,4 +1,5 @@
 // Dart imports:
+import 'dart:async';
 import 'dart:math' as math;
 
 // Flutter imports:
@@ -129,10 +130,9 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('清理缓存？'),
+        title: Text(AppStrings.storageDiagClearCacheTitle),
         content: Text(
-          '将清理临时缓存（约 ${_formatBytes(reclaimableBytes)}）。'
-          '课程、卡片和学习进度不受影响。',
+          AppStrings.storageDiagClearCacheBody(_formatBytes(reclaimableBytes)),
         ),
         actions: [
           TextButton(
@@ -141,7 +141,7 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('清理'),
+            child: Text(AppStrings.ankiRepairCleanAction),
           ),
         ],
       ),
@@ -215,10 +215,10 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('删除残留文件？'),
+        title: Text(AppStrings.storageDiagDeleteOrphansTitle),
         content: Text(
-          '将删除 ${orphans.length} 个无主残留文件夹（约 ${_formatBytes(bytes)}）。'
-          '它们不属于任何课程，删除不影响现有学习数据。',
+          AppStrings.storageDiagDeleteOrphansBody(
+              orphans.length, _formatBytes(bytes)),
         ),
         actions: [
           TextButton(
@@ -227,7 +227,7 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('删除'),
+            child: Text(AppStrings.commonDelete),
           ),
         ],
       ),
@@ -247,7 +247,9 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
     }
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('已清理 $cleaned/${orphans.length} 个残留文件夹')),
+      SnackBar(
+          content: Text(
+              AppStrings.storageDiagOrphansCleaned(cleaned, orphans.length))),
     );
     await _rescan();
   }
@@ -369,12 +371,12 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
   @override
   Widget build(BuildContext context) {
     return SettingsScaffold(
-      title: '存储与性能',
+      title: AppStrings.storageDiagTitle,
       actions: [
         IconButton(
           onPressed: _loading ? null : _rescan,
           icon: const Icon(Icons.refresh_rounded),
-          tooltip: '重新扫描',
+          tooltip: AppStrings.storageDiagRescan,
         ),
       ],
       body: _buildBody(context),
@@ -386,7 +388,7 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
     if (data == null) {
       if (_error != null) {
         return _ErrorCard(
-          message: '扫描失败：$_error',
+          message: AppStrings.storageDiagScanFailed(_error!),
           onRetry: _rescan,
         );
       }
@@ -416,8 +418,9 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
             ),
             label: Text(
               reclaimable > 0
-                  ? '清理缓存，可释放 ${_formatBytes(reclaimable)}'
-                  : '缓存很干净，无需清理',
+                  ? AppStrings.storageDiagClearCacheButton(
+                      _formatBytes(reclaimable))
+                  : AppStrings.storageDiagCacheClean,
             ),
           ),
         ),
@@ -448,7 +451,7 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
             key: const Key('storage-open-repair-center'),
             onPressed: () async {
               await context.router.push(OfficialAnkiRepairCenterRoute());
-              if (mounted) _rescan();
+              if (mounted) unawaited(_rescan());
             },
             child: Text(AppStrings.storageRepairCenterLink),
           ),
@@ -473,7 +476,7 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
         _MemoryCard(snapshot: data.memory),
         const SizedBox(height: 12),
         Text(
-          '扫描于 ${_formatTime(report.scannedAt)}',
+          AppStrings.storageDiagScannedAt(_formatTime(report.scannedAt)),
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 11,
@@ -511,7 +514,7 @@ class _TotalCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '总占用',
+                  AppStrings.storageDiagTotalUsage,
                   style: TextStyle(
                     fontSize: 13,
                     color: TurnaTheme.textSecondaryColor(context),
@@ -527,7 +530,8 @@ class _TotalCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '其中 ${_formatBytes(report.safelyReclaimableBytes)} 可安全释放',
+                  AppStrings.storageDiagSafelyReclaimable(
+                      _formatBytes(report.safelyReclaimableBytes)),
                   style: TextStyle(
                     fontSize: 12,
                     color: TurnaTheme.textSecondaryColor(context),
@@ -597,8 +601,8 @@ List<_CategorySpec> _categorySpecs(
   return [
     _CategorySpec(
       bucket: _UserBucket.study,
-      title: '学习数据',
-      subtitle: '课程与复习进度',
+      title: AppStrings.storageDiagStudyData,
+      subtitle: AppStrings.storageDiagStudyDataSubtitle,
       icon: Icons.school_outlined,
       color: TurnaTheme.brandTeal,
       bytes: _bytesOf(report, const {
@@ -609,7 +613,7 @@ List<_CategorySpec> _categorySpecs(
     _CategorySpec(
       bucket: _UserBucket.media,
       title: AppStrings.storageMediaFilesTitle,
-      subtitle: '导入的图片与音频',
+      subtitle: AppStrings.storageDiagMediaSubtitle,
       icon: Icons.perm_media_outlined,
       color: TurnaTheme.brandSky,
       bytes: _bytesOf(report, const {
@@ -619,7 +623,7 @@ List<_CategorySpec> _categorySpecs(
     _CategorySpec(
       bucket: _UserBucket.official,
       title: AppStrings.storageOfficialCollectionTitle,
-      subtitle: '官方牌组内容',
+      subtitle: AppStrings.storageDiagOfficialSubtitle,
       icon: Icons.style_outlined,
       color: TurnaTheme.anatolianClay,
       bytes: _bytesOf(report, const {
@@ -628,8 +632,8 @@ List<_CategorySpec> _categorySpecs(
     ),
     _CategorySpec(
       bucket: _UserBucket.cache,
-      title: '缓存与日志',
-      subtitle: '可随时清理，不影响学习数据',
+      title: AppStrings.storageDiagCacheTitle,
+      subtitle: AppStrings.storageDiagCacheSubtitle,
       icon: Icons.cleaning_services_outlined,
       color: TurnaTheme.textHintColor(context),
       bytes: _bytesOf(report, const {
@@ -803,7 +807,8 @@ class _OrphanWarningCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '发现 ${orphans.length} 个残留文件夹（共 ${_formatBytes(bytes)}）',
+                  AppStrings.storageDiagOrphansFound(
+                      orphans.length, _formatBytes(bytes)),
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
@@ -811,8 +816,7 @@ class _OrphanWarningCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '这些文件已无对应课程，是之前删除牌组时中断留下的。'
-                  '如确认不再需要，可以删除；删除不影响现有课程和学习进度。',
+                  AppStrings.storageDiagOrphansExplanation,
                   style: TextStyle(
                     fontSize: 12,
                     color: TurnaTheme.textSecondaryColor(context),
@@ -831,7 +835,7 @@ class _OrphanWarningCard extends StatelessWidget {
                           color: TurnaTheme.warning.withValues(alpha: 0.5),
                         ),
                       ),
-                      label: const Text('删除残留文件'),
+                      label: Text(AppStrings.storageDiagDeleteOrphansAction),
                     ),
                   ),
                 ],
@@ -869,7 +873,7 @@ class _MemoryCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  '当前运行内存',
+                  AppStrings.storageDiagMemoryTitle,
                   style: TextStyle(
                     fontSize: 13,
                     color: TurnaTheme.textSecondaryColor(context),
@@ -877,7 +881,9 @@ class _MemoryCard extends StatelessWidget {
                 ),
               ),
               Text(
-                rss == null ? '当前平台不可用' : _formatBytes(rss),
+                rss == null
+                    ? AppStrings.storageDiagMemoryUnavailable
+                    : _formatBytes(rss),
                 style: const TextStyle(
                   fontWeight: FontWeight.w700,
                   color: TurnaTheme.brandTeal,
@@ -885,7 +891,8 @@ class _MemoryCard extends StatelessWidget {
               ),
               if (rss != null && sampledAt != null)
                 Text(
-                  ' · 采样于 ${_formatShortTime(sampledAt)}',
+                  AppStrings.storageDiagMemorySampledAt(
+                      _formatShortTime(sampledAt)),
                   style: TextStyle(
                     fontSize: 12,
                     color: TurnaTheme.textHintColor(context),
@@ -895,7 +902,7 @@ class _MemoryCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            '这是 App 运行时占用的内存，和磁盘上的文件大小是两回事。',
+            AppStrings.storageDiagMemoryExplanation,
             style: TextStyle(
               fontSize: 12,
               color: TurnaTheme.textHintColor(context),
@@ -988,7 +995,8 @@ class _ErrorCard extends StatelessWidget {
                 style: const TextStyle(color: TurnaTheme.error, fontSize: 13),
               ),
               const SizedBox(height: 10),
-              OutlinedButton(onPressed: onRetry, child: const Text('重试')),
+              OutlinedButton(
+                  onPressed: onRetry, child: Text(AppStrings.commonRetry)),
             ],
           ),
         ),

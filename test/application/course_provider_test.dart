@@ -4,6 +4,8 @@
 // 3. Course order & management (reordering, catalog ordering)
 // 4. Official Anki course scope & multi-source isolation
 
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
@@ -112,8 +114,8 @@ void main() {
       // Section 0's body is pre-loaded by load(); select a unit + lesson.
       final u = a.units.first;
       final l = u.lessons.first;
-      provider.selectUnit(u.id);
-      provider.selectLesson(l.id);
+      unawaited(provider.selectUnit(u.id));
+      unawaited(provider.selectLesson(l.id));
       expect(provider.selectedUnitId, u.id);
       expect(provider.selectedLessonId, l.id);
 

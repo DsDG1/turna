@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -237,7 +239,7 @@ class _OfficialAnkiRepairCenterPageState
                   actions: [
                     TextButton(
                       onPressed: _busy ? null : () => _cleanOrphan(orphan),
-                      child: const Text('清理'),
+                      child: Text(AppStrings.ankiRepairCleanAction),
                     ),
                   ],
                 ),
@@ -304,7 +306,7 @@ class _OfficialAnkiRepairCenterPageState
                       onPressed: _busy
                           ? null
                           : () => _retryJob(job['job_id'] as String),
-                      child: const Text('执行'),
+                      child: Text(AppStrings.ankiRepairJobRun),
                     ),
                   ],
                 ),
@@ -328,13 +330,13 @@ class _OfficialAnkiRepairCenterPageState
                       onPressed: _busy
                           ? null
                           : () => _retryJob(job['job_id'] as String),
-                      child: const Text('重试'),
+                      child: Text(AppStrings.commonRetry),
                     ),
                     TextButton(
                       onPressed: _busy
                           ? null
                           : () => _deleteJob(job['job_id'] as String),
-                      child: const Text('清除'),
+                      child: Text(AppStrings.ankiRepairJobClear),
                     ),
                   ],
                 ),
@@ -404,8 +406,9 @@ class _OfficialAnkiRepairCenterPageState
                         const SizedBox(height: 2),
                         Text(
                           isHealthy
-                              ? '所有核心数据库与存储运行正常'
-                              : '发现 ${report.totalIssuesCount} 项待处理或需优化的项目',
+                              ? AppStrings.ankiRepairHealthyDetail
+                              : AppStrings.ankiRepairIssuesCount(
+                                  report.totalIssuesCount),
                           style: TextStyle(
                             fontSize: 12,
                             color: TurnaTheme.textSecondaryColor(context),
@@ -432,12 +435,16 @@ class _OfficialAnkiRepairCenterPageState
                     title: AppStrings.databaseDoctorCourseDbTitle,
                     status: report?.courseDb.integrityOk == true
                         ? AppStrings.databaseDoctorCourseDbOk
-                        : '异常',
+                        : AppStrings.ankiRepairDbAbnormal,
                     statusColor: report?.courseDb.integrityOk == true
                         ? Colors.green
                         : Colors.red,
                     detail: report != null
-                        ? '${report.courseDb.lessonCount} 课时 · ${report.courseDb.wordCount} 词汇 · ${report.courseDb.srsCount} 复习卡'
+                        ? AppStrings.ankiRepairCourseDbDetail(
+                            report.courseDb.lessonCount,
+                            report.courseDb.wordCount,
+                            report.courseDb.srsCount,
+                          )
                         : null,
                   ),
                   const Divider(height: 12),
@@ -447,7 +454,7 @@ class _OfficialAnkiRepairCenterPageState
                     title: AppStrings.databaseDoctorAnkiDbTitle,
                     status: report?.ankiDb.isConfigured == true
                         ? (report!.ankiDb.failedJobsCount > 0
-                            ? '有失败任务'
+                            ? AppStrings.ankiRepairHasFailedJobs
                             : AppStrings.databaseDoctorAnkiDbOk)
                         : AppStrings.databaseDoctorAnkiDbNotConfigured,
                     statusColor: report?.ankiDb.isConfigured == true
@@ -456,7 +463,8 @@ class _OfficialAnkiRepairCenterPageState
                             : Colors.green)
                         : TurnaTheme.textSecondaryColor(context),
                     detail: report?.ankiDb.isConfigured == true
-                        ? '${report!.ankiDb.sourceCount} 个牌组'
+                        ? AppStrings.ankiRepairDeckCount(
+                            report!.ankiDb.sourceCount)
                         : null,
                   ),
                   const Divider(height: 12),
@@ -466,7 +474,7 @@ class _OfficialAnkiRepairCenterPageState
                     title: AppStrings.databaseDoctorStorageTitle,
                     status: orphans.isEmpty
                         ? AppStrings.databaseDoctorStorageNoOrphans
-                        : '${orphans.length} 个残留文件夹',
+                        : AppStrings.ankiRepairOrphanCount(orphans.length),
                     statusColor: orphans.isEmpty ? Colors.green : Colors.orange,
                     detail: orphans.isNotEmpty
                         ? _formatBytes(orphans.fold<int>(
@@ -655,8 +663,8 @@ class _OfficialAnkiRepairCenterPageState
 
   Future<void> _oneClickRepair(List<StorageArtifactReport> orphans) async {
     final confirmed = await _confirm(
-      title: '执行一键修复？',
-      body: '将清理无主残留文件，并重试所有未完成的清理与维护任务。',
+      title: AppStrings.ankiRepairOneClickTitle,
+      body: AppStrings.ankiRepairOneClickBody,
     );
     if (confirmed != true) return;
     setState(() => _busy = true);
@@ -693,7 +701,7 @@ class _OfficialAnkiRepairCenterPageState
         }
       }
       if (mounted) {
-        _snack('一键修复执行完毕');
+        _snack(AppStrings.ankiRepairOneClickDone);
       }
     } finally {
       if (mounted) {
@@ -714,7 +722,7 @@ class _OfficialAnkiRepairCenterPageState
       if (getIt.isRegistered<AnkiDeckManager>()) {
         await getIt<AnkiDeckManager>().uninstall(orphan.ownerId);
       }
-      if (mounted) _snack('已清理残留文件夹');
+      if (mounted) _snack(AppStrings.ankiRepairOrphanCleaned);
     } catch (_) {
       if (mounted) _snack(AppStrings.ankiRepairActionUnavailable);
     } finally {
@@ -734,7 +742,7 @@ class _OfficialAnkiRepairCenterPageState
     setState(() => _busy = true);
     try {
       final cleaned = await _doctor.cleanOrphans(targets: orphans);
-      if (mounted) _snack('已清理 $cleaned 个残留文件夹');
+      if (mounted) _snack(AppStrings.ankiRepairOrphansCleaned(cleaned));
     } finally {
       if (mounted) {
         setState(() => _busy = false);
@@ -755,7 +763,7 @@ class _OfficialAnkiRepairCenterPageState
         paths: paths,
         engine: _engine,
       );
-      if (mounted) _snack('维护任务已执行');
+      if (mounted) _snack(AppStrings.ankiRepairJobDone);
     } finally {
       if (mounted) {
         setState(() => _busy = false);
@@ -772,7 +780,7 @@ class _OfficialAnkiRepairCenterPageState
         paths: _paths,
         engine: _engine,
       );
-      if (mounted) _snack('已完成 $completed 项维护任务');
+      if (mounted) _snack(AppStrings.ankiRepairJobsDone(completed));
     } finally {
       if (mounted) {
         setState(() => _busy = false);
@@ -793,7 +801,7 @@ class _OfficialAnkiRepairCenterPageState
     if (catalog == null || profileId == null) return;
     final count = const OfficialAnkiCatalogService()
         .clearFailedMaintenanceJobs(profileId, catalog: catalog);
-    _snack('已清空 $count 条失败记录');
+    _snack(AppStrings.ankiRepairFailedJobsCleared(count));
     _reloadAndSetState();
   }
 
@@ -803,29 +811,29 @@ class _OfficialAnkiRepairCenterPageState
       final courseRes = await _doctor.checkCourseIntegrity();
       final ankiRes = const OfficialAnkiCatalogService()
               .catalogIntegrityCheck(catalog: _catalog) ??
-          '未启用';
+          AppStrings.ankiRepairCatalogNotEnabled;
       if (mounted) {
-        showDialog<void>(
+        unawaited(showDialog<void>(
           context: context,
           builder: (ctx) => AlertDialog(
-            title: const Text('完整性检查结果'),
+            title: Text(AppStrings.ankiRepairIntegrityTitle),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('课程数据库: $courseRes'),
+                Text(AppStrings.ankiRepairCourseDbResult(courseRes)),
                 const SizedBox(height: 8),
-                Text('Anki 目录库: $ankiRes'),
+                Text(AppStrings.ankiRepairAnkiDbResult(ankiRes)),
               ],
             ),
             actions: [
               FilledButton(
                 onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('知道了'),
+                child: Text(AppStrings.commonGotIt),
               ),
             ],
           ),
-        );
+        ));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -836,7 +844,7 @@ class _OfficialAnkiRepairCenterPageState
     setState(() => _busy = true);
     try {
       await _doctor.rebuildCourseIndexes();
-      if (mounted) _snack('索引已重建并优化');
+      if (mounted) _snack(AppStrings.ankiRepairIndexesRebuilt);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -847,7 +855,9 @@ class _OfficialAnkiRepairCenterPageState
     try {
       final ok = await _doctor.checkAnkiCollection(engine: _engine);
       if (mounted) {
-        _snack(ok ? 'Anki 集合完整性检验通过' : 'Anki 引擎未就绪或检验中断');
+        _snack(ok
+            ? AppStrings.ankiRepairIntegrityPassed
+            : AppStrings.ankiRepairIntegrityInterrupted);
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -999,17 +1009,17 @@ class _OfficialAnkiRepairCenterPageState
   String _categoryName(StorageArtifactCategory category) {
     switch (category) {
       case StorageArtifactCategory.mainDatabase:
-        return '主数据库文件';
+        return AppStrings.ankiRepairCategoryMainDb;
       case StorageArtifactCategory.legacyAnki:
-        return '旧版 Anki 记录';
+        return AppStrings.ankiRepairCategoryLegacyAnki;
       case StorageArtifactCategory.legacyAnkiMedia:
-        return '未登记媒体文件夹';
+        return AppStrings.ankiRepairCategoryLegacyMedia;
       case StorageArtifactCategory.officialAnki:
-        return 'Anki 集合残留文件';
+        return AppStrings.ankiRepairCategoryOfficialAnki;
       case StorageArtifactCategory.regenerableCache:
-        return '可再生临时缓存';
+        return AppStrings.ankiRepairCategoryRegenerable;
       case StorageArtifactCategory.logs:
-        return '运行日志';
+        return AppStrings.ankiRepairCategoryLogs;
     }
   }
 

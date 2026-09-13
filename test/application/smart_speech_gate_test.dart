@@ -17,7 +17,7 @@ void main() {
   late SettingsProvider settings;
 
   setUp(() async {
-    getIt.reset();
+    await getIt.reset();
     SharedPreferences.setMockInitialValues({});
     final streaming = await StreamingSharedPreferences.instance;
     prefs = AppPrefs(streaming);

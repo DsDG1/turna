@@ -1,3 +1,6 @@
+// Dart imports:
+import 'dart:async';
+
 // Flutter imports:
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollDirection;
@@ -105,7 +108,7 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
     if (!mounted) return;
     final ctx = widget.context;
     if (provider.messages.isEmpty && ctx != null) {
-      provider.explainQuestion(config: cfg, ctx: ctx);
+      unawaited(provider.explainQuestion(config: cfg, ctx: ctx));
     }
   }
 

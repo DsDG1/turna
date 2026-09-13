@@ -556,7 +556,7 @@ class CourseProvider extends ChangeNotifier {
         // reloadSection may have reset the slot while this load was in
         // flight — only clear our own registration.
         if (identical(_sectionLoadFutures[id], completer.future)) {
-          _sectionLoadFutures.remove(id);
+          unawaited(_sectionLoadFutures.remove(id));
         }
         notifyListeners();
         completer.complete();
@@ -591,7 +591,7 @@ class CourseProvider extends ChangeNotifier {
   /// Clear any cached error/state for [id] and reload its body from scratch.
   Future<void> reloadSection(String id) async {
     _loadedSectionIds.remove(id);
-    _sectionLoadFutures.remove(id);
+    unawaited(_sectionLoadFutures.remove(id));
     _sectionLoadErrors.remove(id);
     _sectionLoadStates[id] = SectionLoadState.initial;
     notifyListeners();

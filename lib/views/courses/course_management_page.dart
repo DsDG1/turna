@@ -244,7 +244,7 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
       final phase = ValueNotifier<CoursePackImportPhase>(
         CoursePackImportPhase.decoding,
       );
-      showDialog<void>(
+      unawaited(showDialog<void>(
         context: context,
         barrierDismissible: false,
         builder: (ctx) => ValueListenableBuilder<CoursePackImportPhase>(
@@ -259,7 +259,7 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
             ),
           ),
         ),
-      );
+      ));
       progressShown = true;
       final courseProvider = context.read<CourseProvider>();
       final result = await CoursePackImporter(
@@ -289,7 +289,7 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
     } on CoursePackImportException catch (e) {
       if (!context.mounted) return;
       if (progressShown) {
-        Navigator.of(context, rootNavigator: true).maybePop();
+        unawaited(Navigator.of(context, rootNavigator: true).maybePop());
       }
       _showPackErrors(context, e.errors);
     } on CoursePackImportCancelled {
@@ -297,7 +297,7 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
       // error dialog on top of it.
       if (!context.mounted) return;
       if (progressShown) {
-        Navigator.of(context, rootNavigator: true).maybePop();
+        unawaited(Navigator.of(context, rootNavigator: true).maybePop());
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(AppStrings.coursePackImportCancelled)),
@@ -305,7 +305,7 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
     } catch (e) {
       if (!context.mounted) return;
       if (progressShown) {
-        Navigator.of(context, rootNavigator: true).maybePop();
+        unawaited(Navigator.of(context, rootNavigator: true).maybePop());
       }
       _showPackErrors(context, [e.toString()]);
     }

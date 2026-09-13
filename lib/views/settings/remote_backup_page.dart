@@ -1,3 +1,6 @@
+// Dart imports:
+import 'dart:async';
+
 // Flutter imports:
 import 'package:flutter/material.dart';
 
@@ -110,7 +113,7 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
     if (service != null) {
       _lastLocal = service.lastLocalBackup();
       _blockedNotice = _readBlockedNotice();
-      _refreshRemoteStatus();
+      unawaited(_refreshRemoteStatus());
     }
   }
 
@@ -239,7 +242,7 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
         _testOk = true;
         _testResult = AppStrings.remoteBackupTestOk;
       });
-      _refreshRemoteStatus();
+      unawaited(_refreshRemoteStatus());
     } on Object catch (e) {
       if (!mounted) return;
       setState(() {
@@ -286,7 +289,7 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
       });
       _showSnack(
           AppStrings.remoteBackupSuccess(_formatBytes(result.coreZipBytes)));
-      _refreshRemoteStatus();
+      unawaited(_refreshRemoteStatus());
     } on Object catch (e) {
       if (!mounted) return;
       setState(() {

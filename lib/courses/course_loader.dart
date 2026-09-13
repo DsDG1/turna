@@ -1,4 +1,5 @@
 // Flutter imports:
+import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
 
@@ -218,7 +219,7 @@ class CourseLoader {
         validateSectionTree(section);
         return section;
       } catch (e) {
-        _sectionLoads.remove(id);
+        unawaited(_sectionLoads.remove(id));
         rethrow;
       }
     }();
@@ -241,7 +242,7 @@ class CourseLoader {
       try {
         return await CourseRepository(_db).lessonById(id);
       } catch (e) {
-        _lessonLoads.remove(id);
+        unawaited(_lessonLoads.remove(id));
         rethrow;
       }
     }();
@@ -263,11 +264,11 @@ class CourseLoader {
     final lessons = await CourseRepository(_db).lessonsContainingAny(needles);
     for (final lesson in lessons) {
       // Touch / insert into L2 LRU as a completed future.
-      _lessonLoads.remove(lesson.id);
+      unawaited(_lessonLoads.remove(lesson.id));
       _lessonLoads[lesson.id] = Future.value(lesson);
     }
     while (_lessonLoads.length > lessonBodyCacheCap) {
-      _lessonLoads.remove(_lessonLoads.keys.first);
+      unawaited(_lessonLoads.remove(_lessonLoads.keys.first));
     }
     return lessons;
   }

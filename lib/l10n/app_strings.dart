@@ -34,6 +34,7 @@ class AppStrings {
   static String get commonContinue => '继续';
   static String get commonGotIt => '知道了';
   static String get commonOk => '确定';
+  static String get commonDelete => '删除';
   static String get commonSave => '保存';
   static String get commonMoreActions => '更多操作';
   static String get commonImport => '导入';
@@ -1706,6 +1707,139 @@ class AppStrings {
   static String get ankiFieldNameAudio => '音频';
   static String get ankiAdvancedFidelityTitle => 'Anki 保真 / 解密（仅旧版导入源）';
   static String get ankiAdvancedFidelitySubtitle => '仅旧版导入源生效';
+
+  // ── Anki card browser ──
+  static String ankiBrowserPageTitle(String title) => '$title · 浏览';
+  static String get ankiBrowserSearchHint => '搜索正面、背面或标签';
+  static String get ankiBrowserMarked => '已标记';
+  static String get ankiBrowserBuried => '已埋藏';
+  static String get ankiBrowserSuspended => '已暂停';
+  static String get ankiBrowserAllDecks => '全部牌组';
+  static String get ankiBrowserTagsLabel => '标签';
+  static String ankiBrowserLoadFailed(Object error) => '卡片浏览加载失败\n$error';
+  static String ankiBrowserOfficialUnavailable(String reason) =>
+      'Official 卡片浏览暂不可用\n$reason';
+  static String get ankiBrowserNoMatches => '没有匹配的卡片';
+  static String get ankiBrowserGoReview => '去复习';
+  static String get ankiBrowserResume => '恢复';
+  static String get ankiBrowserUnsuspend => '取消暂停';
+  static String get ankiBrowserMark => '标记';
+  static String get ankiBrowserUnmark => '取消标记';
+  static String get ankiBrowserDiagTitle => '卡片来源与识别诊断';
+  static String get ankiBrowserDiagOriginalCard => '原始 Card';
+  static String get ankiBrowserDiagOriginalNote => '原始 Note';
+  static String get ankiBrowserDiagRenderMode => '原卡渲染';
+  static String get ankiBrowserDiagCoursePractice => '课程练习';
+  static String get ankiBrowserDiagNoDerived => '仅保留原卡（无派生记录）';
+  static String get ankiBrowserDiagRawFields => '原始字段';
+  static String ankiBrowserDiagFieldN(int index) => '字段 $index';
+
+  // ── Anki deck stats ──
+  static String ankiDeckStatsPageTitle(String title) => '$title · 统计';
+  static String get ankiStatsTotalCards => '卡片总数（Official catalog）';
+  static String get ankiStatsCardStates => '卡片状态（新卡 / 学习 / 复习）';
+  static String get ankiStatsCardFlags => '卡片门控（未解锁 / 暂停 / 埋藏）';
+  static String ankiStatsFlagsValue(
+          int unintroduced, int suspended, int buried) =>
+      '$unintroduced 待学 · $suspended 暂停 / $buried 埋藏';
+  static String get ankiStatsTodayAnswers => '今日作答（学习 / 复习 / 重学）';
+  static String ankiStatsTodayValue(
+          int total, int learn, int review, int relearn) =>
+      '$total 次 · $learn / $review / $relearn';
+  static String get ankiStatsRevlogTitle => '复习记录 / True retention';
+  static String ankiStatsRevlogNoSample(int count) => '$count 次 · 暂无有效保持率样本';
+  static String ankiStatsRevlogValue(
+          int count, int percent, int passed, int sample) =>
+      '$count 次 · $percent% ($passed/$sample)';
+  static String get ankiStatsRetentionByInterval => '按间隔保持率（记忆曲线）';
+  static String get ankiStatsRetentionTitle => '按间隔保持率';
+  static String get ankiStatsOfficialSemantics => 'Official 统计语义';
+  static String get ankiStatsSemanticsProven =>
+      '状态、预报和保持率来自 Official collection 的精确 source card 集合。';
+  static String ankiStatsSemanticsUnavailable(String note) =>
+      'Official 指标不可用（$note）；仅 catalog 卡片总数可信，未把失败显示成 0。';
+  static String ankiStatsLoadFailed(Object error) => '统计加载失败：$error';
+  static String get ankiStatsEmpty => '这个牌组还没有可用统计数据';
+  static String get ankiStatsCurrentRetention => '当前保持率';
+  static String get ankiStatsRevlogLabel => '复习记录';
+  static String ankiStatsRevlogSummary(int total, int tracked, int cards) =>
+      '$total 次 · $tracked/$cards 张已复习';
+  static String get ankiStatsForecast => '预测到期';
+  static String get ankiStatsDueToday => '今天';
+  static String get ankiStatsDue7Days => '7 天';
+  static String get ankiStatsDue30Days => '30 天';
+
+  // ── Storage diagnostics ──
+  static String get storageDiagTitle => '存储与性能';
+  static String get storageDiagRescan => '重新扫描';
+  static String storageDiagScanFailed(Object error) => '扫描失败：$error';
+  static String get storageDiagClearCacheTitle => '清理缓存？';
+  static String storageDiagClearCacheBody(String size) =>
+      '将清理临时缓存（约 $size）。课程、卡片和学习进度不受影响。';
+  static String storageDiagClearCacheButton(String size) => '清理缓存，可释放 $size';
+  static String get storageDiagCacheClean => '缓存很干净，无需清理';
+  static String get storageDiagDeleteOrphansTitle => '删除残留文件？';
+  static String storageDiagDeleteOrphansBody(int count, String size) =>
+      '将删除 $count 个无主残留文件夹（约 $size）。'
+      '它们不属于任何课程，删除不影响现有学习数据。';
+  static String storageDiagOrphansCleaned(int cleaned, int total) =>
+      '已清理 $cleaned/$total 个残留文件夹';
+  static String get storageDiagTotalUsage => '总占用';
+  static String storageDiagSafelyReclaimable(String size) => '其中 $size 可安全释放';
+  static String get storageDiagStudyData => '学习数据';
+  static String get storageDiagStudyDataSubtitle => '课程与复习进度';
+  static String get storageDiagMediaSubtitle => '导入的图片与音频';
+  static String get storageDiagOfficialSubtitle => '官方牌组内容';
+  static String get storageDiagCacheTitle => '缓存与日志';
+  static String get storageDiagCacheSubtitle => '可随时清理，不影响学习数据';
+  static String storageDiagOrphansFound(int count, String size) =>
+      '发现 $count 个残留文件夹（共 $size）';
+  static String get storageDiagOrphansExplanation => '这些文件已无对应课程，是之前删除牌组时中断留下的。'
+      '如确认不再需要，可以删除；删除不影响现有课程和学习进度。';
+  static String get storageDiagDeleteOrphansAction => '删除残留文件';
+  static String storageDiagScannedAt(String time) => '扫描于 $time';
+  static String get storageDiagMemoryTitle => '当前运行内存';
+  static String get storageDiagMemoryUnavailable => '当前平台不可用';
+  static String storageDiagMemorySampledAt(String time) => ' · 采样于 $time';
+  static String get storageDiagMemoryExplanation =>
+      '这是 App 运行时占用的内存，和磁盘上的文件大小是两回事。';
+
+  // ── AI feature guide ──
+  static String get aiFeatureGuideTitle => 'AI 助手 · 功能介绍';
+
+  // ── Anki repair center (supplement) ──
+  static String get ankiRepairCleanAction => '清理';
+  static String get ankiRepairJobRun => '执行';
+  static String get ankiRepairJobClear => '清除';
+  static String get ankiRepairHealthyDetail => '所有核心数据库与存储运行正常';
+  static String ankiRepairIssuesCount(int count) => '发现 $count 项待处理或需优化的项目';
+  static String get ankiRepairDbAbnormal => '异常';
+  static String ankiRepairCourseDbDetail(int lessons, int words, int srs) =>
+      '$lessons 课时 · $words 词汇 · $srs 复习卡';
+  static String get ankiRepairHasFailedJobs => '有失败任务';
+  static String ankiRepairDeckCount(int count) => '$count 个牌组';
+  static String ankiRepairOrphanCount(int count) => '$count 个残留文件夹';
+  static String get ankiRepairOneClickTitle => '执行一键修复？';
+  static String get ankiRepairOneClickBody => '将清理无主残留文件，并重试所有未完成的清理与维护任务。';
+  static String get ankiRepairOneClickDone => '一键修复执行完毕';
+  static String get ankiRepairOrphanCleaned => '已清理残留文件夹';
+  static String ankiRepairOrphansCleaned(int count) => '已清理 $count 个残留文件夹';
+  static String get ankiRepairJobDone => '维护任务已执行';
+  static String ankiRepairJobsDone(int count) => '已完成 $count 项维护任务';
+  static String ankiRepairFailedJobsCleared(int count) => '已清空 $count 条失败记录';
+  static String get ankiRepairCatalogNotEnabled => '未启用';
+  static String get ankiRepairIntegrityTitle => '完整性检查结果';
+  static String ankiRepairCourseDbResult(String result) => '课程数据库: $result';
+  static String ankiRepairAnkiDbResult(String result) => 'Anki 目录库: $result';
+  static String get ankiRepairIndexesRebuilt => '索引已重建并优化';
+  static String get ankiRepairIntegrityPassed => 'Anki 集合完整性检验通过';
+  static String get ankiRepairIntegrityInterrupted => 'Anki 引擎未就绪或检验中断';
+  static String get ankiRepairCategoryMainDb => '主数据库文件';
+  static String get ankiRepairCategoryLegacyAnki => '旧版 Anki 记录';
+  static String get ankiRepairCategoryLegacyMedia => '未登记媒体文件夹';
+  static String get ankiRepairCategoryOfficialAnki => 'Anki 集合残留文件';
+  static String get ankiRepairCategoryRegenerable => '可再生临时缓存';
+  static String get ankiRepairCategoryLogs => '运行日志';
 
   // ── Courses ──
   static String get coursesCouldNotLoadCourse => '无法加载课程';

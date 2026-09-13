@@ -100,7 +100,7 @@ void main() {
       await game.recordLessonCompletion(lessonId: 'l-1', wasPerfect: false);
       await game.recordLessonCompletion(lessonId: 'l-2', wasPerfect: true);
       await Future<void>.delayed(Duration.zero);
-      sub.cancel();
+      await sub.cancel();
       // The stream yields the current set on subscribe then on each emit;
       // the final captured snapshot must include both completed lessons.
       expect(emitted.last, containsAll({'l-1', 'l-2'}));

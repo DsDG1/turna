@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
+import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/lesson/components/ai_depth_tutor_sheet.dart';
 import 'package:turna/views/lesson/tutor_launch_sheet.dart';
@@ -30,7 +31,7 @@ class AiFeatureGuidePage extends StatelessWidget {
       backgroundColor: TurnaTheme.surfaceColor(context),
       appBar: AppBar(
         centerTitle: true,
-        title: const Text('AI 助手 · 功能介绍'),
+        title: Text(AppStrings.aiFeatureGuideTitle),
       ),
       body: const _FeatureGuideContent(),
     );

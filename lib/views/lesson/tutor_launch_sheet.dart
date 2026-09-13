@@ -1,3 +1,6 @@
+// Dart imports:
+import 'dart:async';
+
 // Flutter imports:
 import 'package:flutter/material.dart';
 
@@ -62,7 +65,7 @@ class _TutorLaunchSheetState extends State<TutorLaunchSheet> {
       return; // error / cancel path is rendered by the body.
     }
     router.pop(); // close the sheet
-    router.push(NewLessonRoute(lessonId: lessonId));
+    unawaited(router.push(NewLessonRoute(lessonId: lessonId)));
   }
 
   @override

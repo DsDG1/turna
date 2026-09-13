@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import 'package:turna/application/anki_official/official_anki_catalog_service.dart';
 import 'package:turna/application/anki_official/stats/official_anki_source_aware_stats.dart';
 import 'package:turna/application/memory_curve_provider.dart';
+import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/review/components/retention_curve_chart.dart';
 import 'package:turna/core/theme.dart';
 
@@ -40,7 +41,8 @@ class _AnkiDeckStatsPageState extends State<AnkiDeckStatsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('${widget.title} · 统计')),
+      appBar:
+          AppBar(title: Text(AppStrings.ankiDeckStatsPageTitle(widget.title))),
       body: _officialStats != null
           ? FutureBuilder(
               future: _officialStats,
@@ -53,14 +55,14 @@ class _AnkiDeckStatsPageState extends State<AnkiDeckStatsPage> {
                   padding: const EdgeInsets.all(20),
                   children: [
                     _MetricCard(
-                      title: '卡片总数（Official catalog）',
+                      title: AppStrings.ankiStatsTotalCards,
                       value: '${officialSnap.totalCards}',
                       icon: Icons.style_outlined,
                     ),
                     if (officialSnap.metricsProven) ...[
                       const SizedBox(height: 12),
                       _MetricCard(
-                        title: '卡片状态（新卡 / 学习 / 复习）',
+                        title: AppStrings.ankiStatsCardStates,
                         value: '${officialSnap.newCount ?? 0} / '
                             '${officialSnap.learningCount ?? 0} / '
                             '${officialSnap.reviewCount ?? 0}',
@@ -68,19 +70,25 @@ class _AnkiDeckStatsPageState extends State<AnkiDeckStatsPage> {
                       ),
                       const SizedBox(height: 12),
                       _MetricCard(
-                        title: '卡片门控（未解锁 / 暂停 / 埋藏）',
+                        title: AppStrings.ankiStatsCardFlags,
                         value: officialSnap.unintroducedCount > 0
-                            ? '${officialSnap.unintroducedCount} 待学 · ${officialSnap.userSuspendedCount} 暂停 / ${officialSnap.buriedCount ?? 0} 埋藏'
+                            ? AppStrings.ankiStatsFlagsValue(
+                                officialSnap.unintroducedCount,
+                                officialSnap.userSuspendedCount,
+                                officialSnap.buriedCount ?? 0,
+                              )
                             : '${officialSnap.suspendedCount ?? 0} / ${officialSnap.buriedCount ?? 0}',
                         icon: Icons.pause_circle_outline,
                       ),
                       const SizedBox(height: 12),
                       _MetricCard(
-                        title: '今日作答（学习 / 复习 / 重学）',
-                        value: '${officialSnap.todayAnswerCount ?? 0} 次 · '
-                            '${officialSnap.todayLearnCount ?? 0} / '
-                            '${officialSnap.todayReviewCount ?? 0} / '
-                            '${officialSnap.todayRelearnCount ?? 0}',
+                        title: AppStrings.ankiStatsTodayAnswers,
+                        value: AppStrings.ankiStatsTodayValue(
+                          officialSnap.todayAnswerCount ?? 0,
+                          officialSnap.todayLearnCount ?? 0,
+                          officialSnap.todayReviewCount ?? 0,
+                          officialSnap.todayRelearnCount ?? 0,
+                        ),
                         icon: Icons.today_outlined,
                       ),
                       const SizedBox(height: 12),
@@ -93,13 +101,16 @@ class _AnkiDeckStatsPageState extends State<AnkiDeckStatsPage> {
                       ),
                       const SizedBox(height: 12),
                       _MetricCard(
-                        title: '复习记录 / True retention',
+                        title: AppStrings.ankiStatsRevlogTitle,
                         value: officialSnap.retentionSample == 0
-                            ? '${officialSnap.revlogCount ?? 0} 次 · 暂无有效保持率样本'
-                            : '${officialSnap.revlogCount ?? 0} 次 · '
-                                '${((officialSnap.retention ?? 0) * 100).round()}% '
-                                '(${officialSnap.retentionPassed}/'
-                                '${officialSnap.retentionSample})',
+                            ? AppStrings.ankiStatsRevlogNoSample(
+                                officialSnap.revlogCount ?? 0)
+                            : AppStrings.ankiStatsRevlogValue(
+                                officialSnap.revlogCount ?? 0,
+                                ((officialSnap.retention ?? 0) * 100).round(),
+                                officialSnap.retentionPassed ?? 0,
+                                officialSnap.retentionSample ?? 0,
+                              ),
                         icon: Icons.track_changes,
                       ),
                       if (officialSnap.retentionByInterval.isNotEmpty) ...[
@@ -110,9 +121,9 @@ class _AnkiDeckStatsPageState extends State<AnkiDeckStatsPage> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                const Text('按间隔保持率（记忆曲线）',
-                                    style:
-                                        TextStyle(fontWeight: FontWeight.w700)),
+                                Text(AppStrings.ankiStatsRetentionByInterval,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w700)),
                                 const SizedBox(height: 12),
                                 RetentionCurveChart(
                                     curve: officialSnap.retentionByInterval),
@@ -127,11 +138,12 @@ class _AnkiDeckStatsPageState extends State<AnkiDeckStatsPage> {
                       child: ListTile(
                         leading: Icon(Icons.info_outline,
                             color: TurnaTheme.brandTeal),
-                        title: const Text('Official 统计语义'),
+                        title: Text(AppStrings.ankiStatsOfficialSemantics),
                         subtitle: Text(
                           officialSnap.metricsProven
-                              ? '状态、预报和保持率来自 Official collection 的精确 source card 集合。'
-                              : 'Official 指标不可用（${officialSnap.note}）；仅 catalog 卡片总数可信，未把失败显示成 0。',
+                              ? AppStrings.ankiStatsSemanticsProven
+                              : AppStrings.ankiStatsSemanticsUnavailable(
+                                  officialSnap.note),
                           style: TextStyle(
                             color: TurnaTheme.textHintColor(context),
                           ),
@@ -151,17 +163,19 @@ class _AnkiDeckStatsPageState extends State<AnkiDeckStatsPage> {
                   return const Center(child: CircularProgressIndicator());
                 }
                 if (snapshot.hasError) {
-                  return Center(child: Text('统计加载失败：${snapshot.error}'));
+                  return Center(
+                      child: Text(
+                          AppStrings.ankiStatsLoadFailed(snapshot.error!)));
                 }
                 final data = snapshot.data;
                 if (data == null || data.totalCards == 0) {
-                  return const Center(child: Text('这个牌组还没有可用统计数据'));
+                  return Center(child: Text(AppStrings.ankiStatsEmpty));
                 }
                 return ListView(
                   padding: const EdgeInsets.all(20),
                   children: [
                     _MetricCard(
-                      title: '当前保持率',
+                      title: AppStrings.ankiStatsCurrentRetention,
                       value: '${(data.currentRetention * 100).round()}%',
                       icon: Icons.track_changes,
                     ),
@@ -169,9 +183,11 @@ class _AnkiDeckStatsPageState extends State<AnkiDeckStatsPage> {
                     _ForecastCard(forecast: data.forecast),
                     const SizedBox(height: 12),
                     _MetricCard(
-                      title: '复习记录',
-                      value:
-                          '${data.totalReviews} 次 · ${data.trackedCards}/${data.totalCards} 张已复习',
+                      title: AppStrings.ankiStatsRevlogLabel,
+                      value: AppStrings.ankiStatsRevlogSummary(
+                          data.totalReviews,
+                          data.trackedCards,
+                          data.totalCards),
                       icon: Icons.history,
                     ),
                     if (data.retentionByInterval.isNotEmpty) ...[
@@ -182,9 +198,9 @@ class _AnkiDeckStatsPageState extends State<AnkiDeckStatsPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text('按间隔保持率',
-                                  style:
-                                      TextStyle(fontWeight: FontWeight.w700)),
+                              Text(AppStrings.ankiStatsRetentionTitle,
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w700)),
                               const SizedBox(height: 12),
                               RetentionCurveChart(
                                   curve: data.retentionByInterval),
@@ -234,14 +250,18 @@ class _ForecastCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('预测到期', style: TextStyle(fontWeight: FontWeight.w700)),
+              Text(AppStrings.ankiStatsForecast,
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
               const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _ForecastValue('今天', forecast.dueToday),
-                  _ForecastValue('7 天', forecast.due7Days),
-                  _ForecastValue('30 天', forecast.due30Days),
+                  _ForecastValue(
+                      AppStrings.ankiStatsDueToday, forecast.dueToday),
+                  _ForecastValue(
+                      AppStrings.ankiStatsDue7Days, forecast.due7Days),
+                  _ForecastValue(
+                      AppStrings.ankiStatsDue30Days, forecast.due30Days),
                 ],
               ),
             ],

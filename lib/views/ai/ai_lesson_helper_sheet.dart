@@ -1,3 +1,6 @@
+// Dart imports:
+import 'dart:async';
+
 // Flutter imports:
 import 'package:flutter/material.dart';
 
@@ -73,7 +76,7 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(AppStrings.aiLessonHelperLessonUpdated)),
       );
-      Navigator.of(context).maybePop();
+      unawaited(Navigator.of(context).maybePop());
       // Ask the lesson viewmodel to reload so the new content appears.
       final vm = context.read<LessonViewModel>();
       await vm.loadLesson(transformed.id);
