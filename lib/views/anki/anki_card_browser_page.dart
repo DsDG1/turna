@@ -14,9 +14,9 @@ import 'package:turna/application/anki_official/browser/legacy_anki_card_browser
 import 'package:turna/application/anki_official/browser/official_anki_source_aware_browser.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
+import 'package:turna/application/anki_official/official_anki_catalog_service.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
-import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
@@ -104,56 +104,50 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
   Future<void> _loadInner() async {
     // Doc 34 W7: Official-first sources are browsed from the Official catalog
     // and must not depend on Legacy NoteStore rows.
-    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
-    if (catalog != null) {
-      final sources = OfficialAnkiSourceDao(catalog);
-      // Doc 38 P4-A: one long-lived browser (and preview LRU) for the page
-      // so re-searches and row rebuilds hit the cache instead of the FFI.
-      final browser = _browser ??= OfficialAnkiSourceAwareBrowser(
-        sources: sources,
-        legacyNotes: _legacy.notes,
-        engine: OfficialAnkiCompositionRoot.engine,
-        previewCache: _previewCache,
+    const catalogService = OfficialAnkiCatalogService();
+    // Doc 38 P4-A: one long-lived browser (and preview LRU) for the page
+    // so re-searches and row rebuilds hit the cache instead of the FFI.
+    final browser = _browser ??= catalogService.browser(
+      legacyNotes: _legacy.notes,
+      previewCache: _previewCache,
+    );
+    if (browser != null && catalogService.isOfficialSource(widget.importId)) {
+      final result = await browser.searchWithAvailability(
+        importOrSourceId: widget.importId,
+        filter: OfficialBrowserFilter(
+          query: _searchController.text,
+          tag: _tagController.text,
+          deckId: _deckId,
+          flag: _flag,
+          marked: _marked,
+          suspended: _suspended,
+          buried: _buried,
+        ),
+        ownerHint: AnkiEngineKind.official,
       );
-      final source = sources.findById(widget.importId);
-      if (source != null) {
-        final result = await browser.searchWithAvailability(
-          importOrSourceId: widget.importId,
-          filter: OfficialBrowserFilter(
-            query: _searchController.text,
-            tag: _tagController.text,
-            deckId: _deckId,
-            flag: _flag,
-            marked: _marked,
-            suspended: _suspended,
-            buried: _buried,
-          ),
-          ownerHint: AnkiEngineKind.official,
-        );
-        final cards = sources.listCards(widget.importId);
-        final deckIds = cards.map((card) => card.deckId).toSet();
-        final names = <int, String>{for (final id in deckIds) id: '#$id'};
-        final engine = OfficialAnkiCompositionRoot.engine;
-        if (engine != null) {
-          try {
-            for (final deck in await engine.listDeckTree()) {
-              if (deckIds.contains(deck.deckId)) names[deck.deckId] = deck.name;
-            }
-          } catch (suppressed) {
-            logger.w('[AnkiCardBrowserPage] suppressed error: $suppressed');
+      final cards = catalogService.cardsForSource(widget.importId);
+      final deckIds = cards.map((card) => card.deckId).toSet();
+      final names = <int, String>{for (final id in deckIds) id: '#$id'};
+      final engine = OfficialAnkiCompositionRoot.engine;
+      if (engine != null) {
+        try {
+          for (final deck in await engine.listDeckTree()) {
+            if (deckIds.contains(deck.deckId)) names[deck.deckId] = deck.name;
           }
+        } catch (suppressed) {
+          logger.w('[AnkiCardBrowserPage] suppressed error: $suppressed');
         }
-        if (!mounted) return;
-        setState(() {
-          _officialSource = true;
-          _officialRows = result.rows;
-          _officialUnavailableReason = result.available ? null : result.reason;
-          _deckOptions = names;
-          _rows = const [];
-          _loading = false;
-        });
-        return;
       }
+      if (!mounted) return;
+      setState(() {
+        _officialSource = true;
+        _officialRows = result.rows;
+        _officialUnavailableReason = result.available ? null : result.reason;
+        _deckOptions = names;
+        _rows = const [];
+        _loading = false;
+      });
+      return;
     }
     final rows = await _legacy.search(
       widget.importId,

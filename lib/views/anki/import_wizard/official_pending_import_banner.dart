@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:turna/application/anki_official/import/official_anki_import_saga.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
-import 'package:turna/application/anki_official/lifecycle/official_anki_pending_imports.dart';
-import 'package:turna/application/anki_official/official_anki_composition.dart';
-import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
-import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
+import 'package:turna/application/anki_official/official_anki_catalog_service.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/core/theme.dart';
 
@@ -31,10 +27,7 @@ class _OfficialPendingImportBannerState
   }
 
   void _reload() {
-    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
-    _pending = catalog == null
-        ? const <OfficialAnkiPendingImport>[]
-        : const OfficialAnkiPendingImportStore().list(catalog);
+    _pending = const OfficialAnkiCatalogService().pendingImports();
   }
 
   Future<void> _discard(OfficialAnkiPendingImport item) async {
@@ -57,14 +50,9 @@ class _OfficialPendingImportBannerState
       ),
     );
     if (confirmed != true) return;
-    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
-    final paths = OfficialAnkiCompositionRoot.locatorPaths;
-    if (paths == null || catalog == null) return;
-    await OfficialAnkiImportSaga(
-      sources: OfficialAnkiSourceDao(catalog),
-      attempts: OfficialAnkiImportAttemptDao(catalog),
-      paths: paths,
-    ).cancelSource(item.sourceId);
+    final discarded = await const OfficialAnkiCatalogService()
+        .discardPendingImport(item.sourceId);
+    if (!discarded) return;
     if (mounted) setState(_reload);
     widget.onChanged?.call();
   }

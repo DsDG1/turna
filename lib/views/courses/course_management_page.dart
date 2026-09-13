@@ -589,98 +589,14 @@ class _CourseCard extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    gradient: isActive
-                        ? const LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [TurnaTheme.brandTeal, TurnaTheme.brandSky],
-                          )
-                        : null,
-                    color: isActive ? null : accent.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(
-                    entry.isBuiltin
-                        ? Icons.language_rounded
-                        : Icons.style_rounded,
-                    color: isActive ? Colors.white : accent,
-                    size: 24,
-                  ),
+                _CourseCardIcon(
+                  entry: entry,
+                  isActive: isActive,
+                  accent: accent,
                 ),
                 const SizedBox(width: 14),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              entry.displayName,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.w700),
-                            ),
-                          ),
-                          if (isActive) ...[
-                            const SizedBox(width: 8),
-                            _Badge(
-                              label: AppStrings.courseManagementCurrentBadge,
-                              color: TurnaTheme.brandTeal,
-                            ),
-                          ],
-                          if (entry.isBuiltin) ...[
-                            const SizedBox(width: 8),
-                            _Badge(
-                              label: AppStrings.courseManagementDefaultBadge,
-                              color: TurnaTheme.textSecondaryColor(context),
-                            ),
-                          ],
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        entry.isBuiltin
-                            ? AppStrings.courseManagementBuiltinSubtitle
-                            : AppStrings.courseManagementCardCount(
-                                entry.cardCount,
-                              ),
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: TurnaTheme.textSecondaryColor(context),
-                        ),
-                      ),
-                      if (entry.scope is BuiltinCourseScope) ...[
-                        Builder(
-                          builder: (context) {
-                            final code = (entry.scope as BuiltinCourseScope)
-                                .languageCode;
-                            final attribution = ImportedLanguageRegistry
-                                .instance
-                                .licenseAttributionOrNull(code);
-                            if (attribution == null) {
-                              return const SizedBox.shrink();
-                            }
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 2),
-                              child: Text(
-                                attribution,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: TurnaTheme.textSecondaryColor(context),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    ],
-                  ),
+                  child: _CourseCardInfo(entry: entry, isActive: isActive),
                 ),
                 if (isActive)
                   Padding(
@@ -695,54 +611,10 @@ class _CourseCard extends StatelessWidget {
                 // (gated by the opt-in master switch) + remove. The built-in
                 // course with read-aloud off renders no menu at all.
                 if (hasMenuActions)
-                  PopupMenuButton<String>(
-                    tooltip: AppStrings.commonMoreActions,
-                    icon: Icon(
-                      Icons.more_vert_rounded,
-                      color: TurnaTheme.textSecondaryColor(context),
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    onSelected: (value) {
-                      if (value == 'tts') {
-                        onSettings();
-                      } else if (value == 'delete') {
-                        onDelete?.call();
-                      }
-                    },
-                    itemBuilder: (_) => [
-                      if (ttsFeatureEnabled)
-                        PopupMenuItem(
-                          value: 'tts',
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.record_voice_over_rounded,
-                                size: 20,
-                                color: TurnaTheme.brandTeal,
-                              ),
-                              const SizedBox(width: 10),
-                              Text(AppStrings.courseTtsSettingsTitle),
-                            ],
-                          ),
-                        ),
-                      if (onDelete != null)
-                        PopupMenuItem(
-                          value: 'delete',
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.delete_outline_rounded,
-                                size: 20,
-                                color: TurnaTheme.error,
-                              ),
-                              const SizedBox(width: 10),
-                              Text(AppStrings.courseManagementRemoveCourse),
-                            ],
-                          ),
-                        ),
-                    ],
+                  _CourseCardMenu(
+                    ttsFeatureEnabled: ttsFeatureEnabled,
+                    onSettings: onSettings,
+                    onDelete: onDelete,
                   ),
                 ReorderableDragStartListener(
                   index: index,
@@ -762,6 +634,185 @@ class _CourseCard extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Leading course icon: teal gradient when active, muted tint otherwise.
+class _CourseCardIcon extends StatelessWidget {
+  final CourseCatalogEntry entry;
+  final bool isActive;
+  final Color accent;
+
+  const _CourseCardIcon({
+    required this.entry,
+    required this.isActive,
+    required this.accent,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        gradient: isActive
+            ? const LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [TurnaTheme.brandTeal, TurnaTheme.brandSky],
+              )
+            : null,
+        color: isActive ? null : accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Icon(
+        entry.isBuiltin ? Icons.language_rounded : Icons.style_rounded,
+        color: isActive ? Colors.white : accent,
+        size: 24,
+      ),
+    );
+  }
+}
+
+/// Course name + badges + subtitle + optional license attribution.
+class _CourseCardInfo extends StatelessWidget {
+  final CourseCatalogEntry entry;
+  final bool isActive;
+
+  const _CourseCardInfo({required this.entry, required this.isActive});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Flexible(
+              child: Text(
+                entry.displayName,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ),
+            if (isActive) ...[
+              const SizedBox(width: 8),
+              _Badge(
+                label: AppStrings.courseManagementCurrentBadge,
+                color: TurnaTheme.brandTeal,
+              ),
+            ],
+            if (entry.isBuiltin) ...[
+              const SizedBox(width: 8),
+              _Badge(
+                label: AppStrings.courseManagementDefaultBadge,
+                color: TurnaTheme.textSecondaryColor(context),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          entry.isBuiltin
+              ? AppStrings.courseManagementBuiltinSubtitle
+              : AppStrings.courseManagementCardCount(entry.cardCount),
+          style: TextStyle(
+            fontSize: 13,
+            color: TurnaTheme.textSecondaryColor(context),
+          ),
+        ),
+        if (entry.scope is BuiltinCourseScope) ...[
+          Builder(
+            builder: (context) {
+              final code = (entry.scope as BuiltinCourseScope).languageCode;
+              final attribution = ImportedLanguageRegistry.instance
+                  .licenseAttributionOrNull(code);
+              if (attribution == null) {
+                return const SizedBox.shrink();
+              }
+              return Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  attribution,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: TurnaTheme.textSecondaryColor(context),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Overflow menu: TTS settings (opt-in) + remove.
+class _CourseCardMenu extends StatelessWidget {
+  final bool ttsFeatureEnabled;
+  final VoidCallback onSettings;
+  final VoidCallback? onDelete;
+
+  const _CourseCardMenu({
+    required this.ttsFeatureEnabled,
+    required this.onSettings,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      tooltip: AppStrings.commonMoreActions,
+      icon: Icon(
+        Icons.more_vert_rounded,
+        color: TurnaTheme.textSecondaryColor(context),
+      ),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+      ),
+      onSelected: (value) {
+        if (value == 'tts') {
+          onSettings();
+        } else if (value == 'delete') {
+          onDelete?.call();
+        }
+      },
+      itemBuilder: (_) => [
+        if (ttsFeatureEnabled)
+          PopupMenuItem(
+            value: 'tts',
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.record_voice_over_rounded,
+                  size: 20,
+                  color: TurnaTheme.brandTeal,
+                ),
+                const SizedBox(width: 10),
+                Text(AppStrings.courseTtsSettingsTitle),
+              ],
+            ),
+          ),
+        if (onDelete != null)
+          PopupMenuItem(
+            value: 'delete',
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.delete_outline_rounded,
+                  size: 20,
+                  color: TurnaTheme.error,
+                ),
+                const SizedBox(width: 10),
+                Text(AppStrings.courseManagementRemoveCourse),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }

@@ -15,9 +15,7 @@ import 'package:turna/application/anki_official/official_anki_feature_flags.dart
 import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
 import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/anki_official/engine/official_anki_home_due_sync.dart';
-import 'package:turna/application/course_catalog.dart';
 import 'package:turna/application/course_provider.dart';
-import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
@@ -213,71 +211,19 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
 
   Future<void> _reorderDecks(
       BuildContext context, List sections, int oldIndex, int newIndex) async {
-    final provider = context.read<CourseProvider>();
     final reordered = List.of(sections);
     final item = reordered.removeAt(oldIndex);
     reordered.insert(newIndex, item);
-    final deckIds = <String>{
+    await context.read<CourseProvider>().reorderAnkiDecks([
       for (final section in reordered)
         LegacyAnkiIdentifiers.importIdFromSectionId(
             (section as dynamic).id as String),
-    };
-    // Wire-key based reorder: keep builtin first, then the decks in the
-    // user's drag order, then any non-deck courses untouched.
-    final wireForId = <String, String>{};
-    for (final entry in provider.catalogEntries) {
-      final id = entry.legacyImportId ?? entry.officialSourceId;
-      if (id != null) wireForId[id] = entry.wireKey;
-    }
-    final reorderedWires = <String>{
-      for (final id in deckIds)
-        if (wireForId[id] != null) wireForId[id]!,
-    };
-    final order = <String>[];
-    for (final entry in provider.catalogEntries) {
-      if (entry.isBuiltin) {
-        order.add(entry.wireKey);
-      } else if (reorderedWires.contains(entry.wireKey)) {
-        // Deck section order handled below.
-        continue;
-      } else {
-        order.add(entry.wireKey);
-      }
-    }
-    // Splice the dragged deck order right after the builtin course.
-    final builtinWire = provider.catalogEntries
-        .where((e) => e.isBuiltin)
-        .map((e) => e.wireKey)
-        .firstOrNull;
-    final builtinIndex = builtinWire == null ? -1 : order.indexOf(builtinWire);
-    order.insertAll(
-      builtinIndex < 0 ? order.length : builtinIndex + 1,
-      reorderedWires.toList(),
-    );
-    await provider.persistCourseOrder(order);
+    ]);
   }
 
-  Future<void> _pinDeck(BuildContext context, String sectionId) async {
-    final provider = context.read<CourseProvider>();
+  Future<void> _pinDeck(BuildContext context, String sectionId) {
     final importId = LegacyAnkiIdentifiers.importIdFromSectionId(sectionId);
-    final pinnedWire = provider.catalogEntries
-        .where((entry) =>
-            entry.legacyImportId == importId ||
-            entry.officialSourceId == importId)
-        .map((entry) => entry.wireKey)
-        .firstOrNull;
-    if (pinnedWire == null) return;
-    final wires = provider.catalogEntries
-        .map((entry) => entry.wireKey)
-        .where((wire) => wire != pinnedWire)
-        .toList();
-    final builtinWire = provider.catalogEntries
-        .where((e) => e.isBuiltin)
-        .map((e) => e.wireKey)
-        .firstOrNull;
-    final at = builtinWire == null ? -1 : wires.indexOf(builtinWire);
-    wires.insert(at < 0 ? 0 : at + 1, pinnedWire);
-    await provider.persistCourseOrder(wires);
+    return context.read<CourseProvider>().pinAnkiDeck(importId);
   }
 
   Future<void> _editDeckOptions(
@@ -378,27 +324,8 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
 
     final importId = LegacyAnkiIdentifiers.importIdFromSectionId(sectionId);
     if (importId.isEmpty) return;
-    var uninstallCompleted = false;
-    try {
-      uninstallCompleted = await getIt<AnkiDeckManager>().uninstall(importId);
-    } catch (e) {
-      logger.w('[AnkiReview] uninstall failed for $importId: $e');
-    }
-    if (!context.mounted) return;
-    final courseProvider = context.read<CourseProvider>();
-    final removedWasActive = courseProvider.catalogEntries.any((entry) =>
-        (entry.legacyImportId == importId ||
-            entry.officialSourceId == importId) &&
-        entry.wireKey == courseProvider.courseScope);
-    if (removedWasActive) {
-      // The active scope pointed at the removed course — fall back to the
-      // built-in course (setScope reloads the tree itself).
-      await courseProvider.setScope(
-        CourseCatalog.fallbackBuiltin(courseProvider.catalogEntries),
-      );
-    } else {
-      await courseProvider.reloadCourse();
-    }
+    final uninstallCompleted =
+        await context.read<CourseProvider>().uninstallAnkiDeck(importId);
     if (!context.mounted) return;
     // 与课程管理页同语义：false/抛错 = 本次未删成（提交前失败），
     // 「已移除」只在删除确实生效时出现。
@@ -533,44 +460,7 @@ class _AnkiDueHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (introducedDue <= 0 && unintroducedNew <= 0) {
-      return SoftCard(
-        key: const Key('anki-review-hub-caught-up'),
-        accentColor: TurnaTheme.brandTeal,
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Row(
-            children: [
-              AccentIconChip(
-                icon: Icons.check_circle_rounded,
-                color: TurnaTheme.accentOnCard(context, TurnaTheme.brandTeal),
-                size: 24,
-                padding: 10,
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      AppStrings.ankiHubCaughtUpTitle,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      AppStrings.ankiHubCaughtUpMessage,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: TurnaTheme.textSecondaryColor(context),
-                          ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
+      return const _AnkiCaughtUpCard();
     }
 
     const radius = BorderRadius.all(Radius.circular(TurnaTheme.radiusXLarge));
@@ -604,110 +494,177 @@ class _AnkiDueHero extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.16),
-                          borderRadius: BorderRadius.circular(15),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.24),
-                          ),
-                        ),
-                        child: const Icon(
-                          Icons.style_rounded,
-                          color: Colors.white,
-                          size: 28,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              AppStrings.ankiReviewScreenTitle,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleLarge
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white,
-                                    letterSpacing: -0.3,
-                                  ),
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              AppStrings.ankiFormalDueBreakdown(
-                                introducedDue: introducedDue,
-                                unintroducedNew: unintroducedNew,
-                              ),
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                    color: Colors.white.withValues(alpha: 0.85),
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            '$introducedDue',
-                            style: Theme.of(context)
-                                .textTheme
-                                .headlineMedium
-                                ?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.white,
-                                  height: 1.1,
-                                ),
-                          ),
-                          Text(
-                            AppStrings.ankiHubDueCountLabel,
-                            style: Theme.of(context)
-                                .textTheme
-                                .labelSmall
-                                ?.copyWith(
-                                  color: Colors.white.withValues(alpha: 0.75),
-                                ),
-                          ),
-                        ],
-                      ),
-                    ],
+                  _AnkiDueHeroHeader(
+                    introducedDue: introducedDue,
+                    unintroducedNew: unintroducedNew,
                   ),
                   if (onReviewAll != null) ...[
                     const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 44,
-                      child: FilledButton.icon(
-                        onPressed: onReviewAll,
-                        style: FilledButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: TurnaTheme.brandTeal,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        icon: const Icon(Icons.play_arrow_rounded),
-                        label: Text(
-                          AppStrings.ankiReviewAll,
-                          style: const TextStyle(fontWeight: FontWeight.w800),
-                        ),
-                      ),
-                    ),
+                    _AnkiReviewAllButton(onPressed: onReviewAll!),
                   ],
                 ],
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Caught-up hero shown when nothing is introduced-due or new.
+class _AnkiCaughtUpCard extends StatelessWidget {
+  const _AnkiCaughtUpCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return SoftCard(
+      key: const Key('anki-review-hub-caught-up'),
+      accentColor: TurnaTheme.brandTeal,
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Row(
+          children: [
+            AccentIconChip(
+              icon: Icons.check_circle_rounded,
+              color: TurnaTheme.accentOnCard(context, TurnaTheme.brandTeal),
+              size: 24,
+              padding: 10,
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    AppStrings.ankiHubCaughtUpTitle,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    AppStrings.ankiHubCaughtUpMessage,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: TurnaTheme.textSecondaryColor(context),
+                        ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Header row of the due hero: deck icon, screen title + due breakdown,
+/// and the big introduced-due counter on the right.
+class _AnkiDueHeroHeader extends StatelessWidget {
+  const _AnkiDueHeroHeader({
+    required this.introducedDue,
+    required this.unintroducedNew,
+  });
+
+  final int introducedDue;
+  final int unintroducedNew;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.16),
+            borderRadius: BorderRadius.circular(15),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.24),
+            ),
+          ),
+          child: const Icon(
+            Icons.style_rounded,
+            color: Colors.white,
+            size: 28,
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                AppStrings.ankiReviewScreenTitle,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                      letterSpacing: -0.3,
+                    ),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                AppStrings.ankiFormalDueBreakdown(
+                  introducedDue: introducedDue,
+                  unintroducedNew: unintroducedNew,
+                ),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.85),
+                    ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 8),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              '$introducedDue',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
+                    height: 1.1,
+                  ),
+            ),
+            Text(
+              AppStrings.ankiHubDueCountLabel,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.75),
+                  ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// Full-width "复习全部" CTA under the due-hero header.
+class _AnkiReviewAllButton extends StatelessWidget {
+  const _AnkiReviewAllButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 44,
+      child: FilledButton.icon(
+        onPressed: onPressed,
+        style: FilledButton.styleFrom(
+          backgroundColor: Colors.white,
+          foregroundColor: TurnaTheme.brandTeal,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+        icon: const Icon(Icons.play_arrow_rounded),
+        label: Text(
+          AppStrings.ankiReviewAll,
+          style: const TextStyle(fontWeight: FontWeight.w800),
         ),
       ),
     );

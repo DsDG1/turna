@@ -32,8 +32,46 @@ List<String> _scanPrefix(List<String> roots, String forbiddenPrefix) {
   return violations;
 }
 
+/// views files that import an official-anki `*_dao.dart` or instantiate a
+/// `*Dao(` — the catalog facade ([OfficialAnkiCatalogService]) is the only
+/// sanctioned path (P1-2 收口; the DAO classes live under
+/// application/anki_official/storage + lifecycle where the import scan
+/// cannot reach them by prefix alone).
+List<String> _scanOfficialAnkiDaoUsage() {
+  final violations = <String>[];
+  final daoCtor = RegExp(r'\b[A-Za-z_]\w*Dao\s*\(');
+  final dir = Directory('lib/views');
+  for (final entity in dir.listSync(recursive: true)) {
+    if (entity is! File || !entity.path.endsWith('.dart')) continue;
+    if (_isGenerated(entity)) continue;
+    final path = entity.path.replaceAll('\\', '/');
+    final content = entity.readAsStringSync();
+    for (final line in content.split('\n')) {
+      if (line.startsWith('import ') &&
+          line.contains('package:turna/application/anki_official/') &&
+          line.contains('_dao.dart')) {
+        violations.add('$path imports an official-anki dao file: '
+            '${line.trim()}');
+      }
+    }
+    for (final match in daoCtor.allMatches(content)) {
+      violations.add('$path instantiates a DAO: ${match.group(0)}');
+    }
+  }
+  return violations;
+}
+
 void main() {
   group('layering guard', () {
+    test('views must not touch official-anki DAOs directly', () {
+      expect(
+        _scanOfficialAnkiDaoUsage(),
+        isEmpty,
+        reason: 'views → official-anki DAO shortcut; consume '
+            'OfficialAnkiCatalogService (application facade) instead',
+      );
+    });
+
     test('views must not import the data layer', () {
       // Views reach data only through application services / repository
       // interfaces. Generated files are exempt (they import what they wrap).

@@ -6,10 +6,8 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
-import 'package:turna/application/anki_official/official_anki_composition.dart';
+import 'package:turna/application/anki_official/official_anki_catalog_service.dart';
 import 'package:turna/application/anki_official/stats/official_anki_source_aware_stats.dart';
-import 'package:turna/application/anki_official/storage/official_anki_database.dart';
-import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/memory_curve_provider.dart';
 import 'package:turna/views/review/components/retention_curve_chart.dart';
 import 'package:turna/core/theme.dart';
@@ -33,29 +31,17 @@ class _AnkiDeckStatsPageState extends State<AnkiDeckStatsPage> {
   // crash-hunt PR1: the source lookup is a sync sqlite read and used to run
   // inside build(); the stats future was also re-created per rebuild. Both
   // are resolved once per page lifetime now (PR2 makes the catalog async).
-  late final OfficialAnkiDatabase? _officialCatalog = _resolveCatalog();
+  // A non-null future means importId is an Official source (catalog service
+  // resolves catalog + source probe in one call).
   late final Future<OfficialAnkiSourceAwareStatsSnapshot>? _officialStats =
-      _officialCatalog == null
-          ? null
-          : OfficialAnkiSourceAwareStats(
-              sources: OfficialAnkiSourceDao(_officialCatalog),
-              engine: OfficialAnkiCompositionRoot.engine,
-            ).forOfficialSource(widget.importId);
+      const OfficialAnkiCatalogService().statsForSource(widget.importId);
   Future<MemoryCurveSnapshot>? _legacyStats;
-
-  OfficialAnkiDatabase? _resolveCatalog() {
-    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
-    if (catalog == null) return null;
-    return OfficialAnkiSourceDao(catalog).findById(widget.importId) != null
-        ? catalog
-        : null;
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('${widget.title} · 统计')),
-      body: _officialCatalog != null
+      body: _officialStats != null
           ? FutureBuilder(
               future: _officialStats,
               builder: (context, snapshot) {

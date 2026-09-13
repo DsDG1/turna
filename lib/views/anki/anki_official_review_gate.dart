@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_session.dart';
 
 import 'package:turna/application/anki_official/engine/official_anki_native_availability.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/migration/official_anki_review_gate_decision.dart';
+import 'package:turna/application/anki_official/official_anki_catalog_service.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/review/official_anki_routed_source.dart';
 
@@ -14,7 +14,6 @@ import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_error_view.dart';
-import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 
 /// Capability gate for official-routed sources. Fail-closed if cutover says
 /// official but the collection is not ready. Never opens a different-semantics
@@ -70,30 +69,20 @@ class AnkiOfficialReviewGate {
         ? catalogOverride!(paths.catalogFile.path)
         : OfficialAnkiDatabase.file(paths.catalogFile.path);
     try {
-      final sources = OfficialAnkiSourceDao(catalog);
-      final source = sources.findById(importId);
-      final isOfficial = source != null && source.state == 'active';
-      final routed =
-          isOfficial ? AnkiEngineKind.official : AnkiEngineKind.legacy;
-      final cards = isOfficial
-          ? sources.listCards(source.sourceId)
-          : const <OfficialAnkiCardDescriptor>[];
-      final target = isOfficial && cards.isNotEmpty
-          ? OfficialAnkiRoutedSource(
-              importId: importId,
-              sourceId: source.sourceId,
-              deckId: cards.first.deckId,
-              cardIds: {for (final c in cards) c.cardId},
-            )
-          : null;
+      // Routing rule lives in the catalog service: catalog presence +
+      // source state → engine; owned cards → review target.
+      final route = const OfficialAnkiCatalogService().resolveReviewRoute(
+        catalog: catalog,
+        importId: importId,
+      );
       final canOpen = routerCanOpenOfficialReviewOverride != null
           ? routerCanOpenOfficialReviewOverride!(null)
           : OfficialAnkiNativeAvailability.current;
       final decision = decideOfficialReviewGate(
         cutoverEnabled: cutoverEnabled,
-        routedEngine: routed,
+        routedEngine: route.routedEngine,
         catalogPresent: true,
-        hasReviewTarget: target != null,
+        hasReviewTarget: route.target != null,
         canOpenOfficialReview: canOpen,
       );
       if (decision == OfficialAnkiReviewGateDecision.useLegacy) {
@@ -124,7 +113,7 @@ class AnkiOfficialReviewGate {
           null,
           paths,
           session,
-          target!,
+          route.target!,
         );
         // Tests may still intercept; production stays on the shared session.
         return false;

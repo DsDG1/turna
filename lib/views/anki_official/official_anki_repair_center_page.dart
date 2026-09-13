@@ -4,16 +4,12 @@ import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:turna/application/anki_official/anki_deck_manager.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
-import 'package:turna/application/anki_official/import/official_anki_import_saga.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
-import 'package:turna/application/anki_official/lifecycle/official_anki_maintenance.dart';
-import 'package:turna/application/anki_official/lifecycle/official_anki_pending_imports.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_storage_audit.dart';
+import 'package:turna/application/anki_official/official_anki_catalog_service.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
-import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
-import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_retire_service.dart';
 import 'package:turna/application/maintenance/database_doctor_service.dart';
 import 'package:turna/application/maintenance/storage_inventory_service.dart';
@@ -95,20 +91,14 @@ class _OfficialAnkiRepairCenterPageState
   }
 
   void _reloadCatalogSnapshot() {
-    final catalog = _catalog;
-    if (catalog == null) return;
-    final profileId = _paths?.profileId;
-    _pending = const OfficialAnkiPendingImportStore().list(catalog);
-    _sources = profileId == null
-        ? const <OfficialAnkiSourceRow>[]
-        : OfficialAnkiSourceDao(catalog).listSources(profileId);
-    _jobs = profileId == null
-        ? const <Map<String, Object?>>[]
-        : OfficialAnkiMaintenanceJobDao(catalog).pending(profileId: profileId);
-    _failedJobs = profileId == null
-        ? const <Map<String, Object?>>[]
-        : OfficialAnkiMaintenanceJobDao(catalog)
-            .recentFailed(profileId: profileId);
+    final snapshot = const OfficialAnkiCatalogService().repairSnapshot(
+      catalog: _catalog,
+      profileId: _paths?.profileId,
+    );
+    _pending = snapshot.pendingImports;
+    _sources = snapshot.sources;
+    _jobs = snapshot.pendingJobs;
+    _failedJobs = snapshot.failedJobs;
   }
 
   Future<void> _loadDoctorReport() async {
@@ -758,25 +748,12 @@ class _OfficialAnkiRepairCenterPageState
     if (catalog == null || paths == null) return;
     setState(() => _busy = true);
     try {
-      OfficialAnkiMaintenanceJobDao(catalog).retryJob(
-        jobId: jobId,
-        nowMillis: DateTime.now().millisecondsSinceEpoch,
-      );
-      var engine = _engine;
-      if (engine == null) {
-        try {
-          await OfficialAnkiCompositionRoot.requireImporter();
-          engine = OfficialAnkiCompositionRoot.engine;
-        } catch (e) {
-          // Availability probe: engine may be legitimately absent.
-          logger.d('RepairCenter: engine import probe failed: $e');
-        }
-      }
-      await OfficialAnkiMaintenanceRunner(
+      await const OfficialAnkiCatalogService().retryAndRunMaintenanceJob(
+        jobId,
         catalog: catalog,
         paths: paths,
-        engine: engine,
-      ).runPending(profileId: paths.profileId);
+        engine: _engine,
+      );
       if (mounted) _snack('维护任务已执行');
     } finally {
       if (mounted) {
@@ -804,18 +781,17 @@ class _OfficialAnkiRepairCenterPageState
   }
 
   Future<void> _deleteJob(String jobId) async {
-    final catalog = _catalog;
-    if (catalog == null) return;
-    OfficialAnkiMaintenanceJobDao(catalog).deleteJob(jobId: jobId);
+    const OfficialAnkiCatalogService()
+        .deleteMaintenanceJob(jobId, catalog: _catalog);
     _reloadAndSetState();
   }
 
   Future<void> _clearFailedJobs() async {
     final catalog = _catalog;
-    final paths = _paths;
-    if (catalog == null || paths == null) return;
-    final count = OfficialAnkiMaintenanceJobDao(catalog)
-        .clearFailed(profileId: paths.profileId);
+    final profileId = _paths?.profileId;
+    if (catalog == null || profileId == null) return;
+    final count = const OfficialAnkiCatalogService()
+        .clearFailedMaintenanceJobs(profileId, catalog: catalog);
     _snack('已清空 $count 条失败记录');
     _reloadAndSetState();
   }
@@ -824,11 +800,9 @@ class _OfficialAnkiRepairCenterPageState
     setState(() => _busy = true);
     try {
       final courseRes = await _doctor.checkCourseIntegrity();
-      var ankiRes = '未启用';
-      if (_catalog != null) {
-        final row = _catalog!.handle.select('PRAGMA integrity_check').first;
-        ankiRes = row.values.first.toString();
-      }
+      final ankiRes = const OfficialAnkiCatalogService()
+              .catalogIntegrityCheck(catalog: _catalog) ??
+          '未启用';
       if (mounted) {
         showDialog<void>(
           context: context,
@@ -899,11 +873,11 @@ class _OfficialAnkiRepairCenterPageState
     }
     setState(() => _busy = true);
     try {
-      await OfficialAnkiImportSaga(
-        sources: OfficialAnkiSourceDao(catalog),
-        attempts: OfficialAnkiImportAttemptDao(catalog),
+      await const OfficialAnkiCatalogService().discardPendingImport(
+        sourceId,
+        catalog: catalog,
         paths: paths,
-      ).cancelSource(sourceId);
+      );
     } finally {
       if (mounted) {
         setState(() => _busy = false);

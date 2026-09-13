@@ -8,6 +8,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
+import 'package:turna/application/anki_official/anki_deck_manager.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_course_read.dart';
@@ -196,6 +197,86 @@ class CourseProvider extends ChangeNotifier {
       if (seen.add(entry.wireKey)) ordered.add(entry);
     }
     _catalogEntries = List.unmodifiable(ordered);
+  }
+
+  /// Persist the Anki review-hub deck order: the builtin course stays
+  /// first, decks land right after it in the user's drag order, and
+  /// non-deck courses keep their relative order. [reorderedImportIds] are
+  /// the deck import/source ids in their new tile order.
+  Future<void> reorderAnkiDecks(List<String> reorderedImportIds) async {
+    final wireForId = <String, String>{};
+    for (final entry in _catalogEntries) {
+      final id = entry.legacyImportId ?? entry.officialSourceId;
+      if (id != null) wireForId[id] = entry.wireKey;
+    }
+    final reorderedWires = <String>{
+      for (final id in reorderedImportIds)
+        if (wireForId[id] != null) wireForId[id]!,
+    };
+    final order = <String>[];
+    for (final entry in _catalogEntries) {
+      if (!entry.isBuiltin && reorderedWires.contains(entry.wireKey)) {
+        continue;
+      }
+      order.add(entry.wireKey);
+    }
+    final builtinWire = _catalogEntries
+        .where((e) => e.isBuiltin)
+        .map((e) => e.wireKey)
+        .firstOrNull;
+    final builtinIndex = builtinWire == null ? -1 : order.indexOf(builtinWire);
+    order.insertAll(
+      builtinIndex < 0 ? order.length : builtinIndex + 1,
+      reorderedWires.toList(),
+    );
+    await persistCourseOrder(order);
+  }
+
+  /// Pin a deck directly after the builtin course in the persisted order.
+  Future<void> pinAnkiDeck(String importId) async {
+    final pinnedWire = _catalogEntries
+        .where((entry) =>
+            entry.legacyImportId == importId ||
+            entry.officialSourceId == importId)
+        .map((entry) => entry.wireKey)
+        .firstOrNull;
+    if (pinnedWire == null) return;
+    final wires = _catalogEntries
+        .map((entry) => entry.wireKey)
+        .where((wire) => wire != pinnedWire)
+        .toList();
+    final builtinWire = _catalogEntries
+        .where((e) => e.isBuiltin)
+        .map((e) => e.wireKey)
+        .firstOrNull;
+    final at = builtinWire == null ? -1 : wires.indexOf(builtinWire);
+    wires.insert(at < 0 ? 0 : at + 1, pinnedWire);
+    await persistCourseOrder(wires);
+  }
+
+  /// Uninstall an imported deck and reconcile the active scope: when the
+  /// removed deck was the active course the scope falls back to builtin
+  /// ([setScope] reloads the tree itself), otherwise the catalog/tree
+  /// refreshes in place. Returns whether the uninstall actually completed
+  /// so the caller can word the snack — false/exception mean nothing was
+  /// deleted this attempt (same contract as the course-management page).
+  Future<bool> uninstallAnkiDeck(String importId) async {
+    var completed = false;
+    try {
+      completed = await getIt<AnkiDeckManager>().uninstall(importId);
+    } catch (e) {
+      logger.w('[CourseProvider] uninstall failed for $importId: $e');
+    }
+    final removedWasActive = _catalogEntries.any((entry) =>
+        (entry.legacyImportId == importId ||
+            entry.officialSourceId == importId) &&
+        entry.wireKey == _scope.wireKey);
+    if (removedWasActive) {
+      await setScope(CourseCatalog.fallbackBuiltin(_catalogEntries));
+    } else {
+      await reloadCourse();
+    }
+    return completed;
   }
 
   /// Whether [load] has completed at least once.

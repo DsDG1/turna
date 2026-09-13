@@ -8,8 +8,8 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/anki_official/anki_deck_manager.dart';
+import 'package:turna/application/anki_official/official_anki_catalog_service.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
-import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/course_catalog.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/diagnostics/cache_diagnostics_registry.dart';
@@ -252,22 +252,6 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
     await _rescan();
   }
 
-  static const _importInProgressStates = {
-    'staging',
-    'selected',
-    'preparing',
-    'backing_up',
-    'importing_official',
-    'indexing_notes',
-    'indexing_cards',
-    'preview_ready',
-    'cancelled',
-    'failed_before_import',
-    'cancel_requested',
-    'rollback_pending',
-    'rolled_back',
-  };
-
   Future<bool> _uninstall(String id) async {
     final injected = widget.uninstall;
     if (injected != null) return injected(id);
@@ -283,18 +267,15 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
       // Availability probe: without a catalog the list simply stays empty.
       logger.d('StorageDiagnostics: readOnly locator init failed: $e');
     }
-    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
-    if (catalog == null) return const [];
     return [
-      for (final source in OfficialAnkiSourceDao(catalog)
-          .listSources(CourseCatalog.officialProfileId))
-        if (!_importInProgressStates.contains(source.state))
-          StorageDeletableItem(
-            id: source.sourceId,
-            displayName: source.displayName,
-            subtitle: AppStrings.ankiRepairSourceState(source.state),
-            alreadyRetiring: source.state == 'retiring',
-          ),
+      for (final source in const OfficialAnkiCatalogService()
+          .deletableSources(CourseCatalog.officialProfileId))
+        StorageDeletableItem(
+          id: source.sourceId,
+          displayName: source.displayName,
+          subtitle: AppStrings.ankiRepairSourceState(source.state),
+          alreadyRetiring: source.state == 'retiring',
+        ),
     ];
   }
 
