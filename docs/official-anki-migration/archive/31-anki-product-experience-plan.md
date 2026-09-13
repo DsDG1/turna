@@ -2,11 +2,11 @@
 
 > 文档代号：P-ANKI-UX  
 > 日期：2026-08-20  
-> 状态：**历史规格；勿按本文开施工波次。** OHOS Legacy 作废（[ADR 0041](../decisions/0041-ohos-product-eol.md)）；Official-first 是生产 bundle（`OfficialAnkiFeatureFlags.productionAndroid`），不是独立 dart-define。现行入口：[34](./34-official-anki-production-cutover-and-ohos-retirement-plan.md)（2026-08-24 接管）。  
-> 前置：ADR [`0036`](../decisions/0036-official-anki-core-migration.md)、[`30`](./30-course-like-card-experience-plan.md)、[`29`](./archive/29-p5e-wave1-production-decoupling-report.md)（已归档）  
+> 状态：**历史规格；勿按本文开施工波次。** OHOS Legacy 作废（[ADR 0041](../../decisions/0041-ohos-product-eol.md)）；Official-first 是生产 bundle（`OfficialAnkiFeatureFlags.productionAndroid`），不是独立 dart-define。现行入口：[34](../34-official-anki-production-cutover-and-ohos-retirement-plan.md)（2026-08-24 接管）。  
+> 前置：ADR [`0036`](../../decisions/0036-official-anki-core-migration.md)、[`30`](../30-course-like-card-experience-plan.md)、[`29`](./29-p5e-wave1-production-decoupling-report.md)（已归档）  
 > 目标：先让 Android 生产导入稳定成功；再把路径收成「导入能看懂、复习像语言课、高级页不是实验室」。账本仍是官方 Collection / FSRS。
 
-课化判定、kindsFor、练习链、课程写回的细规格以 [`30`](./30-course-like-card-experience-plan.md) 为准（Host / Unit 已过，生产默认未翻）。本文件管：**导入硬阻断、默认打开什么、用户看见什么、实验室入口怎么收**。
+课化判定、kindsFor、练习链、课程写回的细规格以 [`30`](../30-course-like-card-experience-plan.md) 为准（Host / Unit 已过，生产默认未翻）。本文件管：**导入硬阻断、默认打开什么、用户看见什么、实验室入口怎么收**。
 
 每一波可单独开 PR、单独测试、单独回滚。
 
@@ -174,7 +174,7 @@ Step 4  完成：张数 + 去复习 + 留在这里
 
 ## 6. W1 — 正式复习默认课化
 
-到期复习不再默认 `Official Review` WebView。简单卡 Flutter；fidelity 才嵌官方 Reviewer。细规格 [`30` §8–§9](./30-course-like-card-experience-plan.md)。
+到期复习不再默认 `Official Review` WebView。简单卡 Flutter；fidelity 才嵌官方 Reviewer。细规格 [`30` §8–§9](../30-course-like-card-experience-plan.md)。
 
 本波最小：
 
@@ -214,7 +214,7 @@ AGPL 已在 About 注册，不靠 Spike 页。
 
 Android 默认翻 `TURNA_OFFICIAL_ANKI_PROJECTION` 与 `COURSE_ENTRY` 为 true。Basic 高置信自动确认。保真卡 `canonicalLink`，导入不失败。OHOS 保持关。
 
-细规格 [`30` B–D](./30-course-like-card-experience-plan.md)。W3 主要是翻默认、导入完成后挂树、映射页可发现（完成页或中文来源管理），不再只藏 debug 内部页。
+细规格 [`30` B–D](../30-course-like-card-experience-plan.md)。W3 主要是翻默认、导入完成后挂树、映射页可发现（完成页或中文来源管理），不再只藏 debug 内部页。
 
 回滚用 flag，**不降** `algorithmVersion`。关 `COURSE_ENTRY` 仍能从 Anki 复习入口复习原卡。
 
@@ -236,7 +236,7 @@ Android 默认翻 `TURNA_OFFICIAL_ANKI_PROJECTION` 与 `COURSE_ENTRY` 为 true�
 
 **W6** 在 W1 之后：`PracticeReviewSurface` 改 `lookupRenderer()`（`AnkiCardRenderer` / MCQ / FillBlank / ListenAndPick）。本波才接 TTS、减动画。复杂卡交叉淡入，不旋转 WebView。
 
-**W5** 对齐 [`30` G](./30-course-like-card-experience-plan.md)：`COURSE_GRADES_SCHEDULER` 默认 false。介绍不写分；每 cardId 一课只写一次；客观错 → Again，全对 → Good。PR 前必须证明单卡 `answer` 是否必须在 due 队列里。官方 wordId 不得进自研 `srs_states`。未完成 W1/W3 不做。
+**W5** 对齐 [`30` G](../30-course-like-card-experience-plan.md)：`COURSE_GRADES_SCHEDULER` 默认 false。介绍不写分；每 cardId 一课只写一次；客观错 → Again，全对 → Good。PR 前必须证明单卡 `answer` 是否必须在 due 队列里。官方 wordId 不得进自研 `srs_states`。未完成 W1/W3 不做。
 
 ---
 
