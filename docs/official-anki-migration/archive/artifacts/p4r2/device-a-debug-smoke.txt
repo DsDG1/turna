@@ -1,0 +1,52 @@
+Device A 1-card formal smoke (NOT 100-card / NOT release-internal)
+
+date: 2026-08-18
+device: 3B15AG00FPB00000 PLG110 Android 16 API 36 arm64-v8a
+apk: build/app/outputs/flutter-apk/app-debug.apk
+apk sha256: a0b601c6b9a5b7af920c7173042fd4e13131f06a2633ed8d81d84bfa4a92f2dc
+built/jniLibs so: 207ea17e6e60d54a1465214fe85d7718260f4ef94bad64a8da8df93ce96b0950
+stripped/apkSo/deviceSo: 824def69076389a505787ad52285f1bee4fbe056b4c8f6e541d3979217e75ad5
+hash compare: built==jniLibs, apkSo==strip(jniLibs)==deviceSo, deviceApk==apk
+dart-defines: ENGINE/IMPORT/CATALOG/RUNTIME/PLATFORM/RENDERER/SCHEDULER/DIAGNOSTICS/REVIEWER_DIAGNOSTICS=true
+collection: wiped files/official_anki then reimported 08-scheduling.apkg
+
+ENGINE_INFO (from OfficialAnkiInternalPage UI, not hand-typed hashes):
+  flags.import=true allows=true probe=ready abi=1
+  backend=967aa0d578fc75181e292e95326f9b58698da25c
+  mode=worker renderer=true scheduler=true
+  import status=active cards=1 source=src-cac0969d3db0426fba599e742fec5766
+
+steps:
+1. Settings → 高级 → Official Anki 内部导入
+2. 导入设备测试牌组 /data/local/tmp/turna-08-scheduling.apkg
+3. 正式复习
+
+observed:
+- first present: Official Review only (no 官方卡片预览 / no 显示答案)
+  recoverable RENDER_SUPERSEDED + Retry; Again/Hard/Good/Easy ABSENT
+- tap 重试当前面: question chrome only, single Show Answer, no ratings
+- tap Show Answer: sched-front + sched-back visible; Again <1m / Hard <6m / Good <10m / Easy 3d
+- no second flip button
+- Bury card / Bury siblings / Suspend card visible
+- tap Good: queue refreshed to question (learning still due); Show Answer only
+- tap Undo: still Official Review / Show Answer / sched-front
+
+screenshots:
+  device-a-review-question.png   (first present RENDER_SUPERSEDED)
+  device-a-review-after-retry.png
+  device-a-review-answer.png     (ratings after ACK)
+  device-a-after-good.png
+
+later (same day):
+- Device A debug 100-card: PASS — see device-a-debug-100.txt (rated=100, superseded=0)
+- Device A internal release: entry opens, first present blank — see device-a-release-smoke.txt
+  superseded by device-a-release-smoke.txt (first-present + Good PASS)
+- Device B: out of scope
+
+Decision impact:
+  Device A 1-card debug formal smoke: PASS
+  Device A debug 100-card: PASS
+  Device A internal release 100-card: pending ProGuard keep + retest
+  Device B: not a gate
+  P4 PRODUCTION: NO-GO until Device A release first-present works
+  P5 CUTOVER: NO-GO

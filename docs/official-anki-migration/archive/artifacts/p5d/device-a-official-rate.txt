@@ -1,0 +1,71 @@
+P5-D DEVICE A FIXTURE OFFICIAL RATING
+date: 2026-08-19
+device_serial: 3B15AG00FPB00000
+device_model: PLG110
+git_head_at_start: e8f7ccddaae9200702bb9100db485a70fd21d5be
+apk: build/app/outputs/flutter-apk/app-debug.apk
+apk_sha256: e9c7aaf05e0738ae4b756794b810d490545135fe802482385b40d7a0c2eb5e63
+device_apk_sha256: e9c7aaf05e0738ae4b756794b810d490545135fe802482385b40d7a0c2eb5e63
+jniLibs_so_sha256: db40e138d8c244d9662620dc49d4634428519d94f505c72483e4949176ebdc2b
+install: adb install -r (no wipe)
+dart-defines: ENGINE/IMPORT/CATALOG/RUNTIME/PLATFORM/RENDERER/SCHEDULER/PROJECTION/DIAGNOSTICS/REVIEWER_DIAGNOSTICS/MIGRATION_PILOT/CUTOVER=true
+production defaults: still false
+
+BASELINE (force-stop, WAL copied)
+- collection cards=185 notes=184 revlog=160
+- fixture cid 1375933503610 revlog=2 (ease=3,3) type=2 queue=2 due=1 ivl=1 reps=2
+- user src-bc0f1dab... cards=181
+- fixture src-fe0822... cards=1
+- srs_states=11 review_events=7 (sample msyrtvnx only)
+
+FIRST ATTEMPT (APK 689aa841…, no native fallback)
+- Play Hub → Anki 复习 → p5c-fixture hello (not 示例, not 全部复习)
+- Official Review hello → Show Answer → hello/world + Good 4d
+- tap Good → official_anki.answer_failed
+- revlog still 160 / fixture still 2 (transaction rolled back)
+- cause: Default did=1 also has leftover NEW cards; allowedCardIds skipped them;
+  native answer_card used from_queue=true; Anki pop_entry requires main-queue head
+
+FIX (host)
+- answer_card: if from_queue=true fails with no revlog increment, retry from_queue=false
+  then Collection.clear_study_queues()
+- rust test answer_non_head_card_retries_off_queue PASS (04-cloze-multi-ord 2nd card)
+- queue_good_undo_reopen_and_stale_token still PASS
+- rebuilt arm64 libturna_anki.so + CUTOVER debug APK; install -r
+
+SECOND ATTEMPT (APK e9c7aaf0…)
+- same nav: p5c-fixture hello only
+- Show Answer → Good
+- Official Review Congrats (new=true review=false)
+- screenshots:
+  device-a-official-review-hello.png
+  device-a-official-review-answer.png
+  device-a-official-review-after-good.png
+
+AFTER
+- collection cards=185 notes=184 revlog=161
+- fixture cid 1375933503610 revlog=3
+  new row id=1787124302422 ease=3 ivl=4 lastIvl=1 type=1 time=33468
+- card reps=3 ivl=4 due=5 type=2 queue=2
+- user src-bc0f cards=181 (unchanged)
+- srs_states 11==11 equal; review_events 7==7 equal; no fixture word_id
+- collection.anki2 still present (no wipe)
+- leftover Default NEW cards not graded
+
+WHAT THIS PROVES
+- production AnkiReviewRoute → Official Review can Show Answer + Good on fixture
+- official revlog +1 on fixture cid only
+- user deck 181 untouched
+- no Turna SRS double-write
+
+WHAT THIS DOES NOT PROVE
+- Official Anki due countsForDeckToday > 0 (Play Hub still showed 0)
+- user-deck cutover / allowlist
+- default-build official routing
+- P5D-05 gray / P5-E / P6
+
+CONCLUSION
+DEVICE A FIXTURE OFFICIAL RATING: PASS
+P5 USER CUTOVER: NO-GO
+P5-D GO / PRODUCTION GO: NO
+P5-E / P6: HOLD

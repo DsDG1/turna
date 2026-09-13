@@ -1,0 +1,19 @@
+{
+  "previewCanonicalLink": {
+    "officialSchedulerAnswers": 0,
+    "test": "canonicalLink LessonViewModel submits once, advances, scheduler writes 0"
+  },
+  "derivedExercise": {
+    "officialSchedulerAnswers": 0,
+    "officialSchedulerWritesCounterOnProjection": 0
+  },
+  "formalReviewFake": {
+    "officialSchedulerAnswers": 1,
+    "turnaSrsWritesFromOfficialPath": 0,
+    "legacyCallsFromOfficialPath": 0,
+    "courseProjectionWritesDuringReview": 0,
+    "test": "session answers once / undo redo bury ownership counters"
+  },
+  "productionFlag": false,
+  "note": "Runtime counters on Fake/FFI/session plus LessonViewModel preview path. Device Collection before/after diffs UNAVAILABLE."
+}

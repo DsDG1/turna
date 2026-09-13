@@ -1,0 +1,141 @@
+=== date ===
+2026-08-17T18:31:27+08:00
+=== cwd ===
+/home/whwen/documents/reso/Varnamalaplus/Varnamalaplus
+=== branch ===
+spike/official-anki-core-android
+=== HEAD ===
+cc1484b30739bceeba07fe1a3be98b8b0e11018d
+=== submodule ===
+ 967aa0d578fc75181e292e95326f9b58698da25c native/turna_anki_core/anki (25.09.2-370-g967aa0d57)
+=== status --short ===
+ M android/app/build.gradle
+ M android/app/src/main/kotlin/me/dsdogs/turna/MainActivity.kt
+ M docs/official-anki-migration/00-overall-migration-plan.md
+ M docs/official-anki-migration/README.md
+ M lib/application/anki_official/contract/official_anki_contract.dart
+ M lib/application/anki_official/contract/official_anki_dto.dart
+ M lib/application/anki_official/contract/official_anki_errors.dart
+ M lib/application/anki_official/engine/official_anki_engine.dart
+ M lib/application/anki_official/engine/official_anki_engine_fake.dart
+ M lib/application/anki_official/engine/official_anki_engine_ffi.dart
+ M lib/application/anki_official/engine/official_anki_native_transport.dart
+ M lib/application/anki_official/engine/official_anki_session.dart
+ M lib/application/anki_official/engine/official_anki_worker.dart
+ M lib/application/anki_official/official_anki_composition.dart
+ M lib/application/anki_official/official_anki_feature_flags.dart
+ M lib/application/anki_official/official_anki_internal_page.dart
+ M lib/application/anki_official/storage/official_anki_database.dart
+ M lib/application/anki_official/storage/official_anki_source_dao.dart
+ M lib/data/course_database.dart
+ M lib/views/settings/widgets/settings_advanced_section.dart
+ M native/turna_anki_core/Cargo.lock
+ M native/turna_anki_core/Cargo.toml
+ m native/turna_anki_core/anki
+ M native/turna_anki_core/bridge/src/contract.rs
+ M native/turna_anki_core/bridge/src/engine.rs
+ M native/turna_anki_core/bridge/src/errors.rs
+ M native/turna_anki_core/bridge/src/lib.rs
+ M native/turna_anki_core/bridge/src/ops.rs
+ M native/turna_anki_core/contract/VERSION
+ M native/turna_anki_core/contract/fixtures/request_engine_info.json
+ M native/turna_anki_core/contract/fixtures/response_engine_info.json
+ M native/turna_anki_core/contract/operations.md
+ M native/turna_anki_core/tools/gen_fixtures.rs
+ M pubspec.lock
+ M pubspec.yaml
+ M test/application/anki_official/official_anki_contract_test.dart
+ M test/application/anki_official/official_anki_host_ffi_test.dart
+ M test/application/anki_official/official_anki_license_hook_test.dart
+ M test/data/schema_migration_test.dart
+?? android/app/src/androidTest/
+?? android/app/src/main/kotlin/me/dsdogs/turna/anki/
+?? android/app/src/test/
+?? assets/anki_reviewer/
+?? "docs/official-anki-migration/05-phase-0-phase-1-technical-remediation-plan.md \357\274\210\351\223\276\346\216\245\357\274\211"
+?? docs/official-anki-migration/07-phase-2-implementation-plan.md
+?? docs/official-anki-migration/08-phase-2-result-report.md
+?? docs/official-anki-migration/09-p2-entry-remediation-and-phase-3-plan.md
+?? docs/official-anki-migration/artifacts/
+?? docs/official-anki-migration/p2fix.md
+?? docs/official-anki-migration/p3fix.md
+?? lib/application/anki_official/engine/official_anki_session_cleanup.dart
+?? lib/application/anki_official/projection/
+?? lib/application/anki_official/render/
+?? lib/views/anki_official/
+?? native/turna_anki_core/bridge/src/display.rs
+?? native/turna_anki_core/bridge/src/projection.rs
+?? native/turna_anki_core/bridge/src/typed.rs
+?? test/application/anki_official/js/
+?? test/application/anki_official/official_anki_card_frame_protocol_test.dart
+?? test/application/anki_official/official_anki_composition_test.dart
+?? test/application/anki_official/official_anki_media_resolver_test.dart
+?? test/application/anki_official/official_anki_present_ack_test.dart
+?? test/application/anki_official/official_anki_projection_test.dart
+?? test/application/anki_official/official_anki_render_contract_test.dart
+?? test/application/anki_official/official_anki_reviewer_assets_test.dart
+?? test/application/anki_official/official_anki_reviewer_behavior_test.dart
+?? test/application/anki_official/official_anki_reviewer_ui_av_error_test.dart
+?? test/application/anki_official/official_anki_session_cleanup_test.dart
+?? test/application/anki_official/official_anki_session_lifecycle_test.dart
+?? test/fixtures/anki_official/media_path_vectors.json
+=== dirty hashes ===
+cfa3521fc5e76a49f4b8add5918b2e93b404793efd86e60d8c901bbac6f23482  android/app/build.gradle
+cb95983f8e194867d693b512ddcf6fe63d36d60dddf196a775fa3bedd91632ee  android/app/src/main/kotlin/me/dsdogs/turna/MainActivity.kt
+fa82a62c2d4376740875aa4a289da61797de165f533cc51c0b92059b1baa838a  docs/official-anki-migration/00-overall-migration-plan.md
+4aff4c5a74e6a39158b1b54bfad52731a0d2e22c67c3363c775fb7e4f177f09d  docs/official-anki-migration/README.md
+642f2541270a6213ba54f8471d69db4e1f88ff13e3875713e8b2aac26a1c62cf  lib/application/anki_official/contract/official_anki_contract.dart
+1d81c07f7c5ad27b4a5c0475ad4c64d00eb816e9ee636cd6c511f0e8cd68f52b  lib/application/anki_official/contract/official_anki_dto.dart
+c078af38baef225aa467867ae20a7b88087e3b2c0a082b1a6d860f40a990e897  lib/application/anki_official/contract/official_anki_errors.dart
+cbfbf9f5e41e399fcaec47ad96dc891d3b6be30c369561c3eb6acdb312b51fa2  lib/application/anki_official/engine/official_anki_engine.dart
+edaa6b34ec1b12d789a918e4c2c4af0d1f6ef398164f4b45bffd00d27c556cee  lib/application/anki_official/engine/official_anki_engine_fake.dart
+3ad178fb6b3c8644f6ea4515df889828acdba28efa5526e9aa3f8acf002d6325  lib/application/anki_official/engine/official_anki_engine_ffi.dart
+5e1eab2e934f15f27f4c6251c09868b35f6d24029c1af027efbe545a34d42c64  lib/application/anki_official/engine/official_anki_native_transport.dart
+fca6f0b1d3797796fbeef5a3d23c1ea755e174f95473eaf1f3d92d44e79016fc  lib/application/anki_official/engine/official_anki_session.dart
+9355d43f2f09fa729428196c06f4aa000033ba3121034efcffd70230d3d6a6a3  lib/application/anki_official/engine/official_anki_worker.dart
+c7ba73e38500041930d9c24660eb2849ae9e477053792b96d4bbc0a7a39b3faf  lib/application/anki_official/official_anki_composition.dart
+2dea027dd7adb976c2fb0824f026e938bb14d63acab4a3edb0d8dae3a0f475d1  lib/application/anki_official/official_anki_feature_flags.dart
+18cb709bde5420f7d8776578637131b18a1dd425012c2eae2580c2fbdf407c1e  lib/application/anki_official/official_anki_internal_page.dart
+eb9d4e130b08b01a071183165888b2139af241d624b4b3f9bb7f6b0177891088  lib/application/anki_official/storage/official_anki_database.dart
+0b09dffdf7c7c71c49a6a20ff97957101d8ca5151c3b72cb7bcbfee6e1f33b0f  lib/application/anki_official/storage/official_anki_source_dao.dart
+45236876013d77d962aa49c4e64f9fb19ce834e0b19a9ef75c396b8607200997  lib/data/course_database.dart
+de7000bbaff1b052f9646cecddb56f7ddc05ee07800acf718169871c6915b165  lib/views/settings/widgets/settings_advanced_section.dart
+a36e05a6bef4fb35976b138b7e27527419b4dd449a909729a7feb6124017ac64  native/turna_anki_core/Cargo.lock
+98ce5fc7874c07e7159e6148a437a8d80367d73d5ab5d98f125c92aa71fa6d5c  native/turna_anki_core/Cargo.toml
+44c0df5e3b0889831d6bfad62f26176a9e77fbed35d8410f47665a1dbab3d234  native/turna_anki_core/bridge/src/contract.rs
+56c010e8e57fd387a155970f4dfd831867f349f6f0258e6eeef096179422a9a3  native/turna_anki_core/bridge/src/engine.rs
+6414a8e45ab8edf4d4f6734108caa2305816d9bb393d3c53ae6e37581dfd8584  native/turna_anki_core/bridge/src/errors.rs
+c2816bf38690b6b1a196b2592e5dda7bd9a3dfde3ca6b45889dd7ad4a6511f1f  native/turna_anki_core/bridge/src/lib.rs
+a3211e003021742c9c71bf51169ec57c05e24f66b709c3b899a13c72b3d18676  native/turna_anki_core/bridge/src/ops.rs
+44804414f85bef9588f60086587fd6e8871b39123c831ec129624f4d81a95fea  native/turna_anki_core/contract/VERSION
+b959289826517eeee2b03af8e1fb9adc4f0c8385aac1fcaf885f9eed27c3a985  native/turna_anki_core/contract/fixtures/request_engine_info.json
+48e0d60dda5c006a666a91066d700f4e3a2c06a28430a5b2701428912b7b1d36  native/turna_anki_core/contract/fixtures/response_engine_info.json
+12e24db8cee57e940fbb62a2735fdf4f0d9f4f17a8d86c370057508e19c904d6  native/turna_anki_core/contract/operations.md
+7f7620e3c67381914022f0a32996ca00d538287d4302b51ff99b11856bcc4acd  native/turna_anki_core/tools/gen_fixtures.rs
+f2079bfb457633edc4e0c2e498f611bcd64d1a025e66aa19d1a902577da210d6  pubspec.lock
+8473e82eafa798592d69a3d3b8d01d8608bd901fff38fcfb19e9c4b499e322e5  pubspec.yaml
+1d0c6588977a7c3bbc5c817869497d2ea5d0c6188c09bd36a9a031a82d1a91fe  test/application/anki_official/official_anki_contract_test.dart
+6fa876a48b16cfedda04a48ad37d1bd92f137f6c3a0ed752ce6726a3fcf2aacb  test/application/anki_official/official_anki_host_ffi_test.dart
+6e435d2ad745781f7f4abc71c2730376814cbe77c32d1828637f44b0a4cfa662  test/application/anki_official/official_anki_license_hook_test.dart
+235d74799d36393b979361e120f17cbf206f7330532a2b2d0a22ec3c423ce0f3  test/data/schema_migration_test.dart
+4b6d97dad672afff130d95fbaaa1956d241306f53983b0efe6ee35664f9e2054  docs/official-anki-migration/07-phase-2-implementation-plan.md
+b46e96c73d6279be0cb7a618e7db4d87f0e6a52adfd503f80afd8aff64f83342  docs/official-anki-migration/08-phase-2-result-report.md
+63835c71d18adea846173dec0a5c569507b49f034414083a2018cb44bd85fbbb  docs/official-anki-migration/09-p2-entry-remediation-and-phase-3-plan.md
+8fda282c56e6e08549dd2f983686d40bfce11a263d247872a120c62a321b4c6d  docs/official-anki-migration/p2fix.md
+9d07bcef6ab0c91342d68d5c9c139638e6380f4e435b14f94f8d218f16070f30  docs/official-anki-migration/p3fix.md
+7a9278725c7c5c70cb0e29096c2ecb3571ffcc8e08b8747c670193c34f99aa94  lib/application/anki_official/engine/official_anki_session_cleanup.dart
+f25013a95e92b746d92c52f206a83aca8360879be6ce11eb22a8d377e6639c83  native/turna_anki_core/bridge/src/display.rs
+28fa0ade749f6e9c543cf32813b2909ad21eb5fbae2cb22b4af3ece8a0843bf5  native/turna_anki_core/bridge/src/projection.rs
+3bc1aaadc2166dd11fddf800a623c93a8b574a034c72417f16c975a66235c9a6  native/turna_anki_core/bridge/src/typed.rs
+3ae866b8d5d8102e72121cf5740c8235dfd655461984ed785b6d477ada71bee6  test/application/anki_official/official_anki_card_frame_protocol_test.dart
+97e431675395f97fddf78e6e222dbf0a45922216128c7ef10c3fcd4ebc2dcb40  test/application/anki_official/official_anki_composition_test.dart
+3439c5173fefe99eec698114fda48e33d49ab6ca57a4791deefeb7d55a5695cc  test/application/anki_official/official_anki_media_resolver_test.dart
+90bee8972862614b4f38c9e95c9da0a1e6e0b0dbec58577b47282dae7047938f  test/application/anki_official/official_anki_present_ack_test.dart
+3b29d0ac5b3f918864ea128ba2c822032798d5165eefeeb51c5659ab24992fa5  test/application/anki_official/official_anki_projection_test.dart
+356ae474bd36b58e95e1e548fcd42c05889d13457d6326fa5c97cb654e982689  test/application/anki_official/official_anki_render_contract_test.dart
+f726e8e156a7d337aac942f8bec00a154786f3f1007484326b8bf991c3e19df6  test/application/anki_official/official_anki_reviewer_assets_test.dart
+45e25a30e58a88258afbff084c80d9b25c3b2f79cbfe4e62def7fe67fafef232  test/application/anki_official/official_anki_reviewer_behavior_test.dart
+2815dedb9bc83e30e5fa002b0bac35bcbab929886df6b4b0b64f9cb97c9031b4  test/application/anki_official/official_anki_reviewer_ui_av_error_test.dart
+fe9b8e9ff54e7eb83a79af5163c1e5e6aa3e08973820e984f70d3bce41fbe9b4  test/application/anki_official/official_anki_session_cleanup_test.dart
+07d7c7ea1700010b619f6ca77d13eb4c52cdebc173b8e860e8ed75ffadb98029  test/application/anki_official/official_anki_session_lifecycle_test.dart
+052ab910aeec35e37acfa34d55d7481cf6fb510ea370132d097a4ffda9c0dcd7  test/fixtures/anki_official/media_path_vectors.json

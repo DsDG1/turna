@@ -1,0 +1,5 @@
+device: PLG110
+android_api: 36
+serial: 3B15AG00FPB00000
+webview: 150.0.7871.181
+smoke: not run (P2FIX construction verification; no flying-mode/hearing/100-cycle)

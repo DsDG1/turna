@@ -1,0 +1,35 @@
+P2FIX baseline
+date: 2026-08-17
+HEAD: cc1484b30739bceeba07fe1a3be98b8b0e11018d
+branch: spike/official-anki-core-android
+submodule: 967aa0d578fc75181e292e95326f9b58698da25c native/turna_anki_core/anki
+worktree: dirty Phase 2 construction + untracked reviewer/render files; no reset
+
+Host debug .so:
+  path: native/turna_anki_core/target/debug/libturna_anki.so
+  bytes: 215378856
+  sha256: 57590f2586cb2e34d706e2dc5e95302c94fcbe192412454a6ff41f71a20f20cb
+
+Android arm64 .so:
+  path: android/app/src/main/jniLibs/arm64-v8a/libturna_anki.so
+  bytes: 20207384
+  sha256: 111b0faee969d3766248a81189650b7ef4c10c975635f8766213ef541177a928
+
+Pre-fix debug APK (audit, not acceptance):
+  path: build/app/outputs/flutter-apk/app-debug.apk
+  bytes: 225637006
+  sha256: 9f2b4b0ef5afdb3156129131382a091c5b0af627e526bbd3013c30f2a8a80951
+
+Reviewer assets at freeze:
+  assets/anki_reviewer/reviewer.css sha256 c95898210ccde7a25e465edd05f8b00bcf498cf0d1a4c96276135e4616d6c468
+  assets/anki_reviewer/manifest.json sha256 3b953640699f924fd885da48378701daa0e34a95ff970921094a6af5295fceef
+  assets/anki_reviewer/mathjax/tex-svg-full.js sha256 a4354ff94fd868aea0cc6eaaa79a57fda0588646fc46ee3700a349ee0a11cbe6
+  assets/anki_reviewer/mathjax-config.js sha256 1b9f738e55d3ce52c0397f941e4f7df64fd0962dddcf5717726ba16b9205eae3
+  assets/anki_reviewer/reviewer.html sha256 8386867f4fd61c4243aba5a1c2e7f4088ef3147cb1d6c656aa125511ad001e6a
+  assets/anki_reviewer/reviewer.js sha256 20ca0c306d93c43a3970f164a332d9db3464e01e17bf2998444bf5e0d0f188cc
+
+Notes:
+  - tree contains mathjax/tex-svg-full.js but pre-fix APK listing did not
+  - production reviewer constructed RecordingOfficialAnkiAvPlayer
+  - media resolver used uri.path + substring ".."
+  - TURNA_OFFICIAL_ANKI_RENDERER default remains false

@@ -1,0 +1,10 @@
+ID: P2E-000..009 + P3-010..061
+commit / dirty diff hash: worktree dirty at freeze HEAD cc1484b30739bceeba07fe1a3be98b8b0e11018d; no reset/checkout
+changed files: reviewer JS/Kotlin/Dart, session cleanup, contract 1.2, catalog v3, CourseDatabase v16, projection mapper/projector/service, tests, artifacts
+contract/schema version: contract 1.2 / Official catalog 3 / CourseDatabase 16
+command: node card_frame_protocol_test.mjs; flutter test official_anki + schema_migration; cargo test --lib (twice); ./gradlew :app:testDebugUnitTest; build-android/build.sh; flutter build apk --debug
+result: P2 → P3 ENTRY GO; P3 construction landed under default-false flags; 08 remains P2 TECHNICAL ACCEPTANCE NO-GO
+artifact hash: APK 77cc6f8c545c80e60e199b81de5227ebc710bbe468f59c50503ed9bb8a1df306 ; Android .so 554e5601c539e9c6cb873fec0f0806141e6adf36295c3e75dcd439021109ce32
+device/webview: none attached
+known gaps: no instrumented WebView run; no Device A smoke; no 5k RSS/timing; mapping wizard not a full CourseProvider course-tree UI; publish is source-level atomic rebuild
+rollback: keep flags false; delete CourseDatabase official_anki_projection_index rows; catalog mappings remain

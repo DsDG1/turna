@@ -1,0 +1,14 @@
+{
+  "handFilled": false,
+  "source": "OfficialAnkiInternalPage",
+  "flags.import": true,
+  "allows": true,
+  "probe": "ready",
+  "abi": 1,
+  "backend": "967aa0d578fc75181e292e95326f9b58698da25c",
+  "mode": "worker",
+  "renderer": true,
+  "scheduler": true,
+  "status": "ready",
+  "apkSha256": "a8161e8877b848aad7d6cb6f2a18d5002b25595c1cf904e1e822b1fe52545cac"
+}

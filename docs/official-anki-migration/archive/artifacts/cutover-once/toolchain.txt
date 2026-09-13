@@ -1,0 +1,7 @@
+date: 2026-08-24T19:52:34Z
+flutter: Flutter 3.44.8 (framework 058e0af2c2, engine 13ffd72b2f9a)
+dart: Dart SDK version: 3.12.2 (stable) (Tue Jun 9 01:11:39 2026 -0700) on "linux_x64"
+rust: rustc 1.97.1 (8bab26f4f 2026-07-14)
+java: openjdk version "17.0.19" 2026-04-21
+android sdk: /home/whwen/Android/Sdk
+ndk: 28.2.13676358

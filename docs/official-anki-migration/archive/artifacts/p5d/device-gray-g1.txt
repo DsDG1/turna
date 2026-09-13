@@ -1,0 +1,66 @@
+P5-D D3 G1 DEVICE A RE-VERIFY
+date: 2026-08-19
+plan: 28 §7 D3 G1 + gray-g1.txt NEXT
+written-go: artifacts/p5d/written-go-d3d4.txt
+device_serial: 3B15AG00FPB00000
+device_model: PLG110
+git_head: d493aeed070275eb0cc6cfde59e23356866d3cc9
+working_tree: G1 attach wiring + Android sandbox scan (not committed at write time)
+install: adb install -r (no wipe)
+apk: build/app/outputs/flutter-apk/app-debug.apk
+apk_sha256: 80a369ad786d65da88f86bc11fd62692d43d59dc49faedd74cac94142bb56f24
+device_apk_sha256: 80a369ad786d65da88f86bc11fd62692d43d59dc49faedd74cac94142bb56f24
+dart-defines: ENGINE/IMPORT/CATALOG/RUNTIME/PLATFORM/RENDERER/SCHEDULER/PROJECTION/DIAGNOSTICS/REVIEWER_DIAGNOSTICS/MIGRATION_PILOT/CUTOVER=true GRAY_COHORT=g1
+production defaults: still false
+gray default unset → off; this APK is g1 only
+
+PACKAGE (1 card, not a user deck, not fixture allowlist)
+- files/p5d-g1-probe.apkg sha256=21b4dee0d2609b2f59a9f6771b788f7c0b658791929d9028fa8e39dd96e30d13
+- importId g121b4dee0d2 (g1 + hash[0:10])
+- official source src-a8d8e02b3f154a4fb240ec4dfe67e55e cards=1
+- cid 1787200000002 (not fixture 1375933503610)
+
+WHAT RAN
+1. Production AnkiImportRoute (not internal importer). Scan listed only app-sandbox apkgs.
+2. Selected p5d-g1-probe.apkg. AnkiImportFacade + GRAY=g1 → official import.
+3. OfficialAnkiNewImportCutover wrote course section anki-g121b4dee0d2-s1 + migration observing recorded_kind=official.
+4. Anki hub: tapped g1probe only (not sample, not the 5945-card legacy section, not 全部复习, not fixture).
+5. Official Review (not Legacy 翻牌) → Show Answer → Good.
+6. official_anki_device_rate.py --count 1 --ratings good → rated=1 timeout=0 superseded=0
+
+AFTER (force-stop, WAL copied)
+- collection.anki2 present
+- revlog 161→162; probe cid 1787200000002 revlog=1 ease=3 ivl=-600 type=0 time=2284
+- probe card reps=1 type=1 queue=1
+- fixture cid 1375933503610 revlog still 3
+- user official source src-bc0f… cards=181 unchanged
+- srs_states=5956 review_events=10 unchanged this rating (no Turna SRS write for probe)
+- mig-35440b5c… legacy_import_id=g121b4dee0d2 state=observing recorded_kind=official official_source_id=src-a8d8e02b…
+
+COLLATERAL (honest)
+- First failed attach (closed catalog / WriteGuard) still left an extra official catalog source of 5945 cards (hash 8a9ac7f3ae…, importId g18a9ac7f3ae).
+- That source has NO recorded_kind and NO Anki section; production hub still lists the existing legacy 5945-card section as Legacy.
+- Did not rate it. Did not add it to _userAllowlistedHashes. Did not wipe collection.anki2.
+- Android scan no longer walks shared Download.
+
+SCREENSHOTS
+- device-gray-g1-import-done.png
+- device-gray-g1-review-question.png (Official Review + Show Answer)
+- device-gray-g1-review-after.png
+
+WHAT THIS PROVES
+- G1 internal CUTOVER APK: new Android import → official Collection
+- recordedKind=official + allowedCardIds (1) + Official Review + 1 Good revlog
+- collection.anki2 remains; defaults still false; preview Cutover still disabled
+
+WHAT THIS DOES NOT PROVE
+- G2/G3/G4
+- D4 per-source user hash
+- P5-D GO / user cutover / Legacy delete / AnkiWeb
+
+CONCLUSION
+DEVICE A G1 NEW-IMPORT + RATE: PASS
+P5 USER CUTOVER: NO-GO
+P5-D GO / PRODUCTION GO: NO
+P5-E / P6: HOLD
+G2: not opened (needs this file + separate gray-g2.txt)

@@ -8,13 +8,13 @@
 
 ## 快速导航
 
-- **当前状态**：8 个 CEFR 分级 Section（A1->B2）全部填充真实内容（148 词 / 18 表达 / 8 语法 / 54 课时）。schemaVersion 21，课程内容版本 12。
+- **当前状态**：8 个 CEFR 分级 Section（A1->B2）全部填充真实内容（148 词 / 18 表达 / 8 语法 / 54 课时）。schemaVersion 26，课程内容版本 12。
 - **目标语**：Turkish，TTS 语言码 `tr`。
 - **复习引擎**：FSRS（`lib/core/fsrs_engine.dart`），SM-2 后备；Anki 卡排期走官方 Core scheduler（ADR 0036/0037，`lib/application/anki_official/`）。Android 生产 bundle 见 `OfficialAnkiFeatureFlags.productionAndroid`；收口施工以 [doc 34](./docs/official-anki-migration/34-official-anki-production-cutover-and-ohos-retirement-plan.md) 为准（迁移中；W9 HOLD 已于 2026-08-27 由负责人决策解除，观察期证据按负责人豁免，W9-B..E 分波删除可开工，豁免决策记录见 [doc 34 收据](./docs/official-anki-migration/34-cutover-receipt.md)「Held」表）。
 - **调色板**：Turna「湿地鹤」（ADR 0033/0035，主色 `#1F727E`，无 `peacock*` 别名）。真源 `lib/core/theme.dart` ↔ `tool/gui/src/theme_tokens.py`。
 - **构建**：官方 Flutter + Android（JDK 17）；见 [`docs/android-build-setup.md`](./docs/android-build-setup.md)。OHOS 产品 EOL 见 [ADR 0041](./docs/decisions/0041-ohos-product-eol.md)。
 - **AI 引擎层**：`lib/application/ai/engine/`（全应用唯一 LLM 出入口，配置含 API key 经 `StreamingSharedPreferences` 持久化、写入绕过日志）。
-- **决策记录**：`docs/decisions/`（ADR 0030–0042）。
+- **决策记录**：`docs/decisions/`（现存 ADR 0001–0044 共 31 篇，含 0021/0043 两个历史编号复用）。
 
 功能实现状态见 project-guide §4；已明确不做的功能见 §15。
 
@@ -42,7 +42,7 @@ lib/
 │   └── game_provider.dart         # 薄 facade -> score/streak/progress/gems
 ├── core/          # fsrs_engine / sm2 / language_detector / html_stripper / streak / logger / theme
 ├── courses/       # 字母 + 语种 loader/validator（目标 Turkish）
-├── data/          # drift CourseDatabase（schemaVersion 21）+ Seeder + DAO + Repository
+├── data/          # drift CourseDatabase（schemaVersion 26）+ Seeder + DAO + Repository
 ├── di/            # GetIt + Injectable（renderer_module / audio_module）
 ├── domain/        # 领域模型 + Repository 接口（course / audio / repositories）
 ├── routing/       # Auto Route + CourseReadyGuard

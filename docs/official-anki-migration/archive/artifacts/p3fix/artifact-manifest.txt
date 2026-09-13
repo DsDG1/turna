@@ -1,0 +1,36 @@
+P3FIX artifact manifest
+date: 2026-08-17
+HEAD: cc1484b30739bceeba07fe1a3be98b8b0e11018d
+branch: spike/official-anki-core-android
+submodule: 967aa0d578fc75181e292e95326f9b58698da25c native/turna_anki_core/anki
+contract: 1.2
+catalog schema: 4 (jobs ownership columns; rebuild-from-0, no unused staging-as-resume)
+CourseDatabase: 16 (official projection index only)
+
+Android arm64 jniLibs (unstripped, cargo-ndk output):
+  path: android/app/src/main/jniLibs/arm64-v8a/libturna_anki.so
+  sha256: 1f0391bd31b925e13db0d27e4f6b7ee040a3372eb5804f697484157aa7d73c0c
+  mtime: 2026-08-17 18:36:10 +0800
+  later than contract.rs / ops.rs / projection.rs / display.rs / typed.rs: yes
+
+P3FIX debug APK (NOT 77cc6f…):
+  path: build/app/outputs/flutter-apk/app-debug.apk
+  sha256: 7cd34748f60d0326c351631b79800f7d498b458ec9e928507a764adb519a55f5
+  packaged lib/arm64-v8a/libturna_anki.so sha256:
+    8f97eb185a5d7a10d5df4fd7bb9cada5c84deb5fb52175dc0b331010904d2c65
+    (differs from jniLibs because Gradle stripDebugDebugSymbols; strings still contain)
+  packaged strings contain:
+    backendCommit 967aa0d578fc75181e292e95326f9b58698da25c
+    GET_PROJECTION_SCHEMAS
+    BEGIN_PROJECTION_READ
+    GET_PROJECTION_ROWS_BATCH
+  APK also contains Reviewer assets + MathJax tex-svg-full.js + card-frame.js (testSnapshot)
+
+Host FFI ENGINE_INFO (x86_64 debug .so, official_anki_host_ffi_test):
+  contractMajor == 1, contractMinor == 2, capabilities include ops 24/25/26
+  Android aarch64 ENGINE_INFO executable probe: not run (no Device A / no qemu user)
+
+Flags:
+  OfficialAnkiFeatureFlags.fromEnvironment() projection == false, courseEntry == false
+
+First-ship recovery: rebuild-from-0 (jobs/heartbeat/cancel used; cursor is progress only)

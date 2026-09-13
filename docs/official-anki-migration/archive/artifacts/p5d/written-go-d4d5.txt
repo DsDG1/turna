@@ -1,0 +1,25 @@
+P5-D SUITABLE-GO BOARD — D4 + D5 (user source + production gate)
+date: 2026-08-19
+source: product「适合 go 的全部 go」— D4 已批空集框架 + D5 可进单独 commit（不改默认）
+
+PRIOR GO (keep)
+- P5-C HOST+DEVICE CONDITIONAL GO (fixture only)
+- P5-D D1/D2+D3-PREP 已收口；D3 G1 已产 (gray-g1.txt)；D4 scaffolding 空集已落地 (user_allowlist + user_migration_saga, host-d4.txt)
+- written-go: written-go-d3d4.txt
+
+THIS WRITTEN GO
+- D4 PER-SOURCE 逐源收口（可施工）：一个 sha256 = 一次书面确认；禁止 census.first / 批量迁；每源 allowlist-<shortHash>.txt + host-d4.txt 追加，无 Device A 时不伪造收据
+- D5 PRODUCTION GATE（可施工，单独 commit）：声明 P5-D GO 的单独 commit，不改 TURNA_OFFICIAL_ANKI_* / cutoverEnabled 默认，不解预览 Cutover 不同 PR 删 Legacy/AnkiWeb；清单见 28 §7 D5
+
+STILL HOLD
+- P5 USER CUTOVER: NO-GO (D4 仅逐源 written hash 例外，不等于全量)
+- P5-E Legacy delete HOLD, P6 AnkiWeb HOLD (legal)
+- OHOS official Core 不在本批
+
+Invariants
+- defaults: TURNA_OFFICIAL_ANKI_* false, TURNA_OFFICIAL_ANKI_CUTOVER fromEnvironment false, gray off/g0→legacy
+- no wipe collection.anki2, no delete lib/application/anki or lib/views/anki, no AnkiWeb prod entry
+- one hash = one commit touching only official_anki_user_allowlist.dart + its allowlist-<hash>.txt
+- D5 不改默认，仅声明门禁；preview Cutover 若改须同 commit 内且不同 PR 删 Legacy
+
+plan: 28 §7 D4/D5

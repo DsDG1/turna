@@ -1,0 +1,33 @@
+P5-D SPRINT D1 HOST RECORD
+date: 2026-08-19
+plan: 26-p5d-production-routing-playbook.md
+platform: B (Android official, OHOS Legacy)
+cutoverEnabled default: false (TURNA_OFFICIAL_ANKI_CUTOVER)
+TURNA_OFFICIAL_ANKI_* existing defaults: still false
+preview Cutover button: onPressed null (not bound to cutover define)
+
+WHAT LANDED
+P5D-01 resolver: !cutover → always legacy; cutover && recordedKind=official → official
+P5D-02 AnkiReviewPage / Session gate to OfficialAnkiReviewPage; fail-closed if official but no scheduler
+P5D-03 AnkiImportFacade: cutover+Android+full flags → official; cutover+half flags → fail-closed; else Legacy
+P5D-04 due: exclude official-routed imports from Turna SRS count + add official countsForDeckToday
+
+TESTS
+flutter test --no-pub test/application/anki_official
+242 passed / 0 failed
+
+NOT IN THIS BATCH
+P5D-05 gray 1%→100%
+P5D-06 user-deck allowlist
+P5-E / P6
+Device A CUTOVER APK re-verify
+PRODUCTION GO / P5-D GO
+
+P5 USER CUTOVER: NO-GO
+existing user deck: not in allowlist
+
+CLOSEOUT AFTER 27 AUDIT
+- decideOfficialReviewGate: official + missing catalog/target/capability → failClosed
+- OfficialAnkiHomeDueSync used by Play Hub, Profile, Anki hub
+- p5d official review gate fail-closed when target missing: PASS
+- Device A CUTOVER APK still NOT RUN (superseded: see host-d1-closeout.txt + device-a-official-rate.txt)

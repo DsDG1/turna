@@ -1,0 +1,30 @@
+Device A B2 PlatformView reuse on remount-polish internal-release
+
+date: 2026-08-18
+device: 3B15AG00FPB00000 PLG110 Android 16 API 36 arm64-v8a
+apk: build/app/outputs/flutter-apk/app-release.apk
+apk sha256: a8161e8877b848aad7d6cb6f2a18d5002b25595c1cf904e1e822b1fe52545cac
+deviceApk sha256: a8161e8877b848aad7d6cb6f2a18d5002b25595c1cf904e1e822b1fe52545cac
+deviceSo sha256: 824def69076389a505787ad52285f1bee4fbe056b4c8f6e541d3979217e75ad5
+native hash: CLOSED (native-hash-manifest.txt, no MISSING)
+dart-defines: ENGINE/IMPORT/CATALOG/RUNTIME/PLATFORM/RENDERER/SCHEDULER/DIAGNOSTICS/REVIEWER_DIAGNOSTICS=true
+production defaults: still false
+P5-C: HOLD
+
+entry: Settings → 高级（Anki 保真行）→ Official Anki 内部导入 → 正式复习
+internal page: flags.import=true allows=true probe=ready abi=1
+  backend=967aa0d578fc75181e292e95326f9b58698da25c
+  mode=worker status=ready (P4P-05 warmup)
+  Legacy 迁移预览 button present (Cutover not used)
+
+session (same sitting as B3 100):
+  first 20 of the 100-card run
+  timeout=0 superseded=0 unrenderable=0
+  create viewId=0 once; no viewId=1
+  poll complete type=cardAccepted: 0
+  poll complete type=renderComplete: continues on same view
+  first card screenshot: 马原帽子题 21 + Show Answer (device-a-release-b2-question.png)
+  mid screenshot: 马原帽子题 41 + Again/Hard/Good/Easy (device-a-release-20-reuse.png)
+
+B2 20 consecutive reuse: PASS
+P5 CUTOVER: HOLD

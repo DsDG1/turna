@@ -1,0 +1,46 @@
+P2E-000 baseline
+date: 2026-08-17T05:32:12Z
+HEAD: cc1484b30739bceeba07fe1a3be98b8b0e11018d
+branch: spike/official-anki-core-android
+submodule: 967aa0d578fc75181e292e95326f9b58698da25c native/turna_anki_core/anki
+worktree: dirty Phase 2 construction + untracked reviewer/render files; no reset, no checkout
+contract: 1.1
+CourseDatabase.schemaVersion: 15
+Official catalog schema: 2
+
+Host debug .so:
+  path: native/turna_anki_core/target/debug/libturna_anki.so
+  sha256: 57590f2586cb2e34d706e2dc5e95302c94fcbe192412454a6ff41f71a20f20cb
+
+Android arm64 .so (pre-rebuild, older than display.rs/ops.rs):
+  path: android/app/src/main/jniLibs/arm64-v8a/libturna_anki.so
+  sha256: 111b0faee969d3766248a81189650b7ef4c10c975635f8766213ef541177a928
+  mtime: 2026-08-17 02:46:51 +0800
+
+display.rs mtime: 2026-08-17 03:48:59 +0800
+  sha256: f25013a95e92b746d92c52f206a83aca8360879be6ce11eb22a8d377e6639c83
+typed.rs mtime: 2026-08-17 02:26:08 +0800
+  sha256: 3bc1aaadc2166dd11fddf800a623c93a8b574a034c72417f16c975a66235c9a6
+ops.rs mtime: 2026-08-17 03:45:27 +0800
+  sha256: 3befb9e8bffa40ecb169018d55af11ed375126693632bb841137a0a37e9e2711
+
+Pre-rebuild debug APK (P2FIX package, not P2E acceptance):
+  path: build/app/outputs/flutter-apk/app-debug.apk
+  sha256: 39b404afa799495867343da7691ceb24117528936435414543f82ba8d9d56c2c
+
+Reviewer assets at freeze:
+  assets/anki_reviewer/card-frame.js sha256 3b69bddafd7d4dcf6f42a91d4b696a9186099782379c91fcc665c175cd7f3876
+  assets/anki_reviewer/reviewer.js sha256 6b32d09357dedf324d60ca61b032832029fc1fe8f41c5f44fdf20757be2e8051
+  assets/anki_reviewer/mathjax/tex-svg-full.js sha256 a4354ff94fd868aea0cc6eaaa79a57fda0588646fc46ee3700a349ee0a11cbe6
+
+Toolchain:
+  Flutter 3.44.8 (Dart 3.12.2)
+  rustc 1.97.1 / cargo 1.97.1
+  node v24.18.1
+  OpenJDK 17.0.19
+  adb: present, no devices attached
+
+Notes:
+  - Android .so mtime is earlier than display.rs and ops.rs; rebuild is required.
+  - No Device A / emulator attached at freeze.
+  - TURNA_OFFICIAL_ANKI_RENDERER default remains false.

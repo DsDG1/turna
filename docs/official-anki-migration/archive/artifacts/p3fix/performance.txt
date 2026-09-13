@@ -1,0 +1,11 @@
+P3FIX performance / 5k Device A: UNAVAILABLE
+date: 2026-08-17
+
+Host-only measurements:
+- catalog page ID buffer asserted <= 500 on 0/1/199/200/201/500/501/5000 card fakes
+- Official Scheduler writes = 0 and Legacy official-path calls = 0 in shipped-path unit tests
+- 5k source projection on Device A (<=60s, no >=500ms UI isolate stall, peak RSS delta <=120MB) not run
+- cancel/crash recovery latency on device not run
+- 100 no-op/rebuild staging residue on device not run
+
+Cannot mark 5k/RSS/UI-stall gates passed.

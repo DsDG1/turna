@@ -1,0 +1,39 @@
+P5-D D3 G2 GRAY RECORD — 10%
+date: 2026-08-19
+plan: 28-p5d-remainder-construction-plan.md §7 D3 G1-G4 (CONSTRUCTION GO)
+written-go: artifacts/p5d/written-go-d3d4.txt
+prerequisite: artifacts/p5d/gray-g1.txt + artifacts/p5d/device-gray-g1.txt (G1 Device PASS)
+git_head: d493aeed070275eb0cc6cfde59e23356866d3cc9
+working_tree: G1 attach + G2 host/device (see git status)
+
+SCOPE (this level)
+- cohort: TURNA_OFFICIAL_ANKI_GRAY_COHORT=g2 (10%); Android new import + already recordedKind=official allowlist source
+- not covered: bulk user-deck migration, census.first, device-lottery, production default flag change, legacy delete, AnkiWeb
+- G0 remains: off/g0 → legacy for new imports; existing official sources keep recordedKind routing regardless of cohort
+- G1 remains valid; this level does not jump to G3/G4
+
+WHAT LANDED
+- no new gray API: thresholdPercent g2=10 already in official_anki_gray_config.dart
+- allowsNewOfficialImport still: cutover+android+threshold>0 → official
+- defaults still off: unset TURNA_OFFICIAL_ANKI_GRAY_COHORT → off
+- p5d_gray_g_cohort_thresholds_are_sequential now also asserts g2 allows official import and off stays legacy
+
+VERIFY (this host)
+flutter test --no-pub test/application/anki_official/official_anki_p5d_routing_test.dart
+  p5d_gray_default_cohort_is_off: PASS
+  p5d_gray_g_cohort_thresholds_are_sequential: PASS (g2=10, parse g2/10%, g2+cutover+android→official, off→legacy)
+  p5d_gray_import_requires_cutover_and_android: PASS
+  p5d_new_official_import_writes_recorded_kind: PASS
+flutter test --no-pub test/application/anki_official: 259 passed
+
+RED LINES (still true)
+- cutoverEnabled / TURNA_OFFICIAL_ANKI_* defaults still false
+- preview Cutover still onPressed:null
+- P5-D GO / P5 USER CUTOVER: NO-GO
+- gray does not downgrade existing official sources
+
+ROLLBACK TO G0
+  omit TURNA_OFFICIAL_ANKI_GRAY_COHORT or set =off
+
+NEXT
+- Device A G2 re-verify is in artifacts/p5d/device-gray-g2.txt (PASS). G3 requires that file; jumping to G3/G4 without it is void.

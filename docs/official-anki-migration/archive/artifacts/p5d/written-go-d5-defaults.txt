@@ -1,0 +1,19 @@
+P5-D D5 PRODUCTION DEFAULTS — WRITTEN GO
+date: 2026-08-20
+source: product「仅 Android 新导入默认官方，旧源也改（没有任何用户，放心改）」
+
+THIS GO
+- Flip production fromEnvironment defaults so a store/release APK without dart-defines
+  uses the official Core replica on Android
+- New Android imports: official (CUTOVER=true, GRAY=g4, capability flags on)
+- Old sources: adopt when course sourceHash matches official catalog; unmarked Android
+  sources route official; explicit recordedKind=legacy still honored
+- Not a connection to the official Anki app / AnkiWeb
+
+STILL HOLD
+- P5-E delete Legacy
+- OHOS official Core
+- MIGRATION_PILOT / diagnostics / projection / courseEntry stay opt-in
+
+CANCELLED
+- P6 AnkiWeb / official Anki sync（2026-08-20 书面：不考虑同步 Anki 本身）

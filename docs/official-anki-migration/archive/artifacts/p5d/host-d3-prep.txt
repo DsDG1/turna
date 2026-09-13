@@ -1,0 +1,44 @@
+P5-D SPRINT D3-PREP HOST RECORD (gray plumbing, default off only)
+date: 2026-08-19
+plan: 28-p5d-remainder-construction-plan.md §6 (P5D-21…23)
+gate: 28 D3-PREP GO (hold G1..G4 traffic)
+git_head: e8f7ccddaae9200702bb9100db485a70fd21d5be
+mode: internal polish + default-off pipe; no percentage cohort opened
+
+WHAT LANDED
+P5D-21 grayCohort default off (or 0); unconfigured = G0
+  - lib/application/anki_official/migration/official_anki_gray_config.dart
+  - OfficialAnkiGrayConfig.fromEnvironment() reads TURNA_OFFICIAL_ANKI_GRAY_COHORT; unset/empty/off/0/g0 → OfficialAnkiGrayCohort.off; g1..g4 need explicit opt-in
+  - isOn == false for off/g0; listMigrations/resolver behavior unchanged
+  - test: p5d_gray_default_cohort_is_off
+
+P5D-22 config source does not enter CourseDatabase / census JSON
+  - gray config is pure dart-define (String.fromEnvironment), no drift table, no CourseDatabase injection, no LegacyAnkiCensus import
+  - verifies: grep -rn "official_anki_gray\|GrayCohort\|TURNA_OFFICIAL_ANKI_GRAY" Varnamalaplus/lib/ hits only official_anki_gray_config.dart; ankiweb_not_linked_from_production_routes also asserts no ankiweb in routing/review/preview/gray file
+
+P5D-23 preview Cutover stays disabled
+  - lib/views/anki_official/official_anki_migration_preview_page.dart still onPressed: null
+  - verifies: preview_cutover_button_stays_disabled reads source file for 'Cutover (disabled)', 'official-migration-cutover-disabled', 'onPressed: null'
+
+WHAT DID NOT OPEN (correctly held per 28)
+- G1 1% / G2 10% / G3 50% / G4 100% cohort percentages — none opened; no device lottery; no user deck batch allowlist
+- D4 per-source allowlist (one hash = one written go): not opened
+- D5 production default / preview Cutover button enable: not opened
+- user existing decks: still off allowlist
+
+TESTS
+p5d_gray_default_cohort_is_off: PASS
+preview_cutover_button_stays_disabled: PASS
+ankiweb_not_linked_from_production_routes: PASS (production routing/review/preview/gray)
+(see also: test/application/anki_official/official_anki_p5d_routing_test.dart + official_anki_p5d_gate_widget_test.dart 19 passed; full test/application/anki_official 254 passed)
+
+RED LINES (still true)
+- TURNA_OFFICIAL_ANKI_* existing defaults still false; cutoverEnabled still false
+- gray cohort defaults to off; no traffic split, no COURSE entry change
+- no wipe of files/official_anki/default/collection.anki2
+- do not write P5 USER CUTOVER / P5-D GO / PRODUCTION GO / P5-E / P6
+
+ARTIFACTS
+this file: artifacts/p5d/host-d3-prep.txt
+companion: artifacts/p5d/host-d2.txt (D2 closeout)
+written go: artifacts/p5d/written-go-d2.txt (D2+D3-PREP CONSTRUCTION GO)

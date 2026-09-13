@@ -2,7 +2,7 @@
 
 > 本文是 README 的深度补充。README 给出概览与快速上手，本文给出每个子系统的设计、实现要点与决策依据。阅读顺序建议：先读 README，再按需查阅本文相应章节。
 >
-> 所有信息以代码现状为准（schemaVersion 21、课程内容版本 12、`flutter test --exclude-tags golden` 1852 passed / 0 failed，另 golden 4/4、native 68/68，截至 2026-08-28；完整基线见 `test/BASELINE.md`）。
+> 所有信息以代码现状为准（schemaVersion 26、课程内容版本 12、`flutter test --exclude-tags golden` 1823 passed / 0 failed，截至 2026-09-13；完整基线见 `test/BASELINE.md`）。
 >
 > **近期重要变更**：Legacy Anki 复刻层已于 2026-08-27 由 [doc 35](./official-anki-migration/35-duplicate-legacy-layer-cleanup-plan.md) L0–L3 物理删除（`lib/application/anki/` 目录清空）。原 §6 中描述 legacy 解析/装配/映射/Full-Lite 的段落已改为删除说明，勿再按旧描述实现。
 
@@ -141,7 +141,7 @@ lib/
 │   └── streak_resolver.dart       # 纯 streak 解析
 ├── courses/            # 字母 + 语种 loader/validator（目标 Turkish）
 ├── data/               # drift CourseDatabase + Seeder + Repository 实现
-│   ├── course_database.dart       # schemaVersion 21（15 张 drift Table 类 + 约 17 张原生 SQL 管理表）
+│   ├── course_database.dart       # schemaVersion 26（15 张 drift Table 类 + 约 17 张原生 SQL 管理表）
 │   ├── anki_note_dao.dart         # Anki NoteStore 数据访问
 │   ├── srs_state_dao.dart         # SRS 状态持久化
 │   ├── review_history_dao.dart    # 复习历史事件
@@ -216,7 +216,7 @@ Section -> Unit -> Lesson -> SubLesson / ListeningPhase / ReadingPassage -> Stag
 
 ### 4.4 按需加载与缓存
 
-- `index.json` + per-section JSON + drift SQLite 缓存（**schemaVersion 21**）。
+- `index.json` + per-section JSON + drift SQLite 缓存（**schemaVersion 26**）。
 - 按内容版本号（`index.json` 的 `version`，当前 12）自动 reseed；bump version 或清空 app data 可强制 reseed。
 - `expressions` 表支持表达级 SRS。
 
@@ -679,7 +679,7 @@ JSON 位于 `assets/courses/turkish/`，由 `CourseLoader` 加载、`DatabaseSee
 ## 14. 测试与质量基线
 
 ```bash
-flutter test --exclude-tags golden           # 1852 passed / 0 failed（最新数字见 test/BASELINE.md）
+flutter test --exclude-tags golden           # 1823 passed / 0 failed（最新数字见 test/BASELINE.md）
 python -m unittest discover -s test -p "*_test.py"            # Python 工具测试
 python -m unittest discover -s tool/gui/tests -p "test_*.py"  # GUI 1276 项（上次记录）
 ```
