@@ -8,7 +8,8 @@ only shapes / extracts / validates sandbox-safe lesson dicts.
 from __future__ import annotations
 
 import copy
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 
 
 def build_stub_lesson(

@@ -18,13 +18,13 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
+from collections.abc import Callable
 
 _TOOL_DIR = Path(__file__).resolve().parents[3]
 if str(_TOOL_DIR) not in sys.path:
     sys.path.insert(0, str(_TOOL_DIR))
 
-from src.backend.course_adapter import _REPO_ROOT  # noqa: E402
+from src.backend.course_adapter import _REPO_ROOT
 import logging
 logger = logging.getLogger(__name__)
 
@@ -124,7 +124,7 @@ def preview_generation(course_dir: Path, settings) -> dict[str, int]:
     total = 0
     existing = 0
     try:
-        import generate_audio  # noqa: PLC0415
+        import generate_audio
 
         entries = generate_audio.collect_entries(Path(course_dir))
         total = len(entries)

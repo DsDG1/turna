@@ -29,7 +29,7 @@ from src.backend.ai import full_section_diff
 
 try:
     from src.theme import current_palette
-except Exception:  # noqa: BLE001
+except Exception:
     current_palette = None  # type: ignore[assignment]
 
 
@@ -37,7 +37,7 @@ def _pal() -> dict[str, str]:
     if current_palette is not None:
         try:
             return current_palette()
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.debug("widgets/diff_view.py:36 best-effort step failed", exc_info=True)
     return {"success": "#27AE60", "error": "#E74C3C", "warning": "#FF9F43"}
 

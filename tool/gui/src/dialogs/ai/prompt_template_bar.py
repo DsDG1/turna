@@ -9,7 +9,7 @@ unique (B8).
 """
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
@@ -234,8 +234,8 @@ class PromptTemplateBar(QWidget):
 
     def update_placeholders(
         self,
-        topic_edit: "QWidget | None" = None,
-        input_edit: "QWidget | None" = None,
+        topic_edit: QWidget | None = None,
+        input_edit: QWidget | None = None,
     ) -> None:
         if self.genre_switch.isChecked():
             if topic_edit is not None:

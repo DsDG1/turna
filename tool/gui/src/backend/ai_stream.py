@@ -16,7 +16,8 @@ the sandbox.
 from __future__ import annotations
 
 import json
-from typing import Any, Callable, Iterator
+from typing import Any
+from collections.abc import Callable, Iterator
 
 # Sentinel yielded by :func:`iter_sse` when the stream ends with ``[DONE]``.
 # An empty string is a legitimate (if unusual) content fragment, so we cannot

@@ -25,6 +25,7 @@ from src.backend.attachment_extractor import extract_attachment
 from src.dialogs.ai.attachment_bar import AttachmentBar
 from src.dialogs.ai.chat_expand_window import ChatExpandWindow
 from src.application.ai_request_worker import AttachmentRecord
+from src.application.settings import APP_NAME, ORG_NAME
 
 logger = logging.getLogger(__name__)
 
@@ -157,7 +158,7 @@ class GeneratorChatCoordinator(QObject):
             win.render_streaming(self.messages, partial_text)
 
     def _load_chat_expand_geometry(self, win: ChatExpandWindow) -> None:
-        qs = QSettings("Turna", "CourseEditor")
+        qs = QSettings(ORG_NAME, APP_NAME)
         geo = qs.value("ai_chat_expand/geometry")
         if geo is not None:
             win.restoreGeometry(geo)
@@ -165,7 +166,7 @@ class GeneratorChatCoordinator(QObject):
             win.showMaximized()
 
     def _save_chat_expand_geometry(self, win: ChatExpandWindow) -> None:
-        qs = QSettings("Turna", "CourseEditor")
+        qs = QSettings(ORG_NAME, APP_NAME)
         qs.setValue("ai_chat_expand/geometry", win.saveGeometry())
         qs.setValue("ai_chat_expand/maximized", win.isMaximized())
 

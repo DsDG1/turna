@@ -17,7 +17,8 @@ from __future__ import annotations
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Iterable, Iterator
+from typing import Any
+from collections.abc import Iterable, Iterator
 
 from src.backend.lesson_content import (
     INTERACTION_LABELS,

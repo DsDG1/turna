@@ -140,7 +140,7 @@ class GitHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                 # Write service header packet line
                 service_line = f"# service={service}\n"
                 l = len(service_line) + 4
-                header = f"{l:04x}{service_line}0000".encode("utf-8")
+                header = f"{l:04x}{service_line}0000".encode()
 
                 # Run git command
                 git_cmd = service.replace("git-", "")
@@ -400,7 +400,7 @@ class GitLibrary:
         env = self._env_for(cwd)
         effective_timeout = timeout if timeout is not None else self._timeout
         try:
-            proc = subprocess.run(  # noqa: S603 - git path is fixed/configurable
+            proc = subprocess.run(
                 cmd,
                 cwd=str(cwd),
                 capture_output=True,
@@ -627,7 +627,7 @@ class GitLibrary:
         """Return commits since ``ref`` (default last pulled position)."""
         local_dir = Path(local_dir)
         sep = "\x1f"
-        cmd = ["log", f"--pretty=format:%h%x1f%an%x1f%ad%x1f%s", "--date=short"]
+        cmd = ["log", "--pretty=format:%h%x1f%an%x1f%ad%x1f%s", "--date=short"]
         # @{1} may fail if no upstream; fall back to last 10.
         proc = self._run(cmd + [ref], cwd=local_dir, check=False)
         if proc.returncode != 0:
@@ -653,7 +653,7 @@ class GitLibrary:
         # is safe to pass to subprocess (unlike %x00, which embeds a NUL byte
         # in the argument list and is rejected by Popen).
         sep = "\x1f"
-        cmd = ["log", f"--pretty=format:%h%x1f%an%x1f%ad%x1f%s", "--date=short", "-n", str(count)]
+        cmd = ["log", "--pretty=format:%h%x1f%an%x1f%ad%x1f%s", "--date=short", "-n", str(count)]
         proc = self._run(cmd, cwd=local_dir, check=False)
         commits = []
         if proc.returncode == 0 and proc.stdout.strip():

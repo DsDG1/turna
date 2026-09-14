@@ -105,7 +105,7 @@ class GitLibraryDialog(QDialog):
     def git_server_thread(self, val: Any) -> None:
         parent = self.parent()
         if parent is not None:
-            setattr(parent, "_git_server_thread", val)
+            parent._git_server_thread = val
         else:
             self._local_git_server_thread = val
 
@@ -415,7 +415,7 @@ class GitLibraryDialog(QDialog):
 
     # --- lifecycle -----------------------------------------------------------
 
-    def closeEvent(self, event) -> None:  # noqa: N802
+    def closeEvent(self, event) -> None:
         # Stop the 1s log-poll timer so it doesn't fire while the dialog is
         # being torn down (QTimer is parented to self but deleteLater may lag).
         self.log_timer.stop()

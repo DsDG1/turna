@@ -8,7 +8,8 @@ dangling ids cannot be typed by hand (guiplan §5 reference-integrity guard).
 from __future__ import annotations
 
 import functools
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 
 from PySide6.QtGui import QStandardItemModel
 from PySide6.QtWidgets import (

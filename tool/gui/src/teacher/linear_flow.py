@@ -36,7 +36,7 @@ class _DragDropFilter(QObject):
 
     _MIME_TYPE = "application/x-turna-reorder"
 
-    def __init__(self, owner: "LinearFlowWidget", kind: str, item_id: str) -> None:
+    def __init__(self, owner: LinearFlowWidget, kind: str, item_id: str) -> None:
         super().__init__(owner)
         self._owner = owner
         self._kind = kind
@@ -59,7 +59,7 @@ class _DragDropFilter(QObject):
                 mime = QMimeData()
                 mime.setData(
                     self._MIME_TYPE,
-                    f"{self._kind}:{self._item_id}".encode("utf-8"),
+                    f"{self._kind}:{self._item_id}".encode(),
                 )
                 drag = QDrag(watched)
                 drag.setMimeData(mime)
@@ -233,8 +233,12 @@ class LinearFlowWidget(QWidget):
 
     def _build_sub_lesson(self, sl: dict[str, Any]) -> QFrame:
         frame = QFrame()
+        _pal = current_palette()
         frame.setStyleSheet(
-            "QFrame { background-color: #1F232C; border: 1px solid #2C313C; border-radius: 10px; }"
+            "QFrame {"
+            f" background-color: {_pal.get('bg_elevated', '#1F232C')};"
+            f" border: 1px solid {_pal.get('border', '#2C313C')};"
+            " border-radius: 10px; }"
         )
         flayout = QVBoxLayout(frame)
         flayout.setSpacing(10)
@@ -254,7 +258,7 @@ class LinearFlowWidget(QWidget):
             stages_layout.addWidget(self._build_stage(stage, sl))
 
         add_stage_btn = QPushButton("+ 添加教学步骤")
-        add_stage_btn.setProperty("sub_lesson", sl)
+        add_stage_btn._sub_lesson_ref = sl
         add_stage_btn.clicked.connect(self._on_add_stage_clicked)
         stages_layout.addWidget(add_stage_btn)
 
@@ -267,7 +271,7 @@ class LinearFlowWidget(QWidget):
     def _on_add_stage_clicked(self) -> None:
         sender = self.sender()
         if sender:
-            sl = sender.property("sub_lesson")
+            sl = getattr(sender, "_sub_lesson_ref", None)
             if sl:
                 self._on_add_stage(sl)
 
@@ -307,14 +311,14 @@ class LinearFlowWidget(QWidget):
     def _on_rename_sub_lesson_clicked(self) -> None:
         sender = self.sender()
         if sender:
-            s = sender.property("sub_lesson")
+            s = getattr(sender, "_sub_lesson_ref", None)
             if s:
                 self._on_rename_sub_lesson(s)
 
     def _on_move_sub_lesson_up_clicked(self) -> None:
         sender = self.sender()
         if sender:
-            s = sender.property("sub_lesson")
+            s = getattr(sender, "_sub_lesson_ref", None)
             idx = sender.property("index")
             if s and idx is not None:
                 self._on_move_sub_lesson(s, int(idx), -1)
@@ -322,7 +326,7 @@ class LinearFlowWidget(QWidget):
     def _on_move_sub_lesson_down_clicked(self) -> None:
         sender = self.sender()
         if sender:
-            s = sender.property("sub_lesson")
+            s = getattr(sender, "_sub_lesson_ref", None)
             idx = sender.property("index")
             if s and idx is not None:
                 self._on_move_sub_lesson(s, int(idx), 1)
@@ -330,7 +334,7 @@ class LinearFlowWidget(QWidget):
     def _on_delete_sub_lesson_clicked(self) -> None:
         sender = self.sender()
         if sender:
-            s = sender.property("sub_lesson")
+            s = getattr(sender, "_sub_lesson_ref", None)
             if s:
                 self._on_delete_sub_lesson(s)
 
@@ -361,7 +365,7 @@ class LinearFlowWidget(QWidget):
         add_layout.addStretch()
 
         add_btn = QPushButton("+ 添加题目")
-        add_btn.setProperty("stage", stage)
+        add_btn._stage_ref = stage
         add_btn.setProperty("combo", type_combo)
         add_btn.clicked.connect(self._on_add_item_clicked)
         add_layout.addWidget(add_btn)
@@ -372,7 +376,7 @@ class LinearFlowWidget(QWidget):
     def _on_add_item_clicked(self) -> None:
         sender = self.sender()
         if sender:
-            stage = sender.property("stage")
+            stage = getattr(sender, "_stage_ref", None)
             combo = sender.property("combo")
             if stage and combo:
                 self._on_add_item(stage, combo)
@@ -413,15 +417,15 @@ class LinearFlowWidget(QWidget):
     def _on_rename_stage_clicked(self) -> None:
         sender = self.sender()
         if sender:
-            st = sender.property("stage")
+            st = getattr(sender, "_stage_ref", None)
             if st:
                 self._on_rename_stage(st)
 
     def _on_move_stage_up_clicked(self) -> None:
         sender = self.sender()
         if sender:
-            st = sender.property("stage")
-            sl = sender.property("sub_lesson")
+            st = getattr(sender, "_stage_ref", None)
+            sl = getattr(sender, "_sub_lesson_ref", None)
             idx = sender.property("index")
             if st and sl and idx is not None:
                 self._on_move_stage(st, sl, int(idx), -1)
@@ -429,8 +433,8 @@ class LinearFlowWidget(QWidget):
     def _on_move_stage_down_clicked(self) -> None:
         sender = self.sender()
         if sender:
-            st = sender.property("stage")
-            sl = sender.property("sub_lesson")
+            st = getattr(sender, "_stage_ref", None)
+            sl = getattr(sender, "_sub_lesson_ref", None)
             idx = sender.property("index")
             if st and sl and idx is not None:
                 self._on_move_stage(st, sl, int(idx), 1)
@@ -438,8 +442,8 @@ class LinearFlowWidget(QWidget):
     def _on_delete_stage_clicked(self) -> None:
         sender = self.sender()
         if sender:
-            st = sender.property("stage")
-            sl = sender.property("sub_lesson")
+            st = getattr(sender, "_stage_ref", None)
+            sl = getattr(sender, "_sub_lesson_ref", None)
             if st and sl:
                 self._on_delete_stage(st, sl)
 
@@ -451,7 +455,7 @@ class LinearFlowWidget(QWidget):
             expression_model=self._expression_model,
             grammar_model=self._grammar_model,
         )
-        card.setProperty("stage", stage)
+        card._stage_ref = stage
         card.changed.connect(self.changed.emit)
         card.delete_requested.connect(self._on_card_delete_requested)
         card.type_changed.connect(self._on_card_type_changed)
@@ -463,35 +467,35 @@ class LinearFlowWidget(QWidget):
     def _on_card_delete_requested(self) -> None:
         card = self.sender()
         if isinstance(card, QuestionCard):
-            stage = card.property("stage")
+            stage = getattr(card, "_stage_ref", None)
             if stage:
                 self._on_delete_item(stage, card.item)
 
     def _on_card_type_changed(self, new_type: str) -> None:
         card = self.sender()
         if isinstance(card, QuestionCard):
-            stage = card.property("stage")
+            stage = getattr(card, "_stage_ref", None)
             if stage:
                 self._on_change_item_type(stage, card.item, new_type)
 
     def _on_card_move_up_requested(self) -> None:
         card = self.sender()
         if isinstance(card, QuestionCard):
-            stage = card.property("stage")
+            stage = getattr(card, "_stage_ref", None)
             if stage:
                 self._on_move_item(stage, card.item, -1)
 
     def _on_card_move_down_requested(self) -> None:
         card = self.sender()
         if isinstance(card, QuestionCard):
-            stage = card.property("stage")
+            stage = getattr(card, "_stage_ref", None)
             if stage:
                 self._on_move_item(stage, card.item, 1)
 
     def _on_card_ai_rewrite_requested(self) -> None:
         card = self.sender()
         if isinstance(card, QuestionCard):
-            stage = card.property("stage")
+            stage = getattr(card, "_stage_ref", None)
             if stage:
                 self._on_ai_rewrite_item(stage, card.item)
 
@@ -511,12 +515,27 @@ class LinearFlowWidget(QWidget):
             return
         self._replace_item(stage, item, result)
 
-    def _tool_button(self, text: str, tooltip: str, slot=None, **properties: Any) -> QPushButton:
+    def _tool_button(
+        self,
+        text: str,
+        tooltip: str,
+        slot=None,
+        *,
+        stage: dict[str, Any] | None = None,
+        sub_lesson: dict[str, Any] | None = None,
+        index: int | None = None,
+    ) -> QPushButton:
         btn = QPushButton(text)
         btn.setMinimumWidth(48)
         btn.setToolTip(tooltip)
-        for k, v in properties.items():
-            btn.setProperty(k, v)
+        # dict refs must stay Python attributes: Qt properties deep-copy
+        # dict → QVariantMap, silently detaching edits from the lesson data.
+        if stage is not None:
+            btn._stage_ref = stage
+        if sub_lesson is not None:
+            btn._sub_lesson_ref = sub_lesson
+        if index is not None:
+            btn.setProperty("index", index)
         if slot is not None:
             btn.clicked.connect(slot)
         return btn

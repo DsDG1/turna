@@ -16,7 +16,8 @@ preserved) → a single ``ApplyBatchPatchCommand`` on the Undo stack.
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import Any, Iterator
+from typing import Any
+from collections.abc import Iterator
 import logging
 logger = logging.getLogger(__name__)
 

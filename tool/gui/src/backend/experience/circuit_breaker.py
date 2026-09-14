@@ -46,7 +46,7 @@ class CircuitBreaker:
         self._failure_count: int = 0
         self._last_failure_time: float = 0.0
         self._last_state_change: float = time.time()
-        self._burst_history: Deque[float] = deque()
+        self._burst_history: deque[float] = deque()
         self._lock = Lock()
 
     @property

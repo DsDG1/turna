@@ -104,6 +104,7 @@ def _experience_clear_author(host, scope: dict | None = None) -> None:
                     "将清除跨课风格提示与语言偏好（内存；若开启落盘则一并删除本地画像文件）。\n"
                     "不删课程文件。此操作不可撤销。继续？",
                 )
+                ok = reply == QMessageBox.StandardButton.Yes
             except Exception:
                 ok = False
     else:

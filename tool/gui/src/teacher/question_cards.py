@@ -105,8 +105,12 @@ class QuestionCard(QFrame):
     ) -> None:
         super().__init__()
         self.setFrameShape(QFrame.Shape.StyledPanel)
+        _pal = current_palette()
         self.setStyleSheet(
-            "QuestionCard { background-color: #232833; border: 1px solid #2C313C; border-radius: 8px; }"
+            "QuestionCard {"
+            f" background-color: {_pal.get('bg_elevated', '#232833')};"
+            f" border: 1px solid {_pal.get('border', '#2C313C')};"
+            " border-radius: 8px; }"
         )
         self.adapter = adapter
         self.item = item
@@ -497,9 +501,6 @@ class QuestionCard(QFrame):
         front_edit.textChanged.connect(self._on_front_text_changed)
         layout.addWidget(front_edit)
 
-    def _on_front_text_changed(self, text: str) -> None:
-        self._set_field("front", text)
-
         self._flip_label = QLabel("(点击下方按钮翻面)")
         self._flip_label.setWordWrap(True)
         self._flip_label.setStyleSheet(f"padding: 6px; color: {current_palette()['text_disabled']};")
@@ -525,6 +526,9 @@ class QuestionCard(QFrame):
 
         self._add_media_list(layout, "audioAssets")
         self._add_media_list(layout, "imageAssets")
+
+    def _on_front_text_changed(self, text: str) -> None:
+        self._set_field("front", text)
 
     def _on_hint_button_clicked(self) -> None:
         sender = self.sender()
@@ -556,9 +560,11 @@ class QuestionCard(QFrame):
         from src.backend.anki_import import _strip_html
 
         badge = QLabel("HTML 卡片，完整渲染请以 App 为准（此处为剥除标签的纯文本预览）")
+        _badge_pal = current_palette()
         badge.setStyleSheet(
-            "background-color: #4a3f2a; color: #e8c46a; border-radius: 4px;"
-            "padding: 4px 8px;"
+            f"background-color: {_badge_pal.get('ai_beta_bg', '#4a3f2a')};"
+            f" color: {_badge_pal.get('ai_beta_text', '#e8c46a')};"
+            " border-radius: 4px; padding: 4px 8px;"
         )
         badge.setWordWrap(True)
         layout.addWidget(badge)

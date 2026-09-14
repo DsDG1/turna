@@ -7,7 +7,8 @@ internals.
 """
 from __future__ import annotations
 
-from typing import Any, Mapping, Sequence
+from typing import Any
+from collections.abc import Mapping, Sequence
 
 from PySide6.QtCore import QObject, QTimer, Signal
 
@@ -106,6 +107,11 @@ class ExperienceShell(QObject):
     @property
     def suggestions(self) -> list[dict[str, Any]]:
         return list(self._suggestions)
+
+    @property
+    def surface(self) -> str:
+        """Current surface key (``"tree"`` | ``"resources"`` | ...)."""
+        return self._surface
 
     def set_adapter(self, adapter: Any | None) -> None:
         self._adapter = adapter

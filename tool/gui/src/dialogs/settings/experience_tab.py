@@ -98,5 +98,31 @@ def build_experience_tab(dlg) -> QWidget:
     gates_form.addRow("日 AI 配额（次）:", dlg.experience_budget_spin)
     layout.addWidget(gates_group)
 
+    memory_group = QGroupBox("记忆与 OCR")
+    memory_form = QFormLayout(memory_group)
+    memory_form.setSpacing(10)
+
+    dlg.experience_ocr_check = QCheckBox("OCR 图片附件转文本（需系统安装 tesseract）")
+    dlg.experience_ocr_check.setToolTip(
+        "工坊附件中的图片 / 扫描件 PDF 可经本地 tesseract 转成文本附件。\n"
+        "OCR 结果只进附件栏，不写课程树；纯本地处理，不走 API。"
+    )
+    memory_form.addRow(dlg.experience_ocr_check)
+
+    dlg.experience_memory_project_check = QCheckBox("项目记忆落盘（近期技能 / 模板偏好）")
+    dlg.experience_memory_project_check.setToolTip(
+        "按课程记住最近用过的技能与偏好模板，写入 tool/var/experience_memory/。\n"
+        "关闭时记忆仅存活于当前进程。"
+    )
+    memory_form.addRow(dlg.experience_memory_project_check)
+
+    dlg.experience_memory_author_check = QCheckBox("作者画像落盘（跨课程风格 / 语言偏好）")
+    dlg.experience_memory_author_check.setToolTip(
+        "跨课程沉淀改写风格提示与语言偏好，供上下文和建议使用。\n"
+        "关闭时画像仅存活于当前进程。"
+    )
+    memory_form.addRow(dlg.experience_memory_author_check)
+    layout.addWidget(memory_group)
+
     layout.addStretch(1)
     return tab

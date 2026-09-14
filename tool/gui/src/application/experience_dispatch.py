@@ -12,7 +12,8 @@ and clears the token.
 from __future__ import annotations
 
 import logging
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 
 from PySide6.QtWidgets import QMessageBox
 
@@ -121,6 +122,21 @@ def dispatch_experience_action(host: ExperienceHost, suggestion: dict) -> None:
     if handler is None:
         host.statusBar().showMessage(f"建议已记录：{action}", 3000)
         return
+    # C-13: record the accepted intent into session memory (closed keys only).
+    try:
+        from src.application.experience_window_bridge import (
+            record_experience_intent,
+        )
+
+        record_experience_intent(
+            host,
+            action,
+            label=str(getattr(spec, "title", "") or action),
+            scope=scope,
+            source=str(suggestion.get("source") or "dispatch"),
+        )
+    except Exception:
+        logger.debug("application/experience_dispatch.py:dispatch_experience_action best-effort step failed", exc_info=True)
     # Let handlers that wrap multi-kind actions (e.g. *.edit) see action_id.
     try:
         host._dispatch_action_id = action

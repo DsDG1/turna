@@ -12,7 +12,10 @@ from __future__ import annotations
 import json
 import logging
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from src.application.ai_request_worker import AiRequestWorker
 
 from PySide6.QtWidgets import QDialogButtonBox, QInputDialog, QMessageBox
 
@@ -163,7 +166,7 @@ def on_normal_generation_ready(dlg, parsed: object) -> None:
 
 
 def confirm_structural_removal(dlg, diff: dict[str, set[str]]) -> bool:
-    return confirm_structural_removal(dlg, diff)
+    return _confirm_removal_ui(dlg, diff)
 
 
 def on_normal_worker_done(dlg) -> None:

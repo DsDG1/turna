@@ -6,7 +6,8 @@ from __future__ import annotations
 
 import copy
 import json
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 
 from src.backend.ai.client import chat_json, resolved_request_chat
 from src.backend.ai.config import (
@@ -462,7 +463,6 @@ def splice_lesson(
     new lesson is appended to the first unit. Other lessons/units are
     preserved verbatim.
     """
-    import copy
 
     section = copy.deepcopy(existing_section)
     splice_lesson_in_place(section, lesson_id, new_lesson)

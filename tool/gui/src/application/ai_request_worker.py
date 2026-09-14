@@ -45,7 +45,7 @@ _AttachmentRecord = AttachmentRecord
 # reference to a running QThread aborts the process
 # ("QThread: Destroyed while thread is still running"), so the registry keeps
 # every started worker alive until its ``finished`` signal fires.
-_LIVE_WORKERS: set["AiRequestWorker"] = set()
+_LIVE_WORKERS: set[AiRequestWorker] = set()
 
 
 class AiRequestWorker(QThread):
@@ -137,7 +137,7 @@ class AiRequestWorker(QThread):
             result = self._target(*self._args, **kwargs)
         except AiCancelled as exc:
             self.error_occurred.emit(str(exc) or "请求已取消。")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             self.error_occurred.emit(str(exc))
         else:
             if not self._cancelled:

@@ -1,6 +1,8 @@
 [project]
 name = "turna-gui"
-version = "0.1.0"
+# Internal tool — not a published package; release version lives in the
+# PyInstaller build / Turna app release, not here.
+version = "0.0.0"
 description = "Turna local GUI course editor (constrained form frontend over course_cli)"
 requires-python = ">=3.11"
 dependencies = [
@@ -10,13 +12,54 @@ dependencies = [
   "keyring>=24.0",
 ]
 
+[project.optional-dependencies]
+dev = [
+  "ruff>=0.6",
+]
+ocr = [
+  "pytesseract>=0.3.10",
+]
+
 [build-system]
 requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["src"]
+# Application, not a library: nothing is installed under a top-level package.
+# (Previously ``packages = ["src"]`` would have shipped a package literally
+# named ``src`` — a known namespace-pollution hazard.)
+packages = []
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = ["src"]
+
+[tool.ruff.lint]
+select = [
+  "E", "W",   # pycodestyle
+  "F",        # pyflakes (unused imports/vars, real bugs)
+  "I",        # isort
+  "UP",       # pyupgrade for py311
+  "B",        # bugbear
+  "C4",       # comprehensions
+  "SIM",      # simplification
+  "RUF",      # ruff-specific
+]
+ignore = [
+  "E501",   # line length: long CJK strings / f-strings are deliberate
+  "B008",   # function-call default arg: Qt factories in signatures are idiomatic here
+  "SIM108", # ternary-vs-if churn — codebase style prefers explicit if/else
+  "E402",   # sys.path bootstrap / lazy-import seams are an intentional pattern
+  "I001",   # import sorting deferred: ordering interacts with sys.path shims
+  "F401",   # module-level re-imports are the documented monkeypatch seam convention
+  "RUF001", "RUF002", "RUF003", # CJK fullwidth punctuation is intentional UI copy
+  "B905",   # zip(strict=) is a behavior change; not a mechanical fix
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["E402"]  # sys.path bootstrap before imports is the test convention

@@ -23,7 +23,8 @@ Design notes:
 """
 from __future__ import annotations
 
-from typing import Any, Callable, Literal
+from typing import Any, Literal
+from collections.abc import Callable
 
 from src.backend.ai_fixer import extract_json_object
 from src.backend.ai import AiApiConfig, AiCancelled, generate_with_validate_loop
@@ -349,7 +350,7 @@ def extract_knowledge_points_windowed(
             )
         except AiCancelled:
             raise
-        except Exception as exc:  # noqa: BLE001 - one window failed; keep the rest
+        except Exception as exc:
             errors.append(f"第 {n}/{len(windows)} 窗：{exc}")
     if not results:
         raise RuntimeError("知识点抽取失败：" + "；".join(errors))

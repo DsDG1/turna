@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
 )
 
 # Ranking logic lives Qt-free in the backend; re-exported for compat.
-from src.backend.quality_campaign import build_campaign_items  # noqa: F401
+from src.backend.quality_campaign import build_campaign_items
 
 
 class QualityCampaignDialog(QDialog):

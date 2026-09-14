@@ -5,7 +5,8 @@ without a heavyweight Qt hub widget.
 """
 from __future__ import annotations
 
-from typing import Any, Sequence
+from typing import Any
+from collections.abc import Sequence
 import logging
 from src.application.experience_host import ExperienceHost
 logger = logging.getLogger(__name__)

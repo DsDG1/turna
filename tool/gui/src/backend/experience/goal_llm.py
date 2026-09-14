@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 
 from src.backend.experience.planner import GoalPlan, expand_goal_local, plan_from_context
 

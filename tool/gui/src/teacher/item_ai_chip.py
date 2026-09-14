@@ -9,7 +9,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 
 from PySide6.QtWidgets import QMessageBox, QWidget
 
@@ -57,6 +58,71 @@ def _ai_generation_kwargs() -> dict[str, Any]:
         return {"timeout": 120.0, "temperature": 0.7}
 
 
+def _chip_modal_fallback(
+    owner: QWidget,
+    adapter: Any,
+    stage: dict[str, Any],
+    item: dict[str, Any],
+    instruction: str,
+    undo_stack: Any,
+    on_applied: Callable[[], None] | None,
+) -> None:
+    """Legacy modal path used when no PreviewHost is wired on the shell."""
+    from src.dialogs.ai_lesson_helper_dialog import AiLessonHelperDialog
+    from PySide6.QtWidgets import QDialog
+
+    dialog = AiLessonHelperDialog(
+        adapter,
+        item,
+        mode="item",
+        parent=owner,
+        initial_instruction=instruction,
+        ai_config=find_main_attr(owner, "_ai_config"),
+        settings_fn=lambda: find_main_attr(owner, "_settings_obj"),
+    )
+    if dialog.exec() != QDialog.DialogCode.Accepted:
+        return
+    result = dialog.result()
+    if result is None:
+        return
+    apply_item_result(
+        stage, item, result, undo_stack=undo_stack, on_applied=on_applied
+    )
+
+
+def _resource_id_sets(adapter: Any) -> tuple[set, set, set]:
+    """(vocab, expression, grammar) id sets for the worker prompt."""
+    vocab_ids = {w.get("id", "") for w in getattr(adapter, "vocab", []) or []}
+    expression_ids = {
+        e.get("id", "") for e in getattr(adapter, "expressions", []) or []
+    }
+    grammar_ids = {
+        g.get("id", "") for g in getattr(adapter, "grammar_points", []) or []
+    }
+    return vocab_ids, expression_ids, grammar_ids
+
+
+def _worker_instruction_with_memory(
+    memory: Any, lesson_id: str | None, instruction: str
+) -> str:
+    """R-07: append prior same-lesson style hints to the worker instruction."""
+    if not lesson_id or memory is None:
+        return instruction
+    hints_fn = getattr(memory, "lesson_style_hints", None)
+    if not callable(hints_fn):
+        return instruction
+    try:
+        prior = [h for h in hints_fn(str(lesson_id)) if h and h not in instruction]
+    except Exception:
+        return instruction
+    if not prior:
+        return instruction
+    suffix = "本课已用风格：" + "；".join(prior)
+    if len(suffix) > 120:
+        suffix = suffix[:119] + "…"
+    return f"{instruction}\n{suffix}"
+
+
 def run_item_chip(
     owner: QWidget,
     *,
@@ -89,26 +155,8 @@ def run_item_chip(
     preview = find_main_attr(owner, "preview_host")
     job_tray = find_main_attr(owner, "job_tray")
     if preview is None:
-        # Fallback: old modal path if shell not wired.
-        from src.dialogs.ai_lesson_helper_dialog import AiLessonHelperDialog
-        from PySide6.QtWidgets import QDialog
-
-        dialog = AiLessonHelperDialog(
-            adapter,
-            item,
-            mode="item",
-            parent=owner,
-            initial_instruction=instruction,
-            ai_config=find_main_attr(owner, "_ai_config"),
-            settings_fn=lambda: find_main_attr(owner, "_settings_obj"),
-        )
-        if dialog.exec() != QDialog.DialogCode.Accepted:
-            return
-        result = dialog.result()
-        if result is None:
-            return
-        apply_item_result(
-            stage, item, result, undo_stack=undo_stack, on_applied=on_applied
+        _chip_modal_fallback(
+            owner, adapter, stage, item, instruction, undo_stack, on_applied
         )
         return
 
@@ -172,36 +220,16 @@ def run_item_chip(
     preview.set_busy("正在按芯片指令改写题目…")
     telemetry.record_event("experience.chip.start", payload={"item_id": item_id})
 
-    vocab_ids = {w.get("id", "") for w in getattr(adapter, "vocab", []) or []}
-    expression_ids = {
-        e.get("id", "") for e in getattr(adapter, "expressions", []) or []
-    }
-    grammar_ids = {
-        g.get("id", "") for g in getattr(adapter, "grammar_points", []) or []
-    }
+    vocab_ids, expression_ids, grammar_ids = _resource_id_sets(adapter)
     kwargs = _ai_generation_kwargs()
     # Snapshot item for patch; stage is live reference for apply.
     old_item = dict(item)
 
     # R-07: same-lesson Surgeon style memory (session-only, best-effort).
     memory = find_main_attr(owner, "experience_memory")
-    worker_instruction = instruction
-    if lesson_id and memory is not None:
-        hints_fn = getattr(memory, "lesson_style_hints", None)
-        if callable(hints_fn):
-            try:
-                prior = [
-                    h
-                    for h in hints_fn(str(lesson_id))
-                    if h and h not in instruction
-                ]
-            except Exception:
-                prior = []
-            if prior:
-                suffix = "本课已用风格：" + "；".join(prior)
-                if len(suffix) > 120:
-                    suffix = suffix[:119] + "…"
-                worker_instruction = f"{instruction}\n{suffix}"
+    worker_instruction = _worker_instruction_with_memory(
+        memory, lesson_id, instruction
+    )
 
     worker = AiRequestWorker(
         request_item_transform,

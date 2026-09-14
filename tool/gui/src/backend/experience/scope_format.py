@@ -9,7 +9,8 @@ See ``experienceai.md`` §8.5 / §11 S-04 / S-12.
 """
 from __future__ import annotations
 
-from typing import Any, Mapping, Sequence
+from typing import Any
+from collections.abc import Mapping, Sequence
 
 from src.backend.experience.conflict_guard import node_key
 from src.backend.experience.context_bus import WEAK_SECTION_THRESHOLD
@@ -46,8 +47,8 @@ def infer_scope_node_key(
         if selection is None:
             return None
         if hasattr(selection, "kind") and hasattr(selection, "id"):
-            kind = str(getattr(selection, "kind") or "").strip()
-            nid = str(getattr(selection, "id") or "").strip()
+            kind = str(selection.kind or "").strip()
+            nid = str(selection.id or "").strip()
             if kind and nid:
                 return node_key(kind, nid)
         if isinstance(selection, (tuple, list)) and len(selection) >= 2:
@@ -117,9 +118,9 @@ def format_scope_target(
         # Selection fallback
         if selection is not None:
             if hasattr(selection, "kind") and hasattr(selection, "id"):
-                kind = str(getattr(selection, "kind") or "").strip()
-                nid = str(getattr(selection, "id") or "").strip()
-                label = str(getattr(selection, "label") or "").strip()
+                kind = str(selection.kind or "").strip()
+                nid = str(selection.id or "").strip()
+                label = str(selection.label or "").strip()
                 if kind and nid:
                     if label:
                         return f"{kind} {nid}（{label}）"

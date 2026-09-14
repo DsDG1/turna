@@ -58,7 +58,7 @@ class ProjectSummary:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "ProjectSummary":
+    def from_dict(cls, data: dict[str, Any]) -> ProjectSummary:
         return cls(
             project_id=data.get("project_id", ""),
             name=data.get("name", ""),
@@ -72,7 +72,7 @@ class ProjectSummary:
         )
 
     @classmethod
-    def from_project(cls, project: TextbookProject) -> "ProjectSummary":
+    def from_project(cls, project: TextbookProject) -> ProjectSummary:
         return cls(
             project_id=project.project_id,
             name=project.name,
@@ -109,7 +109,7 @@ def record_imported_sections(
     project: TextbookProject,
     section_ids: list[str],
     *,
-    store: "TextbookProjectStore | None" = None,
+    store: TextbookProjectStore | None = None,
     id_pairs: list[tuple[str, str]] | None = None,
 ) -> list[str]:
     """Record successfully imported section ids on ``project`` and persist.

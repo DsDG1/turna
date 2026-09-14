@@ -31,6 +31,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.theme import current_palette
+from src.application.settings import APP_NAME, ORG_NAME
 
 
 class ResultExpandWindow(QDialog):
@@ -100,7 +101,7 @@ class ResultExpandWindow(QDialog):
     # --- geometry persistence -------------------------------------------
 
     def _load_geometry(self) -> None:
-        qs = QSettings("Turna", "CourseEditor")
+        qs = QSettings(ORG_NAME, APP_NAME)
         geo = qs.value(self._GEO_KEY)
         if geo is not None:
             self.restoreGeometry(geo)
@@ -108,11 +109,11 @@ class ResultExpandWindow(QDialog):
             self.showMaximized()
 
     def _save_geometry(self) -> None:
-        qs = QSettings("Turna", "CourseEditor")
+        qs = QSettings(ORG_NAME, APP_NAME)
         qs.setValue(self._GEO_KEY, self.saveGeometry())
         qs.setValue(self._MAX_KEY, self.isMaximized())
 
-    def closeEvent(self, event) -> None:  # noqa: N802
+    def closeEvent(self, event) -> None:
         self._save_geometry()
         self._record_window_duration()
         super().closeEvent(event)

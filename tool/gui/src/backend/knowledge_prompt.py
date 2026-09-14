@@ -54,7 +54,7 @@ _SCHEMA_BLOCK = (
 _RULES_BLOCK = (
     "Rules:\n"
     "- Extract only knowledge that genuinely appears in this chapter's text.\n"
-    f"- term (for words/expressions) and title (for grammarPoints) are required "
+    "- term (for words/expressions) and title (for grammarPoints) are required "
     "and must be non-empty.\n"
     "- term/title are in the target language; translation is in the "
     "source/prompt language.\n"
@@ -116,7 +116,7 @@ class KnowledgePromptTemplates:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "KnowledgePromptTemplates":
+    def from_dict(cls, data: dict[str, Any]) -> KnowledgePromptTemplates:
         """Build from a partial dict; missing keys fall back to defaults."""
         defaults = cls()
         return cls(

@@ -62,6 +62,13 @@ from src.infrastructure.telemetry import telemetry
 from src.theme import ai_color, current_palette
 from src.widgets.bulk_import_preview_panel import BulkImportPreviewPanel
 from src.widgets.resource_review_table import ResourceReviewTable, ResourceRow
+from src.application.settings import APP_NAME, ORG_NAME
+
+def _status_text_style(token: str) -> str:
+    """Status-lamp text style driven by the active palette (themeable)."""
+    pal = current_palette()
+    return f"color: {pal.get(token, '#B9CCC0')}; font-size: 11px; font-weight: 600;"
+
 
 class TextbookImportDialog(QDialog):
     """Single-window textbook import timeline. Emits ``sections_ready``."""
@@ -100,7 +107,7 @@ class TextbookImportDialog(QDialog):
 
         # P4-2 auto-cascade (standard -> vocab_only) is on by default; the
         # ``textbook/auto_cascade`` QSettings key can turn it off.
-        auto_cascade = QSettings("Turna", "CourseEditor").value(
+        auto_cascade = QSettings(ORG_NAME, APP_NAME).value(
             "textbook/auto_cascade", True, type=bool
         )
         self._controller = TextbookImportController(
@@ -266,38 +273,26 @@ class TextbookImportDialog(QDialog):
             return
         text = message or ""
         low = text.lower()
-        if "自动降级" in text or "vocab_only" in low and "降级" in text:
+        if "自动降级" in text or ("vocab_only" in low and "降级" in text):
             self._extract_status_label.setText("抽取状态：已自动降级 → 仅词汇")
-            self._extract_status_label.setStyleSheet(
-                "color: #d97706; font-size: 11px; font-weight: 600;"
-            )
-        elif "滑窗" in text or "窗" in text and ("/" in text or "window" in low):
+            self._extract_status_label.setStyleSheet(_status_text_style("warning_text"))
+        elif "滑窗" in text or ("窗" in text and ("/" in text or "window" in low)):
             # Keep last window-ish line visible.
             snippet = text.strip().splitlines()[-1][:120]
             self._extract_status_label.setText(f"抽取状态：{snippet}")
-            self._extract_status_label.setStyleSheet(
-                "color: #0f766e; font-size: 11px; font-weight: 600;"
-            )
+            self._extract_status_label.setStyleSheet(_status_text_style("accent_text"))
         elif "按质量重抽完成" in text or "重抽完成" in text:
             self._extract_status_label.setText("抽取状态：按质量重抽完成 · 已重算质量分")
-            self._extract_status_label.setStyleSheet(
-                "color: #16a34a; font-size: 11px; font-weight: 600;"
-            )
+            self._extract_status_label.setStyleSheet(_status_text_style("success_text"))
         elif "按质量重抽失败" in text or "重抽失败" in text:
             self._extract_status_label.setText("抽取状态：按质量重抽失败（已保留原结果）")
-            self._extract_status_label.setStyleSheet(
-                "color: #dc2626; font-size: 11px; font-weight: 600;"
-            )
+            self._extract_status_label.setStyleSheet(_status_text_style("error_text"))
         elif "完成" in text and ("词" in text or "表达" in text):
             self._extract_status_label.setText("抽取状态：本章完成")
-            self._extract_status_label.setStyleSheet(
-                "color: #16a34a; font-size: 11px; font-weight: 600;"
-            )
+            self._extract_status_label.setStyleSheet(_status_text_style("success_text"))
         elif "失败" in text:
             self._extract_status_label.setText("抽取状态：失败 — 见日志")
-            self._extract_status_label.setStyleSheet(
-                "color: #dc2626; font-size: 11px; font-weight: 600;"
-            )
+            self._extract_status_label.setStyleSheet(_status_text_style("error_text"))
 
     def _on_autosave(self, project: TextbookProject) -> None:
         """Persist project snapshot, preserving original identity and imports."""
@@ -322,9 +317,7 @@ class TextbookImportDialog(QDialog):
         self.stage_text_changed.emit(text)
         if hasattr(self, "_extract_status_label"):
             self._extract_status_label.setText(f"抽取状态：{text}")
-            self._extract_status_label.setStyleSheet(
-                "color: #0f766e; font-size: 11px; font-weight: 600;"
-            )
+            self._extract_status_label.setStyleSheet(_status_text_style("accent_text"))
 
     def _on_quality_report_changed(self, report) -> None:
         self._refresh_quality_summary(report)

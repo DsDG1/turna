@@ -8,7 +8,8 @@ Hard rule (experienceai §6): brief construction **never** blocks save.
 """
 from __future__ import annotations
 
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 
 
 def build_local_save_brief(

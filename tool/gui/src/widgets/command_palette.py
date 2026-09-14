@@ -236,7 +236,7 @@ class CommandPalette(QDialog):
         )
         self.accept()
 
-    def keyPressEvent(self, event) -> None:  # noqa: N802
+    def keyPressEvent(self, event) -> None:
         if event.key() == Qt.Key.Key_Escape:
             self.reject()
             return

@@ -248,10 +248,11 @@ class AiOrbitWidget(QWidget):
             f"}}"
         )
 
+        on_accent = p.get("text_on_accent", "#FFFFFF")
         self.core_btn.setStyleSheet(
             "QPushButton#coreBtn {"
             f"  background-color: {accent_border};"
-            "  color: #FFFFFF;"
+            f"  color: {on_accent};"
             f"  border: 3px solid {accent};"
             "  border-radius: 55px;"
             "  font-weight: bold;"
@@ -261,7 +262,7 @@ class AiOrbitWidget(QWidget):
             "}"
             "QPushButton#coreBtn:hover {"
             f"  background-color: {accent};"
-            "  border-color: #FFFFFF;"
+            f"  border-color: {on_accent};"
             "}"
         )
 
@@ -281,16 +282,16 @@ class AiOrbitWidget(QWidget):
             f"}}"
         )
 
-    def dragEnterEvent(self, event) -> None:  # noqa: N802
+    def dragEnterEvent(self, event) -> None:
         if event.mimeData().hasFormat("application/x-knowledge-point"):
             event.acceptProposedAction()
             self._set_drag_active(True)
 
-    def dragLeaveEvent(self, event) -> None:  # noqa: N802
+    def dragLeaveEvent(self, event) -> None:
         self._set_drag_active(False)
         super().dragLeaveEvent(event)
 
-    def dropEvent(self, event) -> None:  # noqa: N802
+    def dropEvent(self, event) -> None:
         self._set_drag_active(False)
         raw = bytes(event.mimeData().data("application/x-knowledge-point")).decode(
             "utf-8"

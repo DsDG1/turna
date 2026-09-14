@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import time
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 
 from src.backend.knowledge_extractor import (
     extract_knowledge_points_windowed,

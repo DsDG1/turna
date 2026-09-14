@@ -343,7 +343,7 @@ def on_start_share(dlg) -> None:
         # server explicitly here.
         try:
             thread.server.server_close()
-        except Exception:  # noqa: BLE001 — best-effort cleanup
+        except Exception:
             logger.debug("dialogs/git_library/lan_share.py:on_start_share best-effort step failed", exc_info=True)
         QMessageBox.critical(dlg, "启动失败", f"发生未知错误：\n{exc}")
         dlg.git_server_thread = None

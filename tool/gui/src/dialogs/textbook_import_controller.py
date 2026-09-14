@@ -16,7 +16,8 @@ import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Literal
+from typing import Any, Literal
+from collections.abc import Callable
 
 # Ensure ``tool/gui`` is on sys.path when this module is imported directly.
 _GUI = Path(__file__).resolve().parents[2]

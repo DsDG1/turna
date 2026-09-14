@@ -620,37 +620,30 @@ class CourseAdapter:
         return CourseReleaseService.release_report(self)
 
     def _deep_snapshot(self) -> dict[str, Any]:
-        from src.backend.course_io import CourseIoService
 
         return CourseIoService.deep_snapshot(self)
 
     def _restore_from(self, snapshot: dict[str, Any]) -> None:
-        from src.backend.course_io import CourseIoService
 
         CourseIoService.restore_from(self, snapshot)
 
     def _write_files_to_dir(self, target_dir: Path) -> None:
-        from src.backend.course_io import CourseIoService
 
         CourseIoService.write_files_to_dir(self, target_dir)
 
     def _backup_json_files(self, src: Path, dst: Path) -> None:
-        from src.backend.course_io import CourseIoService
 
         CourseIoService.backup_json_files(src, dst)
 
     @staticmethod
     def _prune_old_backups(backup_root: Path, keep: int = 20) -> None:
-        from src.backend.course_io import CourseIoService
 
         CourseIoService.prune_old_backups(backup_root, keep=keep)
 
     def _replace_course_files_with(self, tmp_dir: Path, course_dir: Path) -> None:
-        from src.backend.course_io import CourseIoService
 
         CourseIoService.replace_course_files_with(tmp_dir, course_dir)
 
     def save(self) -> SaveResult:
-        from src.backend.course_io import CourseIoService
 
         return CourseIoService.save(self)

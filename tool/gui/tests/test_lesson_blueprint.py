@@ -11,7 +11,10 @@ if str(_GUI) not in sys.path:
 from tests._course_fixture import real_adapter_with_course  # noqa: E402
 
 
+from PySide6.QtWidgets import QPushButton, QTextEdit  # noqa: E402
+
 from src.backend.course_adapter import CourseAdapter  # noqa: E402
+from src.backend.lesson_content import default_interaction  # noqa: E402
 from src.backend.lesson_presets import FUNCTIONAL_PRESETS, build_preset_lesson  # noqa: E402
 from src.teacher.question_cards import QuestionCard  # noqa: E402
 from src.widgets.lesson_blueprint import LessonBlueprint  # noqa: E402
@@ -173,6 +176,54 @@ class DetailPanelLessonViewTest(unittest.TestCase):
         self.detail.show_node(self.adapter, ("lesson", self.lesson_id))
         self.assertEqual(self.detail._lesson_view_mode, "blueprint")
         self.assertIsInstance(self._inner_widget(), LessonBlueprint)
+
+
+class ReadingBlueprintSignalTest(unittest.TestCase):
+    """Regression: blueprint signal handlers must resolve QTextEdit /
+    QComboBox from module scope (function-local imports once left both
+    undefined in ``_on_passage_paragraphs_changed`` / ``_on_add_item_clicked``)."""
+
+    def setUp(self) -> None:
+        _App.get()
+        self.adapter = CourseAdapter()
+
+    @staticmethod
+    def _reading_lesson() -> dict:
+        item = default_interaction("multipleChoice")
+        item.update({"prompt": "Q1", "options": ["A", "B"], "correctIndex": 0})
+        return {
+            "id": "l-read",
+            "name": "Reading",
+            "template": "reading",
+            "content": {
+                "readingPassage": {
+                    "title": "T",
+                    "paragraphs": ["P1"],
+                    "difficulty": 2,
+                },
+                "stages": [
+                    {"id": "st-1", "name": "Comprehension", "items": [item]}
+                ],
+            },
+        }
+
+    def test_paragraph_edit_updates_lesson_via_signal(self) -> None:
+        lesson = self._reading_lesson()
+        bp = LessonBlueprint(self.adapter, lesson, read_only=False)
+        edit = bp.findChildren(QTextEdit)[0]
+        edit.setPlainText("A\n\nB")
+        self.assertEqual(
+            lesson["content"]["readingPassage"]["paragraphs"], ["A", "B"]
+        )
+
+    def test_add_item_button_appends_item(self) -> None:
+        lesson = self._reading_lesson()
+        bp = LessonBlueprint(self.adapter, lesson, read_only=False)
+        btn = next(
+            b for b in bp.findChildren(QPushButton) if b.text() == "+ 添加题目"
+        )
+        btn.click()
+        self.assertEqual(len(lesson["content"]["stages"][0]["items"]), 2)
 
 
 if __name__ == "__main__":

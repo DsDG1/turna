@@ -63,7 +63,7 @@ def _stable_hash(model: str, messages: list[dict[str, Any]], response_format: di
 class AiCacheStats:
     """Snapshot of cache counters (immutable view for telemetry)."""
 
-    __slots__ = ("hits", "misses", "entries", "disk_writes", "disk_errors")
+    __slots__ = ("disk_errors", "disk_writes", "entries", "hits", "misses")
 
     def __init__(
         self,
@@ -286,7 +286,7 @@ class AiCache:
             raise ValueError(f"invalid cache key: {key!r}")
         path = self._disk_dir / f"{key}.json"
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 data = json.load(f)
             if isinstance(data, dict):
                 return data

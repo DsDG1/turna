@@ -5,7 +5,8 @@ layer; this module only **describes** health for the author-facing brief.
 """
 from __future__ import annotations
 
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 
 
 def build_publish_brief(

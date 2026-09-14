@@ -686,19 +686,19 @@ class SectionAiDialog(QDialog):
 
     # --- Drag and drop ---------------------------------------------------
 
-    def dragEnterEvent(self, event: QDragEnterEvent) -> None:  # noqa: N802
+    def dragEnterEvent(self, event: QDragEnterEvent) -> None:
         if event.mimeData().hasUrls():
             event.acceptProposedAction()
         else:
             super().dragEnterEvent(event)
 
-    def dragMoveEvent(self, event) -> None:  # noqa: N802
+    def dragMoveEvent(self, event) -> None:
         if event.mimeData().hasUrls():
             event.acceptProposedAction()
         else:
             super().dragMoveEvent(event)
 
-    def dropEvent(self, event: QDropEvent) -> None:  # noqa: N802
+    def dropEvent(self, event: QDropEvent) -> None:
         urls = event.mimeData().urls()
         paths = [Path(u.toLocalFile()) for u in urls if u.isLocalFile()]
         if paths:
@@ -728,7 +728,7 @@ class SectionAiDialog(QDialog):
         self._cleanup_attachments()
         super().accept()
 
-    def closeEvent(self, event) -> None:  # noqa: N802
+    def closeEvent(self, event) -> None:
         self._closing = True
         self._cancel_current_worker()
         self._disconnect_worker_signals(self._current_worker)

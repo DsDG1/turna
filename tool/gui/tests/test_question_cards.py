@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 
 from PySide6.QtGui import QStandardItemModel
-from PySide6.QtWidgets import QComboBox, QLabel, QPushButton
+from PySide6.QtWidgets import QComboBox, QLabel, QLineEdit, QPushButton
 
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
@@ -194,6 +194,37 @@ class SharedModelTest(unittest.TestCase):
         self.assertEqual(len(shared_models), 2)
         self.assertIn(self.vocab_model, shared_models)
         self.assertIn(self.grammar_model, shared_models)
+
+
+class AnkiCardBuildTest(unittest.TestCase):
+    """Regression: the ankiCard flip/back/hint/media UI must be built by
+    ``_build_anki_card`` (a misplaced block once left it inside
+    ``_on_front_text_changed``, crashing with NameError on the first
+    keystroke and never rendering the rest of the card)."""
+
+    def _make(self, **extra) -> QuestionCard:
+        _TestApp.get()
+        item = default_interaction("ankiCard")
+        item.update(extra)
+        return QuestionCard(CourseAdapter(), item)
+
+    def test_full_flip_ui_is_built(self) -> None:
+        card = self._make(front="merhaba", back="你好", hint="greeting")
+        self.assertIsNotNone(getattr(card, "_flip_label", None))
+        self.assertIsNotNone(getattr(card, "_flip_btn", None))
+        fronts = [e for e in card.findChildren(QLineEdit) if e.text() == "merhaba"]
+        backs = [e for e in card.findChildren(QLineEdit) if e.text() == "你好"]
+        self.assertEqual(len(fronts), 1)
+        self.assertEqual(len(backs), 1)
+
+    def test_editing_front_and_back_syncs_item(self) -> None:
+        card = self._make(front="merhaba", back="你好")
+        front = next(e for e in card.findChildren(QLineEdit) if e.text() == "merhaba")
+        back = next(e for e in card.findChildren(QLineEdit) if e.text() == "你好")
+        front.setText("günaydın")
+        self.assertEqual(card.item["front"], "günaydın")
+        back.setText("早安")
+        self.assertEqual(card.item["back"], "早安")
 
 
 if __name__ == "__main__":

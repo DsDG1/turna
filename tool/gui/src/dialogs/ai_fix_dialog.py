@@ -121,7 +121,7 @@ class AiFixDialog(QDialog):
         self.success_lay = QVBoxLayout(self.page_success)
         self.success_lay.setContentsMargins(0, 0, 0, 0)
         self.success_lay.addWidget(QLabel("<b>修正已就绪。对比结果如下：</b>"))
-        
+
         self.preview_container = QWidget()
         self.preview_lay = QVBoxLayout(self.preview_container)
         self.preview_lay.setContentsMargins(0, 0, 0, 0)
@@ -396,7 +396,7 @@ class AiFixDialog(QDialog):
     def corrected_node(self) -> dict[str, Any] | None:
         return self._corrected
 
-    def closeEvent(self, event) -> None:  # noqa: N802
+    def closeEvent(self, event) -> None:
         if self._worker is not None:
             self._disconnect_worker(self._worker)
             if self._worker.isRunning():

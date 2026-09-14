@@ -7,6 +7,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+from PySide6.QtCore import QObject, Signal
+
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
@@ -436,6 +438,112 @@ class UnitContractTest(unittest.TestCase):
         self.assertIsNotNone(r_lesson)
         assert r_lesson is not None
         self.assertEqual(r_lesson.action_id, "lesson.batch_regenerate")
+
+
+class _FakeAiWorker(QObject):
+    """Synchronous stand-in for AiRequestWorker (same-thread direct signals)."""
+
+    result_ready = Signal(object)
+    error_occurred = Signal(str)
+
+    constructed: "list[_FakeAiWorker]" = []
+
+    def __init__(self, target) -> None:
+        super().__init__()
+        self._target = target
+        type(self).constructed.append(self)
+
+    def start(self) -> None:
+        try:
+            self.result_ready.emit(self._target())
+        except Exception as exc:  # mirror the worker error channel
+            self.error_occurred.emit(str(exc))
+
+
+class BatchWorkerPathTest(unittest.TestCase):
+    """Regression: the non-inline (production) path must resolve
+    ``AiRequestWorker`` via the call-time lazy import — a missing import once
+    made every real batch regen raise NameError that the surrounding
+    best-effort handlers silently swallowed as a skipped lesson."""
+
+    def test_worker_path_applies_batch(self) -> None:
+        old_sec = {
+            "id": "s1",
+            "units": [
+                {
+                    "id": "u1",
+                    "lessons": [
+                        {"id": "l1", "name": "A", "content": {}},
+                        {"id": "l2", "name": "B", "content": {}},
+                    ],
+                }
+            ],
+        }
+
+        def find_lesson(lid):
+            for les in old_sec["units"][0]["lessons"]:
+                if les["id"] == lid:
+                    return old_sec, old_sec["units"][0], les
+            raise KeyError(lid)
+
+        adapter = MagicMock()
+        adapter.find_lesson.side_effect = find_lesson
+        undo = MagicMock()
+        metrics = MagicMock()
+        tray = MagicMock()
+        tray.is_busy_ai.return_value = False
+        host = SimpleNamespace(
+            course_dir=Path("/tmp/c"),
+            adapter=adapter,
+            undo_stack=undo,
+            experience_metrics=metrics,
+            job_tray=tray,
+            conflict_guard=MagicMock(),
+            experience=SimpleNamespace(context=None, _multi=None),
+            _current_node_ref=None,
+            _ai_config=SimpleNamespace(is_complete=True),
+            _deny_ai_write_if_blocked=MagicMock(return_value=False),
+            _record_experience_event=MagicMock(),
+            _refresh_validate_after_ai=MagicMock(),
+            _on_ai_edit_applied=MagicMock(),
+            statusBar=MagicMock(return_value=MagicMock()),
+        )
+
+        def fake_regen(config, spec, draft, lid, instruction=None):
+            import copy
+
+            out = copy.deepcopy(draft)
+            for u in out["units"]:
+                for les in u["lessons"]:
+                    if les["id"] == lid:
+                        les["name"] = f"{lid}-new"
+                        les["content"] = {"ok": True}
+            return out
+
+        _FakeAiWorker.constructed.clear()
+        with (
+            patch(
+                "src.application.experience_handlers.regenerate.safe_question",
+                return_value=True,
+            ),
+            patch(
+                "src.backend.ai.regenerate_lesson_in_section",
+                side_effect=fake_regen,
+            ),
+            patch(
+                "src.backend.ai.AiCourseSpec", return_value=object()
+            ),
+            patch(
+                "src.application.ai_request_worker.AiRequestWorker", _FakeAiWorker
+            ),
+        ):
+            handle_batch_regenerate(host, {"lesson_ids": ["l1", "l2"]})
+        # One worker per lesson, all results applied in a single undo batch.
+        self.assertEqual(len(_FakeAiWorker.constructed), 2)
+        undo.push.assert_called()
+        metrics.inc_suggestion.assert_any_call(
+            "lesson.batch_regenerate", "applied"
+        )
 
 
 if __name__ == "__main__":

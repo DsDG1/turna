@@ -288,8 +288,11 @@ class SubLessonFlowWidget(LinearFlowWidget):
         preview_layout = QVBoxLayout(self._preview_container)
         preview_layout.setContentsMargins(8, 8, 8, 8)
         preview_layout.setSpacing(8)
+        _pal = current_palette()
         self._preview_container.setStyleSheet(
-            "background-color: #1A1D24; border: 1px solid #2C313C; border-radius: 8px;"
+            f"background-color: {_pal.get('bg_input', '#1A1D24')};"
+            f" border: 1px solid {_pal.get('border', '#2C313C')};"
+            " border-radius: 8px;"
         )
         self._preview_container.setVisible(self._preview_visible)
         self._content_layout.addWidget(self._preview_container)

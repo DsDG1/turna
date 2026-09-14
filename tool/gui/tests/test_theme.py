@@ -92,7 +92,7 @@ class AccentColorTest(unittest.TestCase):
 
     def test_flutter_and_gui_primary_tokens_match(self) -> None:
         self.assertEqual(palette_for("dark")["accent"], BRAND_TEAL)
-        flutter_theme = (_GUI.parents[1] / "lib" / "views" / "theme.dart").read_text(
+        flutter_theme = (_GUI.parents[1] / "lib" / "core" / "theme.dart").read_text(
             encoding="utf-8"
         )
         expected = {

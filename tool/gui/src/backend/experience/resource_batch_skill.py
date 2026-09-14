@@ -18,7 +18,8 @@ this module never touches the adapter or Qt.
 from __future__ import annotations
 
 import json
-from typing import Any, Iterable
+from typing import Any
+from collections.abc import Iterable
 
 from src.backend.experience.pos_constants import POS_TAGS, normalize_pos
 

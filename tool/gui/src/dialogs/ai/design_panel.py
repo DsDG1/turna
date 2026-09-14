@@ -77,6 +77,8 @@ _STEP_MARKS = {
     STATUS_FAILED: "✗",
 }
 
+_POOL_UPDATED_NOTICE = "（资源池已更新，建议重新生成）"
+
 
 class DesignPanel(QWidget):
     """Grounded course-design widget (params + chat → draft → import)."""
@@ -91,6 +93,8 @@ class DesignPanel(QWidget):
     usage_changed = Signal(str)
     #: (temp_path, original_name, unlink_after) — requested OCR
     ocr_requested = Signal(str, str, bool)
+
+    attachments_changed = Signal()
 
     def __init__(
         self,
@@ -253,10 +257,12 @@ class DesignPanel(QWidget):
 
     def notice_pool_updated(self) -> None:
         """Tell the user the pool changed under an existing draft (§2.2)."""
-        if self._controller.draft is not None:
-            self._pool_label.setText(
-                self._pool_label.text() + "（资源池已更新，建议重新生成）"
-            )
+        if self._controller.draft is None:
+            return
+        text = self._pool_label.text()
+        if self._POOL_UPDATED_NOTICE in text:
+            return
+        self._pool_label.setText(text + self._POOL_UPDATED_NOTICE)
 
     def _autosave(self) -> None:
         """Schedule a throttled project write (P2); coalesce while generating."""
@@ -577,6 +583,19 @@ class DesignPanel(QWidget):
         if hasattr(self, "_attachment_bar") and self._attachment_bar is not None:
             self._attachment_bar.set_ocr_enabled(self._ocr_enabled)
 
+    def attachment_records(self) -> list:
+        """M-01: live AttachmentRecord list for snapshot consumers."""
+        if not hasattr(self, "_attachment_bar") or self._attachment_bar is None:
+            return []
+        return list(self._attachment_bar.attachments())
+
+    def add_attachment_record(self, record) -> bool:
+        """M-03: push a record (e.g. OCR text output) into the bar."""
+        if not hasattr(self, "_attachment_bar") or self._attachment_bar is None:
+            return False
+        self._attachment_bar.add_attachment(record)
+        return True
+
     def _add_attachment_paths(self, paths: list[Path]) -> None:
         """Copy to temp + extract text/image content, then add to the bar.
 
@@ -647,11 +666,11 @@ class DesignPanel(QWidget):
         self._delete_temp_files(self._attachment_bar.attachments())
         self._attachment_bar.clear_attachments()
 
-    def dragEnterEvent(self, event: Any) -> None:  # noqa: N802
+    def dragEnterEvent(self, event: Any) -> None:
         if event.mimeData().hasUrls():
             event.acceptProposedAction()
 
-    def dropEvent(self, event: Any) -> None:  # noqa: N802
+    def dropEvent(self, event: Any) -> None:
         paths = [
             Path(url.toLocalFile())
             for url in event.mimeData().urls()

@@ -16,7 +16,8 @@ tree — no ConflictGuard, no sandbox, no undo, no ``dangerous`` flag.
 from __future__ import annotations
 
 import base64
-from typing import Any, Literal, Sequence
+from typing import Any, Literal
+from collections.abc import Sequence
 import logging
 logger = logging.getLogger(__name__)
 

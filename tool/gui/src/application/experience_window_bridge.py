@@ -57,6 +57,9 @@ def refresh_experience(host, *, immediate: bool = False, focus_only: bool = Fals
             host.experience.set_active_jobs(host.job_tray.active_jobs())
         if hasattr(host, "_current_node_ref"):
             host.experience.set_selection(host._current_node_ref)
+        sync_experience_memory(host)
+        sync_experience_attachments(host)
+        sync_usage_today(host)
         if focus_only:
             host.experience.invalidate_focus()
         else:
@@ -64,6 +67,117 @@ def refresh_experience(host, *, immediate: bool = False, focus_only: bool = Fals
                 host.experience.rebuild_now()
             else:
                 host.experience.invalidate()
+
+
+def sync_experience_memory(host) -> None:
+    """C-13: push ExperienceMemory context fields into the Shell.
+
+    ``recent_intents`` / ``author_profile`` land on the next Context rebuild;
+    ``session.last_surface`` mirrors the Shell's current surface so memory
+    consumers can see where the user was working. Never raises.
+    """
+    mem = getattr(host, "experience_memory", None)
+    exp = getattr(host, "experience", None)
+    if mem is None or exp is None:
+        return
+    try:
+        fields = mem.context_fields()
+        exp.set_recent_intents(fields.get("recent_intents"))
+        exp.set_author_profile(fields.get("author_profile"))
+        session = getattr(mem, "session", None)
+        if session is not None:
+            session.set_last_surface(getattr(exp, "surface", "") or "")
+    except Exception:
+        logger.debug(
+            "experience_window_bridge.py:sync_experience_memory best-effort step failed",
+            exc_info=True,
+        )
+
+
+def sync_experience_attachments(host) -> None:
+    """M-01: snapshot workshop attachment bar into the Shell (closed shape).
+
+    Only metadata (name/kind/char_count/hash) enters the Context — raw text
+    and base64 payloads stay in the bar. Never raises.
+    """
+    exp = getattr(host, "experience", None)
+    if exp is None:
+        return
+    try:
+        from src.backend.experience.attachments import build_attachment_snapshot
+
+        win = getattr(host, "_workshop_window", None)
+        records = []
+        if win is not None:
+            getter = getattr(win, "attachment_records", None)
+            if callable(getter):
+                records = getter() or []
+        exp.set_attachments(build_attachment_snapshot(records, source="workshop"))
+    except Exception:
+        logger.debug(
+            "experience_window_bridge.py:sync_experience_attachments best-effort step failed",
+            exc_info=True,
+        )
+
+
+def sync_usage_today(host) -> None:
+    """M-08: feed telemetry today's AI-usage bucket into the Shell."""
+    exp = getattr(host, "experience", None)
+    if exp is None:
+        return
+    try:
+        from src.backend.experience.metrics import usage_today_from_summary
+
+        exp.set_usage_today(usage_today_from_summary(telemetry.usage_summary()))
+    except Exception:
+        logger.debug(
+            "experience_window_bridge.py:sync_usage_today best-effort step failed",
+            exc_info=True,
+        )
+
+
+def apply_experience_memory_settings(host) -> None:
+    """Wire ``memory_persist_*`` settings into the ExperienceMemory layers."""
+    mem = getattr(host, "experience_memory", None)
+    if mem is None:
+        return
+    try:
+        settings = getattr(host, "_settings_obj", None)
+        mem.configure_project_persist(
+            enabled=bool(
+                getattr(settings, "experience_memory_persist_project", False)
+            )
+        )
+        mem.configure_author_persist(
+            enabled=bool(
+                getattr(settings, "experience_memory_persist_author", False)
+            )
+        )
+    except Exception:
+        logger.debug(
+            "experience_window_bridge.py:apply_experience_memory_settings best-effort step failed",
+            exc_info=True,
+        )
+
+
+def record_experience_intent(
+    host, action_id: str, *, label: str = "", scope: Any = None, source: str = ""
+) -> None:
+    """C-13: record a dispatched skill into session memory, then re-sync."""
+    mem = getattr(host, "experience_memory", None)
+    if mem is None:
+        return
+    try:
+        mem.record_intent(action_id, label=label, scope=scope, source=source)
+        sync_experience_memory(host)
+        exp = getattr(host, "experience", None)
+        if exp is not None:
+            exp.invalidate()
+    except Exception:
+        logger.debug(
+            "experience_window_bridge.py:record_experience_intent best-effort step failed",
+            exc_info=True,
+        )
 
 
 def on_experience_resources_changed(host) -> None:

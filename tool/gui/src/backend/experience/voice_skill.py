@@ -65,11 +65,11 @@ def voice_available() -> tuple[bool, str]:
     ``(False, reason)`` where reason ∈ {"missing_dep","no_mic"}. Never raises.
     """
     try:
-        import speech_recognition  # noqa: F401
+        import speech_recognition
     except Exception:
         return False, "missing_dep"
     try:
-        import pyaudio  # noqa: F401
+        import pyaudio
     except Exception:
         # SpeechRecognition can use other backends, but design pins pyaudio.
         return False, "missing_dep"

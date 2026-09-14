@@ -24,8 +24,8 @@ def build_teacher_widget(
     unit: dict[str, Any],
     lesson: dict[str, Any],
     parent: QWidget,
-    undo_stack: "QUndoStack | None",
-    ai_config: "AiApiConfig | None",
+    undo_stack: QUndoStack | None,
+    ai_config: AiApiConfig | None,
 ) -> QWidget:
     """Construct the teacher-view widget for a lesson based on its template.
 
@@ -145,7 +145,7 @@ class DetailPanel(QWidget):
                 section = adapter.find_section(node_id)
                 self.form.show_section(adapter, section)
                 self.title.setText(section.get("name", node_id))
-                self.breadcrumb.setText(f"编辑内容  ›  Section")
+                self.breadcrumb.setText("编辑内容  ›  Section")
             elif kind == "unit":
                 _section, unit = adapter.find_unit(node_id)
                 self.form.show_unit(adapter, unit)

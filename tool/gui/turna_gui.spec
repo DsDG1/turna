@@ -28,6 +28,9 @@ a = Analysis(
     pathex=[str(GUI_DIR), str(TOOL_DIR)],
     binaries=[],
     datas=[],
+    # Defensive only: there are no importlib/dynamic imports in src/, so
+    # PyInstaller's static analysis already finds everything. Keep this list
+    # for robustness; it does not need to enumerate every module.
     hiddenimports=[
         "course_cli",
         "src.app",

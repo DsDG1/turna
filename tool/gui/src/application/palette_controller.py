@@ -17,7 +17,8 @@ from __future__ import annotations
 
 import functools
 import logging
-from typing import Any, Mapping, MutableMapping, Sequence
+from typing import Any
+from collections.abc import Mapping, MutableMapping, Sequence
 from src.application.experience_host import ExperienceHost
 logger = logging.getLogger(__name__)
 

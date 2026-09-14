@@ -12,7 +12,8 @@ Pure-Python (no PySide6) so it is unit-testable without a display, mirroring
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 
 from src.backend.lesson_content import default_interaction, short_id
 

@@ -73,5 +73,22 @@ class TestGeneratorPreviewCoordinator(unittest.TestCase):
         self.assertIs(editor.parent(), host_widget)
 
 
+class GeneratorFlowsDelegationTest(unittest.TestCase):
+    """Regression: ``generator_flows.confirm_structural_removal`` must forward
+    to the coordinator implementation (a copy-paste slip once made it call
+    itself, so node-edit removal confirmation recursed until RecursionError)."""
+
+    def test_confirm_structural_removal_forwards_to_coordinator(self):
+        from src.dialogs.ai import generator_flows
+
+        dlg = object()
+        diff = {"removed_items": {"i-1"}}
+        with patch.object(
+            generator_flows, "_confirm_removal_ui", return_value=True
+        ) as forward:
+            self.assertTrue(generator_flows.confirm_structural_removal(dlg, diff))
+        forward.assert_called_once_with(dlg, diff)
+
+
 if __name__ == "__main__":
     unittest.main()

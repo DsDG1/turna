@@ -23,7 +23,8 @@ value of this file is the *surface*, not fine-grained types.
 """
 from __future__ import annotations
 
-from typing import Any, Callable, Protocol
+from typing import Any, Protocol
+from collections.abc import Callable
 
 # Shorthand for the many callback members.
 _Handler = Callable[..., Any]
@@ -101,7 +102,6 @@ class ExperienceHost(Protocol):
     _ambient_archived: Any
     _ambient_mute: Any                        # proactive mute state (make_mute)
     _defer_store: Any                         # A3 ② DeferStore (defer resurface)
-    _heartbeat_wait_idle: bool                # ambient heartbeat paused flag
     _campaign_auto_offered_for: Any
     _precog_cache: Any
     _experience_why_current: _Handler         # probed

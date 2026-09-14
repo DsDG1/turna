@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Callable
+from collections.abc import Callable
 
 from src.backend.attachment_extractor import extract_attachment
 from src.backend.import_step_result import ImportStepResult

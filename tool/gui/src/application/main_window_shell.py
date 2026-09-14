@@ -167,6 +167,7 @@ def build_status_bar(host) -> None:
 
     host.job_tray = JobTray(host)
     host.job_tray.job_activated.connect(host._on_job_activated)
+    host.job_tray.ai_busy_changed.connect(host._on_job_tray_ai_busy_changed)
     status.addPermanentWidget(host.job_tray)
 
     host._health_status_label.setStyleSheet(

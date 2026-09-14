@@ -12,7 +12,8 @@ from __future__ import annotations
 
 import hashlib
 import os
-from typing import Any, Mapping, Sequence
+from typing import Any
+from collections.abc import Mapping, Sequence
 import logging
 logger = logging.getLogger(__name__)
 

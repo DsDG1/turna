@@ -11,7 +11,8 @@ Never raises to the caller (best-effort clears).
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 import logging
 from src.application.experience_host import ExperienceHost
 logger = logging.getLogger(__name__)

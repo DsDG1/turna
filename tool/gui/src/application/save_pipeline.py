@@ -14,7 +14,8 @@ Hard rules (experienceai §6 / §9.6):
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Callable, Protocol
+from typing import Any, Protocol
+from collections.abc import Callable
 import logging
 logger = logging.getLogger(__name__)
 

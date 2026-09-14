@@ -6,8 +6,7 @@ Module-level functions duck-typing ``MainWindow`` via the
 thin ``_experience_*`` wrappers (ai_refactor_contract §1d).
 
 Covers: ambient proposal refresh + silent drive + precognition refresh,
-heartbeat pacing (orphan timer: ``_ambient_heartbeat`` has no creator in src;
-kept for the retired-banner test fixtures), defer-store persistence, and the
+AI-busy flag tracking, defer-store persistence, and the
 accept / archive / mute banner reactions.
 """
 from __future__ import annotations
@@ -187,79 +186,10 @@ def refresh_ambient(host: ExperienceHost) -> None:
         logger.debug("application/ambient_controller.py:refresh_ambient best-effort step failed", exc_info=True)
 
 
-def on_ambient_heartbeat(host: ExperienceHost) -> None:
-    """A3 ③ + F4 + P2: re-evaluate only when AI is idle.
-
-    Interval is full ``HEARTBEAT_IDLE_INTERVAL_MS`` after each successful
-    tick **or** after AI jobs finish (timer restarts from idle moment).
-    While AI is busy the timer is stopped so the interval does not count.
-    """
-    if not hasattr(host, "ambient_banner") or host.course_dir is None:
-        return
-    from src.backend.experience import resolve_policy
-    from src.application.presence_drive import is_experience_ai_busy
-
-    policy = resolve_policy(getattr(host, "_settings_obj", None))
-    if policy.is_observer:
-        return
-    live = bool(getattr(policy, "allow_ambient_live", False))
-    defer = bool(getattr(policy, "allow_defer_resurface", False))
-    if not (live or defer):
-        return
-    try:
-        if hasattr(host, "isActiveWindow") and not host.isActiveWindow():
-            return
-    except Exception:
-        logger.debug("application/ambient_controller.py:on_ambient_heartbeat best-effort step failed", exc_info=True)
-    # P2: do not refresh/drive while AI is still answering.
-    if is_experience_ai_busy(host):
-        pause_heartbeat_until_idle(host)
-        return
-    if live and getattr(host.experience, "_content_stale", False):
-        host.experience.invalidate(immediate=False)
-    else:
-        refresh_ambient(host)
-
-
-def pause_heartbeat_until_idle(host: ExperienceHost) -> None:
-    """Stop interval clock; resume full interval when AI goes idle."""
-    try:
-        host._heartbeat_wait_idle = True
-        hb = getattr(host, "_ambient_heartbeat", None)
-        if hb is not None and hb.isActive():
-            hb.stop()
-    except Exception:
-        logger.debug("application/ambient_controller.py:pause_heartbeat_until_idle best-effort step failed", exc_info=True)
-
-
 def on_job_tray_ai_busy_changed(host: ExperienceHost, busy: bool) -> None:
-    """P2: AI job started → pause heartbeat; all done → start full interval."""
+    """P2: track JobTray AI-busy transitions on the host flag."""
     try:
         host._presence_ai_busy = bool(busy)
-    except Exception:
-        logger.debug("application/ambient_controller.py:on_job_tray_ai_busy_changed best-effort step failed", exc_info=True)
-    if busy:
-        pause_heartbeat_until_idle(host)
-        return
-    # Became idle: start counting the full interval only now.
-    try:
-        hb = getattr(host, "_ambient_heartbeat", None)
-        if hb is None:
-            return
-        from src.backend.experience import resolve_policy
-        from src.application.presence_drive import HEARTBEAT_IDLE_INTERVAL_MS
-
-        policy = resolve_policy(getattr(host, "_settings_obj", None))
-        live = bool(getattr(policy, "allow_ambient_live", False))
-        defer = bool(getattr(policy, "allow_defer_resurface", False))
-        if policy.is_observer or not (live or defer):
-            return
-        if host.course_dir is None:
-            return
-        hb.setInterval(int(HEARTBEAT_IDLE_INTERVAL_MS))
-        if not hb.isActive():
-            hb.start()
-        host._heartbeat_wait_idle = False
     except Exception:
         logger.debug("application/ambient_controller.py:on_job_tray_ai_busy_changed best-effort step failed", exc_info=True)
 

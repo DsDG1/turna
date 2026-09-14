@@ -283,6 +283,15 @@ class SettingsDialog(QDialog):
             self._settings.experience_allow_dangerous_skills
         )
         self.experience_budget_spin.setValue(self._settings.experience_daily_ai_budget)
+        self.experience_ocr_check.setChecked(
+            getattr(self._settings, "experience_ocr_enabled", False)
+        )
+        self.experience_memory_project_check.setChecked(
+            self._settings.experience_memory_persist_project
+        )
+        self.experience_memory_author_check.setChecked(
+            self._settings.experience_memory_persist_author
+        )
 
         # Git library tab
         self.git_clone_root_edit.setText(self._settings.git_clone_root)
@@ -345,6 +354,13 @@ class SettingsDialog(QDialog):
             self.experience_dangerous_check.isChecked()
         )
         self._settings.experience_daily_ai_budget = self.experience_budget_spin.value()
+        self._settings.experience_ocr_enabled = self.experience_ocr_check.isChecked()
+        self._settings.experience_memory_persist_project = (
+            self.experience_memory_project_check.isChecked()
+        )
+        self._settings.experience_memory_persist_author = (
+            self.experience_memory_author_check.isChecked()
+        )
 
         # Git library tab
         self._settings.git_clone_root = self.git_clone_root_edit.text().strip()
@@ -428,6 +444,13 @@ class SettingsDialog(QDialog):
             self._settings.experience_allow_dangerous_skills
         )
         self._original.experience_daily_ai_budget = self._settings.experience_daily_ai_budget
+        self._original.experience_ocr_enabled = self._settings.experience_ocr_enabled
+        self._original.experience_memory_persist_project = (
+            self._settings.experience_memory_persist_project
+        )
+        self._original.experience_memory_persist_author = (
+            self._settings.experience_memory_persist_author
+        )
         self.settings_changed.emit()
 
     def _confirm_experience_mode_change(self) -> bool:

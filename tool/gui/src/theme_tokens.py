@@ -120,6 +120,8 @@ _DARK_PALETTE: dict[str, str] = {
     "ai_accent_border": BRAND_TEAL,
     "ai_beta_bg": "#664400",
     "ai_beta_text": "#FFD93D",
+    # Text/icons drawn on top of the accent fill (Flutter textOnPrimary).
+    "text_on_accent": "#FFFFFF",
 }
 
 _LIGHT_PALETTE: dict[str, str] = {
@@ -174,6 +176,8 @@ _LIGHT_PALETTE: dict[str, str] = {
     "ai_accent_border": BRAND_TEAL_DARK,
     "ai_beta_bg": "#FFF3D6",
     "ai_beta_text": "#7A5A00",
+    # Text/icons drawn on top of the accent fill (Flutter textOnPrimary).
+    "text_on_accent": "#FFFFFF",
 }
 
 _HIGH_CONTRAST_DARK_PALETTE: dict[str, str] = {
@@ -228,6 +232,8 @@ _HIGH_CONTRAST_DARK_PALETTE: dict[str, str] = {
     "ai_accent_border": BRAND_TEAL_LIGHT,
     "ai_beta_bg": "#664400",
     "ai_beta_text": "#FFD93D",
+    # Text/icons drawn on top of the accent fill (Flutter textOnPrimary).
+    "text_on_accent": "#FFFFFF",
 }
 
 _HIGH_CONTRAST_LIGHT_PALETTE: dict[str, str] = {
@@ -282,6 +288,8 @@ _HIGH_CONTRAST_LIGHT_PALETTE: dict[str, str] = {
     "ai_accent_border": "#000000",
     "ai_beta_bg": "#FFF3D6",
     "ai_beta_text": "#000000",
+    # Text/icons drawn on top of the accent fill (Flutter textOnPrimary).
+    "text_on_accent": "#FFFFFF",
 }
 
 #: All four palettes keyed by theme name.

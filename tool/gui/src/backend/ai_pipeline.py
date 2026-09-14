@@ -25,7 +25,8 @@ from __future__ import annotations
 
 import copy
 from dataclasses import dataclass, field
-from typing import Any, Callable, Literal
+from typing import Any, Literal
+from collections.abc import Callable
 
 from src.backend.ai_fixer import build_correction_prompt
 from src.backend.ai import (
@@ -133,6 +134,137 @@ def _error_problems(problems: list[Any]) -> list[dict[str, Any]]:
     return out
 
 
+def _resume_into(state: PipelineState, resume_state: PipelineState, mode: str) -> None:
+    """Reuse a stored outline/draft from a previous (e.g. cancelled) run."""
+    if resume_state.outline and mode == "refine":
+        state.outline = copy.deepcopy(resume_state.outline)
+        state.step_statuses[PipelineStep.PLAN] = STATUS_DONE
+        state.step_statuses[PipelineStep.OUTLINE] = STATUS_DONE
+    if resume_state.draft:
+        state.draft = copy.deepcopy(resume_state.draft)
+        state.step_statuses[PipelineStep.GENERATE] = STATUS_DONE
+    for key in _USAGE_KEYS:
+        state.usage_total[key] = int(resume_state.usage_total.get(key, 0) or 0)
+
+
+def _step_plan(state: PipelineState) -> None:
+    # Pure bookkeeping: what the machine is about to do. Extraction is a
+    # workshop knowledge-stage concern (Phase 4), so it is skipped here.
+    state.step_statuses[PipelineStep.EXTRACT] = STATUS_SKIPPED
+    if PipelineStep.EXTRACT not in state.skipped_steps:
+        state.skipped_steps.append(PipelineStep.EXTRACT)
+
+
+def _step_outline(
+    config: AiApiConfig,
+    spec: AiCourseSpec,
+    state: PipelineState,
+    *,
+    timeout: float,
+    temperature: float,
+    max_retries: int,
+    cancel_check: Callable[[], bool] | None,
+    usage: Callable[[dict[str, int]], None],
+) -> None:
+    state.outline = request_outline(
+        config,
+        spec,
+        timeout=timeout,
+        temperature=min(temperature, 0.35),
+        max_retries=max_retries,
+        cancel_check=cancel_check,
+        usage_callback=usage,
+    )
+
+
+def _step_generate(
+    config: AiApiConfig,
+    spec: AiCourseSpec,
+    state: PipelineState,
+    validator: Callable[[dict], list] | None,
+    *,
+    mode: str,
+    timeout: float,
+    max_retries: int,
+    temperature: float,
+    cancel_check: Callable[[], bool] | None,
+    on_chunk: Callable[[str], None] | None,
+    usage: Callable[[dict[str, int]], None],
+    on_lesson_done: Callable[[], None],
+    max_parallel_lessons: int,
+) -> None:
+    if mode == "fast" or state.outline is None:
+        # Fast path: single-shot generate + validate retry loop (现状).
+        def _noop(_s: dict) -> list:
+            return []
+
+        state.draft = request_course_with_retry(
+            config,
+            spec,
+            validator if validator is not None else _noop,
+            timeout=timeout,
+            max_retries=max_retries if validator is not None else 0,
+            temperature=temperature,
+            cancel_check=cancel_check,
+            on_chunk=on_chunk,
+            usage_callback=usage,
+        )
+    else:
+        state.draft = fill_lessons_from_outline(
+            config,
+            spec,
+            state.outline,
+            timeout=timeout,
+            temperature=temperature,
+            cancel_check=cancel_check,
+            usage_callback=usage,
+            on_lesson_done=(lambda _lid, _i, _n: on_lesson_done()),
+            max_parallel=max(1, min(8, int(max_parallel_lessons or 1))),
+        )
+
+
+def _step_validate(
+    state: PipelineState, validator: Callable[[dict], list] | None
+) -> None:
+    problems = list(validator(state.draft) or []) if validator else []
+    state.problems = problems
+
+
+def _step_quality(state: PipelineState, spec: AiCourseSpec) -> None:
+    report = score_section(
+        state.draft,
+        level=spec.level,
+        resource_pool=spec.resource_pool,
+        structural_errors=coerce_problem_messages(_error_problems(state.problems)),
+    )
+    state.quality = {
+        "scores": dict(report.scores),
+        "mean": report.mean,
+        "badge": report.badge(),
+        "error_count": report.error_count,
+        "warning_count": report.warning_count,
+    }
+
+
+def _step_explain(
+    config: AiApiConfig,
+    spec: AiCourseSpec,
+    state: PipelineState,
+    *,
+    timeout: float,
+    cancel_check: Callable[[], bool] | None,
+    usage: Callable[[dict[str, int]], None],
+) -> None:
+    state.explanation = explain_course(
+        config,
+        spec,
+        state.draft,
+        timeout=timeout,
+        cancel_check=cancel_check,
+        usage_callback=usage,
+    )
+
+
 def run_pipeline(
     config: AiApiConfig,
     spec: AiCourseSpec,
@@ -175,19 +307,11 @@ def run_pipeline(
     mode = "refine" if mode == "refine" else "fast"
     skip = set(skip_steps or ())
     state = PipelineState(mode=mode)
-    state.step_statuses = {s: STATUS_PENDING for s in PIPELINE_STEPS}
+    state.step_statuses = dict.fromkeys(PIPELINE_STEPS, STATUS_PENDING)
 
     # --- Resume: reuse a stored outline/draft from a previous run. ---
     if resume_state is not None:
-        if resume_state.outline and mode == "refine":
-            state.outline = copy.deepcopy(resume_state.outline)
-            state.step_statuses[PipelineStep.PLAN] = STATUS_DONE
-            state.step_statuses[PipelineStep.OUTLINE] = STATUS_DONE
-        if resume_state.draft:
-            state.draft = copy.deepcopy(resume_state.draft)
-            state.step_statuses[PipelineStep.GENERATE] = STATUS_DONE
-        for key in _USAGE_KEYS:
-            state.usage_total[key] = int(resume_state.usage_total.get(key, 0) or 0)
+        _resume_into(state, resume_state, mode)
 
     def _usage(usage: dict[str, int]) -> None:
         if isinstance(usage, dict):
@@ -235,7 +359,7 @@ def run_pipeline(
             state.step_statuses[step] = STATUS_FAILED
             _progress()
             return False
-        except Exception as exc:  # noqa: BLE001 — pipeline records, UI decides
+        except Exception as exc:
             state.errors.append(f"{step}: {exc}")
             state.step_statuses[step] = STATUS_FAILED
             _progress()
@@ -245,93 +369,55 @@ def run_pipeline(
         return True
 
     # ------------------------------------------------------------------ Plan
-    def _plan() -> None:
-        # Pure bookkeeping: what the machine is about to do. Extraction is a
-        # workshop knowledge-stage concern (Phase 4), so it is skipped here.
-        state.step_statuses[PipelineStep.EXTRACT] = STATUS_SKIPPED
-        if PipelineStep.EXTRACT not in state.skipped_steps:
-            state.skipped_steps.append(PipelineStep.EXTRACT)
-
-    if not _run(PipelineStep.PLAN, _plan):
+    if not _run(PipelineStep.PLAN, lambda: _step_plan(state)):
         return state
 
     # ------------------------------------------------------------------ Outline
     if mode == "fast" or PipelineStep.OUTLINE in skip:
         _skip(PipelineStep.OUTLINE)
     else:
-        def _outline() -> None:
-            state.outline = request_outline(
+        if not _run(
+            PipelineStep.OUTLINE,
+            lambda: _step_outline(
                 config,
                 spec,
+                state,
                 timeout=timeout,
-                temperature=min(temperature, 0.35),
+                temperature=temperature,
                 max_retries=max_retries,
                 cancel_check=cancel_check,
-                usage_callback=_usage,
-            )
-
-        if not _run(PipelineStep.OUTLINE, _outline):
+                usage=_usage,
+            ),
+        ):
             return state
 
     # ------------------------------------------------------------------ Generate
-    def _generate() -> None:
-        if mode == "fast" or state.outline is None:
-            # Fast path: single-shot generate + validate retry loop (现状).
-            def _noop(_s: dict) -> list:
-                return []
-
-            state.draft = request_course_with_retry(
-                config,
-                spec,
-                validator if validator is not None else _noop,
-                timeout=timeout,
-                max_retries=max_retries if validator is not None else 0,
-                temperature=temperature,
-                cancel_check=cancel_check,
-                on_chunk=on_chunk,
-                usage_callback=_usage,
-            )
-        else:
-            state.draft = fill_lessons_from_outline(
-                config,
-                spec,
-                state.outline,
-                timeout=timeout,
-                temperature=temperature,
-                cancel_check=cancel_check,
-                usage_callback=_usage,
-                on_lesson_done=(lambda _lid, _i, _n: _progress()),
-                max_parallel=max(1, min(8, int(max_parallel_lessons or 1))),
-            )
-
-    if not _run(PipelineStep.GENERATE, _generate):
+    if not _run(
+        PipelineStep.GENERATE,
+        lambda: _step_generate(
+            config,
+            spec,
+            state,
+            validator,
+            mode=mode,
+            timeout=timeout,
+            max_retries=max_retries,
+            temperature=temperature,
+            cancel_check=cancel_check,
+            on_chunk=on_chunk,
+            usage=_usage,
+            on_lesson_done=_progress,
+            max_parallel_lessons=max_parallel_lessons,
+        ),
+    ):
         return state
 
     # ------------------------------------------------------------------ Validate
-    def _validate() -> None:
-        problems = list(validator(state.draft) or []) if validator else []
-        state.problems = problems
-
-    if not _run(PipelineStep.VALIDATE, _validate):
+    if not _run(PipelineStep.VALIDATE, lambda: _step_validate(state, validator)):
         return state
 
     # ------------------------------------------------------------------ Quality
-    def _quality() -> None:
-        report = score_section(
-            state.draft,
-            level=spec.level,
-            resource_pool=spec.resource_pool,
-            structural_errors=coerce_problem_messages(_error_problems(state.problems)),
-        )
-        state.quality = {
-            "scores": dict(report.scores),
-            "mean": report.mean,
-            "badge": report.badge(),
-            "error_count": report.error_count,
-            "warning_count": report.warning_count,
-        }
-
-    if not _run(PipelineStep.QUALITY, _quality):
+    if not _run(PipelineStep.QUALITY, lambda: _step_quality(state, spec)):
         return state
 
     # ------------------------------------------------------------------ Fix
@@ -361,18 +447,18 @@ def run_pipeline(
     if PipelineStep.EXPLAIN in skip:
         _skip(PipelineStep.EXPLAIN)
     else:
-        def _explain() -> None:
-            state.explanation = explain_course(
+        # Explanation is a nice-to-have: a failure must not kill the draft.
+        if not _run(
+            PipelineStep.EXPLAIN,
+            lambda: _step_explain(
                 config,
                 spec,
-                state.draft,
+                state,
                 timeout=timeout,
                 cancel_check=cancel_check,
-                usage_callback=_usage,
-            )
-
-        # Explanation is a nice-to-have: a failure must not kill the draft.
-        if not _run(PipelineStep.EXPLAIN, _explain):
+                usage=_usage,
+            ),
+        ):
             if state.cancelled:
                 return state
 
@@ -473,12 +559,12 @@ def _fix_step(
 __all__ = [
     "CHECKLIST_STEPS",
     "PIPELINE_STEPS",
-    "PipelineState",
-    "PipelineStep",
     "STATUS_DONE",
     "STATUS_FAILED",
     "STATUS_PENDING",
     "STATUS_RUNNING",
     "STATUS_SKIPPED",
+    "PipelineState",
+    "PipelineStep",
     "run_pipeline",
 ]

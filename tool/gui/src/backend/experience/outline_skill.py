@@ -27,7 +27,8 @@ for the empty-content shells. The write is performed by the caller via
 from __future__ import annotations
 
 import re
-from typing import Any, Mapping, Sequence
+from typing import Any
+from collections.abc import Mapping, Sequence
 
 ACTION_ID = "course.outline_shells"
 

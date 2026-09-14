@@ -281,9 +281,7 @@ def on_copy_to_assets(dlg) -> None:
         reply = QMessageBox.question(
             dlg,
             "目标已存在",
-            f"{exc}\
-\
-是否覆盖？",
+            f"{exc}\n\n是否覆盖？",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
             QMessageBox.StandardButton.Cancel,
         )

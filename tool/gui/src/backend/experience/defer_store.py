@@ -13,8 +13,9 @@ instance session-resident and the app persists it via the
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
-from typing import Any, Iterable, Mapping, Sequence
+from datetime import datetime, timezone, UTC
+from typing import Any
+from collections.abc import Iterable, Mapping, Sequence
 
 # Escalating cooldown (seconds): 15min -> 30min -> 60min -> permanent.
 COOLDOWN_BASE = 15 * 60
@@ -36,7 +37,7 @@ class DeferRecord:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Mapping[str, Any]) -> "DeferRecord":
+    def from_dict(cls, data: Mapping[str, Any]) -> DeferRecord:
         return cls(
             proposal_id=str(data.get("proposal_id") or ""),
             action_id=str(data.get("action_id") or ""),
@@ -47,12 +48,12 @@ class DeferRecord:
 
 
 def _now(now: datetime | None) -> datetime:
-    return now or datetime.now(timezone.utc)
+    return now or datetime.now(UTC)
 
 
 def _iso(dt: datetime) -> str:
     if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
+        dt = dt.replace(tzinfo=UTC)
     return dt.isoformat()
 
 
@@ -62,7 +63,7 @@ def _parse_iso(s: str) -> datetime | None:
     try:
         dt = datetime.fromisoformat(s)
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
+            dt = dt.replace(tzinfo=UTC)
         return dt
     except ValueError:
         return None
@@ -138,7 +139,7 @@ class DeferStore:
                 dismiss_count=dismiss,
             )
         cooldown = COOLDOWN_BASE * (2 ** max(0, min(dismiss - 1, 3)))
-        re_after = datetime.fromtimestamp(now.timestamp() + cooldown, tz=timezone.utc)
+        re_after = datetime.fromtimestamp(now.timestamp() + cooldown, tz=UTC)
         record = DeferRecord(
             proposal_id=pid,
             action_id=str(action_id or ""),
@@ -199,7 +200,7 @@ class DeferStore:
         return {"records": [r.to_dict() for r in self._records]}
 
     @classmethod
-    def from_dict(cls, data: Mapping[str, Any] | None) -> "DeferStore":
+    def from_dict(cls, data: Mapping[str, Any] | None) -> DeferStore:
         if not data:
             return cls()
         raw = data.get("records") if isinstance(data, Mapping) else None

@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 
 from src.backend.textbook_project import TextbookProject
 from src.backend.textbook_project_store import _new_project_id
@@ -65,5 +66,5 @@ def execute_autosave(
         if callable(status_hook):
             try:
                 status_hook(f"自动保存失败：{exc}")
-            except Exception:  # noqa: BLE001 — never break on the error path
+            except Exception:
                 logger.debug("textbook autosave status_hook failed", exc_info=True)

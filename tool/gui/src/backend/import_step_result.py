@@ -38,7 +38,7 @@ class ImportStepResult:
     @staticmethod
     def success(
         step: StepKind, message: str = "", details: dict[str, Any] | None = None
-    ) -> "ImportStepResult":
+    ) -> ImportStepResult:
         return ImportStepResult(
             step=step, outcome="success", message=message, details=details or {}
         )
@@ -51,7 +51,7 @@ class ImportStepResult:
         recoverable: bool = False,
         recovery_options: list[str] | None = None,
         details: dict[str, Any] | None = None,
-    ) -> "ImportStepResult":
+    ) -> ImportStepResult:
         return ImportStepResult(
             step=step,
             outcome="error",
@@ -62,5 +62,5 @@ class ImportStepResult:
         )
 
     @staticmethod
-    def cancelled(step: StepKind, message: str = "已取消") -> "ImportStepResult":
+    def cancelled(step: StepKind, message: str = "已取消") -> ImportStepResult:
         return ImportStepResult(step=step, outcome="cancelled", message=message)

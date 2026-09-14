@@ -13,7 +13,8 @@ from __future__ import annotations
 import json
 import urllib.error
 import urllib.request
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 
 from src.backend import ai_stream, ai_usage
 from src.backend.ai.config import AiApiConfig, AiCancelled
@@ -37,7 +38,7 @@ def _urlopen(req: urllib.request.Request, timeout: float | None = None):
             urlopen_fn = u.request.urlopen
     except ImportError:
         logger.debug("backend/ai/client.py:_urlopen best-effort step failed", exc_info=True)
-    return urlopen_fn(req, timeout=timeout)  # noqa: S310
+    return urlopen_fn(req, timeout=timeout)
 
 
 def resolved_request_chat(*args: Any, **kwargs: Any) -> dict:
@@ -333,7 +334,7 @@ def verify_connection(
             timeout=timeout,
             max_tokens=1,
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return {"ok": False, "error": str(exc), "model": "", "usage": {}}
 
     choices = body.get("choices") or []

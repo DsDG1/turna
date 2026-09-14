@@ -66,7 +66,7 @@ def ocr_available() -> tuple[bool, str]:
     where reason ∈ {"missing_dep","missing_binary"}. Never raises.
     """
     try:
-        import pytesseract  # noqa: F401
+        import pytesseract
     except Exception:
         return False, "missing_dep"
     try:

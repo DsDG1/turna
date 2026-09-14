@@ -1,6 +1,7 @@
 """P2 attachment / OCR suggestions."""
 from __future__ import annotations
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 
 def collect(ctx, *, ocr_enabled: bool = False) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []

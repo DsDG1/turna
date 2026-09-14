@@ -20,6 +20,7 @@ from src.backend.ai.facade import CHECKLIST_STEPS
 from src.dialogs.ai.attachment_bar import AttachmentBar
 from src.dialogs.ai.chat_view import ChatView
 from src.dialogs.ai.prompt_template_bar import PromptTemplateBar
+from src.theme import current_palette
 from src.widgets.json_editor import JsonEditor
 
 _TEMPLATES = ("mixed", "intro", "practice", "review", "listening", "reading", "mastery")
@@ -82,6 +83,9 @@ def build_ui(panel) -> None:
     panel._ocr_enabled = False
     panel._attachment_bar = AttachmentBar(panel)
     panel._attachment_bar.ocr_requested.connect(panel.ocr_requested.emit)
+    panel._attachment_bar.attachments_changed.connect(
+        panel.attachments_changed.emit
+    )
     layout.addWidget(panel._attachment_bar)
 
     chat_row = QHBoxLayout()
@@ -142,7 +146,8 @@ def build_ui(panel) -> None:
 
     panel._pedagogy_badge = QLabel("")
     panel._pedagogy_badge.setStyleSheet(
-        "color: #0f766e; font-size: 11px; font-weight: 600;"
+        f"color: {current_palette().get('accent_text', '#0f766e')};"
+        " font-size: 11px; font-weight: 600;"
     )
     adv_lay.addWidget(panel._pedagogy_badge)
     panel._refresh_pedagogy_badge()

@@ -9,7 +9,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QKeySequence, QShortcut

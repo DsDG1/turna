@@ -39,6 +39,7 @@ from src.dialogs.textbook_import_dialog import TextbookImportDialog
 from src.dialogs.textbook_library_dialog import TextbookLibraryDialog
 from src.theme import current_palette
 from src.widgets.unified_workspace import UnifiedWorkspaceWidget
+from src.application.settings import APP_NAME, ORG_NAME
 
 _LAST_PROJECT_KEY = "workshop/last_project_id"
 
@@ -59,6 +60,10 @@ class WorkshopWindow(QDialog):
 
     sections_ready = Signal(list, str)
     locate_requested = Signal(str)
+    #: M-01: design-panel attachment bar changed (add/remove/clear).
+    attachments_changed = Signal()
+    #: M-03: (temp_path, original_name, unlink_after) OCR request passthrough.
+    ocr_requested = Signal(str, str, bool)
 
     def __init__(
         self,
@@ -312,6 +317,24 @@ class WorkshopWindow(QDialog):
             "imported": imported,
         }
 
+    # ------------------------------------------------------------------ attachments / OCR
+    def attachment_records(self) -> list:
+        """M-01: live AttachmentRecord list for experience snapshot consumers."""
+        if self._design_panel is None:
+            return []
+        return self._design_panel.attachment_records()
+
+    def add_attachment_record(self, record) -> bool:
+        """M-03: push a record (OCR text output) into the design bar."""
+        if self._design_panel is None:
+            return False
+        return self._design_panel.add_attachment_record(record)
+
+    def set_ocr_enabled(self, enabled: bool) -> None:
+        """M-03: propagate the OCR gate into the design panel."""
+        if self._design_panel is not None:
+            self._design_panel.set_ocr_enabled(enabled)
+
     def _format_checklist(self) -> str:
         flags = self._checklist_flags()
         parts = [
@@ -421,7 +444,7 @@ class WorkshopWindow(QDialog):
         """Reopen the last-used project on the canvas, if any."""
         if self._project is not None:
             return True
-        settings = QSettings("Turna", "CourseEditor")
+        settings = QSettings(ORG_NAME, APP_NAME)
         project_id = settings.value(_LAST_PROJECT_KEY, "")
         if not project_id:
             return False
@@ -524,6 +547,8 @@ class WorkshopWindow(QDialog):
         self._design_panel.draft_ready.connect(self._on_draft_ready)
         self._design_panel.busy_changed.connect(self._on_design_busy)
         self._design_panel.usage_changed.connect(self._on_usage_text)
+        self._design_panel.attachments_changed.connect(self.attachments_changed.emit)
+        self._design_panel.ocr_requested.connect(self.ocr_requested.emit)
 
         from src.dialogs.ai.review_panel import ReviewPanel
 
@@ -544,7 +569,7 @@ class WorkshopWindow(QDialog):
         self._stack.setCurrentIndex(1)
         self._update_header()
 
-        settings = QSettings("Turna", "CourseEditor")
+        settings = QSettings(ORG_NAME, APP_NAME)
         settings.setValue(_LAST_PROJECT_KEY, project.project_id)
         self._persist_ui_stage(_UI_CANVAS)
 
@@ -665,13 +690,13 @@ class WorkshopWindow(QDialog):
     _GEOMETRY_KEY = "workshop/geometry"
 
     def _restore_geometry(self) -> None:
-        settings = QSettings("Turna", "CourseEditor")
+        settings = QSettings(ORG_NAME, APP_NAME)
         geo = settings.value(self._GEOMETRY_KEY)
         if geo:
             self.restoreGeometry(geo)
 
     def _save_geometry(self) -> None:
-        settings = QSettings("Turna", "CourseEditor")
+        settings = QSettings(ORG_NAME, APP_NAME)
         settings.setValue(self._GEOMETRY_KEY, self.saveGeometry())
 
     def closeEvent(self, event: Any) -> None:

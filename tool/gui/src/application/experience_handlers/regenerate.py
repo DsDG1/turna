@@ -3,7 +3,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import partial
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 
 from PySide6.QtWidgets import QDialog, QMessageBox
 
@@ -414,7 +415,7 @@ def _run_regen_flow(
 handle_run_regen_flow = _run_regen_flow
 
 
-def _regen_on_ok(s: "_RegenSession", result: object) -> None:
+def _regen_on_ok(s: _RegenSession, result: object) -> None:
     from src.backend.experience.transaction import verify_transaction_integrity
 
     s.host.job_tray.finish_job(s.job_id)
@@ -476,7 +477,7 @@ def _regen_on_ok(s: "_RegenSession", result: object) -> None:
 
 
 
-def _regen_on_err(s: "_RegenSession", msg: str) -> None:
+def _regen_on_err(s: _RegenSession, msg: str) -> None:
     s.host.job_tray.finish_job(s.job_id)
     s.host.experience_metrics.inc_job("ai", "failed")
     s.host.conflict_guard.release(s.guard_key, s.job_id)
@@ -737,7 +738,7 @@ class _BatchRegenSession:
     """Shared mutable state of one sequential batch-regeneration walk."""
 
     host: ExperienceHost
-    spec: "_BatchRegenSpec"
+    spec: _BatchRegenSpec
     targets: list[tuple[str, str, dict]]
     section_snaps: dict[str, dict]
     tx_snap: Any
@@ -749,7 +750,7 @@ class _BatchRegenSession:
 
 
 def _batch_regen_prepare(
-    host: ExperienceHost, spec: "_BatchRegenSpec", scope: dict
+    host: ExperienceHost, spec: _BatchRegenSpec, scope: dict
 ) -> list[tuple[str, str, dict]] | None:
     """Guards + target resolution + confirmation. None = user aborted."""
     if not host.course_dir:
@@ -801,7 +802,7 @@ def _batch_regen_prepare(
     return targets
 
 
-def _finish_batch(s: "_BatchRegenSession") -> None:
+def _finish_batch(s: _BatchRegenSession) -> None:
     s.host.job_tray.finish_job(s.job_id)
     s.host.experience_metrics.inc_job("ai", "finished")
     if not s.results:
@@ -886,8 +887,12 @@ def _finish_batch(s: "_BatchRegenSession") -> None:
 
 
 
-def _run_next(s: "_BatchRegenSession") -> None:
+def _run_next(s: _BatchRegenSession) -> None:
     import copy
+
+    # 函数内导入与 _run_regen_flow 同约定：保证测试可 patch
+    # src.application.ai_request_worker.AiRequestWorker（调用时解析）。
+    from src.application.ai_request_worker import AiRequestWorker
 
     if not s.chain:
         _finish_batch(s)

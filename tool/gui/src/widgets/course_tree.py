@@ -524,7 +524,7 @@ class CourseTreeWidget(QTreeWidget):
     def _selected_lesson_ids(self) -> list[str]:
         return [rid for kind, rid in self._selected_refs() if kind == "lesson"]
 
-    def keyPressEvent(self, event) -> None:  # noqa: N802
+    def keyPressEvent(self, event) -> None:
         key = event.key()
         mods = event.modifiers()
         current = self.currentItem()

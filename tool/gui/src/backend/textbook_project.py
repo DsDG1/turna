@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Any
 
@@ -20,7 +20,7 @@ PROJECT_VERSION = 2
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _empty_resource_pool() -> dict[str, Any]:
@@ -126,7 +126,7 @@ class TextbookProject:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "TextbookProject":
+    def from_dict(cls, data: dict[str, Any]) -> TextbookProject:
         return cls(
             project_id=data.get("project_id", ""),
             name=data.get("name", ""),
@@ -235,7 +235,7 @@ class TextbookProject:
         current = _checksum(path)
         return current != self.source_checksum
 
-    def merge_from(self, other: "TextbookProject") -> None:
+    def merge_from(self, other: TextbookProject) -> None:
         """Update mutable fields from ``other`` while preserving identity.
 
         Preserves ``project_id``, ``created_at``, ``imported_section_ids``,
@@ -293,7 +293,7 @@ class TextbookProject:
         markdown: str = "",
         language: str = "Turkish",
         source_language: str = "Chinese",
-    ) -> "TextbookProject":
+    ) -> TextbookProject:
         now = _utc_now()
         return cls(
             project_id=project_id,

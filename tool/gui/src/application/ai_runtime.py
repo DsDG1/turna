@@ -10,7 +10,8 @@ tests and non-dialog code; dialogs are gated by
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 
 from src.application.settings import Settings
 from src.backend.ai import AiApiConfig

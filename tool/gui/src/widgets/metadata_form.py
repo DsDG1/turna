@@ -43,7 +43,7 @@ class _FocusTextEdit(QTextEdit):
 
     focusLost = Signal()
 
-    def focusOutEvent(self, event) -> None:  # noqa: N802
+    def focusOutEvent(self, event) -> None:
         super().focusOutEvent(event)
         self.focusLost.emit()
 
@@ -53,7 +53,7 @@ class _FocusListWidget(QListWidget):
 
     focusLost = Signal()
 
-    def focusOutEvent(self, event) -> None:  # noqa: N802
+    def focusOutEvent(self, event) -> None:
         super().focusOutEvent(event)
         self.focusLost.emit()
 

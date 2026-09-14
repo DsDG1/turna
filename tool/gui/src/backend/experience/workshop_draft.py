@@ -8,7 +8,8 @@ without a second truth tree.
 """
 from __future__ import annotations
 
-from typing import Any, Mapping, Sequence
+from typing import Any
+from collections.abc import Mapping, Sequence
 
 
 # Closed key set for Context / Dock / telemetry (no free-form blobs).

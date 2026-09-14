@@ -30,6 +30,7 @@ from src.widgets.flow_layout import FlowLayout
 from src.widgets.knowledge_bubble import KnowledgeBubble
 from src.theme import current_palette
 from src.theme_tokens import BRAND_TEAL
+from src.application.settings import APP_NAME, ORG_NAME
 
 _BUBBLE_POOL_LIMIT = 200
 _BUBBLE_DEBOUNCE_MS = 60
@@ -256,11 +257,11 @@ class UnifiedWorkspaceWidget(QWidget):
         self.right_tabs.setCurrentIndex(0)
 
     def _tips_dismissed(self) -> bool:
-        s = QSettings("Turna", "CourseEditor")
+        s = QSettings(ORG_NAME, APP_NAME)
         return bool(s.value(_TIPS_DISMISSED_KEY, False))
 
     def _dismiss_banner(self) -> None:
-        s = QSettings("Turna", "CourseEditor")
+        s = QSettings(ORG_NAME, APP_NAME)
         s.setValue(_TIPS_DISMISSED_KEY, True)
         self._banner.setVisible(False)
 
@@ -313,7 +314,7 @@ class UnifiedWorkspaceWidget(QWidget):
         """Persist left/right tab indices and splitter sizes for this project."""
         if not self._project_id:
             return
-        s = QSettings("Turna", "CourseEditor")
+        s = QSettings(ORG_NAME, APP_NAME)
         s.setValue(self._settings_key("left_tab"), self.left_tabs.currentIndex())
         s.setValue(self._settings_key("right_tab"), self.right_tabs.currentIndex())
         s.setValue(self._settings_key("splitter"), self.splitter.saveState())
@@ -322,7 +323,7 @@ class UnifiedWorkspaceWidget(QWidget):
         """Restore tabs/splitter if previously saved; keep defaults otherwise."""
         if not self._project_id:
             return
-        s = QSettings("Turna", "CourseEditor")
+        s = QSettings(ORG_NAME, APP_NAME)
         left = s.value(self._settings_key("left_tab"), None)
         right = s.value(self._settings_key("right_tab"), None)
         if left is not None:

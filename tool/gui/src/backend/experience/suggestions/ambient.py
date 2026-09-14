@@ -23,7 +23,7 @@ WEAK_SECTION_THRESHOLD = 0.7
 
 
 def local_suggestions(
-    ctx: "ExperienceContext",
+    ctx: ExperienceContext,
     *,
     limit: int = 3,
     soft_fix_count: int | None = None,

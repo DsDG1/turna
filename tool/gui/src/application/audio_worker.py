@@ -63,7 +63,7 @@ class GenerateAudioWorker(QThread):
                 on_progress=lambda done, total: self.progress.emit(done, total),
                 is_cancelled=lambda: self._cancelled,
             )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             if not self._cancelled:
                 self.failed.emit(str(exc))
             return

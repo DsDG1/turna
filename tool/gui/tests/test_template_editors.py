@@ -5,7 +5,12 @@ import sys
 import unittest
 from pathlib import Path
 
-from PySide6.QtWidgets import QApplication, QInputDialog, QMessageBox
+from PySide6.QtWidgets import (
+    QApplication,
+    QInputDialog,
+    QMessageBox,
+    QTextEdit,
+)
 from unittest.mock import patch
 
 _GUI = Path(__file__).resolve().parents[1]
@@ -17,6 +22,7 @@ from PySide6.QtGui import QUndoStack  # noqa: E402
 
 from src.backend.course_adapter import CourseAdapter  # noqa: E402
 from src.backend.lesson_content import default_interaction  # noqa: E402
+from src.teacher.question_cards import QuestionCard  # noqa: E402
 from src.teacher.template_editors import (  # noqa: E402
     ListeningTeacherWidget,
     MasteryTeacherWidget,
@@ -214,6 +220,33 @@ class TemplateEditorUndoTest(unittest.TestCase):
         self.assertEqual(len(stage["items"]), 2)
         self.stack.undo()
         self.assertEqual(len(stage["items"]), 1)
+
+
+class ReadingViewRenderTest(unittest.TestCase):
+    """Regression: comprehension cards belong to the build path, and editing
+    paragraphs must only sync data (a misplaced block once raised NameError
+    inside ``_on_passage_paragraphs_changed``)."""
+
+    def setUp(self) -> None:
+        _TestApp.get()
+        self.adapter = CourseAdapter()
+        self.section = {"id": "s-test", "name": "S"}
+        self.unit = {"id": "u-test", "name": "U"}
+        self.stack = QUndoStack()
+
+    def test_reading_view_renders_comprehension_and_syncs_paragraphs(self) -> None:
+        lesson = _sample_lesson("reading")
+        widget = ReadingTeacherWidget(
+            self.adapter, self.section, self.unit, lesson, undo_stack=self.stack
+        )
+        widget.show()
+        self.assertGreaterEqual(len(widget.findChildren(QuestionCard)), 1)
+        paras = widget.findChildren(QTextEdit)
+        self.assertEqual(len(paras), 1)
+        paras[0].setPlainText("New A\n\nNew B")
+        self.assertEqual(
+            lesson["content"]["readingPassage"]["paragraphs"], ["New A", "New B"]
+        )
 
 
 if __name__ == "__main__":

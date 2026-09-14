@@ -109,7 +109,7 @@ def parse_apkg(apkg_path: str) -> AnkiCollection:
         media_path = os.path.join(tmp_dir, "media")
         if os.path.exists(media_path):
             try:
-                with open(media_path, "r", encoding="utf-8") as f:
+                with open(media_path, encoding="utf-8") as f:
                     collection.media = json.load(f)
             except (json.JSONDecodeError, OSError):
                 logger.debug("backend/anki_import.py:parse_apkg best-effort step failed", exc_info=True)

@@ -81,7 +81,7 @@ class AiErrorAnalyzerDialog(QDialog):
         parent: QWidget | None,
         exc: BaseException | str,
         context: dict[str, Any] | None = None,
-    ) -> "AiErrorAnalyzerDialog":
+    ) -> AiErrorAnalyzerDialog:
         """Factory that builds the dialog from an exception or message."""
         import traceback
 
@@ -136,8 +136,12 @@ class AiErrorAnalyzerDialog(QDialog):
 
         layout.addWidget(QLabel("<b>分析结果</b>"))
         self.result_view = QTextBrowser()
+        _pal = current_palette()
         self.result_view.setStyleSheet(
-            "QTextBrowser { border: 1px solid #2C313C; background-color: #1F232C; padding: 10px; }"
+            "QTextBrowser {"
+            f" border: 1px solid {_pal.get('border', '#2C313C')};"
+            f" background-color: {_pal.get('bg_elevated', '#1F232C')};"
+            " padding: 10px; }"
         )
         self.result_view.setPlaceholderText("分析结果将显示在这里...")
         layout.addWidget(self.result_view, 1)
@@ -226,7 +230,7 @@ class AiErrorAnalyzerDialog(QDialog):
         self.analyze_btn.setEnabled(True)
         self._worker = None
 
-    def closeEvent(self, event) -> None:  # noqa: N802
+    def closeEvent(self, event) -> None:
         # Cancel only; the worker keep-alive registry keeps the thread alive
         # until it finishes (see worker.py), so no blocking wait is needed.
         if self._worker is not None and self._worker.isRunning():

@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import QSettings
+from datetime import UTC
 
 # QSettings organisation / application names. The legacy
 # ("Varnamala", "CourseEditor") namespace is still read for one-shot
@@ -133,9 +134,12 @@ class Settings:
     experience_immersive_opaque: bool = True
     experience_soft_autopilot: bool = False
     experience_llm_intent: bool = False
+    # M-03: image/scanned-PDF OCR for workshop attachments (needs system
+    # tesseract). New capability, new key, default off.
+    experience_ocr_enabled: bool = False
 
     @classmethod
-    def load_from_qsettings(cls, qsettings: QSettings) -> "Settings":
+    def load_from_qsettings(cls, qsettings: QSettings) -> Settings:
         """Load a Settings instance from the supplied QSettings object."""
         data: dict[str, Any] = {}
         for loader in (
@@ -222,6 +226,7 @@ class Settings:
         qsettings.setValue("experience/immersive_opaque", self.experience_immersive_opaque)
         qsettings.setValue("experience/soft_autopilot", self.experience_soft_autopilot)
         qsettings.setValue("experience/llm_intent", self.experience_llm_intent)
+        qsettings.setValue("experience/ocr_enabled", self.experience_ocr_enabled)
 
     def add_recent_repo(self, path: Path | str) -> None:
         """Add a repository path to the top of the recent list."""
@@ -239,7 +244,7 @@ class Settings:
         repos = [r for r in self.recent_repos if r.get("path") != path_str]
         repos.insert(
             0,
-            {"path": path_str, "opened_at": datetime.now(timezone.utc).isoformat()},
+            {"path": path_str, "opened_at": datetime.now(UTC).isoformat()},
         )
         self.recent_repos = repos[:10]
 
@@ -263,7 +268,7 @@ class Settings:
         """Clear the entire recent repository history."""
         self.recent_repos = []
 
-    def clone(self) -> "Settings":
+    def clone(self) -> Settings:
         """Return a deep-ish copy suitable for editing in a dialog."""
         return Settings(
             theme=self.theme,
@@ -315,6 +320,7 @@ class Settings:
             experience_immersive_opaque=self.experience_immersive_opaque,
             experience_soft_autopilot=self.experience_soft_autopilot,
             experience_llm_intent=self.experience_llm_intent,
+            experience_ocr_enabled=self.experience_ocr_enabled,
         )
 
 
@@ -506,6 +512,9 @@ def _load_experience_settings(qsettings: QSettings) -> dict[str, Any]:
         ),
         "experience_llm_intent": _bool_or_default(
             qsettings.value("experience/llm_intent", False), False
+        ),
+        "experience_ocr_enabled": _bool_or_default(
+            qsettings.value("experience/ocr_enabled", False), False
         ),
     }
 

@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import functools
 import logging
-from typing import Any, Sequence
+from typing import Any
+from collections.abc import Sequence
 from src.application.experience_host import ExperienceHost
 logger = logging.getLogger(__name__)
 

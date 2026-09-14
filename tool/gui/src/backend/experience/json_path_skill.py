@@ -33,7 +33,7 @@ def json_path_at(text: str, offset: int) -> str | None:
     """
     try:
         return _json_path_at(text, offset)
-    except Exception:  # noqa: BLE001 — never-raise contract
+    except Exception:
         return None
 
 
@@ -64,7 +64,7 @@ def _scan_string(text: str, i: int, n: int) -> int:
 def _decode_key(literal: str) -> str:
     try:
         return str(json.loads(literal))
-    except Exception:  # noqa: BLE001
+    except Exception:
         return literal[1:-1]
 
 
@@ -280,7 +280,7 @@ def _schema_spec(obj: Any, segs: list[Any], field: str):
     inside an interaction item (nearest ancestor dict with a runtimeType)."""
     try:
         from src.backend.lesson_content import INTERACTION_SCHEMA
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
     node = obj
     ancestors: list[Any] = []
@@ -310,7 +310,7 @@ def explain_path(obj: Any, path: str | None) -> dict[str, Any]:
     """
     try:
         return _explain_path(obj, path)
-    except Exception:  # noqa: BLE001 — never-raise contract
+    except Exception:
         return {
             "summary": "未识别路径",
             "detail": "路径解析失败，无法解释。",
@@ -357,9 +357,7 @@ def _explain_path(obj: Any, path: str | None) -> dict[str, Any]:
     node = obj
     found = True
     for seg in segs:
-        if isinstance(node, dict) and isinstance(seg, str) and seg in node:
-            node = node[seg]
-        elif isinstance(node, list) and isinstance(seg, int) and 0 <= seg < len(node):
+        if (isinstance(node, dict) and isinstance(seg, str) and seg in node) or (isinstance(node, list) and isinstance(seg, int) and 0 <= seg < len(node)):
             node = node[seg]
         else:
             found = False

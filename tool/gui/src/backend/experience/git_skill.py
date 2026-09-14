@@ -103,7 +103,7 @@ def gather_diff_text(git_lib: Any, local_dir: Any) -> tuple[str, str]:
         return "", "未打开课程/Git 仓库"
     try:
         diff = git_lib.diff_working_vs_head(local_dir)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return "", f"读取 diff 失败：{exc.__class__.__name__}"
     diff = str(diff or "")
     if not diff.strip():

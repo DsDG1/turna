@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.backend.course_adapter import CourseAdapter
+from src.application.settings import APP_NAME, ORG_NAME
 
 
 class InitCourseDialog(QDialog):
@@ -91,7 +92,7 @@ class InitCourseDialog(QDialog):
         layout.addWidget(buttons)
 
     def _load_defaults(self) -> None:
-        settings = QSettings("Turna", "CourseEditor")
+        settings = QSettings(ORG_NAME, APP_NAME)
         last_dir = settings.value("last_init_dir", "")
         if last_dir and isinstance(last_dir, str):
             self.dir_edit.setText(last_dir)
@@ -132,12 +133,12 @@ class InitCourseDialog(QDialog):
         }
         try:
             self.adapter.init_new(course_dir, meta)
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             QMessageBox.critical(self, "初始化失败", str(exc))
             return
 
         self._init_dir = course_dir
-        settings = QSettings("Turna", "CourseEditor")
+        settings = QSettings(ORG_NAME, APP_NAME)
         settings.setValue("last_init_dir", str(parent_path))
         self.accept()
 

@@ -20,12 +20,15 @@ from src.application import runtime_context
 from src.application.course_session import CourseSession
 from src.application.experience_shell import ExperienceShell
 from src.application.experience_window_bridge import (
+    apply_experience_memory_settings,
     flush_experience_metrics,
     on_experience_context_changed,
     on_experience_pin_toggled,
     on_experience_resources_changed,
     record_experience_event,
     refresh_experience,
+    sync_experience_attachments,
+    sync_experience_memory,
     sync_focus_ring,
 )
 from src.application.main_window_shell import (
@@ -52,11 +55,12 @@ from src.application.repo_session_host import (
     show_load_error,
 )
 from src.application.save_host import run_async_direct_save
-from src.application.settings import Settings, migrate_legacy_varnamala_qsettings
+from src.application.settings import Settings, migrate_legacy_varnamala_qsettings, ORG_NAME, APP_NAME
 from src.application.experience_skills_mixin import ExperienceSkillsMixin
 from src.backend.ai import AiApiConfig
 from src.backend.course_adapter import CourseAdapter
 from src.backend.experience.conflict_guard import ConflictGuard
+from src.backend.experience.memory import ExperienceMemory
 from src.backend.experience.metrics import ExperienceMetrics
 from src.backend.experience.proactive import make_mute
 from src.backend.import_step_result import ImportStepResult
@@ -91,7 +95,7 @@ class _ButtonSizePolicyFilter(QObject):
     later) benefits.
     """
 
-    def eventFilter(self, obj, event):  # noqa: N802
+    def eventFilter(self, obj, event):
         if event.type() == QEvent.Type.Polish and isinstance(obj, QPushButton):
             sp = obj.sizePolicy()
             if sp.horizontalPolicy() != QSizePolicy.Policy.Minimum:
@@ -112,7 +116,7 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
         self._workshop_window = None
         self._overview_window = None
 
-        self._settings = QSettings("Turna", "CourseEditor")
+        self._settings = QSettings(ORG_NAME, APP_NAME)
         self._settings_obj = Settings.load_from_qsettings(self._settings)
         # One-shot migration from legacy "Varnamala" -> "Turna" namespace.
         # No-op when the new namespace already has keys.
@@ -149,6 +153,10 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
         self._save_worker = None
 
         self.experience = ExperienceShell(parent=self, debounce_ms=120)
+        # C-13: session/project/author memory facade; bound to the course in
+        # course_lifecycle.bind_loaded_course; persist flags from settings.
+        self.experience_memory = ExperienceMemory()
+        self._apply_experience_memory_settings()
         self.experience.context_changed.connect(self._on_experience_context_changed)
         self.experience_dock_widget = ExperienceDock(self)
         self.experience_dock_widget.suggestion_clicked.connect(self._on_experience_suggestion)
@@ -345,6 +353,12 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
         self._apply_ai_cache()
         self.undo_stack.setUndoLimit(self._settings_obj.undo_limit)
         apply_theme(QApplication.instance(), self._settings_obj)
+        self._apply_experience_memory_settings()
+        from src.application.workshop_controller import sync_workshop_ocr_enabled
+
+        sync_workshop_ocr_enabled(self)
+        if self.course_dir is not None:
+            self._refresh_experience(immediate=False)
         self.statusBar().showMessage("设置已应用", 3000)
 
     def _import_section_dict(self, section: dict, strategy: str = ImportStrategy.MERGE.value) -> str:
@@ -629,7 +643,7 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
 
         close_controller.clear_ai_key_on_exit(self)
 
-    def closeEvent(self, event) -> None:  # noqa: N802
+    def closeEvent(self, event) -> None:
         from src.application import close_controller
 
         close_controller.handle_close_event(self, event)
@@ -706,6 +720,25 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
         from src.application.workshop_controller import on_workshop_ocr_requested
 
         on_workshop_ocr_requested(self, path, original_name, unlink_after)
+
+    def _on_workshop_attachments_changed(self) -> None:
+        from src.application.workshop_controller import on_workshop_attachments_changed
+
+        on_workshop_attachments_changed(self)
+
+    def _sync_experience_focus(self) -> None:
+        from src.application.selection_hub import sync_focus
+
+        sync_focus(self)
+
+    def _sync_experience_memory(self) -> None:
+        sync_experience_memory(self)
+
+    def _sync_experience_attachments(self) -> None:
+        sync_experience_attachments(self)
+
+    def _apply_experience_memory_settings(self) -> None:
+        apply_experience_memory_settings(self)
 
     def _on_undo_index_changed(self, idx: int = 0) -> None:
         if hasattr(self, "_undo_detail_timer"):

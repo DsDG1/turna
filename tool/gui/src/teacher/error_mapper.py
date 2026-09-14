@@ -7,7 +7,7 @@ may keep importing from here during the transition.
 """
 from __future__ import annotations
 
-from src.backend.error_mapper import (  # noqa: F401
+from src.backend.error_mapper import (
     humanize_problem,
     parse_path,
     problem_to_node_ref,

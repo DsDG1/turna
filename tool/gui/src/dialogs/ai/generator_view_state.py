@@ -163,7 +163,7 @@ def reconnect(dlg, btn, slot) -> None:
     try:
         btn.clicked.disconnect()
     except RuntimeError:
-        logger.debug("dialogs/ai_generator_dialog.py:reconnect best-effort step failed", exc_info=True)
+        logger.debug("dialogs/ai/generator_view_state.py:reconnect best-effort step failed", exc_info=True)
     btn.clicked.connect(slot)
 
 

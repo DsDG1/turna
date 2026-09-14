@@ -6,8 +6,9 @@ one ambient proposal, honoring mute and archive. Never writes the course tree.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
-from datetime import date, datetime, timezone
-from typing import Any, Iterable, Mapping, Sequence
+from datetime import date, datetime, timezone, UTC
+from typing import Any
+from collections.abc import Iterable, Mapping, Sequence
 
 from src.backend.experience.context_bus import ExperienceContext, local_suggestions
 import logging
@@ -39,7 +40,7 @@ class MuteState:
             return False
         if level == MUTE_PERMANENT:
             return True
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
         if level == MUTE_TODAY:
             day = self.set_on_date or _date_str(now)
             return _date_str(now) == day
@@ -49,7 +50,7 @@ class MuteState:
             try:
                 until = datetime.fromisoformat(self.until_iso)
                 if until.tzinfo is None:
-                    until = until.replace(tzinfo=timezone.utc)
+                    until = until.replace(tzinfo=UTC)
                 return now < until
             except ValueError:
                 return False
@@ -59,7 +60,7 @@ class MuteState:
         return {"level": self.level, "until_iso": self.until_iso, "set_on_date": self.set_on_date}
 
     @classmethod
-    def from_dict(cls, data: Mapping[str, Any] | None) -> "MuteState":
+    def from_dict(cls, data: Mapping[str, Any] | None) -> MuteState:
         if not data:
             return cls()
         level = str(data.get("level") or MUTE_OFF)
@@ -78,13 +79,13 @@ def make_mute(
     now: datetime | None = None,
 ) -> MuteState:
     """Build a MuteState for the given level relative to *now*."""
-    now = now or datetime.now(timezone.utc)
+    now = now or datetime.now(UTC)
     level = (level or MUTE_OFF).strip() or MUTE_OFF
     if level not in MUTE_LEVELS:
         level = MUTE_OFF
     if level == MUTE_HOURS4:
         until = now.timestamp() + 4 * 3600
-        until_dt = datetime.fromtimestamp(until, tz=timezone.utc)
+        until_dt = datetime.fromtimestamp(until, tz=UTC)
         return MuteState(level=MUTE_HOURS4, until_iso=until_dt.isoformat(), set_on_date="")
     if level == MUTE_TODAY:
         return MuteState(level=MUTE_TODAY, until_iso="", set_on_date=_date_str(now))
@@ -109,7 +110,7 @@ class AmbientProposal:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: Mapping[str, Any]) -> "AmbientProposal":
+    def from_dict(cls, data: Mapping[str, Any]) -> AmbientProposal:
         return cls(
             id=str(data.get("id") or ""),
             title=str(data.get("title") or ""),

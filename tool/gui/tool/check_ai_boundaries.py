@@ -261,6 +261,11 @@ _HEX_COLOR = re.compile(r"#[0-9a-fA-F]{3,8}\b")
 _PALETTE_HINT = re.compile(
     r"_pal\(|current_palette|ai_color|palette\(|_chat_palette|palette\["
 )
+# ``.get("token", "#hex")`` fallback literals are palette-driven — the hex
+# only ships when the token is missing, so it must not count as hard-coded.
+_GET_FALLBACK_HEX = re.compile(
+    r"(\.get\([^)]*,\s*['\"])#[0-9a-fA-F]{3,8}(['\"])"
+)
 
 
 def count_hardcoded_style_hex() -> int:
@@ -284,7 +289,10 @@ def count_hardcoded_style_hex() -> int:
                 and node.func.attr == "setStyleSheet"
             ):
                 seg = ast.get_source_segment(src, node)
-                if seg and _HEX_COLOR.search(seg) and not _PALETTE_HINT.search(seg):
+                if not seg:
+                    continue
+                seg_no_fallback = _GET_FALLBACK_HEX.sub(r"\1\2", seg)
+                if _HEX_COLOR.search(seg_no_fallback) and not _PALETTE_HINT.search(seg):
                     total += 1
     return total
 

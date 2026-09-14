@@ -338,8 +338,9 @@ class ListeningPhasesEditor(QWidget):
 
     def _on_transcript_changed(self) -> None:
         phase = self._current_phase()
-        if phase is not None and hasattr(self, "transcript_edit"):
-            phase["transcript"] = self.transcript_edit.toPlainText()
+        if phase is None:
+            return
+        phase["transcript"] = self.transcript_edit.toPlainText()
         if ContentKey.ITEMS in phase:
             self.item_panel.show_stage(phase)
         else:

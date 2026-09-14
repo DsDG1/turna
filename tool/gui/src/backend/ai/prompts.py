@@ -409,7 +409,7 @@ def _resource_pool_block(spec: AiCourseSpec) -> str:
 def build_prompt(spec: AiCourseSpec) -> str:
     """Build the generation prompt for the AI model."""
     parts = [
-        f"Generate a language learning course section as JSON.",
+        "Generate a language learning course section as JSON.",
         "",
         f"Target language: {spec.language}",
         f"Prompt/source language: {spec.source_language}",

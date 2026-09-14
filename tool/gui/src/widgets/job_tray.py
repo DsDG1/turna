@@ -212,9 +212,9 @@ class JobTray(QWidget):
 
 # Re-export kinds for call sites that prefer importing from the widget.
 __all__ = [
-    "JobTray",
     "JOB_KIND_AI",
     "JOB_KIND_LOCAL",
     "JOB_KIND_VALIDATE",
     "LEGACY_JOB_ID",
+    "JobTray",
 ]

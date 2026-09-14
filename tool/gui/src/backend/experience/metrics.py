@@ -170,7 +170,7 @@ class ExperienceMetrics:
 
     def suggestion_totals(self) -> dict[str, int]:
         """Per-stage totals collapsed across all action_ids."""
-        totals = {st: 0 for st in _SUGGESTION_STAGES}
+        totals = dict.fromkeys(_SUGGESTION_STAGES, 0)
         for counts in self._suggestion.values():
             for st in _SUGGESTION_STAGES:
                 totals[st] += int(counts.get(st, 0))
@@ -205,11 +205,11 @@ class ExperienceMetrics:
     def clear(self) -> None:
         self._intent: dict[str, int] = {"resolved": 0, "fell_through": 0}
         self._suggestion: dict[str, dict[str, int]] = {}
-        self._ambient: dict[str, int] = {st: 0 for st in _AMBIENT_STAGES}
-        self._guard: dict[str, int] = {st: 0 for st in _GUARD_STAGES}
+        self._ambient: dict[str, int] = dict.fromkeys(_AMBIENT_STAGES, 0)
+        self._guard: dict[str, int] = dict.fromkeys(_GUARD_STAGES, 0)
         self._job: dict[str, dict[str, int]] = {}
-        self._soft: dict[str, int] = {st: 0 for st in _SOFT_STAGES}
-        self._auto: dict[str, int] = {st: 0 for st in _AUTO_STAGES}
+        self._soft: dict[str, int] = dict.fromkeys(_SOFT_STAGES, 0)
+        self._auto: dict[str, int] = dict.fromkeys(_AUTO_STAGES, 0)
 
     # --- convenience for tests / debugging ------------------------------
 

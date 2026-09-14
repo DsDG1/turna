@@ -14,7 +14,8 @@ from collections import deque
 from dataclasses import dataclass
 from threading import Lock
 from time import time
-from typing import Any, Deque, Mapping
+from typing import Any, Deque
+from collections.abc import Mapping
 
 from src.backend.experience.actions import DANGEROUS_ACTION_IDS, is_dangerous
 import logging
@@ -213,12 +214,12 @@ class AuditEntry:
     kind: str
 
 
-def make_audit_ring() -> Deque[AuditEntry]:
+def make_audit_ring() -> deque[AuditEntry]:
     return deque(maxlen=AUDIT_RING_CAP)
 
 
 def record_audit(
-    ring: Deque[AuditEntry] | None,
+    ring: deque[AuditEntry] | None,
     action_id: str,
     *,
     count: int = 1,
@@ -240,7 +241,7 @@ def record_audit(
         return None
 
 
-def ensure_audit_ring(host: Any) -> Deque[AuditEntry] | None:
+def ensure_audit_ring(host: Any) -> deque[AuditEntry] | None:
     """Get or create host audit ring. Never raises."""
     if host is None:
         return None

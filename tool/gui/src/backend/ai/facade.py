@@ -16,7 +16,8 @@ from __future__ import annotations
 
 import copy
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Literal
+from typing import TYPE_CHECKING, Any, Literal
+from collections.abc import Callable
 
 from src.backend.ai.config import AiApiConfig, AiCourseSpec, ChatMessage
 from src.backend.ai.course_generate import generate_from_chat, request_course_with_retry

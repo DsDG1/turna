@@ -166,7 +166,7 @@ class MergeAiSectionCommand(_ResourceMergeMixin, QUndoCommand):
     def __init__(
         self,
         adapter,
-        plan: "SectionMergePlan",
+        plan: SectionMergePlan,
     ) -> None:
         super().__init__("AI 合并 Section")
         self.adapter = adapter

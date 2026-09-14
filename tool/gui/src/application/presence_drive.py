@@ -12,7 +12,8 @@ Red lines:
 """
 from __future__ import annotations
 
-from typing import Any, Iterable, Mapping
+from typing import Any
+from collections.abc import Iterable, Mapping
 import logging
 from src.application.experience_host import ExperienceHost
 logger = logging.getLogger(__name__)
@@ -73,10 +74,6 @@ def is_experience_ai_busy(host: ExperienceHost) -> bool:
     except Exception:
         logger.debug("application/presence_drive.py:is_experience_ai_busy best-effort step failed", exc_info=True)
     return False
-
-
-# Heartbeat interval after AI becomes idle (ms).
-HEARTBEAT_IDLE_INTERVAL_MS = 15_000
 
 
 def is_silent_drive_action(action_id: str | None) -> bool:

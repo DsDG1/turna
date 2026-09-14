@@ -10,10 +10,11 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from typing import Any
 
 from PySide6.QtCore import QSettings
+from src.application.settings import APP_NAME, ORG_NAME
 
 _QSETTINGS_KEY = "git/saved_remotes"
 
@@ -32,7 +33,7 @@ class SavedRemote:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "SavedRemote":
+    def from_dict(cls, data: dict[str, Any]) -> SavedRemote:
         return cls(
             name=str(data.get("name", "")),
             url=str(data.get("url", "")),
@@ -44,7 +45,7 @@ class SavedRemote:
 
 def load_remotes() -> list[SavedRemote]:
     """Load all saved remotes from QSettings."""
-    qsettings = QSettings("Turna", "CourseEditor")
+    qsettings = QSettings(ORG_NAME, APP_NAME)
     raw = qsettings.value(_QSETTINGS_KEY, "[]")
     if not isinstance(raw, str):
         return []
@@ -63,7 +64,7 @@ def load_remotes() -> list[SavedRemote]:
 
 def save_remotes(remotes: list[SavedRemote]) -> None:
     """Persist the full list of saved remotes."""
-    qsettings = QSettings("Turna", "CourseEditor")
+    qsettings = QSettings(ORG_NAME, APP_NAME)
     qsettings.setValue(
         _QSETTINGS_KEY,
         json.dumps([r.to_dict() for r in remotes], ensure_ascii=False),
@@ -110,7 +111,7 @@ def update_remote(name: str, **changes: Any) -> list[SavedRemote]:
 
 def mark_synced(name: str) -> None:
     """Record that ``name`` was just synced (updates ``last_synced_at``)."""
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     update_remote(name, last_synced_at=now)
 
 

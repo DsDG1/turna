@@ -22,7 +22,7 @@ JOB_ID = "screenshot-explain"
 JOB_LABEL = "截图解释"
 
 
-def capture_widget_to_png_bytes(widget: Any) -> Tuple[bytes, str]:
+def capture_widget_to_png_bytes(widget: Any) -> tuple[bytes, str]:
     """Capture a QWidget to PNG bytes via ``grab()``.
 
     Returns ``(png_bytes, status)`` where status ∈ {"ok","no_window","failed"}.
@@ -53,7 +53,7 @@ def capture_widget_to_png_bytes(widget: Any) -> Tuple[bytes, str]:
             return b"", "failed"
         data = bytes(buf.data())
         return data or b"", "ok" if data else "failed"
-    except Exception:  # noqa: BLE001
+    except Exception:
         return b"", "failed"
 
 
@@ -85,7 +85,7 @@ def explain_current(win: Any) -> None:
         if app is None or app.platformName() == "offscreen":
             win.statusBar().showMessage("截图解释需在可视化窗口运行", 5000)
             return
-    except Exception:  # noqa: BLE001
+    except Exception:
         win.statusBar().showMessage("截图解释：GUI 不可用", 5000)
         return
 
@@ -111,7 +111,7 @@ def explain_current(win: Any) -> None:
     if hasattr(win, "_refresh_experience"):
         try:
             win._refresh_experience(immediate=False, focus_only=True)
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.debug("application/screenshot_controller.py:explain_current best-effort step failed", exc_info=True)
 
     worker = win._make_ai_worker(run_screenshot_skill, config, png_bytes, None)
@@ -134,7 +134,7 @@ def explain_current(win: Any) -> None:
                 action_id=ACTION_ID,
                 scope={},
             )
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.debug("application/screenshot_controller.py:_on_ok best-effort step failed", exc_info=True)
         if metrics is not None:
             metrics.inc_suggestion(ACTION_ID, "applied")

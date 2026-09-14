@@ -221,7 +221,7 @@ class ExperienceDock(QWidget):
         self._suggestion_buttons: list[QPushButton] = []
         self._focused_suggestion: int | None = None
         self._metrics_base_style = (
-            f"padding: 4px; border-radius: 6px; border: 1px solid transparent;"
+            "padding: 4px; border-radius: 6px; border: 1px solid transparent;"
         )
         self._metrics.setStyleSheet(self._metrics_base_style)
         self._pulse_timer = QTimer(self)

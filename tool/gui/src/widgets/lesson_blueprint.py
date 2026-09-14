@@ -26,6 +26,7 @@ from typing import Any
 
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
+    QComboBox,
     QFrame,
     QHBoxLayout,
     QLabel,
@@ -34,6 +35,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSpinBox,
+    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -493,7 +495,6 @@ class LessonBlueprint(QWidget):
             diff.valueChanged.connect(self._on_passage_difficulty_changed)
             form.addWidget(QLabel("难度 (1-5)"))
             form.addWidget(diff)
-            from PySide6.QtWidgets import QTextEdit
 
             paras = QTextEdit("\n\n".join(passage.get("paragraphs", [])))
             paras.setMaximumHeight(140)
@@ -603,8 +604,6 @@ class LessonBlueprint(QWidget):
         return card
 
     def _build_add_item_row(self, stage: dict[str, Any]) -> QHBoxLayout:
-        from PySide6.QtWidgets import QComboBox
-
         row = QHBoxLayout()
         combo = QComboBox()
         for rt, label in INTERACTION_LABELS.items():

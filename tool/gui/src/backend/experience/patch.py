@@ -15,7 +15,8 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any, Sequence, Union
+from typing import Any, Union
+from collections.abc import Sequence
 import logging
 logger = logging.getLogger(__name__)
 

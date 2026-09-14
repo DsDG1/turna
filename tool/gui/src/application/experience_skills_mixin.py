@@ -56,6 +56,18 @@ class ExperienceSkillsMixin:
         except Exception:
             logger.debug("application/experience_skills_mixin.py:_usage_today_for_policy best-effort step failed", exc_info=True)
         return None
+
+    def _sync_usage_today(self) -> None:
+        """M-08: push telemetry's today bucket into the Shell. Never raises."""
+        try:
+            from src.application.experience_window_bridge import (
+                sync_usage_today,
+            )
+
+            sync_usage_today(self)
+        except Exception:
+            logger.debug("application/experience_skills_mixin.py:_sync_usage_today best-effort step failed", exc_info=True)
+
     def _resolve_experience_policy(self, *, action_id: str | None = None):
         """C-07 + M-08: resolve policy with live settings + usage_today."""
         from src.backend.experience import resolve_policy
@@ -136,14 +148,6 @@ class ExperienceSkillsMixin:
     def _refresh_ambient(self) -> None:
         from src.application.ambient_controller import refresh_ambient
         refresh_ambient(self)
-
-    def _on_ambient_heartbeat(self) -> None:
-        from src.application.ambient_controller import on_ambient_heartbeat
-        on_ambient_heartbeat(self)
-
-    def _pause_ambient_heartbeat_until_idle(self) -> None:
-        from src.application.ambient_controller import pause_heartbeat_until_idle
-        pause_heartbeat_until_idle(self)
 
     def _on_job_tray_ai_busy_changed(self, busy: bool) -> None:
         from src.application.ambient_controller import on_job_tray_ai_busy_changed

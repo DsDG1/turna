@@ -229,7 +229,7 @@ class AttachmentBar(QWidget):
         dlg = AttachmentPreviewDialog(record, parent=self)
         dlg.exec()
 
-    def keyPressEvent(self, event: QKeyEvent) -> None:  # noqa: N802
+    def keyPressEvent(self, event: QKeyEvent) -> None:
         if event.key() == Qt.Key.Key_Delete:
             self._remove_selected_attachment()
         else:

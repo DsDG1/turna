@@ -16,7 +16,7 @@ from PySide6.QtWidgets import QApplication
 from src.app import MainWindow
 from src.application.settings import app_data_dir
 from src.theme import apply_theme
-import logging
+
 logger = logging.getLogger(__name__)
 
 _LOG_DIR = app_data_dir()
@@ -36,6 +36,10 @@ def _install_excepthook() -> None:
     from src.infrastructure.telemetry import telemetry
 
     old_hook = sys.excepthook
+    # Re-entrancy guard: ``dlg.exec()`` below re-enters the Qt event loop;
+    # if another exception escapes while the fatal dialog is up we must not
+    # stack a second modal on top of it.
+    _in_hook = {"active": False}
 
     def _hook(exc_type, exc_value, exc_tb):
         detail = "".join(traceback.format_exception(exc_type, exc_value, exc_tb))
@@ -44,21 +48,25 @@ def _install_excepthook() -> None:
             exc_value,
             context={"hook": "sys.excepthook", "fatal": True},
         )
-        try:
-            from src.dialogs.ai_error_analyzer import offer_ai_analysis
-            if offer_ai_analysis(
-                None, "未捕获的错误", f"程序遇到错误：{exc_value}",
-                informative_text=f"详细信息已写入 {_LOG_FILE}", default_to_analyze=True,
-            ):
-                from src.dialogs.ai_error_analyzer import AiErrorAnalyzerDialog
+        if not _in_hook["active"]:
+            _in_hook["active"] = True
+            try:
+                from src.dialogs.ai_error_analyzer import offer_ai_analysis
+                if offer_ai_analysis(
+                    None, "未捕获的错误", f"程序遇到错误：{exc_value}",
+                    informative_text=f"详细信息已写入 {_LOG_FILE}", default_to_analyze=True,
+                ):
+                    from src.dialogs.ai_error_analyzer import AiErrorAnalyzerDialog
 
-                dlg = AiErrorAnalyzerDialog(
-                    detail,
-                    context={"hook": "sys.excepthook", "fatal": True},
-                )
-                dlg.exec()
-        except Exception:
-            logger.debug("main.py:_hook best-effort step failed", exc_info=True)
+                    dlg = AiErrorAnalyzerDialog(
+                        detail,
+                        context={"hook": "sys.excepthook", "fatal": True},
+                    )
+                    dlg.exec()
+            except Exception:
+                logger.debug("main.py:_hook best-effort step failed", exc_info=True)
+            finally:
+                _in_hook["active"] = False
         old_hook(exc_type, exc_value, exc_tb)
 
     sys.excepthook = _hook

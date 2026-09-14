@@ -21,7 +21,7 @@ _TOOL_DIR = Path(__file__).resolve().parents[3]
 if str(_TOOL_DIR) not in sys.path:
     sys.path.insert(0, str(_TOOL_DIR))
 
-import course_cli  # noqa: E402
+import course_cli
 
 #: Timeout for the validate/lint subprocess fallbacks (a hung child must not
 #: freeze the whole GUI; the in-process fast path needs no such guard).
@@ -217,7 +217,7 @@ def validate_course_dir(course_dir: Path) -> ValidationResult:
     course_dir = Path(course_dir).resolve()
     try:
         return _validate_in_process(course_dir)
-    except Exception:  # noqa: BLE001 — fall back to the subprocess path
+    except Exception:
         return _validate_via_subprocess(course_dir)
 
 
@@ -263,7 +263,7 @@ def lint_course_dir(course_dir: Path) -> list[Problem]:
     course_dir = Path(course_dir).resolve()
     try:
         return _lint_in_process(course_dir)
-    except Exception:  # noqa: BLE001 — fall back to the subprocess path
+    except Exception:
         return _lint_via_subprocess(course_dir)
 
 

@@ -120,7 +120,7 @@ class UserActionFilter(QObject):
         self._click_clock = QElapsedTimer()
         self._click_clock.start()
 
-    def eventFilter(self, obj: QObject, event: QEvent) -> bool:  # noqa: N802
+    def eventFilter(self, obj: QObject, event: QEvent) -> bool:
         try:
             etype = event.type()
             if etype == QEvent.Type.MouseButtonPress and isinstance(obj, QWidget):

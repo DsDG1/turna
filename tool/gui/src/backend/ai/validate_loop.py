@@ -5,7 +5,11 @@ Extracted from ``ai_generator`` (M1 refactor).
 from __future__ import annotations
 
 import json
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any
+from collections.abc import Callable
+
+if TYPE_CHECKING:
+    from src.backend.ai_cache import AiCache
 
 from src.backend.ai.client import resolved_request_chat
 from src.backend.ai.config import AiApiConfig
@@ -63,7 +67,7 @@ def generate_with_validate_loop(
     response_format: dict[str, Any] | None = None,
     parse: Callable[[Any], dict] | None = None,
     stream_first_only: bool = True,
-    cache: "AiCache | None" = None,
+    cache: AiCache | None = None,
     model: str | None = None,
     max_tokens: int | None = None,
 ) -> dict:

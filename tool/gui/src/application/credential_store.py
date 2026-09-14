@@ -15,6 +15,7 @@ from typing import Optional
 
 from PySide6.QtCore import QSettings
 import logging
+from src.application.settings import APP_NAME, ORG_NAME
 logger = logging.getLogger(__name__)
 
 _KEYRING_SERVICE = "turna.git"
@@ -26,10 +27,10 @@ _KEYRING_SERVICE_LEGACY = "varnamala.git"
 _KEYRING_UNAVAILABLE_WARNED = False
 
 
-def _read_keyring_token(account: str) -> Optional[str]:
+def _read_keyring_token(account: str) -> str | None:
     """Read token from the active keyring service; on miss, fall back to the
     legacy service and copy the value to the new one for stability."""
-    import keyring  # noqa: WPS433
+    import keyring
     value = keyring.get_password(_KEYRING_SERVICE, account)
     if value:
         return value
@@ -49,7 +50,7 @@ def _keyring_available() -> bool:
     """Return True if the keyring backend can be imported and has a usable backend."""
     global _KEYRING_UNAVAILABLE_WARNED
     try:
-        import keyring  # noqa: WPS433
+        import keyring
         backend = keyring.get_keyring()
         # The fail backend always returns None and is the default when no real
         # backend is wired; treat it as unavailable so we fall back.
@@ -83,7 +84,7 @@ def _account_for_url(url: str) -> str:
 
 # --- HTTPS token -------------------------------------------------------------
 
-def get_git_token(url: str) -> Optional[str]:
+def get_git_token(url: str) -> str | None:
     """Return the stored HTTPS token for ``url``, or None if not set."""
     account = _account_for_url(url)
     if _keyring_available():
@@ -92,7 +93,7 @@ def get_git_token(url: str) -> Optional[str]:
         except Exception:
             _warn_keyring_unavailable_once()
     # Fallback: QSettings obfuscated.
-    qsettings = QSettings("Turna", "CourseEditor")
+    qsettings = QSettings(ORG_NAME, APP_NAME)
     raw = qsettings.value(f"git/token/{account}", "")
     if not raw:
         return None
@@ -107,13 +108,13 @@ def set_git_token(url: str, token: str) -> None:
     account = _account_for_url(url)
     if _keyring_available():
         try:
-            import keyring  # noqa: WPS433
+            import keyring
             keyring.set_password(_KEYRING_SERVICE, account, token)
             return
         except Exception:
             _warn_keyring_unavailable_once()
     # Fallback: QSettings obfuscated.
-    qsettings = QSettings("Turna", "CourseEditor")
+    qsettings = QSettings(ORG_NAME, APP_NAME)
     encoded = base64.b64encode(token.encode("utf-8")).decode("utf-8")
     qsettings.setValue(f"git/token/{account}", encoded)
 
@@ -123,7 +124,7 @@ def delete_git_token(url: str) -> bool:
     account = _account_for_url(url)
     if _keyring_available():
         try:
-            import keyring  # noqa: WPS433
+            import keyring
             existing = keyring.get_password(_KEYRING_SERVICE, account)
             legacy_existing = keyring.get_password(_KEYRING_SERVICE_LEGACY, account)
             if existing is None and legacy_existing is None:
@@ -139,7 +140,7 @@ def delete_git_token(url: str) -> bool:
             return True
         except Exception:
             _warn_keyring_unavailable_once()
-    qsettings = QSettings("Turna", "CourseEditor")
+    qsettings = QSettings(ORG_NAME, APP_NAME)
     key = f"git/token/{account}"
     if not qsettings.contains(key):
         return False
@@ -151,13 +152,13 @@ def delete_git_token(url: str) -> bool:
 
 def get_ssh_key_path() -> str:
     """Return the configured SSH key path (empty string if not set)."""
-    qsettings = QSettings("Turna", "CourseEditor")
+    qsettings = QSettings(ORG_NAME, APP_NAME)
     return str(qsettings.value("git/ssh_key_path", ""))
 
 
 def set_ssh_key_path(path: str) -> None:
     """Persist the SSH key path."""
-    qsettings = QSettings("Turna", "CourseEditor")
+    qsettings = QSettings(ORG_NAME, APP_NAME)
     qsettings.setValue("git/ssh_key_path", path)
 
 
@@ -167,7 +168,7 @@ def keyring_status() -> dict[str, object]:
     backend_name = "unavailable"
     if available:
         try:
-            import keyring  # noqa: WPS433
+            import keyring
             backend = keyring.get_keyring()
             backend_name = type(backend).__name__
         except Exception:

@@ -280,7 +280,7 @@ def _word_ids(section: dict[str, Any]) -> set[str]:
 
 def _count_practice_hits_for_words(section: dict[str, Any]) -> dict[str, int]:
     """How many non-showWord practice items reference each word id."""
-    hits: dict[str, int] = {wid: 0 for wid in _word_ids(section)}
+    hits: dict[str, int] = dict.fromkeys(_word_ids(section), 0)
     for _lesson, item, _path in _iter_items_with_path(section):
         rt = str(item.get(ItemKey.RUNTIME_TYPE) or "")
         if rt == InteractionType.SHOW_WORD:
@@ -758,7 +758,7 @@ def score_section(
     """Score a section draft across pedagogy / hygiene dimensions."""
     if not isinstance(section, dict):
         return ContentQualityReport(
-            scores={d: 0.0 for d in _DIMENSIONS},
+            scores=dict.fromkeys(_DIMENSIONS, 0.0),
             issues=[
                 ContentQualityIssue(
                     level="error",
@@ -1085,17 +1085,17 @@ def evaluate_reading_passage(lesson: dict[str, Any]) -> dict[str, Any]:
 __all__ = [
     "ContentQualityIssue",
     "ContentQualityReport",
-    "score_section",
-    "format_quality_line",
-    "build_quality_fix_hint",
-    "issues_for_dimension",
-    "build_quality_fix_hint_for_dimension",
-    "count_placeholders",
-    "count_needs_review",
-    "count_empty_translations",
-    "find_dangling_refs",
-    "evaluate_lesson_balance",
-    "evaluate_unit_spiral",
-    "evaluate_reading_passage",
     "_iter_lessons",
+    "build_quality_fix_hint",
+    "build_quality_fix_hint_for_dimension",
+    "count_empty_translations",
+    "count_needs_review",
+    "count_placeholders",
+    "evaluate_lesson_balance",
+    "evaluate_reading_passage",
+    "evaluate_unit_spiral",
+    "find_dangling_refs",
+    "format_quality_line",
+    "issues_for_dimension",
+    "score_section",
 ]

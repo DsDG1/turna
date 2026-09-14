@@ -27,7 +27,7 @@ from src.theme_tokens import BRAND_REED
 
 try:  # theme is optional at import time (tests may not apply_theme)
     from src.theme import current_palette
-except Exception:  # noqa: BLE001
+except Exception:
     current_palette = None  # type: ignore[assignment]
 
 
@@ -35,7 +35,7 @@ def _palette() -> dict[str, str]:
     if current_palette is not None:
         try:
             return current_palette()
-        except Exception:  # noqa: BLE001
+        except Exception:
             logger.debug("widgets/json_editor.py:34 best-effort step failed", exc_info=True)
     return {
         "ai_accent": BRAND_REED,
@@ -74,7 +74,7 @@ class _JsonHighlighter(QSyntaxHighlighter):
         self._fmts = self._build_formats(palette)
         self.rehighlight()
 
-    def highlightBlock(self, text: str) -> None:  # noqa: N802 (Qt API)
+    def highlightBlock(self, text: str) -> None:
         # Tokenize a single line. JSON is line-oriented enough for a simple
         # scanner; this is intentionally lightweight (no multi-line strings).
         i = 0
@@ -196,7 +196,7 @@ class JsonEditor(QPlainTextEdit):
 
     # --- key handling ----------------------------------------------------
 
-    def keyPressEvent(self, event) -> None:  # noqa: N802 (Qt API)
+    def keyPressEvent(self, event) -> None:
         if (
             event.key() == Qt.Key.Key_F
             and event.modifiers() == (Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier)

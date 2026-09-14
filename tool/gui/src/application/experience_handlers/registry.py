@@ -6,7 +6,8 @@ intercept dispatch (bound function objects would freeze the pre-patch ref).
 """
 from __future__ import annotations
 
-from typing import Any, Callable
+from typing import Any
+from collections.abc import Callable
 
 from src.application.experience_handlers import (
     edit,

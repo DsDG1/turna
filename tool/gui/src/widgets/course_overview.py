@@ -44,6 +44,7 @@ from src.backend.overview_stats import (
     lesson_is_empty,
 )
 from src.theme import current_palette, current_theme
+from src.application.settings import APP_NAME, ORG_NAME
 
 #: Cache of chip stylesheets keyed by template + empty flag. Reused across
 #: refreshes; invalidated automatically when the active theme changes (the
@@ -60,7 +61,7 @@ def _chip_style(template: str, empty: bool) -> str:
     """Return a cached stylesheet for a lesson chip of ``template``."""
     global _CHIP_STYLE_THEME_KEY
     theme_key = current_theme()
-    if _CHIP_STYLE_THEME_KEY != theme_key:
+    if theme_key != _CHIP_STYLE_THEME_KEY:
         _CHIP_STYLE_CACHE.clear()
         _CHIP_STYLE_THEME_KEY = theme_key
     key = (template, empty)
@@ -491,7 +492,7 @@ class CourseOverviewWindow(QWidget):
     # --- geometry -------------------------------------------------------
 
     def _load_geometry(self) -> None:
-        qs = QSettings("Turna", "CourseEditor")
+        qs = QSettings(ORG_NAME, APP_NAME)
         geo = qs.value(self._GEO_KEY)
         if geo is not None:
             self.restoreGeometry(geo)
@@ -499,10 +500,10 @@ class CourseOverviewWindow(QWidget):
             self.showMaximized()
 
     def _save_geometry(self) -> None:
-        qs = QSettings("Turna", "CourseEditor")
+        qs = QSettings(ORG_NAME, APP_NAME)
         qs.setValue(self._GEO_KEY, self.saveGeometry())
         qs.setValue(self._MAX_KEY, self.isMaximized())
 
-    def closeEvent(self, event) -> None:  # noqa: N802
+    def closeEvent(self, event) -> None:
         self._save_geometry()
         super().closeEvent(event)

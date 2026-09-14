@@ -270,7 +270,7 @@ python -m tool.gui.src.main
 **抽取语言对与 OCR 说明（aiEnhance 批次③）：**
 
 - **内置语言对抽取模板**：Turkish ↔ Chinese 内置了专门的抽取规则块（强调元音和谐/敬语形式、term 禁止混入中文字符、翻译用简体中文），不改 JSON schema。其他语言对可在「设置 → 提取 Prompt」tab 持久化覆盖；生效优先级：内存 register > 持久化覆盖 > 内置语言对包 > 内置默认（机制见 `backend/knowledge_prompt.py` 的 `KnowledgePromptLibrary` 与 `backend/ai_prompt_library.py` 的 `save_extraction_override`）。
-- **OCR（扫描件 PDF / 图片文字识别）**：OCR 是**可选外部依赖**，默认关闭、GUI 不内置。扫描件 PDF 目前会提示「未提取到文本」。如需接入：自行安装 [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) 及语言包，用 `ocrmypdf input.pdf output.pdf`（或 `pytesseract`）先做一遍识别，把生成的文本版 PDF / Markdown 再导入即可。
+- **OCR（扫描件 PDF / 图片文字识别）**：OCR 是**可选外部依赖**，默认关闭。开启方式：设置 ▸ 体验 OS ▸「OCR 图片附件转文本」，需系统安装 [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) 及语言包（Python 侧 `pip install pytesseract`，PDF 走 PyMuPDF）。开启后工坊附件栏中的图片 / 扫描件可本地识别为文本附件；结果只进附件栏，不写课程树、不走 API。也可自行用 `ocrmypdf input.pdf output.pdf` 预处理后再导入。
 
 ### 3. 中栏：AI 轨道 (Orbit)
 

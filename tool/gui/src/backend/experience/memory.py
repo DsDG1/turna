@@ -14,7 +14,8 @@ from __future__ import annotations
 import time
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Any, Mapping, Sequence
+from typing import Any
+from collections.abc import Mapping, Sequence
 import logging
 logger = logging.getLogger(__name__)
 
@@ -206,7 +207,7 @@ class SessionMemory:
         }
 
 
-def default_project_memory_dir() -> "Any":
+def default_project_memory_dir() -> Any:
     """tool/var/experience_memory under repo (never raises → None)."""
     try:
         from pathlib import Path
@@ -216,7 +217,7 @@ def default_project_memory_dir() -> "Any":
         return None
 
 
-def project_memory_file(base_dir: Any, course_key: str) -> "Any":
+def project_memory_file(base_dir: Any, course_key: str) -> Any:
     """Stable filename for one course_key (hash basename)."""
     try:
         from pathlib import Path
@@ -388,7 +389,7 @@ class ProjectMemory:
             logger.debug("backend/experience/memory.py:_maybe_save_disk best-effort step failed", exc_info=True)
 
 
-def author_memory_file(base_dir: Any) -> "Any":
+def author_memory_file(base_dir: Any) -> Any:
     """Stable path for cross-course author profile (single file)."""
     try:
         from pathlib import Path

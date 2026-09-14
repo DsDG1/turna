@@ -13,6 +13,8 @@ is editor-only (CSV stays column-free; interactions do not fit table cells).
 from __future__ import annotations
 
 import logging
+from typing import Any
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
@@ -75,19 +77,19 @@ class _PosDelegate(QStyledItemDelegate):
     ``_on_cell_changed`` persists ``entry['pos']``.
     """
 
-    def createEditor(self, parent, option, index):  # noqa: N802
+    def createEditor(self, parent, option, index):
         combo = QComboBox(parent)
         combo.addItem("（未设置）", "")
         for value in POS_TAGS:
             combo.addItem(POS_LABELS[value], value)
         return combo
 
-    def setEditorData(self, editor, index):  # noqa: N802
+    def setEditorData(self, editor, index):
         value = index.data(Qt.ItemDataRole.UserRole) or ""
         pos = editor.findData(value)
         editor.setCurrentIndex(max(0, pos))
 
-    def setModelData(self, editor, model, index):  # noqa: N802
+    def setModelData(self, editor, model, index):
         value = editor.currentData() or ""
         label = POS_LABELS.get(value, "")
         # UserRole first: _on_cell_changed (fired by the DisplayRole setData

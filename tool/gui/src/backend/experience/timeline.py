@@ -9,7 +9,8 @@ from __future__ import annotations
 import time
 from collections import deque
 from dataclasses import asdict, dataclass, field
-from typing import Any, Iterable
+from typing import Any
+from collections.abc import Iterable
 
 
 @dataclass(frozen=True)

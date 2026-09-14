@@ -107,7 +107,7 @@ def _base_font_px_from_scale(ui_scale_percent: int) -> int:
     return int(14 * scale / 100)
 
 
-def apply_theme(app: QApplication, settings: "Settings | None" = None) -> None:
+def apply_theme(app: QApplication, settings: Settings | None = None) -> None:
     """Apply theme and font scaling to the application.
 
     If ``settings`` is omitted, the default dark theme at 100% scale is used.

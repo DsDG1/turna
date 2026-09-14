@@ -97,7 +97,7 @@ def _pdf_content(path: Path) -> ExtractionResult:
         if not text:
             return ExtractionResult(error="PDF 未提取到文本（可能是扫描件或图片 PDF）。")
         return ExtractionResult(content={"type": "text", "text": text})
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return ExtractionResult(error=f"PDF 提取失败: {exc}")
 
 
@@ -115,7 +115,7 @@ def _word_content(path: Path) -> ExtractionResult:
         if not text:
             return ExtractionResult(error="Word 文档未提取到文本。")
         return ExtractionResult(content={"type": "text", "text": text})
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return ExtractionResult(error=f"Word 提取失败: {exc}")
 
 

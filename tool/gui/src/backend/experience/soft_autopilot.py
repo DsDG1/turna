@@ -19,7 +19,8 @@ from __future__ import annotations
 import re
 from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Any, Iterable
+from typing import Any
+from collections.abc import Iterable
 import logging
 logger = logging.getLogger(__name__)
 
@@ -259,16 +260,7 @@ def apply_soft_fixes(
         entry = index.get((fix.row_type, fix.entry_id))
         if entry is None:
             continue
-        if fix.rule_id == "hygiene.trim_whitespace":
-            if fix.field in entry and isinstance(entry.get(fix.field), str):
-                entry[fix.field] = fix.new_value
-        elif fix.rule_id == "hygiene.collapse_repeated_spaces":
-            if fix.field in entry and isinstance(entry.get(fix.field), str):
-                entry[fix.field] = fix.new_value
-        elif fix.rule_id == "hygiene.strip_surround_quotes":
-            if fix.field in entry and isinstance(entry.get(fix.field), str):
-                entry[fix.field] = fix.new_value
-        elif fix.rule_id == "hygiene.strip_zero_width":
+        if fix.rule_id == "hygiene.trim_whitespace" or fix.rule_id == "hygiene.collapse_repeated_spaces" or fix.rule_id == "hygiene.strip_surround_quotes" or fix.rule_id == "hygiene.strip_zero_width":
             if fix.field in entry and isinstance(entry.get(fix.field), str):
                 entry[fix.field] = fix.new_value
         elif fix.rule_id == "hygiene.drop_empty_tags":

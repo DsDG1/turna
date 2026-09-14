@@ -64,8 +64,12 @@ class _PreviewCard(QFrame):
         self.stage = stage or {}
         self._vocab_override = vocab_override or {}
         self.setFrameShape(QFrame.Shape.StyledPanel)
+        _pal = current_palette()
         self.setStyleSheet(
-            "_PreviewCard { background-color: #232833; border: 1px solid #2C313C; border-radius: 8px; }"
+            "_PreviewCard {"
+            f" background-color: {_pal.get('bg_elevated', '#232833')};"
+            f" border: 1px solid {_pal.get('border', '#2C313C')};"
+            " border-radius: 8px; }"
         )
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 12, 12, 12)

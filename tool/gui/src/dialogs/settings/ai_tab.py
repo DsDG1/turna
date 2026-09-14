@@ -240,7 +240,7 @@ def on_test_connection(dlg) -> None:
 
     try:
         result = verify_connection(config, timeout=15.0)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         result = {"ok": False, "error": str(exc)}
 
     dlg.ai_test_btn.setEnabled(True)

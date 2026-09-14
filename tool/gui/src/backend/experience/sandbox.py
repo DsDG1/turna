@@ -13,7 +13,8 @@ from __future__ import annotations
 import copy
 import time
 from dataclasses import dataclass, field
-from typing import Any, Mapping, Sequence
+from typing import Any
+from collections.abc import Mapping, Sequence
 
 from src.backend.experience.planner import GoalPlan, GoalStep
 
@@ -193,7 +194,7 @@ class CourseSandbox:
         adapter: Any,
         *,
         lesson_ids: Sequence[str] | None = None,
-    ) -> "CourseSandbox":
+    ) -> CourseSandbox:
         """Deep-copy selected (or all) lessons from *adapter* into a sandbox."""
         box = cls()
         try:

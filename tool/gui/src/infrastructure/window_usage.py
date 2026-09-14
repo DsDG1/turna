@@ -32,7 +32,7 @@ class WindowUsageMixin:
         except Exception:
             return type(self).__name__
 
-    def showEvent(self, event: QShowEvent) -> None:  # noqa: N802
+    def showEvent(self, event: QShowEvent) -> None:
         self._usage_t0 = time.perf_counter()
         try:
             operations.record_action("window.open", self._window_name())
@@ -40,7 +40,7 @@ class WindowUsageMixin:
             logger.debug("infrastructure/window_usage.py:showEvent best-effort step failed", exc_info=True)
         super().showEvent(event)  # type: ignore[misc]
 
-    def closeEvent(self, event: QCloseEvent) -> None:  # noqa: N802
+    def closeEvent(self, event: QCloseEvent) -> None:
         try:
             start = getattr(self, "_usage_t0", 0.0) or time.perf_counter()
             duration_ms = (time.perf_counter() - start) * 1000.0

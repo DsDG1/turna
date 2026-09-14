@@ -1,6 +1,6 @@
 """K-05 node AI edit dialog — production entry for course-tree AI editing.
 
-Wraps the shared :class:`~src.dialogs.ai_generator_dialog.SectionAiDialog`
+Wraps the shared :class:`~src.dialogs.ai.section_ai_dialog.SectionAiDialog`
 engine in edit mode (instruction-based rewrite plus optional wish-chat
 revision of an existing section). The former monolithic ``AiGeneratorDialog``
 keeps only the workshop generation facade; this module is the single import

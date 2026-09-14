@@ -13,7 +13,7 @@ import logging
 import logging.handlers
 import sys
 import traceback
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Any
 
@@ -85,7 +85,7 @@ class Telemetry:
 
     @staticmethod
     def _now_iso() -> str:
-        return datetime.now(timezone.utc).isoformat()
+        return datetime.now(UTC).isoformat()
 
     def _write(self, event: str, duration_ms: float | None, payload: dict[str, Any] | None, context: dict[str, Any] | None) -> None:
         line = {
@@ -113,7 +113,7 @@ class Telemetry:
                         f"({self._log_file}); subsequent failures will be silent.",
                         file=sys.stderr,
                     )
-                except Exception:  # noqa: BLE001 — even stderr can fail in CI
+                except Exception:
                     logger.debug("infrastructure/telemetry.py:_write best-effort step failed", exc_info=True)
 
     def start_session(self) -> None:
@@ -262,7 +262,7 @@ class Telemetry:
         """
         from src.backend import ai_presets
 
-        today = datetime.now(timezone.utc).date()
+        today = datetime.now(UTC).date()
         buckets = {
             "today": self._empty_usage_bucket(),
             "total": self._empty_usage_bucket(),

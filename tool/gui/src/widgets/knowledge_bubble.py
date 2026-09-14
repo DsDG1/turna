@@ -98,10 +98,11 @@ class KnowledgeBubble(QWidget):
         # Turna teal for words, emerald for expressions, amber for grammar points.
         bg = resource_type_color(self.resource_type)
 
+        on_accent = current_palette().get("text_on_accent", "#FFFFFF")
         self.setStyleSheet(
             f"QWidget {{"
             f"  background-color: {bg};"
-            f"  color: #FFFFFF;"
+            f"  color: {on_accent};"
             f"  border-radius: 12px;"
             f"  border: none;"
             f"}}"
@@ -109,17 +110,17 @@ class KnowledgeBubble(QWidget):
 
     # --- Drag & Drop logic ----------------------------------------------------
 
-    def mousePressEvent(self, event) -> None:  # noqa: N802
+    def mousePressEvent(self, event) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
             self._drag_start_pos = event.pos()
             self.setCursor(Qt.CursorShape.ClosedHandCursor)
         super().mousePressEvent(event)
 
-    def mouseReleaseEvent(self, event) -> None:  # noqa: N802
+    def mouseReleaseEvent(self, event) -> None:
         self.setCursor(Qt.CursorShape.OpenHandCursor)
         super().mouseReleaseEvent(event)
 
-    def mouseMoveEvent(self, event) -> None:  # noqa: N802
+    def mouseMoveEvent(self, event) -> None:
         if not (event.buttons() & Qt.MouseButton.LeftButton):
             return
         if self._drag_start_pos is None:
@@ -130,7 +131,7 @@ class KnowledgeBubble(QWidget):
         drag = QDrag(self)
         from PySide6.QtCore import QMimeData
         mime = QMimeData()
-        
+
         # Package data as JSON
         payload = {
             "entry": self.data,

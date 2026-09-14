@@ -5,11 +5,33 @@
  ## 当前基线
 
 - 日期：2026-09-08（测试去重第四轮：死链/陪跑/恒真断言清理）；`python -m unittest` 收集 2371 例 / 0 加载错误
-- 全量用例（上次记录）：2499 collected；唯一确定性失败为基线已知 `test_textbook_controller.LoadFileAsyncTest.test_stale_load_result_is_ignored`（HEAD worktree 复现，非本批引入），命令：
+- 全量用例（上次记录）：2499 collected；基线已知 `test_textbook_controller.LoadFileAsyncTest.test_stale_load_result_is_ignored` 曾在全量单进程 discover 下确定性失败——**单跑与模块级运行均通过**（2026-09 复核，疑似顺序敏感的上下文污染，根因未定位；全量单进程 discover 本身在本机还会疑似空转不终止，见下），命令：
   ```bash
-  QT_QPA_PLATFORM=offscreen python3 -m unittest discover -s tests -p "test_*.py"
+  QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests -p "test_*.py"
   ```
 - 记录勘误 ×2（历史条目原文保留）：① 2026-09-07 基线头所写「2 个 defer_resurface 永久 skip」经核实不存在（该文件 4 例无任何 skip 标记）；② 2026-09-06 adversarial 瘦身条目所写「保留 10 例独有覆盖」中 D14×4 与 D27 共 5 例实为与常规测试逐字或更强重复，已于本轮删除。
+- 文档勘误：历史条目中的 `tool/gui/aiEnhance.md` 已退役删除，现行 AI 能力文档为 `docs/ai_configuration_and_features_report.md`（历史条目的章节号 §8/§13 指当时文件，不再有效）。
+
+## 2026-09 改良清单施工（半成品接线 + 工程化落地）
+
+用例数 2371 -> 2382（+11，`test_memory_wiring.py` 新建）。按 `turna-gui-改良清单` 施工：
+
+| 项 | 变更 |
+|---|---|
+| ExperienceMemory 接线（P0-1） | `MainWindow` 实例化 `ExperienceMemory()`；`course_lifecycle` 绑定课程；`experience_window_bridge` 同步 recent intents/author profile；`experience_dispatch` 记录已接受意图；`persist_project/author` 两个既有设置键真正生效 |
+| `/ocr` 开关（P0-2） | `Settings.experience_ocr_enabled`（`experience/ocr_enabled`，默认关）+ 体验 OS tab checkbox；OCR 仅本地（pytesseract + 系统 Tesseract），产物为 AttachmentRecord，不入课程树/遥测 |
+| 附件信号链补全 | `AttachmentBar → DesignPanel → WorkshopWindow → MainWindow → workshop_controller → ExperienceShell.set_attachments`；`WorkshopWindow` 新增 `attachments_changed`/`ocr_requested` 信号与 `attachment_records`/`add_attachment_record`/`set_ocr_enabled` 透传 |
+| 孤儿心跳清理（P0-3） | 删 `_ambient_heartbeat` 死字段与 `on_ambient_heartbeat`/`pause_heartbeat_until_idle` 零调用者函数；`JobTray.ai_busy_changed` 接入 `_on_job_tray_ai_busy_changed`（`_presence_ai_busy` 此前为死写）；`host_drift` 归 0 |
+| `_sync_usage_today` 补实现 | mixin 空调用补委托 → telemetry 日用量推入 `ExperienceShell`（M-08 日预算数据源此前悬空） |
+| 内联 hex 样式清零（P1-7） | 29 处审计项全清：真硬编码迁移 `current_palette()`/token；`pal.get(k,'#hex')` 回退色收进 helper；新增 `text_on_accent` 语义 token；`check_ai_boundaries.py` 审计口径修正为「`.get()` 回退不算违规」；`style_hex=0` |
+| ruff 落地（P2-10） | `pyproject.toml` 新增 ruff dev 依赖与规则配置（py311/行宽 100）；按代码库惯例 ignore E402/I001/F401（sys.path 引导、monkeypatch 再导出缝）与 RUF001/2/3（CJK 标点）；`--fix` 清理 304 处（noqa/引号注解/尾空白等），存量 94 项需人工判断 |
+| pyproject 元数据（P2-11） | `version=0.0.0`（内部工具，发布版本归 PyInstaller 流程）；`packages=[]`（原 `["src"]` 会装出名为 `src` 的顶层包）；新增 `ocr` extras（pytesseract） |
+| QSettings 常量（P2-13） | 26 处 `QSettings("Turna","CourseEditor")` 字面量改走 `settings.ORG_NAME`/`APP_NAME`；`main.py` 去重复 `import logging` + `sys.excepthook` 模态框加重入防护 |
+| 巨型函数拆分（P1-9） | `run_pipeline` 各 step 抽为模块函数（`_step_plan`/`_step_outline`/`_step_generate`/`_step_validate`/`_step_quality`/`_resume_into` 等），编排与状态机保留原函数；`run_item_chip` 抽 `_chip_modal_fallback`/`_resource_id_sets`/`_worker_instruction_with_memory`；公共 API 不变 |
+| 兼容薄层（P2-14） | `dialogs/ai_generator_dialog.py` 删除（零 import 者，测试早已直指 `section_ai_dialog`）；`backend/ai_generator.py` 与 `context_bus.local_suggestions` 保留（`test_ai_generator` 50+ 处 patch 经此缝，属文档化兼容设计） |
+| 测试修正 | `test_theme.py` 路径 `lib/views/theme.dart` → `lib/core/theme.dart`（存量 bug）；`test_memory_wiring.py` 新建 11 例覆盖 memory 实例化/同步/附件转发/OCR 设置持久化 |
+
+验证：`run_gui_tests.py` 定向模块 66+147 例全绿；287 模块 walk_packages 导入零失败；`check_ai_boundaries` host_drift=0、style_hex=0；`ruff check src/` 由 3778 降至 94（余为 E741/SIM102/F841 等需人工项）。
 
 ## 2026-09-08 测试去重第四轮（死链清理 + 恒真断言 + 重复对）
 
@@ -97,7 +119,7 @@
 - 主题专项：`python -m unittest tests.test_theme` → 29 passed
 - 全量用例（上次记录）：1276 passed（skipped=2），命令：
   ```bash
-  QT_QPA_PLATFORM=offscreen python3 -m unittest discover -s tests -p "test_*.py"
+  QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests -p "test_*.py"
   ```
 
 ## 2026-07-21 课程工坊布局压缩（L1–L2）

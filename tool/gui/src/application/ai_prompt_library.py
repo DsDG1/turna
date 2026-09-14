@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 
 from src.backend.ai import AiCourseSpec
 import logging
+from src.application.settings import APP_NAME, ORG_NAME
 logger = logging.getLogger(__name__)
 
 
@@ -45,11 +46,11 @@ class AiPromptTemplate:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "AiPromptTemplate":
+    def from_dict(cls, data: dict[str, Any]) -> AiPromptTemplate:
         return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
 
     @classmethod
-    def from_spec(cls, name: str, spec: AiCourseSpec) -> "AiPromptTemplate":
+    def from_spec(cls, name: str, spec: AiCourseSpec) -> AiPromptTemplate:
         return cls(
             name=name,
             topic=spec.topic,
@@ -59,7 +60,7 @@ class AiPromptTemplate:
             template=spec.template,
             use_genre_batch=spec.use_genre_batch,
             extra_instructions=spec.extra_instructions,
-            created_at=datetime.now(timezone.utc).isoformat(),
+            created_at=datetime.now(UTC).isoformat(),
         )
 
     def apply_to_spec(self, spec: AiCourseSpec) -> AiCourseSpec:
@@ -95,11 +96,11 @@ class AiPromptHistory:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "AiPromptHistory":
+    def from_dict(cls, data: dict[str, Any]) -> AiPromptHistory:
         return cls(**{k: v for k, v in data.items() if k in cls.__dataclass_fields__})
 
     @classmethod
-    def from_spec(cls, spec: AiCourseSpec) -> "AiPromptHistory":
+    def from_spec(cls, spec: AiCourseSpec) -> AiPromptHistory:
         return cls(
             topic=spec.topic,
             extra_instructions=spec.extra_instructions,
@@ -108,18 +109,18 @@ class AiPromptHistory:
             lessons_per_unit=spec.lessons_per_unit,
             template=spec.template,
             use_genre_batch=spec.use_genre_batch,
-            created_at=datetime.now(timezone.utc).isoformat(),
+            created_at=datetime.now(UTC).isoformat(),
         )
 
 
 class AiPromptLibrary:
     """Storage backend for prompt templates and recent history."""
 
-    def __init__(self, qsettings: "QSettings | None" = None) -> None:
+    def __init__(self, qsettings: QSettings | None = None) -> None:
         if qsettings is None:
             from PySide6.QtCore import QSettings
 
-            self._settings = QSettings("Turna", "CourseEditor")
+            self._settings = QSettings(ORG_NAME, APP_NAME)
         else:
             self._settings = qsettings
         self._settings.beginGroup("ai/prompts")
@@ -147,7 +148,7 @@ class AiPromptLibrary:
     def save_template(self, template: AiPromptTemplate) -> None:
         templates = self._template_list()
         templates = [d for d in templates if d.get("name") != template.name]
-        template.created_at = datetime.now(timezone.utc).isoformat()
+        template.created_at = datetime.now(UTC).isoformat()
         templates.insert(0, template.to_dict())
         self._save_template_list(templates)
 

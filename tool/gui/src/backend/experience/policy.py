@@ -34,7 +34,8 @@ place to audit and one place to extend when E3 adds the Goal dimension.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 
 from src.backend.experience.actions import ActionSpec, APP_BUILTIN_PREFIX
 import logging

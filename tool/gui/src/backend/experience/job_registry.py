@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import Any, Iterable
+from typing import Any
+from collections.abc import Iterable
 
 
 # Canonical kinds for filtering (is_busy_ai, etc.).

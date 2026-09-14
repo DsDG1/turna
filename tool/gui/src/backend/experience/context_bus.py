@@ -17,7 +17,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any
+from collections.abc import Mapping, Sequence
 
 
 # Per-section quality mean below this → ``weak`` tree badge (T-01).
@@ -366,7 +367,7 @@ def build_experience_context(
 
 
 # local_suggestions lives in experience.suggestions (M6); re-export for stable imports.
-from src.backend.experience.suggestions import local_suggestions  # noqa: E402
+from src.backend.experience.suggestions import local_suggestions
 import logging
 logger = logging.getLogger(__name__)
 
@@ -632,7 +633,7 @@ def _course_hygiene(adapter: Any) -> dict[str, int]:
         detect = getattr(adapter, "detect_duplicates", None)
         if callable(detect):
             dupes = detect() or []
-            out["duplicate_count"] = int(len(dupes))
+            out["duplicate_count"] = len(dupes)
             if dupes and isinstance(dupes[0], dict):
                 sample = str(dupes[0].get("term") or "")
                 if sample:

@@ -124,12 +124,12 @@ class DraggableTableWidget(QTableWidget):
         self.review_table = review_table
         self._drag_start_pos = None
 
-    def mousePressEvent(self, event) -> None:  # noqa: N802
+    def mousePressEvent(self, event) -> None:
         if event.button() == Qt.MouseButton.LeftButton:
             self._drag_start_pos = event.pos()
         super().mousePressEvent(event)
 
-    def mouseMoveEvent(self, event) -> None:  # noqa: N802
+    def mouseMoveEvent(self, event) -> None:
         if not (event.buttons() & Qt.MouseButton.LeftButton):
             return
         if self._drag_start_pos is None:
@@ -150,28 +150,28 @@ class DraggableTableWidget(QTableWidget):
                 "entry": row_obj.entry,
                 "resource_type": row_obj.resource_type,
             }
-            
+
             mime = QMimeData()
             mime.setData("application/x-knowledge-point", json.dumps(payload, ensure_ascii=False).encode("utf-8"))
-            
+
             drag = QDrag(self)
             drag.setMimeData(mime)
-            
+
             # Create a visual capsule pill representation for drag icon
             term = row_obj.display_term()
             pixmap = QPixmap(130, 26)
             pixmap.fill(Qt.GlobalColor.transparent)
-            
+
             painter = QPainter(pixmap)
             painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-            
+
             # Pill bg color based on resource type (Turna-harmonized)
             bg = resource_type_color(row_obj.resource_type)
-            
+
             painter.setBrush(QBrush(QColor(bg)))
             painter.setPen(Qt.PenStyle.NoPen)
             painter.drawRoundedRect(pixmap.rect(), 13, 13)
-            
+
             # Text
             painter.setPen(Qt.GlobalColor.white)
             font = painter.font()
@@ -180,10 +180,10 @@ class DraggableTableWidget(QTableWidget):
             painter.setFont(font)
             painter.drawText(pixmap.rect(), Qt.AlignmentFlag.AlignCenter, term)
             painter.end()
-            
+
             drag.setPixmap(pixmap)
             drag.setHotSpot(QPoint(65, 13))
-            
+
             drag.exec(Qt.DropAction.CopyAction)
             self._drag_start_pos = None
 

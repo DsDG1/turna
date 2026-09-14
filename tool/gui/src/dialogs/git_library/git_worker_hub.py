@@ -52,7 +52,7 @@ class GitWorkerHub(QObject):
                     prev.cancel()
                 for sig_name in ("result_ready", "error_occurred", "completed", "finished"):
                     safe_disconnect(getattr(prev, sig_name, None))
-            except Exception:  # noqa: BLE001 — defensive; never block new op
+            except Exception:
                 logger.debug("dialogs/git_library/git_worker_hub.py:run_async best-effort step failed", exc_info=True)
         self._owner._set_git_busy(True, label)
         worker = AiRequestWorker(fn, *args)

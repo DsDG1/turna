@@ -18,7 +18,8 @@ dicts shaped for ``resource_batch_skill.run_batch_polish``.
 """
 from __future__ import annotations
 
-from typing import Any, Iterable
+from typing import Any
+from collections.abc import Iterable
 import logging
 logger = logging.getLogger(__name__)
 

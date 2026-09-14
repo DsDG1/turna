@@ -5,7 +5,8 @@ Never writes the live course without an explicit host merge path + confirm.
 """
 from __future__ import annotations
 
-from typing import Any, Mapping
+from typing import Any
+from collections.abc import Mapping
 import logging
 from src.application.experience_host import ExperienceHost
 logger = logging.getLogger(__name__)
@@ -434,7 +435,7 @@ def _run_real_fill_chain(
         except Exception:
             _on_err("worker 启动失败")
         try:
-            setattr(host, "_experience_worker", worker)
+            host._experience_worker = worker
         except Exception:
             logger.debug("application/goal_controller.py:_next best-effort step failed", exc_info=True)
 
