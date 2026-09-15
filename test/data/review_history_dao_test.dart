@@ -233,5 +233,42 @@ void main() {
       expect(anki.single.reviewedCount, 1);
       expect(expressions, {'course': 1});
     });
+
+    test(
+        'sourceKinds matches any listed kind (course roll-up includes '
+        'builtin expressions)', () async {
+      final at = DateTime(2026, 7, 28, 12);
+      await dao.insertBatch([
+        makeEvent(cardId: 'word-1', quality: 4, reviewedAt: at),
+        makeEvent(
+          cardId: 'expr-1',
+          quality: 4,
+          reviewedAt: at,
+          type: SrsItemType.expression,
+          sourceKind: SrsSourceKind.builtin,
+        ),
+        makeEvent(
+          cardId: 'grammar-1',
+          quality: 4,
+          reviewedAt: at,
+          queue: 'grammar',
+          sourceKind: SrsSourceKind.grammar,
+        ),
+      ]);
+      final from = DateTime(2026, 7, 28);
+      final to = from.add(const Duration(days: 1));
+
+      final counts = await dao.sourceReviewCounts(
+        from,
+        to,
+        filter: const ReviewHistoryFilter(
+          sourceKinds: {SrsSourceKind.course, SrsSourceKind.builtin},
+          queue: 'srs',
+        ),
+      );
+
+      // Both kinds roll up under 'course'; the grammar event is excluded.
+      expect(counts, {'course': 2});
+    });
   });
 }

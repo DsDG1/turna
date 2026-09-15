@@ -51,6 +51,18 @@ class _TestQueueProvider extends SrsQueueProvider {
   List<SrsWord> cachedDue({DateTime? now}) =>
       getDueItems(now: now, usePrimaryCache: true);
 
+  List<SrsWord> cachedDueArgs({
+    SrsItemType? typeFilter,
+    DateTime? now,
+    bool excludeAnki = false,
+  }) =>
+      getDueItems(
+        typeFilter: typeFilter,
+        now: now,
+        excludeAnki: excludeAnki,
+        usePrimaryCache: true,
+      );
+
   void registerItemPublic(
     String id, {
     SrsItemType type = SrsItemType.word,
@@ -158,6 +170,59 @@ void main() {
       queue.invalidateDueCachesPublic();
       expect(queue.primaryCachedDueCountPublic, isNull);
       expect(queue.primaryDueCountPublic, 2);
+    });
+
+    test('cache refreshes once the earliest future dueAt passes', () async {
+      final cutoff = DateTime(2024, 1, 10, 12);
+      await queue.importStatesPublic({
+        'due-now': word('due-now'),
+        'due-later':
+            word('due-later', dueAt: cutoff.add(const Duration(hours: 1))),
+      });
+      expect(queue.cachedDue(now: cutoff).map((w) => w.wordId), ['due-now']);
+      // Before the next dueAt the due set cannot change — cache may serve.
+      expect(
+        queue
+            .cachedDue(now: cutoff.add(const Duration(minutes: 30)))
+            .map((w) => w.wordId),
+        ['due-now'],
+      );
+      // Past it, a stale cache would hide the newly due card — must recompute.
+      expect(
+        queue
+            .cachedDue(now: cutoff.add(const Duration(hours: 2)))
+            .map((w) => w.wordId),
+        ['due-now', 'due-later'],
+      );
+    });
+
+    test('an earlier cutoff recomputes instead of reusing a later cache',
+        () async {
+      final t0 = DateTime(2024, 1, 10, 12);
+      await queue.importStatesPublic({
+        'w': word('w', dueAt: t0.add(const Duration(hours: 1))),
+      });
+      expect(
+          queue.cachedDue(now: t0.add(const Duration(hours: 2))), hasLength(1));
+      expect(queue.cachedDue(now: t0), isEmpty);
+    });
+
+    test('different filter args never share the primary cache', () async {
+      await queue.importStatesPublic({
+        'word-1': word('word-1'),
+        'anki-imp1-c1': word('anki-imp1-c1'),
+      });
+      final cutoff = DateTime(2024, 1, 10);
+      // Unfiltered pass caches both; the excludeAnki caller must not be
+      // served that polluted list (and vice versa).
+      expect(queue.cachedDue(now: cutoff), hasLength(2));
+      expect(
+        queue
+            .cachedDueArgs(now: cutoff, excludeAnki: true)
+            .map((w) => w.wordId),
+        ['word-1'],
+      );
+      expect(queue.cachedDue(now: cutoff), hasLength(2));
     });
   });
 

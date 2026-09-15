@@ -133,7 +133,9 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
         _mistakeIdsBySchedulingKey.remove(receipt.schedulingKey.rawId);
     if (mistakeId == null) return;
     final mistakes = context.read<MistakeProvider?>();
-    await mistakes?.removeByIds({mistakeId});
+    // The grade is being rolled back, not mastered — removing it via the
+    // mastered path would inflate masteredTotal with unearned clears.
+    await mistakes?.removeByIds({mistakeId}, countAsMastered: false);
   }
 
   Future<void> _onSessionCompleted(int remembered, int forgotten) async {
@@ -289,6 +291,14 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
                         color: TurnaTheme.error,
                         fontWeight: FontWeight.w600,
                       ),
+                    ),
+                    TextButton.icon(
+                      key: const Key('unified-review-retry'),
+                      onPressed: _controller.isSubmitting
+                          ? null
+                          : _controller.retryPreviews,
+                      icon: const Icon(Icons.refresh, size: 18),
+                      label: const Text('重试'),
                     ),
                     const SizedBox(height: 12),
                   ] else if (_controller.sideEffectWarning != null) ...[

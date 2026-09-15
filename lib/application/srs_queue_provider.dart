@@ -197,7 +197,9 @@ abstract class SrsQueueProvider extends ChangeNotifier {
 
   Map<String, SrsWord>? _cachedState;
   List<SrsWord>? _cachedDueItems;
-  DateTime? _cachedDueAt;
+  ({SrsItemType? type, bool excludeAnki})? _cachedDueArgs;
+  DateTime? _cachedDueComputedAt;
+  DateTime? _cachedDueValidUntil;
   int? _cachedDueCount;
   bool _loaded = false;
 
@@ -612,8 +614,11 @@ abstract class SrsQueueProvider extends ChangeNotifier {
   }
 
   /// Due items, optionally filtered by [typeFilter]. Uses the primary due
-  /// cache when [typeFilter] is null or when the subclass reuses this cache
-  /// for a single type (grammar / words).
+  /// cache when [usePrimaryCache] is true. The cache is keyed on the filter
+  /// args (callers with different filters can't poison each other) and stays
+  /// valid for cutoffs in `[computedAt, validUntil)` — the wall-clock window
+  /// during which the due set cannot change on its own. State writes always
+  /// invalidate it via [invalidateDueCaches].
   @protected
   List<SrsWord> getDueItems({
     SrsItemType? typeFilter,
@@ -622,36 +627,66 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     bool excludeAnki = false,
   }) {
     final cutoff = now ?? DateTime.now();
+    final args = (type: typeFilter, excludeAnki: excludeAnki);
     if (usePrimaryCache &&
         _cachedDueItems != null &&
-        _cachedDueAt != null &&
-        !_cachedDueAt!.isAfter(cutoff)) {
+        _cachedDueArgs == args &&
+        !cutoff.isBefore(_cachedDueComputedAt!) &&
+        (_cachedDueValidUntil == null ||
+            cutoff.isBefore(_cachedDueValidUntil!))) {
       return _cachedDueItems!;
     }
-    final result = state.values
-        .where(
-          (w) =>
-              (typeFilter == null || w.type == typeFilter) &&
-              (!excludeAnki ||
-                  (!w.wordId.startsWith('anki-') &&
-                      !w.wordId.startsWith('official-anki-'))) &&
-              !w.isSuspended &&
-              !w.isBuried &&
-              !w.dueAt.isAfter(cutoff),
-        )
-        .toList()
+    final computed = computeDueItemsDetailed(
+      typeFilter: typeFilter,
+      now: cutoff,
+      excludeAnki: excludeAnki,
+    );
+    if (usePrimaryCache) {
+      _cachedDueItems = computed.due;
+      _cachedDueArgs = args;
+      _cachedDueComputedAt = cutoff;
+      _cachedDueValidUntil = computed.nextDueAt;
+      _cachedDueCount = computed.due.length;
+    }
+    return computed.due;
+  }
+
+  /// Computes due items plus [nextDueAt] — the earliest not-yet-due `dueAt`
+  /// under the same filters, i.e. when the due set can next change by wall
+  /// clock alone (and therefore how long the [due] list may be cached).
+  @protected
+  ({List<SrsWord> due, DateTime? nextDueAt}) computeDueItemsDetailed({
+    SrsItemType? typeFilter,
+    DateTime? now,
+    bool excludeAnki = false,
+  }) {
+    final cutoff = now ?? DateTime.now();
+    DateTime? nextDue;
+    final result = state.values.where(
+      (w) {
+        final eligible = (typeFilter == null || w.type == typeFilter) &&
+            (!excludeAnki ||
+                (!w.wordId.startsWith('anki-') &&
+                    !w.wordId.startsWith('official-anki-'))) &&
+            !w.isSuspended &&
+            !w.isBuried;
+        if (!eligible) return false;
+        if (w.dueAt.isAfter(cutoff)) {
+          if (nextDue == null || w.dueAt.isBefore(nextDue!)) {
+            nextDue = w.dueAt;
+          }
+          return false;
+        }
+        return true;
+      },
+    ).toList()
       // Leeches (chronically failed cards) are deprioritized to the end of
       // the queue so they don't crowd out ordinary due cards.
       ..sort((a, b) {
         if (a.isLeech != b.isLeech) return a.isLeech ? 1 : -1;
         return a.dueAt.compareTo(b.dueAt);
       });
-    if (usePrimaryCache) {
-      _cachedDueItems = result;
-      _cachedDueAt = cutoff;
-      _cachedDueCount = result.length;
-    }
-    return result;
+    return (due: result, nextDueAt: nextDue);
   }
 
   /// Cached due count for the primary due cache (see [getDueItems]).
@@ -691,7 +726,9 @@ abstract class SrsQueueProvider extends ChangeNotifier {
   @mustCallSuper
   void invalidateDueCaches() {
     _cachedDueItems = null;
-    _cachedDueAt = null;
+    _cachedDueArgs = null;
+    _cachedDueComputedAt = null;
+    _cachedDueValidUntil = null;
     _cachedDueCount = null;
   }
 

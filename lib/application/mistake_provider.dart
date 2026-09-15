@@ -200,14 +200,22 @@ class MistakeProvider extends ChangeNotifier {
   /// — clear only correct ones). Each id in [ids] that matches a stored entry
   /// is removed in a single shot, regardless of its [MistakeEntry.rewriteCount],
   /// and counted as mastered.
-  Future<void> removeByIds(Set<String> ids) async {
+  ///
+  /// Pass [countAsMastered] = false for removals that are NOT a mastery
+  /// signal — e.g. undoing a "forgotten" review grade, where the mistake was
+  /// recorded by mistake and nothing was actually mastered.
+  Future<void> removeByIds(Set<String> ids,
+      {bool countAsMastered = true}) async {
     if (ids.isEmpty) return;
     await ensureLoaded();
     final current = entries.toList();
     final before = current.length;
     current.removeWhere((e) => ids.contains(e.id));
     if (current.length == before) return;
-    await _persist(current, masteredDelta: before - current.length);
+    await _persist(
+      current,
+      masteredDelta: countAsMastered ? before - current.length : 0,
+    );
   }
 
   /// Hard-delete bookkeeping for an Anki uninstall: drop every mistake that

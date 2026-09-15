@@ -16,7 +16,8 @@ class SrsProvider extends SrsQueueProvider implements SrsSchedulingGateway {
   SrsProvider(super.appPrefs, super.linkStore, super.srsDao);
 
   List<SrsWord>? _cachedDueExpressions;
-  DateTime? _cachedExpressionDueAt;
+  DateTime? _cachedExpressionComputedAt;
+  DateTime? _cachedExpressionValidUntil;
   int? _cachedExpressionDueCount;
   Set<String>? _cachedDueWordIdSet;
 
@@ -210,24 +211,26 @@ class SrsProvider extends SrsQueueProvider implements SrsSchedulingGateway {
     return _cachedDueWordIdSet!;
   }
 
-  /// Expressions whose `dueAt` is in the past or now (secondary cache).
+  /// Expressions whose `dueAt` is in the past or now (secondary cache, same
+  /// `[computedAt, validUntil)` wall-clock validity as the primary cache).
   List<SrsWord> getDueExpressions([DateTime? now]) {
     final cutoff = now ?? DateTime.now();
     if (_cachedDueExpressions != null &&
-        _cachedExpressionDueAt != null &&
-        !_cachedExpressionDueAt!.isAfter(cutoff)) {
+        !cutoff.isBefore(_cachedExpressionComputedAt!) &&
+        (_cachedExpressionValidUntil == null ||
+            cutoff.isBefore(_cachedExpressionValidUntil!))) {
       return _cachedDueExpressions!;
     }
-    final result = getDueItems(
+    final computed = computeDueItemsDetailed(
       typeFilter: SrsItemType.expression,
       now: cutoff,
-      usePrimaryCache: false,
       excludeAnki: true,
     );
-    _cachedDueExpressions = result;
-    _cachedExpressionDueAt = cutoff;
-    _cachedExpressionDueCount = result.length;
-    return result;
+    _cachedDueExpressions = computed.due;
+    _cachedExpressionComputedAt = cutoff;
+    _cachedExpressionValidUntil = computed.nextDueAt;
+    _cachedExpressionDueCount = computed.due.length;
+    return computed.due;
   }
 
   List<SrsWord> getMixedWords(int n) {
@@ -313,7 +316,8 @@ class SrsProvider extends SrsQueueProvider implements SrsSchedulingGateway {
   void invalidateDueCaches() {
     super.invalidateDueCaches();
     _cachedDueExpressions = null;
-    _cachedExpressionDueAt = null;
+    _cachedExpressionComputedAt = null;
+    _cachedExpressionValidUntil = null;
     _cachedExpressionDueCount = null;
     _cachedDueWordIdSet = null;
   }

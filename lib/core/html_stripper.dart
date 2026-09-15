@@ -14,11 +14,13 @@ String stripHtml(String html) {
       .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
       .replaceAll(RegExp(r'<[^>]+>'), '')
       .replaceAll('&nbsp;', ' ')
-      .replaceAll('&amp;', '&')
       .replaceAll('&lt;', '<')
       .replaceAll('&gt;', '>')
       .replaceAll('&quot;', '"')
       .replaceAll('&#39;', "'")
-      .replaceAll('&apos;', "'");
+      .replaceAll('&apos;', "'")
+      // &amp; decodes LAST: decoding it earlier would double-unescape
+      // sequences like `&amp;lt;` (literal "&lt;") into "<".
+      .replaceAll('&amp;', '&');
   return t.replaceAll(RegExp(r'\s+'), ' ').trim();
 }

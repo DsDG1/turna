@@ -26,12 +26,17 @@ class RetentionBucketRow {
 class ReviewHistoryFilter {
   const ReviewHistoryFilter({
     this.sourceKind,
+    this.sourceKinds,
     this.sourceId,
     this.queue,
     this.type,
     this.languageCode,
   });
   final SrsSourceKind? sourceKind;
+
+  /// Multi-kind alternative to [sourceKind] (the "course" source rolls up
+  /// `course` + `builtin` rows). Wins over [sourceKind] when both are set.
+  final Set<SrsSourceKind>? sourceKinds;
   final String? sourceId;
   final String? queue;
   final String? type;
@@ -276,7 +281,13 @@ class ReviewHistoryDao {
     List<Variable<Object>> variables,
     ReviewHistoryFilter filter,
   ) {
-    if (filter.sourceKind != null) {
+    if (filter.sourceKinds != null && filter.sourceKinds!.isNotEmpty) {
+      final names = filter.sourceKinds!.map((k) => k.name).toList();
+      predicates.add(
+        'source_kind IN (${List.filled(names.length, '?').join(', ')})',
+      );
+      variables.addAll(names.map(Variable.withString));
+    } else if (filter.sourceKind != null) {
       predicates.add('source_kind = ?');
       variables.add(Variable.withString(filter.sourceKind!.name));
     }

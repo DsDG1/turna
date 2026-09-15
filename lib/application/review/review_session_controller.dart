@@ -112,6 +112,15 @@ class ReviewSessionController extends ChangeNotifier {
     }
   }
 
+  /// Retry the current card's preview load after a failure. A failed
+  /// [_loadPreviews] leaves [_lastError] set, which disables grading —
+  /// without a retry path a transient error would brick the session.
+  Future<void> retryPreviews() async {
+    _lastError = null;
+    notifyListeners();
+    await _loadPreviews();
+  }
+
   Future<bool> answer(RecallOutcome outcome) async {
     final item = currentItem;
     if (item == null || _isSubmitting || _isComplete) return false;

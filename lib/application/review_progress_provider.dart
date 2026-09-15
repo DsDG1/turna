@@ -418,6 +418,7 @@ class ReviewProgressProvider {
 
   ReviewHistoryFilter _historyFilter(ReviewProgressFilter filter) {
     SrsSourceKind? sourceKind;
+    Set<SrsSourceKind>? sourceKinds;
     String? sourceId;
     String? queue;
     String? type;
@@ -425,7 +426,11 @@ class ReviewProgressProvider {
       case ReviewSourceKind.all:
         break;
       case ReviewSourceKind.course:
-        sourceKind = SrsSourceKind.course;
+        // Expressions register as `builtin` (the registerItem default), so
+        // their review events carry source_kind='builtin'. Matching only
+        // 'course' here would drop them from retention/activity queries
+        // while sourceReviewCounts still rolls them into the course total.
+        sourceKinds = {SrsSourceKind.course, SrsSourceKind.builtin};
         queue = 'srs';
         break;
       case ReviewSourceKind.grammar:
@@ -458,6 +463,7 @@ class ReviewProgressProvider {
     }
     return ReviewHistoryFilter(
       sourceKind: sourceKind,
+      sourceKinds: sourceKinds,
       sourceId: sourceId,
       queue: queue,
       type: type,

@@ -267,6 +267,15 @@ void main() {
       expect(mistakes.masteredTotal, 2);
     });
 
+    test('removeByIds with countAsMastered false leaves masteredTotal alone',
+        () async {
+      // Review-undo removes the recorded mistake without a mastery signal.
+      await mistakes.record(entry(id: 'm-undo'));
+      await mistakes.removeByIds({'m-undo'}, countAsMastered: false);
+      expect(mistakes.count, 0);
+      expect(mistakes.masteredTotal, 0);
+    });
+
     test('clear resets the aggregates together with the log', () async {
       final now = DateTime.now();
       await mistakes.record(entry(id: 'm-1', timestamp: now));

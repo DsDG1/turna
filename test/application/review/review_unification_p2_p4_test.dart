@@ -244,6 +244,40 @@ void main() {
       expect(controller.rememberedCount, 0);
       expect(srsProvider.state['undo-word']!.reps, 0);
     });
+
+    test('retryPreviews recovers a failed preview load', () async {
+      // 'missing-word' is deliberately unregistered: preview throws for
+      // unknown ids, which used to leave the session stuck on lastError.
+      final items = [
+        const ReviewItem(
+          sessionItemId: 'item-missing',
+          source: TurnaCourseSource(),
+          content: StandardCourseCardContent(
+            frontText: 'Kelime',
+            backText: 'Word',
+          ),
+          capabilities: ReviewCapabilities.standardCourse,
+          schedulingKey: ReviewSchedulingKey(
+            rawId: 'missing-word',
+            source: TurnaCourseSource(),
+          ),
+        ),
+      ];
+
+      final controller = ReviewSessionController(
+        items: items,
+        ledgerResolver: resolver,
+      );
+      // Let the constructor's async preview load settle into lastError.
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(controller.lastError, isNotNull);
+
+      // Once the underlying cause is fixed, retry reloads and clears it.
+      srsProvider.registerWord('missing-word');
+      await controller.retryPreviews();
+      expect(controller.lastError, isNull);
+      expect(controller.rememberedPreview, isNotNull);
+    });
   });
 
   group('P2: Official ledger commit contract', () {
