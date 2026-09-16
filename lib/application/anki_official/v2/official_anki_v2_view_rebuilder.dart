@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 import 'package:turna/application/anki_import/recognition/recognize/result.dart';
@@ -20,12 +21,19 @@ class OfficialAnkiV2ViewRebuildResult {
     required this.rowCount,
     required this.elapsedMillis,
     this.cancelled = false,
+    this.sectionCount = 0,
+    this.lessonCount = 0,
   });
 
   final int sourceCount;
   final int rowCount;
   final int elapsedMillis;
   final bool cancelled;
+
+  /// 整视图的 distinct section/lesson 数（commit receipt 用）。全量
+  /// rebuild 从内存 rows 直接算；scoped rebuild 换页后查视图（C6）。
+  final int sectionCount;
+  final int lessonCount;
 }
 
 /// 视图重建的取消令牌：批间检查；配合引擎自带取消通道使用。
@@ -65,10 +73,51 @@ class OfficialAnkiV2ViewRebuilder {
   final int lessonSize;
   final int Function()? nowMillis;
 
+  /// 跨 isolate 读用 [catalog.filePath]——offload 连接必须与调用方看到
+  /// 的是同一个库（内存库 / 测试 catalog 一律回落本 isolate 直读）。
+
   /// K11「重建中」占位信号（进程内、无持久状态——视图本身无状态）。
   static final ValueNotifier<bool> rebuilding = ValueNotifier<bool>(false);
 
+  /// 宿主环境不支持 isolate 内开 sqlite（如测试宿主缺原生库解析）时
+  /// 置位——一次失败永久回落 inline，不再每趟刷警告。
+  static bool _isolateReadBroken = false;
+
   int get _now => nowMillis?.call() ?? DateTime.now().millisecondsSinceEpoch;
+
+  /// 账本侧的大头读（每 source 全量卡行物化）尽量移出 UI isolate：
+  /// 在 spawn 出的 isolate 里开第二条 catalog 连接读完再传回。失败
+  /// （宿主不支持 / 并发冲突）回落本 isolate 直读，语义不变。
+  Future<Map<String, List<OfficialAnkiCardDescriptor>>> _readCardsBySource(
+    OfficialAnkiSourceDao dao,
+    List<String> sourceIds,
+  ) async {
+    final path = catalog.filePath;
+    if (path == null || sourceIds.isEmpty || _isolateReadBroken) {
+      return {for (final id in sourceIds) id: dao.listCards(id)};
+    }
+    try {
+      return await Isolate.run(() => _readCardsFromCatalog(path, sourceIds));
+    } catch (error) {
+      _isolateReadBroken = true;
+      officialAnkiV2Log(
+        'offloaded catalog read failed, inline fallback: $error',
+        warning: true,
+      );
+      return {for (final id in sourceIds) id: dao.listCards(id)};
+    }
+  }
+
+  static Map<String, List<OfficialAnkiCardDescriptor>>
+      _readCardsFromCatalog(String catalogPath, List<String> sourceIds) {
+    final db = OfficialAnkiDatabase.file(catalogPath);
+    try {
+      final dao = OfficialAnkiSourceDao(db);
+      return {for (final id in sourceIds) id: dao.listCards(id)};
+    } finally {
+      db.close();
+    }
+  }
 
   /// 全量重建。只包含 chain='v2' 且 state='active' 的 source——retiring
   /// 的 source 立即从视图消失（用户视角即刻移除），已删 source 不出现。
@@ -87,57 +136,180 @@ class OfficialAnkiV2ViewRebuilder {
       }
       // Collection 输入：牌组树（deckId → '::' 路径段）。单次 RPC。
       final deckPaths = _deckPaths(await engine.listDeckTree());
+      final topDeckIdByName = _topDeckIdByName(deckPaths);
 
-      // 账本输入：每个 source 的所有权清单（读一次，循环内外共用）。
-      final cardsBySource = <String, List<OfficialAnkiCardDescriptor>>{
-        for (final source in sources)
-          source.sourceId: dao.listCards(source.sourceId),
-      };
+      // 账本输入：每个 source 的所有权清单——尽量在 spawn isolate 里
+      // 读（B1），全量物化不再占 UI isolate。
+      final cardsBySource = await _readCardsBySource(
+        dao,
+        [for (final source in sources) source.sourceId],
+      );
 
       // 配置区输入：出现过的顶层牌组的放置决策（数量 = 顶层牌组数）。
-      final topDeckIds = <int?>{
+      final topDeckIds = <int>{
         for (final cards in cardsBySource.values)
-          for (final card in cards) _topDeckId(card.deckId, deckPaths),
-      }.whereType<int>().toSet();
+          for (final card in cards)
+            if (_topDeckId(card.deckId, deckPaths, topDeckIdByName)
+                case final id?)
+              id,
+      };
       final placements = await decisions.readDeckPlacements(topDeckIds);
 
-      final rows = <OfficialAnkiV2ViewRow>[];
+      final rowsBySource = <String, List<OfficialAnkiV2ViewRow>>{};
       for (final source in sources) {
         if (cancelToken?.isCancelled ?? false) break;
         final mapping = await decisions.readImportMapping(source.sourceId);
-        final kindsByNotetype = _kindsByNotetype(mapping);
-        final skipped = mapping?.notetypeIdsSkipped ?? const <int>{};
-        // 牌组路径 → 放置键（section/unit/lesson）。lessonId 不在此定：
-        // 同组卡按 cardId 稳定序切片后再定 part（见 _chunkedRows）。
-        final placed = <_PlacedCard>[];
-        for (final card in cardsBySource[source.sourceId] ??
-            const <OfficialAnkiCardDescriptor>[]) {
-          final path = deckPaths[card.deckId] ?? const <String>[];
-          final topDeckId = _topDeckId(card.deckId, deckPaths);
-          // 用户明确跳过的 notetype 不进课程树（与 v1 映射语义一致）。
-          if (card.notetypeId != null && skipped.contains(card.notetypeId)) {
-            continue;
-          }
-          placed.add(_PlacedCard(
-            card: card,
-            placement: _place(source.sourceId, path, placements[topDeckId]),
-            presentationKind: kindsByNotetype[card.notetypeId ?? -1] ?? 'flip',
-          ));
-        }
-        rows.addAll(_chunkedRows(source, placed));
+        rowsBySource[source.sourceId] = _rowsFor(
+          source: source,
+          cards: cardsBySource[source.sourceId] ??
+              const <OfficialAnkiCardDescriptor>[],
+          deckPaths: deckPaths,
+          topDeckIdByName: topDeckIdByName,
+          placements: placements,
+          mapping: mapping,
+        );
       }
       if (cancelToken?.isCancelled ?? false) {
         return _result(sources.length, 0, started, cancelled: true);
       }
-      await store.replaceAll(rows: rows, rebuiltAtMillis: _now);
+      // D2：按 source 分组换页——同一事务内先删已不在 active 集合的
+      // 残留行，再逐 source DELETE+INSERT；live 集合是权威清单。
+      await store.replaceScoped(
+        liveSourceIds: {for (final source in sources) source.sourceId},
+        rowsBySource: rowsBySource,
+        rebuiltAtMillis: _now,
+      );
+      // C6：section/lesson 计数直接从内存 rows 聚合，不再回查视图。
+      var rowCount = 0;
+      final sectionIds = <String>{};
+      final lessonIds = <String>{};
+      for (final rows in rowsBySource.values) {
+        rowCount += rows.length;
+        for (final row in rows) {
+          sectionIds.add(row.sectionId);
+          lessonIds.add(row.lessonId);
+        }
+      }
       officialAnkiV2Log(
-        'view rebuild: ${sources.length} sources, ${rows.length} rows, '
+        'view rebuild: ${sources.length} sources, $rowCount rows, '
         '${_now - started}ms',
       );
-      return _result(sources.length, rows.length, started);
+      return _result(
+        sources.length,
+        rowCount,
+        started,
+        sectionCount: sectionIds.length,
+        lessonCount: lessonIds.length,
+      );
     } finally {
       rebuilding.value = false;
     }
+  }
+
+  /// D2：只重建单个 source 的视图行——commit 成功路径用：本次导入只可能
+  /// 改变这个 source 的行；其它 live source 的行保持不动，已不在 active
+  /// 集合的 source 残留顺手清掉。与全量 rebuild 同一事务原子性。
+  Future<OfficialAnkiV2ViewRebuildResult> rebuildSource(
+    String sourceId, {
+    OfficialAnkiV2ViewRebuildCancelToken? cancelToken,
+  }) async {
+    final started = _now;
+    final dao = OfficialAnkiSourceDao(catalog);
+    final decisions = OfficialAnkiV2DecisionStore(engine);
+    final store = OfficialAnkiV2ViewStore(course);
+    rebuilding.value = true;
+    try {
+      final active = dao.listV2Sources(profileId, states: {'active'});
+      final liveSourceIds = {for (final s in active) s.sourceId};
+      if (cancelToken?.isCancelled ?? false) {
+        return _result(0, 0, started, cancelled: true);
+      }
+      final deckPaths = _deckPaths(await engine.listDeckTree());
+      final topDeckIdByName = _topDeckIdByName(deckPaths);
+      OfficialAnkiSourceRow? source;
+      for (final row in active) {
+        if (row.sourceId == sourceId) {
+          source = row;
+          break;
+        }
+      }
+      final rowsBySource = <String, List<OfficialAnkiV2ViewRow>>{};
+      if (source != null) {
+        final cards = (await _readCardsBySource(dao, [sourceId]))[sourceId] ??
+            const <OfficialAnkiCardDescriptor>[];
+        if (cancelToken?.isCancelled ?? false) {
+          return _result(0, 0, started, cancelled: true);
+        }
+        final topDeckIds = <int>{
+          for (final card in cards)
+            if (_topDeckId(card.deckId, deckPaths, topDeckIdByName)
+                case final id?)
+              id,
+        };
+        final placements = await decisions.readDeckPlacements(topDeckIds);
+        final mapping = await decisions.readImportMapping(sourceId);
+        rowsBySource[sourceId] = _rowsFor(
+          source: source,
+          cards: cards,
+          deckPaths: deckPaths,
+          topDeckIdByName: topDeckIdByName,
+          placements: placements,
+          mapping: mapping,
+        );
+      }
+      if (cancelToken?.isCancelled ?? false) {
+        return _result(0, 0, started, cancelled: true);
+      }
+      await store.replaceScoped(
+        liveSourceIds: liveSourceIds,
+        rowsBySource: rowsBySource,
+        rebuiltAtMillis: _now,
+      );
+      final rowCount = rowsBySource[sourceId]?.length ?? 0;
+      officialAnkiV2Log(
+        'view rebuild (scoped $sourceId): $rowCount rows, '
+        '${_now - started}ms',
+      );
+      return _result(
+        source == null ? 0 : 1,
+        rowCount,
+        started,
+        sectionCount: await store.distinctSectionCount(),
+        lessonCount: await store.distinctLessonCount(),
+      );
+    } finally {
+      rebuilding.value = false;
+    }
+  }
+
+  /// 单 source 的行构建：deck 路径 → 放置键 + 呈现 kind，再按组切片。
+  List<OfficialAnkiV2ViewRow> _rowsFor({
+    required OfficialAnkiSourceRow source,
+    required List<OfficialAnkiCardDescriptor> cards,
+    required Map<int, List<String>> deckPaths,
+    required Map<String, int> topDeckIdByName,
+    required Map<int, OfficialAnkiV2PlacementDecision> placements,
+    required OfficialAnkiV2MappingDecision? mapping,
+  }) {
+    final kindsByNotetype = _kindsByNotetype(mapping);
+    final skipped = mapping?.notetypeIdsSkipped ?? const <int>{};
+    // 牌组路径 → 放置键（section/unit/lesson）。lessonId 不在此定：
+    // 同组卡按 cardId 稳定序切片后再定 part（见 _chunkedRows）。
+    final placed = <_PlacedCard>[];
+    for (final card in cards) {
+      final path = deckPaths[card.deckId] ?? const <String>[];
+      final topDeckId = _topDeckId(card.deckId, deckPaths, topDeckIdByName);
+      // 用户明确跳过的 notetype 不进课程树（与 v1 映射语义一致）。
+      if (card.notetypeId != null && skipped.contains(card.notetypeId)) {
+        continue;
+      }
+      placed.add(_PlacedCard(
+        card: card,
+        placement: _place(source.sourceId, path, placements[topDeckId]),
+        presentationKind: kindsByNotetype[card.notetypeId ?? -1] ?? 'flip',
+      ));
+    }
+    return _chunkedRows(source, placed);
   }
 
   OfficialAnkiV2ViewRebuildResult _result(
@@ -145,12 +317,16 @@ class OfficialAnkiV2ViewRebuilder {
     int rowCount,
     int started, {
     bool cancelled = false,
+    int sectionCount = 0,
+    int lessonCount = 0,
   }) {
     return OfficialAnkiV2ViewRebuildResult(
       sourceCount: sourceCount,
       rowCount: rowCount,
       elapsedMillis: _now - started,
       cancelled: cancelled,
+      sectionCount: sectionCount,
+      lessonCount: lessonCount,
     );
   }
 
@@ -211,17 +387,24 @@ class OfficialAnkiV2ViewRebuilder {
     };
   }
 
+  /// 顶层牌组名 → deckId 的查找表：一次构建 O(牌组数)，替代每卡
+  /// 线性扫 deckPaths 的 O(卡数×牌组数)（B1）。
+  static Map<String, int> _topDeckIdByName(Map<int, List<String>> deckPaths) {
+    return {
+      for (final entry in deckPaths.entries)
+        if (entry.value.length == 1) entry.value.first: entry.key,
+    };
+  }
+
   /// 路径首段对应的顶层牌组 id（放置决策按顶层牌组落键）。
-  static int? _topDeckId(int deckId, Map<int, List<String>> deckPaths) {
+  static int? _topDeckId(
+    int deckId,
+    Map<int, List<String>> deckPaths,
+    Map<String, int> topDeckIdByName,
+  ) {
     final path = deckPaths[deckId];
     if (path == null || path.isEmpty) return null;
-    final topName = path.first;
-    for (final entry in deckPaths.entries) {
-      if (entry.value.length == 1 && entry.value.first == topName) {
-        return entry.key;
-      }
-    }
-    return null;
+    return topDeckIdByName[path.first];
   }
 
   /// 放置决策：覆盖优先（D2 用户决策），否则按 deck 路径默认派生——

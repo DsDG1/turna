@@ -47,41 +47,40 @@ class OfficialAnkiImportSaga {
         messageKey: 'official_anki.package_invalid',
       );
     }
-    final digest = await hasher.hashFile(packagePath);
-    if (_discarded) {
-      throw _cancelled();
-    }
     final sourceId = newOfficialAnkiId('src');
     final attemptId = newOfficialAnkiId('att');
     final stagingPaths = manager.pathsFor(attemptId);
-    await stagingPaths.ensureLayout();
-    sources.upsertSource(
-      sourceId: sourceId,
-      profileId: paths.profileId,
-      sourceHash: digest.sha256,
-      sourceSize: digest.bytes,
-      displayName: displayName,
-      state: OfficialAnkiSourceState.staging.wire,
-      backendCommit: 'pending',
-      nowMillis: _now,
-      activeAttemptId: attemptId,
-    );
-    attempts.insert(
-      attemptId: attemptId,
-      sourceId: sourceId,
-      requestId: 'req-$attemptId',
-      state: OfficialAnkiSourceState.staging.wire,
-      nowMillis: _now,
-      phase: OfficialAnkiAttemptPhase.created,
-      stagingPath: stagingPaths.profileRoot.path,
-    );
+    // 整文件哈希与 worker spawn/openProfile 互不依赖——先拉起 acquire，
+    // hash 计算填满 spawn 的空档。acquire 内部已 ensureLayout（C1/C5）。
+    final engineFuture = manager.acquire(stagingPaths);
     try {
+      final digest = await hasher.hashFile(packagePath);
+      sources.upsertSource(
+        sourceId: sourceId,
+        profileId: paths.profileId,
+        sourceHash: digest.sha256,
+        sourceSize: digest.bytes,
+        displayName: displayName,
+        state: OfficialAnkiSourceState.staging.wire,
+        backendCommit: 'pending',
+        nowMillis: _now,
+        activeAttemptId: attemptId,
+      );
+      attempts.insert(
+        attemptId: attemptId,
+        sourceId: sourceId,
+        requestId: 'req-$attemptId',
+        state: OfficialAnkiSourceState.staging.wire,
+        nowMillis: _now,
+        phase: OfficialAnkiAttemptPhase.created,
+        stagingPath: stagingPaths.profileRoot.path,
+      );
       await _guardDiscard(
         sourceId: sourceId,
         attemptId: attemptId,
         stagingRoot: stagingPaths.profileRoot,
       );
-      final engine = await manager.acquire(stagingPaths);
+      final engine = await engineFuture;
       attempts.setPhase(
         attemptId: attemptId,
         phase: OfficialAnkiAttemptPhase.stagingImporting,
@@ -118,8 +117,17 @@ class OfficialAnkiImportSaga {
         state: OfficialAnkiSourceState.previewReady,
         cardCount: imported.cardCount,
         noteCount: imported.noteCount,
+        sourceHash: digest.sha256,
+        associatedNoteIds: imported.associatedNoteIds,
       );
     } catch (error) {
+      // 先等 spawn 落定——否则 _abandon 的 kill() 可能看不到尚未挂到
+      // CompositionRoot 的 session，worker isolate 会泄漏。
+      try {
+        await engineFuture;
+      } catch (suppressed) {
+        logger.w('[OfficialAnkiImportSaga] acquire settle: $suppressed');
+      }
       if (error is OfficialAnkiException &&
           error.code == OfficialAnkiErrorCode.importCancelled) {
         await _abandon(
@@ -143,6 +151,13 @@ class OfficialAnkiImportSaga {
     final rows = attempts.unfinished().where((row) {
       if (OfficialAnkiAttemptPhase.stagingCancellable.contains(row.phase)) {
         return true;
+      }
+      // stagingPath 自 insert 写入后永不清空，兜底条件会命中已进入
+      // live 写的 attempt——committing/receipt_committed 期间 abandon
+      // 会删掉正在提交的台账（A2）。这两个 phase 不在 staging 取消范围。
+      if (row.phase == OfficialAnkiAttemptPhase.committing ||
+          row.phase == OfficialAnkiAttemptPhase.receiptCommitted) {
+        return false;
       }
       return row.stagingPath != null && row.stagingPath!.isNotEmpty;
     }).toList();

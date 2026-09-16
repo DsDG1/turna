@@ -72,37 +72,103 @@ class OfficialAnkiV2ViewStore {
   }) async {
     await course.transaction(() async {
       await course.customStatement('DELETE FROM anki_course_tree_view');
-      for (var start = 0; start < rows.length; start += _insertChunk) {
-        final chunk = rows.skip(start).take(_insertChunk).toList();
-        final values = List.filled(
-                chunk.length, '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-            .join(',');
+      await _insertRows(rows, rebuiltAtMillis);
+    });
+  }
+
+  /// 按 source 分组的范围换页（D2）：同一事务内先删掉不在
+  /// [liveSourceIds] 里的残留行，再对 [rowsBySource] 覆盖到的 source
+  /// 做 DELETE+INSERT；live 但未覆盖的 source 行保持不动。全量 rebuild
+  /// 传全部分组即等价 replaceAll；commit 只传本次提交的 source。
+  Future<void> replaceScoped({
+    required Set<String> liveSourceIds,
+    required Map<String, List<OfficialAnkiV2ViewRow>> rowsBySource,
+    required int rebuiltAtMillis,
+  }) async {
+    await course.transaction(() async {
+      if (liveSourceIds.isEmpty) {
+        await course.customStatement('DELETE FROM anki_course_tree_view');
+      } else {
         await course.customStatement(
-          'INSERT INTO anki_course_tree_view '
-          '(source_id, card_id, note_id, deck_id, word_id, section_key, '
-          'section_id, unit_id, lesson_id, lesson_key, presentation_kind, '
-          'source_hash, mapping_version, rebuilt_at_millis) VALUES $values',
-          [
-            for (final row in chunk) ...[
-              row.sourceId,
-              row.cardId,
-              row.noteId,
-              row.deckId,
-              row.wordId,
-              row.sectionKey,
-              row.sectionId,
-              row.unitId,
-              row.lessonId,
-              row.lessonKey,
-              row.presentationKind,
-              row.sourceHash,
-              row.mappingVersion,
-              rebuiltAtMillis,
-            ],
-          ],
+          'DELETE FROM anki_course_tree_view WHERE source_id NOT IN '
+          '(${List.filled(liveSourceIds.length, '?').join(',')})',
+          [for (final id in liveSourceIds) id],
         );
       }
+      for (final entry in rowsBySource.entries) {
+        await course.customStatement(
+          'DELETE FROM anki_course_tree_view WHERE source_id = ?',
+          [entry.key],
+        );
+        await _insertRows(entry.value, rebuiltAtMillis);
+      }
     });
+  }
+
+  Future<void> _insertRows(
+    List<OfficialAnkiV2ViewRow> rows,
+    int rebuiltAtMillis,
+  ) async {
+    for (var start = 0; start < rows.length; start += _insertChunk) {
+      final end = start + _insertChunk;
+      final chunk =
+          rows.sublist(start, end > rows.length ? rows.length : end);
+      final values = List.filled(
+              chunk.length, '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+          .join(',');
+      await course.customStatement(
+        'INSERT INTO anki_course_tree_view '
+        '(source_id, card_id, note_id, deck_id, word_id, section_key, '
+        'section_id, unit_id, lesson_id, lesson_key, presentation_kind, '
+        'source_hash, mapping_version, rebuilt_at_millis) VALUES $values',
+        [
+          for (final row in chunk) ...[
+            row.sourceId,
+            row.cardId,
+            row.noteId,
+            row.deckId,
+            row.wordId,
+            row.sectionKey,
+            row.sectionId,
+            row.unitId,
+            row.lessonId,
+            row.lessonKey,
+            row.presentationKind,
+            row.sourceHash,
+            row.mappingVersion,
+            rebuiltAtMillis,
+          ],
+        ],
+      );
+    }
+  }
+
+  /// 整视图 distinct section 数（scoped 换页后的整表口径）。
+  Future<int> distinctSectionCount() async {
+    try {
+      final rows = await course
+          .customSelect(
+            'SELECT COUNT(DISTINCT section_id) AS n FROM anki_course_tree_view',
+          )
+          .get();
+      return rows.isEmpty ? 0 : rows.single.read<int>('n');
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  /// 整视图 distinct lesson 数。
+  Future<int> distinctLessonCount() async {
+    try {
+      final rows = await course
+          .customSelect(
+            'SELECT COUNT(DISTINCT lesson_id) AS n FROM anki_course_tree_view',
+          )
+          .get();
+      return rows.isEmpty ? 0 : rows.single.read<int>('n');
+    } catch (_) {
+      return 0;
+    }
   }
 
   Future<bool> get isAvailable async {

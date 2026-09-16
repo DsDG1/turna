@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
+import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
@@ -260,6 +261,54 @@ void main() {
       expect(existingTables.contains(table), isFalse,
           reason: '$table 必须已被彻底删除');
     }
+  });
+
+  test('finishCommit disposes the staging session and deletes the staging dir',
+      () async {
+    final (sourceId, attemptId) = seedStagedSource();
+    // A1：attempt 带真实 staging 目录 + 挂起的 staging engine——commit
+    // 成功路径必须先 kill session（isolate 持 collection 句柄）再删目录。
+    final stagingDir = Directory(p.join(root.path, 'staging', attemptId))
+      ..createSync(recursive: true);
+    File(p.join(stagingDir.path, 'collection.anki2')).writeAsBytesSync([1]);
+    OfficialAnkiImportAttemptDao(catalog).setPhase(
+      attemptId: attemptId,
+      phase: 'preview_ready',
+      stagingPath: stagingDir.path,
+      nowMillis: 1,
+    );
+    final staging = FakeOfficialAnkiEngine();
+    OfficialAnkiCompositionRoot.debugStagingEngineOverride = staging;
+    OfficialAnkiCompositionRoot.stagingEngine = staging;
+    addTearDown(() {
+      OfficialAnkiCompositionRoot.debugStagingEngineOverride = null;
+      OfficialAnkiCompositionRoot.stagingEngine = null;
+      OfficialAnkiCompositionRoot.stagingSession = null;
+    });
+
+    await OfficialAnkiV2ImportService(
+      catalog: catalog,
+      paths: paths,
+      course: course,
+      engine: engine,
+    ).commit(
+      sourceId: sourceId,
+      packagePath: 'pkg.apkg',
+      displayName: 'Basics',
+    );
+
+    expect(
+      OfficialAnkiCompositionRoot.stagingEngine,
+      isNull,
+      reason: 'commit 成功后 staging engine 引用必须清空（否则每导入一次'
+          '泄漏一个 worker isolate）',
+    );
+    expect(
+      staging.cancelCalls,
+      greaterThanOrEqualTo(1),
+      reason: 'kill() 先 cancel 再 dispose',
+    );
+    expect(stagingDir.existsSync(), isFalse, reason: 'staging 目录必须删除');
   });
 
   test('idempotent replay: re-commit of an active v2 source re-imports nothing',

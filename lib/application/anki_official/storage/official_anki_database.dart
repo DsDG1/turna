@@ -9,7 +9,7 @@ const int kOfficialAnkiCatalogSchemaVersion = 14;
 
 /// Independent catalog. Must not live in CourseDatabase (downgrade wipes it).
 class OfficialAnkiDatabase {
-  OfficialAnkiDatabase.memory() : _db = _openMemory() {
+  OfficialAnkiDatabase.memory() : _db = _openMemory(), filePath = null {
     try {
       _migrate();
     } catch (suppressed) {
@@ -21,7 +21,9 @@ class OfficialAnkiDatabase {
     }
   }
 
-  OfficialAnkiDatabase.file(String path) : _db = _openFile(path) {
+  OfficialAnkiDatabase.file(String path)
+      : _db = _openFile(path),
+        filePath = path {
     try {
       _migrate();
     } catch (suppressed) {
@@ -53,6 +55,10 @@ class OfficialAnkiDatabase {
   }
 
   final Database _db;
+
+  /// 文件库路径；内存库为 null。跨 isolate 只读连接的准入凭证——
+  /// 内存库无法共享，必须回落本 isolate。
+  final String? filePath;
 
   Database get handle => _db;
 

@@ -80,12 +80,35 @@ INSERT INTO anki_import_attempts (
         .toList();
   }
 
+  /// 只判存在性：布尔检查不该把 receipt_note_ids_json（可达 MB 级）
+  /// 一起物化出来。
+  bool hasUnfinished() {
+    return _db
+        .select(
+          "SELECT 1 FROM anki_import_attempts WHERE state NOT IN "
+          "('active', 'completed', 'cancelled', 'failed_before_import', "
+          "'failed_after_import', 'rolled_back', 'needs_reconciliation', "
+          "'retired', 'quarantined') "
+          "AND IFNULL(phase, '') NOT IN "
+          "('cancelled', 'completed', 'quarantined') LIMIT 1",
+        )
+        .isNotEmpty;
+  }
+
   /// 该 source 当前未终态的 attempt 行（无则 null）。
   OfficialAnkiAttemptRow? unfinishedBySource(String sourceId) {
-    for (final row in unfinished()) {
-      if (row.sourceId == sourceId) return row;
-    }
-    return null;
+    final rows = _db.select(
+      "SELECT * FROM anki_import_attempts WHERE source_id = ? "
+      "AND state NOT IN "
+      "('active', 'completed', 'cancelled', 'failed_before_import', "
+      "'failed_after_import', 'rolled_back', 'needs_reconciliation', "
+      "'retired', 'quarantined') "
+      "AND IFNULL(phase, '') NOT IN "
+      "('cancelled', 'completed', 'quarantined')",
+      [sourceId],
+    );
+    if (rows.isEmpty) return null;
+    return _fromRow(rows.first);
   }
 
   void setPhase({

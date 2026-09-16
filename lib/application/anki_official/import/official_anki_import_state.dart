@@ -118,6 +118,8 @@ class OfficialAnkiImportResult {
     this.alreadyImported = false,
     this.collectionNoteCount,
     this.collectionCardCount,
+    this.sourceHash,
+    this.associatedNoteIds = const <int>[],
   });
 
   final String sourceId;
@@ -128,4 +130,12 @@ class OfficialAnkiImportResult {
   final bool alreadyImported;
   final int? collectionNoteCount;
   final int? collectionCardCount;
+
+  /// staging 导入已写入 catalog 的包 SHA-256——预览链路直接透传，
+  /// 不必再查一次 source 行。
+  final String? sourceHash;
+
+  /// staging `importPackage` receipt 的 note ids：预览用它们向 staging
+  /// 引擎批量取卡描述符（`anki_source_cards` 要 commit 期才填充）。
+  final List<int> associatedNoteIds;
 }

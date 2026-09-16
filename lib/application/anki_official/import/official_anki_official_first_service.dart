@@ -65,7 +65,7 @@ class OfficialAnkiOfficialFirstService {
         debugDetails: 'staging_import_requires_catalog',
       );
     }
-    if (OfficialAnkiImportAttemptDao(catalog).unfinished().isNotEmpty) {
+    if (OfficialAnkiImportAttemptDao(catalog).hasUnfinished()) {
       throw const OfficialAnkiException(
         code: OfficialAnkiErrorCode.invalidState,
         messageKey: 'official_anki.unfinished_blocks_new',
@@ -89,7 +89,10 @@ class OfficialAnkiOfficialFirstService {
         debugDetails: 'official-first import ended in state ${state.name}',
       );
     }
-    final sourceHash = readSourceHash(official.sourceId) ?? 'official-unknown';
+    // C4：saga 已把刚算出的 sha256 放进 result，避免再查一次 source 行。
+    final sourceHash = official.sourceHash ??
+        readSourceHash(official.sourceId) ??
+        'official-unknown';
     return preparePreview(
       official: official,
       sourceHash: sourceHash,
@@ -111,35 +114,42 @@ class OfficialAnkiOfficialFirstService {
     required CourseDatabase course,
     OfficialAnkiFeatureFlags? flags,
   }) async {
-    final engine = OfficialAnkiCompositionRoot.stagingEngineFromSession() ??
-        OfficialAnkiCompositionRoot.projectionEngineFromSession();
+    // A5：预览只读 staging 集合。live catalog 的 anki_source_cards 由
+    // commit 期的 v2CardIndex 填充，此刻恒空（A3）；退回 live 引擎更是
+    // 读错集合——staging engine 缺失时直接失败。
+    final engine = OfficialAnkiCompositionRoot.stagingEngineFromSession();
     if (engine == null) {
       throw const OfficialAnkiException(
         code: OfficialAnkiErrorCode.capabilityMissing,
         messageKey: 'official_anki.importer_not_ready',
       );
     }
-    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog ??
-        OfficialAnkiCourseEntry.catalogOf?.call();
-    if (catalog == null) {
-      throw const OfficialAnkiException(
-        code: OfficialAnkiErrorCode.capabilityMissing,
-        messageKey: 'official_anki.catalog_missing',
-      );
-    }
 
-    final cards = OfficialAnkiSourceDao(catalog).listCards(official.sourceId);
-    final ids = <int>{};
+    // A3：用 staging 导入 receipt 的 noteIds 向 staging 引擎批量取真实
+    // 卡描述符（notetype/deck 归属），不再依赖 commit 前为空的 live 卡账本。
+    final notetypeIds = <int>{};
     final sourceDeckIds = <int>{};
-    for (final card in cards) {
-      final id = card.notetypeId;
-      if (id != null) ids.add(id);
-      sourceDeckIds.add(card.deckId);
+    final directCounts = <int, int>{};
+    final noteIds = official.associatedNoteIds;
+    for (var offset = 0; offset < noteIds.length; offset += 200) {
+      final end = offset + 200;
+      final noteCards = await engine.getNoteCardsBatch(
+        noteIds.sublist(offset, end > noteIds.length ? noteIds.length : end),
+      );
+      final cardIds = [
+        for (final ids in noteCards.values) ...ids,
+      ];
+      if (cardIds.isEmpty) continue;
+      for (final card in await engine.getCardDescriptorsBatch(cardIds)) {
+        final id = card.notetypeId;
+        if (id != null) notetypeIds.add(id);
+        sourceDeckIds.add(card.deckId);
+        directCounts[card.deckId] = (directCounts[card.deckId] ?? 0) + 1;
+      }
     }
-    final notetypeIds = ids.toList();
 
     final schemas = await engine.getProjectionSchemas(
-      notetypeIds: notetypeIds,
+      notetypeIds: notetypeIds.toList(),
       includeSamples: true,
       sampleLimit: 30,
     );
@@ -151,7 +161,7 @@ class OfficialAnkiOfficialFirstService {
       cardCount: official.cardCount,
       noteCount: official.noteCount,
       decks: decks,
-      cardCountByDeck: _cumulativeCardCountByDeck(allDecks, cards),
+      cardCountByDeck: _cumulativeCardCountByDeck(allDecks, directCounts),
       schemas: schemas,
       suggestions: {
         for (final schema in schemas)
@@ -180,23 +190,24 @@ List<OfficialAnkiDeckNode> _scopeDecks(
   ];
 }
 
-/// deckId → 牌组（含后代）卡数：对每张卡沿其牌组名路径（'A::B::C'）逐级
-/// 前缀累计，父牌组行即显示子树总数。不在树里的 deckId 无处展示，跳过。
+/// deckId → 牌组（含后代）卡数：对每个有卡的牌组沿其名字路径
+/// （'A::B::C'）逐级前缀累计直接计数，父牌组行即显示子树总数。
+/// 不在树里的 deckId 无处展示，跳过。
 Map<int, int> _cumulativeCardCountByDeck(
   List<OfficialAnkiDeckNode> tree,
-  List<OfficialAnkiCardDescriptor> cards,
+  Map<int, int> directCounts,
 ) {
   final nameByDeckId = {for (final deck in tree) deck.deckId: deck.name};
   final deckIdByName = {for (final deck in tree) deck.name: deck.deckId};
   final counts = <int, int>{};
-  for (final card in cards) {
-    final name = nameByDeckId[card.deckId];
+  for (final entry in directCounts.entries) {
+    final name = nameByDeckId[entry.key];
     if (name == null) continue;
     final segments = name.split('::');
     for (var i = 1; i <= segments.length; i++) {
       final ancestorId = deckIdByName[segments.sublist(0, i).join('::')];
       if (ancestorId != null) {
-        counts[ancestorId] = (counts[ancestorId] ?? 0) + 1;
+        counts[ancestorId] = (counts[ancestorId] ?? 0) + entry.value;
       }
     }
   }

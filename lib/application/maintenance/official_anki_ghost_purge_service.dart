@@ -60,9 +60,7 @@ class OfficialAnkiGhostPurgeService {
           errorCode: 'sources_present',
         );
       }
-      if (OfficialAnkiImportAttemptDao(resolvedCatalog)
-          .unfinished()
-          .isNotEmpty) {
+      if (OfficialAnkiImportAttemptDao(resolvedCatalog).hasUnfinished()) {
         return const OfficialAnkiGhostPurgeResult(
           ok: false,
           errorCode: 'import_in_progress',

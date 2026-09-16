@@ -52,9 +52,13 @@ final class AnkiImportSelecting extends AnkiImportWizardState {
 /// active; a cancel request is visible to the flow through the
 /// controller.
 final class AnkiImportParsing extends AnkiImportWizardState {
-  const AnkiImportParsing({this.message = ''});
+  const AnkiImportParsing({this.message = '', this.stage});
 
   final String message;
+
+  /// 原生引擎 latestProgress 的阶段名（大包导入期间透出，D3）；null =
+  /// 尚未上报。展示原样渲染，不做本地化。
+  final String? stage;
 
   @override
   int get step => 1;
@@ -62,23 +66,30 @@ final class AnkiImportParsing extends AnkiImportWizardState {
   // Doc 39 P5: the never-non-zero `progress` field went away — the
   // official flow never reports fractional progress.
 
-  AnkiImportParsing copyWith({String? message}) => AnkiImportParsing(
+  AnkiImportParsing copyWith({String? message, String? stage}) =>
+      AnkiImportParsing(
         message: message ?? this.message,
+        stage: stage ?? this.stage,
       );
 }
 
 /// Committing the official flow. Constructing this twice from the same
 /// preview is impossible at the API level (commit is single-flight).
 final class AnkiImportCommitting extends AnkiImportWizardState {
-  const AnkiImportCommitting({this.message = ''});
+  const AnkiImportCommitting({this.message = '', this.stage});
 
   final String message;
+
+  /// 同 [AnkiImportParsing.stage]——commit 期透出 live 引擎的阶段。
+  final String? stage;
 
   @override
   int get step => 3;
 
-  AnkiImportCommitting copyWith({String? message}) => AnkiImportCommitting(
+  AnkiImportCommitting copyWith({String? message, String? stage}) =>
+      AnkiImportCommitting(
         message: message ?? this.message,
+        stage: stage ?? this.stage,
       );
 }
 

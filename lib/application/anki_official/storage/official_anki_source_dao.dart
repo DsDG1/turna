@@ -316,6 +316,24 @@ WHERE source_id = ? AND state = ?
         .toList();
   }
 
+  /// (cardId, deckId) 对——due-sync 这类只需要 id 与牌组归属的读面
+  /// 不必物化整条描述符（B4）。
+  List<({int cardId, int deckId})> listCardDeckPairs(String sourceId) {
+    return _db
+        .select(
+          'SELECT card_id, deck_id FROM anki_source_cards '
+          'WHERE source_id = ? ORDER BY card_id',
+          [sourceId],
+        )
+        .map(
+          (row) => (
+            cardId: (row['card_id'] as num).toInt(),
+            deckId: (row['deck_id'] as num).toInt(),
+          ),
+        )
+        .toList();
+  }
+
   /// Ownership ids only (no descriptors). Used by v2 retire so a 100k
   /// source is not fully materialized before the first engine delete.
   List<int> listCardIdsPage(

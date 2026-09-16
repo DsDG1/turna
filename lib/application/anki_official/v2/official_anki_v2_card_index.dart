@@ -24,7 +24,12 @@ Future<int> officialAnkiV2RunCardIndex({
   final noteIds = attempts.receiptNoteIds(attemptId);
   final descriptors = <OfficialAnkiCardDescriptor>[];
   for (var offset = 0; offset < noteIds.length; offset += 200) {
-    final batch = noteIds.skip(offset).take(200).toList();
+    // B2：sublist O(200)，skip/take 每趟从头扫 O(offset+200)。
+    final end = offset + 200;
+    final batch = noteIds.sublist(
+      offset,
+      end > noteIds.length ? noteIds.length : end,
+    );
     final noteCards = await engine.getNoteCardsBatch(batch);
     final cardIds = noteCards.values.expand((ids) => ids).toList();
     if (cardIds.isNotEmpty) {

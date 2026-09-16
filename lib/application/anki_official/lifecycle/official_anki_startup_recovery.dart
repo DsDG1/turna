@@ -54,7 +54,7 @@ class OfficialAnkiStartupRecovery {
             OfficialAnkiSourceDao(catalog)
                 .listV2Sources(profileId)
                 .isNotEmpty ||
-            OfficialAnkiImportAttemptDao(catalog).unfinished().isNotEmpty;
+            OfficialAnkiImportAttemptDao(catalog).hasUnfinished();
         if (hasMaintenanceWork) {
           try {
             await (ensureEngine ??
@@ -97,7 +97,7 @@ class OfficialAnkiStartupRecovery {
         // Ledger 已空、但 collection 里仍有无主卡（用户放弃过中断导入，
         // 或旧包只删了账本）：差集回收。有未完成 attempt 时不跑，以免
         // 吃掉 receipt_committed 尚未写完的所有权行。
-        if (OfficialAnkiImportAttemptDao(catalog).unfinished().isEmpty) {
+        if (!OfficialAnkiImportAttemptDao(catalog).hasUnfinished()) {
           try {
             await OfficialAnkiV2UnownedCardReclaimer(
               catalog: catalog,

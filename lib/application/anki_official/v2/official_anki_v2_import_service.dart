@@ -85,6 +85,11 @@ class OfficialAnkiV2ImportService {
     final attempt = attempts.find(attemptId);
     final stagingRoot =
         attempt?.stagingPath == null ? null : Directory(attempt!.stagingPath!);
+    // A1：先销毁 staging session——worker isolate 仍持有
+    // collection.anki2 句柄，留着它既泄漏 isolate，也让 Windows
+    // 上的目录删除必败。此前只有 abandon/cancel 路径会 kill。
+    // kill 是幂等 no-op，无条件跑（attempt 缺 stagingPath 时同样收）。
+    await OfficialAnkiStagingManager(livePaths: paths).kill();
     if (stagingRoot != null) {
       await OfficialAnkiStagingManager.deleteDirectory(stagingRoot);
     }
@@ -143,15 +148,16 @@ class OfficialAnkiV2ImportService {
         debugDetails: 'v2_commit_unknown_source',
       );
     }
-    // 已完成的 source：幂等重放 = 只重建视图（守恒：不重复导入）。
+    // 已完成的 source：幂等重放 = 只重建该 source 的视图（守恒：
+    // 不重复导入）。
     if (source.state == OfficialAnkiSourceState.active.wire && source.isV2) {
-      await _rebuild();
+      final rebuilt = await _rebuild(sourceId: sourceId);
       return OfficialAnkiV2CommitResult(
         sourceId: sourceId,
         attemptId: sourceId,
         cardCount: sources.cardCount(sourceId),
-        sectionCount: await _distinctSections(),
-        lessonCount: await _distinctLessons(),
+        sectionCount: rebuilt.sectionCount,
+        lessonCount: rebuilt.lessonCount,
       );
     }
 
@@ -208,6 +214,9 @@ class OfficialAnkiV2ImportService {
         phase: OfficialAnkiAttemptPhase.quarantined,
         nowMillis: _now,
       );
+      // commit 失败后 staging 目录保留给重启恢复，但 session 已无用——
+      // 立刻销毁 isolate，别等下次导入或重启才回收。
+      await OfficialAnkiStagingManager(livePaths: paths).kill();
       officialAnkiV2Log('commit failed: $error', warning: true);
       rethrow;
     }
@@ -269,7 +278,7 @@ class OfficialAnkiV2ImportService {
       '(${imported.cardCount} cards, $indexedCards indexed)',
     );
 
-    await _rebuild();
+    final rebuilt = await _rebuild(sourceId: sourceId);
     // 与 v1 publish 同语义的调度锁（P1）：未被课程引入的卡挂起，课时
     // 完成解锁。读面 = 视图行 + 引入账本（anki_card_introduction_states，
     // 保留表）；写只经引擎（suspend），course.db 零写入。fail-open：
@@ -279,8 +288,8 @@ class OfficialAnkiV2ImportService {
       sourceId: sourceId,
       attemptId: attempt.attemptId,
       cardCount: indexedCards,
-      sectionCount: await _distinctSections(),
-      lessonCount: await _distinctLessons(),
+      sectionCount: rebuilt.sectionCount,
+      lessonCount: rebuilt.lessonCount,
     );
   }
 
@@ -302,9 +311,14 @@ class OfficialAnkiV2ImportService {
           if (!introduced.contains(cardId)) cardId,
       ]..sort();
       for (var start = 0; start < toSuspend.length; start += _suspendBatch) {
+        // B2：sublist O(k)，skip/take 每趟从头扫 O(start+k)。
+        final end = start + _suspendBatch;
         await resolved.buryOrSuspendCards(
           action: OfficialBuryOrSuspendAction.suspend,
-          cardIds: toSuspend.skip(start).take(_suspendBatch).toList(),
+          cardIds: toSuspend.sublist(
+            start,
+            end > toSuspend.length ? toSuspend.length : end,
+          ),
         );
       }
     } catch (error) {
@@ -312,7 +326,9 @@ class OfficialAnkiV2ImportService {
     }
   }
 
-  Future<OfficialAnkiV2ViewRebuildResult> _rebuild() async {
+  /// [sourceId] 非空时只重建该 source 的行（D2：commit 只可能改变它，
+  /// 成本 O(变更) 而非 O(全部 source)）；空则全量重建。
+  Future<OfficialAnkiV2ViewRebuildResult> _rebuild({String? sourceId}) async {
     final resolved = engine ?? OfficialAnkiCompositionRoot.engine;
     if (resolved == null) {
       throw const OfficialAnkiException(
@@ -321,31 +337,17 @@ class OfficialAnkiV2ImportService {
         debugDetails: 'v2_view_rebuild_requires_engine',
       );
     }
-    return OfficialAnkiV2ViewRebuilder(
+    final rebuilder = OfficialAnkiV2ViewRebuilder(
       engine: resolved,
       catalog: catalog,
       course: course,
       profileId: paths.profileId,
       nowMillis: nowMillis,
-    ).rebuild();
-  }
-
-  Future<int> _distinctSections() async {
-    try {
-      final rows = await course
-          .customSelect(
-            'SELECT COUNT(DISTINCT section_id) AS n FROM anki_course_tree_view',
-          )
-          .get();
-      return rows.isEmpty ? 0 : rows.single.read<int>('n');
-    } catch (_) {
-      return 0;
+    );
+    if (sourceId != null) {
+      return rebuilder.rebuildSource(sourceId);
     }
-  }
-
-  Future<int> _distinctLessons() async {
-    final lessons = await OfficialAnkiV2ViewStore(course).lessonIds();
-    return lessons.length;
+    return rebuilder.rebuild();
   }
 
   static String _encodeSuggestions(
@@ -370,19 +372,24 @@ class OfficialAnkiV2ImportService {
         }
       }
       final decisions = OfficialAnkiV2DecisionStore(resolved);
-      for (final node in tree) {
-        final segments = node.name.split('::');
-        if (segments.length != 1) continue; // 只给顶层牌组落默认键
-        if (hasChildren.contains(node.name)) continue; // 多级树走路径派生
-        final existing = await decisions.readDeckPlacement(node.deckId);
-        if (existing != null) continue; // 用户/历史决策优先，不覆写
+      final flatTopDecks = [
+        for (final node in tree)
+          if (node.name.split('::').length == 1 && // 只给顶层牌组落默认键
+              !hasChildren.contains(node.name)) // 多级树走路径派生
+            node,
+      ];
+      // C8：一次批量读全部候选键，替代逐 deckId 的读 RPC。
+      final existing =
+          await decisions.readDeckPlacements({for (final d in flatTopDecks) d.deckId});
+      for (final node in flatTopDecks) {
+        if (existing.containsKey(node.deckId)) continue; // 用户/历史决策优先
         await decisions.writeDeckPlacement(
           deckId: node.deckId,
           decision: OfficialAnkiV2PlacementDecision(
             deckPath: node.name,
-            sectionKey: segments.first,
-            unitKey: segments.first,
-            lessonKey: segments.first,
+            sectionKey: node.name,
+            unitKey: node.name,
+            lessonKey: node.name,
           ),
         );
       }

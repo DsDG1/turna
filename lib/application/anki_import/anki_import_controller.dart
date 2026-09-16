@@ -145,6 +145,7 @@ class AnkiImportController extends ChangeNotifier {
     AnkiImportExecutionPlan plan,
     int op,
   ) async {
+    _startProgressPoll(op);
     try {
       final preview = await _importThenPreview(path, plan: plan);
       if (_stale(op)) return;
@@ -221,6 +222,7 @@ class AnkiImportController extends ChangeNotifier {
           ? AppStrings.ankiAssemblingCourse
           : AppStrings.ankiPreparingImport,
     ));
+    _startProgressPoll(op);
     try {
       switch (preview) {
         case OfficialAnkiImportPreviewModel():
@@ -270,7 +272,12 @@ class AnkiImportController extends ChangeNotifier {
     _cancelRequested = true;
     OfficialAnkiCompositionRoot.stagingDiscardRequested = true;
     unawaited(OfficialAnkiCompositionRoot.stagingEngineFromSession()?.cancel());
-    unawaited(_cancelStagingSaga());
+    // A2：commit 已进入 live 写——台账 abandon 会删掉正在提交的
+    // source/attempt，而 importPackage 仍在跑。saga 侧（cancelActive 的
+    // phase 过滤）同样跳过 committing 行，双保险。
+    if (!_commitInFlight) {
+      unawaited(_cancelStagingSaga());
+    }
     final current = _state;
     if (current is AnkiImportParsing) {
       _parsingPlan = null;
@@ -314,6 +321,46 @@ class AnkiImportController extends ChangeNotifier {
       attempts: OfficialAnkiImportAttemptDao(catalog),
       paths: paths,
     ).cancelActive();
+  }
+
+  // ─── Progress (D3) ─────────────────────────────────────────────────
+
+  /// 轮询引擎 latestProgress，把原生阶段名透到 Parsing/Committing 的
+  /// stage 字段。latestProgress 走独立控制通道，长导入进行中也能返回；
+  /// 状态离开活跃步骤或 operation 代际过期时轮询自动停止。
+  void _startProgressPoll(int op) {
+    unawaited(_progressPollLoop(op));
+  }
+
+  Future<void> _progressPollLoop(int op) async {
+    while (!_stale(op)) {
+      await Future<void>.delayed(const Duration(milliseconds: 700));
+      if (_stale(op)) return;
+      final current = _state;
+      final engine = switch (current) {
+        AnkiImportParsing() =>
+          OfficialAnkiCompositionRoot.stagingEngineFromSession(),
+        AnkiImportCommitting() =>
+          OfficialAnkiCompositionRoot.projectionEngineFromSession(),
+        _ => null,
+      };
+      if (current is! AnkiImportParsing && current is! AnkiImportCommitting) {
+        return;
+      }
+      if (engine == null) continue;
+      try {
+        final progress = await engine.latestProgress();
+        if (_stale(op)) return;
+        final stage = progress.stage;
+        if (stage.isEmpty || stage == 'idle') continue;
+        final latest = _state;
+        if (latest is AnkiImportParsing) {
+          _emit(latest.copyWith(stage: stage));
+        } else if (latest is AnkiImportCommitting) {
+          _emit(latest.copyWith(stage: stage));
+        }
+      } catch (_) {/* 进度是 best-effort——查询失败不影响主流程 */}
+    }
   }
 
   // ─── Recognition triage (shared with the preview widgets) ───────────

@@ -350,8 +350,12 @@ class OfficialAnkiHomeDueSync {
     try {
       final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
       if (catalog == null) return;
+      // B4：只收养 active source 的卡——全表 DISTINCT 会把 staging/
+      // retired 的残留行一起物化；join 过滤后行数随活跃集合走。
       final rows = catalog.handle.select(
-        'SELECT DISTINCT source_id, card_id FROM anki_source_cards',
+        'SELECT DISTINCT c.source_id, c.card_id FROM anki_source_cards c '
+        "JOIN anki_sources s ON s.source_id = c.source_id "
+        "WHERE s.state = 'active'",
       );
       if (rows.isEmpty) return;
       final cardIdsBySource = <String, Set<int>>{};
@@ -392,7 +396,9 @@ class OfficialAnkiHomeDueSync {
     final rawDueByImport = <String, int>{};
 
     for (final source in activeSources) {
-      final cards = sources.listCards(source.sourceId);
+      // B4：这里只需要 cardId + deckId——listCardDeckPairs 不物化整条
+      // 描述符（note_guid/template_ord/notetype_id 白拉一趟）。
+      final cards = sources.listCardDeckPairs(source.sourceId);
       if (cards.isEmpty) {
         inputs.add(
           OfficialFormalDueSourceInput(

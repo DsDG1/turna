@@ -9,6 +9,7 @@ import 'package:turna/application/anki_official/engine/official_anki_worker.dart
 import 'package:turna/application/anki_official/import/anki_import_facade.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_saga.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
+import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
@@ -130,6 +131,49 @@ void main() {
         );
     expect(harness.sources.listSources(harness.paths.profileId), hasLength(1));
     expect(live.importCount, 0);
+  });
+
+  test('cancelActive skips attempts already committing to live', () async {
+    final harness = _Harness();
+    addTearDown(harness.dispose);
+    final file = File(
+      p.join(fixtureRoot.path, 'packages', '01-basic-unicode.apkg'),
+    );
+    harness.engine.seedPackage(packagePath: file.path, notes: 1, cards: 1);
+    final result = await harness.saga().startStaging(
+          packagePath: file.path,
+          displayName: 'committing',
+        );
+    // A2：phase 越过 staging 可取消窗口后，stagingPath 仍非空（COALESCE
+    // 永不清空）——兜底条件绝不能把它当可 abandon 的 staging attempt。
+    for (final phase in [
+      OfficialAnkiAttemptPhase.committing,
+      OfficialAnkiAttemptPhase.receiptCommitted,
+    ]) {
+      harness.attempts.setPhase(
+        attemptId: result.attemptId,
+        phase: phase,
+        nowMillis: 1,
+      );
+      await harness.saga().cancelActive();
+      expect(
+        harness.sources.findById(result.sourceId),
+        isNotNull,
+        reason: '$phase 期间 abandon 会删掉正在提交的 source 台账',
+      );
+      expect(
+        harness.attempts.find(result.attemptId)?.phase,
+        phase,
+        reason: '$phase attempt 不得被 cancelActive 推进',
+      );
+    }
+    // staging 目录也必须仍在（abandon 才会删它）。
+    expect(
+      Directory(
+        harness.attempts.find(result.attemptId)!.stagingPath!,
+      ).existsSync(),
+      isTrue,
+    );
   });
 
   test('cancelActive leaves source not active', () async {

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:path/path.dart' as p;
 import 'package:turna/application/anki_official/lifecycle/official_anki_file_log.dart';
@@ -51,6 +52,17 @@ class OfficialAnkiStagingManager {
     // engine and import_package failed with INVALID_STATE. ensureOpen is
     // idempotent (already-open swallowed, integrity check re-run).
     await engine.openProfile(stagingPaths);
+    // 取消落在 spawn/openProfile 期间（acquire 现在与包哈希并行）：
+    // 此时 kill() 可能刚跑过而 stagingSession 尚未赋值——自己清掉刚
+    // 拉起的资源，否则 worker isolate 泄漏。
+    if (OfficialAnkiCompositionRoot.stagingDiscardRequested) {
+      await kill();
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.importCancelled,
+        messageKey: 'official_anki.import_cancelled',
+        recoverable: true,
+      );
+    }
     return engine;
   }
 
@@ -97,7 +109,12 @@ class OfficialAnkiStagingManager {
     for (var i = 0; i < attempts; i++) {
       try {
         if (dir.existsSync()) {
-          dir.deleteSync(recursive: true);
+          // B3：媒体量大的 staging 目录同步递归删除可达数百 MB——
+          // 移出 UI isolate；existsSync 是单次 stat，留在原地。
+          final path = dir.path;
+          await Isolate.run(() {
+            Directory(path).deleteSync(recursive: true);
+          });
         }
         return;
       } catch (suppressed) {

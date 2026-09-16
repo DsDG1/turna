@@ -206,7 +206,11 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
               minWidth: constraints.maxWidth,
             ),
             child: StatefulBuilder(
-              builder: (context, setLocal) => Padding(
+              builder: (context, setLocal) {
+                // C2：一次 build 只查一次 catalog（同步 sqlite），banner 的
+                // onChanged 触发 setLocal 后自然重读。
+                final hasUnfinished = catalogHasUnfinishedOfficialImport();
+                return Padding(
                 padding: const EdgeInsets.all(32),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -236,7 +240,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 32),
-                    if (error != null || catalogHasUnfinishedOfficialImport())
+                    if (error != null || hasUnfinished)
                       Padding(
                         padding: const EdgeInsets.only(bottom: 16),
                         child: Text(
@@ -246,9 +250,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                         ),
                       ),
                     ElevatedButton.icon(
-                      onPressed: catalogHasUnfinishedOfficialImport()
-                          ? null
-                          : controller.pickFile,
+                      onPressed: hasUnfinished ? null : controller.pickFile,
                       icon: const Icon(Icons.folder_open),
                       label: Text(AppStrings.ankiChooseFile),
                       style: ElevatedButton.styleFrom(
@@ -263,7 +265,8 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                     ),
                   ],
                 ),
-              ),
+                );
+              },
             ),
           ),
         ),
@@ -298,6 +301,16 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
               style: TextStyle(
                 color: TurnaTheme.textSecondaryColor(context),
                 fontSize: 13,
+              ),
+            ),
+          ],
+          if (parsing.stage != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              parsing.stage!,
+              style: TextStyle(
+                color: TurnaTheme.textHintColor(context),
+                fontSize: 12,
               ),
             ),
           ],
@@ -337,18 +350,18 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 24),
-          OutlinedButton.icon(
-            onPressed: controller.cancel,
-            icon: const Icon(Icons.close, size: 18),
-            label: Text(AppStrings.commonCancel),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: TurnaTheme.textSecondaryColor(context),
-              side: BorderSide(
-                color: TurnaTheme.textHintColor(context).withValues(alpha: 0.5),
+          if (committing.stage != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              committing.stage!,
+              style: TextStyle(
+                color: TurnaTheme.textHintColor(context),
+                fontSize: 12,
               ),
             ),
-          ),
+          ],
+          // A2：commit 一旦进入 live 写不可取消——隐藏取消按钮，避免用户
+          // 以为能中断（台账已在写，强退由 finishCommit 收尾清理）。
         ],
       ),
     );
