@@ -130,6 +130,11 @@ class MistakeProvider extends ChangeNotifier {
   /// decode an empty map and simply show no trend until new mistakes arrive.
   Map<String, int> get dailyCounts {
     if (_dailyCountsCache != null) return _dailyCountsCache!;
+    // Repo-backed but not yet hydrated: the prefs keys were reset to '{}' by
+    // the prefs→SQLite migration, so reading them here would cache a wrong
+    // empty map that survives until the next write. Return a transient empty
+    // view instead; [ensureLoaded] fills the real cache.
+    if (_repo != null && !_loaded) return const <String, int>{};
     final raw = appPrefs.preferences
         .getString(_dailyCountsKey, defaultValue: '{}')
         .getValue();
@@ -148,9 +153,15 @@ class MistakeProvider extends ChangeNotifier {
   /// Cumulative number of mistakes mastered out of the log — either by
   /// reaching [rewriteGoal] rewrites or by being answered correctly in a
   /// mistake review session. Deck uninstalls do not count as mastered.
-  int get masteredTotal => _masteredTotalCache ??= appPrefs.preferences
-      .getInt(_masteredTotalKey, defaultValue: 0)
-      .getValue();
+  int get masteredTotal {
+    if (_masteredTotalCache != null) return _masteredTotalCache!;
+    // Same guard as [dailyCounts]: post-migration the prefs key is reset to
+    // 0 — caching it while the repo load is pending would pin a wrong zero.
+    if (_repo != null && !_loaded) return 0;
+    return _masteredTotalCache = appPrefs.preferences
+        .getInt(_masteredTotalKey, defaultValue: 0)
+        .getValue();
+  }
 
   /// Number of mistakes currently stored.
   int get count => entries.length;

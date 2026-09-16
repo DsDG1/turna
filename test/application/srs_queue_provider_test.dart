@@ -4,13 +4,19 @@
 // seams that previously had zero coverage (leech ordering, excludeAnki, the
 // grammar registration branch, due-cache invalidation).
 
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 
 import 'package:turna/application/lesson_link_store.dart';
+import 'package:turna/application/review_dashboard/review_data_revision.dart';
 import 'package:turna/application/srs_queue_provider.dart';
 import 'package:turna/core/sm2.dart';
+import 'package:turna/data/course_database.dart';
+import 'package:turna/data/srs_state_dao.dart';
 import 'package:turna/domain/course/srs_word.dart';
 import 'package:turna/service/locator.dart';
 
@@ -80,11 +86,55 @@ class _TestQueueProvider extends SrsQueueProvider {
   Future<void> removeItemsByPrefixPublic(String prefix) =>
       removeItemsByPrefix(prefix);
 
+  Future<SrsWord?> reviewPublic(String id, int quality) =>
+      reviewItem(id, quality);
+
+  Future<bool> undoPublic(String id, SrsWord previous) =>
+      undoReview(id, previous);
+
   int? get primaryCachedDueCountPublic => primaryCachedDueCount;
 
   int get primaryDueCountPublic => primaryDueCount;
 
   void invalidateDueCachesPublic() => invalidateDueCaches();
+}
+
+/// [SrsStateDao] with controllable [loadQueue]: counted calls, scripted
+/// responses, a park gate, and one-shot failures for retry tests.
+class _ControllableSrsStateDao extends SrsStateDao {
+  _ControllableSrsStateDao() : super(_newDb());
+
+  static CourseDatabase _newDb() => emptyInMemoryCourseDatabase();
+
+  int loadCalls = 0;
+  int failures = 0;
+  Completer<void>? gate;
+  bool scriptMode = false;
+  final List<Completer<Map<String, SrsWord>>> scripted = [];
+
+  @override
+  Future<Map<String, SrsWord>> loadQueue(
+    String queue, {
+    String? languageCode,
+  }) {
+    loadCalls++;
+    if (scriptMode) {
+      final c = Completer<Map<String, SrsWord>>();
+      scripted.add(c);
+      return c.future;
+    }
+    if (failures > 0) {
+      failures--;
+      return Future.error(StateError('loadQueue boom'));
+    }
+    final g = gate;
+    if (g != null) {
+      return g.future.then(
+        (_) => super.loadQueue(queue, languageCode: languageCode),
+      );
+    }
+    return super.loadQueue(queue, languageCode: languageCode);
+  }
 }
 
 void main() {
@@ -291,6 +341,90 @@ void main() {
       expect(queue.hasCustomFsrsParameters, isTrue);
       await queue.setFsrsParameters(null);
       expect(queue.hasCustomFsrsParameters, isFalse);
+    });
+  });
+
+  group('due count getters honor the validity window', () {
+    test('primaryDueCount recomputes once validUntil passes', () async {
+      final soonDue = DateTime.now().add(const Duration(milliseconds: 250));
+      await queue.importStatesPublic({
+        'later': word('later').copyWith(dueAt: soonDue),
+      });
+      expect(queue.cachedDue(), isEmpty); // seeds the cache, validUntil=soonDue
+      expect(queue.primaryDueCountPublic, 0); // inside the window
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+      // Past the window the getter must recompute — a stale 0 would hide the
+      // now-due card from every badge reading dueCount without the list.
+      expect(queue.primaryDueCountPublic, 1);
+    });
+  });
+
+  group('review-data revision bumps on non-insert mutations', () {
+    test('undo bumps the revision after deleting the event', () async {
+      final revision = ReviewDataRevision();
+      GetIt.I.registerSingleton<ReviewDataRevision>(revision);
+      addTearDown(GetIt.I.reset);
+      queue.setReviewHistoryDaoForTesting(emptyReviewHistoryDao());
+
+      await queue.importStatesPublic({'w': word('w')});
+      var last = revision.value; // importStates bumps too
+      await queue.reviewPublic('w', 4);
+      expect(revision.value, greaterThan(last));
+      last = revision.value;
+
+      expect(await queue.undoPublic('w', word('w')), isTrue);
+      // Without the bump, revision-keyed dashboards would keep counting the
+      // deleted review event until the next grade.
+      expect(revision.value, greaterThan(last));
+    });
+
+    test('reloadFromStorage bumps the revision', () async {
+      final revision = ReviewDataRevision();
+      GetIt.I.registerSingleton<ReviewDataRevision>(revision);
+      addTearDown(GetIt.I.reset);
+      await queue.reloadFromStorage();
+      expect(revision.value, greaterThan(0));
+    });
+  });
+
+  group('ensureLoaded latch', () {
+    test('a failed hydrate is retried instead of pinning an empty queue',
+        () async {
+      final dao = _ControllableSrsStateDao()..failures = 1;
+      final q = _TestQueueProvider(prefs, linkStore, dao)
+        ..setSchedulerForTesting(const Sm2Engine());
+      await q.ensureLoaded();
+      expect(dao.loadCalls, 1);
+      await q.ensureLoaded(); // _loaded stayed false → retries
+      expect(dao.loadCalls, 2);
+    });
+
+    test('concurrent callers join the same in-flight load', () async {
+      final dao = _ControllableSrsStateDao()..gate = Completer<void>();
+      final q = _TestQueueProvider(prefs, linkStore, dao)
+        ..setSchedulerForTesting(const Sm2Engine());
+      final first = q.ensureLoaded();
+      final second = q.ensureLoaded();
+      expect(dao.loadCalls, 1);
+      dao.gate!.complete();
+      await Future.wait([first, second]);
+      expect(dao.loadCalls, 1);
+    });
+
+    test('a stale in-flight hydrate cannot merge over reloadFromStorage',
+        () async {
+      final dao = _ControllableSrsStateDao()..scriptMode = true;
+      final q = _TestQueueProvider(prefs, linkStore, dao)
+        ..setSchedulerForTesting(const Sm2Engine());
+      final pending = q.ensureLoaded(); // parks on scripted[0]
+      final reloading = q.reloadFromStorage(); // generation++, scripted[1]
+      dao.scripted[1].complete({'reloaded': word('reloaded')});
+      await reloading;
+      // The first hydrate resolves late with pre-reload data — the generation
+      // bump must make it discard instead of merging 'stale' back in.
+      dao.scripted[0].complete({'stale': word('stale')});
+      await pending;
+      expect(q.state.keys, {'reloaded'});
     });
   });
 }

@@ -399,13 +399,6 @@ class ReviewHistoryDao {
         .go();
   }
 
-  Future<void> deleteByLanguage(String languageCode) async {
-    await (_db.delete(_db.reviewEvents)
-          ..where((t) =>
-              t.languageCode.equals(LanguageCodes.canonicalize(languageCode))))
-        .go();
-  }
-
   /// Remove the newest event for one card. Used by the single-step review
   /// undo action; Anki sessions never allow two pending undos at once.
   /// Pass [languageCode] so an undo can never delete another language's

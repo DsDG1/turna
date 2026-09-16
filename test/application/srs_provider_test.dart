@@ -363,4 +363,38 @@ void main() {
       expect(srs.state['w-gate'], previous);
     });
   });
+
+  group('dueWordIdSet', () {
+    test('rebuilds once the due cache validity window passes', () async {
+      final soonDue = DateTime.now().add(const Duration(milliseconds: 250));
+      await srs.bulkImportStates({
+        'w-later': SrsWord.fresh('w-later').copyWith(dueAt: soonDue),
+      });
+      expect(srs.dueWordIdSet, isEmpty); // inside the window
+      // Repeated reads while valid reuse the same instance so context.select
+      // stays quiet.
+      expect(identical(srs.dueWordIdSet, srs.dueWordIdSet), isTrue);
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+      // Past validUntil the set must surface the card that crossed its dueAt
+      // by wall clock alone — a stale empty set would hide it until a write.
+      expect(srs.dueWordIdSet, {'w-later'});
+    });
+
+    test('dueCount and expressionDueCount recompute after the window',
+        () async {
+      final soonDue = DateTime.now().add(const Duration(milliseconds: 250));
+      await srs.bulkImportStates({
+        'w-later': SrsWord.fresh('w-later').copyWith(dueAt: soonDue),
+        'e-later': SrsWord.fresh('e-later').copyWith(
+          dueAt: soonDue,
+          type: SrsItemType.expression,
+        ),
+      });
+      expect(srs.dueCount, 0);
+      expect(srs.expressionDueCount, 0);
+      await Future<void>.delayed(const Duration(milliseconds: 350));
+      expect(srs.dueCount, 1);
+      expect(srs.expressionDueCount, 1);
+    });
+  });
 }

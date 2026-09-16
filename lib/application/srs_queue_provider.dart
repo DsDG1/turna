@@ -200,13 +200,22 @@ abstract class SrsQueueProvider extends ChangeNotifier {
   ({SrsItemType? type, bool excludeAnki})? _cachedDueArgs;
   DateTime? _cachedDueComputedAt;
   DateTime? _cachedDueValidUntil;
-  int? _cachedDueCount;
   bool _loaded = false;
 
-  /// Monotonic token bumped by [setLanguageFilter]. A hydration run started
-  /// under an older token discards its result — a slow load for language A
-  /// must not merge into the cache after the user already switched to B.
+  /// Monotonic token bumped by [setLanguageFilter] and [reloadFromStorage].
+  /// A hydration run or in-flight grade started under an older token discards
+  /// its result — a slow load for language A must not merge into the cache
+  /// after the user already switched to B, and a pre-reload grade must not
+  /// commit the pre-reload map over freshly restored rows.
   int _loadGeneration = 0;
+
+  /// In-flight hydration latch: concurrent [ensureLoaded] callers join the
+  /// same future instead of racing a second load or returning before the
+  /// cache is hydrated. [_loadingGeneration] is the token the in-flight run
+  /// was started under; a bumped [_loadGeneration] makes the latch stale so
+  /// the next caller starts a fresh load under the new filter.
+  Future<void>? _loading;
+  int _loadingGeneration = -1;
 
   /// Ids with a grade currently in flight (between [reviewItem] start and the
   /// completion of its DB persists). [undoReview] refuses while a grade is in
@@ -251,12 +260,27 @@ abstract class SrsQueueProvider extends ChangeNotifier {
 
   /// Hydrate the in-memory cache from SQLite. On the first hydrate of an empty
   /// table, transparently migrates the legacy prefs blob (if any) and backfills
-  /// the DB. Idempotent; safe to call multiple times.
-  Future<void> ensureLoaded() async {
-    if (_loaded) return;
+  /// the DB. Idempotent; safe to call multiple times. Concurrent callers join
+  /// the in-flight load (when it still belongs to the current generation), and
+  /// a failed load leaves [_loaded] false so the next call retries.
+  Future<void> ensureLoaded() {
+    if (_loaded) return Future.value();
+    final inFlight = _loading;
+    if (inFlight != null && _loadingGeneration == _loadGeneration) {
+      return inFlight;
+    }
     final generation = _loadGeneration;
+    late final Future<void> future;
+    future = _hydrate(generation).whenComplete(() {
+      if (identical(_loading, future)) _loading = null;
+    });
+    _loading = future;
+    _loadingGeneration = generation;
+    return future;
+  }
+
+  Future<void> _hydrate(int generation) async {
     final filterAtStart = _languageFilter;
-    _loaded = true;
     try {
       var loaded = await srsDao.loadQueue(
         queueId,
@@ -265,8 +289,9 @@ abstract class SrsQueueProvider extends ChangeNotifier {
       if (loaded.isEmpty && !_migrationDone()) {
         loaded = await _migrateFromPrefs(filterAtStart);
       }
-      // A newer setLanguageFilter superseded this run; its own ensureLoaded
-      // owns the cache now. Merging here would mix languages.
+      // A newer setLanguageFilter/reloadFromStorage superseded this run; its
+      // own load owns the cache now. Merging here would mix languages or
+      // resurrect rows the reload just pruned.
       if (_loadGeneration != generation) return;
       final current = _cachedState ?? <String, SrsWord>{};
       // Merge: don't clobber in-memory mutations made before load completed.
@@ -274,6 +299,7 @@ abstract class SrsQueueProvider extends ChangeNotifier {
         current.putIfAbsent(e.key, () => e.value);
       }
       _cachedState = current;
+      _loaded = true;
       invalidateDueCaches();
       notifyListeners();
     } catch (e, st) {
@@ -284,7 +310,12 @@ abstract class SrsQueueProvider extends ChangeNotifier {
 
   /// Force the in-memory queue to match SQLite after an external transactional
   /// restore or bulk schedule edit (for example the Fun Lab checkpoint).
+  /// Bumps [_loadGeneration] so a still-running [ensureLoaded] started before
+  /// the restore discards its result instead of merging pre-restore rows back
+  /// in, and bumps the review-data revision so revision-keyed dashboards drop
+  /// snapshots computed from the pre-restore tables.
   Future<void> reloadFromStorage() async {
+    _loadGeneration++;
     final loaded = await srsDao.loadQueue(
       queueId,
       languageCode: _languageFilter,
@@ -293,6 +324,7 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     _loaded = true;
     invalidateDueCaches();
     notifyListeners();
+    _bumpReviewDataRevision();
   }
 
   bool _migrationDone() => appPrefs.preferences
@@ -346,6 +378,7 @@ abstract class SrsQueueProvider extends ChangeNotifier {
       ownerId: ownerId,
     );
     _commitAndPersist(current);
+    _bumpReviewDataRevision();
   }
 
   /// Register many ids as fresh.
@@ -371,7 +404,10 @@ abstract class SrsQueueProvider extends ChangeNotifier {
         changed = true;
       }
     }
-    if (changed) _commitAndPersist(current);
+    if (changed) {
+      _commitAndPersist(current);
+      _bumpReviewDataRevision();
+    }
   }
 
   /// Merge externally-migrated states (e.g. an Anki deck import) into the
@@ -391,6 +427,7 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     if (newlyAdded.isEmpty) return;
     _commit(current);
     await _writeBatch(newlyAdded);
+    _bumpReviewDataRevision();
   }
 
   /// Remove every entry whose id starts with [prefix] (e.g. uninstalling an
@@ -404,10 +441,13 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     }
     if (keys.isNotEmpty) _commit(current);
     try {
-      await srsDao.deleteByPrefix(prefix);
+      await srsDao.deleteByPrefix(prefix, queue: queueId);
     } catch (e, st) {
       logger.w('$logTag removeItemsByPrefix failed: $e', stackTrace: st);
     }
+    // Cards left the queue: revision-keyed dashboards must drop snapshots
+    // that still count them (and their just-deleted review events).
+    _bumpReviewDataRevision();
   }
 
   /// Schedule a review for [id], gated against concurrent undo. The UI enables
@@ -449,7 +489,10 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     // below uses this snapshot, and the in-memory commit is skipped if a
     // language switch raced an await in here — otherwise a Turkish card's
     // grade would land in the French row and clobber the French cache.
+    // [_loadGeneration] additionally guards against a same-language
+    // [reloadFromStorage] swapping _cachedState mid-grade.
     final filterAtStart = _languageFilter;
+    final generationAtStart = _loadGeneration;
     final languageAtStart = filterAtStart ?? LanguageCodes.turkish;
 
     // Same-day fail ladder needs how many fails already logged today.
@@ -481,7 +524,16 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     }
     final updated = graded.copyWith(lastReviewedAt: reviewedAt);
     current[id] = updated;
-    if (_languageFilter == filterAtStart) _commit(current);
+    if (_languageFilter == filterAtStart) {
+      // A same-language reload (restore / pack re-import) swapped
+      // _cachedState mid-grade: committing [current] would repoint the
+      // cache to the pre-reload map and drop the reloaded rows. Merge the
+      // graded row into the live map instead — the upsert below lands the
+      // same row in the DB either way.
+      final live = _loadGeneration == generationAtStart ? current : state;
+      live[id] = updated;
+      _commit(live);
+    }
     try {
       await srsDao.upsert(
         queueId,
@@ -535,8 +587,11 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     }
     if (changed) _commit(current);
     for (final id in uniqueIds) {
-      await srsDao.delete(id);
+      // Scope to this queue; an unscoped delete would also drop a
+      // same-wordId row living in another queue/language's pool.
+      await srsDao.delete(id, queue: queueId);
     }
+    _bumpReviewDataRevision();
   }
 
   /// Restore the state captured immediately before the latest review of [id]
@@ -558,7 +613,10 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     // Same snapshot pattern as _doReviewItem: the event deletes below await,
     // so a language switch racing them must not re-tag the restored row or
     // write the old language's word into the new language's cache.
+    // [_loadGeneration] additionally guards against a same-language
+    // [reloadFromStorage] swapping _cachedState mid-undo.
     final filterAtStart = _languageFilter;
+    final generationAtStart = _loadGeneration;
     final languageAtStart = filterAtStart ?? LanguageCodes.turkish;
     final reviewDao = _effectiveReviewDao;
     // The review write and its history event are persisted independently, so
@@ -572,8 +630,12 @@ abstract class SrsQueueProvider extends ChangeNotifier {
       }
     }
     if (_languageFilter == filterAtStart) {
-      current[id] = previous;
-      _commit(current);
+      // Same reload race as _doReviewItem: a bumped generation means the
+      // cache was swapped mid-await — merge into the live map instead of
+      // committing the stale pre-reload map.
+      final live = _loadGeneration == generationAtStart ? current : state;
+      live[id] = previous;
+      _commit(live);
     }
     try {
       await srsDao.upsert(
@@ -584,6 +646,10 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     } catch (e, st) {
       logger.w('$logTag undo persist failed: $e', stackTrace: st);
     }
+    // The review event above was deleted and the card state rolled back —
+    // revision-keyed dashboard/insights caches still count the undone review
+    // until they see a new revision.
+    _bumpReviewDataRevision();
     return true;
   }
 
@@ -611,6 +677,7 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     } catch (e, st) {
       logger.w('$logTag flag persist failed: $e', stackTrace: st);
     }
+    _bumpReviewDataRevision();
   }
 
   /// Due items, optionally filtered by [typeFilter]. Uses the primary due
@@ -646,7 +713,6 @@ abstract class SrsQueueProvider extends ChangeNotifier {
       _cachedDueArgs = args;
       _cachedDueComputedAt = cutoff;
       _cachedDueValidUntil = computed.nextDueAt;
-      _cachedDueCount = computed.due.length;
     }
     return computed.due;
   }
@@ -689,12 +755,16 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     return (due: result, nextDueAt: nextDue);
   }
 
-  /// Cached due count for the primary due cache (see [getDueItems]).
+  /// Due count for the default-args primary due cache (see [getDueItems]).
+  /// Goes through [getDueItems] so an expired `[computedAt, validUntil)`
+  /// window recomputes instead of serving the stale count.
   @protected
-  int get primaryDueCount => _cachedDueCount ?? getDueItems().length;
+  int get primaryDueCount => getDueItems().length;
 
+  /// Count of the currently cached primary due list, or null when no primary
+  /// cache is populated (test observability).
   @protected
-  int? get primaryCachedDueCount => _cachedDueCount;
+  int? get primaryCachedDueCount => _cachedDueItems?.length;
 
   /// First-seen lesson links; notifies only when at least one id is new.
   @protected
@@ -729,7 +799,6 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     _cachedDueArgs = null;
     _cachedDueComputedAt = null;
     _cachedDueValidUntil = null;
-    _cachedDueCount = null;
   }
 
   /// Update in-memory cache, invalidate due caches, and notify listeners
@@ -749,6 +818,7 @@ abstract class SrsQueueProvider extends ChangeNotifier {
   Future<void> persist(Map<String, SrsWord> map) async {
     _commit(map);
     await _writeBatch(map.values, languageCode: _languageFilter);
+    _bumpReviewDataRevision();
   }
 
   /// Synchronous commit + fire-and-forget batch write (for the `void` register
@@ -784,5 +854,6 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     } catch (e, st) {
       logger.w('$logTag clear failed: $e', stackTrace: st);
     }
+    _bumpReviewDataRevision();
   }
 }

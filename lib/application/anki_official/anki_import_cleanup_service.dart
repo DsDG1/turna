@@ -5,6 +5,7 @@ import 'package:turna/application/anki_official/introduction/card_introduction_e
 import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/application/review_dashboard/review_data_revision.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/data/anki_import_dao.dart';
@@ -34,6 +35,11 @@ class AnkiImportCleanupService {
   /// deleted. Optional so tests and non-UI callers can omit it.
   final AudioController? audioController;
 
+  /// Bumped after the saga commits so revision-keyed dashboard/insights
+  /// caches drop snapshots that still count the removed deck's review
+  /// events. Optional for tests.
+  final ReviewDataRevision? dataRevision;
+
   const AnkiImportCleanupService({
     required this.repository,
     required this.srsProvider,
@@ -44,6 +50,7 @@ class AnkiImportCleanupService {
     this.unificationDao,
     this.mistakeProvider,
     this.audioController,
+    this.dataRevision,
   });
 
   Future<void> deleteAll(String importId) async {
@@ -65,6 +72,7 @@ class AnkiImportCleanupService {
     await _deleteMediaBestEffort(importId);
     await importDao.delete(importId);
     await mistakeProvider?.removeForAnkiDeletion(idPrefixes: [prefix]);
+    dataRevision?.bump();
   }
 
   /// Media deletion is best-effort and must never abort the saga: a file

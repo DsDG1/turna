@@ -67,10 +67,19 @@ class SrsStateDao {
     });
   }
 
-  /// Delete a single state row by [wordId].
-  Future<void> delete(String wordId, {String? languageCode}) async {
+  /// Delete a single state row by [wordId]. Pass [queue] so a same-wordId row
+  /// in another queue's pool is never dropped alongside; pass [languageCode]
+  /// to spare other languages' copies.
+  Future<void> delete(
+    String wordId, {
+    String? queue,
+    String? languageCode,
+  }) async {
     final query = _db.delete(_db.srsStates)
       ..where((t) => t.wordId.equals(wordId));
+    if (queue != null) {
+      query.where((t) => t.queue.equals(queue));
+    }
     if (languageCode != null) {
       query.where(
         (t) => t.languageCode.equals(LanguageCodes.canonicalize(languageCode)),
@@ -87,10 +96,15 @@ class SrsStateDao {
   }
 
   /// Delete every row whose `wordId` starts with [prefix] (e.g. uninstalling
-  /// an imported Anki deck removes its `anki-<importId>-` entries).
-  Future<void> deleteByPrefix(String prefix) async {
-    await (_db.delete(_db.srsStates)..where((t) => t.wordId.like('$prefix%')))
-        .go();
+  /// an imported Anki deck removes its `anki-<importId>-` entries). Pass
+  /// [queue] to keep the sweep inside the calling provider's pool.
+  Future<void> deleteByPrefix(String prefix, {String? queue}) async {
+    final query = _db.delete(_db.srsStates)
+      ..where((t) => t.wordId.like('$prefix%'));
+    if (queue != null) {
+      query.where((t) => t.queue.equals(queue));
+    }
+    await query.go();
   }
 
   /// Delete every row in [queue] (content-update reset). Pass [languageCode]

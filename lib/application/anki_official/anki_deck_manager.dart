@@ -14,6 +14,7 @@ import 'package:turna/application/anki_official/v2/official_anki_v2_post_retire_
 import 'package:turna/application/anki_official/v2/official_anki_v2_retire_service.dart';
 import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/application/review_dashboard/review_data_revision.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/core/logger.dart';
@@ -388,6 +389,7 @@ class AnkiDeckManager {
       unificationDao: _unificationDao,
       mistakeProvider: _mistakeProvider,
       audioController: _locateAudioController(),
+      dataRevision: _locateReviewDataRevision(),
     ).deleteAll(importId);
   }
 
@@ -401,6 +403,19 @@ class AnkiDeckManager {
           : null;
     } catch (suppressed) {
       logger.w('[AnkiDeckManager] suppressed error: $suppressed');
+      return null;
+    }
+  }
+
+  /// Revision bump after uninstall invalidates revision-keyed dashboard /
+  /// insights snapshots that still count the removed deck's events. Resolved
+  /// lazily so tests without the dashboard graph still run this manager.
+  ReviewDataRevision? _locateReviewDataRevision() {
+    try {
+      return getIt.isRegistered<ReviewDataRevision>()
+          ? getIt<ReviewDataRevision>()
+          : null;
+    } catch (_) {
       return null;
     }
   }

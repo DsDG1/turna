@@ -216,12 +216,14 @@ void main() {
   });
 }
 
-/// Seed an introduced card whose dueAt is already in the past and return it.
+/// Seed an introduced card that is due today and return it. dueAt is pinned
+/// to local midnight so the card is due-but-not-overdue at any hour the test
+/// runs (`now - 2h` lands in yesterday when run between 00:00 and 02:00).
 dynamic _seedDueCard(SrsProvider srs, String id, DateTime now) {
   srs.registerWord(id);
   final word = srs.state[id]!;
   final due = word.copyWith(
-    dueAt: now.subtract(const Duration(hours: 2)),
+    dueAt: DateTime(now.year, now.month, now.day),
     lastReviewedAt: now.subtract(const Duration(days: 2)),
     reps: 3,
   );

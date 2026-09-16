@@ -7,9 +7,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:turna/application/diagnostics/storage_write_telemetry.dart';
 import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/data/mistake_repository.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/course/mistake_entry.dart';
 import 'package:turna/service/locator.dart';
+
+import '../helpers/in_memory_course_db.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -303,6 +306,30 @@ void main() {
       );
       final corrupted = MistakeProvider(prefs);
       expect(corrupted.dailyCounts, isEmpty);
+    });
+
+    test('repo mode before ensureLoaded does not cache prefs residue',
+        () async {
+      // Post-migration the prefs aggregate keys are reset — a read before the
+      // repo hydrate completes must return transient defaults, not cache the
+      // zeroed prefs values for the rest of the session.
+      final repo = MistakeRepository(emptyInMemoryCourseDatabase());
+      await repo.replaceAll(
+        languageCode: 'tr',
+        entries: const [],
+        dailyCounts: const {'2026-09-15': 3},
+        masteredTotal: 5,
+      );
+      await prefs.preferences
+          .setString(LocalStateKeys.mistakeDailyCounts, '{}');
+      await prefs.preferences.setInt(LocalStateKeys.mistakeMasteredTotal, 0);
+
+      final repoBacked = MistakeProvider(prefs)..useRepository(repo);
+      expect(repoBacked.dailyCounts, isEmpty);
+      expect(repoBacked.masteredTotal, 0);
+      await repoBacked.ensureLoaded();
+      expect(repoBacked.masteredTotal, 5);
+      expect(repoBacked.dailyCounts['2026-09-15'], 3);
     });
 
     test('reloadFromPrefs re-reads aggregates after an external restore',

@@ -134,6 +134,26 @@ void main() {
       expect(loaded.keys.toSet(), {'anki-imp2-n1', 'w-builtin'});
     });
 
+    test('delete with a queue scope spares the other queue row', () async {
+      // PK is (languageCode, wordId): a grammar row and an srs row cannot
+      // share an id, so an unscoped delete of a rollback id would silently
+      // drop a grammar row that happens to reuse it.
+      await dao.upsert('grammar', makeWord(id: 'shared'));
+      await dao.delete('shared', queue: 'srs');
+      expect((await dao.loadQueue('grammar')).keys, ['shared']);
+      await dao.delete('shared', queue: 'grammar');
+      expect(await dao.loadQueue('grammar'), isEmpty);
+    });
+
+    test('deleteByPrefix with a queue scope stays inside that queue',
+        () async {
+      await dao.upsert('srs', makeWord(id: 'anki-imp-c1'));
+      await dao.upsert('grammar', makeWord(id: 'anki-imp-g9'));
+      await dao.deleteByPrefix('anki-imp-', queue: 'srs');
+      expect(await dao.loadQueue('srs'), isEmpty);
+      expect((await dao.loadQueue('grammar')).keys, ['anki-imp-g9']);
+    });
+
     test('clearQueue empties only the named queue', () async {
       await dao.upsert('srs', makeWord(id: 'w-1'));
       await dao.upsert('grammar', makeWord(id: 'gp-1'));

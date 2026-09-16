@@ -180,6 +180,56 @@ void main() {
     });
   });
 
+  group('grade/undo racing a same-language reloadFromStorage', () {
+    test('the grade merges into the reloaded cache instead of clobbering it',
+        () async {
+      final failCount = Completer<int>();
+      final reviewDao =
+          _GatedReviewHistoryDao(failCountFuture: failCount.future);
+      srs.setReviewHistoryDaoForTesting(reviewDao);
+      srs.registerWord('w-1');
+      // A row that only exists in the DB until the reload pulls it in.
+      await dao.upsert(
+        'srs',
+        SrsWord.fresh('restored-1'),
+        languageCode: LanguageCodes.turkish,
+      );
+
+      // quality 0 (<3) parks the grade on the fail-count await.
+      final gradeFuture = srs.reviewWord('w-1', 0);
+      // The restore replaces _cachedState while the grade is suspended. The
+      // language did not change, so the old filter guard alone would still
+      // commit the pre-reload map and drop 'restored-1' from memory.
+      await srs.reloadFromStorage();
+      failCount.complete(0);
+      await gradeFuture;
+
+      expect(srs.state.keys, containsAll(['w-1', 'restored-1']));
+      expect(srs.state['w-1']!.lapses, 1);
+    });
+
+    test('the undo merge lands on the reloaded cache', () async {
+      final deleteGate = Completer<void>();
+      final reviewDao = _GatedReviewHistoryDao(deleteGate: deleteGate.future);
+      srs.setReviewHistoryDaoForTesting(reviewDao);
+      srs.registerWord('w-1');
+      final previous = srs.state['w-1']!.copyWith(lapses: 3);
+      await dao.upsert(
+        'srs',
+        SrsWord.fresh('restored-1'),
+        languageCode: LanguageCodes.turkish,
+      );
+
+      final undoFuture = srs.undoWordReview('w-1', previous);
+      await srs.reloadFromStorage();
+      deleteGate.complete();
+      expect(await undoFuture, isTrue);
+
+      expect(srs.state.keys, containsAll(['w-1', 'restored-1']));
+      expect(srs.state['w-1']!.lapses, 3);
+    });
+  });
+
   group('clear is language-scoped', () {
     test('clearing the current language spares the other language rows',
         () async {

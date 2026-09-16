@@ -144,7 +144,8 @@ class LocalReminderService {
   /// fire at the right clock time in the wrong zone.
   Future<void> _ensureTimezones() async {
     if (_tzReady) return;
-    _tzReady = true;
+    // Not inside the try: if the tzdb load itself throws, _tzReady stays
+    // false so the next schedule retries instead of pinning tz.local to UTC.
     tz_data.initializeTimeZones();
     try {
       final info = await FlutterTimezone.getLocalTimezone();
@@ -166,6 +167,7 @@ class LocalReminderService {
         'matched by UTC offset instead',
       );
     }
+    _tzReady = true;
   }
 
   Future<void> cancel() async {

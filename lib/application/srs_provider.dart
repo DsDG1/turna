@@ -18,8 +18,8 @@ class SrsProvider extends SrsQueueProvider implements SrsSchedulingGateway {
   List<SrsWord>? _cachedDueExpressions;
   DateTime? _cachedExpressionComputedAt;
   DateTime? _cachedExpressionValidUntil;
-  int? _cachedExpressionDueCount;
   Set<String>? _cachedDueWordIdSet;
+  List<SrsWord>? _dueWordIdSetSource;
 
   @override
   String get statePrefsKey => LocalStateKeys.srsState;
@@ -202,13 +202,17 @@ class SrsProvider extends SrsQueueProvider implements SrsSchedulingGateway {
       });
   }
 
-  /// Stable identity set of due word ids — cached alongside the primary due
-  /// cache so `context.select` equality holds across notifies that don't
-  /// change the due set. Avoids rebuilding CourseTree on every SRS notify.
+  /// Stable identity set of due word ids — derived from the primary due list
+  /// instance so `context.select` equality holds while that cache is valid,
+  /// and rebuilt automatically once the `[computedAt, validUntil)` window
+  /// expires (a card crossing its dueAt by wall clock alone must surface here,
+  /// not wait for the next write).
   Set<String> get dueWordIdSet {
-    if (_cachedDueWordIdSet != null) return _cachedDueWordIdSet!;
-    _cachedDueWordIdSet = getDueWords().map((w) => w.wordId).toSet();
-    return _cachedDueWordIdSet!;
+    final due = getDueWords();
+    final cached = _cachedDueWordIdSet;
+    if (cached != null && identical(due, _dueWordIdSetSource)) return cached;
+    _dueWordIdSetSource = due;
+    return _cachedDueWordIdSet = due.map((w) => w.wordId).toSet();
   }
 
   /// Expressions whose `dueAt` is in the past or now (secondary cache, same
@@ -229,7 +233,6 @@ class SrsProvider extends SrsQueueProvider implements SrsSchedulingGateway {
     _cachedDueExpressions = computed.due;
     _cachedExpressionComputedAt = cutoff;
     _cachedExpressionValidUntil = computed.nextDueAt;
-    _cachedExpressionDueCount = computed.due.length;
     return computed.due;
   }
 
@@ -280,7 +283,7 @@ class SrsProvider extends SrsQueueProvider implements SrsSchedulingGateway {
   }
 
   @override
-  int get dueCount => primaryCachedDueCount ?? getDueWords().length;
+  int get dueCount => getDueWords().length;
   int get totalSeen => state.values
       .where((w) =>
           w.type == SrsItemType.word &&
@@ -296,8 +299,7 @@ class SrsProvider extends SrsQueueProvider implements SrsSchedulingGateway {
       .length;
 
   @override
-  int get expressionDueCount =>
-      _cachedExpressionDueCount ?? getDueExpressions().length;
+  int get expressionDueCount => getDueExpressions().length;
   int get expressionTotalSeen => state.values
       .where((w) =>
           w.type == SrsItemType.expression &&
@@ -318,7 +320,7 @@ class SrsProvider extends SrsQueueProvider implements SrsSchedulingGateway {
     _cachedDueExpressions = null;
     _cachedExpressionComputedAt = null;
     _cachedExpressionValidUntil = null;
-    _cachedExpressionDueCount = null;
     _cachedDueWordIdSet = null;
+    _dueWordIdSetSource = null;
   }
 }
