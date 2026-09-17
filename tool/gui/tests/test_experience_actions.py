@@ -10,10 +10,10 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.experience import ACTIONS, ActionSpec, get_action  # noqa: E402
-from src.backend.experience import APP_BUILTIN_PREFIX  # noqa: E402
-from src.backend.experience.context_bus import local_suggestions  # noqa: E402
-from src.backend.experience.context_bus import build_experience_context  # noqa: E402
+from src.backend.experience import ACTIONS, ActionSpec, get_action
+from src.backend.experience import APP_BUILTIN_PREFIX
+from src.backend.experience.context_bus import local_suggestions
+from src.backend.experience.context_bus import build_experience_context
 
 
 def _adapter(*, sections=None, index=None):

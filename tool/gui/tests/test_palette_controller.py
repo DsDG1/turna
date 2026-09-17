@@ -12,7 +12,7 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.application.palette_controller import (  # noqa: E402
+from src.application.palette_controller import (
     LOW_CONFIDENCE_THRESHOLD,
     dispatch_palette_payload,
     empty_lessons_from_host,
@@ -21,10 +21,10 @@ from src.application.palette_controller import (  # noqa: E402
     should_confirm_scope,
     show_help_tour,
 )
-from src.backend.experience.intent_router import Intent  # noqa: E402
-from src.backend.experience.timeline import ExperienceTimeline  # noqa: E402
-from src.widgets.command_palette import CommandPalette  # noqa: E402
-from tests._qtapp import qt_app  # noqa: E402
+from src.backend.experience.intent_router import Intent
+from src.backend.experience.timeline import ExperienceTimeline
+from src.widgets.command_palette import CommandPalette
+from tests._qtapp import qt_app
 
 
 class PureHelpersTest(unittest.TestCase):

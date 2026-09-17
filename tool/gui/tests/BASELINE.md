@@ -52,6 +52,8 @@
 
 验证：`run_gui_tests.py ci`（E1+E2 gate 5/5 + L1 fast 111 纯模块 1420 例 0 失败）；L2 qtish 71 模块 4 路并行（`run_modules_parallel`）95s 全绿（其中 test_app 94s 为最长尾）；受影响模块定向全绿；全测试目录 grep 对已删符号零残留。注意：单进程顺序 `discover` 全量在本机长时间不终止（CPU 匀速爬升疑似计时器空转，与 2026-09-06 记录的「负载下 GitAsyncTest 卡死」同性质），本轮起 L2 验证采用并行分段方式。
 
+（2026-10 补记：`run_gui_tests.py full` 已由单进程 `unittest discover` 改为对全部 test_*.py 模块走 `run_modules_parallel` 每模块独立子进程，规避上述空转问题并顺带隔离模块间 Qt 状态；`full -j N` 控制并发数。）
+
 ## 2026-09-07 噱头清理第三步（体验 OS tab / Immersive 活过来）
 
 用例数 2481 -> 2499（+18：ExperienceSettingsTest 5 + ExperienceTabTest 6 + test_experience_demote 4 + test_fill_nokey_guard 3）。`experience_mode` 此前无任何 UI 入口（Active/Immersive 不可达），本批补齐入口与安全阀：

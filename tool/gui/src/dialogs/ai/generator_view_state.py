@@ -88,10 +88,7 @@ def place_template_bar(dlg, is_normal: bool) -> None:
 
 
 def bar_in_slot(slot, bar) -> bool:
-    for i in range(slot.count()):
-        if slot.itemAt(i).widget() is bar:
-            return True
-    return False
+    return any(slot.itemAt(i).widget() is bar for i in range(slot.count()))
 
 
 def current_topic_text(dlg) -> str:

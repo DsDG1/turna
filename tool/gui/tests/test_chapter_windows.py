@@ -14,7 +14,7 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.markdown_chopper import split_chapter_windows, split_chapters  # noqa: E402
+from src.backend.markdown_chopper import split_chapter_windows, split_chapters
 
 
 def _chapter(body: str, title: str = "1 Merhaba"):

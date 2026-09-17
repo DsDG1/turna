@@ -14,10 +14,10 @@ if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
 
-from src.application.settings import Settings  # noqa: E402
-from src.application.ai_prompt_library import AiPromptLibrary  # noqa: E402
-from src.dialogs.settings_dialog import SettingsDialog  # noqa: E402
-from tests._qtapp import _App  # noqa: E402
+from src.application.settings import Settings
+from src.application.ai_prompt_library import AiPromptLibrary
+from src.dialogs.settings_dialog import SettingsDialog
+from tests._qtapp import _App
 
 
 def _make_prompt_library() -> AiPromptLibrary:
@@ -108,7 +108,7 @@ class ExtractionPromptTabTest(unittest.TestCase):
 class SettingsDialogAdvancedAiTest(unittest.TestCase):
     """第三枪 批次① Step 8: advanced AI options in the Settings dialog."""
 
-    def _make_dialog(self) -> "SettingsDialog":
+    def _make_dialog(self) -> SettingsDialog:
         _App.get()
         with patch("src.app.QSettings", return_value=_make_qsettings()):
             settings = Settings.load_from_qsettings(_make_qsettings())
@@ -181,7 +181,7 @@ class SettingsDialogAdvancedAiTest(unittest.TestCase):
 class ExperienceTabTest(unittest.TestCase):
     """体验 OS tab: mode ladder + immersive sub-switches + feature gates."""
 
-    def _make_dialog(self, **overrides) -> "SettingsDialog":
+    def _make_dialog(self, **overrides) -> SettingsDialog:
         _App.get()
         store = {k: v for k, v in overrides.items()}
         qs = _make_qsettings()

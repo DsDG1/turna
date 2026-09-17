@@ -42,9 +42,9 @@ class AiEditController:
         for u in new_section.get("units") or []:
             if not isinstance(u, dict):
                 continue
-            for l in u.get("lessons") or []:
-                if isinstance(l, dict) and l.get("id") == lesson_id:
-                    return l
+            for lesson in u.get("lessons") or []:
+                if isinstance(lesson, dict) and lesson.get("id") == lesson_id:
+                    return lesson
         return None
 
     @staticmethod
@@ -66,7 +66,7 @@ class AiEditController:
             # Exclude lessons currently in the target unit - they get replaced.
             try:
                 _s, cur_unit = adapter.find_unit(node_id)
-                cur_lesson_ids = {l.get("id") for l in cur_unit.get("lessons", [])}
+                cur_lesson_ids = {lesson.get("id") for lesson in cur_unit.get("lessons", [])}
             except KeyError:
                 cur_lesson_ids = set()
             other_lesson_ids -= cur_lesson_ids
@@ -143,7 +143,7 @@ class AiEditController:
             if not removed:
                 return True
             parts = [
-                f"{k}: {', '.join(sorted(list(v))[:6])}"
+                f"{k}: {', '.join(sorted(v)[:6])}"
                 for k, v in removed.items()
             ]
             reply = QMessageBox.question(

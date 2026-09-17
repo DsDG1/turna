@@ -161,8 +161,8 @@ class DeleteLessonCommand(QUndoCommand):
         self.section_id = section.get("id", "")
         self.unit_id = unit.get("id", "")
         lessons = unit.get("lessons", [])
-        for i, l in enumerate(lessons):
-            if l.get("id") == self.lesson_id:
+        for i, lesson in enumerate(lessons):
+            if lesson.get("id") == self.lesson_id:
                 self.index = i
                 break
         self.snapshot = deepcopy(lesson)
@@ -319,7 +319,7 @@ class ReparentLessonCommand(QUndoCommand):
         self.old_unit_id = unit.get("id", "")
         lessons = unit.get("lessons", [])
         self.old_index = next(
-            (i for i, l in enumerate(lessons) if l.get("id") == self.lesson_id), -1
+            (i for i, lesson in enumerate(lessons) if lesson.get("id") == self.lesson_id), -1
         )
         self._snapshot = deepcopy(lesson)
         self.adapter.delete_lesson(self.lesson_id)
@@ -334,8 +334,8 @@ class ReparentLessonCommand(QUndoCommand):
             return
         _s, new_unit = self.adapter.find_unit(self.new_unit_id)
         new_lessons = new_unit.get("lessons", [])
-        for i, l in enumerate(new_lessons):
-            if l.get("id") == self.lesson_id:
+        for i, lesson in enumerate(new_lessons):
+            if lesson.get("id") == self.lesson_id:
                 del new_lessons[i]
                 break
         _s, old_unit = self.adapter.find_unit(self.old_unit_id)
@@ -449,7 +449,7 @@ class BulkDeleteLessonsCommand(QUndoCommand):
             except KeyError:
                 continue
             lessons = unit.get("lessons", [])
-            idx = next((i for i, l in enumerate(lessons) if l.get("id") == lid), -1)
+            idx = next((i for i, lesson in enumerate(lessons) if lesson.get("id") == lid), -1)
             self.snapshots.append(
                 {
                     "unit_id": unit.get("id", ""),
@@ -530,7 +530,7 @@ class BulkMoveLessonsCommand(QUndoCommand):
             if unit.get("id") == self.target_unit_id:
                 continue  # already in target - skip
             lessons = unit.get("lessons", [])
-            idx = next((i for i, l in enumerate(lessons) if l.get("id") == lid), -1)
+            idx = next((i for i, lesson in enumerate(lessons) if lesson.get("id") == lid), -1)
             self.snapshots.append(
                 {
                     "unit_id": unit.get("id", ""),
@@ -555,7 +555,7 @@ class BulkMoveLessonsCommand(QUndoCommand):
         if target_unit is not None:
             target_lessons = target_unit.get("lessons", [])
             target_unit["lessons"] = [
-                l for l in target_lessons if l.get("id") not in moved_ids
+                lesson for lesson in target_lessons if lesson.get("id") not in moved_ids
             ]
         for snap in sorted(self.snapshots, key=lambda s: (s["unit_id"], s["index"])):
             try:

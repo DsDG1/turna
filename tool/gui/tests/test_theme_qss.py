@@ -9,14 +9,14 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.theme import _build_qss, _opaque  # noqa: E402
-from src.theme_styles.builder import build_qss, opaque  # noqa: E402
-from src.theme_styles.buttons import build_button_qss  # noqa: E402
-from src.theme_styles.containers import build_container_qss  # noqa: E402
-from src.theme_styles.core import build_core_qss  # noqa: E402
-from src.theme_styles.inputs import build_input_qss  # noqa: E402
-from src.theme_styles.views import build_view_qss  # noqa: E402
-from src.theme_tokens import VALID_THEMES, palette_for  # noqa: E402
+from src.theme import _build_qss, _opaque
+from src.theme_styles.builder import build_qss, opaque
+from src.theme_styles.buttons import build_button_qss
+from src.theme_styles.containers import build_container_qss
+from src.theme_styles.core import build_core_qss
+from src.theme_styles.inputs import build_input_qss
+from src.theme_styles.views import build_view_qss
+from src.theme_tokens import VALID_THEMES, palette_for
 
 
 class ThemeQssGenerationTest(unittest.TestCase):

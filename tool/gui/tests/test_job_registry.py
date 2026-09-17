@@ -10,7 +10,7 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.experience.job_registry import (  # noqa: E402
+from src.backend.experience.job_registry import (
     JOB_KIND_AI,
     JOB_KIND_VALIDATE,
     LEGACY_JOB_ID,

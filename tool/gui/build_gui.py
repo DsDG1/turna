@@ -26,7 +26,7 @@ def require_pyinstaller() -> str:
     pi = shutil.which("pyinstaller")
     if pi is None:
         try:
-            import PyInstaller  # noqa: F401
+            import PyInstaller
 
             return sys.executable
         except ImportError:

@@ -144,7 +144,7 @@ def format_coverage_line(stats: dict[str, Any]) -> str:
     in_pool = int(stats.get("in_pool", 0))
     outside = int(stats.get("outside_pool", 0))
     new_tagged = int(stats.get("new_tagged", 0))
-    pct = int(round(float(stats.get("coverage_ratio", 0.0)) * 100))
+    pct = round(float(stats.get("coverage_ratio", 0.0)) * 100)
     line = f"池内命中 {in_pool}/{total}（{pct}%）"
     if outside:
         line += f" · 池外 {outside}"

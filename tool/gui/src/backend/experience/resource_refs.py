@@ -129,6 +129,7 @@ def find_resource_refs(
                         }
                     )
             except Exception:
+                logger.debug("resource_refs: skip item ref scan iid=%s", iid, exc_info=True)
                 continue
         if row_type == "expressions":
             try:
@@ -245,6 +246,7 @@ def build_replacement_steps(
                 )
                 steps.append(("item", container, patch))
             except Exception:
+                logger.debug("resource_refs: skip item rename step", exc_info=True)
                 continue
         if row_type == "expressions":
             try:

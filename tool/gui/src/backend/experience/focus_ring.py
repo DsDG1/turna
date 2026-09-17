@@ -77,9 +77,8 @@ class FocusRing:
             return
         role_e = FocusRole(role) if not isinstance(role, FocusRole) else role
         existing = self._entries.get(key)
-        if existing is not None:
-            if _ROLE_PRIORITY.get(existing.role, 0) > _ROLE_PRIORITY.get(role_e, 0):
-                return
+        if existing is not None and _ROLE_PRIORITY.get(existing.role, 0) > _ROLE_PRIORITY.get(role_e, 0):
+            return
         self._entries[key] = FocusEntry(
             node_key=key, role=role_e, label=label or ""
         )

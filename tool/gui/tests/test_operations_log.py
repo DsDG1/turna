@@ -12,7 +12,7 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.infrastructure.telemetry import Telemetry  # noqa: E402
+from src.infrastructure.telemetry import Telemetry
 
 
 class OperationsLogTest(unittest.TestCase):

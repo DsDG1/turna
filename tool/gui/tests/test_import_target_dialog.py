@@ -13,7 +13,7 @@ if str(_GUI) not in sys.path:
 from PySide6.QtWidgets import QDialog
 
 from src.dialogs.import_target_dialog import ImportTargetDialog
-from tests._qtapp import _App  # noqa: E402
+from tests._qtapp import _App
 
 
 def _mock_adapter():

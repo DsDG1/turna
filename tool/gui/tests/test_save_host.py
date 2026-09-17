@@ -11,14 +11,14 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.application.save_host import (  # noqa: E402
+from src.application.save_host import (
     after_save_quality_hints,
     apply_soft_before_save,
     execute_save,
     on_save,
     want_save_brief,
 )
-from src.application.save_pipeline import SaveRequest  # noqa: E402
+from src.application.save_pipeline import SaveRequest
 
 
 class WantBriefTest(unittest.TestCase):

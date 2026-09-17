@@ -9,15 +9,15 @@ from pathlib import Path
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
-from tests._course_fixture import copy_turkish_course  # noqa: E402
+from tests._course_fixture import copy_turkish_course
 
 
-from src.backend.course_adapter import CourseAdapter  # noqa: E402
-from src.widgets.course_overview import (  # noqa: E402
+from src.backend.course_adapter import CourseAdapter
+from src.widgets.course_overview import (
     CourseOverviewWindow,
     _LessonChip,
 )
-from tests._qtapp import _App  # noqa: E402
+from tests._qtapp import _App
 
 
 def _load_adapter(tmp: Path) -> CourseAdapter:

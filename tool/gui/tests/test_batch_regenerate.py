@@ -13,7 +13,7 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.application.experience_handlers.regenerate import (  # noqa: E402
+from src.application.experience_handlers.regenerate import (
     BATCH_REGEN_CAP,
     UNIT_BATCH_REGEN_CAP,
     _batch_regen_lesson_ids,
@@ -23,9 +23,9 @@ from src.application.experience_handlers.regenerate import (  # noqa: E402
     handle_batch_regenerate,
     handle_batch_regenerate_units,
 )
-from src.backend.experience.actions import get_action  # noqa: E402
-from src.backend.experience.intent_router import route_intent  # noqa: E402
-from src.backend.experience.patch import (  # noqa: E402
+from src.backend.experience.actions import get_action
+from src.backend.experience.intent_router import route_intent
+from src.backend.experience.patch import (
     apply_lesson_patch,
     lesson_patches_from_section_diff,
 )
@@ -446,7 +446,7 @@ class _FakeAiWorker(QObject):
     result_ready = Signal(object)
     error_occurred = Signal(str)
 
-    constructed: "list[_FakeAiWorker]" = []
+    constructed: list[_FakeAiWorker] = []
 
     def __init__(self, target) -> None:
         super().__init__()

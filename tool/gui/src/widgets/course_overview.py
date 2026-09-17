@@ -254,7 +254,7 @@ class CourseOverviewWindow(QWidget):
         )
         # Build a set of (section_id, lesson_id) for quick visibility lookup.
         visible: set[tuple[str, str]] = {
-            (str(s.get("id", "")), str(l.get("id", ""))) for s, _u, l in matches
+            (str(s.get("id", "")), str(lesson.get("id", ""))) for s, _u, lesson in matches
         }
         # Sections that have at least one matching lesson (precomputed from
         # the single filter pass above — re-running filter_lessons per section
@@ -342,8 +342,8 @@ class CourseOverviewWindow(QWidget):
         # Unit rows with lesson chips.
         for unit in section.get("units", []):
             unit_lessons = [
-                l for l in unit.get("lessons", []) or []
-                if (sid, str(l.get("id", ""))) in visible
+                lesson for lesson in unit.get("lessons", []) or []
+                if (sid, str(lesson.get("id", ""))) in visible
             ]
             if not unit_lessons:
                 continue

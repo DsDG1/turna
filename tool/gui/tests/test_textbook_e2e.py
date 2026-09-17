@@ -19,7 +19,7 @@ if str(_GUI) not in sys.path:
 from src.backend.ai_generator import AiApiConfig
 from src.backend.knowledge_schema import coerce_knowledge_points
 from src.dialogs.textbook_import_dialog import TextbookImportDialog
-from tests._qtapp import _App as _TestApp  # noqa: E402
+from tests._qtapp import _App as _TestApp
 
 
 def _sample_md() -> str:

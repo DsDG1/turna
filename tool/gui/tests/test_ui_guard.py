@@ -14,7 +14,7 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.application.ui_guard import (  # noqa: E402
+from src.application.ui_guard import (
     is_headless_ui,
     safe_information,
     safe_question,
@@ -44,7 +44,7 @@ class SafeMessageBoxTest(unittest.TestCase):
         msgs: list[str] = []
 
         class SB:
-            def showMessage(self, m, ms=0):  # noqa: N802
+            def showMessage(self, m, ms=0):
                 msgs.append(m)
 
         host.statusBar = lambda: SB()  # type: ignore[method-assign]

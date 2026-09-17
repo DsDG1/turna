@@ -78,6 +78,7 @@ class PromptTemplateBar(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._library: AiPromptLibrary | None = None
+        self._palette: dict[str, str] = {}
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(6)
@@ -99,7 +100,7 @@ class PromptTemplateBar(QWidget):
         cards_row.setSpacing(8)
         cards_row.addWidget(QLabel("课程类型:"))
         self._template_cards: dict[str, QPushButton] = {}
-        for tag, meta in GENRE_TEMPLATES.items():
+        for _tag, meta in GENRE_TEMPLATES.items():
             template = meta["template"]
             card = QPushButton(meta["label"])
             card.setCheckable(True)
@@ -257,8 +258,6 @@ class PromptTemplateBar(QWidget):
             card.setStyleSheet(_card_stylesheet(selected=tpl == sel, palette=palette))
 
     # --- internal --------------------------------------------------------
-
-    _palette: dict[str, str] = {}
 
     def _on_combo_changed(self, index: int) -> None:
         template = self.template_combo.itemData(index) or "mixed"

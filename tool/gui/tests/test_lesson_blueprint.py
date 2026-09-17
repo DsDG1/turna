@@ -8,17 +8,17 @@ from pathlib import Path
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
-from tests._course_fixture import real_adapter_with_course  # noqa: E402
+from tests._course_fixture import real_adapter_with_course
 
 
-from PySide6.QtWidgets import QPushButton, QTextEdit  # noqa: E402
+from PySide6.QtWidgets import QPushButton, QTextEdit
 
-from src.backend.course_adapter import CourseAdapter  # noqa: E402
-from src.backend.lesson_content import default_interaction  # noqa: E402
-from src.backend.lesson_presets import FUNCTIONAL_PRESETS, build_preset_lesson  # noqa: E402
-from src.teacher.question_cards import QuestionCard  # noqa: E402
-from src.widgets.lesson_blueprint import LessonBlueprint  # noqa: E402
-from tests._qtapp import _App  # noqa: E402
+from src.backend.course_adapter import CourseAdapter
+from src.backend.lesson_content import default_interaction
+from src.backend.lesson_presets import FUNCTIONAL_PRESETS, build_preset_lesson
+from src.teacher.question_cards import QuestionCard
+from src.widgets.lesson_blueprint import LessonBlueprint
+from tests._qtapp import _App
 
 
 class _ComboStub:

@@ -151,6 +151,7 @@ def _run_ocr_pdf(path: Any, lang: str) -> tuple[str, str]:
                     pix = page.get_pixmap(dpi=200)
                     img = Image.open(io.BytesIO(pix.tobytes("png")))
                 except Exception:
+                    logger.debug("ocr_skill: skip unrenderable PDF page", exc_info=True)
                     continue
                 try:
                     t, status = _ocr_pil_image(img, lang)
@@ -234,6 +235,7 @@ def ocr_records(records: Any, *, lang: str = "eng") -> list[tuple[Any, str, str]
                 text, status = run_ocr(temp_path, lang=lang)
                 out.append((record, text, status))
             except Exception:
+                logger.debug("ocr_skill: skip failed OCR record", exc_info=True)
                 continue
     except Exception:
         return out

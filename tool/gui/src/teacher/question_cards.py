@@ -12,7 +12,7 @@ app, not the editor (non-goal of the schema-sync plan).
 """
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from PySide6.QtCore import Signal
 from PySide6.QtGui import QStandardItemModel
@@ -78,7 +78,7 @@ class QuestionCard(QFrame):
     move_down_requested = Signal()
     ai_rewrite_requested = Signal()
 
-    _CONTENT_BUILDERS: dict[str, str] = {
+    _CONTENT_BUILDERS: ClassVar[dict[str, str]] = {
         InteractionType.SHOW_WORD: "_build_show_word",
         InteractionType.MULTIPLE_CHOICE: "_build_single_choice",
         InteractionType.READING_MCQ: "_build_single_choice",

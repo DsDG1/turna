@@ -656,7 +656,7 @@ class TestRequestChatStream(unittest.TestCase):
         lines: list[bytes] = []
         for frag in fragments:
             payload = json.dumps({"choices": [{"delta": {"content": frag}}]})
-            lines.append(f"data: {payload}\n".encode("utf-8"))
+            lines.append(f"data: {payload}\n".encode())
         lines.append(b"data: [DONE]\n")
         return lines
 
@@ -1054,9 +1054,8 @@ class TestRequestTransforms(unittest.TestCase):
                     }
                 ]
             },
-        ):
-            with self.assertRaises(ValueError):
-                request_lesson_transform(self._chat_config(), lesson, "clear content")
+        ), self.assertRaises(ValueError):
+            request_lesson_transform(self._chat_config(), lesson, "clear content")
 
     def test_request_item_transform_preserves_id_and_runtime_type(self) -> None:
         item = {
@@ -1689,7 +1688,7 @@ class TestBuildResponseFormat(unittest.TestCase):
 class TestJsonSchemaRejectionHeuristic(unittest.TestCase):
     """第三枪 批次① Step 6: _looks_like_json_schema_rejection."""
 
-    def _http_error(self, code: int, body: str) -> "urllib.error.HTTPError":
+    def _http_error(self, code: int, body: str) -> urllib.error.HTTPError:
         import urllib.error
         from io import BytesIO
 
@@ -1865,7 +1864,7 @@ class _FakeResp:
     def __init__(self, body: str) -> None:
         self._body = body.encode("utf-8")
 
-    def __enter__(self) -> "_FakeResp":
+    def __enter__(self) -> _FakeResp:
         return self
 
     def __exit__(self, *args) -> None:

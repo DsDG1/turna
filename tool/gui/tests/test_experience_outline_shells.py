@@ -11,9 +11,9 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.experience.actions import get_action  # noqa: E402
-from src.backend.experience.intent_router import route_intent  # noqa: E402
-from src.backend.experience.outline_skill import (  # noqa: E402
+from src.backend.experience.actions import get_action
+from src.backend.experience.intent_router import route_intent
+from src.backend.experience.outline_skill import (
     all_course_ids,
     is_outline_shell_enabled,
     outline_to_shell_section,

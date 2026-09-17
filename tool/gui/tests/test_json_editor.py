@@ -9,7 +9,7 @@ from pathlib import Path
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
-from tests._qtapp import qt_app  # noqa: E402
+from tests._qtapp import qt_app
 
 from src.widgets.json_editor import JsonEditor
 

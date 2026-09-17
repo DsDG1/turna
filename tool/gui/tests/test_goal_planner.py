@@ -10,11 +10,11 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.experience.planner import (  # noqa: E402
+from src.backend.experience.planner import (
     format_plan_summary,
     plan_from_context,
 )
-from src.backend.experience.intent_router import route_intent  # noqa: E402
+from src.backend.experience.intent_router import route_intent
 
 
 class GoalPlannerTest(unittest.TestCase):

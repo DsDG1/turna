@@ -96,7 +96,8 @@ class AiFixController:
 
         apply_fn = getattr(window, "_apply_ai_fix_for_node", None)
         if apply_fn is None:
-            apply_fn = lambda k, nid, prb: self.apply_ai_fix_for_node(window, k, nid, prb)
+            def apply_fn(k, nid, prb):
+                return self.apply_ai_fix_for_node(window, k, nid, prb)
 
         applied = 0
         for batch in batches:

@@ -10,8 +10,8 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.ai_generator import AiApiConfig, AiCourseSpec  # noqa: E402
-from src.backend.ai_phased import (  # noqa: E402
+from src.backend.ai_generator import AiApiConfig, AiCourseSpec
+from src.backend.ai_phased import (
     build_lesson_fill_instruction,
     build_outline_prompt,
     fill_lessons_from_outline,

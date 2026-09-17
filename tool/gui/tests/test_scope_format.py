@@ -10,13 +10,13 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.experience.scope_format import (  # noqa: E402
+from src.backend.experience.scope_format import (
     format_scope_target,
     has_yellow_quality_hints,
     infer_scope_node_key,
     yellow_quality_summary,
 )
-from src.backend.experience.context_bus import NodeRef  # noqa: E402
+from src.backend.experience.context_bus import NodeRef
 
 
 class InferScopeNodeKeyTest(unittest.TestCase):

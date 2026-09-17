@@ -516,6 +516,7 @@ def _quality_by_section(
                     section_issues,
                 )
         except Exception:
+            logger.debug("context_bus: section quality aggregation skip", exc_info=True)
             continue
     # Cap to keep large courses affordable (K-02 why surface + K-15 fix list).
     if len(quality_issues) > 100:

@@ -9,12 +9,12 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.application.experience_shell import (  # noqa: E402
+from src.application.experience_shell import (
     ExperienceShell,
     format_health_status_line,
 )
-from src.backend.experience import ExperienceContext  # noqa: E402
-from tests._qtapp import _App as _TestApp  # noqa: E402
+from src.backend.experience import ExperienceContext
+from tests._qtapp import _App as _TestApp
 
 
 def _adapter(*, sections=None, vocab=None, index=None):

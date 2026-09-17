@@ -10,14 +10,14 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.experience.compare_sections import (  # noqa: E402
+from src.backend.experience.compare_sections import (
     compare_sections,
     format_compare_report,
     resolve_compare_pair,
     snapshot_section,
 )
-from src.backend.experience.context_bus import NodeRef  # noqa: E402
-from src.backend.experience.intent_router import route_intent  # noqa: E402
+from src.backend.experience.context_bus import NodeRef
+from src.backend.experience.intent_router import route_intent
 
 
 def _lesson(lid: str, *, empty: bool = False, terms: list[str] | None = None) -> dict:
@@ -228,11 +228,11 @@ class RouteAndDispatchTest(unittest.TestCase):
                 self._status: list[str] = []
                 self._events: list = []
 
-            def statusBar(self):  # noqa: N802
+            def statusBar(self):
                 host = self
 
                 class SB:
-                    def showMessage(self, msg, _ms=0):  # noqa: N802
+                    def showMessage(self, msg, _ms=0):
                         host._status.append(msg)
 
                 return SB()

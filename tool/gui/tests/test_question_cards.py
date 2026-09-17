@@ -12,11 +12,11 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.course_adapter import CourseAdapter  # noqa: E402
-from src.backend.lesson_content import ALLOWED_RUNTIME_TYPES, default_interaction  # noqa: E402
-from src.teacher.question_cards import QuestionCard, _OptionRow  # noqa: E402
-from src.widgets.option_models import build_options_model  # noqa: E402
-from tests._qtapp import _App as _TestApp  # noqa: E402
+from src.backend.course_adapter import CourseAdapter
+from src.backend.lesson_content import ALLOWED_RUNTIME_TYPES, default_interaction
+from src.teacher.question_cards import QuestionCard, _OptionRow
+from src.widgets.option_models import build_options_model
+from tests._qtapp import _App as _TestApp
 
 
 class OptionRowTest(unittest.TestCase):

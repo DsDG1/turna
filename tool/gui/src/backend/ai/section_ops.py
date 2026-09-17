@@ -189,9 +189,8 @@ def listening_gap_items(section: dict[str, Any]) -> list[tuple[dict, dict, str]]
                 for item in stage.get("items") or []:
                     if not isinstance(item, dict):
                         continue
-                    if _is_listen(str(item.get("runtimeType") or "")):
-                        if has_listening_gap(item):
-                            out.append((lesson, item, ""))
+                    if _is_listen(str(item.get("runtimeType") or "")) and has_listening_gap(item):
+                        out.append((lesson, item, ""))
             for phase in content.get("listeningPhases") or []:
                 if not isinstance(phase, dict):
                     continue

@@ -20,7 +20,7 @@ from src.theme_tokens import resource_type_color
 
 class KnowledgeBubble(QWidget):
     """A visual pill/bubble widget representing a single knowledge point.
-    
+
     Supports dragging via QMimeData with format 'application/x-knowledge-point'.
     """
 

@@ -9,7 +9,7 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.experience.soft_autopilot import (  # noqa: E402
+from src.backend.experience.soft_autopilot import (
     SoftFixBatch,
     apply_soft_fixes,
     evaluate_soft_fixes,

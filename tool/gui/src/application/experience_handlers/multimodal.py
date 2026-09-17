@@ -199,6 +199,7 @@ def _experience_ocr(
                 try:
                     record, text, status = item
                 except Exception:
+                    logger.debug("experience_handlers/multimodal.py:_on_ok skip malformed result item", exc_info=True)
                     continue
                 if status == "ok" and (text or "").strip():
                     try:

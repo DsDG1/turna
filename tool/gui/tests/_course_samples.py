@@ -10,9 +10,9 @@ section-import service tests, which need a realistically-shaped section).
 """
 from __future__ import annotations
 
-from src.backend.knowledge_schema import coerce_knowledge_points  # noqa: E402
-from src.backend.markdown_chopper import split_chapters  # noqa: E402
-from src.backend.textbook_to_course import build_section_from_chapter  # noqa: E402
+from src.backend.knowledge_schema import coerce_knowledge_points
+from src.backend.markdown_chopper import split_chapters
+from src.backend.textbook_to_course import build_section_from_chapter
 
 
 def sample_section(*, unit_id: str = "u", lesson_id: str = "l") -> dict:

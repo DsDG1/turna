@@ -11,7 +11,7 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.application.overview_controller import (  # noqa: E402
+from src.application.overview_controller import (
     on_overview_destroyed,
     on_overview_lesson_selected,
     on_overview_validation,

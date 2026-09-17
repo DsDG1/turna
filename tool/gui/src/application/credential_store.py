@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import base64
 import urllib.parse
-from typing import Optional
 
 from PySide6.QtCore import QSettings
 import logging

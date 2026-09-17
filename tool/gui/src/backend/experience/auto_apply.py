@@ -14,7 +14,7 @@ from collections import deque
 from dataclasses import dataclass
 from threading import Lock
 from time import time
-from typing import Any, Deque
+from typing import Any
 from collections.abc import Mapping
 
 from src.backend.experience.actions import DANGEROUS_ACTION_IDS, is_dangerous
@@ -170,10 +170,7 @@ def is_denied_immersive(action_id: str | None) -> bool:
         return False
     if aid in IMMERSIVE_ABSOLUTE_DENY_ACTIONS:
         return True
-    for p in IMMERSIVE_ABSOLUTE_DENY_PREFIXES:
-        if aid == p or aid.startswith(p):
-            return True
-    return False
+    return any(aid == p or aid.startswith(p) for p in IMMERSIVE_ABSOLUTE_DENY_PREFIXES)
 
 
 def is_in_set_c(action_id: str | None) -> bool:
@@ -199,9 +196,7 @@ def is_auto_apply_allowed(action_id: str | None, policy: Any) -> bool:
             return False
         if is_denied_immersive(action_id):
             return False
-        if is_dangerous(action_id) and not is_in_set_c(action_id):
-            return False
-        return True
+        return not is_dangerous(action_id) or is_in_set_c(action_id)
     except Exception:
         return False
 

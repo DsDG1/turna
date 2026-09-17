@@ -15,14 +15,14 @@ if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
 
-from src.backend.knowledge_schema import coerce_knowledge_points  # noqa: E402
-from src.backend.markdown_chopper import split_chapters  # noqa: E402
-from src.backend.textbook_project_store import TextbookProjectStore  # noqa: E402
-from src.dialogs.ai.design_panel import DesignPanel  # noqa: E402
-from src.dialogs.ai.review_panel import ReviewPanel  # noqa: E402
-from src.dialogs.textbook_import_dialog import TextbookImportDialog  # noqa: E402
-from src.widgets.unified_workspace import UnifiedWorkspaceWidget  # noqa: E402
-from tests._qtapp import _App  # noqa: E402
+from src.backend.knowledge_schema import coerce_knowledge_points
+from src.backend.markdown_chopper import split_chapters
+from src.backend.textbook_project_store import TextbookProjectStore
+from src.dialogs.ai.design_panel import DesignPanel
+from src.dialogs.ai.review_panel import ReviewPanel
+from src.dialogs.textbook_import_dialog import TextbookImportDialog
+from src.widgets.unified_workspace import UnifiedWorkspaceWidget
+from tests._qtapp import _App
 
 
 def _sample_md() -> str:

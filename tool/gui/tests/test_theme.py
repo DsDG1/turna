@@ -9,7 +9,7 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.theme_tokens import (  # noqa: E402
+from src.theme_tokens import (
     BRAND_CLAY,
     BRAND_REED,
     BRAND_SAND,

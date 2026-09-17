@@ -14,10 +14,10 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from tests._qtapp import qt_app  # noqa: E402
+from tests._qtapp import qt_app
 
-from src.application.settings import Settings  # noqa: E402
-from src.backend.experience.voice_skill import (  # noqa: E402
+from src.application.settings import Settings
+from src.backend.experience.voice_skill import (
     DEFAULT_ENGINE,
     TRANSCRIPT_MAX_CHARS,
     build_voice_metrics,
@@ -195,11 +195,11 @@ class TranscribeToPaletteTest(unittest.TestCase):
                 self._experience_worker = None
                 self._active_command_palette = None
 
-            def statusBar(self):  # noqa: N802
+            def statusBar(self):
                 host = self
 
                 class SB:
-                    def showMessage(self, msg, ms=0):  # noqa: N802
+                    def showMessage(self, msg, ms=0):
                         host._status.append(msg)
 
                 return SB()
@@ -227,7 +227,7 @@ class TranscribeToPaletteTest(unittest.TestCase):
                 def start():
                     try:
                         result = target(*args, **kwargs)
-                    except Exception as exc:  # noqa: BLE001
+                    except Exception as exc:
                         for cb in err_cbs:
                             cb(str(exc))
                     else:

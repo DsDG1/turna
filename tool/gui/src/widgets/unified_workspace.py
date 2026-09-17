@@ -233,7 +233,6 @@ class UnifiedWorkspaceWidget(QWidget):
     # ------------------------------------------------------------------ focus / banner
     def _apply_default_focus(self) -> None:
         """Initial tabs before restore_ui_state (restore may override)."""
-        has_draft = bool(self.design_panel.has_draft())
         has_knowledge = self._knowledge_row_count() > 0
         has_chapters = self._chapter_count() > 0
 

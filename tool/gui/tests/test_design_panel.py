@@ -17,20 +17,20 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
-from tests._course_samples import sample_section  # noqa: E402
+from tests._course_samples import sample_section
 
 
-from src.backend.ai_generator import (  # noqa: E402
+from src.backend.ai_generator import (
     AiApiConfig,
     generate_from_chat,
     request_alignment_reply,
 )
-from src.backend.knowledge_schema import coerce_knowledge_points  # noqa: E402
-from src.backend.markdown_chopper import split_chapters  # noqa: E402
-from src.backend.textbook_project_store import TextbookProjectStore  # noqa: E402
-from src.dialogs.ai.design_controller import DesignController  # noqa: E402
-from src.dialogs.ai.design_panel import DesignPanel  # noqa: E402
-from tests._qtapp import _App  # noqa: E402
+from src.backend.knowledge_schema import coerce_knowledge_points
+from src.backend.markdown_chopper import split_chapters
+from src.backend.textbook_project_store import TextbookProjectStore
+from src.dialogs.ai.design_controller import DesignController
+from src.dialogs.ai.design_panel import DesignPanel
+from tests._qtapp import _App
 
 
 class _FakeSignal:

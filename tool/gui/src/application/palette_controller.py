@@ -335,9 +335,8 @@ def dispatch_palette_payload(host: ExperienceHost, payload: Mapping[str, Any] | 
     if should_confirm_scope(action, confidence, needs_confirm=_needs_confirm(action)):
         label = str(payload.get("label") or action)
         confirm = getattr(host, "_confirm_scope_for_low_confidence", None)
-        if callable(confirm):
-            if not confirm(label, action, scope, confidence):
-                return
+        if callable(confirm) and not confirm(label, action, scope, confidence):
+            return
 
     if action == "app.save":
         save = getattr(host, "_on_save", None)

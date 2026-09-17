@@ -14,15 +14,15 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.experience.goal_generate import (  # noqa: E402
+from src.backend.experience.goal_generate import (
     build_stub_lesson,
     force_lesson_id,
     is_lesson_payload_mergeable,
 )
-from src.backend.experience.sandbox import CourseSandbox  # noqa: E402
-from src.backend.experience.planner import plan_from_context  # noqa: E402
-from src.backend.experience.patch import lesson_patch_from_replace  # noqa: E402
-from src.application.goal_controller import (  # noqa: E402
+from src.backend.experience.sandbox import CourseSandbox
+from src.backend.experience.planner import plan_from_context
+from src.backend.experience.patch import lesson_patch_from_replace
+from src.application.goal_controller import (
     apply_merge_plan_on_host,
     apply_sandbox_lessons_to_host,
 )

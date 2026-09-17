@@ -66,8 +66,7 @@ def build_campaign_items(
             continue
         seen.add(key)
         out.append(it)
-        if len(out) >= worst_n + len(empty_set):
-            # Prefer worst_n + empties but hard-cap 12.
-            if len(out) >= 12:
-                break
+        # Prefer worst_n + empties but hard-cap 12.
+        if len(out) >= max(worst_n + len(empty_set), 12):
+            break
     return out[:12]

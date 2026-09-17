@@ -311,7 +311,7 @@ def cmd_fast(jobs: int = 1) -> int:
         names.append(mod_name)
         try:
             suite.addTests(loader.loadTestsFromName(mod_name))
-        except Exception as exc:  # noqa: BLE001 — report and continue? fail hard.
+        except Exception as exc:
             print(f"error: failed to load {mod_name}: {exc}", file=sys.stderr)
             return 1
     print(f"L1 fast: {len(names)} modules (sequential)", flush=True)
@@ -325,22 +325,15 @@ def cmd_fast(jobs: int = 1) -> int:
     return 0 if result.wasSuccessful() else 1
 
 
-def cmd_full() -> int:
-    _ensure_path()
-    # Same as documented discover command.
-    return subprocess.call(
-        [
-            sys.executable,
-            "-m",
-            "unittest",
-            "discover",
-            "-s",
-            str(TESTS_DIR),
-            "-p",
-            "test_*.py",
-        ],
-        cwd=str(GUI_DIR),
-    )
+def cmd_full(jobs: int = 4) -> int:
+    """L2 full tier: every tests/test_*.py module.
+
+    Runs each module in its own subprocess via run_modules_parallel instead
+    of single-process `unittest discover`: the in-process discover run hangs
+    on this suite (timer/queued-signal crosstalk, see tests/BASELINE.md) and
+    per-module subprocesses also isolate Qt state between modules.
+    """
+    return run_modules_parallel(list_test_modules(), jobs=jobs)
 
 
 def cmd_usability() -> int:
@@ -390,7 +383,8 @@ def main(argv: list[str] | None = None) -> int:
         "-j", "--jobs",
         type=int,
         default=1,
-        help="Number of concurrent worker processes for fast / affected tiers (default: 1)",
+        help="Number of concurrent worker processes for fast / affected / full "
+        "tiers (default: 1)",
     )
     args = parser.parse_args(argv)
     if args.tier == "gate":
@@ -408,7 +402,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.tier == "list-affected":
         return cmd_list_affected()
     if args.tier == "full":
-        return cmd_full()
+        return cmd_full(jobs=args.jobs)
     if args.tier == "usability":
         return cmd_usability()
     if args.tier == "clean-cache":

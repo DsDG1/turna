@@ -10,7 +10,7 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.experience.json_path_skill import explain_path, json_path_at  # noqa: E402
+from src.backend.experience.json_path_skill import explain_path, json_path_at
 
 _DOC = {
     "id": "s1",

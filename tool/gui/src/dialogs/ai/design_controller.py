@@ -275,7 +275,7 @@ class DesignController:
         ]
         pieces = [p for p in pieces if isinstance(p, dict)]
         content: Any = (
-            [{"type": "text", "text": text}] + pieces if pieces else text
+            [{"type": "text", "text": text}, *pieces] if pieces else text
         )
         self._chat.append(ChatMessage(role="user", content=content))
         # The topic defaults to the latest user message (mirrors the legacy

@@ -14,7 +14,7 @@ from unittest.mock import MagicMock
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
-from tests._qsettings_mock import make_qsettings  # noqa: E402
+from tests._qsettings_mock import make_qsettings
 
 from src.application.ai_prompt_library import AiPromptLibrary, AiPromptTemplate
 from src.backend.knowledge_prompt import (

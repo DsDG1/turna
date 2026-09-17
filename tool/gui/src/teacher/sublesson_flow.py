@@ -7,7 +7,7 @@ Handles intro / practice / review / legacy with a shared linear flow, but adds:
 """
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, ClassVar
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -132,7 +132,7 @@ class _WordSelectorDialog(QDialog):
 class SubLessonFlowWidget(LinearFlowWidget):
     """Teacher view for intro / practice / review / legacy lessons."""
 
-    _DEFAULT_ITEM_TYPE: dict[str, str] = {
+    _DEFAULT_ITEM_TYPE: ClassVar[dict[str, str]] = {
         "intro": "showWord",
         "practice": "multipleChoice",
         "review": "multipleChoice",

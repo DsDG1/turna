@@ -9,13 +9,13 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.course_adapter import CourseAdapter  # noqa: E402
-from src.backend.lesson_content import (  # noqa: E402
+from src.backend.course_adapter import CourseAdapter
+from src.backend.lesson_content import (
     CONTENT_BY_TEMPLATE,
     PRIMARY_CONTENT_KEY,
     all_lesson_ids,
 )
-from src.backend.lesson_presets import (  # noqa: E402
+from src.backend.lesson_presets import (
     FUNCTIONAL_PRESETS,
     FUNCTIONAL_TEMPLATES,
     PRESET_BY_ID,

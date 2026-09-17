@@ -343,16 +343,15 @@ class AiFixDialog(QDialog):
         )
 
     def _on_diagnose_error(self) -> None:
-        if self._last_error_message:
-            if offer_ai_analysis(self, "修正失败", self._last_error_message):
-                AiErrorAnalyzerDialog.analyze_exception(
-                    self,
-                    self._last_error_message,
-                    context={
-                        "action": "ai.fix",
-                        "node_kind": self._course_context.get("node_kind", ""),
-                    },
-                ).exec()
+        if self._last_error_message and offer_ai_analysis(self, "修正失败", self._last_error_message):
+            AiErrorAnalyzerDialog.analyze_exception(
+                self,
+                self._last_error_message,
+                context={
+                    "action": "ai.fix",
+                    "node_kind": self._course_context.get("node_kind", ""),
+                },
+            ).exec()
 
     def _on_completed(self, worker: AiRequestWorker) -> None:
         if worker is not self._worker:

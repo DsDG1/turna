@@ -18,7 +18,8 @@ All test code that needs a real window should go through
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import Any, Iterator
+from typing import Any
+from collections.abc import Iterator
 from unittest.mock import MagicMock, patch
 
 from tests._qtapp import qt_app
@@ -101,7 +102,7 @@ def reset_main_window(win) -> None:
     win.adapter = CourseAdapter()
     try:
         win.adapter.add_resource_listener(win._on_experience_resources_changed)
-    except Exception:  # noqa: BLE001 — listener optional in stubs
+    except Exception:
         pass
     win._current_node_ref = None
     win._last_imported_section_id = None
@@ -111,30 +112,30 @@ def reset_main_window(win) -> None:
             win.mode_action.blockSignals(True)
             win.mode_action.setChecked(False)
             win.mode_action.blockSignals(False)
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
     if hasattr(win, "undo_stack") and win.undo_stack is not None:
         win.undo_stack.clear()
     if hasattr(win, "conflict_guard") and win.conflict_guard is not None:
         try:
             win.conflict_guard.clear()  # type: ignore[attr-defined]
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
     if hasattr(win, "experience") and win.experience is not None:
         try:
             win.experience.set_adapter(win.adapter)
             win.experience.set_usage_today({})
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
     if hasattr(win, "job_tray") and win.job_tray is not None:
         try:
             win.job_tray.clear()
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
     if hasattr(win, "experience_metrics") and win.experience_metrics is not None:
         try:
             win.experience_metrics.clear()
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
     if hasattr(win, "_shown_suggestion_keys") and isinstance(win._shown_suggestion_keys, set):
         win._shown_suggestion_keys.clear()
@@ -145,13 +146,13 @@ def reset_main_window(win) -> None:
     if hasattr(win, "_undo_detail_timer") and win._undo_detail_timer is not None:
         try:
             win._undo_detail_timer.stop()
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
     if hasattr(win, "tree") and win.tree is not None:
         try:
             win.tree.adapter = win.adapter
             win.tree._on_command_changed = lambda: None
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
 
 

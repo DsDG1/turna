@@ -77,8 +77,8 @@ def build_git_library_tab(dlg) -> QWidget:
     lan_form.addRow("默认端口:", dlg.lan_port_spin)
 
     dlg.lan_bind_combo = QComboBox()
-    dlg.lan_bind_combo.addItem("所有网卡 (0.0.0.0)", "0.0.0.0")
     dlg.lan_bind_combo.addItem("仅本机 (127.0.0.1)", "127.0.0.1")
+    dlg.lan_bind_combo.addItem("所有网卡 (0.0.0.0)", "0.0.0.0")
     lan_form.addRow("绑定地址:", dlg.lan_bind_combo)
 
     dlg.lan_token_edit = QLineEdit()

@@ -11,13 +11,13 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.application.experience_skills_mixin import (  # noqa: E402
+from src.application.experience_skills_mixin import (
     _validate_course_problems,
 )
-from src.backend.experience.context_bus import (  # noqa: E402
+from src.backend.experience.context_bus import (
     build_experience_context,
 )
-from tests._course_fixture import real_adapter_with_course  # noqa: E402
+from tests._course_fixture import real_adapter_with_course
 
 # L-local 预算（experienceai C-18）：实测 ~2ms，50ms 为慢机/CI 安全上限。
 _BUDGET_MS = 50.0

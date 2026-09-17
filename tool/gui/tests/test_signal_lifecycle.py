@@ -13,8 +13,8 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from tests._qtapp import _App  # noqa: E402
-from src.backend.course_adapter import CourseAdapter  # noqa: E402
+from tests._qtapp import _App
+from src.backend.course_adapter import CourseAdapter
 
 
 class SignalLifecycleScanTest(unittest.TestCase):

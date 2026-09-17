@@ -11,14 +11,14 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.experience.actions import get_action  # noqa: E402
-from src.backend.experience.intent_router import route_intent  # noqa: E402
-from src.backend.experience.textbook_skill import (  # noqa: E402
+from src.backend.experience.actions import get_action
+from src.backend.experience.intent_router import route_intent
+from src.backend.experience.textbook_skill import (
     build_grounded_instruction,
     build_import_suggestion,
     draft_import_ready,
 )
-from src.application.experience_handlers import textbook as th  # noqa: E402
+from src.application.experience_handlers import textbook as th
 
 
 class DraftReadyTest(unittest.TestCase):

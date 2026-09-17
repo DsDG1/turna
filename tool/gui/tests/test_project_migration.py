@@ -16,14 +16,14 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.ai_generator import AiApiConfig  # noqa: E402
-from src.backend.knowledge_schema import coerce_knowledge_points  # noqa: E402
-from src.backend.textbook_project import TextbookProject  # noqa: E402
-from src.backend.textbook_project_store import (  # noqa: E402
+from src.backend.ai_generator import AiApiConfig
+from src.backend.knowledge_schema import coerce_knowledge_points
+from src.backend.textbook_project import TextbookProject
+from src.backend.textbook_project_store import (
     TextbookProjectStore,
     record_imported_sections,
 )
-from src.dialogs.textbook_import_controller import TextbookImportController  # noqa: E402
+from src.dialogs.textbook_import_controller import TextbookImportController
 
 
 def _v1_dict() -> dict:

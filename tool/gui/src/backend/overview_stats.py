@@ -389,12 +389,12 @@ def export_markdown(
     # Group by section (preserve adapter order).
     by_section: dict[str, list[tuple[dict[str, Any], dict[str, Any], dict[str, Any]]]] = {}
     section_order: list[str] = []
-    for s, u, l in triples:
+    for s, u, lesson in triples:
         sid = str(s.get("id", ""))
         if sid not in by_section:
             by_section[sid] = []
             section_order.append(sid)
-        by_section[sid].append((s, u, l))
+        by_section[sid].append((s, u, lesson))
 
     for sid in section_order:
         group = by_section[sid]
@@ -405,16 +405,16 @@ def export_markdown(
         lines.append("")
         # Unit sub-headings inside the section.
         current_unit: str | None = None
-        for s, u, l in group:
+        for _s, u, lesson in group:
             uid = str(u.get("id", ""))
             if uid != current_unit:
                 current_unit = uid
                 lines.append(f"### {u.get('name', uid)}")
                 lines.append("")
-            tmpl = l.get("template", "legacy")
+            tmpl = lesson.get("template", "legacy")
             label = TEMPLATE_LABELS.get(tmpl, tmpl)
-            name = l.get("name", l.get("id", ""))
-            empty = "  ·  _空_" if lesson_is_empty(l) else ""
+            name = lesson.get("name", lesson.get("id", ""))
+            empty = "  ·  _空_" if lesson_is_empty(lesson) else ""
             lines.append(f"- **{name}** · {label}{empty}")
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"

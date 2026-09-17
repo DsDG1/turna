@@ -86,7 +86,8 @@ from src.application.commands.tree_commands import (
     ReparentUnitCommand,
 )
 
-__all__ = [
+# Grouped by submodule (item/tree/ai/meta) rather than alphabetically.
+__all__ = [  # noqa: RUF022
     # item-level
     "AddItemCommand",
     "AddListeningPhaseCommand",

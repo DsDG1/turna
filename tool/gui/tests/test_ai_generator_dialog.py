@@ -12,7 +12,7 @@ from PySide6.QtWidgets import QMessageBox
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
-from tests._qtapp import qt_app  # noqa: E402
+from tests._qtapp import qt_app
 
 from PySide6.QtCore import Qt
 
@@ -147,11 +147,10 @@ class TestAiGeneratorDialogAsync(unittest.TestCase):
 
         with patch(
             "src.dialogs.ai.generator_flows.request_course_with_retry", return_value=course
+        ), patch.object(
+            AiRequestWorker, "start", lambda self: self.run()
         ):
-            with patch.object(
-                AiRequestWorker, "start", lambda self: self.run()
-            ):
-                dlg._on_generate_normal()
+            dlg._on_generate_normal()
 
         self.assertEqual(dlg._generated, course)
         self.assertIn("ai-travel", dlg.json_edit.toPlainText())
@@ -165,14 +164,12 @@ class TestAiGeneratorDialogAsync(unittest.TestCase):
         with patch(
             "src.dialogs.ai.generator_flows.request_course_with_retry",
             side_effect=RuntimeError("network down"),
-        ):
-            with patch.object(
-                AiRequestWorker, "start", lambda self: self.run()
-            ):
-                with patch.object(
-                    dlg, "_on_worker_error"
-                ) as mock_error:
-                    dlg._on_generate_normal()
+        ), patch.object(
+            AiRequestWorker, "start", lambda self: self.run()
+        ), patch.object(
+            dlg, "_on_worker_error"
+        ) as mock_error:
+            dlg._on_generate_normal()
 
         mock_error.assert_called_once_with("network down")
         self.assertTrue(dlg.generate_btn.isEnabled())
@@ -185,11 +182,10 @@ class TestAiGeneratorDialogAsync(unittest.TestCase):
         with patch(
             "src.dialogs.ai.generator_flows.request_alignment_reply",
             return_value="Sure, here is the plan.",
+        ), patch.object(
+            AiRequestWorker, "start", lambda self: self.run()
         ):
-            with patch.object(
-                AiRequestWorker, "start", lambda self: self.run()
-            ):
-                dlg._on_send_message()
+            dlg._on_send_message()
 
         roles = [m.role for m in dlg._messages]
         self.assertEqual(roles, ["user", "assistant"])
@@ -203,19 +199,15 @@ class TestAiGeneratorDialogAsync(unittest.TestCase):
 
         with patch(
             "src.dialogs.ai.generator_flows.generate_from_chat", return_value=course
+        ), patch(
+            "src.dialogs.ai.generator_flows.explain_course",
+            return_value="This course teaches food vocabulary.",
+        ), patch.object(
+            AiRequestWorker, "start", lambda self: self.run()
+        ), patch.object(dlg, "_update_mode_ui") as mock_update, patch.object(
+            QMessageBox, "information", return_value=None
         ):
-            with patch(
-                "src.dialogs.ai.generator_flows.explain_course",
-                return_value="This course teaches food vocabulary.",
-            ):
-                with patch.object(
-                    AiRequestWorker, "start", lambda self: self.run()
-                ):
-                    with patch.object(dlg, "_update_mode_ui") as mock_update:
-                        with patch.object(
-                            QMessageBox, "information", return_value=None
-                        ):
-                            dlg._on_wish_generate()
+            dlg._on_wish_generate()
 
         self.assertEqual(dlg._generated, course)
         self.assertIn(
@@ -240,9 +232,8 @@ class TestAiGeneratorDialogAsync(unittest.TestCase):
         course = {"id": "ai-travel", "name": "Travel", "units": []}
         with patch(
             "src.dialogs.ai.generator_flows.request_course_with_retry", return_value=course
-        ):
-            with patch.object(AiRequestWorker, "start", lambda self: self.run()):
-                dlg._on_generate_normal()
+        ), patch.object(AiRequestWorker, "start", lambda self: self.run()):
+            dlg._on_generate_normal()
         # The normal worker's completed handler clears _request_start.
         self.assertIsNone(dlg._request_start)
 
@@ -288,15 +279,12 @@ class TestAiGeneratorDialogAsync(unittest.TestCase):
         with patch(
             "src.dialogs.ai.generator_flows.explain_course",
             return_value="This course teaches food vocabulary.",
+        ), patch.object(
+            AiRequestWorker, "start", lambda self: self.run()
+        ), patch.object(dlg, "_update_mode_ui"), patch.object(
+            QMessageBox, "information", return_value=None
         ):
-            with patch.object(
-                AiRequestWorker, "start", lambda self: self.run()
-            ):
-                with patch.object(dlg, "_update_mode_ui"):
-                    with patch.object(
-                        QMessageBox, "information", return_value=None
-                    ):
-                        dlg._on_wish_generation_ready(course)
+            dlg._on_wish_generation_ready(course)
         self.assertIn("ai-food", dlg.wish_json_edit.toPlainText())
 
     def test_current_json_reads_wish_editor_not_generated(self) -> None:

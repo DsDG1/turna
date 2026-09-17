@@ -15,10 +15,10 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.course_adapter import CourseAdapter  # noqa: E402
-from src.backend.knowledge_schema import coerce_knowledge_points  # noqa: E402
-from src.backend.markdown_chopper import split_chapters  # noqa: E402
-from src.backend.textbook_to_course import build_section_from_chapter  # noqa: E402
+from src.backend.course_adapter import CourseAdapter
+from src.backend.knowledge_schema import coerce_knowledge_points
+from src.backend.markdown_chopper import split_chapters
+from src.backend.textbook_to_course import build_section_from_chapter
 
 
 def _sample_chapter():

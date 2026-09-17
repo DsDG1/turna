@@ -213,6 +213,7 @@ def yellow_quality_summary(ctx: Any = None) -> dict[str, Any]:
                 if mean is not None and float(mean) < WEAK_SECTION_THRESHOLD:
                     weak += 1
             except Exception:
+                logger.debug("scope_format: skip non-numeric quality mean", exc_info=True)
                 continue
 
         parts: list[str] = []

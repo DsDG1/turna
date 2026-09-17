@@ -285,9 +285,9 @@ class CourseSectionMergeService:
             return
 
         target_lesson_index: dict[str, int] = {
-            l.get("id"): i
-            for i, l in enumerate(target_unit.get("lessons") or [])
-            if isinstance(l, dict) and l.get("id")
+            lesson.get("id"): i
+            for i, lesson in enumerate(target_unit.get("lessons") or [])
+            if isinstance(lesson, dict) and lesson.get("id")
         }
 
         for lesson in incoming_unit.get("lessons") or []:

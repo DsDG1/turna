@@ -15,13 +15,13 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from PySide6.QtWidgets import QDialog  # noqa: E402
+from PySide6.QtWidgets import QDialog
 
-from src.infrastructure import operations_log  # noqa: E402
-from src.infrastructure import window_usage as wu_mod  # noqa: E402
-from src.infrastructure.telemetry import Telemetry  # noqa: E402
-from src.infrastructure.window_usage import WindowUsageMixin  # noqa: E402
-from tests._qtapp import _App  # noqa: E402
+from src.infrastructure import operations_log
+from src.infrastructure import window_usage as wu_mod
+from src.infrastructure.telemetry import Telemetry
+from src.infrastructure.window_usage import WindowUsageMixin
+from tests._qtapp import _App
 
 
 class _SampleWindow(WindowUsageMixin, QDialog):
@@ -71,7 +71,7 @@ class WindowUsageTest(unittest.TestCase):
                 self.setWindowTitle("WithClose")
                 self.closed = False
 
-            def closeEvent(self, event) -> None:  # noqa: N802
+            def closeEvent(self, event) -> None:
                 self.closed = True
                 super().closeEvent(event)
 

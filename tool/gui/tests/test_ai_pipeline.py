@@ -15,10 +15,10 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from tests._course_samples import sample_section  # noqa: E402
+from tests._course_samples import sample_section
 
-from src.backend.ai_generator import AiApiConfig, AiCourseSpec  # noqa: E402
-from src.backend.ai_pipeline import (  # noqa: E402
+from src.backend.ai_generator import AiApiConfig, AiCourseSpec
+from src.backend.ai_pipeline import (
     PipelineState,
     PipelineStep,
     STATUS_DONE,

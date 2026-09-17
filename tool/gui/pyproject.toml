@@ -18,6 +18,14 @@ dev = [
 ]
 ocr = [
   "pytesseract>=0.3.10",
+  # Image OCR requires PIL; scanned-PDF OCR renders pages via PyMuPDF.
+  "Pillow>=10.0",
+  "PyMuPDF>=1.24",
+]
+voice = [
+  # Voice skill (experience/voice_skill.py) lazy-imports both.
+  "SpeechRecognition>=3.10",
+  "PyAudio>=0.2.14",
 ]
 
 [build-system]

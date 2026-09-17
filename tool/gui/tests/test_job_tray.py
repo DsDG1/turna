@@ -10,7 +10,7 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from tests._qtapp import qt_app  # noqa: E402
+from tests._qtapp import qt_app
 
 
 class JobTrayTest(unittest.TestCase):
@@ -118,7 +118,6 @@ class JobTrayLocateWiringTest(unittest.TestCase):
         reset_main_window(self.win)
 
     def test_locate_section_selects_tree(self) -> None:
-        from unittest.mock import MagicMock
 
         self.win.tree.select_section = MagicMock()
         self.win.job_tray.start_job("stubs-s1", "清待补 …", kind="ai", node_key="section:s1")
@@ -126,7 +125,6 @@ class JobTrayLocateWiringTest(unittest.TestCase):
         self.win.tree.select_section.assert_called_once_with("s1")
 
     def test_locate_lesson_selects_tree(self) -> None:
-        from unittest.mock import MagicMock
 
         self.win.tree.select_lesson = MagicMock()
         self.win.job_tray.start_job("chip-q1", "AI 改题", kind="ai", node_key="lesson:s1-l2")
@@ -134,7 +132,6 @@ class JobTrayLocateWiringTest(unittest.TestCase):
         self.win.tree.select_lesson.assert_called_once_with("s1-l2")
 
     def test_locate_job_without_node_key_warns(self) -> None:
-        from unittest.mock import MagicMock
 
         self.win.tree.select_section = MagicMock()
         self.win.job_tray.start_job("validate-open", "本地诊断", kind="validate")
@@ -143,7 +140,6 @@ class JobTrayLocateWiringTest(unittest.TestCase):
         self.win.tree.select_section.assert_not_called()
 
     def test_locate_unknown_job_warns(self) -> None:
-        from unittest.mock import MagicMock
 
         self.win.tree.select_lesson = MagicMock()
         self.win._on_job_activated("does-not-exist")

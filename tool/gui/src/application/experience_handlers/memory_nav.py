@@ -245,14 +245,14 @@ def _experience_to_listening(host, scope: dict) -> None:
     lesson = None
     if lesson_id:
         try:
-            section, _unit, lesson = host.adapter.find_lesson(lesson_id)
+            _section, _unit, lesson = host.adapter.find_lesson(lesson_id)
         except Exception:
             lesson = None
     if lesson is None:
         ref = host._current_node_ref
         if ref and ref[0] == "lesson":
             try:
-                section, _unit, lesson = host.adapter.find_lesson(str(ref[1]))
+                _section, _unit, lesson = host.adapter.find_lesson(str(ref[1]))
             except Exception:
                 lesson = None
     if lesson is None:

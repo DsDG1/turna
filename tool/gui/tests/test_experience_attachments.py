@@ -15,11 +15,11 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.experience.actions import (  # noqa: E402
+from src.backend.experience.actions import (
     DANGEROUS_ACTION_IDS,
     get_action,
 )
-from src.backend.experience.intent_router import route_intent  # noqa: E402
+from src.backend.experience.intent_router import route_intent
 
 
 class ContractRoutingTest(unittest.TestCase):

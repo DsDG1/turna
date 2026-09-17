@@ -3,15 +3,15 @@ from __future__ import annotations
 
 import sys
 import unittest
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, UTC
 from pathlib import Path
 
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.experience.context_bus import ExperienceContext  # noqa: E402
-from src.backend.experience.proactive import (  # noqa: E402
+from src.backend.experience.context_bus import ExperienceContext
+from src.backend.experience.proactive import (
     MUTE_HOURS4,
     MUTE_OFF,
     MUTE_PERMANENT,
@@ -45,14 +45,14 @@ class MuteStateTest(unittest.TestCase):
         self.assertTrue(make_mute(MUTE_PERMANENT).is_active())
 
     def test_today_active_same_day(self) -> None:
-        now = datetime(2026, 7, 21, 12, 0, tzinfo=timezone.utc)
+        now = datetime(2026, 7, 21, 12, 0, tzinfo=UTC)
         m = make_mute(MUTE_TODAY, now=now)
         self.assertTrue(m.is_active(now))
         next_day = now + timedelta(days=1)
         self.assertFalse(m.is_active(next_day))
 
     def test_hours4_window(self) -> None:
-        now = datetime(2026, 7, 21, 10, 0, tzinfo=timezone.utc)
+        now = datetime(2026, 7, 21, 10, 0, tzinfo=UTC)
         m = make_mute(MUTE_HOURS4, now=now)
         self.assertTrue(m.is_active(now + timedelta(hours=1)))
         self.assertFalse(m.is_active(now + timedelta(hours=5)))

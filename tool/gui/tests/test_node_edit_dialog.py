@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
-from tests._qtapp import qt_app  # noqa: E402
+from tests._qtapp import qt_app
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QDialog, QDialogButtonBox

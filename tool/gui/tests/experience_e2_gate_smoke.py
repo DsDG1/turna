@@ -34,8 +34,8 @@ if hasattr(sys.stdout, "reconfigure"):
 if hasattr(sys.stderr, "reconfigure"):
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")
 
-from tests._course_fixture import copy_turkish_course  # noqa: E402
-from tests._qtapp import qt_app  # noqa: E402
+from tests._course_fixture import copy_turkish_course
+from tests._qtapp import qt_app
 
 
 def _ok(report: list[str], name: str, passed: bool, detail: str = "") -> bool:

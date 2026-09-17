@@ -310,13 +310,14 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
             payload={"teacher_mode": checked},
         )
         self._apply_mode_shell()
-        if checked:
-            # Default to the first lesson so the authoring surface is never
-            # empty when nothing (or a non-lesson node) is selected.
-            if self._current_node_ref is None or self._current_node_ref[0] != "lesson":
-                first = self._first_lesson_id()
-                if first is not None:
-                    self._current_node_ref = ("lesson", first)
+        # Default to the first lesson so the authoring surface is never
+        # empty when nothing (or a non-lesson node) is selected.
+        if checked and (
+            self._current_node_ref is None or self._current_node_ref[0] != "lesson"
+        ):
+            first = self._first_lesson_id()
+            if first is not None:
+                self._current_node_ref = ("lesson", first)
         if self._current_node_ref is not None:
             self._on_node_selected(self._current_node_ref)
         self.statusBar().showMessage(

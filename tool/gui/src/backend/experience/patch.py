@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any, Union
+from typing import Any
 from collections.abc import Sequence
 import logging
 logger = logging.getLogger(__name__)
@@ -96,7 +96,7 @@ class SectionPatch:
         return f"节 {self.section_id}: {old_n} → {new_n}"
 
 
-PatchLike = Union[FieldPatch, ItemPatch, LessonPatch, SectionPatch]
+PatchLike = FieldPatch | ItemPatch | LessonPatch | SectionPatch
 
 
 @dataclass(frozen=True)
@@ -289,9 +289,11 @@ def lesson_patches_from_section_diff(
                     )
                 )
             except Exception:
+                logger.debug("patch: skip lesson patch build lid=%s", lid, exc_info=True)
                 continue
         return patches
     except Exception:
+        logger.debug("patch: build patches failed, returning empty", exc_info=True)
         return []
 
 
@@ -497,6 +499,7 @@ def field_diff_lines(patches: Any) -> list[str]:
             elif isinstance(p, ItemPatch):
                 out.extend(_item_diff_lines(p))
         except Exception:
+            logger.debug("patch: skip diff line build", exc_info=True)
             continue
     return out
 

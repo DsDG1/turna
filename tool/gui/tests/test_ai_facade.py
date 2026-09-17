@@ -10,14 +10,14 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.ai.config import AiApiConfig, AiCourseSpec, ChatMessage  # noqa: E402
-from src.backend.ai.facade import (  # noqa: E402
+from src.backend.ai.config import AiApiConfig, AiCourseSpec, ChatMessage
+from src.backend.ai.facade import (
     GenerateResult,
     PipelineOptions,
     generate_course,
     normalize_generation_mode,
 )
-from src.backend.ai_pipeline import PipelineState, PipelineStep  # noqa: E402
+from src.backend.ai_pipeline import PipelineState, PipelineStep
 
 
 class NormalizeModeTest(unittest.TestCase):

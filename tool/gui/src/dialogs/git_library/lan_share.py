@@ -43,8 +43,8 @@ def build_lan_tab(dlg) -> QWidget:
     lan_form.addRow("服务端口:", dlg.port_edit)
 
     dlg.lan_bind_combo = QComboBox()
-    dlg.lan_bind_combo.addItem("所有网卡 (0.0.0.0)", "0.0.0.0")
     dlg.lan_bind_combo.addItem("仅本机 (127.0.0.1)", "127.0.0.1")
+    dlg.lan_bind_combo.addItem("所有网卡 (0.0.0.0)", "0.0.0.0")
     lan_form.addRow("绑定地址:", dlg.lan_bind_combo)
 
     dlg.lan_token_edit = QLineEdit()
@@ -278,7 +278,7 @@ def on_start_share(dlg) -> None:
         QMessageBox.warning(dlg, "端口错误", "端口必须为数字。")
         return
     port = int(port_str)
-    host = dlg.lan_bind_combo.currentData() or "0.0.0.0"
+    host = dlg.lan_bind_combo.currentData() or "127.0.0.1"
     token = dlg.lan_token_edit.text().strip()
     read_only = dlg.lan_readonly_check.isChecked()
     allow_ips_raw = dlg.lan_allow_ips_edit.text().strip()

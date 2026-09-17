@@ -96,7 +96,7 @@ class Settings:
     default_lang_code: str = ""
     # LAN collaboration server defaults.
     lan_default_port: int = 5000
-    lan_bind_address: str = "0.0.0.0"
+    lan_bind_address: str = "127.0.0.1"
     # LAN server auth token (empty = no auth). Stored in QSettings (not
     # secret-grade; for LAN-only access control).
     lan_token: str = ""
@@ -428,7 +428,7 @@ def _load_git_settings(qsettings: QSettings) -> dict[str, Any]:
         "default_lang_code": _str_or_empty(qsettings.value("git/default_lang", "")),
         "lan_default_port": lan_default_port,
         "lan_bind_address": _str_or_default(
-            qsettings.value("git/lan_bind", "0.0.0.0"), "0.0.0.0"
+            qsettings.value("git/lan_bind", "127.0.0.1"), "127.0.0.1"
         ),
         "lan_token": _str_or_empty(qsettings.value("git/lan_token", "")),
         "git_timeout": git_timeout,

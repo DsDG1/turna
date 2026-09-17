@@ -308,7 +308,7 @@ def _empty_reading_passage() -> dict[str, Any]:
 def _mcq_options(term: str, pool: list[str]) -> list[str]:
     """Return [term, distractor1, distractor2] using other terms from pool."""
     others = [t for t in pool if t != term]
-    distractors = (others + [f"{term}-alt1", f"{term}-alt2"])[:2]
+    distractors = [*others, f"{term}-alt1", f"{term}-alt2"][:2]
     return [term, *distractors]
 
 
@@ -690,7 +690,7 @@ def clone_unit_with_fresh_ids(
         clone["name"] = name
     clone["prerequisiteUnitIds"] = []
     clone["lessons"] = [
-        clone_lesson_with_fresh_ids(l) for l in clone.get("lessons", [])
+        clone_lesson_with_fresh_ids(lesson) for lesson in clone.get("lessons", [])
     ]
     for lesson in clone["lessons"]:
         lesson["prerequisiteLessonIds"] = []

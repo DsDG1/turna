@@ -110,7 +110,7 @@ def estimate_remaining_seconds(
     elapsed = time.monotonic() - start_time
     per_chapter = elapsed / completed
     remaining = total - completed
-    return max(1, int(round(per_chapter * remaining)))
+    return max(1, round(per_chapter * remaining))
 
 
 def apply_reviewed_rows(

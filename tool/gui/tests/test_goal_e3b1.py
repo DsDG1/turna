@@ -10,27 +10,27 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.experience.sandbox import (  # noqa: E402
+from src.backend.experience.sandbox import (
     MergeItem,
     MergePlan,
     filter_merge_plan,
     merge_item_key,
 )
-from src.backend.experience.planner import expand_goal_local  # noqa: E402
-from src.backend.experience.publish_brief import (  # noqa: E402
+from src.backend.experience.planner import expand_goal_local
+from src.backend.experience.publish_brief import (
     build_publish_brief,
     format_publish_brief_html,
 )
-from src.backend.experience.goal_llm import (  # noqa: E402
+from src.backend.experience.goal_llm import (
     build_health_summary,
     expand_goal_with_llm,
     is_goal_llm_enabled,
     parse_expand_response,
 )
-import src.backend.experience.goal_llm as goal_llm_mod  # noqa: E402
-from src.application.goal_controller import build_plan_for_host  # noqa: E402
-from src.application.settings import Settings  # noqa: E402
-from src.backend.experience.intent_router import route_intent  # noqa: E402
+import src.backend.experience.goal_llm as goal_llm_mod
+from src.application.goal_controller import build_plan_for_host
+from src.application.settings import Settings
+from src.backend.experience.intent_router import route_intent
 
 
 def _mp(*summaries: str) -> MergePlan:

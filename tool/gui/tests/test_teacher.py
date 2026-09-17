@@ -14,15 +14,15 @@ from pathlib import Path
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
-from tests._course_fixture import copy_turkish_course  # noqa: E402
+from tests._course_fixture import copy_turkish_course
 
-from src.backend.course_adapter import CourseAdapter  # noqa: E402
-from src.teacher.error_mapper import (  # noqa: E402
+from src.backend.course_adapter import CourseAdapter
+from src.teacher.error_mapper import (
     humanize_problem,
     parse_path,
     problem_to_node_ref,
 )
-from src.backend.lesson_content import build_intro_lesson  # noqa: E402
+from src.backend.lesson_content import build_intro_lesson
 
 
 class LessonWizardTest(unittest.TestCase):

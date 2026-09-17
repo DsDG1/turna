@@ -21,7 +21,7 @@ from src.backend.course_adapter import CourseAdapter
 from src.backend.knowledge_schema import coerce_knowledge_points
 from src.backend.markdown_chopper import split_chapters
 from src.backend.textbook_to_course import build_section_from_chapter
-from tests._qtapp import _App as _TestApp  # noqa: E402
+from tests._qtapp import _App as _TestApp
 
 
 def _sample_kp():

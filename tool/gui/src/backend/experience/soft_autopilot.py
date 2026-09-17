@@ -127,10 +127,15 @@ def _strip_surround_quotes(raw: str) -> str | None:
             inner = raw[len(opening) : len(raw) - len(closing)]
             # Require non-empty inner and that the inner does not itself
             # contain the quote char (avoids stripping from "a"b" → a"b).
-            if inner and opening not in inner and closing not in inner:
-                # Skip when an escaped opening precedes the wrap.
-                if len(raw) > len(opening) and raw[: len(opening)] == opening:
-                    return inner
+            # Skip when an escaped opening precedes the wrap.
+            if (
+                inner
+                and opening not in inner
+                and closing not in inner
+                and len(raw) > len(opening)
+                and raw[: len(opening)] == opening
+            ):
+                return inner
     return None
 
 
@@ -263,9 +268,8 @@ def apply_soft_fixes(
         if fix.rule_id == "hygiene.trim_whitespace" or fix.rule_id == "hygiene.collapse_repeated_spaces" or fix.rule_id == "hygiene.strip_surround_quotes" or fix.rule_id == "hygiene.strip_zero_width":
             if fix.field in entry and isinstance(entry.get(fix.field), str):
                 entry[fix.field] = fix.new_value
-        elif fix.rule_id == "hygiene.drop_empty_tags":
-            if "tags" in entry:
-                entry["tags"] = list(fix.new_value)
+        elif fix.rule_id == "hygiene.drop_empty_tags" and "tags" in entry:
+            entry["tags"] = list(fix.new_value)
     notify = getattr(adapter, "notify_resources_changed", None)
     if callable(notify) and batch.fixes:
         try:

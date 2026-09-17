@@ -109,7 +109,7 @@ def try_preview_lesson(parent: QWidget, adapter: Any, section: dict[str, Any]) -
         )
         if not ok:
             return
-        lesson = next(l for lbl, l in lessons if lbl == choice)
+        lesson = next(lesson for lbl, lesson in lessons if lbl == choice)
     vocab_override = {w.get("id"): w for w in (section.get("words") or []) if isinstance(w, dict) and w.get("id")}
     LessonPreviewDialog(adapter, lesson, parent, vocab_override=vocab_override).exec()
 

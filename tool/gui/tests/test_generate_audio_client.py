@@ -14,10 +14,10 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.application.settings import Settings  # noqa: E402
-from src.backend import generate_audio_client  # noqa: E402
-from src.backend.generate_audio_client import TtsOptions  # noqa: E402
-from tests._course_fixture import COURSE_SRC, copy_turkish_course  # noqa: E402
+from src.application.settings import Settings
+from src.backend import generate_audio_client
+from src.backend.generate_audio_client import TtsOptions
+from tests._course_fixture import COURSE_SRC, copy_turkish_course
 
 
 class SoundsDirTest(unittest.TestCase):

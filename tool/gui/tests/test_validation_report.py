@@ -13,10 +13,10 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from PySide6.QtCore import Qt  # noqa: E402
+from PySide6.QtCore import Qt
 
-from src.widgets.validation_report import ValidationReportWidget  # noqa: E402
-from tests._qtapp import _App  # noqa: E402
+from src.widgets.validation_report import ValidationReportWidget
+from tests._qtapp import _App
 
 
 class ValidationReportMultiSelectTest(unittest.TestCase):

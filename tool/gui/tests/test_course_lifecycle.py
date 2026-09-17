@@ -12,18 +12,18 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.application.course_lifecycle import (  # noqa: E402
+from src.application.course_lifecycle import (
     REASON_CLOSE_COURSE,
     REASON_COURSE_SWITCH,
     bind_loaded_course,
     clear_experience_session,
     prepare_course_switch,
 )
-from src.backend.experience.conflict_guard import ConflictGuard  # noqa: E402
-from src.backend.experience.focus_ring import FocusRing, FocusRole  # noqa: E402
-from src.backend.experience.job_registry import JobRegistry  # noqa: E402
-from src.backend.experience.metrics import ExperienceMetrics  # noqa: E402
-from src.backend.experience.timeline import ExperienceTimeline  # noqa: E402
+from src.backend.experience.conflict_guard import ConflictGuard
+from src.backend.experience.focus_ring import FocusRing, FocusRole
+from src.backend.experience.job_registry import JobRegistry
+from src.backend.experience.metrics import ExperienceMetrics
+from src.backend.experience.timeline import ExperienceTimeline
 
 
 class _FakeTray:
@@ -90,11 +90,11 @@ class _FakeHost:
     def _add_recent_repo(self, path: Path) -> None:
         self._recent.append(path)
 
-    def statusBar(self):  # noqa: N802
+    def statusBar(self):
         host = self
 
         class _SB:
-            def showMessage(self, msg: str, _ms: int = 0) -> None:  # noqa: N802
+            def showMessage(self, msg: str, _ms: int = 0) -> None:
                 host._status.append(msg)
 
         return _SB()

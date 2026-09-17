@@ -25,9 +25,9 @@ for p in (str(_GUI), str(_REPO / "tool")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-import course_cli  # noqa: E402
-from src.backend.experience.pos_constants import POS_TAGS as GUI_POS_TAGS  # noqa: E402
-from src.backend.experience import pos_constants  # noqa: E402
+import course_cli
+from src.backend.experience.pos_constants import POS_TAGS as GUI_POS_TAGS
+from src.backend.experience import pos_constants
 
 
 class CsvPosRoundTripTest(unittest.TestCase):

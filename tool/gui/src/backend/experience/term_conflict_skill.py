@@ -18,7 +18,10 @@ touches the adapter or Qt.
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 ACTION_ID = "resource.resolve_term_conflicts"
 
@@ -85,6 +88,7 @@ def evaluate_term_conflicts(adapter: Any) -> dict[str, Any]:
                         }
                     )
             except Exception:
+                logger.debug("term_conflict_skill: skip malformed entry", exc_info=True)
                 continue
     except Exception:
         return {"count": 0, "conflicts": []}

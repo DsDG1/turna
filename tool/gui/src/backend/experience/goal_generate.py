@@ -70,15 +70,11 @@ def is_lesson_payload_mergeable(payload: Mapping[str, Any] | None) -> bool:
     if not lid:
         return False
     content = payload.get("content")
+    # flag-only placeholder from E3-A is NOT mergeable as full lesson either
     if not isinstance(content, Mapping):
-        # flag-only placeholder from E3-A is NOT mergeable as full lesson
-        if payload.get("sandbox_staged_fill") and len(payload) <= 3:
-            return False
         return False
     subs = content.get("subLessons")
-    if not isinstance(subs, list) or not subs:
-        return False
-    return True
+    return bool(isinstance(subs, list) and subs)
 
 
 def force_lesson_id(lesson: Mapping[str, Any], lesson_id: str) -> dict[str, Any]:

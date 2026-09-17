@@ -9,7 +9,7 @@ from pathlib import Path
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
-from tests._qtapp import _App as _TestApp  # noqa: E402
+from tests._qtapp import _App as _TestApp
 
 from src.backend.import_strategy import SectionImportPreview
 from src.widgets.bulk_import_preview_panel import (

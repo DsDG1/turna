@@ -244,6 +244,7 @@ class Telemetry:
                     if len(out) >= limit:
                         break
             except Exception:
+                logger.debug("telemetry: skip malformed log line", exc_info=True)
                 continue
         return list(reversed(out))
 

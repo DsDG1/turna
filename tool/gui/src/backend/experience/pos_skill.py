@@ -16,7 +16,10 @@ POS tag per misaligned word. The write is performed by the caller via batch
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from src.backend.experience.pos_constants import POS_TAG_SET, POS_TAGS, normalize_pos
 
@@ -90,6 +93,7 @@ def evaluate_pos_alignment(adapter: Any) -> dict[str, Any]:
                         }
                     )
             except Exception:
+                logger.debug("pos_skill: skip malformed word entry", exc_info=True)
                 continue
     except Exception:
         return {"count": 0, "misaligned": []}

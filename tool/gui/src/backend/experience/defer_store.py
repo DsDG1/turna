@@ -12,10 +12,13 @@ instance session-resident and the app persists it via the
 """
 from __future__ import annotations
 
+import logging
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone, UTC
 from typing import Any
 from collections.abc import Iterable, Mapping, Sequence
+
+logger = logging.getLogger(__name__)
 
 # Escalating cooldown (seconds): 15min -> 30min -> 60min -> permanent.
 COOLDOWN_BASE = 15 * 60
@@ -211,6 +214,7 @@ class DeferStore:
                     if isinstance(item, Mapping):
                         records.append(DeferRecord.from_dict(item))
                 except Exception:
+                    logger.debug("defer_store: skip malformed record", exc_info=True)
                     continue
         return cls(records)
 

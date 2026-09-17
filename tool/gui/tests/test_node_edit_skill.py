@@ -11,13 +11,13 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.application.experience_handlers.edit import (  # noqa: E402
+from src.application.experience_handlers.edit import (
     handle_node_edit,
     resolve_edit_target,
 )
-from src.backend.experience.actions import get_action  # noqa: E402
-from src.backend.experience.intent_router import route_intent  # noqa: E402
-from src.backend.experience.suggestions.p3_structure import collect  # noqa: E402
+from src.backend.experience.actions import get_action
+from src.backend.experience.intent_router import route_intent
+from src.backend.experience.suggestions.p3_structure import collect
 
 
 class ResolveEditTargetTest(unittest.TestCase):

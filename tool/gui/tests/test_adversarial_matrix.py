@@ -53,15 +53,15 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.application.settings import Settings  # noqa: E402
-from src.backend.experience.context_bus import ExperienceContext  # noqa: E402
-from src.backend.experience.proactive import (  # noqa: E402
+from src.application.settings import Settings
+from src.backend.experience.context_bus import ExperienceContext
+from src.backend.experience.proactive import (
     MUTE_PERMANENT,
     MuteState,
     evaluate_ambient,
     make_mute,
 )
-from src.backend.experience.soft_autopilot import SOFT_RULE_IDS  # noqa: E402
+from src.backend.experience.soft_autopilot import SOFT_RULE_IDS
 
 
 def _ctx(**kwargs) -> ExperienceContext:

@@ -223,9 +223,12 @@ def on_push(dlg) -> None:
 
     # Auto-save current editor state if it's active
     parent = dlg.parent()
-    if parent is not None and getattr(parent, "course_dir", None) == dlg._clone_dir:
-        if hasattr(parent, "_on_save"):
-            parent._on_save()
+    if (
+        parent is not None
+        and getattr(parent, "course_dir", None) == dlg._clone_dir
+        and hasattr(parent, "_on_save")
+    ):
+        parent._on_save()
 
     # Confirm push
     reply = QMessageBox.question(

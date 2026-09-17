@@ -17,9 +17,7 @@ def draft_import_ready(ctx: Any) -> bool:
             return False
         if not draft.get("has_draft"):
             return False
-        if draft.get("has_imported"):
-            return False
-        return True
+        return not draft.get("has_imported")
     except Exception:
         return False
 

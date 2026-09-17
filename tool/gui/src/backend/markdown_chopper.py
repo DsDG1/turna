@@ -69,7 +69,7 @@ def split_chapters(md: str, min_level: int = 2) -> list[Chapter]:
     chapters: list[Chapter] = []
     # (heading_index_into_headings, end_line_exclusive)
     spans: list[tuple[int, int]] = []
-    for h_i, (line_i, level, _title) in enumerate(headings):
+    for h_i, (_line_i, level, _title) in enumerate(headings):
         # Only headings at exactly min_level open a chapter. Deeper headings
         # belong to the enclosing chapter; shallower headings are boundaries.
         if level != min_level:

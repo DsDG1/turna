@@ -12,11 +12,11 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.experience.save_brief import (  # noqa: E402
+from src.backend.experience.save_brief import (
     build_local_save_brief,
     build_local_save_brief_from_context,
 )
-from src.application.save_pipeline import (  # noqa: E402
+from src.application.save_pipeline import (
     REASON_MENU,
     SaveRequest,
     compose_status_message,

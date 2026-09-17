@@ -14,13 +14,13 @@ from unittest.mock import MagicMock
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
-from tests._course_fixture import real_adapter_with_course  # noqa: E402
+from tests._course_fixture import real_adapter_with_course
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QUndoStack
 
 from src.widgets.course_tree import CourseTreeWidget
-from tests._qtapp import _App  # noqa: E402
+from tests._qtapp import _App
 
 
 def _adapter_with_data():

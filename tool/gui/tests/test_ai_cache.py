@@ -13,7 +13,7 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.ai_cache import (  # noqa: E402
+from src.backend.ai_cache import (
     AiCache,
     _stable_hash,
     get_default_cache,

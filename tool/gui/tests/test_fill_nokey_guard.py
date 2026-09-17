@@ -36,7 +36,7 @@ class _NoKeyHost:
         self.job_tray = SimpleNamespace(is_busy_ai=lambda: False)
         self._deny_ai_write_if_blocked = lambda *, label="AI": False
 
-    def statusBar(self):  # noqa: N802
+    def statusBar(self):
         return _Status(self)
 
     def _on_ai_edit(self, kind: str, lesson_id: str) -> None:

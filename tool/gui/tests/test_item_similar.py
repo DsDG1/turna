@@ -11,14 +11,14 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.application.experience_handlers.memory_nav import (  # noqa: E402
+from src.application.experience_handlers.memory_nav import (
     SIMILAR_ITEM_INSTRUCTION,
     _locate_item_in_course,
     handle_item_similar,
 )
-from src.backend.experience.actions import get_action  # noqa: E402
-from src.backend.experience.intent_router import route_intent  # noqa: E402
-from src.backend.ai_presets_ui import (  # noqa: E402
+from src.backend.experience.actions import get_action
+from src.backend.experience.intent_router import route_intent
+from src.backend.ai_presets_ui import (
     ITEM_CHIP_INSTRUCTIONS,
     ITEM_CHIP_LABELS,
 )

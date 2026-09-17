@@ -81,6 +81,7 @@ def _target_name(obj: QObject) -> str:
                     name = str(value)
                     break
         except Exception:
+            logger.debug("user_action_filter: getter %s failed", getter, exc_info=True)
             continue
     if not name:
         try:

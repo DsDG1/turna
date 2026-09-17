@@ -439,9 +439,8 @@ def run_pipeline(
             )
 
         # Fix failures are non-fatal: keep the (rule-fixed) draft and continue.
-        if not _run(PipelineStep.FIX, _fix):
-            if state.cancelled:
-                return state
+        if not _run(PipelineStep.FIX, _fix) and state.cancelled:
+            return state
 
     # ------------------------------------------------------------------ Explain
     if PipelineStep.EXPLAIN in skip:
@@ -458,9 +457,8 @@ def run_pipeline(
                 cancel_check=cancel_check,
                 usage=_usage,
             ),
-        ):
-            if state.cancelled:
-                return state
+        ) and state.cancelled:
+            return state
 
     # ------------------------------------------------------------------ ReadyImport
     state.step = PipelineStep.READY_IMPORT

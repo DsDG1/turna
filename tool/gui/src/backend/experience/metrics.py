@@ -28,8 +28,11 @@ double-counting (see ``experienceai.md`` §12.1).
 from __future__ import annotations
 
 import hashlib
+import logging
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from src.backend.experience.job_registry import (
     JOB_KIND_AI,
@@ -399,6 +402,7 @@ def aggregate_interception_rate(events: Any) -> float | None:
                 resolved += int(intent.get("resolved") or 0)
                 fell += int(intent.get("fell_through") or 0)
             except Exception:
+                logger.debug("metrics: skip malformed intent counters", exc_info=True)
                 continue
     except Exception:
         return None

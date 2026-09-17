@@ -9,12 +9,12 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.experience.intent_router import (  # noqa: E402
+from src.backend.experience.intent_router import (
     SLASH_COMMANDS,
     match_commands,
     route_intent,
 )
-from tests._qtapp import _App as _TestApp  # noqa: E402
+from tests._qtapp import _App as _TestApp
 
 
 class RouteIntentGoldenTest(unittest.TestCase):

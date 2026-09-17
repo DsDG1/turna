@@ -99,8 +99,8 @@ def _json_path_at(text: str, offset: int) -> str | None:
         if top["kind"] == "object":
             if top["key"] is None:
                 return None
-            return segs + [top["key"]]
-        return segs + [top["index"]]
+            return [*segs, top["key"]]
+        return [*segs, top["index"]]
 
     def _advance_parent() -> None:
         """A value finished inside the current frame; move to the next slot."""
@@ -134,7 +134,7 @@ def _json_path_at(text: str, offset: int) -> str | None:
             if is_key:
                 key = _decode_key(literal)
                 frames[-1]["key"] = key
-                token_segs = segs + [key]
+                token_segs = [*segs, key]
             else:
                 token_segs = _pending_segs()
                 if token_segs is None:

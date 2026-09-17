@@ -10,7 +10,7 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.application.settings import Settings  # noqa: E402
+from src.application.settings import Settings
 
 
 def _make_qsettings(values: dict | None = None) -> MagicMock:
@@ -364,7 +364,7 @@ class SettingsGitLibraryTest(unittest.TestCase):
         self.assertEqual(settings.git_bin, "")
         self.assertEqual(settings.default_lang_code, "")
         self.assertEqual(settings.lan_default_port, 5000)
-        self.assertEqual(settings.lan_bind_address, "0.0.0.0")
+        self.assertEqual(settings.lan_bind_address, "127.0.0.1")
         self.assertEqual(settings.lan_token, "")
         self.assertEqual(settings.git_timeout, 60.0)
         self.assertEqual(settings.assets_repo_root, "")

@@ -731,8 +731,8 @@ class CourseTreeWidget(QTreeWidget):
             except KeyError:
                 return None
             lessons = unit.get("lessons", [])
-            for i, l in enumerate(lessons):
-                if l.get("id") == node_id:
+            for i, lesson in enumerate(lessons):
+                if lesson.get("id") == node_id:
                     return lessons, i, unit
         return None
 

@@ -14,14 +14,14 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from tests._qtapp import qt_app  # noqa: E402
+from tests._qtapp import qt_app
 
-from src.backend.experience.actions import (  # noqa: E402
+from src.backend.experience.actions import (
     DANGEROUS_ACTION_IDS,
     get_action,
 )
-from src.backend.experience.intent_router import route_intent  # noqa: E402
-from src.backend.experience.screenshot_skill import (  # noqa: E402
+from src.backend.experience.intent_router import route_intent
+from src.backend.experience.screenshot_skill import (
     build_screenshot_messages,
     is_screenshot_explain_enabled,
     png_bytes_to_data_url,
@@ -186,7 +186,7 @@ class _Status:
     def __init__(self, host):
         self._host = host
 
-    def showMessage(self, msg, _ms=0):  # noqa: N802
+    def showMessage(self, msg, _ms=0):
         self._host._status.append(msg)
 
 
@@ -210,7 +210,7 @@ def _fake_worker_factory(captured: dict):
         def start(*a, **k):
             try:
                 result = target(*args, **kwargs)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 for cb in list(w.error_occurred._handlers):
                     cb(str(exc))
             else:
@@ -247,7 +247,7 @@ class ExplainCurrentTest(unittest.TestCase):
                 self._experience_worker = None
                 self._refresh_called = False
 
-            def statusBar(self):  # noqa: N802
+            def statusBar(self):
                 return _Status(self)
 
             def _record_experience_event(self, *a, **k):

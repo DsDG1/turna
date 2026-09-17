@@ -12,10 +12,10 @@ from pathlib import Path
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
-from tests._course_samples import sample_section  # noqa: E402
+from tests._course_samples import sample_section
 
-from src.backend.ai_generator import AiApiConfig, generate_from_chat  # noqa: E402
-from src.dialogs.ai.design_controller import DesignController  # noqa: E402
+from src.backend.ai_generator import AiApiConfig, generate_from_chat
+from src.dialogs.ai.design_controller import DesignController
 
 
 class _FakeSignal:
@@ -430,7 +430,7 @@ class DesignControllerLocalRegenTest(unittest.TestCase):
 class DesignControllerPipelineTest(unittest.TestCase):
     """Phase 5 (批次②): refine mode runs the ai_pipeline state machine."""
 
-    def _pipeline_state(self, **kwargs) -> "PipelineState":
+    def _pipeline_state(self, **kwargs) -> PipelineState:
         from src.backend.ai_pipeline import PipelineState, PipelineStep
 
         kwargs.setdefault("step", PipelineStep.READY_IMPORT)

@@ -63,9 +63,8 @@ def is_experience_ai_busy(host: ExperienceHost) -> bool:
         return False
     try:
         tray = getattr(host, "job_tray", None)
-        if tray is not None and hasattr(tray, "is_busy_ai"):
-            if bool(tray.is_busy_ai()):
-                return True
+        if tray is not None and hasattr(tray, "is_busy_ai") and bool(tray.is_busy_ai()):
+            return True
     except Exception:
         logger.debug("application/presence_drive.py:is_experience_ai_busy best-effort step failed", exc_info=True)
     try:

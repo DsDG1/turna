@@ -15,14 +15,14 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from tests._qtapp import qt_app  # noqa: E402
+from tests._qtapp import qt_app
 
-from src.backend.experience.actions import (  # noqa: E402
+from src.backend.experience.actions import (
     DANGEROUS_ACTION_IDS,
     get_action,
 )
-from src.backend.experience.intent_router import match_commands, route_intent  # noqa: E402
-from src.backend.experience.ocr_skill import (  # noqa: E402
+from src.backend.experience.intent_router import match_commands, route_intent
+from src.backend.experience.ocr_skill import (
     ACTION_ID,
     build_ocr_suggestion,
     is_ocr_enabled,
@@ -30,7 +30,7 @@ from src.backend.experience.ocr_skill import (  # noqa: E402
     ocr_records,
     run_ocr,
 )
-from src.application.settings import Settings  # noqa: E402
+from src.application.settings import Settings
 
 
 def _make_png() -> Path:
@@ -52,7 +52,7 @@ class _FakeTesseract:
         self._text = text
         self._raise = raise_not_found
 
-    def image_to_string(self, image, lang=None):  # noqa: ANN001
+    def image_to_string(self, image, lang=None):
         if self._raise:
             raise self.TesseractNotFoundError("no binary")
         return self._text
@@ -148,7 +148,7 @@ class RunOcrTest(unittest.TestCase):
             class TesseractNotFoundError(Exception):
                 pass
 
-            def image_to_string(self, image, lang=None):  # noqa: ANN001
+            def image_to_string(self, image, lang=None):
                 calls.append(lang)
                 if lang == "tur":
                     raise RuntimeError("Failed loading language 'tur'")
@@ -217,7 +217,7 @@ class _Status:
     def __init__(self, host):
         self._host = host
 
-    def showMessage(self, msg, _ms=0):  # noqa: N802
+    def showMessage(self, msg, _ms=0):
         self._host._status.append(msg)
 
 
@@ -241,7 +241,7 @@ def _fake_worker_factory():
         def start(*a, **k):
             try:
                 result = target(*args, **kwargs)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 for cb in list(w.error_occurred._handlers):
                     cb(str(exc))
             else:
@@ -294,7 +294,7 @@ class DispatchTest(unittest.TestCase):
                 self._added.append(rec)
                 return True
 
-            def statusBar(self):  # noqa: N802
+            def statusBar(self):
                 return _Status(self)
 
             def _record_experience_event(self, *a, **k):
@@ -483,11 +483,11 @@ class RunOcrPdfTest(unittest.TestCase):
         png_bytes_path.unlink(missing_ok=True)
 
         class _FakePix:
-            def tobytes(self, fmt):  # noqa: ANN001
+            def tobytes(self, fmt):
                 return png_bytes
 
         class _FakePage:
-            def get_pixmap(self, dpi=200):  # noqa: ANN001
+            def get_pixmap(self, dpi=200):
                 return _FakePix()
 
         class _FakeDoc:
@@ -499,7 +499,7 @@ class RunOcrPdfTest(unittest.TestCase):
 
         class _FakeFitz:
             @staticmethod
-            def open(path):  # noqa: ANN001
+            def open(path):
                 return _FakeDoc()
 
         fake_tesseract = _FakeTesseract(text="pdf page text")

@@ -30,9 +30,9 @@ ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "tool"))
 sys.path.insert(0, str(ROOT / "tool" / "gui"))
 
-from src.backend.course_adapter import CourseAdapter  # noqa: E402
-from src.backend.teacher_view_model import is_answerable  # noqa: E402
-from src.backend.lesson_content import build_intro_lesson  # noqa: E402
+from src.backend.course_adapter import CourseAdapter
+from src.backend.teacher_view_model import is_answerable
+from src.backend.lesson_content import build_intro_lesson
 
 _CLI = ROOT / "tool" / "course_cli.py"
 

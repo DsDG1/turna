@@ -306,9 +306,8 @@ class FunctionalLessonWizard(QDialog):
         idx = sender.property("phase_idx")
         if idx is not None:
             phase = self._get_phase_by_idx(int(idx))
-            if phase is not None:
-                if "audioAsset" in phase or text:
-                    phase["audioAsset"] = text
+            if phase is not None and ("audioAsset" in phase or text):
+                phase["audioAsset"] = text
 
     def _on_phase_transcript_changed(self) -> None:
         sender = self.sender()

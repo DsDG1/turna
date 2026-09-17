@@ -97,7 +97,7 @@ class AttachmentPreviewDialog(QDialog):
         if not image_url.startswith("data:"):
             return None
         try:
-            header, encoded = image_url.split(",", 1)
+            _header, encoded = image_url.split(",", 1)
             data = base64.b64decode(encoded)
             pixmap = QPixmap()
             pixmap.loadFromData(data)

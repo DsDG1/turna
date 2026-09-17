@@ -66,10 +66,9 @@ class _DragDropFilter(QObject):
                 self._drag_start = None
                 drag.exec(Qt.DropAction.MoveAction)
                 return True
-        if isinstance(event, QDragEnterEvent):
-            if event.mimeData().hasFormat(self._MIME_TYPE):
-                event.acceptProposedAction()
-                return True
+        if isinstance(event, QDragEnterEvent) and event.mimeData().hasFormat(self._MIME_TYPE):
+            event.acceptProposedAction()
+            return True
         if isinstance(event, QDropEvent):
             data = bytes(event.mimeData().data(self._MIME_TYPE)).decode("utf-8")
             parts = data.split(":", 1)

@@ -3,14 +3,14 @@ from __future__ import annotations
 
 import sys
 import unittest
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, UTC
 from pathlib import Path
 
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.experience.defer_store import (  # noqa: E402
+from src.backend.experience.defer_store import (
     COOLDOWN_BASE,
     MAX_DISMISS,
     STORE_CAP,
@@ -18,7 +18,7 @@ from src.backend.experience.defer_store import (  # noqa: E402
     DeferStore,
 )
 
-NOW = datetime(2026, 7, 24, 12, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 7, 24, 12, 0, tzinfo=UTC)
 
 
 class DeferStoreTest(unittest.TestCase):

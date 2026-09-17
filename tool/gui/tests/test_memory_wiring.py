@@ -22,16 +22,16 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.application.experience_window_bridge import (  # noqa: E402
+from src.application.experience_window_bridge import (
     apply_experience_memory_settings,
     record_experience_intent,
     sync_experience_attachments,
     sync_experience_memory,
     sync_usage_today,
 )
-from src.application.settings import Settings  # noqa: E402
-from src.backend.experience.memory import ExperienceMemory  # noqa: E402
-from tests._qsettings_mock import make_qsettings  # noqa: E402
+from src.application.settings import Settings
+from src.backend.experience.memory import ExperienceMemory
+from tests._qsettings_mock import make_qsettings
 
 
 class _StubShell:

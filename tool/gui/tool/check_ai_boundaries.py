@@ -82,9 +82,7 @@ def _is_ai_impl(path: Path) -> bool:
     rel = path.relative_to(_SRC).as_posix()
     if rel == "backend/ai_generator.py":
         return True
-    if rel.startswith("backend/ai/"):
-        return True
-    return False
+    return bool(rel.startswith("backend/ai/"))
 
 
 def scan_private_imports() -> list[tuple[str, int, str]]:
@@ -257,6 +255,41 @@ def count_broad_except() -> int:
     return total
 
 
+def count_silent_except_continue() -> int:
+    """Count broad ``except`` handlers whose body is a bare ``continue`` (AST).
+
+    Only flags broad catches (bare ``except:``, ``except Exception``,
+    ``except BaseException``, or a tuple containing one) — the same
+    silent-failure class as ``except: pass``. Narrow handlers like
+    ``except KeyError: continue`` are legitimate skip-malformed-item
+    idioms and are not counted.
+    """
+    def _is_broad(t: ast.expr | None) -> bool:
+        if t is None:
+            return True
+        names = (t.elts if isinstance(t, ast.Tuple) else [t])
+        return any(
+            isinstance(e, ast.Name) and e.id in ("Exception", "BaseException")
+            for e in names
+        )
+
+    total = 0
+    for path in _iter_py(_SRC):
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8", errors="replace"))
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.ExceptHandler)
+                and _is_broad(node.type)
+                and len(node.body) == 1
+                and isinstance(node.body[0], ast.Continue)
+            ):
+                total += 1
+    return total
+
+
 _HEX_COLOR = re.compile(r"#[0-9a-fA-F]{3,8}\b")
 _PALETTE_HINT = re.compile(
     r"_pal\(|current_palette|ai_color|palette\(|_chat_palette|palette\["
@@ -338,7 +371,8 @@ def scan_undeclared_host_access() -> list[tuple[str, int, str]]:
             continue
         seen: dict[str, tuple[int, str]] = {}
 
-        def _note(name: str, lineno: int, snippet: str) -> None:
+        def _note(name: str, lineno: int, snippet: str,
+                  seen: dict[str, tuple[int, str]] = seen) -> None:
             if name.startswith("_") and name not in declared:
                 seen.setdefault(name, (lineno, snippet))
 
@@ -362,7 +396,7 @@ def scan_undeclared_host_access() -> list[tuple[str, int, str]]:
             ):
                 _note(node.args[1].value, node.lineno,
                       f"{node.func.id}(host, \"{node.args[1].value}\")")
-        for name, (lineno, snippet) in sorted(seen.items()):
+        for _name, (lineno, snippet) in sorted(seen.items()):
             rel = path.relative_to(_GUI_ROOT).as_posix()
             hits.append((rel, lineno, snippet))
     return hits
@@ -422,6 +456,14 @@ def main(argv: list[str] | None = None) -> int:
         "(ratchet; baseline recorded in ai_refactor_contract.md)",
     )
     parser.add_argument(
+        "--max-except-continue",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Exit 1 if silent broad `except: continue` handler count in "
+        "src/ exceeds N (ratchet; current baseline 0 — log before skipping)",
+    )
+    parser.add_argument(
         "--max-hardcoded-style-hex",
         type=int,
         default=None,
@@ -447,6 +489,7 @@ def main(argv: list[str] | None = None) -> int:
     app_dialogs = scan_app_dialogs_imports()
     dialogs_pipeline = scan_dialogs_pipeline_imports()
     broad_except = count_broad_except()
+    except_continue = count_silent_except_continue()
     style_hex = count_hardcoded_style_hex()
 
     print("=== AI boundary scan ===")
@@ -476,6 +519,7 @@ def main(argv: list[str] | None = None) -> int:
     for rel, n, snip in host_drift:
         print(f"  HOST  {rel}:{n}: {snip}")
     print(f"silent except-pass handlers in src: {except_pass}")
+    print(f"silent except-continue handlers in src: {except_continue}")
     print(f"broad `except Exception` handlers in src: {broad_except}")
     print(f"inline setStyleSheet with hex + no palette: {style_hex}")
 
@@ -487,6 +531,7 @@ def main(argv: list[str] | None = None) -> int:
         f"backend_qt={len(backend_qt)} "
         f"app_dialogs={len(app_dialogs)} dialogs_pipeline={len(dialogs_pipeline)} "
         f"host_drift={len(host_drift)} except_pass={except_pass} "
+        f"except_continue={except_continue} "
         f"broad_except={broad_except} style_hex={style_hex}"
     )
 
@@ -510,6 +555,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.max_except_pass is not None and except_pass > args.max_except_pass:
         rc = 1
     if args.max_broad_except is not None and broad_except > args.max_broad_except:
+        rc = 1
+    if args.max_except_continue is not None and except_continue > args.max_except_continue:
         rc = 1
     if args.max_hardcoded_style_hex is not None and style_hex > args.max_hardcoded_style_hex:
         rc = 1

@@ -11,8 +11,8 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.application.settings import Settings  # noqa: E402
-from src.dialogs.generate_audio_dialog import GenerateAudioDialog  # noqa: E402
+from src.application.settings import Settings
+from src.dialogs.generate_audio_dialog import GenerateAudioDialog
 
 
 class GenerateAudioDialogTest(unittest.TestCase):

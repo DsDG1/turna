@@ -15,7 +15,7 @@ if str(_GUI) not in sys.path:
 
 from src.backend.textbook_project_store import TextbookProjectStore
 from src.dialogs.textbook_library_dialog import TextbookLibraryDialog
-from tests._qtapp import _App as _TestApp  # noqa: E402
+from tests._qtapp import _App as _TestApp
 
 
 class TextbookLibraryDialogTest(unittest.TestCase):

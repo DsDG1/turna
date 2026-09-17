@@ -18,10 +18,10 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from tests._qtapp import qt_app  # noqa: E402
+from tests._qtapp import qt_app
 
-from src.backend.experience.context_bus import ExperienceContext  # noqa: E402
-from src.backend.experience.proactive import (  # noqa: E402
+from src.backend.experience.context_bus import ExperienceContext
+from src.backend.experience.proactive import (
     AmbientProposal,
     evaluate_ambient,
     evaluate_ambient_batch,

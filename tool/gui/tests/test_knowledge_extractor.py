@@ -17,14 +17,14 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.knowledge_extractor import (  # noqa: E402
+from src.backend.knowledge_extractor import (
     _collect_errors,
     extract_knowledge_points,
     extract_knowledge_points_windowed,
     merge_window_knowledge,
     reextract_knowledge_targeted,
 )
-from src.backend.knowledge_prompt import (  # noqa: E402
+from src.backend.knowledge_prompt import (
     _MAX_CHAPTER_CHARS,
     KnowledgePromptLibrary,
     KnowledgePromptTemplates,
@@ -33,13 +33,13 @@ from src.backend.knowledge_prompt import (  # noqa: E402
     build_targeted_reextract_messages,
     _truncate_markdown,
 )
-from src.backend.knowledge_schema import coerce_knowledge_points  # noqa: E402
-from src.backend.extraction_quality import QualityIssue  # noqa: E402
-from src.backend.markdown_chopper import split_chapters  # noqa: E402
-from src.backend.ai_generator import AiApiConfig, AiCancelled  # noqa: E402
+from src.backend.knowledge_schema import coerce_knowledge_points
+from src.backend.extraction_quality import QualityIssue
+from src.backend.markdown_chopper import split_chapters
+from src.backend.ai_generator import AiApiConfig, AiCancelled
 
 
-def _chapter(title: str = "1 Merhaba", body: str = "merhaba means hello\n") -> "object":
+def _chapter(title: str = "1 Merhaba", body: str = "merhaba means hello\n") -> object:
     md = f"## {title}\n{body}"
     return split_chapters(md)[0]
 
@@ -335,15 +335,14 @@ class ExtractKnowledgePointsLoopTest(unittest.TestCase):
         with mock.patch(
             "src.backend.ai_generator.request_chat",
             return_value=self._body(bad),
-        ):
-            with self.assertRaises(RuntimeError) as ctx:
-                extract_knowledge_points(
-                    self._cfg(),
-                    "Turkish",
-                    "Chinese",
-                    _chapter(),
-                    max_retries=1,
-                )
+        ), self.assertRaises(RuntimeError) as ctx:
+            extract_knowledge_points(
+                self._cfg(),
+                "Turkish",
+                "Chinese",
+                _chapter(),
+                max_retries=1,
+            )
         self.assertIn("知识点抽取失败", str(ctx.exception))
 
     def test_vocab_only_strategy_clears_expressions_and_grammar(self) -> None:
@@ -505,7 +504,7 @@ class ExtractKnowledgePointsWindowedTest(unittest.TestCase):
     def _body(self, obj: dict) -> dict:
         return {"choices": [{"message": {"content": json.dumps(obj, ensure_ascii=False)}}]}
 
-    def _long_chapter(self) -> "object":
+    def _long_chapter(self) -> object:
         paras = [f"para{i} " + "x" * 50 for i in range(4)]
         return _chapter(body="\n\n".join(paras))
 
@@ -611,32 +610,30 @@ class ExtractKnowledgePointsWindowedTest(unittest.TestCase):
         with mock.patch(
             "src.backend.ai_generator.request_chat",
             side_effect=RuntimeError("boom"),
-        ):
-            with self.assertRaises(RuntimeError) as ctx:
-                extract_knowledge_points_windowed(
-                    self._cfg(),
-                    "Turkish",
-                    "Chinese",
-                    self._long_chapter(),
-                    max_window_chars=120,
-                    overlap_chars=0,
-                )
+        ), self.assertRaises(RuntimeError) as ctx:
+            extract_knowledge_points_windowed(
+                self._cfg(),
+                "Turkish",
+                "Chinese",
+                self._long_chapter(),
+                max_window_chars=120,
+                overlap_chars=0,
+            )
         self.assertIn("知识点抽取失败", str(ctx.exception))
 
     def test_cancel_propagates_immediately(self) -> None:
         with mock.patch(
             "src.backend.ai_generator.request_chat",
             side_effect=AiCancelled("用户取消了请求。"),
-        ):
-            with self.assertRaises(AiCancelled):
-                extract_knowledge_points_windowed(
-                    self._cfg(),
-                    "Turkish",
-                    "Chinese",
-                    self._long_chapter(),
-                    max_window_chars=120,
-                    overlap_chars=0,
-                )
+        ), self.assertRaises(AiCancelled):
+            extract_knowledge_points_windowed(
+                self._cfg(),
+                "Turkish",
+                "Chinese",
+                self._long_chapter(),
+                max_window_chars=120,
+                overlap_chars=0,
+            )
 
     def test_usage_callback_accumulates_across_windows(self) -> None:
         usages: list[dict[str, int]] = []
@@ -816,17 +813,16 @@ class ReextractKnowledgeTargetedTest(unittest.TestCase):
         with mock.patch(
             "src.backend.ai_generator.request_chat",
             return_value=self._body(bad),
-        ):
-            with self.assertRaises(RuntimeError) as ctx:
-                reextract_knowledge_targeted(
-                    self._cfg(),
-                    "Turkish",
-                    "Chinese",
-                    _chapter(),
-                    old,
-                    [_issue()],
-                    max_retries=1,
-                )
+        ), self.assertRaises(RuntimeError) as ctx:
+            reextract_knowledge_targeted(
+                self._cfg(),
+                "Turkish",
+                "Chinese",
+                _chapter(),
+                old,
+                [_issue()],
+                max_retries=1,
+            )
         self.assertIn("知识点抽取失败", str(ctx.exception))
 
 

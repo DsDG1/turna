@@ -13,7 +13,7 @@ Timeline 只记 action_id + ``truncate_reply``（≤80），不记截图/回复�
 """
 from __future__ import annotations
 
-from typing import Any, Tuple
+from typing import Any
 import logging
 logger = logging.getLogger(__name__)
 

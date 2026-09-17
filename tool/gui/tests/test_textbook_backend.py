@@ -13,11 +13,11 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.course_adapter import CourseAdapter  # noqa: E402
-from src.backend.knowledge_schema import coerce_knowledge_points  # noqa: E402
-from src.backend.lesson_content import slugify  # noqa: E402
-from src.backend.markdown_chopper import split_chapters  # noqa: E402
-from src.backend.textbook_to_course import build_section_from_chapter  # noqa: E402
+from src.backend.course_adapter import CourseAdapter
+from src.backend.knowledge_schema import coerce_knowledge_points
+from src.backend.lesson_content import slugify
+from src.backend.markdown_chopper import split_chapters
+from src.backend.textbook_to_course import build_section_from_chapter
 
 
 # --------------------------------------------------------------------------- #
@@ -164,13 +164,13 @@ class CoerceKnowledgePointsTest(unittest.TestCase):
 # --------------------------------------------------------------------------- #
 
 
-def _sample_chapter() -> "object":
+def _sample_chapter() -> object:
     md = "## 1 Merhaba\nmerhaba means hello\n"
     chs = split_chapters(md)
     return chs[0]
 
 
-def _sample_kp() -> "object":
+def _sample_kp() -> object:
     return coerce_knowledge_points(
         {
             "words": [

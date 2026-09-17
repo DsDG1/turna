@@ -20,7 +20,7 @@ from src.backend.knowledge_schema import coerce_knowledge_points
 from src.backend.markdown_chopper import split_chapters
 from src.backend.textbook_project import TextbookProject
 from src.dialogs.textbook_import_dialog import TextbookImportDialog
-from tests._qtapp import _App as _TestApp  # noqa: E402
+from tests._qtapp import _App as _TestApp
 
 
 class _FakeAdapter:

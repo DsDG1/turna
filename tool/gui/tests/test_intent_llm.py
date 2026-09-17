@@ -12,8 +12,8 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.application.settings import Settings  # noqa: E402
-from src.backend.experience.intent_llm import (  # noqa: E402
+from src.application.settings import Settings
+from src.backend.experience.intent_llm import (
     LLM_INTENT_MIN_CONFIDENCE,
     allowed_action_ids,
     build_classify_messages,
@@ -21,7 +21,7 @@ from src.backend.experience.intent_llm import (  # noqa: E402
     is_llm_intent_enabled,
     parse_classify_response,
 )
-from src.backend.experience.policy import resolve_policy  # noqa: E402
+from src.backend.experience.policy import resolve_policy
 
 
 class AllowedIdsTest(unittest.TestCase):

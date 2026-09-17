@@ -209,8 +209,16 @@ QT_QPA_PLATFORM=offscreen python3 tool/gui/run_gui_tests.py fast
 python3 tool/gui/tool/check_ai_boundaries.py \
   --fail-private --fail-dialogs-app --fail-backend-app \
   --fail-backend-ui --fail-backend-qt --fail-undeclared-host-access \
-  --fail-dialogs-pipeline --max-except-pass 0 \n  --max-broad-except 836 --max-hardcoded-style-hex 29
+  --fail-dialogs-pipeline --max-except-pass 0 \
+  --max-except-continue 0 \
+  --max-broad-except 836 --max-hardcoded-style-hex 29
 ```
+
+（2026-10 补记：新增 `--max-except-continue` 棘轮——AST 检测 body 仅为
+`continue` 的**宽泛** except 处理器（bare / `Exception` / `BaseException`）；
+`except KeyError: continue` 等窄捕获跳过坏条目属惯用写法不计入。存量 19 处
+S112 已补 `logger.debug(..., exc_info=True)` 清零。同时修正上方命令中错误的
+`\n` 换行字面量。）
 
 ## 10. 管线入口收拢与 app→dialogs 棘轮（2026-09-06）
 

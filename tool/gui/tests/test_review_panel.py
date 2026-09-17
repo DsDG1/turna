@@ -13,16 +13,16 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
-from tests._course_samples import sample_section  # noqa: E402
+from tests._course_samples import sample_section
 
-from PySide6.QtWidgets import QMessageBox  # noqa: E402
+from PySide6.QtWidgets import QMessageBox
 
-from src.backend.ai_generator import AiApiConfig  # noqa: E402
-from src.backend.textbook_project_store import TextbookProjectStore  # noqa: E402
-from src.dialogs.ai.design_controller import DesignController  # noqa: E402
-from src.dialogs.ai.design_panel import DesignPanel  # noqa: E402
-from src.dialogs.ai.review_panel import ReviewPanel  # noqa: E402
-from tests._qtapp import _App  # noqa: E402
+from src.backend.ai_generator import AiApiConfig
+from src.backend.textbook_project_store import TextbookProjectStore
+from src.dialogs.ai.design_controller import DesignController
+from src.dialogs.ai.design_panel import DesignPanel
+from src.dialogs.ai.review_panel import ReviewPanel
+from tests._qtapp import _App
 
 
 class ReviewPanelTest(unittest.TestCase):

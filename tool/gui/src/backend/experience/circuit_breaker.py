@@ -10,7 +10,7 @@ from enum import Enum
 import logging
 from threading import Lock
 import time
-from typing import Any, Deque
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -57,14 +57,16 @@ class CircuitBreaker:
 
     def _check_half_open_transition(self, now: float) -> None:
         """Helper inside lock: if OPEN and timeout elapsed, transition to HALF_OPEN."""
-        if self._state == CircuitState.OPEN:
-            if now - self._last_failure_time >= self._reset_timeout:
-                self._state = CircuitState.HALF_OPEN
-                self._last_state_change = now
-                logger.info(
-                    "CircuitBreaker transitioned to HALF_OPEN after %.1fs cooling period",
-                    self._reset_timeout,
-                )
+        if (
+            self._state == CircuitState.OPEN
+            and now - self._last_failure_time >= self._reset_timeout
+        ):
+            self._state = CircuitState.HALF_OPEN
+            self._last_state_change = now
+            logger.info(
+                "CircuitBreaker transitioned to HALF_OPEN after %.1fs cooling period",
+                self._reset_timeout,
+            )
 
     def can_auto_dispatch(self, action_id: str = "") -> tuple[bool, str]:
         """Check if an action may proceed with auto-apply.

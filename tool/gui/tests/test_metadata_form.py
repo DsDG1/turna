@@ -15,12 +15,12 @@ from pathlib import Path
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
-from tests._qtapp import qt_app  # noqa: E402
+from tests._qtapp import qt_app
 
-from PySide6.QtGui import QUndoStack  # noqa: E402
+from PySide6.QtGui import QUndoStack
 
-from src.backend.course_adapter import CourseAdapter  # noqa: E402
-from src.widgets.metadata_form import MetadataForm  # noqa: E402
+from src.backend.course_adapter import CourseAdapter
+from src.widgets.metadata_form import MetadataForm
 
 
 def _make_adapter() -> tuple[CourseAdapter, dict]:

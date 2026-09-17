@@ -403,7 +403,7 @@ class AppendLessonsToUnitCommand(_ResourceMergeMixin, QUndoCommand):
         super().__init__("添加 Lesson（工坊导入）")
         self.adapter = adapter
         self.unit_id = unit_id
-        self.lessons = [deepcopy(l) for l in lessons]
+        self.lessons = [deepcopy(lesson) for lesson in lessons]
         self.resource_section = deepcopy(resource_section) if resource_section else None
         self.appended_ids: list[str] = []
         self.signals = _make_changed()

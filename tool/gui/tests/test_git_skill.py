@@ -12,17 +12,17 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.experience.actions import (  # noqa: E402
+from src.backend.experience.actions import (
     DANGEROUS_ACTION_IDS,
     get_action,
 )
-from src.backend.experience.git_skill import (  # noqa: E402
+from src.backend.experience.git_skill import (
     build_commit_message_messages,
     build_explain_diff_messages,
     gather_diff_text,
     run_git_skill,
 )
-from src.backend.experience.intent_router import route_intent  # noqa: E402
+from src.backend.experience.intent_router import route_intent
 
 
 class MessageBuilderTest(unittest.TestCase):
@@ -181,7 +181,7 @@ def _fake_worker_factory(captured: dict):
         def start(*a, **k):
             try:
                 result = target(*args, **kwargs)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 for cb in list(w.error_occurred._handlers):
                     cb(str(exc))
             else:
@@ -199,7 +199,7 @@ class _Status:
     def __init__(self, host):
         self._host = host
 
-    def showMessage(self, msg, _ms=0):  # noqa: N802
+    def showMessage(self, msg, _ms=0):
         self._host._status.append(msg)
 
 
@@ -228,7 +228,7 @@ class GitSkillDispatchTest(unittest.TestCase):
                 self._shown: list = []
                 self._git_results: list[str] = []
 
-            def statusBar(self):  # noqa: N802
+            def statusBar(self):
                 return _Status(self)
 
             def _record_experience_event(self, *a, **k):

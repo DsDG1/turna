@@ -17,7 +17,7 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from tests._qtapp import qt_app  # noqa: E402
+from tests._qtapp import qt_app
 
 
 class _FakeWorker(QObject):
@@ -35,13 +35,13 @@ class _FakeWorker(QObject):
         self._kwargs = kwargs
         self._cancelled = False
 
-    def cancel(self) -> None:  # noqa: D401
+    def cancel(self) -> None:
         self._cancelled = True
 
-    def isRunning(self) -> bool:  # noqa: N802
+    def isRunning(self) -> bool:
         return False
 
-    def start(self, *args, **kwargs) -> None:  # noqa: D401
+    def start(self, *args, **kwargs) -> None:
         # No real thread; the test drives signals manually.
         pass
 

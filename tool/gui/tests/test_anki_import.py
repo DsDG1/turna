@@ -23,7 +23,7 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.anki_import import (  # noqa: E402
+from src.backend.anki_import import (
     AnkiCard,
     AnkiCollection,
     AnkiDeck,
@@ -33,7 +33,7 @@ from src.backend.anki_import import (  # noqa: E402
     convert_to_section_json,
     parse_apkg,
 )
-from src.backend.lesson_content import normalize_item  # noqa: E402
+from src.backend.lesson_content import normalize_item
 
 FIELD_SEPARATOR = "\x1f"
 

@@ -10,8 +10,8 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.application.commands import ApplySectionPatchCommand  # noqa: E402
-from src.backend.experience.patch import (  # noqa: E402
+from src.application.commands import ApplySectionPatchCommand
+from src.backend.experience.patch import (
     PatchError,
     section_patch_from_replace,
 )

@@ -11,7 +11,7 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.application.selection_hub import (  # noqa: E402
+from src.application.selection_hub import (
     apply_teacher_item_focus,
     apply_tree_selection,
     sync_focus,

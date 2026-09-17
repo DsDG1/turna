@@ -174,7 +174,7 @@ def score_section_hygiene(
     units = [u for u in (section.get("units") or []) if isinstance(u, dict)]
     lessons = 0
     for u in units:
-        lessons += sum(1 for l in (u.get("lessons") or []) if isinstance(l, dict))
+        lessons += sum(1 for lesson in (u.get("lessons") or []) if isinstance(lesson, dict))
 
     cov = draft_coverage(section, resource_pool)
     placeholder_count = count_placeholders(section)
@@ -211,5 +211,5 @@ def format_hygiene_line(metrics: dict[str, Any]) -> str:
         f"lessons={metrics.get('lesson_count', 0)}",
     ]
     if metrics.get("coverage_ratio"):
-        parts.append(f"pool={int(round(float(metrics['coverage_ratio']) * 100))}%")
+        parts.append(f"pool={round(float(metrics['coverage_ratio']) * 100)}%")
     return " · ".join(parts)

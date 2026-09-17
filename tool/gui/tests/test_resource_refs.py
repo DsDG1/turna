@@ -10,11 +10,11 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.experience.patch import (  # noqa: E402
+from src.backend.experience.patch import (
     apply_resolved_batch,
     revert_resolved_batch,
 )
-from src.backend.experience.resource_refs import (  # noqa: E402
+from src.backend.experience.resource_refs import (
     build_replacement_steps,
     find_replacement_candidates,
     find_resource_refs,

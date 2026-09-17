@@ -87,7 +87,7 @@ def compute_import_previews(
     plans = plan_bulk_import(sections, adapter, strategy)
 
     previews: list[SectionImportPreview] = []
-    for (chapter_index, section), plan in zip(built_sections, plans):
+    for (chapter_index, _section), plan in zip(built_sections, plans):
         cr = chapters[chapter_index]
         kp = cr.knowledge
         words = len(kp.words) if kp else 0

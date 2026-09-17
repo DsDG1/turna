@@ -15,14 +15,14 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from PySide6.QtCore import QEvent, Qt  # noqa: E402
-from PySide6.QtGui import QMouseEvent  # noqa: E402
-from PySide6.QtWidgets import QLineEdit, QPushButton  # noqa: E402
+from PySide6.QtCore import QEvent, Qt
+from PySide6.QtGui import QMouseEvent
+from PySide6.QtWidgets import QLineEdit, QPushButton
 
-from src.infrastructure import user_action_filter as uaf_mod  # noqa: E402
-from src.infrastructure import operations_log  # noqa: E402
-from src.infrastructure.telemetry import Telemetry  # noqa: E402
-from tests._qtapp import _App  # noqa: E402
+from src.infrastructure import user_action_filter as uaf_mod
+from src.infrastructure import operations_log
+from src.infrastructure.telemetry import Telemetry
+from tests._qtapp import _App
 
 
 class UserActionFilterTest(unittest.TestCase):
@@ -100,7 +100,7 @@ class UserActionFilterTest(unittest.TestCase):
         flt = uaf_mod.UserActionFilter(app)
         # A non-widget object passed to MouseButtonPress must not raise.
         class Bad:
-            def text(self):  # noqa: D401
+            def text(self):
                 raise RuntimeError("boom")
 
         result = flt.eventFilter(Bad(), QEvent(QEvent.Type.MouseButtonPress))

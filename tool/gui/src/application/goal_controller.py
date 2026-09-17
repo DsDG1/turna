@@ -533,6 +533,7 @@ def apply_sandbox_lessons_to_host(host: ExperienceHost, merge_plan: Any) -> int:
         try:
             _section, _unit, old_lesson = adapter.find_lesson(lid)
         except Exception:
+            logger.debug("goal_controller: find_lesson skip lid=%s", lid, exc_info=True)
             continue
         try:
             new_lesson = force_lesson_id(payload, lid)
@@ -543,6 +544,7 @@ def apply_sandbox_lessons_to_host(host: ExperienceHost, merge_plan: Any) -> int:
             )
             patches.append(patch)
         except Exception:
+            logger.debug("goal_controller: build lesson patch skip lid=%s", lid, exc_info=True)
             continue
     if not patches:
         return 0
@@ -638,6 +640,7 @@ def apply_merge_plan_on_host(host: ExperienceHost, merge_plan: Any) -> int:
             )
             n += 1
         except Exception:
+            logger.debug("goal_controller: suggest skip action_id=%s", aid, exc_info=True)
             continue
     return n
 
@@ -775,6 +778,7 @@ def show_batch_diff_for_merge(host: ExperienceHost, merge_plan: Any) -> bool:
             try:
                 section = adapter.find_section(sid)
             except Exception:
+                logger.debug("goal_controller: find_section skip sid=%s", sid, exc_info=True)
                 continue
             before = copy.deepcopy(section)
             after = copy.deepcopy(section)
@@ -885,7 +889,7 @@ def experience_goal_run(host: ExperienceHost, scope: Mapping[str, Any] | None = 
 
     def _start_sandbox() -> None:
         try:
-            box, mp, err = run_sandbox_real_fill_for_host(
+            _box, _mp, err = run_sandbox_real_fill_for_host(
                 host, plan, on_complete=_after_sandbox
             )
         except Exception as exc:

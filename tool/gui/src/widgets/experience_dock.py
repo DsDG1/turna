@@ -81,10 +81,9 @@ def _metrics_line(metrics: dict | None) -> str:
     parts: list[str] = []
     ir = metrics.get("interception_rate")
     if isinstance(ir, (int, float)):
-        parts.append(f"意图拦截 {int(round(ir * 100))}%")
+        parts.append(f"意图拦截 {round(ir * 100)}%")
     totals = metrics.get("suggestion_totals") or {}
     if isinstance(totals, dict):
-        shown = int(totals.get("shown", 0) or 0)
         applied = int(totals.get("applied", 0) or 0)
         accepted = int(totals.get("accepted", 0) or 0)
         if accepted or applied:

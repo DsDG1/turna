@@ -20,12 +20,12 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.experience.actions import (  # noqa: E402
+from src.backend.experience.actions import (
     DANGEROUS_ACTION_IDS,
     get_action,
 )
-from src.backend.experience.intent_router import match_commands, route_intent  # noqa: E402
-from src.backend.experience.resource_stub_select import (  # noqa: E402
+from src.backend.experience.intent_router import match_commands, route_intent
+from src.backend.experience.resource_stub_select import (
     ACTION_ID,
     is_stub_grammar_entry,
     is_stub_vocab_entry,
@@ -119,7 +119,7 @@ class _Status:
     def __init__(self, host):
         self._host = host
 
-    def showMessage(self, msg, _ms=0):  # noqa: N802
+    def showMessage(self, msg, _ms=0):
         self._host._status.append(msg)
 
 
@@ -143,7 +143,7 @@ def _fake_worker_factory():
         def start(*a, **k):
             try:
                 result = target(*args, **kwargs)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 for cb in list(w.error_occurred._handlers):
                     cb(str(exc))
             else:
@@ -179,7 +179,7 @@ class FillStubsBatchHandlerTest(unittest.TestCase):
                 self._deny = False
                 self._make_ai_worker = _fake_worker_factory()
 
-            def statusBar(self):  # noqa: N802
+            def statusBar(self):
                 return _Status(self)
 
             def _record_experience_event(self, *a, **k):

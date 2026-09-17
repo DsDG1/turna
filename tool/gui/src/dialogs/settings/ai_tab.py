@@ -89,7 +89,7 @@ def build_ai_tab(dlg) -> QWidget:
     layout.addWidget(params_group)
 
     # --- 第三枪 批次①: Advanced AI options (collapsible) ---
-    adv_group, adv_form = dlg._build_ai_advanced_group()
+    adv_group, _adv_form = dlg._build_ai_advanced_group()
     layout.addWidget(adv_group)
 
     test_group = QGroupBox("连接测试")

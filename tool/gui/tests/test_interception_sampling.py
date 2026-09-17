@@ -18,9 +18,9 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.experience import ExperienceMetrics  # noqa: E402
-from src.backend.experience.metrics import aggregate_interception_rate  # noqa: E402
-from src.infrastructure.telemetry import Telemetry  # noqa: E402
+from src.backend.experience import ExperienceMetrics
+from src.backend.experience.metrics import aggregate_interception_rate
+from src.infrastructure.telemetry import Telemetry
 
 
 def _metrics_with(resolved: int, fell: int) -> dict:

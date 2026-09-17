@@ -22,13 +22,13 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.experience.goal_generate import (  # noqa: E402
+from src.backend.experience.goal_generate import (
     is_lesson_payload_mergeable,
     payload_summary,
 )
-from src.backend.experience.sandbox import CourseSandbox  # noqa: E402
-from src.backend.experience.planner import plan_from_context  # noqa: E402
-from src.application.goal_controller import (  # noqa: E402
+from src.backend.experience.sandbox import CourseSandbox
+from src.backend.experience.planner import plan_from_context
+from src.application.goal_controller import (
     _collect_fill_lesson_ids,
     apply_merge_plan_on_host,
     apply_sandbox_lessons_to_host,
@@ -129,7 +129,7 @@ def _fake_worker_factory():
         def start(*args: Any, **kwargs: Any) -> None:
             try:
                 result = target()
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 for cb in list(w.error_occurred._handlers):
                     cb(str(exc))
             else:

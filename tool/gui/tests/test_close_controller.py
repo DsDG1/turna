@@ -11,7 +11,7 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.application.close_controller import (  # noqa: E402
+from src.application.close_controller import (
     clear_ai_key_on_exit,
     handle_close_event,
 )

@@ -49,9 +49,7 @@ class GitHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
 
     def _client_allowed(self) -> bool:
         allow_ips = getattr(self.server, "allow_ips", [])
-        if allow_ips and self.client_address[0] not in allow_ips:
-            return False
-        return True
+        return not allow_ips or self.client_address[0] in allow_ips
 
     def _auth_ok(self) -> bool:
         auth_token = getattr(self.server, "auth_token", "")
@@ -139,8 +137,8 @@ class GitHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
                 self._record_peer()
                 # Write service header packet line
                 service_line = f"# service={service}\n"
-                l = len(service_line) + 4
-                header = f"{l:04x}{service_line}0000".encode()
+                line_len = len(service_line) + 4
+                header = f"{line_len:04x}{service_line}0000".encode()
 
                 # Run git command
                 git_cmd = service.replace("git-", "")
@@ -276,7 +274,7 @@ class GitServerThread(threading.Thread):
     def __init__(
         self,
         repo_path: Path,
-        host: str = "0.0.0.0",
+        host: str = "127.0.0.1",
         port: int = 5000,
         auth_token: str = "",
         read_only: bool = False,
@@ -629,9 +627,9 @@ class GitLibrary:
         sep = "\x1f"
         cmd = ["log", "--pretty=format:%h%x1f%an%x1f%ad%x1f%s", "--date=short"]
         # @{1} may fail if no upstream; fall back to last 10.
-        proc = self._run(cmd + [ref], cwd=local_dir, check=False)
+        proc = self._run([*cmd, ref], cwd=local_dir, check=False)
         if proc.returncode != 0:
-            proc = self._run(cmd + ["-n", "10"], cwd=local_dir, check=False)
+            proc = self._run([*cmd, "-n", "10"], cwd=local_dir, check=False)
         commits = []
         if proc.stdout.strip():
             for line in proc.stdout.strip().split("\n"):
@@ -691,14 +689,13 @@ class GitLibrary:
             raise RuntimeError(f"非法语言代码：{lang_code!r}（只允许字母、数字、-、_）")
 
         target = Path(repo_root) / "assets" / "courses" / lang_code
-        if target.exists() and any(target.iterdir()):
-            if not overwrite:
-                file_count = sum(1 for _ in target.rglob("*") if _.is_file())
-                raise FileExistsError(
-                    f"目标目录已存在且非空：{target}（{file_count} 个文件）。"
-                    "请显式确认覆盖后再复制。"
-                )
-            # dirs_exist_ok=True merges/overwrites per-file below.
+        if target.exists() and any(target.iterdir()) and not overwrite:
+            file_count = sum(1 for _ in target.rglob("*") if _.is_file())
+            raise FileExistsError(
+                f"目标目录已存在且非空：{target}（{file_count} 个文件）。"
+                "请显式确认覆盖后再复制。"
+            )
+        # dirs_exist_ok=True merges/overwrites per-file below.
         target.mkdir(parents=True, exist_ok=True)
 
         def _ignore_git(directory: str, names: list[str]) -> list[str]:

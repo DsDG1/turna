@@ -9,8 +9,8 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.experience import get_action  # noqa: E402
-from src.backend.quality_campaign import build_campaign_items  # noqa: E402
+from src.backend.experience import get_action
+from src.backend.quality_campaign import build_campaign_items
 
 
 class BuildCampaignItemsTest(unittest.TestCase):

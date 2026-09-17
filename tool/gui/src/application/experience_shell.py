@@ -167,7 +167,7 @@ class ExperienceShell(QObject):
             ]
             return False
         # Cap at 3 pins (experienceai scope limit).
-        self._pinned = (self._pinned + [self._selection])[-3:]
+        self._pinned = [*self._pinned, self._selection][-3:]
         return True
 
     @staticmethod

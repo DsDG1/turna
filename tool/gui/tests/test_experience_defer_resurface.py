@@ -7,24 +7,24 @@ from __future__ import annotations
 
 import sys
 import unittest
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, UTC
 from pathlib import Path
 
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from tests._qtapp import qt_app  # noqa: E402
+from tests._qtapp import qt_app
 
-from src.backend.experience.context_bus import ExperienceContext  # noqa: E402
-from src.backend.experience.defer_store import DeferStore  # noqa: E402
-from src.backend.experience.proactive import (  # noqa: E402
+from src.backend.experience.context_bus import ExperienceContext
+from src.backend.experience.defer_store import DeferStore
+from src.backend.experience.proactive import (
     AmbientProposal,
     evaluate_ambient_batch,
     proposal_id_for,
 )
 
-NOW = datetime(2026, 7, 24, 12, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 7, 24, 12, 0, tzinfo=UTC)
 
 
 def _ctx(**kwargs) -> ExperienceContext:

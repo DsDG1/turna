@@ -19,7 +19,7 @@ if str(_GUI) not in sys.path:
 from PySide6.QtWidgets import QDialogButtonBox
 
 from src.widgets.publish_dialog import PublishDialog
-from tests._qtapp import _App  # noqa: E402
+from tests._qtapp import _App
 
 
 def _adapter_with_report(*, ok: bool = True, errors=None):

@@ -11,7 +11,7 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.application.save_pipeline import (  # noqa: E402
+from src.application.save_pipeline import (
     REASON_CLOSE_AUTO,
     REASON_MENU,
     REASON_PALETTE,

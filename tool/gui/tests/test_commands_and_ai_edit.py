@@ -16,11 +16,11 @@ from unittest.mock import patch
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
-from tests._course_fixture import copy_turkish_course  # noqa: E402
+from tests._course_fixture import copy_turkish_course
 
-from PySide6.QtGui import QUndoStack  # noqa: E402
+from PySide6.QtGui import QUndoStack
 
-from src.application.commands import (  # noqa: E402
+from src.application.commands import (
     AddItemCommand,
     AddListeningPhaseCommand,
     AddStageCommand,
@@ -61,13 +61,13 @@ from src.application.commands import (  # noqa: E402
     UpdateSectionPrereqsCommand,
     UpdateUnitMetaCommand,
 )
-from src.backend.ai_generator import (  # noqa: E402
+from src.backend.ai_generator import (
     AiApiConfig,
     AiCourseSpec,
     build_edit_prompt,
     generate_edit,
 )
-from src.backend.course_adapter import CourseAdapter  # noqa: E402
+from src.backend.course_adapter import CourseAdapter
 
 
 def _load_adapter(tmp: Path) -> CourseAdapter:
@@ -905,7 +905,7 @@ class MergeAiSectionCommandTest(unittest.TestCase):
     def tearDown(self) -> None:
         shutil.rmtree(self.tmp, ignore_errors=True)
 
-    def _make_plan(self, target_sid: str | None, incoming: dict) -> "SectionMergePlan":
+    def _make_plan(self, target_sid: str | None, incoming: dict) -> SectionMergePlan:
         from src.backend.course_adapter import SectionMergePlan
 
         return self.adapter.plan_section_merge(target_sid, incoming)

@@ -61,14 +61,6 @@ _LEVEL_SENTENCE_WORDS: dict[str, int] = {
     "B2": 30,
 }
 
-_MCQ_TYPES = frozenset(
-    {
-        InteractionType.MULTIPLE_CHOICE,
-        InteractionType.LISTEN_AND_PICK,
-        InteractionType.MULTI_SELECT,
-        "trueFalse",
-    }
-)
 _PRACTICE_TYPES = frozenset(
     {
         InteractionType.MULTIPLE_CHOICE,
@@ -241,7 +233,7 @@ def _iter_lessons(section: dict[str, Any]):
 
 
 def _iter_items_with_path(section: dict[str, Any]):
-    for unit, lesson in _iter_lessons(section):
+    for _unit, lesson in _iter_lessons(section):
         lid = str(lesson.get("id") or "?")
         content = lesson.get("content") or {}
         if not isinstance(content, dict):
@@ -441,10 +433,8 @@ def _score_balance(section: dict[str, Any], issues: list[ContentQualityIssue]) -
 def _score_distractor(section: dict[str, Any], issues: list[ContentQualityIssue]) -> float:
     mcq_items: list[tuple[dict[str, Any], dict[str, Any], str]] = []
     for lesson, item, path in _iter_items_with_path(section):
-        rt = str(item.get(ItemKey.RUNTIME_TYPE) or "")
-        if rt in _MCQ_TYPES or isinstance(item.get(ItemKey.OPTIONS), list):
-            if isinstance(item.get(ItemKey.OPTIONS), list) and len(item[ItemKey.OPTIONS]) >= 2:
-                mcq_items.append((lesson, item, path))
+        if isinstance(item.get(ItemKey.OPTIONS), list) and len(item[ItemKey.OPTIONS]) >= 2:
+            mcq_items.append((lesson, item, path))
 
     if not mcq_items:
         return 1.0
@@ -559,8 +549,8 @@ def _score_level_fit(
     long_hits = 0
     checked = 0
     for lesson, item, path in _iter_items_with_path(section):
-        for field in ("prompt", "source", "expected", "sentence", "text"):
-            val = item.get(field)
+        for fname in ("prompt", "source", "expected", "sentence", "text"):
+            val = item.get(fname)
             if not isinstance(val, str) or not val.strip():
                 continue
             checked += 1

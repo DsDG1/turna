@@ -10,13 +10,13 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.experience.workshop_draft import (  # noqa: E402
+from src.backend.experience.workshop_draft import (
     WORKSHOP_DRAFT_KEYS,
     build_workshop_draft,
     format_workshop_draft_line,
     normalize_workshop_draft,
 )
-from src.backend.experience import build_experience_context  # noqa: E402
+from src.backend.experience import build_experience_context
 
 
 class WorkshopDraftBuildTest(unittest.TestCase):

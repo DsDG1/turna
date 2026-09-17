@@ -605,11 +605,11 @@ def _existing_context_block(existing_section: dict[str, Any]) -> str:
         if not isinstance(u, dict):
             continue
         lines.append(f"  - unit id={u.get('id', '')} name={u.get('name', '')}")
-        for l in u.get("lessons") or []:
-            if isinstance(l, dict):
+        for lesson in u.get("lessons") or []:
+            if isinstance(lesson, dict):
                 lines.append(
-                    f"      • lesson id={l.get('id', '')} "
-                    f"name={l.get('name', '')} template={l.get('template', '')}"
+                    f"      • lesson id={lesson.get('id', '')} "
+                    f"name={lesson.get('name', '')} template={lesson.get('template', '')}"
                 )
     words = existing_section.get("words") or []
     if words:

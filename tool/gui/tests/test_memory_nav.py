@@ -16,9 +16,9 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from PySide6.QtWidgets import QApplication, QMessageBox  # noqa: E402
+from PySide6.QtWidgets import QApplication, QMessageBox
 
-from src.application.experience_handlers.memory_nav import (  # noqa: E402
+from src.application.experience_handlers.memory_nav import (
     _experience_clear_author,
 )
 

@@ -369,20 +369,15 @@ class ResourceReviewTable(QWidget):
 
     def _row_matches(self, row: ResourceRow) -> bool:
         """Whether a row passes the chapter/tag/search filters."""
-        if self._chapter_filter is not None:
-            if row.chapter_index != self._chapter_filter:
-                return False
-        if self._tag_filter:
-            if self._tag_filter not in (row.entry.get("tags") or []):
-                return False
-        if self._search_text:
-            if not (
-                self._search_text in row.display_term().lower()
-                or self._search_text in row.display_translation().lower()
-                or self._search_text in row.display_tags().lower()
-            ):
-                return False
-        return True
+        if self._chapter_filter is not None and row.chapter_index != self._chapter_filter:
+            return False
+        if self._tag_filter and self._tag_filter not in (row.entry.get("tags") or []):
+            return False
+        return not self._search_text or (
+            self._search_text in row.display_term().lower()
+            or self._search_text in row.display_translation().lower()
+            or self._search_text in row.display_tags().lower()
+        )
 
     def _visible_rows(self) -> list[ResourceRow]:
         return [r for r in self._model.rows if self._row_matches(r)]

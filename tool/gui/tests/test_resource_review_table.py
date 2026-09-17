@@ -12,7 +12,7 @@ if str(_GUI) not in sys.path:
 
 from src.backend.extraction_quality import QualityIssue
 from src.widgets.resource_review_table import ResourceReviewTable, ResourceRow
-from tests._qtapp import _App as _TestApp  # noqa: E402
+from tests._qtapp import _App as _TestApp
 
 
 class ResourceReviewTableTest(unittest.TestCase):

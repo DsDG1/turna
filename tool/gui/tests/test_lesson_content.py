@@ -9,8 +9,8 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend import api  # noqa: E402
-from src.backend.lesson_content import (  # noqa: E402
+from src.backend import api
+from src.backend.lesson_content import (
     ALLOWED_RUNTIME_TYPES,
     INTERACTION_SCHEMA,
     add_item,

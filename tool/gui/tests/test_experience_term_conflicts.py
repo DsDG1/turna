@@ -16,12 +16,12 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.experience.actions import (  # noqa: E402
+from src.backend.experience.actions import (
     DANGEROUS_ACTION_IDS,
     get_action,
 )
-from src.backend.experience.intent_router import match_commands, route_intent  # noqa: E402
-from src.backend.experience.term_conflict_skill import (  # noqa: E402
+from src.backend.experience.intent_router import match_commands, route_intent
+from src.backend.experience.term_conflict_skill import (
     ACTION_ID,
     build_term_conflict_messages,
     evaluate_term_conflicts,
@@ -149,7 +149,7 @@ class _Status:
     def __init__(self, host):
         self._host = host
 
-    def showMessage(self, msg, _ms=0):  # noqa: N802
+    def showMessage(self, msg, _ms=0):
         self._host._status.append(msg)
 
 
@@ -164,7 +164,7 @@ def _make_host(vocab, expressions):
             self._status: list[str] = []
             self._events: list = []
 
-        def statusBar(self):  # noqa: N802
+        def statusBar(self):
             return _Status(self)
 
         def _record_experience_event(self, *a, **k):

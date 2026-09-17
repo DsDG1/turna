@@ -9,7 +9,7 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.experience.conflict_guard import ConflictGuard, node_key  # noqa: E402
+from src.backend.experience.conflict_guard import ConflictGuard, node_key
 
 
 class ConflictGuardTest(unittest.TestCase):

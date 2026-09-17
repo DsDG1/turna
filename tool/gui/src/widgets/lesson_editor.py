@@ -123,7 +123,7 @@ class ItemListPanel(QWidget):
         if not self.stage:
             return
         rt = self.add_combo.currentData()
-        item = add_item(self.stage, rt)
+        add_item(self.stage, rt)
         self._refresh()
         self.list_widget.setCurrentRow(len(self.stage["items"]) - 1)
 
@@ -145,6 +145,7 @@ class SubLessonTreeEditor(QWidget):
         super().__init__()
         self.adapter = adapter
         self.lesson = lesson
+        self._current_sub: dict[str, Any] | None = None
         content = lesson.setdefault("content", {})
         allowed = allowed_content_keys(lesson.get("template", "legacy"))
         if ContentKey.SUB_LESSONS in allowed:
@@ -205,8 +206,7 @@ class SubLessonTreeEditor(QWidget):
             self.stage_list.setCurrentRow(0)
 
     def _on_stage_select(self, row: int) -> None:
-        subs = self.lesson["content"].get(ContentKey.SUB_LESSONS, [])
-        stages = self._current_sub.get(ContentKey.STAGES, []) if hasattr(self, "_current_sub") else []
+        stages = self._current_sub.get(ContentKey.STAGES, []) if self._current_sub else []
         if row < 0 or row >= len(stages):
             return
         self.item_panel.show_stage(stages[row])
@@ -217,14 +217,14 @@ class SubLessonTreeEditor(QWidget):
         self._refresh_stages(self._current_sub)
 
     def _add_sub(self) -> None:
-        sub = add_sub_lesson(self.lesson["content"])
+        add_sub_lesson(self.lesson["content"])
         self._refresh_subs()
         self.sub_list.setCurrentRow(len(self.lesson["content"][ContentKey.SUB_LESSONS]) - 1)
 
     def _add_stage(self) -> None:
-        if not hasattr(self, "_current_sub") or not self._current_sub:
+        if not self._current_sub:
             return
-        stage = add_stage(self._current_sub)
+        add_stage(self._current_sub)
         self._refresh_stages(self._current_sub)
         self.stage_list.setCurrentRow(len(self._current_sub[ContentKey.STAGES]) - 1)
 
@@ -356,7 +356,7 @@ class ListeningPhasesEditor(QWidget):
 
     def _on_add_phase(self) -> None:
         pt = self.phase_type_combo.currentData()
-        phase = add_listening_phase(self.lesson, pt, f"New {pt}")
+        add_listening_phase(self.lesson, pt, f"New {pt}")
         self._refresh()
         self.phase_list.setCurrentRow(len(self.lesson["content"]["listeningPhases"]) - 1)
 

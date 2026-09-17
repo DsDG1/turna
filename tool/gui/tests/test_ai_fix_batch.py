@@ -9,12 +9,12 @@ _GUI_ROOT = Path(__file__).resolve().parents[1]
 if str(_GUI_ROOT) not in sys.path:
     sys.path.insert(0, str(_GUI_ROOT))
 
-from src.backend.ai_fix_batch import (  # noqa: E402
+from src.backend.ai_fix_batch import (
     FixBatch,
     group_problems_for_fix,
     selected_problems_with_refs,
 )
-from src.backend.ai_presets_ui import EDIT_PRESETS, EDIT_PRESET_LABELS  # noqa: E402
+from src.backend.ai_presets_ui import EDIT_PRESETS, EDIT_PRESET_LABELS
 
 
 class GroupProblemsForFixTest(unittest.TestCase):

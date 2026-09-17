@@ -10,12 +10,12 @@ _GUI_ROOT = Path(__file__).resolve().parents[1]
 if str(_GUI_ROOT) not in sys.path:
     sys.path.insert(0, str(_GUI_ROOT))
 
-from src.backend.ai_summary import (  # noqa: E402
+from src.backend.ai_summary import (
     build_generation_summary,
     format_ai_status_line,
     format_summary_card,
 )
-from src.backend.content_quality import (  # noqa: E402
+from src.backend.content_quality import (
     build_quality_fix_hint_for_dimension,
     issues_for_dimension,
     score_section,

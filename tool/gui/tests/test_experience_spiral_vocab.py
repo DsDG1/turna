@@ -14,7 +14,7 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from tests._qtapp import qt_app  # noqa: E402
+from tests._qtapp import qt_app
 
 
 def _section(*, sid: str = "s1", units: list[dict] | None = None,
@@ -168,7 +168,7 @@ class _Signal:
 
 
 class _FakeWorker:
-    last: "_FakeWorker | None" = None
+    last: _FakeWorker | None = None
 
     def __init__(self, fn, *a, **k) -> None:
         self.fn = fn

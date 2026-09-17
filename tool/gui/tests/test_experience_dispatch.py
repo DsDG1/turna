@@ -10,12 +10,12 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.application.experience_dispatch import (  # noqa: E402
+from src.application.experience_dispatch import (
     HANDLER_OPTIONAL_ACTIONS,
     HANDLERS,
     dispatch_experience_action,
 )
-from src.backend.experience.actions import ACTIONS  # noqa: E402
+from src.backend.experience.actions import ACTIONS
 
 
 class HandlerRegistryCoverageTest(unittest.TestCase):

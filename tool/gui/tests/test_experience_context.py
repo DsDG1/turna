@@ -10,13 +10,13 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.experience import (  # noqa: E402
+from src.backend.experience import (
     ExperienceContext,
     NodeRef,
     build_experience_context,
     local_suggestions,
 )
-from src.backend.experience.context_bus import _problem_level  # noqa: E402
+from src.backend.experience.context_bus import _problem_level
 
 
 # ---------------------------------------------------------------------------

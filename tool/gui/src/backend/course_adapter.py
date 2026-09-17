@@ -224,7 +224,6 @@ class CourseAdapter:
             # Validate: the cached (section, unit) must still be wired into
             # self.sections. Commands that move lessons/units mutate lists
             # in place, so a stale cache can point at a detached unit dict.
-            lessons = unit.get("lessons")
             if any(section is s for s in self.sections) and any(unit is u for u in (section.get("units") or [])):
                 return section, unit
             # Stale — drop and fall through to rescan.
@@ -244,7 +243,7 @@ class CourseAdapter:
             if (
                 any(section is s for s in self.sections)
                 and any(unit is u for u in (section.get("units") or []))
-                and any(lesson is l for l in (unit.get("lessons") or []))
+                and any(lesson is cand for cand in (unit.get("lessons") or []))
             ):
                 return section, unit, lesson
             self._lesson_index.pop(lesson_id, None)
@@ -345,8 +344,8 @@ class CourseAdapter:
 
     def lesson_prereq_options(self, unit_id: str, exclude_id: str) -> list[tuple[str, str]]:
         _section, unit = self.find_unit(unit_id)
-        return [(l["id"], f"{l.get('name', l['id'])} ({l['id']})")
-                for l in unit.get("lessons", []) if l.get("id") != exclude_id]
+        return [(lesson["id"], f"{lesson.get('name', lesson['id'])} ({lesson['id']})")
+                for lesson in unit.get("lessons", []) if lesson.get("id") != exclude_id]
 
     def new_lesson(self, unit_id: str, template: str) -> str:
         from src.backend.lesson_content import new_lesson_from_template

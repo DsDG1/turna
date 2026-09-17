@@ -91,9 +91,8 @@ def _detect_focus_actions(goal_text: str) -> list[str] | None:
         return None
     hits: list[str] = []
     for words, aid in _GOAL_KEYWORDS:
-        if any(w in t for w in words):
-            if aid not in hits:
-                hits.append(aid)
+        if any(w in t for w in words) and aid not in hits:
+            hits.append(aid)
     return hits or None
 
 

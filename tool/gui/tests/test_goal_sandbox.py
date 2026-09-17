@@ -12,17 +12,17 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from src.backend.experience.planner import plan_from_context  # noqa: E402
-from src.backend.experience.sandbox import (  # noqa: E402
+from src.backend.experience.planner import plan_from_context
+from src.backend.experience.sandbox import (
     CourseSandbox,
     adapter_lesson_fingerprint,
 )
-from src.backend.experience.policy import (  # noqa: E402
+from src.backend.experience.policy import (
     can_dispatch,
     resolve_policy,
 )
-from src.backend.experience.actions import get_action  # noqa: E402
-from src.application.settings import Settings  # noqa: E402
+from src.backend.experience.actions import get_action
+from src.application.settings import Settings
 
 
 def _adapter_with_lesson(lid: str = "s1-l1", *, empty: bool = True):

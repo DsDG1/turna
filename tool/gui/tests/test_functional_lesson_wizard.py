@@ -8,13 +8,13 @@ from pathlib import Path
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
-from tests._qtapp import _App  # noqa: E402
+from tests._qtapp import _App
 
 
-from src.backend.course_adapter import CourseAdapter  # noqa: E402
-from src.backend.lesson_content import CONTENT_BY_TEMPLATE  # noqa: E402
-from src.backend.lesson_presets import FUNCTIONAL_TEMPLATES, presets_for_template  # noqa: E402
-from src.dialogs.functional_lesson_wizard import (  # noqa: E402
+from src.backend.course_adapter import CourseAdapter
+from src.backend.lesson_content import CONTENT_BY_TEMPLATE
+from src.backend.lesson_presets import FUNCTIONAL_TEMPLATES, presets_for_template
+from src.dialogs.functional_lesson_wizard import (
     FunctionalLessonWizard,
     _empty_functional_lesson,
 )

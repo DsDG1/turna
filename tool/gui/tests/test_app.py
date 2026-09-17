@@ -14,15 +14,15 @@ from PySide6.QtWidgets import QMessageBox
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
-from tests._course_fixture import copy_turkish_course  # noqa: E402
+from tests._course_fixture import copy_turkish_course
 
-from src.app import MainWindow  # noqa: E402
+from src.app import MainWindow
 
 # 测试用假 API key：不是可用凭据，也不写成 provider key 形态的字面量。
 _FAKE_API_KEY = os.environ.get("TURNA_TEST_FAKE_API_KEY", "test-key-placeholder")
-from src.backend.ai_generator import AiApiConfig  # noqa: E402
-from src.backend.course_adapter import SaveResult  # noqa: E402
-from tests._qtapp import _App as _TestApp  # noqa: E402
+from src.backend.ai_generator import AiApiConfig
+from src.backend.course_adapter import SaveResult
+from tests._qtapp import _App as _TestApp
 
 
 def _build_main_window_with_ai_settings(ai_values: dict) -> MainWindow:

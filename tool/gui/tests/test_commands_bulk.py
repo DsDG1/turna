@@ -9,21 +9,21 @@ from pathlib import Path
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
-from tests._course_fixture import copy_turkish_course  # noqa: E402
+from tests._course_fixture import copy_turkish_course
 
-from src.application.commands import (  # noqa: E402
+from src.application.commands import (
     BulkApplyPresetCommand,
     BulkDeleteLessonsCommand,
     BulkDuplicateLessonsCommand,
     BulkMoveLessonsCommand,
     DuplicateLessonCommand,
 )
-from src.backend.course_adapter import CourseAdapter  # noqa: E402
-from src.backend.lesson_content import (  # noqa: E402
+from src.backend.course_adapter import CourseAdapter
+from src.backend.lesson_content import (
     clone_lesson_with_fresh_ids,
     all_lesson_ids,
 )
-from src.backend.lesson_presets import apply_preset_to_lesson  # noqa: E402
+from src.backend.lesson_presets import apply_preset_to_lesson
 
 
 def _load_adapter(tmp: Path) -> CourseAdapter:
