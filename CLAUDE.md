@@ -101,6 +101,16 @@ python tool/build_release.py --version 0.4.0-future4         # 发布
 
 Windows 用 `python`（非 `python3`）。完整 Makefile / 平台 / 发布流水线见 project-guide §10；课程数据格式见 §13；测试基线见 `test/BASELINE.md`。
 
+### Git 远端与网络
+
+- 两个 remote：`origin`（fetch 走 gitee，push 同时推 gitee + github）与 `github`（仅 GitHub）。**GitHub 通常更新更快**，gitee 可能落后。
+- 直连 `github.com` 常被重置/超时；本机 Clash 代理 `127.0.0.1:7890` 可用。拉不下来时走一次性代理（不改全局配置）：
+  ```bash
+  git -c http.proxy=http://127.0.0.1:7890 -c https.proxy=http://127.0.0.1:7890 fetch github
+  git -c http.proxy=http://127.0.0.1:7890 -c https.proxy=http://127.0.0.1:7890 push github master
+  ```
+- gitee 直连即可，无需代理。
+
 ---
 
 ## 工程约定（2026-09 代码质量批次落地）
