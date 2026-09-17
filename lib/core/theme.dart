@@ -737,6 +737,11 @@ class TurnaTheme {
   static Color dangerSurface(BuildContext context) =>
       _isDark(context) ? const Color(0xFF3A1414) : const Color(0xFFFFEBEE);
 
+  /// Error text/icon color readable on the current surface: dark red on
+  /// light fills, light red on dark fills.
+  static Color errorOnSurface(BuildContext context) =>
+      _isDark(context) ? errorLight : errorDark;
+
   // ---------------------------------------------------------------------------
   // CLAY / SAND HELPERS (secondary brand — restrained warm accents)
   // ---------------------------------------------------------------------------
@@ -812,6 +817,20 @@ class TurnaTheme {
             ),
           ).copyWith(elevation: const WidgetStatePropertyAll<double>(0)),
         ),
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            backgroundColor: primary,
+            foregroundColor: textOnPrimary,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(radiusMedium),
+            ),
+            textStyle: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
         textButtonTheme: TextButtonThemeData(
           style: TextButton.styleFrom(
             foregroundColor: primary,
@@ -829,6 +848,13 @@ class TurnaTheme {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(radiusMedium),
             ),
+          ),
+        ),
+        dialogTheme: DialogThemeData(
+          backgroundColor: cardBackground,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radiusLarge),
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
@@ -988,6 +1014,20 @@ class TurnaTheme {
             ),
           ).copyWith(elevation: const WidgetStatePropertyAll<double>(0)),
         ),
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            backgroundColor: primary,
+            foregroundColor: textOnPrimary,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(radiusMedium),
+            ),
+            textStyle: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
         textButtonTheme: TextButtonThemeData(
           style: TextButton.styleFrom(
             foregroundColor: brandReed,
@@ -1005,6 +1045,13 @@ class TurnaTheme {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(radiusMedium),
             ),
+          ),
+        ),
+        dialogTheme: DialogThemeData(
+          backgroundColor: const Color(0xFF152B21),
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radiusLarge),
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
@@ -1152,6 +1199,14 @@ class TurnaTheme {
             side: const BorderSide(color: Colors.black, width: 1.5),
           ),
         ),
+        dialogTheme: DialogThemeData(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radiusLarge),
+            side: const BorderSide(color: Colors.black, width: 1.5),
+          ),
+        ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: Colors.white,
@@ -1274,6 +1329,14 @@ class TurnaTheme {
         cardTheme: CardThemeData(
           elevation: 0,
           color: Colors.black,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radiusLarge),
+            side: const BorderSide(color: Colors.white, width: 1.5),
+          ),
+        ),
+        dialogTheme: DialogThemeData(
+          backgroundColor: Colors.black,
           surfaceTintColor: Colors.transparent,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusLarge),

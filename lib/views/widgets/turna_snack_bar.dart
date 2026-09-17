@@ -149,6 +149,55 @@ class TurnaSnackBar {
       ),
     );
   }
+
+  /// 预取了 messenger 的调用点（await 之前捕获，await 之后再用）走这个
+  /// 入口：[context] 只用于主题/无障碍解析，不用于查找 messenger。
+  static ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showVia(
+    ScaffoldMessengerState messenger,
+    BuildContext context,
+    String message, {
+    Widget? icon,
+    SnackBarAction? action,
+    EdgeInsetsGeometry? margin,
+    Duration duration = const Duration(seconds: 3),
+  }) {
+    messenger.hideCurrentSnackBar();
+    return messenger.showSnackBar(
+      create(
+        context: context,
+        message: message,
+        icon: icon,
+        action: action,
+        margin: margin,
+        duration: duration,
+      ),
+    );
+  }
+
+  /// [show] 的宽容变体：context 不在 Scaffold 之下时静默不弹
+  /// （替代裸 `ScaffoldMessenger.maybeOf(context)?.showSnackBar(...)`）。
+  static ScaffoldFeatureController<SnackBar, SnackBarClosedReason>? maybeShow(
+    BuildContext context,
+    String message, {
+    Widget? icon,
+    SnackBarAction? action,
+    EdgeInsetsGeometry? margin,
+    Duration duration = const Duration(seconds: 3),
+  }) {
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) return null;
+    messenger.hideCurrentSnackBar();
+    return messenger.showSnackBar(
+      create(
+        context: context,
+        message: message,
+        icon: icon,
+        action: action,
+        margin: margin,
+        duration: duration,
+      ),
+    );
+  }
 }
 
 /// [BuildContext] 快捷扩展方法

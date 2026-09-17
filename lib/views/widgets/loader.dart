@@ -14,7 +14,7 @@ class Loader extends StatelessWidget {
       width: 12,
       child: CircularProgressIndicator(
         strokeWidth: 3,
-        color: TurnaTheme.warning,
+        color: TurnaTheme.brandTeal,
       ),
     );
   }

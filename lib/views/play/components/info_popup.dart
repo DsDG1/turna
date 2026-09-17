@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:turna/application/accessibility_provider.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/l10n/app_strings.dart';
 
 /// 长按浮窗：锚定在源卡片旁的数据详情浮层（Play Hub 专用交互）。
 ///
@@ -236,15 +237,21 @@ class _InfoPopupHostState extends State<_InfoPopupHost>
 
     return Stack(
       children: [
-        // 遮罩：淡入，点击关闭。
+        // 遮罩：淡入，点击关闭。Semantics 暴露给屏幕阅读器：遮住的面板
+        // 之外区域是一个「关闭」按钮。
         Positioned.fill(
-          child: GestureDetector(
+          child: Semantics(
+            button: true,
+            label: AppStrings.commonClose,
             onTap: _dismiss,
-            behavior: HitTestBehavior.opaque,
-            child: FadeTransition(
-              opacity: _scrimCurve,
-              child: const ColoredBox(
-                color: Color(0x46000000),
+            child: GestureDetector(
+              onTap: _dismiss,
+              behavior: HitTestBehavior.opaque,
+              child: FadeTransition(
+                opacity: _scrimCurve,
+                child: const ColoredBox(
+                  color: Color(0x46000000),
+                ),
               ),
             ),
           ),

@@ -320,6 +320,11 @@ class _NavItem extends StatelessWidget {
     final duration = TurnaMotion.scaled(TurnaMotion.fast, reduceMotion);
     const selectedColor = TurnaTheme.brandTeal;
     final idleColor = TurnaTheme.textHintColor(context);
+    // Cap label scaling so a 200% textScale setting can't overflow the
+    // fixed-height capsule — icons stay crisp, labels still grow.
+    final labelScaler = TextScaler.linear(
+      MediaQuery.textScalerOf(context).scale(1.0).clamp(1.0, 1.4),
+    );
 
     return Expanded(
       child: Semantics(
@@ -385,6 +390,7 @@ class _NavItem extends StatelessWidget {
                     label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
+                    textScaler: labelScaler,
                   ),
                 ),
               ],

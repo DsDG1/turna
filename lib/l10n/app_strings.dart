@@ -42,6 +42,11 @@ class AppStrings {
   static String get commonUndo => '撤销';
   static String get commonRedo => '重做';
   static String get commonCollapse => '收起';
+  static String get commonClear => '清除';
+  static String get commonCopyPath => '复制路径';
+  static String get commonShowPassword => '显示密码';
+  static String get commonHidePassword => '隐藏密码';
+  static String get commonReplayAudio => '重播音频';
   static String get commonNavLearn => '学习';
   static String get commonNavPlay => '练习';
   static String get commonNavProfile => '我的';
@@ -113,6 +118,65 @@ class AppStrings {
   static String get settingsImportDataSubtitle => '从导出文件恢复进度';
   static String get settingsClearMistakeLogTitle => '清除错题记录';
   static String get settingsClearMistakeLogSubtitle => '删除所有已保存的错题';
+  static String settingsLanguageSwitchFailed(Object error) =>
+      '切换学习语言失败：$error';
+
+  // ── Data backup: migration package import ──
+  static String get settingsMigrationPackTileTitle => '导入 Turna 迁移包';
+  static String get settingsMigrationPackTileSubtitle =>
+      'turna-migration-v1.zip（跨设备迁移）';
+  static String get settingsMigrationPackZipOnly => '仅支持导入 .zip 格式的迁移包。';
+  static String get settingsMigrationPackDialogTitle => '导入 Turna 迁移包';
+  static String get settingsMigrationPackDialogMessage =>
+      '将迁移包中的学习进度恢复到本机。旧版 Anki 牌组数据'
+      '不再迁移（v1 链路已退役），学习记录与复习历史会照常恢复。';
+  static String get settingsMigrationPackConfirm => '开始导入';
+  static String settingsMigrationPackDone(int srsStates, int reviewEvents,
+          String ignoredNote) =>
+      '迁移完成：学习记录 $srsStates 条、复习历史 $reviewEvents 条$ignoredNote';
+  static String settingsMigrationPackIgnoredLegacy(int count) =>
+      '\n已忽略旧版 Anki 牌组：$count 个（不再迁移）';
+  static String settingsMigrationPackRejected(String reason) =>
+      '迁移包被拒绝：$reason';
+  static String settingsMigrationPackFailed(Object error) => '迁移导入失败：$error';
+  static String get migrationRejectNotAZip => '文件不是有效的 zip 包';
+  static String get migrationRejectZipSlip => '包内包含非法路径';
+  static String get migrationRejectMissingManifest => '缺少清单文件';
+  static String get migrationRejectUnknownFormat => '不是 Turna 迁移包';
+  static String get migrationRejectSchemaTooNew => '迁移包来自更新的应用版本';
+  static String get migrationRejectMissingSums => '缺少校验清单';
+  static String get migrationRejectChecksumMismatch => '校验失败，文件可能损坏';
+  static String get migrationRejectMissingEntry => '迁移包缺少必要文件';
+  static String get migrationRejectInsufficientSpace => '存储空间不足';
+  static String get migrationRejectApplyFailed => '数据应用失败，已回滚';
+  static String get migrationRejectUnknown => '未知原因';
+  static String get settingsImportJsonOnly => '仅支持导入 .json 格式的备份文件。';
+  static String get settingsImportBuiltinOnly =>
+      '导入完成：该备份只包含内置课程内容副本，不含个人数据，无需恢复。';
+  static String get settingsProgressRestoredPartialSuffix =>
+      '（部分运行时状态需重启后完全生效）';
+  static String get settingsExportIncludes =>
+      '包含：学习进度、复习与错题记录、成就与装扮、学习偏好设置。'
+      '不包含：服务器密码与 AI API key。';
+
+  /// TTS 母语/翻译语言选项的中文显示名（`code` 为 BCP-47 基础码）。
+  static String ttsNativeLanguageLabel(String code) => switch (code) {
+        'en' => '英语',
+        'zh' => '中文',
+        'tr' => '土耳其语',
+        'ru' => '俄语',
+        'ar' => '阿拉伯语',
+        'es' => '西班牙语',
+        'fr' => '法语',
+        'de' => '德语',
+        'ja' => '日语',
+        'ko' => '韩语',
+        'pt' => '葡萄牙语',
+        'it' => '意大利语',
+        'vi' => '越南语',
+        'id' => '印尼语',
+        _ => code,
+      };
   static String get settingsResetProgressTitle => '重置课程进度';
   static String get settingsResetProgressSubtitle => '将所有课程标记为未完成';
 
@@ -127,6 +191,182 @@ class AppStrings {
       '空间分类、缓存、垃圾与运行诊断（包含清理操作）';
   static String get settingsAdvancedSystemHealthTitle => '系统健康与诊断';
   static String get settingsAdvancedSystemHealthSubtitle => '数据库状态、功能状态与脱敏诊断摘要';
+  static String get systemHealthSelfCheckPassed =>
+      '自检通过：数据库完整性正常，且活跃窗口内无未衰减的严重异常。';
+  static String get systemHealthSelfCheckFailed =>
+      '自检未完全通过：请查看主要问题列表，或导出诊断报告反馈。';
+  static String get systemHealthReportCopied => '已复制脱敏诊断摘要';
+
+  // ── System health page ──
+  static String get systemHealthTitle => '系统健康';
+  static String get systemHealthTopIssues => '主要问题';
+  static String get systemHealthAllClear => '当前系统运行良好，没有需要处理的异常组';
+  static String get systemHealthActions => '处理操作';
+  static String get systemHealthRunSelfCheck => '运行自检';
+  static String get systemHealthRunSelfCheckDoneSubtitle => '上次自检已通过，当前无活跃告警';
+  static String get systemHealthRunSelfCheckSubtitle =>
+      '检查数据库完整性并重新计算健康状态；自检通过且无新异常才会标记为已解决';
+  static String get systemHealthAcknowledge => '我知道了';
+  static String get systemHealthAcknowledgeSubtitle =>
+      '隐藏提示横幅；不影响故障事实，新异常会重新提示';
+  static String get systemHealthAdviceTitle => '查看诊断建议';
+  static String get systemHealthAdviceSubtitle =>
+      '按数据库、课程、Anki、WebView、TTS 和 AI 网络归类';
+  static String get systemHealthExportReport => '导出脱敏诊断报告';
+  static String get systemHealthExportReportSubtitle =>
+      '先预览；自动排除密钥、正文、对话和个人路径';
+  static String get systemHealthCopySummary => '复制诊断摘要';
+  static String get systemHealthCopySummarySubtitle =>
+      '包含脱敏的性能 P50/P95 与慢操作 Top-N';
+  static String get systemHealthSafeMode => '安全模式';
+  static String get systemHealthSafeModeSubtitle =>
+      '临时禁用模板 JS、外部网络和高风险后台能力；不改学习数据';
+  static String get systemHealthViewRawLogs => '查看原始日志';
+  static String get systemHealthViewRawLogsSubtitle => '打开透明度报告页';
+  static String get systemHealthClearLogs => '清空日志';
+  static String get systemHealthClearLogsSubtitle =>
+      '不会自动把健康状态改为正常，也不会删除学习数据';
+  static String get systemHealthClearLogsTitle => '清空本机日志？';
+  static String get systemHealthClearLogsMessage =>
+      '日志会被删除，但当前告警仍会保留；这不代表故障已解决。';
+  static String get systemHealthAdviceDb =>
+      '数据库：先运行自检检查数据库完整性；不要清除学习记录。';
+  static String get systemHealthAdviceAnki =>
+      'Anki / WebView：启用安全模式或将相关牌组改为纯文本兼容。';
+  static String get systemHealthAdviceTts =>
+      'TTS / 音频：检查系统语音引擎和媒体文件是否可用。';
+  static String get systemHealthAdviceAi =>
+      'AI 网络：检查服务地址与网络，不要在报告中粘贴 API 密钥。';
+  static String get systemHealthAdviceCourse =>
+      '课程加载：返回课程管理页检查导入状态；诊断不会修改排程。';
+  static String get systemHealthAdviceNone => '当前没有需要处理的问题。';
+  static String get systemHealthAdviceDialogTitle => '只读诊断建议';
+  static String get systemHealthReportPreviewTitle => '诊断报告预览';
+  static String get systemHealthExportAction => '导出';
+  static String systemHealthAlertBanner(int score) =>
+      '检测到异常（活跃评分 $score）。本提示不会阻止你继续使用应用；'
+      '运行自检通过且异常停止复发后会自动标记为已解决。';
+  static String systemHealthIntegrityBanner(String reason) =>
+      '检测到数据完整性风险：$reason\n'
+      '建议先导出备份与诊断报告，再运行自检。写入类操作请谨慎；'
+      '你可以随时离开本页。';
+  static String get systemHealthLevelNormalChecked => '正常（自检通过）';
+  static String get systemHealthLevelNormal => '正常';
+  static String get systemHealthLevelAttention => '需要注意';
+  static String get systemHealthLevelCritical => '严重';
+  static String get systemHealthGroupOngoing => '仍在持续';
+  static String get systemHealthGroupStopped => '目前已停止';
+  static String systemHealthScoreSummary(int score, int groups) =>
+      '活跃评分 $score · $groups 个问题组';
+  static String systemHealthGroupSubtitle(String message, int count, String state) =>
+      '$message\n发生 $count 次 · $state';
+
+  // ── AI feature guide (功能手册页) ──
+  static String get aiGuideHeroTitle => '6 个 AI 能力，一次看懂';
+  static String get aiGuideHeroSubtitle => '所有功能都依赖 AI 引擎。配置一次，全部可用。';
+  static String aiGuideEngineConfigured(String preset) => '引擎已配置 · $preset';
+  static String get aiGuideEngineMissing => '引擎未配置（点 AI Hub 顶部卡设置）';
+  static String get aiGuidePrivacyChip => '隐私：仅本机 · 不联网';
+  static String get aiGuideSectionCompanion => '📘 伴学';
+  static String get aiGuideSectionReview => '🎯 复习';
+  static String get aiGuideLabelPurpose => '作用';
+  static String get aiGuideLabelScenarios => '适用场景';
+  static String get aiGuideLabelSteps => '操作流程';
+
+  static String get aiGuideFreeChatTitle => '自由问答';
+  static String get aiGuideFreeChatPurpose => '跟 AI 老师自由对话，问任何土耳其语相关问题。';
+  static List<String> get aiGuideFreeChatScenarios => const [
+        '学完一个语法点想再追问',
+        '想知道某个词的真实用法和例句',
+        '想让 AI 解释一段土耳其语句子',
+      ];
+  static List<String> get aiGuideFreeChatSteps => const [
+        '点击卡片进入聊天页',
+        '在输入框写下问题，回车发送',
+        'AI 实时流式回答',
+        '满意的回答可点 ❤ 收藏',
+      ];
+  static String get aiGuideFreeChatTip =>
+      '问题越具体，AI 越懂你。比如「-dık 与 -acak 的区别」比「教我语法」有用。';
+
+  static String get aiGuideDiagnosisTitle => '学习诊断';
+  static String get aiGuideDiagnosisPurpose => '让 AI 看你的学习数据，告诉你现在卡在哪、下一步该练什么。';
+  static List<String> get aiGuideDiagnosisScenarios => const [
+        '学了一阵想看看自己真实水平',
+        '想找出反复错的题型',
+        '想拿到一份定制化的下一步计划',
+      ];
+  static List<String> get aiGuideDiagnosisSteps => const [
+        '点击卡片进入诊断页',
+        'AI 自动分析你最近的错题和弱词',
+        '阅读诊断报告（强项 / 弱项 / 建议）',
+        '可一键跳到「按错题练习」或「按弱词练习」',
+      ];
+  static String get aiGuideDiagnosisTip => '诊断基于你最近 7 天的真实数据；越常用 Turna，诊断越准。';
+
+  static String get aiGuideSavedTitle => '收藏的回答';
+  static String get aiGuideSavedPurpose => '把 AI 给出但还想再看的回答集中放这里，随时回查。';
+  static List<String> get aiGuideSavedScenarios => const [
+        '看到一个好回答想之后回看',
+        '想整理一个「我的错题解释集」',
+        '想对比同一问题几次回答的差异',
+      ];
+  static List<String> get aiGuideSavedSteps => const [
+        '在自由问答 / 讲解页面点回答旁的 ❤',
+        '自动进入「收藏的回答」',
+        '点击单条可查看完整对话',
+        '可长按删除或加笔记（待支持）',
+      ];
+  static String get aiGuideSavedTip =>
+      '收藏多了就用「分类标签」找——目前按时间倒序排，1.x 后会加标签和搜索。';
+
+  static String get aiGuideDepthTitle => '深度讲解';
+  static String get aiGuideDepthPurpose => '对当前题目（错题、单词、语法）展开一次完整讲解，AI 现场分析。';
+  static List<String> get aiGuideDepthScenarios => const [
+        '一道题错了想搞清楚为什么',
+        '单词查了词典但还是记不住',
+        '语法点想看更多例句和场景',
+      ];
+  static List<String> get aiGuideDepthSteps => const [
+        '在题目 / 单词 / 语法点旁点「深度讲解」',
+        '弹出讲解面板，AI 读上下文后开始写',
+        '可继续追问或让 AI 再讲一遍',
+        '满意的讲解可点 ❤ 收藏',
+      ];
+  static String get aiGuideDepthTip =>
+      '讲解会注入你的水平、错题和讲解偏好——同义词用你认识的、深度跟你匹配。';
+
+  static String get aiGuideMistakesTitle => '按错题练习';
+  static String get aiGuideMistakesPurpose => '让 AI 把你最近常错的题整理成一次专项练习。';
+  static List<String> get aiGuideMistakesScenarios => const [
+        '刚做完一组题，发现错得不少',
+        '想集中攻克同一类错误',
+        '想用错题替代普通复习',
+      ];
+  static List<String> get aiGuideMistakesSteps => const [
+        '点击卡片',
+        '选时间范围（最近 7 / 30 天）',
+        'AI 生成专项练习题',
+        '做完进入评分，错题自动进 SRS',
+      ];
+  static String get aiGuideMistakesTip =>
+      '错题不够时会自动用同类高频错题补足，不用担心「最近没错就没得练」。';
+
+  static String get aiGuideWeakTitle => '按弱词练习';
+  static String get aiGuideWeakPurpose => '让 AI 把你记得最差的单词挑出来组一次练习。';
+  static List<String> get aiGuideWeakScenarios => const [
+        '背单词时反复记不住某一批',
+        '想针对性补足词汇量',
+        'FSRS 算法推算你「忘了」的词',
+      ];
+  static List<String> get aiGuideWeakSteps => const [
+        '点击卡片',
+        '选词数量（10 / 20 / 50）',
+        'AI 用这些弱词生成练习',
+        '完成后 FSRS 自动更新记忆强度',
+      ];
+  static String get aiGuideWeakTip =>
+      '「弱」是 FSRS 算出来的——能回忆但不稳的词比完全没学过的词更值得练。';
   static String get settingsAdvancedLegacyTitle => '旧版与兼容性';
   static String get settingsAdvancedLegacySubtitle =>
       'Anki 渲染与 WebView JavaScript（可能影响内容显示）';
@@ -209,6 +449,11 @@ class AppStrings {
   static String get remoteBackupRestoreStagedMessage =>
       '备份已下载并校验完成。重启应用后将自动完成恢复。';
   static String remoteBackupRestoreFailed(Object error) => '恢复准备失败：$error';
+  static String get remoteBackupNeedConfig => '请先保存服务器配置与凭据';
+  static String get remoteBackupNoRemoteBackup => '服务器上没有可恢复的备份';
+  static String get remoteBackupAuthRejected => '用户名或密码被服务器拒绝';
+  static String get remoteBackupUnsupportedPlatform => '当前平台暂不支持远程备份';
+  static String get remoteBackupCredentialStoredHint => '已保存凭据（输入新密码可替换）';
   static String remoteBackupBlockedNotice(Object reason) => '上次恢复未执行：$reason';
 
   // ── Beginner guide ──
@@ -298,6 +543,14 @@ class AppStrings {
   static String get cosmeticsEquipped => '已使用';
   static String get cosmeticsOwned => '已拥有';
   static String cosmeticsGemsBalance(int gems) => '宝石 $gems';
+  static String get cosmeticsVoucherTitle => '连续学习保护券';
+  static String get cosmeticsVoucherPurchased => '已获得 1 张连续学习保护券';
+  static String get cosmeticsVoucherMonthlyLimit => '本月最多购买 2 张保护券';
+  static String cosmeticsVoucherSubtitle(
+          int held, int purchased, int limit, bool limitReached) =>
+      '持有 $held 张 · '
+      '${limitReached ? '本月购买已达上限' : '本月已购'} '
+      '$purchased/$limit · 只保护连续显示，不修改学习记录';
   static String cosmeticsRingPrice(int price) => '$price';
 
   static String cosmeticsRingTitle(String id) {
@@ -645,6 +898,36 @@ class AppStrings {
       '已移除内容的进度将被清除。';
   static String get coursePackReplaceConfirmAction => '替换';
   static String get coursePackImportCancelled => '已取消导入';
+  static String get coursePackDbNotReady => '课程数据库尚未就绪';
+  static String get coursePackInvalidFileType => '文件类型不受支持';
+
+  // ── Anki import wizard: modern preview ──
+  static String get ankiPreviewKindMulti => '多选';
+  static String get ankiPreviewKindSingle => '单选';
+  static String get ankiPreviewKindCloze => '填空';
+  static String get ankiPreviewKindFlip => '翻卡';
+  static String get ankiPreviewBlockingHint => '请先指定待确认牌组的正面字段';
+  static String get ankiPreviewDefaultRootName => '导入课程';
+  static String ankiPreviewParsedDecks(int count) =>
+      '已解析 $count 个牌组章节，包含全部核心知识点';
+  static String get ankiPreviewChoiceDetected => '选择题已自动识别';
+  static String get ankiPreviewFlipCards => '正反翻转卡';
+  static String get ankiPreviewTapSectionHint => '点击章节可预览题目';
+  static String ankiPreviewBlockingTitle(int count) =>
+      '有 $count 个模板需要指定正面字段';
+  static String get ankiPreviewAssignFront => '指定正面';
+
+  // ── Anki import wizard: MCQ 题型效果预览 sheet ──
+  static String mcqPreviewTitle(String schemaName) => '题型效果预览（$schemaName）';
+  static String get mcqPreviewKindMultiSelect => '多选题';
+  static String get mcqPreviewKindSingleChoice => '单选题';
+  static String get mcqPreviewKindFlip => '翻转卡';
+  static String get mcqPreviewModeInteractive => '智能互动练习';
+  static String get mcqPreviewModeClassic => '经典闪卡翻面';
+  static String get mcqPreviewModeFidelity => '原卡官方保真';
+  static String get mcqPreviewNoPrompt => '无可用题目文本';
+  static String mcqPreviewBackAnswer(String text) => '背面答案：$text';
+  static String get mcqPreviewCorrectBadge => '正确答案';
   static String get courseManagementRestorePackMissing => '无法恢复，需重新导入课程包';
   static String get courseManagementAddTitle => '添加课程';
   static String get courseManagementRestoreTitle => '已卸载的语言';
@@ -791,6 +1074,94 @@ class AppStrings {
   static String get reviewEasy => '简单';
   static String get reviewEmptyTitle => '复习';
   static String get reviewEmptyMessage => '你已经全部复习完了。';
+  static String get reviewUndoRatingDone => '已撤销上一张评分';
+
+  // ── Review source detail (来源明细页) ──
+  static String get reviewSourceReload => '重新加载';
+  static String get reviewSourceMetricDueToday => '今日到期';
+  static String get reviewSourceMetricNewCards => '新卡';
+  static String get reviewSourceMetricDoneToday => '今日完成';
+  static String get reviewSourceTrendTitle => '7 / 30 日趋势';
+  static String reviewSourceTrendSummary(int reviews7, int reviews30) =>
+      '过去 7 日 $reviews7 次，30 日 $reviews30 次；'
+      '图表数据使用固定桶聚合，不加载历史事件正文。';
+  static String get reviewSourceStartReview => '开始该来源复习';
+  static String get reviewSourceDeletedTitle => '已删除来源';
+  static String get reviewSourceDeletedSubtitle => '来源当前不可复习，但历史统计仍会保留。';
+
+  // ── Anki formal review session (官方复习页错误/完成态) ──
+  static String ankiReviewFailedSources(String names) => '以下来源未能完成：$names';
+  static String get ankiReviewRetryFailedSources => '重试失败来源';
+  static String get ankiReviewSourceBlocked => '此来源的卡片暂时无法显示';
+  static String ankiReviewSchedulerOwes(int count) =>
+      '调度器仍欠 $count 张卡，未做任何评分、搁置或暂停。';
+  static String get ankiReviewHandleLater => '稍后处理此来源并继续';
+  static String get ankiReviewRenderBlocked => '当前卡片暂时无法显示，评分已锁定。';
+  static String get ankiReviewWriteUnsafe => '当前卡片无法安全写入，请重试或稍后返回。';
+  static String get reviewSavedStatsPending => '复习已保存，统计稍后同步。';
+  static String get reviewRetry => '重试';
+
+  // ── Review completion (统一复习完成页) ──
+  static String get reviewCompletionSubtitle => '你已完成本次复习全部内容';
+  static String get reviewCompletionTotalLabel => '复习总数';
+  static String get reviewCompletionRecallLabel => '记忆率';
+  static String get reviewCompletionRecallSplitLabel => '记得 / 不记得';
+
+  // ── Learning insights (学习洞察) ──
+  static String insightsHeatmapSummary(int activeDays, int reviews) =>
+      '过去 365 天有 $activeDays 个活跃日，共完成 $reviews 次复习';
+  static String get insightsHeatmapTitle => '学习热力图';
+  static String get insightsViewSourceDetail => '查看来源详情';
+
+  // ── Streak broken dialog (连续中断保护券) ──
+  static String streakVoucherExplain(int days) =>
+      '保护券可以保留此前 $days 天连续；'
+      '它不会修改学习记录、复习日期或到期时间。';
+  static String get streakVoucherApplying => '使用中…';
+  static String streakVoucherUse(int count) => '使用保护券（持有 $count）';
+
+  // ── Retired legacy Anki card renderer ──
+  static String get ankiRetiredCardTitle => '旧版导入的 Anki 卡片';
+  static String get ankiRetiredCardBody =>
+      '该卡片来自已停用的旧版导入源，已不再逐卡渲染。\n请通过「设置 → 旧版与兼容性」迁移到官方引擎。';
+  static String get ankiRetiredCardContinue => '继续';
+
+  // ── Official Anki reviewer stage (typed answer / preview) ──
+  static String get ankiTypedAnswerLabel => '输入答案';
+  static String get ankiShowFront => '正面';
+
+  // ── Quick front picker sheet ──
+  static String ankiFrontPickerTitle(String schema) => '选择卡片正面（$schema）';
+  static String get ankiFrontPickerBody =>
+      '请指定哪个字段作为题目正面，其余字段将作为背面或辅助内容：';
+
+  // ── Review progress: streak protection chip ──
+  static String get reviewProtectedTooltip => '本次连续记录由保护券保留；学习统计未修改';
+  static String get reviewProtectedChip => '已保护';
+
+  // ── Settings: learning reset kept scopes ──
+  static String settingsResetLearningKeptScopes(Iterable<String> scopes) =>
+      '不会清除：\n${scopes.map((s) => '· $s').join('\n')}';
+
+  // ── Settings advanced: AI engine tunables ──
+  static String get settingsExperimentalSection => '实验性兼容开关';
+  static String get aiCacheEnabledTitle => 'AI 响应缓存';
+  static String get aiCacheEnabledSubtitle => '命中相同请求时直接复用结果；关闭后每次都重新请求';
+  static String get aiStrictSchemaTitle => 'Strict JSON 模式';
+  static String aiStrictSchemaSubtitle(String mode) =>
+      '当前：$mode（auto=自动回退，on=强制，off=宽松）';
+
+  // ── Misc residual strings ──
+  static String get settingsAboutTileSubtitle => '关于 Turna、隐私与更新日志';
+  static String get changelogHistoryTitle => '更新历程';
+  static String get commonUndoLastCard => '撤销上一张';
+  static String get settingsStreakVoucherAutoUseTitle => '自动使用连续学习保护券';
+  static String get settingsStreakVoucherAutoUseSubtitle =>
+      '默认关闭；只保护连续天数，不会生成学习记录';
+  static String officialAnkiCardDebugError(String key) =>
+      '官方卡片无法显示（$key）。';
+  static String get ankiImportFullTreeTitle => '完整章节目录';
+  static String get ankiImportedBadge => '已导入';
   static String get reviewDueMessage => '个单词已到期——下拉刷新';
   static String get reviewNoItemsDue => '暂无待复习项';
   static String reviewDueCountMessage(int dueCount, String dueMessage) =>
@@ -1694,6 +2065,10 @@ class AppStrings {
   static String get ankiDeckStats => '统计';
   static String get ankiPinDeck => '置顶';
   static String get ankiDeckOptions => '牌组设置';
+  static String ankiDeckOptionsTitle(String title) => '$title · 牌组设置';
+  static String get ankiDailyNewLimitLabel => '每日新卡上限';
+  static String get ankiDailyReviewLimitLabel => '每日复习上限';
+  static String get ankiDailyLimitHint => '留空使用全局上限';
   static String get ankiCardRedo => '重做';
   static String get ankiCardBury => '搁置';
   static String get ankiCardSuspend => '暂停';
@@ -1855,6 +2230,18 @@ class AppStrings {
 
   // ── AI feature guide ──
   static String get aiFeatureGuideTitle => 'AI 助手 · 功能介绍';
+  static String get aiFeatureGuideTooltip => '功能介绍';
+
+  // ── AI task labels (AI Hub 最近任务 kind → 显示名) ──
+  static String get aiTaskLabelWish => '设计课程';
+  static String get aiTaskLabelTextbook => '教材导入';
+  static String get aiTaskLabelTutorMistakes => '按错题复习';
+  static String get aiTaskLabelTutorWeak => '弱词复习';
+  static String get aiTaskLabelHintChat => 'AI 讲解';
+  static String get aiTaskLabelDepth => '深度讲解';
+  static String get aiTaskLabelLessonHelper => '课内助手';
+  static String get aiTaskLabelCourseGenerate => '一键生成';
+  static String get aiTaskLabelDictionary => '词典扩展';
 
   // ── Anki repair center (supplement) ──
   static String get ankiRepairCleanAction => '清理';

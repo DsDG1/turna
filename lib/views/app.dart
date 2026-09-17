@@ -1,6 +1,7 @@
 // Flutter imports:
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 // Package imports:
 import 'package:provider/provider.dart';
@@ -67,6 +68,12 @@ class _AppShellState extends State<_AppShell> {
       child: MaterialApp.router(
         debugShowCheckedModeBanner: false,
         title: 'Turna',
+        localizationsDelegates: const [
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: const [Locale('zh'), Locale('en')],
         theme: light,
         darkTheme: dark,
         themeMode: themeMode,
@@ -90,7 +97,11 @@ class _AppShellState extends State<_AppShell> {
           final mq = MediaQuery.of(context);
           return MediaQuery(
             data: mq.copyWith(
-              textScaler: acc.textScaler,
+              // App text-scale is a multiplier ON TOP of the OS scale, not a
+              // replacement: a user with system large fonts keeps them.
+              textScaler: TextScaler.linear(
+                mq.textScaler.scale(1.0) * acc.textScaler.scale(1.0),
+              ),
               accessibleNavigation:
                   acc.reducedMotion || mq.accessibleNavigation,
               disableAnimations:
