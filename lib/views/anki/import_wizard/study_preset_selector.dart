@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/l10n/app_strings.dart';
 
 /// Global learning style preset modes for imported Anki decks.
 enum StudyPresetMode {
@@ -38,13 +39,13 @@ class StudyPresetSelector extends StatelessWidget {
               color: TurnaTheme.brandTeal,
             ),
             const SizedBox(width: 6),
-            const Text(
-              '学习模式设定',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+            Text(
+              AppStrings.studyPresetTitle,
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
             ),
             const Spacer(),
             Text(
-              '导入后可在课程设置中更改',
+              AppStrings.studyPresetChangeHint,
               style: TextStyle(
                 fontSize: 11,
                 color: TurnaTheme.textHintColor(context),
@@ -57,25 +58,25 @@ class StudyPresetSelector extends StatelessWidget {
           context,
           mode: StudyPresetMode.interactive,
           icon: Icons.psychology_rounded,
-          title: '智能互动练习',
-          badgeText: '推荐',
-          description: '自动转换出选择、填空、听音等互动题型，告别单一翻面，提升做题趣味与记忆效果。',
+          title: AppStrings.studyPresetInteractiveTitle,
+          badgeText: AppStrings.studyPresetRecommended,
+          description: AppStrings.studyPresetInteractiveDesc,
         ),
         const SizedBox(height: 8),
         _buildModeCard(
           context,
           mode: StudyPresetMode.classicFlip,
           icon: Icons.flip_to_back_rounded,
-          title: '经典闪卡翻面',
-          description: '纯粹的正反翻面主动回忆，适合词汇快速刷记与传统 Anki 熟练背诵。',
+          title: AppStrings.studyPresetClassicFlipTitle,
+          description: AppStrings.studyPresetClassicFlipDesc,
         ),
         const SizedBox(height: 8),
         _buildModeCard(
           context,
           mode: StudyPresetMode.fidelity,
           icon: Icons.web_asset_rounded,
-          title: '原卡官方保真',
-          description: '100% 还原 Anki 桌面端 HTML/CSS/JS 样式与动态效果，适合复杂定制排版。',
+          title: AppStrings.studyPresetFidelityTitle,
+          description: AppStrings.studyPresetFidelityDesc,
         ),
       ],
     );

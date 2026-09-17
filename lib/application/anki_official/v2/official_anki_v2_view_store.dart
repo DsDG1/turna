@@ -111,8 +111,7 @@ class OfficialAnkiV2ViewStore {
   ) async {
     for (var start = 0; start < rows.length; start += _insertChunk) {
       final end = start + _insertChunk;
-      final chunk =
-          rows.sublist(start, end > rows.length ? rows.length : end);
+      final chunk = rows.sublist(start, end > rows.length ? rows.length : end);
       final values = List.filled(
               chunk.length, '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
           .join(',');
@@ -274,8 +273,8 @@ class OfficialAnkiV2ViewStore {
     try {
       final rows = await course
           .customSelect(
-            'SELECT lesson_id, lesson_key FROM anki_course_tree_view '
-            'GROUP BY lesson_id HAVING MIN(card_id)',
+            'SELECT lesson_id, MIN(lesson_key) AS lesson_key '
+            'FROM anki_course_tree_view GROUP BY lesson_id',
           )
           .get();
       return {

@@ -12,6 +12,7 @@ import 'package:turna/application/anki_official/render/official_anki_typed_answe
 import 'package:turna/application/audio_controller.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
+import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_error_view.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_stage.dart';
 
@@ -105,7 +106,7 @@ class _OfficialAnkiReviewerPageState extends State<OfficialAnkiReviewerPage> {
     if (_bootError != null) {
       final error = _bootError;
       return Scaffold(
-        appBar: AppBar(title: const Text('官方卡片预览')),
+        appBar: AppBar(title: Text(AppStrings.ankiOfficialPreviewTitle)),
         body: OfficialAnkiReviewerErrorView(
           messageKey: error is OfficialAnkiException
               ? error.messageKey
@@ -115,7 +116,7 @@ class _OfficialAnkiReviewerPageState extends State<OfficialAnkiReviewerPage> {
       );
     }
     return Scaffold(
-      appBar: AppBar(title: const Text('官方卡片预览')),
+      appBar: AppBar(title: Text(AppStrings.ankiOfficialPreviewTitle)),
       body: OfficialAnkiReviewerStage(
         controller: _controller!,
         paths: widget.paths,

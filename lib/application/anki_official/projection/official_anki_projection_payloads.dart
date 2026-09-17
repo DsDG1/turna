@@ -273,7 +273,7 @@ class OfficialAnkiProjectionPayloads {
             archetypeViolated = true;
           }
         } else if (EmbeddedOptionsParser.looksLikeEmbeddedOptions(
-              CardText.stripHtml(promptRawValue),
+              promptRawValue,
             ) ||
             (EmbeddedOptionsParser.isBareLabelAnswer(nativeText) &&
                 EmbeddedOptionsParser.hasUnlabeledOptionLines(

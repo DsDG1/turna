@@ -22,7 +22,6 @@ void officialAnkiFileLog(
   } else {
     logger.i(line);
   }
-  logger.d(line);
 }
 
 /// 启动恢复日志（doc 41 §7 / step4.md C1 覆盖清单第一项）。

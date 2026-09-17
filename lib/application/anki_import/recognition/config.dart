@@ -8,7 +8,7 @@ library;
 
 /// Bump when recognition logic changes in a way that should invalidate
 /// cached suggestions for unconfirmed mappings.
-const int recognizerVersion = 3;
+const int recognizerVersion = 4;
 
 // ---------------------------------------------------------------------------
 // L1 field-role binding weights (§3.5)

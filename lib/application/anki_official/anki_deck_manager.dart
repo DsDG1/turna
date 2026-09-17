@@ -419,30 +419,6 @@ class AnkiDeckManager {
       return null;
     }
   }
-
-  // ─── Incremental Update Detection ──────────────────────────────────
-
-  /// Check if a file has already been imported (by hash).
-  /// Returns the existing import record if found.
-  Future<AnkiImportRecord?> checkExistingImport(String sourceHash) async {
-    return _importDao.findByHash(sourceHash);
-  }
-
-  // ─── SRS Partitioning (Phase 3.5) ──────────────────────────────────
-
-  /// Get the prefs key for an import's SRS state partition.
-  static String srsPartitionKey(String importId) => 'anki_srs_state_$importId';
-
-  /// Count of Anki cards in the SRS queue.
-  int get ankiSrsCount {
-    return _srsProvider.state.values
-        .where((w) => w.wordId.startsWith(LegacyAnkiIdentifiers.ankiPrefix))
-        .length;
-  }
-
-  /// Whether the SRS queue has exceeded the recommended threshold
-  /// for prefs-based storage (suggest SQLite migration above this).
-  bool get shouldMigrateToSqlite => ankiSrsCount > 5000;
 }
 
 /// The persisted owner(s) an uninstall id resolves to. Mirrored imports

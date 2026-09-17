@@ -281,4 +281,86 @@ void main() {
       [0, 2],
     );
   });
+
+  test('parseCorrectIndices handles HTML styled answers and tags', () {
+    const options = ['甲', '乙', '丙', '丁'];
+    expect(EmbeddedOptionsParser.parseCorrectIndices('<b>B</b>', options), [1]);
+    expect(
+      EmbeddedOptionsParser.parseCorrectIndices('<p>答案：A</p>', options),
+      [0],
+    );
+    expect(
+      EmbeddedOptionsParser.parseCorrectIndices(
+        '<span style="color:red">C</span>',
+        options,
+      ),
+      [2],
+    );
+    expect(
+      EmbeddedOptionsParser.parseCorrectIndices('<div>B<br></div>', options),
+      [1],
+    );
+  });
+
+  test('parseCorrectIndices handles Chinese brackets, colons, and suffixes', () {
+    const options = ['甲', '乙', '丙', '丁'];
+    expect(
+      EmbeddedOptionsParser.parseCorrectIndices('【答案】B', options),
+      [1],
+    );
+    expect(
+      EmbeddedOptionsParser.parseCorrectIndices('[正确答案]：C', options),
+      [2],
+    );
+    expect(
+      EmbeddedOptionsParser.parseCorrectIndices('答案是：D', options),
+      [3],
+    );
+    expect(
+      EmbeddedOptionsParser.parseCorrectIndices('答案为：A', options),
+      [0],
+    );
+    expect(
+      EmbeddedOptionsParser.parseCorrectIndices('选B项', options),
+      [1],
+    );
+    expect(
+      EmbeddedOptionsParser.parseCorrectIndices('A选项', options),
+      [0],
+    );
+    expect(
+      EmbeddedOptionsParser.parseCorrectIndices('B【解析】因为甲不正确', options),
+      [1],
+    );
+  });
+
+  test('extractEmbeddedOptions supports hyphen and space separators', () {
+    const hyphenFront = '题干：\nA - 苹果\nB - 香蕉\nC - 橙子';
+    final parsedHyphen = EmbeddedOptionsParser.extractEmbeddedOptions(hyphenFront);
+    expect(parsedHyphen, isNotNull);
+    expect(parsedHyphen!.options, ['苹果', '香蕉', '橙子']);
+
+    const spaceFront = '题干：\nA 苹果\nB 香蕉\nC 橙子';
+    final parsedSpace = EmbeddedOptionsParser.extractEmbeddedOptions(spaceFront);
+    expect(parsedSpace, isNotNull);
+    expect(parsedSpace!.options, ['苹果', '香蕉', '橙子']);
+  });
+
+  test('HTML table options are separated by newlines and parsed', () {
+    const tableFront =
+        '<table><tr><td>A. 苹果</td><td>B. 香蕉</td></tr><tr><td>C. 橙子</td><td>D. 西瓜</td></tr></table>';
+    expect(EmbeddedOptionsParser.looksLikeEmbeddedOptions(tableFront), isTrue);
+    final parsed = EmbeddedOptionsParser.extractEmbeddedOptions(tableFront);
+    expect(parsed, isNotNull);
+    expect(parsed!.options, ['苹果', '香蕉', '橙子', '西瓜']);
+  });
+
+  test('isOptionFieldName recognizes A选项 and bracketed names', () {
+    expect(EmbeddedOptionsParser.isOptionFieldName('A选项'), isTrue);
+    expect(EmbeddedOptionsParser.isOptionFieldName('b选项'), isTrue);
+    expect(EmbeddedOptionsParser.isOptionFieldName('[A]'), isTrue);
+    expect(EmbeddedOptionsParser.isOptionFieldName('（b）'), isTrue);
+    expect(EmbeddedOptionsParser.isOptionFieldName('(c)'), isTrue);
+    expect(EmbeddedOptionsParser.isOptionFieldName('Option_E'), isTrue);
+  });
 }

@@ -447,8 +447,6 @@ class OfficialAnkiMaintenanceRunner {
         ).rebuild();
         return OfficialAnkiCompactResult(
           elapsedMillis: result.elapsedMillis,
-          beforeBytes: result.rowCount,
-          afterBytes: result.rowCount,
         );
     }
   }

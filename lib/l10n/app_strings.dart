@@ -1375,6 +1375,55 @@ class AppStrings {
   static String get ankiMappingStatusRecognized => '将按下面选中的练习导入';
   static String get ankiMappingStatusAdvisory => '可以导入。若样卡正反面反了，点进去交换';
   static String get ankiMappingStatusBlocking => '点进去看样卡，选一下哪边是正面、哪边是背面';
+
+  // ── Anki Field Roles ──
+  static String get ankiRolePrompt => '正面';
+  static String get ankiRoleResponse => '背面';
+  static String get ankiRolePronunciation => '读音';
+  static String get ankiRoleAudio => '音频';
+  static String get ankiRoleImage => '图片';
+  static String get ankiRoleExample => '例句';
+  static String get ankiRoleHint => '提示';
+  static String get ankiRoleExtra => '补充';
+  static String get ankiRoleUnitLabel => '单元';
+  static String get ankiRoleLessonLabel => '课时';
+  static String get ankiRoleOptions => '选项';
+
+  // ── Anki Mapping Guidance & Actions ──
+  static String get ankiMappingStatusAuto => '已按卡片结构识别，可直接导入';
+  static String get ankiMappingStatusReview => '建议看一眼样卡再确认';
+  static String get ankiMappingStatusManual => '已按你的选择生效';
+  static String get ankiMappingStatusSkipped => '已跳过';
+  static String get ankiMappingWhichSideFront => '哪边是正面？';
+  static String get ankiMappingDisplayCorrect => '这样显示正确吗？';
+  static String get ankiMappingFrontAndBack => '正面和背面';
+  static String get ankiMappingFrontBackHint => '通常不用改；样卡反了就换一栏。';
+  static String get ankiMappingConflictHint => '正面和背面不能用同一栏';
+  static String get ankiMappingMoreContent => '更多内容';
+  static String get ankiMappingMoreContentSubtitle => '音频、图片、例句、分组等';
+  static String get ankiMappingSelectField => '选择字段';
+  static String get ankiMappingUnselectedOptional => '未选择（可留空）';
+  static String get ankiMappingSelectSidesHint => '看一下样卡，选哪边是正面、哪边是背面';
+  static String get ankiMappingEmptyField => '（空白）';
+  static String get ankiResetAutoMapping => '重新自动识别';
+  static String get ankiSkipCardType => '跳过这类卡片';
+  static String get ankiGenerateCourse => '生成课程';
+  static String get ankiUnselected => '未选择';
+  static String get ankiOfficialPreviewTitle => '官方卡片预览';
+
+  // ── Anki Study Presets ──
+  static String get studyPresetTitle => '学习模式设定';
+  static String get studyPresetChangeHint => '导入后可在课程设置中更改';
+  static String get studyPresetInteractiveTitle => '智能互动练习';
+  static String get studyPresetInteractiveDesc =>
+      '自动转换出选择、填空、听音等互动题型，告别单一翻面，提升做题趣味与记忆效果。';
+  static String get studyPresetClassicFlipTitle => '经典闪卡翻面';
+  static String get studyPresetClassicFlipDesc =>
+      '纯粹的正反翻面主动回忆，适合词汇快速刷记与传统 Anki 熟练背诵。';
+  static String get studyPresetFidelityTitle => '原卡官方保真';
+  static String get studyPresetFidelityDesc =>
+      '100% 还原 Anki 桌面端 HTML/CSS/JS 样式与动态效果，适合复杂定制排版。';
+  static String get studyPresetRecommended => '推荐';
   static String get ankiOrganizationTitle => '组织结构';
   static String get ankiOrganizationNone => '未发现单元/课时标签';
   static String get ankiOrganizationNoneDesc => '卡片将按每课 20 张分组。';

@@ -16,7 +16,6 @@ import 'package:turna/application/anki_official/review/official_formal_review_pr
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/study_session/anki_review_content.dart';
 import 'package:turna/application/study_session/anki_study_session_host.dart';
-import 'package:turna/application/study_session/session_settlement_service.dart';
 import 'package:turna/application/study_session/study_ledger_adapters.dart';
 import 'package:turna/application/study_session/study_product_analytics.dart';
 import 'package:turna/application/study_session/study_session_controller.dart';
@@ -28,6 +27,7 @@ import 'package:turna/domain/review/review_item.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/anki/anki_official_review_gate.dart';
 import 'package:turna/views/anki/anki_webview_sizing.dart';
+import 'package:turna/views/anki/components/anki_review_session_settlement.dart';
 import 'package:turna/views/review/components/binary_recall_bar.dart';
 import 'package:turna/views/review/components/review_progress_header.dart';
 import 'package:turna/views/review/components/study_card_surface.dart';
@@ -83,14 +83,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
   bool _advancingSource = false;
   bool _advanceScheduled = false;
   bool _reviewAllComplete = false;
-  int _earnedXp = 0;
-  bool _sessionCompletedRecorded = false;
-  final DateTime _sessionStartedAt = DateTime.now();
-
-  /// One per page instance: scopes the settlement gem reward's
-  /// idempotency key so every completed session earns exactly once.
-  final String _gemSessionSequence =
-      DateTime.now().microsecondsSinceEpoch.toString();
+  final _settlement = AnkiReviewSessionSettlement();
 
   /// Wave 2 (§8.4): a Blocked load — the scheduler owes cards but none
   /// could be rendered. Surfaced with retry / continue-later; never
@@ -103,19 +96,15 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
     required int forgotten,
     required Duration elapsed,
   }) async {
-    if (total == 0 || _sessionCompletedRecorded) return;
-    _sessionCompletedRecorded = true;
-    final xp = await SessionSettlementService.fromContext(context).settle(
-      source: SessionSettlementSource.anki,
-      sessionSequence: _gemSessionSequence,
+    await _settlement.recordCompletion(
+      context: context,
+      total: total,
       remembered: remembered,
       forgotten: forgotten,
       elapsed: elapsed,
     );
     if (mounted) {
-      setState(() {
-        _earnedXp = xp;
-      });
+      setState(() {});
     }
   }
 
@@ -148,7 +137,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
             unawaited(_advanceReviewAll());
           },
         );
-      } else if (_sourceCoordinator == null && !_sessionCompletedRecorded) {
+      } else if (_sourceCoordinator == null && !_settlement.isRecorded) {
         unawaited(_recordSessionCompletion(
           total: controller.answeredCount,
           remembered: controller.rememberedCount,
@@ -301,7 +290,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
         total: coordinator.totalCount,
         remembered: coordinator.rememberedCount,
         forgotten: coordinator.forgottenCount,
-        elapsed: DateTime.now().difference(_sessionStartedAt),
+        elapsed: DateTime.now().difference(_settlement.startedAt),
       ));
       _advancingSource = false;
       return;
@@ -522,8 +511,9 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
                         totalCount: reviewAll.totalCount,
                         rememberedCount: reviewAll.rememberedCount,
                         forgottenCount: reviewAll.forgottenCount,
-                        elapsed: DateTime.now().difference(_sessionStartedAt),
-                        xpEarned: _earnedXp,
+                        elapsed:
+                            DateTime.now().difference(_settlement.startedAt),
+                        xpEarned: _settlement.earnedXp,
                         gemsEarned: 0,
                         onFinish: () => Navigator.of(context).maybePop(),
                       ),
@@ -545,7 +535,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
             ? null
             : '${reviewAll!.currentIndex + 1}/${reviewAll.targets.length} · '
                 '${reviewAll.current!.displayName}',
-        earnedXp: _earnedXp,
+        earnedXp: _settlement.earnedXp,
       );
     }
 

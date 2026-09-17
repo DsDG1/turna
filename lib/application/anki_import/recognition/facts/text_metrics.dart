@@ -17,12 +17,14 @@ class CardText {
         .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
         .replaceAll(_htmlTagRegex, '')
         .replaceAll('&nbsp;', ' ')
-        .replaceAll('&amp;', '&')
         .replaceAll('&lt;', '<')
         .replaceAll('&gt;', '>')
         .replaceAll('&quot;', '"')
         .replaceAll('&#39;', "'")
         .replaceAll('&apos;', "'")
+        // &amp; decodes LAST: decoding it earlier would double-unescape
+        // sequences like `&amp;lt;` (literal "&lt;") into "<".
+        .replaceAll('&amp;', '&')
         .trim();
   }
 

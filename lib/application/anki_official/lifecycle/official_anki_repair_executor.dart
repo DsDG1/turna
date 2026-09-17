@@ -18,7 +18,6 @@ class OfficialAnkiRepairExecutor {
     required OfficialAnkiEngine engine,
     required OfficialAnkiSourceDao sources,
     OfficialAnkiPaths? paths,
-    dynamic uninstall,
     String profileId = 'profile-default-01',
     String? maintenanceLeaseOwnerToken,
   }) async {

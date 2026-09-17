@@ -45,19 +45,19 @@ class OfficialAnkiMappingPage extends StatefulWidget {
 
 /// Plain-language labels for the raw enum values. Users never need to see
 /// `prompt`/`auto`/`confidence=0.95`.
-const Map<FieldRole, String> _roleLabels = {
-  FieldRole.prompt: '正面',
-  FieldRole.response: '背面',
-  FieldRole.pronunciation: '读音',
-  FieldRole.audio: '音频',
-  FieldRole.image: '图片',
-  FieldRole.example: '例句',
-  FieldRole.hint: '提示',
-  FieldRole.extra: '补充',
-  FieldRole.unitLabel: '单元',
-  FieldRole.lessonLabel: '课时',
-  FieldRole.options: '选项',
-};
+Map<FieldRole, String> get _roleLabels => {
+      FieldRole.prompt: AppStrings.ankiRolePrompt,
+      FieldRole.response: AppStrings.ankiRoleResponse,
+      FieldRole.pronunciation: AppStrings.ankiRolePronunciation,
+      FieldRole.audio: AppStrings.ankiRoleAudio,
+      FieldRole.image: AppStrings.ankiRoleImage,
+      FieldRole.example: AppStrings.ankiRoleExample,
+      FieldRole.hint: AppStrings.ankiRoleHint,
+      FieldRole.extra: AppStrings.ankiRoleExtra,
+      FieldRole.unitLabel: AppStrings.ankiRoleUnitLabel,
+      FieldRole.lessonLabel: AppStrings.ankiRoleLessonLabel,
+      FieldRole.options: AppStrings.ankiRoleOptions,
+    };
 
 const Map<FieldRole, IconData> _roleIcons = {
   FieldRole.prompt: Icons.text_fields_outlined,
@@ -73,12 +73,12 @@ const Map<FieldRole, IconData> _roleIcons = {
   FieldRole.options: Icons.checklist_outlined,
 };
 
-const Map<OfficialAnkiMappingStatus, String> _statusLabels = {
-  OfficialAnkiMappingStatus.auto: '已按卡片结构识别，可直接导入',
-  OfficialAnkiMappingStatus.review: '建议看一眼样卡再确认',
-  OfficialAnkiMappingStatus.manual: '已按你的选择生效',
-  OfficialAnkiMappingStatus.skipped: '已跳过',
-};
+Map<OfficialAnkiMappingStatus, String> get _statusLabels => {
+      OfficialAnkiMappingStatus.auto: AppStrings.ankiMappingStatusAuto,
+      OfficialAnkiMappingStatus.review: AppStrings.ankiMappingStatusReview,
+      OfficialAnkiMappingStatus.manual: AppStrings.ankiMappingStatusManual,
+      OfficialAnkiMappingStatus.skipped: AppStrings.ankiMappingStatusSkipped,
+    };
 
 String _presetLabel(OfficialExercisePreset preset) {
   switch (preset) {
@@ -222,7 +222,7 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
 
   String _plainField(String raw) {
     final plain = raw.replaceAll(RegExp(r'<[^>]*>'), '').trim();
-    return plain.isEmpty ? '（空白）' : plain;
+    return plain.isEmpty ? AppStrings.ankiMappingEmptyField : plain;
   }
 
   void _onSavePressed() {
@@ -252,12 +252,12 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
     if (candidate == null ||
         candidate.fieldIndex < 0 ||
         candidate.fieldIndex >= sample.fields.length) {
-      return '未选择';
+      return AppStrings.ankiUnselected;
     }
     final plain = sample.fields[candidate.fieldIndex]
         .replaceAll(RegExp(r'<[^>]*>'), '')
         .trim();
-    return plain.isEmpty ? '（空白）' : plain;
+    return plain.isEmpty ? AppStrings.ankiMappingEmptyField : plain;
   }
 
   @override
@@ -307,7 +307,7 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '${blocking ? '看一下样卡，选哪边是正面、哪边是背面' : statusLabel}'
+                    '${blocking ? AppStrings.ankiMappingSelectSidesHint : statusLabel}'
                     '${widget.affectedCardCount > 0 ? '（共 ${widget.affectedCardCount} 张）' : ''}',
                     style: TextStyle(
                       fontSize: 13,
@@ -329,9 +329,9 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
           ),
           const SizedBox(height: 16),
           if (_pickingFront) ...[
-            const Text(
-              '哪边是正面？',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+            Text(
+              AppStrings.ankiMappingWhichSideFront,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             for (var i = 0; i < 2; i++)
@@ -387,9 +387,9 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
               ),
             ),
             const SizedBox(height: 12),
-            const Text(
-              '这样显示正确吗？',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+            Text(
+              AppStrings.ankiMappingDisplayCorrect,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 8),
             for (final sample in samples)
@@ -409,7 +409,7 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _MappingPreviewSide(
-                      label: '正面',
+                      label: AppStrings.ankiRolePrompt,
                       value: _sampleValue(
                         sample,
                         FieldRole.prompt,
@@ -420,7 +420,7 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
                       child: Center(child: Icon(Icons.arrow_downward_rounded)),
                     ),
                     _MappingPreviewSide(
-                      label: '背面',
+                      label: AppStrings.ankiRoleResponse,
                       value: _sampleValue(
                         sample,
                         FieldRole.response,
@@ -480,13 +480,13 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
               ),
             ),
           const SizedBox(height: 16),
-          const Text(
-            '正面和背面',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+          Text(
+            AppStrings.ankiMappingFrontAndBack,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 4),
           Text(
-            '通常不用改；样卡反了就换一栏。',
+            AppStrings.ankiMappingFrontBackHint,
             style: TextStyle(
               fontSize: 12,
               color: TurnaTheme.textSecondaryColor(context),
@@ -496,7 +496,7 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Text(
-                '正面和背面不能用同一栏',
+                AppStrings.ankiMappingConflictHint,
                 key: const Key('mapping-conflict'),
                 style: const TextStyle(
                   color: TurnaTheme.error,
@@ -506,12 +506,12 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
             ),
           _roleSelector(
             role: FieldRole.prompt,
-            label: '正面',
+            label: AppStrings.ankiRolePrompt,
             fieldNames: fieldNames,
           ),
           _roleSelector(
             role: FieldRole.response,
-            label: '背面',
+            label: AppStrings.ankiRoleResponse,
             fieldNames: fieldNames,
           ),
           const SizedBox(height: 16),
@@ -521,11 +521,12 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
               key: const Key('mapping-more-fields'),
               tilePadding: EdgeInsets.zero,
               childrenPadding: EdgeInsets.zero,
-              title: const Text(
-                '更多内容',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              title: Text(
+                AppStrings.ankiMappingMoreContent,
+                style:
+                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
               ),
-              subtitle: const Text('音频、图片、例句、分组等'),
+              subtitle: Text(AppStrings.ankiMappingMoreContentSubtitle),
               children: [
                 for (final role in FieldRole.values)
                   if (role != FieldRole.ignored &&
@@ -541,7 +542,7 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
                   child: TextButton(
                     key: const Key('mapping-restore'),
                     onPressed: restoreSuggestion,
-                    child: const Text('重新自动识别'),
+                    child: Text(AppStrings.ankiResetAutoMapping),
                   ),
                 ),
               ],
@@ -563,14 +564,14 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
               TextButton(
                 key: const Key('mapping-skip'),
                 onPressed: _onSkipPressed,
-                child: const Text('跳过这类卡片'),
+                child: Text(AppStrings.ankiSkipCardType),
               ),
               const Spacer(),
               if (widget.onGenerateCourse != null)
                 TextButton(
                   key: const Key('mapping-generate'),
                   onPressed: widget.onGenerateCourse,
-                  child: const Text('生成课程'),
+                  child: Text(AppStrings.ankiGenerateCourse),
                 ),
               FilledButton(
                 key: const Key('mapping-save'),
@@ -598,7 +599,8 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
       ),
       title: Text(label, style: const TextStyle(fontSize: 14)),
       subtitle: Text(
-        _current.role(role)?.fieldName ?? '未选择（可留空）',
+        _current.role(role)?.fieldName ??
+            AppStrings.ankiMappingUnselectedOptional,
         style: const TextStyle(fontSize: 12),
       ),
       trailing: fieldNames.isEmpty
@@ -606,7 +608,7 @@ class OfficialAnkiMappingPageState extends State<OfficialAnkiMappingPage> {
           : DropdownButton<int>(
               key: Key('mapping-role-${role.name}'),
               value: _current.role(role)?.fieldIndex,
-              hint: const Text('选择字段'),
+              hint: Text(AppStrings.ankiMappingSelectField),
               items: [
                 for (var i = 0; i < fieldNames.length; i++)
                   DropdownMenuItem(

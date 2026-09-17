@@ -30,8 +30,10 @@ class OfficialAnkiReviewerRouter {
     }
   }
 
+  /// Architectural invariant (ADR 0036 / doc 35 L2): Official cards must never
+  /// route to the Legacy renderer under any circumstances.
   static bool officialMayUseLegacyRenderer(OfficialAnkiSourceKind kind) {
-    return resolve(kind: kind) == OfficialAnkiReviewTarget.legacyRenderer &&
-        kind == OfficialAnkiSourceKind.official;
+    if (kind != OfficialAnkiSourceKind.official) return false;
+    return resolve(kind: kind) == OfficialAnkiReviewTarget.legacyRenderer;
   }
 }

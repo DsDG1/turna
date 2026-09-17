@@ -31,7 +31,7 @@ enum PracticeChoiceCardinality { single, multi, unknown, conflict }
 /// options.dart`). Pure structure, zero topic words.
 class EmbeddedOptionsParser {
   static final RegExp _blockTagRegex = RegExp(
-    r'<br\s*/?>|</p>|</div>|</li>|</tr>|</h[1-6]>',
+    r'<br\s*/?>|</p>|</div>|</li>|</tr>|</td>|</th>|</h[1-6]>',
     caseSensitive: false,
   );
 
@@ -55,12 +55,14 @@ class EmbeddedOptionsParser {
               : '';
         })
         .replaceAll('&nbsp;', ' ')
-        .replaceAll('&amp;', '&')
         .replaceAll('&lt;', '<')
         .replaceAll('&gt;', '>')
         .replaceAll('&quot;', '"')
         .replaceAll('&#39;', "'")
-        .replaceAll('&apos;', "'");
+        .replaceAll('&apos;', "'")
+        // &amp; decodes LAST: decoding it earlier would double-unescape
+        // sequences like `&amp;lt;` (literal "&lt;") into "<".
+        .replaceAll('&amp;', '&');
   }
 
   /// Whether [text] looks like it contains lettered options (A./B. …),
@@ -69,7 +71,7 @@ class EmbeddedOptionsParser {
   static bool looksLikeEmbeddedOptions(String raw) {
     final text = normalizeForOptionScan(raw);
     final letterHits = RegExp(
-      r'(?<![A-Za-z0-9])([A-Ha-h])\s*[.、．:：)）\]】。]',
+      r'(?<![A-Za-z0-9])([A-Ja-j])\s*[.、．:：)）\]】。\-—–]',
     ).allMatches(text).length;
     if (letterHits >= 2) return true;
     final circledHits = RegExp(
@@ -77,11 +79,11 @@ class EmbeddedOptionsParser {
     ).allMatches(text).length;
     if (circledHits >= 2) return true;
     final bracketHits = RegExp(
-      r'[（(【\[]\s*([A-Ha-h1-8])\s*[）)】\]]',
+      r'[（(【\[]\s*([A-Ja-j1-8])\s*[）)】\]]',
     ).allMatches(text).length;
     if (bracketHits >= 2) return true;
     final numHits = RegExp(
-      r'(?<![A-Za-z0-9])([1-8])\s*[.、．:：)）\]】。]',
+      r'(?<![A-Za-z0-9])([1-8])\s*[.、．:：)）\]】。\-—–]',
     ).allMatches(text).length;
     if (numHits >= 2) return true;
     // Sequential label runs (`A 选项` then `B 选项` with only whitespace
@@ -95,7 +97,7 @@ class EmbeddedOptionsParser {
   /// prose too often to trust mid-line).
   static bool _hasSequentialLabels(String text) {
     final letters = RegExp(
-      r'(?<![A-Za-z0-9])([A-Ha-h])(?![A-Za-z0-9])',
+      r'(?<![A-Za-z0-9])([A-Ja-j])(?![A-Za-z0-9])',
     ).allMatches(text).map((m) => m.group(1)!.toUpperCase()).toList();
     for (var i = 1; i < letters.length; i++) {
       if (letters[i].codeUnitAt(0) == letters[i - 1].codeUnitAt(0) + 1) {
@@ -124,17 +126,18 @@ class EmbeddedOptionsParser {
     final promptLines = <String>[];
     final optionLine = RegExp(
       r'^\s*(?:'
-      r'([A-Ha-h])\s*[.、．:：)）\]】。]\s*'
-      r'|[（(【\[]\s*([A-Ha-h1-8])\s*[）)】\]]\s*'
-      r'|([①-⑧])\s*'
-      r'|([1-8])\s*[.、．:：)）\]】。]\s*'
+      r'([A-Ja-j])\s*[.、．:：)）\]】。\-—–]\s*'
+      r'|[（(【\[]\s*([A-Ja-j1-8])\s*[）)】\]]\s*'
+      r'|([①-⑧])\s*[.、．:：\-—–]?\s*'
+      r'|([1-8])\s*[.、．:：)）\]】。\-—–]\s*'
+      r'|([A-Ja-j])(?:\s+|\u3000+)'
       r')(.+)$',
     );
 
     for (final line in lines) {
       final m = optionLine.firstMatch(line);
       if (m != null) {
-        final text = (m.group(5) ?? '').trim();
+        final text = (m.group(m.groupCount) ?? '').trim();
         if (text.isNotEmpty) lineOptions.add(text);
       } else if (lineOptions.isEmpty) {
         if (line.trim().isNotEmpty) promptLines.add(line.trim());
@@ -150,10 +153,10 @@ class EmbeddedOptionsParser {
 
     // 2) Inline parse (no newlines between A./B./C./D. or (A)/(B))
     final inline = RegExp(
-      r'(?:(?<![A-Za-z0-9])([A-Ha-h])\s*[.、．:：)）\]】。]\s*'
-      r'|[（(【\[]\s*([A-Ha-h1-8])\s*[）)】\]]\s*'
-      r'|([①-⑧])\s*'
-      r'|(?<![A-Za-z0-9])([1-8])\s*[.、．:：)）\]】。]\s*)',
+      r'(?:(?<![A-Za-z0-9])([A-Ja-j])\s*[.、．:：)）\]】。\-—–]\s*'
+      r'|[（(【\[]\s*([A-Ja-j1-8])\s*[）)】\]]\s*'
+      r'|([①-⑧])\s*[.、．:：\-—–]?\s*'
+      r'|(?<![A-Za-z0-9])([1-8])\s*[.、．:：)）\]】。\-—–]\s*)',
     );
     final matches = inline.allMatches(front).toList();
     if (matches.length >= 2) {
@@ -205,8 +208,8 @@ class EmbeddedOptionsParser {
   /// A whole line that is nothing but an explicit answer marker
   /// (`答案：B` / `Answer: C`) — excluded from unlabeled pools.
   static final RegExp _answerMarkerLine = RegExp(
-    r'^\s*(?:答案|正确答案|正确选项|正解|参考答案|Answer|Ans|选)\s*[为是:：]?\s*'
-    r'(?:[A-Ha-h]{1,4}|[①-⑧]{1,4}|[1-9])\s*[.、．:：)）\]】。]?\s*$',
+    r'^\s*[（(【\[]?\s*(?:答案|正确答案|正确选项|正解|参考答案|Answer|Ans|Key|选)\s*[）)】\]]?\s*[为是:：]?\s*'
+    r'(?:[A-Ja-j]{1,4}|[①-⑧]{1,4}|[1-9])\s*[.、．:：)）\]】。]?\s*$',
     caseSensitive: false,
   );
 
@@ -226,10 +229,10 @@ class EmbeddedOptionsParser {
     }
     final labeledLine = RegExp(
       r'^\s*(?:'
-      r'[（(【\[]\s*[A-Ha-h1-8]\s*[）)】\]]'
+      r'[（(【\[]\s*[A-Ja-j1-8]\s*[）)】\]]'
       r'|[①-⑧]'
-      r'|[A-Ha-h]\s*[.、．:：)）\]】。]'
-      r'|[1-8]\s*[.、．:：)）\]】。]'
+      r'|[A-Ja-j]\s*[.、．:：)）\]】。\-—–]'
+      r'|[1-8]\s*[.、．:：)）\]】。\-—–]'
       r')',
     );
     for (final line in pool) {
@@ -242,20 +245,20 @@ class EmbeddedOptionsParser {
   /// Clause that explains rather than answers. An answer field often
   /// carries `B。解析：…`; the head before this clause is the answer.
   static final RegExp _explanationClause = RegExp(
-    r'(?:解析|解释|说明|提示|分析|rationale|explanation|because|since|why)',
+    r'(?:解析|解释|说明|提示|分析|详解|考点|答案解析|rationale|explanation|because|since|why)',
     caseSensitive: false,
   );
 
   /// CJK-only explanation words — strong enough to cut at a sentence
   /// boundary even when the head is prose (`北京。解析：…`).
   static final RegExp _cjkExplanationClause = RegExp(
-    r'(?:解析|解释|说明|提示|分析)',
+    r'(?:解析|解释|说明|提示|分析|详解|考点|答案解析)',
   );
 
   /// An answer head that is nothing but labels and separators (`B。`,
   /// `AC`, `2、3`) — safe to cut an explanation clause after it.
   static final RegExp _labelIshHead = RegExp(
-    r'^[A-Ha-h①-⑧0-9\s.、．:：)）\]】。,，;；/|+＋]+$',
+    r'^[A-Ja-j①-⑧0-9\s.、．:：)）(（\[【\]】。,，;；/|+＋]+$',
   );
 
   /// Whitespace/trailing-punctuation-insensitive comparison key for the
@@ -271,7 +274,9 @@ class EmbeddedOptionsParser {
     List<String> options,
   ) {
     if (options.isEmpty) return const [];
-    var answerWithLabel = answerRaw.trim();
+    // Strip HTML formatting and decode entities first so styled answers
+    // (`<b>B</b>` / `<div>答案：A</div>`) normalize cleanly.
+    var answerWithLabel = CardText.stripHtml(answerRaw);
     if (answerWithLabel.isEmpty) return const [];
 
     // `B。解析：…` keeps only its head. A clause at position zero means
@@ -291,22 +296,24 @@ class EmbeddedOptionsParser {
       }
     }
 
-    // Answer-word prefix (`答案：B`, `Answer: B`, `选B`). `选` must not
+    // Answer-word prefix (`答案：B`, `【答案】B`, `Answer: B`, `选B`, `答案是：B`). `选` must not
     // eat the first character of answers that repeat an option text
     // starting with `选项…`/`选题…`.
     answerWithLabel = answerWithLabel
         .replaceFirst(
           RegExp(
-            r'^(?:答案|正确答案|正确选项|正解|参考答案|Answer|Ans|选(?![题项]))\s*[为是:：]?\s*',
+            r'^[（(【\[]?\s*(?:答案|正确答案|正确选项|正解|参考答案|Answer|Ans|Key|选(?![题项]))\s*[）)】\]]?\s*[为是:：\s]*',
             caseSensitive: false,
           ),
           '',
         )
         .trim();
 
-    // Trailing sentence punctuation (`B。` / `AC，`).
-    answerWithLabel =
-        answerWithLabel.replaceFirst(RegExp(r'[。．.;；,，、\s]+$'), '').trim();
+    // Trailing sentence punctuation or trailing brackets (`B。` / `AC，` / `B【`).
+    answerWithLabel = answerWithLabel
+        .replaceFirst(RegExp(r'[。．.;；,，、\s)）\]】(（\[【]+$'), '')
+        .replaceFirst(RegExp(r'(?<=[A-Ja-j①-⑧1-9])\s*(?:选项|项)$'), '')
+        .trim();
     if (answerWithLabel.isEmpty) return const [];
 
     // Answers often repeat the option label: `A. 选项文本` / `（B）文本`.
@@ -315,10 +322,10 @@ class EmbeddedOptionsParser {
         .replaceFirst(
           RegExp(
             r'^(?:'
-            r'[A-Ha-h]\s*[.、．:：)）\]】。]'
-            r'|[（(【\[]\s*[A-Ha-h1-8]\s*[）)】\]]'
-            r'|[①-⑧]'
-            r'|[1-9]\s*[.、．:：)）\]】。]'
+            r'[A-Ja-j]\s*[.、．:：)）\]】。\-—–]'
+            r'|[（(【\[]\s*([A-Ja-j1-8])\s*[）)】\]]'
+            r'|([①-⑧])'
+            r'|[1-9]\s*[.、．:：)）\]】。\-—–]'
             r')\s*',
           ),
           '',
@@ -340,9 +347,9 @@ class EmbeddedOptionsParser {
       if (exact >= 0) return [exact];
     }
 
-    final compact = RegExp(r'[,;、|/＋+\s。．.]+');
+    final compact = RegExp(r'[,;、|/＋+\s。．.：:]+');
     final compactLetters = answerWithLabel.replaceAll(compact, '');
-    if (RegExp(r'^[A-Ha-h]+$').hasMatch(compactLetters)) {
+    if (RegExp(r'^[A-Ja-j]+$').hasMatch(compactLetters)) {
       for (final c in compactLetters.toUpperCase().codeUnits) {
         addIfValid(c - 65);
       }
@@ -395,20 +402,23 @@ class EmbeddedOptionsParser {
 
   /// Whether a lowercased field name looks like an option column.
   static bool isOptionFieldName(String lower) {
-    final s = lower.trim();
+    final s = lower.trim().toLowerCase();
     if (s.isEmpty) return false;
     if (isAnswerFieldName(s)) return false;
-    if (RegExp(r'^(option|choice|opt|选项|备选)\s*[_-]?\s*[a-h0-9]?$')
+    if (RegExp(r'^(option|choice|opt|选项|备选)\s*[_-]?\s*[a-j0-9]?$')
         .hasMatch(s)) {
       return true;
     }
-    if (RegExp(r'^q[_-]?\s*[a-h1-9]$').hasMatch(s)) return true;
-    if (RegExp(r'^[a-h]$').hasMatch(s)) return true;
+    if (RegExp(r'^[（(\[]?\s*[a-j1-8]\s*[）)\]]?\s*(选项|备选)?$').hasMatch(s)) {
+      return true;
+    }
+    if (RegExp(r'^q[_-]?\s*[a-j1-9]$').hasMatch(s)) return true;
+    if (RegExp(r'^[a-j]$').hasMatch(s)) return true;
     if (RegExp(r'^[甲乙丙丁戊己庚辛]$').hasMatch(s)) return true;
-    if (RegExp(r'^选项\s*[a-h甲乙丙丁1-9]$').hasMatch(s)) return true;
+    if (RegExp(r'^选项\s*[a-j甲乙丙丁1-9]$').hasMatch(s)) return true;
     if (RegExp(r'^选项[一二三四五六七八]$').hasMatch(s)) return true;
-    if (RegExp(r'^(option|choice)\s*[a-h1-9]$').hasMatch(s)) return true;
-    if (RegExp(r'^(option|choice|opt)[_-][a-h1-9]$').hasMatch(s)) return true;
+    if (RegExp(r'^(option|choice)\s*[a-j1-9]$').hasMatch(s)) return true;
+    if (RegExp(r'^(option|choice|opt)[_-][a-j1-9]$').hasMatch(s)) return true;
     return false;
   }
 
@@ -470,8 +480,8 @@ class EmbeddedOptionsParser {
   /// `B。`) — the answer shape an unlabeled line pool pairs with.
   static bool isBareLabelAnswer(String raw) {
     return RegExp(
-      r'^\s*(?:[A-Ha-h]|[①-⑧]|[1-9])\s*[.、．:：)）\]】。]?\s*$',
-    ).hasMatch(raw);
+      r'^\s*(?:[A-Ja-j]|[①-⑧]|[1-9])\s*[.、．:：)）\]】。]?\s*$',
+    ).hasMatch(CardText.stripHtml(raw));
   }
 
   /// Whether the value is a handful of short standalone lines — the
@@ -483,8 +493,8 @@ class EmbeddedOptionsParser {
 
   static int _labelToIndex(String label) {
     final rune = label.runes.first;
-    if (rune >= 0x41 && rune <= 0x48) return rune - 0x41;
-    if (rune >= 0x61 && rune <= 0x68) return rune - 0x61;
+    if (rune >= 0x41 && rune <= 0x4A) return rune - 0x41;
+    if (rune >= 0x61 && rune <= 0x6A) return rune - 0x61;
     if (rune >= 0x2460 && rune <= 0x2467) return rune - 0x2460;
     final digit = int.tryParse(label);
     return digit == null ? -1 : digit - 1;
@@ -502,8 +512,8 @@ class EmbeddedOptionsParser {
     final embedded = extractEmbeddedOptions(cleaned);
     if (embedded == null) return null;
     final marker = RegExp(
-      r'(?:答案|正确答案|正确选项|正解|参考答案|Answer|Ans|选)\s*[为是:：]?\s*'
-      r'([A-Ha-h]{1,4}|[①-⑧]{1,4}|[1-9])(?![A-Za-z0-9])',
+      r'[（(【\[]?\s*(?:答案|正确答案|正确选项|正解|参考答案|Answer|Ans|Key|选)\s*[）)】\]]?\s*[为是:：]?\s*'
+      r'([A-Ja-j]{1,4}|[①-⑧]{1,4}|[1-9])(?![A-Za-z0-9])',
       caseSensitive: false,
     ).firstMatch(normalized);
     if (marker == null) return null;
