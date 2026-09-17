@@ -24,6 +24,7 @@ import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
 import 'package:turna/views/ai/components/ai_quick_chips.dart';
 import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 @RoutePage()
 class AiHintChatPage extends StatefulWidget {
@@ -137,9 +138,7 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
       createdAt: DateTime.now(),
     ));
     if (mounted) {
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        SnackBar(content: Text(AppStrings.aiExplanationSaved)),
-      );
+      TurnaSnackBar.maybeShow(context, AppStrings.aiExplanationSaved);
     }
   }
 

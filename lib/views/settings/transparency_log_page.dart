@@ -13,6 +13,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:turna/core/log_capture.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// 透明度报告页 — 隐私详情页底部 pill 跳进来。
 ///
@@ -102,12 +103,7 @@ class TransparencyLogPage extends StatelessWidget {
     if (confirmed == true) {
       await LogCapture.instance.clear();
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(AppStrings.transparencyClearAllDone),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        TurnaSnackBar.show(context, AppStrings.transparencyClearAllDone);
       }
     }
   }
@@ -457,7 +453,7 @@ class _FooterNote extends StatelessWidget {
                     ),
                   ),
                   IconButton(
-                    tooltip: '复制路径',
+                    tooltip: AppStrings.commonCopyPath,
                     icon: const Icon(
                       Icons.copy_rounded,
                       size: 18,
@@ -488,8 +484,9 @@ class _CardMetaRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        kind == _LogKind.error ? const Color(0xFFC62828) : TurnaTheme.brandTeal;
+    final color = kind == _LogKind.error
+        ? TurnaTheme.errorOnSurface(context)
+        : TurnaTheme.brandTeal;
     final label = kind == _LogKind.error
         ? AppStrings.transparencyErrorTitle
         : AppStrings.transparencyOpsTitle;
@@ -545,7 +542,7 @@ class _LogLineState extends State<_LogLine> {
     final time = '$hh:$mm:$ss';
 
     final color = entry.isAbnormal
-        ? const Color(0xFFC62828)
+        ? TurnaTheme.errorOnSurface(context)
         : TurnaTheme.textHintColor(context);
     final levelTag = entry.isAbnormal
         ? (entry.level == Level.warning
@@ -634,7 +631,7 @@ class _LogLineState extends State<_LogLine> {
                   const EdgeInsets.only(left: 70, top: 2, bottom: 4, right: 4),
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: const Color(0xFFF5F5F5),
+                color: TurnaTheme.inputFillColor(context),
                 borderRadius: BorderRadius.circular(4),
                 border: Border.all(
                   color: TurnaTheme.statCardBorder(context),
@@ -642,10 +639,11 @@ class _LogLineState extends State<_LogLine> {
               ),
               child: SelectableText(
                 entry.stackTrace!,
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: 'monospace',
                   fontSize: 11,
                   height: 1.4,
+                  color: TurnaTheme.textPrimaryColor(context),
                 ),
               ),
             ),

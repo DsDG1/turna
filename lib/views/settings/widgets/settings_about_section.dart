@@ -36,7 +36,7 @@ class SettingsAboutSection extends StatelessWidget {
         SettingsNavigationTile(
           icon: Icons.school_rounded,
           title: AppStrings.settingsAboutTurna,
-          subtitle: '关于 Turna、隐私与更新日志',
+          subtitle: AppStrings.settingsAboutTileSubtitle,
           onTap: (context) => context.router.push(AboutTurnaRoute()),
         ),
         settingsTileDivider(context),

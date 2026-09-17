@@ -26,6 +26,7 @@ import 'package:turna/views/review/components/unified_review_completion.dart';
 import 'package:auto_route/auto_route.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// Unified review page providing a single, consistent review experience for all card sources.
 @RoutePage()
@@ -175,9 +176,7 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
       language: context.read<LanguageProvider>().ttsLanguageCode,
     );
     if (!context_.supported) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppStrings.aiCardExplainUnsupported)),
-      );
+      TurnaSnackBar.show(context, AppStrings.aiCardExplainUnsupported);
       return;
     }
     showAiCardExplainSheet(
@@ -232,11 +231,10 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
         onUndo: () async {
           final ok = await _controller.undoLast();
           if (!ok || !context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('已撤销上一张评分'),
-              duration: Duration(seconds: 2),
-            ),
+          TurnaSnackBar.show(
+            context,
+            AppStrings.reviewUndoRatingDone,
+            duration: const Duration(seconds: 2),
           );
         },
         canUndo: _controller.lastReceipt != null && !_controller.isSubmitting,
@@ -284,7 +282,7 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
                   SizedBox(height: sizing.bottomGap),
                   if (_controller.lastError != null) ...[
                     Text(
-                      '当前卡片无法安全写入，请重试或稍后返回。',
+                      AppStrings.ankiReviewWriteUnsafe,
                       key: const Key('unified-review-error'),
                       textAlign: TextAlign.center,
                       style: const TextStyle(
@@ -298,12 +296,12 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
                           ? null
                           : _controller.retryPreviews,
                       icon: const Icon(Icons.refresh, size: 18),
-                      label: const Text('重试'),
+                      label: Text(AppStrings.reviewRetry),
                     ),
                     const SizedBox(height: 12),
                   ] else if (_controller.sideEffectWarning != null) ...[
                     Text(
-                      '复习已保存，统计稍后同步。',
+                      AppStrings.reviewSavedStatsPending,
                       key: const Key('unified-review-side-effect-warning'),
                       textAlign: TextAlign.center,
                       style: TextStyle(

@@ -12,6 +12,7 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/domain/audio/anki_audio_resolver.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// Renders Anki deck media (`anki://<importId>/<file>` references) attached
 /// to an objectively-graded interaction (MCQ / FillBlank): one speaker
@@ -106,9 +107,8 @@ class _AnkiMediaStripState extends State<AnkiMediaStrip> {
       started = false;
     }
     if (!started && mounted) {
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        SnackBar(content: Text(AppStrings.lessonAudioPlaybackFailed)),
-      );
+      TurnaSnackBar.maybeShow(
+          context, AppStrings.lessonAudioPlaybackFailed);
     }
   }
 

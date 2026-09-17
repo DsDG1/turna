@@ -10,6 +10,7 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/service/tts_availability_checker.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 import 'components/center_display.dart';
 import 'components/get_started_button.dart';
@@ -109,13 +110,7 @@ class _SplashPageState extends State<SplashPage> {
       case _GoogleTtsPromptAction.installGoogle:
         final opened = await checker.openGoogleTtsInstallPage();
         if (!opened && mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                AppStrings.splashCouldNotOpenStore,
-              ),
-            ),
-          );
+          TurnaSnackBar.show(context, AppStrings.splashCouldNotOpenStore);
         }
       case _GoogleTtsPromptAction.openSettings:
         await checker.openSystemTtsSettings();

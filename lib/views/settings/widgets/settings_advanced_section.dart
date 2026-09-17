@@ -16,6 +16,7 @@ import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/views/settings/widgets/settings_sound_section.dart'
     show SettingsToggleTile;
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// "高级" category (Plan 2 §6): a stable cross-feature hub with four
 /// first-level entries — AI 连接 / 存储与性能 / 系统健康与诊断 / 旧版与兼容性.
@@ -133,7 +134,7 @@ class _LegacyCompatibilityBody extends StatelessWidget {
         const SizedBox(height: 20),
         SettingsSectionTitle(
           icon: Icons.science_rounded,
-          title: '实验性兼容开关',
+          title: AppStrings.settingsExperimentalSection,
         ),
         const SizedBox(height: 8),
         const _AiEngineTunablesCard(),
@@ -170,9 +171,8 @@ class _LegacyCompatibilityBody extends StatelessWidget {
     if (confirmed != true || !context.mounted) return;
     await context.read<SettingsProvider>().resetLegacyCompatibilityDefaults();
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppStrings.settingsLegacyResetDefaultsDone)),
-      );
+      TurnaSnackBar.show(
+          context, AppStrings.settingsLegacyResetDefaultsDone);
     }
   }
 }
@@ -204,8 +204,8 @@ class _AiEngineTunablesCardState extends State<_AiEngineTunablesCard> {
           children: [
             SettingsTile(
               icon: Icons.cached_rounded,
-              title: 'AI 响应缓存',
-              subtitle: '命中相同请求时直接复用结果；关闭后每次都重新请求',
+              title: AppStrings.aiCacheEnabledTitle,
+              subtitle: AppStrings.aiCacheEnabledSubtitle,
               trailing: settingsAdaptiveSwitch(
                 value: config.cacheEnabled,
                 onChanged: (v) => holder.updateConfig(
@@ -216,9 +216,9 @@ class _AiEngineTunablesCardState extends State<_AiEngineTunablesCard> {
             settingsTileDivider(context),
             SettingsActionTile(
               icon: Icons.verified_outlined,
-              title: 'Strict JSON 模式',
-              subtitle: '当前：${config.strictSchema.name}'
-                  '（auto=自动回退，on=强制，off=宽松）',
+              title: AppStrings.aiStrictSchemaTitle,
+              subtitle:
+                  AppStrings.aiStrictSchemaSubtitle(config.strictSchema.name),
               onTap: (context) {
                 final next = switch (config.strictSchema) {
                   StrictSchemaMode.auto => StrictSchemaMode.on,

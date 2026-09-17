@@ -46,8 +46,8 @@ class _StreakBrokenDialogState extends State<StreakBrokenDialog> {
           if (streak?.canProtectPendingBreak ?? false) ...[
             const SizedBox(height: 12),
             Text(
-              '保护券可以保留此前 ${streak!.pendingPreviousStreak} 天连续；'
-              '它不会修改学习记录、复习日期或到期时间。',
+              AppStrings.streakVoucherExplain(
+                  streak!.pendingPreviousStreak ?? 0),
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
@@ -74,7 +74,9 @@ class _StreakBrokenDialogState extends State<StreakBrokenDialog> {
                       },
                 icon: const Icon(Icons.shield_rounded),
                 label: Text(
-                  _usingVoucher ? '使用中…' : '使用保护券（持有 $count）',
+                  _usingVoucher
+                      ? AppStrings.streakVoucherApplying
+                      : AppStrings.streakVoucherUse(count),
                 ),
               );
             },

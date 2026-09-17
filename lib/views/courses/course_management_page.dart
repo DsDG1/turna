@@ -28,6 +28,7 @@ import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/utils/validated_file_picker.dart';
 import 'package:turna/views/anki/import_wizard/official_pending_import_banner.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// Course management page — opened from the course switcher in the Learn
 /// tab. Lists the built-in course plus every Anki course (one entry per
@@ -238,7 +239,7 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
       if (path == null) return;
       final db = CourseLoader.databaseOrNull();
       if (db == null) {
-        throw const CoursePackImportException(['课程数据库尚未就绪']);
+        throw CoursePackImportException([AppStrings.coursePackDbNotReady]);
       }
       if (!context.mounted) return;
       final phase = ValueNotifier<CoursePackImportPhase>(
@@ -272,20 +273,17 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
       await courseProvider.reloadCourse();
       if (!context.mounted) return;
       Navigator.of(context, rootNavigator: true).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            AppStrings.courseManagementImportPackSuccess(
-              result.displayName,
-              result.sectionCount,
-              result.wordCount,
-            ),
-          ),
+      TurnaSnackBar.show(
+        context,
+        AppStrings.courseManagementImportPackSuccess(
+          result.displayName,
+          result.sectionCount,
+          result.wordCount,
         ),
       );
     } on ValidatedFilePickerInvalidExtension {
       if (!context.mounted) return;
-      _showPackErrors(context, ['文件类型不受支持']);
+      _showPackErrors(context, [AppStrings.coursePackInvalidFileType]);
     } on CoursePackImportException catch (e) {
       if (!context.mounted) return;
       if (progressShown) {
@@ -299,9 +297,7 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
       if (progressShown) {
         unawaited(Navigator.of(context, rootNavigator: true).maybePop());
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppStrings.coursePackImportCancelled)),
-      );
+      TurnaSnackBar.show(context, AppStrings.coursePackImportCancelled);
     } catch (e) {
       if (!context.mounted) return;
       if (progressShown) {
@@ -478,14 +474,11 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
     // v2 删除序列里用户可见的移除在账本 COMMIT 即生效；false（locator
     // 未就绪）与抛错（提交前失败）都意味着本次什么都没删掉 → 「未完成，
     // 请重试」此时才与课程列表状态一致。
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          uninstallCompleted
-              ? AppStrings.ankiDeckRemoved
-              : AppStrings.ankiDeckRemovalFailed,
-        ),
-      ),
+    TurnaSnackBar.show(
+      context,
+      uninstallCompleted
+          ? AppStrings.ankiDeckRemoved
+          : AppStrings.ankiDeckRemovalFailed,
     );
   }
 
@@ -504,17 +497,14 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
       logger.w('[CourseManagement] reinstall failed for $code: $e');
     }
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          restored
-              ? AppStrings.courseManagementRestored(
-                  ImportedLanguageRegistry.instance.displayNameOrNull(code) ??
-                      LanguageRegistry.instance.displayName(code),
-                )
-              : message,
-        ),
-      ),
+    TurnaSnackBar.show(
+      context,
+      restored
+          ? AppStrings.courseManagementRestored(
+              ImportedLanguageRegistry.instance.displayNameOrNull(code) ??
+                  LanguageRegistry.instance.displayName(code),
+            )
+          : message,
     );
   }
 
@@ -1036,21 +1026,9 @@ class _CourseTtsSettingsSheet extends StatefulWidget {
 }
 
 class _CourseTtsSettingsSheetState extends State<_CourseTtsSettingsSheet> {
-  static const _nativeLangOptions = <({String code, String label})>[
-    (code: 'en', label: '英语'),
-    (code: 'zh', label: '中文'),
-    (code: 'tr', label: '土耳其语'),
-    (code: 'ru', label: '俄语'),
-    (code: 'ar', label: '阿拉伯语'),
-    (code: 'es', label: '西班牙语'),
-    (code: 'fr', label: '法语'),
-    (code: 'de', label: '德语'),
-    (code: 'ja', label: '日语'),
-    (code: 'ko', label: '韩语'),
-    (code: 'pt', label: '葡萄牙语'),
-    (code: 'it', label: '意大利语'),
-    (code: 'vi', label: '越南语'),
-    (code: 'id', label: '印尼语'),
+  static const _nativeLangOptions = <String>[
+    'en', 'zh', 'tr', 'ru', 'ar', 'es', 'fr', 'de', 'ja', 'ko', 'pt', 'it',
+    'vi', 'id',
   ];
 
   late bool _autoRead;
@@ -1122,8 +1100,8 @@ class _CourseTtsSettingsSheetState extends State<_CourseTtsSettingsSheet> {
               items: [
                 for (final opt in _nativeLangOptions)
                   DropdownMenuItem(
-                    value: opt.code,
-                    child: Text(opt.label),
+                    value: opt,
+                    child: Text(AppStrings.ttsNativeLanguageLabel(opt)),
                   ),
               ],
               onChanged: (value) async {

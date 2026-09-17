@@ -15,6 +15,7 @@ import 'package:turna/application/lesson_viewmodel.dart';
 import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// Bottom sheet for editing the current lesson with AI.
 ///
@@ -63,9 +64,7 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
     try {
       transformed = Lesson.fromJson(resultJson);
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppStrings.aiLessonHelperInvalidJson(e))),
-      );
+      TurnaSnackBar.show(context, AppStrings.aiLessonHelperInvalidJson(e));
       return;
     }
 
@@ -73,18 +72,14 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
     try {
       await courseProvider.updateLessonInDb(transformed);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppStrings.aiLessonHelperLessonUpdated)),
-      );
+      TurnaSnackBar.show(context, AppStrings.aiLessonHelperLessonUpdated);
       unawaited(Navigator.of(context).maybePop());
       // Ask the lesson viewmodel to reload so the new content appears.
       final vm = context.read<LessonViewModel>();
       await vm.loadLesson(transformed.id);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppStrings.aiLessonHelperUpdateFailed(e))),
-      );
+      TurnaSnackBar.show(context, AppStrings.aiLessonHelperUpdateFailed(e));
     }
   }
 

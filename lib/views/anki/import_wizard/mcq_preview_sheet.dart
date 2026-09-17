@@ -3,6 +3,7 @@ import 'package:turna/application/anki_import/recognition/facts/options_structur
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/l10n/app_strings.dart';
 
 /// In-place modal bottom sheet for inspecting and fine-tuning recognized choice
 /// questions (or other archetypes) for a specific Anki notetype/chapter.
@@ -163,7 +164,7 @@ class _McqPreviewContentState extends State<_McqPreviewContent> {
               children: [
                 Expanded(
                   child: Text(
-                    '题型效果预览（${widget.schema.name}）',
+                    AppStrings.mcqPreviewTitle(widget.schema.name),
                     style: const TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
@@ -180,7 +181,11 @@ class _McqPreviewContentState extends State<_McqPreviewContent> {
                     borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
                   ),
                   child: Text(
-                    isMultiSelect ? '多选题' : (isChoice ? '单选题' : '翻转卡'),
+                    isMultiSelect
+                        ? AppStrings.mcqPreviewKindMultiSelect
+                        : (isChoice
+                            ? AppStrings.mcqPreviewKindSingleChoice
+                            : AppStrings.mcqPreviewKindFlip),
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
@@ -201,9 +206,13 @@ class _McqPreviewContentState extends State<_McqPreviewContent> {
               ),
               child: Row(
                 children: [
-                  _modeTab(0, '智能互动练习', selectedModeIndex == 0),
-                  _modeTab(1, '经典闪卡翻面', selectedModeIndex == 1),
-                  _modeTab(2, '原卡官方保真', selectedModeIndex == 2),
+                  _modeTab(
+                      0, AppStrings.mcqPreviewModeInteractive,
+                      selectedModeIndex == 0),
+                  _modeTab(1, AppStrings.mcqPreviewModeClassic,
+                      selectedModeIndex == 1),
+                  _modeTab(2, AppStrings.mcqPreviewModeFidelity,
+                      selectedModeIndex == 2),
                 ],
               ),
             ),
@@ -224,7 +233,9 @@ class _McqPreviewContentState extends State<_McqPreviewContent> {
                   shrinkWrap: true,
                   children: [
                     Text(
-                      promptText.isNotEmpty ? promptText : '无可用题目文本',
+                      promptText.isNotEmpty
+                          ? promptText
+                          : AppStrings.mcqPreviewNoPrompt,
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
@@ -249,7 +260,9 @@ class _McqPreviewContentState extends State<_McqPreviewContent> {
                       const Divider(height: 1),
                       const SizedBox(height: 8),
                       Text(
-                        '背面答案：${sample.fields[1].replaceAll(RegExp(r'<[^>]*>'), '').trim()}',
+                        AppStrings.mcqPreviewBackAnswer(sample.fields[1]
+                            .replaceAll(RegExp(r'<[^>]*>'), '')
+                            .trim()),
                         style: TextStyle(
                           fontSize: 13,
                           color: TurnaTheme.textSecondaryColor(context),
@@ -274,7 +287,8 @@ class _McqPreviewContentState extends State<_McqPreviewContent> {
                         BorderRadius.circular(TurnaTheme.radiusMedium),
                   ),
                 ),
-                child: const Text('完成', style: TextStyle(fontSize: 14)),
+                child: Text(AppStrings.commonDone,
+                    style: const TextStyle(fontSize: 14)),
               ),
             ),
           ],
@@ -386,9 +400,9 @@ class _McqPreviewContentState extends State<_McqPreviewContent> {
                   color: TurnaTheme.brandTeal,
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: const Text(
-                  '正确答案',
-                  style: TextStyle(
+                child: Text(
+                  AppStrings.mcqPreviewCorrectBadge,
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 10,
                     fontWeight: FontWeight.bold,

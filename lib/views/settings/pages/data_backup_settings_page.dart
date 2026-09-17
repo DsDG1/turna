@@ -25,6 +25,7 @@ import 'package:turna/utils/validated_file_picker.dart';
 import 'package:turna/views/settings/pages/settings_category_body.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// Data & backup category page (formal route: `/settings/data-backup`).
 ///
@@ -81,8 +82,8 @@ class DataBackupSettingsPage extends StatelessWidget {
                 // migration and never activate the old scheduler.
                 SettingsActionTile(
                   icon: Icons.move_down_rounded,
-                  title: '导入 Turna 迁移包',
-                  subtitle: 'turna-migration-v1.zip（跨设备迁移）',
+                  title: AppStrings.settingsMigrationPackTileTitle,
+                  subtitle: AppStrings.settingsMigrationPackTileSubtitle,
                   onTap: (context) => _importMigrationPackage(context),
                 ),
               ],
@@ -208,9 +209,7 @@ class DataBackupSettingsPage extends StatelessWidget {
   }
 
   void _showSnack(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    TurnaSnackBar.show(context, message);
   }
 
   Future<void> _openExportSheet(BuildContext context) async {
@@ -238,7 +237,7 @@ class DataBackupSettingsPage extends StatelessWidget {
           .path;
     } on ValidatedFilePickerInvalidExtension {
       if (context.mounted) {
-        _showSnack(context, '仅支持导入 .zip 格式的迁移包。');
+        _showSnack(context, AppStrings.settingsMigrationPackZipOnly);
       }
       return;
     }
@@ -247,10 +246,9 @@ class DataBackupSettingsPage extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => SettingsConfirmDialog(
-        title: '导入 Turna 迁移包',
-        message: '将迁移包中的学习进度恢复到本机。旧版 Anki 牌组数据'
-            '不再迁移（v1 链路已退役），学习记录与复习历史会照常恢复。',
-        confirmText: '开始导入',
+        title: AppStrings.settingsMigrationPackDialogTitle,
+        message: AppStrings.settingsMigrationPackDialogMessage,
+        confirmText: AppStrings.settingsMigrationPackConfirm,
       ),
     );
     if (confirmed != true || !context.mounted) return;
@@ -262,36 +260,54 @@ class DataBackupSettingsPage extends StatelessWidget {
       if (result.applied) {
         final ignored = result.legacyIgnoredImports.isEmpty
             ? ''
-            : '\n已忽略旧版 Anki 牌组：${result.legacyIgnoredImports.length} 个'
-                '（不再迁移）';
+            : AppStrings.settingsMigrationPackIgnoredLegacy(
+                result.legacyIgnoredImports.length);
         _showSnack(
           context,
-          '迁移完成：学习记录 ${result.restoredSrsStates} 条、复习历史 '
-          '${result.restoredReviewEvents} 条$ignored',
+          AppStrings.settingsMigrationPackDone(
+            result.restoredSrsStates,
+            result.restoredReviewEvents,
+            ignored,
+          ),
         );
       } else {
-        _showSnack(context, '迁移包被拒绝：${_rejectionText(result.rejection)}');
+        _showSnack(
+          context,
+          AppStrings.settingsMigrationPackRejected(
+            _rejectionText(result.rejection),
+          ),
+        );
       }
     } catch (e) {
       if (context.mounted) {
-        _showSnack(context, '迁移导入失败：$e');
+        _showSnack(context, AppStrings.settingsMigrationPackFailed(e));
       }
     }
   }
 
   String _rejectionText(TurnaMigrationImportRejection? rejection) {
     return switch (rejection) {
-      TurnaMigrationImportRejection.notAZip => '文件不是有效的 zip 包',
-      TurnaMigrationImportRejection.zipSlipEntry => '包内包含非法路径',
-      TurnaMigrationImportRejection.missingManifest => '缺少清单文件',
-      TurnaMigrationImportRejection.unknownFormat => '不是 Turna 迁移包',
-      TurnaMigrationImportRejection.schemaTooNew => '迁移包来自更新的应用版本',
-      TurnaMigrationImportRejection.missingSha256Sums => '缺少校验清单',
-      TurnaMigrationImportRejection.checksumMismatch => '校验失败，文件可能损坏',
-      TurnaMigrationImportRejection.missingRequiredEntry => '迁移包缺少必要文件',
-      TurnaMigrationImportRejection.insufficientSpace => '存储空间不足',
-      TurnaMigrationImportRejection.applyFailed => '数据应用失败，已回滚',
-      null => '未知原因',
+      TurnaMigrationImportRejection.notAZip =>
+        AppStrings.migrationRejectNotAZip,
+      TurnaMigrationImportRejection.zipSlipEntry =>
+        AppStrings.migrationRejectZipSlip,
+      TurnaMigrationImportRejection.missingManifest =>
+        AppStrings.migrationRejectMissingManifest,
+      TurnaMigrationImportRejection.unknownFormat =>
+        AppStrings.migrationRejectUnknownFormat,
+      TurnaMigrationImportRejection.schemaTooNew =>
+        AppStrings.migrationRejectSchemaTooNew,
+      TurnaMigrationImportRejection.missingSha256Sums =>
+        AppStrings.migrationRejectMissingSums,
+      TurnaMigrationImportRejection.checksumMismatch =>
+        AppStrings.migrationRejectChecksumMismatch,
+      TurnaMigrationImportRejection.missingRequiredEntry =>
+        AppStrings.migrationRejectMissingEntry,
+      TurnaMigrationImportRejection.insufficientSpace =>
+        AppStrings.migrationRejectInsufficientSpace,
+      TurnaMigrationImportRejection.applyFailed =>
+        AppStrings.migrationRejectApplyFailed,
+      null => AppStrings.migrationRejectUnknown,
     };
   }
 
@@ -308,7 +324,7 @@ class DataBackupSettingsPage extends StatelessWidget {
       // Non-JSON selection is a user error worth explaining, not a silent
       // return that looks like the import did nothing.
       if (context.mounted) {
-        _showSnack(context, '仅支持导入 .json 格式的备份文件。');
+        _showSnack(context, AppStrings.settingsImportJsonOnly);
       }
       return;
     }
@@ -335,16 +351,14 @@ class DataBackupSettingsPage extends StatelessWidget {
         if (outcome.reload.failures.isNotEmpty) {
           _showSnack(
             context,
-            '${AppStrings.settingsProgressRestored}（部分运行时状态需重启后完全生效）',
+            AppStrings.settingsProgressRestored +
+                AppStrings.settingsProgressRestoredPartialSuffix,
           );
         } else {
           _showSnack(context, AppStrings.settingsProgressRestored);
         }
       } else if (outcome.legacyCoursePayloadIgnored) {
-        _showSnack(
-          context,
-          '导入完成：该备份只包含内置课程内容副本，不含个人数据，无需恢复。',
-        );
+        _showSnack(context, AppStrings.settingsImportBuiltinOnly);
       } else {
         _showSnack(context, AppStrings.settingsNothingToImport);
       }
@@ -384,9 +398,7 @@ class _ExportSheetState extends State<_ExportSheet> {
       if (mounted) unawaited(Navigator.of(context).maybePop());
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppStrings.settingsExportFailed(e))),
-        );
+        TurnaSnackBar.show(context, AppStrings.settingsExportFailed(e));
       }
     } finally {
       if (mounted) setState(() => _exporting = false);
@@ -433,8 +445,7 @@ class _ExportSheetState extends State<_ExportSheet> {
             ),
             const SizedBox(height: 12),
             Text(
-              '包含：学习进度、复习与错题记录、成就与装扮、学习偏好设置。'
-              '不包含：服务器密码与 AI API key。',
+              AppStrings.settingsExportIncludes,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: TurnaTheme.textHintColor(context),
                   ),

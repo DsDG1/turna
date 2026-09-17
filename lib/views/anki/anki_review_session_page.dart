@@ -34,6 +34,7 @@ import 'package:turna/views/review/components/study_card_surface.dart';
 import 'package:turna/views/review/components/unified_review_completion.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// Shared formal-review session for Official-owned Anki cards.
 ///
@@ -475,7 +476,11 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
-                                  '以下来源未能完成：${reviewAll.failures.map((failure) => failure.target.displayName).join('、')}',
+                                  AppStrings.ankiReviewFailedSources(reviewAll
+                                      .failures
+                                      .map((failure) =>
+                                          failure.target.displayName)
+                                      .join('、')),
                                   style: const TextStyle(
                                     color: TurnaTheme.error,
                                     fontWeight: FontWeight.w600,
@@ -494,7 +499,8 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
                                 ),
                                 icon:
                                     const Icon(Icons.refresh_rounded, size: 18),
-                                label: const Text('重试失败来源'),
+                                label:
+                                    Text(AppStrings.ankiReviewRetryFailedSources),
                               ),
                             ),
                         ],
@@ -655,7 +661,7 @@ class _BlockedLoadPanel extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              '此来源的卡片暂时无法显示',
+              AppStrings.ankiReviewSourceBlocked,
               key: const Key('anki-review-blocked'),
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w800,
@@ -664,7 +670,7 @@ class _BlockedLoadPanel extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '调度器仍欠 ${blocked.schedulerCardCount} 张卡，未做任何评分、搁置或暂停。',
+              AppStrings.ankiReviewSchedulerOwes(blocked.schedulerCardCount),
               style: TextStyle(
                 fontSize: 14,
                 color: TurnaTheme.textSecondaryColor(context),
@@ -694,7 +700,7 @@ class _BlockedLoadPanel extends StatelessWidget {
               TextButton(
                 key: const Key('anki-review-blocked-continue'),
                 onPressed: () => unawaited(onContinue()),
-                child: const Text('稍后处理此来源并继续'),
+                child: Text(AppStrings.ankiReviewHandleLater),
               ),
             ],
           ],
@@ -815,11 +821,10 @@ class _AnkiStudySessionView extends StatelessWidget {
         onUndo: () async {
           final ok = await controller.undoLast();
           if (!ok || !context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('已撤销上一张评分'),
-              duration: Duration(seconds: 2),
-            ),
+          TurnaSnackBar.show(
+            context,
+            AppStrings.reviewUndoRatingDone,
+            duration: const Duration(seconds: 2),
           );
         },
         canUndo: controller.lastReceipt != null && !controller.isLocked,
@@ -918,7 +923,7 @@ class _AnkiStudySessionView extends StatelessWidget {
                   SizedBox(height: sizing.bottomGap),
                   if (blockedFailure != null) ...[
                     Text(
-                      '当前卡片暂时无法显示，评分已锁定。',
+                      AppStrings.ankiReviewRenderBlocked,
                       key: const Key('anki-study-session-render-blocked'),
                       textAlign: TextAlign.center,
                       style: const TextStyle(
@@ -947,11 +952,11 @@ class _AnkiStudySessionView extends StatelessWidget {
                     ),
                   ] else if (controller.phase ==
                       StudyCardPhase.recoverableError) ...[
-                    const Text(
-                      '当前卡片无法安全写入，请重试或稍后返回。',
-                      key: Key('anki-study-session-error'),
+                    Text(
+                      AppStrings.ankiReviewWriteUnsafe,
+                      key: const Key('anki-study-session-error'),
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: TurnaTheme.error,
                         fontWeight: FontWeight.w600,
                       ),

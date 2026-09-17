@@ -15,6 +15,7 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
 import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// Lightweight sheet: explain an SRS/Anki card without mutating scores/notes.
 Future<void> showAiCardExplainSheet(
@@ -170,12 +171,8 @@ class _AiCardExplainBodyState extends State<_AiCardExplainBody> {
                                     onPressed: () {
                                       Clipboard.setData(
                                           ClipboardData(text: text));
-                                      ScaffoldMessenger.maybeOf(context)
-                                          ?.showSnackBar(
-                                        SnackBar(
-                                            content:
-                                                Text(AppStrings.aiDepthCopied)),
-                                      );
+                                      TurnaSnackBar.maybeShow(
+                                          context, AppStrings.aiDepthCopied);
                                     },
                                     icon: const Icon(Icons.copy_rounded,
                                         size: 18),
@@ -199,12 +196,8 @@ class _AiCardExplainBodyState extends State<_AiCardExplainBody> {
                                         createdAt: DateTime.now(),
                                       ));
                                       if (context.mounted) {
-                                        ScaffoldMessenger.maybeOf(context)
-                                            ?.showSnackBar(
-                                          SnackBar(
-                                              content: Text(AppStrings
-                                                  .aiExplanationSaved)),
-                                        );
+                                        TurnaSnackBar.maybeShow(context,
+                                            AppStrings.aiExplanationSaved);
                                       }
                                     },
                                     icon: const Icon(

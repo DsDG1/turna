@@ -415,14 +415,16 @@ class SettingsFormDialog extends StatelessWidget {
     super.key,
     required this.title,
     required this.body,
-    this.confirmText = '保存',
+    this.confirmText,
     this.destructive = false,
     this.enabled = true,
   });
 
   final String title;
   final Widget body;
-  final String confirmText;
+
+  /// Confirm button label; falls back to [AppStrings.commonSave] when null.
+  final String? confirmText;
   final bool destructive;
   final bool enabled;
 
@@ -448,7 +450,7 @@ class SettingsFormDialog extends StatelessWidget {
         TextButton(
           onPressed: enabled ? () => Navigator.of(context).pop(true) : null,
           child: Text(
-            confirmText,
+            confirmText ?? AppStrings.commonSave,
             style: TextStyle(
               color: destructive ? TurnaTheme.error : TurnaTheme.brandTeal,
             ),

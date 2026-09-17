@@ -23,6 +23,7 @@ import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/play/components/play_tiles.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// Anki review hub — lists imported Anki sections with due counts,
 /// allows starting a review session for a selected section.
@@ -249,24 +250,24 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
     final result = await showDialog<({int? newLimit, int? reviewLimit})>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('$title · 牌组设置'),
+        title: Text(AppStrings.ankiDeckOptionsTitle(title)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: newController,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: '每日新卡上限',
-                hintText: '留空使用全局上限',
+              decoration: InputDecoration(
+                labelText: AppStrings.ankiDailyNewLimitLabel,
+                hintText: AppStrings.ankiDailyLimitHint,
               ),
             ),
             TextField(
               controller: reviewController,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: '每日复习上限',
-                hintText: '留空使用全局上限',
+              decoration: InputDecoration(
+                labelText: AppStrings.ankiDailyReviewLimitLabel,
+                hintText: AppStrings.ankiDailyLimitHint,
               ),
             ),
           ],
@@ -274,7 +275,7 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('取消'),
+            child: Text(AppStrings.commonCancel),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(
@@ -284,7 +285,7 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
                 reviewLimit: int.tryParse(reviewController.text.trim()),
               ),
             ),
-            child: const Text('保存'),
+            child: Text(AppStrings.commonSave),
           ),
         ],
       ),
@@ -333,14 +334,11 @@ class _AnkiReviewBodyState extends State<_AnkiReviewBody> {
     if (!context.mounted) return;
     // 与课程管理页同语义：false/抛错 = 本次未删成（提交前失败），
     // 「已移除」只在删除确实生效时出现。
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          uninstallCompleted
-              ? AppStrings.ankiDeckRemoved
-              : AppStrings.ankiDeckRemovalFailed,
-        ),
-      ),
+    TurnaSnackBar.show(
+      context,
+      uninstallCompleted
+          ? AppStrings.ankiDeckRemoved
+          : AppStrings.ankiDeckRemovalFailed,
     );
   }
 

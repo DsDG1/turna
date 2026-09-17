@@ -8,6 +8,7 @@ import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/render/official_anki_answer_presenter.dart';
 import 'package:turna/application/anki_official/render/official_anki_render_state.dart';
 import 'package:turna/core/logger.dart';
+import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_error_view.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_view.dart';
 
@@ -142,7 +143,7 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
               child: TextField(
                 enabled: !controller.typed.frozen,
                 decoration: InputDecoration(
-                  labelText: '输入答案',
+                  labelText: AppStrings.ankiTypedAnswerLabel,
                   hintText: card!.typedAnswer!.marker,
                 ),
                 style: TextStyle(
@@ -162,12 +163,15 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
                 Expanded(
                   child: FilledButton(
                     onPressed: _flip,
-                    child: Text(controller.showingAnswer ? '正面' : '显示答案'),
+                    child: Text(controller.showingAnswer
+                        ? AppStrings.ankiShowFront
+                        : AppStrings.ankiShowAnswer),
                   ),
                 ),
                 if (hasReplayableAv) ...[
                   const SizedBox(width: 8),
                   IconButton(
+                    tooltip: AppStrings.commonReplayAudio,
                     onPressed: controller.replayBusy ? null : _replay,
                     icon: const Icon(Icons.replay),
                   ),
@@ -179,6 +183,7 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
           Align(
             alignment: Alignment.centerRight,
             child: IconButton(
+              tooltip: AppStrings.commonReplayAudio,
               onPressed: controller.replayBusy ? null : _replay,
               icon: const Icon(Icons.replay),
             ),

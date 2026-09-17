@@ -52,7 +52,7 @@ class UnifiedReviewCompletion extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '你已完成本次复习全部内容',
+              AppStrings.reviewCompletionSubtitle,
               style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                     color: TurnaTheme.textSecondaryColor(context),
                   ),
@@ -71,17 +71,17 @@ class UnifiedReviewCompletion extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
                   _StatColumn(
-                    label: '复习总数',
+                    label: AppStrings.reviewCompletionTotalLabel,
                     value: '$totalCount',
                     color: TurnaTheme.textPrimaryColor(context),
                   ),
                   _StatColumn(
-                    label: '记忆率',
+                    label: AppStrings.reviewCompletionRecallLabel,
                     value: '$recallRate%',
                     color: TurnaTheme.brandTeal,
                   ),
                   _StatColumn(
-                    label: '记得 / 不记得',
+                    label: AppStrings.reviewCompletionRecallSplitLabel,
                     value: '$rememberedCount / $forgottenCount',
                     color: TurnaTheme.textSecondaryColor(context),
                   ),

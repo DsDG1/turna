@@ -19,6 +19,7 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/turna_select.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// AI connection settings page (高级 → AI 连接, Plan 2 §6.2).
 ///
@@ -193,9 +194,7 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
     _commitDebounce?.cancel();
     await _commitDraft();
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppStrings.aiConfigSaved)),
-      );
+      TurnaSnackBar.show(context, AppStrings.aiConfigSaved);
     }
   }
 
@@ -256,9 +255,7 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
         _draft = getIt<AiEngineConfigHolder>().config;
       });
       _probeKey.currentState?.clearResult();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppStrings.aiConfigClearKeyDone)),
-      );
+      TurnaSnackBar.show(context, AppStrings.aiConfigClearKeyDone);
     }
   }
 
@@ -796,6 +793,9 @@ class _ApiKeyFieldState extends State<_ApiKeyField> {
         context,
         hint: widget.hint,
         suffixIcon: IconButton(
+          tooltip: _obscure
+              ? AppStrings.commonShowPassword
+              : AppStrings.commonHidePassword,
           icon: Icon(
             _obscure
                 ? Icons.visibility_off_outlined

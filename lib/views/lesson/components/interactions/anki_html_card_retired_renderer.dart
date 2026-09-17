@@ -6,6 +6,7 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/core/theme.dart';
 
@@ -56,7 +57,7 @@ class _RetiredAnkiHtmlCardBody extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             Text(
-              '旧版导入的 Anki 卡片',
+              AppStrings.ankiRetiredCardTitle,
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
@@ -65,7 +66,7 @@ class _RetiredAnkiHtmlCardBody extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              '该卡片来自已停用的旧版导入源，已不再逐卡渲染。\n请通过「设置 → 旧版与兼容性」迁移到官方引擎。',
+              AppStrings.ankiRetiredCardBody,
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 13,
@@ -75,7 +76,7 @@ class _RetiredAnkiHtmlCardBody extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             LessonCheckButton(
-              label: '继续',
+              label: AppStrings.ankiRetiredCardContinue,
               enabled: true,
               onPressed: () => onSubmit(true),
             ),

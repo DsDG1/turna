@@ -17,6 +17,7 @@ import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/views/settings/widgets/settings_learning_section.dart';
 import 'package:turna/views/settings/widgets/settings_reminder_section.dart';
 import 'package:turna/views/settings/widgets/settings_sound_section.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// Learning category page (formal route: `/settings/learning`).
 ///
@@ -43,8 +44,7 @@ class _LearningSettingsPageState extends State<LearningSettingsPage> {
       builder: (_) => SettingsConfirmDialog(
         title: AppStrings.settingsResetLearningDefaultsDialogTitle,
         message: '${AppStrings.settingsResetLearningDefaultsDialogMessage}\n\n'
-            '不会清除：\n'
-            '${ResetLearningSettingsCommand.notResetScopes.map((s) => '· $s').join('\n')}',
+            '${AppStrings.settingsResetLearningKeptScopes(ResetLearningSettingsCommand.notResetScopes)}',
         confirmText: AppStrings.settingsResetLearningDefaultsConfirm,
       ),
     );
@@ -55,13 +55,10 @@ class _LearningSettingsPageState extends State<LearningSettingsPage> {
     switch (result) {
       case SettingsOperationSuccess():
         setState(() => _ankiEpoch++);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppStrings.settingsResetLearningDefaultsDone)),
-        );
+        TurnaSnackBar.show(
+            context, AppStrings.settingsResetLearningDefaultsDone);
       case SettingsOperationFailure(:final userMessage):
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(userMessage)),
-        );
+        TurnaSnackBar.show(context, userMessage);
     }
   }
 

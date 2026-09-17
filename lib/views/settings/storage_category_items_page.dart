@@ -3,6 +3,7 @@ import 'package:turna/application/maintenance/official_anki_ghost_purge_service.
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// One user-facing row on the storage category drill-down (official source
 /// or a legacy media directory). [id] is the uninstall identity — never a
@@ -135,9 +136,7 @@ class _StorageCategoryItemsPageState extends State<StorageCategoryItemsPage> {
                 result.errorCode == 'import_in_progress')
             ? AppStrings.storageForcePurgeOfficialBlocked
             : AppStrings.storageForcePurgeOfficialFailed;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    TurnaSnackBar.show(context, message);
     await _reload();
   }
 
@@ -148,9 +147,7 @@ class _StorageCategoryItemsPageState extends State<StorageCategoryItemsPage> {
     if (items == null || _busy) return;
     final chosen = items.where((item) => _selected.contains(item.id)).toList();
     if (chosen.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppStrings.storageDeleteNothingSelected)),
-      );
+      TurnaSnackBar.show(context, AppStrings.storageDeleteNothingSelected);
       return;
     }
     final retiring = chosen.where((item) => item.alreadyRetiring).toList();
@@ -187,9 +184,7 @@ class _StorageCategoryItemsPageState extends State<StorageCategoryItemsPage> {
     );
     if (confirmed != true || !mounted) return;
     if (actionable.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppStrings.storageRetiringSkipHint)),
-      );
+      TurnaSnackBar.show(context, AppStrings.storageRetiringSkipHint);
       return;
     }
     setState(() => _busy = true);
@@ -217,14 +212,11 @@ class _StorageCategoryItemsPageState extends State<StorageCategoryItemsPage> {
             ? AppStrings.ankiDeckRemovalPartial(completed, failed)
             : AppStrings.ankiDeckRemovalFailed)
         : AppStrings.ankiDeckRemoved;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          retiring.isEmpty
-              ? message
-              : '$message · ${AppStrings.storageRetiringSkipHint}',
-        ),
-      ),
+    TurnaSnackBar.show(
+      context,
+      retiring.isEmpty
+          ? message
+          : '$message · ${AppStrings.storageRetiringSkipHint}',
     );
     await _reload();
   }

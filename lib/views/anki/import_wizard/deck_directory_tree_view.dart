@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/l10n/app_strings.dart';
 
 /// A node in the multi-level deck tree.
 class DeckTreeNode {
@@ -120,9 +121,9 @@ class DeckDirectoryTreeView extends StatelessWidget {
                 color: TurnaTheme.brandTeal,
               ),
               const SizedBox(width: 6),
-              const Text(
-                '完整章节目录',
-                style: TextStyle(
+              Text(
+                AppStrings.ankiImportFullTreeTitle,
+                style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
                 ),

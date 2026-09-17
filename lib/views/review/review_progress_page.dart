@@ -385,11 +385,11 @@ class _StreakCard extends StatelessWidget {
               ),
               if (streak.protectedByVoucher) ...[
                 const SizedBox(width: 8),
-                const Tooltip(
-                  message: '本次连续记录由保护券保留；学习统计未修改',
+                Tooltip(
+                  message: AppStrings.reviewProtectedTooltip,
                   child: Chip(
-                    avatar: Icon(Icons.shield_rounded, size: 15),
-                    label: Text('已保护'),
+                    avatar: const Icon(Icons.shield_rounded, size: 15),
+                    label: Text(AppStrings.reviewProtectedChip),
                     visualDensity: VisualDensity.compact,
                   ),
                 ),

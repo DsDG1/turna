@@ -25,6 +25,7 @@ import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// Learning-language picker. Switches the *course scope* (the same action
 /// as tapping a course in course management) so the course tree, SRS /
@@ -135,9 +136,8 @@ class SettingsLanguageSelectorTile extends StatelessWidget {
           );
     } catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('切换学习语言失败:$error')),
-        );
+        TurnaSnackBar.show(
+            context, AppStrings.settingsLanguageSwitchFailed(error));
       }
     }
   }
@@ -159,8 +159,8 @@ class _SettingsStreakVoucherAutoUseTileState
   Widget build(BuildContext context) {
     return SettingsTile(
       icon: Icons.shield_outlined,
-      title: '自动使用连续学习保护券',
-      subtitle: '默认关闭；只保护连续天数，不会生成学习记录',
+      title: AppStrings.settingsStreakVoucherAutoUseTitle,
+      subtitle: AppStrings.settingsStreakVoucherAutoUseSubtitle,
       trailing: settingsAdaptiveSwitch(
         value: _streak.autoUseVoucher,
         onChanged: (value) async {
@@ -360,9 +360,7 @@ class _SettingsSrsWeightsTileState extends State<SettingsSrsWeightsTile> {
                                   .execute(null, reviewCount: 0);
                           if (!context.mounted) return;
                           if (result case SettingsOperationFailure failure) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(failure.userMessage)),
-                            );
+                            TurnaSnackBar.show(context, failure.userMessage);
                           }
                         },
                   child: Text(AppStrings.settingsSrsResetWeights),
@@ -382,22 +380,19 @@ class _SettingsSrsWeightsTileState extends State<SettingsSrsWeightsTile> {
     // this widget only reports the structured outcome.
     final outcome =
         await getIt<ApplyFsrsParametersCommand>().optimizeInBackground();
-    if (!mounted) return;
+    if (!context.mounted) return;
     switch (outcome) {
       case FsrsOptimizeNeedMoreReviews():
-        messenger.showSnackBar(
-          SnackBar(content: Text(AppStrings.settingsSrsOptimizeNeedMore)),
-        );
+        TurnaSnackBar.showVia(
+            messenger, context, AppStrings.settingsSrsOptimizeNeedMore);
       case FsrsOptimizeAccepted():
-        messenger.showSnackBar(
-          SnackBar(content: Text(AppStrings.settingsSrsOptimizeAccepted)),
-        );
+        TurnaSnackBar.showVia(
+            messenger, context, AppStrings.settingsSrsOptimizeAccepted);
       case FsrsOptimizeRejected():
-        messenger.showSnackBar(
-          SnackBar(content: Text(AppStrings.settingsSrsOptimizeRejected)),
-        );
+        TurnaSnackBar.showVia(
+            messenger, context, AppStrings.settingsSrsOptimizeRejected);
       case FsrsOptimizeFailed(:final userMessage):
-        messenger.showSnackBar(SnackBar(content: Text(userMessage)));
+        TurnaSnackBar.showVia(messenger, context, userMessage);
     }
     setState(() => _busy = false);
   }

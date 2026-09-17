@@ -62,7 +62,7 @@ class AiHubPage extends StatelessWidget {
         ),
         actions: [
           IconButton(
-            tooltip: '功能介绍',
+            tooltip: AppStrings.aiFeatureGuideTooltip,
             icon: const Icon(Icons.help_outline_rounded),
             onPressed: () => context.router.push(const AiFeatureGuideRoute()),
           ),
@@ -435,27 +435,27 @@ class _RecentRow extends StatelessWidget {
   static String _labelFor(String kind) {
     switch (kind) {
       case AiTaskKind.wish:
-        return '设计课程';
+        return AppStrings.aiTaskLabelWish;
       case AiTaskKind.textbook:
-        return '教材导入';
+        return AppStrings.aiTaskLabelTextbook;
       case AiTaskKind.tutorMistakes:
-        return '按错题复习';
+        return AppStrings.aiTaskLabelTutorMistakes;
       case AiTaskKind.tutorWeakWords:
-        return '弱词复习';
+        return AppStrings.aiTaskLabelTutorWeak;
       case AiTaskKind.hintChat:
-        return 'AI 讲解';
+        return AppStrings.aiTaskLabelHintChat;
       case AiTaskKind.hintDepth:
-        return '深度讲解';
+        return AppStrings.aiTaskLabelDepth;
       case AiTaskKind.lessonHelper:
-        return '课内助手';
+        return AppStrings.aiTaskLabelLessonHelper;
       case AiTaskKind.courseGenerate:
-        return '一键生成';
+        return AppStrings.aiTaskLabelCourseGenerate;
       case AiTaskKind.tutorChat:
-        return '自由问答';
+        return AppStrings.aiGuideFreeChatTitle;
       case AiTaskKind.diagnosis:
-        return '学习诊断';
+        return AppStrings.aiGuideDiagnosisTitle;
       case AiTaskKind.dictionary:
-        return '词典扩展';
+        return AppStrings.aiTaskLabelDictionary;
       default:
         return kind;
     }

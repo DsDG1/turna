@@ -19,6 +19,7 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
 import 'package:turna/views/lesson/tutor_launch_sheet.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 @RoutePage()
 class AiDiagnosisPage extends StatefulWidget {
@@ -84,9 +85,7 @@ class _AiDiagnosisPageState extends State<AiDiagnosisPage> {
     final ctx = await _buildContext();
     if (!mounted) return;
     if (ctx.isEmpty) {
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        SnackBar(content: Text(AppStrings.aiDiagnosisEmpty)),
-      );
+      TurnaSnackBar.maybeShow(context, AppStrings.aiDiagnosisEmpty);
       return;
     }
     final ok = await _provider.generate(
@@ -95,9 +94,7 @@ class _AiDiagnosisPageState extends State<AiDiagnosisPage> {
       force: force,
     );
     if (!ok && mounted) {
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        SnackBar(content: Text(AppStrings.aiDiagnosisRateLimited)),
-      );
+      TurnaSnackBar.maybeShow(context, AppStrings.aiDiagnosisRateLimited);
     }
   }
 
@@ -202,9 +199,8 @@ class _AiDiagnosisPageState extends State<AiDiagnosisPage> {
                           onPressed: () {
                             final text = p.report!.toPlainText();
                             Clipboard.setData(ClipboardData(text: text));
-                            ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-                              SnackBar(content: Text(AppStrings.aiDepthCopied)),
-                            );
+                            TurnaSnackBar.maybeShow(
+                                context, AppStrings.aiDepthCopied);
                           },
                           icon: const Icon(Icons.copy_rounded),
                           label: Text(AppStrings.aiDepthCopy),
@@ -221,11 +217,8 @@ class _AiDiagnosisPageState extends State<AiDiagnosisPage> {
                               createdAt: DateTime.now(),
                             ));
                             if (context.mounted) {
-                              ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-                                SnackBar(
-                                    content:
-                                        Text(AppStrings.aiExplanationSaved)),
-                              );
+                              TurnaSnackBar.maybeShow(
+                                  context, AppStrings.aiExplanationSaved);
                             }
                           },
                           icon: const Icon(Icons.bookmark_add_outlined),

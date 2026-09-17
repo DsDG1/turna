@@ -103,8 +103,12 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
             2;
 
     final label = isChoice
-        ? (isMulti ? '多选' : '单选')
-        : (suggestion.cardArchetype.name == 'cloze' ? '填空' : '翻卡');
+        ? (isMulti
+            ? AppStrings.ankiPreviewKindMulti
+            : AppStrings.ankiPreviewKindSingle)
+        : (suggestion.cardArchetype.name == 'cloze'
+            ? AppStrings.ankiPreviewKindCloze
+            : AppStrings.ankiPreviewKindFlip);
 
     for (final deck in widget.preview.decks) {
       labels[deck.deckId] = label;
@@ -227,14 +231,16 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
         ),
         StickyImportBar(
           onPressed: hasBlocking ? null : widget.controller.commit,
-          disabledHint: hasBlocking ? '请先指定待确认牌组的正面字段' : null,
+          disabledHint: hasBlocking ? AppStrings.ankiPreviewBlockingHint : null,
         ),
       ],
     );
   }
 
   Widget _buildCourseHeaderCard(OfficialAnkiImportPreviewModel preview) {
-    final rootName = _deckTree.isNotEmpty ? _deckTree.first.name : '导入课程';
+    final rootName = _deckTree.isNotEmpty
+        ? _deckTree.first.name
+        : AppStrings.ankiPreviewDefaultRootName;
     final hasChoice = preview.schemas.any((s) {
       final sug = preview.suggestions[s.notetypeId];
       return sug?.cardArchetype.name == 'choice';
@@ -290,7 +296,7 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '已解析 ${preview.decks.length} 个牌组章节，包含全部核心知识点',
+                      AppStrings.ankiPreviewParsedDecks(preview.decks.length),
                       style: TextStyle(
                         fontSize: 12,
                         color: TurnaTheme.textSecondaryColor(context),
@@ -317,19 +323,19 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
               if (hasChoice) ...[
                 _archetypeChip(
                   icon: Icons.radio_button_checked_rounded,
-                  label: '选择题已自动识别',
+                  label: AppStrings.ankiPreviewChoiceDetected,
                   color: TurnaTheme.brandTeal,
                 ),
               ] else ...[
                 _archetypeChip(
                   icon: Icons.flip_to_back_rounded,
-                  label: '正反翻转卡',
+                  label: AppStrings.ankiPreviewFlipCards,
                   color: TurnaTheme.textSecondaryColor(context),
                 ),
               ],
               _archetypeChip(
                 icon: Icons.touch_app_outlined,
-                label: '点击章节可预览题目',
+                label: AppStrings.ankiPreviewTapSectionHint,
                 color: TurnaTheme.brandNavy,
               ),
             ],
@@ -390,7 +396,7 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '有 ${schemas.length} 个模板需要指定正面字段',
+                  AppStrings.ankiPreviewBlockingTitle(schemas.length),
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
@@ -434,7 +440,8 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
                 borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
               ),
             ),
-            child: const Text('指定正面', style: TextStyle(fontSize: 12)),
+            child: Text(AppStrings.ankiPreviewAssignFront,
+                style: const TextStyle(fontSize: 12)),
           ),
         ],
       ),

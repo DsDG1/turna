@@ -11,6 +11,7 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/avatar_with_ring.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// Slot-based cosmetic shop. The historical route name is retained so old
 /// deep links continue to work.
@@ -65,13 +66,14 @@ class _AvatarRingsPageState extends State<AvatarRingsPage> {
     if (!mounted) return;
     setState(() => _voucherBusy = false);
     final message = switch (result) {
-      GemConsumablePurchaseResult.success => '已获得 1 张连续学习保护券',
+      GemConsumablePurchaseResult.success =>
+        AppStrings.cosmeticsVoucherPurchased,
       GemConsumablePurchaseResult.insufficientFunds =>
         AppStrings.cosmeticsInsufficientGems,
-      GemConsumablePurchaseResult.monthlyLimitReached => '本月最多购买 2 张保护券',
+      GemConsumablePurchaseResult.monthlyLimitReached =>
+        AppStrings.cosmeticsVoucherMonthlyLimit,
     };
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    TurnaSnackBar.show(context, message);
   }
 
   @override
@@ -135,17 +137,13 @@ class _AvatarRingsPageState extends State<AvatarRingsPage> {
                 children: [
                   SettingsTile(
                     icon: Icons.shield_rounded,
-                    title: '连续学习保护券',
-                    subtitle: voucherLimitReached
-                        ? '持有 ${_voucherCount ?? 0} 张 · '
-                            '本月购买已达上限 '
-                            '${_voucherPurchasesThisMonth ?? 0}/'
-                            '${GemsProvider.streakVoucherMonthlyPurchaseLimit} · '
-                            '只保护连续显示，不修改学习记录'
-                        : '持有 ${_voucherCount ?? 0} 张 · '
-                            '本月已购 ${_voucherPurchasesThisMonth ?? 0}/'
-                            '${GemsProvider.streakVoucherMonthlyPurchaseLimit} · '
-                            '只保护连续显示，不修改学习记录',
+                    title: AppStrings.cosmeticsVoucherTitle,
+                    subtitle: AppStrings.cosmeticsVoucherSubtitle(
+                      _voucherCount ?? 0,
+                      _voucherPurchasesThisMonth ?? 0,
+                      GemsProvider.streakVoucherMonthlyPurchaseLimit,
+                      voucherLimitReached,
+                    ),
                     trailing: FilledButton.tonalIcon(
                       key: const Key('streak-voucher-purchase'),
                       onPressed: _voucherBusy || voucherLimitReached
@@ -198,9 +196,7 @@ class _AvatarRingsPageState extends State<AvatarRingsPage> {
       CosmeticActionResult.unknownId => '',
     };
     if (message.isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
-      );
+      TurnaSnackBar.show(context, message);
     }
   }
 }

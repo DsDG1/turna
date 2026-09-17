@@ -449,7 +449,8 @@ class ReviewActivityHeatmap extends StatelessWidget {
       (largest, row) =>
           row.reviewedCount > largest ? row.reviewedCount : largest,
     );
-    final summary = '过去 365 天有 $activeDays 个活跃日，共完成 $reviews 次复习';
+    final summary =
+        AppStrings.insightsHeatmapSummary(activeDays, reviews);
     return Semantics(
       container: true,
       explicitChildNodes: true,
@@ -465,7 +466,7 @@ class ReviewActivityHeatmap extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '学习热力图',
+              AppStrings.insightsHeatmapTitle,
               style: Theme.of(context)
                   .textTheme
                   .titleSmall
@@ -657,7 +658,7 @@ class _SourceTile extends StatelessWidget {
                       ),
                 ),
                 IconButton(
-                  tooltip: '查看来源详情',
+                  tooltip: AppStrings.insightsViewSourceDetail,
                   onPressed: onOpen,
                   icon: const Icon(Icons.chevron_right_rounded),
                 ),

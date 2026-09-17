@@ -13,6 +13,7 @@ import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/views/settings/widgets/settings_sound_section.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// Daily reminder toggle + time picker. All changes go through
 /// [UpdateDailyReminderCommand]: the OS schedule is applied first and the
@@ -30,9 +31,7 @@ class SettingsDailyReminderTile extends StatelessWidget {
         .execute(enabled: enabled, time: time);
     if (!context.mounted) return;
     if (result is SettingsOperationFailure) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.userMessage)),
-      );
+      TurnaSnackBar.show(context, result.userMessage);
     }
   }
 

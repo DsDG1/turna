@@ -16,6 +16,7 @@ import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
 import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/turna_select.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// The three depth-learning genres offered by the tutor sheet.
 enum DepthGenre { grammar, synonyms, decompose }
@@ -171,9 +172,7 @@ class _AiDepthTutorSheetState extends State<AiDepthTutorSheet> {
   void _copy() {
     if (_resultCopyText == null) return;
     Clipboard.setData(ClipboardData(text: _resultCopyText!));
-    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-      SnackBar(content: Text(AppStrings.aiDepthCopied)),
-    );
+    TurnaSnackBar.maybeShow(context, AppStrings.aiDepthCopied);
   }
 
   @override

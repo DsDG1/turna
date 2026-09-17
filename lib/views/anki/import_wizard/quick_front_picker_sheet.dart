@@ -3,6 +3,7 @@ import 'package:turna/application/anki_import/recognition/lexicon/field_roles.da
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/l10n/app_strings.dart';
 
 /// In-place modal bottom sheet for quickly resolving blocking schema issues
 /// where the front (prompt) field is ambiguous or missing.
@@ -44,7 +45,7 @@ void showQuickFrontPicker({
               ),
               const SizedBox(height: 16),
               Text(
-                '选择卡片正面（${schema.name}）',
+                AppStrings.ankiFrontPickerTitle(schema.name),
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
@@ -52,7 +53,7 @@ void showQuickFrontPicker({
               ),
               const SizedBox(height: 4),
               Text(
-                '请指定哪个字段作为题目正面，其余字段将作为背面或辅助内容：',
+                AppStrings.ankiFrontPickerBody,
                 style: TextStyle(
                   fontSize: 13,
                   color: TurnaTheme.textSecondaryColor(context),

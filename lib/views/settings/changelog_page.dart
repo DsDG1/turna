@@ -10,6 +10,7 @@ import 'package:turna/application/settings/changelog_entries.dart';
 import 'package:turna/application/settings/release_manifest.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 // Re-exported for the pages/tests that historically imported the entry
 // classes from this file; the definitions live in the application layer now.
@@ -75,12 +76,10 @@ class ChangelogPage extends StatelessWidget {
   ) async {
     await Clipboard.setData(ClipboardData(text: text));
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(AppStrings.changelogCopied),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-      ),
+    TurnaSnackBar.show(
+      context,
+      AppStrings.changelogCopied,
+      duration: const Duration(seconds: 2),
     );
   }
 
@@ -138,7 +137,7 @@ class JourneyOverviewCard extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  '更新历程',
+                  AppStrings.changelogHistoryTitle,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),

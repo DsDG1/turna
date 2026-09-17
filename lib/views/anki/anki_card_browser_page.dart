@@ -297,6 +297,7 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
                 suffixIcon: _searchController.text.isEmpty
                     ? null
                     : IconButton(
+                        tooltip: AppStrings.commonClear,
                         icon: const Icon(Icons.clear),
                         onPressed: () {
                           _searchController.clear();

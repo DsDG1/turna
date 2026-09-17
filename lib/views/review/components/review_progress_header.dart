@@ -77,7 +77,7 @@ class ReviewProgressHeader extends StatelessWidget
           if (onUndo != null) ...[
             const SizedBox(width: 4),
             IconButton(
-              tooltip: '撤销上一张',
+              tooltip: AppStrings.commonUndoLastCard,
               icon: const Icon(Icons.undo_rounded),
               onPressed: canUndo ? onUndo : null,
             ),

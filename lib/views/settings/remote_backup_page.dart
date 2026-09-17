@@ -19,6 +19,7 @@ import 'package:turna/service/remote_backup/remote_backup_service.dart';
 import 'package:turna/service/remote_backup/webdav_client.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// Manual WebDAV remote backup / restore. Everything is user-triggered:
 /// "立即备份" snapshots + uploads, "从远程恢复" downloads + stages the
@@ -257,7 +258,7 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
     final service = _service;
     if (service == null || _backingUp) return;
     if (!await _isConfigured) {
-      _showSnack('请先保存服务器配置与凭据');
+      _showSnack(AppStrings.remoteBackupNeedConfig);
       return;
     }
     setState(() {
@@ -320,7 +321,7 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
     if (service == null || _restoring) return;
     if (!await _isConfigured) {
       if (!mounted) return;
-      _showSnack('请先保存服务器配置与凭据');
+      _showSnack(AppStrings.remoteBackupNeedConfig);
       return;
     }
     if (!mounted) return;
@@ -341,7 +342,7 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
     try {
       final manifest = await service.fetchRemoteStatus();
       if (manifest == null) {
-        throw const WebDavException('服务器上没有可恢复的备份');
+        throw WebDavException(AppStrings.remoteBackupNoRemoteBackup);
       }
       await service.restoreToStaging(
         manifest,
@@ -376,7 +377,7 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
   String _errText(Object error) {
     switch (error) {
       case WebDavAuthException _:
-        return '用户名或密码被服务器拒绝';
+        return AppStrings.remoteBackupAuthRejected;
       case RemoteBackupSecureStoreException _:
         return error.message.isEmpty ? error.toString() : error.message;
       case RemoteBackupBusyException _:
@@ -389,8 +390,7 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
   }
 
   void _showSnack(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
+    TurnaSnackBar.show(context, message);
   }
 
   @override
@@ -401,9 +401,9 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         children: [
           if (!_supported) ...[
-            const SettingsEmptyCard(
+            SettingsEmptyCard(
               icon: Icons.cloud_off_outlined,
-              message: '当前平台暂不支持远程备份',
+              message: AppStrings.remoteBackupUnsupportedPlatform,
             ),
             const SizedBox(height: 20),
           ] else ...[
@@ -484,9 +484,12 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
                       decoration: _inputDecoration(
                         context,
                         _credentialStored && _passwordCtrl.text.isEmpty
-                            ? '已保存凭据（输入新密码可替换）'
+                            ? AppStrings.remoteBackupCredentialStoredHint
                             : AppStrings.remoteBackupPasswordHint,
                         suffixIcon: IconButton(
+                          tooltip: _obscurePassword
+                              ? AppStrings.commonShowPassword
+                              : AppStrings.commonHidePassword,
                           icon: Icon(
                             _obscurePassword
                                 ? Icons.visibility_off_outlined

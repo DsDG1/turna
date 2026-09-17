@@ -98,7 +98,7 @@ class OfficialAnkiReviewerErrorView extends StatelessWidget {
     final text = AppStrings.officialAnkiError(key);
     if (text == AppStrings.officialAnkiErrorFallback &&
         (kDebugMode || kShowOfficialDebug)) {
-      return '官方卡片无法显示（$key）。';
+      return AppStrings.officialAnkiCardDebugError(key);
     }
     return text;
   }

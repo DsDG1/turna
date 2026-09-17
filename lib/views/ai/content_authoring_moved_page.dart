@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:turna/application/settings/external_link_registry.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// 内容创作退场 tombstone（Plan 3 §19.4）。
 ///
@@ -77,9 +78,8 @@ class ContentAuthoringMovedBody extends StatelessWidget {
                   Clipboard.setData(
                     ClipboardData(text: gui.uri.toString()),
                   );
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(AppStrings.externalLinkCopyAddress)),
-                  );
+                  TurnaSnackBar.show(
+                      context, AppStrings.externalLinkCopyAddress);
                 },
                 icon: const Icon(Icons.copy_rounded, size: 14),
                 label: Text(AppStrings.externalLinkCopyAddress),

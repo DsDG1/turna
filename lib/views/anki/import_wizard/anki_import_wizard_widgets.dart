@@ -418,7 +418,7 @@ class LearningProgressBadge extends StatelessWidget {
     return Badge(
       icon: Icons.check_circle_outline,
       color: TurnaTheme.textHintColor(context),
-      text: '已导入',
+      text: AppStrings.ankiImportedBadge,
     );
   }
 }

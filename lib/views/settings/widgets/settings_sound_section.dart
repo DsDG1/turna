@@ -12,6 +12,7 @@ import 'package:turna/service/tts_availability_checker.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 class SettingsToggleTile extends StatelessWidget {
   final IconData icon;
@@ -188,11 +189,10 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        duration: const Duration(seconds: 4),
-      ),
+    TurnaSnackBar.show(
+      context,
+      message,
+      duration: const Duration(seconds: 4),
     );
   }
 }

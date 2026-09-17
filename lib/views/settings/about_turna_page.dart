@@ -13,6 +13,7 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/settings/changelog_page.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// Dedicated About page for Turna (Plan 2 §7.1).
 ///
@@ -62,9 +63,9 @@ class AboutTurnaPage extends StatelessWidget {
                 labelStyle: Theme.of(context).textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),
-                tabs: const [
-                  Tab(text: '关于'),
-                  Tab(text: '更新日志'),
+                tabs: [
+                  Tab(text: AppStrings.aboutTabAbout),
+                  Tab(text: AppStrings.aboutTabChangelog),
                 ],
               ),
             ),
@@ -705,11 +706,9 @@ class _ExternalLinkTile extends StatelessWidget {
             ? () => openExternalLink(context, id, registry: registry)
             // Disabled links still explain themselves on tap instead of
             // silently doing nothing.
-            : () => ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(descriptor.unavailableReason),
-                    behavior: SnackBarBehavior.floating,
-                  ),
+            : () => TurnaSnackBar.show(
+                  context,
+                  descriptor.unavailableReason,
                 ),
         child: body,
       ),

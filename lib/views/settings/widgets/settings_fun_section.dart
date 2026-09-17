@@ -10,6 +10,7 @@ import 'package:turna/application/fun_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// A switch tile bound to [FunProvider], mirroring [AccessibilityToggleTile]
 /// (which is bound to [AccessibilityProvider]).
@@ -379,9 +380,7 @@ class SettingsFunSection extends StatelessWidget {
   }
 
   void _showSnack(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    TurnaSnackBar.show(context, message);
   }
 }
 

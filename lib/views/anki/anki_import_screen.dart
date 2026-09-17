@@ -80,6 +80,7 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
             overflow: TextOverflow.ellipsis,
           ),
           leading: IconButton(
+            tooltip: AppStrings.commonBack,
             icon: const Icon(Icons.arrow_back),
             onPressed: () async {
               final leave = await _confirmLeave(context, controller);

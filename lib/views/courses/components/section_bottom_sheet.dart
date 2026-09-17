@@ -104,6 +104,7 @@ class SectionBottomSheet extends StatelessWidget {
                         ),
                       ),
                       IconButton(
+                        tooltip: AppStrings.commonClose,
                         onPressed: () => Navigator.of(context).pop(),
                         icon: const Icon(Icons.close_rounded, size: 20),
                         color: TurnaTheme.textHintColor(context),

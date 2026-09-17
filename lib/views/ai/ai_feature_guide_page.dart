@@ -19,8 +19,8 @@ import 'package:turna/core/theme.dart';
 /// 从 AI Hub AppBar 右上角 ❓ 进入。一页讲清楚 6 个主推功能（伴学 4 + 复习 2）
 /// 是干嘛的、什么时候用、怎么操作、有啥小贴士。每张功能卡可直接点开对应功能。
 ///
-/// 1.x 阶段中文硬编码；上 i18n 时把 [_FeatureSpec] 里的 5 个 String 字段
-/// 改为 AppStrings 函数即可，结构不动。
+/// 文案集中在 AppStrings 的 `aiGuide*` 分组；[_FeatureSpec] 的 5 个 String
+/// 字段直接绑 AppStrings getter，上 i18n 时只需替换取值。
 @RoutePage()
 class AiFeatureGuidePage extends StatelessWidget {
   const AiFeatureGuidePage({super.key});
@@ -50,10 +50,10 @@ class _FeatureGuideContent extends StatelessWidget {
           const SliverToBoxAdapter(child: SizedBox(height: 16)),
           const SliverToBoxAdapter(child: _HeroCard()),
           const SliverToBoxAdapter(child: SizedBox(height: 24)),
-          const SliverToBoxAdapter(
+          SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              child: SectionTitle(title: '📘 伴学'),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: SectionTitle(title: AppStrings.aiGuideSectionCompanion),
             ),
           ),
           SliverPadding(
@@ -69,10 +69,10 @@ class _FeatureGuideContent extends StatelessWidget {
             ),
           ),
           const SliverToBoxAdapter(child: SizedBox(height: 24)),
-          const SliverToBoxAdapter(
+          SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
-              child: SectionTitle(title: '🎯 复习'),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: SectionTitle(title: AppStrings.aiGuideSectionReview),
             ),
           ),
           SliverPadding(
@@ -135,9 +135,9 @@ class _HeroCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  '6 个 AI 能力，一次看懂',
-                  style: TextStyle(
+                Text(
+                  AppStrings.aiGuideHeroTitle,
+                  style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w800,
                     color: Colors.white,
@@ -146,7 +146,7 @@ class _HeroCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '所有功能都依赖 AI 引擎。配置一次，全部可用。',
+                  AppStrings.aiGuideHeroSubtitle,
                   style: TextStyle(
                     fontSize: 13,
                     color: Colors.white.withValues(alpha: 0.88),
@@ -163,13 +163,13 @@ class _HeroCard extends StatelessWidget {
                           ? Icons.check_circle_rounded
                           : Icons.warning_amber_rounded,
                       label: snap.complete
-                          ? '引擎已配置 · ${snap.preset}'
-                          : '引擎未配置（点 AI Hub 顶部卡设置）',
+                          ? AppStrings.aiGuideEngineConfigured(snap.preset)
+                          : AppStrings.aiGuideEngineMissing,
                       warning: !snap.complete,
                     ),
-                    const _HeroChip(
+                    _HeroChip(
                       icon: Icons.lock_outline_rounded,
-                      label: '隐私：仅本机 · 不联网',
+                      label: AppStrings.aiGuidePrivacyChip,
                     ),
                   ],
                 ),
@@ -263,125 +263,71 @@ class _FeatureSpec {
   final void Function(BuildContext) open;
 }
 
-const List<_FeatureSpec> _kFeatures = [
+final List<_FeatureSpec> _kFeatures = [
   // 1. 自由问答
   _FeatureSpec(
     icon: Icons.chat_bubble_outline_rounded,
     accent: TurnaTheme.brandTeal,
-    title: '自由问答',
-    purpose: '跟 AI 老师自由对话，问任何土耳其语相关问题。',
-    scenarios: [
-      '学完一个语法点想再追问',
-      '想知道某个词的真实用法和例句',
-      '想让 AI 解释一段土耳其语句子',
-    ],
-    steps: [
-      '点击卡片进入聊天页',
-      '在输入框写下问题，回车发送',
-      'AI 实时流式回答',
-      '满意的回答可点 ❤ 收藏',
-    ],
-    tip: '问题越具体，AI 越懂你。比如「-dık 与 -acak 的区别」比「教我语法」有用。',
+    title: AppStrings.aiGuideFreeChatTitle,
+    purpose: AppStrings.aiGuideFreeChatPurpose,
+    scenarios: AppStrings.aiGuideFreeChatScenarios,
+    steps: AppStrings.aiGuideFreeChatSteps,
+    tip: AppStrings.aiGuideFreeChatTip,
     open: _openTutorChat,
   ),
   // 2. 学习诊断
   _FeatureSpec(
     icon: Icons.analytics_outlined,
     accent: TurnaTheme.brandSky,
-    title: '学习诊断',
-    purpose: '让 AI 看你的学习数据，告诉你现在卡在哪、下一步该练什么。',
-    scenarios: [
-      '学了一阵想看看自己真实水平',
-      '想找出反复错的题型',
-      '想拿到一份定制化的下一步计划',
-    ],
-    steps: [
-      '点击卡片进入诊断页',
-      'AI 自动分析你最近的错题和弱词',
-      '阅读诊断报告（强项 / 弱项 / 建议）',
-      '可一键跳到「按错题练习」或「按弱词练习」',
-    ],
-    tip: '诊断基于你最近 7 天的真实数据；越常用 Turna，诊断越准。',
+    title: AppStrings.aiGuideDiagnosisTitle,
+    purpose: AppStrings.aiGuideDiagnosisPurpose,
+    scenarios: AppStrings.aiGuideDiagnosisScenarios,
+    steps: AppStrings.aiGuideDiagnosisSteps,
+    tip: AppStrings.aiGuideDiagnosisTip,
     open: _openDiagnosis,
   ),
   // 3. 收藏的回答
   _FeatureSpec(
     icon: Icons.bookmark_outline_rounded,
     accent: TurnaTheme.amethystLeague,
-    title: '收藏的回答',
-    purpose: '把 AI 给出但还想再看的回答集中放这里，随时回查。',
-    scenarios: [
-      '看到一个好回答想之后回看',
-      '想整理一个「我的错题解释集」',
-      '想对比同一问题几次回答的差异',
-    ],
-    steps: [
-      '在自由问答 / 讲解页面点回答旁的 ❤',
-      '自动进入「收藏的回答」',
-      '点击单条可查看完整对话',
-      '可长按删除或加笔记（待支持）',
-    ],
-    tip: '收藏多了就用「分类标签」找——目前按时间倒序排，1.x 后会加标签和搜索。',
+    title: AppStrings.aiGuideSavedTitle,
+    purpose: AppStrings.aiGuideSavedPurpose,
+    scenarios: AppStrings.aiGuideSavedScenarios,
+    steps: AppStrings.aiGuideSavedSteps,
+    tip: AppStrings.aiGuideSavedTip,
     open: _openSaved,
   ),
   // 4. 深度讲解
   _FeatureSpec(
     icon: Icons.account_tree_outlined,
     accent: TurnaTheme.brandReed,
-    title: '深度讲解',
-    purpose: '对当前题目（错题、单词、语法）展开一次完整讲解，AI 现场分析。',
-    scenarios: [
-      '一道题错了想搞清楚为什么',
-      '单词查了词典但还是记不住',
-      '语法点想看更多例句和场景',
-    ],
-    steps: [
-      '在题目 / 单词 / 语法点旁点「深度讲解」',
-      '弹出讲解面板，AI 读上下文后开始写',
-      '可继续追问或让 AI 再讲一遍',
-      '满意的讲解可点 ❤ 收藏',
-    ],
-    tip: '讲解会注入你的水平、错题和讲解偏好——同义词用你认识的、深度跟你匹配。',
+    title: AppStrings.aiGuideDepthTitle,
+    purpose: AppStrings.aiGuideDepthPurpose,
+    scenarios: AppStrings.aiGuideDepthScenarios,
+    steps: AppStrings.aiGuideDepthSteps,
+    tip: AppStrings.aiGuideDepthTip,
     open: _openDepthTutor,
   ),
   // 5. 按错题练习
   _FeatureSpec(
     icon: Icons.history_toggle_off_rounded,
     accent: TurnaTheme.brandTeal,
-    title: '按错题练习',
-    purpose: '让 AI 把你最近常错的题整理成一次专项练习。',
-    scenarios: [
-      '刚做完一组题，发现错得不少',
-      '想集中攻克同一类错误',
-      '想用错题替代普通复习',
-    ],
-    steps: [
-      '点击卡片',
-      '选时间范围（最近 7 / 30 天）',
-      'AI 生成专项练习题',
-      '做完进入评分，错题自动进 SRS',
-    ],
-    tip: '错题不够时会自动用同类高频错题补足，不用担心「最近没错就没得练」。',
+    title: AppStrings.aiGuideMistakesTitle,
+    purpose: AppStrings.aiGuideMistakesPurpose,
+    scenarios: AppStrings.aiGuideMistakesScenarios,
+    steps: AppStrings.aiGuideMistakesSteps,
+    tip: AppStrings.aiGuideMistakesTip,
     open: _openTutorMistakes,
   ),
   // 6. 按弱词练习
   _FeatureSpec(
     icon: Icons.quiz_rounded,
     accent: TurnaTheme.brandReed,
-    title: '按弱词练习',
-    purpose: '让 AI 把你记得最差的单词挑出来组一次练习。',
-    scenarios: [
-      '背单词时反复记不住某一批',
-      '想针对性补足词汇量',
-      'FSRS 算法推算你「忘了」的词',
-    ],
-    steps: [
-      '点击卡片',
-      '选词数量（10 / 20 / 50）',
-      'AI 用这些弱词生成练习',
-      '完成后 FSRS 自动更新记忆强度',
-    ],
-    tip: '「弱」是 FSRS 算出来的——能回忆但不稳的词比完全没学过的词更值得练。',
+    title: AppStrings.aiGuideWeakTitle,
+    purpose: AppStrings.aiGuideWeakPurpose,
+    scenarios: AppStrings.aiGuideWeakScenarios,
+    steps: AppStrings.aiGuideWeakSteps,
+    tip: AppStrings.aiGuideWeakTip,
     open: _openTutorWeak,
   ),
 ];
@@ -485,7 +431,7 @@ class _FeatureCard extends StatelessWidget {
             ),
             const SizedBox(height: 14),
             // 作用
-            _SectionLabel(label: '作用', color: spec.accent),
+            _SectionLabel(label: AppStrings.aiGuideLabelPurpose, color: spec.accent),
             const SizedBox(height: 4),
             Text(
               spec.purpose,
@@ -496,7 +442,7 @@ class _FeatureCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             // 适用场景
-            _SectionLabel(label: '适用场景', color: spec.accent),
+            _SectionLabel(label: AppStrings.aiGuideLabelScenarios, color: spec.accent),
             const SizedBox(height: 4),
             for (final s in spec.scenarios)
               Padding(
@@ -529,7 +475,7 @@ class _FeatureCard extends StatelessWidget {
               ),
             const SizedBox(height: 12),
             // 操作流程
-            _SectionLabel(label: '操作流程', color: spec.accent),
+            _SectionLabel(label: AppStrings.aiGuideLabelSteps, color: spec.accent),
             const SizedBox(height: 4),
             for (var i = 0; i < spec.steps.length; i++)
               Padding(

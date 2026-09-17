@@ -5,6 +5,7 @@ import 'package:turna/application/review_dashboard/insights_repository.dart';
 import 'package:turna/application/review_dashboard/review_data_revision.dart';
 import 'package:turna/application/review_progress_provider.dart';
 import 'package:turna/di/injection.dart';
+import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/core/theme.dart';
 
@@ -55,7 +56,7 @@ class _ReviewSourceDetailPageState extends State<ReviewSourceDetailPage> {
                 child: FilledButton.icon(
                   onPressed: () => setState(() => _future = _load()),
                   icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('重新加载'),
+                  label: Text(AppStrings.reviewSourceReload),
                 ),
               );
             }
@@ -81,9 +82,15 @@ class _ReviewSourceDetailPageState extends State<ReviewSourceDetailPage> {
                   padding: const EdgeInsets.all(16),
                   child: Row(
                     children: [
-                      _Metric(label: '今日到期', value: summary.forecast.dueToday),
-                      _Metric(label: '新卡', value: summary.maturity.newCards),
-                      _Metric(label: '今日完成', value: todayCompleted),
+                      _Metric(
+                          label: AppStrings.reviewSourceMetricDueToday,
+                          value: summary.forecast.dueToday),
+                      _Metric(
+                          label: AppStrings.reviewSourceMetricNewCards,
+                          value: summary.maturity.newCards),
+                      _Metric(
+                          label: AppStrings.reviewSourceMetricDoneToday,
+                          value: todayCompleted),
                     ],
                   ),
                 ),
@@ -96,7 +103,7 @@ class _ReviewSourceDetailPageState extends State<ReviewSourceDetailPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '7 / 30 日趋势',
+                        AppStrings.reviewSourceTrendTitle,
                         style: Theme.of(context)
                             .textTheme
                             .titleMedium
@@ -104,8 +111,8 @@ class _ReviewSourceDetailPageState extends State<ReviewSourceDetailPage> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '过去 7 日 $reviews7 次，30 日 $reviews30 次；'
-                        '图表数据使用固定桶聚合，不加载历史事件正文。',
+                        AppStrings.reviewSourceTrendSummary(
+                            reviews7, reviews30),
                       ),
                     ],
                   ),
@@ -116,7 +123,7 @@ class _ReviewSourceDetailPageState extends State<ReviewSourceDetailPage> {
                 FilledButton.icon(
                   onPressed: _startReview,
                   icon: const Icon(Icons.play_arrow_rounded),
-                  label: const Text('开始该来源复习'),
+                  label: Text(AppStrings.reviewSourceStartReview),
                 ),
             ],
           );
@@ -154,10 +161,10 @@ class ReviewSourceAvailabilityBanner extends StatelessWidget {
     if (active) return const SizedBox.shrink();
     return Card(
       color: TurnaTheme.warning.withValues(alpha: 0.12),
-      child: const ListTile(
-        leading: Icon(Icons.inventory_2_outlined),
-        title: Text('已删除来源'),
-        subtitle: Text('来源当前不可复习，但历史统计仍会保留。'),
+      child: ListTile(
+        leading: const Icon(Icons.inventory_2_outlined),
+        title: Text(AppStrings.reviewSourceDeletedTitle),
+        subtitle: Text(AppStrings.reviewSourceDeletedSubtitle),
       ),
     );
   }

@@ -365,6 +365,9 @@ class _NetworkCallout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Lift the accent toward white on dark surfaces — the raw deep green /
+    // deep blue tints are near-invisible against the dark card fill.
+    final accent = TurnaTheme.accentOnCard(context, tintColor);
     return Container(
       decoration: BoxDecoration(
         color: TurnaTheme.cardBg(context),
@@ -377,7 +380,7 @@ class _NetworkCallout extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Container(width: 4, color: tintColor),
+            Container(width: 4, color: accent),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -391,11 +394,11 @@ class _NetworkCallout extends StatelessWidget {
                           height: 36,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            color: tintColor.withValues(alpha: 0.12),
+                            color: accent.withValues(alpha: 0.12),
                             borderRadius:
                                 BorderRadius.circular(TurnaTheme.radiusMedium),
                           ),
-                          child: Icon(icon, color: tintColor, size: 20),
+                          child: Icon(icon, color: accent, size: 20),
                         ),
                         const SizedBox(width: 10),
                         Expanded(
@@ -418,7 +421,7 @@ class _NetworkCallout extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.w600,
                             height: 1.5,
-                            color: tintColor,
+                            color: accent,
                           ),
                     ),
                     const SizedBox(height: 8),

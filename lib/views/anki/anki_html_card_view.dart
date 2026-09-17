@@ -14,6 +14,7 @@ import 'package:turna/core/html_stripper.dart';
 // Package imports:
 import 'package:path/path.dart' as p;
 import 'package:turna/core/logger.dart';
+import 'package:turna/l10n/app_strings.dart';
 
 /// WebView shell for a single rendered Anki card face (fidelity track,
 /// deep-adaptation plan §5.2).
@@ -408,9 +409,9 @@ class _HtmlTextFallback extends StatelessWidget {
               autofocus: true,
               autocorrect: false,
               onChanged: onTypeAnswerChanged,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: '输入答案',
+              decoration: InputDecoration(
+                border: const OutlineInputBorder(),
+                hintText: AppStrings.ankiTypedAnswerLabel,
               ),
             ),
           ],

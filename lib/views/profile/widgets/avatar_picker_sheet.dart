@@ -9,6 +9,7 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/avatar_with_ring.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// Sentinel popped by [_AvatarPickerSheet] when the user taps the
 /// "reset to default" action. Differs from `null`, which means "sheet was
@@ -51,8 +52,11 @@ Future<String?> showAvatarPickerSheet(
     if (getIt.isRegistered<AppPrefs>()) {
       await getIt<AppPrefs>().setLocalUser(updated);
     }
-    messenger.showSnackBar(
-      SnackBar(content: Text(AppStrings.accountAvatarResetDone)),
+    if (!context.mounted) return null;
+    TurnaSnackBar.showVia(
+      messenger,
+      context,
+      AppStrings.accountAvatarResetDone,
     );
     return null;
   }
@@ -63,9 +67,12 @@ Future<String?> showAvatarPickerSheet(
   if (getIt.isRegistered<AppPrefs>()) {
     await getIt<AppPrefs>().setLocalUser(updated);
   }
+  if (!context.mounted) return null;
   final name = AvatarCatalog.resolve(selected).name;
-  messenger.showSnackBar(
-    SnackBar(content: Text(AppStrings.accountAvatarChangedDone(name))),
+  TurnaSnackBar.showVia(
+    messenger,
+    context,
+    AppStrings.accountAvatarChangedDone(name),
   );
   return selected;
 }

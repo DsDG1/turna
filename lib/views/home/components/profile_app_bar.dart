@@ -15,6 +15,7 @@ import 'package:turna/service/locator.dart';
 import 'package:turna/views/profile/utils/share_image_generator.dart';
 import 'package:turna/views/profile/widgets/share_progress_card.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 class ProfileAppBar extends StatelessWidget implements PreferredSizeWidget {
   const ProfileAppBar({super.key});
@@ -191,9 +192,7 @@ class _ShareProgressSheetState extends State<_ShareProgressSheet> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppStrings.profileShareFailed(e))),
-        );
+        TurnaSnackBar.show(context, AppStrings.profileShareFailed(e));
       }
     } finally {
       if (mounted) setState(() => _sharing = false);

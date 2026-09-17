@@ -7,6 +7,7 @@ import 'package:auto_route/auto_route.dart';
 // Project imports:
 import 'package:turna/application/settings/settings_destination.dart';
 import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/settings/pages/settings_category_body.dart';
 import 'package:turna/views/settings/widgets/settings_advanced_section.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
@@ -42,7 +43,7 @@ class LegacyCompatibilityPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SettingsScaffold(
-      title: '旧版与兼容性',
+      title: AppStrings.settingsAdvancedLegacyTitle,
       body: SettingsCategoryBody(
         pageStorageKey: 'settings-advanced-legacy',
         child: SettingsAdvancedSection(showLegacy: true),

@@ -27,6 +27,7 @@ import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/settings/storage_category_items_page.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// User-facing storage overview ("存储与性能"): a dashboard over
 /// [StorageInventoryService] that shows total usage with a share ring, four
@@ -199,9 +200,7 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
             ? AppStrings.storageOptimizeUnavailable
             : AppStrings.storageOptimizeFailed)
         : AppStrings.storageOptimizeDone(result.completedJobs);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    TurnaSnackBar.show(context, message);
     await _rescan();
   }
 
@@ -246,10 +245,9 @@ class _StorageDiagnosticsPageState extends State<StorageDiagnosticsPage> {
       }
     }
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-          content: Text(
-              AppStrings.storageDiagOrphansCleaned(cleaned, orphans.length))),
+    TurnaSnackBar.show(
+      context,
+      AppStrings.storageDiagOrphansCleaned(cleaned, orphans.length),
     );
     await _rescan();
   }
