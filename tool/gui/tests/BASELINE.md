@@ -4,13 +4,26 @@
 
  ## 当前基线
 
-- 日期：2026-09-08（测试去重第四轮：死链/陪跑/恒真断言清理）；`python -m unittest` 收集 2371 例 / 0 加载错误
+- 日期：2026-09-19（GUI 焕新 W1–W3 落库，见下节）；`python -m unittest` 收集 **2505 例 / 0 加载错误**
 - 全量用例（上次记录）：2499 collected；基线已知 `test_textbook_controller.LoadFileAsyncTest.test_stale_load_result_is_ignored` 曾在全量单进程 discover 下确定性失败——**单跑与模块级运行均通过**（2026-09 复核，疑似顺序敏感的上下文污染，根因未定位；全量单进程 discover 本身在本机还会疑似空转不终止，见下），命令：
   ```bash
   QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests -p "test_*.py"
   ```
 - 记录勘误 ×2（历史条目原文保留）：① 2026-09-07 基线头所写「2 个 defer_resurface 永久 skip」经核实不存在（该文件 4 例无任何 skip 标记）；② 2026-09-06 adversarial 瘦身条目所写「保留 10 例独有覆盖」中 D14×4 与 D27 共 5 例实为与常规测试逐字或更强重复，已于本轮删除。
 - 文档勘误：历史条目中的 `tool/gui/aiEnhance.md` 已退役删除，现行 AI 能力文档为 `docs/ai_configuration_and_features_report.md`（历史条目的章节号 §8/§13 指当时文件，不再有效）。
+
+## 2026-09-19 GUI 焕新 W1–W3（壳层多视图 + 图标系统 + 编辑视图深化）
+
+用例数 2382 -> 2505（+123，其中焕新三波 +101：`test_ui_kit` 27 / `test_shell_views` 37（含 `ActivityBadgeTest` 7）/ `test_w3_editor` 37）。设计计划：`Turna-GUI-焕新设计计划.md`（桌面）；提交 `04ca6d2e`（[gui-w1]）→ `0b2d6191`（[gui-w2][gui-w3]）→ `e0c632f2`（lint 清扫）。
+
+| 波次 | 变更 |
+|---|---|
+| W1 地基 | `theme_tokens` 扩容（SPACING/RADIUS/TYPE/ELEVATION + DENSITIES 密度阶梯 + 4 主题 `bg_chrome`）；`src/icons/` vendored Lucide SVG ×52（DPR 渲染/着色/缓存）；`widgets/ui/` UI Kit 十组件 + `--gallery` 画廊；`theme_styles/shell.py` 新组件 QSS |
+| W2 壳层 | ActivityBar 导航轨 + CentralStack 四视图（欢迎/编辑/总览/资源）+ 右 Copilot Dock；三孤儿接线（ExperienceDock/Ctrl+J、PreviewHost strip、Ctrl+K 命令面板）；快捷键组 `Ctrl+1~4/B/J/K/S/,`；布局 QSettings 持久化；状态栏保存态指示 + 密度/主题快捷切换 |
+| W3 编辑视图 | `TreeSidebar`（搜索过滤保祖先 + 迷你工具条）；树节点 Lucide 图标 + accent 拖拽指示线；`DetailPanel` ViewHeader + 编辑\|预览\|JSON 三 tab；`ReplaceNodeDataCommand`（id 不可变） |
+| 验货修复（随 W2/W3 波入库） | ① 信号治理：`.connect(lambda)` 15+5 处清零（`functools.partial`/具名槽 + `_c` 吸收参），`test_signal_lifecycle` 复绿——该治理扫描为静态扫描、不在 `affected` 档依赖图内，**UI 波次验收须跑 `full` 或至少显式含该模块**；② 角标数据管线：`sync_activity_badges` 三路接线（总览=校验错误数 danger / 工坊=未完成导入项目数 / Copilot=未读建议，dock 可见即已读，复用 `_shown_suggestion_keys`）；③ SIM105×8 清零（`contextlib.suppress`）+ UP042×3 枚举迁移 StrEnum（已核无 `str(成员)` 依赖），`ruff check src/` 归零 |
+
+验证：`run_gui_tests.py ci`（E1 gate 33/33 + E2 gate 5/5 + L1 fast 113/113）；受影响模块 `test_shell_views`+`test_memory_wiring`+`test_textbook_skill` 55 例全绿（含一次晚绑定回归被抓回：`welcome_view` 的 `on_open_recent` lambda 是刻意晚绑定，勿改为方法引用直传）。遗留：`tests/` 存量 141 处历史 lint（E741 等，HEAD 前已存在）未清；`--gallery` 四主题与主流程**人工走查**仍待做；W4/W5 未开工。
 
 ## 2026-09 改良清单施工（半成品接线 + 工程化落地）
 
