@@ -19,11 +19,11 @@ command-level action so the decision is unit-testable independent of Qt /
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Any, Literal
 
 
-class ImportStrategy(str, Enum):
+class ImportStrategy(StrEnum):
     """How to handle a section-id collision during textbook import."""
 
     MERGE = "merge"

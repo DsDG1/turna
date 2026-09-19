@@ -11,11 +11,11 @@ Roles are layered; higher priority wins when the same node has multiple:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from collections.abc import Iterable, Mapping
 
 
-class FocusRole(str, Enum):
+class FocusRole(StrEnum):
     """Display role for a course node in the FocusRing."""
 
     SELECTION = "selection"

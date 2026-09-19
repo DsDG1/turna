@@ -6,7 +6,7 @@ Protects the editor against runaway auto-apply loops and cascades of failing AI 
 from __future__ import annotations
 
 from collections import deque
-from enum import Enum
+from enum import StrEnum
 import logging
 from threading import Lock
 import time
@@ -15,7 +15,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
-class CircuitState(str, Enum):
+class CircuitState(StrEnum):
     CLOSED = "closed"
     OPEN = "open"
     HALF_OPEN = "half_open"
