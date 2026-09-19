@@ -75,6 +75,11 @@ def _install_excepthook() -> None:
 def main() -> int:
     from src.infrastructure.telemetry import telemetry
 
+    if "--gallery" in sys.argv:
+        from src.widgets.ui.gallery import run_gallery
+
+        return run_gallery()
+
     _install_excepthook()
     telemetry.start_session()
     start = time.perf_counter()

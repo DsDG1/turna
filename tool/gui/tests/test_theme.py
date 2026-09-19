@@ -35,6 +35,7 @@ _OLD_BLUE_ACCENTS = {"#3B82F6", "#2563EB", "#1D4ED8"}
 # Keys every palette must expose (sampled from the dark palette).
 _REQUIRED_KEYS = frozenset({
     "bg", "bg_secondary", "bg_input", "bg_elevated", "bg_disabled",
+    "bg_chrome",
     "text", "text_secondary", "text_disabled",
     "border", "border_hover",
     "accent", "accent_hover", "accent_pressed", "accent_subtle", "accent_text",
@@ -275,6 +276,155 @@ class FlowLayoutWrapTest(unittest.TestCase):
         wide = flow.heightForWidth(4000)
         narrow = flow.heightForWidth(40)
         self.assertGreater(narrow, wide)
+
+
+class LayoutTokenTest(unittest.TestCase):
+    """W1 token expansion: spacing / radius / type / elevation / density."""
+
+    def test_spacing_grid(self) -> None:
+        from src.theme_tokens import SPACING, spacing
+
+        self.assertEqual(SPACING["s1"], 4)
+        self.assertEqual(SPACING["s6"], 32)
+        self.assertEqual(spacing("s4"), 16)
+        self.assertEqual(spacing("nope"), SPACING["s2"])
+
+    def test_radius_tokens(self) -> None:
+        from src.theme_tokens import RADIUS, radius
+
+        self.assertEqual(RADIUS["pill"], 999)
+        self.assertEqual(radius("lg"), 8)
+        self.assertEqual(radius("nope"), RADIUS["md"])
+
+    def test_type_ramp(self) -> None:
+        from src.theme_tokens import TYPE, type_token
+
+        self.assertGreater(TYPE["display"]["size"], TYPE["title"]["size"])
+        self.assertGreater(TYPE["title"]["size"], TYPE["body"]["size"])
+        self.assertGreater(TYPE["body"]["size"], TYPE["caption"]["size"])
+        self.assertIn("family", TYPE["mono"])
+        self.assertIs(type_token("nope"), TYPE["body"])
+
+    def test_elevation_levels(self) -> None:
+        from src.theme_tokens import ELEVATION, elevation
+
+        self.assertIsNone(elevation("e0"))
+        self.assertIsNone(elevation("nope"))
+        e1 = elevation("e1")
+        self.assertIsNotNone(e1)
+        self.assertGreater(e1["blur"], 0)  # type: ignore[index]
+        e2 = elevation("e2")
+        self.assertGreater(e2["blur"], e1["blur"])  # type: ignore[index]
+        # Returned dicts are copies, not the shared table entry.
+        e1["blur"] = -1
+        self.assertNotEqual(ELEVATION["e1"]["blur"], -1)  # type: ignore[index]
+
+    def test_density_tokens(self) -> None:
+        from src.theme_tokens import (
+            DEFAULT_DENSITY,
+            DENSITIES,
+            VALID_DENSITIES,
+            resolve_density,
+        )
+
+        self.assertEqual(DEFAULT_DENSITY, "comfortable")
+        self.assertEqual(VALID_DENSITIES, frozenset({"comfortable", "compact"}))
+        self.assertEqual(resolve_density("compact"), "compact")
+        self.assertEqual(resolve_density("weird"), DEFAULT_DENSITY)
+        self.assertEqual(resolve_density(None), DEFAULT_DENSITY)
+        self.assertLess(
+            DENSITIES["compact"]["base_font_px"],
+            DENSITIES["comfortable"]["base_font_px"],
+        )
+
+    def test_bg_chrome_per_theme(self) -> None:
+        for theme, expected in (
+            ("dark", "#0A1A14"),
+            ("light", "#EDF0EE"),
+            ("high-contrast-dark", "#000000"),
+            ("high-contrast-light", "#FFFFFF"),
+        ):
+            self.assertEqual(
+                palette_for(theme)["bg_chrome"],
+                expected,
+                f"{theme}.bg_chrome",
+            )
+
+
+class IconSystemTest(unittest.TestCase):
+    """src.icons: vendored Lucide set + render / role / cache contract."""
+
+    def setUp(self) -> None:
+        from tests._qtapp import _App
+
+        _App.get()
+
+    def test_expected_icon_set_vendored(self) -> None:
+        from src.icons import icon_names
+
+        names = set(icon_names())
+        expected = {
+            "folder-open", "sparkles", "map", "library", "bot",
+            "graduation-cap", "settings", "save", "plus", "search",
+            "chevron-down", "chevron-up", "x", "check", "pencil",
+            "trash-2", "copy", "upload", "download", "play", "pause",
+            "refresh-cw", "external-link", "file-text", "layers", "folder",
+            "book-open", "mic", "image", "link", "tag", "alert-circle",
+            "alert-triangle", "check-circle", "info", "loader", "clock",
+            "panel-left", "panel-right", "maximize-2", "more-horizontal",
+            "git-branch", "package", "rocket", "filter", "eye", "code",
+            "zap", "archive", "menu",
+        }
+        missing = expected - names
+        self.assertFalse(missing, f"missing vendored icons: {missing}")
+
+    def test_pixmap_renders_non_null(self) -> None:
+        from src.icons import pixmap
+
+        pm = pixmap("save", size=20, role="accent")
+        self.assertFalse(pm.isNull())
+        self.assertGreaterEqual(pm.width(), 20)
+        self.assertGreaterEqual(pm.devicePixelRatio(), 1.0)
+
+    def test_unknown_name_returns_null_pixmap(self) -> None:
+        from src.icons import pixmap
+
+        self.assertTrue(pixmap("no-such-icon").isNull())
+
+    def test_roles_resolve_to_palette_keys(self) -> None:
+        from src.icons import ROLE_TO_PALETTE_KEY, pixmap
+        from src.theme import current_palette
+
+        pal = current_palette()
+        for role, key in ROLE_TO_PALETTE_KEY.items():
+            self.assertIn(key, pal, f"role {role} -> missing palette key {key}")
+            self.assertFalse(pixmap("info", role=role).isNull())
+
+    def test_icon_wrapper_returns_qicon(self) -> None:
+        from PySide6.QtGui import QIcon
+
+        from src.icons import icon
+
+        ic = icon("folder", size=16)
+        self.assertIsInstance(ic, QIcon)
+        self.assertFalse(ic.isNull())
+
+    def test_cache_key_includes_color_and_size(self) -> None:
+        from src.icons import _ICON_CACHE, pixmap
+
+        _ICON_CACHE.clear()
+        pixmap("check", size=16, role="success")
+        pixmap("check", size=16, role="danger")
+        pixmap("check", size=20, role="success")
+        self.assertEqual(len(_ICON_CACHE), 3)
+
+    def test_clear_icon_cache(self) -> None:
+        from src.icons import clear_icon_cache, pixmap, _ICON_CACHE
+
+        pixmap("x")
+        self.assertTrue(_ICON_CACHE)
+        clear_icon_cache()
+        self.assertFalse(_ICON_CACHE)
 
 
 if __name__ == "__main__":

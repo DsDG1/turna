@@ -85,6 +85,33 @@ QLabel#hintLabel {{
     font-size: {base_font_px - 2}px;
 }}
 
+/* W4: semantic text role — setProperty("textRole", "...") replaces the
+   common setStyleSheet(f"color: ...") pattern for status/hint text. */
+QLabel[textRole="secondary"] {{
+    color: {p['text_secondary']};
+}}
+
+QLabel[textRole="secondary"][small="true"] {{
+    color: {p['text_secondary']};
+    font-size: {base_font_px - 2}px;
+}}
+
+QLabel[textRole="success"] {{
+    color: {p['success']};
+}}
+
+QLabel[textRole="warning"] {{
+    color: {p['warning']};
+}}
+
+QLabel[textRole="error"] {{
+    color: {p['error']};
+}}
+
+QLabel[textRole="info"] {{
+    color: {p['info']};
+}}
+
 /* Status bar */
 QStatusBar {{
     background-color: {p['bg_secondary']};

@@ -21,9 +21,12 @@ from PySide6.QtGui import QColor, QFont, QFontDatabase
 from PySide6.QtWidgets import QApplication, QGraphicsDropShadowEffect, QWidget
 
 from src.theme_tokens import (
+    DEFAULT_DENSITY,
     DEFAULT_THEME,
+    DENSITIES,
     PALETTES,
     palette_for,
+    resolve_density,
     valid_themes,
 )
 
@@ -98,13 +101,15 @@ def _system_font(base_point_size: int = 10) -> QFont:
     return font
 
 
-def _base_font_px_from_scale(ui_scale_percent: int) -> int:
+def _base_font_px_from_scale(ui_scale_percent: int, density: str = DEFAULT_DENSITY) -> int:
     """Map a UI scale percentage to the global base font size in pixels.
 
-    The original stylesheet used ``font-size: 14px`` as the 100% baseline.
+    The original stylesheet used ``font-size: 14px`` as the 100% baseline;
+    density shifts that baseline (compact = 12px, see ``DENSITIES``).
     """
     scale = max(80, min(150, ui_scale_percent))
-    return int(14 * scale / 100)
+    base = int(DENSITIES.get(resolve_density(density), DENSITIES[DEFAULT_DENSITY])["base_font_px"])
+    return int(base * scale / 100)
 
 
 def apply_theme(app: QApplication, settings: Settings | None = None) -> None:
@@ -116,12 +121,14 @@ def apply_theme(app: QApplication, settings: Settings | None = None) -> None:
     """
     theme = DEFAULT_THEME
     scale = 100
+    density = DEFAULT_DENSITY
     if settings is not None:
         theme = resolve_theme(settings.theme)
         scale = settings.ui_scale_percent
+        density = resolve_density(getattr(settings, "density", None))
 
     palette = palette_for(theme)
-    base_font_px = _base_font_px_from_scale(scale)
+    base_font_px = _base_font_px_from_scale(scale, density)
 
     global _ACTIVE_PALETTE, _ACTIVE_THEME
     _ACTIVE_PALETTE = palette

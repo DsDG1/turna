@@ -6,6 +6,7 @@ from src.theme_styles.buttons import build_button_qss
 from src.theme_styles.containers import build_container_qss
 from src.theme_styles.core import build_core_qss
 from src.theme_styles.inputs import build_input_qss
+from src.theme_styles.shell import build_shell_qss
 from src.theme_styles.views import build_view_qss
 
 
@@ -51,6 +52,7 @@ def build_qss(palette: dict[str, str], base_font_px: int, theme: str) -> str:
     input_qss = build_input_qss(p, border_w, focus_w)
     view_qss = build_view_qss(p, border_w, branch_selected)
     container_qss = build_container_qss(p, border_w, card_border, base_font_px)
+    shell_qss = build_shell_qss(p, border_w, base_font_px)
 
     return "\n".join(
         [
@@ -59,5 +61,6 @@ def build_qss(palette: dict[str, str], base_font_px: int, theme: str) -> str:
             input_qss.strip(),
             view_qss.strip(),
             container_qss.strip(),
+            shell_qss.strip(),
         ]
     ) + "\n"

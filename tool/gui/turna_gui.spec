@@ -27,7 +27,10 @@ a = Analysis(
     [str(GUI_DIR / "src" / "main.py")],
     pathex=[str(GUI_DIR), str(TOOL_DIR)],
     binaries=[],
-    datas=[],
+    datas=[
+        # Vendored Lucide icons for src.icons (GUI 焕新 W1).
+        (str(GUI_DIR / "src" / "icons" / "svg"), "src/icons/svg"),
+    ],
     # Defensive only: there are no importlib/dynamic imports in src/, so
     # PyInstaller's static analysis already finds everything. Keep this list
     # for robustness; it does not need to enumerate every module.

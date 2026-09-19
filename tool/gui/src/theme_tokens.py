@@ -54,6 +54,93 @@ RESOURCE_TYPE_COLORS: dict[str, str] = {
 RESOURCE_TYPE_DEFAULT = "#6B7280"
 
 
+# ---------------------------------------------------------------------------
+# Layout / shape / type / elevation tokens (GUI 焕新 W1)
+# ---------------------------------------------------------------------------
+# Qt-free dicts: unit-testable, consumed by the ui kit (``src/widgets/ui``)
+# and the QSS builders (``src/theme_styles``). Values follow the Turna
+# desktop-IDE design language: 4pt spacing grid, restrained radius, a small
+# type ramp, two elevation levels for cards/overlays only.
+
+#: 4pt spacing grid. ``s1`` is the smallest gap used inside chrome rows.
+SPACING: dict[str, int] = {
+    "s1": 4,
+    "s2": 8,
+    "s3": 12,
+    "s4": 16,
+    "s5": 24,
+    "s6": 32,
+}
+
+
+def spacing(name: str) -> int:
+    """Return a spacing value in px (4pt grid). Unknown names fall back to s2."""
+    return SPACING.get(name, SPACING["s2"])
+
+
+#: Corner radii. ``pill`` is the fully-rounded chip radius.
+RADIUS: dict[str, int] = {
+    "sm": 4,
+    "md": 6,
+    "lg": 8,
+    "pill": 999,
+}
+
+
+def radius(name: str) -> int:
+    """Return a corner radius in px. Unknown names fall back to md."""
+    return RADIUS.get(name, RADIUS["md"])
+
+
+#: Type ramp. ``size`` is px at 100% ui scale, ``weight`` is QFont weight
+#: (400 normal / 600 demi-bold / 700 bold). ``mono`` carries a family stack.
+TYPE: dict[str, dict[str, object]] = {
+    "display": {"size": 20, "weight": 700},  # view titles
+    "title": {"size": 15, "weight": 600},    # section headers
+    "body": {"size": 14, "weight": 400},     # base text (= existing baseline)
+    "caption": {"size": 12, "weight": 400},  # secondary descriptions
+    "mono": {"size": 13, "family": "Cascadia Code, Consolas, monospace"},
+}
+
+
+def type_token(name: str) -> dict[str, object]:
+    """Return a type-ramp entry. Unknown names fall back to body."""
+    return TYPE.get(name, TYPE["body"])
+
+
+#: Elevation levels. ``e1`` cards, ``e2`` dialogs/overlays. ``blur``/``dy``
+#: feed ``QGraphicsDropShadowEffect``; ``alpha`` is the shadow opacity.
+#: Never apply to per-item tree/list rows (repaint cost); cards and
+#: floating surfaces only.
+ELEVATION: dict[str, dict[str, object] | None] = {
+    "e0": None,
+    "e1": {"blur": 16, "dy": 2, "alpha": 0.10},
+    "e2": {"blur": 24, "dy": 4, "alpha": 0.18},
+}
+
+
+def elevation(name: str) -> dict[str, object] | None:
+    """Return an elevation entry (``None`` for e0 / unknown)."""
+    level = ELEVATION.get(name)
+    return dict(level) if isinstance(level, dict) else None
+
+
+#: Density modes (appearance/density). ``comfortable`` is the default;
+#: ``compact`` shrinks the base font and scales spacing by 0.8. Orthogonal
+#: to ``ui_scale_percent`` (global zoom) — density controls widget airiness.
+DENSITIES: dict[str, dict[str, object]] = {
+    "comfortable": {"base_font_px": 14, "spacing_scale": 1.0},
+    "compact": {"base_font_px": 12, "spacing_scale": 0.8},
+}
+VALID_DENSITIES: frozenset[str] = frozenset(DENSITIES.keys())
+DEFAULT_DENSITY = "comfortable"
+
+
+def resolve_density(name: str | None) -> str:
+    """Validate a density name, falling back to the default."""
+    return name if name in VALID_DENSITIES else DEFAULT_DENSITY
+
+
 def template_badge_color(template: str) -> str:
     """Return the badge hex for a functional lesson template."""
     return TEMPLATE_BADGES.get(template, TEMPLATE_BADGE_DEFAULT)
@@ -75,6 +162,9 @@ _DARK_PALETTE: dict[str, str] = {
     "bg_input": "#12261C",
     "bg_elevated": "#1B3529",
     "bg_disabled": "#1C2A28",
+    # Chrome surfaces (activity bar / status bar / view headers): one step
+    # darker than bg so the window frame reads as chrome, not content.
+    "bg_chrome": "#0A1A14",
     # Text
     "text": "#E8EAF0",
     "text_secondary": "#B9CCC0",
@@ -131,6 +221,8 @@ _LIGHT_PALETTE: dict[str, str] = {
     "bg_input": "#F5F6F5",
     "bg_elevated": "#FFFFFF",
     "bg_disabled": "#F3F4F6",
+    # Chrome surfaces (activity bar / status bar / view headers).
+    "bg_chrome": "#EDF0EE",
     # Text
     "text": "#1A1A2E",
     "text_secondary": "#4A5568",
@@ -187,6 +279,8 @@ _HIGH_CONTRAST_DARK_PALETTE: dict[str, str] = {
     "bg_input": "#0A0A0A",
     "bg_elevated": "#111111",
     "bg_disabled": "#1A1A1A",
+    # Chrome surfaces (hc themes keep chrome == bg for max contrast).
+    "bg_chrome": "#000000",
     # Text
     "text": "#FFFFFF",
     "text_secondary": "#E0E0E0",
@@ -243,6 +337,8 @@ _HIGH_CONTRAST_LIGHT_PALETTE: dict[str, str] = {
     "bg_input": "#FFFFFF",
     "bg_elevated": "#FFFFFF",
     "bg_disabled": "#F0F0F0",
+    # Chrome surfaces (hc themes keep chrome == bg for max contrast).
+    "bg_chrome": "#FFFFFF",
     # Text (near-black)
     "text": "#000000",
     "text_secondary": "#1A1A1A",
