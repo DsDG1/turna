@@ -45,6 +45,12 @@ def open_workshop(host: ExperienceHost) -> None:
     host._workshop_window.raise_()
     host._workshop_window.activateWindow()
     try:
+        from src.application.shell_views import sync_activity_badges
+
+        sync_activity_badges(host)
+    except Exception:
+        logger.debug("application/workshop_controller.py:open_workshop badge sync failed", exc_info=True)
+    try:
         host._refresh_experience(immediate=False, focus_only=True)
     except Exception:
         logger.debug("application/workshop_controller.py:open_workshop best-effort step failed", exc_info=True)
@@ -110,6 +116,13 @@ def on_workshop_locate(host: ExperienceHost, section_id: str) -> None:
     host.showNormal()
     host.raise_()
     host.activateWindow()
+    # W2: locating replaces window-raising with surfacing the edit view.
+    try:
+        from src.application.shell_views import reveal_edit_view
+
+        reveal_edit_view(host)
+    except Exception:
+        pass
     host.tree.select_section(section_id)
 
 
@@ -163,6 +176,12 @@ def on_textbook_sections(host: ExperienceHost, sections: list, strategy: str) ->
     safe_information(host, "导入教材", summary)
     if successful:
         offer_open_teacher_after_import(host, host._last_imported_section_id)
+    try:
+        from src.application.shell_views import sync_activity_badges
+
+        sync_activity_badges(host)
+    except Exception:
+        logger.debug("application/workshop_controller.py:on_textbook_sections badge sync failed", exc_info=True)
 
 
 def offer_open_teacher_after_import(host: ExperienceHost, section_id: str | None) -> None:

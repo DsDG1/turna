@@ -138,6 +138,14 @@ def handle_close_event(host: ExperienceHost, event: Any) -> None:
     if not event.isAccepted():
         return
 
+    # W2: persist shell layout (docks/splitter/last view) before teardown.
+    try:
+        save_state = getattr(host, "_save_shell_state", None)
+        if callable(save_state):
+            save_state()
+    except Exception:
+        logger.debug("application/close_controller.py:handle_close_event best-effort step failed", exc_info=True)
+
     # C-15: persist Experience metrics before process teardown.
     try:
         host._flush_experience_metrics("app_close")
@@ -160,6 +168,7 @@ def handle_close_event(host: ExperienceHost, event: Any) -> None:
             host._overview_window = None
     except Exception:
         host._overview_window = None
+    host._overview_widget = None
 
     runtime_context.clear_providers(host)
     clear_ai_key_on_exit(host)

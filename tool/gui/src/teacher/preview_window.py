@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QButtonGroup,
     QCheckBox,
@@ -253,6 +253,60 @@ class _PreviewCard(QFrame):
             layout.addWidget(QLabel(text))
 
 
+def iter_preview_items(lesson: dict[str, Any]):
+    """Yield ``(sub_lesson_name, stage_name, item, stage)`` for every
+    interactive item in *lesson* — shared by the dialog and the W3
+    DetailPanel 预览 tab."""
+    content = lesson.get("content", {}) or {}
+    for sl in content.get("subLessons", []) or []:
+        for stage in sl.get("stages", []) or []:
+            for item in stage.get("items", []) or []:
+                yield sl.get("name", ""), stage.get("name", ""), item, stage
+    for stage in content.get("stages", []) or []:
+        for item in stage.get("items", []) or []:
+            yield "", stage.get("name", ""), item, stage
+    for phase in content.get("listeningPhases", []) or []:
+        if listening_phase_has_items(phase.get("type", "")):
+            for item in phase.get("items", []) or []:
+                yield "", phase.get("name", ""), item, phase
+
+
+class LessonPreviewWidget(QWidget):
+    """Embedded lesson preview (W3 DetailPanel 预览 tab).
+
+    Renders the same try-it-yourself ``_PreviewCard`` list as the dialog,
+    without the window chrome — used inside the 编辑|预览|JSON tabs.
+    """
+
+    def __init__(
+        self,
+        adapter: CourseAdapter,
+        lesson: dict[str, Any],
+        parent: QWidget | None = None,
+        vocab_override: dict[str, dict[str, Any]] | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.adapter = adapter
+        self.lesson = lesson
+        self._vocab_override = vocab_override or {}
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 12, 16, 16)
+        layout.setSpacing(10)
+        count = 0
+        for sl_name, st_name, item, stage in iter_preview_items(lesson):
+            label_parts = [p for p in (sl_name, st_name) if p]
+            if label_parts:
+                layout.addWidget(QLabel("  ›  ".join(label_parts)))
+            card = _PreviewCard(self.adapter, item, self._vocab_override, stage=stage)
+            layout.addWidget(card)
+            count += 1
+        if count == 0:
+            empty = QLabel("这节课还没有题目，先在编辑器里添加。")
+            empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            layout.addWidget(empty)
+        layout.addStretch(1)
+
+
 class LessonPreviewDialog(QDialog):
     """Dialog showing all items of a lesson as try-it-yourself cards."""
 
@@ -273,18 +327,7 @@ class LessonPreviewDialog(QDialog):
         self._build()
 
     def _iter_items(self):
-        content = self.lesson.get("content", {}) or {}
-        for sl in content.get("subLessons", []) or []:
-            for stage in sl.get("stages", []) or []:
-                for item in stage.get("items", []) or []:
-                    yield sl.get("name", ""), stage.get("name", ""), item, stage
-        for stage in content.get("stages", []) or []:
-            for item in stage.get("items", []) or []:
-                yield "", stage.get("name", ""), item, stage
-        for phase in content.get("listeningPhases", []) or []:
-            if listening_phase_has_items(phase.get("type", "")):
-                for item in phase.get("items", []) or []:
-                    yield "", phase.get("name", ""), item, phase
+        yield from iter_preview_items(self.lesson)
 
     def _build(self) -> None:
         layout = self.layout()

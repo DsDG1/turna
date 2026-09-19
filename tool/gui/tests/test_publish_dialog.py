@@ -16,8 +16,6 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from PySide6.QtWidgets import QDialogButtonBox
-
 from src.widgets.publish_dialog import PublishDialog
 from tests._qtapp import _App
 
@@ -53,10 +51,10 @@ class PublishDialogModeTest(unittest.TestCase):
         _App.get()
 
     def _ok_text(self, dlg: PublishDialog) -> str:
-        return dlg.buttons.button(QDialogButtonBox.StandardButton.Ok).text()
+        return dlg.ok_btn.text()
 
     def _ok_enabled(self, dlg: PublishDialog) -> bool:
-        return dlg.buttons.button(QDialogButtonBox.StandardButton.Ok).isEnabled()
+        return dlg.ok_btn.isEnabled()
 
     def test_expert_mode_shows_full_checklist(self) -> None:
         dlg = PublishDialog(_adapter_with_report(), None, teacher_friendly=False)

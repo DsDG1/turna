@@ -1,6 +1,7 @@
 """Main window for the Turna GUI course editor."""
 from __future__ import annotations
 
+import contextlib
 import time
 from pathlib import Path
 from typing import Any
@@ -220,6 +221,9 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
     def _on_import_command_pushed(self, cmd, section_id: str) -> None:
         """Wire an import undo command to the tree and reveal the section."""
         cmd.signals.changed.connect(self.tree._on_command_changed)
+        if self.course_dir is not None:
+            with contextlib.suppress(Exception):
+                self._set_view("edit")
         self.tree.select_section(section_id)
 
     def _load_extraction_prompt_overrides(self) -> None:
@@ -239,6 +243,46 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
     def _build_experience_actions(self) -> None:
         build_experience_actions(self)
 
+    # --- W2 shell delegates (views / dock / palette / persistence) --------
+
+    def _set_view(self, key: str, **kwargs: Any) -> None:
+        from src.application import shell_views
+
+        shell_views.set_view(self, key, **kwargs)
+
+    def _sync_shell_views(self) -> None:
+        from src.application import shell_views
+
+        shell_views.sync_shell_views(self)
+
+    def _save_shell_state(self) -> None:
+        from src.application import shell_views
+
+        shell_views.save_shell_state(self)
+
+    def _open_command_palette(self):
+        """Ctrl+K / app-menu entry — wires the palette through the controller."""
+        from src.application import palette_controller
+
+        return palette_controller.open_command_palette(self)
+
+    def _mark_saved(self) -> None:
+        from src.application import shell_views
+
+        shell_views.mark_saved(self)
+
+    def _set_theme(self, theme: str) -> None:
+        """Status-bar quick theme switch (same effect as Settings dialog)."""
+        self._settings_obj.theme = theme
+        self._settings_obj.save_to_qsettings(self._settings)
+        apply_theme(QApplication.instance(), self._settings_obj)
+
+    def _set_density(self, density: str) -> None:
+        """Status-bar quick density switch (comfortable / compact)."""
+        self._settings_obj.density = density
+        self._settings_obj.save_to_qsettings(self._settings)
+        apply_theme(QApplication.instance(), self._settings_obj)
+
     def _on_undo_clean_changed(self, clean: bool) -> None:
         if self.course_dir is not None:
             marker = "" if clean else " *"
@@ -246,6 +290,12 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
             if self.teacher_mode:
                 base += " · 教师模式"
             self.setWindowTitle(base + marker)
+        try:
+            from src.application import shell_views
+
+            shell_views.sync_save_state_label(self)
+        except Exception:
+            pass
 
     def _build_toolbar(self) -> None:
         build_toolbar(self)
@@ -683,6 +733,10 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
         if not node_key:
             self.statusBar().showMessage(f"任务无对应节点：{job.label or job_id}", 4000)
             return
+        # W2: locating a node surfaces the edit view (tree lives there).
+        if self.course_dir is not None:
+            with contextlib.suppress(Exception):
+                self._set_view("edit")
         if node_key.startswith("section:"):
             sec_id = node_key[len("section:"):]
             self.tree.select_section(sec_id)

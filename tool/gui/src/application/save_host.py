@@ -6,6 +6,7 @@ Duck-types MainWindow. Soft / SavePipeline / yellow hints / brief stay here so
 from __future__ import annotations
 
 from typing import Any
+import contextlib
 import logging
 from src.application.experience_host import ExperienceHost
 logger = logging.getLogger(__name__)
@@ -154,6 +155,12 @@ def execute_save(host: ExperienceHost, request: Any) -> Any:
             host.undo_stack.setClean()
         except Exception:
             logger.warning("application/save_host.py:_after_success best-effort step failed", exc_info=True)
+        try:
+            mark = getattr(host, "_mark_saved", None)
+            if callable(mark):
+                mark()
+        except Exception:
+            logger.warning("application/save_host.py:_after_success best-effort step failed", exc_info=True)
         if outcome.reason in CLOSE_REASONS:
             return
         try:
@@ -276,6 +283,10 @@ def run_async_direct_save(host) -> None:
         host.tree.refresh()
         if result.ok:
             host.undo_stack.setClean()
+            mark = getattr(host, "_mark_saved", None)
+            if callable(mark):
+                with contextlib.suppress(Exception):
+                    mark()
             host.statusBar().showMessage(result.message or "保存成功", 5000)
         else:
             host.statusBar().showMessage(result.message or "保存失败（已回滚）", 8000)

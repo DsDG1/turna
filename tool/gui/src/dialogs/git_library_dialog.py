@@ -18,8 +18,6 @@ from typing import Any
 
 from PySide6.QtCore import Signal, QTimer
 from PySide6.QtWidgets import (
-    QDialog,
-    QDialogButtonBox,
     QLabel,
     QTabWidget,
     QVBoxLayout,
@@ -40,12 +38,12 @@ from src.dialogs.git_library import (
     sync,
 )
 from src.dialogs.git_library.git_worker_hub import GitWorkerHub
-from src.theme import current_palette
+from src.widgets.ui.containers import TurnaDialog
 
 logger = logging.getLogger(__name__)
 
 
-class GitLibraryDialog(QDialog):
+class GitLibraryDialog(TurnaDialog):
     """Connect to a git course repo; open / pull / push / copy-to-assets / host LAN share.
 
     The dialog operates on a clone directory it manages. When the user clicks
@@ -61,7 +59,7 @@ class GitLibraryDialog(QDialog):
         parent: QWidget | None = None,
         settings: Any = None,
     ) -> None:
-        super().__init__(parent)
+        super().__init__(parent, title="资源库（Git / 局域网协作）")
         self.adapter = adapter
         self._settings = settings
         # Build GitLibrary from settings (git_bin, timeout, token, ssh_key).
@@ -78,7 +76,6 @@ class GitLibraryDialog(QDialog):
         self.git_worker_hub = GitWorkerHub(self)
         self._local_git_server_thread: Any | None = None
 
-        self.setWindowTitle("资源库（Git / 局域网协作）")
         self.resize(820, 620)
         self._build_ui()
         self._load_defaults()
@@ -112,9 +109,8 @@ class GitLibraryDialog(QDialog):
     # --- assembly ---------------------------------------------------------
 
     def _build_ui(self) -> None:
-        layout = QVBoxLayout(self)
+        layout = self.body_layout()
         layout.setSpacing(12)
-        layout.setContentsMargins(16, 16, 16, 16)
 
         self.tabs = QTabWidget()
         self.tabs.addTab(self._build_sync_tab(), "远程协作 / 同步")
@@ -142,16 +138,15 @@ class GitLibraryDialog(QDialog):
         return memo.build_memo_tab(self)
 
     def _build_footer(self, layout: QVBoxLayout) -> None:
-        """Build status label and dialog button box at the bottom."""
+        """Build status label and dialog button row at the bottom."""
         # Status + course summary (shared, at bottom).
         self.status_label = QLabel("尚未连接。")
         self.status_label.setWordWrap(True)
-        self.status_label.setStyleSheet(f"color: {current_palette()['text_secondary']}; font-size: 12px;")
+        self.status_label.setProperty("textRole", "secondary")
+        self.status_label.setProperty("small", True)
         layout.addWidget(self.status_label)
 
-        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
-        buttons.rejected.connect(self.reject)
-        layout.addWidget(buttons)
+        self.add_button("关闭", slot=self.reject)
 
     def _load_defaults(self) -> None:
         # Auto-fill from settings if available.

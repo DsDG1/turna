@@ -10,8 +10,6 @@ from typing import Any
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
-    QDialog,
-    QDialogButtonBox,
     QFormLayout,
     QGroupBox,
     QLineEdit,
@@ -55,6 +53,7 @@ from src.dialogs.settings.extraction_prompt_tab import (
     on_extraction_save,
 )
 from src.dialogs.settings.experience_tab import build_experience_tab
+from src.widgets.ui.containers import TurnaDialog
 from src.application.presence_mode import (
     IMMERSIVE_WARN_TEXT,
     IMMERSIVE_WARN_TITLE,
@@ -85,15 +84,14 @@ from src.dialogs.settings.operation_log_tab import (
 )
 
 
-class SettingsDialog(QDialog):
+class SettingsDialog(TurnaDialog):
     """Modal settings editor for the course editor."""
 
     settings_changed = Signal()
 
     def __init__(self, settings: Settings, parent: QWidget | None = None, *,
                  prompt_library: AiPromptLibrary | None = None) -> None:
-        super().__init__(parent)
-        self.setWindowTitle("设置")
+        super().__init__(parent, title="设置")
         self.resize(720, 620)
         self._original = settings
         self._settings = settings.clone()
@@ -103,9 +101,8 @@ class SettingsDialog(QDialog):
         self._load_values()
 
     def _build_ui(self) -> None:
-        layout = QVBoxLayout(self)
+        layout = self.body_layout()
         layout.setSpacing(12)
-        layout.setContentsMargins(16, 16, 16, 16)
 
         self.tabs = QTabWidget()
         self.tabs.addTab(self._build_appearance_tab(), "外观")
@@ -118,18 +115,11 @@ class SettingsDialog(QDialog):
         self.tabs.addTab(self._build_operation_log_tab(), "操作日志")
         layout.addWidget(self.tabs)
 
-        self.buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok
-            | QDialogButtonBox.StandardButton.Cancel
-            | QDialogButtonBox.StandardButton.Apply
+        self.add_button("取消", slot=self.reject)
+        self.apply_btn = self.add_button("应用", slot=self._apply)
+        self.ok_btn = self.add_button(
+            "确定", variant="primary", slot=self._on_ok, default=True
         )
-        self.buttons.button(QDialogButtonBox.StandardButton.Ok).setText("确定")
-        self.buttons.button(QDialogButtonBox.StandardButton.Cancel).setText("取消")
-        self.buttons.button(QDialogButtonBox.StandardButton.Apply).setText("应用")
-        self.buttons.accepted.connect(self._on_ok)
-        self.buttons.rejected.connect(self.reject)
-        self.buttons.clicked.connect(self._on_button_clicked)
-        layout.addWidget(self.buttons)
 
     @staticmethod
     def _make_tab(spacing: int = 14) -> tuple[QWidget, QVBoxLayout]:
@@ -393,10 +383,6 @@ class SettingsDialog(QDialog):
         on_remove_recent(self)
     def _on_clear_recent(self) -> None:
         on_clear_recent(self)
-    def _on_button_clicked(self, button) -> None:
-        if self.buttons.buttonRole(button) == QDialogButtonBox.ButtonRole.ApplyRole:
-            self._apply()
-
     def _on_ok(self) -> None:
         self._apply()
         self.accept()

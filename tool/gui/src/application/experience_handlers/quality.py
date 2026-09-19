@@ -46,6 +46,9 @@ def handle_quality_campaign(host: ExperienceHost, scope: dict) -> None:
         scope={"kind": kind, "id": node_id, "action": action},
     )
     if action == "locate":
+        from src.application.shell_views import reveal_edit_view
+
+        reveal_edit_view(host)
         if kind == "lesson":
             host.tree.select_lesson(node_id)
         elif kind == "section":
@@ -68,9 +71,15 @@ def handle_quality_campaign(host: ExperienceHost, scope: dict) -> None:
         if chosen.get("reason") == "empty":
             host._experience_fill_empty({"first_lesson_id": node_id})
         else:
+            from src.application.shell_views import reveal_edit_view
+
+            reveal_edit_view(host)
             host.tree.select_lesson(node_id)
             host._on_ai_edit("lesson", node_id)
     elif kind == "section":
+        from src.application.shell_views import reveal_edit_view
+
+        reveal_edit_view(host)
         host.tree.select_section(node_id)
         host._on_ai_edit("section", node_id)
     else:

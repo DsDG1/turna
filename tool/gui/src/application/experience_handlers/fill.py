@@ -51,6 +51,9 @@ def _experience_fill_empty(host, scope: dict) -> None:
         for x in (scope.get("lesson_ids") or scope.get("empty_lesson_ids") or [])
         if str(x) and str(x) != first
     ]
+    from src.application.shell_views import reveal_edit_view
+
+    reveal_edit_view(host)
     host.tree.select_lesson(first)
     if not host.course_dir:
         # Non-modal: never QMessageBox here (offscreen tests hang on modal).
@@ -230,6 +233,9 @@ def _run_fill_lesson_patch_flow(
                 sec2, _u2, _l2 = host.adapter.find_lesson(nxt)
             except KeyError:
                 return
+            from src.application.shell_views import reveal_edit_view
+
+            reveal_edit_view(host)
             host.tree.select_lesson(nxt)
             host._run_fill_lesson_patch_flow(
                 section=sec2,

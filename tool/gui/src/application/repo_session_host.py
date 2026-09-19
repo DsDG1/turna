@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import contextlib
+
 from PySide6.QtWidgets import QFileDialog, QMessageBox
 
 from src.backend.ai import AiApiConfig
@@ -173,6 +175,16 @@ def enable_editor_actions(host) -> None:
     host.resources_menu_btn.setEnabled(True)
     host.publish_action.setEnabled(True)
     host.generate_audio_action.setEnabled(True)
+    # W2: repo loaded — leave the welcome view and unlock the rail items.
+    with contextlib.suppress(Exception):
+        host._sync_shell_views()
+    try:
+        from src.application import shell_views
+
+        shell_views.sync_save_state_label(host)
+        shell_views.sync_activity_badges(host)
+    except Exception:
+        pass
 
 
 def on_new_course(host) -> None:

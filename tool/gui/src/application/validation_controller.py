@@ -10,11 +10,18 @@ logger = logging.getLogger(__name__)
 
 
 def jump_to_node(host: ExperienceHost, node_ref: tuple[str, str]) -> None:
-    """Select the given node in the course tree."""
+    """Select the given node in the course tree (surfacing the edit view)."""
     kind, node_id = node_ref
     tree = getattr(host, "tree", None)
     if tree is None:
         return
+    # W2: locating a node should show the view that contains the tree.
+    try:
+        from src.application.shell_views import reveal_edit_view
+
+        reveal_edit_view(host)
+    except Exception:
+        pass
     try:
         if kind == "lesson":
             tree.select_lesson(node_id)

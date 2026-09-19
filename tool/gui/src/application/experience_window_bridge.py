@@ -35,6 +35,16 @@ def on_experience_context_changed(host, ctx) -> None:
         host.experience_dock_widget.apply_context_and_suggestions(ctx, sugs)
     if hasattr(host, "_refresh_ambient"):
         host._refresh_ambient()
+    try:
+        from src.application.shell_views import sync_activity_badges
+
+        sync_activity_badges(host)
+    except Exception:
+        logger.debug(
+            "application/experience_window_bridge.py:on_experience_context_changed"
+            " badge sync failed",
+            exc_info=True,
+        )
 
 
 def on_experience_pin_toggled(host) -> None:

@@ -19,24 +19,20 @@ from typing import Any
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QCheckBox,
-    QDialog,
-    QDialogButtonBox,
     QFileDialog,
     QGroupBox,
-    QHBoxLayout,
     QLabel,
     QMessageBox,
-    QPushButton,
     QVBoxLayout,
     QWidget,
 )
 
 from src.backend.course_adapter import CourseAdapter, SaveResult
 from src.teacher.error_mapper import humanize_problem
-from src.theme import current_palette
+from src.widgets.ui.containers import TurnaDialog
 
 
-class PublishDialog(QDialog):
+class PublishDialog(TurnaDialog):
     """Modal publish checklist. On accept, applies version bump + save."""
 
     def __init__(
@@ -46,8 +42,7 @@ class PublishDialog(QDialog):
         *,
         teacher_friendly: bool = False,
     ) -> None:
-        super().__init__(parent)
-        self.setWindowTitle("准备发布")
+        super().__init__(parent, title="准备发布")
         if teacher_friendly:
             self.resize(520, 560)
         else:
@@ -63,7 +58,7 @@ class PublishDialog(QDialog):
     # --- ui ---------------------------------------------------------------
 
     def _build_ui(self) -> None:
-        layout = QVBoxLayout(self)
+        layout = self.body_layout()
 
         if self.teacher_friendly:
             self._build_teacher_ui(layout)
@@ -74,22 +69,19 @@ class PublishDialog(QDialog):
         self.validation_label.setWordWrap(True)
         layout.addWidget(self.validation_label)
 
-        row = QHBoxLayout()
-        self.export_btn = QPushButton("导出报告")
-        self.export_btn.clicked.connect(self._on_export)
-        row.addWidget(self.export_btn)
-        row.addStretch()
-        self.buttons = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Cancel
-            | QDialogButtonBox.StandardButton.Ok
+        # Footer: export pinned left (before the stretch), then Cancel/发布.
+        self.export_btn = self.add_button(
+            "导出报告", variant="ghost", slot=self._on_export
         )
-        self.buttons.button(QDialogButtonBox.StandardButton.Ok).setText(
-            "发布" if self.teacher_friendly else "确认发布"
+        self._footer.removeWidget(self.export_btn)
+        self._footer.insertWidget(0, self.export_btn)
+        self.add_button("取消", slot=self.reject)
+        self.ok_btn = self.add_button(
+            "发布" if self.teacher_friendly else "确认发布",
+            variant="primary",
+            slot=self._on_publish,
+            default=True,
         )
-        self.buttons.accepted.connect(self._on_publish)
-        self.buttons.rejected.connect(self.reject)
-        row.addWidget(self.buttons)
-        layout.addLayout(row)
 
     def _build_expert_ui(self, layout: QVBoxLayout) -> None:
         layout.addWidget(QLabel("<b>本次改动</b>"))
@@ -126,7 +118,7 @@ class PublishDialog(QDialog):
         layout.addWidget(self.audio_label)
 
         self.version_label = QLabel()
-        self.version_label.setStyleSheet(f"color: {current_palette()['text_secondary']};")
+        self.version_label.setProperty("textRole", "secondary")
         layout.addWidget(self.version_label)
 
     # --- load / render -----------------------------------------------------
@@ -181,7 +173,7 @@ class PublishDialog(QDialog):
         plan = self._report["version_bump"]
         if not plan:
             hint = QLabel("（无需 bump：index/expressions 无改动）")
-            hint.setStyleSheet(f"color: {current_palette()['text_secondary']};")
+            hint.setProperty("textRole", "secondary")
             self.bump_layout.addWidget(hint)
             return
         changes = self._report["changes"]
@@ -227,7 +219,7 @@ class PublishDialog(QDialog):
             for r in missing:
                 lines.append(f"  • {r['asset_id']}")
             self.audio_label.setText("\n".join(lines))
-            self.audio_label.setStyleSheet(f"color: {current_palette()['warning']};")
+            self.audio_label.setProperty("textRole", "warning")
             return
         if not rows:
             self.audio_label.setText("（无 listening 资源引用）")
@@ -259,15 +251,15 @@ class PublishDialog(QDialog):
         if self.teacher_friendly:
             if v["ok"]:
                 self.validation_label.setText("✓ 校验通过，可以发布")
-                self.validation_label.setStyleSheet(f"color: {current_palette()['success']};")
-                self.buttons.button(QDialogButtonBox.StandardButton.Ok).setEnabled(True)
+                self.validation_label.setProperty("textRole", "success")
+                self.ok_btn.setEnabled(True)
             else:
                 lines = [f"✗ 校验未通过（{len(v['errors'])} 个问题），请先修复："]
                 for e in v["errors"]:
                     lines.append(f"  • {humanize_problem(e)}")
                 self.validation_label.setText("\n".join(lines))
-                self.validation_label.setStyleSheet(f"color: {current_palette()['error']};")
-                self.buttons.button(QDialogButtonBox.StandardButton.Ok).setEnabled(False)
+                self.validation_label.setProperty("textRole", "error")
+                self.ok_btn.setEnabled(False)
             return
         if v["ok"]:
             base = "✓ validate 通过"
@@ -276,7 +268,7 @@ class PublishDialog(QDialog):
         warn = f" / ⚠ {len(v['warnings'])} 个 lint 警告" if v["warnings"] else ""
         self.validation_label.setText(base + warn)
         ok_enabled = v["ok"]
-        self.buttons.button(QDialogButtonBox.StandardButton.Ok).setEnabled(ok_enabled)
+        self.ok_btn.setEnabled(ok_enabled)
         if not ok_enabled:
             detail = "\n".join(e.get("message", "") for e in v["errors"])
             self.validation_label.setToolTip(detail)

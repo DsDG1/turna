@@ -120,7 +120,12 @@ class _LessonChip(QPushButton):
 
 
 class CourseOverviewWindow(QWidget):
-    """Non-modal course structure overview with search, filter, and export."""
+    """Non-modal course structure overview with search, filter, and export.
+
+    ``embedded=True`` (W2 shell) renders it as an ordinary child widget
+    inside the central stack — no Window flag, no top-level sizing, and no
+    geometry persistence (the shell owns those).
+    """
 
     _GEO_KEY = "course_overview/geometry"
     _MAX_KEY = "course_overview/maximized"
@@ -128,12 +133,20 @@ class CourseOverviewWindow(QWidget):
     lesson_selected = Signal(str)
     validation_requested = Signal(list)  # list[dict[str, Any]]
 
-    def __init__(self, adapter: CourseAdapter, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        adapter: CourseAdapter,
+        parent: QWidget | None = None,
+        *,
+        embedded: bool = False,
+    ) -> None:
         super().__init__(parent)
+        self._embedded = embedded
         self.setWindowTitle("课程结构总览")
-        self.setWindowFlag(Qt.WindowType.Window, True)
-        self.resize(860, 640)
-        self.setMinimumSize(520, 400)
+        if not embedded:
+            self.setWindowFlag(Qt.WindowType.Window, True)
+            self.resize(860, 640)
+            self.setMinimumSize(520, 400)
         self.adapter = adapter
 
         self._stats: OverviewStats | None = None
@@ -215,7 +228,8 @@ class CourseOverviewWindow(QWidget):
         self._host_layout.setSpacing(12)
         self._scroll.setWidget(self._host)
 
-        self._load_geometry()
+        if not embedded:
+            self._load_geometry()
         self.refresh()
 
     # --- rendering ------------------------------------------------------
@@ -505,5 +519,6 @@ class CourseOverviewWindow(QWidget):
         qs.setValue(self._MAX_KEY, self.isMaximized())
 
     def closeEvent(self, event) -> None:
-        self._save_geometry()
+        if not self._embedded:
+            self._save_geometry()
         super().closeEvent(event)

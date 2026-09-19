@@ -192,6 +192,9 @@ class AiFixController:
             if applied_callback:
                 cmd.signals.changed.connect(applied_callback)
             window.undo_stack.push(cmd)
+            from src.application.shell_views import reveal_edit_view
+
+            reveal_edit_view(window)
             if hasattr(window, "tree") and hasattr(window.tree, "select_section"):
                 window.tree.select_section(node_id)
         elif kind == "unit":

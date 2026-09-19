@@ -314,6 +314,9 @@ class AiEditController:
             if on_applied:
                 cmd.signals.changed.connect(on_applied)
             window.undo_stack.push(cmd)
+            from src.application.shell_views import reveal_edit_view
+
+            reveal_edit_view(window)
             window.tree.select_section(sid)
         elif kind in ("unit", "lesson"):
             if not self._apply_node_edit(

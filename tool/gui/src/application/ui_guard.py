@@ -218,13 +218,20 @@ def safe_information(
     *,
     status_fallback: bool = True,
 ) -> None:
-    """Show information dialog, or statusBar when headless. Never raises."""
+    """Show information toast/dialog, or statusBar when headless. Never raises."""
     if is_suppress_ui():
         return
     if is_headless_ui():
         if status_fallback:
             _status_fallback(parent, f"{title}: {text}" if title else text)
         return
+    try:
+        from src.application.shell_views import notify_toast
+
+        if notify_toast(parent, text, severity="info", title=title):
+            return
+    except Exception:
+        logger.debug("application/ui_guard.py:safe_information toast failed", exc_info=True)
     try:
         from PySide6.QtWidgets import QMessageBox
 
@@ -241,13 +248,20 @@ def safe_warning(
     *,
     status_fallback: bool = True,
 ) -> None:
-    """Show warning dialog, or statusBar when headless. Never raises."""
+    """Show warning toast/dialog, or statusBar when headless. Never raises."""
     if is_suppress_ui():
         return
     if is_headless_ui():
         if status_fallback:
             _status_fallback(parent, f"{title}: {text}" if title else text, ms=8000)
         return
+    try:
+        from src.application.shell_views import notify_toast
+
+        if notify_toast(parent, text, severity="warning", title=title, duration_ms=6000):
+            return
+    except Exception:
+        logger.debug("application/ui_guard.py:safe_warning toast failed", exc_info=True)
     try:
         from PySide6.QtWidgets import QMessageBox
 

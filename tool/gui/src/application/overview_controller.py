@@ -12,11 +12,17 @@ logger = logging.getLogger(__name__)
 
 
 def open_overview(host: ExperienceHost) -> None:
-    """Open or raise the course structure overview window."""
+    """Open the overview: embedded view (shell) or floating window fallback."""
     from src.infrastructure.telemetry import telemetry
     from src.widgets.course_overview import CourseOverviewWindow
 
     telemetry.record_event("overview.open")
+    # W2: when the shell's central stack exists, the overview is a view, not
+    # a window (duck-typed so hosts without the shell keep the old path).
+    set_view = getattr(host, "_set_view", None)
+    if callable(set_view) and getattr(host, "_view_pages", None):
+        set_view("overview")
+        return
     if getattr(host, "_overview_window", None) is None:
         host._overview_window = CourseOverviewWindow(host.adapter, host)
         host._overview_window.lesson_selected.connect(
@@ -40,6 +46,13 @@ def on_overview_lesson_selected(host: ExperienceHost, lesson_id: str) -> None:
         host.activateWindow()
     except Exception:
         logger.debug("application/overview_controller.py:on_overview_lesson_selected best-effort step failed", exc_info=True)
+    # W2: locating replaces window-raising with surfacing the edit view.
+    try:
+        from src.application.shell_views import reveal_edit_view
+
+        reveal_edit_view(host)
+    except Exception:
+        pass
     try:
         host.tree.select_lesson(lesson_id)
     except Exception:
@@ -56,3 +69,7 @@ def on_overview_validation(host: ExperienceHost, problems: list) -> None:
 
 def on_overview_destroyed(host: ExperienceHost, *_args: Any) -> None:
     host._overview_window = None
+    # W2: the embedded view holds the same widget — clear it too or a later
+    # ensure_overview_embedded() would return a destroyed wrapper.
+    if getattr(host, "_overview_widget", None) is not None:
+        host._overview_widget = None

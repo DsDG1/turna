@@ -500,7 +500,12 @@ class ResourceEditorDialog(QWidget):
     to decide whether to refresh reference dropdowns.
     """
 
-    def __init__(self, adapter: CourseAdapter, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        adapter: CourseAdapter,
+        parent: QWidget | None = None,
+        initial_filter: str = "",
+    ) -> None:
         super().__init__(parent)
         self.setWindowTitle("资源编辑")
         self.resize(900, 560)
@@ -542,6 +547,11 @@ class ResourceEditorDialog(QWidget):
             self.tab_widget.addTab(tab, TYPE_LABELS[rt])
             self.tabs.append(tab)
         layout.addWidget(self.tab_widget)
+
+        # W2: optional initial cross-tab filter (e.g. jump-to-resource jumps
+        # pre-fill the search box so the target row is already filtered).
+        if initial_filter:
+            self.search_edit.setText(str(initial_filter))
 
     def is_dirty(self) -> bool:
         return any(tab.is_dirty() for tab in self.tabs)

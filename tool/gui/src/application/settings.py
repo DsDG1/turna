@@ -35,6 +35,9 @@ class Settings:
     # Appearance
     theme: str = "dark"  # "dark" or "light"
     ui_scale_percent: int = 100  # 80 .. 150, step 10
+    # Widget density: "comfortable" (default, 14px base) or "compact"
+    # (12px base, tighter spacing). Orthogonal to ui_scale_percent.
+    density: str = "comfortable"
 
     # AI provider configuration. ai_base_url and ai_model are persisted;
     # ai_api_key is memory-only for security.
@@ -159,6 +162,7 @@ class Settings:
         """Persist this Settings instance to the supplied QSettings object."""
         qsettings.setValue("appearance/theme", self.theme)
         qsettings.setValue("appearance/ui_scale_percent", self.ui_scale_percent)
+        qsettings.setValue("appearance/density", self.density)
 
         qsettings.setValue("ai/base_url", self.ai_base_url)
         # ai/api_key is never persisted. Ensure any legacy value is gone.
@@ -273,6 +277,7 @@ class Settings:
         return Settings(
             theme=self.theme,
             ui_scale_percent=self.ui_scale_percent,
+            density=self.density,
             ai_base_url=self.ai_base_url,
             ai_api_key=self.ai_api_key,
             ai_model=self.ai_model,
@@ -330,7 +335,12 @@ def _load_appearance_settings(qsettings: QSettings) -> dict[str, Any]:
         theme = "dark"
     scale = _int_or_default(qsettings.value("appearance/ui_scale_percent", 100), 100)
     scale = max(80, min(150, scale))
-    return {"theme": theme, "ui_scale_percent": scale}
+    density = _str_or_default(
+        qsettings.value("appearance/density", "comfortable"), "comfortable"
+    )
+    if density not in {"comfortable", "compact"}:
+        density = "comfortable"
+    return {"theme": theme, "ui_scale_percent": scale, "density": density}
 
 
 def _load_recent_repo_settings(qsettings: QSettings) -> dict[str, Any]:

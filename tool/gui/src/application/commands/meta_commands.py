@@ -410,3 +410,63 @@ class ApplyFieldPatchCommand(QUndoCommand):
 
         revert_field_patch(self.target, self.patch)
         self.signals.changed.emit()
+
+
+class ReplaceNodeDataCommand(QUndoCommand):
+    """Replace a whole node dict (section/unit/lesson) — JSON tab apply (W3).
+
+    The new data's ``id`` must equal ``node_id`` (id changes are rejected at
+    construction so the JSON editor can surface it as a validation error).
+    Undo restores a deep-copied snapshot taken on first redo.
+    """
+
+    def __init__(
+        self,
+        adapter,
+        kind: str,
+        node_id: str,
+        new_data: dict[str, Any],
+        text: str = "应用 JSON 修改",
+    ) -> None:
+        super().__init__(text)
+        if str(new_data.get("id", "")) != str(node_id):
+            raise ValueError("JSON 中的 id 不可修改")
+        self.adapter = adapter
+        self.kind = kind
+        self.node_id = node_id
+        self.new_data = deepcopy(new_data)
+        self.old_data: dict[str, Any] | None = None
+        self.signals = _make_changed()
+
+    def _find(self) -> dict[str, Any]:
+        if self.kind == "section":
+            return self.adapter.find_section(self.node_id)
+        if self.kind == "unit":
+            return self.adapter.find_unit(self.node_id)[1]
+        if self.kind == "lesson":
+            return self.adapter.find_lesson(self.node_id)[2]
+        raise KeyError(f"unknown kind: {self.kind}")
+
+    def _replace(self, data: dict[str, Any]) -> None:
+        if self.kind == "section":
+            self.adapter.replace_section(self.node_id, deepcopy(data))
+        elif self.kind == "unit":
+            section, _u = self.adapter.find_unit(self.node_id)
+            self.adapter.replace_unit(
+                section.get("id", ""), self.node_id, deepcopy(data)
+            )
+        else:
+            self.adapter.replace_lesson(self.node_id, deepcopy(data))
+        if hasattr(self.adapter, "invalidate_node_index"):
+            self.adapter.invalidate_node_index()
+
+    def redo(self) -> None:
+        if self.old_data is None:
+            self.old_data = deepcopy(self._find())
+        self._replace(self.new_data)
+        self.signals.changed.emit()
+
+    def undo(self) -> None:
+        if self.old_data is not None:
+            self._replace(self.old_data)
+        self.signals.changed.emit()

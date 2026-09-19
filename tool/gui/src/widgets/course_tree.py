@@ -2,12 +2,12 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QAction, QColor, QUndoStack
+from PySide6.QtGui import QAction, QColor, QPainter, QPen, QUndoStack
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QHBoxLayout,
     QLabel,
     QMenu,
-    QStyle,
     QToolButton,
     QTreeWidget,
     QTreeWidgetItem,
@@ -15,6 +15,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 from typing import Any
+
+from src.icons import icon as _lucide_icon
 
 from src.application.commands import (
     BulkApplyPresetCommand,
@@ -76,11 +78,19 @@ class CourseTreeWidget(QTreeWidget):
         self.setUniformRowHeights(True)
         self.setAlternatingRowColors(False)
         self.setSelectionMode(QTreeWidget.SelectionMode.ExtendedSelection)
+        # W3: internal drag & drop reorders/reparents via undo commands
+        # (dropEvent translates the drop into Move*/Reparent* commands).
+        self.setDragEnabled(True)
+        self.setAcceptDrops(True)
+        self.setDropIndicatorShown(True)
+        self.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
+        self.setDefaultDropAction(Qt.DropAction.MoveAction)
+        self._filter_text = ""
         self.itemClicked.connect(self._on_clicked)
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self._on_context_menu)
         self.setToolTip(
-            "快捷键：Ctrl+D 复制 · Delete 删除 · F2 重命名 · Ctrl+↑/↓ 移动（可跨 Unit/Section）"
+            "拖拽可移动/跨级 · 快捷键：Ctrl+D 复制 · Delete 删除 · F2 重命名 · Ctrl+↑/↓ 移动"
             "（按住 Ctrl/Shift 多选后可批量操作）"
         )
 
@@ -101,15 +111,16 @@ class CourseTreeWidget(QTreeWidget):
 
     def _populate(self, adapter: CourseAdapter) -> None:
         """Build all tree items from the adapter. Called after clear()."""
-        style = self.style()
         secondary = QColor(current_palette()["text_secondary"])
-        if CourseTreeWidget._section_icon is None:
-            CourseTreeWidget._section_icon = style.standardIcon(QStyle.StandardPixmap.SP_DirHomeIcon)
-            CourseTreeWidget._unit_icon = style.standardIcon(QStyle.StandardPixmap.SP_FileDialogContentsView)
-            CourseTreeWidget._lesson_icon = style.standardIcon(QStyle.StandardPixmap.SP_FileIcon)
-        section_icon = CourseTreeWidget._section_icon
-        unit_icon = CourseTreeWidget._unit_icon
-        lesson_icon = CourseTreeWidget._lesson_icon
+        # W3: Lucide node icons (library/layers/file-text). Resolved per
+        # populate so a theme switch re-renders with the new palette — the
+        # icon cache keys on the resolved color, so repeat calls are cheap.
+        section_icon = _lucide_icon("library", size=16, role="muted")
+        unit_icon = _lucide_icon("layers", size=16, role="muted")
+        lesson_icon = _lucide_icon("file-text", size=16, role="muted")
+        CourseTreeWidget._section_icon = section_icon
+        CourseTreeWidget._unit_icon = unit_icon
+        CourseTreeWidget._lesson_icon = lesson_icon
         id_index = self._id_index
         id_index.clear()
         for section in adapter.sections:
@@ -147,6 +158,301 @@ class CourseTreeWidget(QTreeWidget):
                     if lid:
                         id_index[lid] = l_item
                     u_item.addChild(l_item)
+        self._apply_filter()
+
+    # --- search filter (W3 sidebar SearchField) -------------------------
+
+    def set_filter(self, text: str) -> None:
+        """Filter nodes by name/id (case-insensitive substring).
+
+        A node stays visible when it matches or any descendant matches —
+        ancestors of hits are kept so hits never show orphaned. Called by
+        the sidebar ``SearchField``; reapplied automatically after every
+        ``_populate`` so the filter survives tree rebuilds.
+        """
+        self._filter_text = (text or "").strip().lower()
+        self._apply_filter()
+
+    def _item_matches(self, item: QTreeWidgetItem) -> bool:
+        needle = self._filter_text
+        if not needle:
+            return True
+        if needle in (item.text(0) or "").lower():
+            return True
+        ref = item.data(0, 0x0100)
+        if ref is not None and needle in str(ref[1]).lower():
+            return True
+        # Teacher mode shows the 课型 label; allow filtering by it too.
+        return needle in (item.text(1) or "").lower()
+
+    def _apply_filter(self) -> None:
+        needle = self._filter_text
+        for i in range(self.topLevelItemCount()):
+            top = self.topLevelItem(i)
+            if top is not None:
+                self._apply_filter_to(top, needle)
+
+    def _apply_filter_to(self, item: QTreeWidgetItem, needle: str) -> bool:
+        """Hide *item* unless it or any descendant matches. Returns visible."""
+        if not needle:
+            item.setHidden(False)
+            child_hit = False
+            for i in range(item.childCount()):
+                child = item.child(i)
+                if child is not None:
+                    child.setHidden(False)
+                    self._apply_filter_to(child, needle)
+            return True
+        visible = self._item_matches(item)
+        child_hit = False
+        for i in range(item.childCount()):
+            child = item.child(i)
+            if child is not None and self._apply_filter_to(child, needle):
+                child_hit = True
+        if child_hit:
+            visible = True
+        item.setHidden(not visible)
+        # Auto-expand ancestors of hits so results are reachable.
+        if needle and child_hit:
+            item.setExpanded(True)
+        return visible
+
+    # --- drag & drop (W3) ------------------------------------------------
+    #
+    # Qt InternalMove would silently reorder QTreeWidgetItems without the
+    # adapter knowing — dropEvent therefore ignores Qt's own move and
+    # translates the drop into undoable Move*/Reparent* commands instead.
+
+    def _drop_plan(
+        self,
+        dragged_ref: tuple[str, str] | None,
+        target_item: QTreeWidgetItem | None,
+        position: QAbstractItemView.DropIndicatorPosition,
+    ) -> tuple | None:
+        """Resolve a drop into ``(command_factory, )`` plan or ``None``.
+
+        Returns a tuple ``(kind, payload)`` where kind is one of
+        ``"move"``/``"reparent"``/``"move_section"`` and payload carries the
+        ids/indices needed to build the command in :meth:`dropEvent`.
+        """
+        if self.adapter is None or dragged_ref is None:
+            return None
+        kind, node_id = dragged_ref
+        if kind not in ("section", "unit", "lesson"):
+            return None
+
+        pos = position
+        target_ref = (
+            target_item.data(0, 0x0100) if target_item is not None else None
+        )
+        target_kind = target_ref[0] if target_ref else None
+        target_id = target_ref[1] if target_ref else None
+        if target_id == node_id and target_kind == kind:
+            return None  # dropping onto itself
+
+        # Empty viewport: only sections can live at the root level.
+        if pos == QAbstractItemView.DropIndicatorPosition.OnViewport or target_item is None:
+            if kind == "section":
+                return ("move_section", node_id, len(self.adapter.sections))
+            return None
+
+        # Dropping ONTO a parent-kind target appends into it.
+        if pos == QAbstractItemView.DropIndicatorPosition.OnItem:
+            if kind == "lesson" and target_kind == "unit":
+                _s, unit = self.adapter.find_unit(target_id)
+                return ("reparent_lesson", node_id, target_id, len(unit.get("lessons", [])))
+            if kind == "unit" and target_kind == "section":
+                section = self.adapter.find_section(target_id)
+                return ("reparent_unit", node_id, target_id, len(section.get("units", [])))
+            # Same-kind "onto" behaves like inserting at that row's position.
+            pos = QAbstractItemView.DropIndicatorPosition.AboveItem
+
+        # Above/Below: siblings only — kinds must match.
+        if target_kind != kind:
+            return None
+
+        if kind == "section":
+            to_idx = next(
+                (i for i, s in enumerate(self.adapter.sections) if s.get("id") == target_id),
+                -1,
+            )
+            if to_idx < 0:
+                return None
+            if pos == QAbstractItemView.DropIndicatorPosition.BelowItem:
+                to_idx += 1
+            return ("move_section", node_id, to_idx)
+
+        if kind == "unit":
+            try:
+                section, _unit = self.adapter.find_unit(target_id)
+            except KeyError:
+                return None
+            units = section.get("units", [])
+            to_idx = next((i for i, u in enumerate(units) if u.get("id") == target_id), -1)
+            if to_idx < 0:
+                return None
+            if pos == QAbstractItemView.DropIndicatorPosition.BelowItem:
+                to_idx += 1
+            return ("move_or_reparent_unit", node_id, section.get("id", ""), to_idx)
+
+        if kind == "lesson":
+            try:
+                _s, unit, _l = self.adapter.find_lesson(target_id)
+            except KeyError:
+                return None
+            lessons = unit.get("lessons", [])
+            to_idx = next(
+                (i for i, lsn in enumerate(lessons) if lsn.get("id") == target_id),
+                -1,
+            )
+            if to_idx < 0:
+                return None
+            if pos == QAbstractItemView.DropIndicatorPosition.BelowItem:
+                to_idx += 1
+            return ("move_or_reparent_lesson", node_id, unit.get("id", ""), to_idx)
+
+        return None
+
+    def _dragged_ref(self) -> tuple[str, str] | None:
+        """The ref being dragged (single-item only for v1)."""
+        items = self.selectedItems()
+        if len(items) != 1:
+            return None
+        ref = items[0].data(0, 0x0100)
+        return ref if isinstance(ref, tuple) else None
+
+    def dragMoveEvent(self, event) -> None:
+        dragged = self._dragged_ref()
+        target = self.indexAt(event.position().toPoint())
+        target_item = self.itemFromIndex(target) if target.isValid() else None
+        plan = self._drop_plan(dragged, target_item, self.dropIndicatorPosition())
+        if plan is None:
+            event.ignore()
+            return
+        event.acceptProposedAction()
+        # Let the base class update the indicator position for the next frame.
+        super().dragMoveEvent(event)
+
+    def dropEvent(self, event) -> None:
+        dragged = self._dragged_ref()
+        target = self.indexAt(event.position().toPoint())
+        target_item = self.itemFromIndex(target) if target.isValid() else None
+        plan = self._drop_plan(dragged, target_item, self.dropIndicatorPosition())
+        if plan is None:
+            event.ignore()
+            self.setState(QAbstractItemView.State.NoState)
+            return
+        event.acceptProposedAction()
+        self._execute_drop_plan(dragged, plan)
+        self.setState(QAbstractItemView.State.NoState)
+
+    def _execute_drop_plan(self, dragged_ref: tuple[str, str], plan: tuple) -> None:
+        _, node_id = dragged_ref
+        tag = plan[0]
+        if tag == "move_section":
+            _t, _nid, to_idx = plan
+            sections = self.adapter.sections
+            from_idx = next(
+                (i for i, s in enumerate(sections) if s.get("id") == node_id), -1
+            )
+            if from_idx < 0:
+                return
+            # move_within pops first — adjust when the drop lands right of
+            # the original slot so the final index matches the visual gap.
+            if to_idx > from_idx:
+                to_idx -= 1
+            if to_idx == from_idx:
+                return
+            cmd: Any = MoveSectionCommand(self.adapter, from_idx, to_idx)
+        elif tag == "move_or_reparent_unit":
+            _t, _nid, parent_section_id, to_idx = plan
+            try:
+                cur_section, _unit = self.adapter.find_unit(node_id)
+            except KeyError:
+                return
+            cur_section_id = cur_section.get("id", "")
+            if cur_section_id == parent_section_id:
+                units = cur_section.get("units", [])
+                from_idx = next(
+                    (i for i, u in enumerate(units) if u.get("id") == node_id), -1
+                )
+                if from_idx < 0:
+                    return
+                if to_idx > from_idx:
+                    to_idx -= 1
+                if to_idx == from_idx:
+                    return
+                cmd = MoveUnitCommand(self.adapter, parent_section_id, from_idx, to_idx)
+            else:
+                cmd = ReparentUnitCommand(
+                    self.adapter, node_id, parent_section_id, to_idx
+                )
+        elif tag == "move_or_reparent_lesson":
+            _t, _nid, parent_unit_id, to_idx = plan
+            try:
+                _s, cur_unit, _l = self.adapter.find_lesson(node_id)
+            except KeyError:
+                return
+            cur_unit_id = cur_unit.get("id", "")
+            if cur_unit_id == parent_unit_id:
+                lessons = cur_unit.get("lessons", [])
+                from_idx = next(
+                    (i for i, lsn in enumerate(lessons) if lsn.get("id") == node_id), -1
+                )
+                if from_idx < 0:
+                    return
+                if to_idx > from_idx:
+                    to_idx -= 1
+                if to_idx == from_idx:
+                    return
+                cmd = MoveLessonCommand(self.adapter, parent_unit_id, from_idx, to_idx)
+            else:
+                cmd = ReparentLessonCommand(
+                    self.adapter, node_id, parent_unit_id, to_idx
+                )
+        elif tag == "reparent_lesson":
+            _t, _nid, target_unit_id, new_index = plan
+            cmd = ReparentLessonCommand(self.adapter, node_id, target_unit_id, new_index)
+        elif tag == "reparent_unit":
+            _t, _nid, target_section_id, new_index = plan
+            cmd = ReparentUnitCommand(self.adapter, node_id, target_section_id, new_index)
+        else:
+            return
+        cmd.signals.changed.connect(self._on_command_changed)
+        self._push(cmd)
+
+    def paintEvent(self, event) -> None:
+        super().paintEvent(event)
+        # W3: accent-colored drop indicator (Qt's default dotted line is too
+        # subtle). Drawn while a drag is hovering a valid target.
+        try:
+            if self.state() != QAbstractItemView.State.DraggingState:
+                return
+            dragged = self._dragged_ref()
+            cursor_pos = self.viewport().mapFromGlobal(self.cursor().pos())
+            index = self.indexAt(cursor_pos)
+            target_item = self.itemFromIndex(index) if index.isValid() else None
+            pos = self.dropIndicatorPosition()
+            if self._drop_plan(dragged, target_item, pos) is None:
+                return
+            painter = QPainter(self.viewport())
+            accent = QColor(current_palette().get("accent", "#1F727E"))
+            pen = QPen(accent, 2)
+            painter.setPen(pen)
+            if index.isValid() and pos in (
+                QAbstractItemView.DropIndicatorPosition.AboveItem,
+                QAbstractItemView.DropIndicatorPosition.BelowItem,
+            ):
+                rect = self.visualRect(index)
+                y = rect.top() if pos == QAbstractItemView.DropIndicatorPosition.AboveItem else rect.bottom()
+                painter.drawLine(rect.left(), y, rect.right(), y)
+            elif index.isValid() and pos == QAbstractItemView.DropIndicatorPosition.OnItem:
+                rect = self.visualRect(index).adjusted(1, 1, -1, -1)
+                painter.drawRect(rect)
+            painter.end()
+        except Exception:
+            # Indicator painting is best-effort — never break the drop.
+            pass
 
     def _capture_state(self) -> dict[str, Any]:
         """Snapshot expand/selection/scroll state keyed by node id.
