@@ -1,17 +1,17 @@
 """Right-side detail panel container: switches form by selected node kind."""
 from __future__ import annotations
 
+import contextlib
 import logging
 from typing import Any
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, QSettings, Signal
 from PySide6.QtGui import QUndoStack
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QMenu,
     QPushButton,
-    QSplitter,
     QTabWidget,
     QVBoxLayout,
     QWidget,
@@ -20,11 +20,19 @@ from PySide6.QtWidgets import (
 from src.backend.ai import AiApiConfig
 
 logger = logging.getLogger(__name__)
+from src.application.settings import APP_NAME, ORG_NAME
 from src.backend.course_adapter import CourseAdapter
 from src.backend.lesson_presets import FUNCTIONAL_TEMPLATES
+from src.icons import icon
 from src.widgets.metadata_form import MetadataForm
 from src.widgets.lesson_blueprint import LessonBlueprint
 from src.widgets.lesson_editor import LessonEditor
+
+#: Per-kind QSettings keys remembering the user's last manual collapse choice.
+_META_COLLAPSE_KEYS = {
+    "lesson": "edit/meta_collapsed_lesson",
+    "node": "edit/meta_collapsed_node",
+}
 
 
 def build_teacher_widget(
@@ -140,19 +148,30 @@ class DetailPanel(QWidget):
         edit_page = QWidget(self.detail_tabs)
         edit_col = QVBoxLayout(edit_page)
         edit_col.setContentsMargins(16, 16, 16, 16)
-        edit_col.setSpacing(12)
+        edit_col.setSpacing(10)
 
-        self.splitter = QSplitter()
-        self.form = MetadataForm()
-        self.splitter.addWidget(self.form)
+        # W4: the 属性 form sits under a collapsible header instead of a
+        # permanent inner splitter — the content editor gets the full width,
+        # and there is one less divider to fight with (the outer
+        # tree|detail splitter remains). Lessons start collapsed (content
+        # is the main task), sections/units start expanded; the user's
+        # last choice is remembered per kind in QSettings.
+        self._meta_collapsed = False
+        self.meta_toggle = QPushButton("属性")
+        self.meta_toggle.setObjectName("MetaCollapseHeader")
+        self.meta_toggle.setToolTip("展开 / 收起属性表单（ID · 名称 · 描述 · 先修 · 语法关联）")
+        self.meta_toggle.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.meta_toggle.clicked.connect(self._on_meta_toggle_clicked)
+        edit_col.addWidget(self.meta_toggle)
+
+        self.form = MetadataForm(title="")
+        edit_col.addWidget(self.form)
+
         self.content_host = QWidget()
         self.content_layout = QVBoxLayout(self.content_host)
         self.content_layout.setContentsMargins(0, 0, 0, 0)
         self.content_layout.setSpacing(12)
-        self.splitter.addWidget(self.content_host)
-        self.splitter.setStretchFactor(0, 1)
-        self.splitter.setStretchFactor(1, 3)
-        edit_col.addWidget(self.splitter, 1)
+        edit_col.addWidget(self.content_host, 1)
         self.detail_tabs.addTab(edit_page, "编辑")
 
         self.preview_tab = QWidget(self.detail_tabs)
@@ -251,6 +270,7 @@ class DetailPanel(QWidget):
         kind, node_id = node_ref
         self.clear_content()
         self._prepare_for_node(node_ref)
+        self._apply_meta_collapsed(kind)
         try:
             if kind == "section":
                 section = adapter.find_section(node_id)
@@ -331,6 +351,12 @@ class DetailPanel(QWidget):
         bar.setSpacing(6)
         self._blueprint_btn = QPushButton("蓝图")
         self._advanced_btn = QPushButton("高级编辑")
+        # Segmented pair — the :checked state is styled in shell QSS so the
+        # active view is actually visible (plain QPushButtons showed none).
+        self._blueprint_btn.setObjectName("LessonViewToggle")
+        self._advanced_btn.setObjectName("LessonViewToggle")
+        self._blueprint_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._advanced_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._blueprint_btn.setCheckable(True)
         self._advanced_btn.setCheckable(True)
         self._blueprint_btn.setChecked(self._lesson_view_mode == "blueprint")
@@ -358,6 +384,10 @@ class DetailPanel(QWidget):
 
     def _set_lesson_view(self, mode: str) -> None:
         if mode == self._lesson_view_mode:
+            # Clicking the already-active toggle flips its checkable state
+            # off — re-assert the pair so exactly one stays lit.
+            self._blueprint_btn.setChecked(mode == "blueprint")
+            self._advanced_btn.setChecked(mode == "advanced")
             return
         self._lesson_view_mode = mode
         self._blueprint_btn.setChecked(mode == "blueprint")
@@ -396,6 +426,7 @@ class DetailPanel(QWidget):
         self._inject_form_undo_stack()
         self.clear_content()
         self._prepare_for_node(("lesson", lesson.get("id", "")))
+        self._apply_meta_collapsed("lesson")
         self.form.show_lesson(adapter, lesson)
         self.title.setText(lesson.get("name", lesson.get("id", "")))
         self.breadcrumb.setText(
@@ -422,6 +453,54 @@ class DetailPanel(QWidget):
         scroll.setWidget(widget)
         self.content_layout.addWidget(scroll)
         self._current_content_widget = widget
+
+    # --- W4: collapsible 属性 section ------------------------------------
+
+    def _on_meta_toggle_clicked(self) -> None:
+        self._set_meta_collapsed(not self._meta_collapsed)
+
+    def _apply_meta_collapsed(self, kind: str) -> None:
+        """Set the collapse state for a freshly shown node.
+
+        Falls back to the user's remembered choice for this kind, then to
+        the per-kind default (lessons collapsed — content is the main task;
+        sections/units expanded — metadata is all they have).
+        """
+        collapsed = self._load_meta_collapsed(kind)
+        if collapsed is None:
+            collapsed = kind == "lesson"
+        self._set_meta_collapsed(collapsed, persist=False)
+
+    def _set_meta_collapsed(self, collapsed: bool, *, persist: bool = True) -> None:
+        self._meta_collapsed = collapsed
+        self.form.setVisible(not collapsed)
+        self.meta_toggle.setIcon(
+            icon("chevron-right" if collapsed else "chevron-down", size=14, role="secondary")
+        )
+        if not persist:
+            return
+        ctx = self._node_context
+        key = _META_COLLAPSE_KEYS["lesson" if (ctx and ctx[1] == "lesson") else "node"]
+        with contextlib.suppress(Exception):
+            QSettings(ORG_NAME, APP_NAME).setValue(key, collapsed)
+
+    @staticmethod
+    def _load_meta_collapsed(kind: str) -> bool | None:
+        """Remembered collapse choice for *kind* (None = never chosen)."""
+        key = _META_COLLAPSE_KEYS["lesson" if kind == "lesson" else "node"]
+        with contextlib.suppress(Exception):
+            val = QSettings(ORG_NAME, APP_NAME).value(key, None)
+            if isinstance(val, bool):
+                return val
+            if isinstance(val, str):
+                return val.lower() in ("true", "1", "yes")
+        return None
+
+    def reveal_metadata(self) -> None:
+        """Expand the 属性 section and focus the name field (F2 rename)."""
+        if self._meta_collapsed:
+            self._set_meta_collapsed(False)
+        self.form.focus_name()
 
     # --- W3: ViewHeader + aux tabs (预览 / JSON) -------------------------
 

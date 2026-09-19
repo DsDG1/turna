@@ -193,6 +193,11 @@ def run_gallery() -> int:
 
     app = QApplication.instance() or QApplication(sys.argv)
     apply_theme(app)
+    from src.infrastructure.screen_fit import install_screen_clamp
+    from src.infrastructure.wheel_guard import install_wheel_guard
+
+    install_wheel_guard(app)
+    install_screen_clamp(app)
     win = GalleryWindow()
     win.show()
     return app.exec()

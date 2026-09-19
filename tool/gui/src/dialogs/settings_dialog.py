@@ -1,24 +1,34 @@
 """Application settings dialog.
 
-Provides a central place for appearance, AI provider, editor behaviour and
-recent-repository history preferences. Changes are emitted through the
-``settings_changed`` signal so the main window can re-apply themes and limits.
+Two-pane layout: a Lucide-iconed category nav (QListWidget) on the left and
+a QStackedWidget of pages on the right. Form pages built via :meth:`_make_tab`
+are wrapped in a QScrollArea so long content scrolls instead of clipping past
+the dialog edge; the last opened page is remembered in QSettings
+(``settings/last_page``). Changes are emitted through the ``settings_changed``
+signal so the main window can re-apply themes and limits.
 """
 from __future__ import annotations
 
+import contextlib
 from typing import Any
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QSettings, QSize, Qt, Signal
 from PySide6.QtWidgets import (
+    QApplication,
     QFormLayout,
     QGroupBox,
+    QHBoxLayout,
     QLineEdit,
-    QTabWidget,
+    QListWidget,
+    QListWidgetItem,
+    QScrollArea,
+    QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
 
-from src.application.settings import Settings
+from src.icons import icon
+from src.application.settings import APP_NAME, ORG_NAME, Settings
 from src.application import credential_store
 from src.application.ai_prompt_library import AiPromptLibrary
 from src.backend.knowledge_prompt import KnowledgePromptTemplates
@@ -83,6 +93,20 @@ from src.dialogs.settings.operation_log_tab import (
     refresh_operation_log,
 )
 
+#: Settings pages: (key, nav label, Lucide icon). Order matches nav and stack.
+_SETTINGS_PAGES: tuple[tuple[str, str, str], ...] = (
+    ("appearance", "外观", "eye"),
+    ("ai", "AI 配置", "bot"),
+    ("usage", "AI 用量", "zap"),
+    ("extraction", "提取 Prompt", "file-text"),
+    ("editor", "编辑器", "pencil"),
+    ("experience", "体验 OS", "sparkles"),
+    ("git", "Git 库", "git-branch"),
+    ("oplog", "操作日志", "clock"),
+)
+
+_LAST_PAGE_KEY = "settings/last_page"
+
 
 class SettingsDialog(TurnaDialog):
     """Modal settings editor for the course editor."""
@@ -92,7 +116,7 @@ class SettingsDialog(TurnaDialog):
     def __init__(self, settings: Settings, parent: QWidget | None = None, *,
                  prompt_library: AiPromptLibrary | None = None) -> None:
         super().__init__(parent, title="设置")
-        self.resize(720, 620)
+        self._resize_for_screen()
         self._original = settings
         self._settings = settings.clone()
         self._prompt_library = prompt_library or AiPromptLibrary()
@@ -104,16 +128,38 @@ class SettingsDialog(TurnaDialog):
         layout = self.body_layout()
         layout.setSpacing(12)
 
-        self.tabs = QTabWidget()
-        self.tabs.addTab(self._build_appearance_tab(), "外观")
-        self.tabs.addTab(self._build_ai_tab(), "AI 配置")
-        self.tabs.addTab(self._build_ai_usage_tab(), "AI 用量")
-        self.tabs.addTab(self._build_extraction_prompt_tab(), "提取 Prompt")
-        self.tabs.addTab(self._build_editor_tab(), "编辑器")
-        self.tabs.addTab(self._build_experience_tab(), "体验 OS")
-        self.tabs.addTab(self._build_git_library_tab(), "Git 库")
-        self.tabs.addTab(self._build_operation_log_tab(), "操作日志")
-        layout.addWidget(self.tabs)
+        split = QHBoxLayout()
+        split.setSpacing(12)
+
+        self.nav = QListWidget()
+        self.nav.setObjectName("settingsNav")
+        self.nav.setIconSize(QSize(18, 18))
+        self.nav.setFixedWidth(176)
+        self.nav.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+
+        self.pages = QStackedWidget()
+        builders = (
+            self._build_appearance_tab,
+            self._build_ai_tab,
+            self._build_ai_usage_tab,
+            self._build_extraction_prompt_tab,
+            self._build_editor_tab,
+            self._build_experience_tab,
+            self._build_git_library_tab,
+            self._build_operation_log_tab,
+        )
+        for (_key, label, icon_name), builder in zip(
+            _SETTINGS_PAGES, builders, strict=True
+        ):
+            self.nav.addItem(QListWidgetItem(icon(icon_name, size=18), label))
+            self.pages.addWidget(builder())
+
+        self.nav.currentRowChanged.connect(self._on_nav_row_changed)
+        split.addWidget(self.nav)
+        split.addWidget(self.pages, 1)
+        layout.addLayout(split, 1)
 
         self.add_button("取消", slot=self.reject)
         self.apply_btn = self.add_button("应用", slot=self._apply)
@@ -121,15 +167,79 @@ class SettingsDialog(TurnaDialog):
             "确定", variant="primary", slot=self._on_ok, default=True
         )
 
+        self._restore_last_page()
+
+    def _resize_for_screen(self) -> None:
+        """Fit to the screen; never exceed ~85% of the available area.
+
+        The dialog must stay inside small screens even at 150% UI font scale;
+        long pages scroll internally instead of pushing it off-screen.
+        """
+        screen = self.screen() or QApplication.primaryScreen()
+        if screen is not None:
+            avail = screen.availableGeometry()
+            self.resize(
+                min(880, int(avail.width() * 0.82)),
+                min(680, int(avail.height() * 0.85)),
+            )
+        else:
+            self.resize(880, 660)
+        self.setMinimumSize(600, 440)
+
+    # --- Left nav <-> page stack ----------------------------------------
+
+    def _on_nav_row_changed(self, row: int) -> None:
+        if row < 0:
+            return
+        self.pages.setCurrentIndex(row)
+        self._refresh_nav_icons()
+        self._save_last_page(row)
+
+    def _refresh_nav_icons(self) -> None:
+        """Re-tint nav icons so the active row's icon follows the accent color."""
+        current = self.nav.currentRow()
+        for i in range(self.nav.count()):
+            role = "accent" if i == current else "default"
+            self.nav.item(i).setIcon(icon(_SETTINGS_PAGES[i][2], size=18, role=role))
+
+    def _restore_last_page(self) -> None:
+        """Reopen the page used last time (falls back to 外观)."""
+        row = 0
+        with contextlib.suppress(Exception):
+            key = QSettings(ORG_NAME, APP_NAME).value(_LAST_PAGE_KEY, "")
+            keys = [page[0] for page in _SETTINGS_PAGES]
+            if isinstance(key, str) and key in keys:
+                row = keys.index(key)
+        self.nav.setCurrentRow(row)
+
+    def _save_last_page(self, row: int) -> None:
+        if not 0 <= row < len(_SETTINGS_PAGES):
+            return
+        with contextlib.suppress(Exception):
+            QSettings(ORG_NAME, APP_NAME).setValue(
+                _LAST_PAGE_KEY, _SETTINGS_PAGES[row][0]
+            )
+
     @staticmethod
     def _make_tab(spacing: int = 14) -> tuple[QWidget, QVBoxLayout]:
-        """Standard tab scaffold: top-aligned QVBoxLayout with consistent margins."""
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
+        """Standard page scaffold: scrollable, top-aligned QVBoxLayout.
+
+        The content lives inside a QScrollArea so long forms (Git 库, AI 配置
+        with 高级 expanded, any page at 150% font scale) scroll instead of
+        being clipped. Pages that manage their own scrolling (操作日志's
+        expanding log view, 提取 Prompt's internal scroll) build their own
+        widget instead of using this helper.
+        """
+        content = QWidget()
+        layout = QVBoxLayout(content)
         layout.setSpacing(spacing)
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setAlignment(Qt.AlignmentFlag.AlignTop)
-        return tab, layout
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(content)
+        return scroll, layout
 
     def _build_appearance_tab(self) -> QWidget:
         return build_appearance_tab(self)

@@ -7,7 +7,6 @@ from typing import Any
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (
     QComboBox,
-    QHBoxLayout,
     QLabel,
     QLineEdit,
     QMessageBox,
@@ -18,6 +17,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.infrastructure.operations_log import operations
+from src.widgets.ui.flow_layout import FlowLayout
 
 
 def build_operation_log_tab(dlg) -> QWidget:
@@ -28,8 +28,9 @@ def build_operation_log_tab(dlg) -> QWidget:
     layout.setContentsMargins(12, 12, 12, 12)
 
     # Filter row: event-type combo + search box + action buttons.
-    filter_row = QHBoxLayout()
-    filter_row.setSpacing(8)
+    # FlowLayout so the row wraps instead of forcing the whole settings
+    # dialog ~670px minimum width (combo + search + three CJK buttons).
+    filter_row = FlowLayout(hspacing=8, vspacing=8)
 
     dlg.oplog_filter_combo = QComboBox()
     dlg.oplog_filter_combo.addItem("全部", "")
@@ -45,6 +46,7 @@ def build_operation_log_tab(dlg) -> QWidget:
 
     dlg.oplog_search_edit = QLineEdit()
     dlg.oplog_search_edit.setPlaceholderText("搜索（子串，大小写不敏感）...")
+    dlg.oplog_search_edit.setMinimumWidth(200)
     # Debounce: each refresh re-parses both log files; avoid doing that
     # per keystroke.
     dlg._oplog_search_timer = QTimer(dlg)
@@ -52,7 +54,7 @@ def build_operation_log_tab(dlg) -> QWidget:
     dlg._oplog_search_timer.setInterval(300)
     dlg._oplog_search_timer.timeout.connect(dlg._refresh_operation_log)
     dlg.oplog_search_edit.textChanged.connect(dlg._oplog_search_timer.start)
-    filter_row.addWidget(dlg.oplog_search_edit, 1)
+    filter_row.addWidget(dlg.oplog_search_edit)
 
     dlg.oplog_refresh_btn = QPushButton("刷新")
     dlg.oplog_refresh_btn.clicked.connect(dlg._refresh_operation_log)

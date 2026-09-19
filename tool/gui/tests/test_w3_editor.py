@@ -14,7 +14,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
@@ -373,14 +373,16 @@ class DetailPanelW3Test(unittest.TestCase):
         for attr in (
             "breadcrumb",
             "title",
-            "splitter",
             "form",
             "content_host",
             "content_layout",
             "view_header",
             "kind_pill",
+            # W4: collapsible metadata header replaces the inner splitter.
+            "meta_toggle",
         ):
             self.assertTrue(hasattr(self.detail, attr), attr)
+        self.assertFalse(hasattr(self.detail, "splitter"), "inner splitter removed in W4")
 
     def test_show_lesson_sets_context_and_header(self) -> None:
         self.detail.show_node(self.adapter, ("lesson", self.lesson["id"]))
@@ -455,6 +457,76 @@ class DetailPanelW3Test(unittest.TestCase):
         self.detail.json_editor.setPlainText("[1, 2, 3]")
         self.detail._apply_json()
         self.assertEqual(self.detail.undo_stack.count(), 0)
+
+
+class DetailPanelW4CollapseTest(unittest.TestCase):
+    """W4: collapsible 属性 section + segmented 蓝图/高级编辑 toggle."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        _App.get()
+
+    def setUp(self) -> None:
+        from src.widgets.detail_panel import DetailPanel
+
+        self.adapter, self.tmp = real_adapter_with_course(prefix="turna_w4dp_")
+        self.detail = DetailPanel()
+        self.detail.undo_stack = QUndoStack()
+        self.section = self.adapter.sections[0]
+        self.unit = self.section["units"][0]
+        self.lesson = self.unit["lessons"][0]
+        # Hermetic QSettings store for collapse-memory persistence.
+        store: dict = {}
+        qs = MagicMock()
+        qs.value = lambda key, default=None: store.get(key, default)
+        qs.setValue = lambda key, value: store.__setitem__(key, value)
+        self._qs_store = store
+        self._qs_patch = patch(
+            "src.widgets.detail_panel.QSettings", return_value=qs
+        )
+        self._qs_patch.start()
+        self.addCleanup(self._qs_patch.stop)
+
+    def tearDown(self) -> None:
+        import shutil
+
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def test_lesson_metadata_collapsed_by_default(self) -> None:
+        self.detail.show_node(self.adapter, ("lesson", self.lesson["id"]))
+        self.assertFalse(self.detail.form.isVisibleTo(self.detail.content_host.parentWidget()))
+
+    def test_section_metadata_expanded_by_default(self) -> None:
+        self.detail.show_node(self.adapter, ("section", self.section["id"]))
+        self.assertTrue(self.detail.form.isVisibleTo(self.detail))
+
+    def test_toggle_flips_visibility_and_persists_per_kind(self) -> None:
+        self.detail.show_node(self.adapter, ("lesson", self.lesson["id"]))
+        self.detail._on_meta_toggle_clicked()  # expand
+        self.assertTrue(self.detail.form.isVisibleTo(self.detail))
+        self.assertEqual(self._qs_store["edit/meta_collapsed_lesson"], False)
+        # Re-selecting the same lesson keeps the expanded choice.
+        self.detail.show_node(self.adapter, ("lesson", self.lesson["id"]))
+        self.assertTrue(self.detail.form.isVisibleTo(self.detail))
+        # Sections keep their own (default expanded) state.
+        self.detail.show_node(self.adapter, ("section", self.section["id"]))
+        self.assertTrue(self.detail.form.isVisibleTo(self.detail))
+
+    def test_reveal_metadata_expands_for_rename(self) -> None:
+        self.detail.show_node(self.adapter, ("lesson", self.lesson["id"]))
+        self.assertFalse(self.detail.form.isVisibleTo(self.detail))
+        self.detail.reveal_metadata()
+        self.assertTrue(self.detail.form.isVisibleTo(self.detail))
+
+    def test_lesson_view_toggle_is_segmented(self) -> None:
+        self.detail.show_node(self.adapter, ("lesson", self.lesson["id"]))
+        bp, adv = self.detail._blueprint_btn, self.detail._advanced_btn
+        self.assertEqual(bp.objectName(), "LessonViewToggle")
+        self.assertEqual(adv.objectName(), "LessonViewToggle")
+        self.assertNotEqual(bp.isChecked(), adv.isChecked())
+        adv.click()
+        self.assertTrue(adv.isChecked())
+        self.assertFalse(bp.isChecked())
 
 
 class LessonPreviewWidgetTest(unittest.TestCase):

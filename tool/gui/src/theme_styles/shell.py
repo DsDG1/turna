@@ -379,4 +379,41 @@ QDockWidget::title {{
     background-color: transparent;
     border-bottom: 2px solid {p['accent']};
 }}
+
+/* ---- W4: edit-tab metadata collapse header ---- */
+#MetaCollapseHeader {{
+    background-color: {p['bg_secondary']};
+    color: {p['text_secondary']};
+    border: {border_w} solid {p['border']};
+    border-radius: {RADIUS['md']}px;
+    padding: 5px 10px;
+    font-weight: 600;
+    text-align: left;
+}}
+
+#MetaCollapseHeader:hover {{
+    background-color: {p['accent_subtle']};
+    color: {p['accent_text']};
+    border-color: {p['border_hover']};
+}}
+
+/* ---- W4: 蓝图 | 高级编辑 segmented pair ---- */
+#LessonViewToggle {{
+    background-color: {p['bg_input']};
+    color: {p['text_secondary']};
+    border: {border_w} solid {p['border']};
+    border-radius: 6px;
+    padding: 4px 12px;
+}}
+
+#LessonViewToggle:hover {{
+    border-color: {p['border_hover']};
+}}
+
+#LessonViewToggle:checked {{
+    background-color: {p['accent']};
+    color: {p['text_on_accent']};
+    border-color: {p['accent']};
+    font-weight: 600;
+}}
 """

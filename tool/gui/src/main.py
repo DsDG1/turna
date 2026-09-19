@@ -90,6 +90,16 @@ def main() -> int:
     from src.infrastructure.user_action_filter import UserActionFilter
 
     app.installEventFilter(UserActionFilter(app))
+    # Wheel must never adjust spin boxes / combos on hover (global UX rule);
+    # scrolling over them scrolls the enclosing page instead.
+    from src.infrastructure.wheel_guard import install_wheel_guard
+
+    install_wheel_guard(app)
+    # Keep every dialog / sub-window inside the screen (small laptops, 150%
+    # font scale); windows that fit keep their position untouched.
+    from src.infrastructure.screen_fit import install_screen_clamp
+
+    install_screen_clamp(app)
     window = MainWindow()
     window.show()
     startup_ms = (time.perf_counter() - start) * 1000

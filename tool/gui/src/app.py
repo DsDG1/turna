@@ -594,7 +594,8 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
         # Ensure the detail panel is showing the node being renamed.
         if self._current_node_ref != (kind, node_id):
             self._on_node_selected((kind, node_id))
-        self.detail.form.focus_name()
+        # Expands the collapsible 属性 section first, then focuses the name.
+        self.detail.reveal_metadata()
 
     def _on_tree_changed(self) -> None:
         # Debounce: teacher-view keystrokes and command bursts emit this

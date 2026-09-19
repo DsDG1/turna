@@ -4,13 +4,64 @@
 
  ## 当前基线
 
-- 日期：2026-09-19（GUI 焕新 W1–W3 落库，见下节）；`python -m unittest` 收集 **2505 例 / 0 加载错误**
+- 日期：2026-09-19（设置对话框重构 + 全局滚轮调参禁用 + 小屏适配 + 编辑视图减负四批落库，见下各节）；`python -m unittest` 收集 **2531 例 / 0 加载错误**（2505 + `test_settings_dialog` 13→16 + `test_wheel_guard` 6 + `test_ui_fit` 7 + `test_w3_editor` 37→42）
 - 全量用例（上次记录）：2499 collected；基线已知 `test_textbook_controller.LoadFileAsyncTest.test_stale_load_result_is_ignored` 曾在全量单进程 discover 下确定性失败——**单跑与模块级运行均通过**（2026-09 复核，疑似顺序敏感的上下文污染，根因未定位；全量单进程 discover 本身在本机还会疑似空转不终止，见下），命令：
   ```bash
   QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests -p "test_*.py"
   ```
 - 记录勘误 ×2（历史条目原文保留）：① 2026-09-07 基线头所写「2 个 defer_resurface 永久 skip」经核实不存在（该文件 4 例无任何 skip 标记）；② 2026-09-06 adversarial 瘦身条目所写「保留 10 例独有覆盖」中 D14×4 与 D27 共 5 例实为与常规测试逐字或更强重复，已于本轮删除。
 - 文档勘误：历史条目中的 `tool/gui/aiEnhance.md` 已退役删除，现行 AI 能力文档为 `docs/ai_configuration_and_features_report.md`（历史条目的章节号 §8/§13 指当时文件，不再有效）。
+
+## 2026-09-19 编辑视图减负（属性折叠 + 分段视图切换）
+
+用例数 2521 -> 2531（+5：`test_w3_editor` 新增 `DetailPanelW4CollapseTest` 5 例，契约测试改属性清单）。验证：受影响 8 模块逐进程全绿（合并单进程命中基线已注明的空转问题，与本次无关）；`ci` 层 1436/1436；离屏截图走查三态（课时收起/课时展开/Section）结构正常。
+
+| 项 | 变更 |
+|---|---|
+| 动机 | 编辑页「树 + 属性 + 内容」三区用**双层 Splitter** 叠加（外层树\|详情、内层属性\|内容），属性表单永久占约 1/4 宽度且拖动两根分隔条易错乱；蓝图/高级编辑切换按钮的选中态在 QSS 里无样式（用户看不出当前视图） |
+| 属性折叠 | `detail_panel` 编辑 tab 弃内层 Splitter：属性表单移入可折叠条 `meta_toggle`（chevron 图标 + hover 样式，`#MetaCollapseHeader`）之下，展开时占满整行。**课时默认收起（内容为主）、Section/Unit 默认展开（只有属性可编辑）**；用户手动选择按类别记忆（`edit/meta_collapsed_lesson` / `edit/meta_collapsed_node`） |
+| 分段控件 | 蓝图/高级编辑按钮挂 `#LessonViewToggle`（:checked = accent 填充），选中态可见；顺带修复「点击已激活按钮会双双熄灭」——`_set_lesson_view` 早退前重申选中态 |
+| F2 联动 | `app.py` F2 重命名改走 `DetailPanel.reveal_metadata()`（先展开折叠条再聚焦名称框），折叠状态下不再盲聚焦 |
+| API | `MetadataForm(title="属性")` 新增可选参（DetailPanel 传空走折叠头）；`detail.splitter` 移除（W3 契约测试同步更新），`form`/`content_host`/`content_layout` 保留 |
+
+## 2026-09-19 小屏适配（FlowLayout + 屏幕钳制 + 按钮防裁）
+
+用例数 2514 -> 2521（+7，`test_ui_fit.py` 新建：FlowLayout 2 / ScreenClamp 3 / 对话框最小宽回归 2）。验证：受影响 5 模块 + `test_operations_log` 共 88 例全绿；`ci` 层 1436/1436；离屏探针（800×800 屏）复验数字见下。
+
+| 项 | 变更 |
+|---|---|
+| 动机 | 两类高频体验问题：①对话框超出屏幕（固定 `resize` 按大桌面设计，如 section_ai 1180×860，小笔记本 / 150% 缩放必超）；②按钮文字被裁（一行多按钮的 `QHBoxLayout` 不可换行，最小宽=各按钮之和，窗口不够宽时按钮被压到 sizeHint 以下） |
+| FlowLayout | 新建 `src/widgets/ui/flow_layout.py`（Qt 官方流式布局参考实现）：条目保持自身 sizeHint，放不下换行；`minimumSize` = 最宽单条目而非总和。多按钮行 / 过滤行的替代容器 |
+| 屏幕钳制 | 新建 `src/infrastructure/screen_fit.py`：QApplication 级过滤器，顶层 QDialog/QMainWindow `Show` 时按 `screen().availableGeometry()` 钳制尺寸（预留窗口边框，frame 完整入屏）并在发生钳制时居中；已入屏的窗口不动、最大化/全屏跳过。`main.py` + `--gallery` 接线 `install_screen_clamp(app)` |
+| 定点修复 ① | `textbook_library_dialog`：顶部说明 QLabel 补 `setWordWrap(True)`（单行长 CJK 文本此前把最小宽抬到 844px）；底部 6 按钮行 QHBoxLayout→FlowLayout。最小宽 844→232，嵌入 WorkshopWindow 窄宽度下零裁字 |
+| 定点修复 ② | 设置「操作日志」过滤行（combo + 搜索 + 3 按钮）HBoxLayout→FlowLayout（搜索框 `setMinimumWidth(200)` 替代 stretch）。设置对话框最小宽 894→540 |
+| 探针复验 | offscreen 800×800：textbook_lib @560px 宽无任何按钮低于 sizeHint；模拟 1180×860 窗 Show 后被钳到 796×796 且 frame 完整在屏内 |
+| 已知边界 | 钳制无法低于布局最小尺寸（Qt 硬约束）——最小宽失控的场景仍需 FlowLayout / wordWrap 类布局修复配对使用 |
+
+## 2026-09-19 全局禁用滚轮调参（WheelGuard）
+
+用例数 2508 -> 2514（+6，`test_wheel_guard.py` 新建，L2 重 Qt 模块）。验证：模块 6/6 绿（含反向 sanity：卸下 guard 后同事件确会改值）；`ci` 层 1436/1436 绿；ruff 新文件归零。
+
+| 项 | 变更 |
+|---|---|
+| 动机 | Qt 默认悬停滚轮即可改 `QSpinBox`/`QComboBox` 值——设置页改为可滚动后，滚页面极易误改超时/温度/端口/撤销上限等参数 |
+| 实现 | 新建 `src/infrastructure/wheel_guard.py`（与 `UserActionFilter` 同居）：QApplication 级事件过滤器，拦截 `QAbstractSpinBox`/`QComboBox`/`QAbstractSlider`（显式排除 `QScrollBar`，否则滚动全灭）的 Wheel 事件并消费；若所在处有 `QAbstractScrollArea` 祖先则把滚动量换算（notch × `styleHints().wheelScrollLines()` × singleStep）转发到其竖向滚动条，滚轮悬停在数值件上=滚页面 |
+| 接线 | `main.py` `install_wheel_guard(app)`（紧随 UserActionFilter）；`--gallery` 入口同样安装 |
+| 保留的调值途径 | 键盘方向键/直接输入/spin 按钮/下拉选择；打开的下拉列表内部滚动不拦（watched 是内部 QListView，非 combo 本体） |
+| 测试 | spin/double-spin/combo 悬停滚轮值不变；悬停 spinbox 时外层滚动条移动；viewport 直滚不受影响；卸下 guard 后默认行为恢复（事件构造有效性自证） |
+
+## 2026-09-19 设置对话框重构（左导航两栏 + 全页滚动）
+
+用例数 2505 -> 2508（+3，`test_settings_dialog.py` 13→16：新增 `SettingsNavLayoutTest` 3 例）。验证：`run_gui_tests.py affected` 1 模块 16/16 绿；`ci` 层（L0 gate + L1 fast）1436/1436 绿；L2 `tests.test_app`（重 Qt 全量）绿。
+
+| 项 | 变更 |
+|---|---|
+| 壳层 | `settings_dialog.py` 弃平铺 8-tab `QTabWidget`，改**左侧 Lucide 图标分类导航（QListWidget，176px）+ 右侧 QStackedWidget**；页面注册表 `_SETTINGS_PAGES`（key/label/icon）与构建器 zip(strict=True) 对齐 |
+| 滚动修复（本轮主诉求） | `_make_tab()` 统一改为 `QScrollArea(widgetResizable)` 包裹内容 → 外观/AI 配置/AI 用量/编辑器/体验 OS/Git 库 六个表单页超长（150% 缩放、高级组展开、Git 库五组表单）时滚动而非裁切；操作日志（expanding QTextBrowser）与提取 Prompt（内部已有滚动）维持自管视口不二次包裹 |
+| 尺寸自适应 | 固定 `resize(720, 620)` 改为 `min(880×680, 屏幕 82%/85%)` + `setMinimumSize(600, 440)`，小屏/高缩放不再超屏 |
+| 页面记忆 | 当前分类写 `settings/last_page`（QSettings，`contextlib.suppress` 包裹），重开回落默认「外观」 |
+| 信号治理合规 | `currentRowChanged` 连具名槽 `_on_nav_row_changed`（非 lambda）；导航图标选中态随行重着色（`_refresh_nav_icons`，accent role） |
+| API 变更 | `dlg.tabs` → `dlg.nav` + `dlg.pages`；其余 widget 属性名/`_load_values`/`_sync_to_settings`/`_apply` 全部不变（仅测试改引用） |
 
 ## 2026-09-19 GUI 焕新 W1–W3（壳层多视图 + 图标系统 + 编辑视图深化）
 

@@ -142,12 +142,14 @@ Activity Bar 角标：总览 = 校验错误数（红）、工坊 = 未完成导�
 
 在树状导航中选中具体 Lesson 后，右侧面板展示其内容编辑器：
 
-1. **元数据区域**：编辑 Lesson 的名称、描述以及同层前置依赖 (`prerequisiteLessonIds`)。
+1. **属性折叠条**：ID / 名称 / 描述 / 同层前置依赖 (`prerequisiteLessonIds`) / 关联语法点收进一条可折叠的「属性」横条——课时默认收起把整幅版面让给内容编辑，Section/Unit 默认展开；手动选择按节点类别记忆，F2 重命名会自动展开并聚焦名称框。
 2. **模板类型切换**：可在 `intro` / `practice` / `listening` / `reading` / `review` / `mastery` 之间切换，系统将自动纠正数据规范。
 3. **可视化蓝图 (Blueprint Editor)**：针对 `listening`、`reading` 及 `mastery` 等复杂功能课时，界面提供直观的流程蓝图，可拖拽或点击调整听力阶段 (`ListeningPhase`) 或阅读文章 (`ReadingPassage`) 的段落顺序。
 4. **14 种互动题型列表与表单**（清单真源 `backend/lesson_content.py` 的 `INTERACTION_TYPES`）：
    - 动态增删题型卡片，支持拖拽调整顺序。
    - 每种题型根据 Schema 展现专用输入框：词汇下拉关联选择、多选选项定义、填空文本匹配、音频路径挂载等。
+
+蓝图与「高级编辑」视图经一对分段按钮切换（选中态高亮），功能课时默认蓝图、其余默认高级编辑。
 
 ### 4. 语言资源库管理 (Resource Editor)
 
@@ -197,7 +199,7 @@ Activity Bar 角标：总览 = 校验错误数（红）、工坊 = 未完成导�
 
 ### 6. 设置与偏好管理 (Settings)
 
-点击 **「设置」** 按钮唤起配置对话框，偏好项自动存储在 `QSettings` 中：
+`Ctrl+,` 唤起设置对话框（**左侧分类导航 + 右侧内容页**两栏布局）：外观 / AI 配置 / AI 用量 / 提取 Prompt / 编辑器 / 体验 OS / Git 库 / 操作日志 八个分类。表单页内容超出对话框高度时自动出现滚动条（150% 字体缩放或窄屏下不再裁切）；上次打开的分类经 `settings/last_page` 记忆，重启后自动回到。偏好项自动存储在 `QSettings` 中：
 - **外观风格**：支持在深色 (Dark) 与浅色 (Light) 主题间无缝切换；提供 80%–150% 的 UI 字体缩放调整。
 - **AI 接口配置**：
   - **供应商预设**：一键填充 DeepSeek、OpenAI、Moonshot、Ollama 等供应商的标准 Base URL 和默认模型。
@@ -215,6 +217,10 @@ Activity Bar 角标：总览 = 校验错误数（红）、工坊 = 未完成导�
 - **用量与成本分析**：实时查看今日与累计的 Token 消耗量、API 请求次数及按模型价格预估的消费金额。
 - **编辑器行为**：配置全局撤销上限 (10–500 步) 及窗口关闭时是否有未保存更改的自动处理策略。
 - **Git 库配置**：克隆根目录、Git 二进制路径、默认语言代码、操作超时、Assets 仓库根目录、LAN 默认端口/绑定地址/令牌、SSH 私钥路径、已保存远程仓库表（CRUD）、HTTPS 凭据管理（OS keyring 优先，QSettings 回退）。
+
+> 🖱️ **全应用禁用「滚轮悬停调参」**：鼠标滚轮永远不会改动数值框/下拉框的值，悬停在其上滚动只会滚动所在页面（`WheelGuard` 全局事件过滤器，见 `src/infrastructure/wheel_guard.py`）；调值请用键盘输入、上下箭头或下拉选择。
+>
+> 📐 **小屏适配**：所有对话框 / 子窗口在显示时自动钳制进屏幕可用区域（超出才居中收回，已入屏不动，见 `src/infrastructure/screen_fit.py`）；多按钮行与过滤条使用可换行的 `FlowLayout`（`src/widgets/ui/flow_layout.py`），窄窗口下按钮换行而非压缩裁字。
 
 ---
 

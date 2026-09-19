@@ -16,7 +16,7 @@ if str(_GUI) not in sys.path:
 
 from src.application.settings import Settings
 from src.application.ai_prompt_library import AiPromptLibrary
-from src.dialogs.settings_dialog import SettingsDialog
+from src.dialogs.settings_dialog import _SETTINGS_PAGES, SettingsDialog
 from tests._qtapp import _App
 
 
@@ -46,14 +46,16 @@ def _make_qsettings() -> MagicMock:
 
 
 class SettingsDialogOperationLogTest(unittest.TestCase):
-    def test_has_operation_log_tab(self) -> None:
+    def test_has_operation_log_page(self) -> None:
         _App.get()
         with patch("src.app.QSettings", return_value=_make_qsettings()):
             settings = Settings.load_from_qsettings(_make_qsettings())
-        dlg = SettingsDialog(settings, prompt_library=_make_prompt_library())
-        self.assertEqual(dlg.tabs.tabText(5), "体验 OS")
-        self.assertEqual(dlg.tabs.tabText(7), "操作日志")
-        self.assertEqual(dlg.tabs.count(), 8)
+        with patch("src.dialogs.settings_dialog.QSettings", return_value=_make_qsettings()):
+            dlg = SettingsDialog(settings, prompt_library=_make_prompt_library())
+        self.assertEqual(dlg.nav.item(5).text(), "体验 OS")
+        self.assertEqual(dlg.nav.item(7).text(), "操作日志")
+        self.assertEqual(dlg.nav.count(), 8)
+        self.assertEqual(dlg.pages.count(), 8)
         # Refresh / clear / open-dir buttons exist and are wired (no raise).
         dlg._refresh_operation_log()
         self.assertIsNotNone(dlg.oplog_view)
@@ -63,7 +65,8 @@ class SettingsDialogOperationLogTest(unittest.TestCase):
         _App.get()
         with patch("src.app.QSettings", return_value=_make_qsettings()):
             settings = Settings.load_from_qsettings(_make_qsettings())
-        dlg = SettingsDialog(settings, prompt_library=_make_prompt_library())
+        with patch("src.dialogs.settings_dialog.QSettings", return_value=_make_qsettings()):
+            dlg = SettingsDialog(settings, prompt_library=_make_prompt_library())
         from PySide6.QtWidgets import QMessageBox
         with patch.object(dlg, "_refresh_operation_log"), \
              patch("src.dialogs.settings.operation_log_tab.operations.clear") as cleared, \
@@ -72,6 +75,57 @@ class SettingsDialogOperationLogTest(unittest.TestCase):
             dlg._on_clear_operation_log()
             cleared.assert_called_once()
         dlg.deleteLater()
+
+
+class SettingsNavLayoutTest(unittest.TestCase):
+    """Two-pane shell: left nav + page stack; form pages must scroll."""
+
+    def _make_dialog(self) -> SettingsDialog:
+        _App.get()
+        with patch("src.app.QSettings", return_value=_make_qsettings()):
+            settings = Settings.load_from_qsettings(_make_qsettings())
+        with patch("src.dialogs.settings_dialog.QSettings", return_value=_make_qsettings()):
+            dlg = SettingsDialog(settings, prompt_library=_make_prompt_library())
+        self.addCleanup(dlg.deleteLater)
+        return dlg
+
+    def test_form_pages_are_scroll_wrapped(self) -> None:
+        """Long form pages (Git 库 / AI 配置 / 体验 OS …) live in a QScrollArea."""
+        from PySide6.QtWidgets import QScrollArea
+
+        dlg = self._make_dialog()
+        form_page_keys = {"appearance", "ai", "usage", "editor", "experience", "git"}
+        viewport_page_keys = {"extraction", "oplog"}  # manage their own scrolling
+        for i, (key, _label, _icon) in enumerate(_SETTINGS_PAGES):
+            page = dlg.pages.widget(i)
+            if key in form_page_keys:
+                self.assertIsInstance(page, QScrollArea, f"{key} page must scroll")
+                self.assertTrue(page.widgetResizable())
+            else:
+                self.assertIn(key, viewport_page_keys)
+                self.assertNotIsInstance(page, QScrollArea)
+
+    def test_nav_row_switches_stacked_page(self) -> None:
+        dlg = self._make_dialog()
+        dlg.nav.setCurrentRow(6)  # Git 库
+        self.assertEqual(dlg.pages.currentIndex(), 6)
+        self.assertIsNotNone(dlg.git_clone_root_edit)
+
+    def test_last_page_is_persisted_and_restored(self) -> None:
+        store: dict = {}
+        qs = _make_qsettings()
+        qs.value = lambda key, default=None: store.get(key, default)
+        qs.setValue = lambda key, value: store.__setitem__(key, value)
+        with patch("src.app.QSettings", return_value=_make_qsettings()):
+            settings = Settings.load_from_qsettings(_make_qsettings())
+        with patch("src.dialogs.settings_dialog.QSettings", return_value=qs):
+            dlg = SettingsDialog(settings, prompt_library=_make_prompt_library())
+            dlg.nav.setCurrentRow(4)  # 编辑器
+            self.assertEqual(store["settings/last_page"], "editor")
+            dlg.deleteLater()
+            dlg2 = SettingsDialog(settings, prompt_library=_make_prompt_library())
+            self.assertEqual(dlg2.nav.currentRow(), 4)
+            dlg2.deleteLater()
 
 
 class ExtractionPromptTabTest(unittest.TestCase):

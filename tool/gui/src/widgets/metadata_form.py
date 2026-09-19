@@ -63,13 +63,13 @@ class MetadataForm(QGroupBox):
 
     metadata_changed = Signal()
 
-    def __init__(self) -> None:
-        super().__init__("属性")
+    def __init__(self, title: str = "属性") -> None:
+        super().__init__(title)
         palette = current_palette()
         self.setStyleSheet(f"""
             QGroupBox {{
                 font-weight: 600;
-                margin-top: 8px;
+                margin-top: {12 if title else 0}px;
             }}
             QGroupBox::title {{
                 color: {palette["text_secondary"]};

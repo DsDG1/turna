@@ -30,6 +30,7 @@ from src.backend.textbook_project import TextbookProject
 from src.backend.textbook_project_store import ProjectSummary, TextbookProjectStore
 from src.application.settings import course_clones_dir
 from src.dialogs.git_library.git_worker_hub import GitWorkerHub
+from src.widgets.ui.flow_layout import FlowLayout
 
 _STEP_LABELS = [
     "选择教材",
@@ -74,7 +75,11 @@ class TextbookLibraryDialog(QDialog):
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(12)
 
-        layout.addWidget(QLabel("选择项目继续创作，或新建：教材项目从素材开始，空白 AI 项目直达设计。所有进度自动保存，可随时关闭。"))
+        # Word-wrap: without it this long hint sets the dialog's minimum
+        # width to one full text line (~700px at CJK) on small screens.
+        intro = QLabel("选择项目继续创作，或新建：教材项目从素材开始，空白 AI 项目直达设计。所有进度自动保存，可随时关闭。")
+        intro.setWordWrap(True)
+        layout.addWidget(intro)
 
         self._table = QTableWidget(0, 5)
         self._table.setHorizontalHeaderLabels(
@@ -96,7 +101,10 @@ class TextbookLibraryDialog(QDialog):
         )
         layout.addWidget(self._empty_label)
 
-        btn_row = QHBoxLayout()
+        # Flow layout: six buttons in one HBox cannot wrap — their combined
+        # minimum width forced this dialog to ~840px and clipped the labels
+        # when embedded (WorkshopWindow hosts it at a narrower width).
+        btn_row = FlowLayout()
         self._new_btn = QPushButton("从教材新建…")
         self._new_btn.setToolTip("选择 .md/.txt/.pdf 教材文件，提取知识点后由 AI 设计课程")
         self._new_btn.clicked.connect(self._on_new)
@@ -119,7 +127,6 @@ class TextbookLibraryDialog(QDialog):
         btn_row.addWidget(self._new_blank_btn)
         btn_row.addWidget(self._from_git_btn)
         btn_row.addWidget(self._publish_git_btn)
-        btn_row.addStretch()
         btn_row.addWidget(self._continue_btn)
         btn_row.addWidget(self._delete_btn)
         layout.addLayout(btn_row)
