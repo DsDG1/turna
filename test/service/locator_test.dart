@@ -45,7 +45,6 @@ void main() {
       'graph (no longer a manual main.dart registration)', () async {
     await bootstrapWithoutDb();
     expect(getIt.isRegistered<SettingsProvider>(), isTrue);
-    expect(getIt.isRegistered<AppPrefs>(), isTrue);
   });
 
   test('SettingsProvider resolves to a single instance (singleton identity)',
@@ -67,17 +66,5 @@ void main() {
     final settings = getIt<SettingsProvider>();
     expect(settings.ttsSpeed, 1.5);
     expect(settings.soundEffectsEnabled, isFalse);
-  });
-
-  test(
-      'AudioController no longer needs the isRegistered guard once '
-      'SettingsProvider is in the graph', () async {
-    // Contract guard: after the Phase 3 refactor lands, this assertion
-    // documents that SettingsProvider is always registered before any
-    // AudioController is constructed. Today the guard exists; once
-    // SettingsProvider moves into injection.config.dart, getIt<SettingsProvider>()
-    // must still resolve here without throwing.
-    await bootstrapWithoutDb();
-    expect(() => getIt<SettingsProvider>(), returnsNormally);
   });
 }

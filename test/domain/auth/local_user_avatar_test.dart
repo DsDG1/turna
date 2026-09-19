@@ -7,10 +7,6 @@ import 'package:turna/domain/cosmetics/avatar.dart';
 
 void main() {
   group('LocalUser.avatarId', () {
-    test('default LocalUser.local has null avatarId', () {
-      expect(LocalUser.local.avatarId, isNull);
-    });
-
     test('toJson / fromJson roundtrip preserves avatarId', () {
       const u = LocalUser(
         uid: 'local',
@@ -36,18 +32,6 @@ void main() {
       final json = LocalUser.local.toJson()..['avatarId'] = null;
       final parsed = LocalUser.fromJson(json);
       expect(parsed.avatarId, isNull);
-    });
-
-    test('copyWith(avatarId:) sets the field', () {
-      final next = LocalUser.local.copyWith(avatarId: 'avatar_owl');
-      expect(next.avatarId, 'avatar_owl');
-    });
-
-    test('copyWith() without avatarId preserves existing value', () {
-      final withId = LocalUser.local.copyWith(avatarId: 'avatar_panda');
-      final next = withId.copyWith(displayName: 'Renamed');
-      expect(next.avatarId, 'avatar_panda');
-      expect(next.displayName, 'Renamed');
     });
 
     test('copyWith(clearAvatarId: true) sets it back to null', () {

@@ -38,7 +38,12 @@ void main() {
     expect(find.byIcon(Icons.check), findsNothing);
     await tester.tap(find.text('乙'));
     await tester.pumpAndSettle();
-    expect(find.text('乙'), findsOneWidget);
+    expect(selected, _Mode.b);
+    expect(
+      tester.widget<SegmentedButton<_Mode>>(find.byType(SegmentedButton<_Mode>))
+          .selected,
+      {_Mode.b},
+    );
   });
 
   testWidgets('TurnaChoiceGrid selects a card', (tester) async {
@@ -62,7 +67,7 @@ void main() {
 
     await tester.tap(find.text('弱词'));
     await tester.pump();
-    expect(find.text('弱词'), findsOneWidget);
+    expect(selected, _Mode.b);
   });
 
   testWidgets('TurnaFilterChip has no checkmark', (tester) async {

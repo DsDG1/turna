@@ -38,22 +38,31 @@ void main() {
     );
   });
 
-  test(
-      'allowInProcessFallback can attempt in-process host when import/renderer are off',
-      () async {
+  test('flag gate fires before any in-process fallback attempt', () async {
+    // With import/renderer off, requireImporter must fail closed at the flag
+    // check — allowInProcessFallback never reaches the spawn/fallback path.
     OfficialAnkiFeatureFlags.current = const OfficialAnkiFeatureFlags();
     final root = Directory.systemTemp.createTempSync('turna-comp-fallback-');
     addTearDown(() => root.deleteSync(recursive: true));
-    try {
-      await OfficialAnkiCompositionRoot.requireImporter(
+    await expectLater(
+      OfficialAnkiCompositionRoot.requireImporter(
         supportDir: root,
         libraryPath: '/no/such/libturna_anki.so',
         allowInProcessFallback: true,
-      );
-    } on OfficialAnkiException {
-      // Library still missing; the important assertion is we were allowed
-      // to attempt in-process instead of being blocked by production flags.
-    }
+      ),
+      throwsA(
+        isA<OfficialAnkiException>().having(
+          (e) => e.messageKey,
+          'key',
+          'official_anki.flag_fail_closed',
+        ),
+      ),
+    );
+    expect(OfficialAnkiCompositionRoot.session, isNull);
+    expect(
+      OfficialAnkiCompositionRoot.executionMode,
+      OfficialAnkiExecutionMode.none,
+    );
   });
 
   test('requireImporter single-flights parallel fake spawns', () async {

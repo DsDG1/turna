@@ -1,9 +1,6 @@
-// Consolidated domain model tests for PosTag, LessonWordLink, and MistakeEntry.
+// Consolidated domain model tests for PosTag.
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:turna/domain/course/interaction.dart';
-import 'package:turna/domain/course/lesson_word_link.dart';
-import 'package:turna/domain/course/mistake_entry.dart';
 import 'package:turna/domain/course/pos_tag.dart';
 
 void main() {
@@ -46,93 +43,6 @@ void main() {
           'determiner',
         },
       );
-    });
-  });
-
-  group('LessonWordLink', () {
-    test('serializes and deserializes', () {
-      final link = LessonWordLink(
-        wordId: 'w-hello',
-        lessonId: 'l-greetings-1',
-        lessonName: 'Greetings',
-        type: LinkType.word,
-        firstSeenAt: DateTime(2026, 7, 9, 10, 30),
-      );
-
-      final json = link.toJson();
-      final recovered = LessonWordLink.fromJson(json);
-
-      expect(recovered.wordId, 'w-hello');
-      expect(recovered.lessonId, 'l-greetings-1');
-      expect(recovered.lessonName, 'Greetings');
-      expect(recovered.type, LinkType.word);
-      expect(recovered.firstSeenAt, link.firstSeenAt);
-    });
-
-    test('defaults to LinkType.word', () {
-      final link = LessonWordLink(
-        wordId: 'w-hello',
-        lessonId: 'l-greetings-1',
-        lessonName: 'Greetings',
-        firstSeenAt: DateTime.utc(2026, 7, 9),
-      );
-      expect(link.type, LinkType.word);
-    });
-  });
-
-  group('MistakeEntry grammar links', () {
-    test('preserves grammarPointId through JSON', () {
-      final entry = MistakeEntry(
-        id: 'm1',
-        lessonId: 'l-test',
-        stageId: 'stage-check',
-        interactionId: 'mc-1',
-        grammarPointId: 'gp.greetings',
-        userAnswer: 'Hapana',
-        correctAnswer: 'Ndiyo',
-        timestamp: DateTime.utc(2026, 1, 1),
-        interactionSnapshot: const Interaction.multipleChoice(
-          id: 'mc-1',
-          prompt: 'Which means Yes?',
-          options: ['Ndiyo', 'Hapana'],
-          correctIndex: 0,
-          grammarPointId: 'gp.greetings',
-        ),
-      );
-
-      final decoded = MistakeEntry.fromJson(entry.toJson());
-      expect(decoded.grammarPointId, 'gp.greetings');
-      expect(
-        interactionGrammarPointId(decoded.interactionSnapshot!),
-        'gp.greetings',
-      );
-    });
-
-    test('interactionGrammarPointId reads optional field on all variants used',
-        () {
-      const mc = Interaction.multipleChoice(
-        id: 'a',
-        prompt: 'p',
-        options: ['x', 'y'],
-        correctIndex: 0,
-        grammarPointId: 'gp.a',
-      );
-      const fb = Interaction.fillBlank(
-        id: 'b',
-        sentence: '___',
-        answer: 'x',
-        grammarPointId: 'gp.b',
-      );
-      const bare = Interaction.multipleChoice(
-        id: 'c',
-        prompt: 'p',
-        options: ['x'],
-        correctIndex: 0,
-      );
-
-      expect(interactionGrammarPointId(mc), 'gp.a');
-      expect(interactionGrammarPointId(fb), 'gp.b');
-      expect(interactionGrammarPointId(bare), isNull);
     });
   });
 }

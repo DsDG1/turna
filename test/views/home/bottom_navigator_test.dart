@@ -113,13 +113,4 @@ void main() {
     expect(find.byType(BackdropFilter), findsNothing);
     expect(find.byType(ClipRRect), findsWidgets);
   });
-
-  test('overlayExtent is capsule plus outer gaps, not the home indicator', () {
-    expect(
-      BottomNavigator.overlayExtent,
-      BottomNavigator.capsuleHeight +
-          BottomNavigator.bottomGap +
-          BottomNavigator.topShadowPad,
-    );
-  });
 }

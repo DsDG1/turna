@@ -113,17 +113,4 @@ void main() {
       );
     },
   );
-
-  test('LessonViewModel is registered as a lazySingleton in GetIt', () {
-    // Registration shape (not construction): factory would still return
-    // true for isRegistered; we assert via generated config indirectly by
-    // checking two resolve attempts after unregister of Audio deps fail
-    // the same way — instead assert the injectable config was regenerated
-    // by verifying Course+Mistake identity which is the Wave A contract.
-    // Explicit: double getIt without constructing Audio path already covered.
-    // Document that LessonViewModel + AudioController are lazySingleton in
-    // injection.config.dart (gh.lazySingleton).
-    expect(getIt.isRegistered<CourseProvider>(), isTrue);
-    expect(getIt.isRegistered<MistakeProvider>(), isTrue);
-  });
 }

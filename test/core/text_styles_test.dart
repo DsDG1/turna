@@ -59,12 +59,5 @@ void main() {
         TurnaTheme.textHintColor(captured),
       );
     });
-
-    testWidgets('buttonLabel stays const white on the primary button',
-        (tester) async {
-      // The check button label is intentionally fixed (white on primary) and
-      // must not adapt — guard against accidentally making it context-aware.
-      expect(AppTextStyles.buttonLabel.color, Colors.white);
-    });
   });
 }

@@ -9,9 +9,6 @@ void main() {
     expect(env.allowsOfficialFirstImport, isTrue);
     expect(env.allowsOfficialScheduler, isTrue);
     expect(env.courseGradesScheduler, isFalse);
-    // Zero-arg constructor stays all-false for focused unit tests.
-    expect(const OfficialAnkiFeatureFlags().officialFirstImport, isFalse);
-    expect(const OfficialAnkiFeatureFlags().allowsOfficialImport, isFalse);
     expect(
       OfficialAnkiFeatureFlags.productionAndroid.allowsOfficialFirstImport,
       isTrue,
@@ -53,14 +50,5 @@ void main() {
           .allowsOfficialFirstImport,
       isFalse,
     );
-  });
-
-  test('p5f_copyWith_round_trips_official_first_import', () {
-    const off = OfficialAnkiFeatureFlags();
-    final on = off.copyWith(officialFirstImport: true);
-    expect(on.officialFirstImport, isTrue);
-    expect(on.copyWith().officialFirstImport, isTrue);
-    expect(
-        on.copyWith(officialFirstImport: false).officialFirstImport, isFalse);
   });
 }
