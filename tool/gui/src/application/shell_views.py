@@ -569,15 +569,20 @@ def notify_toast(
     title: str = "",
     duration_ms: int = 4000,
 ) -> bool:
-    """Show a non-blocking toast on the shell host (W4 QMessageBox→Toast).
+    """Show a non-blocking toast on the nearest window that can host one (W4).
 
-    Returns True when a real ``ToastHost`` handled the message, False when
-    the host lacks one (tests / dialogs / MagicMock windows) — callers
+    Host resolution (see :func:`_resolve_toast_host`): an explicit
+    ``toast_host`` attribute on ``host`` (the shell), then the top-level
+    window of an embedded widget (views inside the central stack resolve to
+    MainWindow), then — for standalone windows/dialogs that are currently
+    visible — a host created on demand. Returns True when a real
+    ``ToastHost`` handled the message, False when no host could be found
+    (tests / not-yet-shown windows / MagicMock hosts) — callers
     should fall back to ``QMessageBox`` in that case so existing
     notification assertions keep working. ``title`` is prepended when both
     exist so the toast keeps the original box's context.
     """
-    toast_host = getattr(host, "toast_host", None)
+    toast_host = _resolve_toast_host(host)
     if not isinstance(toast_host, ToastHost):
         return False
     try:
@@ -587,6 +592,33 @@ def notify_toast(
     except Exception:
         logger.debug("notify_toast failed", exc_info=True)
         return False
+
+
+def _resolve_toast_host(host: Any) -> ToastHost | None:
+    """Locate (or lazily create) the :class:`ToastHost` for ``host``."""
+    toast_host = getattr(host, "toast_host", None)
+    if isinstance(toast_host, ToastHost):
+        return toast_host
+    window = host.window() if isinstance(host, QWidget) else None
+    if window is not None:
+        if window is not host:
+            toast_host = getattr(window, "toast_host", None)
+            if isinstance(toast_host, ToastHost):
+                return toast_host
+        # Lazily attach a host to a visible standalone window/dialog. Hidden
+        # windows never get one: tests drive unshown widgets and rely on the
+        # modal fallback path.
+        if window.isWindow() and window.isVisible():
+            try:
+                toast_host = ToastHost(window)
+                toast_host.show()
+                window.toast_host = toast_host
+                return toast_host
+            except Exception:
+                logger.debug(
+                    "_resolve_toast_host lazy create failed", exc_info=True
+                )
+    return None
 
 
 def toggle_sidebar(host: Any) -> None:

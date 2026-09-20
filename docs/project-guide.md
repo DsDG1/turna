@@ -679,14 +679,16 @@ JSON 位于 `assets/courses/turkish/`，由 `CourseLoader` 加载、`DatabaseSee
 ## 14. 测试与质量基线
 
 ```bash
-flutter test --exclude-tags golden           # 1823 passed / 0 failed（最新数字见 test/BASELINE.md）
+flutter test --exclude-tags golden           # 1834 passed / 0 failed（最新数字见 test/BASELINE.md）
 python -m unittest discover -s test -p "*_test.py"            # Python 工具测试
-python -m unittest discover -s tool/gui/tests -p "test_*.py"  # GUI 1276 项（上次记录）
+python tool/gui/run_gui_tests.py full        # GUI 全量（每模块独立子进程，runner 自动设 offscreen）
+python -m ruff check tool/gui/src            # GUI lint（仅 src；tests 历史债另批清理）
 ```
 
 - `flutter analyze`：改动文件 0 error / 0 warning（仅历史 info 级 lint）。
 - `tool/course_cli.py --course-dir assets/courses/turkish validate` 通过。
-- 2 个历史环境敏感测试（`anki_review_fidelity_test` 缺 path_provider mock；一个 `anki_note_dao_test` 在并发 `ensureSqliteLibForTestHost` 下偶发）隔离运行可通过。
+- 早期记录的 2 个环境敏感测试均已不存在：`anki_review_fidelity_test` 随复习侧复刻层删除而退役（现 `official_formal_review_fidelity_test` 不依赖 path_provider），`anki_note_dao_test` 已按 doc 38 P1-B 重写（2026-09-20 复核）。
+- CI（`flutter_ci.yml`）在 `flutter test` 之外还跑 format-check、ruff（GUI src）与 GUI full 档，并采集覆盖率；Flutter 版本钉在 3.44.5。
 - 最新基线与各轮改动记录见 [`test/BASELINE.md`](../test/BASELINE.md)。
 
 ---

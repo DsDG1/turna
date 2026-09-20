@@ -499,8 +499,8 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
                                 ),
                                 icon:
                                     const Icon(Icons.refresh_rounded, size: 18),
-                                label:
-                                    Text(AppStrings.ankiReviewRetryFailedSources),
+                                label: Text(
+                                    AppStrings.ankiReviewRetryFailedSources),
                               ),
                             ),
                         ],

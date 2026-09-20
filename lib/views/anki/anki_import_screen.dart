@@ -212,60 +212,60 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                 // onChanged 触发 setLocal 后自然重读。
                 final hasUnfinished = catalogHasUnfinishedOfficialImport();
                 return Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.upload_file_rounded,
-                      size: 80,
-                      color: TurnaTheme.brandTeal.withValues(alpha: 0.6),
-                    ),
-                    const SizedBox(height: 24),
-                    OfficialPendingImportBanner(
-                      onChanged: () {
-                        controller.clearSelectFailure();
-                        setLocal(() {});
-                      },
-                    ),
-                    const SizedBox(height: 8),
-                    // No duplicate title here; the AppBar already shows it.
-                    Text(
-                      AppStrings.ankiImportSelectSubtitle,
-                      style: TextStyle(
-                        color: TurnaTheme.textSecondaryColor(context),
-                        fontSize: 15,
-                        height: 1.4,
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.upload_file_rounded,
+                        size: 80,
+                        color: TurnaTheme.brandTeal.withValues(alpha: 0.6),
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 32),
-                    if (error != null || hasUnfinished)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: Text(
-                          error ?? unfinishedImportBlocksNewMessage(),
-                          style: const TextStyle(color: TurnaTheme.error),
-                          textAlign: TextAlign.center,
+                      const SizedBox(height: 24),
+                      OfficialPendingImportBanner(
+                        onChanged: () {
+                          controller.clearSelectFailure();
+                          setLocal(() {});
+                        },
+                      ),
+                      const SizedBox(height: 8),
+                      // No duplicate title here; the AppBar already shows it.
+                      Text(
+                        AppStrings.ankiImportSelectSubtitle,
+                        style: TextStyle(
+                          color: TurnaTheme.textSecondaryColor(context),
+                          fontSize: 15,
+                          height: 1.4,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 32),
+                      if (error != null || hasUnfinished)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: Text(
+                            error ?? unfinishedImportBlocksNewMessage(),
+                            style: const TextStyle(color: TurnaTheme.error),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ElevatedButton.icon(
+                        onPressed: hasUnfinished ? null : controller.pickFile,
+                        icon: const Icon(Icons.folder_open),
+                        label: Text(AppStrings.ankiChooseFile),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: TurnaTheme.brandTeal,
+                          foregroundColor: TurnaTheme.textOnPrimary,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 32, vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
-                    ElevatedButton.icon(
-                      onPressed: hasUnfinished ? null : controller.pickFile,
-                      icon: const Icon(Icons.folder_open),
-                      label: Text(AppStrings.ankiChooseFile),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: TurnaTheme.brandTeal,
-                        foregroundColor: TurnaTheme.textOnPrimary,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 32, vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
                 );
               },
             ),

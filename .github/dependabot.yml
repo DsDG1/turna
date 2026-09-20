@@ -1,0 +1,29 @@
+# Dependabot: weekly version-drift PRs.
+# Deliberately NO gitsubmodule ecosystem: native/turna_anki_core/anki is pinned
+# to a detached spike commit on purpose (see .gitmodules) and must not follow
+# anki origin/main automatically.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: pub
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      dart-deps:
+        patterns: ["*"]
+
+  - package-ecosystem: pip
+    directory: /tool/gui
+    schedule:
+      interval: monthly
+    groups:
+      gui-python-deps:
+        patterns: ["*"]

@@ -95,7 +95,10 @@ flutter pub run build_runner build --delete-conflicting-outputs  # 改 @freezed/
 flutter test                                                 # 基线见 test/BASELINE.md
 flutter analyze
 python -m unittest discover -s test -p "*_test.py"           # Python 工具测试
-python -m unittest discover -s tool/gui/tests -p "test_*.py" # GUI 测试
+python tool/gui/run_gui_tests.py full                        # GUI 测试（full 档全量；ci 档=gate+fast）
+python -m ruff check tool/gui/src                            # GUI lint（仅 src；tests 有历史债）
+make lint-gui test-gui                                       # 同上两步的 Make 入口
+make ci                                                      # 本地全量 CI 等价（含 GUI full 档）
 python tool/build_release.py --version 0.4.0-future4         # 发布
 ```
 

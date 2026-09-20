@@ -449,8 +449,7 @@ class ReviewActivityHeatmap extends StatelessWidget {
       (largest, row) =>
           row.reviewedCount > largest ? row.reviewedCount : largest,
     );
-    final summary =
-        AppStrings.insightsHeatmapSummary(activeDays, reviews);
+    final summary = AppStrings.insightsHeatmapSummary(activeDays, reviews);
     return Semantics(
       container: true,
       explicitChildNodes: true,

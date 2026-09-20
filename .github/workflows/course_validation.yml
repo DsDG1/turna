@@ -18,6 +18,9 @@ on:
       - "test/course_cli_test.py"
       - ".github/workflows/course_validation.yml"
 
+permissions:
+  contents: read
+
 jobs:
   validate-course:
     runs-on: ubuntu-latest

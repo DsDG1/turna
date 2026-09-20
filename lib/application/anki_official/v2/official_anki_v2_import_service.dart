@@ -379,8 +379,8 @@ class OfficialAnkiV2ImportService {
             node,
       ];
       // C8：一次批量读全部候选键，替代逐 deckId 的读 RPC。
-      final existing =
-          await decisions.readDeckPlacements({for (final d in flatTopDecks) d.deckId});
+      final existing = await decisions
+          .readDeckPlacements({for (final d in flatTopDecks) d.deckId});
       for (final node in flatTopDecks) {
         if (existing.containsKey(node.deckId)) continue; // 用户/历史决策优先
         await decisions.writeDeckPlacement(

@@ -460,6 +460,8 @@ python tool/gui/build_gui.py --clean
 
 具体的 PyInstaller 打包配置文件参见 [`turna_gui.spec`](./turna_gui.spec)。
 
+也可以让 CI 出包：推一个 `gui-v*` tag（或手动触发 `.github/workflows/gui_release.yml` 的 workflow_dispatch），GitHub Actions 会在 windows-latest 上跑 ci 档测试门禁 + PyInstaller 打包，并把 `turna-gui.exe` 挂到对应的 GitHub Release（workflow_dispatch 只产出 artifact，不建 Release）。
+
 > 📌 **打包已知说明**：发布阶段的音效清单检测 (`sound-manifest`) 需要访问相对路径 `assets/sounds`。打包后的独立 exe 运行于非仓库根目录时，音效检查可能会提示路径缺失，但核心编辑、保存、校验与发布报告导出功能不受影响。推荐在仓库根目录环境下运行或打包。
 
 ---

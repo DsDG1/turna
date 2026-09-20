@@ -3,8 +3,9 @@
 A non-modal bird's-eye view of the whole course: Section -> Unit -> Lesson
 chips (with template badges) plus a multi-row stats bar, search/filter, and
 Markdown export. Clicking a lesson chip emits ``lesson_selected`` so the main
-window can locate it in the tree. Clicking the validation badge emits
-``validation_requested`` with the combined problem list.
+window can locate it in the tree. Clicking the validation badge fetches the
+combined problem list on a background worker (the validate/lint CLI used to
+run on the UI thread and freeze the window) and emits ``validation_requested``.
 
 Stats computation lives in :mod:`src.backend.overview_stats` (pure functions,
 no Qt). This module is rendering-only.
@@ -13,6 +14,7 @@ Geometry is persisted to QSettings.
 """
 from __future__ import annotations
 
+import dataclasses
 from typing import Any
 
 from PySide6.QtCore import Qt, QSettings, QTimer, Signal
@@ -151,6 +153,10 @@ class CourseOverviewWindow(QWidget):
 
         self._stats: OverviewStats | None = None
         self._template_filter: str | None = None
+        # Last validate+lint problem list (None = never fetched). Clicking the
+        # validation badge re-emits this cache instead of re-running the CLI.
+        self._validation_problems: list[dict[str, Any]] | None = None
+        self._validation_worker = None
 
         root = QVBoxLayout(self)
         root.setContentsMargins(14, 12, 14, 12)
@@ -241,11 +247,12 @@ class CourseOverviewWindow(QWidget):
         self._stats = compute_overview_stats(self.adapter, include_validation=False)
         # If validation was already known from a previous refresh, keep its
         # counts so the badge doesn't flicker off/on.
-        self._render()
-
-    def refresh_with_validation(self) -> None:
-        """Rebuild including validation counts (slower; spawns CLI)."""
-        self._stats = compute_overview_stats(self.adapter, include_validation=True)
+        if self._validation_problems is not None:
+            errors = sum(1 for p in self._validation_problems if p.get("level") == "error")
+            warnings = sum(1 for p in self._validation_problems if p.get("level") == "warning")
+            self._stats = dataclasses.replace(
+                self._stats, validation_errors=errors, validation_warnings=warnings
+            )
         self._render()
 
     def _render(self) -> None:
@@ -410,28 +417,88 @@ class CourseOverviewWindow(QWidget):
 
     def _on_stats_link(self, link: str) -> None:
         if link == "#validation":
-            # Already have validation data; emit it.
-            self._emit_validation()
+            # Already have validation data; re-emit the cached problem list
+            # without another CLI round-trip (first click falls back to a
+            # background fetch).
+            if self._validation_problems is not None:
+                self.validation_requested.emit(self._validation_problems)
+            else:
+                self._fetch_validation_async()
         elif link == "#validate":
-            # Compute validation now, then emit.
-            self.refresh_with_validation()
-            self._emit_validation()
+            self._fetch_validation_async()
+
+    def _collect_validation_problems(self) -> list[dict[str, Any]]:
+        """Run the validate + lint CLI against the on-disk course dir.
+
+        Reads only the directory on disk (never the in-memory model), so it
+        is safe to call from a worker thread.
+        """
+        from src.backend import api
+
+        result = api.validate_course_dir(self.adapter.course_dir)
+        problems = [p.to_dict() for p in result.problems]
+        problems.extend(
+            p.to_dict() for p in api.lint_course_dir(self.adapter.course_dir)
+        )
+        return problems
 
     def _emit_validation(self) -> None:
-        """Collect problems from the CLI and emit validation_requested."""
+        """Collect problems synchronously and emit ``validation_requested``."""
         if self.adapter.course_dir is None:
             return
         try:
-            from src.backend import api
-
-            result = api.validate_course_dir(self.adapter.course_dir)
-            problems = [p.to_dict() for p in result.problems]
-            problems.extend(
-                p.to_dict() for p in api.lint_course_dir(self.adapter.course_dir)
-            )
+            problems = self._collect_validation_problems()
         except Exception:
             problems = []
         self.validation_requested.emit(problems)
+
+    def _fetch_validation_async(self) -> None:
+        """Run validate + lint on a worker; keep the UI thread responsive.
+
+        The stats label shows a busy hint while the CLI runs. Results update
+        the cached problem list and the validation counts in ``_stats``, then
+        are emitted via ``validation_requested``. Re-entrant clicks are
+        ignored while a fetch is in flight.
+        """
+        from src.application.ai_request_worker import AiRequestWorker
+
+        if self.adapter.course_dir is None:
+            return
+        if (
+            self._validation_worker is not None
+            and self._validation_worker.isRunning()
+        ):
+            return
+        self._show_validation_busy()
+        worker = AiRequestWorker(self._collect_validation_problems)
+
+        def _apply(problems: list[dict[str, Any]]) -> None:
+            self._validation_worker = None
+            self._validation_problems = problems
+            errors = sum(1 for p in problems if p.get("level") == "error")
+            warnings = sum(1 for p in problems if p.get("level") == "warning")
+            if self._stats is not None:
+                self._stats = dataclasses.replace(
+                    self._stats,
+                    validation_errors=errors,
+                    validation_warnings=warnings,
+                )
+            self._update_stats_label()
+            self.validation_requested.emit(problems)
+
+        def _failed(_message: str) -> None:
+            self._validation_worker = None
+            self._update_stats_label()
+
+        worker.result_ready.connect(_apply)
+        worker.error_occurred.connect(_failed)
+        self._validation_worker = worker
+        worker.start()
+
+    def _show_validation_busy(self) -> None:
+        text = self._stats_label.text()
+        if "校验中" not in text:
+            self._stats_label.setText(text + "<br>校验中…")
 
     # --- filter / search -----------------------------------------------
 

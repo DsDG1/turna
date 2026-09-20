@@ -9,7 +9,9 @@ const int kOfficialAnkiCatalogSchemaVersion = 14;
 
 /// Independent catalog. Must not live in CourseDatabase (downgrade wipes it).
 class OfficialAnkiDatabase {
-  OfficialAnkiDatabase.memory() : _db = _openMemory(), filePath = null {
+  OfficialAnkiDatabase.memory()
+      : _db = _openMemory(),
+        filePath = null {
     try {
       _migrate();
     } catch (suppressed) {

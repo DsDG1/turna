@@ -383,7 +383,10 @@ class ResourceTableWidget(QWidget):
             reverse=True,
         )
         if not rows:
-            QMessageBox.information(self, "批量删除", "请先选中要删除的行。")
+            from src.application.shell_views import notify_toast
+
+            if not notify_toast(self, "请先选中要删除的行。", title="批量删除"):
+                QMessageBox.information(self, "批量删除", "请先选中要删除的行。")
             return
         entry_ids = []
         for r in rows:
@@ -441,7 +444,12 @@ class ResourceTableWidget(QWidget):
                 detail = "\n".join(f"[{p['level']}] {p['message']}" for p in problems)
                 QMessageBox.information(self, "导入完成（含警告）", detail)
             else:
-                QMessageBox.information(self, "导入完成", "CSV 已合并到内存，记得保存。")
+                from src.application.shell_views import notify_toast
+
+                if not notify_toast(
+                    self, "CSV 已合并到内存，记得保存。", severity="success", title="导入完成"
+                ):
+                    QMessageBox.information(self, "导入完成", "CSV 已合并到内存，记得保存。")
 
     def _on_export(self) -> None:
         path, _ = QFileDialog.getSaveFileName(
@@ -456,7 +464,10 @@ class ResourceTableWidget(QWidget):
         except Exception as exc:
             QMessageBox.warning(self, "导出失败", str(exc))
             return
-        QMessageBox.information(self, "导出完成", f"已写入 {path}")
+        from src.application.shell_views import notify_toast
+
+        if not notify_toast(self, f"已写入 {path}", severity="success", title="导出完成"):
+            QMessageBox.information(self, "导出完成", f"已写入 {path}")
 
 
 class PracticeItemsDialog(QDialog):
@@ -571,7 +582,10 @@ class ResourceEditorDialog(QWidget):
     def _on_detect_dupes(self) -> None:
         dupes = self.adapter.detect_duplicates()
         if not dupes:
-            QMessageBox.information(self, "查重", "未发现重复词条。")
+            from src.application.shell_views import notify_toast
+
+            if not notify_toast(self, "未发现重复词条。", title="查重"):
+                QMessageBox.information(self, "查重", "未发现重复词条。")
             return
         lines = [
             f"发现 {len(dupes)} 个重复：\n"
@@ -589,7 +603,10 @@ class ResourceEditorDialog(QWidget):
         from pathlib import Path
         try:
             self.adapter.export_resource_pack(Path(path))
-            QMessageBox.information(self, "导出完成", f"资源包已写入 {path}")
+            from src.application.shell_views import notify_toast
+
+            if not notify_toast(self, f"资源包已写入 {path}", severity="success", title="导出完成"):
+                QMessageBox.information(self, "导出完成", f"资源包已写入 {path}")
         except Exception as exc:
             QMessageBox.warning(self, "导出失败", str(exc))
 

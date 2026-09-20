@@ -15,6 +15,7 @@ from src.application.commands import (
     AiEditUnitCommand,
     MergeAiSectionCommand,
 )
+from src.application.shell_views import notify_toast
 
 
 class AiFixController:
@@ -34,11 +35,14 @@ class AiFixController:
             validate_fn = getattr(window, "_validate_node", None)
             problems = validate_fn(kind, node_json) if validate_fn else []
         except KeyError:
-            QMessageBox.warning(window, "无法定位节点", f"找不到节点：{kind}/{node_id}")
+            msg = f"找不到节点：{kind}/{node_id}"
+            if not notify_toast(window, msg, severity="warning", title="无法定位节点", duration_ms=6000):
+                QMessageBox.warning(window, "无法定位节点", msg)
             return
 
         if not problems:
-            QMessageBox.information(window, "无需修正", "当前节点没有检测到校验问题。")
+            if not notify_toast(window, "当前节点没有检测到校验问题。", title="无需修正"):
+                QMessageBox.information(window, "无需修正", "当前节点没有检测到校验问题。")
             return
 
         pairs = [(p, (kind, node_id)) for p in problems]
@@ -82,17 +86,15 @@ class AiFixController:
             ]
 
         if not batches:
-            QMessageBox.information(
-                window, "AI 自动修正", "所选问题无法定位到课程节点，请双击跳转后从树菜单修复。"
-            )
+            msg = "所选问题无法定位到课程节点，请双击跳转后从树菜单修复。"
+            if not notify_toast(window, msg, title="AI 自动修正"):
+                QMessageBox.information(window, "AI 自动修正", msg)
             return
 
         if len(batches) > 1:
-            QMessageBox.information(
-                window,
-                "AI 批量修正",
-                f"已按节点分成 {len(batches)} 批，将依次修复（每批确认一次）。",
-            )
+            msg = f"已按节点分成 {len(batches)} 批，将依次修复（每批确认一次）。"
+            if not notify_toast(window, msg, title="AI 批量修正"):
+                QMessageBox.information(window, "AI 批量修正", msg)
 
         apply_fn = getattr(window, "_apply_ai_fix_for_node", None)
         if apply_fn is None:
@@ -134,7 +136,9 @@ class AiFixController:
             else:
                 return False
         except KeyError:
-            QMessageBox.warning(window, "无法定位节点", f"找不到节点：{kind}/{node_id}")
+            msg = f"找不到节点：{kind}/{node_id}"
+            if not notify_toast(window, msg, severity="warning", title="无法定位节点", duration_ms=6000):
+                QMessageBox.warning(window, "无法定位节点", msg)
             return False
 
         vocab = getattr(window.adapter, "vocab", []) or []

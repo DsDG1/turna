@@ -1027,8 +1027,20 @@ class _CourseTtsSettingsSheet extends StatefulWidget {
 
 class _CourseTtsSettingsSheetState extends State<_CourseTtsSettingsSheet> {
   static const _nativeLangOptions = <String>[
-    'en', 'zh', 'tr', 'ru', 'ar', 'es', 'fr', 'de', 'ja', 'ko', 'pt', 'it',
-    'vi', 'id',
+    'en',
+    'zh',
+    'tr',
+    'ru',
+    'ar',
+    'es',
+    'fr',
+    'de',
+    'ja',
+    'ko',
+    'pt',
+    'it',
+    'vi',
+    'id',
   ];
 
   late bool _autoRead;

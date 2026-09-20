@@ -442,5 +442,65 @@ class ActivityBadgeTest(unittest.TestCase):
         self.assertEqual(self._badge("copilot"), 1)
 
 
+class NotifyToastResolutionTest(unittest.TestCase):
+    """P1 toast batch: notify_toast host resolution order + lazy creation."""
+
+    def setUp(self) -> None:
+        qt_app()
+
+    def test_embedded_widget_resolves_to_shell_host(self) -> None:
+        from PySide6.QtWidgets import QWidget
+
+        from src.application.shell_views import notify_toast
+        from src.widgets.ui.toast import ToastHost
+
+        win = build_main_window()
+        self.assertIsInstance(win.toast_host, ToastHost)
+        # A child of the central widget resolves up to the window's host.
+        child = QWidget(win.centralWidget())
+        self.assertTrue(notify_toast(child, "hi"))
+        self.assertEqual(len(win.toast_host._toasts), 1)
+        win.toast_host.clear()
+        child.deleteLater()
+
+    def test_hidden_standalone_widget_falls_back(self) -> None:
+        from PySide6.QtWidgets import QWidget
+
+        from src.application.shell_views import notify_toast
+
+        w = QWidget()
+        try:
+            self.assertFalse(w.isVisible())
+            self.assertFalse(notify_toast(w, "hi"))
+            # No lazy host for hidden windows: tests keep the modal path.
+            self.assertFalse(hasattr(w, "toast_host"))
+        finally:
+            w.deleteLater()
+
+    def test_visible_standalone_widget_gets_cached_lazy_host(self) -> None:
+        from PySide6.QtWidgets import QWidget
+
+        from src.application.shell_views import notify_toast
+        from src.widgets.ui.toast import ToastHost
+
+        w = QWidget()
+        w.show()
+        try:
+            self.assertTrue(notify_toast(w, "hi"))
+            self.assertIsInstance(w.toast_host, ToastHost)
+            first = w.toast_host
+            self.assertTrue(notify_toast(w, "again"))
+            # The host is cached, not recreated per call.
+            self.assertIs(w.toast_host, first)
+        finally:
+            w.hide()
+            w.deleteLater()
+
+    def test_non_widget_host_falls_back(self) -> None:
+        from src.application.shell_views import notify_toast
+
+        self.assertFalse(notify_toast(MagicMock(), "hi"))
+
+
 if __name__ == "__main__":
     unittest.main()

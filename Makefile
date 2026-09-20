@@ -1,7 +1,7 @@
 # Turna build automation.
 # Run `make help` to list targets.
 
-.PHONY: help gen format-check analyze test test-python build-release build-release-smoke ci clean
+.PHONY: help gen format-check analyze test test-python lint-gui test-gui build-release build-release-smoke ci clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -22,13 +22,19 @@ test: ## Run Dart tests
 test-python: ## Run Python tool tests
 	python3 -m unittest discover -s test -p "*_test.py"
 
+lint-gui: ## Lint the GUI editor with ruff (src only; tests carry legacy debt)
+	python3 -m ruff check tool/gui/src
+
+test-gui: ## Run GUI editor tests (full tier, one subprocess per module)
+	cd tool/gui && python3 run_gui_tests.py full -j 4
+
 build-release: ## Build release artifacts for a given VERSION (e.g., make build-release VERSION=0.4.0-future4)
 	python3 tool/build_release.py --version $(VERSION)
 
 build-release-smoke: ## Quick build smoke test (skips web, content validation, and the native .so build)
 	python3 tool/build_release.py --version ci-smoke --skip-web --skip-content-validation --skip-native
 
-ci: format-check analyze test test-python build-release-smoke ## Run the full local CI equivalent
+ci: format-check analyze test test-python lint-gui test-gui build-release-smoke ## Run the full local CI equivalent
 
 clean: ## Clean build artifacts
 	flutter clean && flutter pub get

@@ -16,6 +16,9 @@ on:
       - "test/fixtures/anki_official/**"
       - ".github/workflows/official_anki.yml"
 
+permissions:
+  contents: read
+
 jobs:
   official-anki-host:
     runs-on: ubuntu-latest
@@ -37,6 +40,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: 3.44.5
           cache: true
       - name: Host Dart FFI integration
         env:
@@ -51,6 +55,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: 3.44.5
           cache: true
       - run: flutter pub get
       - run: dart analyze lib/application/anki_official

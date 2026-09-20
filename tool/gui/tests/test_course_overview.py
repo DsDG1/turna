@@ -3,8 +3,12 @@ from __future__ import annotations
 
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
+
+from PySide6.QtCore import QThread
+from PySide6.QtWidgets import QApplication
 
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
@@ -26,6 +30,18 @@ def _load_adapter(tmp: Path) -> CourseAdapter:
     adapter = CourseAdapter()
     adapter.load(course_dir)
     return adapter
+
+
+def _spin_until(condition, timeout: float = 5.0) -> bool:
+    """Process events until ``condition()`` is true (worker signal delivery)."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        QApplication.processEvents()
+        if condition():
+            return True
+        QThread.msleep(10)
+    QApplication.processEvents()
+    return bool(condition())
 
 
 class CourseOverviewTest(unittest.TestCase):
@@ -62,10 +78,10 @@ class CourseOverviewTest(unittest.TestCase):
         self.assertTrue(captured[0])
         # The emitted id must correspond to a real lesson in the adapter.
         ids = {
-            l["id"]
+            lesson["id"]
             for s in self.adapter.sections
             for u in s.get("units", [])
-            for l in u.get("lessons", [])
+            for lesson in u.get("lessons", [])
         }
         self.assertIn(captured[0], ids)
 
@@ -127,10 +143,10 @@ class CourseOverviewTest(unittest.TestCase):
 
         # Find a template that exists in the adapter.
         present_templates = {
-            l.get("template", "legacy")
+            lesson.get("template", "legacy")
             for s in self.adapter.sections
             for u in s.get("units", [])
-            for l in u.get("lessons", [])
+            for lesson in u.get("lessons", [])
         }
         self.assertTrue(present_templates)
         target = next(iter(present_templates))
@@ -187,6 +203,48 @@ class CourseOverviewTest(unittest.TestCase):
         self.assertEqual(len(captured), 1)
         # Problems is a list (may be empty if the course validates clean).
         self.assertIsInstance(captured[0], list)
+
+    # --- async validation fetch (P0: CLI off the UI thread) --------------
+
+    def test_validate_link_fetches_async_then_emits(self) -> None:
+        captured: list[list] = []
+        self.win.validation_requested.connect(lambda problems: captured.append(problems))
+        self.win._on_stats_link("#validate")
+        # Busy hint shows immediately; nothing emitted until the worker
+        # delivers (queued signals need event-loop turns, which the asserts
+        # below don't run).
+        self.assertIn("校验中", self.win._stats_label.text())
+        self.assertEqual(len(captured), 0)
+        self.assertTrue(
+            _spin_until(lambda: self.win._validation_worker is None),
+            "validation worker did not settle in time",
+        )
+        self.assertEqual(len(captured), 1)
+        self.assertIsInstance(captured[0], list)
+        # PySide6 marshals Signal(list) payloads into a fresh list, so the
+        # cache and the emitted value are equal but not the same object.
+        self.assertEqual(self.win._validation_problems, captured[0])
+        # Busy hint replaced by the rebuilt stats label.
+        self.assertNotIn("校验中", self.win._stats_label.text())
+
+    def test_validation_link_emits_cache_without_worker(self) -> None:
+        cached = [{"level": "error", "message": "boom", "path": ""}]
+        self.win._validation_problems = cached
+        captured: list[list] = []
+        self.win.validation_requested.connect(lambda problems: captured.append(problems))
+        self.win._on_stats_link("#validation")
+        # Synchronous emit from cache; no CLI round-trip, no worker.
+        self.assertEqual(captured, [cached])
+        self.assertIsNone(self.win._validation_worker)
+
+    def test_refresh_preserves_cached_validation_counts(self) -> None:
+        self.win._validation_problems = [
+            {"level": "error", "message": "e1", "path": ""},
+            {"level": "warning", "message": "w1", "path": ""},
+        ]
+        self.win.refresh()
+        self.assertEqual(self.win._stats.validation_errors, 1)
+        self.assertEqual(self.win._stats.validation_warnings, 1)
 
 
 if __name__ == "__main__":

@@ -431,7 +431,8 @@ class _FeatureCard extends StatelessWidget {
             ),
             const SizedBox(height: 14),
             // 作用
-            _SectionLabel(label: AppStrings.aiGuideLabelPurpose, color: spec.accent),
+            _SectionLabel(
+                label: AppStrings.aiGuideLabelPurpose, color: spec.accent),
             const SizedBox(height: 4),
             Text(
               spec.purpose,
@@ -442,7 +443,8 @@ class _FeatureCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             // 适用场景
-            _SectionLabel(label: AppStrings.aiGuideLabelScenarios, color: spec.accent),
+            _SectionLabel(
+                label: AppStrings.aiGuideLabelScenarios, color: spec.accent),
             const SizedBox(height: 4),
             for (final s in spec.scenarios)
               Padding(
@@ -475,7 +477,8 @@ class _FeatureCard extends StatelessWidget {
               ),
             const SizedBox(height: 12),
             // 操作流程
-            _SectionLabel(label: AppStrings.aiGuideLabelSteps, color: spec.accent),
+            _SectionLabel(
+                label: AppStrings.aiGuideLabelSteps, color: spec.accent),
             const SizedBox(height: 4),
             for (var i = 0; i < spec.steps.length; i++)
               Padding(

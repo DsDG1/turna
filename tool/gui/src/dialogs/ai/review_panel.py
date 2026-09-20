@@ -388,7 +388,10 @@ class ReviewPanel(QWidget):
         if not issues:
             body = f"维度「{short}」当前 {score:.2f}，暂无具体问题条目。"
             if score >= 0.85:
-                QMessageBox.information(self, f"质量 · {short}", body)
+                from src.application.shell_views import notify_toast
+
+                if not notify_toast(self, body, title=f"质量 · {short}"):
+                    QMessageBox.information(self, f"质量 · {short}", body)
                 return
             body += "\n是否仍按该维度让 AI 定向改进？"
         else:
@@ -440,7 +443,10 @@ class ReviewPanel(QWidget):
             return
         controller = self._design_panel._controller
         if controller.is_busy:
-            QMessageBox.information(self, "清待补", "当前有任务进行中，请稍候。")
+            from src.application.shell_views import notify_toast
+
+            if not notify_toast(self, "当前有任务进行中，请稍候。", title="清待补"):
+                QMessageBox.information(self, "清待补", "当前有任务进行中，请稍候。")
             return
         from src.backend.ai import fill_needs_review_resources
         from src.application.ai_request_worker import AiRequestWorker
@@ -464,7 +470,10 @@ class ReviewPanel(QWidget):
             self._design_panel._json_editor.set_json(result)
             controller.set_draft(result)
             self.refresh()
-            QMessageBox.information(self, "清待补", "已应用补全结果（可继续校验后导入）。")
+            from src.application.shell_views import notify_toast
+
+            if not notify_toast(self, "已应用补全结果（可继续校验后导入）。", severity="success", title="清待补"):
+                QMessageBox.information(self, "清待补", "已应用补全结果（可继续校验后导入）。")
 
         def _on_err(msg: str) -> None:
             self._fill_review_btn.setEnabled(True)
@@ -503,15 +512,18 @@ class ReviewPanel(QWidget):
         draft = self._draft()
         if draft is None:
             return
+        from src.application.shell_views import notify_toast
+
         if self.adapter is None:
-            QMessageBox.information(self, "对比", "未加载课程，无法对比。")
+            if not notify_toast(self, "未加载课程，无法对比。", title="对比"):
+                QMessageBox.information(self, "对比", "未加载课程，无法对比。")
             return
         try:
             existing = self.adapter.find_section(draft.get("id", ""))
         except KeyError:
-            QMessageBox.information(
-                self, "对比", "当前课程中没有同 id 的 section — 导入将是全新内容。"
-            )
+            msg = "当前课程中没有同 id 的 section — 导入将是全新内容。"
+            if not notify_toast(self, msg, title="对比"):
+                QMessageBox.information(self, "对比", msg)
             return
         from src.widgets.diff_view import SectionDiffView
 
@@ -572,12 +584,16 @@ class ReviewPanel(QWidget):
         draft = self._draft()
         if draft is None:
             return
+        from src.application.shell_views import notify_toast
+
         if self.adapter is None:
-            QMessageBox.information(self, "AI 修复", "未加载课程，无法校验与修复。")
+            if not notify_toast(self, "未加载课程，无法校验与修复。", title="AI 修复"):
+                QMessageBox.information(self, "AI 修复", "未加载课程，无法校验与修复。")
             return
         problems = self.adapter.validate_section_json(draft, check_existing_ids=False)
         if not problems:
-            QMessageBox.information(self, "AI 修复", "校验没有发现问题，无需修复。")
+            if not notify_toast(self, "校验没有发现问题，无需修复。", title="AI 修复"):
+                QMessageBox.information(self, "AI 修复", "校验没有发现问题，无需修复。")
             return
         from src.dialogs.ai_fix_dialog import AiFixDialog
 
@@ -611,11 +627,11 @@ class ReviewPanel(QWidget):
             max_issues=40,
         )
         if not problems and report.mean >= 0.85 and report.error_count == 0:
-            QMessageBox.information(
-                self,
-                "按质量分修复",
-                f"内容质量已较好（均值 {report.mean:.2f}），无需定向修复。",
-            )
+            msg = f"内容质量已较好（均值 {report.mean:.2f}），无需定向修复。"
+            from src.application.shell_views import notify_toast
+
+            if not notify_toast(self, msg, title="按质量分修复"):
+                QMessageBox.information(self, "按质量分修复", msg)
             return
         if not problems:
             problems = [
@@ -725,7 +741,10 @@ class ReviewPanel(QWidget):
     def _on_restore_checkpoint(self) -> None:
         controller = self._design_panel._controller
         if not controller.restore_draft_checkpoint():
-            QMessageBox.information(self, "恢复草稿", "没有可恢复的上一版草稿。")
+            from src.application.shell_views import notify_toast
+
+            if not notify_toast(self, "没有可恢复的上一版草稿。", title="恢复草稿"):
+                QMessageBox.information(self, "恢复草稿", "没有可恢复的上一版草稿。")
             return
         # Push restored draft into the editor (controller only holds the model).
         if controller.draft is not None:
@@ -798,7 +817,10 @@ class ReviewPanel(QWidget):
     def _on_regenerate_requested(self, kind: str, node_id: str) -> None:
         controller = self._design_panel._controller
         if controller.is_busy:
-            QMessageBox.information(self, "局部重生成", "当前有任务进行中，请稍候。")
+            from src.application.shell_views import notify_toast
+
+            if not notify_toast(self, "当前有任务进行中，请稍候。", title="局部重生成"):
+                QMessageBox.information(self, "局部重生成", "当前有任务进行中，请稍候。")
             return
         instruction = self._prompt_regenerate_instruction(kind, node_id)
         if instruction is None:

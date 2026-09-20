@@ -125,18 +125,23 @@ def on_extraction_save(dlg) -> None:
     )
     # Refresh the in-memory default library so the next extraction uses it.
     load_overrides_from(dlg._prompt_library)
-    QMessageBox.information(
-        dlg, "提取 Prompt", f"已保存 {language} / {source_language} 的覆盖模板。"
-    )
+    from src.application.shell_views import notify_toast
+
+    msg = f"已保存 {language} / {source_language} 的覆盖模板。"
+    if not notify_toast(dlg, msg, severity="success", title="提取 Prompt"):
+        QMessageBox.information(dlg, "提取 Prompt", msg)
 
 
 def on_extraction_delete(dlg) -> None:
     language, source_language = dlg._extraction_pair()
+    from src.application.shell_views import notify_toast
+
     if not dlg._prompt_library.delete_extraction_override(language, source_language):
-        QMessageBox.information(dlg, "提取 Prompt", "该语言对没有已保存的覆盖。")
+        if not notify_toast(dlg, "该语言对没有已保存的覆盖。", title="提取 Prompt"):
+            QMessageBox.information(dlg, "提取 Prompt", "该语言对没有已保存的覆盖。")
         return
     default_library().unregister_persisted(language, source_language)
     dlg._fill_extraction_defaults()
-    QMessageBox.information(
-        dlg, "提取 Prompt", f"已删除 {language} / {source_language} 的覆盖，回落到默认。"
-    )
+    msg = f"已删除 {language} / {source_language} 的覆盖，回落到默认。"
+    if not notify_toast(dlg, msg, title="提取 Prompt"):
+        QMessageBox.information(dlg, "提取 Prompt", msg)

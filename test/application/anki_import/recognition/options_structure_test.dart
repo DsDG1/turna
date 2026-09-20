@@ -302,7 +302,8 @@ void main() {
     );
   });
 
-  test('parseCorrectIndices handles Chinese brackets, colons, and suffixes', () {
+  test('parseCorrectIndices handles Chinese brackets, colons, and suffixes',
+      () {
     const options = ['甲', '乙', '丙', '丁'];
     expect(
       EmbeddedOptionsParser.parseCorrectIndices('【答案】B', options),
@@ -336,12 +337,14 @@ void main() {
 
   test('extractEmbeddedOptions supports hyphen and space separators', () {
     const hyphenFront = '题干：\nA - 苹果\nB - 香蕉\nC - 橙子';
-    final parsedHyphen = EmbeddedOptionsParser.extractEmbeddedOptions(hyphenFront);
+    final parsedHyphen =
+        EmbeddedOptionsParser.extractEmbeddedOptions(hyphenFront);
     expect(parsedHyphen, isNotNull);
     expect(parsedHyphen!.options, ['苹果', '香蕉', '橙子']);
 
     const spaceFront = '题干：\nA 苹果\nB 香蕉\nC 橙子';
-    final parsedSpace = EmbeddedOptionsParser.extractEmbeddedOptions(spaceFront);
+    final parsedSpace =
+        EmbeddedOptionsParser.extractEmbeddedOptions(spaceFront);
     expect(parsedSpace, isNotNull);
     expect(parsedSpace!.options, ['苹果', '香蕉', '橙子']);
   });

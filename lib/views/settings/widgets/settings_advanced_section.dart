@@ -171,8 +171,7 @@ class _LegacyCompatibilityBody extends StatelessWidget {
     if (confirmed != true || !context.mounted) return;
     await context.read<SettingsProvider>().resetLegacyCompatibilityDefaults();
     if (context.mounted) {
-      TurnaSnackBar.show(
-          context, AppStrings.settingsLegacyResetDefaultsDone);
+      TurnaSnackBar.show(context, AppStrings.settingsLegacyResetDefaultsDone);
     }
   }
 }

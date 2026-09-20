@@ -4,13 +4,41 @@
 
  ## 当前基线
 
-- 日期：2026-09-19（设置对话框重构 + 全局滚轮调参禁用 + 小屏适配 + 编辑视图减负四批落库，见下各节）；`python -m unittest` 收集 **2531 例 / 0 加载错误**（2505 + `test_settings_dialog` 13→16 + `test_wheel_guard` 6 + `test_ui_fit` 7 + `test_w3_editor` 37→42）
+- 日期：2026-09-20（P0 异步批次 + P1 Toast 批次 1，见下两节）；`python -m unittest` 收集 **2541 例 / 0 加载错误**（2537 + `test_shell_views` 新增 `NotifyToastResolutionTest` 4 例）
+
+## 2026-09-20 P1 Toast 批次 1（确认类模态框 → Toast，28 处）
+
+用例数 2537 -> 2541（+4，`test_shell_views.NotifyToastResolutionTest`）。验证：受影响模块逐进程全绿（shell_views 解析测试 + resource_editor + ai_fix_controller + publish_dialog 合并 25 例；review_panel + settings_dialog 合并 27 例；`test_shell_views` 全量与 `ci` 门禁另跑）；ruff 7 文件归零。
+
+| 项 | 变更 |
+|---|---|
+| 动机 | 141 处 `QMessageBox.information/warning`（不含 question）里约一半是单行结果告知——每次「已导出/已保存/无需修正」都弹模态框打断操作流；ToastHost 建好后仅 2 处采用 |
+| 基础设施 | `shell_views.notify_toast` 升级三级 host 解析：① `host.toast_host` 显式属性（壳层）；② 嵌入控件经 `window()` 上溯（中央栈内视图→MainWindow）；③ **可见**独立窗口/对话框懒建 ToastHost 并缓存回 `toast_host`。懒建仅 `isWindow() and isVisible()`——测试驱动未 show 控件永远走 fallback 弹回 QMessageBox，存量断言零破坏 |
+| 迁移原则 | 单行结果告知 → `notify_toast` + **调用方模块内** QMessageBox fallback（部分测试 patch 模块命名空间整 QMessageBox 符号，集中 helper 会绕过补丁）；question 决策 / 多行详情 / critical / 成功即关窗 → 保留模态 |
+| 迁移点位 | resource_editor 5（批量删除未选中/CSV 合并/CSV 导出/查重无果/资源包导出）· ai_fix_controller 5（找不到节点×2 warning 6s/无需修正/无法定位批次/已分 N 批）· review_panel 10（任务进行中×2/已应用补全/未加载课程×2/无同 id/无需修复/质量已较好/无可恢复草稿/质量维度分数）· git_library_tab 4（选中远程/令牌已存/已删/无令牌）· extraction_prompt_tab 3（覆盖已存/无覆盖/已删回落）· publish_dialog 1（报告已导出；发布成功随后 accept 会随窗销毁故保留模态） |
+| severity 约定 | 完成类=success、指引/空结果=info、警示=warning（duration 6000ms） |
+| 存量 | 未迁移模态（含 question）共 185 处 grep 计数（information/warning/critical 142 含 28 处 toast-fallback 行，纯模态 114 + question 43）；下批候选：teacher 窗口系（preview_window/vocab_table/item_ai_chip/template_editors/linear_flow）、generator_flows/design_panel/audio_controller warning 系、git_library 对话框（sync/lan_share/memo）、textbook_library、ai_edit_controller |
+
+## 2026-09-20 P0 异步批次（发布对话框 + 总览校验移出 UI 线程）
 - 全量用例（上次记录）：2499 collected；基线已知 `test_textbook_controller.LoadFileAsyncTest.test_stale_load_result_is_ignored` 曾在全量单进程 discover 下确定性失败——**单跑与模块级运行均通过**（2026-09 复核，疑似顺序敏感的上下文污染，根因未定位；全量单进程 discover 本身在本机还会疑似空转不终止，见下），命令：
   ```bash
   QT_QPA_PLATFORM=offscreen python -m unittest discover -s tests -p "test_*.py"
   ```
 - 记录勘误 ×2（历史条目原文保留）：① 2026-09-07 基线头所写「2 个 defer_resurface 永久 skip」经核实不存在（该文件 4 例无任何 skip 标记）；② 2026-09-06 adversarial 瘦身条目所写「保留 10 例独有覆盖」中 D14×4 与 D27 共 5 例实为与常规测试逐字或更强重复，已于本轮删除。
 - 文档勘误：历史条目中的 `tool/gui/aiEnhance.md` 已退役删除，现行 AI 能力文档为 `docs/ai_configuration_and_features_report.md`（历史条目的章节号 §8/§13 指当时文件，不再有效）。
+
+## 2026-09-20 P0 异步批次（发布对话框 + 总览校验移出 UI 线程）
+
+用例数 2531 -> 2537（+6：`test_publish_dialog` 新增 `PublishDialogAsyncTest` 3 例，`test_course_overview` 新增异步校验 3 例）。验证：受影响 4 模块逐进程全绿（`test_publish_dialog` 7 / `test_course_overview` 15 / `test_resources_controller`+`test_shell_views` 合并进程 56）；ruff 4 文件归零；顺带清掉 `test_course_overview` 既有 E741×2（tests 历史债 141→139）。
+
+| 项 | 变更 |
+|---|---|
+| 动机 | 三处重活在 UI 线程同步执行，大课程下整窗冻结数秒：①打开发布对话框即跑完整 `release_report()`（变更检测+版本+音频清单+diff+validate+lint CLI）；②发布点击同步 `apply_version_bump + save()`；③总览「刷新校验/校验角标」链接同步跑 validate+lint CLI（且 `refresh_with_validation`+`_emit_validation` 连跑两次 CLI） |
+| 发布对话框 | `PublishDialog` 新增 `load_async=True`（默认）：构造即渲染加载态（「正在生成发布报告…」，发布/导出禁用），`release_report` 交 `AiRequestWorker`；`result_ready` 后渲染+按校验结果启用按钮，`error_occurred` 显示失败且按钮保持禁用。`load_async=False` 保留同步路径（测试确定性渲染） |
+| 发布动作 | `_on_publish` 改 `{apply_version_bump(plan); save()}` 闭包交 worker；期间 `_publishing=True`：三按钮禁用、发布键文案「发布中…」、`reject()` 被吞（Esc/✕/取消不再撕开对话框——保存线程运行中关闭会让主窗口读到半 bump 模型）。失败恢复按钮+原 critical 提示，成功原提示+accept，语义与同步版一致 |
+| 总览校验 | 抽 `_collect_validation_problems()`（validate+lint → dict 列表，只读磁盘不碰内存模型，线程安全）；`#validate`/`#validation` 链接改 `_fetch_validation_async()`：busy 提示「校验中…」→ worker 结果缓存进 `_validation_problems` + `dataclasses.replace` 更新 `_stats` 计数 + 重建统计行 + emit。`#validation` 命中缓存同步 emit（零 CLI）；`refresh()` 复用缓存计数防闪烁；删无调用方的 `refresh_with_validation()`；worker 运行中防重复点击 |
+| 数据安全 | 对话框模态期间主窗口输入被阻塞 → 内存模型无并发修改（同 `run_async_direct_save` 冻结中央区的保证）；worker 无父对象靠 `_LIVE_WORKERS` 保活，对话框先销毁时 Qt 自动断连 |
+| API | `_emit_validation()` 同步语义保留（测试直调）；`_load_report` 拆出 `_render_report`；`PublishDialog` 存 `cancel_btn` 引用 |
 
 ## 2026-09-19 编辑视图减负（属性折叠 + 分段视图切换）
 

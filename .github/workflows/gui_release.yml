@@ -1,0 +1,56 @@
+name: GUI Release
+
+# Builds the PySide6 course editor into a onefile exe and attaches it to a
+# GitHub Release. Push a `gui-v*` tag to ship; workflow_dispatch runs the same
+# pipeline but only uploads a build artifact (no release is created).
+on:
+  push:
+    tags:
+      - "gui-v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write # required to create the GitHub Release (tag builds only)
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: tool/gui/pyproject.toml
+
+      - name: Install GUI editor dependencies
+        run: python -m pip install "./tool/gui[dev]" pyinstaller
+
+      - name: Lint GUI editor (ruff, src only)
+        run: ruff check tool/gui/src
+
+      - name: Run GUI editor gate tests (ci tier)
+        working-directory: tool/gui
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python run_gui_tests.py ci -j 4
+
+      - name: Build onefile exe
+        run: python tool/gui/build_gui.py --clean
+
+      - name: Upload exe artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: turna-gui-exe
+          path: dist/turna-gui.exe
+
+      - name: Attach exe to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/gui-v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/turna-gui.exe
+          generate_release_notes: true

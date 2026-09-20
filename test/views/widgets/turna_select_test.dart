@@ -40,7 +40,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(selected, _Mode.b);
     expect(
-      tester.widget<SegmentedButton<_Mode>>(find.byType(SegmentedButton<_Mode>))
+      tester
+          .widget<SegmentedButton<_Mode>>(find.byType(SegmentedButton<_Mode>))
           .selected,
       {_Mode.b},
     );

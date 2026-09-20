@@ -145,8 +145,7 @@ void main() {
       expect(await dao.loadQueue('grammar'), isEmpty);
     });
 
-    test('deleteByPrefix with a queue scope stays inside that queue',
-        () async {
+    test('deleteByPrefix with a queue scope stays inside that queue', () async {
       await dao.upsert('srs', makeWord(id: 'anki-imp-c1'));
       await dao.upsert('grammar', makeWord(id: 'anki-imp-g9'));
       await dao.deleteByPrefix('anki-imp-', queue: 'srs');

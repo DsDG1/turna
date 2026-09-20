@@ -11,6 +11,14 @@ Both modes reuse the CourseAdapter release_report + apply_version_bump +
 save pipeline; validate failures disable the publish button (guiplan
 §15.9; §12 risk table requires showing the version change and keeping the
 ability to cancel in expert mode).
+
+The report fetch and the publish save both run on an ``AiRequestWorker``
+(same pattern as ``save_host.run_async_direct_save``) so opening or
+publishing never freezes the UI thread on large courses. While a worker is
+in flight the dialog is application-modal over the main window, so the
+in-memory model cannot be edited concurrently — the same data-safety
+guarantee the old synchronous freeze provided. ``reject()`` is ignored
+while publishing so the save thread can never be torn down mid-write.
 """
 from __future__ import annotations
 
@@ -41,6 +49,7 @@ class PublishDialog(TurnaDialog):
         parent: QWidget | None = None,
         *,
         teacher_friendly: bool = False,
+        load_async: bool = True,
     ) -> None:
         super().__init__(parent, title="准备发布")
         if teacher_friendly:
@@ -51,9 +60,23 @@ class PublishDialog(TurnaDialog):
         self.teacher_friendly = teacher_friendly
         self._bump_checks: dict[str, QCheckBox] = {}
         self._report: dict[str, Any] = {}
+        self._load_worker = None
+        self._publish_worker = None
+        self._publishing = False
 
         self._build_ui()
-        self._load_report()
+        if load_async:
+            self._show_loading_state()
+            self._start_report_worker()
+        else:
+            self._load_report()
+
+    def reject(self) -> None:
+        # A publish save is mutating the model on a worker thread; closing
+        # now would let the main window read a half-bumped model.
+        if self._publishing:
+            return
+        super().reject()
 
     # --- ui ---------------------------------------------------------------
 
@@ -75,7 +98,7 @@ class PublishDialog(TurnaDialog):
         )
         self._footer.removeWidget(self.export_btn)
         self._footer.insertWidget(0, self.export_btn)
-        self.add_button("取消", slot=self.reject)
+        self.cancel_btn = self.add_button("取消", slot=self.reject)
         self.ok_btn = self.add_button(
             "发布" if self.teacher_friendly else "确认发布",
             variant="primary",
@@ -123,8 +146,36 @@ class PublishDialog(TurnaDialog):
 
     # --- load / render -----------------------------------------------------
 
+    def _show_loading_state(self) -> None:
+        self.changes_label.setText("正在生成发布报告…")
+        self.ok_btn.setEnabled(False)
+        self.export_btn.setEnabled(False)
+
+    def _start_report_worker(self) -> None:
+        from src.application.ai_request_worker import AiRequestWorker
+
+        worker = AiRequestWorker(self.adapter.release_report)
+        worker.result_ready.connect(self._on_report_ready)
+        worker.error_occurred.connect(self._on_report_error)
+        self._load_worker = worker
+        worker.start()
+
+    def _on_report_ready(self, report: dict[str, Any]) -> None:
+        self._load_worker = None
+        self._report = report
+        self._render_report()
+        self.export_btn.setEnabled(True)
+
+    def _on_report_error(self, message: str) -> None:
+        self._load_worker = None
+        self.validation_label.setText(f"✗ 发布报告生成失败：{message}")
+        self.validation_label.setProperty("textRole", "error")
+
     def _load_report(self) -> None:
         self._report = self.adapter.release_report()
+        self._render_report()
+
+    def _render_report(self) -> None:
         self._render_changes()
         if self.teacher_friendly:
             self._render_audio()
@@ -291,11 +342,35 @@ class PublishDialog(TurnaDialog):
                 for key, cb in self._bump_checks.items()
                 if cb.isChecked()
             }
-        self.adapter.apply_version_bump(real_plan)
-        result: SaveResult = self.adapter.save()
+        self._set_publishing_busy(True)
+
+        def _do_publish() -> SaveResult:
+            self.adapter.apply_version_bump(real_plan)
+            return self.adapter.save()
+
+        from src.application.ai_request_worker import AiRequestWorker
+
+        worker = AiRequestWorker(_do_publish)
+        worker.result_ready.connect(self._on_publish_result)
+        worker.error_occurred.connect(self._on_publish_error)
+        self._publish_worker = worker
+        worker.start()
+
+    def _set_publishing_busy(self, busy: bool) -> None:
+        self._publishing = busy
+        for btn in (self.ok_btn, self.export_btn, self.cancel_btn):
+            btn.setEnabled(not busy)
+        self.ok_btn.setText(
+            "发布中…" if busy else ("发布" if self.teacher_friendly else "确认发布")
+        )
+
+    def _on_publish_result(self, result: SaveResult) -> None:
+        self._publish_worker = None
         if not result.ok:
+            self._set_publishing_busy(False)
             QMessageBox.critical(self, "发布失败", result.message)
             return
+        self._set_publishing_busy(False)
         QMessageBox.information(
             self,
             "发布成功",
@@ -303,6 +378,11 @@ class PublishDialog(TurnaDialog):
             else "版本号已 bump 并保存校验通过。",
         )
         self.accept()
+
+    def _on_publish_error(self, message: str) -> None:
+        self._publish_worker = None
+        self._set_publishing_busy(False)
+        QMessageBox.critical(self, "发布失败", message)
 
     def _on_export(self) -> None:
         path, _ = QFileDialog.getSaveFileName(
@@ -313,7 +393,12 @@ class PublishDialog(TurnaDialog):
         from pathlib import Path
 
         Path(path).write_text(self._report_text(), encoding="utf-8")
-        QMessageBox.information(self, "已导出", f"报告已写入 {path}")
+        # The dialog stays open after exporting, so a toast on it is safe
+        # (unlike the publish-success box, which precedes accept()).
+        from src.application.shell_views import notify_toast
+
+        if not notify_toast(self, f"报告已写入 {path}", severity="success", title="已导出"):
+            QMessageBox.information(self, "已导出", f"报告已写入 {path}")
 
     def _report_text(self) -> str:
         r = self._report

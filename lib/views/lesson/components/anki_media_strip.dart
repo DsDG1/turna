@@ -107,8 +107,7 @@ class _AnkiMediaStripState extends State<AnkiMediaStrip> {
       started = false;
     }
     if (!started && mounted) {
-      TurnaSnackBar.maybeShow(
-          context, AppStrings.lessonAudioPlaybackFailed);
+      TurnaSnackBar.maybeShow(context, AppStrings.lessonAudioPlaybackFailed);
     }
   }
 

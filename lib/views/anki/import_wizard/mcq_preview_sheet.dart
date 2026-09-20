@@ -206,8 +206,7 @@ class _McqPreviewContentState extends State<_McqPreviewContent> {
               ),
               child: Row(
                 children: [
-                  _modeTab(
-                      0, AppStrings.mcqPreviewModeInteractive,
+                  _modeTab(0, AppStrings.mcqPreviewModeInteractive,
                       selectedModeIndex == 0),
                   _modeTab(1, AppStrings.mcqPreviewModeClassic,
                       selectedModeIndex == 1),

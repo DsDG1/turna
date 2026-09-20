@@ -108,8 +108,8 @@ class OfficialAnkiV2ViewRebuilder {
     }
   }
 
-  static Map<String, List<OfficialAnkiCardDescriptor>>
-      _readCardsFromCatalog(String catalogPath, List<String> sourceIds) {
+  static Map<String, List<OfficialAnkiCardDescriptor>> _readCardsFromCatalog(
+      String catalogPath, List<String> sourceIds) {
     final db = OfficialAnkiDatabase.file(catalogPath);
     try {
       final dao = OfficialAnkiSourceDao(db);

@@ -240,7 +240,10 @@ def on_add_remote(dlg) -> None:
 def on_edit_remote(dlg) -> None:
     row = dlg.remotes_table.currentRow()
     if row < 0:
-        QMessageBox.information(dlg, "编辑远程", "请先选中一个远程。")
+        from src.application.shell_views import notify_toast
+
+        if not notify_toast(dlg, "请先选中一个远程。", title="编辑远程"):
+            QMessageBox.information(dlg, "编辑远程", "请先选中一个远程。")
         return
     name = dlg.remotes_table.item(row, 0).text()
     dlg._edit_remote_dialog(name)
@@ -312,7 +315,10 @@ def on_set_token(dlg) -> None:
     if not ok:
         return
     credential_store.set_git_token(url, token)
-    QMessageBox.information(dlg, "已保存", "令牌已存储。")
+    from src.application.shell_views import notify_toast
+
+    if not notify_toast(dlg, "令牌已存储。", severity="success", title="已保存"):
+        QMessageBox.information(dlg, "已保存", "令牌已存储。")
 
 
 
@@ -320,8 +326,12 @@ def on_del_token(dlg) -> None:
     url = dlg.cred_url_combo.currentText().strip()
     if not url:
         return
+    from src.application.shell_views import notify_toast
+
     if credential_store.delete_git_token(url):
-        QMessageBox.information(dlg, "已删除", "令牌已删除。")
+        if not notify_toast(dlg, "令牌已删除。", severity="success", title="已删除"):
+            QMessageBox.information(dlg, "已删除", "令牌已删除。")
     else:
-        QMessageBox.information(dlg, "无令牌", "该 URL 没有已存储的令牌。")
+        if not notify_toast(dlg, "该 URL 没有已存储的令牌。", title="无令牌"):
+            QMessageBox.information(dlg, "无令牌", "该 URL 没有已存储的令牌。")
 
