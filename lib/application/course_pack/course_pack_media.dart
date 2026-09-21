@@ -34,6 +34,19 @@ class CoursePackMedia {
   @visibleForTesting
   static Directory? debugPersistRoot;
 
+  /// Resolved-path memo for [resolveFile]: each uncached call costs a
+  /// platform-channel hop (persist root) plus a synchronous
+  /// `File.existsSync()` on the UI isolate, and tile rebuilds re-run it per
+  /// frame. Keyed by persist-root identity so tests swapping
+  /// [debugPersistRoot]/[persist] never cross streams. Anything that mutates
+  /// the media tree ([deleteExtractedMedia], pack re-import) must call
+  /// [invalidateResolveCache].
+  static final Map<String, String?> _resolveCache = {};
+
+  /// Drop every memoized [resolveFile] result. Call after the on-disk media
+  /// tree changes (staged extraction swap-in, uninstall).
+  static void invalidateResolveCache() => _resolveCache.clear();
+
   static bool isPackAsset(String? path) =>
       path != null && path.startsWith(scheme);
 
@@ -76,6 +89,20 @@ class CoursePackMedia {
     Directory? persist,
   }) async {
     if (!isPackAsset(assetPath)) return null;
+    final rootKey = persist?.path ?? debugPersistRoot?.path ?? '';
+    final cacheKey = '$rootKey|$assetPath';
+    final cached = _resolveCache[cacheKey];
+    // containsKey: a memoized null (missing file) is a valid result.
+    if (_resolveCache.containsKey(cacheKey)) return cached;
+    final resolved = await _resolveFileUncached(assetPath, persist: persist);
+    _resolveCache[cacheKey] = resolved;
+    return resolved;
+  }
+
+  static Future<String?> _resolveFileUncached(
+    String assetPath, {
+    Directory? persist,
+  }) async {
     final body = assetPath.substring(scheme.length);
     final slash = body.indexOf('/');
     if (slash <= 0 || slash == body.length - 1) return null;
@@ -97,6 +124,7 @@ class CoursePackMedia {
     if (dir.existsSync()) {
       dir.deleteSync(recursive: true);
     }
+    invalidateResolveCache();
   }
 
   static bool isAllowedMediaName(String relative) {

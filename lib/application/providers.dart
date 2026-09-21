@@ -43,17 +43,22 @@ import 'package:turna/di/injection.dart';
 /// **same** instance that constructor-injected collaborators receive
 /// (stateful services are `@lazySingleton` — see Wave A).
 final providers = [
+  // Stateful AI providers must resolve their GetIt lazySingletons — the same
+  // instances constructor-injected collaborators receive (SrsTutorProvider
+  // writes AiCourseProvider via getIt; the helper sheet reads it via the
+  // tree). TextbookImportProvider is the exception: no GetIt registration and
+  // no service-side consumer, so the tree stays its single construction site.
   ChangeNotifierProvider<AiCourseProvider>(
-    create: (_) => AiCourseProvider(),
+    create: (_) => getIt<AiCourseProvider>(),
   ),
   ChangeNotifierProvider<AiWishProvider>(
-    create: (_) => AiWishProvider(),
+    create: (_) => getIt<AiWishProvider>(),
   ),
   ChangeNotifierProvider<AiGroundedResourceProvider>(
-    create: (_) => AiGroundedResourceProvider(),
+    create: (_) => getIt<AiGroundedResourceProvider>(),
   ),
   ChangeNotifierProvider<AiLessonHelperProvider>(
-    create: (_) => AiLessonHelperProvider(),
+    create: (_) => getIt<AiLessonHelperProvider>(),
   ),
   ChangeNotifierProvider<TextbookImportProvider>(
     create: (_) => TextbookImportProvider(),

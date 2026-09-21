@@ -4,8 +4,19 @@ on:
   push:
     branches:
       - master  # Default branch of this repository
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
   pull_request:
     types: [opened, closed, edited]  # Modify as needed
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+
+# Superseded runs on the same ref are cancelled instead of stacking up.
+concurrency:
+  group: discord-notification-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -15,22 +26,39 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Actor / commit message / PR title reach the shell only through env
+      # vars, never via ${{ }} interpolation inside run: — the latter lets a
+      # crafted commit message execute arbitrary shell and exfiltrate
+      # DISCORD_WEBHOOK_URL. jq builds the JSON with proper escaping.
       - name: Send Discord Notification for Push Event
         if: github.event_name == 'push'
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          ACTOR: ${{ github.actor }}
+          REF_NAME: ${{ github.ref_name }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
+          payload=$(jq -n --arg actor "$ACTOR" --arg ref "$REF_NAME" \
+            --arg msg "$COMMIT_MESSAGE" \
+            '{content: ("🚀 New push by *\($actor)* on branch *\($ref)*:\nCommit Message: *\($msg)*")}')
           curl -H "Content-Type: application/json" \
-          -X POST \
-          -d "{\"content\": \"🚀 New push by *${{ github.actor }}* on branch *${{ github.ref_name }}:\nCommit Message: *${{ github.event.head_commit.message }}\"}" \
-          $DISCORD_WEBHOOK_URL
+            -X POST \
+            -d "$payload" \
+            "$DISCORD_WEBHOOK_URL"
 
       - name: Send Discord Notification for Pull Request Event
         if: github.event_name == 'pull_request'
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          ACTOR: ${{ github.actor }}
+          ACTION: ${{ github.event.action }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
         run: |
+          payload=$(jq -n --arg actor "$ACTOR" --arg action "$ACTION" \
+            --arg title "$PR_TITLE" --arg url "$PR_URL" \
+            '{content: ("📢 Pull request *\($action)* by *\($actor)*:\nTitle: *\($title)*\nURL: \($url)")}')
           curl -H "Content-Type: application/json" \
-          -X POST \
-          -d "{\"content\": \"📢 Pull request *${{ github.event.action }}* by *${{ github.actor }}:\nTitle: *${{ github.event.pull_request.title }}\nURL: ${{ github.event.pull_request.html_url }}\"}" \
-          $DISCORD_WEBHOOK_URL
+            -X POST \
+            -d "$payload" \
+            "$DISCORD_WEBHOOK_URL"

@@ -16,6 +16,7 @@ import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:turna/application/ai/ai_course_provider.dart';
+import 'package:turna/application/ai/ai_grounded_resource_provider.dart';
 import 'package:turna/application/ai/engine/ai_cache.dart';
 import 'package:turna/application/ai/engine/ai_cancel_token.dart';
 import 'package:turna/application/ai/engine/ai_engine.dart';
@@ -139,7 +140,11 @@ class _FakeSrsStateDao implements SrsStateDao {
 
 class _RecordingAiCourseProvider extends AiCourseProvider {
   _RecordingAiCourseProvider({required AiEngine engine})
-      : super.withEngine(engine);
+      : super.withEngine(engine,
+            // Explicit grounded provider: this suite wires a partial GetIt
+            // (repo only, no configureDependencies), so the constructor's
+            // singleton fallback would throw here.
+            groundedProvider: AiGroundedResourceProvider());
 
   Map<String, dynamic>? saved;
 

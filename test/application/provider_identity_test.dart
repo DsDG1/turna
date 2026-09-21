@@ -7,6 +7,10 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
+import 'package:turna/application/ai/ai_course_provider.dart';
+import 'package:turna/application/ai/ai_grounded_resource_provider.dart';
+import 'package:turna/application/ai/ai_lesson_helper_provider.dart';
+import 'package:turna/application/ai/ai_wish_provider.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/grammar_review_provider.dart';
@@ -109,6 +113,46 @@ void main() {
       );
       expect(
         identical(ctx.read<ThemeProvider>(), getIt<ThemeProvider>()),
+        isTrue,
+      );
+    },
+  );
+
+  // Regression: the AI providers used to be hand-constructed here while their
+  // GetIt lazySingletons were injected into services (SrsTutorProvider reads
+  // AiCourseProvider via getIt), so tutor writes never reached the tree.
+  testWidgets(
+    'AI providers on the tree are the same instances services receive',
+    (tester) async {
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: providers,
+          child: const SizedBox(key: Key('root')),
+        ),
+      );
+
+      final ctx = tester.element(find.byKey(const Key('root')));
+
+      expect(
+        identical(ctx.read<AiCourseProvider>(), getIt<AiCourseProvider>()),
+        isTrue,
+      );
+      expect(
+        identical(ctx.read<AiWishProvider>(), getIt<AiWishProvider>()),
+        isTrue,
+      );
+      expect(
+        identical(
+          ctx.read<AiGroundedResourceProvider>(),
+          getIt<AiGroundedResourceProvider>(),
+        ),
+        isTrue,
+      );
+      expect(
+        identical(
+          ctx.read<AiLessonHelperProvider>(),
+          getIt<AiLessonHelperProvider>(),
+        ),
         isTrue,
       );
     },

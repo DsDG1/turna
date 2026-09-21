@@ -1,4 +1,6 @@
 // Flutter imports:
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 // Package imports:
@@ -31,14 +33,24 @@ class _DictionaryPageState extends State<DictionaryPage> {
   final _controller = TextEditingController();
   List<DictionaryHit> _hits = const [];
 
+  /// searchDictionary is a synchronous linear scan over the whole vocab /
+  /// expression / grammar index; without a debounce every keystroke ran it
+  /// on the UI isolate (same 250ms pattern as the Anki card browser).
+  Timer? _debounce;
+
   @override
   void dispose() {
+    _debounce?.cancel();
     _controller.dispose();
     super.dispose();
   }
 
   void _onQueryChanged(String value) {
-    setState(() => _hits = searchDictionary(value));
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 250), () {
+      if (!mounted) return;
+      setState(() => _hits = searchDictionary(value));
+    });
   }
 
   Future<void> _speak(DictionaryHit hit) async {

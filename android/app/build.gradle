@@ -77,7 +77,12 @@ android {
     defaultConfig {
         applicationId "me.dsdogs.turna"
         // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
-        minSdkVersion flutter.minSdkVersion
+        // Pinned explicitly: the Rust Anki core (.so) is linked against
+        // platform 24 (native/turna_anki_core/build-android/build.sh), so the
+        // implicit `flutter.minSdkVersion` must not be allowed to drift below
+        // that. Keep flutter_launcher_icons.min_sdk_android in pubspec.yaml
+        // in sync.
+        minSdkVersion 24
         targetSdkVersion flutter.targetSdkVersion
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName

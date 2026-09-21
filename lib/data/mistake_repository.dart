@@ -70,14 +70,107 @@ class MistakeRepository {
           b.insert(_db.mistakes, _toCompanion(code, kept[i], i));
         }
       });
-      await _db.into(_db.mistakeAggregates).insertOnConflictUpdate(
-            MistakeAggregatesCompanion(
-              languageCode: Value(code),
-              dailyCountsJson: Value(jsonEncode(dailyCounts)),
-              masteredTotal: Value(masteredTotal),
-            ),
-          );
+      await _writeAggregates(code, dailyCounts, masteredTotal);
     });
+  }
+
+  /// Append [entry] as the newest row (FIFO tail) without rewriting the rest
+  /// of the table. The hot path (`record`) used to DELETE-all + rebuild up to
+  /// [defaultMaxEntries] rows per wrong answer; this writes exactly one row.
+  /// The next sort order is read from the current tail inside the same
+  /// transaction, so gaps left by deletes never reorder the log.
+  /// [evictOldest] drops the head row first when the caller's in-memory cap
+  /// is exceeded. Aggregates are refreshed from the caller's cached values as
+  /// a single-row upsert.
+  Future<void> insertEntry({
+    required String languageCode,
+    required MistakeEntry entry,
+    required Map<String, int> dailyCounts,
+    required int masteredTotal,
+    bool evictOldest = false,
+  }) async {
+    final code = LanguageCodes.canonicalize(languageCode);
+    await _db.transaction(() async {
+      if (evictOldest) {
+        final oldest = await (_db.select(_db.mistakes)
+              ..where((t) => t.languageCode.equals(code))
+              ..orderBy([(t) => OrderingTerm.asc(t.sortOrder)])
+              ..limit(1))
+            .getSingleOrNull();
+        if (oldest != null) {
+          await (_db.delete(_db.mistakes)
+                ..where((t) =>
+                    t.languageCode.equals(code) & t.id.equals(oldest.id)))
+              .go();
+        }
+      }
+      final maxOrder = _db.selectOnly(_db.mistakes)
+        ..addColumns([_db.mistakes.sortOrder.max()])
+        ..where(_db.mistakes.languageCode.equals(code));
+      final row = await maxOrder.getSingle();
+      final nextOrder = (row.read(_db.mistakes.sortOrder.max()) ?? -1) + 1;
+      await _db.into(_db.mistakes).insert(
+            _toCompanion(code, entry, nextOrder),
+          );
+      await _writeAggregates(code, dailyCounts, masteredTotal);
+    });
+  }
+
+  /// Update one stored entry in place (e.g. a rewriteCount bump) without
+  /// touching row order or the rest of the table. Aggregates are refreshed
+  /// only when the caller passes new values.
+  Future<void> updateEntry({
+    required String languageCode,
+    required MistakeEntry entry,
+    Map<String, int>? dailyCounts,
+    int? masteredTotal,
+  }) async {
+    final code = LanguageCodes.canonicalize(languageCode);
+    await (_db.update(_db.mistakes)
+          ..where((t) => t.languageCode.equals(code) & t.id.equals(entry.id)))
+        .write(_toCompanion(code, entry, null));
+    if (dailyCounts != null || masteredTotal != null) {
+      await _writeAggregates(code, dailyCounts ?? const {}, masteredTotal ?? 0);
+    }
+  }
+
+  /// Delete the given entries in one statement (review-session mastery,
+  /// deck-uninstall bookkeeping) plus a single-row aggregates refresh.
+  Future<void> deleteEntriesByIds({
+    required String languageCode,
+    required Iterable<String> ids,
+    Map<String, int>? dailyCounts,
+    int? masteredTotal,
+  }) async {
+    final code = LanguageCodes.canonicalize(languageCode);
+    final idSet = ids.toSet();
+    if (idSet.isEmpty) return;
+    await _db.transaction(() async {
+      await (_db.delete(_db.mistakes)
+            ..where((t) => t.languageCode.equals(code) & t.id.isIn(idSet)))
+          .go();
+      if (dailyCounts != null || masteredTotal != null) {
+        await _writeAggregates(
+          code,
+          dailyCounts ?? const {},
+          masteredTotal ?? 0,
+        );
+      }
+    });
+  }
+
+  Future<void> _writeAggregates(
+    String code,
+    Map<String, int> dailyCounts,
+    int masteredTotal,
+  ) {
+    return _db.into(_db.mistakeAggregates).insertOnConflictUpdate(
+          MistakeAggregatesCompanion(
+            languageCode: Value(code),
+            dailyCountsJson: Value(jsonEncode(dailyCounts)),
+            masteredTotal: Value(masteredTotal),
+          ),
+        );
   }
 
   Future<void> deleteLanguage(String languageCode) async {
@@ -157,7 +250,7 @@ class MistakeRepository {
   MistakesCompanion _toCompanion(
     String languageCode,
     MistakeEntry entry,
-    int sortOrder,
+    int? sortOrder,
   ) {
     return MistakesCompanion.insert(
       id: entry.id,
@@ -177,7 +270,8 @@ class MistakeRepository {
       correctAnswer: Value(entry.correctAnswer),
       timestampMs: entry.timestamp.millisecondsSinceEpoch,
       rewriteCount: Value(entry.rewriteCount),
-      sortOrder: Value(sortOrder),
+      // Absent for in-place updates so a bump never clobbers the FIFO order.
+      sortOrder: sortOrder == null ? const Value.absent() : Value(sortOrder),
     );
   }
 

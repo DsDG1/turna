@@ -159,9 +159,17 @@ class _AnkiMediaStripState extends State<AnkiMediaStrip> {
             padding: const EdgeInsets.only(bottom: 8),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
+              // Decode cap (same formula as CachedAssetImage): deck media is
+              // routinely multi-megapixel; without it a 160-logical-px
+              // thumbnail decodes at full resolution into memory.
               child: Image.file(
                 File(path),
                 height: 160,
+                cacheHeight:
+                    (160 * MediaQuery.devicePixelRatioOf(context)).round(),
+                cacheWidth: (MediaQuery.sizeOf(context).width.clamp(0, 600) *
+                        MediaQuery.devicePixelRatioOf(context))
+                    .round(),
                 fit: BoxFit.contain,
                 errorBuilder: (_, __, ___) => const SizedBox.shrink(),
               ),

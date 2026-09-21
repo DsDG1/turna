@@ -471,7 +471,9 @@ class StudyLogRepository implements IStudyLogRepository {
     stopwatch.stop();
     StorageWriteTelemetry.instance.record(
       key: key,
-      estimatedBytes: utf8.encode(encoded).length,
+      // Character count approximates payload size for telemetry; encoding a
+      // second full UTF-8 copy just to count bytes doubled the write cost.
+      estimatedBytes: encoded.length,
       elapsed: stopwatch.elapsed,
     );
   }

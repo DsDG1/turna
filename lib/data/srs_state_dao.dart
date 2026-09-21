@@ -88,6 +88,27 @@ class SrsStateDao {
     await query.go();
   }
 
+  /// Delete many state rows in one statement (import rollback). Same scoping
+  /// contract as [delete].
+  Future<void> deleteMany(
+    Iterable<String> wordIds, {
+    String? queue,
+    String? languageCode,
+  }) async {
+    final ids = wordIds.toSet();
+    if (ids.isEmpty) return;
+    final query = _db.delete(_db.srsStates)..where((t) => t.wordId.isIn(ids));
+    if (queue != null) {
+      query.where((t) => t.queue.equals(queue));
+    }
+    if (languageCode != null) {
+      query.where(
+        (t) => t.languageCode.equals(LanguageCodes.canonicalize(languageCode)),
+      );
+    }
+    await query.go();
+  }
+
   Future<void> deleteByLanguage(String languageCode) async {
     await (_db.delete(_db.srsStates)
           ..where((t) =>

@@ -467,45 +467,63 @@ class DatabaseSeeder {
               ),
             );
 
-        for (var uOrder = 0; uOrder < section.units.length; uOrder++) {
-          final u = section.units[uOrder];
-          await db.into(db.units).insert(
-                UnitsCompanion(
-                  id: Value(u.id),
+        // One drift round-trip per table instead of per row: `.turnapack`
+        // imports can carry ~9300 lessons, and per-lesson awaits make the
+        // section transaction run for minutes. Same companions as the vocab
+        // batch above; the transaction keeps section atomicity.
+        await db.batch((b) {
+          for (var uOrder = 0; uOrder < section.units.length; uOrder++) {
+            final u = section.units[uOrder];
+            b.insert(
+              db.units,
+              UnitsCompanion(
+                id: Value(u.id),
+                languageCode: Value(code),
+                sectionId: Value(section.id),
+                name: Value(u.name),
+                description: Value(u.description),
+                prerequisiteUnitIds: Value(jsonEncode(u.prerequisiteUnitIds)),
+                sortOrder: Value(uOrder),
+              ),
+            );
+          }
+        });
+        await db.batch((b) {
+          for (final u in section.units) {
+            for (var lOrder = 0; lOrder < u.lessons.length; lOrder++) {
+              final l = u.lessons[lOrder];
+              b.insert(
+                db.lessons,
+                LessonsCompanion(
+                  id: Value(l.id),
                   languageCode: Value(code),
-                  sectionId: Value(section.id),
-                  name: Value(u.name),
-                  description: Value(u.description),
-                  prerequisiteUnitIds: Value(jsonEncode(u.prerequisiteUnitIds)),
-                  sortOrder: Value(uOrder),
+                  unitId: Value(u.id),
+                  name: Value(l.name),
+                  description: Value(l.description),
+                  type: Value(l.type.name),
+                  template: Value(l.template.name),
+                  prerequisiteLessonIds:
+                      Value(jsonEncode(l.prerequisiteLessonIds)),
+                  sortOrder: Value(lOrder),
                 ),
               );
-
-          for (var lOrder = 0; lOrder < u.lessons.length; lOrder++) {
-            final l = u.lessons[lOrder];
-            await db.into(db.lessons).insert(
-                  LessonsCompanion(
-                    id: Value(l.id),
-                    languageCode: Value(code),
-                    unitId: Value(u.id),
-                    name: Value(l.name),
-                    description: Value(l.description),
-                    type: Value(l.type.name),
-                    template: Value(l.template.name),
-                    prerequisiteLessonIds:
-                        Value(jsonEncode(l.prerequisiteLessonIds)),
-                    sortOrder: Value(lOrder),
-                  ),
-                );
-            await db.into(db.lessonContents).insert(
-                  LessonContentsCompanion(
-                    lessonId: Value(l.id),
-                    languageCode: Value(code),
-                    contentJson: Value(jsonEncode(l.content.toJson())),
-                  ),
-                );
+            }
           }
-        }
+        });
+        await db.batch((b) {
+          for (final u in section.units) {
+            for (final l in u.lessons) {
+              b.insert(
+                db.lessonContents,
+                LessonContentsCompanion(
+                  lessonId: Value(l.id),
+                  languageCode: Value(code),
+                  contentJson: Value(jsonEncode(l.content.toJson())),
+                ),
+              );
+            }
+          }
+        });
       });
       sectionCount++;
       logger.i(

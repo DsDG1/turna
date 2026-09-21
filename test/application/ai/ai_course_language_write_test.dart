@@ -14,6 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:turna/application/ai/ai_course_provider.dart';
+import 'package:turna/application/ai/ai_grounded_resource_provider.dart';
 import 'package:turna/application/ai/engine/ai_cache.dart';
 import 'package:turna/application/ai/engine/ai_engine.dart';
 import 'package:turna/application/ai/engine/ai_http_client.dart';
@@ -88,6 +89,10 @@ AiCourseProvider _provider() => AiCourseProvider.withEngine(
             MockClient((_) async => http.Response('', 500))),
         AiCache.forTest(maxEntries: 0, enabled: false),
       ),
+      // Explicit grounded provider: this suite wires a partial GetIt (repo
+      // only, no configureDependencies), so the constructor's singleton
+      // fallback would throw here.
+      groundedProvider: AiGroundedResourceProvider(),
     );
 
 Future<List<String>> _languagesOf(

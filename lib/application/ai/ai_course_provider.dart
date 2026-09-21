@@ -44,12 +44,14 @@ class AiCourseProvider extends AiRequestSessionBase {
       {AiEngine? engine, AiGroundedResourceProvider? groundedProvider})
       : _engine = engine ?? getIt<AiEngine>(),
         _service = AiCourseService(),
-        _groundedProvider = groundedProvider ?? AiGroundedResourceProvider();
+        _groundedProvider =
+            groundedProvider ?? getIt<AiGroundedResourceProvider>();
 
   AiCourseProvider.withEngine(this._engine,
       {AiGroundedResourceProvider? groundedProvider})
       : _service = AiCourseService(),
-        _groundedProvider = groundedProvider ?? AiGroundedResourceProvider();
+        _groundedProvider =
+            groundedProvider ?? getIt<AiGroundedResourceProvider>();
 
   final AiEngine _engine;
   final AiCourseService _service;

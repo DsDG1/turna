@@ -32,6 +32,7 @@ void main() {
       addTearDown(() {
         if (root.existsSync()) root.deleteSync(recursive: true);
         CoursePackMedia.debugPersistRoot = null;
+        CoursePackMedia.invalidateResolveCache();
       });
       CoursePackMedia.debugPersistRoot = root;
       final media = Directory(p.join(root.path, 'es', 'media'))
@@ -46,6 +47,48 @@ void main() {
           isNull);
       expect(await CoursePackMedia.resolveFile('turnapack://es/missing.jpg'),
           isNull);
+    });
+
+    test('resolveFile memo is invalidated when the media tree changes',
+        () async {
+      final root = await Directory.systemTemp.createTemp('pack-media-cache-');
+      addTearDown(() {
+        if (root.existsSync()) root.deleteSync(recursive: true);
+        CoursePackMedia.debugPersistRoot = null;
+        CoursePackMedia.invalidateResolveCache();
+      });
+      CoursePackMedia.debugPersistRoot = root;
+      final media = Directory(p.join(root.path, 'es', 'media'))
+        ..createSync(recursive: true);
+      final dog = File(p.join(media.path, 'dog1.jpg'))
+        ..writeAsBytesSync(const [1]);
+
+      expect(
+        await CoursePackMedia.resolveFile('turnapack://es/dog1.jpg'),
+        dog.path,
+      );
+
+      // Uninstall (deleteExtractedMedia): the memoized path must not survive.
+      await CoursePackMedia.deleteExtractedMedia('es');
+      expect(
+        await CoursePackMedia.resolveFile('turnapack://es/dog1.jpg'),
+        isNull,
+      );
+
+      // Re-import shape: a memoized null (pre-extraction miss) must not
+      // survive the staged swap-in either.
+      expect(
+        await CoursePackMedia.resolveFile('turnapack://es/cat1.jpg'),
+        isNull,
+      );
+      media.createSync(recursive: true);
+      final cat = File(p.join(media.path, 'cat1.jpg'))
+        ..writeAsBytesSync(const [2]);
+      CoursePackMedia.invalidateResolveCache();
+      expect(
+        await CoursePackMedia.resolveFile('turnapack://es/cat1.jpg'),
+        cat.path,
+      );
     });
   });
 

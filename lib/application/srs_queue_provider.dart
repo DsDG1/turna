@@ -371,13 +371,21 @@ abstract class SrsQueueProvider extends ChangeNotifier {
   }) {
     final current = state;
     if (current.containsKey(id)) return;
-    current[id] = SrsWord.fresh(id).copyWith(
+    final fresh = SrsWord.fresh(id).copyWith(
       type: type,
       sourceKind: queueId == 'grammar' ? SrsSourceKind.grammar : sourceKind,
       sourceId: queueId == 'grammar' ? 'grammar' : (sourceId ?? languageFilter),
       ownerId: ownerId,
     );
-    _commitAndPersist(current);
+    current[id] = fresh;
+    // Persist only the newly registered row. Rewriting the whole queue here
+    // was an O(queue) amplification per unseen word (a 10k-card import made
+    // every answered question rewrite 10k rows) and it raced the graded-row
+    // upsert the caller fires right after: drift executes same-connection
+    // writes in dispatch order, so fresh-then-graded leaves the graded row
+    // durable, but a full-queue batch made that ordering window wide.
+    _commit(current);
+    _writeBatch([fresh]);
     _bumpReviewDataRevision();
   }
 
@@ -391,21 +399,24 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     String? ownerId,
   }) {
     final current = state;
-    var changed = false;
+    final newlyAdded = <SrsWord>[];
     for (final id in ids) {
       if (!current.containsKey(id)) {
-        current[id] = SrsWord.fresh(id).copyWith(
+        final fresh = SrsWord.fresh(id).copyWith(
           type: type,
           sourceKind: queueId == 'grammar' ? SrsSourceKind.grammar : sourceKind,
           sourceId:
               queueId == 'grammar' ? 'grammar' : (sourceId ?? languageFilter),
           ownerId: ownerId,
         );
-        changed = true;
+        current[id] = fresh;
+        newlyAdded.add(fresh);
       }
     }
-    if (changed) {
-      _commitAndPersist(current);
+    if (newlyAdded.isNotEmpty) {
+      // Same incremental persistence contract as [registerItem].
+      _commit(current);
+      _writeBatch(newlyAdded);
       _bumpReviewDataRevision();
     }
   }
@@ -586,11 +597,9 @@ abstract class SrsQueueProvider extends ChangeNotifier {
       changed = current.remove(id) != null || changed;
     }
     if (changed) _commit(current);
-    for (final id in uniqueIds) {
-      // Scope to this queue; an unscoped delete would also drop a
-      // same-wordId row living in another queue/language's pool.
-      await srsDao.delete(id, queue: queueId);
-    }
+    // Scope to this queue in one statement; an unscoped delete would also
+    // drop a same-wordId row living in another queue/language's pool.
+    await srsDao.deleteMany(uniqueIds, queue: queueId);
     _bumpReviewDataRevision();
   }
 
@@ -819,13 +828,6 @@ abstract class SrsQueueProvider extends ChangeNotifier {
     _commit(map);
     await _writeBatch(map.values, languageCode: _languageFilter);
     _bumpReviewDataRevision();
-  }
-
-  /// Synchronous commit + fire-and-forget batch write (for the `void` register
-  /// methods, which cannot await).
-  void _commitAndPersist(Map<String, SrsWord> map) {
-    _commit(map);
-    _writeBatch(map.values, languageCode: _languageFilter);
   }
 
   Future<void> _writeBatch(

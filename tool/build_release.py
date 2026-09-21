@@ -4,15 +4,20 @@
 Produces versioned release artifacts (APK, AAB, optional web) and a matching
 content inventory report. Intended for local release builds and CI smoke tests.
 
+The --version core (X.Y.Z) must match pubspec.yaml or the script exits 1;
+pre-release/build suffixes may differ (0.8.0-future4 vs 0.8.0+4). Override
+with --allow-version-mismatch when building off-version artifacts on purpose.
+
 Examples:
-    python tool/build_release.py --version 0.4.0-future4
-    python tool/build_release.py --version 0.4.0-future4 --skip-web
-    python tool/build_release.py --version 0.4.0-future4 --output-dir ./dist
+    python tool/build_release.py --version 0.8.0-future4
+    python tool/build_release.py --version 0.8.0-future4 --skip-web
+    python tool/build_release.py --version 0.8.0-future4 --output-dir ./dist
 """
 
 from __future__ import annotations
 
 import argparse
+import re
 import shutil
 import subprocess
 import sys
@@ -48,6 +53,51 @@ def validate_version(version: str) -> str:
         print(f"error: invalid version string: {version!r}", file=sys.stderr)
         sys.exit(1)
     return version
+
+
+def _version_core(version: str) -> str:
+    """Strip pre-release/build suffixes: '0.8.0-future4' / '0.8.0+4' -> '0.8.0'."""
+    return version.split("+", 1)[0].split("-", 1)[0]
+
+
+def assert_version_matches_pubspec(
+    version: str, root: Path, *, allow_mismatch: bool
+) -> None:
+    """Fail unless --version and pubspec.yaml agree on their X.Y.Z core.
+
+    Artifact names come from --version while the in-app About page reads
+    pubspec via package_info_plus; a silent divergence ships artifacts whose
+    names lie about the running build.
+    """
+    match = re.search(
+        r"^version:\s*(\S+)",
+        (root / "pubspec.yaml").read_text(encoding="utf-8"),
+        re.MULTILINE,
+    )
+    if match is None:
+        print(
+            "warning: could not parse version from pubspec.yaml; check skipped",
+            file=sys.stderr,
+        )
+        return
+    pubspec_version = match.group(1)
+    if _version_core(version) == _version_core(pubspec_version):
+        return
+    if allow_mismatch:
+        print(
+            f"warning: --version {version} vs pubspec {pubspec_version} "
+            "(allowed via --allow-version-mismatch)",
+            file=sys.stderr,
+        )
+        return
+    print(
+        f"error: --version {version} (core {_version_core(version)}) does not "
+        f"match pubspec.yaml version {pubspec_version} (core "
+        f"{_version_core(pubspec_version)}). Bump pubspec.yaml or pass "
+        "--allow-version-mismatch to build off-version on purpose.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
 
 
 def copy_artifact(src: Path, dst: Path) -> None:
@@ -257,10 +307,21 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Skip the flutter build appbundle step (APK-only distribution).",
     )
+    parser.add_argument(
+        "--allow-version-mismatch",
+        action="store_true",
+        help=(
+            "Build even when --version and pubspec.yaml disagree on X.Y.Z "
+            "(e.g. deliberate off-version test artifacts)."
+        ),
+    )
     args = parser.parse_args(argv)
 
     version = validate_version(args.version)
     root = project_root()
+    assert_version_matches_pubspec(
+        version, root, allow_mismatch=args.allow_version_mismatch
+    )
     output_dir = args.output_dir or (root / "build" / "releases" / version)
     output_dir.mkdir(parents=True, exist_ok=True)
 

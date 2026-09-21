@@ -181,10 +181,21 @@ class MistakeProvider extends ChangeNotifier {
     await ensureLoaded();
     final current = entries.toList();
     current.add(entry);
-    if (current.length > maxEntries) {
+    final evictOldest = current.length > maxEntries;
+    if (evictOldest) {
       current.removeAt(0);
     }
-    await _persist(current, dayBump: entry.timestamp);
+    _bumpDailyCount(entry.timestamp);
+    await _commitIncremental(
+      current,
+      (repo) => repo.insertEntry(
+        languageCode: _languageCode,
+        entry: entry,
+        dailyCounts: _dailyCountsCache ?? const {},
+        masteredTotal: _masteredTotalCache ?? 0,
+        evictOldest: evictOldest,
+      ),
+    );
   }
 
   /// Mark a mistake as rewritten correctly. If [rewriteCount] reaches
@@ -200,10 +211,25 @@ class MistakeProvider extends ChangeNotifier {
     final updated = entry.copyWith(rewriteCount: entry.rewriteCount + 1);
     if (updated.rewriteCount >= rewriteGoal) {
       current.removeAt(index);
-      await _persist(current, masteredDelta: 1);
+      _masteredTotalCache = masteredTotal + 1;
+      await _commitIncremental(
+        current,
+        (repo) => repo.deleteEntriesByIds(
+          languageCode: _languageCode,
+          ids: {entry.id},
+          dailyCounts: _dailyCountsCache ?? const {},
+          masteredTotal: _masteredTotalCache ?? 0,
+        ),
+      );
     } else {
       current[index] = updated;
-      await _persist(current);
+      await _commitIncremental(
+        current,
+        (repo) => repo.updateEntry(
+          languageCode: _languageCode,
+          entry: updated,
+        ),
+      );
     }
   }
 
@@ -220,12 +246,23 @@ class MistakeProvider extends ChangeNotifier {
     if (ids.isEmpty) return;
     await ensureLoaded();
     final current = entries.toList();
-    final before = current.length;
+    final removedIds = {
+      for (final e in current)
+        if (ids.contains(e.id)) e.id,
+    };
+    if (removedIds.isEmpty) return;
     current.removeWhere((e) => ids.contains(e.id));
-    if (current.length == before) return;
-    await _persist(
+    if (countAsMastered) {
+      _masteredTotalCache = masteredTotal + removedIds.length;
+    }
+    await _commitIncremental(
       current,
-      masteredDelta: countAsMastered ? before - current.length : 0,
+      (repo) => repo.deleteEntriesByIds(
+        languageCode: _languageCode,
+        ids: removedIds,
+        dailyCounts: _dailyCountsCache ?? const {},
+        masteredTotal: _masteredTotalCache ?? 0,
+      ),
     );
   }
 
@@ -246,34 +283,71 @@ class MistakeProvider extends ChangeNotifier {
     if (idPrefixes.isEmpty && cardIds.isEmpty) return;
     await ensureLoaded();
     final current = entries.toList();
-    final before = current.length;
-    current.removeWhere((entry) {
-      for (final prefix in idPrefixes) {
-        if (entry.lessonId.startsWith(prefix) ||
-            entry.interactionId.startsWith(prefix) ||
-            (entry.wordId != null && entry.wordId!.startsWith(prefix))) {
-          return true;
-        }
+    final removedIds = <String>{
+      for (final entry in current)
+        if (_matchesAnkiDeletion(entry, idPrefixes, cardIds)) entry.id,
+    };
+    if (removedIds.isEmpty) return;
+    current.removeWhere((entry) => removedIds.contains(entry.id));
+    await _commitIncremental(
+      current,
+      (repo) => repo.deleteEntriesByIds(
+        languageCode: _languageCode,
+        ids: removedIds,
+        dailyCounts: _dailyCountsCache ?? const {},
+        masteredTotal: _masteredTotalCache ?? 0,
+      ),
+    );
+  }
+
+  /// Shared [idPrefixes] / [cardIds] matcher of [removeForAnkiDeletion]:
+  /// prefixes match `wordId` / `lessonId` / `interactionId` heads; card ids
+  /// match the trailing `-c<cardId>` of projection / practice word ids.
+  static bool _matchesAnkiDeletion(
+    MistakeEntry entry,
+    List<String> idPrefixes,
+    Set<int> cardIds,
+  ) {
+    for (final prefix in idPrefixes) {
+      if (entry.lessonId.startsWith(prefix) ||
+          entry.interactionId.startsWith(prefix) ||
+          (entry.wordId != null && entry.wordId!.startsWith(prefix))) {
+        return true;
       }
-      if (cardIds.isNotEmpty) {
-        final wordId = entry.wordId;
-        if (wordId != null) {
-          final match = _trailingAnkiCardId.firstMatch(wordId);
-          final cardId = match == null ? null : int.tryParse(match.group(1)!);
-          if (cardId != null && cardIds.contains(cardId)) return true;
-        }
+    }
+    if (cardIds.isNotEmpty) {
+      final wordId = entry.wordId;
+      if (wordId != null) {
+        final match = _trailingAnkiCardId.firstMatch(wordId);
+        final cardId = match == null ? null : int.tryParse(match.group(1)!);
+        if (cardId != null && cardIds.contains(cardId)) return true;
       }
-      return false;
-    });
-    if (current.length == before) return;
-    await _persist(current);
+    }
+    return false;
   }
 
   static final RegExp _trailingAnkiCardId = RegExp(r'-c(\d+)$');
 
   /// Clear all recorded mistakes and the dashboard aggregates.
   Future<void> clear() async {
-    await _persist(<MistakeEntry>[], resetAggregates: true);
+    _dailyCountsCache = <String, int>{};
+    _masteredTotalCache = 0;
+    _cached = <MistakeEntry>[];
+    _cachedView = List.unmodifiable(_cached!);
+    final repo = _repo;
+    if (repo != null) {
+      // Empty full rebuild: delete-all + reset aggregates in one transaction.
+      await repo.replaceAll(
+        languageCode: _languageCode,
+        entries: const [],
+        dailyCounts: const {},
+        masteredTotal: 0,
+        maxEntries: maxEntries,
+      );
+    } else {
+      await _writePrefsFallback();
+    }
+    notifyListeners();
   }
 
   /// Drop decoded state after an external checkpoint restore.
@@ -332,51 +406,42 @@ class MistakeProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> _persist(
-    List<MistakeEntry> list, {
-    DateTime? dayBump,
-    int masteredDelta = 0,
-    bool resetAggregates = false,
-  }) async {
-    if (resetAggregates) {
-      _dailyCountsCache = <String, int>{};
-      _masteredTotalCache = 0;
-    } else {
-      if (dayBump != null) {
-        _bumpDailyCount(dayBump);
-      }
-      if (masteredDelta != 0) {
-        _masteredTotalCache = masteredTotal + masteredDelta;
-      }
-    }
+  /// In-memory commit + one incremental repo write (or the full prefs
+  /// fallback when no repository is wired — prefs has no incremental shape).
+  /// Aggregate caches must already be updated by the caller; [repoWrite]
+  /// persists exactly the rows the operation touched.
+  Future<void> _commitIncremental(
+    List<MistakeEntry> list,
+    Future<void> Function(MistakeRepository repo) repoWrite,
+  ) async {
     _cached = list;
     _cachedView = List.unmodifiable(list);
     final repo = _repo;
     if (repo != null) {
-      await repo.replaceAll(
-        languageCode: _languageCode,
-        entries: list,
-        dailyCounts: _dailyCountsCache ?? {},
-        masteredTotal: _masteredTotalCache ?? 0,
-        maxEntries: maxEntries,
-      );
+      await repoWrite(repo);
     } else {
-      final encoded = jsonEncode(list.map((e) => e.toJson()).toList());
-      final stopwatch = Stopwatch()..start();
-      await appPrefs.preferences.setString(_prefsKey, encoded);
-      stopwatch.stop();
-      StorageWriteTelemetry.instance.record(
-        key: _prefsKey,
-        estimatedBytes: utf8.encode(encoded).length,
-        elapsed: stopwatch.elapsed,
-      );
-      await appPrefs.setString(
-        _dailyCountsKey,
-        jsonEncode(_dailyCountsCache ?? {}),
-      );
-      await appPrefs.setInt(_masteredTotalKey, _masteredTotalCache ?? 0);
+      await _writePrefsFallback();
     }
     notifyListeners();
+  }
+
+  Future<void> _writePrefsFallback() async {
+    final encoded = jsonEncode(_cached!.map((e) => e.toJson()).toList());
+    final stopwatch = Stopwatch()..start();
+    await appPrefs.preferences.setString(_prefsKey, encoded);
+    stopwatch.stop();
+    StorageWriteTelemetry.instance.record(
+      key: _prefsKey,
+      // Character count approximates payload size for telemetry; encoding a
+      // second full UTF-8 copy just to count bytes doubled the write cost.
+      estimatedBytes: encoded.length,
+      elapsed: stopwatch.elapsed,
+    );
+    await appPrefs.setString(
+      _dailyCountsKey,
+      jsonEncode(_dailyCountsCache ?? {}),
+    );
+    await appPrefs.setInt(_masteredTotalKey, _masteredTotalCache ?? 0);
   }
 
   /// Increment the count for [when]'s local day and prune entries older than

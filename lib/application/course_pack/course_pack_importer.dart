@@ -586,6 +586,9 @@ class CoursePackImporter {
         dir.deleteSync(recursive: true);
       }
       staging.renameSync(dir.path);
+      // The media tree changed: memoized resolveFile results (including
+      // nulls from before the files existed) must not survive the swap-in.
+      CoursePackMedia.invalidateResolveCache();
     } catch (_) {
       if (staging.existsSync()) {
         staging.deleteSync(recursive: true);
