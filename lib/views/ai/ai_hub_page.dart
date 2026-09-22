@@ -6,6 +6,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:turna/application/ai/ai_tutor_chat_session.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/ai/engine/ai_recent_tasks_provider.dart';
 import 'package:turna/application/srs_tutor_provider.dart';
@@ -310,7 +311,8 @@ class _ContinueSection extends StatelessWidget {
               // so the selected value keeps a stable identity between
               // mutations (a slicing selector would allocate on every
               // evaluation and rebuild on every notify).
-              final top = items.take(3).toList(growable: false);
+              final top =
+                  items.where(_isResumable).take(3).toList(growable: false);
               if (top.isEmpty) {
                 return SoftCard(
                   accentColor: TurnaTheme.brandTeal,
@@ -342,6 +344,13 @@ class _ContinueSection extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  static bool _isResumable(AiRecentTask task) {
+    return isAiCompanionTaskResumable(
+      task,
+      tutorChatHasSession: AiTutorChatSessionStore().hasSession,
     );
   }
 }

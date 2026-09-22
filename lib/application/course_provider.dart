@@ -282,6 +282,23 @@ class CourseProvider extends ChangeNotifier {
   /// Whether [load] has completed at least once.
   bool get isLoaded => _isLoaded;
 
+  /// True when startup seeding or the first [load] failed. Splash shows this
+  /// instead of spinning until the process is killed.
+  bool _bootFailed = false;
+  bool get bootFailed => _bootFailed;
+
+  void reportBootFailure() {
+    if (_bootFailed) return;
+    _bootFailed = true;
+    notifyListeners();
+  }
+
+  void clearBootFailure() {
+    if (!_bootFailed) return;
+    _bootFailed = false;
+    notifyListeners();
+  }
+
   /// Id of the currently-focused section, or `null` if none selected
   /// (e.g. before [load] completes or the section list is empty).
   String? get currentSectionId => _currentSectionId;

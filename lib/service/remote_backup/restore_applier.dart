@@ -32,7 +32,7 @@ enum RestoreApplyOutcome {
 /// Applies a staged remote restore at boot, before any database is opened.
 ///
 /// Mounted inside `setupLocator()` right after prefs are ready and before
-/// `_openAndSeedCourseDatabase()` — at that point neither the drift database
+/// `_openAndMigrateCourseDatabase()` — at that point neither the drift database
 /// nor the official Anki engine has touched the files, so plain
 /// `.restore-partial` → rename replacement is safe.
 ///

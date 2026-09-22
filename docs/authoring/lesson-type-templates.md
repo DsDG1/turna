@@ -445,6 +445,14 @@
 
 对应的 `grammarPointId` 必须已在 `grammar_points.json` 中定义。
 
+课时级注册走 `content.linkedGrammarPointIds`（打开课时时写入语法 SRS）。词汇 `pos` 与 `showWord` 的内联覆盖字段（`term` / `translation` / `pronunciation` / `audioAsset` / `imageAsset` / `example`）可空；非空时覆盖词表默认显示。
+
+---
+
+## 导入题型（不进教学阶梯）
+
+`ankiCard` 与 `ankiHtmlCard` 只来自 Anki 导入，AI 生成不要产出它们。媒体引用可以使用 `anki://<importId>/<file>`，桌面 lint 不要求仓库里存在该文件。`ankiHtmlCard` 的完整 HTML 渲染在 App 里；编辑器只保留剥标签后的文本。
+
 ---
 
 ## 参考

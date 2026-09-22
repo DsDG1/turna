@@ -19,6 +19,7 @@ import 'package:turna/application/language_registry.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/lesson.dart';
+import 'package:turna/l10n/app_strings.dart';
 
 /// State machine for the AI lesson helper.
 enum AiLessonHelperState { idle, loading, ready, error, applying }
@@ -64,12 +65,38 @@ class AiLessonHelperProvider extends AiRequestSessionBase {
   AiLessonHelperState _state = AiLessonHelperState.idle;
   AiLessonHelperState get state => _state;
 
-  String? _error;
-  String? get error => _error;
+  AiErrorMapping? _errorMapping;
+  AiErrorMapping? get errorMapping => _errorMapping;
+  String? get error => _errorMapping?.message;
 
   /// Original lesson passed in by the caller.
   Lesson? _originalLesson;
   Lesson? get originalLesson => _originalLesson;
+
+  /// Lesson captured immediately before the last successful apply. One step.
+  Lesson? _pendingUndoLesson;
+  Lesson? get pendingUndoLesson => _pendingUndoLesson;
+
+  void armApplyUndo(Lesson original) {
+    _pendingUndoLesson = original;
+  }
+
+  /// Clears the snapshot and returns it so the caller can write it back.
+  Lesson? takeApplyUndo() {
+    final snapshot = _pendingUndoLesson;
+    _pendingUndoLesson = null;
+    return snapshot;
+  }
+
+  /// Serializes lesson reloads so an undo reload cannot be overwritten by
+  /// the apply reload that was already in flight.
+  Future<void> _lessonReloadTail = Future<void>.value();
+
+  Future<void> enqueueLessonReload(Future<void> Function() reload) {
+    _lessonReloadTail =
+        _lessonReloadTail.catchError((Object _) {}).then((_) => reload());
+    return _lessonReloadTail;
+  }
 
   /// JSON representation of the transformed lesson. Kept as a map so callers
   /// can preview it before converting back to a [Lesson].
@@ -83,8 +110,9 @@ class AiLessonHelperProvider extends AiRequestSessionBase {
   void reset() {
     abandonStreamingSession();
     _state = AiLessonHelperState.idle;
-    _error = null;
+    _errorMapping = null;
     _originalLesson = null;
+    _pendingUndoLesson = null;
     _resultJson = null;
     _explanation = null;
     notifySessionListeners();
@@ -103,7 +131,7 @@ class AiLessonHelperProvider extends AiRequestSessionBase {
   void setLesson(Lesson lesson) {
     _originalLesson = lesson;
     _resultJson = null;
-    _error = null;
+    _errorMapping = null;
     _state = AiLessonHelperState.idle;
     notifySessionListeners();
   }
@@ -115,7 +143,7 @@ class AiLessonHelperProvider extends AiRequestSessionBase {
   }) async {
     final lesson = _originalLesson;
     if (lesson == null) {
-      _error = 'No lesson selected';
+      _errorMapping = AiErrorMapping.message(AppStrings.aiLessonHelperNoLesson);
       _state = AiLessonHelperState.error;
       notifySessionListeners();
       return;
@@ -123,7 +151,7 @@ class AiLessonHelperProvider extends AiRequestSessionBase {
     if (instruction.trim().isEmpty) return;
 
     final session = beginStreamingSession();
-    _error = null;
+    _errorMapping = null;
     _state = AiLessonHelperState.loading;
     _resultJson = null;
     _explanation = null;
@@ -187,7 +215,7 @@ class AiLessonHelperProvider extends AiRequestSessionBase {
     } catch (e) {
       if (!isCurrentSession(session)) return;
       logger.w('AiLessonHelperProvider.transform failed: $e');
-      _error = AiErrorMapper.map(e).message;
+      _errorMapping = AiErrorMapper.map(e);
       _state = AiLessonHelperState.error;
     } finally {
       finishStreamingSession(session);

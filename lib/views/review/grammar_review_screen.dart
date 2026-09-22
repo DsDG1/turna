@@ -48,6 +48,9 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
   bool _practiceSubmitted = false;
   bool? _practiceCorrect;
   bool _rewardsGranted = false;
+  bool _ratingInFlight = false;
+  SrsWord? _undoPrevious;
+  int? _undoIndex;
   int _xpEarned = 0;
   int _gemsEarned = 0;
 
@@ -70,6 +73,9 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
       _practiceSubmitted = false;
       _practiceCorrect = null;
       _rewardsGranted = false;
+      _ratingInFlight = false;
+      _undoPrevious = null;
+      _undoIndex = null;
       _xpEarned = 0;
       _gemsEarned = 0;
     });
@@ -182,25 +188,70 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
     }
   }
 
+  bool get _canUndo =>
+      _undoPrevious != null &&
+      _undoIndex != null &&
+      !_ratingInFlight &&
+      !_rewardsGranted;
+
   void _onRate(ReviewGrade grade) async {
+    if (_ratingInFlight) return;
     if (_queue.isEmpty || _currentIndex >= _queue.length) return;
 
     final item = _queue[_currentIndex];
-    await context
-        .read<GrammarReviewProvider>()
-        .reviewWithQuality(item.wordId, grade);
+    final provider = context.read<GrammarReviewProvider>();
+    final previous = provider.state[item.wordId] ?? SrsWord.fresh(item.wordId);
+    final ratedIndex = _currentIndex;
+    setState(() => _ratingInFlight = true);
+    try {
+      await provider.reviewWithQuality(item.wordId, grade);
+    } catch (e, st) {
+      logger.w('Grammar review rating failed', error: e, stackTrace: st);
+      if (mounted) setState(() => _ratingInFlight = false);
+      return;
+    }
+    if (!mounted) return;
 
-    final nextIndex = _currentIndex + 1;
+    final nextIndex = ratedIndex + 1;
     final nextCount = _sessionCount + 1;
+    final finished = nextIndex >= _queue.length;
     setState(() {
+      _ratingInFlight = false;
       _sessionCount = nextCount;
       _currentIndex = nextIndex;
       _resetCardState();
+      if (finished) {
+        _undoPrevious = null;
+        _undoIndex = null;
+      } else {
+        _undoPrevious = previous;
+        _undoIndex = ratedIndex;
+      }
     });
 
-    if (nextIndex >= _queue.length) {
+    if (finished) {
       await _grantSessionRewards(nextCount);
     }
+  }
+
+  Future<void> _onUndo() async {
+    final previous = _undoPrevious;
+    final index = _undoIndex;
+    if (previous == null || index == null || !_canUndo) return;
+    setState(() => _ratingInFlight = true);
+    final ok = await context
+        .read<GrammarReviewProvider>()
+        .rollbackGrammarPoint(previous.wordId, previous);
+    if (!mounted) return;
+    setState(() {
+      _ratingInFlight = false;
+      if (!ok) return;
+      _undoPrevious = null;
+      _undoIndex = null;
+      _currentIndex = index;
+      if (_sessionCount > 0) _sessionCount -= 1;
+      _resetCardState();
+    });
   }
 
   GrammarPoint? get _currentPoint {
@@ -250,6 +301,12 @@ class _GrammarReviewPageState extends State<GrammarReviewPage> {
       appBar: AppBar(
         title: Text(AppStrings.reviewGrammarAppBarTitle),
         actions: [
+          if (_canUndo)
+            IconButton(
+              tooltip: AppStrings.commonUndoLastCard,
+              onPressed: _onUndo,
+              icon: const Icon(Icons.undo_rounded),
+            ),
           Center(
             child: Padding(
               padding: const EdgeInsets.only(right: 16),

@@ -236,3 +236,22 @@ class AiRecentTasksProvider extends ChangeNotifier {
         .setString(kAiRecentCompanionTasksKey, jsonEncode(companion));
   }
 }
+
+/// Whether the AI Hub Continue row can reopen this task.
+///
+/// Wish and textbook imports still open an empty page. Tutor chat resumes
+/// only when a transcript is stored.
+bool isAiCompanionTaskResumable(
+  AiRecentTask task, {
+  required bool tutorChatHasSession,
+}) {
+  switch (task.kind) {
+    case AiTaskKind.wish:
+    case AiTaskKind.textbook:
+      return false;
+    case AiTaskKind.tutorChat:
+      return tutorChatHasSession && task.route != null;
+    default:
+      return task.route != null;
+  }
+}

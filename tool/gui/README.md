@@ -472,7 +472,7 @@ python tool/gui/build_gui.py --clean
 
 1. **6 大模板习得逻辑**：
    - `intro`（新知引入 / 建立形式-意义映射，Nation 框架）、`practice`（受控操练 / 陈述性向程序性知识转化）、`listening`（听力解码 / 音位训练）、`reading`（语篇阅读 / 附带习得）、`review`（螺旋复习 / 抗遗忘）、`mastery`（综合精通 / 自动化产出）。
-2. **12 种题型与认知梯度**：
+2. **题型与认知梯度**（教学阶梯 12 种；另有 `ankiCard` / `ankiHtmlCard` 仅供导入牌组再编排，不进入生成阶梯，合计 14 种）：
    - **识别层**（低认知负荷，如 `showWord` / `multipleChoice` / `listenAndPick`）
    - **回忆层**（中认知负荷，如 `fillBlank` / `typeTheWord`）
    - **产出层**（高认知负荷，如 `translateSentence` / `reorderSentence`）

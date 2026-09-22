@@ -81,6 +81,15 @@ class TestCourseReleaseService(unittest.TestCase):
         self.assertIn("index", plan)
         self.assertEqual(plan["index"], (1, 2))
 
+    def test_vocab_and_expressions_bump_once(self):
+        adapter = DummyAdapter()
+        adapter._refresh_hash_cache()
+        adapter.vocab.append({"id": "w-2"})
+        adapter.expressions.append({"id": "e-2"})
+        plan = CourseReleaseService.version_bump_plan(adapter)
+        self.assertEqual(plan["expressions"], (1, 2))
+        self.assertNotIn("index", plan)
+
     def test_apply_version_bump(self):
         adapter = DummyAdapter()
         plan = {"index": (1, 2), "expressions": (1, 2)}

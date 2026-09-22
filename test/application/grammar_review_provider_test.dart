@@ -146,5 +146,19 @@ void main() {
       );
       expect(grammar.getLessonNameForGrammarPoint('gp.a'), 'Intro');
     });
+
+    test('rollbackGrammarPoint restores the pre-rating snapshot', () async {
+      final grammar =
+          GrammarReviewProvider(appPrefs, LessonLinkStore(appPrefs), dao);
+      grammar.registerGrammarPoint('gp.a');
+      final before = grammar.state['gp.a']!;
+      await grammar.reviewWithQuality('gp.a', ReviewGrade.known);
+      expect(grammar.state['gp.a']!.reps, 1);
+
+      final ok = await grammar.rollbackGrammarPoint('gp.a', before);
+      expect(ok, isTrue);
+      expect(grammar.state['gp.a']!.reps, before.reps);
+      expect(grammar.dueCount, 1);
+    });
   });
 }

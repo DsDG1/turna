@@ -1,3 +1,6 @@
+// Dart imports:
+import 'dart:async';
+
 // Flutter imports:
 import 'package:flutter/foundation.dart';
 
@@ -7,6 +10,7 @@ import 'package:turna/application/ai/ai_error_mapper.dart';
 import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/ai_recent_task_log.dart';
 import 'package:turna/application/ai/ai_streaming_session_base.dart';
+import 'package:turna/application/ai/ai_tutor_chat_session.dart';
 import 'package:turna/application/ai/engine/ai_cancel_token.dart';
 import 'package:turna/application/ai/engine/ai_engine.dart';
 import 'package:turna/application/ai/engine/ai_engine_config.dart';
@@ -27,14 +31,17 @@ class AiTutorChatProvider extends AiStreamingSessionBase {
   AiTutorChatProvider({
     AiEngine? engine,
     AiExplainPrefsStore? prefs,
+    AiTutorChatSessionStore? sessionStore,
   })  : _engine = engine ?? getIt<AiEngine>(),
         _prefs = AiExplainPrefsStore.resolve(
           prefs: prefs,
           allowEphemeral: true,
-        );
+        ),
+        _sessionStore = sessionStore ?? AiTutorChatSessionStore();
 
   final AiEngine _engine;
   final AiExplainPrefsStore _prefs;
+  final AiTutorChatSessionStore _sessionStore;
 
   final List<AiChatMessage> _messages = <AiChatMessage>[];
   List<AiChatMessage> get messages => List.unmodifiable(_messages);
@@ -44,6 +51,14 @@ class AiTutorChatProvider extends AiStreamingSessionBase {
 
   String? _error;
   String? get error => _error;
+  AiErrorMapping? _errorMapping;
+  AiErrorMapping? get errorMapping => _errorMapping;
+  String? _failedInput;
+  String? consumeFailedInput() {
+    final value = _failedInput;
+    _failedInput = null;
+    return value;
+  }
 
   AiTutorChatMode _mode = AiTutorChatMode.qa;
   AiTutorChatMode get mode => _mode;
@@ -72,6 +87,26 @@ class AiTutorChatProvider extends AiStreamingSessionBase {
     if (_mode == mode || isSessionDisposed) return;
     _mode = mode;
     notifyListeners();
+    if (_messages.isNotEmpty) unawaited(_persistSession());
+  }
+
+  /// Restores the prefs transcript. Returns true when messages were loaded.
+  bool restorePersisted() {
+    if (isSessionDisposed || _messages.isNotEmpty) return _messages.isNotEmpty;
+    final session = _sessionStore.load();
+    if (session == null) return false;
+    _messages.addAll(session.messages);
+    _mode = _modeFromName(session.modeName);
+    if (session.language.isNotEmpty) _language = session.language;
+    _state = AiTutorChatState.ready;
+    return true;
+  }
+
+  static AiTutorChatMode _modeFromName(String name) {
+    for (final mode in AiTutorChatMode.values) {
+      if (mode.name == name) return mode;
+    }
+    return AiTutorChatMode.qa;
   }
 
   void setLanguage(String language) {
@@ -88,6 +123,8 @@ class AiTutorChatProvider extends AiStreamingSessionBase {
     _messages.clear();
     _state = AiTutorChatState.idle;
     _error = null;
+    _errorMapping = null;
+    unawaited(_sessionStore.clear());
     notifySessionListeners();
   }
 
@@ -118,6 +155,7 @@ class AiTutorChatProvider extends AiStreamingSessionBase {
     if (isSessionDisposed) return false;
     final session = beginStreamingSession();
     _error = null;
+    _errorMapping = null;
     _state = AiTutorChatState.loading;
     _messages.add(AiChatMessage(role: 'user', content: text.trim()));
     _messages.add(const AiChatMessage(role: 'assistant', content: ''));
@@ -144,7 +182,6 @@ class AiTutorChatProvider extends AiStreamingSessionBase {
             AiChatMessage(role: 'assistant', content: result.content);
       }
       _state = AiTutorChatState.ready;
-      _recordRecent();
     } on AiCancelled {
       if (!isCurrentSession(session)) return true;
       flushStreamingSession(session);
@@ -152,17 +189,42 @@ class AiTutorChatProvider extends AiStreamingSessionBase {
     } catch (e) {
       if (!isCurrentSession(session)) return true;
       logger.w('AiTutorChatProvider.ask failed: $e');
-      _error = AiErrorMapper.map(e).message;
+      _errorMapping = AiErrorMapper.map(e);
+      _error = _errorMapping?.message;
       _state = AiTutorChatState.error;
       if (assistantIndex < _messages.length &&
           _messages[assistantIndex].content.isEmpty) {
         _messages.removeAt(assistantIndex);
       }
+      if (_messages.isNotEmpty && _messages.last.role == 'user') {
+        _failedInput = _messages.removeLast().content;
+      }
     } finally {
       finishStreamingSession(session);
     }
     if (!isSessionDisposed) notifySessionListeners();
+    if (!isSessionDisposed &&
+        _state != AiTutorChatState.loading &&
+        _state != AiTutorChatState.error) {
+      // Persist before the Hub hears about the task. The Continue row
+      // reads the session synchronously when the recent-task list notifies.
+      await _persistSession();
+      if (!isSessionDisposed && _state == AiTutorChatState.ready) {
+        _recordRecent();
+      }
+    }
     return true;
+  }
+
+  Future<void> _persistSession() {
+    return _sessionStore.save(AiTutorChatSession(
+      modeName: _mode.name,
+      language: _language,
+      messages: [
+        for (final message in _messages)
+          if (message.content.trim().isNotEmpty) message,
+      ],
+    ));
   }
 
   static const int _recentMessageLimit = 16;

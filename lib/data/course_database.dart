@@ -383,8 +383,8 @@ class CourseDatabase extends _$CourseDatabase {
             // expects. The course DB is a derived cache reseedable from the
             // bundled JSON assets, so the safe policy is to wipe all course
             // tables and let `createAll` rebuild the current schema.
-            // `setupLocator` runs `DatabaseSeeder.seedIfNeeded` right after
-            // open, which will reseed (the `contentVersion` meta is also
+            // `ensureCourseDatabaseReady` runs `DatabaseSeeder.seedIfNeeded`
+            // after open, which will reseed (the `contentVersion` meta is also
             // wiped, forcing a reseed). This avoids crashing an
             // already-downgraded app for a reseedable cache.
             logger

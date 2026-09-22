@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
+import 'package:turna/application/ai/ai_error_mapper.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/repositories/i_course_repository.dart';
@@ -20,13 +21,19 @@ class AiGroundedResourceProvider extends ChangeNotifier {
   AiGroundedResourceProvider({ICourseRepository? repository})
       : _repository = repository ?? getIt<ICourseRepository>();
 
+  /// No repository. Tests that only touch lesson-helper undo use this so
+  /// they do not open the course database.
+  @visibleForTesting
+  AiGroundedResourceProvider.detached() : _repository = null;
+
   final ICourseRepository? _repository;
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
-  String? _error;
-  String? get error => _error;
+  AiErrorMapping? _errorMapping;
+  AiErrorMapping? get errorMapping => _errorMapping;
+  String? get error => _errorMapping?.message;
 
   List<Map<String, dynamic>> _words = [];
   List<Map<String, dynamic>> _expressions = [];
@@ -65,7 +72,8 @@ class AiGroundedResourceProvider extends ChangeNotifier {
   /// the cached snapshot.
   Future<void> load({List<String>? scope}) async {
     if (_repository == null) {
-      _error = 'CourseDatabase unavailable on this platform';
+      _errorMapping =
+          AiErrorMapping.message('CourseDatabase unavailable on this platform');
       notifyListeners();
       return;
     }
@@ -73,7 +81,7 @@ class AiGroundedResourceProvider extends ChangeNotifier {
         scope ?? const ['words', 'expressions', 'grammarPoints'];
     final languageCode = _currentLanguage;
     _isLoading = true;
-    _error = null;
+    _errorMapping = null;
     notifyListeners();
     try {
       if (requestedScope.contains('words')) {
@@ -127,7 +135,7 @@ class AiGroundedResourceProvider extends ChangeNotifier {
         _grammarPoints = [];
       }
     } catch (e) {
-      _error = e.toString();
+      _errorMapping = AiErrorMapper.map(e);
       _words = [];
       _expressions = [];
       _grammarPoints = [];

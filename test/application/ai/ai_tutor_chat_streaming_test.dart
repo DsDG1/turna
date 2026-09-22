@@ -18,6 +18,9 @@ import 'package:turna/application/ai/ai_card_explain_provider.dart';
 import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/ai_hint_provider.dart';
 import 'package:turna/application/ai/ai_tutor_chat_provider.dart';
+import 'package:turna/application/ai/ai_tutor_chat_session.dart';
+import 'package:turna/application/ai/engine/ai_recent_tasks_provider.dart';
+import 'package:turna/di/injection.dart';
 import 'package:turna/application/review_dashboard/review_dashboard_models.dart';
 import 'package:turna/application/ai/engine/ai_cache.dart';
 import 'package:turna/application/ai/engine/ai_engine.dart';
@@ -59,6 +62,24 @@ AiEngine _engine(http.Client client) => AiEngine(
       AiCache.forTest(maxEntries: 0, enabled: false),
     );
 
+class _SlowSessionStore extends AiTutorChatSessionStore {
+  _SlowSessionStore() : super();
+
+  bool saved = false;
+
+  @override
+  bool get hasSession => saved;
+
+  @override
+  AiTutorChatSession? load() => null;
+
+  @override
+  Future<void> save(AiTutorChatSession session) async {
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    saved = session.messages.isNotEmpty;
+  }
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -73,6 +94,28 @@ void main() {
               })}\n\n',
         'data: [DONE]\n\n',
       ].join());
+
+  test('recent task is recorded after the session is saved', () async {
+    await getIt.reset();
+    addTearDown(getIt.reset);
+    final store = _SlowSessionStore();
+    final recent = AiRecentTasksProvider();
+    var visibleWhenRecorded = false;
+    recent.addListener(() {
+      visibleWhenRecorded = store.hasSession;
+    });
+    getIt.registerSingleton<AiRecentTasksProvider>(recent);
+
+    final provider = AiTutorChatProvider(
+      engine: _engine(_StreamOnceClient(sseBody(const ['hi']))),
+      prefs: AiExplainPrefsStore(),
+      sessionStore: store,
+    );
+    await provider.ask(config: _config(), text: 'merhaba');
+
+    expect(visibleWhenRecorded, isTrue);
+    expect(recent.items.single.kind, AiTaskKind.tutorChat);
+  });
 
   test('1000 deltas coalesce into a bounded number of UI commits', () async {
     const total = 1000;

@@ -1,6 +1,6 @@
 # Turna GUI 与 App 课程 Schema 对齐施工计划
 
-> 状态：待施工
+> 状态：已落地（G1–G9 在 `tool/`；本批次核对 schema / lint / 版本联动，并补文档）
 > 范围：仅改动 `tool/`（GUI + course_cli），不改 `lib/`（Flutter app 侧）
 > 依据：2026-08 对 app（`lib/domain/course/`）与 GUI（`tool/gui/src/`）的全量 schema 对比结论
 

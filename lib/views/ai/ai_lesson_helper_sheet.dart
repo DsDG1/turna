@@ -12,9 +12,13 @@ import 'package:turna/application/ai/ai_course_provider.dart';
 import 'package:turna/application/ai/ai_lesson_helper_provider.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/lesson_viewmodel.dart';
+import 'package:turna/core/logger.dart';
+import 'package:turna/di/injection.dart';
+import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/ai/components/ai_error_banner.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// Bottom sheet for editing the current lesson with AI.
@@ -68,18 +72,108 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
       return;
     }
 
+    final original = provider.originalLesson;
+    final beforeCount = original == null
+        ? 0
+        : original.flattenedStages.fold<int>(0, (n, s) => n + s.items.length);
+    final afterCount =
+        transformed.flattenedStages.fold<int>(0, (n, s) => n + s.items.length);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(AppStrings.aiLessonHelperApplyConfirmTitle),
+        content: Text(
+          '${AppStrings.aiLessonHelperApplyConfirmBody}\n'
+          '${AppStrings.aiLessonHelperTitleChange(original?.name ?? AppStrings.emDash, transformed.name)}\n'
+          '${AppStrings.aiLessonHelperCountChange(beforeCount, afterCount)}',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(AppStrings.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(AppStrings.commonApply),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
     final courseProvider = context.read<AiCourseProvider>();
+    final helper = context.read<AiLessonHelperProvider>();
+    final snapshot = helper.originalLesson;
     try {
       await courseProvider.updateLessonInDb(transformed);
       if (!mounted) return;
-      TurnaSnackBar.show(context, AppStrings.aiLessonHelperLessonUpdated);
-      unawaited(Navigator.of(context).maybePop());
-      // Ask the lesson viewmodel to reload so the new content appears.
+      if (snapshot != null) helper.armApplyUndo(snapshot);
+      final messenger = ScaffoldMessenger.of(context);
       final vm = context.read<LessonViewModel>();
-      await vm.loadLesson(transformed.id);
+      TurnaSnackBar.showVia(
+        messenger,
+        context,
+        AppStrings.aiLessonHelperLessonUpdated,
+        duration: const Duration(seconds: 5),
+        action: SnackBarAction(
+          label: AppStrings.commonUndo,
+          onPressed: () {
+            unawaited(_undoLessonApply(snapshot, messenger));
+          },
+        ),
+      );
+      unawaited(Navigator.of(context).maybePop());
+      // Queue the reload so a fast undo is applied after this read, not lost
+      // under it. Keep reload failures out of the write-failure snackbar.
+      unawaited(helper.enqueueLessonReload(() async {
+        try {
+          await vm.loadLesson(transformed.id);
+        } catch (e, st) {
+          logger.w('lesson reload after apply failed',
+              error: e, stackTrace: st);
+        }
+      }));
     } catch (e) {
       if (!mounted) return;
       TurnaSnackBar.show(context, AppStrings.aiLessonHelperUpdateFailed(e));
+    }
+  }
+
+  Future<void> _undoLessonApply(
+    Lesson? snapshot,
+    ScaffoldMessengerState messenger,
+  ) async {
+    if (snapshot == null) return;
+    final hostContext = messenger.context;
+    final helper = getIt.isRegistered<AiLessonHelperProvider>()
+        ? getIt<AiLessonHelperProvider>()
+        : null;
+    helper?.takeApplyUndo();
+    try {
+      await getIt<AiCourseProvider>().updateLessonInDb(snapshot);
+      if (getIt.isRegistered<LessonViewModel>()) {
+        final vm = getIt<LessonViewModel>();
+        if (helper != null) {
+          await helper.enqueueLessonReload(() => vm.loadLesson(snapshot.id));
+        } else {
+          await vm.loadLesson(snapshot.id);
+        }
+      }
+    } catch (e, st) {
+      logger.w('Lesson helper undo failed', error: e, stackTrace: st);
+      helper?.armApplyUndo(snapshot);
+      if (!hostContext.mounted) return;
+      TurnaSnackBar.showVia(
+        messenger,
+        hostContext,
+        AppStrings.aiLessonHelperUndoFailed,
+        action: SnackBarAction(
+          label: AppStrings.commonUndo,
+          onPressed: () {
+            unawaited(_undoLessonApply(snapshot, messenger));
+          },
+        ),
+      );
     }
   }
 
@@ -144,11 +238,11 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
 
   Widget _quickChips() {
     final suggestions = [
-      'Make easier',
-      'Make harder',
-      'Add 3 exercises',
-      'Change to listening',
-      'Polish prompts',
+      AppStrings.aiLessonHelperChipMakeEasier,
+      AppStrings.aiLessonHelperChipMakeHarder,
+      AppStrings.aiLessonHelperChipAddExercises,
+      AppStrings.aiLessonHelperChipListening,
+      AppStrings.aiLessonHelperChipPolish,
     ];
     return Wrap(
       spacing: 8,
@@ -184,19 +278,13 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
               ),
             );
           case AiLessonHelperState.error:
-            final error = context.read<AiLessonHelperProvider>().error;
-            return Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: TurnaTheme.error.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-              ),
-              child: Text(
-                error != null
-                    ? AppStrings.aiLessonHelperError(error)
-                    : AppStrings.aiLessonHelperErrorUnknown,
-                style: const TextStyle(color: TurnaTheme.error),
-              ),
+            final mapping = context.read<AiLessonHelperProvider>().errorMapping;
+            if (mapping == null) {
+              return Text(AppStrings.aiLessonHelperErrorUnknown);
+            }
+            return AiErrorBanner(
+              mapping: mapping,
+              onRetry: _onTransform,
             );
           case AiLessonHelperState.ready:
           case AiLessonHelperState.applying:
@@ -207,9 +295,33 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
   }
 
   Widget _preview(BuildContext context) {
-    final explanation = context.select(
-      (AiLessonHelperProvider p) => p.explanation,
-    );
+    final provider = context.watch<AiLessonHelperProvider>();
+    final explanation = provider.explanation;
+    Lesson? next;
+    try {
+      final json = provider.resultJson;
+      if (json != null) next = Lesson.fromJson(json);
+    } catch (_) {
+      next = null;
+    }
+    final original = provider.originalLesson;
+    final before = original == null
+        ? 0
+        : original.flattenedStages.fold<int>(0, (n, s) => n + s.items.length);
+    final after = next == null
+        ? 0
+        : next.flattenedStages.fold<int>(0, (n, s) => n + s.items.length);
+    final typeLines = <String>[];
+    if (next != null) {
+      final counts = <String, int>{};
+      for (final stage in next.flattenedStages) {
+        for (final item in stage.items) {
+          final label = interactionTypeLabel(item);
+          counts[label] = (counts[label] ?? 0) + 1;
+        }
+      }
+      counts.forEach((k, v) => typeLines.add('$k ×$v'));
+    }
     return Container(
       constraints: const BoxConstraints(maxHeight: 240),
       padding: const EdgeInsets.all(12),
@@ -234,6 +346,12 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
             ] else ...[
               const SizedBox(height: 8),
               Text(AppStrings.aiLessonHelperTransformationReady),
+            ],
+            const SizedBox(height: 8),
+            Text(AppStrings.aiLessonHelperCountChange(before, after)),
+            if (typeLines.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(typeLines.join(' · ')),
             ],
           ],
         ),

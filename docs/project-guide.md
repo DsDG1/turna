@@ -2,7 +2,7 @@
 
 > 本文是 README 的深度补充。README 给出概览与快速上手，本文给出每个子系统的设计、实现要点与决策依据。阅读顺序建议：先读 README，再按需查阅本文相应章节。
 >
-> 所有信息以代码现状为准（schemaVersion 26、课程内容版本 12、`flutter test --exclude-tags golden` 1823 passed / 0 failed，截至 2026-09-13；完整基线见 `test/BASELINE.md`）。
+> 所有信息以代码现状为准（schemaVersion 26、课程内容版本 12、`flutter test --exclude-tags golden` 1861 passed / 0 failed，截至 2026-09-21；完整基线见 `test/BASELINE.md`）。2026-09-21 体验改良批次（B1–B7）收据见 [`ux-experience-improvement-plan.md`](./ux-experience-improvement-plan.md)。
 >
 > **近期重要变更**：Legacy Anki 复刻层已于 2026-08-27 由 [doc 35](./official-anki-migration/35-duplicate-legacy-layer-cleanup-plan.md) L0–L3 物理删除（`lib/application/anki/` 目录清空）。原 §6 中描述 legacy 解析/装配/映射/Full-Lite 的段落已改为删除说明，勿再按旧描述实现。
 
@@ -97,6 +97,8 @@ Turkish 属于**突厥语系**，是一种**黏着语**（agglutinative language
 
 这些特征使 Turkish 对汉语母语者既有门槛（语序、黏着形态），也有便利（无性别、拼读规则）。本项目据此设计了渐进式语法复习与丰富的词形变化练习；`listenOnly` 纯听阶段让学习者专注音位解码而不受文字干扰，`typeTheWord` 则将音位解码与拼写产出结合，双向强化形-音映射。
 
+**课时打字判分**不得用 Dart 默认 `toLowerCase()`：`'İ'` 会变成 `i` + 组合上点，学习者输入视觉正确的 `iyi` 会对答案 `İyi` 判错。比较走 `lib/core/turkish_text.dart` 的 `foldTurkish`（剥组合附加符，İ/I/ı 对称折成 `i`），填空 / 听写 / 短答 / 翻译四渲染器两侧同函数。词典查找仍可走 `LanguageCodes.lookupFoldKey` 的语言学校准 `I → ı`，与判分对称折叠分开。
+
 ---
 
 ## 3. 架构总览
@@ -125,8 +127,9 @@ lib/
 │   ├── gems_provider.dart         # 宝石账本
 │   ├── game_provider.dart         # 薄 facade，转发到上述各 provider
 │   ├── weak_word_quiz_assembler.dart
-│   ├── audio_controller.dart      # TTS / 音效统一接管
-│   ├── smart_speech.dart          # 智能朗读：语言检测 + 自动朗读
+│   ├── audio_controller.dart      # TTS / 音效统一接管（含 speakingListenable）
+│   ├── smart_speech.dart          # 智能朗读：语言检测 + 自动朗读 + maybeAutoSpeak
+│   ├── review/review_session_controller.dart  # 统一复习会话：乐观写入 / 分批 / 错误分流
 │   ├── accessibility_provider.dart # 6 项可访问性偏好
 │   ├── settings_provider.dart     # 含每课程 TTS 设置
 │   └── ...
@@ -134,6 +137,7 @@ lib/
 │   ├── fsrs_engine.dart           # FSRS-backed SrsScheduler
 │   ├── fsrs_optimizer.dart        # FSRS 参数优化
 │   ├── fsrs_relearn.dart          # 失败后当日重学阶梯
+│   ├── turkish_text.dart          # 课时打字判分用 foldTurkish（非 locale toLowerCase）
 │   ├── sm2.dart                   # SM-2 后备调度器
 │   ├── srs_scheduler.dart         # SrsScheduler 接口
 │   ├── language_detector.dart     # 按脚本推断 BCP-47 语言码
@@ -190,7 +194,7 @@ Section -> Unit -> Lesson -> SubLesson / ListeningPhase / ReadingPassage -> Stag
 | 词汇呈现 | `showWord` | 形式 + 意义 + 音频 |
 | 接受性词汇 | `multipleChoice` | 识词选义 |
 | 接受性词汇 | `multiSelect` | 多选 |
-| 产出性词汇/句法 | `fillBlank` | 完形填空 |
+| 产出性词汇/句法 | `fillBlank` | 完形填空（打字比对 `foldTurkish`） |
 | 产出性词汇/句法 | `translateSentence` | 翻译 |
 | 产出性词汇/句法 | `reorderSentence` | 乱序组句 |
 | 产出性词汇/句法 | `typeTheWord` | 听音拼写 |
@@ -267,7 +271,7 @@ Section -> Unit -> Lesson -> SubLesson / ListeningPhase / ReadingPassage -> Stag
 
 ### 5.5 错题本
 
-30 条 FIFO 队列，保留原始 interaction 快照（题干、正答、用户错答）。支持重做清除与跳转对应语法点复习。
+30 条 FIFO 队列，保留原始 interaction 快照（题干、正答、用户错答）。支持重做清除与跳转对应语法点复习。列表/仪表盘下拉刷新走 `reloadFromPrefs()`：先丢内存缓存再 `ensureLoaded()`，避免 repo 未加载态把 `entries` 当成空列表。
 
 ### 5.6 语法复习
 
@@ -287,9 +291,18 @@ Explain → Practice → Rate 三段流（见 2.4 Skill Acquisition Theory）。
 
 ### 5.10 撤销与并发
 
-`undoReview` 与在途 `reviewItem` 通过 `_gradesInFlight` 集合防竞态：评分写入期间拒绝撤销，完成后重试。
+`undoReview` 与在途 `reviewItem` 通过 `_gradesInFlight` 集合防竞态：评分写入期间拒绝撤销，完成后重试。统一复习会话（`ReviewSessionController`）评分后先推进 UI，DB 后台写；`isPersisting` 为真时禁用 undo。完成页可撤销最后一张。语法复习仍走独立页（Explain → Practice → Rate），评分后可一步撤销（`rollbackGrammarPoint`）；本场奖励发出后不再撤销。
 
-### 5.11 练习页（Play Hub，2026-08 焕新）
+### 5.11 统一复习会话体验（2026-09-21）
+
+`unified_review_page` + `ReviewSessionController`：
+
+- 中途退出 `PopScope` 确认，已答部分按比例 `SessionSettlementService.settle`。
+- 每场 `reviewBatchSize` 默认 25（设置可选 20/25/30）；完成页展示剩余到期并「继续复习」。
+- `previewError` 不锁评分键；仅 `writeError` 禁用并提示重试。
+- 新卡按课程自动朗读设置 `maybeAutoSpeak`；官方模板卡提供角落朗读（读正面文本快照）。
+
+### 5.12 练习页（Play Hub，2026-08 焕新）
 
 `lib/views/play/play_hub_screen.dart`——复习流的总入口，信息架构自上而下：
 
@@ -384,7 +397,7 @@ Explain → Practice → Rate 三段流（见 2.4 Skill Acquisition Theory）。
 `lib/views/ai/ai_hub_page.dart`——集中 AI 入口（从 Play Hub 进入），四区：
 
 - **Hero**：preset / modelChat / modelJson / 脱敏 key 芯片 + 重新配置按钮 + 配置不完整告警。
-- **Continue**：最近 3 个任务（`AiRecentTasksProvider`），空态提示，点击跳转对应路由。
+- **Continue**：最近 3 个**可恢复**任务（`AiRecentTasksProvider` 过滤掉 wish / textbook；`tutorChat` 仅在 prefs 里已有会话时恢复）。空态提示，点击跳转对应路由。
 - **Start**：5 个入口——许愿生成 / 教材导入 / 据错题导师 / 据弱词导师 / 深度讲解（带上下文门控）。
 - **Tools**：测试连接（`probeConnection` + 延时）/ 清缓存 / 查看 API 配置。
 
@@ -446,6 +459,7 @@ Explain → Practice → Rate 三段流（见 2.4 Skill Acquisition Theory）。
 - Anki 翻牌（卡出现读正面、翻开读背面，受 toggle 控制 + 每面手动朗读钮）。
 - 词典自由文本（`detectSpeakLanguage`）。
 - 已知目标语调用点（vocab term / 听力 transcript / ShowWord / SRS term）走 `speak`（target）不变。
+- 课时听力题（`listenAndPick` / `typeTheWord` / `listenOnly`）与统一复习新卡：`maybeAutoSpeak`（`autoReadOnTapForActiveCourse` + `ttsFeatureEnabled`）；`SpeakerButton` 播放中变体并禁点。
 
 ### 8.5 离线 TTS
 
@@ -679,7 +693,7 @@ JSON 位于 `assets/courses/turkish/`，由 `CourseLoader` 加载、`DatabaseSee
 ## 14. 测试与质量基线
 
 ```bash
-flutter test --exclude-tags golden           # 1834 passed / 0 failed（最新数字见 test/BASELINE.md）
+flutter test --exclude-tags golden           # 1861 passed / 0 failed（最新数字见 test/BASELINE.md）
 python -m unittest discover -s test -p "*_test.py"            # Python 工具测试
 python tool/gui/run_gui_tests.py full        # GUI 全量（每模块独立子进程，runner 自动设 offscreen）
 python -m ruff check tool/gui/src            # GUI lint（仅 src；tests 历史债另批清理）
@@ -722,6 +736,7 @@ python -m ruff check tool/gui/src            # GUI lint（仅 src；tests 历史
 | [`docs/authoring/`](./authoring/) | Authoring 契约与教师指南 |
 | [`docs/audio-recording-guidelines.md`](./audio-recording-guidelines.md) | 人工录音提交规范 |
 | [`test/BASELINE.md`](../test/BASELINE.md) | 测试基线与改动记录 |
+| [`docs/ux-experience-improvement-plan.md`](./ux-experience-improvement-plan.md) | 2026-09-21 体验改良 B1–B7 收据（源计划在桌面） |
 
 ---
 
@@ -738,7 +753,8 @@ python -m ruff check tool/gui/src            # GUI lint（仅 src；tests 历史
   1. 真机性能基线：Android 中低端机型 + profile 构建，采 Plan 2+3 §24 性能预算的 before 数据；
   2. 宝石 UI 钱包快照（`LocalStateKeys.gems`）到 `GemLedgerDao` 账本投影的完全切换；
   3. WebView 渲染真机矩阵（6 设备形态 × 11 卡型），随 doc 34 真机会话执行（[34-remaining §18.3 第 7 项](./official-anki-migration/34-remaining-construction-plan.md)）。
-- 活跃施工计划（未交付，勿删）：[GUI 与 App Schema 对齐](./tool-gui-app-schema-sync-plan.md)。
+- [GUI 与 App Schema 对齐](./tool-gui-app-schema-sync-plan.md) 已落地（G1–G9，仅 `tool/`）。
+- 体验改良延期项里仍不做的：Markdown 聊天气泡（需单独依赖决策）。B3-6 播种已挪到首帧之后；导师聊天写入 prefs；改课可从提示条撤销一次。见 [UX 收据](./ux-experience-improvement-plan.md)。
 - 持续完善可访问性与统计指标。
 
 ### 致谢

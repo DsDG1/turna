@@ -43,6 +43,7 @@ import 'package:turna/service/remote_backup/remote_backup_service.dart';
 import 'package:turna/service/remote_backup/restore_applier.dart';
 import 'package:turna/service/remote_backup/webdav_client.dart';
 import 'package:turna/service/remote_backup/webdav_remote_backup_store.dart';
+import 'package:turna/service/course_db_ready.dart';
 import 'package:turna/service/tab_router.dart';
 
 class AppPrefs {
@@ -239,6 +240,7 @@ class LocalStateKeys {
   // Master gate for the read-aloud feature (auto-read + per-course TTS entry
   // in course management). Opt-in: false until the user enables it.
   static const String ttsFeatureEnabled = 'settings.ttsFeatureEnabled';
+  static const String reviewBatchSize = 'settings.reviewBatchSize';
   // Legacy: 'settings.ttsEngine' selected the bundled Piper offline model in
   // the Swahili build. Turkish uses system/Google TTS only, so the engine
   // toggle was removed; the key is retained for back-compat reads.
@@ -393,10 +395,9 @@ Future<void> setupLocator() async {
     getIt.registerLazySingleton<FlutterTts>(() => FlutterTts());
   }
 
-  // Open + seed the course database before any course read. First install /
-  // content-version bump reseeds; subsequent cold starts skip when version
-  // matches and sections exist. Registered as a singleton so [CourseLoader]
-  // can resolve it synchronously.
+  // Open + migrate the course database before any course read. Seeding is
+  // deferred to [ensureCourseDatabaseReady] (after the first frame). Registered
+  // as a singleton so [CourseLoader] can resolve it synchronously.
   //
   // Non-web platforms use sqlite3 FFI (NativeDatabase). Apply a staged
   // remote restore (armed from the remote-backup settings page) before any
@@ -420,20 +421,16 @@ Future<void> setupLocator() async {
     remoteRestoreApplied = outcome == RestoreApplyOutcome.applied;
   }
 
-  final db = await _openAndSeedCourseDatabase();
+  // Open + migrate before the first frame so the registered handle is the
+  // post-restore instance (a failed migrate swaps the database). Seeding and
+  // scope repair wait for [ensureCourseDatabaseReady] so the splash can paint.
+  final db = await _openAndMigrateCourseDatabase();
   getIt.registerSingleton<CourseDatabase>(db);
   getIt.registerSingleton(AnkiUnificationDao(db));
   getIt.registerSingleton(
       CardIntroductionStore(dao: getIt<AnkiUnificationDao>()));
-
-  // Course-scope preference repair (plan 34 §6.4): must run after the DB and
-  // source catalog are open and BEFORE CourseProvider reads the preference.
-  // Idempotent; journals one row per actual change.
-  try {
-    await CourseScopePreferenceMigrator.repair(courseDb: db);
-  } catch (e) {
-    logger.w('course scope preference repair skipped: $e');
-  }
+  _readyCourseDb = db;
+  _courseDbReadyGate = CourseDbReadyGate(() => _seedCourseDatabase(db));
 
   if (!getIt.isRegistered<RestoreNormalizationService>()) {
     getIt.registerLazySingleton<RestoreNormalizationService>(
@@ -501,11 +498,36 @@ Future<void> setupLocator() async {
   // idempotent one-shot loads and finish before the course tree shows lessons.
 }
 
-/// Opens the on-device course database and seeds it from the bundled JSON
-/// assets when needed (version / empty-tree gate).
+CourseDbReadyGate? _courseDbReadyGate;
+CourseDatabase? _readyCourseDb;
+
+/// Replaces a failed seed gate so the next [ensureCourseDatabaseReady] runs
+/// again. [seedIfNeeded] stays idempotent when the previous attempt wrote
+/// part of the tree.
+void retryCourseDatabaseReady() {
+  final db = _readyCourseDb;
+  if (db == null) return;
+  _courseDbReadyGate = CourseDbReadyGate(() => _seedCourseDatabase(db));
+}
+
+/// Finishes course seeding and scope repair. Safe to call more than once;
+/// the work runs once. Must be awaited before [CourseProvider.load].
+Future<void> ensureCourseDatabaseReady() {
+  final gate = _courseDbReadyGate;
+  if (gate == null) {
+    throw StateError(
+      'Course database is not open. Call setupLocator() before '
+      'ensureCourseDatabaseReady().',
+    );
+  }
+  return gate.ensure();
+}
+
+/// Opens the on-device course database and forces the migration chain.
 ///
-/// Non-web platforms use [NativeDatabase] (sqlite3 FFI). Web is unsupported.
-Future<CourseDatabase> _openAndSeedCourseDatabase() async {
+/// Seeding is deferred to [ensureCourseDatabaseReady]. Non-web platforms use
+/// [NativeDatabase] (sqlite3 FFI). Web is unsupported.
+Future<CourseDatabase> _openAndMigrateCourseDatabase() async {
   // Non-final: the backup-restore path replaces a broken database handle.
   CourseDatabase db;
 
@@ -554,6 +576,13 @@ Future<CourseDatabase> _openAndSeedCourseDatabase() async {
     await db.customSelect('SELECT COUNT(*) AS n FROM sqlite_master').get();
   }
 
+  return db;
+}
+
+/// Asset seed plus course-scope preference repair. Runs after the first frame
+/// and before any course-tree read. Scope repair needs the seeded catalog and
+/// must still finish before [CourseProvider] consumes the preference.
+Future<void> _seedCourseDatabase(CourseDatabase db) async {
   try {
     await LanguageRegistry.instance.load();
     await DatabaseSeeder(db).seedIfNeeded();
@@ -561,7 +590,11 @@ Future<CourseDatabase> _openAndSeedCourseDatabase() async {
     logger.e('Course database seed failed', error: e, stackTrace: st);
     rethrow;
   }
-  return db;
+  try {
+    await CourseScopePreferenceMigrator.repair(courseDb: db);
+  } catch (e) {
+    logger.w('course scope preference repair skipped: $e');
+  }
 }
 
 Map<String, dynamic> _serializeUser(LocalUser user) => user.toJson();

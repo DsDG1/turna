@@ -7,6 +7,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:turna/application/ai/ai_error_mapper.dart';
 import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/ai_tutor_chat_provider.dart';
 import 'package:turna/application/ai/chat_auto_scroll_coordinator.dart';
@@ -14,6 +15,7 @@ import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/chat_bubble.dart';
+import 'package:turna/views/ai/components/ai_error_banner.dart';
 import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
 import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
 import 'package:turna/core/theme.dart';
@@ -53,7 +55,10 @@ class _AiTutorChatPageState extends State<AiTutorChatPage> {
       prefs = context.read<AiExplainPrefsStore>();
     } catch (_) {/* prefs provider optional — fall back to defaults */}
     _provider = AiTutorChatProvider(prefs: prefs);
-    _provider.setLanguage(context.read<LanguageProvider>().displayName);
+    final restored = _provider.restorePersisted();
+    if (!restored) {
+      _provider.setLanguage(context.read<LanguageProvider>().displayName);
+    }
     if (widget.initialMode != null) {
       _provider.setMode(widget.initialMode!);
     }
@@ -100,12 +105,15 @@ class _AiTutorChatPageState extends State<AiTutorChatPage> {
   }
 
   Future<void> _onSend() async {
+    if (_provider.state == AiTutorChatState.loading) return;
     final text = _inputCtrl.text.trim();
     if (text.isEmpty) return;
     final config = context.read<AiEngineConfigHolder>().config;
-    final started = await _provider.ask(config: config, text: text);
-    if (started) {
-      _inputCtrl.clear();
+    _inputCtrl.clear();
+    await _provider.ask(config: config, text: text);
+    final draft = _provider.consumeFailedInput();
+    if (draft != null && mounted) {
+      _inputCtrl.text = draft;
     }
   }
 
@@ -336,17 +344,11 @@ class _ErrorBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Selector<AiTutorChatProvider, String?>(
-      selector: (_, p) => p.error,
-      builder: (context, error, _) {
-        if (error == null) return const SizedBox.shrink();
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Text(
-            error,
-            style: const TextStyle(color: TurnaTheme.error),
-          ),
-        );
+    return Selector<AiTutorChatProvider, AiErrorMapping?>(
+      selector: (_, p) => p.errorMapping,
+      builder: (context, mapping, _) {
+        if (mapping == null) return const SizedBox.shrink();
+        return AiErrorBanner(mapping: mapping);
       },
     );
   }
@@ -385,12 +387,11 @@ class _Composer extends StatelessWidget {
               Expanded(
                 child: TextField(
                   controller: inputCtrl,
-                  enabled: !busy,
                   decoration: aiSheetInputDecoration(
                     context,
                     hint: AppStrings.aiTutorChatHint,
                   ),
-                  onSubmitted: (_) => onSend(),
+                  onSubmitted: busy ? null : (_) => onSend(),
                 ),
               ),
               const SizedBox(width: 8),

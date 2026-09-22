@@ -842,6 +842,9 @@ class AppStrings {
       '上述内容仅保存在本机:`transparency_log.jsonl`(应用沙箱内)与本次会话内存。绝不联网、绝不主动上传。';
   static String get transparencyClearAll => '清空本机日志';
   static String get transparencyClearAllDone => '本机日志已清空';
+  static String get transparencyClearConsequence => '将清空最近操作与错误日志，导出文件不受影响。';
+  static String get transparencyCopyAll => '复制全部日志';
+  static String get transparencyCopied => '已复制到剪贴板';
   static String get transparencyLevelInfo => '信息';
   static String get transparencyLevelWarn => '警告';
   static String get transparencyLevelError => '错误';
@@ -1088,6 +1091,24 @@ class AppStrings {
   static String get ankiReviewWriteUnsafe => '当前卡片无法安全写入，请重试或稍后返回。';
   static String get reviewSavedStatsPending => '复习已保存，统计稍后同步。';
   static String get reviewRetry => '重试';
+  static String reviewExitConfirmBody(int remaining) =>
+      '还剩 $remaining 张未完成，确定退出？已复习的卡片仍会记录。';
+  static String get reviewExitConfirmTitle => '结束复习？';
+  static String get reviewExitAnyway => '退出并结算';
+  static String get lessonExitConfirmTitle => '离开本课？';
+  static String get lessonExitConfirmBody => '本课进度将丢失，已计入复习的题目仍会保留。';
+  static String get lessonExitAnyway => '离开';
+  static String get reviewWriteFailed => '上一张保存失败，点击重试';
+  static String get reviewUndoLastCard => '撤销最后一张';
+  static String get reviewContinueBatch => '继续复习';
+  static String reviewRemainingDue(int count) => '还有 $count 张到期';
+  static String get settingsReviewBatchTitle => '每场复习张数';
+  static String get settingsReviewBatchSubtitle => '到期卡片较多时，每场先复习这么多张';
+  static String get reviewIntervalTomorrow => '明天';
+  static String reviewIntervalMinutes(int mins) => '$mins分钟';
+  static String reviewIntervalHours(int hours) => '$hours小时';
+  static String reviewIntervalDays(int days) => '$days天';
+  static String get reviewSpeakFront => '朗读正面';
 
   // ── Review completion (统一复习完成页) ──
   static String get reviewCompletionSubtitle => '你已完成本次复习全部内容';
@@ -1328,6 +1349,8 @@ class AppStrings {
   static String get lessonAiHintTooltip => 'AI 提示';
   static String get lessonNoContent => '无内容';
   static String get lessonLessonFallback => '课程';
+  static String lessonQuestionIndex(int current, int total) =>
+      '$current/$total';
   static String get lessonCouldNotLoadLesson => '无法加载课程';
 
   // ── AI ──
@@ -1471,6 +1494,37 @@ class AppStrings {
   static String get aiSaveExplanation => '收藏讲解';
   static String get aiExplanationSaved => '已收藏';
   static String get aiRetry => '重试';
+  static String get aiDictionaryWait => '请稍候几秒再试，词典请求间隔过短。';
+  static String ankiWizardStepCompact(int current, int total) =>
+      '第 $current/$total 步';
+  static String get accountResetExportFirst => '先导出备份';
+  static String get settingsImporting => '导入中…';
+  static String get aiLessonHelperNoLesson => '未选择课时';
+  static String get aiLessonHelperApplyConfirmTitle => '应用这次 AI 改课？';
+  static String get aiLessonHelperApplyConfirmBody => '将覆盖当前课时。应用后可在提示条里撤销这一次。';
+  static String get aiLessonHelperUndone => '已撤销这次改课';
+  static String get aiLessonHelperUndoFailed => '撤销失败，课时仍是改后的内容。';
+  static String aiLessonHelperCountChange(int before, int after) =>
+      '题目数：$before → $after';
+  static String aiLessonHelperTitleChange(String before, String after) =>
+      '标题：$before → $after';
+  static String get aiSavedDeleted => '已删除收藏';
+  static String aiSavedSourceLabel(String source) {
+    switch (source) {
+      case 'hint':
+        return '提示';
+      case 'depth':
+        return '深度讲解';
+      case 'dictionary':
+        return '词典';
+      case 'diagnosis':
+        return '诊断';
+      case 'review':
+        return '复习';
+      default:
+        return source;
+    }
+  }
 
   // ── AI explain prefs ──
   static String get aiPrefsSectionTitle => '讲解偏好';
@@ -1659,6 +1713,31 @@ class AppStrings {
   static String get ankiStepImport => '导入中';
   static String get ankiStepDone => '完成';
   static String get ankiParsing => '正在解析 Anki 集合…';
+  static String get ankiProgressUnpack => '正在解包';
+  static String get ankiProgressReading => '正在读取牌组';
+  static String get ankiProgressRecognize => '正在识别题型';
+  static String get ankiProgressWriting => '正在写入学习库';
+  static String get ankiProgressCourse => '正在生成课程';
+  static String get ankiProgressCannotCancel => '正在写入，此阶段不能取消';
+  static String get ankiAlreadyImportedTitle => '这个牌组已经导入过';
+  static String get ankiAlreadyImportedOpen => '打开课程';
+  static String get ankiAlreadyImportedReplace => '替换后重新导入';
+  static String get ankiPendingContinue => '继续上次导入';
+  static String get ankiPendingReparse => '重新解析';
+  static String get ankiIncludeMedia => '包含媒体';
+  static String get ankiIncludeMediaHint => '关闭后只导入文字，图片和音频不会复制';
+  static String ankiProgressCount(String label, int current) =>
+      '$label · $current';
+  static String ankiDoneNewNotes(int count) => '本次新增 $count 条笔记';
+  static String ankiDoneDuplicateNotes(int count) => '已存在并跳过 $count 条笔记';
+  static String ankiDoneParts(int count) => '课程按牌组顺序分成 $count 个部分，从第一部分开始';
+  static String ankiDoneReviewRule() =>
+      '第一遍课只解锁卡片。第一次 Again 或 Good 记在 Anki 复习里，当天新卡名额会抬到至少本课张数。';
+  static String get ankiDoneMediaIncluded => '媒体已包含';
+  static String get ankiDoneMediaSkipped => '媒体未导入';
+  static String get ankiPreviewStudyMode => '学习方式';
+  static String get ankiPreviewSkipNotetype => '跳过这类';
+  static String get ankiPreviewPickFront => '选正面';
   static String ankiImportUnavailable([String? reason]) =>
       reason == null || reason.isEmpty
           ? '当前平台或构建无法导入 Anki 牌组'
@@ -1834,11 +1913,10 @@ class AppStrings {
   static String get ankiOfficialMappingSkipped => '已跳过';
   static String get ankiPendingImportTitle => '未完成的导入';
   static String ankiPendingImportBody(String name) =>
-      '导入确认前被中断了。不能从这里接着导，放弃清理后可以重新选包。';
+      '「$name」还没导入完成。可以继续上次的预览，也可以放弃后重新选包。';
   static String get ankiImportSystemError => '系统错误';
   static String get ankiPendingMustDiscardBeforeNew =>
       '现在无法导入新卡片。必须先放弃这次未完成的导入。';
-  static String get ankiPendingContinue => '继续';
   static String get ankiPendingDiscard => '放弃并清理';
   static String get storageOptimizeDatabase => '优化数据库';
   static String get storageOptimizeConfirmTitle => '优化数据库？';
@@ -2440,6 +2518,7 @@ class AppStrings {
   static String get reviewProgressRange7 => '7天';
   static String get reviewProgressRange30 => '30天';
   static String get reviewProgressRange90 => '90天';
+  static String get reviewProgressRange365 => '365天';
   static String get reviewProgressKpiRetention => '保留率';
   static String get reviewProgressKpiMastery => '掌握度';
   static String get reviewProgressKpiCards => '卡片';
@@ -2516,6 +2595,13 @@ class AppStrings {
   static String get contentUpdateMessage => '土耳其语课程已更新了新单词和课程。你可以重新开始或继续当前进度。';
   static String get contentUpdateKeepProgress => '保留进度';
   static String get contentUpdateResetProgress => '重置进度';
+  static String get contentUpdateBannerMessage => '课程内容已更新，可保留进度或重置后重学。';
+  static String get contentUpdateResetConfirmTitle => '确认重置进度？';
+  static String get contentUpdateResetConfirmBody =>
+      '将清除课时进度、复习队列、错题本、学习日志与语法复习。建议先导出备份。';
+  static String get contentUpdateExportFirst => '先导出再重置';
+  static String get homeDueChipLabel => '待复习';
+  static String get emDash => '—';
 
   // ── Splash ──
   static String get splashReclaiming => '重拾语言学习';
@@ -2525,6 +2611,7 @@ class AppStrings {
   static String get splashAppName => 'Turna';
   static String get splashSubtitle => '没有会失去的生命值，没有要补充的体力。\n纯粹的学习。';
   static String get splashGetStarted => '开始使用';
+  static String get splashCourseLoadFailed => '课程没有加载成功。';
   static String splashVoiceMissingTitle(String name) => '缺少$name语音数据';
   static String splashVoiceMissingBody(String name) =>
       '已安装 Google 文字转语音，但尚未下载$name语音包。\n\n打开系统 TTS 设置 → 首选引擎 = Google → 安装$name语音数据。';
@@ -2655,6 +2742,26 @@ class AppStrings {
   static String get dayFri => '五';
   static String get daySat => '六';
   static String get daySun => '日';
+
+  /// [DateTime.weekday] is 1 = Monday … 7 = Sunday.
+  static String weekdayShortLabel(int weekday) {
+    switch (weekday) {
+      case DateTime.monday:
+        return dayMon;
+      case DateTime.tuesday:
+        return dayTue;
+      case DateTime.wednesday:
+        return dayWed;
+      case DateTime.thursday:
+        return dayThu;
+      case DateTime.friday:
+        return dayFri;
+      case DateTime.saturday:
+        return daySat;
+      default:
+        return daySun;
+    }
+  }
 
   // ── Official Anki errors ──
   static String get officialAnkiRetryCurrentSide => '重试当前面';
