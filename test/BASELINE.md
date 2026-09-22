@@ -1,3 +1,7 @@
+Generated: 2026-09-22（验货修复·格式归零）：独立验货发现 9 个改动文件非 dart-format 干净（anki_import_wizard_state / official_anki_engine_ffi / official_anki_v2_import_service / audio_controller / course_pack_importer / course_tree / srs_review_screen / unified_review_page / contract_integrity_test），CI format-check 门禁会红；`dart format` 归零（纯换行风格，零行为变化），上批记录补上漏掉的 format 验证口径。**验证**——全仓 `dart format lib test --set-exit-if-changed` **0 changed**（909 文件）；`flutter analyze` No issues found；定向 contract integrity + course_tree **28 passed**；全量计数不变（1894，本批纯格式未重跑全量）。
+
+Generated: 2026-09-22（体验改良计划收口）：Splash 在播种/校验阶段显示文案；助手聊天气泡用自研 Markdown 子集（不新增依赖）；改课前 JSON 写入 prefs，课时页可再撤销一次；导师聊天保留会话列表。顺手把超行数的导入预览头和官方提交/进度轮询拆出控制器，恢复 500/600 行门槛。**新测** simple markdown +3、lesson undo store +2、tutor session list +2、splash phase label +1。**验证**——改动文件 `dart analyze` 无问题；全量 `--exclude-tags golden` **1894 passed / 0 failed**。
+
 Generated: 2026-09-22（非内容优化接线修复）：导师聊天先写入会话再记最近任务，Hub 继续项不会在写入前被滤掉；改课重新加载排队，撤销写在其后并在失败时提示可再撤销；播种或首次加载失败时启动页显示失败文案和重试，重试会换一个新的播种门闩。**新测** 会话先于最近任务、课时重载顺序、bootFailed。
 
 Generated: 2026-09-22（非内容优化）：冷启动把课程播种和 scope 修复挪到首帧之后（`ensureCourseDatabaseReady`，迁移仍在 `runApp` 前）；导师聊天会话写入 prefs，Hub 继续区在会话非空时恢复；AI 改课写入后可用提示条撤销一次；语法复习评分后一步撤销，本场奖励发出后不再撤销。GUI schema G1–G9 核对为已在 `tool/` 落地，补 vocab+expressions 只 bump 一次的发布测试。**新测** course_db_ready +2、tutor session +4、lesson undo +1、grammar rollback +1、GUI release +1。

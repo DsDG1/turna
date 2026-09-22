@@ -95,6 +95,9 @@ class _TodaySummaryCardState extends _StudyFuturesState<TodaySummaryCard> {
           FutureBuilder<DailyStudyStats>(
             future: _todayFuture,
             builder: (context, snapshot) {
+              if (snapshot.connectionState != ConnectionState.done) {
+                return const _TodaySummary(waiting: true);
+              }
               return _TodaySummary(stats: snapshot.data);
             },
           ),
@@ -174,8 +177,9 @@ Widget _sectionTitle(BuildContext context, String text, IconData icon) {
 
 class _TodaySummary extends StatelessWidget {
   final DailyStudyStats? stats;
+  final bool waiting;
 
-  const _TodaySummary({this.stats});
+  const _TodaySummary({this.stats, this.waiting = false});
 
   @override
   Widget build(BuildContext context) {
@@ -199,7 +203,7 @@ class _TodaySummary extends StatelessWidget {
             icon: Icons.bolt_rounded,
             // Achievement-facing XP: clay icon on sand/soft badge (visibility).
             iconColor: TurnaTheme.anatolianClay,
-            value: xp.toString(),
+            value: waiting ? AppStrings.emDash : xp.toString(),
             label: AppStrings.profileXpToday,
             warmBadge: true,
           ),
@@ -207,14 +211,18 @@ class _TodaySummary extends StatelessWidget {
           _TodayItem(
             icon: Icons.timer_rounded,
             iconColor: TurnaTheme.leagueAmethyst,
-            value: AppStrings.profileStudyTimeValue(minutes),
+            value: waiting
+                ? AppStrings.emDash
+                : AppStrings.profileStudyTimeValue(minutes),
             label: AppStrings.profileStudyTime,
           ),
           Container(width: 1, height: 40, color: TurnaTheme.dividerBg(context)),
           _TodayItem(
             icon: Icons.percent_rounded,
             iconColor: TurnaTheme.successDark,
-            value: AppStrings.profileAccuracyValue(accuracy),
+            value: waiting
+                ? AppStrings.emDash
+                : AppStrings.profileAccuracyValue(accuracy),
             label: AppStrings.profileAccuracy,
           ),
         ],
@@ -285,15 +293,6 @@ class _WeeklyXpBars extends StatelessWidget {
 
     final maxXp =
         days.map((d) => d.totalXp).fold<int>(1, (a, b) => a > b ? a : b);
-    final dayLabels = [
-      AppStrings.dayMon,
-      AppStrings.dayTue,
-      AppStrings.dayWed,
-      AppStrings.dayThu,
-      AppStrings.dayFri,
-      AppStrings.daySat,
-      AppStrings.daySun,
-    ];
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -343,7 +342,7 @@ class _WeeklyXpBars extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    dayLabels[i % 7],
+                    AppStrings.weekdayShortLabel(day.date.weekday),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,

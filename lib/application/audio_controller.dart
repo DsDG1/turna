@@ -74,6 +74,28 @@ class AudioController {
   TtsSpeakResult? _lastSpeakResult;
   TtsSpeakResult? get lastSpeakResult => _lastSpeakResult;
 
+  final ValueNotifier<bool> _speaking = ValueNotifier(false);
+  int _speakingDepth = 0;
+
+  /// True while TTS or a speech asset is in flight.
+  bool get isSpeaking => _speaking.value;
+
+  ValueListenable<bool> get speakingListenable => _speaking;
+
+  Future<T> _trackSpeaking<T>(Future<T> Function() run) async {
+    _speakingDepth++;
+    _speaking.value = true;
+    try {
+      return await run();
+    } finally {
+      _speakingDepth--;
+      if (_speakingDepth <= 0) {
+        _speakingDepth = 0;
+        _speaking.value = false;
+      }
+    }
+  }
+
   AudioController(
     this._tts,
     this._languageProvider,
@@ -288,6 +310,15 @@ class AudioController {
     double? speed,
     String? languageCode,
   }) async {
+    return _trackSpeaking(
+        () => _speakWithResult(text, speed: speed, languageCode: languageCode));
+  }
+
+  Future<TtsSpeakResult> _speakWithResult(
+    String text, {
+    double? speed,
+    String? languageCode,
+  }) async {
     if (text.isEmpty) {
       const empty = TtsSpeakResult(
         source: TtsSpeakSource.failed,
@@ -344,12 +375,14 @@ class AudioController {
   /// `assets/` prefix (and optional leading `/`); normalization is applied
   /// before passing to [AudioPlayer].
   Future<void> speakFromAsset(String assetPath) async {
-    try {
-      await _speechPlayer.stop();
-      await _speechPlayer.play(AssetSource(normalizeAssetPath(assetPath)));
-    } catch (e) {
-      logger.w('Error playing asset audio: $e');
-    }
+    await _trackSpeaking(() async {
+      try {
+        await _speechPlayer.stop();
+        await _speechPlayer.play(AssetSource(normalizeAssetPath(assetPath)));
+      } catch (e) {
+        logger.w('Error playing asset audio: $e');
+      }
+    });
   }
 
   /// Speak a vocabulary word. Prefers the offline [audioAsset] if present,
@@ -361,6 +394,10 @@ class AudioController {
   /// Content lookup goes through [VocabAudioResolver] so this class does not
   /// import language-specific vocab maps.
   Future<void> speakWord(String wordId) async {
+    await _trackSpeaking(() => _speakWord(wordId));
+  }
+
+  Future<void> _speakWord(String wordId) async {
     if (AnkiAudioResolver.isAnkiAsset(wordId)) {
       await playAnkiMedia(wordId);
       return;
@@ -442,6 +479,18 @@ class AudioController {
   /// a logical word id. Path detection lives here so renderers only call this
   /// (or plain [speak] / [speakFromAsset] / [speakWord]).
   Future<void> speakListenContent({
+    String? audioAsset,
+    String transcript = '',
+  }) async {
+    await _trackSpeaking(
+      () => _speakListenContent(
+        audioAsset: audioAsset,
+        transcript: transcript,
+      ),
+    );
+  }
+
+  Future<void> _speakListenContent({
     String? audioAsset,
     String transcript = '',
   }) async {

@@ -4,6 +4,7 @@ import 'package:turna/domain/review/recall_outcome.dart';
 import 'package:turna/domain/review/review_item.dart';
 import 'package:turna/domain/review/review_ledger.dart';
 import 'package:turna/domain/review/srs_scheduling_gateway.dart';
+import 'package:turna/l10n/app_strings.dart';
 
 /// Ledger implementation for Turna course cards and legacy Anki imports.
 ///
@@ -46,16 +47,17 @@ class TurnaReviewLedger implements ReviewLedger {
       final mins = await _srsProvider.previewFailMinutesFor(word);
       if (mins != null) {
         if (mins <= 0) {
-          return const ReviewPreview(intervalLabel: '明天');
+          return ReviewPreview(
+              intervalLabel: AppStrings.reviewIntervalTomorrow);
         } else if (mins < 60) {
           return ReviewPreview(
-            intervalLabel: '$mins分钟',
+            intervalLabel: AppStrings.reviewIntervalMinutes(mins),
             estimatedInterval: Duration(minutes: mins),
           );
         } else {
           final hours = (mins / 60).round();
           return ReviewPreview(
-            intervalLabel: '$hours小时',
+            intervalLabel: AppStrings.reviewIntervalHours(hours),
             estimatedInterval: Duration(hours: hours),
           );
         }
@@ -66,7 +68,9 @@ class TurnaReviewLedger implements ReviewLedger {
         word,
         ReviewOutcome.pass,
       );
-      final label = days <= 0 ? '1天' : '$days天';
+      final label = days <= 0
+          ? AppStrings.reviewIntervalDays(1)
+          : AppStrings.reviewIntervalDays(days);
       return ReviewPreview(
         intervalLabel: label,
         estimatedInterval: Duration(days: days <= 0 ? 1 : days),
@@ -79,6 +83,7 @@ class TurnaReviewLedger implements ReviewLedger {
     ReviewSchedulingKey key,
     RecallOutcome outcome, {
     int durationMs = 0,
+    ReviewPreview? cachedPreview,
   }) async {
     final now = DateTime.now();
     final word = _srsProvider.state[key.rawId];
@@ -88,7 +93,7 @@ class TurnaReviewLedger implements ReviewLedger {
     final previous = word.copyWith();
     final eventId = 'turna_${now.microsecondsSinceEpoch}_${key.rawId}';
 
-    final prev = await preview(key, outcome);
+    final prev = cachedPreview ?? await preview(key, outcome);
     final isExpression = word.type == SrsItemType.expression;
     final reviewOutcome = outcome == RecallOutcome.remembered
         ? ReviewOutcome.pass

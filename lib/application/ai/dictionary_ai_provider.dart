@@ -11,6 +11,7 @@ import 'package:turna/application/ai/engine/ai_recent_tasks_provider.dart';
 import 'package:turna/application/ai/hint_genres.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
+import 'package:turna/l10n/app_strings.dart';
 
 enum DictionaryAiState { idle, loading, ready, error }
 
@@ -34,8 +35,9 @@ class DictionaryAiProvider extends AiRequestSessionBase {
   DictionaryAiState _state = DictionaryAiState.idle;
   DictionaryAiState get state => _state;
 
-  String? _error;
-  String? get error => _error;
+  AiErrorMapping? _errorMapping;
+  AiErrorMapping? get errorMapping => _errorMapping;
+  String? get error => _errorMapping?.message;
 
   DictionaryEnrichment? _enrichment;
   DictionaryEnrichment? get enrichment => _enrichment;
@@ -46,7 +48,7 @@ class DictionaryAiProvider extends AiRequestSessionBase {
   void clear() {
     abandonStreamingSession();
     _enrichment = null;
-    _error = null;
+    _errorMapping = null;
     _lastTerm = null;
     _state = DictionaryAiState.idle;
     notifySessionListeners();
@@ -69,16 +71,17 @@ class DictionaryAiProvider extends AiRequestSessionBase {
     if (t.isEmpty) return null;
 
     if (!_rateLimiter.tryAcquire(CompanionRateLimiter.dictionary)) {
-      _error = AiErrorMapper.map(
-        Exception('HTTP 429: rate'),
-      ).message;
+      _errorMapping = AiErrorMapping.message(
+        AppStrings.aiDictionaryWait,
+        kind: AiErrorKind.rateLimited,
+      );
       _state = DictionaryAiState.error;
       notifyListeners();
       return null;
     }
 
     final session = beginStreamingSession();
-    _error = null;
+    _errorMapping = null;
     _lastTerm = t;
     _state = DictionaryAiState.loading;
     notifySessionListeners();
@@ -128,7 +131,7 @@ class DictionaryAiProvider extends AiRequestSessionBase {
     } catch (e) {
       if (!isCurrentSession(session)) return null;
       logger.w('DictionaryAiProvider.enrich failed: $e');
-      _error = AiErrorMapper.map(e).message;
+      _errorMapping = AiErrorMapper.map(e);
       _state = DictionaryAiState.error;
       notifySessionListeners();
       return null;

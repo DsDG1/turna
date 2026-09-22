@@ -63,6 +63,7 @@ class _DelayedImportEngine extends FakeOfficialAnkiEngine {
     required String packagePath,
     bool withScheduling = true,
     bool withDeckConfigs = true,
+    bool withMedia = true,
   }) async {
     if (!enteredImport.isCompleted) enteredImport.complete();
     await releaseImport.future;
@@ -70,6 +71,7 @@ class _DelayedImportEngine extends FakeOfficialAnkiEngine {
       packagePath: packagePath,
       withScheduling: withScheduling,
       withDeckConfigs: withDeckConfigs,
+      withMedia: withMedia,
     );
   }
 }

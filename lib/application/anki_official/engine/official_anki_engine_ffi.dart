@@ -118,11 +118,38 @@ class FfiOfficialAnkiEngine implements OfficialAnkiEngine {
     required String packagePath,
     bool withScheduling = true,
     bool withDeckConfigs = true,
+    bool withMedia = true,
   }) async {
     final payload = _call(OfficialAnkiOperation.importPackage, {
       'package_path': packagePath,
       'with_scheduling': withScheduling,
       'with_deck_configs': withDeckConfigs,
+      'with_media': withMedia,
+    }).requirePayload();
+    return OfficialAnkiImportLog.fromJson(payload);
+  }
+
+  @override
+  Future<OfficialAnkiNoteDeckSummary> summarizeImportedNotes() async {
+    final payload =
+        _call(OfficialAnkiOperation.summarizeImportedNotes).requirePayload();
+    return OfficialAnkiNoteDeckSummary.fromJson(payload);
+  }
+
+  @override
+  Future<OfficialAnkiImportLog> promoteStagingCollection({
+    required String collectionPath,
+    required String mediaFolder,
+    bool withScheduling = true,
+    bool withDeckConfigs = true,
+    bool withMedia = true,
+  }) async {
+    final payload = _call(OfficialAnkiOperation.promoteStagingCollection, {
+      'collection_path': collectionPath,
+      'media_folder': mediaFolder,
+      'with_scheduling': withScheduling,
+      'with_deck_configs': withDeckConfigs,
+      'with_media': withMedia,
     }).requirePayload();
     return OfficialAnkiImportLog.fromJson(payload);
   }

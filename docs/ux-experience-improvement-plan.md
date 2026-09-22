@@ -1,7 +1,7 @@
 # Turna 体验改良施工计划（收据）
 
 > 源计划：`C:\Users\DsDogs\Desktop\Turna体验改良施工计划.md`（2026-09-21 代码审查，约 41 工单）。
-> 状态：**B1–B7 可编码项已落地（2026-09-21）**；同日补做小残留：B3-3 官方 due、B2-2 cachedPreview、B5-2 其余 provider、B7-1 relearn 文案、B7-8 `PracticeSessionBody`。
+> 状态：**B1–B7 可编码项已落地**。2026-09-22 补上计划里仍标未做的四项：启动阶段文案、聊天气泡 Markdown（自研子集，不新增依赖）、改课 JSON 快照、导师会话列表。
 > 验证：见 `test/BASELINE.md` 最新条目。
 
 产品禁区未动：二元评分（ADR 0028）、课程树不硬锁、无社交/Hearts、无云端推送、无全局错误弹窗。未引入新依赖。
@@ -12,9 +12,9 @@
 |------|------|
 | B1 三个真 bug | 完成 |
 | B2 复习会话 | 完成（语法复习接入统一 controller 仍按计划不做） |
-| B3 启动与首页 | 完成；B3-6 播种已挪到首帧之后（迁移仍在 `runApp` 前，避免换库句柄） |
+| B3 启动与首页 | 完成；播种在首帧后，Splash 显示「准备 / 校验」；迁移仍在 `runApp` 前，避免换库句柄 |
 | B4 课时快赢 | 完成 |
-| B5 AI 反馈面 | 完成；Markdown 仍不做。改课可撤销一次，导师聊天写入 prefs |
+| B5 AI 反馈面 | 完成。助手气泡渲染 Markdown 子集；改课快照写入 prefs；导师聊天保留会话列表 |
 | B6 危险操作 | 完成 |
 | B7 一致性清扫 | 完成；见下方残留 |
 
@@ -34,7 +34,7 @@
 - [x] B3-3 Learn `DueChip`：语言课四项之和；Anki 课官方+legacy due；Home `OfficialAnkiHomeDueSync.refresh`
 - [x] B3-4 next-up 展开（见偏差）
 - [x] B3-5 弹窗预算 TTS > 断签 > 内容更新；内容更新改 Home 横幅
-- [x] B3-6 播种在首帧回调、`CourseProvider.load` 之前（`ensureCourseDatabaseReady`）
+- [x] B3-6 播种在首帧回调；失败可重试；Splash 显示准备/校验文案（`splashStartupStatusLabel`）
 - [x] B4-1 七渲染器提交后隐藏核对按钮
 - [x] B4-2 type/translate/reading_short_answer `unfocus`
 - [x] B4-3 AppBar `X/Y`
@@ -42,13 +42,13 @@
 - [x] B4-5 ShowWord submitted + 300ms
 - [x] B4-6 `SpeakerButton` 订阅 `speakingListenable`，播放中禁点
 - [x] B4-7 提示改 `lightbulb_rounded`
-- [x] B5-1 `SelectableText`；**不做 Markdown**
+- [x] B5-1 用户气泡 `SelectableText`；助手气泡 `parseSimpleMarkdown`（标题/列表/代码/粗斜体），不引入 `flutter_markdown`
 - [x] B5-2 各 AI provider 存 `AiErrorMapping` + 词典/改课/卡讲解/hint sheet `AiErrorBanner`
 - [x] B5-3 流式时输入框可用，发送改停止
 - [x] B5-4 诊断页 `cancel()`
-- [x] B5-5 改课确认 + JSON 结构化预览 + chips 迁 AppStrings；写入后 SnackBar 用 `originalLesson` 撤销一次
+- [x] B5-5 改课确认 + 预览；写入后 SnackBar 撤销，并把改前 JSON 存入 `AiLessonUndoStore`，课时页可再撤销一次
 - [x] B5-6 词典防抖专属文案 + 停止/复制/收藏
-- [x] B5-7 Hub 继续区过滤 wish/textbook；导师聊天 prefs 会话非空时可恢复
+- [x] B5-7 Hub 继续区过滤 wish/textbook；导师聊天 prefs 会话列表，进页恢复当前会话，可另开或切回旧会话
 - [x] B5-8 保存讲解 SnackBar 撤销 + 本地化元数据 + 复制
 - [x] B6-1 内容更新 reset 二次确认 + 导出入口
 - [x] B6-2 账户重置「先导出备份」
@@ -68,8 +68,7 @@
 
 | 项 | 说明 |
 |----|------|
-| B5-1 Markdown | 不新增依赖 |
-| 语法统一会话 | 仍不接入 `ReviewSessionController`；评分后有一步撤销 |
+| 语法统一会话 | 计划写明本批不做：语法复习仍不接入 `ReviewSessionController`；评分后有一步撤销 |
 
 ## 关键落点
 
@@ -80,4 +79,7 @@
 | 退出结算 | `lib/application/study_session/session_settlement_service.dart` |
 | 自动朗读门控 | `lib/application/smart_speech.dart` `maybeAutoSpeak` |
 | AI 错误条 | `lib/views/ai/components/ai_error_banner.dart` |
+| 聊天气泡 Markdown | `lib/core/simple_markdown.dart` |
+| 改课撤销快照 | `lib/application/ai/ai_lesson_undo_store.dart` |
+| 导师会话列表 | `lib/application/ai/ai_tutor_chat_session.dart` |
 | 练习脚手架 | `lib/views/lesson/components/practice_session_body.dart` |

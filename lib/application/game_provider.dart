@@ -107,6 +107,8 @@ class GameProvider extends ChangeNotifier {
   /// Synchronous snapshot of the current game counters (prefs-backed).
   UserGameState get currentUserGameState => _readState();
 
+  bool get initialized => _readBool(LocalStateKeys.initialized, false);
+
   Future<void> ensureUserGameFields() async {
     if (_readBool(LocalStateKeys.initialized, false)) {
       return;

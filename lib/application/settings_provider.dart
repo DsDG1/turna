@@ -32,6 +32,7 @@ class SettingsProvider extends ChangeNotifier {
   String _fsrsOptimizedAt = '';
   int _fsrsOptimizedReviews = 0;
   bool _ankiForceDisableJs = false;
+  int _reviewBatchSize = 25;
 
   SettingsProvider(this._appPrefs) {
     _load();
@@ -64,6 +65,9 @@ class SettingsProvider extends ChangeNotifier {
   /// decks then show ciphertext. Lite-threshold (shell-only large decks)
   /// died with the Legacy assembler.
   bool get ankiForceDisableJs => _ankiForceDisableJs;
+
+  /// Cards per unified SRS review session (20–30 typical).
+  int get reviewBatchSize => _reviewBatchSize;
 
   TimeOfDay get dailyReminderTime =>
       TimeOfDay(hour: _dailyReminderHour, minute: _dailyReminderMinute);
@@ -110,6 +114,11 @@ class SettingsProvider extends ChangeNotifier {
     _ankiForceDisableJs = _appPrefs.preferences
         .getBool(LocalStateKeys.ankiForceDisableJs, defaultValue: false)
         .getValue();
+    final stored = _appPrefs.preferences
+        .getInt(LocalStateKeys.reviewBatchSize, defaultValue: 25)
+        .getValue();
+    _reviewBatchSize =
+        (stored == 20 || stored == 25 || stored == 30) ? stored : 25;
   }
 
   /// Re-reads every persisted setting and notifies listeners. Used after a
@@ -142,6 +151,12 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> setTtsFeatureEnabled(bool value) async {
     _ttsFeatureEnabled = value;
     await _appPrefs.setBool(LocalStateKeys.ttsFeatureEnabled, value: value);
+    notifyListeners();
+  }
+
+  Future<void> setReviewBatchSize(int value) async {
+    _reviewBatchSize = (value == 20 || value == 25 || value == 30) ? value : 25;
+    await _appPrefs.setInt(LocalStateKeys.reviewBatchSize, _reviewBatchSize);
     notifyListeners();
   }
 

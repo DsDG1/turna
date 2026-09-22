@@ -13,6 +13,8 @@ class DeckTreeNode {
     List<DeckTreeNode>? children,
     this.isExpanded = true,
     this.archetypeLabel,
+    this.notetypeId,
+    this.included = true,
   }) : children = children ?? [];
 
   final String name;
@@ -22,6 +24,8 @@ class DeckTreeNode {
   final List<DeckTreeNode> children;
   bool isExpanded;
   String? archetypeLabel;
+  final int? notetypeId;
+  bool included;
 
   int get subtreeCardCount {
     var total = cardCount;
@@ -37,6 +41,8 @@ List<DeckTreeNode> buildDeckTree(
   List<OfficialAnkiDeckNode> decks,
   Map<int, int> cardCountByDeck, {
   Map<int, String>? archetypeLabelByDeck,
+  Map<int, int>? notetypeByDeck,
+  Set<int>? includedDeckIds,
 }) {
   final roots = <DeckTreeNode>[];
   final nodeMap = <String, DeckTreeNode>{};
@@ -54,6 +60,9 @@ List<DeckTreeNode> buildDeckTree(
 
       var node = nodeMap[currentPath];
       if (node == null) {
+        final int? mappedNotetype = !isLeaf || notetypeByDeck == null
+            ? null
+            : notetypeByDeck[deck.deckId];
         node = DeckTreeNode(
           name: segment,
           fullPath: currentPath,
@@ -63,6 +72,9 @@ List<DeckTreeNode> buildDeckTree(
           archetypeLabel: isLeaf && archetypeLabelByDeck != null
               ? archetypeLabelByDeck[deck.deckId]
               : null,
+          notetypeId: mappedNotetype,
+          included:
+              includedDeckIds == null || includedDeckIds.contains(deck.deckId),
         );
         nodeMap[currentPath] = node;
         if (parent != null) {
@@ -92,12 +104,14 @@ class DeckDirectoryTreeView extends StatelessWidget {
     required this.totalDecks,
     required this.onToggle,
     this.onInspectNode,
+    this.onToggleIncluded,
   });
 
   final List<DeckTreeNode> deckTree;
   final int totalDecks;
   final VoidCallback onToggle;
   final void Function(DeckTreeNode node)? onInspectNode;
+  final void Function(DeckTreeNode node, bool included)? onToggleIncluded;
 
   @override
   Widget build(BuildContext context) {
@@ -145,6 +159,7 @@ class DeckDirectoryTreeView extends StatelessWidget {
               depth: 0,
               onToggle: onToggle,
               onInspectNode: onInspectNode,
+              onToggleIncluded: onToggleIncluded,
             ),
         ],
       ),
@@ -159,12 +174,14 @@ class DeckTreeNodeWidget extends StatelessWidget {
     required this.depth,
     required this.onToggle,
     this.onInspectNode,
+    this.onToggleIncluded,
   });
 
   final DeckTreeNode node;
   final int depth;
   final VoidCallback onToggle;
   final void Function(DeckTreeNode node)? onInspectNode;
+  final void Function(DeckTreeNode node, bool included)? onToggleIncluded;
 
   @override
   Widget build(BuildContext context) {
@@ -182,6 +199,14 @@ class DeckTreeNodeWidget extends StatelessWidget {
           ),
           child: Row(
             children: [
+              if (node.deckId != null)
+                Checkbox(
+                  value: node.included,
+                  onChanged: (value) {
+                    node.included = value ?? false;
+                    onToggleIncluded?.call(node, node.included);
+                  },
+                ),
               if (hasChildren)
                 GestureDetector(
                   onTap: () {
@@ -282,6 +307,7 @@ class DeckTreeNodeWidget extends StatelessWidget {
               depth: depth + 1,
               onToggle: onToggle,
               onInspectNode: onInspectNode,
+              onToggleIncluded: onToggleIncluded,
             ),
       ],
     );

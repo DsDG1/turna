@@ -43,11 +43,8 @@ class MistakeDashboardPage extends StatelessWidget {
             )
           : RefreshIndicator(
               color: TurnaTheme.brandTeal,
-              onRefresh: () async {
-                context.read<MistakeProvider>().reloadFromPrefs();
-                // Keep the spinner visible briefly so the gesture reads back.
-                await Future<void>.delayed(const Duration(milliseconds: 400));
-              },
+              onRefresh: () =>
+                  context.read<MistakeProvider>().reloadFromPrefs(),
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(
                   parent: BouncingScrollPhysics(),

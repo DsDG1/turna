@@ -152,15 +152,10 @@ class PostRestoreReloadRegistry {
       'mistakes',
       () => getIt.isRegistered<MistakeProvider>(),
       () async {
-        // reloadFromPrefs only drops the decoded caches; follow with a real
-        // load so the mistake log is visible immediately after a restore
-        // instead of staying empty until the next record.
-        getIt<MistakeProvider>().reloadFromPrefs();
+        await getIt<MistakeProvider>().reloadFromPrefs();
         final language = _restoredLanguage();
         if (language != null) {
           await getIt<MistakeProvider>().setLanguage(language);
-        } else {
-          await getIt<MistakeProvider>().ensureLoaded();
         }
       },
     );

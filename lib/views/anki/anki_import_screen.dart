@@ -110,7 +110,9 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
     AnkiImportController controller,
   ) async {
     final state = controller.state;
-    if (state is AnkiImportSelecting || state is AnkiImportCompleted) {
+    if (state is AnkiImportSelecting ||
+        state is AnkiImportCompleted ||
+        state is AnkiImportAlreadyImported) {
       return true;
     }
     if (state is AnkiImportPreviewing) {
@@ -174,6 +176,8 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
           error: failureMessage ?? error,
           controller: controller,
         );
+      case AnkiImportAlreadyImported():
+        return _buildAlreadyImported(controller, effective);
       case AnkiImportParsing():
         return _buildParsingStep(controller, effective);
       case AnkiImportCommitting():
@@ -228,6 +232,17 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                           controller.clearSelectFailure();
                           setLocal(() {});
                         },
+                        onContinue: (item) => controller.continuePending(item),
+                      ),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(AppStrings.ankiIncludeMedia),
+                        subtitle: Text(AppStrings.ankiIncludeMediaHint),
+                        value: controller.includeMedia,
+                        onChanged: (value) {
+                          controller.setIncludeMedia(value);
+                          setLocal(() {});
+                        },
                       ),
                       const SizedBox(height: 8),
                       // No duplicate title here; the AppBar already shows it.
@@ -241,11 +256,11 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 32),
-                      if (error != null || hasUnfinished)
+                      if (error != null)
                         Padding(
                           padding: const EdgeInsets.only(bottom: 16),
                           child: Text(
-                            error ?? unfinishedImportBlocksNewMessage(),
+                            error,
                             style: const TextStyle(color: TurnaTheme.error),
                             textAlign: TextAlign.center,
                           ),
@@ -286,7 +301,10 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           // Doc 39 P5: the never-non-zero progress bar died with the field.
-          const CircularProgressIndicator(),
+          _ImportProgressIndicator(
+            current: parsing.progressCurrent,
+            total: parsing.progressTotal,
+          ),
           const SizedBox(height: 24),
           Text(
             AppStrings.ankiParsing,
@@ -340,7 +358,10 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const CircularProgressIndicator(),
+          _ImportProgressIndicator(
+            current: committing.progressCurrent,
+            total: committing.progressTotal,
+          ),
           const SizedBox(height: 24),
           Text(
             committing.message.isEmpty
@@ -361,6 +382,14 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
               ),
             ),
           ],
+          const SizedBox(height: 8),
+          Text(
+            AppStrings.ankiProgressCannotCancel,
+            style: TextStyle(
+              color: TurnaTheme.textSecondaryColor(context),
+              fontSize: 13,
+            ),
+          ),
           // A2：commit 一旦进入 live 写不可取消——隐藏取消按钮，避免用户
           // 以为能中断（台账已在写，强退由 finishCommit 收尾清理）。
         ],
@@ -438,5 +467,64 @@ class _AnkiImportPageState extends State<AnkiImportPage> {
       return (state.returnState as AnkiImportCompleted).summary.importId;
     }
     return null;
+  }
+
+  Widget _buildAlreadyImported(
+    AnkiImportController controller,
+    AnkiImportAlreadyImported state,
+  ) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.inventory_2_outlined,
+                size: 72, color: TurnaTheme.brandTeal),
+            const SizedBox(height: 16),
+            Text(
+              AppStrings.ankiAlreadyImportedTitle,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              state.displayName,
+              textAlign: TextAlign.center,
+              style: TextStyle(color: TurnaTheme.textSecondaryColor(context)),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () => unawaited(controller.openExistingCourse()),
+              child: Text(AppStrings.ankiAlreadyImportedOpen),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton(
+              onPressed: () => unawaited(controller.replaceExisting()),
+              child: Text(AppStrings.ankiAlreadyImportedReplace),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ImportProgressIndicator extends StatelessWidget {
+  const _ImportProgressIndicator({this.current, this.total});
+
+  final int? current;
+  final int? total;
+
+  @override
+  Widget build(BuildContext context) {
+    final totalCount = total;
+    if (current != null && totalCount != null && totalCount > 0) {
+      return SizedBox(
+        width: 220,
+        child: LinearProgressIndicator(value: current! / totalCount),
+      );
+    }
+    return const CircularProgressIndicator();
   }
 }

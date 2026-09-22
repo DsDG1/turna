@@ -6,7 +6,10 @@ import 'package:turna/application/anki_import/recognition/lexicon/field_roles.da
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/import/anki_import_execution_plan.dart';
 import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/anki/import_wizard/anki_import_done_step.dart';
 import 'package:turna/views/anki/import_wizard/modern_anki_import_preview.dart';
+import 'package:turna/views/anki/import_wizard/study_preset_selector.dart';
 
 void main() {
   testWidgets('modern preview shows course overview, stats and deck tree',
@@ -75,17 +78,18 @@ void main() {
       ),
     ));
 
-    // 1. 验证课程概览头部与卡片统计
-    expect(find.text('Biology'), findsWidgets);
-    expect(find.text('42 张卡片'), findsWidgets);
+    // 1. 验证课程概览头部与卡片统计（标题用文件名，不再用树的第一个根）
+    expect(find.text('Biology.apkg'), findsOneWidget);
+    expect(find.text('42'), findsWidgets);
     expect(find.text('学习模式设定'), findsOneWidget);
 
     // 2. 验证学习模式三大卡片
-    expect(find.text('智能互动练习'), findsOneWidget);
+    expect(find.text('智能互动练习'), findsWidgets);
     expect(find.text('经典闪卡翻面'), findsOneWidget);
     expect(find.text('原卡官方保真'), findsOneWidget);
 
-    // 3. 验证多级目录树层级节点
+    // 3. 验证多级目录树层级节点（题型行把目录顶到首屏之外）
+    await tester.scrollUntilVisible(find.text('完整章节目录'), 400);
     expect(find.text('完整章节目录'), findsOneWidget);
     expect(find.text('Mendel'), findsOneWidget);
 
@@ -151,16 +155,18 @@ void main() {
       ),
     ));
 
-    // 点击「经典闪卡翻面」
+    // 全局预设只改未确认行，不把该行标成 userConfirmed。
     await tester.tap(find.text('经典闪卡翻面'));
     await tester.pump();
 
-    // 验证调用了 confirmOfficialMapping 并更新了 enabledKinds
-    expect(controller.confirmedMappings.length, 1);
-    final confirmed = controller.confirmedMappings.first;
-    expect(confirmed.$1.notetypeId, 1);
-    expect(confirmed.$2.enabledKinds, contains('flip'));
-    expect(confirmed.$2.enabledKinds, isNot(contains('multipleChoice')));
+    expect(controller.confirmedMappings, isEmpty);
+    expect(controller.unconfirmedKinds, hasLength(1));
+    expect(controller.unconfirmedKinds.single.$1.notetypeId, 1);
+    expect(controller.unconfirmedKinds.single.$2, contains('flip'));
+    expect(
+      controller.unconfirmedKinds.single.$2,
+      isNot(contains('multipleChoice')),
+    );
   });
 
   testWidgets('blocking schema displays warning and allows in-place picking',
@@ -227,12 +233,13 @@ void main() {
     ));
 
     // 1. 验证阻断提示条显示
-    await tester.ensureVisible(find.text('指定正面'));
+    await tester.ensureVisible(find.text('选正面'));
     expect(find.textContaining('需要指定正面字段'), findsOneWidget);
-    expect(find.text('指定正面'), findsOneWidget);
+    expect(find.text('选正面'), findsOneWidget);
+    expect(find.text('跳过这类'), findsOneWidget);
 
-    // 2. 点击「指定正面」弹出 BottomSheet
-    await tester.tap(find.text('指定正面'));
+    // 2. 点击「选正面」弹出 BottomSheet
+    await tester.tap(find.text('选正面'));
     await tester.pumpAndSettle();
 
     expect(find.text('选择卡片正面（ConfusingTemplate）'), findsOneWidget);
@@ -360,6 +367,287 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('题型效果预览（ExamMCQ）'), findsNothing);
   });
+
+  testWidgets('deck inspect opens the notetype that owns that deck',
+      (tester) async {
+    final controller = _RecordingController();
+    OfficialAnkiProjectionSchema schema(int id, String name) {
+      return OfficialAnkiProjectionSchema(
+        notetypeId: id,
+        name: name,
+        kind: 'normal',
+        fieldNames: const ['Front', 'Back'],
+        templateNames: const ['Card 1'],
+        schemaFingerprint: '$id',
+        samples: const [
+          OfficialAnkiProjectionSample(noteId: 1, fields: ['a', 'b']),
+        ],
+      );
+    }
+
+    final preview = OfficialAnkiImportPreviewModel(
+      plan: _plan(),
+      filePath: 'Mixed.apkg',
+      sourceId: 'src-1',
+      sourceHash: 'h',
+      cardCount: 8,
+      noteCount: 8,
+      decks: const [
+        OfficialAnkiDeckNode(deckId: 1, name: 'Words', level: 0),
+        OfficialAnkiDeckNode(deckId: 2, name: 'Gaps', level: 0),
+      ],
+      cardCountByDeck: const {1: 5, 2: 3},
+      notetypeByDeck: const {1: 1, 2: 2},
+      includedDeckIds: const {1, 2},
+      schemas: [schema(1, 'Basic'), schema(2, 'Cloze')],
+      suggestions: const {
+        2: OfficialAnkiMappingSuggestion(
+          status: OfficialAnkiMappingStatus.auto,
+          archetype: 'cloze',
+          candidates: <OfficialAnkiFieldCandidate>[],
+        ),
+      },
+    );
+
+    tester.view.physicalSize = const Size(1000, 2000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: ModernAnkiImportPreview(
+          preview: preview,
+          controller: controller,
+        ),
+      ),
+    ));
+
+    await tester.ensureVisible(find.text('填空'));
+    await tester.tap(find.text('填空'));
+    await tester.pumpAndSettle();
+    expect(find.text('题型效果预览（Cloze）'), findsOneWidget);
+  });
+
+  testWidgets('one notetype dropdown does not confirm the other row',
+      (tester) async {
+    final controller = _RecordingController();
+    OfficialAnkiProjectionSchema schema(int id, String name) {
+      return OfficialAnkiProjectionSchema(
+        notetypeId: id,
+        name: name,
+        kind: 'normal',
+        fieldNames: const ['Front', 'Back'],
+        templateNames: const ['Card 1'],
+        schemaFingerprint: '$id',
+      );
+    }
+
+    final preview = OfficialAnkiImportPreviewModel(
+      plan: _plan(),
+      filePath: 'Two.apkg',
+      sourceId: 'src-1',
+      sourceHash: 'h',
+      cardCount: 4,
+      noteCount: 4,
+      decks: const [
+        OfficialAnkiDeckNode(deckId: 1, name: 'A', level: 0),
+      ],
+      includedDeckIds: const {1},
+      schemas: [schema(1, 'Basic'), schema(2, 'Cloze')],
+      suggestions: const {},
+    );
+
+    tester.view.physicalSize = const Size(1000, 2000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: ModernAnkiImportPreview(
+          preview: preview,
+          controller: controller,
+        ),
+      ),
+    ));
+
+    await tester.tap(find.byType(DropdownButton<StudyPresetMode>).at(1));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('经典闪卡翻面').last);
+    await tester.pumpAndSettle();
+
+    expect(controller.studyModes, hasLength(1));
+    expect(controller.studyModes.single.$1.notetypeId, 2);
+    expect(controller.confirmedMappings, isEmpty);
+  });
+
+  testWidgets('skipping a blocking notetype enables commit', (tester) async {
+    final controller = _RecordingController();
+    final schema = OfficialAnkiProjectionSchema(
+      notetypeId: 99,
+      name: 'ConfusingTemplate',
+      kind: 'normal',
+      fieldNames: const ['CustomCol1', 'CustomCol2'],
+      templateNames: const ['Card 1'],
+      schemaFingerprint: 'fp',
+    );
+    final blocked = OfficialAnkiImportPreviewModel(
+      plan: _plan(),
+      filePath: 'Exam.apkg',
+      sourceId: 'src-1',
+      sourceHash: 'h',
+      cardCount: 5,
+      noteCount: 5,
+      decks: const [
+        OfficialAnkiDeckNode(deckId: 1, name: 'Exam', level: 0),
+      ],
+      includedDeckIds: const {1},
+      schemas: [schema],
+      suggestions: const {
+        99: OfficialAnkiMappingSuggestion(
+          status: OfficialAnkiMappingStatus.review,
+          archetype: 'basicPair',
+          candidates: <OfficialAnkiFieldCandidate>[],
+        ),
+      },
+    );
+
+    tester.view.physicalSize = const Size(1000, 2000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: ModernAnkiImportPreview(
+          preview: blocked,
+          controller: controller,
+        ),
+      ),
+    ));
+    expect(
+      tester.widget<ElevatedButton>(find.byType(ElevatedButton)).onPressed,
+      isNull,
+    );
+
+    await tester.tap(find.text('跳过这类'));
+    await tester.pump();
+    expect(controller.skipped, [99]);
+
+    final skipped = OfficialAnkiImportPreviewModel(
+      plan: blocked.plan,
+      filePath: blocked.filePath,
+      sourceId: blocked.sourceId,
+      sourceHash: blocked.sourceHash,
+      cardCount: blocked.cardCount,
+      noteCount: blocked.noteCount,
+      decks: blocked.decks,
+      includedDeckIds: blocked.includedDeckIds,
+      schemas: blocked.schemas,
+      suggestions: blocked.suggestions,
+      skippedNotetypes: const {99},
+    );
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: ModernAnkiImportPreview(
+          preview: skipped,
+          controller: controller,
+        ),
+      ),
+    ));
+    expect(
+      tester.widget<ElevatedButton>(find.byType(ElevatedButton)).onPressed,
+      isNotNull,
+    );
+  });
+
+  testWidgets('unchecking a deck records it as excluded from the course',
+      (tester) async {
+    final controller = _RecordingController();
+    final preview = OfficialAnkiImportPreviewModel(
+      plan: _plan(),
+      filePath: 'Decks.apkg',
+      sourceId: 'src-1',
+      sourceHash: 'h',
+      cardCount: 4,
+      noteCount: 4,
+      decks: const [
+        OfficialAnkiDeckNode(deckId: 7, name: 'Keep', level: 0),
+        OfficialAnkiDeckNode(deckId: 8, name: 'Skip', level: 0),
+      ],
+      cardCountByDeck: const {7: 2, 8: 2},
+      includedDeckIds: const {7, 8},
+      schemas: [
+        OfficialAnkiProjectionSchema(
+          notetypeId: 1,
+          name: 'Basic',
+          kind: 'normal',
+          fieldNames: const ['Front', 'Back'],
+          templateNames: const ['Card 1'],
+          schemaFingerprint: 'fp',
+        ),
+      ],
+      suggestions: const {},
+    );
+
+    tester.view.physicalSize = const Size(1000, 2000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: ModernAnkiImportPreview(
+          preview: preview,
+          controller: controller,
+        ),
+      ),
+    ));
+
+    final boxes = find.byType(Checkbox);
+    expect(boxes, findsNWidgets(2));
+    await tester.tap(boxes.at(1));
+    await tester.pump();
+    expect(controller.toggledDecks, [(8, false)]);
+  });
+
+  testWidgets('done step states new notes, skipped notes, parts and media',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      home: AnkiImportDoneStep(
+        summary: const AnkiImportSummary(
+          importId: 'src',
+          sectionCount: 2,
+          lessonCount: 4,
+          cardCount: 10,
+          wordEntryCount: 0,
+          newNoteCount: 6,
+          duplicateNoteCount: 2,
+          partCount: 3,
+          includeMedia: false,
+        ),
+        keptLearningProgress: true,
+        onStartLearningNow: () {},
+        onViewDecks: () {},
+        onDone: () {},
+      ),
+    ));
+
+    expect(find.text('本次新增 6 条笔记'), findsOneWidget);
+    expect(find.text('已存在并跳过 2 条笔记'), findsOneWidget);
+    expect(find.textContaining('分成 3 个部分'), findsOneWidget);
+    expect(find.text(AppStrings.ankiDoneMediaSkipped), findsOneWidget);
+    expect(find.text(AppStrings.ankiDoneReviewRule()), findsOneWidget);
+  });
 }
 
 AnkiImportExecutionPlan _plan() => const AnkiImportExecutionPlan(
@@ -381,6 +669,10 @@ class _StubController implements AnkiImportController {
 class _RecordingController implements AnkiImportController {
   final confirmedMappings =
       <(OfficialAnkiProjectionSchema, OfficialAnkiMappingSuggestion)>[];
+  final unconfirmedKinds = <(OfficialAnkiProjectionSchema, List<String>)>[];
+  final studyModes = <(OfficialAnkiProjectionSchema, List<String>)>[];
+  final skipped = <int>[];
+  final toggledDecks = <(int, bool)>[];
   bool committed = false;
 
   @override
@@ -389,6 +681,35 @@ class _RecordingController implements AnkiImportController {
     OfficialAnkiMappingSuggestion suggestion,
   ) {
     confirmedMappings.add((schema, suggestion));
+  }
+
+  @override
+  void applyUnconfirmedKinds(
+    OfficialAnkiProjectionSchema schema,
+    List<String> enabledKinds,
+  ) {
+    unconfirmedKinds.add((schema, enabledKinds));
+  }
+
+  @override
+  void setNotetypeStudyMode(
+    OfficialAnkiProjectionSchema schema,
+    List<String> enabledKinds,
+  ) {
+    studyModes.add((schema, enabledKinds));
+  }
+
+  @override
+  Future<void> loadSamples(OfficialAnkiProjectionSchema schema) async {}
+
+  @override
+  void skipOfficialNotetype(OfficialAnkiProjectionSchema schema) {
+    skipped.add(schema.notetypeId);
+  }
+
+  @override
+  void toggleDeckIncluded(int deckId, bool included) {
+    toggledDecks.add((deckId, included));
   }
 
   @override

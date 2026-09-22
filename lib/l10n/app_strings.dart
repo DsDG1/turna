@@ -1447,6 +1447,7 @@ class AppStrings {
   static String get aiLessonHelperTransform => '转换';
   static String aiLessonHelperInvalidJson(Object error) => '无效的课程 JSON：$error';
   static String get aiLessonHelperLessonUpdated => '课程已更新。';
+  static String get aiLessonHelperUndoAvailable => '可以撤销上次 AI 改课。';
   static String aiLessonHelperUpdateFailed(Object error) => '更新失败：$error';
   static String get aiTutorTitle => 'AI 导师';
   static String aiTutorTitleWithType(String typeLabel) => 'AI 导师 · $typeLabel';
@@ -1547,6 +1548,9 @@ class AppStrings {
   static String get aiTutorChatEmpty => '随便问语法、用法或造句。不会生成课程。';
   static String get aiTutorChatHint => '输入你的问题…';
   static String get aiTutorNewSession => '新会话';
+  static String get aiTutorSessionList => '会话记录';
+  static String get aiTutorSessionEmpty => '还没有保存的会话。';
+  static String get aiTutorDeleteSession => '删除会话';
   static String get aiRoleplayDining => '点餐';
   static String get aiRoleplayDirections => '问路';
   static String get aiRoleplayIntro => '自我介绍';
@@ -2611,6 +2615,8 @@ class AppStrings {
   static String get splashAppName => 'Turna';
   static String get splashSubtitle => '没有会失去的生命值，没有要补充的体力。\n纯粹的学习。';
   static String get splashGetStarted => '开始使用';
+  static String get splashPhaseSeeding => '正在准备课程';
+  static String get splashPhaseValidating => '正在校验课程';
   static String get splashCourseLoadFailed => '课程没有加载成功。';
   static String splashVoiceMissingTitle(String name) => '缺少$name语音数据';
   static String splashVoiceMissingBody(String name) =>

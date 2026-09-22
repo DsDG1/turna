@@ -6,8 +6,16 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
+import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/game_provider.dart';
+import 'package:turna/application/grammar_review_provider.dart';
+import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/application/play/play_review_eligibility.dart';
+import 'package:turna/application/srs_provider.dart';
+import 'package:turna/di/injection.dart';
 import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/service/tab_router.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/gems_display.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -34,6 +42,8 @@ class StatAppBar extends StatelessWidget implements PreferredSizeWidget {
             Streak(),
             Padding(padding: EdgeInsets.symmetric(horizontal: 4)),
             GemsDisplay(),
+            Padding(padding: EdgeInsets.symmetric(horizontal: 4)),
+            DueChip(),
           ],
         ),
       ),
@@ -59,6 +69,64 @@ class CourseSwitchButton extends StatelessWidget {
         size: 22,
         color: TurnaTheme.brandTeal,
       ),
+    );
+  }
+}
+
+class DueChip extends StatelessWidget {
+  const DueChip({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final srsDue = context.select((SrsProvider p) => p.dueCount);
+    final exprDue = context.select((SrsProvider p) => p.expressionDueCount);
+    final grammarDue = context.select((GrammarReviewProvider p) => p.dueCount);
+    final mistakes = context.select((MistakeProvider p) => p.count);
+    final scope = context.select((CourseProvider p) => p.courseScope);
+    final ankiWords = context.select((SrsProvider p) => p.getDueAnkiWords());
+    return ListenableBuilder(
+      listenable: OfficialFormalDueRepository.instance,
+      builder: (context, _) {
+        final dueRepo = OfficialFormalDueRepository.instance;
+        final due = PlayReviewEligibility.isAnkiScope(scope)
+            ? (dueRepo.snapshot.unavailable
+                ? 0
+                : dueRepo.aggregatedAnkiDue(ankiWords))
+            : srsDue + exprDue + grammarDue + mistakes;
+        if (due <= 0) return const SizedBox.shrink();
+        return Semantics(
+          button: true,
+          label: AppStrings.homeDueChipLabel,
+          child: InkWell(
+            onTap: () => getIt<TabRouter>().switchTo(TabDestination.play),
+            borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(TurnaTheme.radiusRound),
+                border: Border.all(color: TurnaTheme.glassBorder(context)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.menu_book_rounded,
+                      color: TurnaTheme.brandTeal, size: 20),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$due',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      color: TurnaTheme.brandTeal,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -91,7 +159,7 @@ class Streak extends StatelessWidget {
                 return const Loader();
               }
               if (snapshot.hasError) {
-                return const Text('0');
+                return Text(AppStrings.emDash);
               }
               return AnimatedCounter(
                 target: snapshot.data ?? 0,
@@ -137,7 +205,7 @@ class ScoreCard extends StatelessWidget {
                 return const Loader();
               }
               if (snapshot.hasError) {
-                return const Text('0');
+                return Text(AppStrings.emDash);
               }
               return AnimatedCounter(
                 target: snapshot.data ?? 0,

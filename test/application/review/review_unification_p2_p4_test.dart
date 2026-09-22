@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
@@ -9,12 +11,15 @@ import 'package:turna/application/lesson_link_store.dart';
 import 'package:turna/application/review/review_session_controller.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/core/sm2.dart';
+import 'package:turna/domain/course/srs_word.dart';
 import 'package:turna/domain/review/recall_outcome.dart';
 import 'package:turna/application/anki_official/review/official_anki_review_ledger.dart';
 import 'package:turna/domain/review/review_capabilities.dart';
 import 'package:turna/domain/review/review_item.dart';
+import 'package:turna/domain/review/review_ledger.dart';
 import 'package:turna/application/review/review_ledger_resolver.dart';
 import 'package:turna/domain/review/review_source.dart';
+import 'package:turna/domain/review/srs_scheduling_gateway.dart';
 import 'package:turna/domain/review/turna_review_ledger.dart';
 import 'package:turna/service/locator.dart';
 
@@ -88,6 +93,22 @@ void main() {
       final word = srsProvider.state['test-word-3']!;
       expect(word.reps, 1);
       expect(word.lapses, 0);
+    });
+
+    test('answer reuses cachedPreview without a second preview call', () async {
+      srsProvider.registerWord('test-word-cached');
+      const key = ReviewSchedulingKey(
+        rawId: 'test-word-cached',
+        source: TurnaCourseSource(),
+      );
+      final cached = await ledger.preview(key, RecallOutcome.forgotten);
+      final receipt = await ledger.answer(
+        key,
+        RecallOutcome.forgotten,
+        cachedPreview: cached,
+      );
+      expect(receipt.preview.intervalLabel, cached.intervalLabel);
+      expect(srsProvider.state['test-word-cached']!.lapses, 1);
     });
 
     test('undo safely rolls back previous word state using receipt snapshot',
@@ -278,6 +299,68 @@ void main() {
       expect(controller.lastError, isNull);
       expect(controller.rememberedPreview, isNotNull);
     });
+
+    test('last card stays current until persist settles', () async {
+      final ledger = _GatedTurnaLedger();
+      final controller = ReviewSessionController(
+        items: [_lastCardItem('w1')],
+        ledgerResolver: ReviewLedgerResolver(turnaLedger: ledger),
+      );
+      controller.reveal();
+      final pending = controller.answer(RecallOutcome.remembered);
+      expect(controller.isComplete, isFalse);
+      expect(controller.isPersisting, isTrue);
+      expect(controller.currentIndex, 0);
+      expect(controller.currentItem?.schedulingKey.rawId, 'w1');
+      expect(controller.isRevealed, isTrue);
+
+      ledger.gate.complete();
+      expect(await pending, isTrue);
+      expect(controller.isComplete, isTrue);
+      expect(controller.currentIndex, 1);
+    });
+
+    test('last-card write failure stays retryable and does not complete',
+        () async {
+      final ledger = _GatedTurnaLedger()..failWrite = true;
+      var completed = false;
+      final controller = ReviewSessionController(
+        items: [_lastCardItem('w1')],
+        ledgerResolver: ReviewLedgerResolver(turnaLedger: ledger),
+        onSessionCompleted: (_, __) async => completed = true,
+      );
+      controller.reveal();
+      final pending = controller.answer(RecallOutcome.remembered);
+      ledger.gate.complete();
+      expect(await pending, isFalse);
+      expect(controller.isComplete, isFalse);
+      expect(controller.writeError, isNotNull);
+      expect(completed, isFalse);
+      expect(await controller.undoLast(), isFalse);
+      expect(controller.lastReceipt, isNull);
+      expect(controller.currentIndex, 0);
+    });
+
+    test('retryWrite after last-card failure completes and settles', () async {
+      final ledger = _GatedTurnaLedger()..failWrite = true;
+      var completed = false;
+      final controller = ReviewSessionController(
+        items: [_lastCardItem('w1')],
+        ledgerResolver: ReviewLedgerResolver(turnaLedger: ledger),
+        onSessionCompleted: (_, __) async => completed = true,
+      );
+      controller.reveal();
+      ledger.gate.complete();
+      expect(await controller.answer(RecallOutcome.remembered), isFalse);
+      expect(completed, isFalse);
+
+      ledger.failWrite = false;
+      ledger.gate = Completer<void>()..complete();
+      expect(await controller.retryWrite(), isTrue);
+      expect(controller.isComplete, isTrue);
+      expect(controller.writeError, isNull);
+      expect(completed, isTrue);
+    });
   });
 
   group('P2: Official ledger commit contract', () {
@@ -367,4 +450,87 @@ void main() {
       expect(await ledger.undo(receipt), isFalse);
     });
   });
+}
+
+ReviewItem _lastCardItem(String id) => ReviewItem(
+      sessionItemId: 'item-$id',
+      source: const TurnaCourseSource(),
+      content: StandardCourseCardContent(
+        frontText: id,
+        backText: id,
+      ),
+      capabilities: ReviewCapabilities.standardCourse,
+      schedulingKey: ReviewSchedulingKey(
+        rawId: id,
+        source: const TurnaCourseSource(),
+      ),
+    );
+
+class _UnusedGateway implements SrsSchedulingGateway {
+  @override
+  Map<String, SrsWord> get state => {};
+  @override
+  int get dueCount => 0;
+  @override
+  int get expressionDueCount => 0;
+  @override
+  List<SrsWord> getDueAnkiWords([DateTime? now]) => const [];
+  @override
+  int previewOutcomeDays(SrsWord word, ReviewOutcome outcome) => 1;
+  @override
+  Future<int?> previewFailMinutesFor(SrsWord word, {DateTime? now}) async => 10;
+  @override
+  Future<SrsWord?> reviewWordOutcome(String wordId, ReviewOutcome outcome,
+          {String? eventSourceKey}) async =>
+      null;
+  @override
+  Future<SrsWord?> reviewExpressionOutcome(
+          String expressionId, ReviewOutcome outcome,
+          {String? eventSourceKey}) async =>
+      null;
+  @override
+  Future<bool> rollbackWord(String wordId, SrsWord? previous,
+          {String? eventSourceKey}) async =>
+      true;
+  @override
+  Future<bool> rollbackExpression(String expressionId, SrsWord? previous,
+          {String? eventSourceKey}) async =>
+      true;
+}
+
+class _GatedTurnaLedger extends TurnaReviewLedger {
+  _GatedTurnaLedger() : super(_UnusedGateway());
+
+  Completer<void> gate = Completer<void>();
+  bool failWrite = false;
+
+  @override
+  Future<ReviewPreview> preview(
+    ReviewSchedulingKey key,
+    RecallOutcome outcome,
+  ) async {
+    return const ReviewPreview(intervalLabel: '1d');
+  }
+
+  @override
+  Future<ReviewEventReceipt> answer(
+    ReviewSchedulingKey key,
+    RecallOutcome outcome, {
+    int durationMs = 0,
+    ReviewPreview? cachedPreview,
+  }) async {
+    await gate.future;
+    if (failWrite) throw StateError('write failed');
+    return ReviewEventReceipt(
+      eventId: 'evt-${key.rawId}',
+      source: key.source,
+      schedulingKey: key,
+      outcome: outcome,
+      reviewedAt: DateTime.now(),
+      preview: cachedPreview ?? const ReviewPreview(intervalLabel: '1d'),
+    );
+  }
+
+  @override
+  Future<bool> undo(ReviewEventReceipt receipt) async => true;
 }

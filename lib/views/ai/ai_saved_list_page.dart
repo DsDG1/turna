@@ -1,14 +1,20 @@
+// Dart imports:
+import 'dart:async';
+
 // Flutter imports:
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 // Package imports:
 import 'package:auto_route/auto_route.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/ai/ai_saved_explanations.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 @RoutePage()
 class AiSavedListPage extends StatefulWidget {
@@ -111,7 +117,8 @@ class _AiSavedListPageState extends State<AiSavedListPage> {
                                       tooltip: AppStrings.aiSavedDelete,
                                       icon: const Icon(Icons.delete_outline,
                                           size: 20),
-                                      onPressed: () => store.delete(e.id),
+                                      onPressed: () =>
+                                          _deleteWithUndo(context, store, e),
                                     ),
                                   ],
                                 ),
@@ -123,7 +130,7 @@ class _AiSavedListPageState extends State<AiSavedListPage> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  '${e.source} · ${e.createdAt.toLocal()}',
+                                  '${AppStrings.aiSavedSourceLabel(e.source)} · ${DateFormat.yMMMd().add_Hm().format(e.createdAt.toLocal())}',
                                   style: Theme.of(context)
                                       .textTheme
                                       .labelSmall
@@ -145,6 +152,26 @@ class _AiSavedListPageState extends State<AiSavedListPage> {
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _deleteWithUndo(
+    BuildContext context,
+    AiSavedExplanationsStore store,
+    SavedExplanation item,
+  ) async {
+    await store.delete(item.id);
+    if (!context.mounted) return;
+    TurnaSnackBar.show(
+      context,
+      AppStrings.aiSavedDeleted,
+      action: SnackBarAction(
+        label: AppStrings.commonUndo,
+        onPressed: () {
+          unawaited(store.save(item));
+        },
+      ),
+      duration: const Duration(seconds: 5),
     );
   }
 
@@ -176,7 +203,16 @@ class _AiSavedListPageState extends State<AiSavedListPage> {
                 constraints: BoxConstraints(
                   maxHeight: MediaQuery.of(context).size.height * 0.55,
                 ),
-                child: SingleChildScrollView(child: Text(e.body)),
+                child: SingleChildScrollView(child: SelectableText(e.body)),
+              ),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: e.body));
+                  TurnaSnackBar.maybeShow(context, AppStrings.aiDepthCopied);
+                },
+                icon: const Icon(Icons.copy_rounded),
+                label: Text(AppStrings.aiDepthCopy),
               ),
             ],
           ),

@@ -11,12 +11,16 @@ import 'package:turna/views/lesson/components/interactions/interaction_renderer.
 class RendererTestHarness {
   final List<(bool correct, String? userAnswer)> submissions = [];
 
-  Widget build(InteractionRenderer renderer, Interaction interaction) {
+  Widget build(
+    InteractionRenderer renderer,
+    Interaction interaction, {
+    InteractionState state = InteractionState.idle,
+  }) {
     return MaterialApp(
       home: Scaffold(
         body: renderer.build(
           interaction,
-          InteractionState.idle,
+          state,
           (correct, {userAnswerText, reviewQuality}) {
             submissions.add((correct, userAnswerText));
           },

@@ -6,6 +6,7 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/core/text_styles.dart';
+import 'package:turna/core/turkish_text.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
@@ -77,16 +78,15 @@ class _TranslateBodyState extends State<_TranslateBody> {
   static final _whitespace = RegExp(r'\s+');
 
   bool _matches(String input) {
-    final norm = input
-        .replaceAll(_punctuation, '')
-        .trim()
-        .toLowerCase()
-        .replaceAll(_whitespace, ' ');
-    final target = widget.expected
-        .replaceAll(_punctuation, '')
-        .trim()
-        .toLowerCase()
-        .replaceAll(_whitespace, ' ');
+    final norm = foldTurkish(
+      input.replaceAll(_punctuation, '').trim().replaceAll(_whitespace, ' '),
+    );
+    final target = foldTurkish(
+      widget.expected
+          .replaceAll(_punctuation, '')
+          .trim()
+          .replaceAll(_whitespace, ' '),
+    );
     return norm == target;
   }
 
@@ -104,6 +104,7 @@ class _TranslateBodyState extends State<_TranslateBody> {
     final text = _controller.text;
     if (widget.state.submitted || text.trim().isEmpty) return;
     widget.onSubmit(_matches(text), userAnswerText: text);
+    FocusScope.of(context).unfocus();
   }
 
   @override
@@ -175,20 +176,20 @@ class _TranslateBodyState extends State<_TranslateBody> {
                 label: AppStrings.lessonCorrectTranslation,
                 answer: widget.expected),
           ],
-          const SizedBox(height: 24),
-          ValueListenableBuilder<TextEditingValue>(
-            valueListenable: _controller,
-            builder: (context, value, _) {
-              final canSubmit = !submitted && value.text.trim().isNotEmpty;
-              return LessonCheckButton(
-                label: submitted
-                    ? AppStrings.lessonChecked
-                    : AppStrings.lessonCheck,
-                enabled: canSubmit,
-                onPressed: canSubmit ? _trySubmit : null,
-              );
-            },
-          ),
+          if (!submitted) ...[
+            const SizedBox(height: 24),
+            ValueListenableBuilder<TextEditingValue>(
+              valueListenable: _controller,
+              builder: (context, value, _) {
+                final canSubmit = value.text.trim().isNotEmpty;
+                return LessonCheckButton(
+                  label: AppStrings.lessonCheck,
+                  enabled: canSubmit,
+                  onPressed: canSubmit ? _trySubmit : null,
+                );
+              },
+            ),
+          ],
         ],
       ),
     );

@@ -20,6 +20,21 @@ abstract class OfficialAnkiEngine {
     required String packagePath,
     bool withScheduling = true,
     bool withDeckConfigs = true,
+    bool withMedia = true,
+  });
+
+  /// One aggregate of the open collection: deck × notetype card counts.
+  Future<OfficialAnkiNoteDeckSummary> summarizeImportedNotes();
+
+  /// Merge a staging collection into the open live collection. The single
+  /// live write after the user confirms; callers fall back to
+  /// [importPackage] when this throws.
+  Future<OfficialAnkiImportLog> promoteStagingCollection({
+    required String collectionPath,
+    required String mediaFolder,
+    bool withScheduling = true,
+    bool withDeckConfigs = true,
+    bool withMedia = true,
   });
 
   Future<OfficialAnkiProgress> latestProgress();

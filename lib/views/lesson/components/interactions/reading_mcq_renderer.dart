@@ -106,6 +106,11 @@ class _ReadingMcqBodyState extends State<_ReadingMcqBody> {
             ),
             if (idx < widget.options.length - 1) const SizedBox(height: 10),
           ],
+          if (submitted && correct == false)
+            LessonCorrectAnswerBanner(
+              label: AppStrings.lessonCorrectAnswer,
+              answer: widget.options[widget.correctIndex],
+            ),
           const SizedBox(height: 24),
           if (!submitted)
             LessonCheckButton(

@@ -350,13 +350,15 @@ class MistakeProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Drop decoded state after an external checkpoint restore.
-  void reloadFromPrefs() {
+  /// Drop decoded state after an external checkpoint restore, then hydrate
+  /// so [entries] is not an empty flash while repo mode is unloading.
+  Future<void> reloadFromPrefs() async {
     _loaded = false;
     _cached = null;
     _cachedView = null;
     _dailyCountsCache = null;
     _masteredTotalCache = null;
+    await ensureLoaded();
     notifyListeners();
   }
 

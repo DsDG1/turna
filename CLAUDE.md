@@ -38,9 +38,10 @@ lib/
 │   ├── memory_curve_provider.dart # 记忆曲线
 │   ├── audio_controller.dart      # TTS / 音效统一接管
 │   ├── smart_speech.dart          # 智能朗读（语言检测 + 自动朗读）
+│   ├── review/review_session_controller.dart  # 统一复习会话
 │   ├── accessibility_provider.dart # 6 项可访问性偏好
 │   └── game_provider.dart         # 薄 facade -> score/streak/progress/gems
-├── core/          # fsrs_engine / sm2 / language_detector / html_stripper / streak / logger / theme
+├── core/          # fsrs_engine / turkish_text / sm2 / language_detector / html_stripper / streak / logger / theme
 ├── courses/       # 字母 + 语种 loader/validator（目标 Turkish）
 ├── data/          # drift CourseDatabase（schemaVersion 26）+ Seeder + DAO + Repository
 ├── di/            # GetIt + Injectable（renderer_module / audio_module）
@@ -73,7 +74,10 @@ lib/
 | `lib/application/study_stats_provider.dart` | 学习统计聚合 |
 | `lib/application/memory_curve_provider.dart` | 记忆曲线 |
 | `lib/application/audio_controller.dart` | TTS / 音效统一接管 |
+| `lib/application/smart_speech.dart` | 智能朗读（语言检测 + 自动朗读 + maybeAutoSpeak） |
+| `lib/application/review/review_session_controller.dart` | 统一复习会话（乐观写入 / 分批 / preview vs write 错误） |
 | `lib/core/fsrs_engine.dart` | FSRS 调度器 |
+| `lib/core/turkish_text.dart` | 课时打字判分 foldTurkish |
 | `lib/core/language_detector.dart` | 智能朗读语言检测 |
 | `lib/domain/course/lesson.dart` | Lesson 模型 + LessonTemplate |
 | `lib/domain/course/interaction.dart` | Interaction 模型（14 种 freezed sealed union） |

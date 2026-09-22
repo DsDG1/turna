@@ -450,8 +450,7 @@ class CoursePackImporter {
     }
     try {
       if (getIt.isRegistered<MistakeProvider>()) {
-        // void by design: it only drops caches; the next ensureLoaded re-reads.
-        getIt<MistakeProvider>().reloadFromPrefs();
+        await getIt<MistakeProvider>().reloadFromPrefs();
       }
     } catch (error) {
       logger.w('CoursePackImporter: mistake reload failed: $error');

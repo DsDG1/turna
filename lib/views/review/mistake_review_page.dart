@@ -19,7 +19,7 @@ import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/lesson/components/lesson_dialogs.dart';
-import 'package:turna/views/lesson/components/lesson_stage_widgets.dart';
+import 'package:turna/views/lesson/components/practice_session_body.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
 
@@ -176,60 +176,27 @@ class _MistakeReviewPageState extends State<MistakeReviewPage> {
                 }
                 final renderer = lookupRenderer(_renderers, interaction);
                 final showCheck = selected.$4 && !renderer.autoAdvance;
-                return Column(
-                  children: [
-                    if (selected.$3 != null)
-                      LessonStageBanner(
-                        name: selected.$3!,
-                        accent: TurnaTheme.error,
-                      ),
-                    Expanded(
-                      child: RepaintBoundary(
-                        // Mirror `new_lesson_screen.dart`: the renderer body is
-                        // a `Column` that can exceed the viewport on long
-                        // prompts / many options (e.g. ethics reading MCQ
-                        // with a multi-paragraph prompt and 4 options →
-                        // BOTTOM OVERFLOWED by 60–160 px). Wrap it in a
-                        // scroll view so the content is reachable instead of
-                        // being clipped by the red overflow stripe.
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.only(top: 8, bottom: 16),
-                          // Key by the interaction's stable id so a new
-                          // interaction creates a fresh State — no stale
-                          // selection/answer carry-over between two
-                          // consecutive interactions that share a renderer
-                          // type.
-                          child: KeyedSubtree(
-                            key: ValueKey(vm.currentInteractionId),
-                            child: renderer.build(
-                              interaction,
-                              selected.$2,
-                              (correct, {userAnswerText, reviewQuality}) {
-                                vm.submitInteraction(
-                                  correct,
-                                  userAnswerText: userAnswerText,
-                                  reviewQuality: reviewQuality,
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    if (showCheck)
-                      SafeArea(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                          child: LessonCheckButton(
-                            label: selected.$5
-                                ? AppStrings.commonContinue
-                                : AppStrings.commonGotIt,
-                            enabled: true,
-                            onPressed: () => vm.advance(),
-                          ),
-                        ),
-                      ),
-                  ],
+                return PracticeSessionBody(
+                  stageName: selected.$3,
+                  stageAccent: TurnaTheme.error,
+                  interactionKey: ValueKey(vm.currentInteractionId),
+                  wrapRendererBoundary: true,
+                  showCheck: showCheck,
+                  checkLabel: selected.$5
+                      ? AppStrings.commonContinue
+                      : AppStrings.commonGotIt,
+                  onAdvance: () => vm.advance(),
+                  child: renderer.build(
+                    interaction,
+                    selected.$2,
+                    (correct, {userAnswerText, reviewQuality}) {
+                      vm.submitInteraction(
+                        correct,
+                        userAnswerText: userAnswerText,
+                        reviewQuality: reviewQuality,
+                      );
+                    },
+                  ),
                 );
               },
             ),

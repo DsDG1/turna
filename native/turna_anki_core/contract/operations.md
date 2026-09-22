@@ -1,4 +1,4 @@
-# Contract v1.12 operations
+# Contract v1.13 operations
 
 Wire format is versioned JSON. `turna_anki_spike.proto` is archived and is not
 the codec.
@@ -47,6 +47,8 @@ the codec.
 | 40 | DIFF_COLLECTION_CHECKPOINT | yes |
 | 41 | GET_CONFIG | yes |
 | 42 | SET_CONFIG | yes |
+| 43 | SUMMARIZE_IMPORTED_NOTES | yes |
+| 44 | PROMOTE_STAGING_COLLECTION | yes |
 
 Scheduler operations 11–16 and 27–36 are published. Request/response DTO are
 camelCase, with four load-bearing snake-case compat keys kept on the wire:
@@ -131,6 +133,21 @@ file is available it returns `{ cardIds }` added since that snapshot; otherwise
 an empty list.
 
 `GET_CARD_DESCRIPTORS_BATCH` now includes optional `notetypeId` (notes.mid).
+
+## v1.13 additions
+
+`SUMMARIZE_IMPORTED_NOTES` (43) returns one SQL aggregate of the open
+collection: `{ note_count, card_count, rows: [{ deck_id, notetype_id, cards }] }`.
+No request body. Replaces the per-note descriptor walk used to draw the
+import preview.
+
+`PROMOTE_STAGING_COLLECTION` (44) merges an already-imported staging
+collection into the open live collection. Request
+`{ collection_path, media_folder, with_scheduling, with_deck_configs, with_media }`.
+Response matches `IMPORT_PACKAGE`. This is the single live write after the
+user confirms; a failure falls back to `IMPORT_PACKAGE` of the original
+package. `with_media: false` skips both the package media copy and the
+staging media-folder copy.
 
 ## v1.12 additions (additive, ADR 0043 D2)
 

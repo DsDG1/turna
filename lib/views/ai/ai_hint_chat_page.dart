@@ -20,6 +20,7 @@ import 'package:turna/application/ai/learner_ai_context_assembler.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/chat_bubble.dart';
+import 'package:turna/views/ai/components/ai_error_banner.dart';
 import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
 import 'package:turna/views/ai/components/ai_quick_chips.dart';
 import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
@@ -114,12 +115,15 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
   }
 
   Future<void> _onSend([String? chipText]) async {
+    final provider = context.read<AiHintProvider>();
+    if (provider.state == AiHintState.loading) return;
     final text = (chipText ?? _inputCtrl.text).trim();
     if (text.isEmpty) return;
-    final started =
-        await context.read<AiHintProvider>().ask(config: _config(), text: text);
-    if (started && chipText == null) {
-      _inputCtrl.clear();
+    if (chipText == null) _inputCtrl.clear();
+    await provider.ask(config: _config(), text: text);
+    final draft = provider.consumeFailedInput();
+    if (draft != null && mounted && chipText == null) {
+      _inputCtrl.text = draft;
     }
   }
 
@@ -239,6 +243,10 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
                                     role: m.role, content: m.content);
                               }
                               if (v.hasError && i == v.count) {
+                                final mapping = w.errorMapping;
+                                if (mapping != null) {
+                                  return AiErrorBanner(mapping: mapping);
+                                }
                                 return _errorBubble(
                                     w.error ?? AppStrings.aiErrorUnknown);
                               }
@@ -256,7 +264,7 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
                       return Column(
                         children: [
                           AiQuickChipsBar(
-                            enabled: !busy,
+                            enabled: true,
                             onChip: (label) => _onSend(label),
                           ),
                           if (busy) const LinearProgressIndicator(),
@@ -369,12 +377,11 @@ class _AiHintChatPageState extends State<AiHintChatPage> {
           Expanded(
             child: TextField(
               controller: _inputCtrl,
-              enabled: !busy,
               decoration: aiSheetInputDecoration(
                 context,
                 hint: AppStrings.aiAskMore,
               ),
-              onSubmitted: (_) => _onSend(),
+              onSubmitted: busy ? null : (_) => _onSend(),
             ),
           ),
           const SizedBox(width: 8),

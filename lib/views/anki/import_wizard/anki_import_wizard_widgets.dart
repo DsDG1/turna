@@ -31,6 +31,8 @@ class WizardStepper extends StatelessWidget {
             StepDot(
               label: _steps[i].$1,
               icon: _steps[i].$2,
+              stepNumber: i + 1,
+              stepCount: _steps.length,
               state: i < currentStep
                   ? StepState.done
                   : i == currentStep
@@ -63,11 +65,15 @@ class StepDot extends StatelessWidget {
   final String label;
   final IconData icon;
   final StepState state;
+  final int stepNumber;
+  final int stepCount;
   const StepDot({
     super.key,
     required this.label,
     required this.icon,
     required this.state,
+    this.stepNumber = 1,
+    this.stepCount = 5,
   });
 
   @override
@@ -98,12 +104,17 @@ class StepDot extends StatelessWidget {
               : Icon(icon, size: 16, color: color),
         ),
         const SizedBox(height: 4),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
-            color: color,
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text(
+            MediaQuery.textScalerOf(context).scale(1) > 1.3
+                ? AppStrings.ankiWizardStepCompact(stepNumber, stepCount)
+                : label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
+              color: color,
+            ),
           ),
         ),
       ],

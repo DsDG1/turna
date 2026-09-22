@@ -82,10 +82,15 @@ abstract interface class ReviewLedger {
   );
 
   /// Answer the card and commit the schedule change. Returns a unique receipt.
+  ///
+  /// When [cachedPreview] is the preview already loaded for this outcome
+  /// (session UI chips), implementations should reuse it instead of a second
+  /// [preview] round-trip.
   Future<ReviewEventReceipt> answer(
     ReviewSchedulingKey key,
     RecallOutcome outcome, {
     int durationMs = 0,
+    ReviewPreview? cachedPreview,
   });
 
   /// Undo the review represented by the receipt.

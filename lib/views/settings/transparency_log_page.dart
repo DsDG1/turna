@@ -87,15 +87,16 @@ class TransparencyLogPage extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(AppStrings.transparencyClearAll),
-        content: Text(AppStrings.transparencyFooter),
+        content: Text(AppStrings.transparencyClearConsequence),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
             child: Text(AppStrings.commonCancel),
           ),
           FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: TurnaTheme.error),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: Text(AppStrings.commonOk),
+            child: Text(AppStrings.commonDelete),
           ),
         ],
       ),

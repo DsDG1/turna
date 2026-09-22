@@ -6,7 +6,9 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/application/audio_controller.dart';
+import 'package:turna/application/smart_speech.dart';
 import 'package:turna/core/text_styles.dart';
+import 'package:turna/core/turkish_text.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -65,6 +67,7 @@ class _TypeTheWordBodyState extends State<_TypeTheWordBody> {
     if (widget.state.submitted && widget.state.userAnswerText != null) {
       _controller.text = widget.state.userAnswerText!;
     }
+    maybeAutoSpeak(_speak);
   }
 
   @override
@@ -78,12 +81,14 @@ class _TypeTheWordBodyState extends State<_TypeTheWordBody> {
   }
 
   bool _matches(String input) =>
-      input.trim().toLowerCase() == widget.expected.trim().toLowerCase();
+      foldTurkish(input.trim()) == foldTurkish(widget.expected.trim());
 
   void _trySubmit() {
     final text = _controller.text;
     if (widget.state.submitted || text.trim().isEmpty) return;
     widget.onSubmit(_matches(text), userAnswerText: text);
+    // Drop the keyboard so the CONTINUE banner is not covered.
+    FocusScope.of(context).unfocus();
   }
 
   @override
@@ -133,20 +138,20 @@ class _TypeTheWordBodyState extends State<_TypeTheWordBody> {
             LessonCorrectAnswerBanner(
                 label: AppStrings.lessonCorrectAnswer, answer: widget.expected),
           ],
-          const SizedBox(height: 24),
-          ValueListenableBuilder<TextEditingValue>(
-            valueListenable: _controller,
-            builder: (context, value, _) {
-              final canSubmit = !submitted && value.text.trim().isNotEmpty;
-              return LessonCheckButton(
-                label: submitted
-                    ? AppStrings.lessonChecked
-                    : AppStrings.lessonCheck,
-                enabled: canSubmit,
-                onPressed: canSubmit ? _trySubmit : null,
-              );
-            },
-          ),
+          if (!submitted) ...[
+            const SizedBox(height: 24),
+            ValueListenableBuilder<TextEditingValue>(
+              valueListenable: _controller,
+              builder: (context, value, _) {
+                final canSubmit = value.text.trim().isNotEmpty;
+                return LessonCheckButton(
+                  label: AppStrings.lessonCheck,
+                  enabled: canSubmit,
+                  onPressed: canSubmit ? _trySubmit : null,
+                );
+              },
+            ),
+          ],
         ],
       ),
     );

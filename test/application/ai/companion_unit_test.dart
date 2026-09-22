@@ -372,7 +372,7 @@ void main() {
       final ok2 =
           await p.generate(config: _engineConfig(), learnerContext: ctx);
       expect(ok2, isFalse);
-      expect(p.error, 'rate_limited');
+      expect(p.errorMapping?.kind, AiErrorKind.rateLimited);
     });
   });
 

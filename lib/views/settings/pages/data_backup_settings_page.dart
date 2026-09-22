@@ -178,15 +178,39 @@ class DataBackupSettingsPage extends StatelessWidget {
   }
 
   Future<void> _confirmResetAccount(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
+    final choice = await showDialog<String>(
       context: context,
-      builder: (_) => SettingsConfirmDialog(
-        title: AppStrings.accountResetDialogTitle,
-        message: AppStrings.accountResetDialogMessage,
-        confirmText: AppStrings.accountResetConfirm,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+        ),
+        title: Text(AppStrings.accountResetDialogTitle),
+        content: Text(AppStrings.accountResetDialogMessage),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(AppStrings.commonCancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop('export'),
+            child: Text(AppStrings.accountResetExportFirst),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop('reset'),
+            child: Text(
+              AppStrings.accountResetConfirm,
+              style: const TextStyle(color: TurnaTheme.error),
+            ),
+          ),
+        ],
       ),
     );
-    if (confirmed != true || !context.mounted) return;
+    if (!context.mounted) return;
+    if (choice == 'export') {
+      await _openExportSheet(context);
+      return;
+    }
+    if (choice != 'reset') return;
 
     unawaited(showDialog<void>(
       context: context,
@@ -342,8 +366,20 @@ class DataBackupSettingsPage extends StatelessWidget {
     if (confirmed != true) return;
     if (!context.mounted) return;
 
+    unawaited(showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => PopScope(
+        canPop: false,
+        child: const Center(child: CircularProgressIndicator()),
+      ),
+    ));
+
     try {
       final outcome = await getIt<ExportService>().importFromFile(pickedPath);
+      if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
+      }
       if (!context.mounted) return;
       if (outcome.progressRestored) {
         // Runtime providers were already refreshed through the
@@ -364,10 +400,12 @@ class DataBackupSettingsPage extends StatelessWidget {
       }
     } on BackupSchemaException catch (error) {
       if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
         _showSnack(context, error.userMessage);
       }
     } on Object catch (error) {
       if (context.mounted) {
+        Navigator.of(context, rootNavigator: true).pop();
         _showSnack(context, AppStrings.settingsImportFailed(error));
       }
     }

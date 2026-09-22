@@ -39,6 +39,8 @@ class OfficialAnkiImportSaga {
   Future<OfficialAnkiImportResult> startStaging({
     required String packagePath,
     required String displayName,
+    OfficialAnkiSourceDigest? digest,
+    bool withMedia = true,
   }) async {
     final package = File(packagePath);
     if (!package.existsSync() || !packagePath.toLowerCase().endsWith('.apkg')) {
@@ -54,13 +56,14 @@ class OfficialAnkiImportSaga {
     // hash 计算填满 spawn 的空档。acquire 内部已 ensureLayout（C1/C5）。
     final engineFuture = manager.acquire(stagingPaths);
     try {
-      final digest = await hasher.hashFile(packagePath);
+      final resolvedDigest = digest ?? await hasher.hashFile(packagePath);
       sources.upsertSource(
         sourceId: sourceId,
         profileId: paths.profileId,
-        sourceHash: digest.sha256,
-        sourceSize: digest.bytes,
+        sourceHash: resolvedDigest.sha256,
+        sourceSize: resolvedDigest.bytes,
         displayName: displayName,
+        originalUri: packagePath,
         state: OfficialAnkiSourceState.staging.wire,
         backendCommit: 'pending',
         nowMillis: _now,
@@ -93,7 +96,8 @@ class OfficialAnkiImportSaga {
       );
       final imported = await engine.importPackage(
         packagePath: packagePath,
-        withScheduling: false,
+        withScheduling: true,
+        withMedia: withMedia,
       );
       await _guardDiscard(
         sourceId: sourceId,
@@ -117,7 +121,7 @@ class OfficialAnkiImportSaga {
         state: OfficialAnkiSourceState.previewReady,
         cardCount: imported.cardCount,
         noteCount: imported.noteCount,
-        sourceHash: digest.sha256,
+        sourceHash: resolvedDigest.sha256,
         associatedNoteIds: imported.associatedNoteIds,
       );
     } catch (error) {

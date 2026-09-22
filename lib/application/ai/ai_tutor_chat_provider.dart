@@ -118,14 +118,54 @@ class AiTutorChatProvider extends AiStreamingSessionBase {
   }
 
   void reset() {
+    unawaited(startNewSession());
+  }
+
+  List<AiTutorChatSession> get savedSessions => _sessionStore.list();
+
+  /// Archives the current transcript and opens a blank chat.
+  Future<void> startNewSession() async {
     if (isSessionDisposed) return;
     abandonStreamingSession();
+    if (_messages.any((message) => message.content.trim().isNotEmpty)) {
+      await _persistSession();
+    }
+    if (isSessionDisposed) return;
     _messages.clear();
     _state = AiTutorChatState.idle;
     _error = null;
     _errorMapping = null;
-    unawaited(_sessionStore.clear());
+    _failedInput = null;
+    await _sessionStore.beginNew();
+    if (!isSessionDisposed) notifySessionListeners();
+  }
+
+  void openSavedSession(String id) {
+    if (isSessionDisposed) return;
+    final session = _sessionStore.loadById(id);
+    if (session == null) return;
+    abandonStreamingSession();
+    _messages
+      ..clear()
+      ..addAll(session.messages);
+    _mode = _modeFromName(session.modeName);
+    if (session.language.isNotEmpty) _language = session.language;
+    _state = AiTutorChatState.ready;
+    _error = null;
+    _errorMapping = null;
+    unawaited(_sessionStore.activate(id));
     notifySessionListeners();
+  }
+
+  Future<void> deleteSavedSession(String id) async {
+    if (isSessionDisposed) return;
+    final active = _sessionStore.load();
+    await _sessionStore.delete(id);
+    if (active?.id == id) {
+      _messages.clear();
+      _state = AiTutorChatState.idle;
+    }
+    if (!isSessionDisposed) notifySessionListeners();
   }
 
   /// Stop generation; keep any partial assistant text already streamed.

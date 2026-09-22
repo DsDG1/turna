@@ -30,8 +30,9 @@ class AiCardExplainProvider extends AiStreamingSessionBase {
   AiCardExplainState _state = AiCardExplainState.idle;
   AiCardExplainState get state => _state;
 
-  String? _error;
-  String? get error => _error;
+  AiErrorMapping? _errorMapping;
+  AiErrorMapping? get errorMapping => _errorMapping;
+  String? get error => _errorMapping?.message;
 
   String? _explanation;
   String? get explanation => _explanation;
@@ -45,7 +46,7 @@ class AiCardExplainProvider extends AiStreamingSessionBase {
     if (isSessionDisposed) return;
     abandonStreamingSession();
     _explanation = null;
-    _error = null;
+    _errorMapping = null;
     _state = AiCardExplainState.idle;
     notifySessionListeners();
   }
@@ -65,7 +66,7 @@ class AiCardExplainProvider extends AiStreamingSessionBase {
   }) async {
     if (isSessionDisposed || !context.supported) return null;
     final session = beginStreamingSession();
-    _error = null;
+    _errorMapping = null;
     _explanation = null;
     _state = AiCardExplainState.loading;
     notifySessionListeners();
@@ -112,7 +113,7 @@ class AiCardExplainProvider extends AiStreamingSessionBase {
     } catch (e) {
       if (!isCurrentSession(session)) return null;
       logger.w('AiCardExplainProvider.explain failed: $e');
-      _error = AiErrorMapper.map(e).message;
+      _errorMapping = AiErrorMapper.map(e);
       _state = AiCardExplainState.error;
       notifySessionListeners();
       return null;

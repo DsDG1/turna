@@ -12,7 +12,9 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/ai_hint_provider.dart';
+import 'package:turna/application/ai/ai_course_provider.dart';
 import 'package:turna/application/ai/ai_lesson_helper_provider.dart';
+import 'package:turna/application/ai/ai_lesson_undo_store.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/ai/learner_ai_context_assembler.dart';
 import 'package:turna/application/course_pack/imported_languages.dart';
@@ -24,6 +26,7 @@ import 'package:turna/application/lesson_viewmodel.dart';
 import 'package:turna/domain/course/course_scope.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/core/logger.dart';
 import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
@@ -33,6 +36,9 @@ import 'package:turna/views/ai/ai_lesson_helper_sheet.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/lesson/components/lesson_dialogs.dart';
 import 'package:turna/views/lesson/components/lesson_stage_widgets.dart';
+import 'package:turna/views/lesson/components/lesson_ai_undo_banner.dart';
+import 'package:turna/views/lesson/components/practice_session_body.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 import 'package:turna/core/theme.dart';
 
 @RoutePage()
@@ -58,6 +64,8 @@ class _NewLessonPageState extends State<NewLessonPage> {
   /// dialog a second time). Reset together with `_dialogShown` on retry.
   bool _completionDialogShown = false;
   bool _loadFailed = false;
+  final ScrollController _lessonScroll = ScrollController();
+  String? _scrolledInteractionId;
 
   @override
   void initState() {
@@ -72,6 +80,7 @@ class _NewLessonPageState extends State<NewLessonPage> {
   @override
   void dispose() {
     _vm.removeListener(_onVmChanged);
+    _lessonScroll.dispose();
     super.dispose();
   }
 
@@ -98,6 +107,13 @@ class _NewLessonPageState extends State<NewLessonPage> {
     }
 
     _handleAutoAdvance(vm);
+    final id = vm.currentInteractionId;
+    if (id != _scrolledInteractionId) {
+      _scrolledInteractionId = id;
+      if (_lessonScroll.hasClients) {
+        _lessonScroll.jumpTo(0);
+      }
+    }
   }
 
   @override
@@ -105,36 +121,70 @@ class _NewLessonPageState extends State<NewLessonPage> {
     return ChangeNotifierProvider.value(
       value: _vm,
       child: Builder(
-        builder: (context) => Scaffold(
-          backgroundColor: TurnaTheme.scaffoldBg(context),
-          appBar: _LessonAppBar(
-            vm: _vm,
-            onClose: () =>
-                _vm.isComplete ? null : Navigator.of(context).maybePop(),
-            onAiHint: () => _openAiHint(context, _vm),
-            onAiHelper: () => _openAiHelper(context, _vm),
-          ),
-          body: _LessonBody(
-            vm: _vm,
-            renderers: _renderers,
-            loadFailed: _loadFailed,
-            lessonId: widget.lessonId,
-            onRetry: () {
-              setState(() => _loadFailed = false);
-              _openLesson();
-            },
-            onSubmit: (correct, {userAnswerText, reviewQuality}) {
-              _vm.submitInteraction(
-                correct,
-                userAnswerText: userAnswerText,
-                reviewQuality: reviewQuality,
-              );
-            },
-            onAdvance: () => _vm.advance(),
+        builder: (context) => PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, _) {
+            if (!didPop) _onClosePressed(context);
+          },
+          child: Scaffold(
+            backgroundColor: TurnaTheme.scaffoldBg(context),
+            appBar: _LessonAppBar(
+              vm: _vm,
+              onClose: () => _onClosePressed(context),
+              onAiHint: () => _openAiHint(context, _vm),
+              onAiHelper: () => _openAiHelper(context, _vm),
+            ),
+            body: _LessonBody(
+              vm: _vm,
+              renderers: _renderers,
+              loadFailed: _loadFailed,
+              lessonId: widget.lessonId,
+              onRetry: () {
+                setState(() => _loadFailed = false);
+                _openLesson();
+              },
+              onSubmit: (correct, {userAnswerText, reviewQuality}) {
+                _vm.submitInteraction(
+                  correct,
+                  userAnswerText: userAnswerText,
+                  reviewQuality: reviewQuality,
+                );
+              },
+              onAdvance: () => _vm.advance(),
+              onRestoreAiLesson: _restoreAiLesson,
+              scrollController: _lessonScroll,
+            ),
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _onClosePressed(BuildContext context) async {
+    if (_vm.isComplete) {
+      unawaited(Navigator.of(context).maybePop());
+      return;
+    }
+    final go = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(AppStrings.lessonExitConfirmTitle),
+        content: Text(AppStrings.lessonExitConfirmBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(AppStrings.commonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(AppStrings.lessonExitAnyway),
+          ),
+        ],
+      ),
+    );
+    if (go == true && context.mounted) {
+      Navigator.of(context).pop();
+    }
   }
 
   /// Build the question snapshot, trigger an explanation, and pop up the
@@ -230,6 +280,25 @@ class _NewLessonPageState extends State<NewLessonPage> {
       ),
       builder: (_) => const AiLessonHelperSheet(),
     );
+  }
+
+  Future<void> _restoreAiLesson(Lesson snapshot) async {
+    await AiLessonUndoStore.instance.clear();
+    if (getIt.isRegistered<AiLessonHelperProvider>()) {
+      getIt<AiLessonHelperProvider>().takeApplyUndo();
+    }
+    try {
+      await getIt<AiCourseProvider>().updateLessonInDb(snapshot);
+      await _vm.loadLesson(snapshot.id);
+    } catch (e, st) {
+      logger.w('Persisted lesson undo failed', error: e, stackTrace: st);
+      if (getIt.isRegistered<AiLessonHelperProvider>()) {
+        getIt<AiLessonHelperProvider>().armApplyUndo(snapshot);
+      }
+      await AiLessonUndoStore.instance.save(snapshot);
+      if (!mounted) return;
+      TurnaSnackBar.show(context, AppStrings.aiLessonHelperUndoFailed);
+    }
   }
 
   Future<void> _showAiConfigPrompt(BuildContext context) async {
@@ -370,7 +439,9 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
           String? stage,
           bool complete,
           double progress,
-          bool aiEligible
+          bool aiEligible,
+          int question,
+          int total,
         })>(
       selector: (context, vm) => (
         name: vm.lesson?.name ?? AppStrings.lessonLessonFallback,
@@ -378,6 +449,8 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
         complete: vm.isComplete,
         progress: vm.progress,
         aiEligible: _aiEligible(vm),
+        question: vm.currentQuestionNumber,
+        total: vm.totalInteractionCount,
       ),
       builder: (context, s, _) => AppBar(
         backgroundColor: TurnaTheme.surfaceColor(context),
@@ -388,8 +461,7 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
             Icons.close_rounded,
             color: TurnaTheme.textPrimaryColor(context),
           ),
-          // Disable close once complete (the completion dialog drives exit).
-          onPressed: s.complete ? null : onClose,
+          onPressed: onClose,
         ),
         title: Column(
           children: [
@@ -404,7 +476,9 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
             if (s.stage != null) ...[
               const SizedBox(height: 2),
               Text(
-                s.stage!,
+                s.total > 0
+                    ? '${s.stage!}  ${AppStrings.lessonQuestionIndex(s.question, s.total)}'
+                    : s.stage!,
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
@@ -428,7 +502,7 @@ class _LessonAppBar extends StatelessWidget implements PreferredSizeWidget {
             IconButton(
               tooltip: AppStrings.lessonAiHintTooltip,
               icon: Icon(
-                Icons.auto_awesome_rounded,
+                Icons.lightbulb_rounded,
                 color: TurnaTheme.textPrimaryColor(context),
               ),
               onPressed: onAiHint,
@@ -468,6 +542,8 @@ class _LessonBody extends StatelessWidget {
   final VoidCallback onRetry;
   final OnInteractionSubmit onSubmit;
   final VoidCallback onAdvance;
+  final Future<void> Function(Lesson snapshot) onRestoreAiLesson;
+  final ScrollController scrollController;
 
   const _LessonBody({
     required this.vm,
@@ -477,6 +553,8 @@ class _LessonBody extends StatelessWidget {
     required this.onRetry,
     required this.onSubmit,
     required this.onAdvance,
+    required this.onRestoreAiLesson,
+    required this.scrollController,
   });
 
   @override
@@ -545,52 +623,49 @@ class _LessonBody extends StatelessWidget {
         final readingPassage = lesson.content.readingPassage;
         final legacyPassage = lesson.content.passage;
         final showCheck = interactionState.submitted && !renderer.autoAdvance;
+        Widget? header;
+        if (readingPassage != null) {
+          header = ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * 0.4,
+            ),
+            child: LessonReadingPassageCard(passage: readingPassage),
+          );
+        } else if (legacyPassage.isNotEmpty) {
+          header = ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.sizeOf(context).height * 0.4,
+            ),
+            child: LessonLegacyReadingPassage(text: legacyPassage),
+          );
+        }
 
         return Column(
           children: [
-            if (vm.currentStageName != null)
-              LessonStageBanner(
-                name: vm.currentStageName!,
-                accent: TurnaTheme.brandTeal,
-              ),
-            if (readingPassage != null)
-              LessonReadingPassageCard(passage: readingPassage)
-            else if (legacyPassage.isNotEmpty)
-              LessonLegacyReadingPassage(text: legacyPassage),
+            LessonAiUndoBanner(
+              lessonId: lesson.id,
+              onRestore: onRestoreAiLesson,
+            ),
             Expanded(
-              child: RepaintBoundary(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.only(top: 8, bottom: 16),
-                  // Key by the interaction's stable id so a new interaction
-                  // creates a fresh State — no stale selection/answer
-                  // carry-over between two consecutive interactions that
-                  // share a renderer type. (No AnimatedSwitcher here: a fade
-                  // transition stacks old+new children and breaks the
-                  // unbounded-height layout inside a scroll view.)
-                  child: KeyedSubtree(
-                    key: ValueKey(vm.currentInteractionId),
-                    child: renderer.build(
-                      interaction,
-                      interactionState,
-                      onSubmit,
-                    ),
-                  ),
+              child: PracticeSessionBody(
+                stageName: vm.currentStageName,
+                stageAccent: TurnaTheme.brandTeal,
+                header: header,
+                scrollController: scrollController,
+                interactionKey: ValueKey(vm.currentInteractionId),
+                wrapRendererBoundary: true,
+                showCheck: showCheck,
+                checkLabel: interactionState.correct == true
+                    ? AppStrings.lessonContinueUpper
+                    : AppStrings.lessonGotItUpper,
+                onAdvance: onAdvance,
+                child: renderer.build(
+                  interaction,
+                  interactionState,
+                  onSubmit,
                 ),
               ),
             ),
-            if (showCheck)
-              SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                  child: LessonCheckButton(
-                    label: interactionState.correct == true
-                        ? AppStrings.lessonContinueUpper
-                        : AppStrings.lessonGotItUpper,
-                    enabled: true,
-                    onPressed: onAdvance,
-                  ),
-                ),
-              ),
           ],
         );
       },

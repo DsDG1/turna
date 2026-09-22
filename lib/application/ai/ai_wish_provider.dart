@@ -52,8 +52,9 @@ class AiWishProvider extends AiRequestSessionBase {
   AiWishState _state = AiWishState.idle;
   AiWishState get state => _state;
 
-  String? _error;
-  String? get error => _error;
+  AiErrorMapping? _errorMapping;
+  AiErrorMapping? get errorMapping => _errorMapping;
+  String? get error => _errorMapping?.message;
 
   /// Generated course raw JSON after finalize.
   String? _generatedJson;
@@ -71,7 +72,7 @@ class AiWishProvider extends AiRequestSessionBase {
     abandonStreamingSession();
     _messages.clear();
     _state = AiWishState.idle;
-    _error = null;
+    _errorMapping = null;
     _generatedJson = null;
     _explanation = null;
     _generatedSectionId = null;
@@ -98,7 +99,7 @@ class AiWishProvider extends AiRequestSessionBase {
   }) async {
     if (userText.trim().isEmpty) return;
     final session = beginStreamingSession();
-    _error = null;
+    _errorMapping = null;
     _state = AiWishState.aligning;
     _messages.add(AiChatMessage(role: 'user', content: userText));
     notifySessionListeners();
@@ -127,7 +128,7 @@ class AiWishProvider extends AiRequestSessionBase {
     } catch (e) {
       if (!isCurrentSession(session)) return;
       logger.w('AiWishProvider.sendAlignment failed: $e');
-      _error = AiErrorMapper.map(e).message;
+      _errorMapping = AiErrorMapper.map(e);
       _state = AiWishState.error;
     } finally {
       finishStreamingSession(session);
@@ -142,7 +143,7 @@ class AiWishProvider extends AiRequestSessionBase {
     required AiCourseSpec spec,
   }) async {
     final session = beginStreamingSession();
-    _error = null;
+    _errorMapping = null;
     _state = AiWishState.generating;
     notifySessionListeners();
     try {
@@ -199,7 +200,7 @@ class AiWishProvider extends AiRequestSessionBase {
     } catch (e) {
       if (!isCurrentSession(session)) return;
       logger.w('AiWishProvider.finalizeGeneration failed: $e');
-      _error = AiErrorMapper.map(e).message;
+      _errorMapping = AiErrorMapper.map(e);
       _state = AiWishState.error;
     } finally {
       finishStreamingSession(session);

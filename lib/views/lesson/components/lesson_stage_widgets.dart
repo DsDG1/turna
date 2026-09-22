@@ -52,29 +52,31 @@ class LessonReadingPassageCard extends StatelessWidget {
           color: TurnaTheme.leagueAmethyst.withValues(alpha: 0.15),
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            passage.title,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: TurnaTheme.textPrimaryColor(context),
-                ),
-          ),
-          const SizedBox(height: 12),
-          ...passage.paragraphs.expand((paragraph) => [
-                Text(
-                  paragraph,
-                  style: TextStyle(
-                    fontSize: 16,
-                    height: 1.6,
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              passage.title,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
                     color: TurnaTheme.textPrimaryColor(context),
                   ),
-                ),
-                const SizedBox(height: 12),
-              ]),
-        ],
+            ),
+            const SizedBox(height: 12),
+            ...passage.paragraphs.expand((paragraph) => [
+                  Text(
+                    paragraph,
+                    style: TextStyle(
+                      fontSize: 16,
+                      height: 1.6,
+                      color: TurnaTheme.textPrimaryColor(context),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ]),
+          ],
+        ),
       ),
     );
   }
@@ -98,12 +100,14 @@ class LessonLegacyReadingPassage extends StatelessWidget {
           color: TurnaTheme.leagueAmethyst.withValues(alpha: 0.15),
         ),
       ),
-      child: Text(
-        text,
-        style: TextStyle(
-          fontSize: 16,
-          height: 1.6,
-          color: TurnaTheme.textPrimaryColor(context),
+      child: SingleChildScrollView(
+        child: Text(
+          text,
+          style: TextStyle(
+            fontSize: 16,
+            height: 1.6,
+            color: TurnaTheme.textPrimaryColor(context),
+          ),
         ),
       ),
     );

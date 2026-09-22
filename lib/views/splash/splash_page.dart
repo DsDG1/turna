@@ -11,6 +11,7 @@ import 'package:turna/application/language_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/service/app_startup.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/service/tts_availability_checker.dart';
 import 'package:turna/core/theme.dart';
@@ -100,6 +101,20 @@ Future<bool> maybePromptTtsAvailability(BuildContext context) async {
   return true;
 }
 
+/// Label shown on the splash while the course is not loaded yet.
+/// Null once the course is up, or when boot failed (the retry copy takes over).
+String? splashStartupStatusLabel(
+  TurnaStartupPhase phase, {
+  required bool courseLoaded,
+  required bool bootFailed,
+}) {
+  if (courseLoaded || bootFailed) return null;
+  if (phase == TurnaStartupPhase.validating) {
+    return AppStrings.splashPhaseValidating;
+  }
+  return AppStrings.splashPhaseSeeding;
+}
+
 enum _GoogleTtsPromptAction {
   installGoogle,
   openSettings,
@@ -185,7 +200,32 @@ class _SplashPageState extends State<SplashPage> {
                                 ),
                           ),
                         ),
-                      ],
+                      ] else if (!(course?.isLoaded ?? false))
+                        ListenableBuilder(
+                          listenable: turnaStartupProgress,
+                          builder: (context, _) {
+                            final label = splashStartupStatusLabel(
+                              turnaStartupProgress.phase,
+                              courseLoaded: course?.isLoaded ?? false,
+                              bootFailed: course?.bootFailed ?? false,
+                            );
+                            if (label == null) return const SizedBox.shrink();
+                            return Padding(
+                              padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+                              child: Text(
+                                label,
+                                textAlign: TextAlign.center,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(
+                                      color: TurnaTheme.textSecondaryColor(
+                                          context),
+                                    ),
+                              ),
+                            );
+                          },
+                        ),
                       GetStartedButton(context),
                       const SizedBox(height: 16),
                     ],

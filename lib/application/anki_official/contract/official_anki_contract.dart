@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 
 const int kOfficialAnkiContractMajor = 1;
-const int kOfficialAnkiContractMinor = 12;
+const int kOfficialAnkiContractMinor = 13;
 
 abstract final class OfficialAnkiOperation {
   /// Native `GET_REVIEW_QUEUE` accepts `1..=100` (bridge `ops.rs`).
@@ -63,6 +63,8 @@ abstract final class OfficialAnkiOperation {
   static const diffCollectionCheckpoint = 'DIFF_COLLECTION_CHECKPOINT';
   static const getConfig = 'GET_CONFIG';
   static const setConfig = 'SET_CONFIG';
+  static const summarizeImportedNotes = 'SUMMARIZE_IMPORTED_NOTES';
+  static const promoteStagingCollection = 'PROMOTE_STAGING_COLLECTION';
 
   /// Single source of truth for the wire contract (doc 39 P2): every live
   /// operation name → its stable id, exactly as `contract/operations.md`
@@ -108,6 +110,8 @@ abstract final class OfficialAnkiOperation {
     diffCollectionCheckpoint: 40,
     getConfig: 41,
     setConfig: 42,
+    summarizeImportedNotes: 43,
+    promoteStagingCollection: 44,
   };
 
   static const productionNames = <String>{
@@ -151,6 +155,8 @@ abstract final class OfficialAnkiOperation {
     diffCollectionCheckpoint,
     getConfig,
     setConfig,
+    summarizeImportedNotes,
+    promoteStagingCollection,
   };
 
   static int idFor(String name) {

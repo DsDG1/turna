@@ -67,13 +67,14 @@ class ShowWordRenderer extends InteractionRenderer {
       imageAsset: i.imageAsset,
       speakVocab: !hasInline && !isUnknown,
       audioController: _audioController,
+      submitted: state.submitted,
       onTap: () => onSubmit(true),
       isUnknown: isUnknown,
     );
   }
 }
 
-class _ShowWordCard extends StatelessWidget {
+class _ShowWordCard extends StatefulWidget {
   final String wordId;
   final String term;
   final String translation;
@@ -82,6 +83,7 @@ class _ShowWordCard extends StatelessWidget {
   final bool speakVocab;
   final AudioController audioController;
   final VoidCallback onTap;
+  final bool submitted;
   final bool isUnknown;
 
   const _ShowWordCard({
@@ -93,15 +95,34 @@ class _ShowWordCard extends StatelessWidget {
     required this.speakVocab,
     required this.audioController,
     required this.onTap,
+    required this.submitted,
     this.isUnknown = false,
   });
 
   @override
+  State<_ShowWordCard> createState() => _ShowWordCardState();
+}
+
+class _ShowWordCardState extends State<_ShowWordCard> {
+  DateTime? _lastSubmitAt;
+
+  void _handleTap() {
+    if (widget.submitted) return;
+    final now = DateTime.now();
+    if (_lastSubmitAt != null &&
+        now.difference(_lastSubmitAt!) < const Duration(milliseconds: 300)) {
+      return;
+    }
+    _lastSubmitAt = now;
+    widget.onTap();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (isUnknown) {
+    if (widget.isUnknown) {
       // Load-time parse failure (see Interaction.fromJson) — render a benign
       // placeholder instead of the diagnostic sentinel as a giant vocab card.
-      return _UnknownItemCard(onTap: onTap);
+      return _UnknownItemCard(onTap: _handleTap);
     }
     return Center(
       child: Padding(
@@ -116,7 +137,7 @@ class _ShowWordCard extends StatelessWidget {
           color: Colors.transparent,
           child: InkWell(
             borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-            onTap: onTap,
+            onTap: widget.submitted ? null : _handleTap,
             child: LessonPracticeCard(
               variant: LessonPracticeCardVariant.surface,
               padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 48),
@@ -129,19 +150,19 @@ class _ShowWordCard extends StatelessWidget {
                   // of the card's "continue" tap.
                   Semantics(
                     button: true,
-                    label: AppStrings.lessonSpeakTerm(term),
+                    label: AppStrings.lessonSpeakTerm(widget.term),
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
-                      onTap: () => speakVocab
-                          ? audioController.speakWord(wordId)
-                          : audioController.speak(term),
+                      onTap: () => widget.speakVocab
+                          ? widget.audioController.speakWord(widget.wordId)
+                          : widget.audioController.speak(widget.term),
                       child: FittedBox(
                         fit: BoxFit.scaleDown,
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              term,
+                              widget.term,
                               style: TextStyle(
                                 fontSize: 44,
                                 fontWeight: FontWeight.w700,
@@ -160,13 +181,14 @@ class _ShowWordCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  if (imageAsset != null && imageAsset!.isNotEmpty) ...[
-                    RoundedCachedAssetImage(asset: imageAsset!),
+                  if (widget.imageAsset != null &&
+                      widget.imageAsset!.isNotEmpty) ...[
+                    RoundedCachedAssetImage(asset: widget.imageAsset!),
                     const SizedBox(height: 12),
                   ],
-                  if (translation.isNotEmpty)
+                  if (widget.translation.isNotEmpty)
                     Text(
-                      translation,
+                      widget.translation,
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 20,
@@ -174,16 +196,16 @@ class _ShowWordCard extends StatelessWidget {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                  if (contextSentence != null &&
-                      contextSentence!.isNotEmpty) ...[
+                  if (widget.contextSentence != null &&
+                      widget.contextSentence!.isNotEmpty) ...[
                     const SizedBox(height: 20),
                     Semantics(
                       button: true,
                       label: AppStrings.lessonSpeakContextSentence,
                       child: GestureDetector(
                         behavior: HitTestBehavior.opaque,
-                        onTap: () => audioController.speak(
-                          _targetPart(contextSentence!),
+                        onTap: () => widget.audioController.speak(
+                          _targetPart(widget.contextSentence!),
                         ),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
@@ -204,7 +226,7 @@ class _ShowWordCard extends StatelessWidget {
                               const SizedBox(width: 8),
                               Flexible(
                                 child: Text(
-                                  contextSentence!,
+                                  widget.contextSentence!,
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
                                     fontSize: 15,

@@ -29,6 +29,7 @@ class OfficialAnkiV2MappingDecision {
     required this.notetypeIdsConfirmed,
     required this.notetypeIdsSkipped,
     required this.suggestionsJson,
+    this.excludedDeckIds = const <int>{},
     this.schemaVersion = 1,
   });
 
@@ -42,12 +43,17 @@ class OfficialAnkiV2MappingDecision {
   /// 损坏时可据此重建议——ADR「决策丢失 ≠ 数据丢失」）。
   final String suggestionsJson;
 
+  /// Decks the user left unchecked. Cards stay in the collection and are
+  /// suspended; they are omitted from the course tree.
+  final Set<int> excludedDeckIds;
+
   final int schemaVersion;
 
   Map<String, Object?> toJson() => {
         'schema': schemaVersion,
         'confirmed': notetypeIdsConfirmed.toList()..sort(),
         'skipped': notetypeIdsSkipped.toList()..sort(),
+        'excludedDecks': excludedDeckIds.toList()..sort(),
         'suggestions': suggestionsJson,
       };
 
@@ -60,6 +66,7 @@ class OfficialAnkiV2MappingDecision {
     return OfficialAnkiV2MappingDecision(
       notetypeIdsConfirmed: ids(json['confirmed']),
       notetypeIdsSkipped: ids(json['skipped']),
+      excludedDeckIds: ids(json['excludedDecks']),
       suggestionsJson: (json['suggestions'] as String?) ?? '{}',
       schemaVersion: (json['schema'] as num?)?.toInt() ?? 1,
     );

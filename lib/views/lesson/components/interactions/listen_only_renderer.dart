@@ -6,6 +6,7 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/application/audio_controller.dart';
+import 'package:turna/application/smart_speech.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';
@@ -63,6 +64,12 @@ class _ListenOnlyBody extends StatefulWidget {
 
 class _ListenOnlyBodyState extends State<_ListenOnlyBody> {
   bool _hasPlayed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    maybeAutoSpeak(_speak);
+  }
 
   Future<void> _speak() async {
     // Path-vs-word-id routing and asset-prefix normalization live in

@@ -69,8 +69,15 @@ void main() {
           reason: 'doc 35 L1: the legacy Dart parser is not wired anywhere');
       expect(deps.contains('OfficialAnkiOfficialFirstService'), isTrue,
           reason: 'production deps wire the official-first service');
-      expect(controller.contains('importThenPreview'), isTrue,
+      expect(controller.contains('importOfficialThenPreview'), isTrue,
           reason: 'doc 40 P5.6: controller drives the official-first saga');
+      expect(
+        File('lib/application/anki_import/anki_import_official_flow.dart')
+            .readAsStringSync()
+            .contains('.importThenPreview('),
+        isTrue,
+        reason: 'the extracted flow still calls the official-first saga',
+      );
       expect(service.contains('startStaging'), isTrue);
     });
   });

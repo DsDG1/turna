@@ -12,6 +12,9 @@ class UnifiedReviewCompletion extends StatelessWidget {
   final Duration elapsed;
   final int xpEarned;
   final int gemsEarned;
+  final int remainingDue;
+  final VoidCallback? onReviewMore;
+  final VoidCallback? onUndoLast;
   final VoidCallback onFinish;
 
   const UnifiedReviewCompletion({
@@ -22,6 +25,9 @@ class UnifiedReviewCompletion extends StatelessWidget {
     required this.elapsed,
     this.xpEarned = 15,
     this.gemsEarned = 5,
+    this.remainingDue = 0,
+    this.onReviewMore,
+    this.onUndoLast,
     required this.onFinish,
   });
 
@@ -112,7 +118,23 @@ class UnifiedReviewCompletion extends StatelessWidget {
             // Achievement unlocks from this review session surface here,
             // in the same completion surface as the XP / gem rewards.
             const AchievementFeedbackBanner(),
-            const SizedBox(height: 40),
+            const SizedBox(height: 16),
+            if (onUndoLast != null)
+              TextButton.icon(
+                onPressed: onUndoLast,
+                icon: const Icon(Icons.undo_rounded),
+                label: Text(AppStrings.reviewUndoLastCard),
+              ),
+            if (remainingDue > 0) ...[
+              const SizedBox(height: 8),
+              Text(
+                AppStrings.reviewRemainingDue(remainingDue),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: TurnaTheme.textSecondaryColor(context),
+                    ),
+              ),
+            ],
+            const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
               height: 52,
@@ -135,6 +157,17 @@ class UnifiedReviewCompletion extends StatelessWidget {
                 ),
               ),
             ),
+            if (remainingDue > 0 && onReviewMore != null) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: OutlinedButton(
+                  onPressed: onReviewMore,
+                  child: Text(AppStrings.reviewContinueBatch),
+                ),
+              ),
+            ],
           ],
         ),
       ),

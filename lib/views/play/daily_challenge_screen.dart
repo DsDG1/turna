@@ -19,7 +19,7 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/lesson/components/lesson_dialogs.dart';
-import 'package:turna/views/lesson/components/lesson_stage_widgets.dart';
+import 'package:turna/views/lesson/components/practice_session_body.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
 
@@ -173,40 +173,25 @@ class _DailyChallengePageState extends State<DailyChallengePage> {
 
     final renderer = lookupRenderer(_renderers, interaction);
 
-    return Column(
-      children: [
-        if (vm.currentStageName != null)
-          LessonStageBanner(
-            name: vm.currentStageName!,
-            accent: TurnaTheme.leagueAmethyst,
-          ),
-        Expanded(
-          child: renderer.build(
-            interaction,
-            vm.currentInteractionState,
-            (correct, {userAnswerText, reviewQuality}) {
-              vm.submitInteraction(
-                correct,
-                userAnswerText: userAnswerText,
-                reviewQuality: reviewQuality,
-              );
-            },
-          ),
-        ),
-        if (vm.hasSubmitted && !renderer.autoAdvance)
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-              child: LessonCheckButton(
-                label: vm.isAnswerCorrect
-                    ? AppStrings.playDailyContinue
-                    : AppStrings.playDailyGotIt,
-                enabled: true,
-                onPressed: () => vm.advance(),
-              ),
-            ),
-          ),
-      ],
+    return PracticeSessionBody(
+      stageName: vm.currentStageName,
+      stageAccent: TurnaTheme.leagueAmethyst,
+      showCheck: vm.hasSubmitted && !renderer.autoAdvance,
+      checkLabel: vm.isAnswerCorrect
+          ? AppStrings.playDailyContinue
+          : AppStrings.playDailyGotIt,
+      onAdvance: () => vm.advance(),
+      child: renderer.build(
+        interaction,
+        vm.currentInteractionState,
+        (correct, {userAnswerText, reviewQuality}) {
+          vm.submitInteraction(
+            correct,
+            userAnswerText: userAnswerText,
+            reviewQuality: reviewQuality,
+          );
+        },
+      ),
     );
   }
 

@@ -8,10 +8,12 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:turna/application/ai/ai_card_context_resolver.dart';
 import 'package:turna/application/ai/ai_card_explain_provider.dart';
+import 'package:turna/application/ai/ai_error_mapper.dart';
 import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/ai_saved_explanations.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/ai/components/ai_error_banner.dart';
 import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
 import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
 import 'package:turna/core/theme.dart';
@@ -125,12 +127,12 @@ class _AiCardExplainBodyState extends State<_AiCardExplainBody> {
                       AiCardExplainProvider,
                       ({
                         AiCardExplainState state,
-                        String? error,
+                        AiErrorMapping? errorMapping,
                         bool hasText,
                       })>(
                     selector: (_, p) => (
                       state: p.state,
-                      error: p.error,
+                      errorMapping: p.errorMapping,
                       hasText: p.explanation?.isNotEmpty ?? false,
                     ),
                     builder: (context, snap, _) {
@@ -146,10 +148,13 @@ class _AiCardExplainBodyState extends State<_AiCardExplainBody> {
                           ),
                         );
                       }
-                      if (snap.error != null && !snap.hasText) {
-                        return Text(
-                          snap.error!,
-                          style: const TextStyle(color: TurnaTheme.error),
+                      if (snap.errorMapping != null && !snap.hasText) {
+                        return AiErrorBanner(
+                          mapping: snap.errorMapping!,
+                          onRetry: () => p.explain(
+                            config: config,
+                            context: widget.cardContext,
+                          ),
                         );
                       }
                       final text = p.explanation ?? '';

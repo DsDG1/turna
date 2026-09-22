@@ -16,6 +16,7 @@ import 'package:turna/application/ai/learner_ai_context.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/study_stats_provider.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/ai/components/ai_error_banner.dart';
 import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
 import 'package:turna/views/lesson/tutor_launch_sheet.dart';
 import 'package:turna/core/theme.dart';
@@ -130,27 +131,23 @@ class _AiDiagnosisPageState extends State<AiDiagnosisPage> {
                   const SizedBox(height: 16),
                   FilledButton.icon(
                     onPressed: p.state == AiDiagnosisState.loading
-                        ? null
+                        ? () => p.cancel()
                         : () => _generate(),
                     icon: p.state == AiDiagnosisState.loading
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
+                        ? const Icon(Icons.stop_rounded)
                         : const Icon(Icons.analytics_outlined),
-                    label: Text(AppStrings.aiDiagnosisGenerate),
+                    label: Text(
+                      p.state == AiDiagnosisState.loading
+                          ? AppStrings.aiStopGenerating
+                          : AppStrings.aiDiagnosisGenerate,
+                    ),
                     style: FilledButton.styleFrom(
                       backgroundColor: TurnaTheme.brandTeal,
                     ),
                   ),
-                  if (p.error != null && p.error != 'rate_limited') ...[
+                  if (p.errorMapping != null) ...[
                     const SizedBox(height: 12),
-                    Text(p.error!,
-                        style: const TextStyle(color: TurnaTheme.error)),
+                    AiErrorBanner(mapping: p.errorMapping!),
                   ],
                   if (p.report != null) ...[
                     const SizedBox(height: 24),

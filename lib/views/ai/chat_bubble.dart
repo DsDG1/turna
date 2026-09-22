@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 // Project imports:
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/ai/components/ai_markdown_body.dart';
 
 /// A single chat message bubble, shared by the AI hint chat and the AI wish
 /// chat. `role == 'user'` is the right-aligned primary-tinted sender bubble;
@@ -38,7 +39,9 @@ class ChatBubble extends StatelessWidget {
           color: bg,
           borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
         ),
-        child: Text(content, style: TextStyle(color: textColor)),
+        child: isUser
+            ? SelectableText(content, style: TextStyle(color: textColor))
+            : AiMarkdownBody(source: content, color: textColor),
       ),
     );
   }

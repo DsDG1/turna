@@ -60,7 +60,7 @@ void main() {
     // minor was bumped to 1.10). Pin the count so the next manual bump
     // cannot silently drop an op again; regen via gen_fixtures on the
     // toolchain host must produce an identical list.
-    expect(caps.length, 41, reason: caps.toList().join(','));
+    expect(caps.length, 43, reason: caps.toList().join(','));
     expect(caps.contains('RESTORE_BACKUP'), isTrue);
     expect(
         caps.containsAll(<String>[
@@ -132,6 +132,15 @@ void main() {
         40);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.getConfig), 41);
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.setConfig), 42);
+    expect(
+      OfficialAnkiOperation.idFor(OfficialAnkiOperation.summarizeImportedNotes),
+      43,
+    );
+    expect(
+      OfficialAnkiOperation.idFor(
+          OfficialAnkiOperation.promoteStagingCollection),
+      44,
+    );
     expect(OfficialAnkiOperation.idFor(OfficialAnkiOperation.renderCard), 10);
     expect(
         OfficialAnkiOperation.idFor(OfficialAnkiOperation.compareTypedAnswer),

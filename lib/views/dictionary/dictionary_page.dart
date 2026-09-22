@@ -2,6 +2,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 // Package imports:
 import 'package:auto_route/annotations.dart';
@@ -9,6 +10,7 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/ai/ai_explain_prefs.dart';
+import 'package:turna/application/ai/ai_saved_explanations.dart';
 import 'package:turna/application/ai/dictionary_ai_provider.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/ai/hint_genres.dart';
@@ -18,8 +20,10 @@ import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/smart_speech.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/ai/components/ai_error_banner.dart';
 import 'package:turna/views/ai/components/ai_not_configured_panel.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 @RoutePage()
 class DictionaryPage extends StatefulWidget {
@@ -312,23 +316,21 @@ class _DictionaryAiSheetState extends State<_DictionaryAiSheet> {
                               color: TurnaTheme.brandTeal),
                           const SizedBox(height: 12),
                           Text(AppStrings.aiDictEnriching),
+                          TextButton(
+                            onPressed: () => p.cancel(),
+                            child: Text(AppStrings.aiStopGenerating),
+                          ),
                         ],
                       ),
                     );
                   }
-                  if (p.error != null) {
-                    return Column(
-                      children: [
-                        Text(p.error!,
-                            style: const TextStyle(color: TurnaTheme.error)),
-                        TextButton(
-                          onPressed: () {
-                            _started = false;
-                            _run();
-                          },
-                          child: Text(AppStrings.aiRetry),
-                        ),
-                      ],
+                  if (p.errorMapping != null) {
+                    return AiErrorBanner(
+                      mapping: p.errorMapping!,
+                      onRetry: () {
+                        _started = false;
+                        _run();
+                      },
                     );
                   }
                   final e = p.enrichment;
@@ -373,6 +375,47 @@ class _DictionaryAiSheetState extends State<_DictionaryAiSheet> {
               Text(e.mnemonic),
             ],
             const SizedBox(height: 8),
+            Row(
+              children: [
+                TextButton.icon(
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(
+                      text: [
+                        e.expandedGloss,
+                        ...e.examples,
+                        e.mnemonic,
+                      ].where((s) => s.isNotEmpty).join('\n'),
+                    ));
+                    TurnaSnackBar.maybeShow(context, AppStrings.aiDepthCopied);
+                  },
+                  icon: const Icon(Icons.copy_rounded, size: 18),
+                  label: Text(AppStrings.aiDepthCopy),
+                ),
+                TextButton.icon(
+                  onPressed: () async {
+                    final store = context.read<AiSavedExplanationsStore>();
+                    await store.save(SavedExplanation(
+                      id: AiSavedExplanationsStore.newId(),
+                      title: widget.hit.title,
+                      body: [
+                        e.expandedGloss,
+                        ...e.examples,
+                        e.mnemonic,
+                      ].where((s) => s.isNotEmpty).join('\n'),
+                      source: 'dictionary',
+                      createdAt: DateTime.now(),
+                    ));
+                    if (!mounted) return;
+                    TurnaSnackBar.maybeShow(
+                      context,
+                      AppStrings.aiExplanationSaved,
+                    );
+                  },
+                  icon: const Icon(Icons.bookmark_add_outlined, size: 18),
+                  label: Text(AppStrings.aiSaveExplanation),
+                ),
+              ],
+            ),
             Text(
               AppStrings.aiDisclaimer,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(

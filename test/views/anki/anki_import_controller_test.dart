@@ -3,7 +3,11 @@
 // stays frozen, previews are expressed by sealed variants, and an
 // official-first failure produces zero Legacy writes.
 
+import 'dart:async';
+import 'dart:io';
+
 import 'package:drift/native.dart';
+import 'package:path/path.dart' as p;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,7 +15,14 @@ import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:turna/application/anki_import/anki_import_controller.dart';
 import 'package:turna/application/anki_import/anki_import_dependencies.dart';
 import 'package:turna/application/anki_import/anki_import_wizard_state.dart';
+import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
+import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
+import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
 import 'package:turna/application/anki_official/engine/official_anki_native_availability.dart';
+import 'package:turna/application/anki_official/import/official_anki_source_hasher.dart';
+import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
+import 'package:turna/application/anki_official/official_anki_paths.dart';
+import 'package:turna/application/anki_official/import/anki_import_execution_plan.dart';
 import 'package:turna/application/anki_official/import/anki_import_facade.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
 import 'package:turna/application/anki_official/import/official_anki_official_first_service.dart';
@@ -220,4 +231,212 @@ void main() {
     expect(failed.message, equals(AppStrings.ankiColpkgUnsupported));
     expect(failed.returnState, isA<AnkiImportSelecting>());
   });
+
+  test('same sha256 active source short-circuits before staging', () async {
+    OfficialAnkiFeatureFlags.current = const OfficialAnkiFeatureFlags(
+      engine: true,
+      import: true,
+      catalogReady: true,
+      runtimeCapable: true,
+      platformReady: true,
+      projection: true,
+      courseEntry: true,
+      officialFirstImport: true,
+    );
+    final root = Directory.systemTemp.createTempSync('turna-dup-');
+    addTearDown(() => root.deleteSync(recursive: true));
+    final package = File(p.join(root.path, 'again.apkg'))
+      ..writeAsBytesSync(const [9, 8, 7]);
+    final digest =
+        await const OfficialAnkiSourceHasher().hashFile(package.path);
+    final catalog = OfficialAnkiDatabase.memory();
+    addTearDown(catalog.close);
+    OfficialAnkiSourceDao(catalog).upsertSource(
+      sourceId: 'src-live',
+      profileId: 'profile-default-01',
+      sourceHash: digest.sha256,
+      sourceSize: digest.bytes,
+      displayName: 'Already',
+      state: 'active',
+      backendCommit: 'ok',
+      nowMillis: 1,
+    );
+    final savedCatalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+    final savedPaths = OfficialAnkiCompositionRoot.locatorPaths;
+    OfficialAnkiCompositionRoot.readOnlyCatalog = catalog;
+    OfficialAnkiCompositionRoot.locatorPaths = OfficialAnkiPaths(
+      profileId: 'profile-default-01',
+      profileRoot: Directory(p.join(root.path, 'live'))..createSync(),
+    );
+    addTearDown(() {
+      OfficialAnkiCompositionRoot.readOnlyCatalog = savedCatalog;
+      OfficialAnkiCompositionRoot.locatorPaths = savedPaths;
+    });
+
+    final controller = controllerWith();
+    addTearDown(controller.dispose);
+    await controller.proceedWithPath(package.path);
+
+    expect(controller.state, isA<AnkiImportAlreadyImported>());
+    final already = controller.state as AnkiImportAlreadyImported;
+    expect(already.sourceId, 'src-live');
+    expect(already.displayName, 'Already');
+  });
+
+  test('preview_ready staging resumes without a second import', () async {
+    final root = Directory.systemTemp.createTempSync('turna-resume-');
+    addTearDown(() => root.deleteSync(recursive: true));
+    final staging = Directory(p.join(root.path, 'staging'))..createSync();
+    File(p.join(staging.path, 'collection.anki2')).writeAsBytesSync([1, 2]);
+    final catalog = OfficialAnkiDatabase.memory();
+    addTearDown(catalog.close);
+    OfficialAnkiSourceDao(catalog).upsertSource(
+      sourceId: 'src-pending',
+      profileId: 'profile-default-01',
+      sourceHash: 'hash-pending',
+      sourceSize: 1,
+      displayName: 'Pending',
+      state: 'preview_ready',
+      backendCommit: 'pending',
+      nowMillis: 1,
+      activeAttemptId: 'att-pending',
+    );
+    OfficialAnkiImportAttemptDao(catalog).insert(
+      attemptId: 'att-pending',
+      sourceId: 'src-pending',
+      requestId: 'req',
+      state: 'preview_ready',
+      nowMillis: 1,
+      phase: 'preview_ready',
+    );
+    OfficialAnkiImportAttemptDao(catalog).setPhase(
+      attemptId: 'att-pending',
+      phase: OfficialAnkiAttemptPhase.previewReady,
+      stagingPath: staging.path,
+      nowMillis: 2,
+    );
+    final engine = FakeOfficialAnkiEngine()
+      ..summary = const OfficialAnkiNoteDeckSummary(
+        noteCount: 3,
+        cardCount: 4,
+        rows: [
+          OfficialAnkiDeckNotetypeCount(deckId: 1, notetypeId: 1, cards: 4),
+        ],
+      );
+    final savedCatalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+    final savedPaths = OfficialAnkiCompositionRoot.locatorPaths;
+    final savedStaging = OfficialAnkiCompositionRoot.debugStagingEngineOverride;
+    OfficialAnkiCompositionRoot.readOnlyCatalog = catalog;
+    OfficialAnkiCompositionRoot.locatorPaths = OfficialAnkiPaths(
+      profileId: 'profile-default-01',
+      profileRoot: Directory(p.join(root.path, 'live'))..createSync(),
+    );
+    OfficialAnkiCompositionRoot.debugStagingEngineOverride = engine;
+    addTearDown(() {
+      OfficialAnkiCompositionRoot.readOnlyCatalog = savedCatalog;
+      OfficialAnkiCompositionRoot.locatorPaths = savedPaths;
+      OfficialAnkiCompositionRoot.debugStagingEngineOverride = savedStaging;
+      OfficialAnkiCompositionRoot.stagingEngine = null;
+    });
+
+    final controller = controllerWith();
+    addTearDown(controller.dispose);
+    await controller.continuePending(const OfficialAnkiPendingImport(
+      sourceId: 'src-pending',
+      attemptId: 'att-pending',
+      displayName: 'Pending',
+      phase: 'preview_ready',
+      packagePath: '/tmp/pending.apkg',
+      stagingIntact: true,
+    ));
+
+    expect(controller.state, isA<AnkiImportPreviewing>());
+    final preview = (controller.state as AnkiImportPreviewing).preview
+        as OfficialAnkiImportPreviewModel;
+    expect(preview.cardCount, 4);
+    expect(preview.notetypeByDeck[1], 1);
+    expect(engine.importCount, 0);
+  });
+
+  test('notes progress with a total becomes determinate wizard state',
+      () async {
+    OfficialAnkiFeatureFlags.current = const OfficialAnkiFeatureFlags(
+      engine: true,
+      import: true,
+      catalogReady: true,
+      runtimeCapable: true,
+      platformReady: true,
+      projection: true,
+      courseEntry: true,
+      officialFirstImport: true,
+    );
+    final root = Directory.systemTemp.createTempSync('turna-prog-');
+    addTearDown(() => root.deleteSync(recursive: true));
+    final package = File(p.join(root.path, 'slow.apkg'))
+      ..writeAsBytesSync(const [1]);
+    final engine = FakeOfficialAnkiEngine()
+      ..progress = const OfficialAnkiProgress(
+        stage: 'notes',
+        current: 12,
+        total: 40,
+      );
+    final gate = Completer<void>();
+    final savedStaging = OfficialAnkiCompositionRoot.debugStagingEngineOverride;
+    OfficialAnkiCompositionRoot.debugStagingEngineOverride = engine;
+    addTearDown(() {
+      if (!gate.isCompleted) gate.complete();
+      OfficialAnkiCompositionRoot.debugStagingEngineOverride = savedStaging;
+    });
+
+    final controller = AnkiImportController(
+      deps: AnkiImportDependencies(
+        planFor: ({required flags, required filePath}) =>
+            AnkiImportFacade.planFor(flags, filePath: filePath),
+        pickFilePath: ({
+          required allowedExtensions,
+          required dialogTitle,
+        }) async =>
+            null,
+        officialFirst: _HoldPreview(gate),
+        courseDatabase: db,
+        courseProvider: courseProvider,
+      ),
+    );
+    addTearDown(controller.dispose);
+    final pending = controller.proceedWithPath(package.path);
+    await Future<void>.delayed(const Duration(milliseconds: 2000));
+
+    expect(controller.state, isA<AnkiImportParsing>());
+    final parsing = controller.state as AnkiImportParsing;
+    expect(parsing.progressCurrent, 12);
+    expect(parsing.progressTotal, 40);
+    expect(parsing.stage, contains('12'));
+    expect(parsing.stage, contains(AppStrings.ankiProgressRecognize));
+
+    gate.complete();
+    await pending;
+  });
+}
+
+class _HoldPreview extends OfficialAnkiOfficialFirstService {
+  _HoldPreview(this.gate);
+
+  final Completer<void> gate;
+
+  @override
+  Future<OfficialAnkiOfficialFirstPreview> importThenPreview({
+    required String filePath,
+    required AnkiImportExecutionPlan plan,
+    required CourseDatabase course,
+    OfficialAnkiFeatureFlags? flags,
+    OfficialAnkiSourceDigest? digest,
+    bool withMedia = true,
+  }) async {
+    await gate.future;
+    throw const OfficialAnkiException(
+      code: OfficialAnkiErrorCode.importCancelled,
+      messageKey: 'official_anki.import_cancelled',
+      recoverable: true,
+    );
+  }
 }

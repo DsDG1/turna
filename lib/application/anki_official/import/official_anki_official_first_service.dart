@@ -1,9 +1,15 @@
+import 'dart:io';
+
 import 'package:path/path.dart' as p;
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/import/anki_import_execution_plan.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_saga.dart';
+import 'package:turna/application/anki_official/import/official_anki_source_hasher.dart';
+import 'package:turna/application/anki_official/import/official_anki_staging_manager.dart';
+import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/import/official_anki_import_state.dart';
+import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
@@ -21,6 +27,7 @@ class OfficialAnkiOfficialFirstPreview {
     required this.noteCount,
     required this.decks,
     required this.cardCountByDeck,
+    this.notetypeByDeck = const {},
     required this.schemas,
     required this.suggestions,
   });
@@ -34,13 +41,53 @@ class OfficialAnkiOfficialFirstPreview {
   /// deckId → 牌组真实卡数（含后代累计，staging 卡账本统计）。deck tree
   /// 的 new/learn/review 是今日到期队列数，不能当卡总数展示。
   final Map<int, int> cardCountByDeck;
+
+  /// deckId → notetype that owns the most cards in that deck.
+  final Map<int, int> notetypeByDeck;
   final List<OfficialAnkiProjectionSchema> schemas;
   final Map<int, OfficialAnkiMappingSuggestion> suggestions;
 }
 
+/// Hash plus an active source that already owns that package.
+class OfficialAnkiPackageLookup {
+  const OfficialAnkiPackageLookup({required this.digest, this.active});
+
+  final OfficialAnkiSourceDigest digest;
+  final OfficialAnkiSourceRow? active;
+}
+
 /// Application-side Official-first import service.
 class OfficialAnkiOfficialFirstService {
-  const OfficialAnkiOfficialFirstService();
+  const OfficialAnkiOfficialFirstService({
+    this.hasher = const OfficialAnkiSourceHasher(),
+  });
+
+  final OfficialAnkiSourceHasher hasher;
+
+  /// Hash [filePath] and return the active source with the same sha256, if any.
+  Future<OfficialAnkiPackageLookup> lookupPackage(String filePath) async {
+    if (!File(filePath).existsSync()) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.packageNotFound,
+        messageKey: 'official_anki.package_not_found',
+      );
+    }
+    final digest = await hasher.hashFile(filePath);
+    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+    final livePaths = OfficialAnkiCompositionRoot.locatorPaths;
+    if (catalog == null || livePaths == null) {
+      return OfficialAnkiPackageLookup(digest: digest);
+    }
+    final row = OfficialAnkiSourceDao(catalog).findByHash(
+      livePaths.profileId,
+      digest.sha256,
+    );
+    final active =
+        row != null && row.state == OfficialAnkiSourceState.active.wire
+            ? row
+            : null;
+    return OfficialAnkiPackageLookup(digest: digest, active: active);
+  }
 
   /// Official-first pick path: saga -> staging -> preview.
   Future<OfficialAnkiOfficialFirstPreview> importThenPreview({
@@ -48,6 +95,8 @@ class OfficialAnkiOfficialFirstService {
     required AnkiImportExecutionPlan plan,
     required CourseDatabase course,
     OfficialAnkiFeatureFlags? flags,
+    OfficialAnkiSourceDigest? digest,
+    bool withMedia = true,
   }) async {
     if (!plan.isOfficialFirst) {
       throw const OfficialAnkiException(
@@ -80,6 +129,8 @@ class OfficialAnkiOfficialFirstService {
     ).startStaging(
       packagePath: filePath,
       displayName: p.basename(filePath),
+      digest: digest,
+      withMedia: withMedia,
     );
     final state = official.state;
     if (!state.allowsPreview) {
@@ -125,48 +176,112 @@ class OfficialAnkiOfficialFirstService {
       );
     }
 
-    // A3：用 staging 导入 receipt 的 noteIds 向 staging 引擎批量取真实
-    // 卡描述符（notetype/deck 归属），不再依赖 commit 前为空的 live 卡账本。
+    // One aggregate when the engine supports it. Older engines and fakes
+    // that return an empty summary still walk note ids in batches of 200.
     final notetypeIds = <int>{};
     final sourceDeckIds = <int>{};
     final directCounts = <int, int>{};
-    final noteIds = official.associatedNoteIds;
-    for (var offset = 0; offset < noteIds.length; offset += 200) {
-      final end = offset + 200;
-      final noteCards = await engine.getNoteCardsBatch(
-        noteIds.sublist(offset, end > noteIds.length ? noteIds.length : end),
-      );
-      final cardIds = [
-        for (final ids in noteCards.values) ...ids,
-      ];
-      if (cardIds.isEmpty) continue;
-      for (final card in await engine.getCardDescriptorsBatch(cardIds)) {
-        final id = card.notetypeId;
-        if (id != null) notetypeIds.add(id);
-        sourceDeckIds.add(card.deckId);
-        directCounts[card.deckId] = (directCounts[card.deckId] ?? 0) + 1;
+    var notetypeByDeck = <int, int>{};
+    OfficialAnkiNoteDeckSummary? summary;
+    try {
+      summary = await engine.summarizeImportedNotes();
+    } on OfficialAnkiException {
+      summary = null;
+    }
+    if (summary != null && summary.rows.isNotEmpty) {
+      notetypeIds.addAll(summary.notetypeIds);
+      sourceDeckIds.addAll(summary.directCardCountByDeck.keys);
+      directCounts.addAll(summary.directCardCountByDeck);
+      notetypeByDeck = summary.primaryNotetypeByDeck;
+    } else {
+      final noteIds = official.associatedNoteIds;
+      for (var offset = 0; offset < noteIds.length; offset += 200) {
+        final end = offset + 200;
+        final noteCards = await engine.getNoteCardsBatch(
+          noteIds.sublist(offset, end > noteIds.length ? noteIds.length : end),
+        );
+        final cardIds = [
+          for (final ids in noteCards.values) ...ids,
+        ];
+        if (cardIds.isEmpty) continue;
+        for (final card in await engine.getCardDescriptorsBatch(cardIds)) {
+          final id = card.notetypeId;
+          if (id != null) notetypeIds.add(id);
+          sourceDeckIds.add(card.deckId);
+          directCounts[card.deckId] = (directCounts[card.deckId] ?? 0) + 1;
+          if (id != null) notetypeByDeck.putIfAbsent(card.deckId, () => id);
+        }
       }
     }
 
     final schemas = await engine.getProjectionSchemas(
       notetypeIds: notetypeIds.toList(),
-      includeSamples: true,
-      sampleLimit: 30,
+      includeSamples: false,
     );
     final allDecks = await engine.listDeckTree();
     final decks = _scopeDecks(allDecks, sourceDeckIds);
+    final countedCards = directCounts.values.fold<int>(0, (sum, n) => sum + n);
     return OfficialAnkiOfficialFirstPreview(
       sourceId: official.sourceId,
       sourceHash: sourceHash,
-      cardCount: official.cardCount,
-      noteCount: official.noteCount,
+      cardCount: official.cardCount > 0
+          ? official.cardCount
+          : (summary?.cardCount ?? countedCards),
+      noteCount: official.noteCount > 0
+          ? official.noteCount
+          : (summary?.noteCount ?? 0),
       decks: decks,
       cardCountByDeck: _cumulativeCardCountByDeck(allDecks, directCounts),
+      notetypeByDeck: notetypeByDeck,
       schemas: schemas,
       suggestions: {
         for (final schema in schemas)
           schema.notetypeId: officialAnkiSuggestMapping(schema),
       },
+    );
+  }
+
+  /// Reopen a preview_ready staging collection without importing again.
+  /// Returns null when the staging directory is missing or incomplete.
+  Future<OfficialAnkiOfficialFirstPreview?> resumePreview({
+    required String sourceId,
+    required AnkiImportExecutionPlan plan,
+    required CourseDatabase course,
+  }) async {
+    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+    final livePaths = OfficialAnkiCompositionRoot.locatorPaths;
+    if (catalog == null || livePaths == null) return null;
+    final attempt =
+        OfficialAnkiImportAttemptDao(catalog).unfinishedBySource(sourceId);
+    if (attempt == null ||
+        attempt.phase != OfficialAnkiAttemptPhase.previewReady) {
+      return null;
+    }
+    final stagingPath = attempt.stagingPath;
+    if (stagingPath == null || stagingPath.isEmpty) return null;
+    final stagingPaths = OfficialAnkiPaths(
+      profileId: livePaths.profileId,
+      profileRoot: Directory(stagingPath),
+    );
+    if (!OfficialAnkiStagingManager(livePaths: livePaths)
+        .isIntact(stagingPaths)) {
+      return null;
+    }
+    await OfficialAnkiStagingManager(livePaths: livePaths)
+        .acquire(stagingPaths);
+    final source = OfficialAnkiSourceDao(catalog).findById(sourceId);
+    return preparePreview(
+      official: OfficialAnkiImportResult(
+        sourceId: sourceId,
+        attemptId: attempt.attemptId,
+        state: OfficialAnkiSourceState.previewReady,
+        cardCount: source == null ? 0 : 0,
+        noteCount: 0,
+        sourceHash: source?.sourceHash,
+      ),
+      sourceHash: source?.sourceHash ?? 'official-unknown',
+      course: course,
+      flags: OfficialAnkiFeatureFlags.current,
     );
   }
 }

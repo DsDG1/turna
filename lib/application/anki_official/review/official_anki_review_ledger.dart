@@ -75,6 +75,7 @@ class OfficialAnkiReviewLedger implements ReviewLedger {
     ReviewSchedulingKey key,
     RecallOutcome outcome, {
     int durationMs = 0,
+    ReviewPreview? cachedPreview,
   }) async {
     final source = key.source;
     if (source is! OfficialAnkiSource) {
@@ -82,7 +83,7 @@ class OfficialAnkiReviewLedger implements ReviewLedger {
           'Official ledger received a non-official source: $source');
     }
     final now = DateTime.now();
-    final prev = await preview(key, outcome);
+    final prev = cachedPreview ?? await preview(key, outcome);
     final rating = outcome == RecallOutcome.forgotten ? 'again' : 'good';
     final result = await _session.answerAndConfirm(
       rating,

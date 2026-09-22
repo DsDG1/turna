@@ -144,16 +144,17 @@ class _ReorderBodyState extends State<_ReorderBody> {
                 label: AppStrings.lessonCorrectOrder,
                 answer: widget.correct.join(' ')),
           ],
-          const SizedBox(height: 24),
-          LessonCheckButton(
-            label:
-                submitted ? AppStrings.lessonChecked : AppStrings.lessonCheck,
-            enabled: canSubmit,
-            onPressed: canSubmit
-                ? () =>
-                    widget.onSubmit(_matches(), userAnswerText: _formatAnswer())
-                : null,
-          ),
+          if (!submitted) ...[
+            const SizedBox(height: 24),
+            LessonCheckButton(
+              label: AppStrings.lessonCheck,
+              enabled: canSubmit,
+              onPressed: canSubmit
+                  ? () => widget.onSubmit(_matches(),
+                      userAnswerText: _formatAnswer())
+                  : null,
+            ),
+          ],
         ],
       ),
     );

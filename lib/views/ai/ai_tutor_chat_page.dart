@@ -21,6 +21,14 @@ import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/turna_select.dart';
 
+String _tutorModeLabel(String modeName) {
+  return switch (modeName) {
+    'sentenceCheck' => AppStrings.aiTutorChatModeSentence,
+    'roleplay' => AppStrings.aiTutorChatModeRoleplay,
+    _ => AppStrings.aiTutorChatModeQa,
+  };
+}
+
 /// Free AI companion chat (Q&A / sentence-check / role-play).
 ///
 /// Rebuild scoping (Plan 3 §21.2): only the streaming bubble listens to the
@@ -104,6 +112,51 @@ class _AiTutorChatPageState extends State<AiTutorChatPage> {
     super.dispose();
   }
 
+  Future<void> _openSessionList(BuildContext context) async {
+    final sessions = _provider.savedSessions;
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: TurnaTheme.cardBg(context),
+      showDragHandle: true,
+      builder: (sheetContext) {
+        if (sessions.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
+            child: Text(AppStrings.aiTutorSessionEmpty),
+          );
+        }
+        return SafeArea(
+          child: ListView.builder(
+            itemCount: sessions.length,
+            itemBuilder: (context, index) {
+              final session = sessions[index];
+              final title = session.title.isEmpty
+                  ? AppStrings.aiTutorChatTitle
+                  : session.title;
+              return ListTile(
+                title:
+                    Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+                subtitle: Text(_tutorModeLabel(session.modeName)),
+                onTap: () {
+                  _provider.openSavedSession(session.id);
+                  Navigator.of(sheetContext).pop();
+                },
+                trailing: IconButton(
+                  tooltip: AppStrings.aiTutorDeleteSession,
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: () async {
+                    await _provider.deleteSavedSession(session.id);
+                    if (sheetContext.mounted) Navigator.of(sheetContext).pop();
+                  },
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _onSend() async {
     if (_provider.state == AiTutorChatState.loading) return;
     final text = _inputCtrl.text.trim();
@@ -133,9 +186,14 @@ class _AiTutorChatPageState extends State<AiTutorChatPage> {
           backgroundColor: TurnaTheme.bottomNavBg(context),
           actions: [
             IconButton(
+              tooltip: AppStrings.aiTutorSessionList,
+              icon: const Icon(Icons.history_rounded),
+              onPressed: () => _openSessionList(context),
+            ),
+            IconButton(
               tooltip: AppStrings.aiTutorNewSession,
               icon: const Icon(Icons.refresh_rounded),
-              onPressed: _provider.reset,
+              onPressed: _provider.startNewSession,
             ),
           ],
         ),

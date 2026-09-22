@@ -40,6 +40,7 @@ class StrictOrderEngine extends FakeOfficialAnkiEngine {
     required String packagePath,
     bool withScheduling = true,
     bool withDeckConfigs = true,
+    bool withMedia = true,
   }) async {
     calls.add('importPackage');
     if (openProfileId == null) {

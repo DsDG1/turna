@@ -89,8 +89,9 @@ class TextbookImportProvider extends AiRequestSessionBase {
   String _fileName = '';
   String get fileName => _fileName;
 
-  String? _error;
-  String? get error => _error;
+  AiErrorMapping? _errorMapping;
+  AiErrorMapping? get errorMapping => _errorMapping;
+  String? get error => _errorMapping?.message;
 
   List<ChapterResult> _results = [];
   List<ChapterResult> get results => List.unmodifiable(_results);
@@ -151,7 +152,7 @@ class TextbookImportProvider extends AiRequestSessionBase {
     _step = TextbookImportStep.pick;
     _filePath = null;
     _fileName = '';
-    _error = null;
+    _errorMapping = null;
     _results = [];
     _isBusy = false;
     _collisionReport = null;
@@ -168,7 +169,7 @@ class TextbookImportProvider extends AiRequestSessionBase {
 
   /// Picks a file and parses it into chapters.
   Future<void> pickFile() async {
-    _error = null;
+    _errorMapping = null;
     String? path;
     String name = '';
     try {
@@ -183,7 +184,7 @@ class TextbookImportProvider extends AiRequestSessionBase {
     }
 
     if (path == null) {
-      _error = 'Could not read file path';
+      _errorMapping = AiErrorMapping.message('Could not read file path');
       notifySessionListeners();
       return;
     }
@@ -202,7 +203,7 @@ class TextbookImportProvider extends AiRequestSessionBase {
       ];
       _step = TextbookImportStep.chapters;
     } catch (e) {
-      _error = AiErrorMapper.map(e).message;
+      _errorMapping = AiErrorMapper.map(e);
       _step = TextbookImportStep.pick;
     } finally {
       _isBusy = false;
@@ -219,7 +220,7 @@ class TextbookImportProvider extends AiRequestSessionBase {
   /// Extracts knowledge from all kept chapters using the LLM.
   Future<void> extractAll(AiEngineConfig config) async {
     final session = beginStreamingSession();
-    _error = null;
+    _errorMapping = null;
     _isBusy = true;
     _step = TextbookImportStep.extract;
     notifySessionListeners();
@@ -251,7 +252,7 @@ class TextbookImportProvider extends AiRequestSessionBase {
           cancelled ? TextbookImportStep.chapters : TextbookImportStep.review;
     } catch (e) {
       if (!isCurrentSession(session)) return;
-      _error = AiErrorMapper.map(e).message;
+      _errorMapping = AiErrorMapper.map(e);
     } finally {
       // Capture currency before finish nulls the token; a superseded run
       // must not clear the new run's busy flag.
@@ -422,7 +423,7 @@ class TextbookImportProvider extends AiRequestSessionBase {
 
   /// Build collision report + section plans and advance to conflict step.
   Future<void> prepareConflictPreview() async {
-    _error = null;
+    _errorMapping = null;
     _isBusy = true;
     notifySessionListeners();
 
@@ -469,7 +470,7 @@ class TextbookImportProvider extends AiRequestSessionBase {
       _step = TextbookImportStep.conflict;
     } catch (e, st) {
       logger.e('prepareConflictPreview failed', error: e, stackTrace: st);
-      _error = AiErrorMapper.map(e).message;
+      _errorMapping = AiErrorMapper.map(e);
     } finally {
       _isBusy = false;
       notifySessionListeners();
@@ -485,13 +486,14 @@ class TextbookImportProvider extends AiRequestSessionBase {
 
   /// Builds course sections from extracted knowledge and writes them to the DB.
   Future<void> importSections(AiCourseProvider courseProvider) async {
-    _error = null;
+    _errorMapping = null;
     _isBusy = true;
     notifySessionListeners();
 
     final repo = _repository;
     if (repo == null) {
-      _error = 'CourseDatabase unavailable on this platform';
+      _errorMapping =
+          AiErrorMapping.message('CourseDatabase unavailable on this platform');
       _isBusy = false;
       notifySessionListeners();
       return;
@@ -562,7 +564,7 @@ class TextbookImportProvider extends AiRequestSessionBase {
     } catch (e, st) {
       logger.e('TextbookImportProvider.importSections failed',
           error: e, stackTrace: st);
-      _error = AiErrorMapper.map(e).message;
+      _errorMapping = AiErrorMapper.map(e);
     } finally {
       _isBusy = false;
       notifySessionListeners();

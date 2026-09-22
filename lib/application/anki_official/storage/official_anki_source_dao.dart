@@ -38,6 +38,17 @@ class OfficialAnkiSourceDao {
   OfficialAnkiDatabase get database => _database;
   Database get _db => _database.handle;
 
+  String? originalUri(String sourceId) {
+    final rows = _db.select(
+      'SELECT original_uri FROM anki_sources WHERE source_id = ?',
+      [sourceId],
+    );
+    if (rows.isEmpty) return null;
+    final uri = rows.first['original_uri'] as String?;
+    if (uri == null || uri.isEmpty) return null;
+    return uri;
+  }
+
   OfficialAnkiSourceRow? findByHash(String profileId, String hash) {
     final rows = _db.select(
       'SELECT source_id, profile_id, source_hash, state, display_name, chain '

@@ -156,6 +156,22 @@ class OfficialAnkiV2ViewStore {
     }
   }
 
+  /// Sections whose key records a 60/40 split (`(Part N)`).
+  Future<int> splitSectionCount() async {
+    try {
+      final rows = await course
+          .customSelect(
+            "SELECT COUNT(DISTINCT section_id) AS n "
+            "FROM anki_course_tree_view "
+            "WHERE section_key LIKE '%(Part %'",
+          )
+          .get();
+      return rows.isEmpty ? 0 : rows.single.read<int>('n');
+    } catch (_) {
+      return 0;
+    }
+  }
+
   /// 整视图 distinct lesson 数。
   Future<int> distinctLessonCount() async {
     try {

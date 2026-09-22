@@ -6,6 +6,7 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/core/text_styles.dart';
+import 'package:turna/core/turkish_text.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/anki_media_strip.dart';
@@ -90,7 +91,7 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
   }
 
   bool _matches(String input) =>
-      input.trim().toLowerCase() == widget.answer.trim().toLowerCase();
+      foldTurkish(input.trim()) == foldTurkish(widget.answer.trim());
 
   void _trySubmit() {
     final text = _controller.text;
@@ -193,20 +194,20 @@ class _FillBlankBodyState extends State<_FillBlankBody> {
                 answer: widget.answer,
                 showBorder: true),
           ],
-          const SizedBox(height: 24),
-          ValueListenableBuilder<TextEditingValue>(
-            valueListenable: _controller,
-            builder: (context, value, _) {
-              final canSubmit = !submitted && value.text.trim().isNotEmpty;
-              return LessonCheckButton(
-                label: submitted
-                    ? AppStrings.lessonChecked
-                    : AppStrings.lessonCheck,
-                enabled: canSubmit,
-                onPressed: canSubmit ? _trySubmit : null,
-              );
-            },
-          ),
+          if (!submitted) ...[
+            const SizedBox(height: 24),
+            ValueListenableBuilder<TextEditingValue>(
+              valueListenable: _controller,
+              builder: (context, value, _) {
+                final canSubmit = value.text.trim().isNotEmpty;
+                return LessonCheckButton(
+                  label: AppStrings.lessonCheck,
+                  enabled: canSubmit,
+                  onPressed: canSubmit ? _trySubmit : null,
+                );
+              },
+            ),
+          ],
         ],
       ),
     );

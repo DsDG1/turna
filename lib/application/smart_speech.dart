@@ -1,4 +1,5 @@
 // Project imports:
+import 'package:flutter/widgets.dart';
 import 'package:turna/application/course_pack/imported_languages.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/language_provider.dart';
@@ -93,4 +94,14 @@ bool autoReadOnTapForActiveCourse() {
   } catch (_) {
     return false;
   }
+}
+
+/// Speaks after the first frame if auto-read is on. Failures stay with the
+/// manual speaker button.
+void maybeAutoSpeak(VoidCallback speak) {
+  if (!autoReadOnTapForActiveCourse()) return;
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    speak();
+  });
+  WidgetsBinding.instance.scheduleFrame();
 }

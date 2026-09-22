@@ -237,6 +237,7 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
     required String packagePath,
     bool withScheduling = true,
     bool withDeckConfigs = true,
+    bool withMedia = true,
   }) {
     return _call<OfficialAnkiImportLog>(
       'importPackage',
@@ -244,6 +245,31 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
         'packagePath': packagePath,
         'withScheduling': withScheduling,
         'withDeckConfigs': withDeckConfigs,
+        'withMedia': withMedia,
+      },
+      const Duration(minutes: 30),
+    );
+  }
+
+  Future<OfficialAnkiNoteDeckSummary> summarizeImportedNotes() {
+    return _call<OfficialAnkiNoteDeckSummary>('summarizeImportedNotes');
+  }
+
+  Future<OfficialAnkiImportLog> promoteStagingCollection({
+    required String collectionPath,
+    required String mediaFolder,
+    bool withScheduling = true,
+    bool withDeckConfigs = true,
+    bool withMedia = true,
+  }) {
+    return _call<OfficialAnkiImportLog>(
+      'promoteStagingCollection',
+      {
+        'collectionPath': collectionPath,
+        'mediaFolder': mediaFolder,
+        'withScheduling': withScheduling,
+        'withDeckConfigs': withDeckConfigs,
+        'withMedia': withMedia,
       },
       const Duration(minutes: 30),
     );
@@ -695,6 +721,18 @@ final Map<String, Future<Object?> Function(_WorkerState, Map<String, Object?>)>
       packagePath: m['packagePath'] as String,
       withScheduling: m['withScheduling'] == true,
       withDeckConfigs: m['withDeckConfigs'] != false,
+      withMedia: m['withMedia'] != false,
+    );
+  },
+  'summarizeImportedNotes': (s, m) => s.engine!.summarizeImportedNotes(),
+  'promoteStagingCollection': (s, m) async {
+    s.ops.guardCollectionMutation();
+    return s.engine!.promoteStagingCollection(
+      collectionPath: m['collectionPath'] as String,
+      mediaFolder: m['mediaFolder'] as String,
+      withScheduling: m['withScheduling'] != false,
+      withDeckConfigs: m['withDeckConfigs'] != false,
+      withMedia: m['withMedia'] != false,
     );
   },
   'progress': (s, m) => s.engine!.latestProgress(),

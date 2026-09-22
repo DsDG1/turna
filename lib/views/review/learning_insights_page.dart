@@ -430,7 +430,7 @@ class _CurveCard extends StatelessWidget {
       case EventRange.d90:
         return AppStrings.reviewProgressRange90;
       case EventRange.d365:
-        return '365 天';
+        return AppStrings.reviewProgressRange365;
     }
   }
 }

@@ -87,12 +87,37 @@ class OfficialAnkiWorker implements OfficialAnkiEngine {
     required String packagePath,
     bool withScheduling = true,
     bool withDeckConfigs = true,
+    bool withMedia = true,
   }) {
     return _enqueue(
       () => _inner.importPackage(
         packagePath: packagePath,
         withScheduling: withScheduling,
         withDeckConfigs: withDeckConfigs,
+        withMedia: withMedia,
+      ),
+    );
+  }
+
+  @override
+  Future<OfficialAnkiNoteDeckSummary> summarizeImportedNotes() =>
+      _enqueue(_inner.summarizeImportedNotes);
+
+  @override
+  Future<OfficialAnkiImportLog> promoteStagingCollection({
+    required String collectionPath,
+    required String mediaFolder,
+    bool withScheduling = true,
+    bool withDeckConfigs = true,
+    bool withMedia = true,
+  }) {
+    return _enqueue(
+      () => _inner.promoteStagingCollection(
+        collectionPath: collectionPath,
+        mediaFolder: mediaFolder,
+        withScheduling: withScheduling,
+        withDeckConfigs: withDeckConfigs,
+        withMedia: withMedia,
       ),
     );
   }

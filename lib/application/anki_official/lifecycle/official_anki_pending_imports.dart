@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
@@ -14,6 +16,7 @@ class OfficialAnkiPendingImportStore {
       final source = sources.findById(attempt.sourceId);
       if (source == null) continue;
       if (source.state == 'active') continue;
+      final staging = attempt.stagingPath;
       pending.add(
         OfficialAnkiPendingImport(
           sourceId: source.sourceId,
@@ -21,6 +24,10 @@ class OfficialAnkiPendingImportStore {
           displayName: source.displayName,
           phase: attempt.phase.isNotEmpty ? attempt.phase : attempt.state,
           cardCount: sources.cardCount(source.sourceId),
+          packagePath: sources.originalUri(source.sourceId),
+          stagingIntact: staging != null &&
+              staging.isNotEmpty &&
+              File('$staging/collection.anki2').existsSync(),
         ),
       );
     }

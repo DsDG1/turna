@@ -91,6 +91,8 @@ class _LearningSettingsPageState extends State<LearningSettingsPage> {
                 settingsTileDivider(context),
                 const SettingsSrsRetentionTile(),
                 settingsTileDivider(context),
+                const SettingsReviewBatchTile(),
+                settingsTileDivider(context),
                 const SettingsSrsWeightsTile(),
                 settingsTileDivider(context),
                 const SettingsDailyReminderTile(),

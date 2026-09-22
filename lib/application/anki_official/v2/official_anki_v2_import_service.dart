@@ -33,6 +33,10 @@ class OfficialAnkiV2CommitResult {
     required this.cardCount,
     required this.sectionCount,
     required this.lessonCount,
+    this.newNoteCount = 0,
+    this.duplicateNoteCount = 0,
+    this.partCount = 0,
+    this.includeMedia = true,
   });
 
   final String sourceId;
@@ -40,6 +44,10 @@ class OfficialAnkiV2CommitResult {
   final int cardCount;
   final int sectionCount;
   final int lessonCount;
+  final int newNoteCount;
+  final int duplicateNoteCount;
+  final int partCount;
+  final bool includeMedia;
 }
 
 /// v2 导入链的发布段（step4.md B1+B2）：staging/preview 与 v1 共用
@@ -136,6 +144,8 @@ class OfficialAnkiV2ImportService {
     Map<int, OfficialAnkiMappingSuggestion> suggestions = const {},
     Set<int> confirmedNotetypes = const {},
     Set<int> skippedNotetypes = const {},
+    Set<int> excludedDeckIds = const {},
+    bool includeMedia = true,
   }) async {
     final sources = OfficialAnkiSourceDao(catalog);
     final attempts = OfficialAnkiImportAttemptDao(catalog);
@@ -196,9 +206,12 @@ class OfficialAnkiV2ImportService {
     try {
       // 幂等打开（Step 1 语义）：冷启动直奔向导时 live 引擎可能未开。
       await resolved.openProfile(paths);
-      imported = await resolved.importPackage(
+      imported = await _importLive(
+        resolved: resolved,
+        attempts: attempts,
+        sourceId: sourceId,
         packagePath: packagePath,
-        withScheduling: true,
+        includeMedia: includeMedia,
       );
       // K2：receipt 与 import 返回之间只有这一条 UPDATE，杀点即回滚到
       // importing 状态、staging 目录仍在（finishCommit 未执行）。
@@ -254,6 +267,7 @@ class OfficialAnkiV2ImportService {
       decision: OfficialAnkiV2MappingDecision(
         notetypeIdsConfirmed: {...confirmedNotetypes},
         notetypeIdsSkipped: {...skippedNotetypes},
+        excludedDeckIds: {...excludedDeckIds},
         suggestionsJson: suggestionsJson,
       ),
     );
@@ -278,7 +292,11 @@ class OfficialAnkiV2ImportService {
       '(${imported.cardCount} cards, $indexedCards indexed)',
     );
 
+    if (excludedDeckIds.isNotEmpty) {
+      await _suspendDecks(resolved, sources, sourceId, excludedDeckIds);
+    }
     final rebuilt = await _rebuild(sourceId: sourceId);
+    final partCount = await OfficialAnkiV2ViewStore(course).splitSectionCount();
     // 与 v1 publish 同语义的调度锁（P1）：未被课程引入的卡挂起，课时
     // 完成解锁。读面 = 视图行 + 引入账本（anki_card_introduction_states，
     // 保留表）；写只经引擎（suspend），course.db 零写入。fail-open：
@@ -290,7 +308,66 @@ class OfficialAnkiV2ImportService {
       cardCount: indexedCards,
       sectionCount: rebuilt.sectionCount,
       lessonCount: rebuilt.lessonCount,
+      newNoteCount: imported.newNoteIds.length,
+      duplicateNoteCount: imported.duplicateNoteIds.length,
+      partCount: partCount,
+      includeMedia: includeMedia,
     );
+  }
+
+  /// Promote the staging collection when its file is still on disk.
+  /// Any promote failure re-imports the original package.
+  Future<OfficialAnkiImportLog> _importLive({
+    required OfficialAnkiEngine resolved,
+    required OfficialAnkiImportAttemptDao attempts,
+    required String sourceId,
+    required String packagePath,
+    required bool includeMedia,
+  }) async {
+    final attempt = attempts.unfinishedBySource(sourceId);
+    final stagingPath = attempt?.stagingPath;
+    final collection =
+        stagingPath == null ? null : File('$stagingPath/collection.anki2');
+    if (collection != null && collection.existsSync()) {
+      try {
+        return await resolved.promoteStagingCollection(
+          collectionPath: collection.path,
+          mediaFolder: '$stagingPath/collection.media',
+          withScheduling: true,
+          withMedia: includeMedia,
+        );
+      } catch (error) {
+        officialAnkiV2Log('promote failed, reimporting package: $error',
+            warning: true);
+      }
+    }
+    return resolved.importPackage(
+      packagePath: packagePath,
+      withScheduling: true,
+      withMedia: includeMedia,
+    );
+  }
+
+  Future<void> _suspendDecks(
+    OfficialAnkiEngine resolved,
+    OfficialAnkiSourceDao sources,
+    String sourceId,
+    Set<int> deckIds,
+  ) async {
+    final cardIds = [
+      for (final card in sources.listCards(sourceId))
+        if (deckIds.contains(card.deckId)) card.cardId,
+    ]..sort();
+    for (var start = 0; start < cardIds.length; start += _suspendBatch) {
+      final end = start + _suspendBatch;
+      await resolved.buryOrSuspendCards(
+        action: OfficialBuryOrSuspendAction.suspend,
+        cardIds: cardIds.sublist(
+          start,
+          end > cardIds.length ? cardIds.length : end,
+        ),
+      );
+    }
   }
 
   /// 100 = 桥的 bury/suspend 单批上限（LockReconciler 同款）。

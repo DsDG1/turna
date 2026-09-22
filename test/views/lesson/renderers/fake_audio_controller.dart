@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:turna/application/audio_controller.dart';
 
 /// A no-op [AudioController] for renderer/widget tests.
@@ -38,6 +39,12 @@ class FakeAudioController implements AudioController {
 
   @override
   TtsSpeakResult? get lastSpeakResult => null;
+
+  @override
+  final ValueNotifier<bool> speakingListenable = ValueNotifier(false);
+
+  @override
+  bool get isSpeaking => speakingListenable.value;
 
   @override
   Future<void> stopSystemTts() async {}

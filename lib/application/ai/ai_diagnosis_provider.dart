@@ -13,6 +13,7 @@ import 'package:turna/application/ai/engine/ai_recent_tasks_provider.dart';
 import 'package:turna/application/ai/hint_genres.dart';
 import 'package:turna/application/ai/learner_ai_context.dart';
 import 'package:turna/core/logger.dart';
+import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/di/injection.dart';
 
 enum AiDiagnosisState { idle, loading, ready, error }
@@ -38,6 +39,8 @@ class AiDiagnosisProvider extends AiRequestSessionBase {
 
   String? _error;
   String? get error => _error;
+  AiErrorMapping? _errorMapping;
+  AiErrorMapping? get errorMapping => _errorMapping;
 
   DiagnosisReport? _report;
   DiagnosisReport? get report => _report;
@@ -75,7 +78,11 @@ class AiDiagnosisProvider extends AiRequestSessionBase {
     bool force = false,
   }) async {
     if (!force && isRateLimited) {
-      _error = 'rate_limited';
+      _errorMapping = AiErrorMapping(
+        kind: AiErrorKind.rateLimited,
+        message: AppStrings.aiErrorRateLimited,
+      );
+      _error = _errorMapping?.message;
       _state = AiDiagnosisState.error;
       notifyListeners();
       return false;
@@ -83,6 +90,7 @@ class AiDiagnosisProvider extends AiRequestSessionBase {
 
     final session = beginStreamingSession();
     _error = null;
+    _errorMapping = null;
     _state = AiDiagnosisState.loading;
     notifySessionListeners();
 
@@ -116,7 +124,8 @@ class AiDiagnosisProvider extends AiRequestSessionBase {
     } catch (e) {
       if (!isCurrentSession(session)) return true;
       logger.w('AiDiagnosisProvider.generate failed: $e');
-      _error = AiErrorMapper.map(e).message;
+      _errorMapping = AiErrorMapper.map(e);
+      _error = _errorMapping?.message;
       _state = AiDiagnosisState.error;
     } finally {
       finishStreamingSession(session);

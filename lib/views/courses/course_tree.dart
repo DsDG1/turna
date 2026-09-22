@@ -50,6 +50,7 @@ class _CourseTreeState extends State<CourseTree> with TickerProviderStateMixin {
   /// Accordion state is kept per section, so changing sections does not make
   /// the learner lose the place they were working from.
   final Map<String, String?> _expandedUnitBySection = {};
+  final Set<String> _userToggledSections = {};
 
   /// 每个「section/unit」一把揭示控制器：目标单元 forward、收起单元
   /// reverse，两把同时跑即手风琴切换的并发双动画。控制器常驻本表、
@@ -209,6 +210,7 @@ class _CourseTreeState extends State<CourseTree> with TickerProviderStateMixin {
     required bool reduceMotion,
   }) {
     final status = _resolveStatusProjection(context, section);
+    _ensureNextUpExpanded(context, section);
     final expandedUnitId = _expandedUnitBySection[section.id];
 
     // 单元头 + 展开单元的课程行交替铺开为 Sliver 列表行：课程行经
@@ -540,6 +542,34 @@ class _CourseTreeState extends State<CourseTree> with TickerProviderStateMixin {
     });
   }
 
+  void _ensureNextUpExpanded(BuildContext context, Section section) {
+    if (_userToggledSections.contains(section.id)) return;
+    if (_expandedUnitBySection.containsKey(section.id)) return;
+    String? nextUnitId;
+    try {
+      final progress = context.read<ProgressProvider>();
+      final anyCompleted = section.units.any(
+        (unit) =>
+            unit.lessons.any((lesson) => progress.isLessonCompleted(lesson.id)),
+      );
+      if (!anyCompleted) return;
+      for (final unit in section.units) {
+        for (final lesson in unit.lessons) {
+          if (!progress.isLessonCompleted(lesson.id)) {
+            nextUnitId = unit.id;
+            break;
+          }
+        }
+        if (nextUnitId != null) break;
+      }
+    } catch (_) {
+      return;
+    }
+    if (nextUnitId != null) {
+      _expandedUnitBySection[section.id] = nextUnitId;
+    }
+  }
+
   void _toggleUnit({
     required String sectionId,
     required String unitId,
@@ -558,6 +588,7 @@ class _CourseTreeState extends State<CourseTree> with TickerProviderStateMixin {
     }
 
     setState(() {
+      _userToggledSections.add(sectionId);
       if (expanded) {
         _expandedUnitBySection[sectionId] = null;
         retract(unitId);
@@ -672,6 +703,11 @@ class _EmptyMessage extends StatelessWidget {
               fontWeight: FontWeight.w600,
               color: TurnaTheme.textSecondaryColor(context),
             ),
+          ),
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: () => context.router.push(CourseManagementRoute()),
+            child: Text(AppStrings.courseManagementTitle),
           ),
         ],
       ),

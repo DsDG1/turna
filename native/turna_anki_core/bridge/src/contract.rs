@@ -13,7 +13,7 @@ use crate::engine;
 use crate::errors;
 
 pub const CONTRACT_MAJOR: u32 = 1;
-pub const CONTRACT_MINOR: u32 = 12;
+pub const CONTRACT_MINOR: u32 = 13;
 pub const OP_ENGINE_INFO: u32 = 1;
 const MAX_REQUEST_ID_BYTES: usize = 128;
 const MAX_ENVELOPE_PAYLOAD_BYTES: usize = 1_048_576;
@@ -188,6 +188,11 @@ const OP_TABLE: &[(&str, u32)] = &[
     ("DIFF_COLLECTION_CHECKPOINT", engine::OP_DIFF_COLLECTION_CHECKPOINT),
     ("GET_CONFIG", engine::OP_GET_CONFIG),
     ("SET_CONFIG", engine::OP_SET_CONFIG),
+    ("SUMMARIZE_IMPORTED_NOTES", engine::OP_SUMMARIZE_IMPORTED_NOTES),
+    (
+        "PROMOTE_STAGING_COLLECTION",
+        engine::OP_PROMOTE_STAGING_COLLECTION,
+    ),
 ];
 
 fn operation_name_to_id(name: &str) -> Option<u32> {

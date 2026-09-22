@@ -92,6 +92,14 @@ class AiHintProvider extends AiStreamingSessionBase {
 
   String? _error;
   String? get error => _error;
+  AiErrorMapping? _errorMapping;
+  AiErrorMapping? get errorMapping => _errorMapping;
+  String? _failedInput;
+  String? consumeFailedInput() {
+    final value = _failedInput;
+    _failedInput = null;
+    return value;
+  }
 
   /// The question this conversation is about. `null` until
   /// [explainQuestion] is called; cleared by [reset].
@@ -276,12 +284,18 @@ class AiHintProvider extends AiStreamingSessionBase {
         return true;
       }
       logger.w('AiHintProvider.ask failed: $e');
-      _error = AiErrorMapper.map(e).message;
+      _errorMapping = AiErrorMapper.map(e);
+      _error = _errorMapping?.message;
       _state = AiHintState.error;
       if (assistantIndex < _messages.length &&
           _messages[assistantIndex].role == 'assistant' &&
           _messages[assistantIndex].content.isEmpty) {
         _messages.removeAt(assistantIndex);
+      }
+      if (_messages.isNotEmpty &&
+          identical(_messages.last, userMessage) &&
+          _messages.last.role == 'user') {
+        _failedInput = _messages.removeLast().content;
       }
     } finally {
       finishStreamingSession(session);

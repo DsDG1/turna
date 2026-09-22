@@ -1,9 +1,17 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:turna/application/review/review_ledger_resolver.dart';
+import 'package:turna/core/logger.dart';
 import 'package:turna/domain/review/recall_outcome.dart';
 import 'package:turna/domain/review/review_item.dart';
 import 'package:turna/domain/review/review_ledger.dart';
-import 'package:turna/application/review/review_ledger_resolver.dart';
+
+class _PendingWrite {
+  _PendingWrite(this.item, this.outcome, this.cachedPreview);
+  final ReviewItem item;
+  final RecallOutcome outcome;
+  final ReviewPreview? cachedPreview;
+}
 
 /// State and business logic controller for a unified review session.
 ///
@@ -12,6 +20,9 @@ import 'package:turna/application/review/review_ledger_resolver.dart';
 /// - Item is locked during submission to prevent double taps.
 /// - Authoritative interval previews fetched from the active ledger.
 /// - Idempotent, receipt-based single undo.
+/// - Non-last cards advance before the ledger write settles; undo is gated
+///   until persist completes ([isPersisting]). The last card stays on screen
+///   until persist succeeds so a write failure can be retried.
 class ReviewSessionController extends ChangeNotifier {
   final List<ReviewItem> items;
   final ReviewLedgerResolver ledgerResolver;
@@ -36,11 +47,14 @@ class ReviewSessionController extends ChangeNotifier {
   int _currentIndex = 0;
   bool _isRevealed = false;
   bool _isSubmitting = false;
+  bool _isPersisting = false;
   bool _isComplete = false;
   ReviewEventReceipt? _lastReceipt;
-  Object? _lastError;
+  Object? _previewError;
+  Object? _writeError;
   Object? _sideEffectWarning;
   int _previewGeneration = 0;
+  _PendingWrite? _pendingWrite;
 
   ReviewPreview? _forgottenPreview;
   ReviewPreview? _rememberedPreview;
@@ -52,16 +66,27 @@ class ReviewSessionController extends ChangeNotifier {
   int get currentIndex => _currentIndex;
   bool get isRevealed => _isRevealed;
   bool get isSubmitting => _isSubmitting;
+  bool get isPersisting => _isPersisting;
   bool get isComplete => _isComplete;
   ReviewEventReceipt? get lastReceipt => _lastReceipt;
-  Object? get lastError => _lastError;
+  Object? get previewError => _previewError;
+  Object? get writeError => _writeError;
+
+  /// Combined error for older callers. Preview failures no longer block
+  /// grading; prefer [previewError] / [writeError].
+  Object? get lastError => _writeError ?? _previewError;
   Object? get sideEffectWarning => _sideEffectWarning;
 
-  ReviewPreview? get forgottenPreview => _forgottenPreview;
-  ReviewPreview? get rememberedPreview => _rememberedPreview;
+  ReviewPreview? get forgottenPreview =>
+      _previewError == null ? _forgottenPreview : null;
+  ReviewPreview? get rememberedPreview =>
+      _previewError == null ? _rememberedPreview : null;
 
   int get rememberedCount => _rememberedCount;
   int get forgottenCount => _forgottenCount;
+  int get answeredCount => _rememberedCount + _forgottenCount;
+  int get remainingCount =>
+      (_currentIndex >= items.length) ? 0 : items.length - _currentIndex;
   int get totalCount => items.length;
   Duration get elapsed => DateTime.now().difference(_startedAt);
 
@@ -103,84 +128,116 @@ class ReviewSessionController extends ChangeNotifier {
       }
       _forgottenPreview = forgotten;
       _rememberedPreview = remembered;
-      _lastError = null;
+      _previewError = null;
       notifyListeners();
     } catch (error) {
       if (generation != _previewGeneration) return;
-      _lastError = error;
+      _previewError = error;
       notifyListeners();
     }
   }
 
-  /// Retry the current card's preview load after a failure. A failed
-  /// [_loadPreviews] leaves [_lastError] set, which disables grading —
-  /// without a retry path a transient error would brick the session.
+  /// Retry the current card's preview load after a failure.
   Future<void> retryPreviews() async {
-    _lastError = null;
+    _previewError = null;
     notifyListeners();
     await _loadPreviews();
   }
 
+  /// Retry the last optimistic write if it failed.
+  Future<bool> retryWrite() => _persistPending();
+
   Future<bool> answer(RecallOutcome outcome) async {
     final item = currentItem;
-    if (item == null || _isSubmitting || _isComplete) return false;
+    if (item == null ||
+        _isSubmitting ||
+        _isComplete ||
+        _isPersisting ||
+        _pendingWrite != null) {
+      return false;
+    }
     _isSubmitting = true;
-    _lastError = null;
-    notifyListeners();
-
-    try {
-      final ledger = ledgerResolver.resolve(item.source);
-      final receipt = await ledger.answer(
-        item.schedulingKey,
-        outcome,
-      );
-
-      _lastReceipt = receipt;
-      if (outcome == RecallOutcome.remembered) {
-        _rememberedCount++;
-      } else {
-        _forgottenCount++;
-      }
-
-      if (onOutcomeRecorded != null) {
-        try {
-          await onOutcomeRecorded!(item, outcome);
-        } catch (error) {
-          _sideEffectWarning = error;
-        }
-      }
-
-      _previewGeneration++;
+    _writeError = null;
+    final cachedPreview = outcome == RecallOutcome.remembered
+        ? _rememberedPreview
+        : _forgottenPreview;
+    _pendingWrite = _PendingWrite(item, outcome, cachedPreview);
+    if (outcome == RecallOutcome.remembered) {
+      _rememberedCount++;
+    } else {
+      _forgottenCount++;
+    }
+    final finishing = _currentIndex >= items.length - 1;
+    _previewGeneration++;
+    if (!finishing) {
       _currentIndex++;
       _isRevealed = false;
       _forgottenPreview = null;
       _rememberedPreview = null;
+    }
+    _isSubmitting = false;
+    notifyListeners();
+    if (!finishing) {
+      unawaited(_loadPreviews());
+    }
+    return _persistPending();
+  }
 
-      if (_currentIndex >= items.length) {
-        _isComplete = true;
-        if (onSessionCompleted != null) {
-          try {
-            await onSessionCompleted!(_rememberedCount, _forgottenCount);
-          } catch (error) {
-            _sideEffectWarning = error;
-          }
+  Future<bool> _persistPending() async {
+    final pending = _pendingWrite;
+    if (pending == null) return true;
+    _isPersisting = true;
+    notifyListeners();
+    try {
+      final ledger = ledgerResolver.resolve(pending.item.source);
+      final receipt = await ledger.answer(
+        pending.item.schedulingKey,
+        pending.outcome,
+        cachedPreview: pending.cachedPreview,
+      );
+      _lastReceipt = receipt;
+      _pendingWrite = null;
+      _writeError = null;
+      if (onOutcomeRecorded != null) {
+        try {
+          await onOutcomeRecorded!(pending.item, pending.outcome);
+        } catch (error) {
+          _sideEffectWarning = error;
         }
-      } else {
-        unawaited(_loadPreviews());
+      }
+      final finishing = items.isNotEmpty &&
+          pending.item.sessionItemId == items.last.sessionItemId;
+      if (finishing && !_isComplete) {
+        _currentIndex = items.length;
+        _isComplete = true;
+      }
+      if (_isComplete && onSessionCompleted != null) {
+        try {
+          await onSessionCompleted!(_rememberedCount, _forgottenCount);
+        } catch (error) {
+          _sideEffectWarning = error;
+        }
       }
       return true;
-    } catch (e) {
-      _lastError = e;
+    } catch (e, st) {
+      logger.w('Review session persist failed', error: e, stackTrace: st);
+      _writeError = e;
       return false;
     } finally {
-      _isSubmitting = false;
+      _isPersisting = false;
       notifyListeners();
     }
   }
 
   Future<bool> undoLast() async {
     final receipt = _lastReceipt;
-    if (receipt == null || _currentIndex == 0 || _isSubmitting) return false;
+    if (receipt == null ||
+        _currentIndex == 0 ||
+        _isSubmitting ||
+        _isPersisting ||
+        _pendingWrite != null) {
+      return false;
+    }
     _isSubmitting = true;
     notifyListeners();
 
@@ -211,7 +268,7 @@ class ReviewSessionController extends ChangeNotifier {
       await _loadPreviews();
       return true;
     } catch (error) {
-      _lastError = error;
+      _writeError = error;
       return false;
     } finally {
       _isSubmitting = false;

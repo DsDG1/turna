@@ -186,16 +186,25 @@ class OfficialAnkiProgress {
   const OfficialAnkiProgress({
     required this.stage,
     this.canCancel = false,
+    this.current,
+    this.total,
   });
 
   final String stage;
   final bool canCancel;
 
+  /// Processed notes or media files when the engine reported a count.
+  final int? current;
+
+  /// Present only when the engine knows the total. Import note/media
+  /// counts usually have [current] and no total.
+  final int? total;
+
   /// Accepts both wire shapes: the native LATEST_PROGRESS payload
   /// (`operation_kind`/`can_cancel`/`want_abort`, one of the few handlers
   /// whose snake keys are load-bearing) and the worker re-emission
-  /// (`stage`/`canCancel`). The dead `current`/`total` fields were deleted
-  /// (doc 39 P2); no caller ever read them.
+  /// (`stage`/`canCancel`). `current`/`total` are optional counts from
+  /// ImportProgress; note import usually sets current and leaves total empty.
   factory OfficialAnkiProgress.fromJson(Map<String, Object?> json) {
     final wantAbort = json['want_abort'] == true;
     final stage = json['stage'] as String? ??
@@ -205,6 +214,86 @@ class OfficialAnkiProgress {
     return OfficialAnkiProgress(
       stage: stage,
       canCancel: json['canCancel'] == true || json['can_cancel'] == true,
+      current: (json['current'] as num?)?.toInt(),
+      total: (json['total'] as num?)?.toInt(),
+    );
+  }
+}
+
+/// One `deck × notetype` card count from [OfficialAnkiOperation.summarizeImportedNotes].
+class OfficialAnkiDeckNotetypeCount {
+  const OfficialAnkiDeckNotetypeCount({
+    required this.deckId,
+    required this.notetypeId,
+    required this.cards,
+  });
+
+  final int deckId;
+  final int notetypeId;
+  final int cards;
+
+  factory OfficialAnkiDeckNotetypeCount.fromJson(Map<String, Object?> json) {
+    return OfficialAnkiDeckNotetypeCount(
+      deckId: (json['deck_id'] as num? ?? json['deckId'] as num? ?? 0).toInt(),
+      notetypeId:
+          (json['notetype_id'] as num? ?? json['notetypeId'] as num? ?? 0)
+              .toInt(),
+      cards: (json['cards'] as num? ?? 0).toInt(),
+    );
+  }
+}
+
+class OfficialAnkiNoteDeckSummary {
+  const OfficialAnkiNoteDeckSummary({
+    required this.noteCount,
+    required this.cardCount,
+    required this.rows,
+  });
+
+  final int noteCount;
+  final int cardCount;
+  final List<OfficialAnkiDeckNotetypeCount> rows;
+
+  Map<int, int> get directCardCountByDeck {
+    final counts = <int, int>{};
+    for (final row in rows) {
+      counts[row.deckId] = (counts[row.deckId] ?? 0) + row.cards;
+    }
+    return counts;
+  }
+
+  /// deckId → notetype with the most cards in that deck.
+  Map<int, int> get primaryNotetypeByDeck {
+    final best = <int, OfficialAnkiDeckNotetypeCount>{};
+    for (final row in rows) {
+      final current = best[row.deckId];
+      if (current == null || row.cards > current.cards) {
+        best[row.deckId] = row;
+      }
+    }
+    return {
+      for (final entry in best.entries) entry.key: entry.value.notetypeId
+    };
+  }
+
+  Set<int> get notetypeIds => {for (final row in rows) row.notetypeId};
+
+  factory OfficialAnkiNoteDeckSummary.fromJson(Map<String, Object?> json) {
+    final raw = json['rows'];
+    return OfficialAnkiNoteDeckSummary(
+      noteCount: (json['note_count'] as num? ?? json['noteCount'] as num? ?? 0)
+          .toInt(),
+      cardCount: (json['card_count'] as num? ?? json['cardCount'] as num? ?? 0)
+          .toInt(),
+      rows: raw is List
+          ? [
+              for (final row in raw)
+                if (row is Map)
+                  OfficialAnkiDeckNotetypeCount.fromJson(
+                    Map<String, Object?>.from(row),
+                  ),
+            ]
+          : const <OfficialAnkiDeckNotetypeCount>[],
     );
   }
 }

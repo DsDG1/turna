@@ -154,16 +154,22 @@ class _MultipleChoiceBodyState extends State<_MultipleChoiceBody> {
           ],
           const SizedBox(height: 24),
           ..._buildOptions(submitted, correct),
-          const SizedBox(height: 20),
-          LessonCheckButton(
-            label:
-                submitted ? AppStrings.lessonChecked : AppStrings.lessonCheck,
-            enabled: canSubmit,
-            onPressed: canSubmit
-                ? () => widget.onSubmit(_picked == widget.correctIndex,
-                    userAnswerText: widget.options[_picked!])
-                : null,
-          ),
+          if (submitted && correct == false)
+            LessonCorrectAnswerBanner(
+              label: AppStrings.lessonCorrectAnswer,
+              answer: widget.options[widget.correctIndex],
+            ),
+          if (!submitted) ...[
+            const SizedBox(height: 20),
+            LessonCheckButton(
+              label: AppStrings.lessonCheck,
+              enabled: canSubmit,
+              onPressed: canSubmit
+                  ? () => widget.onSubmit(_picked == widget.correctIndex,
+                      userAnswerText: widget.options[_picked!])
+                  : null,
+            ),
+          ],
         ],
       ),
     );

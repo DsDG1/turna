@@ -236,6 +236,8 @@ class OfficialAnkiPendingImport {
     required this.phase,
     this.cardCount = 0,
     this.lastError,
+    this.packagePath,
+    this.stagingIntact = false,
   });
 
   final String sourceId;
@@ -244,6 +246,12 @@ class OfficialAnkiPendingImport {
   final String phase;
   final int cardCount;
   final String? lastError;
+
+  /// Original `.apkg` path stored at pick time, when still known.
+  final String? packagePath;
+
+  /// Staging collection file is present, so preview can reopen.
+  final bool stagingIntact;
 }
 
 /// Doc 42 §4.1 attempt phase. Independent of [OfficialAnkiSourceState] on

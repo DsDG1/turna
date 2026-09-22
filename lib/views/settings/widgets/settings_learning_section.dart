@@ -683,3 +683,32 @@ class _SettingsDailyChallengeAnkiTileState
     );
   }
 }
+
+class SettingsReviewBatchTile extends StatelessWidget {
+  const SettingsReviewBatchTile({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final value = context.select<SettingsProvider, int>(
+      (p) => p.reviewBatchSize,
+    );
+    return SettingsTile(
+      icon: Icons.layers_rounded,
+      title: AppStrings.settingsReviewBatchTitle,
+      subtitle: AppStrings.settingsReviewBatchSubtitle,
+      trailing: DropdownButton<int>(
+        value: {20, 25, 30}.contains(value) ? value : 25,
+        underline: const SizedBox.shrink(),
+        items: const [
+          DropdownMenuItem(value: 20, child: Text('20')),
+          DropdownMenuItem(value: 25, child: Text('25')),
+          DropdownMenuItem(value: 30, child: Text('30')),
+        ],
+        onChanged: (next) {
+          if (next == null) return;
+          context.read<SettingsProvider>().setReviewBatchSize(next);
+        },
+      ),
+    );
+  }
+}

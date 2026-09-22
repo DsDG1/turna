@@ -17,6 +17,10 @@ class AnkiImportSummary {
   final int cardCount;
   final int wordEntryCount;
   final int sourceCardCount;
+  final int newNoteCount;
+  final int duplicateNoteCount;
+  final int partCount;
+  final bool includeMedia;
 
   const AnkiImportSummary({
     required this.importId,
@@ -25,6 +29,10 @@ class AnkiImportSummary {
     required this.cardCount,
     required this.wordEntryCount,
     this.sourceCardCount = 0,
+    this.newNoteCount = 0,
+    this.duplicateNoteCount = 0,
+    this.partCount = 0,
+    this.includeMedia = true,
   });
 }
 
@@ -52,45 +60,95 @@ final class AnkiImportSelecting extends AnkiImportWizardState {
 /// active; a cancel request is visible to the flow through the
 /// controller.
 final class AnkiImportParsing extends AnkiImportWizardState {
-  const AnkiImportParsing({this.message = '', this.stage});
+  const AnkiImportParsing({
+    this.message = '',
+    this.stage,
+    this.progressCurrent,
+    this.progressTotal,
+  });
 
   final String message;
 
-  /// 原生引擎 latestProgress 的阶段名（大包导入期间透出，D3）；null =
-  /// 尚未上报。展示原样渲染，不做本地化。
+  /// Localized stage label. Null until the engine reports one.
   final String? stage;
+  final int? progressCurrent;
+  final int? progressTotal;
 
   @override
   int get step => 1;
 
-  // Doc 39 P5: the never-non-zero `progress` field went away — the
-  // official flow never reports fractional progress.
-
-  AnkiImportParsing copyWith({String? message, String? stage}) =>
+  AnkiImportParsing copyWith({
+    String? message,
+    String? stage,
+    int? progressCurrent,
+    int? progressTotal,
+    bool clearProgress = false,
+  }) =>
       AnkiImportParsing(
         message: message ?? this.message,
         stage: stage ?? this.stage,
+        progressCurrent: clearProgress
+            ? progressCurrent
+            : (progressCurrent ?? this.progressCurrent),
+        progressTotal: clearProgress
+            ? progressTotal
+            : (progressTotal ?? this.progressTotal),
       );
 }
 
 /// Committing the official flow. Constructing this twice from the same
 /// preview is impossible at the API level (commit is single-flight).
 final class AnkiImportCommitting extends AnkiImportWizardState {
-  const AnkiImportCommitting({this.message = '', this.stage});
+  const AnkiImportCommitting({
+    this.message = '',
+    this.stage,
+    this.progressCurrent,
+    this.progressTotal,
+  });
 
   final String message;
 
-  /// 同 [AnkiImportParsing.stage]——commit 期透出 live 引擎的阶段。
+  /// 同 [AnkiImportParsing.stage]。
   final String? stage;
+  final int? progressCurrent;
+  final int? progressTotal;
 
   @override
   int get step => 3;
 
-  AnkiImportCommitting copyWith({String? message, String? stage}) =>
+  AnkiImportCommitting copyWith({
+    String? message,
+    String? stage,
+    int? progressCurrent,
+    int? progressTotal,
+    bool clearProgress = false,
+  }) =>
       AnkiImportCommitting(
         message: message ?? this.message,
         stage: stage ?? this.stage,
+        progressCurrent: clearProgress
+            ? progressCurrent
+            : (progressCurrent ?? this.progressCurrent),
+        progressTotal: clearProgress
+            ? progressTotal
+            : (progressTotal ?? this.progressTotal),
       );
+}
+
+/// The picked package matches an active source. Open it or replace it.
+final class AnkiImportAlreadyImported extends AnkiImportWizardState {
+  const AnkiImportAlreadyImported({
+    required this.sourceId,
+    required this.displayName,
+    required this.filePath,
+  });
+
+  final String sourceId;
+  final String displayName;
+  final String filePath;
+
+  @override
+  int get step => 0;
 }
 
 final class AnkiImportPreviewing extends AnkiImportWizardState {
@@ -146,6 +204,9 @@ final class OfficialAnkiImportPreviewModel extends AnkiImportPreviewModel {
     required this.noteCount,
     required this.decks,
     this.cardCountByDeck = const {},
+    this.notetypeByDeck = const {},
+    Set<int>? includedDeckIds,
+    this.includeMedia = true,
     required this.schemas,
     required this.suggestions,
     Set<int>? confirmedNotetypes,
@@ -155,7 +216,8 @@ final class OfficialAnkiImportPreviewModel extends AnkiImportPreviewModel {
   })  : // Mutable by design: mapping confirmations/skips fold into these
         // sets through controller intents.
         confirmedNotetypes = confirmedNotetypes ?? <int>{},
-        skippedNotetypes = skippedNotetypes ?? <int>{};
+        skippedNotetypes = skippedNotetypes ?? <int>{},
+        includedDeckIds = includedDeckIds ?? <int>{};
 
   @override
   final AnkiImportExecutionPlan plan;
@@ -170,6 +232,12 @@ final class OfficialAnkiImportPreviewModel extends AnkiImportPreviewModel {
   /// deckId → 牌组真实卡数（含后代累计）。deck tree 的 new/learn/review
   /// 是今日到期队列数，牌组结构行不能拿它们当卡总数。
   final Map<int, int> cardCountByDeck;
+  final Map<int, int> notetypeByDeck;
+
+  /// Decks the user wants in the course tree. Empty means every deck
+  /// (the controller fills this with every deck id when the preview opens).
+  final Set<int> includedDeckIds;
+  bool includeMedia;
   final List<OfficialAnkiProjectionSchema> schemas;
   final Map<int, OfficialAnkiMappingSuggestion> suggestions;
 

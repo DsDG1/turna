@@ -124,6 +124,7 @@ class _StudyCardSurfaceState extends State<StudyCardSurface> {
         content: content,
         isRevealed: widget.isRevealed,
         onReveal: widget.onReveal,
+        onSpeak: widget.onSpeak,
       );
     }
     if (content is StandardCourseCardContent) {

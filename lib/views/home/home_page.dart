@@ -1,3 +1,6 @@
+// Dart imports:
+import 'dart:async';
+
 // Flutter imports:
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollDirection;
@@ -8,6 +11,7 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/accessibility_provider.dart';
+import 'package:turna/application/anki_official/engine/official_anki_home_due_sync.dart';
 import 'package:turna/application/cosmetic_provider.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/gems_provider.dart';
@@ -19,10 +23,13 @@ import 'package:turna/application/srs_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/repositories/i_course_repository.dart';
 import 'package:turna/domain/repositories/i_study_log_repository.dart';
+import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/service/tab_router.dart';
-import 'package:turna/views/content_update/content_update_dialog.dart';
 import 'package:turna/views/courses/course_tree.dart';
+import 'package:turna/views/splash/splash_page.dart';
+import 'package:turna/views/home/motion/turna_motion.dart';
 import 'package:turna/views/home/components/components.dart';
 import 'package:turna/views/home/components/scroll_hide_bar.dart';
 import 'package:turna/views/home/components/tab_stack.dart';
@@ -48,6 +55,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int currentIndex = 0;
   final ScrollHidePolicy _hidePolicy = ScrollHidePolicy();
+  String? _contentUpdateVersion;
 
   /// Lazy visited tabs (Plan 3 §23.2): a tab subtree is built on first
   /// visit and kept mounted afterwards (state/scroll survive), but hidden
@@ -114,8 +122,11 @@ class _HomePageState extends State<HomePage> {
     final streakResult = await gameProvider.checkStreakOnAppOpen();
 
     if (!mounted) return;
-    if (streakResult == StreakCheckResult.broken) {
-      // Lightweight notice only — no streak repair / freeze / monetization.
+    var shownModal = false;
+    shownModal = await maybePromptTtsAvailability(context);
+    if (!mounted) return;
+
+    if (!shownModal && streakResult == StreakCheckResult.broken) {
       await showDialog<void>(
         context: context,
         barrierDismissible: true,
@@ -124,8 +135,7 @@ class _HomePageState extends State<HomePage> {
     }
 
     if (!mounted) return;
-    // Content-update prompt (ADR 0002): once per content-version bump, when
-    // the user has existing progress, offer to keep or reset progress.
+    unawaited(const OfficialAnkiHomeDueSync().refresh());
     await _maybePromptContentUpdate();
   }
 
@@ -151,28 +161,54 @@ class _HomePageState extends State<HomePage> {
     }
 
     if (!mounted) return;
-    final choice = await showDialog<ContentUpdateChoice>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => const ContentUpdateDialog(),
-    );
-    if (!mounted) return;
+    setState(() => _contentUpdateVersion = storedVersion);
+  }
 
-    if (choice == ContentUpdateChoice.resetProgress) {
-      if (!mounted) return;
-      await Future.wait([
-        game.resetLessonProgress(),
-        context.read<MistakeProvider>().clear(),
-        getIt<IStudyLogRepository>().clearAll(),
-        context.read<SrsProvider>().clear(),
-        context.read<GrammarReviewProvider>().clear(),
-      ]);
-    }
-    // Either choice persists the acknowledged version so the dialog won't recur.
-    await appPrefs.setString(
+  Future<void> _acknowledgeContentUpdate() async {
+    final version = _contentUpdateVersion;
+    if (version == null) return;
+    await getIt<AppPrefs>().setString(
       LocalStateKeys.contentVersionAcknowledged,
-      storedVersion,
+      version,
     );
+    if (mounted) setState(() => _contentUpdateVersion = null);
+  }
+
+  Future<void> _resetProgressAfterConfirm() async {
+    final go = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(AppStrings.contentUpdateResetConfirmTitle),
+        content: Text(AppStrings.contentUpdateResetConfirmBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(AppStrings.commonCancel),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx, false);
+              AutoRouter.of(context).push(const DataBackupSettingsRoute());
+            },
+            child: Text(AppStrings.contentUpdateExportFirst),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: TurnaTheme.error),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(AppStrings.contentUpdateResetProgress),
+          ),
+        ],
+      ),
+    );
+    if (go != true || !mounted) return;
+    await Future.wait([
+      context.read<GameProvider>().resetLessonProgress(),
+      context.read<MistakeProvider>().clear(),
+      getIt<IStudyLogRepository>().clearAll(),
+      context.read<SrsProvider>().clear(),
+      context.read<GrammarReviewProvider>().clear(),
+    ]);
+    await _acknowledgeContentUpdate();
   }
 
   final List<PreferredSizeWidget> appBars = [
@@ -185,34 +221,72 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final mq = MediaQuery.of(context);
-    return Scaffold(
-      backgroundColor: currentIndex == 0
-          ? TurnaTheme.scaffoldBg(context)
-          : TurnaTheme.surfaceColor(context),
-      appBar: appBars[currentIndex],
-      extendBody: true,
-      bottomNavigationBar: ScrollHideBar(
-        hidden: _hidePolicy.hidden,
-        child: BottomNavigator(
-          currentIndex: currentIndex,
-          onPress: onBottomNavigatorTapped,
-        ),
-      ),
-      body: MediaQuery(
-        data: mq.copyWith(
-          padding: mq.padding.copyWith(
-            bottom: mq.padding.bottom + BottomNavigator.overlayExtent,
+    final reduceMotion = context.select<AccessibilityProvider, bool>(
+      (p) => p.reducedMotion,
+    );
+    final bg = currentIndex == 0
+        ? TurnaTheme.scaffoldBg(context)
+        : TurnaTheme.surfaceColor(context);
+    return AnimatedContainer(
+      duration:
+          TurnaMotion.scaled(const Duration(milliseconds: 120), reduceMotion),
+      color: bg,
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        appBar: appBars[currentIndex],
+        extendBody: true,
+        bottomNavigationBar: ScrollHideBar(
+          hidden: _hidePolicy.hidden,
+          child: BottomNavigator(
+            currentIndex: currentIndex,
+            onPress: onBottomNavigatorTapped,
           ),
         ),
-        child: NotificationListener<ScrollNotification>(
-          onNotification: _onScrollNotification,
-          // 原生默认瞬时切换：懒挂载 / Offstage / TickerMode / 语义隔离
-          // 都由承载层承担。
-          child: TabStack(
-            index: currentIndex,
+        body: MediaQuery(
+          data: mq.copyWith(
+            padding: mq.padding.copyWith(
+              bottom: mq.padding.bottom + BottomNavigator.overlayExtent,
+            ),
+          ),
+          child: Column(
             children: [
-              for (var i = 0; i < _screens.length; i++)
-                _visited[i] ? _screens[i] : const SizedBox.shrink(),
+              if (_contentUpdateVersion != null)
+                Material(
+                  color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
+                  child: ListTile(
+                    title: Text(AppStrings.contentUpdateTitle),
+                    subtitle: Text(AppStrings.contentUpdateBannerMessage),
+                    trailing: Wrap(
+                      children: [
+                        TextButton(
+                          onPressed: _acknowledgeContentUpdate,
+                          child: Text(AppStrings.contentUpdateKeepProgress),
+                        ),
+                        TextButton(
+                          onPressed: _resetProgressAfterConfirm,
+                          child: Text(AppStrings.contentUpdateResetProgress),
+                        ),
+                        IconButton(
+                          tooltip: AppStrings.commonClose,
+                          onPressed: _acknowledgeContentUpdate,
+                          icon: const Icon(Icons.close),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              Expanded(
+                child: NotificationListener<ScrollNotification>(
+                  onNotification: _onScrollNotification,
+                  child: TabStack(
+                    index: currentIndex,
+                    children: [
+                      for (var i = 0; i < _screens.length; i++)
+                        _visited[i] ? _screens[i] : const SizedBox.shrink(),
+                    ],
+                  ),
+                ),
+              ),
             ],
           ),
         ),

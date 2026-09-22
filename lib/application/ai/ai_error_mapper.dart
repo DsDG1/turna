@@ -28,6 +28,19 @@ class AiErrorMapping {
     this.canConfigure = false,
   });
 
+  factory AiErrorMapping.message(
+    String message, {
+    AiErrorKind kind = AiErrorKind.unknown,
+    bool canRetry = true,
+    bool canConfigure = false,
+  }) =>
+      AiErrorMapping(
+        kind: kind,
+        message: message,
+        canRetry: canRetry,
+        canConfigure: canConfigure,
+      );
+
   final AiErrorKind kind;
   final String message;
   final bool canRetry;

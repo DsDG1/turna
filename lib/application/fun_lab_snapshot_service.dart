@@ -392,7 +392,7 @@ class FunLabSnapshotService {
       _grammarProvider.reloadFromStorage(),
     ]);
     _lessonProgress.reloadFromPrefs();
-    _mistakeProvider.reloadFromPrefs();
+    await _mistakeProvider.reloadFromPrefs();
     await _linkStore.reloadFromPrefs();
     await _studyLogRepository.reloadFromPrefs();
     if (getIt.isRegistered<RestoreNormalizationService>()) {

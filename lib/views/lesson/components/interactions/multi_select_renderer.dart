@@ -169,18 +169,19 @@ class _MultiSelectBodyState extends State<_MultiSelectBody> {
           ],
           const SizedBox(height: 24),
           ..._buildOptions(submitted, correct),
-          const SizedBox(height: 20),
-          LessonCheckButton(
-            label:
-                submitted ? AppStrings.lessonChecked : AppStrings.lessonCheck,
-            enabled: _canSubmit,
-            onPressed: _canSubmit
-                ? () => widget.onSubmit(
-                      _isCorrect(),
-                      userAnswerText: (_picked.toList()..sort()).join(','),
-                    )
-                : null,
-          ),
+          if (!submitted) ...[
+            const SizedBox(height: 20),
+            LessonCheckButton(
+              label: AppStrings.lessonCheck,
+              enabled: _canSubmit,
+              onPressed: _canSubmit
+                  ? () => widget.onSubmit(
+                        _isCorrect(),
+                        userAnswerText: (_picked.toList()..sort()).join(','),
+                      )
+                  : null,
+            ),
+          ],
         ],
       ),
     );

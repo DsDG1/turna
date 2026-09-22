@@ -93,6 +93,24 @@ class AnkiImportDoneStep extends StatelessWidget {
                 ],
               ),
             ],
+            const SizedBox(height: 12),
+            DoneGroup(
+              title: AppStrings.ankiDoneGroupSource,
+              rows: [
+                if (summary.newNoteCount > 0)
+                  AppStrings.ankiDoneNewNotes(summary.newNoteCount),
+                if (summary.duplicateNoteCount > 0)
+                  AppStrings.ankiDoneDuplicateNotes(summary.duplicateNoteCount),
+                if (summary.partCount > 0)
+                  AppStrings.ankiDoneParts(summary.partCount)
+                else if (summary.sectionCount > 1)
+                  AppStrings.ankiDoneParts(summary.sectionCount),
+                summary.includeMedia
+                    ? AppStrings.ankiDoneMediaIncluded
+                    : AppStrings.ankiDoneMediaSkipped,
+                AppStrings.ankiDoneReviewRule(),
+              ],
+            ),
             // Doc 39 P5: the status-notes block only rendered for the
             // Legacy-parser counters, which official-first never filled —
             // every condition was constant-false and went with the fields.

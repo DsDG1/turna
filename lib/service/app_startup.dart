@@ -29,6 +29,22 @@ import 'package:turna/service/tts_availability_checker.dart';
 
 bool _startupRunning = false;
 
+/// Splash copy for the post-frame seed. Database open/migrate stays before
+/// [runApp] so a failed migrate can swap the handle before anything reads it.
+enum TurnaStartupPhase { pending, seeding, validating, ready, failed }
+
+class TurnaStartupProgress extends ChangeNotifier {
+  TurnaStartupPhase phase = TurnaStartupPhase.pending;
+
+  void update(TurnaStartupPhase next) {
+    if (phase == next) return;
+    phase = next;
+    notifyListeners();
+  }
+}
+
+final TurnaStartupProgress turnaStartupProgress = TurnaStartupProgress();
+
 /// Finishes seeding and the first course load after the splash can paint.
 ///
 /// [retrySeed] replaces a failed seed gate so a splash retry is not stuck
@@ -36,6 +52,7 @@ bool _startupRunning = false;
 Future<void> continueTurnaStartup({bool retrySeed = false}) async {
   if (_startupRunning) return;
   _startupRunning = true;
+  turnaStartupProgress.update(TurnaStartupPhase.seeding);
   try {
     if (retrySeed) {
       if (getIt.isRegistered<CourseProvider>()) {
@@ -44,16 +61,19 @@ Future<void> continueTurnaStartup({bool retrySeed = false}) async {
       retryCourseDatabaseReady();
     }
     await ensureCourseDatabaseReady();
+    turnaStartupProgress.update(TurnaStartupPhase.validating);
     await _hydrateAfterSeed();
     if (getIt.isRegistered<CourseProvider>()) {
       getIt<CourseProvider>().clearBootFailure();
     }
+    turnaStartupProgress.update(TurnaStartupPhase.ready);
   } catch (e, st) {
     logger.e(
       'Startup continuation failed; splash stays until retry',
       error: e,
       stackTrace: st,
     );
+    turnaStartupProgress.update(TurnaStartupPhase.failed);
     if (getIt.isRegistered<CourseProvider>()) {
       getIt<CourseProvider>().reportBootFailure();
     }

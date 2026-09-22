@@ -6,6 +6,7 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/application/audio_controller.dart';
+import 'package:turna/application/smart_speech.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';
@@ -66,6 +67,7 @@ class _ListenAndPickBodyState extends State<_ListenAndPickBody> {
   void initState() {
     super.initState();
     if (widget.state.submitted) _restorePicked();
+    maybeAutoSpeak(_speak);
   }
 
   @override
@@ -120,16 +122,22 @@ class _ListenAndPickBodyState extends State<_ListenAndPickBody> {
             ),
             if (idx < widget.options.length - 1) const SizedBox(height: 10),
           ],
-          const SizedBox(height: 24),
-          LessonCheckButton(
-            label:
-                submitted ? AppStrings.lessonChecked : AppStrings.lessonCheck,
-            enabled: canSubmit,
-            onPressed: canSubmit
-                ? () => widget.onSubmit(_picked == widget.correctIndex,
-                    userAnswerText: widget.options[_picked!])
-                : null,
-          ),
+          if (submitted && correct == false)
+            LessonCorrectAnswerBanner(
+              label: AppStrings.lessonCorrectAnswer,
+              answer: widget.options[widget.correctIndex],
+            ),
+          if (!submitted) ...[
+            const SizedBox(height: 24),
+            LessonCheckButton(
+              label: AppStrings.lessonCheck,
+              enabled: canSubmit,
+              onPressed: canSubmit
+                  ? () => widget.onSubmit(_picked == widget.correctIndex,
+                      userAnswerText: widget.options[_picked!])
+                  : null,
+            ),
+          ],
         ],
       ),
     );

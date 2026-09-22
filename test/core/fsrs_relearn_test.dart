@@ -3,6 +3,7 @@ import 'package:turna/core/fsrs_engine.dart';
 import 'package:turna/core/fsrs_relearn.dart';
 import 'package:turna/core/sm2.dart';
 import 'package:turna/domain/course/srs_word.dart';
+import 'package:turna/l10n/app_strings.dart';
 
 void main() {
   group('relearnDelayForFailStreak', () {
@@ -89,6 +90,15 @@ void main() {
       );
       final delta = u.dueAt.difference(t0.toLocal());
       expect(delta.inMinutes, inInclusiveRange(29, 31));
+    });
+  });
+
+  group('relearnPreviewLabel', () {
+    test('maps ladder to AppStrings interval labels', () {
+      expect(relearnPreviewLabel(0), AppStrings.reviewIntervalMinutes(10));
+      expect(relearnPreviewLabel(1), AppStrings.reviewIntervalMinutes(30));
+      expect(relearnPreviewLabel(2), AppStrings.reviewIntervalHours(2));
+      expect(relearnPreviewLabel(3), AppStrings.reviewIntervalTomorrow);
     });
   });
 }

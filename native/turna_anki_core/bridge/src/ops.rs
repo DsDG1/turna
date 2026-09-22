@@ -48,6 +48,8 @@ use crate::engine::OP_EXTRACT_CLOZE_FOR_TYPING;
 use crate::engine::OP_GET_REVIEW_QUEUE;
 use crate::engine::OP_GET_UNDO_STATUS;
 use crate::engine::OP_IMPORT_PACKAGE;
+use crate::engine::OP_PROMOTE_STAGING_COLLECTION;
+use crate::engine::OP_SUMMARIZE_IMPORTED_NOTES;
 use crate::engine::OP_LATEST_PROGRESS;
 use crate::engine::OP_LIST_DECK_TREE;
 use crate::engine::OP_REDO;
@@ -99,6 +101,20 @@ struct ImportRequest {
     with_scheduling: bool,
     #[serde(default = "default_true")]
     with_deck_configs: bool,
+    #[serde(default = "default_true")]
+    with_media: bool,
+}
+
+#[derive(Debug, Deserialize)]
+struct PromoteRequest {
+    collection_path: String,
+    media_folder: String,
+    #[serde(default = "default_true")]
+    with_scheduling: bool,
+    #[serde(default = "default_true")]
+    with_deck_configs: bool,
+    #[serde(default = "default_true")]
+    with_media: bool,
 }
 
 fn default_true() -> bool {
@@ -220,6 +236,8 @@ const MAX_SCHEDULE_AS_NEW_IDS: usize = 10_000;
 pub fn dispatch_op(handle: u64, operation: u32, request: &[u8]) -> Result<Value, i32> {
     match operation {
         OP_IMPORT_PACKAGE => import_package(handle, request),
+        OP_SUMMARIZE_IMPORTED_NOTES => summarize_imported_notes(handle),
+        OP_PROMOTE_STAGING_COLLECTION => promote_staging_collection(handle, request),
         OP_LATEST_PROGRESS => latest_progress(handle),
         OP_CANCEL_OPERATION => request_cancel(handle),
         OP_LIST_DECK_TREE => list_deck_tree(handle),
@@ -278,17 +296,125 @@ pub fn request_cancel(handle: u64) -> Result<Value, i32> {
 fn latest_progress(handle: u64) -> Result<Value, i32> {
     let slot = slot(handle)?;
     let progress = slot.progress.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
-    Ok(json!({
-        "operation_kind": if slot.busy.load(std::sync::atomic::Ordering::Acquire) {
-            "import"
-        } else {
-            "idle"
-        },
-        "can_cancel": slot.busy.load(std::sync::atomic::Ordering::Acquire),
+    let busy = slot.busy.load(std::sync::atomic::Ordering::Acquire);
+    let view = anki::import_progress_view(&progress);
+    let mut body = json!({
+        "operation_kind": if busy { "import" } else { "idle" },
+        "can_cancel": busy,
         "want_abort": progress.want_abort,
         "has_progress": progress.last_progress.is_some(),
         "message_key": "progress",
+    });
+    if let Some(view) = view {
+        body["stage"] = json!(view.stage);
+        if let Some(current) = view.current {
+            body["current"] = json!(current);
+        }
+    }
+    Ok(body)
+}
+
+fn summarize_imported_notes(handle: u64) -> Result<Value, i32> {
+    let slot = slot(handle)?;
+    let _busy = BusyGuard::acquire(&slot)?;
+    let mut engine = slot.engine.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
+    if engine.state != EngineState::Open {
+        return Err(STATUS_INVALID_STATE);
+    }
+    let col = engine.open_col()?;
+    let db = col.storage.db();
+    let note_count: i64 = db
+        .query_row("select count(*) from notes", [], |row| row.get(0))
+        .map_err(|_| STATUS_INTERNAL_ERROR)?;
+    let card_count: i64 = db
+        .query_row("select count(*) from cards", [], |row| row.get(0))
+        .map_err(|_| STATUS_INTERNAL_ERROR)?;
+    let mut stmt = db
+        .prepare(
+            "select c.did, n.mid, count(*) \
+             from cards c join notes n on n.id = c.nid \
+             group by c.did, n.mid",
+        )
+        .map_err(|_| STATUS_INTERNAL_ERROR)?;
+    let rows = stmt
+        .query_map([], |row| {
+            Ok(json!({
+                "deck_id": row.get::<_, i64>(0)?,
+                "notetype_id": row.get::<_, i64>(1)?,
+                "cards": row.get::<_, i64>(2)?,
+            }))
+        })
+        .map_err(|_| STATUS_INTERNAL_ERROR)?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|_| STATUS_INTERNAL_ERROR)?;
+    Ok(json!({
+        "note_count": note_count,
+        "card_count": card_count,
+        "rows": rows,
     }))
+}
+
+fn promote_staging_collection(handle: u64, request: &[u8]) -> Result<Value, i32> {
+    if request.len() > MAX_REQUEST_BYTES {
+        return Err(STATUS_INVALID_ARGUMENT);
+    }
+    let parsed: PromoteRequest = parse_req(request)?;
+    let collection = PathBuf::from(&parsed.collection_path);
+    let media = PathBuf::from(&parsed.media_folder);
+    if !collection.is_absolute() || !media.is_absolute() || !collection.exists() {
+        return Err(STATUS_INVALID_ARGUMENT);
+    }
+    let slot = slot(handle)?;
+    let _busy = BusyGuard::acquire(&slot)?;
+    let mut engine = slot.engine.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
+    if engine.state != EngineState::Open {
+        return Err(STATUS_INVALID_STATE);
+    }
+    let options = ImportAnkiPackageOptions {
+        merge_notetypes: true,
+        update_notes: 0,
+        update_notetypes: 0,
+        with_scheduling: parsed.with_scheduling,
+        with_deck_configs: parsed.with_deck_configs,
+    };
+    let started = Instant::now();
+    let imported = {
+        let col = engine.open_col()?;
+        col.import_foreign_collection(&collection, &media, options, parsed.with_media)
+    };
+    let elapsed = started.elapsed().as_millis() as u64;
+    match imported {
+        Ok(output) => {
+            let log = output.output;
+            let (note_count, card_count): (i64, i64) = {
+                let col = engine.open_col()?;
+                let db = col.storage.db();
+                let note_count = db
+                    .query_row("select count(*) from notes", [], |row| row.get(0))
+                    .map_err(|_| STATUS_INTERNAL_ERROR)?;
+                let card_count = db
+                    .query_row("select count(*) from cards", [], |row| row.get(0))
+                    .map_err(|_| STATUS_INTERNAL_ERROR)?;
+                (note_count, card_count)
+            };
+            crate::engine::bump_content_generation(&mut engine);
+            Ok(json!({
+                "new_note_ids": log_ids(&log.new),
+                "updated_note_ids": log_ids(&log.updated),
+                "duplicate_note_ids": log_ids(&log.duplicate),
+                "conflicting_note_ids": log_ids(&log.conflicting),
+                "missing_notetype_note_ids": log_ids(&log.missing_notetype),
+                "elapsed_millis": elapsed,
+                "warnings": Vec::<String>::new(),
+                "note_count": note_count,
+                "card_count": card_count,
+                "found_notes": log.found_notes,
+                "operationToken": format!("op-{handle}-{elapsed}"),
+            }))
+        }
+        Err(AnkiError::Interrupted) => Err(STATUS_IMPORT_CANCELLED),
+        Err(err) => Err(map_import_error(err)),
+    }
 }
 
 pub(crate) fn require_open<'a>(
@@ -393,10 +519,11 @@ fn import_package(handle: u64, request: &[u8]) -> Result<Value, i32> {
         with_scheduling: parsed.with_scheduling,
         with_deck_configs: parsed.with_deck_configs,
     };
+    let with_media = parsed.with_media;
     let started = Instant::now();
     let imported = {
         let col = engine.open_col()?;
-        col.import_apkg(&path, options)
+        col.import_apkg_with_media(&path, options, with_media)
     };
     let elapsed = started.elapsed().as_millis() as u64;
     match imported {

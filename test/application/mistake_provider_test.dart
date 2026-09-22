@@ -344,9 +344,20 @@ void main() {
         '{"${MistakeProvider.dayKey(now)}": 7}',
       );
       await prefs.preferences.setInt(LocalStateKeys.mistakeMasteredTotal, 9);
-      mistakes.reloadFromPrefs();
+      await mistakes.reloadFromPrefs();
       expect(mistakes.dailyCounts[MistakeProvider.dayKey(now)], 7);
       expect(mistakes.masteredTotal, 9);
+    });
+
+    test('repo mode reloadFromPrefs re-queries and keeps entries', () async {
+      final repo = MistakeRepository(emptyInMemoryCourseDatabase());
+      final repoBacked = MistakeProvider(prefs)..useRepository(repo);
+      await repoBacked.record(entry(id: 'm-repo'));
+      expect(repoBacked.entries, hasLength(1));
+
+      await repoBacked.reloadFromPrefs();
+      expect(repoBacked.entries, hasLength(1));
+      expect(repoBacked.entries.first.id, 'm-repo');
     });
   });
 }

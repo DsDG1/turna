@@ -1,6 +1,7 @@
 import 'package:auto_route/annotations.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/courses/languages/expressions.dart';
 import 'package:turna/courses/languages/vocab.dart';
@@ -29,13 +30,18 @@ class SrsReviewPage extends StatefulWidget {
 class _SrsReviewPageState extends State<SrsReviewPage> {
   List<ReviewItem>? _items;
   ReviewLedgerResolver? _ledgerResolver;
+  int _remainingDue = 0;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_items != null) return;
+    _loadBatch();
+  }
 
+  void _loadBatch() {
     final srs = context.read<SrsProvider>();
+    final batchSize = context.read<SettingsProvider?>()?.reviewBatchSize ?? 25;
     final due = <SrsWord>[
       ...srs.getDueWords(),
       ...srs.getDueExpressions(),
@@ -76,7 +82,8 @@ class _SrsReviewPageState extends State<SrsReviewPage> {
       );
     }
 
-    _items = items;
+    _remainingDue = items.length > batchSize ? items.length - batchSize : 0;
+    _items = items.take(batchSize).toList();
     _ledgerResolver = ReviewLedgerResolver(
       turnaLedger: TurnaReviewLedger(srs),
     );
@@ -93,6 +100,13 @@ class _SrsReviewPageState extends State<SrsReviewPage> {
       items: items,
       ledgerResolver: resolver,
       title: AppStrings.reviewSrsAppBarTitle,
+      remainingDue: _remainingDue,
+      onReviewMore: _remainingDue > 0
+          ? () => setState(() {
+                _items = null;
+                _loadBatch();
+              })
+          : null,
     );
   }
 }

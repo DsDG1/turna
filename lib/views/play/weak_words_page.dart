@@ -19,7 +19,7 @@ import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/lesson/components/interactions/interaction_renderer.dart';
 import 'package:turna/views/lesson/components/lesson_dialogs.dart';
-import 'package:turna/views/lesson/components/lesson_stage_widgets.dart';
+import 'package:turna/views/lesson/components/practice_session_body.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
 
@@ -150,40 +150,25 @@ class _WeakWordsPageState extends State<WeakWordsPage> {
                 }
                 final renderer = lookupRenderer(_renderers, interaction);
                 final showCheck = selected.$4 && !renderer.autoAdvance;
-                return Column(
-                  children: [
-                    if (selected.$3 != null)
-                      LessonStageBanner(
-                        name: selected.$3!,
-                        accent: TurnaTheme.error,
-                      ),
-                    Expanded(
-                      child: renderer.build(
-                        interaction,
-                        selected.$2,
-                        (correct, {userAnswerText, reviewQuality}) {
-                          vm.submitInteraction(
-                            correct,
-                            userAnswerText: userAnswerText,
-                            reviewQuality: reviewQuality,
-                          );
-                        },
-                      ),
-                    ),
-                    if (showCheck)
-                      SafeArea(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-                          child: LessonCheckButton(
-                            label: selected.$5
-                                ? AppStrings.lessonContinueUpper
-                                : AppStrings.lessonGotItUpper,
-                            enabled: true,
-                            onPressed: () => vm.advance(),
-                          ),
-                        ),
-                      ),
-                  ],
+                return PracticeSessionBody(
+                  stageName: selected.$3,
+                  stageAccent: TurnaTheme.error,
+                  showCheck: showCheck,
+                  checkLabel: selected.$5
+                      ? AppStrings.lessonContinueUpper
+                      : AppStrings.lessonGotItUpper,
+                  onAdvance: () => vm.advance(),
+                  child: renderer.build(
+                    interaction,
+                    selected.$2,
+                    (correct, {userAnswerText, reviewQuality}) {
+                      vm.submitInteraction(
+                        correct,
+                        userAnswerText: userAnswerText,
+                        reviewQuality: reviewQuality,
+                      );
+                    },
+                  ),
                 );
               },
             ),
@@ -202,14 +187,47 @@ class _WeakWordsPageState extends State<WeakWordsPage> {
         ),
         onPressed: () => Navigator.of(context).maybePop(),
       ),
-      title: Text(
-        AppStrings.playWeakWordsTitleAppBar,
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w700,
-          color: TurnaTheme.textPrimaryColor(context),
-        ),
-      ),
+      title: _empty
+          ? Text(
+              AppStrings.playWeakWordsTitleAppBar,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: TurnaTheme.textPrimaryColor(context),
+              ),
+            )
+          : Selector<LessonViewModel, (int, int)>(
+              selector: (context, vm) => (
+                vm.currentQuestionNumber,
+                vm.totalInteractionCount,
+              ),
+              builder: (context, pair, _) {
+                final (current, total) = pair;
+                return Column(
+                  children: [
+                    Text(
+                      AppStrings.playWeakWordsTitleAppBar,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: TurnaTheme.textPrimaryColor(context),
+                      ),
+                    ),
+                    if (total > 0) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        AppStrings.lessonQuestionIndex(current, total),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: TurnaTheme.textSecondaryColor(context),
+                        ),
+                      ),
+                    ],
+                  ],
+                );
+              },
+            ),
       centerTitle: true,
       bottom: _empty
           ? null

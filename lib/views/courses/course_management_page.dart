@@ -91,6 +91,7 @@ class _CourseManagementBody extends StatefulWidget {
 
 class _CourseManagementBodyState extends State<_CourseManagementBody> {
   String? _highlightWire;
+  bool _busy = false;
 
   @override
   void initState() {
@@ -118,6 +119,7 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
 
     return Column(
       children: [
+        if (_busy) const LinearProgressIndicator(),
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 4),
           child: Align(
@@ -147,14 +149,16 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
                   isActive: entries[i].wireKey == activeScope,
                   isHighlighted: entries[i].wireKey == _highlightWire,
                   ttsFeatureEnabled: ttsFeatureEnabled,
-                  onTap: () => _selectCourse(context, entries[i]),
+                  onTap:
+                      _busy ? () {} : () => _selectCourse(context, entries[i]),
                   onSettings: () => _showTtsSettings(
                     context,
                     entries[i].wireKey,
                     entries[i].displayName,
                   ),
-                  onDelete: entries[i].isBuiltin &&
-                          entries.where((e) => e.isBuiltin).length < 2
+                  onDelete: _busy ||
+                          (entries[i].isBuiltin &&
+                              entries.where((e) => e.isBuiltin).length < 2)
                       ? null
                       : () => _confirmDelete(context, entries[i]),
                 ),
@@ -211,8 +215,9 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
                       _RestoreLanguageCard(
                         key: ValueKey('course-restore-${language.code}'),
                         displayName: language.displayName,
-                        onRestore: () =>
-                            _restoreLanguage(context, language.code),
+                        onRestore: _busy
+                            ? () {}
+                            : () => _restoreLanguage(context, language.code),
                       ),
                   ],
                 ],
@@ -437,6 +442,8 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
       ),
     );
     if (confirmed != true || !context.mounted) return;
+    if (_busy) return;
+    setState(() => _busy = true);
 
     final courseProvider = context.read<CourseProvider>();
     var uninstallCompleted = false;
@@ -457,7 +464,10 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
       } catch (e) {
         logger.w('[CourseManagement] uninstall failed for $deletionId: $e');
       }
-      if (!context.mounted) return;
+      if (!context.mounted) {
+        if (mounted) setState(() => _busy = false);
+        return;
+      }
       if (courseProvider.scope == entry.scope) {
         await courseProvider.setScope(
           CourseCatalog.fallbackBuiltin(courseProvider.catalogEntries),
@@ -470,7 +480,10 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
     await courseProvider.persistCourseOrder(
       [for (final e in courseProvider.catalogEntries) e.wireKey],
     );
-    if (!context.mounted) return;
+    if (!context.mounted) {
+      if (mounted) setState(() => _busy = false);
+      return;
+    }
     // v2 删除序列里用户可见的移除在账本 COMMIT 即生效；false（locator
     // 未就绪）与抛错（提交前失败）都意味着本次什么都没删掉 → 「未完成，
     // 请重试」此时才与课程列表状态一致。
@@ -480,11 +493,14 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
           ? AppStrings.ankiDeckRemoved
           : AppStrings.ankiDeckRemovalFailed,
     );
+    if (mounted) setState(() => _busy = false);
   }
 
   /// Restore an uninstalled builtin language (marker cleared + assets
   /// reseeded). Content comes back; learning progress stays deleted.
   Future<void> _restoreLanguage(BuildContext context, String code) async {
+    if (_busy) return;
+    setState(() => _busy = true);
     final courseProvider = context.read<CourseProvider>();
     var restored = false;
     var message = AppStrings.courseManagementRestoreFailed;
@@ -496,7 +512,10 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
     } catch (e) {
       logger.w('[CourseManagement] reinstall failed for $code: $e');
     }
-    if (!context.mounted) return;
+    if (!context.mounted) {
+      if (mounted) setState(() => _busy = false);
+      return;
+    }
     TurnaSnackBar.show(
       context,
       restored
@@ -506,6 +525,7 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
             )
           : message,
     );
+    if (mounted) setState(() => _busy = false);
   }
 
   /// Per-course TTS settings (auto-read toggle + translation/native language).

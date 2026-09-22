@@ -18,6 +18,15 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
   final String backendCommit;
   int openCount;
   int importCount = 0;
+  int promoteCount = 0;
+  bool failPromote = true;
+  bool lastWithMedia = true;
+  OfficialAnkiNoteDeckSummary summary = const OfficialAnkiNoteDeckSummary(
+    noteCount: 0,
+    cardCount: 0,
+    rows: <OfficialAnkiDeckNotetypeCount>[],
+  );
+  OfficialAnkiProgress progress = const OfficialAnkiProgress(stage: 'idle');
   int noteBatchCalls = 0;
   int descriptorBatchCalls = 0;
   bool cancelRequested = false;
@@ -173,7 +182,9 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
     required String packagePath,
     bool withScheduling = true,
     bool withDeckConfigs = true,
+    bool withMedia = true,
   }) async {
+    lastWithMedia = withMedia;
     if (cancelRequested) {
       cancelRequested = false;
       throw const OfficialAnkiException(
@@ -205,10 +216,42 @@ class FakeOfficialAnkiEngine implements OfficialAnkiEngine {
 
   @override
   Future<OfficialAnkiProgress> latestProgress() async {
-    return OfficialAnkiProgress(
-      stage: cancelRequested ? 'cancelling' : 'idle',
-      canCancel: true,
-    );
+    if (cancelRequested) {
+      return const OfficialAnkiProgress(stage: 'cancelling', canCancel: true);
+    }
+    return progress;
+  }
+
+  @override
+  Future<OfficialAnkiNoteDeckSummary> summarizeImportedNotes() async => summary;
+
+  @override
+  Future<OfficialAnkiImportLog> promoteStagingCollection({
+    required String collectionPath,
+    required String mediaFolder,
+    bool withScheduling = true,
+    bool withDeckConfigs = true,
+    bool withMedia = true,
+  }) async {
+    lastWithMedia = withMedia;
+    if (failPromote) {
+      throw const OfficialAnkiException(
+        code: OfficialAnkiErrorCode.capabilityMissing,
+        messageKey: 'official_anki.promote_unavailable',
+      );
+    }
+    promoteCount++;
+    collectionGeneration += 1;
+    return logsByPackage[collectionPath] ??
+        const OfficialAnkiImportLog(
+          newNoteIds: <int>[1],
+          updatedNoteIds: <int>[],
+          duplicateNoteIds: <int>[],
+          conflictingNoteIds: <int>[],
+          noteCount: 1,
+          cardCount: 1,
+          operationToken: 'tok-promote',
+        );
   }
 
   @override

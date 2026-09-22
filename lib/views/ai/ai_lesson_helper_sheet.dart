@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 // Project imports:
 import 'package:turna/application/ai/ai_course_provider.dart';
 import 'package:turna/application/ai/ai_lesson_helper_provider.dart';
+import 'package:turna/application/ai/ai_lesson_undo_store.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/lesson_viewmodel.dart';
 import 'package:turna/core/logger.dart';
@@ -107,7 +108,10 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
     try {
       await courseProvider.updateLessonInDb(transformed);
       if (!mounted) return;
-      if (snapshot != null) helper.armApplyUndo(snapshot);
+      if (snapshot != null) {
+        helper.armApplyUndo(snapshot);
+        unawaited(AiLessonUndoStore.instance.save(snapshot));
+      }
       final messenger = ScaffoldMessenger.of(context);
       final vm = context.read<LessonViewModel>();
       TurnaSnackBar.showVia(
@@ -149,6 +153,7 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
         ? getIt<AiLessonHelperProvider>()
         : null;
     helper?.takeApplyUndo();
+    unawaited(AiLessonUndoStore.instance.clear());
     try {
       await getIt<AiCourseProvider>().updateLessonInDb(snapshot);
       if (getIt.isRegistered<LessonViewModel>()) {
@@ -162,6 +167,7 @@ class _AiLessonHelperSheetState extends State<AiLessonHelperSheet> {
     } catch (e, st) {
       logger.w('Lesson helper undo failed', error: e, stackTrace: st);
       helper?.armApplyUndo(snapshot);
+      unawaited(AiLessonUndoStore.instance.save(snapshot));
       if (!hostContext.mounted) return;
       TurnaSnackBar.showVia(
         messenger,

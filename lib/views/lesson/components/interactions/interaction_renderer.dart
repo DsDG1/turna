@@ -1,10 +1,13 @@
 // Flutter imports:
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 // Project imports:
+import 'package:turna/application/audio_controller.dart';
 import 'package:turna/core/spacing.dart';
 import 'package:turna/core/text_styles.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/course/interaction_state.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -331,25 +334,51 @@ class SpeakerButton extends StatelessWidget {
 
   const SpeakerButton({super.key, required this.onPressed});
 
+  ValueListenable<bool>? _speakingListenable() {
+    try {
+      return getIt<AudioController>().speakingListenable;
+    } catch (_) {
+      // Tests and early frames may not have AudioController registered.
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final listenable = _speakingListenable();
+    if (listenable == null) {
+      return _buildButton(context, speaking: false);
+    }
+    return ValueListenableBuilder<bool>(
+      valueListenable: listenable,
+      builder: (context, speaking, _) =>
+          _buildButton(context, speaking: speaking),
+    );
+  }
+
+  Widget _buildButton(BuildContext context, {required bool speaking}) {
     return Semantics(
       button: true,
       label: AppStrings.lessonPlayAudioLabel,
       child: Tooltip(
         message: AppStrings.lessonPlayAudioLabel,
         child: Material(
-          color: TurnaTheme.brandTeal,
+          color: speaking
+              ? TurnaTheme.brandTeal.withValues(alpha: 0.72)
+              : TurnaTheme.brandTeal,
           shape: const CircleBorder(),
           elevation: 4,
           shadowColor: TurnaTheme.brandTeal.withValues(alpha: 0.4),
           child: InkWell(
             customBorder: const CircleBorder(),
-            onTap: onPressed,
-            child: const Padding(
-              padding: EdgeInsets.all(24),
-              child: Icon(Icons.volume_up_rounded,
-                  color: TurnaTheme.textOnPrimary, size: 36),
+            onTap: speaking ? null : onPressed,
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Icon(
+                speaking ? Icons.graphic_eq_rounded : Icons.volume_up_rounded,
+                color: TurnaTheme.textOnPrimary,
+                size: 36,
+              ),
             ),
           ),
         ),

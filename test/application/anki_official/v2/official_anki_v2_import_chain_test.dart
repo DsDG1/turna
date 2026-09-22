@@ -393,4 +393,91 @@ void main() {
         await OfficialAnkiV2DecisionStore(engine).readImportMapping(sourceId);
     expect(decision, isNull);
   });
+
+  test('promote writes live once and skips a second package import', () async {
+    final (sourceId, attemptId) = seedStagedSource();
+    final stagingDir = Directory(p.join(root.path, 'staging', attemptId))
+      ..createSync(recursive: true);
+    File(p.join(stagingDir.path, 'collection.anki2')).writeAsBytesSync([1]);
+    OfficialAnkiImportAttemptDao(catalog).setPhase(
+      attemptId: attemptId,
+      phase: 'preview_ready',
+      stagingPath: stagingDir.path,
+      nowMillis: 1,
+    );
+    engine.failPromote = false;
+
+    await OfficialAnkiV2ImportService(
+      catalog: catalog,
+      paths: paths,
+      course: course,
+      engine: engine,
+    ).commit(
+      sourceId: sourceId,
+      packagePath: 'pkg.apkg',
+      displayName: 'Basics',
+      includeMedia: false,
+    );
+
+    expect(engine.promoteCount, 1);
+    expect(engine.importCount, 0);
+    expect(engine.lastWithMedia, isFalse);
+  });
+
+  test('promote failure falls back to importing the package', () async {
+    final (sourceId, attemptId) = seedStagedSource();
+    final stagingDir = Directory(p.join(root.path, 'staging', attemptId))
+      ..createSync(recursive: true);
+    File(p.join(stagingDir.path, 'collection.anki2')).writeAsBytesSync([1]);
+    OfficialAnkiImportAttemptDao(catalog).setPhase(
+      attemptId: attemptId,
+      phase: 'preview_ready',
+      stagingPath: stagingDir.path,
+      nowMillis: 1,
+    );
+    expect(engine.failPromote, isTrue);
+
+    final result = await OfficialAnkiV2ImportService(
+      catalog: catalog,
+      paths: paths,
+      course: course,
+      engine: engine,
+    ).commit(
+      sourceId: sourceId,
+      packagePath: 'pkg.apkg',
+      displayName: 'Basics',
+    );
+
+    expect(engine.promoteCount, 0);
+    expect(engine.importCount, 1);
+    expect(result.cardCount, 4);
+    expect(result.includeMedia, isTrue);
+  });
+
+  test('unchecked deck stays out of the course tree and is suspended',
+      () async {
+    final (sourceId, _) = seedStagedSource();
+    final result = await OfficialAnkiV2ImportService(
+      catalog: catalog,
+      paths: paths,
+      course: course,
+      engine: engine,
+    ).commit(
+      sourceId: sourceId,
+      packagePath: 'pkg.apkg',
+      displayName: 'Basics',
+      excludedDeckIds: const {12},
+    );
+
+    final store = OfficialAnkiV2ViewStore(course);
+    expect(await store.cardCountForSource(sourceId), 2);
+    final ids = await store.cardIdsForSource(sourceId);
+    expect(ids, isNot(contains(3)));
+    expect(ids, isNot(contains(4)));
+    expect(engine.suspended, containsAll([3, 4]));
+    final decision =
+        await OfficialAnkiV2DecisionStore(engine).readImportMapping(sourceId);
+    expect(decision!.excludedDeckIds, contains(12));
+    expect(result.cardCount, 4, reason: '整包仍进 collection，索引不丢卡');
+  });
 }

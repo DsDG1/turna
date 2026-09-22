@@ -293,6 +293,7 @@ class OfficialAnkiV2ViewRebuilder {
   }) {
     final kindsByNotetype = _kindsByNotetype(mapping);
     final skipped = mapping?.notetypeIdsSkipped ?? const <int>{};
+    final excludedDecks = mapping?.excludedDeckIds ?? const <int>{};
     // 牌组路径 → 放置键（section/unit/lesson）。lessonId 不在此定：
     // 同组卡按 cardId 稳定序切片后再定 part（见 _chunkedRows）。
     final placed = <_PlacedCard>[];
@@ -303,6 +304,7 @@ class OfficialAnkiV2ViewRebuilder {
       if (card.notetypeId != null && skipped.contains(card.notetypeId)) {
         continue;
       }
+      if (excludedDecks.contains(card.deckId)) continue;
       placed.add(_PlacedCard(
         card: card,
         placement: _place(source.sourceId, path, placements[topDeckId]),

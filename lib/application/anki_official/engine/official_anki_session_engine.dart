@@ -42,11 +42,34 @@ class OfficialAnkiSessionEngine implements OfficialAnkiEngine {
     required String packagePath,
     bool withScheduling = true,
     bool withDeckConfigs = true,
+    bool withMedia = true,
   }) {
     return session.importPackage(
       packagePath: packagePath,
       withScheduling: withScheduling,
       withDeckConfigs: withDeckConfigs,
+      withMedia: withMedia,
+    );
+  }
+
+  @override
+  Future<OfficialAnkiNoteDeckSummary> summarizeImportedNotes() =>
+      session.summarizeImportedNotes();
+
+  @override
+  Future<OfficialAnkiImportLog> promoteStagingCollection({
+    required String collectionPath,
+    required String mediaFolder,
+    bool withScheduling = true,
+    bool withDeckConfigs = true,
+    bool withMedia = true,
+  }) {
+    return session.promoteStagingCollection(
+      collectionPath: collectionPath,
+      mediaFolder: mediaFolder,
+      withScheduling: withScheduling,
+      withDeckConfigs: withDeckConfigs,
+      withMedia: withMedia,
     );
   }
 

@@ -7,9 +7,14 @@ import 'package:turna/core/theme.dart';
 /// Interrupted staging-first import (doc 42 P3). Continue is not offered:
 /// resume never received the unfinished source id, so the button was a no-op.
 class OfficialPendingImportBanner extends StatefulWidget {
-  const OfficialPendingImportBanner({super.key, this.onChanged});
+  const OfficialPendingImportBanner({
+    super.key,
+    this.onChanged,
+    this.onContinue,
+  });
 
   final VoidCallback? onChanged;
+  final void Function(OfficialAnkiPendingImport item)? onContinue;
 
   @override
   State<OfficialPendingImportBanner> createState() =>
@@ -66,6 +71,14 @@ class _OfficialPendingImportBannerState
           OfficialInterruptedImportCard(
             key: Key('pending-import-${item.sourceId}'),
             displayName: item.displayName,
+            continueLabel: item.stagingIntact
+                ? AppStrings.ankiPendingContinue
+                : (item.packagePath == null
+                    ? null
+                    : AppStrings.ankiPendingReparse),
+            onContinue: widget.onContinue == null
+                ? null
+                : () => widget.onContinue!(item),
             onDiscard: () => _discard(item),
           ),
           const SizedBox(height: 12),
@@ -75,16 +88,21 @@ class _OfficialPendingImportBannerState
   }
 }
 
-/// Callout for an interrupted import: discard-only, no continue.
+/// Callout for an interrupted import. Continue reopens preview when the
+/// staging collection is still on disk; otherwise the card only discards.
 class OfficialInterruptedImportCard extends StatelessWidget {
   const OfficialInterruptedImportCard({
     super.key,
     required this.displayName,
     required this.onDiscard,
+    this.onContinue,
+    this.continueLabel,
   });
 
   final String displayName;
   final VoidCallback? onDiscard;
+  final VoidCallback? onContinue;
+  final String? continueLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -154,16 +172,18 @@ class OfficialInterruptedImportCard extends StatelessWidget {
                 color: TurnaTheme.errorDark,
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              AppStrings.ankiPendingMustDiscardBeforeNew,
-              style: TextStyle(
-                fontSize: 13,
-                height: 1.4,
-                fontWeight: FontWeight.w700,
-                color: TurnaTheme.errorDark,
+            if (onContinue == null || continueLabel == null) ...[
+              const SizedBox(height: 4),
+              Text(
+                AppStrings.ankiPendingMustDiscardBeforeNew,
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.4,
+                  fontWeight: FontWeight.w700,
+                  color: TurnaTheme.errorDark,
+                ),
               ),
-            ),
+            ],
             const SizedBox(height: 10),
             Text(
               AppStrings.ankiPendingImportBody(displayName),
@@ -174,6 +194,19 @@ class OfficialInterruptedImportCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 14),
+            if (onContinue != null && continueLabel != null) ...[
+              FilledButton.icon(
+                onPressed: onContinue,
+                style: FilledButton.styleFrom(
+                  backgroundColor: TurnaTheme.brandTeal,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                ),
+                icon: const Icon(Icons.play_arrow_rounded, size: 20),
+                label: Text(continueLabel!),
+              ),
+              const SizedBox(height: 8),
+            ],
             FilledButton.icon(
               onPressed: onDiscard,
               style: FilledButton.styleFrom(

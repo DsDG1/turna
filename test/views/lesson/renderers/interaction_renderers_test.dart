@@ -10,6 +10,7 @@ import 'package:turna/application/anki_official/projection/official_anki_course_
 import 'package:turna/application/anki_official/projection/official_anki_projection_ids.dart';
 import 'package:turna/courses/languages/vocab.dart';
 import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/domain/course/interaction_state.dart';
 import 'package:turna/domain/course/word_entry.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_page.dart';
 import 'package:turna/views/lesson/components/interactions/fill_blank_renderer.dart';
@@ -50,6 +51,40 @@ void main() {
       await tapCheck(tester);
 
       expect(harness.submissions, [(true, 'am')]);
+    });
+
+    testWidgets('hides CHECK after submit', (tester) async {
+      final renderer = FillBlankRenderer();
+      const interaction = Interaction.fillBlank(
+        id: 'fb-checked',
+        sentence: 'I ___ a student.',
+        answer: 'am',
+      );
+
+      await tester.pumpWidget(
+        harness.build(
+          renderer,
+          interaction,
+          state: const InteractionState(submitted: true, correct: true),
+        ),
+      );
+      expect(find.text('核对'), findsNothing);
+      expect(find.text('已核对'), findsNothing);
+    });
+
+    testWidgets('accepts ASCII iyi for dotted-İ answer İyi', (tester) async {
+      final renderer = FillBlankRenderer();
+      const interaction = Interaction.fillBlank(
+        id: 'fb-tr',
+        sentence: '___ günler.',
+        answer: 'İyi',
+      );
+
+      await tester.pumpWidget(harness.build(renderer, interaction));
+      await enterText(tester, 'iyi');
+      await tapCheck(tester);
+
+      expect(harness.submissions, [(true, 'iyi')]);
     });
 
     testWidgets('submits false for wrong answer', (tester) async {
@@ -291,6 +326,21 @@ void main() {
       expect(harness.submissions, [(true, 'Blue')]);
     });
 
+    testWidgets('accepts ASCII iyi for dotted-İ answer İyi', (tester) async {
+      final renderer = ReadingShortAnswerRenderer();
+      const interaction = Interaction.readingShortAnswer(
+        id: 'rsa-tr',
+        prompt: 'How do you say good?',
+        expectedAnswer: 'İyi',
+      );
+
+      await tester.pumpWidget(harness.build(renderer, interaction));
+      await enterText(tester, 'iyi');
+      await tapCheck(tester);
+
+      expect(harness.submissions, [(true, 'iyi')]);
+    });
+
     testWidgets('submits false for wrong answer', (tester) async {
       final renderer = ReadingShortAnswerRenderer();
       const interaction = Interaction.readingShortAnswer(
@@ -405,6 +455,21 @@ void main() {
       expect(harness.submissions, [(true, 'Hello')]);
     });
 
+    testWidgets('accepts ASCII iyi for dotted-İ expected İyi', (tester) async {
+      final renderer = TranslateSentenceRenderer();
+      const interaction = Interaction.translateSentence(
+        id: 'ts-tr',
+        source: 'good',
+        expected: 'İyi',
+      );
+
+      await tester.pumpWidget(harness.build(renderer, interaction));
+      await enterText(tester, 'iyi');
+      await tapCheck(tester);
+
+      expect(harness.submissions, [(true, 'iyi')]);
+    });
+
     testWidgets('submits false for wrong translation', (tester) async {
       final renderer = TranslateSentenceRenderer();
       const interaction = Interaction.translateSentence(
@@ -452,6 +517,22 @@ void main() {
       await tapCheck(tester);
 
       expect(harness.submissions, [(true, 'Habari')]);
+    });
+
+    testWidgets('accepts ASCII iyi for dotted-İ expected İyi', (tester) async {
+      final renderer = TypeTheWordRenderer();
+      const interaction = Interaction.typeTheWord(
+        id: 'ttw-tr',
+        audioAsset: 'w-test-audio',
+        prompt: 'Type what you hear',
+        expected: 'İyi',
+      );
+
+      await tester.pumpWidget(harness.build(renderer, interaction));
+      await enterText(tester, 'iyi');
+      await tapCheck(tester);
+
+      expect(harness.submissions, [(true, 'iyi')]);
     });
 
     testWidgets('submits false for wrong answer', (tester) async {
@@ -513,6 +594,21 @@ void main() {
 
       await tester.tap(find.text('点击继续'));
       await tester.pumpAndSettle();
+
+      expect(harness.submissions, [(true, null)]);
+    });
+
+    testWidgets('rapid double tap submits once', (tester) async {
+      final renderer = ShowWordRenderer(FakeAudioController());
+      const interaction = Interaction.showWord(
+        id: 'sw-debounce',
+        wordId: 'w-test-show',
+      );
+
+      await tester.pumpWidget(harness.build(renderer, interaction));
+      await tester.tap(find.text('点击继续'));
+      await tester.tap(find.text('点击继续'));
+      await tester.pump();
 
       expect(harness.submissions, [(true, null)]);
     });

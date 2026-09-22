@@ -67,13 +67,8 @@ class _MistakeListPageState extends State<MistakeListPage> {
             )
           : RefreshIndicator(
               color: TurnaTheme.brandTeal,
-              onRefresh: () async {
-                // 重新从 prefs 解码（外部恢复/清理后同步），spinner 稍作停留。
-                context.read<MistakeProvider>().reloadFromPrefs();
-                await Future<void>.delayed(
-                  const Duration(milliseconds: 400),
-                );
-              },
+              onRefresh: () =>
+                  context.read<MistakeProvider>().reloadFromPrefs(),
               child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(
                   parent: BouncingScrollPhysics(),

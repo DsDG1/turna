@@ -6,7 +6,9 @@ import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/ai/ai_hint_provider.dart';
+import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/ai/components/ai_error_banner.dart';
 import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
 import 'package:turna/views/lesson/components/ai_depth_tutor_sheet.dart';
 import 'package:turna/core/theme.dart';
@@ -114,15 +116,26 @@ class AiHintSheet extends StatelessWidget {
   }
 
   Widget _error(BuildContext context) {
-    final error = context.read<AiHintProvider>().error;
-    return AiSurfaceCard(
-      accent: TurnaTheme.error,
-      child: Text(
-        error != null
-            ? AppStrings.aiHintError(error)
-            : AppStrings.aiHintErrorUnknown,
-        style: const TextStyle(color: TurnaTheme.error),
-      ),
+    final provider = context.read<AiHintProvider>();
+    final mapping = provider.errorMapping;
+    final ctx = provider.context;
+    if (mapping == null) {
+      return AiSurfaceCard(
+        accent: TurnaTheme.error,
+        child: Text(
+          AppStrings.aiHintErrorUnknown,
+          style: const TextStyle(color: TurnaTheme.error),
+        ),
+      );
+    }
+    return AiErrorBanner(
+      mapping: mapping,
+      onRetry: ctx == null
+          ? null
+          : () => provider.explainQuestion(
+                config: context.read<AiEngineConfigHolder>().config,
+                ctx: ctx,
+              ),
     );
   }
 

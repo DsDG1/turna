@@ -66,8 +66,9 @@ class AiCourseProvider extends AiRequestSessionBase {
   AiCourseState _state = AiCourseState.idle;
   AiCourseState get state => _state;
 
-  String? _error;
-  String? get error => _error;
+  AiErrorMapping? _errorMapping;
+  AiErrorMapping? get errorMapping => _errorMapping;
+  String? get error => _errorMapping?.message;
 
   /// Editable raw JSON of the last generated course. `null` until generation
   /// succeeds.
@@ -89,7 +90,7 @@ class AiCourseProvider extends AiRequestSessionBase {
   /// AI once (C3 self-heal).
   Future<void> generate(AiCourseSpec spec) async {
     final session = beginStreamingSession();
-    _error = null;
+    _errorMapping = null;
     _state = AiCourseState.generating;
     _generatedJson = null;
     _generatedSectionId = null;
@@ -155,7 +156,7 @@ class AiCourseProvider extends AiRequestSessionBase {
     } catch (e) {
       if (!isCurrentSession(session)) return;
       logger.w('AiCourseProvider.generate failed: $e');
-      _error = AiErrorMapper.map(e).message;
+      _errorMapping = AiErrorMapper.map(e);
       _state = AiCourseState.error;
     } finally {
       finishStreamingSession(session);
@@ -228,7 +229,7 @@ class AiCourseProvider extends AiRequestSessionBase {
     if (raw == null) {
       throw StateError('No generated course to save.');
     }
-    _error = null;
+    _errorMapping = null;
     _state = AiCourseState.saving;
     notifySessionListeners();
     try {
@@ -242,7 +243,7 @@ class AiCourseProvider extends AiRequestSessionBase {
       _state = AiCourseState.saved;
     } catch (e, st) {
       logger.e('AiCourseProvider.save failed', error: e, stackTrace: st);
-      _error = AiErrorMapper.map(e).message;
+      _errorMapping = AiErrorMapper.map(e);
       _state = AiCourseState.error;
       notifySessionListeners();
       rethrow;
@@ -309,7 +310,7 @@ class AiCourseProvider extends AiRequestSessionBase {
   void reset() {
     abandonStreamingSession();
     _state = AiCourseState.idle;
-    _error = null;
+    _errorMapping = null;
     _generatedJson = null;
     _generatedSectionId = null;
     _explanation = null;

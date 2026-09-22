@@ -46,6 +46,35 @@ void main() {
     expect(store.hasSession, isFalse);
   });
 
+  test('a new chat keeps the previous transcript in the list', () async {
+    await store.save(const AiTutorChatSession(
+      modeName: 'qa',
+      language: 'Turkish',
+      messages: [AiChatMessage(role: 'user', content: 'first')],
+    ));
+    await store.beginNew();
+    expect(store.load(), isNull);
+    expect(store.hasSession, isTrue);
+
+    await store.save(const AiTutorChatSession(
+      modeName: 'roleplay',
+      language: 'Turkish',
+      messages: [AiChatMessage(role: 'user', content: 'second')],
+    ));
+    expect(store.list(), hasLength(2));
+    expect(store.load()?.messages.single.content, 'second');
+    expect(store.list().map((s) => s.title), containsAll(['first', 'second']));
+  });
+
+  test('legacy single-object json still restores', () async {
+    await preferences.setString(
+      kTutorChatSessionKey,
+      '{"mode":"qa","language":"Turkish","messages":[{"role":"user","content":"eski"}]}',
+    );
+    expect(store.load()?.messages.single.content, 'eski');
+    expect(store.list(), hasLength(1));
+  });
+
   test('corrupt json is an empty session', () async {
     await preferences.setString(kTutorChatSessionKey, '{not json');
     expect(store.load(), isNull);

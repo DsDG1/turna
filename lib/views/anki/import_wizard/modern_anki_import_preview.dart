@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:turna/application/anki_import/anki_import_controller.dart';
 import 'package:turna/application/anki_import/anki_import_wizard_state.dart';
@@ -6,12 +8,27 @@ import 'package:turna/application/anki_import/recognition/official_recognition_t
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/views/anki/import_wizard/anki_import_preview_header.dart';
 import 'package:turna/views/anki/import_wizard/anki_import_wizard_widgets.dart';
 import 'package:turna/views/anki/import_wizard/deck_directory_tree_view.dart';
 import 'package:turna/views/anki/import_wizard/mcq_preview_sheet.dart';
 import 'package:turna/views/anki/import_wizard/quick_front_picker_sheet.dart';
 import 'package:turna/views/anki/import_wizard/study_preset_selector.dart';
 import 'package:turna/core/theme.dart';
+
+/// Resolves a deck node to the notetype that owns the most cards in it.
+OfficialAnkiProjectionSchema? officialSchemaForPreviewNode({
+  required List<OfficialAnkiProjectionSchema> schemas,
+  required int? notetypeId,
+}) {
+  if (notetypeId == null) {
+    return schemas.length == 1 ? schemas.first : null;
+  }
+  for (final schema in schemas) {
+    if (schema.notetypeId == notetypeId) return schema;
+  }
+  return null;
+}
 
 /// Modern Anki import preview: clean, course-oriented view focusing on
 /// course asset statistics, multi-level chapter structure, and global
@@ -60,6 +77,8 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
       widget.preview.decks,
       widget.preview.cardCountByDeck,
       archetypeLabelByDeck: _buildDeckArchetypeLabels(),
+      notetypeByDeck: widget.preview.notetypeByDeck,
+      includedDeckIds: widget.preview.includedDeckIds,
     );
   }
 
@@ -80,19 +99,28 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
 
   Map<int, String> _buildDeckArchetypeLabels() {
     final labels = <int, String>{};
-    final defaultSchema = widget.preview.schemas.firstOrNull;
-    if (defaultSchema == null) return labels;
+    for (final deck in widget.preview.decks) {
+      final schema = officialSchemaForPreviewNode(
+        schemas: widget.preview.schemas,
+        notetypeId: widget.preview.notetypeByDeck[deck.deckId],
+      );
+      if (schema == null) continue;
+      labels[deck.deckId] = _archetypeLabelForSchema(schema);
+    }
+    return labels;
+  }
 
-    final suggestion = widget.preview.suggestions[defaultSchema.notetypeId] ??
-        officialAnkiSuggestMapping(defaultSchema);
+  String _archetypeLabelForSchema(OfficialAnkiProjectionSchema schema) {
+    final suggestion = widget.preview.suggestions[schema.notetypeId] ??
+        officialAnkiSuggestMapping(schema);
     final isChoice = suggestion.cardArchetype.name == 'choice';
-    final sample = defaultSchema.samples.firstOrNull;
+    final sample = schema.samples.firstOrNull;
     final isMulti = isChoice &&
         sample != null &&
         EmbeddedOptionsParser.parseCorrectIndices(
               sample.fields.length > 1 ? sample.fields[1] : '',
               EmbeddedOptionsParser.extractMultiFieldOptions(
-                    defaultSchema.fieldNames,
+                    schema.fieldNames,
                     sample.fields,
                   ) ??
                   EmbeddedOptionsParser.extractEmbeddedOptions(
@@ -102,25 +130,29 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
             ).length >=
             2;
 
-    final label = isChoice
+    return isChoice
         ? (isMulti
             ? AppStrings.ankiPreviewKindMulti
             : AppStrings.ankiPreviewKindSingle)
         : (suggestion.cardArchetype.name == 'cloze'
             ? AppStrings.ankiPreviewKindCloze
             : AppStrings.ankiPreviewKindFlip);
-
-    for (final deck in widget.preview.decks) {
-      labels[deck.deckId] = label;
-    }
-    return labels;
   }
 
-  void _onSelectStudyMode(StudyPresetMode mode) {
-    if (_selectedMode == mode) return;
-    setState(() => _selectedMode = mode);
+  StudyPresetMode _modeFor(OfficialAnkiProjectionSchema schema) {
+    final suggestion = widget.preview.suggestions[schema.notetypeId];
+    final kinds = suggestion?.enabledKinds.toSet() ?? const <String>{};
+    if (kinds.length == 1 && kinds.contains('canonicalLink')) {
+      return StudyPresetMode.fidelity;
+    }
+    if (kinds.contains('flip') && !kinds.contains('multipleChoice')) {
+      return StudyPresetMode.classicFlip;
+    }
+    return StudyPresetMode.interactive;
+  }
 
-    final enabledKinds = switch (mode) {
+  List<String> _kindsFor(StudyPresetMode mode) {
+    return switch (mode) {
       StudyPresetMode.interactive => const <String>[
           'multipleChoice',
           'multiSelect',
@@ -138,30 +170,40 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
           'canonicalLink',
         ],
     };
+  }
 
+  void _onSelectStudyMode(StudyPresetMode mode) {
+    if (_selectedMode == mode) return;
+    setState(() => _selectedMode = mode);
+    final kinds = _kindsFor(mode);
     for (final schema in widget.preview.schemas) {
-      final current = widget.preview.suggestions[schema.notetypeId] ??
-          officialAnkiSuggestMapping(schema);
-      final updated = current.copyWith(
-        enabledKinds: enabledKinds,
-        status: OfficialAnkiMappingStatus.manual,
-        userConfirmed: true,
-      );
-      widget.controller.confirmOfficialMapping(schema, updated);
+      if (widget.preview.confirmedNotetypes.contains(schema.notetypeId)) {
+        continue;
+      }
+      widget.controller.applyUnconfirmedKinds(schema, kinds);
     }
   }
 
-  void _openInspectSheet(DeckTreeNode node) {
-    final schema = widget.preview.schemas.firstOrNull;
+  Future<void> _openInspectSheet(DeckTreeNode node) async {
+    final schema = officialSchemaForPreviewNode(
+      schemas: widget.preview.schemas,
+      notetypeId: node.notetypeId,
+    );
     if (schema == null) return;
-    final current = widget.preview.suggestions[schema.notetypeId] ??
+    await widget.controller.loadSamples(schema);
+    if (!mounted) return;
+    final fresh = widget.preview.schemas
+            .where((item) => item.notetypeId == schema.notetypeId)
+            .firstOrNull ??
+        schema;
+    final current = widget.preview.suggestions[fresh.notetypeId] ??
         officialAnkiSuggestMapping(schema);
     showMcqPreviewSheet(
       context: context,
-      schema: schema,
+      schema: fresh,
       currentSuggestion: current,
       onConfirmed: (updated) {
-        widget.controller.confirmOfficialMapping(schema, updated);
+        widget.controller.confirmOfficialMapping(fresh, updated);
         setState(() => _rebuildTree());
       },
     );
@@ -174,6 +216,7 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
       return officialRecognitionTriage(preview, schema).blocking;
     }).toList();
     final hasBlocking = blockingSchemas.isNotEmpty;
+    final noneIncluded = preview.includedDeckIds.isEmpty;
 
     return Column(
       children: [
@@ -208,7 +251,7 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
                     ),
                   ),
                 ),
-              _buildCourseHeaderCard(preview),
+              AnkiImportPreviewHeaderCard(preview: preview),
               const SizedBox(height: 16),
               StudyPresetSelector(
                 selectedMode: _selectedMode,
@@ -219,159 +262,39 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
                 _buildBlockingWarning(blockingSchemas),
                 const SizedBox(height: 16),
               ],
+              for (final schema in preview.schemas)
+                _NotetypeModeRow(
+                  schema: schema,
+                  mode: _modeFor(schema),
+                  onChanged: (mode) => widget.controller.setNotetypeStudyMode(
+                    schema,
+                    _kindsFor(mode),
+                  ),
+                ),
               DeckDirectoryTreeView(
                 deckTree: _deckTree,
                 totalDecks: preview.decks.length,
                 onToggle: () => setState(() {}),
-                onInspectNode: _openInspectSheet,
+                onInspectNode: (node) => unawaited(_openInspectSheet(node)),
+                onToggleIncluded: (node, included) {
+                  final id = node.deckId;
+                  if (id == null) return;
+                  widget.controller.toggleDeckIncluded(id, included);
+                  setState(_rebuildTree);
+                },
               ),
               const SizedBox(height: 16),
             ],
           ),
         ),
         StickyImportBar(
-          onPressed: hasBlocking ? null : widget.controller.commit,
-          disabledHint: hasBlocking ? AppStrings.ankiPreviewBlockingHint : null,
+          onPressed:
+              hasBlocking || noneIncluded ? null : widget.controller.commit,
+          disabledHint: hasBlocking
+              ? AppStrings.ankiPreviewBlockingHint
+              : (noneIncluded ? AppStrings.ankiPreviewBlockingHint : null),
         ),
       ],
-    );
-  }
-
-  Widget _buildCourseHeaderCard(OfficialAnkiImportPreviewModel preview) {
-    final rootName = _deckTree.isNotEmpty
-        ? _deckTree.first.name
-        : AppStrings.ankiPreviewDefaultRootName;
-    final hasChoice = preview.schemas.any((s) {
-      final sug = preview.suggestions[s.notetypeId];
-      return sug?.cardArchetype.name == 'choice';
-    });
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: TurnaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        border: Border.all(
-          color: TurnaTheme.brandTeal.withValues(alpha: 0.15),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: TurnaTheme.brandNavy.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: TurnaTheme.brandTeal.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(TurnaTheme.radiusMedium),
-                ),
-                child: const Icon(
-                  Icons.auto_stories_rounded,
-                  color: TurnaTheme.brandTeal,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      rootName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      AppStrings.ankiPreviewParsedDecks(preview.decks.length),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: TurnaTheme.textSecondaryColor(context),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          StatStrip(
-            items: [
-              (AppStrings.ankiDecksLabel, preview.decks.length),
-              (AppStrings.ankiCardsLabel, preview.cardCount),
-              (AppStrings.ankiNotesLabel, preview.noteCount),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            children: [
-              if (hasChoice) ...[
-                _archetypeChip(
-                  icon: Icons.radio_button_checked_rounded,
-                  label: AppStrings.ankiPreviewChoiceDetected,
-                  color: TurnaTheme.brandTeal,
-                ),
-              ] else ...[
-                _archetypeChip(
-                  icon: Icons.flip_to_back_rounded,
-                  label: AppStrings.ankiPreviewFlipCards,
-                  color: TurnaTheme.textSecondaryColor(context),
-                ),
-              ],
-              _archetypeChip(
-                icon: Icons.touch_app_outlined,
-                label: AppStrings.ankiPreviewTapSectionHint,
-                color: TurnaTheme.brandNavy,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _archetypeChip({
-    required IconData icon,
-    required String label,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 13, color: color),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: color,
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -413,35 +336,94 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
                     color: TurnaTheme.textSecondaryColor(context),
                   ),
                 ),
+                for (final schema in schemas)
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          schema.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () =>
+                            widget.controller.skipOfficialNotetype(schema),
+                        child: Text(AppStrings.ankiPreviewSkipNotetype),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          final current =
+                              widget.preview.suggestions[schema.notetypeId] ??
+                                  officialAnkiSuggestMapping(schema);
+                          showQuickFrontPicker(
+                            context: context,
+                            schema: schema,
+                            currentSuggestion: current,
+                            onConfirmed: (updated) {
+                              widget.controller
+                                  .confirmOfficialMapping(schema, updated);
+                            },
+                          );
+                        },
+                        child: Text(AppStrings.ankiPreviewPickFront),
+                      ),
+                    ],
+                  ),
               ],
             ),
           ),
-          ElevatedButton(
-            onPressed: () {
-              final schema = schemas.first;
-              final current = widget.preview.suggestions[schema.notetypeId] ??
-                  officialAnkiSuggestMapping(schema);
-              showQuickFrontPicker(
-                context: context,
-                schema: schema,
-                currentSuggestion: current,
-                onConfirmed: (updated) {
-                  widget.controller.confirmOfficialMapping(schema, updated);
-                },
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: TurnaTheme.error,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
-              ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NotetypeModeRow extends StatelessWidget {
+  const _NotetypeModeRow({
+    required this.schema,
+    required this.mode,
+    required this.onChanged,
+  });
+
+  final OfficialAnkiProjectionSchema schema;
+  final StudyPresetMode mode;
+  final ValueChanged<StudyPresetMode> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              schema.name.isEmpty
+                  ? AppStrings.ankiPreviewStudyMode
+                  : schema.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            child: Text(AppStrings.ankiPreviewAssignFront,
-                style: const TextStyle(fontSize: 12)),
+          ),
+          DropdownButton<StudyPresetMode>(
+            value: mode,
+            items: [
+              DropdownMenuItem(
+                value: StudyPresetMode.interactive,
+                child: Text(AppStrings.studyPresetInteractiveTitle),
+              ),
+              DropdownMenuItem(
+                value: StudyPresetMode.classicFlip,
+                child: Text(AppStrings.studyPresetClassicFlipTitle),
+              ),
+              DropdownMenuItem(
+                value: StudyPresetMode.fidelity,
+                child: Text(AppStrings.studyPresetFidelityTitle),
+              ),
+            ],
+            onChanged: (mode) {
+              if (mode != null) onChanged(mode);
+            },
           ),
         ],
       ),
