@@ -191,23 +191,33 @@ void main() {
     expect(harness.sources.findById(result.sourceId), isNull);
   });
 
-  test('5k generated package stages with expected counts', () async {
-    final harness = _Harness();
-    addTearDown(harness.dispose);
-    final large = File(
-      p.join(fixtureRoot.path, 'generated', '10-large-generated-5000.apkg'),
-    );
-    expect(large.existsSync(), isTrue);
-    harness.engine
-        .seedPackage(packagePath: large.path, notes: 5000, cards: 5000);
-    final result = await harness.saga().startStaging(
-          packagePath: large.path,
-          displayName: '5k',
-        );
-    expect(result.state, OfficialAnkiSourceState.previewReady);
-    expect(result.cardCount, 5000);
-    expect(result.noteCount, 5000);
-  });
+  // Large packages are gitignored build fixtures (test/fixtures/anki_official/
+  // README.md); on a fresh clone — e.g. the official-anki-dart CI job — they do
+  // not exist, so the 5k staging check only runs where they were generated.
+  final largeGenerated = File(
+    p.join(fixtureRoot.path, 'generated', '10-large-generated-5000.apkg'),
+  );
+
+  test(
+    '5k generated package stages with expected counts',
+    skip: largeGenerated.existsSync()
+        ? false
+        : 'generated/10-large-generated-5000.apkg absent; run '
+            'tool/official_anki_spike/generate_fixtures.sh --large 5000',
+    () async {
+      final harness = _Harness();
+      addTearDown(harness.dispose);
+      harness.engine.seedPackage(
+          packagePath: largeGenerated.path, notes: 5000, cards: 5000);
+      final result = await harness.saga().startStaging(
+            packagePath: largeGenerated.path,
+            displayName: '5k',
+          );
+      expect(result.state, OfficialAnkiSourceState.previewReady);
+      expect(result.cardCount, 5000);
+      expect(result.noteCount, 5000);
+    },
+  );
 
   test('catalog has no field/html/template/css/schedule columns', () {
     final db = OfficialAnkiDatabase.memory();

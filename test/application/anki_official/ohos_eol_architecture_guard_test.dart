@@ -98,10 +98,20 @@ void main() {
         isTrue,
       );
 
-      final so =
-          File('android/app/src/main/jniLibs/arm64-v8a/libturna_anki.so');
-      expect(so.existsSync(), isTrue,
-          reason: 'arm64 Official native library must be packaged');
+      // The .so itself is a build artifact (never committed): the
+      // official-anki-android-arm64 CI job builds it, and its "Inspect .so"
+      // step is where artifact presence is enforced. Statically we can still
+      // pin the packaging rule: jniLibs may only ever hold arm64-v8a.
+      final jniLibs = Directory('android/app/src/main/jniLibs');
+      final abiDirs = jniLibs.existsSync()
+          ? jniLibs
+              .listSync()
+              .whereType<Directory>()
+              .map((d) => d.path.replaceAll('\\', '/').split('/').last)
+              .toList()
+          : const <String>[];
+      expect(abiDirs, everyElement('arm64-v8a'),
+          reason: 'jniLibs must package arm64-v8a only (doc 34 §14.2)');
     });
   });
 }
