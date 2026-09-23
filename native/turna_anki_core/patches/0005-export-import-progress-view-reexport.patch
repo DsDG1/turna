@@ -1,0 +1,13 @@
+diff --git a/rslib/src/lib.rs b/rslib/src/lib.rs
+index 245134d6f..02353d981 100644
+--- a/rslib/src/lib.rs
++++ b/rslib/src/lib.rs
+@@ -33,6 +33,8 @@ pub mod ops;
+ mod preferences;
+ pub mod prelude;
+ mod progress;
++pub use progress::import_progress_view;
++pub use progress::ImportProgressView;
+ pub use progress::ProgressState;
+ pub mod revlog;
+ pub mod scheduler;

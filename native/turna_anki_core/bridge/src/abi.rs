@@ -58,6 +58,24 @@ fn err(status: i32) -> TurnaAnkiResult {
     }
 }
 
+/// Allocate a C buffer with `capacity == length` via `Box<[u8]>` under a
+/// caller-chosen status. Callers must free with [`turna_anki_buffer_free`].
+fn owned_bytes(status: i32, bytes: Vec<u8>) -> TurnaAnkiResult {
+    if bytes.is_empty() {
+        return TurnaAnkiResult {
+            status,
+            buffer: empty_buffer(),
+        };
+    }
+    let boxed = bytes.into_boxed_slice();
+    let len = boxed.len();
+    let ptr = Box::into_raw(boxed) as *mut u8;
+    TurnaAnkiResult {
+        status,
+        buffer: TurnaAnkiBuffer { ptr, len },
+    }
+}
+
 fn encode_ok(response: serde_json::Value) -> TurnaAnkiResult {
     match serde_json::to_vec(&response) {
         Ok(bytes) => ok_bytes(bytes),
@@ -65,11 +83,103 @@ fn encode_ok(response: serde_json::Value) -> TurnaAnkiResult {
     }
 }
 
-fn guard(f: impl FnOnce() -> TurnaAnkiResult) -> TurnaAnkiResult {
+struct CapturedPanic {
+    generation: u64,
+    details: String,
+}
+
+thread_local! {
+    static CAPTURED_PANIC: std::cell::RefCell<CapturedPanic> = const {
+        std::cell::RefCell::new(CapturedPanic { generation: 0, details: String::new() })
+    };
+}
+
+/// Install a panic hook (once) that records the last panic's location and
+/// message per thread, chained to the previous hook so default reporting
+/// still happens. `guard*` compares the thread-local generation before and
+/// after `catch_unwind` to attribute the record to this call.
+fn ensure_panic_capture_hook() {
+    static INSTALL: std::sync::Once = std::sync::Once::new();
+    INSTALL.call_once(|| {
+        let previous = std::panic::take_hook();
+        std::panic::set_hook(Box::new(move |info| {
+            let location = info
+                .location()
+                .map(|l| l.to_string())
+                .unwrap_or_else(|| "<unknown location>".to_string());
+            let payload = info.payload();
+            let message = if let Some(s) = payload.downcast_ref::<&str>() {
+                (*s).to_string()
+            } else if let Some(s) = payload.downcast_ref::<String>() {
+                s.clone()
+            } else {
+                "<non-string panic payload>".to_string()
+            };
+            let details = format!("{location}: {message}");
+            CAPTURED_PANIC.with(|cell| {
+                let mut record = cell.borrow_mut();
+                record.generation += 1;
+                record.details = details;
+            });
+            previous(info);
+        }));
+    });
+}
+
+fn truncate_utf8(text: &str, max_bytes: usize) -> String {
+    if text.len() <= max_bytes {
+        return text.to_string();
+    }
+    let mut end = max_bytes;
+    while end > 0 && !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    text[..end].to_string()
+}
+
+enum PanicBuffer {
+    /// Return an empty buffer (all entries except `turna_anki_call`; their
+    /// Dart callers do not free a buffer on the error path).
+    Empty,
+    /// Attach `{"panic": "<loc>: <msg>"}` so field reports from the call
+    /// path say WHERE the backend panicked, not just that it did.
+    Attach,
+}
+
+fn guard_inner(f: impl FnOnce() -> TurnaAnkiResult, panic_buffer: PanicBuffer) -> TurnaAnkiResult {
+    ensure_panic_capture_hook();
+    let generation_before = CAPTURED_PANIC.with(|cell| cell.borrow().generation);
     match std::panic::catch_unwind(AssertUnwindSafe(f)) {
         Ok(result) => result,
-        Err(_) => err(STATUS_BACKEND_PANIC),
+        Err(_) => {
+            let details = CAPTURED_PANIC.with(|cell| {
+                let record = cell.borrow();
+                if record.generation != generation_before && !record.details.is_empty() {
+                    Some(record.details.clone())
+                } else {
+                    None
+                }
+            });
+            match (panic_buffer, details) {
+                (PanicBuffer::Attach, Some(details)) => {
+                    let payload = serde_json::json!({ "panic": truncate_utf8(&details, 1024) });
+                    match serde_json::to_vec(&payload) {
+                        Ok(bytes) => owned_bytes(STATUS_BACKEND_PANIC, bytes),
+                        Err(_) => err(STATUS_BACKEND_PANIC),
+                    }
+                }
+                _ => err(STATUS_BACKEND_PANIC),
+            }
+        }
     }
+}
+
+fn guard(f: impl FnOnce() -> TurnaAnkiResult) -> TurnaAnkiResult {
+    guard_inner(f, PanicBuffer::Empty)
+}
+
+fn guard_call(f: impl FnOnce() -> TurnaAnkiResult) -> TurnaAnkiResult {
+    guard_inner(f, PanicBuffer::Attach)
 }
 
 const MAX_FFI_REQUEST_BYTES: usize = 8 * 1024 * 1024;
@@ -143,7 +253,7 @@ pub extern "C" fn turna_anki_call(
     request: *const u8,
     request_len: usize,
 ) -> TurnaAnkiResult {
-    guard(|| {
+    guard_call(|| {
         match with_request_bytes(
             request,
             request_len,
@@ -274,6 +384,31 @@ mod tests {
         let result = guard(|| panic!("ffi must not unwind"));
         assert_eq!(result.status, STATUS_BACKEND_PANIC);
         assert!(result.buffer.ptr.is_null());
+    }
+
+    #[test]
+    fn call_panic_details_ride_the_buffer() {
+        let result = guard_call(|| panic!("ffi must not unwind: code {code}", code = 7));
+        assert_eq!(result.status, STATUS_BACKEND_PANIC);
+        assert!(
+            !result.buffer.ptr.is_null(),
+            "panic buffer must be attached"
+        );
+        let bytes = unsafe { std::slice::from_raw_parts(result.buffer.ptr, result.buffer.len) };
+        let value: serde_json::Value = serde_json::from_slice(bytes).unwrap();
+        let details = value["panic"].as_str().unwrap();
+        assert!(details.contains("ffi must not unwind: code 7"), "{details}");
+        assert!(details.contains("abi.rs"), "location expected: {details}");
+        unsafe { turna_anki_buffer_free(result.buffer.ptr, result.buffer.len) };
+    }
+
+    #[test]
+    fn truncate_utf8_never_splits_a_codepoint() {
+        assert_eq!(truncate_utf8("abcdefgh", 100), "abcdefgh");
+        assert_eq!(truncate_utf8("abcdefgh", 3), "abc");
+        // 'é' is two bytes; a 1-byte cap must yield the empty prefix.
+        assert_eq!(truncate_utf8("éé", 1), "");
+        assert_eq!(truncate_utf8("éé", 3), "é");
     }
 
     #[test]

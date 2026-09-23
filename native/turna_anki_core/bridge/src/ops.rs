@@ -35,36 +35,36 @@ use crate::engine::TokenConsumption;
 use crate::engine::MAX_RENDER_HTML_BYTES;
 use crate::engine::MAX_REQUEST_BYTES;
 use crate::engine::MAX_RESPONSE_BYTES;
+use crate::engine::OP_ANSWER_AHEAD_CARDS;
 use crate::engine::OP_ANSWER_CARD;
 use crate::engine::OP_BURY_OR_SUSPEND_CARDS;
 use crate::engine::OP_CANCEL_OPERATION;
+use crate::engine::OP_COMPACT_COLLECTION;
 use crate::engine::OP_COMPARE_TYPED_ANSWER;
 use crate::engine::OP_CONGRATS_INFO;
 use crate::engine::OP_COUNTS_FOR_DECK_TODAY;
 use crate::engine::OP_DELETE_CARDS;
 use crate::engine::OP_DELETE_NOTES;
 use crate::engine::OP_DESCRIBE_NEXT_STATES;
+use crate::engine::OP_DIFF_COLLECTION_CHECKPOINT;
+use crate::engine::OP_ENSURE_TODAY_NEW_QUOTA;
 use crate::engine::OP_EXTRACT_CLOZE_FOR_TYPING;
+use crate::engine::OP_GC_UNUSED_MEDIA;
+use crate::engine::OP_GET_CONFIG;
 use crate::engine::OP_GET_REVIEW_QUEUE;
 use crate::engine::OP_GET_UNDO_STATUS;
 use crate::engine::OP_IMPORT_PACKAGE;
-use crate::engine::OP_PROMOTE_STAGING_COLLECTION;
-use crate::engine::OP_SUMMARIZE_IMPORTED_NOTES;
 use crate::engine::OP_LATEST_PROGRESS;
 use crate::engine::OP_LIST_DECK_TREE;
+use crate::engine::OP_PROMOTE_STAGING_COLLECTION;
+use crate::engine::OP_PRUNE_EMPTY_METADATA;
 use crate::engine::OP_REDO;
 use crate::engine::OP_RENDER_CARD;
 use crate::engine::OP_SCHEDULE_CARDS_AS_NEW;
-use crate::engine::OP_ANSWER_AHEAD_CARDS;
-use crate::engine::OP_ENSURE_TODAY_NEW_QUOTA;
-use crate::engine::OP_GC_UNUSED_MEDIA;
-use crate::engine::OP_PRUNE_EMPTY_METADATA;
-use crate::engine::OP_COMPACT_COLLECTION;
-use crate::engine::OP_DIFF_COLLECTION_CHECKPOINT;
-use crate::engine::OP_GET_CONFIG;
 use crate::engine::OP_SET_CONFIG;
 use crate::engine::OP_SET_CURRENT_DECK;
 use crate::engine::OP_STATS_FOR_CARDS_BATCH;
+use crate::engine::OP_SUMMARIZE_IMPORTED_NOTES;
 use crate::engine::OP_UNDO;
 use crate::engine::STATUS_ANSWER_COMMIT_UNKNOWN;
 use crate::engine::STATUS_ANSWER_FAILED;
@@ -417,6 +417,15 @@ fn promote_staging_collection(handle: u64, request: &[u8]) -> Result<Value, i32>
     }
 }
 
+/// Lock the engine for an op that requires an open collection.
+///
+/// KNOWN LIMITATION (documented decision, not an oversight): the returned
+/// guard is held for the whole op. The Dart worker's RPC timeout only
+/// abandons the wait — the op keeps running under this lock, so a retry
+/// queues on the mutex and appears serialized/stuck. Cooperative cancel
+/// (`want_abort` via the shared progress state) is only checked by
+/// import-style loops, not by short ops (answer/render), because rslib's
+/// inner APIs are not cancellable.
 pub(crate) fn require_open<'a>(
     slot: &'a EngineSlot,
 ) -> Result<std::sync::MutexGuard<'a, Engine>, i32> {
@@ -466,7 +475,10 @@ fn labels_json(labels: &[String]) -> serde_json::Value {
 }
 
 /// The state a rating moves to, from the four preview states.
-fn pick_state(states: &anki::scheduler::states::SchedulingStates, rating: Rating) -> anki::scheduler::states::CardState {
+fn pick_state(
+    states: &anki::scheduler::states::SchedulingStates,
+    rating: Rating,
+) -> anki::scheduler::states::CardState {
     match rating {
         Rating::Again => states.again,
         Rating::Hard => states.hard,
@@ -497,8 +509,7 @@ fn import_package(handle: u64, request: &[u8]) -> Result<Value, i32> {
     if request.len() > MAX_REQUEST_BYTES {
         return Err(STATUS_INVALID_ARGUMENT);
     }
-    let parsed: ImportRequest =
-        parse_req(request)?;
+    let parsed: ImportRequest = parse_req(request)?;
     let path = PathBuf::from(&parsed.package_path);
     if !path.is_absolute() {
         return Err(STATUS_INVALID_ARGUMENT);
@@ -597,8 +608,7 @@ fn render_card(handle: u64, request: &[u8]) -> Result<Value, i32> {
     if request.len() > MAX_REQUEST_BYTES {
         return Err(STATUS_INVALID_ARGUMENT);
     }
-    let parsed: RenderRequest =
-        parse_req(request)?;
+    let parsed: RenderRequest = parse_req(request)?;
     if parsed.card_id <= 0 {
         return Err(STATUS_INVALID_ARGUMENT);
     }
@@ -787,8 +797,7 @@ fn get_review_queue(handle: u64, request: &[u8]) -> Result<Value, i32> {
 }
 
 fn describe_next_states(handle: u64, request: &[u8]) -> Result<Value, i32> {
-    let parsed: TokenRequest =
-        parse_req(request)?;
+    let parsed: TokenRequest = parse_req(request)?;
     let slot = slot(handle)?;
     let mut engine = require_open(&slot)?;
     let token = engine
@@ -808,8 +817,7 @@ fn describe_next_states(handle: u64, request: &[u8]) -> Result<Value, i32> {
 }
 
 fn answer_card(handle: u64, request: &[u8]) -> Result<Value, i32> {
-    let parsed: AnswerRequest =
-        parse_req(request)?;
+    let parsed: AnswerRequest = parse_req(request)?;
     if parsed.milliseconds_taken < 0 || parsed.milliseconds_taken > i64::from(MAX_ELAPSED_MS) {
         return Err(STATUS_INVALID_ARGUMENT);
     }
@@ -1026,8 +1034,7 @@ fn redo(handle: u64) -> Result<Value, i32> {
 }
 
 fn bury_or_suspend(handle: u64, request: &[u8]) -> Result<Value, i32> {
-    let parsed: BuryOrSuspendRequest =
-        parse_req(request)?;
+    let parsed: BuryOrSuspendRequest = parse_req(request)?;
     if parsed.card_ids.len() + parsed.note_ids.len() > MAX_BURY_IDS {
         return Err(STATUS_INVALID_ARGUMENT);
     }
@@ -1110,8 +1117,7 @@ fn bury_or_suspend(handle: u64, request: &[u8]) -> Result<Value, i32> {
 /// never lose cards they do not own. Callers batch ids to stay under
 /// [MAX_DELETE_NOTE_IDS] and the envelope payload cap.
 fn delete_notes(handle: u64, request: &[u8]) -> Result<Value, i32> {
-    let parsed: DeleteNotesRequest =
-        parse_req(request)?;
+    let parsed: DeleteNotesRequest = parse_req(request)?;
     if parsed.note_ids.is_empty() || parsed.note_ids.len() > MAX_DELETE_NOTE_IDS {
         return Err(STATUS_INVALID_ARGUMENT);
     }
@@ -1137,8 +1143,7 @@ fn delete_notes(handle: u64, request: &[u8]) -> Result<Value, i32> {
 /// removed only after their final card is gone, making retries idempotent and
 /// preserving notes shared by another imported source.
 fn delete_cards(handle: u64, request: &[u8]) -> Result<Value, i32> {
-    let parsed: DeleteCardsRequest =
-        parse_req(request)?;
+    let parsed: DeleteCardsRequest = parse_req(request)?;
     if parsed.card_ids.is_empty() || parsed.card_ids.len() > MAX_DELETE_CARD_IDS {
         return Err(STATUS_INVALID_ARGUMENT);
     }
@@ -1174,8 +1179,12 @@ struct GcUnusedMediaRequest {
 }
 
 fn gc_unused_media(handle: u64, request: &[u8]) -> Result<Value, i32> {
-    let parsed: GcUnusedMediaRequest =
-        parse_req_or_default(request, GcUnusedMediaRequest { mode: String::new() })?;
+    let parsed: GcUnusedMediaRequest = parse_req_or_default(
+        request,
+        GcUnusedMediaRequest {
+            mode: String::new(),
+        },
+    )?;
     let dry_run = parsed.mode != "trashAndDelete";
     let slot = slot(handle)?;
     let mut engine = require_open(&slot)?;
@@ -1237,11 +1246,9 @@ fn prune_empty_metadata(handle: u64, request: &[u8]) -> Result<Value, i32> {
             continue;
         }
         let notes: i64 = db
-            .query_row(
-                "SELECT COUNT(*) FROM notes WHERE mid = ?",
-                [id],
-                |row| row.get(0),
-            )
+            .query_row("SELECT COUNT(*) FROM notes WHERE mid = ?", [id], |row| {
+                row.get(0)
+            })
             .unwrap_or(1);
         if notes == 0 {
             let _ = db.execute("DELETE FROM notetypes WHERE id = ?", [id]);
@@ -1256,11 +1263,9 @@ fn prune_empty_metadata(handle: u64, request: &[u8]) -> Result<Value, i32> {
             continue;
         }
         let cards: i64 = db
-            .query_row(
-                "SELECT COUNT(*) FROM cards WHERE did = ?",
-                [id],
-                |row| row.get(0),
-            )
+            .query_row("SELECT COUNT(*) FROM cards WHERE did = ?", [id], |row| {
+                row.get(0)
+            })
             .unwrap_or(1);
         if cards == 0 {
             let _ = db.execute("DELETE FROM decks WHERE id = ?", [id]);
@@ -1293,9 +1298,7 @@ fn compact_collection(handle: u64, request: &[u8]) -> Result<Value, i32> {
     let slot = slot(handle)?;
     let mut engine = require_open(&slot)?;
     let path = engine.collection_path.clone().ok_or(STATUS_INVALID_STATE)?;
-    let before = std::fs::metadata(&path)
-        .map(|m| m.len())
-        .unwrap_or(0);
+    let before = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
 
     let (page_size, freelist_count, page_count) = {
         let col = engine.open_col()?;
@@ -1309,7 +1312,11 @@ fn compact_collection(handle: u64, request: &[u8]) -> Result<Value, i32> {
         let pages: i64 = db
             .query_row("PRAGMA page_count", [], |row| row.get(0))
             .map_err(|_| STATUS_INTERNAL_ERROR)?;
-        (page_size.max(0) as u64, freelist.max(0) as u64, pages.max(0) as u64)
+        (
+            page_size.max(0) as u64,
+            freelist.max(0) as u64,
+            pages.max(0) as u64,
+        )
     };
     let freelist_bytes = freelist_count.saturating_mul(page_size);
     let ratio = if page_count == 0 {
@@ -1349,9 +1356,7 @@ fn compact_collection(handle: u64, request: &[u8]) -> Result<Value, i32> {
         });
     crate::engine::reopen_open_collection(&mut engine, &slot)?;
     vacuum?;
-    let after = std::fs::metadata(&path)
-        .map(|m| m.len())
-        .unwrap_or(0);
+    let after = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
     Ok(json!({
         "beforeBytes": before,
         "afterBytes": after,
@@ -1406,9 +1411,11 @@ fn get_config(handle: u64, request: &[u8]) -> Result<Value, i32> {
     let raw: Option<Vec<u8>> = col
         .storage
         .db()
-        .query_row("SELECT val FROM config WHERE key = ?1", [&parsed.key], |row| {
-            row.get(0)
-        })
+        .query_row(
+            "SELECT val FROM config WHERE key = ?1",
+            [&parsed.key],
+            |row| row.get(0),
+        )
         .ok();
     match raw.and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok()) {
         Some(value) => Ok(json!({ "found": true, "value": value })),
@@ -1460,8 +1467,7 @@ fn set_config(handle: u64, request: &[u8]) -> Result<Value, i32> {
 }
 
 fn stats_for_cards_batch(handle: u64, request: &[u8]) -> Result<Value, i32> {
-    let mut parsed: StatsForCardsRequest =
-        parse_req(request)?;
+    let mut parsed: StatsForCardsRequest = parse_req(request)?;
     if parsed.card_ids.is_empty() || parsed.card_ids.len() > MAX_STATS_CARD_IDS {
         return Err(STATUS_INVALID_ARGUMENT);
     }
@@ -1551,8 +1557,7 @@ fn stats_for_cards_batch(handle: u64, request: &[u8]) -> Result<Value, i32> {
 }
 
 fn schedule_cards_as_new(handle: u64, request: &[u8]) -> Result<Value, i32> {
-    let mut parsed: ScheduleCardsAsNewRequest =
-        parse_req(request)?;
+    let mut parsed: ScheduleCardsAsNewRequest = parse_req(request)?;
     if parsed.card_ids.is_empty() || parsed.card_ids.len() > MAX_SCHEDULE_AS_NEW_IDS {
         return Err(STATUS_INVALID_ARGUMENT);
     }
@@ -1597,8 +1602,7 @@ struct AheadRequest {
 }
 
 fn answer_ahead_cards(handle: u64, request: &[u8]) -> Result<Value, i32> {
-    let parsed: AheadRequest =
-        parse_req(request)?;
+    let parsed: AheadRequest = parse_req(request)?;
     if parsed.answers.is_empty() || parsed.answers.len() > 100 {
         return Err(STATUS_INVALID_ARGUMENT);
     }
@@ -1642,11 +1646,14 @@ fn answer_ahead_cards(handle: u64, request: &[u8]) -> Result<Value, i32> {
     update.allow_empty = true;
     update.config.reschedule = true;
     update.config.search_terms.clear();
-    update.config.search_terms.push(anki::decks::FilteredSearchTerm {
-        search,
-        limit: parsed.answers.len() as u32,
-        order: anki::decks::FilteredSearchOrder::Added as i32,
-    });
+    update
+        .config
+        .search_terms
+        .push(anki::decks::FilteredSearchTerm {
+            search,
+            limit: parsed.answers.len() as u32,
+            order: anki::decks::FilteredSearchOrder::Added as i32,
+        });
     let filtered_id = col
         .add_or_update_filtered_deck(update)
         .map_err(map_anki_error)?
@@ -1657,9 +1664,12 @@ fn answer_ahead_cards(handle: u64, request: &[u8]) -> Result<Value, i32> {
         .iter()
         .filter(|item| !rated_today.contains(&item.card_id))
         .filter_map(|item| {
-            parse_rating(&item.rating)
-                .ok()
-                .map(|rating| (item.card_id, (rating, item.milliseconds_taken.max(0) as u32)))
+            parse_rating(&item.rating).ok().map(|rating| {
+                (
+                    item.card_id,
+                    (rating, item.milliseconds_taken.max(0) as u32),
+                )
+            })
         })
         .collect();
     let skipped_rated_today = parsed.answers.len() - remaining.len();
@@ -1708,8 +1718,7 @@ struct EnsureNewQuotaRequest {
 }
 
 fn ensure_today_new_quota(handle: u64, request: &[u8]) -> Result<Value, i32> {
-    let parsed: EnsureNewQuotaRequest =
-        parse_req(request)?;
+    let parsed: EnsureNewQuotaRequest = parse_req(request)?;
     if parsed.deck_id <= 0 || parsed.needed_new < 0 || parsed.needed_new > 9999 {
         return Err(STATUS_INVALID_ARGUMENT);
     }
@@ -1749,9 +1758,7 @@ fn ensure_today_new_quota(handle: u64, request: &[u8]) -> Result<Value, i32> {
     col.custom_study(anki_proto::scheduler::CustomStudyRequest {
         deck_id: parsed.deck_id,
         value: Some(
-            anki_proto::scheduler::custom_study_request::Value::NewLimitDelta(
-                new_extend as i32,
-            ),
+            anki_proto::scheduler::custom_study_request::Value::NewLimitDelta(new_extend as i32),
         ),
     })
     .map_err(map_anki_error)?;
@@ -1868,11 +1875,11 @@ pub fn integrity_ok(col: &mut Collection) -> Result<bool, i32> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::engine::alloc_engine;
     use crate::engine::check_collection;
     use crate::engine::close_collection;
     use crate::engine::dispatch;
     use crate::engine::free_engine;
-    use crate::engine::alloc_engine;
     use crate::engine::open_collection;
     use crate::engine::STATUS_INVALID_HANDLE;
     use serde_json::Value;
@@ -1966,10 +1973,19 @@ mod tests {
                     json!({"includeSamples": true, "sampleLimit": 3}),
                 )
                 .unwrap();
-                let fields = schemas["schemas"][0]["samples"][0]["fields"]
+                // A fresh rslib collection ships the full default notetype
+                // set (Basic, Basic (and reversed), …) ahead of the imported
+                // note's "Basic+", so the sampled schema must be located by
+                // content, never by index.
+                let sampled = schemas["schemas"]
                     .as_array()
-                    .unwrap();
-                let joined = fields
+                    .unwrap()
+                    .iter()
+                    .find(|schema| schema["samples"].as_array().is_some_and(|s| !s.is_empty()))
+                    .expect("imported note must produce one sampled schema");
+                let joined = sampled["samples"][0]["fields"]
+                    .as_array()
+                    .unwrap()
                     .iter()
                     .map(|f| f.as_str().unwrap())
                     .collect::<Vec<_>>()
@@ -1986,8 +2002,11 @@ mod tests {
     #[test]
     fn invalid_and_missing_packages_are_structured() {
         let (root, handle, _) = temp_open();
+        // A Unix-style "/no/such/..." path is not absolute on Windows, which
+        // would surface INVALID_ARGUMENT before the existence probe.
+        let missing_pkg = std::env::temp_dir().join("no-such-turna-spike.apkg");
         assert_eq!(
-            import(handle, Path::new("/no/such/turna-spike.apkg"), false).unwrap_err(),
+            import(handle, &missing_pkg, false).unwrap_err(),
             STATUS_PACKAGE_NOT_FOUND
         );
         let junk = root.join("not-a-zip.apkg");
@@ -2893,12 +2912,7 @@ mod tests {
             STATUS_CARD_NOT_FOUND
         );
         assert_eq!(
-            dispatch(
-                9_999_999,
-                crate::engine::OP_SEARCH_CARDS_PAGE,
-                b"{}"
-            )
-            .unwrap_err(),
+            dispatch(9_999_999, crate::engine::OP_SEARCH_CARDS_PAGE, b"{}").unwrap_err(),
             STATUS_INVALID_HANDLE
         );
         free_engine(handle).unwrap();
@@ -3164,17 +3178,28 @@ mod tests {
     fn engine_info_capabilities_include_render_ops() {
         let info = crate::contract::engine_info_payload();
         let caps = info["capabilities"].as_array().unwrap();
+        assert!(
+            caps.iter().any(|c| c.as_str() == Some("RENDER_CARD")),
+            "render ops must stay advertised"
+        );
         // OP_TABLE drives the advertisement and the golden fixture pins the
-        // full order in contract.rs tests; here only the count and the minor
-        // pin remain as tripwires.
-        assert_eq!(caps.len(), 41, "capabilities count drifted");
-        assert_eq!(info["contractMinor"], 12);
+        // full order in contract.rs tests. Derive the count/minor from the
+        // contract constants so this check cannot go stale on the next op
+        // addition (it once drifted: hardcoded 41/12 vs real 43/13).
+        assert_eq!(
+            caps.len(),
+            crate::contract::OP_TABLE_LEN,
+            "capabilities count drifted"
+        );
+        assert_eq!(info["contractMinor"], crate::contract::CONTRACT_MINOR);
     }
 
     #[test]
     fn answer_ahead_skips_cards_already_rated_today() {
         let (root, handle, _) = temp_open();
-        import(handle, &package_path("08-scheduling.apkg"), true).unwrap();
+        // 08-scheduling ships a single card (manifest expectedCards=1); the
+        // two-card premise needs 03-optional-reversed's three new cards.
+        import(handle, &package_path("03-optional-reversed.apkg"), true).unwrap();
         call(handle, OP_SET_CURRENT_DECK, json!({"deck_id": 1})).unwrap();
         let queue = call(handle, OP_GET_REVIEW_QUEUE, json!({"fetchLimit": 10})).unwrap();
         let cards = queue["cards"].as_array().unwrap();
@@ -3258,8 +3283,12 @@ mod tests {
         );
         // Values must be JSON objects — decisions are structured.
         assert_eq!(
-            call(handle, OP_SET_CONFIG, json!({"key": "turna.k", "value": [1, 2]}))
-                .unwrap_err(),
+            call(
+                handle,
+                OP_SET_CONFIG,
+                json!({"key": "turna.k", "value": [1, 2]})
+            )
+            .unwrap_err(),
             STATUS_INVALID_ARGUMENT
         );
         // Round-trip an object value.
@@ -3288,8 +3317,12 @@ mod tests {
         )
         .unwrap();
         assert_eq!(deleted["removed"], true);
-        let gone =
-            call(handle, OP_GET_CONFIG, json!({"key": "turna.import.mapping.src1"})).unwrap();
+        let gone = call(
+            handle,
+            OP_GET_CONFIG,
+            json!({"key": "turna.import.mapping.src1"}),
+        )
+        .unwrap();
         assert_eq!(gone["found"], false);
         let again = call(
             handle,

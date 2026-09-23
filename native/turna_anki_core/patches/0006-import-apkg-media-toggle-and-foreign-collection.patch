@@ -1,0 +1,176 @@
+diff --git a/rslib/src/import_export/package/apkg/import/mod.rs b/rslib/src/import_export/package/apkg/import/mod.rs
+index 9c8e707cc..8f6496484 100644
+--- a/rslib/src/import_export/package/apkg/import/mod.rs
++++ b/rslib/src/import_export/package/apkg/import/mod.rs
+@@ -46,6 +46,7 @@ struct Context<'a> {
+     data: ExchangeData,
+     usn: Usn,
+     progress: ThrottlingProgressHandler<ImportProgress>,
++    copy_media_files: bool,
+ }
+ 
+ impl Collection {
+@@ -53,6 +54,15 @@ impl Collection {
+         &mut self,
+         path: impl AsRef<Path>,
+         options: ImportAnkiPackageOptions,
++    ) -> Result<OpOutput<NoteLog>> {
++        self.import_apkg_with_media(path, options, true)
++    }
++
++    pub fn import_apkg_with_media(
++        &mut self,
++        path: impl AsRef<Path>,
++        options: ImportAnkiPackageOptions,
++        with_media: bool,
+     ) -> Result<OpOutput<NoteLog>> {
+         let file = open_file(path)?;
+         let archive = ZipArchive::new(file)?;
+@@ -64,10 +74,106 @@ impl Collection {
+             col.set_config(BoolKey::WithDeckConfigs, &options.with_deck_configs)?;
+             col.set_config(ConfigKey::UpdateNotes, &options.update_notes())?;
+             col.set_config(ConfigKey::UpdateNotetypes, &options.update_notetypes())?;
+-            let mut ctx = Context::new(archive, col, options, progress)?;
++            let mut ctx = Context::new(archive, col, options, progress, with_media)?;
+             ctx.import()
+         })
+     }
++
++    /// Merge an already-imported staging collection into this one.
++    /// Skips re-unzipping the original package. Media files are copied
++    /// from [media_folder] when [with_media] is set.
++    pub fn import_foreign_collection(
++        &mut self,
++        foreign_path: &Path,
++        media_folder: &Path,
++        options: ImportAnkiPackageOptions,
++        with_media: bool,
++    ) -> Result<OpOutput<NoteLog>> {
++        let target_media = self.media_folder.clone();
++        let mut progress = self.new_progress_handler();
++        let output = self.transact(Op::Import, |col| {
++            col.set_config(BoolKey::MergeNotetypes, &options.merge_notetypes)?;
++            col.set_config(BoolKey::WithScheduling, &options.with_scheduling)?;
++            col.set_config(BoolKey::WithDeckConfigs, &options.with_deck_configs)?;
++            col.set_config(ConfigKey::UpdateNotes, &options.update_notes())?;
++            col.set_config(ConfigKey::UpdateNotetypes, &options.update_notetypes())?;
++            progress.set(ImportProgress::Gathering)?;
++            let mut foreign = CollectionBuilder::new(foreign_path).build()?;
++            foreign.maybe_fix_invalid_ids()?;
++            foreign.maybe_upgrade_scheduler()?;
++            let mut data = ExchangeData::default();
++            data.gather_data(
++                &mut foreign,
++                SearchNode::WholeCollection,
++                options.with_scheduling,
++                options.with_deck_configs,
++            )?;
++            drop(foreign);
++            let (tempfile, archive) = empty_zip_archive()?;
++            let media_manager = col.media()?;
++            let usn = col.usn()?;
++            let mut ctx = Context {
++                target_col: col,
++                merge_notetypes: options.merge_notetypes,
++                update_notes: options.update_notes(),
++                update_notetypes: options.update_notetypes(),
++                media_manager,
++                archive,
++                meta: Meta::new(),
++                data,
++                usn,
++                progress,
++                copy_media_files: false,
++            };
++            let log = ctx.import()?;
++            drop(ctx);
++            drop(tempfile);
++            Ok(log)
++        })?;
++        if with_media {
++            copy_media_tree(media_folder, &target_media)?;
++        }
++        Ok(output)
++    }
++}
++
++fn empty_zip_archive() -> Result<(NamedTempFile, ZipArchive<File>)> {
++    let tempfile = new_tempfile()?;
++    {
++        let file = open_file(tempfile.path())?;
++        let writer = zip::ZipWriter::new(file);
++        writer.finish()?;
++    }
++    let file = open_file(tempfile.path())?;
++    Ok((tempfile, ZipArchive::new(file)?))
++}
++
++fn copy_media_tree(src: &Path, dst: &Path) -> Result<()> {
++    if !src.is_dir() {
++        return Ok(());
++    }
++    std::fs::create_dir_all(dst).with_context(|_| FileIoSnafu {
++        path: dst,
++        op: FileOp::Create,
++    })?;
++    let entries = std::fs::read_dir(src).with_context(|_| FileIoSnafu {
++        path: src,
++        op: FileOp::Read,
++    })?;
++    for entry in entries {
++        let entry = entry.with_context(|_| FileIoSnafu {
++            path: src,
++            op: FileOp::Read,
++        })?;
++        if entry.file_type().map(|kind| kind.is_file()).unwrap_or(false) {
++            let to = dst.join(entry.file_name());
++            std::fs::copy(entry.path(), &to).with_context(|_| FileIoSnafu {
++                path: &to,
++                op: FileOp::CopyFrom(src.to_path_buf()),
++            })?;
++        }
++    }
++    Ok(())
+ }
+ 
+ impl<'a> Context<'a> {
+@@ -76,6 +182,7 @@ impl<'a> Context<'a> {
+         target_col: &'a mut Collection,
+         options: ImportAnkiPackageOptions,
+         mut progress: ThrottlingProgressHandler<ImportProgress>,
++        with_media: bool,
+     ) -> Result<Self> {
+         let media_manager = target_col.media()?;
+         let meta = Meta::from_archive(&mut archive)?;
+@@ -99,6 +206,7 @@ impl<'a> Context<'a> {
+             data,
+             usn,
+             progress,
++            copy_media_files: with_media,
+         })
+     }
+ 
+@@ -109,7 +217,11 @@ impl<'a> Context<'a> {
+             .iter()
+             .map(|n| (n.id, n.notetype_id))
+             .collect();
+-        let mut media_map = self.prepare_media()?;
++        let mut media_map = if self.copy_media_files {
++            self.prepare_media()?
++        } else {
++            media::MediaUseMap::default()
++        };
+         let note_imports = self.import_notes_and_notetypes(&mut media_map)?;
+         let imported_decks = self.import_decks_and_configs()?;
+         self.import_cards_and_revlog(
+@@ -118,7 +230,9 @@ impl<'a> Context<'a> {
+             &note_imports.remapped_templates,
+             &imported_decks,
+         )?;
+-        self.copy_media(&mut media_map)?;
++        if self.copy_media_files {
++            self.copy_media(&mut media_map)?;
++        }
+         Ok(note_imports.log)
+     }
+ }

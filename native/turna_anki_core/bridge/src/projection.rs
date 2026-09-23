@@ -18,14 +18,14 @@ use anki::search::SortMode;
 use anki::template::FieldRequirements;
 use anki::template::ParsedTemplate;
 
-use crate::engine::slot;
-use crate::engine::Engine;
 use crate::engine::parse_req;
 use crate::engine::parse_req_or_default;
+use crate::engine::slot;
+use crate::engine::Engine;
 use crate::engine::MAX_RESPONSE_BYTES;
 use crate::engine::STATUS_BACKEND_PANIC;
-use crate::engine::STATUS_INVALID_ARGUMENT;
 use crate::engine::STATUS_INTERNAL_ERROR;
+use crate::engine::STATUS_INVALID_ARGUMENT;
 use crate::engine::STATUS_PROJECTION_SNAPSHOT_STALE;
 use crate::ops::map_anki_error;
 use crate::ops::require_open;
@@ -138,13 +138,11 @@ fn filter_field_targets(text: &str, filter: &str) -> Vec<String> {
 }
 
 fn template_has_script(text: &str) -> bool {
-    text.contains("<script")
-        || text.contains("javascript:")
-        || {
-            static RE: std::sync::LazyLock<Regex> =
-                std::sync::LazyLock::new(|| Regex::new(r"(?i)on[a-z]+\s*=").unwrap());
-            RE.is_match(text)
-        }
+    text.contains("<script") || text.contains("javascript:") || {
+        static RE: std::sync::LazyLock<Regex> =
+            std::sync::LazyLock::new(|| Regex::new(r"(?i)on[a-z]+\s*=").unwrap());
+        RE.is_match(text)
+    }
 }
 
 fn template_has_complex_html(text: &str) -> bool {
@@ -227,13 +225,7 @@ fn template_facts(nt: &anki::notetype::Notetype) -> Value {
 
 #[cfg(test)]
 fn source_fingerprint(note: &Note, deck_path: &[String], ordinal: u16) -> String {
-    source_fingerprint_parts(
-        &note.guid,
-        &note.fields(),
-        &note.tags,
-        deck_path,
-        ordinal,
-    )
+    source_fingerprint_parts(&note.guid, &note.fields(), &note.tags, deck_path, ordinal)
 }
 
 fn source_fingerprint_parts(
@@ -371,8 +363,7 @@ pub fn get_projection_schemas(handle: u64, request: &[u8]) -> Result<Value, i32>
 }
 
 pub fn begin_projection_read(handle: u64, request: &[u8]) -> Result<Value, i32> {
-    let parsed: BeginReadRequest =
-        parse_req(request)?;
+    let parsed: BeginReadRequest = parse_req(request)?;
     if parsed.card_set_fingerprint.is_empty() {
         return Err(STATUS_INVALID_ARGUMENT);
     }
@@ -419,8 +410,7 @@ pub(crate) fn projection_card_rows(
     let db = col.storage.db();
     for chunk in card_ids.chunks(SQL_CHUNK) {
         let placeholders = vec!["?"; chunk.len()].join(",");
-        let sql =
-            format!("SELECT id, nid, did, ord FROM cards WHERE id IN ({placeholders})");
+        let sql = format!("SELECT id, nid, did, ord FROM cards WHERE id IN ({placeholders})");
         let mut stmt = db.prepare(&sql).map_err(|_| STATUS_INTERNAL_ERROR)?;
         let found = stmt
             .query_map(rusqlite::params_from_iter(chunk.iter()), |row| {
@@ -451,9 +441,8 @@ pub(crate) fn projection_note_rows(
     let db = col.storage.db();
     for chunk in note_ids.chunks(SQL_CHUNK) {
         let placeholders = vec!["?"; chunk.len()].join(",");
-        let sql = format!(
-            "SELECT id, guid, mid, tags, flds FROM notes WHERE id IN ({placeholders})"
-        );
+        let sql =
+            format!("SELECT id, guid, mid, tags, flds FROM notes WHERE id IN ({placeholders})");
         let mut stmt = db.prepare(&sql).map_err(|_| STATUS_INTERNAL_ERROR)?;
         let found = stmt
             .query_map(rusqlite::params_from_iter(chunk.iter()), |row| {
@@ -495,8 +484,7 @@ fn require_snapshot<'a>(engine: &'a Engine, token: &str) -> Result<&'a Projectio
 }
 
 pub fn get_projection_rows_batch(handle: u64, request: &[u8]) -> Result<Value, i32> {
-    let parsed: RowsRequest =
-        parse_req(request)?;
+    let parsed: RowsRequest = parse_req(request)?;
     if parsed.card_ids.len() > MAX_BATCH {
         return Err(STATUS_INVALID_ARGUMENT);
     }
@@ -542,13 +530,8 @@ pub fn get_projection_rows_batch(handle: u64, request: &[u8]) -> Result<Value, i
         // hashes `Note::fields()` directly.
         let ordinal: u16 = card.template_ord.clamp(0, u16::MAX as i64) as u16;
         let tags = split_note_tags(&note.tags);
-        let fingerprint = source_fingerprint_parts(
-            &note.guid,
-            &note.fields,
-            &tags,
-            deck_path,
-            ordinal,
-        );
+        let fingerprint =
+            source_fingerprint_parts(&note.guid, &note.fields, &tags, deck_path, ordinal);
         let mut fields = Vec::new();
         let mut truncated = false;
         for field in &note.fields {
@@ -737,15 +720,29 @@ mod tests {
             }),
         )
         .unwrap();
-        let schemas = call(handle, OP_GET_PROJECTION_SCHEMAS, json!({})).unwrap();
-        let first = &schemas["schemas"][0];
+        let schemas = call(
+            handle,
+            OP_GET_PROJECTION_SCHEMAS,
+            json!({"includeSamples": true, "sampleLimit": 3}),
+        )
+        .unwrap();
+        // A fresh rslib collection ships the whole default notetype set
+        // ahead of the imported one, so locate the imported notetype by its
+        // sample note instead of by index.
+        let first = schemas["schemas"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|schema| schema["samples"].as_array().is_some_and(|s| !s.is_empty()))
+            .expect("imported note must yield one sampled schema");
         let facts = &first["templateFacts"];
         assert!(facts["hash"].as_str().unwrap().len() == 64);
-        // Basic front template renders with Front only; the answer side
-        // references Front (via FrontSide is special, not a field) and Back.
+        // The imported Basic+ card: front renders Front only; the answer
+        // side renders {{FrontSide}} (special — resolved by the reviewer,
+        // not counted as a field reference) plus Back.
         let template = &facts["templates"][0];
         assert_eq!(template["frontFields"], json!([0]));
-        assert_eq!(template["backFields"], json!([0, 1]));
+        assert_eq!(template["backFields"], json!([1]));
         assert_eq!(template["filters"]["typeIn"], json!(false));
         assert_eq!(facts["reqs"][0]["kind"], json!("ANY"));
         assert_eq!(facts["reqs"][0]["fieldOrds"], json!([0]));
@@ -772,8 +769,18 @@ mod tests {
             }),
         )
         .unwrap();
-        let schemas = call(handle, OP_GET_PROJECTION_SCHEMAS, json!({})).unwrap();
-        let first = &schemas["schemas"][0];
+        let schemas = call(
+            handle,
+            OP_GET_PROJECTION_SCHEMAS,
+            json!({"includeSamples": true, "sampleLimit": 3}),
+        )
+        .unwrap();
+        let first = schemas["schemas"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|schema| schema["samples"].as_array().is_some_and(|s| !s.is_empty()))
+            .expect("imported note must yield one sampled schema");
         let facts = &first["templateFacts"];
         assert_eq!(facts["templates"][0]["filters"]["typeIn"], json!(true));
         free_engine(handle).unwrap();

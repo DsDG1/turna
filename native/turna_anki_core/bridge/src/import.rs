@@ -9,6 +9,7 @@ use serde_json::json;
 use serde_json::Value;
 use std::fs;
 use std::fs::File;
+use std::fs::OpenOptions;
 use std::path::Path;
 use std::path::PathBuf;
 use std::time::SystemTime;
@@ -17,9 +18,9 @@ use std::time::UNIX_EPOCH;
 use anki::collection::CollectionBuilder;
 
 use crate::engine::close_collection_inner;
-use crate::engine::reopen_open_collection;
 use crate::engine::parse_req;
 use crate::engine::parse_req_or_default;
+use crate::engine::reopen_open_collection;
 use crate::engine::slot;
 use crate::engine::BusyGuard;
 use crate::engine::EngineState;
@@ -64,7 +65,14 @@ fn mint_backup_id() -> String {
 
 fn copy_fsync(src: &Path, dest: &Path) -> Result<u64, i32> {
     let bytes = fs::copy(src, dest).map_err(|_| STATUS_IO_ERROR)?;
-    let file = File::open(dest).map_err(|_| STATUS_IO_ERROR)?;
+    // Fsync needs a WRITABLE handle: FlushFileBuffers on a read-only handle
+    // fails with ERROR_ACCESS_DENIED on Windows (fsync on O_RDONLY is fine
+    // on POSIX, which is why this only broke on Windows hosts).
+    // `.write(true)` alone never truncates the just-copied bytes.
+    let file = OpenOptions::new()
+        .write(true)
+        .open(dest)
+        .map_err(|_| STATUS_IO_ERROR)?;
     file.sync_all().map_err(|_| STATUS_IO_ERROR)?;
     Ok(bytes)
 }
@@ -175,8 +183,7 @@ pub fn create_backup(handle: u64, request: &[u8]) -> Result<Value, i32> {
 }
 
 pub fn restore_backup(handle: u64, request: &[u8]) -> Result<Value, i32> {
-    let parsed: RestoreRequest =
-        parse_req(request)?;
+    let parsed: RestoreRequest = parse_req(request)?;
     sanitize_backup_id(&parsed.backup_id)?;
 
     let slot = slot(handle)?;

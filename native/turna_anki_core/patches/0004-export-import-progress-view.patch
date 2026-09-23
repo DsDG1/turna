@@ -1,0 +1,47 @@
+diff --git a/rslib/src/progress.rs b/rslib/src/progress.rs
+index 97d98615b..770f16a03 100644
+--- a/rslib/src/progress.rs
++++ b/rslib/src/progress.rs
+@@ -130,6 +130,42 @@ impl ProgressState {
+     }
+ }
+ 
++/// Bridge-facing view of an in-flight import. `current` is a processed
++/// count (notes or media files); the importer does not know a total.
++#[derive(Clone, Copy, Debug, PartialEq, Eq)]
++pub struct ImportProgressView {
++    pub stage: &'static str,
++    pub current: Option<usize>,
++}
++
++pub fn import_progress_view(state: &ProgressState) -> Option<ImportProgressView> {
++    let Progress::Import(progress) = state.last_progress? else {
++        return None;
++    };
++    Some(match progress {
++        ImportProgress::Extracting => ImportProgressView {
++            stage: "extracting",
++            current: None,
++        },
++        ImportProgress::File => ImportProgressView {
++            stage: "file",
++            current: None,
++        },
++        ImportProgress::Gathering => ImportProgressView {
++            stage: "gathering",
++            current: None,
++        },
++        ImportProgress::Media(n) | ImportProgress::MediaCheck(n) => ImportProgressView {
++            stage: "media",
++            current: Some(n),
++        },
++        ImportProgress::Notes(n) => ImportProgressView {
++            stage: "notes",
++            current: Some(n),
++        },
++    })
++}
++
+ #[derive(Clone, Copy, Debug)]
+ pub enum Progress {
+     MediaSync(MediaSyncProgress),

@@ -145,6 +145,46 @@ pub struct PageSnapshot {
     pub ids: Arc<Vec<i64>>,
 }
 
+/// Upper bound for [`CommittedMutations`]. Far above any realistic retry
+/// window (each entry is one clientMutationId, only used for idempotent
+/// answer dedup) while keeping a pathological long-lived session from
+/// accumulating one String per answered card forever.
+const MAX_COMMITTED_MUTATIONS: usize = 10_000;
+
+/// Bounded FIFO idempotency set for `clientMutationId` dedup. Evicts the
+/// oldest ids once the cap is hit.
+#[derive(Default)]
+pub struct CommittedMutations {
+    set: HashSet<String>,
+    order: std::collections::VecDeque<String>,
+}
+
+impl CommittedMutations {
+    pub fn contains(&self, id: &str) -> bool {
+        self.set.contains(id)
+    }
+
+    pub fn insert(&mut self, id: String) {
+        if !self.set.insert(id.clone()) {
+            return;
+        }
+        self.order.push_back(id);
+        while self.order.len() > MAX_COMMITTED_MUTATIONS {
+            match self.order.pop_front() {
+                Some(evicted) => {
+                    self.set.remove(&evicted);
+                }
+                None => break,
+            }
+        }
+    }
+
+    pub fn clear(&mut self) {
+        self.set.clear();
+        self.order.clear();
+    }
+}
+
 pub struct Engine {
     pub state: EngineState,
     pub collection: Option<Collection>,
@@ -156,7 +196,7 @@ pub struct Engine {
     pub queue_epoch: u64,
     pub next_token: u64,
     pub tokens: HashMap<String, AnswerToken>,
-    pub committed_mutations: HashSet<String>,
+    pub committed_mutations: CommittedMutations,
     pub debug_fail_before_answer: bool,
     pub debug_fail_after_commit: bool,
     pub allow_injected_answered_at: bool,
@@ -180,7 +220,7 @@ impl Engine {
             queue_epoch: 1,
             next_token: 1,
             tokens: HashMap::new(),
-            committed_mutations: HashSet::new(),
+            committed_mutations: CommittedMutations::default(),
             debug_fail_before_answer: false,
             debug_fail_after_commit: false,
             allow_injected_answered_at: false,
@@ -235,6 +275,10 @@ pub(crate) fn parse_req_or_default<T: serde::de::DeserializeOwned>(
     }
 }
 
+/// Per-engine state. `engine` is held across the full duration of each op
+/// (see `ops::require_open` for the timeout/cancel implications); `busy`
+/// only fences the long-running, cooperatively cancellable ops
+/// (import/backup/restore/promote).
 pub struct EngineSlot {
     pub engine: Mutex<Engine>,
     pub progress: Arc<Mutex<ProgressState>>,
@@ -310,8 +354,7 @@ impl Drop for BusyGuard<'_> {
 }
 
 pub fn open_collection(handle: u64, request: &[u8]) -> Result<LifecycleResponse, i32> {
-    let parsed: OpenRequest =
-        parse_req(request)?;
+    let parsed: OpenRequest = parse_req(request)?;
     let paths = validate_paths(&parsed)?;
 
     let _gate = OPEN_GATE.lock().map_err(|_| STATUS_BACKEND_PANIC)?;
@@ -442,6 +485,12 @@ pub fn dispatch(handle: u64, operation: u32, request: &[u8]) -> Result<serde_jso
     if request.len() > MAX_REQUEST_BYTES {
         return Err(STATUS_INVALID_ARGUMENT);
     }
+    // Handle validity outranks request-content errors: the Dart transport
+    // expects INVALID_HANDLE as a transport-level status (contract.rs
+    // propagates only it and BACKEND_PANIC), but ops like import validated
+    // their payload first, so "bad path + bad handle" reported the path
+    // error inside an envelope instead.
+    slot(handle)?;
     match operation {
         OP_OPEN_COLLECTION => to_json(open_collection(handle, request)?),
         OP_CLOSE_COLLECTION => to_json(close_collection(handle)?),
@@ -614,6 +663,27 @@ fn reclaim_other_open_holders(self_handle: u64, collection: &Path) -> Result<(),
 mod tests {
     use super::*;
     use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn committed_mutations_is_bounded_and_fifo() {
+        let mut set = CommittedMutations::default();
+        for i in 0..(MAX_COMMITTED_MUTATIONS + 5) {
+            set.insert(format!("mutation-{i}"));
+        }
+        assert!(!set.contains("mutation-0"), "oldest ids must be evicted");
+        assert!(
+            set.contains(&format!("mutation-{}", MAX_COMMITTED_MUTATIONS + 4)),
+            "newest id must be retained"
+        );
+        set.insert(format!("mutation-{}", MAX_COMMITTED_MUTATIONS + 4));
+        assert_eq!(
+            set.order.len(),
+            MAX_COMMITTED_MUTATIONS,
+            "duplicate insert must not grow the set"
+        );
+        set.clear();
+        assert!(!set.contains(&format!("mutation-{}", MAX_COMMITTED_MUTATIONS + 4)));
+    }
 
     fn temp_paths() -> (PathBuf, OpenRequest) {
         let root = std::env::temp_dir().join(format!(

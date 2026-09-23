@@ -46,3 +46,42 @@ If a later task needs an upstream change:
 3. Replay only through `apply_patches.sh`. Do not edit `anki/` as a
    mixed Turna tree.
 4. Record the patch in `README.md` and the phase result report.
+## 0004-export-import-progress-view
+
+- File: `anki/rslib/src/progress.rs`
+- Change: new `ImportProgressView` struct + `import_progress_view(&ProgressState)`
+  free function. Re-exported from the crate root by 0005 (build.rs checks
+  one file per patch, so the re-export ships as its own patch).
+- Why: the bridge polls the shared `ProgressState` from the Dart-side cancel
+  path (`LATEST_PROGRESS`) but `Progress::Import` variants are private. The
+  view exposes stage + processed count without leaking the private enum.
+  Additive only; no upstream behavior change.
+- Delete when: upstream exposes an import-progress accessor for embedders.
+
+## 0005-export-import-progress-view-reexport
+
+- File: `anki/rslib/src/lib.rs`
+- Change: `pub use progress::{import_progress_view, ImportProgressView};`
+- Why: the bridge imports it as `anki::import_progress_view`; the module is
+  private upstream.
+- Delete when: together with 0004.
+
+## 0006-import-apkg-media-toggle-and-foreign-collection
+
+- File: `anki/rslib/src/import_export/package/apkg/import/mod.rs`
+- Change:
+  - `import_apkg` delegates to a new `import_apkg_with_media(.., with_media)`
+    so the bridge can stage an import without copying media twice
+    (`bridge/src/ops.rs` staged import path).
+  - New `import_foreign_collection(foreign_path, media_folder, options,
+    with_media)`: merges an already-imported staging collection into the
+    target without re-unzipping the original package — the backing of the
+    `PROMOTE_STAGING_COLLECTION` op (doc 38 cutover). Adds a private
+    `copy_dir` helper for the media folder merge.
+  - `Context` grows a `copy_media_files` flag; `prepare_media`/`copy_media`
+    are skipped when it is off (scheduling data still imports).
+- Why: the official-Anki migration stages packages into a throwaway
+    collection first and promotes them atomically after review; upstream
+    has no API for either half.
+- Delete when: upstream offers a media-toggle on `import_apkg` and/or a
+  collection-merge entry point.

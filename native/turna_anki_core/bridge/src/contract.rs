@@ -14,12 +14,19 @@ use crate::errors;
 
 pub const CONTRACT_MAJOR: u32 = 1;
 pub const CONTRACT_MINOR: u32 = 13;
+/// Advertised operation count, derived from `OP_TABLE` so callers/tests can
+/// pin `engine_info_payload` without hardcoding a number that drifts on the
+/// next op addition.
+/// Test-facing derivation (the ops.rs capability tripwire reads it); the
+/// non-test lib itself iterates OP_TABLE directly.
+#[allow(dead_code)]
+pub const OP_TABLE_LEN: usize = OP_TABLE.len();
 pub const OP_ENGINE_INFO: u32 = 1;
 const MAX_REQUEST_ID_BYTES: usize = 128;
 const MAX_ENVELOPE_PAYLOAD_BYTES: usize = 1_048_576;
 
 pub fn backend_commit() -> &'static str {
-    option_env!("TURNA_ANKI_BACKEND_COMMIT").unwrap_or("967aa0d578fc75181e292e95326f9b58698da25c")
+    option_env!("TURNA_ANKI_BACKEND_COMMIT").unwrap_or("f47bbfa6e6972c0455bca8a8922193006c061bb3")
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -159,13 +166,22 @@ const OP_TABLE: &[(&str, u32)] = &[
     ("LIST_DECK_TREE", engine::OP_LIST_DECK_TREE),
     ("SEARCH_CARDS_PAGE", engine::OP_SEARCH_CARDS_PAGE),
     ("GET_NOTE_CARDS_BATCH", engine::OP_GET_NOTE_CARDS_BATCH),
-    ("GET_CARD_DESCRIPTORS_BATCH", engine::OP_GET_CARD_DESCRIPTORS_BATCH),
+    (
+        "GET_CARD_DESCRIPTORS_BATCH",
+        engine::OP_GET_CARD_DESCRIPTORS_BATCH,
+    ),
     ("RENDER_CARD", engine::OP_RENDER_CARD),
     ("COMPARE_TYPED_ANSWER", engine::OP_COMPARE_TYPED_ANSWER),
-    ("EXTRACT_CLOZE_FOR_TYPING", engine::OP_EXTRACT_CLOZE_FOR_TYPING),
+    (
+        "EXTRACT_CLOZE_FOR_TYPING",
+        engine::OP_EXTRACT_CLOZE_FOR_TYPING,
+    ),
     ("GET_PROJECTION_SCHEMAS", engine::OP_GET_PROJECTION_SCHEMAS),
     ("BEGIN_PROJECTION_READ", engine::OP_BEGIN_PROJECTION_READ),
-    ("GET_PROJECTION_ROWS_BATCH", engine::OP_GET_PROJECTION_ROWS_BATCH),
+    (
+        "GET_PROJECTION_ROWS_BATCH",
+        engine::OP_GET_PROJECTION_ROWS_BATCH,
+    ),
     ("SET_CURRENT_DECK", engine::OP_SET_CURRENT_DECK),
     ("GET_REVIEW_QUEUE", engine::OP_GET_REVIEW_QUEUE),
     ("DESCRIBE_NEXT_STATES", engine::OP_DESCRIBE_NEXT_STATES),
@@ -185,10 +201,16 @@ const OP_TABLE: &[(&str, u32)] = &[
     ("GC_UNUSED_MEDIA", engine::OP_GC_UNUSED_MEDIA),
     ("PRUNE_EMPTY_METADATA", engine::OP_PRUNE_EMPTY_METADATA),
     ("COMPACT_COLLECTION", engine::OP_COMPACT_COLLECTION),
-    ("DIFF_COLLECTION_CHECKPOINT", engine::OP_DIFF_COLLECTION_CHECKPOINT),
+    (
+        "DIFF_COLLECTION_CHECKPOINT",
+        engine::OP_DIFF_COLLECTION_CHECKPOINT,
+    ),
     ("GET_CONFIG", engine::OP_GET_CONFIG),
     ("SET_CONFIG", engine::OP_SET_CONFIG),
-    ("SUMMARIZE_IMPORTED_NOTES", engine::OP_SUMMARIZE_IMPORTED_NOTES),
+    (
+        "SUMMARIZE_IMPORTED_NOTES",
+        engine::OP_SUMMARIZE_IMPORTED_NOTES,
+    ),
     (
         "PROMOTE_STAGING_COLLECTION",
         engine::OP_PROMOTE_STAGING_COLLECTION,

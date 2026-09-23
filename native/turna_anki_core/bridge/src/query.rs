@@ -337,6 +337,7 @@ mod reference {
                 "cardId": card.id,
                 "noteId": card.note_id,
                 "deckId": card.deck_id,
+                "notetypeId": note.notetype_id,
                 "noteGuid": note.guid,
                 "templateOrd": card.template_idx,
                 "queue": queue,
@@ -517,7 +518,10 @@ mod tests {
             };
             assert_eq!(got_descriptors, want_descriptors, "{pkg} descriptors");
 
-            let ghost = card_ids[0].max(900_000_000_000);
+            // Card ids are millisecond timestamps (~1.79e12 in these
+            // fixtures), so a fixed 9e11 floor is NOT past them; derive a
+            // ghost strictly above every real id instead.
+            let ghost = card_ids.iter().max().unwrap() + 1;
             let missing = dispatch(
                 handle,
                 OP_GET_CARD_DESCRIPTORS_BATCH,
