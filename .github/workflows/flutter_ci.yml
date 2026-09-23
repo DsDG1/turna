@@ -154,5 +154,7 @@ jobs:
       - name: Build release smoke test
         # Web is skipped because CI does not need the web artifact; content
         # validation is skipped here because course_validation.yml already
-        # validates course assets on content changes.
-        run: python3 tool/build_release.py --version ci-smoke --skip-web --skip-content-validation
+        # validates course assets on content changes. --allow-version-mismatch
+        # because the smoke label is off-version on purpose (pubspec stays
+        # the single source of release versioning).
+        run: python3 tool/build_release.py --version ci-smoke --skip-web --skip-content-validation --allow-version-mismatch
