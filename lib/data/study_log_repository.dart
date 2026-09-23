@@ -23,7 +23,7 @@ import 'package:turna/service/locator.dart';
 /// 90-day main blob every time. When the queue reaches the cap (or [flushRecent]
 /// is forced), recent entries are merged into `study.logs` and purged.
 /// [readLogs] always merges main + recent so callers never miss in-flight rows.
-@lazySingleton
+@LazySingleton(as: IStudyLogRepository)
 class StudyLogRepository implements IStudyLogRepository {
   final AppPrefs appPrefs;
 
@@ -197,6 +197,7 @@ class StudyLogRepository implements IStudyLogRepository {
     return filtered;
   }
 
+  @override
   Future<DailyStudyStats?> readDailyStats(
     DateTime date, {
     String? languageCode,
@@ -233,6 +234,7 @@ class StudyLogRepository implements IStudyLogRepository {
   }
 
   /// Invalidate decoded aggregates after preferences are restored externally.
+  @override
   Future<void> reloadFromPrefs() => _enqueueRead(() async {
         _dailyStatsCache = null;
         _mergedLogsCache = null;

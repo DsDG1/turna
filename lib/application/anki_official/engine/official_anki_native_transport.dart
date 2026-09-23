@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:ffi';
 import 'dart:io';
 import 'dart:typed_data';
@@ -205,10 +206,20 @@ class OfficialAnkiNativeTransport {
     final status = result.status;
     final bytes = _takeBuffer(result);
     if (status != 0) {
+      // BACKEND_PANIC carries {"panic": "<location>: <message>"} in the
+      // buffer (abi.rs guard_call); surface it so field reports say where
+      // the panic happened, not just that the transport failed.
+      var details = 'status=$status requestId=$requestId';
+      if (bytes.isNotEmpty) {
+        final text = utf8.decode(bytes, allowMalformed: true).trim();
+        if (text.isNotEmpty) {
+          details = '$details $text';
+        }
+      }
       throw OfficialAnkiException(
         code: officialAnkiErrorCodeFromStatus(status),
         messageKey: 'official_anki.transport_error',
-        debugDetails: 'status=$status requestId=$requestId',
+        debugDetails: details,
       );
     }
     if (bytes.isEmpty) {

@@ -11,7 +11,7 @@ import 'package:turna/application/score_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/application/streak_provider.dart';
 import 'package:turna/core/logger.dart';
-import 'package:turna/data/study_log_repository.dart';
+import 'package:turna/domain/repositories/i_study_log_repository.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/study/study_log.dart';
 import 'package:turna/service/locator.dart';
@@ -95,7 +95,7 @@ class AchievementMetricProjector {
   final LessonProgressProvider _lessonProgress;
   final StreakProvider _streakProvider;
   final ScoreProvider _scoreProvider;
-  final StudyLogRepository _studyLogRepository;
+  final IStudyLogRepository _studyLogRepository;
 
   AchievementMetricProjection? _projectionCache;
 

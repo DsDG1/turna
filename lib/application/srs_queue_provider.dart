@@ -14,8 +14,9 @@ import 'package:turna/core/fsrs_engine.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/core/sm2.dart';
 import 'package:turna/core/srs_scheduler.dart';
-import 'package:turna/data/review_history_dao.dart';
-import 'package:turna/data/srs_state_dao.dart';
+import 'package:turna/domain/repositories/i_review_history_store.dart';
+import 'package:turna/domain/review/review_history.dart';
+import 'package:turna/domain/repositories/i_srs_state_store.dart';
 import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/domain/course/lesson_word_link.dart';
 import 'package:turna/domain/course/srs_word.dart';
@@ -28,7 +29,7 @@ import 'package:turna/service/locator.dart';
 /// (legacy blob key, used only for the one-time v7 migration) / [queueId] /
 /// [logTag] and thin public API wrappers. See ADR 0013 and ADR 0021.
 ///
-/// State is persisted in SQLite (`srs_states`, via [SrsStateDao]); an in-memory
+/// State is persisted in SQLite (`srs_states`, via [ISrsStateStore]); an in-memory
 /// `Map<String, SrsWord>` cache (`_cachedState`) is the synchronous read source
 /// so the many synchronous consumers (`dueCount`, `getDueWords()`,
 /// `context.select`) are untouched. Call [ensureLoaded] once at startup (before
@@ -40,7 +41,7 @@ abstract class SrsQueueProvider extends ChangeNotifier {
 
   final AppPrefs appPrefs;
   final LessonLinkStore linkStore;
-  final SrsStateDao srsDao;
+  final ISrsStateStore srsDao;
 
   /// Production default: continuous FSRS memory model (ADR 0028).
   late SrsScheduler engine;
@@ -222,28 +223,28 @@ abstract class SrsQueueProvider extends ChangeNotifier {
   /// flight so the grade can't overwrite an undo restored mid-grade.
   final Set<String> _gradesInFlight = {};
 
-  ReviewHistoryDao? _reviewDao;
+  IReviewHistoryStore? _reviewDao;
   bool _reviewDaoResolved = false;
 
   /// The review-history DAO, lazily resolved from the DI container so the base
   /// class doesn't force every test to inject it. Null when unavailable (tests
   /// without DI) - review-event logging is then silently skipped. Resolved once
-  /// and cached; [ReviewHistoryDao] transitively needs `CourseDatabase`, so it
+  /// and cached; [IReviewHistoryStore] transitively needs `CourseDatabase`, so it
   /// only resolves in production (where [setupLocator] has opened the DB).
-  ReviewHistoryDao? get _effectiveReviewDao {
+  IReviewHistoryStore? get _effectiveReviewDao {
     if (_reviewDaoResolved) return _reviewDao;
     _reviewDaoResolved = true;
     try {
-      _reviewDao = GetIt.instance<ReviewHistoryDao>();
+      _reviewDao = GetIt.instance<IReviewHistoryStore>();
     } catch (_) {
       _reviewDao = null;
     }
     return _reviewDao;
   }
 
-  /// Inject a [ReviewHistoryDao] directly for tests that assert on events.
+  /// Inject a [IReviewHistoryStore] directly for tests that assert on events.
   @visibleForTesting
-  void setReviewHistoryDaoForTesting(ReviewHistoryDao dao) {
+  void setReviewHistoryDaoForTesting(IReviewHistoryStore dao) {
     _reviewDao = dao;
     _reviewDaoResolved = true;
   }
@@ -484,7 +485,7 @@ abstract class SrsQueueProvider extends ChangeNotifier {
   }
 
   /// Returns null if unknown. Records [lastReviewedAt] and appends a row to
-  /// `review_events` (when a [ReviewHistoryDao] is available) so the
+  /// `review_events` (when a [IReviewHistoryStore] is available) so the
   /// memory-curve features have per-card history. Uses [engine] (FSRS by
   /// default).
   Future<SrsWord?> _doReviewItem(

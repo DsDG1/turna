@@ -8,10 +8,10 @@ import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/review_dashboard/review_data_revision.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/core/logger.dart';
-import 'package:turna/data/anki_import_dao.dart';
-import 'package:turna/data/anki_note_dao.dart';
-import 'package:turna/data/anki_unification_dao.dart';
-import 'package:turna/data/review_history_dao.dart';
+import 'package:turna/domain/repositories/i_anki_import_store.dart';
+import 'package:turna/domain/repositories/i_anki_note_store.dart';
+import 'package:turna/domain/repositories/i_anki_unification_store.dart';
+import 'package:turna/domain/repositories/i_review_history_store.dart';
 import 'package:turna/domain/audio/anki_audio_resolver.dart';
 import 'package:turna/domain/repositories/i_course_repository.dart';
 
@@ -24,11 +24,11 @@ import 'package:turna/domain/repositories/i_course_repository.dart';
 class AnkiImportCleanupService {
   final ICourseRepository repository;
   final SrsProvider srsProvider;
-  final AnkiImportDao importDao;
-  final AnkiNoteDao noteDao;
-  final ReviewHistoryDao? reviewHistoryDao;
+  final IAnkiImportStore importDao;
+  final IAnkiNoteStore noteDao;
+  final IReviewHistoryStore? reviewHistoryDao;
   final AnkiAudioResolver audioResolver;
-  final AnkiUnificationDao? unificationDao;
+  final IAnkiUnificationStore? unificationDao;
   final MistakeProvider? mistakeProvider;
 
   /// Used to release the media player's file handles before media files are

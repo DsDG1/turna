@@ -7,6 +7,11 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/data/course_database.dart';
+import 'package:turna/data/sql_like.dart';
+import 'package:turna/domain/anki/anki_note_records.dart';
+import 'package:turna/domain/repositories/i_anki_note_store.dart';
+
+export 'package:turna/domain/anki/anki_note_records.dart';
 
 /// Data access object for leftover Legacy NoteStore tables
 /// (`anki_notetypes`, `anki_notes`, `anki_cards_meta`, schema v9).
@@ -18,12 +23,13 @@ import 'package:turna/data/course_database.dart';
 ///
 /// Row types are the `*Row` classes (renamed via `@DataClassName` on each
 /// table) to avoid colliding with the retired parser-era in-memory models.
-@lazySingleton
-class AnkiNoteDao {
+@LazySingleton(as: IAnkiNoteStore)
+class AnkiNoteDao implements IAnkiNoteStore {
   final CourseDatabase _db;
 
   AnkiNoteDao(this._db);
 
+  @override
   Future<void> setCardState(
     String importId,
     int cardId, {
@@ -63,6 +69,7 @@ class AnkiNoteDao {
 
   /// Search raw note fields within one imported deck. The JSON column is
   /// intentionally searched as text; the browser strips HTML only for display.
+  @override
   Future<List<AnkiCardBrowserRecord>> searchNotes(
     String importId,
     String query, {
@@ -82,18 +89,11 @@ class AnkiNoteDao {
       ..where(_db.ankiNotes.importId.equals(importId));
     final trimmed = query.trim();
     if (trimmed.isNotEmpty) {
-      // Escape LIKE wildcards so the user's query is matched literally. The
-      // backslash is escaped first (it is the ESCAPE char), then `%` and `_`.
-      // `_LikeWithEscape` emits `col LIKE ? ESCAPE '\'` with the pattern bound
-      // as a SQL parameter (no injection risk) - drift's `like()` has no
-      // escape support.
-      final escaped = trimmed
-          .replaceAll(r'\', r'\\')
-          .replaceAll('%', r'\%')
-          .replaceAll('_', r'\_');
-      final like = '%$escaped%';
+      // Escape LIKE wildcards so the user's query is matched literally
+      // (containsLike emits `col LIKE ? ESCAPE '\'` with the pattern bound
+      // as a SQL parameter - no injection risk).
       Expression<bool> escapedLike(Expression<String> col) =>
-          _LikeWithEscape(col, Variable.withString(like), r'\');
+          containsLike(col, trimmed);
       joined.where(
         escapedLike(_db.ankiNotes.fieldsJson) |
             escapedLike(_db.ankiNotes.sfld) |
@@ -196,6 +196,7 @@ class AnkiNoteDao {
   /// clean notetypes/notes/cards_meta (the deck index, issue log and
   /// practice projection tables were dropped with course.db v24).
   /// srs_states are cleaned separately by the `anki-<importId>-` prefix.
+  @override
   Future<void> deleteByImport(String importId) async {
     await _db.transaction(() async {
       await (_db.delete(_db.ankiNotetypes)
@@ -239,121 +240,4 @@ class AnkiNoteDao {
       schedulingJson: row.schedulingJson,
     );
   }
-}
-
-/// `col LIKE ? ESCAPE '\'` - drift's [Expression.like] has no escape support,
-/// so this emits the ESCAPE clause manually. The pattern is bound as a SQL
-/// variable (no injection risk); the escape character is a constant.
-class _LikeWithEscape extends Expression<bool> {
-  _LikeWithEscape(this.target, this.pattern, this.escape);
-
-  final Expression<String> target;
-  final Variable<String> pattern;
-  final String escape;
-
-  @override
-  Precedence get precedence => Precedence.comparisonEq;
-
-  @override
-  void writeInto(GenerationContext context) {
-    writeInner(context, target);
-    context.buffer.write(' LIKE ');
-    writeInner(context, pattern);
-    context.buffer.write(" ESCAPE '");
-    context.buffer.write(escape);
-    context.buffer.write("'");
-  }
-
-  @override
-  int get hashCode => Object.hash(target, pattern, escape);
-
-  @override
-  bool operator ==(Object other) =>
-      other is _LikeWithEscape &&
-      other.target == target &&
-      other.pattern == pattern &&
-      other.escape == escape;
-}
-
-/// Plain data class for an Anki note row (decoupled from the Drift row).
-class AnkiNoteRecord {
-  final String importId;
-  final int noteId;
-  final int mid;
-  final String tags;
-  final List<String> fields;
-  final String sfld;
-  final String guid;
-  final int mod;
-
-  const AnkiNoteRecord({
-    required this.importId,
-    required this.noteId,
-    required this.mid,
-    this.tags = '',
-    this.fields = const [],
-    this.sfld = '',
-    this.guid = '',
-    this.mod = 0,
-  });
-}
-
-/// Plain data class for an Anki card-meta row (decoupled from the Drift row).
-class AnkiCardMetaRecord {
-  final String importId;
-  final int cardId;
-  final int noteId;
-  final int ord;
-  final int did;
-  final String wordId;
-  final String renderMode;
-  final String schedulingJson;
-  final bool suspended;
-  final int? buriedUntil;
-  final bool marked;
-  final int flag;
-
-  const AnkiCardMetaRecord({
-    required this.importId,
-    required this.cardId,
-    required this.noteId,
-    this.ord = 0,
-    this.did = 0,
-    required this.wordId,
-    this.renderMode = 'hybrid',
-    this.schedulingJson = '{}',
-    this.suspended = false,
-    this.buriedUntil,
-    this.marked = false,
-    this.flag = 0,
-  });
-
-  AnkiCardMetaRecord copyWith({
-    bool? suspended,
-    int? buriedUntil,
-    bool? marked,
-    int? flag,
-  }) {
-    return AnkiCardMetaRecord(
-      importId: importId,
-      cardId: cardId,
-      noteId: noteId,
-      ord: ord,
-      did: did,
-      wordId: wordId,
-      renderMode: renderMode,
-      schedulingJson: schedulingJson,
-      suspended: suspended ?? this.suspended,
-      buriedUntil: buriedUntil ?? this.buriedUntil,
-      marked: marked ?? this.marked,
-      flag: flag ?? this.flag,
-    );
-  }
-}
-
-class AnkiCardBrowserRecord {
-  final AnkiNoteRecord note;
-  final AnkiCardMetaRecord card;
-
-  const AnkiCardBrowserRecord({required this.note, required this.card});
 }

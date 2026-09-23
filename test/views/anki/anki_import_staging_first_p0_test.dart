@@ -42,6 +42,10 @@ import 'package:turna/domain/repositories/i_course_repository.dart';
 import 'package:turna/service/locator.dart';
 
 import '../../helpers/in_memory_course_db.dart';
+import 'package:turna/domain/repositories/i_anki_import_store.dart';
+import 'package:turna/domain/repositories/i_anki_note_store.dart';
+import 'package:turna/domain/repositories/i_anki_unification_store.dart';
+import 'package:turna/domain/repositories/i_review_history_store.dart';
 
 const _flags = OfficialAnkiFeatureFlags(
   engine: true,
@@ -121,10 +125,10 @@ void main() {
     await getIt.reset();
     getIt.registerSingleton<CourseDatabase>(course);
     getIt.registerSingleton<ICourseRepository>(CourseRepository(course));
-    getIt.registerSingleton<ReviewHistoryDao>(ReviewHistoryDao(course));
-    getIt.registerSingleton<AnkiNoteDao>(AnkiNoteDao(course));
-    getIt.registerSingleton<AnkiImportDao>(AnkiImportDao(course));
-    getIt.registerSingleton<AnkiUnificationDao>(AnkiUnificationDao(course));
+    getIt.registerSingleton<IReviewHistoryStore>(ReviewHistoryDao(course));
+    getIt.registerSingleton<IAnkiNoteStore>(AnkiNoteDao(course));
+    getIt.registerSingleton<IAnkiImportStore>(AnkiImportDao(course));
+    getIt.registerSingleton<IAnkiUnificationStore>(AnkiUnificationDao(course));
     courseProvider = CourseProvider(appPrefs);
     getIt.registerSingleton<CourseProvider>(courseProvider);
     getIt.registerSingleton<SrsProvider>(

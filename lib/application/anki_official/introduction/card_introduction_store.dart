@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:turna/application/anki_official/introduction/card_introduction_eligibility.dart';
-import 'package:turna/data/anki_unification_dao.dart';
+import 'package:turna/domain/repositories/i_anki_unification_store.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/anki/canonical_card_key.dart';
 import 'package:turna/domain/anki/card_introduction_state.dart';
@@ -35,11 +35,11 @@ class CardIntroductionChanged {
 /// reads the ledger through [introducedCardIdsFromLedger] instead.
 class CardIntroductionStore {
   CardIntroductionStore({
-    AnkiUnificationDao? dao,
+    IAnkiUnificationStore? dao,
     this.eligibility = const CardIntroductionEligibility(),
   }) : _dao = dao;
 
-  final AnkiUnificationDao? _dao;
+  final IAnkiUnificationStore? _dao;
   final CardIntroductionEligibility eligibility;
 
   /// Test seam. Production uses GetIt when registered.

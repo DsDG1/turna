@@ -9,7 +9,7 @@ import 'package:turna/courses/languages/language_content_store.dart';
 import 'package:turna/data/course_database.dart' show CourseDatabase;
 import 'package:turna/data/course_database_seeder.dart' show DatabaseSeeder;
 import 'package:turna/data/course_repository.dart';
-import 'package:turna/data/study_log_repository.dart';
+import 'package:turna/domain/repositories/i_study_log_repository.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/language_codes.dart';
 
@@ -55,8 +55,8 @@ class BuiltinLanguageLifecycleService {
     await CourseRepository(db).deleteBuiltinLanguage(code);
     // Study logs/daily aggregates live in prefs, not the course DB.
     try {
-      if (getIt.isRegistered<StudyLogRepository>()) {
-        await getIt<StudyLogRepository>().deleteByLanguage(code);
+      if (getIt.isRegistered<IStudyLogRepository>()) {
+        await getIt<IStudyLogRepository>().deleteByLanguage(code);
       }
     } catch (error) {
       logger.w('BuiltinLanguage: study log cleanup for $code failed: $error');

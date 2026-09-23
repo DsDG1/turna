@@ -21,8 +21,7 @@ import 'package:turna/application/ai/textbook/markdown_chopper.dart';
 import 'package:turna/application/ai/textbook/textbook_presets.dart';
 import 'package:turna/application/ai/textbook/textbook_to_course.dart';
 import 'package:turna/core/logger.dart';
-import 'package:turna/data/course_database.dart' as db;
-import 'package:turna/data/course_repository.dart';
+import 'package:turna/domain/repositories/i_course_repository.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/utils/validated_file_picker.dart';
 
@@ -66,16 +65,16 @@ enum TextbookImportStep {
 class TextbookImportProvider extends AiRequestSessionBase {
   TextbookImportProvider({
     AiEngine? engine,
-    CourseRepository? repository,
+    ICourseRepository? repository,
   })  : _engine = engine ?? getIt<AiEngine>(),
         _repository =
-            repository ?? CourseRepository(getIt<db.CourseDatabase>()),
+            repository ?? getIt<ICourseRepository>(),
         _chopper = const MarkdownChopper(),
         _merger = const KnowledgeMerger(),
         _builder = const TextbookToCourse();
 
   final AiEngine _engine;
-  final CourseRepository? _repository;
+  final ICourseRepository? _repository;
   final MarkdownChopper _chopper;
   final KnowledgeMerger _merger;
   final TextbookToCourse _builder;

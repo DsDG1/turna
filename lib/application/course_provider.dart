@@ -553,7 +553,12 @@ class CourseProvider extends ChangeNotifier {
     logger.i('CourseProvider.ensureSectionLoaded($id): starting fetch');
     () async {
       try {
-        final full = await CourseLoader.loadSection(id);
+        // Scope the fetch to the owning language when the id map is loaded —
+        // ids are unique per language only, and this is the read-side guard.
+        final full = await CourseLoader.loadSection(
+          id,
+          languageCode: _sectionLanguageCodes[id],
+        );
         logger.i(
           'CourseProvider.ensureSectionLoaded($id): body received, '
           'replacing shell',

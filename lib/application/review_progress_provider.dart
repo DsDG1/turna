@@ -7,8 +7,10 @@ import 'package:turna/application/memory_curve_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/core/fsrs_engine.dart';
 import 'package:turna/core/srs_scheduler.dart';
-import 'package:turna/data/anki_import_dao.dart';
-import 'package:turna/data/review_history_dao.dart';
+import 'package:turna/domain/repositories/i_anki_import_store.dart';
+import 'package:turna/domain/repositories/i_review_history_store.dart';
+import 'package:turna/domain/review/review_activity.dart';
+import 'package:turna/domain/review/review_history.dart';
 import 'package:turna/domain/course/srs_word.dart';
 import 'package:turna/l10n/app_strings.dart';
 
@@ -160,10 +162,10 @@ class ReviewProgressProvider {
     this._ankiImportDao,
   );
 
-  final ReviewHistoryDao _reviewDao;
+  final IReviewHistoryStore _reviewDao;
   final SrsProvider _srs;
   final GrammarReviewProvider _grammar;
-  final AnkiImportDao _ankiImportDao;
+  final IAnkiImportStore _ankiImportDao;
 
   final SrsScheduler _scheduler = FsrsEngine(enableFuzzing: false);
 

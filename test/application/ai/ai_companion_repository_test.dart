@@ -142,6 +142,39 @@ void main() {
     expect((await repository.searchNotes('元音')).single.id, 'n1');
   });
 
+  test('searchNotes treats % and _ in the query as literals', () async {
+    final now = DateTime(2026, 8, 6);
+    await repository.saveNote(AiLearningNote(
+      id: 'literal-note',
+      title: '100% bagü',
+      body: 'underscore_body',
+      source: 'hint',
+      createdAt: now,
+      updatedAt: now,
+    ));
+    await repository.saveNote(AiLearningNote(
+      id: 'wildcard-bait',
+      title: '100 percent baggage',
+      body: 'underscoreXbody',
+      source: 'hint',
+      createdAt: now,
+      updatedAt: now,
+    ));
+
+    // '%' must not act as a wildcard: '100%' must NOT match '100 percent ...'.
+    final percentHits = await repository.searchNotes('100%');
+    expect(percentHits.map((n) => n.id), ['literal-note']);
+
+    // '_' must not act as a single-char wildcard: 'underscore_body' must NOT
+    // match 'underscoreXbody'.
+    final underscoreHits = await repository.searchNotes('underscore_body');
+    expect(underscoreHits.map((n) => n.id), ['literal-note']);
+
+    // A query with no wildcards still finds the literal '%' text.
+    final plainHits = await repository.searchNotes('bagü');
+    expect(plainHits.map((n) => n.id), ['literal-note']);
+  });
+
   test('request metrics aggregate without storing prompt text', () async {
     final now = DateTime(2026, 8, 6, 12);
     // A cache hit re-records the ORIGINAL request's tokens, but those were not

@@ -16,8 +16,8 @@ import 'package:turna/application/ai/engine/ai_engine_config.dart';
 import 'package:turna/application/ai/engine/ai_recent_tasks_provider.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/weak_word_quiz_assembler.dart';
-import 'package:turna/data/srs_state_dao.dart';
 import 'package:turna/di/injection.dart';
+import 'package:turna/domain/repositories/i_srs_state_store.dart';
 import 'package:turna/domain/course/mistake_entry.dart';
 import 'package:turna/domain/course/srs_word.dart';
 import 'package:turna/domain/study/daily_stats.dart';
@@ -45,16 +45,16 @@ class SrsTutorProvider extends ChangeNotifier {
     AiEngine? engine,
     AiCourseProvider? courseProvider,
     MistakeProvider? mistakeProvider,
-    SrsStateDao? srsDao,
+    ISrsStateStore? srsDao,
   })  : _engine = engine ?? getIt<AiEngine>(),
         _courseProvider = courseProvider ?? getIt<AiCourseProvider>(),
         _mistakes = mistakeProvider ?? getIt<MistakeProvider>(),
-        _srsDao = srsDao ?? getIt<SrsStateDao>();
+        _srsDao = srsDao ?? getIt<ISrsStateStore>();
 
   final AiEngine _engine;
   final AiCourseProvider _courseProvider;
   final MistakeProvider _mistakes;
-  final SrsStateDao _srsDao;
+  final ISrsStateStore _srsDao;
   // Pure-helper shim used for parseCompletion (no network, no DI needed).
   static final AiCourseService _parseHelper = AiCourseService();
 

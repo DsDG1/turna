@@ -48,6 +48,10 @@ import 'package:turna/views/anki/anki_import_screen.dart';
 import 'package:path/path.dart' as p;
 
 import '../../helpers/in_memory_course_db.dart';
+import 'package:turna/domain/repositories/i_anki_import_store.dart';
+import 'package:turna/domain/repositories/i_anki_note_store.dart';
+import 'package:turna/domain/repositories/i_anki_unification_store.dart';
+import 'package:turna/domain/repositories/i_review_history_store.dart';
 
 class _FakePicker extends FilePicker {
   _FakePicker(this.path);
@@ -136,11 +140,11 @@ void main() {
     await getIt.reset();
     getIt.registerSingleton<CourseDatabase>(db);
     getIt.registerSingleton<ICourseRepository>(CourseRepository(db));
-    getIt.registerSingleton<ReviewHistoryDao>(ReviewHistoryDao(db));
-    getIt.registerSingleton<AnkiNoteDao>(AnkiNoteDao(db));
+    getIt.registerSingleton<IReviewHistoryStore>(ReviewHistoryDao(db));
+    getIt.registerSingleton<IAnkiNoteStore>(AnkiNoteDao(db));
     final importDao = AnkiImportDao(db);
-    getIt.registerSingleton<AnkiImportDao>(importDao);
-    getIt.registerSingleton<AnkiUnificationDao>(AnkiUnificationDao(db));
+    getIt.registerSingleton<IAnkiImportStore>(importDao);
+    getIt.registerSingleton<IAnkiUnificationStore>(AnkiUnificationDao(db));
 
     courseProvider = CourseProvider(appPrefs);
     final linkStore = LessonLinkStore(appPrefs);
@@ -153,7 +157,7 @@ void main() {
         repo: getIt<ICourseRepository>(),
         srsProvider: srsProvider,
         importDao: importDao,
-        noteDao: getIt<AnkiNoteDao>(),
+        noteDao: getIt<IAnkiNoteStore>(),
         appPrefs: appPrefs,
       ),
     );
@@ -229,7 +233,7 @@ void main() {
       findsOneWidget,
       reason: 'wizard returned to the select step with the mapped error',
     );
-    final records = await getIt<AnkiImportDao>().getAll();
+    final records = await getIt<IAnkiImportStore>().getAll();
     expect(records, isEmpty,
         reason: 'official-first failure must write no anki_imports row');
     expect(
@@ -276,7 +280,7 @@ void main() {
       ),
       findsOneWidget,
     );
-    final records = await getIt<AnkiImportDao>().getAll();
+    final records = await getIt<IAnkiImportStore>().getAll();
     expect(records, isEmpty, reason: 'flag-off must not write Legacy rows');
     expect(
       srsProvider.state.keys.where((id) => id.startsWith('anki-')),
@@ -301,7 +305,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(failing.calls, 0);
-    final records = await getIt<AnkiImportDao>().getAll();
+    final records = await getIt<IAnkiImportStore>().getAll();
     expect(records, isEmpty,
         reason: 'flag-off must not resurrect a Legacy writer');
   });

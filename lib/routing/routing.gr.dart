@@ -1707,6 +1707,8 @@ class UnifiedReviewRoute extends _i53.PageRouteInfo<UnifiedReviewRouteArgs> {
     required List<_i76.ReviewItem> items,
     required _i77.ReviewLedgerResolver ledgerResolver,
     String? title,
+    int remainingDue = 0,
+    _i54.VoidCallback? onReviewMore,
     _i67.Future<void> Function(_i76.ReviewItem, _i78.RecallOutcome)?
         onOutcomeRecorded,
     _i67.Future<void> Function(_i79.ReviewEventReceipt)? onOutcomeUndone,
@@ -1718,6 +1720,8 @@ class UnifiedReviewRoute extends _i53.PageRouteInfo<UnifiedReviewRouteArgs> {
             items: items,
             ledgerResolver: ledgerResolver,
             title: title,
+            remainingDue: remainingDue,
+            onReviewMore: onReviewMore,
             onOutcomeRecorded: onOutcomeRecorded,
             onOutcomeUndone: onOutcomeUndone,
           ),
@@ -1735,6 +1739,8 @@ class UnifiedReviewRoute extends _i53.PageRouteInfo<UnifiedReviewRouteArgs> {
         items: args.items,
         ledgerResolver: args.ledgerResolver,
         title: args.title,
+        remainingDue: args.remainingDue,
+        onReviewMore: args.onReviewMore,
         onOutcomeRecorded: args.onOutcomeRecorded,
         onOutcomeUndone: args.onOutcomeUndone,
       );
@@ -1748,6 +1754,8 @@ class UnifiedReviewRouteArgs {
     required this.items,
     required this.ledgerResolver,
     this.title,
+    this.remainingDue = 0,
+    this.onReviewMore,
     this.onOutcomeRecorded,
     this.onOutcomeUndone,
   });
@@ -1760,6 +1768,10 @@ class UnifiedReviewRouteArgs {
 
   final String? title;
 
+  final int remainingDue;
+
+  final _i54.VoidCallback? onReviewMore;
+
   final _i67.Future<void> Function(_i76.ReviewItem, _i78.RecallOutcome)?
       onOutcomeRecorded;
 
@@ -1767,7 +1779,7 @@ class UnifiedReviewRouteArgs {
 
   @override
   String toString() {
-    return 'UnifiedReviewRouteArgs{key: $key, items: $items, ledgerResolver: $ledgerResolver, title: $title, onOutcomeRecorded: $onOutcomeRecorded, onOutcomeUndone: $onOutcomeUndone}';
+    return 'UnifiedReviewRouteArgs{key: $key, items: $items, ledgerResolver: $ledgerResolver, title: $title, remainingDue: $remainingDue, onReviewMore: $onReviewMore, onOutcomeRecorded: $onOutcomeRecorded, onOutcomeUndone: $onOutcomeUndone}';
   }
 
   @override
@@ -1777,7 +1789,9 @@ class UnifiedReviewRouteArgs {
     return key == other.key &&
         const _i80.ListEquality<_i76.ReviewItem>().equals(items, other.items) &&
         ledgerResolver == other.ledgerResolver &&
-        title == other.title;
+        title == other.title &&
+        remainingDue == other.remainingDue &&
+        onReviewMore == other.onReviewMore;
   }
 
   @override
@@ -1785,7 +1799,9 @@ class UnifiedReviewRouteArgs {
       key.hashCode ^
       const _i80.ListEquality<_i76.ReviewItem>().hash(items) ^
       ledgerResolver.hashCode ^
-      title.hashCode;
+      title.hashCode ^
+      remainingDue.hashCode ^
+      onReviewMore.hashCode;
 }
 
 /// generated route for

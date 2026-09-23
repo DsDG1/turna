@@ -12,17 +12,9 @@ import 'package:path_provider/path_provider.dart';
 import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 
 // Project imports:
-import 'package:turna/application/ai/ai_explain_prefs.dart';
-import 'package:turna/application/ai/ai_saved_explanations.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_sqlite.dart';
-import 'package:turna/application/settings/commands/apply_fsrs_parameters_command.dart';
-import 'package:turna/application/settings/commands/clear_regenerable_caches_command.dart';
-import 'package:turna/application/settings/commands/reset_account_command.dart';
-import 'package:turna/application/settings/commands/reset_learning_settings_command.dart';
-import 'package:turna/application/settings/commands/update_daily_reminder_command.dart';
 import 'package:turna/application/restore_normalization_service.dart';
-import 'package:turna/application/system_health_monitor.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/core/verbose.dart';
 import 'package:turna/application/anki_official/introduction/card_introduction_store.dart';
@@ -32,11 +24,11 @@ import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/data/course_database_seeder.dart';
 import 'package:turna/data/course_db_backup.dart';
-import 'package:turna/domain/repositories/i_credential_store.dart';
-import 'package:turna/service/secure_credential_store.dart';
+import 'package:turna/data/mistake_repository.dart';
+import 'package:turna/domain/repositories/i_anki_unification_store.dart';
+import 'package:turna/domain/repositories/i_mistake_repository.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/auth/local_user.dart';
-import 'package:turna/service/export_service.dart';
 import 'package:turna/service/remote_backup/backup_snapshot_service.dart';
 import 'package:turna/service/remote_backup/remote_backup_config.dart';
 import 'package:turna/service/remote_backup/remote_backup_service.dart';
@@ -44,7 +36,6 @@ import 'package:turna/service/remote_backup/restore_applier.dart';
 import 'package:turna/service/remote_backup/webdav_client.dart';
 import 'package:turna/service/remote_backup/webdav_remote_backup_store.dart';
 import 'package:turna/service/course_db_ready.dart';
-import 'package:turna/service/tab_router.dart';
 
 class AppPrefs {
   final StreamingSharedPreferences preferences;
@@ -318,23 +309,23 @@ class LocalStateKeys {
       'remoteBackup.normalizationPending';
 }
 
-/// Making AppPrefs injectable
+/// Manual track of the two-track DI bootstrap.
+///
+/// `configureDependencies()` (generated track) runs first and synchronously
+/// registers everything Injectable can express — including the plain
+/// synchronous factories that moved into `di/service_module.dart` in batch 7.
+/// This function keeps only what Injectable cannot express:
+///  * async construction: `AppPrefs` (StreamingSharedPreferences),
+///    `PackageInfo`, `FlutterTts` (platform-gated),
+///    `Directory`/`int` for `TurnaMigrationImporter` (documents dir is async);
+///  * the [CourseDatabase] open → probe → restore-from-backup → reopen chain
+///    ([_openAndMigrateCourseDatabase]) plus the DAO/store registrations that
+///    must only exist when the database actually opened;
+///  * `RemoteBackupService`, whose factory closes over an async-resolved
+///    `appSupport` directory and a WebDAV client builder.
 Future<void> setupLocator() async {
   final preferences = await StreamingSharedPreferences.instance;
   getIt.registerLazySingleton<AppPrefs>(() => AppPrefs(preferences));
-
-  // Bottom-nav tab switcher — registered early so HomePage and any pushed
-  // route (e.g. lesson dialog) can resolve it synchronously.
-  getIt.registerLazySingleton<TabRouter>(() => TabRouter());
-
-  // Platform secure credential storage (AI API key, WebDAV password). Falls
-  // back to a session-only in-memory store when the platform plugin is
-  // unavailable; isPersistent tells consumers which one they got.
-  if (!getIt.isRegistered<ICredentialStore>()) {
-    getIt.registerLazySingleton<ICredentialStore>(
-      () => SecureCredentialStore(),
-    );
-  }
 
   // Move a legacy plaintext WebDAV password (old releases stored it inside
   // the prefs JSON) into the secure store. Idempotent; on any failure the
@@ -346,49 +337,6 @@ Future<void> setupLocator() async {
         migrationStatus != RemoteBackupCredentialMigrationStatus.migrated) {
       logger.w('WebDAV credential migration deferred: $migrationStatus');
     }
-  }
-
-  if (!getIt.isRegistered<SystemHealthMonitor>()) {
-    getIt.registerLazySingleton<SystemHealthMonitor>(
-      () => SystemHealthMonitor(getIt<AppPrefs>()),
-    );
-  }
-
-  // Cross-service settings operations run through command coordinators so
-  // widgets never orchestrate multi-service side effects themselves.
-  if (!getIt.isRegistered<UpdateDailyReminderCommand>()) {
-    getIt.registerLazySingleton<UpdateDailyReminderCommand>(
-        () => UpdateDailyReminderCommand());
-  }
-  if (!getIt.isRegistered<ResetLearningSettingsCommand>()) {
-    getIt.registerLazySingleton<ResetLearningSettingsCommand>(
-        () => ResetLearningSettingsCommand());
-  }
-  if (!getIt.isRegistered<ResetAccountCommand>()) {
-    getIt.registerLazySingleton<ResetAccountCommand>(
-        () => ResetAccountCommand());
-  }
-  if (!getIt.isRegistered<ApplyFsrsParametersCommand>()) {
-    getIt.registerLazySingleton<ApplyFsrsParametersCommand>(
-        () => ApplyFsrsParametersCommand());
-  }
-  if (!getIt.isRegistered<ClearRegenerableCachesCommand>()) {
-    getIt.registerLazySingleton<ClearRegenerableCachesCommand>(
-        () => ClearRegenerableCachesCommand());
-  }
-
-  getIt.registerLazySingleton<ExportService>(
-      () => ExportService(getIt<AppPrefs>()));
-
-  // Companion stores — single instances for all AI surfaces (hardens against
-  // orphan prefs that ignore settings UI changes).
-  if (!getIt.isRegistered<AiExplainPrefsStore>()) {
-    getIt.registerLazySingleton<AiExplainPrefsStore>(
-        () => AiExplainPrefsStore());
-  }
-  if (!getIt.isRegistered<AiSavedExplanationsStore>()) {
-    getIt.registerLazySingleton<AiSavedExplanationsStore>(
-        () => AiSavedExplanationsStore());
   }
 
   if (!kIsWeb) {
@@ -406,10 +354,11 @@ Future<void> setupLocator() async {
   var remoteRestoreApplied = false;
   if (!kIsWeb) {
     final appSupport = await getApplicationSupportDirectory();
+    final appDocuments = await getApplicationDocumentsDirectory();
     final outcome = await RestoreApplier(
       prefs: getIt<AppPrefs>(),
       appSupport: appSupport,
-      appDocuments: await getApplicationDocumentsDirectory(),
+      appDocuments: appDocuments,
       officialProfileRoot:
           Directory(p.join(appSupport.path, 'official_anki', 'default')),
       currentDriftSchema: CourseDatabase.kSchemaVersion,
@@ -419,6 +368,17 @@ Future<void> setupLocator() async {
       logger.i('Remote restore boot outcome: $outcome');
     }
     remoteRestoreApplied = outcome == RestoreApplyOutcome.applied;
+
+    // TurnaMigrationImporter's generated factory resolves a Directory media
+    // root and an int free-space floor (gh<Directory>() / gh<int>()). A sync
+    // @module cannot provide them — getApplicationDocumentsDirectory() is
+    // async, and @preResolve would make init() async for every synchronous
+    // configureDependencies() call site (main.dart, DI tests). The manual
+    // track bridges them until the DI-track merge. The media root mirrors
+    // the exporter's legacyMediaRoot convention: <documents>/anki_media.
+    getIt.registerSingleton<Directory>(
+        Directory(p.join(appDocuments.path, 'anki_media')));
+    getIt.registerSingleton<int>(64 * 1024 * 1024);
   }
 
   // Open + migrate before the first frame so the registered handle is the
@@ -426,22 +386,13 @@ Future<void> setupLocator() async {
   // scope repair wait for [ensureCourseDatabaseReady] so the splash can paint.
   final db = await _openAndMigrateCourseDatabase();
   getIt.registerSingleton<CourseDatabase>(db);
-  getIt.registerSingleton(AnkiUnificationDao(db));
+  getIt.registerSingleton<IAnkiUnificationStore>(AnkiUnificationDao(db));
+  getIt.registerSingleton<IMistakeRepository>(MistakeRepository(db));
   getIt.registerSingleton(
-      CardIntroductionStore(dao: getIt<AnkiUnificationDao>()));
+      CardIntroductionStore(dao: getIt<IAnkiUnificationStore>()));
   _readyCourseDb = db;
   _courseDbReadyGate = CourseDbReadyGate(() => _seedCourseDatabase(db));
 
-  if (!getIt.isRegistered<RestoreNormalizationService>()) {
-    getIt.registerLazySingleton<RestoreNormalizationService>(
-      () => RestoreNormalizationService(
-        prefs: getIt<AppPrefs>(),
-        gems: getIt(),
-        cosmetics: getIt(),
-        aiConfig: getIt(),
-      ),
-    );
-  }
   final normalizationPending = remoteRestoreApplied ||
       getIt<AppPrefs>()
           .preferences
@@ -462,17 +413,6 @@ Future<void> setupLocator() async {
     final appSupport = await getApplicationSupportDirectory();
     if (!getIt.isRegistered<PackageInfo>()) {
       getIt.registerSingleton<PackageInfo>(await PackageInfo.fromPlatform());
-    }
-    if (!getIt.isRegistered<RemoteBackupConfigStore>()) {
-      getIt.registerLazySingleton<RemoteBackupConfigStore>(
-          () => RemoteBackupConfigStore(getIt<AppPrefs>()));
-    }
-    if (!getIt.isRegistered<BackupSnapshotService>()) {
-      getIt.registerLazySingleton<BackupSnapshotService>(
-          () => BackupSnapshotService(
-                db: getIt<CourseDatabase>(),
-                packageInfo: getIt<PackageInfo>(),
-              ));
     }
     if (!getIt.isRegistered<RemoteBackupService>()) {
       getIt.registerLazySingleton<RemoteBackupService>(() {

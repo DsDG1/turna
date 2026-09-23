@@ -2,10 +2,11 @@ import 'package:drift/drift.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/domain/anki/canonical_card_key.dart';
 import 'package:turna/domain/anki/card_introduction_state.dart';
+import 'package:turna/domain/repositories/i_anki_unification_store.dart';
 
 /// Persistence for course placement / presentation / introduction tables
 /// added in schema v18. Scheduling remains in the source-owned ledger.
-class AnkiUnificationDao {
+class AnkiUnificationDao implements IAnkiUnificationStore {
   AnkiUnificationDao(this._db);
 
   final CourseDatabase _db;
@@ -13,9 +14,11 @@ class AnkiUnificationDao {
   /// Runs [action] inside a single database transaction so multi-row
   /// identity writes are all-or-nothing (a thrown error rolls back every
   /// insert in the batch).
+  @override
   Future<T> transaction<T>(Future<T> Function() action) =>
       _db.transaction(action);
 
+  @override
   Future<void> upsertIntroduction({
     required String courseId,
     required CanonicalCardKey key,
@@ -52,6 +55,7 @@ class AnkiUnificationDao {
     );
   }
 
+  @override
   Future<CardIntroductionState> introductionState({
     required String courseId,
     required CanonicalCardKey key,
@@ -112,6 +116,7 @@ class AnkiUnificationDao {
   /// is the authoritative read for the scheduler lock (what may never be
   /// suspended) and for completion unlocking — neither depends on any
   /// in-memory mirror.
+  @override
   Future<Set<int>> introducedCardIdsForSource({
     required String sourceId,
   }) async {
@@ -127,6 +132,7 @@ class AnkiUnificationDao {
   }
 
   /// Insert an initial row without clobbering a later introduced/retired state.
+  @override
   Future<void> ensureInitial({
     required String courseId,
     required CanonicalCardKey key,
@@ -160,6 +166,7 @@ class AnkiUnificationDao {
   /// row was inserted or upgraded; rows already introduced or retired are
   /// left untouched — a backfill must never rewrite the course-taught or
   /// retired lifecycle.
+  @override
   Future<bool> adoptImportedHistory({
     required String courseId,
     required CanonicalCardKey key,
@@ -195,6 +202,7 @@ class AnkiUnificationDao {
   /// P5F-31: drop every unification row owned by [courseId] (official source
   /// uninstall). These tables have no inbound foreign keys, so plain deletes
   /// in any order are safe inside the caller's flow.
+  @override
   Future<void> deleteByCourseId(String courseId) async {
     for (final table in const [
       'anki_card_introduction_states',

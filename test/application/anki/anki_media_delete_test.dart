@@ -87,10 +87,12 @@ class _CleanupRepo implements ICourseRepository {
   Future<void> deleteOfficialProjection(String sourceId) async {}
 
   @override
-  Future<Section> section(String id) async => throw UnimplementedError();
+  Future<Section> section(String id, {String? languageCode}) async =>
+      throw UnimplementedError();
 
   @override
-  Future<Lesson> lessonById(String id) async => throw UnimplementedError();
+  Future<Lesson> lessonById(String id, {String? languageCode}) async =>
+      throw UnimplementedError();
 
   @override
   Future<List<Lesson>> lessonsContainingAny(Iterable<String> needles) async =>
@@ -109,19 +111,46 @@ class _CleanupRepo implements ICourseRepository {
   Future<List<GrammarPoint>> grammarPoints({String? languageCode}) async => [];
 
   @override
-  Future<GrammarPoint?> grammarPointById(String id) async => null;
+  Future<GrammarPoint?> grammarPointById(String id,
+          {String? languageCode}) async =>
+      null;
 
   @override
   Future<List<Expression>> expressions({String? languageCode}) async => [];
 
   @override
-  Future<Expression?> expressionById(String id) async => null;
+  Future<Expression?> expressionById(String id,
+          {String? languageCode}) async =>
+      null;
 
   @override
   Future<String?> contentVersion({String? languageCode}) async => null;
 
   @override
   int get schemaVersion => -1;
+
+  @override
+  Future<void> deleteBuiltinLanguage(String languageCode) async {}
+
+  @override
+  Future<void> clearLanguageUninstallMarker(String languageCode) async {}
+
+  @override
+  Future<Set<String>> uninstalledLanguageCodes() async => const {};
+
+  @override
+  Future<Set<String>> lessonIdsForLanguage(String languageCode) async =>
+      const {};
+
+  @override
+  Future<Set<String>> resourceIdsForLanguage(String languageCode) async =>
+      const {};
+
+  @override
+  Future<bool> languageHasContent(String languageCode) async => false;
+
+  @override
+  Future<Map<String, int>> builtinCardCounts() async => const {};
 }
 
 void main() {

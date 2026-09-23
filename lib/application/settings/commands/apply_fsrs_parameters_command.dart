@@ -12,7 +12,8 @@ import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/core/fsrs_optimizer.dart';
 import 'package:turna/core/logger.dart';
-import 'package:turna/data/review_history_dao.dart';
+import 'package:turna/domain/repositories/i_review_history_store.dart';
+import 'package:turna/domain/review/review_history.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/service/locator.dart';
 
@@ -88,7 +89,7 @@ class ApplyFsrsParametersCommand {
       final languageCode = getIt.isRegistered<SrsProvider>()
           ? getIt<SrsProvider>().languageFilter
           : null;
-      events = await getIt<ReviewHistoryDao>().allEvents(
+      events = await getIt<IReviewHistoryStore>().allEvents(
         languageCode: languageCode,
       );
     } on Object catch (error) {

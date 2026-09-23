@@ -4,28 +4,16 @@ import 'dart:math';
 // Package imports:
 import 'package:drift/drift.dart';
 import 'package:injectable/injectable.dart';
+import 'package:sqlite3/sqlite3.dart' show SqliteException;
 
 // Project imports:
+import 'package:turna/core/logger.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/domain/game/gem_consumable.dart';
+import 'package:turna/domain/repositories/i_gem_ledger.dart';
 
 export 'package:turna/domain/game/gem_consumable.dart'
-    show GemConsumablePurchaseResult;
-
-/// Outcome of an atomic [GemLedgerDao.purchase].
-enum GemPurchaseResult {
-  /// Spend + entitlement committed.
-  success,
-
-  /// Entitlement already exists — nothing charged, nothing written.
-  alreadyOwned,
-
-  /// [currentBalance] < [price].
-  insufficientFunds,
-}
-
-/// Ledger row kinds (Plan 2 §8.4): append-only facts about the gem economy.
-enum GemLedgerKind { earn, spend, refund, migration, adjustment }
+    show GemConsumablePurchaseResult, GemPurchaseResult, GemLedgerKind;
 
 /// Transactional gem ledger + cosmetic entitlements (Plan 2 §8.4).
 ///
@@ -35,8 +23,8 @@ enum GemLedgerKind { earn, spend, refund, migration, adjustment }
 /// entitlement row are inserted in ONE SQLite transaction. Every write is
 /// idempotent (`transaction_id` primary key, `event_id` unique for game
 /// events), so retries and double-taps can never double-charge.
-@lazySingleton
-class GemLedgerDao {
+@LazySingleton(as: IGemLedger)
+class GemLedgerDao implements IGemLedger {
   GemLedgerDao(this._db);
 
   final CourseDatabase _db;
@@ -45,8 +33,17 @@ class GemLedgerDao {
   static const String openingBalanceEventId = 'gem.migration.opening';
   static const String streakVoucherItemId = 'voucher_streak';
 
+  /// UNIQUE/PK/constraint-violation message shape across sqlite3 builds
+  /// ("UNIQUE constraint failed: gem_ledger.event_id", "PRIMARY KEY must be
+  /// unique", "FOREIGN KEY constraint failed", SQLITE_CONSTRAINT …).
+  static final RegExp _constraintPattern = RegExp(
+    r'constraint|must be unique|not unique',
+    caseSensitive: false,
+  );
+
   /// Committed ledger balance: opening + every committed event. This is the
   /// auditable projection; the UI wallet ([GemsProvider]) mirrors it.
+  @override
   Future<int> projectedBalance() async {
     final rows = await _db
         .customSelect(
@@ -58,6 +55,7 @@ class GemLedgerDao {
     return rows.first.read<int>('total');
   }
 
+  @override
   Future<bool> hasEntitlement(String itemId) async {
     final rows = await _db.customSelect(
       'SELECT COUNT(*) AS n FROM cosmetic_entitlements WHERE item_id = ?',
@@ -66,6 +64,7 @@ class GemLedgerDao {
     return (rows.first.read<int>('n')) > 0;
   }
 
+  @override
   Future<Set<String>> entitledItemIds() async {
     final rows = await _db
         .customSelect('SELECT item_id FROM cosmetic_entitlements')
@@ -75,6 +74,7 @@ class GemLedgerDao {
 
   /// Consumable inventory projection. Voucher facts are excluded from the gem
   /// balance projection above, while their signed amount projects inventory.
+  @override
   Future<int> streakVoucherBalance() async {
     final rows = await _db.customSelect(
       'SELECT COALESCE(SUM(amount), 0) AS total FROM gem_ledger '
@@ -85,6 +85,7 @@ class GemLedgerDao {
     return rows.single.read<int>('total');
   }
 
+  @override
   Future<int> streakVoucherPurchasesInMonth(DateTime month) async {
     final local = month.toLocal();
     final from = DateTime(local.year, local.month);
@@ -103,6 +104,7 @@ class GemLedgerDao {
   }
 
   /// Atomically charges gems and grants one streak voucher.
+  @override
   Future<GemConsumablePurchaseResult> purchaseStreakVoucher({
     required int price,
     required int currentBalance,
@@ -157,6 +159,7 @@ class GemLedgerDao {
     return outcome;
   }
 
+  @override
   Future<bool> grantStreakVoucher({
     required String eventId,
     String reason = 'voucher:grant',
@@ -170,6 +173,7 @@ class GemLedgerDao {
       );
 
   /// Consumes at most one voucher for a local day.
+  @override
   Future<bool> consumeStreakVoucher({required String localDay}) async {
     final eventId = 'voucher:use:$localDay';
     if (await _eventExists(eventId)) return false;
@@ -185,6 +189,7 @@ class GemLedgerDao {
 
   /// Append an earn/refund/adjustment event, idempotent per [eventId].
   /// Returns false when [eventId] already exists (double-credit guard).
+  @override
   Future<bool> record({
     required GemLedgerKind kind,
     required int amount,
@@ -211,8 +216,16 @@ class GemLedgerDao {
         ],
       );
       return true;
-    } catch (_) {
-      // UNIQUE violation on transaction_id/event_id → already recorded.
+    } catch (e) {
+      // A UNIQUE/constraint violation on transaction_id/event_id means the
+      // event is already recorded — the idempotent double-credit guard.
+      // Anything else is a real storage failure; keep the false return (the
+      // caller contract is "false = not recorded") but leave a trace.
+      final isConstraintViolation =
+          e is SqliteException && _constraintPattern.hasMatch(e.message);
+      if (!isConstraintViolation) {
+        logger.w('Gem ledger record failed: $e');
+      }
       return false;
     }
   }
@@ -223,6 +236,7 @@ class GemLedgerDao {
   /// authoritative fast-path). A repeated call with the same [idempotencyKey]
   /// is a no-op that reports [GemPurchaseResult.success] again — double taps
   /// never double-charge.
+  @override
   Future<GemPurchaseResult> purchase({
     required String itemId,
     required int price,
@@ -280,6 +294,7 @@ class GemLedgerDao {
   /// Balance is verified against [expectedBalance] before the completion
   /// marker is written; a mismatch keeps the store read-only-worthy for
   /// diagnostics instead of silently proceeding.
+  @override
   Future<bool> migrateFromPrefs({
     required int prefsBalance,
     required Set<String> unlockedItemIds,

@@ -5,11 +5,11 @@ import 'package:turna/application/anki_official/engine/official_formal_due_repos
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/core/html_stripper.dart';
-import 'package:turna/data/anki_note_dao.dart';
+import 'package:turna/domain/repositories/i_anki_note_store.dart';
 
 // Re-exported so legacy-browsing UIs can consume the raw record shape
 // without importing the data layer directly.
-export 'package:turna/data/anki_note_dao.dart' show AnkiCardBrowserRecord;
+export 'package:turna/domain/anki/anki_note_records.dart' show AnkiCardBrowserRecord;
 
 /// One browser row that either side can render without depending on the
 /// other store.
@@ -111,7 +111,7 @@ class OfficialBrowserSearchResult {
 }
 
 /// Doc 34 W7: Official sources read from the Official catalog; Legacy stays
-/// read-only via [AnkiNoteDao]. Pure Official-first sources never require
+/// read-only via [IAnkiNoteStore]. Pure Official-first sources never require
 /// NoteStore rows.
 class OfficialAnkiSourceAwareBrowser {
   OfficialAnkiSourceAwareBrowser({
@@ -124,7 +124,7 @@ class OfficialAnkiSourceAwareBrowser {
   static const defaultProfileId = 'profile-default-01';
 
   final OfficialAnkiSourceDao sources;
-  final AnkiNoteDao legacyNotes;
+  final IAnkiNoteStore legacyNotes;
 
   /// When set, Official search/suspend go through the Collection. Catalog
   /// rows still bound the source; they are not a substitute for search.

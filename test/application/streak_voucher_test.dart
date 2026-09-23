@@ -11,6 +11,7 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/service/locator.dart';
 
 import '../helpers/in_memory_course_db.dart';
+import 'package:turna/domain/repositories/i_gem_ledger.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -26,10 +27,10 @@ void main() {
     prefs = AppPrefs(await StreamingSharedPreferences.instance);
     db = CourseDatabase(NativeDatabase.memory());
     ledger = GemLedgerDao(db);
-    if (getIt.isRegistered<GemLedgerDao>()) {
-      await getIt.unregister<GemLedgerDao>();
+    if (getIt.isRegistered<IGemLedger>()) {
+      await getIt.unregister<IGemLedger>();
     }
-    getIt.registerSingleton<GemLedgerDao>(ledger);
+    getIt.registerSingleton<IGemLedger>(ledger);
     streak = StreakProvider(prefs);
     await prefs.preferences.setStringList(
       LocalStateKeys.streakProtectedDays,
@@ -40,7 +41,7 @@ void main() {
 
   tearDown(() async {
     streak.dispose();
-    await getIt.unregister<GemLedgerDao>();
+    await getIt.unregister<IGemLedger>();
     await db.close();
   });
 

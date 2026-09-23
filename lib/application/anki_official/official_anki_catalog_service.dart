@@ -14,7 +14,7 @@ import 'package:turna/application/anki_official/storage/official_anki_database.d
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/core/logger.dart';
-import 'package:turna/data/anki_note_dao.dart';
+import 'package:turna/domain/repositories/i_anki_note_store.dart';
 
 // Views consume the row shape through this facade; they never import
 // *_dao.dart files or instantiate DAOs (enforced by layering_guard_test).
@@ -185,7 +185,7 @@ class OfficialAnkiCatalogService {
   /// Long-lived browser for the card browser page (doc 38 P4-A). Null when
   /// no catalog is available — the page falls back to the legacy path.
   OfficialAnkiSourceAwareBrowser? browser({
-    required AnkiNoteDao legacyNotes,
+    required IAnkiNoteStore legacyNotes,
     OfficialAnkiDatabase? catalog,
     OfficialAnkiEngine? engine,
     OfficialAnkiPreviewCache? previewCache,

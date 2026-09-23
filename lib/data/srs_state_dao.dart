@@ -4,8 +4,10 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/data/course_database.dart';
+import 'package:turna/data/sql_like.dart';
 import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/domain/course/srs_word.dart';
+import 'package:turna/domain/repositories/i_srs_state_store.dart';
 
 /// Data access object for the `srs_states` table - the durable store for
 /// [SrsWord] scheduling state (migrated from a prefs JSON blob in schema v7).
@@ -14,14 +16,15 @@ import 'package:turna/domain/course/srs_word.dart';
 /// vs `'grammar'`), mirroring the old separate prefs blobs. State is held in
 /// memory by the providers for synchronous reads; this DAO backs every
 /// write-through (persist / import / remove / clear).
-@lazySingleton
-class SrsStateDao {
+@LazySingleton(as: ISrsStateStore)
+class SrsStateDao implements ISrsStateStore {
   final CourseDatabase _db;
 
   SrsStateDao(this._db);
 
   /// Load every [SrsWord] in [queue] into an id-keyed map. Used by
   /// [SrsQueueProvider.ensureLoaded] at startup to hydrate the in-memory cache.
+  @override
   Future<Map<String, SrsWord>> loadQueue(
     String queue, {
     String? languageCode,
@@ -38,6 +41,7 @@ class SrsStateDao {
   }
 
   /// Insert or update a single [SrsWord] in [queue].
+  @override
   Future<void> upsert(
     String queue,
     SrsWord word, {
@@ -50,6 +54,7 @@ class SrsStateDao {
 
   /// Insert or update many [SrsWord]s in one transaction (bulk import /
   /// migration backfill).
+  @override
   Future<void> upsertBatch(
     String queue,
     Iterable<SrsWord> words, {
@@ -90,6 +95,7 @@ class SrsStateDao {
 
   /// Delete many state rows in one statement (import rollback). Same scoping
   /// contract as [delete].
+  @override
   Future<void> deleteMany(
     Iterable<String> wordIds, {
     String? queue,
@@ -118,10 +124,12 @@ class SrsStateDao {
 
   /// Delete every row whose `wordId` starts with [prefix] (e.g. uninstalling
   /// an imported Anki deck removes its `anki-<importId>-` entries). Pass
-  /// [queue] to keep the sweep inside the calling provider's pool.
+  /// [queue] to keep the sweep inside the calling provider's pool. Wildcards
+  /// inside [prefix] are escaped, so the match is strictly literal.
+  @override
   Future<void> deleteByPrefix(String prefix, {String? queue}) async {
     final query = _db.delete(_db.srsStates)
-      ..where((t) => t.wordId.like('$prefix%'));
+      ..where((t) => prefixLike(t.wordId, prefix));
     if (queue != null) {
       query.where((t) => t.queue.equals(queue));
     }
@@ -130,6 +138,7 @@ class SrsStateDao {
 
   /// Delete every row in [queue] (content-update reset). Pass [languageCode]
   /// to spare the other languages' rows; null clears every language.
+  @override
   Future<void> clearQueue(String queue, {String? languageCode}) async {
     final query = _db.delete(_db.srsStates)
       ..where((t) => t.queue.equals(queue));
@@ -143,6 +152,7 @@ class SrsStateDao {
 
   /// Count every active schedule that can be moved by the Fun Lab time
   /// machine. Both currently-due and future rows are included.
+  @override
   Future<int> countPostponable() async {
     final count = _db.srsStates.wordId.count();
     final query = _db.selectOnly(_db.srsStates)
@@ -157,6 +167,7 @@ class SrsStateDao {
 
   /// Move all active schedules by [duration] atomically, without touching any
   /// other FSRS field or the review history table.
+  @override
   Future<int> postponeActiveBy(Duration duration) {
     return _db.transaction(() {
       return _db.customUpdate(
@@ -173,6 +184,7 @@ class SrsStateDao {
   /// narrows to rows reviewed on/after the given instant; optional
   /// [languageCode] keeps other languages out of the tutor context. Used
   /// by the personalized tutor ([SrsTutorProvider]) to assemble context.
+  @override
   Future<List<SrsWord>> recentReviews({
     String queue = 'srs',
     int limit = 20,

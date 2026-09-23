@@ -49,6 +49,10 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/service/locator.dart';
 
 import '../../helpers/in_memory_course_db.dart';
+import 'package:turna/domain/repositories/i_anki_import_store.dart';
+import 'package:turna/domain/repositories/i_anki_note_store.dart';
+import 'package:turna/domain/repositories/i_anki_unification_store.dart';
+import 'package:turna/domain/repositories/i_review_history_store.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -72,10 +76,10 @@ void main() {
     await getIt.reset();
     getIt.registerSingleton<CourseDatabase>(db);
     getIt.registerSingleton<ICourseRepository>(CourseRepository(db));
-    getIt.registerSingleton<ReviewHistoryDao>(ReviewHistoryDao(db));
-    getIt.registerSingleton<AnkiNoteDao>(AnkiNoteDao(db));
-    getIt.registerSingleton<AnkiImportDao>(AnkiImportDao(db));
-    getIt.registerSingleton<AnkiUnificationDao>(AnkiUnificationDao(db));
+    getIt.registerSingleton<IReviewHistoryStore>(ReviewHistoryDao(db));
+    getIt.registerSingleton<IAnkiNoteStore>(AnkiNoteDao(db));
+    getIt.registerSingleton<IAnkiImportStore>(AnkiImportDao(db));
+    getIt.registerSingleton<IAnkiUnificationStore>(AnkiUnificationDao(db));
 
     courseProvider = CourseProvider(appPrefs);
     final linkStore = LessonLinkStore(appPrefs);
@@ -135,7 +139,7 @@ void main() {
     expect(controller.state, isA<AnkiImportFailed>());
     expect((controller.state as AnkiImportFailed).returnState,
         isA<AnkiImportSelecting>());
-    expect(await getIt<AnkiImportDao>().getAll(), isEmpty);
+    expect(await getIt<IAnkiImportStore>().getAll(), isEmpty);
   });
 
   test('official-first failure leaves zero Legacy writes', () async {
@@ -162,7 +166,7 @@ void main() {
         reason: 'the wizard surfaces the failure');
     expect((controller.state as AnkiImportFailed).returnState,
         isA<AnkiImportSelecting>());
-    expect(await getIt<AnkiImportDao>().getAll(), isEmpty,
+    expect(await getIt<IAnkiImportStore>().getAll(), isEmpty,
         reason: 'no anki_imports row');
     expect(
       srsProvider.state.keys.where((id) => id.startsWith('anki-')),

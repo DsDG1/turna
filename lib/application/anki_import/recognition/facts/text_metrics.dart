@@ -9,6 +9,22 @@ class CardText {
   );
 
   static final RegExp _htmlTagRegex = RegExp(r'<[^>]+>');
+  static final RegExp _numericEntityRegex =
+      RegExp(r'&#(?:x([0-9a-fA-F]+)|([0-9]+));');
+
+  static String _decodeNumericEntity(Match m) {
+    final hex = m.group(1);
+    final codePoint = hex != null
+        ? int.tryParse(hex, radix: 16)
+        : int.tryParse(m.group(2)!);
+    if (codePoint == null ||
+        codePoint <= 0 ||
+        codePoint > 0x10FFFF ||
+        (codePoint >= 0xD800 && codePoint <= 0xDFFF)) {
+      return m.group(0)!;
+    }
+    return String.fromCharCode(codePoint);
+  }
 
   /// Strip HTML tags and decode common HTML entities.
   static String stripHtml(String html) {
@@ -16,6 +32,9 @@ class CardText {
         .replaceAll(_soundMarkerRegex, '')
         .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
         .replaceAll(_htmlTagRegex, '')
+        // Mirror core stripHtml's numeric decoding (İ = &#304; / &#x130;):
+        // recognition metrics must see the same text TTS reads.
+        .replaceAllMapped(_numericEntityRegex, _decodeNumericEntity)
         .replaceAll('&nbsp;', ' ')
         .replaceAll('&lt;', '<')
         .replaceAll('&gt;', '>')

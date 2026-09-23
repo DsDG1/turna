@@ -4,16 +4,21 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/data/course_database.dart';
+import 'package:turna/domain/anki/anki_import_record.dart';
+import 'package:turna/domain/repositories/i_anki_import_store.dart';
+
+export 'package:turna/domain/anki/anki_import_record.dart';
 
 /// Data access object for the `anki_imports` table.
 /// Provides CRUD operations for Anki import metadata.
-@lazySingleton
-class AnkiImportDao {
+@LazySingleton(as: IAnkiImportStore)
+class AnkiImportDao implements IAnkiImportStore {
   final CourseDatabase _db;
 
   AnkiImportDao(this._db);
 
   /// Get all import records, ordered by import time (newest first).
+  @override
   Future<List<AnkiImportRecord>> getAll() async {
     final rows = await (_db.select(_db.ankiImports)
           ..orderBy([(t) => OrderingTerm.desc(t.importedAt)]))
@@ -38,6 +43,7 @@ class AnkiImportDao {
   }
 
   /// Get a single import record by id.
+  @override
   Future<AnkiImportRecord?> getById(String importId) async {
     final row = await (_db.select(_db.ankiImports)
           ..where((t) => t.importId.equals(importId)))
@@ -46,6 +52,7 @@ class AnkiImportDao {
   }
 
   /// Find an import by source file hash (for incremental update detection).
+  @override
   Future<AnkiImportRecord?> findByHash(String sourceHash) async {
     // appendAsNew intentionally permits multiple imports of the same file,
     // so sourceHash is not unique. Use the newest record for preview and
@@ -62,12 +69,14 @@ class AnkiImportDao {
   }
 
   /// Delete an import record.
+  @override
   Future<void> delete(String importId) async {
     await (_db.delete(_db.ankiImports)
           ..where((t) => t.importId.equals(importId)))
         .go();
   }
 
+  @override
   Future<void> setDailyLimits(
     String importId, {
     int? newLimit,
@@ -81,9 +90,11 @@ class AnkiImportDao {
     );
   }
 
+  @override
   Future<int?> dailyNewLimitFor(String importId) =>
       _readLimit(importId, 'daily_new_limit');
 
+  @override
   Future<int?> dailyReviewLimitFor(String importId) =>
       _readLimit(importId, 'daily_review_limit');
 
@@ -137,48 +148,4 @@ class AnkiImportDao {
       lastError: lifecycle?.read<String?>('last_error'),
     );
   }
-}
-
-/// Plain data class for Anki import metadata (decoupled from Drift row).
-class AnkiImportRecord {
-  final String importId;
-  final String sourcePath;
-  final String sourceHash;
-  final int importedAt;
-  final int deckCount;
-  final int noteCount;
-  final int cardCount;
-  final int mediaCount;
-  final String notetypesJson;
-  final bool aiEnhanced;
-  final int version;
-  final int? dailyNewLimit;
-  final int? dailyReviewLimit;
-  final String status;
-  final int sourceCardCount;
-  final bool importedScheduling;
-  final String? lastError;
-
-  const AnkiImportRecord({
-    required this.importId,
-    required this.sourcePath,
-    required this.sourceHash,
-    required this.importedAt,
-    this.deckCount = 0,
-    this.noteCount = 0,
-    this.cardCount = 0,
-    this.mediaCount = 0,
-    this.notetypesJson = '{}',
-    this.aiEnhanced = false,
-    this.version = 1,
-    this.dailyNewLimit,
-    this.dailyReviewLimit,
-    this.status = 'pending',
-    this.sourceCardCount = 0,
-    this.importedScheduling = false,
-    this.lastError,
-  });
-
-  DateTime get importedAtDate =>
-      DateTime.fromMillisecondsSinceEpoch(importedAt * 1000);
 }

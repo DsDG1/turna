@@ -11,6 +11,7 @@ import 'package:turna/data/course_database.dart';
 
 import '../../helpers/in_memory_course_db.dart';
 import '../../helpers/anki_import_seed.dart';
+import 'package:turna/domain/repositories/i_anki_note_store.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -28,7 +29,7 @@ void main() {
     await getIt.reset();
     db = CourseDatabase(NativeDatabase.memory());
     getIt.registerSingleton<CourseDatabase>(db);
-    getIt.registerSingleton<AnkiNoteDao>(AnkiNoteDao(db));
+    getIt.registerSingleton<IAnkiNoteStore>(AnkiNoteDao(db));
     stamp = 'inv${DateTime.now().microsecondsSinceEpoch}';
   });
 

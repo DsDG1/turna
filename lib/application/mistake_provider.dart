@@ -10,8 +10,7 @@ import 'package:injectable/injectable.dart';
 // Project imports:
 import 'package:turna/application/diagnostics/storage_write_telemetry.dart';
 import 'package:turna/core/logger.dart';
-import 'package:turna/data/course_database.dart';
-import 'package:turna/data/mistake_repository.dart';
+import 'package:turna/domain/repositories/i_mistake_repository.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/course/language_codes.dart';
@@ -34,10 +33,10 @@ class MistakeProvider extends ChangeNotifier {
 
   MistakeProvider(this.appPrefs);
 
-  MistakeRepository? _repository;
+  IMistakeRepository? _repository;
 
   @visibleForTesting
-  void useRepository(MistakeRepository repository) {
+  void useRepository(IMistakeRepository repository) {
     _repository = repository;
   }
 
@@ -64,13 +63,13 @@ class MistakeProvider extends ChangeNotifier {
 
   String get languageCode => _languageCode;
 
-  MistakeRepository? get _repo {
+  IMistakeRepository? get _repo {
     if (_repository != null) return _repository;
     try {
-      if (getIt.isRegistered<CourseDatabase>()) {
-        _repository = MistakeRepository(getIt<CourseDatabase>());
+      if (getIt.isRegistered<IMistakeRepository>()) {
+        _repository = getIt<IMistakeRepository>();
       }
-    } catch (_) {/* CourseDatabase optional (tests) — repo stays null */}
+    } catch (_) {/* IMistakeRepository optional (tests) — repo stays null */}
     return _repository;
   }
 
@@ -414,7 +413,7 @@ class MistakeProvider extends ChangeNotifier {
   /// persists exactly the rows the operation touched.
   Future<void> _commitIncremental(
     List<MistakeEntry> list,
-    Future<void> Function(MistakeRepository repo) repoWrite,
+    Future<void> Function(IMistakeRepository repo) repoWrite,
   ) async {
     _cached = list;
     _cachedView = List.unmodifiable(list);

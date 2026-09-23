@@ -74,7 +74,7 @@ class LessonLinkStore {
   String? lessonNameFor(String id) => linkFor(id)?.lessonName;
 
   /// Drop the given word ids (e.g. resources a pack re-import removed —
-  /// see `CourseRepository.deleteOrphanedLearnerRows`). Serializes writes.
+  /// see `ICourseRepository.deleteOrphanedLearnerRows`). Serializes writes.
   Future<void> removeIds(Set<String> wordIds) {
     return _enqueue(() async {
       final current = readAll();

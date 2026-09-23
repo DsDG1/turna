@@ -13,9 +13,9 @@ import 'package:turna/application/review_dashboard/review_dashboard_models.dart'
 import 'package:turna/application/review_dashboard/review_data_revision.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/application/streak_provider.dart';
-import 'package:turna/data/anki_import_dao.dart';
-import 'package:turna/data/review_history_dao.dart';
-import 'package:turna/data/study_log_repository.dart';
+import 'package:turna/domain/repositories/i_anki_import_store.dart';
+import 'package:turna/domain/repositories/i_review_history_store.dart';
+import 'package:turna/domain/repositories/i_study_log_repository.dart';
 import 'package:turna/domain/study/daily_stats.dart';
 import 'package:turna/domain/course/srs_word.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -28,9 +28,9 @@ import 'package:turna/service/locator.dart';
 ///   * ONE in-memory pass over the SRS + grammar states (cards classified
 ///     once into due/new/overdue and per-source buckets — the legacy
 ///     provider did this pass twice plus per-source re-filters);
-///   * ONE bounded SQL query for today's events ([ReviewHistoryDao.eventsBetween]
+///   * ONE bounded SQL query for today's events ([IReviewHistoryStore.eventsBetween]
 ///     — never `allEvents()`);
-///   * ONE bounded 7-day GROUP BY query ([ReviewHistoryDao.dailyActivityBetween]);
+///   * ONE bounded 7-day GROUP BY query ([IReviewHistoryStore.dailyActivityBetween]);
 ///   * cheap prefs reads (streak, daily stats, goals).
 ///
 /// Caching (§16.5): the last snapshot is kept with its (localDay, revision)
@@ -50,12 +50,12 @@ class ReviewDashboardRepository {
     this._streak,
   );
 
-  final ReviewHistoryDao _reviewDao;
+  final IReviewHistoryStore _reviewDao;
   final SrsProvider _srs;
   final GrammarReviewProvider _grammar;
-  final AnkiImportDao _ankiImportDao;
+  final IAnkiImportStore _ankiImportDao;
   final ReviewDataRevision _revision;
-  final StudyLogRepository _studyLog;
+  final IStudyLogRepository _studyLog;
   final AppPrefs _appPrefs;
   final StreakProvider _streak;
 

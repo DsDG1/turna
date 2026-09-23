@@ -7,7 +7,7 @@ import 'package:injectable/injectable.dart';
 // Project imports:
 import 'package:turna/application/gems_provider.dart';
 import 'package:turna/core/streak_resolver.dart';
-import 'package:turna/data/gem_ledger_dao.dart';
+import 'package:turna/domain/repositories/i_gem_ledger.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/service/locator.dart';
 
@@ -206,10 +206,10 @@ class StreakProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  GemLedgerDao? _resolveLedger() {
-    if (!getIt.isRegistered<GemLedgerDao>()) return null;
+  IGemLedger? _resolveLedger() {
+    if (!getIt.isRegistered<IGemLedger>()) return null;
     try {
-      return getIt<GemLedgerDao>();
+      return getIt<IGemLedger>();
     } catch (_) {
       return null;
     }

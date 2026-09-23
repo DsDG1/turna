@@ -8,12 +8,12 @@ import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/core/fsrs_engine.dart';
 import 'package:turna/core/srs_scheduler.dart';
-import 'package:turna/data/review_history_dao.dart';
+import 'package:turna/domain/repositories/i_review_history_store.dart';
 import 'package:turna/domain/course/srs_word.dart';
 
 /// Computes the memory-curve / retention snapshot shown on the profile stats
 /// dashboard. Reads current SRS state from [SrsProvider] + [GrammarReviewProvider]
-/// (in-memory caches) and per-card review history from [ReviewHistoryDao].
+/// (in-memory caches) and per-card review history from [IReviewHistoryStore].
 ///
 /// Retention model (ADR 0028): for each reviewed card, \(R = R_{\text{FSRS}}(t,S)\)
 /// using true [SrsWord.stability] when present (fallback: intervalDays). The
@@ -23,7 +23,7 @@ import 'package:turna/domain/course/srs_word.dart';
 class MemoryCurveProvider {
   MemoryCurveProvider(this._reviewDao, this._srs, this._grammar);
 
-  final ReviewHistoryDao _reviewDao;
+  final IReviewHistoryStore _reviewDao;
   final SrsProvider _srs;
   final GrammarReviewProvider _grammar;
 

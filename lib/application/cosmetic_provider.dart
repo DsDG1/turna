@@ -8,7 +8,8 @@ import 'package:turna/core/logger.dart';
 // Project imports:
 import 'package:turna/application/diagnostics/storage_write_telemetry.dart';
 import 'package:turna/application/gems_provider.dart';
-import 'package:turna/data/gem_ledger_dao.dart';
+import 'package:turna/domain/repositories/i_gem_ledger.dart';
+import 'package:turna/domain/game/gem_consumable.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/cosmetics/avatar_ring.dart';
 import 'package:turna/domain/cosmetics/cosmetic_item.dart';
@@ -198,10 +199,10 @@ class CosmeticProvider extends ChangeNotifier {
     return outcome;
   }
 
-  GemLedgerDao? _resolveLedger() {
-    if (!getIt.isRegistered<GemLedgerDao>()) return null;
+  IGemLedger? _resolveLedger() {
+    if (!getIt.isRegistered<IGemLedger>()) return null;
     try {
-      return getIt<GemLedgerDao>();
+      return getIt<IGemLedger>();
     } catch (_) {
       return null;
     }

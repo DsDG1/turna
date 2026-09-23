@@ -1,9 +1,10 @@
 import 'package:injectable/injectable.dart';
-import 'package:turna/data/anki_note_dao.dart';
+import 'package:turna/domain/repositories/i_anki_note_store.dart';
+import 'package:turna/domain/anki/anki_note_records.dart';
 
 // Re-exported so legacy-browsing UIs can consume the raw record shape
 // without importing the data layer directly.
-export 'package:turna/data/anki_note_dao.dart' show AnkiCardBrowserRecord;
+export 'package:turna/domain/anki/anki_note_records.dart' show AnkiCardBrowserRecord;
 
 /// Legacy deck browsing facade (doc 34 W7): the card browser page renders
 /// full note fields and diagnostics, so it consumes [AnkiCardBrowserRecord]
@@ -15,7 +16,7 @@ class LegacyAnkiCardBrowser {
 
   /// The underlying DAO, exposed only to wire
   /// `OfficialAnkiSourceAwareBrowser.legacyNotes` on the same instance.
-  final AnkiNoteDao notes;
+  final IAnkiNoteStore notes;
 
   /// Search raw note fields within one imported deck. The JSON column is
   /// intentionally searched as text; the browser strips HTML only for display.

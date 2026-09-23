@@ -17,11 +17,11 @@ import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/application/review_dashboard/review_data_revision.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/core/logger.dart';
-import 'package:turna/data/anki_import_dao.dart';
-import 'package:turna/data/anki_note_dao.dart';
-import 'package:turna/data/anki_unification_dao.dart';
+import 'package:turna/domain/repositories/i_anki_import_store.dart';
+import 'package:turna/domain/repositories/i_anki_note_store.dart';
+import 'package:turna/domain/repositories/i_anki_unification_store.dart';
 import 'package:turna/data/course_database.dart';
-import 'package:turna/data/review_history_dao.dart';
+import 'package:turna/domain/repositories/i_review_history_store.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/audio/anki_audio_resolver.dart';
 import 'package:turna/domain/repositories/i_course_repository.dart';
@@ -39,24 +39,24 @@ import 'package:turna/service/locator.dart';
 class AnkiDeckManager {
   final ICourseRepository _repo;
   final SrsProvider _srsProvider;
-  final AnkiImportDao _importDao;
-  final AnkiNoteDao _noteDao;
+  final IAnkiImportStore _importDao;
+  final IAnkiNoteStore _noteDao;
   final AnkiAudioResolver _audioResolver;
-  final AnkiUnificationDao? _unificationDao;
+  final IAnkiUnificationStore? _unificationDao;
   final AppPrefs _appPrefs;
   final MistakeProvider? _mistakeProvider;
-  final ReviewHistoryDao? _reviewHistoryDao;
+  final IReviewHistoryStore? _reviewHistoryDao;
 
   AnkiDeckManager({
     required ICourseRepository repo,
     required SrsProvider srsProvider,
-    required AnkiImportDao importDao,
-    required AnkiNoteDao noteDao,
+    required IAnkiImportStore importDao,
+    required IAnkiNoteStore noteDao,
     required AppPrefs appPrefs,
     AnkiAudioResolver? audioResolver,
-    AnkiUnificationDao? unificationDao,
+    IAnkiUnificationStore? unificationDao,
     MistakeProvider? mistakeProvider,
-    ReviewHistoryDao? reviewHistoryDao,
+    IReviewHistoryStore? reviewHistoryDao,
   })  : _repo = repo,
         _srsProvider = srsProvider,
         _importDao = importDao,

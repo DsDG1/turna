@@ -19,6 +19,7 @@ import 'package:turna/service/locator.dart';
 import 'package:turna/service/export_service.dart';
 
 import '../helpers/in_memory_course_db.dart';
+import 'package:turna/domain/repositories/i_gem_ledger.dart';
 
 class _MemoryCredentialStore implements ICredentialStore {
   final values = <String, String>{};
@@ -52,7 +53,7 @@ void main() {
     db = emptyInMemoryCourseDatabase();
     await db.customSelect('SELECT 1').get();
     getIt.registerSingleton<AppPrefs>(prefs);
-    getIt.registerSingleton<GemLedgerDao>(GemLedgerDao(db));
+    getIt.registerSingleton<IGemLedger>(GemLedgerDao(db));
   });
 
   tearDown(() async {
@@ -94,7 +95,7 @@ void main() {
     await service.normalize();
     await service.normalize();
 
-    final ledger = getIt<GemLedgerDao>();
+    final ledger = getIt<IGemLedger>();
     expect(await ledger.projectedBalance(), 120);
     final openings = await db
         .customSelect(
@@ -159,7 +160,7 @@ void main() {
 
     final result = await ExportService(prefs).importFromFile(file.path);
     expect(result.progressRestored, isTrue);
-    expect(await getIt<GemLedgerDao>().projectedBalance(), 75);
+    expect(await getIt<IGemLedger>().projectedBalance(), 75);
     expect(cosmetics.equippedRingId, kAvatarRingReed);
     expect(credentials.values[AiEngineConfigHolder.apiKeyId], secret);
     expect(

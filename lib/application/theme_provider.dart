@@ -6,7 +6,6 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/service/locator.dart';
-import 'package:turna/core/theme.dart';
 
 @lazySingleton
 class ThemeProvider extends ChangeNotifier {
@@ -28,9 +27,6 @@ class ThemeProvider extends ChangeNotifier {
     }
     return _themeMode == ThemeMode.dark;
   }
-
-  ThemeData get currentTheme =>
-      isDarkMode ? TurnaTheme.darkTheme : TurnaTheme.lightTheme;
 
   void toggleTheme() {
     _themeMode =

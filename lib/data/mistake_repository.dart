@@ -7,15 +7,17 @@ import 'package:turna/data/course_database.dart';
 import 'package:turna/domain/course/interaction.dart';
 import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/domain/course/mistake_entry.dart';
+import 'package:turna/domain/repositories/i_mistake_repository.dart';
 
 /// SQLite-backed mistake log, scoped by [languageCode].
-class MistakeRepository {
+class MistakeRepository implements IMistakeRepository {
   MistakeRepository(this._db);
 
   final CourseDatabase _db;
 
   static const int defaultMaxEntries = 200;
 
+  @override
   Future<List<MistakeEntry>> load(String languageCode) async {
     final code = LanguageCodes.canonicalize(languageCode);
     final rows = await (_db.select(_db.mistakes)
@@ -25,6 +27,7 @@ class MistakeRepository {
     return [for (final row in rows) _toEntry(row)];
   }
 
+  @override
   Future<Map<String, int>> loadDailyCounts(String languageCode) async {
     final code = LanguageCodes.canonicalize(languageCode);
     final row = await (_db.select(_db.mistakeAggregates)
@@ -37,11 +40,14 @@ class MistakeRepository {
         for (final e in decoded.entries)
           if (e.value is num) e.key: (e.value as num).toInt(),
       };
-    } catch (_) {
+    } catch (error) {
+      logger.w('MistakeRepository: dailyCounts blob undecodable '
+          '(${row.dailyCountsJson.length} chars); treating as empty: $error');
       return <String, int>{};
     }
   }
 
+  @override
   Future<int> loadMasteredTotal(String languageCode) async {
     final code = LanguageCodes.canonicalize(languageCode);
     final row = await (_db.select(_db.mistakeAggregates)
@@ -50,6 +56,7 @@ class MistakeRepository {
     return row?.masteredTotal ?? 0;
   }
 
+  @override
   Future<void> replaceAll({
     required String languageCode,
     required List<MistakeEntry> entries,
@@ -82,6 +89,7 @@ class MistakeRepository {
   /// [evictOldest] drops the head row first when the caller's in-memory cap
   /// is exceeded. Aggregates are refreshed from the caller's cached values as
   /// a single-row upsert.
+  @override
   Future<void> insertEntry({
     required String languageCode,
     required MistakeEntry entry,
@@ -119,6 +127,7 @@ class MistakeRepository {
   /// Update one stored entry in place (e.g. a rewriteCount bump) without
   /// touching row order or the rest of the table. Aggregates are refreshed
   /// only when the caller passes new values.
+  @override
   Future<void> updateEntry({
     required String languageCode,
     required MistakeEntry entry,
@@ -126,16 +135,26 @@ class MistakeRepository {
     int? masteredTotal,
   }) async {
     final code = LanguageCodes.canonicalize(languageCode);
-    await (_db.update(_db.mistakes)
-          ..where((t) => t.languageCode.equals(code) & t.id.equals(entry.id)))
-        .write(_toCompanion(code, entry, null));
-    if (dailyCounts != null || masteredTotal != null) {
-      await _writeAggregates(code, dailyCounts ?? const {}, masteredTotal ?? 0);
-    }
+    // One transaction so a crash can never land between the row update and
+    // the aggregates refresh (same pattern as replaceAll/insertEntry).
+    await _db.transaction(() async {
+      await (_db.update(_db.mistakes)
+            ..where(
+                (t) => t.languageCode.equals(code) & t.id.equals(entry.id)))
+          .write(_toCompanion(code, entry, null));
+      if (dailyCounts != null || masteredTotal != null) {
+        await _writeAggregates(
+          code,
+          dailyCounts ?? const {},
+          masteredTotal ?? 0,
+        );
+      }
+    });
   }
 
   /// Delete the given entries in one statement (review-session mastery,
   /// deck-uninstall bookkeeping) plus a single-row aggregates refresh.
+  @override
   Future<void> deleteEntriesByIds({
     required String languageCode,
     required Iterable<String> ids,
@@ -173,6 +192,7 @@ class MistakeRepository {
         );
   }
 
+  @override
   Future<void> deleteLanguage(String languageCode) async {
     final code = LanguageCodes.canonicalize(languageCode);
     await _db.transaction(() async {
@@ -187,6 +207,7 @@ class MistakeRepository {
 
   /// Idempotent prefs → SQLite copy. Returns true when a prefs blob was
   /// consumed (caller should then clear the prefs keys).
+  @override
   Future<bool> migrateFromPrefsJson({
     required String languageCode,
     required String logJson,
@@ -298,7 +319,9 @@ class MistakeRepository {
       final decoded = jsonDecode(raw);
       if (decoded is! Map) return null;
       return Interaction.fromJson(Map<String, dynamic>.from(decoded));
-    } catch (_) {
+    } catch (error) {
+      logger.w('MistakeRepository: interaction snapshot undecodable '
+          '(${raw.length} chars); dropping snapshot: $error');
       return null;
     }
   }

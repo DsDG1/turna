@@ -12,7 +12,7 @@ import 'package:injectable/injectable.dart';
 import 'package:turna/application/mistake_provider.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/courses/languages/language_content_store.dart';
-import 'package:turna/data/study_log_repository.dart';
+import 'package:turna/domain/repositories/i_study_log_repository.dart';
 import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/domain/study/daily_stats.dart';
 import 'package:turna/domain/study/study_log.dart';
@@ -20,7 +20,7 @@ import 'package:turna/domain/study/study_log.dart';
 /// Provides aggregated learning statistics and records study activity.
 @lazySingleton
 class StudyStatsProvider extends ChangeNotifier {
-  final StudyLogRepository _repository;
+  final IStudyLogRepository _repository;
   final MistakeProvider _mistakeProvider;
 
   final StreamController<List<DailyStudyStats>> _dailyStatsController =

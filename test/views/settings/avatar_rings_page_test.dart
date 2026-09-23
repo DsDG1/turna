@@ -14,6 +14,7 @@ import 'package:turna/service/locator.dart';
 import 'package:turna/views/settings/avatar_rings_page.dart';
 
 import '../../helpers/in_memory_course_db.dart';
+import 'package:turna/domain/repositories/i_gem_ledger.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -72,7 +73,7 @@ void main() {
     await prefs.preferences.setInt(LocalStateKeys.gems, 200);
     final db = CourseDatabase(NativeDatabase.memory());
     final ledger = GemLedgerDao(db);
-    getIt.registerSingleton<GemLedgerDao>(ledger);
+    getIt.registerSingleton<IGemLedger>(ledger);
     final gems = GemsProvider(prefs);
     final cosmetics = CosmeticProvider(prefs, gems);
     addTearDown(() async {

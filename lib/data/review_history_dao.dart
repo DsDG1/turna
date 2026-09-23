@@ -5,51 +5,24 @@ import 'package:injectable/injectable.dart';
 // Project imports:
 import 'package:turna/core/performance_trace.dart';
 import 'package:turna/data/course_database.dart';
+import 'package:turna/data/sql_like.dart';
 import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/domain/course/srs_word.dart';
+import 'package:turna/domain/repositories/i_review_history_store.dart';
 import 'package:turna/domain/review/review_activity.dart';
+import 'package:turna/domain/review/review_history.dart';
 
 export 'package:turna/domain/review/review_activity.dart'
     show ActivityGranularity, ActivityBucketRow;
-
-class RetentionBucketRow {
-  const RetentionBucketRow({
-    required this.intervalBucketDays,
-    required this.recalled,
-    required this.total,
-  });
-  final int intervalBucketDays;
-  final int recalled;
-  final int total;
-}
-
-class ReviewHistoryFilter {
-  const ReviewHistoryFilter({
-    this.sourceKind,
-    this.sourceKinds,
-    this.sourceId,
-    this.queue,
-    this.type,
-    this.languageCode,
-  });
-  final SrsSourceKind? sourceKind;
-
-  /// Multi-kind alternative to [sourceKind] (the "course" source rolls up
-  /// `course` + `builtin` rows). Wins over [sourceKind] when both are set.
-  final Set<SrsSourceKind>? sourceKinds;
-  final String? sourceId;
-  final String? queue;
-  final String? type;
-  final String? languageCode;
-}
+export 'package:turna/domain/review/review_history.dart';
 
 /// Data access object for the `review_events` table - the per-card review
 /// history that powers the memory-curve / retention features.
 ///
 /// Each row is one SM-2 grade (written from [SrsQueueProvider.reviewItem]).
 /// Read by [MemoryCurveProvider] to compute retention, forecast, and maturity.
-@lazySingleton
-class ReviewHistoryDao {
+@LazySingleton(as: IReviewHistoryStore)
+class ReviewHistoryDao implements IReviewHistoryStore {
   final CourseDatabase _db;
 
   ReviewHistoryDao(this._db);
@@ -65,6 +38,7 @@ class ReviewHistoryDao {
   int get _localUtcOffsetMs => DateTime.now().timeZoneOffset.inMilliseconds;
 
   /// Append a review event.
+  @override
   Future<void> insertEvent(ReviewEventRecord event) async {
     await _db.into(_db.reviewEvents).insert(
           _toCompanion(event),
@@ -73,6 +47,7 @@ class ReviewHistoryDao {
   }
 
   /// Append many events in one transaction (Anki revlog migration).
+  @override
   Future<void> insertBatch(Iterable<ReviewEventRecord> events) async {
     await _db.batch((b) {
       for (final e in events) {
@@ -86,6 +61,7 @@ class ReviewHistoryDao {
   }
 
   /// Full history for one card, oldest first.
+  @override
   Future<List<ReviewEventRecord>> eventsForCard(
     String cardId, {
     String? languageCode,
@@ -99,6 +75,7 @@ class ReviewHistoryDao {
   }
 
   /// Most recent [limit] events across all cards (newest first).
+  @override
   Future<List<ReviewEventRecord>> recentEvents({
     int limit = 500,
     String? languageCode,
@@ -118,6 +95,7 @@ class ReviewHistoryDao {
   /// **Never call this from the dashboard home** (Plan 3 §14.2): it loads and
   /// sorts the complete history. Use [eventsBetween] /
   /// [dailyActivityBetween] for bounded, aggregation-friendly reads.
+  @override
   Future<List<ReviewEventRecord>> allEvents({String? languageCode}) async {
     final query = _db.select(_db.reviewEvents);
     _whereLanguage(query, languageCode);
@@ -131,6 +109,7 @@ class ReviewHistoryDao {
 
   /// Events with `from <= reviewedAt < to` — a bounded window (e.g. today)
   /// instead of the full history. Ordered chronologically.
+  @override
   Future<List<ReviewEventRecord>> eventsBetween(
     DateTime from,
     DateTime to, {
@@ -150,6 +129,7 @@ class ReviewHistoryDao {
   /// — the dashboard's 7-day chart query. Returns one row per active day
   /// (days with no reviews are absent; callers fill the gaps), so the result
   /// is bounded by the number of days, not the number of events.
+  @override
   Future<List<DailyActivityRow>> dailyActivityBetween(
     DateTime from,
     DateTime to, {
@@ -183,6 +163,7 @@ class ReviewHistoryDao {
 
   /// Fixed-cardinality activity aggregation for insights and the 365-day
   /// heatmap. Returned rows grow with buckets, never with review events.
+  @override
   Future<List<ActivityBucketRow>> activityBuckets(
     DateTime from,
     DateTime to,
@@ -228,6 +209,7 @@ class ReviewHistoryDao {
 
   /// SQL-side interval bucketing. Nine rows maximum regardless of history
   /// size; optional filters remain index-friendly prefix/column predicates.
+  @override
   Future<List<RetentionBucketRow>> retentionByIntervalBucket(
     DateTime from,
     DateTime to, {
@@ -312,6 +294,7 @@ class ReviewHistoryDao {
   }
 
   /// Review totals per persisted logical source. Card ids are opaque here.
+  @override
   Future<Map<String, int>> sourceReviewCounts(
     DateTime from,
     DateTime to, {
@@ -347,6 +330,7 @@ class ReviewHistoryDao {
   }
 
   /// Total event count (dashboard / diagnostics).
+  @override
   Future<int> count({String? languageCode}) async {
     final count = _db.selectOnly(_db.reviewEvents)
       ..addColumns([_db.reviewEvents.id.count()]);
@@ -362,6 +346,7 @@ class ReviewHistoryDao {
 
   /// Number of **fail** reviews (quality < 3) for [cardId] on the local
   /// calendar day of [day]. Used by the same-day relearn ladder (ADR 0029).
+  @override
   Future<int> countFailsOnLocalDay(
     String cardId,
     DateTime day, {
@@ -393,9 +378,11 @@ class ReviewHistoryDao {
   }
 
   /// Delete events whose `cardId` starts with [prefix] (Anki deck uninstall).
+  /// Wildcards inside [prefix] are escaped, so the match is strictly literal.
+  @override
   Future<void> deleteByCardPrefix(String prefix) async {
     await (_db.delete(_db.reviewEvents)
-          ..where((t) => t.cardId.like('$prefix%')))
+          ..where((t) => prefixLike(t.cardId, prefix)))
         .go();
   }
 
@@ -403,6 +390,7 @@ class ReviewHistoryDao {
   /// undo action; Anki sessions never allow two pending undos at once.
   /// Pass [languageCode] so an undo can never delete another language's
   /// event when wordIds collide across languages.
+  @override
   Future<bool> deleteLatestForCard(String cardId,
       {String? languageCode}) async {
     final query = _db.select(_db.reviewEvents)
@@ -423,6 +411,7 @@ class ReviewHistoryDao {
   }
 
   /// Remove the exact product review event identified by its ledger receipt.
+  @override
   Future<bool> deleteBySourceKey(String sourceKey) async {
     final deleted = await (_db.delete(_db.reviewEvents)
           ..where((table) => table.sourceKey.equals(sourceKey)))
@@ -479,56 +468,4 @@ class ReviewHistoryDao {
         (kind) => kind.name == value,
         orElse: () => SrsSourceKind.course,
       );
-}
-
-/// One aggregated day of review activity (dashboard 7-day chart).
-class DailyActivityRow {
-  final DateTime localDay;
-  final int reviewedCount;
-
-  const DailyActivityRow({required this.localDay, required this.reviewedCount});
-}
-
-/// Plain data class for one review event (decoupled from the Drift row).
-class ReviewEventRecord {
-  final int? id;
-  final String cardId;
-  final String queue;
-  final DateTime reviewedAt;
-  final int quality;
-  final int prevIntervalDays;
-  final int nextIntervalDays;
-  final double prevEase;
-  final double nextEase;
-  final int reps;
-  final int lapses;
-  final SrsItemType type;
-  final String? sourceKey;
-  final SrsSourceKind sourceKind;
-  final String sourceId;
-  final String? ownerId;
-  final String languageCode;
-
-  const ReviewEventRecord({
-    this.id,
-    required this.cardId,
-    required this.queue,
-    required this.reviewedAt,
-    required this.quality,
-    required this.prevIntervalDays,
-    required this.nextIntervalDays,
-    required this.prevEase,
-    required this.nextEase,
-    required this.reps,
-    required this.lapses,
-    this.type = SrsItemType.word,
-    this.sourceKey,
-    this.sourceKind = SrsSourceKind.course,
-    this.sourceId = 'course',
-    this.ownerId,
-    this.languageCode = LanguageCodes.turkish,
-  });
-
-  /// A recall is successful at SM-2 quality >= 3.
-  bool get recalled => quality >= 3;
 }

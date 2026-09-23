@@ -10,6 +10,7 @@ import 'package:turna/core/logger.dart';
 import 'package:turna/core/utils.dart';
 import 'package:turna/data/course_database.dart' as db;
 import 'package:turna/data/course_database_seeder.dart';
+import 'package:turna/data/sql_like.dart';
 import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/domain/course/expression.dart';
 import 'package:turna/domain/course/grammar_point.dart';
@@ -101,12 +102,21 @@ class CourseRepository implements ICourseRepository {
     return [for (final r in rows) _toGrammarPoint(r)];
   }
 
-  /// A single grammar point by id, or `null` if unknown.
+  /// A single grammar point by id, or `null` if unknown. Pass
+  /// [languageCode] to scope the lookup to one language (ids are only
+  /// unique per language; the seeder rejects cross-language duplicates,
+  /// this is the read-side guard).
   @override
-  Future<GrammarPoint?> grammarPointById(String id) async {
-    final row = await (database.select(database.grammarPoints)
-          ..where((t) => t.id.equals(id)))
-        .getSingleOrNull();
+  Future<GrammarPoint?> grammarPointById(String id,
+      {String? languageCode}) async {
+    final query = database.select(database.grammarPoints)
+      ..where((t) => t.id.equals(id));
+    if (languageCode != null) {
+      query.where(
+        (t) => t.languageCode.equals(LanguageCodes.canonicalize(languageCode)),
+      );
+    }
+    final row = await query.getSingleOrNull();
     return row == null ? null : _toGrammarPoint(row);
   }
 
@@ -123,12 +133,19 @@ class CourseRepository implements ICourseRepository {
     return [for (final r in rows) _toExpression(r)];
   }
 
-  /// A single expression by id, or `null` if unknown.
+  /// A single expression by id, or `null` if unknown. Pass [languageCode]
+  /// to scope the lookup to one language (read-side guard; see
+  /// [grammarPointById]).
   @override
-  Future<Expression?> expressionById(String id) async {
-    final row = await (database.select(database.expressions)
-          ..where((t) => t.id.equals(id)))
-        .getSingleOrNull();
+  Future<Expression?> expressionById(String id, {String? languageCode}) async {
+    final query = database.select(database.expressions)
+      ..where((t) => t.id.equals(id));
+    if (languageCode != null) {
+      query.where(
+        (t) => t.languageCode.equals(LanguageCodes.canonicalize(languageCode)),
+      );
+    }
+    final row = await query.getSingleOrNull();
     return row == null ? null : _toExpression(row);
   }
 
@@ -176,22 +193,34 @@ class CourseRepository implements ICourseRepository {
   /// [Lesson.content] is always empty here so course-tree open stays O(metadata)
   /// and never hits SQLite's ~999-variable `IN` limit on content ids. Use
   /// [lessonById] for full bodies. Throws [ArgumentError] if unknown.
+  /// Pass [languageCode] to scope the tree to one language (ids are unique
+  /// per language; without it a same-id section in another language could
+  /// bleed its units into this tree).
   @override
-  Future<Section> section(String id) async {
-    final sectionRow = await (database.select(database.sections)
-          ..where((t) => t.id.equals(id)))
-        .getSingleOrNull();
+  Future<Section> section(String id, {String? languageCode}) async {
+    final sectionQuery = database.select(database.sections)
+      ..where((t) => t.id.equals(id));
+    if (languageCode != null) {
+      sectionQuery.where(
+        (t) => t.languageCode.equals(LanguageCodes.canonicalize(languageCode)),
+      );
+    }
+    final sectionRow = await sectionQuery.getSingleOrNull();
     if (sectionRow == null) {
       throw ArgumentError('Unknown section id: $id');
     }
+    final scopedCode = sectionRow.languageCode;
 
-    final unitRows = await (database.select(database.units)
-          ..where((t) => t.sectionId.equals(id))
-          ..orderBy([
-            (t) => OrderingTerm(expression: t.sortOrder),
-            (t) => OrderingTerm(expression: t.id),
-          ]))
-        .get();
+    final unitQuery = database.select(database.units)
+      ..where((t) => t.sectionId.equals(id))
+      ..orderBy([
+        (t) => OrderingTerm(expression: t.sortOrder),
+        (t) => OrderingTerm(expression: t.id),
+      ]);
+    if (languageCode != null) {
+      unitQuery.where((t) => t.languageCode.equals(scopedCode));
+    }
+    final unitRows = await unitQuery.get();
 
     final lessonsByUnit = <String, List<Lesson>>{};
     if (unitRows.isNotEmpty) {
@@ -209,6 +238,9 @@ class CourseRepository implements ICourseRepository {
           OrderingTerm(expression: database.lessons.sortOrder),
           OrderingTerm(expression: database.lessons.id),
         ]);
+      if (languageCode != null) {
+        lessonQuery.where(database.units.languageCode.equals(scopedCode));
+      }
 
       final joined = await lessonQuery.get();
       for (final row in joined) {
@@ -242,18 +274,28 @@ class CourseRepository implements ICourseRepository {
   }
 
   /// Rebuild a single [Lesson] by id (the new "Lesson by ID" capability).
-  /// Throws [ArgumentError] if the lesson id is unknown.
+  /// Throws [ArgumentError] if the lesson id is unknown. Pass [languageCode]
+  /// to scope the lookup to one language (read-side guard; see
+  /// [grammarPointById]).
   @override
-  Future<Lesson> lessonById(String id) async {
-    final row = await (database.select(database.lessons)
-          ..where((t) => t.id.equals(id)))
-        .getSingleOrNull();
+  Future<Lesson> lessonById(String id, {String? languageCode}) async {
+    final lessonQuery = database.select(database.lessons)
+      ..where((t) => t.id.equals(id));
+    if (languageCode != null) {
+      lessonQuery.where(
+        (t) => t.languageCode.equals(LanguageCodes.canonicalize(languageCode)),
+      );
+    }
+    final row = await lessonQuery.getSingleOrNull();
     if (row == null) {
       throw ArgumentError('Unknown lesson id: $id');
     }
-    final contentRow = await (database.select(database.lessonContents)
-          ..where((t) => t.lessonId.equals(id)))
-        .getSingleOrNull();
+    final contentQuery = database.select(database.lessonContents)
+      ..where((t) => t.lessonId.equals(id));
+    if (languageCode != null) {
+      contentQuery.where((t) => t.languageCode.equals(row.languageCode));
+    }
+    final contentRow = await contentQuery.getSingleOrNull();
     final contentJson = contentRow?.contentJson;
     // crash-hunt PR1: official projection lessons cap at 512KB of JSON —
     // decoding that on the UI isolate is a visible freeze on open. Small
@@ -274,9 +316,9 @@ class CourseRepository implements ICourseRepository {
   /// separator `-c` before LIKE matching: Anki interaction ids are
   /// `${wordId}-c${ord}`, so `${wordId}-c` is always a substring of a lesson
   /// body that contains that card. Anchoring prevents prefix collisions
-  /// (`anki-imp-c45` would otherwise also match `anki-imp-c450`). Note: the
-  /// `importId` segment contains `_` (a SQL LIKE wildcard), which can only
-  /// widen a match to a non-existent id, never drop a real one.
+  /// (`anki-imp-c45` would otherwise also match `anki-imp-c450`). The `importId`
+  /// segment may contain `_`/`%`, but the LIKE is wildcard-escaped, so matches
+  /// stay strictly literal.
   @override
   Future<List<Lesson>> lessonsContainingAny(Iterable<String> needles) async {
     final list = [
@@ -289,11 +331,13 @@ class CourseRepository implements ICourseRepository {
     // Expression model) - use type inference for the OR-chain of LIKEs.
     // Each needle is suffixed with `-c` (the ord separator) so a card id that
     // is a prefix of another (e.g. c45 vs c450) does not load the wrong lesson.
+    // prefixLike escapes `_`/`%` in the importId segment too, so the match is
+    // strictly literal (the old note about `_` widening is retired).
     final contentQuery = database.select(database.lessonContents)
       ..where((t) {
-        var expr = t.contentJson.like('%${list.first}-c%');
+        var expr = prefixLike(t.contentJson, '${list.first}-c');
         for (var i = 1; i < list.length; i++) {
-          expr = expr | t.contentJson.like('%${list[i]}-c%');
+          expr = expr | prefixLike(t.contentJson, '${list[i]}-c');
         }
         return expr;
       });
@@ -477,12 +521,17 @@ class CourseRepository implements ICourseRepository {
   }
 
   /// Delete vocabulary entries whose JSON-encoded tags contain [tag] as an
-  /// exact list element (`%"tag"%` LIKE match — the quotes keep `anki:x`
-  /// from matching `anki:xyz`).
+  /// exact list element (`%"tag"%` contains-match — the quotes keep `anki:x`
+  /// from matching `anki:xyz`; LIKE wildcards in [tag] are escaped so they
+  /// match literally).
   @override
   Future<int> deleteByTag(String tag) async {
     return (database.delete(database.vocabulary)
-          ..where((t) => t.tags.like('%"$tag"%')))
+          ..where((t) => LikeEscaped(
+                t.tags,
+                Variable.withString('%"${escapeLikePattern(tag)}"%'),
+                r'\',
+              )))
         .go();
   }
 
@@ -520,6 +569,7 @@ class CourseRepository implements ICourseRepository {
   }
 
   /// Delete one packed builtin language (content + SRS + history + mistakes).
+  @override
   Future<void> deleteBuiltinLanguage(String languageCode) async {
     final code = LanguageCodes.canonicalize(languageCode);
     await database.transaction(() async {
@@ -579,6 +629,7 @@ class CourseRepository implements ICourseRepository {
   }
 
   /// Remove the uninstall marker so the language can be reseeded again.
+  @override
   Future<void> clearLanguageUninstallMarker(String languageCode) async {
     final code = LanguageCodes.canonicalize(languageCode);
     await (database.delete(database.courseMeta)
@@ -587,6 +638,7 @@ class CourseRepository implements ICourseRepository {
   }
 
   /// Language codes carrying an `uninstalled:<code>` marker.
+  @override
   Future<Set<String>> uninstalledLanguageCodes() async {
     const prefix = '${DatabaseSeeder.metaUninstalled}:';
     final rows = await (database.select(database.courseMeta)
@@ -601,6 +653,7 @@ class CourseRepository implements ICourseRepository {
   /// Lesson ids owned by one language, collected BEFORE the language's rows
   /// are deleted so the uninstall cascade can drop them from the persisted
   /// lesson-progress sets.
+  @override
   Future<Set<String>> lessonIdsForLanguage(String languageCode) async {
     final code = LanguageCodes.canonicalize(languageCode);
     final rows = await (database.selectOnly(database.lessons)
@@ -613,6 +666,7 @@ class CourseRepository implements ICourseRepository {
   /// Vocabulary / grammar-point / expression ids owned by one language —
   /// the live resource-id set the pack importer compares against after a
   /// re-import to prune learner rows (see [deleteOrphanedLearnerRows]).
+  @override
   Future<Set<String>> resourceIdsForLanguage(String languageCode) async {
     final code = LanguageCodes.canonicalize(languageCode);
     final rows = await database.customSelect(
@@ -639,6 +693,7 @@ class CourseRepository implements ICourseRepository {
   /// importer detects that an import *replaces* an installed course (and
   /// should therefore ask for confirmation). The uninstall path deletes
   /// content rows, so a reinstall never trips this.
+  @override
   Future<bool> languageHasContent(String languageCode) async {
     final code = LanguageCodes.canonicalize(languageCode);
     final row = await (database.selectOnly(database.sections)
@@ -694,6 +749,7 @@ class CourseRepository implements ICourseRepository {
   /// Content item count (vocabulary + grammar points + expressions) per
   /// builtin language — the "cards" figure shown in the uninstall
   /// confirmation.
+  @override
   Future<Map<String, int>> builtinCardCounts() async {
     final rows = await database.customSelect(
       'SELECT language_code AS code, COUNT(*) AS n FROM ('

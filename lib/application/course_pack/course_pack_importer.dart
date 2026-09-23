@@ -276,6 +276,16 @@ class CoursePackImporter {
       throw CoursePackImportException(e.errors);
     }
 
+    final seenSectionIds = <String>{
+      for (final row in await (db.selectOnly(db.sections)
+            ..addColumns([db.sections.id])
+            ..where(
+              db.sections.languageCode.equals(code).not() &
+                  db.sections.languageCode.equals('anki').not(),
+            ))
+          .get())
+        row.read(db.sections.id)!,
+    };
     final seenUnitIds = <String>{
       for (final row in await (db.selectOnly(db.units)
             ..addColumns([db.units.id])
@@ -301,6 +311,7 @@ class CoursePackImporter {
       cross.addAll(
         DatabaseSeeder.collectCrossCourseIdErrorsAgainst(
           section,
+          seenSectionIds: seenSectionIds,
           seenUnitIds: seenUnitIds,
           seenLessonIds: seenLessonIds,
         ),

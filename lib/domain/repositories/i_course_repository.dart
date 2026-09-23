@@ -18,11 +18,13 @@ abstract class ICourseRepository {
   Future<List<Section>> sectionShells({String? languageCode});
 
   /// L1 section tree: units + lesson metadata only. [Lesson.content] is empty;
-  /// load bodies with [lessonById].
-  Future<Section> section(String id);
+  /// load bodies with [lessonById]. [languageCode] scopes the lookup to one
+  /// language (ids are unique per language only).
+  Future<Section> section(String id, {String? languageCode});
 
-  /// L2: single lesson with full [LessonContent].
-  Future<Lesson> lessonById(String id);
+  /// L2: single lesson with full [LessonContent]. [languageCode] scopes the
+  /// lookup to one language.
+  Future<Lesson> lessonById(String id, {String? languageCode});
 
   /// Load full lesson bodies whose `content_json` contains any of [needles]
   /// (substring match). Used by Anki review to resolve a small batch of
@@ -40,9 +42,9 @@ abstract class ICourseRepository {
 
   Future<List<WordEntry>> vocabulary({String? languageCode});
   Future<List<GrammarPoint>> grammarPoints({String? languageCode});
-  Future<GrammarPoint?> grammarPointById(String id);
+  Future<GrammarPoint?> grammarPointById(String id, {String? languageCode});
   Future<List<Expression>> expressions({String? languageCode});
-  Future<Expression?> expressionById(String id);
+  Future<Expression?> expressionById(String id, {String? languageCode});
 
   /// Bulk-write a full section tree (units + lessons + lesson contents) in a
   /// single transaction, upserting by id. Used by importers (Anki decks);
@@ -76,4 +78,26 @@ abstract class ICourseRepository {
 
   /// Schema version of the backing database (diagnostics surface).
   int get schemaVersion;
+
+  /// Remove the builtin course tree + all user state for [languageCode]
+  /// (uninstall path) and mark the language uninstalled.
+  Future<void> deleteBuiltinLanguage(String languageCode);
+
+  /// Clear the uninstalled marker so [languageCode] is offered again.
+  Future<void> clearLanguageUninstallMarker(String languageCode);
+
+  /// Language codes currently marked uninstalled.
+  Future<Set<String>> uninstalledLanguageCodes();
+
+  /// Lesson ids belonging to [languageCode] (course tree + projections).
+  Future<Set<String>> lessonIdsForLanguage(String languageCode);
+
+  /// Media/resource ids belonging to [languageCode].
+  Future<Set<String>> resourceIdsForLanguage(String languageCode);
+
+  /// Whether [languageCode] has any course content installed.
+  Future<bool> languageHasContent(String languageCode);
+
+  /// Per-language builtin card counts for the catalog badges.
+  Future<Map<String, int>> builtinCardCounts();
 }

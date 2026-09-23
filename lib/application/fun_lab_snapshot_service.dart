@@ -18,8 +18,8 @@ import 'package:turna/application/restore_normalization_service.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/application/study_stats_provider.dart';
 import 'package:turna/data/course_database.dart';
-import 'package:turna/data/srs_state_dao.dart';
-import 'package:turna/data/study_log_repository.dart';
+import 'package:turna/domain/repositories/i_study_log_repository.dart';
+import 'package:turna/domain/repositories/i_srs_state_store.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/service/locator.dart';
 
@@ -55,13 +55,13 @@ class _SnapshotPref {
 class FunLabSnapshotService {
   final AppPrefs _prefs;
   final CourseDatabase _db;
-  final SrsStateDao _srsStateDao;
+  final ISrsStateStore _srsStateDao;
   final SrsProvider _srsProvider;
   final GrammarReviewProvider _grammarProvider;
   final LessonProgressProvider _lessonProgress;
   final MistakeProvider _mistakeProvider;
   final LessonLinkStore _linkStore;
-  final StudyLogRepository _studyLogRepository;
+  final IStudyLogRepository _studyLogRepository;
   final StudyStatsProvider _studyStatsProvider;
   final GemsProvider _gemsProvider;
   final GameProvider _gameProvider;

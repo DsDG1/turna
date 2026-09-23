@@ -17,7 +17,7 @@ import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/application/study_stats_provider.dart';
 import 'package:turna/core/logger.dart';
-import 'package:turna/data/study_log_repository.dart';
+import 'package:turna/domain/repositories/i_study_log_repository.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/service/local_reminder_service.dart';
 
@@ -166,8 +166,8 @@ class PostRestoreReloadRegistry {
     );
     _registerIf(
       'studyLogs',
-      () => getIt.isRegistered<StudyLogRepository>(),
-      () async => getIt<StudyLogRepository>().reloadFromPrefs(),
+      () => getIt.isRegistered<IStudyLogRepository>(),
+      () async => getIt<IStudyLogRepository>().reloadFromPrefs(),
     );
     _registerIf(
       'studyStats',

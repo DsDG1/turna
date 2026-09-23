@@ -9,7 +9,8 @@ import 'package:injectable/injectable.dart';
 
 // Project imports:
 import 'package:turna/core/logger.dart';
-import 'package:turna/data/gem_ledger_dao.dart';
+import 'package:turna/domain/repositories/i_gem_ledger.dart';
+import 'package:turna/domain/game/gem_consumable.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/cosmetics/avatar_ring.dart';
 import 'package:turna/service/locator.dart';
@@ -272,7 +273,7 @@ class GemsProvider extends ChangeNotifier {
     await _mirrorProjection(ledger);
   }
 
-  Future<void> _ensureLedgerMigrated(GemLedgerDao ledger) async {
+  Future<void> _ensureLedgerMigrated(IGemLedger ledger) async {
     final unlocked = appPrefs.preferences
         .getStringList(LocalStateKeys.cosmeticsUnlocked, defaultValue: const [])
         .getValue()
@@ -305,7 +306,7 @@ class GemsProvider extends ChangeNotifier {
     await _mirrorProjection(ledger);
   }
 
-  Future<void> _mirrorProjection(GemLedgerDao ledger) async {
+  Future<void> _mirrorProjection(IGemLedger ledger) async {
     await _writeWallet(await ledger.projectedBalance());
   }
 
@@ -315,10 +316,10 @@ class GemsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  GemLedgerDao? _resolveLedger() {
-    if (!getIt.isRegistered<GemLedgerDao>()) return null;
+  IGemLedger? _resolveLedger() {
+    if (!getIt.isRegistered<IGemLedger>()) return null;
     try {
-      return getIt<GemLedgerDao>();
+      return getIt<IGemLedger>();
     } catch (_) {
       return null;
     }

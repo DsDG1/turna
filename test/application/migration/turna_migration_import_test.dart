@@ -13,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:turna/application/migration/turna_migration_export.dart';
 import 'package:turna/application/migration/turna_migration_import.dart';
 import 'package:turna/data/course_database.dart';
+import 'package:turna/di/injection.dart';
 
 import '../../helpers/in_memory_course_db.dart';
 
@@ -194,6 +195,20 @@ void main() {
     final result = await TurnaMigrationImporter(db: target).importFrom(junk);
     expect(result.applied, isFalse);
     expect(result.rejection, TurnaMigrationImportRejection.notAZip);
+  });
+
+  test('the generated GetIt factory resolves the importer', () async {
+    // Regression: the generated lazySingleton resolves gh<Directory>() +
+    // gh<int>() (mediaRoot + minFreeBytes). setupLocator() registers both in
+    // the manual track; replicate that wiring so the factory can build —
+    // without it the first getIt<TurnaMigrationImporter>() threw.
+    await getIt.reset();
+    getIt.registerSingleton<CourseDatabase>(target);
+    getIt.registerSingleton<Directory>(Directory.systemTemp);
+    getIt.registerSingleton<int>(64 * 1024 * 1024);
+    configureDependencies();
+
+    expect(getIt<TurnaMigrationImporter>(), isA<TurnaMigrationImporter>());
   });
 }
 
