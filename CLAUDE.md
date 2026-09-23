@@ -100,7 +100,7 @@ flutter test                                                 # 基线见 test/BA
 flutter analyze
 python -m unittest discover -s test -p "*_test.py"           # Python 工具测试
 python tool/gui/run_gui_tests.py full                        # GUI 测试（full 档全量；ci 档=gate+fast）
-python -m ruff check tool/gui/src                            # GUI lint（仅 src；tests 有历史债）
+python -m ruff check tool/gui                               # GUI lint（src + tests）
 make lint-gui test-gui                                       # 同上两步的 Make 入口
 make ci                                                      # 本地全量 CI 等价（含 GUI full 档）
 python tool/build_release.py --version 0.4.0-future4         # 发布
@@ -132,9 +132,15 @@ Windows 用 `python`（非 `python3`）。完整 Makefile / 平台 / 发布流�
 ### 分层导入规则（由 `test/architecture/layering_guard_test.dart` 强制）
 
 - `views` 不得 import `data` —— 经 application 服务或 domain 仓库接口。
-- `application` / `domain` / `core` 不得 import `views`（`di/` 装配模块豁免）。
+- `application` / `domain` / `core` / `service` 不得 import `views`（`di/` 装配模块豁免）。
 - `domain` 不得 import `application` / `data` —— 需要能力时在 domain 抽接口（如 `SrsSchedulingGateway`）。
+- `application → data` 是**硬禁止**（批次 6 DAO 接口化收口后落地）：DAO/Repository 一律经 `domain/repositories` 接口消费。守卫测试内有逐文件白名单，只放行 Drift 句柄传递、原生 SQL/事务、`CourseDatabase` 本地句柄构造三类例外；删除 import 必须同步删白名单条目（过期条目会让守卫失败），新增例外需要明确架构理由。
 - 共享词汇（主题 token、状态模型、结果枚举）放 `core` 或 `domain`，不放页面文件。
+
+### 数据与算法约定
+
+- SQL `LIKE` 统一走 `lib/data/sql_like.dart`：用户/外部输入经 `escapeLikePattern()` 转义 `%`/`_`/`\`，drift 侧用 `LikeEscaped` 或便捷构造 `containsLike()` / `prefixLike()`；不再新增裸 `.like()` 或手写 LIKE。纯常量前缀可豁免。
+- `lib/core/fsrs_optimizer.dart` 与 `fsrs` 包（当前 2.0.1）**逐公式镜像**（难度阻尼、召回稳定度、lapse 取 min、0.9 曲线锚定均为包行为）。升级 fsrs 包版本必须同步核对模型公式，否则本地拟合权重与调度口径漂移。
 
 ### 状态管理选型
 

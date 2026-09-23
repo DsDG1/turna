@@ -2,7 +2,7 @@
 
 > 本文是 README 的深度补充。README 给出概览与快速上手，本文给出每个子系统的设计、实现要点与决策依据。阅读顺序建议：先读 README，再按需查阅本文相应章节。
 >
-> 所有信息以代码现状为准（schemaVersion 26、课程内容版本 12、`flutter test --exclude-tags golden` 1861 passed / 0 failed，截至 2026-09-21；完整基线见 `test/BASELINE.md`）。2026-09-21 体验改良批次（B1–B7）收据见 [`ux-experience-improvement-plan.md`](./ux-experience-improvement-plan.md)。
+> 所有信息以代码现状为准（schemaVersion 26、课程内容版本 12、`flutter test --exclude-tags golden` 1911 passed / 0 failed，截至 2026-09-22；完整基线见 `test/BASELINE.md`）。2026-09-21 体验改良批次（B1–B7）收据见 [`ux-experience-improvement-plan.md`](./ux-experience-improvement-plan.md)。
 >
 > **近期重要变更**：Legacy Anki 复刻层已于 2026-08-27 由 [doc 35](./official-anki-migration/35-duplicate-legacy-layer-cleanup-plan.md) L0–L3 物理删除（`lib/application/anki/` 目录清空）。原 §6 中描述 legacy 解析/装配/映射/Full-Lite 的段落已改为删除说明，勿再按旧描述实现。
 
@@ -156,7 +156,10 @@ lib/
 │   │                   # listening_phase/reading_passage/expression/grammar_point/
 │   │                   # srs_word/mistake_entry/word_entry
 │   ├── audio/          # VocabAudioResolver / AnkiAudioResolver 抽象
-│   └── repositories/   # ICourseRepository, IStudyLogRepository
+│   └── repositories/   # ICourseRepository, IStudyLogRepository,
+│                       # ISrsStateStore, IReviewHistoryStore, IGemLedger,
+│                       # IAnkiNoteStore, IAnkiImportStore,
+│                       # IAnkiUnificationStore, IMistakeRepository
 ├── routing/            # Auto Route + CourseReadyGuard
 ├── service/            # AppPrefs / locator / TTS / 本地提醒
 └── views/              # courses / dictionary / home / lesson / play / profile /
@@ -170,7 +173,7 @@ lib/
 - **DI**：GetIt + Injectable，`@injectable` / `@lazySingleton` 注解，`build_runner` 生成 `injection.config.dart`。
 - **路由（导航合同，详见 `docs/platform-adaptive-page-transition-unification-plan.md`）**：Auto Route + 代码生成（`.gr.dart`）+ `CourseReadyGuard`（DB seed 完成前重定向到 splash）。全屏页面一律走 AutoRoute，全局 `AppRouter.defaultRouteType = RouteType.adaptive(enablePredictiveBackGesture: true)`——Android 用 Material 路由（含预测返回，manifest 已加 `enableOnBackInvokedCallback`），iOS/macOS 用真实 Cupertino 路由（边缘返回），Web 无转场。禁止：全局强制单一平台路由、`PageRouteBuilder`/`transitionsBuilder` 自定义转场、调用点直接构造 `MaterialPageRoute`/`CupertinoPageRoute`、覆盖 `ThemeData.pageTransitionsTheme`。唯一例外：`lib/routing/platform_page_route.dart` 的官方路由类选择器，仅供运行时组装、无稳定页面身份的内部页使用。底部主 Tab 是 `IndexedStack` 即时切换（非 push/pop）；Dialog/BottomSheet 保持弹层语义。以上契约由 `test/routing/routing_policy_contract_test.dart` 与 `test/routing/adaptive_route_semantics_test.dart` 在 CI 强制。
 - **模型**：Freezed 不可变 + `@JsonSerializable`；Interaction 变体由 `runtimeType` 区分。
-- **Repository**：接口（`domain/repositories/`）+ 实现（`data/`）；DB 作为派生缓存，JSON 为真理源。
+- **Repository**：接口（`domain/repositories/`）+ 实现（`data/`）；DB 作为派生缓存，JSON 为真理源。application 层只消费接口（GetIt 以 `@LazySingleton(as: …)` 绑定实现）；`application → data` 由 layering guard 硬禁止，仅守卫测试内白名单放行 Drift 句柄传递 / 原生 SQL·事务 / 本地句柄构造三类例外。
 - **渲染器插件化**：14 种 Interaction 各有 `@injectable` 渲染器，由 `di/renderer_module.dart` 收集成 `Set<InteractionRenderer>` 注册到 GetIt。分发走 `lookupRenderer()`，它先用 `_handlesTypeFor()` 把实例映射到 **freezed 公开接口类型**再匹配——**不能直接用 `runtimeType`**，因为 freezed 生成的是私有的 `_$FooImpl`，永远不等于渲染器声明的 `handlesType`。新增题型：写渲染器 → 在 module 登记 → 重跑 `build_runner`，无需改动任何分发逻辑。
 
 ---
@@ -693,10 +696,10 @@ JSON 位于 `assets/courses/turkish/`，由 `CourseLoader` 加载、`DatabaseSee
 ## 14. 测试与质量基线
 
 ```bash
-flutter test --exclude-tags golden           # 1861 passed / 0 failed（最新数字见 test/BASELINE.md）
+flutter test --exclude-tags golden           # 1911 passed / 0 failed（最新数字见 test/BASELINE.md）
 python -m unittest discover -s test -p "*_test.py"            # Python 工具测试
 python tool/gui/run_gui_tests.py full        # GUI 全量（每模块独立子进程，runner 自动设 offscreen）
-python -m ruff check tool/gui/src            # GUI lint（仅 src；tests 历史债另批清理）
+python -m ruff check tool/gui                # GUI lint（src + tests）
 ```
 
 - `flutter analyze`：改动文件 0 error / 0 warning（仅历史 info 级 lint）。
