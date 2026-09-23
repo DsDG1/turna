@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'package:turna/data/course_database.dart' as db;
+import 'package:turna/data/course_db_backup.dart';
 
 import '../helpers/in_memory_course_db.dart';
 
@@ -562,7 +563,9 @@ void main() {
       await File(path).parent.delete(recursive: true);
     });
 
-    test('v25 -> v24 downgrade wipes and recreates instead of crashing',
+    test(
+        'downgrade from kSchemaVersion+1 wipes and recreates instead of crashing '
+        '(name formerly mislabeled v25 -> v24)',
         () async {
       final path = await _tempDbPath();
       final newer = _CourseDatabaseV26(NativeDatabase(File(path)));
@@ -574,6 +577,25 @@ void main() {
             ),
           );
       await newer.close();
+
+      // Lock in the downgrade safety contract: a pre-open snapshot of the
+      // newer file exists (backupCourseDbBeforeMigration), because the wipe
+      // below destroys the learning tables and that snapshot is the only
+      // surviving copy.
+      final preOpenBackup =
+          await backupCourseDbBeforeMigration(File(path));
+      expect(
+        preOpenBackup != null && preOpenBackup.existsSync(),
+        isTrue,
+        reason: 'downgrade must snapshot the newer file before wiping',
+      );
+      final backupVersion = sqlite.sqlite3.open(preOpenBackup!.path);
+      expect(
+        backupVersion.select('PRAGMA user_version').first['user_version']
+            as int,
+        db.CourseDatabase.kSchemaVersion + 1,
+      );
+      backupVersion.dispose();
 
       // Opening a future schema with the current code must downgrade
       // gracefully (wipe + recreate) rather than throw.

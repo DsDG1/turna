@@ -1,7 +1,5 @@
 // Pure relearn-ladder helpers (ADR 0029). Binary scoring only.
 
-import 'package:turna/l10n/app_strings.dart';
-
 /// Same-day fail relearn delays. [failStreak] is 1-based count of fails today
 /// *including* the fail just graded.
 ///
@@ -31,20 +29,8 @@ bool isMatureStability(double? stability, int intervalDays) {
   return intervalDays >= matureStabilityDays.round();
 }
 
-bool isSameCalendarDay(DateTime a, DateTime b) =>
-    a.year == b.year && a.month == b.month && a.day == b.day;
-
 /// Local midnight of [day] + 1 day.
 DateTime nextLocalMidnight(DateTime nowLocal) {
   return DateTime(nowLocal.year, nowLocal.month, nowLocal.day)
       .add(const Duration(days: 1));
-}
-
-/// Human preview label for fail streak *before* applying the fail (0 = first).
-String relearnPreviewLabel(int failsTodaySoFar, {bool mature = false}) {
-  final streak = failsTodaySoFar + 1;
-  final d = relearnDelayForFailStreak(streak, mature: mature);
-  if (d == null) return AppStrings.reviewIntervalTomorrow;
-  if (d.inHours >= 1) return AppStrings.reviewIntervalHours(d.inHours);
-  return AppStrings.reviewIntervalMinutes(d.inMinutes);
 }

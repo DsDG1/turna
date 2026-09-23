@@ -106,26 +106,10 @@ class Sm2Engine implements SrsScheduler {
       dueAt = reviewNow.add(const Duration(minutes: relearnDelayMinutes));
     } else {
       reps += 1;
-      if (reps == 1) {
-        interval = 1;
-      } else if (reps == 2) {
-        // Gentler early growth under binary grading (was 6).
-        interval = 4;
-      } else {
-        // Successful recall slowly recovers ease (binary grading gives no
-        // Easy button, so success carries a small bonus).
+      interval = _successIntervalDays(word, reps: reps, clock: reviewNow);
+      if (reps > 2) {
         ease = word.ease + knownEaseBonus;
         if (ease > maxEase) ease = maxEase;
-
-        // Overdue bonus: recalling later than scheduled is stronger evidence
-        // of retention, so grow with the actually elapsed time (capped).
-        final overdueDays = max(0, reviewNow.difference(word.dueAt).inDays);
-        final elapsedDays = word.intervalDays + overdueDays;
-        final overdueFactor = word.intervalDays > 0
-            ? min(elapsedDays / word.intervalDays, overdueBonusCap)
-            : 1.0;
-
-        interval = (word.intervalDays * ease * overdueFactor).round();
         // Fuzz mature intervals so reviews don't cluster on the same day,
         // then clamp to the hard cap so jitter can't push past it.
         interval = _maybeFuzz(interval, random ?? _sharedRandom);
@@ -135,7 +119,7 @@ class Sm2Engine implements SrsScheduler {
     }
 
     // A leech is a card with many lapses relative to reps.
-    final isLeech = lapses >= 5 && lapses > reps;
+    final isLeech = lapses >= kLeechMinimumLapses && lapses > reps;
 
     return word.copyWith(
       dueAt: dueAt,
@@ -156,17 +140,34 @@ class Sm2Engine implements SrsScheduler {
   int previewIntervalDays(SrsWord word, int quality, {DateTime? now}) {
     final q = quality.clamp(0, 5);
     if (q < 3) return 0; // failed recall -> relearn in minutes
-    final reps = word.reps + 1;
+    final clock = now ?? DateTime.now();
+    return _successIntervalDays(word, reps: word.reps + 1, clock: clock);
+  }
+
+  /// Interval (days) for a successful review at [reps] (already incremented),
+  /// shared by [review] and [previewIntervalDays] so the two paths cannot
+  /// drift. Includes the early ladder (reps 1 -> 1d, 2 -> 4d: gentler than
+  /// classic SM-2 under binary grading), the ease-recovery bonus, the capped
+  /// overdue bonus and the hard cap; NO fuzz (the review path applies fuzz
+  /// on top, the preview path must stay deterministic).
+  int _successIntervalDays(
+    SrsWord word, {
+    required int reps,
+    required DateTime clock,
+  }) {
     if (reps == 1) return 1;
     if (reps == 2) return 4;
     var ease = word.ease + knownEaseBonus;
     if (ease > maxEase) ease = maxEase;
-    final clock = now ?? DateTime.now();
+
+    // Overdue bonus: recalling later than scheduled is stronger evidence
+    // of retention, so grow with the actually elapsed time (capped).
     final overdueDays = max(0, clock.difference(word.dueAt).inDays);
     final elapsedDays = word.intervalDays + overdueDays;
     final overdueFactor = word.intervalDays > 0
         ? min(elapsedDays / word.intervalDays, overdueBonusCap)
         : 1.0;
+
     final interval = (word.intervalDays * ease * overdueFactor).round();
     return interval > maxIntervalDays ? maxIntervalDays : interval;
   }

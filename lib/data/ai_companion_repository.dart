@@ -2,7 +2,9 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 
+import 'package:turna/core/logger.dart';
 import 'package:turna/data/course_database.dart';
+import 'package:turna/data/sql_like.dart';
 import 'package:turna/domain/ai_companion/ai_note.dart';
 import 'package:turna/domain/ai_companion/ai_request_metric.dart';
 import 'package:turna/domain/ai_companion/ai_session.dart';
@@ -460,19 +462,23 @@ class AiCompanionRepository
     int limit = 100,
   }) async {
     final q = query.trim().toLowerCase();
+    // Escape LIKE wildcards so the user's query matches literally under
+    // ESCAPE '\' (raw SQL here, so the ESCAPE clause is spelled out).
+    final like = '%${escapeLikePattern(q)}%';
     final rows = await _db
         .customSelect(
           q.isEmpty
               ? 'SELECT * FROM ai_notes ORDER BY updated_at DESC LIMIT ?'
               : '''SELECT * FROM ai_notes
-               WHERE LOWER(title) LIKE ? OR LOWER(body) LIKE ? OR LOWER(tags_json) LIKE ?
+               WHERE LOWER(title) LIKE ? ESCAPE '\\' OR LOWER(body) LIKE ? ESCAPE '\\'
+                 OR LOWER(tags_json) LIKE ? ESCAPE '\\'
                ORDER BY updated_at DESC LIMIT ?''',
           variables: q.isEmpty
               ? <Variable<Object>>[Variable<int>(limit.clamp(1, 500))]
               : <Variable<Object>>[
-                  Variable<String>('%$q%'),
-                  Variable<String>('%$q%'),
-                  Variable<String>('%$q%'),
+                  Variable<String>(like),
+                  Variable<String>(like),
+                  Variable<String>(like),
                   Variable<int>(limit.clamp(1, 500)),
                 ],
         )
@@ -737,6 +743,10 @@ class AiCompanionRepository
     for (final value in values) {
       if (value.name == name) return value;
     }
+    if (name != null && name.isNotEmpty) {
+      logger.w('AiCompanionRepository: unknown $T value "$name", '
+          'falling back to ${fallback.name}');
+    }
     return fallback;
   }
 
@@ -752,7 +762,9 @@ class AiCompanionRepository
     if (raw is! String || raw.isEmpty) return fallback;
     try {
       return jsonDecode(raw);
-    } catch (_) {
+    } catch (error) {
+      logger.w('AiCompanionRepository: undecodable JSON column '
+          '(${raw.length} chars); using fallback: $error');
       return fallback;
     }
   }

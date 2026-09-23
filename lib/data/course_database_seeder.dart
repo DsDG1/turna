@@ -358,9 +358,52 @@ class DatabaseSeeder {
       }
       throw CourseValidationException(collisions);
     }
+    // Cross-language gate for the flat pools: ids collide across languages in
+    // the same way unit/lesson ids do (srs_states shares the pools), so a pack
+    // reusing another course's vocabulary/grammar/expression id is rejected
+    // before any write. Anki pseudo-rows never gate reseeding.
+    final poolErrors = <String>[
+      ...collectCrossCoursePoolIdErrorsAgainst(
+        [for (final w in vocab) w.id],
+        await _crossCoursePoolIds('vocabulary', code),
+        'vocabulary',
+      ),
+      ...collectCrossCoursePoolIdErrorsAgainst(
+        [for (final gp in grammarPoints) gp.id],
+        await _crossCoursePoolIds('grammar_points', code),
+        'grammar point',
+      ),
+      ...collectCrossCoursePoolIdErrorsAgainst(
+        [for (final e in expressions) e.id],
+        await _crossCoursePoolIds('expressions', code),
+        'expression',
+      ),
+    ];
+    if (poolErrors.isNotEmpty) {
+      for (final err in poolErrors) {
+        logger.e(err);
+      }
+      throw CourseValidationException(poolErrors);
+    }
     await _seedSections(language, index: index, vocab: vocab);
     await _seedGrammarPoints(language, grammarPoints);
     await _seedExpressions(language, expressions);
+  }
+
+  /// Every id in [table] owned by another non-Anki language — the prime set
+  /// for cross-course pool checks in [_seedLanguage].
+  Future<Set<String>> _crossCoursePoolIds(String table, String code) async {
+    final rows = await db
+        .customSelect(
+          'SELECT id FROM $table '
+          'WHERE language_code != ? AND language_code != ?',
+          variables: [
+            Variable.withString(code),
+            Variable.withString('anki'),
+          ],
+        )
+        .get();
+    return {for (final row in rows) row.read<String>('id')};
   }
 
   Future<void> _seedSections(
@@ -396,6 +439,16 @@ class DatabaseSeeder {
     // Prime with every other language's ids except Anki pseudo-rows so a
     // second imported pack also collides with the first. Anki import rows
     // are excluded — their ids never gate course reseeding.
+    final seenSectionIds = <String>{
+      for (final row in await (db.selectOnly(db.sections)
+            ..addColumns([db.sections.id])
+            ..where(
+              db.sections.languageCode.equals(code).not() &
+                  db.sections.languageCode.equals('anki').not(),
+            ))
+          .get())
+        row.read(db.sections.id)!,
+    };
     final seenUnitIds = <String>{
       for (final row in await (db.selectOnly(db.units)
             ..addColumns([db.units.id])
@@ -427,6 +480,7 @@ class DatabaseSeeder {
 
       final crossErrors = collectCrossCourseIdErrorsAgainst(
         section,
+        seenSectionIds: seenSectionIds,
         seenUnitIds: seenUnitIds,
         seenLessonIds: seenLessonIds,
       );
@@ -536,14 +590,15 @@ class DatabaseSeeder {
         '${vocab.length} vocab words');
   }
 
-  /// Collects cross-course unit/lesson id uniqueness errors from the assembled
-  /// [sections]. Runtime mirror of the CI-only `validateCourse`
+  /// Collects cross-course section/unit/lesson id uniqueness errors from the
+  /// assembled [sections]. Runtime mirror of the CI-only `validateCourse`
   /// check — runtime `validateSection` only checks within a single section.
   ///
-  /// Vocab / expression ids are not checked here (expressions asset is
-  /// currently empty; vocab ids are validated per-section already).
+  /// The flat pools (vocabulary / grammar points / expressions) are checked
+  /// separately in [_seedLanguage] against the other languages' rows.
   @visibleForTesting
   static List<String> collectCrossCourseIdErrors(Iterable<Section> sections) {
+    final sectionIds = <String>{};
     final unitIds = <String>{};
     final lessonIds = <String>{};
     final errors = <String>[];
@@ -551,6 +606,7 @@ class DatabaseSeeder {
       errors.addAll(
         collectCrossCourseIdErrorsAgainst(
           section,
+          seenSectionIds: sectionIds,
           seenUnitIds: unitIds,
           seenLessonIds: lessonIds,
         ),
@@ -560,15 +616,19 @@ class DatabaseSeeder {
   }
 
   /// Streaming variant: merge [section] into running id sets; returns only
-  /// new errors for this section. Mutates [seenUnitIds] / [seenLessonIds]
-  /// on success paths for unique ids (duplicates are still recorded in the
-  /// sets so later collisions continue to be detected).
+  /// new errors for this section. Mutates the seen sets on success paths for
+  /// unique ids (duplicates are still recorded in the sets so later
+  /// collisions continue to be detected).
   static List<String> collectCrossCourseIdErrorsAgainst(
     Section section, {
+    required Set<String> seenSectionIds,
     required Set<String> seenUnitIds,
     required Set<String> seenLessonIds,
   }) {
     final errors = <String>[];
+    if (section.id.isNotEmpty && !seenSectionIds.add(section.id)) {
+      errors.add('Duplicate section id across course: ${section.id}');
+    }
     for (final u in section.units) {
       if (u.id.isEmpty) continue;
       if (!seenUnitIds.add(u.id)) {
@@ -579,6 +639,24 @@ class DatabaseSeeder {
         if (!seenLessonIds.add(l.id)) {
           errors.add('Duplicate lesson id across course: ${l.id}');
         }
+      }
+    }
+    return errors;
+  }
+
+  /// Cross-course uniqueness for one flat id pool (vocabulary / grammar
+  /// points / expressions). [seenIds] is primed with every other language's
+  /// ids; duplicates are still added so later collisions keep being detected.
+  static List<String> collectCrossCoursePoolIdErrorsAgainst(
+    Iterable<String> ids,
+    Set<String> seenIds,
+    String poolName,
+  ) {
+    final errors = <String>[];
+    for (final id in ids) {
+      if (id.isEmpty) continue;
+      if (!seenIds.add(id)) {
+        errors.add('Duplicate $poolName id across course: $id');
       }
     }
     return errors;

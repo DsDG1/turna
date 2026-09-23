@@ -181,7 +181,7 @@ void main() {
     await migrated.close();
   });
 
-  test('backupCourseDbBeforeMigration snapshots only stale-version files',
+  test('backupCourseDbBeforeMigration snapshots version-mismatched files',
       () async {
     final path = await _tempDbPath();
     addTearDown(() async {
@@ -220,6 +220,21 @@ void main() {
       await backupCourseDbBeforeMigration(File('$path.missing')),
       isNull,
     );
+
+    // A NEWER on-disk version (app downgrade) gets a snapshot too: the
+    // downgrade migration wipes the learning tables, so this backup is the
+    // only surviving copy of srs_states / review_events / mistakes.
+    final newer = sqlite.sqlite3.open(path);
+    newer.execute('PRAGMA user_version = ${currentVersion + 1}');
+    newer.dispose();
+    final downgradeBackup = await backupCourseDbBeforeMigration(File(path));
+    expect(downgradeBackup, isNotNull);
+    final downgraded = sqlite.sqlite3.open(downgradeBackup!.path);
+    expect(
+      downgraded.select('PRAGMA user_version').first['user_version'] as int,
+      currentVersion + 1,
+    );
+    downgraded.dispose();
   });
 
   test('v26 rebuilds the course tree with composite PKs and keeps rows',
@@ -302,6 +317,101 @@ void main() {
           row.read<String>('name'),
     ]..sort();
     expect(pkCols, ['id', 'language_code']);
+
+    await migrated.close();
+  });
+
+  test('v25 -> v26 rebuilds tree composite PKs and preserves language_code',
+      () async {
+    final path = await _tempDbPath();
+    addTearDown(() async {
+      final parent = File(path).parent;
+      if (await parent.exists()) await parent.delete(recursive: true);
+    });
+
+    // A true v25 tree: single-column PKs plus the language_code column the
+    // v25 step ALTER-added (appended, DEFAULT 'tr'). The composite-PK
+    // rebuild is what v26 alone contributes.
+    final raw = sqlite.sqlite3.open(path);
+    raw.execute('''
+      CREATE TABLE sections (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '',
+        level TEXT NOT NULL DEFAULT '', prerequisite_section_ids TEXT NOT NULL DEFAULT '[]',
+        sort_order INTEGER NOT NULL DEFAULT 0, language_code TEXT NOT NULL DEFAULT 'tr'
+      );
+      CREATE TABLE units (
+        id TEXT PRIMARY KEY, section_id TEXT NOT NULL, name TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '', prerequisite_unit_ids TEXT NOT NULL DEFAULT '[]',
+        sort_order INTEGER NOT NULL DEFAULT 0, language_code TEXT NOT NULL DEFAULT 'tr'
+      );
+      CREATE TABLE lessons (
+        id TEXT PRIMARY KEY, unit_id TEXT NOT NULL, name TEXT NOT NULL,
+        description TEXT NOT NULL DEFAULT '', type TEXT NOT NULL DEFAULT 'normal',
+        template TEXT NOT NULL DEFAULT 'legacy',
+        prerequisite_lesson_ids TEXT NOT NULL DEFAULT '[]', sort_order INTEGER NOT NULL DEFAULT 0,
+        language_code TEXT NOT NULL DEFAULT 'tr'
+      );
+      CREATE TABLE lesson_contents (
+        lesson_id TEXT PRIMARY KEY, content_json TEXT NOT NULL,
+        language_code TEXT NOT NULL DEFAULT 'tr'
+      );
+      CREATE TABLE course_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+      INSERT INTO sections (id, name) VALUES ('sec-1', 'Section 1');
+      INSERT INTO sections (id, name, language_code) VALUES ('sec-fr', 'FR', 'fr');
+      INSERT INTO units (id, section_id, name) VALUES ('u-1', 'sec-1', 'Unit 1');
+      INSERT INTO lessons (id, unit_id, name) VALUES ('l-tr', 'u-1', 'Ders');
+      INSERT INTO lessons (id, unit_id, name, language_code)
+        VALUES ('l-fr', 'u-1', 'Leçon', 'fr');
+      INSERT INTO lesson_contents (lesson_id, content_json)
+        VALUES ('l-tr', '{"stages":[]}');
+      PRAGMA user_version = 25;
+    ''');
+    raw.dispose();
+
+    final migrated = CourseDatabase(NativeDatabase(File(path)));
+    await migrated.customSelect('SELECT 1').get();
+    expect(migrated.schemaVersion, CourseDatabase.kSchemaVersion);
+
+    // language_code values survive verbatim through the rebuild (the
+    // COALESCE backfill must only hit NULLs, which NOT NULL columns block).
+    final sections = await migrated.customSelect(
+      "SELECT id, language_code FROM sections ORDER BY id",
+    ).get();
+    expect(
+      sections.map((r) => '${r.read<String>('id')}:${r.read<String>('language_code')}'),
+      ['sec-1:tr', 'sec-fr:fr'],
+    );
+    final lessons = await migrated.customSelect(
+      "SELECT id, language_code FROM lessons ORDER BY id",
+    ).get();
+    expect(
+      lessons.map((r) => '${r.read<String>('id')}:${r.read<String>('language_code')}'),
+      ['l-fr:fr', 'l-tr:tr'],
+    );
+
+    // Tree PKs are composite now.
+    const expectedPk = {
+      'sections': ['id', 'language_code'],
+      'units': ['id', 'language_code'],
+      'lessons': ['id', 'language_code'],
+      'lesson_contents': ['language_code', 'lesson_id'],
+    };
+    for (final table in expectedPk.keys) {
+      final info =
+          await migrated.customSelect('PRAGMA table_info($table)').get();
+      final pkCols = [
+        for (final row in info)
+          if ((row.data['pk'] as int? ?? row.read<int>('pk')) > 0)
+            row.read<String>('name'),
+      ]..sort();
+      expect(pkCols, expectedPk[table], reason: table);
+    }
+    expect(
+      (await migrated.customSelect(
+        "SELECT content_json FROM lesson_contents WHERE lesson_id = 'l-tr'",
+      ).getSingle()).read<String>('content_json'),
+      '{"stages":[]}',
+    );
 
     await migrated.close();
   });

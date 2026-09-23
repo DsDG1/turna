@@ -17,12 +17,16 @@ import 'package:turna/domain/course/srs_word.dart';
 /// personalized [parameters]. Fail path applies a same-day relearn ladder.
 class FsrsEngine implements SrsScheduler {
   FsrsEngine({
-    this.desiredRetention = 0.9,
+    double desiredRetention = 0.9,
     this.maximumIntervalDays = 730,
     this.enableFuzzing = true,
     this.maxSameDayFails = 4,
     List<double>? parameters,
-  })  : parameters = parameters == null
+  })  : // Clamped once at construction so the stored field and the package
+        // scheduler always agree (the fsrs Scheduler clamps its own copy;
+        // without this the public field could advertise an unclamped value).
+        desiredRetention = desiredRetention.clamp(0.8, 0.95),
+        parameters = parameters == null
             ? List<double>.from(fsrs.defaultParameters)
             : List<double>.from(parameters),
         _scheduler = fsrs.Scheduler(
@@ -51,6 +55,23 @@ class FsrsEngine implements SrsScheduler {
 
   final fsrs.Scheduler _scheduler;
 
+  /// Deterministic twin of [_scheduler] (fuzz off), built lazily once per
+  /// engine and reused by every [previewIntervalDays] call — the review
+  /// screen renders four preview buttons, and constructing a Scheduler per
+  /// call re-ran parameter validation four times.
+  fsrs.Scheduler? _previewScheduler;
+
+  fsrs.Scheduler get _deterministicScheduler {
+    return _previewScheduler ??= fsrs.Scheduler(
+      parameters: parameters,
+      desiredRetention: desiredRetention,
+      maximumInterval: maximumIntervalDays,
+      enableFuzzing: false,
+      learningSteps: const [Duration(minutes: 10)],
+      relearningSteps: const [Duration(minutes: 10)],
+    );
+  }
+
   /// Reference stability (days) for the continuous mastery curve.
   static const double masteryStabilityRefDays = 30.0;
 
@@ -71,17 +92,32 @@ class FsrsEngine implements SrsScheduler {
     int quality, {
     DateTime? now,
     int sameDayFailsBefore = 0,
+  }) =>
+      _reviewOn(_scheduler, word, quality,
+          now: now, sameDayFailsBefore: sameDayFailsBefore);
+
+  SrsWord _reviewOn(
+    fsrs.Scheduler scheduler,
+    SrsWord word,
+    int quality, {
+    DateTime? now,
+    int sameDayFailsBefore = 0,
   }) {
     final reviewAt = (now ?? DateTime.now()).toUtc();
     final nowLocal = reviewAt.toLocal();
     final card = _toFsrsCard(word);
     final rating = _toRating(quality);
-    final result = _scheduler.reviewCard(
+    final result = scheduler.reviewCard(
       card,
       rating,
       reviewDateTime: reviewAt,
     );
-    var updated = _fromFsrsCard(word, result.card, quality: quality);
+    var updated = _fromFsrsCard(
+      word,
+      result.card,
+      quality: quality,
+      fallbackNow: nowLocal,
+    );
 
     if (rating == fsrs.Rating.again) {
       final streak = sameDayFailsBefore + 1;
@@ -123,14 +159,8 @@ class FsrsEngine implements SrsScheduler {
 
   @override
   int previewIntervalDays(SrsWord word, int quality, {DateTime? now}) {
-    final engine = FsrsEngine(
-      desiredRetention: desiredRetention,
-      maximumIntervalDays: maximumIntervalDays,
-      enableFuzzing: false,
-      maxSameDayFails: maxSameDayFails,
-      parameters: parameters,
-    );
-    final updated = engine.reviewWithFailContext(
+    final updated = _reviewOn(
+      _deterministicScheduler,
       word,
       quality,
       now: now,
@@ -222,12 +252,15 @@ class FsrsEngine implements SrsScheduler {
     );
   }
 
-  SrsWord _fromFsrsCard(SrsWord original, fsrs.Card card,
-      {required int quality}) {
-    final now = DateTime.now();
+  SrsWord _fromFsrsCard(
+    SrsWord original,
+    fsrs.Card card, {
+    required int quality,
+    required DateTime fallbackNow,
+  }) {
     final dueLocal = card.due.toLocal();
     final lastLocal = card.lastReview?.toLocal();
-    final intervalDays = _intervalDaysFromDue(dueLocal, lastLocal ?? now);
+    final intervalDays = _intervalDaysFromDue(dueLocal, lastLocal ?? fallbackNow);
 
     var reps = original.reps;
     var lapses = original.lapses;
@@ -237,7 +270,7 @@ class FsrsEngine implements SrsScheduler {
     } else {
       reps += 1;
     }
-    final isLeech = lapses >= 5 && lapses > reps;
+    final isLeech = lapses >= kLeechMinimumLapses && lapses > reps;
     final ease = _easeFromDifficulty(card.difficulty);
 
     return original.copyWith(
@@ -247,7 +280,7 @@ class FsrsEngine implements SrsScheduler {
       reps: reps,
       lapses: lapses,
       isLeech: isLeech,
-      lastReviewedAt: lastLocal ?? now,
+      lastReviewedAt: lastLocal ?? fallbackNow,
       stability: card.stability,
       difficulty: card.difficulty,
       fsrsState: card.state.value,

@@ -49,6 +49,17 @@ class FsrsTrainCard {
 /// Uses binary cross-entropy on pass/fail labels and projected gradient
 /// descent with package bound constraints. Accepts new weights only when
 /// train loss improves by [minRelativeImprove].
+///
+/// The forward simulation mirrors the fsrs 2.0.1 scheduler the fitted
+/// weights are fed back into, formula for formula (see `_simulateCard`):
+/// FSRS-5 initial S/D, the damped w[7] mean-reversion difficulty update,
+/// the recall/lapse stability recursions including the w[17]·w[18]
+/// short-term cap, and the 0.9-anchored forgetting curve. A fit against a
+/// divergent model would tune weights that degrade real scheduling.
+///
+/// Weights the binary model never exercises are neither trained nor
+/// consumed: w[15] (hard penalty), w[16] (easy bonus), w[19] (short-term
+/// learning-step increase — training deltas are day-scale).
 class FsrsLiteOptimizer {
   FsrsLiteOptimizer({
     this.minReviews = kFsrsOptimizeMinReviews,
@@ -61,6 +72,14 @@ class FsrsLiteOptimizer {
   final int epochs;
   final double learningRate;
   final double minRelativeImprove;
+
+  /// Binary grade mapping: a pass grades Good, a fail grades Again — the
+  /// same mapping the production queues use (`ratingForOutcome`).
+  static const int _goodRating = 3;
+  static const int _againRating = 1;
+
+  /// Package `stabilityMin` (fsrs 2.0.1).
+  static const double _stabilityMin = 0.001;
 
   /// Build train cards from flat review history (oldest-first preferred).
   static List<FsrsTrainCard> cardsFromEvents(List<ReviewEventRecord> events) {
@@ -150,39 +169,9 @@ class FsrsLiteOptimizer {
     var loss = 0.0;
     var n = 0;
     for (final card in cards) {
-      var s = w[0]; // initial stability proxy for first grade
-      var d = w[4];
-      for (var i = 0; i < card.reviews.length; i++) {
-        final rev = card.reviews[i];
-        if (i == 0) {
-          s = rev.recalled ? w[2] : w[0];
-          d = rev.recalled ? w[4] : min(10.0, w[4] + 1.0);
-        } else {
-          final r = _retrievability(rev.deltaDays, s, w);
-          final y = rev.recalled ? 1.0 : 0.0;
-          loss += _bce(y, r);
-          n++;
-          if (rev.recalled) {
-            // Stability increase (simplified FSRS-style).
-            const hardPen = 1.0;
-            final sInc = exp(w[8]) *
-                pow(11.0 - d, w[9]) *
-                pow(s, -w[10]) *
-                (exp(w[11] * (1.0 - r)) - 1.0) *
-                hardPen;
-            s = max(0.001, s * max(1.0, sInc));
-          } else {
-            s = max(
-              0.001,
-              w[11] *
-                  pow(d, -w[12]) *
-                  (pow(s + 1.0, w[13]) - 1.0) *
-                  exp(w[14] * (1.0 - r)),
-            );
-            d = min(10.0, d + 0.5);
-          }
-        }
-      }
+      final r = _simulateCard(card, w);
+      loss += r.loss;
+      n += r.samples;
     }
     return n == 0 ? 0.0 : loss / n;
   }
@@ -192,13 +181,19 @@ class FsrsLiteOptimizer {
     List<double> w,
     List<double> grad,
   ) {
-    // Finite-difference gradient on a subset of weights that dominate R.
-    // Full analytic grad is large; FD is fine for lite mobile optimizer.
+    // Finite-difference gradient over every weight the forward model
+    // consumes. Full analytic grad is large; FD is fine for a lite optimizer.
     const eps = 1e-3;
-    final base = _cardLoss(card, w);
+    final base = _simulateCard(card, w).loss;
     var samples = 0;
-    // Touch initial S and decay-related weights more than grade-specific Easy.
-    final indices = <int>[0, 1, 2, 3, 4, 8, 9, 10, 11, 12, 13, 14, 20];
+    const indices = [
+      0, 1, 2, 3, // initial stability (Again/Hard/Good/Easy)
+      4, 5, 6, 7, // initial difficulty + damped mean-reversion update
+      8, 9, 10, // recall stability
+      11, 12, 13, 14, // lapse stability
+      17, 18, // lapse short-term cap
+      20, // decay
+    ];
     for (final i in indices) {
       if (i >= w.length) continue;
       final w2 = List<double>.from(w);
@@ -206,53 +201,97 @@ class FsrsLiteOptimizer {
         fsrs.lowerBoundsParameters[i],
         fsrs.upperBoundsParameters[i],
       );
-      final loss2 = _cardLoss(card, w2);
+      final loss2 = _simulateCard(card, w2).loss;
       grad[i] += (loss2 - base) / eps;
       samples++;
     }
     return samples > 0 ? 1 : 0;
   }
 
-  double _cardLoss(FsrsTrainCard card, List<double> w) {
+  /// Forward-simulate one card under weights [w], mirroring the fsrs 2.0.1
+  /// scheduler: the first review only fixes initial S/D (no loss term —
+  /// those weights are free parameters); every later review contributes one
+  /// BCE term and updates S (with the PRE-update difficulty, matching the
+  /// package's order) then D. The single implementation backs both the
+  /// loss and the finite-difference gradient so they cannot drift apart.
+  _SimResult _simulateCard(FsrsTrainCard card, List<double> w) {
     var loss = 0.0;
-    var n = 0;
-    var s = w[0];
-    var d = w[4];
+    var samples = 0;
+    var s = 1.0;
+    var d = 5.0;
     for (var i = 0; i < card.reviews.length; i++) {
       final rev = card.reviews[i];
+      final g = rev.recalled ? _goodRating : _againRating;
       if (i == 0) {
-        s = rev.recalled ? w[2] : w[0];
-        d = rev.recalled ? w[4] : min(10.0, w[4] + 1.0);
+        // FSRS-5 initial stability: S0(G) = w[G-1].
+        s = w[g - 1];
+        d = _initialDifficulty(g, w);
         continue;
       }
       final r = _retrievability(rev.deltaDays, s, w);
       loss += _bce(rev.recalled ? 1.0 : 0.0, r);
-      n++;
-      if (rev.recalled) {
-        final sInc = exp(w[8]) *
-            pow(11.0 - d, w[9]) *
-            pow(max(s, 0.001), -w[10]) *
-            (exp(w[11] * (1.0 - r)) - 1.0);
-        s = max(0.001, s * max(1.0, sInc));
-      } else {
-        s = max(
-          0.001,
-          w[11] *
-              pow(d, -w[12]) *
-              (pow(s + 1.0, w[13]) - 1.0) *
-              exp(w[14] * (1.0 - r)),
-        );
-        d = min(10.0, d + 0.5);
-      }
+      samples++;
+      s = _nextStability(d: d, s: s, r: r, recalled: rev.recalled, w: w);
+      d = _nextDifficulty(d, g, w);
     }
-    return n == 0 ? 0.0 : loss / n;
+    return _SimResult(loss, samples);
   }
 
+  /// FSRS-5 initial difficulty (package `_initialDifficulty`):
+  /// D0(G) = w[4] − e^{w[5]·(G−1)} + 1, clamped to [1, 10].
+  double _initialDifficulty(int g, List<double> w) =>
+      (w[4] - exp(w[5] * (g - 1)) + 1).clamp(1.0, 10.0);
+
+  /// FSRS-5 difficulty update (package `_nextDifficulty`): linear damping
+  /// of ΔD = −w[6]·(G−3), then mean reversion toward D0(Easy) with weight
+  /// w[7]. This replaced the old hardcoded ±0.5 steps, which mismatched the
+  /// scheduler the fitted weights feed back into.
+  double _nextDifficulty(double d, int g, List<double> w) {
+    final delta = -w[6] * (g - 3);
+    final damped = (10.0 - d) * delta / 9.0;
+    final target = d + damped;
+    final easyInitial = _initialDifficulty(4, w);
+    return (w[7] * easyInitial + (1.0 - w[7]) * target).clamp(1.0, 10.0);
+  }
+
+  /// FSRS-5 stability after recall / lapse (package `_nextStability`).
+  /// Good carries no hard penalty / easy bonus; a lapse takes the min of
+  /// the long-term recursion and the w[17]·w[18] short-term cap.
+  double _nextStability({
+    required double d,
+    required double s,
+    required double r,
+    required bool recalled,
+    required List<double> w,
+  }) {
+    double next;
+    if (recalled) {
+      next = s *
+          (1 +
+              exp(w[8]) *
+                  (11.0 - d) *
+                  pow(max(s, _stabilityMin), -w[9]) *
+                  (exp(w[10] * (1.0 - r)) - 1.0));
+    } else {
+      final longTerm = w[11] *
+          pow(d, -w[12]) *
+          (pow(s + 1.0, w[13]) - 1.0) *
+          exp(w[14] * (1.0 - r));
+      final shortTermCap = s / exp(w[17] * w[18]);
+      next = min(longTerm, shortTermCap);
+    }
+    return max(next, _stabilityMin);
+  }
+
+  /// Forgetting curve (package `getCardRetrievability`): the curve factor
+  /// is anchored at 0.9 — the package computes it once in the Scheduler
+  /// constructor with a literal 0.9 (desiredRetention only scales the
+  /// CHOSEN interval, not the curve), so a configurable anchor here would
+  /// diverge from the scheduler being fitted for.
   double _retrievability(double t, double s, List<double> w) {
-    // Power-curve style used by recent FSRS: R = (1 + factor * t / S)^decay
     final decay = -w[20].clamp(0.1, 0.8);
     final factor = pow(0.9, 1.0 / decay) - 1.0;
-    final ss = max(s, 0.001);
+    final ss = max(s, _stabilityMin);
     return pow(1.0 + factor * t / ss, decay).toDouble().clamp(1e-6, 1.0 - 1e-6);
   }
 
@@ -260,4 +299,10 @@ class FsrsLiteOptimizer {
     final pp = p.clamp(1e-6, 1.0 - 1e-6);
     return -(y * log(pp) + (1.0 - y) * log(1.0 - pp));
   }
+}
+
+class _SimResult {
+  const _SimResult(this.loss, this.samples);
+  final double loss;
+  final int samples;
 }

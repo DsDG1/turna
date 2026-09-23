@@ -761,7 +761,9 @@ class TurnaTheme {
   static Color clayOnSandText(BuildContext context) => anatolianClay;
 
   // MATERIAL THEME DATA
-  static ThemeData get lightTheme => ThemeData(
+  static final ThemeData lightTheme = _buildLightTheme();
+
+  static ThemeData _buildLightTheme() => ThemeData(
         useMaterial3: true,
         brightness: Brightness.light,
         primaryColor: primary,
@@ -958,7 +960,9 @@ class TurnaTheme {
         ),
       );
 
-  static ThemeData get darkTheme => ThemeData(
+  static final ThemeData darkTheme = _buildDarkTheme();
+
+  static ThemeData _buildDarkTheme() => ThemeData(
         useMaterial3: true,
         brightness: Brightness.dark,
         primaryColor: primary,
@@ -1160,7 +1164,9 @@ class TurnaTheme {
   /// Pure white surfaces, near-black text, stronger borders, and a heavier
   /// focus ring — derived from [lightTheme] so only the contrast-relevant
   /// tokens change.
-  static ThemeData get highContrastLightTheme => lightTheme.copyWith(
+  static final ThemeData highContrastLightTheme = _buildHighContrastLight();
+
+  static ThemeData _buildHighContrastLight() => lightTheme.copyWith(
         scaffoldBackgroundColor: Colors.white,
         colorScheme: const ColorScheme.light(
           primary: primaryDark,
@@ -1296,7 +1302,9 @@ class TurnaTheme {
   ///
   /// Near-black surfaces, pure white text, stronger borders — derived from
   /// [darkTheme] so only the contrast-relevant tokens change.
-  static ThemeData get highContrastDarkTheme => darkTheme.copyWith(
+  static final ThemeData highContrastDarkTheme = _buildHighContrastDark();
+
+  static ThemeData _buildHighContrastDark() => darkTheme.copyWith(
         scaffoldBackgroundColor: Colors.black,
         colorScheme: const ColorScheme.dark(
           primary: brandReed,
@@ -1428,6 +1436,3 @@ class TurnaTheme {
         ),
       );
 }
-
-// LEGACY SUPPORT
-const primaryColor = TurnaTheme.primary;

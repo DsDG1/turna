@@ -83,6 +83,23 @@ void main() {
       expect(errors, hasLength(2));
     });
 
+    test('flags duplicate section id across sections', () {
+      // The same section id in two languages must be rejected: section ids
+      // feed the composite PK and cross-language lookups.
+      final sections = [
+        _section('s-dup', [
+          _unit('u-1', [_lesson('l-1')])
+        ]),
+        _section('s-dup', [
+          _unit('u-2', [_lesson('l-2')])
+        ]),
+      ];
+      final errors = DatabaseSeeder.collectCrossCourseIdErrors(sections);
+      expect(errors, hasLength(1));
+      expect(errors.first, contains('s-dup'));
+      expect(errors.first, contains('section'));
+    });
+
     test('same id within one section is not a cross-course error', () {
       // within-section uniqueness is validateSection's job; the seeder only
       // checks across sections, so a unique-per-section layout is clean.
@@ -92,6 +109,30 @@ void main() {
         ]),
       ];
       expect(DatabaseSeeder.collectCrossCourseIdErrors(sections), isEmpty);
+    });
+  });
+
+  group('DatabaseSeeder.collectCrossCoursePoolIdErrorsAgainst', () {
+    test('flags an id already owned by another language', () {
+      final errors = DatabaseSeeder.collectCrossCoursePoolIdErrorsAgainst(
+        ['w-1', 'w-2'],
+        {'w-existing', 'w-2'},
+        'vocabulary',
+      );
+      expect(errors, hasLength(1));
+      expect(errors.first, contains('w-2'));
+      expect(errors.first, contains('vocabulary'));
+    });
+
+    test('skips empty ids and passes clean pools', () {
+      expect(
+        DatabaseSeeder.collectCrossCoursePoolIdErrorsAgainst(
+          ['', 'w-1'],
+          {'w-other'},
+          'expression',
+        ),
+        isEmpty,
+      );
     });
   });
 

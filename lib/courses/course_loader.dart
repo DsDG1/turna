@@ -208,14 +208,19 @@ class CourseLoader {
   /// only — deep content checks stay in seed/CI via [validateCourse].
   /// Throws [ArgumentError] for an unknown id.
   ///
+  /// [languageCode] scopes the DB lookup to one language (ids are unique per
+  /// language only); `null` loads any language's row. The cache key stays the
+  /// bare id regardless.
+  ///
   /// Failed loads are **not** cached so a later retry can succeed.
-  static Future<Section> loadSection(String id) {
+  static Future<Section> loadSection(String id, {String? languageCode}) {
     final existing = _sectionLoads[id];
     if (existing != null) return existing;
 
     final future = () async {
       try {
-        final section = await CourseRepository(_db).section(id);
+        final section =
+            await CourseRepository(_db).section(id, languageCode: languageCode);
         validateSectionTree(section);
         return section;
       } catch (e) {

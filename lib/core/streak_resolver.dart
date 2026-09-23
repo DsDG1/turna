@@ -27,8 +27,13 @@ StreakResolution resolveStreakOnPractice({
     );
   }
 
-  final last = DateTime(oldDate.year, oldDate.month, oldDate.day);
-  final day = DateTime(today.year, today.month, today.day);
+  // Calendar-day difference computed on the UTC axis: a local `DateTime(y,m,d)`
+  // difference truncates `Duration.inDays`, which a 23-hour DST spring-forward
+  // day would round down to 0 and misread "next day" as "same day". Both
+  // inputs are already local-midnight dates, so re-anchoring them as UTC
+  // midnights keeps every day exactly 24h apart.
+  final last = DateTime.utc(oldDate.year, oldDate.month, oldDate.day);
+  final day = DateTime.utc(today.year, today.month, today.day);
   final gap = day.difference(last).inDays;
 
   if (gap <= 0) {

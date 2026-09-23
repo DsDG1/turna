@@ -13,10 +13,17 @@ import 'package:turna/data/course_database.dart';
 ///
 /// Must run BEFORE the drift [CourseDatabase] is constructed — drift opens
 /// lazily, so at that point nothing else holds the file. When the on-disk
-/// `user_version` is behind [CourseDatabase.kSchemaVersion], the file is
-/// snapshotted next to itself as `course.db.v<version>.bak` via
-/// `VACUUM INTO`: an online, internally consistent copy that also folds in
-/// committed WAL frames (a plain `File.copy` can miss those).
+/// `user_version` differs from [CourseDatabase.kSchemaVersion] in either
+/// direction, the file is snapshotted next to itself as
+/// `course.db.v<version>.bak` via `VACUUM INTO`: an online, internally
+/// consistent copy that also folds in committed WAL frames (a plain
+/// `File.copy` can miss those).
+///
+/// The downgrade direction matters as much as the upgrade one: the
+/// downgrade branch of the migration strategy wipes the learning tables
+/// (`srs_states`, `review_events`, `mistakes`, …) to avoid crashing an
+/// already-downgraded app, so this snapshot is the only copy of that
+/// history. A same-version file is left alone (nothing will change it).
 ///
 /// Failures never block startup — the migration already ran unbacked before
 /// this existed, so logging and continuing is strictly no worse.
@@ -27,7 +34,7 @@ Future<File?> backupCourseDbBeforeMigration(File dbFile) async {
     try {
       final version =
           raw.select('PRAGMA user_version').first['user_version'] as int;
-      if (version <= 0 || version >= CourseDatabase.kSchemaVersion) {
+      if (version <= 0 || version == CourseDatabase.kSchemaVersion) {
         return null;
       }
       final target = File('${dbFile.path}.v$version.bak');

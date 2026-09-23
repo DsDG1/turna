@@ -32,17 +32,40 @@ class LanguageDetector {
   /// Turkish set above (this app's original target language).
   static const String defaultSignatureChars = 'ğĞıİşŞ';
 
-  /// Compile a per-language "signature" character class. [signatureChars] is
-  /// the set of letters that appear in the target language but (almost) never
-  /// in the learner's native language — a reliable target-language signal for
-  /// Latin-script text. `null` falls back to the Turkish default for
-  /// backwards compatibility; an empty/blank string means "no signature"
-  /// (Latin-only detection for languages without distinguishing letters).
+  /// Compiled per-signature patterns. [detect] may consult the signature
+  /// several times per call and sits on the per-word TTS path, so each
+  /// distinct [signatureChars] compiles once. Keys come from the language
+  /// manifest plus user-imported packs (a handful per device); the cap is
+  /// pure defense-in-depth — on overflow the whole cache drops, never grows.
+  static const _signatureCacheCapacity = 32;
+  static final Map<String?, RegExp?> _signatureCache =
+      <String?, RegExp?>{};
+
+  /// Compile (or reuse) a per-language "signature" character class.
+  /// [signatureChars] is the set of letters that appear in the target
+  /// language but (almost) never in the learner's native language — a
+  /// reliable target-language signal for Latin-script text. `null` falls
+  /// back to the Turkish default for backwards compatibility; an empty/blank
+  /// string means "no signature" (Latin-only detection for languages without
+  /// distinguishing letters).
   static RegExp? _signaturePattern(String? signatureChars) {
-    if (signatureChars == null) return _turkishSpecific;
-    if (signatureChars.trim().isEmpty) return null;
-    final body = signatureChars.split('').map(RegExp.escape).join();
-    return RegExp('[$body]');
+    if (_signatureCache.containsKey(signatureChars)) {
+      return _signatureCache[signatureChars];
+    }
+    if (_signatureCache.length >= _signatureCacheCapacity) {
+      _signatureCache.clear();
+    }
+    final RegExp? compiled;
+    if (signatureChars == null) {
+      compiled = _turkishSpecific;
+    } else if (signatureChars.trim().isEmpty) {
+      compiled = null;
+    } else {
+      final body = signatureChars.split('').map(RegExp.escape).join();
+      compiled = RegExp('[$body]');
+    }
+    _signatureCache[signatureChars] = compiled;
+    return compiled;
   }
 
   static bool _signatureMatch(String text, RegExp? signature) =>

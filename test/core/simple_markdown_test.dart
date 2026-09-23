@@ -32,6 +32,25 @@ final x = 1;
     expect(spans[5].code, isTrue);
   });
 
+  test('bare multiplication is not italic or bold', () {
+    final spans = parseMarkdownInlines('2 * 3 * 4 and 2 ** 3 ** 4');
+    expect(spans, hasLength(1));
+    expect(spans.single.text, '2 * 3 * 4 and 2 ** 3 ** 4');
+    expect(spans.single.italic, isFalse);
+    expect(spans.single.bold, isFalse);
+  });
+
+  test('emphasis adjacent to text still parses', () {
+    final spans = parseMarkdownInlines('kelime *vurgu* kelime');
+    expect(spans.map((s) => s.text), ['kelime ', 'vurgu', ' kelime']);
+    expect(spans[1].italic, isTrue);
+  });
+
+  test('space-flanked asterisks stay literal', () {
+    final spans = parseMarkdownInlines('a * b');
+    expect(spans.single.text, 'a * b');
+  });
+
   test('plain text stays one paragraph', () {
     final blocks = parseSimpleMarkdown('hello');
     expect(blocks, hasLength(1));

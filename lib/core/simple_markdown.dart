@@ -131,10 +131,19 @@ List<MarkdownSpan> parseMarkdownInlines(String input) {
     buffer.clear();
   }
 
+  // CommonMark-ish flanking rules (simplified): an opening `*`/`**` must be
+  // followed by a non-space, a closing one must be preceded by a non-space.
+  // Without them `2 * 3 * 4` renders " 3 " as italic — the model replies
+  // that motivated this parser do contain bare arithmetic.
+  bool isSpace(int index) =>
+      index < 0 ||
+      index >= input.length ||
+      _whitespace.hasMatch(input[index]);
+
   while (i < input.length) {
     if (input.startsWith('**', i)) {
       final end = input.indexOf('**', i + 2);
-      if (end > i + 2) {
+      if (end > i + 2 && !isSpace(i + 2) && !isSpace(end - 1)) {
         flushPlain();
         spans.add(MarkdownSpan(input.substring(i + 2, end), bold: true));
         i = end + 2;
@@ -152,7 +161,10 @@ List<MarkdownSpan> parseMarkdownInlines(String input) {
     }
     if (input.startsWith('*', i) && !input.startsWith('**', i)) {
       final end = input.indexOf('*', i + 1);
-      if (end > i + 1 && !input.startsWith('**', end)) {
+      if (end > i + 1 &&
+          !input.startsWith('**', end) &&
+          !isSpace(i + 1) &&
+          !isSpace(end - 1)) {
         flushPlain();
         spans.add(MarkdownSpan(input.substring(i + 1, end), italic: true));
         i = end + 1;
@@ -165,3 +177,5 @@ List<MarkdownSpan> parseMarkdownInlines(String input) {
   flushPlain();
   return spans;
 }
+
+final RegExp _whitespace = RegExp(r'\s');

@@ -16,8 +16,13 @@ import 'package:path_provider/path_provider.dart';
 ///   - **仅捕获,不替换**:通过 `Logger.addLogListener` 拿事件,
 ///     绕开全局 `_ReleaseAwareFilter`(见 `core/logger.dart`),因此
 ///     debug / release 两种 build 都能拿到全量事件。
-///   - **内存 ring buffer**:默认 200 条,超出淘汰最旧,O(1) 入队出队。
-///   - **节流落盘**:500ms 内的多条日志合并成一次文件写,避免高频刷盘。
+///   - **内存上限 200 条**:内部维护最旧到最新的列表,超限裁头。
+///     `entries` 的每次发布都要构造一次快照列表(消费者按 List 遍历),
+///     快照本身是 O(cap) 的 —— 因此通知做了 100ms 合并:高频日志下
+///     每秒至多发布约 10 次快照,而不是每条日志一次。
+///   - **单链序列化落盘**:所有 flush(周期节流 / `flushNow` / `clear`
+///     的截断)都排进同一条 future 链,天然保证写盘顺序,不存在并发
+///     flush 交错;500ms 内的多条日志合并成一次文件写。
 ///   - **rotate**:单文件 > 1MB 时触发,最多保留 3 个文件
 ///     (`transparency_log.jsonl` 活跃,`.1.jsonl` / `.2.jsonl` 历史)。
 ///   - **仅本地**:不联网,不上传,文件位于应用沙箱 documents 目录。
@@ -30,8 +35,12 @@ class LogCapture {
   final ValueNotifier<List<LogEntry>> entries =
       ValueNotifier<List<LogEntry>>(const []);
 
-  /// 内存 ring buffer 上限。
+  /// 内存条数上限。
   static const int maxEntries = 200;
+
+  /// 高频日志下 `entries` 通知的合并窗口:窗口内的多条日志只发布一次
+  /// 快照,避免透明度日志页 / SystemHealthMonitor 被逐条重建。
+  static const Duration _notifyCoalesce = Duration(milliseconds: 100);
 
   /// 落盘节流间隔。
   static const Duration _flushInterval = Duration(milliseconds: 500);
@@ -62,7 +71,15 @@ class LogCapture {
   // 节流落盘相关。
   Timer? _flushTimer;
   final List<LogEntry> _pending = <LogEntry>[];
-  bool _flushInFlight = false;
+
+  /// 所有磁盘写(flush / rotate / clear 截断)串行排在同一条链上:
+  /// 后到的写一定在前一个写完成之后开始,交错写盘导致的乱序与
+  /// clear-后-复活竞态在结构上不可能发生。
+  Future<void> _diskChain = Future<void>.value();
+
+  // 内存 buffer:最旧到最新,超限裁头(append 均摊 O(1))。
+  final List<LogEntry> _buffer = <LogEntry>[];
+  Timer? _notifyTimer;
 
   /// 在应用启动早期调用一次,完成以下工作:
   ///   1. 解析落盘文件路径(应用 documents 目录)
@@ -73,20 +90,7 @@ class LogCapture {
     _installing = true;
     try {
       final file = await _resolveFile();
-      _cachedFile = file;
-      final loaded = await _readFromFile(file);
-      if (loaded.isNotEmpty) {
-        entries.value = List.unmodifiable(loaded);
-      }
-      // 监听新事件。`addLogListener` 在 `Logger.log` 中早于 `_filter.shouldLog`
-      // 调用,因此本 capture 接收所有 build 模式下的全量事件。
-      Logger.addLogListener(_onLogEvent);
-      // 起一个 500ms 周期 timer 合并写。
-      _flushTimer ??= Timer.periodic(_flushInterval, (_) => _scheduleFlush());
-      // 注册 lifecycle observer,App 退到后台/被挂起时立刻 flush,
-      // 避免最后几百毫秒的日志因为 timer 没到而丢失。
-      WidgetsBinding.instance.addObserver(_LifecycleFlusher());
-      _initialized = true;
+      await _installWithFile(file);
     } catch (e, st) {
       // 不让日志系统挂掉应用,只打印到控制台。
       debugPrint('LogCapture.install failed: $e\n$st');
@@ -95,39 +99,69 @@ class LogCapture {
     }
   }
 
-  File? get fileForDisplay => _cachedFile;
-
-  /// 全部清空(内存 + 活跃文件 + 所有 rotate 文件)。
-  Future<void> clear() async {
-    entries.value = const [];
-    _pending.clear();
+  /// 测试入口:跳过 path_provider,直接指定落盘文件。
+  @visibleForTesting
+  Future<void> installWithFile(File file) async {
+    if (_initialized || _installing) return;
+    _installing = true;
     try {
-      final file = _cachedFile;
-      if (file != null && await file.exists()) {
-        await file.writeAsString('');
-      }
-      // 同步把历史 rotate 文件也清掉,避免「清空后还残留旧数据」。
-      for (var i = 1; i <= _maxRotatedFiles; i++) {
-        final rotated = File(
-          '${file?.parent.path ?? ''}/${_rotatedFileName(i)}',
-        );
-        if (await rotated.exists()) {
-          await rotated.delete();
-        }
-      }
-    } catch (_) {
-      // 忽略:清空失败不影响 UI 行为。
+      await _installWithFile(file);
+    } finally {
+      _installing = false;
     }
   }
 
-  /// 立即落盘未刷的日志(供测试或退出流程使用)。
-  Future<void> flushNow() => _flush();
+  Future<void> _installWithFile(File file) async {
+    _cachedFile = file;
+    final loaded = await _readFromFile(file);
+    if (loaded.isNotEmpty) {
+      // loaded 已是新到旧;buffer 要最旧到最新。
+      _buffer
+        ..clear()
+        ..addAll(loaded.reversed);
+      _publishEntries();
+    }
+    // 监听新事件。`addLogListener` 在 `Logger.log` 中早于 `_filter.shouldLog`
+    // 调用,因此本 capture 接收所有 build 模式下的全量事件。
+    Logger.addLogListener(_onLogEvent);
+    // 起一个 500ms 周期 timer 合并写。
+    _flushTimer ??= Timer.periodic(_flushInterval, (_) => _scheduleFlush());
+    // 注册 lifecycle observer,App 退到后台/被挂起时立刻 flush,
+    // 避免最后几百毫秒的日志因为 timer 没到而丢失。
+    WidgetsBinding.instance.addObserver(_LifecycleFlusher());
+    _initialized = true;
+  }
 
-  /// 同步 flush 然后 dispose,用于测试或显式卸载。
+  File? get fileForDisplay => _cachedFile;
+
+  /// 全部清空(内存 + 活跃文件 + 所有 rotate 文件)。
+  ///
+  /// 文件截断排在磁盘链尾部执行:若此刻有在途 flush,它会先落完自己
+  /// 已取走的批次,然后截断 —— clear 之后的文件不可能再出现旧内容。
+  Future<void> clear() async {
+    _buffer.clear();
+    _pending.clear();
+    _publishEntries();
+    _diskChain = _diskChain.then((_) => _truncateFiles());
+    await _diskChain;
+  }
+
+  /// 立即落盘未刷的日志(供测试或退出流程使用)。
+  ///
+  /// 排进磁盘链并返回链尾:调用方 await 的就是「本次内容确定写完」。
+  Future<void> flushNow() {
+    if (_pending.isEmpty) return _diskChain;
+    _diskChain = _diskChain.then((_) => _flush());
+    return _diskChain;
+  }
+
+  /// flush 完然后 dispose,用于测试或显式卸载。
   Future<void> dispose() async {
-    await _flush();
+    await flushNow();
     _flushTimer?.cancel();
     _flushTimer = null;
+    _notifyTimer?.cancel();
+    _notifyTimer = null;
   }
 
   Future<File> _resolveFile() async {
@@ -178,26 +212,42 @@ class LogCapture {
       stackTrace: event.stackTrace?.toString(),
     );
 
-    // 内存 ring buffer:新到旧,超出裁尾。
-    final current = entries.value;
-    final next = <LogEntry>[entry, ...current];
-    if (next.length > maxEntries) {
-      next.removeRange(maxEntries, next.length);
+    _buffer.add(entry);
+    if (_buffer.length > maxEntries) {
+      _buffer.removeRange(0, _buffer.length - maxEntries);
     }
-    entries.value = List.unmodifiable(next);
+    _scheduleNotify();
 
     // 进入节流队列。
     _pending.add(entry);
   }
 
-  /// 节流触发:500ms 到了 / 显式 flushNow() / 退出前,统一把 `_pending`
-  /// 一次性写完,然后做 size + rotate 检查。
+  /// 合并窗口内只发布一次快照(见类注释)。
+  void _scheduleNotify() {
+    if (_notifyTimer != null) return;
+    _notifyTimer = Timer(_notifyCoalesce, () {
+      _notifyTimer = null;
+      _publishEntries();
+    });
+  }
+
+  void _publishEntries() {
+    entries.value = List.unmodifiable(_buffer.reversed);
+  }
+
+  /// 节流触发:500ms 到了,把 `_pending` 一次性写完,然后做 size + rotate
+  /// 检查。已排队的 flush 不重复入链。
   void _scheduleFlush() {
     if (_pending.isEmpty) return;
-    if (_flushInFlight) return;
-    _flushInFlight = true;
-    unawaited(_flush().whenComplete(() => _flushInFlight = false));
+    if (_flushScheduled) return;
+    _flushScheduled = true;
+    _diskChain = _diskChain.then((_) {
+      _flushScheduled = false;
+      return _flush();
+    });
   }
+
+  bool _flushScheduled = false;
 
   Future<void> _flush() async {
     if (_pending.isEmpty) return;
@@ -207,7 +257,7 @@ class LogCapture {
       return;
     }
     // 取出当前待写,清空队列(让后续事件继续累积)。
-    final batch = List<LogEntry>.unmodifiable(_pending);
+    final batch = List<LogEntry>.of(_pending);
     _pending.clear();
     try {
       final buf = StringBuffer();
@@ -233,6 +283,26 @@ class LogCapture {
     }
   }
 
+  Future<void> _truncateFiles() async {
+    try {
+      final file = _cachedFile;
+      if (file != null && await file.exists()) {
+        await file.writeAsString('');
+      }
+      // 同步把历史 rotate 文件也清掉,避免「清空后还残留旧数据」。
+      for (var i = 1; i <= _maxRotatedFiles; i++) {
+        final rotated = File(
+          '${file?.parent.path ?? ''}/${_rotatedFileName(i)}',
+        );
+        if (await rotated.exists()) {
+          await rotated.delete();
+        }
+      }
+    } catch (_) {
+      // 忽略:清空失败不影响 UI 行为。
+    }
+  }
+
   /// 活跃文件超过 [_maxFileBytes] 时,按 `N -> N+1` 顺序平移,丢弃最旧的。
   ///
   /// 冷却期(默认 30 秒)内不会再次触发,避免 IO 失败 / 边界条件下反复 rename。
@@ -247,10 +317,6 @@ class LogCapture {
           now.difference(_lastRotatedAt!) < _rotateCooldown) {
         return;
       }
-
-      // 先把当前 _pending 全部落盘(避免 rotate 丢日志)。
-      // 这里不再调 _flush(),因为 _pending 已经在 _flush 之前被清空。
-      // 如果用户使用 flushNow() 主动调用,这一步是 no-op。
 
       final parent = active.parent;
       // 1) 删除最旧的 rotate 文件
