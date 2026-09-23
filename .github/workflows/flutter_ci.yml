@@ -87,7 +87,11 @@ jobs:
         run: flutter analyze
 
       - name: Run tests
-        run: flutter test --coverage
+        # Golden tests render with runner-local fonts and only pass on the
+        # machine that generated the goldens (the project's canonical green
+        # run is `flutter test --exclude-tags golden` — see test/BASELINE.md).
+        # They are regenerated deliberately by the responsible person.
+        run: flutter test --coverage --exclude-tags golden
 
       - name: Coverage summary
         # Floor: 55% with ~3pt of headroom over the current ~58%. Lowering
