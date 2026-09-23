@@ -57,6 +57,16 @@ class FfiOfficialAnkiEngine implements OfficialAnkiEngine {
     }
     // Major mismatch already fails closed at envelope decode
     // (OfficialAnkiEnvelopeResponse.fromJson, doc 39 P2 single gate).
+    // The same gate must apply to payload-less ops (close/check/cancel/
+    // restore/setDeck): dropping the error envelope here silently turned
+    // real failures — e.g. closing a reclaimed handle — into successes.
+    if (!response.ok) {
+      throw response.error ??
+          const OfficialAnkiException(
+            code: OfficialAnkiErrorCode.internalError,
+            messageKey: 'official_anki.empty_payload',
+          );
+    }
     return response;
   }
 
