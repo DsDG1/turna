@@ -145,7 +145,11 @@ jobs:
         run: python3 run_gui_tests.py full -j 4
 
       - name: Run Python tool tests
-        run: python3 -m unittest discover -s test -p "*_test.py"
+        # tool/librelingo_import.py (covered by test/librelingo_import_test.py)
+        # is the only root-python tool with a third-party dependency.
+        run: |
+          python3 -m pip install pyyaml
+          python3 -m unittest discover -s test -p "*_test.py"
 
       - name: Build release smoke test
         # Web is skipped because CI does not need the web artifact; content
