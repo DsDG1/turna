@@ -124,7 +124,16 @@ jobs:
           sudo apt-get install -y libgl1 libegl1 libxkbcommon0 libfontconfig1 libdbus-1-3 libglib2.0-0
 
       - name: Install GUI editor dependencies
-        run: python3 -m pip install "./tool/gui[dev]"
+        # [ocr] pulls Pillow/pytesseract/PyMuPDF: test_experience_ocr runs in
+        # the full tier and imports PIL directly.
+        run: python3 -m pip install "./tool/gui[dev,ocr]"
+
+      - name: Configure git identity for GUI library tests
+        # Runner images ship no global git identity; test_git_library's
+        # commit/push roundtrip needs one.
+        run: |
+          git config --global user.name "turna-ci"
+          git config --global user.email "ci@turna.invalid"
 
       - name: Lint GUI editor (ruff)
         run: ruff check tool/gui
