@@ -26,7 +26,7 @@ const MAX_REQUEST_ID_BYTES: usize = 128;
 const MAX_ENVELOPE_PAYLOAD_BYTES: usize = 1_048_576;
 
 pub fn backend_commit() -> &'static str {
-    option_env!("TURNA_ANKI_BACKEND_COMMIT").unwrap_or("f47bbfa6e6972c0455bca8a8922193006c061bb3")
+    option_env!("TURNA_ANKI_BACKEND_COMMIT").unwrap_or("967aa0d578fc75181e292e95326f9b58698da25c")
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
