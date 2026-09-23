@@ -52,7 +52,7 @@ def _lesson_unit_id(adapter: CourseAdapter, lesson_id: str) -> str:
 
 def _unit_lesson_ids(adapter: CourseAdapter, unit_id: str) -> list[str]:
     _section, unit = adapter.find_unit(unit_id)
-    return [l["id"] for l in unit.get("lessons", [])]
+    return [item["id"] for item in unit.get("lessons", [])]
 
 
 class CloneLessonTest(unittest.TestCase):

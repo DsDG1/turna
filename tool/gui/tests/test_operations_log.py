@@ -29,7 +29,7 @@ class OperationsLogTest(unittest.TestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def _ops_lines(self) -> list[dict]:
-        return [json.loads(l) for l in self.ops_file.read_text(encoding="utf-8").splitlines() if l.strip()]
+        return [json.loads(item) for item in self.ops_file.read_text(encoding="utf-8").splitlines() if item.strip()]
 
     def test_record_action_writes_ui_event_with_target(self) -> None:
         self.ops.record_action("click", "保存", context={"window": "MainWindow"})

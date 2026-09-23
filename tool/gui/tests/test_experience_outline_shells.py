@@ -58,7 +58,7 @@ class ParseOutlineTest(unittest.TestCase):
     def test_ids_unique_within_outline(self) -> None:
         o = parse_bullet_outline("重复\n  - 课\n  - 课\n重复\n")
         ids = [u["id"] for u in o["units"]] + [
-            l["id"] for u in o["units"] for l in u["lessons"]
+            item["id"] for u in o["units"] for item in u["lessons"]
         ]
         self.assertEqual(len(ids), len(set(ids)))
 
@@ -150,13 +150,13 @@ class ContractTest(unittest.TestCase):
 
 class HandlerGateTest(unittest.TestCase):
     def _host(self, **over):
-        base = dict(
-            _settings_obj=SimpleNamespace(experience_outline_shell=False),
-            course_dir=None,
-            statusBar=MagicMock(return_value=MagicMock()),
-            experience_metrics=MagicMock(),
-            _current_node_ref=None,
-        )
+        base = {
+            "_settings_obj": SimpleNamespace(experience_outline_shell=False),
+            "course_dir": None,
+            "statusBar": MagicMock(return_value=MagicMock()),
+            "experience_metrics": MagicMock(),
+            "_current_node_ref": None,
+        }
         base.update(over)
         return SimpleNamespace(**base)
 

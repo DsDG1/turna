@@ -13,6 +13,7 @@ import json
 import sys
 import unittest
 from pathlib import Path
+from typing import ClassVar
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -218,11 +219,11 @@ class FillStubsBatchHandlerTest(unittest.TestCase):
         ):
             handle_fill_stubs_batch(host, scope or {})
 
-    _VOCAB = [
+    _VOCAB: ClassVar[list] = [
         {"id": "w1", "term": "merhaba", "translation": "", "tags": ["needs-review"]},
         {"id": "w2", "term": "kedi", "translation": "猫"},
     ]
-    _EXPR = [{"id": "e1", "term": "nasilsin", "translation": "[待补]"}]
+    _EXPR: ClassVar[list] = [{"id": "e1", "term": "nasilsin", "translation": "[待补]"}]
 
     def test_no_stubs_status_no_llm(self):
         host = self._make_host([{"id": "w9", "term": "x", "translation": "成稿"}], [])
@@ -280,7 +281,7 @@ class FillStubsBatchHandlerTest(unittest.TestCase):
         self.assertEqual(word["translation"], "")
         self.assertIn("needs-review", word.get("tags") or [])
         # timeline 闭集 scope：只有 count，无 term/原文
-        args, kwargs = host._events[-1]
+        _args, kwargs = host._events[-1]
         self.assertEqual(kwargs.get("action_id"), ACTION_ID)
         self.assertIn("count", kwargs.get("scope", {}))
         self.assertNotIn("merhaba", str(host._events))

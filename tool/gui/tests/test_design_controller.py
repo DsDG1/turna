@@ -8,6 +8,7 @@ from __future__ import annotations
 import sys
 import unittest
 from pathlib import Path
+from typing import ClassVar
 
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
@@ -15,6 +16,7 @@ if str(_GUI) not in sys.path:
 from tests._course_samples import sample_section
 
 from src.backend.ai_generator import AiApiConfig, generate_from_chat
+from src.backend.ai_pipeline import PipelineState, PipelineStep
 from src.dialogs.ai.design_controller import DesignController
 
 
@@ -362,7 +364,10 @@ class DesignControllerPhaseCTest(unittest.TestCase):
         )
 
         class _Rec:
-            content = {"type": "image_url", "image_url": {"url": "data:base64..."}}
+            content: ClassVar[dict] = {
+                "type": "image_url",
+                "image_url": {"url": "data:base64..."},
+            }
 
         ctrl.send_chat("看图做课", [_Rec()])
         data = ctrl.to_design_dict()
@@ -431,8 +436,6 @@ class DesignControllerPipelineTest(unittest.TestCase):
     """Phase 5 (批次②): refine mode runs the ai_pipeline state machine."""
 
     def _pipeline_state(self, **kwargs) -> PipelineState:
-        from src.backend.ai_pipeline import PipelineState, PipelineStep
-
         kwargs.setdefault("step", PipelineStep.READY_IMPORT)
         return PipelineState(**kwargs)
 

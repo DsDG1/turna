@@ -4,6 +4,7 @@ from __future__ import annotations
 import sys
 import unittest
 from pathlib import Path
+from typing import ClassVar
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -446,7 +447,7 @@ class _FakeAiWorker(QObject):
     result_ready = Signal(object)
     error_occurred = Signal(str)
 
-    constructed: list[_FakeAiWorker] = []
+    constructed: ClassVar[list[_FakeAiWorker]] = []
 
     def __init__(self, target) -> None:
         super().__init__()

@@ -185,7 +185,7 @@ class TurnaDialogTest(unittest.TestCase):
 
     def test_standard_buttons(self) -> None:
         dlg = self.TurnaDialog(title="t")
-        cancel, ok = dlg.add_standard_buttons()
+        _cancel, ok = dlg.add_standard_buttons()
         self.assertEqual(ok.property("variant"), "primary")
         self.assertTrue(ok.isDefault())
 

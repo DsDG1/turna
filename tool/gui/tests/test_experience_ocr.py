@@ -372,7 +372,7 @@ class DispatchTest(unittest.TestCase):
         self.assertTrue(any("OCR 完成" in m for m in host._status))
         # Timeline event: action_id + closed-set scope; OCR text never leaks.
         self.assertTrue(host._events)
-        args, kwargs = host._events[-1]
+        _args, kwargs = host._events[-1]
         self.assertEqual(kwargs.get("action_id"), ACTION_ID)
         self.assertEqual(kwargs.get("scope"), {"count": 1, "status": "ok"})
         self.assertNotIn("私密的 OCR 文本内容", str(host._events))

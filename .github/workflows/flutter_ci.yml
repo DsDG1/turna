@@ -70,9 +70,18 @@ jobs:
         run: dart format --output=none --set-exit-if-changed lib test
 
       - name: Generate code (routes, freezed, drift, injectable)
-        # Generated files (freezed/.g/.gr/injection.config.dart) are
-        # gitignored, so CI must regenerate them before analyze/test.
+        # Generated files (freezed/.g/.gr/injection.config.dart) are all
+        # committed (the .gitignore rules for them are commented out), so
+        # this step is a redundant-but-harmless regeneration; the drift gate
+        # below then verifies the committed copies match what the toolchain
+        # would produce.
         run: flutter pub run build_runner build --delete-conflicting-outputs
+
+      - name: Verify generated code is in sync
+        # Regeneration must be a no-op on committed sources. A diff here
+        # means someone edited a generated file by hand or forgot to re-run
+        # build_runner after changing an annotated source.
+        run: git diff --exit-code lib/ || (echo '::error::generated code drift' && exit 1)
 
       - name: Analyze
         run: flutter analyze
@@ -81,6 +90,8 @@ jobs:
         run: flutter test --coverage
 
       - name: Coverage summary
+        # Floor: 55% with ~3pt of headroom over the current ~58%. Lowering
+        # the floor is a decision, not an accident.
         run: |
           python3 - <<'EOF'
           lf = lh = 0
@@ -91,6 +102,10 @@ jobs:
                   lh += int(line.split(":", 1)[1])
           pct = 100.0 * lh / lf if lf else 0.0
           print(f"TOTAL line coverage: {lh}/{lf} = {pct:.1f}%")
+          floor = 55.0
+          if pct < floor:
+              print(f"::error::line coverage {pct:.1f}% is below the {floor:.0f}% floor")
+              raise SystemExit(1)
           EOF
 
       - name: Upload coverage artifact
@@ -107,10 +122,8 @@ jobs:
       - name: Install GUI editor dependencies
         run: python3 -m pip install "./tool/gui[dev]"
 
-      - name: Lint GUI editor (ruff, src only)
-        # tool/gui/tests carries a known 139-violation legacy debt; gate src
-        # so new code stays at zero.
-        run: ruff check tool/gui/src
+      - name: Lint GUI editor (ruff)
+        run: ruff check tool/gui
 
       - name: Run GUI editor tests (full tier)
         working-directory: tool/gui

@@ -329,7 +329,7 @@ class AlignPosDispatchTest(unittest.TestCase):
         self.assertEqual(cmd.text(), "对齐词性（POS）（2 词）")
         # metrics applied + timeline closed-set scope (count only, no term).
         self.assertTrue(host._events)
-        args, kwargs = host._events[-1]
+        _args, kwargs = host._events[-1]
         self.assertEqual(kwargs.get("action_id"), ACTION_ID)
         self.assertEqual(kwargs.get("scope"), {"count": 2})
         self.assertNotIn("su", str(host._events))

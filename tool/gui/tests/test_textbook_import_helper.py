@@ -75,7 +75,7 @@ class ImportSectionDictTest(unittest.TestCase):
 
     def test_imports_new_section(self) -> None:
         section = self._sample_section()
-        with patch.object(self.win, "statusBar") as bar, patch("src.application.section_import_service.QMessageBox") as mb:
+        with patch.object(self.win, "statusBar"), patch("src.application.section_import_service.QMessageBox"):
             outcome = self.win._import_section_dict(section)
         self.assertEqual(outcome, "imported")
         self.assertEqual(len(self.win.adapter.sections), 1)
@@ -86,7 +86,7 @@ class ImportSectionDictTest(unittest.TestCase):
     def test_blocked_on_missing_id(self) -> None:
         section = self._sample_section()
         section["id"] = ""
-        with patch("src.application.section_import_service.QMessageBox") as mb:
+        with patch("src.application.section_import_service.QMessageBox"):
             outcome = self.win._import_section_dict(section)
         self.assertEqual(outcome, "blocked")
         self.assertEqual(len(self.win.adapter.sections), 0)

@@ -164,7 +164,7 @@ class BulkImportTest(unittest.TestCase):
     def test_bulk_resolver_called_once_for_multiple_collisions(self) -> None:
         self.adapter.sections.append(sample_section_from_chapter("sec-a"))
         self.adapter.sections.append(sample_section_from_chapter("sec-b"))
-        results, counts = self.service.import_bulk(
+        _results, counts = self.service.import_bulk(
             [sample_section_from_chapter("sec-a"), sample_section_from_chapter("sec-b")], strategy="merge"
         )
         self.bulk_resolver.assert_called_once()

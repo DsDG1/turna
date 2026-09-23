@@ -77,7 +77,7 @@ class AiPhasedTest(unittest.TestCase):
         self.assertEqual(shell["id"], "ai-phased-demo")
         self.assertEqual(len(shell["words"]), 2)
         lessons = shell["units"][0]["lessons"]
-        self.assertEqual([l["id"] for l in lessons], ["u1-l1", "u1-l2"])
+        self.assertEqual([item["id"] for item in lessons], ["u1-l1", "u1-l2"])
         self.assertEqual(lessons[0]["template"], "intro")
         self.assertIn("subLessons", lessons[0]["content"])
         self.assertIn("subLessons", lessons[1]["content"])

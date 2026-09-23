@@ -65,14 +65,14 @@ from src.backend.experience.soft_autopilot import SOFT_RULE_IDS
 
 
 def _ctx(**kwargs) -> ExperienceContext:
-    defaults = dict(
-        healthy=False,
-        validate_error_count=2,
-        empty_lesson_count=1,
-        empty_lessons=["l-empty"],
-        hygiene={"placeholder_count": 0},
-        quality_by_section={},
-    )
+    defaults = {
+        "healthy": False,
+        "validate_error_count": 2,
+        "empty_lesson_count": 1,
+        "empty_lessons": ["l-empty"],
+        "hygiene": {"placeholder_count": 0},
+        "quality_by_section": {},
+    }
     defaults.update(kwargs)
     return ExperienceContext(**defaults)
 

@@ -486,8 +486,8 @@ class PublishFlowPersistTest(unittest.TestCase):
         reloaded = CourseAdapter()
         reloaded.load(self.course_dir)
         reloaded_lesson = next(
-            l for u in reloaded.sections[0]["units"]
-            for l in u["lessons"] if l["id"] == lid
+            item for u in reloaded.sections[0]["units"]
+            for item in u["lessons"] if item["id"] == lid
         )
         self.assertEqual(
             reloaded_lesson["content"].get("linkedGrammarPointIds"), valid_ids

@@ -117,8 +117,8 @@ class TextbookProjectStoreTest(unittest.TestCase):
         self.assertEqual(loaded.name, "Test")
 
     def test_list_sorted_by_updated(self) -> None:
-        p1 = self.store.create_project(name="First", source_path=None)
-        p2 = self.store.create_project(name="Second", source_path=None)
+        self.store.create_project(name="First", source_path=None)
+        self.store.create_project(name="Second", source_path=None)
         projects = self.store.list_projects()
         self.assertEqual([p.name for p in projects], ["Second", "First"])
 

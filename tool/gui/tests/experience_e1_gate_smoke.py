@@ -122,14 +122,14 @@ def main() -> int:
         shell = ExperienceShell(debounce_ms=0)
         shell.set_adapter(adapter)
         shell.set_selection(("lesson", "s1-l2") if any(
-            True for s in adapter.sections for u in s.get("units", []) for l in u.get("lessons", []) if l.get("id") == "s1-l2"
+            True for s in adapter.sections for u in s.get("units", []) for item in u.get("lessons", []) if item.get("id") == "s1-l2"
         ) else ("section", adapter.sections[0]["id"]))
         # Use first lesson id from course
         first_lesson = None
         for s in adapter.sections:
             for u in s.get("units", []):
-                for l in u.get("lessons", []):
-                    first_lesson = l.get("id")
+                for item in u.get("lessons", []):
+                    first_lesson = item.get("id")
                     break
                 if first_lesson:
                     break

@@ -4,6 +4,7 @@ from __future__ import annotations
 import sys
 import unittest
 from pathlib import Path
+from typing import ClassVar
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -33,7 +34,7 @@ class LocateItemTest(unittest.TestCase):
         section = {"id": "s1", "units": [unit]}
 
         class A:
-            sections = [section]
+            sections: ClassVar[list] = [section]
 
             def find_lesson(self, lid):
                 if lid == "l1":
@@ -70,7 +71,7 @@ class HandlerTest(unittest.TestCase):
         section = {"id": "s1", "units": [unit]}
 
         class A:
-            sections = [section]
+            sections: ClassVar[list] = [section]
 
             def find_lesson(self, lid):
                 return section, unit, lesson

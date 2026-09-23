@@ -20,13 +20,13 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from tests._course_fixture import real_adapter_with_course  # noqa: E402
+from tests._course_fixture import real_adapter_with_course
 
-from PySide6.QtGui import QUndoStack  # noqa: E402
-from PySide6.QtWidgets import QAbstractItemView, QTreeWidgetItem  # noqa: E402
+from PySide6.QtGui import QUndoStack
+from PySide6.QtWidgets import QAbstractItemView, QTreeWidgetItem
 
-from src.widgets.course_tree import CourseTreeWidget  # noqa: E402
-from tests._qtapp import _App  # noqa: E402
+from src.widgets.course_tree import CourseTreeWidget
+from tests._qtapp import _App
 
 
 def _simple_adapter() -> MagicMock:
@@ -66,9 +66,9 @@ def _simple_adapter() -> MagicMock:
     def _find_lesson(lid):
         for s in adapter.sections:
             for u in s.get("units", []):
-                for l in u.get("lessons", []):
-                    if l["id"] == lid:
-                        return s, u, l
+                for item in u.get("lessons", []):
+                    if item["id"] == lid:
+                        return s, u, item
         raise KeyError(lid)
 
     def _find_section(sid):
@@ -273,8 +273,8 @@ class ReplaceNodeDataCommandTest(unittest.TestCase):
         self.stack = QUndoStack()
         for s in self.adapter.sections:
             for u in s.get("units", []):
-                for l in u.get("lessons", []):
-                    self.lesson_id = l["id"]
+                for item in u.get("lessons", []):
+                    self.lesson_id = item["id"]
                     break
                 else:
                     continue

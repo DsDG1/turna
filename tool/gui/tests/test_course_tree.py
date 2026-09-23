@@ -102,9 +102,9 @@ def _real_lookup_adapter():
     def find_lesson(lesson_id):
         for s in adapter.sections:
             for u in s.get("units", []):
-                for l in u.get("lessons", []):
-                    if l.get("id") == lesson_id:
-                        return s, u, l
+                for item in u.get("lessons", []):
+                    if item.get("id") == lesson_id:
+                        return s, u, item
         raise KeyError(lesson_id)
 
     adapter.find_section.side_effect = find_section
@@ -266,15 +266,15 @@ class CourseTreeMoveTest(unittest.TestCase):
         l1 = self._item_for("lesson", "s1-l1")
         self.tree.setCurrentItem(l1)
         self.tree._move_current(1)  # down
-        ids = [l["id"] for l in self.adapter.sections[0]["units"][0]["lessons"]]
+        ids = [item["id"] for item in self.adapter.sections[0]["units"][0]["lessons"]]
         self.assertEqual(ids, ["s1-l2", "s1-l1"])
 
     def test_move_current_at_bounds_is_noop(self) -> None:
         l1 = self._item_for("lesson", "s1-l1")
         self.tree.setCurrentItem(l1)
-        before = [l["id"] for l in self.adapter.sections[0]["units"][0]["lessons"]]
+        before = [item["id"] for item in self.adapter.sections[0]["units"][0]["lessons"]]
         self.tree._move_current(-1)  # already first -> no-op
-        after = [l["id"] for l in self.adapter.sections[0]["units"][0]["lessons"]]
+        after = [item["id"] for item in self.adapter.sections[0]["units"][0]["lessons"]]
         self.assertEqual(before, after)
         self.assertEqual(self.stack.count(), 0)
 
@@ -378,7 +378,7 @@ class CourseTreeKeyboardTest(unittest.TestCase):
         self._select_single(item)
         self._press(Qt.Key.Key_Down, Qt.KeyboardModifier.ControlModifier)
         _s2, unit2, _l2 = self.adapter.find_lesson(first_id)
-        ids = [l["id"] for l in unit2.get("lessons", [])]
+        ids = [item["id"] for item in unit2.get("lessons", [])]
         self.assertEqual(ids[1], first_id)
 
     def test_f2_emits_rename_requested(self) -> None:
@@ -447,14 +447,14 @@ class CourseTreeBulkTest(unittest.TestCase):
             self.tree._bulk_move_lessons([self.lesson_id])
         # Lesson now lives in the target unit.
         _s2, t_unit, _l2 = self.adapter.find_unit(self.target_unit)
-        self.assertIn(self.lesson_id, [l["id"] for l in t_unit.get("lessons", [])])
+        self.assertIn(self.lesson_id, [item["id"] for item in t_unit.get("lessons", [])])
         # Source unit lost it.
         _s3, src_unit2, _l3 = self.adapter.find_unit(self.source_unit)
-        self.assertNotIn(self.lesson_id, [l["id"] for l in src_unit2.get("lessons", [])])
+        self.assertNotIn(self.lesson_id, [item["id"] for item in src_unit2.get("lessons", [])])
         # Undo restores.
         self.stack.undo()
         _s4, src_unit4, _l4 = self.adapter.find_unit(self.source_unit)
-        self.assertIn(self.lesson_id, [l["id"] for l in src_unit4.get("lessons", [])])
+        self.assertIn(self.lesson_id, [item["id"] for item in src_unit4.get("lessons", [])])
         self.assertEqual(len(src_unit4.get("lessons", [])), before)
 
     def test_bulk_apply_preset_via_tree(self) -> None:
@@ -561,17 +561,17 @@ def _cross_tree_lookup_adapter():
     def find_lesson(lesson_id):
         for s in adapter.sections:
             for u in s.get("units", []):
-                for l in u.get("lessons", []):
-                    if l.get("id") == lesson_id:
-                        return s, u, l
+                for item in u.get("lessons", []):
+                    if item.get("id") == lesson_id:
+                        return s, u, item
         raise KeyError(lesson_id)
 
     def delete_lesson(lesson_id):
         for s in adapter.sections:
             for u in s.get("units", []):
                 lessons = u.get("lessons", [])
-                for i, l in enumerate(lessons):
-                    if l.get("id") == lesson_id:
+                for i, item in enumerate(lessons):
+                    if item.get("id") == lesson_id:
                         del lessons[i]
                         return
         raise KeyError(lesson_id)
@@ -622,7 +622,7 @@ class CourseTreeCrossTreeMoveTest(unittest.TestCase):
 
     def _unit_lesson_ids(self, unit_id):
         _s, unit = self.adapter.find_unit(unit_id)
-        return [l["id"] for l in unit.get("lessons", [])]
+        return [item["id"] for item in unit.get("lessons", [])]
 
     def _section_unit_ids(self, section_id):
         s = self.adapter.find_section(section_id)

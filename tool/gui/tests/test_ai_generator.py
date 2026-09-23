@@ -5,6 +5,7 @@ import json
 import sys
 import tempfile
 import unittest
+import urllib.error
 from pathlib import Path
 from unittest import mock
 
@@ -636,13 +637,15 @@ class TestRequestChatCancel(unittest.TestCase):
                 # cancel_check fires on the next iteration.
                 return b'{"choices": [{"message": {"content": "x"}}]}'
 
-        with mock.patch("src.backend.ai_generator.urllib.request.urlopen", return_value=_FakeResp()):
-            with self.assertRaises(AiCancelled):
-                request_chat(
-                    self._config(),
-                    messages=[{"role": "user", "content": "hi"}],
-                    cancel_check=lambda: True,
-                )
+        with (
+            mock.patch("src.backend.ai_generator.urllib.request.urlopen", return_value=_FakeResp()),
+            self.assertRaises(AiCancelled),
+        ):
+            request_chat(
+                self._config(),
+                messages=[{"role": "user", "content": "hi"}],
+                cancel_check=lambda: True,
+            )
 
 
 class TestRequestChatStream(unittest.TestCase):
@@ -742,15 +745,17 @@ class TestRequestChatStream(unittest.TestCase):
             def read(self, n=-1):
                 return b""
 
-        with mock.patch("src.backend.ai_generator.urllib.request.urlopen", return_value=_FakeResp()):
-            with self.assertRaises(AiCancelled):
-                request_chat(
-                    self._config(),
-                    messages=[{"role": "user", "content": "hi"}],
-                    stream=True,
-                    on_chunk=lambda _: None,
-                    cancel_check=lambda: True,
-                )
+        with (
+            mock.patch("src.backend.ai_generator.urllib.request.urlopen", return_value=_FakeResp()),
+            self.assertRaises(AiCancelled),
+        ):
+            request_chat(
+                self._config(),
+                messages=[{"role": "user", "content": "hi"}],
+                stream=True,
+                on_chunk=lambda _: None,
+                cancel_check=lambda: True,
+            )
 
     def test_non_sse_fallback_delivers_bulk_content(self) -> None:
         from unittest import mock
@@ -1811,16 +1816,18 @@ class TestRequestChatAutoFallback(unittest.TestCase):
             hdrs=None,
             fp=BytesIO(b'{"error":"response_format schema unsupported"}'),
         )
-        with mock.patch("urllib.request.urlopen", side_effect=http_err):
-            with self.assertRaises(RuntimeError) as ctx:
-                request_chat(
-                    cfg,
-                    [{"role": "user", "content": "hi"}],
-                    response_format={
-                        "type": "json_schema",
-                        "json_schema": {"name": "section", "schema": {}, "strict": True},
-                    },
-                )
+        with (
+            mock.patch("urllib.request.urlopen", side_effect=http_err),
+            self.assertRaises(RuntimeError) as ctx,
+        ):
+            request_chat(
+                cfg,
+                [{"role": "user", "content": "hi"}],
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {"name": "section", "schema": {}, "strict": True},
+                },
+            )
         self.assertIn("HTTP 400", str(ctx.exception))
         # Probe must NOT be flipped when strict_schema="on"
         self.assertEqual(cfg.effective_strict_schema(), "on")
@@ -1844,16 +1851,18 @@ class TestRequestChatAutoFallback(unittest.TestCase):
             hdrs=None,
             fp=BytesIO(b'{"error":"invalid api key"}'),
         )
-        with mock.patch("urllib.request.urlopen", side_effect=http_err):
-            with self.assertRaises(RuntimeError):
-                request_chat(
-                    cfg,
-                    [{"role": "user", "content": "hi"}],
-                    response_format={
-                        "type": "json_schema",
-                        "json_schema": {"name": "section", "schema": {}, "strict": True},
-                    },
-                )
+        with (
+            mock.patch("urllib.request.urlopen", side_effect=http_err),
+            self.assertRaises(RuntimeError),
+        ):
+            request_chat(
+                cfg,
+                [{"role": "user", "content": "hi"}],
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {"name": "section", "schema": {}, "strict": True},
+                },
+            )
         # Probe untouched (still None -> "on")
         self.assertEqual(cfg.effective_strict_schema(), "on")
 
@@ -2150,8 +2159,8 @@ class TestSpliceAndRegenerate(unittest.TestCase):
                 "l1",
             )
         # l1's content replaced (sublesson name kept from AI), l2 preserved.
-        l1 = next(l for l in result["units"][0]["lessons"] if l["id"] == "l1")
-        l2 = next(l for l in result["units"][0]["lessons"] if l["id"] == "l2")
+        l1 = next(item for item in result["units"][0]["lessons"] if item["id"] == "l1")
+        l2 = next(item for item in result["units"][0]["lessons"] if item["id"] == "l2")
         self.assertEqual(l1["content"]["subLessons"][0]["name"], "AI Changed")
         self.assertEqual(l2["content"]["subLessons"][0]["name"], "SL1")
         # request_lesson_transform preserves identity fields from the original.

@@ -4,6 +4,7 @@ from __future__ import annotations
 import sys
 import unittest
 from pathlib import Path
+from typing import ClassVar
 from unittest.mock import MagicMock, patch
 
 _GUI = Path(__file__).resolve().parents[1]
@@ -63,11 +64,11 @@ class JobTrayTest(unittest.TestCase):
         from src.widgets.job_tray import JobTray
 
         class _Stub:
-            sections: list = []
-            vocab: list = []
-            expressions: list = []
-            grammar_points: list = []
-            index: dict = {"language": "tr"}
+            sections: ClassVar[list] = []
+            vocab: ClassVar[list] = []
+            expressions: ClassVar[list] = []
+            grammar_points: ClassVar[list] = []
+            index: ClassVar[dict] = {"language": "tr"}
             course_dir = None
 
         tray = JobTray()

@@ -4,6 +4,7 @@ from __future__ import annotations
 import sys
 import unittest
 from pathlib import Path
+from typing import ClassVar
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -49,7 +50,7 @@ class SoftBeforeSaveTest(unittest.TestCase):
 
     def test_soft_applies_and_pushes(self) -> None:
         class _Batch:
-            fixes = [1, 2, 3]
+            fixes: ClassVar[list] = [1, 2, 3]
 
             def __len__(self) -> int:
                 return 3

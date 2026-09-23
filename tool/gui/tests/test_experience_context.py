@@ -4,6 +4,7 @@ from __future__ import annotations
 import sys
 import unittest
 from pathlib import Path
+from typing import ClassVar
 from unittest.mock import patch
 
 _GUI = Path(__file__).resolve().parents[1]
@@ -303,7 +304,7 @@ class ValidateRefreshGuardTest(unittest.TestCase):
         )
 
         class _R:
-            problems = [
+            problems: ClassVar[list] = [
                 {"level": "error", "message": "boom", "path": "x"},
             ]
 
@@ -585,12 +586,12 @@ class DedupeSuggestionTest(unittest.TestCase):
         from src.backend.experience.context_bus import _course_hygiene
 
         class _A:
-            vocab = [
+            vocab: ClassVar[list] = [
                 {"id": "w1", "term": "Merhaba"},
                 {"id": "w2", "term": "merhaba"},
             ]
-            expressions = []
-            grammar_points = []
+            expressions: ClassVar[list] = []
+            grammar_points: ClassVar[list] = []
 
             def detect_duplicates(self):
                 return [

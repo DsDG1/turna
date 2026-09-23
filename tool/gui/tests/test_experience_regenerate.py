@@ -107,9 +107,9 @@ class _Adapter:
 
     def find_lesson(self, lesson_id: str):
         for u in _SECTION["units"]:
-            for l in u["lessons"]:
-                if l["id"] == lesson_id:
-                    return _SECTION, u, l
+            for item in u["lessons"]:
+                if item["id"] == lesson_id:
+                    return _SECTION, u, item
         raise KeyError(lesson_id)
 
     def find_unit(self, unit_id: str):

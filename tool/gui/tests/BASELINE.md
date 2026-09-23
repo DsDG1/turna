@@ -4,6 +4,7 @@
 
  ## 当前基线
 
+- 日期：2026-09-22；`ruff check tool/gui`（src + tests）为 0，并已接入 `make lint-gui` 与 CI。用例数仍为 **2541**（本批只清 lint，不增删测试）。
 - 日期：2026-09-20（P0 异步批次 + P1 Toast 批次 1，见下两节）；`python -m unittest` 收集 **2541 例 / 0 加载错误**（2537 + `test_shell_views` 新增 `NotifyToastResolutionTest` 4 例）
 
 ## 2026-09-20 P1 Toast 批次 1（确认类模态框 → Toast，28 处）

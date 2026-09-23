@@ -293,7 +293,7 @@ class CanDispatchTests(unittest.TestCase):
         p = resolve_policy(
             _make_settings(experience_mode="observer", experience_allow_dangerous_skills=True)
         )
-        ok, reason = can_dispatch(_DangerousSpec(), p)
+        ok, _reason = can_dispatch(_DangerousSpec(), p)
         self.assertFalse(ok)
 
     def test_dangerous_allowed_when_unlocked_copilot(self):

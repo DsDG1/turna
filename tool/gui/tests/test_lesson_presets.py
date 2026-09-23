@@ -109,7 +109,7 @@ class PresetBuildTest(unittest.TestCase):
         for preset in FUNCTIONAL_PRESETS:
             with self.subTest(preset=preset.id):
                 lesson = build_preset_lesson(preset.id)
-                ids = [lesson["id"]] + _all_item_ids(lesson)
+                ids = [lesson["id"], *_all_item_ids(lesson)]
                 self.assertTrue(all(ids), f"{preset.id}: empty structural id in {ids}")
                 self.assertEqual(
                     len(ids), len(set(ids)), f"{preset.id}: duplicate ids {ids}"

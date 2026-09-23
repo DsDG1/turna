@@ -11,6 +11,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 _GUI = Path(__file__).resolve().parents[1]
@@ -67,7 +68,7 @@ from src.backend.ai_generator import (
     build_edit_prompt,
     generate_edit,
 )
-from src.backend.course_adapter import CourseAdapter
+from src.backend.course_adapter import CourseAdapter, SectionMergePlan
 
 
 def _load_adapter(tmp: Path) -> CourseAdapter:
@@ -174,7 +175,7 @@ class TreeCommandsUndoTest(unittest.TestCase):
         self.assertEqual(len(unit["lessons"]), before + 1)
         lid = cmd.lesson_id
         self.stack.undo()
-        ids = {l.get("id") for l in unit["lessons"]}
+        ids = {item.get("id") for item in unit["lessons"]}
         self.assertNotIn(lid, ids)
 
     def test_delete_lesson_undo_restores(self) -> None:
@@ -184,10 +185,10 @@ class TreeCommandsUndoTest(unittest.TestCase):
         lid = lesson["id"]
         cmd = DeleteLessonCommand(self.adapter, lid)
         self.stack.push(cmd)
-        ids = {l.get("id") for l in unit["lessons"]}
+        ids = {item.get("id") for item in unit["lessons"]}
         self.assertNotIn(lid, ids)
         self.stack.undo()
-        ids = {l.get("id") for l in unit["lessons"]}
+        ids = {item.get("id") for item in unit["lessons"]}
         self.assertIn(lid, ids)
 
     def test_delete_section_undo_restores(self) -> None:
@@ -209,7 +210,7 @@ class TreeCommandsUndoTest(unittest.TestCase):
         cmd = MoveSectionCommand(self.adapter, 0, 1)
         self.stack.push(cmd)
         moved = [s["id"] for s in self.adapter.sections]
-        self.assertEqual(moved, [ids[1], ids[0]] + ids[2:])
+        self.assertEqual(moved, [ids[1], ids[0], *ids[2:]])
         self.stack.undo()
         self.assertEqual([s["id"] for s in self.adapter.sections], ids)
 
@@ -223,15 +224,15 @@ class TreeCommandsUndoTest(unittest.TestCase):
     def test_move_lesson_undo(self) -> None:
         section = self.adapter.sections[0]
         unit = section["units"][0]
-        ids = [l["id"] for l in unit["lessons"]]
+        ids = [item["id"] for item in unit["lessons"]]
         self.assertGreaterEqual(len(ids), 2)
         cmd = MoveLessonCommand(self.adapter, unit["id"], 0, 1)
         self.stack.push(cmd)
-        moved = [l["id"] for l in unit["lessons"]]
+        moved = [item["id"] for item in unit["lessons"]]
         # Fixture seeds >2 lessons; a 0→1 move swaps only the first two.
-        self.assertEqual(moved, [ids[1], ids[0]] + ids[2:])
+        self.assertEqual(moved, [ids[1], ids[0], *ids[2:]])
         self.stack.undo()
-        self.assertEqual([l["id"] for l in unit["lessons"]], ids)
+        self.assertEqual([item["id"] for item in unit["lessons"]], ids)
 
     def test_move_unit_undo(self) -> None:
         section = self.adapter.sections[0]
@@ -253,13 +254,13 @@ class TreeCommandsUndoTest(unittest.TestCase):
         membership and the section structure are untouched."""
         section = self.adapter.sections[0]
         unit = section["units"][0]
-        lesson_ids_before = [l["id"] for l in unit["lessons"]]
+        lesson_ids_before = [item["id"] for item in unit["lessons"]]
         unit_ids_before = [u["id"] for u in section["units"]]
         cmd = MoveLessonCommand(self.adapter, unit["id"], 0, 1)
         self.stack.push(cmd)
         # Same lessons, just reordered; same units.
         self.assertEqual(
-            sorted(l["id"] for l in unit["lessons"]),
+            sorted(item["id"] for item in unit["lessons"]),
             sorted(lesson_ids_before),
         )
         self.assertEqual([u["id"] for u in section["units"]], unit_ids_before)
@@ -712,7 +713,7 @@ class AppendLessonCommandTest(unittest.TestCase):
         self.stack.push(cmd)
         self.assertEqual(len(unit["lessons"]), before + 1)
         self.stack.undo()
-        ids = {l.get("id") for l in unit["lessons"]}
+        ids = {item.get("id") for item in unit["lessons"]}
         self.assertNotIn("appended-l1", ids)
 
 
@@ -906,8 +907,6 @@ class MergeAiSectionCommandTest(unittest.TestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def _make_plan(self, target_sid: str | None, incoming: dict) -> SectionMergePlan:
-        from src.backend.course_adapter import SectionMergePlan
-
         return self.adapter.plan_section_merge(target_sid, incoming)
 
     def test_merge_replaces_existing_unit_and_appends_new_unit(self) -> None:
@@ -999,7 +998,7 @@ class MergeAiSectionCommandTest(unittest.TestCase):
         unit_after = self.adapter.find_section(target["id"])["units"][0]
         self.assertEqual(len(unit_after["lessons"]), original_lesson_count + 1)
         self.assertTrue(
-            any(l.get("id") == "ai-appended-lesson" for l in unit_after["lessons"])
+            any(item.get("id") == "ai-appended-lesson" for item in unit_after["lessons"])
         )
 
         self.stack.undo()
@@ -1142,11 +1141,11 @@ class ReparentCommandsTest(unittest.TestCase):
         cmd.signals.changed.connect(lambda: None)
         self.stack.push(cmd)
         # Lesson now in target unit.
-        self.assertIn(lesson_id, [l["id"] for l in target_unit["lessons"]])
+        self.assertIn(lesson_id, [item["id"] for item in target_unit["lessons"]])
         self.assertEqual(len(target_unit["lessons"]), tgt_before + 1)
-        self.assertNotIn(lesson_id, [l["id"] for l in src_unit["lessons"]])
+        self.assertNotIn(lesson_id, [item["id"] for item in src_unit["lessons"]])
         self.stack.undo()
-        self.assertIn(lesson_id, [l["id"] for l in src_unit["lessons"]])
+        self.assertIn(lesson_id, [item["id"] for item in src_unit["lessons"]])
         self.assertEqual(len(src_unit["lessons"]), src_before)
 
     def test_reparent_unit_across_sections_undo_restores(self) -> None:
@@ -1238,7 +1237,7 @@ class AppendLessonsToUnitCommandTest(unittest.TestCase):
         self.assertEqual(len(unit["lessons"]), before + 1)
         self.assertIn("e-new", {e.get("id") for e in self.adapter.expressions})
         self.stack.undo()
-        self.assertNotIn("fresh-l1", {l.get("id") for l in unit["lessons"]})
+        self.assertNotIn("fresh-l1", {item.get("id") for item in unit["lessons"]})
         self.assertNotIn("e-new", {e.get("id") for e in self.adapter.expressions})
 
 if __name__ == "__main__":

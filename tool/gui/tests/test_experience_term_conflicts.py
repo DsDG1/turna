@@ -207,7 +207,7 @@ class ResolveConflictsHandlerTest(unittest.TestCase):
         cmd.undo()
         self.assertEqual(expr["translation"], "哈喽")
         # timeline 闭集 scope：只有 count，无 term/translation
-        args, kwargs = host._events[-1]
+        _args, kwargs = host._events[-1]
         self.assertEqual(kwargs.get("action_id"), ACTION_ID)
         self.assertEqual(kwargs.get("scope"), {"count": 1})
         self.assertNotIn("merhaba", str(host._events))

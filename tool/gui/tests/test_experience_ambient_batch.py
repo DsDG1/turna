@@ -32,14 +32,14 @@ from src.backend.experience.proactive import (
 
 
 def _ctx(**kwargs) -> ExperienceContext:
-    defaults = dict(
-        healthy=False,
-        validate_error_count=2,
-        empty_lesson_count=1,
-        empty_lessons=["l-empty"],
-        hygiene={"placeholder_count": 0},
-        quality_by_section={},
-    )
+    defaults = {
+        "healthy": False,
+        "validate_error_count": 2,
+        "empty_lesson_count": 1,
+        "empty_lessons": ["l-empty"],
+        "hygiene": {"placeholder_count": 0},
+        "quality_by_section": {},
+    }
     defaults.update(kwargs)
     return ExperienceContext(**defaults)
 
@@ -203,7 +203,6 @@ class AmbientBannerQueueTest(unittest.TestCase):
         # The second collapsed row's ✕ button archives p2 (queue[2]).
         collapsed = self.banner._collapsed_rows
         self.assertEqual(len(collapsed), 2)
-        xbtn = collapsed[-1].findChild(type(collapsed[-1].__class__))
         # Find the ✕ QPushButton inside the last collapsed row.
         from PySide6.QtWidgets import QPushButton
 

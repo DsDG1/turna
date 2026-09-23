@@ -22,8 +22,8 @@ test: ## Run Dart tests
 test-python: ## Run Python tool tests
 	python3 -m unittest discover -s test -p "*_test.py"
 
-lint-gui: ## Lint the GUI editor with ruff (src only; tests carry legacy debt)
-	python3 -m ruff check tool/gui/src
+lint-gui: ## Lint the GUI editor with ruff (src and tests)
+	python3 -m ruff check tool/gui
 
 test-gui: ## Run GUI editor tests (full tier, one subprocess per module)
 	cd tool/gui && python3 run_gui_tests.py full -j 4

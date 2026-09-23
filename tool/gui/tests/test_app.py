@@ -361,7 +361,7 @@ class AsyncSaveTest(unittest.TestCase):
         self.assertTrue(any("保存成功" in m for m in messages))
 
     def test_async_save_failure_surfaces_message(self) -> None:
-        win, adapter = self._make_win_with_save_result(
+        win, _adapter = self._make_win_with_save_result(
             SaveResult(
                 ok=False,
                 message="校验失败（已回滚）",
@@ -492,9 +492,9 @@ def _real_lookup_adapter():
     def find_lesson(lesson_id):
         for s in adapter.sections:
             for u in s.get("units", []):
-                for l in u.get("lessons", []):
-                    if l.get("id") == lesson_id:
-                        return s, u, l
+                for item in u.get("lessons", []):
+                    if item.get("id") == lesson_id:
+                        return s, u, item
         raise KeyError(lesson_id)
 
     adapter.find_lesson.side_effect = find_lesson

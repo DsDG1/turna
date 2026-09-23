@@ -42,7 +42,7 @@ class UserActionFilterTest(unittest.TestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def _lines(self) -> list[dict]:
-        return [json.loads(l) for l in self.log_file.read_text(encoding="utf-8").splitlines() if l.strip()]
+        return [json.loads(item) for item in self.log_file.read_text(encoding="utf-8").splitlines() if item.strip()]
 
     def _press_button(self, btn: QPushButton) -> None:
         # Synthesize a MouseButtonPress on the button via QApplication.notify.
@@ -68,7 +68,7 @@ class UserActionFilterTest(unittest.TestCase):
             self._press_button(btn)
         finally:
             app.removeEventFilter(flt)
-        clicks = [l for l in self._lines() if l["event"] == "ui.click"]
+        clicks = [item for item in self._lines() if item["event"] == "ui.click"]
         self.assertTrue(clicks)
         self.assertEqual(clicks[-1]["payload"]["target"], "保存")
 
@@ -89,7 +89,7 @@ class UserActionFilterTest(unittest.TestCase):
             app.notify(edit, QFocusEvent(QEvent.Type.FocusOut))
         finally:
             app.removeEventFilter(flt)
-        commits = [l for l in self._lines() if l["event"] == "ui.input.commit"]
+        commits = [item for item in self._lines() if item["event"] == "ui.input.commit"]
         self.assertTrue(commits)
         body = json.dumps(commits[-1], ensure_ascii=False)
         self.assertNotIn("sk-secret-value", body)

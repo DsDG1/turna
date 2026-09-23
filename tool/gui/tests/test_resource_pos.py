@@ -75,7 +75,7 @@ class CsvPosRoundTripTest(unittest.TestCase):
             {"id": "w-1", "term": "merhaba", "translation": "你好", "pos": "noun",
              "pronunciation": None, "audioAsset": None, "tags": []},
         ]
-        headers, rows = course_cli.build_csv_rows("vocab", entries)
+        _headers, rows = course_cli.build_csv_rows("vocab", entries)
         merged, problems = course_cli.merge_csv_rows("vocab", [], rows, set())
         self.assertEqual([p for p in problems if p.level == "error"], [])
         self.assertEqual(merged[0]["pos"], "noun")

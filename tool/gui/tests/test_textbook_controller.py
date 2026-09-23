@@ -16,6 +16,7 @@ if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
 from src.backend.ai_generator import AiApiConfig
+from src.backend.import_step_result import ImportStepResult
 from src.backend.knowledge_schema import KnowledgePoints, coerce_knowledge_points
 from src.dialogs.textbook_import_controller import TextbookImportController
 

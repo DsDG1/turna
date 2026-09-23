@@ -17,7 +17,7 @@ All test code that needs a real window should go through
 """
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from typing import Any
 from collections.abc import Iterator
 from unittest.mock import MagicMock, patch
@@ -100,10 +100,8 @@ def reset_main_window(win) -> None:
 
     win.course_dir = None
     win.adapter = CourseAdapter()
-    try:
+    with suppress(Exception):
         win.adapter.add_resource_listener(win._on_experience_resources_changed)
-    except Exception:
-        pass
     win._current_node_ref = None
     win._last_imported_section_id = None
     win.teacher_mode = False
@@ -117,10 +115,8 @@ def reset_main_window(win) -> None:
     if hasattr(win, "undo_stack") and win.undo_stack is not None:
         win.undo_stack.clear()
     if hasattr(win, "conflict_guard") and win.conflict_guard is not None:
-        try:
+        with suppress(Exception):
             win.conflict_guard.clear()  # type: ignore[attr-defined]
-        except Exception:
-            pass
     if hasattr(win, "experience") and win.experience is not None:
         try:
             win.experience.set_adapter(win.adapter)
@@ -128,15 +124,11 @@ def reset_main_window(win) -> None:
         except Exception:
             pass
     if hasattr(win, "job_tray") and win.job_tray is not None:
-        try:
+        with suppress(Exception):
             win.job_tray.clear()
-        except Exception:
-            pass
     if hasattr(win, "experience_metrics") and win.experience_metrics is not None:
-        try:
+        with suppress(Exception):
             win.experience_metrics.clear()
-        except Exception:
-            pass
     if hasattr(win, "_shown_suggestion_keys") and isinstance(win._shown_suggestion_keys, set):
         win._shown_suggestion_keys.clear()
     if hasattr(win, "_ambient_archived") and isinstance(win._ambient_archived, set):
@@ -144,10 +136,8 @@ def reset_main_window(win) -> None:
     if hasattr(win, "_campaign_auto_offered_for"):
         win._campaign_auto_offered_for = None
     if hasattr(win, "_undo_detail_timer") and win._undo_detail_timer is not None:
-        try:
+        with suppress(Exception):
             win._undo_detail_timer.stop()
-        except Exception:
-            pass
     if hasattr(win, "tree") and win.tree is not None:
         try:
             win.tree.adapter = win.adapter

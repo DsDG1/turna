@@ -27,9 +27,9 @@ class DummyAdapter:
     def find_lesson(self, lesson_id: str):
         for s in self.sections:
             for u in s.get("units") or []:
-                for l in u.get("lessons") or []:
-                    if l.get("id") == lesson_id:
-                        return s, u, l
+                for item in u.get("lessons") or []:
+                    if item.get("id") == lesson_id:
+                        return s, u, item
         return None, None, None
 
     def find_unit(self, unit_id: str):
@@ -111,8 +111,8 @@ class TestTransactionSnapshot(unittest.TestCase):
             ["lesson:l1"],
         )
         # Mutate lesson content
-        _s, _u, l = self.adapter.find_lesson("l1")
-        l["name"] = "Mutated Name"
+        _s, _u, item = self.adapter.find_lesson("l1")
+        item["name"] = "Mutated Name"
         ok, reason = verify_transaction_integrity(self.adapter, snap)
         self.assertFalse(ok)
         self.assertIn("指纹不一致", reason)

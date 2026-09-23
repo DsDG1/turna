@@ -10,6 +10,7 @@ import json
 import sys
 import unittest
 from pathlib import Path
+from typing import ClassVar
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -77,10 +78,7 @@ class BuildMessagesTest(unittest.TestCase):
         self.assertNotIn("pronunciation 给出", prompt)
 
     def test_entries_truncated(self):
-        entries = _entries() + [
-            {"id": "w3", "kind": "vocab", "term": "x",
-             "translation": "", "pronunciation": "", "pos": ""}
-        ]
+        entries = [*_entries(), {"id": "w3", "kind": "vocab", "term": "x", "translation": "", "pronunciation": "", "pos": ""}]
         msgs = build_batch_polish_messages(entries, max_entries=2)
         prompt = msgs[1]["content"]
         self.assertIn("w1", prompt)
@@ -374,9 +372,9 @@ class BatchPolishHandlerTest(unittest.TestCase):
         ):
             handle_batch_polish(host, scope)
 
-    _VOCAB = [{"id": "w1", "term": "merhaba", "translation": "", "pos": None}]
-    _EXPR = [{"id": "e1", "term": "nasilsin", "translation": "你好吗"}]
-    _SCOPE = {"entries": [("vocab", "w1"), ("expressions", "e1")]}
+    _VOCAB: ClassVar[list] = [{"id": "w1", "term": "merhaba", "translation": "", "pos": None}]
+    _EXPR: ClassVar[list] = [{"id": "e1", "term": "nasilsin", "translation": "你好吗"}]
+    _SCOPE: ClassVar[dict] = {"entries": [("vocab", "w1"), ("expressions", "e1")]}
 
     def test_no_selection_status(self):
         host = self._make_host(self._VOCAB, self._EXPR)
@@ -421,7 +419,7 @@ class BatchPolishHandlerTest(unittest.TestCase):
         self.assertIsNone(word["pos"])
         self.assertIsNone(expr.get("pronunciation"))  # undo 回写旧值 None
         # timeline 闭集 scope：只有 count，无 term/原文
-        args, kwargs = host._events[-1]
+        _args, kwargs = host._events[-1]
         self.assertEqual(kwargs.get("action_id"), ACTION_ID)
         self.assertEqual(kwargs.get("scope"), {"count": 3})
         self.assertNotIn("merhaba", str(host._events))

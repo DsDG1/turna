@@ -4,6 +4,7 @@ from __future__ import annotations
 import sys
 import unittest
 from pathlib import Path
+from typing import ClassVar
 
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
@@ -105,8 +106,8 @@ class CampaignGuardPreCheckTest(unittest.TestCase):
             self.selected.append(("lesson", lid))
 
     class _Ctx:
-        quality_by_section = {"s1": 0.4}
-        empty_lessons: list = []
+        quality_by_section: ClassVar[dict] = {"s1": 0.4}
+        empty_lessons: ClassVar[list] = []
 
     def _run_campaign(self, *, busy: bool):
         from unittest.mock import patch

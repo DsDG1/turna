@@ -53,9 +53,9 @@ def _adapter(lessons: list[dict] | None = None) -> SimpleNamespace:
         def find_lesson(self, lesson_id: str) -> tuple[dict, dict, dict]:
             for sec in self.sections:
                 for unit in sec["units"]:
-                    for l in unit["lessons"]:
-                        if l["id"] == lesson_id:
-                            return sec, unit, l
+                    for item in unit["lessons"]:
+                        if item["id"] == lesson_id:
+                            return sec, unit, item
             raise KeyError(lesson_id)
 
         def invalidate_node_index(self) -> None:

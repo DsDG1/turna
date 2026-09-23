@@ -237,7 +237,7 @@ class ExperienceTabTest(unittest.TestCase):
 
     def _make_dialog(self, **overrides) -> SettingsDialog:
         _App.get()
-        store = {k: v for k, v in overrides.items()}
+        store = dict(overrides.items())
         qs = _make_qsettings()
         qs.value = lambda key, default=None: store.get(key, default)
         with patch("src.app.QSettings", return_value=qs):

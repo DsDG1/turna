@@ -144,7 +144,6 @@ class GitLibraryTest(unittest.TestCase):
 
     def test_save_to_assets_copies_course(self) -> None:
         self.lib.clone(str(self.remote), self.clone_dir)
-        assets_root = self.tmp / "assets" / "courses"
         target = self.lib.save_to_assets(self.clone_dir, "tr", repo_root=self.tmp)
         self.assertEqual(target, self.tmp / "assets" / "courses" / "tr")
         self.assertTrue((target / "index.json").is_file())

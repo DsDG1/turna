@@ -92,7 +92,7 @@ def main() -> int:
         # -------------------------------------------------------------
         # CP1: Teacher mode chip preview offer / auto-apply & undo stack
         # -------------------------------------------------------------
-        sec, unit, lesson = adapter.find_lesson(adapter.sections[0]["units"][0]["lessons"][0]["id"])
+        _sec, _unit, lesson = adapter.find_lesson(adapter.sections[0]["units"][0]["lessons"][0]["id"])
         target_lid = lesson["id"]
         stages = (lesson.get("content") or {}).get("stages") or []
         stage = stages[0] if stages else {"id": "st1", "items": [{"id": "item_1", "prompt": "orig"}]}
@@ -148,41 +148,41 @@ def main() -> int:
         all_lessons = []
         for s in adapter.sections:
             for u in s.get("units") or []:
-                for l in u.get("lessons") or []:
-                    all_lessons.append(l)
+                for item in u.get("lessons") or []:
+                    all_lessons.append(item)
 
         batch_targets = all_lessons[:3]
-        target_ids = [l["id"] for l in batch_targets]
-        orig_templates = [str(l.get("template") or "legacy") for l in batch_targets]
+        target_ids = [item["id"] for item in batch_targets]
+        orig_templates = [str(item.get("template") or "legacy") for item in batch_targets]
 
         patch_steps = []
-        for l in batch_targets:
-            p = field_patch(l, "template", "reading", target_kind="lesson", target_id=l["id"])
-            patch_steps.append(("field", l, p))
+        for item in batch_targets:
+            p = field_patch(item, "template", "reading", target_kind="lesson", target_id=item["id"])
+            patch_steps.append(("field", item, p))
 
         batch_cmd = ApplyBatchPatchCommand(steps=patch_steps, adapter=adapter, text="批量课型")
         undo_stack.push(batch_cmd)
 
         mid_templates = []
         for tid in target_ids:
-            _s, _u, l = adapter.find_lesson(tid)
-            mid_templates.append(str(l.get("template")))
+            _s, _u, item = adapter.find_lesson(tid)
+            mid_templates.append(str(item.get("template")))
 
         cp2_applied = all(t == "reading" for t in mid_templates)
 
         undo_stack.undo()
         revert_templates = []
         for tid in target_ids:
-            _s, _u, l = adapter.find_lesson(tid)
-            revert_templates.append(str(l.get("template") or "legacy"))
+            _s, _u, item = adapter.find_lesson(tid)
+            revert_templates.append(str(item.get("template") or "legacy"))
 
         cp2_reverted = revert_templates == orig_templates
 
         undo_stack.redo()
         redo_templates = []
         for tid in target_ids:
-            _s, _u, l = adapter.find_lesson(tid)
-            redo_templates.append(str(l.get("template")))
+            _s, _u, item = adapter.find_lesson(tid)
+            redo_templates.append(str(item.get("template")))
 
         cp2_redone = all(t == "reading" for t in redo_templates)
         undo_stack.undo()  # Revert back to clean state
@@ -269,7 +269,7 @@ def main() -> int:
         # 4c. Concurrent deletion detected
         save_lessons = adapter.sections[0]["units"][0]["lessons"]
         adapter.sections[0]["units"][0]["lessons"] = [
-            l for l in save_lessons if l["id"] != tx_target_lid
+            item for item in save_lessons if item["id"] != tx_target_lid
         ]
         v_delete_ok, v_delete_reason = verify_transaction_integrity(adapter, snap)
         adapter.sections[0]["units"][0]["lessons"] = save_lessons  # restore

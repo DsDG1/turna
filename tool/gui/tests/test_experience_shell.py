@@ -223,7 +223,7 @@ class ExperienceShellRebuildTest(unittest.TestCase):
         assert ctx is not None
         self.assertEqual(ctx.recent_intents[0]["action_id"], "app.why")
         self.shell.set_recent_intents(
-            intents + [{"action_id": "app.pin", "label": "钉", "ts": 2.0, "scope_keys": [], "source": "x"}]
+            [*intents, {"action_id": "app.pin", "label": "钉", "ts": 2.0, "scope_keys": [], "source": "x"}]
         )
         self.shell.invalidate_focus()
         assert self.shell.context is not None

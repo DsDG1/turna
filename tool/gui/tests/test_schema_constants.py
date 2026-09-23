@@ -89,7 +89,7 @@ class TestSchemaConstants(unittest.TestCase):
         """Ensure all 7 template types match CONTENT_BY_TEMPLATE keys."""
         from src.backend.lesson_content import CONTENT_BY_TEMPLATE
 
-        enum_values = set(member.value for member in TemplateType)
+        enum_values = {member.value for member in TemplateType}
         self.assertEqual(len(enum_values), 7)
         self.assertEqual(enum_values, set(CONTENT_BY_TEMPLATE.keys()))
 

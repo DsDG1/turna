@@ -87,9 +87,9 @@ def _adapter(lessons: list[dict] | None = None) -> Any:
         def find_lesson(self, lesson_id: str) -> tuple[dict, dict, dict]:
             for sec in self.sections:
                 for unit in sec["units"]:
-                    for l in unit["lessons"]:
-                        if l["id"] == lesson_id:
-                            return sec, unit, l
+                    for item in unit["lessons"]:
+                        if item["id"] == lesson_id:
+                            return sec, unit, item
             raise KeyError(lesson_id)
 
         def find_section(self, section_id: str) -> dict:
@@ -241,8 +241,8 @@ class RealFillChainTest(unittest.TestCase):
         def fake_regen(config, spec, section, lid, instruction=None, **kw):
             new_section = copy.deepcopy(section)
             for u in new_section.get("units") or []:
-                for i, l in enumerate(u.get("lessons") or []):
-                    if l.get("id") == lid:
+                for i, item in enumerate(u.get("lessons") or []):
+                    if item.get("id") == lid:
                         u["lessons"][i] = _real_ai_lesson(lid)
             return new_section
 
@@ -256,7 +256,7 @@ class RealFillChainTest(unittest.TestCase):
                 imbalanced_lessons=[],
             )
             plan = plan_from_context(ctx, goal_text="空课")
-            box, mp, err = run_sandbox_real_fill_for_host(host, plan)
+            _box, mp, err = run_sandbox_real_fill_for_host(host, plan)
             self.assertEqual(err, "")
             after = json.dumps(ad.sections, sort_keys=True)
             self.assertEqual(before, after)  # isolation
@@ -282,8 +282,8 @@ class RealFillChainTest(unittest.TestCase):
                 raise RuntimeError("boom")
             new_section = copy.deepcopy(section)
             for u in new_section.get("units") or []:
-                for i, l in enumerate(u.get("lessons") or []):
-                    if l.get("id") == lid:
+                for i, item in enumerate(u.get("lessons") or []):
+                    if item.get("id") == lid:
                         u["lessons"][i] = _real_ai_lesson(lid)
             return new_section
 
@@ -297,7 +297,7 @@ class RealFillChainTest(unittest.TestCase):
                 imbalanced_lessons=[],
             )
             plan = plan_from_context(ctx, goal_text="全部空课")
-            box, mp, err = run_sandbox_real_fill_for_host(host, plan)
+            _box, mp, err = run_sandbox_real_fill_for_host(host, plan)
             self.assertEqual(err, "")
             self.assertEqual(before, json.dumps(ad.sections, sort_keys=True))
             staged_ids = [it.id for it in mp.items if it.kind == "lesson"]
@@ -319,7 +319,7 @@ class RealFillChainTest(unittest.TestCase):
             imbalanced_lessons=[],
         )
         plan = plan_from_context(ctx, goal_text="空课")
-        box, mp, err = run_sandbox_real_fill_for_host(host, plan)
+        _box, mp, err = run_sandbox_real_fill_for_host(host, plan)
         self.assertEqual(err, "")
         payload = mp.items[0].sandbox_payload
         self.assertTrue(is_lesson_payload_mergeable(payload))

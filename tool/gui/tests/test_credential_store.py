@@ -52,14 +52,16 @@ class CredentialStoreTokenTest(unittest.TestCase):
         mock_keyring.get_password.return_value = "keyring-token"
         mock_keyring.set_password = MagicMock()
         mock_keyring.delete_password = MagicMock()
-        with patch.dict("sys.modules", {"keyring": mock_keyring}):
-            with patch.object(credential_store, "_keyring_available", return_value=True):
-                credential_store.set_git_token("https://github.com/x/y.git", "keyring-token")
-                mock_keyring.set_password.assert_called_once()
-                self.assertEqual(
-                    credential_store.get_git_token("https://github.com/x/y.git"),
-                    "keyring-token",
-                )
+        with (
+            patch.dict("sys.modules", {"keyring": mock_keyring}),
+            patch.object(credential_store, "_keyring_available", return_value=True),
+        ):
+            credential_store.set_git_token("https://github.com/x/y.git", "keyring-token")
+            mock_keyring.set_password.assert_called_once()
+            self.assertEqual(
+                credential_store.get_git_token("https://github.com/x/y.git"),
+                "keyring-token",
+            )
 
 
 class CredentialStoreSshKeyTest(unittest.TestCase):

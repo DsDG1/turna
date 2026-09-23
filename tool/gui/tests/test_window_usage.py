@@ -46,7 +46,7 @@ class WindowUsageTest(unittest.TestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def _lines(self) -> list[dict]:
-        return [json.loads(l) for l in self.log_file.read_text(encoding="utf-8").splitlines() if l.strip()]
+        return [json.loads(item) for item in self.log_file.read_text(encoding="utf-8").splitlines() if item.strip()]
 
     def test_show_and_close_records_open_and_duration(self) -> None:
         app = _App.get()
@@ -56,10 +56,10 @@ class WindowUsageTest(unittest.TestCase):
         win.close()
         app.processEvents()
 
-        events = [l["event"] for l in self._lines()]
+        events = [item["event"] for item in self._lines()]
         self.assertIn("ui.window.open", events)
         self.assertIn("window.duration", events)
-        duration_records = [l for l in self._lines() if l["event"] == "window.duration"]
+        duration_records = [item for item in self._lines() if item["event"] == "window.duration"]
         self.assertTrue(duration_records)
         self.assertGreaterEqual(duration_records[-1]["duration_ms"], 0.0)
         self.assertEqual(duration_records[-1]["payload"]["window"], "SampleWindow")
@@ -83,7 +83,7 @@ class WindowUsageTest(unittest.TestCase):
         app.processEvents()
 
         self.assertTrue(win.closed)
-        events = [l["event"] for l in self._lines()]
+        events = [item["event"] for item in self._lines()]
         self.assertIn("window.duration", events)
 
 

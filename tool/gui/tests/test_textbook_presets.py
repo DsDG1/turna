@@ -1,6 +1,7 @@
 """Tests for src.backend.textbook_presets (bookplan2 Phase 5)."""
 from __future__ import annotations
 
+import dataclasses
 import sys
 import unittest
 from pathlib import Path
@@ -50,7 +51,7 @@ class BuiltinPresetsTest(unittest.TestCase):
 
     def test_preset_is_frozen(self) -> None:
         preset = preset_for("general")
-        with self.assertRaises(Exception):
+        with self.assertRaises(dataclasses.FrozenInstanceError):
             preset.temperature = 0.9  # type: ignore[misc]
 
     def test_labels_are_distinct_and_nonempty(self) -> None:
