@@ -156,5 +156,8 @@ jobs:
         # validation is skipped here because course_validation.yml already
         # validates course assets on content changes. --allow-version-mismatch
         # because the smoke label is off-version on purpose (pubspec stays
-        # the single source of release versioning).
-        run: python3 tool/build_release.py --version ci-smoke --skip-web --skip-content-validation --allow-version-mismatch
+        # the single source of release versioning). --skip-native because
+        # the arm64 .so build (build.sh + NDK r28c + pinned protoc) is
+        # verified end-to-end by the official_anki workflow; this job has
+        # no rust/NDK toolchain on purpose.
+        run: python3 tool/build_release.py --version ci-smoke --skip-web --skip-content-validation --allow-version-mismatch --skip-native
