@@ -136,9 +136,7 @@ List<MarkdownSpan> parseMarkdownInlines(String input) {
   // Without them `2 * 3 * 4` renders " 3 " as italic — the model replies
   // that motivated this parser do contain bare arithmetic.
   bool isSpace(int index) =>
-      index < 0 ||
-      index >= input.length ||
-      _whitespace.hasMatch(input[index]);
+      index < 0 || index >= input.length || _whitespace.hasMatch(input[index]);
 
   while (i < input.length) {
     if (input.startsWith('**', i)) {

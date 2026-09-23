@@ -14,9 +14,8 @@ class CardText {
 
   static String _decodeNumericEntity(Match m) {
     final hex = m.group(1);
-    final codePoint = hex != null
-        ? int.tryParse(hex, radix: 16)
-        : int.tryParse(m.group(2)!);
+    final codePoint =
+        hex != null ? int.tryParse(hex, radix: 16) : int.tryParse(m.group(2)!);
     if (codePoint == null ||
         codePoint <= 0 ||
         codePoint > 0x10FFFF ||

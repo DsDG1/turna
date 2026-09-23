@@ -139,8 +139,7 @@ class MistakeRepository implements IMistakeRepository {
     // the aggregates refresh (same pattern as replaceAll/insertEntry).
     await _db.transaction(() async {
       await (_db.update(_db.mistakes)
-            ..where(
-                (t) => t.languageCode.equals(code) & t.id.equals(entry.id)))
+            ..where((t) => t.languageCode.equals(code) & t.id.equals(entry.id)))
           .write(_toCompanion(code, entry, null));
       if (dailyCounts != null || masteredTotal != null) {
         await _writeAggregates(

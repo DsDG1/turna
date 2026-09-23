@@ -260,7 +260,8 @@ class FsrsEngine implements SrsScheduler {
   }) {
     final dueLocal = card.due.toLocal();
     final lastLocal = card.lastReview?.toLocal();
-    final intervalDays = _intervalDaysFromDue(dueLocal, lastLocal ?? fallbackNow);
+    final intervalDays =
+        _intervalDaysFromDue(dueLocal, lastLocal ?? fallbackNow);
 
     var reps = original.reps;
     var lapses = original.lapses;

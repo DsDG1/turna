@@ -565,8 +565,7 @@ void main() {
 
     test(
         'downgrade from kSchemaVersion+1 wipes and recreates instead of crashing '
-        '(name formerly mislabeled v25 -> v24)',
-        () async {
+        '(name formerly mislabeled v25 -> v24)', () async {
       final path = await _tempDbPath();
       final newer = _CourseDatabaseV26(NativeDatabase(File(path)));
       await _forceOpen(newer);
@@ -582,8 +581,7 @@ void main() {
       // newer file exists (backupCourseDbBeforeMigration), because the wipe
       // below destroys the learning tables and that snapshot is the only
       // surviving copy.
-      final preOpenBackup =
-          await backupCourseDbBeforeMigration(File(path));
+      final preOpenBackup = await backupCourseDbBeforeMigration(File(path));
       expect(
         preOpenBackup != null && preOpenBackup.existsSync(),
         isTrue,

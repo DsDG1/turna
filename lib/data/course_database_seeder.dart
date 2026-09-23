@@ -393,16 +393,14 @@ class DatabaseSeeder {
   /// Every id in [table] owned by another non-Anki language — the prime set
   /// for cross-course pool checks in [_seedLanguage].
   Future<Set<String>> _crossCoursePoolIds(String table, String code) async {
-    final rows = await db
-        .customSelect(
-          'SELECT id FROM $table '
-          'WHERE language_code != ? AND language_code != ?',
-          variables: [
-            Variable.withString(code),
-            Variable.withString('anki'),
-          ],
-        )
-        .get();
+    final rows = await db.customSelect(
+      'SELECT id FROM $table '
+      'WHERE language_code != ? AND language_code != ?',
+      variables: [
+        Variable.withString(code),
+        Variable.withString('anki'),
+      ],
+    ).get();
     return {for (final row in rows) row.read<String>('id')};
   }
 

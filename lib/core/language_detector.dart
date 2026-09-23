@@ -38,8 +38,7 @@ class LanguageDetector {
   /// manifest plus user-imported packs (a handful per device); the cap is
   /// pure defense-in-depth — on overflow the whole cache drops, never grows.
   static const _signatureCacheCapacity = 32;
-  static final Map<String?, RegExp?> _signatureCache =
-      <String?, RegExp?>{};
+  static final Map<String?, RegExp?> _signatureCache = <String?, RegExp?>{};
 
   /// Compile (or reuse) a per-language "signature" character class.
   /// [signatureChars] is the set of letters that appear in the target

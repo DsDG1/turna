@@ -374,18 +374,24 @@ void main() {
 
     // language_code values survive verbatim through the rebuild (the
     // COALESCE backfill must only hit NULLs, which NOT NULL columns block).
-    final sections = await migrated.customSelect(
-      "SELECT id, language_code FROM sections ORDER BY id",
-    ).get();
+    final sections = await migrated
+        .customSelect(
+          "SELECT id, language_code FROM sections ORDER BY id",
+        )
+        .get();
     expect(
-      sections.map((r) => '${r.read<String>('id')}:${r.read<String>('language_code')}'),
+      sections.map(
+          (r) => '${r.read<String>('id')}:${r.read<String>('language_code')}'),
       ['sec-1:tr', 'sec-fr:fr'],
     );
-    final lessons = await migrated.customSelect(
-      "SELECT id, language_code FROM lessons ORDER BY id",
-    ).get();
+    final lessons = await migrated
+        .customSelect(
+          "SELECT id, language_code FROM lessons ORDER BY id",
+        )
+        .get();
     expect(
-      lessons.map((r) => '${r.read<String>('id')}:${r.read<String>('language_code')}'),
+      lessons.map(
+          (r) => '${r.read<String>('id')}:${r.read<String>('language_code')}'),
       ['l-fr:fr', 'l-tr:tr'],
     );
 
@@ -407,9 +413,12 @@ void main() {
       expect(pkCols, expectedPk[table], reason: table);
     }
     expect(
-      (await migrated.customSelect(
-        "SELECT content_json FROM lesson_contents WHERE lesson_id = 'l-tr'",
-      ).getSingle()).read<String>('content_json'),
+      (await migrated
+              .customSelect(
+                "SELECT content_json FROM lesson_contents WHERE lesson_id = 'l-tr'",
+              )
+              .getSingle())
+          .read<String>('content_json'),
       '{"stages":[]}',
     );
 

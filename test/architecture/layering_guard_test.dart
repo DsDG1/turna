@@ -52,7 +52,8 @@ Set<String> _importedLibPaths(File file) {
     final target = match.group(2)!;
     if (target.startsWith('dart:')) continue;
     if (target.startsWith('package:turna/')) {
-      targets.add(_normalize('lib/${target.substring('package:turna/'.length)}'));
+      targets
+          .add(_normalize('lib/${target.substring('package:turna/'.length)}'));
     } else if (!target.startsWith('package:')) {
       // Relative: resolve against the importing file, then keep it only if
       // it lands inside lib/.
@@ -79,8 +80,8 @@ List<String> _scanPrefix(List<String> roots, String forbiddenDir) {
   for (final root in roots) {
     for (final file in _dartFiles(root)) {
       final path = file.path.replaceAll('\\', '/');
-      final hits = _importedLibPaths(file)
-          .where((t) => t.startsWith('$forbiddenDir/'));
+      final hits =
+          _importedLibPaths(file).where((t) => t.startsWith('$forbiddenDir/'));
       if (hits.isNotEmpty) {
         violations.add('$path imports $forbiddenDir/ (${hits.join(', ')})');
       }
@@ -118,26 +119,26 @@ const Map<String, Set<String>> _allowedApplicationDataImports = {
   },
   'lib/application/anki_official/import/official_anki_official_first_service.dart':
       {
-        'lib/data/course_database.dart', // handle: ctor param threading
-      },
+    'lib/data/course_database.dart', // handle: ctor param threading
+  },
   'lib/application/anki_official/lifecycle/official_anki_maintenance.dart': {
     'lib/data/course_database.dart', // drift-ops: rebuild/verify queries
   },
   'lib/application/anki_official/lifecycle/official_anki_repair_executor.dart':
       {
-        'lib/data/course_database.dart', // handle: repair target param
-      },
+    'lib/data/course_database.dart', // handle: repair target param
+  },
   'lib/application/anki_official/lifecycle/official_anki_startup_recovery.dart':
       {
-        'lib/data/course_database.dart', // handle: threads db into recoverers
-      },
+    'lib/data/course_database.dart', // handle: threads db into recoverers
+  },
   'lib/application/anki_official/projection/official_anki_course_entry.dart': {
     'lib/data/course_database.dart', // handle: static courseOf seam + params
   },
   'lib/application/anki_official/projection/official_anki_lesson_card_index.dart':
       {
-        'lib/data/course_database.dart', // handle: resolves db for index reads
-      },
+    'lib/data/course_database.dart', // handle: resolves db for index reads
+  },
   // ── Official V2 storage services (own their tables directly) ────────────
   'lib/application/anki_official/v2/official_anki_v2_course_read.dart': {
     'lib/data/course_database.dart', // drift-ops: V2 read model queries
@@ -151,8 +152,8 @@ const Map<String, Set<String>> _allowedApplicationDataImports = {
   },
   'lib/application/anki_official/v2/official_anki_v2_post_retire_reclaimer.dart':
       {
-        'lib/data/course_database.dart', // drift-ops: retire reclaimer writes
-      },
+    'lib/data/course_database.dart', // drift-ops: retire reclaimer writes
+  },
   'lib/application/anki_official/v2/official_anki_v2_retire_service.dart': {
     'lib/data/course_database.dart', // drift-ops: retire writes
   },

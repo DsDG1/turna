@@ -119,8 +119,7 @@ class _CleanupRepo implements ICourseRepository {
   Future<List<Expression>> expressions({String? languageCode}) async => [];
 
   @override
-  Future<Expression?> expressionById(String id,
-          {String? languageCode}) async =>
+  Future<Expression?> expressionById(String id, {String? languageCode}) async =>
       null;
 
   @override

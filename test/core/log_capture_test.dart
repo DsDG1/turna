@@ -62,10 +62,8 @@ void main() {
     await settle();
     await capture.flushNow();
 
-    final lines = file
-        .readAsLinesSync()
-        .where((line) => line.trim().isNotEmpty)
-        .toList();
+    final lines =
+        file.readAsLinesSync().where((line) => line.trim().isNotEmpty).toList();
     expect(lines, hasLength(2));
     expect(lines.first, contains('persist-me'));
     expect(lines.first, contains('"level":"info"'));

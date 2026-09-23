@@ -9,7 +9,8 @@ import 'package:turna/domain/repositories/i_anki_note_store.dart';
 
 // Re-exported so legacy-browsing UIs can consume the raw record shape
 // without importing the data layer directly.
-export 'package:turna/domain/anki/anki_note_records.dart' show AnkiCardBrowserRecord;
+export 'package:turna/domain/anki/anki_note_records.dart'
+    show AnkiCardBrowserRecord;
 
 /// One browser row that either side can render without depending on the
 /// other store.

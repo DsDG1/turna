@@ -67,8 +67,7 @@ class TextbookImportProvider extends AiRequestSessionBase {
     AiEngine? engine,
     ICourseRepository? repository,
   })  : _engine = engine ?? getIt<AiEngine>(),
-        _repository =
-            repository ?? getIt<ICourseRepository>(),
+        _repository = repository ?? getIt<ICourseRepository>(),
         _chopper = const MarkdownChopper(),
         _merger = const KnowledgeMerger(),
         _builder = const TextbookToCourse();
