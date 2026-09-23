@@ -37,6 +37,15 @@ jobs:
           PROTOC: ${{ github.workspace }}/native/turna_anki_core/tools/protoc/bin/protoc
           PROTOC_BINARY: ${{ github.workspace }}/native/turna_anki_core/tools/protoc/bin/protoc
         run: bash build-android/host-test.sh
+      - name: Build host cdylib for Dart FFI tests
+        # `cargo test` links the lib as an rlib and never produces the
+        # cdylib artifact; the FFI integration step below loads
+        # target/debug/libturna_anki.so, so build it explicitly.
+        working-directory: native/turna_anki_core
+        env:
+          PROTOC: ${{ github.workspace }}/native/turna_anki_core/tools/protoc/bin/protoc
+          PROTOC_BINARY: ${{ github.workspace }}/native/turna_anki_core/tools/protoc/bin/protoc
+        run: cargo build
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
