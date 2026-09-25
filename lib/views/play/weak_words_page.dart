@@ -150,46 +150,46 @@ class _WeakWordsPageState extends State<WeakWordsPage>
               onAction: () => Navigator.of(context).maybePop(),
             )
           : _empty
-          ? _buildEmpty()
-          : Selector<LessonViewModel,
-              (Interaction?, InteractionState, String?, bool, bool)>(
-              selector: (context, vm) => (
-                vm.currentInteraction,
-                vm.currentInteractionState,
-                vm.currentStageName,
-                vm.hasSubmitted,
-                vm.isAnswerCorrect,
-              ),
-              builder: (context, selected, _) {
-                final vm = _vm;
-                final interaction = selected.$1;
-                if (interaction == null) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final renderer = lookupRenderer(_renderers, interaction);
-                final showCheck = selected.$4 && !renderer.autoAdvance;
-                return PracticeSessionBody(
-                  stageName: selected.$3,
-                  stageAccent: TurnaTheme.error,
-                  showCheck: showCheck,
-                  checkLabel: selected.$5
-                      ? AppStrings.lessonContinueUpper
-                      : AppStrings.lessonGotItUpper,
-                  onAdvance: () => vm.advance(),
-                  child: renderer.build(
-                    interaction,
-                    selected.$2,
-                    (correct, {userAnswerText, reviewQuality}) {
-                      vm.submitInteraction(
-                        correct,
-                        userAnswerText: userAnswerText,
-                        reviewQuality: reviewQuality,
-                      );
-                    },
+              ? _buildEmpty()
+              : Selector<LessonViewModel,
+                  (Interaction?, InteractionState, String?, bool, bool)>(
+                  selector: (context, vm) => (
+                    vm.currentInteraction,
+                    vm.currentInteractionState,
+                    vm.currentStageName,
+                    vm.hasSubmitted,
+                    vm.isAnswerCorrect,
                   ),
-                );
-              },
-            ),
+                  builder: (context, selected, _) {
+                    final vm = _vm;
+                    final interaction = selected.$1;
+                    if (interaction == null) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    final renderer = lookupRenderer(_renderers, interaction);
+                    final showCheck = selected.$4 && !renderer.autoAdvance;
+                    return PracticeSessionBody(
+                      stageName: selected.$3,
+                      stageAccent: TurnaTheme.error,
+                      showCheck: showCheck,
+                      checkLabel: selected.$5
+                          ? AppStrings.lessonContinueUpper
+                          : AppStrings.lessonGotItUpper,
+                      onAdvance: () => vm.advance(),
+                      child: renderer.build(
+                        interaction,
+                        selected.$2,
+                        (correct, {userAnswerText, reviewQuality}) {
+                          vm.submitInteraction(
+                            correct,
+                            userAnswerText: userAnswerText,
+                            reviewQuality: reviewQuality,
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
     );
   }
 

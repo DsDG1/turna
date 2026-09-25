@@ -610,8 +610,7 @@ class AppStrings {
   static String get settingsTtsChecking => '正在检查设备 TTS 引擎…';
   static String settingsTtsReady(String locale) =>
       'Google TTS 就绪（$locale）——推荐用于学习';
-  static String settingsTtsReadySystem(String locale) =>
-      '系统 TTS 就绪（$locale）';
+  static String settingsTtsReadySystem(String locale) => '系统 TTS 就绪（$locale）';
   static String get settingsTtsGoogleInstalledMissingVoice =>
       'Google 已安装——请在系统 TTS 设置中下载土耳其语语音数据';
   static String settingsTtsVoiceMissing(String name) =>
@@ -1906,8 +1905,7 @@ class AppStrings {
   static String ankiVocabAdded(int wordEntryCount) =>
       '已添加 $wordEntryCount 个词汇条目';
   static String get ankiPickFileError => '请选择 Anki 牌组文件（.apkg）。';
-  static String get ankiPlatformUnsupported =>
-      '当前平台暂不支持导入 Anki 牌组';
+  static String get ankiPlatformUnsupported => '当前平台暂不支持导入 Anki 牌组';
   static String get ankiColpkgUnsupported =>
       '暂不支持 .colpkg 集合备份。请从 Anki 桌面端导出牌组（.apkg）后再导入。';
   static String ankiPickFileFailed(Object error) => '选择文件失败：$error';

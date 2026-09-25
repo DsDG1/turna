@@ -117,7 +117,8 @@ class AnkiImportController extends ChangeNotifier {
   /// official-first saga. Unsupported / fail-closed plans produce zero
   /// sources and return to Selecting with the mapped error.
   Future<void> proceedWithPath(String path) =>
-      _withActivityScope(() => _proceedWithPath(path), onBlocked: _failToSelect);
+      _withActivityScope(() => _proceedWithPath(path),
+          onBlocked: _failToSelect);
 
   Future<void> _proceedWithPath(String path) async {
     if (catalogHasUnfinishedOfficialImport()) {
@@ -346,7 +347,8 @@ class AnkiImportController extends ChangeNotifier {
   }
 
   Future<void> continuePending(OfficialAnkiPendingImport item) =>
-      _withActivityScope(() => _continuePending(item), onBlocked: _failToSelect);
+      _withActivityScope(() => _continuePending(item),
+          onBlocked: _failToSelect);
 
   Future<void> _continuePending(OfficialAnkiPendingImport item) async {
     final op = ++_operation;

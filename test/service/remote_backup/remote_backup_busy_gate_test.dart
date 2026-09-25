@@ -56,8 +56,7 @@ void main() {
     gate.backupExit();
   });
 
-  test('a second concurrent backup is rejected while one holds the gate',
-      () {
+  test('a second concurrent backup is rejected while one holds the gate', () {
     gate.backupEnter();
     expect(gate.backupEnter, throwsA(isA<RemoteBackupBusyException>()));
     gate.backupExit();

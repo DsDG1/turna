@@ -31,8 +31,8 @@ class LessonSrsUndoLog {
   void captureExpression(String id, SrsWord? previous) =>
       _entries.add(_SrsUndoEntry(id, previous, isExpression: true));
 
-  void captureGrammarPoint(String id, SrsWord? previous) => _entries
-      .add(_SrsUndoEntry(id, previous, isGrammarPoint: true));
+  void captureGrammarPoint(String id, SrsWord? previous) =>
+      _entries.add(_SrsUndoEntry(id, previous, isGrammarPoint: true));
 
   /// Rolls every captured entry back in LIFO order. Returns false (and
   /// keeps the blocked entry at the top) when a rollback gate is held.

@@ -54,7 +54,8 @@ class _NoopStudyLogRepository implements IStudyLogRepository {
   }
 
   @override
-  Future<List<DailyStudyStats>> readLastNDays(int n, {String? languageCode}) async {
+  Future<List<DailyStudyStats>> readLastNDays(int n,
+      {String? languageCode}) async {
     return [];
   }
 
