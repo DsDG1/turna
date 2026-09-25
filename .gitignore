@@ -53,8 +53,6 @@ private_keys/
 # FVM Version Cache
 .fvm/
 
-# Firebase: Android google-services.json and lib/firebase_options.dart are tracked.
-ios/Runner/GoogleService-Info.plist
 node_modules/
 serviceAccountKey.json
 

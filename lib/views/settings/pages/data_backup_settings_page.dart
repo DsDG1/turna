@@ -21,6 +21,7 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/service/export_service.dart';
+import 'package:turna/service/share_origin.dart';
 import 'package:turna/utils/validated_file_picker.dart';
 import 'package:turna/views/settings/pages/settings_category_body.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
@@ -429,10 +430,14 @@ class _ExportSheetState extends State<_ExportSheet> {
 
   Future<void> _export() async {
     setState(() => _exporting = true);
+    final shareOrigin = shareOriginFromContext(context);
     try {
       final service = getIt<ExportService>();
       final file = await service.export();
-      await service.share(file);
+      await service.share(
+        file,
+        sharePositionOrigin: shareOrigin,
+      );
       if (mounted) unawaited(Navigator.of(context).maybePop());
     } catch (e) {
       if (mounted) {

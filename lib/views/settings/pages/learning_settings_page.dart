@@ -6,6 +6,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:provider/provider.dart';
 
 // Project imports:
+import 'package:turna/application/anki_official/engine/official_anki_native_availability.dart';
 import 'package:turna/application/settings/commands/reset_learning_settings_command.dart';
 import 'package:turna/application/settings/settings_destination.dart';
 import 'package:turna/application/settings/settings_operation_result.dart';
@@ -101,21 +102,26 @@ class _LearningSettingsPageState extends State<LearningSettingsPage> {
               ],
             ),
             const SizedBox(height: 20),
-            SettingsSectionTitle(
-              icon: Icons.style_rounded,
-              title: AppStrings.settingsAnkiSectionTitle,
-            ),
-            const SizedBox(height: 8),
-            SettingsCard(
-              key: ValueKey('anki-prefs-$_ankiEpoch'),
-              children: [
-                const SettingsAnkiNewLimitTile(),
-                settingsTileDivider(context),
-                const SettingsAnkiReviewLimitTile(),
-                settingsTileDivider(context),
-                const SettingsDailyChallengeAnkiTile(),
-              ],
-            ),
+            // These rows only make sense while the official Anki engine can
+            // run; on platforms without it (iOS today) editing the limits
+            // would write preferences nothing consumes.
+            if (OfficialAnkiNativeAvailability.current) ...[
+              SettingsSectionTitle(
+                icon: Icons.style_rounded,
+                title: AppStrings.settingsAnkiSectionTitle,
+              ),
+              const SizedBox(height: 8),
+              SettingsCard(
+                key: ValueKey('anki-prefs-$_ankiEpoch'),
+                children: [
+                  const SettingsAnkiNewLimitTile(),
+                  settingsTileDivider(context),
+                  const SettingsAnkiReviewLimitTile(),
+                  settingsTileDivider(context),
+                  const SettingsDailyChallengeAnkiTile(),
+                ],
+              ),
+            ],
             const SizedBox(height: 12),
             SettingsCard(
               children: [

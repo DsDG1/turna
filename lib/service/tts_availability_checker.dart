@@ -350,7 +350,32 @@ class TtsAvailabilityChecker {
   /// submitted`. Set [force] to re-run after a prior successful configure
   /// (e.g. user switched back to system TTS).
   Future<void> configureSystemEngine({bool force = false}) async {
-    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+    if (kIsWeb) {
+      _engineConfigured = true;
+      return;
+    }
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      // flutter_tts never sets an AVAudioSession category itself, so the
+      // plugin default (solo ambient) silences speech when the ring/silent
+      // switch is on — while audioplayers plays through it (playback). Read-
+      // aloud is core functionality, so TTS opts into playback + spokenAudio
+      // to match: speech ignores the silent switch on both paths.
+      if (_engineConfigured && !force) return;
+      try {
+        await _tts.setIosAudioCategory(
+          IosTextToSpeechAudioCategory.playback,
+          const [],
+          IosTextToSpeechAudioMode.spokenAudio,
+        );
+      } catch (e, st) {
+        // Category setup is best-effort — speech still works without it
+        // (silenced by the ring switch, same as before).
+        logger.w('TtsAvailabilityChecker: setIosAudioCategory failed: $e\n$st');
+      }
+      _engineConfigured = true;
+      return;
+    }
+    if (defaultTargetPlatform != TargetPlatform.android) {
       _engineConfigured = true;
       return;
     }

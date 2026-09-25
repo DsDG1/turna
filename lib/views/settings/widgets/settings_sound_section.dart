@@ -1,4 +1,5 @@
 // Flutter imports:
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 // Package imports:
@@ -76,12 +77,19 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
       return AppStrings.settingsTtsChecking;
     }
     final d = _diagnostics!;
+    final isAndroid =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
     switch (d.preferredStatus) {
       case TtsPreferredStatus.ready:
         final locale =
             d.resolvedLocale ?? getIt<LanguageProvider>().ttsLanguageCode;
-        return AppStrings.settingsTtsReady(locale);
+        return isAndroid
+            ? AppStrings.settingsTtsReady(locale)
+            : AppStrings.settingsTtsReadySystem(locale);
       case TtsPreferredStatus.voiceMissing:
+        if (!isAndroid) {
+          return AppStrings.settingsTtsVoiceMissingSystem;
+        }
         if (d.hasGoogleEngine) {
           return AppStrings.settingsTtsGoogleInstalledMissingVoice;
         }
@@ -138,22 +146,27 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
             onPressed: () => Navigator.of(context).pop('preview'),
             child: Text(AppStrings.settingsPlaySample),
           ),
-          SimpleDialogOption(
-            onPressed: () async {
-              Navigator.of(context).pop();
-              await getIt<TtsAvailabilityChecker>().openSystemTtsSettings();
-              await _refreshDiagnostics();
-            },
-            child: Text(AppStrings.settingsOpenSystemTts),
-          ),
-          SimpleDialogOption(
-            onPressed: () async {
-              Navigator.of(context).pop();
-              await getIt<TtsAvailabilityChecker>().openGoogleTtsInstallPage();
-              await _refreshDiagnostics();
-            },
-            child: Text(AppStrings.settingsInstallGoogleTts),
-          ),
+          // Engine selection / store links are Android-only concepts; on iOS
+          // the system voice is the only engine and neither action exists.
+          if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) ...[
+            SimpleDialogOption(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await getIt<TtsAvailabilityChecker>().openSystemTtsSettings();
+                await _refreshDiagnostics();
+              },
+              child: Text(AppStrings.settingsOpenSystemTts),
+            ),
+            SimpleDialogOption(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await getIt<TtsAvailabilityChecker>()
+                    .openGoogleTtsInstallPage();
+                await _refreshDiagnostics();
+              },
+              child: Text(AppStrings.settingsInstallGoogleTts),
+            ),
+          ],
         ],
       ),
     );

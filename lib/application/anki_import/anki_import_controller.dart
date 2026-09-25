@@ -592,8 +592,19 @@ class AnkiImportController extends ChangeNotifier {
     }
   }
 
-  String _humanizePlanFailure(AnkiImportExecutionPlan plan) =>
-      plan.reason == 'colpkg_not_supported_until_official_backend'
-          ? AppStrings.ankiColpkgUnsupported
-          : AppStrings.ankiImportUnavailable(plan.reason);
+  // Internal plan reasons are machine tokens, not user copy — only reasons
+  // with dedicated strings map through; everything else gets the generic
+  // message so tokens like `platform_anki_unavailable:ios` never surface.
+  String _humanizePlanFailure(AnkiImportExecutionPlan plan) {
+    switch (plan.reason) {
+      case 'colpkg_not_supported_until_official_backend':
+        return AppStrings.ankiColpkgUnsupported;
+      case 'cutover_disabled_import_paused':
+        return AppStrings.ankiImportUnavailable();
+      default:
+        return plan.reason.startsWith('platform_anki_unavailable')
+            ? AppStrings.ankiPlatformUnsupported
+            : AppStrings.ankiImportUnavailable();
+    }
+  }
 }
