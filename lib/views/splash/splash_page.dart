@@ -66,16 +66,18 @@ Future<bool> maybePromptTtsAvailability(BuildContext context) async {
               Navigator.of(context).pop(_GoogleTtsPromptAction.keepSystem),
           child: Text(AppStrings.splashKeepCurrentVoice),
         ),
-        TextButton(
-          onPressed: () =>
-              Navigator.of(context).pop(_GoogleTtsPromptAction.openSettings),
-          child: Text(AppStrings.splashTtsSettings),
-        ),
-        TextButton(
-          onPressed: () =>
-              Navigator.of(context).pop(_GoogleTtsPromptAction.installGoogle),
-          child: Text(AppStrings.splashInstallGoogleTts),
-        ),
+        if (defaultTargetPlatform == TargetPlatform.android) ...[
+          TextButton(
+            onPressed: () =>
+                Navigator.of(context).pop(_GoogleTtsPromptAction.openSettings),
+            child: Text(AppStrings.splashTtsSettings),
+          ),
+          TextButton(
+            onPressed: () =>
+                Navigator.of(context).pop(_GoogleTtsPromptAction.installGoogle),
+            child: Text(AppStrings.splashInstallGoogleTts),
+          ),
+        ],
       ],
     ),
   );
