@@ -269,11 +269,9 @@ void main() {
 
     expect(failing.calls, 0, reason: 'fail-closed never starts the saga');
     expect(
-      find.text(
-        AppStrings.ankiImportUnavailable(
-            'official_first_required_but_flag_off'),
-      ),
+      find.text(AppStrings.ankiImportUnavailable()),
       findsOneWidget,
+      reason: 'fail-closed shows the generic message, not the raw plan token',
     );
     final records = await getIt<IAnkiImportStore>().getAll();
     expect(records, isEmpty, reason: 'flag-off must not write Legacy rows');

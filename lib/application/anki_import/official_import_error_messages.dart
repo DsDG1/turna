@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
+import 'package:turna/application/anki_official/import/anki_import_execution_plan.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -36,6 +37,22 @@ String mapOfficialErrorToHuman(OfficialAnkiException e) {
     return AppStrings.ankiFileReadFailed;
   }
   return '${AppStrings.ankiImportFailedHuman} (${e.code.name})';
+}
+
+// Internal plan reasons are machine tokens, not user copy — only reasons
+// with dedicated strings map through; everything else gets the generic
+// message so tokens like `platform_anki_unavailable:ios` never surface.
+String humanizeAnkiPlanFailure(AnkiImportExecutionPlan plan) {
+  switch (plan.reason) {
+    case 'colpkg_not_supported_until_official_backend':
+      return AppStrings.ankiColpkgUnsupported;
+    case 'cutover_disabled_import_paused':
+      return AppStrings.ankiImportUnavailable();
+    default:
+      return plan.reason.startsWith('platform_anki_unavailable')
+          ? AppStrings.ankiPlatformUnsupported
+          : AppStrings.ankiImportUnavailable();
+  }
 }
 
 String mapGeneralErrorToHuman(Object error) {
