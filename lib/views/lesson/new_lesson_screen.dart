@@ -172,7 +172,9 @@ class _NewLessonPageState extends State<NewLessonPage>
 
   Future<void> _onClosePressed(BuildContext context) async {
     if (_vm.isComplete) {
-      unawaited(Navigator.of(context).maybePop());
+      // `pop()` bypasses this page's own PopScope (canPop:false); `maybePop`
+      // would be denied, re-invoke onPopInvokedWithResult, and loop forever.
+      Navigator.of(context).pop();
       return;
     }
     final go = await showDialog<bool>(
@@ -407,7 +409,7 @@ class _NewLessonPageState extends State<NewLessonPage>
         _vm.retryMastery();
         break;
       case MasteryDialogResult.back:
-        unawaited(navigator.maybePop());
+        navigator.pop();
         break;
       case null:
         // The dialog is barrierDismissible:false, so the only way `result` is
