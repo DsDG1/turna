@@ -9,7 +9,7 @@ import 'package:turna/application/anki_official/official_anki_feature_flags.dart
 import 'package:turna/data/course_database.dart';
 
 OfficialAnkiFeatureFlags _fullOfficial({bool officialFirst = true}) {
-  return OfficialAnkiFeatureFlags.productionAndroid.copyWith(
+  return OfficialAnkiFeatureFlags.production.copyWith(
     officialFirstImport: officialFirst,
   );
 }
@@ -18,6 +18,24 @@ void main() {
   const planner = AnkiImportExecutionPlanner();
 
   group('AnkiImportExecutionPlanner atomic outcomes', () {
+    test('ios production apkg is officialFirst with coherent writers', () {
+      final plan = planner.resolve(
+        flags: _fullOfficial(),
+        platform: 'ios',
+        cutoverEnabled: true,
+        libraryAvailable: true,
+        filePath: '/tmp/deck.apkg',
+      );
+      expect(plan.productMode, AnkiProductMode.official);
+      expect(plan.kind, AnkiImportExecutionKind.officialFirst);
+      expect(plan.owner, AnkiImportOwner.official);
+      expect(plan.writesOfficialCollection, isTrue);
+      expect(plan.writesLegacyNoteStore, isFalse);
+      expect(plan.writesTurnaAnkiSrs, isFalse);
+      expect(plan.facadeDecision, AnkiImportDecision.official);
+      expect(plan.persistedOwnerIsOfficial, isTrue);
+    });
+
     test('android production apkg is officialFirst with coherent writers', () {
       final plan = planner.resolve(
         flags: _fullOfficial(),
@@ -26,7 +44,7 @@ void main() {
         libraryAvailable: true,
         filePath: '/tmp/deck.apkg',
       );
-      expect(plan.productMode, AnkiProductMode.officialAndroid);
+      expect(plan.productMode, AnkiProductMode.official);
       expect(plan.kind, AnkiImportExecutionKind.officialFirst);
       expect(plan.owner, AnkiImportOwner.official);
       expect(plan.writesOfficialCollection, isTrue);
@@ -54,7 +72,7 @@ void main() {
     });
 
     test('unsupported platforms never choose a Legacy writer', () {
-      for (final plat in ['ohos', 'ios', 'windows', 'linux', 'macos', 'web']) {
+      for (final plat in ['ohos', 'windows', 'linux', 'macos', 'web']) {
         final plan = planner.resolve(
           flags: _fullOfficial(),
           platform: plat,

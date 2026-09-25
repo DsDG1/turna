@@ -103,8 +103,8 @@ class _LearningSettingsPageState extends State<LearningSettingsPage> {
             ),
             const SizedBox(height: 20),
             // These rows only make sense while the official Anki engine can
-            // run; on platforms without it (iOS today) editing the limits
-            // would write preferences nothing consumes.
+            // run; on platforms without it editing the limits would write
+            // preferences nothing consumes.
             if (OfficialAnkiNativeAvailability.current) ...[
               SettingsSectionTitle(
                 icon: Icons.style_rounded,

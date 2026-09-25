@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:turna/application/anki_official/introduction/card_introduction_eligibility.dart';
 import 'package:turna/application/anki_official/review/formal_review_launcher.dart';
@@ -129,9 +130,17 @@ class OfficialFormalReviewProductionLoader {
           cardId: cardId,
         );
 
+    // iOS file-mode card loads need the collection media dir; other platforms
+    // never consume it, so skip the platform channel entirely.
+    final mediaBasePath = defaultTargetPlatform == TargetPlatform.iOS
+        ? OfficialAnkiPaths.defaultProfile(
+            await getApplicationSupportDirectory(),
+          ).mediaFolder.path
+        : null;
     final renderer = OfficialFormalReviewRenderer(
       engine: resolvedEngine,
       profileId: profileId,
+      mediaBasePath: mediaBasePath,
     );
 
     if (queue == null || queue.cards.isEmpty) {

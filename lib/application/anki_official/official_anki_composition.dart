@@ -60,7 +60,10 @@ class OfficialAnkiCompositionRoot {
         executionMode: executionMode,
       );
     }
-    if (!(Platform.isAndroid || Platform.isLinux || Platform.isMacOS)) {
+    if (!(Platform.isAndroid ||
+        Platform.isIOS ||
+        Platform.isLinux ||
+        Platform.isMacOS)) {
       return OfficialAnkiRuntimeProbe(
         ok: false,
         reason: 'unsupported_platform',

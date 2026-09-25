@@ -4,12 +4,13 @@ import 'dart:io';
 import 'official_anki_native_transport.dart';
 import 'package:turna/core/logger.dart';
 
-/// Process-wide answer to "is `libturna_anki.so` actually loadable here?".
+/// Process-wide answer to "is libturna_anki actually loadable here?".
 ///
 /// The cutover flags default **on**, so routing decisions claim the official
-/// engine on Android even when the library is not packaged (wrong-ABI APK,
-/// broken release build). Degrading only makes sense when we know the library
-/// is physically absent, so the probe dlopens it once and caches the result.
+/// engine on Android/iOS even when the library is not packaged (wrong-ABI
+/// APK, missing embedded dylib). Degrading only makes sense when we know the
+/// library is physically absent, so the probe dlopens it once and caches the
+/// result.
 /// Sources already recorded as official never degrade — their data lives in
 /// the official collection and has no legacy fallback; those paths stay
 /// fail-closed with a diagnostic.
@@ -28,7 +29,7 @@ class OfficialAnkiNativeAvailability {
   }
 
   static bool _probe() {
-    if (Platform.isIOS || Platform.isWindows) return false;
+    if (Platform.isWindows) return false;
     final resolved = Platform.isAndroid ? 'libturna_anki.so' : null;
     final path = resolved ?? resolveOfficialAnkiLibraryPath();
     if (path == null) {
@@ -47,7 +48,7 @@ class OfficialAnkiNativeAvailability {
 
   static void _reportUnavailable(String detail) {
     logger.d(
-      '[OfficialAnki] libturna_anki.so not loadable ($detail); '
+      '[OfficialAnki] libturna_anki not loadable ($detail); '
       'routing new imports/unrecorded sources to the legacy stack',
     );
   }

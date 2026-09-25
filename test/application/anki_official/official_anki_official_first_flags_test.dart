@@ -10,7 +10,7 @@ void main() {
     expect(env.allowsOfficialScheduler, isTrue);
     expect(env.courseGradesScheduler, isFalse);
     expect(
-      OfficialAnkiFeatureFlags.productionAndroid.allowsOfficialFirstImport,
+      OfficialAnkiFeatureFlags.production.allowsOfficialFirstImport,
       isTrue,
     );
   });

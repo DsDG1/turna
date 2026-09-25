@@ -651,7 +651,7 @@ void main() {
 }
 
 AnkiImportExecutionPlan _plan() => const AnkiImportExecutionPlan(
-      productMode: AnkiProductMode.officialAndroid,
+      productMode: AnkiProductMode.official,
       kind: AnkiImportExecutionKind.officialFirst,
       owner: AnkiImportOwner.official,
       platform: 'test',

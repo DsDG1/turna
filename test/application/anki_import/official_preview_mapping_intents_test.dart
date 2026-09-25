@@ -17,7 +17,7 @@ void main() {
     );
     final preview = OfficialAnkiImportPreviewModel(
       plan: const AnkiImportExecutionPlan(
-        productMode: AnkiProductMode.officialAndroid,
+        productMode: AnkiProductMode.official,
         kind: AnkiImportExecutionKind.officialFirst,
         owner: AnkiImportOwner.official,
         platform: 'test',

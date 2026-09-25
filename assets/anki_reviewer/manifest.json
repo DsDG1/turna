@@ -12,8 +12,8 @@
     },
     {
       "path": "card-frame.js",
-      "sha256": "1eb4d4e3ab904d66d89b6dab36511f5d0418fbdee5bd7dc191d9cb61f803c6dc",
-      "bytes": 9959
+      "sha256": "3fd31b50b6ebecea872d08f4534277305c7ea628e7bd4ecd4c918d3154e7c130",
+      "bytes": 10561
     },
     {
       "path": "mathjax-config.js",
@@ -37,8 +37,8 @@
     },
     {
       "path": "reviewer.js",
-      "sha256": "b0350ee4ed51b9d87891600a25f3706f7f7f304f6581d63bbf48374ec13b8450",
-      "bytes": 10798
+      "sha256": "146e3a55451f23ab35bbf2a77c4258d98154cf7ae9c9c57963a9221b190214ca",
+      "bytes": 11289
     }
   ]
 }

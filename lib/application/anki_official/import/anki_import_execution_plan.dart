@@ -6,14 +6,15 @@ import 'package:turna/application/anki_official/official_anki_feature_flags.dart
 /// Product-level Anki mode for the running build (doc 34 W0).
 ///
 /// Legacy is not a product mode for new imports — it remains a migration
-/// read path only. Production is either Official-on-Android or Anki
+/// read path only. Production is either Official (Android + iOS) or Anki
 /// unavailable.
 enum AnkiProductMode {
-  /// Android production: new imports and formal review are Official-owned.
-  officialAndroid,
+  /// Production (Android + iOS): new imports and formal review are
+  /// Official-owned.
+  official,
 
-  /// Anki new-import / formal review are unavailable (non-Android, EOL, or
-  /// deliberately paused). Must not create Legacy Anki writers.
+  /// Anki new-import / formal review are unavailable (unsupported platform,
+  /// EOL, or deliberately paused). Must not create Legacy Anki writers.
   ankiUnavailable,
 }
 
@@ -107,7 +108,9 @@ class AnkiImportExecutionPlanner {
   }) {
     final cutover = cutoverEnabled ?? LegacyAnkiMigrationFlags.cutoverEnabled;
     if (!cutover) return AnkiProductMode.ankiUnavailable;
-    if (platform == 'android') return AnkiProductMode.officialAndroid;
+    if (platform == 'android' || platform == 'ios') {
+      return AnkiProductMode.official;
+    }
     return AnkiProductMode.ankiUnavailable;
   }
 
@@ -144,7 +147,7 @@ class AnkiImportExecutionPlanner {
       );
     }
 
-    // mode == officialAndroid
+    // mode == official
     if (!flags.allowsOfficialImport) {
       return AnkiImportExecutionPlan(
         productMode: mode,

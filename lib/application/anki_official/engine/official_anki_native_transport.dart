@@ -280,6 +280,12 @@ String? resolveOfficialAnkiLibraryPath() {
   if (Platform.isAndroid) {
     return 'libturna_anki.so';
   }
+  if (Platform.isIOS) {
+    // The dylib is staged by build-ios/build.sh and embedded into
+    // Runner.app/Frameworks by the "Embed turna_anki (optional)" build
+    // phase; @executable_path resolves from the app binary inside dlopen.
+    return '@executable_path/Frameworks/libturna_anki.dylib';
+  }
   final cwd = Directory.current.path;
   for (final relative in const [
     'native/turna_anki_core/target/debug/libturna_anki.so',

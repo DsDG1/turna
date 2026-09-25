@@ -6,9 +6,9 @@ import 'package:turna/application/anki_official/official_anki_feature_flags.dart
 enum AnkiEngineKind { legacy, official }
 
 /// Production cutover gate. Default **true**: together with
-/// [OfficialAnkiFeatureFlags.productionAndroid] this is the single product
-/// mode — Android Official vs Anki unavailable. Builds that need to pause
-/// new Official traffic may pass `--dart-define=TURNA_OFFICIAL_ANKI_CUTOVER=false`
+/// [OfficialAnkiFeatureFlags.production] this is the single product
+/// mode — Official (Android + iOS) vs Anki unavailable. Builds that need to
+/// pause new Official traffic may pass `--dart-define=TURNA_OFFICIAL_ANKI_CUTOVER=false`
 /// (locked by `official_anki_p5d_routing_test.dart`).
 class LegacyAnkiMigrationFlags {
   const LegacyAnkiMigrationFlags._();
@@ -30,8 +30,8 @@ AnkiEngineKind? parseRecordedKind(String? raw) {
 ///
 /// Doc 34: recorded Official owner never degrades to Legacy when the native
 /// library is missing (fail-closed at the review gate instead). Unrecorded
-/// Android sources assume Official only when the library is present; missing
-/// library does not invent a Legacy owner for new traffic.
+/// Android/iOS sources assume Official only when the library is present; a
+/// missing library does not invent a Legacy owner for new traffic.
 class AnkiSourceRouteResolver {
   const AnkiSourceRouteResolver();
 
@@ -58,7 +58,7 @@ class AnkiSourceRouteResolver {
     final cutover = cutoverEnabled ?? LegacyAnkiMigrationFlags.cutoverEnabled;
     if (!cutover) return AnkiEngineKind.legacy;
     final plat = platform ?? OfficialAnkiCapabilityMatrix.current().platform;
-    if (plat == 'android') {
+    if (plat == 'android' || plat == 'ios') {
       final libraryOk =
           libraryAvailable ?? OfficialAnkiNativeAvailability.current;
       // Missing native runtime: do not invent a Legacy owner for unrecorded
@@ -67,9 +67,10 @@ class AnkiSourceRouteResolver {
       // fail-closed separately and never write Legacy.
       return libraryOk ? AnkiEngineKind.official : AnkiEngineKind.legacy;
     }
-    // Non-Android: never invent a new Legacy writer. Only an already-known
-    // Official catalog source stays Official (read/repair); everything else
-    // is treated as non-official so product mode can mark Anki unavailable.
+    // Other platforms: never invent a new Legacy writer. Only an already-
+    // known Official catalog source stays Official (read/repair); everything
+    // else is treated as non-official so product mode can mark Anki
+    // unavailable.
     return officialCatalogHasSource
         ? AnkiEngineKind.official
         : AnkiEngineKind.legacy;
@@ -108,6 +109,7 @@ class OfficialAnkiCapabilityMatrix {
     final resolved = flags ?? OfficialAnkiFeatureFlags.current;
     switch (platform) {
       case 'android':
+      case 'ios':
         return OfficialAnkiPlatformCapability(
           platform: platform,
           officialCore: true,
@@ -127,7 +129,6 @@ class OfficialAnkiCapabilityMatrix {
           officialScheduler: false,
           legacyFallbackRequired: false,
         );
-      case 'ios':
       case 'windows':
       default:
         // Unknown / unsupported platforms (including retired OHOS) never open

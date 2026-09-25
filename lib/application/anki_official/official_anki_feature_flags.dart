@@ -28,9 +28,9 @@ class OfficialAnkiFeatureFlags {
     this.officialFirstImport = false,
   });
 
-  /// Android production product flags. Opt-in reviewer diagnostics / grades
-  /// stay off.
-  static const productionAndroid = OfficialAnkiFeatureFlags(
+  /// Production product flags (Android + iOS). Opt-in reviewer diagnostics
+  /// / grades stay off.
+  static const production = OfficialAnkiFeatureFlags(
     engine: true,
     import: true,
     catalogReady: true,
@@ -48,7 +48,7 @@ class OfficialAnkiFeatureFlags {
         bool.fromEnvironment('TURNA_OFFICIAL_ANKI_REVIEWER_DIAGNOSTICS');
     const courseGradesScheduler =
         bool.fromEnvironment('TURNA_OFFICIAL_ANKI_COURSE_GRADES_SCHEDULER');
-    return productionAndroid.copyWith(
+    return production.copyWith(
       reviewerDiagnostics: reviewerDiagnostics,
       courseGradesScheduler: courseGradesScheduler,
     );
