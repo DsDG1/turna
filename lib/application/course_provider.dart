@@ -15,6 +15,7 @@ import 'package:turna/application/anki_official/v2/official_anki_v2_course_read.
 import 'package:turna/application/anki_official/v2/official_anki_v2_decision_store.dart';
 import 'package:turna/application/builtin_language_service.dart';
 import 'package:turna/application/course_catalog.dart';
+import 'package:turna/application/course_catalog_ordering.dart';
 import 'package:turna/application/course_pack/imported_languages.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/language_provider.dart';
@@ -42,6 +43,18 @@ import 'package:turna/service/locator.dart';
 /// to show a spinner, the loaded content, an error retry button, or the empty
 /// state.
 enum SectionLoadState { initial, loading, loaded, error }
+
+/// A course-scope switch failed and was rolled back: the scope, the content
+/// store and every practice filter remain on the previous language.
+/// [cause] carries the original failure for the caller to surface.
+class CourseScopeSwitchException implements Exception {
+  CourseScopeSwitchException(this.cause);
+
+  final Object cause;
+
+  @override
+  String toString() => '课程切换失败，已恢复原语言：$cause';
+}
 
 /// State holder for the loaded course tree and the user's current
 /// selection within it. All selection is keyed by stable `String` ids so
@@ -182,21 +195,10 @@ class CourseProvider extends ChangeNotifier {
   }
 
   /// Synchronous half of [persistCourseOrder]: reorder the cached catalog
-  /// entries by [wires] (unknown keys skipped, unmentioned entries kept at
-  /// the tail) — mirrors the merge tail of [_reloadCatalog].
+  /// entries by [wires] via [CourseCatalogOrdering.applyOrder] (plan P4
+  /// extraction — the rules live there, unit-tested without a database).
   void _applyOrderToCatalog(List<String> wires) {
-    final byWire = {for (final e in _catalogEntries) e.wireKey: e};
-    final ordered = <CourseCatalogEntry>[];
-    final seen = <String>{};
-    for (final wire in wires) {
-      final entry = byWire[wire];
-      if (entry == null || !seen.add(wire)) continue;
-      ordered.add(entry);
-    }
-    for (final entry in _catalogEntries) {
-      if (seen.add(entry.wireKey)) ordered.add(entry);
-    }
-    _catalogEntries = List.unmodifiable(ordered);
+    _catalogEntries = CourseCatalogOrdering.applyOrder(_catalogEntries, wires);
   }
 
   /// Persist the Anki review-hub deck order: the builtin course stays
@@ -204,32 +206,10 @@ class CourseProvider extends ChangeNotifier {
   /// non-deck courses keep their relative order. [reorderedImportIds] are
   /// the deck import/source ids in their new tile order.
   Future<void> reorderAnkiDecks(List<String> reorderedImportIds) async {
-    final wireForId = <String, String>{};
-    for (final entry in _catalogEntries) {
-      final id = entry.legacyImportId ?? entry.officialSourceId;
-      if (id != null) wireForId[id] = entry.wireKey;
-    }
-    final reorderedWires = <String>{
-      for (final id in reorderedImportIds)
-        if (wireForId[id] != null) wireForId[id]!,
-    };
-    final order = <String>[];
-    for (final entry in _catalogEntries) {
-      if (!entry.isBuiltin && reorderedWires.contains(entry.wireKey)) {
-        continue;
-      }
-      order.add(entry.wireKey);
-    }
-    final builtinWire = _catalogEntries
-        .where((e) => e.isBuiltin)
-        .map((e) => e.wireKey)
-        .firstOrNull;
-    final builtinIndex = builtinWire == null ? -1 : order.indexOf(builtinWire);
-    order.insertAll(
-      builtinIndex < 0 ? order.length : builtinIndex + 1,
-      reorderedWires.toList(),
-    );
-    await persistCourseOrder(order);
+    await persistCourseOrder(CourseCatalogOrdering.deckReorderWires(
+      entries: _catalogEntries,
+      reorderedImportIds: reorderedImportIds,
+    ));
   }
 
   /// Pin a deck directly after the builtin course in the persisted order.
@@ -668,15 +648,85 @@ class CourseProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> setScope(CourseScope next) async {
+  /// Switch the course scope (typed) and reload the tree. Persists the
+  /// choice so it survives restarts; [load] falls back to the builtin
+  /// course when the scoped source no longer exists.
+  ///
+  /// Failure semantics (plan P3): the target language's content is loaded
+  /// BEFORE any state changes, and any later failure (practice-language
+  /// cascade, persistence) rolls the scope, the content store and every
+  /// practice filter back to the previous language, then rethrows
+  /// [CourseScopeSwitchException] so the caller can surface it. Rapid
+  /// consecutive switches are serialized — one switch always fully applies
+  /// (or rolls back) before the next starts.
+  Future<void> setScope(CourseScope next) {
+    final run = _scopeSwitchChain.then((_) => _setScopeExclusive(next));
+    _scopeSwitchChain = run.then<void>((_) {}, onError: (Object _) {});
+    return run;
+  }
+
+  Future<void> _scopeSwitchChain = Future<void>.value();
+
+  Future<void> _setScopeExclusive(CourseScope next) async {
     if (next == _scope && _isLoaded) return;
+    final previous = _scope;
+    final nextCode = _practiceLanguageFor(next);
+    // Phase 1 — prepare: load the target language content before touching
+    // any state. A load failure leaves scope, content and every practice
+    // filter on the current language.
+    try {
+      await LanguageContentStore.of(nextCode).ensureLoaded();
+    } catch (error) {
+      logger.w('CourseProvider: content load for "$nextCode" failed, '
+          'switch to "$next" refused: $error');
+      throw CourseScopeSwitchException(error);
+    }
+    // Phase 2 — commit and cascade; any failure rolls back to `previous`.
     _scope = next;
     await _persistScope();
     await _persistScopeDecisionToConfig(next);
     CourseLoader.invalidateCaches();
-    await reloadCourse();
-    await _syncPracticeLanguage();
+    try {
+      await reloadCourse();
+      // reloadCourse → load already ran a best-effort sync; the critical
+      // re-run is idempotent (early-exit guards) and turns any cascade
+      // failure into a rollback instead of a half-switched app.
+      await _syncPracticeLanguageTo(nextCode, critical: true);
+    } catch (error) {
+      logger.w('CourseProvider: switch to "$next" failed ($error); '
+          'rolling back to "$previous"');
+      await _rollbackTo(previous);
+      throw CourseScopeSwitchException(error);
+    }
   }
+
+  /// Restores [previous] everywhere after a failed switch: scope +
+  /// persistence + tree reload + practice-language cascade. The previous
+  /// language's content is still loaded (it was active before), so the
+  /// rollback cannot fail on content grounds; any residual error is logged
+  /// and leaves the rollback best-effort.
+  Future<void> _rollbackTo(CourseScope previous) async {
+    try {
+      _scope = previous;
+      await _persistScope();
+      await _persistScopeDecisionToConfig(previous);
+      CourseLoader.invalidateCaches();
+      await reloadCourse();
+      await _syncPracticeLanguageTo(
+        _practiceLanguageFor(previous),
+        critical: true,
+      );
+    } catch (error) {
+      logger.w('CourseProvider: rollback to "$previous" failed: $error');
+    }
+  }
+
+  /// The practice language a scope implies.
+  String _practiceLanguageFor(CourseScope scope) => switch (scope) {
+        BuiltinCourseScope(languageCode: final code) =>
+          LanguageCodes.canonicalize(code),
+        _ => LanguageRegistry.instance.defaultCode,
+      };
 
   Future<void> uninstallBuiltinLanguage(String languageCode) =>
       _languageLifecycle.uninstall(languageCode);
@@ -697,62 +747,82 @@ class CourseProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> _syncPracticeLanguage() async {
+  Future<void> _syncPracticeLanguage({bool critical = false}) async {
     final code = switch (_scope) {
       BuiltinCourseScope(languageCode: final languageCode) =>
         LanguageCodes.canonicalize(languageCode),
       _ => LanguageRegistry.instance.defaultCode,
     };
+    return _syncPracticeLanguageTo(code, critical: critical);
+  }
+
+  /// Drives every practice consumer to [code]. With [critical] set (the
+  /// scope-switch path), the first failure rethrows so the caller can roll
+  /// the whole switch back; the boot path keeps the historical tolerant
+  /// behavior (log each failure, keep going — the app must still start).
+  Future<void> _syncPracticeLanguageTo(
+    String code, {
+    bool critical = false,
+  }) async {
     try {
       await LanguageContentStore.activate(code);
     } catch (error) {
       // The compatibility globals still hold the previous language; switching
       // the downstream providers anyway would leave TTS/AI/stats on the new
       // language while vocab/grammar lookups resolve against the old one.
-      // Abort the whole chain so every consumer stays on the old language.
       logger.w('CourseProvider: content store activate for "$code" failed '
           '(keeping the previous language everywhere): $error');
+      if (critical) rethrow;
       return;
     }
+    Object? firstFailure;
+    void note(Object error, String what) {
+      logger.w('CourseProvider: $what failed: $error');
+      firstFailure ??= error;
+    }
+
     try {
       if (getIt.isRegistered<LanguageProvider>()) {
         final languageProvider = getIt<LanguageProvider>();
         languageProvider.setLanguageCode(code);
-        // Keep prefs in sync with the practice language (same pattern as the
-        // course management page) so a later Home re-entry can't pull the
-        // selection back to a stale persisted value.
-        unawaited(languageProvider.cacheLanguage());
+        // Keep prefs in sync with the practice language. Awaited (plan P3):
+        // a failed preference write participates in the rollback instead of
+        // racing it as an unhandled fire-and-forget.
+        await languageProvider.cacheLanguage();
       }
     } catch (error) {
-      logger.w('CourseProvider: language sync failed: $error');
+      note(error, 'language sync');
     }
     try {
       if (getIt.isRegistered<SrsProvider>()) {
         await getIt<SrsProvider>().setLanguageFilter(code);
       }
     } catch (error) {
-      logger.w('CourseProvider: SRS language sync failed: $error');
+      note(error, 'SRS language sync');
     }
     try {
       if (getIt.isRegistered<GrammarReviewProvider>()) {
         await getIt<GrammarReviewProvider>().setLanguageFilter(code);
       }
     } catch (error) {
-      logger.w('CourseProvider: grammar language sync failed: $error');
+      note(error, 'grammar language sync');
     }
     try {
       if (getIt.isRegistered<MistakeProvider>()) {
         await getIt<MistakeProvider>().setLanguage(code);
       }
     } catch (error) {
-      logger.w('CourseProvider: mistake language sync failed: $error');
+      note(error, 'mistake language sync');
     }
     try {
       if (getIt.isRegistered<StudyStatsProvider>()) {
         getIt<StudyStatsProvider>().setLanguage(code);
       }
     } catch (error) {
-      logger.w('CourseProvider: stats language sync failed: $error');
+      note(error, 'stats language sync');
+    }
+    if (critical && firstFailure != null) {
+      throw firstFailure!;
     }
   }
 
@@ -768,45 +838,21 @@ class CourseProvider extends ChangeNotifier {
     }
   }
 
-  /// Compatibility entry point: accepts a v1 codec wire key or a legacy
-  /// `'anki:<id>'` / `''` string. Legacy values resolve against the live
-  /// catalog (one source → that source; ambiguous → builtin, never a
-  /// guess). Prefer [setScope].
+  /// Compatibility entry point: accepts a v1 codec wire key (or an empty
+  /// string for the builtin fallback). Pre-cutover `'anki:<id>'` values are
+  /// no longer resolved against the catalog — the legacy scope repair chain
+  /// is retired (plan P1) and unknown values fall back to builtin. Prefer
+  /// [setScope].
   Future<void> setCourseScope(String raw) async {
     final decoded = CourseScopeCodec.decode(raw.trim());
     if (decoded != null) {
       await setScope(decoded);
       return;
     }
-    final trimmed = raw.trim();
-    if (trimmed.isEmpty) {
-      await setScope(_fallbackBuiltin());
-      return;
+    if (raw.trim().isNotEmpty) {
+      logger.w('CourseProvider.setCourseScope: unresolvable scope "$raw", '
+          'falling back to builtin');
     }
-    if (trimmed.startsWith('anki:')) {
-      final id = trimmed.substring(5);
-      // Resolve against the catalog: legacy import first, then official
-      // source; an id matching both is treated as ambiguous → builtin.
-      final legacyHit = _catalogEntries.any(
-        (e) => e.legacyImportId == id,
-      );
-      final officialHit = _catalogEntries.any(
-        (e) => e.officialSourceId == id,
-      );
-      if (legacyHit && !officialHit) {
-        await setScope(LegacyAnkiCourseScope(id));
-        return;
-      }
-      if (officialHit && !legacyHit) {
-        await setScope(OfficialAnkiCourseScope(
-          profileId: CourseCatalog.officialProfileId,
-          sourceId: id,
-        ));
-        return;
-      }
-    }
-    logger.w('CourseProvider.setCourseScope: unresolvable scope "$raw", '
-        'falling back to builtin');
     await setScope(_fallbackBuiltin());
   }
 
@@ -957,50 +1003,15 @@ class CourseProvider extends ChangeNotifier {
       }
       return;
     }
-    // Legacy value: resolve against the catalog (single source wins;
-    // ambiguity falls back to builtin — never a guess).
-    final entries = await CourseCatalog.load();
-    if (raw.startsWith('anki:')) {
-      final id = raw.substring(5);
-      final legacyHit = <String>[
-        for (final entry in entries)
-          if (entry.legacyImportId == id) id,
-      ];
-      final officialHit = <String>[
-        for (final entry in entries)
-          if (entry.officialSourceId == id) id,
-      ];
-      if (legacyHit.length == 1 && officialHit.isEmpty) {
-        _scope = LegacyAnkiCourseScope(id);
-        return;
-      }
-      if (officialHit.length == 1 && legacyHit.isEmpty) {
-        _scope = OfficialAnkiCourseScope(
-          profileId: CourseCatalog.officialProfileId,
-          sourceId: id,
-        );
-        return;
-      }
-      // `anki:src` truncation with exactly one official source re-binds to
-      // it (the preference migrator also repairs this; keep behavior
-      // aligned when it has not run yet).
-      if (id == 'src' || id.isEmpty) {
-        final officialSources = [
-          for (final entry in entries)
-            if (entry.officialSourceId != null) entry.officialSourceId!,
-        ];
-        if (officialSources.length == 1) {
-          _scope = OfficialAnkiCourseScope(
-            profileId: CourseCatalog.officialProfileId,
-            sourceId: officialSources.single,
-          );
-          return;
-        }
-      }
-    } else if (raw.isEmpty) {
+    // Pre-cutover legacy values are no longer resolved against the catalog
+    // (plan P1): an unparseable persisted scope falls back to a builtin
+    // course instead of guessing an owner.
+    if (raw.trim().isEmpty) {
       _scope = _fallbackBuiltin();
       return;
     }
+    logger.w('CourseProvider: unparseable persisted scope, '
+        'falling back to a builtin course');
     _scope = _fallbackBuiltin();
   }
 

@@ -210,12 +210,9 @@ class FunLabSnapshotService {
         'INSERT INTO fun_lab_snapshot_review_events ($_reviewColumns) '
         'SELECT $_reviewColumns FROM review_events',
       );
-      await _db.customStatement('''
-        INSERT INTO fun_lab_snapshot_anki_state
-          (import_id, card_id, suspended, buried_until, marked, flag)
-        SELECT import_id, card_id, suspended, buried_until, marked, flag
-        FROM anki_cards_meta
-      ''');
+      // The anki-state dimension is retired with the NoteStore tables
+      // (plan P2): per-card suspend/bury/mark/flag lives in the Official
+      // Collection, which Fun Lab snapshots do not touch.
       await _db.customStatement(
         'INSERT INTO fun_lab_snapshot_meta '
         '(id, created_at, content_fingerprint, prefs_json, srs_item_count) '
@@ -262,34 +259,6 @@ class FunLabSnapshotService {
         'INSERT INTO review_events ($_reviewColumns) '
         'SELECT $_reviewColumns FROM fun_lab_snapshot_review_events',
       );
-      await _db.customStatement('''
-        UPDATE anki_cards_meta
-        SET suspended = (
-              SELECT s.suspended FROM fun_lab_snapshot_anki_state s
-              WHERE s.import_id = anki_cards_meta.import_id
-                AND s.card_id = anki_cards_meta.card_id
-            ),
-            buried_until = (
-              SELECT s.buried_until FROM fun_lab_snapshot_anki_state s
-              WHERE s.import_id = anki_cards_meta.import_id
-                AND s.card_id = anki_cards_meta.card_id
-            ),
-            marked = (
-              SELECT s.marked FROM fun_lab_snapshot_anki_state s
-              WHERE s.import_id = anki_cards_meta.import_id
-                AND s.card_id = anki_cards_meta.card_id
-            ),
-            flag = (
-              SELECT s.flag FROM fun_lab_snapshot_anki_state s
-              WHERE s.import_id = anki_cards_meta.import_id
-                AND s.card_id = anki_cards_meta.card_id
-            )
-        WHERE EXISTS (
-          SELECT 1 FROM fun_lab_snapshot_anki_state s
-          WHERE s.import_id = anki_cards_meta.import_id
-            AND s.card_id = anki_cards_meta.card_id
-        )
-      ''');
     });
 
     await _restorePrefs(decoded);
@@ -312,7 +281,6 @@ class FunLabSnapshotService {
   }
 
   Future<void> _clearSnapshotTables() async {
-    await _db.customStatement('DELETE FROM fun_lab_snapshot_anki_state');
     await _db.customStatement('DELETE FROM fun_lab_snapshot_review_events');
     await _db.customStatement('DELETE FROM fun_lab_snapshot_srs');
     await _db.customStatement('DELETE FROM fun_lab_snapshot_meta');

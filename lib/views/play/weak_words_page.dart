@@ -22,6 +22,7 @@ import 'package:turna/views/lesson/components/lesson_dialogs.dart';
 import 'package:turna/views/lesson/components/practice_session_body.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
+import 'package:turna/views/widgets/study_activity_scope.dart';
 
 @RoutePage()
 class WeakWordsPage extends StatefulWidget {
@@ -31,11 +32,13 @@ class WeakWordsPage extends StatefulWidget {
   State<WeakWordsPage> createState() => _WeakWordsPageState();
 }
 
-class _WeakWordsPageState extends State<WeakWordsPage> {
+class _WeakWordsPageState extends State<WeakWordsPage>
+    with StudyActivityScopeMixin<WeakWordsPage> {
   late final LessonViewModel _vm;
   final Set<InteractionRenderer> _renderers = getIt<Set<InteractionRenderer>>();
   final Random _random = Random();
   bool _empty = false;
+  String? _blockedMessage;
   bool _dialogShown = false;
   bool _autoAdvanceScheduled = false;
 
@@ -54,6 +57,13 @@ class _WeakWordsPageState extends State<WeakWordsPage> {
   }
 
   Future<void> _start() async {
+    // Backup mutual-exclusion scope (plan P0): studying here must not race
+    // a remote backup snapshot.
+    final blocked = enterStudyScope('weak_words_practice');
+    if (blocked != null) {
+      if (mounted) setState(() => _blockedMessage = blocked.toString());
+      return;
+    }
     final mistakes = context.read<MistakeProvider>().entries;
     final weak = WeakWordQuizAssembler.aggregateWeakWords(mistakes);
     if (weak.isEmpty) {
@@ -131,7 +141,15 @@ class _WeakWordsPageState extends State<WeakWordsPage> {
     return Scaffold(
       backgroundColor: TurnaTheme.scaffoldBg(context),
       appBar: _buildAppBar(context),
-      body: _empty
+      body: _blockedMessage != null
+          ? PracticeEmptyState(
+              icon: Icons.cloud_off_outlined,
+              accentColor: TurnaTheme.textHint,
+              title: _blockedMessage!,
+              actionLabel: AppStrings.commonBack,
+              onAction: () => Navigator.of(context).maybePop(),
+            )
+          : _empty
           ? _buildEmpty()
           : Selector<LessonViewModel,
               (Interaction?, InteractionState, String?, bool, bool)>(

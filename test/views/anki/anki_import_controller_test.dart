@@ -38,7 +38,6 @@ import 'package:turna/application/lesson_link_store.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/data/anki_import_dao.dart';
-import 'package:turna/data/anki_note_dao.dart';
 import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/data/course_repository.dart';
@@ -50,7 +49,6 @@ import 'package:turna/service/locator.dart';
 
 import '../../helpers/in_memory_course_db.dart';
 import 'package:turna/domain/repositories/i_anki_import_store.dart';
-import 'package:turna/domain/repositories/i_anki_note_store.dart';
 import 'package:turna/domain/repositories/i_anki_unification_store.dart';
 import 'package:turna/domain/repositories/i_review_history_store.dart';
 
@@ -77,7 +75,6 @@ void main() {
     getIt.registerSingleton<CourseDatabase>(db);
     getIt.registerSingleton<ICourseRepository>(CourseRepository(db));
     getIt.registerSingleton<IReviewHistoryStore>(ReviewHistoryDao(db));
-    getIt.registerSingleton<IAnkiNoteStore>(AnkiNoteDao(db));
     getIt.registerSingleton<IAnkiImportStore>(AnkiImportDao(db));
     getIt.registerSingleton<IAnkiUnificationStore>(AnkiUnificationDao(db));
 

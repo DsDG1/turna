@@ -19,6 +19,7 @@ import 'package:turna/application/anki_official/storage/official_anki_sqlite.dar
 import 'package:turna/application/backup/backup_manifest_policy.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/service/remote_backup/backup_manifest.dart';
+import 'package:turna/service/remote_backup/remote_backup_busy_gate.dart';
 
 /// Coarse snapshot stages surfaced to the backup UI.
 enum BackupSnapshotPhase {
@@ -49,7 +50,9 @@ class BackupSnapshot {
   /// logical media path (e.g. `anki_media/<id>/a.mp3`) → hash + size.
   final Map<String, MediaManifestEntry> mediaManifest;
 
-  /// content hash → local source path, deduplicated upload set.
+  /// content hash → path of the verified snapshot copy under the staging
+  /// `objects/` directory, deduplicated upload set. Uploads always read
+  /// these copies, never the live media files.
   final Map<String, String> mediaObjects;
 
   int get coreZipBytes => coreZip.lengthSync();
@@ -106,12 +109,20 @@ class BackupSnapshotService {
 
   /// Creates a fresh [stagingDir] (wiped if present) and builds the snapshot
   /// inside it. [onPhase] / [onMediaProgress] drive the backup UI.
+  /// [busyCheck] is evaluated before every phase: a study activity that
+  /// started despite the caller's hold aborts the build with
+  /// [RemoteBackupBusyException] instead of packing an inconsistent archive
+  /// (plan P0). [copyImpl] is a test seam for the media copy step.
   Future<BackupSnapshot> build({
     required Directory stagingDir,
     bool includeMedia = true,
     void Function(BackupSnapshotPhase phase)? onPhase,
     void Function(int hashed, int total)? onMediaProgress,
+    void Function()? busyCheck,
+    Future<void> Function(File source, File dest)? copyImpl,
   }) async {
+    void guard() => busyCheck?.call();
+    guard();
     onPhase?.call(BackupSnapshotPhase.collectingPrefs);
     if (await stagingDir.exists()) {
       await stagingDir.delete(recursive: true);
@@ -122,9 +133,11 @@ class BackupSnapshotService {
     final prefsMap = await _collectPrefs();
     await _writeJson(stagingDir, 'prefs.json', prefsMap);
 
+    guard();
     onPhase?.call(BackupSnapshotPhase.snapshottingCourseDb);
     await _vacuumInto(_db, p.join(stagingDir.path, 'course.db'));
 
+    guard();
     onPhase?.call(BackupSnapshotPhase.snapshottingOfficialDbs);
     final profileRoot = await _resolveProfileRoot();
     final collectionFile = await _vacuumFileIfExists(
@@ -140,20 +153,27 @@ class BackupSnapshotService {
     final mediaManifest = <String, MediaManifestEntry>{};
     final mediaObjects = <String, String>{};
     if (includeMedia) {
+      guard();
       onPhase?.call(BackupSnapshotPhase.hashingMedia);
+      final objectsDir = Directory(p.join(stagingDir.path, 'objects'))
+        ..createSync(recursive: true);
       await _scanMedia(
         await _resolveLegacyMediaRoot(),
         'anki_media/',
+        objectsDir,
         mediaManifest,
         mediaObjects,
         onMediaProgress,
+        copyImpl ?? _defaultCopy,
       );
       await _scanMedia(
         Directory(p.join(profileRoot.path, 'collection.media')),
         'official/collection.media/',
+        objectsDir,
         mediaManifest,
         mediaObjects,
         onMediaProgress,
+        copyImpl ?? _defaultCopy,
       );
     }
     await _writeJson(
@@ -186,6 +206,7 @@ class BackupSnapshotService {
     await _writeSha256Sums(stagingDir, entries);
     entries.add('SHA256SUMS');
 
+    guard();
     onPhase?.call(BackupSnapshotPhase.packingArchive);
     final coreZip = File(p.join(stagingDir.path, 'core.zip'));
     await _packZip(stagingDir, entries, coreZip);
@@ -264,12 +285,24 @@ class BackupSnapshotService {
     }
   }
 
+  static Future<void> _defaultCopy(File source, File dest) async {
+    await source.copy(dest.path);
+  }
+
+  /// Lists every media file, captures a verified copy of each into the
+  /// staging `objects/` directory (content-addressed by SHA-256), and
+  /// records the manifest entries. Copies are what later get uploaded —
+  /// the live file changing between hashing and transfer can no longer
+  /// desynchronize a remote object from its content-addressed name
+  /// (plan P0).
   Future<void> _scanMedia(
     Directory root,
     String logicalPrefix,
+    Directory objectsDir,
     Map<String, MediaManifestEntry> manifest,
     Map<String, String> objects,
     void Function(int hashed, int total)? onProgress,
+    Future<void> Function(File source, File dest) copyImpl,
   ) async {
     if (!await root.exists()) return;
     final files = <File>[];
@@ -281,12 +314,34 @@ class BackupSnapshotService {
     for (final file in files) {
       final relative =
           p.relative(file.path, from: root.path).replaceAll('\\', '/');
-      final sha = archiveFileSha256(file.path);
+      final sha = await _captureVerifiedCopy(file, objectsDir, copyImpl);
+      objects.putIfAbsent(sha, () => p.join(objectsDir.path, sha));
       manifest['$logicalPrefix$relative'] =
-          MediaManifestEntry(sha256: sha, bytes: file.lengthSync());
-      objects.putIfAbsent(sha, () => file.path);
+          MediaManifestEntry(sha256: sha, bytes: File(objects[sha]!).lengthSync());
       onProgress?.call(++hashed, files.length);
     }
+  }
+
+  /// Copies [source] into [objectsDir] under its content hash and verifies
+  /// the copy byte-for-byte. If the source mutates mid-copy the digests
+  /// disagree and one retry re-captures the (now stable) content; a second
+  /// disagreement means the file is being written right now — the snapshot
+  /// aborts rather than shipping a torn object.
+  Future<String> _captureVerifiedCopy(
+    File source,
+    Directory objectsDir,
+    Future<void> Function(File source, File dest) copyImpl,
+  ) async {
+    Object? lastError;
+    for (var attempt = 0; attempt < 2; attempt++) {
+      final sha = archiveFileSha256(source.path);
+      final dest = File(p.join(objectsDir.path, sha));
+      await copyImpl(source, dest);
+      if (archiveFileSha256(dest.path) == sha) return sha;
+      lastError = StateError(
+          '媒体文件在快照期间持续变化: ${p.basename(source.path)}');
+    }
+    throw lastError!;
   }
 
   Map<String, dynamic> _encodeMediaManifest(

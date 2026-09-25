@@ -190,6 +190,8 @@ class _CourseDatabaseV14 extends db.CourseDatabase {
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) async {
           await m.createAll();
+          // Real v14 databases still carried the NoteStore tables.
+          await _createRetiredNoteStoreTables(m.database);
           await m.database.customStatement(
             'ALTER TABLE anki_cards_meta ADD COLUMN suspended '
             'INTEGER NOT NULL DEFAULT 0',
@@ -221,8 +223,59 @@ class _CourseDatabaseV13 extends db.CourseDatabase {
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onCreate: (m) async => await m.createAll(),
+        onCreate: (m) async {
+          await m.createAll();
+          // Real v13 databases still carried the NoteStore tables; the
+          // v13 -> v14 re-key reads anki_cards_meta (dropped at v27).
+          await _createRetiredNoteStoreTables(m.database);
+        },
       );
+}
+
+/// Recreates the retired Legacy NoteStore tables (pre-v27 shape) for
+/// fixtures that model databases which historically carried them.
+Future<void> _createRetiredNoteStoreTables(
+  dynamic database,
+) async {
+  await database.customStatement('''
+    CREATE TABLE IF NOT EXISTS anki_notetypes (
+      import_id TEXT NOT NULL REFERENCES anki_imports(import_id) ON DELETE CASCADE,
+      mid INTEGER NOT NULL,
+      name TEXT NOT NULL DEFAULT '',
+      is_cloze INTEGER NOT NULL DEFAULT 0,
+      field_names_json TEXT NOT NULL DEFAULT '[]',
+      templates_json TEXT NOT NULL DEFAULT '[]',
+      css TEXT NOT NULL DEFAULT '',
+      allow_js INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (import_id, mid)
+    )
+  ''');
+  await database.customStatement('''
+    CREATE TABLE IF NOT EXISTS anki_notes (
+      import_id TEXT NOT NULL REFERENCES anki_imports(import_id) ON DELETE CASCADE,
+      note_id INTEGER NOT NULL,
+      mid INTEGER NOT NULL,
+      tags TEXT NOT NULL DEFAULT '',
+      fields_json TEXT NOT NULL DEFAULT '[]',
+      sfld TEXT NOT NULL DEFAULT '',
+      guid TEXT NOT NULL DEFAULT '',
+      mod INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (import_id, note_id)
+    )
+  ''');
+  await database.customStatement('''
+    CREATE TABLE IF NOT EXISTS anki_cards_meta (
+      import_id TEXT NOT NULL REFERENCES anki_imports(import_id) ON DELETE CASCADE,
+      card_id INTEGER NOT NULL,
+      note_id INTEGER NOT NULL,
+      ord INTEGER NOT NULL DEFAULT 0,
+      did INTEGER NOT NULL DEFAULT 0,
+      word_id TEXT NOT NULL,
+      render_mode TEXT NOT NULL DEFAULT 'hybrid',
+      scheduling_json TEXT NOT NULL DEFAULT '{}',
+      PRIMARY KEY (import_id, card_id)
+    )
+  ''');
 }
 
 Future<void> _forceOpen(db.CourseDatabase database) async {
@@ -434,7 +487,8 @@ void main() {
       await File(path).parent.delete(recursive: true);
     });
 
-    test('v6 -> v9 adds the Anki NoteStore tables', () async {
+    test('v6 -> current never creates the retired NoteStore tables (P2)',
+        () async {
       final path = await _tempDbPath();
       final oldDb = _CourseDatabaseV6(NativeDatabase(File(path)));
       await _forceOpen(oldDb);
@@ -444,11 +498,16 @@ void main() {
       final migrated = db.CourseDatabase(NativeDatabase(File(path)));
       await _forceOpen(migrated);
 
-      // v9 adds the three NoteStore tables (empty on creation; populated at
-      // import time by the AnkiImporter).
-      expect(await migrated.select(migrated.ankiNotetypes).get(), isEmpty);
-      expect(await migrated.select(migrated.ankiNotes).get(), isEmpty);
-      expect(await migrated.select(migrated.ankiCardsMeta).get(), isEmpty);
+      final tables = await migrated
+          .customSelect(
+            "SELECT name FROM sqlite_master WHERE type = 'table' "
+            "AND name IN ('anki_notes','anki_notetypes','anki_cards_meta') "
+            "ORDER BY name",
+          )
+          .get();
+      expect(tables, isEmpty,
+          reason: 'the NoteStore tables are retired at v27 (plan P2) and '
+              'upgrades no longer create them');
 
       await migrated.close();
       await File(path).parent.delete(recursive: true);
@@ -551,11 +610,8 @@ void main() {
             "ORDER BY name",
           )
           .get();
-      expect(legacy.map((row) => row.read<String>('name')), [
-        'anki_cards_meta',
-        'anki_notes',
-        'anki_notetypes',
-      ]);
+      expect(legacy, isEmpty,
+          reason: 'the NoteStore tables are dropped at v27 (plan P2)');
       expect(migrated.schemaVersion,
           db.CourseDatabase(NativeDatabase.memory()).schemaVersion);
 
@@ -761,6 +817,56 @@ void main() {
           .get();
       expect(events, hasLength(4));
       expect(events.every((row) => row.data['source_kind'] != null), isTrue);
+
+      await migrated.close();
+      await File(path).parent.delete(recursive: true);
+    });
+
+    test('v26 -> v27 drops the Legacy NoteStore tables and keeps the rest',
+        () async {
+      final path = await _tempDbPath();
+      // A real v26 database carries the three NoteStore tables (created at
+      // v9); model it with the current schema plus the retired tables.
+      final oldDb = _CourseDatabaseV15(NativeDatabase(File(path)));
+      await _forceOpen(oldDb);
+      // Model a v26 database: current shape, version pinned to 26.
+      await oldDb.customStatement('PRAGMA user_version = 26');
+      await _createRetiredNoteStoreTables(oldDb);
+      await oldDb.customStatement(
+        "INSERT INTO anki_notetypes (import_id, mid, name) "
+        "VALUES ('imp-x', 1, 'Basic')",
+      );
+      await oldDb.customStatement(
+        "INSERT INTO anki_notes (import_id, note_id, mid, sfld) "
+        "VALUES ('imp-x', 10, 1, 'front')",
+      );
+      await oldDb.customStatement(
+        "INSERT INTO anki_cards_meta (import_id, card_id, note_id, word_id) "
+        "VALUES ('imp-x', 100, 10, 'anki-imp-x-c100')",
+      );
+      await oldDb.into(oldDb.sections).insert(
+            const db.SectionsCompanion(
+              id: Value('s-v26'),
+              name: Value('Section V26'),
+            ),
+          );
+      await oldDb.close();
+
+      final migrated = db.CourseDatabase(NativeDatabase(File(path)));
+      await _forceOpen(migrated);
+
+      final tables = await migrated
+          .customSelect(
+            "SELECT name FROM sqlite_master WHERE type = 'table' "
+            "AND name IN ('anki_notes','anki_notetypes','anki_cards_meta') "
+            "ORDER BY name",
+          )
+          .get();
+      expect(tables, isEmpty, reason: 'v27 (plan P2) drops the NoteStore');
+      final sections = await migrated.select(migrated.sections).get();
+      expect(sections.map((r) => r.id), ['s-v26'],
+          reason: 'unrelated data survives the drop');
+      expect(migrated.schemaVersion, db.CourseDatabase.kSchemaVersion);
 
       await migrated.close();
       await File(path).parent.delete(recursive: true);

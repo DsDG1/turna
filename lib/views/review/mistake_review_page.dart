@@ -22,6 +22,7 @@ import 'package:turna/views/lesson/components/lesson_dialogs.dart';
 import 'package:turna/views/lesson/components/practice_session_body.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
+import 'package:turna/views/widgets/study_activity_scope.dart';
 
 @RoutePage()
 class MistakeReviewPage extends StatefulWidget {
@@ -31,11 +32,13 @@ class MistakeReviewPage extends StatefulWidget {
   State<MistakeReviewPage> createState() => _MistakeReviewPageState();
 }
 
-class _MistakeReviewPageState extends State<MistakeReviewPage> {
+class _MistakeReviewPageState extends State<MistakeReviewPage>
+    with StudyActivityScopeMixin<MistakeReviewPage> {
   late final LessonViewModel _vm;
   final Set<InteractionRenderer> _renderers = getIt<Set<InteractionRenderer>>();
   final Random _random = Random();
   bool _empty = false;
+  String? _blockedMessage;
   bool _dialogShown = false;
   bool _autoAdvanceScheduled = false;
   bool _cleared = false;
@@ -56,6 +59,13 @@ class _MistakeReviewPageState extends State<MistakeReviewPage> {
   }
 
   Future<void> _start() async {
+    // Backup mutual-exclusion scope (plan P0): studying here must not race
+    // a remote backup snapshot.
+    final blocked = enterStudyScope('mistake_review');
+    if (blocked != null) {
+      if (mounted) setState(() => _blockedMessage = blocked.toString());
+      return;
+    }
     final mistakes = context.read<MistakeProvider>().entries;
     final assembly = MistakeReviewAssembler.assemble(mistakes);
     final lesson = assembly.lesson;
@@ -157,7 +167,15 @@ class _MistakeReviewPageState extends State<MistakeReviewPage> {
     return Scaffold(
       backgroundColor: TurnaTheme.scaffoldBg(context),
       appBar: _buildAppBar(context),
-      body: _empty
+      body: _blockedMessage != null
+          ? PracticeEmptyState(
+              icon: Icons.cloud_off_outlined,
+              accentColor: TurnaTheme.textHint,
+              title: _blockedMessage!,
+              actionLabel: AppStrings.commonBack,
+              onAction: () => Navigator.of(context).maybePop(),
+            )
+          : _empty
           ? _buildEmpty()
           : Selector<LessonViewModel,
               (Interaction?, InteractionState, String?, bool, bool)>(

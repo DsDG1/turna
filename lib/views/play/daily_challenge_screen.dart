@@ -22,6 +22,7 @@ import 'package:turna/views/lesson/components/lesson_dialogs.dart';
 import 'package:turna/views/lesson/components/practice_session_body.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
+import 'package:turna/views/widgets/study_activity_scope.dart';
 
 /// The number of random questions a daily challenge serves.
 const int kDailyChallengeCount = 15;
@@ -34,13 +35,15 @@ class DailyChallengePage extends StatefulWidget {
   State<DailyChallengePage> createState() => _DailyChallengePageState();
 }
 
-class _DailyChallengePageState extends State<DailyChallengePage> {
+class _DailyChallengePageState extends State<DailyChallengePage>
+    with StudyActivityScopeMixin<DailyChallengePage> {
   late final LessonViewModel _vm;
   final Set<InteractionRenderer> _renderers = getIt<Set<InteractionRenderer>>();
   final Random _random = Random();
   bool _autoAdvanceScheduled = false;
   bool _dialogShown = false;
   bool _empty = false;
+  String? _blockedMessage;
 
   @override
   void initState() {
@@ -57,6 +60,13 @@ class _DailyChallengePageState extends State<DailyChallengePage> {
   }
 
   Future<void> _startChallenge() async {
+    // Backup mutual-exclusion scope (plan P0): studying here must not race
+    // a remote backup snapshot.
+    final blocked = enterStudyScope('daily_challenge');
+    if (blocked != null) {
+      if (mounted) setState(() => _blockedMessage = blocked.toString());
+      return;
+    }
     final courseProvider = context.read<CourseProvider>();
     // Yield to the event loop so the loading spinner renders before the
     // potentially CPU-heavy assembly work runs on the UI thread.
@@ -93,6 +103,15 @@ class _DailyChallengePageState extends State<DailyChallengePage> {
         appBar: _buildAppBar(context),
         body: Consumer<LessonViewModel>(
           builder: (context, vm, _) {
+            if (_blockedMessage != null) {
+              return PracticeEmptyState(
+                icon: Icons.cloud_off_outlined,
+                accentColor: TurnaTheme.textHint,
+                title: _blockedMessage!,
+                actionLabel: AppStrings.commonBack,
+                onAction: () => Navigator.of(context).maybePop(),
+              );
+            }
             if (_empty) {
               return _buildEmptyDeck();
             }

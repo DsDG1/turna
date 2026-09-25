@@ -83,8 +83,6 @@ const _requiredEntries = <String>[
   'review_history.jsonl',
   'mistakes.jsonl',
   'anki_sources.jsonl',
-  'anki_notes.jsonl',
-  'anki_cards.jsonl',
   'introductions.jsonl',
   'media_manifest.json',
   'SHA256SUMS',

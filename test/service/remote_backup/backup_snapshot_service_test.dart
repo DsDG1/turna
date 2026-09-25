@@ -18,6 +18,7 @@ import 'package:turna/application/anki_official/storage/official_anki_sqlite.dar
 import 'package:turna/data/course_database.dart';
 import 'package:turna/service/remote_backup/backup_manifest.dart';
 import 'package:turna/service/remote_backup/backup_snapshot_service.dart';
+import 'package:turna/service/remote_backup/remote_backup_busy_gate.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -237,5 +238,79 @@ void main() {
     File(p.join(staging.path, 'stale.txt')).writeAsStringSync('old');
     await service.build(stagingDir: staging);
     expect(File(p.join(staging.path, 'stale.txt')).existsSync(), isFalse);
+  });
+
+  test('media objects are verified staging copies, not the live files',
+      () async {
+    final staging = Directory(p.join(tmp.path, 'staging5'));
+    final snapshot = await service.build(stagingDir: staging);
+
+    for (final entry in snapshot.mediaObjects.entries) {
+      expect(p.isWithin(staging.path, entry.value), isTrue,
+          reason: 'upload set must point into the staging objects dir');
+      final copy = File(entry.value);
+      expect(copy.existsSync(), isTrue);
+      expect(copy.lengthSync(), greaterThan(0));
+      expect(entry.key, matches(RegExp(r'^[0-9a-f]{64}$')),
+          reason: 'object names are the content hash of their copy');
+    }
+    // The legacy a.mp3/b.mp3 pair dedups to one object with original bytes.
+    final aSha = snapshot.mediaManifest['anki_media/imp1/a.mp3']!.sha256;
+    expect(File(p.join(staging.path, 'objects', aSha)).readAsBytesSync(),
+        [1, 2, 3]);
+  });
+
+  test('a media file that keeps changing aborts the snapshot', () async {
+    // copyImpl deterministically writes different bytes than the source, as
+    // if the live file were being rewritten during every copy attempt.
+    await expectLater(
+      service.build(
+        stagingDir: Directory(p.join(tmp.path, 'staging6')),
+        copyImpl: (source, dest) async {
+          await dest.writeAsBytes([7, 7, 7]);
+        },
+      ),
+      throwsA(isA<StateError>()),
+    );
+  });
+
+  test('a copy that tears once recovers on the retry', () async {
+    // First copy writes wrong bytes (torn), second copy is a real copy —
+    // the retry re-hashes the source and captures the stable content.
+    var calls = 0;
+    final staging = Directory(p.join(tmp.path, 'staging7'));
+    final snapshot = await service.build(
+      stagingDir: staging,
+      copyImpl: (source, dest) async {
+        calls++;
+        if (calls == 1) {
+          await dest.writeAsBytes([7, 7, 7]);
+          return;
+        }
+        await source.copy(dest.path);
+      },
+    );
+    expect(calls, greaterThan(1), reason: 'the torn copy must be retried');
+    final aSha = snapshot.mediaManifest['anki_media/imp1/a.mp3']!.sha256;
+    expect(File(p.join(staging.path, 'objects', aSha)).readAsBytesSync(),
+        [1, 2, 3]);
+  });
+
+  test('busyCheck firing between phases aborts the build', () async {
+    var checks = 0;
+    final staging = Directory(p.join(tmp.path, 'staging8'));
+    await expectLater(
+      service.build(
+        stagingDir: staging,
+        busyCheck: () {
+          checks++;
+          if (checks >= 3) throw RemoteBackupBusyException();
+        },
+      ),
+      throwsA(isA<RemoteBackupBusyException>()),
+    );
+    expect(checks, 3);
+    expect(File(p.join(staging.path, 'core.zip')).existsSync(), isFalse,
+        reason: 'the aborted build never packs the archive');
   });
 }

@@ -161,74 +161,6 @@ class AnkiImports extends Table {
   Set<Column> get primaryKey => {importId};
 }
 
-/// `anki_notetypes` — leftover Legacy NoteStore snapshot of each notetype
-/// (field names, `qfmt`/`afmt`, `css`, `allowJs`). Official fidelity does
-/// not read this table. One row per (import, mid). `templatesJson` is
-/// `[{name,qfmt,afmt}]`; `fieldNamesJson` is `["Front","Back"]`. Row class
-/// is renamed via [DataClassName] to avoid colliding with retired parser
-/// models.
-@DataClassName('AnkiNotetypeRow')
-class AnkiNotetypes extends Table {
-  TextColumn get importId => text().customConstraint(
-        'NOT NULL REFERENCES anki_imports(import_id) ON DELETE CASCADE',
-      )();
-  IntColumn get mid => integer()();
-  TextColumn get name => text().withDefault(const Constant(''))();
-  BoolColumn get isCloze => boolean().withDefault(const Constant(false))();
-  TextColumn get fieldNamesJson => text().withDefault(const Constant('[]'))();
-  TextColumn get templatesJson => text().withDefault(const Constant('[]'))();
-  TextColumn get css => text().withDefault(const Constant(''))();
-
-  /// Whether this notetype's qfmt/afmt contains `<script>` / `on*=` handlers,
-  /// enabling JS in the fidelity WebView (decision 3: default off + container
-  /// isolation via navigationDelegate + restricted file access).
-  BoolColumn get allowJs => boolean().withDefault(const Constant(false))();
-
-  @override
-  Set<Column> get primaryKey => {importId, mid};
-}
-
-/// `anki_notes` — leftover Legacy NoteStore raw notes (`fieldsJson` aligned
-/// with the notetype's `fieldNamesJson`). Kept for Legacy-owned browser
-/// search until W9-E schema drop. Row class renamed to avoid colliding
-/// with retired parser models.
-@DataClassName('AnkiNoteRow')
-class AnkiNotes extends Table {
-  TextColumn get importId => text().customConstraint(
-        'NOT NULL REFERENCES anki_imports(import_id) ON DELETE CASCADE',
-      )();
-  IntColumn get noteId => integer()();
-  IntColumn get mid => integer()();
-  TextColumn get tags => text().withDefault(const Constant(''))();
-  TextColumn get fieldsJson => text().withDefault(const Constant('[]'))();
-  TextColumn get sfld => text().withDefault(const Constant(''))();
-  TextColumn get guid => text().withDefault(const Constant(''))();
-  IntColumn get mod => integer().withDefault(const Constant(0))();
-
-  @override
-  Set<Column> get primaryKey => {importId, noteId};
-}
-
-/// `anki_cards_meta` — leftover Legacy per-card display metadata
-/// (`suspended` / flag / marked). Official scheduling lives in the
-/// Collection; `wordId` is `anki-<importId>-c<cardId>`.
-@DataClassName('AnkiCardMetaRow')
-class AnkiCardsMeta extends Table {
-  TextColumn get importId => text().customConstraint(
-        'NOT NULL REFERENCES anki_imports(import_id) ON DELETE CASCADE',
-      )();
-  IntColumn get cardId => integer()();
-  IntColumn get noteId => integer()();
-  IntColumn get ord => integer().withDefault(const Constant(0))();
-  IntColumn get did => integer().withDefault(const Constant(0))();
-  TextColumn get wordId => text()();
-  TextColumn get renderMode => text().withDefault(const Constant('hybrid'))();
-  TextColumn get schedulingJson => text().withDefault(const Constant('{}'))();
-
-  @override
-  Set<Column> get primaryKey => {importId, cardId};
-}
-
 /// `srs_states` - one row per tracked SRS item ([SrsWord]), keyed by `wordId`.
 /// The durable store for SRS scheduling state (migrated from the old
 /// `StreamingSharedPreferences` JSON blob in v7). `queue` discriminates the
@@ -345,9 +277,6 @@ class MistakeAggregates extends Table {
     CourseMeta,
     Expressions,
     AnkiImports,
-    AnkiNotetypes,
-    AnkiNotes,
-    AnkiCardsMeta,
     SrsStates,
     ReviewEvents,
     Mistakes,
@@ -359,7 +288,7 @@ class CourseDatabase extends _$CourseDatabase {
 
   /// Single source of truth for the drift schema version, so tests and
   /// backup code never hard-code a stale literal.
-  static const int kSchemaVersion = 26;
+  static const int kSchemaVersion = 27;
 
   @override
   int get schemaVersion => kSchemaVersion;
@@ -398,9 +327,6 @@ class CourseDatabase extends _$CourseDatabase {
               'grammar_points',
               'expressions',
               'course_meta',
-              'anki_notetypes',
-              'anki_notes',
-              'anki_cards_meta',
               'srs_states',
               'review_events',
               'fun_lab_snapshot_anki_state',
@@ -477,25 +403,17 @@ class CourseDatabase extends _$CourseDatabase {
             }
           }
           if (from < 9) {
-            // v9: Anki NoteStore - per-notetype templates/css + raw note fields
-            // + card meta, so the fidelity track can re-render cards from the
-            // source templates without re-parsing the .apkg (deep-adaptation
-            // plan §3.2.1). All three start empty; populated at import time.
-            await m.createTable(ankiNotetypes);
-            await m.createTable(ankiNotes);
-            await m.createTable(ankiCardsMeta);
+            // v9 used to create the Legacy Anki NoteStore tables
+            // (anki_notetypes / anki_notes / anki_cards_meta). The read side
+            // is retired (plan P1) and v27 drops the tables, so upgrades no
+            // longer create them; existing v9+ databases carry their own
+            // copies until the v27 drop removes them.
           }
           if (from < 11) {
             // v11: preserve Anki note identity/scheduling provenance and keep
             // imported suspended/buried state out of the normal due queue.
-            // Upgrades from before v9 create the Anki tables using the
-            // current definitions in the v9 createTable step, so only an
-            // already-existing v10 NoteStore needs ALTER TABLE here.
-            if (from >= 10) {
-              await m.addColumn(ankiNotes, ankiNotes.guid);
-              await m.addColumn(ankiNotes, ankiNotes.mod);
-              await m.addColumn(ankiCardsMeta, ankiCardsMeta.schedulingJson);
-            }
+            // The v10 NoteStore ALTERs are gone with the NoteStore itself
+            // (plan P2); existing v10 tables are dropped at v27 untouched.
             // v7+ databases already had these tables; older upgrades create
             // them from the current definitions during their earlier step.
             if (from >= 7) {
@@ -613,6 +531,17 @@ class CourseDatabase extends _$CourseDatabase {
             await m.database.transaction(() async {
               await _migrateCourseTreeCompositePk(m.database);
             });
+          }
+          if (from < 27) {
+            // v27 (plan P2, the deferred W9-E schema drop): the Legacy Anki
+            // NoteStore tables lose their last readers in P1, so the tables
+            // go. Children drop before parents (FK ON DELETE CASCADE).
+            await m.database
+                .customStatement('DROP TABLE IF EXISTS anki_cards_meta');
+            await m.database
+                .customStatement('DROP TABLE IF EXISTS anki_notes');
+            await m.database
+                .customStatement('DROP TABLE IF EXISTS anki_notetypes');
           }
         },
       );
@@ -1384,14 +1313,8 @@ class CourseDatabase extends _$CourseDatabase {
 
     await addColumn('anki_imports', 'daily_new_limit', 'INTEGER');
     await addColumn('anki_imports', 'daily_review_limit', 'INTEGER');
-    await addColumn(
-      'anki_cards_meta',
-      'suspended',
-      'INTEGER NOT NULL DEFAULT 0',
-    );
-    await addColumn('anki_cards_meta', 'buried_until', 'INTEGER');
-    await addColumn('anki_cards_meta', 'marked', 'INTEGER NOT NULL DEFAULT 0');
-    await addColumn('anki_cards_meta', 'flag', 'INTEGER NOT NULL DEFAULT 0');
+    // The anki_cards_meta state columns retired with the table (plan P2);
+    // per-card state lives in the Official Collection only.
   }
 
   static Future<void> _ensureAnkiCanonicalV2(
@@ -1438,25 +1361,8 @@ class CourseDatabase extends _$CourseDatabase {
     await addColumn('anki_imports', 'last_error', 'TEXT');
 
     // v24 (step6.md) dropped the v1 projection tables this helper used to
-    // create (`anki_decks`, `anki_practice_projections`,
-    // `anki_import_issues`); only the raw-SQL columns and indexes that the
-    // drift schema does not model survive here.
-    await database.customStatement('''
-      CREATE INDEX IF NOT EXISTS anki_cards_meta_note_idx
-      ON anki_cards_meta(import_id, note_id)
-    ''');
-    await database.customStatement('''
-      CREATE INDEX IF NOT EXISTS anki_cards_meta_deck_idx
-      ON anki_cards_meta(import_id, did)
-    ''');
-    await database.customStatement('''
-      CREATE UNIQUE INDEX IF NOT EXISTS anki_cards_meta_word_idx
-      ON anki_cards_meta(word_id)
-    ''');
-    await database.customStatement('''
-      CREATE INDEX IF NOT EXISTS anki_notes_guid_idx
-      ON anki_notes(import_id, guid)
-    ''');
+    // create; the NoteStore indexes retired with their tables (plan P2) —
+    // only the raw-SQL columns above survive here.
   }
 
   /// Re-key Anki SRS rows from the pre-pivot note-based word id
@@ -1473,6 +1379,16 @@ class CourseDatabase extends _$CourseDatabase {
   static Future<void> _rekeyLegacyAnkiWordIds(
     GeneratedDatabase database,
   ) async {
+    final hasTable = await database
+        .customSelect(
+          "SELECT name FROM sqlite_master WHERE type = 'table' "
+          "AND name = 'anki_cards_meta'",
+        )
+        .get();
+    if (hasTable.isEmpty) {
+      // Upgrades that never had a v9+ NoteStore (fresh chain post-P2).
+      return;
+    }
     final meta = await database
         .customSelect(
           'SELECT import_id, note_id, word_id FROM anki_cards_meta',

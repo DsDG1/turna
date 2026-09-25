@@ -1,4 +1,5 @@
 // Dart imports:
+import 'dart:convert';
 import 'dart:io';
 
 // Package imports:
@@ -14,8 +15,10 @@ import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 import 'package:turna/application/anki_official/storage/official_anki_sqlite.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/service/locator.dart';
+import 'package:turna/service/remote_backup/archive_io.dart';
 import 'package:turna/service/remote_backup/backup_manifest.dart';
 import 'package:turna/service/remote_backup/backup_snapshot_service.dart';
+import 'package:turna/service/remote_backup/remote_backup_busy_gate.dart';
 import 'package:turna/domain/repositories/i_credential_store.dart';
 import 'package:turna/service/remote_backup/remote_backup_config.dart';
 import 'package:turna/service/remote_backup/remote_backup_service.dart';
@@ -80,6 +83,66 @@ class FakeRemoteBackupStore extends RemoteBackupStore {
     ops.add('delete:$backupId');
     final dir = Directory(p.join(storage.path, 'backups', backupId));
     if (dir.existsSync()) dir.deleteSync(recursive: true);
+  }
+}
+
+/// Store whose core upload can fail on demand — interruption coverage for
+/// the backup/recovery tests (plan P0).
+class _FailingStore extends FakeRemoteBackupStore {
+  _FailingStore(super.storage);
+
+  bool failCoreUpload = false;
+
+  @override
+  Future<void> uploadCoreZip(String backupId, File coreZip) async {
+    if (failCoreUpload) {
+      throw const SocketException('connection reset mid-upload');
+    }
+    await super.uploadCoreZip(backupId, coreZip);
+  }
+}
+
+/// Snapshot service that simulates writes racing the snapshot period
+/// (plan P0 consistency boundary): [lateScope] enters a study scope right
+/// when the build starts, [mutateAfterBuild] runs after the immutable
+/// staging copies exist.
+class _RacingSnapshotService extends BackupSnapshotService {
+  _RacingSnapshotService({
+    required super.db,
+    required super.packageInfo,
+    required super.officialProfileRoot,
+    required super.legacyMediaRoot,
+    required this.gate,
+    this.lateScope,
+    this.mutateAfterBuild,
+  });
+
+  final StudyActivityGate gate;
+  final void Function()? lateScope;
+  final void Function(BackupSnapshot snapshot)? mutateAfterBuild;
+
+  @override
+  Future<BackupSnapshot> build({
+    required Directory stagingDir,
+    bool includeMedia = true,
+    void Function(BackupSnapshotPhase phase)? onPhase,
+    void Function(int hashed, int total)? onMediaProgress,
+    void Function()? busyCheck,
+    Future<void> Function(File source, File dest)? copyImpl,
+  }) {
+    lateScope?.call();
+    return super
+        .build(
+          stagingDir: stagingDir,
+          includeMedia: includeMedia,
+          onPhase: onPhase,
+          onMediaProgress: onMediaProgress,
+          busyCheck: busyCheck,
+        )
+        .then((snapshot) {
+      mutateAfterBuild?.call(snapshot);
+      return snapshot;
+    });
   }
 }
 
@@ -183,7 +246,17 @@ void main() {
 
   tearDown(() async {
     await db.close();
-    if (tmp.existsSync()) tmp.deleteSync(recursive: true);
+    // Windows 上杀软扫描或句柄延迟释放会让递归删除偶发 errno 32；重试
+    // 几轮，仍失败就留给系统临时目录清理。
+    for (var attempt = 0; attempt < 5; attempt++) {
+      if (!tmp.existsSync()) return;
+      try {
+        tmp.deleteSync(recursive: true);
+        return;
+      } on FileSystemException {
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+      }
+    }
   });
 
   test('backupNow uploads media, then core, then manifest (in that order)',
@@ -245,17 +318,162 @@ void main() {
     expect(keep.contains(ids.last), isTrue);
   });
 
-  test('busy guard rejects concurrent backup attempts', () async {
+  test('a study activity running rejects the backup (busy guard)', () async {
+    final gate = StudyActivityGate()..begin('anki_review_session');
     final guarded = RemoteBackupService(
       prefs: prefs,
       configStore: configStore,
       snapshotService: snapshotService,
       appSupport: appSupport,
+      activityGate: gate,
       storeFactory: (_) => store,
-      busyGuard: () => true,
     );
     await expectLater(
         guarded.backupNow(), throwsA(isA<RemoteBackupBusyException>()));
+    gate.end('anki_review_session');
+  });
+
+  test('a study activity starting mid-snapshot aborts the backup cleanly',
+      () async {
+    final gate = StudyActivityGate();
+    var raced = false;
+    final racing = _RacingSnapshotService(
+      db: db,
+      packageInfo: packageInfo,
+      officialProfileRoot:
+          Directory(p.join(appSupport.path, 'official_anki', 'default')),
+      legacyMediaRoot: Directory(p.join(appSupport.path, 'anki_media')),
+      gate: gate,
+      lateScope: () {
+        if (raced) return;
+        raced = true;
+        gate.debugForceScope('ungated_writer');
+      },
+    );
+    final guarded = RemoteBackupService(
+      prefs: prefs,
+      configStore: configStore,
+      snapshotService: racing,
+      appSupport: appSupport,
+      activityGate: gate,
+      storeFactory: (_) => store,
+    );
+
+    await expectLater(
+        guarded.backupNow(), throwsA(isA<RemoteBackupBusyException>()));
+    expect(store.manifest, isNull,
+        reason: 'an aborted snapshot must never publish a manifest');
+    expect(store.ops.where((op) => op.startsWith('core:')), isEmpty,
+        reason: 'nothing may be uploaded from an aborted snapshot');
+    expect(
+      Directory(p.join(appSupport.path, 'backup_staging')).existsSync(),
+      isFalse,
+      reason: 'failed backups clean their staging directory',
+    );
+    // The boundary recovers: once the ungated writer finishes, the next
+    // backup succeeds.
+    gate.end('ungated_writer');
+    gate.resetForTest();
+    final recovered = await guarded.backupNow();
+    expect(store.manifest!.backupId, recovered.backupId);
+  });
+
+  test('media/prefs/db uploads read the immutable snapshot, not live files',
+      () async {
+    await prefs.preferences.setString('currentLanguage', 'tr');
+    final racing = _RacingSnapshotService(
+      db: db,
+      packageInfo: packageInfo,
+      officialProfileRoot:
+          Directory(p.join(appSupport.path, 'official_anki', 'default')),
+      legacyMediaRoot: Directory(p.join(appSupport.path, 'anki_media')),
+      gate: StudyActivityGate(),
+      mutateAfterBuild: (snapshot) {
+        // Simulate every live store mutating after the snapshot was taken:
+        // media file rewritten, a pref changed, course.db table created.
+        File(p.join(appSupport.path, 'anki_media', 'imp1', 'a.mp3'))
+            .writeAsBytesSync([99, 99, 99]);
+        prefs.preferences.setString('currentLanguage', 'fr');
+        db.customStatement('CREATE TABLE IF NOT EXISTS late_write(x)');
+      },
+    );
+    final service = RemoteBackupService(
+      prefs: prefs,
+      configStore: configStore,
+      snapshotService: racing,
+      appSupport: appSupport,
+      storeFactory: (_) => store,
+    );
+
+    await service.backupNow();
+
+    // Round-trip: restore the published generation and re-derive the truth
+    // from it (restore verifies SHA256SUMS internally).
+    await service.restoreToStaging(store.manifest!);
+    final stagingRoot = RestoreStagingLayout.root(appSupport);
+    final prefsPayload = jsonDecode(
+        File(p.join(stagingRoot.path, 'prefs.json')).readAsStringSync())
+        as Map<String, dynamic>;
+    expect(prefsPayload['currentLanguage'], 'tr',
+        reason: 'a pref written after the snapshot must not leak into it');
+    final stagedCourse = sql.sqlite3.open(
+        p.join(stagingRoot.path, 'course.db'),
+        mode: sql.OpenMode.readOnly);
+    final lateTable = stagedCourse.select(
+        "SELECT count(*) AS n FROM sqlite_master WHERE name = 'late_write'");
+    expect(lateTable.first['n'], 0,
+        reason: 'a db write landing after the snapshot must not leak in');
+    stagedCourse.dispose();
+
+    // The uploaded media object still carries the bytes captured at
+    // snapshot time ([4,5,6]), and its content-addressed name matches them.
+    final media = parseMediaManifest(File(
+            p.join(stagingRoot.path, RestoreStagingLayout.mediaManifestEntry))
+        .readAsStringSync());
+    final sha = media['anki_media/imp1/a.mp3']!.sha256;
+    final stagedObject =
+        File(p.join(RestoreStagingLayout.media(appSupport).path, sha));
+    expect(stagedObject.existsSync(), isTrue);
+    expect(stagedObject.readAsBytesSync(), [4, 5, 6],
+        reason:
+            'uploads read the verified staging copy, not the mutated live file');
+    // And the live (mutated) media did not silently poison the object name.
+    expect(sha, isNot(archiveFileSha256(
+        p.join(appSupport.path, 'anki_media', 'imp1', 'a.mp3'))));
+  });
+
+  test('an interrupted upload keeps the previous generation and recovers',
+      () async {
+    final flaky = _FailingStore(store.storage);
+    final service = RemoteBackupService(
+      prefs: prefs,
+      configStore: configStore,
+      snapshotService: snapshotService,
+      appSupport: appSupport,
+      storeFactory: (_) => flaky,
+    );
+
+    final first = await service.backupNow();
+    flaky.failCoreUpload = true;
+    await expectLater(service.backupNow(), throwsException);
+    expect(flaky.manifest!.backupId, first.backupId,
+        reason: 'an interrupted upload must never replace the manifest');
+    expect(
+      Directory(p.join(appSupport.path, 'backup_staging')).existsSync(),
+      isFalse,
+      reason: 'the failed run cleans its staging directory',
+    );
+
+    flaky.failCoreUpload = false;
+    final third = await service.backupNow();
+    expect(flaky.manifest!.backupId, third.backupId);
+    expect(
+        flaky.manifest!.history.map((e) => e.backupId), contains(first.backupId));
+    expect(
+        flaky.manifest!.history.map((e) => e.backupId),
+        isNot(contains(predicate<String>(
+            (id) => id != first.backupId && id != third.backupId))),
+        reason: 'the interrupted generation was never published');
   });
 
   test('restoreToStaging stages a verifiable, marker-armed restore', () async {

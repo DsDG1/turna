@@ -187,9 +187,6 @@ const Map<String, Set<String>> _allowedApplicationDataImports = {
     'lib/data/course_database.dart', // handle: databaseOrNull + V2 read seam
     'lib/data/course_repository.dart', // local-handle construction
   },
-  'lib/application/course_scope_migration.dart': {
-    'lib/data/course_database.dart', // drift-ops: one-shot scope repair SQL
-  },
   // ── Maintenance / diagnostics / migration serialization ─────────────────
   'lib/application/fun_lab_snapshot_service.dart': {
     'lib/data/course_database.dart', // handle: snapshot ctor param

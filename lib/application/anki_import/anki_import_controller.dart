@@ -22,6 +22,7 @@ import 'package:turna/application/anki_official/projection/official_anki_mapping
 import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/service/remote_backup/remote_backup_busy_gate.dart';
 import 'package:turna/utils/validated_file_picker.dart';
 
 /// File extensions accepted by the Anki import wizard.
@@ -39,6 +40,9 @@ class AnkiImportController extends ChangeNotifier {
 
   final AnkiImportDependencies _deps;
   final completion = const AnkiImportCompletionCoordinator();
+
+  /// Backup mutual-exclusion scope for the parse/commit work (plan P0).
+  static const _activityScope = 'anki_import';
 
   AnkiImportWizardState _state = const AnkiImportSelecting();
   AnkiImportWizardState get state => _state;
@@ -74,6 +78,14 @@ class AnkiImportController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Runs [body] inside the backup mutual-exclusion scope (plan P0): a
+  /// running backup snapshot surfaces as a wizard failure via [onBlocked].
+  Future<void> _withActivityScope(
+    Future<void> Function() body, {
+    required void Function(String message) onBlocked,
+  }) =>
+      runStudyActivityScope(_activityScope, body, onBlocked: onBlocked);
+
   // ─── Selection & parsing intents ────────────────────────────────────
 
   /// Opens the file picker; on a picked path continues with
@@ -104,7 +116,10 @@ class AnkiImportController extends ChangeNotifier {
   /// atomic plan for the whole import (doc 34 W0) and dispatches to the
   /// official-first saga. Unsupported / fail-closed plans produce zero
   /// sources and return to Selecting with the mapped error.
-  Future<void> proceedWithPath(String path) async {
+  Future<void> proceedWithPath(String path) =>
+      _withActivityScope(() => _proceedWithPath(path), onBlocked: _failToSelect);
+
+  Future<void> _proceedWithPath(String path) async {
     if (catalogHasUnfinishedOfficialImport()) {
       _failToSelect(unfinishedImportBlocksNewMessage());
       return;
@@ -330,7 +345,10 @@ class AnkiImportController extends ChangeNotifier {
     await proceedWithPath(current.filePath);
   }
 
-  Future<void> continuePending(OfficialAnkiPendingImport item) async {
+  Future<void> continuePending(OfficialAnkiPendingImport item) =>
+      _withActivityScope(() => _continuePending(item), onBlocked: _failToSelect);
+
+  Future<void> _continuePending(OfficialAnkiPendingImport item) async {
     final op = ++_operation;
     _cancelRequested = false;
     _emit(AnkiImportParsing(message: AppStrings.ankiImportingOfficialFirst));
@@ -391,7 +409,17 @@ class AnkiImportController extends ChangeNotifier {
 
   /// Commits the active preview. Single-flight: repeated calls while a
   /// commit is running are no-ops (maintainability plan §10.9).
-  Future<void> commit() async {
+  Future<void> commit() {
+    final current = _state;
+    if (current is! AnkiImportPreviewing) return _commit();
+    return _withActivityScope(
+      _commit,
+      onBlocked: (message) =>
+          _emit(AnkiImportFailed(message: message, returnState: current)),
+    );
+  }
+
+  Future<void> _commit() async {
     if (_commitInFlight) return;
     final current = _state;
     if (current is! AnkiImportPreviewing) return;

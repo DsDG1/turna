@@ -10,17 +10,15 @@ import 'package:turna/service/remote_backup/archive_io.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/service/remote_backup/backup_manifest.dart';
 import 'package:turna/service/remote_backup/backup_snapshot_service.dart';
+import 'package:turna/service/remote_backup/remote_backup_busy_gate.dart';
 import 'package:turna/service/remote_backup/remote_backup_config.dart';
 import 'package:turna/service/remote_backup/remote_backup_store.dart';
 import 'package:turna/service/remote_backup/restore_staging.dart';
 import 'package:turna/service/remote_backup/webdav_client.dart';
 import 'package:turna/service/remote_backup/webdav_remote_backup_store.dart';
 
-/// A backup cannot start while an Anki review session or import is running.
-class RemoteBackupBusyException implements Exception {
-  @override
-  String toString() => '复习或导入正在进行中，请稍后再试';
-}
+export 'package:turna/service/remote_backup/remote_backup_busy_gate.dart'
+    show RemoteBackupBusyException, RemoteBackupActiveException;
 
 /// Summary of one completed backup, also persisted locally as the
 /// "last backup" record shown in the UI.
@@ -75,13 +73,13 @@ class RemoteBackupService {
     required Directory appSupport,
     required RemoteBackupStore Function(RemoteBackupResolvedConfig config)
         storeFactory,
-    bool Function()? busyGuard,
+    StudyActivityGate? activityGate,
   })  : _prefs = prefs,
         _configStore = configStore,
         _snapshotService = snapshotService,
         _appSupport = appSupport,
         _storeFactory = storeFactory,
-        _busyGuard = busyGuard;
+        _activityGate = activityGate;
 
   final AppPrefs _prefs;
   final RemoteBackupConfigStore _configStore;
@@ -89,7 +87,14 @@ class RemoteBackupService {
   final Directory _appSupport;
   final RemoteBackupStore Function(RemoteBackupResolvedConfig config)
       _storeFactory;
-  final bool Function()? _busyGuard;
+
+  /// Study/import mutual exclusion for the snapshot period (plan P0). Null
+  /// in tests that do not exercise the busy semantics.
+  final StudyActivityGate? _activityGate;
+
+  /// True while one backupNow/restoreToStaging is running — a second
+  /// concurrent call would collide on the same staging directory.
+  var _inFlight = false;
 
   Directory get _snapshotStaging =>
       Directory(p.join(_appSupport.path, 'backup_staging'));
@@ -154,100 +159,140 @@ class RemoteBackupService {
     void Function(int hashed, int total)? onMediaProgress,
     void Function(int uploaded, int skipped)? onMediaUploadProgress,
   }) async {
-    if (_busyGuard?.call() ?? false) {
-      throw RemoteBackupBusyException();
-    }
-    final config = await _requireConfig();
-    final store = _storeFactory(config);
-    final stopwatch = Stopwatch()..start();
+    if (_inFlight) throw RemoteBackupActiveException();
+    _inFlight = true;
+    try {
+      final config = await _requireConfig();
+      final store = _storeFactory(config);
 
-    await store.ensureLayout();
-    final snapshot = await _snapshotService.build(
-      stagingDir: _snapshotStaging,
-      includeMedia: config.includeMedia,
-      onPhase: onPhase,
-      onMediaProgress: onMediaProgress,
-    );
-
-    var uploaded = 0;
-    var skipped = 0;
-    for (final object in snapshot.mediaObjects.entries) {
-      if (await store.hasMediaObject(object.key)) {
-        skipped++;
-      } else {
-        await store.uploadMediaObject(object.key, File(object.value));
-        uploaded++;
+      await store.ensureLayout();
+      // Consistency boundary for the whole snapshot period (plan P0): the
+      // hold blocks new study/import scopes, and the snapshot build itself
+      // re-checks between phases. Media uploads below read immutable
+      // staging copies, so the hold ends once the archive is packed.
+      final gate = _activityGate;
+      final BackupSnapshot snapshot;
+      gate?.backupEnter();
+      try {
+        snapshot = await _snapshotService.build(
+          stagingDir: _snapshotStaging,
+          includeMedia: config.includeMedia,
+          onPhase: onPhase,
+          onMediaProgress: onMediaProgress,
+          busyCheck: gate?.backupCheck,
+        );
+        gate?.backupCheck();
+      } finally {
+        gate?.backupExit();
       }
-      onMediaUploadProgress?.call(uploaded, skipped);
+
+      var uploaded = 0;
+      var skipped = 0;
+      for (final object in snapshot.mediaObjects.entries) {
+        if (await store.hasMediaObject(object.key)) {
+          skipped++;
+        } else {
+          await store.uploadMediaObject(object.key, File(object.value));
+          uploaded++;
+        }
+        onMediaUploadProgress?.call(uploaded, skipped);
+      }
+
+      await store.uploadCoreZip(snapshot.backupId, snapshot.coreZip);
+
+      final previous = await store.fetchManifest();
+      final head = RemoteBackupManifestEntry(
+        backupId: snapshot.backupId,
+        createdAtUtc: snapshot.meta.createdAtUtc,
+        coreZipObject:
+            WebDavRemoteBackupStore.coreZipObjectFor(snapshot.backupId),
+        coreZipSha256: snapshot.coreZipSha256,
+        coreZipBytes: snapshot.coreZipBytes,
+        mediaCount: snapshot.mediaManifest.length,
+        mediaBytes:
+            snapshot.mediaManifest.values.fold<int>(0, (sum, e) => sum + e.bytes),
+      );
+      final manifest = RemoteBackupManifest(
+        backupId: snapshot.backupId,
+        createdAtUtc: snapshot.meta.createdAtUtc,
+        deviceId: ensureRemoteBackupDeviceId(_prefs),
+        deviceLabel: snapshot.meta.deviceLabel,
+        appVersion: snapshot.meta.appVersion,
+        buildNumber: snapshot.meta.buildNumber,
+        platform: snapshot.meta.platform,
+        driftSchema: snapshot.meta.driftSchema,
+        catalogSchema: snapshot.meta.catalogSchema,
+        coreZipObject: head.coreZipObject,
+        coreZipSha256: head.coreZipSha256,
+        coreZipBytes: head.coreZipBytes,
+        mediaCount: head.mediaCount,
+        mediaBytes: head.mediaBytes,
+        history: RemoteBackupManifest.mergeHistory(previous),
+      );
+      await store.publishManifest(manifest);
+
+      // Retention: drop previous generations that fell out of the window.
+      final keep = <String>{
+        manifest.backupId,
+        ...manifest.history.map((e) => e.backupId),
+      };
+      final candidates = <String>{
+        if (previous != null) previous.backupId,
+        if (previous != null) ...previous.history.map((e) => e.backupId),
+      }.difference(keep);
+      for (final backupId in candidates) {
+        await store.deleteBackup(backupId);
+      }
+
+      final result = RemoteBackupResult(
+        backupId: snapshot.backupId,
+        createdAtUtc: snapshot.meta.createdAtUtc,
+        coreZipBytes: snapshot.coreZipBytes,
+        mediaUploaded: uploaded,
+        mediaSkipped: skipped,
+      );
+      await _prefs.preferences.setString(
+          LocalStateKeys.remoteBackupLastInfo, jsonEncode(result.toJson()));
+      return result;
+    } finally {
+      _inFlight = false;
+      await _tryCleanStaging();
     }
+  }
 
-    await store.uploadCoreZip(snapshot.backupId, snapshot.coreZip);
-
-    final previous = await store.fetchManifest();
-    final head = RemoteBackupManifestEntry(
-      backupId: snapshot.backupId,
-      createdAtUtc: snapshot.meta.createdAtUtc,
-      coreZipObject:
-          WebDavRemoteBackupStore.coreZipObjectFor(snapshot.backupId),
-      coreZipSha256: snapshot.coreZipSha256,
-      coreZipBytes: snapshot.coreZipBytes,
-      mediaCount: snapshot.mediaManifest.length,
-      mediaBytes:
-          snapshot.mediaManifest.values.fold<int>(0, (sum, e) => sum + e.bytes),
-    );
-    final manifest = RemoteBackupManifest(
-      backupId: snapshot.backupId,
-      createdAtUtc: snapshot.meta.createdAtUtc,
-      deviceId: ensureRemoteBackupDeviceId(_prefs),
-      deviceLabel: snapshot.meta.deviceLabel,
-      appVersion: snapshot.meta.appVersion,
-      buildNumber: snapshot.meta.buildNumber,
-      platform: snapshot.meta.platform,
-      driftSchema: snapshot.meta.driftSchema,
-      catalogSchema: snapshot.meta.catalogSchema,
-      coreZipObject: head.coreZipObject,
-      coreZipSha256: head.coreZipSha256,
-      coreZipBytes: head.coreZipBytes,
-      mediaCount: head.mediaCount,
-      mediaBytes: head.mediaBytes,
-      history: RemoteBackupManifest.mergeHistory(previous),
-    );
-    await store.publishManifest(manifest);
-
-    // Retention: drop previous generations that fell out of the window.
-    final keep = <String>{
-      manifest.backupId,
-      ...manifest.history.map((e) => e.backupId),
-    };
-    final candidates = <String>{
-      if (previous != null) previous.backupId,
-      if (previous != null) ...previous.history.map((e) => e.backupId),
-    }.difference(keep);
-    for (final backupId in candidates) {
-      await store.deleteBackup(backupId);
+  /// Best-effort staging cleanup; the next build wipes it anyway, so a
+  /// failed delete must never mask the original error.
+  Future<void> _tryCleanStaging() async {
+    try {
+      if (await _snapshotStaging.exists()) {
+        await _snapshotStaging.delete(recursive: true);
+      }
+    } catch (_) {
+      // Left for the next run to wipe.
     }
-
-    final result = RemoteBackupResult(
-      backupId: snapshot.backupId,
-      createdAtUtc: snapshot.meta.createdAtUtc,
-      coreZipBytes: snapshot.coreZipBytes,
-      mediaUploaded: uploaded,
-      mediaSkipped: skipped,
-    );
-    await _prefs.preferences.setString(
-        LocalStateKeys.remoteBackupLastInfo, jsonEncode(result.toJson()));
-
-    if (await _snapshotStaging.exists()) {
-      await _snapshotStaging.delete(recursive: true);
-    }
-    stopwatch.stop();
-    return result;
   }
 
   /// Downloads and verifies a remote backup into the local staging area and
   /// arms the boot-time restore marker. The actual apply happens on next app
   /// start (all databases are closed then).
   Future<void> restoreToStaging(
+    RemoteBackupManifest manifest, {
+    void Function(int done, int total)? onMediaProgress,
+  }) async {
+    if (_inFlight) throw RemoteBackupActiveException();
+    // A restore arms a boot-time apply that replaces every database; work
+    // written by a review/import running now would be silently discarded on
+    // the next start, so restoring stays mutually exclusive with studying.
+    _activityGate?.backupCheck();
+    _inFlight = true;
+    try {
+      await _restoreToStaging(manifest, onMediaProgress: onMediaProgress);
+    } finally {
+      _inFlight = false;
+    }
+  }
+
+  Future<void> _restoreToStaging(
     RemoteBackupManifest manifest, {
     void Function(int done, int total)? onMediaProgress,
   }) async {

@@ -69,20 +69,6 @@ void main() {
         1, 1, 1, 0
       )
     ''');
-    await db.customStatement('''
-      INSERT INTO anki_notes (
-        import_id, note_id, mid, tags, fields_json, sfld
-      ) VALUES (
-        'imp1', 1, 1, '', '["Q","A"]', 'Q'
-      )
-    ''');
-    await db.customStatement('''
-      INSERT INTO anki_cards_meta (
-        import_id, card_id, note_id, ord, did, word_id, render_mode
-      ) VALUES (
-        'imp1', 10, 1, 0, 1, 'anki-imp1-c10', 'hybrid'
-      )
-    ''');
     tempRoot = await Directory.systemTemp.createTemp('turna-mig-');
   });
 
@@ -112,7 +98,6 @@ void main() {
 
     expect(result.zipFile.existsSync(), isTrue);
     expect(result.manifest['format'], kTurnaMigrationFormat);
-    expect(result.manifest['legacyAnkiDisposition'], 'legacyPendingMigration');
     expect(result.manifest['counts']['srsStates'], 1);
     expect(result.manifest['counts']['ankiSources'], 1);
     expect(result.manifest['counts']['mediaObjects'], 1);
@@ -129,8 +114,6 @@ void main() {
       'review_history.jsonl',
       'mistakes.jsonl',
       'anki_sources.jsonl',
-      'anki_notes.jsonl',
-      'anki_cards.jsonl',
       'introductions.jsonl',
       'media_manifest.json',
       'SHA256SUMS',

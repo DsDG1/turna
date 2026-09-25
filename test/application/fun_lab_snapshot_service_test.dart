@@ -183,17 +183,6 @@ void main() {
          next_interval_days, prev_ease, next_ease, reps, lapses, type)
       VALUES ('word', 'srs', 111, 4, 3, 12, 2.3, 2.35, 4, 1, 'word')
     ''');
-    await db.customStatement('''
-      INSERT INTO anki_imports
-        (import_id, source_path, source_hash, imported_at)
-      VALUES ('imp', 'deck.apkg', 'hash', 1)
-    ''');
-    await db.customStatement('''
-      INSERT INTO anki_cards_meta
-        (import_id, card_id, note_id, word_id, suspended, buried_until,
-         marked, flag)
-      VALUES ('imp', 1, 1, 'anki-imp-c1', 1, 999, 1, 3)
-    ''');
     await prefs.preferences.setInt(LocalStateKeys.score, 321);
     await prefs.preferences.setInt(LocalStateKeys.gems, 45);
     await prefs.preferences.setStringList(
@@ -228,10 +217,6 @@ void main() {
     await prefs.preferences.setBool(LocalStateKeys.funAutoAnswer, true);
     await srsDao.upsert('srs', item('word', due.add(const Duration(days: 10))));
     await db.customStatement('DELETE FROM review_events');
-    await db.customStatement('''
-      UPDATE anki_cards_meta SET suspended = 0, buried_until = NULL,
-        marked = 0, flag = 0 WHERE import_id = 'imp' AND card_id = 1
-    ''');
 
     await service.restoreSnapshot();
 
@@ -288,16 +273,6 @@ void main() {
     final history = await db.customSelect('SELECT * FROM review_events').get();
     expect(history, hasLength(1));
     expect(history.single.read<int>('reviewed_at'), 111);
-    final anki = await db
-        .customSelect(
-          "SELECT suspended, buried_until, marked, flag FROM anki_cards_meta "
-          "WHERE import_id = 'imp' AND card_id = 1",
-        )
-        .getSingle();
-    expect(anki.read<int>('suspended'), 1);
-    expect(anki.read<int?>('buried_until'), 999);
-    expect(anki.read<int>('marked'), 1);
-    expect(anki.read<int>('flag'), 3);
     expect(await service.loadMeta(), isNotNull,
         reason: 'restore keeps the reusable checkpoint');
   });

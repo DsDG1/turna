@@ -6,20 +6,17 @@ import 'package:flutter/material.dart';
 
 // Package imports:
 import 'package:auto_route/auto_route.dart';
-import 'package:provider/provider.dart';
+
 
 // Project imports:
 import 'package:turna/application/anki_official/review/formal_review_launcher.dart';
-import 'package:turna/application/anki_official/browser/legacy_anki_card_browser.dart';
 import 'package:turna/application/anki_official/browser/official_anki_source_aware_browser.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/official_anki_catalog_service.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
-import 'package:turna/application/srs_provider.dart';
 import 'package:turna/core/logger.dart';
-import 'package:turna/di/injection.dart';
 import 'package:turna/application/anki_official/official_anki_ids.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -45,12 +42,9 @@ class AnkiCardBrowserPage extends StatefulWidget {
 class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
   final _searchController = TextEditingController();
   final _tagController = TextEditingController();
-  final _legacy = getIt<LegacyAnkiCardBrowser>();
   Timer? _debounce;
-  List<AnkiCardBrowserRecord> _rows = const [];
   List<SourceAwareBrowserCard> _officialRows = const [];
   bool _loading = true;
-  bool _officialSource = false;
   int? _flag;
   bool? _marked;
   bool? _suspended;
@@ -109,7 +103,6 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
     // Doc 38 P4-A: one long-lived browser (and preview LRU) for the page
     // so re-searches and row rebuilds hit the cache instead of the FFI.
     final browser = _browser ??= catalogService.browser(
-      legacyNotes: _legacy.notes,
       previewCache: _previewCache,
     );
     if (browser != null && catalogService.isOfficialSource(widget.importId)) {
@@ -126,8 +119,10 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
         ),
         ownerHint: AnkiEngineKind.official,
       );
-      final cards = catalogService.cardsForSource(widget.importId);
-      final deckIds = cards.map((card) => card.deckId).toSet();
+      // Plan P4: the deck dropdown needs only the distinct deck ids — a
+      // dedicated query, not a full card-descriptor materialization.
+      final deckIds =
+          catalogService.deckIdsForSource(widget.importId).toSet();
       final names = <int, String>{for (final id in deckIds) id: '#$id'};
       final engine = OfficialAnkiCompositionRoot.engine;
       if (engine != null) {
@@ -141,28 +136,19 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
       }
       if (!mounted) return;
       setState(() {
-        _officialSource = true;
         _officialRows = result.rows;
         _officialUnavailableReason = result.available ? null : result.reason;
         _deckOptions = names;
-        _rows = const [];
         _loading = false;
       });
       return;
     }
-    final rows = await _legacy.search(
-      widget.importId,
-      _searchController.text,
-      flag: _flag,
-      marked: _marked,
-      suspended: _suspended,
-    );
+    // Legacy NoteStore browsing is retired (plan P1): anything that does
+    // not resolve to an Official source fails closed with a visible reason.
     if (!mounted) return;
     setState(() {
-      _officialSource = false;
       _officialRows = const [];
-      _officialUnavailableReason = null;
-      _rows = rows;
+      _officialUnavailableReason = 'legacy_note_store_retired';
       _loading = false;
     });
   }
@@ -181,76 +167,6 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
       suspended: !row.suspended,
     );
     await _load();
-  }
-
-  Future<void> _toggle(AnkiCardBrowserRecord row,
-      {bool? marked, bool? suspended}) async {
-    await _legacy.setCardState(
-      row.card.importId,
-      row.card.cardId,
-      marked: marked,
-      suspended: suspended,
-    );
-    if (suspended != null &&
-        mounted &&
-        !row.card.wordId.startsWith('official-anki-')) {
-      await context.read<SrsProvider>().setWordFlags(
-            row.card.wordId,
-            suspended: suspended,
-          );
-    }
-    await _load();
-  }
-
-  Future<void> _showDetails(AnkiCardBrowserRecord row) async {
-    await showDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(AppStrings.ankiBrowserDiagTitle),
-        content: SizedBox(
-          width: 560,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _DiagnosticRow(AppStrings.ankiBrowserDiagOriginalCard,
-                    '#${row.card.cardId}'),
-                _DiagnosticRow(AppStrings.ankiBrowserDiagOriginalNote,
-                    '#${row.note.noteId}'),
-                _DiagnosticRow('Note Type', '#${row.note.mid}'),
-                _DiagnosticRow('Deck', '#${row.card.did}'),
-                _DiagnosticRow(
-                    AppStrings.ankiBrowserDiagRenderMode, row.card.renderMode),
-                _DiagnosticRow(AppStrings.ankiBrowserDiagCoursePractice,
-                    AppStrings.ankiBrowserDiagNoDerived),
-                const SizedBox(height: 12),
-                Text(AppStrings.ankiBrowserDiagRawFields,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        )),
-                const SizedBox(height: 6),
-                for (var i = 0; i < row.note.fields.length; i++) ...[
-                  Text(AppStrings.ankiBrowserDiagFieldN(i + 1),
-                      style: TextStyle(
-                        color: TurnaTheme.textHintColor(context),
-                        fontWeight: FontWeight.w600,
-                      )),
-                  SelectableText(_preview([row.note.fields[i]])),
-                  const SizedBox(height: 8),
-                ],
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(AppStrings.commonClose),
-          ),
-        ],
-      ),
-    );
   }
 
   void _openFormalReview(BuildContext context) {
@@ -360,7 +276,7 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
               ],
             ),
           ),
-          if (_officialSource)
+          if (_officialUnavailableReason == null)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Row(
@@ -429,8 +345,7 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
                               textAlign: TextAlign.center,
                             ),
                           )
-                        : _officialSource
-                            ? (_officialRows.isEmpty
+                        : (_officialRows.isEmpty
                                 ? Center(
                                     child:
                                         Text(AppStrings.ankiBrowserNoMatches))
@@ -486,115 +401,12 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
                                         ),
                                       );
                                     },
-                                  ))
-                            : _rows.isEmpty
-                                ? Center(
-                                    child:
-                                        Text(AppStrings.ankiBrowserNoMatches))
-                                : ListView.builder(
-                                    padding: const EdgeInsets.fromLTRB(
-                                        12, 0, 12, 20),
-                                    itemCount: _rows.length,
-                                    itemBuilder: (context, index) {
-                                      final row = _rows[index];
-                                      return Card(
-                                        child: ListTile(
-                                          onTap: () => _showDetails(row),
-                                          leading:
-                                              _FlagIcon(flag: row.card.flag),
-                                          title: Text(
-                                            _preview(row.note.fields),
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          subtitle: Text(
-                                            '#${row.card.cardId}  ${row.card.suspended ? AppStrings.ankiBrowserSuspended : ''}${row.card.marked ? ' · ${AppStrings.ankiBrowserMarked}' : ''}',
-                                            style: TextStyle(
-                                              color: TurnaTheme.textHintColor(
-                                                  context),
-                                            ),
-                                          ),
-                                          trailing: PopupMenuButton<String>(
-                                            onSelected: (value) {
-                                              if (value == 'mark') {
-                                                _toggle(row,
-                                                    marked: !row.card.marked);
-                                              } else if (value == 'suspend') {
-                                                _toggle(row,
-                                                    suspended:
-                                                        !row.card.suspended);
-                                              } else if (value == 'review') {
-                                                _openFormalReview(context);
-                                              }
-                                            },
-                                            itemBuilder: (context) => [
-                                              PopupMenuItem(
-                                                  value: 'review',
-                                                  child: Text(AppStrings
-                                                      .ankiBrowserGoReview)),
-                                              PopupMenuItem(
-                                                  value: 'mark',
-                                                  child: Text(row.card.marked
-                                                      ? AppStrings
-                                                          .ankiBrowserUnmark
-                                                      : AppStrings
-                                                          .ankiBrowserMark)),
-                                              PopupMenuItem(
-                                                  value: 'suspend',
-                                                  child: Text(row.card.suspended
-                                                      ? AppStrings
-                                                          .ankiBrowserResume
-                                                      : AppStrings
-                                                          .ankiCardSuspend)),
-                                            ],
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-          ),
+                                  ))          ),
         ],
       ),
     );
   }
 
-  String _preview(List<String> fields) {
-    final value = fields.join(' / ');
-    return value
-        .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), ' ')
-        .replaceAll(RegExp(r'<[^>]+>'), '')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
-  }
-}
-
-class _DiagnosticRow extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _DiagnosticRow(this.label, this.value);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 92,
-            child: Text(
-              label,
-              style: TextStyle(
-                color: TurnaTheme.textHintColor(context),
-              ),
-            ),
-          ),
-          Expanded(child: SelectableText(value)),
-        ],
-      ),
-    );
-  }
 }
 
 /// Doc 38 P4-A: the list row renders lazily — an empty preview triggers one

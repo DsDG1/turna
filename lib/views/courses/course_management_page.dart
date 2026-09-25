@@ -388,7 +388,17 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
       languageProvider.setLanguageCode(code);
       unawaited(languageProvider.cacheLanguage());
     }
-    await courseProvider.setScope(entry.scope);
+    try {
+      await courseProvider.setScope(entry.scope);
+    } on CourseScopeSwitchException catch (error) {
+      // The provider rolled everything back to the previous language; the
+      // premature TTS flip above is included in that rollback.
+      if (context.mounted) {
+        TurnaSnackBar.show(
+            context, AppStrings.settingsLanguageSwitchFailed(error.cause));
+      }
+      return;
+    }
     if (context.mounted) {
       await context.router.maybePop();
     }

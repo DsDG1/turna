@@ -34,6 +34,7 @@ import 'package:turna/views/review/components/study_card_surface.dart';
 import 'package:turna/views/review/components/unified_review_completion.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
+import 'package:turna/views/widgets/study_activity_scope.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 
 /// Shared formal-review session for Official-owned Anki cards.
@@ -73,7 +74,8 @@ class AnkiReviewSessionPage extends StatefulWidget {
   State<AnkiReviewSessionPage> createState() => _AnkiReviewSessionPageState();
 }
 
-class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
+class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
+    with StudyActivityScopeMixin<AnkiReviewSessionPage> {
   bool _loading = true;
   Object? _error;
   StudySessionController? _controller;
@@ -151,6 +153,18 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage> {
   }
 
   Future<void> _start() async {
+    // Backup mutual-exclusion scope (plan P0): a remote backup snapshot in
+    // progress fails the session load with a visible message instead of
+    // racing scheduler writes against the snapshot. Retry paths re-enter
+    // `_start`, so the mixin releases the previous scope first.
+    final blocked = enterStudyScope('anki_review_session');
+    if (blocked != null) {
+      setState(() {
+        _loading = false;
+        _error = blocked;
+      });
+      return;
+    }
     setState(() {
       _loading = true;
       _error = null;

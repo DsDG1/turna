@@ -5,25 +5,16 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
-import 'package:turna/application/anki_official/anki_import_cleanup_service.dart';
 import 'package:turna/application/anki_official/introduction/card_introduction_eligibility.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_post_retire_reclaimer.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_retire_service.dart';
-import 'package:turna/application/audio_controller.dart';
-import 'package:turna/application/mistake_provider.dart';
-import 'package:turna/application/review_dashboard/review_data_revision.dart';
-import 'package:turna/application/srs_provider.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/domain/repositories/i_anki_import_store.dart';
-import 'package:turna/domain/repositories/i_anki_note_store.dart';
-import 'package:turna/domain/repositories/i_anki_unification_store.dart';
 import 'package:turna/data/course_database.dart';
-import 'package:turna/domain/repositories/i_review_history_store.dart';
 import 'package:turna/di/injection.dart';
-import 'package:turna/domain/audio/anki_audio_resolver.dart';
 import 'package:turna/domain/repositories/i_course_repository.dart';
 import 'package:turna/service/locator.dart';
 
@@ -38,34 +29,16 @@ import 'package:turna/service/locator.dart';
 @lazySingleton
 class AnkiDeckManager {
   final ICourseRepository _repo;
-  final SrsProvider _srsProvider;
   final IAnkiImportStore _importDao;
-  final IAnkiNoteStore _noteDao;
-  final AnkiAudioResolver _audioResolver;
-  final IAnkiUnificationStore? _unificationDao;
   final AppPrefs _appPrefs;
-  final MistakeProvider? _mistakeProvider;
-  final IReviewHistoryStore? _reviewHistoryDao;
 
   AnkiDeckManager({
     required ICourseRepository repo,
-    required SrsProvider srsProvider,
     required IAnkiImportStore importDao,
-    required IAnkiNoteStore noteDao,
     required AppPrefs appPrefs,
-    AnkiAudioResolver? audioResolver,
-    IAnkiUnificationStore? unificationDao,
-    MistakeProvider? mistakeProvider,
-    IReviewHistoryStore? reviewHistoryDao,
   })  : _repo = repo,
-        _srsProvider = srsProvider,
         _importDao = importDao,
-        _noteDao = noteDao,
-        _appPrefs = appPrefs,
-        _audioResolver = audioResolver ?? AnkiAudioResolver(),
-        _unificationDao = unificationDao,
-        _mistakeProvider = mistakeProvider,
-        _reviewHistoryDao = reviewHistoryDao;
+        _appPrefs = appPrefs;
 
   // ─── Review Limits ──────────────────────────────────────────────────
 
@@ -126,19 +99,16 @@ class AnkiDeckManager {
   // ─── Deck Uninstall ─────────────────────────────────────────────────
 
   /// Route an uninstall through the resolved owner. CourseDatabase authority
-  /// identifies Official ids, `legacy_anki_migrations` translates mirrored
-  /// Legacy ids, and the course-tree prefix is only a recovery hint. A
-  /// mirrored import is cleaned on both sides — official collection/catalog
-  /// first, then the legacy rows. Returns false when Official cleanup is
-  /// safely deferred for a later retry.
+  /// identifies Official ids; the course-tree prefix is only a recovery
+  /// hint. Ids that resolve to neither are already gone (or predate the
+  /// Official cutover — the Legacy cleanup path is retired, plan P1) and
+  /// report as removed. Returns false when Official cleanup is safely
+  /// deferred for a later retry.
   Future<bool> uninstall(String importId) async {
     final owner = await _resolveDeletionOwner(importId);
     final officialSourceId = owner.officialSourceId;
     if (officialSourceId != null) {
       return _uninstallV2Source(officialSourceId);
-    }
-    if (await _hasLegacyArtifacts(importId)) {
-      await uninstallDeck(importId);
     }
     return true;
   }
@@ -265,16 +235,6 @@ class AnkiDeckManager {
     return AnkiDeletionOwner(importId: importId);
   }
 
-  /// Whether legacy rows (import record or `anki-<importId>-…` sections)
-  /// still exist for this id. Mirrored imports own both sides; pure
-  /// official-first sources own none.
-  Future<bool> _hasLegacyArtifacts(String importId) async {
-    if (await _importDao.getById(importId) != null) return true;
-    final prefix = 'anki-$importId-';
-    final sections = await _repo.sectionShells();
-    return sections.any((section) => section.id.startsWith(prefix));
-  }
-
   /// Per-deck daily new-card limit override, or `null` for the global limit.
   Future<int?> dailyNewLimitFor(String importId) =>
       _importDao.dailyNewLimitFor(importId);
@@ -368,61 +328,10 @@ class AnkiDeckManager {
     await OfficialAnkiCompositionRoot.requireImporter();
     return OfficialAnkiCompositionRoot.engine;
   }
-
-  /// Completely uninstall an imported Anki deck.
-  ///
-  /// Delegates to [AnkiImportCleanupService.deleteAll] — the single uninstall
-  /// saga (also used by the import wizard's rollback) — so the two paths can
-  /// never drift apart again. Steps: vocabulary by tag, section tree by exact
-  /// prefix, SRS entries (awaited), review history, unification bookkeeping,
-  /// media files, NoteStore + derived tables, import metadata, mistake log,
-  /// orchestrator caches.
-  Future<void> uninstallDeck(String importId) async {
-    await AnkiImportCleanupService(
-      repository: _repo,
-      srsProvider: _srsProvider,
-      importDao: _importDao,
-      noteDao: _noteDao,
-      reviewHistoryDao: _reviewHistoryDao,
-      audioResolver: _audioResolver,
-      unificationDao: _unificationDao,
-      mistakeProvider: _mistakeProvider,
-      audioController: _locateAudioController(),
-      dataRevision: _locateReviewDataRevision(),
-    ).deleteAll(importId);
-  }
-
-  /// The cleanup service releases the media player's file handles before
-  /// deleting deck media. Resolved lazily so tests that never register an
-  /// [AudioController] can still construct and run this manager.
-  AudioController? _locateAudioController() {
-    try {
-      return getIt.isRegistered<AudioController>()
-          ? getIt<AudioController>()
-          : null;
-    } catch (suppressed) {
-      logger.w('[AnkiDeckManager] suppressed error: $suppressed');
-      return null;
-    }
-  }
-
-  /// Revision bump after uninstall invalidates revision-keyed dashboard /
-  /// insights snapshots that still count the removed deck's events. Resolved
-  /// lazily so tests without the dashboard graph still run this manager.
-  ReviewDataRevision? _locateReviewDataRevision() {
-    try {
-      return getIt.isRegistered<ReviewDataRevision>()
-          ? getIt<ReviewDataRevision>()
-          : null;
-    } catch (_) {
-      return null;
-    }
-  }
 }
 
-/// The persisted owner(s) an uninstall id resolves to. Mirrored imports
-/// (legacy main write + official mirror) carry both sides; [officialSourceId]
-/// is null for pure legacy decks.
+/// The persisted owner an uninstall id resolves to. [officialSourceId] is
+/// null for ids that predate the Official cutover (no-op uninstall).
 class AnkiDeletionOwner {
   const AnkiDeletionOwner({required this.importId, this.officialSourceId});
 

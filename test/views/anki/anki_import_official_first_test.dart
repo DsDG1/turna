@@ -34,7 +34,6 @@ import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/data/anki_import_dao.dart';
-import 'package:turna/data/anki_note_dao.dart';
 import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/data/course_repository.dart';
@@ -49,7 +48,6 @@ import 'package:path/path.dart' as p;
 
 import '../../helpers/in_memory_course_db.dart';
 import 'package:turna/domain/repositories/i_anki_import_store.dart';
-import 'package:turna/domain/repositories/i_anki_note_store.dart';
 import 'package:turna/domain/repositories/i_anki_unification_store.dart';
 import 'package:turna/domain/repositories/i_review_history_store.dart';
 
@@ -141,7 +139,6 @@ void main() {
     getIt.registerSingleton<CourseDatabase>(db);
     getIt.registerSingleton<ICourseRepository>(CourseRepository(db));
     getIt.registerSingleton<IReviewHistoryStore>(ReviewHistoryDao(db));
-    getIt.registerSingleton<IAnkiNoteStore>(AnkiNoteDao(db));
     final importDao = AnkiImportDao(db);
     getIt.registerSingleton<IAnkiImportStore>(importDao);
     getIt.registerSingleton<IAnkiUnificationStore>(AnkiUnificationDao(db));
@@ -155,9 +152,7 @@ void main() {
     getIt.registerSingleton<AnkiDeckManager>(
       AnkiDeckManager(
         repo: getIt<ICourseRepository>(),
-        srsProvider: srsProvider,
         importDao: importDao,
-        noteDao: getIt<IAnkiNoteStore>(),
         appPrefs: appPrefs,
       ),
     );

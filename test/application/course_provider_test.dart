@@ -322,14 +322,16 @@ void main() {
       expect(restored.sections.single.id, 'anki-deckaa-s10');
     });
 
-    test('legacy string setCourseScope resolves via the catalog', () async {
+    test('legacy string setCourseScope falls back to builtin (plan P1)',
+        () async {
       final provider = CourseProvider(appPrefs);
       await provider.load();
 
+      // Pre-cutover raw values are no longer resolved against the catalog;
+      // the fallback keeps the app on a usable builtin course.
       await provider.setCourseScope('anki:deckbb');
 
-      expect(provider.scope, const LegacyAnkiCourseScope('deckbb'));
-      expect(provider.sections.single.id, 'anki-deckbb-s10');
+      expect(provider.scope, isA<BuiltinCourseScope>());
     });
 
     test('switching back to the built-in scope restores the full course',
@@ -748,8 +750,8 @@ void main() {
     });
 
     test(
-        'legacy anki:<fullSourceId> scope value resolves to the official '
-        'source (upgrade path)', () async {
+        'legacy anki:<fullSourceId> scope value falls back to builtin '
+        '(upgrade path retired, plan P1)', () async {
       await appPrefs.setString(PrefsConstants.courseScope, 'anki:$srcB');
 
       final provider = CourseProvider(appPrefs);
@@ -757,16 +759,14 @@ void main() {
 
       expect(
         provider.scope,
-        OfficialAnkiCourseScope(
-          profileId: 'profile-default-01',
-          sourceId: srcB,
-        ),
+        const BuiltinCourseScope('turkish'),
+        reason: 'pre-cutover raw scope values are no longer resolved; the '
+            'app lands on a usable builtin course instead of guessing',
       );
-      expect(provider.sections, hasLength(1));
     });
 
     group('broken anki:src preference handling (R1-6 provider path)', () {
-      test('with exactly one official source, anki:src re-binds to it',
+      test('with exactly one official source, anki:src falls back to builtin',
           () async {
         // Retire source B in the catalog so only A remains visible; the
         // retired source must not come back through any fallback.
@@ -778,12 +778,9 @@ void main() {
 
         expect(
           provider.scope,
-          OfficialAnkiCourseScope(
-            profileId: 'profile-default-01',
-            sourceId: srcA,
-          ),
-          reason: 'a truncated anki:src with one source re-binds to that '
-              'source instead of guessing',
+          const BuiltinCourseScope('turkish'),
+          reason: 'the truncated-value repair chain is retired (plan P1); '
+              'unparseable scopes land on a builtin course',
         );
       });
 

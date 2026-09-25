@@ -278,7 +278,7 @@ void main() {
 
     final migrated = CourseDatabase(NativeDatabase(File(path)));
     await migrated.customSelect('SELECT 1').get();
-    expect(migrated.schemaVersion, 26);
+    expect(migrated.schemaVersion, CourseDatabase.kSchemaVersion);
 
     // Rows survive with the language backfilled to 'tr'.
     final lesson = await migrated

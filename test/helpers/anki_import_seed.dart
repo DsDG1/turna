@@ -4,7 +4,7 @@
 // production writers.
 
 // Project imports:
-import 'package:drift/drift.dart' show Variable;
+
 import 'package:turna/data/anki_import_dao.dart';
 import 'package:turna/data/course_database.dart';
 
@@ -37,41 +37,6 @@ Future<void> seedAnkiImportRow(CourseDatabase db, AnkiImportRecord r) async {
       r.importedScheduling ? 1 : 0,
       r.lastError,
       r.importId,
-    ],
-  );
-}
-
-/// Mirrors the retired `markComplete`: reconciliation against
-/// `anki_cards_meta` followed by the terminal status update.
-Future<void> seedAnkiImportComplete(
-  CourseDatabase db,
-  String importId, {
-  required int sourceCardCount,
-  required int indexedCardCount,
-  required bool importedScheduling,
-}) async {
-  final stored = await db.customSelect(
-    'SELECT COUNT(*) AS c FROM anki_cards_meta WHERE import_id = ?',
-    variables: [Variable<String>(importId)],
-  ).get();
-  final storedCardCount = stored.first.read<int>('c');
-  if (sourceCardCount != storedCardCount ||
-      sourceCardCount != indexedCardCount) {
-    throw StateError(
-      'Anki reconciliation failed: source=$sourceCardCount, '
-      'stored=$storedCardCount, indexed=$indexedCardCount',
-    );
-  }
-  await db.customStatement(
-    "UPDATE anki_imports SET status = 'complete', source_card_count = ?, "
-    'stored_card_count = ?, indexed_card_count = ?, imported_scheduling = ?, '
-    'last_error = NULL WHERE import_id = ?',
-    [
-      sourceCardCount,
-      storedCardCount,
-      indexedCardCount,
-      importedScheduling ? 1 : 0,
-      importId,
     ],
   );
 }

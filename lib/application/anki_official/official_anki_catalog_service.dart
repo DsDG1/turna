@@ -14,7 +14,6 @@ import 'package:turna/application/anki_official/storage/official_anki_database.d
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/core/logger.dart';
-import 'package:turna/domain/repositories/i_anki_note_store.dart';
 
 // Views consume the row shape through this facade; they never import
 // *_dao.dart files or instantiate DAOs (enforced by layering_guard_test).
@@ -103,6 +102,17 @@ class OfficialAnkiCatalogService {
     return OfficialAnkiSourceDao(db).listCards(sourceId);
   }
 
+  /// Distinct deck ids of a source (plan P4): the card browser dropdown
+  /// reads this instead of materializing every card descriptor.
+  List<int> deckIdsForSource(
+    String sourceId, {
+    OfficialAnkiDatabase? catalog,
+  }) {
+    final db = _catalog(catalog);
+    if (db == null) return const [];
+    return OfficialAnkiSourceDao(db).listDeckIds(sourceId);
+  }
+
   /// Repair-center snapshot: pending imports + source/job rows for
   /// [profileId] (jobs stay empty when no profile is resolved).
   OfficialAnkiCatalogSnapshot repairSnapshot({
@@ -183,9 +193,8 @@ class OfficialAnkiCatalogService {
   }
 
   /// Long-lived browser for the card browser page (doc 38 P4-A). Null when
-  /// no catalog is available — the page falls back to the legacy path.
+  /// no catalog is available — the page then shows the unavailable state.
   OfficialAnkiSourceAwareBrowser? browser({
-    required IAnkiNoteStore legacyNotes,
     OfficialAnkiDatabase? catalog,
     OfficialAnkiEngine? engine,
     OfficialAnkiPreviewCache? previewCache,
@@ -194,7 +203,6 @@ class OfficialAnkiCatalogService {
     if (db == null) return null;
     return OfficialAnkiSourceAwareBrowser(
       sources: OfficialAnkiSourceDao(db),
-      legacyNotes: legacyNotes,
       engine: engine ?? OfficialAnkiCompositionRoot.engine,
       previewCache: previewCache,
     );

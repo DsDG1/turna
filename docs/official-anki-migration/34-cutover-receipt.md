@@ -1,6 +1,6 @@
 # 34 — Cutover receipt（W8–W10 收口摘要）
 
-> 日期：2026-08-25（一次性施工 host 收口后更新）
+> 日期：2026-08-25（一次性施工 host 收口后更新；2026-09-24 架构简化计划 P0–P4 施工后补充下方「架构简化批次」）
 > 状态：**验收 NO-GO；Official Anki 迁移中**（host/自动化门禁全绿、工作树生产候选已形成；真机矩阵与外部事实未验收。不得写「迁移完成」）
 > 计划真源：[`34-official-anki-production-cutover-and-ohos-retirement-plan.md`](./34-official-anki-production-cutover-and-ohos-retirement-plan.md)
 > 剩余波次：[`34-remaining-construction-plan.md`](./34-remaining-construction-plan.md)
@@ -8,6 +8,33 @@
 > OHOS EOL ADR：[ADR 0041](../decisions/0041-ohos-product-eol.md)（草案曾写 0038；0038 已占用）
 
 ---
+
+## 架构简化批次（2026-09-24，`Turna架构简化实施计划` P0–P4）
+
+> 计划 P0 的门禁核对结论：现行收据口径**准确**——host 门禁全绿、无任何正式发版
+> （存量用户数为零）、真机矩阵未跑，**维持 NO-GO 标注**。本批次在 host 侧完成：
+
+- **P0 备份一致性**：busyGuard 生产接线（`StudyActivityGate` 学习/备份互斥，覆盖
+  导入 parse/commit、正式复习、课时与三个练习页）；快照期各阶段间复查，学习活动
+  中途出现即中止并清理 staging；媒体改为复制进 staging 后从副本校验/上传；并发
+  变更/中断/恢复测试覆盖数据库、偏好与媒体（备份域 63 例全绿）。
+- **P1 Legacy 读退役**：Legacy 浏览器/统计分支、Legacy 卸载链、scope 启动修复与
+  `decodeLegacy`、迁移包 NoteStore 载荷、due 聚合 Legacy 词扫描全部删除；非
+  Official 源 fail-closed 显示错误。W9-B..C 的 host 侧部分就此关闭。
+- **P2 schema 清理（W9-E 兑现）**：course.db v27 DROP `anki_notetypes/anki_notes/
+  anki_cards_meta`，`AnkiNoteDao`/`IAnkiNoteStore` 删除；catalog 链 v6/v8 死 DDL
+  移除；**历史迁移链保留不折叠**（逐版本迁移测试齐全，折叠收益不明显；理由见
+  计划文档 P2 记录）。
+- **P3 语言切换失败语义**：内容先加载、失败拒绝切换；级联失败整体回退旧语言并
+  向调用方抛错；偏好写入 await；连续切换串行化（9 例失败注入测试）。
+- **P4**：浏览器牌组下拉改专用牌组查询（不再全量物化卡片）+ 浏览路径性能埋点；
+  `LessonSrsUndoLog` / `CourseCatalogOrdering` 职责拆出（行为不变，小步可回归）。
+- **验证**：`flutter analyze` 0 issue；全量 `flutter test` 1937:2（2 例为
+  course_tree golden 已知本机失配，09-22 批已记录，非本批回归）。
+- **仍 Held**：真机矩阵（干净/升级安装、导入、复习、语言切换、备份恢复、强杀、
+  卸载）与 Android 样本包流程——无设备会话，不以 widget test 替代（plan 34 §4.4）。
+  真机基线测量（冷启动/课程切换/大卡组浏览）随 P4 埋点就绪，待设备执行。
+
 
 ## Done（本收口有仓库证据）
 
@@ -51,7 +78,7 @@
 | 项 | 原因 |
 |---|---|
 | 一个正式 release 观察（G5） | 未发生；2026-08-27 负责人决策按豁免处理（非证据齐备，见 HOLD 解除记录） |
-| W9-B..E Legacy 物理删除 / schema drop | 开工门槛已解除（2026-08-27 负责人决策）；删除尚未执行，主计划 §13.2 波次规则继续有效 |
+| W9-B..E Legacy 物理删除 / schema drop | host 侧已由 2026-09-24 架构简化批次完成（读退役 + v27 表删除，见上方批次记录）；真机验证仍随设备矩阵 |
 | §19「Legacy importer/scheduler/schema 按 W9 分波删除」 | 显式未勾选 |
 | 全量设备/release 真机闭环证明 | 本会话未伪造设备证据 |
 | OHOS 用户完成数据出口 | 导出器/导入器均已落地（Android 导入入口可用）；外部事实未发生：无 sunset 真机、无书面豁免（R7-1 二选一未决） |

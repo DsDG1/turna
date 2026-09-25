@@ -38,6 +38,7 @@ import 'package:turna/views/lesson/components/lesson_dialogs.dart';
 import 'package:turna/views/lesson/components/lesson_stage_widgets.dart';
 import 'package:turna/views/lesson/components/lesson_ai_undo_banner.dart';
 import 'package:turna/views/lesson/components/practice_session_body.dart';
+import 'package:turna/views/widgets/study_activity_scope.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
 import 'package:turna/core/theme.dart';
 
@@ -51,7 +52,8 @@ class NewLessonPage extends StatefulWidget {
   State<NewLessonPage> createState() => _NewLessonPageState();
 }
 
-class _NewLessonPageState extends State<NewLessonPage> {
+class _NewLessonPageState extends State<NewLessonPage>
+    with StudyActivityScopeMixin<NewLessonPage> {
   late final LessonViewModel _vm;
   final Set<InteractionRenderer> _renderers = getIt<Set<InteractionRenderer>>();
   final Random _random = Random();
@@ -85,6 +87,14 @@ class _NewLessonPageState extends State<NewLessonPage> {
   }
 
   Future<void> _openLesson() async {
+    // Backup mutual-exclusion scope (plan P0): while this screen studies a
+    // lesson, a remote backup must not snapshot. A backup running right
+    // now fails the load visibly instead of racing the snapshot.
+    final blocked = enterStudyScope('lesson');
+    if (blocked != null) {
+      if (mounted) setState(() => _loadFailed = true);
+      return;
+    }
     final ok = await _vm.loadLesson(widget.lessonId);
     if (!mounted) return;
     if (!ok) {

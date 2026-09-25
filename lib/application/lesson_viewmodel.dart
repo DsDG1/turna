@@ -24,6 +24,7 @@ import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/lesson_completion_coordinator.dart';
 import 'package:turna/application/mistake_provider.dart';
+import 'package:turna/application/lesson_srs_undo_log.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/core/sm2.dart';
 import 'package:turna/courses/course_loader.dart';
@@ -32,7 +33,6 @@ import 'package:turna/domain/course/interaction_state.dart';
 import 'package:turna/domain/course/lesson.dart';
 import 'package:turna/domain/course/lesson_word_link.dart';
 import 'package:turna/domain/course/mistake_entry.dart';
-import 'package:turna/domain/course/srs_word.dart';
 import 'package:turna/domain/course/stage.dart';
 
 /// Describes the UI state after an answer is submitted.
@@ -85,19 +85,6 @@ class _SubmittedInteraction {
 /// expression / grammar-point grades are tracked alongside word entries so
 /// a single undo restores all three when the lesson's interaction touched
 /// more than one queue.
-class _SrsUndoEntry {
-  final String wordId;
-  final SrsWord? previous;
-  final bool isExpression;
-  final bool isGrammarPoint;
-
-  const _SrsUndoEntry({
-    required this.wordId,
-    required this.previous,
-    this.isExpression = false,
-    this.isGrammarPoint = false,
-  });
-}
 
 /// ViewModel for the lesson flow.
 ///
@@ -126,7 +113,10 @@ class LessonViewModel extends ChangeNotifier {
     this._mistakeProvider,
     this._grammarReviewProvider,
     this._completionCoordinator,
-  );
+  ) : _srsUndoStack = LessonSrsUndoLog(
+          srs: _srsProvider,
+          grammar: _grammarReviewProvider,
+        );
 
   // --- Lesson state ---
   Lesson? _lesson;
@@ -175,12 +165,12 @@ class LessonViewModel extends ChangeNotifier {
   final List<QuestionResult> _questionResults = [];
   final List<_SubmittedInteraction> _submittedInteractions = [];
 
-  /// Per-queue captured `previous` snapshots for [undoLastInteraction].
-  /// Populated in [_applySrsOutcome] before the grade fires; one entry per
-  /// queue (word / expression / grammar-point) that the interaction touched,
-  /// so a single undo restores all three when the same item id referred to
-  /// multiple queues. Drained in [retryMastery] / [_resetToLesson].
-  final List<_SrsUndoEntry> _srsUndoStack = [];
+  /// Per-queue captured `previous` snapshots for [undoLastInteraction]
+  /// (plan P4 extraction — see [LessonSrsUndoLog]). Populated in
+  /// [_applySrsOutcome] before the grade fires; one entry per queue (word /
+  /// expression / grammar-point) that the interaction touched. Drained in
+  /// [retryMastery] / [_resetToLesson].
+  final LessonSrsUndoLog _srsUndoStack;
 
   // --- Getters ---
 
@@ -562,10 +552,10 @@ class LessonViewModel extends ChangeNotifier {
         !effectiveWordId.startsWith('mistake-review-') &&
         !_isAnkiOwned(interaction, effectiveWordId)) {
       _srsProvider.registerWord(effectiveWordId);
-      _srsUndoStack.add(_SrsUndoEntry(
-        wordId: effectiveWordId,
-        previous: _srsProvider.state[effectiveWordId],
-      ));
+      _srsUndoStack.captureWord(
+        effectiveWordId,
+        _srsProvider.state[effectiveWordId],
+      );
       unawaited(
         reviewQuality == null
             ? _srsProvider.reviewWordOutcome(effectiveWordId, outcome)
@@ -577,11 +567,10 @@ class LessonViewModel extends ChangeNotifier {
         expressionId.isNotEmpty &&
         !_ankiKeyResolver.isAnkiOwnedId(expressionId)) {
       _srsProvider.registerExpression(expressionId);
-      _srsUndoStack.add(_SrsUndoEntry(
-        wordId: expressionId,
-        previous: _srsProvider.state[expressionId],
-        isExpression: true,
-      ));
+      _srsUndoStack.captureExpression(
+        expressionId,
+        _srsProvider.state[expressionId],
+      );
       unawaited(_srsProvider.reviewExpressionOutcome(expressionId, outcome));
     }
 
@@ -589,11 +578,10 @@ class LessonViewModel extends ChangeNotifier {
     grammarPointId = interactionGrammarPointId(interaction);
     if (grammarPointId != null && grammarPointId.isNotEmpty) {
       _grammarReviewProvider.registerGrammarPoint(grammarPointId);
-      _srsUndoStack.add(_SrsUndoEntry(
-        wordId: grammarPointId,
-        previous: _grammarReviewProvider.state[grammarPointId],
-        isGrammarPoint: true,
-      ));
+      _srsUndoStack.captureGrammarPoint(
+        grammarPointId,
+        _grammarReviewProvider.state[grammarPointId],
+      );
       unawaited(
           _grammarReviewProvider.reviewWithOutcome(grammarPointId, outcome));
     }
@@ -827,31 +815,9 @@ class LessonViewModel extends ChangeNotifier {
     _officialRedoFlushFailed = false;
     notifyListeners();
 
-    // Walk the SRS undo stack: drain every entry added by the interaction
-    // we just rewound (one word + zero or one expression + zero or one
-    // grammar point). Roll them all back in LIFO order.
-    while (_srsUndoStack.isNotEmpty) {
-      final entry = _srsUndoStack.removeLast();
-      final ok = entry.isGrammarPoint
-          ? await _grammarReviewProvider.rollbackGrammarPoint(
-              entry.wordId,
-              entry.previous,
-            )
-          : entry.isExpression
-              ? await _srsProvider.rollbackExpression(
-                  entry.wordId,
-                  entry.previous,
-                )
-              : await _srsProvider.rollbackWord(entry.wordId, entry.previous);
-      if (!ok) {
-        // Gate held by an in-flight grade — push the entry back so the
-        // user's next undo attempt can retry it. Returning false tells
-        // the UI to leave the snackbar visible / re-enable the button.
-        _srsUndoStack.add(entry);
-        return false;
-      }
-    }
-    return true;
+    // Roll every entry the rewound interaction added back in LIFO order
+    // (one word + zero or one expression + zero or one grammar point).
+    return _srsUndoStack.rollbackAll();
   }
 
   /// Retry a mastery lesson after failing.

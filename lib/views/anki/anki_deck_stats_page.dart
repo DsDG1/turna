@@ -3,12 +3,11 @@ import 'package:flutter/material.dart';
 
 // Package imports:
 import 'package:auto_route/auto_route.dart';
-import 'package:provider/provider.dart';
 
 // Project imports:
 import 'package:turna/application/anki_official/official_anki_catalog_service.dart';
 import 'package:turna/application/anki_official/stats/official_anki_source_aware_stats.dart';
-import 'package:turna/application/memory_curve_provider.dart';
+import 'package:turna/application/memory_curve_provider.dart' show Forecast;
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/review/components/retention_curve_chart.dart';
 import 'package:turna/core/theme.dart';
@@ -36,7 +35,6 @@ class _AnkiDeckStatsPageState extends State<AnkiDeckStatsPage> {
   // resolves catalog + source probe in one call).
   late final Future<OfficialAnkiSourceAwareStatsSnapshot>? _officialStats =
       const OfficialAnkiCatalogService().statsForSource(widget.importId);
-  Future<MemoryCurveSnapshot>? _legacyStats;
 
   @override
   Widget build(BuildContext context) {
@@ -154,65 +152,13 @@ class _AnkiDeckStatsPageState extends State<AnkiDeckStatsPage> {
                 );
               },
             )
-          : FutureBuilder<MemoryCurveSnapshot>(
-              future: _legacyStats ??= context
-                  .read<MemoryCurveProvider>()
-                  .snapshotForImportId(widget.importId),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState != ConnectionState.done) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return Center(
-                      child: Text(
-                          AppStrings.ankiStatsLoadFailed(snapshot.error!)));
-                }
-                final data = snapshot.data;
-                if (data == null || data.totalCards == 0) {
-                  return Center(child: Text(AppStrings.ankiStatsEmpty));
-                }
-                return ListView(
-                  padding: const EdgeInsets.all(20),
-                  children: [
-                    _MetricCard(
-                      title: AppStrings.ankiStatsCurrentRetention,
-                      value: '${(data.currentRetention * 100).round()}%',
-                      icon: Icons.track_changes,
-                    ),
-                    const SizedBox(height: 12),
-                    _ForecastCard(forecast: data.forecast),
-                    const SizedBox(height: 12),
-                    _MetricCard(
-                      title: AppStrings.ankiStatsRevlogLabel,
-                      value: AppStrings.ankiStatsRevlogSummary(
-                          data.totalReviews,
-                          data.trackedCards,
-                          data.totalCards),
-                      icon: Icons.history,
-                    ),
-                    if (data.retentionByInterval.isNotEmpty) ...[
-                      const SizedBox(height: 12),
-                      Card(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(AppStrings.ankiStatsRetentionTitle,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.w700)),
-                              const SizedBox(height: 12),
-                              RetentionCurveChart(
-                                  curve: data.retentionByInterval),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                );
-              },
+        : Center(
+            child: Text(
+              AppStrings.ankiBrowserOfficialUnavailable(
+                  'legacy_note_store_retired'),
+              textAlign: TextAlign.center,
             ),
+          ),
     );
   }
 }
@@ -278,12 +224,12 @@ class _ForecastValue extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(
         children: [
+          Text(label,
+              style: TextStyle(
+                  color: TurnaTheme.textHintColor(context), fontSize: 12)),
           Text('$value',
-              style: Theme.of(context)
-                  .textTheme
-                  .headlineSmall
-                  ?.copyWith(fontWeight: FontWeight.w800)),
-          Text(label),
+              style: const TextStyle(
+                  fontWeight: FontWeight.w700, fontSize: 18)),
         ],
       );
 }

@@ -211,25 +211,14 @@ void main() {
 
     // Doc 38 P1-B/C — the NoteStore/imports write side stays deleted.
     test('anki dao write side stays deleted (doc 38)', () {
-      final dao = File('lib/data/anki_note_dao.dart').readAsStringSync();
-      for (final member in [
-        'replaceDeckIndex',
-        'replaceImportIssues',
-        'replacePracticeProjections',
-        'deckIdsIncludingDescendants',
-        'upsertNotetype',
-        'upsertNote',
-        'upsertCardMeta',
-        'cardMetaByWordId',
-        'wordIdsForDecks',
-        'clearBuriedBefore',
-        'flaggedCards',
-        'AnkiNotetypeRecord',
-        'AnkiTemplate',
-      ]) {
-        expect(dao.contains(member), isFalse,
-            reason: 'anki_note_dao.dart resurrected writer $member');
-      }
+      // Plan P2 went further: the NoteStore DAO itself is gone with its
+      // tables (v27 drop) — the file must not come back.
+      expect(File('lib/data/anki_note_dao.dart').existsSync(), isFalse,
+          reason: 'plan P2 deleted the NoteStore DAO with its tables');
+      expect(
+          File('lib/domain/repositories/i_anki_note_store.dart').existsSync(),
+          isFalse,
+          reason: 'the NoteStore interface retired with the DAO (plan P2)');
       final imports = File('lib/data/anki_import_dao.dart').readAsStringSync();
       for (final member in [
         'Future<void> upsert(',

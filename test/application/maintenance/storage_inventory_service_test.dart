@@ -6,12 +6,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:turna/application/maintenance/storage_inventory_service.dart';
 import 'package:turna/data/anki_import_dao.dart';
-import 'package:turna/data/anki_note_dao.dart';
 import 'package:turna/data/course_database.dart';
 
 import '../../helpers/in_memory_course_db.dart';
 import '../../helpers/anki_import_seed.dart';
-import 'package:turna/domain/repositories/i_anki_note_store.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -29,7 +27,6 @@ void main() {
     await getIt.reset();
     db = CourseDatabase(NativeDatabase.memory());
     getIt.registerSingleton<CourseDatabase>(db);
-    getIt.registerSingleton<IAnkiNoteStore>(AnkiNoteDao(db));
     stamp = 'inv${DateTime.now().microsecondsSinceEpoch}';
   });
 

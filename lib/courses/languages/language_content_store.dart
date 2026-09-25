@@ -41,6 +41,12 @@ class LanguageContentStore {
   static final Map<String, LanguageContentStore> _cache = {};
   static String _activeCode = LanguageCodes.turkish;
 
+  /// Test seam: when set, [ensureLoaded] for this language throws once per
+  /// load attempt, simulating a failed content load (plan P3 failure
+  /// injection). Production never sets it.
+  @visibleForTesting
+  static String? debugLoadFailureForCode;
+
   static String get activeCode => _activeCode;
 
   static LanguageContentStore of(String languageCode) {
@@ -96,6 +102,10 @@ class LanguageContentStore {
   }
 
   Future<void> _load() async {
+    final failFor = debugLoadFailureForCode;
+    if (failFor != null && languageCode == LanguageCodes.canonicalize(failFor)) {
+      throw StateError('debug injected content load failure for $languageCode');
+    }
     final course = await CourseLoader.load(languageCode);
     vocabulary = course.vocabulary;
     vocabularyById = Map<String, WordEntry>.from(course.vocabularyById);

@@ -97,12 +97,9 @@ class OfficialAnkiDatabase {
       if (version <= 4) {
         _upgradeToV5();
       }
-      if (version <= 5) {
-        _upgradeToV6();
-      }
-      if (version <= 7) {
-        _upgradeToV8();
-      }
+      // v6/v8 (Legacy migration ledger DDL) are retired with the tables
+      // themselves: v14 drops them, so creating them mid-upgrade only to
+      // drop them three steps later is dead work (plan P2).
       if (version <= 8) {
         _upgradeToV9();
       }
@@ -253,64 +250,6 @@ CREATE TABLE IF NOT EXISTS anki_source_projection_state (
       "'created','scanning_source','scanning_schema','needs_mapping',"
       "'projecting','publishing','retry_wait','cancel_requested')",
     );
-  }
-
-  void _upgradeToV6() {
-    _db.execute('''
-CREATE TABLE IF NOT EXISTS legacy_anki_migrations (
-  migration_id TEXT PRIMARY KEY,
-  profile_id TEXT NOT NULL,
-  legacy_import_id TEXT NOT NULL,
-  official_source_id TEXT REFERENCES anki_sources(source_id),
-  state TEXT NOT NULL,
-  scheduling_policy TEXT NOT NULL,
-  source_hash TEXT,
-  backup_id TEXT,
-  backup_manifest_hash TEXT,
-  legacy_card_count INTEGER NOT NULL DEFAULT 0,
-  matched_card_count INTEGER NOT NULL DEFAULT 0,
-  unresolved_card_count INTEGER NOT NULL DEFAULT 0,
-  cursor_legacy_card_id INTEGER,
-  official_mutation_count_at_cutover INTEGER NOT NULL DEFAULT 0,
-  started_at_millis INTEGER NOT NULL,
-  updated_at_millis INTEGER NOT NULL,
-  completed_at_millis INTEGER,
-  last_error_code TEXT,
-  last_error_safe_message TEXT,
-  UNIQUE(profile_id, legacy_import_id)
-);
-''');
-    _db.execute('''
-CREATE TABLE IF NOT EXISTS legacy_anki_card_map (
-  migration_id TEXT NOT NULL REFERENCES legacy_anki_migrations(migration_id),
-  legacy_card_id INTEGER NOT NULL,
-  legacy_word_id TEXT NOT NULL,
-  legacy_note_id INTEGER,
-  note_guid TEXT,
-  template_ord INTEGER NOT NULL,
-  official_card_id INTEGER,
-  match_method TEXT NOT NULL,
-  match_state TEXT NOT NULL,
-  content_fingerprint TEXT,
-  PRIMARY KEY(migration_id, legacy_card_id)
-);
-''');
-    _db.execute(
-      'CREATE INDEX IF NOT EXISTS legacy_anki_card_map_migration_idx '
-      'ON legacy_anki_card_map(migration_id)',
-    );
-  }
-
-  void _upgradeToV8() {
-    final hasColumn = _db
-        .select(
-            "SELECT name FROM pragma_table_info('legacy_anki_migrations') WHERE name='recorded_kind'")
-        .isNotEmpty;
-    if (!hasColumn) {
-      _db.execute(
-        "ALTER TABLE legacy_anki_migrations ADD COLUMN recorded_kind TEXT",
-      );
-    }
   }
 
   /// Doc 34 W3: reconciliation journal for owner/census repairs.

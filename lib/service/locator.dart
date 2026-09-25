@@ -18,7 +18,6 @@ import 'package:turna/application/restore_normalization_service.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/core/verbose.dart';
 import 'package:turna/application/anki_official/introduction/card_introduction_store.dart';
-import 'package:turna/application/course_scope_migration.dart';
 import 'package:turna/application/language_registry.dart';
 import 'package:turna/data/anki_unification_dao.dart';
 import 'package:turna/data/course_database.dart';
@@ -30,6 +29,7 @@ import 'package:turna/domain/repositories/i_mistake_repository.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/auth/local_user.dart';
 import 'package:turna/service/remote_backup/backup_snapshot_service.dart';
+import 'package:turna/service/remote_backup/remote_backup_busy_gate.dart';
 import 'package:turna/service/remote_backup/remote_backup_config.dart';
 import 'package:turna/service/remote_backup/remote_backup_service.dart';
 import 'package:turna/service/remote_backup/restore_applier.dart';
@@ -327,6 +327,13 @@ Future<void> setupLocator() async {
   final preferences = await StreamingSharedPreferences.instance;
   getIt.registerLazySingleton<AppPrefs>(() => AppPrefs(preferences));
 
+  // Study/backup mutual-exclusion boundary (plan P0). Entered by the
+  // import wizard's parse/commit work and the review/lesson pages; held by
+  // RemoteBackupService for the whole snapshot period.
+  if (!getIt.isRegistered<StudyActivityGate>()) {
+    getIt.registerLazySingleton<StudyActivityGate>(() => StudyActivityGate());
+  }
+
   // Move a legacy plaintext WebDAV password (old releases stored it inside
   // the prefs JSON) into the secure store. Idempotent; on any failure the
   // plaintext is kept and the migration retries on the next boot.
@@ -422,6 +429,7 @@ Future<void> setupLocator() async {
           configStore: configStore,
           snapshotService: getIt<BackupSnapshotService>(),
           appSupport: appSupport,
+          activityGate: getIt<StudyActivityGate>(),
           storeFactory: (config) => WebDavRemoteBackupStore(
             WebDavClient.fromConfig(config),
             remoteRoot: config.normalized().remoteRoot,
@@ -519,9 +527,8 @@ Future<CourseDatabase> _openAndMigrateCourseDatabase() async {
   return db;
 }
 
-/// Asset seed plus course-scope preference repair. Runs after the first frame
-/// and before any course-tree read. Scope repair needs the seeded catalog and
-/// must still finish before [CourseProvider] consumes the preference.
+/// Asset seed. Runs after the first frame and before any course-tree read.
+/// (The one-shot course-scope preference repair is retired — plan P1.)
 Future<void> _seedCourseDatabase(CourseDatabase db) async {
   try {
     await LanguageRegistry.instance.load();
@@ -529,11 +536,6 @@ Future<void> _seedCourseDatabase(CourseDatabase db) async {
   } catch (e, st) {
     logger.e('Course database seed failed', error: e, stackTrace: st);
     rethrow;
-  }
-  try {
-    await CourseScopePreferenceMigrator.repair(courseDb: db);
-  } catch (e) {
-    logger.w('course scope preference repair skipped: $e');
   }
 }
 

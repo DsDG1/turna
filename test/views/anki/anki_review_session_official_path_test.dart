@@ -20,7 +20,7 @@ import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/lesson_link_store.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/data/anki_import_dao.dart';
-import 'package:turna/data/anki_note_dao.dart';
+
 import 'package:turna/data/course_database.dart';
 import 'package:turna/data/course_repository.dart';
 import 'package:turna/data/srs_state_dao.dart';
@@ -74,9 +74,7 @@ void main() {
     getIt.registerSingleton<AnkiDeckManager>(
       AnkiDeckManager(
         repo: CourseRepository(db),
-        srsProvider: srs,
         importDao: AnkiImportDao(db),
-        noteDao: AnkiNoteDao(db),
         appPrefs: appPrefs,
       ),
     );

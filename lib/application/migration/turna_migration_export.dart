@@ -99,12 +99,6 @@ class TurnaMigrationExporter {
     final ankiSources = await _selectJsonl(
       'SELECT * FROM anki_imports ORDER BY import_id',
     );
-    final ankiNotes = await _selectJsonl(
-      'SELECT * FROM anki_notes ORDER BY import_id, note_id',
-    );
-    final ankiCards = await _selectJsonl(
-      'SELECT * FROM anki_cards_meta ORDER BY import_id, card_id',
-    );
     final introductions = await _safeSelectJsonl(
       'SELECT * FROM anki_card_introduction_states '
       'ORDER BY course_id, source_id, card_id',
@@ -131,13 +125,9 @@ class TurnaMigrationExporter {
         'reviewHistory': reviewHistory.length,
         'mistakes': mistakes.length,
         'ankiSources': ankiSources.length,
-        'ankiNotes': ankiNotes.length,
-        'ankiCards': ankiCards.length,
         'introductions': introductions.length,
         'mediaObjects': mediaManifest.length,
       },
-      // Legacy Anki payloads must land as pending migration on Android.
-      'legacyAnkiDisposition': 'legacyPendingMigration',
     };
 
     await _writeJson(staging, 'manifest.json', manifest);
@@ -154,8 +144,6 @@ class TurnaMigrationExporter {
     await _writeJsonl(staging, 'review_history.jsonl', reviewHistory);
     await _writeJsonl(staging, 'mistakes.jsonl', mistakes);
     await _writeJsonl(staging, 'anki_sources.jsonl', ankiSources);
-    await _writeJsonl(staging, 'anki_notes.jsonl', ankiNotes);
-    await _writeJsonl(staging, 'anki_cards.jsonl', ankiCards);
     await _writeJsonl(staging, 'introductions.jsonl', introductions);
     await _writeJson(staging, 'media_manifest.json', {
       'schemaVersion': kTurnaMigrationSchemaVersion,
@@ -171,8 +159,6 @@ class TurnaMigrationExporter {
       'review_history.jsonl',
       'mistakes.jsonl',
       'anki_sources.jsonl',
-      'anki_notes.jsonl',
-      'anki_cards.jsonl',
       'introductions.jsonl',
       'media_manifest.json',
     ];

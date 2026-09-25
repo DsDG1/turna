@@ -1,4 +1,4 @@
-import 'package:drift/native.dart';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/anki_official/browser/official_anki_source_aware_browser.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
@@ -10,8 +10,8 @@ import 'package:turna/application/anki_official/migration/official_anki_engine_k
 import 'package:turna/application/anki_official/stats/official_anki_source_aware_stats.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
-import 'package:turna/data/anki_note_dao.dart';
-import 'package:turna/data/course_database.dart';
+
+
 
 void main() {
   test('pure Official source browser reports engine unavailable explicitly',
@@ -37,13 +37,8 @@ void main() {
     );
 
     // Legacy DB is empty — pure Official-first must still list cards.
-    final courseDb = CourseDatabase(NativeDatabase.memory());
-    addTearDown(courseDb.close);
-    final legacy = AnkiNoteDao(courseDb);
-
     final browser = OfficialAnkiSourceAwareBrowser(
       sources: sources,
-      legacyNotes: legacy,
     );
     final result = await browser.searchWithAvailability(
       importOrSourceId: 'src-official',
@@ -105,11 +100,8 @@ void main() {
     );
     final engine = FakeOfficialAnkiEngine();
     engine.seedPackage(packagePath: 'b.apkg', notes: 2, cards: 2);
-    final courseDb = CourseDatabase(NativeDatabase.memory());
-    addTearDown(courseDb.close);
     final browser = OfficialAnkiSourceAwareBrowser(
       sources: sources,
-      legacyNotes: AnkiNoteDao(courseDb),
       engine: engine,
     );
     final rows = await browser.search(

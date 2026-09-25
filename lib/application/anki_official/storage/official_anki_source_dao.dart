@@ -4,6 +4,7 @@ import 'package:turna/application/anki_official/contract/official_anki_errors.da
 import 'package:turna/application/anki_official/projection/official_anki_projection_paging.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/core/logger.dart';
+import 'package:turna/core/performance_trace.dart';
 
 export 'package:turna/application/anki_official/projection/official_anki_projection_paging.dart'
     show OfficialAnkiSourceCardPage;
@@ -308,7 +309,8 @@ WHERE source_id = ? AND state = ?
   }
 
   List<OfficialAnkiCardDescriptor> listCards(String sourceId) {
-    return _db
+    final trace = Stopwatch()..start();
+    final result = _db
         .select(
           'SELECT card_id, note_id, deck_id, note_guid, template_ord, notetype_id '
           'FROM anki_source_cards WHERE source_id = ? ORDER BY card_id',
@@ -325,6 +327,13 @@ WHERE source_id = ? AND state = ?
           ),
         )
         .toList();
+    PerformanceTrace.instance.record(
+      feature: 'dao',
+      operation: 'query.ankiSourceCards',
+      duration: trace.elapsed,
+      resultSize: result.length,
+    );
+    return result;
   }
 
   /// (cardId, deckId) 对——due-sync 这类只需要 id 与牌组归属的读面
@@ -343,6 +352,28 @@ WHERE source_id = ? AND state = ?
           ),
         )
         .toList();
+  }
+
+  /// Distinct deck ids of a source (plan P4): the card browser's deck
+  /// dropdown needs only this — materializing every card descriptor to
+  /// derive the set grows linearly with deck size for a handful of decks.
+  List<int> listDeckIds(String sourceId) {
+    final trace = Stopwatch()..start();
+    final result = _db
+        .select(
+          'SELECT DISTINCT deck_id FROM anki_source_cards '
+          'WHERE source_id = ? ORDER BY deck_id',
+          [sourceId],
+        )
+        .map((row) => (row['deck_id'] as num).toInt())
+        .toList();
+    PerformanceTrace.instance.record(
+      feature: 'dao',
+      operation: 'query.ankiSourceDeckIds',
+      duration: trace.elapsed,
+      resultSize: result.length,
+    );
+    return result;
   }
 
   /// Ownership ids only (no descriptors). Used by v2 retire so a 100k

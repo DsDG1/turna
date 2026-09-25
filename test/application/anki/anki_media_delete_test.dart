@@ -9,148 +9,18 @@ import 'dart:io';
 
 // Package imports:
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:streaming_shared_preferences/streaming_shared_preferences.dart';
 
 // Project imports:
-import 'package:turna/application/anki_official/anki_import_cleanup_service.dart';
-import 'package:turna/application/lesson_link_store.dart';
-import 'package:turna/application/srs_provider.dart';
-import 'package:turna/data/anki_import_dao.dart';
-import 'package:turna/data/anki_note_dao.dart';
-import 'package:turna/data/course_database.dart' as db;
-import 'package:turna/data/srs_state_dao.dart';
+
 import 'package:turna/domain/audio/anki_audio_resolver.dart';
 import 'package:turna/domain/audio/anki_media_delete_report.dart';
 import 'package:turna/domain/audio/anki_media_platform_io.dart'
     as media_platform;
-import 'package:turna/domain/course/expression.dart';
-import 'package:turna/domain/course/grammar_point.dart';
-import 'package:turna/domain/course/lesson.dart';
-import 'package:turna/domain/course/section.dart';
-import 'package:turna/domain/course/word_entry.dart';
-import 'package:turna/domain/repositories/i_course_repository.dart';
-import 'package:turna/service/locator.dart';
 
 import '../../helpers/in_memory_course_db.dart';
-import '../../helpers/anki_import_seed.dart';
 
 /// Resolver stand-in for the "one file stayed locked" case: the directory
 /// survives the delete pass and the saga must carry on regardless.
-class _StuckMediaResolver extends AnkiAudioResolver {
-  int deleteCalls = 0;
-
-  @override
-  Future<AnkiMediaDeleteReport> deleteImportMedia(String importId) async {
-    deleteCalls++;
-    return const AnkiMediaDeleteReport(
-      deletedFiles: 2,
-      remainingFiles: 1,
-      remainingPaths: ['locked.mp3'],
-      remainingDirectories: ['anki_media/imp-stuck'],
-    );
-  }
-}
-
-class _CleanupRepo implements ICourseRepository {
-  final List<String> deletedTags = [];
-  final List<String> deletedSections;
-  final List<String> sectionIds;
-
-  _CleanupRepo(this.sectionIds)
-      : deletedSections = [],
-        super();
-
-  @override
-  Future<int> deleteByTag(String tag) async {
-    deletedTags.add(tag);
-    return 0;
-  }
-
-  @override
-  Future<void> deleteSection(String sectionId) async {
-    deletedSections.add(sectionId);
-  }
-
-  @override
-  Future<List<Section>> sectionShells({String? languageCode}) async => [];
-
-  @override
-  Future<void> bulkInsertCourseTree(Section section,
-      {String? languageCode}) async {}
-
-  @override
-  Future<void> bulkInsertVocabulary(List<WordEntry> words,
-      {String? languageCode}) async {}
-
-  @override
-  Future<void> deleteOfficialProjection(String sourceId) async {}
-
-  @override
-  Future<Section> section(String id, {String? languageCode}) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<Lesson> lessonById(String id, {String? languageCode}) async =>
-      throw UnimplementedError();
-
-  @override
-  Future<List<Lesson>> lessonsContainingAny(Iterable<String> needles) async =>
-      const [];
-
-  @override
-  Future<String?> sectionIdForUnit(String unitId) async => null;
-
-  @override
-  Future<String?> sectionIdForLesson(String lessonId) async => null;
-
-  @override
-  Future<List<WordEntry>> vocabulary({String? languageCode}) async => [];
-
-  @override
-  Future<List<GrammarPoint>> grammarPoints({String? languageCode}) async => [];
-
-  @override
-  Future<GrammarPoint?> grammarPointById(String id,
-          {String? languageCode}) async =>
-      null;
-
-  @override
-  Future<List<Expression>> expressions({String? languageCode}) async => [];
-
-  @override
-  Future<Expression?> expressionById(String id, {String? languageCode}) async =>
-      null;
-
-  @override
-  Future<String?> contentVersion({String? languageCode}) async => null;
-
-  @override
-  int get schemaVersion => -1;
-
-  @override
-  Future<void> deleteBuiltinLanguage(String languageCode) async {}
-
-  @override
-  Future<void> clearLanguageUninstallMarker(String languageCode) async {}
-
-  @override
-  Future<Set<String>> uninstalledLanguageCodes() async => const {};
-
-  @override
-  Future<Set<String>> lessonIdsForLanguage(String languageCode) async =>
-      const {};
-
-  @override
-  Future<Set<String>> resourceIdsForLanguage(String languageCode) async =>
-      const {};
-
-  @override
-  Future<bool> languageHasContent(String languageCode) async => false;
-
-  @override
-  Future<Map<String, int>> builtinCardCounts() async => const {};
-}
 
 void main() {
   setUpAll(() {
@@ -312,85 +182,6 @@ void main() {
       expect(Directory(targetPath).existsSync(), isTrue);
       expect(File('$targetPath/new.mp3').existsSync(), isFalse);
       expect(Directory(targetPath).listSync(), isEmpty);
-    });
-  });
-
-  group('AnkiImportCleanupService.deleteAll', () {
-    late db.CourseDatabase database;
-
-    setUp(() {
-      database = emptyInMemoryCourseDatabase();
-    });
-
-    tearDown(() async {
-      await database.close();
-    });
-
-    Future<SrsProvider> srs() async {
-      SharedPreferences.setMockInitialValues({});
-      final prefs = AppPrefs(await StreamingSharedPreferences.instance);
-      return SrsProvider(prefs, LessonLinkStore(prefs), SrsStateDao(database));
-    }
-
-    test('a locked media file no longer aborts the saga', () async {
-      final dao = AnkiImportDao(database);
-      await seedAnkiImportRow(
-        database,
-        AnkiImportRecord(
-          importId: 'imp-stuck',
-          sourcePath: '/tmp/x.apkg',
-          sourceHash: 'hash-stuck',
-          importedAt: 1700000000,
-        ),
-      );
-
-      final resolver = _StuckMediaResolver();
-      final service = AnkiImportCleanupService(
-        repository: _CleanupRepo(['anki-imp-stuck-s1']),
-        srsProvider: await srs(),
-        importDao: dao,
-        noteDao: AnkiNoteDao(database),
-        audioResolver: resolver,
-      );
-
-      await service.deleteAll('imp-stuck');
-
-      // The import record must be gone even though media files remained.
-      expect(resolver.deleteCalls, 1);
-      expect(await dao.getById('imp-stuck'), isNull);
-    });
-
-    test('happy path deletes media directory and import record', () async {
-      final mediaRoot = Directory('${Directory.systemTemp.path}/anki_media');
-      if (mediaRoot.existsSync()) mediaRoot.deleteSync(recursive: true);
-      final importDir = Directory(
-        '${Directory.systemTemp.path}/anki_media/imp-happy',
-      )..createSync(recursive: true);
-      File('${importDir.path}/a.mp3').writeAsStringSync('a');
-
-      final dao = AnkiImportDao(database);
-      await seedAnkiImportRow(
-        database,
-        AnkiImportRecord(
-          importId: 'imp-happy',
-          sourcePath: '/tmp/y.apkg',
-          sourceHash: 'hash-happy',
-          importedAt: 1700000000,
-        ),
-      );
-
-      final service = AnkiImportCleanupService(
-        repository: _CleanupRepo(['anki-imp-happy-s1']),
-        srsProvider: await srs(),
-        importDao: dao,
-        noteDao: AnkiNoteDao(database),
-        audioResolver: AnkiAudioResolver(),
-      );
-
-      await service.deleteAll('imp-happy');
-
-      expect(importDir.existsSync(), isFalse);
-      expect(await dao.getById('imp-happy'), isNull);
     });
   });
 }

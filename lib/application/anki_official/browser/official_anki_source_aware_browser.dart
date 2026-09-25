@@ -5,12 +5,7 @@ import 'package:turna/application/anki_official/engine/official_formal_due_repos
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/core/html_stripper.dart';
-import 'package:turna/domain/repositories/i_anki_note_store.dart';
-
-// Re-exported so legacy-browsing UIs can consume the raw record shape
-// without importing the data layer directly.
-export 'package:turna/domain/anki/anki_note_records.dart'
-    show AnkiCardBrowserRecord;
+import 'package:turna/core/performance_trace.dart';
 
 /// One browser row that either side can render without depending on the
 /// other store.
@@ -111,13 +106,13 @@ class OfficialBrowserSearchResult {
   bool get available => availability == OfficialBrowserAvailability.available;
 }
 
-/// Doc 34 W7: Official sources read from the Official catalog; Legacy stays
-/// read-only via [IAnkiNoteStore]. Pure Official-first sources never require
-/// NoteStore rows.
+/// Doc 34 W7 / architecture-simplification plan P1: Official sources read
+/// from the Official catalog only. The Legacy NoteStore read path is
+/// retired — anything that does not resolve to an Official source fails
+/// closed with [OfficialBrowserAvailability.sourceMissing].
 class OfficialAnkiSourceAwareBrowser {
   OfficialAnkiSourceAwareBrowser({
     required this.sources,
-    required this.legacyNotes,
     this.engine,
     OfficialAnkiPreviewCache? previewCache,
   }) : previewCache = previewCache ?? OfficialAnkiPreviewCache();
@@ -125,7 +120,6 @@ class OfficialAnkiSourceAwareBrowser {
   static const defaultProfileId = 'profile-default-01';
 
   final OfficialAnkiSourceDao sources;
-  final IAnkiNoteStore legacyNotes;
 
   /// When set, Official search/suspend go through the Collection. Catalog
   /// rows still bound the source; they are not a substitute for search.
@@ -147,34 +141,21 @@ class OfficialAnkiSourceAwareBrowser {
     AnkiEngineKind? ownerHint,
     String profileId = defaultProfileId,
   }) async {
-    final owner = ownerHint ??
-        (sources.findById(importOrSourceId) != null
-            ? AnkiEngineKind.official
-            : AnkiEngineKind.legacy);
-    if (owner == AnkiEngineKind.official) {
-      return (await searchWithAvailability(
-        importOrSourceId: importOrSourceId,
-        filter: OfficialBrowserFilter(
-          query: query,
-          suspended: suspended,
-          buried: buried,
-          marked: marked,
-          flag: flag,
-          deckId: deckId,
-          tag: tag,
-        ),
-        ownerHint: owner,
-        profileId: profileId,
-      ))
-          .rows;
-    }
-    return _searchLegacyReadonly(
-      importOrSourceId,
-      query: query,
-      suspended: suspended,
-      marked: marked,
-      flag: flag,
-    );
+    return (await searchWithAvailability(
+      importOrSourceId: importOrSourceId,
+      filter: OfficialBrowserFilter(
+        query: query,
+        suspended: suspended,
+        buried: buried,
+        marked: marked,
+        flag: flag,
+        deckId: deckId,
+        tag: tag,
+      ),
+      ownerHint: ownerHint,
+      profileId: profileId,
+    ))
+        .rows;
   }
 
   Future<OfficialBrowserSearchResult> searchWithAvailability({
@@ -183,24 +164,29 @@ class OfficialAnkiSourceAwareBrowser {
     AnkiEngineKind? ownerHint,
     String profileId = defaultProfileId,
   }) async {
+    // Plan P4: card-browser search baseline — the slow-query table feeds
+    // the System Health page and the device measurement records.
+    final trace = Stopwatch()..start();
     final owner = ownerHint ??
         (sources.findById(importOrSourceId) != null
             ? AnkiEngineKind.official
             : AnkiEngineKind.legacy);
     if (owner != AnkiEngineKind.official) {
-      final rows = await _searchLegacyReadonly(
-        importOrSourceId,
-        query: filter.query,
-        suspended: filter.suspended,
-        marked: filter.marked,
-        flag: filter.flag,
-      );
-      return OfficialBrowserSearchResult(
-        rows: rows,
-        availability: OfficialBrowserAvailability.available,
+      // Legacy NoteStore browsing is retired (plan P1): fail closed.
+      return const OfficialBrowserSearchResult(
+        rows: [],
+        availability: OfficialBrowserAvailability.sourceMissing,
+        reason: 'legacy_note_store_retired',
       );
     }
-    return _searchOfficial(importOrSourceId, filter: filter);
+    final result = await _searchOfficial(importOrSourceId, filter: filter);
+    PerformanceTrace.instance.record(
+      feature: 'anki',
+      operation: 'browser.search',
+      duration: trace.elapsed,
+      resultSize: result.rows.length,
+    );
+    return result;
   }
 
   Future<OfficialBrowserSearchResult> _searchOfficial(
@@ -423,37 +409,5 @@ class OfficialAnkiSourceAwareBrowser {
     if (result == OfficialFormalDueCommitResult.stale) {
       repo.mutateSource(sourceId, transform: transform);
     }
-  }
-
-  Future<List<SourceAwareBrowserCard>> _searchLegacyReadonly(
-    String importId, {
-    required String query,
-    bool? suspended,
-    bool? marked,
-    int? flag,
-  }) async {
-    final rows = await legacyNotes.searchNotes(
-      importId,
-      query,
-      suspended: suspended,
-      marked: marked,
-      flag: flag,
-    );
-    return [
-      for (final row in rows)
-        SourceAwareBrowserCard(
-          sourceId: importId,
-          cardId: row.card.cardId,
-          noteId: row.note.noteId,
-          deckId: 0,
-          owner: AnkiEngineKind.legacy,
-          frontPreview: row.note.sfld.isNotEmpty
-              ? row.note.sfld
-              : row.note.fields.join(' / '),
-          suspended: row.card.suspended,
-          flag: row.card.flag,
-          marked: row.card.marked,
-        ),
-    ];
   }
 }

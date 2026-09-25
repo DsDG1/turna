@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:turna/application/anki_official/introduction/card_introduction_store.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_eligibility.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_update.dart';
-import 'package:turna/application/anki_official/official_anki_ids.dart';
+
 import 'package:turna/domain/anki/canonical_card_key.dart';
 import 'package:turna/domain/course/srs_word.dart';
 
@@ -410,24 +410,12 @@ class OfficialFormalDueRepository extends ChangeNotifier {
   // Aggregation helpers shared by Home / Play Hub / Profile
   // -------------------------------------------------------------------
 
-  /// Legacy (Turna SRS) due words that are NOT owned by an Official
-  /// source. Never merge Official and Turna stores into one writer.
-  int legacyAnkiDueExcludingOfficial(Iterable<SrsWord> dueWords) {
-    final intro = CardIntroductionStore.resolve();
-    var n = 0;
-    for (final word in dueWords) {
-      if (!word.wordId.startsWith(LegacyAnkiIdentifiers.ankiPrefix)) continue;
-      final importId = LegacyAnkiIdentifiers.importIdFromWordId(word.wordId);
-      if (officialImportIds.contains(importId)) continue;
-      if (!intro.isFormallyEligibleWord(word)) continue;
-      n++;
-    }
-    return n;
-  }
-
+  /// Aggregated Anki due for the Home / Play hubs. Only the Official
+  /// scheduler counts: the Legacy-owned `anki-<importId>-c…` word scan is
+  /// retired (plan P1) — those words can no longer be created and old dev
+  /// rows are fail-closed out of the due counts.
   int aggregatedAnkiDue(Iterable<SrsWord> dueWords) {
-    return legacyAnkiDueExcludingOfficial(dueWords) +
-        _snapshot.introducedOfficialDue;
+    return _snapshot.introducedOfficialDue;
   }
 
   /// Exact formal-due count. Legacy behavior returns 0 for unknown
