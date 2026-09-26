@@ -209,8 +209,8 @@ class RemoteBackupService {
         coreZipSha256: snapshot.coreZipSha256,
         coreZipBytes: snapshot.coreZipBytes,
         mediaCount: snapshot.mediaManifest.length,
-        mediaBytes:
-            snapshot.mediaManifest.values.fold<int>(0, (sum, e) => sum + e.bytes),
+        mediaBytes: snapshot.mediaManifest.values
+            .fold<int>(0, (sum, e) => sum + e.bytes),
       );
       final manifest = RemoteBackupManifest(
         backupId: snapshot.backupId,

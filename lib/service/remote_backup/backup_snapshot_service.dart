@@ -316,8 +316,8 @@ class BackupSnapshotService {
           p.relative(file.path, from: root.path).replaceAll('\\', '/');
       final sha = await _captureVerifiedCopy(file, objectsDir, copyImpl);
       objects.putIfAbsent(sha, () => p.join(objectsDir.path, sha));
-      manifest['$logicalPrefix$relative'] =
-          MediaManifestEntry(sha256: sha, bytes: File(objects[sha]!).lengthSync());
+      manifest['$logicalPrefix$relative'] = MediaManifestEntry(
+          sha256: sha, bytes: File(objects[sha]!).lengthSync());
       onProgress?.call(++hashed, files.length);
     }
   }
@@ -338,8 +338,7 @@ class BackupSnapshotService {
       final dest = File(p.join(objectsDir.path, sha));
       await copyImpl(source, dest);
       if (archiveFileSha256(dest.path) == sha) return sha;
-      lastError = StateError(
-          '媒体文件在快照期间持续变化: ${p.basename(source.path)}');
+      lastError = StateError('媒体文件在快照期间持续变化: ${p.basename(source.path)}');
     }
     throw lastError!;
   }

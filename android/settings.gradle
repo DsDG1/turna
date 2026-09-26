@@ -11,9 +11,14 @@ pluginManagement {
     includeBuild("${settings.ext.flutterSdkPath}/packages/flutter_tools/gradle")
 
     repositories {
-        maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
-        maven { url 'https://maven.aliyun.com/repository/google' }
-        maven { url 'https://maven.aliyun.com/repository/central' }
+        // Aliyun mirrors only for local dev machines (Chinese network); a
+        // mirror 5xx aborts Gradle plugin resolution, so CI uses canonical
+        // repos directly (GitHub Actions sets CI=true).
+        if (!System.getenv('CI')) {
+            maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
+            maven { url 'https://maven.aliyun.com/repository/google' }
+            maven { url 'https://maven.aliyun.com/repository/central' }
+        }
         google()
         mavenCentral()
         gradlePluginPortal()

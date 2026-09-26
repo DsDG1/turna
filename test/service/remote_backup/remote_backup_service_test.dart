@@ -133,12 +133,12 @@ class _RacingSnapshotService extends BackupSnapshotService {
     lateScope?.call();
     return super
         .build(
-          stagingDir: stagingDir,
-          includeMedia: includeMedia,
-          onPhase: onPhase,
-          onMediaProgress: onMediaProgress,
-          busyCheck: busyCheck,
-        )
+      stagingDir: stagingDir,
+      includeMedia: includeMedia,
+      onPhase: onPhase,
+      onMediaProgress: onMediaProgress,
+      busyCheck: busyCheck,
+    )
         .then((snapshot) {
       mutateAfterBuild?.call(snapshot);
       return snapshot;
@@ -412,12 +412,11 @@ void main() {
     await service.restoreToStaging(store.manifest!);
     final stagingRoot = RestoreStagingLayout.root(appSupport);
     final prefsPayload = jsonDecode(
-        File(p.join(stagingRoot.path, 'prefs.json')).readAsStringSync())
+            File(p.join(stagingRoot.path, 'prefs.json')).readAsStringSync())
         as Map<String, dynamic>;
     expect(prefsPayload['currentLanguage'], 'tr',
         reason: 'a pref written after the snapshot must not leak into it');
-    final stagedCourse = sql.sqlite3.open(
-        p.join(stagingRoot.path, 'course.db'),
+    final stagedCourse = sql.sqlite3.open(p.join(stagingRoot.path, 'course.db'),
         mode: sql.OpenMode.readOnly);
     final lateTable = stagedCourse.select(
         "SELECT count(*) AS n FROM sqlite_master WHERE name = 'late_write'");
@@ -427,9 +426,9 @@ void main() {
 
     // The uploaded media object still carries the bytes captured at
     // snapshot time ([4,5,6]), and its content-addressed name matches them.
-    final media = parseMediaManifest(File(
-            p.join(stagingRoot.path, RestoreStagingLayout.mediaManifestEntry))
-        .readAsStringSync());
+    final media = parseMediaManifest(
+        File(p.join(stagingRoot.path, RestoreStagingLayout.mediaManifestEntry))
+            .readAsStringSync());
     final sha = media['anki_media/imp1/a.mp3']!.sha256;
     final stagedObject =
         File(p.join(RestoreStagingLayout.media(appSupport).path, sha));
@@ -438,8 +437,10 @@ void main() {
         reason:
             'uploads read the verified staging copy, not the mutated live file');
     // And the live (mutated) media did not silently poison the object name.
-    expect(sha, isNot(archiveFileSha256(
-        p.join(appSupport.path, 'anki_media', 'imp1', 'a.mp3'))));
+    expect(
+        sha,
+        isNot(archiveFileSha256(
+            p.join(appSupport.path, 'anki_media', 'imp1', 'a.mp3'))));
   });
 
   test('an interrupted upload keeps the previous generation and recovers',
@@ -467,8 +468,8 @@ void main() {
     flaky.failCoreUpload = false;
     final third = await service.backupNow();
     expect(flaky.manifest!.backupId, third.backupId);
-    expect(
-        flaky.manifest!.history.map((e) => e.backupId), contains(first.backupId));
+    expect(flaky.manifest!.history.map((e) => e.backupId),
+        contains(first.backupId));
     expect(
         flaky.manifest!.history.map((e) => e.backupId),
         isNot(contains(predicate<String>(

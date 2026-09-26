@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 // Package imports:
 import 'package:auto_route/auto_route.dart';
 
-
 // Project imports:
 import 'package:turna/application/anki_official/review/formal_review_launcher.dart';
 import 'package:turna/application/anki_official/browser/official_anki_source_aware_browser.dart';
@@ -121,8 +120,7 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
       );
       // Plan P4: the deck dropdown needs only the distinct deck ids — a
       // dedicated query, not a full card-descriptor materialization.
-      final deckIds =
-          catalogService.deckIdsForSource(widget.importId).toSet();
+      final deckIds = catalogService.deckIdsForSource(widget.importId).toSet();
       final names = <int, String>{for (final id in deckIds) id: '#$id'};
       final engine = OfficialAnkiCompositionRoot.engine;
       if (engine != null) {
@@ -320,93 +318,92 @@ class _AnkiCardBrowserPageState extends State<AnkiCardBrowserPage> {
               ),
             ),
           Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _loadError != null
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(AppStrings.ankiBrowserLoadFailed(_loadError!),
-                                textAlign: TextAlign.center),
-                            const SizedBox(height: 12),
-                            FilledButton(
-                              onPressed: _load,
-                              child: Text(AppStrings.commonRetry),
-                            ),
-                          ],
-                        ),
-                      )
-                    : _officialUnavailableReason != null
-                        ? Center(
-                            child: Text(
-                              AppStrings.ankiBrowserOfficialUnavailable(
-                                  _officialUnavailableReason!),
-                              textAlign: TextAlign.center,
-                            ),
-                          )
-                        : (_officialRows.isEmpty
-                                ? Center(
-                                    child:
-                                        Text(AppStrings.ankiBrowserNoMatches))
-                                : ListView.builder(
-                                    padding: const EdgeInsets.fromLTRB(
-                                        12, 0, 12, 20),
-                                    itemCount: _officialRows.length,
-                                    itemBuilder: (context, index) {
-                                      final row = _officialRows[index];
-                                      return Card(
-                                        child: ListTile(
-                                          leading: _FlagIcon(flag: row.flag),
-                                          title: _OfficialPreviewText(
-                                            browser: _browser,
-                                            row: row,
-                                          ),
-                                          subtitle: Text(
-                                            'Official #${row.cardId} · note #${row.noteId}'
-                                            '${row.suspended ? ' · ${AppStrings.ankiBrowserSuspended}' : ''}'
-                                            '${row.buried ? ' · ${AppStrings.ankiBrowserBuried}' : ''}'
-                                            '${row.marked ? ' · ${AppStrings.ankiBrowserMarked}' : ''}',
-                                            style: TextStyle(
-                                              color: TurnaTheme.textHintColor(
-                                                  context),
-                                            ),
-                                          ),
-                                          trailing: PopupMenuButton<String>(
-                                            onSelected: (value) {
-                                              if (value == 'review') {
-                                                _openFormalReview(context);
-                                              } else if (value == 'suspend') {
-                                                unawaited(_toggleOfficial(row));
-                                              }
-                                            },
-                                            itemBuilder: (context) => [
-                                              PopupMenuItem(
-                                                value: 'review',
-                                                child: Text(AppStrings
-                                                    .ankiBrowserGoReview),
-                                              ),
-                                              PopupMenuItem(
-                                                value: 'suspend',
-                                                child: Text(
-                                                  row.suspended
-                                                      ? AppStrings
-                                                          .ankiBrowserUnsuspend
-                                                      : AppStrings
-                                                          .ankiCardSuspend,
-                                                ),
-                                              ),
-                                            ],
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _loadError != null
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                  AppStrings.ankiBrowserLoadFailed(_loadError!),
+                                  textAlign: TextAlign.center),
+                              const SizedBox(height: 12),
+                              FilledButton(
+                                onPressed: _load,
+                                child: Text(AppStrings.commonRetry),
+                              ),
+                            ],
+                          ),
+                        )
+                      : _officialUnavailableReason != null
+                          ? Center(
+                              child: Text(
+                                AppStrings.ankiBrowserOfficialUnavailable(
+                                    _officialUnavailableReason!),
+                                textAlign: TextAlign.center,
+                              ),
+                            )
+                          : (_officialRows.isEmpty
+                              ? Center(
+                                  child: Text(AppStrings.ankiBrowserNoMatches))
+                              : ListView.builder(
+                                  padding:
+                                      const EdgeInsets.fromLTRB(12, 0, 12, 20),
+                                  itemCount: _officialRows.length,
+                                  itemBuilder: (context, index) {
+                                    final row = _officialRows[index];
+                                    return Card(
+                                      child: ListTile(
+                                        leading: _FlagIcon(flag: row.flag),
+                                        title: _OfficialPreviewText(
+                                          browser: _browser,
+                                          row: row,
+                                        ),
+                                        subtitle: Text(
+                                          'Official #${row.cardId} · note #${row.noteId}'
+                                          '${row.suspended ? ' · ${AppStrings.ankiBrowserSuspended}' : ''}'
+                                          '${row.buried ? ' · ${AppStrings.ankiBrowserBuried}' : ''}'
+                                          '${row.marked ? ' · ${AppStrings.ankiBrowserMarked}' : ''}',
+                                          style: TextStyle(
+                                            color: TurnaTheme.textHintColor(
+                                                context),
                                           ),
                                         ),
-                                      );
-                                    },
-                                  ))          ),
+                                        trailing: PopupMenuButton<String>(
+                                          onSelected: (value) {
+                                            if (value == 'review') {
+                                              _openFormalReview(context);
+                                            } else if (value == 'suspend') {
+                                              unawaited(_toggleOfficial(row));
+                                            }
+                                          },
+                                          itemBuilder: (context) => [
+                                            PopupMenuItem(
+                                              value: 'review',
+                                              child: Text(AppStrings
+                                                  .ankiBrowserGoReview),
+                                            ),
+                                            PopupMenuItem(
+                                              value: 'suspend',
+                                              child: Text(
+                                                row.suspended
+                                                    ? AppStrings
+                                                        .ankiBrowserUnsuspend
+                                                    : AppStrings
+                                                        .ankiCardSuspend,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ))),
         ],
       ),
     );
   }
-
 }
 
 /// Doc 38 P4-A: the list row renders lazily — an empty preview triggers one

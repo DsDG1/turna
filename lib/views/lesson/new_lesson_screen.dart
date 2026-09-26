@@ -172,7 +172,9 @@ class _NewLessonPageState extends State<NewLessonPage>
 
   Future<void> _onClosePressed(BuildContext context) async {
     if (_vm.isComplete) {
-      unawaited(Navigator.of(context).maybePop());
+      // Unconditional pop bypasses canPop so this doesn't re-enter the
+      // pop callback (the ai_api_config_page pop-loop fix, same landmine).
+      Navigator.of(context).pop();
       return;
     }
     final go = await showDialog<bool>(
@@ -407,7 +409,9 @@ class _NewLessonPageState extends State<NewLessonPage>
         _vm.retryMastery();
         break;
       case MasteryDialogResult.back:
-        unawaited(navigator.maybePop());
+        // Unconditional pop — maybePop behind PopScope(canPop: false)
+        // re-enters this pop callback forever.
+        navigator.pop();
         break;
       case null:
         // The dialog is barrierDismissible:false, so the only way `result` is

@@ -149,5 +149,55 @@ void main() {
 
       expect(find.text('继续'), findsNothing);
     });
+
+    // Regression for the completion-dialog pop loop: the host page sits
+    // behind PopScope(canPop: false), so a maybePop after dismiss vetoes the
+    // pop and re-enters the page's pop callback forever. The dialog must pop
+    // unconditionally so the guarded host route actually leaves.
+    testWidgets('Continue pops a PopScope-guarded host page', (tester) async {
+      var blockedPops = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => PopScope(
+              canPop: false,
+              onPopInvokedWithResult: (didPop, _) {
+                if (!didPop) blockedPops++;
+              },
+              child: Scaffold(
+                body: ElevatedButton(
+                  onPressed: () {
+                    showLessonCompletionDialog(
+                      context: context,
+                      isMounted: () => true,
+                      correctCount: 8,
+                      incorrectCount: 2,
+                      totalCount: 10,
+                      durationSeconds: 95,
+                      xpEarned: 25,
+                      gemsEarned: 15,
+                      wasPerfect: false,
+                      questionResults: const [],
+                      random: Random(0),
+                    );
+                  },
+                  child: const Text('Open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('继续'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Open'), findsNothing);
+      expect(blockedPops, 0);
+    });
   });
 }
