@@ -520,7 +520,7 @@ const warning = Color(0xFFFF9F43);
 | 平台 | 状态 | 备注 |
 |---|---|---|
 | **Android** | ✅ 主力 | 发布产物 APK/AAB；Anki Official Core 首发平台。 |
-| **iOS** | ✅ 应用保留 | WebView 保真可用；Anki Official Core 暂不承诺。 |
+| **iOS** | ✅ 应用保留 | WebView 保真可用；Anki Official Core 已接线（FFI + 原生复习页），但 `ios/Frameworks/TurnaAnki.xcframework` 不入库——首次构建需跑 `native/turna_anki_core/build-ios/build.sh`（Rust 1.97.1 + 钉死 protoc 31.1 + anki FTL 子模块 + Xcode）。`official_anki.yml` 的 `official-anki-ios` job 在 macOS runner 上构建 xcframework 并 `flutter build ios --no-codesign` 守住这条链路。 |
 | **Web** | ⚠️ 有限 | 无 WebView 保真（文本兜底）；`build_release.py --skip-web` 可跳过。 |
 | **HarmonyOS (OHOS)** | ❌ EOL | 产品支持已退役（[ADR 0041](./decisions/0041-ohos-product-eol.md)）；数据出口见 `turna-migration-v1`。 |
 

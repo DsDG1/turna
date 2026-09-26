@@ -5,15 +5,23 @@ on:
     paths:
       - "native/turna_anki_core/**"
       - "lib/application/anki_official/**"
+      - "lib/views/anki_official/**"
+      - "assets/anki_reviewer/**"
       - "test/application/anki_official/**"
+      - "test/views/anki_official/**"
       - "test/fixtures/anki_official/**"
+      - "ios/**"
       - ".github/workflows/official_anki.yml"
   pull_request:
     paths:
       - "native/turna_anki_core/**"
       - "lib/application/anki_official/**"
+      - "lib/views/anki_official/**"
+      - "assets/anki_reviewer/**"
       - "test/application/anki_official/**"
+      - "test/views/anki_official/**"
       - "test/fixtures/anki_official/**"
+      - "ios/**"
       - ".github/workflows/official_anki.yml"
 
 permissions:
@@ -101,3 +109,30 @@ jobs:
           nm -D "$so" | grep turna_anki_abi_version
           stat -c '%s %n' "$so"
           sha256sum "$so"
+
+  official-anki-ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Fetch pinned protoc
+        run: bash native/turna_anki_core/build-android/fetch_protoc.sh
+      - name: Build TurnaAnki.xcframework
+        # Targets must be added from inside the crate so rustup applies them
+        # to the rust-toolchain.toml-pinned toolchain, not the default one.
+        run: |
+          (cd native/turna_anki_core && rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios)
+          bash native/turna_anki_core/build-ios/build.sh
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.44.5
+          cache: true
+      - name: Build iOS app (no codesign)
+        # Links the freshly built xcframework end-to-end; --no-codesign keeps
+        # the gate free of provisioning/signing secrets.
+        run: |
+          flutter pub get
+          flutter build ios --no-codesign
