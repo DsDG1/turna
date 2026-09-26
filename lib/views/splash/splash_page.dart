@@ -83,8 +83,8 @@ Future<bool> maybePromptTtsAvailability(BuildContext context) async {
             child: Text(AppStrings.splashTtsSettings),
           ),
           TextButton(
-            onPressed: () => Navigator.of(context)
-                .pop(_GoogleTtsPromptAction.installGoogle),
+            onPressed: () =>
+                Navigator.of(context).pop(_GoogleTtsPromptAction.installGoogle),
             child: Text(AppStrings.splashInstallGoogleTts),
           ),
         ],

@@ -610,8 +610,7 @@ class AppStrings {
   static String get settingsTtsChecking => '正在检查设备 TTS 引擎…';
   static String settingsTtsReady(String locale) =>
       'Google TTS 就绪（$locale）——推荐用于学习';
-  static String settingsTtsReadySystem(String locale) =>
-      '系统语音就绪（$locale）';
+  static String settingsTtsReadySystem(String locale) => '系统语音就绪（$locale）';
   static String get settingsTtsGoogleInstalledMissingVoice =>
       'Google 已安装——请在系统 TTS 设置中下载土耳其语语音数据';
   static String settingsTtsVoiceMissing(String name) =>
