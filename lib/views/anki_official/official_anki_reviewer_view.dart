@@ -11,6 +11,7 @@ import 'package:turna/application/anki_official/official_anki_feature_flags.dart
 import 'package:turna/application/anki_official/render/official_anki_present_ack.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_error_view.dart';
+import 'package:turna/views/anki_official/official_anki_reviewer_ios_view.dart';
 
 const officialAnkiReviewerViewType = 'official_anki_reviewer';
 
@@ -203,6 +204,23 @@ class OfficialAnkiReviewerViewState extends State<OfficialAnkiReviewerView> {
 
   @override
   Widget build(BuildContext context) {
+    if (Platform.isIOS) {
+      return OfficialAnkiReviewerIosView(
+        mediaRoot: widget.mediaRoot,
+        card: widget.card,
+        showingAnswer: widget.showingAnswer,
+        comparisonHtml: widget.comparisonHtml,
+        dark: widget.dark,
+        textZoom: widget.textZoom,
+        presentGeneration: widget.presentGeneration,
+        presentEpoch: widget.presentEpoch,
+        onReady: widget.onReady,
+        onRenderError: widget.onRenderError,
+        onRenderComplete: widget.onRenderComplete,
+        onHeight: widget.onHeight,
+        presentGate: widget.presentGate,
+      );
+    }
     if (!Platform.isAndroid) {
       return const OfficialAnkiReviewerErrorView(
         messageKey: 'official_anki.renderer_flag_fail_closed',

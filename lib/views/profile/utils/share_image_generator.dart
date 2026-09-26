@@ -11,6 +11,9 @@ import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+// Project imports:
+import 'package:turna/service/share_origin.dart';
+
 /// Captures a [ShareProgressCard] to a PNG and shares it via the platform sheet.
 ///
 /// Attach [boundaryKey] to a *laid-out* (painted) [ShareProgressCard] — e.g. the
@@ -68,6 +71,7 @@ class ShareProgressImageGenerator {
     await Share.shareXFiles(
       [XFile(file.path)],
       text: shareText,
+      sharePositionOrigin: shareOriginFromContext(_boundaryKey.currentContext),
     );
   }
 }

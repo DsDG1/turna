@@ -68,10 +68,18 @@ class OfficialRenderedFace {
 /// cards stay [FlipCardPresentation]. Stripping rich HTML into a flip card
 /// is not an accepted downgrade.
 class OfficialFormalReviewRenderer {
-  const OfficialFormalReviewRenderer({required this.engine, this.profileId});
+  const OfficialFormalReviewRenderer({
+    required this.engine,
+    this.profileId,
+    this.mediaBasePath,
+  });
 
   final OfficialAnkiEngine engine;
   final String? profileId;
+
+  /// Collection media dir; populated on fidelity cards so platform WebViews
+  /// that can read local files (iOS `loadFile`) resolve relative media refs.
+  final String? mediaBasePath;
 
   Future<OfficialRenderedFace> render({
     required String sourceId,
@@ -87,6 +95,7 @@ class OfficialFormalReviewRenderer {
       frontHtml: rendered.questionHtml,
       backHtml: rendered.answerHtml,
       css: rendered.css,
+      mediaBasePath: mediaBasePath ?? '',
       sourceCardId: '$cardId',
       wordId: 'official-anki-$sourceId-c$cardId',
     );

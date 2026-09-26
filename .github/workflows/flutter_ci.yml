@@ -8,6 +8,7 @@ on:
       - "lib/**"
       - "test/**"
       - "tool/**"
+      - "ios/**"
       - "pubspec.yaml"
       - "pubspec.lock"
       - "analysis_options.yaml"
@@ -21,6 +22,7 @@ on:
       - "lib/**"
       - "test/**"
       - "tool/**"
+      - "ios/**"
       - "pubspec.yaml"
       - "pubspec.lock"
       - "analysis_options.yaml"
@@ -161,3 +163,28 @@ jobs:
         # verified end-to-end by the official_anki workflow; this job has
         # no rust/NDK toolchain on purpose.
         run: python3 tool/build_release.py --version ci-smoke --skip-web --skip-content-validation --allow-version-mismatch --skip-native
+
+  ios-build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.44.5
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build iOS (simulator, unsigned)
+        # Gate against regressions like the Firebase-era leftovers that made
+        # a clean checkout unable to compile or launch on iOS: the build must
+        # succeed with no manually supplied files (no GoogleService-Info.plist,
+        # no flutterfire CLI). Signing is out of scope — --no-codesign keeps
+        # this hermetic on hosted runners.
+        run: flutter build ios --simulator --no-codesign

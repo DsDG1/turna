@@ -117,7 +117,8 @@ class AnkiImportController extends ChangeNotifier {
   /// official-first saga. Unsupported / fail-closed plans produce zero
   /// sources and return to Selecting with the mapped error.
   Future<void> proceedWithPath(String path) =>
-      _withActivityScope(() => _proceedWithPath(path), onBlocked: _failToSelect);
+      _withActivityScope(() => _proceedWithPath(path),
+          onBlocked: _failToSelect);
 
   Future<void> _proceedWithPath(String path) async {
     if (catalogHasUnfinishedOfficialImport()) {
@@ -173,7 +174,7 @@ class AnkiImportController extends ChangeNotifier {
       case AnkiImportExecutionKind.failClosed:
       case AnkiImportExecutionKind.unsupported:
         _parsingPlan = null;
-        _failToSelect(_humanizePlanFailure(plan));
+        _failToSelect(humanizeAnkiPlanFailure(plan));
     }
   }
 
@@ -346,7 +347,8 @@ class AnkiImportController extends ChangeNotifier {
   }
 
   Future<void> continuePending(OfficialAnkiPendingImport item) =>
-      _withActivityScope(() => _continuePending(item), onBlocked: _failToSelect);
+      _withActivityScope(() => _continuePending(item),
+          onBlocked: _failToSelect);
 
   Future<void> _continuePending(OfficialAnkiPendingImport item) async {
     final op = ++_operation;
@@ -591,9 +593,4 @@ class AnkiImportController extends ChangeNotifier {
       _emit(const AnkiImportSelecting());
     }
   }
-
-  String _humanizePlanFailure(AnkiImportExecutionPlan plan) =>
-      plan.reason == 'colpkg_not_supported_until_official_backend'
-          ? AppStrings.ankiColpkgUnsupported
-          : AppStrings.ankiImportUnavailable(plan.reason);
 }

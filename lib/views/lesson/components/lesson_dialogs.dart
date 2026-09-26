@@ -87,7 +87,9 @@ Future<void> showLessonCompletionDialog({
   );
 
   if (isMounted()) {
-    unawaited(navigator.maybePop());
+    // `pop()` bypasses the lesson page's PopScope (canPop:false); `maybePop`
+    // would be denied and re-trigger the close handler in a loop.
+    navigator.pop();
   }
 }
 

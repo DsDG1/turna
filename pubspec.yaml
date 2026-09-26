@@ -12,7 +12,6 @@ dependencies:
   drift: ^2.22.1
   file_picker: ^8.1.4
   ffi: ^2.2.0
-  firebase_core: ^3.15.2
   fl_chart: ^0.69.0
   flutter:
     sdk: flutter
@@ -46,6 +45,7 @@ dependencies:
   # AnkiHtmlCardView degrades to a text fallback (decision 4) and never
   # instantiates a WebViewController.
   webview_flutter: ^4.10.0
+  webview_flutter_wkwebview: ^3.24.0
   timezone: ^0.10.1
   flutter_timezone: ^5.1.0
 dev_dependencies:

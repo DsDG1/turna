@@ -21,6 +21,7 @@ import 'package:turna/domain/repositories/i_course_repository.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/service/share_origin.dart';
 import 'package:turna/service/tts_availability_checker.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
@@ -209,6 +210,9 @@ class SystemHealthPage extends StatelessWidget {
     BuildContext context,
     SystemHealthMonitor monitor,
   ) async {
+    // Compute the iPad popover anchor before the preview dialog opens — the
+    // tile context stays valid but the dialog covers it visually anyway.
+    final shareOrigin = shareOriginFromContext(context);
     final report = await _buildReport(context, monitor);
     if (!context.mounted) return;
     final export = await showDialog<bool>(
@@ -247,6 +251,7 @@ class SystemHealthPage extends StatelessWidget {
         ),
       ],
       subject: 'Turna 脱敏诊断报告',
+      sharePositionOrigin: shareOrigin,
     );
   }
 

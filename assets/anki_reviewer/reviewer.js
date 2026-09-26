@@ -213,7 +213,8 @@
       theme: payload.theme || "day",
       comparisonHtml: payload.comparisonHtml || "",
       templateOrdinal: payload.templateOrdinal || 0,
-      bodyClass: payload.bodyClass || ""
+      bodyClass: payload.bodyClass || "",
+      textZoom: payload.textZoom || 0
     };
     async function acceptOrRebuild() {
       postToFrame(setMsg);
@@ -328,7 +329,22 @@
           theme: theme,
           comparisonHtml: payload.comparisonHtml || "",
           templateOrdinal: payload.templateOrdinal || 0,
-          bodyClass: payload.bodyClass || ""
+          bodyClass: payload.bodyClass || "",
+          textZoom: payload.textZoom || 0
+        });
+      }
+    },
+    setTextZoom: function (zoom) {
+      var clamped = Math.min(200, Math.max(100, zoom || 100));
+      if (payload) payload.textZoom = clamped;
+      if (frame && frameReady) {
+        postToFrame({
+          v: 1,
+          type: "setZoom",
+          nonce: nonce,
+          generation: generation,
+          cardId: payload ? payload.cardId || 0 : 0,
+          textZoom: clamped
         });
       }
     },

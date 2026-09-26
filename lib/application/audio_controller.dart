@@ -46,7 +46,11 @@ class TtsSpeakResult {
   String get userLabel {
     switch (source) {
       case TtsSpeakSource.system:
-        return 'Google / system TTS';
+        // Only Android exposes a named engine (Google TTS is preferred there);
+        // other platforms always speak through the OS system voice.
+        return defaultTargetPlatform == TargetPlatform.android
+            ? 'Google / system TTS'
+            : 'System TTS';
       case TtsSpeakSource.failed:
         return 'No voice played';
     }

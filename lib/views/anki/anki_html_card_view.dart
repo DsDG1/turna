@@ -1,5 +1,6 @@
 // Dart imports:
 import 'dart:async';
+import 'dart:io';
 
 // Flutter imports:
 import 'package:flutter/foundation.dart';
@@ -28,11 +29,12 @@ import 'package:turna/l10n/app_strings.dart';
 ///   view (decision 4). A `WebViewController` is never constructed there, so
 ///   the missing platform implementation never throws.
 ///
-/// Media: the HTML carries a `<base href="file:///…/">` (set by the
-/// official engine's rendered-card payload) so relative `<img>` / `<audio>`
-/// resolve. Full
-/// file-access wiring per platform is a follow-up; the rendered text/HTML
-/// content - the core fidelity goal - works via `loadHtmlString`.
+/// Media: relative `<img>` / `<audio>` refs resolve against the collection
+/// media dir. On iOS (WKWebView) a `loadHtmlString` page cannot reach
+/// `file://` subresources at all, so when [allowedMediaBasePath] is set the
+/// themed HTML is written inside that directory and loaded via `loadFile`,
+/// which grants the WebView read access to it. Other platforms keep
+/// `loadHtmlString` — the core fidelity content works without file access.
 class AnkiHtmlCardView extends StatefulWidget {
   final String html;
   final bool allowJs;
@@ -91,11 +93,10 @@ class AnkiHtmlCardViewState extends State<AnkiHtmlCardView> {
   /// layout math.
   static const double _maxReportableContentHeight = 20000;
 
-  /// WebView platform implementations exist only for Android/iOS. Use
-  /// Flutter's target platform guard, together with [kIsWeb], so this file
-  /// remains compilable for web and desktop builds. The platform test binding
-  /// may override [defaultTargetPlatform], but WebView construction is still
-  /// kept behind the runtime guard in production builds.
+  /// WebView platform implementations exist only for Android/iOS. The
+  /// platform test binding may override [defaultTargetPlatform], but WebView
+  /// construction is still kept behind the runtime guard in production
+  /// builds.
   static bool get _supported =>
       !kIsWeb &&
       WebViewPlatform.instance != null &&
@@ -149,8 +150,46 @@ class AnkiHtmlCardViewState extends State<AnkiHtmlCardView> {
       );
     }
     _ensureHeightChannel();
-    c.loadHtmlString(_themedHtml());
+    unawaited(_loadThemedHtml(c));
   }
+
+  bool get _useFileLoad =>
+      defaultTargetPlatform == TargetPlatform.iOS &&
+      widget.allowedMediaBasePath.isNotEmpty;
+
+  var _fileLoadSeq = 0;
+
+  Future<void> _loadThemedHtml(WebViewController c) async {
+    if (!_useFileLoad) {
+      await c.loadHtmlString(_themedHtml());
+      return;
+    }
+    // WKWebView only reads file:// resources under the `loadFile` readAccess
+    // directory; a fresh filename per load avoids any stale-page reuse.
+    final file = File(
+      '${widget.allowedMediaBasePath}${Platform.pathSeparator}'
+      '.turna_card_${identityHashCode(this)}_${_fileLoadSeq++}.html',
+    );
+    try {
+      await file.writeAsString(_themedHtml(), flush: true);
+      for (final old in _stagedFiles) {
+        old.delete().ignore();
+      }
+      _stagedFiles
+        ..clear()
+        ..add(file);
+      await c.loadFile(file.path);
+    } catch (error, stackTrace) {
+      logger.w(
+        '[AnkiHtmlCardView] file-mode load failed; plain html fallback',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      await c.loadHtmlString(_themedHtml());
+    }
+  }
+
+  final _stagedFiles = <File>[];
 
   /// Register the height-reporting channel. Never called for JS-disabled
   /// cards: the channel exists only when the page already runs JavaScript,
@@ -339,10 +378,19 @@ class AnkiHtmlCardViewState extends State<AnkiHtmlCardView> {
         _lastReportedContentHeight = null;
         _ensureHeightChannel();
         setState(() => _pageLoading = true);
-        _controller!.loadHtmlString(_themedHtml());
+        unawaited(_loadThemedHtml(_controller!));
         _loadedIsBack = widget.isBack;
       }
     }
+  }
+
+  @override
+  void dispose() {
+    for (final file in _stagedFiles) {
+      file.delete().ignore();
+    }
+    _stagedFiles.clear();
+    super.dispose();
   }
 
   @override

@@ -584,7 +584,7 @@ void main() {
 
       // Course entry flags on (production profile), projections active.
       OfficialAnkiCourseEntry.flagsOf =
-          () => OfficialAnkiFeatureFlags.productionAndroid;
+          () => OfficialAnkiFeatureFlags.production;
       OfficialAnkiCourseEntry.activeSectionIds = () => {
             'official-anki-$srcA-s10',
             'official-anki-$srcA-s11',

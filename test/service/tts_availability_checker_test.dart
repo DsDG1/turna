@@ -74,6 +74,18 @@ class _FakeFlutterTts implements FlutterTts {
     }
   }
 
+  IosTextToSpeechAudioCategory? iosAudioCategory;
+
+  @override
+  Future<dynamic> setIosAudioCategory(
+    IosTextToSpeechAudioCategory category,
+    List<IosTextToSpeechAudioCategoryOptions> options, [
+    IosTextToSpeechAudioMode mode = IosTextToSpeechAudioMode.defaultMode,
+  ]) async {
+    iosAudioCategory = category;
+    return null;
+  }
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

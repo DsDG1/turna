@@ -1,6 +1,7 @@
 // Dart imports:
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' show Rect;
 
 // Package imports:
 import 'package:package_info_plus/package_info_plus.dart';
@@ -81,10 +82,11 @@ class ExportService {
     return file;
   }
 
-  Future<void> share(File file) async {
+  Future<void> share(File file, {Rect? sharePositionOrigin}) async {
     await Share.shareXFiles(
       [XFile(file.path)],
       text: 'Turna export',
+      sharePositionOrigin: sharePositionOrigin,
     );
   }
 

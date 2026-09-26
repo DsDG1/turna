@@ -103,7 +103,8 @@ class LanguageContentStore {
 
   Future<void> _load() async {
     final failFor = debugLoadFailureForCode;
-    if (failFor != null && languageCode == LanguageCodes.canonicalize(failFor)) {
+    if (failFor != null &&
+        languageCode == LanguageCodes.canonicalize(failFor)) {
       throw StateError('debug injected content load failure for $languageCode');
     }
     final course = await CourseLoader.load(languageCode);

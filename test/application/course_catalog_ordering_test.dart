@@ -56,8 +56,7 @@ void main() {
       expect(order, [wires[0], wires[3], wires[1], wires[2]]);
     });
 
-    test('undragged decks go to the tail, undragged non-decks stay put',
-        () {
+    test('undragged decks go to the tail, undragged non-decks stay put', () {
       final order = CourseCatalogOrdering.deckReorderWires(
         entries: entries,
         reorderedImportIds: ['b'],

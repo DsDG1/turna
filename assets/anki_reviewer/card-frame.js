@@ -98,6 +98,15 @@
     document.body.className = next.concat(keep).join(" ");
   }
 
+  // iOS text zoom: WKWebView has no WebSettings.textZoom; the Dart side
+  // passes the same 100-200 percent via the setCard/setZoom payloads and the
+  // frame applies the WebKit text-size-adjust property instead. 0 = unset.
+  function applyZoom(zoom) {
+    var pct = Math.min(200, Math.max(100, zoom || 100)) + "%";
+    document.documentElement.style.webkitTextSizeAdjust = pct;
+    document.documentElement.style.textSizeAdjust = pct;
+  }
+
   function lazyLoadMathJax() {
     if (window.MathJax && MathJax.typesetPromise) {
       return Promise.resolve();
@@ -292,6 +301,7 @@
       }
       style.textContent = data.css || "";
       applyBodyClass(data.templateOrdinal || 0, data.theme || "day");
+      applyZoom(data.textZoom);
       post({
         v: 1,
         type: "cardAccepted",
@@ -315,6 +325,11 @@
       generation += 1;
       qa.innerHTML = "";
       if (window.MathJax && MathJax.typesetClear) MathJax.typesetClear();
+      return;
+    }
+    if (data.type === "setZoom") {
+      if (!nonceMatches(data)) return;
+      applyZoom(data.textZoom);
       return;
     }
     // Test-only postMessage probe. Not part of OfficialReviewer.

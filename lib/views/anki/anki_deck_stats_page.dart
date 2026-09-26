@@ -152,13 +152,13 @@ class _AnkiDeckStatsPageState extends State<AnkiDeckStatsPage> {
                 );
               },
             )
-        : Center(
-            child: Text(
-              AppStrings.ankiBrowserOfficialUnavailable(
-                  'legacy_note_store_retired'),
-              textAlign: TextAlign.center,
+          : Center(
+              child: Text(
+                AppStrings.ankiBrowserOfficialUnavailable(
+                    'legacy_note_store_retired'),
+                textAlign: TextAlign.center,
+              ),
             ),
-          ),
     );
   }
 }
@@ -228,8 +228,8 @@ class _ForecastValue extends StatelessWidget {
               style: TextStyle(
                   color: TurnaTheme.textHintColor(context), fontSize: 12)),
           Text('$value',
-              style: const TextStyle(
-                  fontWeight: FontWeight.w700, fontSize: 18)),
+              style:
+                  const TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
         ],
       );
 }
