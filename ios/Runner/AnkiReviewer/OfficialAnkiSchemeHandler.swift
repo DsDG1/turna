@@ -180,8 +180,10 @@ final class OfficialAnkiSchemeHandler: NSObject, WKURLSchemeHandler {
     }
 
     private func finish(_ task: WKURLSchemeTask, status: Int, mime: String, headers: [String: String], body: Data = Data()) {
+        var responseHeaders = headers
+        responseHeaders["Content-Type"] = mime
         guard let url = task.request.url,
-              let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: "HTTP/1.1", headerFields: headers) else {
+              let response = HTTPURLResponse(url: url, statusCode: status, httpVersion: "HTTP/1.1", headerFields: responseHeaders) else {
             return
         }
         task.didReceive(response)

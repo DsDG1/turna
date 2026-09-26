@@ -216,7 +216,7 @@ final class OfficialAnkiReviewerView: NSObject, FlutterPlatformView {
     }
 
     private static func jsString(_ value: String) -> String {
-        guard let data = try? JSONSerialization.data(withJSONObject: value),
+        guard let data = try? JSONSerialization.data(withJSONObject: value, options: [.fragmentsAllowed]),
               let json = String(data: data, encoding: .utf8) else {
             return "\"\""
         }
