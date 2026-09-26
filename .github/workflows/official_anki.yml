@@ -5,7 +5,10 @@ on:
     paths:
       - "native/turna_anki_core/**"
       - "lib/application/anki_official/**"
+      - "lib/views/anki_official/**"
+      - "assets/anki_reviewer/**"
       - "test/application/anki_official/**"
+      - "test/views/anki_official/**"
       - "test/fixtures/anki_official/**"
       - "ios/**"
       - ".github/workflows/official_anki.yml"
@@ -13,7 +16,10 @@ on:
     paths:
       - "native/turna_anki_core/**"
       - "lib/application/anki_official/**"
+      - "lib/views/anki_official/**"
+      - "assets/anki_reviewer/**"
       - "test/application/anki_official/**"
+      - "test/views/anki_official/**"
       - "test/fixtures/anki_official/**"
       - "ios/**"
       - ".github/workflows/official_anki.yml"
