@@ -252,9 +252,6 @@ class _OfficialAnkiReviewerIosViewState
   Future<void> _present() async {
     if (_controller == null || _disposed) return;
     final token = widget.presentGeneration ?? ++_setCardGeneration;
-    if (widget.presentGeneration == null) {
-      _setCardGeneration = token;
-    }
     final side = widget.showingAnswer ? 'answer' : 'question';
     if (_deduper.shouldSkip(
       cardId: widget.card.cardId,

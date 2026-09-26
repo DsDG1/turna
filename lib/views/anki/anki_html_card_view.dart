@@ -93,11 +93,10 @@ class AnkiHtmlCardViewState extends State<AnkiHtmlCardView> {
   /// layout math.
   static const double _maxReportableContentHeight = 20000;
 
-  /// WebView platform implementations exist only for Android/iOS. Use
-  /// Flutter's target platform guard, together with [kIsWeb], so this file
-  /// remains compilable for web and desktop builds. The platform test binding
-  /// may override [defaultTargetPlatform], but WebView construction is still
-  /// kept behind the runtime guard in production builds.
+  /// WebView platform implementations exist only for Android/iOS. The
+  /// platform test binding may override [defaultTargetPlatform], but WebView
+  /// construction is still kept behind the runtime guard in production
+  /// builds.
   static bool get _supported =>
       !kIsWeb &&
       WebViewPlatform.instance != null &&
