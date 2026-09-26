@@ -559,16 +559,14 @@ class AnkiImportController extends ChangeNotifier {
 
   // ─── Helpers ────────────────────────────────────────────────────────
 
-  /// The active preview of type [T], also visible through a Failed
-  /// state's return state.
+  /// The active preview of type [T], incl. a Failed state's return state.
   T? _previewOf<T extends AnkiImportPreviewModel>() {
+    final state = _state;
     for (final candidate in [
-      if (_state is AnkiImportPreviewing)
-        (_state as AnkiImportPreviewing).preview,
-      if (_state is AnkiImportFailed &&
-          (_state as AnkiImportFailed).returnState is AnkiImportPreviewing)
-        ((_state as AnkiImportFailed).returnState as AnkiImportPreviewing)
-            .preview,
+      if (state is AnkiImportPreviewing) state.preview,
+      if (state is AnkiImportFailed &&
+          state.returnState is AnkiImportPreviewing)
+        (state.returnState as AnkiImportPreviewing).preview,
     ]) {
       if (candidate is T) return candidate;
     }
