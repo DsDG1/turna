@@ -610,10 +610,14 @@ class AppStrings {
   static String get settingsTtsChecking => '正在检查设备 TTS 引擎…';
   static String settingsTtsReady(String locale) =>
       'Google TTS 就绪（$locale）——推荐用于学习';
+  static String settingsTtsReadySystem(String locale) =>
+      '系统语音就绪（$locale）';
   static String get settingsTtsGoogleInstalledMissingVoice =>
       'Google 已安装——请在系统 TTS 设置中下载土耳其语语音数据';
   static String settingsTtsVoiceMissing(String name) =>
       '$name 语音未就绪——打开系统 TTS 设置';
+  static String settingsTtsVoiceMissingSystem(String name) =>
+      '$name 语音未就绪——请在系统设置中下载语音';
   static String settingsTtsGoogleMissing(Object oem) =>
       '未检测到 Google TTS（引擎：$oem）';
   static String get settingsVoiceSourceTitle => '语音来源';
@@ -622,6 +626,10 @@ class AppStrings {
   static String get settingsPlaySample => '播放示例（Merhaba）…';
   static String get settingsOpenSystemTts => '打开系统 TTS 设置…';
   static String get settingsInstallGoogleTts => '安装/打开 Google TTS…';
+  static String get settingsVoiceGuideAction => '如何下载语音…';
+  static String get settingsVoiceGuideIosTitle => '下载语音数据';
+  static String get settingsVoiceGuideIosBody =>
+      '打开系统「设置 → 辅助功能 → 朗读内容 → 声音」，选择语言并下载语音。';
   static String settingsTtsNoVoicePlayed(Object error) => '未播放语音。$error';
   static String get settingsTtsNoVoicePlayedFallback =>
       '未播放语音。请检查 logcat 中的 TTS 错误。';
@@ -2621,6 +2629,8 @@ class AppStrings {
   static String splashVoiceMissingTitle(String name) => '缺少$name语音数据';
   static String splashVoiceMissingBody(String name) =>
       '已安装 Google 文字转语音，但尚未下载$name语音包。\n\n打开系统 TTS 设置 → 首选引擎 = Google → 安装$name语音数据。';
+  static String splashVoiceMissingBodyIos(String name) =>
+      '尚未安装$name语音。\n\n前往「设置 → 辅助功能 → 朗读内容 → 声音」下载$name语音后回到 App。';
   static String get splashGoogleTtsMissingTitle => 'Google TTS 不可用';
   static String get splashGoogleTtsMissingBody =>
       '此设备未显示 Google 文字转语音（或包可见性阻止了引擎发现）。\n\n安装「Google 语音识别与合成」，设为首选引擎，并下载土耳其语语音。';

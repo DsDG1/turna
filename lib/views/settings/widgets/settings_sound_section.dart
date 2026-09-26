@@ -1,4 +1,5 @@
 // Flutter imports:
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 // Package imports:
@@ -76,18 +77,23 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
       return AppStrings.settingsTtsChecking;
     }
     final d = _diagnostics!;
+    final isAndroid =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
     switch (d.preferredStatus) {
       case TtsPreferredStatus.ready:
         final locale =
             d.resolvedLocale ?? getIt<LanguageProvider>().ttsLanguageCode;
-        return AppStrings.settingsTtsReady(locale);
+        return isAndroid
+            ? AppStrings.settingsTtsReady(locale)
+            : AppStrings.settingsTtsReadySystem(locale);
       case TtsPreferredStatus.voiceMissing:
-        if (d.hasGoogleEngine) {
-          return AppStrings.settingsTtsGoogleInstalledMissingVoice;
+        final name = getIt<LanguageProvider>().displayName;
+        if (isAndroid) {
+          return d.hasGoogleEngine
+              ? AppStrings.settingsTtsGoogleInstalledMissingVoice
+              : AppStrings.settingsTtsVoiceMissing(name);
         }
-        return AppStrings.settingsTtsVoiceMissing(
-          getIt<LanguageProvider>().displayName,
-        );
+        return AppStrings.settingsTtsVoiceMissingSystem(name);
       case TtsPreferredStatus.googleMissing:
         final oem = d.engines.isEmpty ? 'none listed' : d.engines.join(', ');
         return AppStrings.settingsTtsGoogleMissing(oem);
@@ -129,6 +135,11 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
   }
 
   Future<void> _showTtsMenu() async {
+    // Engine selection and the Play Store are Android-only; on iOS the only
+    // actionable path is downloading voices in system Settings.
+    final isAndroid =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+    final isIos = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
     final selected = await showDialog<Object>(
       context: context,
       builder: (context) => SimpleDialog(
@@ -138,22 +149,29 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
             onPressed: () => Navigator.of(context).pop('preview'),
             child: Text(AppStrings.settingsPlaySample),
           ),
-          SimpleDialogOption(
-            onPressed: () async {
-              Navigator.of(context).pop();
-              await getIt<TtsAvailabilityChecker>().openSystemTtsSettings();
-              await _refreshDiagnostics();
-            },
-            child: Text(AppStrings.settingsOpenSystemTts),
-          ),
-          SimpleDialogOption(
-            onPressed: () async {
-              Navigator.of(context).pop();
-              await getIt<TtsAvailabilityChecker>().openGoogleTtsInstallPage();
-              await _refreshDiagnostics();
-            },
-            child: Text(AppStrings.settingsInstallGoogleTts),
-          ),
+          if (isAndroid) ...[
+            SimpleDialogOption(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await getIt<TtsAvailabilityChecker>().openSystemTtsSettings();
+                await _refreshDiagnostics();
+              },
+              child: Text(AppStrings.settingsOpenSystemTts),
+            ),
+            SimpleDialogOption(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await getIt<TtsAvailabilityChecker>()
+                    .openGoogleTtsInstallPage();
+                await _refreshDiagnostics();
+              },
+              child: Text(AppStrings.settingsInstallGoogleTts),
+            ),
+          ] else if (isIos)
+            SimpleDialogOption(
+              onPressed: () => Navigator.of(context).pop('voiceGuide'),
+              child: Text(AppStrings.settingsVoiceGuideAction),
+            ),
         ],
       ),
     );
@@ -162,7 +180,25 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
 
     if (selected == 'preview') {
       await _playSample();
+    } else if (selected == 'voiceGuide') {
+      await _showVoiceDownloadGuide();
     }
+  }
+
+  Future<void> _showVoiceDownloadGuide() {
+    return showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(AppStrings.settingsVoiceGuideIosTitle),
+        content: Text(AppStrings.settingsVoiceGuideIosBody),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(AppStrings.commonGotIt),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _playSample() async {

@@ -12,6 +12,7 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/domain/auth/local_user.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/locator.dart';
+import 'package:turna/utils/share_origin.dart';
 import 'package:turna/views/profile/utils/share_image_generator.dart';
 import 'package:turna/views/profile/widgets/share_progress_card.dart';
 import 'package:turna/core/theme.dart';
@@ -186,6 +187,7 @@ class _ShareProgressSheetState extends State<_ShareProgressSheet> {
     try {
       await _generator.captureAndShare(
         shareText: AppStrings.profileShareText,
+        sharePositionOrigin: shareOriginFor(context),
       );
       if (mounted) {
         Navigator.of(context).pop();
