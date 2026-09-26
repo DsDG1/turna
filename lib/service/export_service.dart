@@ -78,6 +78,9 @@ class ExportService {
     final dir = await getTemporaryDirectory();
     final ts = DateTime.now().millisecondsSinceEpoch;
     final file = File('${dir.path}/turna_export_$ts.json');
+    // Sandboxed macOS: the Caches subdir may not exist on a fresh install and
+    // writeAsString does not create parents.
+    await file.create(recursive: true);
     await file.writeAsString(jsonEncode(payload));
     return file;
   }

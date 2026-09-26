@@ -67,6 +67,9 @@ class ShareProgressImageGenerator {
 
     final tempDir = await getTemporaryDirectory();
     final file = File('${tempDir.path}/turna_progress.png');
+    // Sandboxed macOS: the Caches subdir may not exist on a fresh install and
+    // writeAsBytes does not create parents.
+    await file.create(recursive: true);
     await file.writeAsBytes(pngBytes);
 
     await Share.shareXFiles(
