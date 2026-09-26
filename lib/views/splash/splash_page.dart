@@ -24,7 +24,13 @@ import 'components/splash_background_painter.dart';
 /// Returns true when a TTS dialog was shown (counts against the session
 /// modal budget). Dismissing the barrier keeps the system voice.
 Future<bool> maybePromptTtsAvailability(BuildContext context) async {
-  if (kIsWeb) return false;
+  // The prompt only offers meaningful recovery paths on Android and iOS;
+  // on other platforms its copy would point at the Play Store anyway.
+  if (kIsWeb ||
+      (defaultTargetPlatform != TargetPlatform.android &&
+          defaultTargetPlatform != TargetPlatform.iOS)) {
+    return false;
+  }
   final prefs = getIt<AppPrefs>();
   final alreadyPrompted = prefs.preferences
       .getBool(LocalStateKeys.ttsAvailabilityPromptShown, defaultValue: false)
@@ -39,10 +45,13 @@ Future<bool> maybePromptTtsAvailability(BuildContext context) async {
   final diag = await checker.diagnose(languageCode);
   if (!context.mounted) return false;
   final languageName = getIt<LanguageProvider>().displayName;
+  final isAndroid = defaultTargetPlatform == TargetPlatform.android;
   final (title, body) = switch (diag.preferredStatus) {
     TtsPreferredStatus.voiceMissing => (
         AppStrings.splashVoiceMissingTitle(languageName),
-        AppStrings.splashVoiceMissingBody(languageName),
+        isAndroid
+            ? AppStrings.splashVoiceMissingBody(languageName)
+            : AppStrings.splashVoiceMissingBodyIos(languageName),
       ),
     TtsPreferredStatus.googleMissing => (
         AppStrings.splashGoogleTtsMissingTitle,
@@ -66,16 +75,19 @@ Future<bool> maybePromptTtsAvailability(BuildContext context) async {
               Navigator.of(context).pop(_GoogleTtsPromptAction.keepSystem),
           child: Text(AppStrings.splashKeepCurrentVoice),
         ),
-        TextButton(
-          onPressed: () =>
-              Navigator.of(context).pop(_GoogleTtsPromptAction.openSettings),
-          child: Text(AppStrings.splashTtsSettings),
-        ),
-        TextButton(
-          onPressed: () =>
-              Navigator.of(context).pop(_GoogleTtsPromptAction.installGoogle),
-          child: Text(AppStrings.splashInstallGoogleTts),
-        ),
+        // TTS settings intents and the Play Store page are Android-only.
+        if (isAndroid) ...[
+          TextButton(
+            onPressed: () =>
+                Navigator.of(context).pop(_GoogleTtsPromptAction.openSettings),
+            child: Text(AppStrings.splashTtsSettings),
+          ),
+          TextButton(
+            onPressed: () =>
+                Navigator.of(context).pop(_GoogleTtsPromptAction.installGoogle),
+            child: Text(AppStrings.splashInstallGoogleTts),
+          ),
+        ],
       ],
     ),
   );

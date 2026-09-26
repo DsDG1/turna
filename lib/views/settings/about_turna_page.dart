@@ -11,6 +11,7 @@ import 'package:turna/application/settings/app_build_info.dart';
 import 'package:turna/application/settings/external_link_registry.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
+import 'package:turna/utils/share_origin.dart';
 import 'package:turna/views/settings/changelog_page.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
@@ -35,7 +36,10 @@ class AboutTurnaPage extends StatelessWidget {
   final AppBuildInfo? buildInfo;
 
   Future<void> _shareApp(BuildContext context) async {
-    await Share.share(AppStrings.aboutShareText);
+    await Share.share(
+      AppStrings.aboutShareText,
+      sharePositionOrigin: shareOriginFor(context),
+    );
   }
 
   @override
