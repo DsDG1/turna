@@ -538,8 +538,7 @@ class CourseDatabase extends _$CourseDatabase {
             // go. Children drop before parents (FK ON DELETE CASCADE).
             await m.database
                 .customStatement('DROP TABLE IF EXISTS anki_cards_meta');
-            await m.database
-                .customStatement('DROP TABLE IF EXISTS anki_notes');
+            await m.database.customStatement('DROP TABLE IF EXISTS anki_notes');
             await m.database
                 .customStatement('DROP TABLE IF EXISTS anki_notetypes');
           }

@@ -55,10 +55,8 @@ abstract final class CourseCatalogOrdering {
       }
       order.add(entry.wireKey);
     }
-    final builtinWire = entries
-        .where((e) => e.isBuiltin)
-        .map((e) => e.wireKey)
-        .firstOrNull;
+    final builtinWire =
+        entries.where((e) => e.isBuiltin).map((e) => e.wireKey).firstOrNull;
     final builtinIndex = builtinWire == null ? -1 : order.indexOf(builtinWire);
     order.insertAll(
       builtinIndex < 0 ? order.length : builtinIndex + 1,
