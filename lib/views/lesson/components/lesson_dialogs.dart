@@ -87,7 +87,9 @@ Future<void> showLessonCompletionDialog({
   );
 
   if (isMounted()) {
-    unawaited(navigator.maybePop());
+    // Pop unconditionally: maybePop on a PopScope(canPop: false) host page
+    // re-enters the pop callback forever (the pop-loop landmine).
+    navigator.pop();
   }
 }
 

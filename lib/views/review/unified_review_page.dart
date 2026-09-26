@@ -125,7 +125,9 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
   Future<void> _confirmExit() async {
     if (_controller.isSubmitting || _controller.isPersisting) return;
     if (_controller.isComplete || _controller.answeredCount == 0) {
-      if (mounted) unawaited(Navigator.of(context).maybePop());
+      // Unconditional pop bypasses canPop so this doesn't re-enter the
+      // pop callback (the ai_api_config_page pop-loop fix, same landmine).
+      if (mounted) Navigator.of(context).pop();
       return;
     }
     final remaining = _controller.remainingCount;
@@ -261,7 +263,8 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
       return PopScope(
         canPop: false,
         onPopInvokedWithResult: (didPop, _) {
-          if (!didPop) Navigator.of(context).maybePop();
+          // Unconditional pop — maybePop re-enters this callback forever.
+          if (!didPop) Navigator.of(context).pop();
         },
         child: Scaffold(
           body: SafeArea(
@@ -283,7 +286,7 @@ class _UnifiedReviewPageState extends State<UnifiedReviewPage> {
                             AppStrings.reviewUndoRatingDone,
                           );
                         },
-              onFinish: () => Navigator.of(context).maybePop(),
+              onFinish: () => Navigator.of(context).pop(),
             ),
           ),
         ),
