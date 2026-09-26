@@ -203,7 +203,7 @@ class OfficialAnkiReviewerViewState extends State<OfficialAnkiReviewerView> {
 
   @override
   Widget build(BuildContext context) {
-    if (!Platform.isAndroid) {
+    if (!Platform.isAndroid && !Platform.isIOS) {
       return const OfficialAnkiReviewerErrorView(
         messageKey: 'official_anki.renderer_flag_fail_closed',
       );
@@ -215,6 +215,16 @@ class OfficialAnkiReviewerViewState extends State<OfficialAnkiReviewerView> {
       'diagnostics':
           kDebugMode && OfficialAnkiFeatureFlags.current.reviewerDiagnostics,
     };
+    if (Platform.isIOS) {
+      return UiKitView(
+        viewType: officialAnkiReviewerViewType,
+        creationParams: params,
+        creationParamsCodec: const StandardMessageCodec(),
+        onPlatformViewCreated: _onCreated,
+        gestureRecognizers: const <Factory<OneSequenceGestureRecognizer>>{},
+        hitTestBehavior: PlatformViewHitTestBehavior.opaque,
+      );
+    }
     return PlatformViewLink(
       viewType: officialAnkiReviewerViewType,
       surfaceFactory: (context, controller) {

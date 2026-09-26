@@ -97,6 +97,11 @@ class OfficialAnkiNativeTransport {
   }
 
   static DynamicLibrary _openLibrary(String resolved) {
+    if (Platform.isIOS) {
+      // libturna_anki.a is statically linked into the app binary (iOS has no
+      // app-bundled dlopen); the bridge symbols resolve from the process image.
+      return DynamicLibrary.process();
+    }
     try {
       return DynamicLibrary.open(resolved);
     } on ArgumentError catch (openError) {
@@ -279,6 +284,11 @@ String? resolveOfficialAnkiLibraryPath() {
   }
   if (Platform.isAndroid) {
     return 'libturna_anki.so';
+  }
+  if (Platform.isIOS) {
+    // No file to dlopen — the static library is in the process image. The
+    // marker satisfies callers that require a non-null path.
+    return 'process';
   }
   final cwd = Directory.current.path;
   for (final relative in const [

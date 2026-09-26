@@ -58,7 +58,7 @@ class AnkiSourceRouteResolver {
     final cutover = cutoverEnabled ?? LegacyAnkiMigrationFlags.cutoverEnabled;
     if (!cutover) return AnkiEngineKind.legacy;
     final plat = platform ?? OfficialAnkiCapabilityMatrix.current().platform;
-    if (plat == 'android') {
+    if (plat == 'android' || plat == 'ios') {
       final libraryOk =
           libraryAvailable ?? OfficialAnkiNativeAvailability.current;
       // Missing native runtime: do not invent a Legacy owner for unrecorded
@@ -67,9 +67,10 @@ class AnkiSourceRouteResolver {
       // fail-closed separately and never write Legacy.
       return libraryOk ? AnkiEngineKind.official : AnkiEngineKind.legacy;
     }
-    // Non-Android: never invent a new Legacy writer. Only an already-known
-    // Official catalog source stays Official (read/repair); everything else
-    // is treated as non-official so product mode can mark Anki unavailable.
+    // Non-supported platforms: never invent a new Legacy writer. Only an
+    // already-known Official catalog source stays Official (read/repair);
+    // everything else is treated as non-official so product mode can mark
+    // Anki unavailable.
     return officialCatalogHasSource
         ? AnkiEngineKind.official
         : AnkiEngineKind.legacy;
@@ -108,6 +109,7 @@ class OfficialAnkiCapabilityMatrix {
     final resolved = flags ?? OfficialAnkiFeatureFlags.current;
     switch (platform) {
       case 'android':
+      case 'ios':
         return OfficialAnkiPlatformCapability(
           platform: platform,
           officialCore: true,
@@ -127,7 +129,6 @@ class OfficialAnkiCapabilityMatrix {
           officialScheduler: false,
           legacyFallbackRequired: false,
         );
-      case 'ios':
       case 'windows':
       default:
         // Unknown / unsupported platforms (including retired OHOS) never open
