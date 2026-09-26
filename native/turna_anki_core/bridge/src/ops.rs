@@ -2771,7 +2771,33 @@ mod tests {
                 })
                 .unwrap();
             let direct_summary = card_public_summary(&direct, card_id);
-            assert_eq!(bridge, direct_summary, "rating={rating_name}");
+            // Learn-queue cards store `due` as a unix-second timestamp derived
+            // from the wall clock; the bridge and direct answers run back to
+            // back and can straddle a second boundary, so tolerate that field's
+            // drift. Day-number dues and every other field compare exactly.
+            let bridge = [
+                bridge.0, bridge.1, bridge.2, bridge.3, bridge.4, bridge.5, bridge.6, bridge.7,
+            ];
+            let direct_summary = [
+                direct_summary.0,
+                direct_summary.1,
+                direct_summary.2,
+                direct_summary.3,
+                direct_summary.4,
+                direct_summary.5,
+                direct_summary.6,
+                direct_summary.7,
+            ];
+            for (i, (b, d)) in bridge.iter().zip(direct_summary.iter()).enumerate() {
+                if i == 1 && b.abs() > 1_000_000_000 && d.abs() > 1_000_000_000 {
+                    assert!(
+                        (b - d).abs() <= 5,
+                        "rating={rating_name}: due drifted {b} vs {d}"
+                    );
+                } else {
+                    assert_eq!(b, d, "rating={rating_name}: field {i} mismatch");
+                }
+            }
             drop(direct);
             free_engine(handle).unwrap();
             let _ = fs::remove_dir_all(root_a);
