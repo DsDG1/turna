@@ -50,26 +50,51 @@ class SettingsTtsEngineTile extends StatefulWidget {
   State<SettingsTtsEngineTile> createState() => _SettingsTtsEngineTileState();
 }
 
-class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
+class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile>
+    with WidgetsBindingObserver {
   TtsDiagnostics? _diagnostics;
   bool _loading = true;
   bool _previewing = false;
+  bool _refreshing = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _refreshDiagnostics();
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // Returning from system settings (where the user may have just installed a
+  // voice or switched engines) must re-run the diagnosis — the tile otherwise
+  // keeps showing the stale "voice missing" state until the page is reopened.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshDiagnostics();
+    }
+  }
+
   Future<void> _refreshDiagnostics() async {
-    final checker = getIt<TtsAvailabilityChecker>();
-    final lang = getIt<LanguageProvider>().ttsLanguageCode;
-    final diag = await checker.diagnose(lang);
-    if (!mounted) return;
-    setState(() {
-      _diagnostics = diag;
-      _loading = false;
-    });
+    if (_refreshing) return;
+    _refreshing = true;
+    try {
+      final checker = getIt<TtsAvailabilityChecker>();
+      final lang = getIt<LanguageProvider>().ttsLanguageCode;
+      final diag = await checker.diagnose(lang);
+      if (!mounted) return;
+      setState(() {
+        _diagnostics = diag;
+        _loading = false;
+      });
+    } finally {
+      _refreshing = false;
+    }
   }
 
   String _subtitle() {
