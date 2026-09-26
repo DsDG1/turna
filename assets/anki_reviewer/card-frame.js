@@ -317,6 +317,15 @@
       if (window.MathJax && MathJax.typesetClear) MathJax.typesetClear();
       return;
     }
+    // Text-only zoom relayed by the iOS shell — WKWebView has no
+    // WebSettings.textZoom equivalent and the sandboxed frame is opaque, so
+    // the native side posts this instead. Android applies textZoom at the
+    // WebView level and never sends it.
+    if (data.type === "turnaTextZoom") {
+      var zoom = typeof data.zoom === "string" ? data.zoom : "100%";
+      document.documentElement.style.webkitTextSizeAdjust = zoom;
+      return;
+    }
     // Test-only postMessage probe. Not part of OfficialReviewer.
     if (data.type === "testSnapshot") {
       post({

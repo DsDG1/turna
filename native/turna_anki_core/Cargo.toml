@@ -10,7 +10,7 @@ description = "Turna C ABI around a pinned official Anki rslib"
 [lib]
 name = "turna_anki"
 path = "bridge/src/lib.rs"
-crate-type = ["cdylib", "rlib"]
+crate-type = ["cdylib", "rlib", "staticlib"]
 
 [dependencies]
 # Repository-relative paths only. Do not point Cargo at /home/.../anki.
