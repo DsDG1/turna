@@ -332,6 +332,14 @@
         });
       }
     },
+    // Text-only zoom for shells whose WebView has no textZoom API (iOS).
+    // Goes through postToFrame so the frame nonce is attached; Android
+    // applies zoom natively and never calls this.
+    setTextZoom: function (zoom) {
+      var v = typeof zoom === "string" ? zoom : String(zoom || 100) + "%";
+      document.documentElement.style.webkitTextSizeAdjust = v;
+      postToFrame({ v: 1, type: "turnaTextZoom", nonce: nonce, zoom: v });
+    },
     clearCard: function () {
       generation += 1;
       payload = null;

@@ -17,6 +17,14 @@
 		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
 		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
 		EF6FC454DECEAB10B967F330 /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A56D70C179417F6D158C6FA1 /* Pods_Runner.framework */; };
+		DA0F00010000000000000001 /* TurnaAnki.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA0F00020000000000000001 /* TurnaAnki.xcframework */; };
+		DA0F00070000000000000001 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA0F00030000000000000001 /* Security.framework */; };
+		DA0F00080000000000000001 /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA0F00040000000000000001 /* SystemConfiguration.framework */; };
+		DA0F00090000000000000001 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DA0F00050000000000000001 /* CoreFoundation.framework */; };
+		DA0F000A0000000000000001 /* libc++.tbd in Frameworks */ = {isa = PBXBuildFile; fileRef = DA0F00060000000000000001 /* libc++.tbd */; };
+		DA0F00110000000000000001 /* OfficialAnkiReviewerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA0F00120000000000000001 /* OfficialAnkiReviewerView.swift */; };
+		DA0F00130000000000000001 /* OfficialAnkiReviewerFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA0F00140000000000000001 /* OfficialAnkiReviewerFactory.swift */; };
+		DA0F00150000000000000001 /* OfficialAnkiSchemeHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA0F00160000000000000001 /* OfficialAnkiSchemeHandler.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -67,6 +75,14 @@
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A56D70C179417F6D158C6FA1 /* Pods_Runner.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Runner.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		D8B2B8EA2812E44FD1FC37FE /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
+		DA0F00020000000000000001 /* TurnaAnki.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = TurnaAnki.xcframework; path = Frameworks/TurnaAnki.xcframework; sourceTree = "<group>"; };
+		DA0F00030000000000000001 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
+		DA0F00040000000000000001 /* SystemConfiguration.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SystemConfiguration.framework; path = System/Library/Frameworks/SystemConfiguration.framework; sourceTree = SDKROOT; };
+		DA0F00050000000000000001 /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
+		DA0F00060000000000000001 /* libc++.tbd */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.text-based-dylib-definition"; name = "libc++.tbd"; path = "usr/lib/libc++.tbd"; sourceTree = SDKROOT; };
+		DA0F00120000000000000001 /* OfficialAnkiReviewerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfficialAnkiReviewerView.swift; sourceTree = "<group>"; };
+		DA0F00140000000000000001 /* OfficialAnkiReviewerFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfficialAnkiReviewerFactory.swift; sourceTree = "<group>"; };
+		DA0F00160000000000000001 /* OfficialAnkiSchemeHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfficialAnkiSchemeHandler.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -76,6 +92,11 @@
 			files = (
 				78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */,
 				EF6FC454DECEAB10B967F330 /* Pods_Runner.framework in Frameworks */,
+				DA0F00010000000000000001 /* TurnaAnki.xcframework in Frameworks */,
+				DA0F00070000000000000001 /* Security.framework in Frameworks */,
+				DA0F00080000000000000001 /* SystemConfiguration.framework in Frameworks */,
+				DA0F00090000000000000001 /* CoreFoundation.framework in Frameworks */,
+				DA0F000A0000000000000001 /* libc++.tbd in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -101,6 +122,11 @@
 		71E4F332CF3BCB7A732850A4 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				DA0F00020000000000000001 /* TurnaAnki.xcframework */,
+				DA0F00030000000000000001 /* Security.framework */,
+				DA0F00040000000000000001 /* SystemConfiguration.framework */,
+				DA0F00050000000000000001 /* CoreFoundation.framework */,
+				DA0F00060000000000000001 /* libc++.tbd */,
 				A56D70C179417F6D158C6FA1 /* Pods_Runner.framework */,
 				121D46D1F7BE4EEDA72BF548 /* Pods_RunnerTests.framework */,
 			);
@@ -151,6 +177,7 @@
 				1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */,
 				74858FAE1ED2DC5600515810 /* AppDelegate.swift */,
 				74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */,
+				DA0F00170000000000000001 /* AnkiReviewer */,
 			);
 			path = Runner;
 			sourceTree = "<group>";
@@ -166,6 +193,16 @@
 				88FFF6DE89F9A8F4396358FA /* Pods-RunnerTests.profile.xcconfig */,
 			);
 			path = Pods;
+			sourceTree = "<group>";
+		};
+		DA0F00170000000000000001 /* AnkiReviewer */ = {
+			isa = PBXGroup;
+			children = (
+				DA0F00120000000000000001 /* OfficialAnkiReviewerView.swift */,
+				DA0F00140000000000000001 /* OfficialAnkiReviewerFactory.swift */,
+				DA0F00160000000000000001 /* OfficialAnkiSchemeHandler.swift */,
+			);
+			path = AnkiReviewer;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -388,6 +425,9 @@
 			files = (
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
 				1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */,
+				DA0F00110000000000000001 /* OfficialAnkiReviewerView.swift in Sources */,
+				DA0F00130000000000000001 /* OfficialAnkiReviewerFactory.swift in Sources */,
+				DA0F00150000000000000001 /* OfficialAnkiSchemeHandler.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -487,8 +527,20 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lc++",
+					"-Wl,-u,_turna_anki_abi_version",
+					"-Wl,-u,_turna_anki_engine_new",
+					"-Wl,-u,_turna_anki_engine_open",
+					"-Wl,-u,_turna_anki_call",
+					"-Wl,-u,_turna_anki_cancel",
+					"-Wl,-u,_turna_anki_engine_close",
+					"-Wl,-u,_turna_anki_buffer_free",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = me.dsdogs.turna;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRIP_STYLE = "non-global";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
@@ -672,8 +724,20 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lc++",
+					"-Wl,-u,_turna_anki_abi_version",
+					"-Wl,-u,_turna_anki_engine_new",
+					"-Wl,-u,_turna_anki_engine_open",
+					"-Wl,-u,_turna_anki_call",
+					"-Wl,-u,_turna_anki_cancel",
+					"-Wl,-u,_turna_anki_engine_close",
+					"-Wl,-u,_turna_anki_buffer_free",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = me.dsdogs.turna;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRIP_STYLE = "non-global";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
@@ -699,8 +763,20 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-lc++",
+					"-Wl,-u,_turna_anki_abi_version",
+					"-Wl,-u,_turna_anki_engine_new",
+					"-Wl,-u,_turna_anki_engine_open",
+					"-Wl,-u,_turna_anki_call",
+					"-Wl,-u,_turna_anki_cancel",
+					"-Wl,-u,_turna_anki_engine_close",
+					"-Wl,-u,_turna_anki_buffer_free",
+				);
 				PRODUCT_BUNDLE_IDENTIFIER = me.dsdogs.turna;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRIP_STYLE = "non-global";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";

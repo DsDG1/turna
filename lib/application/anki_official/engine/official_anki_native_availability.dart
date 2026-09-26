@@ -28,7 +28,19 @@ class OfficialAnkiNativeAvailability {
   }
 
   static bool _probe() {
-    if (Platform.isIOS || Platform.isWindows) return false;
+    if (Platform.isWindows) return false;
+    if (Platform.isIOS) {
+      // The static library is linked into the app binary, so there is no
+      // file to dlopen — probe the process symbol table directly.
+      try {
+        final lib = DynamicLibrary.process();
+        lib.lookup<NativeFunction<Uint32 Function()>>('turna_anki_abi_version');
+        return true;
+      } on ArgumentError catch (error) {
+        _reportUnavailable('process: $error');
+        return false;
+      }
+    }
     final resolved = Platform.isAndroid ? 'libturna_anki.so' : null;
     final path = resolved ?? resolveOfficialAnkiLibraryPath();
     if (path == null) {

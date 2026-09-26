@@ -113,8 +113,10 @@ android/.kotlin/errors/
 # Official Anki native spike outputs. The .so is produced by
 # native/turna_anki_core/build-android/build.sh and must not be
 # hand-copied into git as a substitute for a reproducible build.
+# Same for the iOS static library, produced by build-ios/build.sh.
 native/turna_anki_core/target/
 android/app/src/main/jniLibs/**/libturna_anki.so
+ios/Frameworks/TurnaAnki.xcframework/
 
 # Official Anki spike large packages are generated on demand.
 test/fixtures/anki_official/generated/
