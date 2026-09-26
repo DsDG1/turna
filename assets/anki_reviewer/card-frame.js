@@ -320,8 +320,10 @@
     // Text-only zoom relayed by the iOS shell — WKWebView has no
     // WebSettings.textZoom equivalent and the sandboxed frame is opaque, so
     // the native side posts this instead. Android applies textZoom at the
-    // WebView level and never sends it.
+    // WebView level and never sends it. Nonce-gated like every other
+    // card-protocol message.
     if (data.type === "turnaTextZoom") {
+      if (!nonceMatches(data)) return;
       var zoom = typeof data.zoom === "string" ? data.zoom : "100%";
       document.documentElement.style.webkitTextSizeAdjust = zoom;
       return;

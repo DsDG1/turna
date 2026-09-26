@@ -111,6 +111,7 @@ final class OfficialAnkiReviewerView: NSObject, FlutterPlatformView {
     private var waitingResult: FlutterResult?
     private var applying = false
     private var presentDeadlineToken: Int64 = 0
+    private var currentZoom = 100
     private let presentAck = PresentAckCoordinator()
 
     init(frame: CGRect, messenger: FlutterBinaryMessenger, viewId: Int64, params: [String: Any]?, assetLoader: @escaping (String) -> Data?) {
@@ -150,6 +151,7 @@ final class OfficialAnkiReviewerView: NSObject, FlutterPlatformView {
 
         super.init()
 
+        currentZoom = Self.clampZoom(textZoom)
         webView.backgroundColor = (params?["theme"] as? String) == "night" ? Self.nightBackground : .white
         webView.isOpaque = false
         webView.navigationDelegate = self
@@ -229,19 +231,24 @@ final class OfficialAnkiReviewerView: NSObject, FlutterPlatformView {
 
     /// Android applies WebSettings.textZoom to every frame; the sandboxed card
     /// iframe is unreachable from the shell here, so the frame half travels
-    /// over the existing postMessage channel (card-frame.js listens for
-    /// turnaTextZoom).
+    /// over the existing postMessage channel (OfficialReviewer.setTextZoom
+    /// attaches the frame nonce; card-frame.js rejects nonce-less zoom).
     private func setTextZoom(_ zoom: Int) {
-        let value = "\(Self.clampZoom(zoom))%"
-        eval("""
-            (function(){ var v = \(Self.jsString(value));
-              document.documentElement.style.webkitTextSizeAdjust = v;
-              var f = document.getElementById('card-frame');
-              if (f && f.contentWindow) {
-                f.contentWindow.postMessage({ v: 1, type: 'turnaTextZoom', zoom: v }, '*');
-              }
-              return 'ok'; })()
-        """)
+        currentZoom = Self.clampZoom(zoom)
+        // Card switches rebuild the iframe — the atDocumentStart script must
+        // carry the latest zoom into future documents too.
+        installZoomScript()
+        eval("window.OfficialReviewer && OfficialReviewer.setTextZoom(\(Self.jsString("\(currentZoom)%")))")
+    }
+
+    private func installZoomScript() {
+        let controller = webView.configuration.userContentController
+        controller.removeAllUserScripts()
+        controller.addUserScript(WKUserScript(
+            source: "document.documentElement.style.webkitTextSizeAdjust='\(currentZoom)%';",
+            injectionTime: .atDocumentStart,
+            forMainFrameOnly: false
+        ))
     }
 
     // MARK: - present / ack flow (mirrors OfficialAnkiReviewerPlatformView)

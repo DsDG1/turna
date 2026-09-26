@@ -52,8 +52,9 @@ final class OfficialAnkiSchemeHandler: NSObject, WKURLSchemeHandler {
             return
         }
         // url.path is already percent-decoded once (percentEncodedPath needs
-        // iOS 16; deployment target is 15.0). decodeMediaName decodes a second
-        // time, which is conservative: double-encoded traversal still fails.
+        // iOS 16; deployment target is 15.0), so the media name below is
+        // decoded exactly once — decoding again would corrupt filenames that
+        // legitimately contain %XX (e.g. a stored "rate%20.png").
         let requestPath = url.path
         if requestPath.hasPrefix(Self.assetPrefix) {
             let name = String(requestPath.dropFirst(Self.assetPrefix.count))
@@ -87,8 +88,8 @@ final class OfficialAnkiSchemeHandler: NSObject, WKURLSchemeHandler {
             finish(urlSchemeTask, status: 403, mime: "text/plain", headers: deniedHeaders())
             return
         }
-        let encodedName = String(requestPath.dropFirst(Self.mediaPrefix.count))
-        guard let mediaName = Self.decodeMediaName(encodedName) else {
+        let mediaName = String(requestPath.dropFirst(Self.mediaPrefix.count))
+        guard Self.isSafeMediaName(mediaName) else {
             finish(urlSchemeTask, status: 403, mime: "text/plain", headers: deniedHeaders())
             return
         }
@@ -99,26 +100,23 @@ final class OfficialAnkiSchemeHandler: NSObject, WKURLSchemeHandler {
         serveFile(urlSchemeTask, request: request, file: file)
     }
 
-    func webView(_ webView: WKWebView, stop urlSchemeTask: WKURLSchemeTask) {}
-
     // MARK: - media path safety (mirrors OfficialAnkiMediaPath/Store)
 
-    /// Percent-decodes exactly once, then rejects separators, dot segments,
-    /// absolute paths and residual encoded traversal.
-    static func decodeMediaName(_ encoded: String) -> String? {
-        if encoded.contains("/") || encoded.contains("\\") { return nil }
-        guard let decoded = encoded.removingPercentEncoding else { return nil }
-        if decoded.isEmpty || decoded.contains("\u{0}") { return nil }
-        if decoded.contains("/") || decoded.contains("\\") { return nil }
-        if decoded == "." || decoded == ".." { return nil }
-        if decoded.hasPrefix("/") { return nil }
-        if decoded.range(of: "^[A-Za-z]:", options: .regularExpression) != nil { return nil }
-        let lower = decoded.lowercased()
+    /// Validates an already-decoded media filename (url.path arrives decoded
+    /// once): rejects separators, dot segments, absolute paths and residual
+    /// encoded traversal left by double-encoding.
+    static func isSafeMediaName(_ name: String) -> Bool {
+        if name.isEmpty || name.contains("\u{0}") { return false }
+        if name.contains("/") || name.contains("\\") { return false }
+        if name == "." || name == ".." { return false }
+        if name.hasPrefix("/") { return false }
+        if name.range(of: "^[A-Za-z]:", options: .regularExpression) != nil { return false }
+        let lower = name.lowercased()
         if lower.contains("%2f") || lower.contains("%5c") ||
             lower.contains("%00") || lower.contains("%2e%2e") {
-            return nil
+            return false
         }
-        return decoded
+        return true
     }
 
     static func isSafeAssetName(_ name: String) -> Bool {
@@ -143,6 +141,68 @@ final class OfficialAnkiSchemeHandler: NSObject, WKURLSchemeHandler {
     }
 
     // MARK: - responses (mirrors OfficialAnkiMediaHandler + OfficialAnkiHttpRange)
+
+    /// Card media can be video-sized — stream bounded chunks on a worker queue
+    /// instead of buffering the whole file into one Data.
+    private static let streamChunk = 256 * 1024
+    private let streamQueue = DispatchQueue(label: "turna.anki.media-stream", qos: .userInitiated)
+    private let streamLock = NSLock()
+    private var streams: [ObjectIdentifier: StreamState] = [:]
+
+    private final class StreamState {
+        var cancelled = false
+    }
+
+    func webView(_ webView: WKWebView, stop urlSchemeTask: WKURLSchemeTask) {
+        let key = ObjectIdentifier(urlSchemeTask)
+        streamLock.lock()
+        streams[key]?.cancelled = true
+        streamLock.unlock()
+    }
+
+    /// Delivers response/chunks/finish only while the task is alive; WebKit
+    /// forbids touching the task after stop(), so each send is checked under
+    /// the same lock that stop() takes.
+    private func streamSend(_ task: WKURLSchemeTask, _ stream: StreamState, response: HTTPURLResponse? = nil, data: Data? = nil) -> Bool {
+        streamLock.lock()
+        defer { streamLock.unlock() }
+        if stream.cancelled { return false }
+        if let response { task.didReceive(response) }
+        if let data { task.didReceive(data) }
+        return true
+    }
+
+    private func streamFinish(_ task: WKURLSchemeTask, _ stream: StreamState) {
+        streamLock.lock()
+        defer { streamLock.unlock() }
+        if !stream.cancelled { task.didFinish() }
+    }
+
+    private func deliverFile(_ task: WKURLSchemeTask, file: URL, range: ByteRange, mime: String, headers: [String: String], stream: StreamState) {
+        var responseHeaders = headers
+        responseHeaders["Content-Type"] = mime
+        guard let url = task.request.url,
+              let response = HTTPURLResponse(url: url, statusCode: range.status, httpVersion: "HTTP/1.1", headerFields: responseHeaders) else {
+            return
+        }
+        guard streamSend(task, stream, response: response) else { return }
+        guard let handle = try? FileHandle(forReadingFrom: file) else {
+            streamLock.lock()
+            let alive = !stream.cancelled
+            streamLock.unlock()
+            if alive { task.didFailWithError(URLError(.cannotOpenFile)) }
+            return
+        }
+        defer { try? handle.close() }
+        if range.start > 0 { try? handle.seek(toOffset: UInt64(range.start)) }
+        var remaining = range.contentLength
+        while remaining > 0 {
+            guard let chunk = try? handle.read(upToCount: min(Self.streamChunk, Int(remaining))), !chunk.isEmpty else { break }
+            if !streamSend(task, stream, data: chunk) { return }
+            remaining -= Int64(chunk.count)
+        }
+        streamFinish(task, stream)
+    }
 
     private func serveFile(_ urlSchemeTask: WKURLSchemeTask, request: URLRequest, file: URL) {
         let mime = Self.mime(for: file.lastPathComponent)
@@ -170,13 +230,19 @@ final class OfficialAnkiSchemeHandler: NSObject, WKURLSchemeHandler {
             finish(urlSchemeTask, status: range.status, mime: mime, headers: headers, body: Data())
             return
         }
-        var body = Data()
-        if let handle = try? FileHandle(forReadingFrom: file) {
-            defer { try? handle.close() }
-            if range.start > 0 { try? handle.seek(toOffset: UInt64(range.start)) }
-            body = (try? handle.read(upToCount: Int(range.contentLength))) ?? Data()
+        let stream = StreamState()
+        let key = ObjectIdentifier(urlSchemeTask)
+        streamLock.lock()
+        streams[key] = stream
+        streamLock.unlock()
+        streamQueue.async { [self] in
+            defer {
+                streamLock.lock()
+                streams.removeValue(forKey: key)
+                streamLock.unlock()
+            }
+            deliverFile(urlSchemeTask, file: file, range: range, mime: mime, headers: headers, stream: stream)
         }
-        finish(urlSchemeTask, status: range.status, mime: mime, headers: headers, body: body)
     }
 
     private func finish(_ task: WKURLSchemeTask, status: Int, mime: String, headers: [String: String], body: Data = Data()) {
