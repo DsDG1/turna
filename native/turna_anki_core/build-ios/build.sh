@@ -37,7 +37,10 @@ if [[ ! -d "$root/anki/ftl/core-repo/core" ]]; then
 fi
 
 if command -v rustup >/dev/null 2>&1; then
-  rustup target add "${targets[@]}"
+  # rustup resolves the active toolchain from the cwd, so run from inside the
+  # crate root: otherwise targets land on the default toolchain instead of the
+  # one pinned by rust-toolchain.toml and cargo fails for want of std.
+  (cd "${root}" && rustup target add "${targets[@]}")
 fi
 
 device_lib="${root}/target/aarch64-apple-ios/release/libturna_anki.a"
