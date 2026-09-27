@@ -34,7 +34,7 @@ from src.backend.grounded_stats import format_pool_summary
 from src.theme import current_palette
 from src.theme_tokens import BRAND_TEAL
 from src.widgets.ai_orbit import AiOrbitWidget
-from src.widgets.flow_layout import FlowLayout
+from src.widgets.ui.flow_layout import FlowLayout
 from src.widgets.knowledge_bubble import KnowledgeBubble
 
 logger = logging.getLogger(__name__)
@@ -163,11 +163,20 @@ class WorkshopCanvas(QWidget):
 
     @staticmethod
     def _page_shell(page: QWidget) -> QWidget:
-        """Re-parent a page ripped out of ``TextbookImportDialog._stack``."""
+        """Re-parent a page ripped out of ``TextbookImportDialog._stack``.
+
+        ``QStackedLayout.removeWidget`` leaves the page explicitly hidden
+        (it hides non-current pages when they are inserted). An explicitly
+        hidden child is skipped by every layout — it keeps the stale 640x480
+        stack geometry and paints nothing once its new stage shows. Calling
+        ``show()`` here only clears that flag: the page still stays out of
+        sight until the stage hosting it becomes current.
+        """
         holder = QWidget()
         lay = QVBoxLayout(holder)
         lay.setContentsMargins(0, 0, 0, 0)
         lay.addWidget(page)
+        page.show()
         return holder
 
     def _build_material_stage(self) -> QWidget:
@@ -219,7 +228,9 @@ class WorkshopCanvas(QWidget):
         self.bubble_pool_area.setWidgetResizable(True)
         self.bubble_pool_area.setFrameShape(QScrollArea.Shape.NoFrame)
         self.bubble_pool_container = QWidget()
-        self.bubble_pool_layout = FlowLayout(self.bubble_pool_container, spacing=8)
+        self.bubble_pool_layout = FlowLayout(
+            self.bubble_pool_container, hspacing=8, vspacing=8
+        )
         self.bubble_pool_area.setWidget(self.bubble_pool_container)
         bp_lay.addWidget(self.bubble_pool_area, 1)
         return panel
@@ -443,7 +454,7 @@ class WorkshopCanvas(QWidget):
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QScrollArea.Shape.NoFrame)
         holder = QWidget()
-        flow = FlowLayout(holder, spacing=8)
+        flow = FlowLayout(holder, hspacing=8, vspacing=8)
         shown = rows[:_BUBBLE_POOL_LIMIT]
         for row in shown:
             flow.addWidget(

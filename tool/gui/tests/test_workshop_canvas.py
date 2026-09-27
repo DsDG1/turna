@@ -118,6 +118,17 @@ class WorkshopCanvasTest(unittest.TestCase):
         """摘页手术: the three pages move into stages, not tabs."""
         self.assertEqual(self.panel._stack.count(), 0)
 
+    def test_ripped_pages_are_not_explicitly_hidden(self) -> None:
+        """QStackedLayout.removeWidget leaves pages explicitly hidden.
+
+        Layouts skip explicitly-hidden widgets, so a page carrying that flag
+        paints nothing once its stage shows and keeps the stale 640x480 stack
+        geometry (blank stages + frozen width). The canvas must clear the
+        flag when it re-parents a page.
+        """
+        for page in (self.ws._source_page, self.ws._knowledge_page, self.ws._import_page):
+            self.assertFalse(page.isHidden())
+
     def test_stage_navigation_switches_stack(self) -> None:
         seen: list[str] = []
         self.ws.stage_changed.connect(seen.append)
