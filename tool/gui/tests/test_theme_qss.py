@@ -15,6 +15,7 @@ from src.theme_styles.buttons import build_button_qss
 from src.theme_styles.containers import build_container_qss
 from src.theme_styles.core import build_core_qss
 from src.theme_styles.inputs import build_input_qss
+from src.theme_styles.shell import build_shell_qss
 from src.theme_styles.views import build_view_qss
 from src.theme_tokens import VALID_THEMES, palette_for
 
@@ -149,6 +150,29 @@ class SubModuleQssTest(unittest.TestCase):
         self.assertIn("font-size: 13px;", containers)  # base_font_px - 1
         self.assertIn("QTabWidget::pane {", containers)
         self.assertIn("QScrollBar:vertical {", containers)
+
+    def test_activity_bar_disabled_rule_exists_and_wins(self) -> None:
+        """A locked rail item must lose hover fill + checked indicator.
+
+        Equal-specificity QSS rules resolve by source order, so the :disabled
+        block has to come after :hover and :checked or it is dead CSS.
+        """
+        shell_qss = build_shell_qss(self.pal, "1px", 14)
+        self.assertIn("#ActivityBarItem:disabled {", shell_qss)
+        self.assertIn("#ActivityBarItem:disabled:hover {", shell_qss)
+        self.assertGreater(
+            shell_qss.index("#ActivityBarItem:disabled {"),
+            shell_qss.index("#ActivityBarItem:checked {"),
+        )
+        self.assertGreater(
+            shell_qss.index("#ActivityBarItem:disabled:hover {"),
+            shell_qss.index("#ActivityBarItem:hover {"),
+        )
+
+    def test_activity_bar_disabled_rule_present_in_every_theme(self) -> None:
+        for theme in VALID_THEMES:
+            qss = build_qss(palette_for(theme), 14, theme)
+            self.assertIn("#ActivityBarItem:disabled {", qss, theme)
 
 
 if __name__ == "__main__":

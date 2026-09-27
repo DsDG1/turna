@@ -38,6 +38,18 @@ def build_shell_qss(p: dict[str, str], border_w: str, base_font_px: int) -> str:
     border-left: 2px solid {p['accent']};
 }}
 
+/* Locked rail item (repo not open): no hover fill, no active indicator —
+   the icon role already drops to muted. Must stay after :hover/:checked so
+   the later equal-specificity rule wins. */
+#ActivityBarItem:disabled {{
+    background-color: transparent;
+    border-left: 2px solid transparent;
+}}
+
+#ActivityBarItem:disabled:hover {{
+    background-color: transparent;
+}}
+
 #ActivityBarSeparator {{
     background-color: {p['border']};
 }}

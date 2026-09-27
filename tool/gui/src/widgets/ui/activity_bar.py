@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import functools
 
-from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtCore import QEvent, QSize, Qt, Signal
 from PySide6.QtWidgets import (
     QButtonGroup,
     QFrame,
@@ -46,11 +46,16 @@ class ActivityBarItem(QToolButton):
         super().__init__(parent)
         self._key = key
         self._icon_name = icon_name
+        self._base_tooltip = tooltip
+        self._lock_note = ""
         self.setObjectName("ActivityBarItem")
         self.setCheckable(checkable)
         self.setToolTip(tooltip)
         self.setFixedSize(40, 40)
         self.setIconSize(self._icon_qsize())
+        # Qt swallows tooltips on disabled widgets; the lock note is the only
+        # place that says why a rail item is unavailable, so keep it readable.
+        self.setAttribute(Qt.WidgetAttribute.WA_AlwaysShowToolTips, True)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self._refresh_icon()
         # Re-polish when the checked state flips so the icon color follows.
@@ -67,8 +72,38 @@ class ActivityBarItem(QToolButton):
 
         return QSize(20, 20)
 
+    def set_locked(self, locked: bool, note: str = "") -> None:
+        """Disable the item *and say why*.
+
+        A bare ``setEnabled(False)`` left the item looking live, the cursor
+        pointing, and the click dying silently — the exact "点了没反应"
+        report. ``note`` becomes a tooltip suffix while the item is locked.
+        """
+        self._lock_note = note if locked else ""
+        self.setEnabled(not locked)
+        # enabledChanged only fires on an actual transition, and the note can
+        # change while the state stays put.
+        self._apply_lock_state()
+
+    def changeEvent(self, event) -> None:
+        # QWidget exposes no enabled-changed signal, so watch the event.
+        super().changeEvent(event)
+        if event.type() == QEvent.Type.EnabledChange:
+            self._apply_lock_state()
+
+    def _apply_lock_state(self) -> None:
+        if self.isEnabled():
+            self.setCursor(Qt.CursorShape.PointingHandCursor)
+            self.setToolTip(self._base_tooltip)
+        else:
+            self.setCursor(Qt.CursorShape.ForbiddenCursor)
+            suffix = f"（不可用：{self._lock_note}）" if self._lock_note else "（不可用）"
+            self.setToolTip(f"{self._base_tooltip}{suffix}")
+        self._refresh_icon()
+
     def _refresh_icon(self) -> None:
-        role = "accent" if self.isChecked() else "muted"
+        # A locked item must not keep the accent "active" look either.
+        role = "accent" if self.isChecked() and self.isEnabled() else "muted"
         self.setIcon(icon(self._icon_name, size=20, role=role))
 
     def refresh_icon(self) -> None:

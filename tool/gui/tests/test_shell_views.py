@@ -18,6 +18,8 @@ from tests._mainwindow_fixture import (
 )
 from tests._qtapp import qt_app
 
+from PySide6.QtCore import Qt
+
 
 class ShellStructureTest(unittest.TestCase):
     """The new window anatomy exists and keeps the compat attributes."""
@@ -97,6 +99,38 @@ class ViewSwitchingTest(unittest.TestCase):
         )
         self.assertTrue(self.win.activity_bar_items["edit"].isChecked())
         self.assertTrue(self.win.activity_bar_items["edit"].isEnabled())
+
+    def test_locked_rail_item_looks_and_says_locked(self) -> None:
+        """Repo-gated items must not read as live: forbidden cursor, note in
+        the tooltip, muted icon even while checked."""
+        self.win.course_dir = None
+        self.win._sync_shell_views()
+        item = self.win.activity_bar_items["edit"]
+        self.assertFalse(item.isEnabled())
+        self.assertEqual(item.cursor().shape(), Qt.CursorShape.ForbiddenCursor)
+        self.assertIn("请先打开或新建课程仓库", item.toolTip())
+        self.assertTrue(
+            item.testAttribute(Qt.WidgetAttribute.WA_AlwaysShowToolTips),
+            "disabled items swallow tooltips unless WA_AlwaysShowToolTips is set",
+        )
+        # A locked-but-checked item must drop the accent icon.
+        item.setChecked(True)
+        item.refresh_icon()
+        locked_pixmap = item.icon().pixmap(20, 20)
+        item.setEnabled(True)
+        item.refresh_icon()
+        self.assertNotEqual(locked_pixmap.toImage(), item.icon().pixmap(20, 20).toImage())
+
+    def test_unlocking_restores_cursor_tooltip_and_icon(self) -> None:
+        self.win.course_dir = None
+        self.win._sync_shell_views()
+        item = self.win.activity_bar_items["edit"]
+        self.win.course_dir = Path("/tmp/fake-course")
+        self.win._sync_shell_views()
+        self.assertTrue(item.isEnabled())
+        self.assertEqual(item.cursor().shape(), Qt.CursorShape.PointingHandCursor)
+        self.assertEqual(item.toolTip(), "课程编辑  Ctrl+1")
+        self.assertNotIn("不可用", item.toolTip())
 
     def test_set_view_switches_stack_and_rail(self) -> None:
         self.win._set_view("overview")

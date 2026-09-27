@@ -516,7 +516,13 @@ def sync_shell_views(host: Any) -> None:
     for key in ("edit", "workshop", "overview", "resources"):
         item = items.get(key)
         if item is not None:
-            item.setEnabled(has_repo)
+            # set_locked (not a bare setEnabled) so the rail says why the item
+            # is dead instead of looking live and swallowing the click.
+            setter = getattr(item, "set_locked", None)
+            if callable(setter):
+                setter(not has_repo, note="请先打开或新建课程仓库")
+            else:  # duck-typed stand-in in tests
+                item.setEnabled(has_repo)
 
     if not has_repo:
         page = getattr(host, "_view_pages", {}).get("welcome")
