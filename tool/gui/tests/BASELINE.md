@@ -8,6 +8,43 @@
 
  ## 当前基线
 
+- **2026-09-27（工坊重设计收口：§5 快赢 + T1–T5 全部落地）**：`python -m unittest`
+  收集 **192 模块 / 2628 例 / 0 加载错误**（上批 2573 例 ⇒ **+55**）。分档实测：`full`
+  **192/192，77 s**；`gate` 33/33 + E2 5/5；`ruff` 全过；边界门禁 **exit 0**。
+  边界门禁计数收口：`broad_except` 816 → **810**，`app_dialogs=13` / `cycles=2` /
+  `ui_backend=163` / `host_drift=0` 其余不变。
+  - **§5 快赢 ①②③④⑤⑦ 各自独立提交**（⑥「删除伴学 9 张表」属 App 侧另批，见
+    `docs/official-anki-migration/`，不在 tool/gui 范围）。其中 ① 是**真 bug**：
+    右键菜单每次开都泄漏一个 `QMenu`，并重复注册一个与 `keyPressEvent` 抢 Ctrl+D 的
+    `QAction`（快捷键复制整个选中集，菜单项只复制右键命中的单个课时）。
+  - **T1 轨道横排化**：`AiOrbitWidget` 参数压成一行，chips 走 `FlowLayout` 自动换行，
+    **解除 36–48 px 高度钳制**，`orbit_zone` 取消 `minHeight(160)`，核心钮 110×110 →
+    72 px 圆钮与按钮并排；信号与所有控件名（`topic_edit` 等）保持不变。
+  - **T2 四阶段画布**：新增 `src/widgets/workshop_canvas.py`（`WorkshopCanvas`）替换
+    `unified_workspace.py`（git 识别为改名）。素材 / 知识 / 草稿 / 导入各占整幅；气泡
+    池 reconcile、生成链、聚焦摘要、逐项目 UI 状态全部平移。UI 状态由
+    `left_tab/right_tab/splitter` 改为 `stage`（**旧键废弃不迁移**：tab 下标在新布局
+    里没有对应页面）。首次抽出知识点自动切「知识」，`draft_ready` 自动切「导入」。
+  - **T3 窗口新壳**：阶段灯升级为**真导航**（点击切阶段，当前阶段主色加粗；「导入」灯
+    在已有导入章节时仍走定位），替掉 `focus_left_tab/focus_right_tab` 的 duck 调用；标题
+    并入阶段栏；底栏删「关闭」；边距 12→8；**1100×720 → 980×640**。顺带修既有缺陷：
+    摘页后 `TextbookImportDialog` 的 `dragEnterEvent/dropEvent` 收不到拖放，现由素材页
+    `eventFilter` 转发。
+  - **T4 聊天主角化**：草稿阶段对话整幅；池摘要换 `ElidedLabel`（单行省略，UI 套件新增
+    `ui/labels.py`）；聊天输入 2 行起步、聚焦长 1 行（`QLineEdit` 不换行，故上限取 3 行
+    而非方案里的 5 行）；对话头新增「查看大纲 →」（新 `outline_requested` 信号，画布接
+    去切阶段）与「展开」（复用 `ChatExpandWindow`，渲染/流式/发送三者同步）。大纲树
+    220→400、摘要 140→220、问题 chips 去掉 560 px 宽上限。
+  - **测试面**：新增 `tests/test_ai_orbit.py`（16 例）与 `tests/test_workshop_canvas.py`
+    （26 例，替换 `test_unified_workspace.py` 的 14 例）。
+  - **两处 PySide6 踩坑记录**（都稳定复现，别再踩）：① 冲刷 `DeferredDelete` 事件做泄漏
+    断言会连带销毁**前面用例**遗留的待删对象 → `0xC0000005` 访问违例；改记 `deleteLater()`
+    是否被调用，完全确定且不碰事件队列。② `QWidget` 没有 `enabledChanged` 信号，禁用态
+    联动要走 `changeEvent` + `EnabledChange`。
+  - **门禁补正**：`src/` 内**禁止匿名 lambda 信号连接**（`test_signal_lifecycle`）。T2/T3
+    各引入一处（`stage_changed`、气泡池弹层按钮），已改为具名方法
+    `_on_canvas_stage_changed` / `_on_pool_popup_add_all`。
+
 - **2026-09-27（tool/gui 侧 AI 遗留退役）**：删除 `src/backend/experience/json_path_skill.py`
   （417 行）+ `tests/test_json_path_skill.py`（134 行 / 5 例）⇒ **192 -> 191 模块**。
   - 该模块（JsonEditor 光标 JSONPath 解释器）**生产零调用**：全仓 `src/` 与 `tool/`
