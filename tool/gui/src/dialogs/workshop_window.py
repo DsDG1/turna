@@ -38,10 +38,25 @@ from src.backend.textbook_project_store import TextbookProjectStore
 from src.dialogs.textbook_import_dialog import TextbookImportDialog
 from src.dialogs.textbook_library_dialog import TextbookLibraryDialog
 from src.theme import current_palette
-from src.widgets.workshop_canvas import WorkshopCanvas
+from src.widgets.workshop_canvas import (
+    STAGE_DRAFT,
+    STAGE_IMPORT,
+    STAGE_KNOWLEDGE,
+    STAGE_MATERIAL,
+    WorkshopCanvas,
+)
 from src.application.settings import APP_NAME, ORG_NAME
 
 _LAST_PROJECT_KEY = "workshop/last_project_id"
+
+# Header lamp key -> canvas stage. 「导入」 is the one lamp that may locate
+# instead of navigating (see _on_checklist_clicked).
+_CHECKLIST_KEY_TO_STAGE = {
+    "material": STAGE_MATERIAL,
+    "knowledge": STAGE_KNOWLEDGE,
+    "draft": STAGE_DRAFT,
+    "imported": STAGE_IMPORT,
+}
 
 # ui_stage: 0 = library, 1 = canvas (legacy stages 1–5 map to canvas).
 _UI_LIBRARY = 0
@@ -85,7 +100,9 @@ class WorkshopWindow(QDialog):
         self._busy_sources: set[str] = set()
         self._imported_section_id: str | None = None
         self.setWindowTitle("课程工坊")
-        self.resize(1100, 720)
+        # Each stage shows at most two columns, so the old three-column 1100x720
+        # no longer sets the floor.
+        self.resize(980, 640)
 
         self._build_ui()
         self._install_shortcuts()
@@ -118,7 +135,7 @@ class WorkshopWindow(QDialog):
     # ------------------------------------------------------------------ UI
     def _build_ui(self) -> None:
         root = QVBoxLayout(self)
-        root.setContentsMargins(12, 12, 12, 12)
+        root.setContentsMargins(8, 8, 8, 8)
         root.setSpacing(8)
 
         root.addWidget(self._build_header())
@@ -141,6 +158,16 @@ class WorkshopWindow(QDialog):
             f"color: {current_palette()['text_secondary']};"
         )
         row.addWidget(self._lang_label)
+        # The old two-line title/desc block is folded into this bar: the title
+        # is a single line here, the description rides along as its tooltip.
+        # Both attributes are kept for tests / legacy snapshots.
+        row.addSpacing(8)
+        self._page_title = QLabel("")
+        self._page_title.setStyleSheet("font-size: 13px; font-weight: 600;")
+        row.addWidget(self._page_title)
+        self._page_desc = QLabel("")
+        self._page_desc.setWordWrap(True)
+        self._page_desc.setVisible(False)
         row.addStretch(1)
         # U3-1: clickable four-step lamps (素材 · 知识 · 草稿 · 导入).
         self._checklist_label = QLabel("")  # kept for tests / legacy text snapshot
@@ -151,8 +178,8 @@ class WorkshopWindow(QDialog):
         for key, title, tip in (
             ("material", "素材", "跳到教材/章节"),
             ("knowledge", "知识", "跳到知识点审校 / 气泡池"),
-            ("draft", "草稿", "跳到结构大纲 / 对话与高级"),
-            ("imported", "导入", "跳到导入页或定位已导入章节"),
+            ("draft", "草稿", "跳到草稿：参数带 + 对话"),
+            ("imported", "导入", "跳到结构大纲 / 导入页"),
         ):
             btn = QPushButton(f"○{title}")
             btn.setFlat(True)
@@ -171,15 +198,7 @@ class WorkshopWindow(QDialog):
         content = QVBoxLayout()
         content.setSpacing(6)
 
-        self._page_title = QLabel("")
-        self._page_title.setStyleSheet("font-size: 16px; font-weight: 600;")
-        content.addWidget(self._page_title)
-        self._page_desc = QLabel("")
-        self._page_desc.setWordWrap(True)
-        self._page_desc.setStyleSheet(
-            f"color: {current_palette()['text_secondary']};"
-        )
-        content.addWidget(self._page_desc)
+        # _page_title / _page_desc now live in the header bar (see _build_header).
 
         self._stack = QStackedWidget()
         self._library = TextbookLibraryDialog(
@@ -228,9 +247,8 @@ class WorkshopWindow(QDialog):
         self._ws_cancel_btn.setVisible(False)
         self._ws_cancel_btn.clicked.connect(self._on_cancel_busy)
         row.addWidget(self._ws_cancel_btn)
-        close_btn = QPushButton("关闭")
-        close_btn.clicked.connect(self.hide)
-        row.addWidget(close_btn)
+        # No 关闭 button: Esc (idle) and the window close button both close the
+        # workshop, and a third way out was one more thing to look at.
         return bar
 
     # ------------------------------------------------------------------ navigation
@@ -351,6 +369,7 @@ class WorkshopWindow(QDialog):
         return " · ".join(f"{'✓' if ok else '○'}{name}" for name, ok in parts)
 
     def _refresh_checklist_buttons(self) -> None:
+        """Render the four stage lamps: progress mark + where you are now."""
         flags = self._checklist_flags()
         titles = {
             "material": "素材",
@@ -358,18 +377,43 @@ class WorkshopWindow(QDialog):
             "draft": "草稿",
             "imported": "导入",
         }
+        pal = current_palette()
+        current = self._current_canvas_stage()
         for key, btn in self._checklist_btns.items():
             ok = bool(flags.get(key))
             title = titles.get(key, key)
             btn.setText(f"{'✓' if ok else '○'}{title}")
-            color = (
-                current_palette().get("success", "#16a34a")
-                if ok
-                else current_palette()["text_secondary"]
+            if key == current:
+                # Current stage: accent + bold, so the lamps read as navigation
+                # and not just a progress list.
+                color = pal.get("accent", "#1F727E")
+                weight = "700"
+            elif ok:
+                color = pal.get("success", "#16a34a")
+                weight = "600"
+            else:
+                color = pal["text_secondary"]
+                weight = "600"
+            btn.setStyleSheet(
+                f"color: {color}; letter-spacing: 1px; font-weight: {weight};"
             )
-            btn.setStyleSheet(f"color: {color}; letter-spacing: 1px; font-weight: 600;")
+            btn.setProperty("current_stage", key == current)
+            btn.setToolTip(
+                f"{title}（{'当前阶段' if key == current else '点击跳转'}）"
+            )
             btn.setVisible(True)
         self._checklist_label.setText(self._format_checklist())
+
+    def _current_canvas_stage(self) -> str | None:
+        """Map the 'imported' lamp onto the canvas stage it navigates to."""
+        ws = self._unified_workspace
+        if ws is None:
+            return None
+        stage = getattr(ws, "current_stage", None)
+        if not callable(stage):
+            return None
+        current = stage()
+        return STAGE_IMPORT if current == STAGE_IMPORT else current
 
     def _on_project_btn_clicked(self) -> None:
         self._go_to_library()
@@ -383,39 +427,24 @@ class WorkshopWindow(QDialog):
             self._on_checklist_clicked(k)
 
     def _on_checklist_clicked(self, key: str) -> None:
-        """U3-1: jump to the corresponding column/tab in the unified workspace."""
+        """Stage lamps are real navigation: jump the canvas to that stage.
+
+        The 导入 lamp keeps its locate behaviour once a section has actually
+        been imported — that is the one action the canvas cannot perform.
+        """
         if not self._is_on_canvas() or self._unified_workspace is None:
             return
-        # Best-effort: focus tabs if the workspace exposes helpers; else set stage text.
         ws = self._unified_workspace
-        try:
-            if key == "material":
-                if hasattr(ws, "focus_left_tab"):
-                    ws.focus_left_tab(0)
-                elif hasattr(ws, "show_left"):
-                    ws.show_left()
-                self._ws_stage_label.setText("下一步：加载/切章教材")
-            elif key == "knowledge":
-                if hasattr(ws, "focus_left_tab"):
-                    ws.focus_left_tab(1)
-                self._ws_stage_label.setText("下一步：审校知识点并勾选入池")
-            elif key == "draft":
-                if hasattr(ws, "focus_right_tab"):
-                    ws.focus_right_tab(0)
-                elif hasattr(ws, "show_design"):
-                    ws.show_design()
-                self._ws_stage_label.setText("下一步：生成或审阅草稿")
-                if self._review_panel is not None:
-                    self._review_panel.refresh()
-            elif key == "imported":
-                if self._imported_section_id:
-                    self._on_locate()
-                else:
-                    if hasattr(ws, "focus_right_tab"):
-                        ws.focus_right_tab(2)
-                    self._ws_stage_label.setText("下一步：在结构大纲确认后导入")
-        except Exception:
-            self._ws_stage_label.setText(f"跳转：{key}")
+        if key == "imported" and self._imported_section_id:
+            self._on_locate()
+            return
+        stage = _CHECKLIST_KEY_TO_STAGE.get(key)
+        if stage is None:
+            return
+        if not getattr(ws, "set_stage", None):
+            return
+        if ws.set_stage(stage):
+            self._refresh_checklist_buttons()
 
     def _update_header(self) -> None:
         if self._project is not None:
@@ -567,6 +596,12 @@ class WorkshopWindow(QDialog):
             self,
             blank=self._blank,
             project_id=project.project_id,
+        )
+        # File drops on 素材 must reach the import dialog again (T3 fix for the
+        # pre-existing 摘页 surgery defect).
+        self._unified_workspace.install_drop_forwarding()
+        self._unified_workspace.stage_changed.connect(
+            lambda _stage: self._refresh_checklist_buttons()
         )
         self._unified_layout.addWidget(self._unified_workspace)
         self._unified_workspace.show()

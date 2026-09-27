@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from PySide6.QtCore import Qt, QSettings, QTimer, Signal
+from PySide6.QtCore import QEvent, Qt, QSettings, QTimer, Signal
 from PySide6.QtWidgets import (
     QDialog,
     QFrame,
@@ -55,6 +55,13 @@ STAGES = (STAGE_MATERIAL, STAGE_KNOWLEDGE, STAGE_DRAFT, STAGE_IMPORT)
 #: Stages that own the textbook-extraction panel; leaving them while extraction
 #: runs needs a confirmation.
 _EXTRACTION_STAGES = (STAGE_MATERIAL, STAGE_KNOWLEDGE)
+
+#: Drag events the 素材 page forwards to the import dialog.
+_DROP_EVENTS = (
+    QEvent.Type.DragEnter,
+    QEvent.Type.DragMove,
+    QEvent.Type.Drop,
+)
 
 
 def _bubble_key(resource_type: str, entry: dict, chapter_index: int = -1) -> str:
@@ -111,6 +118,7 @@ class WorkshopCanvas(QWidget):
         self._bubble_refresh_timer.timeout.connect(self.refresh_bubble_pool)
         self._pool_popup: QDialog | None = None
         self._stage = STAGE_MATERIAL
+        self._drop_forwarded = False
 
         self._build_ui()
         self._wire_signals()
@@ -248,6 +256,32 @@ class WorkshopCanvas(QWidget):
         self._import_splitter.setStretchFactor(1, 45)
         lay.addWidget(self._import_splitter)
         return stage
+
+    def install_drop_forwarding(self) -> None:
+        """Re-dispatch file drops on the 素材 page to the import dialog.
+
+        摘页手术 re-parented the source page out of ``TextbookImportDialog``,
+        but the dialog's ``dragEnterEvent`` / ``dropEvent`` live on the dialog
+        itself — once the page moved, drops stopped landing. The page filter
+        hands them back to the dialog.
+        """
+        if self._source_page is None or self._drop_forwarded:
+            return
+        self._drop_forwarded = True
+        self._source_page.setAcceptDrops(True)
+        self._source_page.installEventFilter(self)
+
+    def eventFilter(self, obj: QWidget, event: Any) -> bool:
+        if obj is self._source_page and event.type() in _DROP_EVENTS:
+            panel = self.import_panel
+            if event.type() is QEvent.Type.DragEnter:
+                panel.dragEnterEvent(event)
+            elif event.type() is QEvent.Type.Drop:
+                panel.dropEvent(event)
+            elif event.mimeData().hasUrls():
+                event.acceptProposedAction()
+            return True
+        return super().eventFilter(obj, event)
 
     def _build_banner(self) -> QFrame:
         banner = QFrame()

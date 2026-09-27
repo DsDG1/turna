@@ -15,14 +15,20 @@ _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
-from PySide6.QtCore import QSettings
-from PySide6.QtWidgets import QMessageBox
+from PySide6.QtCore import QEvent, QSettings
+from PySide6.QtWidgets import QMessageBox, QPushButton
 
 from src.backend.import_step_result import ImportStepResult
 from src.backend.knowledge_schema import coerce_knowledge_points
 from src.backend.markdown_chopper import split_chapters
 from src.backend.textbook_project import TextbookProject
 from src.backend.textbook_project_store import TextbookProjectStore
+from src.widgets.workshop_canvas import (
+    STAGE_DRAFT,
+    STAGE_IMPORT,
+    STAGE_KNOWLEDGE,
+    STAGE_MATERIAL,
+)
 from src.dialogs.workshop_window import WorkshopWindow
 from tests._qtapp import _App
 
@@ -412,6 +418,123 @@ class WorkshopDesignStageTest(unittest.TestCase):
         self.assertEqual(
             self.win._unified_workspace._project_id, self.project.project_id
         )
+
+
+class WorkshopShellTest(unittest.TestCase):
+    """T3 shell: slim header, stage lamps as navigation, no 关闭 button."""
+
+    def setUp(self) -> None:
+        _App.get()
+        QSettings("Turna", "CourseEditor").remove("workshop/geometry")
+        self.tmp = tempfile.TemporaryDirectory()
+        self.store = TextbookProjectStore(base_dir=Path(self.tmp.name))
+        self.src = _make_source(self.tmp.name)
+        self.win = WorkshopWindow(None, None, store=self.store)
+        self.project = _resumed_project(self.store, self.src)
+        self.win._on_project_selected(self.project)
+
+    def tearDown(self) -> None:
+        self.win.deleteLater()
+        self.tmp.cleanup()
+        _clear_last_project_key()
+        QSettings("Turna", "CourseEditor").remove("workshop/geometry")
+
+    def test_default_size_fits_two_columns(self) -> None:
+        self.assertEqual(self.win.size().width(), 980)
+        self.assertEqual(self.win.size().height(), 640)
+
+    def test_bottom_bar_has_no_close_button(self) -> None:
+        labels = [
+            b.text()
+            for b in self.win.findChildren(QPushButton)
+            if b.parent() is not None
+        ]
+        self.assertNotIn("关闭", labels)
+
+    def test_bottom_bar_control_names_survive(self) -> None:
+        for name in (
+            "_locate_btn",
+            "_ws_progress",
+            "_ws_stage_label",
+            "_ws_usage_label",
+            "_ws_autosave_label",
+            "_ws_cancel_btn",
+        ):
+            self.assertIsNotNone(getattr(self.win, name), name)
+
+    def test_title_lives_in_the_stage_bar(self) -> None:
+        """The two-line title/desc block collapsed into the header row."""
+        header = self.win._checklist_btns["material"].parentWidget()
+        self.assertGreaterEqual(
+            header.layout().indexOf(self.win._page_title), 0, "title must be in the bar"
+        )
+        # ... and is no longer a two-line block above the content stack.
+        content = self.win._stack.parentWidget().layout()
+        self.assertLess(content.indexOf(self.win._page_title), 0)
+
+    def test_stage_lamps_navigate_the_canvas(self) -> None:
+        canvas = self.win._unified_workspace
+        for key, stage in (
+            ("knowledge", STAGE_KNOWLEDGE),
+            ("draft", STAGE_DRAFT),
+            ("imported", STAGE_IMPORT),
+            ("material", STAGE_MATERIAL),
+        ):
+            self.win._on_checklist_clicked(key)
+            self.assertEqual(canvas.current_stage(), stage, key)
+
+    def test_stage_lamp_click_uses_the_stored_key(self) -> None:
+        """The lamps carry their own key; the click slot reads it off sender."""
+        canvas = self.win._unified_workspace
+        canvas.set_stage(STAGE_MATERIAL, force=True)
+        self.win._checklist_btns["draft"].click()
+        self.assertEqual(canvas.current_stage(), STAGE_DRAFT)
+
+    def test_current_stage_lamp_is_marked(self) -> None:
+        canvas = self.win._unified_workspace
+        canvas.set_stage(STAGE_DRAFT, force=True)
+        self.win._refresh_checklist_buttons()
+        self.assertEqual(
+            self.win._checklist_btns["draft"].property("current_stage"), True
+        )
+        self.assertNotEqual(
+            self.win._checklist_btns["material"].property("current_stage"), True
+        )
+
+    def test_import_lamp_locates_once_imported(self) -> None:
+        canvas = self.win._unified_workspace
+        canvas.set_stage(STAGE_MATERIAL, force=True)
+        self.win._imported_section_id = "s1"
+        with unittest.mock.patch.object(self.win, "_on_locate") as locate:
+            self.win._on_checklist_clicked("imported")
+            locate.assert_called_once()
+        # No section imported yet -> it navigates instead.
+        self.win._imported_section_id = None
+        self.win._on_checklist_clicked("imported")
+        self.assertEqual(canvas.current_stage(), STAGE_IMPORT)
+
+    def test_material_page_forwards_file_drops(self) -> None:
+        """摘页 moved the source page out of the dialog, so drops stopped
+        landing; the canvas filter hands them back."""
+        canvas = self.win._unified_workspace
+        self.assertTrue(canvas._source_page.acceptDrops())
+        event = unittest.mock.MagicMock(spec=QEvent)
+        event.type.return_value = QEvent.Type.Drop
+        with unittest.mock.patch.object(
+            self.win._panel, "dropEvent"
+        ) as drop:
+            canvas.eventFilter(canvas._source_page, event)
+            drop.assert_called_once_with(event)
+
+    def test_material_page_forwards_drag_enter(self) -> None:
+        canvas = self.win._unified_workspace
+        event = unittest.mock.MagicMock(spec=QEvent)
+        event.type.return_value = QEvent.Type.DragEnter
+        with unittest.mock.patch.object(
+            self.win._panel, "dragEnterEvent"
+        ) as drag_enter:
+            canvas.eventFilter(canvas._source_page, event)
+            drag_enter.assert_called_once_with(event)
 
 
 if __name__ == "__main__":
