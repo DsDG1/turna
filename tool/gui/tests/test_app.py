@@ -516,17 +516,54 @@ class TeacherModeToggleTest(unittest.TestCase):
         # The floating TeacherWindow was removed; teacher mode renders inline.
         self.assertFalse(hasattr(self.win, "_teacher_window"))
 
-    def test_toggle_on_renders_first_lesson_inline(self) -> None:
+    def test_toggle_on_keeps_section_selection_instead_of_jumping(self) -> None:
+        """Switching modes must not yank the selection to the first lesson."""
         from src.teacher.sublesson_flow import SubLessonFlowWidget
 
+        self.win._current_node_ref = ("section", "s1")
         self.win.mode_action.setChecked(True)
-        self.assertTrue(self.win.teacher_mode)
-        # Defaults to the first lesson when nothing is selected.
-        self.assertEqual(self.win._current_node_ref, ("lesson", "s1-l1"))
-        # The right detail pane hosts the teacher authoring widget inline.
-        self.assertIsInstance(
+        self.assertEqual(self.win._current_node_ref, ("section", "s1"))
+        # Non-lesson selection keeps the expert form rather than a half
+        # rendered teacher surface.
+        self.assertNotIsInstance(
             self.win.detail._current_content_widget, SubLessonFlowWidget
         )
+
+    def test_toggle_on_with_nothing_selected_does_not_pick_a_lesson(self) -> None:
+        from src.teacher.sublesson_flow import SubLessonFlowWidget
+
+        self.win._current_node_ref = None
+        self.win.mode_action.setChecked(True)
+        self.assertIsNone(self.win._current_node_ref)
+        self.assertNotIsInstance(
+            self.win.detail._current_content_widget, SubLessonFlowWidget
+        )
+
+    def test_toggle_on_announces_lesson_orientation(self) -> None:
+        with patch("src.app.safe_information") as notify:
+            self.win._current_node_ref = ("section", "s1")
+            self.win.mode_action.setChecked(True)
+        notify.assert_called_once()
+        host, title, text = notify.call_args[0]
+        self.assertIs(host, self.win)
+        self.assertEqual(title, "教师模式面向课时")
+        self.assertIn("保持当前选择", text)
+
+    def test_toggle_on_lesson_announces_plain_switch(self) -> None:
+        with patch("src.app.safe_information") as notify:
+            self.win._current_node_ref = ("lesson", "s1-l1")
+            self.win.mode_action.setChecked(True)
+        notify.assert_called_once()
+        self.assertEqual(notify.call_args[0][1], "已切换到教师模式")
+
+    def test_toggle_off_announces_expert_switch(self) -> None:
+        with patch("src.app.safe_information") as notify:
+            self.win._current_node_ref = ("lesson", "s1-l1")
+            self.win.mode_action.setChecked(True)
+            notify.reset_mock()
+            self.win.mode_action.setChecked(False)
+        notify.assert_called_once()
+        self.assertEqual(notify.call_args[0][1], "已切换到专家模式")
 
     def test_toggle_on_with_lesson_selected_keeps_it(self) -> None:
         from src.teacher.sublesson_flow import SubLessonFlowWidget

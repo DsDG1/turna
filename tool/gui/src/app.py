@@ -57,6 +57,7 @@ from src.application.repo_session_host import (
 )
 from src.application.save_host import run_async_direct_save
 from src.application.settings import Settings, migrate_legacy_varnamala_qsettings, ORG_NAME, APP_NAME
+from src.application.ui_guard import safe_information
 from src.application.experience_skills_mixin import ExperienceSkillsMixin
 from src.backend.ai import AiApiConfig
 from src.backend.course_adapter import CourseAdapter
@@ -360,29 +361,24 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
             payload={"teacher_mode": checked},
         )
         self._apply_mode_shell()
-        # Default to the first lesson so the authoring surface is never
-        # empty when nothing (or a non-lesson node) is selected.
-        if checked and (
-            self._current_node_ref is None or self._current_node_ref[0] != "lesson"
-        ):
-            first = self._first_lesson_id()
-            if first is not None:
-                self._current_node_ref = ("lesson", first)
-        if self._current_node_ref is not None:
-            self._on_node_selected(self._current_node_ref)
-        self.statusBar().showMessage(
-            "已切换到教师模式" if checked else "已切换到专家模式", 3000
-        )
-
-    def _first_lesson_id(self) -> str | None:
-        """Return the id of the first lesson in tree order, or None."""
-        if self.adapter is None:
-            return None
-        for section in self.adapter.sections:
-            for unit in section.get("units", []):
-                for lesson in unit.get("lessons", []):
-                    return lesson.get("id")
-        return None
+        # Keep whatever the user had selected. Jumping to the first lesson
+        # used to yank the selection away with no explanation (and broke the
+        # mental model of "I'm just flipping a mode"), so teacher mode now
+        # says what it is for and waits for a lesson click. Notify first so the
+        # message survives a detail-panel render failure.
+        selected = self._current_node_ref
+        if not checked:
+            safe_information(self, "已切换到专家模式", "课程树按节点展示专家表单。")
+        elif selected is None or selected[0] != "lesson":
+            safe_information(
+                self,
+                "教师模式面向课时",
+                "已保持当前选择；点击课程树里的任意课时进入改题界面。",
+            )
+        else:
+            safe_information(self, "已切换到教师模式", "正在编辑该课时的题目。")
+        if selected is not None:
+            self._on_node_selected(selected)
 
     def _apply_mode_shell(self) -> None:
         """Reconfigure the shell for the active mode (tree badges, etc.)."""
