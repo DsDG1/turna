@@ -28,6 +28,30 @@ _TEMPLATES = ("mixed", "intro", "practice", "review", "listening", "reading", "m
 _LEVELS = ("A1", "A2", "B1", "B2", "C1")
 
 
+def _wire_collapsible(group: QGroupBox) -> None:
+    """Make a checkable QGroupBox actually collapse when unchecked.
+
+    Stock Qt only *disables* (greys) the children of an unchecked checkable
+    group box — they keep their layout space, which is why the design chat
+    used to fight ~450 px of never-collapsed "advanced" panels. Hiding the
+    direct children makes the fold real. Children that were hidden for their
+    own reasons when this is wired stay hidden when the group is expanded.
+    """
+    keep_hidden = {
+        w
+        for w in group.findChildren(QWidget)
+        if w.parentWidget() is group and w.isHidden()
+    }
+
+    def _apply(checked: bool) -> None:
+        for w in group.findChildren(QWidget):
+            if w.parentWidget() is group:
+                w.setVisible(checked and w not in keep_hidden)
+
+    group.toggled.connect(_apply)
+    _apply(group.isChecked())
+
+
 def build_ui(panel) -> None:
     layout = QVBoxLayout(panel)
     layout.setContentsMargins(8, 8, 8, 8)
@@ -208,6 +232,7 @@ def build_ui(panel) -> None:
     adv_lay.addWidget(panel._template_bar)
 
     layout.addWidget(panel._advanced_group)
+    _wire_collapsible(panel._advanced_group)
 
     # --- JSON (collapsed by default) ---
     panel._json_group = QGroupBox("高级：草稿 JSON")
@@ -236,6 +261,7 @@ def build_ui(panel) -> None:
     panel._validate_label = QLabel("")
     json_outer.addWidget(panel._validate_label)
     layout.addWidget(panel._json_group)
+    _wire_collapsible(panel._json_group)
 
     panel._explain_group = QGroupBox("AI 通俗解释")
     panel._explain_group.setCheckable(True)
@@ -246,6 +272,7 @@ def build_ui(panel) -> None:
     panel._explain_browser.setMaximumHeight(120)
     explain_lay.addWidget(panel._explain_browser)
     layout.addWidget(panel._explain_group)
+    _wire_collapsible(panel._explain_group)
 
     for btn in (panel._validate_btn, panel._try_btn, panel._import_btn):
         btn.setEnabled(False)

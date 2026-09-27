@@ -242,6 +242,47 @@ class DesignPanelTest(unittest.TestCase):
         ):
             self.assertFalse(group.isChecked())
 
+    def test_collapsed_groups_actually_fold(self) -> None:
+        """Unchecked must mean folded, not merely greyed.
+
+        Stock Qt only disables the children of an unchecked checkable
+        QGroupBox while keeping their layout space. These assertions pin the
+        real collapse: children hidden and the group's own height hint at
+        title-row scale.
+        """
+        from PySide6.QtWidgets import QWidget
+
+        for group in (
+            self.panel._advanced_group,
+            self.panel._json_group,
+        ):
+            direct = [
+                w for w in group.findChildren(QWidget)
+                if w.parentWidget() is group
+            ]
+            self.assertTrue(direct, group.title())
+            for child in direct:
+                self.assertTrue(child.isHidden(), (group.title(), child))
+            self.assertLessEqual(group.sizeHint().height(), 60, group.title())
+
+    def test_collapsed_groups_expand_on_check(self) -> None:
+        from PySide6.QtWidgets import QWidget
+
+        group = self.panel._advanced_group
+        group.setChecked(True)
+        visible = [
+            w for w in group.findChildren(QWidget)
+            if w.parentWidget() is group and not w.isHidden()
+        ]
+        self.assertTrue(visible)
+        expanded_hint = group.sizeHint().height()
+        self.assertGreater(expanded_hint, 100)
+        group.setChecked(False)
+        for child in group.findChildren(QWidget):
+            if child.parentWidget() is group:
+                self.assertTrue(child.isHidden(), child)
+        self.assertLess(group.sizeHint().height(), expanded_hint)
+
 
 class DesignPanelPhaseCTest(unittest.TestCase):
     """Phase C: attachments, restore-raw, template bar sync, explain view."""

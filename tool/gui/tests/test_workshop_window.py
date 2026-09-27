@@ -16,7 +16,7 @@ if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
 from PySide6.QtCore import QEvent, QSettings
-from PySide6.QtWidgets import QMessageBox, QPushButton
+from PySide6.QtWidgets import QApplication, QMessageBox, QPushButton
 
 from src.backend.import_step_result import ImportStepResult
 from src.backend.knowledge_schema import coerce_knowledge_points
@@ -100,6 +100,38 @@ class WorkshopWindowTest(unittest.TestCase):
         self.assertIn("✓素材", text)
         self.assertIn("✓知识", text)
         self.assertIn("○草稿", text)
+
+    def test_window_can_hold_the_980x640_default(self) -> None:
+        """The layout floor must stay under the advertised default size.
+
+        The floor is the widest/tallest stage's minimum: uncollapsed groups
+        or one long button row used to push it past 1000x1000, silently
+        defeating the smaller-window goal of the four-stage redesign.
+        Headroom is generous (font metrics vary per platform); it only needs
+        to catch structural regressions.
+        """
+        project = _resumed_project(self.store, self.src)
+        self.win._on_project_selected(project)
+        hint = self.win.minimumSizeHint()
+        self.assertLessEqual(hint.width(), 1010, hint)
+        self.assertLessEqual(hint.height(), 680, hint)
+        self.win.resize(980, 640)
+        QApplication.processEvents()
+        self.assertEqual((self.win.width(), self.win.height()), (980, 640))
+
+    def test_draft_chat_is_the_growing_surface(self) -> None:
+        project = _resumed_project(self.store, self.src)
+        self.win._on_project_selected(project)
+        self.win.show()
+        ws = self.win._unified_workspace
+        ws.set_stage(STAGE_DRAFT, force=True)
+        self.win.resize(980, 760)
+        QApplication.processEvents()
+        QApplication.processEvents()
+        chat = ws.design_panel._chat_view
+        for group in (ws.design_panel._advanced_group, ws.design_panel._json_group):
+            self.assertGreater(chat.height(), group.height())
+        self.assertGreater(chat.height(), 150)
 
     def test_go_to_library_and_back(self) -> None:
         project = _resumed_project(self.store, self.src)

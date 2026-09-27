@@ -40,6 +40,7 @@ from src.backend.content_quality import (
 from src.backend.grounded_stats import draft_coverage, format_coverage_line
 from src.theme import current_palette
 from src.widgets.result_preview import ResultPreviewWidget
+from src.widgets.ui.flow_layout import FlowLayout
 
 _EMPTY_HINT = (
     "还没有草稿 — 在中间 AI 轨道点「开始设计课程」，"
@@ -82,6 +83,10 @@ class ReviewPanel(QWidget):
         lay.addWidget(self._preview, 1)
 
         self._hint_label = QLabel("")
+        # Word-wrap: the hint can be a long sentence, and a single-line
+        # QLabel's text width becomes the layout's minimum width — it alone
+        # pushed the import stage (and so the window) past 980 px.
+        self._hint_label.setWordWrap(True)
         self._hint_label.setStyleSheet(
             f"color: {current_palette()['text_secondary']};"
         )
@@ -118,8 +123,9 @@ class ReviewPanel(QWidget):
         )
         lay.addWidget(self._quality_label)
 
-        # U0-3: clickable quality dimension chips.
-        self._dim_row = QHBoxLayout()
+        # U0-3: clickable quality dimension chips (wrapping: same reason as
+        # the action row below — one long row would set the stage's floor).
+        self._dim_row = FlowLayout(hspacing=4, vspacing=2)
         self._dim_buttons: dict[str, QPushButton] = {}
         for dim, short in _DIM_SHORT.items():
             btn = QPushButton(short)
@@ -130,10 +136,13 @@ class ReviewPanel(QWidget):
             btn.clicked.connect(self._on_dim_btn_clicked)
             self._dim_buttons[dim] = btn
             self._dim_row.addWidget(btn)
-        self._dim_row.addStretch(1)
         lay.addLayout(self._dim_row)
 
-        row = QHBoxLayout()
+        # Flow (not HBox): seven buttons side by side forced a ~750 px
+        # minimum width onto the import stage — and the whole workshop
+        # window inherits the widest stage's floor. Wrapping keeps the
+        # window shrinkable to the 980 default.
+        row = FlowLayout(hspacing=6, vspacing=4)
         self._try_btn = QPushButton("试做")
         self._try_btn.setToolTip("用播放器试做草稿中的某一课时")
         self._try_btn.clicked.connect(self._on_try)
@@ -161,7 +170,6 @@ class ReviewPanel(QWidget):
         self._restore_btn.setToolTip("恢复生成/局部重生成前的草稿检查点")
         self._restore_btn.clicked.connect(self._on_restore_checkpoint)
         row.addWidget(self._restore_btn)
-        row.addStretch(1)
         self._import_btn = QPushButton("导入到课程 ↗")
         self._import_btn.setDefault(True)
         self._import_btn.clicked.connect(self._on_import)

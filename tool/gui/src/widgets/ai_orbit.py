@@ -139,11 +139,16 @@ class AiOrbitWidget(QWidget):
         orbit_lay.setSpacing(4)
 
         self.prompt_label = QLabel(_ORBIT_HINT)
-        self.prompt_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        self.prompt_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         self.prompt_label.setStyleSheet(
             "font-size: 11px; font-weight: bold; opacity: 0.85;"
         )
-        orbit_lay.addWidget(self.prompt_label)
+        # One thin hint line, not two: the drop hint rides to the right of
+        # the pool summary instead of spending its own row above the chips.
+        summary_row = QHBoxLayout()
+        summary_row.addWidget(self.prompt_label)
+        summary_row.addStretch(1)
+        orbit_lay.addLayout(summary_row)
 
         # No min/max height clamp: the row wraps and grows with the zone, which
         # itself takes the vertical stretch. Scrolls only when chips overflow.
@@ -162,6 +167,12 @@ class AiOrbitWidget(QWidget):
             self.bubbles_container, hspacing=6, vspacing=6
         )
         self.scroll_area.setWidget(self.bubbles_container)
+        # Band, not a pane: the chip row keeps a drop-target-sized floor and
+        # may grow with wrapped chips up to a ceiling, then scrolls. Without
+        # the ceiling the zone's default hint (~190 px) out-bids the design
+        # chat for vertical space.
+        self.scroll_area.setMinimumHeight(36)
+        self.scroll_area.setMaximumHeight(72)
         orbit_lay.addWidget(self.scroll_area, 1)
 
         # --- Action row: round core button + chat, side by side ---

@@ -82,16 +82,24 @@ class OrbitChipRowTest(unittest.TestCase):
     def test_chip_row_uses_a_wrapping_layout(self) -> None:
         self.assertIsInstance(self.orbit.bubbles_layout, FlowLayout)
 
-    def test_chip_row_is_not_height_clamped(self) -> None:
-        """The 36/48 px min/max clamp is what forced the orbit to be tall."""
-        self.assertGreater(self.orbit.scroll_area.maximumHeight(), 1000)
-        self.assertEqual(self.orbit.scroll_area.minimumHeight(), 0)
+    def test_chip_row_is_a_growable_band(self) -> None:
+        """The chip row must wrap and grow — but stay a band, not a pane.
+
+        The original sin was a fixed 36/48 px strip; the fix went too far the
+        other way (unbounded zone out-bidding the design chat for vertical
+        space). The contract now: a drop-target floor, a modest ceiling, and
+        vertical scrolling beyond it.
+        """
+        scroll = self.orbit.scroll_area
+        self.assertGreaterEqual(scroll.minimumHeight(), 36)
+        self.assertLessEqual(scroll.maximumHeight(), 96)
+        self.assertGreater(scroll.maximumHeight(), scroll.minimumHeight())
         self.assertEqual(
-            self.orbit.scroll_area.horizontalScrollBarPolicy(),
+            scroll.horizontalScrollBarPolicy(),
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff,
         )
         self.assertEqual(
-            self.orbit.scroll_area.verticalScrollBarPolicy(),
+            scroll.verticalScrollBarPolicy(),
             Qt.ScrollBarPolicy.ScrollBarAsNeeded,
         )
 
