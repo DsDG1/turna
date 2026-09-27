@@ -20,7 +20,7 @@ from collections.abc import Callable
 from PySide6.QtWidgets import QLabel, QPushButton, QWidget
 
 from src.backend.lesson_content import TEMPLATE_LABELS
-from src.widgets.flow_layout import FlowLayout
+from src.widgets.ui.flow_layout import FlowLayout
 
 _TEXT_SECONDARY = "#9CA3AF"
 _ACCENT_TEXT = "#60A5FA"

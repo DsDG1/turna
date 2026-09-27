@@ -265,7 +265,7 @@ class FlowLayoutWrapTest(unittest.TestCase):
 
     def test_height_for_width_increases_when_narrow(self) -> None:
         from PySide6.QtWidgets import QApplication, QPushButton, QWidget
-        from src.widgets.flow_layout import FlowLayout
+        from src.widgets.ui.flow_layout import FlowLayout
 
         container = QWidget()
         flow = FlowLayout(container)

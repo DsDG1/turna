@@ -8,6 +8,37 @@
 
  ## 当前基线
 
+- **2026-09-28（工坊重设计验货修复批：T4 折叠失效 + 摘页空白回归）**：`python -m unittest`
+  收集 **192 模块 / 2633 例 / 0 加载错误**（上批 2628 例 ⇒ **+5**）。分档实测：`full`
+  **192/192，78 s**；`affected` 24/24；`ruff` 全过；边界门禁 **exit 0**（计数不变）。
+  本批是对 09-27 工坊重设计的**质量验货修复**——四阶段画布的三个运行时缺陷全部
+  有离屏渲染 + 真实 Windows 平台双重复现：
+  - **摘页手术留隐藏标志（真回归，最重）**：`QStackedLayout.removeWidget` 会把页留成
+    **显式隐藏**，而布局跳过显式隐藏的控件——三个摘出页（素材/知识/导入）在真实屏幕
+    上**整页空白**、几何冻结在栈时代的 640×480（`win.grab()` 会无视隐藏照常绘制，
+    所以离屏截图与测试全没拦住；旧三栏把页塞进 QTabWidget，由 tab 机制代管显示，
+    故旧代码无此问题）。修法：`_page_shell` 摘页后 `page.show()` 清标志。新增回归
+    断言 `test_ripped_pages_are_not_explicitly_hidden`。
+  - **折叠组不折叠（T4 目标落空）**：Qt 对未勾选的 checkable `QGroupBox` 只**禁用灰显**
+    不收起——未勾选的高级组仍占 228/207 px，聊天只剩 70 px，窗口地板被顶到 777×1016。
+    修法：`design_panel_build._wire_collapsible` 按勾选态显隐直接子控件（记住本来
+    隐藏者）。新增断言钉**折叠效果而非勾选标志**（`test_collapsed_groups_actually_fold`
+    / `..._expand_on_check`）。
+  - **窗口地板超标（980×640 失效）**：三处最小宽/高驱动项——review 面板 7 按钮单行
+    （~750 px）与质量维度 chips 单行（510 px）改 `FlowLayout` 换行；`_hint_label` 补
+    `setWordWrap(True)`（单行中文长句最小宽 504 px）；轨道 chips 区从无钳制改为
+    **36–72 px 可生长带**（T1 的"无钳制"测试改写为"growable band"契约）。窗口地板
+    777×1016 → **888×618**，`resize(980,640)` 生效；新增
+    `test_window_can_hold_the_980x640_default` 与 `test_draft_chat_is_the_growing_surface`
+    （760 高时聊天 > 两个折叠组之和且 > 150 px）。
+  - 顺带：`_CANVAS_DESC` 过期三栏文案改为四阶段描述（只存在于隐藏的 `_page_desc`，
+    无用户可见影响）；`widgets/flow_layout.py`（旧）并入 `widgets/ui/flow_layout.py`
+    （`spacing=` → `hspacing=/vspacing=`），调用方 workshop_canvas / teacher/shell_header
+    / test_theme 全部迁移，旧文件删除。
+  - **PySide6 踩坑记录（续）**：③ 显式隐藏的控件被所有布局跳过（不分配几何），
+    摘页/摘控件后必须清隐藏标志；④ `QScrollArea` 无上限时会用巨大默认 sizeHint
+    抢 stretch，带状区要同时给 min 与 max。
+
 - **2026-09-27（工坊重设计收口：§5 快赢 + T1–T5 全部落地）**：`python -m unittest`
   收集 **192 模块 / 2628 例 / 0 加载错误**（上批 2573 例 ⇒ **+55**）。分档实测：`full`
   **192/192，77 s**；`gate` 33/33 + E2 5/5；`ruff` 全过；边界门禁 **exit 0**。
