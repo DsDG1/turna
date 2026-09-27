@@ -1,8 +1,10 @@
 """Three-level course tree: Section -> Unit -> Lesson with context menu."""
 from __future__ import annotations
 
+import logging
+
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QAction, QColor, QPainter, QPen, QUndoStack
+from PySide6.QtGui import QColor, QPainter, QPen, QUndoStack
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QHBoxLayout,
@@ -17,6 +19,8 @@ from PySide6.QtWidgets import (
 from typing import Any
 
 from src.icons import icon as _lucide_icon
+
+logger = logging.getLogger(__name__)
 
 from src.application.commands import (
     BulkApplyPresetCommand,
@@ -452,7 +456,7 @@ class CourseTreeWidget(QTreeWidget):
             painter.end()
         except Exception:
             # Indicator painting is best-effort — never break the drop.
-            pass
+            logger.debug("drop-indicator painting skipped", exc_info=True)
 
     def _capture_state(self) -> dict[str, Any]:
         """Snapshot expand/selection/scroll state keyed by node id.
@@ -671,50 +675,49 @@ class CourseTreeWidget(QTreeWidget):
             return
         kind, node_id = ref
         menu = QMenu(self)
-        if kind == "unit":
-            menu.addAction("新建 Lesson", lambda: self._new_lesson(node_id))
-            menu.addAction(
-                "功能课向导…",
-                lambda: self._open_functional_wizard(node_id, "listening", ""),
-            )
-            menu.addAction("删除 Unit", lambda: self._delete_unit(node_id))
-            menu.addSeparator()
-            menu.addAction("AI 编辑此 Unit", lambda: self.ai_edit_requested.emit("unit", node_id))
-            menu.addAction("AI 修正此 Unit", lambda: self.ai_fix_requested.emit("unit", node_id))
-        elif kind == "section":
-            menu.addAction("新建 Unit", lambda: self._new_unit(node_id))
-            menu.addAction("删除 Section", lambda: self._delete_section(node_id))
-            menu.addSeparator()
-            menu.addAction("AI 编辑此 Section", lambda: self.ai_edit_requested.emit("section", node_id))
-            menu.addAction("AI 修正此 Section", lambda: self.ai_fix_requested.emit("section", node_id))
-        elif kind == "lesson":
-            selected_lesson_ids = [rid for k, rid in self._selected_refs() if k == "lesson"]
-            if len(selected_lesson_ids) > 1:
-                n = len(selected_lesson_ids)
-                menu.addAction(f"批量复制（{n}）", lambda _c=False, ids=selected_lesson_ids: self._duplicate_lessons(ids))
-                menu.addAction("批量移动到…", lambda _c=False, ids=selected_lesson_ids: self._bulk_move_lessons(ids))
-                menu.addAction("批量套用预设…", lambda _c=False, ids=selected_lesson_ids: self._bulk_apply_preset(ids))
-                menu.addAction(f"批量删除（{n}）", lambda _c=False, ids=selected_lesson_ids: self._bulk_delete_lessons(ids))
+        try:
+            if kind == "unit":
+                menu.addAction("新建 Lesson", lambda: self._new_lesson(node_id))
+                menu.addAction(
+                    "功能课向导…",
+                    lambda: self._open_functional_wizard(node_id, "listening", ""),
+                )
+                menu.addAction("删除 Unit", lambda: self._delete_unit(node_id))
                 menu.addSeparator()
-            act_dup_lesson = QAction("复制 Lesson", self)
-            act_dup_lesson.setShortcut("Ctrl+D")
-            act_dup_lesson.setProperty("node_id", node_id)
-            act_dup_lesson.triggered.connect(self._on_act_dup_lesson_triggered)
-            menu.addAction(act_dup_lesson)
-            menu.addAction("删除 Lesson", lambda: self._delete_lesson(node_id))
-            menu.addSeparator()
-            menu.addAction("AI 编辑此 Lesson", lambda: self.ai_edit_requested.emit("lesson", node_id))
-            menu.addAction("AI 修正此 Lesson", lambda: self.ai_fix_requested.emit("lesson", node_id))
-        if not menu.isEmpty():
-            menu.exec(self.viewport().mapToGlobal(pos))
-
-    def _on_act_dup_lesson_triggered(self) -> None:
-        sender = self.sender()
-        if not sender:
-            return
-        node_id = sender.property("node_id")
-        if isinstance(node_id, str):
-            self._duplicate_lessons([node_id])
+                menu.addAction("AI 编辑此 Unit", lambda: self.ai_edit_requested.emit("unit", node_id))
+                menu.addAction("AI 修正此 Unit", lambda: self.ai_fix_requested.emit("unit", node_id))
+            elif kind == "section":
+                menu.addAction("新建 Unit", lambda: self._new_unit(node_id))
+                menu.addAction("删除 Section", lambda: self._delete_section(node_id))
+                menu.addSeparator()
+                menu.addAction("AI 编辑此 Section", lambda: self.ai_edit_requested.emit("section", node_id))
+                menu.addAction("AI 修正此 Section", lambda: self.ai_fix_requested.emit("section", node_id))
+            elif kind == "lesson":
+                selected_lesson_ids = [rid for k, rid in self._selected_refs() if k == "lesson"]
+                if len(selected_lesson_ids) > 1:
+                    n = len(selected_lesson_ids)
+                    menu.addAction(f"批量复制（{n}）", lambda _c=False, ids=selected_lesson_ids: self._duplicate_lessons(ids))
+                    menu.addAction("批量移动到…", lambda _c=False, ids=selected_lesson_ids: self._bulk_move_lessons(ids))
+                    menu.addAction("批量套用预设…", lambda _c=False, ids=selected_lesson_ids: self._bulk_apply_preset(ids))
+                    menu.addAction(f"批量删除（{n}）", lambda _c=False, ids=selected_lesson_ids: self._bulk_delete_lessons(ids))
+                    menu.addSeparator()
+                # No shortcut on this entry, on purpose: keyPressEvent already
+                # owns Ctrl+D and duplicates the whole selection, so a per-menu
+                # Ctrl+D action both made the key ambiguous and leaked one more
+                # registered action on every right-click. Mirrors the same code
+                # path as detail_panel's context menu.
+                dup_ids = selected_lesson_ids or [node_id]
+                menu.addAction("复制 Lesson", lambda _c=False, ids=dup_ids: self._duplicate_lessons(ids))
+                menu.addAction("删除 Lesson", lambda: self._delete_lesson(node_id))
+                menu.addSeparator()
+                menu.addAction("AI 编辑此 Lesson", lambda: self.ai_edit_requested.emit("lesson", node_id))
+                menu.addAction("AI 修正此 Lesson", lambda: self.ai_fix_requested.emit("lesson", node_id))
+            if not menu.isEmpty():
+                menu.exec(self.viewport().mapToGlobal(pos))
+        finally:
+            # The menu is parented to the tree, so dropping the last Python
+            # reference does not free it — one orphaned QMenu per right-click.
+            menu.deleteLater()
 
     def _push(self, cmd) -> None:
         """Push a command onto the undo stack if available, else run redo once."""

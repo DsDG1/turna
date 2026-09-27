@@ -9,7 +9,7 @@ from __future__ import annotations
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
@@ -17,8 +17,10 @@ if str(_GUI) not in sys.path:
 from tests._course_fixture import real_adapter_with_course
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor, QUndoStack
+from PySide6.QtGui import QAction, QColor, QUndoStack
+from PySide6.QtWidgets import QMenu
 
+import src.widgets.course_tree as course_tree_mod
 from src.widgets.course_tree import CourseTreeWidget
 from tests._qtapp import _App
 
@@ -701,6 +703,150 @@ class CourseTreeCrossTreeMoveTest(unittest.TestCase):
         self.stack.undo()
         self.assertEqual(self._section_unit_ids("section1"), ["u-1", "u-2"])
         self.assertEqual(self._section_unit_ids("section2"), ["u-3"])
+
+class CourseTreeContextMenuLeakTest(unittest.TestCase):
+    """Right-click must not leak a QMenu, and must not register yet another
+    Ctrl+D action: keyPressEvent already owns that shortcut and duplicates the
+    whole selection, so a per-menu action made the key ambiguous."""
+
+    def setUp(self) -> None:
+        _App.get()
+        self.tree = CourseTreeWidget()
+        self.adapter = _adapter_with_data()
+        self.tree.display(self.adapter)
+        self._last_disposed: list[bool] = []
+
+    def _item_for(self, kind: str, node_id: str):
+        for top_idx in range(self.tree.topLevelItemCount()):
+            top = self.tree.topLevelItem(top_idx)
+            if top.data(0, 0x0100) == (kind, node_id):
+                return top
+            for i in range(top.childCount()):
+                child = top.child(i)
+                if child.data(0, 0x0100) == (kind, node_id):
+                    return child
+                for j in range(child.childCount()):
+                    grand = child.child(j)
+                    if grand.data(0, 0x0100) == (kind, node_id):
+                        return grand
+        return None
+
+    @staticmethod
+    def _menu_factory_with_capture(opened: list[QMenu], disposed: list[bool]):
+        class _NonBlockingMenu(QMenu):
+            def exec(self, *args, **kwargs):  # Qt API name
+                return None
+
+            def deleteLater(self):  # Qt API name
+                disposed.append(True)
+                super().deleteLater()
+
+        def _factory(parent=None):
+            menu = _NonBlockingMenu(parent)
+            opened.append(menu)
+            return menu
+
+        return _factory
+
+    def _open_menu_on(self, item) -> QMenu:
+        """Right-click an item and return the menu that was exec'd.
+
+        The returned wrapper stays usable because deferred deletions are never
+        flushed here — disposal is asserted through the ``disposed`` list.
+        """
+        opened: list[QMenu] = []
+        disposed: list[bool] = []
+        self._last_disposed = disposed
+        with patch.object(
+            course_tree_mod, "QMenu", self._menu_factory_with_capture(opened, disposed)
+        ):
+            self.tree._on_context_menu(self.tree.visualItemRect(item).center())
+        return opened[-1]
+
+    def _right_click(self, item) -> None:
+        """Right-click and assert the menu was handed back to Qt for disposal.
+
+        Flushing DeferredDelete events here would also destroy menus left
+        pending by earlier tests, so the leak guard checks the disposal call
+        instead of the post-event child count.
+        """
+        self._open_menu_on(item)
+        self.assertEqual(self._last_disposed, [True])
+
+    @staticmethod
+    def _action(menu: QMenu, text: str):
+        for action in menu.actions():
+            if action.text() == text:
+                return action
+        return None
+
+    def test_menu_is_deleted_instead_of_leaked(self):
+        item = self._item_for("lesson", "s1-l1")
+        for _ in range(3):
+            self._right_click(item)
+
+    def test_menu_leak_guard_covers_section_branch(self):
+        section = self._item_for("section", "section1")
+        self.assertIsNotNone(section)
+        for _ in range(2):
+            self._right_click(section)
+
+    def test_no_ctrl_d_action_is_registered_per_menu(self):
+        item = self._item_for("lesson", "s1-l1")
+        for _ in range(3):
+            self._right_click(item)
+        # The old code parented a fresh Ctrl+D QAction to the tree on every
+        # right-click; with keyPressEvent owning the key, none may exist.
+        self.assertEqual(
+            [
+                a
+                for a in self.tree.findChildren(QAction)
+                if a.shortcut().toString() == "Ctrl+D"
+            ],
+            [],
+        )
+        self.assertEqual(
+            [a for a in self.tree.actions() if a.shortcut().toString() == "Ctrl+D"],
+            [],
+        )
+
+    def test_dup_entry_carries_no_shortcut(self):
+        item = self._item_for("lesson", "s1-l1")
+        menu = self._open_menu_on(item)
+        action = self._action(menu, "复制 Lesson")
+        self.assertIsNotNone(action)
+        # Ctrl+D stays owned by keyPressEvent, so the menu entry must not
+        # register a second copy of it.
+        self.assertEqual(action.shortcut().toString(), "")
+
+    def test_dup_entry_duplicates_current_selection(self):
+        item = self._item_for("lesson", "s1-l1")
+        self.tree.setCurrentItem(item)
+        self.tree._duplicate_lessons = MagicMock()
+        menu = self._open_menu_on(item)
+        action = self._action(menu, "复制 Lesson")
+        self.assertIsNotNone(action)
+        action.trigger()
+        self.tree._duplicate_lessons.assert_called_once_with(["s1-l1"])
+
+    def test_dup_entry_duplicates_whole_multi_selection(self):
+        first = self._item_for("lesson", "s1-l1")
+        second = self._item_for("lesson", "s1-l2")
+        # setCurrentItem resets the selection in ExtendedSelection mode, so the
+        # current item has to be established before the extra selection.
+        self.tree.setCurrentItem(second)
+        first.setSelected(True)
+        self.tree._duplicate_lessons = MagicMock()
+        menu = self._open_menu_on(second)
+        action = self._action(menu, "复制 Lesson")
+        self.assertIsNotNone(action)
+        action.trigger()
+        # Same target set as Ctrl+D on the keyboard, and as 批量复制.
+        self.tree._duplicate_lessons.assert_called_once()
+        self.assertCountEqual(
+            self.tree._duplicate_lessons.call_args[0][0], ["s1-l1", "s1-l2"]
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

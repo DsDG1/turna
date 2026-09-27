@@ -1,10 +1,53 @@
 # GUI Python 测试基线
 
 > 记录 `tool/gui/tests/` 下的用例数与关键覆盖项，便于每轮变更后快速对比回归。
+>
+> **本文件的结构**：顶部「当前基线」是唯一权威的当前数字，**只增不删**（按日期倒序追加）；
+> 其余 640+ 行是逐日施工流水，**只作为历史记录**，其中的数字反映当时的快照。
+> 查当前值请只看顶部，不要翻历史条目。
 
  ## 当前基线
 
-- 日期：2026-09-22；`ruff check tool/gui`（src + tests）为 0，并已接入 `make lint-gui` 与 CI。用例数仍为 **2541**（本批只清 lint，不增删测试）。
+- **2026-09-27（右键菜单泄漏 + Ctrl+D 歧义）**：`test_course_tree` 33 -> **39 例**（+6，
+  `CourseTreeContextMenuLeakTest`）。全库例数待本轮收口时以 full 档实测回填。
+  - 缺陷：`course_tree._on_context_menu` 每次右键新建 `QMenu(self)` 但从不
+    `deleteLater()`，空菜单路径同样泄漏；同时每次新建一个带 `Ctrl+D` 的 QAction
+    挂到树上，**与 `keyPressEvent` 已有的 Ctrl+D 处理重复注册**（多选时行为还不一致：
+    菜单项只复制右键命中的单个课时，快捷键复制整个选中集）。
+  - 修法：菜单体包进 `try/finally` 并 `menu.deleteLater()`（含空菜单早退路径）；
+    「复制 Lesson」改为与 `detail_panel` 同一写法的 `menu.addAction(text, slot)`，
+    **不带快捷键**，slot 复用 `_selected_lesson_ids()` 语义；删除
+    `_on_act_dup_lesson_triggered` 与随之无用的 `QAction` import。
+  - 测试要点：子菜单工厂用 `QMenu` 子类 stub 掉阻塞的 `exec()`；**不要**用
+    `sendPostedEvents(None, DeferredDelete)` 冲刷销毁来断言泄漏——它会连带销毁
+    前面用例遗留的待删菜单，PySide6 下稳定 0xC0000005 访问违例（同类崩溃连跑三次
+    才定位）。改为记录 `deleteLater()` 是否被调用，断言完全确定、不碰事件队列。
+
+- **2026-09-27（核查补批）**：`python -m unittest` 收集 **192 模块 / 2573 例 / 0 加载错误**。
+  分档实测：L1 pure **49**（+1）；`full` **192/192，~75 s**（`-j 4`）。
+  - 新增 `tests/test_check_ai_boundaries.py`（18 例）：对 `check_ai_boundaries.py`
+    全部 11 条门禁规则逐条注入探针的负向矩阵。起因：复核发现
+    `scan_backend_qt_imports()` 在整改施工中被误改为复用 backend→UI 正则，
+    `--fail-backend-qt` 对任何输入都报 0（施工引入的回归，已修复并验证
+    探针在→exit 1 / 干净树→exit 0）。
+  - 同批修正：`docs/README.md` 里指向不存在的 `gen_docs_index.py` 的断链改为
+    如实描述 `check_docs_index.py` 校验器；`run_gui_tests.py` docstring 中
+    「ci 档 = PR 默认」的口径改为「快速本地回路」（三个门禁入口实跑 full）。
+
+- **2026-09-27（整改批次）**：`python -m unittest` 收集 **191 模块 / 2555 例 / 0 加载错误**。
+  分档实测：`ci`（L0 gate + L1 fast）**48/48，~11 s**；`full` **191/191，~73 s**（`-j 4`）。
+  较 2026-09-22 的 2541 净增 14 例：
+  - 新增 `tests/test_error_report_redaction.py`（7 例，错误报告外发前路径脱敏）；
+  - 新增 `tests/test_git_secret_redaction.py`（7 例，git 诊断信息里的 URL 凭据脱敏）；
+  - `test_user_action_filter.UserActionFilterTest` 由 3 例扩到 7 例（输入改记指纹、
+    指纹稳定性、opt-in 记录原文、空输入不记录；并修掉 `target` 标签泄漏正文的路径）。
+  - 同期修复两个**整模块挂起**的模块：`test_shell_views`（41 例 / 19.9 s）、
+    `test_app`（41 例 / 36.6 s）—— 根因与修复见 `docs/ai_refactor_contract.md` §14。
+  - `ci` 档的 L1 集合由 113 个模块**修正为 48 个**（分档判定由文本正则改为真实
+    import 图，修正 65 个「实际 import Qt 却被判为纯逻辑」的假阳性，0 误伤）。
+  - `-j/--jobs` 默认由 1 改为 0（=自动并行），原先只在 `-j>1` 才生效的「最慢优先」
+    调度不再是死代码；`-j 1` 仍可显式选择旧的单进程路径。
+- 日期：2026-09-22；`ruff check tool/gui`（src + tests）为 0，并已接入 `make lint-gui` 与 CI。用例数为 **2541**（该批只清 lint，不增删测试）。
 - 日期：2026-09-20（P0 异步批次 + P1 Toast 批次 1，见下两节）；`python -m unittest` 收集 **2541 例 / 0 加载错误**（2537 + `test_shell_views` 新增 `NotifyToastResolutionTest` 4 例）
 
 ## 2026-09-20 P1 Toast 批次 1（确认类模态框 → Toast，28 处）
