@@ -38,7 +38,7 @@ from src.backend.textbook_project_store import TextbookProjectStore
 from src.dialogs.textbook_import_dialog import TextbookImportDialog
 from src.dialogs.textbook_library_dialog import TextbookLibraryDialog
 from src.theme import current_palette
-from src.widgets.unified_workspace import UnifiedWorkspaceWidget
+from src.widgets.workshop_canvas import WorkshopCanvas
 from src.application.settings import APP_NAME, ORG_NAME
 
 _LAST_PROJECT_KEY = "workshop/last_project_id"
@@ -81,7 +81,7 @@ class WorkshopWindow(QDialog):
         self._panel: TextbookImportDialog | None = None
         self._design_panel = None
         self._review_panel = None
-        self._unified_workspace: UnifiedWorkspaceWidget | None = None
+        self._unified_workspace: WorkshopCanvas | None = None
         self._busy_sources: set[str] = set()
         self._imported_section_id: str | None = None
         self.setWindowTitle("课程工坊")
@@ -559,7 +559,7 @@ class WorkshopWindow(QDialog):
 
         self._review_panel = ReviewPanel(self._design_panel, self.adapter, self)
 
-        self._unified_workspace = UnifiedWorkspaceWidget(
+        self._unified_workspace = WorkshopCanvas(
             self.adapter,
             self._panel,
             self._design_panel,

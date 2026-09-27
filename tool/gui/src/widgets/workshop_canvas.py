@@ -1,41 +1,60 @@
-"""Unified Workspace Widget: material, AI Orbit, design, outline, import.
+"""WorkshopCanvas: the four-stage workshop canvas (素材 / 知识 / 草稿 / 导入).
 
-P1: empty-state banner, default focus by project type, tab/splitter persistence,
-auto-switch to knowledge after extraction, and add-to-orbit without drag.
+Replaces the three-column :class:`~src.widgets.unified_workspace.UnifiedWorkspaceWidget`.
+Each stage now owns the whole surface instead of sharing a three-pane splitter,
+so 草稿 can give the chat the full width — the reason the old layout had to
+clamp the chip strip to 48 px and squeeze the chat into a stacked tab.
+
+Everything that is *data* is carried over unchanged: bubble-pool reconcile,
+the generate chain, the focus summary, per-project UI state, banner copy. Only
+the shell and the stage navigation are new.
 """
 from __future__ import annotations
 
 import logging
-logger = logging.getLogger(__name__)
-
-
 from typing import Any
 
-from PySide6.QtCore import Qt, QSettings, QByteArray, QTimer, Signal
+from PySide6.QtCore import Qt, QSettings, QTimer, Signal
 from PySide6.QtWidgets import (
+    QDialog,
     QFrame,
     QHBoxLayout,
     QLabel,
+    QMessageBox,
     QPushButton,
     QScrollArea,
     QSplitter,
-    QTabWidget,
+    QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
 
+from src.application.settings import APP_NAME, ORG_NAME
 from src.backend.grounded_stats import format_pool_summary
+from src.theme import current_palette
+from src.theme_tokens import BRAND_TEAL
 from src.widgets.ai_orbit import AiOrbitWidget
 from src.widgets.flow_layout import FlowLayout
 from src.widgets.knowledge_bubble import KnowledgeBubble
-from src.theme import current_palette
-from src.theme_tokens import BRAND_TEAL
-from src.application.settings import APP_NAME, ORG_NAME
+
+logger = logging.getLogger(__name__)
 
 _BUBBLE_POOL_LIMIT = 200
 _BUBBLE_DEBOUNCE_MS = 60
 _TIPS_DISMISSED_KEY = "workshop/canvas_tips_dismissed"
 _UI_PREFIX = "workshop/ui"
+
+#: Stage ids, in header-checklist order. Persisted by name (not index) so
+#: reordering stages cannot silently point a saved session at the wrong page.
+STAGE_MATERIAL = "material"
+STAGE_KNOWLEDGE = "knowledge"
+STAGE_DRAFT = "draft"
+STAGE_IMPORT = "import"
+STAGES = (STAGE_MATERIAL, STAGE_KNOWLEDGE, STAGE_DRAFT, STAGE_IMPORT)
+
+#: Stages that own the textbook-extraction panel; leaving them while extraction
+#: runs needs a confirmation.
+_EXTRACTION_STAGES = (STAGE_MATERIAL, STAGE_KNOWLEDGE)
 
 
 def _bubble_key(resource_type: str, entry: dict, chapter_index: int = -1) -> str:
@@ -47,10 +66,23 @@ def _bubble_key(resource_type: str, entry: dict, chapter_index: int = -1) -> str
     return f"{resource_type}:{chapter_index}:{term}"
 
 
-class UnifiedWorkspaceWidget(QWidget):
-    """Non-step-by-step authoring canvas for one textbook/AI project."""
+class WorkshopCanvas(QWidget):
+    """Four-stage authoring canvas for one textbook/AI project.
+
+    Stage surfaces:
+      * 素材 — the textbook import source page (file pick / drop / chapters)
+      * 知识 — knowledge review page + the bubble pool side panel
+      * 草稿 — param band (AI orbit) + full-width design chat
+      * 导入 — structural outline + section import
+
+    Constructor signature and the public helpers the window drives
+    (``save_ui_state`` / ``flush_bubble_refresh`` / ``focus_*``) are the
+    compatibility surface; see WorkshopWindow for the shell that hosts it.
+    """
 
     design_focus_requested = Signal()
+    #: Emitted with the new stage id whenever the canvas switches stage.
+    stage_changed = Signal(str)
 
     def __init__(
         self,
@@ -77,12 +109,14 @@ class UnifiedWorkspaceWidget(QWidget):
         self._bubble_refresh_timer.setSingleShot(True)
         self._bubble_refresh_timer.setInterval(_BUBBLE_DEBOUNCE_MS)
         self._bubble_refresh_timer.timeout.connect(self.refresh_bubble_pool)
+        self._pool_popup: QDialog | None = None
+        self._stage = STAGE_MATERIAL
 
         self._build_ui()
         self._wire_signals()
         self._init_orbit_params()
         self.refresh_bubble_pool()
-        self._apply_default_focus()
+        self._apply_default_stage()
         self.restore_ui_state()
         self._update_banner()
         # Snapshot whether knowledge already exists (resume).
@@ -97,35 +131,68 @@ class UnifiedWorkspaceWidget(QWidget):
         self._banner = self._build_banner()
         layout.addWidget(self._banner)
 
-        self.splitter = QSplitter(Qt.Orientation.Horizontal, self)
+        self._stages = QStackedWidget()
+        self._stage_widgets: dict[str, QWidget] = {}
 
-        # --- LEFT -----------------------------------------------------------
-        left_widget = QWidget()
-        left_lay = QVBoxLayout(left_widget)
-        left_lay.setContentsMargins(6, 6, 6, 6)
-
-        self.left_tabs = QTabWidget()
-
+        # 摘页手术: grab all three page references BEFORE removing any of them.
+        # removeWidget() re-indexes the stack, so fetching page 2 after two
+        # removals silently returns None.
         self._source_page = self.import_panel._stack.widget(0)
         self._knowledge_page = self.import_panel._stack.widget(1)
         self._import_page = self.import_panel._stack.widget(2)
+        for page in (self._source_page, self._knowledge_page, self._import_page):
+            self.import_panel._stack.removeWidget(page)
 
-        self.import_panel._stack.removeWidget(self._source_page)
-        src_title = "教材与章节 (可选)" if self._blank else "教材与章节"
-        self.left_tabs.addTab(self._source_page, src_title)
+        self._add_stage(STAGE_MATERIAL, self._build_material_stage())
+        self._add_stage(STAGE_KNOWLEDGE, self._build_knowledge_stage())
+        self._add_stage(STAGE_DRAFT, self._build_draft_stage())
+        self._add_stage(STAGE_IMPORT, self._build_import_stage())
+        layout.addWidget(self._stages, 1)
+
+    def _add_stage(self, name: str, widget: QWidget) -> None:
+        self._stage_widgets[name] = widget
+        self._stages.addWidget(widget)
+
+    @staticmethod
+    def _page_shell(page: QWidget) -> QWidget:
+        """Re-parent a page ripped out of ``TextbookImportDialog._stack``."""
+        holder = QWidget()
+        lay = QVBoxLayout(holder)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.addWidget(page)
+        return holder
+
+    def _build_material_stage(self) -> QWidget:
+        stage = QWidget()
+        lay = QVBoxLayout(stage)
+        lay.setContentsMargins(6, 6, 6, 6)
+        lay.addWidget(self._page_shell(self._source_page))
+        return stage
+
+    def _build_knowledge_stage(self) -> QWidget:
+        stage = QWidget()
+        lay = QVBoxLayout(stage)
+        lay.setContentsMargins(6, 6, 6, 6)
 
         if hasattr(self.import_panel, "_design_btn"):
             self.import_panel._design_btn.setVisible(False)
-        self.import_panel._stack.removeWidget(self._knowledge_page)
-        kn_title = "知识点审校 (可选)" if self._blank else "知识点审校"
-        self.left_tabs.addTab(self._knowledge_page, kn_title)
 
-        bubble_pool_widget = QWidget()
-        bp_lay = QVBoxLayout(bubble_pool_widget)
-        bp_lay.setContentsMargins(0, 0, 0, 0)
-        self._bubble_desc = QLabel(
-            "勾选审校表中的知识点后，会出现在这里。拖入中间 AI 轨道可聚焦生成："
+        self._knowledge_splitter = QSplitter(
+            Qt.Orientation.Horizontal, stage
         )
+        self._knowledge_splitter.addWidget(self._page_shell(self._knowledge_page))
+        self._knowledge_splitter.addWidget(self._build_pool_panel())
+        # ~70% review page, ~30% pool side panel.
+        self._knowledge_splitter.setStretchFactor(0, 7)
+        self._knowledge_splitter.setStretchFactor(1, 3)
+        lay.addWidget(self._knowledge_splitter)
+        return stage
+
+    def _build_pool_panel(self) -> QWidget:
+        panel = QWidget()
+        bp_lay = QVBoxLayout(panel)
+        bp_lay.setContentsMargins(4, 0, 0, 0)
+        self._bubble_desc = QLabel("勾选审校表中的知识点后，会出现在这里。")
         self._bubble_desc.setWordWrap(True)
         self._bubble_desc.setStyleSheet("font-size: 11px; opacity: 0.8; margin: 4px;")
         bp_lay.addWidget(self._bubble_desc)
@@ -133,7 +200,7 @@ class UnifiedWorkspaceWidget(QWidget):
         orbit_row = QHBoxLayout()
         self._add_to_orbit_btn = QPushButton("将选中词加入轨道")
         self._add_to_orbit_btn.setToolTip(
-            "把知识点审校表中当前选中的行加入中间 AI 轨道（无需拖拽）"
+            "把知识点审校表中当前选中的行加入 AI 轨道（无需拖拽）"
         )
         self._add_to_orbit_btn.clicked.connect(self.add_selected_to_orbit)
         orbit_row.addWidget(self._add_to_orbit_btn)
@@ -147,37 +214,40 @@ class UnifiedWorkspaceWidget(QWidget):
         self.bubble_pool_layout = FlowLayout(self.bubble_pool_container, spacing=8)
         self.bubble_pool_area.setWidget(self.bubble_pool_container)
         bp_lay.addWidget(self.bubble_pool_area, 1)
-        self.left_tabs.addTab(bubble_pool_widget, "气泡池")
+        return panel
 
-        left_lay.addWidget(self.left_tabs)
-        self.splitter.addWidget(left_widget)
+    def _build_draft_stage(self) -> QWidget:
+        stage = QWidget()
+        lay = QVBoxLayout(stage)
+        lay.setContentsMargins(6, 6, 6, 6)
+        lay.setSpacing(6)
 
-        # --- MIDDLE ---------------------------------------------------------
-        self.orbit_widget = AiOrbitWidget(self)
-        self.splitter.addWidget(self.orbit_widget)
+        self.orbit_widget = AiOrbitWidget(stage)
+        # Cross-stage dragging is impossible, so the pool is reachable as a
+        # modeless popover whose chips can still be dragged into the band.
+        self._pool_popup_btn = QPushButton("气泡池＋")
+        self._pool_popup_btn.setToolTip(
+            "打开气泡池弹层：把里面的气泡拖入上方轨道聚焦生成"
+        )
+        self._pool_popup_btn.clicked.connect(self._open_pool_popup)
+        self.orbit_widget.add_action_widget(self._pool_popup_btn)
+        lay.addWidget(self.orbit_widget)
+        lay.addWidget(self.design_panel, 1)
+        return stage
 
-        # --- RIGHT ----------------------------------------------------------
-        right_widget = QWidget()
-        right_lay = QVBoxLayout(right_widget)
-        right_lay.setContentsMargins(6, 6, 6, 6)
+    def _build_import_stage(self) -> QWidget:
+        stage = QWidget()
+        lay = QVBoxLayout(stage)
+        lay.setContentsMargins(6, 6, 6, 6)
 
-        self.right_tabs = QTabWidget()
-        self.right_tabs.addTab(self.review_panel, "结构大纲")
-        self.right_tabs.addTab(self.design_panel, "对话与高级")
-        self.import_panel._stack.removeWidget(self._import_page)
-        self.right_tabs.addTab(self._import_page, "章节导入")
-
-        right_lay.addWidget(self.right_tabs)
-        self.splitter.addWidget(right_widget)
-
-        # L2-5: prefer center + right; left thinner (blank projects collapse further).
-        self.splitter.setStretchFactor(0, 1)
-        self.splitter.setStretchFactor(1, 2)
-        self.splitter.setStretchFactor(2, 3)
-        layout.addWidget(self.splitter, 1)
-
-        self._left_collapsed = False
-        self._left_widget = left_widget
+        self._import_splitter = QSplitter(Qt.Orientation.Horizontal, stage)
+        self._import_splitter.addWidget(self.review_panel)
+        self._import_splitter.addWidget(self._page_shell(self._import_page))
+        # ~55% outline, ~45% import.
+        self._import_splitter.setStretchFactor(0, 55)
+        self._import_splitter.setStretchFactor(1, 45)
+        lay.addWidget(self._import_splitter)
+        return stage
 
     def _build_banner(self) -> QFrame:
         banner = QFrame()
@@ -223,38 +293,144 @@ class UnifiedWorkspaceWidget(QWidget):
 
         if self._blank:
             self.orbit_widget.set_empty_hint(
-                "空白项目：填写主题 → 点核心生成（Ctrl+Enter）\n"
-                "对话 / 附件 / 模板点「对话与高级…」"
+                "空白项目：填写主题 → 点核心生成（Ctrl+Enter）· "
+                "需要对话 / 附件 / 模板时看下方聊天"
             )
-            # L2-1: blank projects start with a narrow left column.
-            QTimer.singleShot(0, lambda: self.set_left_collapsed(True))
         self._update_focus_summary()
 
-    # ------------------------------------------------------------------ focus / banner
-    def _apply_default_focus(self) -> None:
-        """Initial tabs before restore_ui_state (restore may override)."""
-        has_knowledge = self._knowledge_row_count() > 0
-        has_chapters = self._chapter_count() > 0
-
+    # ------------------------------------------------------------------ stages
+    def _apply_default_stage(self) -> None:
+        """Initial stage before restore_ui_state (restore may override)."""
         if self._blank:
-            self.left_tabs.setCurrentIndex(2)
-            # L2-2: always prefer 结构大纲 on the right (empty state until draft).
-            self.right_tabs.setCurrentIndex(0)
+            self.set_stage(STAGE_DRAFT, force=True)
             self._bubble_desc.setText(
-                "空白 AI 项目：在中间设参并生成；教材知识点提取后可拖入轨道聚焦。"
+                "空白 AI 项目：直接设参生成；教材知识点提取后可加入轨道聚焦。"
             )
             return
-
-        if not has_chapters:
-            self.left_tabs.setCurrentIndex(0)
-        elif has_knowledge:
-            self.left_tabs.setCurrentIndex(1)
+        if self._knowledge_row_count() > 0:
+            self.set_stage(STAGE_KNOWLEDGE, force=True)
         else:
-            self.left_tabs.setCurrentIndex(0)
+            self.set_stage(STAGE_MATERIAL, force=True)
 
-        # Outline is the result surface; chat is opt-in via Orbit.
-        self.right_tabs.setCurrentIndex(0)
+    def current_stage(self) -> str:
+        return self._stage
 
+    def stage_widget(self, name: str) -> QWidget | None:
+        return self._stage_widgets.get(name)
+
+    def set_stage(self, name: str, *, force: bool = False) -> bool:
+        """Switch the canvas to *name*; returns False when the leave was vetoed.
+
+        Leaving 素材 / 知识 while textbook extraction runs asks first — the old
+        three-pane canvas could simply keep the page on screen, a stage switch
+        cannot.
+        """
+        if name not in self._stage_widgets or name == self._stage:
+            return name == self._stage
+        if not force and not self._confirm_leave_stage(self._stage, name):
+            return False
+        self._stage = name
+        self._stages.setCurrentWidget(self._stage_widgets[name])
+        self._update_banner()
+        self.stage_changed.emit(name)
+        return True
+
+    def focus_stage(self, name: str) -> bool:
+        """User-facing navigation (header lights, checklist, 「查看大纲 →」)."""
+        return self.set_stage(name)
+
+    def _confirm_leave_stage(self, current: str, target: str) -> bool:
+        """Mirror of WorkshopWindow._confirm_leave_if_panel_busy for switches."""
+        if current not in _EXTRACTION_STAGES or target in _EXTRACTION_STAGES:
+            return True
+        controller = getattr(self.import_panel, "_controller", None)
+        if not getattr(controller, "is_busy", False):
+            return True
+        reply = QMessageBox.question(
+            self,
+            "仍在提取知识点",
+            "正在提取知识点，离开会中断本次提取。是否继续？",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return False
+        controller.cancel()
+        return True
+
+    def focus_left_tab(self, index: int) -> None:
+        """Compat shim for the pre-stage window (0=素材, 1=知识)."""
+        self.set_stage(STAGE_MATERIAL if index == 0 else STAGE_KNOWLEDGE)
+
+    def focus_right_tab(self, index: int) -> None:
+        """Compat shim: the outline and section import both live in 导入 now."""
+        del index
+        self.set_stage(STAGE_IMPORT)
+
+    def focus_design_chat(self) -> None:
+        self.set_stage(STAGE_DRAFT)
+        self.design_focus_requested.emit()
+
+    def focus_outline(self) -> None:
+        self.set_stage(STAGE_IMPORT)
+
+    def focus_import(self) -> None:
+        self.set_stage(STAGE_IMPORT)
+
+    def focus_knowledge(self) -> None:
+        self.set_stage(STAGE_KNOWLEDGE)
+
+    # ------------------------------------------------------------------ pool popover
+    def _checked_rows(self) -> list:
+        try:
+            return [r for r in self.import_panel._review_table._model.rows if r.checked]
+        except Exception:
+            return []
+
+    def _open_pool_popup(self) -> None:
+        """Modeless pool popover over the draft stage.
+
+        Modal would block dragging bubbles into the orbit, which is the whole
+        point of the popover.
+        """
+        rows = self._checked_rows()
+        if self._pool_popup is not None:
+            self._pool_popup.close()
+            self._pool_popup = None
+        dlg = QDialog(self)
+        dlg.setWindowTitle("气泡池 · 拖入上方轨道")
+        dlg.setModal(False)
+        lay = QVBoxLayout(dlg)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        holder = QWidget()
+        flow = FlowLayout(holder, spacing=8)
+        shown = rows[:_BUBBLE_POOL_LIMIT]
+        for row in shown:
+            flow.addWidget(
+                KnowledgeBubble(row.entry, row.resource_type, parent=holder)
+            )
+        scroll.setWidget(holder)
+        lay.addWidget(
+            QLabel(f"已勾选 {len(rows)} 个知识点（显示前 {len(shown)} 个），拖入轨道聚焦生成：")
+        )
+        lay.addWidget(scroll, 1)
+        add_all = QPushButton("全部加入轨道")
+        add_all.setEnabled(bool(shown))
+        add_all.clicked.connect(
+            lambda: (self._add_rows_to_orbit(shown), dlg.close())
+        )
+        lay.addWidget(add_all)
+        dlg.finished.connect(self._on_pool_popup_finished)
+        self._pool_popup = dlg
+        dlg.show()
+        dlg.raise_()
+
+    def _on_pool_popup_finished(self, _code: int = 0) -> None:
+        self._pool_popup = None
+
+    # ------------------------------------------------------------------ banner
     def _tips_dismissed(self) -> bool:
         s = QSettings(ORG_NAME, APP_NAME)
         return bool(s.value(_TIPS_DISMISSED_KEY, False))
@@ -272,16 +448,16 @@ class UnifiedWorkspaceWidget(QWidget):
             return ""
         if self._blank:
             return (
-                "下一步：在中间填写「主题」，点「AI 核心」生成；"
-                "生成后右侧「结构大纲」审阅导入。需要对话时点「对话与高级…」。"
+                "下一步：在上方参数带填「主题」并点「AI 核心」生成；"
+                "生成后到「导入」阶段审阅结构大纲。需要对话时看下方聊天区。"
             )
         if self._chapter_count() == 0:
-            return "下一步：在左侧选择或拖入教材文件，勾选章节后提取知识点。"
+            return "下一步：在「素材」选择或拖入教材文件，勾选章节后提取知识点。"
         if self._knowledge_row_count() == 0:
-            return "下一步：在「知识点审校」提取并核对词汇，或直接在中间生成课程。"
+            return "下一步：在「知识」提取并核对词汇，或直接到「草稿」生成课程。"
         return (
-            "下一步：可把气泡拖入中间轨道聚焦生成，或直接点「AI 核心」；"
-            "生成后在右侧「结构大纲」试做并导入。"
+            "下一步：可把气泡加入轨道聚焦生成，或直接点「AI 核心」；"
+            "生成后到「导入」阶段审阅并导入。"
         )
 
     def _update_banner(self) -> None:
@@ -310,50 +486,29 @@ class UnifiedWorkspaceWidget(QWidget):
         return f"{_UI_PREFIX}/{pid}/{leaf}"
 
     def save_ui_state(self) -> None:
-        """Persist left/right tab indices and splitter sizes for this project."""
+        """Persist the current stage for this project.
+
+        The old ``left_tab`` / ``right_tab`` / ``splitter`` keys are abandoned
+        (not migrated): a saved tab index has no meaning in a stage layout, and
+        restoring it would drop the user on an unrelated page.
+        """
         if not self._project_id:
             return
         s = QSettings(ORG_NAME, APP_NAME)
-        s.setValue(self._settings_key("left_tab"), self.left_tabs.currentIndex())
-        s.setValue(self._settings_key("right_tab"), self.right_tabs.currentIndex())
-        s.setValue(self._settings_key("splitter"), self.splitter.saveState())
+        s.setValue(self._settings_key("stage"), self._stage)
 
     def restore_ui_state(self) -> None:
-        """Restore tabs/splitter if previously saved; keep defaults otherwise."""
+        """Restore the stage if previously saved; keep the default otherwise."""
         if not self._project_id:
             return
         s = QSettings(ORG_NAME, APP_NAME)
-        left = s.value(self._settings_key("left_tab"), None)
-        right = s.value(self._settings_key("right_tab"), None)
-        if left is not None:
-            try:
-                idx = int(left)
-                if 0 <= idx < self.left_tabs.count():
-                    self.left_tabs.setCurrentIndex(idx)
-            except (TypeError, ValueError):
-                logger.debug("widgets/unified_workspace.py:329 best-effort step failed", exc_info=True)
-        if right is not None:
-            try:
-                idx = int(right)
-                if 0 <= idx < self.right_tabs.count():
-                    self.right_tabs.setCurrentIndex(idx)
-            except (TypeError, ValueError):
-                logger.debug("widgets/unified_workspace.py:336 best-effort step failed", exc_info=True)
-        state = s.value(self._settings_key("splitter"))
-        if isinstance(state, QByteArray) and not state.isEmpty():
-            self.splitter.restoreState(state)
-        elif state is not None:
-            # Some platforms return bytes
-            try:
-                ba = QByteArray(state)
-                if not ba.isEmpty():
-                    self.splitter.restoreState(ba)
-            except Exception:
-                logger.debug("widgets/unified_workspace.py:347 best-effort step failed", exc_info=True)
+        stage = s.value(self._settings_key("stage"), None)
+        if isinstance(stage, str) and stage in self._stage_widgets:
+            self.set_stage(stage, force=True)
 
     # ------------------------------------------------------------------ public
     def _update_focus_summary(self) -> None:
-        """Refresh orbit strip: focused bubbles or full project pool."""
+        """Refresh the orbit band: focused bubbles or the full project pool."""
         if self.orbit_widget.dropped_items:
             entries = []
             for item in self.orbit_widget.dropped_items:
@@ -371,25 +526,8 @@ class UnifiedWorkspaceWidget(QWidget):
             format_pool_summary(pool, focused=False)
         )
 
-    def focus_design_chat(self) -> None:
-        self.right_tabs.setCurrentWidget(self.design_panel)
-        self.design_focus_requested.emit()
-
-    def focus_outline(self) -> None:
-        self.right_tabs.setCurrentWidget(self.review_panel)
-
-    def focus_import(self) -> None:
-        self.right_tabs.setCurrentWidget(self._import_page)
-
-    def focus_knowledge(self) -> None:
-        self.left_tabs.setCurrentIndex(1)
-
-    def add_selected_to_orbit(self) -> None:
-        """Add review-table selected rows to the orbit (keyboard-friendly)."""
-        rows = self.import_panel._review_table.selected_rows()
-        if not rows:
-            # Fall back to all checked rows when nothing selected.
-            rows = [r for r in self.import_panel._review_table._model.rows if r.checked]
+    def _add_rows_to_orbit(self, rows: list) -> int:
+        """Add *rows* to the orbit, returning how many were new."""
         added = 0
         for row in rows:
             before = len(self.orbit_widget.dropped_items)
@@ -397,10 +535,18 @@ class UnifiedWorkspaceWidget(QWidget):
             if len(self.orbit_widget.dropped_items) > before:
                 added += 1
         if added:
-            # Nudge user toward orbit.
             self.orbit_widget.prompt_label.setText(
                 f"已投入 {len(self.orbit_widget.dropped_items)} 个知识点，AI 将定向生成课时"
             )
+        return added
+
+    def add_selected_to_orbit(self) -> None:
+        """Add review-table selected rows to the orbit (keyboard-friendly)."""
+        rows = self.import_panel._review_table.selected_rows()
+        if not rows:
+            # Fall back to all checked rows when nothing selected.
+            rows = [r for r in self.import_panel._review_table._model.rows if r.checked]
+        self._add_rows_to_orbit(rows)
 
     def schedule_bubble_refresh(self) -> None:
         """Debounce bubble pool rebuild (many rows_changed in a short window)."""
@@ -412,7 +558,7 @@ class UnifiedWorkspaceWidget(QWidget):
         self.refresh_bubble_pool()
 
     def refresh_bubble_pool(self) -> None:
-        """Incremental reconcile of bubble widgets by stable key (P2)."""
+        """Incremental reconcile of bubble widgets by stable key."""
         rows = self.import_panel._review_table._model.rows
         checked = [r for r in rows if r.checked]
         shown = checked[:_BUBBLE_POOL_LIMIT]
@@ -446,25 +592,25 @@ class UnifiedWorkspaceWidget(QWidget):
         if extra > 0:
             self._bubble_desc.setText(
                 f"已显示前 {_BUBBLE_POOL_LIMIT} 个勾选知识点（另有 {extra} 个未展示）。"
-                "可点「将选中词加入轨道」或拖入中间："
+                "可点「将选中词加入轨道」或在草稿阶段用「气泡池＋」："
             )
         elif not self._blank:
             self._bubble_desc.setText(
                 "勾选审校表中的知识点后，会出现在这里。"
-                "可点「将选中词加入轨道」或拖入中间 AI 轨道："
+                "可点「将选中词加入轨道」或拖入草稿阶段的轨道："
             )
 
     # ------------------------------------------------------------------ slots
     def _on_rows_changed(self) -> None:
-        # Debounce pool rebuild; tab switch / banner update stay immediate.
+        # Debounce pool rebuild; stage switch / banner update stay immediate.
         self.schedule_bubble_refresh()
         count = self._knowledge_row_count()
-        # First time knowledge appears while still on material tab → jump to 审校.
+        # First time knowledge appears while still on 素材 → jump to 知识.
         if (
             not self._auto_switched_to_knowledge
             and not self._had_knowledge_rows
             and count > 0
-            and self.left_tabs.currentIndex() == 0
+            and self._stage == STAGE_MATERIAL
         ):
             self.focus_knowledge()
             self._auto_switched_to_knowledge = True
@@ -555,40 +701,6 @@ class UnifiedWorkspaceWidget(QWidget):
 
     def _on_draft_ready(self) -> None:
         self.review_panel.refresh()
+        # The outline is the result surface, and it now lives in 导入.
         self.focus_outline()
         self._update_banner()
-
-    def set_left_collapsed(self, collapsed: bool) -> None:
-        """L2-1: shrink left column for blank projects (still reachable)."""
-        self._left_collapsed = collapsed
-        sizes = self.splitter.sizes()
-        if not sizes or len(sizes) < 3:
-            total = max(self.width(), 900)
-            if collapsed:
-                self.splitter.setSizes(
-                    [max(120, total // 10), total * 4 // 10, total * 5 // 10]
-                )
-            else:
-                self.splitter.setSizes(
-                    [total // 4, total * 3 // 8, total * 3 // 8]
-                )
-            return
-        total = sum(sizes) or 900
-        if collapsed:
-            self.splitter.setSizes(
-                [max(100, total // 12), total * 5 // 12, total // 2]
-            )
-        else:
-            self.splitter.setSizes(
-                [total // 4, total * 3 // 8, total * 3 // 8]
-            )
-
-    def focus_left_tab(self, index: int) -> None:
-        if self._left_collapsed:
-            self.set_left_collapsed(False)
-        if 0 <= index < self.left_tabs.count():
-            self.left_tabs.setCurrentIndex(index)
-
-    def focus_right_tab(self, index: int) -> None:
-        if 0 <= index < self.right_tabs.count():
-            self.right_tabs.setCurrentIndex(index)

@@ -186,6 +186,7 @@ class AiOrbitWidget(QWidget):
         self.chat_btn.clicked.connect(self.chat_requested.emit)
         action_row.addWidget(self.chat_btn)
         action_row.addStretch(1)
+        self._action_row = action_row
         orbit_lay.addLayout(action_row)
 
         self._gen_shortcut = QShortcut(QKeySequence("Ctrl+Return"), self)
@@ -206,8 +207,13 @@ class AiOrbitWidget(QWidget):
         self.status_label.setVisible(False)
         main_lay.addWidget(self.status_label)
 
+    def add_action_widget(self, widget: QWidget) -> None:
+        """Host hook: place a widget on the action row, before the trailing
+        stretch (the workshop canvas parks the bubble-pool popover there)."""
+        self._action_row.insertWidget(self._action_row.count() - 1, widget)
+
     def params_dict(self) -> dict[str, Any]:
-        """Current generation params from the orbit bar."""
+        """Current generation params from the orbit band."""
         mode = self.gen_mode_combo.currentData()
         if mode is None:
             mode = "fast"
