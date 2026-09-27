@@ -1,5 +1,7 @@
 # Step 4 R4 执行手册：翻 `productionAndroid.v2ImportChain` + Step 4 关闭
 
+> **📦 已归档 · 历史操作手册（2026-09-27 标注）**：R4 已于 2026-09-02 执行完毕（操作者「通过」）。清单保留为当时的执行记录，**不可再照此翻 flag**——`v2ImportChain` 已随 Step 6 退役。权威口径见 [`docs/official-anki-migration/`](../official-anki-migration/README.md)。
+
 > 上游：[ADR 0044](../decisions/0044-anki-v2-revival.md)（R4 = 最后一条执行线）；[step4.md](./step4.md)（Step 4 施工状态）；[step4-c3-runbook.md](./step4-c3-runbook.md)（C3 矩阵，R2 收口）。
 > 完成纪律沿用 2026-09-02 修订：**翻没翻、过没过，只看操作者确认**；host 测试与文档留证不构成完成。
 
@@ -24,7 +26,7 @@ R4 翻转于 **2026-09-02 执行（操作者「通过」）**。
 1. **`lib/application/anki_official/official_anki_feature_flags.dart`**
    - `productionAndroid` 常量增加 `v2ImportChain: true`（翻的主体）；
    - **`fromEnvironment` 退役 v2 define**：不再读取 `TURNA_OFFICIAL_ANKI_V2_IMPORT_CHAIN`。陷阱记录：原先 `copyWith(v2ImportChain: define)` 在无 define 构建里读到 `false`，会把常量刚翻的 `true` **盖回 `false`**——只改常量则生产包等于白翻。define 的 C3 投喂使命已完成，直接移除（顺带更新类头 opt-in 清单与字段注释）。
-2. **`test/application/anki_official/v2/official_anki_v2_flag_test.dart`** 按新语义翻转：生产位 true、回退态 `copyWith(v2ImportChain: false)` 不放行、v1 地基缺一 fail-closed；「define 双态接线」用例随 define 退役删除，替换为 **fromEnvironment 继承生产位**守卫（防盖写陷阱复发）。
+2. **`test/application/anki_official/v2/official_anki_v2_flag_test.dart`** 按新语义翻转：生产位 true、回退态 `copyWith(v2ImportChain: false)` 不放行、v1 地基缺一 fail-closed；「define 双态接线」用例随 define 退役删除，替换为 **fromEnvironment 继承生产位**守卫（防盖写陷阱复发）。**（该测试文件已随 `v2ImportChain` flag 退役一并删除；现行守卫为 `test/application/anki_official/official_anki_v2_monolith_lockout_guard_test.dart`，反向断言 flag 不得复活。）**
 3. **`test/.../v2/official_anki_v2_read_path_test.dart`** 「flag off」用例基线改 `productionAndroid.copyWith(v2ImportChain: false)`（回退态语义，v1 零回归的结构保证不变）。
 4. **`test/.../v2/official_anki_v2_lesson_content_test.dart`** 「flag off: supply is inert」用例同款修正（原骑 `current` 默认值，翻开后被新基线打破）。
 
@@ -40,7 +42,7 @@ R4 翻转于 **2026-09-02 执行（操作者「通过」）**。
 - 存量 v1 来源（`chain='v1'`）原样可学——读路径两代并存（v2 课时走视图，非 v2 课时回落 v1 投影 index）；
 - 内部构建此前导入的 v2 来源继续可学；
 - 复习队列、答题、渲染、调度链共用面不动；
-- Legacy↔Official 存量路由（`production_router`）与本 flag 无关。
+- Legacy↔Official 存量路由（`production_router`）与本 flag 无关。**（`production_router` 在 `lib/` 与 `test/` 中已 0 命中，Legacy 路由面此后已随 W9-B/C 删除；本行保留为当时语义的记录。）**
 
 ## 3. 回退操作卡（A1 定案语义）
 

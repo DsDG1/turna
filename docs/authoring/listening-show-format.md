@@ -205,6 +205,8 @@ assets/sounds/turkish/listening/
 
 节目类型映射表：`tool/mappings/a1_show_mapping.csv`
 
+> 仓库里只提交了模板 `tool/mappings/a1_show_mapping.csv.example`（含格式说明与 7 行示例）。实际使用前复制一份为 `tool/mappings/a1_show_mapping.csv` 再按节目改写；文件不存在时 `tool/mix_listening_a1.py` 不会报错，所有主文件按默认 variant A 处理。
+
 ```csv
 S1U1L01,A
 S1U1L02,B

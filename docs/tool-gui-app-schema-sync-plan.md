@@ -1,8 +1,9 @@
 # Turna GUI 与 App 课程 Schema 对齐施工计划
 
-> 状态：已落地（G1–G9 在 `tool/`；本批次核对 schema / lint / 版本联动，并补文档）
+> **状态：G1–G9 全部落地。本文档自 2026-09-27 起作为收据（receipt）——正文保留各阶段的结论与当前真实路径，不再是待施工的计划；下方代码块内的 schema 片段是落地后的形状，可直接对照代码阅读。**
 > 范围：仅改动 `tool/`（GUI + course_cli），不改 `lib/`（Flutter app 侧）
 > 依据：2026-08 对 app（`lib/domain/course/`）与 GUI（`tool/gui/src/`）的全量 schema 对比结论
+> 引用规约：跨文件引用一律写路径 + 符号名，**不写 `:行号`**（行号会随代码漂移）。
 
 ---
 
@@ -85,11 +86,11 @@ App 侧课程 schema 演进后，桌面编辑器（Turna GUI）出现 4 类落�
 #### P0.2 属性表单与教师模式渲染
 
 - **表单**（`tool/gui/src/widgets/interaction_forms.py`）：`InteractionForm` 是 schema 驱动的通用渲染，P0.1 完成后 `ankiCard`/`ankiHtmlCard` 自动获得表单；确认 `string_list`（audioAssets/imageAssets）与 `bool`（allowJs）控件可用。`frontHtml/backHtml/css` 用多行文本框（与 `context`/`transcript` 同款）。
-- **教师模式卡片**（`tool/gui/src/widgets/teacher/question_cards.py`）：
+- **教师模式卡片**（`tool/gui/src/teacher/question_cards.py`）：
   - `ankiCard`：翻卡交互（点击 front 显示 back），`audioAssets` 逐个给出播放占位（文件在 anki 导入目录内，桌面端不强制可播，显示路径即可）；`hint` 以「提示」按钮呈现。
   - `ankiHtmlCard`：降级预览——front/back 显示**剥除标签后的纯文本** + 顶部「HTML 卡片，完整渲染请以 App 为准」徽标；`css/allowJs` 不渲染。
   - 类型切换 combo（`ALLOWED_RUNTIME_TYPES` 驱动）自动包含新类型，无需单独改。
-- **教师模式隐藏字段**（`tool/gui/src/i18n/labels.py:62-68` `HIDDEN_FIELDS`）：追加 `sourceNoteId`、`sourceCardId`、`mediaBasePath`、`allowJs`（教师视角噪音字段）。
+- **教师模式隐藏字段**（`tool/gui/src/i18n/labels.py` 的 `HIDDEN_FIELDS`）：追加 `sourceNoteId`、`sourceCardId`、`mediaBasePath`、`allowJs`（教师视角噪音字段）。
 
 #### P0.3 Anki 导入器打通（`tool/gui/src/backend/anki_import.py`）
 
@@ -172,10 +173,10 @@ FieldSpec("imageAssets", False, "string_list", []),
 
 #### P2.1 `content.linkedGrammarPointIds` 编辑入口（G5）
 
-- **后端**（`tool/gui/src/backend/course_adapter.py`）：仿 `prerequisiteLessonIds` 的处理（`course_adapter.py:810` 模式）增加 `set_linked_grammar_points(lesson_id, ids)`；新建课时默认 `"linkedGrammarPointIds": []`（对齐 `course_adapter.py:253` 的既有默认注入点）。
+- **后端**（`tool/gui/src/backend/course_adapter.py`）：仿 `CourseAdapter.update_lesson_prereqs` 的处理模式增加 `CourseAdapter.set_linked_grammar_points(lesson_id, ids)`（写入 `content.linkedGrammarPointIds`）；新建课时默认 `"linkedGrammarPointIds": []`（对齐 `CourseAdapter.init_new` / `new_lesson_from_template` 的既有默认注入点）。
 - **UI**（`tool/gui/src/widgets/lesson_editor.py` 元数据区）：新增「关联语法点」多选编辑器（checkable 下拉或标签选择器，数据源 = `grammar_points` 表，与 `ref_grammar` 下拉同源）；选中值写入 `content.linkedGrammarPointIds`。
 - **校验**：`course_cli` 已校验悬空 `linkedGrammarPointIds`（无需新增）；确认 GUI 保存失败回滚路径覆盖该字段。
-- **总览**（可选）：`overview_stats.py` 的语法覆盖率统计把 `linkedGrammarPointIds` 计入引用来源，与既有 stage 内 `grammarPointId` 引用合并去重。
+- **总览**（可选）：`tool/gui/src/backend/overview_stats.py` 的语法覆盖率统计把 `linkedGrammarPointIds` 计入引用来源，与既有 stage 内 `grammarPointId` 引用合并去重。
 
 #### P2.2 grammar_points `practiceItems` 编辑（G6）
 
@@ -201,14 +202,14 @@ FieldSpec("imageAssets", False, "string_list", []),
 
 ### P3 — 发布工作流缝隙（G9）
 
-#### P3.1 vocab 变更联动版本 bump（`course_adapter.py:1291-1307`）
+#### P3.1 vocab 变更联动版本 bump（`CourseReleaseService.version_bump_plan`，`tool/gui/src/backend/course_release.py`；`CourseAdapter.version_bump_plan` 转发到它）
 
 ```python
 if changes["expressions"] or changes["vocab"]:
     plan["expressions"] = (self.expressions_version, self.expressions_version + 1)
 ```
 
-理由：app 重播种触发器是组合版本 `"$indexVersion+$expressionsVersion"`（`lib/data/course_database_seeder.dart:42-53`）；vocab 与 expressions 同属资源层，vocab 变更借道 expressions 版本触发客户端重建是最小改动（改 app 触发器超出本计划范围）。
+理由：app 重播种触发器是组合版本 `"$indexVersion+$expressionsVersion"`（`lib/data/course_database_seeder.dart` 中拼出的 `assetVersion`）；vocab 与 expressions 同属资源层，vocab 变更借道 expressions 版本触发客户端重建是最小改动（改 app 触发器超出本计划范围）。
 
 #### P3.2 发布对话框提示（`tool/gui/src/widgets/publish_dialog.py`）
 

@@ -10,9 +10,13 @@
 >
 > 前置阅读：[34](./34-official-anki-production-cutover-and-ohos-retirement-plan.md)、[34 收据](./34-cutover-receipt.md)、[38](./38-debt-and-perf-batch-1-plan.md)、[39](./39-debt-and-perf-batch-2-plan.md)、[40](./40-doc39-remainder-completion-plan.md)、[ADR 0036](../decisions/0036-official-anki-core-migration.md)、[ADR 0037](../decisions/0037-anki-course-review-unification.md)。
 >
-> 当前源码基线（2026-08-31）：`CourseDatabase.kSchemaVersion = 22`、Official catalog schema `11`、Official contract `1.11`（ops 37–40）。Android arm64 `libturna_anki.so` 已按 1.11 重建（2026-08-31 01:59，23,062,296 bytes，SHA-256 `C2808E58FE5AD28A5BD8B6A7CDFDEC4769785216F7F89F0765FB95283FD55530`；`verify_symbols.sh` pass；ELF AArch64 Android 24 / NDK r28c）。Android 强杀矩阵仍未跑。
+> 当前源码基线（**已过期，见下行现行值**）：`CourseDatabase.kSchemaVersion = 22`、Official catalog schema `11`、Official contract `1.11`（ops 37–40）。Android arm64 `libturna_anki.so` 已按 1.11 重建（2026-08-31 01:59，23,062,296 bytes，SHA-256 `C2808E58FE5AD28A5BD8B6A7CDFDEC4769785216F7F89F0765FB95283FD55530`；`verify_symbols.sh` pass；ELF AArch64 Android 24 / NDK r28c）。Android 强杀矩阵仍未跑。
+>
+> 现行基线（2026-09-27 核对）：`CourseDatabase.kSchemaVersion = 27`、Official catalog schema **14**、Official contract **1.13**。`libturna_anki.so` 的字节数与 SHA-256 随 contract 变化已过期，重建后须重新记录。Android 强杀矩阵仍未跑；iOS 已于 2026-09-26 启用官方 Anki 引擎（静态链接 rslib + WKWebView reviewer），iOS 侧的 `.so` 口径不适用。
 >
 > 铁律：**先写可稳定复现的失败测试，再改行为**；每个施工包独立 commit、独立可回滚；任何删除都先保留可恢复所有权证据；不把“UI 消失”“SQL 行已删”“物理字节已回收”混为同一状态；Rust/contract 改动必须在具备项目规定 Rust + protoc 工具链的主机通过 native 全量门禁并重建 Android `.so`。
+>
+> **本文范围已被收窄（2026-09-27 提示）：** 导入链路部分（S1 控制权 / S2 启动恢复的导入分支 / S6 checkpoint 体系）**已由 [doc 42](./42-staging-first-official-import-lifecycle-plan.md) + [ADR 0042](../decisions/0042-staging-first-official-import.md) 整体取代并已施工**，读到本文相关章节时不要视为待施工项。本文保留并仍有效的范围是**删除与物理回收（S3/S4/S5/S7）+ 存量善后（S8/§7.4/§11.4）**。另：S8 的 UI 子实现已并入本文 §13.3（原 doc 43）。
 
 ---
 
@@ -987,6 +991,33 @@ last_error_code
 
 不再把整个 profile 作为唯一 `ownerId` 后只给一个总数；Official source 和 profile 共享资产必须分层显示。
 
+#### 13.3.1 存储优化 + 修复中心 UI 实施收据（并入自原 doc 43，2026-09-27）
+
+> 原 `43-storage-repair-ui-working-notes.md` 已于 2026-09-27 并入本节并删除。commit `0743429e`（A+B 合一次，未按计划拆两个独立 commit）。原计划文件 `.cursor/plans/storage_repair_ui_63309ae5.plan.md` 不在仓库内。
+
+**A. 存储页一键「优化数据库」**（todo `optimize-storage`）
+
+- 新增 `lib/application/maintenance/official_storage_optimize_service.dart`：`OfficialStorageOptimizeService.runForceCompact({catalog, paths, course, engine})`；缺 catalog/paths → `OfficialStorageOptimizeResult(ok:false, errorCode:'capability_missing')`（fail-closed）；有则 `enqueue` `compact_collection` / `compact_catalog` / `compact_course`（同 kind 幂等合并），再 `OfficialAnkiMaintenanceRunner(..., forceCompact: true).runPending`，返回 `completedJobs`，**失败不假装释放字节**。
+- 新增 `test/application/maintenance/official_storage_optimize_service_test.dart`（无 catalog/paths 时 fail-closed）。
+- 改 `lib/views/settings/storage_diagnostics_page.dart`：加 `optimizeDatabases` 测试缝、`_optimizing` 状态与 `_optimizeDatabases()`（确认对话框 → `runForceCompact` → SnackBar 汇总 `storageOptimizeDone(n)` / `storageOptimizeUnavailable` / `storageOptimizeFailed` → `_rescan()`）；清缓存按钮下加 `OutlinedButton.icon`（key `storage-optimize-db`，busy 时禁用 + spinner）；加「打开修复中心」`TextButton`（key `storage-open-repair-center`）→ `OfficialAnkiRepairCenterRoute`。
+- 改 `test/views/settings/storage_diagnostics_page_test.dart`：`pumpPage` 加 `optimize` 注入参数；+2 widget 测试；runtime memory 测试用 `setSurfaceSize(400x1600)` 让 `_MemoryCard` 进视口（既有测试在新按钮后视口不够，非本轮回归）。
+- 改 `lib/application/anki_official/lifecycle/official_anki_maintenance.dart`：`OfficialAnkiMaintenanceJobDao` 加 `recentFailed({profileId, limit=20})`（`heartbeat_at_millis DESC`）。
+- 改 `lib/l10n/app_strings.dart`：+30 串（`storageOptimize*`、`storageRepairCenterLink`、`ankiRepair*`）。
+
+**B. 独立修复中心 UI**（todo `repair-center`）
+
+- 新增 `lib/views/anki_official/official_anki_repair_center_page.dart`：`@RoutePage() OfficialAnkiRepairCenterPage`（`SettingsScaffold`）；测试缝 `catalog` / `paths` / `scanner` / `optimizeDatabases` / `onContinueImport` / `onDiscardImport` / `onRetryCleanup` / `onExportDiagnostics`；只读分层即本节 §13.3 最小集（待完成导入 `OfficialAnkiPendingImportStore.list`、待清理 `state=='pending_cleanup'`、隔离 `state=='quarantined'`、maintenance `pending()+recentFailed()`、无登记残留 `StorageInventoryService.scan().orphans`，`initState` 缓存 Future 避免 build 重入）；白名单动作均为「确认后调现有实现，不新写破坏性 CAS」；缺 catalog → 空态 `ankiRepairCenterEmptyCatalog`，不崩溃。
+- 新增 `test/views/anki_official/official_anki_repair_center_page_test.dart`（+2 widget 测试：缺 catalog 空态；白名单动作确认后回调）。
+- 改 `lib/routing/routing.dart` + 生成的 `routing.gr.dart`：注册 `AutoRoute(page: OfficialAnkiRepairCenterRoute.page)`，无 guard（与 mapping 页同为产品面）。
+- 改 `lib/routing/diagnostics_release_guard.dart` + `test/routing/official_diagnostics_release_guard_test.dart`：注释说明修复中心是产品面（doc 41 S8），不进 `guardedRouteNames`；测试加 `isNot(contains('OfficialAnkiRepairCenterRoute'))`。
+- 改 `lib/views/courses/course_management_page.dart`：AppBar 加「打开修复中心」`IconButton`（key `course-open-repair-center`），底部 `OfficialPendingImportBanner` 旁加 `TextButton`（key `course-open-repair-center-footer`）。
+
+**验证**：定向 13 passed；`flutter analyze` 改动文件 0 issue（修 `official_anki_repair_center_page.dart` unused import）。
+
+**未做（明确推迟）**：真机 `collection.anki2` before/after 字节回收收据整体 **deferred / unverifiable**，不填 §18.3 假数字；Android 强杀矩阵、contract bump、M0–M9 一次性 migration 全跑；自动删除 `legacy_unknown` backup、把整个 Official profile 目录当一键删除；用 widget 测试冒充真机物理字节 GO。
+
+**review 注意**：`routing.gr.dart` 曾有 773 行重生成 diff，review 只看 `OfficialAnkiRepairCenterRoute` 段与 import 顺序；修复中心 `Share.share` 在测试环境用注入 `onExportDiagnostics` 绕过，避免 widget 测试拉起平台分享。
+
 ### 13.4 一次性 migration 顺序
 
 ```text
@@ -1017,7 +1048,7 @@ M0–M9 任一步失败保留 cursor，下一启动续跑；不得因 migration 
 
 ## 14. Schema、contract 与代码落点
 
-### 14.1 Official catalog v10 → v11（候选）
+### 14.1 Official catalog v10 → v11（候选；**已过时** —— catalog 现为 v14，本文所述 v11 迁移早已落地并继续演进）
 
 Additive migration，禁止先 drop/rename 老列：
 
@@ -1162,10 +1193,10 @@ S4/S5/S6 可在 S3 ownership snapshot 契约冻结后并行开发，但不能并
 test/views/anki/anki_import_controller_test.dart
 test/views/anki/anki_import_official_first_test.dart
 test/application/anki_official/official_anki_import_orchestrator_test.dart
-test/application/anki_official/official_anki_recovery_test.dart
-test/application/anki_official/official_anki_cleanup_surfaces_test.dart
-test/application/anki_official/official_anki_projection_test.dart
-test/application/anki_official/official_anki_projection_ordering_test.dart
+test/application/anki_official/official_anki_recovery_test.dart                    # 已删除（2026-09-24 P1/P2 后不再存在）
+test/application/anki_official/official_anki_cleanup_surfaces_test.dart            # 已删除（Legacy 卸载链随 P1 退役）
+test/application/anki_official/official_anki_projection_test.dart                  # 已删除（projection/ 子目录解散）
+test/application/anki_official/official_anki_projection_ordering_test.dart          # 已删除（同上；顺序规则已移入 CourseCatalogOrdering）
 test/application/maintenance/storage_inventory_service_test.dart
 ```
 

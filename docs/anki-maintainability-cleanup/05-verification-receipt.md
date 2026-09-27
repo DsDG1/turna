@@ -27,7 +27,7 @@
 - Anki 定向测试与非 Golden 全量测试基线；
 - 文档 34 的 release APK/设备结果边界。
 
-干净基线曾有两个既存环境性失败：OHOS ABI guard 和 5K 分页批处理。收口后的最终全量回归中两者均未复现，最终为零失败。本轮没有修改数据库 schema 或用户卡片数据。
+干净基线曾有两个既存环境性失败：OHOS ABI guard 和 5K 分页批处理。收口后的最终全量回归中两者均未复现，最终为零失败（**该"零失败"结论仅对 2026-08-25 那一轮全量回归成立，是时点数；之后的全量基线以 [`test/BASELINE.md`](../../test/BASELINE.md) 为准**）。本轮没有修改数据库 schema 或用户卡片数据。
 
 ## 交付核对
 
@@ -82,14 +82,13 @@
 flutter analyze
 
 flutter test \
-  test/application/anki/anki_unification_architecture_guard_test.dart \
+  test/application/anki/official_anki_architecture_guard_test.dart \
   test/application/anki_official/official_formal_due_repository_test.dart \
   test/application/anki_official/official_formal_due_atomic_update_test.dart \
   test/application/anki_official/official_formal_review_unrenderable_test.dart \
   test/application/anki_official/official_live_formal_review_test.dart \
   test/application/anki_official/official_review_all_coordinator_test.dart \
   test/application/anki_official/official_formal_review_fidelity_test.dart \
-  test/views/anki/anki_import_screen_test.dart \
   test/views/anki/anki_import_official_first_test.dart \
   --reporter compact
 
@@ -100,13 +99,18 @@ git diff --check
 
 如果这些改动进入文档 34 的 release candidate，还必须额外执行其指定的 native、arm64 APK 和真机矩阵。
 
+> **⚠️ 上面的命令块已不可原样复跑（路径勘误，2026-09-27 核对）**：
+> - `test/application/anki/anki_unification_architecture_guard_test.dart` 已改名为 `official_anki_architecture_guard_test.dart`（上面的命令块已按新名更正）。
+> - `test/views/anki/anki_import_screen_test.dart` **已删除**，故已从命令块中移除；其导入页规模与依赖门禁现由 `official_anki_architecture_guard_test.dart` 承担。
+> - 其余 7 个定向测试路径已逐一 `Test-Path` 核对，当前均存在。
+
 ## 最终结果
 
 | 检查 | 结果 |
 | --- | --- |
 | `flutter analyze` | 0 issue |
 | 必跑定向清单（含 controller 测试） | 63/63 通过 |
-| 全量非 Golden | 2165/2165 通过 |
+| 全量非 Golden | 2165/2165 通过（**2026-08-25 时点数**，非当前基线；当前全量基线见 [`test/BASELINE.md`](../../test/BASELINE.md)） |
 | Golden | 10/10 通过 |
 | `git diff --check` | 通过 |
 | 架构守卫 | due facade / view 写 due / synthetic source / 空 sourceId / 导入页规模与依赖门禁均生效 |

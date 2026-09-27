@@ -1,5 +1,10 @@
 # Anki 可维护性债务收口
 
+> **📦 已归档 · 已完成批次收据索引（收口 2026-08-25；标注 2026-09-27）**
+> 本目录记录 2026-08-25 那一轮可维护性债务收口的落地设计与验收凭据，**是历史收据，不是活文档**。
+> Official Anki 迁移的权威口径在 [`docs/official-anki-migration/`](../official-anki-migration/README.md)（doc 34 系列）；架构决策在 [`docs/decisions/`](../decisions/)。
+> 本组文档**不代表 Official Anki 迁移整体完成**，也不改变发布 / 设备 / Legacy 删除门禁。文中的类名、文件路径与门禁行数均为当时快照，已就地标注退役 / 勘误情况。
+
 > 状态：已完成（2026-08-25）
 > 适用范围：Varnamala Plus / Turna Flutter 客户端
 > 文档性质：已落地设计记录与维护导航
@@ -63,9 +68,9 @@ Due 是正式复习和 Review All 的基础。导入向导与复习链路没有�
 
 ## 本轮未改变的边界
 
-- 不删除 Legacy schema、importer、renderer、scheduler 或恢复能力；W9 物理删除继续 HOLD。
+- 不删除 Legacy schema、importer、renderer、scheduler 或恢复能力；W9 物理删除继续 HOLD。**（历史口径，已过期：W9 HOLD 已于 2026-08-27 由负责人决策解除，host 侧 W9-B..E 已由 2026-09-24 架构简化批次完成，见 [`docs/official-anki-migration/34-cutover-receipt.md`](../official-anki-migration/34-cutover-receipt.md)。）**
 - 不修改 Official Anki native/rslib 调度算法、数据库格式或 session RPC 协议。
-- 不完整拆分 `OfficialAnkiCourseProjectionService`。
+- 不完整拆分 `OfficialAnkiCourseProjectionService`。**（该类在 `lib/**/*.dart` 中已 0 命中，随 v1 投影流水线一并退役，此项债务已作废。）**
 - 不引入多 profile 产品功能，也不更换 Provider/GetIt 全局 DI 方案。
 - 不重做导入页视觉、品牌文案、mapping 算法或用户卡片数据。
 
@@ -74,22 +79,21 @@ Due 是正式复习和 Review All 的基础。导入向导与复习链路没有�
 - 本组文档不替代 `docs/official-anki-migration/34-*`。
 - 本轮没有合入文档 34 的 release candidate，因此 native、APK 和真机门禁未被本轮 host 验收覆盖。
 - 如果这些改动将来进入 release candidate，必须重新执行文档 34 指定的设备与发布检查。
-- W9 保持 HOLD：生产 `planFor` 链路没有 `allowLegacyOnly`，但 Legacy 的物理删除仍需独立观察期、备份恢复和真实用户数据门禁。
+- W9 保持 HOLD：生产 `planFor` 链路没有 `allowLegacyOnly`，但 Legacy 的物理删除仍需独立观察期、备份恢复和真实用户数据门禁。**（历史口径，已过期：W9 HOLD 已于 2026-08-27 由负责人决策解除——观察期证据按负责人豁免；host 侧 W9-B..E 已由 2026-09-24 架构简化批次完成（Legacy 读退役 + course.db v27 DROP 旧表），其中 W9-E「先停写一个版本再 drop」的硬规则未满足即执行，破例已记档。见 [`docs/official-anki-migration/34-cutover-receipt.md`](../official-anki-migration/34-cutover-receipt.md)。）**
 
 ## 后续债务
 
 以下事项不应顺手扩进本轮，应分别立项：
 
 1. `OfficialAnkiSession` 客户端、worker 和 dispatcher 的 typed RPC 拆分；
-2. `OfficialAnkiCourseProjectionService` 的 mapping DAO、job runner、reader 和 publisher 拆分；
+2. `OfficialAnkiCourseProjectionService` 的 mapping DAO、job runner、reader 和 publisher 拆分；**（已作废：该类在 `lib/**/*.dart` 中已 0 命中，随 v1 投影流水线退役。）**
 3. `OfficialAnkiCompositionRoot` 生命周期、catalog close/reset 和 profile context 注入；
 4. `profile-default-01` 集中化及真正的多 profile 支持；
-5. `official_anki_internal_page.dart` 迁到 diagnostics/views，并删除架构守卫 allowlist；
-6. W9 Legacy importer、scheduler 和 schema 的物理删除。
+5. `official_anki_internal_page.dart` 迁到 diagnostics/views，并删除架构守卫 allowlist；**（已作废：该文件在 `lib/` 与 `test/` 中已 0 命中，页面已删除。）**
+6. W9 Legacy importer、scheduler 和 schema 的物理删除。**（历史待办，已关闭：host 侧 W9-B..E 已由 2026-09-24 架构简化批次 P1/P2 完成，见 [`34-cutover-receipt.md`](../official-anki-migration/34-cutover-receipt.md)；W9-E 破例已记档，真机侧验证仍随设备矩阵。）**
 
 ## 文档维护规则
 
 - 跨系统约束只在本页维护；专题文档仅记录自身特有规则。
 - 精确测试数量、命令和验收日期只在[验收凭据](05-verification-receipt.md)维护。
 - 新问题放入对应专题的“剩余债务”；跨系统的新债务才进入本页。
-- 原路径 `docs/anki-maintainability-debt-cleanup-plan.md` 只保留导航，不恢复完整正文。

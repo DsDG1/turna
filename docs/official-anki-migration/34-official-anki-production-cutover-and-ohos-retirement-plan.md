@@ -4,7 +4,7 @@
 >
 > 日期：2026-08-24
 >
-> 状态：**验收 NO-GO；Official Anki 迁移中**；OHOS EOL = [ADR 0041](../decisions/0041-ohos-product-eol.md)。Official-first、OHOS 主工程删除和 arm64 构建骨架可保留；course scope、实时保真复习、六集合 due、W8、parity、数据出口与发布证据按 [`34-remaining-construction-plan.md`](./34-remaining-construction-plan.md) R0–R8 返工；W9 物理删除已按 doc 35（L0–L3）于 2026-08-27 施工。**不得写「迁移完成」。**
+> 状态：**验收 NO-GO；Official Anki 迁移中**；OHOS EOL = [ADR 0041](../decisions/0041-ohos-product-eol.md)。Official-first、OHOS 主工程删除和 arm64 构建骨架可保留；course scope、实时保真复习、六集合 due、W8、parity、数据出口与发布证据按 [`34-remaining-construction-plan.md`](./archive/34-remaining-construction-plan.md) R0–R8 返工；W9 物理删除已按 doc 35（L0–L3）于 2026-08-27 施工。**不得写「迁移完成」。**
 >
 > 前置：[`31`](./archive/31-anki-product-experience-plan.md)、[`32`](./archive/32-official-anki-experience-parity-plan.md)、[`33`](./archive/33-official-first-import-construction-plan.md)（均已由本文件接管）、[ADR 0037](../decisions/0037-anki-course-review-unification.md)
 >
@@ -78,11 +78,12 @@
 | W7 browser/stats | 服务骨架存在；产品入口、migrated sourceId 路由、全部筛选和 forecast/retention 尚未验收 |
 | C4 配置 | 生产 bundle = `OfficialAnkiFeatureFlags.productionAndroid`；不再读 10 个能力 dart-define；gray cohort 已退出 planner；`officialCapable` → `schedulerRuntimeAvailable` |
 | W8 | saga + census driver 可入队 `cleanLegacy`；启动不自动切 owner |
-| W9-A | 生产不再选择 Legacy writer；物理删除门槛已于 2026-08-27 由负责人决策解除（2026-08-27 负责人决策豁免；原 HOLD 文件已随解除删除，记录见收据） |
+| W9-A | 生产不再选择 Legacy writer；物理删除门槛已于 2026-08-27 由负责人决策解除（记录见收据「W9 HOLD 解除记录与证据台账」一节；原独立 HOLD 文件已于 2026-09-27 并入该节） |
 
-**生产仍可读的 dart-define（opt-in / 暂停闸）：** `TURNA_OFFICIAL_ANKI_CUTOVER`（默认 true）、`DIAGNOSTICS`、`REVIEWER_DIAGNOSTICS`、`MIGRATION_PILOT`、`COURSE_GRADES_SCHEDULER`、`LEGACY_MIRROR`。
+**生产仍可读的 dart-define（opt-in / 暂停闸）：** `TURNA_OFFICIAL_ANKI_CUTOVER`（`LegacyAnkiMigrationFlags.cutoverEnabled`，默认 true，暂停闸）、`TURNA_OFFICIAL_ANKI_REVIEWER_DIAGNOSTICS`、`TURNA_OFFICIAL_ANKI_COURSE_GRADES_SCHEDULER`（此二者为 `OfficialAnkiFeatureFlags.fromEnvironment` 唯一读取的 opt-in）；`TURNA_OFFICIAL_ANKI_DIAGNOSTICS` 是 release 诊断路由守卫、非 feature 字段。
+（早期版本此处列出的 `MIGRATION_PILOT` / `LEGACY_MIRROR` **已不存在**于 `OfficialAnkiFeatureFlags`，随 Legacy 退出一并消失。）
 
-**下一刀：** R0→R8 返工已由 2026-08-25 一次性施工完成（host 门禁全绿，见 [`34-remaining-construction-plan.md`](./34-remaining-construction-plan.md) §18）；剩余为真机 §15.3 矩阵、W8 真实用户库跑批，以及 W9-B..E 分波物理删除（HOLD 已于 2026-08-27 由负责人决策解除，观察期证据按负责人豁免）。
+**下一刀：** R0→R8 返工已由 2026-08-25 一次性施工完成（host 门禁全绿，见 [`34-remaining-construction-plan.md`](./archive/34-remaining-construction-plan.md) §18）；**W9-B..E 的 host 侧已由 2026-09-24 架构简化批次完成**（读退役 + course.db v27 表删除，W9-E 破例已记档）；剩余为真机 §15.3 矩阵与 W8 真实用户库跑批。
 
 ### 1.2 开工病理：默认导入会形成混合半状态（已修复，保留作回归说明）
 
@@ -138,7 +139,7 @@ Canonical owner                                official
 
 ### 1.7 文档入口
 
-活跃施工只认本文件 + [`34-remaining-construction-plan.md`](./34-remaining-construction-plan.md) + [`34-cutover-receipt.md`](./34-cutover-receipt.md) + [`35-duplicate-legacy-layer-cleanup-plan.md`](./35-duplicate-legacy-layer-cleanup-plan.md)。`28/31/32/33` 已标历史规格，勿按它们开波次。不得以 Phase / P5F / 灰度 G4 名称判断是否可发布。
+活跃施工只认本文件 + [`34-remaining-construction-plan.md`](./archive/34-remaining-construction-plan.md) + [`34-cutover-receipt.md`](./34-cutover-receipt.md) + [`35-duplicate-legacy-layer-cleanup-plan.md`](./35-duplicate-legacy-layer-cleanup-plan.md)。`28/31/32/33` 已标历史规格，勿按它们开波次。不得以 Phase / P5F / 灰度 G4 名称判断是否可发布。
 
 ---
 
@@ -753,6 +754,9 @@ census cleanLegacy
 - drop 前备份恢复必须能读取上一版本数据并完成升级；
 - 历史 archive/test artifact 不因代码删除而抹除。
 
+> **⚠ W9-E 前两条已被实际执行方式取代（2026-09-24）：** 「先停止写至少一个版本，再 drop 表」在 2026-09-24 架构简化批次 P2 中**未被满足即执行** —— course.db v27 在同一次迁移中直接 DROP `anki_notetypes` / `anki_notes` / `anki_cards_meta`，中间没有插入任何正式发版。豁免依据为「存量用户数为零、从未有过正式发版」，该前置条件在物理上无作用对象。
+> **本节其余规则（`rg` 零引用证明、独立 PR、schema 不与 writer 同行、drop 前备份恢复、历史 artifact 保留）仍全部有效。** 破例事实、依据与责任口径记于 [`34-cutover-receipt.md`](./34-cutover-receipt.md) 的「W9-E 破例记录（2026-09-24）」一节。
+
 ### 13.3 Forbidden-import/forbidden-write 门禁
 
 CI 至少包含：
@@ -949,16 +953,16 @@ W9 物理删除执行版见 [`35-duplicate-legacy-layer-cleanup-plan.md`](./35-d
 - [x] 活跃文档不再宣称支持 OHOS；（证据：本 README、`docs/android-build-setup.md`、`docs/project-guide.md`、`CLAUDE.md` → ADR 0041 / EOL）
 - [ ] 现有 OHOS 用户完成数据出口，或有无外部用户的书面豁免；（**验收撤销**：只有 `TurnaMigrationExporter` 类；无可到达的 OHOS sunset UI、无 Android zip 导入、无书面豁免）
 - [x] Android 新 `.apkg` 导入只写 Official Collection；（证据：`AnkiImportExecutionPlanner` official-first / fail-closed；`OfficialAnkiFeatureFlags.productionAndroid` / `fromEnvironment` 不再读 per-capability dart-define；生产 screen 无 `allowLegacyOnly: true`）
-- [ ] 成功导入同时产生可用 projection、独立且可选择的 course entry 和持久化 Official owner；（**验收撤销**：Official sourceId 被 course entry 解析截成 `src`，builtin scope 泄漏 Official Section，且 projection/visibility/owner 仍可能半完成）
+- [x] 成功导入同时产生可用 projection、独立且可选择的 course entry 和持久化 Official owner；（**2026-08-25 R1 已 DONE**：CourseScope codec v1 + CourseCatalog authority+manifest + builtin 双隔离 + `anki:src` 歧义修复 + 导入三动作分流 + 完整 sourceId 卸载；证据见收据 R1）
 - [x] Official 导入失败不会写 Legacy 数据，也不会静默 fallback；（证据：W0 planner + `anki_import_execution_plan_test`）
-- [ ] 正式复习从 Official queue 实时组装，并由 OfficialStudyLedger 唯一提交；（**验收撤销**：当前 loader strip HTML 后构造 Flip，页面消费固定 StudyItem 数组，Scheduler answer 后重排会 stale；Review All 只取第一个 Official 来源）
-- [ ] 首页 due 是六集合 card-id 精确集合，数字与实际 queue 一致；（**验收撤销**：retired 未接生产 reader；placement 缺失会回退 scheduler due；六集合与回滚未统一到一个 repository）
+- [x] 正式复习从 Official queue 实时组装，并由 OfficialStudyLedger 唯一提交；（**2026-08-25 R2 已 DONE**：fidelity-first 渲染、`OfficialFormalReviewLiveQueue`（Scheduler current 驱动、Again 重插、快照 generation）、`FormalReviewSourceCoordinator` 顺序消费 + 聚合失败、Redo/Bury/Suspend）
+- [x] 首页 due 是六集合 card-id 精确集合，数字与实际 queue 一致；（**2026-08-25 R3 已 DONE**：`OfficialFormalDueRepository`（known/unknown/unavailable、stale generation、rollback、retired reader））
 - [x] 课程学习显式为 practice/introduction，默认不写 scheduler；（证据：`AnkiStudySessionHost.itemForCourse` + `official_course_practice_introduction_test.dart`）
-- [ ] browser、stats、media、product effects 对纯 Official 来源可用；（**验收撤销**：Official section 产品按钮仍为 null；migrated importId/sourceId 映射错误；Stats 可能回退 Legacy provider，部分 filter/forecast 未完成）
+- [x] browser、stats、media、product effects 对纯 Official 来源可用；（**2026-08-25 R5 已 DONE**：Official 牌组 Browse/Stats 按钮可达，完整 sourceId 路由，无 Legacy 回退）
 - [ ] backup/restore/reimport/uninstall/强杀恢复通过 release 真机验收；(**HOLD** — 本环境无设备，未伪造 §15.3 真机闭环)
 - [ ] 所有历史来源已进入 cleanOfficial、已导出/只读隔离或有明确用户处理状态；（W8 saga + reconciler 已提供路径；**存量用户跑批/确认未在本会话完成** — HOLD）
-- [ ] Legacy 新写入连续一个正式版本为 0；（**观察未发生，2026-08-27 负责人决策豁免** — 2026-08-27 负责人决策豁免，原 HOLD 文件已随解除删除；无实际观察数据，保持未勾选）
-- [ ] Legacy importer/scheduler/schema 按 W9 分波删除；（**HOLD 已于 2026-08-27 解除：可开工、尚未执行**；W9-A 仅停住新写产品选择，未物理删除）
+- [ ] Legacy 新写入连续一个正式版本为 0；（**观察未发生，2026-08-27 负责人决策豁免** — 证据台账见收据「W9 HOLD 解除记录与证据台账」一节；无实际观察数据，保持未勾选）
+- [x] Legacy importer/scheduler/schema 按 W9 分波删除；（**host 侧已由 2026-09-24 架构简化批次完成**：P1 读退役 + P2 course.db v27 DROP，W9-E 破例已记档；真机侧验证仍随设备矩阵）
 - [x] CI 有 owner、forbidden write、unsupported platform 和 native ABI 门禁；（证据：`anki_unification_architecture_guard_test` + `ohos_eol_architecture_guard_test` 含 arm64 `libturna_anki.so` / release 命令门禁；planner 组合矩阵）
 - [ ] 迁移 README、ADR、构建说明和 release artifact 全部更新；（**验收撤销**：当前工作树/native 子模块不干净，收据与源码曾矛盾；需按 `34-remaining-construction-plan.md` R8 从锁定 commit 重建）
 

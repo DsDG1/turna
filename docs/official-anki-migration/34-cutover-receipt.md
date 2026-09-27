@@ -3,8 +3,8 @@
 > 日期：2026-08-25（一次性施工 host 收口后更新；2026-09-24 架构简化计划 P0–P4 施工后补充下方「架构简化批次」）
 > 状态：**验收 NO-GO；Official Anki 迁移中**（host/自动化门禁全绿、工作树生产候选已形成；真机矩阵与外部事实未验收。不得写「迁移完成」）
 > 计划真源：[`34-official-anki-production-cutover-and-ohos-retirement-plan.md`](./34-official-anki-production-cutover-and-ohos-retirement-plan.md)
-> 剩余波次：[`34-remaining-construction-plan.md`](./34-remaining-construction-plan.md)
-> W9 HOLD 解除记录（2026-08-27 负责人决策；原 HOLD 文件已随解除删除，豁免与解除语句并入本收据「Held」表与准确口径）
+> 剩余波次：[`34-remaining-construction-plan.md`](./archive/34-remaining-construction-plan.md)（已归档，R0–R8 全部闭环）
+> W9 HOLD 解除记录与证据台账：见本收据「W9 HOLD 解除记录与证据台账（2026-08-27）」一节（原独立文件 `34-w9-legacy-deletion-hold.md` 已于 2026-09-27 并入该节并删除）
 > OHOS EOL ADR：[ADR 0041](../decisions/0041-ohos-product-eol.md)（草案曾写 0038；0038 已占用）
 
 ---
@@ -57,19 +57,88 @@
 | W0 原子导入计划 / Legacy 新写 fail-closed | `AnkiImportExecutionPlanner` + 向导 `_plan` 贯穿 pick/commit；Official-first 不得写 Legacy NoteStore；flag-off / `legacyMirror` fail-closed 零写入 |
 | C3 Official-first 编排抽出 | `OfficialAnkiOfficialFirstService` 承载 saga / migration / preview / publish；向导只做 step UI 与 mapping。向导仍约 3400 行（C3 remainder：Legacy preview 未拆） |
 | C5 死路径 | `officialFirstImportEligible` / `official_first_import_policy.dart` / `OfficialAnkiUserMigrationSaga` 已删；迁移预览无 stub cutover 按钮；用户可见 HarmonyOS 文案改为「仅旧版导入源」 |
-| C4 配置面坍缩 | `OfficialAnkiFeatureFlags.fromEnvironment` 不再读 10 个能力 dart-define，生产 bundle 恒为 Official Android；opt-in 仅 diagnostics / reviewer diagnostics / migrationPilot / courseGrades / legacyMirror；`TURNA_OFFICIAL_ANKI_CUTOVER` 仍是暂停闸。Gray cohort 已退出 planner。`officialCapable` 改名为 `schedulerRuntimeAvailable`，不再冒充 owner。 |
+| C4 配置面坍缩 | `OfficialAnkiFeatureFlags.fromEnvironment` 不再读 10 个能力 dart-define，生产 bundle 恒为 Official Android；**opt-in dart-define 仅剩 2 个**（`TURNA_OFFICIAL_ANKI_REVIEWER_DIAGNOSTICS`、`TURNA_OFFICIAL_ANKI_COURSE_GRADES_SCHEDULER`，见 `official_anki_feature_flags.dart` 类注释与 `fromEnvironment`）；`TURNA_OFFICIAL_ANKI_DIAGNOSTICS` 是 release 诊断路由守卫而非本类字段；`TURNA_OFFICIAL_ANKI_CUTOVER` 是 `LegacyAnkiMigrationFlags.cutoverEnabled` 暂停闸。（早期版本记录的 `migrationPilot` / `legacyMirror` 两个 opt-in flag **不存在**于当前类，已随 Legacy 退出一并消失。）Gray cohort 已退出 planner。`officialCapable` 改名为 `schedulerRuntimeAvailable`，不再冒充 owner。 |
 | W8 可恢复单来源 Saga（§12.4） | `OfficialLegacySourceMigrationSaga` + `OfficialLegacyMigrationDriver`（census `cleanLegacy` 入队；需用户确认调度策略，启动不自动切 owner） |
 | W8 调度策略用户可见三选一（禁止静默 reset） | `LegacyAnkiSchedulingPolicy` + `userVisibleLabel/Description`；无 lossless map 时要求 `policyConfirmedByUser` |
 | W8 journal resume / rollback 单测 | `test/application/anki_official/official_legacy_source_migration_saga_test.dart`；输出 `/tmp/grok-goal-69bb594208d5/implementer/migration-legacy-retirement.txt` |
-| W9-A（停住 Legacy 新写产品选择） | W0 fail-closed + architecture guards；见 HOLD 文档 |
+| W9-A（停住 Legacy 新写产品选择） | W0 fail-closed + architecture guards；W9-A 门槛与证据见本收据「W9 HOLD 解除记录与证据台账（2026-08-27）」一节 |
 | W9 §13.3 CI 门禁补强 | `anki_unification_architecture_guard_test.dart`（doc 35 L3 后更名 `official_anki_architecture_guard_test.dart`）：planner/`legacyOnly`、Official 禁 `ensureWord/updateReview`、unsupported platform 指针；doc 35 施工后追加 L0–L2 反复活断言 |
-| W9 物理删除 HOLD 书面落盘 | `34-w9-legacy-deletion-hold.md`（2026-08-24 落盘，2026-08-27 随解除删除） |
+| W9 物理删除 HOLD 书面落盘 | 原文件 `34-w9-legacy-deletion-hold.md`（2026-08-24 落盘）—— 已于 2026-09-27 并入本收据「W9 HOLD 解除记录与证据台账」一节并删除（负责人决策 D1） |
 | W10 文档入口收口 | 本目录 `README.md` 以 doc 34 为唯一活跃施工入口；31/32/33 标注由 34 接管 |
 | W3 census / reconciler + journal | 分类器 + `JoinedOfficialAnkiSourceEvidenceReader`（Drift ∪ catalog，按 hash/id）；`OfficialAnkiStartupCensus` 启动只读 collect + journal `scanned`（幂等）。**不**自动改 owner |
 | W5 基础骨架（非产品验收） | 共享 host 已能调用 `showAnswer` 并提交 Official scheduler；但 formal review 仍有 HTML 降级、固定队列 stale、Review All 单来源和六集合 due 缺口，返工见 remaining R2/R3 |
 | W6 course = practice/introduction | `AnkiStudySessionHost.itemForCourse` + `official_course_practice_introduction_test.dart` |
 | OHOS product target / patches removed | `ohos/` absent; `tool/apply_patches.sh` / `tool/patches/` absent; ADR 0041 |
 | OHOS EOL ADR | [ADR 0041](../decisions/0041-ohos-product-eol.md) |
+
+## W9 HOLD 解除记录与证据台账（2026-08-27）
+
+> 本节由原独立文件 `34-w9-legacy-deletion-hold.md`（2026-08-24 落盘）**并入**（2026-09-27，负责人决策 D1）。
+> 该文件此前被 7 处文档记为「随解除删除」，实际一直留在库中且状态头自相矛盾；本次按决策正式并入本收据并删除原文件，**内容按原文保留，不做弱化**。
+
+### W9-A — 停住 Legacy 新写的产品选择（已由 W0 基本满足）
+
+| 项 | 状态 | 证据 |
+|---|---|---|
+| 生产新导入不再选择 Legacy writer | **满足** | `AnkiImportExecutionPlanner`（`lib/application/anki_official/import/anki_import_execution_plan.dart`）：`officialAndroid` 下无 `allowLegacyOnly` 时只返回 `officialFirst` / `failClosed` / `unsupported`，从不静默 `legacyOnly`（见 `test/application/anki_official/anki_import_execution_plan_test.dart`） |
+| 非 Android / cutover 关闭 → Anki 不可用 | **满足** | 同上；`AnkiProductMode.ankiUnavailable` 不写 Legacy NoteStore |
+| Official-first 能力关闭时 fail-closed | **满足** | 测试用构造器/`copyWith(officialFirstImport: false)`；生产 `fromEnvironment` 不再读独立 dart-define。不再出现「Legacy NoteStore + Official identity」混合半态 |
+| 架构门禁：planner 不在生产路径返回 `legacyOnly` | **本会话补齐** | 架构守卫测试 + 既有 execution plan 测试 |
+| Official 树不调用 `SrsProvider.ensureWord/updateReview` | **本会话补齐** | 扫描 `lib/application/anki_official/**` |
+
+W9-A 含义是：**停住 Legacy 新写入口的产品选择**，不是物理删文件。物理移除该入口属于 W9-C（HOLD 已于 2026-08-27 解除，可开工）。
+
+### W9-B..E 门槛记录（解除时点的原始状态）
+
+| 波次 | 内容 | 进入条件（解除时点状态） |
+|---|---|---|
+| W9-B | 删除 Turna FSRS 对 Anki 的 writer、Legacy formal review assembler | 正式 release 观察 + Legacy 新写=0（**未发生，2026-08-27 负责人决策豁免**） |
+| W9-C | 删除 Dart production `.apkg` parser、Legacy import 分支、活动 NoteStore | 同上；migration-only exporter 可暂留 |
+| W9-D | 删除 Legacy browser/stats 分支与死 DI | 同上 |
+| W9-E | Schema tombstone → major schema drop | **先 stop-write 至少一个版本**，再 drop；需备份恢复能读上一版本（**此为 §13.2 硬规则，不随 HOLD 解除而豁免** —— 该条款实际被绕过，见下方「W9-E 破例记录」） |
+
+### 解除 HOLD 所需书面证据（最少）
+
+1. 正式 release 的 build id / Git commit / 商店或内发版本号；
+2. 该版本周期内 Legacy 新导入 / NoteStore 写入计数 = 0 的日志或遥测摘要；
+3. W8 存量来源已 `cleanOfficial`、已导出/只读隔离、或有明确用户处理状态；
+4. rollback / restore / uninstall drill 收据；
+5. 本节追加「G5 GO」签字与日期后，方可开 W9-B PR。
+
+### G5 GO 解除记录（2026-08-27）
+
+> **HOLD 已解除。** 解除方式：项目负责人显式指令（2026-08-27，经 agent 会话落盘）。本节即上文第 5 项要求的「G5 GO」签字与日期。
+
+#### 证据台账（解除时点的仓库内事实）
+
+| # | 所需书面证据 | 解除时状态 |
+|---|---|---|
+| 1 | 正式 release 的 build id / commit / 版本号 | **缺失** — 仓库无 0.7.2 release tag；CHANGELOG 0.7.2 仍标注「候选版本，正式发布以最终验收结果为准」 |
+| 2 | Legacy 新导入 / NoteStore 写入计数 = 0 的观察摘要 | **未发生** — 观察期未开始，无遥测/日志摘要归档 |
+| 3 | W8 存量来源 cleanOfficial / 隔离 / 有处置结论 | **未跑批** — saga/driver 已落地，未对真实用户库执行 |
+| 4 | rollback / restore / uninstall drill 收据 | **缺失** — 无真机会话 |
+| 5 | 本节「G5 GO」签字与日期 | **本节即是**（负责人指令，2026-08-27） |
+
+**定性**：本次解除是**负责人风险豁免决策**，不是证据齐备的自然解除。第 1–4 项外部事实在解除时点均未发生；若后续出现 Legacy 写入回退、存量数据迁移失败或备份不兼容，责任口径以本记录为准。
+
+#### 解除范围与仍然有效的约束
+
+- 解除的仅是 **W9-B / W9-C / W9-D 的开工门槛**；
+- 主计划 §13.2 删除规则**全部继续有效**：每波先以 `rg` + 依赖图证明生产引用为 0；每波独立 PR、独立回滚；schema 不与 writer 删除同一 PR；**W9-E 仍须先停写至少一个版本再 drop**，且 drop 前备份恢复必须能读上一版本数据并完成升级 —— **该条款已被实际执行方式绕过，见下方「W9-E 破例记录」**；
+- 存量迁移义务不因解除消失：W8 单来源 saga、调度策略用户三选一、owner 切换 commit 前 rollback 边界照旧执行；
+- 本解除**不**勾选主计划 §19 任何未满足项；「Official Anki 迁移中 / 验收 NO-GO / 不得写迁移完成」的口径不变。
+
+### W9-E 破例记录（2026-09-24，负责人决策 D2）
+
+**规则原文**：主计划 §13.2 与上表 W9-E 行均要求「**先 stop-write 至少一个版本，再 drop 表**」，且不随 HOLD 解除而豁免。
+
+**实际执行**：2026-09-24 架构简化批次 P2 在 **course.db v27 的同一次迁移中直接 DROP** `anki_notetypes` / `anki_notes` / `anki_cards_meta`（见 `lib/data/course_database.dart` v27 迁移段与本收据「架构简化批次」P2 条目），**中间没有插入任何正式发版**。即：规则要求的前置条件未被满足，而 drop 已发生。
+
+**豁免依据**：本收据「架构简化批次」开篇已核对——**存量用户数为零、从未有过任何正式发版**，因此「停写至少一个版本」这一前置条件在物理上没有可作用的对象。v27 的备份/恢复兼容性仍待真机矩阵验证（见「Held」表），该风险未被本条记录消除。
+
+**责任口径**：本次 drop 绕过自身声明的硬规则，属**负责人决策豁免**（与 2026-08-27 的观察期豁免同族、但**独立记录**）。若后续出现 v26 数据无法被 v27 读取、备份不兼容或升级链断裂，责任口径以本记录为准。
+
+> **签字**：<待负责人填写 —— 认可该破例 · 姓名 / 日期>
 
 ## Held（不得在本会话勾选完成）
 
@@ -78,7 +147,7 @@
 | 项 | 原因 |
 |---|---|
 | 一个正式 release 观察（G5） | 未发生；2026-08-27 负责人决策按豁免处理（非证据齐备，见 HOLD 解除记录） |
-| W9-B..E Legacy 物理删除 / schema drop | host 侧已由 2026-09-24 架构简化批次完成（读退役 + v27 表删除，见上方批次记录）；真机验证仍随设备矩阵 |
+| W9-B..E Legacy 物理删除 / schema drop | host 侧已由 2026-09-24 架构简化批次完成（读退役 + v27 表删除，见上方批次记录）；**W9-E 的「先停写一个版本再 drop」硬规则未满足即执行，破例已记档**（见本收据「W9-E 破例记录」）；真机验证仍随设备矩阵 |
 | §19「Legacy importer/scheduler/schema 按 W9 分波删除」 | 显式未勾选 |
 | 全量设备/release 真机闭环证明 | 本会话未伪造设备证据 |
 | OHOS 用户完成数据出口 | 导出器/导入器均已落地（Android 导入入口可用）；外部事实未发生：无 sunset 真机、无书面豁免（R7-1 二选一未决） |

@@ -12,7 +12,7 @@
 ## 现行事实入口
 
 - 领域/应用/UI 落地文件清单与逐项偏差记录（原 §15）：Git 历史中的原文。
-- 宝石奖励入账：`GemLedgerDao` 为事实源（Plan 2+3 第二轮 R1，见 [plan-2-and-3-round2-remaining-features.md](./plan-2-and-3-round2-remaining-features.md)）。
+- 宝石奖励入账：`GemLedgerDao` 为事实源（Plan 2+3 第二轮 R1；原施工计划已随文档精简删除，事实以代码为准）。
 - 数据导入导出含成就状态与投影。
 
 ## 验证口径（2026-08-22）

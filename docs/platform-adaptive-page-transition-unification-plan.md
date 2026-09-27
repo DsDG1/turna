@@ -1,7 +1,8 @@
 # Turna 平台自适应页面过渡统一计划
 
 > 状态：**代码侧已实施（2026-08-22）**；真机性能采样（RT-001）与 Android/iOS 手工验收矩阵（RT-004/RT-009 真机部分）待执行，见 §13 实施记录  
-> 日期：2026-08-22  
+> 数字口径：§1 / §4.1 / §4.2 的「32 页 / 24 处」是 **2026-08-22 施工前历史快照**；**现值以 §4 各节末尾的「2026-09-27 复核」为准**（注册路由 53 条、直接 `MaterialPageRoute` 构造 0 处）  
+> 日期：2026-08-22（盘点数字 2026-09-27 复核）  
 > 范围：全屏页面 push/pop、Android 预测返回、iOS/macOS 边缘返回、减弱动效、导航入口收口与转场性能验收  
 > 不包含：页面内动画、题目反馈动画、Dialog/BottomSheet 动画、底部主 Tab 的视觉改版
 
@@ -31,8 +32,10 @@ RouteType get defaultRouteType => const RouteType.cupertino();
 
 当前用户可感知的问题不是页面持续滚动卡顿，而是每次进入新页面时出现掉帧。代码层的共同路径有两条：
 
-1. 32 个已注册页面通过 AutoRoute 导航；`AppRouter.defaultRouteType` 强制返回 `RouteType.cupertino()`。
-2. 另有 24 处 `MaterialPageRoute`，分布在 15 个文件中，绕开全局 AutoRoute 策略。
+1. 已注册页面通过 AutoRoute 导航；`AppRouter.defaultRouteType` 强制返回 `RouteType.cupertino()`。
+2. 另有绕过 AutoRoute 的全屏 `MaterialPageRoute` 入口，散落在设置、AI、Anki 等文件中。
+
+> 上面两条在 2026-08-22 施工前是这么盘点的：**32 个已注册页面 + 24 处 `MaterialPageRoute`（分布于 15 个文件）**。这两个数字是历史快照，只用于说明问题规模，已被 §13 的实施记录取代；**当前值以 §4「当前导航盘点（2026-09-27 复核）」为准**，不要用这里的旧数字判断现状。
 
 强制 Cupertino 路由在 Android 上执行约 500ms 的 iOS 风格全屏滑入、旧页视差移动和动态边缘阴影。转场首帧还要完成目标页面首次 build/layout/raster；旧页面通常是带 `IndexedStack` 和毛玻璃底栏的 `HomePage`。在高刷 Android 设备上，120Hz 帧预算约为 8.3ms，因此即使旗舰设备也可能在路由创建或首次栅格化时错过 vsync。
 
@@ -136,11 +139,15 @@ Android 的 Material 路由应读取当前 Flutter SDK 的平台默认 `PageTran
 - 如果只有数据库、WebView、长列表页面掉帧，视为目标页首帧初始化问题，单独延后工作或增加轻量骨架。
 - 不允许为了个别重页面重新引入全局无动画或全局自定义短动画。
 
-## 4. 当前导航盘点
+## 4. 当前导航盘点（2026-09-27 复核）
+
+> §4.1 / §4.2 下面的**清单是 2026-08-22 施工前的历史快照**，保留下来是为了让迁移审计可追溯（每一条都能对上 §13.1 的处置结论）。判断现状请用各节末尾的**现值**。
 
 ### 4.1 AutoRoute 主路径
 
-`lib/routing/routing.dart` 当前注册 32 个页面，全部继承全局强制的 Cupertino 类型。第一阶段统一切换后，这些路由会自动获得平台自适应行为。
+施工前 `lib/routing/routing.dart` 注册 32 个页面，全部继承全局强制的 Cupertino 类型。第一阶段统一切换后，这些路由会自动获得平台自适应行为。
+
+**现值（2026-09-27 复核）**：`lib/routing/routing.dart` 的 `routes` 表共 53 条 `AutoRoute(...)` 注册项（其中 `DeveloperSettingsRoute` 仅 `kDebugMode` 可见）；`defaultRouteType` 为 `RouteType.adaptive(enablePredictiveBackGesture: true)`。数字仍在随官方 Anki 复习器与设置分类页增长，引用时请以代码为准，不要复制本文的计数。
 
 需要重点回归的代表页面：
 
@@ -155,16 +162,13 @@ Android 的 Material 路由应读取当前 Flutter SDK 的平台默认 `PageTran
 
 ### 4.2 直接 `MaterialPageRoute` 路径
 
-当前共 24 处，分布在以下文件：
+施工前共 24 处（其中 1 处为注释，实际调用 23 处），分布在以下文件：
 
-- `lib/application/anki_official/official_anki_internal_page.dart`
 - `lib/views/ai/ai_api_config_page.dart`
 - `lib/views/ai/ai_hub_page.dart`
 - `lib/views/ai/components/ai_not_configured_panel.dart`
 - `lib/views/anki/anki_import_screen.dart`
 - `lib/views/anki/anki_review_screen.dart`
-- `lib/views/anki_official/official_anki_canonical_link_view.dart`
-- `lib/views/anki_official/official_anki_source_management_page.dart`
 - `lib/views/settings/about_turna_page.dart`
 - `lib/views/settings/privacy_details_page.dart`
 - `lib/views/settings/settings_page.dart`
@@ -172,6 +176,8 @@ Android 的 Material 路由应读取当前 Flutter SDK 的平台默认 `PageTran
 - `lib/views/settings/widgets/settings_about_section.dart`
 - `lib/views/settings/widgets/settings_account_section.dart`
 - `lib/views/settings/widgets/settings_advanced_section.dart`
+
+> 清单原本还有 3 个官方 Anki 条目——`lib/application/anki_official/official_anki_internal_page.dart`、`lib/views/anki_official/official_anki_canonical_link_view.dart`、`lib/views/anki_official/official_anki_source_management_page.dart`——这三个文件在迁移过程中已删除或被改写，**不再存在于 `lib/`**，故从清单中移除；其入口现由 §13.1 列出的 `OfficialAnkiMappingRoute`（`OfficialAnkiMappingPage`）、`OfficialAnkiRepairCenterRoute`（`OfficialAnkiRepairCenterPage`）、`OfficialAnkiReviewerRoute`（`OfficialAnkiReviewerPage`）承担。
 
 施工时逐项分类：
 
@@ -182,6 +188,8 @@ Android 的 Material 路由应读取当前 Flutter SDK 的平台默认 `PageTran
 | 内部/诊断静态页 | 优先注册 AutoRoute；确有运行时限制再使用 D5 工厂 |
 | Dialog/Sheet 内容 | 保持弹层，不纳入 PageRoute 迁移 |
 | 外部系统页面 | 保持 `url_launcher`/平台 API，不包装为 Flutter 页面转场 |
+
+**现值（2026-09-27 复核）**：`lib/` 下除 D5 选择器 `lib/routing/platform_page_route.dart` 外，**已无任何 `MaterialPageRoute` 直接构造点**（该文件内仅 `CupertinoPageRoute` / `MaterialPageRoute` 各一处，由 `platformPageRoute` 按 `Theme.of(context).platform` 二选一）。这一结论由 `test/routing/routing_policy_contract_test.dart` 强制，不是人工巡检。
 
 ### 4.3 当前没有的模式
 
@@ -251,7 +259,7 @@ Android 的 Material 路由应读取当前 Flutter SDK 的平台默认 `PageTran
 
 任务：
 
-1. 对 §4.2 的 24 处调用建立迁移清单，逐项标注目标 Route 名称。
+1. 对 §4.2 的直接路由调用点建立迁移清单，逐项标注目标 Route 名称。
 2. 已有 Route 的页面直接替换调用；禁止创建第二个语义重复 Route。
 3. 没有 Route 的正式页面补 `@RoutePage()` 和 `AutoRoute(...)`。
 4. 保留参数和返回值的静态类型，例如布尔确认结果、mapping draft、导入结果。
@@ -392,7 +400,7 @@ Android 的 Material 路由应读取当前 Flutter SDK 的平台默认 `PageTran
 
 明确不应修改：
 
-- `lib/views/theme.dart`：不加入 `pageTransitionsTheme` 覆盖。
+- `lib/core/theme.dart`：不加入 `pageTransitionsTheme` 覆盖（品牌主题真源；契约测试 `test/routing/routing_policy_contract_test.dart` 读的就是这个文件，断言其中不出现 `PageTransitionsTheme`）。
 - BottomNavigator 的选中动画：不属于全屏页面转场。
 - Dialog/BottomSheet 的默认动画。
 
@@ -400,7 +408,7 @@ Android 的 Material 路由应读取当前 Flutter SDK 的平台默认 `PageTran
 
 | 风险 | 后果 | 防护 |
 | --- | --- | --- |
-| 只改全局 RouteType | 手写路由仍分叉 | P2 强制盘点 24 处调用 |
+| 只改全局 RouteType | 手写路由仍分叉 | P2 强制盘点全部直接路由调用点（快照见 §4.2） |
 | 全部改成 Material | iOS 丢失真实边缘返回 | 必须使用 adaptive |
 | 自定义“更轻”动画 | 再次偏离平台默认，未来维护成本上升 | 禁止 custom transition |
 | 预测返回配置不完整 | Android 返回闪屏/双 pop | 真机手势矩阵 + integration test |
@@ -431,7 +439,7 @@ Android 的 Material 路由应读取当前 Flutter SDK 的平台默认 `PageTran
 - [x] AutoRoute 默认使用平台自适应路由。（`routing.dart` → `RouteType.adaptive(enablePredictiveBackGesture: true)`）
 - [x] Android 不再播放强制 Cupertino 500ms 转场。（契约测试 + Android 平台语义测试证明 Material 路由；真机复核见 RT-004）
 - [x] iOS/macOS 保留实际 Cupertino 路由与边缘返回。（平台语义测试断言真实 `CupertinoPageRoute` 类）
-- [x] 24 处直接 `MaterialPageRoute` 已迁移或有唯一、书面化例外。（实际盘点 23 处：22 处迁入 AutoRoute，1 处走 D5 工厂，见 §13）
+- [x] 直接 `MaterialPageRoute` 全部迁入 AutoRoute 或只剩唯一、书面化例外。（2026-08-22 当次盘点 23 处：22 处迁入 AutoRoute，1 处走 D5 工厂，见 §13；2026-09-27 复核现值 0 处直接构造）
 - [x] 生产代码没有自定义页面转场曲线、时长或阴影。（契约测试扫描 `PageRouteBuilder`/`transitionsBuilder` 为零）
 - [x] Bottom Tab、Dialog、BottomSheet 保持正确导航语义。（契约测试锁定 `IndexedStack`；弹层未改动）
 - [ ] Android 预测返回和普通返回均通过真机测试。（manifest opt-in 与 `enablePredictiveBackGesture` 已就绪；真机矩阵待执行）
@@ -463,7 +471,7 @@ Android 的 Material 路由应读取当前 Flutter SDK 的平台默认 `PageTran
 ### 13.1 代码改动
 
 - **P1（RT-003）**：`lib/routing/routing.dart` 的 `defaultRouteType` 由 `RouteType.cupertino()` 改为 `RouteType.adaptive(enablePredictiveBackGesture: true)`；`android/app/src/main/AndroidManifest.xml` 增加 `android:enableOnBackInvokedCallback="true"`（Flutter 官方预测返回 opt-in）。`allowSnapshotting` 保持默认开启，未新增任何 duration/transitionsBuilder。
-- **P2（RT-005～008）**：§4.2 清单实际盘点为 23 处直接 `MaterialPageRoute`（文档原记 24，其中 1 处为注释）。22 处改为 `context.router.push(...)`，1 处改走 D5 工厂。新增 `@RoutePage()` 页面 12 个并注册：`AboutTurnaRoute`、`PrivacyDetailsRoute`、`ChangelogRoute`、`TransparencyLogRoute`、`AiApiConfigRoute`、`AvatarRingsRoute`、`OfficialAnkiInternalRoute`、`OfficialAnkiMappingRoute`、`OfficialAnkiReviewerRoute`、`OfficialAnkiReviewRoute`、`OfficialAnkiMigrationPreviewRoute`、`OfficialAnkiSourceManagementRoute`。另把已生成但从未注册的 `AnkiDeckStatsRoute`、`AnkiCardBrowserRoute` 补注册（原先调用点若走路由会失败）。注册路由总数 30 → 44。
+- **P2（RT-005～008）**：§4.2 清单实际盘点为 23 处直接 `MaterialPageRoute`（文档原记 24，其中 1 处为注释）。22 处改为 `context.router.push(...)`，1 处改走 D5 工厂。新增 `@RoutePage()` 页面 12 个并注册：`AboutTurnaRoute`、`PrivacyDetailsRoute`、`ChangelogRoute`、`TransparencyLogRoute`、`AiApiConfigRoute`、`AvatarRingsRoute`、`OfficialAnkiInternalRoute`、`OfficialAnkiMappingRoute`、`OfficialAnkiReviewerRoute`、`OfficialAnkiReviewRoute`、`OfficialAnkiMigrationPreviewRoute`、`OfficialAnkiSourceManagementRoute`。另把已生成但从未注册的 `AnkiDeckStatsRoute`、`AnkiCardBrowserRoute` 补注册（原先调用点若走路由会失败）。当次注册路由总数 30 → 44；此后官方 Anki 复习器与设置分类页继续增补，2026-09-27 复核为 53 条（见 §4.1 现值）。
 - **P3（RT-008）**：新增 `lib/routing/platform_page_route.dart` 唯一官方路由类选择器（iOS/macOS → `CupertinoPageRoute`，其余 → `MaterialPageRoute`，无任何动画参数）。`officialAnkiBuildSourceManagementPage` 重构为 `officialAnkiResolveSourceManagementDeps`（返回依赖 record 而非运行时 Widget），使课程映射页可静态注册，消掉一处预期例外。
 - **P6（RT-012）**：`docs/project-guide.md` §3「关键模式」写入导航合同；CI 契约由下述测试承担（`flutter_ci.yml` 已运行 `flutter test`）。
 
@@ -471,11 +479,13 @@ Android 的 Material 路由应读取当前 Flutter SDK 的平台默认 `PageTran
 
 | 调用点 | 理由 |
 | --- | --- |
-| `lib/views/anki_official/official_anki_canonical_link_view.dart` 官方路径解析失败时 push 的内联错误 `Scaffold` | 运行时组装、无稳定页面身份，不适合注册路由表；经 `platformPageRoute` 选择官方路由类 |
+| `lib/views/settings/storage_diagnostics_page.dart` 推送存储分类明细页（`StorageCategoryItemsPage`） | 该子页由运行时参数（分类 id、标题、加载回调）组装，无稳定页面身份，不适合静态注册路由表；经 `platformPageRoute` 选择官方路由类 |
+
+> 2026-09-27 复核：这一处调用点已从最初的官方 Anki 路径解析错误页（`official_anki_canonical_link_view.dart`，该文件已删除）迁到存储诊断子页；D5 例外总数仍为 1，用途不变。工厂本身在 `lib/routing/platform_page_route.dart`，契约测试 `test/routing/routing_policy_contract_test.dart` 将其列为唯一允许构造官方路由类的文件。
 
 ### 13.3 新增测试
 
-- `test/routing/routing_policy_contract_test.dart`：默认路由 adaptive + 预测返回开启、无 per-route 类型分叉、无 `PageRouteBuilder`/`transitionsBuilder`、官方路由类仅在允许文件构造、`IndexedStack` 底部 Tab、`theme.dart` 不覆盖 `PageTransitionsTheme`、manifest opt-in 存在。
+- `test/routing/routing_policy_contract_test.dart`：默认路由 adaptive + 预测返回开启、无 per-route 类型分叉、无 `PageRouteBuilder`/`transitionsBuilder`、官方路由类仅在允许文件构造、`IndexedStack` 底部 Tab、`lib/core/theme.dart` 不覆盖 `PageTransitionsTheme`、manifest opt-in 存在。
 - `test/routing/adaptive_route_semantics_test.dart`：使用真实 `AppRouter.defaultRouteType` 实例驱动测试路由，断言 Android→Material、iOS/macOS→真实 `CupertinoPageRoute`、push/pop 往返。
 - `test/routing/platform_page_route_test.dart`：D5 选择器的平台分支与 Navigator 往返。
 - `test/views/lesson/renderers/renderer_test_helper.dart` 新增 `buildRouted`：为经 `context.router` 导航的渲染器提供 AutoRoute 搭桩（`show_word_test` 相应用例迁移）。

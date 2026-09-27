@@ -62,7 +62,7 @@ Repository 对生产写入只提供两类能力：
 
 ### 刷新数据流
 
-`OfficialAnkiProductionRouter` 只负责收集并返回数据，不再写全局 due 状态。`OfficialAnkiHomeDueSync` 执行：
+`OfficialAnkiProductionRouter`（**类名勘误：该类在 `lib/**/*.dart` 中已 0 命中；现行读侧路由是 `lib/application/anki_official/render/official_anki_reviewer_router.dart` 的 `OfficialAnkiReviewerRouter`**）只负责收集并返回数据，不再写全局 due 状态。`OfficialAnkiHomeDueSync` 执行：
 
 1. 读取 base generation；
 2. 收集 catalog、deck tree、queue、placement 和状态集合；

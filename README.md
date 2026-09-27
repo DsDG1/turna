@@ -11,11 +11,13 @@ Turna 内嵌了官方 Anki 内核（Rust 编写，经 FFI 调用）：导入的�
 ## 快速开始
 
 ```bash
-git clone git@gitee.com:dhwdwf3/Varnamalaplus.git
-cd Varnamalaplus
+git clone https://github.com/DsDG1/turna.git
+cd turna
 flutter pub get
 flutter run
 ```
+
+> 仓库名还没跟上产品改名：GitHub 远端已是 `turna`，gitee 远端仍叫 `dhwdwf3/Varnamalaplus.git`。从 gitee 克隆时 `cd` 进去的目录名是 `Varnamalaplus`，除此之外没有区别。
 
 生成代码（`.freezed.dart`、`.g.dart` 等）已经提交进仓库，克隆下来就能直接运行，不需要 build_runner。只有改动 `@freezed` / `@AutoRoute` 这类注解时才需要重新生成：
 
@@ -30,7 +32,7 @@ flutter analyze
 flutter test   # 测试基线记录在 test/BASELINE.md
 ```
 
-Android 是主要目标平台（需要 JDK 17），iOS 和 Web 只做有限支持。课程内容已覆盖 A1 到 B2 共 8 个分级 Section，全部为真实内容，清单见 [`docs/content_inventory_current.md`](./docs/content_inventory_current.md)。向测试员分发 APK 用 GitHub Actions → Firebase App Distribution，一次性 Console / Secrets 配置见 [`docs/firebase-app-distribution.md`](./docs/firebase-app-distribution.md)。
+Android 是主要目标平台（需要 JDK 17），iOS 和 Web 只做有限支持。Android 与 iOS 均已启用官方 Anki 引擎（iOS 侧为 rslib 静态链接 + WKWebView 复习器），环境准备见 [`docs/android-build-setup.md`](./docs/android-build-setup.md) 与 [`docs/ios-build-setup.md`](./docs/ios-build-setup.md)。课程内容已覆盖 A1 到 B2 共 8 个分级 Section，全部为真实内容，清单见 [`docs/content_inventory_current.md`](./docs/content_inventory_current.md)。向测试员分发 APK 用 GitHub Actions → Firebase App Distribution，一次性 Console / Secrets 配置见 [`docs/firebase-app-distribution.md`](./docs/firebase-app-distribution.md)。
 
 仓库里另有一个面向课程创作者的 PySide6 桌面编辑器，位于 [`tool/gui/`](./tool/gui/)，与 App 本体无关，其目录下有单独的说明。
 

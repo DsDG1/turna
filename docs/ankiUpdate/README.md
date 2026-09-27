@@ -1,10 +1,15 @@
 # Anki 集成重构文档（Turna）
 
+> **📦 已归档 · 历史索引（2026-09-27 标注）**
+> 本目录是 2026-08 ~ 2026-09 Anki v2 六步重构的**完成情况收据**，**不是活文档，不要照着本文去改代码**。
+> Anki 导入/复习的**权威口径已迁至 [`docs/official-anki-migration/`](../official-anki-migration/README.md)**（doc 34 系列：收口计划、迁移收据、W9 HOLD 解除记录）；架构决策见 [`docs/decisions/`](../decisions/)。
+> 本文保留的是「当初为什么这么做」。文中的 flag、schema 版本号、op 编号、文件路径均为当时快照，已就地标注退役 / 勘误情况。
+
 > **这份文档是干什么的**：给第一次接触本目录的同学一份导读。它不是技术细节文档,细节在各 step 的子文件里。
 >
 > **读者画像**：想知道"Turna 在折腾 Anki 导入这块到底经历了什么,现在卡在哪"——后面碰到相关文件、提交记录、问题单时心里有数。
 >
-> **不读会怎样**：你会看见 `v2ImportChain` 这种莫名其妙的开关、`K6 强杀轮` 这种黑话、`rslib FFI` 这种缩写,然后一脸懵。
+> **不读会怎样**：你会在下文看到 `v2ImportChain` 这种莫名其妙的开关（**该 flag 已退役，`official_anki_feature_flags.dart` 中的布尔位与文件内引用均已删除**）、`K6 强杀轮` 这种黑话、`rslib FFI` 这种缩写,然后一脸懵。
 >
 > **更新时间**：2026-09-04。Step 1–4 已完成,Step 5 取消,Step 6 代码侧完成,等真机冒烟 4 项通过即正式关闭。
 
@@ -124,7 +129,7 @@ Step 4 需要在 Anki 自己的配置区读写用户决策,但目前没有这种
 - **读侧**:用户看课程树,数据从视图来;复习答题,数据还是从 Anki 库来
 - **维护侧**:删牌组是"退役流程"——先标记 → 后台删引擎里的卡 → 收尾 → 清垃圾
 
-加一个开关叫 `v2ImportChain`,默认关。开关的作用是:开了,新导入走 v2;不开,走 v1。这样 v1 和 v2 同时存在,可以灰度切换。
+加过一个开关叫 `v2ImportChain`,默认关（**后于 R4 翻 true,再于 Step 6 阶段彻底退役,该布尔位已从 `official_anki_feature_flags.dart` 删除**）。它当年的作用是:开了,新导入走 v2;不开,走 v1。这样 v1 和 v2 同时存在,可以灰度切换。
 
 最后做真机强杀矩阵（K1–K14）:把 14 种"杀进程"场景在真机上一一过一遍,系统能不能自动恢复。
 
@@ -143,7 +148,7 @@ Step 4 需要在 Anki 自己的配置区读写用户决策,但目前没有这种
 代码侧已经做完（分支 `p1-dead-code-cleanup`,未提交）。包括：
 
 1. **Catalog 数据库从 18 张表物理砍到 5 张**（v13 → v14,真正 DROP 13 张)
-2. **course.db 从 11 张 anki 相关表砍到 2 张**（v23 → v24)
+2. **course.db 从 11 张 anki 相关表砍到 2 张**（当时 v23 → v24;**当前 `lib/data/course_database.dart` 的 `kSchemaVersion = 27`**,后续批次已继续推进)
 3. **分 4 阶段删旧代码**：旧投影流水线、Legacy 迁移模块、对账代码、过渡开关
 4. **Guard 锁门测试**：写自动化测试,以后谁不小心把旧符号写回来,测试就挂
 
@@ -158,7 +163,7 @@ Step 4 需要在 Anki 自己的配置区读写用户决策,但目前没有这种
 | Step 1 修两个紧急 bug | 已完成 | |
 | Step 2 设计文档 | 已完成 | ADR 0043 已接受 |
 | Step 3 加两个底层接口 | 已完成 | op 41/42,协议版本 1.12 |
-| Step 4 v2 链路 + 真机验证 | 已完成 | K4–K14 真机过,K1/K3 不考虑,K8 不适用,K12 归 Step 5;生产 `v2ImportChain` 翻成 true |
+| Step 4 v2 链路 + 真机验证 | 已完成 | K4–K14 真机过,K1/K3 不考虑,K8 不适用,K12 归 Step 5;`v2ImportChain` 曾于 2026-09-02 翻成 true（该 flag 现已退役） |
 | Step 5 老用户迁移 | 取消 | 当前用户基数小,放弃迁移成本可控 |
 | Step 6 删旧代码 + 清场 | 代码侧完成,真机冒烟 4 项待跑 | 分支 `p1-dead-code-cleanup`,净删约 1.94 万行,改动 117 文件 |
 
@@ -196,8 +201,8 @@ Step 4 需要在 Anki 自己的配置区读写用户决策,但目前没有这种
 | **Apkg** | Anki 的导出包格式,本质是 zip + SQLite + 媒体 | — |
 | **rslib** | Anki 官方核心代码库,Rust 写的,Turna 直接通过 FFI 调它 | `native/turna_anki_core/anki/` |
 | **FFI** | 一套让 Dart 直接调 Rust 函数的机制（Terna 不叫它"桥",叫"桥"也行) | `native/turna_anki_core/bridge/` |
-| **op / operation** | 桥上的一个可调用操作,目前有 42 个 (1–42),编号只增不减（append-only) | `bridge/src/engine.rs` 的 `OP_*` 常量 |
-| **协议版本 (contract)** | "桥能调哪些 op、各 op 长什么样"的契约,目前 minor=12（即 1.12) | `contract/VERSION`, Rust/Dart 常量各一份 |
+| **op / operation** | 桥上的一个可调用操作,**本文件写作时**有 42 个 (1–42);**当前实际为 44 个**（#43 `SUMMARIZE_IMPORTED_NOTES`、#44 `PROMOTE_STAGING_COLLECTION`;#9 `SEARCH_CARDS` 已于 v1.10 退役且编号不复用),编号只增不减（append-only) | `bridge/src/engine.rs` 的 `OP_*` 常量;真源 `native/turna_anki_core/contract/operations.md` |
+| **协议版本 (contract)** | "桥能调哪些 op、各 op 长什么样"的契约,**本文件写作时** minor=12（即 1.12);**当前为 1.13**（`kOfficialAnkiContractMinor = 13`) | `contract/VERSION`（当前内容 `1.13`）, Rust/Dart 常量各一份 |
 | **引擎 (engine)** | 对 rslib 的一次封装会话,可发起各种 op | `lib/application/anki_official/` |
 | **isolate** | Dart 的独立线程单位（不是 OS 线程,但隔离） | — |
 | **RPC** | 跨 isolate / 跨线程的调用协议,这里是同进程内的"远程"调用 | — |
@@ -211,7 +216,7 @@ Step 4 需要在 Anki 自己的配置区读写用户决策,但目前没有这种
 | **退役 (retire)** | v2 删除牌组的流程：先标记→后台删引擎里的卡→收尾→清垃圾 | `v2/official_anki_v2_retire_service.dart` |
 | **维护任务 (maintenance job)** | 后台要做的杂事（清垃圾、压缩数据库、视图重建、删除卡片等) | `anki_maintenance_jobs` 表 |
 | **租约 (lease)** | 防止两个维护任务同时跑的互斥锁 | `anki_maintenance_leases` 表 |
-| **v2ImportChain** | v1 与 v2 的总开关,生产版本目前为 true（已翻) | `official_anki_feature_flags.dart` |
+| **v2ImportChain** | **已退役**。曾是 v1 与 v2 的总开关,2026-09-02（R4）翻成 true,后在 Step 6 阶段连同 `official_anki_feature_flags.dart` 里的该布尔位一并删除 | 退役动作见 [step6.md](./step6.md) 阶段 3；现行代码无此 flag |
 | **K1–K14** | 14 种"用户在不同环节把 App 强杀"的中断场景,Step 4 的真机验证要逐个过 | step4.md §C3 |
 | **C3 / C4** | Step 4 内的工作代号。C3 = 真机强杀矩阵,C4 = 大库定标 | step4-c3-runbook.md |
 | **ADR** | 架构决策记录,仓库里固定格式,每次改架构新开一份编号递增 | `docs/decisions/0043-…` |

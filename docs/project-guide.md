@@ -2,7 +2,7 @@
 
 > 本文是 README 的深度补充。README 给出概览与快速上手，本文给出每个子系统的设计、实现要点与决策依据。阅读顺序建议：先读 README，再按需查阅本文相应章节。
 >
-> 所有信息以代码现状为准（schemaVersion 26、课程内容版本 12、`flutter test --exclude-tags golden` 1911 passed / 0 failed，截至 2026-09-22；完整基线见 `test/BASELINE.md`）。2026-09-21 体验改良批次（B1–B7）收据见 [`ux-experience-improvement-plan.md`](./ux-experience-improvement-plan.md)。
+> 所有信息以代码现状为准（schemaVersion 27、课程内容版本 12；测试全量计数以 `test/BASELINE.md` 顶条为准，不在本文件写死数字）。2026-09-21 体验改良批次（B1–B7）收据见 [`ux-experience-improvement-plan.md`](./ux-experience-improvement-plan.md)。
 >
 > **近期重要变更**：Legacy Anki 复刻层已于 2026-08-27 由 [doc 35](./official-anki-migration/35-duplicate-legacy-layer-cleanup-plan.md) L0–L3 物理删除（`lib/application/anki/` 目录清空）。原 §6 中描述 legacy 解析/装配/映射/Full-Lite 的段落已改为删除说明，勿再按旧描述实现。
 
@@ -84,7 +84,7 @@ Hermann Ebbinghaus（1885）描述了**遗忘曲线**：新记忆形成后迅速
 
 ### 2.7 多技能整合
 
-应用语言学将语言能力分解为**接受性技能**（听、读）与**产出性技能**（说、写），以及词汇、语法、语音等**语言知识**维度。本项目的 6 种 Lesson Template（intro / practice / listening / reading / review / mastery）与 14 种 Interaction 题型覆盖了从词汇呈现到听读输入再到可控产出的完整闭环，避免孤立训练单一技能。
+应用语言学将语言能力分解为**接受性技能**（听、读）与**产出性技能**（说、写），以及词汇、语法、语音等**语言知识**维度。本项目的 7 种 Lesson Template（intro / practice / listening / reading / review / mastery，外加 `legacy` 扁平 stage 列表回退模板——它是兼容路径不是教学模板）与 14 种 Interaction 题型覆盖了从词汇呈现到听读输入再到可控产出的完整闭环，避免孤立训练单一技能。
 
 ### 2.8 关于土耳其语
 
@@ -145,7 +145,7 @@ lib/
 │   └── streak_resolver.dart       # 纯 streak 解析
 ├── courses/            # 字母 + 语种 loader/validator（目标 Turkish）
 ├── data/               # drift CourseDatabase + Seeder + Repository 实现
-│   ├── course_database.dart       # schemaVersion 26（15 张 drift Table 类 + 约 17 张原生 SQL 管理表）
+│   ├── course_database.dart       # schemaVersion 27（15 张 drift Table 类 + 约 17 张原生 SQL 管理表）
 │   ├── anki_note_dao.dart         # Anki NoteStore 数据访问
 │   ├── srs_state_dao.dart         # SRS 状态持久化
 │   ├── review_history_dao.dart    # 复习历史事件
@@ -209,7 +209,7 @@ Section -> Unit -> Lesson -> SubLesson / ListeningPhase / ReadingPassage -> Stag
 | Anki 官方 | `ankiCard` | Flutter 渲染的官方 Anki 卡片（`allowJs=false` 的卡默认走此轨，见第 6 节） |
 | Anki 保真 | `ankiHtmlCard` | 仅 Official 复习路径经 WebView 渲染原 notetype HTML；lesson 体/错题重放中的存量卡降级为占位卡（`AnkiHtmlCardRetiredRenderer`，见第 6 节） |
 
-### 4.3 Lesson Template（6 + 1）
+### 4.3 Lesson Template（7 种）
 
 | 模板 | 教学定位 |
 |---|---|
@@ -223,7 +223,7 @@ Section -> Unit -> Lesson -> SubLesson / ListeningPhase / ReadingPassage -> Stag
 
 ### 4.4 按需加载与缓存
 
-- `index.json` + per-section JSON + drift SQLite 缓存（**schemaVersion 26**）。
+- `index.json` + per-section JSON + drift SQLite 缓存（**schemaVersion 27**）。
 - 按内容版本号（`index.json` 的 `version`，当前 12）自动 reseed；bump version 或清空 app data 可强制 reseed。
 - `expressions` 表支持表达级 SRS。
 
@@ -315,6 +315,16 @@ Explain → Practice → Rate 三段流（见 2.4 Skill Acquisition Theory）。
 
 **长按浮窗交互契约**（`info_popup.dart` + `play_info_panels.dart`）：短按一律直接进入页面；长按在**有数据可看**的入口上生效（主卡、四个队列、薄弱单词、复习进度、AI 助手；词典不参与）。浮窗挂根 Overlay、锚定在被按卡片旁（下方空间不足自动翻到上方），打开 = 自锚点方向缩放 + 逐行 stagger 滑入（`easeOutBack`），关闭反向；`reducedMotion`/系统禁用动画退化为纯淡入淡出；打开触发 medium 触感（`sensoryReduce` 跳过）；卡片带 `Semantics(onLongPress)` 长按语义。**注意**：浮窗内容位于页面 Provider 树之上，面板组件一律通过构造注入数据（`PlayQueueSnapshot` / `AiEngineConfig` / `StudyStatsProvider` 实例），不得在面板 build 内做 inherited provider 查找。
 
+### 5.13 架构简化批次 P0–P4（2026-09-24）
+
+> 收据：[`official-anki-migration/34-cutover-receipt.md`](./official-anki-migration/34-cutover-receipt.md) 的「架构简化批次」一节。此前这批只记在收据与测试基线里，主文档首次收录。
+
+- **P0 备份一致性** —— `StudyActivityGate`（`lib/views/widgets/study_activity_scope.dart`）提供学习/备份互斥门，覆盖导入向导 parse/commit、正式复习页、课时页与三个练习页（每日挑战 / 弱词 / 错题复习）。`RemoteBackupService.backupNow` 在整个快照期持锁并在各阶段间复查，学习活动中途出现即中止并清理 staging；上传读**不可变 staging 副本**，媒体复制进副本后从副本校验与上传。
+- **P1 Legacy 读退役** —— 删除 `LegacyAnkiCardBrowser`、浏览器/牌组统计页的 Legacy 分支（非 Official 源 **fail-closed** 显示错误）、`AnkiDeckManager` 的 Legacy 卸载链、`AnkiImportCleanupService`、scope 启动修复（`CourseScopePreferenceMigrator` 与 `decodeLegacy`）、迁移导出/导入的 `anki_notes`/`anki_cards` 载荷、due 聚合的 Legacy 词扫描。
+- **P2 schema v27** —— `kSchemaVersion 26→27`，v27 `DROP` `anki_notetypes` / `anki_notes` / `anki_cards_meta`；`AnkiNoteDao` 与 `IAnkiNoteStore` 删除；catalog 升级链 v6/v8 死 DDL 移除。**历史迁移链保留不折叠**（逐版本迁移测试齐全，折叠收益不明显）。W9-E 的「先停写一个版本再 drop」硬规则未满足即执行，破例已在收据记档。
+- **P3 语言切换失败语义** —— `setScope` 改三段式：目标语言内容先加载（失败则拒绝切换、零状态变更）→ 提交并级联同步练习语言（`cacheLanguage` 改 await、连续切换串行化）→ 级联失败时整体回退到旧语言后抛 `CourseScopeSwitchException`（课程管理页接错提示）。
+- **P4** —— 浏览器牌组下拉改专用牌组查询 `listDeckIds`（不再全量物化卡片）+ 浏览路径性能埋点；`LessonSrsUndoLog`（三队列撤销栈）与 `CourseCatalogOrdering`（目录排序规则）自 LessonViewModel / CourseProvider 拆出，行为不变。
+
 ---
 
 ## 6. Anki 深度集成
@@ -362,7 +372,7 @@ Explain → Practice → Rate 三段流（见 2.4 Skill Acquisition Theory）。
 
 > 该路径已于 schema v22 `DROP TABLE IF EXISTS anki_prerendered_html` 收口（writer 随 doc 35 Legacy 层删除后表保证为空）。DAO `prerendered()` / `upsertPrerenderedFace`、存储清单统计、旧版页「智能去解密 / 抓取延时」文案均已删除。不接回 `onCaptured`。加密牌组若需脚本，走官方保真 WebView + `ankiForceDisableJs`。
 
-高级页提供渲染/网络与单牌组覆盖、失败降级、媒体与导入性能、三种排程继承、同胞卡与难卡规则、FSRS 实验室、存储维护、脱敏报告和实验功能中心。系统健康监控在启动时直接监听 `LogCapture`，用指纹、60 秒去重和分数阈值生成本机告警；详见 [`advanced-settings-system-health.md`](advanced-settings-system-health.md)。
+高级页提供渲染/网络与单牌组覆盖、失败降级、媒体与导入性能、三种排程继承、同胞卡与难卡规则、FSRS 实验室、存储维护、脱敏报告和实验功能中心。系统健康监控在启动时直接监听 `LogCapture`，按 [ADR 0040](./decisions/0040-system-health-state-machine.md) 的**状态机**生成本机告警：分数只是聚合输入（严重度排序），**UI 侧不存在任何扣分入口**，也不存在「-40 分确定」这类按钮；恢复来自系统证据（自检通过），陈旧事件按 24h 活跃窗口衰减、7 天自动过期，`fatal` 组在窗口内把结果钉在 critical。达到 10/40 阈值时以**非阻断横幅**呈现，不锁页。详见 [`advanced-settings-system-health.md`](advanced-settings-system-health.md)。
 
 ### 6.5 复习入口与浏览
 
@@ -520,7 +530,7 @@ const warning = Color(0xFFFF9F43);
 | 平台 | 状态 | 备注 |
 |---|---|---|
 | **Android** | ✅ 主力 | 发布产物 APK/AAB；Anki Official Core 首发平台。 |
-| **iOS** | ✅ 应用保留 | WebView 保真可用；Anki Official Core 暂不承诺。 |
+| **iOS** | ✅ 应用保留 | WebView 保真可用；**官方 Anki Core 已接通**（2026-09-26，静态链接 rslib 的 `TurnaAnki.xcframework` + WKWebView 复习器 `turna-anki://anki.local`），与 Android 同走 Official 路径；构建见 [`ios-build-setup.md`](./ios-build-setup.md) |
 | **Web** | ⚠️ 有限 | 无 WebView 保真（文本兜底）；`build_release.py --skip-web` 可跳过。 |
 | **HarmonyOS (OHOS)** | ❌ EOL | 产品支持已退役（[ADR 0041](./decisions/0041-ohos-product-eol.md)）；数据出口见 `turna-migration-v1`。 |
 
@@ -538,9 +548,10 @@ flutter run            # 运行
 flutter pub run build_runner build --delete-conflicting-outputs   # 或 make gen
 
 # 发布（APK/AAB/可选 web + 内容清单）
-python tool/build_release.py --version 0.4.0-future4
+# 注意：--version 的 X.Y.Z 必须与 pubspec.yaml 的 version 一致（脚本会断言，不符即退出）
+python tool/build_release.py --version 0.8.0
 # 或
-make build-release VERSION=0.4.0-future4
+make build-release VERSION=0.8.0
 ```
 
 ### 10.4 Makefile
@@ -696,7 +707,7 @@ JSON 位于 `assets/courses/turkish/`，由 `CourseLoader` 加载、`DatabaseSee
 ## 14. 测试与质量基线
 
 ```bash
-flutter test --exclude-tags golden           # 1911 passed / 0 failed（最新数字见 test/BASELINE.md）
+flutter test --exclude-tags golden           # 最新全量计数见 test/BASELINE.md 顶条（勿在本文件写死）
 python -m unittest discover -s test -p "*_test.py"            # Python 工具测试
 python tool/gui/run_gui_tests.py full        # GUI 全量（每模块独立子进程，runner 自动设 offscreen）
 python -m ruff check tool/gui                # GUI lint（src + tests）
@@ -728,18 +739,34 @@ python -m ruff check tool/gui                # GUI lint（src + tests）
 | 文档 | 说明 |
 |---|---|
 | [`README.md`](../README.md) | 项目概览与快速上手 |
-| [`CLAUDE.md`](../CLAUDE.md) | AI Agent 架构总览 |
-| [`docs/content_inventory_current.md`](./content_inventory_current.md) | Turkish 内容清单 |
-| [`docs/ai_companion_implementation.md`](./ai_companion_implementation.md) | AI companion 实现边界 |
-| [`docs/advanced-settings-system-health.md`](./advanced-settings-system-health.md) | 高级设置与系统健康 |
-| [`docs/decisions/`](./decisions/) | 架构决策记录（ADR；含 [0043](./decisions/0043-turnapack-external-courses.md) 外部课程经 `.turnapack` 进入） |
-| [`docs/official-anki-migration/`](./official-anki-migration/README.md) | 官方 Anki Core 迁移文档索引；活跃收口入口为 doc 34 |
+| [`CLAUDE.md`](../CLAUDE.md) | AI Agent 架构总览（路由级导航 + 开发命令） |
+| **构建与发布** | |
 | [`docs/android-build-setup.md`](./android-build-setup.md) | Android / 官方 Flutter 构建配置 |
-| [`docs/analysis/project-framework-analysis.md`](./analysis/project-framework-analysis.md) | 项目框架分析 |
+| [`docs/ios-build-setup.md`](./ios-build-setup.md) | iOS 构建（静态链接 rslib xcframework + WKWebView 复习器） |
+| [`docs/firebase-app-distribution.md`](./firebase-app-distribution.md) | 内发渠道配置 |
+| **内容与课程** | |
+| [`docs/content_inventory_current.md`](./content_inventory_current.md) | Turkish 内容清单（**自动生成，勿手改**） |
 | [`docs/authoring/`](./authoring/) | Authoring 契约与教师指南 |
 | [`docs/audio-recording-guidelines.md`](./audio-recording-guidelines.md) | 人工录音提交规范 |
-| [`test/BASELINE.md`](../test/BASELINE.md) | 测试基线与改动记录 |
+| **架构与设计** | |
+| [`docs/decisions/`](./decisions/) | 架构决策记录（ADR；含 [0043](./decisions/0043-turnapack-external-courses.md) 外部课程经 `.turnapack` 进入） |
+| [`docs/analysis/project-framework-analysis.md`](./analysis/project-framework-analysis.md) | 项目框架分析 |
+| [`docs/platform-adaptive-page-transition-unification-plan.md`](./platform-adaptive-page-transition-unification-plan.md) | 平台自适应转场导航合同 |
+| [`docs/webview-rendering-optimization-plan.md`](./webview-rendering-optimization-plan.md) | WebView / 卡面渲染优化 |
+| **Anki 官方内核迁移** | |
+| [`docs/official-anki-migration/`](./official-anki-migration/README.md) | 迁移文档索引；**状态唯一真源 = [`34-cutover-receipt.md`](./official-anki-migration/34-cutover-receipt.md)** |
+| [`docs/official-anki-migration/archive/`](./official-anki-migration/archive/README.md) | 迁移历史文档库（**勿按其施工**） |
+| [`docs/ankiUpdate/`](./ankiUpdate/README.md) | Anki 升级分步手册（**已归档**，含 v2 失败与复活复盘） |
+| [`docs/anki-maintainability-cleanup/`](./anki-maintainability-cleanup/README.md) | Anki 可维护性清理收据（**已归档**） |
+| **AI 与设置** | |
+| [`docs/ai_companion_implementation.md`](./ai_companion_implementation.md) | AI companion 实现边界 |
+| [`docs/advanced-settings-system-health.md`](./advanced-settings-system-health.md) | 高级设置与系统健康（状态机依 ADR 0040） |
+| **其他** | |
 | [`docs/ux-experience-improvement-plan.md`](./ux-experience-improvement-plan.md) | 2026-09-21 体验改良 B1–B7 收据（源计划在桌面） |
+| [`docs/achievement-system-revamp-plan.md`](./achievement-system-revamp-plan.md) | 成就体系硬约束（**500 / 100 课不得下调**） |
+| [`test/BASELINE.md`](../test/BASELINE.md) | 测试基线与最近改动收据（更早见 [`test/archive/BASELINE-pre-2026-09-20.md`](../test/archive/BASELINE-pre-2026-09-20.md)） |
+
+> **收据引用规则**：引用测试/改动记录必须用「文件 + 条目日期 + 标题」锚，**禁止用行号**——`test/BASELINE.md` 是前插式只增文件，行号必然腐坏。详见 [`CLAUDE.md`](../CLAUDE.md) 的「文档与收据锚点」。
 
 ---
 
@@ -755,9 +782,9 @@ python -m ruff check tool/gui                # GUI lint（src + tests）
 - **已交付计划的遗留尾项**（来源：Plan 1 / Plan 2+3 两轮已压缩为 stub，正文在 Git 历史）：
   1. 真机性能基线：Android 中低端机型 + profile 构建，采 Plan 2+3 §24 性能预算的 before 数据；
   2. 宝石 UI 钱包快照（`LocalStateKeys.gems`）到 `GemLedgerDao` 账本投影的完全切换；
-  3. WebView 渲染真机矩阵（6 设备形态 × 11 卡型），随 doc 34 真机会话执行（[34-remaining §18.3 第 7 项](./official-anki-migration/34-remaining-construction-plan.md)）。
+  3. WebView 渲染真机矩阵（6 设备形态 × 11 卡型），随 doc 34 真机会话执行（[34-remaining §18.3 第 7 项](./official-anki-migration/archive/34-remaining-construction-plan.md)）。
 - [GUI 与 App Schema 对齐](./tool-gui-app-schema-sync-plan.md) 已落地（G1–G9，仅 `tool/`）。
-- 体验改良延期项里仍不做的：Markdown 聊天气泡（需单独依赖决策）。B3-6 播种已挪到首帧之后；导师聊天写入 prefs；改课可从提示条撤销一次。见 [UX 收据](./ux-experience-improvement-plan.md)。
+- 体验改良延期项已全部落地：Markdown 聊天气泡用**自研子集**（`lib/core/simple_markdown.dart` 的 `parseSimpleMarkdown`，未引入 `flutter_markdown`）；B3-6 播种已挪到首帧之后；导师聊天写入 prefs；改课可从提示条撤销一次。见 [UX 收据](./ux-experience-improvement-plan.md)。
 - 持续完善可访问性与统计指标。
 
 ### 致谢

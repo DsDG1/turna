@@ -1,5 +1,7 @@
 # Step 4 / R2:C3 真机强杀矩阵执行手册
 
+> **📦 已归档 · 历史操作手册（2026-09-27 标注）**：C3 强杀矩阵已于 2026-09-02 收口（K4–K14 实机过），R2 / R3 / R4 全部关闭。手册保留为当时的杀点编排记录，**不需要再执行**。权威口径见 [`docs/official-anki-migration/`](../official-anki-migration/README.md)。
+
 > 本手册是 [ADR 0044](../decisions/0044-anki-v2-revival.md) R2 的操作编排。
 > **完成标志（2026-09-02）**：只有实机过了才算。不要 logcat 核验、不要诊断导出留证、不要把 host 测试绿写成完成。
 > 跳过：K1 / K3（真机不考虑）、K8（checkpoint 已废）、K12（Step 5）。
@@ -90,4 +92,4 @@ ADR 0044 钦定:crash-hunt 工具链为常设取证设施。K13 通过标准 = *
 
 一行只有操作者确认实机过了才算。不要日志路径、不要 SHA、不要三件套。
 
-已过：K4–K14 全部（不含 K1/K3/K8/K12；K2 幽灵卡真机过、窗口杀点由 K10 同路径覆盖）。C4 定标亦实机通过（2026-09-02 操作者确认「通过」）。R2/R3 关闭 → **剩 R4**：内部观察期 → `productionAndroid` 翻 `v2ImportChain=true` → Step 4 关闭。
+已过：K4–K14 全部（不含 K1/K3/K8/K12；K2 幽灵卡真机过、窗口杀点由 K10 同路径覆盖）。C4 定标亦实机通过（2026-09-02 操作者确认「通过」）。R2/R3 关闭 → **R4 已于 2026-09-02 执行完毕**（操作者「通过」）：内部观察期 → `productionAndroid` 翻 `v2ImportChain=true` → Step 4 关闭。收据见 [step4-r4-runbook.md](./step4-r4-runbook.md) 与 [step4.md](./step4.md) 的 2026-09-02 R4 行；**`v2ImportChain` flag 现已退役**（Step 6 阶段删除）。

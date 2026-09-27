@@ -12,8 +12,8 @@
 AnkiImportPage
   ↓ intent / state rendering
 AnkiImportController
-  ├─ LegacyAnkiImportFlow
-  └─ OfficialFirstAnkiImportFlow
+  ├─ LegacyAnkiImportFlow（**已退役**：Legacy 导入面随 W9-B/C 删除，flow 已内联）
+  └─ OfficialFirstAnkiImportFlow（**已内联**：类不再存在，职责落在 `lib/application/anki_import/anki_import_official_flow.dart` 的自由函数 `importOfficialThenPreview` / `commitOfficialPreview` 上）
           ↓
   existing executors and services
 ```
@@ -56,7 +56,7 @@ Controller 对页面暴露面向用户意图的方法，包括：
 
 ### Flow 边界
 
-`LegacyAnkiImportFlow` 负责：
+`LegacyAnkiImportFlow` 负责（**该类已不存在**：Legacy 导入面随 W9-B/C 删除，职责已内联；以下为当时的职责划分记录）：
 
 - parse/sample；
 - recognition 和 organization preview；
@@ -64,7 +64,7 @@ Controller 对页面暴露面向用户意图的方法，包括：
 - 调用 Legacy executor；
 - 返回统一 completion summary。
 
-`OfficialFirstAnkiImportFlow` 负责：
+`OfficialFirstAnkiImportFlow` 负责（**该类已不存在**：职责已内联为 `anki_import_official_flow.dart` 的自由函数；以下为当时的职责划分记录）：
 
 - `importThenPreview`；
 - schema suggestion、confirm 和 skip；
@@ -91,15 +91,15 @@ controller 依赖通过 `AnkiImportDependencies` 显式注入，包括 picker、
 
 ## 已实现结构
 
-`lib/application/anki/import_wizard/` 包含：
+`lib/application/anki_import/` 包含（原计划路径 `lib/application/anki/import_wizard/` 从未落地；下列文件名已按当前实际目录核对）：
 
 - `anki_import_controller.dart`：ChangeNotifier、single-flight、operation generation 和资源清理；
 - `anki_import_wizard_state.dart`：sealed state 和 preview variants；
 - `anki_import_dependencies.dart`：显式依赖与 planner 测试缝；
-- `legacy_anki_import_flow.dart`；
-- `official_first_anki_import_flow.dart`；
+- ~~`legacy_anki_import_flow.dart`~~：**该文件不存在**，Legacy flow 随 W9-B/C 退役；
+- ~~`official_first_anki_import_flow.dart`~~：**该文件不存在**，官方 flow 现在的文件名是 **`anki_import_official_flow.dart`**（内含 `importOfficialThenPreview` / `commitOfficialPreview`）；
 - `anki_import_completion_coordinator.dart`；
-- mapping 和 view helper。
+- `official_import_error_messages.dart` 与 `anki_import_view_helpers.dart`（mapping 和 view helper）。
 
 `lib/views/anki/import_wizard/` 包含共享 step widgets、Legacy/Official preview、映射编辑器和完成步骤。`anki_import_screen.dart` 只负责 shell、对话框、route intent 和完成导航。
 
@@ -126,6 +126,8 @@ controller 依赖通过 `AnkiImportDependencies` 显式注入，包括 picker、
 - 页面不包含 `getIt<`、data DAO import 或 importer/projection 直接调用。
 
 行数不是设计目标本身，但用于防止把同一巨石简单改名或搬到另一个文件。
+
+> **⚠️ 门禁告警（controller 项）**：`- controller 不超过 600 行` 这条**余量已经耗尽**。实测 `lib/application/anki_import/anki_import_controller.dart` 为 **599 行**（`[System.IO.File]::ReadAllLines('lib/application/anki_import/anki_import_controller.dart').Count` = 599；注意 `Get-Content … | Measure-Object -Line` 会因空行折算报 553，勿据此判断），**仅剩 1 行余量**。任何新增行都必须同步下调门禁或在别处抽出，否则一次正常改动就会顶爆门禁。另两条 flow 门禁已随 flow 内联而失效：`LegacyAnkiImportFlow` / `OfficialFirstAnkiImportFlow` 均无独立文件，500 行/个的约束当前无适用对象。
 
 ## 测试与验收
 

@@ -1,7 +1,7 @@
 # 35 — Legacy 复刻层清理施工计划（L0–L3，只删官方已替代的重复实现）
 
 > 日期：2026-08-27
-> 关联：[`34-official-anki-production-cutover-and-ohos-retirement-plan.md`](./34-official-anki-production-cutover-and-ohos-retirement-plan.md) §13 / §19（W9）；W9 HOLD 已于 2026-08-27 由负责人决策解除（原 HOLD 文件随解除删除，豁免决策记录见 [`34-cutover-receipt.md`](./34-cutover-receipt.md)「Held」表）
+> 关联：[`34-official-anki-production-cutover-and-ohos-retirement-plan.md`](./34-official-anki-production-cutover-and-ohos-retirement-plan.md) §13 / §19（W9）；W9 HOLD 已于 2026-08-27 由负责人决策解除（豁免与证据台账见 [`34-cutover-receipt.md`](./34-cutover-receipt.md) 的「W9 HOLD 解除记录与证据台账」一节；原独立 HOLD 文件已于 2026-09-27 并入该节并删除）
 > 状态：**已施工（2026-08-27，L0–L3 四波各自独立 commit，见 §9 验收表）**。本文档是 doc 34 W9 的重切执行版：**只删"复刻层"，不动自研资产**。
 > 总原则：判据只有一条——**这个文件是否在手写复刻 Anki 的语义**（解析 anki2 sqlite、模板/cloze 渲染、media IRI、type-answer、对 Anki 卡的调度写入）。是 → 官方 core 已替代 → 删；否 → 自研资产 → 保留（最多搬家）。
 
@@ -28,14 +28,14 @@
 | 产品统计/错题生态 | `review_progress_provider`、`review_dashboard/*`、`memory_curve_provider`、insights/mistakes 页面 | 自研产品功能 |
 | 备份/恢复 | `service/remote_backup/*`（VACUUM INTO 整库 + official catalog 分量） | 纯自研基建 |
 | 护栏体系 | `AnkiImportExecutionPlanner` fail-closed 语义、`anki_legacy_write_fence`、`anki_owner_authority_dao` | 正是它们让删除安全；保留到 NoteStore 退役（后续计划） |
-| 混合件 | `anki_import_dao`（官方 due/dashboard 读）、`AnkiDeckManager`（课程管理/官方清理面）、`AnkiNoteDao`（官方 browser 只读）、`anki_import_cleanup_service`（legacy 卸载清理） | 有活的生产消费者；拆分/瘦身属于 NoteStore 退役计划 |
+| 混合件 | `anki_import_dao`（官方 due/dashboard 读）、`AnkiDeckManager`（课程管理/官方清理面）、`AnkiNoteDao`（官方 browser 只读） | 有活的生产消费者；拆分/瘦身属于 NoteStore 退役计划。**注：`anki_import_cleanup_service`（legacy 卸载清理）与 `AnkiNoteDao` / `IAnkiNoteStore` 已于 2026-09-24 架构简化批次 P1/P2 删除，不再是待瘦身对象** |
 | migration-only exporter | `application/migration/turna_migration_export.dart`、`anki_official/migration/official_anki_backup_manifest.dart` | W8 迁移窗口需要；读表不读 parser |
 
 ### 1.3 明确不做（后续另立计划）
 
 - **NoteStore 读退役**：browser/stats 混合分支（`official_anki_source_aware_browser.dart:94` 的 `legacyNotes`）、`AnkiNoteDao`、fun_lab 的 `anki_cards_meta` 快照面、prerender cache 统计。
 - **Schema drop（doc 34 W9-E）**：course.db 目前 **没有任何 tombstone**（代码事实），drop 迁移不存在；触发条件 = 迁移窗口关闭 + 一个 release 周期 legacy 读计数为 0。
-- **`anki_deck_manager` / `anki_import_cleanup_service` 瘦身**：依赖上一条。
+- **`anki_deck_manager` / `anki_import_cleanup_service` 瘦身**：依赖上一条。**注：`anki_import_cleanup_service` 已于 2026-09-24 架构简化批次 P1 随 Legacy 卸载链整体删除，无需再瘦身；`anki_deck_manager` 的 Legacy 卸载链亦已在 P1 移除。**
 
 ---
 
@@ -224,7 +224,7 @@ L0–L2 之后，`lib/application/anki/` 剩余文件 = 纯自研资产。整波
 
 ### L3
 
-- **`anki_import_cleanup_service` 一并迁至 `anki_official/`**（§6 表未列，但终态断言要求 `lib/application/anki` 清空；该文件是 deck_manager 卸载路径的活依赖）。
+- **`anki_import_cleanup_service` 一并迁至 `anki_official/`**（§6 表未列，但终态断言要求 `lib/application/anki` 清空；该文件是 deck_manager 卸载路径的活依赖）。**已作废：该文件未迁移，而是在 2026-09-24 架构简化批次 P1「Legacy 读退役」中随 Legacy 卸载链整体删除。**
 - **`import_wizard/` 整目录迁至 `anki_import/`**，含 `anki_import_completion_coordinator` 与 `official_first_anki_import_flow`（表只列 7 件，实际全部迁出）。
 - **guard 更名** `official_anki_architecture_guard_test.dart`，并新增 `Directory('lib/application/anki')` 不得存在的终态断言。
-- 瘦身（deck_manager/cleanup_service 拆分）仍按 §1.3 属 NoteStore 退役计划，未做。
+- 瘦身（deck_manager/cleanup_service 拆分）仍按 §1.3 属 NoteStore 退役计划，未做。**注：该项已被 2026-09-24 架构简化批次 P1/P2 整体消解——Legacy 卸载链与 `AnkiNoteDao`/`IAnkiNoteStore` 均已删除，不再存在待瘦身对象。**

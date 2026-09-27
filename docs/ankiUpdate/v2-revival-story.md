@@ -94,12 +94,14 @@ PopScope(
 
 ## 附：证据与工具索引（`logs/crash-hunt/`）
 
+> **可复核性免责声明（他人克隆本仓库无法复核下表证据）**：下表列出的取证产物——`transparency-26949.jsonl`、`monitor-run*.log`、`db-*`、`libapp-profile.so`、`stackloop*.log`、`stackloop-console.log`、`br/FS/data/anr/anr_*`——**均未被 git 跟踪**。`.gitignore` 的 `logs/*` 规则只放行 `logs/crash-hunt/*.js`（即下表最后一行的可复用工具），其余日志/快照仅存在于当时作者的本机工作目录，**克隆仓库的人无法拿到、也无法重跑核验**。因此本表只能作为「当时得出该结论」的索引，不能作为可重复验证的证据；需要结论本身请读正文。
+
 | 文件 | 内容 |
 |---|---|
 | `br/FS/data/anr/anr_*` | 2026-09-01 六份 ANR trace（定性：全部 reason=ANR） |
 | `transparency-26949.jsonl` | 4.3 小时会话应用日志（46 次 reload、5+ 来源、最后一次冻结） |
 | `monitor-run*.log` | VM 服务探针曲线（rpc 延迟劣化点 = 冻结起点） |
-| `timeline-frozen.json` | 冻结中拉取的 VM 时间线（2475 次 Scavenge/25s 的实锤） |
+| `timeline-dump.json` / `timeline.json` | 冻结中拉取的 VM 时间线（2475 次 Scavenge/25s 的实锤）。**勘误：本行原写作 `timeline-frozen.json`，该文件名在 `logs/crash-hunt/` 下不存在** |
 | `stackloop.log` / `stackloop-console.log` | 每秒符号化栈采样（元凶帧的当场抓获） |
 | `db-*` / `libapp-profile.so` | 冻结进程的库快照与 AOT 载荷（佐证：冻结期间零 DB 写入） |
 | `monitor.js` / `monitor-auto.js` / `stackloop.js` / `prepare-timeline.js` / `dump-now.js` | 可复用取证工具（已纳入 C3/C4 常设设施，见 ADR 0044） |

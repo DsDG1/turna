@@ -69,7 +69,7 @@ Input dispatching timed out ... Waited 5000ms for MotionEvent(DOWN)
 |---|---|---|
 | C1 | `test/application/accessibility_provider_test.dart:26,99-107` | 删 dyslexiaFont 持久化轮回断言 |
 | C2 | `test/application/accessibility_capabilities_test.dart:29,49` | 删 `dyslexiaFriendlyTypography` 断言 |
-| C3 | `test/BASELINE.md:303-307` | 更新基线记录(persisted flags 清单去掉 dyslexiaFont,Lexend 行为描述删除) |
+| C3 | `test/BASELINE.md` 的 **2026-09-01「系统字体清理 host 施工」** 条目（现位于 `test/archive/BASELINE-pre-2026-09-20.md`） | 更新基线记录(persisted flags 清单去掉 dyslexiaFont,Lexend 行为描述删除)。**注：本文原先写作 `test/BASELINE.md:303-307` 是行号锚，因该文件前插式增长而早已失效（真实位置曾漂到第 100 行）；已按新规约改为日期锚。** |
 | C4 | 施工时补查 | `rg -i "dyslex|AppFonts|google_fonts" lib test` 归零;splash/settings 相关测试目录定向复跑 |
 
 已核实零引用面:`SettingsDyslexiaFontTile` 与 `AppFonts` 在 test/ 下无任何引用;dyslexiaFriendlyTypography 无 UI 消费者。

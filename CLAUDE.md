@@ -8,11 +8,11 @@
 
 ## 快速导航
 
-- **当前状态**：8 个 CEFR 分级 Section（A1->B2）全部填充真实内容（148 词 / 18 表达 / 8 语法 / 54 课时）。schemaVersion 26，课程内容版本 12。
+- **当前状态**：8 个 CEFR 分级 Section（A1->B2）全部填充真实内容（148 词 / 18 表达 / 8 语法 / 54 课时）。schemaVersion 27，课程内容版本 12。
 - **目标语**：Turkish，TTS 语言码 `tr`。
-- **复习引擎**：FSRS（`lib/core/fsrs_engine.dart`），SM-2 后备；Anki 卡排期走官方 Core scheduler（ADR 0036/0037，`lib/application/anki_official/`）。Android 生产 bundle 见 `OfficialAnkiFeatureFlags.productionAndroid`；收口施工以 [doc 34](./docs/official-anki-migration/34-official-anki-production-cutover-and-ohos-retirement-plan.md) 为准（迁移中；W9 HOLD 已于 2026-08-27 由负责人决策解除，观察期证据按负责人豁免，W9-B..E 分波删除可开工，豁免决策记录见 [doc 34 收据](./docs/official-anki-migration/34-cutover-receipt.md)「Held」表）。
+- **复习引擎**：FSRS（`lib/core/fsrs_engine.dart`），SM-2 后备；Anki 卡排期走官方 Core scheduler（ADR 0036/0037，`lib/application/anki_official/`）。Android 生产 bundle 见 `OfficialAnkiFeatureFlags.productionAndroid`；**iOS 走同一条 Official 生产路径**（`productModeFor(platform: 'ios')` → `AnkiProductMode.officialAndroid`，`lib/application/anki_official/import/anki_import_execution_plan.dart`），native 侧为静态链接的 rslib（`ios/Frameworks/TurnaAnki.xcframework`，**不入库**，重建入口见 [`native/turna_anki_core/build-ios/build.sh`](./native/turna_anki_core/build-ios/build.sh)），复习器为 WKWebView（`ios/Runner/AnkiReviewer/`）。收口施工以 [doc 34](./docs/official-anki-migration/34-official-anki-production-cutover-and-ohos-retirement-plan.md) 为准。**状态口径：验收 NO-GO、Official Anki 迁移中**——W9-B..E 的 host 侧已由 2026-09-24 架构简化批次完成（Legacy 读退役 + course.db v27 表删除），真机矩阵等外部证据仍未发生，**不得写「迁移完成」**；准确口径以 [doc 34 收据](./docs/official-anki-migration/34-cutover-receipt.md)「架构简化批次」与「Held」表为准。
 - **调色板**：Turna「湿地鹤」（ADR 0033/0035，主色 `#1F727E`，无 `peacock*` 别名）。真源 `lib/core/theme.dart` ↔ `tool/gui/src/theme_tokens.py`。
-- **构建**：官方 Flutter + Android（JDK 17）；见 [`docs/android-build-setup.md`](./docs/android-build-setup.md)。OHOS 产品 EOL 见 [ADR 0041](./docs/decisions/0041-ohos-product-eol.md)。
+- **构建**：官方 Flutter + Android（JDK 17），见 [`docs/android-build-setup.md`](./docs/android-build-setup.md)；iOS（Xcode + xcframework 静态库链）见 [`docs/ios-build-setup.md`](./docs/ios-build-setup.md)。OHOS 产品 EOL 见 [ADR 0041](./docs/decisions/0041-ohos-product-eol.md)。
 - **AI 引擎层**：`lib/application/ai/engine/`（全应用唯一 LLM 出入口，配置含 API key 经 `StreamingSharedPreferences` 持久化、写入绕过日志）。
 - **决策记录**：`docs/decisions/`（现存 ADR 0001–0044 共 31 篇，含 0021/0043 两个历史编号复用）。
 
@@ -43,7 +43,7 @@ lib/
 │   └── game_provider.dart         # 薄 facade -> score/streak/progress/gems
 ├── core/          # fsrs_engine / turkish_text / sm2 / language_detector / html_stripper / streak / logger / theme
 ├── courses/       # 字母 + 语种 loader/validator（目标 Turkish）
-├── data/          # drift CourseDatabase（schemaVersion 26）+ Seeder + DAO + Repository
+├── data/          # drift CourseDatabase（schemaVersion 27）+ Seeder + DAO + Repository
 ├── di/            # GetIt + Injectable（renderer_module / audio_module）
 ├── domain/        # 领域模型 + Repository 接口（course / audio / repositories）
 ├── routing/       # Auto Route + CourseReadyGuard
@@ -52,7 +52,7 @@ lib/
                    # ai / anki / anki_official / settings / widgets / <feature>/components/
 ```
 
-完整分层、关键模式、领域模型、14 种 Interaction、6 种 Lesson Template 见 project-guide §3-§4。
+完整分层、关键模式、领域模型、14 种 Interaction、7 种 Lesson Template（`intro` / `listening` / `practice` / `reading` / `review` / `mastery` / `legacy`）见 project-guide §3-§4。其中 `legacy` 是扁平 stage 列表的回退模板（`lib/domain/course/lesson.dart`），非教学模板，不作为课程设计目标。
 
 ---
 
@@ -103,7 +103,7 @@ python tool/gui/run_gui_tests.py full                        # GUI 测试（full
 python -m ruff check tool/gui                               # GUI lint（src + tests）
 make lint-gui test-gui                                       # 同上两步的 Make 入口
 make ci                                                      # 本地全量 CI 等价（含 GUI full 档）
-python tool/build_release.py --version 0.4.0-future4         # 发布
+python tool/build_release.py --version 0.8.0                    # 发布；X.Y.Z 必须与 pubspec.yaml 一致（当前 0.8.0+4，脚本会断言），否则报错退出
 ```
 
 Windows 用 `python`（非 `python3`）。完整 Makefile / 平台 / 发布流水线见 project-guide §10；课程数据格式见 §13；测试基线见 `test/BASELINE.md`。
@@ -121,6 +121,12 @@ Windows 用 `python`（非 `python3`）。完整 Makefile / 平台 / 发布流�
 ---
 
 ## 工程约定（2026-09 代码质量批次落地）
+
+### 文档与收据锚点
+
+- **收据 / 验证记录的引用必须用「文件 + 条目日期 + 标题」锚，不得用行号。** 例：`test/BASELINE.md` 2026-09-24「架构简化实施计划 P0–P4」条目、`docs/official-anki-migration/34-cutover-receipt.md` 的「架构简化批次」小节。
+- 理由：前插式只增文件（`test/BASELINE.md`）与持续改写的收据，行号必然腐坏。已修反例：`docs/system-font-cutover-plan.md` C3 行原引 `test/BASELINE.md:303-307`，该条目实际早已漂到第 100 行 —— 2026-09-27 改为日期锚。
+- 同理，指向**会被改写的源码**的引用也优先写符号名而非行号；仅当目标是冻结不变的文件（如脚本、schema 表清单）时才写行号。
 
 ### 日志与错误处理
 

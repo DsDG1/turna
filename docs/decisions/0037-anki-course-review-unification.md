@@ -7,7 +7,7 @@
   - 2026-08-29（第二次，现行）：解锁粒度 = **一个 Lesson**；第一遍只解锁、不写 scheduler（方案 A）；有导入历史的卡视为已解锁；重做已完成课 = 该课全部卡提前复习。
   - 2026-08-29（第三次）：选项 A 今日新卡名额覆盖刚解锁的那一课；重做跳过今日已官方评分的卡。
 - 取代：anki-review-unification-construction-plan 中与本 ADR 冲突的“已完成”表述；官方迁移文档中与本决策冲突的「未学可复习 / 课内即写 scheduler」口径；**本文件 2026-08-29 第一次修订中「新卡必须直接进 Anki 复习 / introduced 不得过滤队列」**
-- 关联：[ADR 0036](./0036-official-anki-core-migration.md)、[ADR 0041](./0041-ohos-product-eol.md)；身份模型仍见 [`docs/anki-course-review-unification-plan.md`](../anki-course-review-unification-plan.md)
+- 关联：[ADR 0036](./0036-official-anki-core-migration.md)、[ADR 0041](./0041-ohos-product-eol.md)；身份模型见本 ADR 现行决策段（**原 `docs/anki-course-review-unification-plan.md` 兼容入口已于 2026-09-27 随文档精简删除，身份模型以本 ADR 为唯一真源**）
 
 ---
 
@@ -114,7 +114,7 @@ Official-first 导入仍投影 Section/Unit/Lesson。Anki scope 下课树是 **�
 - 重做提前复习是新施工：官方 queue 对非到期卡打分；未落地前不得用错题本或 Turna FSRS 冒充。
 - `OfficialAnkiHomeDueSync` / `getReviewQueue` 协议错误（过限 `fetchLimit`、把 `QUEUE_EMPTY` 当整次刷新失败）必须修，否则解锁后 Anki 入口仍是「—」。
 - 非 Android 上 Anki scope 展示不可用，不回退语言三队列。
-- [`docs/anki-course-review-unification-plan.md`](../anki-course-review-unification-plan.md) 的「P0–P10 已落地」不覆盖本修订。实现另开施工，不在本 ADR 排期。
+- 原 `docs/anki-course-review-unification-plan.md`（已删除）曾记的「P0–P10 已落地」不覆盖本修订。实现另开施工，不在本 ADR 排期。
 
 ---
 

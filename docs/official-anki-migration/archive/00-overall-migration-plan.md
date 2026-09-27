@@ -1,11 +1,18 @@
 # Turna 迁移到官方 Anki Core 的完整方案
 
+> ## 🗄 已归档，勿按本文施工
+>
+> **归档日期：2026-09-27。** 本文是 2026-08-16 的**提案**，Phase 0–4 与 P5 各阶段均已完成并收口（见 [`../README.md`](../README.md) 的 Archived 表格与 [`artifacts/`](./artifacts/) 证据）。
+> 下文的「文档状态：提案 / 待阶段 0 验证」与 **141 个未勾选框是提案当时的计划状态，一律不代表未施工**。
+> 现行状态唯一真源：[`../34-cutover-receipt.md`](../34-cutover-receipt.md)。文中的 catalog v11 / contract 1.11 / Phase 编号口径均已过期。
+> 本文中的代码路径大量指向已删除的 Legacy 复刻层，属**合规的历史陈述**，不要据此判断当前实现。
+
 > 文档导航：[迁移文档索引](../README.md) · [第一阶段实施方案](./01-phase-0-implementation-plan.md)
 
-> 文档状态：提案 / 待阶段 0 验证  
+> 文档状态：提案 / 待阶段 0 验证（**历史提案，已被现行收口取代，见上方归档横幅**）  
 > 适用项目：Turna（原 VarnamalaPlus）  
 > 编写日期：2026-08-16  
-> 官方 Anki 本地参考仓库：`/home/whwen/documents/reso/Varnamalaplus/anki`  
+> 官方 Anki 本地参考仓库：`/home/whwen/documents/reso/Varnamalaplus/anki`     
 > 参考提交：`967aa0d578fc75181e292e95326f9b58698da25c`  
 > 参考版本描述：`25.09.2-370-g967aa0d57`  
 > 目标首发平台：Android arm64  

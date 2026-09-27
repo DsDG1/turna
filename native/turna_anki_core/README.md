@@ -36,9 +36,10 @@ CI should fail if `git submodule status` does not match the commit above.
 ```text
 native/turna_anki_core/
 ├── anki/                 # git submodule, detached at the pin
-├── bridge/               # cdylib + rlib, Turna C ABI
+├── bridge/               # cdylib + rlib + staticlib, Turna C ABI
 ├── contract/             # Turna-owned schema, not upstream protobuf
 ├── build-android/        # Android arm64 scripts (commands unverified)
+├── build-ios/            # iOS staticlib + xcframework scripts
 ├── licenses/
 └── patches/              # 0001..0006 (see patches/README.md)
 ```
@@ -78,6 +79,102 @@ export ANDROID_HOME=...   # NDK 28.2.13676358 must be installed
 ```
 
 See `build-android/README.md` for the frozen toolchain table.
+
+## iOS static-library commands
+
+`bridge` declares `crate-type = ["cdylib", "rlib", "staticlib"]`. The
+`staticlib` slice is what iOS links: an `.xcframework` of static archives,
+not a dylib (iOS has no app-bundled `dlopen`).
+
+> **The product is NOT committed.** `ios/Frameworks/TurnaAnki.xcframework/`
+> is listed in `.gitignore`, and a fresh clone has no `ios/Frameworks`
+> directory at all. `ios/Runner.xcodeproj/project.pbxproj` references
+> `Frameworks/TurnaAnki.xcframework` unconditionally, so **you must run
+> `build-ios/build.sh` before any `flutter build ios` / `flutter run` on a
+> clean checkout** — cloning is not enough, and there is no CI job that
+> produces it for you (every workflow in `.github/workflows/` runs on
+> `ubuntu-latest`; no macOS runner exists).
+
+| Item | Value |
+|---|---|
+| Rust targets | `aarch64-apple-ios` (device) · `aarch64-apple-ios-sim` + `x86_64-apple-ios` (simulator, lipo'd into one fat slice) |
+| Deployment target | `IPHONEOS_DEPLOYMENT_TARGET`, default `15.0` (overridable via env; must match the Runner target's `15.0`) |
+| Headers | `bridge/include` (ships `turna_anki.h` inside the xcframework) |
+| protoc | `31.1`, resolved from `tools/protoc/bin/protoc` (gitignored) or `$PROTOC` |
+| Tooling | Xcode (`xcodebuild`, `lipo`, `xcrun -f nm`) — the pack step cannot run without it |
+| Output | `ios/Frameworks/TurnaAnki.xcframework` |
+
+```bash
+cd native/turna_anki_core
+git submodule update --init anki
+git -C anki apply ../patches/000*.patch
+git -C anki submodule update --init --depth 1 ftl/core-repo ftl/qt-repo
+export PROTOC="$PWD/tools/protoc/bin/protoc"     # or run build-android/fetch_protoc.sh
+export PROTOC_BINARY="$PROTOC"
+./build-ios/build.sh
+```
+
+`build.sh` then, in order: applies `build-android/apply_patches.sh`,
+requires the FTL submodules, `rustup target add`s the three targets,
+`cargo build --release` per target, `lipo -create`s the two simulator
+archives into `target/libturna_anki-sim-fat.a`, runs
+`xcodebuild -create-xcframework` (device + fat simulator, both with
+`bridge/include` as headers) into `ios/Frameworks/`, and finally runs
+`verify_symbols.sh` on the device archive and the fat simulator archive.
+
+It also exports `IPHONEOS_DEPLOYMENT_TARGET` for the whole script: Rust
+links iOS objects against the oldest supported libSystem (iOS 10) by
+default, which drags in `___chkstk_darwin` and fails at link time — the
+`cdylib` slice is still linked during `cargo build`, so the target must
+be set even though the app consumes the `staticlib`.
+
+### Xcode linkage (as committed in `ios/Runner.xcodeproj/project.pbxproj`)
+
+- `TurnaAnki.xcframework` is a `PBXFileReference` at path
+  `Frameworks/TurnaAnki.xcframework` and a `PBXBuildFile` in the Runner
+  target's **Frameworks** build phase.
+- All three Runner configurations (Debug / Release / Profile) carry
+  `OTHER_LDFLAGS` with `-lc++` plus one `-Wl,-u,_<symbol>` per exported
+  entry point — `_turna_anki_abi_version`, `_turna_anki_engine_new`,
+  `_turna_anki_engine_open`, `_turna_anki_call`, `_turna_anki_cancel`,
+  `_turna_anki_engine_close`, `_turna_anki_buffer_free`. `-u` forces the
+  linker to keep the symbol so `DynamicLibrary.process()` can find it at
+  runtime; without it the static linker drops the unreferenced objects.
+- `STRIP_STYLE = non-global` and `ENABLE_BITCODE = NO` on those same
+  configurations: a global strip would remove the C symbols from the
+  final binary.
+- `IPHONEOS_DEPLOYMENT_TARGET = 15.0`, `SWIFT_VERSION = 5.0`.
+- Dart side opens the library differently per platform
+  (`lib/application/anki_official/engine/official_anki_native_transport.dart`,
+  `official_anki_native_availability.dart`): on iOS they probe
+  `DynamicLibrary.process()` and look up `turna_anki_abi_version`
+  directly, because there is no file to `DynamicLibrary.open`.
+
+### Verifying the iOS build
+
+```bash
+./build-ios/verify_symbols.sh target/aarch64-apple-ios/release/libturna_anki.a
+cd ../..
+flutter build ios --simulator --no-codesign
+```
+
+`verify_symbols.sh` requires an arm64 slice, all seven exported
+`turna_anki_*` symbols as `T` entries, and a size ≥ 2 MiB (so a
+DCE-stripped crate fails loudly). `build.sh` already runs it for you.
+
+### iOS status and known gaps
+
+- Wired up in commit `ec0170ae` (2026-09-26): the xcframework links and
+  the seven symbols land in `Runner.debug.dylib` under
+  `flutter build ios --simulator --no-codesign`; the WKWebView reviewer
+  (`ios/Runner/AnkiReviewer/`) was exercised E2E on an iOS simulator with
+  a real `.apkg` (receipt: `test/BASELINE.md` 2026-09-26 「iOS 官方 Anki 栈接通」).
+- **Unverified:** a real-device / release build of the iOS stack, and any
+  macOS/Catalyst run (`SUPPORTS_MACCATALYST = NO`). No macOS CI runner
+  exists to cover any of it.
+- Re-run `build-ios/build.sh` whenever the upstream pin, the six
+  patches, or the bridge's exported symbol set changes — the pbxproj
+  `-Wl,-u` list and `verify_symbols.sh` both hard-code those seven names.
 
 ## Fixtures (P0-005)
 

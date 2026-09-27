@@ -4,7 +4,9 @@
 >
 > 日期：2026-08-31
 >
-> 状态：**P4 已施工**（2026-08-31）。P0 S-a/S-b/S-c/S-d 绿。生产导入只走 staging → `commitLive`。catalog v12。本计划取代 [doc 41](./41-official-anki-lifecycle-and-storage-remediation-plan.md) 的「导入链路修复」部分（S1 控制权、S2 启动恢复的导入分支、S6 checkpoint 体系对新导入全部作废），保留 doc 41 的「删除与物理回收」部分（S3/S4/S5/S7/S8）作为独立存量善后。完成状态以本文 §10 门禁与 §12 收据为准。
+> 状态：**P4 已施工**（2026-08-31）。P0 S-a/S-b/S-c/S-d 绿。生产导入只走 staging → `commitLive`。catalog v12（**已过时：catalog 现为 v14**）。本计划取代 [doc 41](./41-official-anki-lifecycle-and-storage-remediation-plan.md) 的「导入链路修复」部分（S1 控制权、S2 启动恢复的导入分支、S6 checkpoint 体系对新导入全部作废），保留 doc 41 的「删除与物理回收」部分（S3/S4/S5/S7/S8）作为独立存量善后。完成状态以本文 §10 门禁与 §12 收据为准。
+>
+> §12 施工收据表内为**当时实际执行的命令与 commit**，属历史记录。其中 `official_anki_projection_scope_p0_test`、`official_anki_commit_live_test`、`official_anki_recovery_test` 三个测试文件此后已删除（`projection/` 子目录解散、Legacy 恢复面随 P1 退役），**照原命令复跑会因文件缺失失败**，不代表本批有回归。
 >
 > 前置阅读：[34](./34-official-anki-production-cutover-and-ohos-retirement-plan.md)、[41](./41-official-anki-lifecycle-and-storage-remediation-plan.md)、[37](./37-generic-card-recognizer-plan.md)、[ADR 0036](../decisions/0036-official-anki-core-migration.md)、[ADR 0037](../decisions/0037-anki-course-review-unification.md)、[ADR 0042](../decisions/0042-staging-first-official-import.md)。
 >

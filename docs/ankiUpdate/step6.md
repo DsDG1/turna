@@ -273,7 +273,7 @@ Phase 3: 纯化 DAO 与退役过渡 Flag ──► Phase 4: 测试清扫与 Guar
      - 在 v2 单轨下，直接通过 `OfficialAnkiSourceDao.findById(importId) != null` 确权并走 `_uninstallV2Source`。
    - **`lib/application/anki_official/lifecycle/official_anki_maintenance.dart`**：
      - 移除 `reconcile`、`census`、`checkpoint` 相关的 job 执行分支，仅保留 `mediaGc`、`compact`、`v2_source_delete`、`v2_view_rebuild`。
-   - **`lib/views/settings/official_anki_repair_center_page.dart`**：
+   - **`lib/views/anki_official/official_anki_repair_center_page.dart`**（原计划路径 `lib/views/settings/` 已废弃，文件后迁至 `lib/views/anki_official/`）：
      - 移除针对 Legacy 对账冲突、双写栅栏的修复动作，诊断仅保留存储体积快照、视图重建与日志导出。
 
 ---
@@ -289,7 +289,7 @@ Phase 3: 纯化 DAO 与退役过渡 Flag ──► Phase 4: 测试清扫与 Guar
    - `lib/application/anki_official/storage/official_anki_import_attempt_dao.dart`：
      - 仅操作 `anki_import_attempts` 单表，清理对 `anki_import_attempt_notes` 的联表查询。
 2. **导入控制面纯化**：
-   - `lib/views/anki/anki_import_controller.dart`：
+   - `lib/application/anki_import/anki_import_controller.dart`（原计划路径 `lib/views/anki/` 已废弃，controller 后随 Step「导入向导 Controller 化」迁入 `lib/application/anki_import/`）：
      - 彻底删除 `_commitOfficialV1` 分支及其引用的 `UnifiedAnkiImportOrchestrator.publishFromProjection`。
      - 统一仅调用 `_commitOfficialV2`（直接调用 `OfficialAnkiV2ImportService.commit`）。
    - `lib/application/anki_official/import/official_anki_official_first_service.dart`：
@@ -313,7 +313,7 @@ Phase 3: 纯化 DAO 与退役过渡 Flag ──► Phase 4: 测试清扫与 Guar
 2. **编写架构锁门测试（Guard Test）**：
    - 新建 `test/application/anki_official/official_anki_v2_monolith_lockout_guard_test.dart`（见第 4 节具体代码）。
 3. **更新 Schema 锁门测试**：
-   - 更新 `test/application/anki_official/storage/official_anki_lifecycle_storage_test.dart`：断言 catalog 表严格等于 5，且不含任何已删表。
+   - 更新 `test/application/anki_official/official_anki_lifecycle_storage_test.dart`（不在 `storage/` 子目录下，该子目录已不存在）：断言 catalog 表严格等于 5，且不含任何已删表。
 
 ---
 

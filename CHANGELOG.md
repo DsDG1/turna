@@ -1,13 +1,41 @@
 # Changelog
 
-Varnamala Plus 的完整更新历程。本文件按时间顺序记录从最初原型到当前
+Turna 的完整更新历程。本文件按时间顺序记录从最初原型到当前
 版本的所有重要里程碑,面向用户与贡献者。
+
+> 项目早期名为 Varnamala Plus（见 [ADR 0031](./docs/decisions/0031-turna-rebrand.md)），语种由斯瓦希里语转向土耳其语（见 [ADR 0020](./docs/decisions/0020-swahili-to-turkish-pivot.md)）。下方 `## 0.` 一节记录的是转向之前的史实，原样保留不改。
 
 更简短的版本摘要 → 应用内 **设置 → 更新日志**。
 更详细的工程说明 → [`docs/decisions/`](./docs/decisions/) 与 [`README.md`](./README.md)。
 
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 本项目遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
+
+---
+
+## 未发布
+
+> 版本号以 `pubspec.yaml` 为准（当前 `0.8.0+4`）。本节只收 `0.8`（2026-09-04）之后的变更，每条均有代码或收据依据。
+
+### 新增
+
+- **iOS 官方 Anki 引擎**：静态链接 rslib 的 `TurnaAnki.xcframework`（device arm64 + simulator arm64/x86_64）+ WKWebView 复习器（`turna-anki://anki.local`）；Dart 侧 iOS 门控全解，iOS 与 Android 同走 Official 路径。
+- **体验改良批次 B1–B7**：Splash 播种/校验阶段文案；自研 Markdown 子集聊天气泡（`lib/core/simple_markdown.dart`，未引入 `flutter_markdown`）；改课 JSON 快照可撤销一次；导师聊天会话列表与恢复。
+- **P0 备份一致性**：学习/备份互斥门 `StudyActivityGate`（覆盖导入 parse/commit、正式复习、课时与三个练习页）；备份全快照期持锁、上传读不可变 staging 副本、媒体从副本校验后上传。
+- **文档治理**：对齐文档与代码现状（收据口径、schema/catalog/contract 版本号、feature flag 清单），并按「零入链即删、已闭环即归档」精简文档库（删除 6 篇、归档 3 篇、拆分测试基线收据）；新增 [iOS 构建文档](./docs/ios-build-setup.md)。
+
+### 变更
+
+- **DAO 接口化 + `application → data` 硬禁**：`lib/domain/repositories/` 补齐六接口，`layering_guard_test` 改为全量禁止并按文件白名单放行三类例外；DI 双轨合并为 `lib/di/service_module.dart`。
+- **架构简化 P0–P4**：P1 Legacy 读退役（Legacy 浏览器/统计分支、卸载链、迁移导出载荷、due 聚合 Legacy 词扫描删除）；P2 course.db 升 v27（DROP `anki_notetypes` / `anki_notes` / `anki_cards_meta`）；P3 语言切换失败语义改为三段式（失败拒绝切换 → 提交级联 → 整体回退后抛 `CourseScopeSwitchException`）；P4 浏览牌组下拉改专用查询 + 埋点，`LessonSrsUndoLog` / `CourseCatalogOrdering` 职责拆出。
+- **错题本与 SRS 改增量写入**：避免每答一题重写整队列/整表。
+- **CI**：Flutter 钉 3.44.5；新增 format-check 门禁与覆盖率步骤；GUI 测试进 CI；Discord 通知修复 shell 注入面；`minSdkVersion` 显式钉 24。
+
+### 修复
+
+- **课时完成弹窗 / 统一复习完成态卡死**：`PopScope(canPop: false)` 否决一切 `maybePop`，回调里再次 `maybePop` 形成无限微任务循环（CPU 打满需强杀）。统一改为确认后走无条件 `Navigator.pop`。
+- **课程 `.turnapack` 导入** 种子前清同 id 行、slug 冲突处理、媒体与语音字段挂载、多语言课程共存。
+- **`build_release.py` 产物名与 About 页版本分叉**：新增 `--version` 与 pubspec 的一致性断言（`--allow-version-mismatch` 逃生）。
 
 ---
 
@@ -88,7 +116,7 @@ Varnamala Plus 的完整更新历程。本文件按时间顺序记录从最初�
 ### 改进
 
 - 每个 Anki 来源会作为独立课程显示，多次导入和多牌组管理更清晰。
-- Anki 导入生成的课程树改按牌组名称自然排序（Unit 2 排在 Unit 10 之前），并始终排列在内置课程之后，不再随机交错；工程明细见 [doc 36](./docs/official-anki-migration/36-projection-tree-ordering-and-limits.md)。
+- Anki 导入生成的课程树改按牌组名称自然排序（Unit 2 排在 Unit 10 之前），并始终排列在内置课程之后，不再随机交错；工程明细见 [doc 36](./docs/official-anki-migration/archive/36-projection-tree-ordering-and-limits.md)。
 - 超过单 section 60 个 unit / 单 unit 40 课的导入自动按 "Part N" 拆分，超大牌组不再生成打开即报错的损坏课程。
 - “复习全部”可连续覆盖多个 Anki 来源，待复习数量、卡片顺序与实际复习保持一致。
 - 课程管理页新增卡片浏览、牌组统计和旧数据迁移入口。

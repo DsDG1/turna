@@ -1,7 +1,14 @@
 # Phase 2 官方原卡渲染修补计划
 
+> ## 🗄 已归档，勿按本文施工
+>
+> **归档日期：2026-09-27。** 本文计划**已实施完毕**，结果见 [`08-phase-2-result-report.md`](./08-phase-2-result-report.md) 与 [`09-p2-entry-remediation-and-phase-3-plan.md`](./09-p2-entry-remediation-and-phase-3-plan.md)。
+> 下文的「状态：待实施」与 **31 个未勾选框是计划当时的开工状态，一律不代表未施工**。
+> 文中修改的文件（`lib/application/anki/*` Legacy 复刻层等）**已随 2026-08-27 doc 35 L0–L3 清理删除**，照本文操作会找不到文件。
+> 现行状态唯一真源：[`../34-cutover-receipt.md`](../34-cutover-receipt.md)。
+
 > 文档代号：P2FIX  
-> 状态：待实施；`P2 FIX CONSTRUCTION GO / P2 TECHNICAL ACCEPTANCE NO-GO`  
+> 状态：待实施（**历史开工状态，已实施，见上方归档横幅**）；`P2 FIX CONSTRUCTION GO / P2 TECHNICAL ACCEPTANCE NO-GO`  
 > 制定日期：2026-08-17  
 > 当前分支：`spike/official-anki-core-android`  
 > 审计基线 HEAD：`cc1484b30739bceeba07fe1a3be98b8b0e11018d`  

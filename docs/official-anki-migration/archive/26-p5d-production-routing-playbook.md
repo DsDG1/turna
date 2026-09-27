@@ -1,9 +1,15 @@
 # P5-D Sprint D1 生产路由施工手册
 
+> ## 🗄 已归档，勿按本文施工
+>
+> **归档日期：2026-09-27。** P5-D Sprint D1 已收口，验货见 [`27-p5d-d1-audit.md`](./27-p5d-d1-audit.md)（D1 HOST+DEVICE CONDITIONAL GO，仅 fixture；P5-D GO NO）。
+> **⚠ 本文的「产品指示：方案 B（Android 先行，OHOS 留 Legacy）」已作废** —— OHOS 产品已 EOL（[ADR 0041](../../decisions/0041-ohos-product-eol.md)），`ohos/` 目录与构建补丁已全部删除，不得按此指示保留任何 OHOS Legacy 路径。
+> 现行状态唯一真源：[`../34-cutover-receipt.md`](../34-cutover-receipt.md)。
+
 > 文档代号：P5D-HOWTO  
 > 日期：2026-08-19  
 > 前置：[`24`](./24-p5-remainder-and-p6-ankiweb-plan.md) §5、[`25`](./25-p5c-closeout-result-report.md)、`artifacts/p5c/rollback-drill.txt`  
-> 产品指示：进入 P5-D。方案 B（Android 先行，OHOS 留 Legacy）。  
+> 产品指示：进入 P5-D。方案 B（Android 先行，**OHOS 留 Legacy —— 此条已作废，见上方归档横幅**）。  
 > 本文件是 **P5D-01…04 怎么改、怎么算过**。不是 P5D-05 灰度，不是 P5-E。P6 已取消。
 
 ## 1. 结论先行

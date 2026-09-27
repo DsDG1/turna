@@ -2,7 +2,7 @@
 
 > 本文档从**产品经理、用户研究员和潜在运营者**的视角，关注产品定位、用户体验闭环、商业化边界与风险。**架构 / 功能 / 实现的工程细节见 [`docs/project-guide.md`](../project-guide.md)**，本文不重复。
 >
-> 更新：2026-08-07。
+> 更新：2026-09-27。
 
 ---
 
@@ -49,7 +49,8 @@ Turna 是一款**本地优先、离线可用、类 Duolingo 体验的语言学�
 
 - 单词/表达首次出现即进 SRS 队列；按 FSRS 复习（目标保持率 0.9），失败走当日重学阶梯；
 - 错题经 My Mistakes 与 Weak Words 两条路径重练；
-- Anki 牌组导入后，到期卡走保真复习（Show Answer -> Again/Hard/Good/Easy）。
+- Anki 牌组导入后，到期卡走保真复习（Show Answer -> Again/Hard/Good/Easy）；
+- Anki 复习链目前**只在 Android 与 iOS 可用**：两端都走官方 Anki Core（rslib）——Android 为 FFI，iOS 为静态链接 `TurnaAnki.xcframework` + `WKWebView` 复习器（`UiKitView` 承载）。`productModeFor()` 对 android / ios 返回 `AnkiProductMode.officialAndroid`，其余平台返回 `ankiUnavailable`（ADR 0036 / 0041）。
 
 ### 3.4 持续动力
 
@@ -97,13 +98,13 @@ Turna 是一款**本地优先、离线可用、类 Duolingo 体验的语言学�
 |------|------|
 | **TTS 依赖系统语音包** | 土耳其语语音包未装时 splash 引导安装，可能劝退。 |
 | **无跨设备同步** | 换机 / 重装进度丢失（可手动导出 / 导入 JSON）。 |
-| **Anki 原卡平台差异** | 默认 Flutter HTML（全平台）；WebView 逃逸舱仅 Android/iOS。鸿蒙无 WebView 时 Flutter HTML / 文本降级。 |
+| **Anki 只支持 Android / iOS** | 官方 Core（rslib）目前只在这两端接通（iOS 于 2026-09-26 启用静态链接 rslib + WKWebView reviewer）；桌面与 Web 走 `ankiUnavailable`，无法导入或复习牌组。 |
 | **AI 依赖外部 key** | AI 功能需用户自配 API key；未配置时不可用。 |
 
 ### 5.2 改进方向
 
 1. **内容深化**：8 节已有真实内容，后续按语料词频与 CEFR 语法渐进扩充。
-2. **Anki 二期**：review-ops、per-deck stats / browser / export、`{{type:}}` 输入桥、OHOS import sqlite3 FFI。
+2. **Anki 二期**：review-ops、per-deck stats / browser / export、`{{type:}}` 输入桥。
 3. **数据导出 / 导入体验**：强化备份与跨设备迁移易用性。
 4. **多语言入口**：语言选择页 + "更多课程即将到来"。
 5. **教师 / 班级模式**：学习统计 + 错题数据导出报告。
@@ -116,4 +117,4 @@ Turna 已构建成熟、可扩展、测试充分、产品边界清晰的语言�
 
 ---
 
-*文档更新：2026-08-07。工程实现见 [`docs/project-guide.md`](../project-guide.md)。*
+*文档更新：2026-09-27。工程实现见 [`docs/project-guide.md`](../project-guide.md)。*

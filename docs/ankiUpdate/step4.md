@@ -1,5 +1,7 @@
 # Step 4 详细说明：v2 导入→课程树链落码（与 v1 并存）
 
+> **📦 已归档 · 历史施工记录（2026-09-27 标注）**：Step 4 已于 2026-09-02 关闭（见本文收据末行）。正文保留当时的落码与真机记录，**不再作为施工指南**；其中 `v2ImportChain` flag 已于 Step 6 阶段退役。权威口径见 [`docs/official-anki-migration/`](../official-anki-migration/README.md)。
+
 > **2026-09-02 复活：执行线重开，见 [ADR 0044](../decisions/0044-anki-v2-revival.md)。** 当年 C3 不可跑的元凶（导入完成页 pop 死循环真机卡死）已于 2026-09-02 根因修复。剩余执行线：~~R1 重建 arm64 .so（op41/42）~~ ✅ → ~~R1.5 v2 链 `upsertCardBatch` 主 isolate 写下沉~~ ✅ → ~~R2 C3 真机强杀矩阵（K4–K14 实机过；K1/K3 不考虑、K8 不适用、K12 归 Step 5）~~ ✅ → ~~R3 C4 定标~~ ✅（2026-09-02 操作者确认「通过」）→ ~~R4 观察期翻 flag~~ ✅（2026-09-02 操作者「通过」，`productionAndroid` 翻 true，见 [step4-r4-runbook.md](./step4-r4-runbook.md)）→ **Step 4 关闭（2026-09-02）**。完成标志 = **实机过了**（操作者确认）；host 测试与日志留证不算完成。下文失败结论保留为历史记录。> 上游文档：[README.md](./README.md)（总目标与六步计划，已作废）；前置：[step3.md](./step3.md)（op 41/42、契约 1.12）。
 > 原范围：把 ADR 0043 的 v2 全生命周期链在 flag 后落码，真机强杀矩阵全绿。v1 一行不改；flag 决定新导入走哪条链。
 补充说明：✅ 已完全通过检验（K 矩阵 + C4 定标 + R4 翻 flag，2026-09-02 操作者确认），下文 K 表与 C4 行已同步收口。**Step 4 已于 2026-09-02 关闭**（R4 见 [step4-r4-runbook.md](./step4-r4-runbook.md)）；后续走向：Step 5（存量迁移）重新决策（ADR 0044 条 5，见 [step5.md](./step5.md)）、Step 6（删 v1 面）开工条件满足。
@@ -19,7 +21,7 @@
 | usn-diff 只读 op——仅当 C3 强杀测试证明 op 40（现为 stub）不足以支撑 K2 时才占编号 43，回本文件收据定案 | 本步条件项（结论见 §K2） |
 | 课程切换异常的 v1 热修（若等不到 v2，独立小修，不进本步） | 独立小修 |
 
-Step 4 的产出是：**v2 链全生命周期在 `v2ImportChain` flag 后可用 + K1–K14 真机矩阵绿 + Q3/Q4/Q5 定案 + v1 零回归**。
+Step 4 的产出是：**v2 链全生命周期在 `v2ImportChain` flag 后可用 + K1–K14 真机矩阵绿 + Q3/Q4/Q5 定案 + v1 零回归**（落码当时所依赖的 `v2ImportChain` flag 已于 Step 6 阶段退役，`official_anki_feature_flags.dart` 中该布尔位现已不存在）。
 
 ---
 

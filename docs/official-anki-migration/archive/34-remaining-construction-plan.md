@@ -3,10 +3,11 @@
 > 文档代号：ANKI-CUTOVER-ONE-SHOT
 > 日期：2026-08-25
 > 状态：**一次性交付施工规格；最终总验收前始终 NO-GO**
-> 父计划：[34 Official 生产收口与 OHOS 退役](./34-official-anki-production-cutover-and-ohos-retirement-plan.md)
-> 验收回执：[34-cutover-receipt.md](./34-cutover-receipt.md)
-> W9 HOLD：已于 2026-08-27 由负责人决策解除（原文件随解除删除）；删除执行见 [doc 35](./35-duplicate-legacy-layer-cleanup-plan.md)
-> OHOS 决策：[ADR 0041](../decisions/0041-ohos-product-eol.md)
+> 父计划：[34 Official 生产收口与 OHOS 退役](../34-official-anki-production-cutover-and-ohos-retirement-plan.md)
+> 验收回执：[34-cutover-receipt.md](../34-cutover-receipt.md)
+> W9 HOLD：已于 2026-08-27 由负责人决策解除（豁免与证据台账见 [收据](../34-cutover-receipt.md) 的「W9 HOLD 解除记录与证据台账」一节；原独立 HOLD 文件已于 2026-09-27 并入该节并删除）；删除执行见 [doc 35](../35-duplicate-legacy-layer-cleanup-plan.md)，W9-B..E 的 host 侧已由 2026-09-24 架构简化批次 P1/P2 完成
+> **本文件状态（2026-09-27）：R0–R8 已由收据全部闭环，110 个未勾框不代表未施工。已转为历史文档，不再作施工依据；口径一律以 [收据](../34-cutover-receipt.md) 为准。**
+> OHOS 决策：[ADR 0041](../../decisions/0041-ohos-product-eol.md)
 >
 > 本文件是 34 的唯一活跃返工入口，替代此前的“34 剩余施工计划”口径。目标不是逐波交付，而是用**一次连续施工活动**完成 R0–R8 的全部可编码工作，形成一个干净、可复现、可真机验收的 Android arm64 release candidate。R0–R8 只是工作包，不是允许中途宣告完成的阶段。在本文最终门禁全部通过以前，准确状态始终是 **Official Anki 迁移中 / NO-GO**，不得写“迁移完成”“正式切流完成”或“OHOS 用户数据出口完成”。
 
@@ -21,7 +22,7 @@
 - Android 新 apkg 的 Official-first / fail-closed 路径已经建立；
 - OHOS product target、桥接、picker 和补丁目录已经从主分支移除；
 - arm64 release APK 可以完成构建并包含 libturna_anki.so；
-- W9 物理删除 HOLD 文档有效留档（2026-08-27 负责人决策解除，见其「G5 GO 解除记录」；主计划 §13.2 波次规则继续有效）；
+- W9 物理删除 HOLD 的书面记录**有效留档**（2026-08-27 负责人决策解除；证据台账见 [收据](../34-cutover-receipt.md) 的「W9 HOLD 解除记录与证据台账」一节；主计划 §13.2 波次规则除 W9-E 前两条外继续有效，W9-E 破例已记档）；
 - 一组 Official import、due、review path、migration saga 和 OHOS guard 定向测试通过。
 
 不能验收的产品闭环：
@@ -57,7 +58,7 @@
 
     ed959ffc631f5ec28a7d83d11302ee619de1c2c91d1c9e79bf1d554fbdc4a27f
 
-证据目录：[archive/artifacts/cutover-once/](./archive/artifacts/cutover-once/)（baseline / toolchain / revisions / analyze / targeted / full / golden / diff-check / native build / apk+so hash）。
+证据目录：[archive/artifacts/cutover-once/](./artifacts/cutover-once/)（baseline / toolchain / revisions / analyze / targeted / full / golden / diff-check / native build / apk+so hash）。
 
 原 2026-08-24 验收轮的拒收结论（sourceId 截断、保真降级、Review All 单来源、六集合缺失、W8 非生产级、Browser/Stats 断链、schema 9 回归、脏 native 树）已由本轮 R0–R8 施工逐项关闭，明细见文末「一次性施工状态（2026-08-25）」。
 
@@ -1457,9 +1458,11 @@ AnkiImportPage 只保留：
 
 如果 17.1–17.6 全部通过、17.7 尚未全部通过，唯一允许的状态是：
 
-> Official Anki Android 一次性代码收口已形成生产候选；OHOS product target 已退役；Legacy 保持停止新写和观察期，W9 继续 HOLD。
+> Official Anki Android 一次性代码收口已形成生产候选；OHOS product target 已退役；Legacy 保持停止新写和观察期，W9 门槛已于 2026-08-27 解除（**不再处于 HOLD 状态**）。
 
 > 2026-08-27 更新：W9 删除门槛由负责人决策解除（观察期证据按负责人豁免，未实际观察）；W9-B..D 已按 doc 35 于 2026-08-27 施工完毕，主计划 §13.2 规则继续有效。其余外部事实（OHOS 用户处置、存量跑批、真机矩阵）仍未发生。
+>
+> 2026-09-27 更新（本行取代上面两段的「W9 继续 HOLD」口径）：**W9-B..E 的 host 侧已由 2026-09-24 架构简化批次完成**（P1 读退役 + P2 course.db v27 表删除）；W9-E 的「先停写一个版本再 drop」硬规则未满足即执行，破例已记档。真机侧验证仍随设备矩阵。**状态口径一律以 [收据](../34-cutover-receipt.md) 为准。**
 
 只有 17.7 也全部通过，才能写“自研 Anki 已完成退役迁移”。
 
