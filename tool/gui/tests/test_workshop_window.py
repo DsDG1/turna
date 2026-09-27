@@ -387,11 +387,26 @@ class WorkshopDesignStageTest(unittest.TestCase):
             self.win._on_escape()
             cancel.assert_called_once()
 
-    def test_escape_noop_when_idle(self) -> None:
+    def test_escape_closes_when_idle(self) -> None:
+        """The Esc shortcut used to swallow the key with no busy work, leaving
+        the user with no keyboard way out. It now closes the window."""
         self.win._busy_sources.clear()
-        with unittest.mock.patch.object(QMessageBox, "question") as q:
+        with unittest.mock.patch.object(QMessageBox, "question") as q, unittest.mock.patch.object(
+            self.win, "reject"
+        ) as reject:
             self.win._on_escape()
             q.assert_not_called()
+            reject.assert_called_once_with()
+
+    def test_escape_does_not_close_when_declined(self) -> None:
+        self.win._set_busy_source("design", True, "生成中…")
+        with unittest.mock.patch.object(
+            QMessageBox,
+            "question",
+            return_value=QMessageBox.StandardButton.No,
+        ), unittest.mock.patch.object(self.win, "reject") as reject:
+            self.win._on_escape()
+            reject.assert_not_called()
 
     def test_workspace_project_id_for_ui_state(self) -> None:
         self.assertEqual(

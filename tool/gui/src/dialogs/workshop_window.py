@@ -99,6 +99,11 @@ class WorkshopWindow(QDialog):
 
     def _on_escape(self) -> None:
         if not self._busy_sources:
+            # The window-level Esc shortcut consumes the key before QDialog's
+            # own handling, so an idle Esc used to be a no-op. Fall through to
+            # reject(), which closes the window; closeEvent still saves state
+            # and geometry, exactly like the 关闭 button.
+            self.reject()
             return
         reply = QMessageBox.question(
             self,
