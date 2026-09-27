@@ -1,6 +1,8 @@
 """Interactive AI Orbit widget as the course creator's drag-and-drop drop zone.
 
-Layout compression (L1/L2): compact single-source parameter bar + smaller core.
+Horizontal param band + wrapping chip row (the drop zone itself). The old
+vertical "orbit" squeezed the chip row into a fixed 36-48 px strip, which is
+why the design chat had to fight the layout for every pixel.
 """
 from __future__ import annotations
 
@@ -23,8 +25,15 @@ from PySide6.QtWidgets import (
 )
 
 from src.widgets.knowledge_bubble import KnowledgeBubble
+from src.widgets.ui.flow_layout import FlowLayout
 from src.theme import current_palette, apply_shadow
 from src.theme_tokens import BRAND_REED, BRAND_TEAL
+
+#: Core generate button is a round accent button; half of it is the radius.
+_CORE_BTN_SIZE = 72
+_CORE_BTN_RADIUS = _CORE_BTN_SIZE // 2
+#: Shown under the chip row while the orbit is empty / after a removal.
+_ORBIT_HINT = "拖入知识点气泡聚焦 · 留空则用整池 · Ctrl+Enter 生成"
 
 
 class AiOrbitWidget(QWidget):
@@ -55,38 +64,32 @@ class AiOrbitWidget(QWidget):
         main_lay.setContentsMargins(8, 8, 8, 8)
         main_lay.setSpacing(6)
 
-        # --- Compact param bar (unique source for workshop generation) ---
-        config_widget = QWidget()
-        config_lay = QVBoxLayout(config_widget)
-        config_lay.setContentsMargins(0, 0, 0, 0)
-        config_lay.setSpacing(4)
-
-        topic_row = QHBoxLayout()
-        topic_row.addWidget(QLabel("主题:"))
+        # --- Param band: one horizontal row (single source for generation) ---
+        params_row = QHBoxLayout()
+        params_row.setSpacing(6)
+        params_row.addWidget(QLabel("主题:"))
         self.topic_edit = QLineEdit()
         self.topic_edit.setPlaceholderText("如：日常问候与自我介绍")
-        topic_row.addWidget(self.topic_edit, 1)
-        config_lay.addLayout(topic_row)
+        self.topic_edit.setMinimumWidth(120)
+        params_row.addWidget(self.topic_edit, 1)
 
-        row1 = QHBoxLayout()
-        row1.setSpacing(6)
-        row1.addWidget(QLabel("等级:"))
+        params_row.addWidget(QLabel("等级:"))
         self.level_combo = QComboBox()
         self.level_combo.addItems(["A1", "A2", "B1", "B2", "C1"])
-        row1.addWidget(self.level_combo)
+        params_row.addWidget(self.level_combo)
 
-        row1.addWidget(QLabel("单元:"))
+        params_row.addWidget(QLabel("单元:"))
         self.unit_spin = QSpinBox()
         self.unit_spin.setRange(1, 5)
-        row1.addWidget(self.unit_spin)
+        params_row.addWidget(self.unit_spin)
 
-        row1.addWidget(QLabel("课时:"))
+        params_row.addWidget(QLabel("课时:"))
         self.lessons_spin = QSpinBox()
         self.lessons_spin.setRange(1, 5)
         self.lessons_spin.setValue(3)
-        row1.addWidget(self.lessons_spin)
+        params_row.addWidget(self.lessons_spin)
 
-        row1.addWidget(QLabel("模板:"))
+        params_row.addWidget(QLabel("模板:"))
         self.template_combo = QComboBox()
         self.template_combo.addItem("混合", "mixed")
         self.template_combo.addItem("认识新词", "intro")
@@ -95,9 +98,9 @@ class AiOrbitWidget(QWidget):
         self.template_combo.addItem("听力", "listening")
         self.template_combo.addItem("阅读", "reading")
         self.template_combo.addItem("综合", "mastery")
-        row1.addWidget(self.template_combo)
+        params_row.addWidget(self.template_combo)
 
-        row1.addWidget(QLabel("生成:"))
+        params_row.addWidget(QLabel("生成:"))
         self.gen_mode_combo = QComboBox()
         self.gen_mode_combo.addItem("快速", "fast")
         self.gen_mode_combo.addItem("精修", "phased")
@@ -105,90 +108,90 @@ class AiOrbitWidget(QWidget):
             "快速：一次生成完整 section。\n"
             "精修：大纲→分课→校验→质量→修复流水线。"
         )
-        row1.addWidget(self.gen_mode_combo)
-        row1.addStretch(1)
-        config_lay.addLayout(row1)
+        params_row.addWidget(self.gen_mode_combo)
 
-        row2 = QHBoxLayout()
-        row2.addWidget(QLabel("悄悄话:"))
+        params_row.addWidget(QLabel("悄悄话:"))
         self.whisper_edit = QLineEdit()
-        self.whisper_edit.setPlaceholderText(
-            "可选微调（如：前两节口语，第三节听力）…"
-        )
-        row2.addWidget(self.whisper_edit, 1)
-        config_lay.addLayout(row2)
+        self.whisper_edit.setPlaceholderText("可选微调（如：第三节改听力）…")
+        self.whisper_edit.setMinimumWidth(100)
+        params_row.addWidget(self.whisper_edit, 1)
+        main_lay.addLayout(params_row)
+        # Kept for the single-row contract (and host-side assertions).
+        self._params_row = params_row
 
         self.focus_summary = QLabel("")
-        self.focus_summary.setWordWrap(True)
+        self.focus_summary.setWordWrap(False)
         self.focus_summary.setStyleSheet(
             "font-size: 11px; opacity: 0.9;"
         )
         self.focus_summary.setToolTip(
             "显示本次生成将使用的知识点规模（轨道内聚焦或整个资源池）"
         )
-        config_lay.addWidget(self.focus_summary)
+        main_lay.addWidget(self.focus_summary)
 
-        main_lay.addWidget(config_widget)
-
-        # --- Orbit drop zone (compact) ---
+        # --- Orbit zone: the chip row IS the drop zone (wraps, no clamp) ---
         self.orbit_zone = QWidget()
         self.orbit_zone.setObjectName("orbitZone")
-        self.orbit_zone.setMinimumHeight(160)
         self.orbit_zone.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
 
         orbit_lay = QVBoxLayout(self.orbit_zone)
-        orbit_lay.setContentsMargins(12, 10, 12, 10)
-        orbit_lay.setSpacing(8)
-        orbit_lay.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        orbit_lay.setContentsMargins(8, 6, 8, 6)
+        orbit_lay.setSpacing(4)
 
-        self.prompt_label = QLabel(
-            "拖入左侧知识点气泡聚焦 · 留空则用整池\nCtrl+Enter 生成"
-        )
-        self.prompt_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.prompt_label = QLabel(_ORBIT_HINT)
+        self.prompt_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self.prompt_label.setStyleSheet(
-            "font-size: 11px; font-weight: bold; line-height: 1.3; opacity: 0.85;"
+            "font-size: 11px; font-weight: bold; opacity: 0.85;"
         )
         orbit_lay.addWidget(self.prompt_label)
 
+        # No min/max height clamp: the row wraps and grows with the zone, which
+        # itself takes the vertical stretch. Scrolls only when chips overflow.
         self.scroll_area = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setFrameShape(QScrollArea.Shape.NoFrame)
-        self.scroll_area.setVerticalScrollBarPolicy(
+        self.scroll_area.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
-        self.scroll_area.setMinimumHeight(36)
-        self.scroll_area.setMaximumHeight(48)
+        self.scroll_area.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
 
         self.bubbles_container = QWidget()
-        self.bubbles_layout = QHBoxLayout(self.bubbles_container)
-        self.bubbles_layout.setContentsMargins(4, 2, 4, 2)
-        self.bubbles_layout.setSpacing(8)
-        self.bubbles_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.bubbles_layout = FlowLayout(
+            self.bubbles_container, hspacing=6, vspacing=6
+        )
         self.scroll_area.setWidget(self.bubbles_container)
+        orbit_lay.addWidget(self.scroll_area, 1)
 
-        orbit_lay.addWidget(self.scroll_area)
+        # --- Action row: round core button + chat, side by side ---
+        action_row = QHBoxLayout()
+        action_row.setSpacing(8)
+        action_row.addStretch(1)
 
         self.core_btn = QPushButton("AI 核心\n开始生成")
         self.core_btn.setObjectName("coreBtn")
-        self.core_btn.setFixedSize(110, 110)
+        self.core_btn.setFixedSize(_CORE_BTN_SIZE, _CORE_BTN_SIZE)
         self.core_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.core_btn.setToolTip(
-            "根据上方参数与轨道内知识点生成课程草稿（Ctrl+Enter）"
+            "根据参数带与轨道内知识点生成课程草稿（Ctrl+Enter）"
         )
         self.core_btn.clicked.connect(self._emit_generate)
-        orbit_lay.addWidget(self.core_btn, 0, Qt.AlignmentFlag.AlignCenter)
+        action_row.addWidget(self.core_btn)
+
+        self.chat_btn = QPushButton("对话与高级…")
+        self.chat_btn.setToolTip(
+            "打开「对话与高级」：许愿聊天、附件、Prompt 模板、genre、JSON"
+        )
+        self.chat_btn.clicked.connect(self.chat_requested.emit)
+        action_row.addWidget(self.chat_btn)
+        action_row.addStretch(1)
+        orbit_lay.addLayout(action_row)
 
         self._gen_shortcut = QShortcut(QKeySequence("Ctrl+Return"), self)
         self._gen_shortcut.activated.connect(self._emit_generate)
         self._gen_shortcut2 = QShortcut(QKeySequence("Ctrl+Enter"), self)
         self._gen_shortcut2.activated.connect(self._emit_generate)
-
-        self.chat_btn = QPushButton("对话与高级…")
-        self.chat_btn.setToolTip(
-            "打开右侧「对话与高级」：许愿聊天、附件、Prompt 模板、genre、JSON"
-        )
-        self.chat_btn.clicked.connect(self.chat_requested.emit)
-        orbit_lay.addWidget(self.chat_btn, 0, Qt.AlignmentFlag.AlignCenter)
 
         main_lay.addWidget(self.orbit_zone, 1)
 
@@ -254,11 +257,10 @@ class AiOrbitWidget(QWidget):
             f"  background-color: {accent_border};"
             f"  color: {on_accent};"
             f"  border: 3px solid {accent};"
-            "  border-radius: 55px;"
+            f"  border-radius: {_CORE_BTN_RADIUS}px;"
             "  font-weight: bold;"
-            "  font-size: 13px;"
+            "  font-size: 12px;"
             "  text-align: center;"
-            "  line-height: 1.3;"
             "}"
             "QPushButton#coreBtn:hover {"
             f"  background-color: {accent};"
@@ -266,7 +268,9 @@ class AiOrbitWidget(QWidget):
             "}"
         )
 
-        apply_shadow(self.core_btn, color_key="glow", blur_radius=20, dy=0, alpha=0.3)
+        apply_shadow(
+            self.core_btn, color_key="glow", blur_radius=14, dy=0, alpha=0.3
+        )
 
     def _set_drag_active(self, active: bool) -> None:
         self._drag_active = active
@@ -343,14 +347,11 @@ class AiOrbitWidget(QWidget):
         if payload in self.dropped_items:
             self.dropped_items.remove(payload)
         bubble.deleteLater()
-        if not self.dropped_items:
-            self.prompt_label.setText(
-                "拖入左侧知识点气泡聚焦 · 留空则用整池\nCtrl+Enter 生成"
-            )
-        else:
-            self.prompt_label.setText(
-                f"已投入 {len(self.dropped_items)} 个知识点 · Ctrl+Enter 生成"
-            )
+        self.prompt_label.setText(
+            _ORBIT_HINT
+            if not self.dropped_items
+            else f"已投入 {len(self.dropped_items)} 个知识点 · Ctrl+Enter 生成"
+        )
         self.focus_changed.emit()
 
     def clear_orbit(self) -> None:
@@ -359,9 +360,7 @@ class AiOrbitWidget(QWidget):
             w = self.bubbles_layout.itemAt(i).widget()
             if w is not None:
                 w.deleteLater()
-        self.prompt_label.setText(
-            "拖入左侧知识点气泡聚焦 · 留空则用整池\nCtrl+Enter 生成"
-        )
+        self.prompt_label.setText(_ORBIT_HINT)
         self.focus_changed.emit()
 
     def set_focus_summary(self, text: str) -> None:
@@ -384,7 +383,7 @@ class AiOrbitWidget(QWidget):
                 f"  background-color: {p.get('ai_chat_bg', '#1A1D23')};"
                 f"  color: {p.get('text_secondary', '#9CA3AF')};"
                 f"  border: 3px solid {p.get('border', '#2C313C')};"
-                "  border-radius: 55px;"
+                f"  border-radius: {_CORE_BTN_RADIUS}px;"
                 "}"
             )
         else:
