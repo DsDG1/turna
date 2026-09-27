@@ -314,6 +314,10 @@ class WorkshopCanvas(QWidget):
         self.import_panel._review_table.rows_changed.connect(self._on_rows_changed)
         self.design_panel.busy_changed.connect(self._on_design_busy)
         self.design_panel.draft_ready.connect(self._on_draft_ready)
+        # 「查看大纲 →」 in the chat header jumps to the stage that owns the
+        # outline; the panel must not know about stages.
+        if hasattr(self.design_panel, "outline_requested"):
+            self.design_panel.outline_requested.connect(self.focus_outline)
 
     def _init_orbit_params(self) -> None:
         params = self.design_panel._controller.params

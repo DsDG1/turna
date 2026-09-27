@@ -175,6 +175,73 @@ class DesignPanelTest(unittest.TestCase):
         self.assertIn("旧解释", panel._explain_browser.toPlainText())
         panel.deleteLater()
 
+    # --- T4: the chat is the hero surface -------------------------------
+    def test_pool_label_stays_one_line(self) -> None:
+        from src.widgets.ui.labels import ElidedLabel
+
+        self.assertIsInstance(self.panel._pool_label, ElidedLabel)
+        self.assertFalse(self.panel._pool_label.wordWrap())
+        self.panel._pool_label.setText("资源池：" + "很长的说明" * 40)
+        self.assertIn("很长的说明", self.panel._pool_label.full_text())
+        self.panel._refresh_pool_summary()
+        self.assertIn("1 词", self.panel._pool_label.full_text())
+
+    def test_chat_input_is_two_lines_and_grows_on_focus(self) -> None:
+        line = self.panel._chat_input.fontMetrics().height()
+        blurred = self.panel._chat_input.minimumHeight()
+        self.assertGreaterEqual(blurred, line * 2)
+        self.panel._apply_chat_input_height(focused=True)
+        self.assertGreater(
+            self.panel._chat_input.maximumHeight(),
+            self.panel._chat_input.minimumHeight(),
+        )
+        self.panel._apply_chat_input_height(focused=False)
+        self.assertEqual(self.panel._chat_input.maximumHeight() - blurred, 2)
+
+    def test_outline_button_requests_the_outline(self) -> None:
+        seen: list[bool] = []
+        self.panel.outline_requested.connect(lambda: seen.append(True))
+        self.panel._outline_btn.click()
+        self.assertEqual(seen, [True])
+
+    def test_expand_window_mirrors_renders_and_send(self) -> None:
+        self.panel._on_expand_chat()
+        window = self.panel._chat_expand
+        self.assertIsNotNone(window)
+        # Re-opening reuses the same window instead of stacking copies.
+        self.panel._on_expand_chat()
+        self.assertIs(self.panel._chat_expand, window)
+        with unittest.mock.patch.object(
+            window.chat_view, "render"
+        ) as render:
+            self.panel._refresh_chat()
+            render.assert_called()
+
+        # The enlarged window's send goes through the panel's own path.
+        window.input_edit.setPlainText("做一课土耳其语问候")
+        window.send_requested.emit()
+        self.assertEqual(len(self.panel._controller.chat), 2)
+        self.assertEqual(window.input_text(), "")
+
+    def test_expand_window_gets_streaming_updates(self) -> None:
+        self.panel._on_expand_chat()
+        window = self.panel._chat_expand
+        with unittest.mock.patch.object(
+            window.chat_view, "render_streaming"
+        ) as stream:
+            self.panel._chat_stream_buffer = "部分回复"
+            self.panel._mark_stream_dirty("chat")
+            self.panel._flush_stream_views()
+            stream.assert_called_once()
+
+    def test_advanced_groups_default_collapsed(self) -> None:
+        for group in (
+            self.panel._advanced_group,
+            self.panel._json_group,
+            self.panel._explain_group,
+        ):
+            self.assertFalse(group.isChecked())
+
 
 class DesignPanelPhaseCTest(unittest.TestCase):
     """Phase C: attachments, restore-raw, template bar sync, explain view."""

@@ -149,7 +149,9 @@ class ResultPreviewWidget(QWidget):
         self.tree.itemClicked.connect(self._on_tree_item_clicked)
         self.tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.tree.customContextMenuRequested.connect(self._on_tree_context_menu)
-        self.tree.setMaximumHeight(220)
+        # T4: 220 -> 400. The outline is what 导入 is for; clamping it to 220
+        # meant a 3-lesson section scrolled inside its own panel.
+        self.tree.setMaximumHeight(400)
         self.tree.setToolTip("右键课时/单元可请求 AI 局部重生成")
         layout.addWidget(self.tree)
 
@@ -216,7 +218,9 @@ class ResultPreviewWidget(QWidget):
             f"color: {color}; background-color: {bg};"
             "border-radius: 6px; padding: 3px 8px; font-size: 12px;"
         )
-        chip.setMaximumWidth(560)
+        # T4: the 560 px cap truncated long problem descriptions mid-sentence;
+        # the chip row already wraps, so let it use the panel width.
+        chip.setMaximumWidth(16777215)
         chip.mousePressEvent = (  # type: ignore[method-assign]
             lambda _e, p=problem: self._on_chip_clicked(p)
         )

@@ -10,6 +10,7 @@ from src.widgets.ui.badges import Badge, Pill
 from src.widgets.ui.buttons import TurnaButton
 from src.widgets.ui.containers import Card, EmptyState, TurnaDialog, ViewHeader
 from src.widgets.ui.inputs import SearchField
+from src.widgets.ui.labels import ElidedLabel
 from src.widgets.ui.toast import ToastHost
 
 __all__ = [
@@ -17,6 +18,7 @@ __all__ = [
     "ActivityBarItem",
     "Badge",
     "Card",
+    "ElidedLabel",
     "EmptyState",
     "Pill",
     "SearchField",

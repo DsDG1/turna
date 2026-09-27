@@ -97,7 +97,9 @@ class ReviewPanel(QWidget):
 
         # U0-1: generation summary card (human-readable, not raw JSON).
         self._summary_browser = QTextBrowser()
-        self._summary_browser.setMaximumHeight(140)
+        # T4: 140 -> 220. The outline is the result surface; a 140 px summary
+        # forced scrolling inside a card that has room to breathe.
+        self._summary_browser.setMaximumHeight(220)
         self._summary_browser.setOpenExternalLinks(False)
         self._summary_browser.setVisible(False)
         self._summary_browser.setStyleSheet(

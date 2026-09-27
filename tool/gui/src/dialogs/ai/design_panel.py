@@ -18,7 +18,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtCore import QEvent, Qt, QTimer, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -95,6 +95,9 @@ class DesignPanel(QWidget):
     ocr_requested = Signal(str, str, bool)
 
     attachments_changed = Signal()
+    #: The user asked to leave this panel for the structural outline (the
+    #: workshop canvas listens and switches stage).
+    outline_requested = Signal()
 
     def __init__(
         self,
@@ -169,6 +172,76 @@ class DesignPanel(QWidget):
     # ------------------------------------------------------------------ UI
     def _build_ui(self) -> None:
         build_ui(panel=self)
+        # T4: the chat input is two lines tall and grows one more while focused.
+        self._chat_line_px = self._chat_input.fontMetrics().height()
+        self._chat_input.installEventFilter(self)
+        self._apply_chat_input_height(focused=False)
+
+    def _apply_chat_input_height(self, *, focused: bool) -> None:
+        line = getattr(self, "_chat_line_px", 0) or 16
+        lines = 3 if focused else 2
+        self._chat_input.setMinimumHeight(line * lines + 10)
+        self._chat_input.setMaximumHeight(line * lines + 12)
+
+    def eventFilter(self, obj, event) -> bool:
+        if obj is getattr(self, "_chat_input", None) and event.type() in (
+            QEvent.Type.FocusIn,
+            QEvent.Type.FocusOut,
+        ):
+            self._apply_chat_input_height(
+                focused=event.type() == QEvent.Type.FocusIn
+            )
+        return super().eventFilter(obj, event)
+
+    # ------------------------------------------------------------------ enlarged chat
+    def _on_expand_chat(self) -> None:
+        """Open (or raise) the enlarged chat surface.
+
+        The window is a view onto the same controller: renders are mirrored and
+        its send button reuses the panel's send path, so the two surfaces can
+        never disagree about what was said or what is streaming.
+        """
+        from src.dialogs.ai.chat_expand_window import ChatExpandWindow
+
+        window = getattr(self, "_chat_expand", None)
+        if window is not None:
+            window.render(self._controller.chat)
+            if self._chat_stream_buffer:
+                window.render_streaming(
+                    self._controller.chat, self._chat_stream_buffer
+                )
+            window.show()
+            window.raise_()
+            window.activateWindow()
+            return
+        window = ChatExpandWindow(current_palette(), self)
+        window.set_stage(self._stage_label.text())
+        window.set_usage(self._usage_label.text())
+        window.set_busy(self._controller.is_busy)
+        window.render(self._controller.chat)
+        if self._chat_stream_buffer:
+            window.render_streaming(self._controller.chat, self._chat_stream_buffer)
+        window.send_requested.connect(self._on_expand_chat_send)
+        self._chat_expand = window
+        window.show()
+
+    def _on_expand_chat_send(self) -> None:
+        """Route the enlarged window's send through the panel's own path."""
+        window = getattr(self, "_chat_expand", None)
+        if window is None:
+            return
+        text = window.input_text().strip()
+        if not text:
+            return
+        self._chat_input.setText(text)
+        self._on_send_chat()
+        window.clear_input()
+
+    def _close_chat_expand(self) -> None:
+        window = getattr(self, "_chat_expand", None)
+        if window is not None:
+            window.close()
+            self._chat_expand = None
     # ------------------------------------------------------------------ project binding
     def has_draft(self) -> bool:
         """True once a draft exists (generated or restored from the project)."""
@@ -307,6 +380,9 @@ class DesignPanel(QWidget):
     def _refresh_chat(self) -> None:
         self._cancel_stream_flush()
         self._chat_view.render(self._controller.chat)
+        window = getattr(self, "_chat_expand", None)
+        if window is not None:
+            window.render(self._controller.chat)
 
     def _on_chat_chunk(self, text: str) -> None:
         self._chat_stream_buffer += text
@@ -329,6 +405,11 @@ class DesignPanel(QWidget):
             self._chat_view.render_streaming(
                 self._controller.chat, self._chat_stream_buffer
             )
+            window = getattr(self, "_chat_expand", None)
+            if window is not None:
+                window.render_streaming(
+                    self._controller.chat, self._chat_stream_buffer
+                )
         if "draft" in dirty and self._stream_buffer:
             n = len(self._stream_buffer)
             # P2: avoid O(n) full-document setPlainText for large streams.

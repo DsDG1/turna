@@ -22,6 +22,7 @@ from src.dialogs.ai.chat_view import ChatView
 from src.dialogs.ai.prompt_template_bar import PromptTemplateBar
 from src.theme import current_palette
 from src.widgets.json_editor import JsonEditor
+from src.widgets.ui.labels import ElidedLabel
 
 _TEMPLATES = ("mixed", "intro", "practice", "review", "listening", "reading", "mastery")
 _LEVELS = ("A1", "A2", "B1", "B2", "C1")
@@ -32,7 +33,7 @@ def build_ui(panel) -> None:
     layout.setContentsMargins(8, 8, 8, 8)
     layout.setSpacing(6)
 
-    panel._pool_label = QLabel("")
+    panel._pool_label = ElidedLabel("")
     panel._pool_label.setStyleSheet("font-weight: 600;")
     layout.addWidget(panel._pool_label)
 
@@ -77,6 +78,21 @@ def build_ui(panel) -> None:
         layout.addWidget(w)
 
     # --- Chat (primary content of this panel) ---
+    # Chat header row: the outline lives in another stage now, so offer a jump,
+    # plus the enlarged-chat escape hatch that used to live on the orbit.
+    chat_head = QHBoxLayout()
+    chat_head.setSpacing(6)
+    panel._outline_btn = QPushButton("查看大纲 →")
+    panel._outline_btn.setToolTip("跳到「导入」阶段，在结构大纲里试做与导入")
+    panel._outline_btn.clicked.connect(panel.outline_requested.emit)
+    chat_head.addWidget(panel._outline_btn)
+    panel._expand_btn = QPushButton("展开")
+    panel._expand_btn.setToolTip("在大窗口里继续这段对话（渲染与发送同步）")
+    panel._expand_btn.clicked.connect(panel._on_expand_chat)
+    chat_head.addWidget(panel._expand_btn)
+    chat_head.addStretch(1)
+    layout.addLayout(chat_head)
+
     panel._chat_view = ChatView()
     layout.addWidget(panel._chat_view, 1)
 
@@ -96,6 +112,12 @@ def build_ui(panel) -> None:
     panel._chat_input = QLineEdit()
     panel._chat_input.setPlaceholderText("与 AI 讨论课程设计…（回车发送）")
     panel._chat_input.returnPressed.connect(panel._on_send_chat)
+    # Two lines tall so the input does not read as an afterthought next to the
+    # chat; it grows a little more while focused. (A QLineEdit cannot wrap, so
+    # the doc's 5-line cap would be an empty tall box — 3 is the useful max.)
+    line_px = panel._chat_input.fontMetrics().height()
+    panel._chat_input.setMinimumHeight(line_px * 2 + 10)
+    panel._chat_input.setMaximumHeight(line_px * 3 + 12)
     chat_row.addWidget(panel._chat_input, 1)
     panel._send_btn = QPushButton("发送")
     panel._send_btn.clicked.connect(panel._on_send_chat)
