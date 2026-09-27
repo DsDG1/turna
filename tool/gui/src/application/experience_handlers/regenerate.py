@@ -37,9 +37,7 @@ def _experience_regenerate(host, scope: dict) -> None:
             kind = kind or str(ref[0])
             node_id = node_id or str(ref[1])
     if kind not in ("lesson", "unit") or not node_id:
-        host.statusBar().showMessage(
-            "请先在课程树选中要重生成的课或单元", 5000
-        )
+        safe_warning(host, "重生成", "请先在课程树选中要重生成的课或单元")
         return
     if host.job_tray.is_busy_ai():
         safe_information(host, "重生成", "当前有 AI 任务进行中，请稍候。")

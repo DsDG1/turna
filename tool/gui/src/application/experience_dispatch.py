@@ -19,6 +19,7 @@ from PySide6.QtWidgets import QMessageBox
 
 from src.application.experience_handlers.registry import HANDLERS, register_all
 from src.application.experience_host import ExperienceHost
+from src.application.ui_guard import safe_warning
 from src.backend.experience import can_dispatch, get_action
 from src.infrastructure.telemetry import telemetry
 
@@ -108,7 +109,7 @@ def dispatch_experience_action(host: ExperienceHost, suggestion: dict) -> None:
         except Exception:
             opaque = False
         if not opaque:
-            host.statusBar().showMessage(f"{deny_reason}：{spec.title}", 6000)
+            safe_warning(host, "建议未执行", f"{deny_reason}：{spec.title}")
             if spec.dangerous and not policy.allow_dangerous:
                 QMessageBox.information(
                     host,

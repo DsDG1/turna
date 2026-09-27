@@ -134,6 +134,31 @@ class DispatchFunnelTest(unittest.TestCase):
             )
         self.assertTrue(any("教师模式" in m for m in host._bar.messages))
 
+    def test_policy_denial_reports_through_the_toast_channel(self) -> None:
+        """A policy rejection used to be a bare 6 s status flash with no
+        context; it now goes through ui_guard (headless -> statusBar) under a
+        「建议未执行」 title, so the outcome is findable after the flash."""
+        from src.backend.experience.policy import PolicyDecision
+
+        host = _FakeHost()
+        host._resolve_experience_policy = lambda *, action_id=None: PolicyDecision(
+            mode="observer",
+            allow_dangerous=False,
+            allow_soft=False,
+            allow_autonomous_write=False,
+            scope_cross_section=False,
+            presence_level=0,
+        )
+        with mock.patch(
+            "src.application.experience_dispatch.telemetry.record_event"
+        ):
+            dispatch_experience_action(
+                host, {"action_id": "item.rewrite", "scope": {}}
+            )
+        self.assertTrue(
+            any("建议未执行" in m for m in host._bar.messages), host._bar.messages
+        )
+
     def test_fill_empty_invokes_handler_module(self) -> None:
         host = _FakeHost()
         with mock.patch(

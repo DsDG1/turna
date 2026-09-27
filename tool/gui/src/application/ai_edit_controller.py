@@ -20,6 +20,7 @@ from src.application.commands import (
     AppendUnitCommand,
     MergeAiSectionCommand,
 )
+from src.application.ui_guard import safe_information
 from src.infrastructure.telemetry import telemetry
 
 logger = logging.getLogger(__name__)
@@ -328,5 +329,4 @@ class AiEditController:
         current_ref = getattr(window, "_current_node_ref", None)
         if current_ref is not None and hasattr(window, "_on_node_selected"):
             window._on_node_selected(current_ref)
-        if hasattr(window, "statusBar"):
-            window.statusBar().showMessage(f"已应用 AI 编辑（{kind}），记得保存", 8000)
+        safe_information(window, "AI 编辑已应用", f"已应用（{kind}），记得保存")

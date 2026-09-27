@@ -112,7 +112,7 @@ class ExperienceSkillsMixin:
         """Return True if AI write must not proceed (budget / observer).
 
         Uses a synthetic needs_confirm write action against current policy.
-        Non-modal statusBar only (no QMessageBox hang in tests).
+        Non-modal toast (no QMessageBox hang in tests).
         """
         from src.backend.experience import can_dispatch
         from src.backend.experience.actions import ActionSpec
@@ -124,10 +124,7 @@ class ExperienceSkillsMixin:
         )
         if ok:
             return False
-        try:
-            self.statusBar().showMessage(f"{reason}：{label}", 6000)
-        except Exception:
-            logger.debug("application/experience_skills_mixin.py:_deny_ai_write_if_blocked best-effort step failed", exc_info=True)
+        safe_warning(self, "AI 写入已阻止", f"{reason}：{label}")
         return True
     def _load_experience_mute_dict(self) -> dict:
         from src.application.ambient_controller import load_experience_mute_dict
