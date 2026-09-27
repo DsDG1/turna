@@ -404,6 +404,11 @@ class WorkshopWindow(QDialog):
             btn.setVisible(True)
         self._checklist_label.setText(self._format_checklist())
 
+    def _on_canvas_stage_changed(self, _stage: str) -> None:
+        """Keep the stage lamps in step with the canvas (including the
+        auto-jumps the canvas makes on its own)."""
+        self._refresh_checklist_buttons()
+
     def _current_canvas_stage(self) -> str | None:
         """Map the 'imported' lamp onto the canvas stage it navigates to."""
         ws = self._unified_workspace
@@ -600,9 +605,7 @@ class WorkshopWindow(QDialog):
         # File drops on 素材 must reach the import dialog again (T3 fix for the
         # pre-existing 摘页 surgery defect).
         self._unified_workspace.install_drop_forwarding()
-        self._unified_workspace.stage_changed.connect(
-            lambda _stage: self._refresh_checklist_buttons()
-        )
+        self._unified_workspace.stage_changed.connect(self._on_canvas_stage_changed)
         self._unified_layout.addWidget(self._unified_workspace)
         self._unified_workspace.show()
 

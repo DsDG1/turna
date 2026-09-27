@@ -456,14 +456,20 @@ class WorkshopCanvas(QWidget):
         lay.addWidget(scroll, 1)
         add_all = QPushButton("全部加入轨道")
         add_all.setEnabled(bool(shown))
-        add_all.clicked.connect(
-            lambda: (self._add_rows_to_orbit(shown), dlg.close())
-        )
+        add_all.clicked.connect(self._on_pool_popup_add_all)
         lay.addWidget(add_all)
         dlg.finished.connect(self._on_pool_popup_finished)
         self._pool_popup = dlg
         dlg.show()
         dlg.raise_()
+
+    def _on_pool_popup_add_all(self) -> None:
+        """「全部加入轨道」: fill the band, then close the popover."""
+        rows = self._checked_rows()[:_BUBBLE_POOL_LIMIT]
+        self._add_rows_to_orbit(rows)
+        window = self._pool_popup
+        if window is not None:
+            window.close()
 
     def _on_pool_popup_finished(self, _code: int = 0) -> None:
         self._pool_popup = None
