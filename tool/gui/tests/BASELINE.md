@@ -8,6 +8,18 @@
 
  ## 当前基线
 
+- **2026-09-27（tool/gui 侧 AI 遗留退役）**：删除 `src/backend/experience/json_path_skill.py`
+  （417 行）+ `tests/test_json_path_skill.py`（134 行 / 5 例）⇒ **192 -> 191 模块**。
+  - 该模块（JsonEditor 光标 JSONPath 解释器）**生产零调用**：全仓 `src/` 与 `tool/`
+    内无任何引用，唯一引用方是它自己的测试。测试替不存在的调用路径兜底，是最坏的
+    一种「有覆盖」——让死代码看起来是活的。
+  - 连带效果：边界门禁 `broad_except` **816 -> 811**（被删模块含 5 处宽泛 except），
+    其余计数器不变（`app_dialogs=13` / `cycles=2` / `ui_backend=163`）。全库例数待本轮
+    收口时以 full 档实测回填。
+  - 退役记录写入 `tool/gui/docs/ai_refactor_contract.md` §18；同时确认 backend 15 个
+    `ai_*` 模块 + `ai/` 子包**全部在役，不动**（facade 收口的实现细节 + 插件化
+    suggestions，不是遗留）。
+
 - **2026-09-27（右键菜单泄漏 + Ctrl+D 歧义）**：`test_course_tree` 33 -> **39 例**（+6，
   `CourseTreeContextMenuLeakTest`）。全库例数待本轮收口时以 full 档实测回填。
   - 缺陷：`course_tree._on_context_menu` 每次右键新建 `QMenu(self)` 但从不
