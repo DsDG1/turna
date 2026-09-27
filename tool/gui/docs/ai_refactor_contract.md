@@ -270,3 +270,20 @@ S112 已补 `logger.debug(..., exc_info=True)` 清零。同时修正上方命令
   方法名保留委托）。
 - **textbook_import_dialog**：1004 → 727 行（constants.py + pages.py）。
 - **DesignPanel**：932 → 816 行（UI 构建迁 design_panel_build.py）。
+## 18. tool/gui 侧 AI 遗留退役（2026-09-27）
+
+App 侧「伴学持久化与离线推理簇」19 文件 / 1,834 行已整体退役（记录见仓库根
+`docs/ai_companion_implementation.md`）。本节记录 **tool/gui 侧**的对应处置。
+
+**backend 15 个 `ai_*` 模块 + `ai/` 子包：全部在役，不动。** 逐一做过入边检测：
+`ai_pipeline` / `ai_phased` 是被 facade 收口的实现细节（门禁规则 6 强制 dialogs
+不得直连，当前 `dialogs_pipeline=0`），wish 模式两端（工坊 facade + App
+`ai_wish_provider`）都是活功能，suggestions p0–p3 由注册方聚合，属设计好的插件
+结构。**「AI 实验遗留」在这半边已经拆完。**
+
+**唯一真死代码：`src/backend/experience/json_path_skill.py`（417 行）已删。**
+JsonEditor 光标 JSONPath 解释器，生产代码零调用 —— 全仓 `src/` 与 `tool/` 内无任何
+引用，唯一引用方是它自己的 `tests/test_json_path_skill.py`（134 行），后者一并删除。
+这与 App 侧 companion 是同款病：**只被测试引用**。测试替生产兜住一条不存在的调用
+路径，是最坏的一种「有覆盖」—— 它让死代码看起来是活的。删除前已复核引用图，删除后
+由 §7 测试门禁 + §1 红线扫描兜底。
