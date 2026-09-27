@@ -2,7 +2,7 @@
 
 > 状态：**已施工（2026-08-30，P1–P5 一批完成，P4-B 按计划条件推迟）**。施工明细与偏差见 §12 施工记录；Rust 侧（P1-D/E、P2、P3）本机无 cargo/protoc 静态编写，**待工具链主机 `cargo test -p turna_anki_bridge` + `gen_fixtures` 复验后方可发布**。
 > 范围：五个独立施工包 P1–P5：①删除已验证零生产引用的死代码（约 4,000 行）；②修复搜索/投影快照失效缺口（正确性）；③Rust 桥接 N+1 批量化与 import 计数改 SQL；④浏览器逐卡渲染治理与 catalog 连接治理；⑤投影 noop 短路与发布事务批量化。**不改变**渲染保真、调度语义、备份流程、collection 数据所有权。
-> 前置阅读：[34](./34-official-anki-production-cutover-and-ohos-retirement-plan.md)（契约与发布口径）、[35](./35-duplicate-legacy-layer-cleanup-plan.md)（L0–L3 已删范围，本计划 P1 是其顺延）、[36](./archive/36-projection-tree-ordering-and-limits.md)（投影写入语义与 60/40 限额）、[37](./37-generic-card-recognizer-plan.md)（契约 1.9 现状）。
+> 前置阅读：[34](../34-official-anki-production-cutover-and-ohos-retirement-plan.md)（契约与发布口径）、[35](./35-duplicate-legacy-layer-cleanup-plan.md)（L0–L3 已删范围，本计划 P1 是其顺延）、[36](./36-projection-tree-ordering-and-limits.md)（投影写入语义与 60/40 限额）、[37](./37-generic-card-recognizer-plan.md)（契约 1.9 现状）。
 > 铁律：**每个施工包独立 commit、独立可回滚**；Rust 契约 minor 逐次递增、号码永不复用（operations.md append-only 政策）；**本机（Windows 开发机）无 cargo/protoc（已核实，同 doc 37 §10 受限），Rust 改动必须在具备 Rust 1.97.1 + protoc 31.1 的主机通过 `cargo test -p turna_anki_bridge` 后方可合入**——这是硬门禁，不是建议。
 
 ## 0. 一句话

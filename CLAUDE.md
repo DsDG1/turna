@@ -125,7 +125,7 @@ Windows 用 `python`（非 `python3`）。完整 Makefile / 平台 / 发布流�
 ### 文档与收据锚点
 
 - **收据 / 验证记录的引用必须用「文件 + 条目日期 + 标题」锚，不得用行号。** 例：`test/BASELINE.md` 2026-09-24「架构简化实施计划 P0–P4」条目、`docs/official-anki-migration/34-cutover-receipt.md` 的「架构简化批次」小节。
-- 理由：前插式只增文件（`test/BASELINE.md`）与持续改写的收据，行号必然腐坏。已修反例：`docs/system-font-cutover-plan.md` C3 行原引 `test/BASELINE.md:303-307`，该条目实际早已漂到第 100 行 —— 2026-09-27 改为日期锚。
+- 理由：前插式只增文件（`test/BASELINE.md`）与持续改写的收据，行号必然腐坏。已修反例：已删除的 `docs/system-font-cutover-plan.md` C3 行原引 `test/BASELINE.md:303-307`，该条目实际早已漂到第 100 行 —— 2026-09-27 改为日期锚。
 - 同理，指向**会被改写的源码**的引用也优先写符号名而非行号；仅当目标是冻结不变的文件（如脚本、schema 表清单）时才写行号。
 
 ### 日志与错误处理

@@ -3,7 +3,7 @@
 > 状态：**已施工（2026-08-29，P1–P5 一次性完成）**。施工实录与偏离见 §10。
 > **读法提示（2026-09-27）：** 本文 §6「分阶段施工」里的复选框是**施工当时的计划清单，一律保持未勾选**（实测 23 开 / 0 关），**不代表未施工** —— 实际完成情况以本行状态与 §10 施工实录为准。§1「背景与根因（施工前）」引用的两个文件（`projection/official_anki_projection_mapper.dart`、`application/anki_practice/card_classifier.dart`）已随 2026-09-24 架构简化批次解散，属**历史陈述**，不要据此去找现行实现。
 > 范围：替换 Anki 导入/投影链路里的两层识别器（notetype 字段角色映射 + 逐卡形态分类），收敛类型体系，重构预览 UI 的识别信息展示。**不改变**渲染、调度、备份、导入 saga、官方 collection 数据所有权。
-> 前置阅读：[30](./archive/30-course-like-card-experience-plan.md)（现行识别器的来源，其「自动题型识别」部分由本文取代）、[34](./34-official-anki-production-cutover-and-ohos-retirement-plan.md)（契约与发布面口径）、[36](./archive/36-projection-tree-ordering-and-limits.md)（投影写入语义）。
+> 前置阅读：[30](./30-course-like-card-experience-plan.md)（现行识别器的来源，其「自动题型识别」部分由本文取代）、[34](../34-official-anki-production-cutover-and-ohos-retirement-plan.md)（契约与发布面口径）、[36](./36-projection-tree-ordering-and-limits.md)（投影写入语义）。
 > 铁律：**识别器只认结构、不认内容题材**。任何主题词/学科词（"考研""政治"之类）出现在识别代码或词典里即为设计失败。
 
 ## 0. 一句话

@@ -15,9 +15,9 @@
 ## 编号说明
 
 - `00`–`29`、`31`、`32`、`33` 为 Phase 0–4 与 P5 的计划/报告/验货，按阶段顺序编号。
-- **编号 30 不在此目录**：官方 Anki 卡按语言课体验投影与渲染（doc 30）原本留在根目录，2026-09-27 起已归档至本目录（见下表）。
+- **`30`、`34-remaining`、`35`、`36`、`37`、`38`、`39`、`40` 原本留在根目录，2026-09-27 起已归档至本目录**（见下表）。归档后根目录只剩 34 收据 / 34 主计划 / 41 / 42 四篇活跃文档。
 - `p2fix.md` / `p3fix.md` 是阶段内插入的修补计划，不参与主编号序列，按惯例以 `p<阶段>fix` 命名。
-- `34-*`（收口计划族）留��根目录，是现行文档，不归档。
+- `34-*`（收口计划族）留在根目录，是现行文档，不归档。
 
 ## 目录内容
 
@@ -35,10 +35,17 @@
 | 文档 | 原位置 | 归档原因 |
 |---|---|---|
 | [`30-course-like-card-experience-plan.md`](./30-course-like-card-experience-plan.md) | 根目录 | 22/22 代码路径引用全部失效（`projection/` 子目录已解散）；「自动题型识别」部分已被 doc 37 取代；成果已由 CHANGELOG 记录 |
-| [`36-projection-tree-ordering-and-limits.md`](./36-projection-tree-ordering-and-limits.md) | 根目录 | 7/7 落点全部失效；成果已由 CHANGELOG 记录 |
 | [`34-remaining-construction-plan.md`](./34-remaining-construction-plan.md) | 根目录 | R0–R8 已由收据全部闭环；110 个未勾框 / 0 个已勾框，勾选框不代表施工状态；与主计划章节骨架重复 |
+| [`35-duplicate-legacy-layer-cleanup-plan.md`](./35-duplicate-legacy-layer-cleanup-plan.md) | 根目录 | L0–L3 四波已施工（2026-08-27）；被复制的 Legacy 复刻层已物理删除，自研资产保留；W9-A..E 收口由收据承载 |
+| [`36-projection-tree-ordering-and-limits.md`](./36-projection-tree-ordering-and-limits.md) | 根目录 | 7/7 落点全部失效；成果已由 CHANGELOG 记录 |
+| [`37-generic-card-recognizer-plan.md`](./37-generic-card-recognizer-plan.md) | 根目录 | P1–P5 已施工（2026-08-29），diff 门禁 16/16；识别器现行实现见 `lib/application/anki_import/recognition/` |
+| [`38-debt-and-perf-batch-1-plan.md`](./38-debt-and-perf-batch-1-plan.md) | 根目录 | P1–P5 已施工并验货（2026-08-30，零回归）；P4-B 按计划条件推迟，其待办登记在收据 Held 表 |
+| [`39-debt-and-perf-batch-2-plan.md`](./39-debt-and-perf-batch-2-plan.md) | 根目录 | 余项已全部移交并由 40 收口 |
+| [`40-doc39-remainder-completion-plan.md`](./40-doc39-remainder-completion-plan.md) | 根目录 | 自述「已经全部施工」（2026-08-30）；Rust 四波的 `cargo test` + fixture regen 复验仍未跑，登记在收据 Held 表 |
 
-> 归档这三篇时同步改写了全部 24 处入链（README 索引、主计划、收据、37/38、project-guide、webview 计划、CHANGELOG、archive 内 31/32 的相对路径）。
+> 归档这 8 篇时同步改写了全部入链（README 索引与目录布局说明、project-guide §3/§6.1 的 doc 35 引用、doc 42 前置阅读的 doc 37 引用、archive 内 `34-remaining` §18.3 的 WebView 矩阵条目）。
+
+> **Rust 侧复验尚未完成**：doc 37/38/39/40 的 Rust 四波均为「本机无 cargo/protoc 静态编写」，统一待工具链主机 `cargo test -p turna_anki_bridge` + `gen_fixtures` 复验。归档不影响该待办的权威登记处（[`../34-cutover-receipt.md`](../34-cutover-receipt.md) 的 Held 表）。
 
 ### 其余各阶段
 

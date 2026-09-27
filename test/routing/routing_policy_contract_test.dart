@@ -1,5 +1,5 @@
-// Routing policy contract tests (plan §7.1 /
-// docs/platform-adaptive-page-transition-unification-plan.md).
+// Routing policy contract tests (policy in docs/project-guide.md §3; the
+// original plan lives in Git history).
 //
 // These tests lock in the platform-adaptive navigation policy:
 //   1. AutoRoute default route type is adaptive with predictive back enabled.

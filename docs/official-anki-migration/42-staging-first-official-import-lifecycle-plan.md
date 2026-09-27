@@ -8,7 +8,7 @@
 >
 > §12 施工收据表内为**当时实际执行的命令与 commit**，属历史记录。其中 `official_anki_projection_scope_p0_test`、`official_anki_commit_live_test`、`official_anki_recovery_test` 三个测试文件此后已删除（`projection/` 子目录解散、Legacy 恢复面随 P1 退役），**照原命令复跑会因文件缺失失败**，不代表本批有回归。
 >
-> 前置阅读：[34](./34-official-anki-production-cutover-and-ohos-retirement-plan.md)、[41](./41-official-anki-lifecycle-and-storage-remediation-plan.md)、[37](./37-generic-card-recognizer-plan.md)、[ADR 0036](../decisions/0036-official-anki-core-migration.md)、[ADR 0037](../decisions/0037-anki-course-review-unification.md)、[ADR 0042](../decisions/0042-staging-first-official-import.md)。
+> 前置阅读：[34](./34-official-anki-production-cutover-and-ohos-retirement-plan.md)、[41](./41-official-anki-lifecycle-and-storage-remediation-plan.md)、[doc 37（已归档）](./archive/37-generic-card-recognizer-plan.md)、[ADR 0036](../decisions/0036-official-anki-core-migration.md)、[ADR 0037](../decisions/0037-anki-course-review-unification.md)、[ADR 0042](../decisions/0042-staging-first-official-import.md)。
 >
 > 铁律（继承 doc 41）：**先写可稳定复现的失败测试，再改行为**；每个施工包独立 commit、独立可回滚；不把「UI 消失」「逻辑行已删」「物理字节已回收」混为同一状态；不明确的数据进 quarantine，绝不静默删。
 

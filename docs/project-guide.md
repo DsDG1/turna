@@ -2,9 +2,9 @@
 
 > 本文是 README 的深度补充。README 给出概览与快速上手，本文给出每个子系统的设计、实现要点与决策依据。阅读顺序建议：先读 README，再按需查阅本文相应章节。
 >
-> 所有信息以代码现状为准（schemaVersion 27、课程内容版本 12；测试全量计数以 `test/BASELINE.md` 顶条为准，不在本文件写死数字）。2026-09-21 体验改良批次（B1–B7）收据见 [`ux-experience-improvement-plan.md`](./ux-experience-improvement-plan.md)。
+> 所有信息以代码现状为准（schemaVersion 27、课程内容版本 12；测试全量计数以 `test/BASELINE.md` 顶条为准，不在本文件写死数字）。2026-09-21 体验改良批次（B1–B7）的落地结论已并入本文相应章节（§5.11 统一复习会话、§5.12 Play Hub、§6.3 卡面缩放、§15 产品禁区），原收据随 2026-09-27 精简批次删除，见 Git 历史。
 >
-> **近期重要变更**：Legacy Anki 复刻层已于 2026-08-27 由 [doc 35](./official-anki-migration/35-duplicate-legacy-layer-cleanup-plan.md) L0–L3 物理删除（`lib/application/anki/` 目录清空）。原 §6 中描述 legacy 解析/装配/映射/Full-Lite 的段落已改为删除说明，勿再按旧描述实现。
+> **近期重要变更**：Legacy Anki 复刻层已于 2026-08-27 由 doc 35 L0–L3 物理删除（`lib/application/anki/` 目录清空；[施工记录已归档](./official-anki-migration/archive/35-duplicate-legacy-layer-cleanup-plan.md)）。原 §6 中描述 legacy 解析/装配/映射/Full-Lite 的段落已改为删除说明，勿再按旧描述实现。
 
 ---
 
@@ -171,7 +171,7 @@ lib/
 
 - **状态管理**：Provider + ChangeNotifier。Provider 既是 DI 容器也是状态广播。
 - **DI**：GetIt + Injectable，`@injectable` / `@lazySingleton` 注解，`build_runner` 生成 `injection.config.dart`。
-- **路由（导航合同，详见 `docs/platform-adaptive-page-transition-unification-plan.md`）**：Auto Route + 代码生成（`.gr.dart`）+ `CourseReadyGuard`（DB seed 完成前重定向到 splash）。全屏页面一律走 AutoRoute，全局 `AppRouter.defaultRouteType = RouteType.adaptive(enablePredictiveBackGesture: true)`——Android 用 Material 路由（含预测返回，manifest 已加 `enableOnBackInvokedCallback`），iOS/macOS 用真实 Cupertino 路由（边缘返回），Web 无转场。禁止：全局强制单一平台路由、`PageRouteBuilder`/`transitionsBuilder` 自定义转场、调用点直接构造 `MaterialPageRoute`/`CupertinoPageRoute`、覆盖 `ThemeData.pageTransitionsTheme`。唯一例外：`lib/routing/platform_page_route.dart` 的官方路由类选择器，仅供运行时组装、无稳定页面身份的内部页使用。底部主 Tab 是 `IndexedStack` 即时切换（非 push/pop）；Dialog/BottomSheet 保持弹层语义。以上契约由 `test/routing/routing_policy_contract_test.dart` 与 `test/routing/adaptive_route_semantics_test.dart` 在 CI 强制。
+- **路由（导航合同，CI 强制）**：Auto Route + 代码生成（`.gr.dart`）+ `CourseReadyGuard`（DB seed 完成前重定向到 splash）。全屏页面一律走 AutoRoute，全局 `AppRouter.defaultRouteType = RouteType.adaptive(enablePredictiveBackGesture: true)`——Android 用 Material 路由（含预测返回，manifest 已加 `enableOnBackInvokedCallback`），iOS/macOS 用真实 Cupertino 路由（边缘返回），Web 无转场。禁止：全局强制单一平台路由、`PageRouteBuilder`/`transitionsBuilder` 自定义转场、调用点直接构造 `MaterialPageRoute`/`CupertinoPageRoute`、覆盖 `ThemeData.pageTransitionsTheme`。唯一例外：`lib/routing/platform_page_route.dart` 的官方路由类选择器，仅供运行时组装、无稳定页面身份的内部页使用。底部主 Tab 是 `IndexedStack` 即时切换（非 push/pop）；Dialog/BottomSheet 保持弹层语义。以上契约由 `test/routing/routing_policy_contract_test.dart` 与 `test/routing/adaptive_route_semantics_test.dart` 在 CI 强制。
 - **模型**：Freezed 不可变 + `@JsonSerializable`；Interaction 变体由 `runtimeType` 区分。
 - **Repository**：接口（`domain/repositories/`）+ 实现（`data/`）；DB 作为派生缓存，JSON 为真理源。application 层只消费接口（GetIt 以 `@LazySingleton(as: …)` 绑定实现）；`application → data` 由 layering guard 硬禁止，仅守卫测试内白名单放行 Drift 句柄传递 / 原生 SQL·事务 / 本地句柄构造三类例外。
 - **渲染器插件化**：14 种 Interaction 各有 `@injectable` 渲染器，由 `di/renderer_module.dart` 收集成 `Set<InteractionRenderer>` 注册到 GetIt。分发走 `lookupRenderer()`，它先用 `_handlesTypeFor()` 把实例映射到 **freezed 公开接口类型**再匹配——**不能直接用 `runtimeType`**，因为 freezed 生成的是私有的 `_$FooImpl`，永远不等于渲染器声明的 `handlesType`。新增题型：写渲染器 → 在 module 登记 → 重跑 `build_runner`，无需改动任何分发逻辑。
@@ -341,7 +341,7 @@ Explain → Practice → Rate 三段流（见 2.4 Skill Acquisition Theory）。
 
 > **Legacy 解析/装配管线已物理删除（2026-08-27，doc 35 L0–L3 施工完毕）**
 >
-> 原先的 5 步 legacy 管线（`.apkg` 解析 → NoteStore 三表持久化 → deck 装配 → 媒体拷贝 → revlog→FSRS 迁移）连同 `anki_importer.dart`、`anki_deck_assembler.dart`、`anki_srs_migrator.dart` 已全部删除，`lib/application/anki/` 目录清空（guard test 有终态断言）。连带删除：智能组织、Notetype 映射编辑器、Full/Lite 装配、`{{type:}}` 输入桥。迁移细节与差异实录见 [`official-anki-migration/35-duplicate-legacy-layer-cleanup-plan.md`](./official-anki-migration/35-duplicate-legacy-layer-cleanup-plan.md) §10。
+> 原先的 5 步 legacy 管线（`.apkg` 解析 → NoteStore 三表持久化 → deck 装配 → 媒体拷贝 → revlog→FSRS 迁移）连同 `anki_importer.dart`、`anki_deck_assembler.dart`、`anki_srs_migrator.dart` 已全部删除，`lib/application/anki/` 目录清空（guard test 有终态断言）。连带删除：智能组织、Notetype 映射编辑器、Full/Lite 装配、`{{type:}}` 输入桥。迁移细节与差异实录见 [`official-anki-migration/archive/35-duplicate-legacy-layer-cleanup-plan.md`](./official-anki-migration/archive/35-duplicate-legacy-layer-cleanup-plan.md) §10（已归档，勿按其施工）。
 >
 > **存量数据（仍需注意）**：DB 里旧导入的 lesson 体与错题快照仍携带已删类型。`AnkiHtmlCard` 因此保留类型本体，在 lesson body / 错题重放中由 `anki_html_card_retired_renderer` 降级为「确认即过」占位卡（指向「设置 → 旧版与兼容性」），避免 `lookupRenderer` 对未注册类型抛 `StateError`。注意它**不是**保真渲染——官方保真复习仍活跃，见 §6.3。
 
@@ -365,6 +365,10 @@ Explain → Practice → Rate 三段流（见 2.4 Skill Acquisition Theory）。
 - **平台门控**：仅 Android/iOS 有 WebView 实现；桌面/Web 降级为文本兜底（决策 4），不实例化 `WebViewController`。
 - **暗色 CSS**：app 暗色主题时注入暗色 CSS（阶段 6）。
 - **JS 与网络隔离**：notetype `allowJs` 默认关；联网默认完全离线。离线/询问策略通过 CSP 实际阻断 `fetch`、XHR、WebSocket 和外部资源，不只拦页面跳转。
+- **卡面缩放轨道（opt-in，2026-08-28 修订）**：用户在无障碍设置把「卡面文字大小」（`settings.cardTextScale`）调到 >100% 时才注入缩放；**默认 100% 不注入任何字节**，原「注入 CSS 从不触碰作者字体/字号」的保真约定不变。三条轨道共用这一个设置项，但实现路径不同：
+  - **Dart WebView 轨道**（`AnkiHtmlCardView`）→ 注入 `html{zoom:N}`；
+  - **Android 原生 reviewer 轨道** → `WebSettings.textZoom`；
+  - **iOS 原生 reviewer 轨道**（WKWebView，**没有** `textZoom`，故走独立四段链路）→ `official_anki_reviewer_stage.dart` 用 `cardTextScaleOf(context)` 读值，经 MethodChannel `setTextZoom` 下发（`OfficialAnkiReviewerView.swift` 侧钳制在 100–200），由 `WKUserScript`（`.atDocumentStart`、`forMainFrameOnly: false`）注入，`assets/anki_reviewer/reviewer.js` 的 `OfficialReviewer.setTextZoom` 再向内层 iframe 派发 `turnaTextZoom`，最后 `card-frame.js` 校验 nonce 后写 `webkitTextSizeAdjust`。
 
 ### 6.4 智能去解密（Pre-render Cache）—— 已放弃
 
@@ -506,6 +510,8 @@ const warning = Color(0xFFFF9F43);
 
 `ThemeProvider`（`light / dark / system`）持久化到 `StreamingSharedPreferences`，Profile 页可切换。
 
+**全 App 使用系统字体（2026-09-01 定案，勿回退）**：`google_fonts` 依赖与 `AppFonts` 包装类已整体删除，无障碍 `dyslexiaFont`（Lexend）功能连同设置项、Provider 字段、备份清单条目与 l10n 键一并下线（存量 `settings.dyslexiaFont` pref 成死键，不迁移）。**理由不是审美而是 ANR**：原欢迎页的永久动画循环（文字轮播 + 3s 换图）保证每秒都有 rebuild → 每次 rebuild 调 `GoogleFonts.nunito()` 走**运行时字体拉取** → 大陆网络 `fonts.gstatic.com` 持续 408 且沙箱内缓存目录从不存在（字体一次都没加载成功）→ 失败重试 + fallback 重解析 → 帧泵永续（真机实测 8 秒窗口 241 帧、每帧全量 LAYOUT+PAINT+COMPOSITING）→ 主线程 CPU 饱和（`utm` 124.9s / 进程存活 188s）→ 触摸 5s 无人消费 → `Input dispatching timed out` **ANR 击杀**（无 SIGSEGV、无 tombstone，故表现为「闪退」）。复现矩阵 3/3 落在欢迎页、0/2 在课程页。该链路对每个大陆网络用户都会成立，不是设备特例。系统字体零网络依赖、零资产、确定性 100%，打包 Nunito/Lexend 为资产的混合方案已否决。原始取证在 `logs/crash-hunt/`（多数产物不入库）。
+
 ### 9.2 AccessibilityProvider
 
 `lib/application/accessibility_provider.dart`，6 项持久化偏好：
@@ -515,7 +521,7 @@ const warning = Color(0xFFFF9F43);
 | `textScale` | 文本缩放 100–200% |
 | `reducedMotion` | 减少动画（`MediaQuery` disableAnimations） |
 | `highContrast` | 切换高对比主题（纯黑白表面 + 强边框 + 最大对比文本） |
-| `dyslexiaFont` | 文本主题换 Lexend 字体 |
+| `cardTextScale` | 卡面文字大小 100–200%（仅 >100% 生效，缩放轨道见 §6.3） |
 | `sensoryReduce` | 静音音效与触觉反馈 |
 | `focusMode` | 关闭 splash 旋转图计时器等分心元素 |
 
@@ -611,6 +617,9 @@ make ci                 # analyze + test + test-python + build-release-smoke
 
 | 护栏 | 实现 |
 |---|---|
+| **校验单一来源** | 题型 schema 唯一真相源 = `tool/gui/src/backend/lesson_content.py` 的 `INTERACTION_SCHEMA`，所有 widget 从它派生；lint/validate 规则只进 `tool/course_cli.py`，**GUI 不新增自有校验规则** |
+| **round-trip 无损** | `normalize_item` 按 schema 白名单重建 dict，因此**每个 app 支持的字段都必须进 schema**（否则「打开→不动→保存」会静默丢字段）；anki 交互的 `id`（`anki-<importId>-n<noteId>-c<ord>`）与 `sourceNoteId/sourceCardId` 在编辑/类型切换中保持原值 |
+| **重播种触发器** | app 的内容重建触发器是组合版本 `"$indexVersion+$expressionsVersion"`（`course_database_seeder.dart` 拼出的 `assetVersion`）。vocab 与 expressions 同属资源层，故 vocab-only 变更**借道 bump expressions 版本**触发客户端重建（`CourseReleaseService.version_bump_plan`；改 app 触发器超出 GUI 范围）。发布对话框需标注该联动原因 |
 | id 全局唯一 | id 只读；rename 只改 name；validate 兜底查重；导入冲突弹窗 |
 | scale ceiling | `MAX_UNITS_PER_SECTION=60` / `MAX_LESSONS_PER_UNIT=40` |
 | 引用完整性 | `wordId`/`expressionId`/`grammarPointId` 从已加载资源下拉选 |
@@ -731,6 +740,10 @@ python -m ruff check tool/gui                # GUI lint（src + tests）
 - ❌ **云端 CMS / Firebase / 推送通知**。本地优先架构保证离线可用性与数据隐私，避免服务端依赖的持续维护成本。
 - ❌ **GUI 替代 JSON 作为真理源**。GUI 是 JSON 的可视化前端，JSON 始终是唯一权威存储，确保可版本化、可 diff、可脚本批处理。
 - ❌ **XP 倍率 / 每日 XP 目标 / 宝石购买 / 道具 / 社交成就**。同上，去除摩擦与 monetization。
+- ❌ **全局错误弹窗**。错误分两类上报：可恢复的加载失败走 Provider 状态机承载（如 `SectionLoadState.error`），一次性动作用 SnackBar；不引入拦截全 app 的全局弹窗。
+- ❌ **二元评分以外的档位扩展 / 课程树硬锁 / 云端推送**。练习题评分语义见 §5.1（练习题二元 pass→Good / fail→Again，导入的 Anki 卡可传四档）；课程树结构由数据驱动而非写死。
+
+> **与「社交成就」并存的长期硬约束（2026-08-22 成就体系焕新定案）**：课程成就的最终目标保持 **500 课**、完美课程最终目标保持 **100 课**，**不得下调或删除**。成就评估走唯一写入者 `AchievementService`（评估 → 持久化 → 发奖 → 两阶段反馈），指标投影持久化为 `achievements.metric_projection.v1`；宝石奖励入账以 `GemLedgerDao` 为事实源。
 
 ---
 
@@ -751,8 +764,6 @@ python -m ruff check tool/gui                # GUI lint（src + tests）
 | **架构与设计** | |
 | [`docs/decisions/`](./decisions/) | 架构决策记录（ADR；含 [0043](./decisions/0043-turnapack-external-courses.md) 外部课程经 `.turnapack` 进入） |
 | [`docs/analysis/project-framework-analysis.md`](./analysis/project-framework-analysis.md) | 项目框架分析 |
-| [`docs/platform-adaptive-page-transition-unification-plan.md`](./platform-adaptive-page-transition-unification-plan.md) | 平台自适应转场导航合同 |
-| [`docs/webview-rendering-optimization-plan.md`](./webview-rendering-optimization-plan.md) | WebView / 卡面渲染优化 |
 | **Anki 官方内核迁移** | |
 | [`docs/official-anki-migration/`](./official-anki-migration/README.md) | 迁移文档索引；**状态唯一真源 = [`34-cutover-receipt.md`](./official-anki-migration/34-cutover-receipt.md)** |
 | [`docs/official-anki-migration/archive/`](./official-anki-migration/archive/README.md) | 迁移历史文档库（**勿按其施工**） |
@@ -761,8 +772,6 @@ python -m ruff check tool/gui                # GUI lint（src + tests）
 | [`docs/ai_companion_implementation.md`](./ai_companion_implementation.md) | AI companion 实现边界 |
 | [`docs/advanced-settings-system-health.md`](./advanced-settings-system-health.md) | 高级设置与系统健康（状态机依 ADR 0040） |
 | **其他** | |
-| [`docs/ux-experience-improvement-plan.md`](./ux-experience-improvement-plan.md) | 2026-09-21 体验改良 B1–B7 收据（源计划在桌面） |
-| [`docs/achievement-system-revamp-plan.md`](./achievement-system-revamp-plan.md) | 成就体系硬约束（**500 / 100 课不得下调**） |
 | [`test/BASELINE.md`](../test/BASELINE.md) | 测试基线与最近改动收据（更早见 [`test/archive/BASELINE-pre-2026-09-20.md`](../test/archive/BASELINE-pre-2026-09-20.md)） |
 
 > **收据引用规则**：引用测试/改动记录必须用「文件 + 条目日期 + 标题」锚，**禁止用行号**——`test/BASELINE.md` 是前插式只增文件，行号必然腐坏。详见 [`CLAUDE.md`](../CLAUDE.md) 的「文档与收据锚点」。
@@ -782,8 +791,8 @@ python -m ruff check tool/gui                # GUI lint（src + tests）
   1. 真机性能基线：Android 中低端机型 + profile 构建，采 Plan 2+3 §24 性能预算的 before 数据；
   2. 宝石 UI 钱包快照（`LocalStateKeys.gems`）到 `GemLedgerDao` 账本投影的完全切换；
   3. WebView 渲染真机矩阵（6 设备形态 × 11 卡型），随 doc 34 真机会话执行（[34-remaining §18.3 第 7 项](./official-anki-migration/archive/34-remaining-construction-plan.md)）。
-- [GUI 与 App Schema 对齐](./tool-gui-app-schema-sync-plan.md) 已落地（G1–G9，仅 `tool/`）。
-- 体验改良延期项已全部落地：Markdown 聊天气泡用**自研子集**（`lib/core/simple_markdown.dart` 的 `parseSimpleMarkdown`，未引入 `flutter_markdown`）；B3-6 播种已挪到首帧之后；导师聊天写入 prefs；改课可从提示条撤销一次。见 [UX 收据](./ux-experience-improvement-plan.md)。
+- GUI 与 App 课程 schema 对齐已落地（G1–G9，仅改 `tool/`）；校验单一来源与重播种触发器护栏见 §11.5。
+- 体验改良延期项已全部落地：Markdown 聊天气泡用**自研子集**（`lib/core/simple_markdown.dart` 的 `parseSimpleMarkdown`，未引入 `flutter_markdown`）；B3-6 播种已挪到首帧之后；导师聊天写入 prefs；改课可从提示条撤销一次。
 - 持续完善可访问性与统计指标。
 
 ### 致谢

@@ -2,7 +2,7 @@
 
 > 状态：**已施工（2026-08-30）：P1 全簇 / P2 / P3 / P4 / F2 / F3 / P5 前半完成（§15.1），余项（P5 后半、F1、P6 Rust 四波）移交 [40](./40-doc39-remainder-completion-plan.md)**。
 > 范围：六个独立施工包 P1–P6：①Dart 死码删除二批（~2,000 行：孤儿 UI、死编排路径、零引用方法）；②契约表面单表化与 capabilities/VERSION 对拍闭环；③DTO codegen 迁移（宽松类先行）；④engine 传输层折叠与 worker 统一消息协议；⑤import/migration 域状态机与重复减负；⑥Rust 桥接单表化、样板收敛与测试治理。**不改变**渲染保真、调度语义、备份流程、collection 数据所有权、camel/snake 双键兼容输出。
-> 前置阅读：[38](./38-debt-and-perf-batch-1-plan.md)（批次一已施工范围与 §11 批次二候选清单——本计划即其落地版并扩入新发现）、[35](./35-duplicate-legacy-layer-cleanup-plan.md)（迁移域删除时点）、[34](./34-official-anki-production-cutover-and-ohos-retirement-plan.md)（契约与发布口径）。
+> 前置阅读：[38](./38-debt-and-perf-batch-1-plan.md)（批次一已施工范围与 §11 批次二候选清单——本计划即其落地版并扩入新发现）、[35](./35-duplicate-legacy-layer-cleanup-plan.md)（迁移域删除时点）、[34](../34-official-anki-production-cutover-and-ohos-retirement-plan.md)（契约与发布口径）。
 > 铁律：**每个施工包独立 commit、独立可回滚**；**本机（Windows 开发机）无 cargo/protoc（doc 37 §10 / doc 38 铁律同记），P6 全部 Rust 改动必须在具备 Rust 1.97.1 + protoc 31.1 的主机通过 `cargo test -p turna_anki_bridge` + `gen_fixtures` regen 后方可合入**；契约 minor 逐次递增、号码永不复用（operations.md append-only 政策）；doc 38 §12.4 的工具链主机门禁未解除前，发布口径维持 NO-GO，本批 Rust 包与其同批过闸。
 > 证据口径：本计划全部 file:line 于 2026-08-30 对照工作树经第二轮独立复核（含 lib+test 双侧 grep 取证）；个别行号施工时可能有 ±1~10 漂移，按 doc 38 §13.2-6 惯例不回写。
 

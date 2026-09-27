@@ -139,7 +139,7 @@ Canonical owner                                official
 
 ### 1.7 文档入口
 
-活跃施工只认本文件 + [`34-remaining-construction-plan.md`](./archive/34-remaining-construction-plan.md) + [`34-cutover-receipt.md`](./34-cutover-receipt.md) + [`35-duplicate-legacy-layer-cleanup-plan.md`](./35-duplicate-legacy-layer-cleanup-plan.md)。`28/31/32/33` 已标历史规格，勿按它们开波次。不得以 Phase / P5F / 灰度 G4 名称判断是否可发布。
+活跃施工只认本文件 + [`34-remaining-construction-plan.md`](./archive/34-remaining-construction-plan.md) + [`34-cutover-receipt.md`](./34-cutover-receipt.md) + [`35-duplicate-legacy-layer-cleanup-plan.md`](./archive/35-duplicate-legacy-layer-cleanup-plan.md)。`28/31/32/33` 已标历史规格，勿按它们开波次。不得以 Phase / P5F / 灰度 G4 名称判断是否可发布。
 
 ---
 
@@ -947,7 +947,7 @@ W1/W2 可与 W3–W5 并行，但 W9 必须同时等 W2 和 W8 完成。
 
 只有以下全部成立，才能宣称“自研 Anki 已切到 Official，OHOS 已退役”。
 勾选必须以仓库/发布证据为准；本会话未伪造设备证明。未满足项保持未勾选。
-W9 物理删除执行版见 [`35-duplicate-legacy-layer-cleanup-plan.md`](./35-duplicate-legacy-layer-cleanup-plan.md)（2026-08-27 已施工）；「一个正式版本观察」被 2026-08-27 负责人决策豁免；摘要见 [`34-cutover-receipt.md`](./34-cutover-receipt.md)。
+W9 物理删除执行版见 [`35-duplicate-legacy-layer-cleanup-plan.md`](./archive/35-duplicate-legacy-layer-cleanup-plan.md)（2026-08-27 已施工）；「一个正式版本观察」被 2026-08-27 负责人决策豁免；摘要见 [`34-cutover-receipt.md`](./34-cutover-receipt.md)。
 
 - [x] 仓库不再包含 OHOS product target、fork 依赖或构建补丁；（证据：`ohos/`、`tool/apply_patches.sh`、`tool/patches/` 已不存在；活跃构建说明改官方 Flutter）
 - [x] 活跃文档不再宣称支持 OHOS；（证据：本 README、`docs/android-build-setup.md`、`docs/project-guide.md`、`CLAUDE.md` → ADR 0041 / EOL）

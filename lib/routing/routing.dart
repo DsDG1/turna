@@ -19,8 +19,9 @@ class AppRouter extends RootStackRouter {
   static const DiagnosticsReleaseGuard _diagnosticsGuard =
       DiagnosticsReleaseGuard();
 
-  // Platform-adaptive policy (docs/platform-adaptive-page-transition-
-  // unification-plan.md D1): Android/Fuchsia/desktop -> Material routes with
+  // Platform-adaptive policy (contract in docs/project-guide.md §3, enforced by
+  // test/routing/routing_policy_contract_test.dart): Android/Fuchsia/desktop ->
+  // Material routes with
   // predictive back, iOS/macOS -> Cupertino routes with edge-swipe pop, web ->
   // no transition. Do not force a single platform style globally and do not
   // add custom transitions/durations here.

@@ -8,7 +8,7 @@
 >
 > **范围修订（2026-08-31，ADR 0042）**：本文的导入链路修复部分（S1 控制权、S2 启动恢复的导入分支、S4 §9.2 preview scope、S6 checkpoint 体系对新导入）**由 [doc 42](./42-staging-first-official-import-lifecycle-plan.md) 的 staging-first 重设计取代**，不再按本文原波次施工。本文保留并继续有效的范围：S3 verified hard uninstall、S4 source 元数据/mapping 生命周期（§9.2 除外）、S5 media GC、S7 compact、S8 存量 census/repair center、§7.4 存量无主数据善后、§11.4 存量 checkpoint inventory。
 >
-> 前置阅读：[34](./34-official-anki-production-cutover-and-ohos-retirement-plan.md)、[34 收据](./34-cutover-receipt.md)、[38](./38-debt-and-perf-batch-1-plan.md)、[39](./39-debt-and-perf-batch-2-plan.md)、[40](./40-doc39-remainder-completion-plan.md)、[ADR 0036](../decisions/0036-official-anki-core-migration.md)、[ADR 0037](../decisions/0037-anki-course-review-unification.md)。
+> 前置阅读：[34](./34-official-anki-production-cutover-and-ohos-retirement-plan.md)、[34 收据](./34-cutover-receipt.md)、[38](./archive/38-debt-and-perf-batch-1-plan.md)、[39](./archive/39-debt-and-perf-batch-2-plan.md)、[40](./archive/40-doc39-remainder-completion-plan.md)（三者已归档）、[ADR 0036](../decisions/0036-official-anki-core-migration.md)、[ADR 0037](../decisions/0037-anki-course-review-unification.md)。
 >
 > 当前源码基线（**已过期，见下行现行值**）：`CourseDatabase.kSchemaVersion = 22`、Official catalog schema `11`、Official contract `1.11`（ops 37–40）。Android arm64 `libturna_anki.so` 已按 1.11 重建（2026-08-31 01:59，23,062,296 bytes，SHA-256 `C2808E58FE5AD28A5BD8B6A7CDFDEC4769785216F7F89F0765FB95283FD55530`；`verify_symbols.sh` pass；ELF AArch64 Android 24 / NDK r28c）。Android 强杀矩阵仍未跑。
 >

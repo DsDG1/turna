@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 
 /// Platform-adaptive page route for the few internal/diagnostic pushes that
 /// assemble their widget at runtime and therefore cannot be statically
-/// registered in the AutoRoute table (plan D5, see
-/// docs/platform-adaptive-page-transition-unification-plan.md).
+/// registered in the AutoRoute table (the documented exception in
+/// docs/project-guide.md §3; enforced by
+/// test/routing/routing_policy_contract_test.dart).
 ///
 /// It only selects an official Flutter route class per platform — no custom
 /// transitions, curves, durations, or opacity. Production code must not

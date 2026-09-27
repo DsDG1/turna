@@ -5,7 +5,7 @@
 > 准确口径：**Official Anki 迁移中，生产验收 NO-GO**（不得写「迁移完成」或「删除已彻底释放空间」）。已发生：Legacy 复刻层代码按 doc 35 L0–L3 删除（2026-08-27）；doc 41 Dart host 行为已施工；Android arm64 `.so` 已重建（`verify_symbols.sh` pass）；**schema drop（W9-E）与 NoteStore 读退役已由 2026-09-24 架构简化批次 P1/P2 完成**（course.db v27 DROP `anki_notetypes/anki_notes/anki_cards_meta`，`AnkiNoteDao`/`IAnkiNoteStore` 删除；W9-E 破例已记档）。未发生：任何正式发版（存量用户为零）、Android release 强杀矩阵、真机验收。当前版本：Official catalog **v14** / contract **1.13**。
 > 首发目标：**Android arm64 + iOS**（iOS 于 2026-09-26 经 `ec0170ae` 启用官方 Anki 引擎：静态链接 rslib 的 `TurnaAnki.xcframework` + WKWebView reviewer，见 [`native/turna_anki_core/README.md`](../../native/turna_anki_core/README.md)）
 > 总原则：官方 Anki Collection 是唯一 Anki 事实源，Turna 只维护课程投影；非 Android 不得以缺 Official Core 为由打开 Legacy 新写入
-> 目录布局：active 施工文档在根目录，已被 34 接管或收口的历史计划/报告（Phase 0–4、P5A/B/C/D1/E、28/30/31/32/33/34-remaining/36）归档到 [`archive/`](./archive/)，artifacts 一并归档。
+> 目录布局：active 施工文档在根目录（**当前只剩 34 收据 / 34 主计划 / 41 / 42 四篇**），已被 34 接管或收口的历史计划/报告（Phase 0–4、P5A/B/C/D1/E、28/30/31/32/33/34-remaining/35/36/37/38/39/40）归档到 [`archive/`](./archive/)，artifacts 一并归档。
 > 历史执行记录：[`archive/02-phase-0-result-report.md`](./archive/02-phase-0-result-report.md)
 
 ## Active 文档（当前在跑）
@@ -14,20 +14,13 @@
 |---|---|---|---|
 | **34 收据** | [34 Cutover receipt](./34-cutover-receipt.md) | **本目录唯一状态真源**：Done 表、架构简化 P0–P4 批次记录、W9 HOLD 解除记录与证据台账、W9-E 破例记录、Held 表、准确口径行。**改状态只改这里**，再由 34 主计划反向引用 | **活跃且准确**（2026-09-27 更新：并入 W9 解除记录、记档 W9-E 破例、订正 feature flag opt-in 口径） |
 | **34** | [Official 生产收口与 OHOS 退役](./34-official-anki-production-cutover-and-ohos-retirement-plan.md) | **唯一活跃施工入口**：W0–W10 止血、OHOS EOL、owner census、Official import/review、Legacy 迁移与分波删除 | **验收 NO-GO**；2026-08-25 一次性施工完成 R0–R8 host 侧并全绿（analyze 0 issue / 全量 1852:0 / golden 4:4 / native 68:0 / arm64 APK 56.1MB），形成工作树生产候选；真机矩阵与外部事实未验收，明细见 [34-remaining §18](./archive/34-remaining-construction-plan.md) 与 [收据](./34-cutover-receipt.md)；W9 HOLD 已解除（2026-08-27 负责人决策） |
-| **35** | [Legacy 复刻层清理施工计划](./35-duplicate-legacy-layer-cleanup-plan.md) | **W9 重切执行版（L0–L3）**：只删官方已替代的复刻层（parser/legacy writer/assembler/死代码），自研资产（Turna FSRS 引擎、会话基座、向导 UX、统计、备份）全部保留；schema drop（W9-E）不在其内 | **已施工（2026-08-27，L0–L3 四波各自独立 commit）**；L2 门禁按负责人 HOLD 解除决策（legacy 源 fail-closed 只读）满足；验收明细见 doc 35 §9 |
-| **36** | [投影课程树顺序与限额修复](./archive/36-projection-tree-ordering-and-limits.md) | 修投影树写入三类缺陷：sortOrder 撞号随机交错、哈希字典序乱序、超 60/40 限额写入即坏；含幽灵消失修复与 algorithmVersion 3 一次性重投影 | **已施工（2026-08-28，Host 单测全绿）；2026-09-27 归档**（7/7 落点已失效，成果由 CHANGELOG 记录） |
-| **37** | [通用卡片识别器重设计](./37-generic-card-recognizer-plan.md) | 导入识别推倒重来：契约 1.9 +templateFacts/reqs、词典化角色绑定、notetype 级原型判定、类型体系收敛、预览四件套；取代 doc 30 的「自动题型识别」部分 | **已施工（2026-08-29，P1–P5 一次性完成）**；diff 门禁 16/16 一致或改进、零新劣化；Rust 契约与 fixture regen 待 cargo 主机复验（本机无工具链），明细见 doc 37 §10 |
-| 30 | [官方 Anki 卡按语言课体验投影与渲染](./archive/30-course-like-card-experience-plan.md) | 在官方核心之上恢复自动题型识别、语言课渲染、翻面/展开动画；评分仍写官方 Scheduler | **已实施（Host / Unit 验证通过）**；生产默认与 chrome 见 **34**；题型识别部分由 **37** 取代；**2026-09-27 归档**（22/22 代码路径已失效） |
-| **38** | [集成减负与性能批次一](./38-debt-and-perf-batch-1-plan.md) | 屎山清理 P1–P5：删零引用死代码（~4k 行）、双计数器修快照失效、桥接 N+1 批量化与 import 计数、浏览器懒渲染与 catalog 连接治理、投影 noop 短路与发布批量化；含对三项原建议的可行性否决记录 | **已施工并验货（2026-08-30）**：flutter analyze 0 issues、全量 +1738/-28（28 例失败经基线 worktree 复算全部为施工前既存、零回归）、P4-C 实修超声明 1 例；Rust 侧静态验讫，`cargo test`+fixture regen 待工具链主机（此前发布 NO-GO），验货明细见 doc 38 §13；P4-B 按计划条件推迟 |
-| **39** | [集成减负与性能批次二](./39-debt-and-perf-batch-2-plan.md) | doc 38 §11 落地+扩入新发现：Dart 死码二批（孤儿复习页 835 行、unified legacy 死路径等 ~2,000 行）、契约四表合一与 capabilities/VERSION 对拍闭环（fixture 已漂移缺 RESTORE_BACKUP）、DTO codegen 三类分治、worker 统一消息协议与传输层折叠、import 域状态机减负、Rust 单表化四波；行为修复（转义 bug、错误码修正）与决策项（journal 只写不消费）单列 | **部分施工（2026-08-30）：P1 全簇/P2/P3/P4/F2/F3/P5 前半已施工（12 个独立 commit，analyze 0、点名门禁全绿、无新增失败），施工记录见 doc 39 §15；余项（P5 后半/F1/P6 Rust 四波）移交 doc 40** |
-| **40** | [doc 39 收尾施工计划](./40-doc39-remainder-completion-plan.md) | doc 39 余项整理：P5 后半（mark\* 合一、router N+1、run() 拆分、view_helpers 归位）、F1 转义事故 bugfix、P6 Rust 收敛四波（实测锚点刷新 as_mut 22 处/from_slice 17 处）与工具链主机统一验（三批同闸） | **已施工（2026-08-30）**（自述「已经全部施工」：R1/R2/F1 + R3 差 1 + C3 + 编排三连，施工记录见 doc 40 §11/§11.5）；铁律继承 doc 39 |
 | **41** | [Official Anki 导入生命周期与存储回收修复](./41-official-anki-lifecycle-and-storage-remediation-plan.md) | **P0 专项**：修复导入后退出/强杀形成隐藏 source、cancel 无补偿、startup recovery 未接线、删除后全局 deck/notetype/mapping 污染、Official 媒体与 rollback checkpoint 无界保留、SQLite 逻辑删除不回收物理字节；含 verified uninstall、media GC、bounded checkpoint、compact、存量 census/repair center 与真机强杀矩阵 | **施工中（2026-08-31）**：Dart host 行为已落地（**当前 catalog v14 / contract 1.13**）；Android arm64 `.so` 已重建（`verify_symbols.sh` pass）；Android 强杀矩阵未跑；生产验收 NO-GO。**导入链路部分（S1/S2 导入分支/S6）由 42 取代**（ADR 0042）；本文件保留范围为删除与物理回收（S3/S4/S5/S7）+ 存量善后（S8/§7.4/§11.4），S8 UI 子实现已并入 §13.3.1（原 doc 43） |
 | **42** | [Staging-first Official 导入生命周期重设计](./42-staging-first-official-import-lifecycle-plan.md) | **导入设计轴反转**：导入先落一次性 staging collection（独立 isolate），预览/映射在 staging 上做，用户确认后才对 live Collection 执行唯一一次 import；取消 = 删 staging 目录。修复四症状（取消落盘/清理卡死/needsMapping 死循环/映射确认不可用）的结构性根因；含 P0 失败测试门禁、强杀矩阵、doc 41 范围交接表 | **P4 已施工（2026-08-31）**：生产导入只走 staging → `commitLive`；旧 live-first `importFile` 已删。P0 四门禁绿。ADR 0042 已接受 |
 
 ## Archived 文档（Phase 0–4 + P5A/B/C/D1/E 收口记录，归档保留备查）
 
 > 归档目录的保留理由、编号断档说明与「勿按归档施工」提醒见 [`archive/README.md`](./archive/README.md)。
-> **2026-09-27 新归档 3 篇**（仍在上方 Active 表内列示以便检索，文件已移入 `archive/`）：`30`、`36`、`34-remaining`（R0–R8 已由收据闭环）。
+> **2026-09-27 归档 8 篇**（文件已移入 `archive/`，Active 表不再列示）：`30`、`34-remaining`、`35`、`36`、`37`、`38`、`39`、`40`——全部已施工/已收口，成果由 CHANGELOG 与本目录收据承载。
 
 | 顺序 | 文档 | 用途 | 归档前状态 |
 |---|---|---|---|
@@ -63,9 +56,17 @@
 | 27 | [P5-D Sprint D1 验货](./archive/27-p5d-d1-audit.md) | 对照 24/26、源码、点名测试、Device A 评分；不写 P5-D GO | **D1 HOST+DEVICE CONDITIONAL GO**（仅 fixture）；P5-D GO NO |
 | 28 | [P5-D 后续大施工计划](./archive/28-p5d-remainder-construction-plan.md) | 历史 D2 手册 + 灰度锁 | **由 34 接管**；灰度 cohort /「OHOS 继续 Legacy」作废（ADR 0041） |
 | 29 | [P5-E Wave 1 生产解耦与架构约束报告](./archive/29-p5e-wave1-production-decoupling-report.md) | 断生产引用、提取 LegacyAnkiIdentifiers、建立 Forbidden Import CI 约束测试 | **Wave 1 已收口**；Wave 2–4 HOLD |
+| 30 | [官方 Anki 卡按语言课体验投影与渲染](./archive/30-course-like-card-experience-plan.md) | 在官方核心之上恢复自动题型识别、语言课渲染、翻面/展开动画；评分仍写官方 Scheduler | **已实施（Host / Unit 验证通过）**；生产默认与 chrome 见 **34**；题型识别部分由 **37** 取代；**2026-09-27 归档**（22/22 代码路径已失效） |
 | 31 | [Anki 产品体验收口](./archive/31-anki-product-experience-plan.md) | 历史产品体验规格 | **由 34 接管 / superseded**；勿再按本文件单独开施工波次 |
 | 32 | [官方 Anki 与自研体验对齐](./archive/32-official-anki-experience-parity-plan.md) | 历史 parity 规格 | **由 34 接管 / superseded**；残留 parity 面并入 34 W7 |
 | 33 | [P5-F 官方先行导入施工计划](./archive/33-official-first-import-construction-plan.md) | 历史 official-first 施工 | **由 34 接管 / superseded**；默认策略与 fail-closed 以 34 W0/W4 为准 |
+| 34-remaining | [R0–R8 收口返工计划](./archive/34-remaining-construction-plan.md) | 一次性收口返工施工单 | **R0–R8 已由收据全部闭环**；110 个未勾框 / 0 个已勾框，勾选框不代表施工状态；**2026-09-27 归档** |
+| 35 | [Legacy 复刻层清理施工计划](./archive/35-duplicate-legacy-layer-cleanup-plan.md) | **W9 重切执行版（L0–L3）**：只删官方已替代的复刻层（parser/legacy writer/assembler/死代码），自研资产（Turna FSRS 引擎、会话基座、向导 UX、统计、备份）全部保留；schema drop（W9-E）不在其内 | **已施工（2026-08-27，L0–L3 四波各自独立 commit）**；L2 门禁按负责人 HOLD 解除决策（legacy 源 fail-closed 只读）满足；**2026-09-27 归档** |
+| 36 | [投影课程树顺序与限额修复](./archive/36-projection-tree-ordering-and-limits.md) | 修投影树写入三类缺陷：sortOrder 撞号随机交错、哈希字典序乱序、超 60/40 限额写入即坏；含幽灵消失修复与 algorithmVersion 3 一次性重投影 | **已施工（2026-08-28，Host 单测全绿）；2026-09-27 归档**（7/7 落点已失效，成果由 CHANGELOG 记录） |
+| 37 | [通用卡片识别器重设计](./archive/37-generic-card-recognizer-plan.md) | 导入识别推倒重来：契约 1.9 +templateFacts/reqs、词典化角色绑定、notetype 级原型判定、类型体系收敛、预览四件套；取代 doc 30 的「自动题型识别」部分 | **已施工（2026-08-29，P1–P5 一次性完成）**；diff 门禁 16/16 一致或改进、零新劣化；Rust 契约与 fixture regen 待 cargo 主机复验（本机无工具链）；**2026-09-27 归档** |
+| 38 | [集成减负与性能批次一](./archive/38-debt-and-perf-batch-1-plan.md) | 屎山清理 P1–P5：删零引用死代码（~4k 行）、双计数器修快照失效、桥接 N+1 批量化与 import 计数、浏览器懒渲染与 catalog 连接治理、投影 noop 短路与发布批量化；含对三项原建议的可行性否决记录 | **已施工并验货（2026-08-30）**：flutter analyze 0 issues、全量 +1738/-28（28 例失败经基线 worktree 复算全部为施工前既存、零回归）、P4-C 实修超声明 1 例；P4-B 按计划条件推迟；**2026-09-27 归档** |
+| 39 | [集成减负与性能批次二](./archive/39-debt-and-perf-batch-2-plan.md) | doc 38 §11 落地+扩入新发现：Dart 死码二批（孤儿复习页 835 行、unified legacy 死路径等 ~2,000 行）、契约四表合一与 capabilities/VERSION 对拍闭环、DTO codegen 三类分治、worker 统一消息协议与传输层折叠、import 域状态机减负、Rust 单表化四波 | **部分施工（2026-08-30）**：P1 全簇/P2/P3/P4/F2/F3/P5 前半已施工（12 个独立 commit）；余项移交 **40**；**2026-09-27 归档** |
+| 40 | [doc 39 收尾施工计划](./archive/40-doc39-remainder-completion-plan.md) | doc 39 余项整理：P5 后半（mark\* 合一、router N+1、run() 拆分、view_helpers 归位）、F1 转义事故 bugfix、P6 Rust 收敛四波与工具链主机统一验 | **已施工（2026-08-30）**（自述「已经全部施工」：R1/R2/F1 + R3 差 1 + C3 + 编排三连）；铁律继承 doc 39；**2026-09-27 归档** |
 
 Phase 0–4 与 P5 收口的构建/真机证据（截图、日志、APK 采样）随归档保留在 [`archive/artifacts/`](./archive/artifacts/)，原文相对路径保持不变以方便回查。
 

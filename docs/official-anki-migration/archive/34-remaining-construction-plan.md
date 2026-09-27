@@ -5,7 +5,7 @@
 > 状态：**一次性交付施工规格；最终总验收前始终 NO-GO**
 > 父计划：[34 Official 生产收口与 OHOS 退役](../34-official-anki-production-cutover-and-ohos-retirement-plan.md)
 > 验收回执：[34-cutover-receipt.md](../34-cutover-receipt.md)
-> W9 HOLD：已于 2026-08-27 由负责人决策解除（豁免与证据台账见 [收据](../34-cutover-receipt.md) 的「W9 HOLD 解除记录与证据台账」一节；原独立 HOLD 文件已于 2026-09-27 并入该节并删除）；删除执行见 [doc 35](../35-duplicate-legacy-layer-cleanup-plan.md)，W9-B..E 的 host 侧已由 2026-09-24 架构简化批次 P1/P2 完成
+> W9 HOLD：已于 2026-08-27 由负责人决策解除（豁免与证据台账见 [收据](../34-cutover-receipt.md) 的「W9 HOLD 解除记录与证据台账」一节；原独立 HOLD 文件已于 2026-09-27 并入该节并删除）；删除执行见 [doc 35](./35-duplicate-legacy-layer-cleanup-plan.md)，W9-B..E 的 host 侧已由 2026-09-24 架构简化批次 P1/P2 完成
 > **本文件状态（2026-09-27）：R0–R8 已由收据全部闭环，110 个未勾框不代表未施工。已转为历史文档，不再作施工依据；口径一律以 [收据](../34-cutover-receipt.md) 为准。**
 > OHOS 决策：[ADR 0041](../../decisions/0041-ohos-product-eol.md)
 >
@@ -1518,4 +1518,4 @@ AnkiImportPage 只保留：
 4. OHOS sunset / 豁免证据未产生（R7-1 二选一未决）。
 5. final-receipt.md 未生成（真机证据缺失，拒绝拼装半套收据）。
 6. §9.1 的部分建议文件名没有一一照搬；对应行为由 provider/catalog、saga/coordinator、媒体事务、架构守卫及 migration center widget 测试覆盖。导入完成页三动作与 Browser/Stats 的真实设备可达性仍随第 1 项矩阵验收。
-7. WebView 卡片渲染真机矩阵（原 `docs/webview-rendering-optimization-plan.md` WEBVIEW-UX-2026-08 §10.3：6 设备形态 × 11 卡型，矩阵表保留在该文档 stub 内）已实现代码侧并过 host 测试，随第 1 项真机会话一并验收。
+7. WebView 卡片渲染真机矩阵（原 WEBVIEW-UX-2026-08 §10.3：6 设备形态 × 11 卡型——360×640 小屏竖屏、412×915 常规手机、手机横屏、800×1280 平板、Android 深色模式、系统字体 1.3×/1.5×；卡型至少含短文本、长段落、大图、表格、音频、视频、MathJax、Cloze、自定义 CSS、允许 JS 的模板、打字答案卡）已实现代码侧并过 host 测试，随第 1 项真机会话一并验收。该计划文档已随 2026-09-27 精简批次删除，见 Git 历史。

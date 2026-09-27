@@ -1,7 +1,7 @@
 # 35 — Legacy 复刻层清理施工计划（L0–L3，只删官方已替代的重复实现）
 
 > 日期：2026-08-27
-> 关联：[`34-official-anki-production-cutover-and-ohos-retirement-plan.md`](./34-official-anki-production-cutover-and-ohos-retirement-plan.md) §13 / §19（W9）；W9 HOLD 已于 2026-08-27 由负责人决策解除（豁免与证据台账见 [`34-cutover-receipt.md`](./34-cutover-receipt.md) 的「W9 HOLD 解除记录与证据台账」一节；原独立 HOLD 文件已于 2026-09-27 并入该节并删除）
+> 关联：[`34-official-anki-production-cutover-and-ohos-retirement-plan.md`](../34-official-anki-production-cutover-and-ohos-retirement-plan.md) §13 / §19（W9）；W9 HOLD 已于 2026-08-27 由负责人决策解除（豁免与证据台账见 [`34-cutover-receipt.md`](../34-cutover-receipt.md) 的「W9 HOLD 解除记录与证据台账」一节；原独立 HOLD 文件已于 2026-09-27 并入该节并删除）
 > 状态：**已施工（2026-08-27，L0–L3 四波各自独立 commit，见 §9 验收表）**。本文档是 doc 34 W9 的重切执行版：**只删"复刻层"，不动自研资产**。
 > 总原则：判据只有一条——**这个文件是否在手写复刻 Anki 的语义**（解析 anki2 sqlite、模板/cloze 渲染、media IRI、type-answer、对 Anki 卡的调度写入）。是 → 官方 core 已替代 → 删；否 → 自研资产 → 保留（最多搬家）。
 

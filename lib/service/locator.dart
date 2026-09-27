@@ -182,8 +182,8 @@ class LocalStateKeys {
   static const String achievements = 'achievements.unlocked';
 
   // Achievements v2 (成就系统焕新) — single versioned state document,
-  // persistent metric projection, and one-shot migration marker. See
-  // docs/achievement-system-revamp-plan.md.
+  // persistent metric projection, and one-shot migration marker. Contract in
+  // docs/project-guide.md §15; the original plan lives in Git history.
   static const String achievementsStateV2 = 'achievements.state.v2';
   static const String achievementsProjectionV1 =
       'achievements.metric_projection.v1';
