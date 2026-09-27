@@ -1,7 +1,7 @@
 # ADR 0044 — Anki 底座 v2 复活（2026-09-02）
 
 - 状态：**已接受**（2026-09-02）
-- 关联：[ADR 0043](./0043-anki-v2-single-source-of-truth.md)；[复活记（起因经过结果）](../ankiUpdate/v2-revival-story.md)（架构设计原文，状态由本 ADR 修订为「执行中」）；[ankiUpdate README](../ankiUpdate/README.md)（2026-09-01 失败结论，保留为历史记录）；[step4.md](../ankiUpdate/step4.md)（Step 4 施工状态）
+- 关联：[ADR 0043](./0043-anki-v2-single-source-of-truth.md)；[复活记（起因经过结果）](../ankiUpdate/v2-revival-story.md)（架构设计原文，状态由本 ADR 修订为「执行中」）；[首夜真机发现](../ankiUpdate/v2-first-device-findings.md)（F1–F6 定性与三项固有限制）。**过程档说明**：Step 1–6 施工单、C3/R4 runbook 与 2026-09-01 失败结论档（`ankiUpdate/`）已于 2026-09-27 随精简批次删除，见 Git 历史；R1–R4 的执行收据以本 ADR 与 [`test/BASELINE.md`](../../test/BASELINE.md) 2026-09-02 条目为准
 - 取代：原「PR2：catalog 迁 drift 后台」计划（作废，由 v2 的 D4 删表终局吸收）
 
 ## 背景与依据
@@ -28,10 +28,10 @@ PopScope(canPop: false) 写死不放行
 
 | 步 | 内容 | 备注 |
 |---|---|---|
-| R1 | 重建 arm64 `libturna_anki.so`（含 op 41/42，契约 1.12；`verify_symbols.sh` + SHA 收据） | 现网设备 .so 旧于 op 41/42（`[OfficialAnkiV2] unimplemented` 日志为证），C3 硬前置。**✅ 2026-09-02（SHA 收据见 step4.md）** |
+| R1 | 重建 arm64 `libturna_anki.so`（含 op 41/42，契约 1.12；`verify_symbols.sh` + SHA 收据） | 现网设备 .so 旧于 op 41/42（`[OfficialAnkiV2] unimplemented` 日志为证），C3 硬前置。**✅ 2026-09-02（SHA 收据原在 `ankiUpdate/step4.md`，该施工单已随 2026-09-27 精简批次删除，见 Git 历史）** |
 | R2 | C3 真机强杀矩阵 K1–K14 | 设备以实际 serial 记录取证（不限于原计划 vivo 机）；debug/release 双跑纪律不变。**✅ 2026-09-02（K4–K14 实机过；K1/K3 不考虑、K8 不适用、K12 归 Step 5）** |
 | R3 | C4 大库 P95 冷重建定标 | 测量面已在（重建器 `elapsedMillis`）。**✅ 2026-09-02（操作者确认「通过」；P95 数值需要时补取）** |
-| R4 | 内部观察期 → `productionAndroid` 翻 `v2ImportChain=true` → Step 4 关闭 | dev/QA 构建即刻 `copyWith` 开 flag 投喂。**✅ 2026-09-02（操作者「通过」；常量翻 true + v2 define 退役 + 测试翻转，动作与回退卡见 [step4-r4-runbook.md](../ankiUpdate/step4-r4-runbook.md)）。Step 4 关闭；Step 5 重新决策（条 5）、Step 6 开工条件满足** |
+| R4 | 内部观察期 → `productionAndroid` 翻 `v2ImportChain=true` → Step 4 关闭 | dev/QA 构建即刻 `copyWith` 开 flag 投喂。**✅ 2026-09-02（操作者「通过」；常量翻 true + v2 define 退役 + 测试翻转，动作与回退卡原在 `step4-r4-runbook.md`，该 runbook 已随 2026-09-27 精简批次删除，见 Git 历史）。Step 4 关闭；Step 5 重新决策（条 5）、Step 6 开工条件满足** |
 
 3. **新增前置（R1.5，本轮抓捕带出）**：v2 链 `OfficialAnkiV2ImportService.commit` 的 `upsertCardBatch` 是每卡一行同步 sqlite 写在主 isolate（与 v1 已修复的同款问题），须先照抄 v1 `commitReceipt` 的 worker 下沉模式，否则 K13 大库行必挂。**✅ 2026-09-02 落码（commit `cb6945c8`），K13 大库真机通过。**
 4. **原「PR2 catalog 迁 drift」计划作废**：v2 的 D4（catalog 18→5 表）在 Step 6 直接删除多余副本，先迁 drift 再删等于做两遍。v1 侧已落地的 PR1 主线程止血（投影/词表/回执后台化）保持有效，与 v2 正交。

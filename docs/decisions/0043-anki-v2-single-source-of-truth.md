@@ -1,8 +1,8 @@
 # ADR 0043 — Anki 底座 v2：单一事实源与可重建派生层
 
-- 状态：**执行中**（2026-09-02 复活，见 [ADR 0044](./0044-anki-v2-revival.md)；架构原文不变）。此前：失败 / 未交付（2026-09-01），失败结论保留于下文与 ankiUpdate README。2026-08-31 评审曾标「已接受」，但六步计划未完成切生产：Step 4 真机门禁未过、`v2ImportChain` 生产仍为 false、Step 5/6 取消。结论与档案见 [ankiUpdate README](../ankiUpdate/README.md)。下文是失败当时的设计原文，不是现行架构。
+- 状态：**执行中**（2026-09-02 复活，见 [ADR 0044](./0044-anki-v2-revival.md)；架构原文不变）。此前：失败 / 未交付（2026-09-01），失败结论保留于下文。2026-08-31 评审曾标「已接受」，但六步计划未完成切生产：Step 4 真机门禁未过、`v2ImportChain` 生产仍为 false、Step 5/6 取消。**当时的过程结论档（`ankiUpdate/` 分步施工单）已于 2026-09-27 随精简批次删除，见 Git 历史**。下文是失败当时的设计原文，不是现行架构。
 - 日期：2026-08-31
-- 关联：[重建计划 README](../ankiUpdate/README.md)（总目标与六步）；[step1.md](../ankiUpdate/step1.md)（真机实测收据与教训，已完成）；[doc 41](../official-anki-migration/41-official-anki-lifecycle-and-storage-remediation-plan.md)（中断场景与不变量来源）；[doc 42](../official-anki-migration/42-staging-first-official-import-lifecycle-plan.md)（staging-first，v2 继承）；[ADR 0036](./0036-official-anki-core-migration.md)、[ADR 0037](./0037-anki-course-review-unification.md)、[ADR 0042](./0042-staging-first-official-import.md)
+- 关联：[doc 41](../official-anki-migration/41-official-anki-lifecycle-and-storage-remediation-plan.md)（中断场景与不变量来源）；[doc 42](../official-anki-migration/42-staging-first-official-import-lifecycle-plan.md)（staging-first，v2 继承）；[复活记（叙事版）](../ankiUpdate/v2-revival-story.md)；[ADR 0036](./0036-official-anki-core-migration.md)、[ADR 0037](./0037-anki-course-review-unification.md)、[ADR 0042](./0042-staging-first-official-import.md)
 - 当前源码基线：Official catalog schema 12、`CourseDatabase.kSchemaVersion = 22`、contract 1.11（ops 1–40，38 个在用）；四个 SQLite 存储 = `collection.anki2` + `collection.media.db2` + `official_catalog.sqlite`（18 张表）+ `course.db`（约 20 张 anki 表）
 
 ## 背景
@@ -72,7 +72,7 @@
 
 ## 开放问题（已全部关闭，2026-08-31 评审）
 
-- Q1：配置区 namespace 与 schema 细节——**已关闭**。spike 结论（详见 [step3.md](../ankiUpdate/step3.md) §任务 A）：rslib config 表存任意字符串 key + JSON BLOB；写走公开的 `Collection::set_config_json`（事务性，K10 语义由它成立）、删走 `remove_config`；读因 `get_config_optional` 为 `pub(crate)`，桥内以既有 `col.storage.db()` 只读 SQL 先例直读 config 表；SET 强制 `turna.` 前缀（写保护 Anki 自身配置），读不限。
+- Q1：配置区 namespace 与 schema 细节——**已关闭**。spike 结论（原文 `ankiUpdate/step3.md` §任务 A，该施工单已随 2026-09-27 精简批次删除，见 Git 历史）：rslib config 表存任意字符串 key + JSON BLOB；写走公开的 `Collection::set_config_json`（事务性，K10 语义由它成立）、删走 `remove_config`；读因 `get_config_optional` 为 `pub(crate)`，桥内以既有 `col.storage.db()` 只读 SQL 先例直读 config 表；SET 强制 `turna.` 前缀（写保护 Anki 自身配置），读不限。
 - Q2：`anki_scheduler_mutations` 表去留——**已定案：删**。调度事实的唯一记录是 Collection 的 revlog/ops（D1）；audit 职责由 D8 文件日志承担，账本里留调度审计表正是 v2 要消灭的副本。删表发生在 Step 5/6 账本收敛，Step 3/4 不受影响。
 - Q3：视图重建的量化门禁——**转 Step 4 前置项**（10 万卡库冷重建 P95 上限，数值 Step 4 定标，进 Step 4 施工文档）。
 - Q4：Step 4 并存 flag 的命名与灰度边界——**转 Step 4 前置项**（默认值、回退条件，进 Step 4 施工文档）。

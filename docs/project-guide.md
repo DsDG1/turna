@@ -756,8 +756,7 @@ python -m ruff check tool/gui                # GUI lint（src + tests）
 | **Anki 官方内核迁移** | |
 | [`docs/official-anki-migration/`](./official-anki-migration/README.md) | 迁移文档索引；**状态唯一真源 = [`34-cutover-receipt.md`](./official-anki-migration/34-cutover-receipt.md)** |
 | [`docs/official-anki-migration/archive/`](./official-anki-migration/archive/README.md) | 迁移历史文档库（**勿按其施工**） |
-| [`docs/ankiUpdate/`](./ankiUpdate/README.md) | Anki 升级分步手册（**已归档**，含 v2 失败与复活复盘） |
-| [`docs/anki-maintainability-cleanup/`](./anki-maintainability-cleanup/README.md) | Anki 可维护性清理收据（**已归档**） |
+| [`docs/ankiUpdate/v2-revival-story.md`](./ankiUpdate/v2-revival-story.md) | Anki v2 失败与复活复盘（ADR 0044 叙事版）+ [首夜真机发现](./ankiUpdate/v2-first-device-findings.md)；**分步施工单与可维护性清理收据已随 2026-09-27 精简批次删除，结论存 Git 历史** |
 | **AI 与设置** | |
 | [`docs/ai_companion_implementation.md`](./ai_companion_implementation.md) | AI companion 实现边界 |
 | [`docs/advanced-settings-system-health.md`](./advanced-settings-system-health.md) | 高级设置与系统健康（状态机依 ADR 0040） |
