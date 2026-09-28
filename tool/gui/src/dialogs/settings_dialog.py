@@ -341,6 +341,8 @@ class SettingsDialog(TurnaDialog):
         else:
             self.scale_combo.setCurrentIndex(self.scale_combo.findData(100))
 
+        self.telemetry_check.setChecked(bool(self._settings.telemetry_enabled))
+
         provider_index = self.ai_provider_combo.findData(self._settings.ai_provider)
         if provider_index >= 0:
             self.ai_provider_combo.setCurrentIndex(provider_index)
@@ -424,6 +426,8 @@ class SettingsDialog(TurnaDialog):
     def _sync_to_settings(self) -> None:
         self._settings.theme = self.theme_combo.currentData()
         self._settings.ui_scale_percent = self.scale_combo.currentData()
+        # T21: takes effect on accept, like every other settings field.
+        self._settings.telemetry_enabled = self.telemetry_check.isChecked()
 
         self._settings.ai_provider = self.ai_provider_combo.currentData()
         self._settings.ai_base_url = self.ai_url_edit.text().strip()
@@ -536,6 +540,16 @@ class SettingsDialog(TurnaDialog):
         self._original.ai_retry_max = self._settings.ai_retry_max
         self._original.auto_save_on_close = self._settings.auto_save_on_close
         self._original.undo_limit = self._settings.undo_limit
+        self._original.telemetry_enabled = self._settings.telemetry_enabled
+        # T21: push the switch into the telemetry module for this process.
+        try:
+            from src.infrastructure.telemetry import set_telemetry_enabled
+
+            set_telemetry_enabled(self._settings.telemetry_enabled)
+        except Exception:
+            logger.warning(
+                "settings_dialog.py:telemetry switch failed", exc_info=True
+            )
         self._original.recent_repos = [dict(r) for r in self._settings.recent_repos]
         self._original.git_clone_root = self._settings.git_clone_root
         self._original.git_bin = self._settings.git_bin

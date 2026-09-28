@@ -86,6 +86,9 @@ class Settings:
     # Editor behaviour
     auto_save_on_close: bool = False
     undo_limit: int = 100
+    # T21: local-only telemetry log (never uploaded). Absolute paths are
+    # scrubbed before writing; this switch turns recording off entirely.
+    telemetry_enabled: bool = True
 
     # Recent repositories (legacy JSON blob; kept as list[dict])
     recent_repos: list[dict[str, Any]] = field(default_factory=list)
@@ -185,6 +188,7 @@ class Settings:
         qsettings.setValue("ai/pipeline_default_mode", self.ai_pipeline_default_mode)
 
         qsettings.setValue("editor/auto_save_on_close", self.auto_save_on_close)
+        qsettings.setValue("editor/telemetry_enabled", self.telemetry_enabled)
         qsettings.setValue("editor/undo_limit", self.undo_limit)
 
         qsettings.setValue(
@@ -294,6 +298,7 @@ class Settings:
             ai_max_parallel_lessons=self.ai_max_parallel_lessons,
             ai_pipeline_default_mode=self.ai_pipeline_default_mode,
             auto_save_on_close=self.auto_save_on_close,
+            telemetry_enabled=self.telemetry_enabled,
             undo_limit=self.undo_limit,
             recent_repos=[dict(r) for r in self.recent_repos],
             git_clone_root=self.git_clone_root,
@@ -420,6 +425,11 @@ def _load_editor_settings(qsettings: QSettings) -> dict[str, Any]:
     return {
         "auto_save_on_close": _bool_or_default(
             qsettings.value("editor/auto_save_on_close", False), False
+        ),
+        # T21: absent key -> True (the shipped behaviour) so upgrading users
+        # are not silently opted out of the existing diagnostics.
+        "telemetry_enabled": _bool_or_default(
+            qsettings.value("editor/telemetry_enabled", True), True
         ),
         "undo_limit": undo_limit,
     }

@@ -116,5 +116,103 @@ class TelemetryTest(unittest.TestCase):
         self.assertNotIn("messages", data["payload"])
 
 
+class TelemetryPathScrubbingTest(unittest.TestCase):
+    """T21: an absolute path must not survive into the log."""
+
+    def setUp(self) -> None:
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_telemetry_"))
+        self.log_file = self.tmp / "telemetry.log"
+        self.telemetry = Telemetry(self.log_file)
+
+    def tearDown(self) -> None:
+        import shutil
+
+        from src.infrastructure.telemetry import set_telemetry_enabled
+
+        set_telemetry_enabled(True)
+        self.telemetry.close()
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _last_line(self) -> dict:
+        lines = self.log_file.read_text(encoding="utf-8").strip().splitlines()
+        return json.loads(lines[-1])
+
+    def _event_lines(self) -> list[str]:
+        if not self.log_file.exists():
+            return []
+        return [
+            line
+            for line in self.log_file.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+
+    def test_path_key_is_reduced_to_its_tail(self) -> None:
+        secret = "/home/alice/projects/turna/turkish"
+        self.telemetry.record_event("repo.open.failed", payload={"path": secret})
+        written = self._last_line()["payload"]["path"]
+        self.assertNotIn("/home/alice", written)
+        self.assertEqual(written, "turna/turkish")
+
+    def test_home_prefix_becomes_tilde(self) -> None:
+        home = str(Path.home())
+        payload = {"path": f"{home}/courses/german"}
+        self.telemetry.record_event("x", payload=payload)
+        written = self._last_line()["payload"]["path"]
+        self.assertFalse(written.startswith(home))
+        self.assertTrue(written.startswith("~"))
+
+    def test_path_valued_keys_are_scrubbed(self) -> None:
+        for key in ("course_dir", "lesson_path", "file", "dir"):
+            with self.subTest(key=key):
+                self.telemetry.record_event("x", payload={key: "/opt/data/courses/tr"})
+                written = self._last_line()["payload"][key]
+                self.assertNotIn("/opt/data", written)
+
+    def test_path_objects_are_scrubbed(self) -> None:
+        self.telemetry.record_event("x", payload={"path": Path("/srv/repos/german")})
+        self.assertNotIn("/srv/repos", self._last_line()["payload"]["path"])
+
+    def test_nested_path_in_a_list_is_scrubbed(self) -> None:
+        self.telemetry.record_event(
+            "x", payload={"path": ["/srv/a/one", "/srv/b/two"]}
+        )
+        written = self._last_line()["payload"]["path"]
+        self.assertEqual(written, ["a/one", "b/two"])
+
+    def test_non_path_values_are_untouched(self) -> None:
+        self.telemetry.record_event(
+            "x", payload={"count": 3, "ok": True, "name": "课程 A"}
+        )
+        data = self._last_line()["payload"]
+        self.assertEqual(data["count"], 3)
+        self.assertIs(data["ok"], True)
+        self.assertEqual(data["name"], "课程 A")
+
+    def test_context_is_scrubbed_too(self) -> None:
+        self.telemetry.record_event(
+            "x", context={"course_dir": "/home/bob/repos/turna"}
+        )
+        self.assertNotIn("/home/bob", self._last_line()["context"]["course_dir"])
+
+    def test_disabled_telemetry_writes_no_events(self) -> None:
+        from src.infrastructure.telemetry import set_telemetry_enabled
+
+        set_telemetry_enabled(False)
+        self.telemetry.record_event("x", payload={"a": 1})
+        self.telemetry.record_action("ui.click", "button")
+        # The handler is attached in __init__, so the file may exist; what
+        # must not exist is a single event line.
+        self.assertEqual(self._event_lines(), [])
+
+    def test_reenabling_resumes_writing(self) -> None:
+        from src.infrastructure.telemetry import set_telemetry_enabled
+
+        set_telemetry_enabled(False)
+        self.telemetry.record_event("x", payload={"a": 1})
+        set_telemetry_enabled(True)
+        self.telemetry.record_event("y", payload={"a": 2})
+        self.assertEqual(self._last_line()["event"], "y")
+
+
 if __name__ == "__main__":
     unittest.main()

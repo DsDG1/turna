@@ -33,6 +33,121 @@ _LOG_FILE = _LOG_DIR / "telemetry.log"
 _RETENTION_DAYS = 7
 
 
+# ---------------------------------------------------------------------------
+# T21: opt-out + path scrubbing
+# ---------------------------------------------------------------------------
+# Telemetry is a local-only JSONL log (never uploaded), but it recorded the
+# user's absolute course paths, so the log identified both the user and the
+# project on disk. Two mitigations:
+#   1. ``telemetry_enabled`` (设置 ▸ 外观) lets the user turn recording off.
+#   2. Every payload goes through scrub_payload(), which reduces an absolute
+#      path to its basename and shortens the user-specific home prefix.
+
+_TELEMETRY_ENABLED: bool | None = None  # None -> read Settings lazily
+
+
+def set_telemetry_enabled(enabled: bool) -> None:
+    """Force the telemetry switch for this process (used by the settings UI)."""
+    global _TELEMETRY_ENABLED
+    _TELEMETRY_ENABLED = bool(enabled)
+
+
+def telemetry_is_enabled() -> bool:
+    """Whether telemetry recording is currently enabled."""
+    if _TELEMETRY_ENABLED is not None:
+        return _TELEMETRY_ENABLED
+    try:
+        from src.application.settings import Settings
+
+        return bool(Settings().telemetry_enabled)
+    except Exception:
+        # A broken settings layer must not silently disable diagnostics
+        # forever; default to the shipped behaviour (on) and say so once.
+        logger.debug(
+            "infrastructure/telemetry.py:settings read failed, defaulting to on",
+            exc_info=True,
+        )
+        return True
+
+
+# Keys whose values are paths and therefore get basename-only treatment.
+_PATH_KEYS = frozenset(
+    {
+        "path",
+        "dir",
+        "file",
+        "course_dir",
+        "lesson_path",
+        "temp_path",
+        "audio_path",
+        "target",
+        "course",
+        "root",
+    }
+)
+
+_MAX_PATH_DEPTH = 2
+
+
+def _is_rooted(text: str) -> bool:
+    """Platform-agnostic "starts at a root" check.
+
+    ``Path.is_absolute()`` answers False for "/opt/x" on Windows, which would
+    let POSIX-shaped absolute paths through unscrubbed. Judge the string.
+    """
+    t = text.replace("\\", "/")
+    return t.startswith("/") or (len(t) > 1 and t[1] == ":")
+
+
+def scrub_value(key: str, value: Any) -> Any:
+    """Reduce one payload value to something that does not identify a file."""
+    if isinstance(value, Path):
+        return scrub_value(key, str(value))
+    if isinstance(value, (list, tuple)):
+        return [scrub_value(key, v) for v in value]
+    if not isinstance(value, str):
+        return value
+    text = value
+    if key in _PATH_KEYS or _looks_like_path(text):
+        home = str(Path.home())
+        normalized = text.replace("\\", "/")
+        home_normalized = home.replace("\\", "/").rstrip("/")
+        if (
+            home_normalized
+            and home_normalized != "/"
+            and normalized.startswith(home_normalized)
+        ):
+            text = "~" + normalized[len(home_normalized) :]
+        normalized = text.replace("\\", "/")
+        if _is_rooted(normalized):
+            # Keep the last _MAX_PATH_DEPTH components: enough to tell
+            # "courses/turkish" from "courses/german", not enough to find it.
+            parts = [p for p in normalized.rstrip("/").split("/") if p]
+            text = "/".join(parts[-_MAX_PATH_DEPTH:]) or normalized
+        elif len(text) > 120:
+            text = text[:117] + "..."
+    return text
+
+
+def _looks_like_path(text: str) -> bool:
+    if len(text) < 4 or len(text) > 512:
+        return False
+    if "\n" in text:
+        return False
+    if " " in text:
+        return False
+    return "/" in text or "\\" in text
+
+
+def scrub_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """Return *payload* with every value scrubbed. Never raises."""
+    try:
+        return {k: scrub_value(str(k), v) for k, v in payload.items()}
+    except Exception:
+        logger.debug("infrastructure/telemetry.py:scrub_payload failed", exc_info=True)
+        return {}
+
+
 class Telemetry:
     """Structured event logger.
 
@@ -88,6 +203,9 @@ class Telemetry:
         return datetime.now(UTC).isoformat()
 
     def _write(self, event: str, duration_ms: float | None, payload: dict[str, Any] | None, context: dict[str, Any] | None) -> None:
+        # T21: honour the opt-out before doing any work at all.
+        if not telemetry_is_enabled():
+            return
         line = {
             "ts": self._now_iso(),
             "event": event,
@@ -95,9 +213,9 @@ class Telemetry:
         if duration_ms is not None:
             line["duration_ms"] = round(duration_ms, 3)
         if payload:
-            line["payload"] = payload
+            line["payload"] = scrub_payload(payload)
         if context:
-            line["context"] = context
+            line["context"] = scrub_payload(context)
         try:
             self._logger.info(json.dumps(line, ensure_ascii=False, sort_keys=True))
         except Exception:
