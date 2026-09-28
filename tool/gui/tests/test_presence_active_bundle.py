@@ -104,6 +104,49 @@ class CampaignAutoEnqueueTest(unittest.TestCase):
         self.assertFalse(p.allow_soft)
         self.assertFalse(p.allow_ambient_live)
 
+    def test_interactive_offer_is_not_modal(self) -> None:
+        """#10: flipping to Active must not pop the campaign dialog."""
+        from src.application.presence_mode import maybe_auto_enqueue_campaign
+
+        host = self._host(mode="active")
+        host.experience.suggestions = []
+        items = [{"kind": "lesson", "id": "l1", "title": "空课"}]
+        with patch(
+            "src.application.presence_mode.campaign_items_for_host",
+            return_value=items,
+        ), patch(
+            "src.application.ui_guard.is_headless_ui", return_value=False
+        ), patch(
+            "src.application.experience_handlers.quality.handle_quality_campaign"
+        ) as handle, patch(
+            "src.dialogs.quality_campaign_dialog.QualityCampaignDialog"
+        ) as dialog:
+            self.assertTrue(maybe_auto_enqueue_campaign(host))
+            handle.assert_not_called()
+            dialog.assert_not_called()
+
+    def test_interactive_offer_queues_a_suggestion_and_names_it(self) -> None:
+        from src.application.presence_mode import maybe_auto_enqueue_campaign
+
+        host = self._host(mode="active")
+        host.experience.suggestions = []
+        items = [{"kind": "lesson", "id": "l1", "title": "空课"}]
+        with patch(
+            "src.application.presence_mode.campaign_items_for_host",
+            return_value=items,
+        ), patch(
+            "src.application.ui_guard.is_headless_ui", return_value=False
+        ):
+            self.assertTrue(maybe_auto_enqueue_campaign(host))
+        queued = host.experience.suggestions
+        self.assertEqual(len(queued), 1)
+        self.assertEqual(queued[0]["action_id"], "quality.campaign_worst_n")
+        self.assertIn("1 项", queued[0]["title"])
+        # The status bar points at the non-modal entry point.
+        shown = host.statusBar.return_value.showMessage.call_args.args[0]
+        self.assertIn("Ctrl+K", shown)
+        self.assertIn("1 项", shown)
+
 
 if __name__ == "__main__":
     unittest.main()

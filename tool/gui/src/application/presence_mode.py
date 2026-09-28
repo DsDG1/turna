@@ -106,7 +106,9 @@ def maybe_auto_enqueue_campaign(host: ExperienceHost) -> bool:
     - Requires ``resolve_policy(...).allow_campaign_auto``.
     - Skips when no items or already offered for this ``course_dir``.
     - Headless/offscreen: no modal; marks offered + optional statusBar.
-    - Interactive: opens existing ``handle_quality_campaign`` (writes still confirm).
+    - Interactive: non-modal (T10/#10) — queues the campaign as a Copilot
+      suggestion and names it in the status bar. ``handle_quality_campaign``
+      still opens its dialog when the user actually clicks the suggestion.
     Never raises. Returns True when an offer was recorded this call.
     """
     if host is None:
@@ -152,12 +154,40 @@ def maybe_auto_enqueue_campaign(host: ExperienceHost) -> bool:
                 return True
         except Exception:
             logger.debug("application/presence_mode.py:maybe_auto_enqueue_campaign best-effort step failed", exc_info=True)
+        # Interactive, non-modal (T10/#10): flipping a mode switch must not
+        # throw up a modal dialog. The campaign is queued as a suggestion in
+        # the Copilot dock and named in the status bar, so the user decides
+        # when to open it (Ctrl+K / 战役) — same as the headless path.
         try:
-            from src.application.experience_handlers.quality import (
-                handle_quality_campaign,
-            )
-
-            handle_quality_campaign(host, {})
+            sb = getattr(host, "statusBar", None)
+            if callable(sb):
+                bar = sb()
+                if bar is not None and hasattr(bar, "showMessage"):
+                    bar.showMessage(
+                        f"Active 档：战役队列就绪（{len(items)} 项，Ctrl+K / 战役）",
+                        5000,
+                    )
+        except Exception:
+            logger.debug("application/presence_mode.py:maybe_auto_enqueue_campaign best-effort step failed", exc_info=True)
+        try:
+            experience = getattr(host, "experience", None)
+            suggestions = getattr(experience, "suggestions", None)
+            if isinstance(suggestions, list):
+                suggestions.append(
+                    {
+                        "priority": 60,
+                        "title": f"低质战役（{len(items)} 项）",
+                        "action_id": "quality.campaign_worst_n",
+                        "scope": {},
+                        "source": "campaign_auto",
+                    }
+                )
+        except Exception:
+            logger.debug("application/presence_mode.py:maybe_auto_enqueue_campaign best-effort step failed", exc_info=True)
+        try:
+            metrics = getattr(host, "experience_metrics", None)
+            if metrics is not None:
+                metrics.inc_ambient("shown")
         except Exception:
             logger.debug("application/presence_mode.py:maybe_auto_enqueue_campaign best-effort step failed", exc_info=True)
         return True
