@@ -1,20 +1,26 @@
-"""Tests for teacher-view pure functions: lesson wizard + error mapper.
+"""Tests for teacher-view pure functions + the vocab delete guard.
 
-Covers T.2 (intro lesson generation round-trips through validate) and T.7
-(error path parsing / humanization). No PySide6 dependency.
+Covers T.2 (intro lesson generation round-trips through validate), T.7
+(error path parsing / humanization) and T16 (deleting a vocab entry
+confirms and surfaces lesson references first).
 """
 from __future__ import annotations
 
+import os
 import shutil
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
-from tests._course_fixture import copy_turkish_course
+from tests._course_fixture import copy_turkish_course, real_adapter_with_course
+from tests._qtapp import _App
+
+from PySide6.QtCore import Qt
 
 from src.backend.course_adapter import CourseAdapter
 from src.teacher.error_mapper import (
@@ -94,6 +100,102 @@ class ErrorMapperTest(unittest.TestCase):
 
     def test_problem_to_node_ref_none_for_empty_path(self) -> None:
         self.assertIsNone(problem_to_node_ref({"path": ""}, []))
+
+
+class VocabDeleteConfirmTest(unittest.TestCase):
+    """T16: deleting a vocab entry must confirm and report lesson references.
+
+    The teacher path used to delete immediately with neither a confirm nor a
+    reference check, so a word still used by a lesson vanished on click.
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        _App.get()
+
+    def setUp(self) -> None:
+        self.adapter, self.tmp = real_adapter_with_course("turna_vocab_del_")
+        # Two dedicated entries we control: one we point a lesson at (so the
+        # reference count is exact), one the course never references.
+        # Every shipped turkish vocab entry is referenced, so both are new.
+        self.used = self._blank_entry("deneme", "试词")
+        self._reference_vocab(self.used)
+        self.clean = self._blank_entry("kullanilmaz", "未用词")
+
+    def _blank_entry(self, term: str, translation: str) -> str:
+        new_id = self.adapter.add_resource_entry("vocab")
+        for entry in self.adapter.vocab:
+            if entry["id"] == new_id:
+                entry["term"] = term
+                entry["translation"] = translation
+        return new_id
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _reference_vocab(self, vocab_id: str) -> None:
+        """Point a lesson item at *vocab_id* so find_resource_refs sees it."""
+        section = self.adapter.sections[0]
+        lesson = section["units"][0]["lessons"][0]
+        content = lesson.setdefault("content", {})
+        stages = content.setdefault("stages", [])
+        if not stages:
+            stages.append({"id": "st-test", "items": []})
+        stages[0].setdefault("items", []).append(
+            {"id": "i-ref", "runtimeType": "showWord", "wordId": vocab_id}
+        )
+
+    def _table_on_row(self, vocab_id: str):
+        from src.teacher.vocab_table import VocabTableWidget
+
+        table = VocabTableWidget(self.adapter)
+        self.addCleanup(table.deleteLater)
+        for row in range(table.table.rowCount()):
+            if table.table.item(row, 0).data(Qt.ItemDataRole.UserRole) == vocab_id:
+                table.table.setCurrentCell(row, 0)
+                return table
+        self.fail(f"vocab row {vocab_id} not found")
+
+    def _deleted(self, vocab_id: str) -> bool:
+        return all(v.get("id") != vocab_id for v in self.adapter.vocab)
+
+    def test_declined_delete_keeps_the_entry(self) -> None:
+        table = self._table_on_row(self.used)
+        with patch("src.application.ui_guard.safe_question", return_value=False) as ask:
+            table._on_del()
+        ask.assert_called_once()
+        self.assertFalse(self._deleted(self.used))
+        self.assertFalse(table.is_dirty())
+
+    def test_confirm_text_reports_the_live_references(self) -> None:
+        table = self._table_on_row(self.used)
+        with patch("src.application.ui_guard.safe_question", return_value=False) as ask:
+            table._on_del()
+        text = ask.call_args.args[2]
+        self.assertIn("1 处引用", text)
+        self.assertIn("i-ref", text)
+
+    def test_accepted_delete_removes_the_entry(self) -> None:
+        table = self._table_on_row(self.used)
+        with patch("src.application.ui_guard.safe_question", return_value=True):
+            table._on_del()
+        self.assertTrue(self._deleted(self.used))
+        self.assertTrue(table.is_dirty())
+
+    def test_unreferenced_entry_still_confirms_and_says_so(self) -> None:
+        table = self._table_on_row(self.clean)
+        with patch("src.application.ui_guard.safe_question", return_value=False) as ask:
+            table._on_del()
+        self.assertIn("未发现引用", ask.call_args.args[2])
+        self.assertFalse(self._deleted(self.clean))
+
+    def test_delete_is_safe_by_default(self) -> None:
+        # default_yes=False: an accidental/headless Yes must not delete.
+        table = self._table_on_row(self.used)
+        with patch("src.application.ui_guard.safe_question", return_value=False) as ask:
+            table._on_del()
+        self.assertFalse(ask.call_args.kwargs.get("default_yes", True))
 
 
 if __name__ == "__main__":

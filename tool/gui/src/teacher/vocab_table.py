@@ -143,6 +143,22 @@ class VocabTableWidget(QWidget):
         if row < 0:
             return
         wid = self.table.item(row, 0).data(Qt.ItemDataRole.UserRole)
+        # T16: same guard as the resources editor — a vocab entry lessons
+        # still reference used to vanish with no confirm and no check.
+        from src.application.ui_guard import safe_question
+        from src.backend.experience.resource_refs import (
+            delete_confirm_text,
+            find_resource_refs,
+        )
+
+        report = find_resource_refs(self.adapter, "vocab", wid)
+        if not safe_question(
+            self,
+            "删除",
+            delete_confirm_text(f"vocab [{wid}]", report),
+            default_yes=False,
+        ):
+            return
         try:
             self.adapter.delete_resource_entry("vocab", wid)
         except KeyError:

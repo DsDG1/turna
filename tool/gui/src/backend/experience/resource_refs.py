@@ -274,3 +274,26 @@ def build_replacement_steps(
         return steps
     except Exception:
         return []
+
+
+def delete_confirm_text(label: str, report: dict[str, Any]) -> str:
+    """Shared delete-confirmation copy for resource entries.
+
+    Used by both the resources editor and the teacher vocab table (T16):
+    deleting an entry that lessons still reference must say so before the
+    entry goes away — the teacher path used to delete with no confirm and
+    no reference check at all.
+    """
+    count = report.get("count", 0)
+    if count == 0:
+        return f"确认删除 {label}？\n（未发现引用，可安全删除）\n保存时 validate 会校验悬空引用。"
+    refs = report.get("refs", [])
+    lines = [f"确认删除 {label}？\n检测到 {count} 处引用："]
+    for r in refs[:5]:
+        lid = r.get("lesson_id") or ""
+        iid = r.get("item_id") or ""
+        lines.append(f"  - Lesson: {lid}, Item: {iid}")
+    if count > 5:
+        lines.append(f"  ... 等共 {count} 处引用")
+    lines.append("保存时 validate 会校验悬空引用。")
+    return "\n".join(lines)

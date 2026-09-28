@@ -37,9 +37,12 @@ from PySide6.QtWidgets import (
 
 logger = logging.getLogger(__name__)
 
-# api.py is the single gateway to course_cli (it puts tool/ on sys.path);
-# importing the module through it keeps this file importable standalone.
-from src.backend.api import course_cli
+# api.py is the single gateway to course_cli (it puts tool/ on sys.path).
+# Import the wrapper it exposes, never the ``course_cli`` module object itself:
+# binding that name outside api.py re-exports the CLI internals and breaks the
+# "one gateway" contract (enforced by check_ai_boundaries.py
+# --fail-course-cli-binding).
+from src.backend.api import export_csv_rows
 
 from src.backend.course_adapter import CourseAdapter
 from src.backend.experience.pos_constants import POS_LABELS, POS_TAGS
@@ -99,7 +102,7 @@ class _PosDelegate(QStyledItemDelegate):
 
 
 def _columns(row_type: str) -> list[str]:
-    headers, _rows = course_cli.build_csv_rows(row_type, [])
+    headers, _rows = export_csv_rows(row_type, [])
     return headers + _EXTRA_COLUMNS.get(row_type, [])
 
 
@@ -278,19 +281,11 @@ class ResourceTableWidget(QWidget):
         return refs
 
     def _delete_confirm_text(self, label: str, report: dict[str, Any]) -> str:
-        count = report.get("count", 0)
-        if count == 0:
-            return f"确认删除 {label}？\n（未发现引用，可安全删除）\n保存时 validate 会校验悬空引用。"
-        refs = report.get("refs", [])
-        lines = [f"确认删除 {label}？\n检测到 {count} 处引用："]
-        for r in refs[:5]:
-            lid = r.get("lesson_id") or ""
-            iid = r.get("item_id") or ""
-            lines.append(f"  - Lesson: {lid}, Item: {iid}")
-        if count > 5:
-            lines.append(f"  ... 等共 {count} 处引用")
-        lines.append("保存时 validate 会校验悬空引用。")
-        return "\n".join(lines)
+        # T16: shared with the teacher vocab table — keep one copy of the
+        # reference-reporting copy in backend/experience/resource_refs.py.
+        from src.backend.experience.resource_refs import delete_confirm_text
+
+        return delete_confirm_text(label, report)
 
     def _choose_replacement(self, old_id: str) -> str | None:
         from PySide6.QtWidgets import QInputDialog
