@@ -111,10 +111,16 @@ def on_save(host: ExperienceHost, *, reason: str = "menu") -> bool:
     return bool(outcome.ok)
 
 
-def execute_save(host: ExperienceHost, request: Any) -> Any:
+def execute_save(host: ExperienceHost, request: Any, *, prefetched: Any = None, prefetched_soft: int = 0) -> Any:
     """E5-A: single save orchestration for menu / palette / close paths.
 
     Never calls close/quit. Soft failures never block a valid save.
+
+    *prefetched* (async path, #11): an already-computed ``adapter.save()``
+    result from a background worker. Soft Autopilot ran on the GUI thread
+    before that worker started (it pushes QUndoStack commands); the pipeline
+    below then skips its own Soft/do-save side effects and only composes the
+    outcome + runs the same UI hooks, so every entry behaves identically.
     """
     from src.application.save_pipeline import (
         CLOSE_REASONS,
@@ -159,6 +165,14 @@ def execute_save(host: ExperienceHost, request: Any) -> Any:
             mark = getattr(host, "_mark_saved", None)
             if callable(mark):
                 mark()
+        except Exception:
+            logger.warning("application/save_host.py:_after_success best-effort step failed", exc_info=True)
+        # #13: the just-saved course may differ from what the overview's
+        # cached validation counts describe — drop the cache and refetch.
+        try:
+            ow = getattr(host, "_overview_widget", None)
+            if ow is not None and hasattr(ow, "invalidate_validation_cache"):
+                ow.invalidate_validation_cache()
         except Exception:
             logger.warning("application/save_host.py:_after_success best-effort step failed", exc_info=True)
         if outcome.reason in CLOSE_REASONS:
@@ -232,6 +246,19 @@ def execute_save(host: ExperienceHost, request: Any) -> Any:
             return None
 
     adapter = host.adapter
+    if prefetched is not None:
+        # Phase 2 of the async path: the slow chain already ran on the
+        # worker; feed the result through unchanged so composition and UI
+        # hooks stay single-sourced. Soft ran pre-worker (count passed in),
+        # and telemetry already recorded the trigger at that time.
+        return run_save_pipeline(
+            request,
+            do_save=lambda: prefetched,
+            apply_soft=lambda: prefetched_soft,
+            after_success=_after_success,
+            after_failure=_after_failure,
+            build_brief=_build_brief if request.want_ai_brief else None,
+        )
     return run_save_pipeline(
         request,
         do_save=adapter.save,
@@ -244,19 +271,92 @@ def execute_save(host: ExperienceHost, request: Any) -> Any:
     )
 
 
-# --- Interactive async direct save (moved from src/app.py, P2-A) ---
+# --- Interactive async saves (moved from src/app.py, P2-A) ---
+
+
+def run_async_pipeline_save(host, *, reason: str = "menu") -> None:
+    """Interactive save on a worker, but through the FULL SavePipeline (#11).
+
+    Ctrl+S / 菜单保存 / 命令面板 used to call ``run_async_direct_save`` — a
+    bare ``adapter.save`` with none of the pipeline's Soft Autopilot, yellow
+    hints, composed status or brief — so the same course saved differently
+    depending on the entry point. This runs Soft on the GUI thread (it
+    pushes QUndoStack commands), the slow adapter.save chain on an
+    ``AiRequestWorker``, then finalizes through ``execute_save`` so the
+    outcome and UI hooks are single-sourced with the close path.
+
+    Structural edits are frozen for the duration (same contract as the old
+    direct save): the save thread iterates the in-memory model.
+    """
+    from src.application.ai_request_worker import AiRequestWorker
+    from src.application.save_pipeline import REASON_PALETTE, SaveRequest
+    from src.infrastructure.telemetry import telemetry
+
+    prev = getattr(host, "_save_worker", None)
+    if prev is not None and prev.isRunning():
+        host.statusBar().showMessage("正在保存…", 2000)
+        return
+    if host.adapter is None:
+        return
+
+    req_reason = reason if reason else "menu"
+    if req_reason == "palette":
+        req_reason = REASON_PALETTE
+    request = SaveRequest(
+        reason=req_reason,
+        run_soft=True,
+        show_validation_ui=True,
+        want_ai_brief=want_save_brief(host),
+    )
+
+    telemetry.record_event(
+        "repo.save.triggered", payload={"reason": request.reason}
+    )
+    soft_n = 0
+    if request.run_soft:
+        try:
+            soft_n = apply_soft_before_save(host)
+        except Exception as exc:
+            soft_n = 0
+            try:
+                host.statusBar().showMessage(f"Soft Autopilot 跳过：{exc}", 4000)
+            except Exception:
+                logger.warning("application/save_host.py:run_async_pipeline_save best-effort step failed", exc_info=True)
+
+    host.save_action.setEnabled(False)
+    host.centralWidget().setEnabled(False)
+    host.statusBar().showMessage("保存中…")
+
+    worker = AiRequestWorker(host.adapter.save)
+
+    def _unfreeze() -> None:
+        host.save_action.setEnabled(True)
+        host.centralWidget().setEnabled(True)
+        host._save_worker = None
+
+    def _on_result(result) -> None:
+        _unfreeze()
+        execute_save(host, request, prefetched=result, prefetched_soft=soft_n)
+
+    def _on_error(message: str) -> None:
+        _unfreeze()
+        host.statusBar().showMessage(f"保存失败：{message}", 8000)
+
+    worker.result_ready.connect(_on_result)
+    worker.error_occurred.connect(_on_error)
+    host._save_worker = worker
+    worker.start()
 
 
 def run_async_direct_save(host) -> None:
-    """Run adapter.save() on a background worker (interactive saves).
+    """Legacy bare ``adapter.save`` worker (pre-#11 Ctrl+S path).
 
-    The full save chain (temp-dir write + validate + backup + file replace
-    + snapshot + lint) used to run on the UI thread, freezing the window
-    for hundreds of ms on large courses. It now runs on an
-    AiRequestWorker. Structural edits are frozen for the duration: the
-    save thread iterates the in-memory model, and blocking input keeps the
-    same data-safety guarantee the old synchronous freeze provided, while
-    the UI thread stays responsive (status bar, window dragging).
+    Kept as a compatibility shim for direct callers that really want a raw
+    save with no pipeline semantics; interactive entries now use
+    :func:`run_async_pipeline_save`. Structural edits are frozen for the
+    duration: the save thread iterates the in-memory model, and blocking
+    input keeps the same data-safety guarantee the old synchronous freeze
+    provided, while the UI thread stays responsive.
     """
     from src.application.ai_request_worker import AiRequestWorker
 
@@ -287,6 +387,11 @@ def run_async_direct_save(host) -> None:
             if callable(mark):
                 with contextlib.suppress(Exception):
                     mark()
+            # #13: keep the overview's validation badge honest after a save.
+            ow = getattr(host, "_overview_widget", None)
+            if ow is not None and hasattr(ow, "invalidate_validation_cache"):
+                with contextlib.suppress(Exception):
+                    ow.invalidate_validation_cache()
             host.statusBar().showMessage(result.message or "保存成功", 5000)
         else:
             host.statusBar().showMessage(result.message or "保存失败（已回滚）", 8000)

@@ -156,5 +156,106 @@ class YellowHintsTest(unittest.TestCase):
             self.assertEqual(after_save_quality_hints(host), "")
 
 
+class RunAsyncPipelineSaveTest(unittest.TestCase):
+    """#11: Ctrl+S / 菜单 / palette run the FULL pipeline on a worker."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        from tests._qtapp import qt_app
+
+        cls.app = qt_app()
+
+    def _host(self, *, save_ok=True):
+        adapter = MagicMock()
+        result = SimpleNamespace(ok=save_ok, message="ok" if save_ok else "fail", errors=[])
+        if not save_ok:
+            result.errors = [{"level": "error", "message": "x"}]
+        adapter.save = MagicMock(return_value=result)
+        return SimpleNamespace(
+            adapter=adapter,
+            tree=MagicMock(),
+            undo_stack=MagicMock(),
+            experience=MagicMock(context=None),
+            statusBar=MagicMock(return_value=MagicMock()),
+            _sync_focus_ring=MagicMock(),
+            _refresh_experience=MagicMock(),
+            _show_validation_report=MagicMock(),
+            _mark_saved=MagicMock(),
+            _overview_widget=None,
+            _settings_obj=SimpleNamespace(experience_save_brief=False),
+            _record_experience_event=MagicMock(),
+            _refresh_ambient=MagicMock(),
+            save_action=MagicMock(),
+            centralWidget=MagicMock(return_value=MagicMock()),
+            _save_worker=None,
+        )
+
+    def _spin_until(self, condition, timeout: float = 5.0) -> bool:
+        import time
+
+        from PySide6.QtCore import QThread
+        from PySide6.QtWidgets import QApplication
+
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            QApplication.processEvents()
+            if condition():
+                return True
+            QThread.msleep(10)
+        QApplication.processEvents()
+        return bool(condition())
+
+    def test_interactive_save_runs_soft_then_pipeline_async(self):
+        from src.application.save_host import run_async_pipeline_save
+
+        host = self._host()
+        with (
+            patch(
+                "src.application.save_host.apply_soft_before_save", return_value=2
+            ) as soft,
+            patch("src.infrastructure.telemetry.telemetry"),
+        ):
+            run_async_pipeline_save(host, reason="menu")
+            # Soft ran on the GUI thread BEFORE the worker started.
+            soft.assert_called_once()
+            self.assertTrue(self._spin_until(lambda: host._save_worker is None))
+        host.adapter.save.assert_called_once()  # the slow chain ran on worker
+        host.undo_stack.setClean.assert_called()  # pipeline tail applied
+        host.tree.refresh.assert_called()
+        self.assertTrue(host.save_action.setEnabled.called)
+
+    def test_palette_reason_passes_through(self):
+        from src.application.save_host import run_async_pipeline_save
+
+        host = self._host()
+        with (
+            patch("src.application.save_host.apply_soft_before_save", return_value=0),
+            patch("src.infrastructure.telemetry.telemetry") as tele,
+        ):
+            run_async_pipeline_save(host, reason="palette")
+            triggered = [
+                c
+                for c in tele.record_event.call_args_list
+                if c.args and c.args[0] == "repo.save.triggered"
+            ]
+            self.assertEqual(len(triggered), 1)
+            self.assertEqual(triggered[0].kwargs["payload"]["reason"], "palette")
+            self.assertTrue(self._spin_until(lambda: host._save_worker is None))
+
+    def test_overview_cache_invalidated_after_pipeline_save(self):
+        """#13 hook: a save drops the overview's cached validation counts."""
+        from src.application.save_host import run_async_pipeline_save
+
+        host = self._host()
+        host._overview_widget = MagicMock()
+        with (
+            patch("src.application.save_host.apply_soft_before_save", return_value=0),
+            patch("src.infrastructure.telemetry.telemetry"),
+        ):
+            run_async_pipeline_save(host, reason="menu")
+            self.assertTrue(self._spin_until(lambda: host._save_worker is None))
+        host._overview_widget.invalidate_validation_cache.assert_called_once()
+
+
 if __name__ == "__main__":
     unittest.main()

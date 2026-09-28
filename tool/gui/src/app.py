@@ -55,7 +55,7 @@ from src.application.repo_session_host import (
     save_ai_config,
     show_load_error,
 )
-from src.application.save_host import run_async_direct_save
+from src.application.save_host import run_async_pipeline_save
 from src.application.settings import Settings, migrate_legacy_varnamala_qsettings, ORG_NAME, APP_NAME
 from src.application.ui_guard import safe_information
 from src.application.experience_skills_mixin import ExperienceSkillsMixin
@@ -634,11 +634,13 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
         self._audio_controller.handle_generate_audio(self)
 
     def _on_save(self, *, reason: str = "menu") -> None:
-        telemetry.record_event("repo.save.triggered", payload={"reason": reason})
-        self._save_course_async()
+        # #11: Ctrl+S / 菜单 / palette share the full SavePipeline (Soft
+        # Autopilot, yellow hints, composed status) with the close path;
+        # run_async_pipeline_save records the trigger telemetry itself.
+        self._save_course_async(reason=reason)
 
-    def _save_course_async(self) -> None:
-        run_async_direct_save(self)
+    def _save_course_async(self, *, reason: str = "menu") -> None:
+        run_async_pipeline_save(self, reason=reason)
 
     def _show_validation_report(
         self, problems: list[dict], title: str = "校验结果"
