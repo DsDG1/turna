@@ -8,6 +8,63 @@
 
  ## 当前基线
 
+- **2026-09-28（批次三/四 独立审计后的加固批次）**：对 33 个提交的 `25d11b42~1..a069e755`
+  做独立只读审计，判定 **FAIL**（两处招牌承诺不成立），已逐条修复并分条提交。
+  收集 **199 模块 / 2840 例 / 0 失败**（较批次四 2806 ⇒ **+34**，无新增模块）。
+  `full` 199/199（77 s）；ruff 全过；L0 gate 5/5。已修：
+  - **3.18 回滚会留下无法撤销的孤儿 section（审计 MAJOR 1）**：`ImportAiSectionCommand.redo()`
+    先 append section 再合并资源，故合并失败时 section 已进课程；而 `_push_or_collect`
+    只在 redo 成功后才把命令放进 collector，回滚循环看不到它——UI 报「已整体回滚」
+    但课程里多了一个 Ctrl+Z 也删不掉的 section。三处修复：命令**先登记再应用**；
+    资源快照改在 `finally` 记录（部分合并也能回滚）；单节路径（直接 push）在 redo 抛错时
+    自行回滚并把命令标记为惰性——因为 `QUndoStack.push` 是**先登记再调 redo 且失败后
+    不移除**，残留条目否则会让 Ctrl+Y **复活**一个已报失败的导入。
+  - **3.11 托盘取消够不到教师 AI 芯片（审计 MAJOR 4）**：芯片以 `kind="ai"` 注册任务
+    （故飞��启用「取消」），但 worker 挂在 owner 控件上，取消函数只看宿主三个属性，
+    于是「AI 改题中…」按取消会回「没有可取消的 AI 任务」。芯片现将 worker 镜像到顶层
+    窗口，取消函数纳入该槽位。
+  - **3.8 批量删除不做引用检测（审计 MAJOR 2）**：单行删除报引用、批量删除不报，
+    选 20 个被 40 课时引用的词条只得到一句「validate 会校验」。批量路径现用新增的
+    `merge_resource_reports()` 聚合并走同一份 `delete_confirm_text`；同时把该文件里
+    仅剩的单行删除与「替换引用」两处裸框改走 `safe_question`（资源包导入的三态框保留，
+    已在源码注明原因）。
+  - **4.12 脱敏漏了嵌套 dict 与 URL 凭据（审计 MAJOR 3）**：`payload["metrics"]["path"]`
+    原样落盘；含 `/` 的 URL 被 `_looks_like_path` 抢先命中，query 里的 API key 从未检查。
+    现递归 dict，远程 URL 走专属分支只遮蔽凭据型 query 值。
+  - **4.12 另补四处泄漏（自查）**：含空格的路径（Windows 常态）、
+    `file://` URL、句中路径（异常消息）、短路径把用户名留在末两级里
+    （`/home/<user>/x.json` → 现丢弃 home/Users 根下的用户目录段）。
+  - **3.14 普通模式对齐流被整个丢弃（审计 MINOR 6，本批次自引入的回归）**：为不污染
+    JSON 编辑器而 `return`，结果聊天框的「对齐中…」没有任何输出。现按 target 分流：
+    alignment 进流式聊天框（长文本先走计数），只有 explain 在普通模式仍丢弃。
+  - **4.9 提取覆盖单槽位（审计 MINOR 7）**：暂存改按 `(语言, 语言)` 分键的 dict，
+    否则换语言对会静默丢弃上一条；删除不存在的覆盖会谎报「已暂存删除」；删除后不再把
+    字段重置为内置默认（否则下一次保存会把默认当自定义覆盖写进去）。
+  - **4.8 战役建议 id 恒定（审计 MINOR 8）**：`scope={}` 使 `proposal_id_for` 得到常量
+    id——角标永不重亮，且一次「稍后」就把整个会话的战役永久归档。现携带 `weak_count`
+    （条目数）与首要 section。
+  - **T12 重置按钮的裸框（审计 MINOR 9）**：改为 toast 优先、`QMessageBox` 兜底。
+  - **NIT 11**：`_record_window_duration` 曾以 `record_event(duration_s=…)` 调用，而该
+    函数无此形参——TypeError 被外层 except 吞掉，窗口时长遥测**从未记录过**。
+    改用 `record_duration()`（毫秒）；实测 1.5s 窗口现写入 `duration_ms 1500.0`。
+  - **文档同步**：`docs/a3-companion-ambient-design.md` 七处仍写 `dismiss_count >= 3`，
+    与 T10 改成的 `MAX_DISMISS = 4` 矛盾，已一并订正（含原本就写错的退避公式
+    `2^min(dismiss_count, 3)` → 代码实为 `2^min(dismiss_count - 1, 3)`）。
+  - **审计判定为 CORRECT 的部分**（已实测，非仅阅读）：4.1 选中分发不变量（12 种操作后
+    面板与树选中始终一致，无重复通知）、3.18 复合 undo 往返算术、3.11 不会取消保存
+    worker、3.15 取消判定与实际抛出点一致、4.5 退避算术与持久化兼容、4.13 删除 EN 表后
+    未知 locale 仍回落 zh、4.11 两个调色板都确有对应键、3.17 skip 默认值端到端生效、
+    3.9 编码链顺序、4.9 SSH/提取切分无残留读取方、3.2 重入保护。
+  - **仍未处理（超出原计划范围，需另开批次）**：
+    ① 全项目仍有 **36 处裸 `QMessageBox.question`**（线性流 3、教师模板 3、
+    教材库/工坊/蓝图各 2、以及 `close_controller.py` 与 `course_lifecycle.py`
+    的**未保存退出确认**——最危险的两个），当前 30 处走 `safe_question`；
+    这些在沉浸式 auto 档仍会弹模态，等于把 4.8 关掉的门又打开。
+    ② 仍有硬编码颜色：`experience_dock.py:68` 的 `#dc2626`、
+    `result_preview.py:212-216,425` 的 `#E74C3C`/`#FF9F43`，与 4.11 同类但不在教师面。
+    ③ 3.2 的课程加载虽已移入 worker，但只禁用中央区——工具栏保存与关闭路径仍可用，
+    `execute_save` 可能与后台 `adapter.load()` 并发（无稳定复现，属设计风险，建议压测）。
+
 - **2026-09-28（GUI 易用性修复 批次四：一致性 / 文案 / 隐私，4.1–4.15）**：
   `python -m unittest` 逐模块收集 **199 模块 / 2806 例 / 0 失败**（上批 2724 例 ⇒
   **+82**，新增 `test_attachment_preview.py`、`test_teacher_header_palette.py`、
