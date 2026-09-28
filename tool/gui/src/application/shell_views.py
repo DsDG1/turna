@@ -760,6 +760,8 @@ def _sync_workshop_badge(host: Any, bar: Any) -> None:
 
 
 def _sync_copilot_badge(host: Any, bar: Any) -> None:
+    from src.backend.experience.proactive import proposal_id_for
+
     experience = getattr(host, "experience", None)
     suggestions = (
         list(getattr(experience, "suggestions", []) or [])
@@ -770,8 +772,16 @@ def _sync_copilot_badge(host: Any, bar: Any) -> None:
     if seen is None:
         seen = set()
         host._shown_suggestion_keys = seen
+    # T11: the key was the bare action_id, so 「校验错误」 stayed "read"
+    # forever once seen in any section — the badge never lit up again for a
+    # different section, even after fixing and re-breaking it. Key on
+    # action_id + scope fingerprint instead (the same id the ambient
+    # proposal store uses, so read state and proposal identity agree).
     keys = {
-        s.get("action_id")
+        proposal_id_for(
+            str(s.get("action_id") or ""),
+            s.get("scope") if isinstance(s.get("scope"), dict) else {},
+        )
         for s in suggestions
         if isinstance(s, dict) and s.get("action_id")
     }

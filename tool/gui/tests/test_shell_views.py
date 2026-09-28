@@ -430,15 +430,19 @@ class ActivityBadgeTest(unittest.TestCase):
         self.assertEqual(self._badge("workshop"), 2)
 
     def test_copilot_badge_counts_unseen_suggestions(self) -> None:
+        from src.backend.experience.proactive import proposal_id_for
+
         self.win.experience.suggestions = [
             {"action_id": "a"},
             {"action_id": "b"},
         ]
-        self.win._shown_suggestion_keys = {"a"}
+        self.win._shown_suggestion_keys = {proposal_id_for("a", {})}
         self._sync()
         self.assertEqual(self._badge("copilot"), 1)
 
     def test_copilot_visible_marks_all_seen(self) -> None:
+        from src.backend.experience.proactive import proposal_id_for
+
         self.win.copilot_dock.show()
         self.win.experience.suggestions = [
             {"action_id": "a"},
@@ -447,7 +451,55 @@ class ActivityBadgeTest(unittest.TestCase):
         self.win._shown_suggestion_keys = set()
         self._sync()
         self.assertEqual(self._badge("copilot"), 0)
-        self.assertEqual(self.win._shown_suggestion_keys, {"a", "b"})
+        self.assertEqual(
+            self.win._shown_suggestion_keys,
+            {proposal_id_for("a", {}), proposal_id_for("b", {})},
+        )
+
+    def test_copilot_badge_relights_for_a_different_scope(self) -> None:
+        """T11: same action, different section must be unread again."""
+        from src.backend.experience.proactive import proposal_id_for
+
+        self.win.copilot_dock.hide()
+        self.win.experience.suggestions = [
+            {"action_id": "validate.open_and_fix", "scope": {"section_id": "s1"}}
+        ]
+        self.win._shown_suggestion_keys = {proposal_id_for("validate.open_and_fix", {})}
+        self._sync()
+        self.assertEqual(self._badge("copilot"), 1)
+
+    def test_copilot_badge_stays_clear_for_the_same_scope(self) -> None:
+        from src.backend.experience.proactive import proposal_id_for
+
+        self.win.copilot_dock.hide()
+        scope = {"section_id": "s1"}
+        self.win.experience.suggestions = [
+            {"action_id": "validate.open_and_fix", "scope": scope}
+        ]
+        self.win._shown_suggestion_keys = {
+            proposal_id_for("validate.open_and_fix", scope)
+        }
+        self._sync()
+        self.assertEqual(self._badge("copilot"), 0)
+
+    def test_copilot_badge_relights_when_the_same_section_regresses(self) -> None:
+        # Fixing and re-breaking the same section is a new thing to read;
+        # the fingerprint changes with the error count where it is part of
+        # the scope, and the section id keeps it scoped either way.
+        from src.backend.experience.proactive import proposal_id_for
+
+        self.win.copilot_dock.hide()
+        self.win.experience.suggestions = [
+            {
+                "action_id": "validate.open_and_fix",
+                "scope": {"section_id": "s1", "error_count": 4},
+            }
+        ]
+        self.win._shown_suggestion_keys = {
+            proposal_id_for("validate.open_and_fix", {"section_id": "s1"})
+        }
+        self._sync()
+        self.assertEqual(self._badge("copilot"), 1)
 
     def test_enable_editor_actions_refreshes_badges(self) -> None:
         from src.application import repo_session_host
