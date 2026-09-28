@@ -8,6 +8,74 @@
 
  ## 当前基线
 
+- **2026-09-28（GUI 易用性修复 批次三：阻塞与边界态，18 条）**：
+  `python -m unittest` 逐模块收集 **195 模块 / 2724 例 / 0 失败**（上批 2673 例 ⇒
+  **+51**，新增 `test_teacher_preview_flow.py`、`test_ai_merge_preview_dialog.py`
+  两个模块）。分档实测：`full` **195/195，77 s**；`ruff` 全过；L0 gate **5/5
+  exit 0**。依据 `Turna_GUI_修复计划_2026-09-28` 批次三，18 条全部修复并按问题
+  粒度分条提交（`3.1` 先于 `3.10`/`3.11`，与依赖顺序一致）：
+  - **#15 设置「测试连接」主线程阻塞 15 秒**：探测改走 `AiRequestWorker`，按钮先置灰
+    并改文案「测试中…」再返回，成功/失败都经 worker 信号恢复；超时读 `ai_timeout`。
+    新增 3 例。
+  - **#16 打开课程主线程读盘 + 工坊角标每次上下文变化读盘**：`open_course_flow` 的
+    load 移入 worker（冻结中央区 +「打开中…」）；角标加 30s 结果缓存，仅在保存成功
+    （`save_host._after_success`）与教材导入完成（`workshop_controller`）定点失效，
+    工坊窗口可见时绕过缓存。附带把 `sync_save_state_label` 的裸 `except: pass`
+    改为 `logger.debug`（纯装饰性失败，不该静默）。新增 2 + 若干例。
+  - **T18 关闭路径保存同步 + `wait()` 无超时**：`wait(5000)`，超时 `safe_warning`
+    并 `event.ignore()` 保留窗口；同步 `execute_save` 保留（关窗需确定性），前置
+    「正在保存…」。新增超时分支用例。
+  - **#17/#18/#19 + T15 教师模式边界态组**：判断题缺 answer 时预览与编辑器判定统一为
+    `bool(item.get("answer", False))`（编辑器补黄色提示，不新增第三态）；试做预览包
+    `QScrollArea`（640×720，480×400 下限）；未选择/空参考答案分别提示「请先选择答案」
+    与「未提供参考答案，无法判定」；删除末项修正 `correctIndex` 并同步
+    `correctIndices`、恰好 2 项时禁用并给 tooltip。新增 `test_teacher_preview_flow.py`
+    7 例 + `test_question_cards.py` T15 用例。
+  - **T16 教师词库删除无确认无引用检测**：抽出共享
+    `resource_refs.delete_confirm_text`，`vocab_table` 与 `resource_editor` 两处同用；
+    `default_yes=False`。新增 5 例（拒绝保留、确认文案带引用、接受删除、零引用文案、
+    默认安全）。
+  - **#20 CSV 只认纯 UTF-8**：修在共享 `_read_csv`（utf-8-sig → gbk → locale 链），
+    全部失败走 problems 通道而非抛异常；新增 `api.read_csv_file_with_problems` 供 GUI
+    经既有 problems 列表渲染，CLI 与 GUI 一并受益。新增 GBK / BOM fixture 各一。
+  - **T13 PreviewHost Enter/Esc 误触**：三个 QShortcut 改
+    `WidgetWithChildrenShortcut`（PySide6 用属性赋值，无 `setShortcutContext`）；去掉
+    offer 抢焦点，改为点击条内时聚焦。
+  - **T14 AI 任务不可取消 + 单飞死路**：启用 JobTray 已预留的 `job_cancel_requested`
+    信号（仅 AI 类任务 enable），`main_window_shell.cancel_in_flight_ai_jobs` 协作式
+    取消 experience/palette/diagnose worker（**save worker 明确排除**）；8 处单飞提示
+    补「（可在任务托盘取消）」。新增 2 例；`test_adversarial_matrix` 的 D11 契约由
+    「取消恒禁用」改写为新不变量「取消只对 AI 开放、绝不 `.kill()`/`.terminate()`」，
+    并清理 `job_tray.py` 中已过时的 no-op 说明。
+  - **#21 发布失败不回滚版本 bump**：`_do_publish` 前快照 version/expressionsVersion，
+    失败回调还原并刷新报告，重试只 +1。新增 2 例。
+  - **#22 音频对话框打开前静默保存**：`adapter.save()` 移到 `exec()==Accepted` 之后、
+    收集条目之前，期间状态栏「正在保存课程…」，失败仍走现有取消提示。
+  - **T3+T4 请求中可切模式、流式写错编辑器**：`set_busy` 统一禁用 `mode_combo`（两条
+    lane 都空才恢复）；`on_chunk_rendered` 对非 JSON target 不再写 `json_edit`，wish
+    的 JSON 流补「生成中… 已接收约 N 字符」计数。新增 8 例（含两条 lane 交叉态）。
+  - **T6 wish 取消被当失败弹 Critical**：判定抽成共享 `ai_cancelled(message)`
+    （放 worker_hub），`ai_lesson_helper_dialog` 命中即显示「已取消」并返回。
+  - **T7 文件解析失败连弹两个错误框**：改在对话框侧按 **result 对象身份** 去重（step
+    通道 + on_done 各触发一次展示），而非删掉 on_done（它还负责恢复 pick 按钮）；
+    不同 result 仍各弹一次，重选文件仍可再次看到恢复选项。新增 3 例。
+  - **T8 合并冲突看不到两边内容、默认「覆盖」吞手工编辑**：`MergeAction` 增加
+    `existing` 字段，预览显示两侧摘要（现有课时/交互项数，tooltip 列出标题）；
+    replaced 默认不勾；批量面板「处理」默认改「跳过」、「合并」改名「合并（覆盖同名
+    单元）」；重新勾选 unit 会把子课时恢复为 replace。新增 7 例。
+  - **T9 批量导入 = N 条 undo、无进度**：新增 `CompositeImportCommand`（跳过首次
+    redo，构建期已应用），`import_bulk` 只 push 一条，单节抛异常则整批回滚并如实
+    重分类计数，导入循环发「导入中 (i/N)」。新增 5 例（含 undo 深度 == 1、
+    undo/redo 往返、单节批次不受影响、中途失败回滚且计数诚实）。
+  - 另修一处批次三验证中发现的崩溃：`_ButtonSizePolicyFilter` 未 parent 导致窗口销毁
+    后 Qt 向已释放指针派发 Polish 事件（access violation），改为 parent 到窗口
+    （独立 commit，不属于任何编号条目）。
+  - 本轮 `ruff` 顺带清掉 3 处遗留告警（`test_teacher_preview_flow.py` 两处 `l`
+    歧义命名、`test_question_cards.py` 未使用变量——后者补上了测试名承诺的 back 编辑
+    断言）。
+  - 备注：交互式冒烟（真 UI）仍待人工——测试连接不卡 UI / 20 题预览可滚动可提交 /
+    GBK 词表可导入 / 发布失败重试不叠版本 / 托盘取消真取消。
+
 - **2026-09-28（GUI 易用性修复 批次二：承诺≠行为，7 条；2.7/2.9 已随批次一）**：
   `python -m unittest` 逐模块收集 **193 模块 / 2673 例 / 0 失败**（上批 2654 例 ⇒
   **+19**，新增 `test_auto_apply_scope.py`）。分档实测：`full` **193/193，74 s**；
