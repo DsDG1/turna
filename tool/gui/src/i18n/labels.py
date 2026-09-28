@@ -89,77 +89,15 @@ LEVEL_LABELS: dict[str, str] = {
     "B2": "中高级",
 }
 
-# English mirror for teacher-facing labels (C4 locale groundwork).
-# ``zh`` remains the default to preserve backward compatibility; pass
-# ``locale="en"`` to access the English forms.
-FIELD_LABELS_EN: dict[str, str] = {
-    "id": "ID",
-    "name": "Name",
-    "description": "Description",
-    "term": "Word",
-    "translation": "Translation",
-    "pronunciation": "Pronunciation",
-    "audioAsset": "Audio",
-    "audioAssets": "Audio list",
-    "imageAssets": "Image list",
-    "tags": "Tags",
-    "wordId": "Word",
-    "expressionId": "Expression",
-    "grammarPointId": "Grammar point",
-    "linkedGrammarPointIds": "Linked grammar points",
-    "prompt": "Prompt",
-    "options": "Options",
-    "correctIndex": "Correct answer",
-    "correctIndices": "Correct answers",
-    "sentence": "Sentence",
-    "answer": "Answer",
-    "source": "Source text",
-    "expected": "Expected translation",
-    "hints": "Hints",
-    "scrambled": "Scrambled",
-    "correct": "Correct order",
-    "statement": "Statement",
-    "expectedAnswer": "Expected answer",
-    "transcript": "Transcript",
-    "context": "Context",
-    "example": "Example",
-    "front": "Front",
-    "back": "Back",
-    "frontHtml": "Front HTML",
-    "backHtml": "Back HTML",
-    "pos": "Part of speech",
-    "prerequisiteLessonIds": "Prerequisite lessons",
-    "prerequisiteSectionIds": "Prerequisite sections",
-    "title": "Title",
-    "explanation": "Explanation",
-    "exampleExpressionIds": "Example expressions",
-    "exampleSentenceIds": "Example sentences",
-}
 
-NESTED_LAYER_LABELS_EN: dict[str, str] = {
-    "section": "Section",
-    "unit": "Unit",
-    "lesson": "Lesson",
-    "subLessons": "Teaching segments",
-    "subLesson": "Teaching segment",
-    "stages": "Teaching steps",
-    "stage": "Teaching step",
-    "items": "Questions",
-    "item": "Question",
-    "listeningPhases": "Listening phases",
-    "readingPassage": "Reading passage",
-}
-
-LEVEL_LABELS_EN: dict[str, str] = {
-    "A1": "Beginner",
-    "A2": "Elementary",
-    "B1": "Intermediate",
-    "B2": "Upper-intermediate",
-}
-
+# T22: the English mirrors (FIELD_LABELS_EN / NESTED_LAYER_LABELS_EN /
+# LEVEL_LABELS_EN, ~60 lines) were removed. No settings entry, CLI flag or
+# caller could ever reach them — every call site uses the zh default — so
+# they were dead weight that read like a working feature. If English is ever
+# wanted, build it as a real feature with a locale setting behind it; the
+# ``locale`` parameter below is kept so that wiring has somewhere to land.
 _LOCALE_TABLES = {
     "zh": (FIELD_LABELS, NESTED_LAYER_LABELS, LEVEL_LABELS),
-    "en": (FIELD_LABELS_EN, NESTED_LAYER_LABELS_EN, LEVEL_LABELS_EN),
 }
 
 

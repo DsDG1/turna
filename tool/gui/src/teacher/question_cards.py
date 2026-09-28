@@ -302,14 +302,17 @@ class QuestionCard(QFrame):
     def _build_reorder_sentence(self, layout: QVBoxLayout) -> None:
         from src.widgets.interaction_forms import StringListEditor
 
-        layout.addWidget(QLabel("打乱顺序的词"))
+        # T22: these two were inline literals while every sibling field goes
+        # through field_label(), so the same concept read "打乱顺序的词" here
+        # and 「打乱词序」 elsewhere. One source for the wording.
+        layout.addWidget(QLabel(field_label("scrambled")))
         scrambled = self.item.get("scrambled", []) or []
         layout.addWidget(
             StringListEditor(
                 list(scrambled), lambda v: self._set_field("scrambled", v)
             )
         )
-        layout.addWidget(QLabel("正确顺序"))
+        layout.addWidget(QLabel(field_label("correct")))
         correct = self.item.get("correct", []) or []
         layout.addWidget(
             StringListEditor(
