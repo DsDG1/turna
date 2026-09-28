@@ -7,10 +7,11 @@ extras). The action row uses a FlowLayout so on a narrow detail panel the
 buttons wrap to extra rows instead of being squeezed below their text width
 (which would clip the labels).
 
-Colors are centralized here (dark palette, matching the existing teacher
-surfaces) so the chrome cannot drift between editors. A future pass can
-swap these for ``current_palette()`` lookups to follow light mode - the
-header and body stylesheets must move together to avoid a mismatch.
+Colors are resolved from the active palette (``current_palette()``) so the
+chrome follows the light / dark / high-contrast themes like the rest of the
+app. The header and body stylesheets move together — the breadcrumb uses
+``text_secondary``, the 课型 badge pairs ``accent_text`` on ``accent`` with
+``text_on_accent`` so it stays legible in both directions.
 """
 from __future__ import annotations
 
@@ -20,11 +21,17 @@ from collections.abc import Callable
 from PySide6.QtWidgets import QLabel, QPushButton, QWidget
 
 from src.backend.lesson_content import TEMPLATE_LABELS
+from src.theme import current_palette
 from src.widgets.ui.flow_layout import FlowLayout
 
-_TEXT_SECONDARY = "#9CA3AF"
-_ACCENT_TEXT = "#60A5FA"
-_ACCENT_BG = "#1E3A8A"
+# Fallbacks only — the last-resort values if a palette lacks a key.
+_TEXT_SECONDARY = "#B9CCC0"
+_ACCENT_BG = "#1F727E"
+
+
+def _pal() -> dict[str, str]:
+    """Active palette, resolved per call so a theme switch is picked up."""
+    return current_palette()
 
 
 def breadcrumb_label(
@@ -35,7 +42,9 @@ def breadcrumb_label(
         f"{section.get('name', '')} › {unit.get('name', '')} › "
         f"{lesson.get('name', '')}"
     )
-    label.setStyleSheet(f"color: {_TEXT_SECONDARY};")
+    label.setStyleSheet(
+        f"color: {_pal().get('text_secondary', _TEXT_SECONDARY)};"
+    )
     return label
 
 
@@ -43,8 +52,10 @@ def template_badge(lesson: dict[str, Any]) -> QLabel:
     """Return the styled 课型 badge for a lesson."""
     template = lesson.get("template", "legacy")
     badge = QLabel(f"课型：{TEMPLATE_LABELS.get(template, template)}")
+    pal = _pal()
     badge.setStyleSheet(
-        f"color: {_ACCENT_TEXT}; background-color: {_ACCENT_BG};"
+        f"color: {pal.get('text_on_accent', '#FFFFFF')};"
+        f" background-color: {pal.get('accent', _ACCENT_BG)};"
         " padding: 4px 10px; border-radius: 12px; font-weight: 600;"
     )
     return badge
