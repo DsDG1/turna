@@ -24,17 +24,11 @@ void main() {
       name: 'Before',
       content: LessonContent(),
     );
-    const rewritten = Lesson(
-      id: 'lesson-1',
-      name: 'After',
-      content: LessonContent(),
-    );
 
     helper.armApplyUndo(original);
     expect(helper.pendingUndoLesson?.name, 'Before');
     expect(helper.takeApplyUndo(), original);
     expect(helper.takeApplyUndo(), isNull);
-    expect(rewritten.name, 'After');
   });
 
   test('queued lesson reloads finish in order', () async {

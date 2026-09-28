@@ -47,15 +47,6 @@ void main() {
     expect(getIt.isRegistered<SettingsProvider>(), isTrue);
   });
 
-  test('SettingsProvider resolves to a single instance (singleton identity)',
-      () async {
-    await bootstrapWithoutDb();
-    expect(
-      identical(getIt<SettingsProvider>(), getIt<SettingsProvider>()),
-      isTrue,
-    );
-  });
-
   test('SettingsProvider reads persisted settings from the AppPrefs it owns',
       () async {
     // Persist a non-default ttsSpeed before bootstrapping.

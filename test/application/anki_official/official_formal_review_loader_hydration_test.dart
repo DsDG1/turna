@@ -21,10 +21,17 @@ import 'package:turna/domain/anki/card_presentation.dart';
 
 import '../../helpers/in_memory_course_db.dart';
 
-// Successor of the "暂无待复习的 Anki 卡片" regression: a cold process no
-// longer hydrates any in-memory set — the loader reconciles the scheduler
-// lock (ledger says card 1 is introduced, card 2 is not) and the queue
-// itself is the gate. The batch must assemble Ready with exactly card 1.
+// Two introductions of one invariant: the loader reconciles the scheduler
+// lock from durable records (no in-memory hydration) and the queue itself is
+// the gate — an introduced card 1 enters the batch, a never-introduced card 2
+// stays scheduler-suspended.
+//
+//  * imported history (merged from official_formal_review_imported_history_
+//    test.dart): cards arriving with reps>0 are seeded studied via the publish
+//    path (seedOfficialProjection) and must be reviewable with no course
+//    submit ever happening (invisible-imported-history regression).
+//  * cold restart: a fresh process with only durable introduction rows —
+//    successor of the "暂无待复习的 Anki 卡片" regression.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   ensureSqliteLibForTestHost();
@@ -41,8 +48,6 @@ void main() {
     courseEntry: true,
     officialFirstImport: true,
   );
-
-  const importId = 'src-hydration';
 
   late CourseDatabase db;
   late OfficialAnkiDatabase catalog;
@@ -64,29 +69,32 @@ void main() {
     await db.close();
   });
 
-  test(
-      'a cold process needs no hydration — the loader reconciles the lock '
-      'and the queue is the gate', () async {
+  Future<
+      ({
+        OfficialFormalReviewLoadResult result,
+        FakeOfficialAnkiEngine engine
+      })> loadReconciledBatch({
+    required String importId,
+    required String packagePath,
+    required Future<void> Function(
+      AnkiUnificationDao dao,
+      CardIntroductionStore store,
+    ) seedIntroduction,
+  }) async {
     final dao = AnkiUnificationDao(db);
-    await dao.upsertIntroduction(
-      courseId: 'official-anki-$importId',
-      key: const CanonicalCardKey(
-        backend: AnkiBackendKind.official,
-        profileId: 'profile-default-01',
-        sourceId: importId,
-        cardId: 1,
-      ),
-      status: CardIntroductionStatus.introduced,
-      introducedBy: CardIntroducedBy.course,
-    );
+    final store = CardIntroductionStore(dao: dao);
+    await seedIntroduction(dao, store);
+    CardIntroductionStore.debugOverride = store;
+
     // The catalog ledger a real v2 publish writes: the lock reconciler reads
-    // the source's card ids from it (cards 1 and 2 of this source).
+    // the source's card ids from the five-table ledger and suspends
+    // card 2 (no introduction, no course submit) before the queue is fetched.
     OfficialAnkiSourceDao(catalog).upsertSource(
       sourceId: importId,
       profileId: 'profile-default-01',
       sourceHash: 'fp',
       sourceSize: 1,
-      displayName: 'hydration.apkg',
+      displayName: packagePath,
       state: 'active',
       backendCommit: 'test',
       nowMillis: 1,
@@ -111,17 +119,13 @@ void main() {
     );
     GetIt.instance.registerSingleton<CourseDatabase>(db);
 
-    // Fresh store, populated ledger — the exact post-restart state. No
-    // hydration call exists anymore; nothing reads this memory set.
-    CardIntroductionStore.debugOverride = CardIntroductionStore(dao: dao);
-
     final engine = FakeOfficialAnkiEngine();
-    engine.seedPackage(packagePath: 'hydration.apkg', notes: 2, cards: 2);
+    engine.seedPackage(packagePath: packagePath, notes: 2, cards: 2);
 
     final loader = OfficialFormalReviewProductionLoader(
       flags: flags,
       engine: engine,
-      resolveTarget: (_) async => const OfficialAnkiRoutedSource(
+      resolveTarget: (_) async => OfficialAnkiRoutedSource(
         importId: importId,
         sourceId: importId,
         deckId: 1,
@@ -163,11 +167,66 @@ void main() {
       },
     );
 
-    final result = await loader.load(
+    return (
+      result: await loader.load(
+        importId: importId,
+        courseId: 'anki-$importId',
+      ),
+      engine: engine,
+    );
+  }
+
+  test('imported-history card (reps>=1) enters the formal review batch',
+      () async {
+    const importId = 'src-imported-history';
+    final run = await loadReconciledBatch(
       importId: importId,
-      courseId: 'anki-$importId',
+      packagePath: 'imported-history.apkg',
+      seedIntroduction: (dao, store) async {
+        await store.seedOfficialProjection(
+          sourceId: importId,
+          cardIds: const [1, 2],
+          studiedCardIds: const {1},
+        );
+      },
     );
 
+    final result = run.result;
+    expect(result, isA<OfficialFormalReviewReady>());
+    final ready = result as OfficialFormalReviewReady;
+    expect(
+      ready.batch.items.map((item) => item.cardKey.cardId),
+      [1],
+      reason: 'card 1 carries imported history (reps>=1), so the reconciler '
+          'leaves it unlocked; card 2 is a genuinely fresh card and stays '
+          'scheduler-suspended',
+    );
+    expect(run.engine.suspended, {2});
+  });
+
+  test(
+      'a cold process needs no hydration — the loader reconciles the lock '
+      'and the queue is the gate', () async {
+    const importId = 'src-hydration';
+    final run = await loadReconciledBatch(
+      importId: importId,
+      packagePath: 'hydration.apkg',
+      seedIntroduction: (dao, store) async {
+        await dao.upsertIntroduction(
+          courseId: 'official-anki-$importId',
+          key: const CanonicalCardKey(
+            backend: AnkiBackendKind.official,
+            profileId: 'profile-default-01',
+            sourceId: importId,
+            cardId: 1,
+          ),
+          status: CardIntroductionStatus.introduced,
+          introducedBy: CardIntroducedBy.course,
+        );
+      },
+    );
+
+    final result = run.result;
     expect(result, isA<OfficialFormalReviewReady>());
     final ready = result as OfficialFormalReviewReady;
     expect(
@@ -177,7 +236,7 @@ void main() {
           'card 2 never reached it',
     );
     expect(ready.batch.session.current?.cardId, 1);
-    expect(engine.suspended, {2},
+    expect(run.engine.suspended, {2},
         reason: 'the lock suspension is the durable record of "course not '
             'completed yet"');
   });

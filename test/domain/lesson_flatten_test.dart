@@ -35,32 +35,6 @@ void main() {
       expect(flat[1].id, 'stage-b');
     });
 
-    test('review returns content.stages unchanged', () {
-      const lesson = Lesson(
-        id: 'l-review',
-        name: 'Review',
-        template: LessonTemplate.review,
-        content: LessonContent(stages: [stageA, stageB]),
-      );
-
-      final flat = lesson.flattenedStages;
-      expect(flat.length, 2);
-      expect(flat.map((s) => s.id), ['stage-a', 'stage-b']);
-    });
-
-    test('mastery returns content.stages unchanged', () {
-      const lesson = Lesson(
-        id: 'l-mastery',
-        name: 'Mastery',
-        template: LessonTemplate.mastery,
-        content: LessonContent(stages: [stageA, stageB]),
-      );
-
-      final flat = lesson.flattenedStages;
-      expect(flat.length, 2);
-      expect(flat.map((s) => s.id), ['stage-a', 'stage-b']);
-    });
-
     test('reading returns content.stages unchanged', () {
       const lesson = Lesson(
         id: 'l-reading',

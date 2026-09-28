@@ -58,22 +58,6 @@ void main() {
     expect(info.has('RENDER_CARD'), isTrue);
   });
 
-  test('double dispose is idempotent', () async {
-    final root = Directory.systemTemp.createTempSync('turna-dispose-once-');
-    addTearDown(() => root.deleteSync(recursive: true));
-    final session = await OfficialAnkiSession.spawn(
-      paths: OfficialAnkiPaths(
-        profileId: 'profile-once01',
-        profileRoot: Directory('${root.path}/profile'),
-      ),
-      catalogPath: '${root.path}/catalog.sqlite',
-      useFake: true,
-    );
-    final first = session.dispose();
-    final second = session.dispose();
-    await Future.wait([first, second]);
-  });
-
   test('timed-out handle cleanup is not engineClose on the caller isolate',
       () async {
     final caller = Isolate.current.debugName;

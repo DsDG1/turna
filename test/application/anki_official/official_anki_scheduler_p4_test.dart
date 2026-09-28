@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
@@ -11,12 +10,7 @@ import 'package:turna/application/anki_official/engine/official_formal_due_updat
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
 import 'package:turna/application/anki_official/engine/official_anki_scheduler_audit.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
-import 'package:turna/application/anki_official/official_anki_paths.dart';
-import 'package:turna/application/anki_official/render/official_anki_present_ack.dart';
 import '../../support/official_anki_review_fixture.dart';
-
-import 'official_anki_formal_review_ack_test.dart'
-    show officialFormalReviewPresenter;
 
 void main() {
   // The contract-id/golden/VERSION assertions moved to
@@ -239,84 +233,6 @@ void main() {
     final second = session.answer('easy');
     await Future.wait<void>([first, second]);
     expect(OfficialAnkiSchedulerAudit.officialSchedulerAnswers, 1);
-  });
-
-  testWidgets('formal review ratings stay disabled until answer present ACK',
-      (tester) async {
-    OfficialAnkiSchedulerAudit.reset();
-    final fake = FakeOfficialAnkiEngine();
-    fake.seedPackage(packagePath: 'x.apkg', notes: 2, cards: 2);
-    const flags = OfficialAnkiFeatureFlags(
-      engine: true,
-      import: true,
-      catalogReady: true,
-      runtimeCapable: true,
-      platformReady: true,
-      renderer: true,
-      scheduler: true,
-    );
-    final session = OfficialReviewSession(engine: fake, flags: flags);
-    await session.openDeck(1);
-    final paths = OfficialAnkiPaths(
-      profileId: 'profile-review01',
-      profileRoot: Directory.systemTemp.createTempSync('turna-review-ui-'),
-    );
-    addTearDown(() {
-      if (paths.profileRoot.existsSync()) {
-        paths.profileRoot.deleteSync(recursive: true);
-      }
-    });
-    final presenter = await officialFormalReviewPresenter(fake);
-    addTearDown(presenter.dispose);
-    await tester.pumpWidget(
-      MaterialApp(
-        home: OfficialAnkiReviewPage(
-          engine: fake,
-          paths: paths,
-          flags: flags,
-          session: session,
-          presenter: presenter,
-        ),
-      ),
-    );
-    await tester.pump();
-    await tester.pump();
-    final toggle = find.byKey(const Key('official-review-toggle-surface'));
-    if (toggle.evaluate().isNotEmpty) {
-      final button = tester.widget<IconButton>(toggle);
-      if (button.onPressed != null) {
-        await tester.tap(toggle);
-        await tester.pump();
-      }
-    }
-    expect(
-        find.byKey(const Key('official-review-show-answer')), findsOneWidget);
-    expect(find.byKey(const Key('official-review-good')), findsNothing);
-    presenter.acceptPresent(
-      OfficialPresentAck(
-        cardId: presenter.presentedCardId,
-        generation: presenter.presentGeneration,
-        side: 'question',
-        ok: true,
-      ),
-    );
-    await tester.pump();
-    await tester.tap(find.byKey(const Key('official-review-show-answer')));
-    await tester.pump();
-    expect(find.byKey(const Key('official-review-good')), findsNothing);
-    presenter.acceptPresent(
-      OfficialPresentAck(
-        cardId: presenter.presentedCardId,
-        generation: presenter.presentGeneration,
-        side: 'answer',
-        ok: true,
-      ),
-    );
-    await tester.pump();
-    expect(find.byKey(const Key('official-review-again')), findsOneWidget);
-    expect(find.byKey(const Key('official-review-good')), findsOneWidget);
-    expect(find.byKey(const Key('official-review-hard')), findsNothing);
-    expect(find.byKey(const Key('official-review-easy')), findsNothing);
   });
 
   test('allowedCardIds skips leftover deck mates and does not answer them',

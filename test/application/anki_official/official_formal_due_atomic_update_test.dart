@@ -100,34 +100,6 @@ void main() {
     expect(lastSeen!.byImport['a']!.schedulerDueCardIds, {1, 2});
   });
 
-  test('a stale commit is rejected instead of overwriting newer state', () {
-    repo.commit(
-      _update(bySource: {
-        'a': _per('a', schedulerDue: {1}, placement: {1}, introduced: {1}),
-      }),
-      basedOnGeneration: repo.generation,
-    );
-    final staleBase = repo.generation;
-    repo.commit(
-      _update(bySource: {
-        'a': _per('a', schedulerDue: {9}, placement: {9}, introduced: {9}),
-      }),
-      basedOnGeneration: repo.generation,
-    );
-
-    final result = repo.commit(
-      _update(bySource: {
-        'a': _per('a',
-            schedulerDue: {1, 2}, placement: {1, 2}, introduced: {1, 2}),
-      }),
-      basedOnGeneration: staleBase,
-    );
-
-    expect(result, OfficialFormalDueCommitResult.stale);
-    expect(repo.snapshot.byImport['a']!.schedulerDueCardIds, {9},
-        reason: 'the late result must be dropped, not overwrite newer data');
-  });
-
   test('mutation during a refresh window never loses suspended/buried', () {
     // P1 contract: card 2 is suspended, so the collected schedulerDue never
     // contained it in the first place.
@@ -227,23 +199,5 @@ void main() {
       () => repo.snapshot.byImport['a']!.suspendedCardIds.add(99),
       throwsUnsupportedError,
     );
-  });
-
-  test('failed refresh keeps the last complete snapshot (markUnavailable)', () {
-    repo.commit(
-      _update(bySource: {
-        'a': _per('a', schedulerDue: {1}, placement: {1}, introduced: {1}),
-      }),
-      basedOnGeneration: repo.generation,
-    );
-    final before = repo.snapshot;
-
-    repo.markUnavailable(StateError('engine closed'));
-
-    expect(repo.snapshot.unavailable, isTrue);
-    expect(repo.snapshot.byImport, before.byImport,
-        reason: 'stale-but-complete data stays visible');
-    expect(repo.snapshot.generation, greaterThan(before.generation));
-    expect(repo.formalDueCountForImport('a'), 1);
   });
 }

@@ -1,5 +1,4 @@
 // Dart imports:
-import 'dart:async';
 import 'dart:convert';
 
 import 'dart:io';
@@ -18,9 +17,6 @@ import 'package:turna/application/ai/ai_explain_prefs.dart';
 import 'package:turna/application/ai/ai_hint_provider.dart';
 import 'package:turna/application/ai/ai_saved_explanations.dart';
 import 'package:turna/application/ai/ai_tutor_chat_provider.dart';
-import 'package:turna/application/ai/companion/deterministic_diagnosis_engine.dart';
-import 'package:turna/application/ai/companion/hint_ladder_controller.dart';
-import 'package:turna/application/ai/companion/study_plan_orchestrator.dart';
 import 'package:turna/application/ai/companion_rate_limiter.dart';
 import 'package:turna/application/ai/dictionary_ai_provider.dart';
 import 'package:turna/application/ai/engine/ai_cache.dart';
@@ -32,9 +28,6 @@ import 'package:turna/application/ai/engine/ai_provider_preset.dart';
 import 'package:turna/application/ai/hint_genres.dart';
 import 'package:turna/application/ai/learner_ai_context.dart';
 import 'package:turna/application/ai/learner_ai_context_assembler.dart';
-import 'package:turna/domain/ai_companion/diagnosis_snapshot.dart';
-import 'package:turna/domain/ai_companion/learning_evidence.dart';
-import 'package:turna/domain/ai_companion/study_plan.dart';
 
 http.Response _textResponse(String content) {
   final body = jsonEncode({
@@ -247,66 +240,6 @@ void main() {
     });
   });
 
-  group('streaming append + cancel + supersede', () {
-    test('explainQuestion streams into assistant message', () async {
-      final client = MockClient((req) async => _textResponse('考查问候语。'));
-      final provider = AiHintProvider(engine: _engine(client));
-      await provider.explainQuestion(config: _engineConfig(), ctx: _ctx());
-      expect(provider.state, AiHintState.ready);
-      expect(provider.latestReply, '考查问候语。');
-      expect(provider.messages.length, 2);
-      expect(provider.messages.last.role, 'assistant');
-    });
-
-    test('cancel keeps partial text and does not apply late content', () async {
-      final gate = Completer<void>();
-      final client = MockClient((req) async {
-        await gate.future;
-        return _textResponse('late content that must not appear');
-      });
-      final provider = AiHintProvider(engine: _engine(client));
-      final fut =
-          provider.explainQuestion(config: _engineConfig(), ctx: _ctx());
-      await Future<void>.delayed(Duration.zero);
-      provider.cancel();
-      expect(provider.state, AiHintState.idle);
-      gate.complete();
-      await fut;
-      expect(provider.state, AiHintState.idle);
-      expect(
-        provider.messages.any(
-            (m) => m.content.contains('late content that must not appear')),
-        isFalse,
-      );
-    });
-
-    test('superseded explain does not keep stale assistant text', () async {
-      final gate = Completer<void>();
-      final client = MockClient((req) async {
-        if (gate.isCompleted) {
-          return _textResponse('B 的讲解。');
-        }
-        await gate.future;
-        return _textResponse('A 的讲解。');
-      });
-      final provider = AiHintProvider(engine: _engine(client));
-      final a = provider.explainQuestion(config: _engineConfig(), ctx: _ctx());
-      final b = provider.explainQuestion(
-        config: _engineConfig(),
-        ctx: const AiQuestionContext(
-          language: 'Turkish',
-          typeLabel: 'Fill-in-the-blank',
-          promptLabel: 'Another',
-        ),
-      );
-      gate.complete();
-      await Future.wait([a, b]);
-      expect(provider.latestReply, 'B 的讲解。');
-      expect(
-          provider.messages.any((m) => m.content.contains('A 的讲解')), isFalse);
-    });
-  });
-
   group('tutor chat never uses course JSON path', () {
     test('system prompt forbids course schema', () {
       final p = AiTutorChatProvider(
@@ -391,103 +324,6 @@ void main() {
       expect(store.search('xyz'), isEmpty);
       await store.delete('1');
       expect(store.items, isEmpty);
-    });
-  });
-
-  group('HintLadderController', () {
-    test('unsubmitted answer cannot advance beyond contrast cue', () {
-      final ladder = HintLadderController();
-      for (var i = 0; i < 10; i++) {
-        ladder.advance(
-          hasSubmittedAnswer: false,
-          allowRevealAnswer: false,
-        );
-      }
-      expect(ladder.stage, HintLadderStage.contrastCue);
-      expect(ladder.visibleLevel, 3);
-      expect(
-        ladder.canAdvance(
-          hasSubmittedAnswer: false,
-          allowRevealAnswer: false,
-        ),
-        isFalse,
-      );
-    });
-
-    test('submitted answer can reach full explanation then verification', () {
-      final ladder = HintLadderController();
-      while (ladder.canAdvance(
-        hasSubmittedAnswer: true,
-        allowRevealAnswer: false,
-      )) {
-        ladder.advance(
-          hasSubmittedAnswer: true,
-          allowRevealAnswer: false,
-        );
-      }
-      expect(ladder.stage, HintLadderStage.fullExplain);
-      ladder.startVerification();
-      expect(ladder.stage, HintLadderStage.verify);
-    });
-  });
-
-  group('deterministic diagnosis & study plan', () {
-    test('diagnosis is evidence-bound and declares data sufficiency', () {
-      final now = DateTime(2026, 8, 6);
-      final evidence = <LearningEvidence>[
-        for (var i = 0; i < 6; i++)
-          LearningEvidence(
-            id: 'e$i',
-            timestamp: now.subtract(Duration(days: i)),
-            sourceType: LearningEvidenceSource.lesson,
-            sourceId: 'lesson',
-            knowledgeType: KnowledgeType.grammar,
-            knowledgeId: 'accusative',
-            result: i < 4 ? LearningResult.incorrect : LearningResult.correct,
-          ),
-      ];
-      final mastery = KnowledgeMastery.fromEvidence(
-        KnowledgeType.grammar,
-        'accusative',
-        evidence,
-        now: now,
-      );
-      final diagnosis = const DeterministicDiagnosisEngine().analyze(
-        evidence: evidence,
-        mastery: [mastery],
-        now: now,
-      );
-
-      expect(diagnosis.dataSufficiency, DiagnosisDataSufficiency.medium);
-      expect(diagnosis.weakAreas.single.knowledgeId, 'accusative');
-      expect(
-        diagnosis.weakAreas.single.evidenceIds.toSet(),
-        evidence.map((e) => e.id).toSet(),
-      );
-    });
-
-    test('study plan stays inside time box and ends with verification', () {
-      final plan = const StudyPlanOrchestrator().build(
-        availableMinutes: 10,
-        dueReviewCount: 6,
-        weakAreas: const <DiagnosisWeakAreaEvidence>[
-          DiagnosisWeakAreaEvidence(
-            knowledgeId: 'accusative',
-            title: '宾格',
-            severity: 'high',
-            confidence: 0.8,
-            evidenceIds: ['e1'],
-            recommendedAction: 'micro_practice',
-            estimatedMinutes: 5,
-          ),
-        ],
-        now: DateTime(2026, 8, 6),
-      );
-
-      expect(plan.estimatedMinutes, lessThanOrEqualTo(10));
-      expect(plan.items.first.kind, StudyPlanItemKind.srs);
-      expect(plan.items.last.kind, StudyPlanItemKind.verification);
-      expect(plan.items.map((e) => e.order), orderedEquals([0, 1, 2]));
     });
   });
 

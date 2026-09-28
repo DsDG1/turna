@@ -191,9 +191,6 @@ void main() {
     // The dialog now consumes these:
     expect(vm.correctAnswers, 4);
     expect(vm.totalInteractionCount, 6);
-    // 4/6 = 67% rounded.
-    final expectedPct = ((4 / 6) * 100).round();
-    expect(expectedPct, 67);
   });
 
   test('mastery 5/6: correctAnswers reflects the actual wins', () async {

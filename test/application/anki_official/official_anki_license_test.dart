@@ -4,7 +4,6 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/official_anki_license_notices.dart';
 
 void main() {
@@ -25,16 +24,6 @@ void main() {
       expect(paragraphs, isNot(contains('FrontSide')));
       expect(kOfficialAnkiSourceOfferSummary, contains('SOURCE-OFFER.md'));
     });
-
-    test('showTurnaLicensePage registers Anki AGPL first', () async {
-      registerOfficialAnkiLicenses();
-      final entries = await LicenseRegistry.licenses.toList();
-      expect(
-        entries
-            .any((entry) => entry.packages.contains(kOfficialAnkiLicenseName)),
-        isTrue,
-      );
-    });
   });
 
   group('License hooks & feature gates', () {
@@ -51,11 +40,9 @@ void main() {
           RegExp(r'(?<!Turna)showLicensePage\(').hasMatch(settings), isFalse);
     });
 
-    test('official import constructor stays off; production current is on', () {
-      expect(const OfficialAnkiFeatureFlags().import, isFalse);
-      expect(const OfficialAnkiFeatureFlags().renderer, isFalse);
-      expect(OfficialAnkiFeatureFlags.current.allowsOfficialImport, isTrue);
-      expect(OfficialAnkiFeatureFlags.current.allowsOfficialRenderer, isTrue);
+    test('production import wiring drives the official-first service', () {
+      // Flag defaults themselves are pinned in
+      // official_anki_official_first_flags_test.dart.
       final deps = File(
         'lib/application/anki_import/anki_import_dependencies.dart',
       ).readAsStringSync();

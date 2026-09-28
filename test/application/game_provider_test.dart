@@ -66,55 +66,17 @@ void main() {
     });
   });
 
-  group('lesson completion tracking', () {
-    test('recordLessonCompletion marks a lesson done and emits progress',
-        () async {
-      expect(game.isLessonCompleted('l-1'), isFalse);
-      await game.recordLessonCompletion(lessonId: 'l-1', wasPerfect: false);
-      expect(game.isLessonCompleted('l-1'), isTrue);
-      expect(game.isLessonPerfect('l-1'), isFalse);
-    });
-
-    test('a perfect completion records both completed and perfect sets',
+  group('lesson completion facade', () {
+    // Behavior coverage (record/reset/stream semantics) lives in
+    // lesson_progress_provider_test.dart; here we only pin that GameProvider
+    // forwards to the wired LessonProgressProvider.
+    test('recordLessonCompletion and resetLessonProgress reach the store',
         () async {
       await game.recordLessonCompletion(lessonId: 'l-1', wasPerfect: true);
       expect(game.isLessonCompleted('l-1'), isTrue);
       expect(game.isLessonPerfect('l-1'), isTrue);
-    });
-
-    test(
-        'replaying a lesson can upgrade it to perfect without losing the '
-        'completed flag', () async {
-      await game.recordLessonCompletion(lessonId: 'l-1', wasPerfect: false);
-      await game.recordLessonCompletion(lessonId: 'l-1', wasPerfect: true);
-      expect(game.isLessonCompleted('l-1'), isTrue);
-      expect(game.isLessonPerfect('l-1'), isTrue);
-      // Sets dedupe: only one lesson id tracked.
-      expect(game.completedLessonIds, {'l-1'});
-    });
-
-    test('completedLessonsStream emits updates as lessons are completed',
-        () async {
-      final emitted = <Set<String>>[];
-      final sub = game.completedLessonsStream.listen(emitted.add);
-      await game.recordLessonCompletion(lessonId: 'l-1', wasPerfect: false);
-      await game.recordLessonCompletion(lessonId: 'l-2', wasPerfect: true);
-      await Future<void>.delayed(Duration.zero);
-      await sub.cancel();
-      // The stream yields the current set on subscribe then on each emit;
-      // the final captured snapshot must include both completed lessons.
-      expect(emitted.last, containsAll({'l-1', 'l-2'}));
-    });
-  });
-
-  group('resetLessonProgress', () {
-    test('clears completed/perfect sets and the derived counters', () async {
-      await game.recordLessonCompletion(lessonId: 'l-1', wasPerfect: true);
-      await game.recordLessonCompletion(lessonId: 'l-2', wasPerfect: false);
       await game.resetLessonProgress();
       expect(game.completedLessonIds, isEmpty);
-      expect(game.perfectLessonIds, isEmpty);
-      expect(game.isLessonCompleted('l-1'), isFalse);
     });
   });
 

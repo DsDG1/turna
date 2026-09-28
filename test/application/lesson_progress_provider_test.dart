@@ -27,6 +27,16 @@ void main() {
     expect(progress.isLessonPerfect('l-1'), isTrue);
   });
 
+  test('replaying a lesson can upgrade it to perfect and the sets dedupe',
+      () async {
+    await progress.recordLessonCompletion(lessonId: 'l-1', wasPerfect: false);
+    await progress.recordLessonCompletion(lessonId: 'l-1', wasPerfect: true);
+    expect(progress.isLessonCompleted('l-1'), isTrue);
+    expect(progress.isLessonPerfect('l-1'), isTrue);
+    // Sets dedupe: only one lesson id tracked.
+    expect(progress.completedLessonIds, {'l-1'});
+  });
+
   test('resetLessonProgress clears sets', () async {
     await progress.recordLessonCompletion(lessonId: 'l-1', wasPerfect: true);
     await progress.resetLessonProgress();

@@ -3,6 +3,11 @@
 // The selector may only pick official Flutter route classes per platform:
 // iOS/macOS -> CupertinoPageRoute, everything else -> MaterialPageRoute.
 // It must not expose or apply any animation parameters.
+//
+// The Android/iOS/macOS selection and the push/pop round-trip are covered
+// end-to-end through the real AppRouter policy by
+// adaptive_route_semantics_test.dart; this file only pins the desktop
+// fallback that the adaptive tests' variant matrix does not exercise.
 
 // Flutter imports:
 import 'package:flutter/material.dart';
@@ -33,71 +38,19 @@ Widget _host({
 }
 
 void main() {
-  testWidgets('Android theme selects MaterialPageRoute', (tester) async {
-    String? builtType;
-    await tester.pumpWidget(
-      _host(
-          platform: TargetPlatform.android, onRouteBuilt: (t) => builtType = t),
-    );
-    expect(builtType, contains('MaterialPageRoute'));
-  });
-
-  testWidgets('iOS theme selects CupertinoPageRoute', (tester) async {
-    String? builtType;
-    await tester.pumpWidget(
-      _host(platform: TargetPlatform.iOS, onRouteBuilt: (t) => builtType = t),
-    );
-    expect(builtType, contains('CupertinoPageRoute'));
-  });
-
-  testWidgets('macOS theme selects CupertinoPageRoute', (tester) async {
-    String? builtType;
-    await tester.pumpWidget(
-      _host(platform: TargetPlatform.macOS, onRouteBuilt: (t) => builtType = t),
-    );
-    expect(builtType, contains('CupertinoPageRoute'));
-  });
-
   testWidgets('desktop platforms fall back to MaterialPageRoute',
       (tester) async {
-    String? builtType;
-    await tester.pumpWidget(
-      _host(platform: TargetPlatform.linux, onRouteBuilt: (t) => builtType = t),
-    );
-    expect(builtType, contains('MaterialPageRoute'));
-  });
-
-  testWidgets('selector-produced route pushes and pops through a Navigator',
-      (tester) async {
-    var popped = false;
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Builder(
-          builder: (context) => TextButton(
-            onPressed: () async {
-              await Navigator.of(context).push(
-                platformPageRoute<void>(
-                  context: context,
-                  builder: (_) => const Scaffold(
-                    key: Key('pushed-page'),
-                    body: SizedBox.shrink(),
-                  ),
-                ),
-              );
-              popped = true;
-            },
-            child: const Text('push'),
-          ),
-        ),
-      ),
-    );
-
-    await tester.tap(find.text('push'));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('pushed-page')), findsOneWidget);
-
-    tester.state<NavigatorState>(find.byType(Navigator).first).pop();
-    await tester.pumpAndSettle();
-    expect(popped, isTrue);
+    for (final platform in const [
+      TargetPlatform.linux,
+      TargetPlatform.windows,
+    ]) {
+      String? builtType;
+      await tester.pumpWidget(
+        _host(platform: platform, onRouteBuilt: (t) => builtType = t),
+      );
+      expect(builtType, contains('MaterialPageRoute'),
+          reason: '$platform must never receive Cupertino route semantics');
+      await tester.pumpWidget(const SizedBox.shrink());
+    }
   });
 }

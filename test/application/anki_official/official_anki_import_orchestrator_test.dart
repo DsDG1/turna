@@ -248,12 +248,7 @@ void main() {
     );
   });
 
-  test('empty constructor stays off; production fromEnvironment import is on',
-      () {
-    expect(const OfficialAnkiFeatureFlags().import, isFalse);
-    expect(const OfficialAnkiFeatureFlags().allowsOfficialImport, isFalse);
-    expect(OfficialAnkiFeatureFlags.current.import, isTrue);
-    expect(OfficialAnkiFeatureFlags.current.allowsOfficialImport, isTrue);
+  test('AnkiImportFacade.resolve fails closed without the official gate', () {
     expect(
       () => AnkiImportFacade.resolve(
         flags: const OfficialAnkiFeatureFlags(),

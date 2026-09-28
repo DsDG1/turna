@@ -34,6 +34,19 @@ void main() {
       expect(plan.writesTurnaAnkiSrs, isFalse);
       expect(plan.facadeDecision, AnkiImportDecision.official);
       expect(plan.persistedOwnerIsOfficial, isTrue);
+      expect(
+        planner
+            .resolve(
+              flags: _fullOfficial(),
+              platform: 'android',
+              cutoverEnabled: true,
+              libraryAvailable: true,
+              filePath: '/tmp/DECK.APKG',
+            )
+            .isOfficialFirst,
+        isTrue,
+        reason: 'the extension match must be case-insensitive',
+      );
     });
 
     test('missing native library fails closed with zero writers', () {
@@ -169,10 +182,8 @@ void main() {
       expect(plan.owner, AnkiImportOwner.official);
     });
 
-    test('fromEnvironment defaults enable official-first on Android', () {
+    test('fromEnvironment flags plan official-first through the facade', () {
       final flags = OfficialAnkiFeatureFlags.fromEnvironment();
-      expect(flags.officialFirstImport, isTrue);
-      expect(flags.allowsOfficialFirstImport, isTrue);
       expect(LegacyAnkiMigrationFlags.cutoverEnabled, isTrue);
 
       final plan = AnkiImportFacade.planFor(

@@ -2,6 +2,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 
 void main() {
+  test('empty constructor stays fail-closed; production current is open', () {
+    const closed = OfficialAnkiFeatureFlags();
+    expect(closed.import, isFalse);
+    expect(closed.allowsOfficialImport, isFalse);
+    expect(closed.renderer, isFalse);
+    expect(closed.allowsOfficialRenderer, isFalse);
+    expect(OfficialAnkiFeatureFlags.current.import, isTrue);
+    expect(OfficialAnkiFeatureFlags.current.allowsOfficialImport, isTrue);
+    expect(OfficialAnkiFeatureFlags.current.renderer, isTrue);
+    expect(OfficialAnkiFeatureFlags.current.allowsOfficialRenderer, isTrue);
+  });
+
   test('p5f_official_first_import_defaults_on_for_production', () {
     final env = OfficialAnkiFeatureFlags.fromEnvironment();
     expect(env.officialFirstImport, isTrue,

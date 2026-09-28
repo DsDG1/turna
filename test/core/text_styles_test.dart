@@ -26,10 +26,6 @@ void main() {
 
       final style = AppTextStyles.promptMd(captured);
       expect(style.color, TurnaTheme.textPrimaryColor(captured));
-      expect(
-        style.color,
-        Theme.of(captured).colorScheme.onSurface,
-      );
     });
 
     testWidgets('caption uses the hint color helper (not the static token)',

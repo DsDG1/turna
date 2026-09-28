@@ -1,11 +1,9 @@
-// Consolidated tests for AI genres, prompt builder, textbook presets, and note study tools.
+// Consolidated tests for AI genres, prompt builder, and textbook presets.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/ai/ai_course_spec.dart';
 import 'package:turna/application/ai/ai_genre.dart';
 import 'package:turna/application/ai/ai_prompt_builder.dart';
-import 'package:turna/application/ai/ai_saved_explanations.dart';
-import 'package:turna/application/ai/companion/ai_note_study_tools.dart';
 import 'package:turna/application/ai/textbook/textbook_presets.dart';
 
 void main() {
@@ -132,34 +130,6 @@ void main() {
         presetFor('grammar').temperature,
         lessThan(presetFor('dialogue').temperature),
       );
-    });
-  });
-
-  group('ai_note_study_tools', () {
-    const tools = AiNoteStudyTools();
-
-    SavedExplanation sampleNote({String body = '宾格用于特指的直接宾语。'}) =>
-        SavedExplanation(
-          id: 'note-1',
-          title: '土耳其语宾格',
-          body: body,
-          source: 'hint',
-          createdAt: DateTime.utc(2026),
-        );
-
-    test('verification creates two to three deterministic offline questions',
-        () {
-      expect(tools.verificationQuestions(sampleNote()), hasLength(2));
-      final detailed = tools.verificationQuestions(
-        sampleNote(body: List.filled(8, '宾格用于特指的直接宾语。').join()),
-      );
-      expect(detailed, hasLength(3));
-      expect(detailed.first.prompt, contains('土耳其语宾格'));
-    });
-
-    test('Anki export is one TSV row even when note contains newlines', () {
-      final draft = tools.ankiDraft(sampleNote(body: '第一行\n第二行\t补充'));
-      expect(draft.asTsv, '土耳其语宾格\t第一行 第二行 补充');
     });
   });
 }

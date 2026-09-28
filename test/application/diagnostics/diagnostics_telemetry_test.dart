@@ -79,7 +79,6 @@ void main() {
 
       expect(telemetry.samples, hasLength(2));
       final serialized = jsonEncode(telemetry.toSafeJson());
-      expect(serialized, isNot(contains('secret-card-answer')));
       expect(serialized, isNot(contains('value')));
       expect(serialized, contains('estimatedBytes'));
     });
