@@ -442,6 +442,40 @@ class CourseTreeKeyboardTest(unittest.TestCase):
         self._press(Qt.Key.Key_D, Qt.KeyboardModifier.ControlModifier)
         self.assertEqual(self._unit_lesson_count(), before + 1)
 
+    def test_ctrl_d_on_section_says_it_is_lesson_only(self) -> None:
+        """T19: Ctrl+D on a Section used to do nothing at all."""
+        section_id = self.adapter.sections[0]["id"]
+        item = self._item_for("section", section_id)
+        self._select_single(item)
+        with patch(
+            "src.application.shell_views.notify_toast", return_value=True
+        ) as toast:
+            self._press(Qt.Key.Key_D, Qt.KeyboardModifier.ControlModifier)
+        toast.assert_called_once()
+        self.assertIn("Ctrl+D", toast.call_args.args[1])
+        self.assertIn("Section", toast.call_args.args[1])
+        self.assertIn("课时", toast.call_args.args[1])
+
+    def test_ctrl_d_on_unit_says_it_is_lesson_only(self) -> None:
+        unit_id = self.adapter.sections[0]["units"][0]["id"]
+        item = self._item_for("unit", unit_id)
+        self._select_single(item)
+        with patch(
+            "src.application.shell_views.notify_toast", return_value=True
+        ) as toast:
+            self._press(Qt.Key.Key_D, Qt.KeyboardModifier.ControlModifier)
+        toast.assert_called_once()
+        self.assertIn("Unit", toast.call_args.args[1])
+
+    def test_ctrl_d_lesson_path_shows_no_warning(self) -> None:
+        item = self._item_for("lesson", self.first_lesson_id)
+        self._select_single(item)
+        with patch(
+            "src.application.shell_views.notify_toast", return_value=True
+        ) as toast:
+            self._press(Qt.Key.Key_D, Qt.KeyboardModifier.ControlModifier)
+        toast.assert_not_called()
+
     def test_ctrl_down_moves_lesson_down(self) -> None:
         # Need at least 2 lessons in the unit for a move to take effect.
         _s, unit, _l = self.adapter.find_lesson(self.first_lesson_id)

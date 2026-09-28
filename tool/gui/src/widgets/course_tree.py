@@ -893,6 +893,16 @@ class CourseTreeWidget(QTreeWidget):
     def _selected_lesson_ids(self) -> list[str]:
         return [rid for kind, rid in self._selected_refs() if kind == "lesson"]
 
+    def _notify_clone_unsupported(self, kind_label: str) -> None:
+        """T19: explain that Ctrl+D is lesson-only instead of doing nothing."""
+        from src.application.shell_views import notify_toast
+
+        msg = f"Ctrl+D 仅支持克隆课时，当前选中的是{kind_label}。"
+        if not notify_toast(self, msg, title="无法克隆"):
+            from PySide6.QtWidgets import QMessageBox
+
+            QMessageBox.information(self, "无法克隆", msg)
+
     def keyPressEvent(self, event) -> None:
         key = event.key()
         mods = event.modifiers()
@@ -903,6 +913,13 @@ class CourseTreeWidget(QTreeWidget):
             lesson_ids = self._selected_lesson_ids()
             if lesson_ids:
                 self._duplicate_lessons(lesson_ids)
+            elif ref is not None:
+                # T19: silently ignoring Ctrl+D on a Unit/Section read as a
+                # broken shortcut — the README advertised it for any node.
+                kind_label = {"section": "Section", "unit": "Unit"}.get(
+                    ref[0], ref[0]
+                )
+                self._notify_clone_unsupported(kind_label)
             event.accept()
             return
         if mods & Qt.KeyboardModifier.ControlModifier and key in (
