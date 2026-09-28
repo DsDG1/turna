@@ -19,6 +19,7 @@ callbacks, keeping the service testable without a MainWindow:
 from __future__ import annotations
 
 import copy
+import contextlib
 from typing import Any
 from collections.abc import Callable
 
@@ -93,6 +94,7 @@ class SectionImportService:
         *,
         strategy: str = ImportStrategy.MERGE.value,
         _merge_decision: Any = _UNSET,
+        _collector: list | None = None,
     ) -> ImportStepResult:
         """Import one section dict via undo commands.
 
@@ -139,7 +141,7 @@ class SectionImportService:
 
         if action == "replace":
             cmd = AiEditSectionCommand(self.adapter, sid, section, resource_section=section)
-            self.undo_stack.push(cmd)
+            self._push_or_collect(cmd, _collector)
             self._on_command_pushed(cmd, sid)
             self._on_status(f"已覆盖「{section.get('name', sid)}」，记得保存")
             outcome = "replaced"
@@ -153,7 +155,7 @@ class SectionImportService:
             rewrite_ids_deterministic(section, new_id)
             section.setdefault("prerequisiteSectionIds", [])
             cmd = ImportAiSectionCommand(self.adapter, section)
-            self.undo_stack.push(cmd)
+            self._push_or_collect(cmd, _collector)
             self._on_command_pushed(cmd, new_id)
             self._on_status(
                 f"已作为新 section「{new_id}」导入（原 id {sid} 已存在），记得保存"
@@ -180,14 +182,14 @@ class SectionImportService:
                     details={"outcome": "skipped", "section_id": sid},
                 )
             cmd = MergeAiSectionCommand(self.adapter, plan)
-            self.undo_stack.push(cmd)
+            self._push_or_collect(cmd, _collector)
             self._on_command_pushed(cmd, sid)
             self._on_status(f"已将 AI 生成内容合并到「{section.get('name', sid)}」，记得保存")
             outcome = "merged"
         else:  # "append" - brand new section
             section.setdefault("prerequisiteSectionIds", [])
             cmd = ImportAiSectionCommand(self.adapter, section)
-            self.undo_stack.push(cmd)
+            self._push_or_collect(cmd, _collector)
             self._on_command_pushed(cmd, sid)
             self._on_status(f"已通过 AI 生成课程「{section.get('name', sid)}」并已选中，记得保存")
             outcome = "imported"
@@ -201,6 +203,18 @@ class SectionImportService:
             message=f"section {outcome}",
             details={"outcome": outcome, "section_id": sid},
         )
+
+    def _push_or_collect(self, cmd: Any, collector: list | None) -> None:
+        """Push normally, or stage into *collector* for a composite (T9).
+
+        Collected commands are applied immediately (redo) because the
+        composite push skips its first redo; the batch then lands on the
+        undo stack as ONE entry."""
+        if collector is None:
+            self.undo_stack.push(cmd)
+        else:
+            cmd.redo()
+            collector.append(cmd)
 
     # ------------------------------------------------------------------ bulk
     def import_bulk(
@@ -279,21 +293,53 @@ class SectionImportService:
 
         results: list[ImportStepResult] = []
         aborted = False
+        # T9: batch sections land on the undo stack as ONE composite
+        # command (Ctrl+Z un-imports the whole batch at once).
+        use_composite = len(sections) > 1
+        children: list = []
         for i, (section, plan) in enumerate(zip(sections, plans)):
             source_id = section.get("id", "")
             if aborted:
                 results.append(_cancelled(section, source_id))
                 counts["cancelled"] += 1
                 continue
+            if len(sections) > 1:
+                self._on_status(f"导入中 ({i + 1}/{len(sections)})…")
             # For append_as_new, use the planned target id so the section is
             # imported under the non-colliding id the preview promised.
             if plan.action == "append_new" and plan.target_id != source_id:
                 section = dict(section)
                 section["id"] = plan.target_id
             decision = merge_decisions.get(i, _UNSET)
-            result = self.import_section(
-                section, strategy=strategy, _merge_decision=decision
-            )
+            try:
+                result = self.import_section(
+                    section,
+                    strategy=strategy,
+                    _merge_decision=decision,
+                    _collector=children if use_composite else None,
+                )
+            except Exception as exc:
+                # T9: one broken section must not leave a half-applied
+                # batch — undo what already landed, reclassify the earlier
+                # rows honestly, and never push the composite.
+                for cmd in reversed(children):
+                    with contextlib.suppress(Exception):
+                        cmd.undo()
+                children = []
+                self._on_status(f"导入失败，已整体回滚：{exc}"[:240])
+                _reclassify_rolled_back(results, counts, reason=str(exc))
+                result = ImportStepResult.error(
+                    "import",
+                    f"批量导入失败已整体回滚：{exc}",
+                    details={"outcome": "blocked", "section_id": source_id},
+                )
+                details = result.details or {}
+                details["source_id"] = source_id
+                result.details = details
+                counts["blocked"] += 1
+                results.append(result)
+                aborted = True
+                continue
             details = result.details or {}
             details["source_id"] = source_id
             result.details = details
@@ -334,7 +380,28 @@ class SectionImportService:
                         proceed = False
                 if not proceed:
                     aborted = True
+        if children:
+            from src.application.commands import CompositeImportCommand
+
+            self.undo_stack.push(CompositeImportCommand(children))
         return results, counts
+
+
+def _reclassify_rolled_back(
+    results: list[ImportStepResult], counts: dict[str, int], *, reason: str
+) -> None:
+    """T9: after a batch rollback, earlier successful rows must say so."""
+    for r in results:
+        outcome = (r.details or {}).get("outcome")
+        if outcome in ("imported", "merged", "replaced"):
+            counts[outcome] -= 1
+            counts["blocked"] += 1
+            r.outcome = "error"
+            r.message = f"批量导入失败已整体回滚：{reason}"
+            d = dict(r.details or {})
+            d["outcome"] = "blocked"
+            d["rolled_back"] = True
+            r.details = d
 
 
 # --- Host-coupled builder (moved from src/app.py, P2-A) ---

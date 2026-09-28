@@ -138,6 +138,97 @@ class SectionImportServiceTest(unittest.TestCase):
         self.assertIn("合并决策器", result.message)
 
 
+class BulkUndoCompositeTest(unittest.TestCase):
+    """T9: a batch import is ONE undo entry, and a mid-batch failure rolls
+    the whole batch back instead of leaving half of it applied."""
+
+    def setUp(self) -> None:
+        _App.get()
+        self.adapter = CourseAdapter()
+        self.undo_stack = QUndoStack()
+        self.statuses: list[str] = []
+        self.service = SectionImportService(
+            self.adapter,
+            self.undo_stack,
+            merge_resolver=MagicMock(side_effect=lambda plan: plan),
+            bulk_merge_resolver=MagicMock(side_effect=lambda plans: list(plans)),
+            on_status=self.statuses.append,
+        )
+
+    def _sections(self, *ids: str) -> list[dict]:
+        return [sample_section_from_chapter(i) for i in ids]
+
+    def test_bulk_import_pushes_exactly_one_undo_entry(self) -> None:
+        _results, counts = self.service.import_bulk(
+            self._sections("sec-a", "sec-b", "sec-c"), strategy="merge"
+        )
+        self.assertEqual(counts["imported"], 3)
+        # Before T9 this was 3 — Ctrl+Z peeled one section at a time.
+        self.assertEqual(self.undo_stack.count(), 1)
+        # The composite skips its first redo (children ran while building),
+        # so the sections must be present exactly once.
+        self.assertEqual(len(self.adapter.sections), 3)
+        self.assertEqual(
+            [s["id"] for s in self.adapter.sections], ["sec-a", "sec-b", "sec-c"]
+        )
+
+    def test_one_undo_removes_the_whole_batch_and_redo_restores_it(self) -> None:
+        self.service.import_bulk(self._sections("sec-a", "sec-b"), strategy="merge")
+        self.undo_stack.undo()
+        self.assertEqual(len(self.adapter.sections), 0)
+        self.undo_stack.redo()
+        self.assertEqual(
+            sorted(s["id"] for s in self.adapter.sections), ["sec-a", "sec-b"]
+        )
+        self.assertEqual(self.undo_stack.count(), 1)  # still one entry
+
+    def test_single_section_batch_still_lands_one_entry(self) -> None:
+        # A one-section batch has nothing to composite; it must still push
+        # exactly one undo entry (the pre-T9 contract).
+        _results, counts = self.service.import_bulk(
+            self._sections("sec-only"), strategy="merge"
+        )
+        self.assertEqual(counts["imported"], 1)
+        self.assertEqual(self.undo_stack.count(), 1)
+        self.undo_stack.undo()
+        self.assertEqual(len(self.adapter.sections), 0)
+
+    def test_batch_progress_is_reported_per_section(self) -> None:
+        self.service.import_bulk(
+            self._sections("sec-a", "sec-b", "sec-c"), strategy="merge"
+        )
+        progress = [s for s in self.statuses if "导入中" in s]
+        self.assertEqual(len(progress), 3)
+        self.assertIn("(1/3)", progress[0])
+        self.assertIn("(3/3)", progress[-1])
+
+    def test_mid_batch_failure_rolls_everything_back(self) -> None:
+        real = self.service.import_section
+        seen = {"n": 0}
+
+        def flaky(*args, **kwargs):
+            seen["n"] += 1
+            if seen["n"] == 2:
+                raise RuntimeError("boom")
+            return real(*args, **kwargs)
+
+        self.service.import_section = flaky
+        results, counts = self.service.import_bulk(
+            self._sections("sec-a", "sec-b", "sec-c"), strategy="merge"
+        )
+
+        # Nothing half-applied, nothing on the undo stack.
+        self.assertEqual(len(self.adapter.sections), 0)
+        self.assertEqual(self.undo_stack.count(), 0)
+        # Counts must stop claiming the earlier section was imported.
+        self.assertEqual(counts["imported"], 0)
+        self.assertEqual(counts["blocked"], 2)  # sec-a rolled back + sec-b failed
+        self.assertEqual(counts["cancelled"], 1)  # sec-c never attempted
+        self.assertTrue(all(r.outcome == "error" for r in results[:2]))
+        self.assertTrue((results[0].details or {}).get("rolled_back"))
+        self.assertTrue(any("已整体回滚" in s for s in self.statuses))
+
+
 class BulkImportTest(unittest.TestCase):
     def setUp(self) -> None:
         _App.get()

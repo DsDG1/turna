@@ -29,6 +29,7 @@ from src.application.commands.ai_commands import (
     AiEditUnitCommand,
     AppendLessonsToUnitCommand,
     AppendUnitsToSectionCommand,
+    CompositeImportCommand,
     ImportAiSectionCommand,
     MergeAiSectionCommand,
 )

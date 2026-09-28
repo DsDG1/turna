@@ -428,3 +428,40 @@ class AppendLessonsToUnitCommand(_ResourceMergeMixin, QUndoCommand):
         self._rollback_resources()
         self.signals.changed.emit()
 
+
+
+class CompositeImportCommand(QUndoCommand):
+    """T9: one undo entry for a whole bulk import.
+
+    A bulk import used to push one QUndoCommand per section, so Ctrl+Z
+    peeled sections off one at a time (and the "import" could only be
+    un-done in the same piecemeal order). The children are applied during
+    the build phase (``SectionImportService.import_bulk`` calls each
+    child's ``redo()`` once while assembling); this command is pushed to
+    the stack afterwards, so its first ``redo`` (the one the stack triggers
+    on push) is skipped and only later undo/redo cycles replay children —
+    in order for redo, reverse order for undo.
+    """
+
+    def __init__(self, children: list[QUndoCommand], text: str = "批量导入 Section") -> None:
+        super().__init__(text)
+        self._children = list(children)
+        self._first_redo = True
+        self.signals = _make_changed()
+
+    def child_commands(self) -> list[QUndoCommand]:
+        return list(self._children)
+
+    def redo(self) -> None:
+        if self._first_redo:
+            # Children already ran during the build phase.
+            self._first_redo = False
+            return
+        for cmd in self._children:
+            cmd.redo()
+        self.signals.changed.emit()
+
+    def undo(self) -> None:
+        for cmd in reversed(self._children):
+            cmd.undo()
+        self.signals.changed.emit()
