@@ -236,6 +236,53 @@ class RecoveryActionTest(unittest.TestCase):
         self.assertFalse(self.dlg._parse_error_label.isHidden())
         self.assertIn("不存在", self.dlg._parse_error_label.text())
 
+    def _load_error_result(self, message: str = "解析失败"):
+        from src.backend.import_step_result import ImportStepResult
+
+        return ImportStepResult.error(
+            "parse", message, recoverable=True, recovery_options=["重新选择"]
+        )
+
+    def test_async_load_error_popups_exactly_once(self) -> None:
+        """T7: the load error reaches the step channel AND on_done — one dialog.
+
+        The controller emits the step and then calls ``on_done`` with the SAME
+        result object, so the view used to raise two modal recovery boxes for
+        a single failure.
+        """
+        from src.dialogs.textbook_import_dialog import STEP_PICK
+
+        result = self._load_error_result()
+        with patch("src.dialogs.textbook_import_dialog.QMessageBox") as mock_box_cls:
+            box = mock_box_cls.return_value
+            self.dlg._on_step_changed(STEP_PICK, result)
+            self.dlg._on_load_done(Path("/nonexistent/missing.md"), result)
+            mock_box_cls.assert_called_once()
+            box.exec.assert_called_once()
+
+    def test_a_later_distinct_error_still_gets_its_own_dialog(self) -> None:
+        # The dedupe keys on the result object, not on "an error happened" —
+        # a second, different failure must not be silently swallowed.
+        from src.dialogs.textbook_import_dialog import STEP_PICK
+
+        with patch("src.dialogs.textbook_import_dialog.QMessageBox") as mock_box_cls:
+            box = mock_box_cls.return_value
+            self.dlg._on_step_changed(STEP_PICK, self._load_error_result("第一次失败"))
+            self.dlg._on_step_changed(STEP_PICK, self._load_error_result("第二次失败"))
+            self.assertEqual(mock_box_cls.call_count, 2)
+            self.assertEqual(box.exec.call_count, 2)
+
+    def test_retrying_the_same_file_after_a_real_error_shows_again(self) -> None:
+        # Re-picking a file produces a NEW result object → the user must be
+        # able to see the recovery box again after a genuine retry.
+        from src.dialogs.textbook_import_dialog import STEP_PICK
+
+        with patch("src.dialogs.textbook_import_dialog.QMessageBox") as mock_box_cls:
+            box = mock_box_cls.return_value
+            self.dlg._show_error_with_recovery(STEP_PICK, self._load_error_result("A"))
+            self.dlg._show_error_with_recovery(STEP_PICK, self._load_error_result("A"))
+            self.assertEqual(box.exec.call_count, 2)
+
 
 class ImportPreviewPageTest(unittest.TestCase):
     """bookplan2 Phase 4: strategy radios + bulk preview on the import page."""

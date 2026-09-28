@@ -240,6 +240,12 @@ class TextbookImportDialog(QDialog):
 
     def _show_error_with_recovery(self, step: int, result: ImportStepResult) -> None:
         """Show an error, rendering ``recovery_options`` as action buttons (P0-4)."""
+        if getattr(self, "_last_error_shown", None) is result:
+            # T7: the async load error reaches both the step channel and
+            # on_done — the same result object must only ever produce one
+            # dialog.
+            return
+        self._last_error_shown = result
         options = [o for o in (result.recovery_options or []) if o]
         if not result.recoverable or not options:
             self._show_error_for_step(step, result)
