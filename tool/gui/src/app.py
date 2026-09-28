@@ -95,7 +95,18 @@ class _ButtonSizePolicyFilter(QObject):
     to Minimum makes the text width the floor - the button grows to fit and
     never clips. Installed app-wide so every button (including ones created
     later) benefits.
+
+    **Must be parented to the installing window.** An event filter with no
+    parent lives only as long as Python's reference to it, but Qt keeps it in
+    the QApplication's filter list — so once the window is gone and the Python
+    object is collected, Qt dispatches Polish events to a freed pointer and
+    the process dies with an access violation. Parenting ties the C++ lifetime
+    to the window, so Qt unregisters the filter when the window is destroyed
+    and no stale filter is left on the application.
     """
+
+    def __init__(self, parent: QObject | None = None) -> None:
+        super().__init__(parent)
 
     def eventFilter(self, obj, event):
         if event.type() == QEvent.Type.Polish and isinstance(obj, QPushButton):
@@ -127,7 +138,10 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
 
         # Keep button text from being clipped by tight layouts (applies to
         # every QPushButton app-wide, including ones created later).
-        self._btn_size_filter = _ButtonSizePolicyFilter()
+        # Parented to `self`: see _ButtonSizePolicyFilter's docstring for why an
+        # unparented app-wide filter is a dangling-pointer crash waiting to
+        # happen the moment this window is destroyed.
+        self._btn_size_filter = _ButtonSizePolicyFilter(self)
         QApplication.instance().installEventFilter(self._btn_size_filter)
 
         # AI API config is managed centrally via the Settings panel. Base URL
@@ -296,7 +310,12 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
 
             shell_views.sync_save_state_label(self)
         except Exception:
-            pass
+            # Cosmetic only: the save-state caption in the status bar fails to
+            # refresh. Saving itself is unaffected, so this must never block.
+            logger.debug(
+                "sync_save_state_label failed (status-bar caption not refreshed)",
+                exc_info=True,
+            )
 
     def _build_toolbar(self) -> None:
         build_toolbar(self)
