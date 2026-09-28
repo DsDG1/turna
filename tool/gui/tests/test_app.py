@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from PySide6.QtCore import QSettings
+from PySide6.QtCore import QCoreApplication, QEvent, QSettings
 from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QMessageBox
 
@@ -47,11 +47,55 @@ def _build_main_window_with_ai_settings(ai_values: dict) -> MainWindow:
 
 
 def _build_main_window() -> MainWindow:
-    """Create a MainWindow with QSettings and recent-repo prompts suppressed."""
+    """Create a MainWindow with QSettings and recent-repo prompts suppressed.
+
+    Disposes of the window handed out by the previous call first. Only
+    ``CloseEventTest`` has a ``tearDown``; the other classes in this module
+    build a window in ``setUp`` and never release it, so the live widget count
+    used to grow without bound and make every later build superlinearly more
+    expensive (see ``tests/_mainwindow_fixture.py`` for the measurements).
+    """
+    _dispose_previous_window()
     fake_settings = MagicMock()
     fake_settings.value.return_value = "[]"
     with patch("src.app.QSettings", return_value=fake_settings):
-        return MainWindow()
+        global _last_window
+        _last_window = MainWindow()
+        return _last_window
+
+
+# Window handed out by the most recent _build_main_window() call, so the next
+# one can destroy it. Tests never need two at once — each builds its own.
+_last_window: MainWindow | None = None
+
+
+def _dispose_previous_window() -> None:
+    """Destroy the previously built window, freeing its widget tree.
+
+    ``deleteLater`` + an explicit DeferredDelete flush rather than ``close()``:
+    ``MainWindow.closeEvent`` runs the save / shell-state / confirm-exit path,
+    which is exactly what the rest of this module mocks out. Matches
+    ``tests._mainwindow_fixture._dispose_previous_window``.
+    """
+    global _last_window
+    win = _last_window
+    _last_window = None
+    if win is None:
+        return
+    try:
+        win.setParent(None)
+        win.setVisible(False)
+        win.deleteLater()
+        QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+        _TestApp.get().processEvents()
+    except Exception:
+        # Cleanup is best-effort; never let it mask the test's own result.
+        pass
+
+
+def tearDownModule() -> None:
+    """Release the last window so the module does not leak a whole widget tree."""
+    _dispose_previous_window()
 
 
 def _teardown_window(win: MainWindow | None) -> None:
@@ -66,7 +110,12 @@ def _teardown_window(win: MainWindow | None) -> None:
             win.experience._timer.stop()
         win.close()
     except Exception:
+        # Teardown is best-effort; never let it mask the test's own result.
         pass
+    finally:
+        global _last_window
+        if _last_window is win:
+            _last_window = None
 
 
 class CloseEventTest(unittest.TestCase):
@@ -583,6 +632,84 @@ class TeacherModeToggleTest(unittest.TestCase):
         self.assertEqual(self.win.mode_action.text(), "教师模式")
         # Detail pane cleared the inline teacher widget (show_node -> clear).
         self.assertIsNone(self.win.detail._current_content_widget)
+
+
+class TeacherModeNoticeDedupeTest(unittest.TestCase):
+    """T2: the mode toggle is mirrored in two places and flipped constantly —
+    an identical explanation must not nag."""
+
+    def setUp(self) -> None:
+        _TestApp.get()
+        self.win = _build_main_window()
+        self.addCleanup(_teardown_window, self.win)
+
+    def _toggle(self, notify, checked: bool, ref) -> None:
+        with patch("src.app.safe_information") as mocked:
+            self.win._current_node_ref = ref
+            self.win.mode_action.setChecked(checked)
+            return mocked
+
+    def test_identical_notice_inside_the_window_is_dropped(self) -> None:
+        with patch("src.app.safe_information") as notify:
+            self.win._current_node_ref = ("section", "s1")
+            self.win.mode_action.setChecked(True)
+            notify.reset_mock()
+            # Same message again inside 10s → silent.
+            self.win.mode_action.setChecked(False)
+            self.win.mode_action.setChecked(True)
+        # Only the intermediate "expert mode" notice got through.
+        titles = [c.args[1] for c in notify.call_args_list]
+        self.assertEqual(titles, ["已切换到专家模式"])
+
+    def test_a_different_notice_is_never_suppressed(self) -> None:
+        with patch("src.app.safe_information") as notify:
+            self.win._current_node_ref = ("lesson", "s1-l1")
+            self.win.mode_action.setChecked(True)
+            notify.reset_mock()
+            self.win.mode_action.setChecked(False)
+        titles = [c.args[1] for c in notify.call_args_list]
+        self.assertEqual(titles, ["已切换到专家模式"])
+
+    def test_notice_returns_after_the_window_expires(self) -> None:
+        with patch("src.app.safe_information") as notify, patch(
+            "src.app.time.monotonic", return_value=1000.0
+        ):
+            self.win._current_node_ref = ("section", "s1")
+            self.win.mode_action.setChecked(True)
+            notify.reset_mock()
+            with patch("src.app.time.monotonic", return_value=1003.0):
+                self.win.mode_action.setChecked(False)
+                self.win.mode_action.setChecked(True)
+        # The expert-mode notice is new; the orientation notice is a repeat
+        # inside 10s and stays silent.
+        self.assertEqual(
+            [c.args[1] for c in notify.call_args_list], ["已切换到专家模式"]
+        )
+        notify.reset_mock()
+        with patch("src.app.safe_information") as fresh, patch(
+            "src.app.time.monotonic", return_value=1011.0
+        ):
+            self.win.mode_action.setChecked(False)
+            self.win.mode_action.setChecked(True)
+        self.assertEqual([c.args[1] for c in fresh.call_args_list], ["教师模式面向课时"])
+
+
+class TeacherFilterTooltipTest(unittest.TestCase):
+    """T2: the sidebar toggle is the mode switch, not a tree filter."""
+
+    def setUp(self) -> None:
+        _TestApp.get()
+
+    def test_tooltip_names_the_actual_effect(self) -> None:
+        from src.widgets.course_tree import CourseTreeWidget
+        from src.widgets.tree_sidebar import TreeSidebar
+
+        sidebar = TreeSidebar(CourseTreeWidget())
+        self.addCleanup(sidebar.deleteLater)
+        self.assertEqual(
+            sidebar.teacher_filter_btn.toolTip(),
+            "教师模式（详情面板切换出题视图）",
+        )
 
 
 class AiEditConflictTest(unittest.TestCase):

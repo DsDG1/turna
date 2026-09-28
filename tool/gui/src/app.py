@@ -386,18 +386,40 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
         # says what it is for and waits for a lesson click. Notify first so the
         # message survives a detail-panel render failure.
         selected = self._current_node_ref
+        self._notify_mode_toggled(checked, selected)
+        if selected is not None:
+            self._on_node_selected(selected)
+
+    def _notify_mode_toggled(
+        self, checked: bool, selected: tuple[str, str] | None
+    ) -> None:
+        """T2: say what the mode does, at most once every 10 seconds.
+
+        The toggle is mirrored between the toolbar action and the sidebar
+        button, and users flip it repeatedly while working; an identical
+        explanation every time is noise. Keyed per message rather than
+        "the last one", so a quick on→off→on still only explains the
+        on-state once. Stays a toast (safe_information), never modal.
+        """
         if not checked:
-            safe_information(self, "已切换到专家模式", "课程树按节点展示专家表单。")
+            title, text = "已切换到专家模式", "课程树按节点展示专家表单。"
         elif selected is None or selected[0] != "lesson":
-            safe_information(
-                self,
+            title, text = (
                 "教师模式面向课时",
                 "已保持当前选择；点击课程树里的任意课时进入改题界面。",
             )
         else:
-            safe_information(self, "已切换到教师模式", "正在编辑该课时的题目。")
-        if selected is not None:
-            self._on_node_selected(selected)
+            title, text = "已切换到教师模式", "正在编辑该课时的题目。"
+        cache: dict[tuple[str, str], float] = getattr(
+            self, "_mode_notice_times", None
+        ) or {}
+        now = time.monotonic()
+        if now - cache.get((title, text), -1e9) < 10.0:
+            self._mode_notice_times = cache
+            return
+        cache[(title, text)] = now
+        self._mode_notice_times = cache
+        safe_information(self, title, text)
 
     def _apply_mode_shell(self) -> None:
         """Reconfigure the shell for the active mode (tree badges, etc.)."""

@@ -90,10 +90,10 @@ class TreeSidebar(QWidget):
 
         bar.addStretch(1)
 
-        # 教师过滤: mirror the global teacher-mode toggle — the tree renders
-        # friendly 课型 badges instead of raw type labels when active.
+        # T2: this is not a filter — it is the global teacher-mode toggle, and
+        # the old name made it look like it would narrow the tree.
         self.teacher_filter_btn = self._tool(
-            "graduation-cap", "教师过滤（课型徽标）"
+            "graduation-cap", "教师模式（详情面板切换出题视图）"
         )
         self.teacher_filter_btn.setCheckable(True)
         bar.addWidget(self.teacher_filter_btn)
