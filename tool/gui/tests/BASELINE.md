@@ -8,6 +8,65 @@
 
  ## 当前基线
 
+- **2026-09-28（GUI 易用性修复 批次四：一致性 / 文案 / 隐私，4.1–4.15）**：
+  `python -m unittest` 逐模块收集 **199 模块 / 2806 例 / 0 失败**（上批 2724 例 ⇒
+  **+82**，新增 `test_attachment_preview.py`、`test_teacher_header_palette.py`、
+  `test_i18n_labels.py`、`test_ai_error_messages.py` 四个模块）。分档实测见下方各档统计；
+  `ruff` 全过；L0 gate 5/5 exit 0。依据 `Turna_GUI_修复计划_2026-09-28` 批次四，
+  4.1–4.15 全部修复并按问题粒度分条提交（4.16 为长期项记账，本轮不做）：
+  - **T1 课程树 ↑/↓ 不更新详情面板**：`node_selected` 只由 `itemClicked` 发出，而方向键
+    不触发该信号，详情面板因此停留在上一个节点。改为在 `currentItemChanged` 上按节点
+    ref 变化分发；`select_*` 保留无条件通知（「定位此节点」依赖它）并自持分发，
+    保证只发一次；重建后若落到不同节点（选中课时被删、回落到父节点）仍会通知。
+  - **T2 「教师过滤」名不副实 + 提示刷屏**：侧栏按钮实为全局教师模式开关，tooltip 改为
+    「教师模式（详情面板切换出题视图）」；模式提示按消息缓存 10s 去重（按消息而非「上一条」，
+    快速 on→off→on 也只解释一次），仍为 toast 非模态。
+  - **T3 侧栏搜索一次输入过滤两遍**：同时接了 `textChanged` 与防抖信号，改为只保留防抖。
+  - **T5 附件预览「引用方式」死单选**：`inline`/`standalone` 的取值全项目无人读取，
+    删除单选组（及随之孤立的 `_reference_mode`），改为一行说明「附件将随当前消息一并发送」。
+  - **T10 「稍后」三方语义打架 + 60min 档死代码**：`MAX_DISMISS` 由 3 改 4（原先第 3 次
+    「稍后」直接归档，注释承诺的 15/30/60 升档永远到不了 60）；tooltip 改为真实升档说明；
+    折叠行 ✕ 改走新 `discarded` 信号 + `on_ambient_discarded`（立即归档、**不消耗 defer 次数**，
+    此前与「稍后」同信号，点 4 次 ✕ 就被永久归档）；延后后的状态栏文案改为「已稍后，稍后将
+    再次提醒」，升档归档另给「多次稍后，本条已归档」。
+  - **T11 Copilot 角标只按 action_id 记已读**：换 section 不再亮角标。改用
+    `proposal_id_for()`（action_id + scope 指纹，与 ambient 提案同源）作 seen key。
+  - **T12 熔断器 opaque 模式完全静默**：熔断后无任何提示，与「没有建议」无法区分。
+    opaque 模式改给中性一行「AI 自动应用已暂停（稍后自动恢复）」且不泄漏熔断内部状态；
+    设置 ▸ 体验 OS 增加「重置熔断器」按钮（接到已有的 `reset_circuit_breaker()`）。
+  - **#10 切 Active 档弹模态战役队列**：模式开关直接 `exec()` 战役对话框。改为非模态——
+    作为建议入队 Copilot + 状态栏给出条目数与 Ctrl+K / 战役 入口；用户真去点建议时
+    `handle_quality_campaign` 行为不变。
+  - **T17 设置「取消」不还原**（经确认按「accept 时持久化」执行）：
+    ① SSH 密钥路径原在 `_sync_to_settings` 里即时落盘（打开设置点「取消」也会改掉下次用的凭据）
+    → 移入 `_apply()`；② 提取 Prompt「保存覆盖」原自己写文件（同一屏两套取消语义）
+    → 改为对话框内暂存、accept 时由 `commit_extraction_pending()` 写入，
+    「取消」与窗口关闭都经 `discard_pending_changes()` 丢弃。**有意不改** Git 远程目录与令牌：
+    每条都有独立子对话框与其自身 OK，且删除路径本就写着「此操作不可撤销」，
+    把它们暂存到设置的「取消」后面会与该文案自相矛盾并丢失已确认的工作。
+  - **T13 Ctrl+D 克隆非 Lesson 节点静默**：README 曾宣称「克隆当前选中的节点」。
+    Section/Unit 上现在给 toast 说明仅支持课时，README 同步更正。
+  - **T20 教师头部硬编码深色**：浅色主题下深色面包屑不可读、徽标配色与全局不符。
+    改为每次调用读取 `current_palette()`（面包屑 `text_secondary`，徽标 `text_on_accent` on `accent`），
+    随主题切换生效。
+  - **T21 遥测记绝对路径且无开关**：本地日志原样记录课程绝对路径。在唯一写入点统一
+    `scrub_payload()`（按字符串判根目录，不依赖 `Path.is_absolute()`——它在 Windows 上对
+    `/opt/x` 返回 False 会漏网），路径压到末两级、home 前缀折叠为 `~`；
+    新增 `telemetry_enabled`（设置 ▸ 外观 ▸ 隐私，默认 True 以免升级即静默关闭）。
+  - **T22 i18n EN 死表 + 教师卡片文案漂移**：`FIELD_LABELS_EN` 等三张英文表无任何设置项、
+    CLI 或调用点可达，全部删除（保留 `locale` 形参作为将来接线的落点）；
+    reorder-sentence 卡片的两个标题原是内联中文字面量，改为 `field_label()` 统一取词。
+  - **T20(b) 课程树删除确认走裸 QMessageBox**：5 处确认（Lesson/Unit/Section、批量删除、
+    批量套预设）改走 `ui_guard.safe_question`（headless 不阻塞、沉浸档 auto_confirm_scope
+    生效），均 `default_yes=False`；被引用 Section 的提示框保留原样（它是失败告知，不是问题）。
+  - **#11 provider 错误直抛原文**：401 原本显示为 `HTTP 401: {"error":...}`。
+    新增 `describe_http_error()` / `describe_network_error()`，先说原因与该改什么
+    （401→检查 Key、429→额度/重试、DNS/SSL/超时各自点名），provider 原文降为短尾巴保留；
+    `parse_json_obj()` 同样给出行列号与常见原因。
+  - 备注：交互式冒烟（真 UI）仍待人工——方向键换节点详情跟随、树搜索单次触发、
+    「稍后」与 ✕ 分流、设置取消不落盘、熔断器提示与重置、浅色主题教师头部可读性、
+    遥测日志中无绝对路径、Ctrl+D 非课时有提示。
+
 - **2026-09-28（GUI 易用性修复 批次三：阻塞与边界态，18 条）**：
   `python -m unittest` 逐模块收集 **195 模块 / 2724 例 / 0 失败**（上批 2673 例 ⇒
   **+51**，新增 `test_teacher_preview_flow.py`、`test_ai_merge_preview_dialog.py`
