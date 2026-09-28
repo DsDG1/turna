@@ -223,8 +223,197 @@ def scan_backend_qt_imports() -> list[tuple[str, int, str]]:
     return hits
 
 
+# --- UI layer vs backend ---------------------------------------------------
+# The layers that are supposed to talk to the application layer, which in turn
+# owns the backend services. Every ``src.backend`` import from here is a bypass.
+_UI_LAYERS = ("dialogs", "widgets", "teacher")
+_BACKEND_IMPORT = re.compile(
+    r"^\s*(?:from\s+src\.backend(?:\.\w+)*\s+import\s+|import\s+src\.backend\b)"
+)
+# ``course_cli`` may only be bound inside its designated gateway.
+_COURSE_CLI_BIND = re.compile(r"^\s*(?:import\s+course_cli\b|from\s+[\w.]*\s+import\s+.*\bcourse_cli\b)")
+
+
+def scan_ui_backend_imports() -> list[tuple[str, int, str]]:
+    """Return (relpath, lineno, line) for every UI-layer -> src.backend import.
+
+    Includes lazy (function-body) imports: they are still the UI layer reaching
+    past the application facade, and three quarters of the existing edges are
+    of that kind. A ratchet over this count is the migration signal — see
+    ``--max-ui-backend-imports``.
+    """
+    hits: list[tuple[str, int, str]] = []
+    for layer in _UI_LAYERS:
+        root = _SRC / layer
+        if not root.is_dir():
+            continue
+        for path in _iter_py(root):
+            for n, line in enumerate(
+                path.read_text(encoding="utf-8", errors="replace").splitlines(), 1
+            ):
+                if _BACKEND_IMPORT.search(line):
+                    rel = path.relative_to(_GUI_ROOT).as_posix()
+                    hits.append((rel, n, line.strip()[:160]))
+    return hits
+
+
+def scan_course_cli_bindings() -> list[tuple[str, int, str]]:
+    """Modules binding the name ``course_cli`` outside ``src/backend/api.py``.
+
+    ``api.py`` is the documented single gateway (it puts ``tool/`` on
+    ``sys.path`` and re-exports the CLI surface). Anyone else binding that name
+    — directly, or via ``from src.backend.api import course_cli`` — re-exports
+    the CLI internals and breaks the contract.
+    """
+    gateway = (_SRC / "backend" / "api.py").resolve()
+    hits: list[tuple[str, int, str]] = []
+    for path in _iter_py(_SRC):
+        if path.resolve() == gateway:
+            continue
+        for n, line in enumerate(
+            path.read_text(encoding="utf-8", errors="replace").splitlines(), 1
+        ):
+            if _COURSE_CLI_BIND.search(line) and "course_cli" in line:
+                rel = path.relative_to(_GUI_ROOT).as_posix()
+                hits.append((rel, n, line.strip()[:160]))
+    return hits
+
+
+def _module_level_imports(path: Path) -> list[tuple[str, int]]:
+    """(dotted module, lineno) for imports in the module body only.
+
+    Function-body imports are skipped on purpose: several of them exist purely
+    to break a cycle, so they are not evidence of a structural one.
+    """
+    try:
+        tree = ast.parse(path.read_text(encoding="utf-8", errors="replace"))
+    except (OSError, SyntaxError):
+        return []
+    out: list[tuple[str, int]] = []
+    for node in tree.body:  # module level only
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                out.append((alias.name, node.lineno))
+        elif isinstance(node, ast.ImportFrom):
+            if node.level or not node.module:
+                continue
+            out.append((node.module, node.lineno))
+    return out
+
+
+def _module_path(dotted: str) -> Path | None:
+    parts = dotted.split(".")
+    if not parts or parts[0] != "src":
+        return None
+    base = _SRC.joinpath(*parts[1:])
+    if base.with_suffix(".py").is_file():
+        return base.with_suffix(".py")
+    if (base / "__init__.py").is_file():
+        return base / "__init__.py"
+    return None
+
+
+def count_module_import_cycles() -> list[list[str]]:
+    """Module-level import cycles inside src/ (Tarjan SCC over the import graph)."""
+    graph: dict[str, set[str]] = {}
+    for path in _iter_py(_SRC):
+        rel = path.relative_to(_SRC).as_posix()
+        key = rel[:-3] if rel.endswith(".py") else rel
+        if key.endswith("/__init__"):
+            key = key[: -len("/__init__")]
+        targets: set[str] = set()
+        for dotted, _line in _module_level_imports(path):
+            target = _module_path(dotted)
+            if target is None:
+                continue
+            trel = target.relative_to(_SRC).as_posix()
+            tkey = trel[:-3] if trel.endswith(".py") else trel
+            if tkey.endswith("/__init__"):
+                tkey = tkey[: -len("/__init__")]
+            if tkey != key:
+                targets.add(tkey)
+        graph[key] = targets
+
+    # Tarjan strongly-connected components; anything with >1 member is a cycle.
+    index: dict[str, int] = {}
+    low: dict[str, int] = {}
+    on_stack: set[str] = set()
+    stack: list[str] = []
+    counter = [0]
+    cycles: list[list[str]] = []
+
+    def strongconnect(v: str) -> None:
+        # Iterative to survive deep graphs.
+        work: list[tuple[str, list[str]]] = [(v, iter(sorted(graph.get(v, ()))))]
+        index[v] = low[v] = counter[0]
+        counter[0] += 1
+        stack.append(v)
+        on_stack.add(v)
+        while work:
+            node, it = work[-1]
+            advanced = False
+            for w in it:
+                if w not in index:
+                    index[w] = low[w] = counter[0]
+                    counter[0] += 1
+                    stack.append(w)
+                    on_stack.add(w)
+                    work.append((w, iter(sorted(graph.get(w, ())))))
+                    advanced = True
+                    break
+                if w in on_stack:
+                    low[node] = min(low[node], index[w])
+            if advanced:
+                continue
+            if low[node] == index[node]:
+                comp: list[str] = []
+                while True:
+                    w = stack.pop()
+                    on_stack.discard(w)
+                    comp.append(w)
+                    if w == node:
+                        break
+                if len(comp) > 1 or node in graph.get(node, ()):
+                    cycles.append(sorted(comp))
+            work.pop()
+            if work:
+                parent = work[-1][0]
+                low[parent] = min(low[parent], low[node])
+
+    for node in sorted(graph):
+        if node not in index:
+            strongconnect(node)
+    return sorted(cycles)
+
+
+def _is_broad_except(t: ast.expr | None) -> bool:
+    """True for silent-failure-class catches: bare ``except:``, ``except Exception``,
+    ``except BaseException``, or a tuple containing one of those.
+
+    Narrow handlers (``except KeyError:``, ``except RuntimeError:`` …) are
+    deliberate, self-documenting control flow — a "skip the malformed item"
+    or "is this C++ object still alive?" probe — and are NOT silent failures.
+    Both the ``pass`` and the ``continue`` ratchets share this predicate so
+    the two metrics cannot drift apart.
+    """
+    if t is None:
+        return True
+    names = (t.elts if isinstance(t, ast.Tuple) else [t])
+    return any(
+        isinstance(e, ast.Name) and e.id in ("Exception", "BaseException")
+        for e in names
+    )
+
+
 def count_silent_except_pass() -> int:
-    """Count ``except ...:`` handlers whose body is a bare ``pass`` (AST)."""
+    """Count broad ``except`` handlers whose body is a bare ``pass`` (AST).
+
+    Breadth-filtered for the same reason as ``count_silent_except_continue``:
+    a narrow ``except RuntimeError: pass`` used as an existence probe is not
+    a swallowed failure. An empty ``pass`` is counted regardless of whether
+    it carries an explanatory comment — the ratchet target is a logged
+    handler (``logger.debug(..., exc_info=True)``), not a comment.
+    """
     total = 0
     for path in _iter_py(_SRC):
         try:
@@ -232,8 +421,11 @@ def count_silent_except_pass() -> int:
         except SyntaxError:
             continue
         for node in ast.walk(tree):
-            if isinstance(node, ast.ExceptHandler) and len(node.body) == 1 and isinstance(
-                node.body[0], ast.Pass
+            if (
+                isinstance(node, ast.ExceptHandler)
+                and _is_broad_except(node.type)
+                and len(node.body) == 1
+                and isinstance(node.body[0], ast.Pass)
             ):
                 total += 1
     return total
@@ -262,17 +454,9 @@ def count_silent_except_continue() -> int:
     ``except BaseException``, or a tuple containing one) — the same
     silent-failure class as ``except: pass``. Narrow handlers like
     ``except KeyError: continue`` are legitimate skip-malformed-item
-    idioms and are not counted.
+    idioms and are not counted. Shares ``_is_broad_except`` with
+    ``count_silent_except_pass`` so the two ratchets stay aligned.
     """
-    def _is_broad(t: ast.expr | None) -> bool:
-        if t is None:
-            return True
-        names = (t.elts if isinstance(t, ast.Tuple) else [t])
-        return any(
-            isinstance(e, ast.Name) and e.id in ("Exception", "BaseException")
-            for e in names
-        )
-
     total = 0
     for path in _iter_py(_SRC):
         try:
@@ -282,7 +466,7 @@ def count_silent_except_continue() -> int:
         for node in ast.walk(tree):
             if (
                 isinstance(node, ast.ExceptHandler)
-                and _is_broad(node.type)
+                and _is_broad_except(node.type)
                 and len(node.body) == 1
                 and isinstance(node.body[0], ast.Continue)
             ):
@@ -477,6 +661,33 @@ def main(argv: list[str] | None = None) -> int:
         help="Exit 1 if ExperienceHost-annotated modules touch undeclared "
         "private host members",
     )
+    parser.add_argument(
+        "--fail-course-cli-binding",
+        action="store_true",
+        help="Exit 1 if any module other than src/backend/api.py binds the "
+        "name course_cli (single-gateway contract)",
+    )
+    parser.add_argument(
+        "--max-ui-backend-imports",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Exit 1 if the number of dialogs/widgets/teacher -> src.backend "
+        "import statements exceeds N (ratchet; includes lazy imports)",
+    )
+    parser.add_argument(
+        "--max-import-cycles",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Exit 1 if the number of module-level import cycles inside src/ "
+        "exceeds N (ratchet)",
+    )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Print every UI→backend edge instead of a per-layer breakdown",
+    )
     args = parser.parse_args(argv)
 
     private = scan_private_imports()
@@ -491,6 +702,9 @@ def main(argv: list[str] | None = None) -> int:
     broad_except = count_broad_except()
     except_continue = count_silent_except_continue()
     style_hex = count_hardcoded_style_hex()
+    ui_backend = scan_ui_backend_imports()
+    course_cli = scan_course_cli_bindings()
+    cycles = count_module_import_cycles()
 
     print("=== AI boundary scan ===")
     print(f"gui root: {_GUI_ROOT}")
@@ -522,6 +736,29 @@ def main(argv: list[str] | None = None) -> int:
     print(f"silent except-continue handlers in src: {except_continue}")
     print(f"broad `except Exception` handlers in src: {broad_except}")
     print(f"inline setStyleSheet with hex + no palette: {style_hex}")
+    print(f"UI layer → src.backend import statements: {len(ui_backend)}")
+    # Per-layer breakdown + a short sample: the full edge list is ~160 lines and
+    # would bury every other metric in the CI log. `--verbose` prints them all.
+    by_layer: dict[str, int] = {}
+    for rel, _n, _s in ui_backend:
+        layer = rel.split("/")[1] if rel.startswith("src/") else rel
+        by_layer[layer] = by_layer.get(layer, 0) + 1
+    if by_layer:
+        print("  by layer: " + ", ".join(f"{k}={v}" for k, v in sorted(by_layer.items())))
+    if args.verbose:
+        for rel, n, snip in ui_backend:
+            print(f"  UIBK  {rel}:{n}: {snip}")
+    else:
+        for rel, n, snip in ui_backend[:8]:
+            print(f"  UIBK  {rel}:{n}: {snip}")
+        if len(ui_backend) > 8:
+            print(f"  UIBK  ... {len(ui_backend) - 8} more (use --verbose)")
+    print(f"course_cli bound outside api.py: {len(course_cli)}")
+    for rel, n, snip in course_cli:
+        print(f"  CCLI  {rel}:{n}: {snip}")
+    print(f"module-level import cycles in src: {len(cycles)}")
+    for comp in cycles:
+        print(f"  CYCLE {' -> '.join(comp)}")
 
     # Baseline summary for docs
     print("---")
@@ -532,7 +769,9 @@ def main(argv: list[str] | None = None) -> int:
         f"app_dialogs={len(app_dialogs)} dialogs_pipeline={len(dialogs_pipeline)} "
         f"host_drift={len(host_drift)} except_pass={except_pass} "
         f"except_continue={except_continue} "
-        f"broad_except={broad_except} style_hex={style_hex}"
+        f"broad_except={broad_except} style_hex={style_hex} "
+        f"ui_backend={len(ui_backend)} course_cli={len(course_cli)} "
+        f"cycles={len(cycles)}"
     )
 
     rc = 0
@@ -552,6 +791,8 @@ def main(argv: list[str] | None = None) -> int:
         rc = 1
     if args.fail_undeclared_host_access and host_drift:
         rc = 1
+    if args.fail_course_cli_binding and course_cli:
+        rc = 1
     if args.max_except_pass is not None and except_pass > args.max_except_pass:
         rc = 1
     if args.max_broad_except is not None and broad_except > args.max_broad_except:
@@ -559,6 +800,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.max_except_continue is not None and except_continue > args.max_except_continue:
         rc = 1
     if args.max_hardcoded_style_hex is not None and style_hex > args.max_hardcoded_style_hex:
+        rc = 1
+    if args.max_ui_backend_imports is not None and len(ui_backend) > args.max_ui_backend_imports:
+        rc = 1
+    if args.max_import_cycles is not None and len(cycles) > args.max_import_cycles:
         rc = 1
     return rc
 

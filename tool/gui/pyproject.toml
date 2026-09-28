@@ -1,7 +1,11 @@
 [project]
 name = "turna-gui"
-# Internal tool — not a published package; release version lives in the
-# PyInstaller build / Turna app release, not here.
+# Internal tool — not a published package. The comment used to say the release
+# version "lives in the PyInstaller build", but nothing in the build ever set
+# it: turna_gui.spec had no `version=` at all, so the shipped exe reported no
+# version to Windows or to a bug report. The exe now reads THIS field, so this
+# is the single place the GUI version is written. It is still 0.0.0 — the
+# release process must set it before shipping.
 version = "0.0.0"
 description = "Turna local GUI course editor (constrained form frontend over course_cli)"
 requires-python = ">=3.11"

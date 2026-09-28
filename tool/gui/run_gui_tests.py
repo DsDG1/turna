@@ -9,25 +9,33 @@ Usage (from repo root or tool/gui)::
     python run_gui_tests.py affected          # run only tests affected by git diff
     python run_gui_tests.py affected -j 4     # parallel affected tests
     python run_gui_tests.py list-affected     # print affected test modules
-    python run_gui_tests.py ci                # gate+fast (PR default)
-    python run_gui_tests.py ci -j 4           # gate+parallel fast
-    python run_gui_tests.py full              # unittest discover tests/test_*.py
+    python run_gui_tests.py ci -j 4           # gate+fast (quick local loop)
+    python run_gui_tests.py full              # every test module, one subprocess each
     python run_gui_tests.py clean-cache
     python run_gui_tests.py list-fast         # print L1 modules
 
 Tiers
 -----
-L0 gate  — experience_e1_gate_smoke.py (Experience OS contract smoke)
-L1 fast  — test modules whose source does not reference heavy Qt/widget APIs
-L0+L1 ci — **default for PR / pre-commit** (seconds–tens of seconds)
-L2 full  — unittest discover tests/test_*.py (BASELINE; release / UI changes / nightly)
+L0 gate  — experience_e1_gate_smoke.py + experience_e2_gate_smoke.py (subprocess)
+L1 fast  — modules whose transitive import graph never reaches a Qt binding
+L0+L1 ci — a fast *local* loop, not the wired gate: both CI workflows and
+           `make test-gui` run the full tier below (counts live in
+           tests/BASELINE.md, the single authoritative numbers file)
+L2 full  — every tests/test_*.py module, one subprocess each (~75 s with -j 4;
+           PR CI, release / nightly / UI changes)
 
-Classification is heuristic (source scan). Prefer pure backend tests for L1;
-widget construction belongs in L2. See tests/BASELINE.md.
+Classification is an **import-graph walk** (:func:`module_touches_qt`), not a
+text scan: a module that reaches PySide6 only through ``tests._qtapp`` or
+``tests/_mainwindow_fixture.py`` is Qt-dependent even though its own source
+never says so. The previous text-regex classifier filed 65 such modules as L1
+"pure", silently breaking the promise that L1 runs without a Qt stack.
+Prefer pure backend tests for L1; widget construction belongs in L2. See
+``docs/ai_refactor_contract.md`` §14 and tests/BASELINE.md.
 """
 from __future__ import annotations
 
 import argparse
+import ast
 import os
 import re
 import shutil
@@ -41,22 +49,119 @@ from pathlib import Path
 GUI_DIR = Path(__file__).resolve().parent
 TESTS_DIR = GUI_DIR / "tests"
 
-# Heavy Qt / widget markers → exclude from L1 fast.
-_QT_HEAVY = re.compile(
-    r"""
-    PySide6\.(QtWidgets|QtGui|QtTest)
-    | from\s+PySide6\s+import
-    | \bQApplication\b
-    | \bqt_app\s*\(
-    | \bQMainWindow\b
-    | \bQDialog\b
-    | \bQWidget\b
-    | \bUnifiedWorkspaceWidget\b
-    | \bQTest\b
-    | \bprocessEvents\s*\(
-    """,
-    re.VERBOSE,
-)
+# Qt bindings we treat as "this module needs a Qt stack".
+_QT_ROOTS = frozenset({"PySide6", "PySide2", "PyQt5", "PyQt6"})
+
+# Names whose mere use in *code* means the module drives Qt. Matched against AST
+# nodes, never against raw text: a docstring or comment that mentions QWidget
+# must not promote a backend-only test into the heavy tier. (An earlier version
+# used a text regex and mis-filed 83 modules that way.)
+_QT_NAMES = frozenset({
+    "QApplication", "QCoreApplication", "QMainWindow", "QDialog", "QWidget",
+    "QTest", "QThread", "QTimer", "QSettings", "QUndoStack",
+})
+
+
+def _parse(path: Path):
+    try:
+        return ast.parse(path.read_text(encoding="utf-8", errors="replace"))
+    except (OSError, SyntaxError):
+        return None
+
+
+def _dotted_imports(tree: ast.AST) -> set[str]:
+    """Absolute dotted names imported anywhere in the tree (lazy ones too)."""
+    found: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                found.add(alias.name)
+        elif isinstance(node, ast.ImportFrom):
+            if node.level or not node.module:  # skip relative / bare
+                continue
+            found.add(node.module)
+            for alias in node.names:
+                found.add(f"{node.module}.{alias.name}")
+    return found
+
+
+def _resolve_module(dotted: str) -> Path | None:
+    """Map ``src.a.b`` / ``tests.x`` to the file that defines it."""
+    parts = dotted.split(".")
+    if not parts or parts[0] not in ("src", "tests"):
+        return None
+    base = GUI_DIR.joinpath(*parts)
+    if base.with_suffix(".py").is_file():
+        return base.with_suffix(".py")
+    if (base / "__init__.py").is_file():
+        return base / "__init__.py"
+    return None
+
+
+def module_touches_qt(
+    path: Path,
+    _cache: dict[str, bool] | None = None,
+    _seen: set[str] | None = None,
+) -> bool:
+    """True if *path* — or anything it imports — reaches a Qt binding.
+
+    Walks the real import graph instead of scanning the test file's own text.
+    The text scan could not see a module that reaches PySide6 only through a
+    helper (``tests._qtapp``, ``tests/_mainwindow_fixture.py``), so those tests
+    were filed as L1 "pure" while actually importing Qt at module scope — which
+    breaks the L1 promise the moment a Qt-less runner tries them. Measured on
+    this tree: 65 such modules, and 0 modules over-excluded by the graph walk.
+    """
+    cache = {} if _cache is None else _cache
+    seen = set() if _seen is None else _seen
+    key = str(path)
+    if key in cache:
+        return cache[key]
+    if key in seen or len(seen) > 200:  # import cycle / runaway guard
+        return False
+    seen.add(key)
+
+    if not path.is_file():
+        cache[key] = False
+        return False
+    tree = _parse(path)
+    if tree is None:
+        # Unparseable source: assume Qt so it lands in the safe (heavy) tier.
+        cache[key] = True
+        return True
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            if any(a.name.split(".")[0] in _QT_ROOTS for a in node.names):
+                cache[key] = True
+                return True
+        elif isinstance(node, ast.ImportFrom) and node.module and node.module.split(".")[0] in _QT_ROOTS:
+            cache[key] = True
+            return True
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and node.id in _QT_NAMES:
+            cache[key] = True
+            return True
+        if isinstance(node, ast.Attribute) and node.attr in _QT_NAMES:
+            cache[key] = True
+            return True
+
+    result = False
+    for dotted in _dotted_imports(tree):
+        target = _resolve_module(dotted)
+        if target is not None and module_touches_qt(target, cache, seen):
+            result = True
+            break
+    cache[key] = result
+    return result
+
+
+_QT_CACHE: dict[str, bool] = {}
+
+
+def is_pure_module(path: Path) -> bool:
+    """True when the module can run without a Qt stack (L1 fast tier)."""
+    return not module_touches_qt(path, _QT_CACHE)
 
 
 def _ensure_path() -> None:
@@ -74,11 +179,6 @@ def _ensure_path() -> None:
 
 def list_test_modules() -> list[Path]:
     return sorted(TESTS_DIR.glob("test_*.py"))
-
-
-def is_pure_module(path: Path) -> bool:
-    text = path.read_text(encoding="utf-8", errors="replace")
-    return _QT_HEAVY.search(text) is None
 
 
 def pure_modules() -> list[Path]:
@@ -343,8 +443,8 @@ def cmd_usability() -> int:
     return subprocess.call([sys.executable, str(script)], cwd=str(GUI_DIR))
 
 
-def cmd_ci(jobs: int = 1) -> int:
-    """PR / pre-commit default: L0 gate then L1 fast (not full UI suite)."""
+def cmd_ci(jobs: int = 4) -> int:
+    """Quick local loop: L0 gate then L1 fast (the wired gates run full)."""
     print("=== CI tier: L0 gate + L1 fast ===", flush=True)
     code = cmd_gate()
     if code != 0:
@@ -382,11 +482,18 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "-j", "--jobs",
         type=int,
-        default=1,
+        default=0,
         help="Number of concurrent worker processes for fast / affected / full "
-        "tiers (default: 1)",
+        "tiers. 0 (the default) means 'auto': the module-per-subprocess path, "
+        "with a worker count of 4. Set 1 to force the legacy in-process runner "
+        "— which is only safe now that the hang it used to trigger is fixed "
+        "(docs/ai_refactor_contract.md §14), and is slower for more than a "
+        "handful of modules.",
     )
     args = parser.parse_args(argv)
+    # jobs=0 means auto. `-j 1` stays available as an explicit opt-in to the
+    # old single-process path, but nobody gets it by accident any more.
+    jobs = 4 if args.jobs == 0 else args.jobs
     if args.tier == "gate":
         return cmd_gate()
     if args.tier == "e1":
@@ -394,15 +501,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.tier == "e2":
         return cmd_e2()
     if args.tier == "fast":
-        return cmd_fast(jobs=args.jobs)
+        return cmd_fast(jobs=jobs)
     if args.tier == "ci":
-        return cmd_ci(jobs=args.jobs)
+        return cmd_ci(jobs=jobs)
     if args.tier == "affected":
-        return cmd_affected(jobs=args.jobs)
+        return cmd_affected(jobs=jobs)
     if args.tier == "list-affected":
         return cmd_list_affected()
     if args.tier == "full":
-        return cmd_full(jobs=args.jobs)
+        return cmd_full(jobs=jobs)
     if args.tier == "usability":
         return cmd_usability()
     if args.tier == "clean-cache":

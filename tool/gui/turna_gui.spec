@@ -21,6 +21,21 @@ ROOT = Path(SPECPATH).resolve().parent.parent  # repo root
 GUI_DIR = ROOT / "tool" / "gui"
 TOOL_DIR = ROOT / "tool"
 
+
+def _gui_version() -> str:
+    """Read the version from pyproject.toml, falling back to 0.0.0.
+
+    Kept dependency-free on purpose: a spec file is executed by PyInstaller,
+    not imported by the test suite, so it should not need tomllib (3.11+)
+    to do something a regex does fine for a `version = "x.y.z"` line.
+    """
+    import re
+
+    text = (GUI_DIR / "pyproject.toml").read_text(encoding="utf-8")
+    match = re.search(r'(?m)^version\s*=\s*"([^"]+)"', text)
+    return match.group(1) if match else "0.0.0"
+
+
 block_cipher = None
 
 a = Analysis(
@@ -31,15 +46,42 @@ a = Analysis(
         # Vendored Lucide icons for src.icons (GUI 焕新 W1).
         (str(GUI_DIR / "src" / "icons" / "svg"), "src/icons/svg"),
     ],
-    # Defensive only: there are no importlib/dynamic imports in src/, so
-    # PyInstaller's static analysis already finds everything. Keep this list
-    # for robustness; it does not need to enumerate every module.
+    # Defensive only. The comment claiming "no dynamic imports in src/" was
+    # wrong: `src/backend/ai/facade.py` uses a PEP 562 module-level __getattr__
+    # to forward lazily, so static analysis can miss those. Keep this list as a
+    # floor, and note that it is NOT exhaustive — 2026-09-27 found it missing
+    # `keyring` (a hard dependency: Git credentials break without it) and the
+    # whole `application/` + `backend/experience/` + `dialogs/ai/` + `infrastructure/`
+    # surface that the lazy facade forwards to.
     hiddenimports=[
+        # --- third-party that static analysis cannot see -------------------
         "course_cli",
+        # keyring backs Git credential storage (application/credential_store.py).
+        # It is imported inside a function, so PyInstaller would otherwise miss
+        # it and the packaged app would silently fall back to base64-in-QSettings.
+        "keyring",
+        "keyring.backends",
+        "keyring.backends.SecretService",
+        "keyring.backends.Windows",
+        # --- app entry points ---------------------------------------------
         "src.app",
+        # --- application layer --------------------------------------------
+        "src.application.commands",
+        "src.application.experience_handlers",
+        "src.application.experience_host",
+        # --- backend ------------------------------------------------------
+        "src.backend.ai.facade",
         "src.backend.course_adapter",
+        "src.backend.experience",
         "src.backend.lesson_content",
+        # --- dialogs ------------------------------------------------------
+        "src.dialogs.ai",
         "src.dialogs.new_lesson_dialog",
+        # --- infrastructure -----------------------------------------------
+        "src.infrastructure.operations_log",
+        "src.infrastructure.telemetry",
+        "src.infrastructure.user_action_filter",
+        # --- teacher / widgets --------------------------------------------
         "src.teacher.linear_flow",
         "src.teacher.question_cards",
         "src.teacher.template_editors",
@@ -118,6 +160,11 @@ exe = EXE(
     a.datas,
     [],
     name="turna-gui",
+    # Single source of truth for the version. pyproject.toml is the project
+    # manifest; the spec previously had no version at all, so the exe reported
+    # nothing to Windows or to a bug report. Read it rather than duplicating
+    # the string (a second copy is a second thing to forget to bump).
+    version=_gui_version(),
     debug=False,
     bootloader_ignore_signals=False,
     strip=True,
