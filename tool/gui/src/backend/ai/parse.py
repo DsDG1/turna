@@ -41,9 +41,15 @@ def parse_json_obj(content: str) -> dict:
     try:
         parsed = json.loads(cleaned)
     except json.JSONDecodeError as exc:
-        raise ValueError(f"无法解析模型输出的 JSON: {exc}") from exc
+        # T23: lead with the cause and what to do, keep the position in the
+        # tail. The bare decoder message ("Expecting value: line 1 column 1")
+        # was the whole error the user saw.
+        raise ValueError(
+            f"模型输出不是合法 JSON（{exc.msg}，第 {exc.lineno} 行第 {exc.colno} 列）。"
+            "常见原因：模型被截断、返回了 Markdown 代码块或多余说明文字；可重试或改用更明确的提示词。"
+        ) from exc
     if not isinstance(parsed, dict):
-        raise ValueError("模型输出不是 JSON 对象。")
+        raise ValueError("模型输出不是 JSON 对象（顶层不是 {...}）。")
     return parsed
 
 def parse_completion(body: str | dict[str, Any]) -> dict:

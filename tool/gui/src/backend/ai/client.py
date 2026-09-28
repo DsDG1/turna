@@ -11,6 +11,7 @@ prefer :func:`resolved_request_chat` (or import ``request_chat`` from the
 from __future__ import annotations
 
 import json
+import re
 import urllib.error
 import urllib.request
 from typing import Any
@@ -77,6 +78,58 @@ def looks_like_json_schema_rejection(exc: urllib.error.HTTPError, detail: str) -
         marker in lowered
         for marker in ("schema", "response_format", "unsupported", "unknown field")
     )
+
+def describe_http_error(code: int, detail: str) -> str:
+    """T23: turn a provider's HTTP failure into an actionable line.
+
+    The raw body was raised verbatim ("HTTP 401: {\\"error\\":{...}}"), which
+    put an English provider payload in front of a Chinese-language user and
+    told them nothing about what to change. Map the codes that have an
+    obvious fix, and keep the provider text only as a short tail — the
+    detail is still there for support, no longer the headline.
+    """
+    text = (detail or "").strip()
+    lowered = text.lower()
+    if code == 401:
+        hint = "API Key 无效或已过期：请在 设置 ▸ AI 中检查 Key。"
+    elif code == 403:
+        hint = "该 Key 无权访问此模型：请检查模型权限或改用有权限的 Key。"
+    elif code == 404:
+        hint = "接口地址或模型名不存在：请检查 Base URL 与模型名。"
+    elif code == 413:
+        hint = "请求内容过大：请减少一次提交的内容量。"
+    elif code == 429:
+        hint = "请求过于频繁或额度已用尽：请稍后重试，或检查账户额度。"
+    elif code >= 500:
+        hint = f"服务端错误（{code}）：这通常是 provider 侧的问题，可稍后重试。"
+    else:
+        hint = f"请求被拒绝（HTTP {code}）。"
+    if "insufficient" in lowered or "quota" in lowered or "余额" in text:
+        hint = "账户额度不足：请充值或更换 API Key。"
+    elif "rate limit" in lowered or "too many requests" in lowered:
+        hint = "请求过于频繁：请稍后重试。"
+    tail = re.sub(r"\s+", " ", text)[:160]
+    return f"{hint}（provider 返回：{tail}）" if tail else hint
+
+
+def describe_network_error(reason: Any) -> str:
+    """T23: URLError reasons are English OS/SSL strings; name the likely cause."""
+    text = str(reason or "").strip()
+    lowered = text.lower()
+    if "timed out" in lowered or "timeout" in lowered:
+        hint = "连接超时：请检查网络，或在 设置 ▸ AI 中调大超时时间。"
+    elif "name or service not known" in lowered or "nodename nor servname" in lowered or (
+        "getaddrinfo" in lowered
+    ):
+        hint = "域名解析失败：请检查 Base URL 或本机 DNS。"
+    elif "connection refused" in lowered:
+        hint = "连接被拒绝：请确认服务地址与端口，且服务已启动。"
+    elif "ssl" in lowered or "certificate" in lowered:
+        hint = "TLS/证书错误：该地址可能不是 HTTPS，或证书不受信任。"
+    else:
+        hint = f"网络错误：{text}" if text else "网络错误"
+    return hint
+
 
 def chat_json(
     config: AiApiConfig,
@@ -274,13 +327,13 @@ def request_chat(
                         body = b"".join(chunks2).decode("utf-8")
             except urllib.error.HTTPError as exc2:
                 detail2 = exc2.read().decode("utf-8", errors="replace")[:300]
-                raise RuntimeError(f"HTTP {exc2.code}: {detail2}") from exc2
+                raise RuntimeError(describe_http_error(exc2.code, detail2)) from exc2
             except urllib.error.URLError as exc2:
-                raise RuntimeError(f"网络错误: {exc2.reason}") from exc2
+                raise RuntimeError(describe_network_error(exc2.reason)) from exc2
         else:
-            raise RuntimeError(f"HTTP {exc.code}: {detail}") from exc
+            raise RuntimeError(describe_http_error(exc.code, detail)) from exc
     except urllib.error.URLError as exc:
-        raise RuntimeError(f"网络错误: {exc.reason}") from exc
+        raise RuntimeError(describe_network_error(exc.reason)) from exc
 
     try:
         parsed = json.loads(body) if isinstance(body, str) else body
