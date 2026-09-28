@@ -746,8 +746,14 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
             from src.infrastructure.operations_log import operations
 
             if duration_s is not None:
-                telemetry.record_event(
-                    f"window.{name}.duration", duration_s=duration_s, **payload
+                # record_duration takes milliseconds; the old call passed
+                # ``duration_s=`` to record_event, which has no such
+                # parameter — a TypeError that the except below swallowed, so
+                # this channel never recorded anything at all.
+                telemetry.record_duration(
+                    f"window.{name}.duration",
+                    float(duration_s) * 1000.0,
+                    payload=payload or None,
                 )
                 return
 

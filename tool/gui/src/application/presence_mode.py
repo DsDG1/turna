@@ -173,12 +173,21 @@ def maybe_auto_enqueue_campaign(host: ExperienceHost) -> bool:
             experience = getattr(host, "experience", None)
             suggestions = getattr(experience, "suggestions", None)
             if isinstance(suggestions, list):
+                # Scope the suggestion: proposal_id_for() folds weak_count into
+                # the id, and an empty scope produced a constant id — so this
+                # one campaign could never re-light its badge, and a single
+                # dismissal put "worst-N campaign" into permanent archive for
+                # the whole session regardless of what it pointed at.
+                section_scope: dict[str, object] = {"weak_count": len(items)}
+                worst = items[0] if items else {}
+                if worst.get("kind") == "section" and worst.get("id"):
+                    section_scope["section_id"] = str(worst["id"])
                 suggestions.append(
                     {
                         "priority": 60,
                         "title": f"低质战役（{len(items)} 项）",
                         "action_id": "quality.campaign_worst_n",
-                        "scope": {},
+                        "scope": section_scope,
                         "source": "campaign_auto",
                     }
                 )

@@ -147,6 +147,38 @@ class CampaignAutoEnqueueTest(unittest.TestCase):
         self.assertIn("Ctrl+K", shown)
         self.assertIn("1 项", shown)
 
+    def test_campaign_suggestion_has_a_scoped_id(self) -> None:
+        """#10 follow-up: an empty scope made the proposal id constant.
+
+        A constant id means the badge can never re-light and one dismissal
+        escalates to permanent archive for every campaign in the session.
+        """
+        from src.application.presence_mode import maybe_auto_enqueue_campaign
+        from src.backend.experience.proactive import proposal_id_for
+
+        host = self._host(mode="active")
+        host.experience.suggestions = []
+        items = [
+            {"kind": "section", "id": "s1", "title": "S1"},
+            {"kind": "lesson", "id": "l1", "title": "空课"},
+        ]
+        with patch(
+            "src.application.presence_mode.campaign_items_for_host",
+            return_value=items,
+        ), patch(
+            "src.application.ui_guard.is_headless_ui", return_value=False
+        ):
+            maybe_auto_enqueue_campaign(host)
+
+        queued = host.experience.suggestions[0]
+        scope = queued["scope"]
+        self.assertTrue(scope, "scope must not be empty")
+        self.assertEqual(scope["weak_count"], len(items))
+        this_id = proposal_id_for(queued["action_id"], scope)
+        # A different campaign size is a different proposal.
+        other = proposal_id_for(queued["action_id"], {"weak_count": 9})
+        self.assertNotEqual(this_id, other)
+
 
 if __name__ == "__main__":
     unittest.main()
