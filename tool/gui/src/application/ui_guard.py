@@ -69,56 +69,26 @@ def current_auto_token() -> AutoApplyToken | None:
     return None
 
 
-def resolve_auto_apply_state(widget: Any = None) -> tuple[bool, bool, AutoApplyToken | None]:
-    """Resolve (should_auto, opaque, token) from ContextVar and/or host.
-
-    Walks ``widget`` parents for ``_auto_apply_token`` so async
-    ``PreviewHost.offer`` still works after the dispatch frame ends.
-    Never raises.
-    """
-    try:
-        token = current_auto_token()
-        if token is not None:
-            return True, bool(token.opaque), token
-    except Exception:
-        logger.debug("application/ui_guard.py:resolve_auto_apply_state best-effort step failed", exc_info=True)
-
-    host_token = _find_host_token(widget)
-    if host_token is not None:
-        return True, bool(getattr(host_token, "opaque", True)), host_token
-
-    try:
-        if bool(_auto_confirm.get()):
-            return True, bool(_suppress_ui.get()), None
-    except Exception:
-        logger.debug("application/ui_guard.py:resolve_auto_apply_state best-effort step failed", exc_info=True)
-    return False, False, None
-
-
-def _find_host_token(widget: Any) -> AutoApplyToken | None:
-    """Walk Qt parent chain and window() for a valid auto token."""
-    from src.backend.experience.auto_apply import host_auto_apply_token
-
+def _walk_widget_chain(widget: Any):
+    """Yield *widget*, its parent chain, then its top-level window."""
     seen: set[int] = set()
 
-    def _check(obj: Any) -> AutoApplyToken | None:
-        if obj is None:
-            return None
+    def _identify(obj: Any) -> int | None:
         try:
             ident = id(obj)
             if ident in seen:
                 return None
             seen.add(ident)
+            return ident
         except Exception:
             return None
-        return host_auto_apply_token(obj)
 
     cur = widget
     depth = 0
     while cur is not None and depth < 32:
-        tok = _check(cur)
-        if tok is not None:
-            return tok
+        if _identify(cur) is None:
+            break
+        yield cur
         nxt = None
         try:
             if hasattr(cur, "parentWidget") and callable(cur.parentWidget):
@@ -131,14 +101,95 @@ def _find_host_token(widget: Any) -> AutoApplyToken | None:
             break
         cur = nxt
         depth += 1
-    # Final: top-level window (MainWindow usually holds the token).
     try:
         if widget is not None and hasattr(widget, "window") and callable(widget.window):
-            tok = _check(widget.window())
-            if tok is not None:
-                return tok
+            win = widget.window()
+            if _identify(win) is not None:
+                yield win
     except Exception:
-        logger.debug("application/ui_guard.py:_find_host_token best-effort step failed", exc_info=True)
+        logger.debug("application/ui_guard.py:_walk_widget_chain best-effort step failed", exc_info=True)
+
+
+def resolve_auto_apply_state(widget: Any = None) -> tuple[bool, bool, AutoApplyToken | None]:
+    """Strict resolution for human-confirm gates (``safe_question``).
+
+    ContextVar tokens (sync dispatch frame) still force auto — that is the
+    original, correct design. A token merely *bound to the host* no longer
+    does (#6): it used to leak past the dispatch and auto-answer every later
+    manual menu/right-key confirm. The host token only counts while the
+    PreviewHost strip truly has a pending AI action waiting.
+    Never raises.
+    """
+    try:
+        token = current_auto_token()
+        if token is not None:
+            return True, bool(token.opaque), token
+    except Exception:
+        logger.debug("application/ui_guard.py:resolve_auto_apply_state best-effort step failed", exc_info=True)
+
+    host_token = _find_host_token(widget)
+    if host_token is not None and _host_preview_has_pending(widget):
+        return True, bool(getattr(host_token, "opaque", True)), host_token
+
+    try:
+        if bool(_auto_confirm.get()):
+            return True, bool(_suppress_ui.get()), None
+    except Exception:
+        logger.debug("application/ui_guard.py:resolve_auto_apply_state best-effort step failed", exc_info=True)
+    return False, False, None
+
+
+def resolve_auto_apply_for_offer(widget: Any = None) -> tuple[bool, bool, AutoApplyToken | None]:
+    """Offer-time resolution: ContextVar **or** host token, no pending check.
+
+    ``PreviewHost.offer`` (and AI handlers deciding strip-vs-modal, #7) call
+    this at the moment a result lands; requiring a pending offer here would
+    be circular — the offer *is* the pending thing. The token is consumed by
+    the offer lifecycle (see ``PreviewHost`` unbinding on apply/discard).
+    Never raises.
+    """
+    try:
+        token = current_auto_token()
+        if token is not None:
+            return True, bool(token.opaque), token
+    except Exception:
+        logger.debug("application/ui_guard.py:resolve_auto_apply_for_offer best-effort step failed", exc_info=True)
+
+    host_token = _find_host_token(widget)
+    if host_token is not None:
+        return True, bool(getattr(host_token, "opaque", True)), host_token
+
+    try:
+        if bool(_auto_confirm.get()):
+            return True, bool(_suppress_ui.get()), None
+    except Exception:
+        logger.debug("application/ui_guard.py:resolve_auto_apply_for_offer best-effort step failed", exc_info=True)
+    return False, False, None
+
+
+def _host_preview_has_pending(widget: Any) -> bool:
+    """True when a PreviewHost on *widget*'s host chain has a pending offer."""
+    for obj in _walk_widget_chain(widget):
+        for attr in ("preview_host", "_preview_host"):
+            ph = getattr(obj, attr, None)
+            if ph is None:
+                continue
+            try:
+                if callable(getattr(ph, "has_pending", None)) and ph.has_pending():
+                    return True
+            except Exception:
+                logger.debug("application/ui_guard.py:_host_preview_has_pending best-effort step failed", exc_info=True)
+    return False
+
+
+def _find_host_token(widget: Any) -> AutoApplyToken | None:
+    """Walk Qt parent chain and window() for a valid auto token."""
+    from src.backend.experience.auto_apply import host_auto_apply_token
+
+    for obj in _walk_widget_chain(widget):
+        tok = host_auto_apply_token(obj)
+        if tok is not None:
+            return tok
     return None
 
 

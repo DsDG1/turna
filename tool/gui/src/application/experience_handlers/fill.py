@@ -9,6 +9,46 @@ from src.application.commands import MergeAiSectionCommand
 from src.application.ui_guard import safe_information, safe_question, safe_warning
 from src.infrastructure.telemetry import telemetry
 
+
+def _offer_auto_preview(
+    host,
+    *,
+    title: str,
+    summary: str,
+    apply_fn,
+    discard_fn=None,
+    payload: Any = None,
+    details: list[str] | None = None,
+) -> bool:
+    """Auto (immersive) path: PreviewHost strip instead of a modal diff (#7).
+
+    Returns True when the result was handed to the strip — either auto-applied
+    right away or sitting pending with Enter/Esc (token demoted mid-flight).
+    False → the caller shows its usual interactive preview. The auto path
+    must never ``exec()`` a modal: it fires from worker callbacks where no
+    user gesture exists to dismiss it.
+    """
+    try:
+        ph = getattr(host, "preview_host", None)
+        if ph is None:
+            return False
+        from src.application.ui_guard import resolve_auto_apply_for_offer
+
+        should_auto, _opaque, _token = resolve_auto_apply_for_offer(host)
+        if not should_auto:
+            return False
+        ph.offer(
+            title=title,
+            summary=summary,
+            apply_fn=apply_fn,
+            discard_fn=discard_fn,
+            payload=payload,
+            details=details,
+        )
+        return True
+    except Exception:
+        return False
+
 def _experience_validate_and_fix(host) -> None:
     """E1: validate locally; errors go straight into the AI batch-fix flow."""
     problems = host._run_local_validate()
@@ -178,6 +218,67 @@ def _run_fill_lesson_patch_flow(
         except KeyError as exc:
             host.statusBar().showMessage(f"{job_label}：{exc}", 5000)
             return
+
+        def _apply() -> None:
+            try:
+                patch = lesson_patch_from_replace(
+                    old_lesson,
+                    new_lesson,
+                    section_id=sid,
+                    unit_id=str(_u.get("id") or ""),
+                )
+            except Exception as exc:
+                host.statusBar().showMessage(
+                    f"{job_label}：无法构建 LessonPatch — {exc}", 6000
+                )
+                return
+            cmd = ApplyLessonPatchCommand(host.adapter, patch)
+            cmd.signals.changed.connect(host._on_ai_edit_applied)
+            host.undo_stack.push(cmd)
+            host.experience_metrics.inc_suggestion(action_id, "applied")
+            host._record_experience_event(
+                action_id,
+                f"空课已填充：{lesson_id}",
+                action_id=action_id,
+                scope={"lesson_id": lesson_id, "section_id": sid},
+            )
+            host._refresh_validate_after_ai(f"{job_label}已应用，记得保存")
+            # Chain remaining empty lessons one-by-one (AI single-flight).
+            rest = list(follow_up_ids or [])
+            if rest:
+                nxt = rest.pop(0)
+                host.statusBar().showMessage(
+                    f"继续填充下一空课（剩余 {len(rest) + 1}）…", 4000
+                )
+                try:
+                    sec2, _u2, _l2 = host.adapter.find_lesson(nxt)
+                except KeyError:
+                    return
+                from src.application.shell_views import reveal_edit_view
+
+                reveal_edit_view(host)
+                host.tree.select_lesson(nxt)
+                host._run_fill_lesson_patch_flow(
+                    section=sec2,
+                    lesson_id=nxt,
+                    follow_up_ids=rest,
+                )
+
+        def _discard() -> None:
+            host.experience_metrics.inc_suggestion(action_id, "rejected")
+
+        # Auto path first: strip, never a modal (#7). Manual path below
+        # reuses the same apply/discard closures via SectionDiffView.
+        if _offer_auto_preview(
+            host,
+            title=f"{job_label}已生成",
+            summary=f"课时 {lesson_id}：AI 已生成内容（应用后可 Ctrl+Z 撤销）",
+            payload={"lesson_id": lesson_id, "section_id": sid},
+            apply_fn=_apply,
+            discard_fn=_discard,
+        ):
+            return
+
         from src.widgets.diff_view import SectionDiffView
 
         # Diff only the shell section with this lesson replaced for review.
@@ -197,51 +298,9 @@ def _run_fill_lesson_patch_flow(
             title=f"{job_label}预览 — 确认后应用",
         )
         if dlg.exec() != QDialog.DialogCode.Accepted:
-            host.experience_metrics.inc_suggestion(action_id, "rejected")
+            _discard()
             return
-        try:
-            patch = lesson_patch_from_replace(
-                old_lesson,
-                new_lesson,
-                section_id=sid,
-                unit_id=str(_u.get("id") or ""),
-            )
-        except Exception as exc:
-            host.statusBar().showMessage(
-                f"{job_label}：无法构建 LessonPatch — {exc}", 6000
-            )
-            return
-        cmd = ApplyLessonPatchCommand(host.adapter, patch)
-        cmd.signals.changed.connect(host._on_ai_edit_applied)
-        host.undo_stack.push(cmd)
-        host.experience_metrics.inc_suggestion(action_id, "applied")
-        host._record_experience_event(
-            action_id,
-            f"空课已填充：{lesson_id}",
-            action_id=action_id,
-            scope={"lesson_id": lesson_id, "section_id": sid},
-        )
-        host._refresh_validate_after_ai(f"{job_label}已应用，记得保存")
-        # Chain remaining empty lessons one-by-one (AI single-flight).
-        rest = list(follow_up_ids or [])
-        if rest:
-            nxt = rest.pop(0)
-            host.statusBar().showMessage(
-                f"继续填充下一空课（剩余 {len(rest) + 1}）…", 4000
-            )
-            try:
-                sec2, _u2, _l2 = host.adapter.find_lesson(nxt)
-            except KeyError:
-                return
-            from src.application.shell_views import reveal_edit_view
-
-            reveal_edit_view(host)
-            host.tree.select_lesson(nxt)
-            host._run_fill_lesson_patch_flow(
-                section=sec2,
-                lesson_id=nxt,
-                follow_up_ids=rest,
-            )
+        _apply()
 
     def _on_err(msg: str) -> None:
         host.job_tray.finish_job(job_id)
@@ -327,6 +386,38 @@ def _experience_fill_stubs(host) -> None:
         if result == section:
             host.statusBar().showMessage("没有需要补全的待补词条", 4000)
             return
+
+        def _apply() -> None:
+            sid = section.get("id", "")
+            plan = host.adapter.plan_section_merge(sid, result)
+            cmd = MergeAiSectionCommand(host.adapter, plan)
+            cmd.signals.changed.connect(host._on_ai_edit_applied)
+            host.undo_stack.push(cmd)
+            host.experience_metrics.inc_suggestion(
+                "resource.fill_stubs", "applied"
+            )
+            host._record_experience_event(
+                "resource.fill_stubs",
+                "清待补已应用",
+                action_id="resource.fill_stubs",
+                scope={"section_id": sid},
+            )
+            # O-05: hygiene / validate counters should update after stubs clear.
+            host._refresh_validate_after_ai("清待补已应用，记得保存")
+
+        def _discard() -> None:
+            host.experience_metrics.inc_suggestion("resource.fill_stubs", "rejected")
+
+        if _offer_auto_preview(
+            host,
+            title="清待补已生成",
+            summary=f"节 {section.get('id', '')}：AI 补全建议（应用后可 Ctrl+Z 撤销）",
+            payload={"section_id": section.get("id", "")},
+            apply_fn=_apply,
+            discard_fn=_discard,
+        ):
+            return
+
         from src.widgets.diff_view import SectionDiffView
 
         dlg = SectionDiffView(
@@ -337,26 +428,9 @@ def _experience_fill_stubs(host) -> None:
             title="清待补预览 — 确认后应用",
         )
         if dlg.exec() != QDialog.DialogCode.Accepted:
-            host.experience_metrics.inc_suggestion(
-                "resource.fill_stubs", "rejected"
-            )
+            _discard()
             return
-        sid = section.get("id", "")
-        plan = host.adapter.plan_section_merge(sid, result)
-        cmd = MergeAiSectionCommand(host.adapter, plan)
-        cmd.signals.changed.connect(host._on_ai_edit_applied)
-        host.undo_stack.push(cmd)
-        host.experience_metrics.inc_suggestion(
-            "resource.fill_stubs", "applied"
-        )
-        host._record_experience_event(
-            "resource.fill_stubs",
-            "清待补已应用",
-            action_id="resource.fill_stubs",
-            scope={"section_id": sid},
-        )
-        # O-05: hygiene / validate counters should update after stubs clear.
-        host._refresh_validate_after_ai("清待补已应用，记得保存")
+        _apply()
 
     def _on_err(msg: str) -> None:
         host.job_tray.finish_job(job_id)
@@ -468,6 +542,34 @@ def _experience_fill_listening_gaps(
         if result == section:
             host.statusBar().showMessage("没有需要补全的听力缺口", 4000)
             return
+
+        def _apply() -> None:
+            plan = host.adapter.plan_section_merge(sid, result)
+            cmd = MergeAiSectionCommand(host.adapter, plan)
+            cmd.signals.changed.connect(host._on_ai_edit_applied)
+            host.undo_stack.push(cmd)
+            host.experience_metrics.inc_suggestion(action_id, "applied")
+            host._record_experience_event(
+                action_id,
+                "补全听力已应用",
+                action_id=action_id,
+                scope={"section_id": sid, "gap_count": int(scope.get("gap_count") or scope.get("count") or 0)},
+            )
+            host._refresh_validate_after_ai("补全听力已应用，记得保存")
+
+        def _discard() -> None:
+            host.experience_metrics.inc_suggestion(action_id, "rejected")
+
+        if _offer_auto_preview(
+            host,
+            title="补全听力已生成",
+            summary=f"节 {sid}：audioAsset / transcript 补全建议（应用后可 Ctrl+Z 撤销）",
+            payload={"section_id": sid},
+            apply_fn=_apply,
+            discard_fn=_discard,
+        ):
+            return
+
         from src.widgets.diff_view import SectionDiffView
 
         dlg = SectionDiffView(
@@ -478,20 +580,9 @@ def _experience_fill_listening_gaps(
             title="补全听力预览 — 确认后应用",
         )
         if dlg.exec() != QDialog.DialogCode.Accepted:
-            host.experience_metrics.inc_suggestion(action_id, "rejected")
+            _discard()
             return
-        plan = host.adapter.plan_section_merge(sid, result)
-        cmd = MergeAiSectionCommand(host.adapter, plan)
-        cmd.signals.changed.connect(host._on_ai_edit_applied)
-        host.undo_stack.push(cmd)
-        host.experience_metrics.inc_suggestion(action_id, "applied")
-        host._record_experience_event(
-            action_id,
-            "补全听力已应用",
-            action_id=action_id,
-            scope={"section_id": sid, "gap_count": int(scope.get("gap_count") or scope.get("count") or 0)},
-        )
-        host._refresh_validate_after_ai("补全听力已应用，记得保存")
+        _apply()
 
     def _on_err(msg: str) -> None:
         host.job_tray.finish_job(job_id)

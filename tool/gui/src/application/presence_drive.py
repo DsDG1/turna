@@ -307,7 +307,12 @@ def _notify_silent_result(
         else:
             label = (title or action_id or "操作").strip()[:40]
             if ok:
-                bar.showMessage(f"已自动：{label}（Ctrl+Z 可撤）", 4000)
+                # #7: dispatch returning only means the worker *started* —
+                # "已自动" is claimed by PreviewHost when the offer truly
+                # auto-applies, never here.
+                bar.showMessage(
+                    f"AI 执行中：{label}（完成后自动应用或待确认）", 4000
+                )
             else:
                 bar.showMessage(f"自动失败：{label}", 4000)
     except Exception:

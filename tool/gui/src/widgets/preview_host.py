@@ -162,9 +162,12 @@ class PreviewHost(QWidget):
         # R2 immersive auto: apply immediately when ContextVar **or** host token
         # is still valid (async workers finish after dispatch scope ends).
         try:
-            from src.application.ui_guard import resolve_auto_apply_state
+            from src.application.ui_guard import (
+                auto_confirm_scope,
+                resolve_auto_apply_for_offer,
+            )
 
-            should_auto, opaque, token = resolve_auto_apply_state(self)
+            should_auto, opaque, token = resolve_auto_apply_for_offer(self)
             if should_auto and apply_fn is not None:
                 self._apply_fn = None
                 self._discard_fn = None
@@ -176,7 +179,13 @@ class PreviewHost(QWidget):
                 except Exception:
                     action_id = ""
                 try:
-                    apply_fn()
+                    # Keep inner confirms of the apply chain auto as well (the
+                    # sync-frame ContextVar is gone by the time we land here).
+                    if token is not None:
+                        with auto_confirm_scope(opaque=opaque, token=token):
+                            apply_fn()
+                    else:
+                        apply_fn()
                     self.applied.emit(payload)
                     self._note_auto_result(
                         ok=True, action_id=action_id, opaque=opaque
@@ -188,6 +197,10 @@ class PreviewHost(QWidget):
                         opaque=opaque,
                         error=exc,
                     )
+                finally:
+                    # The offer consumed the token: never let it outlive its
+                    # offer and auto-answer later manual confirms (#6).
+                    self._unbind_host_token()
                 return
         except Exception:
             logger.debug("widgets/preview_host.py:187 best-effort step failed", exc_info=True)
@@ -244,9 +257,12 @@ class PreviewHost(QWidget):
         if ok or opaque:
             return
         try:
-            msg = f"自动应用失败：{action_id or 'action'}"
-            if error is not None:
-                msg = f"{msg}（{error}）"[:240]
+            if ok:
+                msg = f"已自动：{action_id or 'AI 变更'}（Ctrl+Z 可撤）"
+            else:
+                msg = f"自动应用失败：{action_id or 'action'}"
+                if error is not None:
+                    msg = f"{msg}（{error}）"[:240]
             sb = getattr(host, "statusBar", None) if host else None
             if callable(sb):
                 bar = sb()
@@ -254,6 +270,15 @@ class PreviewHost(QWidget):
                     bar.showMessage(msg, 6000)
         except Exception:
             logger.debug("widgets/preview_host.py:250 best-effort step failed", exc_info=True)
+
+    def _unbind_host_token(self) -> None:
+        """Drop the host-bound auto token (the offer owns and consumed it)."""
+        try:
+            from src.backend.experience.auto_apply import bind_auto_apply_token
+
+            bind_auto_apply_token(self.window(), None)
+        except Exception:
+            logger.debug("widgets/preview_host.py:_unbind_host_token best-effort step failed", exc_info=True)
 
     def clear(self) -> None:
         self._busy = False
@@ -265,6 +290,8 @@ class PreviewHost(QWidget):
         self._reset_details()
         self._set_shortcuts_enabled(False)
         self.setVisible(False)
+        # #6: a token bound for this offer must not outlive it.
+        self._unbind_host_token()
 
     # --- A2 details ------------------------------------------------------
 
