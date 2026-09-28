@@ -147,17 +147,15 @@ class AiEditController:
                 f"{k}: {', '.join(sorted(v)[:6])}"
                 for k, v in removed.items()
             ]
-            reply = QMessageBox.question(
+            from src.application.ui_guard import safe_question
+            reply = safe_question(
                 window,
                 "结构保护",
                 "应用前检测到删除：\n"
                 + "\n".join(parts)
                 + "\n\n建议改用局部重生成 / 教师改题。是否仍继续应用？",
-                QMessageBox.StandardButton.Yes
-                | QMessageBox.StandardButton.No,
-                QMessageBox.StandardButton.No,
-            )
-            return reply == QMessageBox.StandardButton.Yes
+                default_yes=False,)
+            return reply
         except Exception:
             logger.debug("AiEditController.handle_ai_edit structural guard failed", exc_info=True)
             return True

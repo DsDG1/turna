@@ -957,15 +957,14 @@ def _confirm_merge(host: ExperienceHost, merge_plan: Any) -> bool:
 
         parent = host if isinstance(host, QWidget) else None
         n = len(getattr(merge_plan, "items", None) or [])
-        r = QMessageBox.question(
+        from src.application.ui_guard import safe_question
+        r = safe_question(
             parent,
             "确认 Goal 合并清单",
             f"将调度 {n} 项既有 skill（仍可能弹出预览/Diff）。\n"
             "主课仅在各 skill 确认后改写；可 Undo。\n\n继续？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        return r == QMessageBox.StandardButton.Yes
+            default_yes=False,)
+        return r
     except Exception:
         # Headless tests: auto-confirm
         return True

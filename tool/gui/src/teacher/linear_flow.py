@@ -595,11 +595,11 @@ class LinearFlowWidget(QWidget):
         self._rebuild_stage_of(stage)
 
     def _on_delete_item(self, stage: dict[str, Any], item: dict[str, Any]) -> None:
-        reply = QMessageBox.question(
+        from src.application.ui_guard import safe_question
+        reply = safe_question(
             self, "删除题目", "确认删除这道题目？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply != QMessageBox.StandardButton.Yes:
+            default_yes=False,)
+        if not reply:
             return
         if self.undo_stack is not None:
             from src.application.commands import DeleteItemCommand
@@ -682,11 +682,11 @@ class LinearFlowWidget(QWidget):
         self._rebuild_sub_lesson(sl)
 
     def _on_delete_sub_lesson(self, sl: dict[str, Any]) -> None:
-        reply = QMessageBox.question(
+        from src.application.ui_guard import safe_question
+        reply = safe_question(
             self, "删除教学环节", f"确认删除教学环节「{sl.get('name', '')}」？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply != QMessageBox.StandardButton.Yes:
+            default_yes=False,)
+        if not reply:
             return
         content = self.lesson.setdefault("content", {})
         if self.undo_stack is not None:
@@ -743,11 +743,11 @@ class LinearFlowWidget(QWidget):
         self._rebuild_stage_of(stage)
 
     def _on_delete_stage(self, stage: dict[str, Any], sl: dict[str, Any]) -> None:
-        reply = QMessageBox.question(
+        from src.application.ui_guard import safe_question
+        reply = safe_question(
             self, "删除教学步骤", f"确认删除教学步骤「{stage.get('name', '')}」？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply != QMessageBox.StandardButton.Yes:
+            default_yes=False,)
+        if not reply:
             return
         if self.undo_stack is not None:
             from src.application.commands import DeleteStageCommand

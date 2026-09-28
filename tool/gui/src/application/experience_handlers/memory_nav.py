@@ -96,15 +96,15 @@ def _experience_clear_author(host, scope: dict | None = None) -> None:
             ok = True
         else:
             try:
-                from PySide6.QtWidgets import QMessageBox
+                from src.application.ui_guard import safe_question
 
-                reply = QMessageBox.question(
+                ok = safe_question(
                     host if hasattr(host, "windowTitle") else None,
                     "清除作者画像",
                     "将清除跨课风格提示与语言偏好（内存；若开启落盘则一并删除本地画像文件）。\n"
                     "不删课程文件。此操作不可撤销。继续？",
+                    default_yes=False,
                 )
-                ok = reply == QMessageBox.StandardButton.Yes
             except Exception:
                 ok = False
     else:

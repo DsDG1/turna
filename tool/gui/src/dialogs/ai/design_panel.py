@@ -703,13 +703,13 @@ class DesignPanel(QWidget):
 
                     avail, _ = ocr_available()
                     if avail:
-                        reply = QMessageBox.question(
+                        from src.application.ui_guard import safe_question
+                        reply = safe_question(
                             self,
                             "OCR 识别",
                             f"{path.name} 可能是扫描件或图片 PDF，是否使用 OCR 识别文字？",
-                            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                        )
-                        if reply == QMessageBox.StandardButton.Yes:
+                            default_yes=False,)
+                        if reply:
                             self.ocr_requested.emit(
                                 temp_path.as_posix()
                                 if hasattr(temp_path, "as_posix")

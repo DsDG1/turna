@@ -477,13 +477,13 @@ class LessonEditor(QWidget):
         if new_template == self.lesson.get("template"):
             return
         if self.lesson.get("content"):
-            reply = QMessageBox.question(
+            from src.application.ui_guard import safe_question
+            reply = safe_question(
                 self,
                 "切换课型",
                 f"切换到「{TEMPLATE_LABELS.get(new_template, new_template)}」会清空不适用的内容，确认？",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            )
-            if reply != QMessageBox.StandardButton.Yes:
+                default_yes=False,)
+            if not reply:
                 self.template_combo.blockSignals(True)
                 cur = self.lesson.get("template", "legacy")
                 self.template_combo.setCurrentIndex(

@@ -622,19 +622,18 @@ class ResourceEditorDialog(QWidget):
         if not path:
             return
         from pathlib import Path
-        # Deliberately NOT ui_guard.safe_question: this needs three outcomes
-        # (merge / replace / abandon the import), and safe_question is
-        # yes-no only. Every other confirmation in this module goes through
-        # the guard.
-        reply = QMessageBox.question(
+        # Three outcomes (merge / replace / abandon), so safe_question is
+        # yes-no only and cannot express it — this goes through
+        # safe_question3 instead. auto_choice=CANCEL because importing a
+        # resource pack unattended is not something to do implicitly.
+        from src.application.ui_guard import CANCEL, NO, YES, safe_question3
+        reply = safe_question3(
             self, "导入资源包",
             "合并模式（是=合并去重，否=完全替换）？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel,
-            QMessageBox.StandardButton.Yes,
-        )
-        if reply == QMessageBox.StandardButton.Cancel:
+            auto_choice=CANCEL,)
+        if reply == CANCEL:
             return
-        replace = reply == QMessageBox.StandardButton.No
+        replace = reply == NO
         try:
             counts = self.adapter.import_resource_pack(Path(path), replace=replace)
             detail = "\n".join(f"{k}: {v}" for k, v in counts.items())

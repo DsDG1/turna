@@ -433,14 +433,13 @@ class WorkshopCanvas(QWidget):
         controller = getattr(self.import_panel, "_controller", None)
         if not getattr(controller, "is_busy", False):
             return True
-        reply = QMessageBox.question(
+        from src.application.ui_guard import safe_question
+        reply = safe_question(
             self,
             "仍在提取知识点",
             "正在提取知识点，离开会中断本次提取。是否继续？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if reply != QMessageBox.StandardButton.Yes:
+            default_yes=False,)
+        if not reply:
             return False
         controller.cancel()
         return True

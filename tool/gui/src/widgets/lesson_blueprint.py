@@ -706,13 +706,13 @@ class LessonBlueprint(QWidget):
         self._push(make, lambda: add_listening_phase(self.lesson, "dialogue", "新阶段"))
 
     def _on_delete_phase(self, phase: dict[str, Any]) -> None:
-        reply = QMessageBox.question(
+        from src.application.ui_guard import safe_question
+        reply = safe_question(
             self,
             "删除听力阶段",
             f"确认删除阶段「{phase.get('name', '')}」？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply != QMessageBox.StandardButton.Yes:
+            default_yes=False,)
+        if not reply:
             return
 
         def make():
@@ -751,13 +751,13 @@ class LessonBlueprint(QWidget):
         self._push(make, lambda: add_sub_lesson(content, "新教学环节"))
 
     def _on_delete_sub_lesson(self, sub: dict[str, Any]) -> None:
-        reply = QMessageBox.question(
+        from src.application.ui_guard import safe_question
+        reply = safe_question(
             self,
             "删除教学环节",
             f"确认删除「{sub.get('name', '')}」及其所有步骤与题目？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply != QMessageBox.StandardButton.Yes:
+            default_yes=False,)
+        if not reply:
             return
         content = self.lesson.setdefault("content", {})
 

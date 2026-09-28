@@ -409,13 +409,13 @@ class ReviewPanel(QWidget):
             for issue in issues[:12]:
                 lines.append(f"· {issue.message}")
             body = "\n".join(lines) + "\n\n是否按此维度 AI 修复？（建议性，不阻断导入）"
-        reply = QMessageBox.question(
+        from src.application.ui_guard import safe_question
+        reply = safe_question(
             self,
             f"质量 · {short}",
             body,
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply != QMessageBox.StandardButton.Yes:
+            default_yes=False,)
+        if not reply:
             return
         problems = report.to_problem_dicts(dimensions=[dimension], max_issues=40)
         if not problems:
@@ -724,26 +724,24 @@ class ReviewPanel(QWidget):
             if not isinstance(p, dict) or p.get("level", "error") == "error"
         )
         if err_n:
-            reply = QMessageBox.question(
+            from src.application.ui_guard import safe_question
+            reply = safe_question(
                 self,
                 "仍有结构错误",
                 f"当前草稿仍有 {err_n} 个结构错误。导入可能被拒绝或产生坏数据。\n"
                 "是否仍继续尝试导入？",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                QMessageBox.StandardButton.No,
-            )
-            if reply != QMessageBox.StandardButton.Yes:
+                default_yes=False,)
+            if not reply:
                 return
         elif report is not None and report.mean < 0.55:
-            reply = QMessageBox.question(
+            from src.application.ui_guard import safe_question
+            reply = safe_question(
                 self,
                 "质量偏低",
                 f"内容质量均值仅 {report.mean:.2f}（建议性）。\n"
                 "建议先「按质量分修复」或点维度钻取。是否仍导入？",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                QMessageBox.StandardButton.No,
-            )
-            if reply != QMessageBox.StandardButton.Yes:
+                default_yes=False,)
+            if not reply:
                 return
         # Validation + emit lives on the design panel (single truth path).
         self._design_panel._on_import()

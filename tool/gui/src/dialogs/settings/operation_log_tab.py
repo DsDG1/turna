@@ -157,14 +157,13 @@ def format_log_line(record: dict[str, Any]) -> str:
 
 def confirm_clear(dlg, title: str, message: str) -> bool:
     """Ask a yes/no clear confirmation; return True when the user confirms."""
-    reply = QMessageBox.question(
+    from src.application.ui_guard import safe_question
+    reply = safe_question(
         dlg,
         title,
         message,
-        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        QMessageBox.StandardButton.No,
-    )
-    return reply == QMessageBox.StandardButton.Yes
+        default_yes=False,)
+    return reply
 
 
 

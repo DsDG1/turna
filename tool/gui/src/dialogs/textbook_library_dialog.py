@@ -339,13 +339,13 @@ class TextbookLibraryDialog(QDialog):
             QMessageBox.critical(self, "打开失败", "无法加载所选项目。")
             return
         if project.source_path and project.source_changed():
-            reply = QMessageBox.question(
+            from src.application.ui_guard import safe_question
+            reply = safe_question(
                 self,
                 "源文件已变更",
                 "教材源文件自上次保存后已被修改。是否继续？",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            )
-            if reply != QMessageBox.StandardButton.Yes:
+                default_yes=False,)
+            if not reply:
                 return
         self.selected_project = project
         self.project_selected.emit(project)
@@ -356,13 +356,13 @@ class TextbookLibraryDialog(QDialog):
         summary = self._selected_summary()
         if summary is None:
             return
-        reply = QMessageBox.question(
+        from src.application.ui_guard import safe_question
+        reply = safe_question(
             self,
             "删除项目",
             f"确定要删除项目「{summary.name}」吗？本地项目文件将被一并删除。",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply == QMessageBox.StandardButton.Yes:
+            default_yes=False,)
+        if reply:
             self._store.delete_project(summary.project_id)
             self._refresh_list()
 

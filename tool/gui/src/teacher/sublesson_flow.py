@@ -386,13 +386,13 @@ class SubLessonFlowWidget(LinearFlowWidget):
         else:
             return
 
-        reply = QMessageBox.question(
+        from src.application.ui_guard import safe_question
+        reply = safe_question(
             self,
             "覆盖确认",
             "生成新课程结构会替换当前课的所有内容，确定继续？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply != QMessageBox.StandardButton.Yes:
+            default_yes=False,)
+        if not reply:
             return
 
         # Preserve identity-critical fields; replace content shape.

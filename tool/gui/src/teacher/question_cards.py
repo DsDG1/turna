@@ -182,13 +182,13 @@ class QuestionCard(QFrame):
         self.type_changed.emit(new_type)
 
     def _on_delete(self) -> None:
-        reply = QMessageBox.question(
+        from src.application.ui_guard import safe_question
+        reply = safe_question(
             self,
             "删除题目",
             "确认删除这道题目？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply == QMessageBox.StandardButton.Yes:
+            default_yes=False,)
+        if reply:
             self.delete_requested.emit()
 
     def _build_content(self) -> None:

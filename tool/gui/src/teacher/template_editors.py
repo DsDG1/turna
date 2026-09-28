@@ -218,14 +218,14 @@ class TeacherTemplateWidget(QWidget):
         before = str(item.get("prompt") or item.get("sentence") or item.get("id") or "")
         after = str(result.get("prompt") or result.get("sentence") or result.get("id") or "")
         if before != after:
-            reply = QMessageBox.question(
+            from src.application.ui_guard import safe_question
+            reply = safe_question(
                 self,
                 "确认 AI 改题",
                 f"将替换本题内容：\n\n前：{before[:120]}\n后：{after[:120]}\n\n"
                 "确认应用？（之后可用 Ctrl+Z 撤销）",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            )
-            if reply != QMessageBox.StandardButton.Yes:
+                default_yes=False,)
+            if not reply:
                 return
         if self.undo_stack is not None:
             cmd = ReplaceItemCommand(stage, item_id, result)
@@ -241,11 +241,11 @@ class TeacherTemplateWidget(QWidget):
         self.changed.emit()
 
     def _delete_item(self, stage: dict[str, Any], item: dict[str, Any]) -> None:
-        reply = QMessageBox.question(
+        from src.application.ui_guard import safe_question
+        reply = safe_question(
             self, "删除题目", "确认删除这道题目？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply != QMessageBox.StandardButton.Yes:
+            default_yes=False,)
+        if not reply:
             return
         if self.undo_stack is not None:
             cmd = DeleteItemCommand(stage, item)
@@ -537,11 +537,11 @@ class ListeningTeacherWidget(TeacherTemplateWidget):
         self.changed.emit()
 
     def _on_delete_phase(self, phase: dict[str, Any]) -> None:
-        reply = QMessageBox.question(
+        from src.application.ui_guard import safe_question
+        reply = safe_question(
             self, "删除听力阶段", f"确认删除听力阶段「{phase.get('name', '')}」？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply != QMessageBox.StandardButton.Yes:
+            default_yes=False,)
+        if not reply:
             return
         if self.undo_stack is not None:
             cmd = DeleteListeningPhaseCommand(self.lesson, phase)

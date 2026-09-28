@@ -123,14 +123,13 @@ class WorkshopWindow(QDialog):
             # and geometry, exactly like the 关闭 button.
             self.reject()
             return
-        reply = QMessageBox.question(
+        from src.application.ui_guard import safe_question
+        reply = safe_question(
             self,
             "取消任务",
             "有任务正在进行，是否取消？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if reply == QMessageBox.StandardButton.Yes:
+            default_yes=False,)
+        if reply:
             self._on_cancel_busy()
 
     # ------------------------------------------------------------------ UI
@@ -296,14 +295,13 @@ class WorkshopWindow(QDialog):
         controller = self._panel._controller
         if not getattr(controller, "is_busy", False):
             return True
-        reply = QMessageBox.question(
+        from src.application.ui_guard import safe_question
+        reply = safe_question(
             self,
             "任务进行中",
             "正在提取知识点，离开将取消当前任务。是否继续？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if reply != QMessageBox.StandardButton.Yes:
+            default_yes=False,)
+        if not reply:
             return False
         controller.cancel()
         return True

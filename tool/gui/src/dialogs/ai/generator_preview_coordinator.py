@@ -75,14 +75,13 @@ def confirm_structural_removal(parent: QWidget, diff: dict[str, set[str]]) -> bo
         + "\n".join(parts)
         + "\n\n是否仍接受这些删除？"
     )
-    btn = QMessageBox.question(
+    from src.application.ui_guard import safe_question
+    btn = safe_question(
         parent,
         "AI 删除了内容",
         msg,
-        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        QMessageBox.StandardButton.No,
-    )
-    return btn == QMessageBox.StandardButton.Yes
+        default_yes=False,)
+    return btn
 
 
 def try_preview_lesson(parent: QWidget, adapter: Any, section: dict[str, Any]) -> None:
