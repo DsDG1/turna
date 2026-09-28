@@ -177,7 +177,15 @@ def cancel_in_flight_ai_jobs(host, job_id: str = "") -> None:
     not registered per job, so every running AI worker is asked to stop.
     """
     cancelled = 0
-    for attr in ("_experience_worker", "_palette_llm_worker", "_diagnose_worker"):
+    # _chip_ai_worker is mirrored there by the teacher item-AI chip, which
+    # registers its job with the tray as kind="ai" — so the flyout offers a
+    # cancel for it and this must be able to honour that.
+    for attr in (
+        "_experience_worker",
+        "_palette_llm_worker",
+        "_diagnose_worker",
+        "_chip_ai_worker",
+    ):
         w = getattr(host, attr, None)
         if w is None:
             continue

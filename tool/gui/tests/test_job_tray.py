@@ -212,6 +212,79 @@ class CancelActionTest(unittest.TestCase):
         host._save_worker.cancel.assert_not_called()
         self.assertIn("已请求取消", host.statusBar.return_value.showMessage.call_args.args[0])
 
+    def test_cancel_reaches_the_teacher_chip_worker(self) -> None:
+        """T14 follow-up: the chip job is kind="ai", so the tray offers a
+        cancel for it — that offer must not be a no-op."""
+        from unittest.mock import MagicMock
+
+        from src.application.main_window_shell import cancel_in_flight_ai_jobs
+
+        class _Worker:
+            def __init__(self, running: bool) -> None:
+                self._running = running
+                self.cancelled = 0
+
+            def isRunning(self) -> bool:
+                return self._running
+
+            def cancel(self) -> None:
+                self.cancelled += 1
+
+        class _Host:
+            """Explicit attributes: MagicMock invents any attribute asked for."""
+
+            def __init__(self) -> None:
+                self.chip = _Worker(running=True)
+                self.experience = None
+                self.palette = None
+                self.diagnose = None
+                self.messages: list[str] = []
+
+            def statusBar(self):
+                return self
+
+            def showMessage(self, msg: str, *_a) -> None:
+                self.messages.append(msg)
+
+        host = _Host()
+        host._chip_ai_worker = host.chip
+        cancel_in_flight_ai_jobs(host, "chip-1")
+        self.assertEqual(host.chip.cancelled, 1)
+        self.assertTrue(any("已请求取消" in m for m in host.messages))
+
+    def test_cancel_skips_an_idle_chip_worker(self) -> None:
+        from src.application.main_window_shell import cancel_in_flight_ai_jobs
+
+        idle_chip = MagicMock()
+        idle_chip.isRunning.return_value = False
+        host = MagicMock()
+        host._experience_worker = None
+        host._palette_llm_worker = None
+        host._diagnose_worker = None
+        host._chip_ai_worker = idle_chip
+        cancel_in_flight_ai_jobs(host, "chip-1")
+        idle_chip.cancel.assert_not_called()
+
+    def test_the_chip_mirrors_its_worker_onto_the_host(self) -> None:
+        # item_ai_chip mirrors owner._chip_worker onto the top-level window so
+        # the canceller can find it; guard that the mirror is really there.
+        from pathlib import Path
+
+        src = (
+            Path(__file__).resolve().parents[1]
+            / "src"
+            / "teacher"
+            / "item_ai_chip.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn("_chip_ai_worker", src)
+        canceller = (
+            Path(__file__).resolve().parents[1]
+            / "src"
+            / "application"
+            / "main_window_shell.py"
+        ).read_text(encoding="utf-8")
+        self.assertIn('"_chip_ai_worker"', canceller)
+
 
 if __name__ == "__main__":
     unittest.main()

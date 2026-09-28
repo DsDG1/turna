@@ -242,6 +242,20 @@ def run_item_chip(
         **kwargs,
     )
     owner._chip_worker = worker  # type: ignore[attr-defined]
+    # T14: this job is registered with the tray as kind="ai", which makes the
+    # flyout offer 取消 — so the host must be able to reach the worker, or the
+    # tray promises a cancel that cancels nothing. Mirrored onto the top-level
+    # window, which is where cancel_in_flight_ai_jobs looks.
+    try:
+        top = owner.window() if hasattr(owner, "window") else None
+        if top is not None:
+            top._chip_ai_worker = worker  # type: ignore[attr-defined]
+    except Exception:
+        # Best-effort: without the mirror the job still runs, it just cannot
+        # be cancelled from the tray.
+        logger.debug(
+            "teacher/item_ai_chip.py:chip worker mirror failed", exc_info=True
+        )
 
     def _done_busy(stage: str = "finished") -> None:
         if job_tray is not None:
