@@ -18,7 +18,6 @@ from PySide6.QtWidgets import (
     QLabel,
     QPlainTextEdit,
     QPushButton,
-    QRadioButton,
     QScrollArea,
     QVBoxLayout,
     QWidget,
@@ -28,14 +27,13 @@ from src.application.ai_request_worker import AttachmentRecord
 
 
 class AttachmentPreviewDialog(QDialog):
-    """Preview a single attachment's extracted content and reference mode."""
+    """Preview a single attachment's extracted content."""
 
     def __init__(self, record: AttachmentRecord, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle(f"附件预览 - {record.original_name}")
         self.resize(640, 520)
         self._record = record
-        self._reference_mode = "inline"  # or "standalone"
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -66,24 +64,19 @@ class AttachmentPreviewDialog(QDialog):
             text_edit.setPlainText(text[:100_000])
             layout.addWidget(text_edit, 1)
 
-        mode_box = QHBoxLayout()
-        mode_box.setSpacing(12)
-        mode_box.addWidget(QLabel("引用方式:"))
-        self.inline_radio = QRadioButton("作为当前消息附件")
-        self.inline_radio.setChecked(True)
-        self.inline_radio.toggled.connect(self._on_mode_changed)
-        self.standalone_radio = QRadioButton("作为独立 user 消息")
-        mode_box.addWidget(self.inline_radio)
-        mode_box.addWidget(self.standalone_radio)
-        mode_box.addStretch()
-        layout.addLayout(mode_box)
+        # T5: the 「引用方式」 radio pair here (inline vs standalone) looked
+        # like it chose how the attachment reaches the model, but nothing
+        # ever read the value — the send path always inlined it. A control
+        # that silently does nothing is worse than no control, so it is gone
+        # and the one real behaviour is stated instead.
+        note = QLabel("附件将随当前消息一并发送。")
+        note.setObjectName("AttachmentSendNote")
+        note.setWordWrap(True)
+        layout.addWidget(note)
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
-
-    def _on_mode_changed(self, checked: bool) -> None:
-        self._reference_mode = "inline" if checked else "standalone"
 
     def _text_from_record(self) -> str:
         content = self._record.content
