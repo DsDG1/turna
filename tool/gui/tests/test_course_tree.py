@@ -238,6 +238,60 @@ class CourseTreeStaleFlagTest(unittest.TestCase):
         self.assertEqual(self._calls, 1)
 
 
+class TreeDeleteConfirmationTest(unittest.TestCase):
+    """T20: destructive confirms go through ui_guard, never a bare QMessageBox.
+
+    A raw QMessageBox.question blocks a headless run and ignores the
+    immersive auto_confirm_scope, so an automated session stalls on it.
+    """
+
+    def setUp(self) -> None:
+        _App.get()
+        self.tree = CourseTreeWidget()
+        self.adapter, self.tmp = _real_adapter_with_course()
+        self.tree.display(self.adapter)
+        self.stack = QUndoStack()
+        self.tree.undo_stack = self.stack
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+        self.section = self.adapter.sections[0]
+        self.unit = self.section["units"][0]
+        self.lesson = self.unit["lessons"][0]
+
+    def test_delete_lesson_uses_ui_guard(self) -> None:
+        with patch("src.application.ui_guard.safe_question", return_value=False) as ask:
+            self.tree._delete_lesson(self.lesson["id"])
+        ask.assert_called_once()
+        self.assertFalse(ask.call_args.kwargs.get("default_yes", True))
+        # Declined → nothing pushed.
+        self.assertEqual(self.stack.count(), 0)
+
+    def test_delete_unit_uses_ui_guard(self) -> None:
+        with patch("src.application.ui_guard.safe_question", return_value=False) as ask:
+            self.tree._delete_unit(self.unit["id"])
+        ask.assert_called_once()
+        self.assertEqual(self.stack.count(), 0)
+
+    def test_bulk_delete_uses_ui_guard(self) -> None:
+        with patch("src.application.ui_guard.safe_question", return_value=False) as ask:
+            self.tree._bulk_delete_lessons([self.lesson["id"]])
+        ask.assert_called_once()
+        self.assertEqual(self.stack.count(), 0)
+
+    def test_confirmed_delete_actually_deletes(self) -> None:
+        lesson_id = self.lesson["id"]
+        with patch("src.application.ui_guard.safe_question", return_value=True):
+            self.tree._delete_lesson(lesson_id)
+        self.assertEqual(self.stack.count(), 1)
+        remaining = [lesson["id"] for lesson in self.unit.get("lessons", [])]
+        self.assertNotIn(lesson_id, remaining)
+
+    def test_no_bare_question_box_remains_in_course_tree(self) -> None:
+        src = (_GUI / "src" / "widgets" / "course_tree.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertNotIn("QMessageBox.question", src)
+
+
 class CourseTreeMoveTest(unittest.TestCase):
     def setUp(self) -> None:
         _App.get()
@@ -501,14 +555,22 @@ class CourseTreeKeyboardTest(unittest.TestCase):
     def test_delete_single_lesson(self) -> None:
         from unittest.mock import patch
 
-        from PySide6.QtWidgets import QMessageBox
+        item = self._item_for("lesson", self.first_lesson_id)
+        self._select_single(item)
+        before = self._unit_lesson_count()
+        with patch("src.application.ui_guard.safe_question", return_value=True):
+            self._press(Qt.Key.Key_Delete)
+        self.assertEqual(self._unit_lesson_count(), before - 1)
+
+    def test_delete_single_lesson_declined(self) -> None:
+        from unittest.mock import patch
 
         item = self._item_for("lesson", self.first_lesson_id)
         self._select_single(item)
         before = self._unit_lesson_count()
-        with patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes):
+        with patch("src.application.ui_guard.safe_question", return_value=False):
             self._press(Qt.Key.Key_Delete)
-        self.assertEqual(self._unit_lesson_count(), before - 1)
+        self.assertEqual(self._unit_lesson_count(), before)
 
     def test_extended_selection_mode_enabled(self) -> None:
         from PySide6.QtWidgets import QTreeWidget
@@ -569,15 +631,14 @@ class CourseTreeBulkTest(unittest.TestCase):
     def test_bulk_apply_preset_via_tree(self) -> None:
         from unittest.mock import patch
 
-        from PySide6.QtWidgets import QMessageBox
-
         from src.backend.lesson_presets import FUNCTIONAL_PRESETS
 
         with patch.object(self.tree, "_pick_target_unit", return_value=None), \
                 patch("PySide6.QtWidgets.QInputDialog.getItem",
                       return_value=(f"{FUNCTIONAL_PRESETS[0].label}（{FUNCTIONAL_PRESETS[0].template}）", True)), \
-                patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes):
+                patch("src.application.ui_guard.safe_question", return_value=True) as ask:
             self.tree._bulk_apply_preset([self.lesson_id])
+        ask.assert_called_once()
         _s, _u, lesson = self.adapter.find_lesson(self.lesson_id)
         self.assertEqual(lesson["template"], FUNCTIONAL_PRESETS[0].template)
         self.stack.undo()

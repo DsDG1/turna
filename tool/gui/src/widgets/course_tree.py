@@ -832,23 +832,30 @@ class CourseTreeWidget(QTreeWidget):
         self._push(cmd)
 
     def _delete_lesson(self, lesson_id: str) -> None:
-        from PySide6.QtWidgets import QMessageBox
-        reply = QMessageBox.question(
-            self, "删除 Lesson", "确认删除该 Lesson？保存时 validate 会校验。",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply == QMessageBox.StandardButton.Yes:
+        # T20: routed through ui_guard so a headless / immersive auto-confirm
+        # session is not blocked by a modal box, and so the immersive
+        # auto_confirm_scope actually reaches this confirmation.
+        from src.application.ui_guard import safe_question
+
+        if safe_question(
+            self,
+            "删除 Lesson",
+            "确认删除该 Lesson？保存时 validate 会校验。",
+            default_yes=False,
+        ):
             cmd = DeleteLessonCommand(self.adapter, lesson_id)
             cmd.signals.changed.connect(self._on_command_changed)
             self._push(cmd)
 
     def _delete_unit(self, unit_id: str) -> None:
-        from PySide6.QtWidgets import QMessageBox
-        reply = QMessageBox.question(
-            self, "删除 Unit", "确认删除该 Unit 及其所有 Lesson？保存时 validate 会校验。",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply == QMessageBox.StandardButton.Yes:
+        from src.application.ui_guard import safe_question
+
+        if safe_question(
+            self,
+            "删除 Unit",
+            "确认删除该 Unit 及其所有 Lesson？保存时 validate 会校验。",
+            default_yes=False,
+        ):
             cmd = DeleteUnitCommand(self.adapter, unit_id)
             cmd.signals.changed.connect(self._on_command_changed)
             self._push(cmd)
@@ -864,13 +871,14 @@ class CourseTreeWidget(QTreeWidget):
                 + ", ".join(refs),
             )
             return
-        reply = QMessageBox.question(
+        from src.application.ui_guard import safe_question
+
+        if safe_question(
             self,
             "删除 Section",
             "确认删除该 Section 及其所有 Unit / Lesson？保存时 validate 会校验。",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply == QMessageBox.StandardButton.Yes:
+            default_yes=False,
+        ):
             cmd = DeleteSectionCommand(self.adapter, section_id)
             cmd.signals.changed.connect(self._on_command_changed)
             self._push(cmd)
@@ -971,15 +979,14 @@ class CourseTreeWidget(QTreeWidget):
             self.select_lesson(new_id)
 
     def _bulk_delete_lessons(self, lesson_ids: list[str]) -> None:
-        from PySide6.QtWidgets import QMessageBox
+        from src.application.ui_guard import safe_question
 
-        reply = QMessageBox.question(
+        if safe_question(
             self,
             "批量删除 Lesson",
             f"确认删除选中的 {len(lesson_ids)} 个 Lesson？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply == QMessageBox.StandardButton.Yes:
+            default_yes=False,
+        ):
             cmd = BulkDeleteLessonsCommand(self.adapter, lesson_ids)
             cmd.signals.changed.connect(self._on_command_changed)
             self._push(cmd)
@@ -1036,14 +1043,15 @@ class CourseTreeWidget(QTreeWidget):
         if not ok:
             return
         preset = FUNCTIONAL_PRESETS[labels.index(choice)]
-        reply = QMessageBox.question(
+        from src.application.ui_guard import safe_question
+
+        if not safe_question(
             self,
             "确认套用预设",
             f"将「{preset.label}」套用到 {len(lesson_ids)} 个课时？\n"
             "这会替换每个课时的课型与内容（保留名称与依赖）。",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply != QMessageBox.StandardButton.Yes:
+            default_yes=False,
+        ):
             return
         cmd = BulkApplyPresetCommand(self.adapter, lesson_ids, preset.id)
         cmd.signals.changed.connect(self._on_command_changed)
