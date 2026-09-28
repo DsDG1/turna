@@ -31,17 +31,6 @@ class AudioController:
             return
 
         adapter = getattr(window, "adapter", None)
-        # Save first so collect_entries reads the latest transcripts.
-        if adapter is not None and hasattr(adapter, "save"):
-            try:
-                result = adapter.save()
-                if hasattr(result, "ok") and not result.ok:
-                    QMessageBox.warning(
-                        window, "生成听力音频", "课程保存失败，已取消生成。"
-                    )
-                    return
-            except Exception:
-                logger.debug("audio_controller: best-effort save failed", exc_info=True)
 
         settings_obj = getattr(window, "_settings_obj", None)
         settings = getattr(window, "_settings", None)
@@ -64,6 +53,23 @@ class AudioController:
         dlg = GenerateAudioDialog(settings_obj, preview, parent=parent_widget)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
+
+        # #22: save only after the user commits — merely opening the dialog
+        # used to write the course to disk even when the user then cancelled.
+        # collect_entries (worker side) still reads the latest transcripts.
+        if adapter is not None and hasattr(adapter, "save"):
+            try:
+                sb = getattr(window, "statusBar", None)
+                if callable(sb):
+                    sb().showMessage("正在保存课程…", 3000)
+                result = adapter.save()
+                if hasattr(result, "ok") and not result.ok:
+                    QMessageBox.warning(
+                        window, "生成听力音频", "课程保存失败，已取消生成。"
+                    )
+                    return
+            except Exception:
+                logger.debug("audio_controller: best-effort save failed", exc_info=True)
 
         opts = generate_audio_client.TtsOptions(
             voice_id=dlg.voice_id(),

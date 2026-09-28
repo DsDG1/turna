@@ -32,8 +32,16 @@ class TestAudioController(unittest.TestCase):
         mock_warn.assert_called_once()
         self.win.adapter.save.assert_not_called()
 
+    @patch("src.backend.generate_audio_client.sounds_dir_for")
+    @patch("src.backend.generate_audio_client.preview_generation")
+    @patch("src.dialogs.generate_audio_dialog.GenerateAudioDialog")
     @patch("src.application.audio_controller.QMessageBox.warning")
-    def test_warns_when_save_fails(self, mock_warn):
+    def test_warns_when_save_fails(self, mock_warn, mock_dlg_cls, mock_preview, mock_sounds):
+        # #22: the save happens AFTER the user accepts the dialog now —
+        # a failing save still cancels generation with the same warning.
+        mock_dlg = MagicMock()
+        mock_dlg.exec.return_value = QDialog.DialogCode.Accepted
+        mock_dlg_cls.return_value = mock_dlg
         self.win.adapter.save.return_value = MagicMock(ok=False)
         self.controller.handle_generate_audio(self.win)
         mock_warn.assert_called_once()
@@ -49,6 +57,8 @@ class TestAudioController(unittest.TestCase):
 
         self.controller.handle_generate_audio(self.win)
         self.assertIsNone(self.win._generate_worker)
+        # #22: merely opening the dialog no longer writes the course.
+        self.win.adapter.save.assert_not_called()
 
     @patch("src.backend.generate_audio_client.sounds_dir_for")
     @patch("src.backend.generate_audio_client.preview_generation")
