@@ -9,9 +9,8 @@
  ## 当前基线
 
 - **2026-09-28（审计遗留三项的收口批次）**：把上轮审计列出但超出当时计划范围的
-  三项全部处理完。**199 模块 / 2841 例**（较上轮 2840 ⇒ +1）；`full` 实测 198 模块中
-  **197 通过 / 1 失败**，唯一失败为 `test_error_report_redaction`（**非本批次引入**，
-  详见下方备注）；ruff 全过；L0 gate 5/5 exit 0。分 5 个提交：
+  三项全部处理完，另补上一个残缺提交引发的隐私泄漏。**199 模块 / 2851 例**
+  （较上轮 2841 ⇒ +10）；`full` **198/198 全过**；ruff 全过；L0 gate 5/5 exit 0。分 6 个提交：
   - **裸 `QMessageBox.question` 从 36 处降到 0**（业务侧）。这是审计 MAJOR 5：
     原计划 4.14 只点了课程树的 2 处，实际扫出 36 处，横跨 12 个文件；它们无视沉浸式
     auto-confirm 档，等于把 4.8 关掉的模态门又打开。
@@ -44,6 +43,21 @@
     `#dc2626`（除浅色外各主题下都是暗底暗字，且不属于任何主题的 error 色）；
     `result_preview.py` 三处钉死 `#E74C3C` / `#FF9F43`。现统一读 `current_palette()`
     并取 `error_text` / `warning_text`，暗色主题因此拿到各自的可读变体。
+  - **错误上报的路径脱敏（补上一个残缺提交，并修掉一处真实的隐私泄漏）**：
+    `tests/test_error_report_redaction.py` 曾报 `ImportError: _redact_paths`。追查
+    下来是**一个残缺提交**：另一条流的 `8ce10491`（09-28 10:32）把该测试纳入版本树
+    （提交信息自述「was never committed before」），但只改了
+    `generator_worker_hub.py` 与测试两个文件，**没有提交配套实现**——`_redact_paths`
+    全历史从未存在，只活在未提交的工作区里；该 WIP 于 16:21 被丢弃后测试转红。
+    更要紧的是这暴露了一个**当下正在生效的隐私问题**：`_build_prompt()` 把完整
+    traceback + 80 行 telemetry + 操作上下文原样发给模型端，而 traceback 基本就是
+    `File "D:/Users/<name>/..."` 帧——等于把用户名与课程所在目录送出机。UI 提示原本
+    写的是「日志中可能包含文件路径，请确认后再继续」，把这个风险甩给用户肉眼把关。
+    现按测试契约实现 `_redact_paths`（绝对路径压到文件名，URL 与无路径文本不动），
+    并接在 `_build_prompt()` 的**三个分支**上：traceback、上下文值、telemetry 行
+    （旧日志早于本轮遥测脱敏，磁盘上的历史行不保证干净）。脱敏只作用于发送内容，
+    屏幕上的原文不变；UI 提示同步改为如实说明「文件路径会在发送前脱敏」。
+    新增 2 例锁住「脱敏接在出口」——只有函数存在而没人调用，正是本条的起因。
   - **备注（重要，非本批次引入）**：`tests/test_error_report_redaction.py` 报
     `ImportError: cannot import name '_redact_paths'`。HEAD 版
     `src/dialogs/ai_error_analyzer.py` 来自 09-14 的 `874fc294`（提交信息自述

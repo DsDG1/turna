@@ -57,6 +57,56 @@ class RedactPathsTest(unittest.TestCase):
         self.assertEqual(_redact_paths(""), "")
 
 
+class PromptIsRedactedTest(unittest.TestCase):
+    """The redaction must sit where the prompt is BUILT, not only exist.
+
+    A helper nothing calls is the state this repo was in: the test existed,
+    the function existed only in a working tree, and the prompt shipped raw
+    absolute paths to the endpoint.
+    """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        from tests._qtapp import _App
+
+        _App.get()
+
+    def _prompt(self, traceback_text: str, context: dict | None = None) -> str:
+        from unittest.mock import MagicMock, patch
+
+        from src.dialogs.ai_error_analyzer import AiErrorAnalyzerDialog
+
+        dlg = AiErrorAnalyzerDialog(
+            traceback_text, context=context or {}, parent=None
+        )
+        dlg.deleteLater()
+        with patch(
+            "src.dialogs.ai_error_analyzer.telemetry.recent_lines",
+            return_value=[
+                '{"event": "repo.open.failed", "path": "/home/bob/courses/x"}'
+            ],
+        ):
+            return dlg._build_prompt()
+
+    def test_traceback_paths_are_redacted_in_the_prompt(self) -> None:
+        prompt = self._prompt(
+            'Traceback (most recent call last):\n'
+            '  File "C:/Users/alice/Turna/tool/gui/src/widgets/course_tree.py",'
+            " line 453, in paint\nAttributeError: boom\n",
+            {"course": "C:/Users/alice/courses/turkish"},
+        )
+        self.assertNotIn("alice", prompt)
+        self.assertNotIn("Users", prompt)
+        # The parts the model actually needs survive.
+        self.assertIn("course_tree.py", prompt)
+        self.assertIn("AttributeError: boom", prompt)
+
+    def test_telemetry_lines_in_the_prompt_are_redacted(self) -> None:
+        prompt = self._prompt("boom", {"course": "/home/bob/x"})
+        self.assertNotIn("bob", prompt)
+        self.assertIn("repo.open.failed", prompt)
+
+
 class ErrorAnalysisMessageTest(unittest.TestCase):
     """#12/N1: error-analysis entry points must hand the model the real error.
 

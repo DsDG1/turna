@@ -3,9 +3,17 @@
 The dialog shows the traceback, reads recent telemetry log lines, and sends a
 concise prompt to the configured OpenAI-compatible endpoint. The model returns a
 Chinese explanation of the likely cause and suggested next steps.
+
+Everything in that prompt leaves the machine, so absolute paths are redacted
+to their file name first (:func:`_redact_paths`) — a traceback is mostly
+``File "D:/Users/<name>/..."`` frames, and shipping those tells the endpoint
+who the user is and where their course lives. The redaction happens where the
+prompt is built, not where the text is shown, so what the user reads on screen
+stays verbatim.
 """
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from PySide6.QtWidgets import (
@@ -26,6 +34,34 @@ from src.backend.ai import request_chat
 from src.application.ai_request_worker import AiRequestWorker
 from src.infrastructure.telemetry import telemetry
 from src.theme import current_palette
+
+
+# A rooted path token: "D:\a\b.txt", "/home/x/y.json", "\a\b". Stops at
+# whitespace and at the quoting characters that usually delimit a path inside
+# a message, so the surrounding prose is left alone.
+_PATH_TOKEN = re.compile(r"(?:[A-Za-z]:)?[/\\][^\s\"'<>|,;)\]}]+")
+
+
+def _redact_paths(text: str) -> str:
+    """Reduce every absolute path in *text* to its file name.
+
+    Deliberately lossy and deliberately only about paths: an error report has
+    no use for ``C:/Users/<name>/courses/turkish/…/lessons.json`` beyond
+    ``lessons.json``, and the directory part is exactly the part that
+    identifies the machine. URLs are returned untouched — ``https://`` matches
+    the token shape, and an endpoint is not a local path.
+    """
+    if not text:
+        return text
+
+    def _keep_name(match: re.Match[str]) -> str:
+        raw = match.group(0)
+        if "://" in raw:
+            return raw
+        parts = [p for p in raw.replace("\\", "/").split("/") if p]
+        return parts[-1] if parts else raw
+
+    return _PATH_TOKEN.sub(_keep_name, text)
 
 
 def offer_ai_analysis(
@@ -105,8 +141,8 @@ class AiErrorAnalyzerDialog(QDialog):
         layout.addWidget(self.trace_edit)
 
         hint = QLabel(
-            "点击「AI 分析原因」将把堆栈和最近日志发送到模型端。"
-            "日志中可能包含文件路径，请确认后再继续。"
+            "点击「AI 分析原因」将把堆栈和最近日志发送到模型端。\n"
+            "文件路径会在发送前脱敏（只保留文件名），正文与堆栈内容不做改动。"
         )
         hint.setWordWrap(True)
         hint.setStyleSheet(f"color: {current_palette()['text_secondary']}; font-size: 11px;")
@@ -191,19 +227,24 @@ class AiErrorAnalyzerDialog(QDialog):
         self._worker.start()
 
     def _build_prompt(self) -> str:
+        # This whole string goes to the model endpoint, so every branch is
+        # redacted: the traceback is mostly absolute-path frames, the context
+        # carries node ids and sometimes a course path, and the telemetry log
+        # predates the scrubbing that writes it today (older lines on disk are
+        # not guaranteed clean).
         lines = ["应用程序发生未捕获异常，请分析原因。"]
         lines.append("")
         lines.append("## 当前操作上下文")
         for key, value in self._context.items():
-            lines.append(f"- {key}: {value}")
+            lines.append(f"- {key}: {_redact_paths(str(value))}")
         lines.append("")
-        lines.append("## 异常堆栈")
-        lines.append(self._traceback)
+        lines.append("## 异常堆栈（文件路径已脱敏，只保留文件名）")
+        lines.append(_redact_paths(self._traceback))
         lines.append("")
         recent = telemetry.recent_lines(80)
         if recent:
-            lines.append("## 最近 telemetry 日志")
-            lines.extend(line.rstrip("\n") for line in recent)
+            lines.append("## 最近 telemetry 日志（文件路径已脱敏）")
+            lines.extend(_redact_paths(line.rstrip("\n")) for line in recent)
         return "\n".join(lines)
 
     def _on_result(self, body: object) -> None:
