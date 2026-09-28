@@ -77,6 +77,8 @@ python -m tool.gui.src.main
 
 启动后可点击工具栏的 **「课程仓库 → 打开课程目录」** 选择本地课程目录（例如：`assets/courses/turkish/`）。
 
+> 打开 / 新建 / 最近仓库切换时，若当前课程有未保存更改，会先弹出 **保存并打开 / 放弃更改 / 取消** 三选一；「保存并打开」走完整保存管线，保存失败则中止切换。
+
 ---
 
 ## 主界面与功能使用指南
@@ -290,7 +292,7 @@ Activity Bar 角标：总览 = 校验错误数（红）、工坊 = 未完成导�
 
 ### 3. 知识阶段：知识点审校 + 气泡池
 
-1. **知识点审校（约 70% 宽）**：逐章 LLM 抽取词汇 / 表达 / 语法点；红黄质量标记、编辑、批量删、AI 修复；失败章可重试 / 仅抽词汇 / 跳过。
+1. **知识点审校（约 70% 宽）**：逐章 LLM 抽取词汇 / 表达 / 语法点；红黄质量标记、编辑、点选删除（与「AI 修复选中」同一"选中"语义，勾选≠选中；多选删除有确认）、AI 修复；失败章可重试 / 仅抽词汇 / 跳过。
    - **超长章滑窗抽取**：超过预设字数的章按段落边界切成带重叠的滑窗逐窗抽取，再按键（词+翻译 / 语法标题）去重合并，不再简单截断丢尾部；id 仍按 `ch-{slug}-` 确定性生成。预设的 `window_chars`（0 可关闭）与 `overlap_chars` 控制窗长与重叠。
    - **失败自动级联**：`standard` 抽取失败会自动降级为「仅词汇（vocab_only）」重试一次（日志有「自动降级」说明）；再失败才标记失败，建议跳过或人工重试。可用 QSettings 键 `textbook/auto_cascade`（默认开）关闭。
    - **按质量重抽**：审校页左侧对有质量问题的章提供「按质量重抽」，把具体问题（空翻译、覆盖率偏低、语言混入等）回灌给 AI 输出完整修正版并替换本章结果、重算质量分。
@@ -425,25 +427,57 @@ sequenceDiagram
 
 ### 单元与集成测试
 
-GUI 附带了覆盖全面的测试套件（位于 `tool/gui/tests/` 目录）：
+GUI 附带了覆盖全面的测试套件（位于 `tool/gui/tests/` 目录，**纯 `unittest`，不依赖 pytest**）。
+
+分档真源是 [`run_gui_tests.py`](./run_gui_tests.py) 的模块 docstring —— 档位由测试模块是否
+（传递地）依赖 Qt 决定，不是手写名单。
 
 ```bash
 cd tool/gui
 
-# 1. 运行后端逻辑与界面隔离测试 (Headless / Offscreen 模式，无须图形显示服务器)
-QT_QPA_PLATFORM=offscreen python -m pytest tests/ --ignore=tests/test_app.py -q
+# 门禁：分层 + 棘轮（与 CI / make guard-gui 同一组参数）
+cd ../.. && make guard-gui && cd tool/gui
 
-# 2. 运行全量 GUI 界面测试 (需图形环境或启用 offscreen 的 PySide6)
-python -m pytest tests/test_app.py -q
+# 1. 日常 / PR 默认：L0 gate + L1 fast
+python run_gui_tests.py ci -j 4
 
-# 3. 运行 GUI -> CLI 双向 round-trip 回归集成测试
-python test/tool/gui_round_trip_test.py -v
+# 2. 全量：每个测试模块独立子进程（发布前 / nightly）
+python run_gui_tests.py full -j 4
 
-# 4. 运行底层 CLI 单元测试
-python -m unittest discover -s test -p "*_cli_test.py"
+# 3. 只跑当前 git diff 影响的模块
+python run_gui_tests.py affected -j 4
+
+# 4. 查看分档结果 / 受影响模块
+python run_gui_tests.py list-fast
+python run_gui_tests.py list-affected
 ```
 
-测试基准指标与说明详见 [`tests/BASELINE.md`](./tests/BASELINE.md)。
+> **无图形环境**（CI 容器 / SSH 无 X11）时先设 offscreen：
+> PowerShell 用 `$env:QT_QPA_PLATFORM = "offscreen"`；
+> bash 用 `QT_QPA_PLATFORM=offscreen python run_gui_tests.py ci`。
+
+跨仓的相关测试（**不在** `run_gui_tests.py` 覆盖范围内，需单独执行）：
+
+```bash
+cd ../..
+python -m unittest discover -s test -p "*_test.py"   # 含 GUI→CLI round-trip
+```
+
+测试基准与施工流水记录见 [`tests/BASELINE.md`](./tests/BASELINE.md)；
+分层门禁的指标含义与基线来历见 [`docs/ai_refactor_contract.md`](./docs/ai_refactor_contract.md)。
+
+### 设计文档索引
+
+全部设计文档与契约的清单见 **[`docs/README.md`](./docs/README.md)**，其中：
+
+- [`docs/experienceai.md`](./docs/experienceai.md) — Experience AI 上游规范（感知/决策/执行/解释/记忆五层），A3 / E4-M01 / E4-M0345 / K08 四篇设计的共同上位规范
+- [`docs/ai_refactor_contract.md`](./docs/ai_refactor_contract.md) — 分层契约与门禁基线（`make guard-gui` 的每条规则出处）
+- `docs/a3-companion-ambient-design.md`、`docs/e4-m01-attachments-context-design.md`、`docs/e4-m0345-multimodal-design.md`、`docs/k08-spiral-vocab-design.md` — 在役设计文档
+- `docs/archive/` — 归档，仅供考古
+
+> 新增文档后必须同步登记进 `docs/README.md`，否则
+> `make guard-gui`（`check_docs_index.py`）会失败 —— 避免再出现
+> 「规范躺在 archive 里、没有任何入口」的情况。
 
 ### PyInstaller 独立构建
 

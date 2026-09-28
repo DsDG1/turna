@@ -8,6 +8,44 @@
 
  ## 当前基线
 
+- **2026-09-28（GUI 易用性修复 批次一：P0 数据丢失/功能坏死，6 条）**：`python -m unittest`
+  逐模块收集 **192 模块 / 2654 例 / 0 失败**（上批 2633 例 ⇒ **+21**）。分档实测：`full`
+  **192/192，74 s**；`ruff` 全过；L0 gate（E1+E2 冒烟）**5/5 exit 0**。本批依据
+  `Turna_GUI_修复计划_2026-09-28`（37 条）做批次一，每条修复均带同 commit 回归测试：
+  - **#1+#14 切换课程静默丢稿**：新增 `course_lifecycle.open_course_flow` /
+    `confirm_course_switch` 单一入口（dirty 三选一：保存并打开走
+    `execute_save(REASON_COURSE_SWITCH)`、失败即中止；headless 沿用 close_controller
+    的自动丢弃契约）；`open_repo_path` / `on_open` / `on_new_course`（含新建前置确认，
+    先于 `init_new` 改写 adapter）全部接入；加载成功统一走 `bind_loaded_course`
+    （补 `_last_saved_at = None`，状态栏不再显示上一门课的保存时间）。新增
+    `ConfirmCourseSwitchTest` / `OpenCourseFlowTest` / `RepoSessionOpenPathsTest`
+    （clean/dirty × 保存成败 × 取消 × 加载失败 + 三入口委托，含"确认先于新建对话框"
+    顺序断言）。
+  - **#2 工坊设计面板取消后永久卡死**：`DesignController.cancel()` 改**同步终态落地**
+    （断信号 → worker.cancel → 立即复位 `_worker` + busy），不再依赖可能永不到来的
+    终态回调；stale 守卫已验证可吞掉迟到信号。新增 `DesignControllerCancelTest`
+    （取消后 `is_busy` 立即 False 且可再生成；迟到 result/error/progress 无污染）。
+  - **#3 工坊内嵌向导导航全是死按钮**：`TextbookImportDialog` 嵌入模式下
+    `_go_to_step` 改发 `step_switch_requested`（摘页后 `_stack` 为空，翻栈是 no-op）；
+    `WorkshopCanvas` 以 `_STAGE_FOR_STEP` 把向导步骤翻译成画布阶段（素材/知识/导入）。
+    顺手修同病：`ResourceReviewTable` 新增 `rows_replaced`（`set_rows` 必发），画布的
+    "首条知识行自动跳知识阶段"从死路径（`rows_changed`）接到活信号。新增嵌入导航
+    断言（`_goto_import_preview` / 返回审校 / 恢复选项 / STEP_EXTRACT / 自动跳转）。
+  - **#4 编辑 Git 远程 OK 必抛 AttributeError**：`edit_remote_dialog` 内部变量
+    `dlg = QDialog(dlg)` 遮蔽 SettingsDialog，尾部调错对象 → 改名 `edit_dlg`，表格刷新
+    恢复。审计同文件其余 handler 与 `dialogs/git_library/` 无同款遮蔽。新增
+    `GitRemoteEditTest`（OK 后 `update_remote` + `_populate_remotes_table` 各一次）。
+  - **#5 审校表「删除选中」删全表且无确认**：改用 `selected_rows()`（与「AI 修复选中」
+    同一"选中"语义）；无选中给行内临时提示（不弹框）；多选删除过 `safe_question`
+    （"此操作不进撤销栈"）；按钮加 tooltip 澄清 勾选≠选中。旧 `test_batch_delete`
+    断言的正是 bug 行为，已改写为四条新契约用例。
+  - **#12/N1 AI 错误分析拿到 "NoneType: None"**：`show_load_error` 与
+    `GeneratorWorkerHub.offer_error_analysis` 都在非 except 上下文调
+    `traceback.format_exc()` → 改 `AiErrorAnalyzerDialog.analyze_exception(parent,
+    message)`（对齐 `ai_lesson_helper_dialog` 的既有正确用法）。新增
+    `ErrorAnalysisMessageTest` 断言分析器收到的是真实错误消息。
+  - 备注：交互式冒烟（真 UI 手点五条验收路径）留待人工；离屏回归已全部覆盖逻辑路径。
+
 - **2026-09-28（工坊重设计验货修复批：T4 折叠失效 + 摘页空白回归）**：`python -m unittest`
   收集 **192 模块 / 2633 例 / 0 加载错误**（上批 2628 例 ⇒ **+5**）。分档实测：`full`
   **192/192，78 s**；`affected` 24/24；`ruff` 全过；边界门禁 **exit 0**（计数不变）。
