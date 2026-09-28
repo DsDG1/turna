@@ -16,7 +16,12 @@ def collect(ctx, *, soft_fix_count: int | None = None) -> list[dict[str, Any]]:
             {
                 "priority": 2,
                 "title": "清理资源：" + " / ".join(bits),
-                "action_id": "resource.fill_stubs",
+                # The counts above scan the *global* resource pool, so the
+                # action must too: fill_stubs_batch selects stubs across the
+                # whole course. The old target (resource.fill_stubs) filled
+                # only the current section while advertising course-wide
+                # counts — stubs elsewhere meant a wasted AI round-trip.
+                "action_id": "resource.fill_stubs_batch",
                 "scope": {
                     "placeholder_count": ph,
                     "needs_review_count": nr,

@@ -279,7 +279,12 @@ class HygieneTest(unittest.TestCase):
         self.assertFalse(ctx.healthy)
 
         suggestions = local_suggestions(ctx, limit=3)
-        self.assertIn("resource.fill_stubs", [s["action_id"] for s in suggestions])
+        # #8: the counts scan the global pool, so the suggestion must point
+        # at the global batch handler (was resource.fill_stubs — current
+        # section only, a wasted AI round-trip when stubs live elsewhere).
+        self.assertIn(
+            "resource.fill_stubs_batch", [s["action_id"] for s in suggestions]
+        )
 
 
 class ValidateRefreshGuardTest(unittest.TestCase):
