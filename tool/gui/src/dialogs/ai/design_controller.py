@@ -587,10 +587,28 @@ class DesignController:
 
     # ------------------------------------------------------------------ cancel
     def cancel(self) -> None:
-        if self._worker is not None:
-            self._disconnect_worker(self._worker)
-            if hasattr(self._worker, "cancel"):
-                self._worker.cancel()
+        """Land the cancelled state synchronously, without worker callbacks.
+
+        A cross-thread cancel may never deliver its terminal ``progress_ready``
+        (the HTTP interrupt path raises instead), so waiting for a callback to
+        reset ``_worker`` would leave ``is_busy`` True forever — generate/send/
+        attachments locked and the orbit spinner stuck. Disconnect first (late
+        fragments must not land), then reset immediately; the stale guards in
+        ``_deliver_*`` / ``_finish_worker`` already drop any signal that still
+        slips through. ``_pipeline_live`` stays for the resume-from-outline
+        design (see ``_on_pipeline_progress``).
+        """
+        worker = self._worker
+        if worker is None:
+            return
+        self._disconnect_worker(worker)
+        if hasattr(worker, "cancel"):
+            worker.cancel()
+        self._worker = None
+        self._active_on_result = None
+        self._active_on_chunk = None
+        self._active_on_error = None
+        self._on_busy_changed(False, "")
 
     # ------------------------------------------------------------------ worker plumbing
     def _ai_kwargs(self) -> dict[str, Any]:

@@ -579,5 +579,86 @@ class DesignControllerPipelineTest(unittest.TestCase):
         self.assertIs(ctrl.pipeline_state, cancelled)
 
 
+class DesignControllerCancelTest(unittest.TestCase):
+    """cancel() must land the terminal state synchronously (#2).
+
+    A cross-thread cancel may never deliver its terminal callback (HTTP
+    interrupt raises instead), so any "wait for the worker to finalize"
+    design leaves is_busy True forever — generate/send/attachments locked.
+    """
+
+    def _hanging_controller(self, *, busy: list | None = None) -> tuple:
+        records: list = []
+
+        class _HangingWorker(_FakeWorker):
+            def start(self) -> None:  # never emits anything
+                pass
+
+        def factory(target, *args, **kwargs):
+            worker = _HangingWorker(target, *args, **kwargs)
+            records.append(worker)
+            return worker
+
+        ctrl = DesignController(
+            ai_config_fn=_config,
+            worker_factory=factory,
+            on_busy_changed=(lambda b, s: busy.append((b, s))) if busy is not None else None,
+        )
+        return ctrl, records
+
+    def test_cancel_resets_busy_immediately_and_allows_regenerate(self) -> None:
+        busy: list[tuple[bool, str]] = []
+        ctrl, records = self._hanging_controller(busy=busy)
+        ctrl.set_params(topic="问候")
+        self.assertTrue(ctrl.generate())
+        self.assertTrue(ctrl.is_busy)
+
+        ctrl.cancel()
+        # Terminal state landed without any worker callback.
+        self.assertFalse(ctrl.is_busy)
+        self.assertTrue(records[0].cancelled)
+        self.assertEqual(busy[-1], (False, ""))
+
+        # And a new request can start right away.
+        self.assertTrue(ctrl.generate())
+        self.assertEqual(len(records), 2)
+
+    def test_late_worker_signals_after_cancel_do_not_pollute(self) -> None:
+        drafts: list = []
+        errors: list[str] = []
+        records: list = []
+
+        class _HangingWorker(_FakeWorker):
+            def start(self) -> None:  # never emits anything
+                pass
+
+        def factory(target, *args, **kwargs):
+            worker = _HangingWorker(target, *args, **kwargs)
+            records.append(worker)
+            return worker
+
+        ctrl = DesignController(
+            ai_config_fn=_config,
+            worker_factory=factory,
+            on_draft_ready=drafts.append,
+            on_error=errors.append,
+        )
+        ctrl.set_params(topic="问候")
+        ctrl.generate()
+        stale = records[0]
+        ctrl.cancel()
+
+        # A late result/error/progress from the cancelled worker must be
+        # dropped silently (stale guard: worker is not self._worker).
+        stale.result_ready.emit(sample_section())
+        stale.error_occurred.emit("迟到的失败")
+        ctrl._on_pipeline_progress(
+            PipelineState(step=PipelineStep.READY_IMPORT, cancelled=True)
+        )
+        self.assertEqual(drafts, [])
+        self.assertEqual(errors, [])
+        self.assertFalse(ctrl.is_busy)
+
+
 if __name__ == "__main__":
     unittest.main()
