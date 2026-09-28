@@ -246,6 +246,48 @@ class CourseOverviewTest(unittest.TestCase):
         self.assertEqual(self.win._stats.validation_errors, 1)
         self.assertEqual(self.win._stats.validation_warnings, 1)
 
+    # --- #13: validation cache must not outlive a save --------------------
+
+    def test_save_hook_invalidates_and_refetches(self) -> None:
+        # Validation was fetched once (cache warm, badge shows counts).
+        self.win._validation_problems = [
+            {"level": "error", "message": "stale", "path": ""}
+        ]
+        self.win.refresh()
+        self.assertIn("校验", self.win._stats_label.text())
+        # The save-success hook fires:
+        self.win.invalidate_validation_cache()
+        self.assertTrue(self.win._validation_stale)
+        # Badge shows … + a force-refresh link instead of the stale number.
+        text = self.win._stats_label.text()
+        self.assertIn("校验: …", text)
+        self.assertIn("#validate", text)
+        # The background re-fetch lands and clears the stale flag.
+        self.assertTrue(
+            _spin_until(lambda: not self.win._validation_stale),
+            "validation refetch did not settle in time",
+        )
+        self.assertIsNotNone(self.win._validation_problems)
+        self.assertIn("校验", self.win._stats_label.text())
+        self.assertNotIn("校验: …", self.win._stats_label.text())
+
+    def test_invalidate_without_prior_fetch_is_noop(self) -> None:
+        # Never fetched → a save must not spawn a CLI validation run.
+        self.assertIsNone(self.win._validation_problems)
+        self.win.invalidate_validation_cache()
+        self.assertFalse(self.win._validation_stale)
+        self.assertIsNone(self.win._validation_worker)
+
+    def test_force_refresh_link_always_present(self) -> None:
+        self.win._validation_problems = [
+            {"level": "error", "message": "e1", "path": ""}
+        ]
+        self.win.refresh()
+        text = self.win._stats_label.text()
+        # Cached counts open the report; ⟳ (#validate) forces a re-fetch.
+        self.assertIn("#validation", text)
+        self.assertIn("#validate", text)
+
 
 if __name__ == "__main__":
     unittest.main()

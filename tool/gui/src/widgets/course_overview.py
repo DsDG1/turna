@@ -156,6 +156,10 @@ class CourseOverviewWindow(QWidget):
         # Last validate+lint problem list (None = never fetched). Clicking the
         # validation badge re-emits this cache instead of re-running the CLI.
         self._validation_problems: list[dict[str, Any]] | None = None
+        # #13: True between "cache dropped" (e.g. after a save) and the
+        # background re-fetch landing — the badge shows … instead of the
+        # stale number.
+        self._validation_stale = False
         self._validation_worker = None
 
         root = QVBoxLayout(self)
@@ -394,6 +398,25 @@ class CourseOverviewWindow(QWidget):
 
     def _update_stats_label(self) -> None:
         assert self._stats is not None
+        # #13: the ⟳ link is always present so cached counts can be forced
+        # to refresh; the plain 刷新校验 link only appears before the first
+        # fetch (backwards compatible).
+        refresh_href = (
+            f'<a href="#validate" style="color:{_pal("text_secondary")};">⟳</a>'
+        )
+        if self._validation_stale:
+            text = format_stats_line(self._stats).replace("\n", "<br>")
+            plain = (
+                f"校验: {self._stats.validation_errors} 错 / "
+                f"{self._stats.validation_warnings} 警"
+            )
+            text = text.replace(
+                plain, f'<a href="#validate">校验: …</a> {refresh_href}'
+            )
+            if "校验" not in text:
+                text += f"<br>校验: … {refresh_href}"
+            self._stats_label.setText(text)
+            return
         text = format_stats_line(self._stats).replace("\n", "<br>")
         # Make the validation segment clickable if present.
         if self._stats.validation_errors or self._stats.validation_warnings:
@@ -401,7 +424,7 @@ class CourseOverviewWindow(QWidget):
                 f'<a href="#validation" style="color:{_pal("warning")};">'
                 f"校验: {self._stats.validation_errors} 错 / "
                 f"{self._stats.validation_warnings} 警"
-                f"</a>"
+                f"</a> {refresh_href}"
             )
             # Replace the plain-text validation segment with the link.
             plain = (
@@ -414,6 +437,20 @@ class CourseOverviewWindow(QWidget):
             href = f'<a href="#validate" style="color:{_pal("text_secondary")};">刷新校验</a>'
             text += f"<br>{href}"
         self._stats_label.setText(text)
+
+    def invalidate_validation_cache(self) -> None:
+        """Drop cached validation counts (e.g. after a save, #13).
+
+        Starts a background re-fetch only when validation was ever fetched
+        (``_validation_problems`` is not None), so saving never spawns CLI
+        runs for overviews that never showed validation. While the re-fetch
+        is in flight the badge shows … instead of the stale number.
+        """
+        if self._validation_problems is None:
+            return
+        self._validation_stale = True
+        self._update_stats_label()
+        self._fetch_validation_async()
 
     def _on_stats_link(self, link: str) -> None:
         if link == "#validation":
@@ -475,6 +512,7 @@ class CourseOverviewWindow(QWidget):
         def _apply(problems: list[dict[str, Any]]) -> None:
             self._validation_worker = None
             self._validation_problems = problems
+            self._validation_stale = False
             errors = sum(1 for p in problems if p.get("level") == "error")
             warnings = sum(1 for p in problems if p.get("level") == "warning")
             if self._stats is not None:
