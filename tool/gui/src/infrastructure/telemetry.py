@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import logging
 import logging.handlers
+import re
 import sys
 import traceback
 from datetime import datetime, timezone, UTC
@@ -109,31 +110,103 @@ def scrub_value(key: str, value: Any) -> Any:
         return value
     text = value
     if key in _PATH_KEYS or _looks_like_path(text):
-        home = str(Path.home())
-        normalized = text.replace("\\", "/")
-        home_normalized = home.replace("\\", "/").rstrip("/")
-        if (
-            home_normalized
-            and home_normalized != "/"
-            and normalized.startswith(home_normalized)
-        ):
-            text = "~" + normalized[len(home_normalized) :]
-        normalized = text.replace("\\", "/")
-        if _is_rooted(normalized):
-            # Keep the last _MAX_PATH_DEPTH components: enough to tell
-            # "courses/turkish" from "courses/german", not enough to find it.
-            parts = [p for p in normalized.rstrip("/").split("/") if p]
-            text = "/".join(parts[-_MAX_PATH_DEPTH:]) or normalized
-        elif len(text) > 120:
-            text = text[:117] + "..."
+        return _scrub_pathish(text)
+    # Not a bare path, but prose can still carry one — an exception message
+    # like "[Errno 2] No such file: '/home/bob/course.json'" would otherwise
+    # write the whole path to the log. Scrub rooted tokens in place.
+    scrubbed, n = _ROOTED_TOKEN.subn(_scrub_token_match, text)
+    return scrubbed if n else text
+
+
+# A rooted path token inside a larger string: "/opt/x/y", "C:/Users/me", and
+# their backslash forms. Stops at whitespace and at the quoting characters
+# that usually delimit a path inside a message.
+_ROOTED_TOKEN = re.compile(
+    r"(?<![A-Za-z0-9])(?:[A-Za-z]:)?[/\\][^\s'\"<>|,;)\]}]*"
+)
+
+
+def _tail_parts(parts: list[str]) -> list[str]:
+    """Pick the trailing components worth keeping, dropping user identity.
+
+    Keeping the last two components is usually enough to say which project
+    and file, but the component above them is frequently the user name
+    ("/home/<user>/course.json", "C:/Users/<user>/notes.md"), so keeping
+    two would keep exactly the thing we must not write. Drop a leading
+    home-name segment (this machine's home, or anything under a "home" /
+    "Users" root) before taking the tail.
+    """
+    home_name = Path.home().name.casefold()
+    # A drive letter ("C:") is the first component of a Windows path; look
+    # past it when deciding whether the next segment is a "home"/"Users" root.
+    scan_from = 1 if parts and len(parts[0]) == 2 and parts[0][1] == ":" else 0
+    if len(parts) > scan_from and parts[scan_from].casefold() in (
+        "home",
+        "users",
+        "user",
+    ):
+        parts = parts[:scan_from] + parts[scan_from + 2 :]
+    # Then drop this machine's user name wherever it appears, so a path that
+    # does not start at the root still cannot reintroduce it in the tail.
+    if home_name:
+        parts = [p for p in parts if p.casefold() != home_name]
+    return parts[-_MAX_PATH_DEPTH:]
+
+
+def _scrub_token_match(match: re.Match[str]) -> str:
+    """Reduce one embedded path token to its last two components."""
+    token = match.group(0).replace("\\", "/")
+    parts = [p for p in token.rstrip("/").split("/") if p]
+    kept = _tail_parts(parts)
+    if not kept or len(kept) >= len(parts):
+        return match.group(0)
+    sep = "\\" if "\\" in match.group(0) else "/"
+    return sep + sep.join(kept)
+
+
+def _scrub_pathish(text: str) -> str:
+    """Strip the identifying parts of a path-shaped string."""
+    normalized = text.replace("\\", "/")
+    # A file:// URL carries the same local path as the bare form; reduce it
+    # to its path part so the scheme cannot smuggle the path past us.
+    for scheme in ("file://", "file:///"):
+        if normalized.lower().startswith(scheme):
+            normalized = normalized[len(scheme) :]
+            text = text[len(scheme) :]
+            break
+    home_normalized = str(Path.home()).replace("\\", "/").rstrip("/")
+    if (
+        home_normalized
+        and home_normalized != "/"
+        and normalized.startswith(home_normalized)
+    ):
+        text = "~" + normalized[len(home_normalized) :]
+        normalized = text
+    if _is_rooted(normalized):
+        # Keep the last _MAX_PATH_DEPTH components: enough to tell
+        # "courses/turkish" from "courses/german", not enough to find it.
+        parts = [p for p in normalized.rstrip("/").split("/") if p]
+        kept = _tail_parts(parts)
+        return "/".join(kept) or normalized
+    if len(text) > 120:
+        return text[:117] + "..."
     return text
 
 
 def _looks_like_path(text: str) -> bool:
-    if len(text) < 4 or len(text) > 512:
+    """Does this string look like a path (so its tail should be reduced)?
+
+    Being rooted is enough on its own: a string starting with "/" or a drive
+    letter is a path, not prose — and Windows paths routinely contain spaces
+    (``C:/Users/Alice Smith/...``), which an earlier space guard let through.
+    The space / newline guard applies only to the non-rooted heuristic.
+    """
+    if len(text) < 4 or len(text) > 4096:
         return False
     if "\n" in text:
         return False
+    if _is_rooted(text) or text.lower().startswith("file://"):
+        return True
     if " " in text:
         return False
     return "/" in text or "\\" in text

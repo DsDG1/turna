@@ -214,5 +214,81 @@ class TelemetryPathScrubbingTest(unittest.TestCase):
         self.assertEqual(self._last_line()["event"], "y")
 
 
+class TelemetryScrubEdgeCasesTest(unittest.TestCase):
+    """Gaps found while auditing T21: paths with spaces, file:// URLs, paths
+    embedded in prose, and the user-name component."""
+
+    def setUp(self) -> None:
+        self.tmp = Path(tempfile.mkdtemp(prefix="turna_telemetry_"))
+        self.log_file = self.tmp / "telemetry.log"
+        self.telemetry = Telemetry(self.log_file)
+
+    def tearDown(self) -> None:
+        import shutil
+
+        self.telemetry.close()
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _write(self, key: str, value) -> str:
+        self.telemetry.record_event("x", payload={key: value})
+        line = self.log_file.read_text(encoding="utf-8").strip().splitlines()[-1]
+        return json.loads(line)["payload"][key]
+
+    def test_windows_path_with_spaces_is_scrubbed(self) -> None:
+        out = self._write("where", "C:/Users/Alice Smith/my course/turkish")
+        self.assertNotIn("Alice", out)
+
+    def test_posix_path_with_spaces_is_scrubbed(self) -> None:
+        out = self._write("where", "/home/bob/My Documents/turkish")
+        self.assertNotIn("bob", out)
+
+    def test_file_url_is_scrubbed(self) -> None:
+        out = self._write("where", "file:///home/bob/course.md")
+        self.assertNotIn("bob", out)
+
+    def test_path_embedded_in_prose_is_scrubbed(self) -> None:
+        # An exception message is prose, but it can carry the path.
+        out = self._write(
+            "error", "[Errno 2] No such file: '/home/bob/course.json'"
+        )
+        self.assertNotIn("bob", out)
+        self.assertIn("No such file", out)  # the useful part survives
+
+    def test_user_component_under_a_home_root_is_dropped(self) -> None:
+        # Keeping only the tail would keep "<user>" for a short path.
+        out = self._write("path", "/home/someone/course.json")
+        self.assertNotIn("someone", out)
+
+    def test_user_component_under_users_root_is_dropped(self) -> None:
+        out = self._write("path", "C:/Users/someone/notes.md")
+        self.assertNotIn("someone", out)
+
+    def test_machine_home_name_is_dropped(self) -> None:
+        from pathlib import Path as _P
+
+        home_name = _P.home().name
+        if not home_name:
+            self.skipTest("no home directory name")
+        out = self._write("path", f"/any/root/{home_name}/turkish")
+        self.assertNotIn(home_name, out)
+
+    def test_project_and_file_still_identify_the_course(self) -> None:
+        # Scrubbing must not destroy the diagnostic value.
+        out = self._write("path", "/opt/data/courses/turkish")
+        self.assertIn("turkish", out)
+
+    def test_prose_without_a_path_is_untouched(self) -> None:
+        out = self._write("error", "验证错误：缺少 answer 字段")
+        self.assertIn("answer", out)
+
+    def test_url_value_is_untouched(self) -> None:
+        out = self._write("endpoint", "https://api.example.com/v1")
+        self.assertEqual(out, "https://api.example.com/v1")
+
+    def test_short_relative_path_is_untouched(self) -> None:
+        out = self._write("level", "A1/A2")
+        self.assertEqual(out, "A1/A2")
+
+
 if __name__ == "__main__":
     unittest.main()
