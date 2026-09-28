@@ -21,7 +21,9 @@ def jump_to_node(host: ExperienceHost, node_ref: tuple[str, str]) -> None:
 
         reveal_edit_view(host)
     except Exception:
-        pass
+        # View swap is cosmetic; the tree selection below still locates the
+        # node, so a failure here must not abort locating.
+        logger.debug("reveal_edit_view failed (validation locate)", exc_info=True)
     try:
         if kind == "lesson":
             tree.select_lesson(node_id)

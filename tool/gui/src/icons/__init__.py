@@ -102,7 +102,9 @@ def _dpr() -> float:
         if screen is not None:
             return max(1.0, float(screen.devicePixelRatio()))
     except Exception:
-        pass
+        # No screen / no QGuiApplication yet: 1.0 is a correct DPR fallback for
+        # a headless or pre-GUI call site, so this needs no recovery.
+        logger.debug("devicePixelRatio unavailable; assuming 1.0", exc_info=True)
     return 1.0
 
 

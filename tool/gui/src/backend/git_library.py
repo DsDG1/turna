@@ -12,7 +12,9 @@ dependency). All network operations are explicit (never automatic) and raise
 from __future__ import annotations
 
 import collections
+import logging
 import os
+import shlex
 from datetime import datetime
 import http.server
 import re
@@ -26,10 +28,25 @@ from typing import Any
 
 from src.backend.course_adapter import CourseAdapter, _REPO_ROOT
 
+logger = logging.getLogger(__name__)
+
 _DEFAULT_TIMEOUT = 60.0
 # Bound for the per-request git RPC subprocess (info/refs + upload/receive-pack).
 # A hung git process must not pin a handler thread forever.
 _GIT_RPC_TIMEOUT = 120.0
+
+# Any URL may arrive with inline credentials (``https://user:ghp_xxx@host/...``)
+# — from a pasted remote, or from git echoing it back in stderr. Those strings
+# end up in RuntimeError messages, which reach a QMessageBox and the telemetry
+# error record, so every diagnostic we format goes through this first.
+_URL_USERINFO = re.compile(r"(?P<scheme>[a-zA-Z][\w+.-]*://)(?P<userinfo>[^/\s@]+)@")
+
+
+def _redact_secrets(text: str) -> str:
+    """Mask the ``user:token@`` part of any URL in ``text``."""
+    if not text:
+        return text
+    return _URL_USERINFO.sub(r"\g<scheme>***@", text)
 
 
 class GitHTTPRequestHandler(http.server.BaseHTTPRequestHandler):
@@ -341,8 +358,18 @@ class GitLibrary:
         # SSH key override
         if self._ssh_key_path:
             key = os.path.expanduser(self._ssh_key_path)
+            # git hands GIT_SSH_COMMAND to a shell, so the user-supplied path
+            # must be shell-quoted or a path like `C:/keys/a;rm -rf x` would be
+            # parsed as a second command. shlex.quote is POSIX-oriented but
+            # git's shell handling accepts it, and it degrades to a plain
+            # quoted token rather than leaving the value unquoted.
+            if not Path(key).is_file():
+                logger.warning(
+                    "ssh key path does not exist, git will fall back to the agent: %s", key
+                )
             env["GIT_SSH_COMMAND"] = (
-                f"ssh -i {key} -o BatchMode=yes -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+                f"ssh -i {shlex.quote(key)} -o BatchMode=yes"
+                " -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
             )
         elif "GIT_SSH_COMMAND" not in env:
             env["GIT_SSH_COMMAND"] = "ssh -o BatchMode=yes"
@@ -410,10 +437,14 @@ class GitLibrary:
         except FileNotFoundError as exc:
             raise RuntimeError(f"找不到 git 可执行文件：{self._git}") from exc
         except subprocess.TimeoutExpired as exc:
-            raise RuntimeError(f"git 命令超时：{' '.join(args)}") from exc
+            raise RuntimeError(
+                f"git 命令超时：{_redact_secrets(' '.join(args))}"
+            ) from exc
         if check and proc.returncode != 0:
             detail = (proc.stderr or proc.stdout or "").strip()[:500]
-            raise RuntimeError(f"git {' '.join(args)} 失败：{detail}")
+            raise RuntimeError(
+                f"git {_redact_secrets(' '.join(args))} 失败：{_redact_secrets(detail)}"
+            )
         return proc
 
     # --- public API ------------------------------------------------------

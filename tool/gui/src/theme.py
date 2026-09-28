@@ -45,6 +45,9 @@ _LIGHT_PALETTE = PALETTES["light"]
 # via :func:`current_palette` so they follow the active light/dark theme.
 _ACTIVE_PALETTE: dict[str, str] = _DARK_PALETTE
 _ACTIVE_THEME: str = DEFAULT_THEME
+# The QApplication the base (Fusion) style has already been asserted on.
+# Identity-tracked rather than read back from ``app.style()``; see apply_theme.
+_STYLED_APP: QApplication | None = None
 
 
 def current_palette() -> dict[str, str]:
@@ -134,8 +137,31 @@ def apply_theme(app: QApplication, settings: Settings | None = None) -> None:
     _ACTIVE_PALETTE = palette
     _ACTIVE_THEME = theme
 
-    app.setStyle("Fusion")
-    app.setStyleSheet(_build_qss(palette, base_font_px, theme))
+    # ``QApplication.setStyle`` and ``setStyleSheet`` both trigger a full
+    # re-polish of every widget in the application, so their cost scales with
+    # the total live widget count rather than with what we changed. Measured
+    # while building windows without closing them: widget count 200 -> 1200
+    # pushed ``setStyle`` 31 -> 676 ms and ``setStyleSheet`` 91 -> 2521 ms.
+    #
+    # The base style is a *process-global* choice, so it is asserted once per
+    # QApplication rather than per call. ``MainWindow.__init__`` re-applies the
+    # theme on every construction (to pick up the user's saved theme/scale), and
+    # re-asserting Fusion each time is pure re-polish. We deliberately track the
+    # application ourselves instead of asking ``app.style().objectName()``:
+    # that readback is not dependable once a stylesheet is installed, and a
+    # wrong answer here means paying a full re-polish on every window.
+    global _STYLED_APP
+    if _STYLED_APP is not app:
+        app.setStyle("Fusion")
+        _STYLED_APP = app
+
+    # An unchanged stylesheet re-parses ~18 KB of QSS for no visible effect.
+    # In the app this matters when the user re-picks the same theme or scale;
+    # in headless test runs it is the difference between a module finishing and
+    # one spinning for minutes.
+    qss = _build_qss(palette, base_font_px, theme)
+    if app.styleSheet() != qss:
+        app.setStyleSheet(qss)
 
     # Scale the system font proportionally. Keep the point-size baseline at 10
     # for 100% scale.

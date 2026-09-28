@@ -6,16 +6,29 @@ Captures:
 * ``MouseButtonPress`` → ``ui.click`` with the target widget's text/label and
   the active window title as context.
 * ``FocusOut`` on ``QLineEdit``/``QTextEdit`` (and ``Enter/Return`` key commits
-  on ``QLineEdit``) → ``ui.input.commit`` with the committed text.
+  on ``QLineEdit``) → ``ui.input.commit``.
 
-Privacy: the AI API key field (``QLineEdit`` with ``EchoMode.Password`` or
-``objectName == "ai_key_edit"``) is always recorded as ``<redacted>``; the real
-value never reaches the log. Captured text is truncated to keep lines bounded.
+Privacy
+-------
+Input commits record a **fingerprint, not the content**: ``{"chars": n,
+"sha": "<8 hex>"}``. Enough to tell "an edit happened, it was 12 chars, and
+it is/isn't the same edit as last time" — which is what the log is actually
+used for — without copying course text, AI prompts or chat drafts onto disk.
+The full text is only written when ``TURNA_GUI_LOG_INPUT_TEXT=1`` is set
+explicitly, for the rare session that needs it.
+
+Secret fields (AI API key: ``EchoMode.Password`` or ``objectName ==
+"ai_key_edit"``) are recorded as ``{"text": "<redacted>"}`` and never
+fingerprinted, so neither the value nor its length leaks.
 
 The filter never raises and always returns ``False`` so normal event dispatch
 continues uninterrupted (mirrors the "telemetry must never crash" invariant).
 """
 from __future__ import annotations
+
+import hashlib
+import logging
+import os
 
 from PySide6.QtCore import QElapsedTimer, QEvent, QObject
 from PySide6.QtWidgets import (
@@ -26,7 +39,7 @@ from PySide6.QtWidgets import (
 )
 
 from src.infrastructure.operations_log import operations
-import logging
+
 logger = logging.getLogger(__name__)
 
 _MAX_TEXT = 200
@@ -36,6 +49,20 @@ _REDACTED_OBJECT_NAMES = {"ai_key_edit"}
 # Dedupe rapid repeat clicks on the same (window, target): a burst of clicks
 # within this window collapses to a single record. First click always records.
 _CLICK_DEBOUNCE_MS = 300
+
+# Opt-in escape hatch: record committed text verbatim. Off by default because
+# the log lands in the user data dir unencrypted and is included in bug
+# reports. Set to "1" for a single debugging session.
+_RECORD_TEXT = os.environ.get("TURNA_GUI_LOG_INPUT_TEXT", "").strip() == "1"
+
+
+def _fingerprint(text: str) -> str:
+    """Short, stable digest of an input value.
+
+    Unsalted on purpose: the point is to correlate repeated commits within one
+    local log, which a per-run salt would defeat.
+    """
+    return hashlib.sha256(text.encode("utf-8", "replace")).hexdigest()[:8]
 
 
 def _window_name(widget: QWidget | None) -> str:
@@ -60,7 +87,9 @@ def _target_name(obj: QObject) -> str:
     """Best-effort label for the widget that was clicked/focused."""
     name = ""
     # For password/secret line edits, ``text()`` returns the secret value —
-    # never use it as the target label.
+    # never use it as the target label. The only realistic failure here is a
+    # deleted C++ object, which PySide6 surfaces as RuntimeError; treat that
+    # as "possibly secret" so an unreadable field fails closed.
     is_secret = False
     try:
         if isinstance(obj, QLineEdit) and (
@@ -68,10 +97,18 @@ def _target_name(obj: QObject) -> str:
             or obj.objectName() in _REDACTED_OBJECT_NAMES
         ):
             is_secret = True
-    except Exception:
-        logger.debug("infrastructure/user_action_filter.py:_target_name best-effort step failed", exc_info=True)
+    except RuntimeError:
+        logger.debug("user_action_filter: secret probe on a dead object", exc_info=True)
+        is_secret = True
 
-    getters = ("text", "windowTitle", "title") if not is_secret else ("windowTitle", "title")
+    if isinstance(obj, (QLineEdit, QTextEdit)):
+        # A text input's own text is the payload we refuse to record, so it
+        # can never double as the label. Fall through to objectName / class.
+        getters: tuple[str, ...] = ()
+    elif is_secret:
+        getters = ("windowTitle", "title")
+    else:
+        getters = ("text", "windowTitle", "title")
     for getter in getters:
         try:
             method = getattr(obj, getter, None)
@@ -93,21 +130,52 @@ def _target_name(obj: QObject) -> str:
     return name[:_MAX_TARGET]
 
 
-def _committed_text(widget: QWidget) -> str:
-    """Return the committed text, redacting password/secret fields."""
+def _is_secret(widget: QWidget) -> bool:
+    """True for fields whose value must never be recorded, not even hashed.
+
+    Narrows to ``RuntimeError`` on purpose: that is what PySide6 raises for a
+    wrapped object whose C++ side is gone, and it is the only failure this
+    probe can hit. Failing closed (treat as secret) keeps a dead widget from
+    ever downgrading to "safe to log".
+    """
     try:
         if isinstance(widget, QLineEdit):
-            if (
+            return (
                 widget.echoMode() == QLineEdit.EchoMode.Password
                 or widget.objectName() in _REDACTED_OBJECT_NAMES
-            ):
-                return _REDACTED
-            return widget.text()[:_MAX_TEXT]
-        if isinstance(widget, QTextEdit):
-            return widget.toPlainText()[:_MAX_TEXT]
-    except Exception:
-        return _REDACTED
-    return ""
+            )
+    except RuntimeError:
+        logger.debug("user_action_filter: secret probe on a dead object", exc_info=True)
+        return True
+    return False
+
+
+def _committed_payload(widget: QWidget) -> dict[str, object] | None:
+    """Describe a committed edit, or ``None`` when there is nothing to record.
+
+    Returns a fingerprint (``chars`` + ``sha``) rather than the text, unless
+    ``TURNA_GUI_LOG_INPUT_TEXT=1`` opts in. Secret fields collapse to
+    ``{"text": "<redacted>"}``.
+    """
+    if _is_secret(widget):
+        return {"text": _REDACTED}
+    try:
+        if isinstance(widget, QLineEdit):
+            value = widget.text()
+        elif isinstance(widget, QTextEdit):
+            value = widget.toPlainText()
+        else:
+            return None
+    except RuntimeError:
+        # Dead C++ object: we cannot read it, so we certainly do not log it.
+        logger.debug("user_action_filter: read text on a dead object", exc_info=True)
+        return {"text": _REDACTED}
+    if not value:
+        return None
+    payload: dict[str, object] = {"chars": len(value), "sha": _fingerprint(value)}
+    if _RECORD_TEXT:
+        payload["text"] = value[:_MAX_TEXT]
+    return payload
 
 
 class UserActionFilter(QObject):
@@ -140,24 +208,24 @@ class UserActionFilter(QObject):
                         context={"window": window, "widget": type(obj).__name__},
                     )
             elif etype == QEvent.Type.FocusOut and isinstance(obj, (QLineEdit, QTextEdit)):
-                text = _committed_text(obj)
+                payload = _committed_payload(obj)
                 # Skip empty commits to keep the log focused on real input.
-                if text:
+                if payload:
                     operations.record_action(
                         "input.commit",
                         _target_name(obj),
-                        payload={"text": text},
+                        payload=payload,
                         context={"window": _window_name(obj), "widget": type(obj).__name__},
                     )
             elif etype == QEvent.Type.KeyPress and isinstance(obj, QLineEdit):
                 key = event.key()
                 if key in (QEvent.Key.Return, QEvent.Key.Enter):
-                    text = _committed_text(obj)
-                    if text:
+                    payload = _committed_payload(obj)
+                    if payload:
                         operations.record_action(
                             "input.commit",
                             _target_name(obj),
-                            payload={"text": text},
+                            payload=payload,
                             context={"window": _window_name(obj), "widget": type(obj).__name__},
                         )
         except Exception:

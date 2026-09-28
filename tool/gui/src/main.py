@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import sys
 import time
 import traceback
@@ -23,9 +24,31 @@ _LOG_DIR = app_data_dir()
 _LOG_DIR.mkdir(parents=True, exist_ok=True)
 _LOG_FILE = _LOG_DIR / "app.log"
 
+
+def _resolve_log_level() -> int:
+    """Root log level, overridable via ``TURNA_GUI_LOG_LEVEL``.
+
+    Defaults to ``INFO``. The codebase's defensive handlers (~400 call sites)
+    log at ``DEBUG`` — that is precisely the level the silent-exception
+    ratchet pushed them to — so at the default level they never reach
+    ``app.log`` and the "no silent failures" guarantee is unobservable in the
+    field. Set ``TURNA_GUI_LOG_LEVEL=DEBUG`` to see them; unknown values fall
+    back to ``INFO`` rather than crashing at startup.
+    """
+    raw = os.environ.get("TURNA_GUI_LOG_LEVEL", "INFO").strip().upper()
+    level = logging.getLevelNamesMapping().get(raw)
+    if level is None:
+        print(
+            f"[turna-gui] unknown TURNA_GUI_LOG_LEVEL={raw!r}; using INFO",
+            file=sys.stderr,
+        )
+        return logging.INFO
+    return level
+
+
 logging.basicConfig(
     filename=_LOG_FILE,
-    level=logging.INFO,
+    level=_resolve_log_level(),
     format="%(asctime)s [%(levelname)s] %(message)s",
     encoding="utf-8",
 )

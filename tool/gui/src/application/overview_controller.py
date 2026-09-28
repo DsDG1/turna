@@ -52,7 +52,9 @@ def on_overview_lesson_selected(host: ExperienceHost, lesson_id: str) -> None:
 
         reveal_edit_view(host)
     except Exception:
-        pass
+        # Locating still works without the view swap — the next select_lesson
+        # repaints the tree anyway, so this is a cosmetic degrade, not a fault.
+        logger.debug("reveal_edit_view failed (overview locate)", exc_info=True)
     try:
         host.tree.select_lesson(lesson_id)
     except Exception:

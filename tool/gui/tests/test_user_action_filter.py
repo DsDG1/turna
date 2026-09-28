@@ -72,28 +72,76 @@ class UserActionFilterTest(unittest.TestCase):
         self.assertTrue(clicks)
         self.assertEqual(clicks[-1]["payload"]["target"], "保存")
 
-    def test_password_field_is_redacted(self) -> None:
+    def _focus_out(self, edit) -> None:
+        app = _App.get()
+        edit.show()
+        app.processEvents()
+        from PySide6.QtGui import QFocusEvent
+
+        app.notify(edit, QFocusEvent(QEvent.Type.FocusOut))
+
+    def _commit(self, text: str, secret: bool = False, expect: bool = True) -> dict:
+        """Drive one FocusOut commit through a freshly installed filter."""
         app = _App.get()
         flt = uaf_mod.UserActionFilter(app)
         app.installEventFilter(flt)
         try:
             edit = QLineEdit()
-            edit.setEchoMode(QLineEdit.EchoMode.Password)
-            edit.setObjectName("ai_key_edit")
-            edit.setText("sk-secret-value")
-            edit.show()
-            app.processEvents()
-            # Fire a FocusOut event to trigger input commit.
-            from PySide6.QtGui import QFocusEvent
-
-            app.notify(edit, QFocusEvent(QEvent.Type.FocusOut))
+            if secret:
+                edit.setEchoMode(QLineEdit.EchoMode.Password)
+            edit.setText(text)
+            self._focus_out(edit)
         finally:
             app.removeEventFilter(flt)
         commits = [item for item in self._lines() if item["event"] == "ui.input.commit"]
-        self.assertTrue(commits)
-        body = json.dumps(commits[-1], ensure_ascii=False)
+        if expect:
+            self.assertTrue(commits, "expected an input.commit record")
+        return commits[-1] if commits else {}
+
+    def test_password_field_is_redacted(self) -> None:
+        commit = self._commit("sk-secret-value", secret=True)
+        body = json.dumps(commit, ensure_ascii=False)
         self.assertNotIn("sk-secret-value", body)
-        self.assertEqual(commits[-1]["payload"]["text"], "<redacted>")
+        self.assertEqual(commit["payload"]["text"], "<redacted>")
+
+    def test_plain_input_content_is_not_recorded(self) -> None:
+        """Course text / prompts must never reach operations.log verbatim.
+
+        Two leak paths to cover: the ``payload`` fingerprint and the
+        ``target`` label (which used to be the widget's own ``text()``).
+        """
+        secret_phrase = "kedi burada çok güzel bir ev var"
+        commit = self._commit(secret_phrase)
+        body = json.dumps(commit, ensure_ascii=False)
+        self.assertNotIn(secret_phrase, body)
+        self.assertNotIn("kedi", body)
+        self.assertNotIn("text", commit["payload"])
+        self.assertNotIn(secret_phrase, commit["payload"]["target"])
+        self.assertEqual(commit["payload"]["chars"], len(secret_phrase))
+
+    def test_fingerprint_shape_is_stable_and_content_sensitive(self) -> None:
+        first = self._commit("hello world")["payload"]
+        again = self._commit("hello world")["payload"]
+        other = self._commit("goodbye world")["payload"]
+        self.assertEqual(first["chars"], len("hello world"))
+        self.assertEqual(first["sha"], again["sha"], "same input -> same digest")
+        self.assertNotEqual(first["sha"], other["sha"], "different input -> different digest")
+        self.assertRegex(first["sha"], r"^[0-9a-f]{8}$")
+
+    def test_opt_in_env_records_text(self) -> None:
+        original = uaf_mod._RECORD_TEXT
+        uaf_mod._RECORD_TEXT = True
+        try:
+            commit = self._commit("visible text")
+        finally:
+            uaf_mod._RECORD_TEXT = original
+        self.assertEqual(commit["payload"]["text"], "visible text")
+        self.assertEqual(commit["payload"]["chars"], len("visible text"))
+
+    def test_empty_input_is_not_recorded(self) -> None:
+        self._commit("", expect=False)
+        commits = [item for item in self._lines() if item["event"] == "ui.input.commit"]
+        self.assertEqual(commits, [])
 
     def test_filter_never_raises(self) -> None:
         app = _App.get()

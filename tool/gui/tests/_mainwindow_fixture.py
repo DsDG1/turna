@@ -11,6 +11,14 @@ Two recurring costs / hazards:
 2. **Hang** — ``MainWindow.__init__`` calls ``_maybe_open_last_repo()``, which
    may pop a modal ``QMessageBox``. Under offscreen CI a poorly mocked
    QSettings can leave the suite blocked for minutes.
+3. **Unbounded widget growth** — a ``MainWindow`` owns several hundred child
+   widgets, and Qt's polish/measure work is proportional to *every live widget
+   in the process*, not just the new one. Test classes that build a window in
+   ``setUp`` therefore made each successive construction slower than the last.
+   Measured on ``tests/test_shell_views.py``: with every window left alive,
+   ``apply_theme`` went 12 ms -> 3.7 s over eight builds (~300x), and the hot
+   spot then moved on to ``DetailPanel.__init__``. :func:`build_main_window`
+   now disposes of the previous window so the live widget count stays bounded.
 
 All test code that needs a real window should go through
 :func:`build_main_window` (or :class:`SharedMainWindowTestCase`).
@@ -22,7 +30,38 @@ from typing import Any
 from collections.abc import Iterator
 from unittest.mock import MagicMock, patch
 
+from PySide6.QtCore import QCoreApplication, QEvent
+
 from tests._qtapp import qt_app
+
+# The window handed out by the previous ``build_main_window`` call. Kept so the
+# next call can destroy it; tests never hold two windows at once (they build a
+# fresh one per test method), and the previous one is unreachable to them.
+_last_window: Any = None
+
+
+def _dispose_previous_window() -> None:
+    """Destroy the window from the previous call, freeing its widget tree.
+
+    Uses ``deleteLater`` + an explicit DeferredDelete flush rather than
+    ``close()``: ``MainWindow.closeEvent`` runs the save / shell-state /
+    confirm-exit path, which is exactly the machinery the tests mock out and
+    which we do not want to exercise as a side effect of cleanup.
+    """
+    global _last_window
+    win = _last_window
+    _last_window = None
+    if win is None:
+        return
+    app = qt_app()
+    with suppress(RuntimeError):
+        win.setParent(None)
+        win.setVisible(False)
+        win.deleteLater()
+        # Flush the posted deferred-delete so the C++ objects actually go away
+        # now; otherwise the widget count keeps climbing for the whole run.
+        QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+        app.processEvents()
 
 
 def make_qsettings_mock(values: dict[str, Any] | None = None) -> MagicMock:
@@ -74,8 +113,11 @@ def build_main_window(values: dict[str, Any] | None = None):
     from src.app import MainWindow
 
     qt_app()
+    _dispose_previous_window()
     with patch_main_window_env(values):
-        return MainWindow()
+        global _last_window
+        _last_window = MainWindow()
+        return _last_window
 
 
 def build_main_window_with_settings(
@@ -85,12 +127,15 @@ def build_main_window_with_settings(
     from src.app import MainWindow
 
     qt_app()
+    _dispose_previous_window()
     fake = make_qsettings_mock(values)
     with patch("src.app.QSettings", return_value=fake), patch(
         "src.app.MainWindow._maybe_open_last_repo",
         return_value=None,
     ):
+        global _last_window
         win = MainWindow()
+    _last_window = win
     return win, fake
 
 

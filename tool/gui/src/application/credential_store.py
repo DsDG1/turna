@@ -54,9 +54,22 @@ def _keyring_available() -> bool:
         # The fail backend always returns None and is the default when no real
         # backend is wired; treat it as unavailable so we fall back.
         if backend is None:
+            logger.debug("credential_store: keyring backend is None")
             return False
-        return type(backend).__name__ != "fail.Keyring"
+        name = type(backend).__name__
+        if name == "fail.Keyring":
+            logger.debug("credential_store: keyring resolved to the fail backend")
+            return False
+        return True
     except Exception:
+        # Importing or probing keyring can fail in odd environments (no
+        # dbus, no secret service, headless CI). Previously this returned
+        # False in total silence, so a user whose tokens were falling back to
+        # base64-in-QSettings had no way to learn why.
+        logger.warning(
+            "keyring 探测失败，Git 凭据将回退到 QSettings（base64 混淆，非加密）",
+            exc_info=True,
+        )
         return False
 
 
@@ -99,6 +112,9 @@ def get_git_token(url: str) -> str | None:
     try:
         return base64.b64decode(raw.encode("utf-8")).decode("utf-8")
     except Exception:
+        # A corrupt value is indistinguishable from "no token" to the caller;
+        # log it so a silently-empty token field is diagnosable.
+        logger.warning("git token in QSettings is not valid base64 utf-8", exc_info=True)
         return None
 
 

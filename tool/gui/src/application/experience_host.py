@@ -61,6 +61,13 @@ class ExperienceHost(Protocol):
     mode_action: Any                # QAction toggling experience mode
     detail: Any                     # detail panel widget
 
+    # ── View switching ───────────────────────────────────────────────────
+    # Controllers surface the edit view by driving the central stack rather
+    # than importing the shell: shell_views.surface_edit_view() probes these
+    # two members, so they are part of the handler-facing contract.
+    _set_view: _Handler             # probed — switch central stack page
+    _view_pages: Any                # probed — the QStackedWidget itself
+
     # ── Settings / policy / AI configuration ─────────────────────────────
     _settings_obj: Any              # Settings instance (probed)
     _settings: Any                  # legacy alias, probed
@@ -152,6 +159,7 @@ class ExperienceHost(Protocol):
 
     # ── Overview / validation / publish / save ───────────────────────────
     _overview_window: Any                     # CourseOverviewWindow or None
+    _overview_widget: Any                    # overview's central widget or None
     _on_overview_destroyed: _Handler
     _on_overview_lesson_selected: _Handler
     _on_overview_validation: _Handler
@@ -163,6 +171,8 @@ class ExperienceHost(Protocol):
     _on_resources: _Handler                   # hygiene window opener
     _on_publish: _Handler                     # probed
     _on_save: _Handler                        # probed
+    _save_shell_state: _Handler               # probed — persists view/tab state
+    _mark_saved: _Handler                     # probed — resets the dirty flag
     _on_demote_experience: _Handler           # Ctrl+Shift+D demote valve
     _on_experience_suggestion: _Handler       # probed
     _on_experience_pin_toggled: _Handler      # probed
