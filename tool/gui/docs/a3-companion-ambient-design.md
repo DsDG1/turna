@@ -85,9 +85,9 @@ DeferRecord:
 
 1. `now >= re_surface_after_iso`（冷却到期）；
 2. 该 `proposal_id` **仍出现在当前** `local_suggestions(ctx)`（议题未消解）；
-3. `dismiss_count < 3`（≤3 次退避；第 4 次起转永久归档，进 `_ambient_archived`，不再回灌）。
+3. `dismiss_count < MAX_DISMISS`（默认 4；≤3 次退避，第 4 次转永久归档，进 `_ambient_archived`，不再回灌）。
 
-冷却退避：`re_surface_after_iso` = `now + base * 2^min(dismiss_count, 3)`，base = 15min。即 15min → 30min → 60min → 永久。**永不**在冷却期内回灌，杜绝 nag。
+冷却退避：`re_surface_after_iso` = `now + base * 2^min(dismiss_count - 1, 3)`，base = 15min。即 15min → 30min → 60min → 永久。**永不**在冷却期内回灌，杜绝 nag。
 
 ### 3.3 与 ① 的协作
 
@@ -161,7 +161,7 @@ DeferStore:
   records: list[DeferRecord]            # cap 20
   add(proposal_id, action_id, scope_fp, *, now) -> None   # 退避算 re_surface_after
   is_cooled_down(proposal_id, *, now) -> bool
-  should_permanent_archive(proposal_id) -> bool            # dismiss_count >= 3
+  should_permanent_archive(proposal_id) -> bool            # dismiss_count >= MAX_DISMISS (4)
   resurface_candidates(current_proposal_ids, *, now) -> list[str]
   to_dict() / from_dict()                                  # QSettings JSON
 ```
@@ -231,12 +231,12 @@ DeferStore:
 | `evaluate_ambient_batch` | 队列上限 N=3 / 排序稳定 / archived 跳过 / 空 ctx 返回 [] / mute 生效返回 [] / observer 由调用方清空（纯函数不测 observer） | P1 | 6 |
 | AmbientBanner | 队列展示 + 晋升（归档首条 -> 显示次条）/ 队列空 clear / 折叠展开 / 不抢焦（无 setFocus） | P1 | 6 |
 | 旧 `evaluate_ambient` 兼容 | 仍返回首条或 None（黄金不破） | P1 | 2 |
-| DeferStore | add 退避 / is_cooled_down / dismiss_count>=3 永久 / resurface_candidates 仅返回当前仍存在的 / cap 20 FIFO / 永不抛 / 闭集无原文 | P2 | 8 |
-| 回灌集成 | 冷却未到期不回灌 / 到期且议题在则回灌 / 议题消失不回灌 / dismiss>=3 转永久 / `defer_resurface=False` 退旧行为 | P2 | 5 |
+| DeferStore | add 退避 / is_cooled_down / dismiss_count>=4 永久 / resurface_candidates 仅返回当前仍存在的 / cap 20 FIFO / 永不抛 / 闭集无原文 | P2 | 8 |
+| 回灌集成 | 冷却未到期不回灌 / 到期且议题在则回灌 / 议题消失不回灌 / dismiss>=4 转永久 / `defer_resurface=False` 退旧行为 | P2 | 5 |
 | 设置 round-trip | `experience/defer_resurface` + `experience/ambient_live` default false + clone + 五处 round-trip | P2/P3 | 4 |
 | mark_stale + 心跳 | 编辑提交 -> mark_stale -> 防抖到期全量 / 心跳仅 isVisible&&isActiveWindow 跑 / `ambient_live=False` 退旧行为 / observer 零心跳 | P3 | 5 |
 | metrics | `inc_ambient("deferred")`/`("resurfaced")` 计数 + snapshot 含新 stage | P2 | 2 |
-| 对抗 D26-D28 | D26 nag（冷却期内不回灌 + dismiss>=3 永久）/ D27 抢焦（无 setFocus）/ D28 脏盘（accept 仍经确认+Undo） | P4 | 6 |
+| 对抗 D26-D28 | D26 nag（冷却期内不回灌 + dismiss>=4 永久）/ D27 抢焦（无 setFocus）/ D28 脏盘（accept 仍经确认+Undo） | P4 | 6 |
 | **合计** | | | **~44** |
 
 **门禁**：不新增 G（沿用 G9/G10/G11 既有 observer/dangerous/预算闸语义）；P4 对抗测进 `test_adversarial_matrix` docstring 覆盖表。
@@ -256,10 +256,10 @@ make test-gui-full     # 全量（BASELINE 真源）
 | 风险 | 缓解 |
 |------|------|
 | 多提案与 Dock 被动列表视觉重叠 | 语义分离（Ambient 主动+轮替+accept/archive/mute；Dock 被动列表）；折叠展示降视觉占用；必要时 Ambient 限定 source=proactive 子集 |
-| ② 回灌变 nag | 冷却退避（15→30→60min→永久）+ dismiss_count>=3 永久归档 + 默认关 + 仅议题仍在才回灌 |
+| ② 回灌变 nag | 冷却退避（15→30→60min→永久）+ dismiss_count>=4 永久归档 + 默认关 + 仅议题仍在才回灌 |
 | ③ 心跳耗 CPU | 8s 且仅窗口活跃+Ambient 可见时跑；`ambient_live` 默认关；stale 标志避免无谓全量 |
 | `evaluate_ambient` 旧调用方漏改 | 薄封装保持签名；全量 grep 调用方；黄金集回归 |
-| DeferStore 持久化膨胀 | cap 20 FIFO；dismiss>=3 转会话级 archive 不进 store |
+| DeferStore 持久化膨胀 | cap 20 FIFO；dismiss>=4 转会话级 archive 不进 store |
 | ③ 编辑触发点遗漏 | 仅接 `editingFinished`/Ghost 接受/资源行提交三个稳定信号；keystroke 不接 |
 
 **开放项**（留远期，不在本批次）：
