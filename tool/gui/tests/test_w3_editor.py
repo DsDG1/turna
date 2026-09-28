@@ -240,10 +240,27 @@ class TreeSidebarTest(unittest.TestCase):
         self.sidebar = TreeSidebar(self.tree)
 
     def test_search_wires_to_tree_filter(self) -> None:
+        from PySide6.QtTest import QTest
+
         self.sidebar.search.setText("Practice")
+        # Debounced by design (300ms) — the tree is filtered once the
+        # trailing text settles, not on every keystroke.
+        QTest.qWait(400)
         self.assertEqual(self.tree._filter_text, "practice")
         paths = _visible_paths(self.tree)
         self.assertTrue(any("Practice X" in p for p in paths))
+
+    def test_search_filters_once_per_keystroke_burst(self) -> None:
+        # A single filter call per settled burst: the widget used to connect
+        # both textChanged and the debounced signal, filtering twice per edit.
+        calls: list[str] = []
+        self.tree.set_filter = lambda text: calls.append(text)  # type: ignore[method-assign]
+        from PySide6.QtTest import QTest
+
+        for text in ("p", "pr", "pra"):
+            self.sidebar.search.setText(text)
+        QTest.qWait(400)
+        self.assertEqual(calls, ["pra"])
 
     def test_collapse_expand_all(self) -> None:
         self.sidebar._expand_all()

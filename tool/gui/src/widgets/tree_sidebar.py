@@ -38,10 +38,10 @@ class TreeSidebar(QWidget):
 
         # --- top: search filter -----------------------------------------
         self.search = SearchField("过滤课程节点…", parent=self)
+        # Debounced only: this used to also connect textChanged directly,
+        # so every keystroke filtered the tree twice (once immediately,
+        # once 300ms later when the trailing text made it a no-op).
         self.search.text_changed_debounced.connect(tree.set_filter)
-        # Instant-feel filtering: also apply per keystroke via textChanged
-        # (set_filter itself is cheap — a visibility walk, not a rebuild).
-        self.search.textChanged.connect(tree.set_filter)
         col.addWidget(self.search)
 
         # --- middle: the course tree ------------------------------------
