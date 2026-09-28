@@ -241,9 +241,21 @@ def on_chunk_rendered(dlg, text: str, final: bool) -> None:
             # 生成中（流式）… counter tick on the stage label.
             set_stage_label(dlg, f"生成中… 已接收约 {n} 字符")
     else:
-        if dlg._stream_target not in ("json", ""):
-            # T4: explain/alignment chunks must never clobber the JSON
-            # editor (reachable when a mode switch raced the request).
+        target = dlg._stream_target
+        if target == "alignment":
+            # T4 follow-up: the chat's 发送 button starts an "alignment"
+            # stream in normal mode too, and this used to return early, so
+            # the user saw 「对齐中…」 with no output until the final reply.
+            # Route it to the chat instead of dropping it.
+            if not final and n > dlg._STREAM_TEXT_LIVE_LIMIT:
+                dlg.stage_label.setText(f"对齐中… 已接收约 {n} 字符")
+                dlg.stage_label.setVisible(True)
+            else:
+                dlg._render_streaming_chat(text)
+            return
+        if target not in ("json", ""):
+            # explain chunks (wish-only in practice) must never clobber the
+            # JSON editor — reachable when a mode switch raced the request.
             return
         if not final and n > dlg._STREAM_TEXT_LIVE_LIMIT:
             dlg.stage_label.setText(f"生成中… 已接收约 {n} 字符")

@@ -260,6 +260,23 @@ class StreamTargetRoutingTest(unittest.TestCase):
         on_chunk_rendered(dlg, "late chunk", True)
         self.assertEqual(dlg.json_edit.toPlainText(), "PRIOR")
 
+    def test_normal_alignment_stream_still_reaches_the_chat(self) -> None:
+        # T4 follow-up: the chat's 发送 button starts an alignment stream in
+        # normal mode too. Routing it away from the JSON editor must not mean
+        # dropping it — the user would watch 「对齐中…」 with no output.
+        dlg = _ViewDlg(mode="normal")
+        dlg._stream_target = "alignment"
+        on_chunk_rendered(dlg, "对齐结果片段", True)
+        self.assertEqual(dlg.chat_rendered, ["对齐结果片段"])
+
+    def test_normal_alignment_stream_ticks_a_stage_counter_when_long(self) -> None:
+        dlg = _ViewDlg(mode="normal")
+        dlg._stream_target = "alignment"
+        on_chunk_rendered(dlg, "y" * 300, False)
+        self.assertIn("对齐中", dlg.stage_label.text())
+        self.assertIn("300", dlg.stage_label.text())
+        self.assertEqual(dlg.chat_rendered, [])
+
     def test_normal_json_stream_still_reaches_the_json_editor(self) -> None:
         # The guard must not break the normal path it is meant to protect.
         dlg = _ViewDlg(mode="normal")
