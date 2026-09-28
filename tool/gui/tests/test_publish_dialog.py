@@ -173,6 +173,30 @@ class PublishDialogAsyncTest(unittest.TestCase):
         self.assertTrue(dlg.ok_btn.isEnabled())
         self.assertEqual(dlg.result(), 0)  # not accepted
 
+    def test_failed_publish_rolls_back_version_bump(self) -> None:
+        """#21: a failed save must not leave the bump applied — retrying
+        used to bump again on top (3 -> 4 -> 5 for one release)."""
+        adapter = _adapter_with_report()
+        adapter.index = {"version": 3}
+        adapter.expressions_version = 2
+
+        def _bump(plan):
+            adapter.index["version"] = 4
+            adapter.expressions_version = 3
+
+        adapter.apply_version_bump.side_effect = _bump
+        adapter.save.return_value = MagicMock(ok=False, message="boom")
+        dlg = PublishDialog(
+            adapter, None, teacher_friendly=False, load_async=False
+        )
+        with patch("src.widgets.publish_dialog.QMessageBox"):
+            dlg._on_publish()
+            self.assertTrue(_spin_until(lambda: dlg._publish_worker is None))
+        self.assertEqual(adapter.index.get("version"), 3)  # rolled back
+        self.assertEqual(adapter.expressions_version, 2)
+        adapter.release_report.assert_called()  # report rebuilt post-rollback
+        dlg.deleteLater()
+
 
 if __name__ == "__main__":
     unittest.main()

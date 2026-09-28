@@ -344,6 +344,14 @@ class PublishDialog(TurnaDialog):
             }
         self._set_publishing_busy(True)
 
+        # #21: snapshot the version fields so a failed save can roll the
+        # bump back — otherwise every retry bumped again on top and the
+        # planned-vs-applied numbers drifted apart.
+        self._version_snapshot = (
+            self.adapter.index.get("version"),
+            getattr(self.adapter, "expressions_version", None),
+        )
+
         def _do_publish() -> SaveResult:
             self.adapter.apply_version_bump(real_plan)
             return self.adapter.save()
@@ -355,6 +363,27 @@ class PublishDialog(TurnaDialog):
         worker.error_occurred.connect(self._on_publish_error)
         self._publish_worker = worker
         worker.start()
+
+    def _restore_version_snapshot(self) -> None:
+        """Undo the in-memory version bump after a failed publish (#21)."""
+        snap = getattr(self, "_version_snapshot", None)
+        if snap is None:
+            return
+        self._version_snapshot = None
+        old_index_v, old_expr_v = snap
+        try:
+            if old_index_v is not None:
+                self.adapter.index["version"] = old_index_v
+            if old_expr_v is not None:
+                self.adapter.expressions_version = old_expr_v
+        except Exception:
+            pass
+        # Rebuild the report so the planned bump matches the restored state.
+        try:
+            self._report = self.adapter.release_report()
+            self._render_report()
+        except Exception:
+            pass
 
     def _set_publishing_busy(self, busy: bool) -> None:
         self._publishing = busy
@@ -368,8 +397,10 @@ class PublishDialog(TurnaDialog):
         self._publish_worker = None
         if not result.ok:
             self._set_publishing_busy(False)
+            self._restore_version_snapshot()
             QMessageBox.critical(self, "发布失败", result.message)
             return
+        self._version_snapshot = None
         self._set_publishing_busy(False)
         QMessageBox.information(
             self,
@@ -382,6 +413,7 @@ class PublishDialog(TurnaDialog):
     def _on_publish_error(self, message: str) -> None:
         self._publish_worker = None
         self._set_publishing_busy(False)
+        self._restore_version_snapshot()
         QMessageBox.critical(self, "发布失败", message)
 
     def _on_export(self) -> None:
