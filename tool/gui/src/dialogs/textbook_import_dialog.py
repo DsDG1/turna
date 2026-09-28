@@ -76,6 +76,12 @@ class TextbookImportDialog(QDialog):
     sections_ready = Signal(list, str)  # (list[dict], strategy) - one section per kept chapter — one section per kept chapter
     # Ask the host (WorkshopWindow) to jump to the grounded design stage.
     design_requested = Signal()
+    # Embedded mode: the wizard pages live in the host canvas, not in
+    # ``_stack`` (WorkshopCanvas rips them out), so ``_go_to_step`` cannot
+    # switch anything itself. It emits the wizard step and the host translates
+    # it into its own stage switch; without this, the nav buttons inside the
+    # pages (下一步 / 返回审校 / error-recovery options) are dead.
+    step_switch_requested = Signal(int)
     # Status signals for the workshop's unified bottom bar (Phase B). The
     # built-in bottom bar can be hidden via ``set_bottom_bar_visible``.
     busy_changed = Signal(bool, str)  # (busy, stage text)
@@ -156,6 +162,12 @@ class TextbookImportDialog(QDialog):
     # ------------------------------------------------------------- step nav
 
     def _go_to_step(self, step: int) -> None:
+        if self._embedded:
+            # Pages were re-parented into the host canvas; flipping _stack
+            # would be a no-op. Hand the step to the host (stepper is hidden
+            # in embedded mode, so the label loop below is moot anyway).
+            self.step_switch_requested.emit(step)
+            return
         page = _PAGE_FOR_STEP.get(step, 0)
         self._stack.setCurrentIndex(page)
         secondary = current_palette()["text_secondary"]

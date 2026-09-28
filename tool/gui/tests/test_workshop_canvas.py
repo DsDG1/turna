@@ -152,8 +152,38 @@ class WorkshopCanvasTest(unittest.TestCase):
 
     def test_first_knowledge_rows_switch_to_knowledge_stage(self) -> None:
         self.ws.set_stage(STAGE_MATERIAL, force=True)
+        # rows_replaced (set_rows) alone must drive the jump — the old wiring
+        # listened only to rows_changed, which set_rows never emits.
         self.panel._review_table.set_rows([_row("w1", "merhaba")])
-        self.ws._on_rows_changed()
+        self.assertEqual(self.ws.current_stage(), STAGE_KNOWLEDGE)
+
+    def test_embedded_wizard_nav_switches_canvas_stages(self) -> None:
+        """#3: the pages' own nav buttons must not be dead in embedded mode."""
+        from src.dialogs.textbook_import.constants import (
+            STEP_CHAPTERS,
+            STEP_EXTRACT,
+            STEP_REVIEW,
+        )
+
+        # 「下一步：预览导入 ->」 (knowledge page) → 导入 stage.
+        self.ws.set_stage(STAGE_KNOWLEDGE, force=True)
+        self.panel._goto_import_preview()
+        self.assertEqual(self.ws.current_stage(), STAGE_IMPORT)
+
+        # 「<- 返回审校」 (import page) → 知识 stage.
+        self.panel._on_back_to_review_clicked()
+        self.assertEqual(self.ws.current_stage(), STAGE_KNOWLEDGE)
+
+        # Error-recovery option「返回勾选」 → 素材 stage.
+        self.panel._go_to_step(STEP_CHAPTERS)
+        self.assertEqual(self.ws.current_stage(), STAGE_MATERIAL)
+
+        # Extraction start jumps to the stage hosting the extract log.
+        self.panel._go_to_step(STEP_EXTRACT)
+        self.assertEqual(self.ws.current_stage(), STAGE_KNOWLEDGE)
+
+        # Same-stage translation is a valid no-op (no crash, stage unchanged).
+        self.panel._go_to_step(STEP_REVIEW)
         self.assertEqual(self.ws.current_stage(), STAGE_KNOWLEDGE)
 
     def test_draft_ready_switches_to_import_stage(self) -> None:

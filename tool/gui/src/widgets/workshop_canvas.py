@@ -31,6 +31,14 @@ from PySide6.QtWidgets import (
 
 from src.application.settings import APP_NAME, ORG_NAME
 from src.backend.grounded_stats import format_pool_summary
+from src.dialogs.textbook_import.constants import (
+    STEP_CHAPTERS,
+    STEP_EXTRACT,
+    STEP_IMPORT,
+    STEP_PARSE,
+    STEP_PICK,
+    STEP_REVIEW,
+)
 from src.theme import current_palette
 from src.theme_tokens import BRAND_TEAL
 from src.widgets.ai_orbit import AiOrbitWidget
@@ -62,6 +70,20 @@ _DROP_EVENTS = (
     QEvent.Type.DragMove,
     QEvent.Type.Drop,
 )
+
+#: Wizard step (``textbook_import.constants``) → canvas stage. The three
+#: wizard pages were re-parented out of ``TextbookImportDialog._stack`` into
+#: the canvas stages, so in-dialog step navigation must be translated here —
+#: the dialog emits ``step_switch_requested`` instead of flipping its (now
+#: empty) stack.
+_STAGE_FOR_STEP = {
+    STEP_PICK: STAGE_MATERIAL,
+    STEP_PARSE: STAGE_MATERIAL,
+    STEP_CHAPTERS: STAGE_MATERIAL,
+    STEP_EXTRACT: STAGE_KNOWLEDGE,
+    STEP_REVIEW: STAGE_KNOWLEDGE,
+    STEP_IMPORT: STAGE_IMPORT,
+}
 
 
 def _bubble_key(resource_type: str, entry: dict, chapter_index: int = -1) -> str:
@@ -323,12 +345,28 @@ class WorkshopCanvas(QWidget):
         self.orbit_widget.chat_requested.connect(self.focus_design_chat)
         self.orbit_widget.focus_changed.connect(self._update_focus_summary)
         self.import_panel._review_table.rows_changed.connect(self._on_rows_changed)
+        # set_rows (extraction landed / review repopulated) never emitted
+        # rows_changed, so the "first knowledge rows → jump to 知识" path was
+        # dead for its main scenario.
+        self.import_panel._review_table.rows_replaced.connect(self._on_rows_changed)
+        # Embedded wizard navigation: the dialog's own stack is empty (pages
+        # live here), so its step jumps arrive as signals to translate.
+        if hasattr(self.import_panel, "step_switch_requested"):
+            self.import_panel.step_switch_requested.connect(
+                self._on_import_step_requested
+            )
         self.design_panel.busy_changed.connect(self._on_design_busy)
         self.design_panel.draft_ready.connect(self._on_draft_ready)
         # 「查看大纲 →」 in the chat header jumps to the stage that owns the
         # outline; the panel must not know about stages.
         if hasattr(self.design_panel, "outline_requested"):
             self.design_panel.outline_requested.connect(self.focus_outline)
+
+    def _on_import_step_requested(self, step: int) -> None:
+        """Translate an embedded-wizard step jump into a stage switch."""
+        stage = _STAGE_FOR_STEP.get(step)
+        if stage is not None:
+            self.set_stage(stage)
 
     def _init_orbit_params(self) -> None:
         params = self.design_panel._controller.params
