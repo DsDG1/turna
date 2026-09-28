@@ -179,5 +179,54 @@ class DispatchFunnelTest(unittest.TestCase):
         self.assertEqual(args[1].get("first_lesson_id"), "l1")
 
 
+class CircuitBreakerNoticeTest(unittest.TestCase):
+    """T12: a tripped breaker must say so, even in opaque mode."""
+
+    def _dispatch_with_breaker_open(self, *, opaque: bool) -> list[str]:
+        from src.application.settings import Settings
+        from src.backend.experience.circuit_breaker import get_circuit_breaker
+        from src.backend.experience.policy import resolve_policy
+
+        cb = get_circuit_breaker()
+        cb.reset()
+        # Trip it for the action under test.
+        for _ in range(4):
+            cb.record_failure("lesson.fill_empty", "boom")
+
+        settings = Settings()
+        settings.experience_mode = "immersive" if opaque else "copilot"
+        policy = resolve_policy(settings, action_id="lesson.fill_empty")
+        self.assertEqual(bool(policy.runtime_opaque), opaque)
+
+        host = _FakeHost()
+        host._resolve_experience_policy = (  # type: ignore[method-assign]
+            lambda **_kw: policy
+        )
+        with mock.patch(
+            "src.backend.experience.auto_apply.is_auto_apply_allowed",
+            return_value=True,
+        ):
+            dispatch_experience_action(host, {"action_id": "lesson.fill_empty"})
+        cb.reset()
+        return list(host._bar.messages)
+
+    def test_opaque_mode_still_reports_the_pause(self) -> None:
+        messages = self._dispatch_with_breaker_open(opaque=True)
+        self.assertTrue(
+            any("已暂停" in m for m in messages),
+            f"opaque mode went silent; saw {messages}",
+        )
+
+    def test_opaque_message_does_not_leak_breaker_internals(self) -> None:
+        messages = self._dispatch_with_breaker_open(opaque=True)
+        for m in messages:
+            self.assertNotIn("circuit", m.lower())
+            self.assertNotIn("failure", m.lower())
+
+    def test_non_opaque_mode_keeps_the_reason(self) -> None:
+        messages = self._dispatch_with_breaker_open(opaque=False)
+        self.assertTrue(any("熔断" in m for m in messages), f"saw {messages}")
+
+
 if __name__ == "__main__":
     unittest.main()

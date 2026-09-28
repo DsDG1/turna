@@ -6,16 +6,21 @@ sub-switches, and the feature gates that policy deny-messages point at
 """
 from __future__ import annotations
 
+import logging
+
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QFormLayout,
     QGroupBox,
     QLabel,
+    QPushButton,
     QSpinBox,
     QVBoxLayout,
     QWidget,
 )
+
+logger = logging.getLogger(__name__)
 
 # Display labels paired with policy mode ids (presence_level 0–3).
 EXPERIENCE_MODE_ITEMS: tuple[tuple[str, str], ...] = (
@@ -124,5 +129,35 @@ def build_experience_tab(dlg) -> QWidget:
     memory_form.addRow(dlg.experience_memory_author_check)
     layout.addWidget(memory_group)
 
+    # T12: after several AI failures the breaker opens and auto-apply stops
+    # for a minute. There was no way to clear it early — the user had to
+    # wait out the timeout with no idea why nothing was happening.
+    breaker_group = QGroupBox("AI 自动应用熔断器")
+    breaker_form = QFormLayout(breaker_group)
+    breaker_form.setSpacing(10)
+    dlg.experience_reset_breaker_btn = QPushButton("重置熔断器")
+    dlg.experience_reset_breaker_btn.setToolTip(
+        "连续失败会自动暂停 AI 自动应用（约 1 分钟后自动恢复）。\n"
+        "如果已经修好了问题，可以在这里立即恢复，不必等待。"
+    )
+    dlg.experience_reset_breaker_btn.clicked.connect(_on_reset_breaker)
+    breaker_form.addRow(dlg.experience_reset_breaker_btn)
+    layout.addWidget(breaker_group)
+
     layout.addStretch(1)
     return tab
+
+
+def _on_reset_breaker() -> None:
+    """T12: wire the already-exported manual reset to a button."""
+    from src.backend.experience.circuit_breaker import get_circuit_breaker
+
+    try:
+        get_circuit_breaker().reset()
+    except Exception:  # pragma: no cover - reset() already swallows internally
+        logger.warning("settings/experience_tab.py:reset breaker failed", exc_info=True)
+    from PySide6.QtWidgets import QMessageBox
+
+    QMessageBox.information(
+        None, "重置熔断器", "熔断器已重置，AI 自动应用已恢复。"
+    )

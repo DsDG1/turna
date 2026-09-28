@@ -170,11 +170,18 @@ def dispatch_experience_action(host: ExperienceHost, suggestion: dict) -> None:
                     cb_reason,
                 )
                 opaque_candidate = bool(getattr(policy, "runtime_opaque", False))
-                if not opaque_candidate:
-                    try:
-                        host.statusBar().showMessage(cb_reason[:240], 6000)
-                    except Exception:
-                        logger.warning("application/experience_dispatch.py: cb status failed", exc_info=True)
+                if opaque_candidate:
+                    # T12: opaque mode went completely silent here, so a
+                    # tripped breaker looked exactly like "no suggestions".
+                    # Say that auto-apply is paused, without leaking the
+                    # breaker internals the opaque mode exists to hide.
+                    message = "AI 自动应用已暂停（稍后自动恢复）"
+                else:
+                    message = cb_reason[:240]
+                try:
+                    host.statusBar().showMessage(message, 6000)
+                except Exception:
+                    logger.warning("application/experience_dispatch.py: cb status failed", exc_info=True)
 
         opaque = bool(getattr(policy, "runtime_opaque", False)) and auto
         if auto:
