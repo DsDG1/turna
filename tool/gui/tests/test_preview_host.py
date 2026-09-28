@@ -189,5 +189,69 @@ class ItemChipHelperTest(unittest.TestCase):
         self.assertIsNone(find_main_attr(grand, "no_such"))
 
 
+class ShortcutScopeTest(unittest.TestCase):
+    """T13: Enter/Esc are strip-scoped and offers never steal focus."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        qt_app()
+
+    def test_shortcuts_use_widget_with_children_context(self) -> None:
+        from PySide6.QtCore import Qt
+
+        from src.widgets.preview_host import PreviewHost
+
+        host = PreviewHost()
+        for sc in (host._enter_sc, host._enter_sc2, host._esc_sc):
+            self.assertEqual(
+                sc.shortcutContext, Qt.ShortcutContext.WidgetWithChildrenShortcut
+            )
+
+    def test_offer_does_not_steal_focus(self) -> None:
+        from PySide6.QtWidgets import QApplication, QLineEdit, QWidget
+
+        from src.widgets.preview_host import PreviewHost
+
+        win = QWidget()
+        win.show()
+        edit = QLineEdit(win)
+        win.layout() if False else None
+        edit.show()
+        edit.setFocus()
+        QApplication.processEvents()
+        self.assertIs(QApplication.focusWidget(), edit)
+
+        host = PreviewHost(win)
+        host.offer(title="t", summary="s", apply_fn=lambda: None)
+        QApplication.processEvents()
+        # The offer landed pending but the cursor stayed in the line edit.
+        self.assertIs(QApplication.focusWidget(), edit)
+        win.hide()
+
+    def test_clicking_strip_focuses_apply_button(self) -> None:
+        from PySide6.QtCore import QEvent, QPointF, Qt
+        from PySide6.QtGui import QMouseEvent
+        from PySide6.QtWidgets import QApplication
+
+        from src.widgets.preview_host import PreviewHost
+
+        host = PreviewHost()
+        host.offer(title="t", summary="s", apply_fn=lambda: None)
+        host.show()
+        host.mousePressEvent(
+            QMouseEvent(
+                QEvent.Type.MouseButtonPress,
+                QPointF(1, 1),
+                QPointF(1, 1),
+                Qt.MouseButton.LeftButton,
+                Qt.MouseButton.LeftButton,
+                Qt.KeyboardModifier.NoModifier,
+            )
+        )
+        QApplication.processEvents()
+        self.assertIs(QApplication.focusWidget(), host._apply_btn)
+        host.hide()
+
+
 if __name__ == "__main__":
     unittest.main()

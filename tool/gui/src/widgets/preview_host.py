@@ -109,10 +109,16 @@ class PreviewHost(QWidget):
         self._discard_fn: Callable[[], None] | None = None
         self._busy = False
 
-        # Shortcuts only active while visible (enabled in offer/clear).
+        # Shortcuts only active while visible (enabled in offer/clear) AND
+        # strip-scoped (T13): WindowShortcut would fire Enter/Esc anywhere in
+        # the window — including while the user types in a chat/edit field —
+        # silently applying or discarding the pending AI action.
+        sc_ctx = Qt.ShortcutContext.WidgetWithChildrenShortcut
         self._enter_sc = QShortcut(QKeySequence(Qt.Key.Key_Return), self)
         self._enter_sc2 = QShortcut(QKeySequence(Qt.Key.Key_Enter), self)
         self._esc_sc = QShortcut(QKeySequence(Qt.Key.Key_Escape), self)
+        for sc in (self._enter_sc, self._enter_sc2, self._esc_sc):
+            sc.shortcutContext = sc_ctx
         self._enter_sc.activated.connect(self._on_apply)
         self._enter_sc2.activated.connect(self._on_apply)
         self._esc_sc.activated.connect(self._on_discard)
@@ -211,7 +217,16 @@ class PreviewHost(QWidget):
         self._set_details(details)
         self.setVisible(True)
         self._set_shortcuts_enabled(True)
-        self._apply_btn.setFocus(Qt.FocusReason.OtherFocusReason)
+        # No setFocus here (T13): grabbing focus on every offer yanked the
+        # cursor out of whatever the user was typing. Focus — and with it the
+        # strip-scoped Enter/Esc — arrives when the user clicks the strip.
+
+    def mousePressEvent(self, event) -> None:
+        # Clicking anywhere on the strip moves focus onto the apply button so
+        # the strip-scoped shortcuts activate for the keyboard user.
+        if self._apply_btn.isEnabled():
+            self._apply_btn.setFocus(Qt.FocusReason.MouseFocusReason)
+        super().mousePressEvent(event)
 
     def _note_auto_result(
         self,
