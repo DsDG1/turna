@@ -57,7 +57,9 @@ class BulkMergeResolveDialog(QDialog):
         self.resize(720, 420)
         self._plans = list(plans)
         # Per-row resolution: the plan to apply (possibly tuned) or None (skip).
-        self._decisions: list[SectionMergePlan | None] = list(plans)
+        # T8: default SKIP per row — a merge overwrites same-named units
+        # (including hand edits), so it must be an explicit choice.
+        self._decisions: list[SectionMergePlan | None] = [None] * len(plans)
         self._tuned: set[int] = set()
         # detail_opener(plan) -> SectionMergePlan | None; defaults to the
         # interactive AiMergePreviewDialog. Injected in tests.
@@ -81,7 +83,8 @@ class BulkMergeResolveDialog(QDialog):
         layout.addWidget(
             QLabel(
                 f"本次导入有 {len(self._plans)} 个 section 与现有课程冲突。"
-                "逐行选择处理方式，或「细看」微调合并内容。"
+                "默认跳过（保留现状）；「合并」会覆盖同名单元的现有内容"
+                "（含手工编辑）；「细看」可逐项勾选要覆盖的内容。"
             )
         )
 
@@ -102,8 +105,8 @@ class BulkMergeResolveDialog(QDialog):
             self._table.setItem(row, 2, QTableWidgetItem(str(added)))
             self._table.setItem(row, 3, QTableWidgetItem(str(replaced)))
             combo = QComboBox()
-            combo.addItem("合并（默认全选）", _MERGE)
             combo.addItem("跳过", _SKIP)
+            combo.addItem("合并（覆盖同名单元）", _MERGE)
             combo.addItem("细看…", _DETAIL)
             combo.setProperty("row_idx", row)
             combo.currentIndexChanged.connect(self._on_combo_index_changed)
@@ -149,16 +152,16 @@ class BulkMergeResolveDialog(QDialog):
         if action == _DETAIL:
             tuned = self._detail_opener(self._plans[row])
             if tuned is None:
-                # Detail dialog cancelled → fall back to plain merge.
-                self._decisions[row] = self._plans[row]
+                # Detail dialog cancelled → keep the safe default (skip).
+                self._decisions[row] = None
                 self._tuned.discard(row)
                 combo.blockSignals(True)
-                combo.setCurrentIndex(0)
+                combo.setCurrentIndex(combo.findData(_SKIP))
                 combo.blockSignals(False)
             else:
                 self._decisions[row] = tuned
                 self._tuned.add(row)
-                combo.setItemText(2, "已自定义 ✓")
+                combo.setItemText(combo.findData(_DETAIL), "已自定义 ✓")
             return
         self._tuned.discard(row)
         self._decisions[row] = self._plans[row] if action == _MERGE else None
@@ -166,7 +169,7 @@ class BulkMergeResolveDialog(QDialog):
     def _set_all(self, action: str) -> None:
         for row, combo in enumerate(self._combos):
             combo.blockSignals(True)
-            combo.setCurrentIndex(0 if action == _MERGE else 1)
+            combo.setCurrentIndex(combo.findData(action))
             combo.blockSignals(False)
             self._tuned.discard(row)
             self._decisions[row] = self._plans[row] if action == _MERGE else None

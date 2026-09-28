@@ -24,6 +24,10 @@ class MergeAction:
     action: str
     incoming: dict[str, Any]
     target_index: int | None = None
+    #: The existing unit/lesson this action replaces (None for additions).
+    #: T8: the merge previews show both sides — without this the dialog can
+    #: only see the incoming content it is about to overwrite.
+    existing: dict[str, Any] | None = None
 
 
 @dataclass
@@ -258,6 +262,9 @@ class CourseSectionMergeService:
                         action="replace",
                         incoming=unit,
                         target_index=target_unit_index[uid],
+                        existing=(target_section.get("units") or [])[
+                            target_unit_index[uid]
+                        ],
                     )
                 )
                 cls.plan_lesson_merge(plan, uid, unit, target_section)
@@ -303,6 +310,9 @@ class CourseSectionMergeService:
                         action="replace",
                         incoming=lesson,
                         target_index=target_lesson_index[lid],
+                        existing=(target_unit.get("lessons") or [])[
+                            target_lesson_index[lid]
+                        ],
                     )
                 )
             else:

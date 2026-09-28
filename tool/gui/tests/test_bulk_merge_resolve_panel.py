@@ -1,4 +1,4 @@
-"""Tests for BulkMergeResolveDialog (connectplan D7 / P1-2)."""
+"""Tests for BulkMergeResolveDialog (connectplan D7 / P1-2, T8 defaults)."""
 from __future__ import annotations
 
 import os
@@ -41,18 +41,20 @@ class BulkMergeResolveDialogTest(unittest.TestCase):
         self.assertEqual(dlg._table.item(0, 3).text(), "2")
         dlg.deleteLater()
 
-    def test_default_decisions_merge_all(self) -> None:
+    def test_default_decisions_skip_all(self) -> None:
+        """T8: merging overwrites same-named units — it must be opt-in."""
         dlg = BulkMergeResolveDialog(self.plans)
-        decisions = dlg.decisions()
-        self.assertEqual(decisions, self.plans)
+        self.assertEqual(dlg.decisions(), [None, None])
+        self.assertEqual(dlg._combos[0].currentText(), "跳过")
+        self.assertIn("覆盖同名单元", dlg._combos[0].itemText(1))
         dlg.deleteLater()
 
-    def test_skip_one_row(self) -> None:
+    def test_merge_one_row_opt_in(self) -> None:
         dlg = BulkMergeResolveDialog(self.plans)
-        dlg._combos[0].setCurrentIndex(1)  # 跳过
+        dlg._combos[0].setCurrentIndex(1)  # 合并（覆盖同名单元）
         decisions = dlg.decisions()
-        self.assertIsNone(decisions[0])
-        self.assertEqual(decisions[1], self.plans[1])
+        self.assertEqual(decisions[0], self.plans[0])
+        self.assertIsNone(decisions[1])
         dlg.deleteLater()
 
     def test_skip_all_button(self) -> None:
@@ -74,16 +76,19 @@ class BulkMergeResolveDialogTest(unittest.TestCase):
         decisions = dlg.decisions()
         self.assertIs(decisions[0], tuned)
         self.assertEqual(decisions[0].replaced_units, [])
-        self.assertEqual(dlg._combos[0].itemText(2), "已自定义 ✓")
+        self.assertEqual(
+            dlg._combos[0].itemText(dlg._combos[0].findData("detail")),
+            "已自定义 ✓",
+        )
         dlg.deleteLater()
 
-    def test_detail_cancel_falls_back_to_merge(self) -> None:
+    def test_detail_cancel_keeps_skip_default(self) -> None:
+        """T8: cancelling 细看 falls back to the safe default (skip)."""
         dlg = BulkMergeResolveDialog(self.plans, detail_opener=lambda _plan: None)
         dlg._combos[0].setCurrentIndex(2)  # 细看… → cancelled
         decisions = dlg.decisions()
-        self.assertEqual(decisions[0], self.plans[0])
-        # Combo bounced back to the plain merge entry.
-        self.assertEqual(dlg._combos[0].currentIndex(), 0)
+        self.assertIsNone(decisions[0])
+        self.assertEqual(dlg._combos[0].currentText(), "跳过")
         dlg.deleteLater()
 
 

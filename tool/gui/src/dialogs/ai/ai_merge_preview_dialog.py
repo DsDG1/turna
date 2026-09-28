@@ -31,6 +31,10 @@ class AiMergePreviewDialog(QDialog):
         self.resize(560, 480)
         self._plan = plan
         self._item_to_action: dict[int, MergeAction] = {}
+        # T8: original action per checkable item, so re-checking a unit can
+        # restore its child lessons (uncheck cascades skip, recheck restores).
+        self._item_original_action: dict[int, str] = {}
+        self._suppress_item_changed = False
         self._build_ui()
         self._populate_tree()
         self._update_summary()
@@ -43,7 +47,8 @@ class AiMergePreviewDialog(QDialog):
         layout.addWidget(
             QLabel(
                 "AI 返回的 section 与现有课程存在 id 重叠。"
-                "默认会覆盖重叠的 unit/lesson，您可取消勾选以跳过某项。"
+                "重叠项默认跳过以保护现有内容（含手工编辑）；"
+                "勾选「覆盖」行才会用 AI 内容替换。"
             )
         )
 
@@ -66,6 +71,44 @@ class AiMergePreviewDialog(QDialog):
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
 
+    @staticmethod
+    def _existing_lesson_item_count(lesson: dict | None) -> int:
+        if not isinstance(lesson, dict):
+            return 0
+        content = lesson.get("content") or {}
+        n = 0
+        for stage in content.get("stages") or []:
+            n += len(stage.get("items") or [])
+        for sub in content.get("subLessons") or []:
+            for stage in sub.get("stages") or []:
+                n += len(stage.get("items") or [])
+        return n
+
+    def _existing_unit_tooltip(self, action: MergeAction) -> str:
+        existing = action.existing
+        if not isinstance(existing, dict):
+            return "将覆盖现有单元（含手工编辑）"
+        lessons = [
+            str(lesson.get("name") or lesson.get("id") or "")
+            for lesson in (existing.get("lessons") or [])
+            if isinstance(lesson, dict)
+        ]
+        head = "、".join(lessons[:8])
+        more = f" 等 {len(lessons)} 个" if len(lessons) > 8 else ""
+        return (
+            f"将覆盖现有 {len(lessons)} 个课时（含手工编辑）：{head}{more}"
+            if lessons
+            else "将覆盖现有单元（当前无课时）"
+        )
+
+    def _existing_lesson_tooltip(self, action: MergeAction) -> str:
+        existing = action.existing
+        if not isinstance(existing, dict):
+            return "将覆盖现有课时（含手工编辑）"
+        name = str(existing.get("name") or existing.get("id") or "")
+        n = self._existing_lesson_item_count(existing)
+        return f"将覆盖现有课时「{name}」（{n} 项交互，含手工编辑）"
+
     def _populate_tree(self) -> None:
         incoming = self._plan.incoming_section
         sid = self._plan.target_section_id or incoming.get("id", "")
@@ -73,7 +116,7 @@ class AiMergePreviewDialog(QDialog):
         root = QTreeWidgetItem(self.tree, [f"Section: {section_name} ({sid})", ""])
         root.setFlags(root.flags() & ~Qt.ItemFlag.ItemIsSelectable)
 
-        # Replaced units (existing ones that will be overwritten).
+        # Replaced units (existing ones that can be overwritten).
         for action in self._plan.replaced_units:
             unit = action.incoming
             uid = unit.get("id", "")
@@ -84,8 +127,12 @@ class AiMergePreviewDialog(QDialog):
                 | Qt.ItemFlag.ItemIsUserCheckable
                 | Qt.ItemFlag.ItemIsEnabled
             )
-            item.setCheckState(0, Qt.CheckState.Checked)
+            # T8: default OFF — overwriting must be an explicit choice.
+            action.action = "skip"
+            item.setCheckState(0, Qt.CheckState.Unchecked)
+            item.setToolTip(0, self._existing_unit_tooltip(action))
             self._item_to_action[id(item)] = action
+            self._item_original_action[id(item)] = "replace"
 
             replaced_lessons = self._plan.replaced_lessons_by_unit.get(uid, [])
             added_lessons = self._plan.added_lessons_by_unit.get(uid, [])
@@ -102,12 +149,16 @@ class AiMergePreviewDialog(QDialog):
                         | Qt.ItemFlag.ItemIsUserCheckable
                         | Qt.ItemFlag.ItemIsEnabled
                     )
-                    child.setCheckState(0, Qt.CheckState.Checked)
+                    lesson_action.action = "skip"
+                    child.setCheckState(0, Qt.CheckState.Unchecked)
+                    child.setToolTip(0, self._existing_lesson_tooltip(lesson_action))
+                    self._item_original_action[id(child)] = "replace"
                 else:
                     child = QTreeWidgetItem(
                         item, [f"Lesson: {lname} ({lid})", "新增"]
                     )
                     child.setFlags(child.flags() & ~Qt.ItemFlag.ItemIsSelectable)
+                    self._item_original_action[id(child)] = "add"
                 self._item_to_action[id(child)] = lesson_action
 
         # Added units (new ones appended at the end).
@@ -117,12 +168,13 @@ class AiMergePreviewDialog(QDialog):
             name = unit.get("name", uid)
             item = QTreeWidgetItem(root, [f"Unit: {name} ({uid})", "新增"])
             item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsSelectable)
+            item.setToolTip(0, "新增单元，不影响现有内容")
             self._item_to_action[id(item)] = action
 
         root.setExpanded(True)
 
     def _on_item_changed(self, item: QTreeWidgetItem, column: int) -> None:
-        if column != 0:
+        if column != 0 or self._suppress_item_changed:
             return
         action = self._item_to_action.get(id(item))
         if action is None:
@@ -130,15 +182,31 @@ class AiMergePreviewDialog(QDialog):
         checked = item.checkState(0) == Qt.CheckState.Checked
         action.action = "replace" if checked else "skip"
 
-        # If a unit is unchecked, skip its child lesson actions as well.
-        if action.kind == "unit" and action.action == "skip":
-            for i in range(item.childCount()):
-                child = item.child(i)
-                child_action = self._item_to_action.get(id(child))
-                if child_action is not None:
-                    child_action.action = "skip"
+        if action.kind == "unit":
+            # Unchecking cascades skip to the children; re-checking restores
+            # each child to its original action (T8: the old code skipped
+            # them forever once the unit had been unchecked).
+            self._suppress_item_changed = True
+            try:
+                for i in range(item.childCount()):
+                    child = item.child(i)
+                    child_action = self._item_to_action.get(id(child))
+                    if child_action is None:
+                        continue
+                    child_action.action = (
+                        self._item_original_action.get(id(child), "replace")
+                        if checked
+                        else "skip"
+                    )
                     if child.flags() & Qt.ItemFlag.ItemIsUserCheckable:
-                        child.setCheckState(0, Qt.CheckState.Unchecked)
+                        child.setCheckState(
+                            0,
+                            Qt.CheckState.Checked
+                            if checked
+                            else Qt.CheckState.Unchecked,
+                        )
+            finally:
+                self._suppress_item_changed = False
         self._update_summary()
 
     def _update_summary(self) -> None:
