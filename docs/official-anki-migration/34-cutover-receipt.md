@@ -1,7 +1,7 @@
 # 34 — Cutover receipt（W8–W10 收口摘要）
 
-> 日期：2026-08-25（一次性施工 host 收口后更新；2026-09-24 架构简化计划 P0–P4 施工后补充下方「架构简化批次」）
-> 状态：**验收 NO-GO；Official Anki 迁移中**（host/自动化门禁全绿、工作树生产候选已形成；真机矩阵与外部事实未验收。不得写「迁移完成」）
+> 日期：2026-08-25（一次性施工 host 收口后更新；2026-09-24 架构简化计划 P0–P4 施工后补充下方「架构简化批次」；2026-09-27 补记 iOS 启用与真机证据台账、订正 Held 表）
+> 状态：**验收 NO-GO；Official Anki 迁移中**（host/自动化门禁全绿、**Android 写侧与 iOS 导入链各有一次真机/模拟器证据**；生产 bundle 全链路与外部事实未验收。不得写「迁移完成」，不得写「Android 可正常使用」）
 > 计划真源：[`34-official-anki-production-cutover-and-ohos-retirement-plan.md`](./34-official-anki-production-cutover-and-ohos-retirement-plan.md)
 > 剩余波次：[`34-remaining-construction-plan.md`](./archive/34-remaining-construction-plan.md)（已归档，R0–R8 全部闭环）
 > W9 HOLD 解除记录与证据台账：见本收据「W9 HOLD 解除记录与证据台账（2026-08-27）」一节（原独立文件 `34-w9-legacy-deletion-hold.md` 已于 2026-09-27 并入该节并删除）
@@ -35,6 +35,86 @@
   卸载）与 Android 样本包流程——无设备会话，不以 widget test 替代（plan 34 §4.4）。
   真机基线测量（冷启动/课程切换/大卡组浏览）随 P4 埋点就绪，待设备执行。
 
+
+## iOS 官方 Anki 栈启用（2026-09-26，PR #7 `ec0170ae`）
+
+> 本节为 2026-09-27 补记：iOS 启用与模拟器 E2E 当时只进了
+> `test/BASELINE.md` 2026-09-26「iOS 官方 Anki 栈接通」条目与本目录
+> `README.md`，本收据未同步，导致「唯一状态源」比实际落后一个批次。
+> 本节补齐后，Held 表的「无设备会话」表述同步订正（见下）。
+
+- **范围**：首发平台由 Android 单平台扩为 **Android arm64 + iOS**。iOS 走
+  与 Android 同一条 Official 生产路径——`productModeFor('ios')` →
+  `AnkiProductMode.officialAndroid`，`AnkiImportExecutionPlanner` 对两平台
+  返回同一 `officialFirst`（`test/application/anki_official/
+  anki_import_execution_plan_test.dart` 的 ios 用例即此约束的守卫）。
+- **native 形态差异**：Android 打包 `libturna_anki.so`（dlopen 探针）；iOS
+  静态链接 rslib（`turna_anki_core` 加 `staticlib` → `build-ios/build.sh` →
+  `ios/Frameworks/TurnaAnki.xcframework`，产物**不入库**），探针改为查进程
+  符号表（`DynamicLibrary.process()` 找 `turna_anki_abi_version`）。
+- **复习器**：iOS 为 WKWebView（`ios/Runner/AnkiReviewer/`），与 Android
+  MethodChannel/JS 协议对齐，`WKURLSchemeHandler` 服务
+  `turna-anki://anki.local` 提供渲染资产与媒体 Range/206。
+- **验证**：`flutter build ios --simulator --no-codesign` 链接通过、7 个
+  `turna_anki_*` 符号确认进 `Runner.debug.dylib`；**iPhone 17 模拟器
+  （iOS 26.5）E2E：真 .apkg 导入完成、复习器 Q→A 渲染通过**。该次 E2E
+  实测暴露并修掉 2 个真运行时 bug（`jsString` 缺 `.fragmentsAllowed` 致崩、
+  scheme 响应缺 `Content-Type` 触发 FrameLoadInterrupted）——即「模拟器
+  跑通」本身是这两次修复的产物，不是既有代码的既有能力。
+- **全量计数**：`flutter test` 1938 passed / 2 failed（2 例为 HEAD 既有的
+  `course_tree` golden 本机失配，非本批回归）。
+
+---
+
+## 真机 / 模拟器证据台账（截至 2026-09-27）
+
+> 订正记录：本收据早期版本与 Held 表长期写「host 门禁全绿但**无设备会话**」。
+> 该表述**已过期**——设备会话发生过两次。逐条如实登记，并标明各自覆盖与
+> 未覆盖的范围，避免用「跑通过」推出「可正常使用」。
+
+| 日期 | 平台 / 形态 | 覆盖 | **未覆盖** | 锚点 |
+|---|---|---|---|---|
+| 2026-09-02 | Android **真机** PLG110，**debug 构建 + v2 flag define** | 写侧链路：导入→账本→视图→删除收敛。硬性能：10 万卡 commit 3.5s、视图重建 2.8s、强杀零数据损伤 | ①**生产 bundle** 未验；②同夜发现 **F6 阻断最基本用户流**（课程树只有一个课 →「无法加载课程」），F6 已修但**修后无真机复跑记录** | `docs/ankiUpdate/v2-first-device-findings.md`（2026-09-02「真机首夜发现分析」） |
+| 2026-09-26 | iOS **模拟器** iPhone 17 / iOS 26.5 | 真 .apkg 导入完成 + 复习器 Q→A 渲染 | ①非真机（模拟器）；②未覆盖升级安装 / 备份恢复 / 强杀恢复；③**Android 生产 bundle 仍未验** | `test/BASELINE.md` 2026-09-26「iOS 官方 Anki 栈接通」条目 |
+
+### 关于「Android 可正常使用」的准确口径
+
+**不得写「Android 可正常使用」。** 当前证据只支持下面这句：
+
+> Android **写侧**（导入→账本→视图→删除收敛）曾于 2026-09-02 在真机
+> PLG110 上以 debug 构建证明成立；同夜暴露的 F6（进课时「无法加载课程」）
+> 已在代码层修复（`lib/application/lesson_viewmodel.dart` 接入
+> `OfficialAnkiV2LessonContent.lessonFor()`，有
+> `test/application/anki_official/v2/official_anki_v2_lesson_content_test.dart`
+> 覆盖），但 **F6 修复后未在任何 Android 设备上复跑**，Android **生产
+> bundle** 的完整用户流同样未验。
+
+要合法改写为「可用」，缺的是**一次 arm64 Android 设备上、生产 bundle 的
+完整用户流冒烟**：装包 → 导入真 .apkg → 打开课程 → 进入至少一个课时并完成
+→ 正式复习答一张。ADR 0044「风险与纪律」已把这条立为唯一完成判据：host
+测试、logcat、诊断导出、bugreport **均不构成完成，也不是推进条件**。
+
+---
+
+## 两项固有限制：仍无显式决策（2026-09-27 核对）
+
+> 出处：`docs/ankiUpdate/v2-first-device-findings.md`（2026-09-02）「二、
+> 三项固有限制」——原文定性为「修 bug 消不掉，需要显式决策」。
+> 2026-09-27 全库核对（`docs/**/*.md` 搜 `限制①/限制②/来源所有权/概率收敛`）
+> 结果：**该发现文档自身是唯一命中**，无任何 ADR 或收据章节记录决策结果。
+> 即下表两项**至今开放**，不得默认按「已接受现状」处理。
+
+| # | 限制 | 现状（代码实读） | 待决策 |
+|---|---|---|---|
+| ① | 引擎生命周期耦合 | 视图收敛、决策写入、物理删除、GC 全部排队等引擎打开（引擎懒开，仅 due sync / 复习 / 导入时开）。9-02 实证：10 万卡物理删除在账本 retiring 后**等了数小时**，直到用户下一次导入碰巧开引擎才执行 | 二选一：启动时见 v2 active 源即主动开引擎（收敛变保证）／ 接受概率收敛并写入设计文档（含用户可见后果） |
+| ② | 共享 collection 上的来源所有权 | 数据面已齐：`OfficialAnkiImportLog` 含 `newNoteIds`/`duplicateNoteIds`/`conflictingNoteIds`。**策略面缺失**——`conflictingNoteIds` 全库**无人消费**，`OfficialAnkiV2ImportService.commit` 只读 `newNoteIds` 与 `duplicateNoteIds` 两个计数 | 定一条重导 / 同 GUID 策略（拒绝 + 明确 UI，或所有权转移规则），写进 ADR |
+
+**限制③（双代并存）已消解**：v1 已整体退役——`lib/**/*.dart` 内
+`v2ImportChain` 0 处、`IAnkiNoteStore` / `AnkiNoteDao` / `legacyMirror`
+0 处（2026-09-27 全库计数核验）。**F6（课时正文装载）已修**，
+回归由 `official_anki_v2_lesson_content_test.dart` 承担。
+
+---
 
 ## Done（本收口有仓库证据）
 
@@ -143,15 +223,21 @@ W9-A 含义是：**停住 Legacy 新写入口的产品选择**，不是物理删
 ## Held（不得在本会话勾选完成）
 
 > 2026-08-25 更新：原 Held 表中 Course scope、正式复习保真、Review All、六集合 due、W8 owner cutover、Browser/Stats 入口、Android 迁移包导入七项的 host 侧实现已由一次性施工关闭（见上表）；下表为**仍 Held** 的项。
+>
+> **2026-09-27 订正**：原「release 真机矩阵」行写「host 门禁全绿但**无设备会话**」——该表述**已过期**。设备会话发生过两次（2026-09-02 Android 真机 PLG110、2026-09-26 iPhone 17 模拟器），各自覆盖与未覆盖范围见上方「真机 / 模拟器证据台账」。两次会话**均不覆盖** release 矩阵，故该行仍 Held，但原因由「无会话」订正为「会话范围不足」。
 
 | 项 | 原因 |
 |---|---|
 | 一个正式 release 观察（G5） | 未发生；2026-08-27 负责人决策按豁免处理（非证据齐备，见 HOLD 解除记录） |
 | W9-B..E Legacy 物理删除 / schema drop | host 侧已由 2026-09-24 架构简化批次完成（读退役 + v27 表删除，见上方批次记录）；**W9-E 的「先停写一个版本再 drop」硬规则未满足即执行，破例已记档**（见本收据「W9-E 破例记录」）；真机验证仍随设备矩阵 |
 | §19「Legacy importer/scheduler/schema 按 W9 分波删除」 | 显式未勾选 |
-| 全量设备/release 真机闭环证明 | 本会话未伪造设备证据 |
+| 全量设备/release 真机闭环证明 | 已有两次设备会话（2026-09-02 Android 真机 / 2026-09-26 iOS 模拟器），但均不覆盖 release 矩阵；本会话未伪造设备证据 |
+| **Android 生产 bundle 完整用户流冒烟** | **2026-09-27 新增。** 9-02 PLG110 只验了 debug 构建的**写侧**，且同夜 F6 阻断「进一个课时」；F6 修后未复跑、生产 bundle 未验。缺：装包 → 导入真 .apkg → 开课程 → 进至少一个课时并完成 → 正式复习答一张 |
+| **iOS 真机（非模拟器）验证** | **2026-09-27 新增。** 现有 iOS 证据为 iPhone 17 模拟器 E2E；模拟器不替代真机验收 |
+| **限制① 引擎生命周期耦合 · 显式决策** | **2026-09-27 新增。** 收敛时机仍为概率性（9-02 实证 10 万卡删除等了数小时），既无「启动即开引擎」策略，也无「接受概率收敛」的设计文档 |
+| **限制② 共享 collection 来源所有权 · 显式决策** | **2026-09-27 新增。** `conflictingNoteIds` 全库无人消费，v2 提交只读 new/duplicate 两计数；重导 / 同 GUID 策略缺失 |
 | OHOS 用户完成数据出口 | 导出器/导入器均已落地（Android 导入入口可用）；外部事实未发生：无 sunset 真机、无书面豁免（R7-1 二选一未决） |
-| release 真机矩阵（干净安装 / 升级安装 / 迁移包） | host 门禁全绿但无设备会话；不以 widget test 替代（plan 34 §4.4） |
+| release 真机矩阵（干净安装 / 升级安装 / 迁移包） | 两次已有会话均未覆盖（9-02 未验安装形态，9-26 为模拟器）；host 门禁全绿不能替代（ADR 0044：logcat / 诊断导出 / bugreport 均不构成完成） |
 | 真机 reimport / Browser/Stats/Media / 强杀恢复验证 | 同上，待设备矩阵 |
 | 存量用户跑批 / owner 切换 | W8 driver 可入队 `cleanLegacy`；未对真实用户库执行 |
 | OHOS 树物理删除 | 已完成（`ohos/` absent）；历史 archive 保留 |
@@ -164,4 +250,4 @@ A fat multi-ABI APK without matching `.so` is forbidden (fail-closed, never Lega
 
 ## Accurate status line
 
-> 验收 NO-GO；Official Anki 迁移中：一次性代码收口（R0–R8 host 侧）已完成并全绿（analyze 0 issue / 全量 1852:0 / golden 4:4 / native 68:0 / arm64 APK 56.1MB，contract 1.6 制品能力已核验），形成**工作树生产候选**；尚未真机验收（§12 矩阵未跑），外部事实（OHOS sunset/豁免、存量用户处置、Legacy 零新写观察期）未发生；W9 HOLD 已于 2026-08-27 由负责人决策解除（观察期证据按负责人豁免，见解除记录），W9-B..E 分波删除可开工。不得写「迁移完成」。
+> 验收 NO-GO；Official Anki 迁移中。**代码收口已完成**：R0–R8 host 侧一次性收口全绿，2026-09-24 架构简化 P0–P4（Legacy 读退役 / course.db v27 / 备份互斥）落地，2026-09-26 iOS 官方 Anki 栈接通，首发平台为 **Android arm64 + iOS** 同一条 Official 生产路径；全量 `flutter test` 1938 passed / 2 failed（2 例为 HEAD 既有 `course_tree` golden 本机失配）。**设备证据已有两次但范围有限**：2026-09-02 Android 真机 PLG110（debug 构建，写侧成立，硬性能 10 万卡 commit 3.5s / 视图重建 2.8s / 强杀零损伤；同夜 F6 阻断「进一个课时」，已修但**修后无真机复跑**）；2026-09-26 iPhone 17 模拟器（真 .apkg 导入 + 复习器 Q→A，实测修 2 个真运行时 bug）。**尚未验收**：Android 生产 bundle 完整用户流、iOS 真机、release 真机矩阵（干净/升级安装/迁移包/备份恢复/强杀恢复），以及外部事实（OHOS sunset/豁免、存量用户处置、Legacy 零新写观察期）。**两项固有限制至今无显式决策**：①引擎生命周期耦合（收敛概率性）、②共享 collection 来源所有权（`conflictingNoteIds` 无人消费）。**不得写「迁移完成」，不得写「Android 可正常使用」**——后者缺一次 arm64 Android 设备、生产 bundle 的完整用户流冒烟，判据见 ADR 0044「风险与纪律」与本收据「真机 / 模拟器证据台账」。

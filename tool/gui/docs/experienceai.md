@@ -1,14 +1,15 @@
 # Experience AI — 超级深度 AI 融合计划（全 GUI）
 
-> **状态**：规划稿 v2（超级融合愿景）  
+> **状态**：**在役上游规范**（原置于 `docs/archive/`，因被 4 篇在役设计文档与
+> 3 个测试持续引用而于 2026-09-27 移回 `docs/`）  
 > **日期**：2026-07-21  
-> **定位**：在 [`ai_configuration_and_features_report.md`](./docs/ai_configuration_and_features_report.md) 引擎能力之上，把 AI 从「工坊功能」升级为 **课程编辑器的中枢神经系统** —— 感知、决策、执行、解释、记忆五层贯通  
+> **定位**：在 [`ai_configuration_and_features_report.md`](./ai_configuration_and_features_report.md) 引擎能力之上，把 AI 从「工坊功能」升级为 **课程编辑器的中枢神经系统** —— 感知、决策、执行、解释、记忆五层贯通  
 > **范围**：`tool/gui` 全部表面 + 编辑手势 + 数据生命周期 + 协作/发布边界  
 > **层级关系**：
 >
 > | 文档 | 解决什么 |
 > |------|----------|
-> | `docs/ai_configuration_and_features_report.md` | 生成稳、质量分、流水线、可感知补丁 |
+> | `ai_configuration_and_features_report.md` | 生成稳、质量分、流水线、可感知补丁 |
 > | 布局压缩（工坊） | 参数不重复、一屏可用 |
 > | **本文件 experienceai** | **AI 如何成为默认交互语言，而不是附加按钮** |
 

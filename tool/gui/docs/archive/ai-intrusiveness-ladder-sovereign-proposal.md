@@ -7,7 +7,7 @@
 | **文档编号** | `VAR-GUI-EXP-SOVEREIGN-PROPOSAL` |
 | **版本** | **v0.3**（**架构扩展提案**，移除“模型意图直写 / 文本预测直写（Direct Model Commit）”特性） |
 | **日期** | 2026-07-26 |
-| **父文档** | `docs/ai-intrusiveness-ladder-design.md` v0.2（immersive 档） |
+| **父文档** | ⚠️ **已删除** —— `docs/ai-intrusiveness-ladder-design.md` v0.2（immersive 档）在本仓库中已不存在（2026-09-27 核实）。本文是探索稿，父文档缺失后仅供考古参考。 |
 | **状态** | 🧪 **探索稿**。父文档 immersive 的**主权接管变体**。突破父文档及 `experienceai.md` 关于交互被动性、撤销透明度、无干预焦点的约束。定义系统高侵入度下的自动化接管规范。 |
 | **范围** | 在 immersive 档之上定义 **sovereign**（主权/强制共生）模式：AI 引擎升级为同步主权执行器，对编辑流、状态树、操作栈及注意力域实施深度介入。侵入维度扩展至：**全局视线与输入强锁定** + **状态接管** + **安全阀降级与反悔抑制**。 |
 | **非目标** | 进程外非法破坏；越权访问敏感凭证/网络出站；替代常规稳健档（immersive 仍为标准高阶档）。 |
@@ -187,7 +187,8 @@ RegretSuppressionEngine:
 
 ## 10. 规范关系声明
 
-本文档为 `docs/ai-intrusiveness-ladder-design.md` 的极端主权扩展规范（v0.3）。
+本文档原为 `docs/ai-intrusiveness-ladder-design.md` 的极端主权扩展规范（v0.3）。
+⚠️ 该父文档已在本仓库中删除，本文因此只剩考古价值，不可作为设计依据。
 本规范定义了高自动化场景下的主权接管机制，不修改稳健档（immersive）的标准行为。
 
 ---

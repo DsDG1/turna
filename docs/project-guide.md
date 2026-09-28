@@ -630,12 +630,26 @@ make ci                 # analyze + test + test-python + build-release-smoke
 
 ```bash
 pip install pyinstaller
-python tool/gui/build_gui.py              # onefile -> dist/turna-gui.exe
-python tool/gui/build_gui.py --onedir
+python tool/gui/build_gui.py                # onefile -> dist/turna-gui.exe
+python tool/gui/build_gui.py --clean        # 先清 build/ 与 dist/
 
-python -m pytest tool/gui/tests/                 # GUI 单元测试
-python -m pytest test/tool/gui_round_trip_test.py  # GUI ↔ CLI round-trip
+# GUI 测试：分档运行器（纯 unittest，不依赖 pytest）
+cd tool/gui
+python run_gui_tests.py ci -j 4             # 日常 / PR 默认：L0 gate + L1 fast
+python run_gui_tests.py full -j 4           # 全量：逐模块独立子进程
+cd ../..
+
+# 分层门禁（与两个 CI workflow 同一组参数）
+make guard-gui
+
+# GUI ↔ CLI round-trip（不在 run_gui_tests.py 覆盖范围内）
+python -m unittest discover -s test -p "*_test.py"
 ```
+
+> 无图形环境时先设 `$env:QT_QPA_PLATFORM = "offscreen"`（bash 用
+> `QT_QPA_PLATFORM=offscreen` 前缀写法）。分档定义见
+> `tool/gui/run_gui_tests.py` docstring，指标基线见
+> `tool/gui/docs/ai_refactor_contract.md`。
 
 ---
 
