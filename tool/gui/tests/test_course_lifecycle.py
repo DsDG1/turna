@@ -249,6 +249,28 @@ class ConfirmCourseSwitchTest(unittest.TestCase):
 
 
 class OpenCourseFlowTest(unittest.TestCase):
+    """#16: the adapter load runs on a worker; the switch lands on main."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        from tests._qtapp import qt_app
+
+        cls.app = qt_app()
+
+    def _spin_until(self, condition, timeout: float = 5.0) -> bool:
+        import time
+
+        from PySide6.QtCore import QThread
+
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            self.app.processEvents()
+            if condition():
+                return True
+            QThread.msleep(10)
+        self.app.processEvents()
+        return bool(condition())
+
     def test_clean_open_loads_then_binds(self) -> None:
         host = _FakeHost()
         loaded: list[Path] = []
@@ -256,6 +278,7 @@ class OpenCourseFlowTest(unittest.TestCase):
             host, Path("/tmp/new"), load=loaded.append
         )
         self.assertTrue(ok)
+        self.assertTrue(self._spin_until(lambda: host._open_worker is None))
         self.assertEqual(loaded, [Path("/tmp/new")])
         self.assertEqual(host.course_dir, Path("/tmp/new"))
         self.assertEqual(host._diagnose_calls, 1)
@@ -268,7 +291,8 @@ class OpenCourseFlowTest(unittest.TestCase):
             raise RuntimeError("course.yaml 缺失")
 
         ok = open_course_flow(host, Path("/tmp/new"), load=_boom)
-        self.assertFalse(ok)
+        self.assertTrue(ok)  # the switch *started*; the load failed async
+        self.assertTrue(self._spin_until(lambda: host._open_worker is None))
         self.assertEqual(host._load_errors, ["course.yaml 缺失"])
         self.assertEqual(host.course_dir, Path("/tmp/old-course"))
         self.assertEqual(host._diagnose_calls, 0)
@@ -280,6 +304,9 @@ class OpenCourseFlowTest(unittest.TestCase):
         # Offscreen → dirty resolves as discard; the switch must still land.
         self.assertTrue(
             open_course_flow(host, Path("/tmp/new"), load=lambda _p: None)
+        )
+        self.assertTrue(
+            self._spin_until(lambda: host.course_dir == Path("/tmp/new"))
         )
         self.assertIsNone(host._last_saved_at)
         self.assertIsNone(host._current_node_ref)

@@ -175,6 +175,13 @@ def execute_save(host: ExperienceHost, request: Any, *, prefetched: Any = None, 
                 ow.invalidate_validation_cache()
         except Exception:
             logger.warning("application/save_host.py:_after_success best-effort step failed", exc_info=True)
+        # #16: a save can flip project imported flags — drop the badge cache.
+        try:
+            from src.application.shell_views import invalidate_workshop_badge_cache
+
+            invalidate_workshop_badge_cache()
+        except Exception:
+            logger.warning("application/save_host.py:_after_success best-effort step failed", exc_info=True)
         if outcome.reason in CLOSE_REASONS:
             return
         try:

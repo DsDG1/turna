@@ -122,7 +122,8 @@ def on_workshop_locate(host: ExperienceHost, section_id: str) -> None:
 
         reveal_edit_view(host)
     except Exception:
-        pass
+        # View swap is cosmetic; select_section below still locates the node.
+        logger.debug("reveal_edit_view failed (workshop locate)", exc_info=True)
     host.tree.select_section(section_id)
 
 
@@ -161,6 +162,9 @@ def on_textbook_sections(host: ExperienceHost, sections: list, strategy: str) ->
             f"取消 {cancelled} 个，"
             f"失败 {counts['blocked']} 个。"
         )
+        if successful and len(sections) > 1:
+            # T9: the batch lands on the undo stack as one composite.
+            summary += "\n（Ctrl+Z 可一次性撤销本次导入）"
     project = (
         host._workshop_window.current_project()
         if host._workshop_window is not None
@@ -180,6 +184,15 @@ def on_textbook_sections(host: ExperienceHost, sections: list, strategy: str) ->
         host._last_imported_section_id = successful[-1][1]
         if host._workshop_window is not None:
             host._workshop_window.on_import_finished(host._last_imported_section_id)
+    if successful:
+        # #16: imported flags changed — the badge cache must not serve the
+        # pre-import count to the sync below.
+        try:
+            from src.application.shell_views import invalidate_workshop_badge_cache
+
+            invalidate_workshop_badge_cache()
+        except Exception:
+            logger.debug("application/workshop_controller.py:badge cache invalidation failed", exc_info=True)
     safe_information(host, "导入教材", summary)
     if successful:
         offer_open_teacher_after_import(host, host._last_imported_section_id)

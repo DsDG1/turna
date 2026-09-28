@@ -267,37 +267,91 @@ def open_course_flow(
 ) -> bool:
     """Single open / new / switch entry: confirm → load → bind_loaded_course.
 
-    *load* performs the adapter load for *path* and may raise; on failure the
-    error surfaces through ``host._show_load_error`` and the current course
-    stays untouched (this is the data-loss fix: previously every open path
-    overwrote memory + cleared undo with no dirty check). Pass
-    ``confirm=False`` when the caller already ran :func:`confirm_course_switch`
-    *before* something mutated the adapter (the new-course dialog path).
+    *load* performs the adapter load for *path* and may raise; it runs on a
+    background worker with the central area frozen (#16 — reading a large
+    course used to block the UI thread), the error surfaces through
+    ``host._show_load_error`` and the current course stays untouched (this is
+    the data-loss fix: previously every open path overwrote memory + cleared
+    undo with no dirty check). Pass ``confirm=False`` when the caller already
+    ran :func:`confirm_course_switch` *before* something mutated the adapter
+    (the new-course dialog path, whose load is None). Returns True when the
+    switch was started/landed, False when it was cancelled or refused.
     """
     from src.infrastructure.telemetry import telemetry
 
     if confirm and not confirm_course_switch(host):
         return False
-    if load is not None:
+    if load is None:
+        bind_loaded_course(
+            host,
+            path,
+            status_message=status_message,
+            telemetry_event=telemetry_event,
+            telemetry_payload=telemetry_payload,
+        )
+        return True
+
+    from src.application.ai_request_worker import AiRequestWorker
+
+    prev = getattr(host, "_open_worker", None)
+    if prev is not None and prev.isRunning():
         try:
-            load(path)
-        except Exception as exc:
-            telemetry.record_error(
-                exc, context={"action": "repo.open", "path": str(path)}
-            )
-            show_error = getattr(host, "_show_load_error", None)
-            if callable(show_error):
-                show_error(str(exc))
-            else:
-                raise
-            return False
-    bind_loaded_course(
-        host,
-        path,
-        status_message=status_message,
-        telemetry_event=telemetry_event,
-        telemetry_payload=telemetry_payload,
-    )
+            host.statusBar().showMessage("正在打开…", 2000)
+        except Exception:
+            logger.debug("application/course_lifecycle.py:open_course_flow best-effort step failed", exc_info=True)
+        return False
+
+    central = getattr(host, "centralWidget", None)
+    central_widget = central() if callable(central) else None
+    if central_widget is not None:
+        try:
+            central_widget.setEnabled(False)
+        except Exception:
+            logger.debug("application/course_lifecycle.py:open_course_flow best-effort step failed", exc_info=True)
+    try:
+        host.statusBar().showMessage(f"打开中… {path}")
+    except Exception:
+        logger.debug("application/course_lifecycle.py:open_course_flow best-effort step failed", exc_info=True)
+
+    def _unfreeze() -> None:
+        if central_widget is not None:
+            try:
+                central_widget.setEnabled(True)
+            except Exception:
+                logger.debug("application/course_lifecycle.py:open_course_flow best-effort step failed", exc_info=True)
+        host._open_worker = None
+
+    worker = AiRequestWorker(lambda: load(path))
+
+    def _on_ok(_result: Any) -> None:
+        _unfreeze()
+        bind_loaded_course(
+            host,
+            path,
+            status_message=status_message,
+            telemetry_event=telemetry_event,
+            telemetry_payload=telemetry_payload,
+        )
+
+    def _on_error(message: str) -> None:
+        _unfreeze()
+        telemetry.record_event(
+            "repo.open.failed",
+            payload={"path": str(path), "error": str(message)[:200]},
+        )
+        show_error = getattr(host, "_show_load_error", None)
+        if callable(show_error):
+            show_error(str(message))
+        else:
+            try:
+                host.statusBar().showMessage(f"打开失败：{message}", 8000)
+            except Exception:
+                logger.debug("application/course_lifecycle.py:open_course_flow best-effort step failed", exc_info=True)
+
+    worker.result_ready.connect(_on_ok)
+    worker.error_occurred.connect(_on_error)
+    host._open_worker = worker
+    worker.start()
     return True
 
 

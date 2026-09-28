@@ -88,7 +88,9 @@ def _telemetry(event: str, **payload: Any) -> None:
 
         telemetry.record_event(event, payload=payload or None)
     except Exception:
-        pass
+        # Telemetry is strictly best-effort and must never be able to break a
+        # UI action (the module enforces the same rule on its own write path).
+        logger.debug(f"telemetry event {event!r} dropped", exc_info=True)
 
 
 def node_breadcrumb(host: Any, node_ref: tuple[str, str] | None) -> list[str]:
@@ -314,6 +316,9 @@ def ensure_overview_embedded(host: Any) -> Any:
                 existing.windowTitle()  # raises RuntimeError if deleted
                 return existing
             except RuntimeError:
+                # Narrow catch on purpose: the C++ object was already deleted
+                # by Qt, so there is nothing to recover — fall through to the
+                # rebuild below. A broad catch here would hide real errors.
                 pass
         host._overview_widget = None
         host._overview_window = None
@@ -415,7 +420,9 @@ def ensure_resources_embedded(host: Any, initial_filter: str = "") -> Any:
                 existing.setParent(None)
                 existing.deleteLater()
             except Exception:
-                pass
+                # The tab was already reaped (window closed mid-rebuild). Qt
+                # deletes it for us; the resource selection was harvested above.
+                logger.debug("stale resources tab already destroyed", exc_info=True)
         host._resources_editor = None
         host.resources_tabs.removeTab(0)
 
@@ -564,7 +571,10 @@ def reveal_edit_view(host: Any) -> None:
         if callable(set_view_fn) and getattr(host, "course_dir", None) is not None:
             set_view_fn("edit")
     except Exception:
-        pass
+        # Host without a usable _set_view, or no repo loaded yet. Both are
+        # documented no-op paths, so an error here means the host shape
+        # changed — worth a trace, never worth propagating.
+        logger.debug("surface edit view skipped", exc_info=True)
 
 
 def notify_toast(
@@ -701,14 +711,51 @@ def _sync_overview_badge(host: Any, bar: Any) -> None:
     bar.set_badge("overview", count, danger=True)
 
 
+#: #16: the workshop badge enumerates the textbook store on disk; doing that
+#: on every context change froze pings on large project dirs. Cache the
+#: result and invalidate explicitly when the project list changes.
+_WORKSHOP_BADGE_TTL_S = 30.0
+_workshop_badge_cache: dict[str, Any] = {"at": 0.0, "pending": None}
+
+
+def invalidate_workshop_badge_cache() -> None:
+    """Drop the workshop-badge cache (a save/import changed the projects)."""
+    _workshop_badge_cache["at"] = 0.0
+    _workshop_badge_cache["pending"] = None
+
+
+def _workshop_window_visible(host: Any) -> bool:
+    win = getattr(host, "_workshop_window", None)
+    if win is None:
+        return False
+    try:
+        return bool(win.isVisible())
+    except Exception:
+        logger.debug("shell_views: workshop visibility probe failed", exc_info=True)
+        return False
+
+
 def _sync_workshop_badge(host: Any, bar: Any) -> None:
+    import time
+
     if getattr(host, "course_dir", None) is None:
+        invalidate_workshop_badge_cache()
         bar.set_badge("workshop", 0)
+        return
+    fresh = (
+        _workshop_badge_cache["pending"] is not None
+        and not _workshop_window_visible(host)
+        and (time.monotonic() - float(_workshop_badge_cache["at"])) < _WORKSHOP_BADGE_TTL_S
+    )
+    if fresh:
+        bar.set_badge("workshop", int(_workshop_badge_cache["pending"]))
         return
     from src.backend.textbook_project_store import TextbookProjectStore
 
     summaries = TextbookProjectStore().list_project_summaries()
     pending = sum(1 for s in summaries if not getattr(s, "imported", False))
+    _workshop_badge_cache["at"] = time.monotonic()
+    _workshop_badge_cache["pending"] = pending
     bar.set_badge("workshop", pending)
 
 

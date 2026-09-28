@@ -536,5 +536,55 @@ class NotifyToastResolutionTest(unittest.TestCase):
         self.assertFalse(notify_toast(MagicMock(), "hi"))
 
 
+class WorkshopBadgeCacheTest(unittest.TestCase):
+    """#16: the workshop badge enumerates disk at most once per TTL."""
+
+    def setUp(self) -> None:
+        qt_app()
+        from src.application import shell_views
+
+        shell_views.invalidate_workshop_badge_cache()
+        self.addCleanup(shell_views.invalidate_workshop_badge_cache)
+        self.sv = shell_views
+        self.calls = {"n": 0}
+        self.bar = MagicMock()
+        self.host = MagicMock()
+        self.host.course_dir = Path("/tmp/c")
+        self.host._workshop_window = None
+
+        import src.backend.textbook_project_store as store_mod
+
+        def _list_summaries(_self):
+            self.calls["n"] += 1
+            return [MagicMock(imported=False)] * 3
+
+        patcher = patch.object(
+            store_mod.TextbookProjectStore, "list_project_summaries", _list_summaries
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_second_sync_within_ttl_uses_cache(self) -> None:
+        self.sv._sync_workshop_badge(self.host, self.bar)
+        self.assertEqual(self.calls["n"], 1)
+        self.sv._sync_workshop_badge(self.host, self.bar)
+        self.assertEqual(self.calls["n"], 1)  # cached, no second disk walk
+        self.assertEqual(self.bar.set_badge.call_args.args, ("workshop", 3))
+
+    def test_invalidate_forces_refetch(self) -> None:
+        self.sv._sync_workshop_badge(self.host, self.bar)
+        self.sv.invalidate_workshop_badge_cache()
+        self.sv._sync_workshop_badge(self.host, self.bar)
+        self.assertEqual(self.calls["n"], 2)
+
+    def test_visible_workshop_window_bypasses_cache(self) -> None:
+        self.sv._sync_workshop_badge(self.host, self.bar)
+        win = MagicMock()
+        win.isVisible.return_value = True
+        self.host._workshop_window = win
+        self.sv._sync_workshop_badge(self.host, self.bar)
+        self.assertEqual(self.calls["n"], 2)  # fresh while the user looks
+
+
 if __name__ == "__main__":
     unittest.main()
