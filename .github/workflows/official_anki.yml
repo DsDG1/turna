@@ -7,6 +7,7 @@ on:
       - "lib/application/anki_official/**"
       - "test/application/anki_official/**"
       - "test/fixtures/anki_official/**"
+      - "assets/**"
       - ".github/workflows/official_anki.yml"
   pull_request:
     paths:
@@ -14,6 +15,7 @@ on:
       - "lib/application/anki_official/**"
       - "test/application/anki_official/**"
       - "test/fixtures/anki_official/**"
+      - "assets/**"
       - ".github/workflows/official_anki.yml"
 
 permissions:

@@ -33,11 +33,34 @@ jobs:
       - name: Lint GUI editor (ruff)
         run: ruff check tool/gui
 
-      - name: Run GUI editor gate tests (ci tier)
+      - name: Enforce GUI layering + ratchet contract
+        # Must match the flags in .github/workflows/flutter_ci.yml and
+        # `make guard-gui` — a split baseline would let one gate go green
+        # while another goes red. Rationale per metric:
+        # tool/gui/docs/ai_refactor_contract.md
+        run: |
+          python tool/gui/tool/check_ai_boundaries.py \
+            --fail-private --fail-dialogs-app --fail-backend-app \
+            --fail-backend-ui --fail-backend-qt --fail-dialogs-pipeline \
+            --fail-undeclared-host-access \
+            --fail-course-cli-binding \
+            --max-except-pass 0 \
+            --max-except-continue 0 \
+            --max-broad-except 816 \
+            --max-hardcoded-style-hex 0 \
+            --max-ui-backend-imports 163 \
+            --max-import-cycles 2
+          python tool/gui/tool/gen_module_tree.py --check
+          python tool/gui/tool/check_docs_index.py --quiet
+
+      # Full tier (not `ci`): the exe this workflow ships is the artifact
+      # users actually download, so it must clear the same suite as a PR —
+      # not a weaker one. Matches `make test-gui`.
+      - name: Run GUI editor tests (full tier)
         working-directory: tool/gui
         env:
           QT_QPA_PLATFORM: offscreen
-        run: python run_gui_tests.py ci -j 4
+        run: python run_gui_tests.py full -j 4
 
       - name: Build onefile exe
         run: python tool/gui/build_gui.py --clean

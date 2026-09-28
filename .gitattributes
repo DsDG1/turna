@@ -4,3 +4,8 @@
 *.gr.dart linguist-generated=true
 *.gen.dart linguist-generated=true
 injection.config.dart linguist-generated=true
+
+# manifest.json pins sha256 of exact on-disk bytes; any EOL conversion on
+# checkout (Windows core.autocrlf=true did exactly that) breaks the
+# integrity guard and ships mismatched bytes in Windows-built bundles.
+assets/anki_reviewer/** text eol=lf

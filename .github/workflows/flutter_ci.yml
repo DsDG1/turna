@@ -8,6 +8,7 @@ on:
       - "lib/**"
       - "test/**"
       - "tool/**"
+      - "assets/**"
       - "pubspec.yaml"
       - "pubspec.lock"
       - "analysis_options.yaml"
@@ -21,6 +22,7 @@ on:
       - "lib/**"
       - "test/**"
       - "tool/**"
+      - "assets/**"
       - "pubspec.yaml"
       - "pubspec.lock"
       - "analysis_options.yaml"
@@ -137,6 +139,26 @@ jobs:
 
       - name: Lint GUI editor (ruff)
         run: ruff check tool/gui
+
+      - name: Enforce GUI layering + ratchet contract
+        # Boundaries + ratchets owned by tool/gui/tool/check_ai_boundaries.py.
+        # Baselines are "current value, may only shrink"; see
+        # tool/gui/docs/ai_refactor_contract.md for the rationale per metric.
+        # Must stay in sync with gui_release.yml and `make guard-gui`.
+        run: |
+          python3 tool/gui/tool/check_ai_boundaries.py \
+            --fail-private --fail-dialogs-app --fail-backend-app \
+            --fail-backend-ui --fail-backend-qt --fail-dialogs-pipeline \
+            --fail-undeclared-host-access \
+            --fail-course-cli-binding \
+            --max-except-pass 0 \
+            --max-except-continue 0 \
+            --max-broad-except 816 \
+            --max-hardcoded-style-hex 0 \
+            --max-ui-backend-imports 163 \
+            --max-import-cycles 2
+          python3 tool/gui/tool/gen_module_tree.py --check
+          python3 tool/gui/tool/check_docs_index.py --quiet
 
       - name: Run GUI editor tests (full tier)
         working-directory: tool/gui
