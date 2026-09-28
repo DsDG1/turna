@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QRadioButton,
+    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
@@ -135,6 +136,13 @@ class _PreviewCard(QFrame):
         correct = int(self.item.get("correctIndex", 0) or 0)
         group = QButtonGroup(self)
         group.setExclusive(True)
+        # #19: inline status line instead of a modal — nothing selected or a
+        # missing reference answer must not look like a (wrong) verdict.
+        status = QLabel("")
+        status.setStyleSheet(
+            f"color: {current_palette()['text_secondary']}; font-size: 11px;"
+        )
+        status.setWordWrap(True)
 
         def _check() -> None:
             for i in range(len(options)):
@@ -147,6 +155,7 @@ class _PreviewCard(QFrame):
                         self, "结果", "✅ 答对了！" if ok else f"❌ 正确答案是第 {correct + 1} 项"
                     )
                     return
+            status.setText("请先选择答案")
 
         for opt in options:
             rb = QRadioButton(str(opt))
@@ -155,6 +164,7 @@ class _PreviewCard(QFrame):
         check_btn = QPushButton("提交")
         check_btn.clicked.connect(_check)
         layout.addWidget(check_btn)
+        layout.addWidget(status)
 
     def _build_multi_select(self, layout: QVBoxLayout, prompt: str) -> None:
         layout.addWidget(QLabel(prompt or "选择所有正确答案："))
@@ -186,8 +196,18 @@ class _PreviewCard(QFrame):
         edit.setPlaceholderText("填入答案…")
         layout.addWidget(edit)
         answer = str(self.item.get("answer", ""))
+        status = QLabel("")
+        status.setStyleSheet(
+            f"color: {current_palette()['text_secondary']}; font-size: 11px;"
+        )
+        status.setWordWrap(True)
 
         def _check() -> None:
+            if not answer.strip():
+                # #19: an empty reference answer judged any blank submit
+                # "correct".
+                status.setText("该题未提供参考答案，无法判定")
+                return
             ok = edit.text().strip().lower() == answer.strip().lower()
             if not ok:
                 self._emit_wrong()
@@ -198,6 +218,7 @@ class _PreviewCard(QFrame):
         check_btn = QPushButton("提交")
         check_btn.clicked.connect(_check)
         layout.addWidget(check_btn)
+        layout.addWidget(status)
 
     def _build_text_answer(self, layout: QVBoxLayout, prompt: str) -> None:
         layout.addWidget(QLabel(prompt))
@@ -207,8 +228,18 @@ class _PreviewCard(QFrame):
         answer = str(
             self.item.get("expected") or self.item.get("expectedAnswer") or ""
         )
+        status = QLabel("")
+        status.setStyleSheet(
+            f"color: {current_palette()['text_secondary']}; font-size: 11px;"
+        )
+        status.setWordWrap(True)
 
         def _check() -> None:
+            if not answer.strip():
+                # #19: an empty expected answer made any submission —
+                # including a blank one — count as 答对了.
+                status.setText("该题未提供参考答案，无法判定")
+                return
             ok = edit.text().strip().lower() == answer.strip().lower()
             if not ok:
                 self._emit_wrong()
@@ -219,6 +250,7 @@ class _PreviewCard(QFrame):
         check_btn = QPushButton("提交")
         check_btn.clicked.connect(_check)
         layout.addWidget(check_btn)
+        layout.addWidget(status)
 
     def _build_true_false(self, layout: QVBoxLayout, prompt: str) -> None:
         layout.addWidget(QLabel(prompt))
@@ -232,9 +264,22 @@ class _PreviewCard(QFrame):
         rl.addWidget(true_btn)
         rl.addWidget(false_btn)
         layout.addWidget(row_widget)
-        answer = bool(self.item.get("answer", True))
+        # #17: align with the editor — a missing answer defaults to False
+        # (bool(item.get("answer", False))), not True. The old True default
+        # made the preview contradict the editor's verdict on the same item.
+        answer = bool(self.item.get("answer", False))
+        status = QLabel("")
+        status.setStyleSheet(
+            f"color: {current_palette()['text_secondary']}; font-size: 11px;"
+        )
+        status.setWordWrap(True)
 
         def _check() -> None:
+            if not (true_btn.isChecked() or false_btn.isChecked()):
+                # #19: with nothing selected, "chosen=False" used to count as
+                # a real 错误 answer — and as correct when answer is False.
+                status.setText("请先选择答案")
+                return
             chosen = true_btn.isChecked()
             ok = chosen == answer
             if not ok:
@@ -246,6 +291,7 @@ class _PreviewCard(QFrame):
         check_btn = QPushButton("提交")
         check_btn.clicked.connect(_check)
         layout.addWidget(check_btn)
+        layout.addWidget(status)
 
     def _build_display(self, layout: QVBoxLayout, text: str) -> None:
         layout.addWidget(QLabel("（此题型在预览中仅展示，不可作答）"))
@@ -323,7 +369,10 @@ class LessonPreviewDialog(QDialog):
         self._vocab_override = vocab_override or {}
         self._last_wrong_payload: dict[str, Any] | None = None
         self.setWindowTitle(f"预览：{lesson.get('name', lesson.get('id', ''))}")
-        self.resize(560, 640)
+        # #18: with 20 questions the fixed 560x640 dialog pushed the submit
+        # buttons off-screen with no way to scroll.
+        self.resize(640, 720)
+        self.setMinimumSize(480, 400)
         self._build()
 
     def _iter_items(self):
@@ -356,6 +405,16 @@ class LessonPreviewDialog(QDialog):
         bar_layout.addStretch()
         layout.addWidget(self._fix_bar)
 
+        # #18: the question cards live in a scroll area so a long lesson
+        # never pushes submit buttons out of reach.
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        cards_host = QWidget()
+        cards_layout = QVBoxLayout(cards_host)
+        cards_layout.setContentsMargins(0, 0, 0, 0)
+        cards_layout.setSpacing(10)
+
         count = 0
         for sl_name, st_name, item, stage in self._iter_items():
             label_parts = []
@@ -364,13 +423,17 @@ class LessonPreviewDialog(QDialog):
             if st_name:
                 label_parts.append(st_name)
             if label_parts:
-                layout.addWidget(QLabel("  ›  ".join(label_parts)))
+                cards_layout.addWidget(QLabel("  ›  ".join(label_parts)))
             card = _PreviewCard(self.adapter, item, self._vocab_override, stage=stage)
             card.answered_wrong.connect(self._on_card_answered_wrong)
-            layout.addWidget(card)
+            cards_layout.addWidget(card)
             count += 1
         if count == 0:
-            layout.addWidget(QLabel("这节课还没有题目，先在编辑器里添加。"))
+            cards_layout.addWidget(QLabel("这节课还没有题目，先在编辑器里添加。"))
+        cards_layout.addStretch(1)
+
+        scroll.setWidget(cards_host)
+        layout.addWidget(scroll, 1)
 
         close_btn = QPushButton("关闭")
         close_btn.clicked.connect(self.accept)

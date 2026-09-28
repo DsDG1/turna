@@ -347,6 +347,11 @@ class QuestionCard(QFrame):
         del_btn = QPushButton("- 删除末项")
         add_btn.clicked.connect(self._on_add_option)
         del_btn.clicked.connect(self._on_del_option)
+        # T15: a choice question needs at least two options — disable with a
+        # reason instead of silently ignoring the click.
+        if len(options) <= 2:
+            del_btn.setEnabled(False)
+            del_btn.setToolTip("至少保留 2 个选项")
         btn_row = QHBoxLayout()
         btn_row.addWidget(add_btn)
         btn_row.addWidget(del_btn)
@@ -391,10 +396,31 @@ class QuestionCard(QFrame):
 
     def _on_del_option(self) -> None:
         opts = self.item.get(ItemKey.OPTIONS, [])
-        if len(opts) > 2:
-            opts.pop()
-            self._build_content()
-            self.changed.emit()
+        if len(opts) <= 2:
+            return
+        opts.pop()
+        n = len(opts)
+        # T15: popping the last option could leave correctIndex pointing past
+        # the end (silent wrong-answer on the Flutter side) — reset it and
+        # say so; multi-select indices shrink in place.
+        if getattr(self, "_options_exclusive", True):
+            cur = int(self.item.get(ItemKey.CORRECT_INDEX, 0) or 0)
+            if cur >= n:
+                self._set_field(ItemKey.CORRECT_INDEX, 0)
+                from src.application.ui_guard import safe_information
+
+                safe_information(
+                    self, "选项", "正确答案选项被删，已重置为第 1 项"
+                )
+        else:
+            indices = [
+                i
+                for i in (self.item.get(ItemKey.CORRECT_INDICES, []) or [])
+                if i < n
+            ]
+            self._set_field(ItemKey.CORRECT_INDICES, indices)
+        self._build_content()
+        self.changed.emit()
 
     def _build_single_choice(self, layout: QVBoxLayout) -> None:
         self._add_labeled_edit(layout, ItemKey.PROMPT)
@@ -445,6 +471,17 @@ class QuestionCard(QFrame):
         edit = QLineEdit(str(self.item.get("statement", "")))
         edit.textChanged.connect(self._on_statement_text_changed)
         layout.addWidget(edit)
+        if "answer" not in self.item:
+            # #17: both editors and the preview treat a missing answer as
+            # False — say so instead of letting the pre-checked 错误 radio
+            # look like an authored choice.
+            hint = QLabel("该题未设置答案，试做将按「错误」判定")
+            hint.setStyleSheet(
+                f"color: {current_palette().get('warning', '#B8860B')};"
+                " font-size: 11px;"
+            )
+            hint.setWordWrap(True)
+            layout.addWidget(hint)
         true_btn = QRadioButton("正确")
         false_btn = QRadioButton("错误")
         if self.item.get("answer") is True:

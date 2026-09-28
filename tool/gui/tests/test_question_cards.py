@@ -4,6 +4,7 @@ from __future__ import annotations
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from PySide6.QtGui import QStandardItemModel
 from PySide6.QtWidgets import QComboBox, QLabel, QLineEdit, QPushButton
@@ -223,8 +224,58 @@ class AnkiCardBuildTest(unittest.TestCase):
         back = next(e for e in card.findChildren(QLineEdit) if e.text() == "你好")
         front.setText("günaydın")
         self.assertEqual(card.item["front"], "günaydın")
-        back.setText("早安")
-        self.assertEqual(card.item["back"], "早安")
+        back.setText("早上好")
+        self.assertEqual(card.item["back"], "早上好")
+
+
+class DeleteOptionTest(unittest.TestCase):
+    """T15: deleting the last option must fix correctIndex/Indices."""
+
+    def setUp(self) -> None:
+        _TestApp.get()
+        self.adapter = CourseAdapter()
+
+    def _choice_card(self, correct: int = 3, options: int = 4):
+        item = default_interaction("multipleChoice")
+        item["options"] = [f"opt-{i}" for i in range(options)]
+        item["correctIndex"] = correct
+        return QuestionCard(self.adapter, item)
+
+    def test_delete_last_option_resets_correct_index(self) -> None:
+        card = self._choice_card(correct=3)
+        with patch(
+            "src.application.ui_guard.safe_information"
+        ) as info:
+            card._on_del_option()
+            info.assert_called_once()  # user is told about the reset
+        self.assertEqual(len(card.item["options"]), 3)
+        self.assertEqual(card.item["correctIndex"], 0)
+
+    def test_delete_with_safe_correct_index_keeps_it(self) -> None:
+        card = self._choice_card(correct=0)
+        with patch("src.application.ui_guard.safe_information") as info:
+            card._on_del_option()
+            info.assert_not_called()
+        self.assertEqual(card.item["correctIndex"], 0)
+
+    def test_delete_disabled_at_two_options(self) -> None:
+        card = self._choice_card(correct=0, options=2)
+        del_btn = next(
+            b
+            for b in card.findChildren(QPushButton)
+            if b.text() == "- 删除末项"
+        )
+        self.assertFalse(del_btn.isEnabled())
+        self.assertIn("至少保留", del_btn.toolTip())
+
+    def test_multi_select_indices_shrink_on_delete(self) -> None:
+        item = default_interaction("multiSelect")
+        item["options"] = ["A", "B", "C"]
+        item["correctIndices"] = [0, 2]
+        card = QuestionCard(self.adapter, item)
+        card._on_del_option()
+        self.assertEqual(card.item["options"], ["A", "B"])
+        self.assertEqual(card.item["correctIndices"], [0])
 
 
 if __name__ == "__main__":
