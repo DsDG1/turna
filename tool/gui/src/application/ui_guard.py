@@ -355,3 +355,61 @@ def safe_question(
         return reply == QMessageBox.StandardButton.Yes
     except Exception:
         return bool(default_yes)
+
+
+#: The three answers :func:`safe_question3` can return.
+YES = "yes"
+NO = "no"
+CANCEL = "cancel"
+
+
+def safe_question3(
+    parent: Any,
+    title: str,
+    text: str,
+    *,
+    auto_choice: str = CANCEL,
+) -> str:
+    """Three-way question (Yes / No / Cancel). Never raises.
+
+    Some decisions genuinely have a third "abandon" outcome — the unsaved
+    changes prompt is Save / Discard / Cancel, and several git operations offer
+    Cancel as a real option. Those could not go through :func:`safe_question`,
+    which is yes-no only, which left a dozen raw ``QMessageBox.question`` calls
+    that block a headless run and ignore the immersive auto-confirm scope.
+
+    Returns :data:`YES`, :data:`NO` or :data:`CANCEL`.
+
+    ``auto_choice`` is what immersive full-auto (or a headless run) answers,
+    and it is **explicit at every call site** because the right answer depends
+    on what the question is for:
+      - ``YES`` for the unsaved-changes prompt, where blocking the window in an
+        automated run would strand it, and saving preserves the user's work;
+      - ``CANCEL`` for destructive operations (delete branch / repo, drop
+        memo, force sync, import), where "do nothing" is the only safe
+        unattended answer.
+    """
+    auto, _opaque, _token = resolve_auto_apply_state(parent)
+    if auto:
+        return auto_choice
+    if is_headless_ui():
+        return auto_choice
+    try:
+        from PySide6.QtWidgets import QMessageBox
+
+        reply = QMessageBox.question(
+            parent,
+            title,
+            text,
+            QMessageBox.StandardButton.Yes
+            | QMessageBox.StandardButton.No
+            | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Cancel,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            return YES
+        if reply == QMessageBox.StandardButton.No:
+            return NO
+        return CANCEL
+    except Exception:
+        return auto_choice

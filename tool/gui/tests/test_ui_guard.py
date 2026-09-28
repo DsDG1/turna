@@ -15,9 +15,13 @@ if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
 from src.application.ui_guard import (
+    CANCEL,
+    NO,
+    YES,
     is_headless_ui,
     safe_information,
     safe_question,
+    safe_question3,
     safe_warning,
 )
 
@@ -81,6 +85,97 @@ class SafeMessageBoxTest(unittest.TestCase):
         ) as mock_q:
             self.assertTrue(safe_question(None, "t", "q", default_yes=False))
             mock_q.assert_called_once()
+
+
+class SafeQuestion3Test(unittest.TestCase):
+    """Three-way confirmations: headless and immersive-auto must not modal."""
+
+    def test_headless_uses_auto_choice_without_modal(self) -> None:
+        with patch(
+            "src.application.ui_guard.is_headless_ui", return_value=True
+        ), patch("PySide6.QtWidgets.QMessageBox.question") as mock_q:
+            self.assertEqual(
+                safe_question3(None, "t", "q", auto_choice=CANCEL), CANCEL
+            )
+            self.assertEqual(safe_question3(None, "t", "q", auto_choice=YES), YES)
+            mock_q.assert_not_called()
+
+    def test_default_auto_choice_is_cancel(self) -> None:
+        # "Do nothing" is the only safe unattended answer for the destructive
+        # prompts this helper was built for.
+        with patch(
+            "src.application.ui_guard.is_headless_ui", return_value=True
+        ):
+            self.assertEqual(safe_question3(None, "t", "q"), CANCEL)
+
+    def test_interactive_maps_each_button(self) -> None:
+        from PySide6.QtWidgets import QMessageBox
+
+        for button, expected in (
+            (QMessageBox.StandardButton.Yes, YES),
+            (QMessageBox.StandardButton.No, NO),
+            (QMessageBox.StandardButton.Cancel, CANCEL),
+        ):
+            with self.subTest(button=button), patch(
+                "src.application.ui_guard.is_headless_ui", return_value=False
+            ), patch(
+                "src.application.ui_guard.resolve_auto_apply_state",
+                return_value=(False, False, ""),
+            ), patch(
+                "PySide6.QtWidgets.QMessageBox.question", return_value=button
+            ):
+                self.assertEqual(safe_question3(None, "t", "q"), expected)
+
+    def test_immersive_auto_uses_auto_choice_without_modal(self) -> None:
+        with patch(
+            "src.application.ui_guard.is_headless_ui", return_value=False
+        ), patch(
+            "src.application.ui_guard.resolve_auto_apply_state",
+            return_value=(True, False, "tok"),
+        ), patch("PySide6.QtWidgets.QMessageBox.question") as mock_q:
+            self.assertEqual(
+                safe_question3(None, "t", "q", auto_choice=YES), YES
+            )
+            self.assertEqual(
+                safe_question3(None, "t", "q", auto_choice=CANCEL), CANCEL
+            )
+            mock_q.assert_not_called()
+
+
+class NoRawModalLeftInBusinessCodeTest(unittest.TestCase):
+    """Every confirmation outside ui_guard goes through the guard.
+
+    A raw QMessageBox.question blocks a headless run and ignores the immersive
+    auto-confirm scope, which is the modal that 4.8 was written to remove.
+    """
+
+    def test_only_ui_guard_uses_qmessagebox_question(self) -> None:
+        import pathlib
+
+        src = pathlib.Path(__file__).resolve().parents[1] / "src"
+        offenders = []
+        for path in sorted(src.rglob("*.py")):
+            if path.name == "ui_guard.py":
+                continue
+            text = path.read_text(encoding="utf-8")
+            if "QMessageBox.question(" in text:
+                offenders.append(str(path.relative_to(src)))
+        self.assertEqual(
+            offenders,
+            [],
+            f"raw QMessageBox.question outside ui_guard: {offenders}",
+        )
+
+    def test_guard_itself_owns_the_two_modal_calls(self) -> None:
+        import pathlib
+
+        src = (
+            pathlib.Path(__file__).resolve().parents[1]
+            / "src"
+            / "application"
+            / "ui_guard.py"
+        ).read_text(encoding="utf-8")
+        self.assertEqual(src.count("QMessageBox.question("), 2)
 
 
 class GoalControllerDelegatesTest(unittest.TestCase):
