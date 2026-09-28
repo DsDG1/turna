@@ -1,6 +1,10 @@
 """Extraction-prompt overrides tab for SettingsDialog (extracted)."""
 from __future__ import annotations
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 from PySide6.QtWidgets import (
     QFormLayout,
     QHBoxLayout,
@@ -80,9 +84,11 @@ def build_extraction_prompt_tab(dlg) -> QWidget:
     hint.setWordWrap(True)
     outer_layout.addWidget(hint)
 
-    # T17: pending action for this dialog session — ("save", lang, src,
-    # blocks) or ("delete", lang, src). None until the user presses a button.
-    dlg._extraction_pending: tuple[str, str, str, object] | None = None
+    # T17: pending actions for this dialog session, keyed by (lang, src).
+    # A dict, not a single slot: staging zh/en and then switching the pair to
+    # en/de silently dropped the first, even though its toast had already
+    # promised it would apply on 确定.
+    dlg._extraction_pending: dict[tuple[str, str], tuple[str, object]] = {}
     dlg._load_extraction_fields()
     return outer
 
@@ -130,7 +136,7 @@ def on_extraction_save(dlg) -> None:
         key: edit.toPlainText()
         for key, edit in dlg._extraction_edits.items()
     }
-    dlg._extraction_pending = ("save", language, source_language, blocks)
+    dlg._extraction_pending[(language, source_language)] = ("save", blocks)
     from src.application.shell_views import notify_toast
 
     msg = f"已暂存 {language} / {source_language} 的覆盖模板，点「确定」后生效。"
@@ -139,12 +145,23 @@ def on_extraction_save(dlg) -> None:
 
 
 def on_extraction_delete(dlg) -> None:
-    """T17: stage the delete; it is applied when the dialog is accepted."""
+    """T17: stage the delete; it is applied when the dialog is accepted.
+
+    Says so when there is nothing to delete, instead of staging a delete and
+    reporting success on accept (this used to toast a staged deletion for a
+    pair that had no override, and the accept path then did nothing). It also
+    no longer resets the fields to the built-in defaults: doing that meant a
+    following 保存 persisted the defaults as if they were a custom override.
+    """
     language, source_language = dlg._extraction_pair()
-    dlg._extraction_pending = ("delete", language, source_language, None)
-    dlg._fill_extraction_defaults()
     from src.application.shell_views import notify_toast
 
+    if not dlg._prompt_library.extraction_override(language, source_language):
+        msg = "该语言对没有已保存的覆盖。"
+        if not notify_toast(dlg, msg, title="提取 Prompt"):
+            QMessageBox.information(dlg, "提取 Prompt", msg)
+        return
+    dlg._extraction_pending[(language, source_language)] = ("delete", None)
     msg = f"已暂存删除 {language} / {source_language} 的覆盖，点「确定」后生效。"
     if not notify_toast(dlg, msg, title="提取 Prompt"):
         QMessageBox.information(dlg, "提取 Prompt", msg)
@@ -155,25 +172,34 @@ def commit_extraction_pending(dlg) -> bool:
 
     Returns True when something was written. Never raises.
     """
-    pending = getattr(dlg, "_extraction_pending", None)
-    if pending is None:
+    pending = dict(getattr(dlg, "_extraction_pending", None) or {})
+    if not pending:
         return False
-    kind, language, source_language, payload = pending
-    try:
-        if kind == "save":
-            dlg._prompt_library.save_extraction_override(
-                language, source_language, dict(payload or {})
+    wrote = 0
+    for (language, source_language), (kind, payload) in pending.items():
+        try:
+            if kind == "save":
+                dlg._prompt_library.save_extraction_override(
+                    language, source_language, dict(payload or {})
+                )
+                wrote += 1
+            elif kind == "delete":
+                if dlg._prompt_library.delete_extraction_override(
+                    language, source_language
+                ):
+                    default_library().unregister_persisted(
+                        language, source_language
+                    )
+                    wrote += 1
+        except Exception:
+            # One bad pair must not abandon the rest; the accept path logs.
+            logger.warning(
+                "extraction_prompt_tab.py:commit failed for %s/%s",
+                language,
+                source_language,
+                exc_info=True,
             )
-        elif kind == "delete":
-            if not dlg._prompt_library.delete_extraction_override(
-                language, source_language
-            ):
-                return False
-            default_library().unregister_persisted(language, source_language)
-        else:  # pragma: no cover - defensive
-            return False
-        # Refresh the in-memory default library so the next extraction uses it.
-        load_overrides_from(dlg._prompt_library)
-    finally:
-        dlg._extraction_pending = None
-    return True
+    # Refresh the in-memory default library so the next extraction uses it.
+    load_overrides_from(dlg._prompt_library)
+    dlg._extraction_pending = {}
+    return wrote > 0

@@ -610,7 +610,7 @@ class SettingsDialog(TurnaDialog):
         Called on 「取消」 / close so staged overrides never leak into disk
         behind the user's back.
         """
-        self._extraction_pending = None
+        self._extraction_pending = {}
 
     def _confirm_experience_mode_change(self) -> bool:
         """Gate immersive entry; on decline, roll the combo back to the live mode.

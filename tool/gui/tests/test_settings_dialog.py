@@ -168,7 +168,7 @@ class ExtractionPromptTabTest(unittest.TestCase):
         self._stage(dlg, "测试覆盖引导语ABC")
         # Nothing on disk/in-library until the dialog is accepted.
         self.assertIsNone(lib.extraction_override("Turkish", "Chinese"))
-        self.assertIsNotNone(dlg._extraction_pending)
+        self.assertIn(("Turkish", "Chinese"), dlg._extraction_pending)
 
     def test_accept_writes_the_override_and_refreshes_the_library(self) -> None:
         lib = _make_prompt_library()
@@ -178,7 +178,7 @@ class ExtractionPromptTabTest(unittest.TestCase):
         self.assertIsNotNone(lib.extraction_override("Turkish", "Chinese"))
         tpl = self._kp.DEFAULT_LIBRARY.templates_for("Turkish", "Chinese")
         self.assertEqual(tpl.intro, "测试覆盖引导语ABC")
-        self.assertIsNone(dlg._extraction_pending)
+        self.assertEqual(dlg._extraction_pending, {})
 
     def test_cancel_discards_the_staged_override(self) -> None:
         lib = _make_prompt_library()
@@ -186,7 +186,7 @@ class ExtractionPromptTabTest(unittest.TestCase):
         self._stage(dlg, "不该落盘的覆盖")
         dlg._on_cancel()
         self.assertIsNone(lib.extraction_override("Turkish", "Chinese"))
-        self.assertIsNone(dlg._extraction_pending)
+        self.assertEqual(dlg._extraction_pending, {})
 
     def test_delete_is_also_staged(self) -> None:
         lib = _make_prompt_library()
@@ -200,6 +200,56 @@ class ExtractionPromptTabTest(unittest.TestCase):
         self.assertIsNotNone(lib.extraction_override("Turkish", "Chinese"))
         self._apply(dlg)
         self.assertIsNone(lib.extraction_override("Turkish", "Chinese"))
+
+    def test_two_language_pairs_stage_independently(self) -> None:
+        """T17 follow-up: a single pending slot silently dropped the first."""
+        lib = _make_prompt_library()
+        dlg = self._dialog(lib)
+
+        dlg.extraction_lang_edit.setText("Turkish")
+        dlg.extraction_src_edit.setText("Chinese")
+        dlg._extraction_edits["intro"].setPlainText("中文覆盖")
+        with patch("src.application.shell_views.notify_toast", return_value=True):
+            dlg._on_extraction_save()
+
+        dlg.extraction_lang_edit.setText("German")
+        dlg.extraction_src_edit.setText("Chinese")
+        dlg._extraction_edits["intro"].setPlainText("德文覆盖")
+        with patch("src.application.shell_views.notify_toast", return_value=True):
+            dlg._on_extraction_save()
+
+        self.assertEqual(len(dlg._extraction_pending), 2)
+        self._apply(dlg)
+        self.assertIsNotNone(lib.extraction_override("Turkish", "Chinese"))
+        self.assertIsNotNone(lib.extraction_override("German", "Chinese"))
+        self.assertEqual(
+            lib.extraction_override("German", "Chinese").get("intro"),
+            "德文覆盖",
+        )
+
+    def test_delete_of_a_pair_with_no_override_reports_nothing_to_do(self) -> None:
+        lib = _make_prompt_library()
+        dlg = self._dialog(lib)
+        with patch(
+            "src.application.shell_views.notify_toast", return_value=True
+        ) as toast:
+            dlg._on_extraction_delete()
+        self.assertIn("没有已保存", toast.call_args.args[1])
+        # Nothing staged, so accept has no work and claims nothing.
+        self.assertEqual(dlg._extraction_pending, {})
+
+    def test_delete_does_not_reset_fields_to_built_in_defaults(self) -> None:
+        # Filling the fields with defaults meant a following 保存 persisted
+        # the built-in defaults as if they were a custom override.
+        lib = _make_prompt_library()
+        dlg = self._dialog(lib)
+        self._stage(dlg, "要删掉的覆盖")
+        self._apply(dlg)
+        with patch("src.application.shell_views.notify_toast", return_value=True):
+            dlg._on_extraction_delete()
+        self.assertEqual(
+            dlg._extraction_edits["intro"].toPlainText(), "要删掉的覆盖"
+        )
 
 
 class SshKeyPathPersistenceTest(unittest.TestCase):
