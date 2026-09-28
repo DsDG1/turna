@@ -209,12 +209,32 @@ class SectionImportService:
 
         Collected commands are applied immediately (redo) because the
         composite push skips its first redo; the batch then lands on the
-        undo stack as ONE entry."""
+        undo stack as ONE entry.
+
+        The command is registered *before* it is applied, not after: a redo
+        that raises part-way through still mutated the adapter (the section
+        is appended before its resources are merged), so a command only
+        added on success would leave that section orphaned — present in the
+        course, absent from the undo stack, and invisible to the batch's
+        rollback loop while the UI reports 「已整体回滚」.
+        """
         if collector is None:
-            self.undo_stack.push(cmd)
+            try:
+                self.undo_stack.push(cmd)
+            except Exception:
+                # push() calls redo() itself and registers the command on the
+                # stack *before* calling it, so a raising redo leaves the entry
+                # behind. Undo the partial apply, then make the command inert
+                # so the leftover entry can neither double-undo (Ctrl+Z) nor
+                # resurrect the failed import (Ctrl+Y).
+                with contextlib.suppress(Exception):
+                    cmd.undo()
+                with contextlib.suppress(Exception):
+                    cmd._mark_apply_failed()
+                raise
         else:
-            cmd.redo()
             collector.append(cmd)
+            cmd.redo()
 
     # ------------------------------------------------------------------ bulk
     def import_bulk(

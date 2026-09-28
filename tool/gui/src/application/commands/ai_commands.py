@@ -29,6 +29,20 @@ class _ResourceMergeMixin:
         self.added_vocab_ids: set[str] = set()
         self.added_expression_ids: set[str] = set()
         self.added_grammar_ids: set[str] = set()
+        # Set when a redo() raised part-way through. The command is then inert:
+        # the caller has already undone the partial apply, and the undo stack
+        # still holds this entry (QUndoStack.push registers the command before
+        # calling redo, and does not remove it when redo raises), so without
+        # this a later Ctrl+Z would undo twice and a Ctrl+Y would re-apply an
+        # import the user was told had failed.
+        self._apply_failed = False
+
+    def _mark_apply_failed(self) -> None:
+        self._apply_failed = True
+
+    @property
+    def apply_failed(self) -> bool:
+        return self._apply_failed
 
     def _snapshot_resource_ids(self) -> tuple[set[str], set[str], set[str]]:
         vocab_ids = {w.get("id", "") for w in self.adapter.vocab}
@@ -48,10 +62,14 @@ class _ResourceMergeMixin:
 
     def _merge_resources_from(self, source_section: dict[str, Any]) -> None:
         # Snapshot before merging so undo can roll back exactly the entries
-        # introduced here.
+        # introduced here. Recorded in a finally: a merge that raises part-way
+        # has still added ids, and without them the rollback would remove
+        # nothing and leave those entries stranded in the course.
         old_ids = self._snapshot_resource_ids()
-        self.adapter.merge_section_resources(source_section)
-        self._record_added_resources(old_ids)
+        try:
+            self.adapter.merge_section_resources(source_section)
+        finally:
+            self._record_added_resources(old_ids)
 
     def _rollback_resources(self) -> None:
         self.adapter.vocab = [
@@ -72,9 +90,10 @@ class _ResourceMergeMixin:
 class ImportAiSectionCommand(_ResourceMergeMixin, QUndoCommand):
     """Append an AI-generated section + merge its resources + add index entry.
 
-    Undo removes the section and index entry; merged resources are NOT rolled
-    back (consistent with the existing import behavior; validate-on-save will
-    catch any dangling references).
+    Undo removes the section and its index entry, and rolls back the vocab /
+    expressions / grammar points this command introduced (via
+    ``_ResourceMergeMixin._rollback_resources``); anything it did not add is
+    left alone.
     """
 
     def __init__(self, adapter, section_json: dict[str, Any]) -> None:
@@ -86,6 +105,8 @@ class ImportAiSectionCommand(_ResourceMergeMixin, QUndoCommand):
         self._init_resource_tracking()
 
     def redo(self) -> None:
+        if self._apply_failed:
+            return
         sid = self.section_json.get("id", "")
         self.adapter.sections.append(deepcopy(self.section_json))
         self._merge_resources_from(self.section_json)
@@ -104,6 +125,8 @@ class ImportAiSectionCommand(_ResourceMergeMixin, QUndoCommand):
         self.signals.changed.emit()
 
     def undo(self) -> None:
+        if self._apply_failed:
+            return
         try:
             self.adapter.delete_section(self.section_id)
         except KeyError:
@@ -141,6 +164,8 @@ class AiEditSectionCommand(_ResourceMergeMixin, QUndoCommand):
             self._merge_resources_from(self.resource_section)
 
     def redo(self) -> None:
+        if self._apply_failed:
+            return
         if self.old_section is None:
             self.old_section = deepcopy(self.adapter.find_section(self.section_id))
         self._merge_resources()
@@ -148,6 +173,8 @@ class AiEditSectionCommand(_ResourceMergeMixin, QUndoCommand):
         self.signals.changed.emit()
 
     def undo(self) -> None:
+        if self._apply_failed:
+            return
         if self.old_section is not None:
             self.adapter.replace_section(self.section_id, deepcopy(self.old_section))
         self._rollback_resources()
@@ -222,6 +249,8 @@ class MergeAiSectionCommand(_ResourceMergeMixin, QUndoCommand):
             target_units.append(deepcopy(action.incoming))
 
     def redo(self) -> None:
+        if self._apply_failed:
+            return
         if self.old_section is None:
             self.old_section = deepcopy(self.adapter.find_section(self.section_id))
         self._merge_resources()
@@ -241,6 +270,8 @@ class MergeAiSectionCommand(_ResourceMergeMixin, QUndoCommand):
         self.signals.changed.emit()
 
     def undo(self) -> None:
+        if self._apply_failed:
+            return
         if self.old_section is not None:
             self.adapter.replace_section(self.section_id, deepcopy(self.old_section))
         self._rollback_resources()

@@ -229,6 +229,137 @@ class BulkUndoCompositeTest(unittest.TestCase):
         self.assertTrue(any("已整体回滚" in s for s in self.statuses))
 
 
+class RollbackAfterPartialApplyTest(unittest.TestCase):
+    """T9 hardening: a redo that raises part-way must not orphan the section.
+
+    ``ImportAiSectionCommand.redo`` appends the section before it merges the
+    section's resources, so a failure in the merge leaves the section in the
+    adapter. If the command was only registered with the batch's collector
+    *after* a successful redo, the rollback loop would never see it: the
+    course keeps a section the undo stack does not know about, while the UI
+    reports 「已整体回滚」.
+    """
+
+    def setUp(self) -> None:
+        _App.get()
+        self.adapter = CourseAdapter()
+        self.undo_stack = QUndoStack()
+        self.statuses: list[str] = []
+        self.service = SectionImportService(
+            self.adapter,
+            self.undo_stack,
+            merge_resolver=MagicMock(side_effect=lambda plan: plan),
+            bulk_merge_resolver=MagicMock(side_effect=lambda plans: list(plans)),
+            on_status=self.statuses.append,
+        )
+
+    def _section(self, section_id: str) -> dict:
+        return sample_section_from_chapter(section_id)
+
+    def test_section_is_not_left_behind_when_the_merge_fails(self) -> None:
+        real_merge = self.adapter.merge_section_resources
+        seen = {"n": 0}
+
+        def flaky(section_json):
+            seen["n"] += 1
+            if seen["n"] == 2:
+                raise RuntimeError("disk error while merging resources")
+            return real_merge(section_json)
+
+        self.adapter.merge_section_resources = flaky  # type: ignore[method-assign]
+        _results, counts = self.service.import_bulk(
+            [self._section("sec-a"), self._section("sec-b"), self._section("sec-c")],
+            strategy="merge",
+        )
+
+        self.assertEqual(
+            [s.get("id") for s in self.adapter.sections],
+            [],
+            "a partially-applied section was left in the course",
+        )
+        self.assertEqual(self.undo_stack.count(), 0)
+        self.assertEqual(counts["imported"], 0)
+        self.assertTrue(any("已整体回滚" in s for s in self.statuses))
+
+    def test_orphan_is_absent_even_when_the_first_section_fails(self) -> None:
+        """The single-section path cannot collect, so the failure is handled
+        where push() is called.
+
+        ``QUndoStack.push`` registers the command *before* calling redo() and
+        does not remove it when redo raises, so one inert entry remains on the
+        stack. The property that matters is that it does nothing: the section
+        must not come back on a later undo or redo.
+        """
+        vocab_before = len(self.adapter.vocab)
+
+        def always_fail(_section_json):
+            raise RuntimeError("merge unavailable")
+
+        self.adapter.merge_section_resources = always_fail  # type: ignore[method-assign]
+        self.service.import_bulk([self._section("sec-a")], strategy="merge")
+
+        self.assertEqual(self.adapter.sections, [])
+        self.assertEqual(len(self.adapter.vocab), vocab_before)
+        self.assertEqual(self.undo_stack.index(), 1)  # the inert leftover entry
+
+        # Ctrl+Z then Ctrl+Y must be no-ops for a failed import.
+        self.undo_stack.undo()
+        self.assertEqual(self.adapter.sections, [])
+        self.undo_stack.redo()
+        self.assertEqual(
+            self.adapter.sections,
+            [],
+            "Ctrl+Y resurrected an import that was reported as failed",
+        )
+        self.assertEqual(len(self.adapter.vocab), vocab_before)
+
+    def test_composite_path_leaves_nothing_on_the_stack(self) -> None:
+        # With a collector the command never reaches push(), so the batch
+        # rolls back cleanly and the stack is untouched.
+        def always_fail(_section_json):
+            raise RuntimeError("merge unavailable")
+
+        self.adapter.merge_section_resources = always_fail  # type: ignore[method-assign]
+        self.service.import_bulk(
+            [self._section("sec-a"), self._section("sec-b")], strategy="merge"
+        )
+        self.assertEqual(self.adapter.sections, [])
+        self.assertEqual(self.undo_stack.count(), 0)
+
+    def test_resources_partially_merged_by_a_failing_command_are_rolled_back(self) -> None:
+        # The merge adds a word and *then* raises: the word must not survive,
+        # which requires the added-id snapshot to be recorded in a finally.
+        before = len(self.adapter.vocab)
+        real_merge = self.adapter.merge_section_resources
+        seen = {"n": 0}
+
+        def flaky(section_json):
+            seen["n"] += 1
+            real_merge(section_json)
+            if seen["n"] == 2:
+                raise RuntimeError("crash after writing resources")
+
+        self.adapter.merge_section_resources = flaky  # type: ignore[method-assign]
+        self.service.import_bulk(
+            [self._section("sec-a"), self._section("sec-b"), self._section("sec-c")],
+            strategy="merge",
+        )
+        self.assertEqual(len(self.adapter.vocab), before)
+        self.assertEqual(self.adapter.sections, [])
+
+    def test_a_successful_batch_is_unaffected_by_the_hardening(self) -> None:
+        _results, counts = self.service.import_bulk(
+            [self._section("sec-a"), self._section("sec-b")], strategy="merge"
+        )
+        self.assertEqual(counts["imported"], 2)
+        self.assertEqual(self.undo_stack.count(), 1)
+        self.assertEqual(
+            sorted(s["id"] for s in self.adapter.sections), ["sec-a", "sec-b"]
+        )
+        self.undo_stack.undo()
+        self.assertEqual(self.adapter.sections, [])
+
+
 class BulkImportTest(unittest.TestCase):
     def setUp(self) -> None:
         _App.get()
