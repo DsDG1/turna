@@ -285,6 +285,42 @@ class TelemetryScrubEdgeCasesTest(unittest.TestCase):
         out = self._write("endpoint", "https://api.example.com/v1")
         self.assertEqual(out, "https://api.example.com/v1")
 
+    def test_url_api_key_is_masked(self) -> None:
+        out = self._write(
+            "endpoint", "https://api.example.com/v1/generate?key=AIzaSySECRET123"
+        )
+        self.assertNotIn("AIzaSySECRET123", out)
+        self.assertIn("key=***", out)
+        # The URL still identifies the endpoint, which is the diagnostic part.
+        self.assertIn("api.example.com", out)
+
+    def test_url_non_secret_query_params_survive(self) -> None:
+        out = self._write("endpoint", "https://x.dev/v1?model=gpt-4o&key=abc")
+        self.assertIn("model=gpt-4o", out)
+        self.assertIn("key=***", out)
+
+    def test_nested_dict_is_scrubbed(self) -> None:
+        # A nested structure must not be a way around the scrubber.
+        self.telemetry.record_event(
+            "x", payload={"outer": {"path": "/home/alice/secret/project"}}
+        )
+        line = self.log_file.read_text(encoding="utf-8").strip().splitlines()[-1]
+        blob = line
+        self.assertNotIn("/home/alice", blob)
+        self.assertNotIn("alice", blob)
+
+    def test_traceback_lines_are_scrubbed(self) -> None:
+        self.telemetry.record_event(
+            "x",
+            payload={
+                "traceback": [
+                    'File "D:/program/Turna/Turna/src/app.py", line 42, in run'
+                ]
+            },
+        )
+        line = self.log_file.read_text(encoding="utf-8").strip().splitlines()[-1]
+        self.assertNotIn("D:/program", line)
+
     def test_short_relative_path_is_untouched(self) -> None:
         out = self._write("level", "A1/A2")
         self.assertEqual(out, "A1/A2")

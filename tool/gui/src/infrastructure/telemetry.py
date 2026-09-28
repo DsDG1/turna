@@ -104,18 +104,70 @@ def scrub_value(key: str, value: Any) -> Any:
     """Reduce one payload value to something that does not identify a file."""
     if isinstance(value, Path):
         return scrub_value(key, str(value))
+    if isinstance(value, dict):
+        # Recurse: a nested structure (metrics, scope blobs) reached the log
+        # verbatim before this, so payload["outer"]["path"] was a way around
+        # the whole scrubber.
+        return {str(k): scrub_value(str(k), v) for k, v in value.items()}
     if isinstance(value, (list, tuple)):
         return [scrub_value(key, v) for v in value]
-    if not isinstance(value, str):
+    if isinstance(value, bool) or not isinstance(value, str):
         return value
     text = value
-    if key in _PATH_KEYS or _looks_like_path(text):
+    # Order matters: a remote URL also contains "/", so _looks_like_path would
+    # claim it first and leave its query string untouched.
+    lowered = text[:12].casefold()
+    if key in _PATH_KEYS or lowered.startswith("file://") or _looks_like_path(text):
+        if "://" in text and not lowered.startswith("file://"):
+            # A remote URL has no local path to shorten; the only thing to
+            # hide is a credential in its query. (Running the local-path pass
+            # over it would eat the hostname as if it were a directory.)
+            return _scrub_url_query(text)
         return _scrub_pathish(text)
+    if "?" in text and "://" in text:
+        text = _scrub_url_query(text)
     # Not a bare path, but prose can still carry one — an exception message
     # like "[Errno 2] No such file: '/home/bob/course.json'" would otherwise
     # write the whole path to the log. Scrub rooted tokens in place.
     scrubbed, n = _ROOTED_TOKEN.subn(_scrub_token_match, text)
     return scrubbed if n else text
+
+
+# Query parameters whose values are credentials, not diagnostics.
+_SECRET_QUERY_KEYS = frozenset(
+    {
+        "key",
+        "api_key",
+        "apikey",
+        "access_token",
+        "token",
+        "auth",
+        "authorization",
+        "password",
+        "secret",
+        "sig",
+        "signature",
+    }
+)
+
+
+def _scrub_url_query(url: str) -> str:
+    """Replace secret-looking query values with ``***``, keeping the URL."""
+    try:
+        base, sep, query = url.partition("?")
+        if not sep or not query:
+            return url
+        kept: list[str] = []
+        for chunk in query.split("&"):
+            name, has_eq, _value = chunk.partition("=")
+            if has_eq and name.strip().casefold() in _SECRET_QUERY_KEYS:
+                kept.append(f"{name}=***")
+            else:
+                kept.append(chunk)
+        return f"{base}?{'&'.join(kept)}"
+    except Exception:
+        # Never let scrubbing break a log line.
+        return url
 
 
 # A rooted path token inside a larger string: "/opt/x/y", "C:/Users/me", and
