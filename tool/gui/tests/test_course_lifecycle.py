@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import sys
+import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
@@ -17,6 +19,8 @@ from src.application.course_lifecycle import (
     REASON_COURSE_SWITCH,
     bind_loaded_course,
     clear_experience_session,
+    confirm_course_switch,
+    open_course_flow,
     prepare_course_switch,
 )
 from src.backend.experience.conflict_guard import ConflictGuard
@@ -80,6 +84,10 @@ class _FakeHost:
         self._status: list[str] = []
         self._workshop_window = MagicMock()
         self.experience_dock_widget = MagicMock()
+        self._load_errors: list[str] = []
+
+    def _show_load_error(self, message: str) -> None:
+        self._load_errors.append(message)
 
     def _flush_experience_metrics(self, reason: str, *, course_dir=None) -> None:
         self._flush_calls.append((reason, course_dir))
@@ -175,6 +183,196 @@ class BindLoadedCourseTest(unittest.TestCase):
         self.assertEqual(host._flush_calls, [])
         self.assertEqual(host.course_dir, Path("/tmp/only"))
         self.assertEqual(host._diagnose_calls, 1)
+
+
+def _dirty_host() -> _FakeHost:
+    host = _FakeHost()
+    host.adapter.detect_changes.return_value = {"unit:u1": True}
+    return host
+
+
+class ConfirmCourseSwitchTest(unittest.TestCase):
+    """#1/#14: switching courses must never silently discard dirty edits."""
+
+    def _ask(self, answer: str):
+        """Patch the modal so headless tests can drive each choice."""
+        from PySide6.QtWidgets import QMessageBox
+
+        button = {
+            "save": QMessageBox.StandardButton.Save,
+            "discard": QMessageBox.StandardButton.Discard,
+            "cancel": QMessageBox.StandardButton.Cancel,
+        }[answer]
+        return (
+            patch("src.application.ui_guard.is_headless_ui", return_value=False),
+            patch.object(QMessageBox, "question", return_value=button),
+        )
+
+    def test_clean_course_never_asks(self) -> None:
+        with patch("PySide6.QtWidgets.QMessageBox.question") as ask:
+            self.assertTrue(confirm_course_switch(_FakeHost()))
+            ask.assert_not_called()
+
+    def test_dirty_headless_discards_and_proceeds(self) -> None:
+        # Headless keeps close_controller's contract: auto-discard, never
+        # hang CI on a modal.
+        self.assertTrue(confirm_course_switch(_dirty_host()))
+
+    def test_dirty_cancel_blocks_switch(self) -> None:
+        host = _dirty_host()
+        no_ui, ask = self._ask("cancel")
+        with no_ui, ask:
+            self.assertFalse(confirm_course_switch(host))
+        self.assertEqual(host.course_dir, Path("/tmp/old-course"))
+
+    def test_dirty_save_success_proceeds_through_pipeline(self) -> None:
+        host = _dirty_host()
+        outcome = SimpleNamespace(ok=True, message="保存成功", errors=[])
+        no_ui, ask = self._ask("save")
+        with no_ui, ask, patch(
+            "src.application.save_host.execute_save", return_value=outcome
+        ) as save:
+            self.assertTrue(confirm_course_switch(host))
+            save.assert_called_once()
+            self.assertEqual(save.call_args.args[1].reason, REASON_COURSE_SWITCH)
+
+    def test_dirty_save_failure_blocks_switch(self) -> None:
+        host = _dirty_host()
+        outcome = SimpleNamespace(ok=False, message="校验失败", errors=[{"level": "error", "message": "bad"}])
+        no_ui, ask = self._ask("save")
+        with no_ui, ask, patch(
+            "src.application.save_host.execute_save", return_value=outcome
+        ), patch("src.application.ui_guard.safe_warning") as warned:
+            self.assertFalse(confirm_course_switch(host))
+            warned.assert_called_once()
+        self.assertEqual(host.course_dir, Path("/tmp/old-course"))
+
+
+class OpenCourseFlowTest(unittest.TestCase):
+    def test_clean_open_loads_then_binds(self) -> None:
+        host = _FakeHost()
+        loaded: list[Path] = []
+        ok = open_course_flow(
+            host, Path("/tmp/new"), load=loaded.append
+        )
+        self.assertTrue(ok)
+        self.assertEqual(loaded, [Path("/tmp/new")])
+        self.assertEqual(host.course_dir, Path("/tmp/new"))
+        self.assertEqual(host._diagnose_calls, 1)
+        self.assertEqual(host._load_errors, [])
+
+    def test_load_failure_shows_error_and_keeps_current_course(self) -> None:
+        host = _FakeHost()
+
+        def _boom(_p: Path) -> None:
+            raise RuntimeError("course.yaml 缺失")
+
+        ok = open_course_flow(host, Path("/tmp/new"), load=_boom)
+        self.assertFalse(ok)
+        self.assertEqual(host._load_errors, ["course.yaml 缺失"])
+        self.assertEqual(host.course_dir, Path("/tmp/old-course"))
+        self.assertEqual(host._diagnose_calls, 0)
+
+    def test_switch_resets_session_state_and_save_timestamp(self) -> None:
+        """#14: no stale suggestion keys / save time / node ref across courses."""
+        host = _dirty_host()
+        host._last_saved_at = datetime(2026, 9, 28, 10, 30)
+        # Offscreen → dirty resolves as discard; the switch must still land.
+        self.assertTrue(
+            open_course_flow(host, Path("/tmp/new"), load=lambda _p: None)
+        )
+        self.assertIsNone(host._last_saved_at)
+        self.assertIsNone(host._current_node_ref)
+        self.assertEqual(host._shown_suggestion_keys, set())
+        self.assertEqual(host.course_dir, Path("/tmp/new"))
+
+    def test_confirmed_cancel_aborts_before_load(self) -> None:
+        from PySide6.QtWidgets import QMessageBox
+
+        host = _dirty_host()
+        loaded: list[Path] = []
+        with patch(
+            "src.application.ui_guard.is_headless_ui", return_value=False
+        ), patch.object(
+            QMessageBox, "question",
+            return_value=QMessageBox.StandardButton.Cancel,
+        ):
+            ok = open_course_flow(host, Path("/tmp/new"), load=loaded.append)
+        self.assertFalse(ok)
+        self.assertEqual(loaded, [])
+        self.assertEqual(host.course_dir, Path("/tmp/old-course"))
+
+
+class RepoSessionOpenPathsTest(unittest.TestCase):
+    """The three open paths must delegate to open_course_flow (#1)."""
+
+    def test_open_repo_path_routes_through_flow(self) -> None:
+        from src.application import repo_session_host
+
+        host = _FakeHost()
+        with tempfile.TemporaryDirectory() as td, patch.object(
+            repo_session_host.CourseAdapter, "is_course_dir", return_value=True
+        ), patch(
+            "src.application.course_lifecycle.open_course_flow",
+            return_value=True,
+        ) as flow:
+            repo_session_host.open_repo_path(host, td)
+            flow.assert_called_once()
+            load_fn = flow.call_args.kwargs["load"]
+            load_fn(Path(td))
+            host.adapter.load.assert_called_once_with(Path(td))
+
+    def test_on_open_routes_through_flow(self) -> None:
+        from src.application import repo_session_host
+
+        host = _FakeHost()
+        with patch.object(
+            repo_session_host.QFileDialog,
+            "getExistingDirectory",
+            return_value="D:/courses/new",
+        ), patch(
+            "src.application.course_lifecycle.open_course_flow",
+            return_value=True,
+        ) as flow:
+            repo_session_host.on_open(host)
+            flow.assert_called_once()
+            self.assertEqual(flow.call_args.args[1], Path("D:/courses/new"))
+
+    def test_on_new_course_confirms_before_dialog_then_binds(self) -> None:
+        from src.application import repo_session_host
+
+        host = _FakeHost()
+        order: list[str] = []
+
+        def _confirm(_host) -> bool:
+            order.append("confirm")
+            return True
+
+        fake_dlg = MagicMock()
+        fake_dlg.exec.return_value = True
+        fake_dlg.init_dir.return_value = Path("/tmp/fresh")
+
+        def _dialog(*_a, **_k):
+            order.append("dialog")
+            return fake_dlg
+
+        with patch(
+            "src.application.course_lifecycle.confirm_course_switch",
+            side_effect=_confirm,
+        ), patch(
+            "src.dialogs.init_course_dialog.InitCourseDialog", side_effect=_dialog
+        ), patch(
+            "src.application.course_lifecycle.open_course_flow",
+            return_value=True,
+        ) as flow:
+            repo_session_host.on_new_course(host)
+
+        # The dirty check must run BEFORE the dialog mutates the adapter.
+        self.assertEqual(order, ["confirm", "dialog"])
+        flow.assert_called_once()
+        kwargs = flow.call_args.kwargs
+        self.assertFalse(kwargs["confirm"])
+        self.assertEqual(kwargs["telemetry_event"], "repo.new")
 
 
 class MainWindowLifecycleWiringTest(unittest.TestCase):

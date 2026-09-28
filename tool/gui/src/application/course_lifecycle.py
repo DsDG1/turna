@@ -169,6 +169,138 @@ def prepare_course_switch(host: ExperienceHost, old_dir: Path | None) -> None:
     )
 
 
+def _course_switch_dirty(host: ExperienceHost) -> bool:
+    """True when the current course has unsaved in-memory edits."""
+    try:
+        adapter = getattr(host, "adapter", None)
+        course_dir = getattr(host, "course_dir", None)
+        return bool(course_dir and adapter and any(adapter.detect_changes().values()))
+    except Exception:
+        logger.debug("application/course_lifecycle.py:_course_switch_dirty best-effort step failed", exc_info=True)
+        return False
+
+
+def confirm_course_switch(host: ExperienceHost) -> bool:
+    """Dirty check + 保存 / 放弃更改 / 取消 before replacing the course.
+
+    Returns True when the switch may proceed. 「保存并打开」runs the full
+    SavePipeline (``REASON_COURSE_SWITCH``) and aborts the switch when the
+    save fails — never drop edits the user explicitly asked to keep.
+    Headless keeps close_controller's contract: auto-discard, never hang CI
+    on a modal. Nothing is actually discarded here; the caller's load step
+    overwrites memory only after this returns True.
+    """
+    from src.application.ui_guard import is_auto_confirm, is_headless_ui
+    from src.infrastructure.telemetry import telemetry
+
+    if not _course_switch_dirty(host):
+        return True
+
+    choice = "cancel"
+    if is_auto_confirm():
+        # Immersive full-auto: keep the work and keep going.
+        choice = "save"
+    elif is_headless_ui():
+        choice = "discard"
+    else:
+        from PySide6.QtWidgets import QMessageBox
+
+        reply = QMessageBox.question(
+            host,
+            "未保存的更改",
+            "当前课程有未保存的更改，切换前是否保存？",
+            (
+                QMessageBox.StandardButton.Save
+                | QMessageBox.StandardButton.Discard
+                | QMessageBox.StandardButton.Cancel
+            ),
+            QMessageBox.StandardButton.Save,
+        )
+        if reply == QMessageBox.StandardButton.Save:
+            choice = "save"
+        elif reply == QMessageBox.StandardButton.Discard:
+            choice = "discard"
+
+    if choice == "cancel":
+        telemetry.record_event("repo.switch.cancelled")
+        return False
+    if choice == "discard":
+        telemetry.record_event("repo.switch.discarded")
+        return True
+
+    from src.application.save_host import execute_save
+    from src.application.save_pipeline import SaveRequest
+
+    outcome = execute_save(
+        host,
+        SaveRequest(
+            reason=REASON_COURSE_SWITCH,
+            run_soft=True,
+            show_validation_ui=False,
+        ),
+    )
+    if outcome.ok:
+        return True
+    from src.application.ui_guard import safe_warning
+
+    detail_text = "\n".join(
+        f"[{e.get('level', 'error')}] {e.get('message', '')}"
+        for e in (getattr(outcome, "errors", None) or [])
+    )
+    safe_warning(
+        host,
+        "保存失败（课程未切换）",
+        detail_text or outcome.message or "未知错误",
+    )
+    return False
+
+
+def open_course_flow(
+    host: ExperienceHost,
+    path: Path,
+    *,
+    load=None,
+    confirm: bool = True,
+    status_message: str | None = None,
+    telemetry_event: str = "repo.open",
+    telemetry_payload: Mapping[str, Any] | None = None,
+) -> bool:
+    """Single open / new / switch entry: confirm → load → bind_loaded_course.
+
+    *load* performs the adapter load for *path* and may raise; on failure the
+    error surfaces through ``host._show_load_error`` and the current course
+    stays untouched (this is the data-loss fix: previously every open path
+    overwrote memory + cleared undo with no dirty check). Pass
+    ``confirm=False`` when the caller already ran :func:`confirm_course_switch`
+    *before* something mutated the adapter (the new-course dialog path).
+    """
+    from src.infrastructure.telemetry import telemetry
+
+    if confirm and not confirm_course_switch(host):
+        return False
+    if load is not None:
+        try:
+            load(path)
+        except Exception as exc:
+            telemetry.record_error(
+                exc, context={"action": "repo.open", "path": str(path)}
+            )
+            show_error = getattr(host, "_show_load_error", None)
+            if callable(show_error):
+                show_error(str(exc))
+            else:
+                raise
+            return False
+    bind_loaded_course(
+        host,
+        path,
+        status_message=status_message,
+        telemetry_event=telemetry_event,
+        telemetry_payload=telemetry_payload,
+    )
+    return True
+
+
 def bind_loaded_course(
     host: ExperienceHost,
     path: Path,
@@ -239,6 +371,9 @@ def bind_loaded_course(
 
     try:
         host._current_node_ref = None
+        # Fresh course: no save happened in this session. Without this the
+        # status bar keeps showing the *previous* course's save timestamp.
+        host._last_saved_at = None
     except Exception:
         logger.debug("application/course_lifecycle.py:bind_loaded_course best-effort step failed", exc_info=True)
 

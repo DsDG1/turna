@@ -9,12 +9,15 @@ from __future__ import annotations
 from pathlib import Path
 
 import contextlib
+import logging
 
 from PySide6.QtWidgets import QFileDialog, QMessageBox
 
 from src.backend.ai import AiApiConfig
 from src.backend.course_adapter import CourseAdapter
 from src.infrastructure.telemetry import telemetry
+
+logger = logging.getLogger(__name__)
 
 
 def load_recent_repos(host) -> list[dict[str, str]]:
@@ -114,57 +117,37 @@ def maybe_open_last_repo(host) -> None:
 
 
 def open_repo_path(host, path_str: str) -> None:
+    from src.application.course_lifecycle import open_course_flow
     from src.application.ui_guard import safe_warning
 
     path = Path(path_str)
     if not path.exists() or not CourseAdapter.is_course_dir(path):
         safe_warning(host, "无法打开", f"目录不存在或不是有效的课程仓库：\n{path}")
         return
-    session = getattr(host, "session", None)
-    if session is not None:
-        try:
-            session.open_course(path)
-        except Exception as exc:
-            telemetry.record_error(
-                exc,
-                context={"action": "repo.open", "path": str(path)},
-            )
-            host._show_load_error(str(exc))
-            return
-    else:
-        try:
-            host.adapter.load(path)
-        except Exception as exc:
-            telemetry.record_error(
-                exc,
-                context={"action": "repo.open", "path": str(path)},
-            )
-            host._show_load_error(str(exc))
-            return
-        host.course_dir = path
-        host.undo_stack.clear()
-    host.tree.display(host.adapter)
-    host._enable_editor_actions()
-    host._add_recent_repo(path)
-    telemetry.record_event(
-        "repo.open",
-        payload={"path": str(path)},
-    )
-    host.statusBar().showMessage(f"已加载: {host.course_dir}", 4000)
+
+    def _load(p: Path) -> None:
+        session = getattr(host, "session", None)
+        if session is not None:
+            session.open_course(p)
+        else:
+            host.adapter.load(p)
+
+    open_course_flow(host, path, load=_load)
 
 
 def show_load_error(host, message: str) -> None:
     """Show a load error dialog with optional AI analysis."""
     from src.dialogs.ai_error_analyzer import offer_ai_analysis
     if offer_ai_analysis(host, "加载失败", message):
-        import traceback
-
         from src.dialogs.ai_error_analyzer import AiErrorAnalyzerDialog
 
-        AiErrorAnalyzerDialog(
-            traceback.format_exc(),
+        # analyze_exception(), not traceback.format_exc(): we are outside any
+        # except block here, so format_exc() would hand the model the useless
+        # "NoneType: None" instead of the load error above.
+        AiErrorAnalyzerDialog.analyze_exception(
+            host,
+            message,
             context={"action": "repo.open"},
-            parent=host,
         ).exec()
 
 
@@ -184,12 +167,20 @@ def enable_editor_actions(host) -> None:
         shell_views.sync_save_state_label(host)
         shell_views.sync_activity_badges(host)
     except Exception:
-        pass
+        # Shell chrome only (status caption + activity-bar badge counts). The
+        # repo is already loaded and unlocked by this point; failing to refresh
+        # the chrome must not abort the open flow or roll the repo back.
+        logger.debug("post-open shell chrome sync failed", exc_info=True)
 
 
 def on_new_course(host) -> None:
+    from src.application.course_lifecycle import confirm_course_switch, open_course_flow
     from src.dialogs.init_course_dialog import InitCourseDialog
 
+    # Dirty-check BEFORE the dialog: init_new() replaces the adapter content,
+    # so after accept the old course's unsaved edits are already unrecoverable.
+    if not confirm_course_switch(host):
+        return
     dlg = InitCourseDialog(host.adapter, host)
     if not dlg.exec():
         telemetry.record_event("repo.new.cancelled")
@@ -197,40 +188,25 @@ def on_new_course(host) -> None:
     init_dir = dlg.init_dir()
     if not init_dir:
         return
-    host.course_dir = init_dir
-    host.tree.display(host.adapter)
-    host.undo_stack.clear()
-    host._enable_editor_actions()
-    host._add_recent_repo(init_dir)
-    telemetry.record_event(
-        "repo.new",
-        payload={"course_dir": str(init_dir)},
+    # init_new() already wrote + bound the adapter; only the shared tail
+    # (bind/undo clear/recent/status) remains.
+    open_course_flow(
+        host,
+        init_dir,
+        load=None,
+        confirm=False,
+        status_message=f"已新建并加载: {init_dir}",
+        telemetry_event="repo.new",
+        telemetry_payload={"course_dir": str(init_dir)},
     )
-    host.statusBar().showMessage(f"已新建并加载: {init_dir}", 5000)
 
 
 def on_open(host) -> None:
+    from src.application.course_lifecycle import open_course_flow
+
     start = str(host.course_dir) if host.course_dir else ""
     chosen = QFileDialog.getExistingDirectory(host, "选择课程目录", start)
     if not chosen:
         telemetry.record_event("repo.open.cancelled")
         return
-    try:
-        host.adapter.load(Path(chosen))
-    except Exception as exc:
-        telemetry.record_error(
-            exc,
-            context={"action": "repo.open", "path": chosen},
-        )
-        host._show_load_error(str(exc))
-        return
-    host.course_dir = Path(chosen)
-    host.tree.display(host.adapter)
-    host.undo_stack.clear()
-    host._enable_editor_actions()
-    host._add_recent_repo(host.course_dir)
-    telemetry.record_event(
-        "repo.open",
-        payload={"path": str(host.course_dir)},
-    )
-    host.statusBar().showMessage(f"已加载: {host.course_dir}", 4000)
+    open_course_flow(host, Path(chosen), load=lambda p: host.adapter.load(p))
