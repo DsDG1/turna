@@ -361,5 +361,54 @@ class GitRemoteEditTest(unittest.TestCase):
         populated.assert_called_once()
 
 
+
+
+class AiTestConnectionTest(unittest.TestCase):
+    """#15: 测试连接 runs on a worker — the click must return immediately."""
+
+    def _make_dialog(self) -> SettingsDialog:
+        _App.get()
+        qs = _make_qsettings()
+        with patch("src.app.QSettings", return_value=qs):
+            settings = Settings.load_from_qsettings(qs)
+        dlg = SettingsDialog(settings, prompt_library=_make_prompt_library())
+        self.addCleanup(dlg.deleteLater)
+        return dlg
+
+    def test_click_starts_worker_and_greys_button(self) -> None:
+        from src.dialogs.settings import ai_tab
+
+        dlg = self._make_dialog()
+        dlg._settings.ai_base_url = "http://localhost"
+        dlg._settings.ai_api_key = "k"
+        dlg._settings.ai_model = "m"
+        with patch.object(dlg, "_sync_to_settings"), patch(
+            "src.application.ai_request_worker.AiRequestWorker"
+        ) as worker_cls:
+            fake = MagicMock()
+            fake.isRunning.return_value = False
+            worker_cls.return_value = fake
+            ai_tab.on_test_connection(dlg)
+            # Returned before any HTTP: the worker was merely started.
+            worker_cls.assert_called_once()
+            fake.start.assert_called_once()
+            self.assertFalse(dlg.ai_test_btn.isEnabled())
+            self.assertEqual(dlg.ai_test_btn.text(), "测试中…")
+
+    def test_timeout_comes_from_settings(self) -> None:
+        from src.dialogs.settings import ai_tab
+
+        dlg = self._make_dialog()
+        dlg._settings.ai_base_url = "http://localhost"
+        dlg._settings.ai_api_key = "k"
+        dlg._settings.ai_model = "m"
+        dlg._settings.ai_timeout = 7.5
+        with patch.object(dlg, "_sync_to_settings"), patch(
+            "src.application.ai_request_worker.AiRequestWorker"
+        ) as worker_cls:
+            worker_cls.return_value = MagicMock(isRunning=lambda: False)
+            ai_tab.on_test_connection(dlg)
+            self.assertEqual(worker_cls.call_args.kwargs.get("timeout"), 7.5)
+
 if __name__ == "__main__":
     unittest.main()

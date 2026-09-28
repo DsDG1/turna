@@ -215,6 +215,7 @@ def on_provider_changed(dlg, _index: int) -> None:
 
 
 def on_test_connection(dlg) -> None:
+    from src.application.ai_request_worker import AiRequestWorker
     from src.backend.ai import AiApiConfig
 
     dlg._sync_to_settings()
@@ -234,25 +235,46 @@ def on_test_connection(dlg) -> None:
         )
         return
 
+    # #15: verify_connection used to run on the UI thread, freezing the whole
+    # window for up to 15 s on a slow/unreachable endpoint. It runs on a
+    # worker now; the button greys out and the status text leads.
+    prev = getattr(dlg, "_ai_test_worker", None)
+    if prev is not None and prev.isRunning():
+        return
+    dlg._ai_test_worker = None
     dlg.ai_test_btn.setEnabled(False)
     dlg.ai_test_btn.setText("测试中…")
     dlg.ai_connection_status.setText("正在发送 1-token 测试请求…")
 
-    try:
-        result = verify_connection(config, timeout=15.0)
-    except Exception as exc:
-        result = {"ok": False, "error": str(exc)}
+    timeout = float(getattr(dlg._settings, "ai_timeout", 15.0) or 15.0)
+    worker = AiRequestWorker(verify_connection, config, timeout=timeout)
 
-    dlg.ai_test_btn.setEnabled(True)
-    dlg.ai_test_btn.setText("测试连接")
-    if result.get("ok"):
-        model = result.get("model") or config.model
+    def _restore() -> None:
+        dlg.ai_test_btn.setEnabled(True)
+        dlg.ai_test_btn.setText("测试连接")
+        dlg._ai_test_worker = None
+
+    def _on_result(result: dict) -> None:
+        _restore()
+        if result.get("ok"):
+            model = result.get("model") or config.model
+            dlg.ai_connection_status.setText(
+                f"<font color='{current_palette()['success']}'>连接成功：{model}</font>"
+            )
+        else:
+            error = result.get("error", "未知错误")
+            dlg.ai_connection_status.setText(
+                f"<font color='{current_palette()['error']}'>连接失败：{error}</font>"
+            )
+
+    def _on_error(message: str) -> None:
+        _restore()
         dlg.ai_connection_status.setText(
-            f"<font color='{current_palette()['success']}'>连接成功：{model}</font>"
+            f"<font color='{current_palette()['error']}'>连接失败：{message}</font>"
         )
-    else:
-        error = result.get("error", "未知错误")
-        dlg.ai_connection_status.setText(
-            f"<font color='{current_palette()['error']}'>连接失败：{error}</font>"
-        )
+
+    worker.result_ready.connect(_on_result)
+    worker.error_occurred.connect(_on_error)
+    dlg._ai_test_worker = worker
+    worker.start()
 
