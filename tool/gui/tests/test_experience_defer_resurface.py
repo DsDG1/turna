@@ -9,6 +9,8 @@ import sys
 import unittest
 from datetime import datetime, timedelta, timezone, UTC
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
@@ -17,7 +19,7 @@ if str(_GUI) not in sys.path:
 from tests._qtapp import qt_app
 
 from src.backend.experience.context_bus import ExperienceContext
-from src.backend.experience.defer_store import DeferStore
+from src.backend.experience.defer_store import MAX_DISMISS, DeferStore
 from src.backend.experience.proactive import (
     AmbientProposal,
     evaluate_ambient_batch,
@@ -90,10 +92,12 @@ class BatchDeferLogicTest(unittest.TestCase):
     def test_permanent_archive_after_max_dismiss(self) -> None:
         store = DeferStore()
         pid = proposal_id_for("validate.open_and_fix", {"error_count": 2})
-        store.add(pid, "validate.open_and_fix", now=NOW)
-        store.add(pid, now=NOW)
-        r3 = store.add(pid, now=NOW)  # dismiss_count == 3 -> permanent
-        self.assertEqual(r3.re_surface_after_iso, "")
+        # T10: MAX_DISMISS defers now (15/30/60min, then permanent).
+        for _ in range(MAX_DISMISS - 1):
+            record = store.add(pid, "validate.open_and_fix", now=NOW)
+            self.assertNotEqual(record.re_surface_after_iso, "")
+        final = store.add(pid, now=NOW)
+        self.assertEqual(final.re_surface_after_iso, "")
         self.assertIsNone(store.get(pid))  # dropped from store
         # Caller moves pid to session archive; batch then excludes it.
         sugs = [_sug(0, "validate.open_and_fix", {"error_count": 2})]
@@ -101,6 +105,57 @@ class BatchDeferLogicTest(unittest.TestCase):
             _ctx(), suggestions=sugs, archived_ids=[pid], defer_store=store, now=NOW
         )
         self.assertEqual(props, [])
+
+
+class AmbientDiscardControllerTest(unittest.TestCase):
+    """T10: ✕ archives without spending one of the escalating defers."""
+
+    def setUp(self) -> None:
+        qt_app()
+        self.messages: list[str] = []
+        self.archived: set[str] = set()
+        self.store = DeferStore()
+        self.host = SimpleNamespace(
+            _defer_store=self.store,
+            _ambient_archived=self.archived,
+            statusBar=lambda: SimpleNamespace(
+                showMessage=lambda msg, *_a: self.messages.append(msg)
+            ),
+            experience_metrics=SimpleNamespace(inc_ambient=lambda *_a, **_k: None),
+            ambient_banner=SimpleNamespace(proposals=lambda: []),
+        )
+        # refresh_ambient() would need a real banner; the archive decision
+        # happens before it.
+        patcher = patch(
+            "src.application.ambient_controller.refresh_ambient",
+            lambda *_a, **_k: None,
+        )
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_discard_archives_without_touching_the_defer_store(self) -> None:
+        from src.application.ambient_controller import on_ambient_discarded
+
+        on_ambient_discarded(self.host, "p-1")
+        self.assertIn("p-1", self.archived)
+        self.assertEqual(len(self.store), 0)  # no defer record created
+        self.assertTrue(any("归档" in m for m in self.messages))
+
+    def test_defer_then_discard_still_archives(self) -> None:
+        from src.application.ambient_controller import (
+            on_ambient_archived,
+            on_ambient_discarded,
+        )
+
+        on_ambient_archived(self.host, "p-1")  # not in the banner queue -> legacy archive
+        on_ambient_discarded(self.host, "p-1")
+        self.assertIn("p-1", self.archived)
+
+    def test_empty_pid_is_ignored(self) -> None:
+        from src.application.ambient_controller import on_ambient_discarded
+
+        on_ambient_discarded(self.host, "")
+        self.assertEqual(self.archived, set())
 
 
 if __name__ == "__main__":

@@ -158,6 +158,11 @@ class ExperienceSkillsMixin:
         from src.application.ambient_controller import on_ambient_archived
         on_ambient_archived(self, proposal_id)
 
+    def _on_ambient_discarded(self, proposal_id: str) -> None:
+        """T10: ✕ archives immediately — no deferral, no dismiss count."""
+        from src.application.ambient_controller import on_ambient_discarded
+        on_ambient_discarded(self, proposal_id)
+
     def _on_ambient_mute_changed(self, level: str) -> None:
         from src.application.ambient_controller import on_ambient_mute_changed
         on_ambient_mute_changed(self, level)

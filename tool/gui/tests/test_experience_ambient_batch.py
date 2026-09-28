@@ -198,7 +198,7 @@ class AmbientBannerQueueTest(unittest.TestCase):
     def test_collapsed_row_archive_emits_pid(self) -> None:
         self.banner.show_proposals([self.p0, self.p1, self.p2])
         received: list[str] = []
-        self.banner.archived.connect(lambda pid: received.append(pid))
+        self.banner.discarded.connect(lambda pid: received.append(pid))
         self.banner._render()  # ensure collapsed rows built
         # The second collapsed row's ✕ button archives p2 (queue[2]).
         collapsed = self.banner._collapsed_rows
@@ -210,6 +210,32 @@ class AmbientBannerQueueTest(unittest.TestCase):
         self.assertTrue(buttons, "collapsed row should have an archive button")
         buttons[0].click()
         self.assertEqual(received, [self.p2.id])
+
+    def test_collapsed_row_discard_does_not_defer(self) -> None:
+        # T10: ✕ archives immediately. It must NOT travel the 稍后 path, or a
+        # user who only ever clicks ✕ gets escalated into permanent archive.
+        self.banner.show_proposals([self.p0, self.p1, self.p2])
+        deferred: list[str] = []
+        discarded: list[str] = []
+        self.banner.archived.connect(deferred.append)
+        self.banner.discarded.connect(discarded.append)
+        self.banner._render()
+        from PySide6.QtWidgets import QPushButton
+
+        self.banner._collapsed_rows[-1].findChildren(QPushButton)[0].click()
+        self.assertEqual(deferred, [])
+        self.assertEqual(discarded, [self.p2.id])
+
+    def test_later_button_still_defers(self) -> None:
+        self.banner.show_proposals([self.p0])
+        deferred: list[str] = []
+        self.banner.archived.connect(deferred.append)
+        self.banner._later_btn.click()
+        self.assertEqual(deferred, [self.p0.id])
+
+    def test_later_tooltip_documents_the_escalation(self) -> None:
+        self.banner.show_proposals([self.p0])
+        self.assertIn("15/30/60", self.banner._later_btn.toolTip())
 
     def test_no_setfocus_source_contract(self) -> None:
         """D27: the banner must never steal focus."""

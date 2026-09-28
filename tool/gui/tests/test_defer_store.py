@@ -44,11 +44,17 @@ class DeferStoreTest(unittest.TestCase):
 
     def test_dismiss_max_permits_permanent_archive(self) -> None:
         s = DeferStore()
-        s.add("p1", "a", now=NOW)
-        s.add("p1", now=NOW)
-        r3 = s.add("p1", now=NOW)  # dismiss_count == 3 -> permanent
-        self.assertEqual(r3.dismiss_count, MAX_DISMISS)
-        self.assertEqual(r3.re_surface_after_iso, "")  # permanent marker
+        # T10: the 60min tier is reachable — every documented cooldown gets
+        # a turn before the permanent archive.
+        for attempt, expected_minutes in enumerate((15, 30, 60), start=1):
+            record = s.add("p1", "a", now=NOW)
+            self.assertEqual(record.dismiss_count, attempt)
+            re_after = datetime.fromisoformat(record.re_surface_after_iso)
+            minutes = (re_after - NOW).total_seconds() / 60
+            self.assertEqual(minutes, expected_minutes)
+        r_final = s.add("p1", now=NOW)  # dismiss_count == MAX_DISMISS -> permanent
+        self.assertEqual(r_final.dismiss_count, MAX_DISMISS)
+        self.assertEqual(r_final.re_surface_after_iso, "")  # permanent marker
         # Permanent record removed from the store (caller moves to session archive).
         self.assertIsNone(s.get("p1"))
         self.assertFalse(s.is_cooled_down("p1", now=NOW))

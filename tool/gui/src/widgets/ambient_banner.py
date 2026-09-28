@@ -37,6 +37,12 @@ class AmbientBanner(QWidget):
 
     accepted = Signal(object)  # AmbientProposal or dict (expanded top item)
     archived = Signal(str)  # proposal id (expanded top or collapsed row)
+    # T10: ✕ on a collapsed row means "archive this now", which is NOT the
+    # same as 「稍后」 — deferring escalates a cooldown and eventually counts
+    # toward permanent archive. Sharing one signal made both buttons do the
+    # defer, so a user who dismissed something four times got archived when
+    # they only meant "not now".
+    discarded = Signal(str)  # proposal id, archived immediately
     mute_changed = Signal(str)  # mute level string
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -82,7 +88,10 @@ class AmbientBanner(QWidget):
 
         self._later_btn = QPushButton("稍后")
         self._later_btn.setFlat(True)
-        self._later_btn.setToolTip("本会话内不再显示这条提案")
+        # T10: the old tooltip promised "not again this session", but the
+        # store actually re-surfaces after 15/30/60 minutes and archives after
+        # a few tries. Say what happens.
+        self._later_btn.setToolTip("稍后提醒（15/30/60 分钟后重现，多次稍后将归档）")
         self._later_btn.clicked.connect(self._on_archive)
         row_layout.addWidget(self._later_btn)
 
@@ -182,7 +191,7 @@ class AmbientBanner(QWidget):
         xbtn = QPushButton("✕")
         xbtn.setFlat(True)
         xbtn.setFixedSize(20, 20)
-        xbtn.setToolTip("归档此条")
+        xbtn.setToolTip("归档此条（不再提醒）")
         xbtn.setProperty("proposal_id", proposal.id)
         xbtn.clicked.connect(self._on_archive_row_clicked)
         lay.addWidget(dot)
@@ -202,7 +211,8 @@ class AmbientBanner(QWidget):
             return
         pid = sender.property("proposal_id")
         if isinstance(pid, str):
-            self._archive_pid(pid)
+            # ✕ = archive now, no deferral and no dismiss count (T10).
+            self._discard_pid(pid)
 
     def _on_mute_hours4(self) -> None:
         self._on_mute(MUTE_HOURS4)
@@ -224,10 +234,10 @@ class AmbientBanner(QWidget):
             return
         self.archived.emit(self._queue[0].id)
 
-    def _archive_pid(self, proposal_id: str) -> None:
-        """Collapsed-row ✕ (or any pid) - archive a specific proposal."""
+    def _discard_pid(self, proposal_id: str) -> None:
+        """Archive a specific proposal immediately (no deferral, T10)."""
         if proposal_id:
-            self.archived.emit(str(proposal_id))
+            self.discarded.emit(str(proposal_id))
 
     def _on_mute(self, level: str) -> None:
         self.mute_changed.emit(level)

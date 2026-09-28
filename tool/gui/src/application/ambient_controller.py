@@ -253,13 +253,32 @@ def on_ambient_archived(host: ExperienceHost, proposal_id: str) -> None:
             # Escalated to permanent -> session-level archive, no resurface.
             host._ambient_archived.add(pid)
             host.experience_metrics.inc_ambient("dismissed")
+            host.statusBar().showMessage("多次稍后，本条已归档", 3000)
         else:
             save_defer_store(host)
             host.experience_metrics.inc_ambient("deferred")
+            # T10: this is a defer, not an archive — say so.
+            host.statusBar().showMessage("已稍后，稍后将再次提醒", 3000)
     else:
         # Legacy: session-only archive (no resurface).
         host._ambient_archived.add(pid)
         host.experience_metrics.inc_ambient("dismissed")
+        host.statusBar().showMessage("已归档本条主动建议", 3000)
+    refresh_ambient(host)
+
+
+def on_ambient_discarded(host: ExperienceHost, proposal_id: str) -> None:
+    """T10: ✕ on a collapsed row archives immediately, without a deferral.
+
+    Deliberately does NOT touch the defer store: clicking ✕ means "I don't
+    want this", not "not now", so it must not consume one of the escalating
+    defers that end in permanent archive.
+    """
+    pid = str(proposal_id or "")
+    if not pid:
+        return
+    host._ambient_archived.add(pid)
+    host.experience_metrics.inc_ambient("dismissed")
     host.statusBar().showMessage("已归档本条主动建议", 3000)
     refresh_ambient(host)
 

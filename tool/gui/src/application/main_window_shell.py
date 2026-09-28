@@ -131,6 +131,7 @@ def build_central(host) -> None:
     host.ambient_banner = AmbientBanner(host)
     host.ambient_banner.accepted.connect(host._on_ambient_accepted)
     host.ambient_banner.archived.connect(host._on_ambient_archived)
+    host.ambient_banner.discarded.connect(host._on_ambient_discarded)
     host.ambient_banner.mute_changed.connect(host._on_ambient_mute_changed)
     # Banner is added to the shell root inside build_shell (same position:
     # top of the window, self-hiding when empty).

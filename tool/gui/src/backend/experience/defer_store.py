@@ -22,7 +22,10 @@ logger = logging.getLogger(__name__)
 
 # Escalating cooldown (seconds): 15min -> 30min -> 60min -> permanent.
 COOLDOWN_BASE = 15 * 60
-MAX_DISMISS = 3  # >=3 defers -> permanent archive (no resurface).
+# T10: this was 3, which made the 60min tier unreachable — dismiss 3 went
+# straight to permanent archive while the comment above promised 15/30/60.
+# 4 gives every documented tier a turn before archiving.
+MAX_DISMISS = 4  # >=4 defers -> permanent archive (no resurface).
 STORE_CAP = 20  # FIFO cap on retained records.
 
 
