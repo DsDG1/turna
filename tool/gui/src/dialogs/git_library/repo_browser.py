@@ -144,13 +144,12 @@ def on_history_context_menu(dlg, position) -> None:
 def on_reset_to(dlg, ref: str, mode: str) -> None:
     if dlg._clone_dir is None:
         return
-    reply = QMessageBox.question(
+    from src.application.ui_guard import CANCEL, YES, safe_question3
+    reply = safe_question3(
         dlg, f"Reset {mode}",
         f"确定要 reset --{mode} 到 {ref} 吗？此操作可能丢失改动。",
-        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
-        QMessageBox.StandardButton.Cancel,
-    )
-    if reply != QMessageBox.StandardButton.Yes:
+auto_choice=CANCEL,)
+    if reply != YES:
         return
     dlg._run_git_async(
         f"reset --{mode}",

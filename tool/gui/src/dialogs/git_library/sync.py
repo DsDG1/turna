@@ -172,7 +172,8 @@ def on_pull_conflict(dlg, message: str) -> None:
     """Offer conflict resolution options when pull --ff-only fails."""
     if dlg._clone_dir is None:
         return
-    reply = QMessageBox.question(
+    from src.application.ui_guard import CANCEL, NO, YES, safe_question3
+    reply = safe_question3(
         dlg,
         "拉取冲突",
         f"快进拉取失败（可能有分叉提交）。\n\n{message}\n\n"
@@ -180,10 +181,8 @@ def on_pull_conflict(dlg, message: str) -> None:
         f"  Yes = Rebase（推荐，保持线性历史）\n"
         f"  No = Stash + Pull + Pop（暂存本地改动后拉取）\n"
         f"  Cancel = 放弃",
-        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel,
-        QMessageBox.StandardButton.Yes,
-    )
-    if reply == QMessageBox.StandardButton.Yes:
+auto_choice=CANCEL,)
+    if reply == YES:
         dlg._run_git_async(
             "rebase",
             dlg.git.pull_rebase,
@@ -192,7 +191,7 @@ def on_pull_conflict(dlg, message: str) -> None:
             ok_message="已 rebase 到远程最新。",
             error_title="Rebase 失败",
         )
-    elif reply == QMessageBox.StandardButton.No:
+    elif reply == NO:
         def _after_stash(_r: object) -> None:
             dlg._run_git_async(
                 "pull",
@@ -231,14 +230,13 @@ def on_push(dlg) -> None:
         parent._on_save()
 
     # Confirm push
-    reply = QMessageBox.question(
+    from src.application.ui_guard import CANCEL, NO, YES, safe_question3
+    reply = safe_question3(
         dlg,
         "保存并推送",
         "确定要推送本地改动吗？\n当前编辑的改动已被自动保存。",
-        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
-        QMessageBox.StandardButton.Yes,
-    )
-    if reply != QMessageBox.StandardButton.Yes:
+auto_choice=CANCEL,)
+    if reply != YES:
         return
     msg, ok = commit_message(dlg)
     if not ok:
@@ -281,14 +279,13 @@ def on_copy_to_assets(dlg) -> None:
         else:
             target = GitLibrary.save_to_assets(dlg._clone_dir, lang)
     except FileExistsError as exc:
-        reply = QMessageBox.question(
+        from src.application.ui_guard import CANCEL, NO, YES, safe_question3
+        reply = safe_question3(
             dlg,
             "目标已存在",
             f"{exc}\n\n是否覆盖？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
-            QMessageBox.StandardButton.Cancel,
-        )
-        if reply != QMessageBox.StandardButton.Yes:
+auto_choice=CANCEL,)
+        if reply != YES:
             return
         try:
             target = GitLibrary.save_to_assets(
@@ -314,13 +311,12 @@ def on_sync_resources(dlg) -> None:
     if not lang:
         QMessageBox.warning(dlg, "缺少语言代码", "请填写语言代码。")
         return
-    reply = QMessageBox.question(
+    from src.application.ui_guard import CANCEL, NO, YES, safe_question3
+    reply = safe_question3(
         dlg, "同步资源池",
         f"将本地课程资源与 Git 仓库 {dlg._clone_dir} 双向合并？",
-        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
-        QMessageBox.StandardButton.Cancel,
-    )
-    if reply != QMessageBox.StandardButton.Yes:
+auto_choice=CANCEL,)
+    if reply != YES:
         return
     try:
         result = dlg.adapter.sync_resources_with_git(dlg._clone_dir, lang)

@@ -93,12 +93,11 @@ def on_del_branch(dlg) -> None:
     name = dlg.branch_combo.currentText()
     if not name:
         return
-    reply = QMessageBox.question(
+    from src.application.ui_guard import CANCEL, YES, safe_question3
+    reply = safe_question3(
         dlg, "删除分支", f"确定要删除分支 {name} 吗？",
-        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
-        QMessageBox.StandardButton.Cancel,
-    )
-    if reply != QMessageBox.StandardButton.Yes:
+auto_choice=CANCEL,)
+    if reply != YES:
         return
     dlg._run_git_async(
         "删除分支",

@@ -122,12 +122,11 @@ def on_del_memo(dlg) -> None:
     memo_id, ok = QInputDialog.getText(dlg, "删除留言", "留言 ID:")
     if not ok or not memo_id.strip():
         return
-    reply = QMessageBox.question(
+    from src.application.ui_guard import CANCEL, YES, safe_question3
+    reply = safe_question3(
         dlg, "删除留言", f"确定要删除留言 {memo_id.strip()} 吗？",
-        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.Cancel,
-        QMessageBox.StandardButton.Cancel,
-    )
-    if reply != QMessageBox.StandardButton.Yes:
+auto_choice=CANCEL,)
+    if reply != YES:
         return
     edit_or_delete_memo(dlg, memo_id.strip(), action="delete")
 
