@@ -8,7 +8,10 @@ callbacks, keeping the service testable without a MainWindow:
 - ``show_error`` / ``show_info``: message display (QMessageBox in production).
 - ``merge_resolver``: decide one merge plan interactively (None → cancel).
 - ``bulk_merge_resolver``: decide many merge plans at once (D7); returning
-  None cancels all merges, per-plan None skips that section.
+  None cancels the **whole import** (#10 — nothing is imported), per-plan
+  None skips that section.
+- ``confirm_continue``: after a per-section merge cancel mid-bulk, asked
+  whether to keep importing the remaining sections (default no → abort).
 - ``on_command_pushed``: fired after each undo-command push (MainWindow uses
   it to connect change signals and select the section in the tree).
 - ``on_status``: transient status text (status bar in production).
@@ -58,6 +61,7 @@ class SectionImportService:
             [list[SectionMergePlan]], list[SectionMergePlan | None] | None
         ]
         | None = None,
+        confirm_continue: Callable[[int], bool] | None = None,
         on_command_pushed: Callable[[Any, str], None] | None = None,
         on_status: Callable[[str], None] | None = None,
     ) -> None:
@@ -68,6 +72,9 @@ class SectionImportService:
         self._show_info = show_info or (lambda _t, _m: None)
         self._merge_resolver = merge_resolver
         self._bulk_merge_resolver = bulk_merge_resolver
+        # #10: asked after a per-section merge cancel mid-bulk; receives the
+        # number of sections still pending, returns True to continue.
+        self._confirm_continue = confirm_continue
         self._on_command_pushed = on_command_pushed or (lambda _cmd, _sid: None)
         self._on_status = on_status or (lambda _msg: None)
 
@@ -212,7 +219,14 @@ class SectionImportService:
         before any ``append_as_new`` rewrite) for ``import_map`` bookkeeping.
         """
         plans = plan_bulk_import(sections, self.adapter, strategy)
-        counts = {"imported": 0, "merged": 0, "replaced": 0, "skipped": 0, "blocked": 0}
+        counts = {
+            "imported": 0,
+            "merged": 0,
+            "replaced": 0,
+            "skipped": 0,
+            "blocked": 0,
+            "cancelled": 0,
+        }
 
         # Pre-resolve interactive merges in one shot (D7).
         merge_decisions: dict[int, SectionMergePlan | None] = {}
@@ -226,16 +240,51 @@ class SectionImportService:
             if len(merge_candidates) > 1 and self._bulk_merge_resolver is not None:
                 resolved = self._bulk_merge_resolver([p for _, p in merge_candidates])
                 if resolved is None:
-                    # Whole-batch cancel → every merge candidate skipped.
-                    for i, _ in merge_candidates:
-                        merge_decisions[i] = None
+                    # Whole-batch cancel → abort the ENTIRE import (#10):
+                    # nothing is pushed, every section reports cancelled.
+                    # (The old behavior only skipped the collisions and still
+                    # imported the rest, then announced 导入完成.)
+                    self._on_status("导入已取消，未做任何更改")
+                    return (
+                        [
+                            ImportStepResult(
+                                step="import",
+                                outcome="cancelled",
+                                message="用户取消了批量合并",
+                                details={
+                                    "outcome": "cancelled",
+                                    "section_id": s.get("id", ""),
+                                    "source_id": s.get("id", ""),
+                                },
+                            )
+                            for s in sections
+                        ],
+                        {**counts, "cancelled": len(sections)},
+                    )
                 else:
                     for (i, _), decision in zip(merge_candidates, resolved):
                         merge_decisions[i] = decision
 
+        def _cancelled(s: dict, source_id: str) -> ImportStepResult:
+            return ImportStepResult(
+                step="import",
+                outcome="cancelled",
+                message="用户取消了导入",
+                details={
+                    "outcome": "cancelled",
+                    "section_id": s.get("id", ""),
+                    "source_id": source_id,
+                },
+            )
+
         results: list[ImportStepResult] = []
+        aborted = False
         for i, (section, plan) in enumerate(zip(sections, plans)):
             source_id = section.get("id", "")
+            if aborted:
+                results.append(_cancelled(section, source_id))
+                counts["cancelled"] += 1
+                continue
             # For append_as_new, use the planned target id so the section is
             # imported under the non-colliding id the preview promised.
             if plan.action == "append_new" and plan.target_id != source_id:
@@ -268,6 +317,23 @@ class SectionImportService:
                     "textbook.import.merge.cancelled", payload={"section_id": sid}
                 )
             results.append(result)
+            # #10: a per-section merge dialog cancelled mid-bulk (single
+            # collision fallback path). Bulk-panel "skip" choices arrive as
+            # pre-resolved decisions and never trigger this ask.
+            if (
+                result.outcome == "cancelled"
+                and decision is _UNSET
+                and i + 1 < len(sections)
+            ):
+                remaining = len(sections) - i - 1
+                proceed = False
+                if self._confirm_continue is not None:
+                    try:
+                        proceed = bool(self._confirm_continue(remaining))
+                    except Exception:
+                        proceed = False
+                if not proceed:
+                    aborted = True
         return results, counts
 
 
@@ -291,6 +357,16 @@ def build_import_service(host):
 
         return BulkMergeResolveDialog.resolve(plans, parent=host)
 
+    def _confirm_continue(remaining: int) -> bool:
+        from src.application.ui_guard import safe_question
+
+        return safe_question(
+            host,
+            "继续导入？",
+            f"该章节冲突已跳过，是否继续导入其余 {remaining} 个章节？",
+            default_yes=False,
+        )
+
     def _on_status(msg: str) -> None:
         # Resource notes are suffixes to the action message, not replacements.
         if msg.startswith("（"):
@@ -308,6 +384,7 @@ def build_import_service(host):
         show_info=lambda title, msg: QMessageBox.information(host, title, msg),
         merge_resolver=_merge_resolver,
         bulk_merge_resolver=_bulk_merge_resolver,
+        confirm_continue=_confirm_continue,
         on_command_pushed=host._on_import_command_pushed,
         on_status=_on_status,
     )

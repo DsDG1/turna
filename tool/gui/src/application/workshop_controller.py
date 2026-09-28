@@ -147,13 +147,20 @@ def on_textbook_sections(host: ExperienceHost, sections: list, strategy: str) ->
         for r in results
         if (r.details or {}).get("outcome") in ("imported", "merged", "replaced")
     ]
-    summary = (
-        f"导入完成：新增 {counts['imported']} 个，"
-        f"合并 {counts['merged']} 个，"
-        f"覆盖 {counts['replaced']} 个，"
-        f"跳过 {counts['skipped']} 个，"
-        f"失败 {counts['blocked']} 个。"
-    )
+    cancelled = int(counts.get("cancelled", 0) or 0)
+    if cancelled and not successful:
+        # #10: whole-batch (or continue-declined) cancel — nothing imported.
+        summary = "导入已取消，未做任何更改。"
+    else:
+        verb = "导入部分完成" if (cancelled or counts["skipped"]) else "导入完成"
+        summary = (
+            f"{verb}：新增 {counts['imported']} 个，"
+            f"合并 {counts['merged']} 个，"
+            f"覆盖 {counts['replaced']} 个，"
+            f"跳过 {counts['skipped']} 个，"
+            f"取消 {cancelled} 个，"
+            f"失败 {counts['blocked']} 个。"
+        )
     project = (
         host._workshop_window.current_project()
         if host._workshop_window is not None

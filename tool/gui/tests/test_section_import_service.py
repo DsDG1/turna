@@ -173,15 +173,73 @@ class BulkImportTest(unittest.TestCase):
         self.assertEqual(counts["merged"], 2)
         self.merge_resolver.assert_not_called()
 
-    def test_bulk_resolver_cancel_skips_all_merges(self) -> None:
+    def test_bulk_resolver_cancel_aborts_entire_import(self) -> None:
+        """#10: whole-batch cancel aborts EVERYTHING — never a partial import.
+
+        The old behavior skipped only the collisions and still imported the
+        non-conflicting sections, then announced 导入完成.
+        """
         self.adapter.sections.append(sample_section_from_chapter("sec-a"))
         self.adapter.sections.append(sample_section_from_chapter("sec-b"))
         self.bulk_resolver.side_effect = lambda _plans: None
-        _results, counts = self.service.import_bulk(
-            [sample_section_from_chapter("sec-a"), sample_section_from_chapter("sec-b")], strategy="merge"
+        results, counts = self.service.import_bulk(
+            [
+                sample_section_from_chapter("sec-a"),
+                sample_section_from_chapter("sec-b"),
+                sample_section_from_chapter("sec-new"),  # no collision
+            ],
+            strategy="merge",
         )
-        self.assertEqual(counts["skipped"], 2)
-        self.assertEqual(counts["merged"], 0)
+        self.assertEqual(counts["cancelled"], 3)
+        self.assertEqual(counts["skipped"], 0)
+        self.assertEqual(counts["imported"], 0)
+        self.assertEqual(self.undo_stack.count(), 0)  # nothing pushed
+        self.assertTrue(all(r.outcome == "cancelled" for r in results))
+
+    def test_single_conflict_cancel_continues_after_confirm(self) -> None:
+        self.adapter.sections.append(sample_section_from_chapter("sec-a"))
+        self.merge_resolver.side_effect = lambda _plan: None  # user cancels
+        confirm = MagicMock(return_value=True)
+        service = SectionImportService(
+            self.adapter,
+            self.undo_stack,
+            merge_resolver=self.merge_resolver,
+            confirm_continue=confirm,
+        )
+        _results, counts = service.import_bulk(
+            [sample_section_from_chapter("sec-a"), sample_section_from_chapter("sec-new")],
+            strategy="merge",
+        )
+        confirm.assert_called_once_with(1)
+        self.assertEqual(counts["skipped"], 1)
+        self.assertEqual(counts["imported"], 1)
+        self.assertEqual(counts["cancelled"], 0)
+        self.assertEqual(self.undo_stack.count(), 1)
+
+    def test_single_conflict_cancel_aborts_remaining_by_default(self) -> None:
+        self.adapter.sections.append(sample_section_from_chapter("sec-a"))
+        self.merge_resolver.side_effect = lambda _plan: None  # user cancels
+        confirm = MagicMock(return_value=False)  # safe_question default: No
+        service = SectionImportService(
+            self.adapter,
+            self.undo_stack,
+            merge_resolver=self.merge_resolver,
+            confirm_continue=confirm,
+        )
+        results, counts = service.import_bulk(
+            [
+                sample_section_from_chapter("sec-a"),
+                sample_section_from_chapter("sec-new"),
+                sample_section_from_chapter("sec-other"),
+            ],
+            strategy="merge",
+        )
+        self.assertEqual(counts["skipped"], 1)
+        self.assertEqual(counts["cancelled"], 2)
+        self.assertEqual(counts["imported"], 0)
+        self.assertEqual(self.undo_stack.count(), 0)
+        self.assertTrue(results[1].outcome == "cancelled")
+        self.assertTrue(results[2].outcome == "cancelled")
 
     def test_single_collision_falls_back_to_per_section_resolver(self) -> None:
         self.adapter.sections.append(sample_section_from_chapter("sec-a"))
