@@ -198,6 +198,10 @@ def set_busy(dlg, busy: bool, normal: bool = False, stage: str = "") -> None:
             dlg.attach_btn.setEnabled(True)
             dlg.wish_progress.setVisible(False)
         dlg.input_edit.setEnabled(not busy)
+    # T3: switching normal/wish mid-request routed the in-flight chunks into
+    # the other mode's editors — lock the switch until the request ends.
+    if hasattr(dlg, "mode_combo"):
+        dlg.mode_combo.setEnabled(not (dlg._busy_normal or dlg._busy_wish))
     win = dlg._chat_coord.chat_expand_window
     if win is not None and win.isVisible():
         win.set_busy(busy and not normal)
@@ -232,7 +236,15 @@ def on_chunk_rendered(dlg, text: str, final: bool) -> None:
             dlg.explain_group.setVisible(dlg._result_toggle.isChecked())
         elif dlg._stream_target == "alignment":
             dlg._render_streaming_chat(text)
+        elif dlg._stream_target == "json" and not final:
+            # T4: wish has no streaming JSON editor — at least let the
+            # 生成中（流式）… counter tick on the stage label.
+            set_stage_label(dlg, f"生成中… 已接收约 {n} 字符")
     else:
+        if dlg._stream_target not in ("json", ""):
+            # T4: explain/alignment chunks must never clobber the JSON
+            # editor (reachable when a mode switch raced the request).
+            return
         if not final and n > dlg._STREAM_TEXT_LIVE_LIMIT:
             dlg.stage_label.setText(f"生成中… 已接收约 {n} 字符")
             dlg.stage_label.setVisible(True)
