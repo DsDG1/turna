@@ -38,6 +38,17 @@ def record_cache_stats() -> None:
         logger.debug("dialogs/ai/generator_worker_hub.py:cache_stats best-effort failed", exc_info=True)
 
 
+def ai_cancelled(message: str) -> bool:
+    """True when an error message is really a cooperative cancellation.
+
+    Shared judgement (T6): worker-hub and the lesson helper both treat
+    取消/cancelled as a non-failure so no Critical popup blames the user
+    for clicking cancel.
+    """
+    text = str(message or "")
+    return "取消" in text or "cancelled" in text.lower()
+
+
 class GeneratorWorkerHub(QObject):
     """Coordinates async AI request workers, streaming chunks, and token usage."""
 
@@ -168,7 +179,7 @@ class GeneratorWorkerHub(QObject):
         dialog: Any,
     ) -> bool:
         duration_ms = self.duration_since_request_start()
-        cancelled = "取消" in message or "cancelled" in message.lower()
+        cancelled = ai_cancelled(message)
         telemetry.record_duration(
             "ai.generate",
             duration_ms,

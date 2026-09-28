@@ -81,5 +81,24 @@ class TestGeneratorWorkerHub(unittest.TestCase):
         self.assertIsInstance(w3, AiRequestWorker)
 
 
+class AiCancelledTest(unittest.TestCase):
+    """T6: cooperative cancels are not failures (shared judgement)."""
+
+    def test_detection(self) -> None:
+        from src.dialogs.ai.generator_worker_hub import ai_cancelled
+
+        self.assertTrue(ai_cancelled("请求已取消。"))
+        self.assertTrue(ai_cancelled("Request was cancelled by user"))
+        self.assertFalse(ai_cancelled("HTTP 429 too many requests"))
+        self.assertFalse(ai_cancelled(""))
+
+    def test_helper_cancelled_message_is_detected(self) -> None:
+        # The lesson helper short-circuits on this predicate before any
+        # failure banner / analysis offer is built.
+        from src.dialogs.ai.generator_worker_hub import ai_cancelled
+
+        self.assertTrue(ai_cancelled("已取消"))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -269,6 +269,18 @@ class AiLessonHelperDialog(QDialog):
 
     def _on_error(self, message: str) -> None:
         duration_ms = (time.perf_counter() - getattr(self, "_request_start", time.perf_counter())) * 1000
+        # T6: a cooperative cancel is not a failure — no red banner, no
+        # analysis offer (mirrors GeneratorWorkerHub.handle_worker_error).
+        from src.dialogs.ai.generator_worker_hub import ai_cancelled
+
+        if ai_cancelled(message):
+            telemetry.record_duration(
+                "ai.helper",
+                duration_ms,
+                payload={"mode": self.mode, "success": False, "cancelled": True},
+            )
+            self.status_label.setText("已取消")
+            return
         telemetry.record_duration(
             "ai.helper",
             duration_ms,
