@@ -16,13 +16,14 @@ import json
 from dataclasses import dataclass, field
 from typing import Any
 
-from PySide6.QtCore import Qt, Signal, QMimeData, QPoint
+from PySide6.QtCore import Qt, Signal, QMimeData, QPoint, QTimer
 from PySide6.QtGui import QDrag, QPixmap, QPainter, QColor, QBrush
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
     QComboBox,
     QHBoxLayout,
+    QLabel,
     QLineEdit,
     QPushButton,
     QTableWidget,
@@ -192,6 +193,10 @@ class ResourceReviewTable(QWidget):
     """Review table with search, tag filter, batch ops, and AI-fix requests."""
 
     rows_changed = Signal()
+    #: Emitted when set_rows() replaces the whole row set (extraction landed /
+    #: review repopulated). rows_changed only fires on user edits — structural
+    #: replaces deserve their own channel so hosts can auto-switch surfaces.
+    rows_replaced = Signal()
     fix_requested = Signal(list)  # list[ResourceRow]
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -200,12 +205,14 @@ class ResourceReviewTable(QWidget):
         self._chapter_filter: int | None = None
         self._tag_filter: str = ""
         self._search_text: str = ""
+        self._hint_label: QLabel | None = None
         self._build_ui()
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
+        self._layout = layout
 
         toolbar = QHBoxLayout()
         toolbar.setSpacing(6)
@@ -229,6 +236,9 @@ class ResourceReviewTable(QWidget):
         toolbar.addWidget(self._select_none_btn)
 
         self._delete_btn = QPushButton("删除选中")
+        self._delete_btn.setToolTip(
+            "删除当前点选（高亮）的行，与「AI 修复选中」同一“选中”语义；勾选只决定是否导入"
+        )
         self._delete_btn.clicked.connect(self._delete_selected)
         toolbar.addWidget(self._delete_btn)
 
@@ -253,6 +263,7 @@ class ResourceReviewTable(QWidget):
         # Column sizing is O(cols x rows); do it once on a structural change,
         # not on every filter/search refresh (bookplan2 Phase 6 perf).
         self._table.resizeColumnsToContents()
+        self.rows_replaced.emit()
 
     def kept_rows(self) -> list[tuple[int, str, dict[str, Any]]]:
         """Return ``(chapter_index, resource_type, entry)`` for all checked rows."""
@@ -326,17 +337,49 @@ class ResourceReviewTable(QWidget):
         self.rows_changed.emit()
 
     def _delete_selected(self) -> None:
+        """Delete the *clicked-selected* rows (same "选中" as AI 修复选中).
+
+        Historically this deleted every checked row — and rows default to
+        checked, so a bare click wiped the whole table with no confirmation.
+        Checked is a keep/import flag, not a deletion target.
+        """
+        selected = self.selected_rows()
+        if not selected:
+            self._show_hint("请先点击选中要删除的行")
+            return
+        if len(selected) > 1:
+            from src.application.ui_guard import safe_question
+
+            if not safe_question(
+                self,
+                "删除选中",
+                f"确认删除选中的 {len(selected)} 条知识点？此操作不进撤销栈。",
+                default_yes=False,
+            ):
+                return
         # ResourceRow is a dataclass with dict fields, so list.index() would
         # deep-compare entries per lookup (O(n^2) on large tables); key by
         # identity instead.
         index_by_id = {id(r): i for i, r in enumerate(self._model.rows)}
-        to_remove = {index_by_id[id(r)] for r in self._visible_rows() if r.checked}
-        if not to_remove:
-            return
+        to_remove = {index_by_id[id(r)] for r in selected}
         self._model.remove_rows(to_remove)
         self._refresh_tag_combo()
         self._refresh_table()
         self.rows_changed.emit()
+
+    def _show_hint(self, text: str, ms: int = 4000) -> None:
+        """Transient inline hint under the table (no modal, offscreen-safe)."""
+        if self._hint_label is None:
+            self._hint_label = QLabel("")
+            self._hint_label.setStyleSheet("color: gray; font-size: 11px;")
+            self._layout.addWidget(self._hint_label)
+        self._hint_label.setText(text)
+        self._hint_label.setVisible(True)
+        QTimer.singleShot(ms, self._clear_hint)
+
+    def _clear_hint(self) -> None:
+        if self._hint_label is not None:
+            self._hint_label.setVisible(False)
 
     def _on_fix_clicked(self) -> None:
         selected = self.selected_rows()

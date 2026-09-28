@@ -109,12 +109,55 @@ class ResourceReviewTableTest(unittest.TestCase):
             self.table._table.isRowHidden(i) for i in range(3)
         ))
 
-    def test_batch_delete(self) -> None:
-        self.table.set_checked_by_term("merhaba", True)
-        self.table.set_checked_by_term("aile", False)
-        self.table.set_checked_by_term("Selam!", False)
+    def test_delete_without_selection_hints_and_keeps_rows(self) -> None:
+        """#5: 「删除选中」used to wipe every *checked* row (all by default)."""
+        # No row clicked/selected; every row checked (the default).
         self.table._delete_selected()
-        self.assertEqual(self.table.row_count(), 2)
+        self.assertEqual(self.table.row_count(), 3)  # nothing deleted
+        self.assertIsNotNone(self.table._hint_label)
+        self.assertIn("请先点击选中", self.table._hint_label.text())
+        self.assertTrue(self.table._hint_label.isVisibleTo(self.table))
+
+    def test_delete_removes_only_clicked_row(self) -> None:
+        self.table._table.selectRow(0)  # merhaba
+        self.table._delete_selected()
+        terms = [r.display_term() for r in self.table._model.rows]
+        self.assertEqual(terms, ["aile", "Selam!"])  # checked ≠ deleted
+
+    def test_delete_multiple_rows_confirms_first(self) -> None:
+        selection = self.table._table.selectionModel()
+        model = self.table._table.model()
+        selection.select(
+            model.index(0, 0),
+            selection.SelectionFlag.Select | selection.SelectionFlag.Rows,
+        )
+        selection.select(
+            model.index(1, 0),
+            selection.SelectionFlag.Select | selection.SelectionFlag.Rows,
+        )
+        self.assertEqual(len(self.table.selected_rows()), 2)
+        # Offscreen safe_question answers the default (No) → nothing deleted.
+        self.table._delete_selected()
+        self.assertEqual(self.table.row_count(), 3)
+
+    def test_delete_multiple_rows_after_confirm(self) -> None:
+        from unittest.mock import patch
+
+        selection = self.table._table.selectionModel()
+        model = self.table._table.model()
+        selection.select(
+            model.index(0, 0),
+            selection.SelectionFlag.Select | selection.SelectionFlag.Rows,
+        )
+        selection.select(
+            model.index(2, 0),
+            selection.SelectionFlag.Select | selection.SelectionFlag.Rows,
+        )
+        self.assertEqual(len(self.table.selected_rows()), 2)
+        with patch("src.application.ui_guard.safe_question", return_value=True):
+            self.table._delete_selected()
+        terms = [r.display_term() for r in self.table._model.rows]
+        self.assertEqual(terms, ["aile"])
 
     def test_select_all_emits_rows_changed_once(self) -> None:
         count = {"n": 0}
