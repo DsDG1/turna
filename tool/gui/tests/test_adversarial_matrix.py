@@ -149,13 +149,22 @@ class D5D9SoftWhitelistTest(unittest.TestCase):
 
 
 class D11SourceContractTest(unittest.TestCase):
-    def test_d11_flyout_cancel_disabled_in_source(self) -> None:
-        """D11: JobTray cancel action is disabled (no worker kill)."""
+    def test_d11_cancel_offered_only_for_ai_jobs(self) -> None:
+        """D11 + T14: cancel is scoped to AI jobs, and never a hard kill.
+
+        The adversarial intent of D11 survives the T14 fix: the tray must not
+        pretend to stop work it cannot stop. Non-AI jobs keep a disabled entry
+        with an explanatory tooltip; AI jobs are cancelled cooperatively via
+        ``job_cancel_requested``. The flyout must never hard-kill a worker.
+        """
         path = _GUI / "src" / "widgets" / "job_tray.py"
         text = path.read_text(encoding="utf-8")
-        self.assertIn("setEnabled(False)", text)
         self.assertIn("job_cancel_requested", text)
-        self.assertIn("暂不可取消", text)
+        self.assertIn("cancel.setEnabled(job.kind == JOB_KIND_AI)", text)
+        self.assertIn("该任务类型不支持取消", text)
+        # Cooperative only — a hard kill would corrupt in-flight saves.
+        self.assertNotIn(".kill()", text)
+        self.assertNotIn(".terminate()", text)
 
 
 # ---------------------------------------------------------------------------

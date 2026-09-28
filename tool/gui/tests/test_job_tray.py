@@ -165,5 +165,53 @@ class JobTrayDurationTooltipTest(unittest.TestCase):
         self.assertIn("约 2 分钟", tray._label.toolTip())
 
 
+class CancelActionTest(unittest.TestCase):
+    """T14: AI-kind jobs expose cooperative cancel via the flyout."""
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        qt_app()
+
+    def test_cancel_action_emits_job_cancel_requested(self) -> None:
+        from PySide6.QtGui import QAction
+
+        from src.widgets.job_tray import JobTray
+
+        tray = JobTray()
+        tray.start_job("stubs-s1", "清待补 …", kind="ai", node_key="section:s1")
+        tray.start_job("local-1", "本地任务", kind="local")
+        received: list[str] = []
+        tray.job_cancel_requested.connect(received.append)
+
+        for jid in ("stubs-s1", "local-1"):
+            act = QAction(None)
+            act.setProperty("job_id", jid)
+            act.triggered.connect(tray._on_cancel_action_triggered)
+            act.trigger()
+        # The flyout only enables cancel for AI jobs, but the handler emits
+        # whatever id the (enabled) action carried.
+        self.assertEqual(received, ["stubs-s1", "local-1"])
+        self.assertEqual(tray.job_count(), 2)  # emitting does not finish jobs
+
+    def test_cancel_in_flight_ai_jobs_cancels_running_workers(self) -> None:
+        from unittest.mock import MagicMock
+
+        from src.application.main_window_shell import cancel_in_flight_ai_jobs
+
+        running = MagicMock()
+        running.isRunning.return_value = True
+        idle = MagicMock()
+        idle.isRunning.return_value = False
+        host = MagicMock()
+        host._experience_worker = running
+        host._palette_llm_worker = idle
+        host._save_worker = MagicMock()  # saves are never cancelled here
+        cancel_in_flight_ai_jobs(host, "stubs-s1")
+        running.cancel.assert_called_once()
+        idle.cancel.assert_not_called()
+        host._save_worker.cancel.assert_not_called()
+        self.assertIn("已请求取消", host.statusBar.return_value.showMessage.call_args.args[0])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -2,10 +2,13 @@
 
 Owns a pure :class:`JobRegistry` and paints a one-line summary for the
 status bar. The label is click-aware and pops up a flyout (E5 slice) listing
-each active job with a "定位" (locate) action. "取消" is intentionally a
-no-op stub today — worker cancellation is cooperative per-AiRequestWorker
-and not yet routed through the registry; the menu entry is shown disabled
-with an explanatory tooltip rather than silently killing workers (§14.5.2).
+each active job with a "定位" (locate) action and a "取消" (cancel) action.
+
+T14: "取消" is enabled only for AI-kind jobs, where worker cancellation is
+cooperative (``AiRequestWorker.cancel``) and the host cancels its in-flight
+workers in response to :attr:`JobTray.job_cancel_requested`. Non-AI jobs keep
+the entry disabled with an explanatory tooltip rather than pretending to stop
+work they cannot stop (§14.5.2).
 """
 from __future__ import annotations
 
@@ -35,9 +38,9 @@ class JobTray(QWidget):
     # E5 slice: emitted when the user asks to locate a job's node.
     # Payload is the job_id (the owner resolves node_key via the registry).
     job_activated = Signal(str)
-    # E5 slice: emitted when the user asks to cancel a job. Today this is
-    # surfaced disabled in the flyout; the signal is reserved for when
-    # cooperative worker cancellation is routed through the registry.
+    # E5 slice: emitted when the user asks to cancel a job. Enabled for
+    # AI-kind jobs only (T14); the owner cancels its in-flight
+    # AiRequestWorkers cooperatively. Payload is the job_id.
     job_cancel_requested = Signal(str)
     # Perf/P2: True when any AI-kind job is running; False when none remain.
     ai_busy_changed = Signal(bool)
@@ -193,10 +196,16 @@ class JobTray(QWidget):
                 menu.addAction(loc)
 
                 cancel = QAction("  取消", menu)
-                # Cooperative cancellation is not yet routed here; surface as
-                # disabled rather than silently killing workers.
-                cancel.setEnabled(False)
-                cancel.setToolTip("该任务暂不可取消（协作式取消待接）")
+                # T14: AI-kind jobs back cooperative cancellation — the host
+                # cancels its in-flight AiRequestWorkers on the signal below.
+                cancel.setEnabled(job.kind == JOB_KIND_AI)
+                cancel.setToolTip(
+                    "请求协作式取消：正在进行的 AI 请求会中断"
+                    if job.kind == JOB_KIND_AI
+                    else "该任务类型不支持取消"
+                )
+                cancel.setProperty("job_id", job.job_id)
+                cancel.triggered.connect(self._on_cancel_action_triggered)
                 menu.addAction(cancel)
                 menu.addSeparator()
         menu.exec(self._label.mapToGlobal(self._label.rect().bottomLeft()))
@@ -208,6 +217,14 @@ class JobTray(QWidget):
         jid = sender.property("job_id")
         if isinstance(jid, str):
             self.emit_locate(jid)
+
+    def _on_cancel_action_triggered(self) -> None:
+        sender = self.sender()
+        if not sender:
+            return
+        jid = sender.property("job_id")
+        if isinstance(jid, str):
+            self.job_cancel_requested.emit(jid)
 
 
 # Re-export kinds for call sites that prefer importing from the widget.

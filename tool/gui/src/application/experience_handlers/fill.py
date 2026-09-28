@@ -107,7 +107,7 @@ def _experience_fill_empty(host, scope: dict) -> None:
         host.statusBar().showMessage("AI 配置不完整：设置 ▸ AI 配置 填写 Key/Model", 5000)
         return
     if host.job_tray.is_busy_ai():
-        host.statusBar().showMessage("当前有 AI 任务进行中，请稍候", 4000)
+        host.statusBar().showMessage("当前有 AI 任务进行中，请稍候（可在任务托盘取消）", 4000)
         return
     try:
         section, _unit, _lesson = host.adapter.find_lesson(first)
@@ -339,7 +339,7 @@ def _experience_fill_stubs(host) -> None:
         host.statusBar().showMessage("AI 配置不完整：设置 ▸ AI 配置 填写 Key/Model", 5000)
         return
     if host.job_tray.is_busy_ai():
-        safe_information(host, "清待补", "当前有 AI 任务进行中，请稍候。")
+        safe_information(host, "清待补", "当前有 AI 任务进行中，请稍候（可在任务托盘取消）。")
         return
     section = host._current_section_for_experience()
     if section is None:
@@ -473,7 +473,7 @@ def _experience_fill_listening_gaps(
         host.statusBar().showMessage("没有听力缺口需要补全", 4000)
         return
     if host.job_tray.is_busy_ai():
-        safe_information(host, "补全听力", "当前有 AI 任务进行中，请稍候。")
+        safe_information(host, "补全听力", "当前有 AI 任务进行中，请稍候（可在任务托盘取消）。")
         return
     # 缺口来自 quality 评分;按 section_id 取首个 section(建议只覆盖单节)。
     sid = str(scope.get("section_id") or "")

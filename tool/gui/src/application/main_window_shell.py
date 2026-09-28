@@ -167,6 +167,34 @@ def build_central(host) -> None:
 _AI_DISCLAIMER = "AI 生成内容仅供参考，请作者自行审核其准确性与适用性。"
 
 
+def cancel_in_flight_ai_jobs(host, job_id: str = "") -> None:
+    """T14: cooperatively cancel the host's in-flight AI workers.
+
+    The tray's 取消 lands here; ``AiRequestWorker.cancel`` is cooperative —
+    the running HTTP read raises a cancellation error, whose callbacks
+    already treat it as cancelled. ``job_id`` is informational: workers are
+    not registered per job, so every running AI worker is asked to stop.
+    """
+    cancelled = 0
+    for attr in ("_experience_worker", "_palette_llm_worker", "_diagnose_worker"):
+        w = getattr(host, attr, None)
+        if w is None:
+            continue
+        running = getattr(w, "isRunning", None)
+        if callable(running) and running() and hasattr(w, "cancel"):
+            w.cancel()
+            cancelled += 1
+    try:
+        if cancelled:
+            host.statusBar().showMessage("已请求取消 AI 任务（协作式）", 4000)
+        else:
+            host.statusBar().showMessage(
+                "没有可取消的 AI 任务（取消只对进行中的请求生效）", 4000
+            )
+    except Exception:
+        pass
+
+
 def build_status_bar(host) -> None:
     """Decluttered status bar: JobTray │ save-state │ health │ density │ theme.
 
@@ -183,6 +211,12 @@ def build_status_bar(host) -> None:
     host.job_tray = JobTray(host)
     host.job_tray.job_activated.connect(host._on_job_activated)
     host.job_tray.ai_busy_changed.connect(host._on_job_tray_ai_busy_changed)
+
+    def _on_job_cancel_requested(_job_id: str) -> None:
+        # Named slot, not an anonymous lambda (signal-lifecycle gate).
+        cancel_in_flight_ai_jobs(host)
+
+    host.job_tray.job_cancel_requested.connect(_on_job_cancel_requested)
     host.job_tray.setToolTip(_AI_DISCLAIMER)
     status.addPermanentWidget(host.job_tray)
 

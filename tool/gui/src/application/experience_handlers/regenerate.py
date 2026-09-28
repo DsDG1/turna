@@ -40,7 +40,7 @@ def _experience_regenerate(host, scope: dict) -> None:
         safe_warning(host, "重生成", "请先在课程树选中要重生成的课或单元")
         return
     if host.job_tray.is_busy_ai():
-        safe_information(host, "重生成", "当前有 AI 任务进行中，请稍候。")
+        safe_information(host, "重生成", "当前有 AI 任务进行中，请稍候（可在任务托盘取消）。")
         return
     try:
         if kind == "lesson":
@@ -96,7 +96,7 @@ def _experience_balance_lesson(host, scope: dict) -> None:
         host.statusBar().showMessage("题型配比健康，无需调整", 4000)
         return
     if host.job_tray.is_busy_ai():
-        safe_information(host, "调整题型配比", "当前有 AI 任务进行中，请稍候。"
+        safe_information(host, "调整题型配比", "当前有 AI 任务进行中，请稍候（可在任务托盘取消）。"
         )
         return
 
@@ -183,7 +183,7 @@ def _experience_spiral_vocab(host, scope: dict) -> None:
         host.statusBar().showMessage("词汇螺旋健康，无未复现词", 4000)
         return
     if host.job_tray.is_busy_ai():
-        safe_information(host, "补充词汇螺旋复现", "当前有 AI 任务进行中，请稍候。"
+        safe_information(host, "补充词汇螺旋复现", "当前有 AI 任务进行中，请稍候（可在任务托盘取消）。"
         )
         return
 
@@ -272,7 +272,7 @@ def _experience_reading_gen(host, scope: dict) -> None:
         host.statusBar().showMessage("阅读段落已就绪，无需生成", 4000)
         return
     if host.job_tray.is_busy_ai():
-        safe_information(host, "生成阅读段落", "当前有 AI 任务进行中，请稍候。"
+        safe_information(host, "生成阅读段落", "当前有 AI 任务进行中，请稍候（可在任务托盘取消）。"
         )
         return
 
@@ -759,7 +759,7 @@ def _batch_regen_prepare(
         host.statusBar().showMessage(spec.select_hint, 5000)
         return None
     if host.job_tray.is_busy_ai():
-        safe_information(host, spec.title, "当前有 AI 任务进行中，请稍候。")
+        safe_information(host, spec.title, "当前有 AI 任务进行中，请稍候（可在任务托盘取消）。")
         return None
     deny = getattr(host, "_deny_ai_write_if_blocked", None)
     if callable(deny) and deny(label=spec.title):
