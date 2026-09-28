@@ -103,20 +103,20 @@ def handle_close_event(host: ExperienceHost, event: Any) -> None:
                 telemetry.record_event("app.close_discarded")
                 event.accept()
             else:
-                from PySide6.QtWidgets import QMessageBox
+                # Three-way, so it could not use safe_question: routed through
+                # safe_question3 so an immersive-auto run is not blocked by a
+                # modal. auto_choice=YES because blocking the close would
+                # strand the window, and saving preserves the user's work
+                # where discarding it would not.
+                from src.application.ui_guard import NO, YES, safe_question3
 
-                reply = QMessageBox.question(
+                reply = safe_question3(
                     host,
                     "未保存的更改",
                     "当前课程有未保存的更改，是否保存？",
-                    (
-                        QMessageBox.StandardButton.Save
-                        | QMessageBox.StandardButton.Discard
-                        | QMessageBox.StandardButton.Cancel
-                    ),
-                    QMessageBox.StandardButton.Save,
+                    auto_choice=YES,
                 )
-                if reply == QMessageBox.StandardButton.Save:
+                if reply == YES:
                     outcome = execute_save(
                         host,
                         SaveRequest(
@@ -139,7 +139,7 @@ def handle_close_event(host: ExperienceHost, event: Any) -> None:
                             "保存失败（窗口未关闭）",
                             detail_text or outcome.message or "未知错误",
                         )
-                elif reply == QMessageBox.StandardButton.Discard:
+                elif reply == NO:
                     telemetry.record_event("app.close_discarded")
                     event.accept()
                 else:

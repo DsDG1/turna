@@ -203,22 +203,21 @@ def confirm_course_switch(host: ExperienceHost) -> bool:
     elif is_headless_ui():
         choice = "discard"
     else:
-        from PySide6.QtWidgets import QMessageBox
+        # Three-way (save / discard / cancel), so not safe_question: routed
+        # through safe_question3 so an immersive-auto run is not blocked by a
+        # modal. auto_choice=YES because a repository switch that abandoned
+        # the run unattended would strand it, and saving preserves the work.
+        from src.application.ui_guard import NO, YES, safe_question3
 
-        reply = QMessageBox.question(
+        reply = safe_question3(
             host,
             "未保存的更改",
             "当前课程有未保存的更改，切换前是否保存？",
-            (
-                QMessageBox.StandardButton.Save
-                | QMessageBox.StandardButton.Discard
-                | QMessageBox.StandardButton.Cancel
-            ),
-            QMessageBox.StandardButton.Save,
+            auto_choice=YES,
         )
-        if reply == QMessageBox.StandardButton.Save:
+        if reply == YES:
             choice = "save"
-        elif reply == QMessageBox.StandardButton.Discard:
+        elif reply == NO:
             choice = "discard"
 
     if choice == "cancel":
@@ -308,6 +307,17 @@ def open_course_flow(
             central_widget.setEnabled(False)
         except Exception:
             logger.debug("application/course_lifecycle.py:open_course_flow best-effort step failed", exc_info=True)
+    # Also disable the save entry points: the toolbar/menu stay live during an
+    # open, and saving then would serialize a half-loaded course. execute_save
+    # refuses regardless (defence in depth), but greying the action is the
+    # feedback the user actually needs.
+    for _attr in ("save_action",):
+        _act = getattr(host, _attr, None)
+        if _act is not None:
+            try:
+                _act.setEnabled(False)
+            except Exception:
+                logger.debug("application/course_lifecycle.py:open_course_flow best-effort step failed", exc_info=True)
     try:
         host.statusBar().showMessage(f"打开中… {path}")
     except Exception:
@@ -319,6 +329,13 @@ def open_course_flow(
                 central_widget.setEnabled(True)
             except Exception:
                 logger.debug("application/course_lifecycle.py:open_course_flow best-effort step failed", exc_info=True)
+        for _attr in ("save_action",):
+            _act = getattr(host, _attr, None)
+            if _act is not None:
+                try:
+                    _act.setEnabled(True)
+                except Exception:
+                    logger.debug("application/course_lifecycle.py:open_course_flow best-effort step failed", exc_info=True)
         host._open_worker = None
 
     worker = AiRequestWorker(lambda: load(path))

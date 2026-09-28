@@ -1,6 +1,8 @@
 """E5-C CourseLifecycle: single clear list + bind/switch semantics."""
 from __future__ import annotations
 
+from src.application.ui_guard import CANCEL as _CANCEL
+
 import sys
 import tempfile
 import unittest
@@ -153,6 +155,99 @@ class ClearExperienceSessionTest(unittest.TestCase):
         self.assertTrue(host.job_tray.is_busy())
 
 
+class SaveDuringOpenTest(unittest.TestCase):
+    """A save dispatched while a course is loading must not serialize it.
+
+    The open runs adapter.load() on a worker, which reassigns adapter.sections;
+    the toolbar and menu stay live during that window, so the save funnel has
+    to refuse rather than write out a half-loaded course (which also races the
+    load outright).
+    """
+
+    def _host(self, opening: bool):
+        class _Worker:
+            def __init__(self, running: bool) -> None:
+                self._running = running
+
+            def isRunning(self) -> bool:
+                return self._running
+
+        class _Host:
+            def __init__(self) -> None:
+                self._open_worker = _Worker(True) if opening else None
+                self.messages: list[str] = []
+                # Minimal adapter so the non-open case gets past the guard and
+                # fails (if it does) inside the pipeline, not on the guard.
+                self.adapter = SimpleNamespace(
+                    save=lambda *_a, **_k: {"changed": False},
+                    course_dir=Path("/tmp/c"),
+                    index={},
+                )
+
+            def statusBar(self):
+                return self
+
+            def showMessage(self, msg: str, *_a) -> None:
+                self.messages.append(msg)
+
+        return _Host()
+
+    def test_save_is_refused_while_opening(self) -> None:
+        from src.application.save_host import execute_save
+        from src.application.save_pipeline import SaveRequest
+
+        host = self._host(opening=True)
+        outcome = execute_save(host, SaveRequest(reason="menu"))
+        self.assertFalse(outcome.ok)
+        self.assertIn("打开", str(outcome.message))
+        self.assertTrue(any("打开" in m for m in host.messages))
+
+    def test_the_open_guard_is_what_refused(self) -> None:
+        """With no opener the same call is not refused for that reason."""
+        from src.application.save_host import execute_save
+        from src.application.save_pipeline import SaveRequest
+
+        host = self._host(opening=False)
+        outcome = execute_save(host, SaveRequest(reason="menu"))
+        self.assertNotIn("打开", str(getattr(outcome, "message", "")))
+
+    def test_open_toggles_the_save_action_off_and_back_on(self) -> None:
+        from src.application.course_lifecycle import open_course_flow
+
+        flags: list[bool] = []
+
+        class _Action:
+            def setEnabled(self, value: bool) -> None:
+                flags.append(value)
+
+        class _Host:
+            def __init__(self) -> None:
+                self.save_action = _Action()
+                self._open_worker = None
+
+            def centralWidget(self):
+                return None
+
+            def statusBar(self):
+                return self
+
+            def showMessage(self, *_a) -> None:
+                pass
+
+        host = _Host()
+        with patch(
+            "src.application.ai_request_worker.AiRequestWorker"
+        ) as worker_cls:
+            worker_cls.return_value.isRunning.return_value = False
+            open_course_flow(host, Path("/tmp/none"), load=lambda _p: {})
+            # The completion callback is what re-enables saving; fire it the
+            # way the worker would.
+            on_ok = worker_cls.return_value.result_ready.connect.call_args.args[0]
+        on_ok({})
+        self.assertIn(False, flags)
+        self.assertIn(True, flags)
+
+
 class BindLoadedCourseTest(unittest.TestCase):
     def test_bind_switch_clears_stale_job(self) -> None:
         host = _FakeHost()
@@ -195,17 +290,18 @@ class ConfirmCourseSwitchTest(unittest.TestCase):
     """#1/#14: switching courses must never silently discard dirty edits."""
 
     def _ask(self, answer: str):
-        """Patch the modal so headless tests can drive each choice."""
-        from PySide6.QtWidgets import QMessageBox
+        """Drive each choice without a modal (the prompt is safe_question3)."""
+        from src.application import ui_guard
 
-        button = {
-            "save": QMessageBox.StandardButton.Save,
-            "discard": QMessageBox.StandardButton.Discard,
-            "cancel": QMessageBox.StandardButton.Cancel,
-        }[answer]
+        choice = {"save": ui_guard.YES, "discard": ui_guard.NO, "cancel": ui_guard.CANCEL}[
+            answer
+        ]
+        # Two-tuple, as the call sites expect. The first patch matters: the
+        # prompt's own headless branch would otherwise win under
+        # QT_QPA_PLATFORM=offscreen and never reach safe_question3.
         return (
             patch("src.application.ui_guard.is_headless_ui", return_value=False),
-            patch.object(QMessageBox, "question", return_value=button),
+            patch("src.application.ui_guard.safe_question3", return_value=choice),
         )
 
     def test_clean_course_never_asks(self) -> None:
@@ -320,9 +416,9 @@ class OpenCourseFlowTest(unittest.TestCase):
         loaded: list[Path] = []
         with patch(
             "src.application.ui_guard.is_headless_ui", return_value=False
-        ), patch.object(
-            QMessageBox, "question",
-            return_value=QMessageBox.StandardButton.Cancel,
+        ), patch(
+            "src.application.ui_guard.safe_question3",
+            return_value=_CANCEL,
         ):
             ok = open_course_flow(host, Path("/tmp/new"), load=loaded.append)
         self.assertFalse(ok)
