@@ -10,6 +10,9 @@ signal so the main window can re-apply themes and limits.
 from __future__ import annotations
 
 import contextlib
+import logging
+
+logger = logging.getLogger(__name__)
 from typing import Any
 
 from PySide6.QtCore import QSettings, QSize, Qt, Signal
@@ -55,6 +58,7 @@ from src.dialogs.settings.editor_tab import (
 )
 from src.dialogs.settings.extraction_prompt_tab import (
     build_extraction_prompt_tab,
+    commit_extraction_pending,
     current_extraction_templates,
     extraction_pair,
     fill_extraction_defaults,
@@ -161,7 +165,10 @@ class SettingsDialog(TurnaDialog):
         split.addWidget(self.pages, 1)
         layout.addLayout(split, 1)
 
-        self.add_button("取消", slot=self.reject)
+        # T17: 「取消」 drops whatever was staged this session. Routed through
+        # _on_cancel rather than reject() so a window-close (which also calls
+        # reject) gets the same treatment.
+        self.add_button("取消", slot=self._on_cancel)
         self.apply_btn = self.add_button("应用", slot=self._apply)
         self.ok_btn = self.add_button(
             "确定", variant="primary", slot=self._on_ok, default=True
@@ -471,7 +478,9 @@ class SettingsDialog(TurnaDialog):
         self._settings.lan_default_port = self.lan_port_spin.value()
         self._settings.lan_bind_address = self.lan_bind_combo.currentData()
         self._settings.lan_token = self.lan_token_edit.text().strip()
-        credential_store.set_ssh_key_path(self.ssh_key_edit.text().strip())
+        # T17: the SSH key path used to be written here, so it hit the
+        # credential store even when the user pressed 「取消」. It now lands
+        # in _apply() (accept only).
 
     def _on_provider_changed(self, _index: int) -> None:
         on_provider_changed(self, _index)
@@ -496,6 +505,21 @@ class SettingsDialog(TurnaDialog):
     def _on_ok(self) -> None:
         self._apply()
         self.accept()
+
+    def _on_cancel(self) -> None:
+        """T17: 「取消」 discards everything staged in this dialog."""
+        self.discard_pending_changes()
+        self.reject()
+
+    def reject(self) -> None:
+        # Covers the window-close path too, which calls reject() directly.
+        try:
+            self.discard_pending_changes()
+        except Exception:
+            logger.warning(
+                "settings_dialog.py:discard pending failed", exc_info=True
+            )
+        super().reject()
 
     def _apply(self) -> None:
         self._confirm_experience_mode_change()
@@ -547,7 +571,32 @@ class SettingsDialog(TurnaDialog):
         self._original.experience_memory_persist_author = (
             self._settings.experience_memory_persist_author
         )
+        # T17: accept-only side effects. Everything above this line is
+        # in-memory state that survives a 「取消」 harmlessly; the two calls
+        # below touch disk and therefore belong to the accept path only.
+        try:
+            credential_store.set_ssh_key_path(self.ssh_key_edit.text().strip())
+        except Exception:
+            logger.warning("settings_dialog.py:ssh key path persist failed", exc_info=True)
+        self._commit_extraction_overrides()
         self.settings_changed.emit()
+
+    def _commit_extraction_overrides(self) -> None:
+        """T17: write the staged extraction override/delete on accept."""
+        try:
+            commit_extraction_pending(self)
+        except Exception:
+            logger.warning(
+                "settings_dialog.py:extraction override persist failed", exc_info=True
+            )
+
+    def discard_pending_changes(self) -> None:
+        """T17: drop everything staged in this dialog session.
+
+        Called on 「取消」 / close so staged overrides never leak into disk
+        behind the user's back.
+        """
+        self._extraction_pending = None
 
     def _confirm_experience_mode_change(self) -> bool:
         """Gate immersive entry; on decline, roll the combo back to the live mode.

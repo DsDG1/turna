@@ -129,34 +129,110 @@ class SettingsNavLayoutTest(unittest.TestCase):
 
 
 class ExtractionPromptTabTest(unittest.TestCase):
-    """P1-3: the 提取 Prompt tab persists overrides and refreshes the library."""
+    """T17: the 提取 Prompt overrides are staged and written on accept."""
 
-    def test_save_override_refreshes_default_library(self) -> None:
+    def _dialog(self, lib):
         _App.get()
         import src.backend.knowledge_prompt as kp
         from src.backend.knowledge_prompt import KnowledgePromptLibrary
 
         old_library = kp.DEFAULT_LIBRARY
         kp.DEFAULT_LIBRARY = KnowledgePromptLibrary()
-        try:
-            with patch("src.app.QSettings", return_value=_make_qsettings()):
-                settings = Settings.load_from_qsettings(_make_qsettings())
-            lib = _make_prompt_library()
-            dlg = SettingsDialog(settings, prompt_library=lib)
-            # Fill the tab fields and save.
-            dlg.extraction_lang_edit.setText("Turkish")
-            dlg.extraction_src_edit.setText("Chinese")
-            dlg._extraction_edits["intro"].setPlainText("测试覆盖引导语ABC")
-            with patch("src.dialogs.settings.extraction_prompt_tab.QMessageBox.information"):
-                dlg._on_extraction_save()
-            # Persisted in the library …
-            self.assertIsNotNone(lib.extraction_override("Turkish", "Chinese"))
-            # … and live in the in-memory default knowledge library.
-            tpl = kp.DEFAULT_LIBRARY.templates_for("Turkish", "Chinese")
-            self.assertEqual(tpl.intro, "测试覆盖引导语ABC")
-            dlg.deleteLater()
-        finally:
-            kp.DEFAULT_LIBRARY = old_library
+        self.addCleanup(lambda: setattr(kp, "DEFAULT_LIBRARY", old_library))
+        with patch("src.app.QSettings", return_value=_make_qsettings()):
+            settings = Settings.load_from_qsettings(_make_qsettings())
+        dlg = SettingsDialog(settings, prompt_library=lib)
+        self.addCleanup(dlg.deleteLater)
+        self._kp = kp
+        return dlg
+
+    def _stage(self, dlg, intro: str) -> None:
+        dlg.extraction_lang_edit.setText("Turkish")
+        dlg.extraction_src_edit.setText("Chinese")
+        dlg._extraction_edits["intro"].setPlainText(intro)
+        with patch(
+            "src.application.shell_views.notify_toast", return_value=True
+        ):
+            dlg._on_extraction_save()
+
+    def _apply(self, dlg) -> None:
+        with patch(
+            "src.dialogs.settings_dialog.SettingsDialog._confirm_experience_mode_change",
+            return_value=True,
+        ):
+            dlg._apply()
+
+    def test_save_button_alone_writes_nothing(self) -> None:
+        lib = _make_prompt_library()
+        dlg = self._dialog(lib)
+        self._stage(dlg, "测试覆盖引导语ABC")
+        # Nothing on disk/in-library until the dialog is accepted.
+        self.assertIsNone(lib.extraction_override("Turkish", "Chinese"))
+        self.assertIsNotNone(dlg._extraction_pending)
+
+    def test_accept_writes_the_override_and_refreshes_the_library(self) -> None:
+        lib = _make_prompt_library()
+        dlg = self._dialog(lib)
+        self._stage(dlg, "测试覆盖引导语ABC")
+        self._apply(dlg)
+        self.assertIsNotNone(lib.extraction_override("Turkish", "Chinese"))
+        tpl = self._kp.DEFAULT_LIBRARY.templates_for("Turkish", "Chinese")
+        self.assertEqual(tpl.intro, "测试覆盖引导语ABC")
+        self.assertIsNone(dlg._extraction_pending)
+
+    def test_cancel_discards_the_staged_override(self) -> None:
+        lib = _make_prompt_library()
+        dlg = self._dialog(lib)
+        self._stage(dlg, "不该落盘的覆盖")
+        dlg._on_cancel()
+        self.assertIsNone(lib.extraction_override("Turkish", "Chinese"))
+        self.assertIsNone(dlg._extraction_pending)
+
+    def test_delete_is_also_staged(self) -> None:
+        lib = _make_prompt_library()
+        dlg = self._dialog(lib)
+        self._stage(dlg, "先存一个")
+        self._apply(dlg)
+        self.assertIsNotNone(lib.extraction_override("Turkish", "Chinese"))
+        with patch("src.application.shell_views.notify_toast", return_value=True):
+            dlg._on_extraction_delete()
+        # Still present: the delete is only staged.
+        self.assertIsNotNone(lib.extraction_override("Turkish", "Chinese"))
+        self._apply(dlg)
+        self.assertIsNone(lib.extraction_override("Turkish", "Chinese"))
+
+
+class SshKeyPathPersistenceTest(unittest.TestCase):
+    """T17: the SSH key path is a settings field, so 「取消」 discards it."""
+
+    def _dialog(self):
+        _App.get()
+        with patch("src.app.QSettings", return_value=_make_qsettings()):
+            settings = Settings.load_from_qsettings(_make_qsettings())
+        dlg = SettingsDialog(settings, prompt_library=_make_prompt_library())
+        self.addCleanup(dlg.deleteLater)
+        return dlg
+
+    def test_sync_does_not_touch_the_credential_store(self) -> None:
+        dlg = self._dialog()
+        dlg.ssh_key_edit.setText("/tmp/key-A")
+        with patch(
+            "src.dialogs.settings_dialog.credential_store.set_ssh_key_path"
+        ) as setter:
+            dlg._sync_to_settings()
+        setter.assert_not_called()
+
+    def test_apply_persists_the_ssh_key_path(self) -> None:
+        dlg = self._dialog()
+        dlg.ssh_key_edit.setText("/tmp/key-A")
+        with patch(
+            "src.dialogs.settings_dialog.credential_store.set_ssh_key_path"
+        ) as setter, patch(
+            "src.dialogs.settings_dialog.SettingsDialog._confirm_experience_mode_change",
+            return_value=True,
+        ):
+            dlg._apply()
+        setter.assert_called_once_with("/tmp/key-A")
 
 
 class SettingsDialogAdvancedAiTest(unittest.TestCase):

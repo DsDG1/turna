@@ -72,13 +72,17 @@ def build_extraction_prompt_tab(dlg) -> QWidget:
     outer_layout.addLayout(btn_row)
 
     hint = QLabel(
-        "按语言对覆盖教材知识点抽取的 Prompt 模板。保存后立即对新提取生效；"
+        "按语言对覆盖教材知识点抽取的 Prompt 模板。点「保存覆盖」后暂存，"
+        "随设置对话框的「确定」一起生效；点「取消」则丢弃本次改动。"
         "删除覆盖后回落到内置默认。"
     )
     hint.setObjectName("hintLabel")
     hint.setWordWrap(True)
     outer_layout.addWidget(hint)
 
+    # T17: pending action for this dialog session — ("save", lang, src,
+    # blocks) or ("delete", lang, src). None until the user presses a button.
+    dlg._extraction_pending: tuple[str, str, str, object] | None = None
     dlg._load_extraction_fields()
     return outer
 
@@ -115,33 +119,61 @@ def fill_extraction_defaults(dlg) -> None:
 
 
 def on_extraction_save(dlg) -> None:
+    """T17: stage the override; it is written when the dialog is accepted.
+
+    This used to write the override file immediately, so 「取消」 in the
+    settings dialog left the change in place while the rest of the dialog
+    was discarded — two different notions of "cancel" on one screen.
+    """
     language, source_language = dlg._extraction_pair()
     blocks = {
         key: edit.toPlainText()
         for key, edit in dlg._extraction_edits.items()
     }
-    dlg._prompt_library.save_extraction_override(
-        language, source_language, blocks
-    )
-    # Refresh the in-memory default library so the next extraction uses it.
-    load_overrides_from(dlg._prompt_library)
+    dlg._extraction_pending = ("save", language, source_language, blocks)
     from src.application.shell_views import notify_toast
 
-    msg = f"已保存 {language} / {source_language} 的覆盖模板。"
-    if not notify_toast(dlg, msg, severity="success", title="提取 Prompt"):
+    msg = f"已暂存 {language} / {source_language} 的覆盖模板，点「确定」后生效。"
+    if not notify_toast(dlg, msg, title="提取 Prompt"):
         QMessageBox.information(dlg, "提取 Prompt", msg)
 
 
 def on_extraction_delete(dlg) -> None:
+    """T17: stage the delete; it is applied when the dialog is accepted."""
     language, source_language = dlg._extraction_pair()
+    dlg._extraction_pending = ("delete", language, source_language, None)
+    dlg._fill_extraction_defaults()
     from src.application.shell_views import notify_toast
 
-    if not dlg._prompt_library.delete_extraction_override(language, source_language):
-        if not notify_toast(dlg, "该语言对没有已保存的覆盖。", title="提取 Prompt"):
-            QMessageBox.information(dlg, "提取 Prompt", "该语言对没有已保存的覆盖。")
-        return
-    default_library().unregister_persisted(language, source_language)
-    dlg._fill_extraction_defaults()
-    msg = f"已删除 {language} / {source_language} 的覆盖，回落到默认。"
+    msg = f"已暂存删除 {language} / {source_language} 的覆盖，点「确定」后生效。"
     if not notify_toast(dlg, msg, title="提取 Prompt"):
         QMessageBox.information(dlg, "提取 Prompt", msg)
+
+
+def commit_extraction_pending(dlg) -> bool:
+    """Write the staged override/delete. Called from the dialog's accept path.
+
+    Returns True when something was written. Never raises.
+    """
+    pending = getattr(dlg, "_extraction_pending", None)
+    if pending is None:
+        return False
+    kind, language, source_language, payload = pending
+    try:
+        if kind == "save":
+            dlg._prompt_library.save_extraction_override(
+                language, source_language, dict(payload or {})
+            )
+        elif kind == "delete":
+            if not dlg._prompt_library.delete_extraction_override(
+                language, source_language
+            ):
+                return False
+            default_library().unregister_persisted(language, source_language)
+        else:  # pragma: no cover - defensive
+            return False
+        # Refresh the in-memory default library so the next extraction uses it.
+        load_overrides_from(dlg._prompt_library)
+    finally:
+        dlg._extraction_pending = None
+    return True
