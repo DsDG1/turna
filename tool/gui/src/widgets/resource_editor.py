@@ -306,13 +306,14 @@ class ResourceTableWidget(QWidget):
         new_id = self._choose_replacement(entry_id)
         if not new_id or new_id == entry_id:
             return False
-        reply = QMessageBox.question(
+        from src.application.ui_guard import safe_question
+
+        if not safe_question(
             self,
             "替换引用",
             f"是否将所有对 {entry_id} 的引用替换为 {new_id}？",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply != QMessageBox.StandardButton.Yes:
+            default_yes=False,
+        ):
             return False
         from src.backend.experience.resource_refs import build_replacement_steps
         steps = build_replacement_steps(self.adapter, self.row_type, entry_id, new_id)
@@ -355,11 +356,9 @@ class ResourceTableWidget(QWidget):
         from src.backend.experience.resource_refs import find_resource_refs
         report = find_resource_refs(self.adapter, self.row_type, entry_id)
         msg = self._delete_confirm_text(f"{self.row_type} [{entry_id}]", report)
-        reply = QMessageBox.question(
-            self, "删除", msg,
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        )
-        if reply != QMessageBox.StandardButton.Yes:
+        from src.application.ui_guard import safe_question
+
+        if not safe_question(self, "删除", msg, default_yes=False):
             if report.get("count", 0) > 0:
                 self._maybe_propose_batch_replacement([entry_id])
             return
@@ -388,12 +387,23 @@ class ResourceTableWidget(QWidget):
             item = self.table.item(r, 0)
             if item and item.text():
                 entry_ids.append(item.text())
-        reply = QMessageBox.question(
-            self, "批量删除",
-            f"确认删除 {len(rows)} 行？保存时 validate 会校验悬空引用。",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        # T16 follow-up: the single-row path reports references, the bulk path
+        # did not — so selecting 20 words used by 40 lessons warned about
+        # nothing. Aggregate the report across the selection instead.
+        from src.backend.experience.resource_refs import (
+            find_resource_refs,
+            merge_resource_reports,
         )
-        if reply != QMessageBox.StandardButton.Yes:
+        from src.application.ui_guard import safe_question
+
+        report = merge_resource_reports(
+            [
+                find_resource_refs(self.adapter, self.row_type, eid)
+                for eid in entry_ids
+            ]
+        )
+        msg = self._delete_confirm_text(f"{len(entry_ids)} 行 {self.row_type}", report)
+        if not safe_question(self, "批量删除", msg, default_yes=False):
             self._maybe_propose_batch_replacement(entry_ids)
             return
         for entry_id in entry_ids:
@@ -612,6 +622,10 @@ class ResourceEditorDialog(QWidget):
         if not path:
             return
         from pathlib import Path
+        # Deliberately NOT ui_guard.safe_question: this needs three outcomes
+        # (merge / replace / abandon the import), and safe_question is
+        # yes-no only. Every other confirmation in this module goes through
+        # the guard.
         reply = QMessageBox.question(
             self, "导入资源包",
             "合并模式（是=合并去重，否=完全替换）？",

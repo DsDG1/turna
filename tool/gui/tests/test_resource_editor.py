@@ -177,15 +177,89 @@ class V04DeleteRefGraphTest(unittest.TestCase):
         self.addCleanup(tab.deleteLater)
         tab.table.selectRow(0)  # w1（被引用）
         with patch(
-            "src.widgets.resource_editor.QMessageBox"
-        ) as qbox, patch.object(
+            "src.application.ui_guard.safe_question", return_value=False
+        ) as ask, patch.object(
             tab, "_maybe_propose_batch_replacement"
         ) as propose:
-            qbox.question.return_value = qbox.StandardButton.No
             tab._on_batch_del()
+        ask.assert_called_once()
         propose.assert_called_once()
         # 取消后词条仍在
         self.assertIn("w1", [e["id"] for e in adapter.vocab])
+
+    def test_bulk_delete_reports_the_references_it_would_break(self) -> None:
+        """T16 follow-up: the bulk path warned about nothing.
+
+        Selecting the referenced entry (w1) and confirming must describe the
+        references, exactly as the single-row path does.
+        """
+        from src.widgets.resource_editor import ResourceTableWidget
+
+        adapter = self._adapter()
+        tab = ResourceTableWidget(adapter, "vocab")
+        self.addCleanup(tab.deleteLater)
+        tab.table.selectRow(0)  # w1, referenced twice
+        with patch(
+            "src.application.ui_guard.safe_question", return_value=False
+        ) as ask, patch.object(tab, "_maybe_propose_batch_replacement"):
+            tab._on_batch_del()
+        ask.assert_called_once()
+        text = ask.call_args.args[2]
+        self.assertIn("2 处引用", text)
+        self.assertIn("l1", text)
+
+    def test_bulk_delete_of_unreferenced_rows_says_so(self) -> None:
+        from src.widgets.resource_editor import ResourceTableWidget
+
+        adapter = self._adapter()
+        tab = ResourceTableWidget(adapter, "vocab")
+        self.addCleanup(tab.deleteLater)
+        tab.table.selectRow(2)  # w3, referenced by nothing
+        with patch(
+            "src.application.ui_guard.safe_question", return_value=False
+        ) as ask, patch.object(tab, "_maybe_propose_batch_replacement"):
+            tab._on_batch_del()
+        self.assertIn("未发现引用", ask.call_args.args[2])
+
+    def test_bulk_delete_routes_through_the_guard(self) -> None:
+        # The delete / bulk-delete / replace-reference confirmations must go
+        # through ui_guard; a raw box would block a headless or immersive-auto
+        # session. The resource-pack import keeps a raw box on purpose (it needs
+        # a third "cancel" outcome) and says so in the source.
+        from pathlib import Path
+
+        src = (
+            Path(__file__).resolve().parents[1]
+            / "src"
+            / "widgets"
+            / "resource_editor.py"
+        ).read_text(encoding="utf-8")
+        self.assertEqual(src.count("QMessageBox.question"), 1)
+        self.assertIn("Deliberately NOT ui_guard.safe_question", src)
+        self.assertGreaterEqual(src.count("from src.application.ui_guard import safe_question"), 3)
+
+    def test_merge_resource_reports_sums_counts(self) -> None:
+        from src.backend.experience.resource_refs import (
+            delete_confirm_text,
+            merge_resource_reports,
+        )
+
+        merged = merge_resource_reports(
+            [
+                {"count": 2, "refs": [{"lesson_id": "l1", "item_id": "i1"}]},
+                {"count": 0, "refs": []},
+                {"count": 1, "refs": [{"lesson_id": "l1", "item_id": "i2"}]},
+            ]
+        )
+        self.assertEqual(merged["count"], 3)
+        self.assertEqual(len(merged["refs"]), 2)
+        self.assertIn("3 处引用", delete_confirm_text("2 行 vocab", merged))
+
+    def test_merge_resource_reports_tolerates_junk(self) -> None:
+        from src.backend.experience.resource_refs import merge_resource_reports
+
+        merged = merge_resource_reports([{"count": 1}, None, "nope", {}])  # type: ignore[list-item]
+        self.assertEqual(merged["count"], 1)
 
     def test_propose_replacement_applies_without_host(self) -> None:
         from src.widgets.resource_editor import ResourceTableWidget
@@ -195,8 +269,9 @@ class V04DeleteRefGraphTest(unittest.TestCase):
         self.addCleanup(tab.deleteLater)
         with patch.object(
             tab, "_choose_replacement", return_value="w2"
-        ), patch("src.widgets.resource_editor.QMessageBox") as qbox:
-            qbox.question.return_value = qbox.StandardButton.Yes
+        ), patch(
+            "src.application.ui_guard.safe_question", return_value=True
+        ):
             ok = tab._propose_replacement("w1")
         self.assertTrue(ok)
         item = adapter.sections[0]["units"][0]["lessons"][0]["content"]["stages"][0]["items"][0]

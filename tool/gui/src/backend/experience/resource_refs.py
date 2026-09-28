@@ -276,6 +276,27 @@ def build_replacement_steps(
         return []
 
 
+def merge_resource_reports(
+    reports: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Combine several :func:`find_resource_refs` reports into one.
+
+    Used by the resources editor's bulk delete (T16 follow-up): the
+    single-row path reported references and the bulk path did not, so a
+    multi-row delete warned about nothing. The combined count and reference
+    list let the shared ``delete_confirm_text`` describe the whole selection.
+    """
+    merged: dict[str, Any] = {"count": 0, "refs": []}
+    for report in reports:
+        if not isinstance(report, dict):
+            continue
+        merged["count"] += int(report.get("count", 0) or 0)
+        refs = report.get("refs")
+        if isinstance(refs, list):
+            merged["refs"].extend(refs)
+    return merged
+
+
 def delete_confirm_text(label: str, report: dict[str, Any]) -> str:
     """Shared delete-confirmation copy for resource entries.
 
