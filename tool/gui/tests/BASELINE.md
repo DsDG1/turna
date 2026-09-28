@@ -8,6 +8,48 @@
 
  ## 当前基线
 
+- **2026-09-28（GUI 易用性修复 批次二：承诺≠行为，7 条；2.7/2.9 已随批次一）**：
+  `python -m unittest` 逐模块收集 **193 模块 / 2673 例 / 0 失败**（上批 2654 例 ⇒
+  **+19**，新增 `test_auto_apply_scope.py`）。分档实测：`full` **193/193，74 s**；
+  `ruff` 全过；L0 gate **5/5 exit 0**。依据 `Turna_GUI_修复计划_2026-09-28` 批次二：
+  - **#6+#7 AutoApplyToken 泄漏 + 自动路径模态 Diff（链式，同 commit）**：
+    `resolve_auto_apply_state` 的 host-token 分支收紧为「strip 上确有待应用动作」
+    （`_host_preview_has_pending`）；新增 `resolve_auto_apply_for_offer` 供 offer
+    落地时消费 token（异步 offer 仍自动应用）；`PreviewHost` 在 offer 自动应用/
+    apply/discard/clear 时解绑 host token（token 跟随 offer 生命周期），自动应用
+    期间以 `auto_confirm_scope` 包住 apply 链；fill 三处 worker 回调（空课填充/
+    清待补/补全听力）auto 路径改走 `_offer_auto_preview`（PreviewHost strip），
+    手动路径复用同一 apply/discard 闭包走 SectionDiffView；presence_drive 调度期
+    文案改「AI 执行中…」不再谎称「已自动」，成功提示由 offer 完成时发出。
+    新增 `test_auto_apply_scope.py` 9 例（严格/offer 双解析、消费解绑、auto 无模态、
+    文案）。
+  - **#8 清理资源建议统计全局、执行只处理当前节**：建议 action_id 从
+    `resource.fill_stubs`（当前节）改为现成的全局批处理器 `resource.fill_stubs_batch`
+    （v4.65 B1+B2，全局 stub 谓词 + FieldPatch + 确认 + Undo）——口径天然一致，
+    无需新写循环。`test_experience_context` 断言随契约更新。
+  - **#9 wish「重试解释」重跑完整课程生成**：抽出 `_start_wish_explain`，新增
+    `on_wish_explain_retry`（入参是现有 `_draft_json`，引用不变）；retry 按钮改调
+    它。新增 2 例（explain worker target + draft 身份不变 / 无草稿不发请求）。
+  - **#10 批量合并整批取消仍部分导入**：整批取消（bulk resolver 返回 None）→
+    **中止整个导入**（全部 section 返回 `cancelled`，零 undo push）；单冲突取消
+    （单节 merge 对话框取消）→ `confirm_continue` 回调（safe_question，默认否）问
+    是否继续其余 N 章，拒绝则余下全部取消；counts 新增 `cancelled`，workshop 汇总
+    三分「完成 / 部分完成 / 已取消，未做任何更改」。旧
+    `test_bulk_resolver_cancel_skips_all_merges` 断言的正是 bug 行为，改写为三条
+    新契约用例（含 undo 深度断言）。
+  - **#11 Ctrl+S 绕过 SavePipeline**：新增 `run_async_pipeline_save`（Soft 在 GUI
+    线程先跑、慢链在 worker、`execute_save(prefetched=…)` 复用同一出口组合 outcome
+    与 UI 钩子）；`_on_save`/`_save_course_async`/palette 全部接入；
+    `run_async_direct_save` 降级为兼容 shim（无生产调用方）。新增 3 例（Soft 先于
+    worker、palette reason 透传、保存后总览失效钩子）。
+  - **#13 总览校验徽标缓存永不失效**：保存成功钩子（管线 `_after_success` 与
+    direct shim）调 `CourseOverview.invalidate_validation_cache()`（仅曾拉取过才重
+    取）；拉取期间徽标显示「校验: …」；`#validation` 旁常驻 ⟳（`#validate`）强制
+    刷新链接。新增 3 例（保存后重取落地 / 未拉取过 no-op / ⟳ 常驻）。
+  - 备注：手动冒烟（四种保存入口一致、Immersive 手动确认恢复、重试解释不重生成、
+    整批取消零导入）留待人工；离屏回归已覆盖逻辑路径。批次三起 3.10
+    （PreviewHost 快捷键作用域）接在 2.2 之后按链实施。
+
 - **2026-09-28（GUI 易用性修复 批次一：P0 数据丢失/功能坏死，6 条）**：`python -m unittest`
   逐模块收集 **192 模块 / 2654 例 / 0 失败**（上批 2633 例 ⇒ **+21**）。分档实测：`full`
   **192/192，74 s**；`ruff` 全过；L0 gate（E1+E2 冒烟）**5/5 exit 0**。本批依据
