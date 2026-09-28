@@ -38,7 +38,20 @@ def handle_close_event(host: ExperienceHost, event: Any) -> None:
     # shutdown (equivalent to the old synchronous save on close).
     save_worker = getattr(host, "_save_worker", None)
     if save_worker is not None and save_worker.isRunning():
-        save_worker.wait()
+        try:
+            host.statusBar().showMessage("正在保存…")
+        except Exception:
+            logger.debug("application/close_controller.py:handle_close_event best-effort step failed", exc_info=True)
+        # T18: bounded wait — an unresponsive save thread must not hang the
+        # close forever; the user gets told and can retry.
+        if not save_worker.wait(5000):
+            event.ignore()
+            safe_warning(
+                host,
+                "仍在保存",
+                "保存仍在进行，窗口暂不关闭，请稍后重试。",
+            )
+            return
     course_dir = getattr(host, "course_dir", None)
     adapter = getattr(host, "adapter", None)
     dirty = False

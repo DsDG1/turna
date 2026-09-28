@@ -130,5 +130,45 @@ class CloseEventTest(unittest.TestCase):
         self.assertIsNone(host._workshop_window)
 
 
+class SaveWorkerWaitTest(unittest.TestCase):
+    """T18: a stuck background save must not hang the close forever."""
+
+    def _host(self):
+        host = MagicMock()
+        host._settings_obj = MagicMock()
+        host._flush_experience_metrics = MagicMock()
+        host._record_window_duration = MagicMock()
+        worker = MagicMock()
+        worker.isRunning.return_value = True
+        worker.wait.return_value = False  # timeout
+        host._save_worker = worker
+        host._workshop_window = None
+        host._overview_window = None
+        return host, worker
+
+    def test_wait_timeout_ignores_close_and_warns(self) -> None:
+        host, worker = self._host()
+        ev = _Event()
+        with (
+            patch("src.infrastructure.telemetry.telemetry"),
+            patch("src.application.ui_guard.safe_warning") as warned,
+        ):
+            handle_close_event(host, ev)
+        worker.wait.assert_called_once_with(5000)  # bounded, not forever
+        self.assertTrue(ev._ignored)
+        warned.assert_called_once()
+
+    def test_wait_success_proceeds_to_dirty_check(self) -> None:
+        host, worker = self._host()
+        worker.wait.return_value = True
+        host.course_dir = None
+        host.adapter = MagicMock()
+        ev = _Event()
+        with patch("src.infrastructure.telemetry.telemetry"):
+            handle_close_event(host, ev)
+        # Clean course (course_dir None) → accepted without prompts.
+        self.assertTrue(ev.isAccepted())
+
+
 if __name__ == "__main__":
     unittest.main()
