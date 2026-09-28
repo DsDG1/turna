@@ -76,6 +76,11 @@ class CourseTreeWidget(QTreeWidget):
         # id -> QTreeWidgetItem index, rebuilt on every _populate so select_*
         # is O(1) instead of an O(section*unit*lesson) tree walk.
         self._id_index: dict[str, QTreeWidgetItem] = {}
+        # Last ref dispatched to node_selected (T1 dedupe).
+        self._last_selected_ref: tuple[str, str] | None = None
+        # True while the tree moves its own selection (select_* helpers and
+        # rebuilds) — those paths dispatch explicitly instead.
+        self._programmatic_selection = False
         self.setHeaderLabels(["课程结构", "类型"])
         self.setColumnWidth(0, 280)
         self.setIndentation(20)
@@ -91,6 +96,9 @@ class CourseTreeWidget(QTreeWidget):
         self.setDefaultDropAction(Qt.DropAction.MoveAction)
         self._filter_text = ""
         self.itemClicked.connect(self._on_clicked)
+        # T1: keyboard ↑/↓ changes currentItem without ever firing
+        # itemClicked, so the detail panel kept showing the previous node.
+        self.currentItemChanged.connect(self._on_current_item_changed)
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self._on_context_menu)
         self.setToolTip(
@@ -593,6 +601,12 @@ class CourseTreeWidget(QTreeWidget):
         if self.adapter is None:
             return
         state = self._capture_state()
+        last_ref = self._last_selected_ref
+        # T1: clear() + repopulate fires currentItemChanged for the teardown
+        # and the re-selection. Suppress both so a rebuild that ends on the
+        # same node does not re-notify the host.
+        was_programmatic = self._programmatic_selection
+        self._programmatic_selection = True
         # Avoid repainting per QTreeWidgetItem while the whole tree is rebuilt.
         self.setUpdatesEnabled(False)
         try:
@@ -601,6 +615,15 @@ class CourseTreeWidget(QTreeWidget):
             self._restore_state(state)
         finally:
             self.setUpdatesEnabled(True)
+            self._programmatic_selection = was_programmatic
+        # A rebuild that lands on a DIFFERENT node — the selected lesson was
+        # deleted and _restore_state fell back to its unit/section — still has
+        # to reach the detail panel.
+        current = self.currentItem()
+        new_ref = current.data(0, 0x0100) if current is not None else None
+        self._last_selected_ref = new_ref if isinstance(new_ref, tuple) else None
+        if self._last_selected_ref is not None and self._last_selected_ref != last_ref:
+            self.node_selected.emit(self._last_selected_ref)
         self._stale = False
 
     def mark_stale(self) -> None:
@@ -634,8 +657,7 @@ class CourseTreeWidget(QTreeWidget):
             return
         ref = item.data(0, 0x0100)
         if ref is not None and ref[0] == "lesson":
-            self.setCurrentItem(item)
-            self.node_selected.emit(ref)
+            self._select_and_dispatch(item, ref)
 
     def select_unit(self, unit_id: str) -> None:
         """Find and select the unit item, emitting node_selected.
@@ -648,8 +670,7 @@ class CourseTreeWidget(QTreeWidget):
             return
         ref = item.data(0, 0x0100)
         if ref is not None and ref[0] == "unit":
-            self.setCurrentItem(item)
-            self.node_selected.emit(ref)
+            self._select_and_dispatch(item, ref)
 
     def select_section(self, section_id: str) -> None:
         """Find and select the section item, emitting node_selected."""
@@ -658,13 +679,52 @@ class CourseTreeWidget(QTreeWidget):
             return
         ref = item.data(0, 0x0100)
         if ref is not None and ref[0] == "section":
-            self.setCurrentItem(item)
-            self.node_selected.emit(ref)
+            self._select_and_dispatch(item, ref)
 
     def _on_clicked(self, item: QTreeWidgetItem) -> None:
-        ref = item.data(0, 0x0100)
-        if ref is not None:
-            self.node_selected.emit(ref)
+        # A click already fires currentItemChanged first; routing through the
+        # same guarded dispatch keeps this from emitting node_selected twice.
+        self._on_current_item_changed(item, None)
+
+    def _on_current_item_changed(self, current: Any, _previous: Any) -> None:
+        """T1: mirror keyboard navigation into the detail panel.
+
+        ``itemClicked`` never fires for ↑/↓, so selecting with the keyboard
+        left the panel on the previous node. This re-dispatches on
+        ``currentItemChanged`` instead.
+
+        Programmatic selection (select_* helpers) owns its own dispatch and
+        suppresses this slot while it runs, so exactly one
+        ``node_selected`` reaches the host either way.
+        """
+        if getattr(self, "_programmatic_selection", False):
+            return
+        ref = current.data(0, 0x0100) if current is not None else None
+        if not isinstance(ref, tuple):
+            # Deselection / non-node row: nothing to dispatch. Reset so the
+            # next selection of the same node dispatches again.
+            self._last_selected_ref = None
+            return
+        if ref == self._last_selected_ref:
+            return
+        self._last_selected_ref = ref
+        self.node_selected.emit(ref)
+
+    def _select_and_dispatch(self, item: QTreeWidgetItem, ref: tuple[str, str]) -> None:
+        """Select *item* and emit node_selected exactly once.
+
+        The select_* helpers promise an unconditional notify even when the
+        node is already current (callers such as 「定位此节点」 rely on it),
+        so the dispatch is owned here rather than left to
+        currentItemChanged.
+        """
+        self._programmatic_selection = True
+        try:
+            self.setCurrentItem(item)
+        finally:
+            self._programmatic_selection = False
+        self._last_selected_ref = ref
+        self.node_selected.emit(ref)
 
     def _on_context_menu(self, pos) -> None:
         item = self.itemAt(pos)

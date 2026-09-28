@@ -7,6 +7,7 @@ PySide6 is required (run locally, not in the sandbox).
 from __future__ import annotations
 
 import sys
+import shutil
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -305,6 +306,78 @@ def _real_adapter_with_course():
     """A real CourseAdapter loaded from the Turkish course for keyboard
     integration tests (duplicate/delete/move actually mutate the tree)."""
     return real_adapter_with_course(prefix="turna_tree_kb_")
+
+
+class CourseTreeSelectionDispatchTest(unittest.TestCase):
+    """T1: keyboard navigation must reach the detail panel, once per node."""
+
+    def setUp(self) -> None:
+        _App.get()
+        self.adapter, self.tmp = _real_adapter_with_course()
+        self.tree = CourseTreeWidget()
+        self.tree.display(self.adapter)
+        self.seen: list[tuple[str, str]] = []
+        self.tree.node_selected.connect(self.seen.append)
+        self.lessons: list[tuple] = []
+        for section in self.adapter.sections:
+            for unit in section.get("units", []):
+                for lesson in unit.get("lessons", []):
+                    self.lessons.append((unit, lesson))
+        self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
+
+    def _item_for(self, kind: str, node_id: str):
+        for idx in range(self.tree.topLevelItemCount()):
+            top = self.tree.topLevelItem(idx)
+            ref = top.data(0, 0x0100)
+            if ref == (kind, node_id):
+                return top
+            for i in range(top.childCount()):
+                child = top.child(i)
+                if child.data(0, 0x0100) == (kind, node_id):
+                    return child
+                for j in range(child.childCount()):
+                    grand = child.child(j)
+                    if grand.data(0, 0x0100) == (kind, node_id):
+                        return grand
+        return None
+
+    def test_setting_current_item_emits_node_selected(self) -> None:
+        # What ↑/↓ does internally: move the current item, no click.
+        item = self._item_for("lesson", self.lessons[0][1]["id"])
+        self.tree.setCurrentItem(item)
+        self.assertEqual(self.seen, [("lesson", self.lessons[0][1]["id"])])
+
+    def test_keyboard_walk_to_next_sibling_emits_each_step(self) -> None:
+        first, second = self.lessons[0][1], self.lessons[1][1]
+        self.tree.setCurrentItem(self._item_for("lesson", first["id"]))
+        self.tree.setCurrentItem(self._item_for("lesson", second["id"]))
+        self.assertEqual(self.seen, [("lesson", first["id"]), ("lesson", second["id"])])
+
+    def test_same_node_is_not_dispatched_twice(self) -> None:
+        item = self._item_for("lesson", self.lessons[0][1]["id"])
+        self.tree.setCurrentItem(item)
+        self.tree.setCurrentItem(item)
+        self.assertEqual(len(self.seen), 1)
+
+    def test_refresh_does_not_re_notify_the_same_node(self) -> None:
+        lesson_id = self.lessons[0][1]["id"]
+        self.tree.setCurrentItem(self._item_for("lesson", lesson_id))
+        self.assertEqual(len(self.seen), 1)
+        # A rebuild re-creates every item; the panel must not be told again.
+        self.tree.refresh_incremental()
+        self.assertEqual(len(self.seen), 1)
+
+    def test_select_lesson_helper_does_not_emit_twice(self) -> None:
+        lesson_id = self.lessons[0][1]["id"]
+        self.tree.select_lesson(lesson_id)
+        self.assertEqual(self.seen, [("lesson", lesson_id)])
+
+    def test_clearing_selection_then_reselecting_dispatches_again(self) -> None:
+        lesson_id = self.lessons[0][1]["id"]
+        self.tree.setCurrentItem(self._item_for("lesson", lesson_id))
+        self.tree.setCurrentItem(None)
+        self.tree.setCurrentItem(self._item_for("lesson", lesson_id))
+        self.assertEqual(self.seen, [("lesson", lesson_id), ("lesson", lesson_id)])
 
 
 class CourseTreeKeyboardTest(unittest.TestCase):
