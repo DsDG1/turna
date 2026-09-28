@@ -321,5 +321,45 @@ class ExperienceTabTest(unittest.TestCase):
             sq.assert_not_called()
 
 
+class GitRemoteEditTest(unittest.TestCase):
+    """#4: 「编辑远程 → OK」raised AttributeError on a shadowed variable and
+    never refreshed the remotes table."""
+
+    def _make_dialog(self) -> SettingsDialog:
+        _App.get()
+        qs = _make_qsettings()
+        with patch("src.app.QSettings", return_value=qs):
+            settings = Settings.load_from_qsettings(qs)
+        dlg = SettingsDialog(settings, prompt_library=_make_prompt_library())
+        self.addCleanup(dlg.deleteLater)
+        return dlg
+
+    def test_edit_remote_ok_updates_and_refreshes_table(self) -> None:
+        from PySide6.QtWidgets import QDialog
+
+        from src.application import git_remote_catalog
+        from src.dialogs.settings.git_library_tab import edit_remote_dialog
+
+        dlg = self._make_dialog()
+        remote = git_remote_catalog.SavedRemote(
+            name="origin", url="", local_dir="", lang="tr"
+        )
+
+        class _AutoAcceptDialog(QDialog):
+            def exec(self) -> int:  # offscreen: never enter a modal loop
+                return QDialog.DialogCode.Accepted
+
+        with patch.object(git_remote_catalog, "load_remotes", return_value=[remote]), \
+             patch.object(git_remote_catalog, "update_remote") as updated, \
+             patch.object(dlg, "_populate_remotes_table") as populated, \
+             patch("PySide6.QtWidgets.QDialog", _AutoAcceptDialog):
+            edit_remote_dialog(dlg, "origin")
+
+        updated.assert_called_once()
+        # The tail must call the *SettingsDialog*'s refresh, not the inner
+        # QDialog's (the old shadowing bug ended in AttributeError).
+        populated.assert_called_once()
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -256,9 +256,11 @@ def edit_remote_dialog(dlg, name: str) -> None:
     if target is None:
         return
     from PySide6.QtWidgets import QDialog, QDialogButtonBox
-    dlg = QDialog(dlg)
-    dlg.setWindowTitle(f"编辑远程：{name}")
-    form = QFormLayout(dlg)
+    # Local name must not shadow *dlg* (the SettingsDialog): the tail needs
+    # dlg._populate_remotes_table() to refresh the table after OK.
+    edit_dlg = QDialog(dlg)
+    edit_dlg.setWindowTitle(f"编辑远程：{name}")
+    form = QFormLayout(edit_dlg)
     name_edit = QLineEdit(target.name)
     url_edit = QLineEdit(target.url)
     url_edit.setPlaceholderText("https://github.com/you/repo.git")
@@ -273,10 +275,10 @@ def edit_remote_dialog(dlg, name: str) -> None:
     buttons = QDialogButtonBox(
         QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
     )
-    buttons.accepted.connect(dlg.accept)
-    buttons.rejected.connect(dlg.reject)
+    buttons.accepted.connect(edit_dlg.accept)
+    buttons.rejected.connect(edit_dlg.reject)
     form.addRow(buttons)
-    if dlg.exec() == QDialog.DialogCode.Accepted:
+    if edit_dlg.exec() == QDialog.DialogCode.Accepted:
         new_name = name_edit.text().strip()
         git_remote_catalog.update_remote(
             name,
