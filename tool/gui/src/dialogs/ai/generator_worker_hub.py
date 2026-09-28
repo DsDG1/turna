@@ -189,12 +189,15 @@ class GeneratorWorkerHub(QObject):
     def offer_error_analysis(parent: Any, message: str, context: dict[str, Any]) -> None:
         from src.dialogs.ai_error_analyzer import offer_ai_analysis
         if offer_ai_analysis(parent, "请求失败", message):
-            import traceback
             from src.dialogs.ai_error_analyzer import AiErrorAnalyzerDialog
-            AiErrorAnalyzerDialog(
-                traceback.format_exc(),
+
+            # analyze_exception(), not traceback.format_exc(): this slot runs
+            # outside any except block, so format_exc() would send the model
+            # "NoneType: None" instead of the worker's error message.
+            AiErrorAnalyzerDialog.analyze_exception(
+                parent,
+                message,
                 context=context,
-                parent=parent,
             ).exec()
 
     @staticmethod
