@@ -70,6 +70,7 @@ from src.dialogs.ai.generator_flows import (
     on_validate_from_editor,
     on_validate_json,
     on_view_diff,
+    on_wish_explain_retry,
     on_wish_generate,
     on_wish_generation_completed,
     on_wish_generation_ready,
@@ -663,6 +664,9 @@ class SectionAiDialog(QDialog):
 
     def _on_wish_generate(self) -> None:
         on_wish_generate(self)
+
+    def _on_wish_explain_retry(self) -> None:
+        on_wish_explain_retry(self)
 
     def _on_wish_generation_completed(self) -> None:
         on_wish_generation_completed(self)

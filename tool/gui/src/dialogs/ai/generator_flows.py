@@ -404,6 +404,13 @@ def on_wish_generation_ready(dlg, parsed: object) -> None:
 
     dlg._finish_stream()
     dlg._request_start = time.perf_counter()
+    _start_wish_explain(dlg, parsed)
+
+
+def _start_wish_explain(dlg, parsed: dict) -> None:
+    """Run the explain worker for an existing draft (never re-generates)."""
+    from src.application.ai_request_worker import AiRequestWorker
+
     kwargs = dlg._ai_generation_kwargs()
     worker = AiRequestWorker(
         explain_course, dlg._config, dlg._current_spec(), parsed, **kwargs
@@ -417,6 +424,25 @@ def on_wish_generation_ready(dlg, parsed: object) -> None:
     dlg._register_worker(worker)
     dlg._set_busy(True, stage="通俗解释中…")
     worker.start()
+
+
+def on_wish_explain_retry(dlg) -> None:
+    """「重试解释」: regenerate ONLY the explanation from the existing draft.
+
+    The old wiring re-ran the whole wish generation (a second course request
+    overwriting the reviewed draft). The draft JSON stays untouched here.
+    """
+    if dlg._current_worker is not None and dlg._current_worker.isRunning():
+        return
+    parsed = dlg._draft_json
+    if not isinstance(parsed, dict):
+        QMessageBox.information(
+            dlg, "尚无课程草稿", "请先生成课程，再重试解释。"
+        )
+        return
+    dlg._request_start = time.perf_counter()
+    telemetry.record_event("ai.explain.retry", payload={"mode": "wish"})
+    _start_wish_explain(dlg, parsed)
 
 
 def on_explain_worker_done(dlg) -> None:
@@ -475,7 +501,7 @@ def on_explain_error(dlg, message: str) -> None:
     msg.exec()
     clicked = msg.clickedButton()
     if clicked == retry_btn:
-        dlg._on_wish_generate()
+        dlg._on_wish_explain_retry()
     elif clicked == analyze_btn:
         dlg._offer_error_analysis(
             message, context={"action": "ai.explain", "mode": "wish"}
