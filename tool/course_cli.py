@@ -812,10 +812,52 @@ def _write_csv(path: Path, headers: list[str], rows: list[dict[str, str]]) -> No
             writer.writerow({h: row.get(h, "") for h in headers})
 
 
-def _read_csv(path: Path) -> list[dict[str, str]]:
-    with path.open("r", encoding="utf-8", newline="") as f:
-        reader = csv.DictReader(f)
-        return list(reader)
+def _read_csv(
+    path: Path, problems: list[Problem] | None = None
+) -> list[dict[str, str]]:
+    """Read CSV rows, trying UTF-8 (with BOM) → GBK → locale encoding.
+
+    A bare utf-8 open rejected every Windows-exported GBK sheet (#20).
+    When no encoding decodes, an error Problem lands in *problems* (never
+    an exception out of the import command); the caller aborts on it.
+    """
+    import locale as _locale
+
+    encodings = ["utf-8-sig", "gbk"]
+    pref = ""
+    try:
+        pref = str(_locale.getpreferredencoding(False) or "")
+    except Exception:  # noqa: BLE001 — locale probe is best-effort only
+        pref = ""
+    norm = pref.lower().replace("-", "").replace("_", "")
+    if pref and norm not in {"utf8", "gbk"}:
+        encodings.append(pref)
+
+    last_error: Exception | None = None
+    for enc in encodings:
+        try:
+            with path.open("r", encoding=enc, newline="") as f:
+                reader = csv.DictReader(f)
+                return list(reader)
+        except UnicodeDecodeError as exc:
+            last_error = exc
+        except LookupError:
+            continue
+        except OSError as exc:
+            # Unreadable file/permission — no encoding will help.
+            last_error = exc
+            break
+    if problems is not None:
+        problems.append(
+            Problem(
+                level="error",
+                message=(
+                    f"无法识别编码（支持 UTF-8/GBK）：{path.name}"
+                    + (f" — {last_error}" if last_error else "")
+                ),
+            )
+        )
+    return []
 
 
 def build_csv_rows(
@@ -1036,7 +1078,13 @@ def cmd_import_csv(args: argparse.Namespace) -> int:
         print(f"Unknown import type: {args.type}", file=sys.stderr)
         return 1
 
-    rows = _read_csv(in_path)
+    read_problems: list[Problem] = []
+    rows = _read_csv(in_path, problems=read_problems)
+    for p in read_problems:
+        print(f"{p.level.upper()}: {p.message}")
+    if any(p.level == "error" for p in read_problems):
+        print("\nImport aborted: unreadable CSV.", file=sys.stderr)
+        return 1
     expression_ids = {e["id"] for e in load_expressions(course_dir)}
 
     new_entries, problems = merge_csv_rows(

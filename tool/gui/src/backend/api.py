@@ -315,6 +315,15 @@ def read_csv_file(path: Path) -> list[dict[str, str]]:
     return course_cli._read_csv(path)
 
 
+def read_csv_file_with_problems(
+    path: Path,
+) -> tuple[list[dict[str, str]], list[dict[str, str]]]:
+    """Read CSV rows plus encoding problems as dicts (GUI import path, #20)."""
+    problems: list[course_cli.Problem] = []
+    rows = course_cli._read_csv(path, problems=problems)
+    return rows, [p.to_dict() for p in problems]
+
+
 def write_csv_file(path: Path, headers: list[str], rows: list[dict[str, str]]) -> None:
     course_cli._write_csv(path, headers, rows)
 

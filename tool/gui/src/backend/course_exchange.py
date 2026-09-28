@@ -23,12 +23,18 @@ class CourseExchangeService:
     ) -> list[dict[str, str]]:
         """Read CSV, merge into memory, return problems. Does not write files."""
         start = time.perf_counter()
-        rows = api.read_csv_file(csv_path)
+        rows, read_problem_dicts = api.read_csv_file_with_problems(csv_path)
         existing = adapter._resource_list(row_type)
         expression_ids = {e["id"] for e in adapter.expressions}
         merged, problems = api.import_csv_rows(
             row_type, existing, rows, expression_ids
         )
+        # #20: encoding failures surface through the same problem channel
+        # the GUI import already renders.
+        problems = list(problems) + [
+            api.Problem(level=p["level"], message=p["message"])
+            for p in read_problem_dicts
+        ]
         errors = [p for p in problems if p.level == "error"]
         if not errors:
             adapter._set_resource_list(row_type, merged)

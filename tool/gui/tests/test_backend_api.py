@@ -133,5 +133,39 @@ class BackendApiTest(unittest.TestCase):
         self.assertEqual(reloaded.index.get("displayName"), "Updated Name")
 
 
+
+
+class CsvEncodingTest(unittest.TestCase):
+    """#20: CSV imports accept UTF-8 (with/without BOM) and GBK."""
+
+    def _write(self, name: str, data: bytes) -> Path:
+        tmp = Path(tempfile.mkdtemp(prefix="turna_csv_"))
+        self.addCleanup(lambda: shutil.rmtree(tmp, ignore_errors=True))
+        f = tmp / name
+        f.write_bytes(data)
+        return f
+
+    def test_gbk_csv_reads(self) -> None:
+        payload = "id,term,translation\r\nw1,开元,开元的".encode("gbk")
+        rows = api.read_csv_file(self._write("gbk.csv", payload))
+        self.assertEqual(rows[0]["term"], "开元")
+
+    def test_utf8_bom_csv_reads(self) -> None:
+        payload = "id,term\r\nw1,merhaba".encode("utf-8-sig")
+        rows = api.read_csv_file(self._write("bom.csv", payload))
+        self.assertEqual(rows[0]["id"], "w1")  # BOM stripped, not in the key
+
+    def test_undecodable_csv_reports_problem(self) -> None:
+        # 0xC3 0x28 is an invalid UTF-8 sequence and (paired with 0xFF 0xFE)
+        # not valid GBK either — every decoder in the chain rejects it.
+        payload = b"id,term\r\nw1,\xc3(\xff\xfe\x81"
+        rows, problems = api.read_csv_file_with_problems(
+            self._write("bad.csv", payload)
+        )
+        self.assertEqual(rows, [])
+        self.assertTrue(problems)
+        self.assertEqual(problems[0]["level"], "error")
+        self.assertIn("无法识别编码", problems[0]["message"])
+
 if __name__ == "__main__":
     unittest.main()
