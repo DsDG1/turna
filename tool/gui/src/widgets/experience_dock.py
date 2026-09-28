@@ -65,7 +65,12 @@ def _budget_line(ctx: ExperienceContext | None) -> str:
             return f"今日 AI {used} 次 · 不限"
         color = ""
         if used >= limit:
-            color = " style='color:#dc2626'"
+            # Was a literal #dc2626 — a mid-red that reads as dark-on-dark in
+            # every theme except light, and matched no theme's error colour.
+            from src.theme import current_palette
+
+            red = current_palette().get("error_text", "#E74C3C")
+            color = f" style='color:{red}'"
         return f"<span{color}>今日 AI {used}/{limit}</span>"
     except Exception:
         return ""

@@ -45,8 +45,8 @@ class TextbookLibraryDialogTest(unittest.TestCase):
         self.dlg._refresh_list()
         self.assertEqual(self.dlg._table.rowCount(), 1)
         self.dlg._table.selectRow(0)
-        with unittest.mock.patch.object(
-            QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes
+        with unittest.mock.patch(
+            "src.application.ui_guard.safe_question", return_value=True
         ):
             self.dlg._on_delete()
         self.assertEqual(self.dlg._table.rowCount(), 0)

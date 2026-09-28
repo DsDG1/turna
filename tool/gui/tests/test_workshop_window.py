@@ -363,14 +363,10 @@ class WorkshopBottomBarTest(unittest.TestCase):
             type(controller), "is_busy", new_callable=unittest.mock.PropertyMock
         ) as busy:
             busy.return_value = True
-            with unittest.mock.patch.object(
-                QMessageBox, "question", return_value=QMessageBox.StandardButton.No
-            ):
+            with unittest.mock.patch("src.application.ui_guard.safe_question", return_value=False):
                 self.win._go_to_library()
             self.assertEqual(self.win._stack.currentIndex(), 1)
-            with unittest.mock.patch.object(
-                QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes
-            ), unittest.mock.patch.object(controller, "cancel") as cancel:
+            with unittest.mock.patch("src.application.ui_guard.safe_question", return_value=True), unittest.mock.patch.object(controller, "cancel") as cancel:
                 self.win._go_to_library()
             cancel.assert_called_once()
             self.assertEqual(self.win._stack.currentIndex(), 0)
@@ -419,8 +415,8 @@ class WorkshopDesignStageTest(unittest.TestCase):
     def test_escape_cancels_busy_after_confirm(self) -> None:
         controller = self.win._design_panel._controller
         self.win._set_busy_source("design", True, "生成中…")
-        with unittest.mock.patch.object(
-            QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes
+        with unittest.mock.patch(
+            "src.application.ui_guard.safe_question", return_value=True
         ), unittest.mock.patch.object(controller, "cancel") as cancel:
             self.win._on_escape()
             cancel.assert_called_once()
@@ -429,7 +425,7 @@ class WorkshopDesignStageTest(unittest.TestCase):
         """The Esc shortcut used to swallow the key with no busy work, leaving
         the user with no keyboard way out. It now closes the window."""
         self.win._busy_sources.clear()
-        with unittest.mock.patch.object(QMessageBox, "question") as q, unittest.mock.patch.object(
+        with unittest.mock.patch("src.application.ui_guard.safe_question") as q, unittest.mock.patch.object(
             self.win, "reject"
         ) as reject:
             self.win._on_escape()
@@ -438,11 +434,7 @@ class WorkshopDesignStageTest(unittest.TestCase):
 
     def test_escape_does_not_close_when_declined(self) -> None:
         self.win._set_busy_source("design", True, "生成中…")
-        with unittest.mock.patch.object(
-            QMessageBox,
-            "question",
-            return_value=QMessageBox.StandardButton.No,
-        ), unittest.mock.patch.object(self.win, "reject") as reject:
+        with unittest.mock.patch("src.application.ui_guard.safe_question", return_value=False), unittest.mock.patch.object(self.win, "reject") as reject:
             self.win._on_escape()
             reject.assert_not_called()
 

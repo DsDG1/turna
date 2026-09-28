@@ -105,7 +105,7 @@ class BlueprintEditTest(unittest.TestCase):
         from PySide6.QtWidgets import QMessageBox
         from unittest.mock import patch
 
-        with patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes):
+        with patch("src.application.ui_guard.safe_question", return_value=True):
             bp._on_delete_item(stage, target)
         self.assertEqual(len(stage["items"]), before - 1)
 

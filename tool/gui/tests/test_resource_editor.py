@@ -222,10 +222,9 @@ class V04DeleteRefGraphTest(unittest.TestCase):
         self.assertIn("未发现引用", ask.call_args.args[2])
 
     def test_bulk_delete_routes_through_the_guard(self) -> None:
-        # The delete / bulk-delete / replace-reference confirmations must go
-        # through ui_guard; a raw box would block a headless or immersive-auto
-        # session. The resource-pack import keeps a raw box on purpose (it needs
-        # a third "cancel" outcome) and says so in the source.
+        # Every confirmation must go through ui_guard; a raw box would block a
+        # headless or immersive-auto session. The resource-pack import needs a
+        # third "abandon" outcome, which safe_question3 provides.
         from pathlib import Path
 
         src = (
@@ -234,9 +233,11 @@ class V04DeleteRefGraphTest(unittest.TestCase):
             / "widgets"
             / "resource_editor.py"
         ).read_text(encoding="utf-8")
-        self.assertEqual(src.count("QMessageBox.question"), 1)
-        self.assertIn("Deliberately NOT ui_guard.safe_question", src)
-        self.assertGreaterEqual(src.count("from src.application.ui_guard import safe_question"), 3)
+        # The resource-pack import used to keep a raw box for its third
+        # "abandon" outcome; safe_question3 now covers that too, so this module
+        # has no raw confirmation left at all.
+        self.assertNotIn("QMessageBox.question", src)
+        self.assertGreaterEqual(src.count("ui_guard import"), 4)
 
     def test_merge_resource_reports_sums_counts(self) -> None:
         from src.backend.experience.resource_refs import (

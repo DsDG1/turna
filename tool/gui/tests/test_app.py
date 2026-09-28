@@ -1,6 +1,8 @@
 """Tests for the main application window behavior."""
 from __future__ import annotations
 
+from src.application.ui_guard import CANCEL as _CANCEL, NO as _NO, YES as _YES
+
 import os
 import sys
 import unittest
@@ -140,7 +142,10 @@ class CloseEventTest(unittest.TestCase):
             "grammar_points": False,
         }
         event = QCloseEvent()
-        with patch.object(QMessageBox, "question") as mock_question:
+        with patch(
+            "src.application.ui_guard.safe_question3",
+            create=True,
+        ) as mock_question:
             self.win.closeEvent(event)
             mock_question.assert_not_called()
         self.assertTrue(event.isAccepted())
@@ -162,8 +167,10 @@ class CloseEventTest(unittest.TestCase):
         event = QCloseEvent()
         with patch(
             "src.application.ui_guard.is_headless_ui", return_value=False
-        ), patch.object(
-            QMessageBox, "question", return_value=QMessageBox.StandardButton.Save
+        ), patch(
+            "src.application.ui_guard.safe_question3",
+            return_value=_YES,
+            create=True,
         ), patch(
             "src.application.save_host.execute_save"
         ) as ex:
@@ -177,8 +184,10 @@ class CloseEventTest(unittest.TestCase):
         event = QCloseEvent()
         with patch(
             "src.application.ui_guard.is_headless_ui", return_value=False
-        ), patch.object(
-            QMessageBox, "question", return_value=QMessageBox.StandardButton.Discard
+        ), patch(
+            "src.application.ui_guard.safe_question3",
+            return_value=_NO,
+            create=True,
         ), patch("src.application.save_host.execute_save") as ex:
             self.win.closeEvent(event)
         ex.assert_not_called()
@@ -189,8 +198,10 @@ class CloseEventTest(unittest.TestCase):
         event = QCloseEvent()
         with patch(
             "src.application.ui_guard.is_headless_ui", return_value=False
-        ), patch.object(
-            QMessageBox, "question", return_value=QMessageBox.StandardButton.Cancel
+        ), patch(
+            "src.application.ui_guard.safe_question3",
+            return_value=_CANCEL,
+            create=True,
         ), patch("src.application.save_host.execute_save") as ex:
             self.win.closeEvent(event)
         ex.assert_not_called()
@@ -202,8 +213,10 @@ class CloseEventTest(unittest.TestCase):
         event = QCloseEvent()
         with patch(
             "src.application.ui_guard.is_headless_ui", return_value=False
-        ), patch.object(
-            QMessageBox, "question", return_value=QMessageBox.StandardButton.Save
+        ), patch(
+            "src.application.ui_guard.safe_question3",
+            return_value=_YES,
+            create=True,
         ), patch(
             "src.application.save_host.execute_save"
         ) as ex, patch(
@@ -222,7 +235,9 @@ class CloseEventTest(unittest.TestCase):
         event = QCloseEvent()
         with patch(
             "src.application.save_host.execute_save"
-        ) as ex, patch.object(QMessageBox, "question") as mock_question:
+        ) as ex, patch(
+            "src.application.ui_guard.safe_question3", create=True
+        ) as mock_question:
             ex.return_value = MagicMock(ok=True, errors=[], message="")
             self.win.closeEvent(event)
             mock_question.assert_not_called()
@@ -240,7 +255,10 @@ class CloseEventTest(unittest.TestCase):
         self.win._ai_config.api_key = _FAKE_API_KEY
         self.win._settings_obj.ai_api_key = _FAKE_API_KEY
         event = QCloseEvent()
-        with patch.object(QMessageBox, "question") as mock_question:
+        with patch(
+            "src.application.ui_guard.safe_question3",
+            create=True,
+        ) as mock_question:
             self.win.closeEvent(event)
             mock_question.assert_not_called()
         self.assertTrue(event.isAccepted())
@@ -469,7 +487,9 @@ class AutoSaveOnCloseTest(unittest.TestCase):
         win.adapter = adapter
 
         event = QCloseEvent()
-        with patch.object(QMessageBox, "question") as mock_question, patch(
+        with patch(
+            "src.application.ui_guard.safe_question3", create=True
+        ) as mock_question, patch(
             "src.application.save_host.execute_save"
         ) as ex:
             ex.return_value = MagicMock(ok=True, errors=[], message="")
@@ -983,7 +1003,9 @@ class WorkshopImportTargetTest(unittest.TestCase):
         """Headless/hidden window must not block on the post-import dialog."""
         from PySide6.QtWidgets import QMessageBox
 
-        with unittest.mock.patch.object(QMessageBox, "question") as q:
+        with unittest.mock.patch(
+            "src.application.ui_guard.safe_question", create=True
+        ) as q:
             self.win._offer_open_teacher_after_import(self.section["id"])
             q.assert_not_called()
 
@@ -992,8 +1014,8 @@ class WorkshopImportTargetTest(unittest.TestCase):
 
         self.win.show()
         try:
-            with unittest.mock.patch.object(
-                QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes
+            with unittest.mock.patch(
+                "src.application.ui_guard.safe_question", return_value=True
             ), unittest.mock.patch(
                 "src.application.ui_guard.is_headless_ui", return_value=False
             ), unittest.mock.patch(

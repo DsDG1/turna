@@ -209,11 +209,20 @@ class ResultPreviewWidget(QWidget):
         else:
             chip.setToolTip("点击定位到大纲中的相关节点")
         if level == "error":
-            color = "#E74C3C"
-            bg = "rgba(231, 76, 60, 0.12)"
+            # Palette-driven (was hardcoded): a literal red/warning pair ignored
+            # the theme, and in the dark themes these exact values are the
+            # surface-level accents rather than readable text colours.
+            from src.theme import current_palette
+
+            pal = current_palette()
+            color = pal.get("error_text", "#E74C3C")
+            bg = pal.get("error_subtle", "rgba(231, 76, 60, 0.12)")
         else:
-            color = "#FF9F43"
-            bg = "rgba(255, 159, 67, 0.12)"
+            from src.theme import current_palette
+
+            pal = current_palette()
+            color = pal.get("warning_text", "#FF9F43")
+            bg = pal.get("warning_subtle", "rgba(255, 159, 67, 0.12)")
         chip.setStyleSheet(
             f"color: {color}; background-color: {bg};"
             "border-radius: 6px; padding: 3px 8px; font-size: 12px;"
@@ -418,11 +427,14 @@ class ResultPreviewWidget(QWidget):
         """Mark tree nodes whose unit/lesson id matches a problem path (P3.1)."""
         from PySide6.QtGui import QColor
 
+        from src.theme import current_palette
+
         default = self.tree.palette().text().color()
         for node in self._path_nodes.values():
             node.setForeground(0, default)
             node.setToolTip(0, "")
-        err_color = QColor("#E74C3C")
+        # Palette-driven (was a hardcoded literal, ignored the theme).
+        err_color = QColor(current_palette().get("error_text", "#E74C3C"))
         for p in problems:
             path = p.get("path") or ""
             parsed = parse_path(path) if path else {}

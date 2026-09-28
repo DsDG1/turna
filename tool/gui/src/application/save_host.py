@@ -136,6 +136,25 @@ def execute_save(host: ExperienceHost, request: Any, *, prefetched: Any = None, 
             reason=str(getattr(request, "reason", "menu") or "menu")
         )
 
+    # Refuse to save while a course is still loading. The open runs
+    # adapter.load() on a worker, which reassigns adapter.sections; a save
+    # dispatched in that window would serialize a half-loaded course (and
+    # races it outright). The toolbar/menu stay live during an open, so this
+    # has to be checked here — the single funnel every save path goes through
+    # — not only at the UI level.
+    opener = getattr(host, "_open_worker", None)
+    if opener is not None and getattr(opener, "isRunning", lambda: False)():
+        from src.application.save_pipeline import SaveOutcome
+
+        try:
+            host.statusBar().showMessage("课程正在打开，请稍候再保存", 4000)
+        except Exception:
+            logger.warning(
+                "application/save_host.py:save-during-open notice failed",
+                exc_info=True,
+            )
+        return SaveOutcome(ok=False, message="课程正在打开，未保存。")
+
     def _on_triggered(_req: SaveRequest) -> None:
         telemetry.record_event(
             "repo.save.triggered",

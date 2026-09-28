@@ -206,14 +206,10 @@ class WorkshopCanvasTest(unittest.TestCase):
     def test_leaving_extraction_while_busy_asks_first(self) -> None:
         self.ws.set_stage(STAGE_MATERIAL, force=True)
         with _busy_import_controller():
-            with unittest.mock.patch.object(
-                QMessageBox, "question", return_value=QMessageBox.StandardButton.No
-            ) as ask:
+            with unittest.mock.patch("src.application.ui_guard.safe_question", return_value=False) as ask:
                 self.assertFalse(self.ws.set_stage(STAGE_DRAFT))
                 ask.assert_called_once()
-            with unittest.mock.patch.object(
-                QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes
-            ), unittest.mock.patch.object(
+            with unittest.mock.patch("src.application.ui_guard.safe_question", return_value=True), unittest.mock.patch.object(
                 self.panel._controller, "cancel"
             ) as cancel:
                 self.assertTrue(self.ws.set_stage(STAGE_DRAFT))
@@ -221,9 +217,7 @@ class WorkshopCanvasTest(unittest.TestCase):
 
     def test_leaving_draft_stage_never_asks(self) -> None:
         self.ws.set_stage(STAGE_DRAFT, force=True)
-        with _busy_import_controller(), unittest.mock.patch.object(
-            QMessageBox, "question"
-        ) as ask:
+        with _busy_import_controller(), unittest.mock.patch("src.application.ui_guard.safe_question") as ask:
             self.assertTrue(self.ws.set_stage(STAGE_IMPORT))
             ask.assert_not_called()
 

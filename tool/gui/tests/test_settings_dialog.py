@@ -67,11 +67,9 @@ class SettingsDialogOperationLogTest(unittest.TestCase):
             settings = Settings.load_from_qsettings(_make_qsettings())
         with patch("src.dialogs.settings_dialog.QSettings", return_value=_make_qsettings()):
             dlg = SettingsDialog(settings, prompt_library=_make_prompt_library())
-        from PySide6.QtWidgets import QMessageBox
         with patch.object(dlg, "_refresh_operation_log"), \
              patch("src.dialogs.settings.operation_log_tab.operations.clear") as cleared, \
-             patch("src.dialogs.settings.operation_log_tab.QMessageBox.question",
-                   return_value=QMessageBox.StandardButton.Yes):
+             patch("src.application.ui_guard.safe_question", return_value=True):
             dlg._on_clear_operation_log()
             cleared.assert_called_once()
         dlg.deleteLater()

@@ -151,7 +151,7 @@ class TemplateEditorUndoTest(unittest.TestCase):
         widget, lesson = self._make_widget("listening")
         phase = lesson["content"]["listeningPhases"][0]
         item = phase["items"][0]
-        with patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes):
+        with patch("src.application.ui_guard.safe_question", return_value=True):
             widget._delete_item(phase, item)
         self.assertEqual(len(phase["items"]), 0)
         self.stack.undo()
@@ -188,7 +188,7 @@ class TemplateEditorUndoTest(unittest.TestCase):
     def test_listening_delete_phase_uses_undo(self) -> None:
         widget, lesson = self._make_widget("listening")
         phase = lesson["content"]["listeningPhases"][0]
-        with patch.object(QMessageBox, "question", return_value=QMessageBox.StandardButton.Yes):
+        with patch("src.application.ui_guard.safe_question", return_value=True):
             widget._on_delete_phase(phase)
         self.assertEqual(len(lesson["content"]["listeningPhases"]), 0)
         self.stack.undo()
