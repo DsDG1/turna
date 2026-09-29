@@ -12,6 +12,7 @@ _WordEntry _$WordEntryFromJson(Map<String, dynamic> json) => _WordEntry(
       translation: json['translation'] as String,
       pronunciation: json['pronunciation'] as String?,
       audioAsset: json['audioAsset'] as String?,
+      pos: json['pos'] as String?,
       tags:
           (json['tags'] as List<dynamic>?)?.map((e) => e as String).toList() ??
               const <String>[],
@@ -24,5 +25,6 @@ Map<String, dynamic> _$WordEntryToJson(_WordEntry instance) =>
       'translation': instance.translation,
       'pronunciation': instance.pronunciation,
       'audioAsset': instance.audioAsset,
+      'pos': instance.pos,
       'tags': instance.tags,
     };

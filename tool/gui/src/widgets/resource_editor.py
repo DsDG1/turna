@@ -145,9 +145,14 @@ class ResourceTableWidget(QWidget):
         self.batch_del_btn.setToolTip("删除所有选中的行")
         self.import_btn = QPushButton("导入 CSV")
         self.export_btn = QPushButton("导出 CSV")
+        self.media_btn: QPushButton | None = None
         row.addWidget(self.add_btn)
         row.addWidget(self.del_btn)
         row.addWidget(self.batch_del_btn)
+        if "audioAsset" in self.columns:
+            self.media_btn = QPushButton("选择音频")
+            self.media_btn.setToolTip("把所选文件复制到课程 media/，并写入当前行的 audioAsset")
+            row.addWidget(self.media_btn)
         row.addStretch()
         row.addWidget(self.import_btn)
         row.addWidget(self.export_btn)
@@ -158,6 +163,29 @@ class ResourceTableWidget(QWidget):
         self.batch_del_btn.clicked.connect(self._on_batch_del)
         self.import_btn.clicked.connect(self._on_import)
         self.export_btn.clicked.connect(self._on_export)
+        if self.media_btn is not None:
+            self.media_btn.clicked.connect(self._on_pick_audio)
+
+    def _on_pick_audio(self) -> None:
+        from PySide6.QtWidgets import QMessageBox
+
+        from src.widgets.media_picker import pick_course_media
+
+        row = self.table.currentRow()
+        if row < 0:
+            QMessageBox.information(self, "选择音频", "请先选中一行。")
+            return
+        if "audioAsset" not in self.columns:
+            return
+        course_dir = getattr(self.adapter, "course_dir", None)
+        chosen = pick_course_media(self, course_dir, kind="audio")
+        if not chosen:
+            return
+        col = self.columns.index("audioAsset")
+        item = self.table.item(row, col)
+        if item is None:
+            return
+        item.setText(chosen)
 
     def apply_filter(self, text: str) -> None:
         """Show only rows whose cells contain ``text`` (case-insensitive)."""

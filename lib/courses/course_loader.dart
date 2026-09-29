@@ -3,11 +3,14 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
 
+import 'package:drift/drift.dart' show Variable;
 import 'package:flutter/foundation.dart' show visibleForTesting;
+import 'package:flutter/services.dart' show rootBundle;
 
 // Project imports:
 import 'package:turna/application/language_registry.dart';
 import 'package:turna/courses/course_validator.dart';
+import 'package:turna/courses/section_level_overlay.dart';
 import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/data/course_database.dart'
     hide Section, Unit, Lesson, LessonContent, Vocabulary, GrammarPoint;
@@ -30,12 +33,14 @@ import 'package:turna/domain/course/word_entry.dart';
 /// "Lesson by ID" query the JSON layout couldn't offer cheaply.
 ///
 /// [sectionShells] are real [Section] objects built from the index with empty
-/// `units`; they carry enough (id/name/description/prerequisiteSectionIds)
+/// `units`; they carry enough (id/name/description/level/prerequisiteSectionIds)
 /// for the section switcher and selection logic. [loadSection] rebuilds a
-/// fully-populated [Section] from the DB.
+/// fully-populated [Section] from the DB. An empty stored level is filled
+/// from the bundled `index.json` shell, so an already-seeded install shows
+/// A1/A2 without a content-version bump. A non-empty stored level is kept.
 class CourseLoader {
   /// Lightweight section shells built from the DB index — id/name/description/
-  /// prerequisiteSectionIds only, `units` empty until [loadSection] is called.
+  /// level/prerequisiteSectionIds, `units` empty until [loadSection] is called.
   final List<Section> sectionShells;
 
   final List<WordEntry> vocabulary;
@@ -124,6 +129,52 @@ class CourseLoader {
     _instances.clear();
     _sectionLoads.clear();
     _lessonLoads.clear();
+    _indexLevelLoads.clear();
+  }
+
+  /// CEFR tags from the bundled index, cached per language. Missing indexes
+  /// (imported packs, Anki) resolve to an empty map.
+  static final Map<String, Future<Map<String, String>>> _indexLevelLoads = {};
+
+  static Future<Map<String, String>> indexLevelsFor(String languageCode) {
+    final code = LanguageCodes.canonicalize(languageCode);
+    return _indexLevelLoads[code] ??= _readIndexLevels(code);
+  }
+
+  static Future<Map<String, String>> _readIndexLevels(
+      String languageCode) async {
+    try {
+      final raw = await rootBundle.loadString(indexAssetFor(languageCode));
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) {
+        return sectionLevelsFromIndex(decoded);
+      }
+      if (decoded is Map) {
+        return sectionLevelsFromIndex(Map<String, dynamic>.from(decoded));
+      }
+    } on Object {
+      // Imported packs and Anki have no bundled index. Leave the DB level.
+    }
+    return const {};
+  }
+
+  static Future<List<Section>> _overlayLevels(
+    List<Section> shells,
+    String languageCode,
+  ) async {
+    final levels = await indexLevelsFor(languageCode);
+    if (levels.isEmpty) return shells;
+    return [for (final shell in shells) overlaySectionLevel(shell, levels)];
+  }
+
+  static Future<String?> _languageCodeOfSection(String id) async {
+    final rows = await _db.customSelect(
+      'SELECT language_code FROM sections WHERE id = ? LIMIT 1',
+      variables: [Variable.withString(id)],
+      readsFrom: {_db.sections},
+    ).get();
+    if (rows.isEmpty) return null;
+    return rows.first.read<String>('language_code');
   }
 
   static CourseDatabase? databaseOrNull() {
@@ -144,8 +195,25 @@ class CourseLoader {
   }
 
   /// Every section shell in the database (all builtin languages + Anki).
-  static Future<List<Section>> loadAllSectionShells() {
-    return CourseRepository(_db).sectionShells();
+  static Future<List<Section>> loadAllSectionShells() async {
+    final shells = await CourseRepository(_db).sectionShells();
+    if (shells.isEmpty) return shells;
+    final codes = await sectionLanguageCodes();
+    final grouped = <String, List<int>>{};
+    for (var i = 0; i < shells.length; i++) {
+      final code = codes[shells[i].id];
+      if (code == null) continue;
+      grouped.putIfAbsent(code, () => []).add(i);
+    }
+    final out = List<Section>.of(shells);
+    for (final entry in grouped.entries) {
+      final levels = await indexLevelsFor(entry.key);
+      if (levels.isEmpty) continue;
+      for (final index in entry.value) {
+        out[index] = overlaySectionLevel(out[index], levels);
+      }
+    }
+    return out;
   }
 
   /// section id → language code for builtin rows (Anki rows still carry a
@@ -181,7 +249,10 @@ class CourseLoader {
       repo.grammarPoints(languageCode: languageCode),
       repo.expressions(languageCode: languageCode),
     ]);
-    final shells = results[0] as List<Section>;
+    final shells = await _overlayLevels(
+      results[0] as List<Section>,
+      languageCode,
+    );
     final vocab = results[1] as List<WordEntry>;
     final grammar = results[2] as List<GrammarPoint>;
     final expressions = results[3] as List<Expression>;
@@ -221,8 +292,12 @@ class CourseLoader {
       try {
         final section =
             await CourseRepository(_db).section(id, languageCode: languageCode);
-        validateSectionTree(section);
-        return section;
+        final code = languageCode ?? await _languageCodeOfSection(id);
+        final overlaid = code == null
+            ? section
+            : overlaySectionLevel(section, await indexLevelsFor(code));
+        validateSectionTree(overlaid);
+        return overlaid;
       } catch (e) {
         unawaited(_sectionLoads.remove(id));
         rethrow;

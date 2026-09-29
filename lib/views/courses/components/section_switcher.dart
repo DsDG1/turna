@@ -187,10 +187,10 @@ class _SectionHeaderCard extends StatelessWidget {
                         ),
                         SizedBox(width: gap),
                         Expanded(
-                          child: Text(
-                            section.name,
+                          child: sectionNameWithLevel(
+                            name: section.name,
+                            level: section.level,
                             maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontSize: fontSize,
                               fontWeight: FontWeight.w700,

@@ -10,6 +10,7 @@ import 'package:turna/application/anki_official/projection/official_anki_project
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_config_keys.dart';
+import 'package:turna/application/anki_official/v2/official_commit_progress.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_decision_store.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_view_store.dart';
 import 'package:turna/data/course_database.dart';
@@ -65,6 +66,9 @@ class OfficialAnkiV2ViewRebuilder {
   /// 每课时卡数上限（v1 投影器 lessonSize=20 的 v2 对齐语义）：同一
   /// (section, unit, lesson) 组内按 cardId 稳定序切片，part = 序号 ~/ size + 1。
   static const int defaultLessonSize = 20;
+
+  /// Cards arranged on the UI isolate between event-loop turns.
+  static const int _arrangeYieldEvery = 400;
 
   final OfficialAnkiEngine engine;
   final OfficialAnkiDatabase catalog;
@@ -123,6 +127,7 @@ class OfficialAnkiV2ViewRebuilder {
   /// 的 source 立即从视图消失（用户视角即刻移除），已删 source 不出现。
   Future<OfficialAnkiV2ViewRebuildResult> rebuild({
     OfficialAnkiV2ViewRebuildCancelToken? cancelToken,
+    OfficialCommitProgress? onProgress,
   }) async {
     final started = _now;
     final dao = OfficialAnkiSourceDao(catalog);
@@ -159,7 +164,7 @@ class OfficialAnkiV2ViewRebuilder {
       for (final source in sources) {
         if (cancelToken?.isCancelled ?? false) break;
         final mapping = await decisions.readImportMapping(source.sourceId);
-        rowsBySource[source.sourceId] = _rowsFor(
+        rowsBySource[source.sourceId] = await _rowsFor(
           source: source,
           cards: cardsBySource[source.sourceId] ??
               const <OfficialAnkiCardDescriptor>[],
@@ -167,6 +172,11 @@ class OfficialAnkiV2ViewRebuilder {
           topDeckIdByName: topDeckIdByName,
           placements: placements,
           mapping: mapping,
+          onArrange: (current, total) => _reportArrange(
+            onProgress,
+            current,
+            total,
+          ),
         );
       }
       if (cancelToken?.isCancelled ?? false) {
@@ -178,6 +188,11 @@ class OfficialAnkiV2ViewRebuilder {
         liveSourceIds: {for (final source in sources) source.sourceId},
         rowsBySource: rowsBySource,
         rebuiltAtMillis: _now,
+        onInserted: (inserted, total) => _reportWrite(
+          onProgress,
+          inserted,
+          total,
+        ),
       );
       // C6：section/lesson 计数直接从内存 rows 聚合，不再回查视图。
       var rowCount = 0;
@@ -212,6 +227,7 @@ class OfficialAnkiV2ViewRebuilder {
   Future<OfficialAnkiV2ViewRebuildResult> rebuildSource(
     String sourceId, {
     OfficialAnkiV2ViewRebuildCancelToken? cancelToken,
+    OfficialCommitProgress? onProgress,
   }) async {
     final started = _now;
     final dao = OfficialAnkiSourceDao(catalog);
@@ -248,13 +264,18 @@ class OfficialAnkiV2ViewRebuilder {
         };
         final placements = await decisions.readDeckPlacements(topDeckIds);
         final mapping = await decisions.readImportMapping(sourceId);
-        rowsBySource[sourceId] = _rowsFor(
+        rowsBySource[sourceId] = await _rowsFor(
           source: source,
           cards: cards,
           deckPaths: deckPaths,
           topDeckIdByName: topDeckIdByName,
           placements: placements,
           mapping: mapping,
+          onArrange: (current, total) => _reportArrange(
+            onProgress,
+            current,
+            total,
+          ),
         );
       }
       if (cancelToken?.isCancelled ?? false) {
@@ -264,6 +285,11 @@ class OfficialAnkiV2ViewRebuilder {
         liveSourceIds: liveSourceIds,
         rowsBySource: rowsBySource,
         rebuiltAtMillis: _now,
+        onInserted: (inserted, total) => _reportWrite(
+          onProgress,
+          inserted,
+          total,
+        ),
       );
       final rowCount = rowsBySource[sourceId]?.length ?? 0;
       officialAnkiV2Log(
@@ -282,35 +308,69 @@ class OfficialAnkiV2ViewRebuilder {
     }
   }
 
+  static void _reportArrange(
+    OfficialCommitProgress? onProgress,
+    int current,
+    int total,
+  ) {
+    onProgress?.call(
+      OfficialCommitPhase.arrangingTree,
+      total > 0 ? current : null,
+      total > 0 ? total : null,
+    );
+  }
+
+  static void _reportWrite(
+    OfficialCommitProgress? onProgress,
+    int inserted,
+    int total,
+  ) {
+    onProgress?.call(
+      OfficialCommitPhase.writingTree,
+      total > 0 ? inserted : null,
+      total > 0 ? total : null,
+    );
+  }
+
   /// 单 source 的行构建：deck 路径 → 放置键 + 呈现 kind，再按组切片。
-  List<OfficialAnkiV2ViewRow> _rowsFor({
+  /// 每 [_arrangeYieldEvery] 张让出一次事件循环，避免大牌组卡死界面。
+  Future<List<OfficialAnkiV2ViewRow>> _rowsFor({
     required OfficialAnkiSourceRow source,
     required List<OfficialAnkiCardDescriptor> cards,
     required Map<int, List<String>> deckPaths,
     required Map<String, int> topDeckIdByName,
     required Map<int, OfficialAnkiV2PlacementDecision> placements,
     required OfficialAnkiV2MappingDecision? mapping,
-  }) {
+    void Function(int current, int total)? onArrange,
+  }) async {
     final kindsByNotetype = _kindsByNotetype(mapping);
     final skipped = mapping?.notetypeIdsSkipped ?? const <int>{};
     final excludedDecks = mapping?.excludedDeckIds ?? const <int>{};
+    final total = cards.length;
+    onArrange?.call(0, total);
     // 牌组路径 → 放置键（section/unit/lesson）。lessonId 不在此定：
     // 同组卡按 cardId 稳定序切片后再定 part（见 _chunkedRows）。
     final placed = <_PlacedCard>[];
-    for (final card in cards) {
+    for (var i = 0; i < cards.length; i++) {
+      final card = cards[i];
       final path = deckPaths[card.deckId] ?? const <String>[];
       final topDeckId = _topDeckId(card.deckId, deckPaths, topDeckIdByName);
       // 用户明确跳过的 notetype 不进课程树（与 v1 映射语义一致）。
-      if (card.notetypeId != null && skipped.contains(card.notetypeId)) {
-        continue;
+      final skippedCard =
+          card.notetypeId != null && skipped.contains(card.notetypeId);
+      if (!skippedCard && !excludedDecks.contains(card.deckId)) {
+        placed.add(_PlacedCard(
+          card: card,
+          placement: _place(source.sourceId, path, placements[topDeckId]),
+          presentationKind: kindsByNotetype[card.notetypeId ?? -1] ?? 'flip',
+        ));
       }
-      if (excludedDecks.contains(card.deckId)) continue;
-      placed.add(_PlacedCard(
-        card: card,
-        placement: _place(source.sourceId, path, placements[topDeckId]),
-        presentationKind: kindsByNotetype[card.notetypeId ?? -1] ?? 'flip',
-      ));
+      if ((i + 1) % _arrangeYieldEvery == 0) {
+        onArrange?.call(i + 1, total);
+        await Future<void>.delayed(Duration.zero);
+      }
     }
+    onArrange?.call(total, total);
     return _chunkedRows(source, placed);
   }
 
@@ -335,10 +395,10 @@ class OfficialAnkiV2ViewRebuilder {
   /// 同 (section, unit, lesson) 组内按 cardId 稳定序每 [lessonSize] 张切
   /// 一片：part = 序号 ~/ size + 1。组不超片长时 part=1，lessonId 与旧
   /// 「一牌组一路径 = 一课时」派生完全一致（小牌组零迁移影响）。
-  List<OfficialAnkiV2ViewRow> _chunkedRows(
+  Future<List<OfficialAnkiV2ViewRow>> _chunkedRows(
     OfficialAnkiSourceRow source,
     List<_PlacedCard> placed,
-  ) {
+  ) async {
     final size = lessonSize < 1 ? 1 : lessonSize;
     final byGroup = <String, List<_PlacedCard>>{};
     for (final entry in placed) {
@@ -350,6 +410,7 @@ class OfficialAnkiV2ViewRebuilder {
       byGroup.putIfAbsent(groupKey, () => []).add(entry);
     }
     final rows = <OfficialAnkiV2ViewRow>[];
+    var emitted = 0;
     for (final groupEntry in byGroup.entries) {
       final group = groupEntry.value
         ..sort((a, b) => a.card.cardId.compareTo(b.card.cardId));
@@ -377,6 +438,10 @@ class OfficialAnkiV2ViewRebuilder {
           presentationKind: placedCard.presentationKind,
           sourceHash: source.sourceHash,
         ));
+        emitted++;
+        if (emitted % _arrangeYieldEvery == 0) {
+          await Future<void>.delayed(Duration.zero);
+        }
       }
     }
     return rows;

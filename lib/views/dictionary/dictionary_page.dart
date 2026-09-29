@@ -184,6 +184,16 @@ class DictionaryHitTile extends StatelessWidget {
                           fontWeight: FontWeight.w800,
                         ),
                   ),
+                  if (hit.posLabel != null && hit.posLabel!.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      hit.posLabel!,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            color: TurnaTheme.brandTeal,
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                  ],
                   if (hit.pronunciation != null &&
                       hit.pronunciation!.isNotEmpty) ...[
                     const SizedBox(height: 2),

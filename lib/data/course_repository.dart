@@ -12,6 +12,7 @@ import 'package:turna/data/course_database.dart' as db;
 import 'package:turna/data/course_database_seeder.dart';
 import 'package:turna/data/sql_like.dart';
 import 'package:turna/domain/course/language_codes.dart';
+import 'package:turna/domain/course/pos_tag.dart';
 import 'package:turna/domain/course/expression.dart';
 import 'package:turna/domain/course/grammar_point.dart';
 import 'package:turna/domain/course/interaction.dart';
@@ -510,6 +511,7 @@ class CourseRepository implements ICourseRepository {
           translation: Value(w.translation),
           pronunciation: Value(w.pronunciation),
           audioAsset: Value(w.audioAsset),
+          pos: Value(PosTag.parse(w.pos)?.name),
           tags: Value(jsonEncode(w.tags)),
         ),
     ];
@@ -796,6 +798,7 @@ class CourseRepository implements ICourseRepository {
       translation: row.translation,
       pronunciation: row.pronunciation,
       audioAsset: row.audioAsset,
+      pos: PosTag.parse(row.pos)?.name,
       tags: _decodeStringList(row.tags),
     );
   }

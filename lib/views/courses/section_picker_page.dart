@@ -119,8 +119,9 @@ class _SectionCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      section.name,
+                    sectionNameWithLevel(
+                      name: section.name,
+                      level: section.level,
                       style: TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w700,

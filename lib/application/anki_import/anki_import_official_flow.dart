@@ -5,12 +5,17 @@ import 'package:turna/application/anki_import/anki_import_wizard_state.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/import/anki_import_execution_plan.dart';
 import 'package:turna/application/anki_official/import/official_anki_official_first_service.dart';
+import 'package:turna/application/anki_official/import/official_anki_import_saga.dart';
 import 'package:turna/application/anki_official/import/official_anki_source_hasher.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
+import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
+import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
+import 'package:turna/core/logger.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_import_service.dart';
+import 'package:turna/application/anki_official/v2/official_commit_progress.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/l10n/app_strings.dart';
 
@@ -32,6 +37,7 @@ Future<OfficialAnkiImportPreviewModel> importOfficialThenPreview({
   required CourseDatabase course,
   required bool includeMedia,
   OfficialAnkiSourceDigest? digest,
+  void Function()? onArrangingPreview,
 }) async {
   if (!plan.isOfficialFirst) {
     throw const OfficialAnkiException(
@@ -46,6 +52,7 @@ Future<OfficialAnkiImportPreviewModel> importOfficialThenPreview({
     course: course,
     digest: digest,
     withMedia: includeMedia,
+    onArrangingPreview: onArrangingPreview,
   );
   return OfficialAnkiImportPreviewModel(
     plan: plan,
@@ -68,6 +75,7 @@ Future<OfficialAnkiImportPreviewModel> importOfficialThenPreview({
 Future<OfficialFirstCommitResult> commitOfficialPreview(
   OfficialAnkiImportPreviewModel preview, {
   required CourseDatabase course,
+  OfficialCommitProgress? onProgress,
 }) async {
   for (final schema in preview.schemas) {
     if (preview.skippedNotetypes.contains(schema.notetypeId)) continue;
@@ -81,7 +89,13 @@ Future<OfficialFirstCommitResult> commitOfficialPreview(
   final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
   final paths = OfficialAnkiCompositionRoot.locatorPaths;
   if (catalog != null && paths != null) {
-    return _commitOfficialV2(preview, catalog, paths, course);
+    return _commitOfficialV2(
+      preview,
+      catalog,
+      paths,
+      course,
+      onProgress: onProgress,
+    );
   }
   throw const OfficialAnkiException(
     code: OfficialAnkiErrorCode.capabilityMissing,
@@ -93,8 +107,9 @@ Future<OfficialFirstCommitResult> _commitOfficialV2(
   OfficialAnkiImportPreviewModel preview,
   OfficialAnkiDatabase catalog,
   OfficialAnkiPaths paths,
-  CourseDatabase course,
-) async {
+  CourseDatabase course, {
+  OfficialCommitProgress? onProgress,
+}) async {
   final result = await OfficialAnkiV2ImportService(
     catalog: catalog,
     paths: paths,
@@ -111,6 +126,7 @@ Future<OfficialFirstCommitResult> _commitOfficialV2(
         if (!preview.includedDeckIds.contains(deck.deckId)) deck.deckId,
     },
     includeMedia: preview.includeMedia,
+    onProgress: onProgress,
   );
   return OfficialFirstCommitResult(
     summary: AnkiImportSummary(
@@ -142,7 +158,7 @@ String ankiImportStageLabel(String raw, {required bool committing}) {
     case 'notes':
       return committing
           ? AppStrings.ankiProgressWriting
-          : AppStrings.ankiProgressRecognize;
+          : AppStrings.ankiProgressReadingNotes;
     case 'idle':
     case 'course':
       return committing ? AppStrings.ankiProgressCourse : '';
@@ -151,17 +167,27 @@ String ankiImportStageLabel(String raw, {required bool committing}) {
   }
 }
 
+/// `current / total` when both are known, otherwise the running count.
+String? ankiImportCountLabel(int? current, int? total) {
+  if (current == null) return null;
+  if (total != null && total > 0) return '$current / $total';
+  return '$current';
+}
+
 /// Polls engine latestProgress onto Parsing/Committing. Stops when [stale]
-/// or the wizard leaves those steps.
+/// or the wizard leaves those steps. [suppressed] is read after each
+/// snapshot so a poll already in flight cannot overwrite a local phase.
 Future<void> pollAnkiImportProgress({
   required int op,
   required bool Function(int op) stale,
   required AnkiImportWizardState Function() readState,
   required void Function(AnkiImportWizardState next) emit,
+  bool Function()? suppressed,
 }) async {
   while (!stale(op)) {
     await Future<void>.delayed(const Duration(milliseconds: 700));
     if (stale(op)) return;
+    if (suppressed?.call() ?? false) continue;
     final current = readState();
     final engine = switch (current) {
       AnkiImportParsing() =>
@@ -184,10 +210,13 @@ Future<void> pollAnkiImportProgress({
       if (raw == 'idle' && !committing) continue;
       final label = ankiImportStageLabel(raw, committing: committing);
       if (label.isEmpty) continue;
-      final shown = progress.current == null
-          ? label
-          : AppStrings.ankiProgressCount(label, progress.current!);
+      // A snapshot that was already in flight when a local phase started
+      // must not overwrite that phase.
+      if (suppressed?.call() ?? false) continue;
       if (latest is AnkiImportParsing) {
+        final shown = progress.current == null
+            ? label
+            : AppStrings.ankiProgressCount(label, progress.current!);
         emit(latest.copyWith(
           stage: shown,
           progressCurrent: progress.current,
@@ -195,8 +224,11 @@ Future<void> pollAnkiImportProgress({
           clearProgress: true,
         ));
       } else if (latest is AnkiImportCommitting) {
+        final count = ankiImportCountLabel(progress.current, progress.total);
         emit(latest.copyWith(
-          stage: shown,
+          message: label,
+          stage: count,
+          clearStage: count == null,
           progressCurrent: progress.current,
           progressTotal: progress.total,
           clearProgress: true,
@@ -204,4 +236,24 @@ Future<void> pollAnkiImportProgress({
       }
     } catch (_) {/* 进度是 best-effort——查询失败不影响主流程 */}
   }
+}
+
+/// Cancels the in-flight official staging saga, or just the engine when
+/// the catalog is not assembled yet.
+Future<void> cancelActiveOfficialStaging() async {
+  final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+  final paths = OfficialAnkiCompositionRoot.locatorPaths;
+  if (catalog == null || paths == null) {
+    try {
+      await OfficialAnkiCompositionRoot.stagingEngineFromSession()?.cancel();
+    } catch (suppressed) {
+      logger.w('[AnkiImport] staging cancel: $suppressed');
+    }
+    return;
+  }
+  await OfficialAnkiImportSaga(
+    sources: OfficialAnkiSourceDao(catalog),
+    attempts: OfficialAnkiImportAttemptDao(catalog),
+    paths: paths,
+  ).cancelActive();
 }

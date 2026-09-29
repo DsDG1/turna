@@ -245,6 +245,22 @@ def collect_grammar_point_ids(obj: Any) -> set[str]:
 #: them (no bundled file to check, and anki cards legitimately appear outside
 #: listening lessons).
 ANKI_MEDIA_PREFIX = "anki://"
+TURNAPACK_MEDIA_PREFIX = "turnapack://"
+
+
+def _is_external_audio_ref(asset: str) -> bool:
+    """Protocol refs resolved by the app, not by a file in this checkout."""
+    normalized = asset.replace("\\", "/").strip()
+    return normalized.startswith(ANKI_MEDIA_PREFIX) or normalized.startswith(
+        TURNAPACK_MEDIA_PREFIX
+    )
+
+
+def _unsafe_media_relative(relative: str) -> bool:
+    parts = relative.split("/")
+    if not relative or any(part in {"", ".", ".."} for part in parts):
+        return True
+    return ":" in relative or relative.startswith("/") or relative.startswith("media/")
 
 
 def collect_audio_assets(obj: Any) -> set[str]:
@@ -1290,11 +1306,25 @@ def cmd_lint(args: argparse.Namespace) -> int:
     # Missing audio files (only required for listening-lesson assets that
     # are not word/expression ids; word/expression audio is TTS at runtime).
     for asset, locations in sorted(referenced_audio.items()):
-        if asset.startswith(ANKI_MEDIA_PREFIX):
-            # Anki import media resolves inside the app's import dir; there is
-            # no bundled file to check and no listening-lesson constraint.
+        if _is_external_audio_ref(asset):
+            # anki:// and turnapack:// resolve inside the app, not this checkout.
             continue
         if asset in vocab_ids or asset in expression_ids:
+            continue
+
+        normalized = asset.replace("\\", "/").strip()
+        # Course-local media/ files are real paths on any lesson, not listening ids.
+        if normalized.startswith("media/"):
+            media_path = _audio_asset_path(asset, "listening", course_dir)
+            if not media_path.is_file():
+                locs = sorted({loc for loc, _is_listening in locations})
+                problems.append(
+                    Problem(
+                        "warning",
+                        f"Missing audio file for listening asset '{asset}' "
+                        f"(referenced in {', '.join(locs)})",
+                    )
+                )
             continue
 
         listening_locs = {loc for loc, is_listening in locations if is_listening}
@@ -1315,7 +1345,7 @@ def cmd_lint(args: argparse.Namespace) -> int:
         if not listening_locs:
             continue
 
-        asset_path = _audio_asset_path(asset, "listening")
+        asset_path = _audio_asset_path(asset, "listening", course_dir)
         if not asset_path.exists():
             problems.append(
                 Problem(
@@ -1344,12 +1374,24 @@ def cmd_lint(args: argparse.Namespace) -> int:
 # --------------------------------------------------------------------------- #
 
 
-def _audio_asset_path(asset: str, kind: str) -> Path:
-    """Return the canonical filesystem path for a listening audio asset id.
+def _audio_asset_path(asset: str, kind: str, course_dir: Path | None = None) -> Path:
+    """Return the filesystem path for an authored audio ref.
 
-    ``kind`` is retained for call-site compatibility but only listening
-    assets are bundled now; word/expression pronunciation is runtime TTS.
+    ``media/…`` is resolved under ``course_dir``. ``assets/…`` is resolved
+    from the process working directory (the repo root when tests and the
+    editor run there). Bare listening ids stay ``assets/sounds/listening/<id>.mp3``.
+    ``kind`` is retained for call-site compatibility.
     """
+    del kind  # listening is the only bundled kind; signature stays stable
+    normalized = asset.replace("\\", "/").strip()
+    if normalized.startswith("media/"):
+        relative = normalized[len("media/"):]
+        base = Path(course_dir) if course_dir is not None else Path(".")
+        if _unsafe_media_relative(relative):
+            return base / "__unsafe_media_ref__"
+        return base / "media" / relative
+    if normalized.startswith("assets/"):
+        return Path(normalized)
     return (SOUNDS_DIR / "listening" / f"{asset}.mp3").resolve()
 
 
@@ -1374,7 +1416,7 @@ def build_audio_manifest(course_dir: Path) -> list[dict[str, str]]:
                 if not is_listening_lesson(lesson, content):
                     continue
                 for asset in collect_audio_assets(content):
-                    if asset.startswith(ANKI_MEDIA_PREFIX):
+                    if _is_external_audio_ref(asset):
                         continue
                     if asset in word_and_expr_ids:
                         continue
@@ -1382,7 +1424,7 @@ def build_audio_manifest(course_dir: Path) -> list[dict[str, str]]:
 
     rows: list[dict[str, str]] = []
     for asset, locations in sorted(referenced.items()):
-        asset_path = _audio_asset_path(asset, "listening")
+        asset_path = _audio_asset_path(asset, "listening", course_dir)
         status = "present" if asset_path.exists() else "missing"
         rows.append(
             {

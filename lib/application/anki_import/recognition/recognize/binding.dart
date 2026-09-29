@@ -24,6 +24,7 @@ class RoleBindingSolver {
 
       void add(FieldRole role, double weight, String signal,
           [String detail = '']) {
+        if (_faceForbids(facts, index, role)) return;
         signals.add(_Signal(role, weight, signal, detail));
       }
 
@@ -162,6 +163,7 @@ class RoleBindingSolver {
     }
     for (final field in scores) {
       if (assignedFields.contains(field.index)) continue;
+      if (_faceForbids(facts, field.index, role)) continue;
       final isMedia = field.rankedRoles.any((entry) =>
           entry.key == FieldRole.audio || entry.key == FieldRole.image);
       if (isMedia) continue;
@@ -181,6 +183,18 @@ class RoleBindingSolver {
       return;
     }
   }
+}
+
+/// Template faces are a hard constraint when the engine sent them.
+/// A front-only field cannot be the answer, and a back-only field cannot
+/// be the prompt. Fields that appear on both faces keep the soft scores.
+bool _faceForbids(NotetypeFacts facts, int index, FieldRole role) {
+  if (!facts.hasTemplateFacts) return false;
+  return switch (role) {
+    FieldRole.response => facts.frontOnlyFieldOrds.contains(index),
+    FieldRole.prompt => facts.backOnlyFieldOrds.contains(index),
+    _ => false,
+  };
 }
 
 class _Signal {

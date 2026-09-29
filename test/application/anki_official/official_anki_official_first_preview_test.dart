@@ -93,6 +93,7 @@ void main() {
         reason: '父牌组行 = 子树累计（deck tree 的到期数做不到这点）');
     expect(preview.cardCountByDeck[12], 1);
     expect(preview.cardCountByDeck.containsKey(999), isFalse);
+    expect(preview.schemas.single.samples, isNotEmpty);
   });
 
   test('decks are scoped to the imported source deck tree', () async {

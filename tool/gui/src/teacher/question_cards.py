@@ -224,8 +224,34 @@ class QuestionCard(QFrame):
         edit.setText(str(self.item.get(field, "") or ""))
         edit.setProperty("bound_field", field)
         edit.textChanged.connect(self._on_line_edit_changed)
-        layout.addWidget(edit)
+        if field in {"audioAsset", "imageAsset"}:
+            row = QHBoxLayout()
+            row.addWidget(edit)
+            pick = QPushButton("选择文件")
+            kind = "image" if field == "imageAsset" else "audio"
+            pick._media_edit = edit  # type: ignore[attr-defined]
+            pick._media_kind = kind  # type: ignore[attr-defined]
+            pick.clicked.connect(self._on_pick_media)
+            row.addWidget(pick)
+            layout.addLayout(row)
+        else:
+            layout.addWidget(edit)
         return edit
+
+    def _on_pick_media(self, _checked: bool = False) -> None:
+        button = self.sender()
+        edit = getattr(button, "_media_edit", None)
+        kind = getattr(button, "_media_kind", "")
+        if isinstance(edit, QLineEdit) and isinstance(kind, str) and kind:
+            self._fill_media_edit(edit, kind)
+
+    def _fill_media_edit(self, edit: QLineEdit, kind: str) -> None:
+        from src.widgets.media_picker import pick_course_media
+
+        course_dir = getattr(self.adapter, "course_dir", None)
+        chosen = pick_course_media(self, course_dir, kind=kind)
+        if chosen:
+            edit.setText(chosen)
 
     def _on_text_edit_changed(self) -> None:
         sender = self.sender()
@@ -527,10 +553,19 @@ class QuestionCard(QFrame):
         def _on_media_changed(vals: list[str]) -> None:
             self._set_field(field, vals)
 
+        kind = "image" if field == "imageAssets" else "audio"
+
+        def _pick() -> str | None:
+            from src.widgets.media_picker import pick_course_media
+
+            course_dir = getattr(self.adapter, "course_dir", None)
+            return pick_course_media(self, course_dir, kind=kind)
+
         layout.addWidget(
             StringListEditor(
                 list(self.item.get(field) or []),
                 _on_media_changed,
+                picker=_pick,
             )
         )
 

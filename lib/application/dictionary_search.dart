@@ -3,6 +3,7 @@ import 'package:turna/courses/languages/language_content_store.dart';
 import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/domain/course/expression.dart';
 import 'package:turna/domain/course/grammar_point.dart';
+import 'package:turna/domain/course/pos_tag.dart';
 import 'package:turna/domain/course/word_entry.dart';
 
 /// Kind of dictionary hit.
@@ -16,6 +17,7 @@ class DictionaryHit {
     required this.title,
     required this.subtitle,
     this.pronunciation,
+    this.posLabel,
     this.speakAsWordId,
     this.speakText,
   });
@@ -25,6 +27,9 @@ class DictionaryHit {
   final String title;
   final String subtitle;
   final String? pronunciation;
+
+  /// Chinese POS label. Null when the word has no closed tag.
+  final String? posLabel;
 
   /// Prefer [AudioController.speakWord] when set.
   final String? speakAsWordId;
@@ -54,6 +59,7 @@ List<DictionaryHit> searchDictionary(String query, {int limit = 50}) {
         title: entry.term,
         subtitle: entry.translation,
         pronunciation: entry.pronunciation,
+        posLabel: _posLabel(entry.pos),
         speakAsWordId: entry.id,
         speakText: entry.term,
       ));
@@ -89,6 +95,11 @@ List<DictionaryHit> searchDictionary(String query, {int limit = 50}) {
   }
 
   return hits;
+}
+
+String? _posLabel(String? raw) {
+  final label = posTagLabel(PosTag.parse(raw));
+  return label.isEmpty ? null : label;
 }
 
 bool _matchesVocab(WordEntry e, String q, String qTarget) {

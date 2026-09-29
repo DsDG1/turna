@@ -13,6 +13,7 @@ from typing import Any
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QUndoStack
 from PySide6.QtWidgets import (
+    QComboBox,
     QFormLayout,
     QGroupBox,
     QHBoxLayout,
@@ -29,11 +30,14 @@ from src.application.commands import (
     UpdateLessonLinkedGrammarCommand,
     UpdateLessonMetaCommand,
     UpdateLessonPrereqsCommand,
+    UpdateSectionLevelCommand,
     UpdateSectionMetaCommand,
     UpdateSectionPrereqsCommand,
     UpdateUnitMetaCommand,
     UpdateUnitPrereqsCommand,
 )
+
+CEFR_LEVELS = ("", "A1", "A2", "B1", "B2", "C1", "C2")
 from src.backend.course_adapter import CourseAdapter
 from src.theme import current_palette
 
@@ -103,6 +107,15 @@ class MetadataForm(QGroupBox):
         form.addRow("ID（只读）", self.id_value)
         form.addRow("名称", self.name_edit)
         form.addRow("描述", self.desc_edit)
+        self.level_combo = QComboBox()
+        self.level_combo.addItem("（空）", "")
+        for level in CEFR_LEVELS:
+            if level:
+                self.level_combo.addItem(level, level)
+        self.level_combo.setVisible(False)
+        self._level_label = QLabel("等级")
+        self._level_label.setVisible(False)
+        form.addRow(self._level_label, self.level_combo)
         form.addRow("先修", self.prereq_list)
 
         # Lesson-only: content.linkedGrammarPointIds multi-select (G5). The
@@ -130,6 +143,7 @@ class MetadataForm(QGroupBox):
         # Commit on focus loss / enter so each edit = one undo step.
         self.name_edit.editingFinished.connect(self._commit_name_desc)
         self.desc_edit.focusLost.connect(self._commit_name_desc)
+        self.level_combo.activated.connect(self._commit_level)
         self.prereq_list.focusLost.connect(self._commit_prereqs)
         self.grammar_link_list.focusLost.connect(self._commit_linked_grammar)
 
@@ -159,6 +173,7 @@ class MetadataForm(QGroupBox):
         self.id_value.setText(section.get("id", ""))
         self.name_edit.setText(section.get("name", ""))
         self.desc_edit.setPlainText(section.get("description", ""))
+        self._set_level(self._effective_level(section))
         prereqs = section.get("prerequisiteSectionIds", [])
         self._fill_prereq(adapter.section_prereq_options(section.get("id", "")), prereqs)
         self._loading = False
@@ -227,6 +242,10 @@ class MetadataForm(QGroupBox):
         self.name_edit.setEnabled(editable)
         self.desc_edit.setEnabled(editable)
         self.prereq_list.setEnabled(editable)
+        show_level = kind == "section"
+        self.level_combo.setVisible(show_level)
+        self._level_label.setVisible(show_level)
+        self.level_combo.setEnabled(show_level)
         # Linked grammar points are a lesson-content concept only.
         if kind != "lesson":
             self.grammar_link_row.setVisible(False)
@@ -295,7 +314,11 @@ class MetadataForm(QGroupBox):
             ]
             if set(ui_grammar) != set(model_grammar):
                 return False
-        return True
+        return not (
+            self._kind == "section"
+            and not self.level_combo.isHidden()
+            and (self.level_combo.currentData() or "") != self._effective_level(node)
+        )
 
     def _commit_name_desc(self) -> None:
         if self._loading or self._adapter is None or not self._node_id:
@@ -313,6 +336,34 @@ class MetadataForm(QGroupBox):
             self._push(UpdateUnitMetaCommand(self._adapter, self._node_id, name, desc))
         elif self._kind == "lesson":
             self._push(UpdateLessonMetaCommand(self._adapter, self._node_id, name, desc))
+
+    def _effective_level(self, node: dict[str, Any]) -> str:
+        """Body level wins. When the body omits the key, show the index shell."""
+        if "level" in node:
+            return node.get("level") or ""
+        if self._adapter is None:
+            return ""
+        for entry in self._adapter.index.get("sections") or []:
+            if entry.get("id") == self._node_id:
+                return entry.get("level") or ""
+        return ""
+
+    def _set_level(self, level: str) -> None:
+        index = self.level_combo.findData(level)
+        self.level_combo.setCurrentIndex(index if index >= 0 else 0)
+
+    def _commit_level(self) -> None:
+        if self._loading or self._adapter is None or not self._node_id:
+            return
+        if self._kind != "section":
+            return
+        node = self._current_node()
+        if node is None:
+            return
+        level = self.level_combo.currentData() or ""
+        if level == self._effective_level(node):
+            return
+        self._push(UpdateSectionLevelCommand(self._adapter, self._node_id, level))
 
     def _commit_prereqs(self) -> None:
         if self._loading or self._adapter is None or not self._node_id:

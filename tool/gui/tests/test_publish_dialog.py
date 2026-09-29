@@ -86,6 +86,7 @@ class PublishDialogModeTest(unittest.TestCase):
         self.assertIsNotNone(dlg.diff_group)
         self.assertIsNotNone(dlg.bump_group)
         self.assertEqual(self._ok_text(dlg), "确认发布")
+        self.assertEqual(dlg.handoff_btn.text(), "交给 App")
         # Expert changes label lists all five categories including sections.
         self.assertIn("section 内容", dlg.changes_label.text())
 

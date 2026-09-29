@@ -84,7 +84,14 @@ class OfficialAnkiV2ViewStore {
     required Set<String> liveSourceIds,
     required Map<String, List<OfficialAnkiV2ViewRow>> rowsBySource,
     required int rebuiltAtMillis,
+    void Function(int inserted, int total)? onInserted,
   }) async {
+    final total = rowsBySource.values.fold<int>(
+      0,
+      (sum, rows) => sum + rows.length,
+    );
+    var inserted = 0;
+    onInserted?.call(inserted, total);
     await course.transaction(() async {
       if (liveSourceIds.isEmpty) {
         await course.customStatement('DELETE FROM anki_course_tree_view');
@@ -100,15 +107,23 @@ class OfficialAnkiV2ViewStore {
           'DELETE FROM anki_course_tree_view WHERE source_id = ?',
           [entry.key],
         );
-        await _insertRows(entry.value, rebuiltAtMillis);
+        await _insertRows(
+          entry.value,
+          rebuiltAtMillis,
+          onChunk: (count) {
+            inserted += count;
+            onInserted?.call(inserted, total);
+          },
+        );
       }
     });
   }
 
   Future<void> _insertRows(
     List<OfficialAnkiV2ViewRow> rows,
-    int rebuiltAtMillis,
-  ) async {
+    int rebuiltAtMillis, {
+    void Function(int count)? onChunk,
+  }) async {
     for (var start = 0; start < rows.length; start += _insertChunk) {
       final end = start + _insertChunk;
       final chunk = rows.sublist(start, end > rows.length ? rows.length : end);
@@ -139,6 +154,7 @@ class OfficialAnkiV2ViewStore {
           ],
         ],
       );
+      onChunk?.call(chunk.length);
     }
   }
 

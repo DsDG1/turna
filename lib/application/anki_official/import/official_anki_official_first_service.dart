@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
+import 'package:turna/application/anki_import/recognition/config.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/import/anki_import_execution_plan.dart';
@@ -97,6 +98,7 @@ class OfficialAnkiOfficialFirstService {
     OfficialAnkiFeatureFlags? flags,
     OfficialAnkiSourceDigest? digest,
     bool withMedia = true,
+    void Function()? onArrangingPreview,
   }) async {
     if (!plan.isOfficialFirst) {
       throw const OfficialAnkiException(
@@ -140,6 +142,7 @@ class OfficialAnkiOfficialFirstService {
         debugDetails: 'official-first import ended in state ${state.name}',
       );
     }
+    onArrangingPreview?.call();
     // C4：saga 已把刚算出的 sha256 放进 result，避免再查一次 source 行。
     final sourceHash = official.sourceHash ??
         readSourceHash(official.sourceId) ??
@@ -214,9 +217,12 @@ class OfficialAnkiOfficialFirstService {
       }
     }
 
+    // Content rules only see card text through these samples. The verdict
+    // is computed once, per notetype, from this schema.
     final schemas = await engine.getProjectionSchemas(
       notetypeIds: notetypeIds.toList(),
-      includeSamples: false,
+      includeSamples: true,
+      sampleLimit: recognitionSampleLimit,
     );
     final allDecks = await engine.listDeckTree();
     final decks = _scopeDecks(allDecks, sourceDeckIds);

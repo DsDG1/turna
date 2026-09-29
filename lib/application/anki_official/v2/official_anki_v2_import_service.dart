@@ -18,6 +18,7 @@ import 'package:turna/application/anki_official/storage/official_anki_database.d
 import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_card_index.dart';
+import 'package:turna/application/anki_official/v2/official_commit_progress.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_config_keys.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_decision_store.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_view_store.dart';
@@ -146,6 +147,7 @@ class OfficialAnkiV2ImportService {
     Set<int> skippedNotetypes = const {},
     Set<int> excludedDeckIds = const {},
     bool includeMedia = true,
+    OfficialCommitProgress? onProgress,
   }) async {
     final sources = OfficialAnkiSourceDao(catalog);
     final attempts = OfficialAnkiImportAttemptDao(catalog);
@@ -161,7 +163,10 @@ class OfficialAnkiV2ImportService {
     // 已完成的 source：幂等重放 = 只重建该 source 的视图（守恒：
     // 不重复导入）。
     if (source.state == OfficialAnkiSourceState.active.wire && source.isV2) {
-      final rebuilt = await _rebuild(sourceId: sourceId);
+      final rebuilt = await _rebuild(
+        sourceId: sourceId,
+        onProgress: onProgress,
+      );
       return OfficialAnkiV2CommitResult(
         sourceId: sourceId,
         attemptId: sourceId,
@@ -240,6 +245,15 @@ class OfficialAnkiV2ImportService {
     // session 走 inline 同序列（强杀恢复阶段两路完全一致）。
     final session = OfficialAnkiCompositionRoot.session;
     int indexedCards;
+    onProgress?.call(OfficialCommitPhase.indexing, null, null);
+    void reportIndexPage(int done, int total) {
+      onProgress?.call(
+        OfficialCommitPhase.indexing,
+        done,
+        total > 0 ? total : null,
+      );
+    }
+
     if (engine == null &&
         OfficialAnkiCompositionRoot.debugEngineOverride == null &&
         session is OfficialAnkiSession &&
@@ -248,6 +262,7 @@ class OfficialAnkiV2ImportService {
       indexedCards = await session.v2CardIndex(
         attemptId: attempt.attemptId,
         sourceId: sourceId,
+        onPage: reportIndexPage,
       );
     } else {
       indexedCards = await officialAnkiV2RunCardIndex(
@@ -256,6 +271,7 @@ class OfficialAnkiV2ImportService {
         engine: resolved,
         attemptId: attempt.attemptId,
         sourceId: sourceId,
+        onPage: reportIndexPage,
       );
     }
 
@@ -295,13 +311,16 @@ class OfficialAnkiV2ImportService {
     if (excludedDeckIds.isNotEmpty) {
       await _suspendDecks(resolved, sources, sourceId, excludedDeckIds);
     }
-    final rebuilt = await _rebuild(sourceId: sourceId);
+    final rebuilt = await _rebuild(
+      sourceId: sourceId,
+      onProgress: onProgress,
+    );
     final partCount = await OfficialAnkiV2ViewStore(course).splitSectionCount();
     // 与 v1 publish 同语义的调度锁（P1）：未被课程引入的卡挂起，课时
     // 完成解锁。读面 = 视图行 + 引入账本（anki_card_introduction_states，
     // 保留表）；写只经引擎（suspend），course.db 零写入。fail-open：
     // 失败不阻塞导入，下次重跑可收敛（v1 LockReconciler 同策略）。
-    await _reconcileSchedulerLock(resolved, sourceId);
+    await _reconcileSchedulerLock(resolved, sourceId, onProgress);
     return OfficialAnkiV2CommitResult(
       sourceId: sourceId,
       attemptId: attempt.attemptId,
@@ -376,6 +395,7 @@ class OfficialAnkiV2ImportService {
   Future<void> _reconcileSchedulerLock(
     OfficialAnkiEngine resolved,
     String sourceId,
+    OfficialCommitProgress? onProgress,
   ) async {
     try {
       final cardIds =
@@ -387,16 +407,17 @@ class OfficialAnkiV2ImportService {
         for (final cardId in cardIds)
           if (!introduced.contains(cardId)) cardId,
       ]..sort();
+      if (toSuspend.isEmpty) return;
+      onProgress?.call(OfficialCommitPhase.locking, 0, toSuspend.length);
       for (var start = 0; start < toSuspend.length; start += _suspendBatch) {
         // B2：sublist O(k)，skip/take 每趟从头扫 O(start+k)。
         final end = start + _suspendBatch;
+        final done = end > toSuspend.length ? toSuspend.length : end;
         await resolved.buryOrSuspendCards(
           action: OfficialBuryOrSuspendAction.suspend,
-          cardIds: toSuspend.sublist(
-            start,
-            end > toSuspend.length ? toSuspend.length : end,
-          ),
+          cardIds: toSuspend.sublist(start, done),
         );
+        onProgress?.call(OfficialCommitPhase.locking, done, toSuspend.length);
       }
     } catch (error) {
       officialAnkiV2Log('scheduler lock reconcile: $error', warning: true);
@@ -405,7 +426,10 @@ class OfficialAnkiV2ImportService {
 
   /// [sourceId] 非空时只重建该 source 的行（D2：commit 只可能改变它，
   /// 成本 O(变更) 而非 O(全部 source)）；空则全量重建。
-  Future<OfficialAnkiV2ViewRebuildResult> _rebuild({String? sourceId}) async {
+  Future<OfficialAnkiV2ViewRebuildResult> _rebuild({
+    String? sourceId,
+    OfficialCommitProgress? onProgress,
+  }) async {
     final resolved = engine ?? OfficialAnkiCompositionRoot.engine;
     if (resolved == null) {
       throw const OfficialAnkiException(
@@ -422,9 +446,9 @@ class OfficialAnkiV2ImportService {
       nowMillis: nowMillis,
     );
     if (sourceId != null) {
-      return rebuilder.rebuildSource(sourceId);
+      return rebuilder.rebuildSource(sourceId, onProgress: onProgress);
     }
-    return rebuilder.rebuild();
+    return rebuilder.rebuild(onProgress: onProgress);
   }
 
   static String _encodeSuggestions(

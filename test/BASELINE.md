@@ -1,11 +1,19 @@
 # 测试基线收据（只保留最近批次）
 
-> 本文件**只保留 2026-09-20 及之后的 19 条收据**（覆盖架构接口化、P0–P4 架构简化、
+> 本文件**只保留 2026-09-20 及之后的 21 条收据**（覆盖架构接口化、P0–P4 架构简化、
 > iOS 官方 Anki 启用、PopScope 死循环修复、文档债清理、Official Anki 状态源补记、测试冗余清理等最近批次）。
 > 2026-09-17 及更早的 56 条见 [`archive/BASELINE-pre-2026-09-20.md`](./archive/BASELINE-pre-2026-09-20.md)。
 
 > **新增收据一律前插到本文件顶部。** 引用收据必须用「文件 + 条目日期 + 标题」锚，**禁止用行号**
 > （行号在只增不减的文件上必然腐坏——已删除的 `system-font-cutover-plan.md` 曾引 `BASELINE.md:303-307`，真实位置早已漂到第 100 行）。
+
+---
+
+Generated: 2026-09-29（创作者工具断链闭环：交给 App、章节等级、词性、内置媒体路径）：**交付**——ADR 0045。仓库内课程可登记进 `manifest.json` 与 `pubspec` 资产行，其余课程导出 `.turnapack`（id 加稳定前缀 `ll-<code>-`，许可署名空则只在包封面上用显示名补上）。内置语言码与 `anki` 拒绝导出。**等级**——编辑器下拉同时写章节正文和 index 壳；正文没有 level 时不抹掉壳上的 A1/A2。播种用壳上的等级填空，`CourseLoader` 在库里的等级为空时用打包的 index 覆盖，所以已安装的土耳其语不用抬内容版本也能显示 A1/A2。非空等级（含 Anki）保持原值。章节列表在名称旁显示等级文字，图标配色仍按 section id。**先修**——保存和先修命令把壳上的名称、描述、等级、先修同步好；不做课程树硬锁。**词性**——`course.db` schemaVersion 27→28，`vocabulary.pos` 可空；未知标签存 null。词典命中和生词卡在有闭合标签时显示中文（名词、动词…）。土耳其语词表不补 pos，要等下一次表达版本重播种才进库。**媒体**——编辑器把图片和音频复制到课程 `media/`，记下 `media/<文件名>`。内置播种把安全的 `media/` 改写成 `assets/courses/<dir>/media/…`；`..`、盘符、`anki://`、`turnapack://` 和单词 id 不动。课包导入仍先改成 `turnapack://`。`course_cli` 不再把 `media/` 当成缺失的听力 id。教师预览不播放这些文件。**新测**——`section_level_overlay_test` 3、`bundled_media_paths_test` 3、`schema_28_pos_test` 1、`section_level_label_test` 2、`dictionary_search_test` +1（名词）。**验证**——改动 Dart 文件 `dart analyze` 无问题；`flutter test --exclude-tags golden` **1926 passed / 0 failed**（上一条目 1916，+10）。同步本文件抬头条数 20→21。
+
+---
+
+Generated: 2026-09-29（题型识别中度改进：样卡进入判定、排版标签让路、模板正反面硬约束）：**仍是每个笔记类型判一次**，不做逐卡重判、不改抽样算法、不降 0.85、不加学科词。**① 判定前取样**——`preparePreview` 的 `getProjectionSchemas` 改为 `includeSamples: true`，上限用 `recognitionSampleLimit`（30）；检查页样卡已在则不再重拉；已确认映射不重写。抽样仍是引擎现有的最早 30 条。**② 排版标签让路**——`A2` 只保留 `<script>` / `javascript:` / 事件属性，权重 1.00。`<table>` `<svg>` `<audio>` 等拆成 `A2-layout`，模板与字段内容都是 0.70：高于没有任何内容证据时的正反翻面（0.60），低于已对齐的选择、填空、听音、短对，以及模板上的 `{{type:}}`。解析失败的选项铁律仍是 0.90。语料 11 从「表格即原卡」改为短对赢出的正反翻面。**③ 正反面硬约束**——有模板事实时，只出现在正面的字段不能当回答，只出现在背面的字段不能当提问；两面都出现的字段（含反转模板）维持原来的加分；没有模板事实时不启用。`recognizerVersion` 4→5，新算出的未确认建议带新版本；已确认行不重写。**行数**——进度阶段文案抽到 `AnkiImportProgressRelay`，取消暂存抽到 `cancelActiveOfficialStaging`，导入控制器回到 592 行（门禁上限 600）。**新测** `recognizer_unit_test` +9（表格让路给选择与 `{{type:}}`、脚本仍是原卡、无竞争信号的表格仍是原卡、正面字段不能绑成回答、反转模板不被误伤）。**验证**——改动文件 `dart analyze` 无问题，`dart format` 0 changed；全量 `flutter test --exclude-tags golden` **1916 passed / 0 failed**（上一条目 1903；+13 = 本批 9 + 同工作区尚未单独记收据的导入进度用例 4：牌组树缓存、向导阶段标签、卡索引进度、铺树进度各 1）。同步本文件抬头条数 19→20。
 
 ---
 

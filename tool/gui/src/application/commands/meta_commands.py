@@ -8,6 +8,7 @@ from typing import Any
 from PySide6.QtGui import QUndoCommand
 
 from src.application.commands._base import _make_changed
+from src.backend.course_io import project_section_shell
 
 
 class _UpdateMetaBase(QUndoCommand):
@@ -117,6 +118,88 @@ class UpdateSectionPrereqsCommand(_UpdatePrereqsBase):
 
     def _find(self, adapter, node_id):
         return adapter.find_section(node_id)
+
+    def _sync_shell(self) -> None:
+        body = self._find(self.adapter, self.node_id)
+        if not isinstance(body, dict):
+            return
+        for entry in self.adapter.index.get("sections", []):
+            if entry.get("id") == self.node_id:
+                project_section_shell(entry, body)
+                break
+
+    def redo(self) -> None:
+        super().redo()
+        self._sync_shell()
+
+    def undo(self) -> None:
+        super().undo()
+        self._sync_shell()
+
+
+class UpdateSectionLevelCommand(QUndoCommand):
+    """Write a section CEFR level onto the body and the index shell."""
+
+    def __init__(self, adapter, node_id: str, new_level: str) -> None:
+        super().__init__("修改 Section 等级")
+        self.adapter = adapter
+        self.node_id = node_id
+        self.new_level = new_level
+        self.old_level: str = ""
+        self._had_level = False
+        self.old_index_level: str = ""
+        self._index_had_level = False
+        self.signals = _make_changed()
+
+    def _write(self, node: dict, level: str, *, present: bool) -> None:
+        if present:
+            node["level"] = level
+        elif "level" in node:
+            del node["level"]
+
+    def _apply(
+        self,
+        level: str,
+        *,
+        body_present: bool,
+        index_level: str,
+        index_present: bool,
+    ) -> None:
+        node = self.adapter.find_section(self.node_id)
+        self._write(node, level, present=body_present)
+        for entry in self.adapter.index.get("sections", []):
+            if entry.get("id") == self.node_id:
+                self._write(entry, index_level, present=index_present)
+                break
+        self.signals.changed.emit()
+
+    def redo(self) -> None:
+        if not getattr(self, "_captured", False):
+            node = self.adapter.find_section(self.node_id)
+            self._had_level = "level" in node
+            self.old_level = node.get("level") or ""
+            self._index_had_level = False
+            self.old_index_level = ""
+            for entry in self.adapter.index.get("sections", []):
+                if entry.get("id") == self.node_id:
+                    self._index_had_level = "level" in entry
+                    self.old_index_level = entry.get("level") or ""
+                    break
+            self._captured = True
+        self._apply(
+            self.new_level,
+            body_present=True,
+            index_level=self.new_level,
+            index_present=True,
+        )
+
+    def undo(self) -> None:
+        self._apply(
+            self.old_level,
+            body_present=self._had_level,
+            index_level=self.old_index_level,
+            index_present=self._index_had_level,
+        )
 
 
 class UpdateUnitPrereqsCommand(_UpdatePrereqsBase):

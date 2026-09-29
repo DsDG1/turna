@@ -23,6 +23,7 @@ while publishing so the save thread can never be torn down mid-write.
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any
 
 from PySide6.QtCore import Qt
@@ -99,8 +100,13 @@ class PublishDialog(TurnaDialog):
         self.export_btn = self.add_button(
             "导出报告", variant="ghost", slot=self._on_export
         )
+        self.handoff_btn = self.add_button(
+            "交给 App", variant="ghost", slot=self._on_handoff
+        )
         self._footer.removeWidget(self.export_btn)
+        self._footer.removeWidget(self.handoff_btn)
         self._footer.insertWidget(0, self.export_btn)
+        self._footer.insertWidget(1, self.handoff_btn)
         self.cancel_btn = self.add_button("取消", slot=self.reject)
         self.ok_btn = self.add_button(
             "发布" if self.teacher_friendly else "确认发布",
@@ -153,6 +159,7 @@ class PublishDialog(TurnaDialog):
         self.changes_label.setText("正在生成发布报告…")
         self.ok_btn.setEnabled(False)
         self.export_btn.setEnabled(False)
+        self.handoff_btn.setEnabled(False)
 
     def _start_report_worker(self) -> None:
         from src.application.ai_request_worker import AiRequestWorker
@@ -168,6 +175,7 @@ class PublishDialog(TurnaDialog):
         self._report = report
         self._render_report()
         self.export_btn.setEnabled(True)
+        self.handoff_btn.setEnabled(True)
 
     def _on_report_error(self, message: str) -> None:
         self._load_worker = None
@@ -396,13 +404,14 @@ class PublishDialog(TurnaDialog):
                 exc_info=True,
             )
 
-    def _set_publishing_busy(self, busy: bool) -> None:
+    def _set_publishing_busy(self, busy: bool, ok_text: str | None = None) -> None:
         self._publishing = busy
-        for btn in (self.ok_btn, self.export_btn, self.cancel_btn):
+        for btn in (self.ok_btn, self.export_btn, self.handoff_btn, self.cancel_btn):
             btn.setEnabled(not busy)
-        self.ok_btn.setText(
-            "发布中…" if busy else ("发布" if self.teacher_friendly else "确认发布")
-        )
+        if busy:
+            self.ok_btn.setText(ok_text or "发布中…")
+        else:
+            self.ok_btn.setText("发布" if self.teacher_friendly else "确认发布")
 
     def _on_publish_result(self, result: SaveResult) -> None:
         self._publish_worker = None
@@ -437,6 +446,107 @@ class PublishDialog(TurnaDialog):
         self._set_publishing_busy(False)
         self._restore_version_snapshot()
         QMessageBox.critical(self, "发布失败", message)
+
+    def _on_handoff(self) -> None:
+        """Register an in-repo course, or write a .turnapack for an external one."""
+        validation = self._report.get("validation") or {}
+        if not validation.get("ok", False):
+            QMessageBox.warning(self, "无法交给 App", "校验未通过，请先修复错误。")
+            return
+        course_dir = getattr(self.adapter, "course_dir", None)
+        if course_dir is None:
+            QMessageBox.warning(self, "无法交给 App", "未加载课程目录。")
+            return
+        from src.backend.course_delivery import (
+            deliver_builtin,
+            deliver_pack,
+            default_repo_root,
+            find_manifest_entry,
+            repo_course_dir_name,
+            resolve_profile,
+            apply_profile,
+        )
+
+        repo_root = default_repo_root()
+        course_path = Path(course_dir)
+        in_repo = repo_course_dir_name(course_path, repo_root) is not None
+        pack_path: Path | None = None
+        if in_repo:
+            box = QMessageBox(self)
+            box.setWindowTitle("交给 App")
+            box.setText("这门课在仓库的 assets/courses 里。")
+            builtin_btn = box.addButton("登记为内置课", QMessageBox.ButtonRole.AcceptRole)
+            pack_btn = box.addButton("导出 .turnapack", QMessageBox.ButtonRole.ActionRole)
+            box.addButton("取消", QMessageBox.ButtonRole.RejectRole)
+            box.exec()
+            chosen = box.clickedButton()
+            if chosen is None or (chosen is not builtin_btn and chosen is not pack_btn):
+                return
+            if chosen is pack_btn:
+                pack_path = self._ask_pack_path()
+                if pack_path is None:
+                    return
+        else:
+            pack_path = self._ask_pack_path()
+            if pack_path is None:
+                return
+
+        self._set_publishing_busy(True, ok_text="处理中…")
+
+        def _do_handoff() -> SaveResult:
+            code = str(self.adapter.index.get("language") or "")
+            entry = find_manifest_entry(repo_root, code)
+            profile = resolve_profile(self.adapter.index, manifest_entry=entry)
+            apply_profile(self.adapter.index, profile)
+            saved = self.adapter.save()
+            if not saved.ok:
+                return saved
+            if pack_path is None:
+                handed = deliver_builtin(course_path, repo_root)
+            else:
+                handed = deliver_pack(course_path, pack_path, repo_root=repo_root)
+            return SaveResult(ok=handed.ok, message=handed.message)
+
+        from src.application.ai_request_worker import AiRequestWorker
+
+        worker = AiRequestWorker(_do_handoff)
+        worker.result_ready.connect(self._on_handoff_result)
+        worker.error_occurred.connect(self._on_handoff_error)
+        self._publish_worker = worker
+        worker.start()
+
+    def _ask_pack_path(self) -> Path | None:
+        path, _selected = QFileDialog.getSaveFileName(
+            self, "交给 App", "course.turnapack", "Turna course (*.turnapack)"
+        )
+        if not path:
+            return None
+        return Path(path)
+
+    def _mark_host_saved(self) -> None:
+        host = self.parent()
+        if host is None:
+            return
+        undo_stack = getattr(host, "undo_stack", None)
+        if undo_stack is not None:
+            undo_stack.setClean()
+        mark = getattr(host, "_mark_saved", None)
+        if callable(mark):
+            mark()
+
+    def _on_handoff_result(self, result: SaveResult) -> None:
+        self._publish_worker = None
+        self._set_publishing_busy(False)
+        if not result.ok:
+            QMessageBox.critical(self, "无法交给 App", result.message or "失败")
+            return
+        self._mark_host_saved()
+        QMessageBox.information(self, "交给 App", result.message)
+
+    def _on_handoff_error(self, message: str) -> None:
+        self._publish_worker = None
+        self._set_publishing_busy(False)
+        QMessageBox.critical(self, "无法交给 App", message)
 
     def _on_export(self) -> None:
         path, _ = QFileDialog.getSaveFileName(

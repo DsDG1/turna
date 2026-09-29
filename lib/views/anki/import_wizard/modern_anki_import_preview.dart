@@ -221,56 +221,73 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
     return Column(
       children: [
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            children: [
-              if (widget.error != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: TurnaTheme.error.withValues(alpha: 0.08),
-                      borderRadius:
-                          BorderRadius.circular(TurnaTheme.radiusMedium),
-                      border: Border.all(
-                          color: TurnaTheme.error.withValues(alpha: 0.3)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.error_outline_rounded,
-                            color: TurnaTheme.error, size: 20),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            widget.error!,
-                            style: const TextStyle(color: TurnaTheme.error),
+          child: CustomScrollView(
+            slivers: [
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                sliver: SliverToBoxAdapter(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (widget.error != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: TurnaTheme.error.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(
+                                TurnaTheme.radiusMedium,
+                              ),
+                              border: Border.all(
+                                color: TurnaTheme.error.withValues(alpha: 0.3),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.error_outline_rounded,
+                                  color: TurnaTheme.error,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    widget.error!,
+                                    style: const TextStyle(
+                                      color: TurnaTheme.error,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
+                      AnkiImportPreviewHeaderCard(preview: preview),
+                      const SizedBox(height: 16),
+                      StudyPresetSelector(
+                        selectedMode: _selectedMode,
+                        onSelectMode: _onSelectStudyMode,
+                      ),
+                      const SizedBox(height: 16),
+                      if (hasBlocking) ...[
+                        _buildBlockingWarning(blockingSchemas),
+                        const SizedBox(height: 16),
                       ],
-                    ),
+                      for (final schema in preview.schemas)
+                        _NotetypeModeRow(
+                          schema: schema,
+                          mode: _modeFor(schema),
+                          onChanged: (mode) =>
+                              widget.controller.setNotetypeStudyMode(
+                            schema,
+                            _kindsFor(mode),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
-              AnkiImportPreviewHeaderCard(preview: preview),
-              const SizedBox(height: 16),
-              StudyPresetSelector(
-                selectedMode: _selectedMode,
-                onSelectMode: _onSelectStudyMode,
               ),
-              const SizedBox(height: 16),
-              if (hasBlocking) ...[
-                _buildBlockingWarning(blockingSchemas),
-                const SizedBox(height: 16),
-              ],
-              for (final schema in preview.schemas)
-                _NotetypeModeRow(
-                  schema: schema,
-                  mode: _modeFor(schema),
-                  onChanged: (mode) => widget.controller.setNotetypeStudyMode(
-                    schema,
-                    _kindsFor(mode),
-                  ),
-                ),
               DeckDirectoryTreeView(
                 deckTree: _deckTree,
                 totalDecks: preview.decks.length,
@@ -283,7 +300,7 @@ class _ModernAnkiImportPreviewState extends State<ModernAnkiImportPreview> {
                   setState(_rebuildTree);
                 },
               ),
-              const SizedBox(height: 16),
+              const SliverToBoxAdapter(child: SizedBox(height: 16)),
             ],
           ),
         ),

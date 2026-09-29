@@ -14,6 +14,9 @@ abstract class WordEntry with _$WordEntry {
     required String translation,
     String? pronunciation,
     String? audioAsset,
+
+    /// Closed POS tag (`noun`, `verb`, …), or null when the course omits it.
+    String? pos,
     @Default(<String>[]) List<String> tags,
   }) = _WordEntry;
 

@@ -91,6 +91,11 @@ void main() {
     // 3. 验证多级目录树层级节点（题型行把目录顶到首屏之外）
     await tester.scrollUntilVisible(find.text('完整章节目录'), 400);
     expect(find.text('完整章节目录'), findsOneWidget);
+    await tester.scrollUntilVisible(find.text('Genetics'), 200);
+    expect(find.text('Mendel'), findsNothing);
+    await tester.tap(find.byIcon(Icons.keyboard_arrow_right_rounded));
+    await tester.pump();
+    await tester.scrollUntilVisible(find.text('Mendel'), 200);
     expect(find.text('Mendel'), findsOneWidget);
 
     // 4. 验证底部操作按钮

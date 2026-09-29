@@ -210,8 +210,9 @@ class _SectionSheetTile extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        section.name,
+                      sectionNameWithLevel(
+                        name: section.name,
+                        level: section.level,
                         style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,

@@ -327,12 +327,48 @@ class OfficialAnkiSession implements OfficialAnkiImporter {
   Future<int> v2CardIndex({
     required String attemptId,
     required String sourceId,
+    void Function(int done, int total)? onPage,
   }) {
-    return _call<int>(
-      'v2CardIndex',
-      {'attemptId': attemptId, 'sourceId': sourceId},
-      const Duration(minutes: 30),
+    if (onPage == null) {
+      return _call<int>(
+        'v2CardIndex',
+        {'attemptId': attemptId, 'sourceId': sourceId},
+        const Duration(minutes: 30),
+      );
+    }
+    return _v2CardIndexReporting(
+      attemptId: attemptId,
+      sourceId: sourceId,
+      onPage: onPage,
     );
+  }
+
+  Future<int> _v2CardIndexReporting({
+    required String attemptId,
+    required String sourceId,
+    required void Function(int done, int total) onPage,
+  }) async {
+    final progress = ReceivePort();
+    final subscription = progress.listen((message) {
+      if (message is! List || message.length < 2) return;
+      final done = message[0];
+      final total = message[1];
+      if (done is int && total is int) onPage(done, total);
+    });
+    try {
+      return await _call<int>(
+        'v2CardIndex',
+        {
+          'attemptId': attemptId,
+          'sourceId': sourceId,
+          'progress': progress.sendPort,
+        },
+        const Duration(minutes: 30),
+      );
+    } finally {
+      await subscription.cancel();
+      progress.close();
+    }
   }
 
   /// Latest import progress. The control transport (main-isolate FFI) is
@@ -678,12 +714,16 @@ final Map<String, Future<Object?> Function(_WorkerState, Map<String, Object?>)>
     // per card (sync sqlite). This worker already owns the engine handle
     // and a catalog connection — running the segment here keeps the whole
     // thing (and its per-page engine calls) off the UI isolate.
+    final progress = m['progress'];
     return officialAnkiV2RunCardIndex(
       sources: OfficialAnkiSourceDao(s.db!),
       attempts: OfficialAnkiImportAttemptDao(s.db!),
       engine: s.engine!,
       attemptId: m['attemptId'] as String,
       sourceId: m['sourceId'] as String,
+      onPage: progress is SendPort
+          ? (done, total) => progress.send(<int>[done, total])
+          : null,
     );
   },
   'importFile': (s, m) async {

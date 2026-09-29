@@ -8,7 +8,7 @@ library;
 
 /// Bump when recognition logic changes in a way that should invalidate
 /// cached suggestions for unconfirmed mappings.
-const int recognizerVersion = 4;
+const int recognizerVersion = 5;
 
 // ---------------------------------------------------------------------------
 // L1 field-role binding weights (§3.5)
@@ -60,11 +60,12 @@ const double bindingScoreCap = 1.0;
 // ---------------------------------------------------------------------------
 
 const double ruleClozeDeclaredWeight = 1.00; // A1 structure
-const double ruleTemplateRichHtmlWeight = 1.00; // A2 structure
+const double ruleTemplateRichHtmlWeight = 1.00; // A2 script only
+const double ruleTemplateLayoutHtmlWeight = 0.70; // table/audio/svg layout
 const double ruleTypeInWeight = 0.95; // A3 structure
 const double ruleChoiceBoundWeight = 0.90; // A4 binding
 const double ruleContentScriptWeight = 0.95; // A2 content twin
-const double ruleContentComplexHtmlWeight = 0.90; // A2 content twin
+const double ruleContentComplexHtmlWeight = 0.70; // layout tags in values
 const double ruleEmbeddedOptionsUnparsedWeight = 0.90; // iron law
 const double ruleSampleClozeWeight = 0.80; // A5 content
 const double ruleEmbeddedOptionsWeight = 0.80; // A6 content

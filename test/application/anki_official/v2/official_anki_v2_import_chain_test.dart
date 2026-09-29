@@ -374,6 +374,37 @@ void main() {
     expect(sources.cardCount(sourceId), 4, reason: '重放不得产生重复所有权行');
   });
 
+  test('card index reports one tick per 200-note page', () async {
+    final (sourceId, attemptId) = seedStagedSource(sourceId: 'src-v2-pages');
+    final noteIds = [for (var i = 0; i < 201; i++) 1000 + i];
+    OfficialAnkiImportAttemptDao(catalog).absorbReceipt(
+      attemptId: attemptId,
+      noteIds: noteIds,
+      nowMillis: 1,
+    );
+    for (final id in noteIds) {
+      engine.cards[id] = OfficialAnkiCardDescriptor(
+        cardId: id,
+        noteId: id,
+        deckId: 10,
+        templateOrd: 0,
+        notetypeId: 1,
+      );
+      engine.cardsByNote[id] = [id];
+    }
+    final ticks = <(int, int)>[];
+    final written = await officialAnkiV2RunCardIndex(
+      sources: OfficialAnkiSourceDao(catalog),
+      attempts: OfficialAnkiImportAttemptDao(catalog),
+      engine: engine,
+      attemptId: attemptId,
+      sourceId: sourceId,
+      onPage: (done, total) => ticks.add((done, total)),
+    );
+    expect(written, 201);
+    expect(ticks, [(0, 201), (200, 201), (201, 201)]);
+  });
+
   test('mapping decision survives a corrupted config read (K10 resilience)',
       () async {
     final (sourceId, _) = seedStagedSource();

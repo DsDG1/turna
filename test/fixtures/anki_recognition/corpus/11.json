@@ -1,6 +1,6 @@
 {
   "id": "11",
-  "description": "模板含 script/table（A2）",
+  "description": "排版表格让路给短对（A8 赢过 A2-layout）",
   "schema": {
     "notetypeId": 11,
     "name": "Fancy",
@@ -57,7 +57,7 @@
     }
   },
   "expected": {
-    "archetype": "richHtml",
+    "archetype": "basicPair",
     "band": "auto",
     "roles": {
       "Front": "prompt",

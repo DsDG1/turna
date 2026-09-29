@@ -193,8 +193,8 @@
     ]
   },
   "11": {
-    "archetype": "richHtml",
-    "confidence": "1.000",
+    "archetype": "basicPair",
+    "confidence": "0.900",
     "band": "auto",
     "roles": {
       "prompt": {
@@ -207,7 +207,7 @@
       }
     },
     "evidence": [
-      "A2:template:complex_html w=1.00",
+      "A2-layout:template:complex_html w=0.70",
       "A8:short_pair w=0.75"
     ]
   },

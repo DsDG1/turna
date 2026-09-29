@@ -6,10 +6,9 @@ import 'package:turna/core/theme.dart';
 
 /// Shared icon + color mapping for course sections.
 ///
-/// Section shells currently lack a reliable CEFR [Section.level] at runtime
-/// (level lives in index.json only and is not seeded into SQLite). Mapping by
-/// section id keeps the switcher and picker visually distinct without a
-/// schema change.
+/// Icons and colors stay keyed by section id (`section1`–`section8`, and the
+/// `anki-` prefix). A non-empty CEFR level is a text chip via
+/// [SectionLevelLabel]; it does not change the icon.
 class SectionVisuals {
   const SectionVisuals._();
 
@@ -78,4 +77,59 @@ class SectionVisuals {
         ),
     };
   }
+}
+
+/// Small CEFR tag. An empty level takes no space.
+class SectionLevelLabel extends StatelessWidget {
+  const SectionLevelLabel(this.level, {super.key});
+
+  final String? level;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = level?.trim() ?? '';
+    if (text.isEmpty) return const SizedBox.shrink();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: TurnaTheme.tintSoft,
+        borderRadius: BorderRadius.circular(TurnaTheme.radiusSmall),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: TurnaTheme.textSecondaryColor(context),
+        ),
+      ),
+    );
+  }
+}
+
+/// Section title. An empty [level] returns the name alone, so rows without a
+/// tag keep the previous layout.
+Widget sectionNameWithLevel({
+  required String name,
+  required String? level,
+  required TextStyle style,
+  int? maxLines,
+}) {
+  final tag = level?.trim() ?? '';
+  final text = Text(
+    name,
+    maxLines: tag.isEmpty ? maxLines : (maxLines ?? 1),
+    overflow: tag.isEmpty
+        ? (maxLines == null ? null : TextOverflow.ellipsis)
+        : TextOverflow.ellipsis,
+    style: style,
+  );
+  if (tag.isEmpty) return text;
+  return Row(
+    children: [
+      Flexible(child: text),
+      const SizedBox(width: 8),
+      SectionLevelLabel(tag),
+    ],
+  );
 }

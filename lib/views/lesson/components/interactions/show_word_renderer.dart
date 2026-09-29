@@ -8,6 +8,7 @@ import 'package:injectable/injectable.dart';
 import 'package:turna/application/audio_controller.dart';
 import 'package:turna/courses/languages/vocab.dart';
 import 'package:turna/domain/course/interaction.dart';
+import 'package:turna/domain/course/pos_tag.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
 import 'package:turna/views/anki_official/official_anki_canonical_card_view.dart';
@@ -58,11 +59,14 @@ class ShowWordRenderer extends InteractionRenderer {
     final translation =
         hasInline ? (i.translation ?? '') : (vocab?.translation ?? '');
     final contextSentence = i.example ?? i.context;
+    final posLabel =
+        (hasInline || isUnknown) ? '' : posTagLabel(PosTag.parse(vocab?.pos));
 
     return _ShowWordCard(
       wordId: i.wordId,
       term: term,
       translation: translation,
+      posLabel: posLabel,
       contextSentence: contextSentence,
       imageAsset: i.imageAsset,
       speakVocab: !hasInline && !isUnknown,
@@ -78,6 +82,7 @@ class _ShowWordCard extends StatefulWidget {
   final String wordId;
   final String term;
   final String translation;
+  final String posLabel;
   final String? contextSentence;
   final String? imageAsset;
   final bool speakVocab;
@@ -90,6 +95,7 @@ class _ShowWordCard extends StatefulWidget {
     required this.wordId,
     required this.term,
     required this.translation,
+    this.posLabel = '',
     required this.contextSentence,
     required this.imageAsset,
     required this.speakVocab,
@@ -181,6 +187,17 @@ class _ShowWordCardState extends State<_ShowWordCard> {
                     ),
                   ),
                   const SizedBox(height: 12),
+                  if (widget.posLabel.isNotEmpty) ...[
+                    Text(
+                      widget.posLabel,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: TurnaTheme.textSecondaryColor(context),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
                   if (widget.imageAsset != null &&
                       widget.imageAsset!.isNotEmpty) ...[
                     RoundedCachedAssetImage(asset: widget.imageAsset!),

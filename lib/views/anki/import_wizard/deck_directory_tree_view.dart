@@ -15,6 +15,7 @@ class DeckTreeNode {
     this.archetypeLabel,
     this.notetypeId,
     this.included = true,
+    this.subtreeTotal = 0,
   }) : children = children ?? [];
 
   final String name;
@@ -27,13 +28,27 @@ class DeckTreeNode {
   final int? notetypeId;
   bool included;
 
-  int get subtreeCardCount {
-    var total = cardCount;
-    for (final child in children) {
-      total += child.subtreeCardCount;
+  /// Own cards plus every descendant. Filled by [buildDeckTree].
+  int subtreeTotal;
+}
+
+/// Roots stay expanded; deeper nodes start collapsed.
+List<({DeckTreeNode node, int depth})> visibleDeckNodes(
+  List<DeckTreeNode> roots,
+) {
+  final visible = <({DeckTreeNode node, int depth})>[];
+  void walk(DeckTreeNode node, int depth) {
+    visible.add((node: node, depth: depth));
+    if (!node.isExpanded) return;
+    for (final child in node.children) {
+      walk(child, depth + 1);
     }
-    return total;
   }
+
+  for (final root in roots) {
+    walk(root, 0);
+  }
+  return visible;
 }
 
 /// Builds a multi-level deck tree from flat Anki deck nodes and counts.
@@ -68,7 +83,7 @@ List<DeckTreeNode> buildDeckTree(
           fullPath: currentPath,
           deckId: isLeaf ? deck.deckId : null,
           cardCount: isLeaf ? (cardCountByDeck[deck.deckId] ?? 0) : 0,
-          isExpanded: true,
+          isExpanded: parent == null,
           archetypeLabel: isLeaf && archetypeLabelByDeck != null
               ? archetypeLabelByDeck[deck.deckId]
               : null,
@@ -93,7 +108,19 @@ List<DeckTreeNode> buildDeckTree(
     }
   }
 
+  for (final root in roots) {
+    _assignSubtreeTotal(root);
+  }
   return roots;
+}
+
+int _assignSubtreeTotal(DeckTreeNode node) {
+  var total = node.cardCount;
+  for (final child in node.children) {
+    total += _assignSubtreeTotal(child);
+  }
+  node.subtreeTotal = total;
+  return total;
 }
 
 /// Directory tree view rendering nested Anki deck chapters with collapse/expand.
@@ -115,53 +142,65 @@ class DeckDirectoryTreeView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: TurnaTheme.cardBg(context),
-        borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
-        border: Border.all(
-          color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
+    final entries = visibleDeckNodes(deckTree);
+    return SliverPadding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      sliver: DecoratedSliver(
+        decoration: BoxDecoration(
+          color: TurnaTheme.cardBg(context),
+          borderRadius: BorderRadius.circular(TurnaTheme.radiusLarge),
+          border: Border.all(
+            color: TurnaTheme.brandTeal.withValues(alpha: 0.12),
+          ),
         ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.account_tree_outlined,
-                size: 18,
-                color: TurnaTheme.brandTeal,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                AppStrings.ankiImportFullTreeTitle,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
+        sliver: SliverPadding(
+          padding: const EdgeInsets.all(14),
+          sliver: SliverMainAxisGroup(
+            slivers: [
+              SliverToBoxAdapter(
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.account_tree_outlined,
+                      size: 18,
+                      color: TurnaTheme.brandTeal,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      AppStrings.ankiImportFullTreeTitle,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '$totalDecks 个章节节点',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: TurnaTheme.textHintColor(context),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const Spacer(),
-              Text(
-                '$totalDecks 个章节节点',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: TurnaTheme.textHintColor(context),
-                ),
+              const SliverToBoxAdapter(child: SizedBox(height: 12)),
+              SliverList.builder(
+                itemCount: entries.length,
+                itemBuilder: (context, index) {
+                  final entry = entries[index];
+                  return DeckTreeNodeWidget(
+                    node: entry.node,
+                    depth: entry.depth,
+                    onToggle: onToggle,
+                    onInspectNode: onInspectNode,
+                    onToggleIncluded: onToggleIncluded,
+                  );
+                },
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          for (final root in deckTree)
-            DeckTreeNodeWidget(
-              node: root,
-              depth: 0,
-              onToggle: onToggle,
-              onInspectNode: onInspectNode,
-              onToggleIncluded: onToggleIncluded,
-            ),
-        ],
+        ),
       ),
     );
   }
@@ -186,7 +225,7 @@ class DeckTreeNodeWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasChildren = node.children.isNotEmpty;
-    final count = hasChildren ? node.subtreeCardCount : node.cardCount;
+    final count = hasChildren ? node.subtreeTotal : node.cardCount;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -300,15 +339,6 @@ class DeckTreeNodeWidget extends StatelessWidget {
             ],
           ),
         ),
-        if (hasChildren && node.isExpanded)
-          for (final child in node.children)
-            DeckTreeNodeWidget(
-              node: child,
-              depth: depth + 1,
-              onToggle: onToggle,
-              onInspectNode: onInspectNode,
-              onToggleIncluded: onToggleIncluded,
-            ),
       ],
     );
   }

@@ -2,10 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:turna/application/anki_import/anki_import_official_flow.dart';
+import 'package:turna/application/anki_import/anki_import_progress_relay.dart';
 import 'package:turna/application/anki_import/official_import_error_messages.dart';
 import 'package:turna/application/anki_import/anki_import_completion_coordinator.dart';
 import 'package:turna/application/anki_import/anki_import_dependencies.dart';
 import 'package:turna/application/anki_import/anki_import_wizard_state.dart';
+import 'package:turna/application/anki_import/recognition/config.dart';
 import 'package:turna/application/anki_import/recognition/official_recognition_triage.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
@@ -15,9 +17,6 @@ import 'package:turna/application/anki_official/import/official_anki_source_hash
 import 'package:turna/application/anki_official/lifecycle/official_anki_lifecycle_models.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
-import 'package:turna/application/anki_official/import/official_anki_import_saga.dart';
-import 'package:turna/application/anki_official/storage/official_anki_import_attempt_dao.dart';
-import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/anki_official/projection/official_anki_mapping_suggestion.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
@@ -63,6 +62,10 @@ class AnkiImportController extends ChangeNotifier {
   AnkiImportExecutionPlan? _committingPlan;
 
   int _operation = 0;
+  late final _progress = AnkiImportProgressRelay(
+    readState: () => _state,
+    emit: _emit,
+  );
   bool _cancelRequested = false;
   bool _commitInFlight = false;
   bool _disposed = false;
@@ -127,6 +130,7 @@ class AnkiImportController extends ChangeNotifier {
     }
     final op = ++_operation;
     _cancelRequested = false;
+    _progress.reset();
     OfficialAnkiCompositionRoot.stagingDiscardRequested = false;
     final plan = _deps.planFor(
       flags: OfficialAnkiFeatureFlags.current,
@@ -188,6 +192,7 @@ class AnkiImportController extends ChangeNotifier {
       stale: _stale,
       readState: () => _state,
       emit: _emit,
+      suppressed: () => _progress.suppressed,
     ));
     try {
       final digest = _pendingDigest;
@@ -199,6 +204,7 @@ class AnkiImportController extends ChangeNotifier {
         course: _deps.courseDatabase,
         includeMedia: includeMedia,
         digest: digest,
+        onArrangingPreview: _progress.showArranging,
       );
       if (_stale(op)) return;
       _emit(AnkiImportPreviewing(preview: preview));
@@ -300,7 +306,7 @@ class AnkiImportController extends ChangeNotifier {
     final loaded = await engine.getProjectionSchemas(
       notetypeIds: [schema.notetypeId],
       includeSamples: true,
-      sampleLimit: 30,
+      sampleLimit: recognitionSampleLimit,
     );
     if (loaded.isEmpty) return;
     final index = preview.schemas.indexWhere(
@@ -435,18 +441,18 @@ class AnkiImportController extends ChangeNotifier {
 
     _commitInFlight = true;
     _cancelRequested = false;
+    _progress.reset();
     _committingPlan = preview.plan;
     final op = ++_operation;
     _emit(AnkiImportCommitting(
-      message: preview is OfficialAnkiImportPreviewModel
-          ? AppStrings.ankiAssemblingCourse
-          : AppStrings.ankiPreparingImport,
+      message: AppStrings.ankiProgressWriting,
     ));
     unawaited(pollAnkiImportProgress(
       op: op,
       stale: _stale,
       readState: () => _state,
       emit: _emit,
+      suppressed: () => _progress.suppressed,
     ));
     try {
       switch (preview) {
@@ -454,6 +460,7 @@ class AnkiImportController extends ChangeNotifier {
           final result = await commitOfficialPreview(
             preview,
             course: _deps.courseDatabase,
+            onProgress: _progress.onCommit,
           );
           if (_stale(op)) return;
           if (result.needsMapping) {
@@ -461,6 +468,7 @@ class AnkiImportController extends ChangeNotifier {
             _emit(AnkiImportPreviewing(preview: preview));
             return;
           }
+          _progress.showCommit(AppStrings.ankiProgressRefresh);
           await completion.complete(
             courseProvider: _deps.courseProvider,
             importId: preview.sourceId,
@@ -533,23 +541,7 @@ class AnkiImportController extends ChangeNotifier {
     dispose();
   }
 
-  Future<void> _cancelStagingSaga() async {
-    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
-    final paths = OfficialAnkiCompositionRoot.locatorPaths;
-    if (catalog == null || paths == null) {
-      try {
-        await OfficialAnkiCompositionRoot.stagingEngineFromSession()?.cancel();
-      } catch (suppressed) {
-        logger.w('[AnkiImport] staging cancel: $suppressed');
-      }
-      return;
-    }
-    await OfficialAnkiImportSaga(
-      sources: OfficialAnkiSourceDao(catalog),
-      attempts: OfficialAnkiImportAttemptDao(catalog),
-      paths: paths,
-    ).cancelActive();
-  }
+  Future<void> _cancelStagingSaga() => cancelActiveOfficialStaging();
 
   bool _hasOfficialBlockingRecognition(OfficialAnkiImportPreviewModel preview) {
     return preview.schemas.any(

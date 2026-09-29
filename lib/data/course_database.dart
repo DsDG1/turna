@@ -91,6 +91,9 @@ class Vocabulary extends Table {
   TextColumn get translation => text()();
   TextColumn get pronunciation => text().nullable()();
   TextColumn get audioAsset => text().nullable()();
+
+  /// Closed POS tag (`noun`, `verb`, …). Null when the course omits it.
+  TextColumn get pos => text().nullable()();
   TextColumn get tags => text().withDefault(const Constant('[]'))();
 
   @override
@@ -288,7 +291,7 @@ class CourseDatabase extends _$CourseDatabase {
 
   /// Single source of truth for the drift schema version, so tests and
   /// backup code never hard-code a stale literal.
-  static const int kSchemaVersion = 27;
+  static const int kSchemaVersion = 28;
 
   @override
   int get schemaVersion => kSchemaVersion;
@@ -541,6 +544,21 @@ class CourseDatabase extends _$CourseDatabase {
             await m.database.customStatement('DROP TABLE IF EXISTS anki_notes');
             await m.database
                 .customStatement('DROP TABLE IF EXISTS anki_notetypes');
+          }
+          if (from < 28) {
+            // v28: optional vocabulary.pos. Old rows stay null.
+            // A database created with the current table list and then
+            // backdated (migration tests) already has the column.
+            final info = await m.database
+                .customSelect('PRAGMA table_info(vocabulary)')
+                .get();
+            // Empty info means this fixture never created vocabulary.
+            // A listed table without pos is a real pre-v28 course database.
+            final hasPos = info.isNotEmpty &&
+                info.any((row) => row.read<String>('name') == 'pos');
+            if (info.isNotEmpty && !hasPos) {
+              await m.addColumn(vocabulary, vocabulary.pos);
+            }
           }
         },
       );

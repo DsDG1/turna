@@ -81,6 +81,32 @@ class TestEmptyCommitGuard(unittest.TestCase):
         form._commit_name_desc()
         self.assertEqual(stack.count(), 1)
 
+    def test_section_level_writes_body_and_index_shell(self) -> None:
+        from src.application.commands import UpdateSectionPrereqsCommand
+
+        adapter, _lesson = _make_adapter()
+        section = adapter.sections[0]
+        adapter.index["sections"][0]["level"] = "A1"
+        form, stack, _adapter, _lesson = _make_form()
+        form.show_section(adapter, section)
+        self.assertFalse(form.level_combo.isHidden())
+        self.assertEqual(form.level_combo.currentData(), "A1")
+        form.level_combo.setCurrentIndex(form.level_combo.findData("A2"))
+        form._commit_level()
+        self.assertEqual(section["level"], "A2")
+        self.assertEqual(adapter.index["sections"][0]["level"], "A2")
+        self.assertEqual(stack.count(), 1)
+        stack.undo()
+        self.assertNotIn("level", section)
+        self.assertEqual(adapter.index["sections"][0]["level"], "A1")
+
+        cmd = UpdateSectionPrereqsCommand(adapter, "s1", ["other"])
+        cmd.redo()
+        self.assertEqual(section["prerequisiteSectionIds"], ["other"])
+        self.assertEqual(
+            adapter.index["sections"][0]["prerequisiteSectionIds"], ["other"]
+        )
+
     def test_is_in_sync_tracks_model(self) -> None:
         form, stack, _adapter, _lesson = _make_form()
         self.assertTrue(form.is_in_sync())

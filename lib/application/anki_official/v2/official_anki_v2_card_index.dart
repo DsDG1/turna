@@ -20,8 +20,11 @@ Future<int> officialAnkiV2RunCardIndex({
   required OfficialAnkiEngine engine,
   required String attemptId,
   required String sourceId,
+  void Function(int done, int total)? onPage,
 }) async {
   final noteIds = attempts.receiptNoteIds(attemptId);
+  final total = noteIds.length;
+  onPage?.call(0, total);
   final descriptors = <OfficialAnkiCardDescriptor>[];
   for (var offset = 0; offset < noteIds.length; offset += 200) {
     // B2：sublist O(200)，skip/take 每趟从头扫 O(offset+200)。
@@ -35,6 +38,7 @@ Future<int> officialAnkiV2RunCardIndex({
     if (cardIds.isNotEmpty) {
       descriptors.addAll(await engine.getCardDescriptorsBatch(cardIds));
     }
+    onPage?.call(batch.length + offset, total);
   }
   sources.upsertCardBatch(sourceId: sourceId, cards: descriptors);
   return descriptors.length;

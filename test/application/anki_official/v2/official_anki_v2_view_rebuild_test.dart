@@ -9,6 +9,7 @@ import 'package:turna/application/anki_official/projection/official_anki_project
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/application/anki_official/storage/official_anki_source_dao.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_config_keys.dart';
+import 'package:turna/application/anki_official/v2/official_commit_progress.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_view_rebuilder.dart';
 import 'package:turna/application/anki_official/v2/official_anki_v2_view_store.dart';
 import 'package:turna/data/course_database.dart';
@@ -329,5 +330,27 @@ void main() {
       expect(row.presentationKind, 'multipleChoice',
           reason: 'choice 且启用选择题必须解析为 multipleChoice');
     }
+  });
+
+  test('rebuild reports arrange and write counts without changing rows',
+      () async {
+    seedActiveV2Source();
+    final seen = <(OfficialCommitPhase, int?, int?)>[];
+    final result = await rebuilder().rebuild(
+      onProgress: (phase, current, total) => seen.add((phase, current, total)),
+    );
+    expect(result.rowCount, 2);
+    expect(
+      seen,
+      contains((OfficialCommitPhase.arrangingTree, 2, 2)),
+    );
+    expect(
+      seen,
+      contains((OfficialCommitPhase.writingTree, 2, 2)),
+    );
+    expect(
+      await OfficialAnkiV2ViewStore(course).cardCountForSource('src-v2-a'),
+      2,
+    );
   });
 }

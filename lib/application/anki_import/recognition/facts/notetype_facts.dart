@@ -53,14 +53,16 @@ class NotetypeFacts {
         for (final template in templates) ...template.frontFields,
       };
 
+  /// Field ords referenced on some template's back face.
+  Set<int> get backFieldOrds => <int>{
+        for (final template in templates) ...template.backFields,
+      };
+
+  /// Fields that render on a front and never on a back.
+  Set<int> get frontOnlyFieldOrds => frontFieldOrds.difference(backFieldOrds);
+
   /// Field ords referenced on back faces only.
-  Set<int> get backOnlyFieldOrds {
-    final front = frontFieldOrds;
-    final back = <int>{
-      for (final template in templates) ...template.backFields,
-    };
-    return back.difference(front);
-  }
+  Set<int> get backOnlyFieldOrds => backFieldOrds.difference(frontFieldOrds);
 
   /// Field names referenced through `{{tts:}}` filters.
   Set<String> get ttsFieldNames => <String>{

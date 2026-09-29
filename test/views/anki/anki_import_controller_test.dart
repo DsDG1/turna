@@ -412,7 +412,67 @@ void main() {
     expect(parsing.progressCurrent, 12);
     expect(parsing.progressTotal, 40);
     expect(parsing.stage, contains('12'));
-    expect(parsing.stage, contains(AppStrings.ankiProgressRecognize));
+    expect(parsing.stage, contains(AppStrings.ankiProgressReadingNotes));
+
+    gate.complete();
+    await pending;
+  });
+
+  test('arranging preview keeps its label after a later notes snapshot',
+      () async {
+    OfficialAnkiFeatureFlags.current = const OfficialAnkiFeatureFlags(
+      engine: true,
+      import: true,
+      catalogReady: true,
+      runtimeCapable: true,
+      platformReady: true,
+      projection: true,
+      courseEntry: true,
+      officialFirstImport: true,
+    );
+    final root = Directory.systemTemp.createTempSync('turna-arrange-');
+    addTearDown(() => root.deleteSync(recursive: true));
+    final package = File(p.join(root.path, 'slow.apkg'))
+      ..writeAsBytesSync(const [1]);
+    final engine = FakeOfficialAnkiEngine()
+      ..progress = const OfficialAnkiProgress(
+        stage: 'notes',
+        current: 12,
+        total: 40,
+      );
+    final arranged = Completer<void>();
+    final gate = Completer<void>();
+    final savedStaging = OfficialAnkiCompositionRoot.debugStagingEngineOverride;
+    OfficialAnkiCompositionRoot.debugStagingEngineOverride = engine;
+    addTearDown(() {
+      if (!gate.isCompleted) gate.complete();
+      OfficialAnkiCompositionRoot.debugStagingEngineOverride = savedStaging;
+    });
+
+    final controller = AnkiImportController(
+      deps: AnkiImportDependencies(
+        planFor: ({required flags, required filePath}) =>
+            AnkiImportFacade.planFor(flags, filePath: filePath),
+        pickFilePath: ({
+          required allowedExtensions,
+          required dialogTitle,
+        }) async =>
+            null,
+        officialFirst: _ArrangeThenHold(gate, arranged, engine),
+        courseDatabase: db,
+        courseProvider: courseProvider,
+      ),
+    );
+    addTearDown(controller.dispose);
+    final pending = controller.proceedWithPath(package.path);
+    await arranged.future;
+    await Future<void>.delayed(const Duration(milliseconds: 1600));
+
+    expect(controller.state, isA<AnkiImportParsing>());
+    final parsing = controller.state as AnkiImportParsing;
+    expect(parsing.stage, AppStrings.ankiProgressRecognize);
+    expect(parsing.progressCurrent, isNull);
+    expect(parsing.progressTotal, isNull);
 
     gate.complete();
     await pending;
@@ -432,7 +492,42 @@ class _HoldPreview extends OfficialAnkiOfficialFirstService {
     OfficialAnkiFeatureFlags? flags,
     OfficialAnkiSourceDigest? digest,
     bool withMedia = true,
+    void Function()? onArrangingPreview,
   }) async {
+    await gate.future;
+    throw const OfficialAnkiException(
+      code: OfficialAnkiErrorCode.importCancelled,
+      messageKey: 'official_anki.import_cancelled',
+      recoverable: true,
+    );
+  }
+}
+
+class _ArrangeThenHold extends OfficialAnkiOfficialFirstService {
+  _ArrangeThenHold(this.gate, this.arranged, this.engine);
+
+  final Completer<void> gate;
+  final Completer<void> arranged;
+  final FakeOfficialAnkiEngine engine;
+
+  @override
+  Future<OfficialAnkiOfficialFirstPreview> importThenPreview({
+    required String filePath,
+    required AnkiImportExecutionPlan plan,
+    required CourseDatabase course,
+    OfficialAnkiFeatureFlags? flags,
+    OfficialAnkiSourceDigest? digest,
+    bool withMedia = true,
+    void Function()? onArrangingPreview,
+  }) async {
+    await Future<void>.delayed(const Duration(milliseconds: 1500));
+    onArrangingPreview?.call();
+    engine.progress = const OfficialAnkiProgress(
+      stage: 'notes',
+      current: 30,
+      total: 80,
+    );
+    if (!arranged.isCompleted) arranged.complete();
     await gate.future;
     throw const OfficialAnkiException(
       code: OfficialAnkiErrorCode.importCancelled,

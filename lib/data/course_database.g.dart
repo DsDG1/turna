@@ -1560,6 +1560,11 @@ class $VocabularyTable extends Vocabulary
   late final GeneratedColumn<String> audioAsset = GeneratedColumn<String>(
       'audio_asset', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _posMeta = const VerificationMeta('pos');
+  @override
+  late final GeneratedColumn<String> pos = GeneratedColumn<String>(
+      'pos', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _tagsMeta = const VerificationMeta('tags');
   @override
   late final GeneratedColumn<String> tags = GeneratedColumn<String>(
@@ -1568,8 +1573,16 @@ class $VocabularyTable extends Vocabulary
       requiredDuringInsert: false,
       defaultValue: const Constant('[]'));
   @override
-  List<GeneratedColumn> get $columns =>
-      [id, languageCode, term, translation, pronunciation, audioAsset, tags];
+  List<GeneratedColumn> get $columns => [
+        id,
+        languageCode,
+        term,
+        translation,
+        pronunciation,
+        audioAsset,
+        pos,
+        tags
+      ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1617,6 +1630,10 @@ class $VocabularyTable extends Vocabulary
           audioAsset.isAcceptableOrUnknown(
               data['audio_asset']!, _audioAssetMeta));
     }
+    if (data.containsKey('pos')) {
+      context.handle(
+          _posMeta, pos.isAcceptableOrUnknown(data['pos']!, _posMeta));
+    }
     if (data.containsKey('tags')) {
       context.handle(
           _tagsMeta, tags.isAcceptableOrUnknown(data['tags']!, _tagsMeta));
@@ -1642,6 +1659,8 @@ class $VocabularyTable extends Vocabulary
           .read(DriftSqlType.string, data['${effectivePrefix}pronunciation']),
       audioAsset: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}audio_asset']),
+      pos: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}pos']),
       tags: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}tags'])!,
     );
@@ -1660,6 +1679,9 @@ class VocabularyData extends DataClass implements Insertable<VocabularyData> {
   final String translation;
   final String? pronunciation;
   final String? audioAsset;
+
+  /// Closed POS tag (`noun`, `verb`, …). Null when the course omits it.
+  final String? pos;
   final String tags;
   const VocabularyData(
       {required this.id,
@@ -1668,6 +1690,7 @@ class VocabularyData extends DataClass implements Insertable<VocabularyData> {
       required this.translation,
       this.pronunciation,
       this.audioAsset,
+      this.pos,
       required this.tags});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1681,6 +1704,9 @@ class VocabularyData extends DataClass implements Insertable<VocabularyData> {
     }
     if (!nullToAbsent || audioAsset != null) {
       map['audio_asset'] = Variable<String>(audioAsset);
+    }
+    if (!nullToAbsent || pos != null) {
+      map['pos'] = Variable<String>(pos);
     }
     map['tags'] = Variable<String>(tags);
     return map;
@@ -1698,6 +1724,7 @@ class VocabularyData extends DataClass implements Insertable<VocabularyData> {
       audioAsset: audioAsset == null && nullToAbsent
           ? const Value.absent()
           : Value(audioAsset),
+      pos: pos == null && nullToAbsent ? const Value.absent() : Value(pos),
       tags: Value(tags),
     );
   }
@@ -1712,6 +1739,7 @@ class VocabularyData extends DataClass implements Insertable<VocabularyData> {
       translation: serializer.fromJson<String>(json['translation']),
       pronunciation: serializer.fromJson<String?>(json['pronunciation']),
       audioAsset: serializer.fromJson<String?>(json['audioAsset']),
+      pos: serializer.fromJson<String?>(json['pos']),
       tags: serializer.fromJson<String>(json['tags']),
     );
   }
@@ -1725,6 +1753,7 @@ class VocabularyData extends DataClass implements Insertable<VocabularyData> {
       'translation': serializer.toJson<String>(translation),
       'pronunciation': serializer.toJson<String?>(pronunciation),
       'audioAsset': serializer.toJson<String?>(audioAsset),
+      'pos': serializer.toJson<String?>(pos),
       'tags': serializer.toJson<String>(tags),
     };
   }
@@ -1736,6 +1765,7 @@ class VocabularyData extends DataClass implements Insertable<VocabularyData> {
           String? translation,
           Value<String?> pronunciation = const Value.absent(),
           Value<String?> audioAsset = const Value.absent(),
+          Value<String?> pos = const Value.absent(),
           String? tags}) =>
       VocabularyData(
         id: id ?? this.id,
@@ -1745,6 +1775,7 @@ class VocabularyData extends DataClass implements Insertable<VocabularyData> {
         pronunciation:
             pronunciation.present ? pronunciation.value : this.pronunciation,
         audioAsset: audioAsset.present ? audioAsset.value : this.audioAsset,
+        pos: pos.present ? pos.value : this.pos,
         tags: tags ?? this.tags,
       );
   VocabularyData copyWithCompanion(VocabularyCompanion data) {
@@ -1761,6 +1792,7 @@ class VocabularyData extends DataClass implements Insertable<VocabularyData> {
           : this.pronunciation,
       audioAsset:
           data.audioAsset.present ? data.audioAsset.value : this.audioAsset,
+      pos: data.pos.present ? data.pos.value : this.pos,
       tags: data.tags.present ? data.tags.value : this.tags,
     );
   }
@@ -1774,14 +1806,15 @@ class VocabularyData extends DataClass implements Insertable<VocabularyData> {
           ..write('translation: $translation, ')
           ..write('pronunciation: $pronunciation, ')
           ..write('audioAsset: $audioAsset, ')
+          ..write('pos: $pos, ')
           ..write('tags: $tags')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(
-      id, languageCode, term, translation, pronunciation, audioAsset, tags);
+  int get hashCode => Object.hash(id, languageCode, term, translation,
+      pronunciation, audioAsset, pos, tags);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1792,6 +1825,7 @@ class VocabularyData extends DataClass implements Insertable<VocabularyData> {
           other.translation == this.translation &&
           other.pronunciation == this.pronunciation &&
           other.audioAsset == this.audioAsset &&
+          other.pos == this.pos &&
           other.tags == this.tags);
 }
 
@@ -1802,6 +1836,7 @@ class VocabularyCompanion extends UpdateCompanion<VocabularyData> {
   final Value<String> translation;
   final Value<String?> pronunciation;
   final Value<String?> audioAsset;
+  final Value<String?> pos;
   final Value<String> tags;
   final Value<int> rowid;
   const VocabularyCompanion({
@@ -1811,6 +1846,7 @@ class VocabularyCompanion extends UpdateCompanion<VocabularyData> {
     this.translation = const Value.absent(),
     this.pronunciation = const Value.absent(),
     this.audioAsset = const Value.absent(),
+    this.pos = const Value.absent(),
     this.tags = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -1821,6 +1857,7 @@ class VocabularyCompanion extends UpdateCompanion<VocabularyData> {
     required String translation,
     this.pronunciation = const Value.absent(),
     this.audioAsset = const Value.absent(),
+    this.pos = const Value.absent(),
     this.tags = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
@@ -1833,6 +1870,7 @@ class VocabularyCompanion extends UpdateCompanion<VocabularyData> {
     Expression<String>? translation,
     Expression<String>? pronunciation,
     Expression<String>? audioAsset,
+    Expression<String>? pos,
     Expression<String>? tags,
     Expression<int>? rowid,
   }) {
@@ -1843,6 +1881,7 @@ class VocabularyCompanion extends UpdateCompanion<VocabularyData> {
       if (translation != null) 'translation': translation,
       if (pronunciation != null) 'pronunciation': pronunciation,
       if (audioAsset != null) 'audio_asset': audioAsset,
+      if (pos != null) 'pos': pos,
       if (tags != null) 'tags': tags,
       if (rowid != null) 'rowid': rowid,
     });
@@ -1855,6 +1894,7 @@ class VocabularyCompanion extends UpdateCompanion<VocabularyData> {
       Value<String>? translation,
       Value<String?>? pronunciation,
       Value<String?>? audioAsset,
+      Value<String?>? pos,
       Value<String>? tags,
       Value<int>? rowid}) {
     return VocabularyCompanion(
@@ -1864,6 +1904,7 @@ class VocabularyCompanion extends UpdateCompanion<VocabularyData> {
       translation: translation ?? this.translation,
       pronunciation: pronunciation ?? this.pronunciation,
       audioAsset: audioAsset ?? this.audioAsset,
+      pos: pos ?? this.pos,
       tags: tags ?? this.tags,
       rowid: rowid ?? this.rowid,
     );
@@ -1890,6 +1931,9 @@ class VocabularyCompanion extends UpdateCompanion<VocabularyData> {
     if (audioAsset.present) {
       map['audio_asset'] = Variable<String>(audioAsset.value);
     }
+    if (pos.present) {
+      map['pos'] = Variable<String>(pos.value);
+    }
     if (tags.present) {
       map['tags'] = Variable<String>(tags.value);
     }
@@ -1908,6 +1952,7 @@ class VocabularyCompanion extends UpdateCompanion<VocabularyData> {
           ..write('translation: $translation, ')
           ..write('pronunciation: $pronunciation, ')
           ..write('audioAsset: $audioAsset, ')
+          ..write('pos: $pos, ')
           ..write('tags: $tags, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -6989,6 +7034,7 @@ typedef $$VocabularyTableCreateCompanionBuilder = VocabularyCompanion Function({
   required String translation,
   Value<String?> pronunciation,
   Value<String?> audioAsset,
+  Value<String?> pos,
   Value<String> tags,
   Value<int> rowid,
 });
@@ -6999,6 +7045,7 @@ typedef $$VocabularyTableUpdateCompanionBuilder = VocabularyCompanion Function({
   Value<String> translation,
   Value<String?> pronunciation,
   Value<String?> audioAsset,
+  Value<String?> pos,
   Value<String> tags,
   Value<int> rowid,
 });
@@ -7029,6 +7076,9 @@ class $$VocabularyTableFilterComposer
 
   ColumnFilters<String> get audioAsset => $composableBuilder(
       column: $table.audioAsset, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get pos => $composableBuilder(
+      column: $table.pos, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get tags => $composableBuilder(
       column: $table.tags, builder: (column) => ColumnFilters(column));
@@ -7063,6 +7113,9 @@ class $$VocabularyTableOrderingComposer
   ColumnOrderings<String> get audioAsset => $composableBuilder(
       column: $table.audioAsset, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get pos => $composableBuilder(
+      column: $table.pos, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get tags => $composableBuilder(
       column: $table.tags, builder: (column) => ColumnOrderings(column));
 }
@@ -7093,6 +7146,9 @@ class $$VocabularyTableAnnotationComposer
 
   GeneratedColumn<String> get audioAsset => $composableBuilder(
       column: $table.audioAsset, builder: (column) => column);
+
+  GeneratedColumn<String> get pos =>
+      $composableBuilder(column: $table.pos, builder: (column) => column);
 
   GeneratedColumn<String> get tags =>
       $composableBuilder(column: $table.tags, builder: (column) => column);
@@ -7130,6 +7186,7 @@ class $$VocabularyTableTableManager extends RootTableManager<
             Value<String> translation = const Value.absent(),
             Value<String?> pronunciation = const Value.absent(),
             Value<String?> audioAsset = const Value.absent(),
+            Value<String?> pos = const Value.absent(),
             Value<String> tags = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
@@ -7140,6 +7197,7 @@ class $$VocabularyTableTableManager extends RootTableManager<
             translation: translation,
             pronunciation: pronunciation,
             audioAsset: audioAsset,
+            pos: pos,
             tags: tags,
             rowid: rowid,
           ),
@@ -7150,6 +7208,7 @@ class $$VocabularyTableTableManager extends RootTableManager<
             required String translation,
             Value<String?> pronunciation = const Value.absent(),
             Value<String?> audioAsset = const Value.absent(),
+            Value<String?> pos = const Value.absent(),
             Value<String> tags = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
@@ -7160,6 +7219,7 @@ class $$VocabularyTableTableManager extends RootTableManager<
             translation: translation,
             pronunciation: pronunciation,
             audioAsset: audioAsset,
+            pos: pos,
             tags: tags,
             rowid: rowid,
           ),

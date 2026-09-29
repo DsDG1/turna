@@ -48,12 +48,22 @@ _FIELD_HINTS: dict[str, str] = {
 
 
 class StringListEditor(QWidget):
-    """Edit a list[str]: list on the left, add/remove buttons on the right."""
+    """Edit a list[str]: list on the left, add/remove buttons on the right.
 
-    def __init__(self, value: list[str], on_change: Callable[[list[str]], None]) -> None:
+    ``picker``, when set, adds a sibling button that appends one chosen value.
+    Free-text add stays, so ``anki://`` refs can still be typed.
+    """
+
+    def __init__(
+        self,
+        value: list[str],
+        on_change: Callable[[list[str]], None],
+        picker: Callable[[], str | None] | None = None,
+    ) -> None:
         super().__init__()
         self._value = list(value)
         self._on_change = on_change
+        self._picker = picker
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         self.list_widget = QListWidget()
@@ -69,6 +79,10 @@ class StringListEditor(QWidget):
         self.down_btn = QPushButton("↓")
         self.down_btn.setFixedWidth(28)
         btns.addWidget(self.add_btn)
+        if picker is not None:
+            self.pick_btn = QPushButton("选择文件")
+            btns.addWidget(self.pick_btn)
+            self.pick_btn.clicked.connect(self._on_pick)
         btns.addWidget(self.del_btn)
         btns.addWidget(self.up_btn)
         btns.addWidget(self.down_btn)
@@ -95,12 +109,31 @@ class StringListEditor(QWidget):
         self._on_change(list(self._value))
 
     def _on_add(self) -> None:
-        from PySide6.QtWidgets import QInputDialog
+        from PySide6.QtWidgets import QInputDialog, QMessageBox
+
+        from src.backend.course_media import MediaPathError, reject_unsafe_media_value
+
         text, ok = QInputDialog.getText(self, "添加", "输入内容:")
-        if ok and text:
-            self._value.append(text)
-            self._refresh()
-            self._emit()
+        if not ok or not text:
+            return
+        try:
+            reject_unsafe_media_value(text)
+        except MediaPathError as exc:
+            QMessageBox.warning(self, "添加", str(exc))
+            return
+        self._value.append(text)
+        self._refresh()
+        self._emit()
+
+    def _on_pick(self) -> None:
+        if self._picker is None:
+            return
+        text = self._picker()
+        if not text:
+            return
+        self._value.append(text)
+        self._refresh()
+        self._emit()
 
     def _on_del(self) -> None:
         row = self.list_widget.currentRow()
@@ -200,6 +233,8 @@ class InteractionForm(QWidget):
             edit = QLineEdit(str(value or ""))
             edit.setProperty("field_name", spec.name)
             edit.textChanged.connect(self._on_line_edit_changed)
+            if spec.name in {"audioAsset", "imageAsset"}:
+                return self._media_line(edit, spec.name)
             return edit
         if spec.kind == "int":
             spin = QSpinBox()
@@ -215,8 +250,14 @@ class InteractionForm(QWidget):
             chk.toggled.connect(self._on_chk_toggled)
             return chk
         if spec.kind == "string_list":
+            picker = None
+            if spec.name in {"audioAssets", "imageAssets"}:
+                kind = "image" if spec.name == "imageAssets" else "audio"
+                picker = functools.partial(self._pick_media, kind)
             return StringListEditor(
-                list(value or []), functools.partial(self._set, spec.name)
+                list(value or []),
+                functools.partial(self._set, spec.name),
+                picker=picker,
             )
         if spec.kind == "int_list":
             edit = QLineEdit(", ".join(str(i) for i in (value or [])))
@@ -236,6 +277,39 @@ class InteractionForm(QWidget):
             combo.currentIndexChanged.connect(self._on_ref_combo_changed)
             return combo
         return QLabel(str(value))
+
+    def _media_line(self, edit: QLineEdit, field: str) -> QWidget:
+        from PySide6.QtWidgets import QHBoxLayout, QPushButton
+
+        host = QWidget()
+        row = QHBoxLayout(host)
+        row.setContentsMargins(0, 0, 0, 0)
+        row.addWidget(edit)
+        kind = "image" if field == "imageAsset" else "audio"
+        button = QPushButton("选择文件")
+        button._media_edit = edit  # type: ignore[attr-defined]
+        button._media_kind = kind  # type: ignore[attr-defined]
+        button.clicked.connect(self._on_pick_media)
+        row.addWidget(button)
+        return host
+
+    def _pick_media(self, kind: str) -> str | None:
+        from src.widgets.media_picker import pick_course_media
+
+        course_dir = getattr(self.adapter, "course_dir", None)
+        return pick_course_media(self, course_dir, kind=kind)
+
+    def _on_pick_media(self, _checked: bool = False) -> None:
+        button = self.sender()
+        edit = getattr(button, "_media_edit", None)
+        kind = getattr(button, "_media_kind", "")
+        if isinstance(edit, QLineEdit) and isinstance(kind, str) and kind:
+            self._fill_media_edit(edit, kind)
+
+    def _fill_media_edit(self, edit: QLineEdit, kind: str) -> None:
+        chosen = self._pick_media(kind)
+        if chosen:
+            edit.setText(chosen)
 
     def _on_text_edit_changed(self) -> None:
         edit = self.sender()

@@ -10,13 +10,16 @@ import 'package:drift/drift.dart' hide Expression;
 // Project imports:
 import 'package:turna/application/language_registry.dart';
 import 'package:turna/core/logger.dart';
+import 'package:turna/courses/bundled_media_paths.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/courses/course_validator.dart';
 import 'package:turna/courses/language_manifest.dart';
+import 'package:turna/courses/section_level_overlay.dart';
 import 'package:turna/data/course_database.dart' hide Section, GrammarPoint;
 import 'package:turna/domain/course/expression.dart';
 import 'package:turna/domain/course/grammar_point.dart';
 import 'package:turna/domain/course/language_codes.dart';
+import 'package:turna/domain/course/pos_tag.dart';
 import 'package:turna/domain/course/section.dart';
 import 'package:turna/domain/course/word_entry.dart';
 
@@ -424,7 +427,8 @@ class DatabaseSeeder {
             term: Value(w.term),
             translation: Value(w.translation),
             pronunciation: Value(w.pronunciation),
-            audioAsset: Value(w.audioAsset),
+            audioAsset: Value(rewriteBundledMediaRef(w.audioAsset, baseDir)),
+            pos: Value(PosTag.parse(w.pos)?.name),
             tags: Value(jsonEncode(w.tags)),
           ),
         );
@@ -512,7 +516,12 @@ class DatabaseSeeder {
                 languageCode: Value(code),
                 name: Value(section.name),
                 description: Value(section.description),
-                level: Value(section.level ?? ''),
+                level: Value(
+                  sectionLevelForSeed(
+                    bodyLevel: section.level,
+                    indexLevel: entry['level'],
+                  ),
+                ),
                 prerequisiteSectionIds:
                     Value(jsonEncode(section.prerequisiteSectionIds)),
                 sortOrder: Value(sOrder),
@@ -570,7 +579,11 @@ class DatabaseSeeder {
                 LessonContentsCompanion(
                   lessonId: Value(l.id),
                   languageCode: Value(code),
-                  contentJson: Value(jsonEncode(l.content.toJson())),
+                  contentJson: Value(
+                    jsonEncode(
+                      rewriteBundledMediaTree(l.content.toJson(), baseDir),
+                    ),
+                  ),
                 ),
               );
             }
@@ -693,7 +706,12 @@ class DatabaseSeeder {
             exampleExpressionIds: Value(jsonEncode(gp.exampleExpressionIds)),
             exampleSentenceIds: Value(jsonEncode(gp.exampleSentenceIds)),
             practiceItems: Value(
-              jsonEncode(gp.practiceItems.map((i) => i.toJson()).toList()),
+              jsonEncode(
+                rewriteBundledMediaTree(
+                  gp.practiceItems.map((i) => i.toJson()).toList(),
+                  CourseLoader.baseDirFor(code),
+                ),
+              ),
             ),
           ),
         );
@@ -720,7 +738,10 @@ class DatabaseSeeder {
             term: Value(e.term),
             translation: Value(e.translation),
             pronunciation: Value(e.pronunciation),
-            audioAsset: Value(e.audioAsset),
+            audioAsset: Value(
+              rewriteBundledMediaRef(
+                  e.audioAsset, CourseLoader.baseDirFor(code)),
+            ),
             tags: Value(jsonEncode(e.tags)),
           ),
         );

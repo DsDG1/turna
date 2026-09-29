@@ -49,7 +49,14 @@ const List<ArchetypeRule> archetypeRules = [
     layer: RuleLayer.structure,
     target: CardArchetype.richHtml,
     weight: ruleTemplateRichHtmlWeight,
-    probe: _templateRichHtml,
+    probe: _templateScript,
+  ),
+  ArchetypeRule(
+    id: 'A2-layout',
+    layer: RuleLayer.structure,
+    target: CardArchetype.richHtml,
+    weight: ruleTemplateLayoutHtmlWeight,
+    probe: _templateLayoutHtml,
   ),
   ArchetypeRule(
     id: 'A3',
@@ -137,14 +144,20 @@ String? _declaredCloze(
   return facts.isClozeKind ? 'kind=cloze' : null;
 }
 
-String? _templateRichHtml(
+String? _templateScript(
   NotetypeFacts facts,
   Map<FieldRole, FieldBinding> roles,
 ) {
-  if (!facts.hasTemplateFacts) return null;
-  if (facts.hasTemplateScript) return 'template:script';
-  if (facts.hasTemplateComplexHtml) return 'template:complex_html';
-  return null;
+  if (!facts.hasTemplateFacts || !facts.hasTemplateScript) return null;
+  return 'template:script';
+}
+
+String? _templateLayoutHtml(
+  NotetypeFacts facts,
+  Map<FieldRole, FieldBinding> roles,
+) {
+  if (!facts.hasTemplateFacts || !facts.hasTemplateComplexHtml) return null;
+  return 'template:complex_html';
 }
 
 String? _templateTypeIn(

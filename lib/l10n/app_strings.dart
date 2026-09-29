@@ -1719,9 +1719,14 @@ class AppStrings {
   static String get ankiParsing => '正在解析 Anki 集合…';
   static String get ankiProgressUnpack => '正在解包';
   static String get ankiProgressReading => '正在读取牌组';
+  static String get ankiProgressReadingNotes => '正在读取笔记';
   static String get ankiProgressRecognize => '正在识别题型';
   static String get ankiProgressWriting => '正在写入学习库';
+  static String get ankiProgressIndexing => '正在建立卡索引';
+  static String get ankiProgressArrangeTree => '正在排列课程';
   static String get ankiProgressCourse => '正在生成课程';
+  static String get ankiProgressLocking => '正在锁定未学卡片';
+  static String get ankiProgressRefresh => '正在刷新课程目录';
   static String get ankiProgressCannotCancel => '正在写入，此阶段不能取消';
   static String get ankiAlreadyImportedTitle => '这个牌组已经导入过';
   static String get ankiAlreadyImportedOpen => '打开课程';

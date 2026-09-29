@@ -122,10 +122,11 @@ final class AnkiImportCommitting extends AnkiImportWizardState {
     int? progressCurrent,
     int? progressTotal,
     bool clearProgress = false,
+    bool clearStage = false,
   }) =>
       AnkiImportCommitting(
         message: message ?? this.message,
-        stage: stage ?? this.stage,
+        stage: clearStage ? stage : (stage ?? this.stage),
         progressCurrent: clearProgress
             ? progressCurrent
             : (progressCurrent ?? this.progressCurrent),

@@ -1,7 +1,10 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/dictionary_search.dart';
+import 'package:turna/core/theme.dart';
 import 'package:turna/courses/languages/vocab.dart';
 import 'package:turna/domain/course/word_entry.dart';
+import 'package:turna/views/dictionary/dictionary_page.dart';
 
 void main() {
   setUp(() {
@@ -35,6 +38,29 @@ void main() {
     expect(hits, hasLength(1));
     expect(hits.single.id, 'w-1');
     expect(hits.single.kind, DictionaryHitKind.vocab);
+    expect(hits.single.posLabel, isNull);
+  });
+
+  testWidgets('noun hit shows the Chinese POS label', (tester) async {
+    vocabById['w-3'] = const WordEntry(
+      id: 'w-3',
+      term: 'ev',
+      translation: 'house',
+      pos: 'noun',
+    );
+    final hit = searchDictionary('ev').single;
+    expect(hit.posLabel, '名词');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: TurnaTheme.lightTheme,
+        home: Scaffold(
+          body: DictionaryHitTile(hit: hit, onSpeak: () {}),
+        ),
+      ),
+    );
+    expect(find.text('名词'), findsOneWidget);
+    expect(find.text('ev'), findsOneWidget);
   });
 
   test('matches translation and tags', () {

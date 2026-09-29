@@ -21,6 +21,38 @@ from src.infrastructure.telemetry import telemetry
 logger = logging.getLogger(__name__)
 
 
+def project_section_shell(entry: dict[str, Any], body: dict[str, Any]) -> None:
+    """Copy section body fields onto one index shell.
+
+    ``level`` is written only when the body actually has the key, so a Turkish
+    section file that omits level does not wipe the A1/A2 stored on the shell.
+    An explicit empty string (the author cleared the dropdown) does write.
+    """
+    if "name" in body:
+        entry["name"] = body.get("name") or ""
+    if "description" in body:
+        entry["description"] = body.get("description") or ""
+    if "prerequisiteSectionIds" in body:
+        entry["prerequisiteSectionIds"] = list(body.get("prerequisiteSectionIds") or [])
+    if "level" in body:
+        entry["level"] = body.get("level") or ""
+
+
+def project_section_shells(index: dict[str, Any], sections: list[Any]) -> None:
+    """Project every section body onto the matching ``index.sections`` shell."""
+    by_id: dict[str, dict[str, Any]] = {}
+    for section in sections:
+        if isinstance(section, dict) and section.get("id"):
+            by_id[str(section["id"])] = section
+    for entry in index.get("sections") or []:
+        if not isinstance(entry, dict):
+            continue
+        body = by_id.get(str(entry.get("id") or ""))
+        if body is None:
+            continue
+        project_section_shell(entry, body)
+
+
 @dataclass
 class SaveResult:
     ok: bool
@@ -60,6 +92,7 @@ class CourseIoService:
         target_dir.mkdir(parents=True, exist_ok=True)
         (target_dir / "sections").mkdir(exist_ok=True)
 
+        project_section_shells(adapter.index, adapter.sections)
         api.save_json(target_dir / "index.json", adapter.index)
         for section in adapter.sections:
             path = adapter.section_file(section["id"])

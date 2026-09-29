@@ -94,6 +94,62 @@ void main() {
       expect(indices.toSet().length, indices.length);
     });
 
+    test('a front-only field cannot bind as the response', () {
+      final facts = NotetypeFacts.fromSchema(_schema(
+        fieldNames: const ['答案', '正面'],
+        samples: const [
+          ['cat', '猫'],
+          ['dog', '狗'],
+        ],
+        templateFacts: _faces(front: const [0], back: const [1]),
+      ));
+      final result = const RoleBindingSolver().bind(facts);
+      expect(result[FieldRole.prompt]?.fieldName, '答案');
+      expect(result[FieldRole.response]?.fieldName, '正面');
+    });
+
+    test('without template facts the lexicon still owns the names', () {
+      final facts = NotetypeFacts.fromSchema(_schema(
+        fieldNames: const ['答案', '正面'],
+        samples: const [
+          ['cat', '猫'],
+        ],
+      ));
+      final result = const RoleBindingSolver().bind(facts);
+      expect(result[FieldRole.response]?.fieldName, '答案');
+      expect(result[FieldRole.prompt]?.fieldName, '正面');
+    });
+
+    test('reversed templates leave both-face fields on soft scores', () {
+      final facts = NotetypeFacts.fromSchema(_schema(
+        fieldNames: const ['答案', '正面'],
+        samples: const [
+          ['cat', '猫'],
+          ['dog', '狗'],
+        ],
+        templateFacts: OfficialAnkiTemplateFacts(
+          hash: 'h',
+          templates: const [
+            OfficialAnkiTemplateFact(
+              ord: 0,
+              name: 'Card 1',
+              frontFields: [0],
+              backFields: [0, 1],
+            ),
+            OfficialAnkiTemplateFact(
+              ord: 1,
+              name: 'Card 2',
+              frontFields: [1],
+              backFields: [1, 0],
+            ),
+          ],
+        ),
+      ));
+      final result = const RoleBindingSolver().bind(facts);
+      expect(result[FieldRole.prompt]?.fieldName, '正面');
+      expect(result[FieldRole.response]?.fieldName, '答案');
+    });
+
     test('cloze notetypes skip the response fallback', () {
       final facts = NotetypeFacts.fromSchema(_schema(
         fieldNames: const ['Text', 'Extra'],
@@ -209,13 +265,130 @@ void main() {
       expect(result.archetype, CardArchetype.basicPair);
       expect(result.band, RecognitionBand.review);
     });
+
+    test('a layout table yields to an aligned choice', () {
+      final result = recognizer.recognizeFacts(NotetypeFacts.fromSchema(_schema(
+        fieldNames: const ['Question', 'Answer'],
+        samples: const [
+          ['北京\n上海\n广州\n深圳', 'B'],
+          ['春天\n夏天\n秋天\n冬天', 'C'],
+          ['红色\n绿色\n蓝色\n黄色', 'A'],
+        ],
+        templateFacts: _faces(
+          front: const [0],
+          back: const [0, 1],
+          complexHtml: true,
+        ),
+      )));
+      expect(result.archetype, CardArchetype.choice);
+    });
+
+    test('a layout table yields to {{type:}}', () {
+      final result = recognizer.recognizeFacts(NotetypeFacts.fromSchema(_schema(
+        fieldNames: const ['Front', 'Back'],
+        samples: const [
+          ['cat', '猫'],
+        ],
+        templateFacts: _faces(
+          front: const [0],
+          back: const [0, 1],
+          complexHtml: true,
+          typeIn: true,
+        ),
+      )));
+      expect(result.archetype, CardArchetype.typeIn);
+    });
+
+    test('a script template stays fidelity over a short pair', () {
+      final result = recognizer.recognizeFacts(NotetypeFacts.fromSchema(_schema(
+        fieldNames: const ['Front', 'Back'],
+        samples: const [
+          ['cat', '猫'],
+          ['dog', '狗'],
+        ],
+        templateFacts: _faces(
+          front: const [0],
+          back: const [0, 1],
+          script: true,
+          complexHtml: true,
+        ),
+      )));
+      expect(result.archetype, CardArchetype.richHtml);
+      expect(result.confidence, 1);
+    });
+
+    test('a layout table with no competing signal stays fidelity', () {
+      final result = recognizer.recognizeFacts(NotetypeFacts.fromSchema(_schema(
+        fieldNames: const ['Front', 'Back'],
+        samples: const [
+          ['这是一段较长的正面说明，用来确认没有短对信号。', '这是一段较长的背面说明，同样不是短答案。'],
+          ['另一段正面说明继续保持句子长度，避免被当成词对。', '另一段背面说明同样写成完整的句子。'],
+        ],
+        templateFacts: _faces(
+          front: const [0],
+          back: const [0, 1],
+          complexHtml: true,
+        ),
+      )));
+      expect(result.archetype, CardArchetype.richHtml);
+      expect(result.confidence, closeTo(0.70, 0.001));
+      expect(result.band, RecognitionBand.review);
+    });
+
+    test('a table inside a field does not beat an aligned choice', () {
+      final result = recognizer.recognizeFacts(NotetypeFacts.fromSchema(_schema(
+        fieldNames: const ['Question', 'Answer', 'Notes'],
+        samples: const [
+          ['北京\n上海\n广州\n深圳', 'B', '<table><tr><td>注</td></tr></table>'],
+          ['春天\n夏天\n秋天\n冬天', 'C', '<table><tr><td>注</td></tr></table>'],
+          ['红色\n绿色\n蓝色\n黄色', 'A', '<audio src="a.mp3"></audio>'],
+        ],
+      )));
+      expect(result.archetype, CardArchetype.choice);
+    });
+
+    test('a script inside a field still keeps fidelity', () {
+      final result = recognizer.recognizeFacts(NotetypeFacts.fromSchema(_schema(
+        fieldNames: const ['Question', 'Answer', 'Notes'],
+        samples: const [
+          ['北京\n上海\n广州\n深圳', 'B', '<script>bad()</script>'],
+          ['春天\n夏天\n秋天\n冬天', 'C', '<script>bad()</script>'],
+          ['红色\n绿色\n蓝色\n黄色', 'A', '<script>bad()</script>'],
+        ],
+      )));
+      expect(result.archetype, CardArchetype.richHtml);
+    });
   });
+}
+
+OfficialAnkiTemplateFacts _faces({
+  required List<int> front,
+  required List<int> back,
+  bool script = false,
+  bool complexHtml = false,
+  bool typeIn = false,
+}) {
+  return OfficialAnkiTemplateFacts(
+    hash: 'h',
+    templates: [
+      OfficialAnkiTemplateFact(
+        ord: 0,
+        name: 'Card 1',
+        frontFields: front,
+        backFields: back,
+        script: script,
+        complexHtml: complexHtml,
+        typeIn: typeIn,
+      ),
+    ],
+  );
 }
 
 OfficialAnkiProjectionSchema _schema({
   required List<String> fieldNames,
   required List<List<String>> samples,
   String kind = 'normal',
+  OfficialAnkiTemplateFacts? templateFacts,
 }) {
   return OfficialAnkiProjectionSchema(
     notetypeId: 1,
@@ -228,5 +401,6 @@ OfficialAnkiProjectionSchema _schema({
       for (var i = 0; i < samples.length; i++)
         OfficialAnkiProjectionSample(noteId: i + 1, fields: samples[i]),
     ],
+    templateFacts: templateFacts,
   );
 }

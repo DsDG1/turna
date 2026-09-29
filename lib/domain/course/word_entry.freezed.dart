@@ -19,6 +19,9 @@ mixin _$WordEntry {
   String get translation;
   String? get pronunciation;
   String? get audioAsset;
+
+  /// Closed POS tag (`noun`, `verb`, …), or null when the course omits it.
+  String? get pos;
   List<String> get tags;
 
   /// Create a copy of WordEntry
@@ -44,17 +47,25 @@ mixin _$WordEntry {
                 other.pronunciation == pronunciation) &&
             (identical(other.audioAsset, audioAsset) ||
                 other.audioAsset == audioAsset) &&
+            (identical(other.pos, pos) || other.pos == pos) &&
             const DeepCollectionEquality().equals(other.tags, tags));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, id, term, translation,
-      pronunciation, audioAsset, const DeepCollectionEquality().hash(tags));
+  int get hashCode => Object.hash(
+      runtimeType,
+      id,
+      term,
+      translation,
+      pronunciation,
+      audioAsset,
+      pos,
+      const DeepCollectionEquality().hash(tags));
 
   @override
   String toString() {
-    return 'WordEntry(id: $id, term: $term, translation: $translation, pronunciation: $pronunciation, audioAsset: $audioAsset, tags: $tags)';
+    return 'WordEntry(id: $id, term: $term, translation: $translation, pronunciation: $pronunciation, audioAsset: $audioAsset, pos: $pos, tags: $tags)';
   }
 }
 
@@ -69,6 +80,7 @@ abstract mixin class $WordEntryCopyWith<$Res> {
       String translation,
       String? pronunciation,
       String? audioAsset,
+      String? pos,
       List<String> tags});
 }
 
@@ -89,6 +101,7 @@ class _$WordEntryCopyWithImpl<$Res> implements $WordEntryCopyWith<$Res> {
     Object? translation = null,
     Object? pronunciation = freezed,
     Object? audioAsset = freezed,
+    Object? pos = freezed,
     Object? tags = null,
   }) {
     return _then(_self.copyWith(
@@ -111,6 +124,10 @@ class _$WordEntryCopyWithImpl<$Res> implements $WordEntryCopyWith<$Res> {
       audioAsset: freezed == audioAsset
           ? _self.audioAsset
           : audioAsset // ignore: cast_nullable_to_non_nullable
+              as String?,
+      pos: freezed == pos
+          ? _self.pos
+          : pos // ignore: cast_nullable_to_non_nullable
               as String?,
       tags: null == tags
           ? _self.tags
@@ -213,8 +230,14 @@ extension WordEntryPatterns on WordEntry {
 
   @optionalTypeArgs
   TResult maybeWhen<TResult extends Object?>(
-    TResult Function(String id, String term, String translation,
-            String? pronunciation, String? audioAsset, List<String> tags)?
+    TResult Function(
+            String id,
+            String term,
+            String translation,
+            String? pronunciation,
+            String? audioAsset,
+            String? pos,
+            List<String> tags)?
         $default, {
     required TResult orElse(),
   }) {
@@ -222,7 +245,7 @@ extension WordEntryPatterns on WordEntry {
     switch (_that) {
       case _WordEntry() when $default != null:
         return $default(_that.id, _that.term, _that.translation,
-            _that.pronunciation, _that.audioAsset, _that.tags);
+            _that.pronunciation, _that.audioAsset, _that.pos, _that.tags);
       case _:
         return orElse();
     }
@@ -243,15 +266,21 @@ extension WordEntryPatterns on WordEntry {
 
   @optionalTypeArgs
   TResult when<TResult extends Object?>(
-    TResult Function(String id, String term, String translation,
-            String? pronunciation, String? audioAsset, List<String> tags)
+    TResult Function(
+            String id,
+            String term,
+            String translation,
+            String? pronunciation,
+            String? audioAsset,
+            String? pos,
+            List<String> tags)
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _WordEntry():
         return $default(_that.id, _that.term, _that.translation,
-            _that.pronunciation, _that.audioAsset, _that.tags);
+            _that.pronunciation, _that.audioAsset, _that.pos, _that.tags);
       case _:
         throw StateError('Unexpected subclass');
     }
@@ -271,15 +300,21 @@ extension WordEntryPatterns on WordEntry {
 
   @optionalTypeArgs
   TResult? whenOrNull<TResult extends Object?>(
-    TResult? Function(String id, String term, String translation,
-            String? pronunciation, String? audioAsset, List<String> tags)?
+    TResult? Function(
+            String id,
+            String term,
+            String translation,
+            String? pronunciation,
+            String? audioAsset,
+            String? pos,
+            List<String> tags)?
         $default,
   ) {
     final _that = this;
     switch (_that) {
       case _WordEntry() when $default != null:
         return $default(_that.id, _that.term, _that.translation,
-            _that.pronunciation, _that.audioAsset, _that.tags);
+            _that.pronunciation, _that.audioAsset, _that.pos, _that.tags);
       case _:
         return null;
     }
@@ -295,6 +330,7 @@ class _WordEntry implements WordEntry {
       required this.translation,
       this.pronunciation,
       this.audioAsset,
+      this.pos,
       final List<String> tags = const <String>[]})
       : _tags = tags;
   factory _WordEntry.fromJson(Map<String, dynamic> json) =>
@@ -310,6 +346,10 @@ class _WordEntry implements WordEntry {
   final String? pronunciation;
   @override
   final String? audioAsset;
+
+  /// Closed POS tag (`noun`, `verb`, …), or null when the course omits it.
+  @override
+  final String? pos;
   final List<String> _tags;
   @override
   @JsonKey()
@@ -347,17 +387,25 @@ class _WordEntry implements WordEntry {
                 other.pronunciation == pronunciation) &&
             (identical(other.audioAsset, audioAsset) ||
                 other.audioAsset == audioAsset) &&
+            (identical(other.pos, pos) || other.pos == pos) &&
             const DeepCollectionEquality().equals(other._tags, _tags));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, id, term, translation,
-      pronunciation, audioAsset, const DeepCollectionEquality().hash(_tags));
+  int get hashCode => Object.hash(
+      runtimeType,
+      id,
+      term,
+      translation,
+      pronunciation,
+      audioAsset,
+      pos,
+      const DeepCollectionEquality().hash(_tags));
 
   @override
   String toString() {
-    return 'WordEntry(id: $id, term: $term, translation: $translation, pronunciation: $pronunciation, audioAsset: $audioAsset, tags: $tags)';
+    return 'WordEntry(id: $id, term: $term, translation: $translation, pronunciation: $pronunciation, audioAsset: $audioAsset, pos: $pos, tags: $tags)';
   }
 }
 
@@ -375,6 +423,7 @@ abstract mixin class _$WordEntryCopyWith<$Res>
       String translation,
       String? pronunciation,
       String? audioAsset,
+      String? pos,
       List<String> tags});
 }
 
@@ -395,6 +444,7 @@ class __$WordEntryCopyWithImpl<$Res> implements _$WordEntryCopyWith<$Res> {
     Object? translation = null,
     Object? pronunciation = freezed,
     Object? audioAsset = freezed,
+    Object? pos = freezed,
     Object? tags = null,
   }) {
     return _then(_WordEntry(
@@ -417,6 +467,10 @@ class __$WordEntryCopyWithImpl<$Res> implements _$WordEntryCopyWith<$Res> {
       audioAsset: freezed == audioAsset
           ? _self.audioAsset
           : audioAsset // ignore: cast_nullable_to_non_nullable
+              as String?,
+      pos: freezed == pos
+          ? _self.pos
+          : pos // ignore: cast_nullable_to_non_nullable
               as String?,
       tags: null == tags
           ? _self._tags
