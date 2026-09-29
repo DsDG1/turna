@@ -143,6 +143,11 @@ class Settings:
     # M-03: image/scanned-PDF OCR for workshop attachments (needs system
     # tesseract). New capability, new key, default off.
     experience_ocr_enabled: bool = False
+    # A6: gates read by skills/preview that previously had no Settings field,
+    # leaving the features permanently off (ghost switches). Default off.
+    experience_screenshot_explain: bool = False
+    experience_voice_palette: bool = False
+    experience_preview_fix_suggest: bool = False
 
     @classmethod
     def load_from_qsettings(cls, qsettings: QSettings) -> Settings:
@@ -235,6 +240,9 @@ class Settings:
         qsettings.setValue("experience/soft_autopilot", self.experience_soft_autopilot)
         qsettings.setValue("experience/llm_intent", self.experience_llm_intent)
         qsettings.setValue("experience/ocr_enabled", self.experience_ocr_enabled)
+        qsettings.setValue("experience/screenshot_explain", self.experience_screenshot_explain)
+        qsettings.setValue("experience/voice_palette", self.experience_voice_palette)
+        qsettings.setValue("experience/preview_fix_suggest", self.experience_preview_fix_suggest)
 
     def add_recent_repo(self, path: Path | str) -> None:
         """Add a repository path to the top of the recent list."""
@@ -331,6 +339,9 @@ class Settings:
             experience_soft_autopilot=self.experience_soft_autopilot,
             experience_llm_intent=self.experience_llm_intent,
             experience_ocr_enabled=self.experience_ocr_enabled,
+            experience_screenshot_explain=self.experience_screenshot_explain,
+            experience_voice_palette=self.experience_voice_palette,
+            experience_preview_fix_suggest=self.experience_preview_fix_suggest,
         )
 
 
@@ -535,6 +546,15 @@ def _load_experience_settings(qsettings: QSettings) -> dict[str, Any]:
         ),
         "experience_ocr_enabled": _bool_or_default(
             qsettings.value("experience/ocr_enabled", False), False
+        ),
+        "experience_screenshot_explain": _bool_or_default(
+            qsettings.value("experience/screenshot_explain", False), False
+        ),
+        "experience_voice_palette": _bool_or_default(
+            qsettings.value("experience/voice_palette", False), False
+        ),
+        "experience_preview_fix_suggest": _bool_or_default(
+            qsettings.value("experience/preview_fix_suggest", False), False
         ),
     }
 

@@ -101,6 +101,26 @@ def build_experience_tab(dlg) -> QWidget:
         "今日 AI 请求配额（M-08 熔断）。超限只拦 AI 写技能，不拦手编/保存/Soft。"
     )
     gates_form.addRow("日 AI 配额（次）:", dlg.experience_budget_spin)
+
+    dlg.experience_screenshot_explain_check = QCheckBox("截图解释（⌘K 输入「截图解释」，走 AI）")
+    dlg.experience_screenshot_explain_check.setToolTip(
+        "允许把当前编辑器截图发给 AI 做状态审阅与建议（/screenshot-explain）。\n"
+        "截图会上传到所配置的 AI 服务商，介意隐私请保持关闭。"
+    )
+    gates_form.addRow(dlg.experience_screenshot_explain_check)
+
+    dlg.experience_voice_palette_check = QCheckBox("⌘K 语音输入（本地离线识别，需 SpeechRecognition）")
+    dlg.experience_voice_palette_check.setToolTip(
+        "命令面板显示麦克风按钮，本地 Sphinx 离线识别转文字。\n"
+        "音频不出本机；未安装依赖时按钮自动隐藏。"
+    )
+    gates_form.addRow(dlg.experience_voice_palette_check)
+
+    dlg.experience_preview_fix_suggest_check = QCheckBox("预览修题建议栏（教师预览内 AI 改题）")
+    dlg.experience_preview_fix_suggest_check.setToolTip(
+        "课程预览窗口显示「AI 修题」建议栏，逐题给出修改建议并确认后应用。"
+    )
+    gates_form.addRow(dlg.experience_preview_fix_suggest_check)
     layout.addWidget(gates_group)
 
     memory_group = QGroupBox("记忆与 OCR")

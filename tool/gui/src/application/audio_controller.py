@@ -68,6 +68,14 @@ class AudioController:
                         window, "生成听力音频", "课程保存失败，已取消生成。"
                     )
                     return
+                # B3: this direct save bypasses the SavePipeline — mark the
+                # session clean so the title/save indicator follow the disk.
+                undo_stack = getattr(window, "undo_stack", None)
+                if undo_stack is not None:
+                    undo_stack.setClean()
+                mark = getattr(window, "_mark_saved", None)
+                if callable(mark):
+                    mark()
             except Exception:
                 logger.debug("audio_controller: best-effort save failed", exc_info=True)
 

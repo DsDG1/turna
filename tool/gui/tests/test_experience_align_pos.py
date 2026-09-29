@@ -15,6 +15,7 @@ if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
 from tests._qtapp import qt_app
+from tests._job_tray_fixture import RegistryTray
 
 from src.backend.experience.actions import (
     DANGEROUS_ACTION_IDS,
@@ -229,7 +230,6 @@ class AlignPosDispatchTest(unittest.TestCase):
         qt_app()
 
     def _make_host(self, vocab, *, ai_complete=True, mapping=None, reject=False):
-        from src.backend.experience.job_registry import JobRegistry
         from src.backend.experience.metrics import ExperienceMetrics
 
         class Host:
@@ -237,11 +237,12 @@ class AlignPosDispatchTest(unittest.TestCase):
                 self.adapter = _adapter(vocab)
                 self._ai_config = SimpleNamespace(is_complete=ai_complete)
                 self._settings_obj = SimpleNamespace()
-                self.job_tray = JobRegistry()
+                self.job_tray = RegistryTray()
                 self.experience_metrics = ExperienceMetrics()
                 self.undo_stack = MagicMock()
                 self._status: list[str] = []
                 self._events: list = []
+                self._validate_msgs: list[str] = []
                 self._experience_worker = None
                 self._deny = False
                 self._make_ai_worker = _fake_worker_factory()
@@ -256,8 +257,8 @@ class AlignPosDispatchTest(unittest.TestCase):
             def _refresh_experience(self, *a, **k):
                 pass
 
-            def _refresh_validate_after_ai(self):
-                pass
+            def _refresh_validate_after_ai(self, success_message):
+                self._validate_msgs.append(success_message)
 
             def _on_ai_edit_applied(self):
                 pass
@@ -334,6 +335,8 @@ class AlignPosDispatchTest(unittest.TestCase):
         self.assertEqual(kwargs.get("scope"), {"count": 2})
         self.assertNotIn("su", str(host._events))
         self.assertNotIn("bogus", str(host._events))
+        # A3 回归：回流校验真实签名要求必填 success_message
+        self.assertEqual(host._validate_msgs, ["词性对齐已应用，记得保存"])
 
     def test_empty_mapping_status(self):
         host = self._make_host(

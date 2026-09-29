@@ -350,6 +350,10 @@ class GitLibrary:
         self._token = token
         self._ssh_key_path = ssh_key_path
 
+    def set_token(self, token: str) -> None:
+        """Update the HTTPS token (C14: the dialog resolves it per remote)."""
+        self._token = token or ""
+
     def _env_for(self, cwd: Path) -> dict[str, str]:
         """Build the environment for a git subprocess, injecting auth if set."""
         env = dict(os.environ)

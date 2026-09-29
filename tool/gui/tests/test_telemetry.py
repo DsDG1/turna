@@ -68,15 +68,27 @@ class TelemetryTest(unittest.TestCase):
         self.assertEqual(summary["total"]["requests"], 0)
 
     def test_usage_summary_aggregates_ai_events(self) -> None:
+        # Real producer shape (generator_worker_hub.on_worker_usage): tokens
+        # flat on the ai.usage payload — no nested "usage" dict.
+        self.telemetry.record_event(
+            "ai.usage",
+            payload={
+                "model": "deepseek-chat",
+                "prompt_tokens": 1000,
+                "completion_tokens": 500,
+                "total_tokens": 1500,
+            },
+        )
+        # Legacy nested shape still counts (old records on disk).
         self.telemetry.record_event(
             "ai.generate.done",
             payload={
                 "success": True,
                 "model": "deepseek-chat",
                 "usage": {
-                    "prompt_tokens": 1000,
-                    "completion_tokens": 500,
-                    "total_tokens": 1500,
+                    "prompt_tokens": 100,
+                    "completion_tokens": 50,
+                    "total_tokens": 150,
                 },
             },
         )
@@ -86,10 +98,11 @@ class TelemetryTest(unittest.TestCase):
         )
         summary = self.telemetry.usage_summary()
         total = summary["total"]
-        self.assertEqual(total["requests"], 2)
+        self.assertEqual(total["requests"], 3)
         self.assertEqual(total["success"], 1)
         self.assertEqual(total["failure"], 1)
-        self.assertEqual(total["total_tokens"], 1500)
+        self.assertEqual(total["prompt_tokens"], 1100)
+        self.assertEqual(total["total_tokens"], 1650)
         self.assertIsNotNone(total["estimated_cost"])
 
     def test_clear_truncates_log(self) -> None:

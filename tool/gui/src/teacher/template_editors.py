@@ -31,6 +31,7 @@ from src.application.commands import (
     MoveListeningPhaseCommand,
     RenameListeningPhaseCommand,
     ReplaceItemCommand,
+    SetListeningPhaseTypeCommand,
 )
 from src.backend.ai import AiApiConfig
 from src.backend.course_adapter import CourseAdapter
@@ -111,7 +112,9 @@ class TeacherTemplateWidget(QWidget):
         if checked:
             from src.widgets.lesson_editor import LessonEditor
 
-            editor = LessonEditor(self.adapter, self.lesson)
+            editor = LessonEditor(
+                self.adapter, self.lesson, undo_stack=self.undo_stack
+            )
             self._content_layout.addWidget(editor)
         else:
             self._build_teacher_view()
@@ -573,16 +576,36 @@ class ListeningTeacherWidget(TeacherTemplateWidget):
         old_type = phase.get("type", "")
         if new_type == old_type:
             return
-        phase["type"] = new_type
-        if listening_phase_has_items(new_type):
-            phase.setdefault("items", [])
+        # C11: switching to an items-less phase type drops the phase's items.
+        # Confirm first, and go through an undo command (the old path wrote
+        # the dict in place — silent, irreversible item loss).
+        if phase.get("items") and not listening_phase_has_items(new_type):
+            from src.application.ui_guard import safe_question
+
+            if not safe_question(
+                self,
+                "切换阶段类型",
+                f"「{phase.get('name') or old_type}」从 {old_type} 切到 {new_type} 后，"
+                f"现有 {len(phase['items'])} 个题目将被移除（可撤销）。确认切换？",
+                default_yes=False,
+            ):
+                combo.setCurrentIndex(combo.findData(old_type))
+                return
+        if self.undo_stack is not None:
+            cmd = SetListeningPhaseTypeCommand(phase, new_type)
+            cmd.signals.changed.connect(self._build_teacher_view)
+            self.undo_stack.push(cmd)
         else:
-            phase.pop("items", None)
-        if new_type in ("dialogue", "summary"):
-            phase.setdefault("audioAsset", "")
-            phase.setdefault("transcript", "")
+            phase["type"] = new_type
+            if listening_phase_has_items(new_type):
+                phase.setdefault("items", [])
+            else:
+                phase.pop("items", None)
+            if new_type in ("dialogue", "summary"):
+                phase.setdefault("audioAsset", "")
+                phase.setdefault("transcript", "")
+            self._build_teacher_view()
         self.changed.emit()
-        self._build_teacher_view()
 
 
 class ReadingTeacherWidget(TeacherTemplateWidget):

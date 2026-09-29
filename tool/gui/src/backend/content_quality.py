@@ -70,9 +70,10 @@ _PRACTICE_TYPES = frozenset(
         InteractionType.LISTEN_AND_PICK,
         InteractionType.TYPE_THE_WORD,
         InteractionType.MULTI_SELECT,
-        "trueFalse",
-        "shortAnswer",
-        "matchWords",
+        # C13: real schema names (schema_constants) — the old "trueFalse" /
+        # "shortAnswer" / "matchWords" spellings exist in no schema.
+        InteractionType.READING_TRUE_FALSE,
+        InteractionType.READING_SHORT_ANSWER,
     }
 )
 _TEMPLATE_HINTS: dict[str, frozenset[str]] = {
@@ -97,7 +98,6 @@ _TEMPLATE_HINTS: dict[str, frozenset[str]] = {
             InteractionType.MULTIPLE_CHOICE,
             InteractionType.TRANSLATE_SENTENCE,
             InteractionType.FILL_BLANK,
-            "matchWords",
         }
     ),
     TemplateType.LISTENING: frozenset(
@@ -110,8 +110,8 @@ _TEMPLATE_HINTS: dict[str, frozenset[str]] = {
     TemplateType.READING: frozenset(
         {
             InteractionType.MULTIPLE_CHOICE,
-            "trueFalse",
-            "shortAnswer",
+            InteractionType.READING_TRUE_FALSE,
+            InteractionType.READING_SHORT_ANSWER,
         }
     ),
     TemplateType.MASTERY: frozenset(
@@ -564,7 +564,7 @@ def _score_level_fit(
                             level="warning",
                             dimension="level_fit",
                             message=f"文本约 {n} 词，偏长于 {lvl} 建议（≤{sent_cap}）",
-                            path=f"{path}/items/{iid}/{field}",
+                            path=f"{path}/items/{iid}/{fname}",
                             lesson_id=str(lesson.get("id") or "?"),
                             item_id=iid,
                         )

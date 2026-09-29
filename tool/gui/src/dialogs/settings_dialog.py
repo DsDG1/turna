@@ -395,6 +395,15 @@ class SettingsDialog(TurnaDialog):
         self.experience_ocr_check.setChecked(
             getattr(self._settings, "experience_ocr_enabled", False)
         )
+        self.experience_screenshot_explain_check.setChecked(
+            getattr(self._settings, "experience_screenshot_explain", False)
+        )
+        self.experience_voice_palette_check.setChecked(
+            getattr(self._settings, "experience_voice_palette", False)
+        )
+        self.experience_preview_fix_suggest_check.setChecked(
+            getattr(self._settings, "experience_preview_fix_suggest", False)
+        )
         self.experience_memory_project_check.setChecked(
             self._settings.experience_memory_persist_project
         )
@@ -466,6 +475,15 @@ class SettingsDialog(TurnaDialog):
         )
         self._settings.experience_daily_ai_budget = self.experience_budget_spin.value()
         self._settings.experience_ocr_enabled = self.experience_ocr_check.isChecked()
+        self._settings.experience_screenshot_explain = (
+            self.experience_screenshot_explain_check.isChecked()
+        )
+        self._settings.experience_voice_palette = (
+            self.experience_voice_palette_check.isChecked()
+        )
+        self._settings.experience_preview_fix_suggest = (
+            self.experience_preview_fix_suggest_check.isChecked()
+        )
         self._settings.experience_memory_persist_project = (
             self.experience_memory_project_check.isChecked()
         )
@@ -579,6 +597,13 @@ class SettingsDialog(TurnaDialog):
         )
         self._original.experience_daily_ai_budget = self._settings.experience_daily_ai_budget
         self._original.experience_ocr_enabled = self._settings.experience_ocr_enabled
+        self._original.experience_screenshot_explain = (
+            self._settings.experience_screenshot_explain
+        )
+        self._original.experience_voice_palette = self._settings.experience_voice_palette
+        self._original.experience_preview_fix_suggest = (
+            self._settings.experience_preview_fix_suggest
+        )
         self._original.experience_memory_persist_project = (
             self._settings.experience_memory_persist_project
         )

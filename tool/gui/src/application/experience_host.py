@@ -73,6 +73,9 @@ class ExperienceHost(Protocol):
     _settings: Any                  # legacy alias, probed
     _ai_config: Any                 # AiApiConfig for workers (probed)
     _save_worker: Any               # in-flight background save AiRequestWorker
+    _open_worker: Any               # in-flight course-load AiRequestWorker (probed)
+    _last_saved_at: Any             # last successful-save timestamp (probed)
+    _show_load_error: _Handler      # load-failure notice entry (probed)
     _resolve_experience_policy: _Handler      # () -> PolicyDecision (probed)
     _deny_ai_write_if_blocked: _Handler       # (label=…) -> bool gate (probed)
     _usage_today_for_policy: _Handler         # usage dict for budget (probed)

@@ -352,9 +352,9 @@ tool/gui/
 │   ├── application/            # 56 个 .py — 应用层：控制器 / 门面 / 命令 / 保存与校验管线
 │   │   ├── commands/               # 6 个 .py — Undoable edit commands for the course editor (B2).
 │   │   └── experience_handlers/    # 12 个 .py — Experience skill handlers (M7).
-│   ├── backend/                # 114 个 .py — 后端：领域逻辑 + 数据 IO（Qt-free，禁 import UI）
+│   ├── backend/                # 113 个 .py — 后端：领域逻辑 + 数据 IO（Qt-free，禁 import UI）
 │   │   ├── ai/                     # 10 个 .py — AI backend package (OpenAI-compatible course generation).
-│   │   └── experience/             # 55 个 .py — Experience OS backend (Wave 0+): context bus, later intent/planne...
+│   │   └── experience/             # 54 个 .py — Experience OS backend (Wave 0+): context bus, later intent/planne...
 │   ├── dialogs/                # 59 个 .py — 对话框与独立子窗口
 │   │   ├── ai/                     # 20 个 .py — AI course-generation dialog package.
 │   │   ├── git_library/            # 8 个 .py — Git library dialog package — domain split of GitLibraryDialog.
@@ -367,7 +367,7 @@ tool/gui/
 │   ├── teacher/                # 11 个 .py — 教师模式：线性流程 / 题目卡 / 词表 / 模板编辑
 │   ├── theme_styles/           # 8 个 .py — 模块化 QSS（builder 组装）
 │   ├── widgets/                # 39 个 .py — 可复用 UI 组件
-│   │   └── ui/                     # 9 个 .py — Turna UI kit (GUI 焕新 W1).
+│   │   └── ui/                     # 10 个 .py — Turna UI kit (GUI 焕新 W1).
 ├── tests/                  # unittest 自动化测试套件（分档见 run_gui_tests.py）
 ├── docs/                   # 契约与设计文档（ai_refactor_contract.md 为门禁契约）
 └── tool/                   # 门禁与生成脚本（check_ai_boundaries.py / gen_module_tree.py）

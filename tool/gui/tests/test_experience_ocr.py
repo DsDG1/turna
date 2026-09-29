@@ -16,6 +16,7 @@ if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
 from tests._qtapp import qt_app
+from tests._job_tray_fixture import RegistryTray
 
 from src.backend.experience.actions import (
     DANGEROUS_ACTION_IDS,
@@ -270,7 +271,6 @@ class DispatchTest(unittest.TestCase):
         qt_app()
 
     def _make_host(self, *, enabled=True, records=None, ocr_ok=True):
-        from src.backend.experience.job_registry import JobRegistry
         from src.backend.experience.metrics import ExperienceMetrics
 
         class Host:
@@ -280,7 +280,7 @@ class DispatchTest(unittest.TestCase):
                 self._status: list[str] = []
                 self._events: list = []
                 self._experience_worker = None
-                self.job_tray = JobRegistry()
+                self.job_tray = RegistryTray()
                 self.experience_metrics = ExperienceMetrics()
                 self.adapter = SimpleNamespace(index={"language": "tur"})
                 self.experience = SimpleNamespace(invalidate=lambda: None)
@@ -618,7 +618,6 @@ class DesignPanelScannedPdfOfferTest(unittest.TestCase):
         return pdf
 
     def test_offer_emits_when_yes(self):
-        from PySide6.QtWidgets import QMessageBox
         from src.backend.attachment_extractor import ExtractionResult
 
         panel = self._make_panel()
@@ -634,8 +633,10 @@ class DesignPanelScannedPdfOfferTest(unittest.TestCase):
         ), patch(
             "src.backend.experience.ocr_skill.ocr_available", return_value=(True, "ok")
         ), patch(
-            "src.dialogs.ai.design_panel.QMessageBox.question",
-            return_value=QMessageBox.StandardButton.Yes,
+            # The panel asks via ui_guard.safe_question (function-local import);
+            # patching the caller's QMessageBox does not intercept it.
+            "src.application.ui_guard.safe_question",
+            return_value=True,
         ):
             panel._add_attachment_paths([pdf])
         self.assertEqual(len(received), 1)
@@ -648,7 +649,6 @@ class DesignPanelScannedPdfOfferTest(unittest.TestCase):
         self.assertTrue(pdf.exists())
 
     def test_no_offer_when_unavailable_falls_through(self):
-        from PySide6.QtWidgets import QMessageBox
         from src.backend.attachment_extractor import ExtractionResult
 
         panel = self._make_panel()
@@ -664,7 +664,7 @@ class DesignPanelScannedPdfOfferTest(unittest.TestCase):
         ), patch(
             "src.backend.experience.ocr_skill.ocr_available",
             return_value=(False, "missing_dep"),
-        ), patch("src.dialogs.ai.design_panel.QMessageBox.warning") as _w:
+        ), patch("src.application.ui_guard.safe_warning") as _w:
             panel._add_attachment_paths([pdf])
         # No OCR request emitted; warning shown (current skip behavior).
         self.assertEqual(received, [])

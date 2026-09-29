@@ -156,7 +156,7 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
         )
         self._apply_ai_cache()
 
-        self.undo_stack.setUndoLimit(self._settings_obj.undo_limit)
+        self._apply_undo_limit()
         self.undo_stack.cleanChanged.connect(self._on_undo_clean_changed)
 
         # Debounce timer for tree/overview refreshes (see _on_tree_changed).
@@ -285,6 +285,17 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
         from src.application import shell_views
 
         shell_views.mark_saved(self)
+
+    def _apply_undo_limit(self) -> None:
+        """D4: QUndoStack.setUndoLimit only takes effect on an *empty* stack.
+
+        The course-switch tail calls this right after ``undo_stack.clear()``
+        so a runtime change to ``undo_limit`` actually lands (previously the
+        declared protocol hook had no implementation and the change was
+        silently ignored until restart).
+        """
+        limit = int(getattr(self._settings_obj, "undo_limit", 100) or 100)
+        self.undo_stack.setUndoLimit(limit)
 
     def _set_theme(self, theme: str) -> None:
         """Status-bar quick theme switch (same effect as Settings dialog)."""
@@ -439,7 +450,7 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
         self._ai_config = self._load_ai_config()
         self.detail.ai_config = self._ai_config
         self._apply_ai_cache()
-        self.undo_stack.setUndoLimit(self._settings_obj.undo_limit)
+        self._apply_undo_limit()
         apply_theme(QApplication.instance(), self._settings_obj)
         self._apply_experience_memory_settings()
         from src.application.workshop_controller import sync_workshop_ocr_enabled
@@ -609,6 +620,12 @@ class MainWindow(ExperienceSkillsMixin, QMainWindow):
 
     def _on_node_selected(self, node_ref: tuple[str, str]) -> None:
         self._current_node_ref = node_ref
+        # C4: propagate the tree selection into the Experience context so
+        # FocusRing / pin / Copilot see the node the user actually clicked
+        # (previously they kept reading a stale selection).
+        from src.application.selection_hub import apply_tree_selection
+
+        apply_tree_selection(self, node_ref)
         if self.course_dir is None:
             return
         if self.teacher_mode:

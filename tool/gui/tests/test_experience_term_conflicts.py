@@ -163,6 +163,7 @@ def _make_host(vocab, expressions):
             self.undo_stack = MagicMock()
             self._status: list[str] = []
             self._events: list = []
+            self._validate_msgs: list[str] = []
 
         def statusBar(self):
             return _Status(self)
@@ -170,8 +171,8 @@ def _make_host(vocab, expressions):
         def _record_experience_event(self, *a, **k):
             self._events.append((a, k))
 
-        def _refresh_validate_after_ai(self):
-            pass
+        def _refresh_validate_after_ai(self, success_message):
+            self._validate_msgs.append(success_message)
 
         def _on_ai_edit_applied(self):
             pass
@@ -214,6 +215,8 @@ class ResolveConflictsHandlerTest(unittest.TestCase):
         self.assertNotIn("哈喽", str(host._events))
         by_action = host.experience_metrics.snapshot().get("suggestion_by_action", {})
         self.assertEqual(by_action.get(ACTION_ID, {}).get("applied"), 1)
+        # A3 回归：回流校验真实签名要求必填 success_message
+        self.assertEqual(host._validate_msgs, ["词条冲突已统一，记得保存"])
 
     def test_unify_to_expression_apply_and_undo(self):
         host = _make_host(

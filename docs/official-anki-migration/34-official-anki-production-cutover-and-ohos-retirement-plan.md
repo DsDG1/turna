@@ -382,7 +382,7 @@ test ! -d ohos
 test ! -f tool/apply_patches.sh
 test ! -d tool/patches
 rg -n "openharmony|HarmonyOsRdbExecutor|OhosInitializationSettings|OhosNotification" \
-  lib pubspec.yaml tool .github README.md CLAUDE.md docs/project-guide.md docs/android-build-setup.md
+  lib pubspec.yaml tool .github README.md AGENTS.md docs/project-guide.md docs/android-build-setup.md
 # 期望：活跃路径 0 命中；archive/CHANGELOG 可保留历史命中
 
 flutter pub get
@@ -950,7 +950,7 @@ W1/W2 可与 W3–W5 并行，但 W9 必须同时等 W2 和 W8 完成。
 W9 物理删除执行版见 [`35-duplicate-legacy-layer-cleanup-plan.md`](./archive/35-duplicate-legacy-layer-cleanup-plan.md)（2026-08-27 已施工）；「一个正式版本观察」被 2026-08-27 负责人决策豁免；摘要见 [`34-cutover-receipt.md`](./34-cutover-receipt.md)。
 
 - [x] 仓库不再包含 OHOS product target、fork 依赖或构建补丁；（证据：`ohos/`、`tool/apply_patches.sh`、`tool/patches/` 已不存在；活跃构建说明改官方 Flutter）
-- [x] 活跃文档不再宣称支持 OHOS；（证据：本 README、`docs/android-build-setup.md`、`docs/project-guide.md`、`CLAUDE.md` → ADR 0041 / EOL）
+- [x] 活跃文档不再宣称支持 OHOS；（证据：本 README、`docs/android-build-setup.md`、`docs/project-guide.md`、`AGENTS.md` → ADR 0041 / EOL）
 - [ ] 现有 OHOS 用户完成数据出口，或有无外部用户的书面豁免；（**验收撤销**：只有 `TurnaMigrationExporter` 类；无可到达的 OHOS sunset UI、无 Android zip 导入、无书面豁免）
 - [x] Android 新 `.apkg` 导入只写 Official Collection；（证据：`AnkiImportExecutionPlanner` official-first / fail-closed；`OfficialAnkiFeatureFlags.productionAndroid` / `fromEnvironment` 不再读 per-capability dart-define；生产 screen 无 `allowLegacyOnly: true`）
 - [x] 成功导入同时产生可用 projection、独立且可选择的 course entry 和持久化 Official owner；（**2026-08-25 R1 已 DONE**：CourseScope codec v1 + CourseCatalog authority+manifest + builtin 双隔离 + `anki:src` 歧义修复 + 导入三动作分流 + 完整 sourceId 卸载；证据见收据 R1）

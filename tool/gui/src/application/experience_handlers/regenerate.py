@@ -418,60 +418,66 @@ def _regen_on_ok(s: _RegenSession, result: object) -> None:
 
     s.host.job_tray.finish_job(s.job_id)
     s.host.experience_metrics.inc_job("ai", "finished")
-    s.host.conflict_guard.release(s.guard_key, s.job_id)
-    s.host.experience_metrics.inc_guard("released")
     s.host._sync_focus_ring()
-    if not isinstance(result, dict):
-        safe_warning(s.host, s.job_label, "AI 返回了无法识别的结果。")
-        return
-    if result == s.section:
-        s.host.statusBar().showMessage("生成结果与原内容一致", 4000)
-        return
+    # C3: the guard stays held through the human review below — the old flow
+    # released it before showing the modal, so a concurrent edit could land
+    # between the integrity check and the push (TOCTOU).
+    try:
+        if not isinstance(result, dict):
+            safe_warning(s.host, s.job_label, "AI 返回了无法识别的结果。")
+            return
+        if result == s.section:
+            s.host.statusBar().showMessage("生成结果与原内容一致", 4000)
+            return
 
-    ok, reason = verify_transaction_integrity(s.host.adapter, s.tx_snap)
-    if not ok:
-        logger.warning("Transaction integrity check failed: %s", reason)
-        safe_warning(s.host, f"{s.job_label}已被取消", f"未能安全应用变更：{reason}")
-        s.host.experience_metrics.inc_suggestion(s.action_id, "rejected")
-        return
+        from src.widgets.diff_view import SectionDiffView
 
-    from src.widgets.diff_view import SectionDiffView
+        dlg = SectionDiffView(
+            s.section,
+            result,
+            s.host,
+            confirm=True,
+            title=f"{s.job_label}预览 — 确认后应用",
+        )
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            s.host.experience_metrics.inc_suggestion(s.action_id, "rejected")
+            return
+        # Verify AFTER the human accepts, right before the push: this is the
+        # last point where a concurrent edit can still be caught.
+        ok, reason = verify_transaction_integrity(s.host.adapter, s.tx_snap)
+        if not ok:
+            logger.warning("Transaction integrity check failed: %s", reason)
+            safe_warning(s.host, f"{s.job_label}已被取消", f"未能安全应用变更：{reason}")
+            s.host.experience_metrics.inc_suggestion(s.action_id, "rejected")
+            return
+        focus_ids: set[str] | None = None
+        if s.kind == "lesson" and s.node_id:
+            focus_ids = {s.node_id}
+        applied = apply_regen_result(
+            s.host,
+            s.section,
+            result,
+            section_id=s.sid,
+            focus_lesson_ids=focus_ids,
+            action_id=s.action_id,
+            job_label=s.job_label,
+            scope={"kind": s.kind, "id": s.node_id, "section_id": s.sid},
+        )
+        if not applied:
+            s.host.experience_metrics.inc_suggestion(s.action_id, "rejected")
+        else:
+            try:
+                from src.backend.experience.circuit_breaker import get_circuit_breaker
 
-    dlg = SectionDiffView(
-        s.section,
-        result,
-        s.host,
-        confirm=True,
-        title=f"{s.job_label}预览 — 确认后应用",
-    )
-    if dlg.exec() != QDialog.DialogCode.Accepted:
-        s.host.experience_metrics.inc_suggestion(s.action_id, "rejected")
-        return
-    focus_ids: set[str] | None = None
-    if s.kind == "lesson" and s.node_id:
-        focus_ids = {s.node_id}
-    applied = apply_regen_result(
-        s.host,
-        s.section,
-        result,
-        section_id=s.sid,
-        focus_lesson_ids=focus_ids,
-        action_id=s.action_id,
-        job_label=s.job_label,
-        scope={"kind": s.kind, "id": s.node_id, "section_id": s.sid},
-    )
-    if not applied:
-        s.host.experience_metrics.inc_suggestion(s.action_id, "rejected")
-    else:
-        try:
-            from src.backend.experience.circuit_breaker import get_circuit_breaker
-
-            get_circuit_breaker().record_success(s.action_id)
-        except Exception:
-            logger.debug(
-                "experience_handlers/regenerate.py:_on_ok best-effort cb record_success failed",
-                exc_info=True,
-            )
+                get_circuit_breaker().record_success(s.action_id)
+            except Exception:
+                logger.debug(
+                    "experience_handlers/regenerate.py:_on_ok best-effort cb record_success failed",
+                    exc_info=True,
+                )
+    finally:
+        s.host.conflict_guard.release(s.guard_key, s.job_id)
+        s.host.experience_metrics.inc_guard("released")
 
 
 
@@ -803,6 +809,18 @@ def _batch_regen_prepare(
 def _finish_batch(s: _BatchRegenSession) -> None:
     s.host.job_tray.finish_job(s.job_id)
     s.host.experience_metrics.inc_job("ai", "finished")
+    # C3 (batch): like the single-item path, the guard stays held through
+    # the human review below — releasing before the confirm question left a
+    # TOCTOU window where a concurrent edit could land between the integrity
+    # check and the push.
+    try:
+        _finish_batch_inner(s)
+    finally:
+        s.host.conflict_guard.release(f"{s.spec.action_id}:batch", s.job_id)
+        s.host.experience_metrics.inc_guard("released")
+
+
+def _finish_batch_inner(s: _BatchRegenSession) -> None:
     if not s.results:
         try:
             from src.backend.experience.circuit_breaker import get_circuit_breaker
@@ -824,6 +842,19 @@ def _finish_batch(s: _BatchRegenSession) -> None:
         safe_warning(s.host, s.spec.title, "生成结果无法抽取课级补丁。")
         return
 
+    n = len(all_patches)
+    n_items = len(s.results)
+    if not safe_question(
+        s.host,
+        f"确认应用{s.spec.title}",
+        s.spec.apply_question(n, n_items),
+        default_yes=True,
+    ):
+        s.host.experience_metrics.inc_suggestion(s.spec.action_id, "rejected")
+        return
+
+    # C3 (batch): verify AFTER the human accepts, right before the push —
+    # the last point where a concurrent edit can still be caught.
     ok, reason = verify_transaction_integrity(s.host.adapter, s.tx_snap)
     if not ok:
         logger.warning("Batch transaction integrity check failed: %s", reason)
@@ -835,17 +866,6 @@ def _finish_batch(s: _BatchRegenSession) -> None:
             get_circuit_breaker().record_failure(s.spec.action_id, reason)
         except Exception:
             logger.debug("experience_handlers/regenerate.py:_finish_batch best-effort cb failed", exc_info=True)
-        return
-
-    n = len(all_patches)
-    n_items = len(s.results)
-    if not safe_question(
-        s.host,
-        f"确认应用{s.spec.title}",
-        s.spec.apply_question(n, n_items),
-        default_yes=True,
-    ):
-        s.host.experience_metrics.inc_suggestion(s.spec.action_id, "rejected")
         return
     try:
         batch_label, cmd_text = s.spec.cmd_texts(n, n_items)
@@ -983,6 +1003,18 @@ def _run_batch_regen_flow(
         config=config,
         ai_spec=ai_spec,
     )
+    # C3: batch regen participates in the ConflictGuard like the single
+    # path — without an acquire, a concurrently started edit/regen on the
+    # same nodes could interleave with the sequential AI chain.
+    guard_key = f"{spec.action_id}:batch"
+    if not host.conflict_guard.try_acquire(
+        guard_key, spec.job_id, label=spec.title
+    ):
+        host.experience_metrics.inc_guard("rejected")
+        safe_information(
+            host, spec.title, f"节点忙碌：{host.conflict_guard.busy_summary()}"
+        )
+        return
     host.experience_metrics.inc_job("ai", "started")
     host.job_tray.start_job(
         session.job_id, f"{spec.title} 0/{len(targets)} …", kind="ai", node_key=""

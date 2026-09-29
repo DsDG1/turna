@@ -57,9 +57,15 @@ class CourseSession(QObject):
         return not self.undo_stack.isClean()
 
     def open_course(self, path: Path | str) -> None:
-        """Load course from directory, reset undo history, and notify listeners."""
-        self.course_dir = Path(path)
-        self.adapter.load(self.course_dir)
+        """Load course from directory, reset undo history, and notify listeners.
+
+        Loads before touching session state: on failure the session keeps
+        pointing at the previous course (``adapter.load`` rolls its own
+        binding back), so a later save cannot cross-write directories.
+        """
+        path = Path(path)
+        self.adapter.load(path)
+        self.course_dir = path
         self.undo_stack.clear()
         self.current_node_ref = None
         self.last_imported_section_id = None

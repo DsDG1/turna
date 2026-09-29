@@ -722,7 +722,9 @@ class DesignPanel(QWidget):
                     temp_path.unlink()
                 except OSError:
                     logger.debug("dialogs/ai/design_panel.py:815 best-effort step failed", exc_info=True)
-                QMessageBox.warning(
+                from src.application.ui_guard import safe_warning
+
+                safe_warning(
                     self, "附件无法读取", f"{path.name}：{result.error or '未知错误'}"
                 )
                 continue

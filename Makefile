@@ -30,13 +30,9 @@ guard-gui: ## Enforce tool/gui layering + ratchet contract (see tool/gui/docs/ai
 		--fail-private --fail-dialogs-app --fail-backend-app \
 		--fail-backend-ui --fail-backend-qt --fail-dialogs-pipeline \
 		--fail-undeclared-host-access \
-		--fail-course-cli-binding \
-		--max-except-pass 0 \
-		--max-except-continue 0 \
-		--max-broad-except 816 \
-		--max-hardcoded-style-hex 0 \
-		--max-ui-backend-imports 163 \
-		--max-import-cycles 2
+		--fail-course-cli-binding
+	# Numeric ratchet baselines live in tool/gui/tool/guard_limits.json
+	# (single source; CLI flags override for one-off experiments only).
 	python3 tool/gui/tool/gen_module_tree.py --check
 	python3 tool/gui/tool/check_docs_index.py --quiet
 

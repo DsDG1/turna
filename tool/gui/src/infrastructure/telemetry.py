@@ -100,6 +100,18 @@ def _is_rooted(text: str) -> bool:
     return t.startswith("/") or (len(t) > 1 and t[1] == ":")
 
 
+#: C15: provider / SDK error messages sometimes echo the request's auth
+#: header or key material verbatim. Mask the common secret shapes anywhere
+#: in free text, before any path-shaped logic runs.
+_SECRET_TEXT_PATTERN = re.compile(
+    r"(?i)\b(?:"
+    r"bearer\s+[A-Za-z0-9._~+/=-]{8,}"
+    r"|sk-[A-Za-z0-9_-]{8,}"
+    r"|api[_-]?key\s*[:=]\s*['\"]?[A-Za-z0-9._~+/=-]{8,}"
+    r")"
+)
+
+
 def scrub_value(key: str, value: Any) -> Any:
     """Reduce one payload value to something that does not identify a file."""
     if isinstance(value, Path):
@@ -113,7 +125,7 @@ def scrub_value(key: str, value: Any) -> Any:
         return [scrub_value(key, v) for v in value]
     if isinstance(value, bool) or not isinstance(value, str):
         return value
-    text = value
+    text = _SECRET_TEXT_PATTERN.sub("<redacted>", value)
     # Order matters: a remote URL also contains "/", so _looks_like_path would
     # claim it first and leave its query string untouched.
     lowered = text[:12].casefold()
@@ -210,7 +222,11 @@ def _scrub_token_match(match: re.Match[str]) -> str:
     token = match.group(0).replace("\\", "/")
     parts = [p for p in token.rstrip("/").split("/") if p]
     kept = _tail_parts(parts)
-    if not kept or len(kept) >= len(parts):
+    if not kept:
+        # C15: "/home/<user>" (and its Windows twin) scrubs down to nothing —
+        # returning the original here wrote the user name into the log.
+        return "<path>"
+    if len(kept) >= len(parts):
         return match.group(0)
     sep = "\\" if "\\" in match.group(0) else "/"
     return sep + sep.join(kept)
@@ -239,7 +255,11 @@ def _scrub_pathish(text: str) -> str:
         # "courses/turkish" from "courses/german", not enough to find it.
         parts = [p for p in normalized.rstrip("/").split("/") if p]
         kept = _tail_parts(parts)
-        return "/".join(kept) or normalized
+        if not kept:
+            # C15: a bare home path must degrade to a placeholder, not round-
+            # trip the user name via the `or normalized` fallback.
+            return "<path>"
+        return "/".join(kept)
     if len(text) > 120:
         return text[:117] + "..."
     return text
@@ -442,7 +462,16 @@ class Telemetry:
         payload: dict[str, Any] = {}
         if exc is not None:
             payload["exception"] = f"{type(exc).__name__}: {exc}"
-            payload["traceback"] = traceback.format_exc().splitlines()
+            # A10: format_exc() needs an *active* exception — in sys.excepthook
+            # there is none, so it would record "NoneType: None". Prefer the
+            # traceback carried by the exception object itself.
+            if exc.__traceback__ is not None:
+                tb_text = "".join(
+                    traceback.format_exception(type(exc), exc, exc.__traceback__)
+                )
+            else:
+                tb_text = traceback.format_exc()
+            payload["traceback"] = tb_text.splitlines()
         self._write("app.error", None, payload, context)
 
     def recent_lines(self, n: int = 200) -> list[str]:
@@ -551,7 +580,12 @@ class Telemetry:
                 logger.debug("infrastructure/telemetry.py:usage_summary best-effort step failed", exc_info=True)
 
             model = payload.get("model", "")
-            usage = payload.get("usage") or {}
+            usage = payload.get("usage")
+            if not isinstance(usage, dict):
+                # A8: the producer (generator_worker_hub.on_worker_usage)
+                # writes tokens flat on the payload; the nested ``usage`` dict
+                # shape only exists in old records/tests. Accept both.
+                usage = payload
             prompt = int(usage.get("prompt_tokens", 0) or 0)
             completion = int(usage.get("completion_tokens", 0) or 0)
             total = int(usage.get("total_tokens", 0) or 0)

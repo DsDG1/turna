@@ -49,6 +49,9 @@ from pathlib import Path
 GUI_DIR = Path(__file__).resolve().parent
 TESTS_DIR = GUI_DIR / "tests"
 
+# E2: hard per-module wall clock (seconds) for the parallel/serial runner.
+_MODULE_TIMEOUT_S = 300
+
 # Qt bindings we treat as "this module needs a Qt stack".
 _QT_ROOTS = frozenset({"PySide6", "PySide2", "PyQt5", "PyQt6"})
 
@@ -253,15 +256,46 @@ def run_modules_parallel(paths: list[Path], jobs: int = 4) -> int:
         env = dict(os.environ)
         env["QT_QPA_PLATFORM"] = "offscreen"
         env["PYTHONUTF8"] = "1"
-        res = subprocess.run(
-            [sys.executable, "-m", "unittest", mod_name],
-            cwd=str(GUI_DIR),
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            env=env,
-        )
+        cmd = [sys.executable, "-m", "unittest", mod_name]
+        # E2: a hung module (modal dialog offscreen, deadlocked worker) used
+        # to hang the whole parallel run forever — BASELINE records such an
+        # incident. Kill it and retry once serially before declaring failure.
+        try:
+            res = subprocess.run(
+                cmd,
+                cwd=str(GUI_DIR),
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                env=env,
+                timeout=_MODULE_TIMEOUT_S,
+            )
+        except subprocess.TimeoutExpired:
+            print(
+                f"[timeout] {mod_name} exceeded {_MODULE_TIMEOUT_S}s; "
+                "retrying once…",
+                file=sys.stderr,
+            )
+            try:
+                res = subprocess.run(
+                    cmd,
+                    cwd=str(GUI_DIR),
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    env=env,
+                    timeout=_MODULE_TIMEOUT_S,
+                )
+            except subprocess.TimeoutExpired as exc:
+                output = (exc.stdout or "") + "\n" + (exc.stderr or "")
+                output = (
+                    output
+                    + f"\n\nMODULE TIMEOUT: {mod_name} exceeded "
+                    + f"{2 * _MODULE_TIMEOUT_S}s total (parallel + serial retry)."
+                ).strip()
+                return mod_name, 1, time.perf_counter() - t0, output
         dt = time.perf_counter() - t0
         output = (res.stdout + "\n" + res.stderr).strip()
         return mod_name, res.returncode, dt, output
@@ -322,7 +356,9 @@ def find_affected_tests() -> list[Path]:
     for line in p2.stdout.splitlines():
         parts = line.strip().split(maxsplit=1)
         if len(parts) == 2:
-            changed.add(parts[1])
+            # E1: git rename lines carry "old -> new"; record BOTH sides.
+            for token in parts[1].split("->"):
+                changed.add(token.strip())
 
     affected: set[Path] = set()
     all_tests = list_test_modules()
@@ -336,6 +372,15 @@ def find_affected_tests() -> list[Path]:
             p = TESTS_DIR / Path(norm).name
             if p.is_file():
                 affected.add(p)
+        elif norm.startswith("tests/_") and norm.endswith(".py"):
+            # E1: shared fixtures (_qtapp, _course_samples, ...) feed many
+            # modules; mapping them to zero tests silently under-reports
+            # the affected set. Warn loudly and prefer a full-tier run.
+            print(
+                f"warning: shared test fixture changed ({norm}); the affected "
+                "tier cannot map it precisely - prefer a full-tier run.",
+                file=sys.stderr,
+            )
         elif norm.startswith("src/"):
             stem = Path(norm).stem
             direct = TESTS_DIR / f"test_{stem}.py"
@@ -345,7 +390,16 @@ def find_affected_tests() -> list[Path]:
                 alt = TESTS_DIR / f"test_{stem[:-11]}.py"
                 if alt.is_file():
                     affected.add(alt)
-            pattern = re.compile(rf"\b(from|import)\s+[^\n]*\b{re.escape(stem)}\b")
+            # E1: match BOTH real imports and string patch targets
+            # (patch("pkg.mod.stem.attr")) - the old import-only pattern
+            # missed every string-patched module. The quoted form requires a
+            # "." or "/" right before the stem, so common words ("main",
+            # "app", "patch") in prose or `if __name__ == "__main__"` do not
+            # balloon the affected set to near-full.
+            pattern = re.compile(
+                rf"(?:\b(?:from|import)\s[^\n]*\b{re.escape(stem)}\b)"
+                rf"|(?:['\"][^'\"]*[/\.]{re.escape(stem)}\b)"
+            )
             for t, text in test_texts.items():
                 if t not in affected and pattern.search(text):
                     affected.add(t)

@@ -18,7 +18,9 @@ from src.backend.lesson_content import (
     delete_sub_lesson,
     move_item,
     move_listening_phase,
+    listening_phase_has_items,
     move_stage,
+    switch_template,
     move_sub_lesson,
 )
 
@@ -184,6 +186,103 @@ class RenameListeningPhaseCommand(UpdateFieldCommand):
     def __init__(self, phase: dict[str, Any], new_name: str) -> None:
         super().__init__(phase, "name", new_name)
         self.setText("重命名听力阶段")
+
+
+class ReplaceLessonContentCommand(QUndoCommand):
+    """C10: replace a lesson's template+content reversibly.
+
+    The vocab-generated "replace whole lesson" flow used to write
+    ``lesson["content"]`` / ``lesson["template"]`` in place after a confirm —
+    fine until the author changes their mind, which is what undo is for.
+    """
+
+    def __init__(
+        self,
+        lesson: dict[str, Any],
+        new_template: Any,
+        new_content: dict[str, Any],
+    ) -> None:
+        super().__init__("用词汇生成替换课程内容")
+        self.lesson = lesson
+        self.new_template = new_template
+        self.new_content = deepcopy(new_content)
+        self._before = deepcopy(
+            {"template": lesson.get("template"), "content": lesson.get("content")}
+        )
+        self.signals = _make_changed()
+
+    def redo(self) -> None:
+        self.lesson["template"] = self.new_template
+        self.lesson["content"] = deepcopy(self.new_content)
+        self.signals.changed.emit()
+
+    def undo(self) -> None:
+        self.lesson["template"] = self._before["template"]
+        self.lesson["content"] = deepcopy(self._before["content"])
+        self.signals.changed.emit()
+
+
+class SwitchLessonTemplateCommand(QUndoCommand):
+    """C10: switch a lesson's template with the content snapshot reversible.
+
+    ``switch_template`` drops content shapes not allowed for the new
+    template; the editor used to call it in place, making the clear-out
+    irreversible even with an undo stack present.
+    """
+
+    def __init__(self, lesson: dict[str, Any], new_template: str) -> None:
+        super().__init__("切换课型")
+        self.lesson = lesson
+        self.new_template = new_template
+        self._before = deepcopy(
+            {"template": lesson.get("template"), "content": lesson.get("content")}
+        )
+        self.signals = _make_changed()
+
+    def redo(self) -> None:
+        switch_template(self.lesson, self.new_template)
+        self.signals.changed.emit()
+
+    def undo(self) -> None:
+        self.lesson["template"] = self._before["template"]
+        self.lesson["content"] = deepcopy(self._before["content"])
+        self.signals.changed.emit()
+
+
+class SetListeningPhaseTypeCommand(QUndoCommand):
+    """C11: switch a listening phase's type without silently losing items.
+
+    The old editor path wrote ``phase["type"]`` and popped ``items`` in
+    place — irreversible even when an undo stack was available. This command
+    snapshots the whole phase dict so undo restores the items exactly.
+    """
+
+    def __init__(self, phase: dict[str, Any], new_type: str) -> None:
+        super().__init__("切换听力阶段类型")
+        self.phase = phase
+        self.new_type = new_type
+        self._before = deepcopy(phase)
+        self.signals = _make_changed()
+
+    def _apply(self, phase_type: str) -> None:
+        phase = self.phase
+        phase["type"] = phase_type
+        if listening_phase_has_items(phase_type):
+            phase.setdefault("items", [])
+        else:
+            phase.pop("items", None)
+        if phase_type in ("dialogue", "summary"):
+            phase.setdefault("audioAsset", "")
+            phase.setdefault("transcript", "")
+        self.signals.changed.emit()
+
+    def redo(self) -> None:
+        self._apply(self.new_type)
+
+    def undo(self) -> None:
+        self.phase.clear()
+        self.phase.update(deepcopy(self._before))
+        self.signals.changed.emit()
 
 
 class AddSubLessonCommand(QUndoCommand):

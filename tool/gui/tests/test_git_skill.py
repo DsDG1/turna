@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import sys
 import unittest
+
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -11,6 +12,7 @@ from unittest.mock import MagicMock
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
+from tests._job_tray_fixture import RegistryTray
 
 from src.backend.experience.actions import (
     DANGEROUS_ACTION_IDS,
@@ -207,7 +209,6 @@ class GitSkillDispatchTest(unittest.TestCase):
     def _make_host(self, *, diff, ai_complete=True, has_dir=True, request_chat=None):
         from src.backend.experience.metrics import ExperienceMetrics
         from src.backend.experience.conflict_guard import ConflictGuard
-        from src.backend.experience.job_registry import JobRegistry
         from src.application.experience_skills_mixin import ExperienceSkillsMixin
 
         class Host(ExperienceSkillsMixin):
@@ -218,7 +219,7 @@ class GitSkillDispatchTest(unittest.TestCase):
                     diff_working_vs_head=lambda d: diff
                 )
                 self.experience_metrics = ExperienceMetrics()
-                self.job_tray = JobRegistry()
+                self.job_tray = RegistryTray()
                 self.conflict_guard = ConflictGuard()
                 self.experience = SimpleNamespace(context=None)
                 self._settings_obj = None

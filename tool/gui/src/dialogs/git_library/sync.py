@@ -121,6 +121,14 @@ def on_connect(dlg) -> None:
         QMessageBox.warning(dlg, "信息不完整", "请填写远程仓库 URL 和本地目录。")
         return
     local_path = Path(local)
+    # C14: the dialog used to construct GitLibrary with token="" and never
+    # resolve the stored credential — every HTTPS auth silently failed.
+    try:
+        from src.application import credential_store
+
+        dlg.git.set_token(credential_store.get_git_token(url) or "")
+    except Exception:
+        logger.debug("git_library sync: token resolve failed", exc_info=True)
     dlg._run_git_async(
         "连接",
         dlg.git.clone,
@@ -138,6 +146,32 @@ def on_open(dlg) -> None:
         return
     dlg.open_requested.emit(str(dlg._clone_dir))
     dlg.accept()
+
+
+def _clone_is_open_course(dlg) -> bool:
+    """True when the clone dir is the course currently loaded in the editor."""
+    parent = dlg.parent()
+    if parent is None or dlg._clone_dir is None:
+        return False
+    course_dir = getattr(parent, "course_dir", None)
+    if course_dir is None:
+        return False
+    try:
+        return Path(course_dir).resolve() == Path(dlg._clone_dir).resolve()
+    except OSError:
+        return False
+
+
+def reload_open_course_after_git_change(dlg) -> None:
+    """B2: pull / branch-switch rewrote the clone's working tree.
+
+    When that clone is the currently open course, the editor must reload —
+    otherwise the next save silently overwrites the fetched collaborative
+    updates. Reuses ``open_requested`` (the host routes it through the
+    standard open flow, which dirty-checks before rebinding).
+    """
+    if _clone_is_open_course(dlg):
+        dlg.open_requested.emit(str(dlg._clone_dir))
 
 
 def on_fetch(dlg) -> None:
@@ -160,7 +194,7 @@ def on_pull(dlg) -> None:
         "拉取",
         dlg.git.pull,
         dlg._clone_dir,
-        on_ok=lambda _r: None,
+        on_ok=lambda _r: reload_open_course_after_git_change(dlg),
         ok_title="已是最新",
         ok_message="已拉取远程最新内容。",
         error_title="拉取失败",
@@ -187,6 +221,7 @@ auto_choice=CANCEL,)
             "rebase",
             dlg.git.pull_rebase,
             dlg._clone_dir,
+            on_ok=lambda _r: reload_open_course_after_git_change(dlg),
             ok_title="Rebase 成功",
             ok_message="已 rebase 到远程最新。",
             error_title="Rebase 失败",
@@ -201,6 +236,7 @@ auto_choice=CANCEL,)
                     "stash pop",
                     dlg.git.stash_pop,
                     dlg._clone_dir,
+                    on_ok=lambda _r3: reload_open_course_after_git_change(dlg),
                     ok_title="已完成",
                     ok_message="已暂存+拉取+恢复本地改动。",
                     error_title="恢复改动失败",
@@ -241,15 +277,69 @@ auto_choice=CANCEL,)
     msg, ok = commit_message(dlg)
     if not ok:
         return
-    dlg._run_git_async(
-        "推送",
-        dlg.git.commit_and_push,
-        dlg._clone_dir,
-        msg,
-        ok_title="已推送",
-        ok_message="本地改动已提交并推送到远程。",
-        error_title="推送失败",
-    )
+
+    def _do_push() -> None:
+        dlg._run_git_async(
+            "推送",
+            dlg.git.commit_and_push,
+            dlg._clone_dir,
+            msg,
+            ok_title="已推送",
+            ok_message="本地改动已提交并推送到远程。",
+            error_title="推送失败",
+        )
+
+    # B2: the auto-save above is async; pushing while it is still writing
+    # would ship the stale tree. Defer the push until the save *succeeds* —
+    # a failed save must abort the push (the dialog promised "已自动保存").
+    save_worker = getattr(parent, "_save_worker", None) if parent is not None else None
+    if save_worker is not None and save_worker.isRunning():
+        dlg._set_git_busy(True, "等待保存完成…")
+        state = {"done": False}
+
+        def _push_if_saved(result=None) -> None:
+            if state["done"]:
+                return
+            state["done"] = True
+            dlg._set_git_busy(False)
+            ok = bool(getattr(result, "ok", False))
+            if ok:
+                _do_push()
+            else:
+                QMessageBox.warning(
+                    dlg,
+                    "推送已取消",
+                    "自动保存未成功，已取消推送；请先保存课程再重试。",
+                )
+
+        def _save_failed(message: str = "") -> None:
+            if state["done"]:
+                return
+            state["done"] = True
+            dlg._set_git_busy(False)
+            QMessageBox.warning(
+                dlg, "推送已取消", f"自动保存失败：{message}\n已取消推送。"
+            )
+
+        def _save_finished() -> None:
+            # finished fires last; if neither result nor error arrived
+            # (worker torn down), just un-freeze instead of dead-locking the
+            # buttons. Also covers the race where the worker ended between
+            # isRunning() and the connect() calls above.
+            if state["done"]:
+                return
+            state["done"] = True
+            dlg._set_git_busy(False)
+
+        save_worker.result_ready.connect(_push_if_saved)
+        save_worker.error_occurred.connect(_save_failed)
+        save_worker.finished.connect(_save_finished)
+        if not save_worker.isRunning() and not state["done"]:
+            state["done"] = True
+            dlg._set_git_busy(False)
+            _do_push()
+        return
+    _do_push()
 
 
 def commit_message(dlg) -> tuple[str, bool]:

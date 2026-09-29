@@ -328,8 +328,14 @@ class SectionImportService:
             # For append_as_new, use the planned target id so the section is
             # imported under the non-colliding id the preview promised.
             if plan.action == "append_new" and plan.target_id != source_id:
-                section = dict(section)
+                # B4: deep copy + rewrite like the single-import path. A bare
+                # top-level rename makes the id fresh, so import_section takes
+                # the plain "append" branch and nested unit/lesson ids keep
+                # deriving from the *source* section id — colliding with the
+                # existing section and failing validation on save.
+                section = copy.deepcopy(section)
                 section["id"] = plan.target_id
+                rewrite_ids_deterministic(section, plan.target_id)
             decision = merge_decisions.get(i, _UNSET)
             try:
                 result = self.import_section(

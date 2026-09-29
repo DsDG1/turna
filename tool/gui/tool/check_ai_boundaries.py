@@ -41,6 +41,7 @@ from pathlib import Path
 
 _GUI_ROOT = Path(__file__).resolve().parents[1]
 _SRC = _GUI_ROOT / "src"
+_TOOL_DIR = Path(__file__).resolve().parent
 
 _PRIVATE_FROM = re.compile(
     r"from\s+(src\.backend\.ai_generator|src\.backend\.ai(?:\.\w+)?)\s+import\s+"
@@ -432,7 +433,11 @@ def count_silent_except_pass() -> int:
 
 
 def count_broad_except() -> int:
-    """Count ``except Exception`` handlers in src (ratchet; debt only shrinks)."""
+    """Count broad ``except`` handlers in src (ratchet; debt only shrinks).
+
+    Uses the same ``_is_broad_except`` predicate as the pass/continue ratchets
+    so ``except (Exception, X)`` tuples cannot slip past on a technicality.
+    """
     total = 0
     for path in _iter_py(_SRC):
         try:
@@ -440,10 +445,8 @@ def count_broad_except() -> int:
         except SyntaxError:
             continue
         for node in ast.walk(tree):
-            if isinstance(node, ast.ExceptHandler):
-                t = node.type
-                if isinstance(t, ast.Name) and t.id == "Exception":
-                    total += 1
+            if isinstance(node, ast.ExceptHandler) and _is_broad_except(node.type):
+                total += 1
     return total
 
 
@@ -587,6 +590,53 @@ def scan_undeclared_host_access() -> list[tuple[str, int, str]]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Single source of truth for ratchet baselines: guard_limits.json next to
+    # this script. CLI flags override, so experiments stay possible, but the
+    # Makefile / workflows / contract doc no longer hand-copy the numbers.
+    import json
+
+    _LIMIT_KEYS = (
+        "max_except_pass",
+        "max_except_continue",
+        "max_broad_except",
+        "max_hardcoded_style_hex",
+        "max_ui_backend_imports",
+        "max_import_cycles",
+    )
+
+    limits: dict[str, int] = {}
+    _limits_path = _TOOL_DIR / "guard_limits.json"
+    _cli_args = sys.argv[1:] if argv is None else list(argv)
+    if "--help" not in _cli_args and "-h" not in _cli_args:
+        try:
+            raw = json.loads(_limits_path.read_text(encoding="utf-8"))
+            limits = {
+                k: int(v)
+                for k, v in raw.items()
+                # Tolerate "_comment"-style annotation keys.
+                if not k.startswith("_")
+            }
+            missing = [k for k in _LIMIT_KEYS if k not in limits]
+            unknown = [
+                k for k in limits if k not in _LIMIT_KEYS
+            ]
+            if missing or unknown:
+                # A typo'd key silently disarms its check (flag default None
+                # skips it) — refuse to run on a malformed limits file.
+                print(
+                    "guard_limits.json key mismatch:"
+                    f" missing={missing} unknown={unknown}",
+                    file=sys.stderr,
+                )
+                return 1
+        except (OSError, ValueError) as exc:
+            # The limits file is the single source of the ratchet numbers now
+            # that Makefile/workflows stopped hand-passing them — a broken
+            # file must fail loudly instead of silently disarming every
+            # numeric check.
+            print(f"guard_limits.json unreadable ({exc})", file=sys.stderr)
+            return 1
+
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--fail-private",
@@ -626,7 +676,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--max-except-pass",
         type=int,
-        default=None,
+        default=limits.get("max_except_pass"),
         metavar="N",
         help="Exit 1 if silent `except: pass` count in src/ exceeds N "
         "(ratchet; current baseline 0)",
@@ -634,7 +684,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--max-broad-except",
         type=int,
-        default=None,
+        default=limits.get("max_broad_except"),
         metavar="N",
         help="Exit 1 if `except Exception` handler count in src/ exceeds N "
         "(ratchet; baseline recorded in ai_refactor_contract.md)",
@@ -642,7 +692,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--max-except-continue",
         type=int,
-        default=None,
+        default=limits.get("max_except_continue"),
         metavar="N",
         help="Exit 1 if silent broad `except: continue` handler count in "
         "src/ exceeds N (ratchet; current baseline 0 — log before skipping)",
@@ -650,7 +700,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--max-hardcoded-style-hex",
         type=int,
-        default=None,
+        default=limits.get("max_hardcoded_style_hex"),
         metavar="N",
         help="Exit 1 if inline setStyleSheet calls with a hex color and no "
         "palette lookup exceed N (ratchet)",
@@ -670,7 +720,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--max-ui-backend-imports",
         type=int,
-        default=None,
+        default=limits.get("max_ui_backend_imports"),
         metavar="N",
         help="Exit 1 if the number of dialogs/widgets/teacher -> src.backend "
         "import statements exceeds N (ratchet; includes lazy imports)",
@@ -678,7 +728,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--max-import-cycles",
         type=int,
-        default=None,
+        default=limits.get("max_import_cycles"),
         metavar="N",
         help="Exit 1 if the number of module-level import cycles inside src/ "
         "exceeds N (ratchet)",

@@ -442,6 +442,11 @@ def bind_loaded_course(
 
     try:
         host._current_node_ref = None
+        # Session-only state that session.open_course used to reset (the
+        # worker-side loader must not touch the session — see load_via_session).
+        session = getattr(host, "session", None)
+        if session is not None:
+            session.last_imported_section_id = None
         # Fresh course: no save happened in this session. Without this the
         # status bar keeps showing the *previous* course's save timestamp.
         host._last_saved_at = None

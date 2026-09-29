@@ -766,7 +766,7 @@ python -m ruff check tool/gui                # GUI lint（src + tests）
 | 文档 | 说明 |
 |---|---|
 | [`README.md`](../README.md) | 项目概览与快速上手 |
-| [`CLAUDE.md`](../CLAUDE.md) | AI Agent 架构总览（路由级导航 + 开发命令） |
+| [`AGENTS.md`](../AGENTS.md) | AI Agent 行为规范（禁则、门禁、按需查阅指针） |
 | **构建与发布** | |
 | [`docs/android-build-setup.md`](./android-build-setup.md) | Android / 官方 Flutter 构建配置 |
 | [`docs/ios-build-setup.md`](./ios-build-setup.md) | iOS 构建（静态链接 rslib xcframework + WKWebView 复习器） |
@@ -788,7 +788,7 @@ python -m ruff check tool/gui                # GUI lint（src + tests）
 | **其他** | |
 | [`test/BASELINE.md`](../test/BASELINE.md) | 测试基线与最近改动收据（更早见 [`test/archive/BASELINE-pre-2026-09-20.md`](../test/archive/BASELINE-pre-2026-09-20.md)） |
 
-> **收据引用规则**：引用测试/改动记录必须用「文件 + 条目日期 + 标题」锚，**禁止用行号**——`test/BASELINE.md` 是前插式只增文件，行号必然腐坏。详见 [`CLAUDE.md`](../CLAUDE.md) 的「文档与收据锚点」。
+> **收据引用规则**：引用测试/改动记录必须用「文件 + 条目日期 + 标题」锚，**禁止用行号**——`test/BASELINE.md` 是前插式只增文件，行号必然腐坏。详见 [`AGENTS.md`](../AGENTS.md) 的「文档与收据锚点」。
 
 ---
 

@@ -13,6 +13,7 @@ import copy
 import json
 import sys
 import unittest
+
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -21,6 +22,7 @@ from unittest.mock import MagicMock
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
+from tests._job_tray_fixture import RegistryTray
 
 from src.backend.experience.goal_generate import (
     is_lesson_payload_mergeable,
@@ -158,7 +160,6 @@ def _host(
     worker_factory: Any = None,
 ) -> SimpleNamespace:
     from src.backend.experience.conflict_guard import ConflictGuard
-    from src.backend.experience.job_registry import JobRegistry
     from src.backend.experience.metrics import ExperienceMetrics
 
     config = SimpleNamespace(is_complete=ai_complete)
@@ -173,7 +174,7 @@ def _host(
         _on_experience_suggestion=MagicMock(),
         experience_metrics=ExperienceMetrics(),
         conflict_guard=ConflictGuard(),
-        job_tray=JobRegistry(),
+        job_tray=RegistryTray(),
         _ai_config=config,
         statusBar=MagicMock(),
     )

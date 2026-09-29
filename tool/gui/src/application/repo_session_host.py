@@ -116,6 +116,22 @@ def maybe_open_last_repo(host) -> None:
         host._open_repo_path(last_path)
 
 
+def load_via_session(host, path: Path) -> None:
+    """Worker-safe loader shared by every open path (B1).
+
+    Runs on the background open worker, so it must ONLY load — never touch
+    session/GUI state: ``session.open_course`` here would rebind
+    ``session.course_dir`` (host.course_dir proxies it) *before*
+    ``bind_loaded_course`` reads the old path for ``prepare_course_switch``,
+    silently skipping the course-switch cleanup, and would ``clear()`` the
+    QUndoStack off the GUI thread. Session rebinding already happens on the
+    main thread in ``bind_loaded_course`` via the host property proxies.
+    Failure semantics stay unified: ``adapter.load`` rolls its own binding
+    back, so the session keeps pointing at the previous course.
+    """
+    host.adapter.load(path)
+
+
 def open_repo_path(host, path_str: str) -> None:
     from src.application.course_lifecycle import open_course_flow
     from src.application.ui_guard import safe_warning
@@ -125,14 +141,7 @@ def open_repo_path(host, path_str: str) -> None:
         safe_warning(host, "无法打开", f"目录不存在或不是有效的课程仓库：\n{path}")
         return
 
-    def _load(p: Path) -> None:
-        session = getattr(host, "session", None)
-        if session is not None:
-            session.open_course(p)
-        else:
-            host.adapter.load(p)
-
-    open_course_flow(host, path, load=_load)
+    open_course_flow(host, path, load=lambda p: load_via_session(host, p))
 
 
 def show_load_error(host, message: str) -> None:
@@ -209,4 +218,4 @@ def on_open(host) -> None:
     if not chosen:
         telemetry.record_event("repo.open.cancelled")
         return
-    open_course_flow(host, Path(chosen), load=lambda p: host.adapter.load(p))
+    open_course_flow(host, Path(chosen), load=lambda p: load_via_session(host, p))

@@ -5,6 +5,8 @@ from typing import Any
 
 from src.application.ui_guard import safe_information, safe_question, safe_warning
 from src.backend.schema_constants import ResourceKey
+from src.backend.experience.circuit_breaker import record_async_outcome
+from src.backend.experience.auto_apply import clear_auto_apply_token
 import logging
 logger = logging.getLogger(__name__)
 
@@ -43,6 +45,14 @@ def _experience_align_pos(host, scope: dict) -> None:
     adapter = getattr(host, "adapter", None)
     if adapter is None:
         host.statusBar().showMessage("请先打开课程", 4000)
+        return
+    # C3: these handlers share the single host._experience_worker slot — a
+    # second start would orphan the in-flight worker (uncancellable).
+    tray_probe = getattr(host, "job_tray", None)
+    if tray_probe is not None and tray_probe.is_busy_ai():
+        host.statusBar().showMessage(
+            "当前有 AI 任务进行中，请稍候（可在任务托盘取消）。", 4000
+        )
         return
     report = evaluate_pos_alignment(adapter)
     misaligned = report.get("misaligned") or []
@@ -93,7 +103,7 @@ def _experience_align_pos(host, scope: dict) -> None:
     tray = getattr(host, "job_tray", None)
     metrics = getattr(host, "experience_metrics", None)
     if tray is not None:
-        tray.start(job_id, "词性对齐：正在生成 …", kind="ai")
+        tray.start_job(job_id, "词性对齐：正在生成 …", kind="ai")
     if metrics is not None:
         metrics.inc_job("ai", "started")
         metrics.inc_suggestion(ACTION_ID, "accepted")
@@ -108,6 +118,7 @@ def _experience_align_pos(host, scope: dict) -> None:
     )
 
     def _on_ok(mapping: object) -> None:
+        record_async_outcome(ACTION_ID, ok=True)
         try:
             from src.application.commands import ApplyBatchPatchCommand
             from src.backend.experience.patch import field_patch
@@ -131,11 +142,12 @@ def _experience_align_pos(host, scope: dict) -> None:
             steps = []
             changed_ids = []
         if tray is not None:
-            tray.finish(job_id)
+            tray.finish_job(job_id)
         if metrics is not None:
             metrics.inc_job("ai", "finished")
         if not steps:
             host.statusBar().showMessage("词性对齐：AI 未给出可用建议", 6000)
+            clear_auto_apply_token(host)
             return
         cmd = ApplyBatchPatchCommand(
             steps=steps,
@@ -158,16 +170,20 @@ def _experience_align_pos(host, scope: dict) -> None:
             logger.debug("application/experience_handlers/resources.py:_on_ok best-effort step failed", exc_info=True)
         if hasattr(host, "_refresh_validate_after_ai"):
             try:
-                host._refresh_validate_after_ai()
+                host._refresh_validate_after_ai("词性对齐已应用，记得保存")
             except Exception:
                 logger.debug("application/experience_handlers/resources.py:_on_ok best-effort step failed", exc_info=True)
         host.statusBar().showMessage(
             f"词性对齐：已更新 {len(steps)} 个词条（可 Ctrl+Z 撤销）", 6000
         )
+        clear_auto_apply_token(host)
 
     def _on_err(msg: str) -> None:
+        record_async_outcome(ACTION_ID, ok=False, error=msg)
+        # C2: flow ends without an offer — drop the auto-apply token.
+        clear_auto_apply_token(host)
         if tray is not None:
-            tray.finish(job_id)
+            tray.finish_job(job_id)
         if metrics is not None:
             metrics.inc_job("ai", "failed")
         host.statusBar().showMessage(f"词性对齐失败：{msg}", 8000)
@@ -297,7 +313,7 @@ def _experience_resolve_term_conflicts(host, scope: dict) -> None:
         logger.debug("application/experience_handlers/resources.py:_experience_resolve_term_conflicts best-effort step failed", exc_info=True)
     if hasattr(host, "_refresh_validate_after_ai"):
         try:
-            host._refresh_validate_after_ai()
+            host._refresh_validate_after_ai("词条冲突已统一，记得保存")
         except Exception:
             logger.debug("application/experience_handlers/resources.py:_experience_resolve_term_conflicts best-effort step failed", exc_info=True)
     host.statusBar().showMessage(
@@ -549,6 +565,14 @@ def _experience_batch_polish(host, scope: dict) -> None:
     if adapter is None:
         host.statusBar().showMessage("请先打开课程", 4000)
         return
+    # C3: these handlers share the single host._experience_worker slot — a
+    # second start would orphan the in-flight worker (uncancellable).
+    tray_probe = getattr(host, "job_tray", None)
+    if tray_probe is not None and tray_probe.is_busy_ai():
+        host.statusBar().showMessage(
+            "当前有 AI 任务进行中，请稍候（可在任务托盘取消）。", 4000
+        )
+        return
     pairs = _batch_polish_pairs(host, scope or {})
     if not pairs:
         host.statusBar().showMessage(
@@ -623,7 +647,7 @@ def _experience_batch_polish(host, scope: dict) -> None:
     tray = getattr(host, "job_tray", None)
     metrics = getattr(host, "experience_metrics", None)
     if tray is not None:
-        tray.start(job_id, "批量润色：正在生成 …", kind="ai")
+        tray.start_job(job_id, "批量润色：正在生成 …", kind="ai")
     if metrics is not None:
         metrics.inc_job("ai", "started")
         metrics.inc_suggestion(ACTION_ID, "accepted")
@@ -638,6 +662,7 @@ def _experience_batch_polish(host, scope: dict) -> None:
     )
 
     def _on_ok(mapping: object) -> None:
+        record_async_outcome(ACTION_ID, ok=True)
         try:
             from src.application.commands import ApplyBatchPatchCommand
             from src.backend.experience.patch import field_patch
@@ -665,11 +690,12 @@ def _experience_batch_polish(host, scope: dict) -> None:
         except Exception:
             steps = []
         if tray is not None:
-            tray.finish(job_id)
+            tray.finish_job(job_id)
         if metrics is not None:
             metrics.inc_job("ai", "finished")
         if not steps:
             host.statusBar().showMessage("批量润色：AI 未给出可用建议", 6000)
+            clear_auto_apply_token(host)
             return
         cmd = ApplyBatchPatchCommand(
             steps=steps,
@@ -692,16 +718,20 @@ def _experience_batch_polish(host, scope: dict) -> None:
             logger.debug("application/experience_handlers/resources.py:_on_ok best-effort step failed", exc_info=True)
         if hasattr(host, "_refresh_validate_after_ai"):
             try:
-                host._refresh_validate_after_ai()
+                host._refresh_validate_after_ai("批量润色已应用，记得保存")
             except Exception:
                 logger.debug("application/experience_handlers/resources.py:_on_ok best-effort step failed", exc_info=True)
         host.statusBar().showMessage(
             f"批量润色：已更新 {len(steps)} 处字段（可 Ctrl+Z 撤销）", 6000
         )
+        clear_auto_apply_token(host)
 
     def _on_err(msg: str) -> None:
+        record_async_outcome(ACTION_ID, ok=False, error=msg)
+        # C2: flow ends without an offer — drop the auto-apply token.
+        clear_auto_apply_token(host)
         if tray is not None:
-            tray.finish(job_id)
+            tray.finish_job(job_id)
         if metrics is not None:
             metrics.inc_job("ai", "failed")
         host.statusBar().showMessage(f"批量润色失败：{msg}", 8000)
@@ -740,6 +770,14 @@ def _experience_fill_stubs_batch(host, scope: dict) -> None:
     adapter = getattr(host, "adapter", None)
     if adapter is None:
         host.statusBar().showMessage("请先打开课程", 4000)
+        return
+    # C3: these handlers share the single host._experience_worker slot — a
+    # second start would orphan the in-flight worker (uncancellable).
+    tray_probe = getattr(host, "job_tray", None)
+    if tray_probe is not None and tray_probe.is_busy_ai():
+        host.statusBar().showMessage(
+            "当前有 AI 任务进行中，请稍候（可在任务托盘取消）。", 4000
+        )
         return
     try:
         stubs = select_stub_entries(
@@ -801,7 +839,7 @@ def _experience_fill_stubs_batch(host, scope: dict) -> None:
     tray = getattr(host, "job_tray", None)
     metrics = getattr(host, "experience_metrics", None)
     if tray is not None:
-        tray.start(job_id, "补全待补：正在生成 …", kind="ai")
+        tray.start_job(job_id, "补全待补：正在生成 …", kind="ai")
     if metrics is not None:
         metrics.inc_job("ai", "started")
         metrics.inc_suggestion(ACTION_ID, "accepted")
@@ -814,6 +852,7 @@ def _experience_fill_stubs_batch(host, scope: dict) -> None:
     worker = host._make_ai_worker(run_batch_polish, config, stubs, language=lang)
 
     def _on_ok(mapping: object) -> None:
+        record_async_outcome(ACTION_ID, ok=True)
         try:
             from src.application.commands import ApplyBatchPatchCommand
             from src.backend.experience.patch import field_patch
@@ -859,11 +898,12 @@ def _experience_fill_stubs_batch(host, scope: dict) -> None:
         except Exception:
             steps = []
         if tray is not None:
-            tray.finish(job_id)
+            tray.finish_job(job_id)
         if metrics is not None:
             metrics.inc_job("ai", "finished")
         if not steps:
             host.statusBar().showMessage("补全待补：AI 未给出可用建议", 6000)
+            clear_auto_apply_token(host)
             return
         cmd = ApplyBatchPatchCommand(
             steps=steps,
@@ -886,16 +926,20 @@ def _experience_fill_stubs_batch(host, scope: dict) -> None:
             logger.debug("application/experience_handlers/resources.py:_on_ok best-effort step failed", exc_info=True)
         if hasattr(host, "_refresh_validate_after_ai"):
             try:
-                host._refresh_validate_after_ai()
+                host._refresh_validate_after_ai("补全待补已应用，记得保存")
             except Exception:
                 logger.debug("application/experience_handlers/resources.py:_on_ok best-effort step failed", exc_info=True)
         host.statusBar().showMessage(
             f"补全待补：已更新 {len(steps)} 处字段（可 Ctrl+Z 撤销）", 6000
         )
+        clear_auto_apply_token(host)
 
     def _on_err(msg: str) -> None:
+        record_async_outcome(ACTION_ID, ok=False, error=msg)
+        # C2: flow ends without an offer — drop the auto-apply token.
+        clear_auto_apply_token(host)
         if tray is not None:
-            tray.finish(job_id)
+            tray.finish_job(job_id)
         if metrics is not None:
             metrics.inc_job("ai", "failed")
         host.statusBar().showMessage(f"补全待补失败：{msg}", 8000)

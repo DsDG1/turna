@@ -198,9 +198,37 @@ def dispatch_experience_action(host: ExperienceHost, suggestion: dict) -> None:
             with auto_confirm_scope(opaque=opaque, token=token):
                 try:
                     _run()
-                    cb.record_success(action)
+                    worker = getattr(host, "_experience_worker", None)
+                    if worker is not None and bool(
+                        getattr(worker, "isRunning", lambda: False)()
+                    ):
+                        # C1: async handler (fill / resources / regenerate
+                        # start an AI worker and return immediately). Its
+                        # _on_ok/_on_err callbacks own the breaker outcome —
+                        # recording success here would make the breaker blind
+                        # to async failures.
+                        pass
+                    else:
+                        cb.record_success(action)
+                        # C2: sync handler finished. If it did not leave a
+                        # pending PreviewHost offer, nothing will consume the
+                        # token — drop it now instead of letting it silently
+                        # skip a later manual confirmation.
+                        try:
+                            from src.application.ui_guard import (
+                                _host_preview_has_pending,
+                            )
+
+                            if not _host_preview_has_pending(host):
+                                bind_auto_apply_token(host, None)
+                        except Exception:
+                            logger.warning("dispatch: token sweep failed", exc_info=True)
                 except Exception as exc:
                     cb.record_failure(action, str(exc))
+                    try:
+                        bind_auto_apply_token(host, None)
+                    except Exception:
+                        logger.warning("dispatch: token clear failed", exc_info=True)
                     _record_auto_metric(host, "failed", action)
                     try:
                         ring = ensure_audit_ring(host)
@@ -216,14 +244,12 @@ def dispatch_experience_action(host: ExperienceHost, suggestion: dict) -> None:
                         except Exception:
                             logger.warning("application/experience_dispatch.py:dispatch_experience_action best-effort step failed", exc_info=True)
         else:
-            # Leaving full-auto path: do not leave a stale token from prior run.
-            # (Only clear if current token belongs to a different non-auto action.)
+            # Leaving full-auto path (C2): a manually triggered action must
+            # never inherit the previous auto run's token — that is exactly
+            # how a stale token skipped confirmations. Any pending offer from
+            # the earlier run already captured its decision at offer time.
             try:
-                from src.backend.experience.auto_apply import host_auto_apply_token
-
-                existing = host_auto_apply_token(host)
-                if existing is not None and existing.action_id == action:
-                    bind_auto_apply_token(host, None)
+                bind_auto_apply_token(host, None)
             except Exception:
                 logger.warning("application/experience_dispatch.py:dispatch_experience_action best-effort step failed", exc_info=True)
             _run()

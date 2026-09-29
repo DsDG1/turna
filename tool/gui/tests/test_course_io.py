@@ -86,6 +86,33 @@ class TestCourseIoService(unittest.TestCase):
         self.assertFalse(res.ok)
         self.assertIn("未加载课程目录", res.message)
 
+    def test_backup_skips_dot_directories(self):
+        """A2 复审回归：save 的 .turna-save-* 暂存目录建在课程目录内，
+        备份不得把它收编进去（否则每个备份体积翻倍、还原带回垃圾目录）。"""
+        import tempfile
+
+        src = Path(tempfile.mkdtemp(prefix="turna_backup_test_"))
+        self.addCleanup(lambda: shutil.rmtree(src, ignore_errors=True))
+        (src / "sections").mkdir()
+        (src / "index.json").write_text("{}", encoding="utf-8")
+        (src / "sections" / "s1.json").write_text("s1", encoding="utf-8")
+        staging = src / ".turna-save-abc123"
+        (staging / "sections").mkdir(parents=True)
+        (staging / "sections" / "s1.json").write_text("stale", encoding="utf-8")
+        (staging / "index.json").write_text("{}", encoding="utf-8")
+
+        dst = src / ".varnamala-backup" / "20260928-120000-000000"
+        CourseIoService.backup_json_files(src, dst)
+
+        backed = sorted(
+            str(p.relative_to(dst)).replace("\\", "/") for p in dst.rglob("*.json")
+        )
+        self.assertEqual(backed, ["index.json", "sections/s1.json"])
+        # And the staged copy must not have overwritten the real file.
+        self.assertEqual(
+            (dst / "sections" / "s1.json").read_text(encoding="utf-8"), "s1"
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

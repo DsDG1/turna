@@ -105,6 +105,44 @@ class CourseReleaseService:
             }
         return result
 
+    @staticmethod
+    def _validate_and_lint(adapter: Any) -> tuple[Any, list]:
+        """Validate/lint the **in-memory** model, not the last-saved disk state.
+
+        B3: publish applies the version bump and saves whatever is in memory
+        right now; validating ``adapter.course_dir`` let unsaved edits slip
+        past the release gate (and missed edits made after the last save).
+        Falls back to disk validation only if staging the model fails.
+        """
+        import shutil
+        import tempfile
+
+        from src.backend.course_io import CourseIoService
+
+        def _from_disk() -> tuple[Any, list]:
+            if not adapter.course_dir:
+                return (
+                    api.ValidationResult(ok=True, error_count=0, problems=[]),
+                    [],
+                )
+            return api.validate_course_dir(adapter.course_dir), api.lint_course_dir(
+                adapter.course_dir
+            )
+
+        tmp: Path | None = None
+        try:
+            tmp = Path(tempfile.mkdtemp(prefix=".turna-release-"))
+            if hasattr(adapter, "_write_files_to_dir"):
+                adapter._write_files_to_dir(tmp)
+            else:
+                CourseIoService.write_files_to_dir(adapter, tmp)
+            return api.validate_course_dir(tmp), api.lint_course_dir(tmp)
+        except Exception:
+            return _from_disk()
+        finally:
+            if tmp is not None:
+                shutil.rmtree(tmp, ignore_errors=True)
+
     @classmethod
     def release_report(cls, adapter: Any) -> dict[str, Any]:
         """Aggregate release checklist data for the publish dialog."""
@@ -112,8 +150,7 @@ class CourseReleaseService:
         version_bump = cls.version_bump_plan(adapter, changes)
         audio_manifest = cls.audio_manifest_rows(adapter)
         diff = cls.release_diff(adapter)
-        validate = api.validate_course_dir(adapter.course_dir) if adapter.course_dir else api.ValidationResult(ok=True, error_count=0, problems=[])
-        lint = api.lint_course_dir(adapter.course_dir) if adapter.course_dir else []
+        validate, lint = cls._validate_and_lint(adapter)
         return {
             "changes": changes,
             "version_bump": version_bump,

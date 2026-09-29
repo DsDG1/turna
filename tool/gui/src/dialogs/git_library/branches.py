@@ -76,11 +76,14 @@ def on_switch_branch(dlg) -> None:
     name = dlg.branch_combo.currentText()
     if not name:
         return
+    from src.dialogs.git_library.sync import reload_open_course_after_git_change
+
     dlg._run_git_async(
         "切换分支",
         dlg.git.switch_branch,
         dlg._clone_dir,
         name,
+        on_ok=lambda _r: reload_open_course_after_git_change(dlg),
         ok_title="已切换",
         ok_message=f"已切换到分支 {name}。",
         error_title="切换分支失败",

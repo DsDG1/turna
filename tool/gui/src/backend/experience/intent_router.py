@@ -156,6 +156,12 @@ _LABELS: dict[str, str] = {action_id: label for _c, action_id, label in SLASH_CO
 # v4.47 F5: tightened publish/balance; F6: help/attachments/ocr; dedupe to_listening.
 _KEYWORDS: tuple[tuple[tuple[str, ...], str], ...] = (
     (("修错", "校验", "修全部", "修复错误"), "validate.open_and_fix"),
+    # Must precede the broad「填充」row:「基于附件填充」contains「填充」,
+    # so any later position is unreachable (order matters).
+    (
+        ("基于附件填充", "附件填充", "grounded fill", "附件生成空课"),
+        "textbook.grounded_fill",
+    ),
     (("空课", "填充空课", "填充"), "lesson.fill_empty"),
     (("打开资源", "资源编辑", "仅看待补"), "resource.open_hygiene"),
     (("清理待补", "补全词条", "待补词条", "待补"), "resource.fill_stubs"),
@@ -236,10 +242,6 @@ _KEYWORDS: tuple[tuple[tuple[str, ...], str], ...] = (
     (("OCR", "ocr", "识别文字", "文字识别"), "textbook.ocr_suggest"),
     (("打开工坊", "课程工坊", "open workshop"), "textbook.open_workshop"),
     (("导入草稿", "导入工坊", "教材导入", "import draft"), "textbook.import_draft"),
-    (
-        ("基于附件填充", "附件填充", "grounded fill", "附件生成空课"),
-        "textbook.grounded_fill",
-    ),
     (("清除画像", "清空画像", "清除作者画像", "clear profile", "clear author"), "memory.clear_author"),
     (("为什么", "为何", "怎么错", "解释错误"), "app.why"),
     (("钉住", "固定选中"), "app.pin"),

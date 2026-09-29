@@ -429,10 +429,16 @@ class LessonEditor(QWidget):
 
     TEMPLATES = ("intro", "practice", "review", "listening", "reading", "mastery", "legacy")
 
-    def __init__(self, adapter: CourseAdapter, lesson: dict[str, Any]) -> None:
+    def __init__(
+        self,
+        adapter: CourseAdapter,
+        lesson: dict[str, Any],
+        undo_stack: Any = None,
+    ) -> None:
         super().__init__()
         self.adapter = adapter
         self.lesson = lesson
+        self.undo_stack = undo_stack
         layout = QVBoxLayout(self)
 
         top = QHBoxLayout()
@@ -491,7 +497,16 @@ class LessonEditor(QWidget):
                 )
                 self.template_combo.blockSignals(False)
                 return
-        switch_template(self.lesson, new_template)
+        if self.undo_stack is not None:
+            # C10: template switch clears content keys the new template does
+            # not allow — that clear-out must be undoable.
+            from src.application.commands import SwitchLessonTemplateCommand
+
+            self.undo_stack.push(
+                SwitchLessonTemplateCommand(self.lesson, new_template)
+            )
+        else:
+            switch_template(self.lesson, new_template)
         self._render_body()
 
     def refresh_references(self) -> None:

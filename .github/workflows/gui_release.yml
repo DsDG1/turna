@@ -43,13 +43,8 @@ jobs:
             --fail-private --fail-dialogs-app --fail-backend-app \
             --fail-backend-ui --fail-backend-qt --fail-dialogs-pipeline \
             --fail-undeclared-host-access \
-            --fail-course-cli-binding \
-            --max-except-pass 0 \
-            --max-except-continue 0 \
-            --max-broad-except 816 \
-            --max-hardcoded-style-hex 0 \
-            --max-ui-backend-imports 163 \
-            --max-import-cycles 2
+            --fail-course-cli-binding
+            # ratchet baselines: tool/gui/tool/guard_limits.json (single source)
           python tool/gui/tool/gen_module_tree.py --check
           python tool/gui/tool/check_docs_index.py --quiet
 

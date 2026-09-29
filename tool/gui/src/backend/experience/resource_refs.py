@@ -83,6 +83,23 @@ def _iter_items(adapter: Any) -> Iterator[tuple[str, str, dict, dict]]:
                             yield sid, lid, item, container
 
 
+def _iter_lesson_contents(adapter: Any) -> Iterator[tuple[str, str, dict]]:
+    """Yield ``(section_id, lesson_id, content)`` for every lesson."""
+    for section in list(getattr(adapter, "sections", None) or []):
+        if not isinstance(section, dict):
+            continue
+        sid = str(section.get("id") or "")
+        for unit in section.get("units") or []:
+            if not isinstance(unit, dict):
+                continue
+            for lesson in unit.get("lessons") or []:
+                if not isinstance(lesson, dict):
+                    continue
+                content = lesson.get("content")
+                if isinstance(content, dict):
+                    yield sid, str(lesson.get("id") or ""), content
+
+
 def _hit_fields(item: dict, row_type: str, entry_id: str) -> list[str]:
     """Reference fields of ``item`` that point at ``entry_id`` (order stable)."""
     hits: list[str] = []
@@ -130,6 +147,44 @@ def find_resource_refs(
                     )
             except Exception:
                 logger.debug("resource_refs: skip item ref scan iid=%s", iid, exc_info=True)
+                continue
+        # B5: lesson-level links, same scope as overview_stats — the delete
+        # confirmation used to miss readingPassage word/expression links and
+        # grammar-point links, systematically undercounting references.
+        for sid, lid, content in _iter_lesson_contents(adapter):
+            try:
+                candidates: list[tuple[str, Any]] = []
+                if row_type == "vocab":
+                    passage = content.get("readingPassage") or {}
+                    candidates.append(
+                        ("readingPassage.linkedWordIds", passage.get("linkedWordIds"))
+                    )
+                elif row_type == "expressions":
+                    passage = content.get("readingPassage") or {}
+                    candidates.append(
+                        (
+                            "readingPassage.linkedExpressionIds",
+                            passage.get("linkedExpressionIds"),
+                        )
+                    )
+                elif row_type == "grammar_points":
+                    candidates.append(
+                        ("linkedGrammarPointIds", content.get("linkedGrammarPointIds"))
+                    )
+                for field, vals in candidates:
+                    if isinstance(vals, list) and any(
+                        str(v or "") == entry_id for v in vals
+                    ):
+                        refs.append(
+                            {
+                                "section_id": sid,
+                                "lesson_id": lid,
+                                "item_id": "",
+                                "field": field,
+                            }
+                        )
+            except Exception:
+                logger.debug("resource_refs: skip lesson link scan", exc_info=True)
                 continue
         if row_type == "expressions":
             try:

@@ -22,6 +22,7 @@ from collections.abc import Iterable, Iterator
 
 from src.backend.lesson_content import (
     INTERACTION_LABELS,
+    CONTENT_BY_TEMPLATE,
     PRIMARY_CONTENT_KEY,
 )
 
@@ -75,23 +76,32 @@ def iter_lesson_refs(lesson: dict[str, Any]) -> Iterator[tuple[str, str]]:
 
 
 def lesson_is_empty(lesson: dict[str, Any]) -> bool:
-    """Return True if the lesson's primary content key has no items.
+    """Return True when none of the template's content containers has items.
 
-    A lesson is "empty" when its template's primary content slot
-    (``PRIMARY_CONTENT_KEY``) exists but holds zero elements, or is missing
-    entirely. Used to flag placeholder lessons (e.g. Sections 2–8).
+    C12: emptiness is judged across every container the template may hold
+    (``CONTENT_BY_TEMPLATE``) — legacy lessons keep their content in
+    subLessons/listeningPhases while the primary key (stages) stays empty,
+    which the old primary-only check mis-reported as "empty". Used to flag
+    placeholder lessons (e.g. Sections 2–8).
     """
     tmpl = lesson.get("template", "legacy")
-    primary = PRIMARY_CONTENT_KEY.get(tmpl, "stages")
     content = lesson.get("content") or {}
-    if primary == "readingPassage":
-        passage = content.get("readingPassage") or {}
-        # Empty passage = no paragraphs and no linked resources.
-        return not passage.get("paragraphs") and not (
-            passage.get("linkedWordIds") or passage.get("linkedExpressionIds")
-        )
-    slot = content.get(primary)
-    return not slot  # None or empty list
+    # C12: judge emptiness across ALL containers the template may hold —
+    # legacy lessons put their content in subLessons/listeningPhases while
+    # the primary key (stages) stays empty, which the primary-only check
+    # mis-reported as "empty" (polluting badges, suggestions and planner).
+    keys = CONTENT_BY_TEMPLATE.get(tmpl) or {PRIMARY_CONTENT_KEY.get(tmpl, "stages")}
+    for key in keys:
+        if key == "readingPassage":
+            passage = content.get("readingPassage") or {}
+            has_any = bool(passage.get("paragraphs")) or bool(
+                passage.get("linkedWordIds") or passage.get("linkedExpressionIds")
+            )
+        else:
+            has_any = bool(content.get(key))
+        if has_any:
+            return False
+    return True
 
 
 @dataclass(frozen=True)

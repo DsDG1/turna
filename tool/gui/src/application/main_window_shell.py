@@ -7,6 +7,7 @@ so the window keeps all original attribute and method names.
 from __future__ import annotations
 
 import functools
+import logging
 
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
@@ -22,6 +23,8 @@ from src.widgets.ambient_banner import AmbientBanner
 from src.widgets.course_tree import CourseTreeWidget
 from src.widgets.detail_panel import DetailPanel
 from src.widgets.job_tray import JobTray
+
+logger = logging.getLogger(__name__)
 
 
 def build_undo_actions(host) -> None:
@@ -201,7 +204,11 @@ def cancel_in_flight_ai_jobs(host, job_id: str = "") -> None:
                 "没有可取消的 AI 任务（取消只对进行中的请求生效）", 4000
             )
     except Exception:
-        pass
+        logger.debug(
+            "application/main_window_shell.py:cancel_in_flight_ai_jobs "
+            "status notice failed",
+            exc_info=True,
+        )
 
 
 def build_status_bar(host) -> None:

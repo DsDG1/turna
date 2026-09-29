@@ -104,7 +104,7 @@ def explain_current(win: Any) -> None:
     tray = getattr(win, "job_tray", None)
     metrics = getattr(win, "experience_metrics", None)
     if tray is not None:
-        tray.start(JOB_ID, f"{JOB_LABEL}：正在生成 …", kind="ai")
+        tray.start_job(JOB_ID, f"{JOB_LABEL}：正在生成 …", kind="ai")
     if metrics is not None:
         metrics.inc_job("ai", "started")
         metrics.inc_suggestion(ACTION_ID, "accepted")
@@ -118,7 +118,7 @@ def explain_current(win: Any) -> None:
 
     def _on_ok(text: object) -> None:
         if tray is not None:
-            tray.finish(JOB_ID)
+            tray.finish_job(JOB_ID)
         if metrics is not None:
             metrics.inc_job("ai", "finished")
         reply = str(text) if text is not None else ""
@@ -143,7 +143,7 @@ def explain_current(win: Any) -> None:
 
     def _on_err(msg: str) -> None:
         if tray is not None:
-            tray.finish(JOB_ID)
+            tray.finish_job(JOB_ID)
         if metrics is not None:
             metrics.inc_job("ai", "failed")
         # Non-modal: avoid hanging headless runners on unclicked MessageBox.

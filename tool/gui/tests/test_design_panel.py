@@ -22,9 +22,9 @@ from tests._course_samples import sample_section
 
 from src.backend.ai_generator import (
     AiApiConfig,
-    generate_from_chat,
     request_alignment_reply,
 )
+from src.backend.ai.facade import GenerateResult, generate_course
 from src.backend.knowledge_schema import coerce_knowledge_points
 from src.backend.markdown_chopper import split_chapters
 from src.backend.textbook_project_store import TextbookProjectStore
@@ -93,7 +93,8 @@ class DesignPanelTest(unittest.TestCase):
             worker_factory=_factory(
                 {
                     request_alignment_reply: "建议先做问候主题。",
-                    generate_from_chat: sample_section(),
+                    # C5: generation now enters through facade.generate_course.
+                    generate_course: GenerateResult(draft=sample_section()),
                 }
             ),
         )
@@ -299,7 +300,7 @@ class DesignPanelPhaseCTest(unittest.TestCase):
             worker_factory=_factory(
                 {
                     request_alignment_reply: "好的。",
-                    generate_from_chat: sample_section(),
+                    generate_course: GenerateResult(draft=sample_section()),
                 }
             ),
         )

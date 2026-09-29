@@ -88,7 +88,12 @@ class CourseIoService:
         """Copy every JSON file under ``src`` to ``dst`` preserving structure."""
         for path in src.rglob("*.json"):
             rel = path.relative_to(src)
-            if any(part.startswith(".varnamala-backup") for part in rel.parts):
+            # Skip every dot-directory, not just the backup root: the save
+            # flow stages its temp copy (``.turna-save-*``) INSIDE the
+            # course dir (A2, same-volume os.replace), and backing that up
+            # would double every backup and let restore drag the staging
+            # junk back into the course.
+            if any(part.startswith(".") for part in rel.parts):
                 continue
             target = dst / rel
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -135,6 +140,41 @@ class CourseIoService:
                     old_file.unlink()
 
     @staticmethod
+    def _repair_course_dir_after_failure(adapter: Any) -> None:
+        """Best-effort disk repair after a save failed mid-swap.
+
+        ``replace_course_files_with`` moves files one by one; an error halfway
+        leaves the course dir mixing old and new section files. Re-stage the
+        current model into a same-volume temp dir and swap again (the swap
+        prunes orphans). Never touches the in-memory model and never raises.
+        """
+        course_dir = adapter.course_dir
+        if course_dir is None:
+            return
+        repair_dir: Path | None = None
+        try:
+            repair_dir = Path(
+                tempfile.mkdtemp(prefix=".turna-repair-", dir=course_dir)
+            )
+            if hasattr(adapter, "_write_files_to_dir"):
+                adapter._write_files_to_dir(repair_dir)
+            else:
+                CourseIoService.write_files_to_dir(adapter, repair_dir)
+            if hasattr(adapter, "_replace_course_files_with"):
+                adapter._replace_course_files_with(repair_dir, course_dir)
+            else:
+                CourseIoService.replace_course_files_with(repair_dir, course_dir)
+        except Exception:
+            logger.debug(
+                "backend/course_io.py:repair_course_dir_after_failure "
+                "best-effort step failed",
+                exc_info=True,
+            )
+        finally:
+            if repair_dir is not None:
+                shutil.rmtree(repair_dir, ignore_errors=True)
+
+    @staticmethod
     def save(adapter: Any) -> SaveResult:
         """Persist the in-memory course to disk atomically with backup."""
         if adapter.course_dir is None:
@@ -147,8 +187,16 @@ class CourseIoService:
         start = time.perf_counter()
         tmp_dir: Path | None = None
         result: SaveResult | None = None
+        swap_started = False
         try:
-            tmp_dir = Path(tempfile.mkdtemp(prefix=".turna-save-"))
+            try:
+                # Stage next to the course so the final os.replace never has
+                # to cross volumes (WinError 17 when TEMP and course differ).
+                tmp_dir = Path(
+                    tempfile.mkdtemp(prefix=".turna-save-", dir=adapter.course_dir)
+                )
+            except OSError:
+                tmp_dir = Path(tempfile.mkdtemp(prefix=".turna-save-"))
             if hasattr(adapter, "_write_files_to_dir"):
                 adapter._write_files_to_dir(tmp_dir)
             else:
@@ -182,6 +230,7 @@ class CourseIoService:
             else:
                 CourseIoService.backup_json_files(adapter.course_dir, backup_dir)
 
+            swap_started = True
             if hasattr(adapter, "_replace_course_files_with"):
                 adapter._replace_course_files_with(tmp_dir, adapter.course_dir)
             else:
@@ -193,14 +242,12 @@ class CourseIoService:
             if hasattr(adapter, "invalidate_node_index"):
                 adapter.invalidate_node_index()
         except Exception as exc:
-            if hasattr(adapter, "_restore_from"):
-                adapter._restore_from(rollback)
-            else:
-                CourseIoService.restore_from(adapter, rollback)
-            if hasattr(adapter, "_write_files_to_dir"):
-                adapter._write_files_to_dir(adapter.course_dir)
-            else:
-                CourseIoService.write_files_to_dir(adapter, adapter.course_dir)
+            # Keep the in-memory model untouched: unsaved edits must survive a
+            # failed save. If the disk swap had already started it may be
+            # half-applied; re-stage the (already validated) model and swap
+            # again, which also prunes orphan section files.
+            if swap_started:
+                CourseIoService._repair_course_dir_after_failure(adapter)
             telemetry.record_error(
                 exc,
                 context={"action": "repo.save", "course_dir": str(adapter.course_dir)},

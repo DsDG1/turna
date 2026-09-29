@@ -76,10 +76,11 @@ def _chip_modal_fallback(
         item,
         mode="item",
         parent=owner,
-        initial_instruction=instruction,
-        ai_config=find_main_attr(owner, "_ai_config"),
-        settings_fn=lambda: find_main_attr(owner, "_settings_obj"),
     )
+    if instruction:
+        # The dialog only accepts (adapter, target, mode, parent); prefill the
+        # instruction edit directly instead of via removed kwargs.
+        dialog.instruction_edit.setPlainText(instruction)
     if dialog.exec() != QDialog.DialogCode.Accepted:
         return
     result = dialog.result()
@@ -332,6 +333,13 @@ def run_item_chip(
         )
 
     def _on_error(msg: str) -> None:
+        from src.dialogs.ai.generator_worker_hub import ai_cancelled
+
+        if ai_cancelled(msg):
+            # C9: user pressed cancel — not a failure; no warning popup.
+            _done_busy("cancelled")
+            preview.clear()
+            return
         _done_busy("failed")
         preview.clear()
         QMessageBox.warning(owner, "AI 改题失败", msg or "请求失败")

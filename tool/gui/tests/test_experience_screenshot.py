@@ -15,6 +15,7 @@ if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
 from tests._qtapp import qt_app
+from tests._job_tray_fixture import RegistryTray
 
 from src.backend.experience.actions import (
     DANGEROUS_ACTION_IDS,
@@ -230,7 +231,6 @@ class ExplainCurrentTest(unittest.TestCase):
         qt_app()
 
     def _make_host(self, *, enabled=False, ai_complete=True, offscreen=True):
-        from src.backend.experience.job_registry import JobRegistry
         from src.backend.experience.metrics import ExperienceMetrics
 
         class Host:
@@ -239,7 +239,7 @@ class ExplainCurrentTest(unittest.TestCase):
                     experience_screenshot_explain=enabled
                 )
                 self._ai_config = SimpleNamespace(is_complete=ai_complete)
-                self.job_tray = JobRegistry()
+                self.job_tray = RegistryTray()
                 self.experience_metrics = ExperienceMetrics()
                 self._status: list[str] = []
                 self._events: list = []

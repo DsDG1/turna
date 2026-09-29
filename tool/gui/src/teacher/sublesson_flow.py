@@ -329,7 +329,9 @@ class SubLessonFlowWidget(LinearFlowWidget):
             self._preview_visible = False
         self._clear_content()
         if checked:
-            editor = LessonEditor(self.adapter, self.lesson)
+            editor = LessonEditor(
+                self.adapter, self.lesson, undo_stack=self.undo_stack
+            )
             self._content_layout.addWidget(editor)
         else:
             self._build_teacher_body()
@@ -396,7 +398,18 @@ class SubLessonFlowWidget(LinearFlowWidget):
             return
 
         # Preserve identity-critical fields; replace content shape.
-        self.lesson["content"] = generated["content"]
-        self.lesson["template"] = generated["template"]
+        if self.undo_stack is not None:
+            # C10: whole-lesson replacement must be undoable, not just
+            # confirmed.
+            from src.application.commands import ReplaceLessonContentCommand
+
+            self.undo_stack.push(
+                ReplaceLessonContentCommand(
+                    self.lesson, generated["template"], generated["content"]
+                )
+            )
+        else:
+            self.lesson["content"] = generated["content"]
+            self.lesson["template"] = generated["template"]
         self._rebuild()
         self.changed.emit()

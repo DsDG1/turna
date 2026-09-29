@@ -8,6 +8,8 @@ from PySide6.QtWidgets import QDialog, QMessageBox
 from src.application.commands import MergeAiSectionCommand
 from src.application.ui_guard import safe_information, safe_question, safe_warning
 from src.infrastructure.telemetry import telemetry
+from src.backend.experience.circuit_breaker import record_async_outcome
+from src.backend.experience.auto_apply import clear_auto_apply_token
 
 
 def _offer_auto_preview(
@@ -184,6 +186,7 @@ def _run_fill_lesson_patch_flow(
     worker = AiRequestWorker(_target)
 
     def _on_ok(result: object) -> None:
+        record_async_outcome("lesson.fill_empty", ok=True)
         host.job_tray.finish_job(job_id)
         host.experience_metrics.inc_job("ai", "finished")
         host.conflict_guard.release(guard_key, job_id)
@@ -191,6 +194,7 @@ def _run_fill_lesson_patch_flow(
         host._sync_focus_ring()
         if not isinstance(result, dict):
             host.statusBar().showMessage(f"{job_label}：AI 返回无法识别", 5000)
+            clear_auto_apply_token(host)
             return
         # Extract the regenerated lesson (id-preserving).
         new_lesson = None
@@ -212,11 +216,13 @@ def _run_fill_lesson_patch_flow(
                     break
         if new_lesson is None:
             host.statusBar().showMessage(f"{job_label}：AI 返回中找不到课时", 5000)
+            clear_auto_apply_token(host)
             return
         try:
             _s, _u, old_lesson = host.adapter.find_lesson(lesson_id)
         except KeyError as exc:
             host.statusBar().showMessage(f"{job_label}：{exc}", 5000)
+            clear_auto_apply_token(host)
             return
 
         def _apply() -> None:
@@ -231,6 +237,7 @@ def _run_fill_lesson_patch_flow(
                 host.statusBar().showMessage(
                     f"{job_label}：无法构建 LessonPatch — {exc}", 6000
                 )
+                clear_auto_apply_token(host)
                 return
             cmd = ApplyLessonPatchCommand(host.adapter, patch)
             cmd.signals.changed.connect(host._on_ai_edit_applied)
@@ -299,10 +306,17 @@ def _run_fill_lesson_patch_flow(
         )
         if dlg.exec() != QDialog.DialogCode.Accepted:
             _discard()
+            # C2: flow ends without an offer — drop the auto-apply token so
+            # it cannot silently consume a later manual confirmation.
+            clear_auto_apply_token(host)
             return
         _apply()
 
     def _on_err(msg: str) -> None:
+        record_async_outcome("lesson.fill_empty", ok=False, error=msg)
+        # C2: the flow ends without an offer — drop the auto-apply token so
+        # it cannot silently consume a later manual confirmation.
+        clear_auto_apply_token(host)
         host.job_tray.finish_job(job_id)
         host.experience_metrics.inc_job("ai", "failed")
         host.conflict_guard.release(guard_key, job_id)
@@ -375,6 +389,7 @@ def _experience_fill_stubs(host) -> None:
     worker = AiRequestWorker(_target)
 
     def _on_ok(result: object) -> None:
+        record_async_outcome("resource.fill_stubs", ok=True)
         host.job_tray.finish_job(job_id)
         host.experience_metrics.inc_job("ai", "finished")
         host.conflict_guard.release(guard_key, job_id)
@@ -404,9 +419,12 @@ def _experience_fill_stubs(host) -> None:
             )
             # O-05: hygiene / validate counters should update after stubs clear.
             host._refresh_validate_after_ai("清待补已应用，记得保存")
+            # C2: flow complete — no further offer will consume the token.
+            clear_auto_apply_token(host)
 
         def _discard() -> None:
             host.experience_metrics.inc_suggestion("resource.fill_stubs", "rejected")
+            clear_auto_apply_token(host)
 
         if _offer_auto_preview(
             host,
@@ -429,10 +447,15 @@ def _experience_fill_stubs(host) -> None:
         )
         if dlg.exec() != QDialog.DialogCode.Accepted:
             _discard()
+            # C2: flow ends without an offer — drop the auto-apply token so
+            # it cannot silently consume a later manual confirmation.
+            clear_auto_apply_token(host)
             return
         _apply()
 
     def _on_err(msg: str) -> None:
+        record_async_outcome("resource.fill_stubs", ok=False, error=msg)
+        clear_auto_apply_token(host)
         host.job_tray.finish_job(job_id)
         host.experience_metrics.inc_job("ai", "failed")
         host.conflict_guard.release(guard_key, job_id)
@@ -531,6 +554,7 @@ def _experience_fill_listening_gaps(
     worker = AiRequestWorker(_target)
 
     def _on_ok(result: object) -> None:
+        record_async_outcome(action_id, ok=True)
         host.job_tray.finish_job(job_id)
         host.experience_metrics.inc_job("ai", "finished")
         host.conflict_guard.release(guard_key, job_id)
@@ -556,9 +580,12 @@ def _experience_fill_listening_gaps(
                 scope={"section_id": sid, "gap_count": int(scope.get("gap_count") or scope.get("count") or 0)},
             )
             host._refresh_validate_after_ai("补全听力已应用，记得保存")
+            # C2: flow complete — no further offer will consume the token.
+            clear_auto_apply_token(host)
 
         def _discard() -> None:
             host.experience_metrics.inc_suggestion(action_id, "rejected")
+            clear_auto_apply_token(host)
 
         if _offer_auto_preview(
             host,
@@ -581,10 +608,15 @@ def _experience_fill_listening_gaps(
         )
         if dlg.exec() != QDialog.DialogCode.Accepted:
             _discard()
+            # C2: flow ends without an offer — drop the auto-apply token so
+            # it cannot silently consume a later manual confirmation.
+            clear_auto_apply_token(host)
             return
         _apply()
 
     def _on_err(msg: str) -> None:
+        record_async_outcome(action_id, ok=False, error=msg)
+        clear_auto_apply_token(host)
         host.job_tray.finish_job(job_id)
         host.experience_metrics.inc_job("ai", "failed")
         host.conflict_guard.release(guard_key, job_id)

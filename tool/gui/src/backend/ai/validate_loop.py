@@ -34,7 +34,10 @@ def coerce_problem_messages(items) -> list[str]:
                 continue
             msg = item.get("message") or ""
             if not msg:
-                continue
+                # C6: a problem dict without a message used to be dropped
+                # silently — validator bugs then looked like "all green".
+                # Keep a placeholder so the fix loop (and the author) sees it.
+                msg = f"校验问题缺少 message 字段（path={item.get('path') or '?'}）"
             path = item.get("path") or ""
             if path:
                 messages.append(f"{path}: {msg}")
@@ -43,6 +46,18 @@ def coerce_problem_messages(items) -> list[str]:
         elif item:
             messages.append(str(item))
     return messages
+
+
+def _validator_problems(validator, result) -> list:
+    """Call *validator* and normalize to a list (C6).
+
+    A bare-string validator result must not reach ``list()`` — it would be
+    split into one "problem" per character.
+    """
+    raw = validator(result)
+    if isinstance(raw, str):
+        return [raw]
+    return list(raw or [])
 
 
 def build_correction_user_turn(errors: list[str]) -> str:
@@ -124,7 +139,7 @@ def generate_with_validate_loop(
                 result = cached
             if validator is None or max_retries <= 0:
                 return result
-            problems = list(validator(result) or [])
+            problems = _validator_problems(validator, result)
             errors = coerce_problem_messages(problems)
             if not errors:
                 return result
@@ -154,7 +169,7 @@ def generate_with_validate_loop(
 
     temp = temperature
     for _ in range(max(0, max_retries)):
-        problems = list(validator(result) or [])
+        problems = _validator_problems(validator, result)
         errors = coerce_problem_messages(problems)
         if not errors:
             break

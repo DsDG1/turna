@@ -24,6 +24,7 @@
 | [`e4-m01-attachments-context-design.md`](./e4-m01-attachments-context-design.md) | E4-M01 附件与上下文设计 | 在役 |
 | [`e4-m0345-multimodal-design.md`](./e4-m0345-multimodal-design.md) | E4-M03/45 多模态设计 | 在役 |
 | [`k08-spiral-vocab-design.md`](./k08-spiral-vocab-design.md) | K08 螺旋词汇设计 | 在役 |
+| [`long_term_backlog.md`](./long_term_backlog.md) | 长期改进台账（2026-09-28 修复计划 §4.16 记账：七项有意延后的事项） | 在役 |
 
 ## 归档（仅供考古，不可作为设计依据）
 

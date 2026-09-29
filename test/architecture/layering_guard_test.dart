@@ -1,6 +1,6 @@
 // Layering guard: codifies the import-direction rules that the batch-1
 // architecture cleanup established. These mirror the conventions in
-// CLAUDE.md (分层导入规则); a failure here means a layer boundary broke.
+// AGENTS.md (分层导入规则); a failure here means a layer boundary broke.
 //
 // Scanning parses import/export *directives* (single/double quotes, absolute
 // `package:turna/` and relative paths) instead of substring-matching file

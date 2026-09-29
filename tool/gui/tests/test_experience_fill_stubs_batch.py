@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import sys
 import unittest
+
 from pathlib import Path
 from typing import ClassVar
 from types import SimpleNamespace
@@ -20,6 +21,7 @@ from unittest.mock import MagicMock, patch
 _GUI = Path(__file__).resolve().parents[1]
 if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
+from tests._job_tray_fixture import RegistryTray
 
 from src.backend.experience.actions import (
     DANGEROUS_ACTION_IDS,
@@ -159,7 +161,6 @@ def _fake_worker_factory():
 
 class FillStubsBatchHandlerTest(unittest.TestCase):
     def _make_host(self, vocab, expressions, *, ai_complete=True, mapping=None):
-        from src.backend.experience.job_registry import JobRegistry
         from src.backend.experience.metrics import ExperienceMetrics
 
         class Host:
@@ -171,11 +172,12 @@ class FillStubsBatchHandlerTest(unittest.TestCase):
                     index={"language": "tr"},
                 )
                 self._ai_config = SimpleNamespace(is_complete=ai_complete)
-                self.job_tray = JobRegistry()
+                self.job_tray = RegistryTray()
                 self.experience_metrics = ExperienceMetrics()
                 self.undo_stack = MagicMock()
                 self._status: list[str] = []
                 self._events: list = []
+                self._validate_msgs: list[str] = []
                 self._experience_worker = None
                 self._deny = False
                 self._make_ai_worker = _fake_worker_factory()
@@ -189,8 +191,8 @@ class FillStubsBatchHandlerTest(unittest.TestCase):
             def _refresh_experience(self, *a, **k):
                 pass
 
-            def _refresh_validate_after_ai(self):
-                pass
+            def _refresh_validate_after_ai(self, success_message):
+                self._validate_msgs.append(success_message)
 
             def _on_ai_edit_applied(self):
                 pass
@@ -288,6 +290,8 @@ class FillStubsBatchHandlerTest(unittest.TestCase):
         self.assertNotIn("nasilsin", str(host._events))
         by_action = host.experience_metrics.snapshot().get("suggestion_by_action", {})
         self.assertEqual(by_action.get(ACTION_ID, {}).get("applied"), 1)
+        # A3 回归：回流校验真实签名要求必填 success_message
+        self.assertEqual(host._validate_msgs, ["补全待补已应用，记得保存"])
 
     def test_expressions_pos_patch_dropped(self):
         host = self._make_host(

@@ -408,7 +408,9 @@ class DetailPanel(QWidget):
             )
             widget.changed.connect(self.tree_changed.emit)
         else:
-            widget = LessonEditor(adapter, lesson)
+            widget = LessonEditor(
+                adapter, lesson, undo_stack=getattr(self, "undo_stack", None)
+            )
         self._lesson_view_layout.addWidget(widget)
         self._current_content_widget = widget
 

@@ -22,6 +22,7 @@ while publishing so the save thread can never be torn down mid-write.
 """
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from PySide6.QtCore import Qt
@@ -38,6 +39,8 @@ from PySide6.QtWidgets import (
 from src.backend.course_adapter import CourseAdapter, SaveResult
 from src.teacher.error_mapper import humanize_problem
 from src.widgets.ui.containers import TurnaDialog
+
+logger = logging.getLogger(__name__)
 
 
 class PublishDialog(TurnaDialog):
@@ -377,13 +380,21 @@ class PublishDialog(TurnaDialog):
             if old_expr_v is not None:
                 self.adapter.expressions_version = old_expr_v
         except Exception:
-            pass
+            logger.debug(
+                "widgets/publish_dialog.py:_restore_version_snapshot "
+                "version restore failed",
+                exc_info=True,
+            )
         # Rebuild the report so the planned bump matches the restored state.
         try:
             self._report = self.adapter.release_report()
             self._render_report()
         except Exception:
-            pass
+            logger.debug(
+                "widgets/publish_dialog.py:_restore_version_snapshot "
+                "report rebuild failed",
+                exc_info=True,
+            )
 
     def _set_publishing_busy(self, busy: bool) -> None:
         self._publishing = busy
@@ -402,6 +413,17 @@ class PublishDialog(TurnaDialog):
             return
         self._version_snapshot = None
         self._set_publishing_busy(False)
+        # B3: the publish save bypassed the SavePipeline, so the undo stack
+        # never learned the disk now matches memory — mark clean like
+        # execute_save does, or the title keeps showing "● 未保存".
+        host = self.parent()
+        if host is not None:
+            undo_stack = getattr(host, "undo_stack", None)
+            if undo_stack is not None:
+                undo_stack.setClean()
+            mark = getattr(host, "_mark_saved", None)
+            if callable(mark):
+                mark()
         QMessageBox.information(
             self,
             "发布成功",

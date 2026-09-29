@@ -30,7 +30,7 @@ void main() {
         'tool',
         '.github',
         'README.md',
-        'CLAUDE.md',
+        'AGENTS.md',
         'docs/project-guide.md',
         'docs/android-build-setup.md',
       ];

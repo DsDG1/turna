@@ -82,6 +82,7 @@ class CourseAdapter:
                 logger.exception("Resource listener failed")
 
     def load(self, course_dir: Path) -> None:
+        prev_dir = self.course_dir
         self.course_dir = Path(course_dir)
         start = time.perf_counter()
         try:
@@ -96,15 +97,22 @@ class CourseAdapter:
             self._refresh_hash_cache()
             self.invalidate_node_index()
         except Exception:
+            # B1: restore the previous binding. Leaving course_dir on the
+            # failed path would make the next Ctrl+S write the OLD in-memory
+            # course over the NEW directory.
+            self.course_dir = prev_dir
             telemetry.record_error(
-                context={"action": "repo.load", "course_dir": str(self.course_dir)},
+                context={"action": "repo.load", "course_dir": str(course_dir)},
             )
             raise
         finally:
             telemetry.record_duration(
                 "repo.load",
                 (time.perf_counter() - start) * 1000,
-                payload={"course_dir": str(self.course_dir)},
+                # The attempted dir — self.course_dir may already be rolled
+                # back to the previous course on failure, and this record
+                # should pair with the record_error above.
+                payload={"course_dir": str(course_dir)},
             )
 
     def _refresh_hash_cache(self) -> None:

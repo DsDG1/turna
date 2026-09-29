@@ -227,18 +227,18 @@ python3 tool/gui/tool/check_ai_boundaries.py \
   --fail-private --fail-dialogs-app --fail-backend-app \
   --fail-backend-ui --fail-backend-qt --fail-dialogs-pipeline \
   --fail-undeclared-host-access \
-  --fail-course-cli-binding \
-  --max-except-pass 0 \
-  --max-except-continue 0 \
-  --max-broad-except 816 \
-  --max-hardcoded-style-hex 0 \
-  --max-ui-backend-imports 163 \
-  --max-import-cycles 2
+  --fail-course-cli-binding
 ```
 
-**四道基线已按 2026-09-27 实测收紧**：`--max-broad-except` 836 → 818 → **816**、
+（2026-09-28 起**数字基线单一真源**于 `tool/gui/tool/guard_limits.json`：
+checker 自动读取该文件作默认值，Makefile / 两个 workflow 不再手抄数字；
+CLI 数字旗标仅作一次性实验覆盖用。重钉程序：实测 → 改 json → 在
+`tests/BASELINE.md` 记录。文件缺失/损坏时 checker 直接失败而非静默放行。）
+
+**历史**：2026-09-27 实测收紧 broad_except 836→818→816、
 `--max-hardcoded-style-hex` 29 → **0**、`--max-except-pass` 由文档声称的 0 校正为
-实测 11（接线当日），同日完成清理后已实际归零并锁定为 `0`。
+实测 11（接线当日），同日完成清理后已实际归零并锁定为 `0`；2026-09-28 修复
+计划 A9 批次后实测重钉（数字以 `guard_limits.json` 为准，不再写死在本文）。
 语义一律为「当前值，只减不增」。
 
 `--fail-undeclared-host-access` **已恢复启用**：`ExperienceHost` 协议补齐了
@@ -288,7 +288,7 @@ S112 已补 `logger.debug(..., exc_info=True)` 清零。同时修正上方命令
 
 ## 12. P2 深水区棘轮（2026-09-06）
 
-- **宽泛异常棘轮**：`--max-broad-except 816` —— 全 src `except Exception`
+- **宽泛异常棘轮**：`--max-broad-except`（数值见 `guard_limits.json`）—— 全 src 宽泛 except
   处数只减不增。不做批量收窄（行为风险 > 收益）；新代码应捕获具体异常
   或至少 `logger.debug(..., exc_info=True)`。
   （2026-09-27 实测 **818**，由原基线 836 收紧；其中 383 个非空 except 块
@@ -418,7 +418,7 @@ polish / measure 成本正比于**进程中全部存活控件**，而非新建�
 
 | 口径 | 数量 |
 |---|---|
-| UI 层（dialogs/widgets/teacher）import backend 的**语句**数 | **163** |
+| UI 层（dialogs/widgets/teacher）import backend 的**语句**数 | 见 `tool/gui/tool/guard_limits.json`（`max_ui_backend_imports`；下表其余数字为 2026-09 快照） |
 | 其中模块级 | 约 121 |
 | 涉及 UI 文件 | 66 |
 | 去重后的 (模块, 符号) 边 | 172 |
@@ -431,7 +431,7 @@ polish / measure 成本正比于**进程中全部存活控件**，而非新建�
 
 | 规则 | 含义 | 基线 |
 |---|---|---|
-| `--max-ui-backend-imports N` | UI→backend import 语句数**只减不增** | **163** |
+| `--max-ui-backend-imports N` | UI→backend import 语句数**只减不增** | 见 `guard_limits.json` |
 | `--fail-course-cli-binding` | 除 `src/backend/api.py` 外，任何模块不得绑定 `course_cli` 这个名字 | **0** |
 | `--max-import-cycles N` | `src/` 内**模块级** import 环（Tarjan SCC）只减不增 | **2** |
 
@@ -446,7 +446,7 @@ polish / measure 成本正比于**进程中全部存活控件**，而非新建�
    （包 `__init__` 导入自己的子模块，子模块又导回包）
 2. `dialogs/git_library` ↔ `dialogs/git_library_dialog`
 
-**为什么用棘轮而不是立即清零**：163 条边中真正该改的是那 99 个「函数」类符号，
+**为什么用棘轮而不是立即清零**（下述边数为 2026-09 历史快照）：163 条边中真正该改的是那 99 个「函数」类符号，
 但它们分散在 66 个文件里，且多数是惰性导入。一次性改成 0 会让主干无法推进。
 先钉住基线保证「只减不增」，再按「数据 → 类型 → 函数」的顺序逐块下沉到
 `application/` 门面。

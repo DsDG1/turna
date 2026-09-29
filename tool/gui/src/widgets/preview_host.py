@@ -350,8 +350,22 @@ class PreviewHost(QWidget):
             self.applied.emit(payload)
 
     def _on_discard(self) -> None:
+        was_busy = self._busy
         fn = self._discard_fn
         self.clear()
+        if was_busy:
+            # C9: in the busy state Esc means "cancel the request", not just
+            # "hide the strip" — the worker's late result would pop the
+            # preview right back up otherwise.
+            try:
+                from src.application.main_window_shell import cancel_in_flight_ai_jobs
+
+                cancel_in_flight_ai_jobs(self.window())
+            except Exception:
+                logger.debug(
+                    "widgets/preview_host.py:busy-esc cancel best-effort failed",
+                    exc_info=True,
+                )
         if fn is not None:
             try:
                 fn()

@@ -47,6 +47,9 @@ class CircuitBreaker:
         self._last_failure_time: float = 0.0
         self._last_state_change: float = time.time()
         self._burst_history: deque[float] = deque()
+        # C1: HALF_OPEN allows exactly one in-flight probe; a second request
+        # within the probe window must wait for the first one's outcome.
+        self._half_open_probe_at: float | None = None
         self._lock = Lock()
 
     @property
@@ -86,6 +89,22 @@ class CircuitBreaker:
                         f"熔断保护生效中（OPEN）：连续失败 {self._failure_count} 次，暂停全自动应用（冷却剩余 {remaining}s）",
                     )
 
+                # C1: one probe at a time — the docstring always promised
+                # "allows 1 trial execution", but nothing enforced it, so a
+                # burst of suggestions each counted as its own probe. The
+                # slot is CONSUMED in record_dispatch (when a dispatch really
+                # starts), not here: this is a pure check, and a burst-limit
+                # rejection below must not eat the probe.
+                if (
+                    self._state == CircuitState.HALF_OPEN
+                    and self._half_open_probe_at is not None
+                    and now - self._half_open_probe_at < self._reset_timeout
+                ):
+                    return (
+                        False,
+                        "熔断恢复试探中（HALF_OPEN）：等待上一次试探的结果",
+                    )
+
                 # Burst rate limiting (sliding window)
                 cutoff = now - self._burst_window_seconds
                 while self._burst_history and self._burst_history[0] < cutoff:
@@ -107,6 +126,10 @@ class CircuitBreaker:
         try:
             with self._lock:
                 self._burst_history.append(time.time())
+                # C1: consume the HALF_OPEN probe slot here — the dispatch is
+                # really starting now (can_auto_dispatch only *checked*).
+                if self._state == CircuitState.HALF_OPEN:
+                    self._half_open_probe_at = time.time()
         except Exception as exc:
             logger.debug("CircuitBreaker.record_dispatch best-effort failed: %s", exc)
 
@@ -116,6 +139,7 @@ class CircuitBreaker:
             with self._lock:
                 prev_state = self._state
                 self._failure_count = 0
+                self._half_open_probe_at = None
                 if self._state != CircuitState.CLOSED:
                     self._state = CircuitState.CLOSED
                     self._last_state_change = time.time()
@@ -134,6 +158,7 @@ class CircuitBreaker:
                 now = time.time()
                 self._failure_count += 1
                 self._last_failure_time = now
+                self._half_open_probe_at = None
                 tripped = False
 
                 if self._state == CircuitState.HALF_OPEN:
@@ -170,6 +195,7 @@ class CircuitBreaker:
                 self._failure_count = 0
                 self._burst_history.clear()
                 self._last_failure_time = 0.0
+                self._half_open_probe_at = None
                 self._last_state_change = time.time()
         except Exception as exc:
             logger.debug("CircuitBreaker.reset best-effort failed: %s", exc)
@@ -219,3 +245,20 @@ def reset_circuit_breaker() -> None:
     global _global_breaker
     if _global_breaker is not None:
         _global_breaker.reset()
+
+
+def record_async_outcome(action_id: str, ok: bool, error: str = "") -> None:
+    """C1: record an async handler's breaker outcome from its worker callback.
+
+    Dispatch only records breaker outcomes for synchronous handlers; handlers
+    that start an AI worker own the outcome and call this from ``_on_ok`` /
+    ``_on_err``. Never raises.
+    """
+    try:
+        cb = get_circuit_breaker()
+        if ok:
+            cb.record_success(action_id)
+        else:
+            cb.record_failure(action_id, error)
+    except Exception as exc:
+        logger.debug("record_async_outcome failed for %s: %s", action_id, exc)

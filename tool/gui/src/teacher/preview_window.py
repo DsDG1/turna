@@ -448,13 +448,20 @@ class LessonPreviewDialog(QDialog):
     def _on_fix_suggest_clicked(self) -> None:
         if not self._last_wrong_payload:
             return
-        from src.teacher.item_ai_chip import run_item_chip
+        from PySide6.QtGui import QUndoStack
+        from src.teacher.item_ai_chip import find_main_attr, run_item_chip
 
+        undo_stack = find_main_attr(self, "undo_stack")
+        if undo_stack is None:
+            # Standalone dialog: apply still works, undo is session-local.
+            undo_stack = QUndoStack(self)
         run_item_chip(
             self,
+            adapter=self.adapter,
             item=self._last_wrong_payload.get("item"),
             stage=self._last_wrong_payload.get("stage"),
             instruction=PREVIEW_FIX_INSTRUCTION,
+            undo_stack=undo_stack,
             lesson_id=str(self.lesson.get("id") or ""),
         )
 

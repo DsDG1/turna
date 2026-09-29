@@ -7,9 +7,9 @@ is reported via plain callbacks so the logic is unit-testable without a
 QApplication event loop.
 
 Generation paths:
-- No chat yet, mode ``fast`` → ``request_course`` single shot (validate-and-
+- No chat yet, mode ``fast`` → ``facade.generate_course`` single shot (validate-and-
   repair loop).
-- No chat yet, mode ``phased``/``refine`` → ``ai_pipeline.run_pipeline``
+- No chat yet, mode ``phased``/``refine`` → ``facade.generate_course`` (refine)
   (Plan→Outline→Generate→Validate→Quality→Fix→Explain→ReadyImport; Phase 5).
   Per-step progress rides the worker's ``progress_ready`` signal; incomplete
   snapshots persist into ``project.design["pipeline"]`` for resume.
@@ -37,16 +37,16 @@ from src.backend.ai import (
     ChatMessage,
     apply_genre_to_spec,
     explain_course,
-    generate_from_chat,
     regenerate_lesson_in_section,
     regenerate_unit_in_section,
     request_alignment_reply,
 )
 from src.backend.ai.facade import (
+    normalize_generation_mode,
+    PipelineOptions,
     PipelineState,
     PipelineStep,
-    request_course,
-    run_pipeline,
+    generate_course,
 )
 from src.backend.textbook_to_course import rewrite_ids_deterministic
 
@@ -317,73 +317,72 @@ class DesignController:
         spec = self.build_spec()
         if self._chat:
             self._start_worker(
-                generate_from_chat,
+                generate_course,
                 config,
                 spec,
-                list(self._chat),
-                self._draft,
-                on_result=self._on_draft_generated,
+                chat_history=list(self._chat),
+                draft=self._draft if isinstance(self._draft, dict) else None,
+                on_result=self._on_generate_result,
                 on_chunk=self._on_stream_chunk,
                 stage="生成课程中…",
                 **self._ai_kwargs(),
             )
-        else:
-            if not spec.topic.strip():
-                self._on_error("请先填写主题，或先与 AI 对话描述课程。")
-                return False
-            mode = str(self._params.get("generation_mode") or "fast")
-            if mode in ("phased", "refine"):
-                # Phase 5 (批次②): the refine mode runs the full pipeline
-                # state machine (Plan→Outline→Generate→Validate→Quality→Fix
-                # →Explain→ReadyImport); fast mode keeps the single-shot path.
-                skip: list[str] = []
-                if self._params.get("pipeline_skip_fix"):
-                    skip.append(PipelineStep.FIX)
-                if self._params.get("pipeline_skip_explain"):
-                    skip.append(PipelineStep.EXPLAIN)
-                max_par = 1
-                if self._settings_fn is not None:
-                    max_par = int(
-                        getattr(self._settings_fn(), "ai_max_parallel_lessons", 1)
-                        or 1
-                    )
-                self._start_worker(
-                    run_pipeline,
-                    config,
-                    spec,
-                    mode="refine",
-                    validator=self._validator or (lambda _s: []),
-                    existing_section=(
-                        copy.deepcopy(self._draft)
-                        if isinstance(self._draft, dict)
-                        else None
-                    ),
-                    skip_steps=tuple(skip),
-                    max_fix_loops=1,
-                    fill_needs_review=self._fill_needs_review(),
-                    resume_state=self._pipeline_live,
-                    max_retries=self._retry_max(),
-                    max_parallel_lessons=max_par,
-                    on_result=self._on_pipeline_done,
-                    on_chunk=self._on_stream_chunk,
-                    stage="精修流水线（大纲→分课→校验→质量）…",
-                    **self._ai_kwargs(),
-                )
-                return True
-            stage = "生成课程中…"
-            self._start_worker(
-                request_course,
-                config,
-                spec,
-                self._validator or (lambda _s: []),
-                mode=mode,
-                max_retries=self._retry_max(),
-                on_result=self._on_draft_generated,
-                on_chunk=self._on_stream_chunk,
-                stage=stage,
-                **self._ai_kwargs(),
+            return True
+        if not spec.topic.strip():
+            self._on_error("请先填写主题，或先与 AI 对话描述课程。")
+            return False
+        # C5: every generation mode enters through facade.generate_course —
+        # the unique documented entry — instead of hand-dispatching to
+        # run_pipeline / legacy request_course here.
+        mode = str(self._params.get("generation_mode") or "fast")
+        skip: list[str] = []
+        if self._params.get("pipeline_skip_fix"):
+            skip.append(PipelineStep.FIX)
+        if self._params.get("pipeline_skip_explain"):
+            skip.append(PipelineStep.EXPLAIN)
+        max_par = 1
+        if self._settings_fn is not None:
+            max_par = int(
+                getattr(self._settings_fn(), "ai_max_parallel_lessons", 1) or 1
             )
+        stage = (
+            "精修流水线（大纲→分课→校验→质量）…"
+            if normalize_generation_mode(mode) == "refine"
+            else "生成课程中…"
+        )
+        self._start_worker(
+            generate_course,
+            config,
+            spec,
+            mode=mode,
+            validator=self._validator or (lambda _s: []),
+            draft=self._draft if isinstance(self._draft, dict) else None,
+            pipeline_options=PipelineOptions(
+                skip_steps=tuple(skip),
+                max_fix_loops=1,
+                fill_needs_review=self._fill_needs_review(),
+                resume_state=self._pipeline_live,
+                max_parallel_lessons=max_par,
+            ),
+            max_retries=self._retry_max(),
+            on_result=self._on_generate_result,
+            on_chunk=self._on_stream_chunk,
+            stage=stage,
+            **self._ai_kwargs(),
+        )
         return True
+
+    def _on_generate_result(self, result: Any) -> None:
+        """Single delivery point for facade.generate_course results.
+
+        ``GenerateResult.pipeline_state`` present → refine pipeline finished;
+        otherwise the draft is handed to the normal ready channel.
+        """
+        state = getattr(result, "pipeline_state", None)
+        if state is not None:
+            self._on_pipeline_done(state)
+            return
+        self._on_draft_generated(getattr(result, "draft", None))
 
     def _on_draft_generated(self, section: dict) -> None:
         if isinstance(section, dict):
@@ -431,6 +430,9 @@ class DesignController:
             worker = self._worker
             if worker is None:
                 return
+            # C7: disconnect before detaching — a still-connected old worker
+            # delivering a late result could be mistaken for the active one.
+            self._disconnect_worker(worker)
             self._worker = None
             self._on_busy_changed(False, "")
             self._finish_pipeline(state)

@@ -47,7 +47,7 @@ def _experience_git_skill(host, action: str) -> None:
     tray = getattr(host, "job_tray", None)
     metrics = getattr(host, "experience_metrics", None)
     if tray is not None:
-        tray.start(job_id, f"{job_label}：正在生成 …", kind="ai")
+        tray.start_job(job_id, f"{job_label}：正在生成 …", kind="ai")
     if metrics is not None:
         metrics.inc_job("ai", "started")
         metrics.inc_suggestion(action, "accepted")
@@ -57,7 +57,7 @@ def _experience_git_skill(host, action: str) -> None:
 
     def _on_ok(text: object) -> None:
         if tray is not None:
-            tray.finish(job_id)
+            tray.finish_job(job_id)
         if metrics is not None:
             metrics.inc_job("ai", "finished")
         reply = str(text) if text is not None else ""
@@ -79,7 +79,7 @@ def _experience_git_skill(host, action: str) -> None:
 
     def _on_err(msg: str) -> None:
         if tray is not None:
-            tray.finish(job_id)
+            tray.finish_job(job_id)
         if metrics is not None:
             metrics.inc_job("ai", "failed")
         # Non-modal: avoid hanging headless runners on unclicked MessageBox.
@@ -180,7 +180,7 @@ def _experience_ocr(
     tray = getattr(host, "job_tray", None)
     metrics = getattr(host, "experience_metrics", None)
     if tray is not None:
-        tray.start(job_id, f"{job_label}：正在识别 …", kind="local")
+        tray.start_job(job_id, f"{job_label}：正在识别 …", kind="local")
     if metrics is not None:
         metrics.inc_job("local", "started")
         metrics.inc_suggestion(ACTION_ID, "accepted")
@@ -239,7 +239,7 @@ def _experience_ocr(
         except Exception:
             logger.debug("application/experience_handlers/multimodal.py:_on_ok best-effort step failed", exc_info=True)
         if tray is not None:
-            tray.finish(job_id)
+            tray.finish_job(job_id)
         if metrics is not None:
             metrics.inc_job("local", "finished")
         if hasattr(host, "_sync_experience_attachments"):
@@ -276,7 +276,7 @@ def _experience_ocr(
 
     def _on_err(msg: str) -> None:
         if tray is not None:
-            tray.finish(job_id)
+            tray.finish_job(job_id)
         if metrics is not None:
             metrics.inc_job("local", "failed")
         # Non-modal: avoid hanging headless runners on unclicked MessageBox.

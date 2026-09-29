@@ -213,7 +213,7 @@ def transcribe_to_palette(host: ExperienceHost, palette: Any | None = None) -> N
     metrics = getattr(host, "experience_metrics", None)
     if tray is not None:
         try:
-            tray.start(VOICE_JOB_ID, f"{VOICE_JOB_LABEL}…", kind="local")
+            tray.start_job(VOICE_JOB_ID, f"{VOICE_JOB_LABEL}…", kind="local")
         except Exception:
             logger.debug("application/palette_controller.py:transcribe_to_palette best-effort step failed", exc_info=True)
     if metrics is not None:
@@ -244,7 +244,7 @@ def transcribe_to_palette(host: ExperienceHost, palette: Any | None = None) -> N
     def _finish(text: str, status: str) -> None:
         if tray is not None:
             try:
-                tray.finish(VOICE_JOB_ID)
+                tray.finish_job(VOICE_JOB_ID)
             except Exception:
                 logger.debug("application/palette_controller.py:_finish best-effort step failed", exc_info=True)
         if metrics is not None:

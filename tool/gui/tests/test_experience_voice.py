@@ -15,6 +15,7 @@ if str(_GUI) not in sys.path:
     sys.path.insert(0, str(_GUI))
 
 from tests._qtapp import qt_app
+from tests._job_tray_fixture import RegistryTray
 
 from src.application.settings import Settings
 from src.backend.experience.voice_skill import (
@@ -180,7 +181,6 @@ class TranscribeToPaletteTest(unittest.TestCase):
         qt_app()
 
     def _make_host(self, *, enabled: bool = False):
-        from src.backend.experience.job_registry import JobRegistry
         from src.backend.experience.metrics import ExperienceMetrics
 
         class Host:
@@ -188,7 +188,7 @@ class TranscribeToPaletteTest(unittest.TestCase):
                 self._settings_obj = SimpleNamespace(
                     experience_voice_palette=enabled
                 )
-                self.job_tray = JobRegistry()
+                self.job_tray = RegistryTray()
                 self.experience_metrics = ExperienceMetrics()
                 self._status: list[str] = []
                 self._events: list = []
