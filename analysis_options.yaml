@@ -22,6 +22,12 @@ analyzer:
     - windows/**
     - macos/**
     - linux/**
+    # Vendored upstream Flutter packages (ADR 0047 §7.1). Excluded from lint, not
+    # from compilation: they are held to upstream's own style, and our lint set
+    # would report thousands of diagnostics in code we do not own. That they
+    # *compile* under the pinned official SDK is the property that matters, and
+    # `flutter test` proves it because every test compiles the whole app.
+    - 'third_party/**'
   errors:
     # `@JsonKey` is legal on freezed constructor parameters — the analyzer
     # flags it as `invalid_annotation_target` because it sees the parameter

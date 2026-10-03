@@ -100,3 +100,41 @@ flutter_launcher_icons:
   macos:
     generate: true
     image_path: assets/images/app_logo.png
+
+# OHOS companion build (ADR 0047 §7.1). Flutter 3.44 split Material/Cupertino out
+# of the framework into these hosted packages; the OHOS fork adapted its in-tree
+# copies but not the split ones, so they fail to compile against the fork's extra
+# TargetPlatform.ohos value. migrate_ohos_platform.py ports the fork's placement
+# as a wildcard arm, which keeps one copy valid under both the official and the
+# OHOS SDK -- `dependency_overrides` has no platform conditioning, so a copy that
+# only compiled on OHOS would break the Android/iOS build and the whole test suite.
+dependency_overrides:
+  material_ui:
+    path: third_party/flutter/material_ui
+  cupertino_ui:
+    path: third_party/flutter/cupertino_ui
+  shared_preferences:
+    git:
+      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+      path: packages/shared_preferences/shared_preferences
+      ref: br_shared_preferences-v2.5.3_ohos
+  path_provider:
+    git:
+      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+      path: packages/path_provider/path_provider
+      ref: br_path_provider-v2.1.5_ohos
+  url_launcher:
+    git:
+      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+      path: packages/url_launcher/url_launcher
+      ref: br_url_launcher-v6.3.2_ohos
+  package_info_plus:
+    git:
+      url: https://gitcode.com/openharmony-sig/flutter_plus_plugins.git
+      path: packages/package_info_plus/package_info_plus
+      ref: br_package_info_plus-v9.0.0_ohos
+  share_plus:
+    git:
+      url: https://gitcode.com/openharmony-sig/flutter_plus_plugins.git
+      path: packages/share_plus/share_plus
+      ref: br_share_plus-v10.1.1_ohos

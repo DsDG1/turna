@@ -9,3 +9,9 @@ injection.config.dart linguist-generated=true
 # checkout (Windows core.autocrlf=true did exactly that) breaks the
 # integrity guard and ships mismatched bytes in Windows-built bundles.
 assets/anki_reviewer/** text eol=lf
+
+# third_party/ holds vendored upstream Flutter packages. Their only diff against
+# upstream is the OHOS TargetPlatform port, so a checkout-time EOL conversion
+# would make that diff unreviewable and a re-vendor look like a whole-file
+# rewrite. Same reason as assets/anki_reviewer/** above.
+third_party/** text eol=lf
