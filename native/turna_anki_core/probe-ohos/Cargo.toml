@@ -1,0 +1,39 @@
+# OpenHarmony cross-compilation probe for the Turna Anki core.
+#
+# NOT part of the bridge build. This package exists only to answer one
+# question in one day: can anki/rslib's engine layer (bundled SQLite +
+# the `unicase` collation + tokio) be cross-compiled to
+# aarch64-unknown-linux-ohos and dlopen'd on a device?
+#
+# Keep dependency versions byte-identical to
+# native/turna_anki_core/anki/Cargo.toml so a pass here transfers to the
+# real rslib link. See build-ohos/README.md.
+
+# Own workspace root: the parent package is deliberately not a workspace
+# (anki/rslib belongs to upstream), and this probe must not inherit it.
+[workspace]
+
+[package]
+name = "turna_anki_ohos_probe"
+version = "0.0.0"
+edition = "2021"
+publish = false
+license = "AGPL-3.0-or-later"
+description = "Cross-compilation probe: is the Anki core engine layer viable on OpenHarmony?"
+
+[lib]
+name = "turna_anki_probe"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Mirrors anki/rslib exactly. `bundled` statically links libsqlite3-sys, so
+# a pass means no external libsqlite3.so is needed for the engine layer.
+rusqlite = { version = "0.36.0", features = ["trace", "functions", "collation", "bundled"] }
+# Pinned to the exact version anki/rslib uses — its comment warns "any
+# changes could invalidate sqlite indexes". compact_collection rebuilds
+# `COLLATE unicase` b-trees through VACUUM, so this must be the same crate.
+unicase = "=2.6.0"
+# Same features the bridge enables. `signal` is the risky one on OHOS:
+# upstream rslib relies on it for shutdown handling.
+tokio = { version = "1.45", features = ["fs", "rt-multi-thread", "macros", "signal", "io-util"] }

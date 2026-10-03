@@ -1,0 +1,9 @@
+# Probe-local Cargo config.
+#
+# The parent package sets `target-dir = "target"`, and Cargo walks up to find
+# .cargo/config.toml — so without this file the probe's artifacts would land
+# in the bridge's target dir and mix with libturna_anki.so. build-ohos/verify_symbols.sh
+# inspects that directory, so the isolation is load-bearing, not tidiness.
+
+[build]
+target-dir = "target"

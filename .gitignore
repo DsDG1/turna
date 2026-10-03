@@ -142,3 +142,8 @@ logs/*
 !logs/crash-hunt/
 logs/crash-hunt/*
 !logs/crash-hunt/*.js
+
+# Tool caches, not project content. `.cache/arkts-check` and the tsbuildinfo
+# files are produced by the ArkTS static-check tooling when it is run from
+# the repo root; they carry no reviewable state.
+.cache/

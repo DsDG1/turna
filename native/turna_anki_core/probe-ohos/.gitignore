@@ -1,0 +1,3 @@
+# The parent .gitignore anchors /target/ to turna_anki_core/, so this
+# workspace's artifacts would otherwise be untracked-but-committable.
+/target/
