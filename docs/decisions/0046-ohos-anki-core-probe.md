@@ -60,12 +60,48 @@ aarch64，API 26，HarmonyOS 7.0.0.109）实测 7 个探针符号：
 **教训**：探针报告失败时，先证明失败的是被测对象而不是探针本身。这条 `-32`
 和真正的 `tokio_signal` 挂死在原始输出里长得一模一样。
 
+## 同批追加：真 rslib 与真机引擎生命周期
+
+上一节只用最小 crate 做了隔离验证，rslib 自身依赖树仍未证明。**同批补齐，
+且零阻力**：
+
+- 交叉编译 `Finished release profile in 2m 39s`：无 feature 被迫关闭、无 C
+  依赖编不过、无补丁冲突
+- `libturna_anki.so` **23,123,056 字节**，`NEEDED` = `libc.so` +
+  `libtime_service_ndk.so`，7 个 bridge 符号全导出
+- **`protoc` 无需为 OHOS 换版**：它是宿主工具而非目标工具，编 Android 的那个
+  Windows 二进制直接编这个 target
+- 新依赖 `libtime_service_ndk.so` 来自 `iana-time-zone` 的 `tz_ohos.rs`
+  （取本地时区）。良性，但 `verify_bridge_symbols.sh` 因此断言**每个
+  `NEEDED` 都能在 sysroot 解析**——让解析不了的依赖在构建期失败而非设备期
+
+**真机**（Mate 90 Pro Max，hap 进程内 dlopen）：
+
+```
+dlopen("libturna_anki.so")   OK
+turna_anki_abi_version()     1
+turna_anki_engine_new        status 0, buffer len 8 (u64 handle)
+turna_anki_engine_close      status 0
+dlclose                      OK
+```
+
+`engine_new` 是真检验：它内部调 `touch_rslib()`，构建并关闭一个内存
+`Collection`。status 0 因此意味着 **rslib 与 bundled SQLite 在设备上真的
+初始化过**。`buffer len` 恰为 8 证明 C ABI 结构布局与 `bridge/src/abi.rs`
+一致。进程存活无 fault。
+
+契约以 Dart 侧 FFI 声明为准而非臆测：`TurnaAnkiResult` / `TurnaAnkiBuffer`
+布局、以及 `_engineNew(nullptr, 0)`（**确实不需要 config payload**）都直接
+读自 `official_anki_native_transport.dart`。
+
 ## 范围边界（必须一起读）
 
-本 ADR **只**覆盖引擎存储层。以下全部**未验证**，不得由本结论外推：
+本 ADR **只**覆盖引擎存储层与引擎生命周期。以下全部**未验证**，不得由本结论
+外推：
 
-- rslib 完整交叉编译（本次只编了最小 crate，隔离变量）
+- rslib 完整交叉编译**已通过**（见上），但**磁盘 collection 打开**未验证
 - 复习调度器在真实复习负载下的行为
+- 导入链路（`turna_anki_call` 的 operation 分发与 JSON 契约）
 - 卡片渲染：Android 侧 1,161 行 Kotlin / iOS 侧 846 行 Swift 的
   ArkTS 移植**完全未评估**
 - `official_anki_sqlite.dart` 需新增 OHOS 分支（`ensureOfficialAnkiSqlite()`

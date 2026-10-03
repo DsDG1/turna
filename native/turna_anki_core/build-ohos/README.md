@@ -8,11 +8,63 @@ Run it:
 
 ```bash
 export DEVECO_SDK_NATIVE="$DEVECO_SDK_HOME/default/openharmony/native"
-bash build-ohos/build.sh
+bash build-ohos/build.sh            # the probe
+bash build-ohos/build-bridge.sh     # the real engine
 ```
 
 `build.sh` runs the host tests first, cross-compiles, and hands off to
-`verify_symbols.sh`.
+`verify_symbols.sh`. `build-bridge.sh` does the same for the real bridge via
+`verify_bridge_symbols.sh`, and asserts rather than applies the rslib patches
+(re-applying to an already-patched tree fails).
+
+Both source `ohos-env.sh` for the toolchain flags. That file is not
+duplicated on purpose: the failure modes are non-obvious enough that a second
+copy would drift.
+
+## What the real bridge adds over the probe
+
+The probe used a minimal crate to isolate variables, which left rslib's own
+dependency tree unproven. `build-bridge.sh` answers that, and it turned out
+to need nothing: no feature disabled, no C dependency that would not build,
+no patch conflict, 2m39s from clean.
+
+| | probe | real bridge |
+|---|---|---|
+| `.so` size | 2,939,328 B | 23,123,056 B |
+| `NEEDED` | `libc.so` | `libc.so`, `libtime_service_ndk.so` |
+| symbols | 7 probe fns | 7 bridge fns |
+
+`libtime_service_ndk.so` comes from `iana-time-zone`'s `src/tz_ohos.rs`,
+which has first-class OHOS support and resolves the local timezone through
+`OH_TimeService_GetTimeZone`. It is a real system library present in the
+sysroot, so it is benign — but `verify_bridge_symbols.sh` asserts that
+*every* `NEEDED` entry resolves against the sysroot, so a future dependency
+that cannot be satisfied on-device fails the build instead of the device.
+
+`protoc` needs no OHOS-specific handling: it is a host tool, so the same
+Windows binary that builds the Android artifact builds this one.
+
+## On-device results
+
+HUAWEI Mate 90 Pro Max, aarch64, API 26, HarmonyOS 7.0.0.109.
+
+Engine bridge lifecycle, via `dlopen` inside a hap process:
+
+```
+dlopen("libturna_anki.so")   OK
+turna_anki_abi_version()     1
+turna_anki_engine_new        status 0, buffer len 8 (u64 handle)
+turna_anki_engine_close      status 0
+dlclose                      OK
+```
+
+`engine_new` is a real test rather than a formality: it calls
+`touch_rslib()`, which builds and closes an in-memory `Collection`. A status
+of 0 therefore means rslib and the bundled SQLite actually initialised on the
+device.
+
+What is still unproven: opening a collection on disk, the review scheduler
+under real load, the import path, and card rendering.
 
 ## What the probe covers, and what it does not
 
