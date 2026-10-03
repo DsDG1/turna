@@ -8,6 +8,9 @@ import 'package:flutter/widgets.dart';
 import 'package:logger/logger.dart';
 import 'package:path_provider/path_provider.dart';
 
+// Project imports:
+import 'package:turna/core/log_redaction.dart';
+
 /// 透明度报告用的本地日志捕获器。
 ///
 /// 目的:让用户能直观看到「Turna 实际产生了什么日志」,与隐私详情页的承诺对应。
@@ -26,6 +29,10 @@ import 'package:path_provider/path_provider.dart';
 ///   - **rotate**:单文件 > 1MB 时触发,最多保留 3 个文件
 ///     (`transparency_log.jsonl` 活跃,`.1.jsonl` / `.2.jsonl` 历史)。
 ///   - **仅本地**:不联网,不上传,文件位于应用沙箱 documents 目录。
+///   - **落盘前脱敏**:每条事件在进入内存 buffer 与落盘队列的同一个点
+///     上经 [LogRedaction.redact] 处理(见 `_onLogEvent`),因此 AI 提供商
+///     在错误体里回显的 key 片段既不会留在 UI 内存缓冲,也不会进入用户
+///     可导出的诊断包。
 class LogCapture {
   LogCapture._();
 
@@ -60,6 +67,18 @@ class LogCapture {
 
   String get _activeFileName => '$_baseName$_ext';
   String _rotatedFileName(int index) => '$_baseName.$index$_ext';
+
+  /// Every file name this class can leave on disk: the active log plus each
+  /// rotation, in active-first order.
+  ///
+  /// Exposed so the Android backup rules can be asserted against the real
+  /// names instead of a hand-copied list — a rename of the log file would
+  /// otherwise silently stop being excluded from platform auto-backup, and
+  /// the backup rules support no wildcards to catch it at runtime.
+  static List<String> persistedFileNames() => [
+        '$_baseName$_ext',
+        for (var i = 1; i <= _maxRotatedFiles; i++) '$_baseName.$i$_ext',
+      ];
 
   File? _cachedFile;
   bool _initialized = false;
@@ -204,12 +223,19 @@ class LogCapture {
   }
 
   void _onLogEvent(LogEvent event) {
+    // Redact once, at the single point where an entry is created, so the
+    // in-memory buffer (shown in the UI, 200 entries) and the disk file /
+    // export bundle can never disagree — a "clean disk, leaky export" split
+    // is exactly the failure this exists to prevent.
+    //
+    // The entry is redacted before it reaches either consumer, so nothing
+    // downstream has to remember to do it.
     final entry = LogEntry(
       timestamp: DateTime.now(),
       level: event.level,
-      message: _stringify(event.message),
-      error: event.error?.toString(),
-      stackTrace: event.stackTrace?.toString(),
+      message: LogRedaction.redact(_stringify(event.message)),
+      error: LogRedaction.redactNullable(event.error?.toString()),
+      stackTrace: LogRedaction.redactNullable(event.stackTrace?.toString()),
     );
 
     _buffer.add(entry);

@@ -10,6 +10,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 
 // Project imports:
 import 'package:turna/core/html_stripper.dart';
+import 'package:turna/views/anki/anki_fidelity_csp.dart';
 
 // Package imports:
 import 'package:path/path.dart' as p;
@@ -22,8 +23,9 @@ import 'package:turna/l10n/app_strings.dart';
 /// - Android/iOS: loads [html] in a WebView. [allowJs] gates the
 ///   `javascriptMode` (decision 3: default disabled; when the notetype's
 ///   templates contain `<script>` the policy enables JS with a
-///   `NavigationDelegate` that blocks external URLs - container isolation,
-///   no phoning home).
+///   `NavigationDelegate` that blocks external navigations). Card HTML is
+///   attacker-controlled (imported decks), so remote loads are denied by
+///   [AnkiFidelityCsp] — the delegate alone cannot stop subresources.
 /// - Other platforms (desktop / web): degrades to a stripped-text
 ///   view (decision 4). A `WebViewController` is never constructed there, so
 ///   the missing platform implementation never throws.
@@ -120,8 +122,11 @@ class AnkiHtmlCardViewState extends State<AnkiHtmlCardView> {
     // and dark mode never flash white.
     c.setBackgroundColor(
         widget.dark ? const Color(0xFF1E1E1E) : const Color(0xFFFFFFFF));
-    // Container isolation: allow only local/file/data/about navigations;
-    // block everything else so template JS cannot phone home.
+    // Top-level container isolation. This delegate only sees *navigations*;
+    // subresource loads (`<script src>`, `<img src>`, `fetch`) never reach it.
+    // The policy that actually denies those is the CSP injected by
+    // [AnkiFidelityCsp] — together they are the two layers: CSP for
+    // subresources, delegate for navigations.
     c.setNavigationDelegate(NavigationDelegate(
       onPageFinished: (_) {
         if (!mounted) return;
@@ -283,6 +288,10 @@ class AnkiHtmlCardViewState extends State<AnkiHtmlCardView> {
   /// overrides appended when needed. Notetype css targets light mode; the
   /// dark layer overrides background/text colors so fidelity cards match the
   /// app theme (deep-adaptation plan §6).
+  ///
+  /// The result is always wrapped in [AnkiFidelityCsp.inject]: card HTML is
+  /// attacker-controlled input and the navigation delegate cannot see
+  /// subresource loads, so the CSP is the layer that denies them.
   String _themedHtml() {
     final css = StringBuffer(_baseViewportCss);
     if (widget.textZoom != 100) {
@@ -305,13 +314,19 @@ class AnkiHtmlCardViewState extends State<AnkiHtmlCardView> {
     if (widget.hideEmbeddedAudioControls) {
       css.write('audio{display:none!important;}');
     }
+    return AnkiFidelityCsp.inject(_withViewportCss(css.toString()));
+  }
+
+  /// Append the viewport layer to the card's own `<head>`, preserving the
+  /// author stylesheet. A fragment with no `<head>` is wrapped so the
+  /// protections still apply.
+  String _withViewportCss(String css) {
     if (widget.html.contains('</style>')) {
       return widget.html.replaceFirst('</style>', '$css</style>');
     }
     if (widget.html.contains('</head>')) {
       return widget.html.replaceFirst('</head>', '<style>$css</style></head>');
     }
-    // Fragment without a head: wrap so the protections still apply.
     return '<!DOCTYPE html><html><head><meta charset="utf-8">'
         '<meta name="viewport" content="width=device-width, initial-scale=1.0">'
         '<style>$css</style></head><body>${widget.html}</body></html>';

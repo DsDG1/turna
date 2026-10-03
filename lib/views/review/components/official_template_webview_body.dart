@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:turna/application/accessibility_capabilities.dart';
+import 'package:turna/application/settings_provider.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/domain/review/review_item.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -30,6 +32,12 @@ class OfficialTemplateWebViewBody extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final html = isRevealed ? content.backHtml : content.frontHtml;
     final textZoom = cardTextScaleOf(context);
+    // The `ankiForceDisableJs` switch is a hard off-switch for the fidelity
+    // WebView: templates still render, but script-driven decryption shows
+    // ciphertext. Read defensively so this body still builds in widget tests
+    // that do not mount the settings provider.
+    final forceDisableJs = context
+        .select<SettingsProvider?, bool>((p) => p?.ankiForceDisableJs ?? false);
 
     return Stack(
       children: [
@@ -38,7 +46,7 @@ class OfficialTemplateWebViewBody extends StatelessWidget {
           child: AnkiWebViewCardShell(
             child: AnkiHtmlCardView(
               html: html,
-              allowJs: true,
+              allowJs: !forceDisableJs,
               dark: isDark,
               allowedMediaBasePath: content.mediaBasePath ?? '',
               isBack: isRevealed,

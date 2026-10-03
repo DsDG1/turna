@@ -88,15 +88,15 @@ void main() {
       route: AiRecentTaskRoute.tutorChat,
     );
     expect(
-      isAiCompanionTaskResumable(task, tutorChatHasSession: false),
+      isAiTaskResumable(task, tutorChatHasSession: false),
       isFalse,
     );
     expect(
-      isAiCompanionTaskResumable(task, tutorChatHasSession: true),
+      isAiTaskResumable(task, tutorChatHasSession: true),
       isTrue,
     );
     expect(
-      isAiCompanionTaskResumable(
+      isAiTaskResumable(
         AiRecentTask(
           kind: AiTaskKind.wish,
           summary: 'wish',

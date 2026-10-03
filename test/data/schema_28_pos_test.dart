@@ -7,7 +7,8 @@ import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'package:turna/data/course_database.dart';
 
 void main() {
-  test('schema 27 vocabulary opens at 28 with a null pos', () async {
+  test('schema 27 vocabulary opens at the current version with a null pos',
+      () async {
     final dir = await Directory.systemTemp.createTemp('turna_schema28_');
     addTearDown(() async {
       if (dir.existsSync()) await dir.delete(recursive: true);
@@ -43,7 +44,10 @@ void main() {
     expect(row.id, 'w1');
     expect(row.term, 'ev');
     expect(row.pos, isNull);
+    // The v28 `pos` column is still the subject of this file, but the app has
+    // moved on since; assert the upgrade lands on the current version rather
+    // than pinning 28, which went stale the moment v29 was added.
     final version = await db.customSelect('PRAGMA user_version').getSingle();
-    expect(version.read<int>('user_version'), 28);
+    expect(version.read<int>('user_version'), CourseDatabase.kSchemaVersion);
   });
 }

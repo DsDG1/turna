@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math';
 
 // Project imports:
+import 'package:turna/core/endpoint_url_policy.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/repositories/i_credential_store.dart';
 import 'package:turna/service/locator.dart';
@@ -37,6 +38,17 @@ class RemoteBackupEndpointConfig {
   /// whether the "save & test" action can run.
   bool get hasEndpointInput =>
       serverUrl.trim().isNotEmpty && username.trim().isNotEmpty;
+
+  /// Validate the server URL against the shared endpoint policy
+  /// ([EndpointUrlPolicy]): release builds require https, because every
+  /// WebDAV request carries Basic auth, i.e. the password in reversible
+  /// base64. Android and iOS have a cleartext-traffic backstop, but desktop
+  /// (Windows / macOS / Linux) does not, so an `http://` URL would put the
+  /// password on the wire in the clear with nothing to stop it.
+  ///
+  /// Returns `null` when the URL is acceptable, otherwise the reason.
+  EndpointUrlProblem? validateServerUrl() =>
+      EndpointUrlPolicy.normalize(serverUrl).problem;
 
   RemoteBackupEndpointConfig copyWith({
     String? serverUrl,

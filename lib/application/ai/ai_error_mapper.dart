@@ -4,6 +4,7 @@ import 'dart:io';
 
 // Project imports:
 import 'package:turna/application/ai/engine/ai_cancel_token.dart';
+import 'package:turna/application/ai/engine/ai_http_client.dart';
 import 'package:turna/l10n/app_strings.dart';
 
 /// Kind of AI failure exposed to UI (no raw exception strings).
@@ -15,6 +16,11 @@ enum AiErrorKind {
   rateLimited,
   cancelled,
   parseFailed,
+
+  /// The configured endpoint answered 3xx. The request — and its
+  /// `Authorization: Bearer` header — was not followed, so the user has to
+  /// point the base URL at the final endpoint themselves.
+  endpointRedirect,
   unknown,
 }
 
@@ -61,6 +67,17 @@ class AiErrorMapper {
         kind: AiErrorKind.cancelled,
         message: AppStrings.aiErrorCancelled,
         canRetry: false,
+      );
+    }
+    if (error is AiRedirectNotFollowed) {
+      // Fixed copy on purpose: the redirect's own response body is never
+      // surfaced, so there is nothing here to interpolate even if the
+      // destination had echoed something back.
+      return AiErrorMapping(
+        kind: AiErrorKind.endpointRedirect,
+        message: AppStrings.aiErrorEndpointRedirect,
+        canRetry: false,
+        canConfigure: true,
       );
     }
     if (error is TimeoutException) {
@@ -155,6 +172,8 @@ class AiErrorMapper {
         return AppStrings.aiErrorCancelled;
       case AiErrorKind.parseFailed:
         return AppStrings.aiErrorParseFailed;
+      case AiErrorKind.endpointRedirect:
+        return AppStrings.aiErrorEndpointRedirect;
       case AiErrorKind.unknown:
         return AppStrings.aiErrorUnknown;
     }

@@ -348,7 +348,7 @@ class _ContinueSection extends StatelessWidget {
   }
 
   static bool _isResumable(AiRecentTask task) {
-    return isAiCompanionTaskResumable(
+    return isAiTaskResumable(
       task,
       tutorChatHasSession: AiTutorChatSessionStore().hasSession,
     );

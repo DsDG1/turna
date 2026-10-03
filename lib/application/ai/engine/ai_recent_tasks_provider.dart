@@ -102,7 +102,7 @@ class AiTaskKind {
   static const String saved = 'saved';
 
   /// Companion kinds that are persisted across restarts.
-  static const Set<String> companionPersistKinds = {
+  static const Set<String> resumablePersistKinds = {
     hintChat,
     hintDepth,
     tutorChat,
@@ -114,7 +114,7 @@ class AiTaskKind {
 }
 
 /// Prefs key for companion recent tasks JSON array.
-const kAiRecentCompanionTasksKey = 'ai.recentCompanionTasks';
+const kAiRecentTasksPrefKey = 'ai.recentCompanionTasks';
 
 /// In-memory ring of the most recent AI tasks completed by the engine.
 ///
@@ -166,7 +166,7 @@ class AiRecentTasksProvider extends ChangeNotifier {
     if (prefs == null) return;
     try {
       final raw = prefs.preferences
-          .getString(kAiRecentCompanionTasksKey, defaultValue: '')
+          .getString(kAiRecentTasksPrefKey, defaultValue: '')
           .getValue();
       if (raw.isEmpty) return;
       final decoded = jsonDecode(raw);
@@ -179,7 +179,7 @@ class AiRecentTasksProvider extends ChangeNotifier {
                 : null;
         if (map == null) continue;
         final task = AiRecentTask.fromJson(map);
-        if (AiTaskKind.companionPersistKinds.contains(task.kind)) {
+        if (AiTaskKind.resumablePersistKinds.contains(task.kind)) {
           _items.add(task);
         }
       }
@@ -227,13 +227,12 @@ class AiRecentTasksProvider extends ChangeNotifier {
   void _persistCompanion() {
     final prefs = _prefs;
     if (prefs == null) return;
-    final companion = [
+    final resumable = [
       for (final t in _items)
-        if (AiTaskKind.companionPersistKinds.contains(t.kind)) t.toJson(),
+        if (AiTaskKind.resumablePersistKinds.contains(t.kind)) t.toJson(),
     ];
     // Fire-and-forget.
-    prefs.preferences
-        .setString(kAiRecentCompanionTasksKey, jsonEncode(companion));
+    prefs.preferences.setString(kAiRecentTasksPrefKey, jsonEncode(resumable));
   }
 }
 
@@ -241,7 +240,7 @@ class AiRecentTasksProvider extends ChangeNotifier {
 ///
 /// Wish and textbook imports still open an empty page. Tutor chat resumes
 /// only when a transcript is stored.
-bool isAiCompanionTaskResumable(
+bool isAiTaskResumable(
   AiRecentTask task, {
   required bool tutorChatHasSession,
 }) {

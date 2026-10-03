@@ -232,6 +232,44 @@ class _CourseDatabaseV13 extends db.CourseDatabase {
       );
 }
 
+/// The AI companion tables the retired feature created. Listed in one place so
+/// the v29 fixture and its test cannot disagree about how many there were —
+/// the original review named only four, and `_ensureAiCompanionTables` in fact
+/// created nine.
+const List<String> kAiCompanionTableNames = [
+  'ai_sessions',
+  'ai_messages',
+  'learning_evidence',
+  'knowledge_mastery',
+  'diagnosis_snapshots',
+  'study_plans',
+  'study_plan_items',
+  'ai_notes',
+  'ai_request_metrics',
+];
+
+/// v28: the last schema that still carried the AI companion tables. Column
+/// shapes are irrelevant here — nothing ever read or wrote these — so the
+/// fixture creates them minimally but with the real names.
+class _CourseDatabaseV28 extends db.CourseDatabase {
+  _CourseDatabaseV28(super.e);
+
+  @override
+  int get schemaVersion => 28;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) async {
+          await m.createAll();
+          for (final table in kAiCompanionTableNames) {
+            await m.database.customStatement(
+              'CREATE TABLE IF NOT EXISTS $table (id TEXT PRIMARY KEY)',
+            );
+          }
+        },
+      );
+}
+
 /// Recreates the retired Legacy NoteStore tables (pre-v27 shape) for
 /// fixtures that model databases which historically carried them.
 Future<void> _createRetiredNoteStoreTables(
@@ -510,6 +548,56 @@ void main() {
               'upgrades no longer create them');
 
       await migrated.close();
+      await File(path).parent.delete(recursive: true);
+    });
+
+    test('v28 -> current drops the retired AI companion tables (v29)',
+        () async {
+      final path = await _tempDbPath();
+      final oldDb = _CourseDatabaseV28(NativeDatabase(File(path)));
+      await _forceOpen(oldDb);
+      await _seedV4Data(oldDb);
+      await oldDb.close();
+
+      final migrated = db.CourseDatabase(NativeDatabase(File(path)));
+      await _forceOpen(migrated);
+
+      final survivors = await migrated
+          .customSelect(
+            "SELECT name FROM sqlite_master WHERE type = 'table' "
+            "AND name IN (${List.filled(kAiCompanionTableNames.length, '?').join(',')})",
+            variables: kAiCompanionTableNames.map(Variable.withString).toList(),
+          )
+          .get();
+      expect(survivors, isEmpty,
+          reason: 'the AI companion feature is retired; its tables had no '
+              'readers or writers left and must not survive the upgrade');
+
+      // The learning data the drop must not have disturbed.
+      final vocabulary = await migrated.select(migrated.vocabulary).get();
+      expect(vocabulary, isNotEmpty,
+          reason: 'dropping orphan tables must not touch real data');
+
+      await migrated.close();
+      await File(path).parent.delete(recursive: true);
+    });
+
+    test('a fresh install never creates the AI companion tables', () async {
+      final path = await _tempDbPath();
+      final fresh = db.CourseDatabase(NativeDatabase(File(path)));
+      await _forceOpen(fresh);
+
+      final found = await fresh
+          .customSelect(
+            "SELECT name FROM sqlite_master WHERE type = 'table' "
+            "AND name IN (${List.filled(kAiCompanionTableNames.length, '?').join(',')})",
+            variables: kAiCompanionTableNames.map(Variable.withString).toList(),
+          )
+          .get();
+      expect(found, isEmpty,
+          reason: 'onCreate must not resurrect tables the v29 step drops');
+
+      await fresh.close();
       await File(path).parent.delete(recursive: true);
     });
 

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android platform auto-backup rules (API 23-30; see data_extraction_rules.xml
+  for API 31+). Attached via android:fullBackupContent on <application>.
+
+  Decision: an EXCLUSION list, not android:allowBackup="false".
+  Turna's own backup story is the WebDAV channel (see
+  lib/service/remote_backup/), which the project deliberately keeps local and
+  sanitised. Silencing the platform channel outright would also take away
+  "new phone keeps my review history" for users who never configured WebDAV,
+  so the platform backup stays and only the sensitive artifact is removed.
+
+  What is excluded: the transparency log. `core/log_capture.dart` writes
+  `transparency_log*.jsonl` into `getApplicationDocumentsDirectory()`, which
+  on Android is `<dataDir>/app_flutter/` — inside the auto-backup tree. The
+  log is the one file the app actively encourages users to share (diagnostic
+  export), so leaving it in a cloud backup contradicts the promise the
+  privacy page makes. Credentials are not in play: the AI key and the WebDAV
+  password live in Keystore-backed secure storage, which the platform never
+  backs up.
+
+  What is deliberately NOT excluded, because excluding it would break the
+  user's data rather than protect it:
+    - `app_flutter/course.db` and `course.db.v<N>.bak` — the learning
+      database and its pre-migration snapshots. The downgrade path wipes SRS
+      history, so a .bak may be the only copy of that history.
+    - `app_flutter/anki_media/` — deck media. The database references it by
+      path, so a backup without it restores cards whose images and audio are
+      all dead links.
+    - the `sharedpref` domain — settings, minus the credentials that
+      `SecureCredentialStore` already moved out of prefs.
+
+  NOTE: `domain="root"` is required, not `file`. The documents directory is
+  `<dataDir>/app_flutter/`, a sibling of `files/`, so the `file` domain
+  (which maps to getFilesDir()) would not match it. Android backup rules
+  support no wildcards, so the three concrete file names are listed: the
+  active log plus the two rotation files (LogCapture._maxRotatedFiles = 2).
+-->
+<full-backup-content>
+    <exclude domain="root" path="app_flutter/transparency_log.jsonl" />
+    <exclude domain="root" path="app_flutter/transparency_log.1.jsonl" />
+    <exclude domain="root" path="app_flutter/transparency_log.2.jsonl" />
+</full-backup-content>

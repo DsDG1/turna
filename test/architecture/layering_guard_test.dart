@@ -297,6 +297,29 @@ void main() {
       );
     });
 
+    test('core and routing must not import the data layer', () {
+      // `core` is the cross-layer facility layer (theme, logging, SRS, text).
+      // It was reaching into `data` for a domain type: `core/fsrs_optimizer`
+      // imported `data/review_history_dao.dart` for `ReviewEventRecord`,
+      // which actually lives in `domain/review/review_history.dart`. The
+      // import looked unused at a glance and the dependency was invisible to
+      // every existing rule.
+      expect(
+        _scanPrefix(['lib/core'], 'lib/data'),
+        isEmpty,
+        reason: 'core → data dependency; take the type from its real home in '
+            'domain, or declare an interface in domain and inject it',
+      );
+      // `routing` holds the auto_route table and guards. It has no business
+      // reaching storage either, and nothing was watching it.
+      expect(
+        _scanPrefix(['lib/routing'], 'lib/data'),
+        isEmpty,
+        reason: 'routing → data dependency; resolve services through their '
+            'domain/application interface instead',
+      );
+    });
+
     test('application must not import the data layer (documented exceptions)',
         () {
       // Hard rule: batch 6 (DAO 接口化) moved every DAO/repository behind a

@@ -12,6 +12,11 @@
 /// pipeline input. If multi-language support ever becomes a requirement,
 /// budget a migration of every `AppStrings.` reference (~all view files)
 /// back to generated `AppLocalizations` before touching this table.
+library;
+
+// Project imports:
+import 'package:turna/core/endpoint_url_policy.dart';
+
 class AppStrings {
   const AppStrings._();
 
@@ -388,6 +393,18 @@ class AppStrings {
   static String get remoteBackupServerSection => '服务器';
   static String get remoteBackupServerUrlLabel => '服务器地址';
   static String get remoteBackupServerUrlHint => 'https://dav.example.com/dav';
+
+  /// Localized reason for rejecting a server URL, from `EndpointUrlProblem`.
+  /// Every WebDAV request carries Basic auth, so a cleartext `http://` URL
+  /// would put the password on the wire in reversible base64.
+  static String remoteBackupUrlInvalid(EndpointUrlProblem problem) =>
+      switch (problem) {
+        EndpointUrlProblem.empty => '请输入服务器地址',
+        EndpointUrlProblem.malformed => '服务器地址格式不正确',
+        EndpointUrlProblem.unsupportedScheme =>
+          '服务器地址必须以 http:// 或 https:// 开头',
+        EndpointUrlProblem.httpsRequired => '服务器地址必须使用 https://，否则密码会以明文传输',
+      };
   static String get remoteBackupUsernameLabel => '用户名';
   static String get remoteBackupUsernameHint => 'WebDAV 账号';
   static String get remoteBackupPasswordLabel => '密码';
@@ -1487,6 +1504,11 @@ class AppStrings {
   static String get aiErrorRateLimited => '请求过于频繁或额度不足';
   static String get aiErrorCancelled => '已停止生成';
   static String get aiErrorParseFailed => '模型返回格式异常，请重试';
+
+  /// The endpoint answered 3xx. Fixed copy with no status or body in it: the
+  /// request is never followed (it carries the API key), so the user has to
+  /// enter the final URL themselves.
+  static String get aiErrorEndpointRedirect => '接口地址发生跳转，出于安全考虑未自动跟随，请填写最终地址';
   static String get aiErrorUnknown => 'AI 请求失败，请稍后重试';
   static String get aiStopGenerating => '停止';
   static String get aiDisclaimer => 'AI 可能有误，请以课程与词典为准';

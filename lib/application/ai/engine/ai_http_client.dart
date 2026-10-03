@@ -11,6 +11,25 @@ import 'package:turna/application/ai/engine/ai_cancel_token.dart';
 import 'package:turna/application/ai/engine/ai_engine_config.dart';
 import 'package:turna/application/ai/engine/ai_stream_chunk.dart';
 
+/// The endpoint answered with a 3xx redirect and the request was not
+/// followed.
+///
+/// Every request this client builds carries `Authorization: Bearer <key>`. A
+/// redirect is an instruction to move that request — and the header with it —
+/// somewhere the user never typed, so it is refused rather than followed: the
+/// destination's own origin policy decides whether the credential would have
+/// survived, and a user-configured endpoint should not get to choose. The
+/// response body is intentionally not surfaced, because a body from an
+/// unwanted destination is a new place a secret could be echoed from.
+class AiRedirectNotFollowed implements Exception {
+  const AiRedirectNotFollowed(this.statusCode);
+
+  final int statusCode;
+
+  @override
+  String toString() => 'AI endpoint redirected (HTTP $statusCode)';
+}
+
 /// OpenAI-compatible HTTP client with streaming, cooperative cancel, and
 /// `json_schema` -> `json_object` auto-fallback.
 ///
@@ -110,6 +129,13 @@ class AiHttpClient {
     // Disable transparent gzip so streamed SSE lines are plain text we can
     // split by line (mirrors `ai/client.py` `Accept-Encoding: identity`).
     req.headers['Accept-Encoding'] = 'identity';
+    // Never follow a redirect. This request carries `Authorization: Bearer
+    // <key>`; whether that header survives a cross-host hop is up to each
+    // platform HTTP stack's own cross-origin scrubbing, so a user-configured
+    // endpoint answering 30x to somewhere else would decide where the key
+    // goes. Mirrors `webdav_client.dart`, which states the same rule for the
+    // same reason ("credentials must not leak to another host").
+    req.followRedirects = false;
     req.body = jsonEncode(payload);
     return req;
   }
@@ -129,7 +155,8 @@ class AiHttpClient {
       throw Exception(
           'AI config incomplete: please fill in Base URL / API Key / Model.');
     }
-    final res = await _client.send(_buildRequest(config, payload));
+    final res =
+        await _sendChecked(_client.send(_buildRequest(config, payload)));
 
     final rf = payload['response_format'];
     final isJsonSchema = rf is Map && rf['type'] == 'json_schema';
@@ -141,12 +168,36 @@ class AiHttpClient {
         markJsonSchemaUnsupported(config.baseUrl);
         final retryPayload = Map<String, dynamic>.from(payload);
         retryPayload['response_format'] = {'type': 'json_object'};
-        return _client.send(_buildRequest(config, retryPayload));
+        return _sendChecked(_client.send(_buildRequest(config, retryPayload)));
       }
       // 400 that isn't a schema rejection - surface it.
       throw Exception('HTTP 400: ${_truncate(detail)}');
     }
     return res;
+  }
+
+  /// Reject a 3xx instead of handing it to the caller as a normal response.
+  ///
+  /// Covers every send path, including the `json_schema` retry, so a redirect
+  /// cannot slip through on the second attempt.
+  Future<http.StreamedResponse> _sendChecked(
+      Future<http.StreamedResponse> pending) async {
+    final res = await pending;
+    if (res.statusCode >= 300 && res.statusCode < 400) {
+      await _discardBody(res);
+      throw AiRedirectNotFollowed(res.statusCode);
+    }
+    return res;
+  }
+
+  /// Drain an unwanted response body so the connection can be reused.
+  Future<void> _discardBody(http.StreamedResponse res) async {
+    try {
+      await res.stream.drain<void>();
+    } catch (_) {
+      // Best-effort hygiene only: the body of a refused redirect is of no
+      // interest, and failing to drain it must not mask the refusal.
+    }
   }
 
   /// Non-streaming POST. Returns the parsed response body. Polls [cancelToken]

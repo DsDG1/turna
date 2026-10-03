@@ -74,6 +74,29 @@ void main() {
     expect(capture.entries.value, isEmpty);
   });
 
+  test('secrets are redacted in both the buffer and the file on disk',
+      () async {
+    await capture.clear();
+    // The real leak path: a provider error body echoing a key slice, folded
+    // into an exception message and logged by the provider.
+    emitter.w('chat failed: Incorrect API key provided: sk-proj-a1b2c3d4e5f6');
+    emitter.w('header was Bearer eyJhbGciOiJIUzI1NiJ9.payload.sig');
+    emitter.i('merhaba dünya, bugün API öğreniyoruz');
+    await settle();
+    await capture.flushNow();
+
+    final buffer = capture.entries.value.map((e) => e.message).join('\n');
+    final disk = file.readAsStringSync();
+    for (final sink in [buffer, disk]) {
+      expect(sink, isNot(contains('sk-proj-a1b2c3d4e5f6')));
+      expect(sink, isNot(contains('eyJhbGciOiJIUzI1NiJ9')));
+      expect(sink, contains('[REDACTED]'));
+      // Learning content must survive: a scrubber that eats real log text
+      // pushes users back to sending raw logs in bug reports.
+      expect(sink, contains('merhaba dünya, bugün API öğreniyoruz'));
+    }
+  });
+
   test('clear during in-flight flush cannot resurrect old lines', () async {
     await capture.clear();
     for (var i = 0; i < 50; i++) {

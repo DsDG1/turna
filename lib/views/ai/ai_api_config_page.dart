@@ -1,7 +1,6 @@
 // Flutter imports:
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -17,6 +16,7 @@ import 'package:turna/application/ai/engine/ai_provider_preset.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/ai/components/ai_sheet_widgets.dart';
+import 'package:turna/core/endpoint_url_policy.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/turna_select.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
@@ -130,33 +130,21 @@ class _AiApiConfigPageState extends State<AiApiConfigPage> {
   /// Resolve the Base URL text into a normalized value, or an error when the
   /// scheme/host is unusable. Production requires https; local plain-HTTP
   /// endpoints are a development convenience only (Plan 2 §6.2).
+  ///
+  /// The decision itself lives in [EndpointUrlPolicy] so this page and the
+  /// WebDAV settings page cannot drift into accepting different endpoints;
+  /// this method only maps the shared reason onto AI-specific wording.
   (String, String?) _normalizeBaseUrl(String raw) {
-    var value = raw.trim();
-    if (value.isEmpty) return ('', AppStrings.aiConfigBaseUrlEmpty);
-    while (value.endsWith('/')) {
-      value = value.substring(0, value.length - 1);
-    }
-    final Uri uri;
-    try {
-      uri = Uri.parse(value);
-    } catch (_) {
-      return (value, AppStrings.aiConfigBaseUrlInvalid);
-    }
-    final isHttp = uri.scheme == 'http';
-    final isHttps = uri.scheme == 'https';
-    if (!isHttp && !isHttps) {
-      return (value, AppStrings.aiConfigBaseUrlInvalidScheme);
-    }
-    if (uri.host.isEmpty) {
-      return (value, AppStrings.aiConfigBaseUrlInvalid);
-    }
-    final isLoopback = uri.host == 'localhost' ||
-        uri.host == '127.0.0.1' ||
-        uri.host == '[::1]';
-    if (isHttp && !isLoopback && !kDebugMode) {
-      return (value, AppStrings.aiConfigBaseUrlHttpsOnly);
-    }
-    return (value, null);
+    final (:value, :problem) = EndpointUrlPolicy.normalize(raw);
+    final error = switch (problem) {
+      null => null,
+      EndpointUrlProblem.empty => AppStrings.aiConfigBaseUrlEmpty,
+      EndpointUrlProblem.malformed => AppStrings.aiConfigBaseUrlInvalid,
+      EndpointUrlProblem.unsupportedScheme =>
+        AppStrings.aiConfigBaseUrlInvalidScheme,
+      EndpointUrlProblem.httpsRequired => AppStrings.aiConfigBaseUrlHttpsOnly,
+    };
+    return (value, error);
   }
 
   Future<void> _commitDraft() async {

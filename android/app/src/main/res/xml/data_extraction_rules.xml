@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android platform auto-backup rules for API 31+ (Android 12+), attached via
+  android:dataExtractionRules. Supersedes backup_rules.xml, which the
+  platform ignores from API 31 up — both must be kept in sync, and both are
+  needed because Flutter still supports minSdk 23.
+
+  Unlike the pre-31 rules, this file splits the two destinations, and the
+  transparency log is excluded from BOTH:
+    - <cloud-backup>   → Google automatic backup.
+    - <device-transfer> → direct phone-to-phone transfer, which Android 12+
+      runs even when android:allowBackup="false" would have blocked the
+      cloud leg. Excluding only the cloud leg would have left the log moving
+      to the new device by cable.
+
+  See backup_rules.xml for the reasoning behind excluding the log and for
+  what is deliberately kept (course.db, anki_media, prefs).
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" path="app_flutter/transparency_log.jsonl" />
+        <exclude domain="root" path="app_flutter/transparency_log.1.jsonl" />
+        <exclude domain="root" path="app_flutter/transparency_log.2.jsonl" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" path="app_flutter/transparency_log.jsonl" />
+        <exclude domain="root" path="app_flutter/transparency_log.1.jsonl" />
+        <exclude domain="root" path="app_flutter/transparency_log.2.jsonl" />
+    </device-transfer>
+</data-extraction-rules>

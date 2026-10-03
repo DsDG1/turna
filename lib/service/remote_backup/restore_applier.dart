@@ -7,6 +7,8 @@ import 'package:path/path.dart' as p;
 import 'package:sqlite3/sqlite3.dart' as sql;
 
 // Project imports:
+import 'package:turna/application/backup/backup_manifest_policy.dart';
+import 'package:turna/core/logger.dart';
 import 'package:turna/service/remote_backup/archive_io.dart';
 import 'package:turna/application/anki_official/storage/official_anki_sqlite.dart';
 import 'package:turna/service/locator.dart';
@@ -154,9 +156,23 @@ class RestoreApplier {
       throw const FormatException('prefs.json 格式错误');
     }
     final preferences = _prefs.preferences;
+    // `prefs.json` is untrusted input: a hostile or stale WebDAV server can
+    // plant arbitrary keys, including an old `ai.engineConfig` blob carrying
+    // a plaintext `apiKey` that `AiEngineConfigHolder.loadPersisted` would
+    // accept and migrate into secure storage. Writing every key meant the
+    // restore path had no allowlist at all, while the local import path
+    // already went through `BackupManifestPolicy` — one gate for both, so the
+    // two cannot disagree about what a key is worth.
+    final dropped = <String>[];
     for (final entry in decoded.entries) {
-      if (entry.key.startsWith('remoteBackup.')) continue;
-      final value = entry.value;
+      // null means either "not backup-eligible, drop it" or "a null value,
+      // which the packer never writes"; both mean the same thing here.
+      final value =
+          BackupManifestPolicy.sanitizeForSerialization(entry.key, entry.value);
+      if (value == null) {
+        dropped.add(entry.key);
+        continue;
+      }
       switch (value) {
         case bool v:
           await preferences.setBool(entry.key, v);
@@ -169,10 +185,16 @@ class RestoreApplier {
         case List v:
           await preferences.setStringList(
               entry.key, v.map((e) => e.toString()).toList());
-        case null:
-          // Skip nulls (defensive; the packer never writes them).
-          break;
       }
+    }
+    if (dropped.isNotEmpty) {
+      // A normal archive has no non-eligible keys (export applies the same
+      // policy), so anything dropped here came from outside the app.
+      final shown = dropped.take(10).join(', ');
+      logger.w(
+        'Restore dropped ${dropped.length} non-backup-eligible pref key(s): '
+        '$shown${dropped.length > 10 ? ' …' : ''}',
+      );
     }
   }
 

@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 
 // Project imports:
+import 'package:turna/core/endpoint_url_policy.dart';
 import 'package:turna/service/remote_backup/remote_backup_config.dart';
 
 class WebDavException implements Exception {
@@ -30,6 +31,14 @@ class WebDavAuthException extends WebDavException {
 
 class WebDavNotFoundException extends WebDavException {
   WebDavNotFoundException(String path) : super('远端不存在: $path', statusCode: 404);
+}
+
+/// The configured endpoint is not acceptable under the app's network policy
+/// (see [EndpointUrlPolicy]) — in practice, a cleartext `http://` URL to a
+/// non-loopback host. Raised before the Basic auth header is ever built, so
+/// the password never reaches a cleartext socket.
+class WebDavInsecureEndpointException extends WebDavException {
+  WebDavInsecureEndpointException(super.message);
 }
 
 class WebDavProbeResult {
@@ -88,9 +97,27 @@ class WebDavClient {
       'Basic ${base64.encode(utf8.encode('$username:$password'))}';
 
   void _authorize(http.BaseRequest request) {
+    _assertSecureEndpoint();
     request.headers[HttpHeaders.authorizationHeader] = _authValue;
     request.followRedirects = false;
     request.persistentConnection = true;
+  }
+
+  /// Refuse to attach credentials to a cleartext request.
+  ///
+  /// Checked here, at the single point where the `Authorization` header is
+  /// actually set, rather than in the settings UI. A UI check alone is
+  /// advisory: a config restored from a backup, written by an older build,
+  /// or set by any other caller would sail past it — but it cannot get past
+  /// this. Basic auth is `base64(username:password)`, so a cleartext hop
+  /// discloses the password with no reversal at all.
+  void _assertSecureEndpoint() {
+    final endpoint = _base.toString();
+    final problem = EndpointUrlPolicy.normalize(endpoint).problem;
+    if (problem == null) return;
+    throw WebDavInsecureEndpointException(
+      '服务器地址必须使用 HTTPS: $endpoint',
+    );
   }
 
   Never _fail(int statusCode, String what) {

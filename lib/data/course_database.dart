@@ -291,7 +291,7 @@ class CourseDatabase extends _$CourseDatabase {
 
   /// Single source of truth for the drift schema version, so tests and
   /// backup code never hard-code a stale literal.
-  static const int kSchemaVersion = 28;
+  static const int kSchemaVersion = 29;
 
   @override
   int get schemaVersion => kSchemaVersion;
@@ -304,7 +304,6 @@ class CourseDatabase extends _$CourseDatabase {
           await _ensureAnkiCanonicalV2(m.database);
           await _ensureFunLabSnapshotTables(m.database);
           await _ensureAnkiUnificationTables(m.database);
-          await _ensureAiCompanionTables(m.database);
           await _ensureGemEconomyTables(m.database);
           await _ensureV2CourseTreeView(m.database);
           await _backfillReviewSourceIdentity(m.database);
@@ -349,7 +348,6 @@ class CourseDatabase extends _$CourseDatabase {
             await _ensureAnkiCanonicalV2(m.database);
             await _ensureFunLabSnapshotTables(m.database);
             await _ensureAnkiUnificationTables(m.database);
-            await _ensureAiCompanionTables(m.database);
             await _ensureV2CourseTreeView(m.database);
             return;
           }
@@ -456,9 +454,6 @@ class CourseDatabase extends _$CourseDatabase {
             // restored with transactional INSERT ... SELECT statements.
             await _ensureFunLabSnapshotTables(m.database);
           }
-          if (from < 16) {
-            await _ensureAiCompanionTables(m.database);
-          }
           if (from < 18) {
             await _ensureAnkiUnificationTables(m.database);
           }
@@ -558,6 +553,42 @@ class CourseDatabase extends _$CourseDatabase {
                 info.any((row) => row.read<String>('name') == 'pos');
             if (info.isNotEmpty && !hasPos) {
               await m.addColumn(vocabulary, vocabulary.pos);
+            }
+          }
+          if (from < 29) {
+            // v29 (2026-10-02): the AI companion feature is retired. Its code
+            // went out earlier (commit 5d879e86), but `_ensureAiCompanionTables`
+            // kept creating all NINE of its tables for every new install and
+            // on the pre-v16 upgrade path, so they were zero-read, zero-write
+            // orphans sitting in every user database.
+            //
+            // Pure DROP, no structure rewrite: the writers are gone, so there
+            // is no data worth keeping, and none of the nine reference each
+            // other, so drop order does not matter. `IF EXISTS` covers the
+            // three cases this step meets — a real v28 database that has
+            // them, a fresh install that will not, and an old pre-v16 upgrade
+            // whose creation step no longer runs.
+            //
+            // The `from < 16` branch was removed rather than kept: creating
+            // tables only for this step to drop them again is wasted work on
+            // a cold upgrade path, and the DROP is unconditional, so the end
+            // state is identical either way.
+            //
+            // The list is longer than the four tables named in the original
+            // review — that review undercounted, and dropping only those four
+            // would have left five orphans in place.
+            for (final table in const [
+              'ai_sessions',
+              'ai_messages',
+              'learning_evidence',
+              'knowledge_mastery',
+              'diagnosis_snapshots',
+              'study_plans',
+              'study_plan_items',
+              'ai_notes',
+              'ai_request_metrics',
+            ]) {
+              await m.database.customStatement('DROP TABLE IF EXISTS $table');
             }
           }
         },
@@ -1030,142 +1061,6 @@ class CourseDatabase extends _$CourseDatabase {
         acquired_by_transaction TEXT NOT NULL,
         acquired_at INTEGER NOT NULL,
         catalog_version INTEGER NOT NULL DEFAULT 1
-      )
-    ''');
-  }
-
-  static Future<void> _ensureAiCompanionTables(
-    GeneratedDatabase database,
-  ) async {
-    await database.customStatement('''
-      CREATE TABLE IF NOT EXISTS ai_sessions (
-        id TEXT PRIMARY KEY NOT NULL,
-        mode TEXT NOT NULL,
-        title TEXT NOT NULL,
-        language TEXT NOT NULL,
-        goal_id TEXT,
-        source_context_json TEXT NOT NULL DEFAULT '{}',
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL,
-        summary TEXT NOT NULL DEFAULT '',
-        status TEXT NOT NULL DEFAULT 'active',
-        prompt_version TEXT NOT NULL DEFAULT '',
-        model TEXT NOT NULL DEFAULT '',
-        total_tokens INTEGER NOT NULL DEFAULT 0,
-        estimated_cost REAL NOT NULL DEFAULT 0.0
-      )
-    ''');
-    await database.customStatement('''
-      CREATE TABLE IF NOT EXISTS ai_messages (
-        id TEXT PRIMARY KEY NOT NULL,
-        session_id TEXT NOT NULL,
-        role TEXT NOT NULL,
-        content TEXT NOT NULL,
-        created_at INTEGER NOT NULL,
-        state TEXT NOT NULL DEFAULT 'complete',
-        citations_json TEXT NOT NULL DEFAULT '[]',
-        linked_knowledge_ids_json TEXT NOT NULL DEFAULT '[]',
-        feedback TEXT
-      )
-    ''');
-    await database.customStatement('''
-      CREATE TABLE IF NOT EXISTS learning_evidence (
-        id TEXT PRIMARY KEY NOT NULL,
-        timestamp INTEGER NOT NULL,
-        source_type TEXT NOT NULL,
-        source_id TEXT NOT NULL,
-        knowledge_type TEXT NOT NULL,
-        knowledge_id TEXT NOT NULL,
-        question_type TEXT,
-        result TEXT NOT NULL,
-        error_type TEXT NOT NULL,
-        response_time_ms INTEGER,
-        hint_level_used INTEGER NOT NULL DEFAULT 0,
-        confidence REAL NOT NULL DEFAULT 1.0,
-        metadata_json TEXT NOT NULL DEFAULT '{}',
-        model TEXT,
-        prompt_version TEXT,
-        user_confirmed INTEGER NOT NULL DEFAULT 0
-      )
-    ''');
-    await database.customStatement('''
-      CREATE TABLE IF NOT EXISTS knowledge_mastery (
-        knowledge_type TEXT NOT NULL,
-        knowledge_id TEXT NOT NULL,
-        mastery REAL NOT NULL,
-        confidence REAL NOT NULL,
-        evidence_count INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL,
-        last_successful_recall_at INTEGER,
-        stability_days REAL NOT NULL,
-        PRIMARY KEY (knowledge_type, knowledge_id)
-      )
-    ''');
-    await database.customStatement('''
-      CREATE TABLE IF NOT EXISTS diagnosis_snapshots (
-        id TEXT PRIMARY KEY NOT NULL,
-        created_at INTEGER NOT NULL,
-        data_window_days INTEGER NOT NULL,
-        data_sufficiency TEXT NOT NULL,
-        weak_areas_json TEXT NOT NULL,
-        narrative TEXT NOT NULL,
-        prompt_version TEXT NOT NULL
-      )
-    ''');
-    await database.customStatement('''
-      CREATE TABLE IF NOT EXISTS study_plans (
-        id TEXT PRIMARY KEY NOT NULL,
-        title TEXT NOT NULL,
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL,
-        target_minutes INTEGER NOT NULL DEFAULT 15,
-        status TEXT NOT NULL DEFAULT 'active'
-      )
-    ''');
-    await database.customStatement('''
-      CREATE TABLE IF NOT EXISTS study_plan_items (
-        id TEXT PRIMARY KEY NOT NULL,
-        plan_id TEXT NOT NULL,
-        kind TEXT NOT NULL,
-        title TEXT NOT NULL,
-        estimated_minutes INTEGER NOT NULL DEFAULT 5,
-        item_order INTEGER NOT NULL DEFAULT 0,
-        status TEXT NOT NULL DEFAULT 'pending',
-        reason TEXT NOT NULL DEFAULT '',
-        route TEXT,
-        payload_json TEXT NOT NULL DEFAULT '{}'
-      )
-    ''');
-    await database.customStatement('''
-      CREATE TABLE IF NOT EXISTS ai_notes (
-        id TEXT PRIMARY KEY NOT NULL,
-        title TEXT NOT NULL,
-        body TEXT NOT NULL,
-        source TEXT NOT NULL,
-        language TEXT,
-        course_path TEXT,
-        tags_json TEXT NOT NULL DEFAULT '[]',
-        knowledge_ids_json TEXT NOT NULL DEFAULT '[]',
-        status TEXT NOT NULL DEFAULT 'active',
-        created_at INTEGER NOT NULL,
-        updated_at INTEGER NOT NULL,
-        next_review_at INTEGER
-      )
-    ''');
-    await database.customStatement('''
-      CREATE TABLE IF NOT EXISTS ai_request_metrics (
-        request_id TEXT PRIMARY KEY NOT NULL,
-        feature TEXT NOT NULL,
-        session_id TEXT,
-        prompt_version TEXT NOT NULL,
-        model TEXT NOT NULL,
-        started_at INTEGER NOT NULL,
-        latency_ms INTEGER NOT NULL,
-        input_tokens INTEGER NOT NULL,
-        output_tokens INTEGER NOT NULL,
-        cache_hit INTEGER NOT NULL DEFAULT 0,
-        outcome TEXT NOT NULL,
-        estimated_cost REAL NOT NULL DEFAULT 0.0
       )
     ''');
   }

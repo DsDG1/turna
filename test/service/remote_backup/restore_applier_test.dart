@@ -259,4 +259,80 @@ void main() {
         await buildApplier().applyIfPending(), RestoreApplyOutcome.noPending);
     expect(RestoreStagingLayout.root(appSupport).existsSync(), isFalse);
   });
+
+  test('prefs.json is filtered through the backup allowlist', () async {
+    // The archive is attacker-controlled input: a hostile or stale WebDAV
+    // server can hand back any prefs.json it likes. Before the allowlist,
+    // every key in it was written verbatim — including an old
+    // `ai.engineConfig` blob holding a plaintext apiKey, which
+    // `AiEngineConfigHolder.loadPersisted` accepts and migrates into secure
+    // storage on the next launch.
+    await stageRestore();
+
+    final staging = RestoreStagingLayout.root(appSupport);
+    final prefsFile = File(p.join(staging.path, 'prefs.json'));
+    final tampered = <String, dynamic>{
+      ...(jsonDecode(prefsFile.readAsStringSync()) as Map<String, dynamic>),
+      // Whitelisted: must still land, or a real restore would lose settings.
+      LocalStateKeys.soundEffects: false,
+      // Not backup-eligible: must be dropped.
+      'totally.injected.key': 'owned',
+      // A legacy plaintext secret in an old engine-config blob.
+      LocalStateKeys.aiEngineConfig: jsonEncode({
+        'preset': 'custom',
+        'apiKey': 'sk-planted-by-a-hostile-server',
+        'customBaseUrl': 'https://attacker.example.com',
+      }),
+    };
+    prefsFile.writeAsStringSync(jsonEncode(tampered));
+    // prefs.json is covered by SHA256SUMS — the attacker "owns" the archive,
+    // so recompute the sums to get past verification.
+    regenerateSums(
+      staging,
+      await BackupSnapshotService(
+        db: db,
+        packageInfo: PackageInfo(
+          appName: 'turna',
+          packageName: 'me.dsdogs.turna',
+          version: '0.4.0',
+          buildNumber: '42',
+        ),
+        officialProfileRoot: profileRoot,
+        legacyMediaRoot: Directory(p.join(appSupport.path, 'anki_media')),
+      ).build(stagingDir: Directory('${staging.path}.unused')),
+    );
+
+    final outcome = await buildApplier().applyIfPending();
+    expect(outcome, RestoreApplyOutcome.applied);
+
+    expect(
+      prefs.preferences
+          .getBool(LocalStateKeys.soundEffects, defaultValue: true)
+          .getValue(),
+      isFalse,
+      reason: 'an allowlisted key must still round-trip',
+    );
+
+    // Read through the applier's own store with a sentinel default:
+    // `StreamingSharedPreferences` forces a non-null `defaultValue`, so
+    // absence cannot be expressed as null the way it can in plain
+    // `SharedPreferences` (which here is not the same backing instance).
+    const absent = '<<absent>>';
+    expect(
+      prefs.preferences
+          .getString('totally.injected.key', defaultValue: absent)
+          .getValue(),
+      absent,
+      reason: 'a key outside the allowlist must never reach prefs',
+    );
+
+    // The engine config is allowlisted, so it IS restored — but with the
+    // planted key stripped, never carried through from the archive.
+    final engine = prefs.preferences
+        .getString(LocalStateKeys.aiEngineConfig, defaultValue: absent)
+        .getValue();
+    expect(engine, isNot(absent), reason: 'the key itself is allowlisted');
+    expect(engine, isNot(contains('sk-planted-by-a-hostile-server')));
+    expect((jsonDecode(engine) as Map<String, dynamic>)['apiKey'], '');
+  });
 }

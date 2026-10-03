@@ -9,6 +9,7 @@ import 'package:auto_route/auto_route.dart';
 import 'package:intl/intl.dart';
 
 // Project imports:
+import 'package:turna/core/endpoint_url_policy.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
@@ -199,6 +200,20 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
             username: _userCtrl.text,
           )
           .normalized();
+      // Refuse before anything is written or any password is stored: the
+      // same shared policy the AI base URL uses (see EndpointUrlPolicy).
+      // WebDavClient re-checks at request time, so a config that reaches the
+      // store another way still cannot send credentials in cleartext.
+      final urlProblem = endpoint.validateServerUrl();
+      if (urlProblem != null && urlProblem != EndpointUrlProblem.empty) {
+        if (!mounted) return;
+        setState(() {
+          _saving = false;
+          _dirty = true;
+        });
+        _showSnack(AppStrings.remoteBackupUrlInvalid(urlProblem));
+        return;
+      }
       final newPassword = _passwordCtrl.text;
       if (newPassword.isNotEmpty) {
         await store.savePassword(newPassword);

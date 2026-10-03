@@ -18,7 +18,16 @@
         android:label="Turna"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon"
-        android:enableOnBackInvokedCallback="true">
+        android:enableOnBackInvokedCallback="true"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules">
+        <!-- Platform auto-backup is kept ON but scoped: the transparency log
+             (`app_flutter/transparency_log*.jsonl`, written by
+             core/log_capture.dart) is the one file the app asks users to
+             share, so it is excluded from both the cloud leg and the
+             device-transfer leg. The learning database, deck media and prefs
+             stay in the backup on purpose. See the two xml files for the
+             full reasoning; the pre-31 and 31+ files must be kept in sync. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
