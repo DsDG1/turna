@@ -14,6 +14,7 @@ import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
 import 'package:turna/application/anki_official/storage/official_anki_database.dart';
 import 'package:turna/core/logger.dart';
+import 'package:turna/core/ohos_target.dart';
 
 class OfficialAnkiRuntimeProbe {
   const OfficialAnkiRuntimeProbe({
@@ -230,9 +231,33 @@ class OfficialAnkiCompositionRoot {
   }
 
   /// Cold-start catalog locator. Opens catalog only — no Collection writer.
+  ///
+  /// No-op on the OpenHarmony companion build: the shared catalog is a
+  /// `sqlite3` FFI database and OHOS has no `libsqlite3.so` to load, so
+  /// [_ensureSharedCatalog] throws `Unsupported platform: ohos` out of
+  /// `sqlite3`'s loader. That is not a recoverable error here — this runs on
+  /// every cold start, so the throw aborts the whole startup continuation and
+  /// the splash never gets past "course did not load" even though the course
+  /// database itself is fine (it is ArkData-backed, see `HarmonyOsRdbExecutor`).
+  ///
+  /// Degrading is the specified behaviour, not a shortcut: ADR 0047 scopes the
+  /// companion build to course/SRS/review/dictionary/settings and explicitly
+  /// excludes the faithful Official Anki reviewer, so there is no Anki deck to
+  /// read. Leaving `catalogOf` unbound means Official sections resolve to
+  /// empty, which is the correct answer for a build that cannot import them.
+  /// The degradation is logged rather than swallowed, and the settings page
+  /// surfaces it to the user.
   static Future<void> initializeReadOnlyLocator({
     Directory? supportDir,
   }) async {
+    if (isHarmonyOsTarget) {
+      logger.w(
+        'Official Anki shared catalog is not available on the OpenHarmony '
+        'companion build (no sqlite3 FFI); imported decks are out of scope '
+        'per ADR 0047 and the Learn tree will show builtin courses only.',
+      );
+      return;
+    }
     if (readOnlyCatalog != null && locatorPaths != null && supportDir == null) {
       _bindCourseEntryCatalog(locatorPaths!);
       return;

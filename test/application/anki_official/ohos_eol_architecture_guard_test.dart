@@ -43,6 +43,29 @@ void main() {
           isEmpty,
           reason: 'build artifacts must not be committed: $artifacts',
         );
+
+        // A hand-written plugin that is not registered on the engine leaves its
+        // method channel without a handler. The symptom is a blank screen at
+        // launch, with no build error and no Dart log — the RDB channel is
+        // reached during startup, so `openDb` throws MissingPluginException
+        // before the first frame. Only EntryAbility can register these: the
+        // Flutter tool generates GeneratedPluginRegistrant.ets from pubspec
+        // and has no package to learn them from.
+        //
+        // The import alone must not satisfy this: an ability that imports a
+        // plugin but never adds it compiles cleanly and still leaves the
+        // channel unserved.
+        const ability = 'ohos/entry/src/main/ets/entryability/EntryAbility.ets';
+        final abilitySource = File(ability).readAsStringSync();
+        for (final plugin in _handWrittenPlugins) {
+          expect(
+            RegExp('new\\s+$plugin\\s*\\(').hasMatch(abilitySource),
+            isTrue,
+            reason: '$ability does not register $plugin with the engine; its '
+                'method channel will have no handler and the app will open to '
+                'a blank screen',
+          );
+        }
       }
 
       // The fork patch toolchain stays dead in both branches: the prebuilt SDK
@@ -209,6 +232,45 @@ flutter:
       }
     });
 
+    test('OHOS capability checks in lib/ all go through one predicate', () {
+      if (!_companionBuild) return;
+
+      // `TargetPlatform.ohos` exists only in the OHOS fork, so `lib/` must
+      // compare the platform by name — but only in ONE place. The first real
+      // device run of the RDB layer dead-ended on the splash because the
+      // Official Anki cold-start locator opened a second `sqlite3` FFI
+      // database on a platform that has no `libsqlite3.so`, and nothing had
+      // gated it. Per-site ad-hoc comparisons are how that happened; one
+      // predicate in `lib/core/ohos_target.dart` is what keeps the next
+      // capability from being missed the same way.
+      final offenders = <String>[];
+      final lib = Directory('lib');
+      for (final file in lib.listSync(recursive: true).whereType<File>()) {
+        if (!file.path.endsWith('.dart')) continue;
+        final relative = file.path.replaceAll(r'\', '/');
+        if (relative == 'lib/core/ohos_target.dart') continue;
+        for (final line in file.readAsLinesSync()) {
+          final trimmed = line.trim();
+          if (trimmed.startsWith('//') ||
+              trimmed.startsWith('/*') ||
+              trimmed.startsWith('*')) {
+            continue;
+          }
+          if (line.contains("defaultTargetPlatform.name == 'ohos'") ||
+              line.contains('TargetPlatform.ohos')) {
+            offenders.add(relative);
+          }
+        }
+      }
+      expect(
+        offenders.toSet(),
+        isEmpty,
+        reason: 'route OHOS checks through isHarmonyOsTarget '
+            '(lib/core/ohos_target.dart) instead of inlining them: '
+            '${offenders.toSet().toList()}',
+      );
+    });
+
     test('vendored UI packages are SDK-neutral (no ohos enum value)', () {
       if (!_companionBuild) return;
 
@@ -370,6 +432,10 @@ const _requiredOhosFiles = <String>[
   'ohos/entry/src/main/ets/plugins/RdbPlugin.ets',
   'ohos/entry/src/main/ets/plugins/FilePickerPlugin.ets',
 ];
+
+/// Turna's own ArkTS plugins. Not packages, so the Flutter tool's registrant
+/// generator cannot know about them; registration is [EntryAbility]'s job.
+const _handWrittenPlugins = <String>['RdbPlugin', 'FilePickerPlugin'];
 
 /// ADR 0047 §6. Refs still open are enforced only for presence until W3 lands.
 /// `file_picker` and `flutter_local_notifications` are deliberately absent.
