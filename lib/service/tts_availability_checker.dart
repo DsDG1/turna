@@ -10,6 +10,8 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:injectable/injectable.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:turna/core/logger.dart';
+import 'package:turna/core/ohos_target.dart';
+import 'package:turna/service/speech_backend.dart';
 
 /// Snapshot of the device's TTS capabilities for UI / debugging.
 class TtsDiagnostics {
@@ -70,13 +72,24 @@ enum TtsPreferredStatus {
 /// There is no bundled offline fallback in this build — if the system voice
 /// is unavailable, the audio controller reports an error to the UI.
 ///
+/// The two supported platforms disagree about what a TTS engine is. Android
+/// exposes selectable engine *packages* plus a per-language "voice data
+/// installed" flag, which is what the `flutter_tts` calls below drive. The
+/// OpenHarmony companion build has one engine and a list of voices, reached
+/// through [SpeechBackend]. Both questions are answered here — this class is
+/// where the two engine models meet — and the Android path is left exactly as
+/// it was.
+///
 /// This class does not play audio; it answers availability questions and
 /// configures the preferred engine.
 @lazySingleton
 class TtsAvailabilityChecker {
   final FlutterTts _tts;
+  final SpeechBackend _speech;
 
-  TtsAvailabilityChecker(this._tts);
+  TtsAvailabilityChecker(FlutterTts tts, {required SpeechBackend speech})
+      : _tts = tts,
+        _speech = speech;
 
   /// Android package / engine id for Google Text-to-speech.
   static const String googleEngineId = 'com.google.android.tts';
@@ -160,6 +173,7 @@ class TtsAvailabilityChecker {
   /// **data is installed** (not merely advertised as available).
   Future<String?> resolveLanguageCode(String languageCode) async {
     if (kIsWeb) return null;
+    if (isHarmonyOsTarget) return _resolveHarmonyOsLanguage(languageCode);
 
     try {
       await configureSystemEngine();
@@ -218,6 +232,79 @@ class TtsAvailabilityChecker {
         'TtsAvailabilityChecker: failed to resolve language: $e\n$st',
       );
       return null;
+    }
+  }
+
+  /// Companion-build counterpart of [resolveLanguageCode]: asks the platform
+  /// which voices exist and matches the same candidate ladder against them.
+  ///
+  /// Returns null when the engine cannot be brought up *or* when it has no voice
+  /// for the language. The two are reported the same way on purpose — the
+  /// caller's remedy is the same either way, and a device with a working engine
+  /// but no matching voice must not be reported as "engine broken".
+  Future<String?> _resolveHarmonyOsLanguage(String languageCode) async {
+    final candidates = languageCandidates(languageCode);
+    if (candidates.isEmpty) return null;
+    try {
+      await _speech.init(language: candidates.first);
+      final voices = await _speech.availableLanguages();
+      if (voices.isEmpty) {
+        logger.d(
+          'TtsAvailabilityChecker: platform reported no voices for '
+          '"$languageCode" (candidates=$candidates)',
+        );
+        return null;
+      }
+      for (final candidate in candidates) {
+        if (voices.contains(candidate)) {
+          logger.d(
+            'TtsAvailabilityChecker: resolved voice "$candidate" of '
+            '${voices.length} for "$languageCode"',
+          );
+          return candidate;
+        }
+      }
+      // The device reports region-tagged voices with an underscore and a region
+      // the app never asked for — Mate 90 Pro Max answers `zh_CN` / `en_US` and
+      // nothing else. Matching the base subtag is what turns "no voice" into a
+      // usable locale; without it a Chinese or English course finds nothing on a
+      // device that plainly has both.
+      final base = languageCode.trim().toLowerCase().split('-').first;
+      for (final voice in voices) {
+        final voiceBase = voice.trim().toLowerCase().split(RegExp('[-_]')).first;
+        if (voiceBase == base) {
+          logger.d(
+            'TtsAvailabilityChecker: resolved "$voice" by base subtag for '
+            '"$languageCode" (voices=$voices)',
+          );
+          return voice;
+        }
+      }
+      logger.d(
+        'TtsAvailabilityChecker: no voice for "$languageCode" '
+        '(candidates=$candidates, voices=$voices)',
+      );
+      return null;
+    } catch (e, st) {
+      logger.w(
+        'TtsAvailabilityChecker: companion TTS lookup failed: $e\n$st',
+      );
+      return null;
+    }
+  }
+
+  /// Language tags the device's engine can speak, for diagnostics.
+  ///
+  /// Empty on every platform except the OpenHarmony companion build, which is
+  /// the only one that can be asked the question at all. Not a fallback: a
+  /// caller that shows this list must still handle it being empty.
+  Future<List<String>> listVoiceLanguages() async {
+    if (kIsWeb || !isHarmonyOsTarget) return const <String>[];
+    try {
+      return await _speech.availableLanguages();
+    } catch (e, st) {
+      logger.w('TtsAvailabilityChecker: listVoiceLanguages failed: $e\n$st');
+      return const <String>[];
     }
   }
 
@@ -350,7 +437,25 @@ class TtsAvailabilityChecker {
   /// submitted`. Set [force] to re-run after a prior successful configure
   /// (e.g. user switched back to system TTS).
   Future<void> configureSystemEngine({bool force = false}) async {
-    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+    if (kIsWeb) {
+      _engineConfigured = true;
+      return;
+    }
+    if (isHarmonyOsTarget) {
+      // The companion build has no engine to *select*: the platform provides
+      // one. Bringing it up is the whole of "configure", and marking it done
+      // even on failure stops every later utterance from retrying a start that
+      // already reported its error.
+      try {
+        await _speech.init();
+        logger.d('TtsAvailabilityChecker: companion TTS engine ready');
+      } catch (e, st) {
+        logger.w('TtsAvailabilityChecker: companion TTS init failed: $e\n$st');
+      }
+      _engineConfigured = true;
+      return;
+    }
+    if (defaultTargetPlatform != TargetPlatform.android) {
       _engineConfigured = true;
       return;
     }

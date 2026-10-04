@@ -5,8 +5,6 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 
 // Package imports:
-import 'package:audioplayers/audioplayers.dart';
-import 'package:flutter_tts/flutter_tts.dart';
 import 'package:injectable/injectable.dart';
 
 // Project imports:
@@ -20,6 +18,8 @@ import 'package:turna/core/logger.dart';
 import 'package:turna/domain/audio/anki_audio_resolver.dart';
 import 'package:turna/domain/audio/vocab_audio_resolver.dart';
 import 'package:turna/gen/assets.gen.dart';
+import 'package:turna/service/audio_backend.dart';
+import 'package:turna/service/speech_backend.dart';
 import 'package:turna/service/tts_availability_checker.dart';
 
 /// Which backend actually produced the last [AudioController.speak] utterance.
@@ -55,9 +55,10 @@ class TtsSpeakResult {
 
 @lazySingleton
 class AudioController {
-  final AudioPlayer _audioPlayer;
-  final AudioPlayer _speechPlayer;
-  final FlutterTts _tts;
+  final AudioBackend _effects;
+  final AudioBackend _speech;
+  final SpeechBackend _tts;
+
   final LanguageProvider _languageProvider;
   final SettingsProvider _settingsProvider;
   final AccessibilityProvider _accessibilityProvider;
@@ -102,12 +103,12 @@ class AudioController {
     this._settingsProvider,
     this._accessibilityProvider,
     this._vocabAudioResolver, {
-    @Named('audioPlayer') required AudioPlayer audioPlayer,
-    @Named('speechPlayer') required AudioPlayer speechPlayer,
+    @Named('effectsAudio') required AudioBackend effects,
+    @Named('speechAudio') required AudioBackend speech,
     TtsAvailabilityChecker? ttsChecker,
     AnkiAudioResolver? ankiMediaResolver,
-  })  : _audioPlayer = audioPlayer,
-        _speechPlayer = speechPlayer,
+  })  : _effects = effects,
+        _speech = speech,
         _ttsChecker = ttsChecker,
         _ankiMediaResolver = ankiMediaResolver ?? AnkiAudioResolver() {
     _ttsSpeed = _settingsProvider.ttsSpeed;
@@ -155,14 +156,10 @@ class AudioController {
     // cues), independent of the explicit sound-effects toggle.
     if (!_settingsProvider.soundEffectsEnabled) return;
     if (_accessibilityProvider.quietFeedback) return;
-    try {
-      await _audioPlayer.play(
-        AssetSource(normalizeAssetPath(assetPath)),
-        mode: PlayerMode.lowLatency,
-      );
-    } catch (e) {
-      logger.w('Error playing sound: $e');
-    }
+    await playIgnoringFailure(
+      () => _effects.playAsset(normalizeAssetPath(assetPath)),
+      what: 'sound effect $assetPath',
+    );
   }
 
   // ──────────────────────────────────────────────────────────────
@@ -179,13 +176,6 @@ class AudioController {
   static double mapUiSpeedToFlutterTtsRate(double uiSpeed) {
     final clamped = uiSpeed.clamp(0.5, 2.0);
     return (0.5 * clamped).clamp(0.0, 1.5);
-  }
-
-  static bool _isTruthyResult(dynamic value) {
-    if (value == null) return true; // some platforms return null on success
-    if (value is bool) return value;
-    if (value is num) return value != 0;
-    return true;
   }
 
   /// Prefers Google TTS on Android, then sets language for the current target.
@@ -225,8 +215,8 @@ class AudioController {
 
     if (_lastTtsLanguage == lang) return;
 
-    final result = await _tts.setLanguage(lang);
-    if (!_isTruthyResult(result)) {
+    final bound = await _tts.bindLanguage(lang);
+    if (!bound) {
       _lastTtsLanguage = null;
       throw StateError(
         'setLanguage("$lang") failed — language missing or not installed',
@@ -253,13 +243,13 @@ class AudioController {
   }
 
   /// Stop the media speech player and release its file source. The player
-  /// holds open handles to `anki_media` files (`DeviceFileSource`), which
+  /// holds open handles to `anki_media` files, which
   /// otherwise keeps a deck's media undeletable on uninstall — call this
   /// before deleting media files.
   Future<void> stopSpeechPlayer() async {
     try {
-      await _speechPlayer.stop();
-      await _speechPlayer.release();
+      await _speech.stop();
+      await _speech.release();
     } catch (e) {
       logger.w('AudioController: stopSpeechPlayer failed: $e');
     }
@@ -273,17 +263,22 @@ class AudioController {
     await _ensureSystemTtsReady(languageCode: languageCode);
     final rate = mapUiSpeedToFlutterTtsRate(effectiveSpeed);
     if (_lastTtsRate != rate) {
-      await _tts.setSpeechRate(rate);
+      await _tts.setRate(rate);
       _lastTtsRate = rate;
     }
+    // The engine is created lazily per platform: `flutter_tts` needs nothing,
+    // while the companion build has to bring one up before it can speak. Doing
+    // it here rather than at startup keeps a device with no usable voice from
+    // paying for an engine it will never use.
+    await _tts.init(language: _lastTtsLanguage);
     await _tts.stop();
     logger.d(
       'TTS route: system (lang=$_lastTtsLanguage, '
       'uiSpeed=$effectiveSpeed, flutterRate=$rate)',
     );
-    final result = await _tts.speak(text);
-    if (result == false || result == 0) {
-      throw StateError('system TTS speak() returned failure ($result)');
+    final spoken = await _tts.speak(text);
+    if (!spoken) {
+      throw StateError('system TTS speak() returned failure');
     }
   }
 
@@ -357,7 +352,7 @@ class AudioController {
     return t.contains('/') || t.startsWith('assets');
   }
 
-  /// Strip leading `/` and optional `assets/` so [AssetSource] gets a relative
+  /// Strip leading `/` and optional `assets/` so [AudioBackend.playAsset] gets a relative
   /// path (e.g. `audio/turkish/test.mp3`).
   @visibleForTesting
   static String normalizeAssetPath(String assetPath) {
@@ -373,12 +368,12 @@ class AudioController {
 
   /// Play a pre-recorded audio asset. Accepts paths with or without an
   /// `assets/` prefix (and optional leading `/`); normalization is applied
-  /// before passing to [AudioPlayer].
+  /// before passing to [AudioBackend].
   Future<void> speakFromAsset(String assetPath) async {
     await _trackSpeaking(() async {
       try {
-        await _speechPlayer.stop();
-        await _speechPlayer.play(AssetSource(normalizeAssetPath(assetPath)));
+        await _speech.stop();
+        await _speech.playAsset(normalizeAssetPath(assetPath));
       } catch (e) {
         logger.w('Error playing asset audio: $e');
       }
@@ -434,8 +429,8 @@ class AudioController {
     );
     if (file == null) return false;
     try {
-      await _speechPlayer.stop();
-      await _speechPlayer.play(DeviceFileSource(file.path));
+      await _speech.stop();
+      await _speech.playFile(file.path);
       return true;
     } catch (e) {
       logger.w('Error playing official Anki media: $e');
@@ -449,8 +444,8 @@ class AudioController {
     try {
       final path = await CoursePackMedia.resolveFile(ref);
       if (path == null) return false;
-      await _speechPlayer.stop();
-      await _speechPlayer.play(DeviceFileSource(path));
+      await _speech.stop();
+      await _speech.playFile(path);
       return true;
     } catch (e) {
       logger.w('Error playing course-pack media: $e');
@@ -466,8 +461,8 @@ class AudioController {
     try {
       final path = await _ankiMediaResolver.resolveMediaPath(ref);
       if (path == null) return false;
-      await _speechPlayer.stop();
-      await _speechPlayer.play(DeviceFileSource(path));
+      await _speech.stop();
+      await _speech.playFile(path);
       return true;
     } catch (e) {
       logger.w('Error playing Anki media: $e');

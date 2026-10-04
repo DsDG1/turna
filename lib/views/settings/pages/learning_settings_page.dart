@@ -87,7 +87,7 @@ class _LearningSettingsPageState extends State<LearningSettingsPage> {
                   valueSelector: (p) => p.ttsFeatureEnabled,
                   onChanged: (p, v) => p.setTtsFeatureEnabled(v),
                 ),
-                _TtsSpeedGate(),
+                const _TtsSpeedGate(),
                 settingsTileDivider(context),
                 const SettingsSrsRetentionTile(),
                 settingsTileDivider(context),

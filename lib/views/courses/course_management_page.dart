@@ -20,6 +20,7 @@ import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/language_registry.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/core/logger.dart';
+import 'package:turna/core/ohos_target.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/course_scope.dart';
@@ -191,6 +192,11 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
                     onChanged: () => setState(() {}),
                   ),
                   _AddCourseCard(
+                    title: AppStrings.courseManagementImportTitle,
+                    subtitle: isDegraded(OhosDegradation.officialAnki)
+                        ? AppStrings.courseManagementImportAnkiUnavailable
+                        : null,
+                    enabled: !isDegraded(OhosDegradation.officialAnki),
                     onTap: () => context.router.push(const AnkiImportRoute()),
                   ),
                   const SizedBox(height: 8),
@@ -292,7 +298,7 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
     } on CoursePackImportException catch (e) {
       if (!context.mounted) return;
       if (progressShown) {
-        unawaited(Navigator.of(context, rootNavigator: true).maybePop());
+        Navigator.of(context, rootNavigator: true).pop();
       }
       _showPackErrors(context, e.errors);
     } on CoursePackImportCancelled {
@@ -300,13 +306,13 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
       // error dialog on top of it.
       if (!context.mounted) return;
       if (progressShown) {
-        unawaited(Navigator.of(context, rootNavigator: true).maybePop());
+        Navigator.of(context, rootNavigator: true).pop();
       }
       TurnaSnackBar.show(context, AppStrings.coursePackImportCancelled);
     } catch (e) {
       if (!context.mounted) return;
       if (progressShown) {
-        unawaited(Navigator.of(context, rootNavigator: true).maybePop());
+        Navigator.of(context, rootNavigator: true).pop();
       }
       _showPackErrors(context, [e.toString()]);
     }
@@ -870,25 +876,35 @@ class _AddCourseCard extends StatelessWidget {
   final String? title;
   final String? subtitle;
 
+  /// When false the card stays visible but cannot be tapped, and [subtitle] is
+  /// expected to say why. A capability the build cannot deliver is better shown
+  /// inert with a reason than hidden — hiding it leaves the user wondering
+  /// where it went, and leaving it live means a tap that always fails.
+  final bool enabled;
+
   const _AddCourseCard({
     super.key,
     required this.onTap,
     this.title,
     this.subtitle,
+    this.enabled = true,
   });
 
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(TurnaTheme.radiusLarge);
+    final accent = enabled
+        ? TurnaTheme.brandTeal
+        : TurnaTheme.textSecondaryColor(context);
     return Material(
       color: Colors.transparent,
       borderRadius: radius,
       child: InkWell(
-        onTap: onTap,
+        onTap: enabled ? onTap : null,
         borderRadius: radius,
         child: CustomPaint(
           foregroundPainter: _DashedBorderPainter(
-            color: TurnaTheme.brandTeal.withValues(alpha: 0.45),
+            color: TurnaTheme.brandTeal.withValues(alpha: enabled ? 0.45 : 0.18),
             radius: TurnaTheme.radiusLarge,
           ),
           child: Padding(
@@ -896,10 +912,12 @@ class _AddCourseCard extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(
-                  Icons.add_circle_outline_rounded,
+                Icon(
+                  enabled
+                      ? Icons.add_circle_outline_rounded
+                      : Icons.block_outlined,
                   size: 28,
-                  color: TurnaTheme.brandTeal,
+                  color: accent,
                 ),
                 const SizedBox(width: 10),
                 Column(
@@ -910,7 +928,7 @@ class _AddCourseCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
-                        color: TurnaTheme.brandTeal,
+                        color: accent,
                       ),
                     ),
                     const SizedBox(height: 2),

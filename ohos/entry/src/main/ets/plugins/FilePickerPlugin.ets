@@ -18,39 +18,43 @@ import hilog from '@ohos.hilog';
 const TAG = "FilePickerPlugin";
 const CHANNEL = "me.dsdogs.turna/file_picker";
 
+// Characters no common filesystem accepts, plus the C0 control range. A space
+// is deliberately absent: it is legal in a name and common in the files people
+// actually pick. The picked name comes from another app, so it is untrusted
+// input about to be handed to `openSync` as a path.
+const UNSAFE_NAME_CHARS = /[\\/:*?"<>|\u0000-\u001F]/g;
+
 export default class FilePickerPlugin implements FlutterPlugin {
   private channel: MethodChannel | null = null;
-  private ctx: common.UIAbilityContext | null = null;
+
+  // Injected rather than discovered. `DocumentViewPicker` requires a real
+  // UIAbilityContext, and a FlutterPluginBinding only hands out an
+  // ApplicationContext — casting one to the other is a type lie that happens to
+  // work for APIs that accept a Context and fails for the ones that do not.
+  //
+  // The previous version read `globalThis.context`, which ArkTS forbids
+  // (`arkts-no-globalthis`) and which nothing ever assigned, so every pick
+  // failed with NO_CONTEXT. The ability now passes its own context in.
+  constructor(context: common.UIAbilityContext) {
+    this.context = context;
+  }
+
+  private context: common.UIAbilityContext;
 
   getUniqueClassName(): string {
     return "FilePickerPlugin";
   }
 
   onAttachedToEngine(binding: FlutterPluginBinding): void {
-    hilog.info(0x0000, TAG, 'onAttachedToEngine called');
-    // binding.getApplicationContext() returns an ApplicationContext, NOT a
-    // UIAbilityContext. DocumentViewPicker.select() requires a real
-    // UIAbilityContext to launch the system file-picker UI; passing an
-    // ApplicationContext causes error 13900042 ("Unknown error").
-    // EntryAbility.configureFlutterEngine stores the real UIAbilityContext
-    // on globalThis.context — use that instead.
-    this.ctx = globalThis.context as common.UIAbilityContext;
     this.channel = new MethodChannel(
       binding.getBinaryMessenger(),
       CHANNEL
     );
     this.channel.setMethodCallHandler({
       onMethodCall: (call: MethodCall, result: MethodResult): void => {
-        hilog.info(0x0000, TAG, 'Received method call: %{public}s', call.method);
         switch (call.method) {
           case 'pickFile':
             this.pickFile(call, result);
-            break;
-          case 'scanForFiles':
-            this.scanForFiles(call, result);
-            break;
-          case 'importFromPath':
-            this.importFromPath(call, result);
             break;
           default:
             result.notImplemented();
@@ -62,52 +66,43 @@ export default class FilePickerPlugin implements FlutterPlugin {
   onDetachedFromEngine(binding: FlutterPluginBinding): void {
     this.channel?.setMethodCallHandler(null);
     this.channel = null;
-    this.ctx = null;
   }
 
   private pickFile(call: MethodCall, result: MethodResult): void {
-    if (!this.ctx) {
+    const context = this.context;
+    if (!context) {
+      hilog.error(0x0000, TAG, 'No UIAbilityContext was injected by the ability.');
       result.error('NO_CONTEXT', 'Application context not available', null);
       return;
     }
-    // Prefer the live UIAbilityContext from globalThis (set by EntryAbility)
-    // over the stale one captured at attach time, since the ability may have
-    // been recreated (e.g. after a cold start edge case).
-    const abilityContext =
-      (globalThis.context as common.UIAbilityContext) ?? this.ctx;
     try {
-      const documentSelectOptions = new picker.DocumentSelectOptions();
-      // Filter by extensions passed from Flutter (e.g. ['.apkg', '.colpkg']).
+      // The extension filter arrives from Dart under `extensions`. The two
+      // names must stay in step: when they drifted apart the filter was
+      // silently dropped and every pick came back narrowed to a stale
+      // hardcoded Anki pair.
       const extsRaw = call.argument('extensions') as Array<string>;
-      const exts: Array<string> = extsRaw ?? ['.apkg', '.colpkg'];
+      const exts = normalizeExtensions(extsRaw);
+      const documentSelectOptions = new picker.DocumentSelectOptions();
       // HarmonyOS DocumentViewPicker requires the 'description|suffix' format
       // for each fileSuffixFilters entry (e.g. '图片(.png, .jpg)|.png,.jpg').
-      // A bare suffix like '.apkg' is rejected by the picker with
-      // "Please check the parameter you entered." (13900042). Synthesize a
-      // generic description when the caller hands us a plain suffix.
-      const normalized = exts.map(raw => {
-        const e = raw.startsWith('.') ? raw : `.${raw}`;
-        return raw.includes('|') ? raw : `文件(${e})|${e}`;
-      });
-      documentSelectOptions.fileSuffixFilters = normalized;
+      // A bare suffix like '.apkg' is rejected with 13900042 ("Please check the
+      // parameter you entered."), so wrap each one in a generic description.
+      documentSelectOptions.fileSuffixFilters = exts.map(e => `文件(${e})|${e}`);
       documentSelectOptions.maxSelectNumber = 1;
-      const documentPicker = new picker.DocumentViewPicker(abilityContext);
+      const documentPicker = new picker.DocumentViewPicker(context);
       documentPicker.select(documentSelectOptions)
         .then((uris: Array<string>) => {
           if (!uris || uris.length === 0) {
             result.success(null);
             return;
           }
-          this.copyToSandbox(uris[0], result);
+          this.stageUri(uris[0], exts, result);
         })
         .catch((err: BusinessError) => {
           hilog.error(0x0000, TAG, 'pickFile failed, code: %{public}s, msg: %{public}s',
             `${err.code}`, `${err.message}`);
-          // 13900042 = "Unknown error". On a stock phone/tablet it usually
-          // means the system FilePicker sheet (com.huawei.hmos.security.
-          // pickersheet) is missing — common on emulator/trimmed ROMs.
-          // 16000001 = ability not found. The bundled suggestion nudges the
-          // user to try a real device or install Files.
+          // 13900042 = "Unknown error", 16000001 = ability not found. Both
+          // point at the system FilePicker sheet being unavailable.
           const hint = (err.code === 13900042 || err.code === 16000001)
             ? '（请在装有完整鸿蒙系统的真机上重试，或安装"文件管理"应用）'
             : '';
@@ -122,171 +117,133 @@ export default class FilePickerPlugin implements FlutterPlugin {
     }
   }
 
-  /// Copy the picked file (referenced by URI) into the app sandbox so Flutter
-  /// can read it by path. Returns the sandbox file path to Flutter.
-  private copyToSandbox(uri: string, result: MethodResult): void {
+  /// Copies the picked file (referenced by URI) into the app's cache
+  /// directory so Dart can read it by path, and reports the real name and size
+  /// alongside it.
+  ///
+  /// The name has to be the picked file's own. The previous version wrote
+  /// `anki_import_<timestamp>.apkg` unconditionally, which put a wrong
+  /// extension on the bytes: every caller in this app asks for something else
+  /// (`zip`, `json`, `turnapack`), so the suffix check downstream rejected a
+  /// correctly picked file every single time, and the only extension that
+  /// worked was the Anki one this build does not ship.
+  private stageUri(uri: string, exts: Array<string>, result: MethodResult): void {
     try {
+      this.discardStaged();
+
+      const name = safeFileName(lastSegment(uri), exts);
+      // cacheDir, not filesDir: this is a transient staging copy of a file
+      // picked from elsewhere, so it belongs where the OS may reclaim it rather
+      // than in durable app storage.
+      const destPath = `${this.context.cacheDir}/${name}`;
       const srcFile = fs.openSync(uri, fs.OpenMode.READ_ONLY);
-      const ctx = (globalThis.context as common.UIAbilityContext) ?? this.ctx!;
-      const sandboxDir = ctx.filesDir;
-      const fileName = `anki_import_${Date.now()}.apkg`;
-      const destPath = `${sandboxDir}/${fileName}`;
       const destFile = fs.openSync(destPath, fs.OpenMode.CREATE | fs.OpenMode.WRITE_ONLY);
+      let size: number = 0;
       try {
         fs.copyFileSync(srcFile.fd, destFile.fd);
+        // Stat the copy, not the URI: a provider-backed URI may not have a
+        // knowable length, or may make asking for one expensive.
+        size = fs.statSync(destPath).size;
       } finally {
         fs.closeSync(srcFile);
         fs.closeSync(destFile);
       }
-      hilog.info(0x0000, TAG, 'Copied picked file to sandbox: %{public}s', destPath);
-      result.success(destPath);
+      this.stagedPath = destPath;
+      hilog.info(0x0000, TAG, 'Staged picked file: %{public}s', destPath);
+      // Name and size travel with the path so Dart can hand back an honest
+      // PlatformFile instead of one claiming size 0 under a synthesised name.
+      result.success({ path: destPath, name: name, size: size });
     } catch (e) {
       const err = e as BusinessError;
-      hilog.error(0x0000, TAG, 'copyToSandbox failed, code: %{public}s, msg: %{public}s',
+      hilog.error(0x0000, TAG, 'stageUri failed, code: %{public}s, msg: %{public}s',
         `${err.code}`, `${err.message}`);
       result.error('COPY_ERROR', `复制文件失败: [${err.code}] ${err.message}`, null);
     }
   }
 
-  /// Scan well-known directories for files with the requested extensions.
-  ///
-  /// Used as a fallback when the system FilePicker sheet isn't available
-  /// (e.g. trimmed emulator ROMs where com.huawei.hmos.security.pickersheet
-  /// is missing). Scans (recursively, shallow):
-  /// - The app's own sandbox: filesDir, cacheDir, tempDir
-  /// - Subfolders named 'Download' or 'download' under filesDir
-  /// - Common public roots reachable from sandbox-relative paths
-  ///
-  /// Args (from Flutter): { 'extensions': ['.apkg', '.colpkg'] }
-  /// Returns: Array<{ path: string, name: string, size: number }> — paths
-  /// point directly at the files (no copy needed), since they're already
-  /// inside the app sandbox.
-  private scanForFiles(call: MethodCall, result: MethodResult): void {
-    if (!this.ctx) {
-      result.error('NO_CONTEXT', 'Application context not available', null);
-      return;
-    }
-    const ctx = (globalThis.context as common.UIAbilityContext) ?? this.ctx;
-    const extsRaw = call.argument('extensions') as Array<string>;
-    const suffixes = (extsRaw ?? ['.apkg', '.colpkg'])
-      .map(e => e.startsWith('.') ? e.toLowerCase() : '.' + e.toLowerCase());
+  // The staged copy from the previous pick, replaced on every successful pick
+  // so repeated imports cannot pile up: the file is only needed until the
+  // caller has read it into its own storage.
+  private stagedPath: string | null = null;
 
-    const seen = new Set<string>();
-    const out: Array<Record<string, Object>> = [];
-    const maxDepth = 4;
-    const maxResults = 200;
-
-    const candidateRoots: Array<string> = [
-      ctx.filesDir,
-      ctx.cacheDir,
-      // Common sub-paths users may stash Anki exports in. These are
-      // inside the app sandbox so no permission is required.
-      `${ctx.filesDir}/Download`,
-      `${ctx.filesDir}/download`,
-      `${ctx.cacheDir}/Download`,
-      // External-sandbox paths the app can read (path_provider exposes
-      // these via getExternalStoragePath / getExternalStoragePaths).
-    ];
-
-    const visit = (dir: string, depth: number): void => {
-      if (out.length >= maxResults || depth > maxDepth) return;
-      let names: Array<string>;
-      try {
-        // listFileSync returns names of immediate children (no recursion).
-        names = fs.listFileSync(dir);
-      } catch (e) {
-        return;
-      }
-      for (const name of names) {
-        if (out.length >= maxResults) return;
-        const fullPath = `${dir}/${name}`;
-        if (seen.has(fullPath)) continue;
-        seen.add(fullPath);
-        // We can't tell file vs dir from the name alone; statSync to
-        // disambiguate and pull size in one shot.
-        let st: fs.Stat;
-        try {
-          st = fs.statSync(fullPath);
-        } catch (e) {
-          continue;
-        }
-        if (st.isDirectory()) {
-          visit(fullPath, depth + 1);
-        } else {
-          const lower = name.toLowerCase();
-          if (suffixes.some(s => lower.endsWith(s))) {
-            out.push({
-              'path': fullPath,
-              'name': name,
-              'size': st.size,
-            } as Record<string, Object>);
-          }
-        }
-      }
-    };
-
-    for (const root of candidateRoots) {
-      try {
-        if (fs.accessSync(root)) {
-          visit(root, 0);
-        }
-      } catch (e) {
-        // root not accessible, skip
-      }
-    }
-
-    hilog.info(0x0000, TAG,
-      'scanForFiles: scanned %d roots, found %d matches',
-      candidateRoots.length, out.length);
-    result.success(out);
-  }
-
-  /// Import a file by absolute path.
-  ///
-  /// Verifies the path exists, has an allowed extension, and is readable by
-  /// the app. Returns the absolute path on success. Used as a manual
-  /// fallback: the user types/pastes a full path (e.g. from a file manager)
-  /// and we open it directly.
-  ///
-  /// Args (from Flutter): { 'path': string, 'extensions': ['.apkg',...] }
-  /// Returns: { 'path': string, 'name': string, 'size': number } on success.
-  private importFromPath(call: MethodCall, result: MethodResult): void {
-    const filePath = (call.argument('path') as string | null)?.trim();
-    if (!filePath) {
-      result.error('EMPTY_PATH', '未提供文件路径', null);
-      return;
-    }
-    const extsRaw = call.argument('extensions') as Array<string>;
-    const suffixes = (extsRaw ?? ['.apkg', '.colpkg'])
-      .map(e => e.startsWith('.') ? e.toLowerCase() : '.' + e.toLowerCase());
-    const lower = filePath.toLowerCase();
-    if (!suffixes.some(s => lower.endsWith(s))) {
-      result.error('BAD_EXTENSION',
-        `文件后缀不匹配（仅支持 ${suffixes.join(', ')}）`, null);
-      return;
-    }
+  /// Removes the previous staged copy. Best-effort: the OS is free to clear
+  /// cacheDir at any time, and a failure here must not stop the user from
+  /// picking another file.
+  private discardStaged(): void {
+    const previous = this.stagedPath;
+    if (!previous) return;
+    this.stagedPath = null;
     try {
-      if (!fs.accessSync(filePath)) {
-        result.error('NOT_FOUND', `文件不存在或无法访问：${filePath}`, null);
-        return;
-      }
-      const st = fs.statSync(filePath);
-      if (!st.isFile()) {
-        result.error('NOT_A_FILE', `不是普通文件：${filePath}`, null);
-        return;
-      }
-      const name = filePath.split('/').pop() ?? '';
-      result.success({
-        'path': filePath,
-        'name': name,
-        'size': st.size,
-      } as Record<string, Object>);
+      fs.unlinkSync(previous);
     } catch (e) {
-      const err = e as BusinessError;
-      hilog.error(0x0000, TAG, 'importFromPath failed, code: %{public}s, msg: %{public}s',
-        `${err.code}`, `${err.message}`);
-      result.error('ACCESS_ERROR',
-        `无法访问该路径: [${err.code}] ${err.message}`, null);
+      // Best-effort cleanup of a cache file; nothing depends on it succeeding.
     }
   }
+}
+
+/// Normalizes caller-supplied extensions to lowercase, dot-prefixed suffixes.
+/// An empty or unusable list means no filter at all rather than a stale
+/// hardcoded pair: hiding the user's own file from them is worse than showing
+/// everything and letting Dart's suffix check reject it.
+function normalizeExtensions(raw: Array<string> | null | undefined): Array<string> {
+  if (!raw || raw.length === 0) {
+    return [];
+  }
+  const normalized: Array<string> = [];
+  for (const item of raw) {
+    if (typeof item !== 'string') continue;
+    const withDot = item.startsWith('.') ? item : `.${item}`;
+    if (withDot.length > 1) {
+      normalized.push(withDot.toLowerCase());
+    }
+  }
+  return normalized;
+}
+
+/// The last path segment of a `file://` URI, percent-decoded. DocumentViewPicker
+/// returns a URI and nothing else, so both the display name and the extension
+/// have to come from here.
+function lastSegment(uri: string): string {
+  const withoutQuery = uri.split('?')[0];
+  const trimmed = withoutQuery.endsWith('/') ? withoutQuery.slice(0, -1) : withoutQuery;
+  const slash = trimmed.lastIndexOf('/');
+  const segment = slash === -1 ? trimmed : trimmed.slice(slash + 1);
+  return percentDecode(segment);
+}
+
+function percentDecode(value: string): string {
+  if (!value.includes('%')) return value;
+  let out = '';
+  for (let i = 0; i < value.length; i++) {
+    if (value[i] !== '%' || i + 2 >= value.length) {
+      out += value[i];
+      continue;
+    }
+    const hex = value.slice(i + 1, i + 3);
+    if (!/^[0-9a-fA-F]{2}$/.test(hex)) {
+      out += value[i];
+      continue;
+    }
+    out += String.fromCharCode(parseInt(hex, 16));
+    i += 2;
+  }
+  return out;
+}
+
+/// Turns a foreign, untrusted name into one safe to hand to `openSync`, keeping
+/// the extension so the caller's suffix check can still see it. When the name
+/// carries no usable extension the first requested one is appended: a name
+/// without an extension is what a provider-backed URI looks like, and guessing
+/// wrong here would reintroduce the bug this replaced.
+function safeFileName(raw: string, exts: Array<string>): string {
+  let name = raw.replace(UNSAFE_NAME_CHARS, '_');
+  const dot = name.lastIndexOf('.');
+  const hasExtension = dot > 0 && dot < name.length - 1;
+  if (!hasExtension && exts.length > 0) {
+    name = `${name}${exts[0]}`;
+  }
+  if (name.length === 0 || name === '.' || name === '..') {
+    name = `import${exts.length > 0 ? exts[0] : ''}`;
+  }
+  return name;
 }

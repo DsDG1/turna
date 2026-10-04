@@ -30,6 +30,7 @@ import 'package:turna/routing/course_ready_guard.dart';
 import 'package:turna/routing/routing.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/service/locator.dart';
+import 'package:turna/service/speech_backend.dart';
 import 'package:turna/service/tab_router.dart';
 import 'package:turna/service/tts_availability_checker.dart';
 import 'package:turna/views/settings/settings_page.dart';
@@ -56,7 +57,10 @@ void main() {
     theme = ThemeProvider(prefs);
     language = LanguageProvider(prefs);
     getIt.registerLazySingleton<TtsAvailabilityChecker>(
-      () => TtsAvailabilityChecker(FlutterTts()),
+      () => TtsAvailabilityChecker(
+        FlutterTts(),
+        speech: FlutterTtsSpeechBackend(FlutterTts()),
+      ),
     );
     getIt.registerLazySingleton<LanguageProvider>(
       () => LanguageProvider(prefs),

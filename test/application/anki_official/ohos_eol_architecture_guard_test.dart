@@ -320,8 +320,114 @@ flutter:
       }
     });
 
-    test('capability matrix never requires Legacy fallback writers', () {
-      final text = File(
+    test('audio and TTS cross the platform boundary by name, on both sides', () {
+      if (!_companionBuild) return;
+
+      // A MethodChannel name is a string, so nothing in either toolchain checks
+      // it: renaming the channel on one side compiles, passes every test, and
+      // produces a build where every sound effect and every spoken word is
+      // silent. Both ends are asserted from one place for that reason.
+      const channels = <String, List<String>>{
+        'me.dsdogs.turna/audio': <String>[
+          'ohos/entry/src/main/ets/plugins/AudioPlugin.ets',
+          'lib/service/audio_backend.dart',
+        ],
+        'me.dsdogs.turna/tts': <String>[
+          'ohos/entry/src/main/ets/plugins/TtsPlugin.ets',
+          'lib/service/speech_backend.dart',
+        ],
+      };
+      for (final entry in channels.entries) {
+        for (final path in entry.value) {
+          expect(
+            File(path).readAsStringSync(),
+            contains(entry.key),
+            reason: '$path no longer names the ${entry.key} channel; the two '
+                'sides would silently stop talking to each other',
+          );
+        }
+      }
+
+      // The controller must keep going through the backends. A direct plugin
+      // call added here would work on Android and throw MissingPluginException
+      // on the companion build — the exact "compiles everywhere, fails on
+      // device" shape this guard exists to catch.
+      final controller =
+          File('lib/application/audio_controller.dart').readAsStringSync();
+      for (final plugin in <String>['audioplayers', 'flutter_tts']) {
+        expect(
+          controller,
+          isNot(contains("import 'package:$plugin/")),
+          reason: 'AudioController must reach $plugin through a backend in '
+              'lib/service/, not import it directly',
+        );
+      }
+    });
+
+    test('the TTS voice reply keys agree across the channel', () {
+      // The reply is a map with two keyed lists, and the two halves live in
+      // files that no host test can execute together. This drifted once: the
+      // plugin was changed to split "installed" from "supported" and the Dart
+      // fake kept answering with a single list, so `invokeMapMethod` cast a
+      // `List` to `Map?` and four tests failed on a TypeError raised inside the
+      // platform channel. The production pair stayed correct — which is exactly
+      // why a gate has to compare them by source rather than trust the tests.
+      final plugin =
+          File('ohos/entry/src/main/ets/plugins/TtsPlugin.ets')
+              .readAsStringSync();
+      final backend =
+          File('lib/service/speech_backend.dart').readAsStringSync();
+
+      for (final key in const <String>['installed', 'supported']) {
+        expect(
+          plugin,
+          contains("'$key':"),
+          reason: 'TtsPlugin no longer sends a \'$key\' voice list; the Dart '
+              'side reads that key and would see nothing',
+        );
+        expect(
+          backend,
+          contains("['$key']"),
+          reason: 'speech_backend no longer reads the \'$key\' voice list the '
+              'plugin sends, so that half of the answer is dropped',
+        );
+      }
+    });
+
+    test('the voice list queries both module types', () {
+      // Only the offline module reports voices the device already has; the
+      // online one is where *downloadable* voices live. Querying just one
+      // collapses "no Turkish voice" and "Turkish is downloadable" into the
+      // same answer, and the user gets told the wrong remedy. Which index is
+      // which is decided inside the plugin and is not observable from Dart, so
+      // this compares the source instead.
+      final plugin =
+          File('ohos/entry/src/main/ets/plugins/TtsPlugin.ets')
+              .readAsStringSync();
+      final queryModules =
+          RegExp(r'VOICE_QUERY_MODULES\s*:\s*number\[\]\s*=\s*(\[[^\]]*\])')
+              .firstMatch(plugin)
+              ?.group(1);
+      expect(
+        queryModules,
+        isNotNull,
+        reason: 'VOICE_QUERY_MODULES is gone; the module list must stay named '
+            'and typed so this gate can read it',
+      );
+      expect(queryModules, contains('0'));
+      expect(queryModules, contains('1'));
+
+      // The engine's own query is the "already installed" half, and it has to
+      // ask the offline module — the online one would return downloadable
+      // voices and report them as present.
+      expect(
+        plugin,
+        contains('online: OFFLINE_MODULE'),
+        reason: 'the installed-voice query must use the offline module',
+      );
+    });
+
+    test('capability matrix never requires Legacy fallback writers', () {      final text = File(
         'lib/application/anki_official/migration/official_anki_engine_kind.dart',
       ).readAsStringSync();
       expect(text.contains('legacyFallbackRequired: true'), isFalse);
@@ -422,8 +528,13 @@ const _companionLibNeedles = <String>[
   'tool/apply_patches.sh',
 ];
 
+/// Presence only. The two media icons are also content-gated -- 216x216, no
+/// alpha, full bleed, byte-identical to `tool/sync_ohos_icons.py`'s output --
+/// in `test/sync_ohos_icons_test.py`, which is where the DevEco scaffold
+/// placeholder regression is actually caught.
 const _requiredOhosFiles = <String>[
   'ohos/AppScope/app.json5',
+  'ohos/AppScope/resources/base/media/app_icon.png',
   'ohos/build-profile.json5',
   'ohos/hvigorfile.ts',
   'ohos/hvigorconfig.ts',
@@ -431,11 +542,24 @@ const _requiredOhosFiles = <String>[
   'ohos/entry/src/main/ets/entryability/EntryAbility.ets',
   'ohos/entry/src/main/ets/plugins/RdbPlugin.ets',
   'ohos/entry/src/main/ets/plugins/FilePickerPlugin.ets',
+  'ohos/entry/src/main/ets/plugins/AudioPlugin.ets',
+  'ohos/entry/src/main/ets/plugins/TtsPlugin.ets',
+  'ohos/entry/src/main/resources/base/media/icon.png',
 ];
 
 /// Turna's own ArkTS plugins. Not packages, so the Flutter tool's registrant
 /// generator cannot know about them; registration is [EntryAbility]'s job.
-const _handWrittenPlugins = <String>['RdbPlugin', 'FilePickerPlugin'];
+///
+/// A plugin that is not a missing file but a missing *registration* is the
+/// worse failure: it compiles, every test passes, and the app opens to a blank
+/// screen or a silent button. The registration assertion above exists for
+/// exactly that case.
+const _handWrittenPlugins = <String>[
+  'RdbPlugin',
+  'FilePickerPlugin',
+  'AudioPlugin',
+  'TtsPlugin',
+];
 
 /// ADR 0047 §6. Refs still open are enforced only for presence until W3 lands.
 /// `file_picker` and `flutter_local_notifications` are deliberately absent.

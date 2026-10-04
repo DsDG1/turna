@@ -599,6 +599,7 @@ class AppStrings {
   static String get settingsLearningLanguageSubtitle => '选择你正在学习的语言';
   static String get settingsTtsFeatureTitle => '朗读功能';
   static String get settingsTtsFeatureSubtitle => '开启后自动朗读生效，并可在「课程管理」中为每门课程配置';
+  static String get settingsTtsFeatureUnavailable => '此构建不含系统语音功能';
   static String get settingsTtsSpeedTitle => 'TTS 语速';
   static String get settingsTtsSpeedSubtitle => '调整语音播放速度';
   static String settingsTtsSpeedValue(String ttsSpeed) => '${ttsSpeed}x';
@@ -633,6 +634,31 @@ class AppStrings {
       '$name 语音未就绪——打开系统 TTS 设置';
   static String settingsTtsGoogleMissing(Object oem) =>
       '未检测到 Google TTS（引擎：$oem）';
+
+  // ── OpenHarmony companion ──
+  //
+  // The companion build has no engine to install or switch to: the platform
+  // supplies one and publishes the voice list it supports. So the copy below
+  // talks about device voices, never about a preferred engine, a store, or a
+  // voice pack to download.
+  static String get settingsVoiceListEmpty => '无';
+
+  /// Renders a device voice list for display.
+  ///
+  /// Lives here rather than at each call site so the empty case can never be
+  /// rendered as a stray "available: " with nothing after it — the list is
+  /// empty on every non-companion platform, and on the companion whenever the
+  /// engine failed to start.
+  static String voiceListLabel(List<String> voices) =>
+      voices.isEmpty ? settingsVoiceListEmpty : voices.join('、');
+
+  static String settingsOhosTtsReady(String locale) =>
+      '设备语音就绪（$locale）——课程录音与朗读均可用';
+  static String settingsOhosTtsVoiceMissing(String name, String voices) =>
+      '设备没有$name语音（可用：$voices）——课程自带录音不受影响';
+  static String settingsOhosTtsNoVoice(String voices) =>
+      '设备语音引擎未就绪（可用：$voices）——课程自带录音不受影响';
+
   static String get settingsVoiceSourceTitle => '语音来源';
   static String get settingsSystemTts => '系统 TTS';
   static String get settingsVoiceSourceDialogTitle => '语音来源';
@@ -890,6 +916,8 @@ class AppStrings {
   static String courseManagementCardCount(int count) => '$count 张卡片';
   static String get courseManagementRemoveCourse => '移除课程';
   static String get courseManagementImportTitle => '从 Anki 导入课程';
+  static String get courseManagementImportAnkiUnavailable =>
+      '此构建未包含 Anki 引擎，不支持导入 .apkg';
   static String get courseManagementImportPackTitle => '导入课程包';
   static String get courseManagementImportPackSubtitle =>
       '从 .turnapack 文件添加独立课程';
@@ -2658,6 +2686,22 @@ class AppStrings {
   static String get splashTtsSettings => 'TTS 设置';
   static String get splashInstallGoogleTts => '安装 Google TTS';
   static String get splashCouldNotOpenStore => '无法打开商店。请手动安装 Google TTS。';
+  static String get splashAcknowledge => '知道了';
+
+  // ── Splash, OpenHarmony companion ──
+  //
+  // The companion build has no store to send the user to and no engine to
+  // install, so the dialog states the fact and offers only an acknowledgement.
+  // Offering a "open system TTS settings" action here would be worse than
+  // silence about it: `openSystemTtsSettings` is a no-op outside Android, so
+  // the button would report no failure and teach the user nothing.
+  static String splashOhosVoiceMissingTitle(String name) => '设备没有$name语音';
+  static String splashOhosVoiceMissingBody(String name, String voices) =>
+      '此设备的语音引擎不提供$name语音，平台也未提供可下载的$name语音包（当前可用：$voices）。\n\n课程自带的录音仍可正常播放；运行时才生成的文本暂时无法朗读。';
+  static String get splashOhosNoVoiceTitle => '设备语音未就绪';
+  static String splashOhosNoVoiceBody(String voices) =>
+      '此设备的语音引擎未就绪（当前可用：$voices）。\n\n课程自带的录音仍可正常播放。';
+
 
   // ── AI Template ──
   static String get aiTemplateIntro => '新单词';

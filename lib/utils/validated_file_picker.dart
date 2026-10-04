@@ -9,6 +9,8 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 
+import 'ohos_file_picker.dart';
+
 class ValidatedFilePicker {
   ValidatedFilePicker._();
 
@@ -18,10 +20,23 @@ class ValidatedFilePicker {
   /// allowed extension, or null if cancelled.
   /// Throws [ValidatedFilePickerInvalidExtension] when the picked file does
   /// not match any allowed extension (and cannot be resolved to one).
+  ///
+  /// On the OpenHarmony companion build the `file_picker` plugin does not
+  /// exist, so the pick is routed to the native ArkTS picker and its result is
+  /// shaped into the same [FilePickerResult]. Callers above this seam stay
+  /// platform-agnostic — none of them should need to know.
   static Future<FilePickerResult?> pickFiles({
     required List<String> allowedExtensions,
     String? dialogTitle,
   }) async {
+    if (OhosFilePicker.isRequired) {
+      final picked = await OhosFilePicker.pickFiles(
+        allowedExtensions: allowedExtensions,
+      );
+      if (picked == null) return null;
+      return OhosFilePicker.toPickerResult(picked);
+    }
+
     final suffixes = normalizedSuffixes(allowedExtensions);
     final result = await FilePicker.platform.pickFiles(
       type: FileType.any,

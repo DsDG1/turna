@@ -12,13 +12,16 @@ ADR 0041 停止的是**产品级** OHOS 支持。本 ADR 不恢复产品线，�
 
 ### 1. 范围（做什么）
 
-课程内容、SRS / FSRS 调度、词典与生词卡、复习会话与台账、设置 / 透明度日志 / 本地备份导入导出。课程数据库走鸿蒙原生 RDB；文件选择（`.apkg` / 课程包 / 备份）走自带 ArkTS 选择器；本地提醒经社区 fork + 通知权限。
+课程内容、SRS / FSRS 调度、词典与生词卡、复习会话与台账、设置 / 透明度日志 / 本地备份导入导出。课程数据库走鸿蒙原生 RDB；文件选择（`.apkg` / 课程包 / 备份）走自带 ArkTS 选择器；音频播放与 TTS 走自带 ArkTS 通道（见 [ADR 0048](./0048-ohos-companion-audio-tts.md)）。
+
+> **2026-10-04 订正本节**：原文写「本地提醒经社区 fork + 通知权限」，与 §7.3 的实测结论**直接矛盾**——`flutter_local_notifications` 因**公开 API 分叉**（`InitializationSettings` 新增上游没有的 `ohos` 字段，官方 SDK 下是硬编译错误）已被移出 override 清单，§7.3 末句亦明记「代价：本地提醒退出伴生范围」。故本地提醒**不在**伴生范围内，原文属误记。同期补入音频 / TTS 一行：它们不进范围也不需要 override，因为走的是自维护 ArkTS 通道（ADR 0048）。
+
 
 ### 2. 范围（不做什么，且由门禁强制）
 
 - 不对齐 Android 全功能（全量对齐另需 4–6 周，其中复习器 5–8 人日，而 Android 侧自身尚有 3 条 HOLD 未收）
 - 不启用 Official Anki 引擎与保真复习器：鸿蒙明确不可用，走 Legacy 导入，HTML 降级为文本
-- 不做音频播放 / TTS 的隐式降级：必须在 UI 上显式说明
+- 不做音频播放 / TTS 的隐式降级：必须在 UI 上显式说明。**（2026-10-04 补记）** 音频与 TTS 已由 ADR 0048 交付，条件以「设备语音列表如实呈现 + 不提供无法兑现的按钮」的方式满足，判定门禁见 `test/l10n/voice_copy_platform_test.dart`
 - 不从源码构建 OHOS Flutter Engine：使用预编译 SDK（Windows 只能 `gen_snapshot`，完整 Engine 构建需 Linux / macOS）
 - 不改 Android / iOS 行为，不降主产品的依赖约束
 - **不引入依赖包 fork 补丁工具链**（`tool/apply_patches.sh` / `tool/patches/`）。**但允许** §7 列出的两处**预编译产物 / 上游包**适配，且二者都在仓库内受版本控制、由门禁断言——这与「给第三方 pub 包打补丁」是两件事：前者是我们自维护的移植，后者是被 ADR 0041 明令删除的东西
@@ -60,9 +63,9 @@ ADR 0041 的「禁止 OHOS 复活」测试改写为**二态**，见 §门禁逐�
 2. 每条 OHOS override **必须带显式 `ref:`**，禁止跟默认分支
 3. 禁止任何指向本地 `ohos/` 目录的 `path:` override
 4. `webview_flutter` **不得**被 override（O3 未获批，HTML 走文本降级）
-5. `flutter_tts` / `audioplayers` **不得**被 override（P-10：无 OHOS fork；将来若要加，必须先改本 ADR）
+5. `flutter_tts` / `audioplayers` **不得**被 override（P-10：无 OHOS fork；将来若要加，必须先改本 ADR）。**（2026-10-04 补记）** 这条 ratchet 未被动过：伴生版**没有** override 它们，而是另写 ArkTS 通道（ADR 0048）走平台原生能力。保留原判定的措辞是为了挡住「去 fork 一个」的下一步，而不是因为它们仍不可用
 6. `ohos/` 下**不得**含构建产物（把 P-16 的误提交永久固化为断言）
-7. `ohos/` 必须含必需文件集（`module.json5` / `build-profile.json5` / `hvigorfile.ts` / 两个 ArkTS 插件）——空目录或残缺目录失败
+7. `ohos/` 必须含必需文件集（`module.json5` / `build-profile.json5` / `hvigorfile.ts` / **四个**手写 ArkTS 插件）——空目录或残缺目录失败。**（2026-10-04 订正）** 原文写「两个 ArkTS 插件」，W4 / W5 后已实为四个：RDB、文件选择、音频、TTS；权威清单以门禁的 `_requiredOhosFiles` 为准
 8. `ohos/` 不得出现 Official Anki 引擎宿主（test 3 已无条件覆盖，此处补一条针对 `ohos/` 目录本身的）
 
 ### 6. 允许的 OHOS 依赖 override 清单

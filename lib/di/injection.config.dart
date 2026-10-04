@@ -94,11 +94,13 @@ import '../domain/repositories/i_srs_state_store.dart' as _i732;
 import '../domain/repositories/i_study_log_repository.dart' as _i445;
 import '../routing/course_ready_guard.dart' as _i579;
 import '../routing/routing.dart' as _i936;
+import '../service/audio_backend.dart' as _i903;
 import '../service/export_service.dart' as _i542;
 import '../service/local_reminder_service.dart' as _i711;
 import '../service/locator.dart' as _i523;
 import '../service/remote_backup/backup_snapshot_service.dart' as _i100;
 import '../service/remote_backup/remote_backup_config.dart' as _i527;
+import '../service/speech_backend.dart' as _i615;
 import '../service/tab_router.dart' as _i565;
 import '../service/tts_availability_checker.dart' as _i307;
 import '../views/lesson/components/interactions/anki_card_renderer.dart'
@@ -205,6 +207,10 @@ extension GetItInjectableX on _i174.GetIt {
         () => _i927.AchievementStateRepository(gh<_i523.AppPrefs>()));
     gh.lazySingleton<_i445.IStudyLogRepository>(
         () => _i889.StudyLogRepository(gh<_i523.AppPrefs>()));
+    gh.lazySingleton<_i903.AudioBackend>(
+      () => audioModule.speechAudio,
+      instanceName: 'speechAudio',
+    );
     gh.lazySingleton<_i656.AudioPlayer>(
       () => audioModule.speechPlayer,
       instanceName: 'speechPlayer',
@@ -225,10 +231,12 @@ extension GetItInjectableX on _i174.GetIt {
           mistakeProvider: gh<_i551.MistakeProvider>(),
           srsDao: gh<_i732.ISrsStateStore>(),
         ));
-    gh.lazySingleton<_i307.TtsAvailabilityChecker>(
-        () => _i307.TtsAvailabilityChecker(gh<_i50.FlutterTts>()));
     gh.lazySingleton<_i188.VocabAudioResolver>(
         () => _i73.VocabAudioResolverImpl());
+    gh.lazySingleton<_i903.AudioBackend>(
+      () => audioModule.effectsAudio,
+      instanceName: 'effectsAudio',
+    );
     gh.lazySingleton<_i417.GemsProvider>(
         () => _i417.GemsProvider(gh<_i523.AppPrefs>()));
     gh.lazySingleton<_i233.LanguageProvider>(
@@ -245,6 +253,8 @@ extension GetItInjectableX on _i174.GetIt {
         () => _i927.StreakProvider(gh<_i523.AppPrefs>()));
     gh.lazySingleton<_i151.ThemeProvider>(
         () => _i151.ThemeProvider(gh<_i523.AppPrefs>()));
+    gh.lazySingleton<_i615.SpeechBackend>(
+        () => audioModule.speechBackend(gh<_i50.FlutterTts>()));
     gh.lazySingleton<_i42.CosmeticProvider>(() => _i42.CosmeticProvider(
           gh<_i523.AppPrefs>(),
           gh<_i417.GemsProvider>(),
@@ -309,6 +319,11 @@ extension GetItInjectableX on _i174.GetIt {
               gh<_i166.ScoreProvider>(),
               gh<_i445.IStudyLogRepository>(),
             ));
+    gh.lazySingleton<_i307.TtsAvailabilityChecker>(
+        () => _i307.TtsAvailabilityChecker(
+              gh<_i50.FlutterTts>(),
+              speech: gh<_i615.SpeechBackend>(),
+            ));
     gh.lazySingleton<_i797.AchievementMigrationService>(
         () => _i797.AchievementMigrationService(
               gh<_i523.AppPrefs>(),
@@ -320,6 +335,17 @@ extension GetItInjectableX on _i174.GetIt {
           gh<_i166.ScoreProvider>(),
           gh<_i927.StreakProvider>(),
           gh<_i409.LessonProgressProvider>(),
+        ));
+    gh.lazySingleton<_i106.AudioController>(() => _i106.AudioController(
+          gh<_i615.SpeechBackend>(),
+          gh<_i233.LanguageProvider>(),
+          gh<_i793.SettingsProvider>(),
+          gh<_i977.AccessibilityProvider>(),
+          gh<_i188.VocabAudioResolver>(),
+          effects: gh<_i903.AudioBackend>(instanceName: 'effectsAudio'),
+          speech: gh<_i903.AudioBackend>(instanceName: 'speechAudio'),
+          ttsChecker: gh<_i307.TtsAvailabilityChecker>(),
+          ankiMediaResolver: gh<_i180.AnkiAudioResolver>(),
         ));
     gh.lazySingleton<_i579.CourseReadyGuard>(
         () => _i579.CourseReadyGuard(gh<_i1051.CourseProvider>()));
@@ -346,17 +372,6 @@ extension GetItInjectableX on _i174.GetIt {
           gh<_i523.AppPrefs>(),
           gh<_i854.LessonLinkStore>(),
           gh<_i732.ISrsStateStore>(),
-        ));
-    gh.lazySingleton<_i106.AudioController>(() => _i106.AudioController(
-          gh<_i50.FlutterTts>(),
-          gh<_i233.LanguageProvider>(),
-          gh<_i793.SettingsProvider>(),
-          gh<_i977.AccessibilityProvider>(),
-          gh<_i188.VocabAudioResolver>(),
-          audioPlayer: gh<_i656.AudioPlayer>(instanceName: 'audioPlayer'),
-          speechPlayer: gh<_i656.AudioPlayer>(instanceName: 'speechPlayer'),
-          ttsChecker: gh<_i307.TtsAvailabilityChecker>(),
-          ankiMediaResolver: gh<_i180.AnkiAudioResolver>(),
         ));
     gh.factory<_i440.ShowWordRenderer>(
         () => _i440.ShowWordRenderer(gh<_i106.AudioController>()));

@@ -1,6 +1,8 @@
 // Widget tests for the course-management page: catalog rendering with meta
 // info, and the opt-in visibility of the read-aloud entry in the card menu.
 
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -105,6 +107,29 @@ void main() {
     );
   });
 
+  testWidgets('on a build with the Anki engine the import entry is live',
+      (tester) async {
+    // The entry is disabled where Official Anki is a degradation. On a build
+    // that has it, the card must stay tappable and must not carry the
+    // "unavailable" subtitle — an inverted flag here would quietly strand the
+    // feature on Android and iOS, where it works.
+    await pumpPage(tester);
+
+    expect(find.text(AppStrings.courseManagementImportAnkiUnavailable),
+        findsNothing);
+    expect(find.byIcon(Icons.add_circle_outline_rounded), findsNWidgets(2));
+    expect(find.byIcon(Icons.block_outlined), findsNothing);
+  });
+
+  testWidgets('read-aloud entries appear on a build that has TTS',
+      (tester) async {
+    await pumpPage(tester);
+    await settings.setTtsFeatureEnabled(true);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PopupMenuButton<String>), findsNWidgets(2));
+  });
+
   testWidgets(
       'read-aloud off (default): only removable courses carry a menu, '
       'and it has no TTS item', (tester) async {
@@ -154,5 +179,35 @@ void main() {
 
     await tester.tap(find.text(AppStrings.commonCancel));
     await tester.pumpAndSettle();
+  });
+
+  test('the course-pack import failure branches dismiss with pop(), not maybePop()',
+      () {
+    // The progress dialog is pushed with an un-awaited `showDialog` and, when
+    // the import throws before the next frame, the dismissal lands while that
+    // dialog route has not been installed yet. `maybePop` asks the topmost route
+    // whether it wants to handle the pop, and `ModalRoute.willPop` asserts its
+    // scope is non-null — an assertion, so it surfaced as an uncaught platform
+    // error in the device log rather than as a handled failure. `pop` does not
+    // consult the route and dismisses cleanly.
+    //
+    // Checked against the source because the timing that triggers it cannot be
+    // arranged from a widget test: reproducing Flutter's own behaviour here
+    // would pass no matter what this page does.
+    final source = File('lib/views/courses/course_management_page.dart')
+        .readAsStringSync();
+
+    expect(
+      RegExp(r'rootNavigator:\s*true\)\.maybePop\(\)').hasMatch(source),
+      isFalse,
+      reason: 'a self-dismissed progress dialog must use pop(); '
+          'maybePop() asserts on a route whose scope is not installed yet',
+    );
+    // Guard against the guard going stale: the branches really are there.
+    expect(
+      RegExp(r'rootNavigator:\s*true\)\.pop\(\)').allMatches(source).length,
+      greaterThanOrEqualTo(4),
+      reason: 'expected the success pop plus the three failure-branch dismissals',
+    );
   });
 }

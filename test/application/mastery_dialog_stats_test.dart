@@ -2,7 +2,6 @@
 // `accuracy = total` so users saw no feedback. After the fix, the dialog
 // uses `correctAnswers` / `totalInteractionCount` from LessonViewModel.
 
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -30,6 +29,8 @@ import 'package:turna/domain/course/lesson_content.dart';
 import 'package:turna/domain/course/stage.dart';
 import 'package:turna/domain/study/study_log.dart';
 import 'package:turna/service/locator.dart';
+import '../support/fake_audio_backend.dart';
+import 'package:turna/service/speech_backend.dart';
 
 import '../helpers/achievement_test_stack.dart';
 import '../helpers/in_memory_course_db.dart';
@@ -52,21 +53,16 @@ class _FakeLanguageProvider implements LanguageProvider {
   dynamic noSuchMethod(Invocation i) => super.noSuchMethod(i);
 }
 
-class _FakeAudioPlayer implements AudioPlayer {
-  @override
-  dynamic noSuchMethod(Invocation i) => super.noSuchMethod(i);
-}
-
 class _FakeAudioController extends AudioController {
   _FakeAudioController()
       : super(
-          _FakeFlutterTts(),
+          FlutterTtsSpeechBackend(_FakeFlutterTts()),
           _FakeLanguageProvider(),
           getIt<SettingsProvider>(),
           getIt<AccessibilityProvider>(),
           _PassthroughVocabResolver(),
-          audioPlayer: _FakeAudioPlayer(),
-          speechPlayer: _FakeAudioPlayer(),
+          effects: FakeAudioBackend(name: 'effects'),
+          speech: FakeAudioBackend(name: 'speech'),
         );
   @override
   Future<void> speak(String text,

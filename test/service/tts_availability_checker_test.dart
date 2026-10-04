@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:turna/service/speech_backend.dart';
 import 'package:turna/service/tts_availability_checker.dart';
 
 class _FakeFlutterTts implements FlutterTts {
@@ -91,6 +92,9 @@ void main() {
     test('language available -> reports system TTS available', () async {
       final checker = TtsAvailabilityChecker(
         _FakeFlutterTts(availableLanguages: const {'tr'}),
+        speech: FlutterTtsSpeechBackend(
+          _FakeFlutterTts(availableLanguages: const {'tr'}),
+        ),
       );
 
       expect(await checker.isSystemTtsAvailable('tr'), isTrue);
@@ -99,6 +103,9 @@ void main() {
     test('language unavailable -> reports system TTS unavailable', () async {
       final checker = TtsAvailabilityChecker(
         _FakeFlutterTts(availableLanguages: const {}),
+        speech: FlutterTtsSpeechBackend(
+          _FakeFlutterTts(availableLanguages: const {}),
+        ),
       );
 
       expect(await checker.isSystemTtsAvailable('tr'), isFalse);
@@ -106,14 +113,14 @@ void main() {
 
     test('availability query exception -> reports unavailable', () async {
       final throwingTts = _ThrowingFlutterTts();
-      final checker = TtsAvailabilityChecker(throwingTts);
+      final checker = TtsAvailabilityChecker(throwingTts, speech: FlutterTtsSpeechBackend(throwingTts));
 
       expect(await checker.isSystemTtsAvailable('tr'), isFalse);
     });
 
     test('resolveLanguageCode returns first available candidate', () async {
       final tts = _FakeFlutterTts(availableLanguages: const {'tr-TR'});
-      final checker = TtsAvailabilityChecker(tts);
+      final checker = TtsAvailabilityChecker(tts, speech: FlutterTtsSpeechBackend(tts));
 
       expect(await checker.resolveLanguageCode('tr'), 'tr-TR');
       expect(tts.languageQueries, contains('tr'));
@@ -142,7 +149,7 @@ void main() {
             {'name': 'com.samsung.SMT', 'label': 'Samsung'},
           ],
         );
-        final checker = TtsAvailabilityChecker(tts);
+        final checker = TtsAvailabilityChecker(tts, speech: FlutterTtsSpeechBackend(tts));
 
         await checker.configureSystemEngine();
 
@@ -153,7 +160,7 @@ void main() {
       test('configureSystemEngine does nothing when Google engine is absent',
           () async {
         final tts = _FakeFlutterTts(engines: const ['com.samsung.SMT']);
-        final checker = TtsAvailabilityChecker(tts);
+        final checker = TtsAvailabilityChecker(tts, speech: FlutterTtsSpeechBackend(tts));
 
         await checker.configureSystemEngine();
 
@@ -166,7 +173,7 @@ void main() {
           engines: const ['com.google.android.tts'],
           engineShouldFail: true,
         );
-        final checker = TtsAvailabilityChecker(tts);
+        final checker = TtsAvailabilityChecker(tts, speech: FlutterTtsSpeechBackend(tts));
 
         await expectLater(
           checker.configureSystemEngine(),
@@ -179,7 +186,7 @@ void main() {
           availableLanguages: const {'tr'},
           engines: const [],
         );
-        final checker = TtsAvailabilityChecker(tts);
+        final checker = TtsAvailabilityChecker(tts, speech: FlutterTtsSpeechBackend(tts));
 
         expect(await checker.isSystemTtsAvailable('tr'), isFalse);
       });
@@ -197,7 +204,7 @@ void main() {
             googleOnlyLanguages: const {'tr', 'tr-TR'},
             googleOnlyInstalled: const {'tr', 'tr-TR'},
           );
-          final checker = TtsAvailabilityChecker(tts);
+          final checker = TtsAvailabilityChecker(tts, speech: FlutterTtsSpeechBackend(tts));
 
           expect(await checker.isSystemTtsAvailable('tr'), isTrue);
           expect(tts.lastEngine, 'com.google.android.tts');
@@ -211,7 +218,7 @@ void main() {
         final tts = _FakeFlutterTts(
           engines: const ['com.google.android.tts'],
         );
-        final checker = TtsAvailabilityChecker(tts);
+        final checker = TtsAvailabilityChecker(tts, speech: FlutterTtsSpeechBackend(tts));
 
         await checker.configureSystemEngine();
         tts.lastEngine = null;
@@ -228,7 +235,7 @@ void main() {
           final tts = _FakeFlutterTts(
             engines: const ['com.google.android.tts'],
           )..setEngineDelay = const Duration(milliseconds: 40);
-          final checker = TtsAvailabilityChecker(tts);
+          final checker = TtsAvailabilityChecker(tts, speech: FlutterTtsSpeechBackend(tts));
 
           // Mimic main.dart post-frame + Splash isPreferred racing on startup.
           await Future.wait([
@@ -251,7 +258,7 @@ void main() {
             availableLanguages: const {'tr'},
             installedLanguages: const {'tr'},
           );
-          final checker = TtsAvailabilityChecker(tts);
+          final checker = TtsAvailabilityChecker(tts, speech: FlutterTtsSpeechBackend(tts));
 
           expect(await checker.hasGoogleTtsEngine(), isFalse);
           expect(await checker.listEngineNames(), ['com.vivo.aiservice']);
@@ -269,7 +276,7 @@ void main() {
             availableLanguages: const {'tr-TR'},
             installedLanguages: const {'tr-TR'},
           );
-          final checker = TtsAvailabilityChecker(tts);
+          final checker = TtsAvailabilityChecker(tts, speech: FlutterTtsSpeechBackend(tts));
 
           expect(await checker.hasGoogleTtsEngine(), isTrue);
           expect(await checker.isPreferredSystemTtsAvailable('tr'), isTrue);
@@ -284,7 +291,7 @@ void main() {
             engines: const ['com.google.android.tts'],
             availableLanguages: const {},
           );
-          final checker = TtsAvailabilityChecker(tts);
+          final checker = TtsAvailabilityChecker(tts, speech: FlutterTtsSpeechBackend(tts));
 
           expect(await checker.hasGoogleTtsEngine(), isTrue);
           expect(await checker.isPreferredSystemTtsAvailable('tr'), isFalse);
@@ -299,7 +306,7 @@ void main() {
             availableLanguages: const {'tr-TR'},
             installedLanguages: const {}, // advertised but not downloaded
           );
-          final checker = TtsAvailabilityChecker(tts);
+          final checker = TtsAvailabilityChecker(tts, speech: FlutterTtsSpeechBackend(tts));
 
           expect(await checker.isPreferredSystemTtsAvailable('tr'), isFalse);
           final diag = await checker.diagnose('tr');
@@ -316,7 +323,7 @@ void main() {
             availableLanguages: const {'tr', 'tr-TR'},
             installedLanguages: const {'tr-TR'},
           );
-          final checker = TtsAvailabilityChecker(tts);
+          final checker = TtsAvailabilityChecker(tts, speech: FlutterTtsSpeechBackend(tts));
 
           // 'tr' is checked first; not installed → continue to tr-TR.
           expect(await checker.resolveLanguageCode('tr'), 'tr-TR');
@@ -328,7 +335,7 @@ void main() {
           engines: const [],
           availableLanguages: const {},
         );
-        final checker = TtsAvailabilityChecker(tts);
+        final checker = TtsAvailabilityChecker(tts, speech: FlutterTtsSpeechBackend(tts));
         final diag = await checker.diagnose('tr');
         expect(diag.hasGoogleEngine, isFalse);
         expect(diag.preferredStatus, TtsPreferredStatus.googleMissing);

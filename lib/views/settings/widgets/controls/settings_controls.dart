@@ -214,6 +214,7 @@ class ProviderBoundToggleTile<T extends ChangeNotifier>
     required this.subtitle,
     required this.valueSelector,
     required this.onChanged,
+    this.enabled = true,
   });
 
   final IconData icon;
@@ -221,6 +222,11 @@ class ProviderBoundToggleTile<T extends ChangeNotifier>
   final String subtitle;
   final bool Function(T) valueSelector;
   final void Function(T, bool) onChanged;
+
+  /// When false the switch is inert and the row is dimmed. A toggle that
+  /// accepts a tap and changes nothing is worse than one that refuses it: the
+  /// user believes they turned something on.
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -231,7 +237,8 @@ class ProviderBoundToggleTile<T extends ChangeNotifier>
       subtitle: subtitle,
       trailing: settingsAdaptiveSwitch(
         value: value,
-        onChanged: (newValue) => onChanged(context.read<T>(), newValue),
+        onChanged:
+            enabled ? (newValue) => onChanged(context.read<T>(), newValue) : null,
       ),
     );
   }

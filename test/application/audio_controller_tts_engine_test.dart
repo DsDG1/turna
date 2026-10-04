@@ -1,4 +1,3 @@
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -10,7 +9,9 @@ import 'package:turna/application/settings_provider.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/audio/vocab_audio_resolver.dart';
 import 'package:turna/service/locator.dart';
+import 'package:turna/service/speech_backend.dart';
 import 'package:turna/service/tts_availability_checker.dart';
+import '../support/fake_audio_backend.dart';
 
 class _PassthroughVocabResolver implements VocabAudioResolver {
   @override
@@ -90,25 +91,24 @@ class _FakeLanguageProvider implements LanguageProvider {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-class _FakeAudioPlayer implements AudioPlayer {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
 AudioController _buildController({
   required SettingsProvider settings,
   required _FakeFlutterTts tts,
   TtsAvailabilityChecker? checker,
 }) {
+  // The same fake `FlutterTts` is handed to the controller (through the
+  // production `flutter_tts` backend) and to the checker, so a test can still
+  // assert on the plugin calls the Android path makes.
+  final speech = FlutterTtsSpeechBackend(tts);
   return AudioController(
-    tts,
+    speech,
     _FakeLanguageProvider(),
     settings,
     getIt<AccessibilityProvider>(),
     _PassthroughVocabResolver(),
-    audioPlayer: _FakeAudioPlayer(),
-    speechPlayer: _FakeAudioPlayer(),
-    ttsChecker: checker ?? TtsAvailabilityChecker(tts),
+    effects: FakeAudioBackend(name: 'effects'),
+    speech: FakeAudioBackend(name: 'speech'),
+    ttsChecker: checker ?? TtsAvailabilityChecker(tts, speech: speech),
   );
 }
 

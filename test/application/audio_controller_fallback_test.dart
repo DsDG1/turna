@@ -4,7 +4,6 @@
 
 import 'dart:io';
 
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:path/path.dart' as p;
@@ -19,6 +18,8 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/domain/audio/anki_audio_resolver.dart';
 import 'package:turna/domain/audio/vocab_audio_resolver.dart';
 import 'package:turna/service/locator.dart';
+import '../support/fake_audio_backend.dart';
+import 'package:turna/service/speech_backend.dart';
 
 class _FakeFlutterTts implements FlutterTts {
   @override
@@ -31,29 +32,6 @@ class _FakeLanguageProvider implements LanguageProvider {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-class _FakeAudioPlayer implements AudioPlayer {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-class _RecordingAudioPlayer implements AudioPlayer {
-  final List<Source> playedSources = [];
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) {
-    if (invocation.memberName == #play) {
-      playedSources.add(invocation.positionalArguments.first as Source);
-      return Future<void>.value();
-    }
-    if (invocation.memberName == #stop ||
-        invocation.memberName == #dispose ||
-        invocation.memberName == #release) {
-      return Future<void>.value();
-    }
-    return super.noSuchMethod(invocation);
-  }
 }
 
 class _FakeAnkiAudioResolver extends AnkiAudioResolver {
@@ -85,13 +63,13 @@ class _TestAudioController extends AudioController {
 
   _TestAudioController(VocabAudioResolver resolver)
       : super(
-          _FakeFlutterTts(),
+          FlutterTtsSpeechBackend(_FakeFlutterTts()),
           _FakeLanguageProvider(),
           getIt<SettingsProvider>(),
           getIt<AccessibilityProvider>(),
           resolver,
-          audioPlayer: _FakeAudioPlayer(),
-          speechPlayer: _FakeAudioPlayer(),
+          effects: FakeAudioBackend(name: 'effects'),
+          speech: FakeAudioBackend(name: 'speech'),
         );
 
   @override
@@ -317,47 +295,47 @@ void main() {
 
     tearDown(() async => getIt.reset());
 
-    test('resolved anki reference plays through DeviceFileSource', () async {
-      final speechPlayer = _RecordingAudioPlayer();
+    test('resolved anki reference plays from the sandbox file', () async {
+      final speechPlayer = FakeAudioBackend(name: 'speech');
       final controller = AudioController(
-        _FakeFlutterTts(),
+        FlutterTtsSpeechBackend(_FakeFlutterTts()),
         _FakeLanguageProvider(),
         getIt<SettingsProvider>(),
         getIt<AccessibilityProvider>(),
         _MapVocabAudioResolver({}),
-        audioPlayer: _FakeAudioPlayer(),
-        speechPlayer: speechPlayer,
+        effects: FakeAudioBackend(name: 'effects'),
+        speech: speechPlayer,
         ankiMediaResolver: _FakeAnkiAudioResolver({
           'anki://imp/voice.mp3': r'C:\media\voice.mp3',
         }),
       );
 
       expect(await controller.playAnkiMedia('anki://imp/voice.mp3'), isTrue);
-      expect(speechPlayer.playedSources, hasLength(1));
-      expect(speechPlayer.playedSources.single, isA<DeviceFileSource>());
-      expect(
-        (speechPlayer.playedSources.single as DeviceFileSource).path,
-        r'C:\media\voice.mp3',
-      );
+      expect(speechPlayer.playedFiles, hasLength(1));
+      // The asset list staying empty is what proves this went out as a sandbox
+      // file rather than a bundled asset: the backend has two entry points and
+      // picking the wrong one is how media silently fails to play.
+      expect(speechPlayer.playedAssets, isEmpty);
+      expect(speechPlayer.playedFiles.single, r'C:\media\voice.mp3');
     });
 
     test('missing or non-Anki references return false without playback',
         () async {
-      final speechPlayer = _RecordingAudioPlayer();
+      final speechPlayer = FakeAudioBackend(name: 'speech');
       final controller = AudioController(
-        _FakeFlutterTts(),
+        FlutterTtsSpeechBackend(_FakeFlutterTts()),
         _FakeLanguageProvider(),
         getIt<SettingsProvider>(),
         getIt<AccessibilityProvider>(),
         _MapVocabAudioResolver({}),
-        audioPlayer: _FakeAudioPlayer(),
-        speechPlayer: speechPlayer,
+        effects: FakeAudioBackend(name: 'effects'),
+        speech: speechPlayer,
         ankiMediaResolver: _FakeAnkiAudioResolver({}),
       );
 
       expect(await controller.playAnkiMedia('anki://imp/missing.mp3'), isFalse);
       expect(await controller.playAnkiMedia('assets/audio.mp3'), isFalse);
-      expect(speechPlayer.playedSources, isEmpty);
+      expect(speechPlayer.playedFiles, isEmpty);
     });
   });
 
@@ -381,7 +359,7 @@ void main() {
       await getIt.reset();
     });
 
-    test('resolved pack reference plays through DeviceFileSource', () async {
+    test('resolved pack reference plays from the sandbox file', () async {
       final root = await Directory.systemTemp.createTemp('pack-audio-');
       addTearDown(() {
         if (root.existsSync()) root.deleteSync(recursive: true);
@@ -390,26 +368,23 @@ void main() {
       final file = File(p.join(root.path, 'es', 'media', 'hola.mp3'))
         ..createSync(recursive: true)
         ..writeAsBytesSync(const [1, 2, 3]);
-      final speechPlayer = _RecordingAudioPlayer();
+      final speechPlayer = FakeAudioBackend(name: 'speech');
       final controller = AudioController(
-        _FakeFlutterTts(),
+        FlutterTtsSpeechBackend(_FakeFlutterTts()),
         _FakeLanguageProvider(),
         getIt<SettingsProvider>(),
         getIt<AccessibilityProvider>(),
         _MapVocabAudioResolver({}),
-        audioPlayer: _FakeAudioPlayer(),
-        speechPlayer: speechPlayer,
+        effects: FakeAudioBackend(name: 'effects'),
+        speech: speechPlayer,
       );
 
       expect(
         await controller.playCoursePackMedia('turnapack://es/hola.mp3'),
         isTrue,
       );
-      expect(speechPlayer.playedSources.single, isA<DeviceFileSource>());
-      expect(
-        (speechPlayer.playedSources.single as DeviceFileSource).path,
-        file.path,
-      );
+      expect(speechPlayer.playedFiles.single, file.path);
+      expect(speechPlayer.playedAssets, isEmpty);
     });
   });
 }

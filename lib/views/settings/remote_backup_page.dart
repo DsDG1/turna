@@ -11,6 +11,7 @@ import 'package:intl/intl.dart';
 // Project imports:
 import 'package:turna/core/endpoint_url_policy.dart';
 import 'package:turna/core/logger.dart';
+import 'package:turna/core/ohos_target.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/locator.dart';
@@ -75,7 +76,15 @@ class _RemoteBackupPageState extends State<RemoteBackupPage> {
           ? getIt<RemoteBackupConfigStore>()
           : null;
 
-  bool get _supported => _service != null;
+  /// Whether this build can actually talk to a WebDAV server.
+  ///
+  /// Service presence is not enough. `RemoteBackupService` is registered
+  /// unconditionally, so on the OpenHarmony companion build — which has no
+  /// WebDAV client — `_service` is non-null and the page used to render a
+  /// complete, working-looking form whose every submit failed. Gate on the
+  /// capability as well, so the "not supported on this platform" card is
+  /// actually reachable instead of being dead copy.
+  bool get _supported => _service != null && !isDegraded(OhosDegradation.remoteBackup);
 
   bool get _busy => _saving || _testing || _backingUp || _restoring;
 

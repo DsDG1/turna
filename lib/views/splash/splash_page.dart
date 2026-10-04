@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/game_provider.dart';
 import 'package:turna/application/language_provider.dart';
+import 'package:turna/core/ohos_target.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
@@ -39,6 +40,50 @@ Future<bool> maybePromptTtsAvailability(BuildContext context) async {
   final diag = await checker.diagnose(languageCode);
   if (!context.mounted) return false;
   final languageName = getIt<LanguageProvider>().displayName;
+
+  if (isHarmonyOsTarget) {
+    // The companion build cannot act on this report: there is no store to open
+    // and no engine to select, and the device publishes its own voice list
+    // which we verified has no downloadable Turkish pack. So the dialog only
+    // states the fact and lets the user dismiss it.
+    final voices = AppStrings.voiceListLabel(
+      await checker.listVoiceLanguages(),
+    );
+    if (!context.mounted) return false;
+    final (title, body) = switch (diag.preferredStatus) {
+      TtsPreferredStatus.ready => (
+          AppStrings.splashOhosNoVoiceTitle,
+          AppStrings.splashOhosNoVoiceBody(voices),
+        ),
+      TtsPreferredStatus.voiceMissing => (
+          AppStrings.splashOhosVoiceMissingTitle(languageName),
+          AppStrings.splashOhosVoiceMissingBody(languageName, voices),
+        ),
+      TtsPreferredStatus.googleMissing => (
+          AppStrings.splashOhosNoVoiceTitle,
+          AppStrings.splashOhosNoVoiceBody(voices),
+        ),
+    };
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(body),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: Text(AppStrings.splashAcknowledge),
+          ),
+        ],
+      ),
+    );
+    await prefs.setBool(
+      LocalStateKeys.ttsAvailabilityPromptShown,
+      value: true,
+    );
+    return true;
+  }
+
   final (title, body) = switch (diag.preferredStatus) {
     TtsPreferredStatus.voiceMissing => (
         AppStrings.splashVoiceMissingTitle(languageName),

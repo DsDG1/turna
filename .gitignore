@@ -147,3 +147,7 @@ logs/crash-hunt/*
 # files are produced by the ArkTS static-check tooling when it is run from
 # the repo root; they carry no reviewable state.
 .cache/
+
+# hvigor/DevEco toolchain residue. `ohos/.codegenie/` is created empty by the
+# OHOS build and reappears on every run, so it must never reach a commit.
+ohos/.codegenie/

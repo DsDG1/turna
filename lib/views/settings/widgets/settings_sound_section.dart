@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:turna/application/audio_controller.dart';
 import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/settings_provider.dart';
+import 'package:turna/core/ohos_target.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/service/tts_availability_checker.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
@@ -28,7 +29,11 @@ class SettingsToggleTile extends StatelessWidget {
     required this.subtitle,
     required this.valueSelector,
     required this.onChanged,
+    this.enabled = true,
   });
+
+  /// See [ProviderBoundToggleTile.enabled].
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -38,6 +43,7 @@ class SettingsToggleTile extends StatelessWidget {
       subtitle: subtitle,
       valueSelector: valueSelector,
       onChanged: onChanged,
+      enabled: enabled,
     );
   }
 }
@@ -54,6 +60,11 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
   bool _loading = true;
   bool _previewing = false;
 
+  /// Voice tags the device's own engine can speak. Empty everywhere except the
+  /// companion build, and empty there too when the engine never started, so
+  /// [AppStrings.voiceListLabel] has to absorb both cases.
+  List<String> _deviceVoices = const <String>[];
+
   @override
   void initState() {
     super.initState();
@@ -64,9 +75,14 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
     final checker = getIt<TtsAvailabilityChecker>();
     final lang = getIt<LanguageProvider>().ttsLanguageCode;
     final diag = await checker.diagnose(lang);
+    // Fetched after `diagnose` so the voice list can never delay the
+    // diagnostics themselves, and fetched even when `diag` threw nothing —
+    // an empty list is a legitimate state, not an error to swallow.
+    final voices = await checker.listVoiceLanguages();
     if (!mounted) return;
     setState(() {
       _diagnostics = diag;
+      _deviceVoices = voices;
       _loading = false;
     });
   }
@@ -76,6 +92,23 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
       return AppStrings.settingsTtsChecking;
     }
     final d = _diagnostics!;
+    final language = getIt<LanguageProvider>();
+    if (isHarmonyOsTarget) {
+      // The companion build has no preferred engine and no store, so the only
+      // honest thing to report is which voices the device actually has.
+      final voices = AppStrings.voiceListLabel(_deviceVoices);
+      return switch (d.preferredStatus) {
+        TtsPreferredStatus.ready => AppStrings.settingsOhosTtsReady(
+            d.resolvedLocale ?? language.ttsLanguageCode,
+          ),
+        TtsPreferredStatus.voiceMissing => AppStrings.settingsOhosTtsVoiceMissing(
+            language.displayName,
+            voices,
+          ),
+        TtsPreferredStatus.googleMissing =>
+          AppStrings.settingsOhosTtsNoVoice(voices),
+      };
+    }
     switch (d.preferredStatus) {
       case TtsPreferredStatus.ready:
         final locale =
@@ -146,14 +179,21 @@ class _SettingsTtsEngineTileState extends State<SettingsTtsEngineTile> {
             },
             child: Text(AppStrings.settingsOpenSystemTts),
           ),
-          SimpleDialogOption(
-            onPressed: () async {
-              Navigator.of(context).pop();
-              await getIt<TtsAvailabilityChecker>().openGoogleTtsInstallPage();
-              await _refreshDiagnostics();
-            },
-            child: Text(AppStrings.settingsInstallGoogleTts),
-          ),
+          // Both of the remaining actions are Android-only affordances: one
+          // launches a store listing, the other an Android `Intent`. Both fail
+          // silently on the companion build, so they are omitted there instead
+          // of being shown as buttons that do nothing.
+          if (!isHarmonyOsTarget) ...[
+            SimpleDialogOption(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await getIt<TtsAvailabilityChecker>()
+                    .openGoogleTtsInstallPage();
+                await _refreshDiagnostics();
+              },
+              child: Text(AppStrings.settingsInstallGoogleTts),
+            ),
+          ],
         ],
       ),
     );
