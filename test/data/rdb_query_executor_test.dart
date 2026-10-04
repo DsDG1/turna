@@ -640,6 +640,93 @@ void main() {
     });
   });
 
+  group('upsert probe concurrency', () {
+    // The five cases above all await one statement at a time, which is exactly
+    // why the defect below survived them. Two statements that overlap in one
+    // event-loop turn are the real shape: `SrsQueueProvider` batches writes and
+    // several providers flush on the same frame.
+    const stmt = 'INSERT INTO "t" ("a") VALUES (?) '
+        'ON CONFLICT ("a") DO UPDATE SET "a" = ?';
+
+    int probeInserts(FakeRdbEngine e) => e.executed
+        .where((s) => s.contains('_turna_upsert_probe') && s.contains('INSERT'))
+        .length;
+
+    test('concurrent upserts share one probe and both succeed', () async {
+      final executor = HarmonyOsRdbExecutor(dbName: 'course.db');
+      await executor.ensureOpen(_FakeUser(29));
+      engine.reset();
+
+      // Not awaited one by one: the second call must arrive while the first is
+      // still inside the probe.
+      final results = await Future.wait(<Future<void>>[
+        executor.runCustom(stmt, ['a', 'a']),
+        executor.runCustom(stmt, ['b', 'b']),
+        executor.runCustom(stmt, ['c', 'c']),
+      ]);
+
+      expect(results, hasLength(3));
+      expect(
+        probeInserts(engine),
+        1,
+        reason: 'three overlapping statements must share a single probe; a '
+            'second probe races the first on one scratch table',
+      );
+      // The statements themselves still ran — joining the probe must not turn
+      // into skipping the write.
+      final writes = engine.executed
+          .where((s) => s.contains('"t"') && s.contains('ON CONFLICT'))
+          .length;
+      expect(writes, 3);
+    });
+
+    test('a losing probe cannot overwrite the winner\'s verdict', () async {
+      // Reproduces the device log: one process reported "accepted" and, 6 ms
+      // later, "probe failed" for the same engine. The failure then became the
+      // sticky cached verdict, so every later upsert threw and SRS progress
+      // silently stopped being written.
+      final executor = HarmonyOsRdbExecutor(dbName: 'course.db');
+      await executor.ensureOpen(_FakeUser(29));
+      engine.reset();
+
+      await Future.wait(<Future<void>>[
+        executor.runCustom(stmt, ['a', 'a']),
+        executor.runCustom(stmt, ['b', 'b']),
+      ]);
+
+      // A third, later statement stands in for the rest of the session: if the
+      // race had poisoned the cache it would throw here instead of running.
+      await expectLater(executor.runCustom(stmt, ['c', 'c']), completes);
+      expect(
+        engine.executed.where((s) => s.contains('DROP TABLE')).length,
+        1,
+        reason: 'one probe means one cleanup; a per-caller probe would drop '
+            'the table while another probe was still using it',
+      );
+    });
+
+    test('concurrent upserts all fail when the engine truly has no upsert',
+        () async {
+      final executor = HarmonyOsRdbExecutor(dbName: 'course.db');
+      await executor.ensureOpen(_FakeUser(29));
+      engine.reset();
+      engine.unsupported['INSERT INTO "_turna_upsert_probe" ("k", "v") '
+          'VALUES (?, ?) ON CONFLICT ("k") DO UPDATE SET "v" = ?'] = 'syntax';
+
+      final settled = await Future.wait(<Future<void>>[
+        executor.runCustom(stmt, ['a', 'a']).then<void>((_) {}, onError: (Object _) {}),
+        executor.runCustom(stmt, ['b', 'b']).then<void>((_) {}, onError: (Object _) {}),
+      ]);
+
+      expect(settled, hasLength(2));
+      expect(
+        probeInserts(engine),
+        1,
+        reason: 'the failing probe must not be retried once per caller',
+      );
+    });
+  });
+
 
   group('close', () {
     test('is idempotent and only closes an open handle', () async {

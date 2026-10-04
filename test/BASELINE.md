@@ -1,11 +1,15 @@
 # 测试基线收据（只保留最近批次）
 
-> 本文件**只保留 2026-09-20 及之后的 30 条收据**（覆盖架构接口化、P0–P4 架构简化、
-> iOS 官方 Anki 启用、PopScope 死循环修复、文档债清理、Official Anki 状态源补记、测试冗余清理、安全与质量整改 PR-2～PR-7、OHOS Anki 引擎层交叉编译探针、OHOS 伴生轻量版 W0/W1 闸门、W4 RDB 接线与真机调通、W5 文件选择、鸿蒙图标、伴生版音频与 TTS 等最近批次）。
+> 本文件**只保留 2026-09-20 及之后的 31 条收据**（覆盖架构接口化、P0–P4 架构简化、
+> iOS 官方 Anki 启用、PopScope 死循环修复、文档债清理、Official Anki 状态源补记、测试冗余清理、安全与质量整改 PR-2～PR-7、OHOS Anki 引擎层交叉编译探针、OHOS 伴生轻量版 W0/W1 闸门、W4 RDB 接线与真机调通、W5 文件选择、鸿蒙图标、伴生版音频与 TTS、upsert 探针并发等最近批次）。
 > 2026-09-17 及更早的 56 条见 [`archive/BASELINE-pre-2026-09-20.md`](./archive/BASELINE-pre-2026-09-20.md)。
 
 > **新增收据一律前插到本文件顶部。** 引用收据必须用「文件 + 条目日期 + 标题」锚，**禁止用行号**
 > （行号在只增不减的文件上必然腐坏——已删除的 `system-font-cutover-plan.md` 曾引 `BASELINE.md:303-307`，真实位置早已漂到第 100 行）。
+
+---
+
+Generated: 2026-10-04（**upsert 探针并发自伤：设备日志里 SRS 静默不落库的真 bug，探针结论本身不可信**）：**来源**——真机前的总体审计，从设备 `transparency_log.jsonl` 里捞出一条 `SrsProvider writeBatch failed: RdbUnsupportedSqlError: HarmonyOS RDB rejected 'ON CONFLICT ... DO UPDATE'`，而 W4 收据写的是「`ON CONFLICT ... DO UPDATE` ArkData 原生可用，upsert 探针实测通过」。**两者都不算错，但都不覆盖真相**：探针验的是 scratch 表，**真实 SRS 写入路径在设备上唯一一次尝试就是失败的那次**。**根因不是平台缺能力，是探针自己并发**。把该进程前后的探针日志按时间戳排开，真相自现——**同一台设备、同一版本、同一进程内 6 毫秒内先成功后失败**：ts `…616076` 打出 `RDB upsert probe: ON CONFLICT DO UPDATE accepted`，ts `…616082`（**+6ms**）打出 `RDB upsert probe failed; … is unavailable on this device`；13:33 与 13:46 的后续进程又都 accepted。**机制**——`_requireUpsertSupport` 的缓存 `_upsertSupported` 是个裸可空字段，**没有 in-flight 守卫**，而它的第一个 `await` 就在探针体内：A 读到「未探测」→ 进入 `await` 让出 → B 也读到「未探测」→ 也进入 `await` → A 的 `CREATE TABLE IF NOT EXISTS _turna_upsert_probe` + upsert 成功并写缓存 `true` → **B 的同一条 DDL 撞上 A 尚未 DROP 的同一张临时表而失败** → **B 把缓存覆盖成 `false`**。**后果比「一次探测失败」严重得多**——该 verdict 是**粘的**，本会话内此后每一次 upsert 都抛 `RdbUnsupportedSqlError`；而 `srs_queue_provider.dart` 的 `writeBatch` 只 `logger.w` 吞掉，**没有重试、没有用户可见信号**，provider 的 `_cachedState` 早已乐观更新 → **SRS 进度静默不落库，下次启动回滚**。这与本仓库已修的两个同族缺陷完全同构：W4 真因③「`ensureOpen` 被重入 → 369 次 openDb / 0 次 executeSql」用 `_isOpening` 短路修掉，`TtsAvailabilityChecker` 的并发 `setEngine` 用「await 前同步抢占 + 后来者 join 同一个 future」修掉——**只有探针漏了这道守卫**。**修法**照抄后者的形状：新增 `_upsertProbeInFlight`，在**第一个 `await` 之前**同步用 `Completer` 抢占，后来者 `await` 同一个 future 并**重新读取缓存结论**（胜者失败则同样抛 `RdbUnsupportedSqlError`，而不是继续执行引擎刚拒绝过的语句），`finally` 里**不带错误地** complete（否则一次失败会扇出成 N 份原始平台异常）并做 `identical` 判空后清空；探针本体抽成 `_runUpsertProbe`，只由抢占成功者调用。**为什么值得单独记一条**：能力「被误报」比能力「被报缺失」更坏——后者会把诊断指向平台，前者把诊断指向本文件，而真因就在本文件里。**门禁**——`test/data/rdb_query_executor_test.dart` 30 → **33 例**，新增 `upsert probe concurrency` 组 3 例。**原有用例为什么全绿**：那 5 例探针用例**每一条都 `await` 单条语句**，而缺陷只在**同一事件循环轮内重叠**时才发生；这正是它活到今天的原因。三个新例分别钉住：① 三个并发 upsert **共用一次探针**（断言探针 INSERT 计数为 1，且三条语句本身都真的执行了——join 探针不等于跳过写入）；② **败者不能覆盖胜者结论**（复现设备那 6ms：一对并发后再跑第三条，它必须正常完成而非抛；并断言 `DROP TABLE` 只有一次，因为按调用者各探一次会在别人还在用表时就把它删了）；③ 引擎真的不支持时**并发调用者全部失败且只探一次**（不许按调用者重试）。**已反向验证**：把守卫条件改成 `if (inFlight != null && false)` 后三个用例**同时变红**，探针次数实测 **3 / 2 / 2**（应为 1）——正是设备日志里那个机制的直接复现。**验收**——`flutter analyze` **No issues**；`flutter test --exclude-tags golden` **2113 passed / 0 failed**（上一条目 2110，**+3**，与新增用例精确对齐）；`rdb_query_executor_test.dart` **33 例全绿**。**与 W4 收据的关系**——W4 的「upsert 可用」结论**不需要撤回**：能力确实可用，本次修的是**探测方式会自伤**。但真机那次会话的观察清单要加一条：**复习一次后确认 `srs_states` 真的落库**（`writeBatch failed` 那行 warn 不出现），否则 SRS 相关的所有观察都不可信。**仍未验证**——修法本身**未在设备上跑过**（本批无真机），故不能声称「SRS 落库问题已解决」，只能说「导致它的那条路径已被堵住且有离线回归覆盖」。
 
 ---
 

@@ -107,6 +107,11 @@ class HarmonyOsRdbExecutor extends QueryExecutor implements TransactionExecutor 
   /// `null` until the first `ON CONFLICT` statement probes the engine.
   bool? _upsertSupported;
 
+  /// The in-flight probe run, claimed before any `await` so that concurrent
+  /// callers join it instead of racing a second probe against the same scratch
+  /// table. See [_requireUpsertSupport].
+  Future<void>? _upsertProbeInFlight;
+
   /// Whether this executor is the OHOS target. See [isHarmonyOsTarget] for why
   /// the platform is compared by name.
   static bool get isSupportedPlatform => isHarmonyOsTarget;
@@ -394,8 +399,9 @@ class HarmonyOsRdbExecutor extends QueryExecutor implements TransactionExecutor 
   /// cannot be exercised from CI. Probing turns an ambiguous per-statement
   /// failure into one recorded diagnosis plus an error that names the cause.
   Future<void> _requireUpsertSupport() async {
-    if (_upsertSupported != null) {
-      if (!_upsertSupported!) {
+    final verdict = _upsertSupported;
+    if (verdict != null) {
+      if (!verdict) {
         throw const RdbUnsupportedSqlError(
           'HarmonyOS RDB rejected `ON CONFLICT ... DO UPDATE`',
         );
@@ -403,6 +409,57 @@ class HarmonyOsRdbExecutor extends QueryExecutor implements TransactionExecutor 
       return;
     }
 
+    // Claim the probe synchronously, before the first `await` in
+    // [_runUpsertProbe], and let every later caller join that one run.
+    //
+    // This is the same defect class as the re-entrant `ensureOpen` guarded
+    // above and the re-entrant `setEngine` in `TtsAvailabilityChecker`: two
+    // callers both read "not probed yet", both run the probe, and the loser
+    // fails — because the probe creates and drops one scratch table and both
+    // runs race on it. The device log caught exactly that, 6 ms apart inside a
+    // single process:
+    //
+    //   RDB upsert probe: ON CONFLICT DO UPDATE accepted
+    //   RDB upsert probe failed; ON CONFLICT ... DO UPDATE is unavailable
+    //
+    // and the loser then wrote `false` over the winner's `true`. That verdict
+    // is sticky, so for the rest of the session every upsert threw, and
+    // `SrsQueueProvider` only logs that — SRS progress stopped persisting with
+    // nothing but a warning to show for it. A capability that is sometimes
+    // reported wrong is worse than one reported missing, because the
+    // diagnosis then points at the platform instead of at this file.
+    final inFlight = _upsertProbeInFlight;
+    if (inFlight != null) {
+      await inFlight;
+      // Re-read rather than assume the winner succeeded: a joiner must fail
+      // identically instead of going on to run a statement the engine has just
+      // been shown to reject.
+      if (_upsertSupported != true) {
+        throw const RdbUnsupportedSqlError(
+          'HarmonyOS RDB rejected `ON CONFLICT ... DO UPDATE`',
+        );
+      }
+      return;
+    }
+
+    final done = Completer<void>();
+    _upsertProbeInFlight = done.future;
+    try {
+      await _runUpsertProbe();
+    } finally {
+      // Completed without an error on purpose. Joiners re-read the cached
+      // verdict and raise their own diagnosable error, so one failing probe
+      // does not fan out into N copies of the raw platform exception.
+      if (!done.isCompleted) done.complete();
+      if (identical(_upsertProbeInFlight, done.future)) {
+        _upsertProbeInFlight = null;
+      }
+    }
+  }
+
+  /// Runs the probe once and records the verdict. Only [_requireUpsertSupport]
+  /// calls this, and only after claiming [_upsertProbeInFlight].
+  Future<void> _runUpsertProbe() async {
     const probeTable = '_turna_upsert_probe';
     try {
       await channel.invokeMethod<bool>('executeSql', {
