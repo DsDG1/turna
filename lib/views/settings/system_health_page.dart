@@ -22,6 +22,7 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/language_codes.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/service/tts_availability_checker.dart';
+import 'package:turna/utils/share_origin.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/core/theme.dart';
@@ -211,6 +212,9 @@ class SystemHealthPage extends StatelessWidget {
   ) async {
     final report = await _buildReport(context, monitor);
     if (!context.mounted) return;
+    // iPad requires a share anchor rect; capture it before the dialog's
+    // async gap.
+    final shareOrigin = shareOriginFor(context);
     final export = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -247,6 +251,7 @@ class SystemHealthPage extends StatelessWidget {
         ),
       ],
       subject: 'Turna 脱敏诊断报告',
+      sharePositionOrigin: shareOrigin,
     );
   }
 

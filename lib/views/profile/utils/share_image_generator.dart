@@ -29,7 +29,11 @@ class ShareProgressImageGenerator {
   /// Renders the capture target to a PNG and opens the platform share sheet.
   ///
   /// [shareText] is the localized text passed to the platform share sheet.
-  Future<void> captureAndShare({required String shareText}) async {
+  /// [sharePositionOrigin] anchors the share sheet on iPad (required there).
+  Future<void> captureAndShare({
+    required String shareText,
+    Rect? sharePositionOrigin,
+  }) async {
     final boundary = _boundaryKey.currentContext?.findRenderObject()
         as RenderRepaintBoundary?;
 
@@ -63,11 +67,15 @@ class ShareProgressImageGenerator {
 
     final tempDir = await getTemporaryDirectory();
     final file = File('${tempDir.path}/turna_progress.png');
+    // Sandboxed macOS: the Caches subdir may not exist on a fresh install and
+    // writeAsBytes does not create parents.
+    await file.create(recursive: true);
     await file.writeAsBytes(pngBytes);
 
     await Share.shareXFiles(
       [XFile(file.path)],
       text: shareText,
+      sharePositionOrigin: sharePositionOrigin,
     );
   }
 }

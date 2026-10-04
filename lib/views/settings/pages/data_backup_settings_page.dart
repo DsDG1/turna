@@ -21,6 +21,7 @@ import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/routing/routing.gr.dart';
 import 'package:turna/service/export_service.dart';
+import 'package:turna/utils/share_origin.dart';
 import 'package:turna/utils/validated_file_picker.dart';
 import 'package:turna/views/settings/pages/settings_category_body.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
@@ -428,11 +429,14 @@ class _ExportSheetState extends State<_ExportSheet> {
   bool _exporting = false;
 
   Future<void> _export() async {
+    // iPad requires a share anchor rect; capture it while the sheet is still
+    // laid out (before any await could leave the context unmounted).
+    final shareOrigin = shareOriginFor(context);
     setState(() => _exporting = true);
     try {
       final service = getIt<ExportService>();
       final file = await service.export();
-      await service.share(file);
+      await service.share(file, sharePositionOrigin: shareOrigin);
       if (mounted) unawaited(Navigator.of(context).maybePop());
     } catch (e) {
       if (mounted) {

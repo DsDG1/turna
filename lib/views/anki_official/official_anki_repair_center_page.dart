@@ -20,6 +20,7 @@ import 'package:turna/core/log_capture.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/l10n/app_strings.dart';
+import 'package:turna/utils/share_origin.dart';
 import 'package:turna/views/anki/import_wizard/official_pending_import_banner.dart';
 import 'package:turna/views/settings/widgets/settings_common.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
@@ -974,9 +975,16 @@ class _OfficialAnkiRepairCenterPageState
       await injected(withLogs);
       return;
     }
+    // Capture the iPad share anchor before the async clipboard write leaves
+    // the context across a gap.
+    final shareOrigin = context.mounted ? shareOriginFor(context) : null;
     await Clipboard.setData(ClipboardData(text: withLogs));
     try {
-      await Share.share(withLogs, subject: AppStrings.ankiRepairCenterTitle);
+      await Share.share(
+        withLogs,
+        subject: AppStrings.ankiRepairCenterTitle,
+        sharePositionOrigin: shareOrigin,
+      );
     } catch (_) {
       // Best-effort secondary channel: the clipboard copy above already
       // succeeded and the snack below tells the user so.

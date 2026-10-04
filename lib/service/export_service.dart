@@ -1,6 +1,7 @@
 // Dart imports:
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' show Rect;
 
 // Package imports:
 import 'package:package_info_plus/package_info_plus.dart';
@@ -77,14 +78,18 @@ class ExportService {
     final dir = await getTemporaryDirectory();
     final ts = DateTime.now().millisecondsSinceEpoch;
     final file = File('${dir.path}/turna_export_$ts.json');
+    // Sandboxed macOS: the Caches subdir may not exist on a fresh install and
+    // writeAsString does not create parents.
+    await file.create(recursive: true);
     await file.writeAsString(jsonEncode(payload));
     return file;
   }
 
-  Future<void> share(File file) async {
+  Future<void> share(File file, {Rect? sharePositionOrigin}) async {
     await Share.shareXFiles(
       [XFile(file.path)],
       text: 'Turna export',
+      sharePositionOrigin: sharePositionOrigin,
     );
   }
 
