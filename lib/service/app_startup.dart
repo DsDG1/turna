@@ -1,5 +1,6 @@
 // Dart imports:
 import 'dart:async';
+import 'dart:io';
 
 // Flutter imports:
 import 'package:flutter/foundation.dart';
@@ -7,6 +8,7 @@ import 'package:flutter/foundation.dart';
 // Project imports:
 import 'package:turna/application/achievements/achievement_service.dart';
 import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
+import 'package:turna/application/anki_official/engine/official_anki_native_transport.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_startup_recovery.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/course_provider.dart';
@@ -15,6 +17,7 @@ import 'package:turna/application/language_registry.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/srs_provider.dart';
 import 'package:turna/core/logger.dart';
+import 'package:turna/core/ohos_target.dart';
 import 'package:turna/courses/languages/expressions.dart';
 import 'package:turna/courses/languages/grammar_points.dart';
 import 'package:turna/courses/languages/vocab.dart';
@@ -101,6 +104,41 @@ Future<void> _hydrateAfterSeed() async {
   await getIt<GrammarReviewProvider>().setLanguageFilter(srsLanguage);
 
   await OfficialAnkiCompositionRoot.initializeReadOnlyLocator();
+  // ADR 0050 §3, step 0: turn the OHOS platform-identity assumptions into a
+  // receipt instead of leaving them to be inferred from a code comment. Every
+  // branch below is read off `dart:io` and `defaultTargetPlatform` rather than
+  // reasoned about, because `Platform.is*` is all-false on HarmonyOS and a
+  // wrong assumption here silently reroutes the official Anki wiring later.
+  // Safe to keep permanently: it logs once at startup and opens no handle.
+  unawaited(() async {
+    try {
+      logger.i(
+        '[OhosProbe] operatingSystem=${Platform.operatingSystem} '
+        'osVersion=${Platform.operatingSystemVersion} '
+        'defaultTargetPlatform=${defaultTargetPlatform.name} '
+        'isHarmonyOsTarget=$isHarmonyOsTarget '
+        'isAndroid=${Platform.isAndroid} isIOS=${Platform.isIOS} '
+        'isLinux=${Platform.isLinux} isMacOS=${Platform.isMacOS} '
+        'isWindows=${Platform.isWindows} '
+        'degradations=${activeDegradations.map((e) => e.name).join(",")}',
+      );
+      // The catalog open is the one assertion that can actually fail here, and
+      // on HarmonyOS it fails for a different reason than on every other
+      // platform (no `libsqlite3.so`), so it is probed separately rather than
+      // folded into the capability matrix.
+      final probe = OfficialAnkiCompositionRoot.probe();
+      logger.i(
+        '[OhosProbe] ankiLibraryResolved='
+        '${resolveOfficialAnkiLibraryPath() ?? "<null>"} '
+        'runtimeOk=${probe.ok} reason=${probe.reason} '
+        'abi=${probe.abiVersion}',
+      );
+    } catch (e) {
+      // A probe that throws is itself the receipt. Swallowing it keeps a
+      // diagnostic from taking down the cold start it was measuring.
+      logger.w('[OhosProbe] skipped: $e');
+    }
+  }());
   await getIt<CourseProvider>().load();
 
   unawaited(() async {
