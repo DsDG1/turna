@@ -25,8 +25,15 @@ bool get isHarmonyOsTarget => defaultTargetPlatform.name == 'ohos';
 /// The exclusions are not stylistic. Each one is a capability the platform
 /// genuinely lacks, and each was verified on device rather than assumed:
 ///
-/// - **officialAnki** — the shared catalog is a `sqlite3` FFI database and OHOS
-///   ships no `libsqlite3.so`, so the engine cannot be opened at all.
+/// - **officialAnki** — two separate gaps, and only one of them is the reason
+///   this entry exists:
+///   1. The shared catalog (`OfficialAnkiDatabase`) is a `sqlite3` FFI database
+///      and the platform ships no `libsqlite3.so`, so it cannot be opened.
+///   2. The engine itself is **not** blocked — its SQLite is `bundled` and
+///      statically linked into `libturna_anki.so`, verified on device (ADR 0046).
+///      What is missing is packaging, the catalog override, and the ArkTS
+///      reviewer. ADR 0050 authorises all of them; this entry is removed by the
+///      wiring batch, not before.
 /// - **remoteBackup** — no WebDAV client on the platform. The service is
 ///   registered unconditionally, so without an explicit check the settings page
 ///   offers a complete, working-looking WebDAV form that fails on submit.

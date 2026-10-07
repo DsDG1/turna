@@ -232,19 +232,25 @@ class OfficialAnkiCompositionRoot {
 
   /// Cold-start catalog locator. Opens catalog only — no Collection writer.
   ///
-  /// No-op on the OpenHarmony companion build: the shared catalog is a
-  /// `sqlite3` FFI database and OHOS has no `libsqlite3.so` to load, so
-  /// [_ensureSharedCatalog] throws `Unsupported platform: ohos` out of
-  /// `sqlite3`'s loader. That is not a recoverable error here — this runs on
-  /// every cold start, so the throw aborts the whole startup continuation and
-  /// the splash never gets past "course did not load" even though the course
-  /// database itself is fine (it is ArkData-backed, see `HarmonyOsRdbExecutor`).
+  /// No-op on the OpenHarmony companion build, and the reason is narrow: the
+  /// shared catalog is a `sqlite3` FFI database, [_ensureSharedCatalog] throws
+  /// `Unsupported platform: ohos` out of `sqlite3`'s loader, and the platform
+  /// ships no `libsqlite3.so` to load. That is not a recoverable error here —
+  /// this runs on every cold start, so the throw aborts the whole startup
+  /// continuation and the splash never gets past "course did not load" even
+  /// though the course database itself is fine (it is ArkData-backed, see
+  /// `HarmonyOsRdbExecutor`).
   ///
-  /// Degrading is the specified behaviour, not a shortcut: ADR 0047 scopes the
-  /// companion build to course/SRS/review/dictionary/settings and explicitly
-  /// excludes the faithful Official Anki reviewer, so there is no Anki deck to
-  /// read. Leaving `catalogOf` unbound means Official sections resolve to
-  /// empty, which is the correct answer for a build that cannot import them.
+  /// **This is the Turna-side catalog, not the engine.** The engine's own
+  /// SQLite is `bundled` into `libturna_anki.so` and was verified working on
+  /// device (ADR 0046); the gap is the separate FFI library this class opens,
+  /// not the engine. ADR 0050 §4.1 authorises shipping one; this early return
+  /// is removed by the wiring batch, not by any flag.
+  ///
+  /// Degrading is the specified behaviour, not a shortcut: the companion build
+  /// currently cannot import Official decks, so there is no Anki deck to read.
+  /// Leaving `catalogOf` unbound means Official sections resolve to empty,
+  /// which is the correct answer for a build that cannot import them.
   /// The degradation is logged rather than swallowed, and the settings page
   /// surfaces it to the user.
   static Future<void> initializeReadOnlyLocator({
@@ -253,8 +259,9 @@ class OfficialAnkiCompositionRoot {
     if (isHarmonyOsTarget) {
       logger.w(
         'Official Anki shared catalog is not available on the OpenHarmony '
-        'companion build (no sqlite3 FFI); imported decks are out of scope '
-        'per ADR 0047 and the Learn tree will show builtin courses only.',
+        'companion build (no sqlite3 FFI for the Turna-side catalog; the '
+        'engine itself is unaffected per ADR 0046). Wiring pending ADR 0050; '
+        'until then the Learn tree shows builtin courses only.',
       );
       return;
     }
