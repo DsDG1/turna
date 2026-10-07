@@ -17,9 +17,17 @@
 ### 0.1 已定决策
 
 1. **停止产品级 OHOS 支持。** 不再为 OHOS 构建、发布、适配、修复或新增功能。
-2. **不建设 OHOS Official Anki Core。** 原计划中“OHOS 继续 Legacy”的路线作废。
+2. ~~**不建设 OHOS Official Anki Core。** 原计划中“OHOS 继续 Legacy”的路线作废。~~
+   **（已被 [ADR 0050](../decisions/0050-ohos-official-anki.md) 作废，2026-10-07）**——鸿蒙伴生版
+   启用 Official Anki 全档（引擎 / 导入 / 投影 / 保真复习器），接线见 ADR 0050 §6。
+   本条的**作废范围仅限「不建设」**：原计划「OHOS 继续 Legacy」路线仍然作废，鸿蒙不会
+   回退到 Legacy 写入。
 3. **Android 是 Official Anki 唯一生产首发平台。** Android 新导入最终只能由 Official Collection 持有，正式复习只能写 Official Scheduler。
+   **（2026-10-07 补记）** 首发口径不变——iOS 早已同走 Official 路径（见
+   [`34-cutover-receipt.md`](./34-cutover-receipt.md) 的 iOS 批次），鸿蒙属伴生版、
+   不进主交付，因此「唯一生产首发平台」指**主交付产物**，不排除伴生版内的 Official 路径。
 4. **剩余非 Android 平台不得成为 Legacy Anki 的保留理由。** 在没有 Official Core 的平台上，Anki 导入/正式复习应明确不可用或只读导出，不得继续创建新的 Legacy Anki 数据。
+   **（2026-10-07 补记）** ADR 0050 授权的鸿蒙走 Official 而非 Legacy，本条的**禁止方向不变**：任何平台都不得以「没有 Official Core」为由打开 Legacy 写入。
 5. **不做 AnkiWeb。** 本计划只处理本地 Official Collection、课程投影、复习和本地/远程备份。
 6. **不以 feature flag 推断历史 owner。** 每个来源的 owner 必须持久化，修复和迁移必须经过 census/reconciliation。
 7. **不立即物理删除 Legacy。** 先停止新写入，再迁移已有数据，观察至少一个正式版本，最后分波删除。
@@ -27,6 +35,15 @@
 ### 0.2 “去掉 OHOS 支持”的具体含义
 
 本计划按产品级 EOL 处理，而不只是删一个 Anki 平台分支：
+
+> **2026-10-07 订正本节**：以下六条描述的是 W2 的**原始意图**，其中前四条**已被
+> [ADR 0047](../decisions/0047-ohos-companion-lite-build.md) 推翻**——`ohos/` 工程、
+> ArkTS 插件、OpenHarmony Flutter fork 与 OHOS 专用依赖覆盖均已作为**伴生版**恢复，
+> HarmonyOS RDB / 文件选择器 / 音频 / TTS 也已改由自维护 ArkTS 通道承载。
+> **仅「不引入 fork 补丁工具链」（`tool/apply_patches.sh` / `tool/patches/`）仍然成立。**
+> 第五条的「能力矩阵移除 OHOS」在 2026-10-07 又被
+> [ADR 0050](../decisions/0050-ohos-official-anki.md) 重新打开：鸿蒙将作为**已知**平台
+> 走 Official 路径。保留本节原文是为了不改写历史决策记录，**读的时候以 ADR 0047 / 0050 为准**。
 
 - 删除仓库中的 `ohos/` 工程与 ArkTS 插件；
 - 停止使用 OpenHarmony Flutter fork；

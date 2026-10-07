@@ -1,8 +1,8 @@
 # ADR 0041 — OHOS 产品级退役（EOL）
 
-- 状态：已接受
+- 状态：已接受（**§决策 2 已被 [ADR 0050](./0050-ohos-official-anki.md) 作废**；其余条款仍然有效）
 - 日期：2026-08-24
-- 关联：[`docs/official-anki-migration/34-official-anki-production-cutover-and-ohos-retirement-plan.md`](../official-anki-migration/34-official-anki-production-cutover-and-ohos-retirement-plan.md) W1/W2；[ADR 0036](./0036-official-anki-core-migration.md)、[ADR 0037](./0037-anki-course-review-unification.md)
+- 关联：[`docs/official-anki-migration/34-official-anki-production-cutover-and-ohos-retirement-plan.md`](../official-anki-migration/34-official-anki-production-cutover-and-ohos-retirement-plan.md) W1/W2；[ADR 0036](./0036-official-anki-core-migration.md)、[ADR 0037](./0037-anki-course-review-unification.md)、[ADR 0047](./0047-ohos-companion-lite-build.md)、[ADR 0050](./0050-ohos-official-anki.md)
 - 编号说明：任务草案曾写 `0038-ohos-product-eol`；仓库内 0038–0040 已占用，本决策记为 **0041**。
 
 ## 决策
@@ -10,9 +10,14 @@
 停止产品级 OpenHarmony / HarmonyOS（OHOS）支持：
 
 1. 不再为 OHOS 构建、发布、适配、修复或新增功能。
-2. 不建设 OHOS Official Anki Core；原“OHOS 继续 Legacy”路线作废。
+2. ~~不建设 OHOS Official Anki Core；原“OHOS 继续 Legacy”路线作废。~~
+   **（已被 [ADR 0050](./0050-ohos-official-anki.md) 作废）**——鸿蒙伴生版启用 Official
+   Anki 全档（引擎 / 导入 / 投影 / 保真复习器）。ADR 0050 只授权**伴生版内部**，
+   不恢复产品线，故本 ADR 其余条款与 §决策 1 仍然有效。
 3. 删除 `ohos/` 产品 target、OpenHarmony Flutter fork 依赖覆盖、`tool/apply_patches.sh` 与 `tool/patches/`。
+   **（`ohos/` 与 fork override 已由 [ADR 0047](./0047-ohos-companion-lite-build.md) 恢复为伴生版；`tool/apply_patches.sh` 与 `tool/patches/` 保持删除，本条的这部分仍然有效）**
 4. 共享 Dart 运行时统一为官方 Android/iOS（及现有桌面/Web）路径：Drift `NativeDatabase`、官方 `file_picker` / `flutter_local_notifications`，无 HarmonyOS RDB / Ohos* 通知 API。
+   **（伴生版已由 ADR 0047 逐条例外：课程库走鸿蒙原生 RDB、文件选择 / 音频 / TTS 走自维护 ArkTS 通道。本条对 Android / iOS 仍然成立）**
 5. 非 Android 平台不得以“没有 Official Core”为由继续打开 Legacy Anki 写入；未知平台 → Anki 不可用（`ankiUnavailable`）。
 
 ## Sunset export status
@@ -29,4 +34,5 @@
 
 - 活跃文档（README / CLAUDE / project-guide / android-build-setup / official-anki-migration README）改为官方 Flutter + Android 主力；历史 CHANGELOG 与 archive 不重写。
 - Architecture guard 测试禁止活跃树再引入 `HarmonyOsRdbExecutor`、`OhosInitializationSettings`、`OhosNotification`、openharmony dependency overrides、`tool/apply_patches.sh`。
+  **（该 guard 已由 [ADR 0047](./0047-ohos-companion-lite-build.md) §3 改写为二态：伴生态下换成更强正断言；`tool/apply_patches.sh` / `tool/patches/` 的禁止两条分支下均保留）**
 - Android 构建路径不得被本决策破坏；Anki 生产收口继续按 doc 34 后续波次推进。
