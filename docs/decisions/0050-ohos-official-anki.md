@@ -52,6 +52,44 @@
 调度器真实负载、导入链路、卡片渲染。本文授权范围**包含**这四项，因此它们是
 下一批的施工对象与验收项，不是本文的既成结论。
 
+### 2.1 平台身份收据（2026-10-08，步 0 完成）
+
+真机 Mate 90 Pro Max（CMM-AL10，HarmonyOS 7.0.0.109，API 26），fork SDK
+`3.44.9+ohos-0.0.1-canary1` 编 `entry-default-signed.hap` 装机后读启动日志，
+探针见 `lib/service/app_startup.dart` 的 `[OhosProbe]`、catalog 探针为
+`probeOfficialAnkiSqlite()`（`official_anki_sqlite.dart`，只读 + `openInMemory`）：
+
+```
+operatingSystem=ohos
+defaultTargetPlatform=ohos
+isHarmonyOsTarget=true
+isAndroid=false isIOS=false isLinux=false isMacOS=false isWindows=false
+degradations=officialAnki,remoteBackup
+
+ankiLibraryResolved=<null>
+runtimeOk=false reason=unsupported_platform abi=null
+catalog=throw UnsupportedError: Unsupported operation: Unsupported platform: ohos
+```
+
+四条推论，均为收据而非推断：
+
+1. `Platform.operatingSystem` 真值是 `"ohos"`（**§3 未验证前提 1 已结**）。
+2. `Platform.is*` 在鸿蒙上**全为 false**，与 §4.3 的纪律一致。
+3. `isHarmonyOsTarget` 在真机上为 `true`，故 §4.1 的 `overrideForAll` 短路条件
+   可以用它——若换成 `Platform.*` 判断，Android / iOS 会被污染。
+4. **catalog 在鸿蒙上当前就是打不开的**，不是「可能失败」。§4.1 预判的错误文本
+   逐字命中，机制同时被证实：`sqlite3-2.9.4` 的 `load_library.dart` 里
+   `OperatingSystem? get os` 是六项 `Platform.is*` if 链，全 false → `null` →
+   `ensureOfficialAnkiSqlite()` 注册的表根本查不到 → 落到 `_defaultOpen()` 末尾
+   抛出。无 `OperatingSystem.ohos` 注册位。
+
+**尚未被本收据改变的**：`ankiLibraryResolved=<null>`（`.so` 未打包，属步 1）、
+`reason=unsupported_platform`（能力矩阵硬拒，属步 3/4）。
+
+**关于 `Platform.operatingSystemVersion`**：真机返回
+`HarmonyOS HongMeng Kernel 1.13.0 #1 SMP Tue Sep 29 12:53:48 UTC 2026`，
+即 **uname 风格字符串，不是 API level**。§4.2 的 API 落差不能靠它判断。
+
 ## 3. 保真复习器走 PlatformView，不碰 `webview_flutter`
 
 这一条决定了 ADR 0047 §5.4 无需解除，因此也决定了工作量口径。
@@ -112,9 +150,11 @@ error - Undefined class 'OhosViewController'.
 
 **未验证前提（施工前必须先打点，不得由「有 `OhosView`」外推）：**
 
-1. `Platform.operatingSystem == 'ohos'` —— 目前**只有代码注释作证**
-   （`official_anki_composition.dart` 的 `initializeReadOnlyLocator`）。若该值不成立，
-   所有 `Platform.is*` 判断的写法都要重估。
+1. ~~`Platform.operatingSystem == 'ohos'` —— 目前只有代码注释作证~~
+   **（2026-10-08 已结，见 §2.1）**——真机收据确认为 `"ohos"`，`isHarmonyOsTarget`
+   为 `true`，`Platform.is*` 全 false。原注释（`official_anki_composition.dart`
+   的 `initializeReadOnlyLocator`）从此有了实证后盾，`Platform.is*` 的写法不需要
+   重估。
 2. 三路合成模式齐备**不等于**行为等价：Android 侧 `_hcpp` 先探
    `HybridAndroidViewController.checkIfSupported()` 再在两条分支间选择，鸿蒙侧
    `OhosViewController` 无对应的 `checkIfSupported`。选哪一路、滚动 / 手势 /
@@ -229,8 +269,8 @@ ADR 0046 §副作用写明：「若将来真的推进鸿蒙产品线，必须先
 
 | 步 | 内容 | 前置 |
 |---|---|---|
-| 0 | 真机探针：打点 `Platform.operatingSystem` / `isHarmonyOsTarget` / `Platform.is*` / catalog 打开结果，把 §3 未验证前提 1 变成收据 | — |
-| 1 | `.so` 装进 `ohos/entry/libs/arm64-v8a/` + 构建接线；`resolveOfficialAnkiLibraryPath` 加 ohos 分支；真机确认 §4.2 的 API 落差 | 步 0 |
+| 0 | 真机探针：打点 `Platform.operatingSystem` / `isHarmonyOsTarget` / `Platform.is*` / catalog 打开结果 —— **已完成，收据见 §2.1（2026-10-08）** | — |
+| 1 | `.so` 装进 `ohos/entry/libs/arm64-v8a/` + 构建接线；`resolveOfficialAnkiLibraryPath` 加 ohos 分支；真机确认 §4.2 的 API 落差 —— **进行中** | 步 0 |
 | 2 | 重写 `ensureOfficialAnkiSqlite` 分派为 `overrideForAll`（§4.1）+ 独立 `libsqlite3.so` 随 hap 分发 | 步 1 |
 | 3 | 平台路由：`OfficialAnkiCapabilityMatrix._hostPlatform` / `forPlatform`、`AnkiImportExecutionPlanner.productModeFor`、`OfficialAnkiCompositionRoot.probe` | 步 1–2 |
 | 4 | 撤 `OhosDegradation.officialAnki` + `OfficialAnkiNativeAvailability` 的 ohos 分支 | 步 3 |
@@ -238,8 +278,10 @@ ADR 0046 §副作用写明：「若将来真的推进鸿蒙产品线，必须先
 | 5b | ArkTS reviewer 插件（PlatformView 工厂 + `Web` 组件 + 媒体 Range/206），登记进 `EntryAbility`，并入 `_requiredOhosFiles` | 步 5a |
 | 6 | 独立 CI workflow（ADR 0047 承诺但尚未存在） | 步 1–5b |
 
-步 5b 的验收判据是 §3 的三条未验证前提全部转为真机收据。任一条不成立则保真档位
-不成立，届时回到「文本降级」档并修订本文。
+步 5b 的验收判据是 §3 的三条未验证前提全部转为真机收据——**前提 1 已于 2026-10-08
+结清（§2.1），故实际只剩 2 与 3**（哪一路合成模式可用、ArkUI `Web` 能否满足 CSP +
+自定义 scheme + 媒体 Range/206）。任一条不成立则保真档位不成立，届时回到「文本降级」
+档并修订本文。
 
 **§3.1 是本表最大的不确定项**，且 ADR 0047 的「复习器 5–8 人日」不含它。在 5a
 定档之前不得引用该数字作为预算。

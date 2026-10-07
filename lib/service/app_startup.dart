@@ -11,6 +11,7 @@ import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/anki_official/engine/official_anki_native_transport.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_startup_recovery.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
+import 'package:turna/application/anki_official/storage/official_anki_sqlite.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/grammar_review_provider.dart';
 import 'package:turna/application/language_registry.dart';
@@ -131,7 +132,8 @@ Future<void> _hydrateAfterSeed() async {
         '[OhosProbe] ankiLibraryResolved='
         '${resolveOfficialAnkiLibraryPath() ?? "<null>"} '
         'runtimeOk=${probe.ok} reason=${probe.reason} '
-        'abi=${probe.abiVersion}',
+        'abi=${probe.abiVersion} '
+        'catalog=${probeOfficialAnkiSqlite()}',
       );
     } catch (e) {
       // A probe that throws is itself the receipt. Swallowing it keeps a
