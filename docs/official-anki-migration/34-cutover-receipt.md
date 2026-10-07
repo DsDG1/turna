@@ -148,8 +148,8 @@
 | W3 census / reconciler + journal | 分类器 + `JoinedOfficialAnkiSourceEvidenceReader`（Drift ∪ catalog，按 hash/id）；`OfficialAnkiStartupCensus` 启动只读 collect + journal `scanned`（幂等）。**不**自动改 owner |
 | W5 基础骨架（非产品验收） | 共享 host 已能调用 `showAnswer` 并提交 Official scheduler；但 formal review 仍有 HTML 降级、固定队列 stale、Review All 单来源和六集合 due 缺口，返工见 remaining R2/R3 |
 | W6 course = practice/introduction | `AnkiStudySessionHost.itemForCourse` + `official_course_practice_introduction_test.dart` |
-| OHOS product target / patches removed | `ohos/` absent; `tool/apply_patches.sh` / `tool/patches/` absent; ADR 0041 |
-| OHOS EOL ADR | [ADR 0041](../decisions/0041-ohos-product-eol.md) |
+| OHOS product target / patches removed | ~~`ohos/` absent~~ **（2026-10-07 订正为失真）**：`ohos/` 自 [ADR 0047](../decisions/0047-ohos-companion-lite-build.md)（提交 `8ab24246`）起作为**伴生版**存在；`tool/apply_patches.sh` / `tool/patches/` absent 仍然成立 |
+| OHOS EOL ADR | [ADR 0041](../decisions/0041-ohos-product-eol.md)（§决策 2 已被 [ADR 0050](../decisions/0050-ohos-official-anki.md) 作废） |
 
 ## W9 HOLD 解除记录与证据台账（2026-08-27）
 
@@ -240,7 +240,8 @@ W9-A 含义是：**停住 Legacy 新写入口的产品选择**，不是物理删
 | release 真机矩阵（干净安装 / 升级安装 / 迁移包） | 两次已有会话均未覆盖（9-02 未验安装形态，9-26 为模拟器）；host 门禁全绿不能替代（ADR 0044：logcat / 诊断导出 / bugreport 均不构成完成） |
 | 真机 reimport / Browser/Stats/Media / 强杀恢复验证 | 同上，待设备矩阵 |
 | 存量用户跑批 / owner 切换 | W8 driver 可入队 `cleanLegacy`；未对真实用户库执行 |
-| OHOS 树物理删除 | 已完成（`ohos/` absent）；历史 archive 保留 |
+| OHOS 树物理删除 | ~~已完成（`ohos/` absent）~~ **（2026-10-07 订正为失真）**：`ohos/` 已由 ADR 0047 恢复为伴生版，物理删除从未在当前树成立；历史 archive 保留 |
+| 鸿蒙 Official Anki | **已授权、未接线**（[ADR 0050](../decisions/0050-ohos-official-anki.md)，2026-10-07）。引擎层真机可行已由 [ADR 0046](../decisions/0046-ohos-anki-core-probe.md) 收据确立；打包 / sqlite override / 平台路由 / ArkTS reviewer 四项接线均未施工，伴生版构建当前仍为 `ankiUnavailable` |
 
 ## Android ABI packaging
 

@@ -538,7 +538,7 @@ const warning = Color(0xFFFF9F43);
 | **Android** | ✅ 主力 | 发布产物 APK/AAB；Anki Official Core 首发平台。 |
 | **iOS** | ✅ 应用保留 | WebView 保真可用；**官方 Anki Core 已接通**（2026-09-26，静态链接 rslib 的 `TurnaAnki.xcframework` + WKWebView 复习器 `turna-anki://anki.local`），与 Android 同走 Official 路径；构建见 [`ios-build-setup.md`](./ios-build-setup.md) |
 | **Web** | ⚠️ 有限 | 无 WebView 保真（文本兜底）；`build_release.py --skip-web` 可跳过。 |
-| **HarmonyOS (OHOS)** | ❌ EOL | 产品支持已退役（[ADR 0041](./decisions/0041-ohos-product-eol.md)）；数据出口见 `turna-migration-v1`。 |
+| **HarmonyOS (OHOS)** | ⚠️ 伴生版 | 产品级 EOL（[ADR 0041](./decisions/0041-ohos-product-eol.md)）不撤销，但存在**不进主交付**的伴生轻量版（[ADR 0047](./decisions/0047-ohos-companion-lite-build.md)）：课程 / SRS / 复习 / 词典 / 设置 / 备份 + 自维护 ArkTS 通道（RDB、文件选择、音频、TTS）。**Official Anki 已授权、接线未施工**（[ADR 0050](./decisions/0050-ohos-official-anki.md)）：引擎层真机可行已收据，接线完成后 Anki 导入入口才会解除禁用。数据出口见 `turna-migration-v1`。 |
 
 ### 10.2 官方 Flutter / Android
 
