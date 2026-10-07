@@ -123,7 +123,26 @@ analyzer 已强制的部分（`analysis_options.yaml`：`strict-casts`、`avoid_
 
 ## 7. 范围与口径（禁语清单）
 
-- 不做无外部来源的功能声明（OHOS 已 EOL，ADR 0041）。
+- 不做无外部来源的功能声明。**鸿蒙口径分三层，别混用**（详见 §7.1）。
+- `tool/gui` 是仓库内创作者桌面工具，**不进 app 本体**（ADR 0032）；它有独立门禁，见 §8。
+
+### 7.1 鸿蒙三层口径（写文档 / 写代码 / 做决策前必读）
+
+| 层 | 事实 | 真源 |
+|---|---|---|
+| **产品级** | 已 EOL。伴生版不进主交付、不进主 CI | [ADR 0041](./docs/decisions/0041-ohos-product-eol.md) |
+| **伴生版** | 存在但受限：课程 / SRS / 复习 / 词典 / 设置 / 备份 + 自维护 ArkTS 通道 | [ADR 0047](./docs/decisions/0047-ohos-companion-lite-build.md) |
+| **Official Anki** | **已授权、接线未施工**。引擎层真机可行已收据；打包 / sqlite override / 平台路由 / ArkTS reviewer 四项均未做 | [ADR 0050](./docs/decisions/0050-ohos-official-anki.md) |
+
+**因此**：❌ 不得写「鸿蒙支持 Official Anki」；✅ 可写「已授权，接线未施工，当前为 `ankiUnavailable`」。
+
+**两个已知的失真点**（本节之前它们还在文档里）：①「仓库不含 `ohos/`」——ADR 0047 之后为假；
+②「鸿蒙没有 libsqlite3.so 所以引擎打不开」——因果错了，引擎的 SQLite 是 bundled 的，
+打不开的是 Turna 侧共享 catalog 那份独立 FFI 库。
+
+**平台判断一律走 `isHarmonyOsTarget`**（`lib/core/ohos_target.dart`），不得内联
+`Platform.is*` 比较：鸿蒙上 `Platform.is*` **全为 false**，写成 `Platform.isLinux` 之类
+会静默走进错误分支。该纪律由 `ohos_eol_architecture_guard_test.dart` 断言。
 - `tool/gui` 是仓库内创作者桌面工具，**不进 app 本体**（ADR 0032）；它有独立门禁，见 §8。
 
 ---
@@ -227,6 +246,7 @@ Warning: `dart` on your path resolves to ...\flutter\bin\dart
 | 视觉与主题 / 无障碍 | `docs/project-guide.md` §9 |
 | 明确不做的事 | `docs/project-guide.md` §15 |
 | Official Anki 全部进度与证据 | `docs/official-anki-migration/34-cutover-receipt.md` |
+| 鸿蒙能力边界（三层口径） | 本文件 §7.1；[ADR 0047](./docs/decisions/0047-ohos-companion-lite-build.md) |
 | 决策理由 | `docs/decisions/`（编号不复用，0021 / 0043 为历史复用） |
 | 测试基线与已知失配 | `test/BASELINE.md`（更早见 `test/archive/`） |
 | 通用 Dart / Flutter 规范 | `.agents/skills/`（按 description 触发，无需 `@` 引用） |
