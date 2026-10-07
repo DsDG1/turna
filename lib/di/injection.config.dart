@@ -253,11 +253,13 @@ extension GetItInjectableX on _i174.GetIt {
         () => _i927.StreakProvider(gh<_i523.AppPrefs>()));
     gh.lazySingleton<_i151.ThemeProvider>(
         () => _i151.ThemeProvider(gh<_i523.AppPrefs>()));
-    gh.lazySingleton<_i615.SpeechBackend>(
-        () => audioModule.speechBackend(gh<_i50.FlutterTts>()));
     gh.lazySingleton<_i42.CosmeticProvider>(() => _i42.CosmeticProvider(
           gh<_i523.AppPrefs>(),
           gh<_i417.GemsProvider>(),
+        ));
+    gh.lazySingleton<_i615.SpeechBackend>(() => audioModule.speechBackend(
+          gh<_i50.FlutterTts>(),
+          gh<_i903.AudioBackend>(instanceName: 'speechAudio'),
         ));
     gh.lazySingleton<_i620.StudyStatsProvider>(() => _i620.StudyStatsProvider(
           gh<_i445.IStudyLogRepository>(),

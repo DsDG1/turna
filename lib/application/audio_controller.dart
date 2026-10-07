@@ -154,8 +154,19 @@ class AudioController {
   Future<void> _playSound(String assetPath) async {
     // Sensory-reduce mutes non-essential sound effects (error / level-up
     // cues), independent of the explicit sound-effects toggle.
-    if (!_settingsProvider.soundEffectsEnabled) return;
-    if (_accessibilityProvider.quietFeedback) return;
+    //
+    // Each gate says which one stopped it. These are silent returns by design —
+    // muting is not an error — but two silent returns, a call that was never
+    // made, and a call that succeeded with nothing audible all look identical
+    // in the log, which is exactly what a device run cannot tell apart.
+    if (!_settingsProvider.soundEffectsEnabled) {
+      logger.d('Audio: skipped $assetPath (sound effects off)');
+      return;
+    }
+    if (_accessibilityProvider.quietFeedback) {
+      logger.d('Audio: skipped $assetPath (sensory-reduce)');
+      return;
+    }
     await playIgnoringFailure(
       () => _effects.playAsset(normalizeAssetPath(assetPath)),
       what: 'sound effect $assetPath',
@@ -207,10 +218,13 @@ class AudioController {
     }
 
     if (lang == null) {
-      throw StateError(
-        'No system TTS locale available for "$baseLang" '
-        '(install Google TTS + voice data for that language)',
-      );
+      // No engine, Play Store or download advice here: on one platform the
+      // remedy is a permission, on another it is a voice pack the platform
+      // simply does not ship, and on a third there is no store at all. The
+      // remedy that fits belongs to whoever asked, so this only reports the
+      // fact. The user-facing wording is the settings tile's, which knows the
+      // platform.
+      throw StateError('no system TTS locale available for "$baseLang"');
     }
 
     if (_lastTtsLanguage == lang) return;

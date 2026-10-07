@@ -22,6 +22,7 @@ import 'package:flutter_tts/flutter_tts.dart';
 // Project imports:
 import 'package:turna/core/logger.dart';
 import 'package:turna/core/ohos_target.dart';
+import 'package:turna/service/audio_backend.dart';
 
 /// Speaks text with the device's own voice.
 abstract class SpeechBackend {
@@ -237,8 +238,115 @@ class OhosSpeechBackend implements SpeechBackend {
   }
 }
 
+/// Offline Turkish TTS via sherpa-onnx, for the OpenHarmony companion build.
+///
+/// Chosen over CoreSpeechKit because CoreSpeechKit is *silent* on the device this
+/// build is verified against: its `listVoices` reports `zh_CN person=13
+/// status=INSTALLED`, the engine initialises, `speak` returns true, `onStart`
+/// fires, `onComplete` fires about 44 ms later — twice — and no `onError` ever
+/// arrives. Nothing is audible in any language. A device that claims an
+/// installed voice and then says nothing is not a fallback worth keeping behind
+/// a live feature, so this is the primary path rather than the secondary one.
+///
+/// The model is Turkish-only, which [availableLanguages] reports honestly rather
+/// than padding: pretending an English voice exists is what produced the
+/// "English is unsupported on this device" conclusion that turned out to be a
+/// broken voice id instead.
+class SherpaSpeechBackend implements SpeechBackend {
+  SherpaSpeechBackend({required AudioBackend speaker}) : _speaker = speaker;
+
+  static const MethodChannel _channel =
+      MethodChannel('me.dsdogs.turna/sherpa-tts');
+
+  /// The only language the bundled model speaks.
+  static const String modelLanguage = 'tr';
+
+  final AudioBackend _speaker;
+  bool _ready = false;
+  double _speed = 1.0;
+
+  @override
+  Future<void> init({String? language}) async {
+    if (_ready) return;
+    // Generous: the first call also stages ~35 MB out of the hap, which is a
+    // copy of 358 files rather than a model load.
+    final reply = await _channel
+        .invokeMapMethod<String, Object?>('init')
+        .timeout(const Duration(seconds: 120));
+    _ready = reply != null && reply['ready'] == true;
+    if (!_ready) {
+      throw StateError('sherpa model unavailable: $reply');
+    }
+    logger.d('Sherpa speech backend ready (${reply?['sampleRate']}Hz)');
+  }
+
+  @override
+  Future<List<String>> availableLanguages() async => <String>[modelLanguage];
+
+  @override
+  Future<bool> bindLanguage(String language) async {
+    // The engine holds one voice. Accepting any request would mean answering
+    // "yes" for Turkish text read by a voice the caller never chose, so the one
+    // real answer is given and anything else says no.
+    return _normalize(language).startsWith(modelLanguage);
+  }
+
+  @override
+  Future<void> setRate(double rate) async {
+    // `rate` is a UI multiplier where 1.0 is normal; sherpa's `speed` is the same
+    // shape, so the conversion is the identity rather than a second scale nobody
+    // has heard.
+    _speed = rate.clamp(0.5, 2.0);
+  }
+
+  @override
+  Future<bool> speak(String text) async {
+    if (!_ready) {
+      await init();
+    }
+    final reply = await _channel
+        .invokeMapMethod<String, Object?>('speak', <String, Object?>{
+      'text': text,
+      'speed': _speed,
+    }).timeout(const Duration(seconds: 60));
+    final path = reply?['path'] as String?;
+    if (path == null || path.isEmpty) {
+      logger.w('sherpa produced no audio for ${text.length} chars');
+      return false;
+    }
+    // Played through the shared audio seam rather than a second player here: that
+    // path was fixed and verified on device, and this backend's job ends at
+    // having produced a file.
+    await _speaker.playFile(path);
+    return true;
+  }
+
+  @override
+  Future<void> stop() async {
+    try {
+      await _speaker.stop();
+    } catch (e) {
+      logger.w('sherpa stop failed: $e');
+    }
+  }
+
+  static String _normalize(String raw) =>
+      raw.replaceAll('_', '-').toLowerCase();
+}
+
 /// The backend this build should use.
-SpeechBackend createSpeechBackend({required FlutterTts tts}) {
-  if (isHarmonyOsTarget) return OhosSpeechBackend();
+///
+/// [speaker] is only needed on the companion build, where the offline engine
+/// hands back a file rather than making sound itself.
+SpeechBackend createSpeechBackend({
+  required FlutterTts tts,
+  AudioBackend? speaker,
+}) {
+  if (isHarmonyOsTarget) {
+    if (speaker != null) return SherpaSpeechBackend(speaker: speaker);
+    // No speaker to play through. Failing loudly beats silently reverting to an
+    // engine that is known not to make a sound on this platform.
+    throw StateError('the OHOS speech backend needs a speaker to play through');
+  }
   return FlutterTtsSpeechBackend(tts);
 }

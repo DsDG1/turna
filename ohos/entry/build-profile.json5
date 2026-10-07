@@ -2,6 +2,16 @@
 {
   "apiType": 'stageMode',
   "buildOption": {
+    // arm64 only. `sherpa_onnx`'s HAR declares two ABIs and nothing filtered
+    // them, which put ~20.4 MB of x86_64 into a build that only ships arm64
+    // (ADR 0049). `test/ohos/sherpa_abi_ratchet_test.dart` fails if this list
+    // stops being exactly arm64-v8a, because losing it fails silently: the HAP
+    // still builds, just 20 MB heavier.
+    externalNativeOptions: {
+      abiFilters: [
+        'arm64-v8a',
+      ],
+    },
   },
   "targets": [
     {

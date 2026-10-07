@@ -49,10 +49,47 @@ const PERSON_CANDIDATES: number[] = [0, 1, 2, 3, 4, 5, 6, 7];
 // connectivity.
 const OFFLINE_MODULE = 1;
 
+// Ceiling on one `listVoices` call.
+//
+// This platform has already turned four promise-returning accessors into
+// silence, and the voice query is a fifth candidate: the first log line in
+// `voices()` used to sit *after* the await, so a query that never settled
+// produced no line at all and the voice list looked empty rather than stuck.
+// Every such call is bounded and every entry point logs before it awaits.
+const _voiceQueryWaitMs: number = 3000;
+
 // Both module types are queried when listing voices: the downloadable set is not
 // the installed set, and only the union answers "could this device ever speak
 // this language".
 const VOICE_QUERY_MODULES: number[] = [0, 1];
+
+// Resolves [work] or rejects with a named timeout.
+//
+// A hung platform call has to become a named failure, because silence is the one
+// outcome that teaches nothing.
+function awaitBounded<T>(work: Promise<T>, ms: number, what: string): Promise<T> {
+  return new Promise<T>((resolve: (value: T) => void,
+                         reject: (reason: Error) => void) => {
+    let settled: boolean = false;
+    setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        reject(new Error(`${what} did not answer within ${ms}ms`));
+      }
+    }, ms);
+    work.then((value: T) => {
+      if (!settled) {
+        settled = true;
+        resolve(value);
+      }
+    }).catch((e: BusinessError) => {
+      if (!settled) {
+        settled = true;
+        reject(e as Error);
+      }
+    });
+  });
+}
 
 export default class TtsPlugin implements FlutterPlugin {
   private channel: MethodChannel | null = null;
@@ -150,19 +187,16 @@ export default class TtsPlugin implements FlutterPlugin {
 
     let lastCode: number = 0;
     let lastMessage: string = '';
-    for (const language of languages) {
-      for (const person of PERSON_CANDIDATES) {
-        try {
-          await this.createEngine(language, person);
-          const choice: EngineChoice = new EngineChoice(language, person);
-          return new EngineProbe(true, choice, 0, '');
-        } catch (e) {
-          const err = e as BusinessError;
-          lastCode = err.code;
-          lastMessage = err.message;
-          hilog.debug(DOMAIN, TAG, 'engine probe: %{public}s/%{public}d -> %{public}d',
-            language, person, err.code);
-        }
+    for (const rung of await this.voiceLadder(languages)) {
+      try {
+        await this.createEngine(rung.language, rung.person);
+        return new EngineProbe(true, rung, 0, '');
+      } catch (e) {
+        const err = e as BusinessError;
+        lastCode = err.code;
+        lastMessage = err.message;
+        hilog.warn(DOMAIN, TAG, 'engine probe: %{public}s/%{public}d -> %{public}d',
+          rung.language, rung.person, err.code);
       }
     }
     // Reported as a value rather than a rejection: ArkTS refuses to rethrow a
@@ -170,6 +204,72 @@ export default class TtsPlugin implements FlutterPlugin {
     // result, not an exceptional path.
     const failed: EngineChoice = new EngineChoice('', 0);
     return new EngineProbe(false, failed, lastCode, lastMessage);
+  }
+
+  /**
+   * The engine candidates to try, built from what the device reports.
+   *
+   * This used to be `[0..7]` guessed in source. A device run (CMM-AL10 /
+   * OpenHarmony 7.0.0.109 / API 26) proved the guess wrong in a way that looked
+   * like a language problem: `listVoices` reports `zh_CN person=13`,
+   * `zh_CN person=21` and `en_US person=8`, so *none* of 0–7 exists. Every one of
+   * them was refused with `1002300003 person not support` — for English and
+   * Chinese alike — while `zh-CN person 0` was accepted and then produced an
+   * engine that completed every utterance in ~44 ms with no audio. The
+   * "English is unsupported" reading was wrong; English was never asked for
+   * with a valid voice, and the one engine that did get built had no voice
+   * behind it.
+   *
+   * Installed voices come first: a voice the device has not downloaded cannot
+   * speak, and asking for one gets the same instant silent completion.
+   */
+  private async voiceLadder(languages: string[]): Promise<EngineChoice[]> {
+    const rungs: EngineChoice[] = [];
+    let voices: Array<textToSpeech.VoiceInfo> = [];
+    try {
+      voices = await awaitBounded(
+        textToSpeech.listVoices({
+          requestId: this.nextRequestId(),
+          online: OFFLINE_MODULE,
+        }),
+        _voiceQueryWaitMs,
+        'listVoices for the engine ladder',
+      );
+    } catch (e) {
+      const err = e as BusinessError;
+      hilog.warn(DOMAIN, TAG,
+        'voice list unavailable ([%{public}d] %{public}s); falling back to the guessed ids',
+        err.code, err.message);
+    }
+    if (voices.length === 0) {
+      // No list, no better option than the old guess. Kept as a labelled last
+      // resort rather than deleted, because a device that cannot answer the
+      // query at all would otherwise get no engine and no sound whatsoever.
+      for (const language of languages) {
+        for (const person of PERSON_CANDIDATES) {
+          rungs.push(new EngineChoice(language, person));
+        }
+      }
+      return rungs;
+    }
+    const ordered = voices.slice().sort((a, b) => voiceRank(a) - voiceRank(b));
+    for (const language of languages) {
+      for (const voice of ordered) {
+        if (sameLanguage(voice.language, language)) {
+          rungs.push(new EngineChoice(voice.language, voice.person));
+        }
+      }
+    }
+    // Last: any voice the device has, in a language nobody asked for. A
+    // wrong-language voice is still a voice; a missing one is silence.
+    for (const voice of ordered) {
+      if (!rungs.some((rung: EngineChoice) => sameLanguage(rung.language, voice.language))) {
+        rungs.push(new EngineChoice(voice.language, voice.person));
+      }
+    }
+    hilog.warn(DOMAIN, TAG, 'engine ladder: %{public}d rungs from %{public}d voices',
+      rungs.length, voices.length);
+    return rungs;
   }
 
   private createEngine(language: string, person: number): Promise<void> {
@@ -223,8 +323,23 @@ export default class TtsPlugin implements FlutterPlugin {
           requestId: this.nextRequestId(),
           online: online,
         };
-        const list = await textToSpeech.listVoices(query);
+        hilog.warn(DOMAIN, TAG, 'supported voices: querying online=%{public}d', online);
+        const list = await awaitBounded(
+          textToSpeech.listVoices(query),
+          _voiceQueryWaitMs,
+          `listVoices(online=${online})`,
+        );
+        hilog.warn(DOMAIN, TAG, 'supported voices (online=%{public}d): %{public}d',
+          online, list.length);
         for (const voice of list) {
+          // `status` is dropped from [toVoiceEntry] — the Dart protocol only
+          // carries language and person — so it is dropped here too, and that is
+          // exactly the gap: an engine that builds for `zh-CN person 0` while no
+          // offline voice is installed looks identical to one that really has a
+          // voice. Logged rather than returned, so the wire protocol (and the
+          // guard test over it) stays as it is.
+          hilog.warn(DOMAIN, TAG, '  voice %{public}s person=%{public}d status=%{public}s',
+            voice.language, voice.person, voice.status);
           supported.push(toVoiceEntry(voice));
         }
       } catch (e) {
@@ -242,8 +357,16 @@ export default class TtsPlugin implements FlutterPlugin {
           requestId: this.nextRequestId(),
           online: OFFLINE_MODULE,
         };
-        const list = await engine.listVoices(query);
+        hilog.warn(DOMAIN, TAG, 'installed voices: querying');
+        const list = await awaitBounded(
+          engine.listVoices(query),
+          _voiceQueryWaitMs,
+          'engine.listVoices',
+        );
+        hilog.warn(DOMAIN, TAG, 'installed voices: %{public}d', list.length);
         for (const voice of list) {
+          hilog.warn(DOMAIN, TAG, '  installed %{public}s person=%{public}d status=%{public}s',
+            voice.language, voice.person, voice.status);
           installed.push(toVoiceEntry(voice));
         }
       } catch (e) {
@@ -266,7 +389,21 @@ export default class TtsPlugin implements FlutterPlugin {
       result.error('BAD_ARGS', 'text is required', null);
       return;
     }
-    const language = (call.argument('language') as string) || this.engineLanguage;
+    // The engine is single-voice: it was built for exactly one language/person
+// pair, and asking it to speak with a different tag gets silence rather than an
+// error. A device run sent `lang=zh_CN` to an engine created with `zh-CN` — the
+// same language in two spellings, the caller's winning over the engine's — and
+// the utterance completed in 44 ms with no audio. So the engine's own tag wins,
+// and the disagreement is logged rather than silently absorbed: it is the
+// difference between "this device has no voice for this language" and "the app
+// asked the wrong voice".
+const requested = (call.argument('language') as string) || this.engineLanguage;
+const language = this.engineLanguage;
+if (requested !== this.engineLanguage) {
+      hilog.warn(DOMAIN, TAG,
+        'asked for %{public}s but the engine is %{public}s; speaking with the engine',
+        requested, this.engineLanguage);
+    }
     const rate = call.argument('rate') as number;
 
     this.withEngine(result, (engine: textToSpeech.TextToSpeechEngine) => {
@@ -283,6 +420,15 @@ export default class TtsPlugin implements FlutterPlugin {
         extraParams: extra,
       };
       try {
+        // Logged before the call, with the text itself: a device run showed
+        // `speak start` followed by `speak complete` **47 ms** later, twice, and
+        // no `onError` at all. A word cannot be synthesised in 47 ms, so either
+        // the text is not what the caller thinks it is, or the engine accepted
+        // the request with no voice behind it. Those are indistinguishable from
+        // the outside, so both halves go in the log.
+        hilog.warn(DOMAIN, TAG,
+          'speaking [%{public}s] %{public}s lang=%{public}s person=%{public}d rate=%{public}d',
+          params.requestId, text, language, this.enginePerson, rate);
         engine.speak(text, params);
         result.success(true);
       } catch (e) {
@@ -393,6 +539,29 @@ function toVoiceEntry(voice: textToSpeech.VoiceInfo): VoiceEntry {
   return new VoiceEntry(voice.language, voice.person);
 }
 
+// `VoiceInfo.status` is a free-form string on this SDK; this is the value a
+// device actually reports for a voice it can speak with.
+const VOICE_INSTALLED: string = 'INSTALLED';
+
+// Installed before merely available. `zh_CN person=21` and `en_US person=8`
+// report `GA` on the device that produced this, which is not the same claim as
+// `INSTALLED`.
+function voiceRank(voice: textToSpeech.VoiceInfo): number {
+  return voice.status === VOICE_INSTALLED ? 0 : 1;
+}
+
+// `createEngine` is called with the tag `listVoices` reported (`zh_CN`), so the
+// two ends of every comparison have to agree on spelling as well as language:
+// `zh-CN` and `zh_CN` are the same language in two notations, and treating them
+// as different is how a valid voice gets skipped.
+function sameLanguage(a: string, b: string): boolean {
+  return normalizeLanguage(a) === normalizeLanguage(b);
+}
+
+function normalizeLanguage(raw: string): string {
+  return raw.replace('_', '-').toLowerCase();
+}
+
 /**
  * Reports what the engine did after a request was accepted.
  *
@@ -403,16 +572,44 @@ function toVoiceEntry(voice: textToSpeech.VoiceInfo): VoiceEntry {
  * and say nothing this plugin needs.
  */
 class TurnaSpeakListener implements textToSpeech.SpeakListener {
+  // Start timestamps per request, so `onComplete` can say how long the engine
+  // actually took.
+  //
+  // Duration is the one objective signal available for "did it synthesise".
+  // A device run saw `speak start` → `speak complete` in 44 ms for a whole word,
+  // which no synthesis can do, while reporting success and raising no error. A
+  // completion that arrives in tens of milliseconds is the engine reporting that
+  // it had nothing to render — but only a measured duration shows that, rather
+  // than it being inferred from the absence of sound.
+  private static startedAt: Map<string, number> = new Map();
+
+  // `warn`, not `debug`, for all four: the default hilog level filters `debug`
+  // out and the buffer rotates, so a `debug` line is not evidence — it is a
+  // line that happens to exist. The only durable channel this app has is the
+  // Dart transparency log, and an event that arrives after `speak` already
+  // returned true cannot be routed through it. A device run therefore had "the
+  // platform accepted the utterance" and nothing at all about whether the engine
+  // then produced sound, which are the two things worth knowing.
   onStart(requestId: string, response: textToSpeech.StartResponse): void {
-    hilog.debug(DOMAIN, TAG, 'speak start %{public}s', requestId);
+    TurnaSpeakListener.startedAt.set(requestId, Date.now());
+    hilog.warn(DOMAIN, TAG, 'speak start %{public}s', requestId);
   }
 
   onComplete(requestId: string, response: textToSpeech.CompleteResponse): void {
-    hilog.debug(DOMAIN, TAG, 'speak complete %{public}s', requestId);
+    const began = TurnaSpeakListener.startedAt.get(requestId);
+    if (began === undefined) {
+      // A completion with no matching start: the engine reported the end of
+      // something that never began, which is its own kind of evidence.
+      hilog.warn(DOMAIN, TAG, 'speak complete %{public}s (no start recorded)', requestId);
+      return;
+    }
+    hilog.warn(DOMAIN, TAG, 'speak complete %{public}s after %{public}dms',
+      requestId, Date.now() - began);
+    TurnaSpeakListener.startedAt.delete(requestId);
   }
 
   onStop(requestId: string, response: textToSpeech.StopResponse): void {
-    hilog.debug(DOMAIN, TAG, 'speak stopped %{public}s', requestId);
+    hilog.warn(DOMAIN, TAG, 'speak stopped %{public}s', requestId);
   }
 
   onError(requestId: string, errorCode: number, errorMessage: string): void {

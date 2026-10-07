@@ -47,5 +47,13 @@ abstract class AudioModule {
       ).speech;
 
   @lazySingleton
-  SpeechBackend speechBackend(FlutterTts tts) => createSpeechBackend(tts: tts);
+  SpeechBackend speechBackend(
+    FlutterTts tts,
+    // The companion build's engine synthesises a file and the audio backend plays
+    // it, so the two are wired together here. Injecting the registered
+    // `speechAudio` rather than building a second one matters: two speech
+    // players would let one stop the other mid-utterance.
+    @Named('speechAudio') AudioBackend speech,
+  ) =>
+      createSpeechBackend(tts: tts, speaker: speech);
 }

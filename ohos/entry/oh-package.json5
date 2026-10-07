@@ -6,6 +6,12 @@
   "main": "",
   "author": "",
   "license": "",
-  "dependencies": {},
+  "dependencies": {
+    // On-device TTS runtime for the companion build. CoreSpeechKit is silent on
+    // every voice on the test device (CMM-AL10 / API 26) — `speak` completes in
+    // ~44 ms with no audio and no `onError` — so this is not a fallback for one
+    // language but the only speaking path. Apache-2.0; see ADR 0049.
+    "sherpa_onnx": "1.13.3",
+  },
 }
 

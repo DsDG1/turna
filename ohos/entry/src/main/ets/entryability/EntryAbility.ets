@@ -5,6 +5,7 @@ import RdbPlugin from '../plugins/RdbPlugin';
 import FilePickerPlugin from '../plugins/FilePickerPlugin';
 import AudioPlugin from '../plugins/AudioPlugin';
 import TtsPlugin from '../plugins/TtsPlugin';
+import SherpaTtsPlugin from '../plugins/SherpaTtsPlugin';
 
 export default class EntryAbility extends FlutterAbility {
   configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -29,6 +30,10 @@ export default class EntryAbility extends FlutterAbility {
     // bundled asset and resourceManager for reading one out of the hap.
     flutterEngine.getPlugins()?.add(new AudioPlugin(this.context));
     flutterEngine.getPlugins()?.add(new TtsPlugin());
+    // sherpa-onnx synthesises; AudioBackend plays. Registered here for the same
+    // reason as the other hand-written channels — no pubspec.yaml package to
+    // declare, and `GeneratedPluginRegistrant` is regenerated from that list.
+    flutterEngine.getPlugins()?.add(new SherpaTtsPlugin(this.context));
   }
 }
 

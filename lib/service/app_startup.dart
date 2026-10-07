@@ -23,6 +23,8 @@ import 'package:turna/data/course_database.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/audio/anki_audio_resolver.dart';
 import 'package:turna/domain/course/course_scope.dart';
+import 'package:turna/service/audio_backend.dart';
+import 'package:turna/service/sherpa_tts_probe.dart';
 import 'package:turna/service/local_reminder_service.dart';
 import 'package:turna/service/locator.dart';
 import 'package:turna/service/tts_availability_checker.dart';
@@ -135,6 +137,23 @@ Future<void> _hydrateAfterSeed() async {
 
   if (!kIsWeb) {
     await getIt<TtsAvailabilityChecker>().configureSystemEngine();
+    // Ahead of the reminder block and outside its try: a channel with no
+    // handler is silent on this platform, so this is the only place the log
+    // learns whether the audio channel is wired at all.
+    await probeAudioChannel();
+    // After the audio probe, not beside it: this one synthesises a file and then
+    // plays it through that same backend, so the audio channel has to be known
+    // good first or a failure here would be ambiguous between the two.
+    unawaited(() async {
+      final speaker = getIt<AudioBackend>(instanceName: 'speechAudio');
+      final result = await probeSherpaTts(speaker: speaker);
+      if (result is SherpaProbeOk) {
+        logger.d('[Sherpa] startup probe ok');
+      } else if (result is SherpaProbeFailed) {
+        logger.w(
+            '[Sherpa] startup probe failed at ${result.stage}: ${result.detail}');
+      }
+    }());
     try {
       final settings = getIt<SettingsProvider>();
       await getIt<LocalReminderService>().applyFromSettings(

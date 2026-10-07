@@ -26,6 +26,7 @@ import { common } from '@kit.AbilityKit';
 import { media } from '@kit.MediaKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { BusinessError } from '@kit.BasicServicesKit';
+import { util } from '@kit.ArkTS';
 import hilog from '@ohos.hilog';
 
 const TAG = "AudioPlugin";
@@ -51,6 +52,11 @@ const CACHE_SUBDIR = 'turna_audio';
 const KEY_EFFECTS = 'effects';
 const KEY_SPEECH = 'speech';
 
+// How long a clip may run before "it never finished" is reported as such.
+// Comfortably longer than any bundled effect, short enough that a stuck player
+// does not hold the probe open.
+const _completionWaitMs: number = 8000;
+
 export default class AudioPlugin implements FlutterPlugin {
   private channel: MethodChannel | null = null;
   private context: common.UIAbilityContext;
@@ -75,6 +81,7 @@ export default class AudioPlugin implements FlutterPlugin {
 
   constructor(context: common.UIAbilityContext) {
     this.context = context;
+    hilog.warn(DOMAIN, TAG, 'AudioPlugin constructed');
   }
 
   getUniqueClassName(): string {
@@ -82,27 +89,73 @@ export default class AudioPlugin implements FlutterPlugin {
   }
 
   onAttachedToEngine(binding: FlutterPluginBinding): void {
+    hilog.warn(DOMAIN, TAG, 'AudioPlugin attaching to engine');
     this.channel = new MethodChannel(binding.getBinaryMessenger(), CHANNEL);
+    hilog.warn(DOMAIN, TAG, 'AudioPlugin channel created for %{public}s', CHANNEL);
     this.channel.setMethodCallHandler({
       onMethodCall: (call: MethodCall, result: MethodResult): void => {
-        switch (call.method) {
-          case 'playAsset':
-            this.playAsset(call, result);
-            break;
-          case 'playFile':
-            this.playFile(call, result);
-            break;
-          case 'stop':
-            this.stop(call, result);
-            break;
-          case 'release':
-            this.release(call, result);
-            break;
-          default:
-            result.notImplemented();
+        // The dispatcher is wrapped because an exception thrown anywhere below
+        // leaves the `MethodResult` unanswered, and an unanswered result is
+        // indistinguishable on the Dart side from a slow platform: the future
+        // simply never completes. A device run produced exactly that — correct
+        // plugin, correct assets, no hilog line of any kind, and Dart blocked
+        // until its own timeout — so the one thing this handler must never do
+        // is fail to reply. Anything thrown becomes a named error instead.
+        try {
+          this.dispatch(call, result);
+        } catch (e) {
+          const err = e as BusinessError;
+          hilog.error(DOMAIN, TAG,
+            'dispatch threw for %{public}s: [%{public}d] %{public}s',
+            call.method, err.code, err.message);
+          result.error('DISPATCH_ERROR',
+            `${call.method} 处理异常: [${err.code}] ${err.message}`, null);
         }
       }
     });
+  }
+
+  private dispatch(call: MethodCall, result: MethodResult): void {
+    hilog.warn(DOMAIN, TAG, 'dispatch %{public}s', call.method);
+    switch (call.method) {
+      case 'ping':
+        // Trivial round trip used to tell "the channel has no handler" apart
+        // from "the handler is busy". On this embedding a channel with no ArkTS
+        // handler does not answer at all, so the Dart side cannot distinguish
+        // the two by exception type — only by whether anything comes back.
+        result.success(true);
+        break;
+      case 'stageBytes':
+        this.stageBytes(call, result);
+        break;
+      case 'playAsset':
+        this.playAsset(call, result);
+        break;
+      case 'playFile':
+        this.playFile(call, result);
+        break;
+      case 'stop':
+        this.stop(call, result);
+        break;
+      case 'release':
+        this.release(call, result);
+        break;
+      case 'reportDiagnostic':
+        // Mirrors a Dart-side outcome into the platform log. The Dart logger
+        // does not reach hilog on this embedding, so without this echo a probe
+        // outcome is only observable as the *absence* of a line — and this log
+        // buffer has already been observed to evict app-domain lines, which
+        // makes absence worthless as evidence.
+        hilog.warn(DOMAIN, TAG, 'dart: %{public}s',
+          call.argument('message') as string);
+        result.success(null);
+        break;
+      case 'awaitCompletion':
+        this.awaitCompletion(call, result);
+        break;
+      default:
+        result.notImplemented();
+    }
   }
 
   onDetachedFromEngine(binding: FlutterPluginBinding): void {
@@ -113,6 +166,58 @@ export default class AudioPlugin implements FlutterPlugin {
   }
 
   // ── method handlers ──────────────────────────────────────────────
+
+  /**
+   * Decodes bytes the Dart side read from the asset bundle and writes them into
+   * the cache directory, answering with the absolute path.
+   *
+   * Staging is a separate round trip from playback on purpose. Two reasons, and
+   * the second is why this method exists at all:
+   *
+   * 1. An asset is staged once and played many times, so the base64 transfer
+   *    does not repeat and the cache lookup is not re-done.
+   * 2. Progress has to be observable. This plugin's own hilog output does not
+   *    reach the device log, so when a stage-and-play call hung there was no way
+   *    to tell which half was stuck — two wrong conclusions came out of that
+   *    silence. Answering from a short method puts each half's outcome in the
+   *    Dart transparency log, which is the one channel that has been reliable.
+   *
+   * The bytes come from Dart's `rootBundle` rather than
+   * `resourceManager.getRawFileContent`: neither the promise nor the synchronous
+   * form of the platform read was observed to answer on Mate 90 Pro Max / API 26.
+   * base64 because this embedding's standard codec has no byte-array mapping,
+   * the same reason the RDB bridge base64s BLOB parameters.
+   */
+  private stageBytes(call: MethodCall, result: MethodResult): void {
+    const name = call.argument('name') as string;
+    const data = call.argument('data') as string;
+    if (!name || !data) {
+      result.error('BAD_ARGS', 'name and data are required', null);
+      return;
+    }
+    const cached = this.cachedAssets.get(name);
+    if (cached !== undefined && fs.accessSync(cached)) {
+      result.success(cached);
+      return;
+    }
+    let bytes: Uint8Array;
+    try {
+      const decoder: util.Base64Helper = new util.Base64Helper();
+      bytes = decoder.decodeSync(data);
+    } catch (e) {
+      const err = e as BusinessError;
+      result.error('DECODE_ERROR',
+        `无法解码音频数据 ${name}: [${err.code}] ${err.message}`, null);
+      return;
+    }
+    try {
+      result.success(this.stageAsset(name, bytes));
+    } catch (e) {
+      const err = e as BusinessError;
+      result.error('STAGE_ERROR',
+        `无法暂存音频 ${name}: [${err.code}] ${err.message}`, null);
+    }
+  }
 
   private playAsset(call: MethodCall, result: MethodResult): void {
     const key = playerKeyOf(call.argument('player'));
@@ -171,13 +276,60 @@ export default class AudioPlugin implements FlutterPlugin {
 
   // ── playback ─────────────────────────────────────────────────────
 
+  /**
+   * Answers only once the clip has reached `completed`, or names why it never
+   * did.
+   *
+   * `result.success` from the play path means the player *accepted* the
+   * command, and the probe that released immediately after it proved the
+   * difference the hard way: the state machine reached `playing` and was cut
+   * off 50 ms later by its own teardown. "It started" and "it played" are
+   * different claims and only the second one is worth anything.
+   *
+   * Bounded on purpose, same rule as the Dart-side timeouts: a clip that never
+   * completes has to become a named failure, because silence teaches nothing.
+   */
+  private awaitCompletion(call: MethodCall, result: MethodResult): void {
+    const key = playerKeyOf(call.argument('player'));
+    if (!key) {
+      result.error('BAD_ARGS', 'player is required', null);
+      return;
+    }
+    const player = this.slotOf(key);
+    if (!player) {
+      result.error('NO_PLAYER', `slot ${key} holds no player`, null);
+      return;
+    }
+    let settled: boolean = false;
+    const finish = (ok: boolean, note: string): void => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      hilog.warn(DOMAIN, TAG, 'completion %{public}s: %{public}s', key, note);
+      if (ok) {
+        result.success(note);
+      } else {
+        result.error('NOT_COMPLETED', note, null);
+      }
+    };
+    player.on('stateChange', (state: string, reason: number) => {
+      if (state === 'completed') {
+        finish(true, 'reached completed');
+      }
+    });
+    setTimeout(() => {
+      finish(false, `no completed state within ${_completionWaitMs}ms`);
+    }, _completionWaitMs);
+  }
+
   private playUrl(key: string, absolutePath: string, result: MethodResult): void {
     // Whatever was playing in this slot is cancelled first: the Dart side
     // always `stop()`s before a new source, but a play that arrives without one
     // (a rapid second tap) must still not overlap two clips.
     this.stopSlot(key);
 
-    let source: media.MediaSource | undefined;
+    let descriptor: media.AVFileDescriptor | undefined;
     let sourceKind: string = '';
     try {
       // A file descriptor, not a `file://` URL. The URL form produced a source
@@ -187,39 +339,26 @@ export default class AudioPlugin implements FlutterPlugin {
       // player decides to treat as a URI to resolve.
       const handle = fs.openSync(absolutePath, fs.OpenMode.READ_ONLY);
       const length = fs.statSync(absolutePath).size;
-      const descriptor: media.AVFileDescriptor = {
+      descriptor = {
         fd: handle.fd,
         offset: 0,
         length: length,
       };
-      source = media.createMediaSourceWithFd(descriptor);
       sourceKind = 'fd';
       this.openHandles.set(key, handle);
     } catch (e) {
       const err = e as BusinessError;
       hilog.warn(DOMAIN, TAG, 'fd source failed for %{public}s: [%{public}d]',
         absolutePath, err.code);
-      try {
-        source = media.createMediaSourceWithUrl(`file://${absolutePath}`);
-        sourceKind = 'url';
-      } catch (inner) {
-        const innerErr = inner as BusinessError;
-        result.error('NO_SOURCE',
-          `无法为 ${absolutePath} 创建媒体源: [${innerErr.code}] ${innerErr.message}`,
-          null);
-        return;
-      }
-    }
-    if (!source) {
-      result.error('NO_SOURCE', `无法为 ${absolutePath} 创建媒体源`, null);
-      return;
+      // The `url` property is the fallback shape; `setMediaSource` is not used
+      // anywhere in this method any more (see the createAVPlayer block below).
+      sourceKind = 'url';
     }
     hilog.warn(DOMAIN, TAG, 'play %{public}s via %{public}s (%{public}s)',
       key, sourceKind, absolutePath);
 
-    // The reply must be sent exactly once. `play()` resolving only means the
-    // player accepted the command, and the events below can still fire an error
-    // afterwards; answering twice crashes the channel with
+    // The reply must be sent exactly once. A later event can still fire an
+    // error after the success; answering twice crashes the channel with
     // "Reply already submitted".
     let settled: boolean = false;
     const succeed = (): void => {
@@ -239,8 +378,10 @@ export default class AudioPlugin implements FlutterPlugin {
     // The promise overload is declared in the same d.ts, but on Mate 90 Pro Max
     // / API 26 it hands back `undefined` — `Cannot read property then of
     // undefined` — so every play died before a player existed. The callback form
-    // is what the SDK documents first and what the official samples use.
+    // is what the SDK documents first and what the official samples use, and a
+    // device run confirms it fires.
     media.createAVPlayer((createErr: BusinessError, player: media.AVPlayer) => {
+      hilog.warn(DOMAIN, TAG, 'createAVPlayer callback fired for %{public}s', key);
       if (createErr) {
         this.dropSlot(key, null);
         fail('PLAYER_ERROR', `无法创建播放器: [${createErr.code}] ${createErr.message}`);
@@ -255,37 +396,61 @@ export default class AudioPlugin implements FlutterPlugin {
         // exists to eliminate.
         hilog.error(DOMAIN, TAG, 'playback failed for %{public}s', absolutePath);
       });
-      player.setMediaSource(source)
-        .then(() => {
-          return player.prepare();
-        })
-        .then(() => {
-          // A prepared player with no decodable track accepts `play()`, reports
-          // success, and stays silent — which is exactly what a broken source
-          // looks like from Dart. Checking here turns that silence into an
-          // error the app can log instead of a mystery.
-          return player.getTrackDescription();
-        })
-        .then((tracks: Array<media.MediaDescription>) => {
-          hilog.warn(DOMAIN, TAG, 'tracks for %{public}s: %{public}d',
-            absolutePath, tracks.length);
-          if (tracks.length === 0) {
-            this.dropSlot(key, player);
-            fail('NO_TRACK', `没有可解码的音轨: ${absolutePath}`);
-            return;
-          }
+
+      // State-driven, and deliberately free of awaited promises.
+      //
+      // A device run on this exact platform showed `setMediaSource()` neither
+      // resolving nor advancing the state machine: no `stateChange`, no
+      // `error`, no exception, three plays out of three. Since this platform
+      // has already turned four other promise-returning accessors into
+      // silence (`getRawFileContent`, `ResultSet.getColumnNames`,
+      // `getColumnTypeSync` outside a row, and `createAVPlayer`'s promise
+      // overload), a prepare chain built out of them is a chain of places to
+      // hang without a word. So: assign `fdSrc` — the synchronous route into
+      // `initialized` — and let the state machine be the only clock. This is
+      // also the shape the SDK's own AVPlayer sample uses.
+      player.on('stateChange', (state: string, reason: number) => {
+        hilog.warn(DOMAIN, TAG, 'stateChange %{public}s %{public}s (%{public}d)',
+          key, state, reason);
+        if (state === 'initialized') {
           this.keepSlot(key, player);
-          return player.play();
-        })
-        .then(() => {
+          // Not awaited: `prepare()` is another candidate for never settling,
+          // and `prepared` is the signal that actually carries the meaning.
+          player.prepare().catch((e: BusinessError) => {
+            hilog.error(DOMAIN, TAG, 'prepare rejected for %{public}s: [%{public}d]',
+              key, e.code);
+            this.dropSlot(key, player);
+            fail('PREPARE_ERROR', `准备失败: [${e.code}] ${e.message}`);
+          });
+        } else if (state === 'prepared') {
+          // Reached without awaiting anything above. Reported, not gated: the
+          // old code refused to play on zero tracks, but reading tracks is a
+          // promise-returning accessor too, and blocking playback on it is how
+          // a diagnostic turned into the outage it was meant to catch. The count
+          // goes to the log; it does not decide whether sound comes out.
+          player.getTrackDescription().then((tracks: Array<media.MediaDescription>) => {
+            hilog.warn(DOMAIN, TAG, 'tracks for %{public}s: %{public}d',
+              absolutePath, tracks.length);
+          }).catch(() => {
+            hilog.warn(DOMAIN, TAG, 'track description unavailable for %{public}s', absolutePath);
+          });
+          player.play().catch((e: BusinessError) => {
+            hilog.error(DOMAIN, TAG, 'play rejected for %{public}s: [%{public}d]',
+              key, e.code);
+            this.dropSlot(key, player);
+            fail('PLAY_ERROR', `播放失败: [${e.code}] ${e.message}`);
+          });
           succeed();
-        })
-        .catch((e: BusinessError) => {
-          hilog.error(DOMAIN, TAG, 'prepare/play failed, code: %{public}s',
-            `${e.code}`);
-          this.dropSlot(key, player);
-          fail('PLAY_ERROR', `播放失败: [${e.code}] ${e.message}`);
-        });
+        }
+      });
+
+      if (descriptor !== undefined) {
+        player.fdSrc = descriptor;
+        hilog.warn(DOMAIN, TAG, 'fdSrc assigned for %{public}s', key);
+      } else {
+        player.url = `file://${absolutePath}`;
+        hilog.warn(DOMAIN, TAG, 'url assigned for %{public}s', key);
+      }
     });
   }
 
@@ -308,30 +473,68 @@ export default class AudioPlugin implements FlutterPlugin {
     }
 
     const rawName = `${ASSET_ROOT}/${relative}`;
-    return this.context.resourceManager.getRawFileContent(rawName)
-      .then((bytes: Uint8Array) => {
-        const dir = `${this.context.cacheDir}/${CACHE_SUBDIR}`;
-        if (!fs.accessSync(dir)) {
-          fs.mkdirSync(dir);
-        }
-        const dest = `${dir}/${fileNameOf(relative)}`;
-        // Synchronous on purpose. The write happens once per asset, is a few
-        // dozen kilobytes, and the async form would need its own error path for
-        // a step whose failure is already fatal to this playback.
-        const handle = fs.openSync(
-          dest,
-          fs.OpenMode.CREATE | fs.OpenMode.WRITE_ONLY | fs.OpenMode.TRUNC
-        );
-        try {
-          fs.writeSync(handle.fd, bytes.buffer);
-        } finally {
-          fs.closeSync(handle);
-        }
-        hilog.info(DOMAIN, TAG, 'cached asset %{public}s (%{public}d bytes)',
-          dest, bytes.length);
-        this.cachedAssets.set(relative, dest);
-        return dest;
-      });
+    // The *synchronous* form of the read, on purpose. The promise form
+    // (`getRawFileContent`) never settles on Mate 90 Pro Max / API 26: the Dart
+    // future stayed open until its own 10s timeout, the cache subdirectory was
+    // never created, and the plugin wrote no hilog line at all — so a port whose
+    // only job is to make a sound produced exactly the same silence as a port
+    // that was never called. Same API family, same bytes, `@since 10`; a bad
+    // path comes back as a thrown `BusinessError 9001005` instead of a promise
+    // that never lands.
+    //
+    // Synchronous is acceptable here for the same reason the write already was:
+    // a few dozen kilobytes, once per asset, on the platform thread.
+    //
+    // Wrapped in a Promise so the caller's existing `.catch` keeps turning a
+    // read failure into `ASSET_ERROR` rather than into a synchronous throw that
+    // the method-call dispatcher would swallow unanswered.
+    return new Promise<string>((resolve, reject) => {
+      let bytes: Uint8Array;
+      hilog.warn(DOMAIN, TAG, 'reading rawfile %{public}s', rawName);
+      try {
+        bytes = this.context.resourceManager.getRawFileContentSync(rawName);
+      } catch (e) {
+        const err = e as BusinessError;
+        hilog.error(DOMAIN, TAG, 'rawfile read failed [%{public}d] %{public}s',
+          err.code, err.message);
+        reject(err);
+        return;
+      }
+      hilog.warn(DOMAIN, TAG, 'rawfile read ok (%{public}d bytes)', bytes.length);
+      try {
+        resolve(this.stageAsset(relative, bytes));
+      } catch (e) {
+        reject(e as BusinessError);
+      }
+    });
+  }
+
+  /**
+   * Copies [bytes] into the app's cache directory and returns the absolute path.
+   *
+   * Synchronous on purpose: a few dozen kilobytes, once per asset, and the async
+   * form would need its own error path for a step whose failure is already fatal
+   * to the playback it belongs to.
+   */
+  private stageAsset(relative: string, bytes: Uint8Array): string {
+    const dir = `${this.context.cacheDir}/${CACHE_SUBDIR}`;
+    if (!fs.accessSync(dir)) {
+      fs.mkdirSync(dir);
+    }
+    const dest = `${dir}/${fileNameOf(relative)}`;
+    const handle = fs.openSync(
+      dest,
+      fs.OpenMode.CREATE | fs.OpenMode.WRITE_ONLY | fs.OpenMode.TRUNC
+    );
+    try {
+      fs.writeSync(handle.fd, bytes.buffer);
+    } finally {
+      fs.closeSync(handle);
+    }
+    hilog.warn(DOMAIN, TAG, 'staged asset %{public}s (%{public}d bytes)',
+      dest, bytes.length);
+    this.cachedAssets.set(relative, dest);
+    return dest;
   }
 
   // ── slot bookkeeping ─────────────────────────────────────────────

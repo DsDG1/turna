@@ -35,6 +35,11 @@
     ],
     "requestPermissions": [
       {"name" :  "ohos.permission.INTERNET"},
+      // Without this, `HapticFeedback.vibrate` answers `201 - Permission
+      // denied` on every call, so the wrong-answer and level-up taps have no
+      // haptic half. A device run showed it on each `HapticFeedbackType`
+      // rather than at startup.
+      {"name" :  "ohos.permission.VIBRATE"},
     ]
   }
 }
