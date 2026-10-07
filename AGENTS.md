@@ -167,6 +167,42 @@ analyzer 已强制的部分（`analysis_options.yaml`：`strict-casts`、`avoid_
   ```
   代理地址属本机配置，**不写入本文件**。
 
+### 9.1 OHOS 伴生版：codegen 必须用 fork SDK（失败症状是白屏）
+
+`pubspec.yaml` 的 `dependency_overrides` 是**全局的、无平台条件**的，所以本机需要**两份 Flutter SDK**：
+
+| SDK | 用途 |
+|---|---|
+| 官方 SDK | Android / iOS / Web 的 analyze、test、build |
+| **OHOS fork**（`3.44.9+ohos-0.0.1-canary1`） | 一切 `ohos/` 构建；路径见 `ohos/local.properties` 的 `flutter.sdk` |
+
+**`dart run build_runner` 必须用 fork 的 `dart`**（或 `make gen`，它走 fork）。用 PATH 上的官方 `dart` 执行会把 `.dart_tool/package_config.json` 的 `flutter` 指向官方 SDK，于是：
+
+```
+⛔ Uncaught platform error
+Unknown platform. ohos was not recognized as a target platform.
+#0 defaultTargetPlatform (package:flutter/src/foundation/_platform_io.dart:39:5)
+```
+
+**启动即白屏。** 症状与 codegen 毫无关系，错误里也不提 `build_runner`——2026-10-07 在这上面绕了一圈才定位到。
+
+踩过一次之后 `flutter` on PATH 仍然会优先命中官方 SDK（每次构建都会打这条 warning）：
+
+```
+Warning: `dart` on your path resolves to ...\flutter\bin\dart
+         which is not inside your current Flutter SDK checkout
+```
+
+**这条 warning 不是噪音**，出现即说明本次可能编进了官方框架。恢复：
+
+```bash
+<fork>/bin/flutter.bat pub get     # 把 package_config 指回 fork
+```
+
+**构建 `ohos/` 只能走 `<fork>/bin/flutter.bat build hap --debug|--release`**：它顺带把插件依赖写进 `ohos/entry/oh-package.json5` 并 `ohpm install`。**裸跑 hvigor 会在插件依赖被清掉后失败**（`ohpm install` 会删掉 `entry/oh_modules/` 下的插件却不重装），且不会重新生成 `libapp.so` / `flutter_assets`——那两样是上一次 flutter 构建的产物，hvigor 只负责打包。
+
+因此改动 `@injectable` / `@freezed` / `@RoutePage` 后的完整顺序是：**fork SDK 跑 codegen → fork SDK 跑 `build hap`**。
+
 ---
 
 ## 10. 文档锚点
