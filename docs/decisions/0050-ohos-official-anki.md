@@ -74,7 +74,7 @@ catalog=throw UnsupportedError: Unsupported operation: Unsupported platform: oho
 四条推论，均为收据而非推断：
 
 1. `Platform.operatingSystem` 真值是 `"ohos"`（**§3 未验证前提 1 已结**）。
-2. `Platform.is*` 在鸿蒙上**全为 false**，与 §4.3 的纪律一致。
+2. `Platform.is*` 在鸿蒙上**全为 false**，与 §4.4 的纪律一致。
 3. `isHarmonyOsTarget` 在真机上为 `true`，故 §4.1 的 `overrideForAll` 短路条件
    可以用它——若换成 `Platform.*` 判断，Android / iOS 会被污染。
 4. **catalog 在鸿蒙上当前就是打不开的**，不是「可能失败」。§4.1 预判的错误文本
@@ -164,6 +164,8 @@ error - Undefined class 'OhosViewController'.
 
 ## 4. 三个真实技术缺口（决策无法消解，须在接线批次解决）
 
+4.1 与 4.2 是缺口本身；4.3 记步 1 已交付的静态部分，4.4 是贯穿全部接线批次的纪律。
+
 ### 4.1 catalog 存储：需要一份独立的 `libsqlite3.so`，且分派方式要重写
 
 `ensureOfficialAnkiSqlite()`（`lib/application/anki_official/storage/official_anki_sqlite.dart`）
@@ -219,7 +221,35 @@ OHOS native sysroot 是 API 26（ADR 0047 §7.4 记录的 DS-243 单档 SDK）�
 **但这只是静态字符串检查，不是收据。** 步 1 打包后须在真机上确认 hap 声明的最低
 API 与引擎 `.so` 的实际最低需求一致，否则装机即 `dlopen` 失败。
 
-### 4.3 平台判断写法
+### 4.3 步 1 静态侧已结的部分（2026-10-08）
+
+`.so` 已提交进 `ohos/entry/libs/arm64-v8a/libturna_anki.so`（ADR 0050 §6 步 1，
+路线 A：提交产物而非构建时拷贝——伴生版尚无 CI 作业，提交产物才可复现）。
+SHA-256 `24CC49E3…F671E5`，23,123,056 字节。`flutter build hap` 成功，hap 内
+`libs/arm64-v8a/libturna_anki.so` **18,882,664 字节**——hvigor 做了 strip，
+故**不等于**源文件字节，但逐串核过**内容等价**：
+
+- 8 个 bridge 符号全在：`turna_anki_abi_version` / `_engine_new` / `_engine_open` /
+  `_call` / `_cancel` / `_engine_close` / `_buffer_free`，加 `turna_anki_core`
+- `NEEDED` 仍只有 `libc.so` + `libtime_service_ndk.so`，**无 `libsqlite3.so`**
+- ELF64 / `e_machine` = `0xB7`（aarch64）
+- 仍**不含** `__android_log_print` / `__system_property_get`
+
+**注意**：hap 内另有 x86_64 的 `libc++_shared.so` / `libonnxruntime.so` /
+`libsherpa*.so`（sherpa-onnx 与 onnxruntime 插件自带，非本批引入）。
+`libturna_anki.so` **只有 arm64-v8a 一份**——门禁按「`.so` 实际落点」而非目录名
+断言（见下），因为模板留下一个空 `libs/x86_64/`，git 不跟踪空目录，按目录名断言会
+在本地红、新克隆绿。
+
+`resolveOfficialAnkiLibraryPath` 加 ohos 分支，返回裸名 `'libturna_anki.so'`
+（hap 的 `libs/arm64-v8a` 在 loader 搜索路径上），分支条件是 `isHarmonyOsTarget` 而非
+`Platform.*`——后者在鸿蒙恒 false，会让鸿蒙永远走不到这个分支。
+
+**本节的缺口**：API 18 vs API 26 的落差**仍未结**。设备在装机前掉线，
+`hdc list targets` 已无主设备，故真机 `dlopen` 收据**尚未取得**。
+上面全部是静态证据。
+
+### 4.4 平台判断写法
 
 `Platform.is*` 在鸿蒙上**全为 false**（§3 未验证前提 1）。因此新增的鸿蒙接线必须走
 `isHarmonyOsTarget`（`lib/core/ohos_target.dart`），不得内联 `Platform.is*`
@@ -270,7 +300,7 @@ ADR 0046 §副作用写明：「若将来真的推进鸿蒙产品线，必须先
 | 步 | 内容 | 前置 |
 |---|---|---|
 | 0 | 真机探针：打点 `Platform.operatingSystem` / `isHarmonyOsTarget` / `Platform.is*` / catalog 打开结果 —— **已完成，收据见 §2.1（2026-10-08）** | — |
-| 1 | `.so` 装进 `ohos/entry/libs/arm64-v8a/` + 构建接线；`resolveOfficialAnkiLibraryPath` 加 ohos 分支；真机确认 §4.2 的 API 落差 —— **进行中** | 步 0 |
+| 1 | `.so` 装进 `ohos/entry/libs/arm64-v8a/` + 构建接线；`resolveOfficialAnkiLibraryPath` 加 ohos 分支；真机确认 §4.2 的 API 落差 —— **静态侧已结（§4.3），真机 `dlopen` 收据待补（设备掉线）** | 步 0 |
 | 2 | 重写 `ensureOfficialAnkiSqlite` 分派为 `overrideForAll`（§4.1）+ 独立 `libsqlite3.so` 随 hap 分发 | 步 1 |
 | 3 | 平台路由：`OfficialAnkiCapabilityMatrix._hostPlatform` / `forPlatform`、`AnkiImportExecutionPlanner.productModeFor`、`OfficialAnkiCompositionRoot.probe` | 步 1–2 |
 | 4 | 撤 `OhosDegradation.officialAnki` + `OfficialAnkiNativeAvailability` 的 ohos 分支 | 步 3 |

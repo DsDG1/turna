@@ -487,6 +487,89 @@ flutter:
       expect(abiDirs, everyElement('arm64-v8a'),
           reason: 'jniLibs must package arm64-v8a only (doc 34 §14.2)');
     });
+
+    test('companion hap ships the arm64 Anki engine in libs/arm64-v8a', () {
+      if (!_companionBuild) return;
+
+      // Deliberately different from the Android route above: Android builds
+      // the .so in CI and never commits it, but the companion hap has no such
+      // job (ADR 0050 §6 step 6), so the artifact IS committed. The gate
+      // therefore moves from "absent" to "present, correct ABI, arm64 only",
+      // and must fail loudly if the commit is dropped — a missing engine on
+      // HarmonyOS degrades to ankiUnavailable with no build error, which is
+      // exactly the failure shape this repository keeps having to discover
+      // only on hardware.
+      const lib = 'ohos/entry/libs/arm64-v8a/libturna_anki.so';
+      final file = File(lib);
+      expect(file.existsSync(), isTrue,
+          reason: 'companion hap needs $lib; ADR 0050 §6 step 1');
+
+      // ELF64 header check rather than a byte-count threshold: the file is a
+      // build product and its size moves with the engine, but the ABI it was
+      // compiled for is a decision, not an accident.
+      final handle = file.openSync();
+      final bytes = handle.readSync(20);
+      handle.closeSync();
+      expect(bytes.length, greaterThanOrEqualTo(20));
+      // The ELF magic is 0x7F 'E' 'L' 'F' — the leading 0x7F is part of it.
+      expect(bytes.sublist(0, 4), [0x7F, 0x45, 0x4C, 0x46],
+          reason: 'engine .so must be an ELF object');
+      expect(bytes[4], 2, reason: 'ELF64 required');
+      // e_machine is little-endian at offset 18: 0xB7 = 62 = EM_AARCH64.
+      expect(bytes[18] | (bytes[19] << 8), 0xB7,
+          reason: 'engine .so must be aarch64');
+
+      // The same arm64-only rule as jniLibs above, but stated over the .so files
+      // rather than the directory names: the template leaves an empty
+      // libs/x86_64 behind, git cannot track an empty directory, so a
+      // directory-name assertion would fail on a populated working copy and
+      // pass on a fresh clone. What actually costs anything is an x86_64
+      // object — ~23 MB in every hap, unloadable on a real device.
+      final libs = Directory('ohos/entry/libs');
+      final packaged = <String>[];
+      if (libs.existsSync()) {
+        for (final entry in libs.listSync(recursive: true)) {
+          if (entry is File && entry.path.endsWith('.so')) {
+            final abi = entry.path
+                .replaceAll('\\', '/')
+                .split('/')
+                .elementAt(3);
+            if (abi != 'arm64-v8a') packaged.add(abi);
+          }
+        }
+      }
+      expect(packaged, isEmpty,
+          reason: 'companion hap must package the engine for arm64-v8a only; '
+              'found .so under $packaged');
+
+      // The artifact is committed, so it must not be swept up by an ignore
+      // rule that would leave the working copy populated but a fresh clone
+      // without the engine. `--no-index` is required: without it git
+      // consults the index, and a tracked file is by definition not ignored,
+      // so the assertion would pass no matter what .gitignore says.
+      final ignored = Process.runSync(
+              'git', ['check-ignore', '-q', '--no-index', lib])
+          .exitCode;
+      expect(ignored, isNot(0),
+          reason: '$lib is committed on purpose; an ignore rule would make '
+              'the engine vanish on a fresh clone');
+
+      // The resolver must reach the bare name on HarmonyOS. Asserting the
+      // source rather than the return value because `isHarmonyOsTarget` is
+      // false on the host SDK, so the branch is unreachable from this test.
+      final transport =
+          File('lib/application/anki_official/engine/'
+                  'official_anki_native_transport.dart')
+              .readAsStringSync();
+      final resolver = transport.substring(
+          transport.indexOf('String? resolveOfficialAnkiLibraryPath'));
+      expect(RegExp("isHarmonyOsTarget[\\s\\S]{0,600}?return 'libturna_anki\\.so'")
+          .hasMatch(resolver),
+          isTrue,
+          reason: 'resolveOfficialAnkiLibraryPath must return the bundled '
+              'name on HarmonyOS, otherwise the probe reports null and the '
+              'capability matrix reports the engine as missing');
+    });
   });
 }
 

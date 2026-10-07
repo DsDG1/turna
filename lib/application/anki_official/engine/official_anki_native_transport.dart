@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 import 'package:turna/application/anki_official/contract/official_anki_contract.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
+import 'package:turna/core/ohos_target.dart';
 
 final class TurnaAnkiBuffer extends Struct {
   external Pointer<Uint8> ptr;
@@ -289,6 +290,13 @@ String? resolveOfficialAnkiLibraryPath() {
     // No file to dlopen — the static library is in the process image. The
     // marker satisfies callers that require a non-null path.
     return 'process';
+  }
+  if (isHarmonyOsTarget) {
+    // The hap's own libs/arm64-v8a is on the loader's search path, so the
+    // bare name resolves the same way the Android branch does. HarmonyOS has
+    // no `Platform.isAndroid` to branch on (every `Platform.is*` is false),
+    // which is why this is keyed on the single predicate.
+    return 'libturna_anki.so';
   }
   final cwd = Directory.current.path;
   for (final relative in const [
