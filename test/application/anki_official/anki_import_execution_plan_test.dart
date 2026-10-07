@@ -84,7 +84,11 @@ void main() {
     });
 
     test('unsupported platforms never choose a Legacy writer', () {
-      for (final plat in ['ohos', 'windows', 'linux', 'macos', 'web']) {
+      // 'ohos' was in this list while HarmonyOS was pinned to ankiUnavailable.
+      // ADR 0050 authorises the official path there, so listing it here would
+      // contradict the authorisation; the wiring batch re-adds it with the
+      // official expectation once the engine is packaged.
+      for (final plat in ['windows', 'linux', 'macos', 'web']) {
         final plan = planner.resolve(
           flags: _fullOfficial(),
           platform: plat,

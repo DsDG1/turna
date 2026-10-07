@@ -427,16 +427,21 @@ flutter:
       );
     });
 
-    test('capability matrix never requires Legacy fallback writers', () {      final text = File(
+    test('capability matrix never requires Legacy fallback writers', () {
+      // ADR 0050 §5 removed the sibling assertion that forbade
+      // `case 'ohos':`, because authorising the official path on HarmonyOS is
+      // exactly what that assertion forbade. The `legacyFallbackRequired`
+      // assertion is untouched: no platform may be routed back to a Legacy
+      // writer for lack of an Official engine, and ADR 0050 authorises the
+      // official path rather than reviving the Legacy one.
+      //
+      // Consequence, recorded rather than left silent: nothing in the gate now
+      // prevents a future edit from turning the HarmonyOS branch back into a
+      // Legacy route. ADR 0050 §5 is the only record of that decision.
+      final text = File(
         'lib/application/anki_official/migration/official_anki_engine_kind.dart',
       ).readAsStringSync();
       expect(text.contains('legacyFallbackRequired: true'), isFalse);
-      // The companion build ships no Official Anki host, so this stays
-      // unconditional even in that branch (ADR 0047 §2.2).
-      expect(
-        RegExp(r"case\s+'ohos'\s*:").hasMatch(text),
-        isFalse,
-      );
     });
 
     test('Official native ABI packaging is arm64-only (doc 34 §14.2)', () {
