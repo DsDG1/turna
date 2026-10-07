@@ -132,17 +132,28 @@ analyzer 已强制的部分（`analysis_options.yaml`：`strict-casts`、`avoid_
 |---|---|---|
 | **产品级** | 已 EOL。伴生版不进主交付、不进主 CI | [ADR 0041](./docs/decisions/0041-ohos-product-eol.md) |
 | **伴生版** | 存在但受限：课程 / SRS / 复习 / 词典 / 设置 / 备份 + 自维护 ArkTS 通道 | [ADR 0047](./docs/decisions/0047-ohos-companion-lite-build.md) |
-| **Official Anki** | **已授权、接线未施工**。引擎层真机可行已收据；打包 / sqlite override / 平台路由 / ArkTS reviewer 四项均未做 | [ADR 0050](./docs/decisions/0050-ohos-official-anki.md) |
+| **Official Anki** | **已授权、接线未施工**。引擎层真机可行已收据；打包 / sqlite 分派重写 / 平台路由 / reviewer 四项均未做 | [ADR 0050](./docs/decisions/0050-ohos-official-anki.md) |
 
 **因此**：❌ 不得写「鸿蒙支持 Official Anki」；✅ 可写「已授权，接线未施工，当前为 `ankiUnavailable`」。
 
-**两个已知的失真点**（本节之前它们还在文档里）：①「仓库不含 `ohos/`」——ADR 0047 之后为假；
-②「鸿蒙没有 libsqlite3.so 所以引擎打不开」——因果错了，引擎的 SQLite 是 bundled 的，
-打不开的是 Turna 侧共享 catalog 那份独立 FFI 库。
+**三个已知的失真点**（本节之前它们还在文档里）：
+
+1. 「仓库不含 `ohos/`」——ADR 0047 之后为假。
+2. 「鸿蒙没有 libsqlite3.so 所以引擎打不开」——因果错了，引擎的 SQLite 是 bundled 的，
+   打不开的是 Turna 侧共享 catalog 那份独立 FFI 库。
+3. 「给 sqlite3 注册一个 `OperatingSystem.ohos` override 即可」——**该枚举值不存在**
+   （`sqlite3-2.9.4` 只有 android/linux/iOS/macOS/windows/fuchsia）。可用入口只有
+   `overrideForAll()`，故 `ensureOfficialAnkiSqlite` 的分派方式要重写，不是加一行。
+   见 ADR 0050 §4.1。
 
 **平台判断一律走 `isHarmonyOsTarget`**（`lib/core/ohos_target.dart`），不得内联
 `Platform.is*` 比较：鸿蒙上 `Platform.is*` **全为 false**，写成 `Platform.isLinux` 之类
 会静默走进错误分支。该纪律由 `ohos_eol_architecture_guard_test.dart` 断言。
+
+**同理：`lib/` 里不得出现 `Ohos*` 标识符**（`OhosView` / `OhosViewController` /
+`initOhosView` 等）。它们只存在于 OHOS fork SDK，官方 SDK 下是 `undefined_class`，
+而 `dependency_overrides` 无平台条件——这与 ADR 0047 §7.1 记录的
+`case TargetPlatform.ohos:` 是同一个失败类。详见 ADR 0050 §3.1。
 - `tool/gui` 是仓库内创作者桌面工具，**不进 app 本体**（ADR 0032）；它有独立门禁，见 §8。
 
 ---

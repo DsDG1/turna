@@ -23,8 +23,8 @@ ADR 0041 停止的是**产品级** OHOS 支持。本 ADR 不恢复产品线，�
 - 不对齐 Android 全功能（全量对齐另需 4–6 周，其中复习器 5–8 人日，而 Android 侧自身尚有 3 条 HOLD 未收）
 - ~~不启用 Official Anki 引擎与保真复习器：鸿蒙明确不可用，走 Legacy 导入，HTML 降级为文本~~
   **（已被 [ADR 0050](./0050-ohos-official-anki.md) 作废，2026-10-07）**——鸿蒙伴生版启用
-  Official Anki 全档：引擎 / `.apkg` 导入 / 课程树投影 / 保真复习器（PlatformView +
-  WebView，HTML 不降级为文本）。**授权已下达，接线未施工**：ADR 0050 §6 的接线批次
+  Official Anki 全档：引擎 / `.apkg` 导入 / 课程树投影 / 保真复习器（原生 PlatformView +
+  Web 组件，HTML 不降级为文本）。**授权已下达，接线未施工**：ADR 0050 §6 的接线批次
   完成前，伴生版构建的 Official Anki 能力仍为 `ankiUnavailable`，UI 仍按
   `OhosDegradation.officialAnki` 禁用导入入口。ADR 0050 §5 记录了因此移除的门禁断言
   及其已知代价。
@@ -69,7 +69,7 @@ ADR 0041 的「禁止 OHOS 复活」测试改写为**二态**，见 §门禁逐�
 1. `pubspec.yaml` 的 git override 集合**必须精确等于** §6 清单（按包名 → URL + ref 比对，多一条少一条都失败）
 2. 每条 OHOS override **必须带显式 `ref:`**，禁止跟默认分支
 3. 禁止任何指向本地 `ohos/` 目录的 `path:` override
-4. `webview_flutter` **不得**被 override（O3 未获批，HTML 走文本降级）。**（2026-10-07 确认无需解除）**——ADR 0050 的保真复习器走**官方路径**（`official_anki_reviewer_view.dart` 的 `PlatformViewLink` / `UiKitView`），而鸿蒙 fork SDK 提供原生 `OhosView` + `PlatformViewsControllerHybrid`；官方路径不 import `webview_flutter`，故本条保持原样。受本条约束的只有旧 Anki 保真路径 `anki_html_card_view.dart`。
+4. `webview_flutter` **不得**被 override（O3 未获批，HTML 走文本降级）。**（2026-10-07 确认无需解除）**——ADR 0050 的保真复习器走**官方路径**（`official_anki_reviewer_view.dart` 的 `PlatformViewLink` / `UiKitView`），而鸿蒙 fork SDK 提供原生 PlatformView（`initOhosView` / `initSurfaceOhosView` / `initExpensiveOhosView` 三路齐备）；官方路径不 import `webview_flutter`，故本条保持原样。受本条约束的只有旧 Anki 保真路径 `anki_html_card_view.dart`。**注意**：原生 PlatformView 的存在只说明平台能力；Dart 侧引用 `Ohos*` 标识符在官方 SDK 下是 `undefined_class`，那是 ADR 0050 §3.1 的第二道关，与本条无关。
 5. `flutter_tts` / `audioplayers` **不得**被 override（P-10：无 OHOS fork；将来若要加，必须先改本 ADR）。**（2026-10-05 订正）** 这条 ratchet 未被动过：伴生版**没有** override 它们，而是另写 ArkTS 通道（ADR 0048）走平台原生能力。这是依赖与接线约束，实际出声状态以 ADR 0048 的核验记录为准。
 6. `ohos/` 下**不得**含构建产物（把 P-16 的误提交永久固化为断言）
 7. `ohos/` 必须含必需文件集（`module.json5` / `build-profile.json5` / `hvigorfile.ts` / **四个**手写 ArkTS 插件）——空目录或残缺目录失败。**（2026-10-04 订正）** 原文写「两个 ArkTS 插件」，W4 / W5 后已实为四个：RDB、文件选择、音频、TTS；权威清单以门禁的 `_requiredOhosFiles` 为准

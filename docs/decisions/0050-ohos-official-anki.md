@@ -63,35 +63,68 @@
 | 旧 Anki 保真 | `lib/views/anki/anki_html_card_view.dart` → `webview_flutter` | 鸿蒙无实现 |
 | **官方 Anki 保真** | `lib/views/anki_official/official_anki_reviewer_view.dart` → `PlatformViewLink`（Android）/ `UiKitView`（iOS） | 鸿蒙**有**等价物 |
 
-鸿蒙 fork SDK 提供原生 PlatformView：
+鸿蒙 fork SDK 提供原生 PlatformView，且**三路合成模式齐备**，与 Android 对称：
 
-- Dart 侧 `packages/flutter/lib/src/widgets/platform_view.dart` 导出 `OhosView`
-- ArkTS 侧 embedding 含 `PlatformViewsControllerHybrid.ets`、
-  `PlatformViewFactory.ets`、`PlatformViewWrapper.ets`、
-  `PlatformViewRegistryImpl.ets`，经 `NodeRenderType` +
-  `EmbeddingNodeController` 合成，并有 `HybridCompositionHandler` /
-  `showOverlaySurfaceHybrid()`
+| Dart 侧入口 | 控制器 | Android 对应 |
+|---|---|---|
+| `PlatformViewsService.initOhosView` | `TextureOhosViewController` | `initAndroidView`（TLHC） |
+| `PlatformViewsService.initSurfaceOhosView` | `SurfaceOhosViewController` | `initSurfaceAndroidView` |
+| `PlatformViewsService.initExpensiveOhosView` | `ExpensiveOhosViewController` | `initExpensiveAndroidView` / `initHybridAndroidView` |
 
-**因此官方路径不需要 `webview_flutter`**，§5.4 保持原样。移植目标是 ArkTS
+Widget 侧另有 `OhosView` / `OhosViewSurface`。ArkTS 侧 embedding 含
+`PlatformViewsControllerHybrid.ets`、`PlatformViewFactory.ets`、
+`PlatformViewWrapper.ets`、`PlatformViewRegistryImpl.ets`，经 `NodeRenderType` +
+`EmbeddingNodeController` 合成，并有 `HybridCompositionHandler` /
+`showOverlaySurfaceHybrid()`。
+
+**因此官方路径不需要 `webview_flutter`**，§5.4 保持原样。原生侧移植目标是 ArkTS
 （`XComponent` / `Web` 组件 + `onUrlRequestIntercept`），不是 Kotlin / Swift 逐行翻译。
 参照规模：Android 侧 `OfficialAnkiReviewerPlatformView.kt` 441 行 +
 media/scheme/mime 辅助约 390 行；iOS 侧 `OfficialAnkiReviewerView.swift` 492 +
 `OfficialAnkiSchemeHandler.swift` 309 + factory 45。
+
+### 3.1 但 Dart 侧接线有第二道关：`Ohos*` 标识符在官方 SDK 下不存在
+
+> **（2026-10-07 订正）** 本节初稿写「保真档位比 ADR 0047 估的便宜」，**该结论不成立**，
+> 依据是把「平台有原生 PlatformView」当成了「Dart 侧能低成本引用」。
+
+官方 SDK 的 `packages/flutter/lib/src/widgets/platform_view.dart` 里**没有任何
+`Ohos*` 标识符**。实测引用 `OhosViewController` 于官方 SDK 下：
+
+```
+error - Undefined class 'OhosViewController'.
+```
+
+`dependency_overrides` 全局无平台条件（ADR 0047 §7.1 已记录该约束），因此在 `lib/`
+里直接写 `OhosViewController` / `initOhosView` 会让 **Android/iOS 构建与全部
+测试同时崩**——与 ADR 0047 §7.1 描述的失败类**完全同源**（那次是
+`case TargetPlatform.ohos:`，这次是 `Ohos*` 类名）。
+
+可行路线二选一，需在步 5 前定：
+
+| 方案 | 做法 | 代价 |
+|---|---|---|
+| **A. 拆分 + 条件导出** | 把 reviewer 视图按平台拆文件，鸿蒙专用部分只由鸿蒙 target 导入 | Dart 侧无符号泄漏，但视图需按平台分叉 |
+| **B. 再做一次 vendored 移植** | 照 ADR 0047 §7.1 的通配 arm 手法承载 `Ohos*` | 同一套移植工具与 ratchet，但要为 Flutter 框架类做（体量与 `material_ui` 不同量级） |
+
+**§6 步 5 的工作量估算必须重估**：ADR 0047 的「复习器 5–8 人日」不含这一关。
+在路线定下来之前，不得引用该数字作为鸿蒙复习器的预算。
 
 **未验证前提（施工前必须先打点，不得由「有 `OhosView`」外推）：**
 
 1. `Platform.operatingSystem == 'ohos'` —— 目前**只有代码注释作证**
    （`official_anki_composition.dart` 的 `initializeReadOnlyLocator`）。若该值不成立，
    所有 `Platform.is*` 判断的写法都要重估。
-2. `OhosView` 只有合成模式（`PlatformViewsControllerHybrid`），Android 侧
-   `_hcpp` 有 `initHybridAndroidView` / `initExpensiveAndroidView` 两条分支。
-   合成模式下的滚动、手势、透明区表现是否等价，**无法靠读代码判定**。
+2. 三路合成模式齐备**不等于**行为等价：Android 侧 `_hcpp` 先探
+   `HybridAndroidViewController.checkIfSupported()` 再在两条分支间选择，鸿蒙侧
+   `OhosViewController` 无对应的 `checkIfSupported`。选哪一路、滚动 / 手势 /
+   透明区表现是否等价，**无法靠读代码判定**。
 3. ArkUI `Web` 组件能否满足复习器的 CSP（`assets/anki_reviewer/card-frame.html`
    为 `default-src 'none'`）+ 自定义 scheme + 媒体 Range/206。
 
-## 4. 两个真实技术缺口（决策无法消解，须在接线批次解决）
+## 4. 三个真实技术缺口（决策无法消解，须在接线批次解决）
 
-### 4.1 catalog 存储：需要一份独立的 `libsqlite3.so`
+### 4.1 catalog 存储：需要一份独立的 `libsqlite3.so`，且分派方式要重写
 
 `ensureOfficialAnkiSqlite()`（`lib/application/anki_official/storage/official_anki_sqlite.dart`）
 只覆盖 Linux / Android。鸿蒙上 sqlite3 的 loader 抛 `Unsupported platform: ohos`。
@@ -100,15 +133,60 @@ media/scheme/mime 辅助约 390 行；iOS 侧 `OfficialAnkiReviewerView.swift` 4
 `verify_bridge_symbols.sh` 反向断言 `libsqlite3.so` 不得出现。缺的是 **Turna 侧
 共享 catalog**（`OfficialAnkiDatabase`）那份独立 FFI 库，须随 hap 分发。
 
-修法：注册 `OperatingSystem.ohos` override + 随 hap 打包一份 `libsqlite3.so`。
+> **（2026-10-07 订正）** 本节初稿写「注册 `OperatingSystem.ohos` override」——
+> **该枚举值不存在**，照此实施会编译失败。
 
-### 4.2 平台判断写法
+`sqlite3-2.9.4` 的 `lib/src/ffi/load_library.dart` 中：
 
-`Platform.is*` 在鸿蒙上**全为 false**（§2 前提 1）。因此新增的鸿蒙接线必须走
+```dart
+enum OperatingSystem { android, linux, iOS, macOS, windows, fuchsia }
+```
+
+没有 `ohos`。`OpenDynamicLibrary.os` 是一条 `if` 链，六个 `Platform.is*` 在鸿蒙上
+全 false 时返回 `null`；`_overriddenPlatforms[null]` 永不命中，最终落到
+`_defaultOpen()` 末行抛 `UnsupportedError`。**所以那行注释里的报错属实，但机制不是
+「缺一个枚举值可注册」，而是没有 `OperatingSystem.ohos` 这个注册位存在。**
+
+唯一可用入口是 `open.overrideForAll()`，它不做平台分派、全平台生效。因此修法是
+**重写分派方式**而非新增一条 override：
+
+```dart
+if (isHarmonyOsTarget) {
+  open.overrideForAll(_openHarmonyOsSqlite);
+  return;
+}
+// 其余平台保持现有 overrideFor 分支
+```
+
+**改动面比初稿描述的大**，须一并记入：
+
+- `ensureOfficialAnkiSqlite()` 有 **11 处调用点**，含
+  `lib/service/locator.dart` 的主 isolate 调用与作为
+  `NativeDatabase.createInBackground(isolateSetup:)` 参数的后台 isolate 调用
+- `overrideForAll` 与 `overrideFor` 一样是 **per-isolate 状态**，跨 isolate 需各自注册
+- 短路必须发生在 `_opened` 幂等标志**之前**，否则鸿蒙上第二次调用会被幂等吞掉
+- `overrideForAll` 一旦误注册会在 Android/iOS 上也生效，故短路条件必须是
+  `isHarmonyOsTarget` 而非 `Platform.*`
+
+### 4.2 hap 声明的最低 API 与 sysroot 存在落差（尚无收据）
+
+`ohos/build-profile.json5` 的 `compatibleSdkVersion` 为 `5.1.0(18)`，而本机
+OHOS native sysroot 是 API 26（ADR 0047 §7.4 记录的 DS-243 单档 SDK）。对
+`libturna_anki.so` 逐串核过：含 `OH_TimeService_GetTimeZone` / `dlopen` /
+`pthread_create`，**不含** `__android_log_print` / `__system_property_get`，
+暂未发现会在 API 18 设备上炸的符号。
+
+**但这只是静态字符串检查，不是收据。** 步 1 打包后须在真机上确认 hap 声明的最低
+API 与引擎 `.so` 的实际最低需求一致，否则装机即 `dlopen` 失败。
+
+### 4.3 平台判断写法
+
+`Platform.is*` 在鸿蒙上**全为 false**（§3 未验证前提 1）。因此新增的鸿蒙接线必须走
 `isHarmonyOsTarget`（`lib/core/ohos_target.dart`），不得内联 `Platform.is*`
 比较——这正是 ADR 0047 与 `ohos_target_test.dart` 已经确立的单一谓词纪律。
 `ohos_eol_architecture_guard_test.dart` 的「capability checks 走单一谓词」断言
-**保留有效**。
+**保留有效**。这也是 §4.1 里 `overrideForAll` 短路条件必须用 `isHarmonyOsTarget`
+而非 `Platform.*` 的原因。
 
 ## 5. 门禁处置：**移除**而非重写（显式决策，非疏漏）
 
@@ -151,16 +229,20 @@ ADR 0046 §副作用写明：「若将来真的推进鸿蒙产品线，必须先
 
 | 步 | 内容 | 前置 |
 |---|---|---|
-| 0 | 真机探针：打点 `Platform.operatingSystem` / `isHarmonyOsTarget` / `Platform.is*` / catalog 打开结果，把 §3 前提 1 变成收据 | — |
-| 1 | `.so` 装进 `ohos/entry/libs/arm64-v8a/` + 构建接线；`resolveOfficialAnkiLibraryPath` 加 ohos 分支 | 步 0 |
-| 2 | sqlite override + 独立 `libsqlite3.so` 随 hap 分发 | 步 1 |
+| 0 | 真机探针：打点 `Platform.operatingSystem` / `isHarmonyOsTarget` / `Platform.is*` / catalog 打开结果，把 §3 未验证前提 1 变成收据 | — |
+| 1 | `.so` 装进 `ohos/entry/libs/arm64-v8a/` + 构建接线；`resolveOfficialAnkiLibraryPath` 加 ohos 分支；真机确认 §4.2 的 API 落差 | 步 0 |
+| 2 | 重写 `ensureOfficialAnkiSqlite` 分派为 `overrideForAll`（§4.1）+ 独立 `libsqlite3.so` 随 hap 分发 | 步 1 |
 | 3 | 平台路由：`OfficialAnkiCapabilityMatrix._hostPlatform` / `forPlatform`、`AnkiImportExecutionPlanner.productModeFor`、`OfficialAnkiCompositionRoot.probe` | 步 1–2 |
 | 4 | 撤 `OhosDegradation.officialAnki` + `OfficialAnkiNativeAvailability` 的 ohos 分支 | 步 3 |
-| 5 | ArkTS reviewer 插件（`OhosView` 工厂 + `Web` 组件 + 媒体 Range/206），登记进 `EntryAbility`，并入 `_requiredOhosFiles` | 步 1 |
-| 6 | 独立 CI workflow（ADR 0047 承诺但尚未存在） | 步 1–5 |
+| 5a | **先定 §3.1 的 Dart 接线路线**（拆分条件导出 / vendored 移植），否则 5b 无法开工 | 步 4 |
+| 5b | ArkTS reviewer 插件（PlatformView 工厂 + `Web` 组件 + 媒体 Range/206），登记进 `EntryAbility`，并入 `_requiredOhosFiles` | 步 5a |
+| 6 | 独立 CI workflow（ADR 0047 承诺但尚未存在） | 步 1–5b |
 
-步 5 的验收判据是 §3 的三条未验证前提全部转为真机收据。任一条不成立则保真档位
+步 5b 的验收判据是 §3 的三条未验证前提全部转为真机收据。任一条不成立则保真档位
 不成立，届时回到「文本降级」档并修订本文。
+
+**§3.1 是本表最大的不确定项**，且 ADR 0047 的「复习器 5–8 人日」不含它。在 5a
+定档之前不得引用该数字作为预算。
 
 ## 后果
 
