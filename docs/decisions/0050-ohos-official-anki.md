@@ -123,10 +123,13 @@ Widget 侧另有 `OhosView` / `OhosViewSurface`。ArkTS 侧 embedding 含
 media/scheme/mime 辅助约 390 行；iOS 侧 `OfficialAnkiReviewerView.swift` 492 +
 `OfficialAnkiSchemeHandler.swift` 309 + factory 45。
 
-### 3.1 但 Dart 侧接线有第二道关：`Ohos*` 标识符在官方 SDK 下不存在
+### 3.1 Dart 侧接线：A / B / D 三条路线均被真机收据否决，改走 E
 
 > **（2026-10-07 订正）** 本节初稿写「保真档位比 ADR 0047 估的便宜」，**该结论不成立**，
 > 依据是把「平台有原生 PlatformView」当成了「Dart 侧能低成本引用」。
+>
+> **（2026-10-08 终局）** 初稿列的 A / B 两案**已用真机收据逐条否决**，本节改记
+> 路线 **E**。初稿的 A 案前提本身就是错的。
 
 官方 SDK 的 `packages/flutter/lib/src/widgets/platform_view.dart` 里**没有任何
 `Ohos*` 标识符**。实测引用 `OhosViewController` 于官方 SDK 下：
@@ -140,15 +143,61 @@ error - Undefined class 'OhosViewController'.
 测试同时崩**——与 ADR 0047 §7.1 描述的失败类**完全同源**（那次是
 `case TargetPlatform.ohos:`，这次是 `Ohos*` 类名）。
 
-可行路线二选一，需在步 5 前定：
+#### 三条路线的否决收据（2026-10-08，Mate 90 Pro Max / API 26）
 
-| 方案 | 做法 | 代价 |
-|---|---|---|
-| **A. 拆分 + 条件导出** | 把 reviewer 视图按平台拆文件，鸿蒙专用部分只由鸿蒙 target 导入 | Dart 侧无符号泄漏，但视图需按平台分叉 |
-| **B. 再做一次 vendored 移植** | 照 ADR 0047 §7.1 的通配 arm 手法承载 `Ohos*` | 同一套移植工具与 ratchet，但要为 Flutter 框架类做（体量与 `material_ui` 不同量级） |
+| 路线 | 设想 | 收据 | 判定 |
+|---|---|---|---|
+| **A** 条件导出 | 用 `dart.library.ohos` 切出只含鸿蒙分支的文件 | `branch=BRANCH_IO` | **前提不存在**：OHOS 目标**不定义** `dart.library.ohos`，条件直接落到 `dart.library.io` |
+| **D** dynamic 派发 | 文件里不写任何 `Ohos*`，把 `PlatformViewsService` 当 `dynamic` 调 | `NoSuchMethodError: Class 'Type' has no instance method 'initOhosView'`<br>`Found: initOhosView({required int id, ...}) => OhosViewController` | **Dart 不能动态调用静态方法**；而 `PlatformViewsService` 是 class，动态派发按实例方法查找 |
+| **B** vendored 移植 | 照 ADR 0047 §7.1 手法承载 `Ohos*` | — | **规模不可接受**：`dependency_overrides` 确实能把 `flutter` 指向本地路径，但那是**把整个 Flutter 框架 vendored 进仓库**（现状 `third_party/` 只有 `material_ui` 与 `cupertino_ui`），且需先废 ADR 0041 §决策 4/5 |
 
-**§6 步 5 的工作量估算必须重估**：ADR 0047 的「复习器 5–8 人日」不含这一关。
-在路线定下来之前，不得引用该数字作为鸿蒙复习器的预算。
+**A 与 D 的根本障碍是同一个**：`Ohos*` 与 `AndroidViewController` 位于**同一个
+library**（`package:flutter/services.dart`）。条件导出只能切 import，**切不开同一
+个库内部的类**。另两条独立事实一并核实：
+
+- `PlatformViewSurface` 的构造签名是通用的 `PlatformViewController`，**不含
+  `Ohos*`** —— 障碍在 controller 的**创建**，不在 widget 的使用。
+- `PlatformViewLink` 的 `surfaceFactory` 与 `onCreatePlatformView` **都是必填**，没有
+  默认创建路径，故框架无法替我们造 controller。
+
+**D 的收据另有一层价值**：Dart 在报错里回显了 `initOhosView` 的**完整签名**，据此
+确认该入口在设备上确实存在（§3 未验证前提 2 的一部分）。
+
+#### 路线 E（已定）：复习器做成独立 ArkUI 页面
+
+**Dart 侧不创建任何 PlatformView**，因此 `Ohos*` 这个问题整体消失 —— 不需要条件
+导出、不需要 vendored 移植、不需要改 SDK，也**不需要废任何现行 ADR**。
+
+它是仓库里**第 5 个手写 ArkTS 插件**（继 `RdbPlugin` / `AudioPlugin` /
+`TtsPlugin` / `FilePickerPlugin` 之后），沿用既有的 MethodChannel + `EntryAbility`
+显式注册范式，须并入 `_requiredOhosFiles`（ADR 0050 §5 已列该要求）。
+
+**交互形态（用户拍定）**：**整页原生页面，翻卡在同一页内完成**。进入复习即切到
+ArkUI 页面，卡片间切换全部在原生页内完成；Dart 只负责下发卡片数据与接收判定。
+
+**为什么在动线上选原生页而不是嵌入式 PlatformView**（这是 E 相对 A/B/C 的独立
+收益，不只是绕过编译障碍）：
+
+| 合成路径 | 每帧代价 |
+|---|---|
+| PlatformView texture 档 | 原生视图渲到虚拟显示，Flutter 采样进 GL scene —— 拷贝 + 采样，最差 |
+| PlatformView surface 档 | 原生视图渲进自己的 surface 由系统合成 —— 无采样，但仍每帧与 Flutter scene 合成 |
+| PlatformView hybrid 档 | 同上 + 与宿主滚动逐帧同步 —— 最贵 |
+| **ArkUI 页面** | 直接进平台渲染管线，与任意系统应用同级 |
+
+ArkUI 侧动画能力已核实存在：`animateTo` / `animateToImmediately` / curve / spring /
+interpolation 全套（SDK `ets/component/common.d.ts`）。
+
+**代价与限定，须一并记住**：
+
+1. **失去「卡片列表连续滚动、每张卡都是活渲染」这个形态**，改为整页切换。
+2. **卡片内容本身的渲染不会变快** —— ArkUI 页面里仍要放 `Web` 组件加载同一份
+   `assets/anki_reviewer/card-frame.html`，HTML 渲染质量由 Web 引擎决定，与走哪条路
+   无关。E 换来的是**转场与合成**，不是卡片动画魔法。
+
+**§6 步 5 的工作量估算仍必须重估**：ADR 0047 的「复习器 5–8 人日」是照
+**嵌入式 PlatformView** 估的，不含本节的否决过程与 E 的形态重设计。在 5b 出真机
+收据之前，不得引用该数字作为鸿蒙复习器的预算。
 
 **未验证前提（施工前必须先打点，不得由「有 `OhosView`」外推）：**
 
@@ -157,12 +206,15 @@ error - Undefined class 'OhosViewController'.
    为 `true`，`Platform.is*` 全 false。原注释（`official_anki_composition.dart`
    的 `initializeReadOnlyLocator`）从此有了实证后盾，`Platform.is*` 的写法不需要
    重估。
-2. 三路合成模式齐备**不等于**行为等价：Android 侧 `_hcpp` 先探
-   `HybridAndroidViewController.checkIfSupported()` 再在两条分支间选择，鸿蒙侧
-   `OhosViewController` 无对应的 `checkIfSupported`。选哪一路、滚动 / 手势 /
-   透明区表现是否等价，**无法靠读代码判定**。
+2. ~~三路合成模式齐备不等于行为等价~~ **（2026-10-08 已被路线 E 消解）**
+   —— 既然 Dart 侧不再创建 PlatformView，「选哪一路合成模式」这个问题**不再需要
+   回答**。它唯一残留的价值是 §3.1 的 D 案收据顺带确认了 `initOhosView` 在设备上
+   确实存在（签名被 Dart 在报错中回显）。该前提就此作废，不得再作为待验项引用。
 3. ArkUI `Web` 组件能否满足复习器的 CSP（`assets/anki_reviewer/card-frame.html`
    为 `default-src 'none'`）+ 自定义 scheme + 媒体 Range/206。
+   **路线 E 之后，这一条是步 5b 唯一剩下的未验证前提**（前提 1、2 均已结或作废）。
+   路线 E 把复习器渲染搬进 ArkUI 页面，但页面里仍要放 `Web` 组件加载同一份
+   `card-frame.html`，所以这条不但没有被绕过，反而成了整条路的收窄口。
 
 ## 4. 三个真实技术缺口（决策无法消解，须在接线批次解决）
 
@@ -379,17 +431,19 @@ ADR 0046 §副作用写明：「若将来真的推进鸿蒙产品线，必须先
 | 2 | 重写 `ensureOfficialAnkiSqlite` 分派为 `overrideForAll`（§4.1）+ 独立 `libsqlite3.so` 随 hap 分发 —— **已完成（2026-10-08，`catalog=ok sqlite=3.49.2`）** | 步 1 |
 | 3 | 平台路由：`OfficialAnkiCapabilityMatrix._hostPlatform` / `forPlatform`、`AnkiImportExecutionPlanner.productModeFor`、`OfficialAnkiCompositionRoot.probe` —— **已完成（2026-10-08，`runtimeOk=true reason=ready abi=1`）** | 步 1–2 |
 | 4 | 撤 `OhosDegradation.officialAnki` + `OfficialAnkiNativeAvailability` 的 ohos 分支 —— **已完成（2026-10-08，`degradations=remoteBackup`）** | 步 3 |
-| 5a | **先定 §3.1 的 Dart 接线路线**（拆分条件导出 / vendored 移植），否则 5b 无法开工 | 步 4 |
-| 5b | ArkTS reviewer 插件（PlatformView 工厂 + `Web` 组件 + 媒体 Range/206），登记进 `EntryAbility`，并入 `_requiredOhosFiles` | 步 5a |
+| 5a | **定 §3.1 的 Dart 接线路线** —— **已完成（2026-10-08）：A / B / D 三案被真机收据否决，选定 E（独立 ArkUI 页面，翻卡在页内完成）** | 步 4 |
+| 5b | **ArkTS 复习器页面**（第 5 个手写插件：`Web` 组件 + 自定义 scheme + 媒体 Range/206 + CSP），登记进 `EntryAbility`，并入 `_requiredOhosFiles` —— **不再需要 PlatformView 工厂** | 步 5a |
 | 6 | 独立 CI workflow（ADR 0047 承诺但尚未存在） | 步 1–5b |
 
-步 5b 的验收判据是 §3 的三条未验证前提全部转为真机收据——**前提 1 已于 2026-10-08
-结清（§2.1），故实际只剩 2 与 3**（哪一路合成模式可用、ArkUI `Web` 能否满足 CSP +
-自定义 scheme + 媒体 Range/206）。任一条不成立则保真档位不成立，届时回到「文本降级」
-档并修订本文。
+步 5b 的验收判据收敛为**一条**：§3 的未验证前提 3 —— ArkUI `Web` 能否满足 CSP +
+自定义 scheme + 媒体 Range/206。（前提 1 已于 2026-10-08 结清，前提 2 已被路线 E
+消解——不再创建 PlatformView 就没有「选哪一路合成模式」这个问题。）**这一条不成立
+则保真档位不成立**，届时回到「文本降级」档并修订本文。
 
-**§3.1 是本表最大的不确定项**，且 ADR 0047 的「复习器 5–8 人日」不含它。在 5a
-定档之前不得引用该数字作为预算。
+**§3.1 已不再是本表最大的不确定项** —— 它已由 §3.1 的否决收据与路线 E 结清。但
+**ADR 0047 的「复习器 5–8 人日」仍不可引用为预算**：它是照嵌入式 PlatformView 估的，
+既不含三案的否决过程，也不含 E 的形态重设计。在 5b 出真机收据之前，鸿蒙复习器的
+工作量**无估算**。
 
 ## 后果
 
