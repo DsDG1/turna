@@ -167,8 +167,9 @@ error - Undefined class 'OhosViewController'.
 ## 4. 三个真实技术缺口（决策无法消解，须在接线批次解决）
 
 **4.1 与 4.2 已于 2026-10-08 结清**（真机收据见各节）；4.3 记步 1 已交付的静态部分，
-4.4 是贯穿全部接线批次的纪律。**步 3 的能力矩阵硬拒是当前唯一挡在 Official Anki
-前面的东西。**
+4.4 是贯穿全部接线批次的纪律。**步 3 的能力矩阵硬拒已于同日拆除**（`runtimeOk=true
+reason=ready`）。**步 4 尚未做**：`OhosDegradation.officialAnki` 仍让 UI 禁用导入入口，
+那是当前唯一还挡在用户面前的东西。
 
 ### 4.1 catalog 存储：需要一份独立的 `libsqlite3.so`，且分派方式要重写 —— **已结**
 
@@ -331,6 +332,12 @@ ADR 0046 §副作用写明：「若将来真的推进鸿蒙产品线，必须先
 **已知代价（接受）**：移除后，「鸿蒙不得启用 Official Anki」不再有任何自动化保护。
 后续若有人误改鸿蒙分支，门禁不会拦。本文即该决策的唯一记录。
 
+**该代价已于 2026-10-08 部分收回**（§6 步 3）：新增断言
+`HarmonyOS routes to Official engine, not to unavailable`，方向与被移除的那条
+**相反**——它要求鸿蒙**不得**落进 unsupported 桶。故「鸿蒙被误改成不可用」现在
+会被拦；**「鸿蒙被误改回 Legacy 写路径」仍然无人拦**（`legacyFallbackRequired: true`
+断言覆盖不到，因为官方路径根本不经过那个字段）。
+
 **建议补的正门禁（本文不强制，留给接线批次）**：
 
 - `ohos/` 目录级「不得出现未注册进 `EntryAbility` 的 PlatformView 工厂」——
@@ -338,6 +345,10 @@ ADR 0046 §副作用写明：「若将来真的推进鸿蒙产品线，必须先
 - 把 `.so` 纳入 `ohos/` artifact 检查 —— 当前 `ohos/.gitignore` 只忽略
   `libapp` / `libflutter` / `libvmservice`，把 23 MB 的 `libturna_anki.so` 放进
   `ohos/entry/libs/arm64-v8a/` **不会被任何门禁拦下**
+  **（已做，2026-10-08）**——§6 步 1 落地时补了
+  `companion hap ships the arm64 Anki engine in libs/arm64-v8a`，含 ABI 检查、
+  arm64-only、commit-in-git 三项；步 2 的 `libsqlite3.so` 由
+  `official_anki_sqlite_dispatch_test.dart` 覆盖
 
 ## 6. 接线批次（本文只授权，不含在本批）
 
@@ -348,7 +359,7 @@ ADR 0046 §副作用写明：「若将来真的推进鸿蒙产品线，必须先
 | 0 | 真机探针：打点 `Platform.operatingSystem` / `isHarmonyOsTarget` / `Platform.is*` / catalog 打开结果 —— **已完成，收据见 §2.1（2026-10-08）** | — |
 | 1 | `.so` 装进 `ohos/entry/libs/arm64-v8a/` + 构建接线；`resolveOfficialAnkiLibraryPath` 加 ohos 分支；真机确认 §4.2 的 API 落差 —— **已完成（2026-10-08，`dlopen=ok abi=1`）** | 步 0 |
 | 2 | 重写 `ensureOfficialAnkiSqlite` 分派为 `overrideForAll`（§4.1）+ 独立 `libsqlite3.so` 随 hap 分发 —— **已完成（2026-10-08，`catalog=ok sqlite=3.49.2`）** | 步 1 |
-| 3 | 平台路由：`OfficialAnkiCapabilityMatrix._hostPlatform` / `forPlatform`、`AnkiImportExecutionPlanner.productModeFor`、`OfficialAnkiCompositionRoot.probe` | 步 1–2 |
+| 3 | 平台路由：`OfficialAnkiCapabilityMatrix._hostPlatform` / `forPlatform`、`AnkiImportExecutionPlanner.productModeFor`、`OfficialAnkiCompositionRoot.probe` —— **已完成（2026-10-08，`runtimeOk=true reason=ready abi=1`）** | 步 1–2 |
 | 4 | 撤 `OhosDegradation.officialAnki` + `OfficialAnkiNativeAvailability` 的 ohos 分支 | 步 3 |
 | 5a | **先定 §3.1 的 Dart 接线路线**（拆分条件导出 / vendored 移植），否则 5b 无法开工 | 步 4 |
 | 5b | ArkTS reviewer 插件（PlatformView 工厂 + `Web` 组件 + 媒体 Range/206），登记进 `EntryAbility`，并入 `_requiredOhosFiles` | 步 5a |

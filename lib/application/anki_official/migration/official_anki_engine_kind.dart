@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:turna/application/anki_official/engine/official_anki_native_availability.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
+import 'package:turna/core/ohos_target.dart';
 
 enum AnkiEngineKind { legacy, official }
 
@@ -58,7 +59,7 @@ class AnkiSourceRouteResolver {
     final cutover = cutoverEnabled ?? LegacyAnkiMigrationFlags.cutoverEnabled;
     if (!cutover) return AnkiEngineKind.legacy;
     final plat = platform ?? OfficialAnkiCapabilityMatrix.current().platform;
-    if (plat == 'android' || plat == 'ios') {
+    if (plat == 'android' || plat == 'ios' || plat == 'ohos') {
       final libraryOk =
           libraryAvailable ?? OfficialAnkiNativeAvailability.current;
       // Missing native runtime: do not invent a Legacy owner for unrecorded
@@ -129,10 +130,25 @@ class OfficialAnkiCapabilityMatrix {
           officialScheduler: false,
           legacyFallbackRequired: false,
         );
+      case 'ohos':
+        // ADR 0050 §6 step 3. Core and scheduler are the same FFI path
+        // Android uses, and both layers are measured on hardware (§2.1
+        // platform identity, §4.2 dlopen=ok abi=1, §4.1 catalog=ok).
+        // `officialReviewer` stays false until step 5b ships the ArkTS
+        // PlatformView — advertising it now would offer a UI that cannot
+        // render, which is the failure shape this repo keeps rediscovering
+        // only on device.
+        return OfficialAnkiPlatformCapability(
+          platform: platform,
+          officialCore: true,
+          officialReviewer: false,
+          officialScheduler: resolved.allowsOfficialScheduler,
+          legacyFallbackRequired: false,
+        );
       case 'windows':
       default:
-        // Unknown / unsupported platforms (including retired OHOS) never open
-        // a Legacy writer. Product mode maps these to ankiUnavailable.
+        // Unknown / unsupported platforms never open a Legacy writer. Product
+        // mode maps these to ankiUnavailable.
         return OfficialAnkiPlatformCapability(
           platform: platform,
           officialCore: false,
@@ -151,6 +167,11 @@ class OfficialAnkiCapabilityMatrix {
   static String _hostPlatform() {
     final overridden = overrideHostPlatformForTests;
     if (overridden != null) return overridden;
+    // Checked before the Platform.is* chain below, and not as one of its
+    // branches: every Platform.is* is false on HarmonyOS (§2.1 receipt), so
+    // ordering against them would be meaningless — this returns 'ohos' or it
+    // falls through to 'unknown'.
+    if (isHarmonyOsTarget) return 'ohos';
     if (Platform.isAndroid) return 'android';
     if (Platform.isIOS) return 'ios';
     if (Platform.isLinux) return 'linux';

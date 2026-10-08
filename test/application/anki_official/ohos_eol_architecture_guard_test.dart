@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:turna/application/anki_official/import/anki_import_execution_plan.dart';
+import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 
 /// ADR 0041 retired the OHOS *product line*; ADR 0047 authorises a *companion
 /// lite build* instead. The switch is the presence of `ohos/` itself, so a
@@ -442,6 +444,65 @@ flutter:
         'lib/application/anki_official/migration/official_anki_engine_kind.dart',
       ).readAsStringSync();
       expect(text.contains('legacyFallbackRequired: true'), isFalse);
+    });
+
+    test('HarmonyOS routes to Official engine, not to unavailable', () {
+      // ADR 0050 §6 step 3. This is the gate ADR 0050 §5 said was missing:
+      // removing the "no case 'ohos':" assertion left nothing preventing a
+      // later edit from quietly reverting the platform to ankiUnavailable,
+      // and that revert would be invisible until someone ran the app on a
+      // HarmonyOS device. This one asserts the opposite direction of the
+      // removed assertion — HarmonyOS must NOT be in the unsupported bucket.
+      final matrix = OfficialAnkiCapabilityMatrix.forPlatform('ohos');
+      expect(matrix.officialCore, isTrue);
+      expect(matrix.legacyFallbackRequired, isFalse);
+      // Deliberately still false: the ArkTS PlatformView does not exist until
+      // step 5b, and advertising the reviewer now would offer a UI that
+      // cannot render.
+      expect(
+        matrix.officialReviewer,
+        isFalse,
+        reason: 'faithful reviewer is step 5b, not step 3',
+      );
+
+      expect(
+        const AnkiImportExecutionPlanner().productModeFor(platform: 'ohos'),
+        AnkiProductMode.officialAndroid,
+      );
+
+      // And the host resolver must produce 'ohos' rather than 'unknown'.
+      // `Platform.is*` is all-false on the device (§2.1), so a chain of them
+      // lands on 'unknown', which the matrix maps to officialCore=false —
+      // the exact failure step 2's receipt was taken alongside.
+      final source = File(
+        'lib/application/anki_official/migration/official_anki_engine_kind.dart',
+      ).readAsStringSync();
+      final host = source.substring(source.indexOf('static String _hostPlatform'));
+      final code = host
+          .split('\n')
+          .where((l) => !l.trimLeft().startsWith('//'))
+          .join('\n');
+      expect(
+        RegExp(r"if \(isHarmonyOsTarget\) return 'ohos';").hasMatch(code),
+        isTrue,
+        reason: 'every Platform.is* is false on HarmonyOS; only the predicate '
+            'can name it',
+      );
+
+      // The runtime probe must not short-circuit the platform any more — that
+      // refusal is what made `unsupported_platform` indistinguishable from a
+      // load failure and forced ADR 0050 §4.2 to need its own probe.
+      final composition = File(
+        'lib/application/anki_official/official_anki_composition.dart',
+      ).readAsStringSync();
+      final guard = composition.substring(
+        composition.indexOf('static OfficialAnkiRuntimeProbe probe('),
+      );
+      final gate = RegExp(
+        r'if \(!\(Platform\.isAndroid[\s\S]{0,200}?isHarmonyOsTarget\)\)',
+      );
+      expect(gate.hasMatch(guard), isTrue,
+          reason: 'probe must accept HarmonyOS via the single predicate');
     });
 
     test('Official native ABI packaging is arm64-only (doc 34 §14.2)', () {

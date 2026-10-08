@@ -108,7 +108,11 @@ class AnkiImportExecutionPlanner {
   }) {
     final cutover = cutoverEnabled ?? LegacyAnkiMigrationFlags.cutoverEnabled;
     if (!cutover) return AnkiProductMode.ankiUnavailable;
-    if (platform == 'android' || platform == 'ios') {
+    // 'ohos' joins the official set at ADR 0050 §6 step 3: engine and catalog
+    // are both measured on hardware. The enum member is still named
+    // officialAndroid from before iOS joined — renaming it now would churn
+    // every call site for no behavioural gain.
+    if (platform == 'android' || platform == 'ios' || platform == 'ohos') {
       return AnkiProductMode.officialAndroid;
     }
     return AnkiProductMode.ankiUnavailable;

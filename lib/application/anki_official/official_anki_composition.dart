@@ -61,10 +61,17 @@ class OfficialAnkiCompositionRoot {
         executionMode: executionMode,
       );
     }
+    // `isHarmonyOsTarget` is checked here as a peer of the Platform.is*
+    // branches rather than as one of them: every Platform.is* is false on
+    // HarmonyOS (§2.1 receipt), so there is no Platform spelling of this
+    // condition. ADR 0050 §6 step 3 — the refusal this replaces also blocked
+    // the only path that could answer §4.2's API question, which is why that
+    // question needed a separate probe.
     if (!(Platform.isAndroid ||
         Platform.isIOS ||
         Platform.isLinux ||
-        Platform.isMacOS)) {
+        Platform.isMacOS ||
+        isHarmonyOsTarget)) {
       return OfficialAnkiRuntimeProbe(
         ok: false,
         reason: 'unsupported_platform',
