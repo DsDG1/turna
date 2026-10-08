@@ -127,6 +127,32 @@ class OfficialAnkiNativeTransport {
 
   int abiVersion() => _abiVersion();
 
+  /// Reads the ABI version straight off a freshly loaded library, opening no
+  /// engine handle and closing none.
+  ///
+  /// ADR 0050 §4.2 asks whether the hap's declared minimum API can actually
+  /// load the engine. `probe` cannot answer that while the capability matrix
+  /// refuses HarmonyOS one layer earlier: the library is never handed to the
+  /// loader, so a refusal and a load failure look identical. This is the only
+  /// path that reaches `dlopen` without that gate, which makes it the receipt
+  /// for the API-level question.
+  ///
+  /// Returns a verdict string rather than throwing so a diagnostic cannot take
+  /// down the cold start it is measuring.
+  static String probeDlopen([String? libraryPath]) {
+    final resolved = libraryPath ?? resolveOfficialAnkiLibraryPath();
+    if (resolved == null) return 'skip no-library';
+    try {
+      final lib = _openLibrary(resolved);
+      final abi = lib.lookupFunction<_AbiVersionNative, _AbiVersionDart>(
+        'turna_anki_abi_version',
+      );
+      return 'ok abi=${abi()} path=$resolved';
+    } catch (e) {
+      return 'throw ${e.runtimeType}: $e';
+    }
+  }
+
   int engineNew() {
     final result = _engineNew(nullptr, 0);
     final bytes = _takeBuffer(result);

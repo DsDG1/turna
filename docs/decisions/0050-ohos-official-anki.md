@@ -76,15 +76,17 @@ catalog=throw UnsupportedError: Unsupported operation: Unsupported platform: oho
 1. `Platform.operatingSystem` 真值是 `"ohos"`（**§3 未验证前提 1 已结**）。
 2. `Platform.is*` 在鸿蒙上**全为 false**，与 §4.4 的纪律一致。
 3. `isHarmonyOsTarget` 在真机上为 `true`，故 §4.1 的 `overrideForAll` 短路条件
-   可以用它——若换成 `Platform.*` 判断，Android / iOS 会被污染。
+可以用它——若换成 `Platform.*` 判断，Android / iOS 会被污染。
 4. **catalog 在鸿蒙上当前就是打不开的**，不是「可能失败」。§4.1 预判的错误文本
    逐字命中，机制同时被证实：`sqlite3-2.9.4` 的 `load_library.dart` 里
    `OperatingSystem? get os` 是六项 `Platform.is*` if 链，全 false → `null` →
    `ensureOfficialAnkiSqlite()` 注册的表根本查不到 → 落到 `_defaultOpen()` 末尾
    抛出。无 `OperatingSystem.ohos` 注册位。
 
-**尚未被本收据改变的**：`ankiLibraryResolved=<null>`（`.so` 未打包，属步 1）、
-`reason=unsupported_platform`（能力矩阵硬拒，属步 3/4）。
+**本节收据之后被步 1 改变的**（2026-10-08，见 §4.3）：`ankiLibraryResolved` 从
+`<null>` 变为 `libturna_anki.so`。**仍未改变**：`reason=unsupported_platform`
+——能力矩阵仍在 `official_anki_composition.dart` 用 `Platform.is*` 硬拒鸿蒙，
+属步 3/4。这正是需要绕开矩阵才能测 `dlopen` 的原因（§4.2）。
 
 **关于 `Platform.operatingSystemVersion`**：真机返回
 `HarmonyOS HongMeng Kernel 1.13.0 #1 SMP Tue Sep 29 12:53:48 UTC 2026`，
@@ -210,7 +212,7 @@ if (isHarmonyOsTarget) {
 - `overrideForAll` 一旦误注册会在 Android/iOS 上也生效，故短路条件必须是
   `isHarmonyOsTarget` 而非 `Platform.*`
 
-### 4.2 hap 声明的最低 API 与 sysroot 存在落差（尚无收据）
+### 4.2 hap 声明的最低 API 与 sysroot 存在落差 —— **已结，无落差**
 
 `ohos/build-profile.json5` 的 `compatibleSdkVersion` 为 `5.1.0(18)`，而本机
 OHOS native sysroot 是 API 26（ADR 0047 §7.4 记录的 DS-243 单档 SDK）。对
@@ -220,6 +222,22 @@ OHOS native sysroot 是 API 26（ADR 0047 §7.4 记录的 DS-243 单档 SDK）�
 
 **但这只是静态字符串检查，不是收据。** 步 1 打包后须在真机上确认 hap 声明的最低
 API 与引擎 `.so` 的实际最低需求一致，否则装机即 `dlopen` 失败。
+
+**2026-10-08 真机收据：`dlopen=ok abi=1 path=libturna_anki.so`**
+（Mate 90 Pro Max / API 26，装 `entry-default-signed.hap`）。**API 18 的声明可以加载
+API 26 编译的引擎，落差不成立。** 这条收据的强度在于 `dlopen` 成功即意味着**全部
+重定位已解析**——`NEEDED` 的 `libc.so` 与 `libtime_service_ndk.so` 都拿到了，
+且 `turna_anki_abi_version` 真的被查到了，不是「符号碰巧没被用到」。
+
+**但拿这条收据必须绕开能力矩阵。** `OfficialAnkiCompositionRoot.probe` 在
+`official_anki_composition.dart` 用 `Platform.isAndroid || isIOS || isLinux ||
+isMacOS` 硬拒鸿蒙，引擎**到不了 loader**，故 `runtimeOk=false
+reason=unsupported_platform` 与「dlopen 失败」在日志上无法区分（同一次收据里
+两者并存）。为此新增 `OfficialAnkiNativeTransport.probeDlopen()`：直接
+`DynamicLibrary.open` + 只查 ABI 符号，不开也不关任何引擎句柄。
+
+这也说明**能力矩阵的 ohos 硬拒本身就是下一步要拆的东西**（§6 步 3/4），
+不是可以留着当保险的兜底——它现在挡住的正是唯一能回答 API 问题的那条路径。
 
 ### 4.3 步 1 静态侧已结的部分（2026-10-08）
 
@@ -245,9 +263,8 @@ SHA-256 `24CC49E3…F671E5`，23,123,056 字节。`flutter build hap` 成功，h
 （hap 的 `libs/arm64-v8a` 在 loader 搜索路径上），分支条件是 `isHarmonyOsTarget` 而非
 `Platform.*`——后者在鸿蒙恒 false，会让鸿蒙永远走不到这个分支。
 
-**本节的缺口**：API 18 vs API 26 的落差**仍未结**。设备在装机前掉线，
-`hdc list targets` 已无主设备，故真机 `dlopen` 收据**尚未取得**。
-上面全部是静态证据。
+**本节的缺口**：无。上一版记的「设备掉线、真机 `dlopen` 收据未取得」已由 §4.2 的
+收据补齐。
 
 ### 4.4 平台判断写法
 
@@ -300,7 +317,7 @@ ADR 0046 §副作用写明：「若将来真的推进鸿蒙产品线，必须先
 | 步 | 内容 | 前置 |
 |---|---|---|
 | 0 | 真机探针：打点 `Platform.operatingSystem` / `isHarmonyOsTarget` / `Platform.is*` / catalog 打开结果 —— **已完成，收据见 §2.1（2026-10-08）** | — |
-| 1 | `.so` 装进 `ohos/entry/libs/arm64-v8a/` + 构建接线；`resolveOfficialAnkiLibraryPath` 加 ohos 分支；真机确认 §4.2 的 API 落差 —— **静态侧已结（§4.3），真机 `dlopen` 收据待补（设备掉线）** | 步 0 |
+| 1 | `.so` 装进 `ohos/entry/libs/arm64-v8a/` + 构建接线；`resolveOfficialAnkiLibraryPath` 加 ohos 分支；真机确认 §4.2 的 API 落差 —— **已完成（2026-10-08，`dlopen=ok abi=1`）** | 步 0 |
 | 2 | 重写 `ensureOfficialAnkiSqlite` 分派为 `overrideForAll`（§4.1）+ 独立 `libsqlite3.so` 随 hap 分发 | 步 1 |
 | 3 | 平台路由：`OfficialAnkiCapabilityMatrix._hostPlatform` / `forPlatform`、`AnkiImportExecutionPlanner.productModeFor`、`OfficialAnkiCompositionRoot.probe` | 步 1–2 |
 | 4 | 撤 `OhosDegradation.officialAnki` + `OfficialAnkiNativeAvailability` 的 ohos 分支 | 步 3 |

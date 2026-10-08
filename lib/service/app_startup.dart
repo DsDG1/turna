@@ -133,7 +133,8 @@ Future<void> _hydrateAfterSeed() async {
         '${resolveOfficialAnkiLibraryPath() ?? "<null>"} '
         'runtimeOk=${probe.ok} reason=${probe.reason} '
         'abi=${probe.abiVersion} '
-        'catalog=${probeOfficialAnkiSqlite()}',
+        'catalog=${probeOfficialAnkiSqlite()} '
+        'dlopen=${OfficialAnkiNativeTransport.probeDlopen()}',
       );
     } catch (e) {
       // A probe that throws is itself the receipt. Swallowing it keeps a
