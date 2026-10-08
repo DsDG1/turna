@@ -3,11 +3,32 @@ import 'dart:io';
 
 import 'package:sqlite3/open.dart';
 import 'package:sqlite3/sqlite3.dart';
+import 'package:turna/core/ohos_target.dart';
 
 bool _opened = false;
 
+/// Registers the sqlite3 loader override for this isolate.
+///
+/// Called from 11 sites across the catalog, the backup services and
+/// `locator.dart` (including the background isolate, via `isolateSetup`),
+/// because `open.overrideFor` state is per-isolate — hence the idempotent
+/// flag, hence the cost of getting the short-circuit order wrong.
 void ensureOfficialAnkiSqlite() {
   if (_opened) return;
+  // ADR 0050 §4.1: the HarmonyOS short-circuit must precede the flag, or the
+  // background isolate's first call would consume it and every later call
+  // would return early without registering.
+  if (isHarmonyOsTarget) {
+    _opened = true;
+    // There is no `OperatingSystem.ohos` to register against: the enum in
+    // sqlite3 2.9.4 has six members and `os` is a `Platform.is*` chain that
+    // yields null when all six are false, which is exactly this platform.
+    // `overrideForAll` is the only entry point that does not dispatch by
+    // platform — and it is process-global once set, which is exactly why the
+    // branch is guarded above rather than merely checking the platform later.
+    open.overrideForAll(_openHarmonyOsSqlite);
+    return;
+  }
   _opened = true;
   if (Platform.isLinux) {
     open.overrideFor(OperatingSystem.linux, () {
@@ -32,14 +53,24 @@ void ensureOfficialAnkiSqlite() {
   }
 }
 
+DynamicLibrary _openHarmonyOsSqlite() => DynamicLibrary.open('libsqlite3.so');
+
+DynamicLibrary _openAndroidSqlite() {
+  for (final name in const ['libsqlite3.so', 'libsqlite3_flutter_libs.so']) {
+    try {
+      return DynamicLibrary.open(name);
+    } on ArgumentError {
+      continue;
+    }
+  }
+  return DynamicLibrary.process();
+}
+
 /// Reports what the catalog storage layer actually does on this platform.
 ///
-/// ADR 0050 §4.1: on HarmonyOS `Platform.isLinux` and `Platform.isAndroid`
-/// are both false, so [ensureOfficialAnkiSqlite] registers nothing and the
-/// lookup falls through to sqlite3's default path, which has no
-/// `OperatingSystem.ohos` member to fall through *to*. Whether that throws or
-/// silently mis-resolves is a per-platform fact, so it is measured rather
-/// than assumed. Read-only and in-memory: it must not touch the real catalog.
+/// ADR 0050 §4.1: on HarmonyOS nothing used to be registered and the lookup
+/// fell through to sqlite3's default path, which threw. Read-only and
+/// in-memory: it must not touch the real catalog.
 String probeOfficialAnkiSqlite() {
   try {
     ensureOfficialAnkiSqlite();
@@ -53,15 +84,4 @@ String probeOfficialAnkiSqlite() {
   } catch (e) {
     return 'throw ${e.runtimeType}: $e';
   }
-}
-
-DynamicLibrary _openAndroidSqlite() {
-  for (final name in const ['libsqlite3.so', 'libsqlite3_flutter_libs.so']) {
-    try {
-      return DynamicLibrary.open(name);
-    } on ArgumentError {
-      continue;
-    }
-  }
-  return DynamicLibrary.process();
 }

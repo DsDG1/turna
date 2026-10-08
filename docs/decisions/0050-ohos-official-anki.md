@@ -166,9 +166,11 @@ error - Undefined class 'OhosViewController'.
 
 ## 4. 三个真实技术缺口（决策无法消解，须在接线批次解决）
 
-4.1 与 4.2 是缺口本身；4.3 记步 1 已交付的静态部分，4.4 是贯穿全部接线批次的纪律。
+**4.1 与 4.2 已于 2026-10-08 结清**（真机收据见各节）；4.3 记步 1 已交付的静态部分，
+4.4 是贯穿全部接线批次的纪律。**步 3 的能力矩阵硬拒是当前唯一挡在 Official Anki
+前面的东西。**
 
-### 4.1 catalog 存储：需要一份独立的 `libsqlite3.so`，且分派方式要重写
+### 4.1 catalog 存储：需要一份独立的 `libsqlite3.so`，且分派方式要重写 —— **已结**
 
 `ensureOfficialAnkiSqlite()`（`lib/application/anki_official/storage/official_anki_sqlite.dart`）
 只覆盖 Linux / Android。鸿蒙上 sqlite3 的 loader 抛 `Unsupported platform: ohos`。
@@ -211,6 +213,33 @@ if (isHarmonyOsTarget) {
 - 短路必须发生在 `_opened` 幂等标志**之前**，否则鸿蒙上第二次调用会被幂等吞掉
 - `overrideForAll` 一旦误注册会在 Android/iOS 上也生效，故短路条件必须是
   `isHarmonyOsTarget` 而非 `Platform.*`
+
+**已实施并取得真机收据（2026-10-08）**：新增
+`native/turna_anki_core/build-ohos/build-sqlite.sh` 交叉编译 `libsqlite3.so`
+（SQLite **3.49.2**，源码取自 cargo registry 里 `libsqlite3-sys-0.34.0` 随附的
+amalgamation——**与引擎编译用的是同一份**，故 catalog 与引擎不会在版本上漂移）。
+产物 1,126,840 字节，`NEEDED` 只有 `libc.so`，已提交进
+`ohos/entry/libs/arm64-v8a/libsqlite3.so`（同路线 A）。
+
+编译选项刻意保守：默认 amalgamation 构建，**不开** FTS5 与 JSON1——`lib/` 中
+两者都无引用（已核），缺了会在 prepare 时响亮失败，半残的扩展不会。
+
+真机收据：`catalog=ok sqlite=3.49.2`（此前是
+`catalog=throw UnsupportedError: Unsupported operation: Unsupported platform: ohos`）。
+**版本号由库自身返回，故这条同时证明加载的正是我们编的那份**，而不是系统里的某个
+同名库。
+
+新增门禁 `test/application/anki_official/official_anki_sqlite_dispatch_test.dart`
+（**5 例**），逐条钉住上面那份「改动面」清单：短路在幂等标志之前、守卫是单一谓词而非
+`Platform.*`、没有伪造 `OperatingSystem.ohos`、`overrideForAll` 全局只有一处且在守卫
+内、Linux/Android 的 per-platform override 仍在、hap 内 `libsqlite3.so` 是 aarch64
+且导出核心符号。四种错误改法（幂等提前 / `Platform.isLinux` 守卫 / 伪造枚举 /
+无守卫全局注册）**逐个反向验证都会红**。
+
+> **写这道门禁时踩的坑**：断言若直接扫源码全文，会命中**本文件自己的注释**——
+> 分支的注释正解释了「为什么不用 `Platform.is*`」与「为什么不能用 `overrideFor`」，
+> 于是这两个标识符必然出现。故门禁对去注释后的代码提问（`ensureCode`）。
+> 这不是洁癖：不先去注释，这两条断言在正确实现下也无法通过。
 
 ### 4.2 hap 声明的最低 API 与 sysroot 存在落差 —— **已结，无落差**
 
@@ -318,7 +347,7 @@ ADR 0046 §副作用写明：「若将来真的推进鸿蒙产品线，必须先
 |---|---|---|
 | 0 | 真机探针：打点 `Platform.operatingSystem` / `isHarmonyOsTarget` / `Platform.is*` / catalog 打开结果 —— **已完成，收据见 §2.1（2026-10-08）** | — |
 | 1 | `.so` 装进 `ohos/entry/libs/arm64-v8a/` + 构建接线；`resolveOfficialAnkiLibraryPath` 加 ohos 分支；真机确认 §4.2 的 API 落差 —— **已完成（2026-10-08，`dlopen=ok abi=1`）** | 步 0 |
-| 2 | 重写 `ensureOfficialAnkiSqlite` 分派为 `overrideForAll`（§4.1）+ 独立 `libsqlite3.so` 随 hap 分发 | 步 1 |
+| 2 | 重写 `ensureOfficialAnkiSqlite` 分派为 `overrideForAll`（§4.1）+ 独立 `libsqlite3.so` 随 hap 分发 —— **已完成（2026-10-08，`catalog=ok sqlite=3.49.2`）** | 步 1 |
 | 3 | 平台路由：`OfficialAnkiCapabilityMatrix._hostPlatform` / `forPlatform`、`AnkiImportExecutionPlanner.productModeFor`、`OfficialAnkiCompositionRoot.probe` | 步 1–2 |
 | 4 | 撤 `OhosDegradation.officialAnki` + `OfficialAnkiNativeAvailability` 的 ohos 分支 | 步 3 |
 | 5a | **先定 §3.1 的 Dart 接线路线**（拆分条件导出 / vendored 移植），否则 5b 无法开工 | 步 4 |
