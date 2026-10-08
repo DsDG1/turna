@@ -20,7 +20,6 @@ import 'package:turna/application/language_provider.dart';
 import 'package:turna/application/language_registry.dart';
 import 'package:turna/application/settings_provider.dart';
 import 'package:turna/core/logger.dart';
-import 'package:turna/core/ohos_target.dart';
 import 'package:turna/courses/course_loader.dart';
 import 'package:turna/di/injection.dart';
 import 'package:turna/domain/course/course_scope.dart';
@@ -193,10 +192,15 @@ class _CourseManagementBodyState extends State<_CourseManagementBody> {
                   ),
                   _AddCourseCard(
                     title: AppStrings.courseManagementImportTitle,
-                    subtitle: isDegraded(OhosDegradation.officialAnki)
-                        ? AppStrings.courseManagementImportAnkiUnavailable
-                        : null,
-                    enabled: !isDegraded(OhosDegradation.officialAnki),
+                    // ADR 0050 §6 step 4: no degradation here any more. The
+                    // engine and catalog both work on HarmonyOS (§6 steps 1-3
+                    // receipts), and the faithful renderer that is still
+                    // missing fails loudly inside the reviewer instead of
+                    // hiding the entry point — an entry that appears to work
+                    // and then renders nothing is worse than one that is
+                    // absent, because the user cannot tell which half is
+                    // broken.
+                    enabled: true,
                     onTap: () => context.router.push(const AnkiImportRoute()),
                   ),
                   const SizedBox(height: 8),

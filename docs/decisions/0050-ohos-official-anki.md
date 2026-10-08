@@ -166,10 +166,28 @@ error - Undefined class 'OhosViewController'.
 
 ## 4. 三个真实技术缺口（决策无法消解，须在接线批次解决）
 
-**4.1 与 4.2 已于 2026-10-08 结清**（真机收据见各节）；4.3 记步 1 已交付的静态部分，
-4.4 是贯穿全部接线批次的纪律。**步 3 的能力矩阵硬拒已于同日拆除**（`runtimeOk=true
-reason=ready`）。**步 4 尚未做**：`OhosDegradation.officialAnki` 仍让 UI 禁用导入入口，
-那是当前唯一还挡在用户面前的东西。
+**4.1、4.2 已于 2026-10-08 结清**（真机收据见各节）；4.3 记步 1 已交付的静态部分，
+4.4 是贯穿全部接线批次的纪律。**步 3 的能力矩阵硬拒与步 4 的降级标记已于同日拆除**
+（`runtimeOk=true reason=ready`，`degradations=remoteBackup`）。
+
+**步 0–4 完成后伴生版的实际边界**（这是「已授权」的准确含义）：
+
+| 能力 | 鸿蒙状态 | 依据 |
+|---|---|---|
+| `.apkg` 导入 | 可用 | `productModeFor('ohos')` → 官方档 |
+| 课程树投影 / SRS 调度 | 可用 | `runtimeOk=true reason=ready`，`officialCore=true` |
+| 共享 catalog | 可用 | `catalog=ok sqlite=3.49.2` |
+| **保真复习器（原卡渲染）** | **不可用，响亮失败** | 步 5b 未做；见下 |
+
+**保真复习器在鸿蒙上会渲染不出来**（ArkTS PlatformView 是步 5b）。该失败**故意
+不通过禁用入口来掩盖**：入口开着，卡片渲染时给出明确文案
+（`official_anki.renderer_ohos_pending`，说明「组件尚未提供、导入与调度不受影响」）。
+**理由**：一个「点了没反应」的入口比一个不存在的入口更难归因——用户无法判断坏的是
+哪一半。文案里**刻意不用「未启用」**，因为鸿蒙上没有任何东西被关闭，说「未启用」
+会把用户引去找一个不存在的开关，并把「缺一个平台组件」这件事藏起来。
+
+这条失败路径**只经代码验证，未在真机上触发过**（需用户导入 `.apkg` 并进入卡片，
+本批未走 UI）。
 
 ### 4.1 catalog 存储：需要一份独立的 `libsqlite3.so`，且分派方式要重写 —— **已结**
 
@@ -360,7 +378,7 @@ ADR 0046 §副作用写明：「若将来真的推进鸿蒙产品线，必须先
 | 1 | `.so` 装进 `ohos/entry/libs/arm64-v8a/` + 构建接线；`resolveOfficialAnkiLibraryPath` 加 ohos 分支；真机确认 §4.2 的 API 落差 —— **已完成（2026-10-08，`dlopen=ok abi=1`）** | 步 0 |
 | 2 | 重写 `ensureOfficialAnkiSqlite` 分派为 `overrideForAll`（§4.1）+ 独立 `libsqlite3.so` 随 hap 分发 —— **已完成（2026-10-08，`catalog=ok sqlite=3.49.2`）** | 步 1 |
 | 3 | 平台路由：`OfficialAnkiCapabilityMatrix._hostPlatform` / `forPlatform`、`AnkiImportExecutionPlanner.productModeFor`、`OfficialAnkiCompositionRoot.probe` —— **已完成（2026-10-08，`runtimeOk=true reason=ready abi=1`）** | 步 1–2 |
-| 4 | 撤 `OhosDegradation.officialAnki` + `OfficialAnkiNativeAvailability` 的 ohos 分支 | 步 3 |
+| 4 | 撤 `OhosDegradation.officialAnki` + `OfficialAnkiNativeAvailability` 的 ohos 分支 —— **已完成（2026-10-08，`degradations=remoteBackup`）** | 步 3 |
 | 5a | **先定 §3.1 的 Dart 接线路线**（拆分条件导出 / vendored 移植），否则 5b 无法开工 | 步 4 |
 | 5b | ArkTS reviewer 插件（PlatformView 工厂 + `Web` 组件 + 媒体 Range/206），登记进 `EntryAbility`，并入 `_requiredOhosFiles` | 步 5a |
 | 6 | 独立 CI workflow（ADR 0047 承诺但尚未存在） | 步 1–5b |

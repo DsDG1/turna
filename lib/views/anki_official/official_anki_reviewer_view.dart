@@ -10,6 +10,7 @@ import 'package:turna/application/anki_official/contract/official_anki_dto.dart'
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/render/official_anki_present_ack.dart';
 import 'package:turna/core/logger.dart';
+import 'package:turna/core/ohos_target.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_error_view.dart';
 
 const officialAnkiReviewerViewType = 'official_anki_reviewer';
@@ -204,8 +205,15 @@ class OfficialAnkiReviewerViewState extends State<OfficialAnkiReviewerView> {
   @override
   Widget build(BuildContext context) {
     if (!Platform.isAndroid && !Platform.isIOS) {
-      return const OfficialAnkiReviewerErrorView(
-        messageKey: 'official_anki.renderer_flag_fail_closed',
+      // HarmonyOS reaches here too, and the reason is NOT a disabled feature
+      // flag: the ArkTS PlatformView for this view type is ADR 0050 §6 step
+      // 5b and does not exist yet. `isHarmonyOsTarget` rather than a
+      // Platform.is* test, because every Platform.is* is false there and the
+      // two would otherwise be indistinguishable.
+      return OfficialAnkiReviewerErrorView(
+        messageKey: isHarmonyOsTarget
+            ? 'official_anki.renderer_ohos_pending'
+            : 'official_anki.renderer_flag_fail_closed',
       );
     }
     final params = <String, Object?>{

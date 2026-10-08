@@ -916,8 +916,6 @@ class AppStrings {
   static String courseManagementCardCount(int count) => '$count 张卡片';
   static String get courseManagementRemoveCourse => '移除课程';
   static String get courseManagementImportTitle => '从 Anki 导入课程';
-  static String get courseManagementImportAnkiUnavailable =>
-      '此构建未包含 Anki 引擎，不支持导入 .apkg';
   static String get courseManagementImportPackTitle => '导入课程包';
   static String get courseManagementImportPackSubtitle =>
       '从 .turnapack 文件添加独立课程';
@@ -2860,6 +2858,12 @@ class AppStrings {
         return '官方模板渲染失败。';
       case 'official_anki.renderer_flag_fail_closed':
         return '官方原卡渲染未启用。';
+      case 'official_anki.renderer_ohos_pending':
+        // Deliberately not "未启用": nothing is switched off on this platform.
+        // Saying so would send the user looking for a setting that does not
+        // exist, and would hide that this is a missing platform component.
+        return '鸿蒙版的官方原卡渲染组件尚未提供，卡片以文本方式不可预览；'
+            '导入与调度不受影响。';
       case 'official_anki.worker_required':
         return '官方渲染需要独立 worker，当前不可用。';
       case 'official_anki.worker_init_failed':

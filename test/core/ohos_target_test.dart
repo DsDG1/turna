@@ -29,12 +29,28 @@ void main() {
     // because `audioplayers` / `flutter_tts` have no OHOS plugin, and they are
     // now served by Turna's own ArkTS channels. Adding them back would grey out
     // working features; leaving a stale entry is the failure this list catches.
+    //
+    // `officialAnki` left on 2026-10-08 for the same reason, one step later:
+    // ADR 0050 §6 steps 1-3 measured the engine (`runtimeOk=true reason=ready`)
+    // and the shared catalog (`catalog=ok sqlite=3.49.2`) working on hardware,
+    // so the entry was greying out working functionality. The missing piece
+    // is the faithful renderer, which fails loudly inside the reviewer.
     expect(
       OhosDegradation.values.toSet(),
       {
-        OhosDegradation.officialAnki,
         OhosDegradation.remoteBackup,
       },
+    );
+  });
+
+  test('nothing greys out the Official Anki entry points any more', () {
+    // The specific regression ADR 0050 §6 step 4 removed: a degradation
+    // covering Official Anki would disable the import card on the companion
+    // build. Asserted by name rather than by set shape alone so that
+    // re-adding the entry fails here even if the list above is edited to match.
+    expect(
+      OhosDegradation.values.map((f) => f.name),
+      isNot(contains('officialAnki')),
     );
   });
 

@@ -45,11 +45,18 @@ bool get isHarmonyOsTarget => defaultTargetPlatform.name == 'ohos';
 /// a feature that works — and would hide a real regression behind a "known
 /// limitation" label.
 ///
+/// `officialAnki` was removed on the same grounds, one step later: ADR 0050
+/// §6 steps 1–3 made the engine and the shared catalog both work on hardware
+/// (`runtimeOk=true reason=ready`, `catalog=ok sqlite=3.49.2`), so a
+/// degradation that disables the import entry point now disables working
+/// functionality. What is still missing is the faithful renderer, and that
+/// fails loudly inside the reviewer rather than by hiding the entry point —
+/// see `OfficialAnkiReviewerView`.
+///
 /// Declared as one set rather than a boolean per feature so the UI has a single
 /// place to ask, and so adding a degradation is a one-line change here instead
 /// of a hunt through the views.
 enum OhosDegradation {
-  officialAnki,
   remoteBackup,
 }
 

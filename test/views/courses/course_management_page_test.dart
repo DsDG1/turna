@@ -107,17 +107,19 @@ void main() {
     );
   });
 
-  testWidgets('on a build with the Anki engine the import entry is live',
-      (tester) async {
-    // The entry is disabled where Official Anki is a degradation. On a build
-    // that has it, the card must stay tappable and must not carry the
-    // "unavailable" subtitle — an inverted flag here would quietly strand the
-    // feature on Android and iOS, where it works.
+  testWidgets('the Anki import entry is live on every build', (tester) async {
+    // ADR 0050 §6 step 4 removed the degradation that used to disable this
+    // card on the companion build, and with it the "unavailable" subtitle
+    // string, which is now deleted rather than left orphaned. The assertion
+    // that still matters is the inverse of the old one: there is no platform
+    // on which this card is blocked, so an implementation that reintroduced a
+    // guard would strand the feature everywhere rather than only on OHOS.
     await pumpPage(tester);
 
-    expect(find.text(AppStrings.courseManagementImportAnkiUnavailable),
-        findsNothing);
+    expect(find.text(AppStrings.courseManagementImportTitle), findsOneWidget);
     expect(find.byIcon(Icons.add_circle_outline_rounded), findsNWidgets(2));
+    // No block affordance anywhere on the page: the two import cards are both
+    // live, and a third disabled icon would mean a degradation crept back.
     expect(find.byIcon(Icons.block_outlined), findsNothing);
   });
 
