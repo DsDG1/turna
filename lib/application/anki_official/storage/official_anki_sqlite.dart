@@ -14,21 +14,22 @@ bool _opened = false;
 /// because `open.overrideFor` state is per-isolate — hence the idempotent
 /// flag, hence the cost of getting the short-circuit order wrong.
 void ensureOfficialAnkiSqlite() {
-  if (_opened) return;
   // ADR 0050 §4.1: the HarmonyOS short-circuit must precede the flag, or the
   // background isolate's first call would consume it and every later call
   // would return early without registering.
   if (isHarmonyOsTarget) {
+    if (_opened) return;
     _opened = true;
     // There is no `OperatingSystem.ohos` to register against: the enum in
     // sqlite3 2.9.4 has six members and `os` is a `Platform.is*` chain that
     // yields null when all six are false, which is exactly this platform.
     // `overrideForAll` is the only entry point that does not dispatch by
-    // platform — and it is process-global once set, which is exactly why the
+    // platform — and it covers every platform in this isolate, which is why the
     // branch is guarded above rather than merely checking the platform later.
     open.overrideForAll(_openHarmonyOsSqlite);
     return;
   }
+  if (_opened) return;
   _opened = true;
   if (Platform.isLinux) {
     open.overrideFor(OperatingSystem.linux, () {

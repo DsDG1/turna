@@ -146,6 +146,55 @@ class OhosAudioBackend implements AudioBackend {
             ));
   }
 
+  /// Plays a file that already lives in the app sandbox — not a bundle asset,
+  /// so no staging — and answers only when the clip completes, matching what
+  /// `audioplayers`' `onPlayerComplete` gives the other platforms.
+  ///
+  /// Used by the official reviewer's AV path for card audio, whose files are
+  /// collection media the resolver has already placed on disk. `awaitCompletion`
+  /// is a separate round trip because the plugin's `playFile` reply only means
+  /// the clip was accepted.
+  Future<void> playSandboxFile(String path) async {
+    await _channel.invokeMethod<void>('playFile', <String, dynamic>{
+      'player': slot.wireName,
+      'path': path,
+    }).timeout(_playTimeout,
+        onTimeout: () => throw TimeoutException(
+              'playFile did not answer within ${_playTimeout.inSeconds}s '
+              '(player=${slot.wireName}, path=$path)',
+            ));
+    await _channel
+        .invokeMethod<void>('awaitCompletion', <String, dynamic>{
+      'player': slot.wireName,
+    }).timeout(const Duration(seconds: 10),
+            onTimeout: () => throw TimeoutException(
+                  'awaitCompletion did not answer within 10s '
+                  '(player=${slot.wireName}, path=$path)',
+                ));
+  }
+
+  /// Stops whatever this slot is playing, if anything.
+  Future<void> stopPlayback() async {
+    await _channel.invokeMethod<void>('stop', <String, dynamic>{
+      'player': slot.wireName,
+    }).timeout(_playTimeout,
+        onTimeout: () => throw TimeoutException(
+              'stop did not answer within ${_playTimeout.inSeconds}s '
+              '(player=${slot.wireName})',
+            ));
+  }
+
+  /// Releases the native player behind this slot; the next play recreates it.
+  Future<void> releasePlayer() async {
+    await _channel.invokeMethod<void>('release', <String, dynamic>{
+      'player': slot.wireName,
+    }).timeout(_playTimeout,
+        onTimeout: () => throw TimeoutException(
+              'release did not answer within ${_playTimeout.inSeconds}s '
+              '(player=${slot.wireName})',
+            ));
+  }
+
   /// Absolute cache path for [assetPath], staging it on first use.
   Future<String> _stagedPath(String assetPath) async {
     final known = _staged[assetPath];

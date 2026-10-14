@@ -10,11 +10,17 @@
 // Each case below pins a defect that shipped in the first version of this
 // bridge, so a regression names the behaviour it broke.
 
+import 'dart:async';
+
 import 'package:drift/drift.dart'
     show OpeningDetails, QueryExecutor, QueryExecutorUser;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/data/rdb_query_executor.dart';
+import 'package:turna/data/course_database.dart';
+import 'package:sqlite3/sqlite3.dart' as sqlite;
+
+import '../helpers/in_memory_course_db.dart';
 
 /// Reads one key out of a method call's argument map. The Dart `MethodCall`
 /// carries a plain map; the `argument<T>` helper only exists on the ArkTS side.
@@ -43,7 +49,10 @@ class FakeRdbEngine {
   final Map<String, String> unsupported = {};
 
   /// Rows returned by the next `SELECT`, as the `{types, rows}` envelope.
-  Map<String, Object?> nextResult = {'types': <String, Object?>{}, 'rows': <Object?>[]};
+  Map<String, Object?> nextResult = {
+    'types': <String, Object?>{},
+    'rows': <Object?>[]
+  };
 
   /// Value returned by `SELECT last_insert_rowid()` / `SELECT changes()`.
   int scalarProbe = 0;
@@ -52,6 +61,11 @@ class FakeRdbEngine {
 
   /// When false, the `openDb` call reports failure.
   bool openSucceeds = true;
+  List<String> viewRows = ['old-view'];
+  List<String>? transactionRows;
+  bool failCommit = false;
+  bool failRollback = false;
+  Zone? lastExecuteZone;
 
   void reset() {
     executed.clear();
@@ -76,15 +90,31 @@ void _install(FakeRdbEngine engine) {
       case 'close':
         return true;
       case 'beginTransaction':
+        e.transactionRows = List.of(e.viewRows);
+        return true;
       case 'commit':
+        if (e.failCommit) {
+          throw PlatformException(code: 'TX_COMMIT_ERROR');
+        }
+        e.transactionRows = null;
+        return true;
       case 'rollback':
+        if (e.failRollback) throw PlatformException(code: 'TX_ROLLBACK_ERROR');
+        if (e.transactionRows != null) {
+          e.viewRows = List.of(e.transactionRows!);
+          e.transactionRows = null;
+        }
         return true;
       case 'executeSql':
+        e.lastExecuteZone = Zone.current;
         final sql = _arg(call, 'sql')! as String;
         e.executed.add(sql);
         final failure = e.unsupported[sql];
         if (failure != null) {
           throw PlatformException(code: 'EXECUTE_ERROR', message: failure);
+        }
+        if (sql == 'DELETE FROM anki_course_tree_view') {
+          e.viewRows.clear();
         }
         if (sql.contains('CREATE TABLE') && sql.contains('turna_schema_meta')) {
           e.metaTableExists = true;
@@ -101,9 +131,12 @@ void _install(FakeRdbEngine engine) {
           // A missing meta table is what a never-migrated database looks like.
           if (!e.metaTableExists) {
             throw PlatformException(
-                code: 'QUERY_ERROR', message: 'no such table: turna_schema_meta');
+                code: 'QUERY_ERROR',
+                message: 'no such table: turna_schema_meta');
           }
-          if (!e.userVersionKnown) return {'types': <String, Object?>{}, 'rows': <Object?>[]};
+          if (!e.userVersionKnown) {
+            return {'types': <String, Object?>{}, 'rows': <Object?>[]};
+          }
           return {
             'types': {'value': 'integer'},
             'rows': [
@@ -150,7 +183,8 @@ class _FakeUser implements QueryExecutorUser {
   int get schemaVersion => target;
 
   @override
-  Future<void> beforeOpen(QueryExecutor executor, OpeningDetails details) async {
+  Future<void> beforeOpen(
+      QueryExecutor executor, OpeningDetails details) async {
     beforeOpenCalls++;
     if (failOnBeforeOpen) {
       throw StateError('migration step failed');
@@ -173,7 +207,8 @@ class _ReentrantUser implements QueryExecutorUser {
   int get schemaVersion => target;
 
   @override
-  Future<void> beforeOpen(QueryExecutor executor, OpeningDetails details) async {
+  Future<void> beforeOpen(
+      QueryExecutor executor, OpeningDetails details) async {
     beforeOpenCalls++;
     if (beforeOpenCalls > 3) {
       throw StateError('ensureOpen is being re-entered without a guard');
@@ -317,7 +352,8 @@ void main() {
   });
 
   group('runSelect decoding', () {
-    test('converts a real column holding an integral value to double', () async {
+    test('converts a real column holding an integral value to double',
+        () async {
       // ArkData hands back a JS number, and an integral one crosses the channel
       // as an int. drift's REAL mapping rejects that.
       engine.nextResult = {
@@ -421,8 +457,8 @@ void main() {
 
       // review_events.id is the project's only autoincrement key, so a
       // hard-coded 0 here is a real id handed back to the caller.
-      final id = await executor.runInsert('INSERT INTO "t" ("a") VALUES (?)',
-          ['x']);
+      final id =
+          await executor.runInsert('INSERT INTO "t" ("a") VALUES (?)', ['x']);
 
       expect(id, 42);
       expect(engine.queries, contains('SELECT last_insert_rowid()'));
@@ -450,7 +486,8 @@ void main() {
 
       expect(await executor.runDelete('DELETE FROM "t"', []), 0);
       expect(await executor.runUpdate('UPDATE "t" SET a = 1', []), 0);
-      expect(await executor.runInsert('INSERT INTO "t" ("a") VALUES (1)', []), 0);
+      expect(
+          await executor.runInsert('INSERT INTO "t" ("a") VALUES (1)', []), 0);
     });
   });
 
@@ -489,6 +526,74 @@ void main() {
   });
 
   group('transactions', () {
+    test(
+        'a real drift transaction restores SQLite rows through the RDB channel',
+        () async {
+      ensureSqliteLibForTestHost();
+      final native = sqlite.sqlite3.openInMemory();
+      const channel = MethodChannel('me.dsdogs.turna/rdb');
+      final boundaries = <String>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+        switch (call.method) {
+          case 'openDb':
+            return true;
+          case 'close':
+            return true;
+          case 'beginTransaction':
+            boundaries.add('begin');
+            native.execute('BEGIN');
+            return true;
+          case 'commit':
+            boundaries.add('commit');
+            native.execute('COMMIT');
+            return true;
+          case 'rollback':
+            boundaries.add('rollback');
+            native.execute('ROLLBACK');
+            return true;
+          case 'executeSql':
+            final sql = _arg(call, 'sql')! as String;
+            final args = (_arg(call, 'params') as List).cast<Object?>();
+            native.execute(sql, args);
+            return true;
+          case 'query':
+            final sql = _arg(call, 'sql')! as String;
+            final args = (_arg(call, 'params') as List).cast<Object?>();
+            final rows = native.select(sql, args);
+            return {
+              'types': <String, Object?>{},
+              'rows': rows.map((r) => Map<String, Object?>.from(r)).toList()
+            };
+        }
+        return null;
+      });
+      final course = CourseDatabase(HarmonyOsRdbExecutor(dbName: 'course.db'));
+      addTearDown(() async {
+        await course.close();
+        native.dispose();
+      });
+      await course.customStatement('CREATE TABLE audit_view (value TEXT)');
+      await course.customStatement("INSERT INTO audit_view VALUES ('old')");
+      boundaries.clear();
+      await expectLater(course.transaction(() async {
+        await course.customStatement('DELETE FROM audit_view');
+        throw StateError('replacement failed');
+      }), throwsStateError);
+      final rows =
+          await course.customSelect('SELECT value FROM audit_view').get();
+      expect(rows.single.read<String>('value'), 'old');
+      expect(boundaries, ['begin', 'rollback']);
+      await course.transaction(() async {
+        await course.customStatement("UPDATE audit_view SET value = 'new'");
+      });
+      expect(
+          (await course.customSelect('SELECT value FROM audit_view').get())
+              .single
+              .read<String>('value'),
+          'new');
+      expect(boundaries, ['begin', 'rollback', 'begin', 'commit']);
+    });
     test('beginTransaction keeps statements on the real store', () async {
       final executor = HarmonyOsRdbExecutor(dbName: 'course.db');
       await executor.ensureOpen(_FakeUser(29));
@@ -498,6 +603,8 @@ void main() {
       await tx.runCustom('UPDATE "t" SET a = ?', ['x']);
 
       expect(engine.executed, contains('UPDATE "t" SET a = ?'));
+      expect(engine.calls, contains('beginTransaction'));
+      await tx.rollback();
     });
 
     test('send commits and rollback undoes', () async {
@@ -517,9 +624,100 @@ void main() {
       await executor.ensureOpen(_FakeUser(29));
 
       final tx = executor.beginTransaction();
+      await tx.ensureOpen(_FakeUser(29));
       await tx.rollback();
 
       expect(engine.calls, contains('rollback'));
+    });
+
+    test('failed view replacement restores the previous rows', () async {
+      final executor = HarmonyOsRdbExecutor(dbName: 'course.db');
+      await executor.ensureOpen(_FakeUser(29));
+      engine.reset();
+      engine.unsupported['INSERT INTO anki_course_tree_view'] = 'write failed';
+      final tx = executor.beginTransaction();
+      await tx.ensureOpen(_FakeUser(29));
+      await tx.runCustom('DELETE FROM anki_course_tree_view');
+      await expectLater(tx.runCustom('INSERT INTO anki_course_tree_view'),
+          throwsA(isA<PlatformException>()));
+      await tx.rollback();
+      expect(engine.viewRows, ['old-view']);
+      expect(engine.calls,
+          ['beginTransaction', 'executeSql', 'executeSql', 'rollback']);
+    });
+
+    test('outside queries wait until the transaction releases the connection',
+        () async {
+      final executor = HarmonyOsRdbExecutor(dbName: 'course.db');
+      await executor.ensureOpen(_FakeUser(29));
+      engine.reset();
+      final tx = executor.beginTransaction();
+      await tx.ensureOpen(_FakeUser(29));
+      final outside = executor.runCustom('OUTSIDE');
+      await Future<void>.delayed(Duration.zero);
+      expect(engine.executed, isNot(contains('OUTSIDE')));
+      await tx.runCustom('INSIDE');
+      await tx.send();
+      await outside;
+      expect(engine.executed, ['INSIDE', 'OUTSIDE']);
+      expect(engine.calls,
+          ['beginTransaction', 'executeSql', 'commit', 'executeSql']);
+    });
+
+    test('commit failure is propagated and remains rollbackable', () async {
+      final executor = HarmonyOsRdbExecutor(dbName: 'course.db');
+      await executor.ensureOpen(_FakeUser(29));
+      engine.reset();
+      final tx = executor.beginTransaction();
+      await tx.ensureOpen(_FakeUser(29));
+      await tx.runCustom('DELETE FROM anki_course_tree_view');
+      engine.failCommit = true;
+      await expectLater(tx.send(), throwsA(isA<PlatformException>()));
+      await tx.rollback();
+      expect(engine.viewRows, ['old-view']);
+      expect(engine.calls,
+          containsAllInOrder(['beginTransaction', 'commit', 'rollback']));
+    });
+
+    test('an unused transaction commits and rolls back without a native begin',
+        () async {
+      final executor = HarmonyOsRdbExecutor(dbName: 'course.db');
+      await executor.ensureOpen(_FakeUser(29));
+      engine.reset();
+      await executor.beginTransaction().send();
+      await executor.beginTransaction().rollback();
+      expect(engine.calls, isEmpty);
+    });
+
+    test(
+        'a failed rollback prevents later queries from joining the uncertain transaction',
+        () async {
+      final executor = HarmonyOsRdbExecutor(dbName: 'course.db');
+      await executor.ensureOpen(_FakeUser(29));
+      final tx = executor.beginTransaction();
+      await tx.ensureOpen(_FakeUser(29));
+      engine.failRollback = true;
+      await expectLater(tx.rollback(), throwsA(isA<PlatformException>()));
+      await expectLater(executor.runCustom('OUTSIDE'), throwsStateError);
+      expect(engine.executed, isNot(contains('OUTSIDE')));
+      await executor.close();
+    });
+
+    test(
+        'callbacks from a released connection context cannot enter a later transaction',
+        () async {
+      final executor = HarmonyOsRdbExecutor(dbName: 'course.db');
+      await executor.ensureOpen(_FakeUser(29));
+      await executor.runCustom('CAPTURE');
+      final oldZone = engine.lastExecuteZone!;
+      final tx = executor.beginTransaction();
+      await tx.ensureOpen(_FakeUser(29));
+      final outside = oldZone.run(() => executor.runCustom('LATE_OUTSIDE'));
+      await Future<void>.delayed(Duration.zero);
+      expect(engine.executed, isNot(contains('LATE_OUTSIDE')));
+      await tx.send();
+      await outside;
+      expect(engine.executed, contains('LATE_OUTSIDE'));
     });
 
     test('does not claim nested transaction support', () {
@@ -559,7 +757,8 @@ void main() {
       }
 
       final probes = engine.executed
-          .where((s) => s.contains('_turna_upsert_probe') && s.contains('INSERT'))
+          .where(
+              (s) => s.contains('_turna_upsert_probe') && s.contains('INSERT'))
           .length;
       expect(probes, 1);
     });
@@ -613,14 +812,16 @@ void main() {
         throwsA(isA<RdbUnsupportedSqlError>()),
       );
       final probesAfterFirst = engine.executed
-          .where((s) => s.contains('_turna_upsert_probe') && s.contains('INSERT'))
+          .where(
+              (s) => s.contains('_turna_upsert_probe') && s.contains('INSERT'))
           .length;
       await expectLater(
         executor.runCustom(stmt, ['a', 'a']),
         throwsA(isA<RdbUnsupportedSqlError>()),
       );
       final probesAfterSecond = engine.executed
-          .where((s) => s.contains('_turna_upsert_probe') && s.contains('INSERT'))
+          .where(
+              (s) => s.contains('_turna_upsert_probe') && s.contains('INSERT'))
           .length;
 
       expect(probesAfterSecond, probesAfterFirst);
@@ -714,8 +915,10 @@ void main() {
           'VALUES (?, ?) ON CONFLICT ("k") DO UPDATE SET "v" = ?'] = 'syntax';
 
       final settled = await Future.wait(<Future<void>>[
-        executor.runCustom(stmt, ['a', 'a']).then<void>((_) {}, onError: (Object _) {}),
-        executor.runCustom(stmt, ['b', 'b']).then<void>((_) {}, onError: (Object _) {}),
+        executor.runCustom(stmt, ['a', 'a']).then<void>((_) {},
+            onError: (Object _) {}),
+        executor.runCustom(stmt, ['b', 'b']).then<void>((_) {},
+            onError: (Object _) {}),
       ]);
 
       expect(settled, hasLength(2));
@@ -727,8 +930,17 @@ void main() {
     });
   });
 
-
   group('close', () {
+    test('closes the native store even when migration failed before isOpen',
+        () async {
+      final executor = HarmonyOsRdbExecutor(dbName: 'course.db');
+      await expectLater(
+          executor.ensureOpen(_FakeUser(29, failOnBeforeOpen: true)),
+          throwsStateError);
+      engine.reset();
+      await executor.close();
+      expect(engine.calls, ['close']);
+    });
     test('is idempotent and only closes an open handle', () async {
       final executor = HarmonyOsRdbExecutor(dbName: 'course.db');
       await executor.ensureOpen(_FakeUser(29));

@@ -1,0 +1,10 @@
+[mcp_servers.deveco-mcp]
+command = "E:/New Folder/node.exe"
+args = [ "C:/Users/DsDogs/AppData/Roaming/npm/node_modules/@deveco/deveco-cli/dist/cli.js", "serve", "mcp" ]
+cwd = "D:/program/Turna/Turna/ohos"
+startup_timeout_sec = 60
+enabled = true
+
+[mcp_servers.deveco-mcp.env]
+PROJECT_PATH = "D:/program/Turna/Turna/ohos"
+DEVECO_CLI_STUDIO_PATH = "D:/DevEco Studio"

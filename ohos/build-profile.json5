@@ -1,39 +1,52 @@
-
 {
-  "app": {
-    "signingConfigs": [],
-    "products": [
+  app: {
+    signingConfigs: [
       {
-        "name": "default",
-        "signingConfig": "default",
-        "compatibleSdkVersion": "5.1.0(18)",
-        "runtimeOS": "HarmonyOS",
-      }
+        name: 'default',
+        type: 'HarmonyOS',
+        material: {
+          certpath: 'C:\\Users\\DsDogs\\.ohos\\config\\default_ohos_NGNReT2ELmUAps8Q017ALXX0C3TLDbGL6ZGjjKjuI0=.cer',
+          keyAlias: 'debugKey',
+          keyPassword: '0000001b24a5c326bdb9e1ac65617c599d49bbb98f04c9c928cdcca9e22dbb122a11d92e1cbb11503e684d',
+          profile: 'C:\\Users\\DsDogs\\.ohos\\config\\default_ohos_NGNReT2ELmUAps8Q017ALXX0C3TLDbGL6ZGjjKjuI0=.p7b',
+          signAlg: 'SHA256withECDSA',
+          storeFile: 'C:\\Users\\DsDogs\\.ohos\\config\\default_ohos_NGNReT2ELmUAps8Q017ALXX0C3TLDbGL6ZGjjKjuI0=.p12',
+          storePassword: '0000001b24a5c326bdb9e1ac65617c599d49bbb98f04c9c928cdcca9e22dbb122a11d92e1cbb11503e684d',
+        },
+      },
     ],
-    "buildModeSet": [
+    products: [
       {
-        "name": "debug"
+        name: 'default',
+        signingConfig: 'default',
+        compatibleSdkVersion: '5.1.0(18)',
+        runtimeOS: 'HarmonyOS',
+      },
+    ],
+    buildModeSet: [
+      {
+        name: 'debug',
       },
       {
-        "name": "profile"
+        name: 'profile',
       },
       {
-        "name": "release"
-      }
-    ]
+        name: 'release',
+      },
+    ],
   },
-  "modules": [
+  modules: [
     {
-      "name": "entry",
-      "srcPath": "./entry",
-      "targets": [
+      name: 'entry',
+      srcPath: './entry',
+      targets: [
         {
-          "name": "default",
-          "applyToProducts": [
-            "default"
-          ]
-        }
-      ]
-    }
-  ]
+          name: 'default',
+          applyToProducts: [
+            'default',
+          ],
+        },
+      ],
+    },
+  ],
 }

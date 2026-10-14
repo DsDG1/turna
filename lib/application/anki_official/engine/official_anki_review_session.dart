@@ -273,6 +273,7 @@ class OfficialReviewSession {
   Future<OfficialAnswerResult> answerAndConfirm(
     String rating, {
     required int expectedCardId,
+    int? millisecondsTaken,
   }) async {
     if (disposed) {
       throw const OfficialAnkiException(
@@ -329,7 +330,8 @@ class OfficialReviewSession {
     lastClientMutationId =
         'mut-${q.queueEpoch}-${card.cardId}-${DateTime.now().microsecondsSinceEpoch}';
     try {
-      final elapsed = answerVisibleElapsed.elapsedMilliseconds;
+      final elapsed =
+          millisecondsTaken ?? answerVisibleElapsed.elapsedMilliseconds;
       final result = await engine.answerCard(
         sessionId: q.sessionId,
         queueEpoch: q.queueEpoch,

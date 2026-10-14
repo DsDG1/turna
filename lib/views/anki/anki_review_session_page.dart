@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:turna/application/anki_official/engine/official_anki_course_grades_bridge.dart';
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
 import 'package:turna/application/anki_official/engine/official_formal_due_repository.dart';
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
@@ -32,7 +33,9 @@ import 'package:turna/views/review/components/binary_recall_bar.dart';
 import 'package:turna/views/review/components/review_progress_header.dart';
 import 'package:turna/views/review/components/study_card_surface.dart';
 import 'package:turna/views/review/components/unified_review_completion.dart';
+import 'package:turna/core/ohos_target.dart';
 import 'package:turna/core/theme.dart';
+import 'package:turna/domain/review/recall_outcome.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
 import 'package:turna/views/widgets/study_activity_scope.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
@@ -753,6 +756,42 @@ class _PreparingPanel extends StatelessWidget {
   }
 }
 
+OfficialAnkiCourseGradesBridge? _ohosGrades(OfficialReviewSession? session) {
+  if (!isHarmonyOsTarget || session == null) return null;
+  return OfficialAnkiCourseGradesBridgeImpl(
+    flags: OfficialAnkiFeatureFlags.current.copyWith(
+      courseGradesScheduler: true,
+    ),
+    onAnswer: (cardId, rating, millisecondsTaken) async {
+      await session.answerAndConfirm(
+        rating,
+        expectedCardId: cardId,
+        millisecondsTaken: millisecondsTaken,
+      );
+      return true;
+    },
+  );
+}
+
+Future<void> _advanceNativeRating({
+  required StudySessionController controller,
+  required OfficialReviewSession officialSession,
+  required OfficialFormalReviewLiveQueue? liveQueue,
+  required String rating,
+}) async {
+  final eventId = officialSession.lastClientMutationId;
+  if (eventId == null || eventId.isEmpty) return;
+  final outcome = rating == 'again' || rating == 'hard'
+      ? RecallOutcome.forgotten
+      : RecallOutcome.remembered;
+  controller.acceptExternalOfficialCommit(outcome: outcome, eventId: eventId);
+  await advanceFromScheduler(
+    controller: controller,
+    officialSession: officialSession,
+    liveQueue: liveQueue,
+  );
+}
+
 class _AnkiStudySessionView extends StatelessWidget {
   const _AnkiStudySessionView({
     required this.controller,
@@ -816,6 +855,7 @@ class _AnkiStudySessionView extends StatelessWidget {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     final revealed = controller.answerReceipt != null ||
+        controller.phase == StudyCardPhase.revealingAnswer ||
         controller.phase == StudyCardPhase.showingAnswer ||
         controller.phase == StudyCardPhase.showingFeedback ||
         controller.phase == StudyCardPhase.readyForNext;
@@ -910,28 +950,53 @@ class _AnkiStudySessionView extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   Expanded(
-                    child: StudyCardSurface(
-                      presentation: item.presentation,
-                      content: _contentFor(item),
-                      isRevealed: revealed,
-                      generation: controller.generation,
-                      onReveal: () {
-                        unawaited(
-                          AnkiStudySessionHost.revealAndPresentAnswer(
-                            controller,
-                            onOfficialShowAnswer: officialSession?.showAnswer,
-                          ),
+                    child: Builder(
+                      builder: (context) {
+                        final session = officialSession;
+                        return StudyCardSurface(
+                          presentation: item.presentation,
+                          content: _contentFor(item),
+                          isRevealed: revealed,
+                          generation: controller.generation,
+                          grades: _ohosGrades(session),
+                          onNativeReveal: session == null
+                              ? null
+                              : () {
+                                  session.showAnswer();
+                                  unawaited(
+                                    AnkiStudySessionHost.revealAndPresentAnswer(
+                                      controller,
+                                    ),
+                                  );
+                                },
+                          onNativeRated: session == null
+                              ? null
+                              : (rating) => _advanceNativeRating(
+                                    controller: controller,
+                                    officialSession: session,
+                                    liveQueue: liveQueue,
+                                    rating: rating,
+                                  ),
+                          onReveal: () {
+                            unawaited(
+                              AnkiStudySessionHost.revealAndPresentAnswer(
+                                controller,
+                                onOfficialShowAnswer:
+                                    officialSession?.showAnswer,
+                              ),
+                            );
+                          },
+                          onPresented: controller.acceptPresentation,
+                          onObjectiveResult: structured
+                              ? (correct) {
+                                  unawaited(
+                                    controller.submitObjectiveAnswer(
+                                        correct: correct),
+                                  );
+                                }
+                              : null,
                         );
                       },
-                      onPresented: controller.acceptPresentation,
-                      onObjectiveResult: structured
-                          ? (correct) {
-                              unawaited(
-                                controller.submitObjectiveAnswer(
-                                    correct: correct),
-                              );
-                            }
-                          : null,
                     ),
                   ),
                   SizedBox(height: sizing.bottomGap),
@@ -982,6 +1047,8 @@ class _AnkiStudySessionView extends StatelessWidget {
                       label: Text(AppStrings.ankiReviewRetry),
                     ),
                   ] else if (structured)
+                    const SizedBox.shrink()
+                  else if (isHarmonyOsTarget)
                     const SizedBox.shrink()
                   else if (!revealed)
                     _ShowAnswerButton(

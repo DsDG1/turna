@@ -52,15 +52,19 @@ class OfficialAnkiPresentResult {
     if (code != null && code.isEmpty) {
       code = null;
     }
-    final ok = map['ok'] == true;
+    final generation = (map['generation'] as num?)?.toInt();
+    final side = map['side'] as String?;
+    final ok = map['ok'] == true &&
+        generation != null &&
+        (side == 'question' || side == 'answer');
     if (!ok && (code == null || code == 'renderError')) {
       code = code == 'renderError' ? 'UNRENDERABLE_CARD' : 'RENDER_TIMEOUT';
     }
     return OfficialAnkiPresentResult(
       ok: ok,
       code: code,
-      generation: (map['generation'] as num?)?.toInt(),
-      side: map['side'] as String?,
+      generation: generation,
+      side: side,
       height: (map['height'] as num?)?.toDouble(),
       recoverable:
           map['recoverable'] == true || _recoverableCodes.contains(code),

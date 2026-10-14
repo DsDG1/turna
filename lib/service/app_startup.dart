@@ -11,6 +11,7 @@ import 'package:turna/application/ai/engine/ai_engine_config_holder.dart';
 import 'package:turna/application/anki_official/engine/official_anki_native_transport.dart';
 import 'package:turna/application/anki_official/lifecycle/official_anki_startup_recovery.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
+import 'package:turna/application/anki_official/render/official_anki_reviewer_probe.dart';
 import 'package:turna/application/anki_official/storage/official_anki_sqlite.dart';
 import 'package:turna/application/course_provider.dart';
 import 'package:turna/application/grammar_review_provider.dart';
@@ -134,12 +135,30 @@ Future<void> _hydrateAfterSeed() async {
         'runtimeOk=${probe.ok} reason=${probe.reason} '
         'abi=${probe.abiVersion} '
         'catalog=${probeOfficialAnkiSqlite()} '
+        'catalogLocatorReady=${OfficialAnkiCompositionRoot.readOnlyCatalog != null} '
         'dlopen=${OfficialAnkiNativeTransport.probeDlopen()}',
       );
     } catch (e) {
       // A probe that throws is itself the receipt. Swallowing it keeps a
       // diagnostic from taking down the cold start it was measuring.
       logger.w('[OhosProbe] skipped: $e');
+    }
+    // ADR 0050 §6 step 5b, probe batch only — REMOVE when the native reviewer
+    // lands. The reviewer probe needs a native page on screen, which means it
+    // cannot ride the lines above: those are safe to keep permanently because
+    // they "open no handle", and this one puts a full-screen ArkUI page in
+    // front of the user. Debug-gated so a release build never sees it, and the
+    // permanent trigger stays where it belongs — on the card-open path in
+    // `OfficialAnkiReviewerView`, which is what exercises the real thing.
+    if (isHarmonyOsTarget && kDebugMode) {
+      // Same batch, different question: the capability probe opens a screen to
+      // test the `Web` component, this one only tests whether the asset bytes
+      // the card frame asks for can be read back. It needs no screen, so it runs
+      // alongside rather than after — queued behind the capability probe it
+      // waited out the whole 30 s no-gesture fallback, which is a long time to
+      // have already-known answer sitting in a coroutine.
+      unawaited(logOfficialAnkiReviewerAssetProbe());
+      await logOfficialAnkiReviewerProbe();
     }
   }());
   await getIt<CourseProvider>().load();

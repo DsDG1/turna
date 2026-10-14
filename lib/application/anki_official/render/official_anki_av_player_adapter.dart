@@ -3,26 +3,44 @@ import 'dart:async';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:turna/application/anki_official/render/official_anki_av_coordinator.dart';
 import 'package:turna/application/audio_controller.dart';
+import 'package:turna/core/ohos_target.dart';
+import 'package:turna/service/audio_backend.dart';
 
 /// Production AV/TTS adapter. Never used from tests as a recorder.
+///
+/// On HarmonyOS there is no `audioplayers` implementation and its constructor
+/// reaches for the platform channel immediately, so the file player is the
+/// hand-written audio channel (`OhosAudioBackend`) instead — constructing an
+/// `AudioPlayer` there fails the whole renderer boot with a
+/// `MissingPluginException` before the first card is ever presented.
 class OfficialAnkiAvPlayerAdapter implements OfficialAnkiAvPlayer {
   OfficialAnkiAvPlayerAdapter({
     required AudioController audio,
     AudioPlayer? filePlayer,
   })  : _audio = audio,
-        _filePlayer = filePlayer ?? AudioPlayer();
+        _filePlayer = isHarmonyOsTarget ? null : (filePlayer ?? AudioPlayer()),
+        _ohosFiles = isHarmonyOsTarget
+            ? OhosAudioBackend(slot: AudioSlot.speech)
+            : null;
 
   final AudioController _audio;
-  final AudioPlayer _filePlayer;
+  final AudioPlayer? _filePlayer;
+  final OhosAudioBackend? _ohosFiles;
   var voiceCapabilityLimited = false;
   var otherArgsCapabilityLimited = false;
   String? lastCapabilityNote;
 
   @override
   Future<void> playFile(String path) async {
-    await _filePlayer.stop();
-    await _filePlayer.play(DeviceFileSource(path));
-    await _filePlayer.onPlayerComplete.first;
+    final ohosFiles = _ohosFiles;
+    if (ohosFiles != null) {
+      await ohosFiles.playSandboxFile(path);
+      return;
+    }
+    final player = _filePlayer!;
+    await player.stop();
+    await player.play(DeviceFileSource(path));
+    await player.onPlayerComplete.first;
   }
 
   @override
@@ -52,13 +70,23 @@ class OfficialAnkiAvPlayerAdapter implements OfficialAnkiAvPlayer {
 
   @override
   Future<void> stop() async {
-    await _filePlayer.stop();
+    final ohosFiles = _ohosFiles;
+    if (ohosFiles != null) {
+      await ohosFiles.stopPlayback();
+    } else {
+      await _filePlayer!.stop();
+    }
     await _audio.stopSystemTts();
   }
 
   @override
   Future<void> dispose() async {
     await stop();
-    await _filePlayer.dispose();
+    final ohosFiles = _ohosFiles;
+    if (ohosFiles != null) {
+      await ohosFiles.releasePlayer();
+    } else {
+      await _filePlayer!.dispose();
+    }
   }
 }

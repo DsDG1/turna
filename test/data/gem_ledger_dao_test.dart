@@ -3,6 +3,7 @@
 // prefs→ledger migration, and the balance projection.
 
 import 'package:drift/native.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/data/course_database.dart';
 import 'package:turna/data/gem_ledger_dao.dart';
@@ -186,5 +187,60 @@ void main() {
     expect(await ledger.streakVoucherBalance(), 1);
     expect(await ledger.projectedBalance(), 80,
         reason: 'voucher inventory facts never alter gem projection');
+  });
+
+  group('constraint-violation classification', () {
+    // Every other case in this file runs the DAO against `NativeDatabase
+    // .memory()`, which can only raise `SqliteException`. The OpenHarmony build
+    // raises a `PlatformException` for the identical condition, and the DAO used
+    // to test `e is SqliteException` — so on that build the idempotency guard
+    // was always false, a repeated event was reported to its caller as a
+    // storage failure, and every repeat wrote a warning. The device run that
+    // found it logged 78 of them.
+    //
+    // So these cases do not drive the DAO: they hold the classifier directly,
+    // because that is the only way to exercise the shape this host cannot
+    // produce.
+    test('recognises the NativeDatabase shape', () {
+      expect(
+        isLedgerConstraintViolation(
+          // SQLITE_CONSTRAINT_UNIQUE is 2067; the code comes first in this
+          // constructor and the message second.
+          SqliteException(2067, 'UNIQUE constraint failed: gem_ledger.event_id'),
+        ),
+        isTrue,
+      );
+    });
+
+    test('recognises the OpenHarmony bridge shape', () {
+      expect(
+        isLedgerConstraintViolation(
+          PlatformException(
+            code: 'EXECUTE_ERROR',
+            message: 'SQLite: Abort due to constraint violation. | sql: '
+                'INSERT INTO gem_ledger (transaction_id, event_id, kind, '
+                'amount, reason, item_id, created_at, status) VALUES '
+                '(?, ?, ?, ?, ?, ?, ?, \'committed\')',
+          ),
+        ),
+        isTrue,
+        reason: 'the exact message the device produced; a type-based test is '
+            'false here, which is the bug',
+      );
+    });
+
+    test('does not mistake an unrelated storage failure for the guard', () {
+      expect(
+        isLedgerConstraintViolation(
+          PlatformException(
+            code: 'EXECUTE_ERROR',
+            message: 'SQLite: Abort due to disk I/O error',
+          ),
+        ),
+        isFalse,
+        reason: 'a real storage failure must still be reported and logged',
+      );
+      expect(isLedgerConstraintViolation(StateError('boom')), isFalse);
+    });
   });
 }

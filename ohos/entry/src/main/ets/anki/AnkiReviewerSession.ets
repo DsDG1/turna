@@ -1,0 +1,292 @@
+// Copyright (c) 2024 Turna. All rights reserved.
+//
+// The HarmonyOS reviewer page: route E's delivery of ADR 0050 §6 step 5b.
+//
+// Dart does not create a PlatformView on this platform (§3.1 rejected A/B/D on
+// device receipts), so this page owns everything a reviewer needs on screen: the
+// `Web` that renders the card, the typed-answer field, the flip control and the
+// four rating buttons. What it deliberately does *not* own is the review logic —
+// every state transition goes back to Dart and comes back as a new `present`
+// payload, so the scheduling, the comparison and the ledger stay in one place.
+//
+// The typed answer is native here, and that is not a HarmonyOS workaround: on
+// every platform the Web only ever receives `comparisonHtml` (the official
+// engine's diff) and renders `[[type:…]]` as an empty placeholder span, so the
+// input has never lived inside the frame. See `card-frame.js`'s `applyTyped`.
+
+import { webview } from '@kit.ArkWeb';
+import { common } from '@kit.AbilityKit';
+import { BusinessError } from '@kit.BasicServicesKit';
+import { AnkiOriginServer, isShellUrl } from './AnkiOriginServer';
+import { AnkiReviewerBridge } from './AnkiReviewerBridge';
+
+const SHELL_URL: string = 'https://anki.local/assets/reviewer.html';
+const ORIGIN_PREFIX: string = 'https://anki.local/';
+
+/// How long a `present` may take before the page stops believing the frame will
+/// answer. Mirrors `ackTimeoutMs()` on the Web side; a page that waited forever
+/// would leave the flip button spinning with no way to tell a slow card from a
+/// dead frame.
+const PRESENT_TIMEOUT_MS: number = 12000;
+
+/// The frame's own ack, carried back verbatim.
+///
+/// Declared rather than passed as `Record<string, object>`: ArkTS rejects
+/// untyped object literals (`arkts-no-untyped-obj-literals`), and an ack with no
+/// declared shape is also an ack whose fields nothing checks. Every field the
+/// frame may send is listed, and every one is optional because the frame is
+/// card-authored script — an ack is whatever it chose to say, and the two fields
+/// actually branched on are `type` and `stableCode`.
+export interface RenderAck {
+  ok?: boolean;
+  type?: string;
+  stableCode?: string;
+  generation?: number;
+  cardId?: number;
+  height?: number;
+  nonce?: number;
+  seq?: number;
+  side?: string;
+}
+
+interface ReviewerPresentPayload {
+  typedVisible?: boolean;
+  cardId?: number;
+}
+
+type ChromeListener = (answerShown: boolean, typedVisible: boolean, cardId: number) => void;
+
+/// Poll cadence for reading `__turnaLastRender`, mirroring the Android
+/// client's `APPLY_DELAY_MS`.
+const POLL_DELAY_MS: number = 50;
+
+function failedAck(type: string, stableCode: string): RenderAck {
+  const ack: RenderAck = { ok: false, type: type, stableCode: stableCode };
+  return ack;
+}
+
+/// Polls `__turnaLastRender` as a `|`-joined scalar row rather than as JSON:
+/// `runJavaScript` resolves with the JSON encoding of the script's value, and
+/// a JSON string full of escaped quotes cannot be unescaped here — ArkTS
+/// `replace` substitutes only the first match, so the ported-from-Android
+/// unwrap left most escapes in place and every poll failed to parse what the
+/// frame had plainly published (12 s timeouts on faces that were on screen).
+/// None of the seven fields can contain `|`, quotes or backslashes, so the
+/// encoded result carries nothing but its outer quotes.
+const POLL_EXPRESSION: string =
+  '(function(){ var a = window.__turnaLastRender; if (!a) { return ""; } ' +
+  'return [a.type, a.generation, a.side, a.stableCode, a.height, a.cardId, a.ok].join("|"); })()';
+
+function unwrapEvalString(value: string): string {
+  const raw: string = value.trim();
+  if (raw.length >= 2 && raw.startsWith('"') && raw.endsWith('"')) {
+    return raw.substring(1, raw.length - 1);
+  }
+  if (raw === 'null') {
+    return '';
+  }
+  return raw;
+}
+
+function parseAck(raw: string): RenderAck {
+  if (raw.length === 0) {
+    return failedAck('renderError', 'FRAME_ACK_EMPTY');
+  }
+  const parts: Array<string> = raw.split('|');
+  const ack: RenderAck = {};
+  ack.type = parts[0] ?? '';
+  const generation = Number(parts[1] ?? '0');
+  if (!Number.isNaN(generation)) {
+    ack.generation = generation;
+  }
+  ack.side = parts[2] ?? '';
+  ack.stableCode = parts[3] ?? '';
+  const height = Number(parts[4] ?? '0');
+  if (!Number.isNaN(height)) {
+    ack.height = height;
+  }
+  const cardId = Number(parts[5] ?? '0');
+  if (!Number.isNaN(cardId)) {
+    ack.cardId = cardId;
+  }
+  ack.ok = parts[6] === 'true';
+  return ack;
+}
+
+export class AnkiReviewerSession {
+  private server: AnkiOriginServer;
+  private bridge: AnkiReviewerBridge;
+  private web: webview.WebviewController | undefined = undefined;
+  private lastAck: RenderAck | undefined = undefined;
+  private answerShown: boolean = false;
+  private shellReady: boolean = false;
+  private chrome: ChromeListener | undefined = undefined;
+
+  constructor(mediaRoot: string) {
+    this.server = new AnkiOriginServer(mediaRoot);
+    this.bridge = new AnkiReviewerBridge();
+  }
+
+  /// The bridge the ArkUI buttons call. It is its own type rather than a field
+  /// on this session so the page's ArkTS build cannot reach the fields ArkUI
+  /// hands to a component.
+  public channel(): AnkiReviewerBridge {
+    return this.bridge;
+  }
+
+  public origin(): AnkiOriginServer {
+    return this.server;
+  }
+
+  public isShellReady(): boolean {
+    return this.shellReady && this.web !== undefined;
+  }
+
+  public markShellReady(): void {
+    this.shellReady = true;
+  }
+
+  public setChromeListener(listener: ChromeListener | undefined): void {
+    this.chrome = listener;
+  }
+
+  /// Warms the assets. The shell is NOT loaded here: the Web's own initial
+  /// `src` is the shell URL, so the kernel drives that load. A `loadUrl` from
+  /// here has to be timed against the initial load and every timing tried on
+  /// device lost the race one way or another — issued during the initial
+  /// navigation it is silently swallowed; issued after `about:blank` settles it
+  /// depends on an end event that only fires when a navigation follows. The
+  /// contract is instead a head start: called from `aboutToAppear`, i.e. before
+  /// the Web builds and asks for the shell, the preload wins in practice (and
+  /// the startup probes have already warmed the rawfile pages for the process).
+  public start(
+    context: common.UIAbilityContext,
+    controller: webview.WebviewController,
+  ): Promise<string> {
+    this.web = controller;
+    this.server.preloadSync(context);
+    return this.server.preload(context);
+  }
+
+  /// One card, one side. Resolves with the frame's own ack so the caller can
+  /// distinguish "rendered" from "gave up", which is the difference between
+  /// showing the answer and silently advancing a card that never drew.
+  ///
+  /// The ack is POLLED, not pushed: `reviewer.js` publishes its latest outcome
+  /// to `window.__turnaLastRender` (its `publishDebug`), and the Android client
+  /// reads that field in a loop until it says `renderComplete` or
+  /// `renderError`. There is no bridge message for it — an earlier draft of
+  /// this file waited for one that nothing ever sends, and every present ended
+  /// in RENDER_TIMEOUT while the card sat happily drawn on screen.
+  public present(payloadJson: string, side: string): Promise<RenderAck> {
+    const controller: webview.WebviewController | undefined = this.web;
+    if (controller === undefined) {
+      return Promise.resolve(failedAck('renderError', 'REVIEWER_WEB_ABSENT'));
+    }
+    this.answerShown = side === 'answer';
+    let typedVisible: boolean = false;
+    let cardId: number = 0;
+    try {
+      const parsed: ReviewerPresentPayload = JSON.parse(payloadJson) as ReviewerPresentPayload;
+      typedVisible = parsed.typedVisible === true;
+      const parsedCard: number | undefined = parsed.cardId;
+      if (parsedCard !== undefined) {
+        cardId = parsedCard;
+      }
+    } catch (e) {
+      const error: Error = e as Error;
+      typedVisible = false;
+      cardId = error.message.length < 0 ? 1 : 0;
+    }
+    this.bridge.setTypedVisible(typedVisible);
+    const listener: ChromeListener | undefined = this.chrome;
+    if (listener !== undefined) {
+      listener(this.answerShown, typedVisible, cardId);
+    }
+    const expression: string =
+      'window.OfficialReviewer.present(' + payloadJson + ',' + JSON.stringify(side) + ')';
+    return new Promise<RenderAck>((resolve) => {
+      let settled: boolean = false;
+      const finish = (ack: RenderAck): void => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        this.lastAck = ack;
+        resolve(ack);
+      };
+      const deadline: number = Date.now() + PRESENT_TIMEOUT_MS;
+      const poll = (): void => {
+        controller
+          .runJavaScript(POLL_EXPRESSION)
+          .then((value: string): void => {
+            const raw: string = unwrapEvalString(value);
+            if (raw.length > 0) {
+              const type: string = raw.split('|')[0] ?? '';
+              if (type === 'renderComplete' || type === 'renderError') {
+                finish(parseAck(raw));
+                return;
+              }
+              // `cardAccepted` / `frameReady` are mid-present and must not
+              // settle anything, same as on Android; keep polling.
+            }
+            if (Date.now() >= deadline) {
+              finish(failedAck('renderError', 'RENDER_TIMEOUT'));
+              return;
+            }
+            setTimeout(poll, POLL_DELAY_MS);
+          })
+          .catch((e: BusinessError): void => {
+            finish(failedAck('renderError', 'POLL_FAILED_' + String(e.code)));
+          });
+      };
+      controller
+        .runJavaScript(expression)
+        .catch((e: BusinessError): void => {
+          finish(failedAck('renderError', 'RUN_JAVASCRIPT_FAILED_' + String(e.code)));
+        });
+      setTimeout(poll, POLL_DELAY_MS);
+    });
+  }
+
+  public lastRenderAck(): RenderAck | undefined {
+    return this.lastAck;
+  }
+
+  public showingAnswer(): boolean {
+    return this.answerShown;
+  }
+
+  /// The `[[type:…]]` placeholder is rendered by the frame, and whether this
+  /// card has one at all is a property of the card, not of the platform — so the
+  /// page asks Dart rather than guessing from the HTML.
+  public setTypedVisible(visible: boolean): void {
+    this.bridge.setTypedVisible(visible);
+  }
+}
+
+export function interceptFor(
+  session: AnkiReviewerSession,
+): (event: OnInterceptRequestEvent) => WebResourceResponse {
+  return (event: OnInterceptRequestEvent): WebResourceResponse => {
+    const url: string = event.request.getRequestUrl();
+    if (!url.startsWith(ORIGIN_PREFIX) && !isShellUrl(url)) {
+      // Never null: null means "let the kernel load it", and `anki.local` does
+      // not resolve, so that turns a policy decision into a DNS failure.
+      const refused: WebResourceResponse = new WebResourceResponse();
+      refused.setResponseMimeType('text/plain');
+      refused.setResponseEncoding('utf-8');
+      refused.setResponseData('');
+      refused.setResponseCode(403);
+      refused.setReasonMessage('foreign_origin');
+      return refused;
+    }
+    return session.origin().respond(
+      url,
+      event.request.getRequestMethod(),
+      event.request.getRequestHeader(),
+    );
+  };
+}
+
+export { SHELL_URL };

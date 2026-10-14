@@ -132,9 +132,9 @@ analyzer 已强制的部分（`analysis_options.yaml`：`strict-casts`、`avoid_
 |---|---|---|
 | **产品级** | 已 EOL。伴生版不进主交付、不进主 CI | [ADR 0041](./docs/decisions/0041-ohos-product-eol.md) |
 | **伴生版** | 存在但受限：课程 / SRS / 复习 / 词典 / 设置 / 备份 + 自维护 ArkTS 通道 | [ADR 0047](./docs/decisions/0047-ohos-companion-lite-build.md) |
-| **Official Anki** | **已授权、接线未施工**。引擎层真机可行已收据；打包 / sqlite 分派重写 / 平台路由 / reviewer 四项均未做 | [ADR 0050](./docs/decisions/0050-ohos-official-anki.md) |
+| **Official Anki** | **已授权；接线步 0–5b 已施工**。步 0–4（2026-10-08）：引擎 / 内存 SQLite / 平台路由 / 降级拆除真机探针收据，`degradations` 只剩 `remoteBackup`。2026-10-13 补修真实 catalog 冷启动、RDB 事务和正式复习回执。**2026-10-14 夜步 5b 完成并取得真机首卡收据**（Mate 90 Pro Max：渲染 / 翻卡 / 评分落库 / 队列前进 / 强杀恢复全链路走通；八处接线缺陷已修，见 ADR 0050 §3.7）。仍 Held：步 6 独立 CI；用户流余项（真机导入、课程学习解锁）；打磨项（ability 重开在后台、换卡评分门时序空窗、reveal 复位）。`productModeFor('ohos')` → 官方档 | [34 收据](./docs/official-anki-migration/34-cutover-receipt.md)「鸿蒙步 5b 真机首卡收据」；[ADR 0050](./docs/decisions/0050-ohos-official-anki.md) §3.6–§3.7 |
 
-**因此**：❌ 不得写「鸿蒙支持 Official Anki」；✅ 可写「已授权，接线未施工，当前为 `ankiUnavailable`」。
+**因此**：❌ 不得写「鸿蒙支持 Official Anki」（完整用户流中真机导入与课程学习解锁仍无收据、步 6 独立 CI 不存在、伴生版不进主交付——「支持」是产品级断言，余项未清前不成立）；❌ 也不得反向写「鸿蒙复习器做不出来」——2026-10-14 已用真机收据证明 ArkUI `Web` 满足 CSP / 自定义 scheme / Range/206，且当夜复习链路（渲染 / 翻卡 / 评分落库 / 队列前进）已在真机走通；✅ 可写「已授权，步 0–5b 已施工，复习链路有真机首卡收据（2026-10-14 夜），真机导入与课程学习解锁等用户流余项、遗留打磨项与步 6 CI 待做」——能力矩阵已把鸿蒙路由到官方档，**不再是 `ankiUnavailable`**。
 
 **三个已知的失真点**（本节之前它们还在文档里）：
 
@@ -143,8 +143,8 @@ analyzer 已强制的部分（`analysis_options.yaml`：`strict-casts`、`avoid_
    打不开的是 Turna 侧共享 catalog 那份独立 FFI 库。
 3. 「给 sqlite3 注册一个 `OperatingSystem.ohos` override 即可」——**该枚举值不存在**
    （`sqlite3-2.9.4` 只有 android/linux/iOS/macOS/windows/fuchsia）。可用入口只有
-   `overrideForAll()`，故 `ensureOfficialAnkiSqlite` 的分派方式要重写，不是加一行。
-   见 ADR 0050 §4.1。
+   `overrideForAll()`，故 `ensureOfficialAnkiSqlite` 的分派方式是**重写**而非加一行
+   （已于 2026-10-08 施工，收据见 ADR 0050 §4.1）。
 
 **平台判断一律走 `isHarmonyOsTarget`**（`lib/core/ohos_target.dart`），不得内联
 `Platform.is*` 比较：鸿蒙上 `Platform.is*` **全为 false**，写成 `Platform.isLinux` 之类

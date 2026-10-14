@@ -714,14 +714,12 @@ void main() {
       expect(find.byType(OfficialAnkiReviewerPage), findsNothing);
       expect(find.byKey(const Key('official-canonical-boot-failed')),
           findsOneWidget);
-      // Release hatch: a card whose boot failed must not stall the lesson.
+      // A failed card must not complete the lesson or introduce unseen cards.
       final button = tester.widget<FilledButton>(
         find.byKey(const Key('official-canonical-continue')),
       );
-      expect(button.onPressed, isNotNull);
-      await tester.tap(find.byKey(const Key('official-canonical-continue')));
-      await tester.pumpAndSettle();
-      expect(harness.submissions, [(true, null)]);
+      expect(button.onPressed, isNull);
+      expect(harness.submissions, isEmpty);
     });
   });
 }

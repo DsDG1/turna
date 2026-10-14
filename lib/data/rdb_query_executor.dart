@@ -70,7 +70,7 @@ class RdbCallTimeoutError implements Exception {
 ///   `runUpdate`/`runDelete` recover the affected count with `changes()`,
 ///   because `executeSql` resolves to `void`. If either probe fails the call
 ///   reports 0, matching what the engine can confirm on its own.
-class HarmonyOsRdbExecutor extends QueryExecutor implements TransactionExecutor {
+class HarmonyOsRdbExecutor extends QueryExecutor {
   HarmonyOsRdbExecutor({required this.dbName});
 
   /// The channel both halves of this bridge agree on. Also asserted by
@@ -99,6 +99,7 @@ class HarmonyOsRdbExecutor extends QueryExecutor implements TransactionExecutor 
   final String dbName;
 
   bool _isOpen = false;
+  bool _nativeOpen = false;
 
   /// True between entering [ensureOpen] and `beforeOpen` returning. Guards the
   /// re-entrant call that the migration strategy's transaction makes.
@@ -116,11 +117,53 @@ class HarmonyOsRdbExecutor extends QueryExecutor implements TransactionExecutor 
   /// the platform is compared by name.
   static bool get isSupportedPlatform => isHarmonyOsTarget;
 
-  @override
   bool get supportsNestedTransactions => false;
 
+  final Object _connectionZone = Object();
+  Future<void> _connectionTail = Future<void>.value();
+  Object? _activeLease;
+  QueryExecutorUser? _user;
+  bool _transactionUncertain = false;
+
+  (Future<void>, Completer<void>) _reserveConnection() {
+    final previous = _connectionTail;
+    final released = Completer<void>();
+    _connectionTail = released.future;
+    return (previous, released);
+  }
+
+  Future<T> _withConnection<T>(Future<T> Function() action,
+      {bool allowUncertain = false}) async {
+    if (_transactionUncertain && !allowUncertain) {
+      throw StateError(
+          'RDB transaction outcome is unknown; close the connection before reopening');
+    }
+    final inherited = Zone.current[_connectionZone];
+    if (inherited != null && identical(inherited, _activeLease)) {
+      return action();
+    }
+    final (previous, released) = _reserveConnection();
+    await previous;
+    try {
+      if (_transactionUncertain && !allowUncertain) {
+        throw StateError(
+            'RDB transaction outcome is unknown; close the connection before reopening');
+      }
+      final lease = Object();
+      _activeLease = lease;
+      return await runZoned(action, zoneValues: {_connectionZone: lease});
+    } finally {
+      _activeLease = null;
+      released.complete();
+    }
+  }
+
   @override
-  Future<bool> ensureOpen(QueryExecutorUser user) async {
+  Future<bool> ensureOpen(QueryExecutorUser user) =>
+      _withConnection(() => _ensureOpen(user));
+
+  Future<bool> _ensureOpen(QueryExecutorUser user) async {
+    _user = user;
     if (_isOpen) return true;
     // Re-entrant calls happen inside `beforeOpen` itself: the migration
     // strategy opens a drift transaction to run its DDL, and that transaction
@@ -145,6 +188,7 @@ class HarmonyOsRdbExecutor extends QueryExecutor implements TransactionExecutor 
     if (opened != true) {
       throw StateError('HarmonyOS RDB failed to open: $dbName');
     }
+    _nativeOpen = true;
 
     final oldVersion = await _readUserVersion();
     // A freshly created SQLite file reports `user_version` 0, but drift
@@ -174,25 +218,34 @@ class HarmonyOsRdbExecutor extends QueryExecutor implements TransactionExecutor 
   }
 
   @override
-  Future<int> runInsert(String sql, List<Object?> args) async {
-    await _execute(sql, args);
-    return await _probeInt('SELECT last_insert_rowid()') ?? 0;
-  }
+  Future<int> runInsert(String sql, List<Object?> args) =>
+      _withConnection(() async {
+        await _execute(sql, args);
+        return await _probeInt('SELECT last_insert_rowid()') ?? 0;
+      });
 
   @override
-  Future<int> runUpdate(String sql, List<Object?> args) async {
-    await _execute(sql, args);
-    return await _probeInt('SELECT changes()') ?? 0;
-  }
+  Future<int> runUpdate(String sql, List<Object?> args) =>
+      _withConnection(() async {
+        await _execute(sql, args);
+        return await _probeInt('SELECT changes()') ?? 0;
+      });
 
   @override
-  Future<int> runDelete(String sql, List<Object?> args) async {
-    await _execute(sql, args);
-    return await _probeInt('SELECT changes()') ?? 0;
-  }
+  Future<int> runDelete(String sql, List<Object?> args) =>
+      _withConnection(() async {
+        await _execute(sql, args);
+        return await _probeInt('SELECT changes()') ?? 0;
+      });
 
   @override
   Future<List<Map<String, Object?>>> runSelect(
+    String sql,
+    List<Object?> args,
+  ) =>
+      _withConnection(() => _runSelect(sql, args));
+
+  Future<List<Map<String, Object?>>> _runSelect(
     String sql,
     List<Object?> args,
   ) async {
@@ -221,37 +274,39 @@ class HarmonyOsRdbExecutor extends QueryExecutor implements TransactionExecutor 
   }
 
   @override
-  Future<void> runCustom(String sql, [List<Object?>? args]) async {
-    await _execute(sql, args);
-  }
+  Future<void> runCustom(String sql, [List<Object?>? args]) =>
+      _withConnection(() => _execute(sql, args));
 
   @override
-  Future<void> runBatched(BatchedStatements statements) async {
-    for (final argSet in statements.arguments) {
-      await _execute(statements.statements[argSet.statementIndex],
-          argSet.arguments);
-    }
-  }
+  Future<void> runBatched(BatchedStatements statements) =>
+      _withConnection(() async {
+        for (final argSet in statements.arguments) {
+          await _execute(
+              statements.statements[argSet.statementIndex], argSet.arguments);
+        }
+      });
 
-  /// Returns `this` so drift's `Transaction` keeps issuing statements against
-  /// the real store, while [send] and [rollback] drive the engine transaction.
   @override
-  TransactionExecutor beginTransaction() => this;
+  TransactionExecutor beginTransaction() => _HarmonyOsRdbTransaction(this);
 
   @override
   QueryExecutor beginExclusive() => this;
 
   @override
-  Future<void> send() => _invokeVoid('commit');
+  Future<void> close() => _withConnection(() async {
+        if (!_nativeOpen) return;
+        await _invokeVoid('close');
+        _isOpen = false;
+        _nativeOpen = false;
+        _transactionUncertain = false;
+      }, allowUncertain: true);
 
-  @override
-  Future<void> rollback() => _invokeVoid('rollback');
-
-  @override
-  Future<void> close() async {
-    if (!_isOpen) return;
-    await _invokeVoid('close');
-    _isOpen = false;
+  Future<void> _transactionBoundary(String method) async {
+    final ok = await _call(
+      () => channel.invokeMethod<bool>(method),
+      method,
+    );
+    if (ok != true) throw StateError('RDB $method reported failure');
   }
 
   // --- internals ---
@@ -330,10 +385,10 @@ class HarmonyOsRdbExecutor extends QueryExecutor implements TransactionExecutor 
   /// they hang, and a hang that is turned into a loud error beats one that is
   /// papered over.
   Future<List<Map<String, Object?>>?> _answerPragma(String sql) async {
-    final match =
-        RegExp(r'^\s*pragma\s+table_info\(\s*"?([A-Za-z0-9_]+)"?\s*\)\s*;?\s*$',
+    final match = RegExp(
+            r'^\s*pragma\s+table_info\(\s*"?([A-Za-z0-9_]+)"?\s*\)\s*;?\s*$',
             caseSensitive: false)
-            .firstMatch(sql);
+        .firstMatch(sql);
     if (match == null) return null;
 
     final table = match.group(1)!;
@@ -578,6 +633,132 @@ class HarmonyOsRdbExecutor extends QueryExecutor implements TransactionExecutor 
         return value;
       default:
         return value;
+    }
+  }
+}
+
+/// A transaction holds the shared RDB connection until commit or rollback.
+/// Other requests cannot accidentally become part of its native transaction.
+class _HarmonyOsRdbTransaction extends QueryExecutor
+    implements TransactionExecutor {
+  _HarmonyOsRdbTransaction(this.owner);
+
+  final HarmonyOsRdbExecutor owner;
+  Future<void>? _opening;
+  Completer<void>? _released;
+  Object? _lease;
+  bool _started = false;
+  bool _finished = false;
+
+  @override
+  SqlDialect get dialect => owner.dialect;
+  @override
+  bool get supportsNestedTransactions => false;
+
+  @override
+  Future<bool> ensureOpen(QueryExecutorUser user) async {
+    if (_finished) throw StateError('RDB transaction is already finished');
+    await (_opening ??= _begin(user));
+    return true;
+  }
+
+  Future<void> _begin(QueryExecutorUser user) async {
+    await owner.ensureOpen(user);
+    // A migration already holds the connection inside beforeOpen. Reserving
+    // it again there would deadlock that outer open.
+    final inherited = Zone.current[owner._connectionZone];
+    if (inherited == null || !identical(inherited, owner._activeLease)) {
+      final (previous, released) = owner._reserveConnection();
+      _released = released;
+      await previous;
+      _lease = Object();
+      owner._activeLease = _lease;
+    } else {
+      _lease = inherited;
+    }
+    try {
+      await _onConnection(() => owner._transactionBoundary('beginTransaction'));
+      _started = true;
+    } catch (_) {
+      owner._transactionUncertain = true;
+      _release();
+      rethrow;
+    }
+  }
+
+  Future<T> _onConnection<T>(Future<T> Function() action) =>
+      runZoned(action, zoneValues: {owner._connectionZone: _lease});
+
+  Future<T> _run<T>(Future<T> Function() action) async {
+    final user = owner._user;
+    if (user == null) throw StateError('RDB database has not been opened');
+    await ensureOpen(user);
+    return _onConnection(action);
+  }
+
+  @override
+  Future<List<Map<String, Object?>>> runSelect(
+          String sql, List<Object?> args) =>
+      _run(() => owner.runSelect(sql, args));
+  @override
+  Future<int> runInsert(String sql, List<Object?> args) =>
+      _run(() => owner.runInsert(sql, args));
+  @override
+  Future<int> runUpdate(String sql, List<Object?> args) =>
+      _run(() => owner.runUpdate(sql, args));
+  @override
+  Future<int> runDelete(String sql, List<Object?> args) =>
+      _run(() => owner.runDelete(sql, args));
+  @override
+  Future<void> runCustom(String sql, [List<Object?>? args]) =>
+      _run(() => owner.runCustom(sql, args));
+  @override
+  Future<void> runBatched(BatchedStatements statements) =>
+      _run(() => owner.runBatched(statements));
+  @override
+  TransactionExecutor beginTransaction() => throw UnsupportedError(
+      'HarmonyOS RDB does not support nested transactions');
+  @override
+  QueryExecutor beginExclusive() => this;
+  @override
+  Future<void> send() => _finish(rollback: false);
+  @override
+  Future<void> rollback() => _finish(rollback: true);
+  @override
+  Future<void> close() => rollback();
+
+  Future<void> _finish({required bool rollback}) async {
+    if (_finished) return;
+    final opening = _opening;
+    if (opening == null) {
+      _finished = true;
+      return;
+    }
+    await opening;
+    if (!_started) return;
+    var succeeded = false;
+    try {
+      await _onConnection(() => owner._transactionBoundary(
+            rollback ? 'rollback' : 'commit',
+          ));
+      succeeded = true;
+    } catch (_) {
+      if (rollback) owner._transactionUncertain = true;
+      rethrow;
+    } finally {
+      // A failed commit leaves the transaction alive for drift's rollback.
+      if (succeeded || rollback) {
+        _finished = true;
+        _release();
+      }
+    }
+  }
+
+  void _release() {
+    final released = _released;
+    if (released != null && !released.isCompleted) {
+      if (identical(owner._activeLease, _lease)) owner._activeLease = null;
+      released.complete();
     }
   }
 }

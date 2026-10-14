@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:turna/domain/anki/presentation_receipt.dart';
+import '../../support/study_presentation_fixture.dart';
 import 'package:turna/application/study_session/anki_study_session_host.dart';
 import 'package:turna/application/anki_official/review/formal_review_launcher.dart';
 import 'package:turna/application/anki_official/review/official_study_batch_assembler.dart';
@@ -156,6 +158,7 @@ void main() {
 
       AnkiStudySessionHost.presentBothSides(controller);
       await AnkiStudySessionHost.revealAndPresentAnswer(controller);
+      acknowledgeStudyFace(controller, PresentationSide.answer);
       await controller.submitRecall(RecallOutcome.remembered);
       expect(controller.phase, StudyCardPhase.readyForNext);
       expect(ledger.commits, 1);

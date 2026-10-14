@@ -24,9 +24,12 @@ ADR 0041 停止的是**产品级** OHOS 支持。本 ADR 不恢复产品线，�
 - ~~不启用 Official Anki 引擎与保真复习器：鸿蒙明确不可用，走 Legacy 导入，HTML 降级为文本~~
   **（已被 [ADR 0050](./0050-ohos-official-anki.md) 作废，2026-10-07）**——鸿蒙伴生版启用
   Official Anki 全档：引擎 / `.apkg` 导入 / 课程树投影 / 保真复习器（原生 PlatformView +
-  Web 组件，HTML 不降级为文本）。**授权已下达，接线未施工**：ADR 0050 §6 的接线批次
+  Web 组件，HTML 不降级为文本）。~~**授权已下达，接线未施工**：ADR 0050 §6 的接线批次
   完成前，伴生版构建的 Official Anki 能力仍为 `ankiUnavailable`，UI 仍按
-  `OhosDegradation.officialAnki` 禁用导入入口。ADR 0050 §5 记录了因此移除的门禁断言
+  `OhosDegradation.officialAnki` 禁用导入入口。~~ **（2026-10-08 订正）**接线批次
+  **步 0–4 已施工**（真机收据见 ADR 0050 §4/§6）：`OhosDegradation.officialAnki` 已随
+  步 4 移除，`productModeFor('ohos')` 路由到官方档，导入入口已开放；仍缺的是步 5b
+  ArkTS 保真复习器（响亮失败，不降级）与步 6 独立 CI。ADR 0050 §5 记录了因此移除的门禁断言
   及其已知代价。
 - 不做音频播放 / TTS 的隐式降级：必须在 UI 上显式说明。**（2026-10-05 订正）** 音频与 TTS 已接入自维护通道，实际出声尚未真机验收；语音列表的安装状态解释也待验证。`test/l10n/voice_copy_platform_test.dart` 只覆盖文案与按钮守卫，不证明播放成功或内容具有录音。当前实现、历史记录与待验收项见 [ADR 0048](./0048-ohos-companion-audio-tts.md) 的「2026-10-05 核验结果」小节；撤回原文「已交付」表述。
 - 不从源码构建 OHOS Flutter Engine：使用预编译 SDK（Windows 只能 `gen_snapshot`，完整 Engine 构建需 Linux / macOS）

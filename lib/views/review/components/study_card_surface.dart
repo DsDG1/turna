@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:turna/application/anki_official/engine/official_anki_course_grades_bridge.dart';
 import 'package:turna/domain/anki/card_presentation.dart';
 import 'package:turna/domain/anki/presentation_receipt.dart';
 import 'package:turna/domain/course/interaction.dart';
@@ -28,6 +29,9 @@ class StudyCardSurface extends StatefulWidget {
     this.onPresented,
     this.generation = 0,
     this.renderers,
+    this.grades,
+    this.onNativeReveal,
+    this.onNativeRated,
   });
 
   final CardPresentation? presentation;
@@ -39,6 +43,9 @@ class StudyCardSurface extends StatefulWidget {
   final ValueChanged<PresentationReceipt>? onPresented;
   final int generation;
   final Set<InteractionRenderer>? renderers;
+  final OfficialAnkiCourseGradesBridge? grades;
+  final VoidCallback? onNativeReveal;
+  final Future<void> Function(String rating)? onNativeRated;
 
   @override
   State<StudyCardSurface> createState() => _StudyCardSurfaceState();
@@ -65,6 +72,8 @@ class _StudyCardSurfaceState extends State<StudyCardSurface> {
   void _scheduleAck() {
     final presentation = widget.presentation;
     if (presentation == null || widget.onPresented == null) return;
+    if (presentation is FidelityCardPresentation) return;
+    final generation = widget.generation;
     final side = widget.isRevealed || _state.submitted
         ? PresentationSide.answer
         : PresentationSide.question;
@@ -75,11 +84,19 @@ class _StudyCardSurfaceState extends State<StudyCardSurface> {
       FidelityCardPresentation() => PresentationRendererKind.officialTemplate,
     };
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
+      if (!mounted ||
+          presentation.cardKey != widget.presentation?.cardKey ||
+          generation != widget.generation ||
+          side !=
+              (widget.isRevealed || _state.submitted
+                  ? PresentationSide.answer
+                  : PresentationSide.question)) {
+        return;
+      }
       widget.onPresented!(
         PresentationReceipt(
           cardKey: presentation.cardKey,
-          generation: widget.generation,
+          generation: generation,
           side: side,
           renderer: renderer,
           presentedAt: DateTime.now(),
@@ -121,10 +138,17 @@ class _StudyCardSurfaceState extends State<StudyCardSurface> {
     final content = widget.content;
     if (content is OfficialTemplateContent) {
       return OfficialTemplateWebViewBody(
+        presentation:
+            presentation is FidelityCardPresentation ? presentation : null,
+        generation: widget.generation,
+        onPresented: widget.onPresented,
         content: content,
         isRevealed: widget.isRevealed,
         onReveal: widget.onReveal,
         onSpeak: widget.onSpeak,
+        grades: widget.grades,
+        onNativeReveal: widget.onNativeReveal,
+        onNativeRated: widget.onNativeRated,
       );
     }
     if (content is StandardCourseCardContent) {

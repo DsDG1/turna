@@ -693,6 +693,27 @@ const _requiredOhosFiles = <String>[
   'ohos/entry/src/main/ets/plugins/FilePickerPlugin.ets',
   'ohos/entry/src/main/ets/plugins/AudioPlugin.ets',
   'ohos/entry/src/main/ets/plugins/TtsPlugin.ets',
+  // ADR 0050 §6 step 5b. The reviewer is a native page, so the probe's host is
+  // an ability of its own rather than another entry in `main_pages.json`:
+  // `@ohos.router` is deprecated from API 18 and this hap declares 5.1.0(18),
+  // which is what pushed the page across an ability boundary. Both the ability
+  // and the page it loads are listed — a registered ability pointing at a page
+  // that is not in `main_pages.json` opens to a blank screen with no build
+  // error, which is the same failure class as an unregistered plugin.
+  'ohos/entry/src/main/ets/plugins/AnkiReviewerPlugin.ets',
+  'ohos/entry/src/main/ets/entryability/AnkiReviewerProbeAbility.ets',
+  'ohos/entry/src/main/ets/pages/AnkiReviewerProbePage.ets',
+  // ADR 0050 §3.7: the production reviewer half. Same missing-file failure
+  // class as above, with one addition learned on device — the session store
+  // is a library module precisely because an @Entry page's module state is
+  // NOT shared with direct importers, so it is a file the ability, the
+  // plugin and the page must all see.
+  'ohos/entry/src/main/ets/entryability/AnkiReviewerAbility.ets',
+  'ohos/entry/src/main/ets/pages/AnkiReviewerPage.ets',
+  'ohos/entry/src/main/ets/anki/AnkiReviewerSession.ets',
+  'ohos/entry/src/main/ets/anki/AnkiReviewerSessionStore.ets',
+  'ohos/entry/src/main/ets/anki/AnkiReviewerBridge.ets',
+  'ohos/entry/src/main/ets/anki/AnkiOriginServer.ets',
   'ohos/entry/src/main/resources/base/media/icon.png',
 ];
 
@@ -708,6 +729,7 @@ const _handWrittenPlugins = <String>[
   'FilePickerPlugin',
   'AudioPlugin',
   'TtsPlugin',
+  'AnkiReviewerPlugin',
 ];
 
 /// ADR 0047 §6. Refs still open are enforced only for presence until W3 lands.

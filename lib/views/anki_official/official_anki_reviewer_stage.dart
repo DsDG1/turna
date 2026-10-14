@@ -1,13 +1,21 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/accessibility_capabilities.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
+import 'package:turna/application/anki_official/engine/official_anki_course_grades_bridge.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
 import 'package:turna/application/anki_official/render/official_anki_answer_presenter.dart';
+import 'package:turna/application/anki_official/render/official_anki_media_resolver.dart';
+import 'package:turna/application/anki_official/render/official_anki_ohos_reviewer_binding.dart';
 import 'package:turna/application/anki_official/render/official_anki_render_state.dart';
 import 'package:turna/core/logger.dart';
+import 'package:turna/core/ohos_target.dart';
 import 'package:turna/l10n/app_strings.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_error_view.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_view.dart';
@@ -22,6 +30,10 @@ class OfficialAnkiReviewerStage extends StatefulWidget {
     required this.sourceId,
     this.showPreviewControls = false,
     this.onBack,
+    this.allowJs = true,
+    this.grades,
+    this.onNativeReveal,
+    this.onNativeRated,
   });
 
   final OfficialAnkiReviewerController controller;
@@ -29,6 +41,10 @@ class OfficialAnkiReviewerStage extends StatefulWidget {
   final String sourceId;
   final bool showPreviewControls;
   final VoidCallback? onBack;
+  final bool allowJs;
+  final OfficialAnkiCourseGradesBridge? grades;
+  final VoidCallback? onNativeReveal;
+  final Future<void> Function(String rating)? onNativeRated;
 
   @override
   State<OfficialAnkiReviewerStage> createState() =>
@@ -39,25 +55,87 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
   OfficialAnkiReviewerController get _controller => widget.controller;
   OfficialAnkiRenderedCard? _heldCard;
   var _surfaceReleased = false;
+  int? _blockedJsGeneration;
+  OfficialAnkiOhosReviewerBinding? _ohos;
+  Object? _ohosError;
+  var _dark = false;
+
+  OfficialAnkiCourseGradesBridge get _grades =>
+      widget.grades ??
+      OfficialAnkiCourseGradesBridgeImpl(
+        flags: OfficialAnkiFeatureFlags.current
+            .copyWith(courseGradesScheduler: true),
+      );
 
   @override
   void initState() {
     super.initState();
     _controller.addListener(_onChanged);
+    if (isHarmonyOsTarget) {
+      unawaited(_startOhos());
+    }
   }
 
   @override
   void didUpdateWidget(covariant OfficialAnkiReviewerStage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.controller == widget.controller) return;
+    if (oldWidget.controller == widget.controller) {
+      _rebindOhos();
+      return;
+    }
     oldWidget.controller.removeListener(_onChanged);
     widget.controller.addListener(_onChanged);
+    _rebindOhos();
   }
 
   @override
   void dispose() {
+    _ohos?.detach(_controller);
     _controller.removeListener(_onChanged);
     super.dispose();
+  }
+
+  Future<void> _startOhos() async {
+    try {
+      final binding = await OfficialAnkiOhosReviewerBinding.attach(
+        controller: _controller,
+        grades: _grades,
+        mediaRoot: widget.paths.mediaFolder.path,
+        resolver: OfficialAnkiMediaResolver(widget.paths.mediaFolder),
+        sourceId: widget.sourceId,
+        dark: _dark,
+        onReveal: widget.onNativeReveal,
+        onRated: widget.onNativeRated,
+      );
+      if (!mounted) {
+        binding.detach(_controller);
+        return;
+      }
+      setState(() {
+        _ohos = binding;
+        _ohosError = null;
+      });
+      _rebindOhos();
+    } catch (error, stack) {
+      logger.w('[OhosReviewer] failed to open',
+          error: error, stackTrace: stack);
+      if (!mounted) return;
+      setState(() => _ohosError = error);
+    }
+  }
+
+  void _rebindOhos() {
+    final binding = _ohos;
+    if (!isHarmonyOsTarget || binding == null) return;
+    binding.rebind(
+      controller: _controller,
+      grades: _grades,
+      resolver: OfficialAnkiMediaResolver(widget.paths.mediaFolder),
+      sourceId: widget.sourceId,
+      dark: _dark,
+      onReveal: widget.onNativeReveal,
+      onRated: widget.onNativeRated,
+    );
   }
 
   void _onChanged() {
@@ -87,6 +165,11 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
 
   @override
   Widget build(BuildContext context) {
+    _dark = Theme.of(context).brightness == Brightness.dark;
+    _ohos?.setDark(_dark);
+    if (isHarmonyOsTarget) {
+      return _buildOhos();
+    }
     final flags = OfficialAnkiFeatureFlags.current;
     final controller = _controller;
     final card = controller.card;
@@ -97,6 +180,9 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
         (controller.showingAnswer
             ? card.answerAvTags.isNotEmpty
             : card.questionAvTags.isNotEmpty);
+    final forceDisableJs = context.select<SettingsProvider?, bool>(
+      (settings) => settings?.ankiForceDisableJs ?? false,
+    );
     return Column(
       key: const Key('official-review-stage'),
       children: [
@@ -113,7 +199,9 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
-        Expanded(child: _buildSurface(controller, card, cardTextScale)),
+        Expanded(
+            child: _buildSurface(controller, card, cardTextScale,
+                allowJs: widget.allowJs && !forceDisableJs)),
         if (controller.avHint != null && !controller.ui.isError)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
@@ -192,11 +280,54 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
     );
   }
 
-  Widget _buildSurface(
-    OfficialAnkiReviewerController controller,
-    OfficialAnkiRenderedCard? card,
-    int cardTextScale,
-  ) {
+  Widget _buildOhos() {
+    final error = _ohosError;
+    return Column(
+      key: const Key('official-review-stage'),
+      children: [
+        Expanded(
+          child: error == null
+              ? const Center(child: CircularProgressIndicator())
+              : OfficialAnkiReviewerErrorView(
+                  messageKey: 'official_anki.render_failed',
+                  onRetry: () {
+                    setState(() => _ohosError = null);
+                    unawaited(_startOhos());
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSurface(OfficialAnkiReviewerController controller,
+      OfficialAnkiRenderedCard? card, int cardTextScale,
+      {required bool allowJs}) {
+    if (!allowJs) {
+      final generation = controller.presentGeneration;
+      final side = controller.currentSide;
+      if (_blockedJsGeneration != generation) {
+        _blockedJsGeneration = generation;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted ||
+              !identical(controller, _controller) ||
+              generation != controller.presentGeneration ||
+              side != controller.currentSide) {
+            return;
+          }
+          controller.onRenderFailure(
+              code: 'official_anki.renderer_flag_fail_closed',
+              side: side,
+              generation: generation);
+        });
+      }
+      // The official shell needs JavaScript for its render ACK. Until it has
+      // a script-free contract, honour the user's hard off-switch by failing
+      // closed instead of executing imported scripts or issuing a fake ACK.
+      return const OfficialAnkiReviewerErrorView(
+          messageKey: 'official_anki.renderer_flag_fail_closed');
+    }
+    _blockedJsGeneration = null;
     if (card != null) {
       _heldCard = card;
       _surfaceReleased = true;
@@ -223,9 +354,12 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
           presentGeneration: controller.presentGeneration,
           presentEpoch: controller.presentEpoch,
           onRenderComplete: (result) {
+            final generation = result.generation;
+            final side = result.side;
+            if (generation == null || side == null) return;
             controller.onRenderComplete(
-              generation: result.generation ?? controller.presentGeneration,
-              side: result.side ?? controller.currentSide,
+              generation: generation,
+              side: side,
             );
           },
           onRenderError: (message) {

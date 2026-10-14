@@ -1,74 +1,277 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:turna/application/accessibility_capabilities.dart';
 import 'package:turna/application/settings_provider.dart';
-import 'package:turna/core/theme.dart';
+import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
+import 'package:turna/application/anki_official/engine/official_anki_course_grades_bridge.dart';
+import 'package:turna/application/anki_official/official_anki_paths.dart';
+import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
+import 'package:turna/application/anki_official/render/official_anki_render_state.dart';
+import 'package:turna/core/logger.dart';
+import 'package:turna/core/ohos_target.dart';
+import 'package:turna/domain/anki/card_presentation.dart';
+import 'package:turna/domain/anki/presentation_receipt.dart';
 import 'package:turna/domain/review/review_item.dart';
-import 'package:turna/l10n/app_strings.dart';
-import 'package:turna/views/anki/anki_card_shell.dart';
-import 'package:turna/views/anki/anki_html_card_view.dart';
+import 'package:turna/views/anki_official/official_anki_reviewer_error_view.dart';
+import 'package:turna/views/anki_official/official_anki_reviewer_page.dart';
+import 'package:turna/views/anki_official/official_anki_reviewer_stage.dart';
 
-/// WebView-based card body renderer for official Anki template cards.
-///
-/// Invariant: WebView is only the card body within the unified review scaffold,
-/// not an entire duplicate review screen. The card fills the remaining review
-/// area (no content-height shrinking) and shares the app-wide card shell.
-class OfficialTemplateWebViewBody extends StatelessWidget {
-  final OfficialTemplateContent content;
-  final bool isRevealed;
-  final VoidCallback onReveal;
-  final VoidCallback? onSpeak;
-
+/// Formal review shares the official renderer, typed-answer comparison and AV
+/// pipeline with preview. Only that renderer acknowledges a presented face.
+class OfficialTemplateWebViewBody extends StatefulWidget {
   const OfficialTemplateWebViewBody({
     super.key,
     required this.content,
     required this.isRevealed,
     required this.onReveal,
+    this.presentation,
+    this.generation = 0,
+    this.onPresented,
     this.onSpeak,
+    this.controller,
+    this.paths,
+    this.grades,
+    this.onNativeReveal,
+    this.onNativeRated,
   });
+
+  final OfficialTemplateContent content;
+  final FidelityCardPresentation? presentation;
+  final bool isRevealed;
+  final VoidCallback onReveal;
+  final VoidCallback? onSpeak;
+  final int generation;
+  final ValueChanged<PresentationReceipt>? onPresented;
+  final OfficialAnkiReviewerController? controller;
+  final OfficialAnkiPaths? paths;
+  final OfficialAnkiCourseGradesBridge? grades;
+  final VoidCallback? onNativeReveal;
+  final Future<void> Function(String rating)? onNativeRated;
+
+  @override
+  State<OfficialTemplateWebViewBody> createState() =>
+      _OfficialTemplateWebViewBodyState();
+}
+
+class _OfficialTemplateWebViewBodyState
+    extends State<OfficialTemplateWebViewBody> {
+  OfficialAnkiReviewerController? _controller;
+  OfficialAnkiPaths? _paths;
+  Object? _error;
+  int _request = 0;
+  OfficialAnkiReviewerController? _changingController;
+  bool _ownsController = false;
+  (int, String, bool)? _lastReceipt;
+
+  String? get _unavailable {
+    if (widget.presentation == null) return 'official_anki.render_failed';
+    if (widget.controller == null &&
+        !Platform.isAndroid &&
+        !Platform.isIOS &&
+        !isHarmonyOsTarget) {
+      return 'official_anki.renderer_flag_fail_closed';
+    }
+    return null;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_boot());
+  }
+
+  @override
+  void didUpdateWidget(covariant OfficialTemplateWebViewBody oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.presentation?.cardKey != widget.presentation?.cardKey ||
+        oldWidget.generation != widget.generation ||
+        oldWidget.controller != widget.controller) {
+      unawaited(_boot());
+    } else if (oldWidget.isRevealed != widget.isRevealed) {
+      unawaited(_syncSide());
+    }
+  }
+
+  Future<void> _boot() async {
+    final request = ++_request;
+    _detach();
+    _lastReceipt = null;
+    _error = null;
+    final unavailable = _unavailable;
+    if (unavailable != null) {
+      _report(ok: false, code: unavailable);
+      return;
+    }
+    try {
+      final paths =
+          widget.paths ?? await OfficialAnkiCourseEntry.resolveDefaultPaths();
+      if (!mounted || request != _request) return;
+      final controller = await createOfficialAnkiReviewerController(
+        paths: paths,
+        controller: widget.controller,
+      );
+      if (!mounted || request != _request) {
+        if (widget.controller == null) await controller.dispose();
+        return;
+      }
+      _controller = controller;
+      _ownsController = widget.controller == null;
+      _paths = paths;
+      controller.addListener(_onChanged);
+      // Re-read the complete payload. Shared HTML interactions do not carry
+      // typed-answer or AV metadata, which must survive formal review too.
+      await controller.loadAndShowQuestion(widget.presentation!.cardKey.cardId);
+      if (!mounted || request != _request) return;
+      await _syncSide();
+    } catch (error, stack) {
+      if (!mounted || request != _request) return;
+      logger.w('Official formal-review renderer boot failed',
+          error: error, stackTrace: stack);
+      _error = error;
+      _report(ok: false, code: 'official_anki.render_failed');
+    } finally {
+      if (mounted && request == _request) setState(() {});
+    }
+  }
+
+  Future<void> _syncSide() async {
+    final controller = _controller;
+    if (controller == null || identical(_changingController, controller)) {
+      return;
+    }
+    _changingController = controller;
+    try {
+      while (mounted &&
+          identical(controller, _controller) &&
+          controller.card != null &&
+          controller.showingAnswer != widget.isRevealed &&
+          !controller.ui.isError) {
+        if (widget.isRevealed) {
+          await controller.showAnswer();
+        } else {
+          await controller.showQuestion();
+        }
+      }
+    } catch (error, stack) {
+      logger.w('Official formal-review face change failed',
+          error: error, stackTrace: stack);
+      if (mounted && identical(controller, _controller)) {
+        _error = error;
+        _report(ok: false, code: 'official_anki.render_failed');
+      }
+    } finally {
+      if (identical(_changingController, controller)) {
+        _changingController = null;
+      }
+    }
+  }
+
+  void _onChanged() {
+    if (!mounted) return;
+    final controller = _controller!;
+    final ack = controller.lastAck;
+    final side = widget.isRevealed ? 'answer' : 'question';
+    if (ack != null &&
+        ack.cardId == widget.presentation?.cardKey.cardId &&
+        ack.generation == controller.presentGeneration &&
+        ack.side == side) {
+      final identity = (ack.generation, ack.side, ack.ok);
+      if (identity != _lastReceipt) {
+        _lastReceipt = identity;
+        _report(ok: ack.ok, code: ack.code);
+      }
+    } else if (controller.ui.isError) {
+      _report(
+          ok: false,
+          code: controller.error?.messageKey ?? 'official_anki.render_failed');
+    }
+    setState(() {});
+  }
+
+  void _report({required bool ok, String? code}) {
+    final presentation = widget.presentation;
+    if (presentation == null) return;
+    final generation = widget.generation;
+    final request = _request;
+    final ack = _controller?.lastAck;
+    final side =
+        widget.isRevealed ? PresentationSide.answer : PresentationSide.question;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          request != _request ||
+          generation != widget.generation ||
+          presentation.cardKey != widget.presentation?.cardKey ||
+          side !=
+              (widget.isRevealed
+                  ? PresentationSide.answer
+                  : PresentationSide.question)) {
+        return;
+      }
+      if (ok && (ack == null || !identical(ack, _controller?.lastAck))) return;
+      widget.onPresented?.call(PresentationReceipt(
+        cardKey: presentation.cardKey,
+        generation: generation,
+        side: side,
+        renderer: PresentationRendererKind.officialTemplate,
+        presentedAt: DateTime.now(),
+        ok: ok,
+        code: code,
+      ));
+    });
+  }
+
+  void _detach() {
+    final controller = _controller;
+    final owned = _ownsController;
+    _controller = null;
+    _ownsController = false;
+    _paths = null;
+    if (controller == null) return;
+    controller.removeListener(_onChanged);
+    if (owned) {
+      unawaited(controller.dispose());
+    }
+  }
+
+  @override
+  void dispose() {
+    ++_request;
+    _detach();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final html = isRevealed ? content.backHtml : content.frontHtml;
-    final textZoom = cardTextScaleOf(context);
-    // The `ankiForceDisableJs` switch is a hard off-switch for the fidelity
-    // WebView: templates still render, but script-driven decryption shows
-    // ciphertext. Read defensively so this body still builds in widget tests
-    // that do not mount the settings provider.
-    final forceDisableJs = context
-        .select<SettingsProvider?, bool>((p) => p?.ankiForceDisableJs ?? false);
-
-    return Stack(
-      children: [
-        GestureDetector(
-          onTap: isRevealed ? null : onReveal,
-          child: AnkiWebViewCardShell(
-            child: AnkiHtmlCardView(
-              html: html,
-              allowJs: !forceDisableJs,
-              dark: isDark,
-              allowedMediaBasePath: content.mediaBasePath ?? '',
-              isBack: isRevealed,
-              textZoom: textZoom,
-            ),
-          ),
-        ),
-        if (onSpeak != null)
-          Positioned(
-            right: 8,
-            bottom: 8,
-            child: Material(
-              color: TurnaTheme.brandTeal,
-              shape: const CircleBorder(),
-              child: IconButton(
-                tooltip: AppStrings.reviewSpeakFront,
-                onPressed: onSpeak,
-                icon: const Icon(Icons.volume_up_rounded, color: Colors.white),
-              ),
-            ),
-          ),
-      ],
+    final unavailable = _unavailable;
+    final error = _error;
+    if (unavailable != null || error != null) {
+      return OfficialAnkiReviewerErrorView(
+        messageKey: unavailable ??
+            (error is OfficialAnkiException
+                ? error.messageKey
+                : 'official_anki.render_failed'),
+        onRetry: unavailable == null ? () => unawaited(_boot()) : null,
+      );
+    }
+    final controller = _controller;
+    final paths = _paths;
+    if (controller == null || paths == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    final forceDisableJs = context.select<SettingsProvider?, bool>(
+      (settings) => settings?.ankiForceDisableJs ?? false,
+    );
+    return OfficialAnkiReviewerStage(
+      key: ValueKey((widget.presentation!.cardKey, widget.generation)),
+      controller: controller,
+      allowJs: !forceDisableJs,
+      paths: paths,
+      sourceId: widget.presentation!.cardKey.sourceId,
+      grades: widget.grades,
+      onNativeReveal: widget.onNativeReveal,
+      onNativeRated: widget.onNativeRated,
     );
   }
 }

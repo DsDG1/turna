@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/study_session/anki_study_session_host.dart';
 import 'package:turna/domain/anki/canonical_card_key.dart';
 import 'package:turna/domain/anki/card_presentation.dart';
+import 'package:turna/domain/anki/presentation_receipt.dart';
 import 'package:turna/domain/anki/study_models.dart';
 import 'package:turna/domain/review/recall_outcome.dart';
 
@@ -32,6 +33,75 @@ void main() {
       );
 
   group('AnkiStudySessionHost', () {
+    test('HTML reveal waits for a real official answer receipt', () async {
+      final ledger = _FakeStudyLedger(owner: StudyLedgerOwner.officialAnki);
+      final key = officialKey(1);
+      final host =
+          AnkiStudySessionHost(resolver: StudyLedgerResolver(official: ledger));
+      final controller = await host.startCard(
+          item: AnkiStudySessionHost.itemFor(
+        key: key,
+        presentation: FidelityCardPresentation(
+          cardKey: key,
+          templateRef: const CanonicalTemplateRef(notetypeId: 1, ordinal: 0),
+          sourceFingerprint: 'html',
+        ),
+        mode: StudyMode.review,
+        courseId: courseId,
+      ));
+      controller.acceptPresentation(PresentationReceipt(
+        cardKey: key,
+        generation: controller.generation,
+        side: PresentationSide.question,
+        renderer: PresentationRendererKind.officialTemplate,
+        presentedAt: DateTime.now(),
+      ));
+      await AnkiStudySessionHost.revealAndPresentAnswer(controller);
+      expect(controller.answerReceipt, isNull);
+      expect(controller.canSubmitRecall, isFalse);
+      await controller.submitRecall(RecallOutcome.remembered);
+      expect(ledger.commits, 0);
+      controller.acceptPresentation(PresentationReceipt(
+        cardKey: key,
+        generation: controller.generation,
+        side: PresentationSide.answer,
+        renderer: PresentationRendererKind.officialTemplate,
+        presentedAt: DateTime.now(),
+      ));
+      await controller.submitRecall(RecallOutcome.remembered);
+      expect(ledger.commits, 1);
+      controller.dispose();
+    });
+
+    test('HTML cards reject a successful Flutter flip receipt', () async {
+      final ledger = _FakeStudyLedger(owner: StudyLedgerOwner.officialAnki);
+      final key = officialKey(1);
+      final host =
+          AnkiStudySessionHost(resolver: StudyLedgerResolver(official: ledger));
+      final controller = await host.startCard(
+          item: AnkiStudySessionHost.itemFor(
+        key: key,
+        presentation: FidelityCardPresentation(
+          cardKey: key,
+          templateRef: const CanonicalTemplateRef(notetypeId: 1, ordinal: 0),
+          sourceFingerprint: 'html',
+        ),
+        mode: StudyMode.review,
+        courseId: courseId,
+      ));
+      controller.acceptPresentation(PresentationReceipt(
+        cardKey: key,
+        generation: controller.generation,
+        side: PresentationSide.question,
+        renderer: PresentationRendererKind.flutterFlip,
+        presentedAt: DateTime.now(),
+      ));
+      expect(controller.phase, StudyCardPhase.recoverableError);
+      expect(controller.canReveal, isFalse);
+      await controller.submitRecall(RecallOutcome.remembered);
+      expect(ledger.commits, 0);
+      controller.dispose();
+    });
     test('learn and review of the same card share one commit per answer',
         () async {
       final official = _FakeStudyLedger(owner: StudyLedgerOwner.officialAnki);

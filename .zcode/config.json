@@ -1,0 +1,16 @@
+{
+  "mcp": {
+    "servers": {
+      "deveco-mcp": {
+        "type": "stdio",
+        "command": "C:\\Users\\DsDogs\\AppData\\Roaming\\npm\\devecocli.cmd",
+        "args": ["serve", "mcp"],
+        "env": {
+          "PROJECT_PATH": "D:\\program\\Turna\\Turna\\ohos",
+          "DEVECO_PATH": "D:\\DevEco Studio"
+        },
+        "timeoutMs": 600000
+      }
+    }
+  }
+}

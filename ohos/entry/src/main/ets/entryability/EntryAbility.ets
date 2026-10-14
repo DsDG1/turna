@@ -6,6 +6,7 @@ import FilePickerPlugin from '../plugins/FilePickerPlugin';
 import AudioPlugin from '../plugins/AudioPlugin';
 import TtsPlugin from '../plugins/TtsPlugin';
 import SherpaTtsPlugin from '../plugins/SherpaTtsPlugin';
+import AnkiReviewerPlugin from '../plugins/AnkiReviewerPlugin';
 
 export default class EntryAbility extends FlutterAbility {
   configureFlutterEngine(flutterEngine: FlutterEngine) {
@@ -34,6 +35,11 @@ export default class EntryAbility extends FlutterAbility {
     // reason as the other hand-written channels — no pubspec.yaml package to
     // declare, and `GeneratedPluginRegistrant` is regenerated from that list.
     flutterEngine.getPlugins()?.add(new SherpaTtsPlugin(this.context));
+    // ADR 0050 §6 step 5b. The Official Anki reviewer's channel, which during
+    // the probe batch only launches the capability probe ability. Needs the
+    // UIAbilityContext for the same reason as the other four: `startAbility`
+    // is an ability-level call and cannot be served by an ApplicationContext.
+    flutterEngine.getPlugins()?.add(new AnkiReviewerPlugin(this.context));
   }
 }
 

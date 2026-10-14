@@ -150,4 +150,8 @@ logs/crash-hunt/*
 
 # hvigor/DevEco toolchain residue. `ohos/.codegenie/` is created empty by the
 # OHOS build and reappears on every run, so it must never reach a commit.
+# Bare `hvigor` invoked at the repo root (the AGENTS.md §9.1 trap) instead of
+# `<fork>/bin/flutter.bat build hap` drops an empty `.hvigor/outputs/` here;
+# `ohos/.hvigor` is covered separately by `ohos/.gitignore`.
 ohos/.codegenie/
+/.hvigor/

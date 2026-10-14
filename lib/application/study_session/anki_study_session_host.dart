@@ -172,7 +172,7 @@ class AnkiStudySessionHost {
 
   static void presentBothSides(StudySessionController controller) {
     final item = controller.currentItem;
-    if (item == null) return;
+    if (item == null || item.presentation is! FlipCardPresentation) return;
     controller.acceptPresentation(
       PresentationReceipt(
         cardKey: item.cardKey,
@@ -188,19 +188,11 @@ class AnkiStudySessionHost {
     StudySessionController controller, {
     void Function()? onOfficialShowAnswer,
   }) async {
+    if (!controller.canReveal) return;
     await controller.revealAnswer();
     onOfficialShowAnswer?.call();
-    final item = controller.currentItem;
-    if (item == null) return;
-    controller.acceptPresentation(
-      PresentationReceipt(
-        cardKey: item.cardKey,
-        generation: controller.generation,
-        side: PresentationSide.answer,
-        renderer: PresentationRendererKind.flutterFlip,
-        presentedAt: DateTime.now(),
-      ),
-    );
+    // The surface acknowledges the answer after rendering. Logical reveal
+    // alone must not enable scoring, even for a Flutter flip card.
   }
 
   /// Shared learn/review drive: start → question ACK → reveal → answer ACK
@@ -212,6 +204,17 @@ class AnkiStudySessionHost {
     final controller = await startCard(item: item);
     presentBothSides(controller);
     await revealAndPresentAnswer(controller);
+    if (item.presentation is FlipCardPresentation) {
+      // Headless drive, used after the course interaction has been submitted.
+      // Production review instead receives this from StudyCardSurface.
+      controller.acceptPresentation(PresentationReceipt(
+        cardKey: item.cardKey,
+        generation: controller.generation,
+        side: PresentationSide.answer,
+        renderer: PresentationRendererKind.flutterFlip,
+        presentedAt: DateTime.now(),
+      ));
+    }
     await controller.submitRecall(outcome);
     return controller;
   }

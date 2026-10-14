@@ -5,8 +5,12 @@ import 'package:turna/application/anki_official/contract/official_anki_errors.da
 import 'package:turna/application/anki_official/engine/official_anki_session.dart';
 import 'package:turna/application/anki_official/official_anki_composition.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
+import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
+
+import '../../helpers/in_memory_course_db.dart';
 
 void main() {
+  ensureSqliteLibForTestHost();
   tearDown(() {
     OfficialAnkiFeatureFlags.current =
         OfficialAnkiFeatureFlags.fromEnvironment();
@@ -119,5 +123,43 @@ void main() {
         ),
       ),
     );
+  });
+
+  test(
+      'cold-start locator opens the real catalog and binds course reads without an engine',
+      () async {
+    final support =
+        Directory.systemTemp.createTempSync('turna-catalog-locator-');
+    final savedCatalog = OfficialAnkiCompositionRoot.readOnlyCatalog;
+    final savedPaths = OfficialAnkiCompositionRoot.locatorPaths;
+    OfficialAnkiCompositionRoot.readOnlyCatalog = null;
+    OfficialAnkiCompositionRoot.locatorPaths = null;
+    OfficialAnkiCourseEntry.catalogOf = null;
+    addTearDown(() {
+      OfficialAnkiCompositionRoot.readOnlyCatalog?.close();
+      OfficialAnkiCompositionRoot.readOnlyCatalog = savedCatalog;
+      OfficialAnkiCompositionRoot.locatorPaths = savedPaths;
+      OfficialAnkiCourseEntry.resetHooks();
+      support.deleteSync(recursive: true);
+    });
+    await OfficialAnkiCompositionRoot.initializeReadOnlyLocator(
+        supportDir: support);
+    final paths = OfficialAnkiCompositionRoot.locatorPaths!;
+    final catalog = OfficialAnkiCompositionRoot.readOnlyCatalog!;
+    expect(paths.catalogFile.existsSync(), isTrue);
+    expect(catalog.filePath, paths.catalogFile.path);
+    expect(OfficialAnkiCourseEntry.catalogOf!(), same(catalog));
+    expect(OfficialAnkiCompositionRoot.session, isNull);
+    await OfficialAnkiCompositionRoot.initializeReadOnlyLocator();
+    expect(OfficialAnkiCompositionRoot.readOnlyCatalog, same(catalog));
+    // This exact early return made the hardware's in-memory SQLite probe pass
+    // while every real cold-start import still failed with catalog_missing.
+    final source =
+        File('lib/application/anki_official/official_anki_composition.dart')
+            .readAsStringSync();
+    final locator = source.substring(
+        source.indexOf('static Future<void> initializeReadOnlyLocator'),
+        source.indexOf('static String? _sharedCatalogPath'));
+    expect(locator, isNot(contains('isHarmonyOsTarget')));
   });
 }

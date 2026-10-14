@@ -1,8 +1,12 @@
 import 'package:flutter/foundation.dart';
+import 'package:turna/domain/anki/card_presentation.dart';
 import 'package:turna/domain/anki/objective_outcome.dart';
 import 'package:turna/domain/anki/presentation_receipt.dart';
 import 'package:turna/domain/anki/study_models.dart';
 import 'package:turna/domain/review/recall_outcome.dart';
+import 'package:turna/domain/review/review_item.dart';
+import 'package:turna/domain/review/review_ledger.dart';
+import 'package:turna/domain/review/review_source.dart';
 
 /// Shared card lifecycle for learn / review / practice / preview.
 ///
@@ -102,6 +106,14 @@ class StudySessionController extends ChangeNotifier {
     if (item == null) return;
     if (receipt.cardKey != item.cardKey) return;
     if (receipt.generation != _generation) return;
+    if (receipt.ok &&
+        item.presentation is FidelityCardPresentation &&
+        receipt.renderer != PresentationRendererKind.officialTemplate) {
+      phase = StudyCardPhase.recoverableError;
+      lastError = 'UNRENDERABLE_TEMPLATE';
+      notifyListeners();
+      return;
+    }
     if (!receipt.ok) {
       phase = StudyCardPhase.recoverableError;
       lastError = receipt.code ?? 'RENDER_ERROR';
@@ -251,6 +263,50 @@ class StudySessionController extends ChangeNotifier {
       _locked = false;
       notifyListeners();
     }
+  }
+
+  /// Records a grade the official scheduler already committed.
+  ///
+  /// The HarmonyOS reviewer writes through the grades bridge, which sits
+  /// outside [submitRecall]. A second [submitRecall] would answer the same
+  /// card again. This only stores the mutation the scheduler just produced,
+  /// so undo still addresses it and the session may advance.
+  void acceptExternalOfficialCommit({
+    required RecallOutcome outcome,
+    required String eventId,
+  }) {
+    final item = currentItem;
+    if (item == null || _locked || isComplete || eventId.isEmpty) return;
+    final source = OfficialAnkiSource(
+      sourceId: item.cardKey.sourceId,
+      deckId: 0,
+      cardId: item.cardKey.cardId,
+    );
+    final schedulingKey = ReviewSchedulingKey(
+      rawId: 'official-anki-${item.cardKey.sourceId}-c${item.cardKey.cardId}',
+      source: source,
+    );
+    final reviewedAt = DateTime.now();
+    lastReceipt = StudyEventReceipt(
+      eventId: eventId,
+      idempotencyKey: _idempotencyKeyFor(item),
+      cardKey: item.cardKey,
+      ledgerOwner: item.ledgerOwner,
+      outcome: outcome,
+      reviewedAt: reviewedAt,
+      nativeUndoToken: ReviewEventReceipt(
+        eventId: eventId,
+        source: source,
+        schedulingKey: schedulingKey,
+        outcome: outcome,
+        reviewedAt: reviewedAt,
+        preview: const ReviewPreview(intervalLabel: ''),
+      ),
+    );
+    _undoneReceipt = null;
+    _recordCounts(outcome);
+    phase = StudyCardPhase.readyForNext;
+    notifyListeners();
   }
 
   Future<void> continueNext() async {

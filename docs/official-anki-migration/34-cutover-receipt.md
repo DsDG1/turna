@@ -1,6 +1,6 @@
 # 34 — Cutover receipt（W8–W10 收口摘要）
 
-> 日期：2026-08-25（一次性施工 host 收口后更新；2026-09-24 架构简化计划 P0–P4 施工后补充下方「架构简化批次」；2026-09-27 补记 iOS 启用与真机证据台账、订正 Held 表）
+> 日期：2026-08-25（一次性施工 host 收口后更新；2026-09-24 架构简化计划 P0–P4 施工后补充下方「架构简化批次」；2026-09-27 补记 iOS 启用与真机证据台账、订正 Held 表；2026-10-08 补记鸿蒙 Official Anki 接线批次步 0–4；2026-10-14 补记鸿蒙步 5b 判据结清；同夜补记步 5b 真机首卡收据）
 > 状态：**验收 NO-GO；Official Anki 迁移中**（host/自动化门禁全绿、**Android 写侧与 iOS 导入链各有一次真机/模拟器证据**；生产 bundle 全链路与外部事实未验收。不得写「迁移完成」，不得写「Android 可正常使用」）
 > 计划真源：[`34-official-anki-production-cutover-and-ohos-retirement-plan.md`](./34-official-anki-production-cutover-and-ohos-retirement-plan.md)
 > 剩余波次：[`34-remaining-construction-plan.md`](./archive/34-remaining-construction-plan.md)（已归档，R0–R8 全部闭环）
@@ -63,6 +63,108 @@
   跑通」本身是这两次修复的产物，不是既有代码的既有能力。
 - **全量计数**：`flutter test` 1938 passed / 2 failed（2 例为 HEAD 既有的
   `course_tree` golden 本机失配，非本批回归）。
+
+---
+
+## 鸿蒙生产调用链修复（2026-10-13）
+
+2026-10-08 的 `catalog=ok` 是 `probeOfficialAnkiSqlite()` 的内存 SQLite
+探针，`runtimeOk=true` 是 ABI / engine-info 探针；二者不证明真实 catalog
+初始化、磁盘 collection、导入或正式复习用户流已经可用。本次核对发现
+`initializeReadOnlyLocator()` 仍跳过鸿蒙，正式复习仍经旧 WebView 文本降级，
+且共享回执可在答案未呈现时允许评分。此前「只剩复习器」的推论不成立。
+
+本次修复：真实 catalog 冷启动初始化与课程读取绑定；鸿蒙 RDB 事务显式
+begin / commit / rollback、连接隔离和事务错误传播；正式复习统一使用官方
+渲染 / 输入答案 / AV 管线，等待卡片身份与代次匹配的渲染回执；关闭脚本时
+该管线明确失败，不创建 WebView 或发成功回执；课程卡片
+失败时不得完成，切换卡片重置答案确认；共享内容保留 CSS。现有 ArkUI
+探针同步修正内层 CSP、CSP 请求见证与媒体 Range/206 判据。
+
+验证记录见 `test/BASELINE.md` 2026-10-13「鸿蒙 Anki 生产调用链修复」。
+**仍未验收**：真机导入、课程学习解锁（正式复习 / 评分 / 重启恢复已于 2026-10-14
+夜取得收据，见下下节）。「步 5b 仍 Held」与「鸿蒙正式复习必须明确失败」两条
+约束已被 2026-10-14 夜的首卡收据取代。伴生版仍不进主交付。
+
+## 鸿蒙步 5b 判据结清：ArkUI `Web` 可满足复习器（2026-10-14）
+
+2026-10-13 批次当时**无连接设备**，因此「鸿蒙复习器能不能做」这个前置问题仍然悬着。
+2026-10-14 接上真机（Mate 90 Pro Max / API 26）后，ADR 0050 §3 的**前提 3**
+——ArkUI `Web` 能否满足复习器的 CSP + 自定义 scheme + 媒体 Range/206——拿到收据，
+**三条子句全部成立**。收据原文与逐条判定见 [ADR 0050](../decisions/0050-ohos-official-anki.md) §3.2。
+
+要点（均可核验，不接受转述）：
+
+- **CSP 不是只看页面自述**：页面报 `cspConnect:"blocked"`，同时**服务端见证**
+  `mustNotFetched=false`——那个本该被策略拦下的请求从未到达服务端。
+- **自定义 scheme**：`https://anki.local` 经 `onInterceptRequest` 提供，
+  shell / css / js / iframe 全部 200，iframe 内联脚本跑通。
+- **媒体 Range/206**：内核发 `Range:bytes=0-`，服务端回 206（`Accept-Ranges: bytes`
+  + `Content-Range`），`ranged=true`。
+- 跑之前先修了**探针自身**的一个缺陷：`probeJs()` 的 `PENDING = 4` 只数四个自动
+  检查，判定在加载后约 1.5 秒就上报并终止 ability，人来不及点 `PLAY + SEEK`，
+  4b 在实践中不可达（前几轮 `seekPhase` 恒为 `"pending"` 即因此）。改为 `PENDING = 5`。
+
+**一条超出判据的新发现：脚本触发的 `play()` 被拒**（`NotAllowedError`，有手势也一样）。
+它**不推翻前提 3**——判据问的是 Range/206 而非能否出声，且真复习器从不让 Web 自己
+放音（`card-frame.js` 全文无 `play()` / `autoplay`，只剥离 `<video>` 不剥 `<audio>`），
+真正的 AV / TTS 回放由 Dart 侧 `OfficialAnkiAvCoordinator` → `OfficialAnkiAvPlayer`
+驱动平台播放器。留下的真实边界：**依赖脚本自动出声的卡片模板在鸿蒙上不会自动播**，
+须写入正式页的文档与降级说明。
+
+**当晚后续**：2026-10-14 晚些时候 `OfficialAnkiReviewerStage` 接上 ArkUI 复习页
+（先推媒体再呈现，评分走 `wordId` 与翻卡计时，见 ADR 0050 §3.6），**当夜即上机**——
+首屏复现 `render_failed`，修复八处接线缺陷后取得首卡全链路收据，5b 就此完成，
+见下节。步 6 独立 CI 仍 Held。伴生版仍不进主交付。
+
+## 鸿蒙步 5b 真机首卡收据（2026-10-14 夜）
+
+接上真机（Mate 90 Pro Max / API 26 / HarmonyOS 7.0.0.109）把当天的接线代码第一次
+带上设备，首屏即复现 `official_anki.render_failed`，逐轮「构建 → 装机 → 复现 → 定位」
+修复**八处**只在真机暴露的缺陷：AV 适配器的 audioplayers 构造崩溃、会话创建与
+拦截取值的两处时序竞态、@Entry 页面模块状态隔离（页面与导入方各持一份）、shell
+加载编排（显式 `loadUrl` 三种时序全数输给内核驱动）、小资产预热竞态、
+`setResponseData` 传 `Uint8Array` 得空响应体、ack 轮询协议接错、以及 ArkTS
+`replace` 首处替换语义差导致的轮询解析永败。修复后拿到**首卡全链路收据**：
+
+- 卡 781 问题面经 `https://anki.local/assets/reviewer.html` 完整渲染（官方 shell）；
+- 翻卡后 `ack type=renderComplete side=answer`（约 60ms，代次匹配）；
+- 评分 `good` 经 `wordId → answerOfficialCard → answerAndConfirm` 落库，
+  队列 **781→782→783→784 三次真实前进**；
+- 多轮强杀冷启动后复习会话自动恢复到当前卡。
+
+逐条缺陷收据与修复细节以 [ADR 0050](../decisions/0050-ohos-official-anki.md) §3.7 与
+`test/BASELINE.md` 2026-10-14「步 5b 真机首卡收据」条为准。**遗留打磨项**
+（ability 中途关闭后重开在后台、换卡评分门时序空窗、reveal 状态未随换卡复位）与
+**用户流余项**（真机导入、课程学习解锁）不推翻本收据；步 6 独立 CI 仍 Held；
+伴生版不进主交付。
+
+## 鸿蒙 Official Anki 接线批次步 0–4（2026-10-08，ADR 0050 §6）
+
+> 状态与证据明细以 [ADR 0050](../decisions/0050-ohos-official-anki.md) 为真源
+> （§2.1 平台身份收据、§4.1 catalog、§4.2 dlopen、§4.3 静态侧、§6 步表）；本节只记
+> 状态变化，**不改变本收据的验收 NO-GO 口径**——该口径约束的是 Android / iOS 生产
+> 验收，鸿蒙伴生版不进主交付。
+
+- **步 0（平台身份探针）**：真机 Mate 90 Pro Max（HarmonyOS 7.0.0.109 / API 26）
+  确认 `operatingSystem=ohos`、`isHarmonyOsTarget=true`、`Platform.is*` 全 false。
+- **步 1（引擎进 hap）**：`libturna_anki.so` 提交进 `ohos/entry/libs/arm64-v8a/`，
+  真机 `dlopen=ok abi=1`——证明 API 26 设备可加载；最低 API 18 兼容仍待验证。
+- **步 2（共享 catalog）**：`ensureOfficialAnkiSqlite` 分派重写为 `isHarmonyOsTarget`
+  短路 + `overrideForAll`，独立 `libsqlite3.so`（SQLite 3.49.2）随 hap 分发；真机
+  `catalog=ok sqlite=3.49.2`。新增门禁
+  `test/application/anki_official/official_anki_sqlite_dispatch_test.dart`。
+- **步 3（平台路由）**：能力矩阵 / `productModeFor` / composition probe 全部放行鸿蒙；
+  真机 `runtimeOk=true reason=ready abi=1`。
+- **步 4（降级拆除）**：`OhosDegradation.officialAnki` 移除，`degradations` 只剩
+  `remoteBackup`；Official Anki 导入入口在鸿蒙上开放。
+- **仍 Held**：步 6 独立 CI workflow。（步 5b ArkTS 保真复习器**已于 2026-10-14 夜
+  完成并取得真机首卡收据**，见上方「鸿蒙步 5b 真机首卡收据」节；此前的
+  `renderer_ohos_pending` 响亮失败已被取代。）鸿蒙复习器工作量**无估算**
+  （ADR 0047 的「5–8 人日」按嵌入式 PlatformView 估，不可引用）。
+- **门禁方向反转**：新增断言要求鸿蒙**不得**落进 unsupported 桶（与 ADR 0050 §5
+  移除的旧断言方向相反）；`flutter analyze` 0 issue、`flutter test --exclude-tags golden`
+  保持 0 failed（逐批收据见 `test/BASELINE.md` 2026-10-07/08 各条）。
 
 ---
 
@@ -241,7 +343,7 @@ W9-A 含义是：**停住 Legacy 新写入口的产品选择**，不是物理删
 | 真机 reimport / Browser/Stats/Media / 强杀恢复验证 | 同上，待设备矩阵 |
 | 存量用户跑批 / owner 切换 | W8 driver 可入队 `cleanLegacy`；未对真实用户库执行 |
 | OHOS 树物理删除 | ~~已完成（`ohos/` absent）~~ **（2026-10-07 订正为失真）**：`ohos/` 已由 ADR 0047 恢复为伴生版，物理删除从未在当前树成立；历史 archive 保留 |
-| 鸿蒙 Official Anki | **已授权、未接线**（[ADR 0050](../decisions/0050-ohos-official-anki.md)，2026-10-07）。引擎层真机可行已由 [ADR 0046](../decisions/0046-ohos-anki-core-probe.md) 收据确立；打包 / sqlite override / 平台路由 / ArkTS reviewer 四项接线均未施工，伴生版构建当前仍为 `ankiUnavailable` |
+| 鸿蒙 Official Anki | **已授权；接线步 0–5b 已施工（步 0–4：2026-10-08，见上方「鸿蒙 Official Anki 接线批次」节；步 5b：2026-10-14 夜，见上方「鸿蒙步 5b 真机首卡收据」节；[ADR 0050](../decisions/0050-ohos-official-anki.md)）**：引擎 / 内存 SQLite / 平台路由 / 降级拆除有真机探针收据（`dlopen=ok`、`catalog=ok sqlite=3.49.2`、`runtimeOk=true reason=ready`、`degradations=remoteBackup`、`catalogLocatorReady=true`）；2026-10-13 补修真实 catalog、RDB 事务和正式复习接缝；2026-10-14 夜步 5b 真机首卡收据——渲染 / 翻卡 / 评分落库 / 队列前进 / 强杀恢复全链路走通，八处接线缺陷已修（ADR 0050 §3.7），`productModeFor('ohos')` → 官方档。**仍 Held**：步 6 独立 CI；用户流余项（真机导入、课程学习解锁）与遗留打磨项（ability 重开在后台、换卡评分门时序空窗、reveal 状态复位）；伴生版不进主交付 |
 
 ## Android ABI packaging
 

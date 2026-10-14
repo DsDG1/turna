@@ -1,12 +1,18 @@
 # ADR 0050 — 鸿蒙启用 Official Anki 全档（引擎 / 导入 / 投影 / 保真复习器）
 
-- 状态：已接受（**决策层**；接线未施工）
+- 状态：已接受（**决策层**；接线步 0–5b 已施工——步 0–4 于 2026-10-08 取得真机收据（§4 与 §6 步表），步 5b 于 2026-10-14 夜取得真机首卡收据（§3.7）；步 6 独立 CI 未做）
 - 日期：2026-10-07
 - 修订：[ADR 0041](./0041-ohos-product-eol.md) §决策 2、[ADR 0047](./0047-ohos-companion-lite-build.md) §2 第 2 条
 - 前置：[ADR 0046](./0046-ohos-anki-core-probe.md)（引擎层真机收据）、[ADR 0047](./0047-ohos-companion-lite-build.md)（伴生版授权）
 - 编号说明：0049 之后的下一个可用编号。
 
 ## 决策
+
+> 2026-10-13 调用链订正：此前内存 catalog / engine-info 探针不覆盖真实
+> 冷启动、导入与正式复习。真实 locator 和正式复习接缝已补修，详见
+> [34 收据](../official-anki-migration/34-cutover-receipt.md)「鸿蒙生产调用链修复」。
+> 2026-10-14 夜：步 5b 完成并取得真机首卡收据（§3.7）；步 6 仍未完成；
+> API 26 加载收据不等于最低 API 18 兼容收据。
 
 在鸿蒙伴生版上启用 **Official Anki 全档**：`libturna_anki.so` 引擎、`.apkg`
 导入、课程树投影、保真复习器（PlatformView + WebView，HTML 不降级为文本）。
@@ -210,15 +216,278 @@ interpolation 全套（SDK `ets/component/common.d.ts`）。
    —— 既然 Dart 侧不再创建 PlatformView，「选哪一路合成模式」这个问题**不再需要
    回答**。它唯一残留的价值是 §3.1 的 D 案收据顺带确认了 `initOhosView` 在设备上
    确实存在（签名被 Dart 在报错中回显）。该前提就此作废，不得再作为待验项引用。
-3. ArkUI `Web` 组件能否满足复习器的 CSP（`assets/anki_reviewer/card-frame.html`
-   为 `default-src 'none'`）+ 自定义 scheme + 媒体 Range/206。
-   **路线 E 之后，这一条是步 5b 唯一剩下的未验证前提**（前提 1、2 均已结或作废）。
+3. ~~ArkUI `Web` 组件能否满足复习器的 CSP（`assets/anki_reviewer/card-frame.html`
+   为 `default-src 'none'`）+ 自定义 scheme + 媒体 Range/206。~~
+   **（2026-10-14 已结，收据见 §3.2）——三条子句全部成立，保真档位成立，步 5b 解锁。**
    路线 E 把复习器渲染搬进 ArkUI 页面，但页面里仍要放 `Web` 组件加载同一份
    `card-frame.html`，所以这条不但没有被绕过，反而成了整条路的收窄口。
 
+### 3.2 前提 3 的真机收据（2026-10-14，Mate 90 Pro Max / API 26）：**成立**
+
+探针本体（`ohos/entry/src/main/ets/anki/` 六个 ArkTS 文件 + `pages/AnkiReviewerProbePage.ets`
++ `lib/application/anki_official/render/official_anki_reviewer_probe.dart`）此前已写好但
+**没有真机收据**，因为需要一次真实手势。2026-10-14 连上设备后跑通，原始判定行：
+
+```
+page={"shellSubresource":"loaded","frame":"loaded","cspConnect":"blocked",
+      "audioState":"ready","audioDuration":2,"audioError":-1,
+      "seekPhase":"done","seekApplied":1,"seekReadBack":1,
+      "playRejected":"NotAllowedError","seekPlayError":"NotAllowedError",
+      "seekPlaying":false}
+requests=[GET /assets/shell.html->200 | GET /assets/probe.css->200 |
+          GET /assets/probe.js->200 | GET /assets/frame.html->200 |
+          GET /media/probe.wav->206 | GET /media/probe.wav->206 |
+          GET /favicon.ico->404 | GET /favicon.ico->404]
+rangeRequests=[GET /media/probe.wav Range:bytes=0- | GET /media/probe.wav Range:bytes=0-]
+ranged=true mustNotFetched=false denials=0
+```
+
+**逐条对照前提 3 的三个子句**：
+
+| 子句 | 收据 | 判定 |
+|---|---|---|
+| CSP（`connect-src 'none'`） | 页面报 `cspConnect:"blocked"`，**且**服务端见证 `mustNotFetched=false` | ✅ 成立 |
+| 自定义 scheme `https://anki.local` | `shell.html` / `probe.css` / `probe.js` / `frame.html` 全部 200，iframe 内联脚本跑通（`frame:"loaded"`） | ✅ 成立 |
+| 媒体 Range/206 | 内核发出 `Range:bytes=0-`，服务端两次返回 `206`（`Accept-Ranges: bytes` + `Content-Range`），`ranged=true` | ✅ 成立 |
+
+CSP 这一条**不是只看页面自述**：探针故意让页面去 `fetch` 一个服务端会记账的 URL，
+`mustNotFetched=false` 说明那个请求从未到达服务端——即内核确实在执行该策略，而不是
+静默忽略 `<meta http-equiv>`。这是「页面说被拦」与「内核确实拦了」的分界。
+
+**探针自身有一个缺陷，先修才问得出问题**：`AnkiProbeAssets.probeJs()` 里
+`PENDING = 4` 只数四个**自动**检查（shellSubresource / cspConnect / frame / audioState），
+`seekPhase` 不在其中。于是 `audioState` 一落定就满足 `settled >= 4` 而立即上报，
+ability 随即 `terminateSelfWithResult`——实测整轮在加载后约 1.5 秒结束，人根本来不及点
+`PLAY + SEEK`，**4b 在实践中不可达**（前几轮收据里 `seekPhase` 恒为 `"pending"` 正是这个原因）。
+改为 `PENDING = 5`，判定改为等手势或等 30 秒 `not-gestured` 兜底（仍落在 ability 的 40 秒
+`PROBE_TIMEOUT_MS` 内），手势用 `uitest uiInput click` 注入。
+
+**一条超出前提 3 的新发现：脚本触发的 `play()` 被拒。** 无论从页面脚本直接调，还是从
+ArkUI `Button.onClick` 经 `runJavaScript` 调，都返回 `NotAllowedError`，`seekPlaying=false`。
+探针的 `summarise()` 把 `seekPlaying` 并入 `range` 判据，因此它自己的汇总是
+`range=FAIL`。**这个 FAIL 不推翻前提 3**，理由有两条，都可核验：
+
+1. 前提 3 问的是 Range/206，不是「能否出声」，而 Range/206 已由上面的服务端见证成立。
+2. 真复习器**从不让 Web 自己放音**：`assets/anki_reviewer/card-frame.js` 全文没有
+   `play()` / `autoplay`，`snapshotMediaUrls()`（`card-frame.js` 的
+   `querySelectorAll("img, audio, source, video")`）只读 `src` 用于重渲染后重新锚定，
+   且只剥离 `<video>`、不剥 `<audio>`。真正的 AV / TTS 回放由 **Dart 侧**
+   `OfficialAnkiAvCoordinator` 驱动 `OfficialAnkiAvPlayer`（平台播放器），不经过 Web 的
+   媒体元素，鸿蒙上走 ADR 0048 的自维护 ArkTS 音频通道。
+
+**因此留下的真实边界**：卡片 HTML 里裸写的 `<audio>` 仍可由用户点按播放（媒体管线已证通），
+但**依赖脚本自动出声的卡片模板在鸿蒙上不会自动播**。这是新约束，须在正式复习页的
+文档与降级说明里写明，不是保真档位不成立的理由。
+
+
+### 3.3 资产来源收据（2026-10-14）：**ArkTS 侧 rawfile 可读，promise 形式也落定**
+
+前提 3 证明 `Web` 能渲染，但没回答页面**拿什么去渲染**。正式页要供两份字节，性质不同：
+
+| 来源 | 内容 | 位置 | 体积 |
+|---|---|---|---|
+| 静态资源 | `reviewer.html/js/css`、`card-frame.html/js`、`mathjax-config.js`、`manifest.json` | hap 的 `resources/rawfile/flutter_assets/assets/anki_reviewer/` | 其中 MathJax **2.27 MB** |
+| 牌组媒体 | `https://anki.local/media/*` | collection 的 media 目录，在文件系统 | 任意 |
+
+**静态资源已收据**（`AnkiReviewerAssetProbe`，八个文件逐一读出，字节数与
+`assets/anki_reviewer/manifest.json` **逐个吻合**）：
+
+```
+sync[reviewer.html=865 reviewer.js=11250 reviewer.css=1386 card-frame.html=921
+     card-frame.js=10514 mathjax-config.js=248 manifest.json=1323
+     mathjax/tex-svg-full.js=2275113]
+promise=ok:865
+```
+
+由此确定两件事：
+
+1. **reviewer ability 读得到自己的资源。** 它是独立 ability、拿不到
+   `FlutterAssetManager`，这一点曾被写成「hap 里有资源不等于第二个 ability 能读到」——
+   现在是读到的事实，不是推断。前缀是 `flutter_assets/assets/…`（`AudioPlugin` 的
+   `ASSET_ROOT`；`assets/` 属于路径的一部分，去掉则每次查找都以 `9001005` 落空，
+   而在手机上这与「复习器坏了」无法区分）。
+2. **promise 形式可用，于是正式页走 promise，不走同步。** `AudioPlugin` 记过
+   「`getRawFileContent` 的 promise 形式在 Mate 90 Pro Max / API 26 从不落定」——
+   那条记录的**主语是 Dart future**（Dart 侧读到自己 10s 超时才返回），与 ArkTS 侧
+   这一层不是同一次调用。本次是 ArkTS 侧的直接观测：promise 正常返回 865 字节。
+   两条不冲突，但差别足以决定实现：2.27 MB 的同步读是平台线程上的停顿，promise 读不是，
+   正式页没有理由再选同步。
+
+**静态资源因此不构成 5b 的风险。** 尚未收据的是**媒体**，且它不是一个可以顺手补的读文件：
+媒体的防线在 `OfficialAnkiMediaResolver`（纯 Dart——路径白名单、符号链接拒绝、越界检查、
+MIME 映射），而 origin server 跑在 ArkTS。谁来做这次解析看着像安全边界归属的决定，
+但**本仓库已有先例，不必再问**：`ios/Runner/AnkiReviewer/OfficialAnkiSchemeHandler.swift`
+就是原生侧自带防线——`isSafeMediaName` / `isSafeAssetName` / `resolveMediaFile`
+（`resolvingSymlinksInPath` + 前缀比对），源码分段标题直接写着
+`media path safety (mirrors OfficialAnkiMediaPath/Store)`，并自带完整的 Range 解析与
+206 应答。因此 ArkTS 侧的形状是**已定的**：照 Swift 那份原生重写，Dart 的
+`OfficialAnkiMediaPath` 作规范源，跨平台一致性靠测试约束——而不是把每次请求回灌给 Dart
+去解析（后者会让带 Range 的媒体走一轮通道往返，代价换不来安全性）。
+
+这条先例也纠正了一处想当然：**「安全边界不能有两种实现」在本仓库不成立**，
+因为 iOS 已经这么做了。真正的约束不是「只有一份实现」，而是「Dart 侧是规范源，
+原生侧不得偏离」，所以后续必须有跨平台路径规则一致性测试，否则 iOS 与鸿蒙的
+`isSafeMediaName` 会各走各的。
+
+### 3.4 步 5b 施工中发现的平台断层（2026-10-14）：`fileIo` 没有可用的同步二进制读
+
+写生产版 origin server 时撞上的，不是笔误而是 SDK 的代际断层，查类型声明原文可证：
+
+```
+openSync(path, mode?): File                    @since 12
+readSync(fd: number, buffer, options?): number @since 11
+closeSync(file: number | File): void           ← 收两种
+```
+
+`openSync` 从 API 12 起返回 `File` 对象，而 `readSync` 仍是 API 11 的 `number` 描述符签名，
+`closeSync` 是唯一同时接受两者的函数。**结果是：这份 SDK 里没有任何接受 `openSync` 所返回句柄的
+同步二进制读**，`readFileSync` 也不存在（整个 `@ohos.file.fs` 声明中没有该函数）。
+
+而 `onInterceptRequest` 是同步的，`respond` 不能 await。两条路都有代价：
+
+- 赌运行时接受 `File`（类型说 `number`）——**不选**，这类假设不会在编译期暴露，只会在设备上炸；
+- 改用异步读——会把 Range/206 的同步语义变成「先返回后补数据」，而 Range/206 正是 §3.2
+  里已被服务端见证成立的那一条，最不该在这里引入不确定性。
+
+**选定**：媒体字节由 **Dart 预先推给 ArkTS 缓存**（`cacheMedia(name, base64)`），
+`respond` 再从缓存同步切片；未推送时回 **503 `MEDIA_NOT_PUSHED`**，刻意与 `escape` /
+`missing` 区分，因为前两者是路径规则判定、后者是推送尚未发生，答 403 会把时序问题
+栽到卡片头上。
+
+> **订正（2026-10-14 施工中）**：本节初稿写的是「媒体字节由调用方注入的 `MediaProvider`
+> 供给」，**该形状不成立**——`respond` 是同步的，它回调 Dart 取字节，而 MethodChannel
+> 调用是 Promise，两者无法同时满足。所以改为**推送式缓存**，与八个资源的 preload 同形：
+> Dart 在会请求它的那次 `present` 之前把当前卡的媒体推过来。记录这个订正是因为它是一个
+> **能过编译器、过不了真机**的设计，与 §3.6 的接线问题属于同一类。
+
+这个改法有实质好处而不仅是权宜：媒体读取因此落到 Dart 侧那个**已有且被测过的**
+`OfficialAnkiMediaResolver`（它本来就做定位读，正好满足 Range 切片），而不是在 ArkTS 里
+重写一遍文件读。**符号链接那道防线没有外包**——仍在 ArkTS 侧用 `lstatSync` 直接拒绝
+（`fileIo` 无同步 realpath，且分类器已保证名字无分隔符，故 `mediaRoot/<名字>` 本身是软链
+是唯一逃逸路径，拒掉即可）。
+
+**须记的方法论**：本批 20 个 ArkTS 错误里，`flutter analyze` 一个都发现不了——
+ArkTS 的静态约束（`arkts-no-untyped-obj-literals` 禁 `Record<string, object>`、
+SDK 签名代际不一致）只有反复构建才拦得住。**「编译通过」在这条链上必须现场验证，
+不得据先前一次构建推断。**
+
+### 3.5 接线点的更正（2026-10-14）：分支在 `OfficialAnkiReviewerStage`，不在 View
+
+接线位置先前被写成「接进 `OfficialAnkiReviewerView`」，**这是错的**，查源码可证：
+`official_anki_reviewer_view.dart` 的 `build()` 开头就是
+
+```dart
+if (!Platform.isAndroid && !Platform.isIOS) {
+  return OfficialAnkiReviewerErrorView(
+    messageKey: isHarmonyOsTarget ? 'official_anki.renderer_ohos_pending' : …);
+}
+```
+
+路线 E 下这个 widget 在鸿蒙上**本就不该存在**——卡片由 ArkUI ability 全屏渲染，Flutter 这边没有
+PlatformView 可创建。正确的接线点是 **`OfficialAnkiReviewerStage` 整条分支**：鸿蒙上不进
+Flutter 复习器，直接开 ability 并用通道驱动。
+
+**这意味着 Stage 里的 Flutter chrome 在鸿蒙上都必须让位**——翻卡按钮、四档评分、
+`TextField` 输入框、AV 提示、错误视图，这些路线 E 已经搬进了 `AnkiReviewerPage`。
+
+**接线契约查实（2026-10-14，逐项核对源码）**：
+
+| 环节 | 实际归属 | 签名 |
+|---|---|---|
+| 翻卡 / 渲染 | `OfficialAnkiReviewerController`（`official_anki_render_state.dart`） | `loadAndShowQuestion` / `showAnswer` / `invalidateGeneration` |
+| 输入答案 | 同上，`controller.typed`（`OfficialAnkiTypedAnswerController`） | `updateProvided` / `frozen` / `comparison` |
+| AV | 同上，`controller.av`（`OfficialAnkiAvCoordinator`） | — |
+| **评分落库** | **不在上面任何一层** | `OfficialAnkiCourseGradesBridge.answerOfficialCard({wordId, rating, millisecondsTaken})` |
+
+关键的一行是最后一条：**评分走的是 `wordId`，渲染走的是 `cardId`，两者不是同一个 ID
+空间**（`answerOfficialCard` 定义在 `official_anki_course_grades_bridge.dart`，是课程成绩
+桥，参数名为 `wordId`）。所以鸿蒙驱动器要连的不是「给 presenter 多加一个方法」，而是
+要一并解决 `wordId ↔ cardId` 的映射、`millisecondsTaken` 的计时起点，以及
+`compare_answer` 往返后 `comparisonHtml` 的回填。
+
+**因此本节先前的说法「需要一个宽于 `OfficialAnswerPresenter` 的接口」不准确**：
+`OfficialAnswerPresenter` 抽象的是翻卡与渲染，评分在它下面也之外的另一条链上，
+两者靠 `wordId`/`cardId` 隐式耦合。施工时若只补接口不补映射，会得到
+**「能开卡但评不了分」的半成品——而那比现在的响亮失败更坏，因为它看起来是好的**。
+
+**顺序是硬约束**：`pushMediaForCard` 必须先于 `present`，否则媒体请求先撞上
+503 `MEDIA_NOT_PUSHED`。
+
+### 3.6 步 5b 调用方接线（2026-10-14）
+
+`AnkiReviewerPage`、`AnkiReviewerAbility`、`AnkiReviewerSession`、`AnkiReviewerBridge`
+与插件方法均已写。Dart 侧 `OfficialAnkiOhosReviewerBinding` 由
+`OfficialAnkiReviewerStage` 在鸿蒙上挂上：先 `open`（该 future 要等学习者关掉
+ability 才结束），壳加载后再呈现；`pushMediaForCard` 先于 `present`；翻卡走
+`OfficialAnkiReviewerController.showAnswer`（`compare_answer` 的 `comparisonHtml`
+随答案面 payload 回去）；评分用 `officialAnkiWordId` 调
+`OfficialAnkiCourseGradesBridge.answerOfficialCard`，`millisecondsTaken` 从翻卡
+时刻起算。正式复习页把桥的 `onAnswer` 接到 `OfficialReviewSession.answerAndConfirm`，
+成功后只记学习会话回执并前进，不再第二次落库。ArkTS 页通过同一条 MethodChannel
+把 `showAnswer` / `rate` / `typedChanged` 送回 Dart，并在 `onPageEnd` 后才算壳就绪。
+
+这仍然**不等于跑通**——上机当晚（2026-10-14 夜）即在真机上暴露八处接线缺陷并逐处
+修复，随后拿到首卡收据，见 §3.7。步 6 独立 CI 仍 Held。
+
+输入答案的归属已核实并落定：**它在所有平台都是原生的，不是鸿蒙变通**。
+`card-frame.js` 的 `applyTyped` 把 `[[type:…]]` 答题前渲染成空占位 span、答题后渲染成官方
+引擎 `compare_answer()` 的对照 HTML，Web 从头到尾看不到原始输入；Flutter 侧是
+`TextField` → `controller.typed.updateProvided` → 提交后 `frozen`。ArkUI 页补的是路线 E
+拆出去的那一半输入框，不是新增一条管线。
+
+### 3.7 真机首卡收据与八处接线修复（2026-10-14 夜）
+
+接上真机（Mate 90 Pro Max / API 26 / HarmonyOS 7.0.0.109）冷启动进入正式复习，
+首屏即复现 `official_anki.render_failed`——接线代码从未在设备上跑过，一跑就暴露
+八处缺陷。逐轮「构建 → 装机 → 复现 → 定位」，全部修复后拿到**首卡全链路收据**：
+
+- **渲染**：卡 781 问题面经 `https://anki.local/assets/reviewer.html` 完整渲染
+  （官方 shell，卡片文字进无障碍树，截图存档）。
+- **翻卡**：`Show answer` → 答案面 + 四档评分按钮，`ack type=renderComplete
+  side=answer`（翻卡后约 60ms，代次匹配）。
+- **评分落库**：`good` 经 `wordId → answerOfficialCard → answerAndConfirm` 提交，
+  队列 **781→782→783→784 三次真实前进**——评分确实写进了调度。
+- **重启恢复**：多轮强杀冷启动后复习会话自动恢复到当前卡（附带收据）。
+
+八处缺陷，每处都有设备收据（完整清单见 `test/BASELINE.md` 2026-10-14「步 5b 真机
+首卡收据」条）：
+
+1. **`OfficialAnkiAvPlayerAdapter` 在鸿蒙构造 `AudioPlayer()`**——audioplayers 无
+   鸿蒙实现，构造即 `MissingPluginException(xyz.luan/audioplayers.global)`，击穿
+   整个渲染 boot（用户看到的就是 `render_failed`）。鸿蒙改走 `OhosAudioBackend`
+   （新增按路径播放 / 停止 / 释放，`playFile` 带 `awaitCompletion` 播完回执）。
+2. **会话在 `loadContent` 回调里才创建**——页面预构建先于回调执行，拦截器捕获
+   undefined 会话后 `TypeError: Cannot read property origin of undefined` 从原生
+   回调逃逸，进程濒临 RuntimeError。会话创建提前到 `loadContent` 之前。
+3. **拦截器在 build 时捕获会话**——改为调用时解析，缺失回 503 `reviewer_not_open`。
+4. **@Entry 页面模块与直联导入方各持一份模块级状态**——会话由 ability 创建 35ms
+   后页面侧仍读 undefined（503 收据为证）。会话存储移入库模块
+   `AnkiReviewerSessionStore.ets`，三方共用。**须记的平台事实**：`main_pages.json`
+   登记的 @Entry 页面文件被编译为独立模块实例，其模块级状态与直联导入方不共享。
+5. **shell 加载编排三连败**——显式 `loadUrl` 在初始导航在途时被吞、`about:blank` 的
+   `onPageEnd` 不独立触发、控制器未挂载时抛 Init error。最终采用探针同款形态：
+   `src` 直指 shell URL 由内核驱动，预加载只在 `aboutToAppear` 抢提前量。
+6. **小资产预热竞态**——七个 ~16KB 资产改 `getRawFileContentSync` 同步预热
+   （`preloadSync`），2.27MB MathJax 保持 promise 路径（同步读会停顿平台线程）。
+7. **`setResponseData` 只接受 `ArrayBuffer`**——传 `Uint8Array` 编译通过但响应体
+   为空，shell 以 200+空体加载成无 script 空页（`document.scripts=[]` 为证）。探针
+   未踩中，因其资产恰好是字符串形态。**须记**：这是「编译过、跑不通」的又一类——
+   SDK 签名不含 `Uint8Array`，ets-loader 却没有拦下。
+8. **ack 协议接错**——Android 客户端**轮询** `window.__turnaLastRender`
+   （`pollCompletion`），ArkTS 初版在等一条无人发送的桥消息，两面均 12s
+   `RENDER_TIMEOUT`。重写 `present()` 为 50ms 轮询；其中还踩一层语义差——
+   **ArkTS `String.replace()` 只替换首处**（Kotlin 全局替换），从 Android 移植的
+   JSON 解包在该差下永远失败，改由 JS 侧拼无引号分隔串取值。
+
+**遗留打磨项（不推翻首卡收据）**：中途关闭 ability 再重开会开在后台，需「重试」
+恢复；换卡瞬间评分门存在时序空窗（窗口期重复点击收到 `answer_not_ready` 拒绝）；
+换卡后偶现直接呈现答案面（reveal 状态未随换卡复位）。**完整用户流余项**：课程
+学习解锁无真机收据；步 6 独立 CI 仍 Held；伴生版不进主交付不变。
+
 ## 4. 三个真实技术缺口（决策无法消解，须在接线批次解决）
 
-**4.1、4.2 已于 2026-10-08 结清**（真机收据见各节）；4.3 记步 1 已交付的静态部分，
+**4.1 的 SQLite 加载、4.2 的 API 26 设备加载于 2026-10-08 取得收据**；
+真实 locator 于 2026-10-13 补修，最低 API 18 兼容仍待验。4.3 记步 1 已交付的静态部分，
 4.4 是贯穿全部接线批次的纪律。**步 3 的能力矩阵硬拒与步 4 的降级标记已于同日拆除**
 （`runtimeOk=true reason=ready`，`degradations=remoteBackup`）。
 
@@ -226,20 +495,16 @@ interpolation 全套（SDK `ets/component/common.d.ts`）。
 
 | 能力 | 鸿蒙状态 | 依据 |
 |---|---|---|
-| `.apkg` 导入 | 可用 | `productModeFor('ohos')` → 官方档 |
-| 课程树投影 / SRS 调度 | 可用 | `runtimeOk=true reason=ready`，`officialCore=true` |
-| 共享 catalog | 可用 | `catalog=ok sqlite=3.49.2` |
-| **保真复习器（原卡渲染）** | **不可用，响亮失败** | 步 5b 未做；见下 |
+| `.apkg` 导入 | 接线已修复，真机完整导入待验 | 平台路由 + 2026-10-13 真实 locator 修复 |
+| 课程树投影 / SRS 调度 | 有实现，鸿蒙用户流待验 | 2026-10-13 修复 RDB 原子换页；engine-info 不证明实际调度 |
+| 共享 catalog | SQLite 加载已验证；真实 locator 已修复，设备待复跑 | 内存探针 + 2026-10-13 冷启动修复 |
+| **保真复习器（原卡渲染）** | **真机可用**（2026-10-14 夜首卡收据：渲染 / 翻卡 / 评分落库 / 队列前进；遗留打磨项见 §3.7） | §3.7 真机收据；判据 §3.2；静态资源 §3.3；平台断层 §3.4；接线契约 §3.5；调用方接线 §3.6 |
 
-**保真复习器在鸿蒙上会渲染不出来**（ArkTS PlatformView 是步 5b）。该失败**故意
-不通过禁用入口来掩盖**：入口开着，卡片渲染时给出明确文案
-（`official_anki.renderer_ohos_pending`，说明「组件尚未提供、导入与调度不受影响」）。
-**理由**：一个「点了没反应」的入口比一个不存在的入口更难归因——用户无法判断坏的是
-哪一半。文案里**刻意不用「未启用」**，因为鸿蒙上没有任何东西被关闭，说「未启用」
-会把用户引去找一个不存在的开关，并把「缺一个平台组件」这件事藏起来。
-
-这条失败路径**只经代码验证，未在真机上触发过**（需用户导入 `.apkg` 并进入卡片，
-本批未走 UI）。
+**保真复习器的「响亮失败」时代已于 2026-10-14 夜结束**（§3.7）。此前入口开着、
+卡片渲染给出 `official_anki.renderer_ohos_pending` 明确文案而非禁用入口，理由
+已由当时的收据记录：一个「点了没反应」的入口比一个不存在的入口更难归因。当前
+失败形态是打开复习 ability 失败时的 `render_failed` + 重试，以及会话未就绪时
+拦截层的 503 `reviewer_not_open`——两者都是可恢复的明确失败，不是静默降级。
 
 ### 4.1 catalog 存储：需要一份独立的 `libsqlite3.so`，且分派方式要重写 —— **已结**
 
@@ -312,7 +577,7 @@ amalgamation——**与引擎编译用的是同一份**，故 catalog 与引擎�
 > 于是这两个标识符必然出现。故门禁对去注释后的代码提问（`ensureCode`）。
 > 这不是洁癖：不先去注释，这两条断言在正确实现下也无法通过。
 
-### 4.2 hap 声明的最低 API 与 sysroot 存在落差 —— **已结，无落差**
+### 4.2 hap 声明的最低 API 与 sysroot 存在落差 —— **API 26 已验证，最低 API 18 待验**
 
 `ohos/build-profile.json5` 的 `compatibleSdkVersion` 为 `5.1.0(18)`，而本机
 OHOS native sysroot 是 API 26（ADR 0047 §7.4 记录的 DS-243 单档 SDK）。对
@@ -324,8 +589,8 @@ OHOS native sysroot 是 API 26（ADR 0047 §7.4 记录的 DS-243 单档 SDK）�
 API 与引擎 `.so` 的实际最低需求一致，否则装机即 `dlopen` 失败。
 
 **2026-10-08 真机收据：`dlopen=ok abi=1 path=libturna_anki.so`**
-（Mate 90 Pro Max / API 26，装 `entry-default-signed.hap`）。**API 18 的声明可以加载
-API 26 编译的引擎，落差不成立。** 这条收据的强度在于 `dlopen` 成功即意味着**全部
+（Mate 90 Pro Max / API 26，装 `entry-default-signed.hap`）。**仅证明该 API 26
+设备可以加载引擎，不能证明引擎在声明的最低 API 18 设备可运行。** 这条收据的强度在于 `dlopen` 成功即意味着**全部
 重定位已解析**——`NEEDED` 的 `libc.so` 与 `libtime_service_ndk.so` 都拿到了，
 且 `turna_anki_abi_version` 真的被查到了，不是「符号碰巧没被用到」。
 
@@ -427,12 +692,12 @@ ADR 0046 §副作用写明：「若将来真的推进鸿蒙产品线，必须先
 | 步 | 内容 | 前置 |
 |---|---|---|
 | 0 | 真机探针：打点 `Platform.operatingSystem` / `isHarmonyOsTarget` / `Platform.is*` / catalog 打开结果 —— **已完成，收据见 §2.1（2026-10-08）** | — |
-| 1 | `.so` 装进 `ohos/entry/libs/arm64-v8a/` + 构建接线；`resolveOfficialAnkiLibraryPath` 加 ohos 分支；真机确认 §4.2 的 API 落差 —— **已完成（2026-10-08，`dlopen=ok abi=1`）** | 步 0 |
+| 1 | `.so` 装进 `ohos/entry/libs/arm64-v8a/` + 构建接线；`resolveOfficialAnkiLibraryPath` 加 ohos 分支；API 26 真机加载 —— **已完成（2026-10-08，`dlopen=ok abi=1`）；最低 API 18 兼容仍待验** | 步 0 |
 | 2 | 重写 `ensureOfficialAnkiSqlite` 分派为 `overrideForAll`（§4.1）+ 独立 `libsqlite3.so` 随 hap 分发 —— **已完成（2026-10-08，`catalog=ok sqlite=3.49.2`）** | 步 1 |
 | 3 | 平台路由：`OfficialAnkiCapabilityMatrix._hostPlatform` / `forPlatform`、`AnkiImportExecutionPlanner.productModeFor`、`OfficialAnkiCompositionRoot.probe` —— **已完成（2026-10-08，`runtimeOk=true reason=ready abi=1`）** | 步 1–2 |
 | 4 | 撤 `OhosDegradation.officialAnki` + `OfficialAnkiNativeAvailability` 的 ohos 分支 —— **已完成（2026-10-08，`degradations=remoteBackup`）** | 步 3 |
 | 5a | **定 §3.1 的 Dart 接线路线** —— **已完成（2026-10-08）：A / B / D 三案被真机收据否决，选定 E（独立 ArkUI 页面，翻卡在页内完成）** | 步 4 |
-| 5b | **ArkTS 复习器页面**（第 5 个手写插件：`Web` 组件 + 自定义 scheme + 媒体 Range/206 + CSP），登记进 `EntryAbility`，并入 `_requiredOhosFiles` —— **不再需要 PlatformView 工厂** | 步 5a |
+| 5b | **ArkTS 复习器页面**（第 5 个手写插件：`Web` 组件 + 自定义 scheme + 媒体 Range/206 + CSP），登记进 `EntryAbility`，并入 `_requiredOhosFiles` —— **不再需要 PlatformView 工厂** —— **已完成（2026-10-14 夜）**：判据已结（§3.2）；页面与调用方接线（§3.6）；真机首卡收据——渲染 / 翻卡 / 评分落库 / 队列前进（§3.7）；生产页 / ability / 会话存储已并入 `_requiredOhosFiles`；遗留打磨项与用户流余项见 §3.7 | 步 5a |
 | 6 | 独立 CI workflow（ADR 0047 承诺但尚未存在） | 步 1–5b |
 
 步 5b 的验收判据收敛为**一条**：§3 的未验证前提 3 —— ArkUI `Web` 能否满足 CSP +
@@ -440,17 +705,25 @@ ADR 0046 §副作用写明：「若将来真的推进鸿蒙产品线，必须先
 消解——不再创建 PlatformView 就没有「选哪一路合成模式」这个问题。）**这一条不成立
 则保真档位不成立**，届时回到「文本降级」档并修订本文。
 
+**判据已于 2026-10-14 判定：成立**（§3.2 收据，三条子句逐条有服务端见证）。
+故 5b 的**风险闸门已开**，「文本降级」档不再触发。**2026-10-14 夜，5b 完成**：
+页面、通道与调用方接线（§3.6）当晚上机，八处接线缺陷逐处修复后拿到首卡全链路
+收据（§3.7）——渲染、翻卡、评分落库、队列前进。完整用户流的余项（课程学习解锁）
+与步 6 独立 CI 仍 Held，遗留打磨项见 §3.7。
+
 **§3.1 已不再是本表最大的不确定项** —— 它已由 §3.1 的否决收据与路线 E 结清。但
 **ADR 0047 的「复习器 5–8 人日」仍不可引用为预算**：它是照嵌入式 PlatformView 估的，
-既不含三案的否决过程，也不含 E 的形态重设计。在 5b 出真机收据之前，鸿蒙复习器的
-工作量**无估算**。
+既不含三案的否决过程，也不含 E 的形态重设计，也不含 §3.7 的八处真机修复。页面本体
+现已施工完毕（§3.6–§3.7），但那是事后事实，不是事前估算；后续同类工作的预算仍应
+按 §3.7 暴露的缺口类别另估，不得回填本 ADR。
 
 ## 后果
 
 - ADR 0041 §决策 2 与 ADR 0047 §2 第 2 条作废；两份 ADR 须加本文的修订指针
 - 官方 Anki 状态真源（`docs/official-anki-migration/34-cutover-receipt.md`）须记本批
 - 平台矩阵（`docs/project-guide.md` §10.1）与 `docs/android-build-setup.md` 的退役节
-  须按「Anki 已授权、接线未完成」改写，不得写成已支持
+  须按本 ADR 各节收据状态改写（步 0–5b 已施工、5b 有真机首卡收据；步 6 仍 Held；
+  完整用户流余项与遗留打磨项见 §3.7），不得写成产品级「已支持」
 - `test/BASELINE.md` 前插一条收据
 - Android / iOS 行为不得回归：`flutter analyze` 0 issue，
   `flutter test --exclude-tags golden` 保持 0 failed

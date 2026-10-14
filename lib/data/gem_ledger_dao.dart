@@ -4,7 +4,6 @@ import 'dart:math';
 // Package imports:
 import 'package:drift/drift.dart';
 import 'package:injectable/injectable.dart';
-import 'package:sqlite3/sqlite3.dart' show SqliteException;
 
 // Project imports:
 import 'package:turna/core/logger.dart';
@@ -14,6 +13,37 @@ import 'package:turna/domain/repositories/i_gem_ledger.dart';
 
 export 'package:turna/domain/game/gem_consumable.dart'
     show GemConsumablePurchaseResult, GemPurchaseResult, GemLedgerKind;
+
+/// UNIQUE/PK/constraint-violation message shape across sqlite3 builds
+/// ("UNIQUE constraint failed: gem_ledger.event_id", "PRIMARY KEY must be
+/// unique", "FOREIGN KEY constraint failed", SQLITE_CONSTRAINT …).
+final RegExp _ledgerConstraintPattern = RegExp(
+  r'constraint|must be unique|not unique',
+  caseSensitive: false,
+);
+
+/// Whether [error] reports a UNIQUE / primary-key / constraint violation.
+///
+/// The test is on the message, not the exception type, and that is the whole
+/// point: [GemLedgerDao] used to ask `e is SqliteException`, which is true only
+/// under `NativeDatabase`. The OpenHarmony bridge reports the same condition as
+/// `PlatformException(EXECUTE_ERROR, "SQLite: Abort due to constraint violation.
+/// | sql: …")`, so on that build the guard was always false — every repeat of an
+/// already-recorded event was reported to its caller as a storage failure and
+/// logged as one (78 of them in one device session), and the double-credit
+/// protection stopped protecting anything. Note this DAO no longer needs the
+/// `sqlite3` import, which is the clearest sign it stopped assuming the storage
+/// layer it was written against.
+///
+/// `error.toString()` rather than a typed field: the two layers put the
+/// diagnosis in different places, and a false negative here turns a normal
+/// repeat into a reported storage failure.
+///
+/// Public for tests, and the test host is why: it runs the DAO against
+/// `NativeDatabase.memory()`, which can only ever raise `SqliteException`, so a
+/// test that drove the DAO could never produce the shape that actually broke.
+bool isLedgerConstraintViolation(Object error) =>
+    _ledgerConstraintPattern.hasMatch(error.toString());
 
 /// Transactional gem ledger + cosmetic entitlements (Plan 2 §8.4).
 ///
@@ -32,14 +62,6 @@ class GemLedgerDao implements IGemLedger {
   static const String openingBalanceTxId = 'migration_opening_balance_v1';
   static const String openingBalanceEventId = 'gem.migration.opening';
   static const String streakVoucherItemId = 'voucher_streak';
-
-  /// UNIQUE/PK/constraint-violation message shape across sqlite3 builds
-  /// ("UNIQUE constraint failed: gem_ledger.event_id", "PRIMARY KEY must be
-  /// unique", "FOREIGN KEY constraint failed", SQLITE_CONSTRAINT …).
-  static final RegExp _constraintPattern = RegExp(
-    r'constraint|must be unique|not unique',
-    caseSensitive: false,
-  );
 
   /// Committed ledger balance: opening + every committed event. This is the
   /// auditable projection; the UI wallet ([GemsProvider]) mirrors it.
@@ -221,8 +243,16 @@ class GemLedgerDao implements IGemLedger {
       // event is already recorded — the idempotent double-credit guard.
       // Anything else is a real storage failure; keep the false return (the
       // caller contract is "false = not recorded") but leave a trace.
-      final isConstraintViolation =
-          e is SqliteException && _constraintPattern.hasMatch(e.message);
+      //
+      // The message is the portable part of this test, not the exception type.
+      // `NativeDatabase` reports a constraint failure as `SqliteException`, but
+      // the OpenHarmony bridge reports the same failure as
+      // `PlatformException(EXECUTE_ERROR, "SQLite: Abort due to constraint
+      // violation. | sql: …")`, so an `e is SqliteException` guard is silently
+      // false on that build: every repeat of a recorded event was reported to
+      // the caller as a storage failure and logged as one, and the double-credit
+      // guard it was protecting stopped protecting anything.
+      final isConstraintViolation = isLedgerConstraintViolation(e);
       if (!isConstraintViolation) {
         logger.w('Gem ledger record failed: $e');
       }

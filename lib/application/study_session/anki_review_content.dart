@@ -35,6 +35,7 @@ ReviewContentBodyData reviewContentFor(
       return OfficialTemplateContent(
         frontHtml: interaction.frontHtml,
         backHtml: interaction.backHtml,
+        css: interaction.css,
         mediaBasePath: interaction.mediaBasePath.isEmpty
             ? null
             : interaction.mediaBasePath,

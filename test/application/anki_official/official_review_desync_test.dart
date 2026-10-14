@@ -7,6 +7,8 @@
 // ledger + live-queue pipeline the page wires in production.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:turna/domain/anki/presentation_receipt.dart';
+import '../../support/study_presentation_fixture.dart';
 import 'package:turna/application/anki_official/review/official_study_batch_assembler.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
@@ -131,6 +133,7 @@ class _Harness {
       controller,
       onOfficialShowAnswer: session.showAnswer,
     );
+    acknowledgeStudyFace(controller, PresentationSide.answer);
     await controller.submitRecall(outcome);
   }
 
@@ -316,6 +319,7 @@ void main() {
       h.controller,
       onOfficialShowAnswer: h.session.showAnswer,
     );
+    acknowledgeStudyFace(h.controller, PresentationSide.answer);
     await h.controller.submitRecall(RecallOutcome.remembered);
     expect(h.controller.phase, StudyCardPhase.readyForNext);
 

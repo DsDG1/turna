@@ -111,8 +111,14 @@ flutter pub run build_runner build --delete-conflicting-outputs
 应改查 `flutter --version` 确认当前用的是官方 SDK 而非 fork。
 
 **Official Anki 的鸿蒙口径：** 引擎层已在鸿蒙真机验证可行（[ADR 0046](./decisions/0046-ohos-anki-core-probe.md)），
-全档接线已授权（[ADR 0050](./decisions/0050-ohos-official-anki.md)），但**接线未施工**。
-本页的 arm64-only ABI 约束目前只约束 Android 产物。
+全档接线已授权（[ADR 0050](./decisions/0050-ohos-official-anki.md)）且**接线步 0–5b 已施工**
+（步 0–4：2026-10-08 真机收据覆盖引擎 dlopen / 内存 SQLite / 平台路由 / 降级拆除，导入入口已开放；
+步 5b：2026-10-14 夜真机首卡收据——渲染 / 翻卡 / 评分落库 / 队列前进全链路走通，见
+[34 收据](./official-anki-migration/34-cutover-receipt.md)「鸿蒙步 5b 真机首卡收据」）；
+余项为真机导入、课程学习解锁与遗留打磨项。
+**步 6 独立 CI 未做**，明细见 ADR 0050 §6。
+本页的 arm64-only ABI 约束目前只约束 Android 产物（鸿蒙伴生版另有一份提交进
+`ohos/entry/libs/arm64-v8a/` 的 `.so`，由 `ohos_eol_architecture_guard_test.dart` 断言）。
 
 ## Official Anki release ABI
 

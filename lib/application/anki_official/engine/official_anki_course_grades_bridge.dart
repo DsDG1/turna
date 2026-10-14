@@ -2,6 +2,12 @@ import 'dart:async';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/core/logger.dart';
 
+/// Stored word id for one official card. The grades bridge parses the `-c<id>`
+/// suffix back into a card id; rendering never uses this string.
+String officialAnkiWordId({required String sourceId, required int cardId}) {
+  return 'official-anki-$sourceId-c$cardId';
+}
+
 abstract class OfficialAnkiCourseGradesBridge {
   Future<bool> answerOfficialCard({
     required String wordId,

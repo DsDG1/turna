@@ -4,6 +4,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/anki_official/render/official_anki_present_ack.dart';
 
 void main() {
+  test('native success requires both a generation and a valid card side', () {
+    for (final raw in <Map<String, Object?>>[
+      {'ok': true},
+      {'ok': true, 'generation': 1},
+      {'ok': true, 'side': 'answer'},
+      {'ok': true, 'generation': 1, 'side': 'other'},
+    ]) {
+      final result = OfficialAnkiPresentResult.fromNative(raw);
+      expect(result.ok, isFalse);
+      expect(result.code, 'RENDER_TIMEOUT');
+    }
+  });
   test('rapid question/answer/question supersedes and keeps newest height',
       () async {
     final gate = OfficialAnkiPresentGate();

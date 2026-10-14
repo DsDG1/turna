@@ -14,10 +14,8 @@ import 'package:turna/core/theme.dart';
 /// Inline interaction surface for official `canonicalLink` items — the card
 /// renders inside the lesson itself instead of pushing the reviewer page.
 ///
-/// Completion contract: the in-card continue button unlocks only after the
-/// user has flipped to the answer side once. Boot/render failures stay in
-/// place (retry plus a release hatch that keeps continue tappable) so the
-/// lesson can never stall on a broken card. Preview only: no
+/// Completion requires a successfully presented answer. Boot/render failures
+/// remain retryable and cannot introduce or unlock an unseen card. Preview only: no
 /// Again/Hard/Good/Easy, official Scheduler writes stay 0.
 class OfficialAnkiCanonicalCardView extends StatefulWidget {
   const OfficialAnkiCanonicalCardView({
@@ -57,6 +55,7 @@ class _OfficialAnkiCanonicalCardViewState
   var _booting = true;
   var _hasSeenAnswer = false;
   var _ownsController = false;
+  var _bootGeneration = 0;
 
   OfficialAnkiCanonicalRef? get _ref =>
       OfficialAnkiCourseEntry.parseCanonicalLink(widget.contextToken);
@@ -75,14 +74,26 @@ class _OfficialAnkiCanonicalCardViewState
     _boot();
   }
 
+  @override
+  void didUpdateWidget(covariant OfficialAnkiCanonicalCardView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.contextToken != widget.contextToken ||
+        oldWidget.controller != widget.controller ||
+        oldWidget.paths != widget.paths ||
+        oldWidget.rendererAvailable != widget.rendererAvailable) {
+      _boot();
+    }
+  }
+
   /// Same boot shape as [OfficialAnkiReviewerPage]: resolve paths, build the
   /// controller, load the card. Every failure becomes an in-place error view
   /// — never a pushed route.
   Future<void> _boot() async {
+    final generation = ++_bootGeneration;
+    _detachController();
     final ref = _ref;
     if (ref == null || _failClosed) return;
     if (!mounted) return;
-    _detachController();
     setState(() {
       _booting = true;
       _bootError = null;
@@ -90,23 +101,27 @@ class _OfficialAnkiCanonicalCardViewState
     try {
       final paths =
           widget.paths ?? await OfficialAnkiCourseEntry.resolveDefaultPaths();
-      if (!mounted) return;
-      final controller = widget.controller ??
-          await createOfficialAnkiReviewerController(paths: paths);
-      if (!mounted) {
-        if (widget.controller == null) await controller.dispose();
+      if (!mounted || generation != _bootGeneration) return;
+      final injected = widget.controller;
+      final controller =
+          injected ?? await createOfficialAnkiReviewerController(paths: paths);
+      if (!mounted || generation != _bootGeneration) {
+        if (injected == null) await controller.dispose();
         return;
       }
       _controller = controller;
-      _ownsController = widget.controller == null;
+      _ownsController = injected == null;
       _paths = paths;
       controller.addListener(_onControllerChanged);
       await controller.loadAndShowQuestion(ref.cardId);
     } catch (error, stack) {
+      if (!mounted || generation != _bootGeneration) return;
       logger.w('[OfficialAnkiCanonicalCardView] boot error $error\n$stack');
       _bootError = error;
     } finally {
-      if (mounted) setState(() => _booting = false);
+      if (mounted && generation == _bootGeneration) {
+        setState(() => _booting = false);
+      }
     }
   }
 
@@ -124,20 +139,21 @@ class _OfficialAnkiCanonicalCardViewState
   void _onControllerChanged() {
     final controller = _controller;
     if (controller == null) return;
-    if (controller.showingAnswer) _hasSeenAnswer = true;
+    if (controller.presentedCardId == _ref?.cardId &&
+        controller.hasAnswerPresentAck) {
+      _hasSeenAnswer = true;
+    }
     if (mounted) setState(() {});
   }
 
-  /// Release hatch: a card that failed to boot or render must never block
-  /// lesson progression — the flip requirement only applies to live cards.
   bool get _canContinue {
-    if (_bootError != null) return true;
-    if (_controller?.ui.isError ?? false) return true;
+    if (_bootError != null || (_controller?.ui.isError ?? false)) return false;
     return _hasSeenAnswer;
   }
 
   @override
   void dispose() {
+    ++_bootGeneration;
     _detachController();
     super.dispose();
   }

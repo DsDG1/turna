@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/render/official_anki_present_ack.dart';
+import 'package:turna/application/anki_official/render/official_anki_reviewer_probe.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/core/ohos_target.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_error_view.dart';
@@ -72,6 +73,16 @@ class OfficialAnkiReviewerViewState extends State<OfficialAnkiReviewerView> {
   @override
   void initState() {
     super.initState();
+    // ADR 0050 §6 step 5b. On HarmonyOS the reviewer is a native page (route
+    // E), so the two builds below — the pending-renderer error and the probe
+    // that decides whether step 5b can be built at all — share one trigger:
+    // a user opening a card. That is deliberate, because the pending error was
+    // previously only ever exercised in code, and a receipt that requires a
+    // separate build switch is a receipt nobody ever takes.
+    if (isHarmonyOsTarget && kDebugMode) {
+      unawaited(logOfficialAnkiReviewerProbe());
+    }
+    _reportUnsupportedRenderer();
     if (!Platform.isAndroid) {
       _hcpp = false;
       return;
@@ -90,6 +101,12 @@ class OfficialAnkiReviewerViewState extends State<OfficialAnkiReviewerView> {
   @override
   void didUpdateWidget(covariant OfficialAnkiReviewerView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.card.cardId != widget.card.cardId ||
+        oldWidget.presentGeneration != widget.presentGeneration ||
+        oldWidget.presentEpoch != widget.presentEpoch ||
+        oldWidget.showingAnswer != widget.showingAnswer) {
+      _reportUnsupportedRenderer();
+    }
     if (_channel == null) return;
     if (oldWidget.textZoom != widget.textZoom) {
       // Zoom is a WebSettings-level knob: apply directly instead of routing
@@ -113,6 +130,26 @@ class OfficialAnkiReviewerViewState extends State<OfficialAnkiReviewerView> {
     _channel = MethodChannel('me.dsdogs.turna/official_anki_reviewer_$id');
     _channel!.setMethodCallHandler(_onNative);
     _present();
+  }
+
+  void _reportUnsupportedRenderer() {
+    if (Platform.isAndroid || Platform.isIOS) return;
+    final cardId = widget.card.cardId;
+    final generation = widget.presentGeneration;
+    final epoch = widget.presentEpoch;
+    final showingAnswer = widget.showingAnswer;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          cardId != widget.card.cardId ||
+          generation != widget.presentGeneration ||
+          epoch != widget.presentEpoch ||
+          showingAnswer != widget.showingAnswer) {
+        return;
+      }
+      widget.onRenderError?.call(isHarmonyOsTarget
+          ? 'official_anki.renderer_ohos_pending'
+          : 'official_anki.renderer_flag_fail_closed');
+    });
   }
 
   Future<dynamic> _onNative(MethodCall call) async {

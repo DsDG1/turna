@@ -336,7 +336,9 @@ class OfficialAnkiReviewerController implements OfficialAnswerPresenter {
     }
     error = OfficialAnkiException(
       code: OfficialAnkiErrorCode.renderFailed,
-      messageKey: 'official_anki.render_failed',
+      messageKey: code.startsWith('official_anki.renderer_')
+          ? code
+          : 'official_anki.render_failed',
       debugDetails: code,
     );
     phase = OfficialAnkiReviewerPhase.fatalError;
