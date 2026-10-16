@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
+import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_course_grades_bridge.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine_fake.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
@@ -129,13 +130,15 @@ void main() {
       },
       onRated: (value) async {
         rated = value;
+        return true;
       },
     );
     await transport.onShowAnswer?.call('typed');
     await pumpEventQueue();
-    await transport.onRate?.call('hard');
+    final receipt = await transport.onRate?.call('hard');
     await pumpEventQueue();
 
+    expect(receipt, 'ok');
     expect(
       officialAnkiWordId(sourceId: 'source-test', cardId: cardIdSeen),
       'official-anki-source-test-c7',
@@ -146,6 +149,85 @@ void main() {
     expect(rated, 'hard');
     expect(controller.typed.provided, 'typed');
     expect(controller.showingAnswer, isTrue);
+  });
+
+  test('a rating whose advance reports the queue finished answers ok_complete',
+      () async {
+    final transport = _FakeTransport();
+    final grades = OfficialAnkiCourseGradesBridgeImpl(
+      flags: OfficialAnkiFeatureFlags.productionAndroid.copyWith(
+        courseGradesScheduler: true,
+      ),
+      onAnswer: (cardId, rating, millisecondsTaken) async => true,
+    );
+    engine.renders[7] = const OfficialAnkiRenderedCard(
+      cardId: 7,
+      questionHtml: 'q',
+      answerHtml: 'a',
+      questionDisplayHtml: 'q',
+      answerDisplayHtml: 'a',
+      css: '',
+    );
+    await controller.loadAndShowQuestion(7);
+    await OfficialAnkiOhosReviewerBinding.attach(
+      controller: controller,
+      grades: grades,
+      mediaRoot: media.path,
+      resolver: OfficialAnkiMediaResolver(media),
+      sourceId: 'source-test',
+      dark: false,
+      transport: transport,
+      onRated: (_) async => false,
+    );
+    await transport.onShowAnswer?.call('');
+    await pumpEventQueue();
+    final receipt = await transport.onRate?.call('good');
+    await pumpEventQueue();
+
+    expect(receipt, 'ok_complete');
+  });
+
+  test('an answer_not_ready rejection flips the card back to the question',
+      () async {
+    final transport = _FakeTransport();
+    final grades = OfficialAnkiCourseGradesBridgeImpl(
+      flags: OfficialAnkiFeatureFlags.productionAndroid.copyWith(
+        courseGradesScheduler: true,
+      ),
+      onAnswer: (cardId, rating, millisecondsTaken) async {
+        throw const OfficialAnkiException(
+          code: OfficialAnkiErrorCode.invalidState,
+          messageKey: 'official_anki.answer_not_ready',
+        );
+      },
+    );
+    engine.renders[7] = const OfficialAnkiRenderedCard(
+      cardId: 7,
+      questionHtml: 'q',
+      answerHtml: 'a',
+      questionDisplayHtml: 'q',
+      answerDisplayHtml: 'a',
+      css: '',
+    );
+    await controller.loadAndShowQuestion(7);
+    await OfficialAnkiOhosReviewerBinding.attach(
+      controller: controller,
+      grades: grades,
+      mediaRoot: media.path,
+      resolver: OfficialAnkiMediaResolver(media),
+      sourceId: 'source-test',
+      dark: false,
+      transport: transport,
+    );
+    await transport.onShowAnswer?.call('');
+    await pumpEventQueue();
+    expect(controller.showingAnswer, isTrue);
+    final receipt = await transport.onRate?.call('good');
+    await pumpEventQueue();
+
+    expect(receipt, 'answer_not_ready');
+    expect(controller.showingAnswer, isFalse);
+    expect(transport.calls, contains('present:question'));
   });
 
   test('a refused grade does not tell the host the card was answered',
@@ -171,11 +253,13 @@ void main() {
       transport: transport,
       onRated: (_) async {
         rated = true;
+        return true;
       },
     );
-    await transport.onRate?.call('good');
+    final receipt = await transport.onRate?.call('good');
     await pumpEventQueue();
     expect(rated, isFalse);
+    expect(receipt, 'scheduler_unavailable');
   });
 }
 
@@ -183,21 +267,19 @@ class _FakeTransport implements OfficialAnkiOhosReviewerTransport {
   final calls = <String>[];
   Map<String, Object?>? lastPayload;
   Future<void> Function(String typed)? onShowAnswer;
-  Future<void> Function(String rating)? onRate;
+  Future<String> Function(String rating)? onRate;
   final _open = Completer<String>();
 
   @override
   Future<void> bindOutbound({
     required void Function(String typed) onShowAnswer,
-    required void Function(String rating) onRate,
+    required Future<String> Function(String rating) onRate,
     required void Function(String text) onTypedChanged,
   }) async {
     this.onShowAnswer = (typed) async {
       onShowAnswer(typed);
     };
-    this.onRate = (rating) async {
-      onRate(rating);
-    };
+    this.onRate = onRate;
   }
 
   @override

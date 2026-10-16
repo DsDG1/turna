@@ -1,6 +1,6 @@
 # 34 — Cutover receipt（W8–W10 收口摘要）
 
-> 日期：2026-08-25（一次性施工 host 收口后更新；2026-09-24 架构简化计划 P0–P4 施工后补充下方「架构简化批次」；2026-09-27 补记 iOS 启用与真机证据台账、订正 Held 表；2026-10-08 补记鸿蒙 Official Anki 接线批次步 0–4；2026-10-14 补记鸿蒙步 5b 判据结清；同夜补记步 5b 真机首卡收据）
+> 日期：2026-08-25（一次性施工 host 收口后更新；2026-09-24 架构简化计划 P0–P4 施工后补充下方「架构简化批次」；2026-09-27 补记 iOS 启用与真机证据台账、订正 Held 表；2026-10-08 补记鸿蒙 Official Anki 接线批次步 0–4；2026-10-14 补记鸿蒙步 5b 判据结清；同夜补记步 5b 真机首卡收据；2026-10-15 补记步 6 独立 CI workflow 施工；2026-10-16 补记评分回执与按钮互斥修复）
 > 状态：**验收 NO-GO；Official Anki 迁移中**（host/自动化门禁全绿、**Android 写侧与 iOS 导入链各有一次真机/模拟器证据**；生产 bundle 全链路与外部事实未验收。不得写「迁移完成」，不得写「Android 可正常使用」）
 > 计划真源：[`34-official-anki-production-cutover-and-ohos-retirement-plan.md`](./34-official-anki-production-cutover-and-ohos-retirement-plan.md)
 > 剩余波次：[`34-remaining-construction-plan.md`](./archive/34-remaining-construction-plan.md)（已归档，R0–R8 全部闭环）
@@ -115,7 +115,8 @@ begin / commit / rollback、连接隔离和事务错误传播；正式复习统�
 **当晚后续**：2026-10-14 晚些时候 `OfficialAnkiReviewerStage` 接上 ArkUI 复习页
 （先推媒体再呈现，评分走 `wordId` 与翻卡计时，见 ADR 0050 §3.6），**当夜即上机**——
 首屏复现 `render_failed`，修复八处接线缺陷后取得首卡全链路收据，5b 就此完成，
-见下节。步 6 独立 CI 仍 Held。伴生版仍不进主交付。
+见下节。步 6 独立 CI 后于 2026-10-15 落库、首跑收据待取（见下方
+「鸿蒙步 6 独立 CI workflow 施工」节）。伴生版仍不进主交付。
 
 ## 鸿蒙步 5b 真机首卡收据（2026-10-14 夜）
 
@@ -136,8 +137,61 @@ begin / commit / rollback、连接隔离和事务错误传播；正式复习统�
 逐条缺陷收据与修复细节以 [ADR 0050](../decisions/0050-ohos-official-anki.md) §3.7 与
 `test/BASELINE.md` 2026-10-14「步 5b 真机首卡收据」条为准。**遗留打磨项**
 （ability 中途关闭后重开在后台、换卡评分门时序空窗、reveal 状态未随换卡复位）与
-**用户流余项**（真机导入、课程学习解锁）不推翻本收据；步 6 独立 CI 仍 Held；
+**用户流余项**（真机导入、课程学习解锁）不推翻本收据；步 6 独立 CI 后于
+2026-10-15 落库、首跑收据待取（见下方「鸿蒙步 6 独立 CI workflow 施工」节）；
 伴生版不进主交付。
+
+## 鸿蒙步 6 独立 CI workflow 施工（2026-10-15）
+
+ADR 0047 承诺、ADR 0050 §6 列为唯一余步的**独立 CI workflow** 落库：
+`.github/workflows/ohos_ci.yml` + `tool/ohos_ci_prepare.py`。鸿蒙构建仍
+不进主 CI（`flutter_ci.yml` 不动）。
+
+链条事实（全部现场查证，非推断）：
+
+- **fork SDK 可按钉克隆**：gitcode `CPF-Flutter/flutter_flutter` 公开
+  tag `3.44.9+ohos-0.0.1-canary1` 与本机检出（`git describe` 同名、工作树
+  干净）commit 逐一相符；ADR 0047 §7.2 的 autofill shim 是仓库内幂等脚本，
+  CI 在 `flutter precache --ohos` 之后 `--apply` 即可复现。
+- **引擎工件有官方镜像**：fork README 指定
+  `FLUTTER_STORAGE_BASE_URL=https://flutter-ohos.obs.cn-south-1.myhuaweicloud.com`。
+- **签名走「键缺席 = 未签名 hap」**：fork 的 `checkOhosSignedInfo` 只拦
+  **空列表**，接受键缺席；无 signingConfig 时 hvigor 产出
+  `entry-default-unsigned.hap`（DevEco 后置签名流的同款产物）。CI 证明
+  目标因此定为「ohos 树可编译打包」，不追签名材料——伴生机构本地的
+  DevEco 调试证书进不了 CI。
+- **机器本地态由构建自愈**：`ohos/package.json` / `local.properties` /
+  ohpm locks 均由 fork 构建过程按当前机器重写，prepare 工具只负责剥
+  签名块与剪旧 lock / 依赖树（附括号配平自校验，配错即响亮失败）。
+
+**验证**：`test/ohos_ci_prepare_test.py` 7 例 + 全量 python 套件
+60 tests OK；真实 `build-profile.json5` 的内存变换冒烟符合预期且幂等；
+官方 SDK `flutter analyze` No issues。见 `test/BASELINE.md` 2026-10-15
+「步 6 独立 CI workflow 施工」条。
+
+**首跑收据仍 Held**：DevEco command-line tools 无稳定公开 URL（下载中心
+发登录态链接），须先配仓库变量 `DEVECO_CMDLINE_TOOLS_URL`（Linux zip，
+与伴生机同代）+ 可选 sha256，或在 workflow_dispatch 时用 inputs 覆盖；
+首跑绿之前步 6 不改判为完成。
+
+## 鸿蒙评分回执与按钮互斥修复（2026-10-16）
+
+用户在真机复习中报「四档评分按钮点不动」。归因（见 [ADR 0050](../decisions/0050-ohos-official-anki.md)
+2026-10-16 补记）：`rate` 为 fire-and-forget，Dart 侧一切拒绝被 grades 桥折叠成
+`false` 后对 ArkUI 页面不可见——与死按钮不可区分。三条路径被证实：§3.7 已记录的
+换卡评分门时序空窗与 reveal 未复位（后者使该卡每次点击均 `answer_not_ready`），
+以及本日新证实的**末卡队列完结**（评分成功后无 present 换行、Flutter 完成屏被
+ability 盖住，按钮从此死在屏上）。
+
+修复双侧落库：Dart `rate` 回复稳定回执码，`answer_not_ready` 自愈翻回问题面并
+re-present，`onNativeRated` 改 `Future<bool>`（队列完结→`ok_complete`）；ArkUI
+点按即禁用、present 重新武装、重试码恢复 + 状态行、硬失败保持禁用并报码、
+`ok_complete` 换入完成行（`Review complete` + `Close`→`terminateSelf`，回到
+Flutter 完成屏）。同批给步 6 的 `ohos_ci.yml` 补了 guard 测试单文件 `openharmony`
+needle 豁免（该工作区文件此前使 `.github` 禁记扫描先红）。验证与收据口径见
+`test/BASELINE.md` 2026-10-16「鸿蒙复习器四档评分按钮『点不动』修复」条
+（analyze No issues；全量 2149 passed / 0 failed；**真机复验收据待取**——互斥 /
+回执 / 自愈 / 完成行四点均需真机过卡验证；ability 重开在后台的打磨项本批未触碰）。
 
 ## 鸿蒙 Official Anki 接线批次步 0–4（2026-10-08，ADR 0050 §6）
 
@@ -158,7 +212,8 @@ begin / commit / rollback、连接隔离和事务错误传播；正式复习统�
   真机 `runtimeOk=true reason=ready abi=1`。
 - **步 4（降级拆除）**：`OhosDegradation.officialAnki` 移除，`degradations` 只剩
   `remoteBackup`；Official Anki 导入入口在鸿蒙上开放。
-- **仍 Held**：步 6 独立 CI workflow。（步 5b ArkTS 保真复习器**已于 2026-10-14 夜
+- **仍 Held**（写作当时）：步 6 独立 CI workflow——后已于 2026-10-15 落库、
+  首跑收据待取，见上方「鸿蒙步 6 独立 CI workflow 施工」节。（步 5b ArkTS 保真复习器**已于 2026-10-14 夜
   完成并取得真机首卡收据**，见上方「鸿蒙步 5b 真机首卡收据」节；此前的
   `renderer_ohos_pending` 响亮失败已被取代。）鸿蒙复习器工作量**无估算**
   （ADR 0047 的「5–8 人日」按嵌入式 PlatformView 估，不可引用）。
@@ -343,7 +398,7 @@ W9-A 含义是：**停住 Legacy 新写入口的产品选择**，不是物理删
 | 真机 reimport / Browser/Stats/Media / 强杀恢复验证 | 同上，待设备矩阵 |
 | 存量用户跑批 / owner 切换 | W8 driver 可入队 `cleanLegacy`；未对真实用户库执行 |
 | OHOS 树物理删除 | ~~已完成（`ohos/` absent）~~ **（2026-10-07 订正为失真）**：`ohos/` 已由 ADR 0047 恢复为伴生版，物理删除从未在当前树成立；历史 archive 保留 |
-| 鸿蒙 Official Anki | **已授权；接线步 0–5b 已施工（步 0–4：2026-10-08，见上方「鸿蒙 Official Anki 接线批次」节；步 5b：2026-10-14 夜，见上方「鸿蒙步 5b 真机首卡收据」节；[ADR 0050](../decisions/0050-ohos-official-anki.md)）**：引擎 / 内存 SQLite / 平台路由 / 降级拆除有真机探针收据（`dlopen=ok`、`catalog=ok sqlite=3.49.2`、`runtimeOk=true reason=ready`、`degradations=remoteBackup`、`catalogLocatorReady=true`）；2026-10-13 补修真实 catalog、RDB 事务和正式复习接缝；2026-10-14 夜步 5b 真机首卡收据——渲染 / 翻卡 / 评分落库 / 队列前进 / 强杀恢复全链路走通，八处接线缺陷已修（ADR 0050 §3.7），`productModeFor('ohos')` → 官方档。**仍 Held**：步 6 独立 CI；用户流余项（真机导入、课程学习解锁）与遗留打磨项（ability 重开在后台、换卡评分门时序空窗、reveal 状态复位）；伴生版不进主交付 |
+| 鸿蒙 Official Anki | **已授权；接线步 0–5b 已施工（步 0–4：2026-10-08，见上方「鸿蒙 Official Anki 接线批次」节；步 5b：2026-10-14 夜，见上方「鸿蒙步 5b 真机首卡收据」节；[ADR 0050](../decisions/0050-ohos-official-anki.md)）**：引擎 / 内存 SQLite / 平台路由 / 降级拆除有真机探针收据（`dlopen=ok`、`catalog=ok sqlite=3.49.2`、`runtimeOk=true reason=ready`、`degradations=remoteBackup`、`catalogLocatorReady=true`）；2026-10-13 补修真实 catalog、RDB 事务和正式复习接缝；2026-10-14 夜步 5b 真机首卡收据——渲染 / 翻卡 / 评分落库 / 队列前进 / 强杀恢复全链路走通，八处接线缺陷已修（ADR 0050 §3.7），`productModeFor('ohos')` → 官方档。**仍 Held**：步 6 首跑收据（workflow 已于 2026-10-15 落库，见上方「鸿蒙步 6 独立 CI workflow 施工」节；需配 `DEVECO_CMDLINE_TOOLS_URL` 仓库变量后首跑）；用户流余项（真机导入、课程学习解锁）与遗留打磨项（ability 重开在后台；换卡评分门时序空窗与 reveal 复位已于 2026-10-16 代码修复、真机复验收据待取，见上方「鸿蒙评分回执与按钮互斥修复」节）；伴生版不进主交付 |
 
 ## Android ABI packaging
 

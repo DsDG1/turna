@@ -111,7 +111,17 @@ void main() {
           for (final file
               in Directory(root).listSync(recursive: true).whereType<File>()) {
             if (_shouldSkip(file.path)) continue;
-            _scanFile(file, needles, violations);
+            var fileNeedles = needles;
+            // Same carve-out as pubspec.yaml above, applied per file: the
+            // OHOS CI workflow is the one sanctioned place under .github that
+            // must name the fork's world, including the DevEco SDK layout
+            // directory literally called `openharmony` (ADR 0050 §6 step 6).
+            // Every other file under .github keeps the full needle set.
+            if (file.path.replaceAll('\\', '/')
+                .endsWith('.github/workflows/ohos_ci.yml')) {
+              fileNeedles = needles.where((n) => n != 'openharmony').toList();
+            }
+            _scanFile(file, fileNeedles, violations);
           }
         }
       }

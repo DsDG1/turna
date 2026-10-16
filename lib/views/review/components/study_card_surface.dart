@@ -45,7 +45,9 @@ class StudyCardSurface extends StatefulWidget {
   final Set<InteractionRenderer>? renderers;
   final OfficialAnkiCourseGradesBridge? grades;
   final VoidCallback? onNativeReveal;
-  final Future<void> Function(String rating)? onNativeRated;
+
+  /// `true` = advanced to another card, `false` = queue finished.
+  final Future<bool> Function(String rating)? onNativeRated;
 
   @override
   State<StudyCardSurface> createState() => _StudyCardSurfaceState();

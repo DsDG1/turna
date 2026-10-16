@@ -132,9 +132,9 @@ analyzer 已强制的部分（`analysis_options.yaml`：`strict-casts`、`avoid_
 |---|---|---|
 | **产品级** | 已 EOL。伴生版不进主交付、不进主 CI | [ADR 0041](./docs/decisions/0041-ohos-product-eol.md) |
 | **伴生版** | 存在但受限：课程 / SRS / 复习 / 词典 / 设置 / 备份 + 自维护 ArkTS 通道 | [ADR 0047](./docs/decisions/0047-ohos-companion-lite-build.md) |
-| **Official Anki** | **已授权；接线步 0–5b 已施工**。步 0–4（2026-10-08）：引擎 / 内存 SQLite / 平台路由 / 降级拆除真机探针收据，`degradations` 只剩 `remoteBackup`。2026-10-13 补修真实 catalog 冷启动、RDB 事务和正式复习回执。**2026-10-14 夜步 5b 完成并取得真机首卡收据**（Mate 90 Pro Max：渲染 / 翻卡 / 评分落库 / 队列前进 / 强杀恢复全链路走通；八处接线缺陷已修，见 ADR 0050 §3.7）。仍 Held：步 6 独立 CI；用户流余项（真机导入、课程学习解锁）；打磨项（ability 重开在后台、换卡评分门时序空窗、reveal 复位）。`productModeFor('ohos')` → 官方档 | [34 收据](./docs/official-anki-migration/34-cutover-receipt.md)「鸿蒙步 5b 真机首卡收据」；[ADR 0050](./docs/decisions/0050-ohos-official-anki.md) §3.6–§3.7 |
+| **Official Anki** | **已授权；接线步 0–5b 已施工**。步 0–4（2026-10-08）：引擎 / 内存 SQLite / 平台路由 / 降级拆除真机探针收据，`degradations` 只剩 `remoteBackup`。2026-10-13 补修真实 catalog 冷启动、RDB 事务和正式复习回执。**2026-10-14 夜步 5b 完成并取得真机首卡收据**（Mate 90 Pro Max：渲染 / 翻卡 / 评分落库 / 队列前进 / 强杀恢复全链路走通；八处接线缺陷已修，见 ADR 0050 §3.7）。步 6 独立 CI workflow 已于 2026-10-15 落库（无签名 hap 冒烟，`ohos_ci.yml` + `tool/ohos_ci_prepare.py`），**首跑收据待取**（需配 `DEVECO_CMDLINE_TOOLS_URL` 仓库变量）。仍 Held：用户流余项（真机导入、课程学习解锁）；打磨项（ability 重开在后台；换卡评分门时序空窗与 reveal 复位已于 2026-10-16 代码修复——rate 回执码 + 按钮互斥 + answer_not_ready 自愈翻面 + 队列完结完成行，真机复验收据待取）。`productModeFor('ohos')` → 官方档 | [34 收据](./docs/official-anki-migration/34-cutover-receipt.md)「鸿蒙步 5b 真机首卡收据」「鸿蒙评分回执与按钮互斥修复」「鸿蒙步 6 独立 CI workflow 施工」；[ADR 0050](./docs/decisions/0050-ohos-official-anki.md) §3.6–§3.7 |
 
-**因此**：❌ 不得写「鸿蒙支持 Official Anki」（完整用户流中真机导入与课程学习解锁仍无收据、步 6 独立 CI 不存在、伴生版不进主交付——「支持」是产品级断言，余项未清前不成立）；❌ 也不得反向写「鸿蒙复习器做不出来」——2026-10-14 已用真机收据证明 ArkUI `Web` 满足 CSP / 自定义 scheme / Range/206，且当夜复习链路（渲染 / 翻卡 / 评分落库 / 队列前进）已在真机走通；✅ 可写「已授权，步 0–5b 已施工，复习链路有真机首卡收据（2026-10-14 夜），真机导入与课程学习解锁等用户流余项、遗留打磨项与步 6 CI 待做」——能力矩阵已把鸿蒙路由到官方档，**不再是 `ankiUnavailable`**。
+**因此**：❌ 不得写「鸿蒙支持 Official Anki」（完整用户流中真机导入与课程学习解锁仍无收据、步 6 CI 首跑收据未取、伴生版不进主交付——「支持」是产品级断言，余项未清前不成立）；❌ 也不得反向写「鸿蒙复习器做不出来」——2026-10-14 已用真机收据证明 ArkUI `Web` 满足 CSP / 自定义 scheme / Range/206，且当夜复习链路（渲染 / 翻卡 / 评分落库 / 队列前进）已在真机走通；✅ 可写「已授权，步 0–5b 已施工，复习链路有真机首卡收据（2026-10-14 夜），真机导入与课程学习解锁等用户流余项、遗留打磨项与步 6 CI 首跑收据待取（workflow 已于 2026-10-15 落库）」——能力矩阵已把鸿蒙路由到官方档，**不再是 `ankiUnavailable`**。
 
 **三个已知的失真点**（本节之前它们还在文档里）：
 

@@ -47,7 +47,7 @@ class OfficialAnkiReviewerChannel {
   /// like a reviewer that ignores the learner.
   Future<void> bindOutbound({
     required void Function(String typed) onShowAnswer,
-    required void Function(String rating) onRate,
+    required Future<String> Function(String rating) onRate,
     required void Function(String text) onTypedChanged,
   }) async {
     channel.setMethodCallHandler((call) async {
@@ -56,8 +56,10 @@ class OfficialAnkiReviewerChannel {
           onShowAnswer(call.arguments as String? ?? '');
           return null;
         case 'rate':
-          onRate(call.arguments as String? ?? '');
-          return null;
+          // The reply IS the receipt: the page disables the four buttons on
+          // tap and only re-enables them on what this returns, so a refusal
+          // must travel back or it reads on device as a dead button.
+          return onRate(call.arguments as String? ?? '');
         case 'typedChanged':
           onTypedChanged(call.arguments as String? ?? '');
           return null;

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/core/logger.dart';
 
@@ -52,9 +53,14 @@ class OfficialAnkiCourseGradesBridgeImpl
         return await onAnswer!(cardId, rating, millisecondsTaken);
       }
       return false;
+    } on OfficialAnkiException {
+      // Rethrown rather than folded into `false`: the HarmonyOS reviewer maps
+      // the messageKey into the page's rating receipt, which is the only way
+      // the four buttons learn "not ready yet" from "gone for good".
+      rethrow;
     } catch (suppressed) {
       logger.w(
-          '[OfficialAnkiCourseGradesBridge] [OfficialAnkiCourseGradesBridge] course-grades bridge suppressed: $suppressed');
+          '[OfficialAnkiCourseGradesBridge] course-grades bridge suppressed: $suppressed');
       return false;
     }
   }

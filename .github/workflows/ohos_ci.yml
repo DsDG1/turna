@@ -1,0 +1,196 @@
+name: OHOS CI
+
+# ADR 0047 §后果「鸿蒙构建不进主 CI，单独 workflow」；ADR 0050 §6 步 6。
+# 用 OHOS fork SDK（AGENTS.md §9.1 钉定的 canary tag）构建**未签名**伴生 hap：
+# 签名材料是伴生机构本地的 DevEco 调试证书（机器耦合，进不了 CI），CI 的
+# 证明目标是「ohos 树可编译打包」，等价于 Makefile 里的 build-release-smoke
+# 在鸿蒙侧的对应物。产出 entry-default-unsigned.hap 作为 artifact 上传。
+#
+# 唯一无稳定公开 URL 的输入是 DevEco command-line tools（华为下载中心
+# 发登录态链接）。首次配置：仓库 Settings → Secrets and variables →
+# Actions → Variables 加 DEVECO_CMDLINE_TOOLS_URL（Linux 版 zip，与伴生机
+# 同代——当前为 DevEco Studio 26.0.0.461，其捆绑 SDK 服务
+# compatibleSdkVersion 5.1.0(18)），可选 DEVECO_CMDLINE_TOOLS_SHA256；
+# 也可在 workflow_dispatch 时用 inputs 临时覆盖。
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - "lib/**"
+      - "ohos/**"
+      - "assets/**"
+      - "native/**"
+      - "third_party/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - "tool/ohos_ci_prepare.py"
+      - ".github/workflows/ohos_ci.yml"
+  pull_request:
+    branches:
+      - master
+    paths:
+      - "lib/**"
+      - "ohos/**"
+      - "assets/**"
+      - "native/**"
+      - "third_party/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - "tool/ohos_ci_prepare.py"
+      - ".github/workflows/ohos_ci.yml"
+  workflow_dispatch:
+    inputs:
+      tools_url:
+        description: "DevEco command-line tools (Linux zip) URL override"
+        required: false
+        type: string
+      tools_sha256:
+        description: "Expected sha256 of the tools zip (optional)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # 与本机 fork 检出（git describe = 3.44.9+ohos-0.0.1-canary1，工作树干净）
+  # 完全一致的公开 tag；换 tag 时连同缓存 key 一起改。
+  FLUTTER_OHOS_REPO: https://gitcode.com/CPF-Flutter/flutter_flutter.git
+  FLUTTER_OHOS_TAG: 3.44.9+ohos-0.0.1-canary1
+  # fork README §配置环境变量 指定的官方工件镜像（ohos 引擎二进制的来源）。
+  FLUTTER_STORAGE_BASE_URL: https://flutter-ohos.obs.cn-south-1.myhuaweicloud.com
+  TOOLS_HOME: /home/runner/deveco-tools
+  SDK_HOME: /home/runner/flutter_ohos
+
+jobs:
+  hap:
+    name: Unsigned companion hap (debug)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Resolve DevEco command-line tools URL
+        env:
+          TOOLS_URL_INPUT: ${{ inputs.tools_url }}
+          TOOLS_SHA_INPUT: ${{ inputs.tools_sha256 }}
+          TOOLS_URL_VAR: ${{ vars.DEVECO_CMDLINE_TOOLS_URL }}
+          TOOLS_SHA_VAR: ${{ vars.DEVECO_CMDLINE_TOOLS_SHA256 }}
+        run: |
+          set -euo pipefail
+          url="${TOOLS_URL_INPUT:-${TOOLS_URL_VAR:-}}"
+          sha="${TOOLS_SHA_INPUT:-${TOOLS_SHA_VAR:-}}"
+          if [ -z "$url" ]; then
+            echo "::error::No DevEco command-line tools URL configured. Set the repository variable DEVECO_CMDLINE_TOOLS_URL (Linux zip, same DevEco generation as the companion build machine — see the header of .github/workflows/ohos_ci.yml) or pass tools_url on a workflow_dispatch run."
+            exit 1
+          fi
+          echo "TOOLS_URL=$url" >> "$GITHUB_ENV"
+          if [ -n "$sha" ]; then
+            echo "TOOLS_SHA256=$sha" >> "$GITHUB_ENV"
+          else
+            echo "::warning::tools zip is unpinned (no sha256 configured)."
+          fi
+          echo "TOOLS_CACHE_KEY=ohos-deveco-tools-$(printf '%s' "$url" | sha256sum | cut -c1-16)" >> "$GITHUB_ENV"
+
+      - name: Cache DevEco command-line tools
+        id: tools-cache
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/deveco-tools
+          key: ${{ env.TOOLS_CACHE_KEY }}
+
+      - name: Download DevEco command-line tools
+        if: steps.tools-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          curl -fL --retry 3 -o /tmp/deveco-tools.zip "$TOOLS_URL"
+          if [ -n "${TOOLS_SHA256:-}" ]; then
+            echo "$TOOLS_SHA256  /tmp/deveco-tools.zip" | sha256sum -c -
+          fi
+          mkdir -p "$TOOLS_HOME" /tmp/deveco-unpack
+          unzip -q /tmp/deveco-tools.zip -d /tmp/deveco-unpack
+          # zip 可能顶层就是 bin/sdk/tool，也可能包一层目录——归一到
+          # $TOOLS_HOME/bin 可用。
+          if [ -d /tmp/deveco-unpack/bin ]; then
+            mv /tmp/deveco-unpack/* "$TOOLS_HOME/"
+          else
+            wrapper=$(find /tmp/deveco-unpack -mindepth 1 -maxdepth 1 -type d | head -1)
+            mv "$wrapper"/* "$TOOLS_HOME/"
+          fi
+          test -x "$TOOLS_HOME/bin/ohpm" || { echo "::error::ohpm not found under $TOOLS_HOME/bin (unexpected zip layout)"; exit 1; }
+          test -d "$TOOLS_HOME/sdk" || { echo "::error::sdk/ not found under $TOOLS_HOME (unexpected zip layout)"; exit 1; }
+
+      - name: Export OHOS toolchain environment
+        run: |
+          set -euo pipefail
+          # 布局与 fork 的 ohos_sdk.dart 发现逻辑对齐（DEVECO_SDK_HOME 优先，
+          # local.properties 由 fork 的 updateLocalProperties 从这些变量重写）。
+          echo "DEVECO_SDK_HOME=$TOOLS_HOME/sdk" >> "$GITHUB_ENV"
+          echo "OHOS_SDK_HOME=$TOOLS_HOME/sdk/default/openharmony" >> "$GITHUB_ENV"
+          echo "NODE_HOME=$TOOLS_HOME/tool/node" >> "$GITHUB_ENV"
+          echo "$TOOLS_HOME/bin" >> "$GITHUB_PATH"
+          echo "$TOOLS_HOME/tool/node/bin" >> "$GITHUB_PATH"
+
+      - name: Cache OHOS fork Flutter SDK
+        id: sdk-cache
+        uses: actions/cache@v4
+        with:
+          # 克隆 + bin/cache（dart-sdk 与 ohos 引擎工件都在里面），按 tag 键控。
+          path: /home/runner/flutter_ohos
+          key: ohos-flutter-sdk-${{ env.FLUTTER_OHOS_TAG }}
+
+      - name: Clone OHOS fork Flutter SDK
+        if: steps.sdk-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          git clone --depth 1 -b "$FLUTTER_OHOS_TAG" "$FLUTTER_OHOS_REPO" "$SDK_HOME"
+
+      - name: Precache ohos engine artifacts
+        run: |
+          set -euo pipefail
+          "$SDK_HOME/bin/flutter" config --no-analytics
+          "$SDK_HOME/bin/flutter" precache --ohos
+
+      - name: Patch embedding autofill shim (ADR 0047 §7.2)
+        run: |
+          set -euo pipefail
+          # 幂等；--check 恒 exit 0（问题只打印），补丁是否生效的真正证明是
+          # 下面 hvigor 阶段的 ArkTS 编译（该工具自身的 docstring 亦如此声明）。
+          python3 third_party/flutter/patch_ohos_embedding.py --apply --sdk "$SDK_HOME"
+
+      - name: Strip signing and machine-local locks
+        run: |
+          set -euo pipefail
+          python3 tool/ohos_ci_prepare.py prep-unsigned --root "$GITHUB_WORKSPACE"
+
+      - name: Build unsigned hap (debug)
+        run: |
+          set -euo pipefail
+          "$SDK_HOME/bin/flutter" pub get
+          "$SDK_HOME/bin/flutter" build hap --debug
+
+      - name: Collect hap
+        run: |
+          set -euo pipefail
+          test -f ohos/entry/libs/arm64-v8a/libturna_anki.so
+          hap_dir="ohos/entry/build/default/outputs/default"
+          ls -lh "$hap_dir"
+          test -f "$hap_dir/entry-default-unsigned.hap" || {
+            echo "::error::expected entry-default-unsigned.hap under $hap_dir (no signing config => hvigor unsigned output)"
+            exit 1
+          }
+
+      - name: Upload hap artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: turna-ohos-debug-unsigned-hap
+          path: ohos/entry/build/default/outputs/default/entry-default-unsigned.hap
+          if-no-files-found: error
+          retention-days: 14

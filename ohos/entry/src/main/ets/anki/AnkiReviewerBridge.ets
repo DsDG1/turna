@@ -15,6 +15,8 @@
 // event channel.
 
 import MethodChannel from '@ohos/flutter_ohos/src/main/ets/plugin/common/MethodChannel';
+import { MethodResult } from '@ohos/flutter_ohos/src/main/ets/plugin/common/MethodChannel';
+import type Any from '@ohos/flutter_ohos/src/main/ets/plugin/common/Any';
 
 let outbound: MethodChannel | null = null;
 
@@ -58,9 +60,32 @@ export class AnkiReviewerBridge {
   /// One of Anki's four buttons. `rating` arrives as the button's own label so
   /// the mapping to a scheduler value stays in Dart, where the buttons and the
   /// intervals they produce are defined together.
-  public rate(rating: string): void {
+  ///
+  /// Unlike `showAnswer`, this call carries its verdict back: `onResult` gets
+  /// the receipt code ('ok' | 'ok_complete' | 'answer_not_ready' |
+  /// 'scheduler_busy' | hard-failure codes). The page disables the four
+  /// buttons the moment one is tapped and decides from this code whether to
+  /// re-enable them — without the receipt, a refusal on the Dart side is
+  /// indistinguishable from a button that does nothing.
+  public rate(rating: string, onResult: (code: string) => void): void {
     this.emit('rate', rating);
-    this.callDart('rate', rating);
+    const channel: MethodChannel | null = outbound;
+    if (channel === null) {
+      onResult('bridge_detached');
+      return;
+    }
+    const receiver: MethodResult = {
+      success: (result: Any): void => {
+        onResult(result === null || result === undefined ? '' : String(result));
+      },
+      error: (code: string): void => {
+        onResult('channel_error_' + code);
+      },
+      notImplemented: (): void => {
+        onResult('not_implemented');
+      },
+    };
+    channel.invokeMethod('rate', rating, receiver);
   }
 
   /// Every keystroke, mirroring the Flutter `TextField`'s `onChanged`. Sent on

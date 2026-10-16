@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
+import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_course_grades_bridge.dart';
 import 'package:turna/application/anki_official/render/official_anki_media_resolver.dart';
 import 'package:turna/application/anki_official/render/official_anki_render_state.dart';
@@ -13,7 +14,7 @@ import 'package:turna/core/logger.dart';
 abstract class OfficialAnkiOhosReviewerTransport {
   Future<void> bindOutbound({
     required void Function(String typed) onShowAnswer,
-    required void Function(String rating) onRate,
+    required Future<String> Function(String rating) onRate,
     required void Function(String text) onTypedChanged,
   });
 
@@ -41,7 +42,7 @@ class OfficialAnkiReviewerChannelTransport
   @override
   Future<void> bindOutbound({
     required void Function(String typed) onShowAnswer,
-    required void Function(String rating) onRate,
+    required Future<String> Function(String rating) onRate,
     required void Function(String text) onTypedChanged,
   }) {
     return channel.bindOutbound(
@@ -130,7 +131,7 @@ class OfficialAnkiOhosReviewerBinding {
   OfficialAnkiReviewerController? _controller;
   String _sourceId = '';
   void Function()? _onReveal;
-  Future<void> Function(String rating)? _onRated;
+  Future<bool> Function(String rating)? _onRated;
   var _dark = false;
   var _opened = false;
   var _closed = false;
@@ -147,7 +148,7 @@ class OfficialAnkiOhosReviewerBinding {
     required String sourceId,
     required bool dark,
     void Function()? onReveal,
-    Future<void> Function(String rating)? onRated,
+    Future<bool> Function(String rating)? onRated,
     OfficialAnkiOhosReviewerTransport? transport,
     DateTime Function()? now,
   }) async {
@@ -213,7 +214,7 @@ class OfficialAnkiOhosReviewerBinding {
     required String sourceId,
     required bool dark,
     void Function()? onReveal,
-    Future<void> Function(String rating)? onRated,
+    Future<bool> Function(String rating)? onRated,
   }) {
     if (!identical(_controller, controller)) {
       _controller?.removeListener(_onController);
@@ -243,9 +244,7 @@ class OfficialAnkiOhosReviewerBinding {
       onShowAnswer: (typed) {
         unawaited(_flip(typed));
       },
-      onRate: (rating) {
-        unawaited(_rate(rating));
-      },
+      onRate: _rate,
       onTypedChanged: (text) {
         _controller?.typed.updateProvided(text);
       },
@@ -343,27 +342,87 @@ class OfficialAnkiOhosReviewerBinding {
     _onReveal?.call();
   }
 
-  Future<bool> _rate(String rating) async {
+  /// Receipt codes for the page's four rating buttons. They cross the channel
+  /// as plain strings, so every value is part of the wire contract with
+  /// `AnkiReviewerPage` — renaming one is a protocol change on both sides.
+  ///
+  /// A refusal used to be invisible: the page fired `rate` and nothing ever
+  /// came back, so every rejected click read on device as a dead button. The
+  /// page now disables the buttons on tap and decides from this code whether
+  /// to re-enable them, show the completion row, or report a hard failure.
+  static const _rateOk = 'ok';
+  static const _rateOkComplete = 'ok_complete';
+  static const _rateAnswerNotReady = 'answer_not_ready';
+  static const _rateSchedulerBusy = 'scheduler_busy';
+  static const _rateCardMismatch = 'card_mismatch';
+  static const _rateSessionClosed = 'session_closed';
+  static const _rateEngineError = 'engine_error';
+  static const _rateSchedulerUnavailable = 'scheduler_unavailable';
+  static const _rateNoCard = 'no_card';
+
+  Future<String> _rate(String rating) async {
     final controller = _controller;
     final card = controller?.card;
-    if (controller == null || card == null || _closed) return false;
+    if (_closed) return _rateSessionClosed;
+    if (controller == null || card == null) return _rateNoCard;
     final started = _answerShownAt;
     final elapsed =
         started == null ? 0 : _now().difference(started).inMilliseconds;
-    final ok = await _grades.answerOfficialCard(
-      wordId: officialAnkiWordId(sourceId: _sourceId, cardId: card.cardId),
-      rating: rating,
-      millisecondsTaken: elapsed < 0 ? 0 : elapsed,
-    );
-    if (!ok) {
+    final bool committed;
+    try {
+      committed = await _grades.answerOfficialCard(
+        wordId: officialAnkiWordId(sourceId: _sourceId, cardId: card.cardId),
+        rating: rating,
+        millisecondsTaken: elapsed < 0 ? 0 : elapsed,
+      );
+    } on OfficialAnkiException catch (error) {
+      logger.w('[OhosReviewer] rating rejected: ${error.messageKey}'
+          '${error.debugDetails == null ? '' : ' ${error.debugDetails}'}');
+      final code = _receiptCodeFor(error.messageKey);
+      if (code == _rateAnswerNotReady) {
+        // The answer face is on screen while the session still thinks it owes
+        // a question (reveal state that survived a card switch). Rather than
+        // leave four permanently inert buttons, put the card back to the
+        // question face: the present that follows re-syncs the page and the
+        // learner reveals again.
+        _answerShownAt = null;
+        unawaited(_resyncToQuestion(controller));
+      }
+      return code;
+    }
+    if (!committed) {
       logger.w('[OhosReviewer] rating was not committed: $rating');
-      return false;
+      return _rateSchedulerUnavailable;
     }
     final rated = _onRated;
+    var advanced = true;
     if (rated != null) {
-      await rated(rating);
+      advanced = await rated(rating);
     }
-    return true;
+    return advanced ? _rateOk : _rateOkComplete;
+  }
+
+  static String _receiptCodeFor(String messageKey) {
+    switch (messageKey) {
+      case 'official_anki.answer_not_ready':
+        return _rateAnswerNotReady;
+      case 'official_anki.scheduler_busy':
+        return _rateSchedulerBusy;
+      case 'official_anki.scheduling_context_stale':
+        return _rateCardMismatch;
+      case 'official_anki.queue_empty':
+      case 'official_anki.review_session_disposed':
+        return _rateSessionClosed;
+      default:
+        return _rateEngineError;
+    }
+  }
+
+  Future<void> _resyncToQuestion(OfficialAnkiReviewerController controller) {
+    return controller.showQuestion().catchError((Object error, StackTrace st) {
+      logger.w('[OhosReviewer] answer_not_ready resync failed',
+          error: error, stackTrace: st);
+    });
   }
 
   void _applyAck({

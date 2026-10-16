@@ -48,7 +48,9 @@ class OfficialTemplateWebViewBody extends StatefulWidget {
   final OfficialAnkiPaths? paths;
   final OfficialAnkiCourseGradesBridge? grades;
   final VoidCallback? onNativeReveal;
-  final Future<void> Function(String rating)? onNativeRated;
+
+  /// `true` = advanced to another card, `false` = queue finished.
+  final Future<bool> Function(String rating)? onNativeRated;
 
   @override
   State<OfficialTemplateWebViewBody> createState() =>

@@ -1,6 +1,6 @@
 # ADR 0050 — 鸿蒙启用 Official Anki 全档（引擎 / 导入 / 投影 / 保真复习器）
 
-- 状态：已接受（**决策层**；接线步 0–5b 已施工——步 0–4 于 2026-10-08 取得真机收据（§4 与 §6 步表），步 5b 于 2026-10-14 夜取得真机首卡收据（§3.7）；步 6 独立 CI 未做）
+- 状态：已接受（**决策层**；接线步 0–5b 已施工——步 0–4 于 2026-10-08 取得真机收据（§4 与 §6 步表），步 5b 于 2026-10-14 夜取得真机首卡收据（§3.7）；步 6 独立 CI workflow 已于 2026-10-15 落库，首跑收据待取）
 - 日期：2026-10-07
 - 修订：[ADR 0041](./0041-ohos-product-eol.md) §决策 2、[ADR 0047](./0047-ohos-companion-lite-build.md) §2 第 2 条
 - 前置：[ADR 0046](./0046-ohos-anki-core-probe.md)（引擎层真机收据）、[ADR 0047](./0047-ohos-companion-lite-build.md)（伴生版授权）
@@ -11,7 +11,8 @@
 > 2026-10-13 调用链订正：此前内存 catalog / engine-info 探针不覆盖真实
 > 冷启动、导入与正式复习。真实 locator 和正式复习接缝已补修，详见
 > [34 收据](../official-anki-migration/34-cutover-receipt.md)「鸿蒙生产调用链修复」。
-> 2026-10-14 夜：步 5b 完成并取得真机首卡收据（§3.7）；步 6 仍未完成；
+> 2026-10-14 夜：步 5b 完成并取得真机首卡收据（§3.7）；
+> 2026-10-15：步 6 独立 CI workflow 落库，首跑收据待取；
 > API 26 加载收据不等于最低 API 18 兼容收据。
 
 在鸿蒙伴生版上启用 **Official Anki 全档**：`libturna_anki.so` 引擎、`.apkg`
@@ -427,7 +428,8 @@ ability 才结束），壳加载后再呈现；`pushMediaForCard` 先于 `presen
 把 `showAnswer` / `rate` / `typedChanged` 送回 Dart，并在 `onPageEnd` 后才算壳就绪。
 
 这仍然**不等于跑通**——上机当晚（2026-10-14 夜）即在真机上暴露八处接线缺陷并逐处
-修复，随后拿到首卡收据，见 §3.7。步 6 独立 CI 仍 Held。
+修复，随后拿到首卡收据，见 §3.7。步 6 独立 CI workflow 已于 2026-10-15
+落库、首跑收据待取（§6 步表行 6）。
 
 输入答案的归属已核实并落定：**它在所有平台都是原生的，不是鸿蒙变通**。
 `card-frame.js` 的 `applyTyped` 把 `[[type:…]]` 答题前渲染成空占位 span、答题后渲染成官方
@@ -482,7 +484,19 @@ ability 才结束），壳加载后再呈现；`pushMediaForCard` 先于 `presen
 **遗留打磨项（不推翻首卡收据）**：中途关闭 ability 再重开会开在后台，需「重试」
 恢复；换卡瞬间评分门存在时序空窗（窗口期重复点击收到 `answer_not_ready` 拒绝）；
 换卡后偶现直接呈现答案面（reveal 状态未随换卡复位）。**完整用户流余项**：课程
-学习解锁无真机收据；步 6 独立 CI 仍 Held；伴生版不进主交付不变。
+学习解锁无真机收据；步 6 独立 CI workflow 已于 2026-10-15 落库、首跑收据
+待取；伴生版不进主交付不变。
+
+**2026-10-16 补记（评分回执与按钮互斥）**：上两条打磨项已代码修复。归因——
+`rate` 原为 fire-and-forget，Dart 侧一切拒绝（含 `answer_not_ready`）被 grades 桥
+折叠成 `false` 后对页面不可见，与死按钮不可区分；另新证实第三条死按钮路径：末卡
+评分后队列完结、无 present 换行，完成屏被 ability 盖住。修复——Dart 回复稳定
+回执码（`ok` / `ok_complete` / `answer_not_ready` / `scheduler_busy` /
+`card_mismatch` / `session_closed` / `engine_error` / `scheduler_unavailable` /
+`no_card`），`answer_not_ready` 自愈翻回问题面并 re-present；ArkUI 点按即禁用、
+present 重新武装、`ok_complete` 换入完成行（Close→`terminateSelf`）。单测 2149
+全绿；**真机复验收据待取**（互斥 / 回执 / 自愈 / 完成行四点）。ability 重开在
+后台一项未触碰，仍为遗留。
 
 ## 4. 三个真实技术缺口（决策无法消解，须在接线批次解决）
 
@@ -698,7 +712,7 @@ ADR 0046 §副作用写明：「若将来真的推进鸿蒙产品线，必须先
 | 4 | 撤 `OhosDegradation.officialAnki` + `OfficialAnkiNativeAvailability` 的 ohos 分支 —— **已完成（2026-10-08，`degradations=remoteBackup`）** | 步 3 |
 | 5a | **定 §3.1 的 Dart 接线路线** —— **已完成（2026-10-08）：A / B / D 三案被真机收据否决，选定 E（独立 ArkUI 页面，翻卡在页内完成）** | 步 4 |
 | 5b | **ArkTS 复习器页面**（第 5 个手写插件：`Web` 组件 + 自定义 scheme + 媒体 Range/206 + CSP），登记进 `EntryAbility`，并入 `_requiredOhosFiles` —— **不再需要 PlatformView 工厂** —— **已完成（2026-10-14 夜）**：判据已结（§3.2）；页面与调用方接线（§3.6）；真机首卡收据——渲染 / 翻卡 / 评分落库 / 队列前进（§3.7）；生产页 / ability / 会话存储已并入 `_requiredOhosFiles`；遗留打磨项与用户流余项见 §3.7 | 步 5a |
-| 6 | 独立 CI workflow（ADR 0047 承诺但尚未存在） | 步 1–5b |
+| 6 | 独立 CI workflow（ADR 0047 承诺）—— **已施工（2026-10-15）**：`.github/workflows/ohos_ci.yml`（fork SDK 按 gitcode 公开 tag 克隆 + 华为 OBS 工件镜像 + ADR 0047 §7.2 shim + `tool/ohos_ci_prepare.py` 无签名准备）落库，本地可验部分全绿；**首跑收据待取**——DevEco command-line tools zip 无稳定公开直链，需配 `DEVECO_CMDLINE_TOOLS_URL` 仓库变量（或 dispatch inputs）后首跑，首跑绿前不改判为完成 | 步 1–5b |
 
 步 5b 的验收判据收敛为**一条**：§3 的未验证前提 3 —— ArkUI `Web` 能否满足 CSP +
 自定义 scheme + 媒体 Range/206。（前提 1 已于 2026-10-08 结清，前提 2 已被路线 E
@@ -709,7 +723,9 @@ ADR 0046 §副作用写明：「若将来真的推进鸿蒙产品线，必须先
 故 5b 的**风险闸门已开**，「文本降级」档不再触发。**2026-10-14 夜，5b 完成**：
 页面、通道与调用方接线（§3.6）当晚上机，八处接线缺陷逐处修复后拿到首卡全链路
 收据（§3.7）——渲染、翻卡、评分落库、队列前进。完整用户流的余项（课程学习解锁）
-与步 6 独立 CI 仍 Held，遗留打磨项见 §3.7。
+与遗留打磨项见 §3.7；步 6 独立 CI workflow 已于 2026-10-15 落库，首跑收据
+待取（工具链配置见步表行 6 与 [34 收据](../official-anki-migration/34-cutover-receipt.md)
+「鸿蒙步 6 独立 CI workflow 施工」节）。
 
 **§3.1 已不再是本表最大的不确定项** —— 它已由 §3.1 的否决收据与路线 E 结清。但
 **ADR 0047 的「复习器 5–8 人日」仍不可引用为预算**：它是照嵌入式 PlatformView 估的，
@@ -722,7 +738,8 @@ ADR 0046 §副作用写明：「若将来真的推进鸿蒙产品线，必须先
 - ADR 0041 §决策 2 与 ADR 0047 §2 第 2 条作废；两份 ADR 须加本文的修订指针
 - 官方 Anki 状态真源（`docs/official-anki-migration/34-cutover-receipt.md`）须记本批
 - 平台矩阵（`docs/project-guide.md` §10.1）与 `docs/android-build-setup.md` 的退役节
-  须按本 ADR 各节收据状态改写（步 0–5b 已施工、5b 有真机首卡收据；步 6 仍 Held；
+  须按本 ADR 各节收据状态改写（步 0–5b 已施工、5b 有真机首卡收据；步 6 workflow
+  已落库待首跑收据；
   完整用户流余项与遗留打磨项见 §3.7），不得写成产品级「已支持」
 - `test/BASELINE.md` 前插一条收据
 - Android / iOS 行为不得回归：`flutter analyze` 0 issue，

@@ -44,7 +44,11 @@ class OfficialAnkiReviewerStage extends StatefulWidget {
   final bool allowJs;
   final OfficialAnkiCourseGradesBridge? grades;
   final VoidCallback? onNativeReveal;
-  final Future<void> Function(String rating)? onNativeRated;
+
+  /// Returns whether the session advanced to another card (`true`) or the
+  /// queue finished (`false`); the OHOS page swaps the rating row for a
+  /// completion row on `false`.
+  final Future<bool> Function(String rating)? onNativeRated;
 
   @override
   State<OfficialAnkiReviewerStage> createState() =>

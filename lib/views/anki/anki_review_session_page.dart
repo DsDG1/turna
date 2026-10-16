@@ -971,12 +971,24 @@ class _AnkiStudySessionView extends StatelessWidget {
                                 },
                           onNativeRated: session == null
                               ? null
-                              : (rating) => _advanceNativeRating(
+                              : (rating) async {
+                                  await _advanceNativeRating(
                                     controller: controller,
                                     officialSession: session,
                                     liveQueue: liveQueue,
                                     rating: rating,
-                                  ),
+                                  );
+                                  // True only when the controller left the
+                                  // answered card behind: the OHOS page keeps
+                                  // the rating row disabled until the next
+                                  // present, so a commit that fails to advance
+                                  // must come back as "queue finished" or the
+                                  // buttons stay inert with nothing on screen
+                                  // to say why.
+                                  return !controller.isComplete &&
+                                      controller.phase !=
+                                          StudyCardPhase.readyForNext;
+                                },
                           onReveal: () {
                             unawaited(
                               AnkiStudySessionHost.revealAndPresentAnswer(

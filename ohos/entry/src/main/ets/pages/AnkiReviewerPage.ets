@@ -5,7 +5,8 @@
 // Layout is the whole interaction design here, so it is worth stating: the `Web`
 // holds the card (question or answer, never both), the typed-answer field sits
 // under it while the question is showing, and the bottom row is either one
-// "show answer" button or the four rating buttons. ADR 0047 estimated 5–8
+// "show answer" button, the four rating buttons, or — once the queue finishes —
+// the completion row with its Close. ADR 0047 estimated 5–8
 // person-days against an embedded PlatformView, which would have kept the
 // Flutter chrome; route E gives that chrome up and puts it here, and the visible
 // cost is losing the scrolling card list — every card is its own present.
@@ -18,6 +19,7 @@
 
 import { webview } from '@kit.ArkWeb';
 import { common } from '@kit.AbilityKit';
+import { BusinessError } from '@kit.BasicServicesKit';
 import { AnkiReviewerSession, interceptFor } from '../anki/AnkiReviewerSession';
 import { reviewerSession } from '../anki/AnkiReviewerSessionStore';
 
@@ -27,13 +29,14 @@ const RATINGS: Array<string> = ['again', 'hard', 'good', 'easy'];
 @Component
 struct AnkiReviewerPage {
   private controller: webview.WebviewController = new webview.WebviewController();
-  @State private ready: boolean = false;
   @State private answerShown: boolean = false;
   @State private typedVisible: boolean = false;
   @State private typed: string = '';
   @State private typedFrozen: boolean = false;
   @State private seenCard: number = -1;
   @State private status: string = '';
+  @State private ratingSent: boolean = false;
+  @State private complete: boolean = false;
 
   private alive: boolean = true;
   private bootAttempts: number = 0;
@@ -84,12 +87,19 @@ struct AnkiReviewerPage {
       }
       this.answerShown = answerShown;
       this.typedVisible = typedVisible;
+      // Every present re-arms the rating row: the interlock that disables the
+      // buttons on tap only ever lifts for a present or a retryable receipt,
+      // never for time. Without this the second tap of a double-tap reaches
+      // Dart inside the card-switch window and is rejected as not ready.
+      this.ratingSent = false;
     });
     session
       .start(getContext(this) as common.UIAbilityContext, this.controller)
-      .then((report: string) => {
-        this.ready = true;
-        this.status = report;
+      .then((): void => {
+        // The preload report was a bring-up diagnostic; a product page that
+        // keeps it under the rating row forever is noise. Failures still land
+        // in `status` below.
+        this.status = '';
       })
       .catch((e: Error) => {
         this.status = 'start failed: ' + e.message;
@@ -136,12 +146,49 @@ struct AnkiReviewerPage {
     session.channel().showAnswer(this.typed);
   }
 
+  /// Disables the row the instant a button is tapped, then waits for Dart's
+  /// receipt. The receipt is the only thing that distinguishes "committed,
+  /// next card coming" from "refused" — before it existed, every refusal
+  /// looked exactly like a button that does nothing.
   private onRate(rating: string): void {
     const session: AnkiReviewerSession | undefined = this.session();
     if (session === undefined) {
       return;
     }
-    session.channel().rate(rating);
+    this.status = '';
+    this.ratingSent = true;
+    session.channel().rate(rating, (code: string): void => {
+      this.onRateReceipt(code);
+    });
+  }
+
+  private onRateReceipt(code: string): void {
+    if (code === 'ok' || code === 'ok_complete') {
+      // Stay disabled: the next present (or, on ok_complete, the completion
+      // row below) is what re-arms the page.
+      if (code === 'ok_complete') {
+        this.complete = true;
+      }
+      return;
+    }
+    if (code === 'answer_not_ready' || code === 'scheduler_busy') {
+      // Retryable. answer_not_ready also means Dart is flipping the card back
+      // to the question face (reveal state that survived a card switch); the
+      // present that follows swaps this row for "Show answer".
+      this.ratingSent = false;
+      this.status = code === 'scheduler_busy'
+        ? 'scheduler busy — tap again'
+        : 'answer face out of sync — flipping back';
+      return;
+    }
+    this.status = 'rating failed: ' + (code.length > 0 ? code : 'no receipt');
+  }
+
+  private onClose(): void {
+    const context: common.UIAbilityContext = getContext(this) as common.UIAbilityContext;
+    context.terminateSelf().catch((e: BusinessError): void => {
+      this.status = 'close failed: ' + e.message;
+    });
   }
 
   build() {
@@ -173,19 +220,33 @@ struct AnkiReviewerPage {
           .margin({ top: 8, left: 12, right: 12 })
       }
 
-      if (!this.answerShown) {
+      if (!this.answerShown && !this.complete) {
         Button('Show answer')
           .width('100%')
           .margin({ top: 8, left: 12, right: 12, bottom: 12 })
           .onClick(() => {
             this.onShowAnswer();
           })
+      } else if (this.complete) {
+        Column() {
+          Text('Review complete')
+            .fontSize(16)
+            .margin({ top: 12 })
+          Button('Close')
+            .width('100%')
+            .margin({ top: 8, left: 12, right: 12, bottom: 12 })
+            .onClick(() => {
+              this.onClose();
+            })
+        }
+        .width('100%')
       } else {
         Row() {
           ForEach(RATINGS, (rating: string) => {
             Button(rating)
               .layoutWeight(1)
               .margin({ right: rating === 'easy' ? 12 : 4 })
+              .enabled(!this.ratingSent)
               .onClick(() => {
                 this.onRate(rating);
               })
@@ -196,7 +257,7 @@ struct AnkiReviewerPage {
         .margin({ top: 8, bottom: 12 })
       }
 
-      if (!this.ready) {
+      if (this.status.length > 0) {
         Text(this.status).fontSize(11).margin({ left: 12, bottom: 8 })
       }
     }
