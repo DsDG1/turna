@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/application/anki_official/render/official_anki_media_resolver.dart';
@@ -49,6 +50,10 @@ class OfficialAnkiReviewerChannel {
     required void Function(String typed) onShowAnswer,
     required Future<String> Function(String rating) onRate,
     required void Function(String text) onTypedChanged,
+    Future<String> Function(String rating)? onRetryAdvance,
+    Future<void> Function()? onRetryPresent,
+    Future<void> Function()? onUndo,
+    Future<Map<String, Object?>?> Function()? onSettlement,
   }) async {
     channel.setMethodCallHandler((call) async {
       switch (call.method) {
@@ -63,6 +68,24 @@ class OfficialAnkiReviewerChannel {
         case 'typedChanged':
           onTypedChanged(call.arguments as String? ?? '');
           return null;
+        case 'retryAdvance':
+          // The page's explicit "retry the advance" entry after an
+          // `advance_failed` receipt: the rating itself is already committed
+          // in the scheduler, so this re-runs the advance only.
+          return onRetryAdvance?.call(call.arguments as String? ?? '') ??
+              'engine_error';
+        case 'retryPresent':
+          await onRetryPresent?.call();
+          return null;
+        case 'requestUndo':
+          await onUndo?.call();
+          return null;
+        case 'reviewSettlement':
+          // UI-7: the completion row's statistics. JSON because the value is
+          // a small record the page formats itself; an empty reply keeps the
+          // plain "Review complete" row.
+          final data = await onSettlement?.call();
+          return data == null ? '' : jsonEncode(data);
         default:
           // Answered rather than thrown: an unknown method from the page is a
           // protocol drift, and it must not take down the page's own call stack
@@ -99,6 +122,12 @@ class OfficialAnkiReviewerChannel {
   /// and the RDB BLOB bridge base64. The bytes come from
   /// [OfficialAnkiMediaResolver] rather than a second reader written in ArkTS,
   /// so the path rules are applied exactly once, by the side that owns them.
+  ///
+  /// Disk reads are async and large payloads are base64-encoded on an
+  /// isolate: both used to run on the main isolate, where a multi-megabyte
+  /// audio stalled every animation on screen for the duration of the read
+  /// plus a ×4/3 string build. Small files stay inline — an isolate spawn
+  /// per icon costs more than the encode it would offload.
   Future<void> pushMedia(
     OfficialAnkiMediaResolver resolver,
     String name,
@@ -108,10 +137,13 @@ class OfficialAnkiReviewerChannel {
       logger.w('[OhosReviewer] media denied ${decision.reason}: $name');
       return;
     }
-    final bytes = decision.file!.readAsBytesSync();
+    final bytes = await decision.file!.readAsBytes();
+    final encoded = bytes.length >= _base64IsolateThreshold
+        ? await compute(base64Encode, bytes)
+        : base64Encode(bytes);
     await channel.invokeMethod<void>('cacheReviewerMedia', <String, Object?>{
       'name': name,
-      'base64': base64Encode(bytes),
+      'base64': encoded,
     });
   }
 
@@ -161,7 +193,21 @@ class OfficialAnkiReviewerChannel {
     final decoded = jsonDecode(raw);
     return decoded is Map<String, Object?> ? decoded : null;
   }
+
+  /// Pushes a render failure the page cannot otherwise see. The ArkTS
+  /// `present` promise only carries acks that crossed the channel; failures
+  /// detected on this side (media push exceptions, controller errors) would
+  /// otherwise strand the page on a shell with no card and no explanation.
+  Future<void> reportFailure(String code) async {
+    await channel.invokeMethod<void>('notifyReviewerFailure', code);
+  }
 }
+
+/// Above this size a media file's base64 encoding moves to an isolate (see
+/// [OfficialAnkiReviewerChannel.pushMedia]). 64 KB keeps every icon and small
+/// image inline while moving audios — the payloads that actually stall frames
+/// — off the main isolate.
+const int _base64IsolateThreshold = 64 * 1024;
 
 /// Every `https://anki.local/media/…` reference in a card's HTML, decoded to
 /// the filename the resolver expects.

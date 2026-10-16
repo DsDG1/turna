@@ -174,6 +174,33 @@ class OfficialAnkiReviewerController implements OfficialAnswerPresenter {
     _notify();
   }
 
+  /// Adopts a render another component already produced (the formal-review
+  /// loader renders every queue card for its batch; before this existed the
+  /// on-screen controller re-rendered the same card through the engine —
+  /// P5's "every card renders twice").
+  ///
+  /// Identical state transitions to [loadAndShowQuestion] minus the engine
+  /// call: the card, its typed-answer metadata and its AV tags all come from
+  /// [adopted]. Callers must only pass a render of the very card they are
+  /// about to show — content is immutable during a review session, so a
+  /// render from the same session's loader cannot be stale.
+  Future<void> adoptRenderedCard(OfficialAnkiRenderedCard adopted) async {
+    lastAck = null;
+    final token = ++generation;
+    cardToken = token;
+    phase = OfficialAnkiReviewerPhase.loadingCard;
+    ui = OfficialAnkiReviewerUi.rendering(side: 'question', generation: token);
+    showingAnswer = false;
+    error = null;
+    await av.nextCard();
+    if (token != generation) return;
+    card = adopted;
+    _typed.attach(adopted.typedAnswer);
+    av.attachCard(adopted);
+    phase = OfficialAnkiReviewerPhase.questionReady;
+    await showQuestion();
+  }
+
   Future<void> loadCard(int cardId, {bool notify = true}) async {
     final token = ++generation;
     cardToken = token;

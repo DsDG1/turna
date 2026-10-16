@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:turna/application/settings_provider.dart';
+import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_course_grades_bridge.dart';
 import 'package:turna/application/anki_official/official_anki_paths.dart';
@@ -35,6 +36,11 @@ class OfficialTemplateWebViewBody extends StatefulWidget {
     this.grades,
     this.onNativeReveal,
     this.onNativeRated,
+    this.onNativeClosed,
+    this.renderedCard,
+    this.onNativeUndo,
+    this.onNativeSettlement,
+    this.onNativeProgress,
   });
 
   final OfficialTemplateContent content;
@@ -51,6 +57,19 @@ class OfficialTemplateWebViewBody extends StatefulWidget {
 
   /// `true` = advanced to another card, `false` = queue finished.
   final Future<bool> Function(String rating)? onNativeRated;
+
+  /// The OHOS ability resolved its open — see [OfficialAnkiReviewerStage].
+  final void Function(String verdict)? onNativeClosed;
+
+  /// The loader's render of this card, when the host has one (P5): adopting
+  /// it skips the controller's own engine render. Must be the render of
+  /// [presentation]'s card or it is ignored.
+  final OfficialAnkiRenderedCard? renderedCard;
+
+  /// OHOS header hooks — see [OfficialAnkiReviewerStage].
+  final Future<void> Function()? onNativeUndo;
+  final Future<Map<String, Object?>?> Function()? onNativeSettlement;
+  final (int, int)? Function()? onNativeProgress;
 
   @override
   State<OfficialTemplateWebViewBody> createState() =>
@@ -124,7 +143,15 @@ class _OfficialTemplateWebViewBodyState
       controller.addListener(_onChanged);
       // Re-read the complete payload. Shared HTML interactions do not carry
       // typed-answer or AV metadata, which must survive formal review too.
-      await controller.loadAndShowQuestion(widget.presentation!.cardKey.cardId);
+      // When the host already holds the loader's render of THIS card, adopt
+      // it (P5) — the engine already produced these exact faces for the
+      // batch, and a second render only added latency to every card.
+      final seed = widget.renderedCard;
+      if (seed != null && seed.cardId == widget.presentation!.cardKey.cardId) {
+        await controller.adoptRenderedCard(seed);
+      } else {
+        await controller.loadAndShowQuestion(widget.presentation!.cardKey.cardId);
+      }
       if (!mounted || request != _request) return;
       await _syncSide();
     } catch (error, stack) {
@@ -274,6 +301,10 @@ class _OfficialTemplateWebViewBodyState
       grades: widget.grades,
       onNativeReveal: widget.onNativeReveal,
       onNativeRated: widget.onNativeRated,
+      onNativeClosed: widget.onNativeClosed,
+      onNativeUndo: widget.onNativeUndo,
+      onNativeSettlement: widget.onNativeSettlement,
+      onNativeProgress: widget.onNativeProgress,
     );
   }
 }

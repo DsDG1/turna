@@ -277,6 +277,12 @@ class StudySessionController extends ChangeNotifier {
   }) {
     final item = currentItem;
     if (item == null || _locked || isComplete || eventId.isEmpty) return;
+    if (lastReceipt != null && lastReceipt!.eventId == eventId) {
+      // The native page retries the advance when the first attempt failed
+      // after the commit (B1): re-recording the same mutation would
+      // double-count the answer, so the replay only re-advances.
+      return;
+    }
     final source = OfficialAnkiSource(
       sourceId: item.cardKey.sourceId,
       deckId: 0,

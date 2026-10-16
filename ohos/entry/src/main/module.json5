@@ -62,6 +62,12 @@
       // `startAbilityForResult`, exactly as the probe ability is reached.
       // `mediaRoot` arrives on the Want because only Dart knows where the
       // collection put its media folder.
+      //
+      // `launchType: singleton` is the platform default, stated explicitly
+      // because its relaunch path needs the ability's `onNewWant`: a relaunch
+      // onto the living instance delivers the new Want (and its mediaRoot)
+      // there instead of `onCreate`, and without the handler the Want was
+      // dropped entirely (B6).
       {
         "name": "AnkiReviewerAbility",
         "srcEntry": "./ets/entryability/AnkiReviewerAbility.ets",
@@ -70,7 +76,8 @@
         "label": "$string:EntryAbility_label",
         "startWindowIcon": "$media:icon",
         "startWindowBackground": "$color:start_window_background",
-        "exported": true
+        "exported": true,
+        "launchType": "singleton"
       }
     ],
     "requestPermissions": [

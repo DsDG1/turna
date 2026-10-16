@@ -49,12 +49,68 @@ export interface RenderAck {
   side?: string;
 }
 
+/// What the payload's present carries besides the card faces. Fields arrive
+/// progressively across the wiring batches; all stay optional because the
+/// frame is card-authored script and the payload is JSON text.
 interface ReviewerPresentPayload {
   typedVisible?: boolean;
   cardId?: number;
+  generation?: number;
+  side?: string;
+  theme?: string;
+  progressIndex?: number;
+  progressTotal?: number;
+  debug?: boolean;
+  mediaNames?: Array<string>;
 }
 
-type ChromeListener = (answerShown: boolean, typedVisible: boolean, cardId: number) => void;
+/// One snapshot of the native chrome around the Web: what the bottom row
+/// should show, what the progress bar should say, which theme to follow.
+///
+/// `answerLanded` is the timing contract with the rating row (B4): it turns
+/// true only when the ANSWER face's own render ack came back, never when the
+/// present call starts — the four buttons used to appear while the answer
+/// was still on its way, and a quick tap scored the card against the
+/// question face the learner was still looking at.
+///
+/// `presentPending` is true from the present call until that ack; the page
+/// shows its loading hint and disables flip/rating entries meanwhile.
+export interface ReviewerChromeState {
+  presentPending: boolean;
+  answerLanded: boolean;
+  typedVisible: boolean;
+  cardId: number;
+  theme: string;
+  progressIndex: number;
+  progressTotal: number;
+  debug: boolean;
+}
+
+type ChromeListener = (state: ReviewerChromeState) => void;
+type FailureListener = (code: string) => void;
+
+function chromeState(
+  presentPending: boolean,
+  answerLanded: boolean,
+  typedVisible: boolean,
+  cardId: number,
+  theme: string,
+  progressIndex: number,
+  progressTotal: number,
+  debug: boolean,
+): ReviewerChromeState {
+  const state: ReviewerChromeState = {
+    presentPending: presentPending,
+    answerLanded: answerLanded,
+    typedVisible: typedVisible,
+    cardId: cardId,
+    theme: theme,
+    progressIndex: progressIndex,
+    progressTotal: progressTotal,
+    debug: debug,
+  };
+  return state;
+}
 
 /// Poll cadence for reading `__turnaLastRender`, mirroring the Android
 /// client's `APPLY_DELAY_MS`.
@@ -121,6 +177,11 @@ export class AnkiReviewerSession {
   private answerShown: boolean = false;
   private shellReady: boolean = false;
   private chrome: ChromeListener | undefined = undefined;
+  private failure: FailureListener | undefined = undefined;
+  private chromeTheme: string = 'day';
+  private chromeProgressIndex: number = 0;
+  private chromeProgressTotal: number = 0;
+  private chromeDebug: boolean = false;
 
   constructor(mediaRoot: string) {
     this.server = new AnkiOriginServer(mediaRoot);
@@ -148,6 +209,30 @@ export class AnkiReviewerSession {
 
   public setChromeListener(listener: ChromeListener | undefined): void {
     this.chrome = listener;
+  }
+
+  /// B2: render failures reported here land on the page as a banner with
+  /// retry/exit entries. Set by the page; called both from the present ack
+  /// path below (failures the frame itself reported) and from the plugin
+  /// (`notifyReviewerFailure`) for failures only Dart could see.
+  public setFailureListener(listener: FailureListener | undefined): void {
+    this.failure = listener;
+  }
+
+  public notifyFailure(code: string): void {
+    const listener: FailureListener | undefined = this.failure;
+    if (listener === undefined) {
+      return;
+    }
+    listener(code);
+  }
+
+  private notifyChrome(state: ReviewerChromeState): void {
+    const listener: ChromeListener | undefined = this.chrome;
+    if (listener === undefined) {
+      return;
+    }
+    listener(state);
   }
 
   /// Warms the assets. The shell is NOT loaded here: the Web's own initial
@@ -178,6 +263,14 @@ export class AnkiReviewerSession {
   /// `renderError`. There is no bridge message for it — an earlier draft of
   /// this file waited for one that nothing ever sends, and every present ended
   /// in RENDER_TIMEOUT while the card sat happily drawn on screen.
+  ///
+  /// The poll only settles on an ack whose `generation` matches this payload
+  /// (B7): the frame clears its published ack at the start of a present, but
+  /// if that clear ever loses to the poll — a slow expression queue, a page
+  /// that was mid-present — accepting the stale row hands Dart somebody
+  /// else's result while the controller keeps waiting on a generation
+  /// nothing will answer. Generation, not cardId, is the discriminator:
+  /// error acks legitimately carry no card.
   public present(payloadJson: string, side: string): Promise<RenderAck> {
     const controller: webview.WebviewController | undefined = this.web;
     if (controller === undefined) {
@@ -186,6 +279,12 @@ export class AnkiReviewerSession {
     this.answerShown = side === 'answer';
     let typedVisible: boolean = false;
     let cardId: number = 0;
+    let generation: number = 0;
+    let theme: string = this.chromeTheme;
+    let progressIndex: number = this.chromeProgressIndex;
+    let progressTotal: number = this.chromeProgressTotal;
+    let debug: boolean = this.chromeDebug;
+    let mediaNames: Array<string> = [];
     try {
       const parsed: ReviewerPresentPayload = JSON.parse(payloadJson) as ReviewerPresentPayload;
       typedVisible = parsed.typedVisible === true;
@@ -193,16 +292,55 @@ export class AnkiReviewerSession {
       if (parsedCard !== undefined) {
         cardId = parsedCard;
       }
+      const parsedGeneration: number | undefined = parsed.generation;
+      if (parsedGeneration !== undefined) {
+        generation = parsedGeneration;
+      }
+      const parsedTheme: string | undefined = parsed.theme;
+      if (parsedTheme !== undefined && parsedTheme.length > 0) {
+        theme = parsedTheme;
+      }
+      const parsedIndex: number | undefined = parsed.progressIndex;
+      if (parsedIndex !== undefined) {
+        progressIndex = parsedIndex;
+      }
+      const parsedTotal: number | undefined = parsed.progressTotal;
+      if (parsedTotal !== undefined) {
+        progressTotal = parsedTotal;
+      }
+      debug = parsed.debug === true;
+      const parsedNames: Array<string> | undefined = parsed.mediaNames;
+      if (parsedNames !== undefined) {
+        mediaNames = parsedNames;
+      }
     } catch (e) {
-      const error: Error = e as Error;
       typedVisible = false;
-      cardId = error.message.length < 0 ? 1 : 0;
+      cardId = 0;
+      generation = 0;
     }
+    this.chromeTheme = theme;
+    this.chromeProgressIndex = progressIndex;
+    this.chromeProgressTotal = progressTotal;
+    this.chromeDebug = debug;
+    // P1: the arriving card's media replaces everyone else's. Dart has
+    // already pushed these names; everything still cached belongs to the
+    // previous card and is dead weight from here on.
+    this.server.evictExcept(mediaNames);
     this.bridge.setTypedVisible(typedVisible);
-    const listener: ChromeListener | undefined = this.chrome;
-    if (listener !== undefined) {
-      listener(this.answerShown, typedVisible, cardId);
-    }
+    // B4: the chrome learns the answer face landed only from the ack below.
+    // Announcing it here is exactly the defect the work list recorded — the
+    // rating row appeared while the answer was still crossing the channel,
+    // and a quick tap scored the card against the question still on screen.
+    this.notifyChrome(chromeState(
+      true,
+      false,
+      typedVisible,
+      cardId,
+      theme,
+      progressIndex,
+      progressTotal,
+      debug,
+    ));
     const expression: string =
       'window.OfficialReviewer.present(' + payloadJson + ',' + JSON.stringify(side) + ')';
     return new Promise<RenderAck>((resolve) => {
@@ -213,6 +351,30 @@ export class AnkiReviewerSession {
         }
         settled = true;
         this.lastAck = ack;
+        if (ack.type === 'renderError') {
+          this.notifyChrome(chromeState(
+            false,
+            false,
+            typedVisible,
+            cardId,
+            theme,
+            progressIndex,
+            progressTotal,
+            debug,
+          ));
+          this.notifyFailure(ack.stableCode ?? 'RENDER_ERROR');
+        } else {
+          this.notifyChrome(chromeState(
+            false,
+            this.answerShown,
+            typedVisible,
+            cardId,
+            theme,
+            progressIndex,
+            progressTotal,
+            debug,
+          ));
+        }
         resolve(ack);
       };
       const deadline: number = Date.now() + PRESENT_TIMEOUT_MS;
@@ -224,8 +386,14 @@ export class AnkiReviewerSession {
             if (raw.length > 0) {
               const type: string = raw.split('|')[0] ?? '';
               if (type === 'renderComplete' || type === 'renderError') {
-                finish(parseAck(raw));
-                return;
+                const ack: RenderAck = parseAck(raw);
+                const ackGeneration: number | undefined = ack.generation;
+                if (ackGeneration === undefined || ackGeneration === generation) {
+                  finish(ack);
+                  return;
+                }
+                // A stale generation: the published row belongs to an
+                // earlier payload — keep polling.
               }
               // `cardAccepted` / `frameReady` are mid-present and must not
               // settle anything, same as on Android; keep polling.

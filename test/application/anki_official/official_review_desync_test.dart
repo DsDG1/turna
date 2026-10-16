@@ -15,6 +15,7 @@ import 'package:turna/application/anki_official/engine/official_anki_engine_fake
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/review/official_formal_review_coordinator.dart';
+import 'package:turna/application/anki_official/review/official_review_advance.dart';
 import 'package:turna/application/study_session/anki_study_session_host.dart';
 import 'package:turna/application/study_session/study_ledger_adapters.dart';
 import 'package:turna/application/study_session/study_session_controller.dart';
@@ -335,4 +336,119 @@ void main() {
           'reported through an explicit API',
     );
   });
+
+  test(
+      'advanceFromNativeRating follows the scheduler after a grades-bridge '
+      'commit', () async {
+    final h = _Harness(FakeOfficialAnkiEngine());
+    h.engine.seedPackage(packagePath: 'x.apkg', notes: 3, cards: 3);
+    await h.start();
+    final flow = _NativeRatingFlow(h);
+
+    final advanced = await flow.rate('good');
+    expect(advanced, isTrue, reason: 'the queue still owes cards 2 and 3');
+    h.expectSyncedWithScheduler();
+    expect(h.controller.answeredCount, 1);
+    expect(h.controller.rememberedCount, 1);
+    expect(h.controller.forgottenCount, 0);
+  });
+
+  test(
+      'advanceFromNativeRating answers false once the queue is finished '
+      '(ok_complete)', () async {
+    final h = _Harness(FakeOfficialAnkiEngine());
+    h.engine.seedPackage(packagePath: 'x.apkg', notes: 2, cards: 2);
+    await h.start();
+    final flow = _NativeRatingFlow(h);
+
+    expect(await flow.rate('good'), isTrue);
+    expect(await flow.rate('again'), isFalse);
+    expect(h.controller.isComplete, isTrue);
+    expect(h.controller.answeredCount, 2);
+  });
+
+  test(
+      'advanceFromNativeRating refuses to advance without a mutation id '
+      '(B5: never a silent ok)', () async {
+    final h = _Harness(FakeOfficialAnkiEngine());
+    h.engine.seedPackage(packagePath: 'x.apkg', notes: 3, cards: 3);
+    await h.start();
+    AnkiStudySessionHost.presentBothSides(h.controller);
+    await AnkiStudySessionHost.revealAndPresentAnswer(
+      h.controller,
+      onOfficialShowAnswer: h.session.showAnswer,
+    );
+    await h.session.answerAndConfirm('good', expectedCardId: 1);
+    // The disposed-session race the work list flagged: the commit landed but
+    // the id the controller needs is gone. A silent return here used to
+    // answer the page 'ok' with no present ever coming.
+    h.session.lastClientMutationId = null;
+
+    await expectLater(
+      advanceFromNativeRating(
+        controller: h.controller,
+        officialSession: h.session,
+        liveQueue: h.queue,
+        rating: 'good',
+      ),
+      throwsStateError,
+    );
+    expect(h.controller.answeredCount, 0,
+        reason: 'nothing was recorded on the controller side');
+  });
+
+  test(
+      'replaying the same mutation id does not double-count the answer '
+      '(B1 retry-advance safety)', () async {
+    final h = _Harness(FakeOfficialAnkiEngine());
+    h.engine.seedPackage(packagePath: 'x.apkg', notes: 3, cards: 3);
+    await h.start();
+    AnkiStudySessionHost.presentBothSides(h.controller);
+    await AnkiStudySessionHost.revealAndPresentAnswer(
+      h.controller,
+      onOfficialShowAnswer: h.session.showAnswer,
+    );
+    await h.session.answerAndConfirm('good', expectedCardId: 1);
+    final eventId = h.session.lastClientMutationId!;
+
+    h.controller.acceptExternalOfficialCommit(
+      outcome: RecallOutcome.remembered,
+      eventId: eventId,
+    );
+    expect(h.controller.rememberedCount, 1);
+    h.controller.acceptExternalOfficialCommit(
+      outcome: RecallOutcome.remembered,
+      eventId: eventId,
+    );
+    expect(h.controller.rememberedCount, 1,
+        reason: 'the retry-advance path replays the commit deduped');
+  });
 }
+
+/// The native OHOS rating flow: the grades bridge commits straight into the
+/// official session, then the host advances through
+/// [advanceFromNativeRating] — the same wiring AnkiReviewSessionPage uses.
+class _NativeRatingFlow {
+  _NativeRatingFlow(this.h);
+
+  final _Harness h;
+
+  /// Reveals the current card and commits `rating` the way the grades bridge
+  /// does (bypassing submitRecall), then advances natively.
+  Future<bool> rate(String rating) async {
+    AnkiStudySessionHost.presentBothSides(h.controller);
+    await AnkiStudySessionHost.revealAndPresentAnswer(
+      h.controller,
+      onOfficialShowAnswer: h.session.showAnswer,
+    );
+    await h.session.answerAndConfirm(rating,
+        expectedCardId: h.session.current!.cardId);
+    return advanceFromNativeRating(
+      controller: h.controller,
+      officialSession: h.session,
+      liveQueue: h.queue,
+      rating: rating,
+    );
+  }
+}
+

@@ -88,6 +88,70 @@ export class AnkiReviewerBridge {
     channel.invokeMethod('rate', rating, receiver);
   }
 
+  /// The page's "retry the advance" entry after an `advance_failed` receipt:
+  /// the rating itself already committed in the scheduler, so only the
+  /// advance re-runs. Carries its receipt back for the same reason `rate`
+  /// does — a retry that nothing answers reads as a dead button.
+  public retryAdvance(rating: string, onResult: (code: string) => void): void {
+    this.emit('retryAdvance', rating);
+    const channel: MethodChannel | null = outbound;
+    if (channel === null) {
+      onResult('bridge_detached');
+      return;
+    }
+    const receiver: MethodResult = {
+      success: (result: Any): void => {
+        onResult(result === null || result === undefined ? '' : String(result));
+      },
+      error: (code: string): void => {
+        onResult('channel_error_' + code);
+      },
+      notImplemented: (): void => {
+        onResult('not_implemented');
+      },
+    };
+    channel.invokeMethod('retryAdvance', rating, receiver);
+  }
+
+  /// The error banner's retry: asks Dart to re-present the failed face. No
+  /// receipt — the present that follows (or the next failure banner) is the
+  /// visible outcome.
+  public retryPresent(): void {
+    this.emit('retryPresent', '');
+    this.callDart('retryPresent', '');
+  }
+
+  /// The native header's undo entry (UI-4). Fire-and-forget: the rebuilt
+  /// present that follows the host's undo hooks is the visible outcome.
+  public requestUndo(): void {
+    this.emit('requestUndo', '');
+    this.callDart('requestUndo', '');
+  }
+
+  /// The completion row's statistics (UI-7). `onResult` receives the JSON
+  /// the Flutter settlement produced, or an empty string when Dart had
+  /// nothing to report — the page then keeps its plain completion row.
+  public settlement(onResult: (json: string) => void): void {
+    this.emit('reviewSettlement', '');
+    const channel: MethodChannel | null = outbound;
+    if (channel === null) {
+      onResult('');
+      return;
+    }
+    const receiver: MethodResult = {
+      success: (result: Any): void => {
+        onResult(result === null || result === undefined ? '' : String(result));
+      },
+      error: (): void => {
+        onResult('');
+      },
+      notImplemented: (): void => {
+        onResult('');
+      },
+    };
+    channel.invokeMethod('reviewSettlement', '', receiver);
+  }
+
   /// Every keystroke, mirroring the Flutter `TextField`'s `onChanged`. Sent on
   /// change rather than on submit because the comparison needs the text while
   /// the answer is still hidden: the learner must be able to see the diff

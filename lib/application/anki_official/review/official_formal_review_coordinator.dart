@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/review/official_study_batch_assembler.dart';
 import 'package:turna/application/anki_official/engine/official_anki_engine.dart';
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
@@ -52,14 +53,22 @@ class FormalReviewCardSnapshot {
 /// [OfficialAnkiEngine.renderCard] and cached per (source, card) for the
 /// lifetime of a review session so live queue rebuilds never re-render
 /// cards the user already saw.
+///
+/// [rendered] carries the engine's full output — faces, css, typed-answer
+/// metadata, AV tags — so the OHOS/Android reviewer stage can ADOPT the
+/// loader's render instead of asking the engine for the same card again
+/// (P5: every card used to render twice, once for the batch and once for
+/// the on-screen controller).
 class OfficialRenderedFace {
   const OfficialRenderedFace({
     required this.presentation,
     required this.htmlCard,
+    required this.rendered,
   });
 
   final CardPresentation presentation;
   final AnkiHtmlCard htmlCard;
+  final OfficialAnkiRenderedCard rendered;
 }
 
 /// Renders official cards into shared-session presentations with a
@@ -111,6 +120,7 @@ class OfficialFormalReviewRenderer {
           sourceFingerprint: 'official-render-$cardId',
         ),
         htmlCard: htmlCard,
+        rendered: rendered,
       );
     }
 
@@ -129,6 +139,7 @@ class OfficialFormalReviewRenderer {
         sourceFingerprint: 'official-render-$cardId',
       ),
       htmlCard: htmlCard,
+      rendered: rendered,
     );
   }
 
@@ -383,6 +394,11 @@ class OfficialFormalReviewLiveQueue extends ChangeNotifier {
 
   /// Whether the scheduler still owes cards inside the allowed set.
   bool get hasMoreCards => session.queue?.cards.isNotEmpty ?? false;
+
+  /// The loader's own render of [cardId], for hosts that adopt it instead of
+  /// re-rendering (P5). `null` for cards this queue never rendered.
+  OfficialAnkiRenderedCard? renderedCardFor(int cardId) =>
+      _faces[cardId]?.rendered;
 
   /// Adopts pre-rendered faces (from the loader's initial render pass) so
   /// the first rebuild does not re-render cards the user already saw.

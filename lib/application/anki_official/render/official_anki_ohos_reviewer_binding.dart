@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/contract/official_anki_errors.dart';
 import 'package:turna/application/anki_official/engine/official_anki_course_grades_bridge.dart';
@@ -16,6 +18,10 @@ abstract class OfficialAnkiOhosReviewerTransport {
     required void Function(String typed) onShowAnswer,
     required Future<String> Function(String rating) onRate,
     required void Function(String text) onTypedChanged,
+    Future<String> Function(String rating)? onRetryAdvance,
+    Future<void> Function()? onRetryPresent,
+    Future<void> Function()? onUndo,
+    Future<Map<String, Object?>?> Function()? onSettlement,
   });
 
   Future<String> open({required String mediaRoot});
@@ -31,6 +37,9 @@ abstract class OfficialAnkiOhosReviewerTransport {
     required Map<String, Object?> payload,
     required String side,
   });
+
+  /// Best-effort push of a render failure code to the native page.
+  Future<void> reportFailure(String code);
 }
 
 class OfficialAnkiReviewerChannelTransport
@@ -44,11 +53,19 @@ class OfficialAnkiReviewerChannelTransport
     required void Function(String typed) onShowAnswer,
     required Future<String> Function(String rating) onRate,
     required void Function(String text) onTypedChanged,
+    Future<String> Function(String rating)? onRetryAdvance,
+    Future<void> Function()? onRetryPresent,
+    Future<void> Function()? onUndo,
+    Future<Map<String, Object?>?> Function()? onSettlement,
   }) {
     return channel.bindOutbound(
       onShowAnswer: onShowAnswer,
       onRate: onRate,
       onTypedChanged: onTypedChanged,
+      onRetryAdvance: onRetryAdvance,
+      onRetryPresent: onRetryPresent,
+      onUndo: onUndo,
+      onSettlement: onSettlement,
     );
   }
 
@@ -74,6 +91,9 @@ class OfficialAnkiReviewerChannelTransport
   }) {
     return channel.present(payload: payload, side: side);
   }
+
+  @override
+  Future<void> reportFailure(String code) => channel.reportFailure(code);
 }
 
 /// Payload the reviewer shell already understands on Android and iOS.
@@ -81,12 +101,22 @@ class OfficialAnkiReviewerChannelTransport
 /// `typedVisible` is extra and is read by the ArkUI page, not by the frame.
 /// `comparisonHtml` is the official engine's `compare_answer` result; the
 /// frame substitutes it for `[[type:…]]` and never sees the raw keystrokes.
+/// `mediaNames` is likewise ArkTS-only: the origin server evicts everything
+/// except these when the present arrives, so a long session's memory holds
+/// one card's media instead of every card's (P1/P2 on the work list).
+/// `progressIndex`/`progressTotal` drive the native header's count and bar
+/// (UI-4) and `debug` lets the page append stable codes to its status line
+/// in debug builds only (UI-3) — the page has no other way to know.
 Map<String, Object?> ohosReviewerPayload({
   required OfficialAnkiRenderedCard card,
   required int generation,
   required bool showingAnswer,
   required bool dark,
   String? comparisonHtml,
+  Iterable<String> mediaNames = const [],
+  int? progressIndex,
+  int? progressTotal,
+  bool debug = false,
 }) {
   return <String, Object?>{
     'cardId': card.cardId,
@@ -100,6 +130,10 @@ Map<String, Object?> ohosReviewerPayload({
     'templateOrdinal': card.templateOrdinal,
     'bodyClass': card.bodyClass,
     'typedVisible': card.typedAnswer != null,
+    'mediaNames': mediaNames.toList(),
+    'progressIndex': progressIndex,
+    'progressTotal': progressTotal,
+    'debug': debug,
   };
 }
 
@@ -132,13 +166,27 @@ class OfficialAnkiOhosReviewerBinding {
   String _sourceId = '';
   void Function()? _onReveal;
   Future<bool> Function(String rating)? _onRated;
+  void Function(String verdict)? _onClosed;
+  Future<void> Function()? _onUndo;
+  Future<Map<String, Object?>?> Function()? _onSettlement;
+  (int, int)? Function()? _onProgress;
   var _dark = false;
   var _opened = false;
   var _closed = false;
   DateTime? _answerShownAt;
   (int, String, int)? _pending;
   (int, String, int)? _scheduled;
+  (String, int)? _reportedFailure;
   Future<void> _queue = Future<void>.value();
+
+  /// Media already sitting in the origin server, keyed by the card it was
+  /// pushed for (P2). Flipping a card used to re-push its whole media set —
+  /// a 3 MB audio meant another read + base64 + channel trip just to show
+  /// the back of the same card. The memory is dropped when the presented
+  /// card changes because the origin server evicts exactly then (P1): a
+  /// revisit of an evicted card re-pushes rather than 503s.
+  final Set<String> _pushedMediaNames = <String>{};
+  int? _pushedMediaCardId;
 
   static Future<OfficialAnkiOhosReviewerBinding> attach({
     required OfficialAnkiReviewerController controller,
@@ -149,6 +197,10 @@ class OfficialAnkiOhosReviewerBinding {
     required bool dark,
     void Function()? onReveal,
     Future<bool> Function(String rating)? onRated,
+    void Function(String verdict)? onClosed,
+    Future<void> Function()? onUndo,
+    Future<Map<String, Object?>?> Function()? onSettlement,
+    (int, int)? Function()? onProgress,
     OfficialAnkiOhosReviewerTransport? transport,
     DateTime Function()? now,
   }) async {
@@ -162,6 +214,10 @@ class OfficialAnkiOhosReviewerBinding {
         dark: dark,
         onReveal: onReveal,
         onRated: onRated,
+        onClosed: onClosed,
+        onUndo: onUndo,
+        onSettlement: onSettlement,
+        onProgress: onProgress,
       );
       return existing;
     }
@@ -190,6 +246,10 @@ class OfficialAnkiOhosReviewerBinding {
       dark: dark,
       onReveal: onReveal,
       onRated: onRated,
+      onClosed: onClosed,
+      onUndo: onUndo,
+      onSettlement: onSettlement,
+      onProgress: onProgress,
     );
     return binding;
   }
@@ -215,6 +275,10 @@ class OfficialAnkiOhosReviewerBinding {
     required bool dark,
     void Function()? onReveal,
     Future<bool> Function(String rating)? onRated,
+    void Function(String verdict)? onClosed,
+    Future<void> Function()? onUndo,
+    Future<Map<String, Object?>?> Function()? onSettlement,
+    (int, int)? Function()? onProgress,
   }) {
     if (!identical(_controller, controller)) {
       _controller?.removeListener(_onController);
@@ -228,6 +292,10 @@ class OfficialAnkiOhosReviewerBinding {
     _dark = dark;
     _onReveal = onReveal;
     _onRated = onRated;
+    _onClosed = onClosed;
+    _onUndo = onUndo;
+    _onSettlement = onSettlement;
+    _onProgress = onProgress;
     if (_opened && !_closed) {
       _onController();
     }
@@ -248,14 +316,25 @@ class OfficialAnkiOhosReviewerBinding {
       onTypedChanged: (text) {
         _controller?.typed.updateProvided(text);
       },
+      onRetryAdvance: _retryAdvance,
+      onRetryPresent: _retryPresent,
+      onUndo: () async {
+        await _onUndo?.call();
+      },
+      onSettlement: _onSettlement,
     );
     final opened = transport.open(mediaRoot: mediaRoot);
-    unawaited(opened.then((_) {
+    unawaited(opened.then((verdict) {
       _closed = true;
+      // B8: the Flutter page under the ability only learns the learner left
+      // through this callback — without it the exposed page keeps a spinner
+      // where the card was and toolbar actions that present into nothing.
+      _onClosed?.call(verdict);
     }, onError: (Object error, StackTrace stack) {
       _closed = true;
       logger.w('[OhosReviewer] ability closed with error',
           error: error, stackTrace: stack);
+      _onClosed?.call('');
     }));
     await transport.waitUntilReady();
     _opened = true;
@@ -265,8 +344,13 @@ class OfficialAnkiOhosReviewerBinding {
 
   void _onController() {
     final controller = _controller;
-    final card = controller?.card;
-    if (controller == null || card == null || _closed) return;
+    if (controller == null || _closed) return;
+    // Failures must reach the native page before the card-null early return
+    // below: a card whose load failed has no card to present, and the page
+    // would otherwise sit on its shell forever (B2).
+    _maybeReportFailure(controller);
+    final card = controller.card;
+    if (card == null) return;
     final side = controller.showingAnswer ? 'answer' : 'question';
     final key = (card.cardId, side, controller.presentGeneration);
     // A render ack notifies this same controller. Scheduling that face again
@@ -301,15 +385,31 @@ class OfficialAnkiOhosReviewerBinding {
       try {
         final names = mediaNamesIn(
           '${card.questionDisplayHtml}\n${card.answerDisplayHtml}\n${comparisonHtml ?? ''}',
-        );
-        await transport.pushMediaForCard(_resolver, names);
+        ).toSet();
+        if (_pushedMediaCardId != card.cardId) {
+          // The origin server evicts the previous card's media on this
+          // present; mirror that here or a revisit would skip pushing bytes
+          // the server no longer holds.
+          _pushedMediaCardId = card.cardId;
+          _pushedMediaNames.clear();
+        }
+        final toPush = names.difference(_pushedMediaNames);
+        if (toPush.isNotEmpty) {
+          await transport.pushMediaForCard(_resolver, toPush);
+          _pushedMediaNames.addAll(toPush);
+        }
         if (_pending != key || _closed) return;
+        final progress = _onProgress?.call();
         final payload = ohosReviewerPayload(
           card: card,
           generation: generation,
           showingAnswer: showingAnswer,
           dark: dark,
           comparisonHtml: comparisonHtml,
+          mediaNames: names,
+          progressIndex: progress?.$1,
+          progressTotal: progress?.$2,
+          debug: kDebugMode,
         );
         final ack = await transport.present(payload: payload, side: side);
         if (_pending != key || _closed) return;
@@ -350,6 +450,9 @@ class OfficialAnkiOhosReviewerBinding {
   /// came back, so every rejected click read on device as a dead button. The
   /// page now disables the buttons on tap and decides from this code whether
   /// to re-enable them, show the completion row, or report a hard failure.
+  /// `advance_failed` additionally swaps the row for an explicit "retry the
+  /// advance" entry, because its recovery re-runs the advance — never the
+  /// rating, which the scheduler already holds.
   static const _rateOk = 'ok';
   static const _rateOkComplete = 'ok_complete';
   static const _rateAnswerNotReady = 'answer_not_ready';
@@ -359,6 +462,12 @@ class OfficialAnkiOhosReviewerBinding {
   static const _rateEngineError = 'engine_error';
   static const _rateSchedulerUnavailable = 'scheduler_unavailable';
   static const _rateNoCard = 'no_card';
+
+  /// The rating itself committed, but moving the session to the next card
+  /// threw. Retrying the ADVANCE is safe (the commit is deduped by mutation
+  /// id); re-rating is not, which is why this code re-arms the page's
+  /// "retry the advance" entry rather than the four buttons.
+  static const _rateAdvanceFailed = 'advance_failed';
 
   Future<String> _rate(String rating) async {
     final controller = _controller;
@@ -395,11 +504,69 @@ class OfficialAnkiOhosReviewerBinding {
       return _rateSchedulerUnavailable;
     }
     final rated = _onRated;
-    var advanced = true;
-    if (rated != null) {
-      advanced = await rated(rating);
+    if (rated == null) {
+      return _rateOk;
     }
-    return advanced ? _rateOk : _rateOkComplete;
+    return _runAdvance(rated, rating);
+  }
+
+  /// Runs the host's advance callback, translating any throw into the
+  /// retryable [OfficialAnkiOhosReviewerBinding._rateAdvanceFailed] receipt.
+  ///
+  /// The commit has already happened when this runs, so an exception here
+  /// must neither escape to the channel (the page would read
+  /// `channel_error_*` and disable its row forever) nor invite a re-rate.
+  Future<String> _runAdvance(
+    Future<bool> Function(String rating) rated,
+    String rating,
+  ) async {
+    try {
+      final advanced = await rated(rating);
+      return advanced ? _rateOk : _rateOkComplete;
+    } catch (error, stack) {
+      logger.w('[OhosReviewer] advance after rating failed; retryable',
+          error: error, stackTrace: stack);
+      return _rateAdvanceFailed;
+    }
+  }
+
+  /// The page's explicit "retry the advance" entry. Re-runs only the advance
+  /// half of [_rate] — the scheduler already holds the rating.
+  Future<String> _retryAdvance(String rating) async {
+    final rated = _onRated;
+    if (_closed) return _rateSessionClosed;
+    if (rated == null) return _rateNoCard;
+    return _runAdvance(rated, rating);
+  }
+
+  /// The page's error-state retry: re-presents the failed side through the
+  /// controller's own retry path. Fatal codes no-op here and the page keeps
+  /// its exit entry — that is the honest outcome for an unrenderable card.
+  Future<void> _retryPresent() async {
+    final controller = _controller;
+    if (controller == null || _closed) return;
+    await controller.retryCurrentSide();
+  }
+
+  /// Dart-side render failures never cross the `present` promise (that
+  /// carries only acks the ArkTS side saw itself), so they are pushed as a
+  /// code the page can show next to its retry/exit entries.
+  void _maybeReportFailure(OfficialAnkiReviewerController controller) {
+    if (!controller.ui.isError) {
+      _reportedFailure = null;
+      return;
+    }
+    final code =
+        controller.ui.code ?? controller.error?.messageKey ?? 'render_failed';
+    final signature = (code, controller.presentGeneration);
+    if (_reportedFailure == signature) return;
+    _reportedFailure = signature;
+    unawaited(
+      transport.reportFailure(code).catchError((Object error, StackTrace st) {
+        // Best-effort surfacing only: the ability may already be gone.
+        logger.w('[OhosReviewer] failure report dropped', error: error);
+      }),
+    );
   }
 
   static String _receiptCodeFor(String messageKey) {

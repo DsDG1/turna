@@ -35,7 +35,6 @@ import 'package:turna/views/review/components/study_card_surface.dart';
 import 'package:turna/views/review/components/unified_review_completion.dart';
 import 'package:turna/core/ohos_target.dart';
 import 'package:turna/core/theme.dart';
-import 'package:turna/domain/review/recall_outcome.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
 import 'package:turna/views/widgets/study_activity_scope.dart';
 import 'package:turna/views/widgets/turna_snack_bar.dart';
@@ -464,6 +463,62 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
     });
   }
 
+  /// The OHOS reviewer ability resolved its open (back gesture on the native
+  /// page, error exit, or a system kill). When the queue still owes cards the
+  /// exposed Flutter page has no working card surface on this platform, so
+  /// the answered part is settled here and the page pops — the pre-fix
+  /// behaviour was a spinner over the card area with live toolbar actions
+  /// presenting into a closed ability (B8). A completed session needs
+  /// nothing: the completion view behind the ability is already correct.
+  void _onNativeAbilityClosed(String verdict) {
+    if (!mounted) return;
+    final controller = _controller;
+    if (controller != null && !controller.isComplete) {
+      unawaited(_recordSessionCompletion(
+        total: controller.answeredCount,
+        remembered: controller.rememberedCount,
+        forgotten: controller.forgottenCount,
+        elapsed: DateTime.now().difference(controller.startedAt),
+      ));
+    }
+    Navigator.of(context).maybePop();
+  }
+
+  /// OHOS native reviewer's header undo (UI-4). Same path as the Flutter
+  /// progress header: the host's `onEffectsUndone` rebuilds the live queue
+  /// and the present chain follows from the rebuilt presentation.
+  Future<void> _onNativeUndo() async {
+    await _controller?.undoLast();
+  }
+
+  /// OHOS completion-row statistics (UI-7): answered / remembered /
+  /// forgotten / elapsed / XP, shown on the native page so the summary is
+  /// visible before the Close hop back to the Flutter completion screen.
+  Future<Map<String, Object?>?> _onNativeSettlement() async {
+    final controller = _controller;
+    if (controller == null) return null;
+    return <String, Object?>{
+      'total': controller.answeredCount,
+      'remembered': controller.rememberedCount,
+      'forgotten': controller.forgottenCount,
+      'seconds':
+          DateTime.now().difference(controller.startedAt).inSeconds,
+      'xp': _settlement.earnedXp,
+    };
+  }
+
+  /// OHOS header progress (UI-4): `(index, total)`. The live queue shrinks
+  /// as cards are answered, so the honest denominator is answered + residual
+  /// — never the shrinking `totalCount` alone, which read as "3/2".
+  (int, int)? _onNativeProgress() {
+    final controller = _controller;
+    if (controller == null) return null;
+    final total = controller.answeredCount + controller.items.length;
+    if (total <= 0) return null;
+    final index = (controller.answeredCount + 1).clamp(1, total);
+    return (index, total);
+  }
+
   @override
   Widget build(BuildContext context) {
     final reviewAll = _sourceCoordinator;
@@ -554,6 +609,10 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
         officialSession: _officialSession,
         liveQueue: _officialSessionLiveQueue,
         onRetryBlockedCard: _retryBlockedCurrentCard,
+        onNativeClosed: _onNativeAbilityClosed,
+        onNativeUndo: _onNativeUndo,
+        onNativeSettlement: _onNativeSettlement,
+        onNativeProgress: _onNativeProgress,
         sourceProgress: reviewAll?.current == null
             ? null
             : '${reviewAll!.currentIndex + 1}/${reviewAll.targets.length} · '
@@ -773,25 +832,6 @@ OfficialAnkiCourseGradesBridge? _ohosGrades(OfficialReviewSession? session) {
   );
 }
 
-Future<void> _advanceNativeRating({
-  required StudySessionController controller,
-  required OfficialReviewSession officialSession,
-  required OfficialFormalReviewLiveQueue? liveQueue,
-  required String rating,
-}) async {
-  final eventId = officialSession.lastClientMutationId;
-  if (eventId == null || eventId.isEmpty) return;
-  final outcome = rating == 'again' || rating == 'hard'
-      ? RecallOutcome.forgotten
-      : RecallOutcome.remembered;
-  controller.acceptExternalOfficialCommit(outcome: outcome, eventId: eventId);
-  await advanceFromScheduler(
-    controller: controller,
-    officialSession: officialSession,
-    liveQueue: liveQueue,
-  );
-}
-
 class _AnkiStudySessionView extends StatelessWidget {
   const _AnkiStudySessionView({
     required this.controller,
@@ -799,6 +839,10 @@ class _AnkiStudySessionView extends StatelessWidget {
     this.officialSession,
     this.liveQueue,
     this.onRetryBlockedCard,
+    this.onNativeClosed,
+    this.onNativeUndo,
+    this.onNativeSettlement,
+    this.onNativeProgress,
     this.sourceProgress,
     this.earnedXp = 0,
   });
@@ -813,6 +857,15 @@ class _AnkiStudySessionView extends StatelessWidget {
 
   /// Wave 2 §8.3: retries the blocked current card in the same session.
   final Future<void> Function()? onRetryBlockedCard;
+
+  /// OHOS: the native reviewer ability closed while the session still owed
+  /// cards — settle the answered part and pop (B8).
+  final void Function(String verdict)? onNativeClosed;
+
+  /// OHOS native chrome hooks (undo / completion stats / progress).
+  final Future<void> Function()? onNativeUndo;
+  final Future<Map<String, Object?>?> Function()? onNativeSettlement;
+  final (int, int)? Function()? onNativeProgress;
   final String? sourceProgress;
   final int earnedXp;
 
@@ -959,6 +1012,12 @@ class _AnkiStudySessionView extends StatelessWidget {
                           isRevealed: revealed,
                           generation: controller.generation,
                           grades: _ohosGrades(session),
+                          onNativeClosed: onNativeClosed,
+                          renderedCard:
+                              liveQueue?.renderedCardFor(item.cardKey.cardId),
+                          onNativeUndo: onNativeUndo,
+                          onNativeSettlement: onNativeSettlement,
+                          onNativeProgress: onNativeProgress,
                           onNativeReveal: session == null
                               ? null
                               : () {
@@ -971,24 +1030,12 @@ class _AnkiStudySessionView extends StatelessWidget {
                                 },
                           onNativeRated: session == null
                               ? null
-                              : (rating) async {
-                                  await _advanceNativeRating(
+                              : (rating) => advanceFromNativeRating(
                                     controller: controller,
                                     officialSession: session,
                                     liveQueue: liveQueue,
                                     rating: rating,
-                                  );
-                                  // True only when the controller left the
-                                  // answered card behind: the OHOS page keeps
-                                  // the rating row disabled until the next
-                                  // present, so a commit that fails to advance
-                                  // must come back as "queue finished" or the
-                                  // buttons stay inert with nothing on screen
-                                  // to say why.
-                                  return !controller.isComplete &&
-                                      controller.phase !=
-                                          StudyCardPhase.readyForNext;
-                                },
+                                  ),
                           onReveal: () {
                             unawaited(
                               AnkiStudySessionHost.revealAndPresentAnswer(

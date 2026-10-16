@@ -24,7 +24,7 @@ import { Want, common } from '@kit.AbilityKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { probeReviewerAssets } from '../anki/AnkiReviewerAssetProbe';
 import { AnkiReviewerSession, RenderAck } from '../anki/AnkiReviewerSession';
-import { reviewerSession } from '../anki/AnkiReviewerSessionStore';
+import { reviewerSession, reviewerSessionEpoch } from '../anki/AnkiReviewerSessionStore';
 import { attachReviewerOutbound } from '../anki/AnkiReviewerBridge';
 import hilog from '@ohos.hilog';
 
@@ -84,6 +84,9 @@ export default class AnkiReviewerPlugin implements FlutterPlugin {
             break;
           case 'awaitReviewerReady':
             this.awaitReviewerReady(result);
+            break;
+          case 'notifyReviewerFailure':
+            this.notifyReviewerFailure(result, call);
             break;
           default:
             result.notImplemented();
@@ -265,11 +268,24 @@ export default class AnkiReviewerPlugin implements FlutterPlugin {
   /// [openReviewer] cannot be this signal: it resolves only when the learner
   /// closes the ability. Presenting before the shell's script exists runs
   /// `OfficialReviewer.present` against a document that does not have it.
+  ///
+  /// B3: only a session BEGUN AFTER this call counts. The previous
+  /// session used to satisfy the poll — destroyed ability, stale store entry,
+  /// `shellReady` still true — and Dart then presented onto a dead Web
+  /// controller as the "second review opens broken" bug. The epoch is
+  /// captured at entry, which is safe here by construction: this call is
+  /// issued milliseconds after `openReviewer`, while the ability still has a
+  /// whole page (and its Web) to load before any new session can be ready.
   private awaitReviewerReady(result: MethodResult): void {
     const started: number = Date.now();
+    const wantEpoch: number = reviewerSessionEpoch();
     const tick = (): void => {
       const session: AnkiReviewerSession | undefined = reviewerSession();
-      if (session !== undefined && session.isShellReady()) {
+      if (
+        session !== undefined &&
+        reviewerSessionEpoch() > wantEpoch &&
+        session.isShellReady()
+      ) {
         result.success('ready');
         return;
       }
@@ -280,6 +296,23 @@ export default class AnkiReviewerPlugin implements FlutterPlugin {
       setTimeout(tick, 50);
     };
     tick();
+  }
+
+  /// Dart-side render failures land on the page's error banner (B2): the
+  /// `present` promise only carries acks the ArkTS side produced itself, so
+  /// a media-push exception or a controller error would otherwise leave the
+  /// page on its shell with no card and no explanation.
+  private notifyReviewerFailure(result: MethodResult, call: MethodCall): void {
+    const session: AnkiReviewerSession | undefined = reviewerSession();
+    if (session === undefined) {
+      // Nowhere to show it; answering success keeps the best-effort contract
+      // (Dart logs the drop on its side if the invoke itself fails).
+      result.success('');
+      return;
+    }
+    const code: string = (call.arguments as string) ?? '';
+    session.notifyFailure(code.length > 0 ? code : 'RENDER_ERROR');
+    result.success('');
   }
 }
 

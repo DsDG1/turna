@@ -140,6 +140,28 @@ export class AnkiOriginServer {
     this.media.set(name, new util.Base64Helper().decodeSync(base64));
   }
 
+  /// Drops every cached media file whose name is not in [names] (P1).
+  ///
+  /// Called by the session from `present`, with the arriving card's own media
+  /// list: before this existed the map only ever grew, so a long session
+  /// carried every card's audio and images in memory at once — dozens of MB
+  /// on media-heavy decks, ending in the system reclaiming the process. The
+  /// Dart side mirrors the eviction (it forgets its pushed-set when the card
+  /// changes), so a card revisited after eviction re-pushes instead of
+  /// answering 503 `MEDIA_NOT_PUSHED`.
+  public evictExcept(names: Array<string>): void {
+    const keep: Set<string> = new Set<string>(names);
+    const doomed: Array<string> = [];
+    this.media.forEach((_: Uint8Array, key: string) => {
+      if (!keep.has(key)) {
+        doomed.push(key);
+      }
+    });
+    for (const key of doomed) {
+      this.media.delete(key);
+    }
+  }
+
   /// Warms the small assets synchronously. Called before the `Web` exists, so
   /// the kernel's very first request — the shell itself, issued the instant the
   /// component attaches — is answered from a cache that cannot be cold. This is
@@ -254,10 +276,11 @@ export class AnkiOriginServer {
     }
     let length: number = 0;
     try {
-      if (!fs.statSync(path).isFile()) {
+      const stat: fs.Stat = fs.statSync(path);
+      if (!stat.isFile()) {
         return denied(404, 'missing');
       }
-      length = fs.statSync(path).size;
+      length = stat.size;
     } catch (e) {
       return denied(404, 'missing');
     }

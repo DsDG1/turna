@@ -1132,6 +1132,7 @@ class AppStrings {
   static String get ankiReviewHandleLater => '稍后处理此来源并继续';
   static String get ankiReviewRenderBlocked => '当前卡片暂时无法显示，评分已锁定。';
   static String get ankiReviewWriteUnsafe => '当前卡片无法安全写入，请重试或稍后返回。';
+  static String get ankiReviewNativeClosed => '复习已结束，正在返回…';
   static String get reviewSavedStatsPending => '复习已保存，统计稍后同步。';
   static String get reviewRetry => '重试';
   static String reviewExitConfirmBody(int remaining) =>

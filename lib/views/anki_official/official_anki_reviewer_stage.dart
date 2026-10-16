@@ -34,6 +34,10 @@ class OfficialAnkiReviewerStage extends StatefulWidget {
     this.grades,
     this.onNativeReveal,
     this.onNativeRated,
+    this.onNativeClosed,
+    this.onNativeUndo,
+    this.onNativeSettlement,
+    this.onNativeProgress,
   });
 
   final OfficialAnkiReviewerController controller;
@@ -50,6 +54,23 @@ class OfficialAnkiReviewerStage extends StatefulWidget {
   /// completion row on `false`.
   final Future<bool> Function(String rating)? onNativeRated;
 
+  /// Fired when the OHOS ability resolves its open — the learner left the
+  /// native reviewer (back gesture, error exit, system kill). The hosting
+  /// page settles the answered part and pops; without this the exposed
+  /// Flutter page shows a spinner where the card was (B8).
+  final void Function(String verdict)? onNativeClosed;
+
+  /// OHOS header undo entry (UI-4): runs the page's own undo path; the
+  /// rebuild/present chain follows from the host hooks.
+  final Future<void> Function()? onNativeUndo;
+
+  /// OHOS completion-row statistics (UI-7): answered/remembered/forgotten/
+  /// seconds/xp, delivered to the native page when the queue finishes.
+  final Future<Map<String, Object?>?> Function()? onNativeSettlement;
+
+  /// OHOS header progress (UI-4): `(index, total)` for the count and bar.
+  final (int, int)? Function()? onNativeProgress;
+
   @override
   State<OfficialAnkiReviewerStage> createState() =>
       _OfficialAnkiReviewerStageState();
@@ -62,6 +83,7 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
   int? _blockedJsGeneration;
   OfficialAnkiOhosReviewerBinding? _ohos;
   Object? _ohosError;
+  var _ohosClosed = false;
   var _dark = false;
 
   OfficialAnkiCourseGradesBridge get _grades =>
@@ -110,6 +132,10 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
         dark: _dark,
         onReveal: widget.onNativeReveal,
         onRated: widget.onNativeRated,
+        onClosed: _onAbilityClosed,
+        onUndo: widget.onNativeUndo,
+        onSettlement: widget.onNativeSettlement,
+        onProgress: widget.onNativeProgress,
       );
       if (!mounted) {
         binding.detach(_controller);
@@ -118,6 +144,7 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
       setState(() {
         _ohos = binding;
         _ohosError = null;
+        _ohosClosed = false;
       });
       _rebindOhos();
     } catch (error, stack) {
@@ -126,6 +153,15 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
       if (!mounted) return;
       setState(() => _ohosError = error);
     }
+  }
+
+  /// The ability resolved its open. The page above settles and pops; this
+  /// side stops pretending a card is arriving (the pre-fix behaviour was an
+  /// forever-spinner where the card had been).
+  void _onAbilityClosed(String verdict) {
+    if (!mounted) return;
+    setState(() => _ohosClosed = true);
+    widget.onNativeClosed?.call(verdict);
   }
 
   void _rebindOhos() {
@@ -139,6 +175,10 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
       dark: _dark,
       onReveal: widget.onNativeReveal,
       onRated: widget.onNativeRated,
+      onClosed: _onAbilityClosed,
+      onUndo: widget.onNativeUndo,
+      onSettlement: widget.onNativeSettlement,
+      onProgress: widget.onNativeProgress,
     );
   }
 
@@ -291,7 +331,9 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
       children: [
         Expanded(
           child: error == null
-              ? const Center(child: CircularProgressIndicator())
+              ? (_ohosClosed
+                  ? const _OhosReviewerInterruptedPanel()
+                  : const Center(child: CircularProgressIndicator()))
               : OfficialAnkiReviewerErrorView(
                   messageKey: 'official_anki.render_failed',
                   onRetry: () {
@@ -403,6 +445,31 @@ class _OfficialAnkiReviewerStageState extends State<OfficialAnkiReviewerStage> {
             ),
           ),
       ],
+    );
+  }
+}
+
+/// Passive closing state for the OHOS branch: the native reviewer resolved
+/// its open and the hosting page is settling/popping. It exists so the brief
+/// moment before the pop is not an forever-spinner promising a card (B8).
+class _OhosReviewerInterruptedPanel extends StatelessWidget {
+  const _OhosReviewerInterruptedPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.logout_rounded, size: 40),
+          const SizedBox(height: 12),
+          Text(
+            AppStrings.ankiReviewNativeClosed,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleSmall,
+          ),
+        ],
+      ),
     );
   }
 }

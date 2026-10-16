@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:turna/application/anki_official/contract/official_anki_dto.dart';
 import 'package:turna/application/anki_official/engine/official_anki_course_grades_bridge.dart';
 import 'package:turna/domain/anki/card_presentation.dart';
 import 'package:turna/domain/anki/presentation_receipt.dart';
@@ -32,6 +33,11 @@ class StudyCardSurface extends StatefulWidget {
     this.grades,
     this.onNativeReveal,
     this.onNativeRated,
+    this.onNativeClosed,
+    this.renderedCard,
+    this.onNativeUndo,
+    this.onNativeSettlement,
+    this.onNativeProgress,
   });
 
   final CardPresentation? presentation;
@@ -48,6 +54,19 @@ class StudyCardSurface extends StatefulWidget {
 
   /// `true` = advanced to another card, `false` = queue finished.
   final Future<bool> Function(String rating)? onNativeRated;
+
+  /// The OHOS reviewer ability resolved its open (learner left the native
+  /// page); the hosting page settles the answered part and pops (B8).
+  final void Function(String verdict)? onNativeClosed;
+
+  /// The loader's render of the presented card (P5) — adopted by the
+  /// official body instead of re-rendering. `null` outside live-queue hosts.
+  final OfficialAnkiRenderedCard? renderedCard;
+
+  /// OHOS native-reviewer hooks — see [OfficialAnkiReviewerStage].
+  final Future<void> Function()? onNativeUndo;
+  final Future<Map<String, Object?>?> Function()? onNativeSettlement;
+  final (int, int)? Function()? onNativeProgress;
 
   @override
   State<StudyCardSurface> createState() => _StudyCardSurfaceState();
@@ -151,6 +170,11 @@ class _StudyCardSurfaceState extends State<StudyCardSurface> {
         grades: widget.grades,
         onNativeReveal: widget.onNativeReveal,
         onNativeRated: widget.onNativeRated,
+        onNativeClosed: widget.onNativeClosed,
+        renderedCard: widget.renderedCard,
+        onNativeUndo: widget.onNativeUndo,
+        onNativeSettlement: widget.onNativeSettlement,
+        onNativeProgress: widget.onNativeProgress,
       );
     }
     if (content is StandardCourseCardContent) {

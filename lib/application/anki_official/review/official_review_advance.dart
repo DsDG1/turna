@@ -1,6 +1,9 @@
 import 'package:turna/application/anki_official/engine/official_anki_review_session.dart';
 import 'package:turna/application/anki_official/review/official_formal_review_coordinator.dart';
 import 'package:turna/application/study_session/study_session_controller.dart';
+import 'package:turna/core/logger.dart';
+import 'package:turna/domain/anki/study_models.dart';
+import 'package:turna/domain/review/recall_outcome.dart';
 
 /// Live scheduler contract (plan 34 D4): after every committed mutation
 /// the next card is the scheduler's refreshed [OfficialReviewSession.current]
@@ -44,4 +47,43 @@ Future<void> advanceFromScheduler({
   // assembled batch; surface a structured desync (retryable) instead of
   // silently completing a session the scheduler still owes.
   controller.reportSchedulerDesync(currentCardId);
+}
+
+/// Advance after the native OHOS page committed a rating through the grades
+/// bridge (the bridge answers the scheduler directly; the session controller
+/// only learns about it here).
+///
+/// Returns whether another card is on screen (`true`) or the queue finished
+/// (`false`) — the OHOS page's receipt contract. Throws when the scheduler
+/// committed but left no client mutation id: the rating is in the engine and
+/// the controller has no receipt to advance with, so the caller must answer
+/// the page with a retryable failure code instead of claiming progress.
+///
+/// The mutation id is set unconditionally before `engine.answerCard` inside
+/// `answerAndConfirm` and never cleared, so the empty branch only fires on a
+/// disposed-session race — where a retry that re-reads the id is exactly the
+/// right recovery.
+Future<bool> advanceFromNativeRating({
+  required StudySessionController controller,
+  required OfficialReviewSession officialSession,
+  required OfficialFormalReviewLiveQueue? liveQueue,
+  required String rating,
+}) async {
+  final eventId = officialSession.lastClientMutationId;
+  if (eventId == null || eventId.isEmpty) {
+    logger.w('[OfficialAnki] native rating committed without a mutation id; '
+        'refusing to advance the session blindly');
+    throw StateError('official native rating lost its mutation id');
+  }
+  final outcome = rating == 'again' || rating == 'hard'
+      ? RecallOutcome.forgotten
+      : RecallOutcome.remembered;
+  controller.acceptExternalOfficialCommit(outcome: outcome, eventId: eventId);
+  await advanceFromScheduler(
+    controller: controller,
+    officialSession: officialSession,
+    liveQueue: liveQueue,
+  );
+  return !controller.isComplete &&
+      controller.phase != StudyCardPhase.readyForNext;
 }
