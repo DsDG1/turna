@@ -17,6 +17,15 @@
 import MethodChannel from '@ohos/flutter_ohos/src/main/ets/plugin/common/MethodChannel';
 import { MethodResult } from '@ohos/flutter_ohos/src/main/ets/plugin/common/MethodChannel';
 import type Any from '@ohos/flutter_ohos/src/main/ets/plugin/common/Any';
+import {
+  METHOD_RATE,
+  METHOD_REQUEST_UNDO,
+  METHOD_RETRY_ADVANCE,
+  METHOD_RETRY_PRESENT,
+  METHOD_REVIEW_SETTLEMENT,
+  METHOD_SHOW_ANSWER,
+  METHOD_TYPED_CHANGED,
+} from './AnkiReviewerProtocol';
 
 let outbound: MethodChannel | null = null;
 
@@ -53,8 +62,8 @@ export class AnkiReviewerBridge {
   /// on the Dart side, and doing any normalisation here would put a second
   /// opinion about spelling next to the one that has the dictionary.
   public showAnswer(typed: string): void {
-    this.emit('showAnswer', typed);
-    this.callDart('showAnswer', typed);
+    this.emit(METHOD_SHOW_ANSWER, typed);
+    this.callDart(METHOD_SHOW_ANSWER, typed);
   }
 
   /// One of Anki's four buttons. `rating` arrives as the button's own label so
@@ -68,7 +77,7 @@ export class AnkiReviewerBridge {
   /// re-enable them — without the receipt, a refusal on the Dart side is
   /// indistinguishable from a button that does nothing.
   public rate(rating: string, onResult: (code: string) => void): void {
-    this.emit('rate', rating);
+    this.emit(METHOD_RATE, rating);
     const channel: MethodChannel | null = outbound;
     if (channel === null) {
       onResult('bridge_detached');
@@ -85,7 +94,7 @@ export class AnkiReviewerBridge {
         onResult('not_implemented');
       },
     };
-    channel.invokeMethod('rate', rating, receiver);
+    channel.invokeMethod(METHOD_RATE, rating, receiver);
   }
 
   /// The page's "retry the advance" entry after an `advance_failed` receipt:
@@ -93,7 +102,7 @@ export class AnkiReviewerBridge {
   /// advance re-runs. Carries its receipt back for the same reason `rate`
   /// does — a retry that nothing answers reads as a dead button.
   public retryAdvance(rating: string, onResult: (code: string) => void): void {
-    this.emit('retryAdvance', rating);
+    this.emit(METHOD_RETRY_ADVANCE, rating);
     const channel: MethodChannel | null = outbound;
     if (channel === null) {
       onResult('bridge_detached');
@@ -110,29 +119,29 @@ export class AnkiReviewerBridge {
         onResult('not_implemented');
       },
     };
-    channel.invokeMethod('retryAdvance', rating, receiver);
+    channel.invokeMethod(METHOD_RETRY_ADVANCE, rating, receiver);
   }
 
   /// The error banner's retry: asks Dart to re-present the failed face. No
   /// receipt — the present that follows (or the next failure banner) is the
   /// visible outcome.
   public retryPresent(): void {
-    this.emit('retryPresent', '');
-    this.callDart('retryPresent', '');
+    this.emit(METHOD_RETRY_PRESENT, '');
+    this.callDart(METHOD_RETRY_PRESENT, '');
   }
 
   /// The native header's undo entry (UI-4). Fire-and-forget: the rebuilt
   /// present that follows the host's undo hooks is the visible outcome.
   public requestUndo(): void {
-    this.emit('requestUndo', '');
-    this.callDart('requestUndo', '');
+    this.emit(METHOD_REQUEST_UNDO, '');
+    this.callDart(METHOD_REQUEST_UNDO, '');
   }
 
   /// The completion row's statistics (UI-7). `onResult` receives the JSON
   /// the Flutter settlement produced, or an empty string when Dart had
   /// nothing to report — the page then keeps its plain completion row.
   public settlement(onResult: (json: string) => void): void {
-    this.emit('reviewSettlement', '');
+    this.emit(METHOD_REVIEW_SETTLEMENT, '');
     const channel: MethodChannel | null = outbound;
     if (channel === null) {
       onResult('');
@@ -149,7 +158,7 @@ export class AnkiReviewerBridge {
         onResult('');
       },
     };
-    channel.invokeMethod('reviewSettlement', '', receiver);
+    channel.invokeMethod(METHOD_REVIEW_SETTLEMENT, '', receiver);
   }
 
   /// Every keystroke, mirroring the Flutter `TextField`'s `onChanged`. Sent on
@@ -158,8 +167,8 @@ export class AnkiReviewerBridge {
   /// against what they actually typed, not against a value reconstructed at
   /// submit time.
   public typedChanged(text: string): void {
-    this.emit('typedChanged', text);
-    this.callDart('typedChanged', text);
+    this.emit(METHOD_TYPED_CHANGED, text);
+    this.callDart(METHOD_TYPED_CHANGED, text);
   }
 
   private callDart(method: string, payload: string): void {

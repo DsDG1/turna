@@ -1,3 +1,5 @@
+import 'package:turna/application/anki_official/render/official_anki_reviewer_protocol.dart';
+
 /// Host-level present acknowledgement. Scoring binds to this, not the tap.
 class OfficialPresentAck {
   const OfficialPresentAck({
@@ -43,7 +45,7 @@ class OfficialAnkiPresentResult {
     if (raw is! Map) {
       return const OfficialAnkiPresentResult(
         ok: false,
-        code: 'RENDER_TIMEOUT',
+        code: OfficialAnkiReviewerProtocol.renderTimeout,
         recoverable: true,
       );
     }
@@ -56,9 +58,12 @@ class OfficialAnkiPresentResult {
     final side = map['side'] as String?;
     final ok = map['ok'] == true &&
         generation != null &&
-        (side == 'question' || side == 'answer');
+        (side == OfficialAnkiReviewerProtocol.sideQuestion ||
+            side == OfficialAnkiReviewerProtocol.sideAnswer);
     if (!ok && (code == null || code == 'renderError')) {
-      code = code == 'renderError' ? 'UNRENDERABLE_CARD' : 'RENDER_TIMEOUT';
+      code = code == 'renderError'
+          ? 'UNRENDERABLE_CARD'
+          : OfficialAnkiReviewerProtocol.renderTimeout;
     }
     return OfficialAnkiPresentResult(
       ok: ok,
@@ -91,16 +96,10 @@ class OfficialAnkiPresentResult {
     );
   }
 
-  static const _recoverableCodes = {
-    'RENDER_TIMEOUT',
-    supersededCode,
-    'MATHJAX_ASSET_MISSING',
-    'MATHJAX_TYPESET_FAILED',
-    'SHELL_ASSET_MISSING',
-    'FRAME_ASSET_MISSING',
-    'WEBVIEW_MAIN_FRAME_ERROR',
-    'SHELL_NOT_READY',
-  };
+  /// Delegates to the cross-language source of truth; see
+  /// [OfficialAnkiReviewerProtocol.recoverableCodes].
+  static const _recoverableCodes =
+      OfficialAnkiReviewerProtocol.recoverableCodes;
 }
 
 /// Serializes Flutter-side presents so a stale completion cannot overwrite a

@@ -10,6 +10,7 @@ import 'package:turna/application/anki_official/contract/official_anki_dto.dart'
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/render/official_anki_present_ack.dart';
 import 'package:turna/application/anki_official/render/official_anki_reviewer_probe.dart';
+import 'package:turna/application/anki_official/render/official_anki_reviewer_protocol.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/core/ohos_target.dart';
 import 'package:turna/views/anki_official/official_anki_reviewer_error_view.dart';
@@ -186,7 +187,9 @@ class OfficialAnkiReviewerViewState extends State<OfficialAnkiReviewerView> {
     if (widget.presentGeneration == null) {
       _setCardGeneration = token;
     }
-    final side = widget.showingAnswer ? 'answer' : 'question';
+    final side = widget.showingAnswer
+        ? OfficialAnkiReviewerProtocol.sideAnswer
+        : OfficialAnkiReviewerProtocol.sideQuestion;
     if (_deduper.shouldSkip(
       cardId: widget.card.cardId,
       generation: token,
@@ -197,25 +200,21 @@ class OfficialAnkiReviewerViewState extends State<OfficialAnkiReviewerView> {
     try {
       final result = await _gate.run(token, () async {
         try {
+          final payload = officialAnkiReviewerPayload(
+            card: widget.card,
+            generation: token,
+            showingAnswer: widget.showingAnswer,
+            dark: widget.dark,
+            comparisonHtml: widget.comparisonHtml,
+          );
           final raw =
-              await channel.invokeMethod<dynamic>('present', <String, Object?>{
-            'cardId': widget.card.cardId,
-            'generation': token,
-            'questionDisplayHtml': widget.card.questionDisplayHtml,
-            'answerDisplayHtml': widget.card.answerDisplayHtml,
-            'css': widget.card.css,
-            'theme': widget.dark ? 'night' : 'day',
-            'comparisonHtml': widget.comparisonHtml,
-            'side': side,
-            'templateOrdinal': widget.card.templateOrdinal,
-            'bodyClass': widget.card.bodyClass,
-          });
+              await channel.invokeMethod<dynamic>('present', payload);
           return OfficialAnkiPresentResult.fromNative(raw);
         } catch (error) {
           logger.w('[OfficialAnkiReviewer] present failed $error');
           return OfficialAnkiPresentResult(
             ok: false,
-            code: 'RENDER_TIMEOUT',
+            code: OfficialAnkiReviewerProtocol.renderTimeout,
             generation: token,
             recoverable: true,
           );
@@ -226,7 +225,9 @@ class OfficialAnkiReviewerViewState extends State<OfficialAnkiReviewerView> {
         widget.onRenderComplete?.call(result);
         return;
       }
-      widget.onRenderError?.call(result.code ?? 'RENDER_TIMEOUT');
+      widget.onRenderError?.call(
+        result.code ?? OfficialAnkiReviewerProtocol.renderTimeout,
+      );
     } finally {
       _deduper.markSettled();
     }

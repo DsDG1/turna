@@ -30,6 +30,7 @@ import {
   beginReviewerSession,
   endReviewerSession,
 } from '../anki/AnkiReviewerSessionStore';
+import { ARG_MEDIA_ROOT } from '../anki/AnkiReviewerProtocol';
 
 const TAG: string = 'AnkiReviewerAbility';
 const DOMAIN: number = 0xA700;
@@ -40,7 +41,7 @@ export default class AnkiReviewerAbility extends UIAbility {
   private windowStage: window.WindowStage | undefined = undefined;
 
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
-    const given: string | undefined = want.parameters?.mediaRoot as string | undefined;
+    const given: string | undefined = want.parameters?.[ARG_MEDIA_ROOT] as string | undefined;
     if (given === undefined || given.length === 0) {
       // Refusing loudly beats starting a reviewer that answers every media
       // request with 403: the first looks like a broken app and the second
@@ -52,7 +53,7 @@ export default class AnkiReviewerAbility extends UIAbility {
   }
 
   onNewWant(want: Want, launchParam: AbilityConstant.LaunchParam): void {
-    const given: string | undefined = want.parameters?.mediaRoot as string | undefined;
+    const given: string | undefined = want.parameters?.[ARG_MEDIA_ROOT] as string | undefined;
     if (given === undefined || given.length === 0) {
       // Keep the live session rather than half-rebuilding one: an empty root
       // would answer every media request with 403, which is worse than the

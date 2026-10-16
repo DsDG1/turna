@@ -2,13 +2,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/core/ohos_target.dart';
+import 'package:turna/application/anki_official/render/official_anki_reviewer_protocol.dart';
 
-/// The MethodChannel the native reviewer answers on. Matches
-/// `AnkiReviewerPlugin.CHANNEL` on the ArkTS side; the two are separate
-/// implementations of one contract, so a rename on either side is a silent
-/// `MissingPluginException` until someone opens a card on a device.
+/// The MethodChannel the native reviewer answers on. The name lives in
+/// [OfficialAnkiReviewerProtocol], whose ArkTS twin is checked by the protocol
+/// guard test — a rename on either side is a silent `MissingPluginException`
+/// until someone opens a card on a device.
 const MethodChannel officialAnkiReviewerChannel =
-    MethodChannel('me.dsdogs.turna/official_anki_reviewer');
+    MethodChannel(OfficialAnkiReviewerProtocol.channelName);
 
 bool _probeStarted = false;
 
@@ -37,7 +38,7 @@ Future<void> logOfficialAnkiReviewerProbe() async {
   try {
     final verdict =
         await officialAnkiReviewerChannel.invokeMethod<String>(
-          'probeReviewerCapabilities',
+          OfficialAnkiReviewerProtocol.methodProbeReviewerCapabilities,
         );
     logger.i('[OhosAnkiReviewerProbe] $verdict');
   } on MissingPluginException catch (e) {
@@ -92,7 +93,7 @@ Future<void> logOfficialAnkiReviewerAssetProbe() async {
   _assetProbeStarted = true;
   try {
     final report = await officialAnkiReviewerChannel.invokeMethod<String>(
-      'probeReviewerAssets',
+      OfficialAnkiReviewerProtocol.methodProbeReviewerAssets,
     );
     logger.i('[OhosAnkiReviewerAssetProbe] $report');
   } on MissingPluginException catch (e) {

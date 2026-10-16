@@ -4,6 +4,7 @@ import 'package:turna/application/anki_official/render/official_anki_answer_pres
 import 'package:turna/application/anki_official/render/official_anki_av_coordinator.dart';
 import 'package:turna/application/anki_official/render/official_anki_present_ack.dart';
 import 'package:turna/application/anki_official/render/official_anki_render_facade.dart';
+import 'package:turna/application/anki_official/render/official_anki_reviewer_protocol.dart';
 import 'package:turna/application/anki_official/render/official_anki_typed_answer_controller.dart';
 
 enum OfficialAnkiReviewerPhase {
@@ -62,23 +63,13 @@ class OfficialAnkiReviewerUi {
       surface == OfficialAnkiReviewerSurface.recoverableError ||
       surface == OfficialAnkiReviewerSurface.fatalError;
 
-  static const recoverableCodes = <String>{
-    'RENDER_TIMEOUT',
-    'RENDER_SUPERSEDED',
-    'MATHJAX_ASSET_MISSING',
-    'MATHJAX_TYPESET_FAILED',
-    'SHELL_ASSET_MISSING',
-    'FRAME_ASSET_MISSING',
-    'WEBVIEW_MAIN_FRAME_ERROR',
-    'SHELL_NOT_READY',
-  };
+  /// Delegates to the cross-language source of truth: the ArkTS page
+  /// classifies its error banners from the mirrored set, so a one-sided edit
+  /// here changes which failures offer "exit only" on device. The protocol
+  /// guard test pins the two sets element-for-element.
+  static const recoverableCodes = OfficialAnkiReviewerProtocol.recoverableCodes;
 
-  static const fatalCodes = <String>{
-    'UNRENDERABLE_CARD',
-    'UNRENDERABLE_TEMPLATE',
-    'CARD_NOT_FOUND',
-    'FATAL_RENDER_ERROR',
-  };
+  static const fatalCodes = OfficialAnkiReviewerProtocol.fatalCodes;
 
   static bool isRecoverableCode(String code) {
     if (fatalCodes.contains(code)) return false;
@@ -123,13 +114,17 @@ class OfficialAnkiReviewerController implements OfficialAnswerPresenter {
   int get presentedCardId => card?.cardId ?? 0;
 
   @override
-  String get currentSide => showingAnswer ? 'answer' : 'question';
+  String get currentSide => showingAnswer
+      ? OfficialAnkiReviewerProtocol.sideAnswer
+      : OfficialAnkiReviewerProtocol.sideQuestion;
 
   @override
-  bool get hasAnswerPresentAck => _ackMatches(side: 'answer');
+  bool get hasAnswerPresentAck =>
+      _ackMatches(side: OfficialAnkiReviewerProtocol.sideAnswer);
 
   @override
-  bool get hasQuestionPresentAck => _ackMatches(side: 'question');
+  bool get hasQuestionPresentAck =>
+      _ackMatches(side: OfficialAnkiReviewerProtocol.sideQuestion);
 
   @override
   bool get isRenderError => ui.isError;
@@ -189,7 +184,7 @@ class OfficialAnkiReviewerController implements OfficialAnswerPresenter {
     final token = ++generation;
     cardToken = token;
     phase = OfficialAnkiReviewerPhase.loadingCard;
-    ui = OfficialAnkiReviewerUi.rendering(side: 'question', generation: token);
+    ui = OfficialAnkiReviewerUi.rendering(side: OfficialAnkiReviewerProtocol.sideQuestion, generation: token);
     showingAnswer = false;
     error = null;
     await av.nextCard();
@@ -205,7 +200,7 @@ class OfficialAnkiReviewerController implements OfficialAnswerPresenter {
     final token = ++generation;
     cardToken = token;
     phase = OfficialAnkiReviewerPhase.loadingCard;
-    ui = OfficialAnkiReviewerUi.rendering(side: 'question', generation: token);
+    ui = OfficialAnkiReviewerUi.rendering(side: OfficialAnkiReviewerProtocol.sideQuestion, generation: token);
     showingAnswer = false;
     error = null;
     lastAck = null;
@@ -229,7 +224,7 @@ class OfficialAnkiReviewerController implements OfficialAnswerPresenter {
       ui = caught.recoverable
           ? OfficialAnkiReviewerUi.recoverableError(
               code: caught.code.name.toUpperCase(),
-              side: 'question',
+              side: OfficialAnkiReviewerProtocol.sideQuestion,
               generation: token,
             )
           : OfficialAnkiReviewerUi.fatalError(
@@ -272,7 +267,7 @@ class OfficialAnkiReviewerController implements OfficialAnswerPresenter {
         phase = OfficialAnkiReviewerPhase.recoverableError;
         ui = OfficialAnkiReviewerUi.recoverableError(
           code: 'TYPED_COMPARE_FAILED',
-          side: 'answer',
+          side: OfficialAnkiReviewerProtocol.sideAnswer,
           generation: presentGeneration,
         );
         _notify();
@@ -284,7 +279,7 @@ class OfficialAnkiReviewerController implements OfficialAnswerPresenter {
         phase = OfficialAnkiReviewerPhase.recoverableError;
         ui = OfficialAnkiReviewerUi.recoverableError(
           code: 'TYPED_COMPARE_FAILED',
-          side: 'answer',
+          side: OfficialAnkiReviewerProtocol.sideAnswer,
           generation: presentGeneration,
         );
         _notify();
@@ -325,7 +320,7 @@ class OfficialAnkiReviewerController implements OfficialAnswerPresenter {
     ui = OfficialAnkiReviewerUi.visible(side: side, generation: generation);
     _notify();
     if (!_autoplay) return;
-    final avSide = side == 'answer'
+    final avSide = side == OfficialAnkiReviewerProtocol.sideAnswer
         ? OfficialAnkiAvSide.answer
         : OfficialAnkiAvSide.question;
     // Flip must not wait for AV/TTS. Old-generation completion is ignored.

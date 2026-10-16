@@ -26,10 +26,26 @@ import { probeReviewerAssets } from '../anki/AnkiReviewerAssetProbe';
 import { AnkiReviewerSession, RenderAck } from '../anki/AnkiReviewerSession';
 import { reviewerSession, reviewerSessionEpoch } from '../anki/AnkiReviewerSessionStore';
 import { attachReviewerOutbound } from '../anki/AnkiReviewerBridge';
+import {
+  ARG_BASE64,
+  ARG_MEDIA_ROOT,
+  ARG_NAME,
+  ARG_PAYLOAD_JSON,
+  ARG_SIDE,
+  CHANNEL_NAME,
+  METHOD_AWAIT_REVIEWER_READY,
+  METHOD_CACHE_REVIEWER_MEDIA,
+  METHOD_NOTIFY_REVIEWER_FAILURE,
+  METHOD_OPEN_REVIEWER,
+  METHOD_PRESENT_REVIEWER,
+  METHOD_PROBE_REVIEWER_ASSETS,
+  METHOD_PROBE_REVIEWER_CAPABILITIES,
+  METHOD_REVIEWER_LAST_ACK,
+  RENDER_ERROR,
+} from '../anki/AnkiReviewerProtocol';
 import hilog from '@ohos.hilog';
 
 const TAG = "AnkiReviewerPlugin";
-const CHANNEL = "me.dsdogs.turna/official_anki_reviewer";
 
 // The probe's ability. Renamed with the probe when step 5b lands the real
 // reviewer; the Dart-visible channel name is already the final one so this
@@ -59,37 +75,32 @@ export default class AnkiReviewerPlugin implements FlutterPlugin {
   }
 
   onAttachedToEngine(binding: FlutterPluginBinding): void {
-    this.channel = new MethodChannel(binding.getBinaryMessenger(), CHANNEL);
+    this.channel = new MethodChannel(binding.getBinaryMessenger(), CHANNEL_NAME);
     attachReviewerOutbound(this.channel);
     this.channel.setMethodCallHandler({
       onMethodCall: (call: MethodCall, result: MethodResult): void => {
-        switch (call.method) {
-          case 'probeReviewerCapabilities':
-            this.probeReviewerCapabilities(result);
-            break;
-          case 'probeReviewerAssets':
-            this.probeReviewerAssets(result);
-            break;
-          case 'openReviewer':
-            this.openReviewer(result, call);
-            break;
-          case 'presentReviewer':
-            this.presentReviewer(result, call);
-            break;
-          case 'cacheReviewerMedia':
-            this.cacheReviewerMedia(result, call);
-            break;
-          case 'reviewerLastAck':
-            this.reviewerLastAck(result);
-            break;
-          case 'awaitReviewerReady':
-            this.awaitReviewerReady(result);
-            break;
-          case 'notifyReviewerFailure':
-            this.notifyReviewerFailure(result, call);
-            break;
-          default:
-            result.notImplemented();
+        // An if/else chain over the protocol constants rather than a switch:
+        // the method names are the wire contract, so they come from
+        // AnkiReviewerProtocol.ets, whose mirror the protocol guard test
+        // pins against the Dart side.
+        if (call.method === METHOD_PROBE_REVIEWER_CAPABILITIES) {
+          this.probeReviewerCapabilities(result);
+        } else if (call.method === METHOD_PROBE_REVIEWER_ASSETS) {
+          this.probeReviewerAssets(result);
+        } else if (call.method === METHOD_OPEN_REVIEWER) {
+          this.openReviewer(result, call);
+        } else if (call.method === METHOD_PRESENT_REVIEWER) {
+          this.presentReviewer(result, call);
+        } else if (call.method === METHOD_CACHE_REVIEWER_MEDIA) {
+          this.cacheReviewerMedia(result, call);
+        } else if (call.method === METHOD_REVIEWER_LAST_ACK) {
+          this.reviewerLastAck(result);
+        } else if (call.method === METHOD_AWAIT_REVIEWER_READY) {
+          this.awaitReviewerReady(result);
+        } else if (call.method === METHOD_NOTIFY_REVIEWER_FAILURE) {
+          this.notifyReviewerFailure(result, call);
+        } else {
+          result.notImplemented();
         }
       }
     });
@@ -172,7 +183,7 @@ export default class AnkiReviewerPlugin implements FlutterPlugin {
    * collection's media.
    */
   private openReviewer(result: MethodResult, call: MethodCall): void {
-    const mediaRoot: string = call.argument('mediaRoot') as string;
+    const mediaRoot: string = call.argument(ARG_MEDIA_ROOT) as string;
     if (!mediaRoot) {
       result.error('MEDIA_ROOT_MISSING', 'mediaRoot argument absent', null);
       return;
@@ -209,8 +220,8 @@ export default class AnkiReviewerPlugin implements FlutterPlugin {
       result.error('REVIEWER_NOT_OPEN', 'no reviewer session in this process', null);
       return;
     }
-    const payloadJson: string = call.argument('payloadJson') as string;
-    const side: string = call.argument('side') as string;
+    const payloadJson: string = call.argument(ARG_PAYLOAD_JSON) as string;
+    const side: string = call.argument(ARG_SIDE) as string;
     if (!payloadJson || !side) {
       result.error('PRESENT_ARGS_MISSING', 'payloadJson/side absent', null);
       return;
@@ -241,8 +252,8 @@ export default class AnkiReviewerPlugin implements FlutterPlugin {
       result.error('REVIEWER_NOT_OPEN', 'no reviewer session in this process', null);
       return;
     }
-    const name: string = call.argument('name') as string;
-    const base64: string = call.argument('base64') as string;
+    const name: string = call.argument(ARG_NAME) as string;
+    const base64: string = call.argument(ARG_BASE64) as string;
     if (!name || !base64) {
       result.error('MEDIA_ARGS_MISSING', 'name/base64 absent', null);
       return;
@@ -310,8 +321,12 @@ export default class AnkiReviewerPlugin implements FlutterPlugin {
       result.success('');
       return;
     }
-    const code: string = (call.arguments as string) ?? '';
-    session.notifyFailure(code.length > 0 ? code : 'RENDER_ERROR');
+    // `call.args` (the raw arguments field), not `argument(key)`: Dart sends
+    // the failure code as the whole argument of this call, not as a map.
+    // `arguments` does not exist on the fork SDK's MethodCall and never
+    // compiled — this line predates R0 and had not seen a hap build.
+    const code: string = (call.args as string) ?? '';
+    session.notifyFailure(code.length > 0 ? code : RENDER_ERROR);
     result.success('');
   }
 }

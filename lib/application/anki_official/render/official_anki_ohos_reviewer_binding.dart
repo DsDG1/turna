@@ -8,6 +8,7 @@ import 'package:turna/application/anki_official/engine/official_anki_course_grad
 import 'package:turna/application/anki_official/render/official_anki_media_resolver.dart';
 import 'package:turna/application/anki_official/render/official_anki_render_state.dart';
 import 'package:turna/application/anki_official/render/official_anki_reviewer_channel.dart';
+import 'package:turna/application/anki_official/render/official_anki_reviewer_protocol.dart';
 import 'package:turna/core/logger.dart';
 
 /// The calls the HarmonyOS reviewer page can make. The real channel is one
@@ -94,47 +95,6 @@ class OfficialAnkiReviewerChannelTransport
 
   @override
   Future<void> reportFailure(String code) => channel.reportFailure(code);
-}
-
-/// Payload the reviewer shell already understands on Android and iOS.
-///
-/// `typedVisible` is extra and is read by the ArkUI page, not by the frame.
-/// `comparisonHtml` is the official engine's `compare_answer` result; the
-/// frame substitutes it for `[[type:…]]` and never sees the raw keystrokes.
-/// `mediaNames` is likewise ArkTS-only: the origin server evicts everything
-/// except these when the present arrives, so a long session's memory holds
-/// one card's media instead of every card's (P1/P2 on the work list).
-/// `progressIndex`/`progressTotal` drive the native header's count and bar
-/// (UI-4) and `debug` lets the page append stable codes to its status line
-/// in debug builds only (UI-3) — the page has no other way to know.
-Map<String, Object?> ohosReviewerPayload({
-  required OfficialAnkiRenderedCard card,
-  required int generation,
-  required bool showingAnswer,
-  required bool dark,
-  String? comparisonHtml,
-  Iterable<String> mediaNames = const [],
-  int? progressIndex,
-  int? progressTotal,
-  bool debug = false,
-}) {
-  return <String, Object?>{
-    'cardId': card.cardId,
-    'generation': generation,
-    'questionDisplayHtml': card.questionDisplayHtml,
-    'answerDisplayHtml': card.answerDisplayHtml,
-    'css': card.css,
-    'theme': dark ? 'night' : 'day',
-    'comparisonHtml': comparisonHtml ?? '',
-    'side': showingAnswer ? 'answer' : 'question',
-    'templateOrdinal': card.templateOrdinal,
-    'bodyClass': card.bodyClass,
-    'typedVisible': card.typedAnswer != null,
-    'mediaNames': mediaNames.toList(),
-    'progressIndex': progressIndex,
-    'progressTotal': progressTotal,
-    'debug': debug,
-  };
 }
 
 /// One open ArkUI reviewer for the whole study visit.
@@ -351,7 +311,9 @@ class OfficialAnkiOhosReviewerBinding {
     _maybeReportFailure(controller);
     final card = controller.card;
     if (card == null) return;
-    final side = controller.showingAnswer ? 'answer' : 'question';
+    final side = controller.showingAnswer
+        ? OfficialAnkiReviewerProtocol.sideAnswer
+        : OfficialAnkiReviewerProtocol.sideQuestion;
     final key = (card.cardId, side, controller.presentGeneration);
     // A render ack notifies this same controller. Scheduling that face again
     // would present twice and, on a failed ack, retry without bound.
@@ -377,7 +339,9 @@ class OfficialAnkiOhosReviewerBinding {
     required bool dark,
     String? comparisonHtml,
   }) {
-    final side = showingAnswer ? 'answer' : 'question';
+    final side = showingAnswer
+        ? OfficialAnkiReviewerProtocol.sideAnswer
+        : OfficialAnkiReviewerProtocol.sideQuestion;
     final key = (card.cardId, side, generation);
     _pending = key;
     _queue = _queue.catchError((Object _) {}).then((_) async {
@@ -424,7 +388,7 @@ class OfficialAnkiOhosReviewerBinding {
             error: error, stackTrace: stack);
         if (_pending != key || _closed) return;
         controller.onRenderFailure(
-          code: 'RENDER_TIMEOUT',
+          code: OfficialAnkiReviewerProtocol.renderTimeout,
           side: side,
           generation: generation,
         );
@@ -442,38 +406,13 @@ class OfficialAnkiOhosReviewerBinding {
     _onReveal?.call();
   }
 
-  /// Receipt codes for the page's four rating buttons. They cross the channel
-  /// as plain strings, so every value is part of the wire contract with
-  /// `AnkiReviewerPage` — renaming one is a protocol change on both sides.
-  ///
-  /// A refusal used to be invisible: the page fired `rate` and nothing ever
-  /// came back, so every rejected click read on device as a dead button. The
-  /// page now disables the buttons on tap and decides from this code whether
-  /// to re-enable them, show the completion row, or report a hard failure.
-  /// `advance_failed` additionally swaps the row for an explicit "retry the
-  /// advance" entry, because its recovery re-runs the advance — never the
-  /// rating, which the scheduler already holds.
-  static const _rateOk = 'ok';
-  static const _rateOkComplete = 'ok_complete';
-  static const _rateAnswerNotReady = 'answer_not_ready';
-  static const _rateSchedulerBusy = 'scheduler_busy';
-  static const _rateCardMismatch = 'card_mismatch';
-  static const _rateSessionClosed = 'session_closed';
-  static const _rateEngineError = 'engine_error';
-  static const _rateSchedulerUnavailable = 'scheduler_unavailable';
-  static const _rateNoCard = 'no_card';
-
-  /// The rating itself committed, but moving the session to the next card
-  /// threw. Retrying the ADVANCE is safe (the commit is deduped by mutation
-  /// id); re-rating is not, which is why this code re-arms the page's
-  /// "retry the advance" entry rather than the four buttons.
-  static const _rateAdvanceFailed = 'advance_failed';
-
   Future<String> _rate(String rating) async {
     final controller = _controller;
     final card = controller?.card;
-    if (_closed) return _rateSessionClosed;
-    if (controller == null || card == null) return _rateNoCard;
+    if (_closed) return OfficialAnkiReviewerProtocol.receiptSessionClosed;
+    if (controller == null || card == null) {
+      return OfficialAnkiReviewerProtocol.receiptNoCard;
+    }
     final started = _answerShownAt;
     final elapsed =
         started == null ? 0 : _now().difference(started).inMilliseconds;
@@ -488,7 +427,7 @@ class OfficialAnkiOhosReviewerBinding {
       logger.w('[OhosReviewer] rating rejected: ${error.messageKey}'
           '${error.debugDetails == null ? '' : ' ${error.debugDetails}'}');
       final code = _receiptCodeFor(error.messageKey);
-      if (code == _rateAnswerNotReady) {
+      if (code == OfficialAnkiReviewerProtocol.receiptAnswerNotReady) {
         // The answer face is on screen while the session still thinks it owes
         // a question (reveal state that survived a card switch). Rather than
         // leave four permanently inert buttons, put the card back to the
@@ -501,17 +440,17 @@ class OfficialAnkiOhosReviewerBinding {
     }
     if (!committed) {
       logger.w('[OhosReviewer] rating was not committed: $rating');
-      return _rateSchedulerUnavailable;
+      return OfficialAnkiReviewerProtocol.receiptSchedulerUnavailable;
     }
     final rated = _onRated;
     if (rated == null) {
-      return _rateOk;
+      return OfficialAnkiReviewerProtocol.receiptOk;
     }
     return _runAdvance(rated, rating);
   }
 
   /// Runs the host's advance callback, translating any throw into the
-  /// retryable [OfficialAnkiOhosReviewerBinding._rateAdvanceFailed] receipt.
+  /// retryable `advance_failed` receipt.
   ///
   /// The commit has already happened when this runs, so an exception here
   /// must neither escape to the channel (the page would read
@@ -522,11 +461,13 @@ class OfficialAnkiOhosReviewerBinding {
   ) async {
     try {
       final advanced = await rated(rating);
-      return advanced ? _rateOk : _rateOkComplete;
+      return advanced
+          ? OfficialAnkiReviewerProtocol.receiptOk
+          : OfficialAnkiReviewerProtocol.receiptOkComplete;
     } catch (error, stack) {
       logger.w('[OhosReviewer] advance after rating failed; retryable',
           error: error, stackTrace: stack);
-      return _rateAdvanceFailed;
+      return OfficialAnkiReviewerProtocol.receiptAdvanceFailed;
     }
   }
 
@@ -534,8 +475,8 @@ class OfficialAnkiOhosReviewerBinding {
   /// half of [_rate] — the scheduler already holds the rating.
   Future<String> _retryAdvance(String rating) async {
     final rated = _onRated;
-    if (_closed) return _rateSessionClosed;
-    if (rated == null) return _rateNoCard;
+    if (_closed) return OfficialAnkiReviewerProtocol.receiptSessionClosed;
+    if (rated == null) return OfficialAnkiReviewerProtocol.receiptNoCard;
     return _runAdvance(rated, rating);
   }
 
@@ -572,16 +513,16 @@ class OfficialAnkiOhosReviewerBinding {
   static String _receiptCodeFor(String messageKey) {
     switch (messageKey) {
       case 'official_anki.answer_not_ready':
-        return _rateAnswerNotReady;
+        return OfficialAnkiReviewerProtocol.receiptAnswerNotReady;
       case 'official_anki.scheduler_busy':
-        return _rateSchedulerBusy;
+        return OfficialAnkiReviewerProtocol.receiptSchedulerBusy;
       case 'official_anki.scheduling_context_stale':
-        return _rateCardMismatch;
+        return OfficialAnkiReviewerProtocol.receiptCardMismatch;
       case 'official_anki.queue_empty':
       case 'official_anki.review_session_disposed':
-        return _rateSessionClosed;
+        return OfficialAnkiReviewerProtocol.receiptSessionClosed;
       default:
-        return _rateEngineError;
+        return OfficialAnkiReviewerProtocol.receiptEngineError;
     }
   }
 
@@ -598,16 +539,23 @@ class OfficialAnkiOhosReviewerBinding {
     required String side,
     required int generation,
   }) {
-    final type = ack?['type']?.toString();
-    final ackSide = ack?['side']?.toString() ?? side;
-    final ackGeneration = (ack?['generation'] as num?)?.toInt() ?? generation;
-    if (type == 'renderComplete') {
+    final type = ack?[OfficialAnkiReviewerProtocol.ackFieldType]?.toString();
+    final ackSide =
+        ack?[OfficialAnkiReviewerProtocol.ackFieldSide]?.toString() ?? side;
+    final ackGeneration =
+        (ack?[OfficialAnkiReviewerProtocol.ackFieldGeneration] as num?)
+                ?.toInt() ??
+            generation;
+    if (type == OfficialAnkiReviewerProtocol.ackTypeRenderComplete) {
       controller.onRenderComplete(generation: ackGeneration, side: ackSide);
       return;
     }
-    final code = ack?['stableCode']?.toString();
+    final code = ack?[OfficialAnkiReviewerProtocol.ackFieldStableCode]
+        ?.toString();
     controller.onRenderFailure(
-      code: code == null || code.isEmpty ? 'RENDER_TIMEOUT' : code,
+      code: code == null || code.isEmpty
+          ? OfficialAnkiReviewerProtocol.renderTimeout
+          : code,
       side: ackSide,
       generation: ackGeneration,
     );

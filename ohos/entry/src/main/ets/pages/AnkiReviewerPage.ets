@@ -41,18 +41,24 @@ import {
   interceptFor,
 } from '../anki/AnkiReviewerSession';
 import { reviewerSession } from '../anki/AnkiReviewerSessionStore';
+import {
+  FATAL_CODES,
+  RATING_AGAIN,
+  RATING_EASY,
+  RATING_GOOD,
+  RATING_HARD,
+  RECEIPT_ADVANCE_FAILED,
+  RECEIPT_ANSWER_NOT_READY,
+  RECEIPT_OK,
+  RECEIPT_OK_COMPLETE,
+  RECEIPT_SCHEDULER_BUSY,
+  THEME_DAY,
+  THEME_NIGHT,
+  VERDICT_COMPLETED,
+  VERDICT_EARLY_EXIT,
+} from '../anki/AnkiReviewerProtocol';
 
-const RATINGS: Array<string> = ['again', 'hard', 'good', 'easy'];
-
-/// Failure codes the controller classifies as fatal: retrying the present
-/// cannot help (the card itself is unrenderable), so the banner offers exit
-/// only. Mirrors the fatal set in `OfficialAnkiReviewerUi.fatalCodes`.
-const FATAL_CODES: Array<string> = [
-  'UNRENDERABLE_CARD',
-  'UNRENDERABLE_TEMPLATE',
-  'CARD_NOT_FOUND',
-  'FATAL_RENDER_ERROR',
-];
+const RATINGS: Array<string> = [RATING_AGAIN, RATING_HARD, RATING_GOOD, RATING_EASY];
 
 const EXIT_CONFIRM_WINDOW_MS: number = 2000;
 
@@ -101,26 +107,26 @@ function nightPalette(): ChromePalette {
 }
 
 function ratingLabel(rating: string): string {
-  if (rating === 'again') {
+  if (rating === RATING_AGAIN) {
     return '重来';
   }
-  if (rating === 'hard') {
+  if (rating === RATING_HARD) {
     return '困难';
   }
-  if (rating === 'good') {
+  if (rating === RATING_GOOD) {
     return '良好';
   }
   return '简单';
 }
 
 function ratingColor(rating: string): string {
-  if (rating === 'again') {
+  if (rating === RATING_AGAIN) {
     return COLOR_AGAIN;
   }
-  if (rating === 'hard') {
+  if (rating === RATING_HARD) {
     return COLOR_HARD;
   }
-  if (rating === 'good') {
+  if (rating === RATING_GOOD) {
     return COLOR_GOOD;
   }
   return COLOR_EASY;
@@ -158,7 +164,7 @@ struct AnkiReviewerPage {
   @State private advanceStuck: boolean = false;
   @State private complete: boolean = false;
   @State private confirmExit: boolean = false;
-  @State private theme: string = 'day';
+  @State private theme: string = THEME_DAY;
   @State private progressIndex: number = 0;
   @State private progressTotal: number = 0;
   @State private debugChrome: boolean = false;
@@ -182,7 +188,7 @@ struct AnkiReviewerPage {
   private static readonly TYPED_DEBOUNCE_MS: number = 150;
 
   private palette(): ChromePalette {
-    return this.theme === 'night' ? nightPalette() : dayPalette();
+    return this.theme === THEME_NIGHT ? nightPalette() : dayPalette();
   }
 
   aboutToAppear(): void {
@@ -230,7 +236,7 @@ struct AnkiReviewerPage {
 
   private requestExit(): void {
     if (this.confirmExit) {
-      this.endReview('early_exit');
+      this.endReview(VERDICT_EARLY_EXIT);
       return;
     }
     this.confirmExit = true;
@@ -425,26 +431,26 @@ struct AnkiReviewerPage {
   }
 
   private onRateReceipt(code: string): void {
-    if (code === 'ok' || code === 'ok_complete') {
+    if (code === RECEIPT_OK || code === RECEIPT_OK_COMPLETE) {
       // Stay disabled: the next present (or, on ok_complete, the completion
       // row below) is what re-arms the page.
-      if (code === 'ok_complete') {
+      if (code === RECEIPT_OK_COMPLETE) {
         this.complete = true;
         this.fetchSettlement();
       }
       return;
     }
-    if (code === 'answer_not_ready' || code === 'scheduler_busy') {
+    if (code === RECEIPT_ANSWER_NOT_READY || code === RECEIPT_SCHEDULER_BUSY) {
       // Retryable. answer_not_ready also means Dart is flipping the card back
       // to the question face (reveal state that survived a card switch); the
       // present that follows swaps this row for "Show answer".
       this.ratingSent = false;
-      this.status = code === 'scheduler_busy'
+      this.status = code === RECEIPT_SCHEDULER_BUSY
         ? '调度器忙，请再点一次'
         : '答案面未就绪，正在翻回问题面';
       return;
     }
-    if (code === 'advance_failed') {
+    if (code === RECEIPT_ADVANCE_FAILED) {
       // The rating committed; only the move to the next card failed. The
       // four buttons must NOT come back (a re-rate would double-answer) —
       // the explicit retry-advance entry below is the only way forward.
@@ -519,7 +525,7 @@ struct AnkiReviewerPage {
   }
 
   private onClose(): void {
-    this.endReview(this.complete ? 'completed' : 'early_exit');
+    this.endReview(this.complete ? VERDICT_COMPLETED : VERDICT_EARLY_EXIT);
   }
 
   build() {
@@ -649,7 +655,7 @@ struct AnkiReviewerPage {
                 .height(36)
                 .layoutWeight(1)
                 .onClick(() => {
-                  this.endReview('early_exit');
+                  this.endReview(VERDICT_EARLY_EXIT);
                 })
             }
             .width('100%')
@@ -759,7 +765,7 @@ struct AnkiReviewerPage {
               .border({ width: 1, color: this.palette().divider })
               .margin({ left: 6 })
               .onClick(() => {
-                this.endReview('early_exit');
+                this.endReview(VERDICT_EARLY_EXIT);
               })
           }
           .width('100%')
@@ -798,20 +804,20 @@ struct AnkiReviewerPage {
         Row() {
           ForEach(RATINGS, (rating: string) => {
             Button(ratingLabel(rating))
-              .layoutWeight(rating === 'good' ? 1.25 : 1)
-              .height(rating === 'good' ? 50 : 46)
-              .fontSize(rating === 'good' ? 15 : 14)
-              .fontWeight(rating === 'good' ? FontWeight.Medium : FontWeight.Normal)
-              .backgroundColor(rating === 'good'
+              .layoutWeight(rating === RATING_GOOD ? 1.25 : 1)
+              .height(rating === RATING_GOOD ? 50 : 46)
+              .fontSize(rating === RATING_GOOD ? 15 : 14)
+              .fontWeight(rating === RATING_GOOD ? FontWeight.Medium : FontWeight.Normal)
+              .backgroundColor(rating === RATING_GOOD
                 ? ratingColor(rating)
                 : Color.Transparent)
-              .fontColor(rating === 'good'
+              .fontColor(rating === RATING_GOOD
                 ? Color.White
                 : ratingColor(rating))
               .borderRadius(12)
               .border({
                 width: 1,
-                color: rating === 'good' ? ratingColor(rating) : this.palette().divider,
+                color: rating === RATING_GOOD ? ratingColor(rating) : this.palette().divider,
               })
               .margin({ right: 8 })
               .animation({ duration: 150, curve: Curve.EaseOut })

@@ -19,6 +19,14 @@ import { common } from '@kit.AbilityKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { AnkiOriginServer, isShellUrl } from './AnkiOriginServer';
 import { AnkiReviewerBridge } from './AnkiReviewerBridge';
+import {
+  ACK_TYPE_RENDER_COMPLETE,
+  ACK_TYPE_RENDER_ERROR,
+  RENDER_ERROR,
+  RENDER_TIMEOUT,
+  SIDE_ANSWER,
+  THEME_DAY,
+} from './AnkiReviewerProtocol';
 
 const SHELL_URL: string = 'https://anki.local/assets/reviewer.html';
 const ORIGIN_PREFIX: string = 'https://anki.local/';
@@ -146,7 +154,7 @@ function unwrapEvalString(value: string): string {
 
 function parseAck(raw: string): RenderAck {
   if (raw.length === 0) {
-    return failedAck('renderError', 'FRAME_ACK_EMPTY');
+    return failedAck(ACK_TYPE_RENDER_ERROR, 'FRAME_ACK_EMPTY');
   }
   const parts: Array<string> = raw.split('|');
   const ack: RenderAck = {};
@@ -178,7 +186,7 @@ export class AnkiReviewerSession {
   private shellReady: boolean = false;
   private chrome: ChromeListener | undefined = undefined;
   private failure: FailureListener | undefined = undefined;
-  private chromeTheme: string = 'day';
+  private chromeTheme: string = THEME_DAY;
   private chromeProgressIndex: number = 0;
   private chromeProgressTotal: number = 0;
   private chromeDebug: boolean = false;
@@ -274,9 +282,9 @@ export class AnkiReviewerSession {
   public present(payloadJson: string, side: string): Promise<RenderAck> {
     const controller: webview.WebviewController | undefined = this.web;
     if (controller === undefined) {
-      return Promise.resolve(failedAck('renderError', 'REVIEWER_WEB_ABSENT'));
+      return Promise.resolve(failedAck(ACK_TYPE_RENDER_ERROR, 'REVIEWER_WEB_ABSENT'));
     }
-    this.answerShown = side === 'answer';
+    this.answerShown = side === SIDE_ANSWER;
     let typedVisible: boolean = false;
     let cardId: number = 0;
     let generation: number = 0;
@@ -351,7 +359,7 @@ export class AnkiReviewerSession {
         }
         settled = true;
         this.lastAck = ack;
-        if (ack.type === 'renderError') {
+        if (ack.type === ACK_TYPE_RENDER_ERROR) {
           this.notifyChrome(chromeState(
             false,
             false,
@@ -362,7 +370,7 @@ export class AnkiReviewerSession {
             progressTotal,
             debug,
           ));
-          this.notifyFailure(ack.stableCode ?? 'RENDER_ERROR');
+          this.notifyFailure(ack.stableCode ?? RENDER_ERROR);
         } else {
           this.notifyChrome(chromeState(
             false,
@@ -385,7 +393,7 @@ export class AnkiReviewerSession {
             const raw: string = unwrapEvalString(value);
             if (raw.length > 0) {
               const type: string = raw.split('|')[0] ?? '';
-              if (type === 'renderComplete' || type === 'renderError') {
+              if (type === ACK_TYPE_RENDER_COMPLETE || type === ACK_TYPE_RENDER_ERROR) {
                 const ack: RenderAck = parseAck(raw);
                 const ackGeneration: number | undefined = ack.generation;
                 if (ackGeneration === undefined || ackGeneration === generation) {
@@ -399,19 +407,19 @@ export class AnkiReviewerSession {
               // settle anything, same as on Android; keep polling.
             }
             if (Date.now() >= deadline) {
-              finish(failedAck('renderError', 'RENDER_TIMEOUT'));
+              finish(failedAck(ACK_TYPE_RENDER_ERROR, RENDER_TIMEOUT));
               return;
             }
             setTimeout(poll, POLL_DELAY_MS);
           })
           .catch((e: BusinessError): void => {
-            finish(failedAck('renderError', 'POLL_FAILED_' + String(e.code)));
+            finish(failedAck(ACK_TYPE_RENDER_ERROR, 'POLL_FAILED_' + String(e.code)));
           });
       };
       controller
         .runJavaScript(expression)
         .catch((e: BusinessError): void => {
-          finish(failedAck('renderError', 'RUN_JAVASCRIPT_FAILED_' + String(e.code)));
+          finish(failedAck(ACK_TYPE_RENDER_ERROR, 'RUN_JAVASCRIPT_FAILED_' + String(e.code)));
         });
       setTimeout(poll, POLL_DELAY_MS);
     });

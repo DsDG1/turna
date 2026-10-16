@@ -723,6 +723,11 @@ const _requiredOhosFiles = <String>[
   'ohos/entry/src/main/ets/anki/AnkiReviewerSession.ets',
   'ohos/entry/src/main/ets/anki/AnkiReviewerSessionStore.ets',
   'ohos/entry/src/main/ets/anki/AnkiReviewerBridge.ets',
+  // The ArkTS half of the reviewer wire vocabulary. Its Dart twin is
+  // official_anki_reviewer_protocol.dart, and the protocol guard test pins
+  // the two name-for-name — deleting this file breaks not just the plugin
+  // but the symmetry guard, so it is a required file like the rest.
+  'ohos/entry/src/main/ets/anki/AnkiReviewerProtocol.ets',
   'ohos/entry/src/main/ets/anki/AnkiOriginServer.ets',
   'ohos/entry/src/main/resources/base/media/icon.png',
 ];

@@ -4,13 +4,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:turna/core/logger.dart';
 import 'package:turna/application/anki_official/render/official_anki_media_resolver.dart';
+import 'package:turna/application/anki_official/render/official_anki_reviewer_protocol.dart';
 
 /// Dart half of the HarmonyOS reviewer contract (ADR 0050 §6 step 5b, route E).
 ///
-/// The two halves are separate implementations of one protocol, so the channel
-/// name here and `AnkiReviewerPlugin.CHANNEL` on the ArkTS side must move
-/// together — a rename on either side is a silent `MissingPluginException` that
-/// only shows up when someone opens a card on a device.
+/// The wire vocabulary — channel name, method names, receipt codes — lives in
+/// [OfficialAnkiReviewerProtocol], whose ArkTS twin is checked name-for-name
+/// by the protocol guard test. A rename on either side is a silent
+/// `MissingPluginException` that only shows up when someone opens a card on a
+/// device, which is exactly what that test exists to make loud.
 ///
 /// Three calls go down and three come up. The asymmetry is deliberate and is
 /// forced by the platform: the origin server answers a **synchronous**
@@ -23,7 +25,8 @@ class OfficialAnkiReviewerChannel {
 
   /// Channel name kept identical to the existing probe so the rename from
   /// "probe" to "reviewer" stays invisible to the rest of the Dart side.
-  static const String channelName = 'me.dsdogs.turna/official_anki_reviewer';
+  static const String channelName =
+      OfficialAnkiReviewerProtocol.channelName;
 
   final MethodChannel channel;
 
@@ -57,30 +60,30 @@ class OfficialAnkiReviewerChannel {
   }) async {
     channel.setMethodCallHandler((call) async {
       switch (call.method) {
-        case 'showAnswer':
+        case OfficialAnkiReviewerProtocol.methodShowAnswer:
           onShowAnswer(call.arguments as String? ?? '');
           return null;
-        case 'rate':
+        case OfficialAnkiReviewerProtocol.methodRate:
           // The reply IS the receipt: the page disables the four buttons on
           // tap and only re-enables them on what this returns, so a refusal
           // must travel back or it reads on device as a dead button.
           return onRate(call.arguments as String? ?? '');
-        case 'typedChanged':
+        case OfficialAnkiReviewerProtocol.methodTypedChanged:
           onTypedChanged(call.arguments as String? ?? '');
           return null;
-        case 'retryAdvance':
+        case OfficialAnkiReviewerProtocol.methodRetryAdvance:
           // The page's explicit "retry the advance" entry after an
           // `advance_failed` receipt: the rating itself is already committed
           // in the scheduler, so this re-runs the advance only.
           return onRetryAdvance?.call(call.arguments as String? ?? '') ??
-              'engine_error';
-        case 'retryPresent':
+              OfficialAnkiReviewerProtocol.receiptEngineError;
+        case OfficialAnkiReviewerProtocol.methodRetryPresent:
           await onRetryPresent?.call();
           return null;
-        case 'requestUndo':
+        case OfficialAnkiReviewerProtocol.methodRequestUndo:
           await onUndo?.call();
           return null;
-        case 'reviewSettlement':
+        case OfficialAnkiReviewerProtocol.methodReviewSettlement:
           // UI-7: the completion row's statistics. JSON because the value is
           // a small record the page formats itself; an empty reply keeps the
           // plain "Review complete" row.
@@ -103,14 +106,16 @@ class OfficialAnkiReviewerChannel {
   /// no longer exists. This is the other signal: the page marks the shell
   /// ready from `onPageEnd`.
   Future<void> waitUntilReady() async {
-    await channel.invokeMethod<String>('awaitReviewerReady');
+    await channel.invokeMethod<String>(
+      OfficialAnkiReviewerProtocol.methodAwaitReviewerReady,
+    );
   }
 
   /// Opens the reviewer ability. Resolves when the learner closes it.
   Future<String> open({required String mediaRoot}) async {
     final verdict = await channel.invokeMethod<String>(
-      'openReviewer',
-      <String, Object?>{'mediaRoot': mediaRoot},
+      OfficialAnkiReviewerProtocol.methodOpenReviewer,
+      <String, Object?>{OfficialAnkiReviewerProtocol.argMediaRoot: mediaRoot},
     );
     return verdict ?? '';
   }
@@ -141,10 +146,13 @@ class OfficialAnkiReviewerChannel {
     final encoded = bytes.length >= _base64IsolateThreshold
         ? await compute(base64Encode, bytes)
         : base64Encode(bytes);
-    await channel.invokeMethod<void>('cacheReviewerMedia', <String, Object?>{
-      'name': name,
-      'base64': encoded,
-    });
+    await channel.invokeMethod<void>(
+      OfficialAnkiReviewerProtocol.methodCacheReviewerMedia,
+      <String, Object?>{
+        OfficialAnkiReviewerProtocol.argName: name,
+        OfficialAnkiReviewerProtocol.argBase64: encoded,
+      },
+    );
   }
 
   /// Pushes every media file a rendered card references.
@@ -171,11 +179,13 @@ class OfficialAnkiReviewerChannel {
     required Map<String, Object?> payload,
     required String side,
   }) async {
-    final raw =
-        await channel.invokeMethod<String>('presentReviewer', <String, Object?>{
-      'payloadJson': jsonEncode(payload),
-      'side': side,
-    });
+    final raw = await channel.invokeMethod<String>(
+      OfficialAnkiReviewerProtocol.methodPresentReviewer,
+      <String, Object?>{
+        OfficialAnkiReviewerProtocol.argPayloadJson: jsonEncode(payload),
+        OfficialAnkiReviewerProtocol.argSide: side,
+      },
+    );
     if (raw == null || raw.isEmpty) {
       return null;
     }
@@ -186,7 +196,9 @@ class OfficialAnkiReviewerChannel {
   /// The frame's last ack, for anything that wants the measured height — the
   /// only place that number exists.
   Future<Map<String, Object?>?> lastAck() async {
-    final raw = await channel.invokeMethod<String>('reviewerLastAck');
+    final raw = await channel.invokeMethod<String>(
+      OfficialAnkiReviewerProtocol.methodReviewerLastAck,
+    );
     if (raw == null || raw.isEmpty) {
       return null;
     }
@@ -199,7 +211,10 @@ class OfficialAnkiReviewerChannel {
   /// detected on this side (media push exceptions, controller errors) would
   /// otherwise strand the page on a shell with no card and no explanation.
   Future<void> reportFailure(String code) async {
-    await channel.invokeMethod<void>('notifyReviewerFailure', code);
+    await channel.invokeMethod<void>(
+      OfficialAnkiReviewerProtocol.methodNotifyReviewerFailure,
+      code,
+    );
   }
 }
 
