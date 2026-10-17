@@ -274,6 +274,22 @@ void main() {
       }
     });
 
+    test('a present with no generation is refused before the frame runs', () {
+      final sessionSource = File(_arktsSessionPath).readAsStringSync();
+      expect(sessionSource, contains('parsePresentPayload('));
+      expect(sessionSource, contains('PRESENT_PAYLOAD_INVALID'));
+      expect(
+        sessionSource,
+        contains('ackGeneration !== undefined && ackGeneration === generation'),
+        reason: 'an ack with no generation must not settle the current present',
+      );
+      expect(
+        sessionSource,
+        isNot(contains("parts[1] ?? '0'")),
+        reason: 'an empty generation field must not become generation 0',
+      );
+    });
+
     test('ArkTS payload parser only reads fields the Dart payloads emit', () {
       final sessionSource = File(_arktsSessionPath).readAsStringSync();
       final interfaceBody = RegExp(

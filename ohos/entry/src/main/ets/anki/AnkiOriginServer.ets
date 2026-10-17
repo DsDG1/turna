@@ -148,8 +148,9 @@ export class AnkiOriginServer {
   /// carried every card's audio and images in memory at once — dozens of MB
   /// on media-heavy decks, ending in the system reclaiming the process. The
   /// Dart side mirrors the eviction (it forgets its pushed-set when the card
-  /// changes), so a card revisited after eviction re-pushes instead of
-  /// answering 503 `MEDIA_NOT_PUSHED`.
+  /// changes), so a revisited card re-pushes its small files. Names that are
+  /// not in the map are read from the media folder; a failed read is
+  /// `MEDIA_READ_FAILED`, not a "not pushed" timing code.
   public evictExcept(names: Array<string>): void {
     const keep: Set<string> = new Set<string>(names);
     const doomed: Array<string> = [];
@@ -313,18 +314,18 @@ export class AnkiOriginServer {
         const slice: Uint8Array = cached.slice(range.start, range.start + range.contentLength);
         response.setResponseData(bodyOf(slice));
       } else {
-        const sliceBuffer: ArrayBuffer | undefined = readFileSlice(
+        const slice: MediaFileSlice = readFileSlice(
           path,
           range.start,
           range.contentLength,
         );
-        if (sliceBuffer === undefined) {
-          return denied(503, 'MEDIA_NOT_PUSHED');
+        if (slice.bytes === undefined) {
+          return denied(500, slice.failure ?? MEDIA_READ_FAILED);
         }
         if (range.status === 200 && length <= DIRECT_READ_CACHE_LIMIT_BYTES) {
-          this.media.set(name, new Uint8Array(sliceBuffer));
+          this.media.set(name, new Uint8Array(slice.bytes));
         }
-        response.setResponseData(sliceBuffer);
+        response.setResponseData(slice.bytes);
       }
     }
     response.setResponseCode(range.status);
@@ -427,11 +428,26 @@ function denied(code: number, reason: string): WebResourceResponse {
   return response;
 }
 
+const MEDIA_READ_FAILED: string = 'MEDIA_READ_FAILED';
+
+/// Bytes from a positioned read, or [failure] when the descriptor could not
+/// be read. Callers must not report [failure] as a cache-miss code: this
+/// function is only reached after the file has already been stat'd.
+class MediaFileSlice {
+  readonly bytes: ArrayBuffer | undefined;
+  readonly failure: string | undefined;
+
+  constructor(bytes: ArrayBuffer | undefined, failure: string | undefined) {
+    this.bytes = bytes;
+    this.failure = failure;
+  }
+}
+
 function readFileSlice(
   path: string,
   offset: number,
   length: number,
-): ArrayBuffer | undefined {
+): MediaFileSlice {
   let file: fs.File | undefined = undefined;
   try {
     file = fs.openSync(path, fs.OpenMode.READ_ONLY);
@@ -441,14 +457,14 @@ function readFileSlice(
       length: length,
     });
     if (read === length) {
-      return buffer;
+      return new MediaFileSlice(buffer, undefined);
     }
     if (read > 0 && read < length) {
-      return buffer.slice(0, read);
+      return new MediaFileSlice(buffer.slice(0, read), undefined);
     }
-    return undefined;
+    return new MediaFileSlice(undefined, MEDIA_READ_FAILED);
   } catch (e) {
-    return undefined;
+    return new MediaFileSlice(undefined, MEDIA_READ_FAILED);
   } finally {
     if (file !== undefined) {
       try {

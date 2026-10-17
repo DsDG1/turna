@@ -102,6 +102,11 @@ export const RATING_EASY: string = 'easy';
 /// Synthesised by both sides when a present ended without any ack at all.
 export const RENDER_TIMEOUT: string = 'RENDER_TIMEOUT';
 
+/// The present body was not JSON, or it carried no numeric generation.
+/// Injecting it would run card script against a generation of 0 and let a
+/// stale ack settle this present. Retrying asks Dart to send the body again.
+export const PRESENT_PAYLOAD_INVALID: string = 'PRESENT_PAYLOAD_INVALID';
+
 /// ArkTS-only fallback when a failure report carries no code at all. Dart
 /// never compares this value (it falls to the fatal default), so it has no
 /// Dart twin — it is listed in the guard test's allowed-difference set.
@@ -120,6 +125,7 @@ export const RECOVERABLE_CODES: Array<string> = [
   'FRAME_ASSET_MISSING',
   'WEBVIEW_MAIN_FRAME_ERROR',
   'SHELL_NOT_READY',
+  'PRESENT_PAYLOAD_INVALID',
 ];
 
 export const FATAL_CODES: Array<string> = [

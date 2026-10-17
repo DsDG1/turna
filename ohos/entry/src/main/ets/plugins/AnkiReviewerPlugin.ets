@@ -233,16 +233,12 @@ export default class AnkiReviewerPlugin implements FlutterPlugin {
       });
   }
 
-  /// Dart pushes the current card's media here, base64, *before* the `present`
-  /// that will request it.
+  /// Dart pushes the current card's small media here, base64, before `present`.
   ///
-  /// The push is not a design preference. The interception is synchronous, so a
-  /// callback from the page into Dart would have to complete before a response
-  /// object could be returned, and a MethodChannel call is a promise — there is
-  /// no shape that satisfies both. Dart already owns the reader that can do
-  /// this correctly (`OfficialAnkiMediaResolver`, including its path rules and
-  /// its positioned reads for Range), so the bytes come from there rather than
-  /// from a second file-reading implementation written in ArkTS.
+  /// Files at or under 256 KB are served from this cache. Larger files, and
+  /// names Dart did not push, are read in `AnkiOriginServer.readFileSlice`
+  /// because `onInterceptRequest` cannot await a MethodChannel round-trip.
+  /// A failed read is `MEDIA_READ_FAILED`. It is not reported as a cache miss.
   private cacheReviewerMedia(result: MethodResult, call: MethodCall): void {
     const session: AnkiReviewerSession | undefined = reviewerSession();
     if (session === undefined) {

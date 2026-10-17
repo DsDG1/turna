@@ -150,6 +150,11 @@ abstract final class OfficialAnkiReviewerProtocol {
   /// it is also a member of [recoverableCodes].
   static const renderTimeout = 'RENDER_TIMEOUT';
 
+  /// The OHOS present body was not JSON, or it carried no numeric generation.
+  /// ArkTS refuses it before `OfficialReviewer.present` runs, so a stale
+  /// generation-0 ack cannot settle the card. Retry sends the body again.
+  static const presentPayloadInvalid = 'PRESENT_PAYLOAD_INVALID';
+
   /// Failure codes for which retrying the present cannot help (the card
   /// itself is unrenderable). Mirrored as `RECOVERABLE_CODES`/`FATAL_CODES`
   /// in the ArkTS protocol — the page classifies banners from these, so a
@@ -163,6 +168,7 @@ abstract final class OfficialAnkiReviewerProtocol {
     'FRAME_ASSET_MISSING',
     'WEBVIEW_MAIN_FRAME_ERROR',
     'SHELL_NOT_READY',
+    'PRESENT_PAYLOAD_INVALID',
   };
 
   static const fatalCodes = <String>{

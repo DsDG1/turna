@@ -22,6 +22,7 @@ import { AnkiReviewerBridge } from './AnkiReviewerBridge';
 import {
   ACK_TYPE_RENDER_COMPLETE,
   ACK_TYPE_RENDER_ERROR,
+  PRESENT_PAYLOAD_INVALID,
   RENDER_ERROR,
   RENDER_TIMEOUT,
   SIDE_ANSWER,
@@ -175,9 +176,12 @@ function parseAck(raw: string): RenderAck {
   const parts: Array<string> = raw.split('|');
   const ack: RenderAck = {};
   ack.type = parts[0] ?? '';
-  const generation = Number(parts[1] ?? '0');
-  if (!Number.isNaN(generation)) {
-    ack.generation = generation;
+  const generationText: string = parts[1] ?? '';
+  if (generationText.length > 0) {
+    const generation = Number(generationText);
+    if (!Number.isNaN(generation)) {
+      ack.generation = generation;
+    }
   }
   ack.side = parts[2] ?? '';
   ack.stableCode = parts[3] ?? '';
@@ -191,6 +195,25 @@ function parseAck(raw: string): RenderAck {
   }
   ack.ok = parts[6] === 'true';
   return ack;
+}
+
+/// Returns the payload only when it is JSON and names a numeric generation.
+///
+/// A missing or non-numeric generation used to fall through as 0, and the
+/// poll then treated an ack with no generation as this present. The body is
+/// not injected in that case.
+function parsePresentPayload(payloadJson: string): ReviewerPresentPayload | undefined {
+  try {
+    const parsed: ReviewerPresentPayload = JSON.parse(payloadJson) as ReviewerPresentPayload;
+    const generation: number | undefined = parsed.generation;
+    if (generation === undefined || Number.isNaN(generation)) {
+      return undefined;
+    }
+    return parsed;
+  } catch (e) {
+    // A corrupt channel body is refused before it reaches the frame.
+    return undefined;
+  }
 }
 
 export class AnkiReviewerSession {
@@ -244,6 +267,26 @@ export class AnkiReviewerSession {
     this.failure = listener;
   }
 
+  /// A present body that cannot name its generation never reaches the frame.
+  private refusePayload(): Promise<RenderAck> {
+    this.notifyChrome(chromeState(
+      false,
+      false,
+      false,
+      0,
+      this.chromeTheme,
+      this.chromeProgressIndex,
+      this.chromeProgressTotal,
+      this.chromeDebug,
+      this.chromeTextZoom,
+      this.chromePreviewOnly,
+      false,
+      '',
+    ));
+    this.notifyFailure(PRESENT_PAYLOAD_INVALID);
+    return Promise.resolve(failedAck(ACK_TYPE_RENDER_ERROR, PRESENT_PAYLOAD_INVALID));
+  }
+
   public notifyFailure(code: string): void {
     const listener: FailureListener | undefined = this.failure;
     if (listener === undefined) {
@@ -289,9 +332,12 @@ export class AnkiReviewerSession {
   /// this file waited for one that nothing ever sends, and every present ended
   /// in RENDER_TIMEOUT while the card sat happily drawn on screen.
   ///
-  /// The poll only settles on an ack whose `generation` matches this payload
-  /// (B7): the frame clears its published ack at the start of a present, but
-  /// if that clear ever loses to the poll — a slow expression queue, a page
+  /// The poll only settles on an ack whose `generation` equals this payload's
+  /// (B7). An ack with no generation does not match: an empty field used to
+  /// parse as 0, and a payload that failed to parse used to present anyway
+  /// with generation 0, so the previous card's row could settle this one.
+  /// The frame clears its published ack at the start of a present, but if
+  /// that clear ever loses to the poll — a slow expression queue, a page
   /// that was mid-present — accepting the stale row hands Dart somebody
   /// else's result while the controller keeps waiting on a generation
   /// nothing will answer. Generation, not cardId, is the discriminator:
@@ -301,10 +347,18 @@ export class AnkiReviewerSession {
     if (controller === undefined) {
       return Promise.resolve(failedAck(ACK_TYPE_RENDER_ERROR, 'REVIEWER_WEB_ABSENT'));
     }
+    const parsed: ReviewerPresentPayload | undefined = parsePresentPayload(payloadJson);
+    if (parsed === undefined) {
+      return this.refusePayload();
+    }
+    const generationValue: number | undefined = parsed.generation;
+    if (generationValue === undefined || Number.isNaN(generationValue)) {
+      return this.refusePayload();
+    }
+    const generation: number = generationValue;
     this.answerShown = side === SIDE_ANSWER;
     let typedVisible: boolean = false;
     let cardId: number = 0;
-    let generation: number = 0;
     let theme: string = this.chromeTheme;
     let progressIndex: number = this.chromeProgressIndex;
     let progressTotal: number = this.chromeProgressTotal;
@@ -314,48 +368,37 @@ export class AnkiReviewerSession {
     let hasAudio: boolean = false;
     let avHint: string = '';
     let mediaNames: Array<string> = [];
-    try {
-      const parsed: ReviewerPresentPayload = JSON.parse(payloadJson) as ReviewerPresentPayload;
-      typedVisible = parsed.typedVisible === true;
-      const parsedCard: number | undefined = parsed.cardId;
-      if (parsedCard !== undefined) {
-        cardId = parsedCard;
-      }
-      const parsedGeneration: number | undefined = parsed.generation;
-      if (parsedGeneration !== undefined) {
-        generation = parsedGeneration;
-      }
-      const parsedTheme: string | undefined = parsed.theme;
-      if (parsedTheme !== undefined && parsedTheme.length > 0) {
-        theme = parsedTheme;
-      }
-      const parsedIndex: number | undefined = parsed.progressIndex;
-      if (parsedIndex !== undefined) {
-        progressIndex = parsedIndex;
-      }
-      const parsedTotal: number | undefined = parsed.progressTotal;
-      if (parsedTotal !== undefined) {
-        progressTotal = parsedTotal;
-      }
-      debug = parsed.debug === true;
-      const parsedNames: Array<string> | undefined = parsed.mediaNames;
-      if (parsedNames !== undefined) {
-        mediaNames = parsedNames;
-      }
-      const parsedZoom: number | undefined = parsed.textZoom;
-      if (parsedZoom !== undefined && parsedZoom > 0) {
-        textZoom = parsedZoom;
-      }
-      previewOnly = parsed.previewOnly === true;
-      hasAudio = parsed.hasAudio === true;
-      const parsedHint: string | undefined = parsed.avHint;
-      if (parsedHint !== undefined) {
-        avHint = parsedHint;
-      }
-    } catch (e) {
-      typedVisible = false;
-      cardId = 0;
-      generation = 0;
+    typedVisible = parsed.typedVisible === true;
+    const parsedCard: number | undefined = parsed.cardId;
+    if (parsedCard !== undefined) {
+      cardId = parsedCard;
+    }
+    const parsedTheme: string | undefined = parsed.theme;
+    if (parsedTheme !== undefined && parsedTheme.length > 0) {
+      theme = parsedTheme;
+    }
+    const parsedIndex: number | undefined = parsed.progressIndex;
+    if (parsedIndex !== undefined) {
+      progressIndex = parsedIndex;
+    }
+    const parsedTotal: number | undefined = parsed.progressTotal;
+    if (parsedTotal !== undefined) {
+      progressTotal = parsedTotal;
+    }
+    debug = parsed.debug === true;
+    const parsedNames: Array<string> | undefined = parsed.mediaNames;
+    if (parsedNames !== undefined) {
+      mediaNames = parsedNames;
+    }
+    const parsedZoom: number | undefined = parsed.textZoom;
+    if (parsedZoom !== undefined && parsedZoom > 0) {
+      textZoom = parsedZoom;
+    }
+    previewOnly = parsed.previewOnly === true;
+    hasAudio = parsed.hasAudio === true;
+    const parsedHint: string | undefined = parsed.avHint;
+    if (parsedHint !== undefined) {
+      avHint = parsedHint;
     }
     this.chromeTheme = theme;
     this.chromeProgressIndex = progressIndex;
@@ -440,7 +483,7 @@ export class AnkiReviewerSession {
               if (type === ACK_TYPE_RENDER_COMPLETE || type === ACK_TYPE_RENDER_ERROR) {
                 const ack: RenderAck = parseAck(raw);
                 const ackGeneration: number | undefined = ack.generation;
-                if (ackGeneration === undefined || ackGeneration === generation) {
+                if (ackGeneration !== undefined && ackGeneration === generation) {
                   finish(ack);
                   return;
                 }

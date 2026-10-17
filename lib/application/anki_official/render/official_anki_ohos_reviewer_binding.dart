@@ -366,8 +366,9 @@ class OfficialAnkiOhosReviewerBinding {
     ));
   }
 
-  /// Pushes the card's media, then presents. A present that runs first
-  /// answers the shell's media request with 503 `MEDIA_NOT_PUSHED`.
+  /// Pushes the card's small media, then presents. Names that were not pushed
+  /// are read from the media folder by the origin server. A failed read is
+  /// 500 `MEDIA_READ_FAILED`.
   Future<void> presentCard({
     required OfficialAnkiReviewerController controller,
     required OfficialAnkiRenderedCard card,

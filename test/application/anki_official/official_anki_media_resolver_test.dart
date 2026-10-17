@@ -212,9 +212,12 @@ void main() {
     );
     expect(arkts, contains('decodeUtf8OrLatin1(units)'));
     // O1: AnkiOriginServer falls back to positioned fs.readSync when media is
-    // not pre-pushed in the in-memory map.
+    // not pre-pushed in the in-memory map. A failed read is its own reason;
+    // it must not be reported as the old cache-miss code.
     expect(originServer, contains('readFileSlice('));
     expect(originServer, contains('fs.readSync(file.fd, buffer'));
+    expect(originServer, contains('MEDIA_READ_FAILED'));
+    expect(originServer, isNot(contains('MEDIA_NOT_PUSHED')));
   });
 
   test(
