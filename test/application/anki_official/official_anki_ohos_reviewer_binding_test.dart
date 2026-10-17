@@ -786,6 +786,94 @@ void main() {
     expect(pushes.last, 'push:cat.png');
   });
 
+  test('a warm-up is adopted by the first attach, not opened twice (P0-1)',
+      () async {
+    final transport = _FakeTransport();
+    final warmUp = await OfficialAnkiOhosReviewerBinding.warmUp(
+      mediaRoot: media.path,
+      transport: transport,
+    );
+    await warmUp.ready;
+    expect(transport.openCalls, 1);
+
+    final binding = await OfficialAnkiOhosReviewerBinding.attach(
+      controller: controller,
+      grades: const OfficialAnkiCourseGradesBridgeImpl(),
+      mediaRoot: media.path,
+      resolver: OfficialAnkiMediaResolver(media),
+      sourceId: 'source-test',
+      dark: false,
+      transport: transport,
+    );
+    expect(identical(binding.transport, transport), isTrue);
+    expect(transport.openCalls, 1,
+        reason: 'attaching to a warmed reviewer must not launch a second one');
+  });
+
+  test('cancel closes the speculative reviewer and frees the slot (P0-1)',
+      () async {
+    final transport = _FakeTransport();
+    final warmUp = await OfficialAnkiOhosReviewerBinding.warmUp(
+      mediaRoot: media.path,
+      transport: transport,
+    );
+    await warmUp.cancel();
+    expect(transport.closeCalls, 1);
+
+    // The abandoned binding is gone: the next attach opens its own reviewer
+    // instead of adopting a page that is already closing.
+    final second = _FakeTransport();
+    await OfficialAnkiOhosReviewerBinding.attach(
+      controller: controller,
+      grades: const OfficialAnkiCourseGradesBridgeImpl(),
+      mediaRoot: media.path,
+      resolver: OfficialAnkiMediaResolver(media),
+      sourceId: 'source-test',
+      dark: false,
+      transport: second,
+    );
+    expect(second.openCalls, 1);
+  });
+
+  test('a warm-up refuses a rating because no host is attached yet (P0-1)',
+      () async {
+    final transport = _FakeTransport();
+    await OfficialAnkiOhosReviewerBinding.warmUp(
+      mediaRoot: media.path,
+      transport: transport,
+    );
+
+    final receipt = await transport.onRate!('good');
+    expect(receipt, OfficialAnkiReviewerProtocol.receiptSchedulerUnavailable,
+        reason: 'a speculative open has no grades bridge; a rating there would '
+            'silently vanish or crash on a null dereference');
+  });
+
+  test('a failed warm-up does not become the live binding (P0-1)', () async {
+    final broken = _FakeTransport()..failReady = true;
+    await expectLater(
+      OfficialAnkiOhosReviewerBinding.warmUp(
+        mediaRoot: media.path,
+        transport: broken,
+      ),
+      throwsA(isA<StateError>()),
+    );
+
+    // Whatever went wrong, the next real attempt must open its own reviewer
+    // rather than inherit a half-booted one.
+    final healthy = _FakeTransport();
+    await OfficialAnkiOhosReviewerBinding.attach(
+      controller: controller,
+      grades: const OfficialAnkiCourseGradesBridgeImpl(),
+      mediaRoot: media.path,
+      resolver: OfficialAnkiMediaResolver(media),
+      sourceId: 'source-test',
+      dark: false,
+      transport: healthy,
+    );
+    expect(healthy.openCalls, 1);
+  });
+
   test(
       'rebind swaps controller listener and detach ignores non-matching controller (T1)',
       () async {
@@ -918,7 +1006,30 @@ class _FakeTransport implements OfficialAnkiOhosReviewerTransport {
   }
 
   @override
-  Future<String> open({required String mediaRoot}) => _open.future;
+  Future<String> open({required String mediaRoot}) {
+    openCalls += 1;
+    return _open.future;
+  }
+
+  /// P0-1: how many times `open` was invoked. A warm-up that gets adopted must
+  /// not add a second one.
+  int openCalls = 0;
+
+  /// When true, `waitUntilReady` throws — a shell that never loads.
+  bool failReady = false;
+
+  /// P0-1: how many times the speculative open was abandoned.
+  int closeCalls = 0;
+
+  @override
+  Future<void> close() async {
+    closeCalls += 1;
+    if (!_open.isCompleted) {
+      // The real channel answers without waiting for the ability; mirror that
+      // by completing the open with the warm-cancel verdict.
+      _open.complete('warm_canceled');
+    }
+  }
 
   @override
   Future<Map<String, Object?>?> present({
@@ -971,7 +1082,11 @@ class _FakeTransport implements OfficialAnkiOhosReviewerTransport {
   }
 
   @override
-  Future<void> waitUntilReady() async {}
+  Future<void> waitUntilReady() async {
+    if (failReady) {
+      throw StateError('reviewer shell did not load');
+    }
+  }
 
   @override
   Future<void> reportFailure(String code) async {

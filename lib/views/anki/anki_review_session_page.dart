@@ -9,12 +9,15 @@ import 'package:turna/application/anki_official/engine/official_formal_due_repos
 import 'package:turna/application/anki_official/migration/official_anki_engine_kind.dart';
 import 'package:turna/application/anki_official/official_anki_feature_flags.dart';
 import 'package:turna/application/anki_official/official_anki_ids.dart';
+import 'package:turna/application/anki_official/projection/official_anki_course_entry.dart';
+import 'package:turna/application/anki_official/render/official_anki_ohos_reviewer_binding.dart';
 import 'package:turna/application/anki_official/review/formal_review_launcher.dart';
 import 'package:turna/application/anki_official/review/formal_review_source_coordinator.dart';
 import 'package:turna/application/anki_official/review/official_formal_review_coordinator.dart';
 import 'package:turna/application/anki_official/review/official_review_advance.dart';
 import 'package:turna/application/anki_official/review/official_formal_review_production_loader.dart';
 import 'package:turna/application/course_provider.dart';
+import 'package:turna/application/settings_provider.dart';
 import 'package:turna/application/study_session/anki_review_content.dart';
 import 'package:turna/application/study_session/anki_study_session_host.dart';
 import 'package:turna/application/study_session/study_ledger_adapters.dart';
@@ -34,6 +37,7 @@ import 'package:turna/views/review/components/review_progress_header.dart';
 import 'package:turna/views/review/components/study_card_surface.dart';
 import 'package:turna/views/review/components/unified_review_completion.dart';
 import 'package:turna/core/ohos_target.dart';
+import 'package:turna/core/logger.dart';
 import 'package:turna/core/theme.dart';
 import 'package:turna/views/widgets/practice_empty_state.dart';
 import 'package:turna/views/widgets/study_activity_scope.dart';
@@ -121,6 +125,8 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
 
   @override
   void dispose() {
+    // Leaving before a card arrived must not leave a reviewer on screen (P0-1).
+    unawaited(_abandonOhosWarmUp());
     _controller?.removeListener(_onController);
     _controller?.dispose();
     _officialSessionLiveQueue?.removeListener(_onLiveQueueRebuilt);
@@ -266,6 +272,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
       });
       return;
     } catch (error) {
+      await _abandonOhosWarmUp();
       final coordinator = _sourceCoordinator;
       if (coordinator?.current != null) {
         coordinator!.recordFailure(
@@ -319,12 +326,55 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
   /// Official owners: FormalReviewLauncher + OfficialStudyLedger only.
   /// Typed load results (maintainability plan §8.4): NoDue advances Review
   /// All, Blocked waits for an explicit user action — never a silent end.
+  /// The speculative reviewer opened by [_warmOhosReviewer], until a stage
+  /// adopts it or this page abandons it.
+  OfficialAnkiOhosReviewerWarmUp? _ohosWarmUp;
+
+  /// Opens the HarmonyOS reviewer ahead of the batch (P0-1).
+  ///
+  /// Returns null on every other platform, when the JS off-switch would make
+  /// the reviewer fail closed anyway, and on any warm-up error. A warm-up that
+  /// cannot start must not become a review failure: the stage opens the
+  /// reviewer itself and surfaces the real error there.
+  Future<void> _warmOhosReviewer() async {
+    if (!isHarmonyOsTarget || !mounted) return;
+    final forceDisableJs =
+        context.read<SettingsProvider?>()?.ankiForceDisableJs ?? false;
+    if (forceDisableJs) return;
+    try {
+      final paths = await OfficialAnkiCourseEntry.resolveDefaultPaths();
+      final warmUp = await OfficialAnkiOhosReviewerBinding.warmUp(
+        mediaRoot: paths.mediaFolder.path,
+      );
+      if (!mounted) {
+        await warmUp.cancel();
+        return;
+      }
+      _ohosWarmUp = warmUp;
+    } catch (error, stack) {
+      logger.w('[OhosReviewer] warm-up failed; the stage will open instead',
+          error: error, stackTrace: stack);
+    }
+  }
+
+  /// Drops the speculative reviewer. Safe when none was opened; the handle's
+  /// own cancel is idempotent.
+  Future<void> _abandonOhosWarmUp() async {
+    final warmUp = _ohosWarmUp;
+    _ohosWarmUp = null;
+    await warmUp?.cancel();
+  }
+
   Future<void> _startOfficialOwned({
     required String importId,
     required String courseId,
   }) async {
-    final builder = AnkiReviewSessionPage.debugOfficialBatchBuilder;
-    final OfficialFormalReviewLoadResult? loadResult;
+    // P0-1: the reviewer's ability, window and shell do not depend on the card,
+    // so they start now rather than after the batch has loaded and rendered.
+    // Cancel-on-failure is the whole contract: a reviewer left open with no
+    // card is worse than the spinner this replaces.
+    await _warmOhosReviewer();
+    final builder = AnkiReviewSessionPage.debugOfficialBatchBuilder;    final OfficialFormalReviewLoadResult? loadResult;
     if (builder != null) {
       loadResult = await builder(importId: importId, courseId: courseId);
     } else {
@@ -346,6 +396,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
         code:
             result.failures.isNotEmpty ? result.failures.first.code : 'unknown',
       );
+      await _abandonOhosWarmUp();
       setState(() {
         _blockedLoad = result;
         _loading = false;
@@ -357,6 +408,7 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
       batch = result.batch;
     }
     if (batch == null || batch.items.isEmpty) {
+      await _abandonOhosWarmUp();
       if (_sourceCoordinator != null) {
         await _advanceReviewAll(recordSession: false);
         return;
@@ -400,7 +452,12 @@ class _AnkiReviewSessionPageState extends State<AnkiReviewSessionPage>
     liveQueue?.itemsSink = controller.replaceItems;
     controller.addListener(_onController);
     await controller.start();
-    if (!mounted) return;
+    if (!mounted) {
+      await _abandonOhosWarmUp();
+      return;
+    }
+    // The stage adopts the warmed reviewer on attach; this page stops owning it.
+    _ohosWarmUp = null;
     setState(() {
       _controller = controller;
       // Fidelity HTML faces from production renderCard (fidelity-first

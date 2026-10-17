@@ -87,3 +87,33 @@ export function notifyReviewerShellReady(): void {
     }
   }
 }
+
+/// A cancel that arrived while no session existed yet.
+///
+/// P0-1 opens the reviewer *before* the batch is loaded, so a cancel can land
+/// in the window between `startAbilityForResult` and the ability's
+/// `onWindowStageCreate`. Dropping it there would leave exactly the empty
+/// reviewer page the warm-up is supposed to avoid producing. The request is
+/// remembered instead, and the page consumes it right after installing its
+/// cancel listener — not here, because at `beginReviewerSession` time the page
+/// has not subscribed yet and the callback would have nowhere to go.
+let cancelPending: boolean = false;
+
+/// Cancels the live session, or remembers the request until one exists.
+export function requestReviewerCancel(): void {
+  const session: AnkiReviewerSession | undefined = currentSession;
+  if (session === undefined) {
+    cancelPending = true;
+    return;
+  }
+  session.requestCancel();
+}
+
+/// Reads and clears the pending flag. Called by the page after it has
+/// installed `setCancelListener`, so a warm-up cancelled during boot still
+/// ends instead of sitting on screen.
+export function consumePendingReviewerCancel(): boolean {
+  const pending: boolean = cancelPending;
+  cancelPending = false;
+  return pending;
+}

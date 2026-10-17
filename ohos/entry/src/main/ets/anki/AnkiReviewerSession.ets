@@ -223,6 +223,7 @@ export class AnkiReviewerSession {
   private shellReady: boolean = false;
   private chrome: ChromeListener | undefined = undefined;
   private failure: FailureListener | undefined = undefined;
+  private cancel: (() => void) | undefined = undefined;
   private chromeTheme: string = THEME_DAY;
   private chromeProgressIndex: number = 0;
   private chromeProgressTotal: number = 0;
@@ -300,6 +301,20 @@ export class AnkiReviewerSession {
   /// (`notifyReviewerFailure`) for failures only Dart could see.
   public setFailureListener(listener: FailureListener | undefined): void {
     this.failure = listener;
+  }
+
+  /// P0-1: the page installs this so a warm-up can be abandoned before any
+  /// card arrives. No listener means no page to close — the request is then
+  /// dropped, which is the honest outcome.
+  public setCancelListener(listener: (() => void) | undefined): void {
+    this.cancel = listener;
+  }
+
+  public requestCancel(): void {
+    const listener: (() => void) | undefined = this.cancel;
+    if (listener !== undefined) {
+      listener();
+    }
   }
 
   /// A present body that cannot name its generation never reaches the frame.

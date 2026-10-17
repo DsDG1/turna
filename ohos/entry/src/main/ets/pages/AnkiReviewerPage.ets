@@ -23,7 +23,7 @@ import {
   ReviewerChromeState,
   interceptFor,
 } from '../anki/AnkiReviewerSession';
-import { reviewerSession } from '../anki/AnkiReviewerSessionStore';
+import { reviewerSession, consumePendingReviewerCancel } from '../anki/AnkiReviewerSessionStore';
 import {
   AnkiChromePalette,
   AnkiReviewerBottomBar,
@@ -44,6 +44,7 @@ import {
   THEME_DAY,
   VERDICT_COMPLETED,
   VERDICT_EARLY_EXIT,
+  VERDICT_WARM_CANCELED,
 } from '../anki/AnkiReviewerProtocol';
 
 @Entry
@@ -208,6 +209,16 @@ struct AnkiReviewerPage {
     session.setFailureListener((code: string): void => {
       this.showError(code, FATAL_CODES.indexOf(code) >= 0);
     });
+    session.setCancelListener((): void => {
+      // P0-1: a speculative open that was abandoned before any card arrived.
+      this.endReview(VERDICT_WARM_CANCELED);
+    });
+    if (consumePendingReviewerCancel()) {
+      // The cancel landed before this page existed (the warm-up had not got
+      // here yet). Honour it now rather than booting a page nobody wants.
+      this.endReview(VERDICT_WARM_CANCELED);
+      return;
+    }
     session
       .start(getContext(this) as common.UIAbilityContext, this.controller)
       .then((): void => {
@@ -225,6 +236,7 @@ struct AnkiReviewerPage {
     if (session !== undefined) {
       session.setChromeListener(undefined);
       session.setFailureListener(undefined);
+      session.setCancelListener(undefined);
     }
   }
 

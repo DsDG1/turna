@@ -27,6 +27,7 @@ import { AnkiReviewerSession, RenderAck } from '../anki/AnkiReviewerSession';
 import {
   reviewerSession,
   reviewerSessionEpoch,
+  requestReviewerCancel,
   shellReadyAfter,
   subscribeShellReady,
 } from '../anki/AnkiReviewerSessionStore';
@@ -40,6 +41,7 @@ import {
   CHANNEL_NAME,
   METHOD_AWAIT_REVIEWER_READY,
   METHOD_CACHE_REVIEWER_MEDIA,
+  METHOD_CLOSE_REVIEWER,
   METHOD_NOTIFY_REVIEWER_FAILURE,
   METHOD_OPEN_REVIEWER,
   METHOD_PRESENT_REVIEWER,
@@ -104,6 +106,8 @@ export default class AnkiReviewerPlugin implements FlutterPlugin {
           this.awaitReviewerReady(result);
         } else if (call.method === METHOD_NOTIFY_REVIEWER_FAILURE) {
           this.notifyReviewerFailure(result, call);
+        } else if (call.method === METHOD_CLOSE_REVIEWER) {
+          this.closeReviewer(result);
         } else {
           result.notImplemented();
         }
@@ -306,6 +310,17 @@ export default class AnkiReviewerPlugin implements FlutterPlugin {
     if (shellReadyAfter(wantEpoch)) {
       succeed();
     }
+  }
+
+  /// P0-1: abandons a speculative open before any card was presented.
+  ///
+  /// Never reports an error and never waits. The warm-up deliberately starts
+  /// ahead of everything else, so this call routinely arrives before the
+  /// ability has created its session; the store remembers the request and the
+  /// page honours it as soon as it subscribes.
+  private closeReviewer(result: MethodResult): void {
+    requestReviewerCancel();
+    result.success('');
   }
 
   /// Dart-side render failures land on the page's error banner (B2): the

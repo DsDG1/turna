@@ -54,6 +54,16 @@ abstract final class OfficialAnkiReviewerProtocol {
   static const methodProbeReviewerCapabilities = 'probeReviewerCapabilities';
   static const methodProbeReviewerAssets = 'probeReviewerAssets';
 
+  /// Closes a reviewer that was opened speculatively (P0-1 warm-up) without a
+  /// card ever being presented.
+  ///
+  /// Distinct from `requestUndo`-style page-initiated calls: this one is
+  /// Dart-initiated and must work even before the ability has created its
+  /// session — the whole point of a warm-up is that it starts before anything
+  /// else is ready, so the cancel path has to survive the "not open yet" race
+  /// by remembering the request rather than dropping it.
+  static const methodCloseReviewer = 'closeReviewer';
+
   // ------------------------------------------- ArkTS → Dart method names
   // (AnkiReviewerBridge.ets calls these back; the switch lives in
   // OfficialAnkiReviewerChannel.bindOutbound)
@@ -186,7 +196,11 @@ abstract final class OfficialAnkiReviewerProtocol {
 
   static const verdictEarlyExit = 'early_exit';
   static const verdictCompleted = 'completed';
-}
+
+  /// The reviewer was opened speculatively (P0-1 warm-up) and closed before
+  /// any card arrived — the batch never loaded, so this is not a learner
+  /// exit and must not settle a session.
+  static const verdictWarmCanceled = 'warm_canceled';}
 
 /// The present payload the reviewer shell understands on every platform:
 /// the ten fields both the Android/iOS view and the OHOS page consume.

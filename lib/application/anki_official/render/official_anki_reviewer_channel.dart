@@ -127,6 +127,17 @@ class OfficialAnkiReviewerChannel {
     return verdict ?? '';
   }
 
+  /// Abandons a reviewer that was opened before a card existed (P0-1).
+  ///
+  /// Answered rather than awaited: the ArkTS side either closes the live
+  /// session or remembers the request for the session that is still booting,
+  /// so there is nothing to wait for here.
+  Future<void> close() async {
+    await channel.invokeMethod<void>(
+      OfficialAnkiReviewerProtocol.methodCloseReviewer,
+    );
+  }
+
   /// Above this size (`256 KB`), [pushMedia] leaves the file on disk for
   /// `AnkiOriginServer.mediaResponse` to read on demand via positioned
   /// `fs.openSync` + `fs.readSync(file.fd, buffer, { offset, length })` under

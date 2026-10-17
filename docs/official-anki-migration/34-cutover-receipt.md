@@ -279,15 +279,17 @@ S1–S4，本日按「堵死锁 → 流畅度 → 产品化 UI」三批全部施
   `flutter pub get` 恢复 `package_config`。
 - **真机未验**：`again` / `good` 的落库值与按钮形态待真机过卡取证。审查与完整
   判据见 [44](./44-ohos-review-entry-latency-and-parity-audit.md) §5.1 与 §6。
-- **同日晚补充施工（2026-10-18 晚，与本节的评分档无关）**：44 号 §7 排期第 2 项
-  三项落地——**D1** 鸿蒙错误态补返回出口（`_buildOhos` 两分支均带 `onBack`，
+- **同日晚补充施工（2026-10-18 晚，与本节的评分档无关）**：44 号 §7 排期第 2、3 项
+  落地——**D1** 鸿蒙错误态补返回出口（`_buildOhos` 两分支均带 `onBack`，
   兜底 `maybePop`；`!allowJs` 分支保持无重试）、**P1-3** 媒体推送改单次 IO +
   4 路有界并发（返回 settled 集合，失败名字下次重推）、**P1-4** 首帧 iframe 预热
-  （`warmFrame()` 由 `markShellReady` 在 hook 前发起）。本地收据：
-  `flutter analyze` No issues、`node card_frame_protocol_test.mjs` 全绿（11 例）。
-  **Dart 单测与 ArkTS 编译均未取得收据**（本机 `flutter_tester` WebSocket 失败、
-  `ohpm install` 失败），hap 未重编、真机未验。P1-3 的「提前」未做，理由见 44 §3.4。
-  细节见 `test/BASELINE.md` 同日首条。
+  （`warmFrame()` 由 `markShellReady` 在 hook 前发起）、**P0-1** ability 预热
+  （新增 `closeReviewer` 协议方法与 `warm_canceled` verdict；`warmUp` 不等 shell
+  就绪，`attach` await 同一个 future；失败/空批次/异常/退出四条路径都 cancel）。
+  本地收据：`flutter analyze` No issues（两次）、`node card_frame_protocol_test.mjs`
+  全绿（11 例）、新增 4 例预热单测。**Dart 单测与 ArkTS 编译均未取得收据**
+  （本机 `flutter_tester` WebSocket 失败、`ohpm install` 失败），hap 未重编、
+  真机未验。P1-3 的「提前」未做，理由见 44 §3.4。细节见 `test/BASELINE.md` 同日两条。
 
 ## 鸿蒙 Official Anki 接线批次步 0–4（2026-10-08，ADR 0050 §6）
 

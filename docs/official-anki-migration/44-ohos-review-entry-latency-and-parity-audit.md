@@ -106,8 +106,9 @@ O1 媒体分层、R2 拆分、T1 跨语言测试已施工且 hap 构建转绿；
 
 **两个待拍板取舍**（不阻塞文档，施工前必须定）：
 
-1. **P0-1 依赖 `closeReviewer` 协议新增**。不接受协议新增，本项降级为「不做」——
-   预热一个无法取消的 ability，等于把空页风险换成后台常驻页风险。
+1. **P0-1 依赖 `closeReviewer` 协议新增**——**已定：接受**（2026-10-18）。协议
+   两侧各加一个方法名常量与一个 `warm_canceled` verdict；ArkTS 侧在 session 建好
+   之前收到取消会记住请求（`consumePendingReviewerCancel`），由页面订阅后立即兑现。
 2. **P0-2 用窗口 8，不是「严格一卡先出」**。严格 1 张会让进度从 1/1 跳到 1/8，
    并让 batch / ledger 提前收敛；产品若坚持一卡先出，另立「后台填窗」阶段。
 
@@ -155,27 +156,32 @@ SDK 的 `TargetPlatform` 枚举没有 `ohos`、无 override 值可赋，**widget
 
 ### 3.2 P0-1 ability 预热
 
-**状态**：设计完成，**施工前需定 §3.0 取舍 1**。
+**状态**：**已施工（2026-10-18）**。§3.0 取舍 1 已定：**接受 `closeReviewer` 协议新增**。
 
 **现状**：`attach()` 由 `Stage.didChangeDependencies` 在卡片数据 ready 后调用；
 `_open()` 里 `transport.open()` 不 await，随后 `await waitUntilReady()`。
 ability 冷启动、窗口创建、shell 预读全部排在 loader 之后。
 
-**改法**：
+**改法（施工后实际形状）**：
 
-1. 新增 `OfficialAnkiOhosReviewerBinding.warmUp({mediaRoot, transport})` →
-   `{Future<void> ready, Future<void> Function() cancel}`：建 binding
-   （controller / grades 可空）→ `bindOutbound`（未挂接时回调全 no-op）→
-   `transport.open(mediaRoot)` unawaited → `await waitUntilReady()` →
-   `_opened = true`、`_live = binding`。
-2. `attach()` 改为：`_live` 存在且未关闭 → `await _live.ready` 后 `rebind`，
+1. 新增 `OfficialAnkiOhosReviewerBinding.warmUp({mediaRoot, transport})`，返回
+   `OfficialAnkiOhosReviewerWarmUp`（`ready` future + `cancel()`）。内部建 binding
+   （controller / grades 可空，resolver 由 mediaRoot 推导）→ `bindOutbound`
+   （未挂接时回调全 no-op）→ `transport.open(mediaRoot)` unawaited →
+   `await waitUntilReady()` → `_opened = true`；**立刻占位 `_live`**，让并发的
+   `attach` 或第二次 `warmUp` 加入同一个 boot。
+   **`warmUp` 自身不等 `ready`**——await 它就把 boot 又放回 loader 的关键路径，
+   预热的意义归零；需要串行时由 `attach` 去 await。
+2. `attach()` 改为：`_live` 存在且未关闭 → `await _live._ready` 后 `rebind`，
    **不重复 open**。
-3. 调用点放 `_startOfficialOwned()` 里、`loader.load()` **之前**；`load` 返回
-   非 `Ready` 或抛异常时 `cancel()`。**不放** `_start()` 最前面——那里还没有
+3. 调用点放 `_startOfficialOwned()` 里、`loader.load()` **之前**；失败/空批次/
+   异常/`dispose` 四条路径都 `cancel()`。**不放** `_start()` 最前面——那里还没有
    `mediaRoot`、也没确认 officialOwner，会预热一个注定 fail-closed 的页。
+   预热还先判 `ankiForceDisableJs`，开关打开时直接不预热。
 4. `_grades` 从 `final` 改可空；未挂接时 `_rate` 回 `scheduler_unavailable`，
    防止预热期误评分。
-5. `_effectiveAllowJs` 从 Stage 私有提升为共享判定，预热前先判 JS 开关。
+5. boot 失败时把 `_live` 清掉（`_ready` 的 `onError` 里），下一次 attach 重新 open，
+   不会继承一个半启动的 binding。
 
 **数据流**：
 
@@ -187,18 +193,22 @@ ability 冷启动、窗口创建、shell 预读全部排在 loader 之后。
 
 **关键约束**：
 
-- `cancel()` 必须有确定出口 → 新增 `closeReviewer` channel 方法（两侧协议 +
-  `AnkiReviewerPlugin.ets` + `AnkiReviewerSessionStore` 标记 + 页面
-  `terminateSelfWithResult('warm_canceled')`）。**没有它就不做本项。**
+- `cancel()` 的确定出口（**已落地**）：Dart→ArkTS 新增 `closeReviewer`；ArkTS 侧
+  `requestReviewerCancel()` 若此时还没有 session 就记下请求
+  （`consumePendingReviewerCancel`），页面订阅 cancel 回调后立刻兑现并
+  `terminateSelfWithResult('warm_canceled')`。**没有这条就不该做预热**——
+  预热一个无法取消的 ability 等于把空页风险换成后台常驻页风险。
 - `cancel()` 幂等；loader 非 Ready、异常、页面 `dispose` 三条路径都要调。
 - 预热失败保留原始错误，Stage 仍走现有 `_ohosError` 错误态，不吞。
 - `_live` 复用要排除已关闭的旧 binding；`singleton` / `onNewWant` 语义不变。
 - mediaRoot 必须与 Stage 用同一 `OfficialAnkiPaths` 的 mediaFolder。
 
-**测试点**：`test/application/anki_official/official_anki_ohos_reviewer_binding_test.dart`
-—— warm → attach 只 open 一次、`waitUntilReady` 只等一次；warm 失败后 attach
-抛同一错误；cancel 后 `_live` 清空且下次重新 open；`closeReviewer` 进
-`official_anki_reviewer_protocol_guard_test.dart` 双向断言。
+**测试点（已落 4 例）**：`official_anki_ohos_reviewer_binding_test.dart` ——
+① 预热后 attach 只 open 一次（`openCalls == 1`）；② `cancel()` 调 `close()` 并把
+槽位让给下一次 attach；③ 预热态评分回 `scheduler_unavailable`（不静默吞掉也不空指针）；
+④ boot 失败不成为 `_live`，下一次 attach 自行 open。协议层由
+`official_anki_reviewer_protocol_guard_test.dart` 双向断言
+`METHOD_CLOSE_REVIEWER ↔ methodCloseReviewer`、`VERDICT_WARM_CANCELED ↔ verdictWarmCanceled`。
 
 **风险与回退**：中（协议新增 + ability 生命周期）。回退整批：删调用点 +
 `warmUp` + `closeReviewer`，不留半开状态。
@@ -564,7 +574,9 @@ suspend 是重度 Anki 用户功能。
 2. ~~**D1 + P1-3 + P1-4**~~ **已施工（2026-10-18）**：D1 错误出口、P1-3 单次 IO +
    有界并发、P1-4 首帧暖帧。P1-3 的「提前」未做，理由见 §3.4 改法第 3 条。
    三件同批，一次真机可验
-3. **P0-1 预热**（依赖 `closeReviewer` 协议新增；取舍未定则不做）
+3. ~~**P0-1 预热**（依赖 `closeReviewer` 协议新增；取舍未定则不做）~~
+   **已施工（2026-10-18）**：协议新增已接受，`warmUp` / `cancel` / 调用点四条
+   取消路径落地。真机判据待取
 4. **P0-2 分批装载**（核心契约改动，必须单独一批 + 门禁）
 5. **D8 工具栏**（功能缺口，单独排期；需先确认是否三个都要）
 6. **P2-5 / P2-6**（先测量，测完再决定是否立项）

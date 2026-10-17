@@ -30,6 +30,12 @@ export const METHOD_NOTIFY_REVIEWER_FAILURE: string = 'notifyReviewerFailure';
 export const METHOD_PROBE_REVIEWER_CAPABILITIES: string = 'probeReviewerCapabilities';
 export const METHOD_PROBE_REVIEWER_ASSETS: string = 'probeReviewerAssets';
 
+/// Closes a reviewer opened speculatively (P0-1 warm-up) before any card was
+/// presented. Must survive the "ability not started yet" race: the request is
+/// remembered in the session store and honoured the moment a session exists,
+/// because a warm-up by definition runs before anything else is ready.
+export const METHOD_CLOSE_REVIEWER: string = 'closeReviewer';
+
 // ------------------------------------------------ ArkTS → Dart method names
 // (called from AnkiReviewerBridge.ets; dispatched in
 // OfficialAnkiReviewerChannel.bindOutbound on the Dart side)
@@ -142,3 +148,8 @@ export const FATAL_CODES: Array<string> = [
 
 export const VERDICT_EARLY_EXIT: string = 'early_exit';
 export const VERDICT_COMPLETED: string = 'completed';
+
+/// The reviewer was opened speculatively (P0-1 warm-up) and closed before any
+/// card arrived. Distinct from `early_exit` so the Dart side can tell "the
+/// learner left a real session" from "the batch never loaded".
+export const VERDICT_WARM_CANCELED: string = 'warm_canceled';
