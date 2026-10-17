@@ -14,9 +14,27 @@ import 'package:turna/application/anki_official/migration/official_anki_engine_k
 void main() {
   group('OHOS architecture guard', () {
     test('OHOS platform tree is absent, or is a complete companion build', () {
+      // The ArkData RDB bridge is retired on every platform, companion build
+      // included: `CourseDatabase` goes through `ensureOfficialAnkiSqlite()` +
+      // `NativeDatabase` everywhere, and HarmonyOS resolves the hap's bundled
+      // `libsqlite3.so` through that loader override. Keeping these two
+      // assertions outside the `_companionBuild` branch is the point — a
+      // reintroduced bridge is a silent split of the storage layer, not a
+      // companion nicety.
+      expect(
+        File('lib/data/rdb_query_executor.dart').existsSync(),
+        isFalse,
+        reason: 'the HarmonyOS ArkData RDB bridge is retired; CourseDatabase '
+            'opens through ensureOfficialAnkiSqlite() + NativeDatabase',
+      );
+      expect(
+        File('lib/data/rdb_schema_introspection.dart').existsSync(),
+        isFalse,
+        reason: 'only the RDB bridge needed the regex create-table parser',
+      );
+
       if (!_companionBuild) {
         expect(Directory('ohos').existsSync(), isFalse);
-        expect(File('lib/data/rdb_query_executor.dart').existsSync(), isFalse);
         expect(File('lib/utils/ohos_file_picker.dart').existsSync(), isFalse);
       } else {
         for (final required in _requiredOhosFiles) {
@@ -48,8 +66,8 @@ void main() {
 
         // A hand-written plugin that is not registered on the engine leaves its
         // method channel without a handler. The symptom is a blank screen at
-        // launch, with no build error and no Dart log — the RDB channel is
-        // reached during startup, so `openDb` throws MissingPluginException
+        // launch, with no build error and no Dart log — the picker channel is
+        // reached during startup, so its calls throw MissingPluginException
         // before the first frame. Only EntryAbility can register these: the
         // Flutter tool generates GeneratedPluginRegistrant.ets from pubspec
         // and has no package to learn them from.
@@ -68,6 +86,15 @@ void main() {
                 'a blank screen',
           );
         }
+        // The reverse direction: the retired RDB bridge must not come back as
+        // a stray import or registration. Re-adding it would silently fork the
+        // storage layer away from the bundled sqlite3.
+        expect(
+          abilitySource.contains('RdbPlugin'),
+          isFalse,
+          reason: '$ability must not reference the retired RdbPlugin; '
+              'CourseDatabase opens through the bundled libsqlite3.so',
+        );
       }
 
       // The fork patch toolchain stays dead in both branches: the prebuilt SDK
@@ -682,9 +709,12 @@ const _needles = <String>[
   'tool/apply_patches.sh',
 ];
 
-/// Under lib/ the companion build owns these three; the patch toolchain needle
-/// and the fork-URL needle stay active.
+/// Under lib/ the companion build owns these; the patch toolchain needle and
+/// the fork-URL needle stay active. `HarmonyOsRdbExecutor` is the exception in
+/// neither direction: the RDB bridge is retired everywhere, so the companion
+/// build carries the ban just like the EOL branch does.
 const _companionLibNeedles = <String>[
+  'HarmonyOsRdbExecutor',
   'openharmony',
   'tool/apply_patches.sh',
 ];
@@ -701,7 +731,6 @@ const _requiredOhosFiles = <String>[
   'ohos/hvigorconfig.ts',
   'ohos/entry/src/main/module.json5',
   'ohos/entry/src/main/ets/entryability/EntryAbility.ets',
-  'ohos/entry/src/main/ets/plugins/RdbPlugin.ets',
   'ohos/entry/src/main/ets/plugins/FilePickerPlugin.ets',
   'ohos/entry/src/main/ets/plugins/AudioPlugin.ets',
   'ohos/entry/src/main/ets/plugins/TtsPlugin.ets',
@@ -756,7 +785,6 @@ const _requiredOhosFiles = <String>[
 /// screen or a silent button. The registration assertion above exists for
 /// exactly that case.
 const _handWrittenPlugins = <String>[
-  'RdbPlugin',
   'FilePickerPlugin',
   'AudioPlugin',
   'TtsPlugin',

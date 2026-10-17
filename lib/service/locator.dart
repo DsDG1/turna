@@ -24,7 +24,6 @@ import 'package:turna/data/course_database.dart';
 import 'package:turna/data/course_database_seeder.dart';
 import 'package:turna/data/course_db_backup.dart';
 import 'package:turna/data/mistake_repository.dart';
-import 'package:turna/data/rdb_query_executor.dart';
 import 'package:turna/domain/repositories/i_anki_unification_store.dart';
 import 'package:turna/domain/repositories/i_mistake_repository.dart';
 import 'package:turna/di/injection.dart';
@@ -474,8 +473,11 @@ Future<void> ensureCourseDatabaseReady() {
 
 /// Opens the on-device course database and forces the migration chain.
 ///
-/// Seeding is deferred to [ensureCourseDatabaseReady]. Non-web platforms use
-/// [NativeDatabase] (sqlite3 FFI). Web is unsupported.
+/// Seeding is deferred to [ensureCourseDatabaseReady]. Every non-web platform,
+/// HarmonyOS included, uses [NativeDatabase] (sqlite3 FFI); Web is unsupported.
+/// On HarmonyOS the loader override points at the hap's bundled
+/// `libsqlite3.so`, the same library Official Anki uses — the ArkData RDB
+/// bridge that used to cover this platform is retired.
 Future<CourseDatabase> _openAndMigrateCourseDatabase() async {
   // Non-final: the backup-restore path replaces a broken database handle.
   CourseDatabase db;
@@ -485,10 +487,6 @@ Future<CourseDatabase> _openAndMigrateCourseDatabase() async {
       'CourseDatabase is not supported on web yet (NativeDatabase requires '
       'native sqlite3).',
     );
-  }
-
-  if (HarmonyOsRdbExecutor.isSupportedPlatform) {
-    return _openHarmonyOsCourseDatabase();
   }
 
   final dir = await getApplicationDocumentsDirectory();
@@ -529,37 +527,6 @@ Future<CourseDatabase> _openAndMigrateCourseDatabase() async {
     await db.customSelect('SELECT COUNT(*) AS n FROM sqlite_master').get();
   }
 
-  return db;
-}
-
-/// OHOS companion build. The sqlite3 FFI library behind [NativeDatabase] does
-/// not exist on this platform, so the store is ArkData's RDB reached through
-/// [HarmonyOsRdbExecutor].
-///
-/// Two things the sqlite path does are deliberately absent here, both because
-/// they need a second independent connection to the file:
-///
-/// - [backupCourseDbBeforeMigration] and [restoreCourseDbFromBackup] both work
-///   by opening `course.db` with raw sqlite3, which is exactly what is
-///   missing. So the pre-migration snapshot does not happen on OHOS, and a
-///   failed open rethrows instead of retrying from a backup. The course DB is a
-///   reseedable cache; `srs_states` / `review_events` are what that costs.
-/// - Migrations run on the platform thread rather than a background isolate.
-///   Every call stays asynchronous, so the UI keeps rendering; the cost is that
-///   a large import no longer overlaps the frame loop.
-Future<CourseDatabase> _openHarmonyOsCourseDatabase() async {
-  logger.i('Opening course DB through HarmonyOS RDB');
-  final db = CourseDatabase(HarmonyOsRdbExecutor(dbName: 'course.db'));
-  try {
-    // Drift opens lazily, so this first read is what runs the open and the
-    // migration chain. `course_meta` is created by `onCreate`, so reaching it
-    // proves the schema landed rather than only that the channel answered.
-    await db.customSelect('SELECT COUNT(*) AS n FROM course_meta').get();
-  } catch (e, st) {
-    logger.e('Course DB open/migrate failed on OHOS', error: e, stackTrace: st);
-    await db.close();
-    rethrow;
-  }
   return db;
 }
 
